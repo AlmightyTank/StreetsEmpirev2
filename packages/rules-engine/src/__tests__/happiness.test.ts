@@ -15,6 +15,7 @@ describe('calculateThugHappiness', () => {
         beer: 100,
         ...noWeapons,
         pistols: 100,
+        thugFatigue: 0,
       }),
     ).toBe(100);
   });
@@ -27,6 +28,7 @@ describe('calculateThugHappiness', () => {
         beer: 90,
         ...noWeapons,
         pistols: 80,
+        thugFatigue: 0,
       }),
     ).toBe(70);
   });
@@ -40,40 +42,52 @@ describe('calculateThugHappiness', () => {
         shotguns: 30,
         tek9s: 20,
         ak47s: 10,
+        thugFatigue: 0,
       }),
     ).toBe(100);
+  });
+
+  it('takes wear off on top of the frozen formula', () => {
+    expect(
+      calculateThugHappiness({
+        thugs: 10,
+        beer: 100,
+        ...noWeapons,
+        pistols: 100,
+        thugFatigue: 25,
+      }),
+    ).toBe(75);
   });
 
   it('clamps at zero rather than going negative', () => {
     expect(
-      calculateThugHappiness({ thugs: 500, beer: 0, ...noWeapons }),
+      calculateThugHappiness({ thugs: 500, beer: 0, ...noWeapons, thugFatigue: 40 }),
     ).toBe(0);
   });
 
-  it('is 100 with no thugs at all', () => {
-    expect(calculateThugHappiness({ thugs: 0, beer: 0, ...noWeapons })).toBe(100);
-  });
-
-  it('gains nothing from surplus beer or guns', () => {
+  it('is 100 with no thugs and no wear', () => {
     expect(
-      calculateThugHappiness({
-        thugs: 1,
-        beer: 9_999,
-        ...noWeapons,
-        ak47s: 9_999,
-      }),
+      calculateThugHappiness({ thugs: 0, beer: 0, ...noWeapons, thugFatigue: 0 }),
     ).toBe(100);
   });
 
   it('matches the starting player: one thug, no gun, 99', () => {
-    expect(calculateThugHappiness({ thugs: 1, beer: 10, ...noWeapons })).toBe(99);
+    expect(
+      calculateThugHappiness({ thugs: 1, beer: 10, ...noWeapons, thugFatigue: 0 }),
+    ).toBe(99);
   });
 });
 
 describe('calculateWhoreHappiness', () => {
-  const stocked = { whores: 10, thugs: 10, condoms: 1_000, crack: 1_000, payoutPercent: 50 };
+  const stocked = {
+    whores: 10,
+    thugs: 10,
+    condoms: 1_000,
+    crack: 1_000,
+    whoreFatigue: 0,
+  };
 
-  it('is 100 at the neutral payout with supplies and muscle in place', () => {
+  it('is 100 with supplies, muscle and a rested crew', () => {
     expect(calculateWhoreHappiness(stocked)).toBe(100);
   });
 
@@ -81,13 +95,19 @@ describe('calculateWhoreHappiness', () => {
     expect(calculateWhoreHappiness({ ...stocked, whores: 0 })).toBe(100);
   });
 
-  it('costs one point per percentage point below the neutral payout', () => {
-    expect(calculateWhoreHappiness({ ...stocked, payoutPercent: 35 })).toBe(85);
-    expect(calculateWhoreHappiness({ ...stocked, payoutPercent: 1 })).toBe(51);
+  /**
+   * The payout deliberately does not appear here. A cut is only generous
+   * relative to what the block pays, so it acts through fatigue when they
+   * work rather than as a flat penalty for existing.
+   */
+  it('does not care about the payout directly', () => {
+    // Nothing in the input can express a payout at all - only its consequence.
+    expect(Object.keys(stocked)).not.toContain('payoutPercent');
   });
 
-  it('does not reward paying above the neutral cut', () => {
-    expect(calculateWhoreHappiness({ ...stocked, payoutPercent: 99 })).toBe(100);
+  it('takes wear straight off', () => {
+    expect(calculateWhoreHappiness({ ...stocked, whoreFatigue: 30 })).toBe(70);
+    expect(calculateWhoreHappiness({ ...stocked, whoreFatigue: 100 })).toBe(0);
   });
 
   it('punishes an empty condom shelf in proportion to the shortfall', () => {
@@ -97,21 +117,11 @@ describe('calculateWhoreHappiness', () => {
     expect(calculateWhoreHappiness({ ...stocked, condoms: 0 })).toBe(70);
   });
 
-  /**
-   * What gives running dry a cost, and therefore what makes a turn spent
-   * cooking worth more than nothing.
-   */
   it('punishes an empty crack shelf in proportion to the shortfall', () => {
     // 10 whores expect 20 rocks, worth up to 25 points.
     expect(calculateWhoreHappiness({ ...stocked, crack: 20 })).toBe(100);
     expect(calculateWhoreHappiness({ ...stocked, crack: 10 })).toBe(88);
     expect(calculateWhoreHappiness({ ...stocked, crack: 0 })).toBe(75);
-  });
-
-  it('stacks an empty larder with a squeezed payout', () => {
-    expect(
-      calculateWhoreHappiness({ ...stocked, condoms: 0, crack: 0, payoutPercent: 40 }),
-    ).toBe(35);
   });
 
   it('punishes whores nobody is protecting', () => {
@@ -123,7 +133,7 @@ describe('calculateWhoreHappiness', () => {
         thugs: 1,
         condoms: 1_000,
         crack: 1_000,
-        payoutPercent: 50,
+        whoreFatigue: 0,
       }),
     ).toBe(88);
   });
@@ -135,7 +145,7 @@ describe('calculateWhoreHappiness', () => {
         thugs: 0,
         condoms: 0,
         crack: 0,
-        payoutPercent: 1,
+        whoreFatigue: 40,
       }),
     ).toBe(0);
   });

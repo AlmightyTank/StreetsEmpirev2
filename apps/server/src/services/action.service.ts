@@ -6,7 +6,12 @@ import type {
   Round,
   RoundPlayer,
 } from '@prisma/client';
-import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
+import {
+  calculateRest,
+  clampFatigue,
+  loadRulesetForRound,
+  type Ruleset,
+} from '@streets/rules-engine';
 import type {
   GameActionResult,
   PlayerSnapshot,
@@ -31,6 +36,10 @@ export interface PlayerState {
   turns: number;
   payoutPercent: number;
 
+  /** Wear. Actions move it; rest sheds it. Subtracted from happiness. */
+  whoreFatigue: number;
+  thugFatigue: number;
+
   whores: number;
   thugs: number;
 
@@ -45,6 +54,9 @@ export interface PlayerState {
   ak47s: number;
 
   lowRiders: number;
+  streetWorkTurns: number;
+  tek9Unlocked: boolean;
+  ak47Unlocked: boolean;
 }
 
 export interface ActionContext {
@@ -90,6 +102,8 @@ function toState(player: RoundPlayer): PlayerState {
     cashCents: player.cashCents,
     turns: player.turns,
     payoutPercent: player.payoutPercent,
+    whoreFatigue: player.whoreFatigue,
+    thugFatigue: player.thugFatigue,
     whores: player.whores,
     thugs: player.thugs,
     condoms: player.condoms,
@@ -101,6 +115,9 @@ function toState(player: RoundPlayer): PlayerState {
     tek9s: player.tek9s,
     ak47s: player.ak47s,
     lowRiders: player.lowRiders,
+    streetWorkTurns: player.streetWorkTurns,
+    tek9Unlocked: player.tek9Unlocked,
+    ak47Unlocked: player.ak47Unlocked,
   };
 }
 
@@ -200,10 +217,18 @@ export const ActionService = {
 
       const ruleset = loadRulesetForRound(round);
 
-      // Turns first: an action always spends from a settled balance.
+      // Turns first: an action always spends from a settled balance, and the
+      // same elapsed intervals are what the crew rested for.
       const turns = TurnService.settle(player, now, ruleset);
+      const rested = calculateRest(turns.intervalsProcessed, ruleset);
 
-      const current = { ...toState(player), turns: turns.turns };
+      const base = toState(player);
+      const current: PlayerState = {
+        ...base,
+        turns: turns.turns,
+        whoreFatigue: clampFatigue(base.whoreFatigue - rested, ruleset),
+        thugFatigue: clampFatigue(base.thugFatigue - rested, ruleset),
+      };
       const beforeHappiness = HappinessService.recalculate(current, ruleset);
       const beforeNetWorth = NetWorthService.calculate(current, ruleset);
       const beforeRanks = await RankingService.ranksFor(tx, {

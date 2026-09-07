@@ -2,23 +2,38 @@
 
 A reconstruction of the OG Pimp War economic loop.
 
-**Version:** `0.1.0` &middot; **Ruleset:** `classic-og-v0.1` &middot; **Milestone:** `0.1.0-C` complete
+**Version:** `0.1.0` &middot; **Ruleset:** `classic-og-v0.1` &middot; **Milestone:** `0.1.0-D` complete
 
 ---
 
 ## Where this is
 
-`0.1.0-C` &mdash; Economy Actions. **Done when a player can grow entirely through
-turns.** They can: scout five districts for crew and cash, cook crack, and set the
-payout &mdash; each answering with a full before/after result screen.
+`0.1.0-D` &mdash; Stores. Players can buy supplies, hire thugs, buy and sell weapons
+and Low-Riders, and trade crack. All four stores use the round's prices, show the
+full order total, and return a before/after receipt. Shopping costs no turns.
+
+Tommy's high-end guns require reputation and a one-time favor:
+
+| Weapon | Requirements | Favor |
+| --- | --- | --- |
+| Pistol / Shotgun | None | Available immediately |
+| Tek-9 | 50 street-work turns and 10 thugs | Deliver 100 crack |
+| AK-47 | Tek-9 access, 150 street-work turns and 25 thugs | Fund a $25,000 shipment |
+
+Earlier recorded street work is credited by the migration. Each completed work turn
+adds reputation once, regardless of district. Favors grant purchasing access for the
+rest of that round, even after losing crew or spending cash. Weapons still cost their
+normal price. New rounds start locked; existing weapon inventory is retained and can
+be sold without access. Thresholds and favor costs live in
+`packages/rulesets/src/classic-og-v0.1/weapon-unlocks.ts` as balance approximations.
 
 | Milestone | Scope | State |
 | --- | --- | --- |
 | **0.1.0-A** | monorepo, database, Prisma, Fastify, React, auth, ruleset loader, Round, RoundPlayer | **done** |
 | **0.1.0-B** | turn service, net worth service, happiness service, rank service, dashboard API | **done** |
-| **0.1.0-C** | Scout, Produce Crack, Payout, consumption, departures, action results | **done** |
-| 0.1.0-D | Corner Store, Tek9 Tommy's, Charlie's Chop Shop, Pip's Deals on Wheels | next |
-| 0.1.0-E | rankings, profile, game status, news, activity, responsive UI | |
+| **0.1.0-C** | Scout, Work the Streets, Produce Crack, Payout, supplies, wear, departures, action results | **done** |
+| **0.1.0-D** | Corner Store, Tek9 Tommy's, Charlie's Chop Shop, Pip's Deals on Wheels | **done** |
+| 0.1.0-E | rankings, profile, game status, news, activity, responsive UI | next |
 | 0.1.0-F | transaction tests, rate limits, mobile and reconnect testing (idempotency landed early, in C) | |
 
 PvP, alliances, travel, messaging and the rest of 0.2.0 are deliberately absent. The
@@ -129,16 +144,14 @@ check runs *after* the row lock &mdash; checking before it lets two concurrent
 duplicates both look, both find nothing, and both spend. A repeat answers with the
 original result for ten minutes.
 
-**Scouting is working a district.** A turn spent scouting puts the girls on that block
-for the night with you out there running them, which is why the district multiplies
-income as well as recruitment: the Casino pays well and turns up few new faces, the
-Wino Slums are the reverse. Cooking means you are indoors, so the shift earns the
-unsupervised rate (25%) instead.
+**Scouting recruits; street work earns.** Scouting costs turns and recruits crew.
+Work the Streets earns the district's rate, consumes supplies and adds wear.
+Cooking costs turns and ingredients, drinks beer and wears down the thugs.
 
-**The payout is a real decision.** Whore income scales linearly with whore happiness,
-and happiness drops a point per point below the neutral 50% cut. Squeezing raises your
-share of a shrinking pot, so the curve has an optimum in the middle and punishes both
-ends. Below 40% happiness people start walking.
+**The payout is a real decision.** Whore income scales linearly with whore happiness.
+The crew's actual take per head offsets work wear, so the same percentage can be
+generous in the Casino and inadequate in the slums. Below 40% happiness people start
+walking. Rest sheds wear over time.
 
 **Recruitment has diminishing returns.** A district holds a finite number of people
 with nowhere better to be, so a headline rate is what a nobody gets, not what an empire
@@ -146,9 +159,7 @@ gets: `softCap / (softCap + crew)`, half rate at 100 whores or 50 thugs. Growth 
 round goes from linear to roughly the square root of turns spent &mdash; without it, a
 round of pure scouting ends at ~14,500 whores and $29M; with it, ~1,600 and $3.2M.
 
-More importantly it gives the round an arc. Below about a hundred whores the Wino Slums
-are the best turn in the game; above it the Casino is, because new faces are worth less
-than money. The scout page shows the rates you would actually get rather than the
+The scout page shows the rates the current crew would actually get rather than the
 headline ones, so a shrinking number reads as a mechanic and not a bug.
 
 **Supplies are a bill, not a formality.** Whore happiness is docked for a short condom
@@ -156,6 +167,18 @@ shelf (up to 30 points) and a short crack shelf (up to 25). Crack burns at 0.05 
 whore per turn rather than the 0.01 section 27 implies &mdash; at 0.01 a stable burns
 almost nothing, so there is no bill for a thug's cooking to replace and Produce Crack
 has no reason to exist at all.
+
+Street work rounds condom and beer demand up to whole items and uses only stock on
+hand. Missing condoms or beer add wear to the affected crew, proportional to the
+shortage (rounded up), even with a generous payout. Restocking fixes the inventory
+part of happiness; it does not erase wear from previous shifts.
+
+**Stores validate the whole order.** Quantities must be positive integers, the item
+must belong to the store, and selling is offered only where a buyback price exists.
+Orders exceeding cash, stock or storage limits fail without a partial fill. Prices
+come from the round's ruleset, never from the browser. The existing locked action
+pipeline settles happiness, net worth, ranks and activity atomically. Max uses cash
+for buying and stock for selling; quick fills are supplied by the ruleset.
 
 **Randomness is injected.** Every calculation that rolls takes an `Rng`, so tests pin
 exact numbers and a seeded or replayable round needs no maths rewritten.
@@ -184,8 +207,12 @@ GET  /api/rounds/current/status
 GET  /api/game/me[?background=1]
 GET  /api/game/districts
 POST /api/game/scout
+POST /api/game/work
 POST /api/game/produce-crack
 PUT  /api/game/payout
+GET  /api/game/stores
+POST /api/game/stores/trade
+POST /api/game/stores/unlock
 ```
 
 **Joining a round** runs as one transaction: allocate the public pimp id from the round
@@ -200,13 +227,31 @@ A new player gets exactly section 11: `$5,000`, 200 turns, 1 whore, 1 thug, 250 
 100 crack, 10 beer, 50% payout, New York City &mdash; which is a net worth of `$8,075`,
 100% whore happiness and 99% thug happiness (one thug, no gun).
 
-**Tests** (105) cover the frozen formulas, the loader and the services built on them:
+**Tests** cover the frozen formulas, the loader and the services built on them:
 turn regeneration and the cap, the remainder that survives a settle, the away bonus and
 its anti-farm rule, the cap applied once to regeneration plus bonus, the section 53 net
 worth fixture, thug and whore happiness, payout bounds, the daily rank boundary, ruleset
 version pinning, a variant ruleset flowing through every calculator, the section 27 and
 30 consumption and recruitment figures, income scaling and the payout split, departures,
-and the section 50 turn-shortage wording.
+and the section 50 turn-shortage wording. Store tests cover every item and buyback,
+cash and inventory limits, malformed orders, custom ruleset prices and net worth.
+
+`npm test` runs 196 tests without requiring the database. To also run the eleven store
+API integration tests against a seeded local database with an active round:
+
+```powershell
+$env:STORE_INTEGRATION = '1'
+npm test
+Remove-Item Env:STORE_INTEGRATION
+```
+
+The integration suite creates a disposable account and removes it and its related
+data afterwards. It checks authentication, full receipts, restocking happiness,
+rollback, duplicate buys and sells, and competing orders with insufficient cash or
+stock, weapon purchase locks, favor prerequisites and costs, concurrent unlocks,
+reputation increments and round isolation. The combined suite has 207 passing tests. Browser checks cover purchases,
+sell-Max, receipts, updated inventory and the store layout at phone widths, plus
+both favors, unlocked buy buttons and access surviving a reload.
 
 The concurrency guarantees are checked against a running server rather than a mock: two
 simultaneous submits with one action id spend turns once and both receive the same
@@ -217,20 +262,13 @@ one action's worth of turns, never negative.
 
 ## Known gaps
 
-- There is nothing to spend cash on yet. The four stores are 0.1.0-D, and the sidebar
-  marks every unbuilt destination with the milestone that brings it.
 - District balance is a `BALANCE_APPROXIMATION`: recruitment and an income multiplier
   that trade against each other. The spec's own examples only ever showed one district,
   so the spread across five is a design call, tuned wide on purpose.
-- **Supplies only ever go down.** There is no way to buy condoms, beer or medicine
-  until the Corner Store lands in 0.1.0-D, so a long session can only degrade: happiness
-  falls, income falls with it, and eventually people walk. That is the milestone
-  boundary showing, not a balance problem.
-- **Cooking still loses to scouting per turn.** Diminishing returns narrowed the gap by
-  making late scouting much weaker, but crack is capped at what Pip's charges while a
-  district multiplies income without limit, so the rich districts still win the turn.
-  Cooking is the cash-poor bootstrap move and a stockpile for 0.2.0's Steal Whores with
-  Crack. Closing it properly needs crack that cannot simply be bought.
+- Medicine and Low-Rider transport have no active use yet. Vehicles contribute net
+  worth and can be resold; combat, travel and healing arrive in later milestones.
+- Store orders retry safely while the page stays open. Persisting pending orders
+  through reloads and broader reconnect testing remain in 0.1.0-F.
 - The daily rank snapshot is taken the first time a player is seen after the reset
   hour, not by a nightly sweep, so a player who does not log in for two days measures
   movement from when they came back.

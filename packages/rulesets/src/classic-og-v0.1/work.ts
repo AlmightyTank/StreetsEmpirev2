@@ -47,6 +47,12 @@ export const work = {
     beerPerThugPerTurn: 0.02,
   },
 
+  /** Shortages add lasting wear; a generous cut cannot cancel it. */
+  shortages: {
+    whorePerTurnWithoutCondoms: 1,
+    thugPerTurnWithoutBeer: 1,
+  },
+
   fatigue: {
     /** Points of wear per turn worked. */
     whorePerTurn: 0.8,
@@ -61,6 +67,17 @@ export const work = {
 
     /** Relief is capped, so no district makes the crew immortal. */
     maxReliefMultiple: 2,
+  },
+
+  /**
+   * Working a block your crew cannot cover. Girls with nobody watching them
+   * get moved along, so the take suffers, and the night is harder on everyone.
+   */
+  exposure: {
+    /** Fraction of the take lost when nobody at all is covered. */
+    maxTakePenalty: 0.6,
+    /** Extra wear multiplier at full exposure: 1.0 means double. */
+    maxExtraFatigue: 1,
   },
 
   /** Every so often a night's work turns up product rather than cash. */

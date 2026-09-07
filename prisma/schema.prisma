@@ -170,6 +170,11 @@ model RoundPlayer {
 
   lowRiders Int @default(0)
 
+  /// Round-long reputation and permanent purchasing access from Tommy's favors.
+  streetWorkTurns Int @default(0)
+  tek9Unlocked Boolean @default(false)
+  ak47Unlocked Boolean @default(false)
+
   /// Derived from supplies, protection and fatigue. Stored so it can be read
   /// and ranked without recomputing, but never the source of truth.
   whoreHappiness Int @default(100)
@@ -235,6 +240,7 @@ enum ActivityType {
   PRODUCE_CRACK
   STORE_BUY
   STORE_SELL
+  WEAPON_UNLOCK
   PAYOUT_CHANGE
   AWAY_BONUS
 }

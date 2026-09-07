@@ -34,24 +34,37 @@ export interface Departures {
  * Supplies burned over `turns` of working. Capped at what is actually on the
  * shelf - running dry is not an error, it wrecks happiness instead.
  */
+export function calculateWorkSupplyNeeds(
+  player: Pick<UpkeepInput, 'whores' | 'thugs'>,
+  turns: number,
+  ruleset: Ruleset,
+): Consumption {
+  const c = ruleset.work.consumption;
+  return {
+    condoms: Math.ceil(player.whores * c.condomsPerWhorePerTurn * turns),
+    crack: Math.floor(player.whores * c.crackPerWhorePerTurn * turns),
+    beer: Math.ceil(player.thugs * c.beerPerThugPerTurn * turns),
+  };
+}
+
 export function calculateWorkConsumption(
   player: UpkeepInput,
   turns: number,
   ruleset: Ruleset,
 ): Consumption {
-  const c = ruleset.work.consumption;
+  const needed = calculateWorkSupplyNeeds(player, turns, ruleset);
 
   return {
     condoms: Math.min(
-      Math.floor(player.whores * c.condomsPerWhorePerTurn * turns),
+      needed.condoms,
       player.condoms,
     ),
     crack: Math.min(
-      Math.floor(player.whores * c.crackPerWhorePerTurn * turns),
+      needed.crack,
       player.crack,
     ),
     beer: Math.min(
-      Math.floor(player.thugs * c.beerPerThugPerTurn * turns),
+      needed.beer,
       player.beer,
     ),
   };

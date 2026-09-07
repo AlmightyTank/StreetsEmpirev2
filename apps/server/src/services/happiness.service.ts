@@ -6,6 +6,10 @@ import {
   type WhoreHappinessInput,
 } from '@streets/rules-engine';
 
+/**
+ * Everything happiness reads: the shelves, the muscle and the wear. Fatigue is
+ * stored on the player, so this is no longer a pure reading of inventory.
+ */
 export type HappinessInput = ThugHappinessInput & WhoreHappinessInput;
 
 export interface Happiness {

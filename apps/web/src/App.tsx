@@ -7,6 +7,8 @@ import { LoginPage } from './pages/LoginPage.js';
 import { ProducePage } from './pages/ProducePage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
 import { ScoutPage } from './pages/ScoutPage.js';
+import { WorkPage } from './pages/WorkPage.js';
+import { StorePage } from './pages/StorePage.js';
 import { useSession } from './stores/session.js';
 
 function RequireAccount({ children }: { children: ReactNode }) {
@@ -64,6 +66,14 @@ export function App() {
         }
       />
       <Route
+        path="/game/work"
+        element={
+          <RequireAccount>
+            <WorkPage />
+          </RequireAccount>
+        }
+      />
+      <Route
         path="/game/produce"
         element={
           <RequireAccount>
@@ -72,6 +82,7 @@ export function App() {
         }
       />
       <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/game/stores/:slug" element={<RequireAccount><StorePage /></RequireAccount>} />
     </Routes>
   );
 }

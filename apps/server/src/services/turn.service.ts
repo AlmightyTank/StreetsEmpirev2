@@ -16,6 +16,8 @@ export interface TurnSettlement {
   lastTurnCalculationAt: Date;
   /** Turns from regeneration only. */
   regenerated: number;
+  /** Whole intervals settled. Rest is measured in these. */
+  intervalsProcessed: number;
   awayBonus: { awarded: boolean; amount: number };
   nextTurnAt: Date;
   turnsGeneratedNextTick: number;
@@ -50,6 +52,7 @@ export const TurnService = {
       turns,
       lastTurnCalculationAt: regen.lastTurnCalculationAt,
       regenerated: regen.gained,
+      intervalsProcessed: regen.intervalsProcessed,
       awayBonus: { awarded: bonus.awarded, amount: bonus.amount },
       nextTurnAt: regen.nextTurnAt,
       turnsGeneratedNextTick: turns >= ruleset.turns.cap ? 0 : ruleset.turns.amountPerInterval,

@@ -6,12 +6,7 @@ import {
   type Rng,
 } from '@streets/rules-engine';
 import type { District, DistrictKey, Ruleset } from '@streets/rulesets';
-import type {
-  DistrictDto,
-  DistrictsDto,
-  GameActionResult,
-  ScoutResult,
-} from '@streets/shared';
+import type { DistrictDto, DistrictsDto, GameActionResult, ScoutResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns } from './action.service.js';
 
@@ -38,7 +33,7 @@ export interface Crew {
 
 const round2 = (value: number): number => Math.round(value * 100) / 100;
 
-function toDistrictDto(
+export function toDistrictDto(
   key: string,
   district: District,
   all: District[],
@@ -46,6 +41,9 @@ function toDistrictDto(
   crew: Crew,
 ): DistrictDto {
   const expected = expectedRecruitsPerTurn(district, crew, ruleset);
+
+  const covered = crew.thugs * district.protectionWhoresPerThug;
+  const exposed = crew.whores <= 0 ? 0 : Math.min(1, Math.max(0, 1 - covered / crew.whores));
 
   return {
     key,
@@ -56,26 +54,43 @@ function toDistrictDto(
       all.map((d) => d.whoresPerTurn),
     ),
     money: band(
-      district.incomeMultiplier,
-      all.map((d) => d.incomeMultiplier),
+      district.payMultiplier,
+      all.map((d) => d.payMultiplier),
     ),
     expectedWhoresPerTurn: round2(expected.whores),
     expectedThugsPerTurn: round2(expected.thugs),
+    protectionWhoresPerThug: district.protectionWhoresPerThug,
+    /** Girls this crew could cover on this block. */
+    coveredWhores: covered,
+    exposedFraction: round2(exposed),
   };
 }
 
-function findDistrict(
+export function findDistrict(
   ruleset: Ruleset,
   key: string,
 ): { key: DistrictKey; district: District } | null {
-  const districts: Record<string, District> = ruleset.scouting.districts;
+  const districts: Record<string, District> = ruleset.districts;
   const normalized = key.trim().toUpperCase();
 
-  const district = Object.hasOwn(districts, normalized)
-    ? districts[normalized]
-    : undefined;
+  const district = Object.hasOwn(districts, normalized) ? districts[normalized] : undefined;
 
   return district ? { key: normalized as DistrictKey, district } : null;
+}
+
+export function districtsFor(ruleset: Ruleset, crew: Crew): DistrictsDto {
+  const all = Object.values(ruleset.districts);
+  const caps = ruleset.scouting.recruitment;
+
+  return {
+    districts: Object.entries(ruleset.districts).map(([key, district]) =>
+      toDistrictDto(key, district, all, ruleset, crew),
+    ),
+    recruitment: {
+      whores: recruitmentMultiplier(crew.whores, caps.whoreSoftCap),
+      thugs: recruitmentMultiplier(crew.thugs, caps.thugSoftCap),
+    },
+  };
 }
 
 export interface ScoutInput {
@@ -85,30 +100,14 @@ export interface ScoutInput {
 }
 
 export const ScoutService = {
-  /**
-   * Section 25. What the player picks between, priced for the crew they
-   * already run rather than for a nobody.
-   */
-  districts(ruleset: Ruleset, crew: Crew): DistrictsDto {
-    const all = Object.values(ruleset.scouting.districts);
-    const caps = ruleset.scouting.recruitment;
-
-    return {
-      districts: Object.entries(ruleset.scouting.districts).map(([key, district]) =>
-        toDistrictDto(key, district, all, ruleset, crew),
-      ),
-      recruitment: {
-        whores: recruitmentMultiplier(crew.whores, caps.whoreSoftCap),
-        thugs: recruitmentMultiplier(crew.thugs, caps.thugSoftCap),
-      },
-    };
-  },
+  /** Section 25. What the player picks between, priced for the crew they run. */
+  districts: districtsFor,
 
   /**
-   * Section 26. Spend turns working a district.
+   * Section 26. Turns spent looking for people.
    *
-   * Departures are taken from the crew that was already there and already
-   * unhappy - somebody recruited this run does not walk out on the same run.
+   * Nobody is working, so nothing is earned, nothing is consumed and nobody
+   * comes home tired. Money is what Work the Streets is for.
    */
   scout(
     prisma: PrismaClient,
@@ -152,35 +151,20 @@ export const ScoutService = {
         const next = {
           ...current,
           turns: current.turns - input.turns,
-          cashCents: current.cashCents + outcome.income.pimpCents,
-
-          whores: Math.max(
-            0,
-            current.whores + outcome.whoresRecruited - outcome.departures.whores,
-          ),
-          thugs: Math.max(
-            0,
-            current.thugs + outcome.thugsRecruited - outcome.departures.thugs,
-          ),
-
-          condoms: current.condoms - outcome.consumption.condoms,
-          crack: current.crack - outcome.consumption.crack,
-          beer: current.beer - outcome.consumption.beer,
+          whores: current.whores + outcome.whoresRecruited,
+          thugs: current.thugs + outcome.thugsRecruited,
         };
 
-        const all = Object.values(ruleset.scouting.districts);
+        const all = Object.values(ruleset.districts);
 
         const result: ScoutResult = {
           district: toDistrictDto(found.key, found.district, all, ruleset, current),
           whoresRecruited: outcome.whoresRecruited,
           thugsRecruited: outcome.thugsRecruited,
-          condomsUsed: outcome.consumption.condoms,
-          crackUsed: outcome.consumption.crack,
-          beerUsed: outcome.consumption.beer,
-          whoresLeft: outcome.departures.whores,
-          thugsLeft: outcome.departures.thugs,
-          grossEarnedCents: Number(outcome.income.grossCents),
-          cashEarnedCents: Number(outcome.income.pimpCents),
+          recruitmentMultipliers: {
+            whores: round2(outcome.recruitmentMultipliers.whores),
+            thugs: round2(outcome.recruitmentMultipliers.thugs),
+          },
           turnsUsed: input.turns,
           turnsRemaining: next.turns,
         };
@@ -195,9 +179,6 @@ export const ScoutService = {
               turns: input.turns,
               whores: outcome.whoresRecruited,
               thugs: outcome.thugsRecruited,
-              cashCents: Number(outcome.income.pimpCents),
-              whoresLeft: outcome.departures.whores,
-              thugsLeft: outcome.departures.thugs,
             },
           },
         };

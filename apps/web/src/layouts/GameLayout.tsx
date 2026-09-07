@@ -28,6 +28,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: 'Home', to: '/game' },
       { label: 'Scout', to: '/game/scout' },
+      { label: 'Work the Streets', to: '/game/work' },
       { label: 'Produce Crack', to: '/game/produce' },
     ],
   },
@@ -35,10 +36,10 @@ const SECTIONS: NavSection[] = [
     title: 'Stores',
     items: [
       // Short forms, as in the section 22 sidebar.
-      { label: 'Corner Store', soon: 'D' },
-      { label: "Tek9 Tommy's", soon: 'D' },
-      { label: "Charlie's", soon: 'D' },
-      { label: "Pip's", soon: 'D' },
+      { label: 'Corner Store', to: '/game/stores/corner' },
+      { label: "Tek9 Tommy's", to: '/game/stores/tommy' },
+      { label: "Charlie's", to: '/game/stores/charlie' },
+      { label: "Pip's", to: '/game/stores/pip' },
     ],
   },
   {

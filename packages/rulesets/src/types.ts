@@ -31,6 +31,17 @@ export type DistrictKey =
 export type StoreKey = 'CORNER' | 'TOMMY' | 'CHARLIE' | 'PIP';
 
 export type WeaponKey = 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47';
+export type WeaponUnlockKey = 'TEK9' | 'AK47';
+
+export interface WeaponUnlockRule {
+  readonly title: string;
+  readonly description: string;
+  readonly workTurns: number;
+  readonly thugs: number;
+  readonly prerequisite: WeaponUnlockKey | null;
+  readonly cashCents: number;
+  readonly crack: number;
+}
 
 export interface RulesetMeta {
   readonly id: string;
@@ -141,6 +152,8 @@ export interface District {
   readonly thugsPerTurn: number;
   /** Multiplies what the crew brings in per turn worked here. */
   readonly payMultiplier: number;
+  /** How many girls one thug can cover on this block. */
+  readonly protectionWhoresPerThug: number;
 }
 
 export type Districts = { readonly [K in DistrictKey]: District };
@@ -166,6 +179,11 @@ export interface WorkRules {
   readonly grossPerWhorePerTurnCents: number;
   readonly minHappinessMultiplier: number;
   readonly variance: number;
+  /** Extra wear per fully unsupplied turn, scaled by the missing fraction. */
+  readonly shortages: {
+    readonly whorePerTurnWithoutCondoms: number;
+    readonly thugPerTurnWithoutBeer: number;
+  };
   readonly consumption: {
     readonly condomsPerWhorePerTurn: number;
     readonly crackPerWhorePerTurn: number;
@@ -177,6 +195,10 @@ export interface WorkRules {
     /** Take per head per turn that exactly cancels a turn's wear. */
     readonly fairTakePerHeadPerTurnCents: number;
     readonly maxReliefMultiple: number;
+  };
+  readonly exposure: {
+    readonly maxTakePenalty: number;
+    readonly maxExtraFatigue: number;
   };
   readonly finds: {
     readonly chancePerTurn: number;
@@ -223,6 +245,7 @@ export interface Weapon {
 }
 
 export interface StoreItem {
+  readonly unlockKey?: WeaponUnlockKey;
   readonly name: string;
   readonly field: ResourceField;
   readonly buyCents: number;
@@ -276,6 +299,7 @@ export interface Ruleset {
   readonly storeBulkHelpers: readonly number[];
   readonly lowRiderThugCapacity: number;
   readonly weapons: { readonly [K in WeaponKey]: Weapon };
+  readonly weaponUnlocks: { readonly [K in WeaponUnlockKey]: WeaponUnlockRule };
   readonly rankings: RankingRules;
   readonly evidence: EvidenceRules;
 }

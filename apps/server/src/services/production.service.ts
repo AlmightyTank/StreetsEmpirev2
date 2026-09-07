@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { calculateProduce, type Rng } from '@streets/rules-engine';
+import { calculateProduce, clampFatigue, type Rng } from '@streets/rules-engine';
 import type { GameActionResult, ProduceCrackResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns } from './action.service.js';
@@ -11,11 +11,11 @@ export interface ProduceInput {
 
 export const ProductionService = {
   /**
-   * Section 29. Put the crew to work cooking.
+   * Section 29. Turns and money in, crack out.
    *
-   * The whores keep earning while this happens, and the same upkeep is paid,
-   * so the choice against Scout is growth versus stock rather than work versus
-   * rest.
+   * Nobody earns anything cooking and there is no take to pay the crew back
+   * with, so every point of wear sticks. The reason to do it is the price:
+   * ingredients cost a tenth of what Pip's charges for a finished rock.
    */
   produceCrack(
     prisma: PrismaClient,
@@ -31,7 +31,7 @@ export const ProductionService = {
         if (input.turns < ruleset.production.minTurns) {
           throw AppError.badRequest(
             'TURNS_TOO_LOW',
-            `Producing costs at least ${ruleset.production.minTurns} turn.`,
+            `Cooking costs at least ${ruleset.production.minTurns} turn.`,
             { turns: 'Spend at least one turn.' },
           );
         }
@@ -39,7 +39,15 @@ export const ProductionService = {
         if (current.thugs <= 0) {
           throw AppError.badRequest(
             'NO_THUGS',
-            'You need at least one thug to cook. Pick some up at Tek9 Tommy’s or scout for them.',
+            'You need at least one thug to cook. Scout for them, or pick some up at Tek9 Tommy’s.',
+          );
+        }
+
+        const perRock = ruleset.production.crack.ingredientCentsPerRock;
+        if (current.cashCents < BigInt(perRock)) {
+          throw AppError.badRequest(
+            'NO_INGREDIENT_MONEY',
+            `Ingredients cost $${(perRock / 100).toFixed(2)} a rock and you cannot cover one.`,
           );
         }
 
@@ -50,33 +58,35 @@ export const ProductionService = {
           turns: input.turns,
           ruleset,
           city: player.city,
+          cashCents: current.cashCents,
           rng,
         });
 
-        // Crack is produced and consumed in the same run; the batch lands
-        // first so a player with an empty shelf can still supply the girls.
         const next = {
           ...current,
           turns: current.turns - input.turns,
-          cashCents: current.cashCents + outcome.income.pimpCents,
+          cashCents: current.cashCents - outcome.ingredientCents,
 
           whores: Math.max(0, current.whores - outcome.departures.whores),
           thugs: Math.max(0, current.thugs - outcome.departures.thugs),
 
-          condoms: current.condoms - outcome.consumption.condoms,
-          crack: current.crack + outcome.crackProduced - outcome.consumption.crack,
+          crack: current.crack + outcome.crackProduced,
           beer: current.beer - outcome.consumption.beer,
+
+          thugFatigue: clampFatigue(current.thugFatigue + outcome.thugFatigue, ruleset),
         };
 
         const result: ProduceCrackResult = {
           crackProduced: outcome.crackProduced,
-          condomsUsed: outcome.consumption.condoms,
-          crackUsed: outcome.consumption.crack,
+          ingredientCents: Number(outcome.ingredientCents),
+          limitedByCash: outcome.limitedByCash,
+
           beerUsed: outcome.consumption.beer,
           whoresLeft: outcome.departures.whores,
           thugsLeft: outcome.departures.thugs,
-          grossEarnedCents: Number(outcome.income.grossCents),
-          cashEarnedCents: Number(outcome.income.pimpCents),
+
+          thugFatigueChange: outcome.thugFatigue,
+
           turnsUsed: input.turns,
           turnsRemaining: next.turns,
         };
@@ -89,9 +99,8 @@ export const ProductionService = {
             payload: {
               turns: input.turns,
               crack: outcome.crackProduced,
-              cashCents: Number(outcome.income.pimpCents),
-              whoresLeft: outcome.departures.whores,
-              thugsLeft: outcome.departures.thugs,
+              ingredientCents: Number(outcome.ingredientCents),
+              thugFatigueChange: outcome.thugFatigue,
             },
           },
         };

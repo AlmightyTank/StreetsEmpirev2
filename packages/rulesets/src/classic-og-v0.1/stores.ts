@@ -38,12 +38,14 @@ export const stores = {
         sellCents: weapons.SHOTGUN.sellCents,
       },
       TEK9: {
+        unlockKey: 'TEK9',
         name: weapons.TEK9.name,
         field: weapons.TEK9.field,
         buyCents: weapons.TEK9.buyCents,
         sellCents: weapons.TEK9.sellCents,
       },
       AK47: {
+        unlockKey: 'AK47',
         name: weapons.AK47.name,
         field: weapons.AK47.field,
         buyCents: weapons.AK47.buyCents,

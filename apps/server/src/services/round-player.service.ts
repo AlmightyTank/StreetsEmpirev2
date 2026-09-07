@@ -81,7 +81,11 @@ export const RoundPlayerService = {
         cashCents: BigInt(start.cashCents),
       };
 
-      const happiness = HappinessService.recalculate(seed, ruleset);
+      // A brand new crew is rested.
+      const happiness = HappinessService.recalculate(
+        { ...seed, whoreFatigue: 0, thugFatigue: 0 },
+        ruleset,
+      );
       const netWorthCents = NetWorthService.calculate(seed, ruleset);
 
       const ranks = await RankingService.ranksFor(tx, {

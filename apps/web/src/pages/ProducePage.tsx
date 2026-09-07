@@ -40,7 +40,7 @@ export function ProducePage() {
       <div className="se-pagehead">
         <div>
           <h1 className="se-title">Produce Crack</h1>
-          <p className="se-eyebrow">Stay in and cook</p>
+          <p className="se-eyebrow">Turns and money in, product out</p>
         </div>
       </div>
 
@@ -48,7 +48,7 @@ export function ProducePage() {
       {!hasThugs ? (
         <Alert tone="info">
           You need at least one thug to cook. Scout for them, or pick some up at
-          Tek9 Tommy&rsquo;s once the stores open.
+          Tek9 Tommy&rsquo;s.
         </Alert>
       ) : null}
 
@@ -68,10 +68,10 @@ export function ProducePage() {
           </form>
 
           <p className="se-hint">
-            Thugs do the cooking, so a batch is only as good as their happiness.
-            The girls still work, but nobody is out there running them, so the
-            shift earns a quarter of what a district pays. What you save is the
-            crack you would have bought from Pip&rsquo;s.
+            Thugs do the cooking, so a batch is only as good as their happiness
+            &mdash; and cooking is unpaid grind, so it wears them down harder
+            than a night on the block. Nobody earns anything. What you get is
+            crack at a tenth of what Pip&rsquo;s charges for it.
           </p>
         </Panel>
 
@@ -85,9 +85,10 @@ export function ProducePage() {
               />
               <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong />
               <Row label="Thug happiness" value={`${me.happiness.thug}%`} />
+              <Row label="Thug wear" value={me.happiness.thugFatigue} />
               <Row label="Crack" value={formatNumber(me.resources.crack)} />
               <Row label="Beer" value={formatNumber(me.resources.beer)} />
-              <Row label="Cash" value={formatCents(me.resources.cashCents)} />
+              <Row label="Cash" value={formatCents(me.resources.cashCents)} strong />
             </div>
           </Panel>
         </aside>
@@ -102,9 +103,26 @@ export function ProducePage() {
             lines={[
               { label: 'Turns used', value: formatNumber(action.result.result.turnsUsed) },
               { label: 'Crack produced', delta: action.result.result.crackProduced },
-              { label: 'Cash earned', delta: action.result.result.cashEarnedCents, money: true },
-              { label: 'Condoms used', delta: -action.result.result.condomsUsed, muted: true },
-              { label: 'Crack used', delta: -action.result.result.crackUsed, muted: true },
+              {
+                label: 'Ingredients',
+                delta: -action.result.result.ingredientCents,
+                money: true,
+              },
+              ...(action.result.result.limitedByCash
+                ? [
+                    {
+                      label: 'Short on cash',
+                      value: 'batch cut down',
+                      muted: true,
+                    },
+                  ]
+                : []),
+              {
+                label: 'Thug wear',
+                invert: true,
+                delta: action.result.result.thugFatigueChange,
+                muted: true,
+              },
               { label: 'Beer used', delta: -action.result.result.beerUsed, muted: true },
               { label: 'Whores left', delta: -action.result.result.whoresLeft, muted: true },
               { label: 'Thugs left', delta: -action.result.result.thugsLeft, muted: true },

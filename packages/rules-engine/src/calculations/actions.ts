@@ -10,6 +10,7 @@ import {
   calculateCookConsumption,
   calculateDepartures,
   calculateWorkConsumption,
+  calculateWorkSupplyNeeds,
   type Consumption,
   type Departures,
   type UpkeepInput,
@@ -135,9 +136,45 @@ export function calculateScout(
 
 // --- work the streets -------------------------------------------------------
 
+export interface Exposure {
+  /** Girls this block's thugs can cover. */
+  covered: number;
+  /** Fraction of the crew standing on their own, 0..1. */
+  exposed: number;
+  /** What that cost the take, 0..1 of it kept. */
+  takeMultiplier: number;
+  /** What that did to the wear, 1.0 is untouched. */
+  fatigueMultiplier: number;
+}
+
+/**
+ * How well the crew covers this particular block. A rich district watches its
+ * corners, so a thug there minds four girls; nobody in the slums cares enough
+ * to stop twenty.
+ */
+export function calculateExposure(
+  crew: { whores: number; thugs: number },
+  district: District,
+  ruleset: Ruleset,
+): Exposure {
+  const rules = ruleset.work.exposure;
+
+  const covered = crew.thugs * district.protectionWhoresPerThug;
+  const exposed =
+    crew.whores <= 0 ? 0 : Math.min(1, Math.max(0, 1 - covered / crew.whores));
+
+  return {
+    covered,
+    exposed,
+    takeMultiplier: 1 - exposed * rules.maxTakePenalty,
+    fatigueMultiplier: 1 + exposed * rules.maxExtraFatigue,
+  };
+}
+
 export interface WorkOutcome {
   district: DistrictKey;
   turnsSpent: number;
+  exposure: Exposure;
   /** Everything the girls brought in. */
   grossCents: bigint;
   /** The crew's share, which is what pays their fatigue back. */
@@ -147,6 +184,7 @@ export interface WorkOutcome {
   /** Product turned up on the block rather than bought. */
   crackFound: number;
   consumption: Consumption;
+  shortages: { condoms: number; beer: number };
   departures: Departures;
   fatigue: { whore: WorkFatigue; thug: WorkFatigue };
 }
@@ -156,7 +194,8 @@ export interface WorkOutcome {
  *
  * The girls earn, the district decides how well, and the whole crew comes home
  * more tired than they left. How much of that tiredness sticks depends on
- * whether their cut of the night was worth the night.
+ * whether their cut of the night was worth the night - and a block you do not
+ * have the muscle to cover pays worse and hurts more.
  */
 export function calculateWork(
   context: ActionContext & { district: DistrictKey; payoutPercent: number },
@@ -168,6 +207,8 @@ export function calculateWork(
   const rules = ruleset.work;
   const definition = rules.districts[district];
 
+  const exposure = calculateExposure(player, definition, ruleset);
+
   const earned = Math.floor(
     applyVariance(
       player.whores *
@@ -175,6 +216,7 @@ export function calculateWork(
         turns *
         happinessMultiplier(player.whoreHappiness, rules.minHappinessMultiplier) *
         definition.payMultiplier *
+        exposure.takeMultiplier *
         city.incomeModifier,
       rules.variance,
       rng,
@@ -186,17 +228,46 @@ export function calculateWork(
   const pimpTakeCents = grossCents - crewTakeCents;
 
   const crewSize = player.whores + player.thugs;
+  const needed = calculateWorkSupplyNeeds(player, turns, ruleset);
+  const consumption = calculateWorkConsumption(player, turns, ruleset);
+  const shortages = {
+    condoms: needed.condoms - consumption.condoms,
+    beer: needed.beer - consumption.beer,
+  };
 
   const fatigue = {
     whore: calculateWorkFatigue(
-      { turns, crewSize, crewTakeCents, wearPerTurn: rules.fatigue.whorePerTurn },
+      {
+        turns,
+        crewSize,
+        crewTakeCents,
+        wearPerTurn: rules.fatigue.whorePerTurn * exposure.fatigueMultiplier,
+      },
       ruleset,
     ),
     thug: calculateWorkFatigue(
-      { turns, crewSize, crewTakeCents, wearPerTurn: rules.fatigue.thugPerTurn },
+      {
+        turns,
+        crewSize,
+        crewTakeCents,
+        wearPerTurn: rules.fatigue.thugPerTurn * exposure.fatigueMultiplier,
+      },
       ruleset,
     ),
   };
+
+  // Keep shortage wear in the persisted fatigue balance. A good payout can
+  // cover ordinary work wear, but cannot erase an unsupplied shift. Round up
+  // so a partial shortage survives the integer fatigue persistence.
+  const applyShortage = (wear: WorkFatigue, missing: number, required: number, rate: number) => {
+    if (missing <= 0 || required <= 0) return;
+    wear.relief = Math.min(wear.relief, wear.wear);
+    wear.wear += Math.ceil(turns * (missing / required) * rate);
+    wear.change = wear.wear - wear.relief;
+    wear.reliefRatio = wear.wear > 0 ? wear.relief / wear.wear : 1;
+  };
+  applyShortage(fatigue.whore, shortages.condoms, needed.condoms, rules.shortages.whorePerTurnWithoutCondoms);
+  applyShortage(fatigue.thug, shortages.beer, needed.beer, rules.shortages.thugPerTurnWithoutBeer);
 
   // Every so often a night turns up product instead of cash.
   let crackFound = 0;
@@ -210,11 +281,13 @@ export function calculateWork(
   return {
     district,
     turnsSpent: turns,
+    exposure,
     grossCents,
     crewTakeCents,
     pimpTakeCents,
     crackFound,
-    consumption: calculateWorkConsumption(player, turns, ruleset),
+    consumption,
+    shortages,
     departures: calculateDepartures(player, ruleset, rng),
     fatigue,
   };

@@ -917,3 +917,13 @@ a.se-nav__link:hover {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* --- stores ------------------------------------------------------------- */
+.se-store-items { display: grid; gap: 14px; }
+.se-store-prices { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 16px; color: var(--se-muted); font-size: 12px; }
+.se-store-prices strong { color: var(--se-text); }
+.se-store-order { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 12px; margin-bottom: 10px; }
+.se-store-receipt { margin-bottom: 18px; }
+.se-store-favor { border-left: 2px solid var(--se-warn); background: #101318; padding: 12px; margin-bottom: 16px; }
+.se-store-favor__title { font-size: 14px; color: var(--se-warn); margin: 0 0 8px; }
+.se-store-favor .se-row { flex-wrap: wrap; padding-right: 0; padding-left: 0; }

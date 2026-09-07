@@ -7,5 +7,7 @@ export * from './calculations/payout.js';
 export * from './calculations/upkeep.js';
 export * from './calculations/fatigue.js';
 export * from './calculations/actions.js';
+export * from './calculations/stores.js';
+export * from './calculations/weapon-unlocks.js';
 export * from './rng.js';
 export type { Ruleset } from '@streets/rulesets';

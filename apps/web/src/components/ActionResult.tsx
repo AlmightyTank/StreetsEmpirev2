@@ -9,6 +9,8 @@ export interface ResultLine {
   delta?: number;
   /** Money deltas format as currency. */
   money?: boolean;
+  /** For lines where going up is the bad news, like wear. */
+  invert?: boolean;
   muted?: boolean;
 }
 
@@ -20,8 +22,19 @@ function signed(value: number, money: boolean): string {
   return `${sign}${magnitude}`;
 }
 
-function Delta({ value, money }: { value: number; money: boolean }) {
-  const tone = value > 0 ? ' se-good' : value < 0 ? ' se-bad' : ' se-muted';
+function Delta({
+  value,
+  money,
+  invert,
+}: {
+  value: number;
+  money: boolean;
+  invert?: boolean;
+}) {
+  const good = invert ? value < 0 : value > 0;
+  const bad = invert ? value > 0 : value < 0;
+  const tone = good ? ' se-good' : bad ? ' se-bad' : ' se-muted';
+
   return <span className={`se-num${tone}`}>{signed(value, money)}</span>;
 }
 
@@ -96,7 +109,11 @@ export function ActionResult<T>({
             <span className="se-row__label">{line.label}</span>
             <span className="se-row__value">
               {line.delta !== undefined ? (
-                <Delta value={line.delta} money={line.money ?? false} />
+                <Delta
+                  value={line.delta}
+                  money={line.money ?? false}
+                  invert={line.invert}
+                />
               ) : (
                 line.value
               )}

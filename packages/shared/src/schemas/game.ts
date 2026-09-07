@@ -35,6 +35,13 @@ export const scoutSchema = z.object({
   actionId: actionIdSchema.optional(),
 });
 
+/** Work the Streets takes the same shape as scouting: a block and some turns. */
+export const workSchema = z.object({
+  district: z.string().trim().min(1, 'Pick a district to work.'),
+  turns: turnsToSpendSchema,
+  actionId: actionIdSchema.optional(),
+});
+
 export const produceCrackSchema = z.object({
   turns: turnsToSpendSchema,
   actionId: actionIdSchema.optional(),
@@ -50,5 +57,23 @@ export const payoutSchema = z.object({
 
 export type JoinRoundInput = z.infer<typeof joinRoundSchema>;
 export type ScoutInput = z.infer<typeof scoutSchema>;
+export type WorkInput = z.infer<typeof workSchema>;
 export type ProduceCrackInput = z.infer<typeof produceCrackSchema>;
 export type PayoutInput = z.infer<typeof payoutSchema>;
+
+export const storeTradeSchema = z.object({
+  store: z.string().trim().min(1, 'Pick a store.').max(64),
+  item: z.string().trim().min(1, 'Pick an item.').max(64),
+  direction: z.enum(['buy', 'sell']),
+  quantity: z.number({ invalid_type_error: 'Enter a quantity.' })
+    .int('Quantity must be a whole number.').positive('Enter at least one.').safe(),
+  actionId: actionIdSchema,
+});
+
+export type StoreTradeInput = z.infer<typeof storeTradeSchema>;
+
+export const weaponUnlockSchema = z.object({
+  weapon: z.enum(['TEK9', 'AK47']),
+  actionId: actionIdSchema,
+});
+export type WeaponUnlockInput = z.infer<typeof weaponUnlockSchema>;

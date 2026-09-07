@@ -111,6 +111,8 @@ export function toRoundPlayerDto(
     happiness: {
       whore: player.whoreHappiness,
       thug: player.thugHappiness,
+      whoreFatigue: player.whoreFatigue,
+      thugFatigue: player.thugFatigue,
     },
 
     rank: {
@@ -133,7 +135,7 @@ export function toRoundPlayerDto(
 export function toActivityDto(activity: PlayerActivity): ActivityDto {
   return {
     id: activity.id,
-    type: activity.type,
+    type: activity.type as ActivityDto['type'],
     payload: (activity.payload ?? {}) as Record<string, unknown>,
     createdAt: activity.createdAt.toISOString(),
   };

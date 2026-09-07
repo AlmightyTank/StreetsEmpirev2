@@ -5,55 +5,12 @@ import { formatCents, formatNumber } from '@streets/shared';
 import { actionsApi } from '../api/actions.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
+import { DistrictPicker } from '../components/DistrictPicker.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
-
-const BAND_LABEL: Record<string, string> = {
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-};
-
-function DistrictOption({
-  district,
-  checked,
-  onSelect,
-  disabled,
-}: {
-  district: DistrictDto;
-  checked: boolean;
-  onSelect: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <label className={`se-choice${checked ? ' se-choice--on' : ''}`}>
-      <input
-        type="radio"
-        name="district"
-        className="se-choice__input"
-        checked={checked}
-        disabled={disabled}
-        onChange={onSelect}
-      />
-      <span className="se-choice__body">
-        <span className="se-choice__name">{district.name}</span>
-        <span className="se-choice__meta">
-          <span title={`Recruiting: ${BAND_LABEL[district.recruiting]}`}>
-            <b className="se-num se-dim">{district.expectedWhoresPerTurn}</b> whores
-            {' / '}
-            <b className="se-num se-dim">{district.expectedThugsPerTurn}</b> thugs per turn
-          </span>
-          <span>
-            Money <b className="se-dim">{BAND_LABEL[district.money]}</b>
-          </span>
-        </span>
-      </span>
-    </label>
-  );
-}
 
 export function ScoutPage() {
   const me = useSession((s) => s.me);
@@ -102,7 +59,7 @@ export function ScoutPage() {
       <div className="se-pagehead">
         <div>
           <h1 className="se-title">Scout for Whores</h1>
-          <p className="se-eyebrow">Put the girls on a block and see who you pick up</p>
+          <p className="se-eyebrow">Turns spent looking for new faces</p>
         </div>
       </div>
 
@@ -113,17 +70,13 @@ export function ScoutPage() {
         <Panel title="Scout">
           <form onSubmit={onSubmit}>
             <p className="se-label">District</p>
-            <div className="se-choices">
-              {districts.map((option) => (
-                <DistrictOption
-                  key={option.key}
-                  district={option}
-                  checked={district === option.key}
-                  disabled={action.busy}
-                  onSelect={() => setDistrict(option.key)}
-                />
-              ))}
-            </div>
+            <DistrictPicker
+              districts={districts}
+              value={district}
+              onChange={setDistrict}
+              mode="scout"
+              disabled={action.busy}
+            />
 
             <hr className="se-hr" />
 
@@ -150,16 +103,14 @@ export function ScoutPage() {
               />
               <Row label="Whores" value={formatNumber(me.resources.whores)} />
               <Row label="Thugs" value={formatNumber(me.resources.thugs)} />
-              <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
               <Row label="Cash" value={formatCents(me.resources.cashCents)} />
-              <Row label="Whore happiness" value={`${me.happiness.whore}%`} />
             </div>
           </Panel>
 
           <p className="se-hint">
-            Working a district puts your girls on that block for the night and
-            you out there with them. Rich districts pay well and turn up few new
-            faces; poor ones are full of women with nowhere else to go.
+            Scouting is looking, not working. Nobody earns, nothing is used up
+            and nobody comes home tired. Poor districts are full of people with
+            nowhere else to go; rich ones barely have anyone to find.
           </p>
 
           {reach && reach.whores < 0.95 ? (
@@ -186,12 +137,11 @@ export function ScoutPage() {
               { label: 'Turns used', value: formatNumber(action.result.result.turnsUsed) },
               { label: 'Whores recruited', delta: action.result.result.whoresRecruited },
               { label: 'Thugs recruited', delta: action.result.result.thugsRecruited },
-              { label: 'Cash earned', delta: action.result.result.cashEarnedCents, money: true },
-              { label: 'Condoms used', delta: -action.result.result.condomsUsed, muted: true },
-              { label: 'Crack used', delta: -action.result.result.crackUsed, muted: true },
-              { label: 'Beer used', delta: -action.result.result.beerUsed, muted: true },
-              { label: 'Whores left', delta: -action.result.result.whoresLeft, muted: true },
-              { label: 'Thugs left', delta: -action.result.result.thugsLeft, muted: true },
+              {
+                label: 'Recruiting reach',
+                value: `${Math.round(action.result.result.recruitmentMultipliers.whores * 100)}%`,
+                muted: true,
+              },
               {
                 label: 'Turns remaining',
                 value: formatNumber(action.result.result.turnsRemaining),

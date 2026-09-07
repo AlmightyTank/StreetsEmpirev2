@@ -15,9 +15,11 @@ export type RoundStatus =
 export type ActivityType =
   | 'ROUND_JOINED'
   | 'SCOUT'
+  | 'WORK_STREETS'
   | 'PRODUCE_CRACK'
   | 'STORE_BUY'
   | 'STORE_SELL'
+  | 'WEAPON_UNLOCK'
   | 'PAYOUT_CHANGE'
   | 'AWAY_BONUS';
 
@@ -93,6 +95,9 @@ export interface ResourcesDto {
 export interface HappinessDto {
   whore: number;
   thug: number;
+  /** The wear currently being subtracted, so the UI can explain a low number. */
+  whoreFatigue: number;
+  thugFatigue: number;
 }
 
 export interface RankDto {
@@ -188,6 +193,13 @@ export interface DistrictDto {
    */
   expectedWhoresPerTurn: number;
   expectedThugsPerTurn: number;
+
+  /** How many girls one thug can cover on this block. */
+  protectionWhoresPerThug: number;
+  /** Girls this crew could cover here. */
+  coveredWhores: number;
+  /** Fraction of the stable that would be standing alone, 0..1. */
+  exposedFraction: number;
 }
 
 export interface DistrictsDto {
@@ -196,32 +208,137 @@ export interface DistrictsDto {
   recruitment: { whores: number; thugs: number };
 }
 
-/** Upkeep every turn-spending action pays. Sections 27 and 30. */
-export interface UpkeepResult {
-  condomsUsed: number;
-  crackUsed: number;
-  beerUsed: number;
-  whoresLeft: number;
-  thugsLeft: number;
-  /** What the whores brought in before the payout split. */
-  grossEarnedCents: number;
-  /** The pimp's cut, which is what landed in cash. */
-  cashEarnedCents: number;
+/** Section 26. Turns spent looking for people. Earns nothing. */
+export interface ScoutResult {
+  district: DistrictDto;
+  whoresRecruited: number;
+  thugsRecruited: number;
+  /** What the crew's own size did to the headline rates, 0..1. */
+  recruitmentMultipliers: { whores: number; thugs: number };
   turnsUsed: number;
   turnsRemaining: number;
 }
 
-export interface ScoutResult extends UpkeepResult {
+/** Work the Streets. The only action that makes money. */
+export interface WorkResult {
   district: DistrictDto;
-  whoresRecruited: number;
-  thugsRecruited: number;
+
+  /** Everything the girls brought in. */
+  grossEarnedCents: number;
+  /** The crew's share, which is what pays their wear back. */
+  crewTakeCents: number;
+  /** Your share, which is what landed in cash. */
+  cashEarnedCents: number;
+  payoutPercent: number;
+
+  /** Product turned up on the block rather than bought. */
+  crackFound: number;
+
+  condomsUsed: number;
+  crackUsed: number;
+  beerUsed: number;
+  condomsMissing: number;
+  beerMissing: number;
+
+  whoresLeft: number;
+  thugsLeft: number;
+
+  /** Fraction of the stable that worked with nobody watching, 0..1. */
+  exposedFraction: number;
+  coveredWhores: number;
+
+  /** Positive means they went home worse off than they left. */
+  whoreFatigueChange: number;
+  thugFatigueChange: number;
+  /** Take against what the night was worth. 1.0 is a fair night. */
+  reliefRatio: number;
+
+  turnsUsed: number;
+  turnsRemaining: number;
 }
 
-export interface ProduceCrackResult extends UpkeepResult {
+/** Section 29. Turns and cash in, crack out. Earns nothing. */
+export interface ProduceCrackResult {
   crackProduced: number;
+  ingredientCents: number;
+  /** True when cash, not thugs, was the limit on the batch. */
+  limitedByCash: boolean;
+
+  beerUsed: number;
+  whoresLeft: number;
+  thugsLeft: number;
+
+  thugFatigueChange: number;
+
+  turnsUsed: number;
+  turnsRemaining: number;
 }
 
 export interface PayoutResult {
   before: number;
   after: number;
+}
+
+export interface StoreItemDto {
+  unlock: WeaponUnlockDto | null;
+  key: string;
+  name: string;
+  field: Exclude<keyof ResourcesDto, 'cashCents'>;
+  buyCents: number;
+  sellCents: number | null;
+  owned: number;
+  maxBuy: number;
+}
+
+export interface WeaponUnlockDto {
+  key: 'TEK9' | 'AK47';
+  weaponName: string;
+  title: string;
+  description: string;
+  unlocked: boolean;
+  workTurns: number;
+  workTurnsRequired: number;
+  thugs: number;
+  thugsRequired: number;
+  prerequisiteName: string | null;
+  prerequisiteMet: boolean;
+  cashCostCents: number;
+  crackCost: number;
+  reputationMet: boolean;
+  canComplete: boolean;
+}
+
+export interface WeaponUnlockResult {
+  key: 'TEK9' | 'AK47';
+  weaponName: string;
+  favorTitle: string;
+  cashSpentCents: number;
+  crackDelivered: number;
+}
+
+export interface StoreDto {
+  key: string;
+  slug: string;
+  name: string;
+  blurb: string;
+  items: StoreItemDto[];
+}
+
+export interface StoresDto {
+  stores: StoreDto[];
+  bulkHelpers: number[];
+  lowRiderThugCapacity: number;
+}
+
+export interface StoreTradeResult {
+  storeKey: string;
+  storeName: string;
+  itemName: string;
+  field: StoreItemDto['field'];
+  direction: 'buy' | 'sell';
+  quantity: number;
+  unitCents: number;
+  totalCents: number;
+  cashChangeCents: number;
+  quantityChange: number;
 }

@@ -1,5 +1,10 @@
 import type { City, Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
-import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
+import {
+  calculateRest,
+  clampFatigue,
+  loadRulesetForRound,
+  type Ruleset,
+} from '@streets/rules-engine';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
@@ -64,11 +69,17 @@ export const PlayerStateService = {
       const { round, ...rest } = player;
       const ruleset = loadRulesetForRound(round);
 
-      // 1. Turns.
+      // 1. Turns, and the rest those same intervals bought the crew.
       const turns = TurnService.settle(rest, now, ruleset);
+      const shed = calculateRest(turns.intervalsProcessed, ruleset);
 
-      // 2. Happiness, from whatever the resources currently are.
-      const happiness = HappinessService.recalculate(rest, ruleset);
+      const fatigue = {
+        whoreFatigue: clampFatigue(rest.whoreFatigue - shed, ruleset),
+        thugFatigue: clampFatigue(rest.thugFatigue - shed, ruleset),
+      };
+
+      // 2. Happiness, from the resources and the wear they are carrying.
+      const happiness = HappinessService.recalculate({ ...rest, ...fatigue }, ruleset);
 
       // 3. Net worth.
       const netWorthCents = NetWorthService.calculate(rest, ruleset);
@@ -91,6 +102,12 @@ export const PlayerStateService = {
       }
       if (turns.awayBonus.awarded) {
         data.lastAwayBonusAt = now;
+      }
+      if (fatigue.whoreFatigue !== rest.whoreFatigue) {
+        data.whoreFatigue = fatigue.whoreFatigue;
+      }
+      if (fatigue.thugFatigue !== rest.thugFatigue) {
+        data.thugFatigue = fatigue.thugFatigue;
       }
       if (happiness.whoreHappiness !== rest.whoreHappiness) {
         data.whoreHappiness = happiness.whoreHappiness;

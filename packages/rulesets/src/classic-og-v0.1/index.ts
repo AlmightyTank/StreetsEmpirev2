@@ -10,6 +10,7 @@ import { scouting } from './scouting.js';
 import { lowRiderThugCapacity, storeBulkHelpers, stores } from './stores.js';
 import { turns } from './turns.js';
 import { weapons } from './weapons.js';
+import { weaponUnlocks } from './weapon-unlocks.js';
 import { work } from './work.js';
 import type { Ruleset } from '../types.js';
 
@@ -38,6 +39,7 @@ export const classicOgV01 = {
   storeBulkHelpers,
   lowRiderThugCapacity,
   weapons,
+  weaponUnlocks,
   rankings,
   evidence,
 } as const satisfies Ruleset;
@@ -57,5 +59,6 @@ export {
   stores,
   turns,
   weapons,
+  weaponUnlocks,
   work,
 };

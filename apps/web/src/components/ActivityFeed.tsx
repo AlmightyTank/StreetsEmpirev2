@@ -33,32 +33,45 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
       };
 
     case 'SCOUT': {
-      const gained = [
+      const found = [
         num(p.whores) ? `+${formatNumber(num(p.whores))} whores` : null,
         num(p.thugs) ? `+${formatNumber(num(p.thugs))} thugs` : null,
-        num(p.cashCents) ? `+${formatCents(num(p.cashCents))}` : null,
       ].filter(Boolean);
 
-      const lost = [
+      return {
+        text: `Scouted ${str(p.district, 'a district')} for ${formatNumber(num(p.turns))} turns.`,
+        detail: found.join(', ') || 'Nobody worth taking.',
+      };
+    }
+
+    case 'WORK_STREETS': {
+      const detail = [
+        `+${formatCents(num(p.cashCents))}`,
+        num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} crack found` : null,
+        num(p.whoreFatigueChange) > 0
+          ? `crew worn down ${num(p.whoreFatigueChange).toFixed(1)}`
+          : num(p.whoreFatigueChange) < 0
+            ? `crew rested up ${Math.abs(num(p.whoreFatigueChange)).toFixed(1)}`
+            : null,
         num(p.whoresLeft) ? `${num(p.whoresLeft)} whores walked` : null,
         num(p.thugsLeft) ? `${num(p.thugsLeft)} thugs walked` : null,
       ].filter(Boolean);
 
       return {
-        text: `Scouted ${str(p.district, 'a district')} for ${formatNumber(num(p.turns))} turns.`,
-        detail: [...gained, ...lost].join(', ') || 'Came back with nothing.',
+        text: `Worked ${str(p.district, 'a district')} for ${formatNumber(num(p.turns))} turns.`,
+        detail: detail.join(', '),
       };
     }
 
     case 'PRODUCE_CRACK': {
-      const made = [
+      const detail = [
         num(p.crack) ? `+${formatNumber(num(p.crack))} crack` : null,
-        num(p.cashCents) ? `+${formatCents(num(p.cashCents))}` : null,
+        num(p.ingredientCents) ? `-${formatCents(num(p.ingredientCents))} ingredients` : null,
       ].filter(Boolean);
 
       return {
         text: `Cooked for ${formatNumber(num(p.turns))} turns.`,
-        detail: made.join(', ') || 'Nothing came out of it.',
+        detail: detail.join(', ') || 'Nothing came out of it.',
       };
     }
 
@@ -67,8 +80,22 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
         text: `Changed payout from ${num(p.before)}% to ${num(p.after)}%.`,
       };
 
+    case 'STORE_BUY':
+    case 'STORE_SELL':
+      return {
+        text: `${activity.type === 'STORE_BUY' ? 'Bought' : 'Sold'} ${formatNumber(num(p.quantity))} ${str(p.item)} at ${str(p.store)}.`,
+        detail: `${activity.type === 'STORE_BUY' ? '-' : '+'}${formatCents(num(p.totalCents))}`,
+      };
+
+    case 'WEAPON_UNLOCK':
+      return {
+        text: `Earned ${str(p.weapon)} access at Tommy’s.`,
+        detail: [str(p.favor), num(p.cashSpentCents) ? `-${formatCents(num(p.cashSpentCents))}` : '',
+          num(p.crackDelivered) ? `${formatNumber(num(p.crackDelivered))} crack delivered` : ''].filter(Boolean).join(', '),
+      };
+
     default:
-      return { text: activity.type.replace(/_/g, ' ').toLowerCase() };
+      return { text: String(activity.type).replace(/_/g, ' ').toLowerCase() };
   }
 }
 
