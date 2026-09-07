@@ -1,0 +1,280 @@
+// Street Empire - 0.1.0 "Classic Foundation"
+// Ruleset: classic-og-v0.1
+//
+// Money is stored as INTEGER CENTS (BigInt). $1.00 = 100. Never floats.
+// Anything not player-facing in 0.1.0 (PvP, alliances, travel) is deliberately
+// absent, but the shapes below are chosen so 0.2.0 does not need a redesign.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Accounts & sessions
+// ---------------------------------------------------------------------------
+
+/// A permanent player identity. Survives every round.
+model Account {
+  id                 String    @id @default(cuid())
+  username           String
+  /// Lowercased username. Enforces case-insensitive uniqueness.
+  usernameNormalized String    @unique
+  /// Lowercased email.
+  email              String    @unique
+  passwordHash       String
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastLoginAt DateTime?
+
+  isActive Boolean @default(true)
+  isAdmin  Boolean @default(false)
+
+  sessions     Session[]
+  roundPlayers RoundPlayer[]
+  authoredNews GameNews[]    @relation("GameNewsAuthor")
+}
+
+/// Server-side session record. The cookie carries a random token; only its
+/// SHA-256 hash is stored, so a database leak cannot be replayed as a login.
+model Session {
+  id        String @id @default(cuid())
+  tokenHash String @unique
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  expiresAt  DateTime
+
+  userAgent String?
+  ip        String?
+
+  @@index([accountId])
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Rounds
+// ---------------------------------------------------------------------------
+
+enum RoundStatus {
+  SCHEDULED
+  REGISTRATION
+  ACTIVE
+  ENDED
+  ARCHIVED
+}
+
+model Round {
+  id   String @id @default(cuid())
+  name String
+  slug String @unique
+
+  rulesetId      String
+  rulesetVersion String
+
+  status RoundStatus @default(SCHEDULED)
+
+  startsAt DateTime
+  endsAt   DateTime
+
+  registrationOpensAt DateTime?
+
+  /// Next OG-style public pimp id to hand out. Raw database ids are never
+  /// exposed; players see e.g. BigDaddy (#1842).
+  nextPublicPimpId Int @default(1000)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  players RoundPlayer[]
+  news    GameNews[]
+
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Cities
+// ---------------------------------------------------------------------------
+
+/// Travel does not exist in 0.1.0, but every player has a home city from day
+/// one and the modifiers are already wired into the ruleset math.
+model City {
+  id        String  @id @default(cuid())
+  slug      String  @unique
+  name      String
+  sortOrder Int     @default(0)
+  isEnabled Boolean @default(false)
+
+  scoutModifier  Float @default(1.0)
+  incomeModifier Float @default(1.0)
+  crackModifier  Float @default(1.0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  players RoundPlayer[]
+}
+
+// ---------------------------------------------------------------------------
+// Round players
+// ---------------------------------------------------------------------------
+
+model RoundPlayer {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  /// Player-visible OG id, unique inside the round.
+  publicPimpId Int
+
+  displayName String
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id])
+
+  /// Integer cents.
+  cashCents BigInt @default(0)
+
+  turns                 Int      @default(0)
+  lastTurnCalculationAt DateTime @default(now())
+  lastActiveAt          DateTime @default(now())
+  /// Durable away-bonus state. Prevents collecting twice by refresh spam.
+  lastAwayBonusAt       DateTime?
+
+  payoutPercent Int @default(50)
+
+  whores Int @default(0)
+  thugs  Int @default(0)
+
+  condoms  Int @default(0)
+  medicine Int @default(0)
+  crack    Int @default(0)
+  beer     Int @default(0)
+
+  pistols  Int @default(0)
+  shotguns Int @default(0)
+  tek9s    Int @default(0)
+  ak47s    Int @default(0)
+
+  lowRiders Int @default(0)
+
+  /// Derived from supplies, protection and fatigue. Stored so it can be read
+  /// and ranked without recomputing, but never the source of truth.
+  whoreHappiness Int @default(100)
+  thugHappiness  Int @default(100)
+
+  /// Wear. Climbs when the crew works for a cut that does not justify it,
+  /// falls when they are paid well or left to rest. Subtracted from happiness.
+  whoreFatigue Int @default(0)
+  thugFatigue  Int @default(0)
+
+  /// Integer cents.
+  netWorthCents BigInt @default(0)
+
+  localRank    Int?
+  nationalRank Int?
+
+  dailyStartingLocalRank    Int?
+  dailyStartingNationalRank Int?
+  /// When the daily rank snapshot above was taken. Null means never.
+  dailyRankSnapshotAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activity         PlayerActivity[]
+  processedActions ProcessedAction[]
+
+  @@unique([roundId, accountId])
+  @@unique([roundId, publicPimpId])
+  @@index([roundId, netWorthCents(sort: Desc)])
+  @@index([roundId, cityId, netWorthCents(sort: Desc)])
+}
+
+// ---------------------------------------------------------------------------
+// News & activity
+// ---------------------------------------------------------------------------
+
+model GameNews {
+  id String @id @default(cuid())
+
+  /// Null = global announcement, shown in every round.
+  roundId String?
+  round   Round?  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  title String
+  body  String
+
+  isPinned    Boolean  @default(false)
+  publishedAt DateTime @default(now())
+
+  createdByAccountId String?
+  createdBy          Account? @relation("GameNewsAuthor", fields: [createdByAccountId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([roundId, isPinned, publishedAt(sort: Desc)])
+}
+
+enum ActivityType {
+  ROUND_JOINED
+  SCOUT
+  WORK_STREETS
+  PRODUCE_CRACK
+  STORE_BUY
+  STORE_SELL
+  PAYOUT_CHANGE
+  AWAY_BONUS
+}
+
+model PlayerActivity {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  type    ActivityType
+  payload Json
+
+  createdAt DateTime @default(now())
+
+  @@index([roundPlayerId, createdAt(sort: Desc)])
+}
+
+// ---------------------------------------------------------------------------
+// Idempotency
+// ---------------------------------------------------------------------------
+
+/// Short-lived record of a completed resource-changing action. A repeated
+/// actionId replays the stored result instead of executing twice.
+model ProcessedAction {
+  id String @id @default(cuid())
+
+  /// Client generated. Scoped to the player, so one player's action id can
+  /// never collide with or block another's.
+  actionId String
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  action String
+  result Json
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@unique([roundPlayerId, actionId])
+  @@index([expiresAt])
+}

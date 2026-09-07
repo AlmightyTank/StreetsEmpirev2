@@ -1,0 +1,919 @@
+/*
+ * Street Empire - visual direction, section 49.
+ *
+ * Dark street, early-2000s information density, modern typography.
+ * Compact panels, hard edges, numbers that dominate. Decoration stays quiet.
+ */
+
+:root {
+  --se-bg: #0b0c0e;
+  --se-panel: #14161a;
+  --se-panel-hi: #191d23;
+  --se-line: #262b33;
+  --se-line-soft: #1c2027;
+
+  --se-text: #dbe0e7;
+  --se-text-dim: #98a1ad;
+  --se-muted: #6b7480;
+
+  --se-accent: #b6ff3a;
+  --se-accent-dim: #7fb028;
+  --se-accent-2: #ff2d78;
+
+  --se-good: #4ade80;
+  --se-bad: #ff5468;
+  --se-warn: #ffb020;
+
+  --se-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", "Cascadia Mono",
+    Menlo, Consolas, monospace;
+  --se-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--se-bg);
+  background-image:
+    radial-gradient(900px 500px at 15% -10%, rgba(182, 255, 58, 0.05), transparent 60%),
+    radial-gradient(800px 500px at 100% 0%, rgba(255, 45, 120, 0.05), transparent 55%);
+  background-attachment: fixed;
+  color: var(--se-text);
+  font-family: var(--se-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- type ---------------------------------------------------------------- */
+
+.se-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--se-muted);
+}
+
+.se-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.se-display {
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.se-num {
+  font-family: var(--se-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.se-accent { color: var(--se-accent); }
+.se-good { color: var(--se-good); }
+.se-bad { color: var(--se-bad); }
+.se-dim { color: var(--se-text-dim); }
+.se-muted { color: var(--se-muted); }
+
+/* --- panels -------------------------------------------------------------- */
+
+.se-panel {
+  background: var(--se-panel);
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+}
+
+.se-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--se-line);
+  background: linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
+}
+
+.se-panel__title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--se-text-dim);
+  margin: 0;
+}
+
+.se-panel__body {
+  padding: 12px;
+}
+
+.se-panel__body--flush {
+  padding: 0;
+}
+
+/* --- stat rows ----------------------------------------------------------- */
+
+.se-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.se-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--se-line-soft);
+}
+
+.se-row:last-child {
+  border-bottom: 0;
+}
+
+.se-row__label {
+  font-size: 12px;
+  color: var(--se-text-dim);
+  white-space: nowrap;
+}
+
+.se-row__value {
+  font-family: var(--se-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.se-row--strong .se-row__value {
+  font-size: 15px;
+  color: #fff;
+}
+
+/* --- stat blocks --------------------------------------------------------- */
+
+.se-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1px;
+  /* Panel coloured, so a half-filled last row reads as empty space rather
+     than as a tile that failed to load. */
+  background: var(--se-panel);
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.se-stat {
+  background: var(--se-panel);
+  padding: 10px 12px;
+  /* Outlines sit in the 1px gap without taking part in layout, which draws
+     the separators without leaving a stray edge on the outer tiles. */
+  outline: 1px solid var(--se-line);
+}
+
+.se-stat__label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--se-muted);
+}
+
+.se-stat__value {
+  font-family: var(--se-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+  margin-top: 2px;
+}
+
+.se-stat__sub {
+  font-size: 11px;
+  color: var(--se-muted);
+}
+
+/* --- meters -------------------------------------------------------------- */
+
+.se-meter {
+  height: 4px;
+  background: #22262d;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.se-meter__fill {
+  height: 100%;
+  background: var(--se-accent);
+  transition: width 0.4s ease;
+}
+
+.se-meter__fill--warn { background: var(--se-warn); }
+.se-meter__fill--bad { background: var(--se-bad); }
+
+/* --- controls ------------------------------------------------------------ */
+
+.se-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  background: var(--se-panel-hi);
+  color: var(--se-text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.se-btn:hover:not(:disabled) {
+  border-color: var(--se-accent-dim);
+  color: #fff;
+}
+
+.se-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.se-btn--primary {
+  background: var(--se-accent);
+  border-color: var(--se-accent);
+  color: #0b0c0e;
+}
+
+.se-btn--primary:hover:not(:disabled) {
+  background: #c9ff63;
+  border-color: #c9ff63;
+  color: #0b0c0e;
+}
+
+.se-btn--block { width: 100%; }
+.se-btn--ghost { background: transparent; }
+
+.se-field {
+  margin-bottom: 14px;
+}
+
+.se-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--se-muted);
+  margin-bottom: 5px;
+}
+
+.se-input {
+  width: 100%;
+  padding: 9px 11px;
+  background: #0d0f12;
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  color: var(--se-text);
+  font-size: 14px;
+  font-family: var(--se-sans);
+}
+
+.se-input:focus {
+  outline: none;
+  border-color: var(--se-accent-dim);
+  box-shadow: 0 0 0 1px rgba(182, 255, 58, 0.25);
+}
+
+.se-input--error {
+  border-color: var(--se-bad);
+}
+
+.se-hint {
+  font-size: 11px;
+  color: var(--se-muted);
+  margin-top: 5px;
+}
+
+.se-error {
+  font-size: 11px;
+  color: var(--se-bad);
+  margin-top: 5px;
+}
+
+/* --- alerts -------------------------------------------------------------- */
+
+.se-alert {
+  border: 1px solid var(--se-line);
+  border-left: 3px solid var(--se-bad);
+  background: rgba(255, 84, 104, 0.07);
+  color: #ffd7dc;
+  padding: 9px 12px;
+  border-radius: 3px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.se-alert--info {
+  border-left-color: var(--se-accent);
+  background: rgba(182, 255, 58, 0.06);
+  color: #e8f6d2;
+}
+
+/* --- shell --------------------------------------------------------------- */
+
+.se-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 16px;
+  height: 48px;
+  background: rgba(11, 12, 14, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--se-line);
+}
+
+.se-brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  text-decoration: none;
+  color: var(--se-text);
+}
+
+.se-brand__mark {
+  font-weight: 900;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.se-brand__ver {
+  font-family: var(--se-mono);
+  font-size: 10px;
+  color: var(--se-muted);
+}
+
+.se-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 20px 16px 64px;
+}
+
+.se-authshell {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 48px 16px 64px;
+}
+
+.se-grid {
+  display: grid;
+  gap: 14px;
+}
+
+@media (min-width: 768px) {
+  .se-grid--2 { grid-template-columns: 1fr 1fr; }
+  .se-grid--sidebar { grid-template-columns: minmax(0, 1fr) 320px; }
+}
+
+.se-hr {
+  border: 0;
+  border-top: 1px solid var(--se-line-soft);
+  margin: 14px 0;
+}
+
+a { color: var(--se-accent); }
+a:hover { color: #c9ff63; }
+
+/* --- top bar extras ------------------------------------------------------ */
+
+.se-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.se-topbar__who {
+  color: var(--se-text-dim);
+}
+
+.se-btn--sm {
+  padding: 5px 11px;
+  font-size: 10px;
+}
+
+.se-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  overflow: hidden;
+}
+
+.se-statusbar__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.se-statusbar__k {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--se-muted);
+}
+
+.se-statusbar__v {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.se-statusbar__v--narrow {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .se-statusbar {
+    gap: 12px;
+  }
+  .se-statusbar__k {
+    display: none;
+  }
+  .se-statusbar__v--wide {
+    display: none;
+  }
+  .se-statusbar__v--narrow {
+    display: inline;
+  }
+  .se-topbar__who {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .se-brand__ver {
+    display: none;
+  }
+}
+
+/* --- page furniture ------------------------------------------------------ */
+
+.se-hero {
+  font-size: clamp(34px, 7vw, 58px);
+  margin: 6px 0 14px;
+}
+
+.se-hero--sm {
+  font-size: clamp(26px, 5vw, 40px);
+}
+
+.se-lede {
+  max-width: 56ch;
+  color: var(--se-text-dim);
+  font-size: 15px;
+  margin: 0 0 18px;
+}
+
+.se-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.se-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--se-text-dim);
+}
+
+.se-list li {
+  margin-bottom: 5px;
+}
+
+.se-list--muted {
+  color: var(--se-muted);
+}
+
+.se-pagehead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.se-booting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 60vh;
+}
+
+.se-mb {
+  margin-bottom: 14px;
+}
+
+.se-mt {
+  margin-top: 14px;
+}
+
+.se-center {
+  text-align: center;
+}
+
+/* --- game layout --------------------------------------------------------- */
+
+.se-gamebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 12px;
+  margin-bottom: 14px;
+  border: 1px solid var(--se-line);
+  border-left: 3px solid var(--se-accent);
+  border-radius: 3px;
+  background: var(--se-panel);
+}
+
+.se-gamebar__name {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.se-gamebar__time {
+  font-size: 12px;
+  color: var(--se-text-dim);
+}
+
+.se-gamegrid {
+  display: grid;
+  gap: 14px;
+}
+
+@media (min-width: 900px) {
+  .se-gamegrid {
+    grid-template-columns: 168px minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.se-gamemain {
+  min-width: 0;
+}
+
+/* --- game nav ------------------------------------------------------------ */
+
+.se-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+}
+
+.se-nav__section {
+  min-width: 140px;
+}
+
+.se-nav__title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--se-muted);
+  margin: 0 0 5px;
+}
+
+.se-nav__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.se-nav__link {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px;
+  margin-left: -8px;
+  border-radius: 3px;
+  font-size: 13px;
+  color: var(--se-text-dim);
+  text-decoration: none;
+}
+
+a.se-nav__link:hover {
+  color: #fff;
+  background: var(--se-panel);
+}
+
+.se-nav__link--active {
+  color: var(--se-accent);
+  background: var(--se-panel);
+  box-shadow: inset 2px 0 0 var(--se-accent);
+}
+
+.se-nav__link--soon {
+  color: #4d5561;
+  cursor: default;
+}
+
+.se-nav__soon {
+  font-family: var(--se-mono);
+  font-size: 9px;
+  color: #3c434e;
+  white-space: nowrap;
+}
+
+@media (min-width: 900px) {
+  .se-nav {
+    display: block;
+    position: sticky;
+    top: 62px;
+  }
+  .se-nav__section {
+    margin-bottom: 16px;
+  }
+}
+
+/* --- happiness ----------------------------------------------------------- */
+
+.se-happiness + .se-happiness {
+  margin-top: 12px;
+}
+
+.se-happiness__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* --- activity feed ------------------------------------------------------- */
+
+.se-feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.se-feed__item {
+  display: flex;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--se-line-soft);
+}
+
+.se-feed__item:last-child {
+  border-bottom: 0;
+}
+
+.se-feed__time {
+  flex-shrink: 0;
+  width: 62px;
+  font-size: 11px;
+  color: var(--se-muted);
+  padding-top: 1px;
+}
+
+.se-feed__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.se-feed__text {
+  font-size: 13px;
+  color: var(--se-text);
+}
+
+.se-feed__detail {
+  font-family: var(--se-mono);
+  font-size: 11px;
+  color: var(--se-accent-dim);
+}
+
+/* --- sync indicator ------------------------------------------------------ */
+
+.se-pagehead__right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.se-sync {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--se-accent-dim);
+}
+
+.se-sync--busy {
+  background: var(--se-accent);
+  animation: se-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes se-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-sync--busy {
+    animation: none;
+  }
+}
+
+/*
+ * On a phone the player's own numbers come first; the nav drops to the bottom,
+ * which is roughly where a bottom bar will live once there is more than one
+ * place to go. DOM order stays nav-first for assistive tech.
+ */
+@media (max-width: 899px) {
+  .se-nav {
+    order: 2;
+    margin-top: 6px;
+    padding-top: 14px;
+    border-top: 1px solid var(--se-line-soft);
+  }
+
+  .se-gamemain {
+    order: 1;
+  }
+}
+
+/* --- district / option picker -------------------------------------------- */
+
+.se-choices {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.se-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  background: #0d0f12;
+  cursor: pointer;
+}
+
+.se-choice:hover {
+  border-color: #333a45;
+}
+
+.se-choice--on {
+  border-color: var(--se-accent-dim);
+  background: rgba(182, 255, 58, 0.05);
+  box-shadow: inset 2px 0 0 var(--se-accent);
+}
+
+.se-choice__input {
+  accent-color: var(--se-accent);
+  flex-shrink: 0;
+}
+
+.se-choice__body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 14px;
+  width: 100%;
+}
+
+.se-choice__name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.se-choice__meta {
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--se-muted);
+}
+
+/* --- turn spend ---------------------------------------------------------- */
+
+.se-spend {
+  margin-bottom: 14px;
+}
+
+.se-spend__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.se-spend__input {
+  width: 96px;
+  font-family: var(--se-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- action result ------------------------------------------------------- */
+
+.se-result {
+  border-left: 3px solid var(--se-accent);
+}
+
+.se-result__subtitle {
+  padding: 9px 12px 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--se-accent);
+}
+
+.se-result__consequences {
+  border-top: 1px solid var(--se-line);
+  background: #101318;
+  padding-top: 10px;
+}
+
+.se-result__consequences .se-eyebrow {
+  padding: 0 12px 4px;
+}
+
+.se-row--muted .se-row__label,
+.se-row--muted .se-row__value {
+  color: var(--se-muted);
+}
+
+/* --- payout -------------------------------------------------------------- */
+
+.se-payout__split {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.se-payout__you {
+  text-align: right;
+}
+
+.se-payout__value {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+
+.se-payout__scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--se-muted);
+  margin-top: 2px;
+}
+
+.se-range {
+  width: 100%;
+  accent-color: var(--se-accent);
+  background: transparent;
+  cursor: pointer;
+}
+
+.se-range:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

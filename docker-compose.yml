@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: streets-empire-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: streets
+      POSTGRES_PASSWORD: streets
+      POSTGRES_DB: streets_empire
+    ports:
+      - "5433:5432"
+    volumes:
+      - streets-empire-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U streets -d streets_empire"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  streets-empire-pgdata:
