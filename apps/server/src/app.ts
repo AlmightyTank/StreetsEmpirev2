@@ -4,6 +4,8 @@ import { env } from './config/env.js';
 import authPlugin from './plugins/auth.js';
 import errorHandlerPlugin from './plugins/error-handler.js';
 import prismaPlugin from './plugins/prisma.js';
+import rateLimitPlugin from './plugins/rate-limit.js';
+import securityPlugin from './plugins/security.js';
 import routes from './routes/index.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
@@ -18,6 +20,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   await app.register(errorHandlerPlugin);
+  await app.register(securityPlugin);
 
   await app.register(fastifyCors, {
     origin: env.corsOrigins,
@@ -26,6 +29,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   await app.register(prismaPlugin);
   await app.register(authPlugin);
+  await app.register(rateLimitPlugin);
 
   await app.register(routes, { prefix: '/api' });
 

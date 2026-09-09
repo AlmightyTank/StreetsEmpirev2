@@ -1,0 +1,74 @@
+/* 0.1.0-F: mobile/reconnect hardening. */
+
+html,
+body,
+#root {
+  max-width: 100%;
+}
+
+.se-tablewrap,
+.se-nav {
+  overscroll-behavior-x: contain;
+}
+
+@media (pointer: coarse) {
+  .se-btn,
+  .se-nav__link,
+  .se-choice {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 600px) {
+  /* 16px prevents iOS Safari from zooming the whole page when an input is focused. */
+  .se-input {
+    font-size: 16px;
+  }
+
+  .se-row {
+    align-items: flex-start;
+  }
+
+  .se-row__label {
+    white-space: normal;
+  }
+
+  .se-row__value {
+    max-width: 62%;
+    overflow-wrap: anywhere;
+  }
+
+  .se-result .se-row {
+    gap: 8px;
+  }
+
+  .se-result__subtitle {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .se-store-order {
+    grid-template-columns: 1fr;
+  }
+
+  .se-spend__input {
+    width: min(120px, 100%);
+  }
+}
+
+@media (max-width: 380px) {
+  .se-shell {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .se-stat__value {
+    font-size: 15px;
+  }
+
+  .se-gamebar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+}

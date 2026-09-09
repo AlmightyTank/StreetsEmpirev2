@@ -92,12 +92,21 @@ export interface ResourcesDto {
   lowRiders: number;
 }
 
+/** One line of the happiness sum, so a low number can explain itself. */
+export interface HappinessTermDto {
+  key: string;
+  label: string;
+  penalty: number;
+  max: number;
+  fix: string | null;
+}
+
 export interface HappinessDto {
   whore: number;
   thug: number;
-  /** The wear currently being subtracted, so the UI can explain a low number. */
-  whoreFatigue: number;
-  thugFatigue: number;
+  /** What is actually costing them, biggest drag first. */
+  whoreTerms: HappinessTermDto[];
+  thugTerms: HappinessTermDto[];
 }
 
 export interface RankDto {
@@ -183,16 +192,16 @@ export interface DistrictDto {
   key: string;
   slug: string;
   name: string;
-  /** Rough guidance for the player, not the raw balance numbers. */
-  recruiting: 'low' | 'medium' | 'high';
-  money: 'low' | 'medium' | 'high';
-  /**
-   * What this district is actually worth to this player right now, after
-   * diminishing returns. Shown so a shrinking rate reads as a mechanic rather
-   * than a bug.
+  /*
+   * There is deliberately no pay band and no recruit rate here.
+   *
+   * What a block pays depends on the clients out on it, which rotates hourly
+   * and is never posted. What you can recruit there depends on how many you
+   * already run. Publishing either would be a spoiler at best and a lie at
+   * worst, so the only numbers on this DTO are the ones a player could see
+   * standing on the corner: how much muscle the block wants, and how much of
+   * their crew is currently uncovered.
    */
-  expectedWhoresPerTurn: number;
-  expectedThugsPerTurn: number;
 
   /** How many girls one thug can cover on this block. */
   protectionWhoresPerThug: number;
@@ -204,34 +213,26 @@ export interface DistrictDto {
 
 export interface DistrictsDto {
   districts: DistrictDto[];
-  /** Recruitment left after the crew's own size, 0..1. */
-  recruitment: { whores: number; thugs: number };
 }
 
-/** Section 26. Turns spent looking for people. Earns nothing. */
+/**
+ * Manual 3.1. One trip: the girls work the block while you pick people up, so
+ * a scout result carries both the night's take and who you found.
+ */
 export interface ScoutResult {
   district: DistrictDto;
+
   whoresRecruited: number;
   thugsRecruited: number;
-  /** What the crew's own size did to the headline rates, 0..1. */
-  recruitmentMultipliers: { whores: number; thugs: number };
-  turnsUsed: number;
-  turnsRemaining: number;
-}
-
-/** Work the Streets. The only action that makes money. */
-export interface WorkResult {
-  district: DistrictDto;
 
   /** Everything the girls brought in. */
   grossEarnedCents: number;
-  /** The crew's share, which is what pays their wear back. */
+  /** The crew's share of the night. */
   crewTakeCents: number;
   /** Your share, which is what landed in cash. */
   cashEarnedCents: number;
   payoutPercent: number;
 
-  /** Product turned up on the block rather than bought. */
   crackFound: number;
 
   condomsUsed: number;
@@ -243,32 +244,56 @@ export interface WorkResult {
   whoresLeft: number;
   thugsLeft: number;
 
+  /** Who caught something working without enough condoms. */
+  infected: number;
+  /** Of those, how many the medicine on hand covered. */
+  treated: number;
+  medicineUsed: number;
+  /** Untreated, and gone. */
+  lostToInfection: number;
+
   /** Fraction of the stable that worked with nobody watching, 0..1. */
   exposedFraction: number;
   coveredWhores: number;
-
-  /** Positive means they went home worse off than they left. */
-  whoreFatigueChange: number;
-  thugFatigueChange: number;
-  /** Take against what the night was worth. 1.0 is a fair night. */
-  reliefRatio: number;
 
   turnsUsed: number;
   turnsRemaining: number;
 }
 
-/** Section 29. Turns and cash in, crack out. Earns nothing. */
+/**
+ * Manual 3.2. The girls still go out while the thugs cook - they just earn a
+ * fraction of a scouted night, because nobody is out there running them.
+ */
 export interface ProduceCrackResult {
+
   crackProduced: number;
   ingredientCents: number;
   /** True when cash, not thugs, was the limit on the batch. */
   limitedByCash: boolean;
 
+  /** What the unsupervised shift still brought in. */
+  grossEarnedCents: number;
+  crewTakeCents: number;
+  cashEarnedCents: number;
+  payoutPercent: number;
+
+  crackFound: number;
+  condomsUsed: number;
+  crackUsed: number;
   beerUsed: number;
+  condomsMissing: number;
+  beerMissing: number;
+
   whoresLeft: number;
   thugsLeft: number;
 
-  thugFatigueChange: number;
+  /** Who caught something working without enough condoms. */
+  infected: number;
+  /** Of those, how many the medicine on hand covered. */
+  treated: number;
+  medicineUsed: number;
+  /** Untreated, and gone. */
+  lostToInfection: number;
 
   turnsUsed: number;
   turnsRemaining: number;
@@ -288,6 +313,19 @@ export interface StoreItemDto {
   sellCents: number | null;
   owned: number;
   maxBuy: number;
+  /** Null when the store can sell as many as you can pay for. */
+  restock: StoreRestockDto | null;
+}
+
+/** What the store has on the shelf, and when the next one lands. */
+export interface StoreRestockDto {
+  stock: number;
+  cap: number;
+  intervalMinutes: number;
+  /** How many arrive per delivery. */
+  perInterval: number;
+  /** ISO timestamp, or null when the shelf is already full. */
+  nextAt: string | null;
 }
 
 export interface WeaponUnlockDto {
@@ -320,6 +358,8 @@ export interface StoreDto {
   key: string;
   slug: string;
   name: string;
+  /** Who is behind the counter, for copy that talks about the stock. */
+  keeper: string;
   blurb: string;
   items: StoreItemDto[];
 }

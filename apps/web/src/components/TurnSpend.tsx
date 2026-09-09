@@ -1,4 +1,6 @@
 import { formatNumber } from '@streets/shared';
+import { storeBulkHelpers } from '@streets/rulesets';
+import { QuantitySteps } from './QuantitySteps.js';
 
 /**
  * Sections 25 and 28. Choose how many turns to burn.
@@ -41,26 +43,13 @@ export function TurnSpend({
           }}
         />
 
-        {[10, 25, 100].map((amount) => (
-          <button
-            type="button"
-            key={amount}
-            className="se-btn se-btn--sm"
-            disabled={disabled || available < amount}
-            onClick={() => onChange(amount)}
-          >
-            {amount}
-          </button>
-        ))}
-
-        <button
-          type="button"
-          className="se-btn se-btn--sm"
-          disabled={disabled || available < 1}
-          onClick={() => onChange(available)}
-        >
-          Max
-        </button>
+        <QuantitySteps
+          value={value}
+          onChange={onChange}
+          max={available}
+          steps={storeBulkHelpers}
+          disabled={disabled}
+        />
       </div>
 
       {tooMany ? (

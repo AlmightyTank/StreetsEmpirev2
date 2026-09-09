@@ -16,6 +16,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run",
     "test:watch": "vitest",
+    "qa:release": "node scripts/qa/release-check.mjs",
+    "qa:load": "node scripts/qa/load-smoke.mjs",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:generate": "prisma generate",

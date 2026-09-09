@@ -46,7 +46,7 @@ export function LandingPage() {
           <div className="se-grid se-grid--2">
             <Panel title="The loop">
               <ul className="se-list">
-                <li>Scout the districts for whores and thugs.</li>
+                <li>Scout the districts for clients, whores and thugs.</li>
                 <li>Keep them stocked, armed and paid, or they walk.</li>
                 <li>Cook crack, move it, and turn cash into net worth.</li>
                 <li>Climb the local and national boards before the round ends.</li>

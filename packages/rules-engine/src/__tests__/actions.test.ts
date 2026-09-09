@@ -4,7 +4,7 @@ import {
   calculateExposure,
   calculateProduce,
   calculateScout,
-  calculateWork,
+  calculateStreetTake,
   expectedRecruitsPerTurn,
   recruitmentMultiplier,
 } from '../calculations/actions.js';
@@ -18,37 +18,64 @@ function crew(overrides: Partial<UpkeepInput> = {}): UpkeepInput {
     condoms: 4_812,
     crack: 1_221,
     beer: 108,
+    medicine: 50,
     whoreHappiness: 100,
     thugHappiness: 100,
     ...overrides,
   };
 }
 
-/** Feeds a fixed sequence, then repeats the last value. */
-function sequence(...values: number[]): Rng {
-  let i = 0;
-  return () => values[Math.min(i++, values.length - 1)] ?? 0.5;
-}
-
 /** Never rolls a "find", so a work result is pure earnings. */
 const noFinds: Rng = () => 0.5;
+
+/**
+ * A block with effectively unlimited clients, so tests about something other
+ * than saturation are not silently measuring it. Capacity is exercised on
+ * purpose in clients.test.ts.
+ */
+const OPEN_BLOCK = 1e9;
 
 describe('calculateScout', () => {
   const nobody = crew({ whores: 0, thugs: 0 });
 
-  // Section 27: ten turns in the Nightclub brings back 11 whores and 4 thugs.
-  it('matches the section 27 recruitment for a nobody', () => {
+  /**
+   * Spec section 27 illustrates +11 whores for ten Nightclub turns. That is
+   * deliberately not what happens any more: at 288 turns a day those rates
+   * took a new player past the soft cap in an evening. The rate the ruleset
+   * actually carries is what gets pinned.
+   */
+  it('recruits at the ruleset rate for a nobody', () => {
+    const turns = 50;
     const result = calculateScout({
       player: nobody,
-      turns: 10,
+      turns,
       ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
       district: 'NIGHTCLUB',
+      payoutPercent: 50,
       rng: flatRng,
     });
 
-    expect(result.whoresRecruited).toBe(11);
-    expect(result.thugsRecruited).toBe(4);
-    expect(result.turnsSpent).toBe(10);
+    expect(result.whoresRecruited).toBe(
+      Math.round(classicOgV01.districts.NIGHTCLUB.whoresPerTurn * turns),
+    );
+    expect(result.turnsSpent).toBe(turns);
+  });
+
+  /** A recommended trip should feel like picking a couple of people up. */
+  it('adds only a handful on the manual’s recommended trip', () => {
+    const result = calculateScout({
+      player: nobody,
+      turns: classicOgV01.scouting.recommendedTurns,
+      ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
+      district: 'WINO_SLUMS',
+      payoutPercent: 50,
+      rng: flatRng,
+    });
+
+    expect(result.whoresRecruited).toBeGreaterThan(0);
+    expect(result.whoresRecruited).toBeLessThanOrEqual(5);
   });
 
   /** Scouting is looking for people. It is not a shift. */
@@ -57,59 +84,72 @@ describe('calculateScout', () => {
       player: crew(),
       turns: 10,
       ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
       district: 'NIGHTCLUB',
+      payoutPercent: 50,
       rng: flatRng,
     });
 
-    expect(result).not.toHaveProperty('grossCents');
-    expect(result).not.toHaveProperty('consumption');
-    expect(result).not.toHaveProperty('fatigue');
+    expect(result.grossCents).toBeGreaterThan(0n);
+    expect(result.consumption.condoms).toBeGreaterThan(0);
+    // ...and still picks people up on the same turns.
+    expect(result.whoresRecruited).toBeGreaterThan(0);
   });
 
   it('can come back with a haul or with nothing', () => {
-    const roll = (variance: number) =>
+    // The take is rolled before the recruits, so a fixed sequence cannot pin
+    // an exact head count any more. The spread itself is what matters.
+    const roll = (value: number) =>
       calculateScout({
         player: nobody,
-        turns: 10,
+        turns: 200,
         ruleset: classicOgV01,
+        clientCapacity: OPEN_BLOCK,
         district: 'NIGHTCLUB',
-        rng: sequence(variance, 0.99),
+        payoutPercent: 50,
+        rng: () => value,
       }).whoresRecruited;
 
-    expect(roll(1)).toBe(14);
-    expect(roll(0)).toBe(7);
+    // Enough turns that the 0.35 spread is visible above the rounding.
+    const generous = roll(1);
+    const stingy = roll(0);
+
+    expect(generous).toBeGreaterThan(stingy);
+    expect(stingy).toBeGreaterThan(0);
   });
 
   it('rounds fractional recruits stochastically rather than to nothing', () => {
-    const lucky = calculateScout({
-      player: nobody,
-      turns: 1,
-      ruleset: classicOgV01,
-      district: 'CASINO',
-      rng: sequence(0.5, 0.1),
-    });
-    const unlucky = calculateScout({
-      player: nobody,
-      turns: 1,
-      ruleset: classicOgV01,
-      district: 'CASINO',
-      rng: sequence(0.5, 0.9),
-    });
+    // A single Casino turn is a fraction of a whore. It has to be able to
+    // round up sometimes, or a small player in a rich district never recruits.
+    const run = (value: number) =>
+      calculateScout({
+        player: nobody,
+        turns: 1,
+        ruleset: classicOgV01,
+        clientCapacity: OPEN_BLOCK,
+        district: 'CASINO',
+        payoutPercent: 50,
+        rng: () => value,
+      }).whoresRecruited;
 
-    expect(lucky.whoresRecruited).toBe(1);
-    expect(unlucky.whoresRecruited).toBe(0);
+    expect(run(0)).toBe(1);
+    expect(run(0.99)).toBe(0);
   });
 
   it('applies the city scout modifier', () => {
     const boosted = calculateScout({
       player: nobody,
-      turns: 10,
+      turns: 100,
       ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
       district: 'NIGHTCLUB',
+      payoutPercent: 50,
       city: { scoutModifier: 2, incomeModifier: 1, crackModifier: 1 },
       rng: flatRng,
     });
-    expect(boosted.whoresRecruited).toBe(22);
+    expect(boosted.whoresRecruited).toBe(
+      Math.round(classicOgV01.districts.NIGHTCLUB.whoresPerTurn * 100 * 2),
+    );
   });
 });
 
@@ -135,8 +175,11 @@ describe('diminishing returns on recruitment', () => {
       classicOgV01,
     );
 
-    expect(expected.whores).toBeCloseTo(1.1 / 2, 5);
-    expect(expected.thugs).toBeCloseTo(0.4, 5);
+    expect(expected.whores).toBeCloseTo(
+      classicOgV01.districts.NIGHTCLUB.whoresPerTurn / 2,
+      5,
+    );
+    expect(expected.thugs).toBeCloseTo(classicOgV01.districts.NIGHTCLUB.thugsPerTurn, 5);
   });
 
   it('cuts a big operation to a fraction of a small one', () => {
@@ -145,12 +188,16 @@ describe('diminishing returns on recruitment', () => {
         player: crew({ whores, thugs: 0 }),
         turns: 100,
         ruleset: classicOgV01,
+        clientCapacity: OPEN_BLOCK,
         district: 'WINO_SLUMS',
+        payoutPercent: 50,
         rng: flatRng,
       }).whoresRecruited;
 
-    expect(run(0)).toBe(180);
-    expect(run(caps.whoreSoftCap * 9)).toBe(18);
+    const full = Math.round(classicOgV01.districts.WINO_SLUMS.whoresPerTurn * 100);
+    expect(run(0)).toBe(full);
+    // multiplier 0.1 at nine times the soft cap
+    expect(run(caps.whoreSoftCap * 9)).toBe(Math.round(full * 0.1));
   });
 });
 
@@ -165,7 +212,6 @@ describe('calculateExposure', () => {
     expect(result.covered).toBe(40);
     expect(result.exposed).toBe(0);
     expect(result.takeMultiplier).toBe(1);
-    expect(result.fatigueMultiplier).toBe(1);
   });
 
   it('costs the take and the crew when half of them stand alone', () => {
@@ -173,7 +219,6 @@ describe('calculateExposure', () => {
 
     expect(result.exposed).toBe(0.5);
     expect(result.takeMultiplier).toBeCloseTo(0.7, 5);
-    expect(result.fatigueMultiplier).toBeCloseTo(1.5, 5);
   });
 
   /** The same crew is fine somewhere nobody is watching. */
@@ -186,19 +231,25 @@ describe('calculateExposure', () => {
     const result = calculateExposure({ whores: 40, thugs: 0 }, casino, classicOgV01);
     expect(result.exposed).toBe(1);
     expect(result.takeMultiplier).toBeCloseTo(0.4, 5);
-    expect(result.fatigueMultiplier).toBe(2);
   });
 });
 
-describe('calculateWork', () => {
+describe('calculateStreetTake', () => {
   /** 10 girls, enough muscle for the Casino, a clean average roll. */
   const covered = crew({ whores: 10, thugs: 3 });
 
+  /**
+   * A block holding 90 clients against 10 girls, so the saturation term is
+   * exactly 0.9 and the whole formula stays in round numbers.
+   */
+  const BLOCK = 90;
+
   function night(payoutPercent: number, district: 'CASINO' | 'WINO_SLUMS' = 'CASINO') {
-    return calculateWork({
+    return calculateStreetTake({
       player: covered,
       turns: 10,
       ruleset: classicOgV01,
+      clientCapacity: BLOCK,
       district,
       payoutPercent,
       rng: noFinds,
@@ -208,10 +259,11 @@ describe('calculateWork', () => {
   it('earns the district rate and splits it by the payout', () => {
     const result = night(50);
 
-    // 10 whores * $15 * 10 turns * 2.5 (Casino) = $3,750.
-    expect(result.grossCents).toBe(375_000n);
-    expect(result.crewTakeCents).toBe(187_500n);
-    expect(result.pimpTakeCents).toBe(187_500n);
+    // 10 whores * $15 * 10 turns * 2.5 (Casino) * 0.9 (90/(90+10)) = $3,375.
+    expect(result.clients).toEqual({ capacity: BLOCK, takeMultiplier: 0.9 });
+    expect(result.grossCents).toBe(337_500n);
+    expect(result.crewTakeCents).toBe(168_750n);
+    expect(result.pimpTakeCents).toBe(168_750n);
   });
 
   it('burns supplies, because this is the shift', () => {
@@ -223,62 +275,30 @@ describe('calculateWork', () => {
    * and ruinous somewhere poor, because relief is measured in money reaching
    * a pocket rather than in a percentage.
    */
-  it('makes the same cut survivable somewhere rich and ruinous somewhere poor', () => {
-    const casino = night(20, 'CASINO').fatigue.whore.change;
-    const slums = night(20, 'WINO_SLUMS').fatigue.whore.change;
 
-    // A fifth of a Casino night is close enough to fair that the crew barely
-    // notices; a fifth of the slums is most of a night's wear, every night.
-    expect(casino).toBeLessThan(1);
-    expect(slums).toBeGreaterThan(6);
-    expect(slums / Math.max(casino, 0.01)).toBeGreaterThan(10);
-  });
 
-  it('has a different break-even cut in every district', () => {
-    const breakEven = (district: 'CASINO' | 'NIGHTCLUB' | 'WINO_SLUMS') => {
-      for (let payout = 1; payout <= 99; payout++) {
-        if (night(payout, district as 'CASINO').fatigue.whore.change <= 0) return payout;
-      }
-      return null;
-    };
 
-    const casino = breakEven('CASINO');
-    const nightclub = breakEven('NIGHTCLUB');
-
-    expect(casino).not.toBeNull();
-    expect(nightclub).not.toBeNull();
-    expect(casino!).toBeLessThan(nightclub!);
-    // Nobody can be kept happy working the slums, at any split.
-    expect(breakEven('WINO_SLUMS')).toBeNull();
-  });
-
-  it('rewards paying well anywhere', () => {
-    const stingy = night(10, 'WINO_SLUMS').fatigue.whore.change;
-    const generous = night(90, 'WINO_SLUMS').fatigue.whore.change;
-    expect(generous).toBeLessThan(stingy);
-  });
-
-  it('earns less and hurts more on a block the crew cannot cover', () => {
-    const thin = calculateWork({
+  it('earns less on a block the crew cannot cover', () => {
+    const thin = calculateStreetTake({
       player: crew({ whores: 40, thugs: 1 }),
       turns: 10,
       ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
       district: 'CASINO',
       payoutPercent: 50,
       rng: noFinds,
     });
 
     expect(thin.exposure.exposed).toBeGreaterThan(0);
-    expect(thin.fatigue.whore.wear).toBeGreaterThan(
-      classicOgV01.work.fatigue.whorePerTurn * 10,
-    );
+    expect(thin.exposure.takeMultiplier).toBeLessThan(1);
   });
 
   it('earns nothing from a stable that is not there', () => {
-    const result = calculateWork({
+    const result = calculateStreetTake({
       player: crew({ whores: 0, thugs: 5 }),
       turns: 10,
       ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
       district: 'CASINO',
       payoutPercent: 50,
       rng: noFinds,
@@ -286,23 +306,34 @@ describe('calculateWork', () => {
     expect(result.grossCents).toBe(0n);
   });
 
-  it('scales the take with whore happiness', () => {
-    const worn = calculateWork({
-      player: crew({ whores: 10, thugs: 3, whoreHappiness: 50 }),
-      turns: 10,
-      ruleset: classicOgV01,
-      district: 'CASINO',
-      payoutPercent: 50,
-      rng: noFinds,
-    });
-    expect(worn.grossCents).toBe(187_500n);
+  it('scales the take with whore happiness, down to the floor', () => {
+    const take = (whoreHappiness: number) =>
+      calculateStreetTake({
+        player: crew({ whores: 10, thugs: 3, whoreHappiness }),
+        turns: 10,
+        ruleset: classicOgV01,
+        clientCapacity: OPEN_BLOCK,
+        district: 'CASINO',
+        payoutPercent: 50,
+        rng: noFinds,
+      }).grossCents;
+
+    const floor = classicOgV01.scouting.minHappinessMultiplier;
+    const full = Number(take(100));
+
+    // The engine floors once at the end, so compare within a cent.
+    expect(Number(take(50))).toBeCloseTo(full * (floor + (1 - floor) * 0.5), -1);
+    // Rock bottom is the floor, not nothing.
+    expect(Number(take(0))).toBeCloseTo(full * floor, -1);
+    expect(Number(take(0))).toBeGreaterThan(0);
   });
 
   it('turns up product on the block every so often', () => {
-    const lucky = calculateWork({
+    const lucky = calculateStreetTake({
       player: covered,
       turns: 10,
       ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
       district: 'CASINO',
       payoutPercent: 50,
       rng: () => 0.01, // always under the find chance
@@ -319,6 +350,8 @@ describe('calculateProduce', () => {
       player: crew({ thugs: 42 }),
       turns: 10,
       ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
+      payoutPercent: 50,
       rng: flatRng,
       ...rich,
     });
@@ -332,19 +365,41 @@ describe('calculateProduce', () => {
       player: crew({ thugs: 42 }),
       turns: 10,
       ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
+      payoutPercent: 50,
       rng: flatRng,
       ...rich,
     });
 
-    // 210 rocks at $1 of ingredients each.
-    expect(result.ingredientCents).toBe(21_000n);
+    expect(result.ingredientCents).toBe(
+      BigInt(result.crackProduced * classicOgV01.production.crack.ingredientCentsPerRock),
+    );
   });
 
-  /** Cooking undercuts Pip's by an order of magnitude. That is the point. */
-  it('costs a tenth of what Pip’s charges for the same rock', () => {
-    expect(classicOgV01.production.crack.ingredientCentsPerRock * 10).toBe(
-      classicOgV01.stores.PIP.items.CRACK?.buyCents,
-    );
+  /**
+   * The three crack prices have to sit in one order, and the middle one is
+   * what stops an infinite money loop:
+   *
+   *   cook $5  <  buy $10   so cooking is still the cheap way to get a rock
+   *   cook $5  >  sell $3   so cook-and-dump loses money every time
+   *
+   * If cooking ever became cheaper than what Pip's pays, a player could mint
+   * cash forever by cooking and selling. That is the assertion that matters.
+   */
+  it('prices cooking below Pip’s counter but above what Pip’s pays', () => {
+    const cook = classicOgV01.production.crack.ingredientCentsPerRock;
+    const buy = classicOgV01.stores.PIP.items.CRACK!.buyCents;
+    const sell = classicOgV01.stores.PIP.items.CRACK!.sellCents!;
+
+    expect(cook).toBeLessThan(buy);
+    expect(cook).toBeGreaterThan(sell);
+  });
+
+  it('makes cook-and-dump a loss, so it cannot be farmed', () => {
+    const cook = classicOgV01.production.crack.ingredientCentsPerRock;
+    const sell = classicOgV01.stores.PIP.items.CRACK!.sellCents!;
+
+    expect(sell - cook).toBeLessThan(0);
   });
 
   it('cooks a smaller batch when the cash runs out', () => {
@@ -352,37 +407,47 @@ describe('calculateProduce', () => {
       player: crew({ thugs: 42 }),
       turns: 10,
       ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
+      payoutPercent: 50,
       rng: flatRng,
-      cashCents: 3_000n, // enough for 30 rocks
+      cashCents: BigInt(30 * classicOgV01.production.crack.ingredientCentsPerRock),
     });
 
     expect(result.crackProduced).toBe(30);
-    expect(result.ingredientCents).toBe(3_000n);
+    expect(result.ingredientCents).toBe(
+      BigInt(30 * classicOgV01.production.crack.ingredientCentsPerRock),
+    );
     expect(result.limitedByCash).toBe(true);
   });
 
-  it('earns nothing and wears the thugs down', () => {
+  it('still earns, at a fraction of a scouted night', () => {
     const result = calculateProduce({
       player: crew(),
       turns: 10,
       ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
+      payoutPercent: 50,
       rng: flatRng,
       ...rich,
     });
 
-    expect(result).not.toHaveProperty('grossCents');
-    expect(result.thugFatigue).toBe(6);
+    expect(result.grossCents).toBeGreaterThan(0n);
   });
 
-  it('drinks beer but touches no other supplies', () => {
+  it('burns the shelf too, because the girls are still out', () => {
     const result = calculateProduce({
       player: crew(),
       turns: 10,
       ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
+      payoutPercent: 50,
       rng: flatRng,
       ...rich,
     });
-    expect(result.consumption).toEqual({ condoms: 0, crack: 0, beer: 8 });
+    // 73 whores and 42 thugs over 10 turns, same as any other night out.
+    expect(result.consumption.condoms).toBeGreaterThan(0);
+    expect(result.consumption.crack).toBeGreaterThan(0);
+    expect(result.consumption.beer).toBeGreaterThan(0);
   });
 
   it('scales output with thug happiness', () => {
@@ -391,6 +456,8 @@ describe('calculateProduce', () => {
         player: crew({ thugs: 42, thugHappiness }),
         turns: 10,
         ruleset: classicOgV01,
+        clientCapacity: OPEN_BLOCK,
+      payoutPercent: 50,
         rng: flatRng,
         ...rich,
       }).crackProduced;
@@ -405,9 +472,127 @@ describe('calculateProduce', () => {
       player: crew({ thugs: 0 }),
       turns: 10,
       ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
+      payoutPercent: 50,
       rng: flatRng,
       ...rich,
     });
     expect(result.crackProduced).toBe(0);
   });
+});
+
+/**
+ * The manual, held to directly. These are the two sentences the whole action
+ * model is built from, so they get assertions of their own.
+ */
+describe('manual 3.1 and 3.2', () => {
+  const player = crew({ whores: 20, thugs: 5 });
+
+  const trip = calculateScout({
+    player,
+    turns: 13,
+    ruleset: classicOgV01,
+    clientCapacity: OPEN_BLOCK,
+    district: 'NIGHTCLUB',
+    payoutPercent: 50,
+    rng: flatRng,
+  });
+
+  const cook = calculateProduce({
+    player,
+    turns: 13,
+    ruleset: classicOgV01,
+    clientCapacity: OPEN_BLOCK,
+    payoutPercent: 50,
+    cashCents: 100_000_000n,
+    rng: flatRng,
+  });
+
+  /** 3.1: "where to go to make money for yourself, and go out and pickup some whores and thugs" */
+  it('scouting both makes money and picks people up', () => {
+    expect(trip.pimpTakeCents).toBeGreaterThan(0n);
+    expect(trip.whoresRecruited + trip.thugsRecruited).toBeGreaterThan(0);
+  });
+
+  /** 3.2: "sends your whores out, while your thugs produce crack" */
+  it('cooking still sends the girls out and still makes crack', () => {
+    expect(cook.grossCents).toBeGreaterThan(0n);
+    expect(cook.crackProduced).toBeGreaterThan(0);
+  });
+
+  /** 3.2: "the whores produce less money because the thugs are busy" */
+  it('cooking earns less than scouting for the same turns', () => {
+    expect(cook.grossCents).toBeLessThan(trip.grossCents);
+  });
+
+  /** 3.2: crack is what "keeps your whores happy, and keeps them from leaving you" */
+  it('cooking is the only action that grows the crack that keeps them', () => {
+    const cookNet = cook.crackProduced - cook.consumption.crack;
+    const tripNet = trip.crackFound - trip.consumption.crack;
+
+    expect(cookNet).toBeGreaterThan(0);
+    expect(cookNet).toBeGreaterThan(tripNet);
+  });
+
+  /** 3.1: "The recommended amount of turns to use each time is around 12-14." */
+  it('recommends the manual’s trip length', () => {
+    expect(classicOgV01.scouting.recommendedTurns).toBeGreaterThanOrEqual(12);
+    expect(classicOgV01.scouting.recommendedTurns).toBeLessThanOrEqual(14);
+  });
+});
+
+/**
+ * The ladder out.
+ *
+ * A crew at rock bottom must still earn something, or a player who lets
+ * happiness hit zero has no way to buy their way back. A hard low is the
+ * design; a dead end is not.
+ */
+describe('a broken crew can still earn its way back', () => {
+  const broken = crew({
+    whores: 48,
+    thugs: 28,
+    condoms: 0,
+    crack: 0,
+    beer: 0,
+    whoreHappiness: 0,
+    thugHappiness: 0,
+  });
+
+  it('earns something at zero happiness', () => {
+    const out = calculateScout({
+      player: broken,
+      turns: 5,
+      ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
+      district: 'CASINO',
+      payoutPercent: 45,
+      rng: flatRng,
+    });
+
+    expect(out.pimpTakeCents).toBeGreaterThan(0n);
+  });
+
+  it('earns far less than a healthy crew, so the low still stings', () => {
+    const run = (whoreHappiness: number) =>
+      Number(
+        calculateScout({
+          player: crew({ ...broken, whoreHappiness, condoms: 5_000, crack: 500 }),
+          turns: 5,
+          ruleset: classicOgV01,
+        clientCapacity: OPEN_BLOCK,
+          district: 'CASINO',
+          payoutPercent: 45,
+          rng: flatRng,
+        }).pimpTakeCents,
+      );
+
+    expect(run(0)).toBeLessThan(run(100) * 0.25);
+  });
+
+  it('keeps the floor low enough to hurt but above zero', () => {
+    expect(classicOgV01.scouting.minHappinessMultiplier).toBeGreaterThan(0);
+    expect(classicOgV01.scouting.minHappinessMultiplier).toBeLessThanOrEqual(0.25);
+  });
+
 });

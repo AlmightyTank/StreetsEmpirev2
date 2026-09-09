@@ -38,9 +38,18 @@ export function dailyBoundary(now: Date, ruleset: Ruleset): Date {
  * next player down is #9.
  */
 export const RankingService = {
-  async nationalRank(db: Db, roundId: string, netWorthCents: bigint): Promise<number> {
+  async nationalRank(
+    db: Db,
+    roundId: string,
+    netWorthCents: bigint,
+    excludePlayerId?: string,
+  ): Promise<number> {
     const ahead = await db.roundPlayer.count({
-      where: { roundId, netWorthCents: { gt: netWorthCents } },
+      where: {
+        roundId,
+        netWorthCents: { gt: netWorthCents },
+        ...(excludePlayerId ? { id: { not: excludePlayerId } } : {}),
+      },
     });
     return ahead + 1;
   },
@@ -50,20 +59,41 @@ export const RankingService = {
     roundId: string,
     cityId: string,
     netWorthCents: bigint,
+    excludePlayerId?: string,
   ): Promise<number> {
     const ahead = await db.roundPlayer.count({
-      where: { roundId, cityId, netWorthCents: { gt: netWorthCents } },
+      where: {
+        roundId,
+        cityId,
+        netWorthCents: { gt: netWorthCents },
+        ...(excludePlayerId ? { id: { not: excludePlayerId } } : {}),
+      },
     });
     return ahead + 1;
   },
 
+  /**
+   * Ranks for a net worth the caller has just computed but not yet written.
+   *
+   * `id` must be passed whenever the player already has a row, because that
+   * row still holds their PREVIOUS net worth. Without it, an action that
+   * lowers net worth - buying condoms is the classic, $1 of cash for $0.10 of
+   * net worth - counts the player's own stale row as somebody ahead of them,
+   * and the receipt reports a rank drop that never happened.
+   */
   async ranksFor(
     db: Db,
-    player: { roundId: string; cityId: string; netWorthCents: bigint },
+    player: { id?: string; roundId: string; cityId: string; netWorthCents: bigint },
   ): Promise<Ranks> {
     const [localRank, nationalRank] = await Promise.all([
-      RankingService.localRank(db, player.roundId, player.cityId, player.netWorthCents),
-      RankingService.nationalRank(db, player.roundId, player.netWorthCents),
+      RankingService.localRank(
+        db,
+        player.roundId,
+        player.cityId,
+        player.netWorthCents,
+        player.id,
+      ),
+      RankingService.nationalRank(db, player.roundId, player.netWorthCents, player.id),
     ]);
     return { localRank, nationalRank };
   },

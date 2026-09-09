@@ -1,0 +1,22 @@
+/* 0.1.0-H release-candidate stability polish. */
+.se-offline {
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--se-warn);
+  border-left-width: 3px;
+  border-radius: 3px;
+  background: rgba(255, 176, 32, 0.08);
+  color: var(--se-text);
+  font-size: 12px;
+}
+
+.se-offline strong {
+  color: var(--se-warn);
+}
+
+@media (max-width: 560px) {
+  .se-offline {
+    margin-left: -4px;
+    margin-right: -4px;
+  }
+}

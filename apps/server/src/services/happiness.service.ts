@@ -7,8 +7,8 @@ import {
 } from '@streets/rules-engine';
 
 /**
- * Everything happiness reads: the shelves, the muscle and the wear. Fatigue is
- * stored on the player, so this is no longer a pure reading of inventory.
+ * Everything happiness reads: the cut, the shelves and the muscle. It is a
+ * pure reading of current state - nothing accumulates between actions.
  */
 export type HappinessInput = ThugHappinessInput & WhoreHappinessInput;
 

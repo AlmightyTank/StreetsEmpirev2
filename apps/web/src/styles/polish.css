@@ -1,0 +1,38 @@
+/* 0.1.0-G: quality-of-life and consistency pass. */
+
+
+
+
+
+.se-result__delta-pair {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.se-result__remaining {
+  color: var(--se-text);
+}
+
+.se-result__remaining::before {
+  content: '/';
+  margin-right: 3px;
+  color: var(--se-muted);
+}
+
+.se-action-confirm {
+  margin: 8px 0 0;
+  padding: 7px 9px;
+  border-left: 2px solid var(--se-good);
+  background: rgba(74, 222, 128, 0.05);
+  color: var(--se-good);
+  font-size: 11px;
+}
+
+@media (max-width: 480px) {
+  .se-result__delta-pair {
+    max-width: 100%;
+  }
+}

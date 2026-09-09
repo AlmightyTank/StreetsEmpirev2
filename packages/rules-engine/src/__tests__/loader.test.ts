@@ -143,7 +143,10 @@ describe('the ruleset contract', () => {
 
   it('values resources at the variant prices', () => {
     const worth = calculateNetWorthCents(
-      { cashCents: 0, whores: 3, thugs: 0, lowRiders: 0, medicine: 0, crack: 0, condoms: 0 },
+      {
+        cashCents: 0, whores: 3, thugs: 0, lowRiders: 0, medicine: 0, crack: 0,
+        condoms: 0, beer: 0, pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0,
+      },
       brisk,
     );
     expect(worth).toBe(3_000_000n);

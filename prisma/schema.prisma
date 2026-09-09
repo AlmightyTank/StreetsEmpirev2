@@ -20,12 +20,12 @@ datasource db {
 
 /// A permanent player identity. Survives every round.
 model Account {
-  id                 String    @id @default(cuid())
+  id                 String @id @default(cuid())
   username           String
   /// Lowercased username. Enforces case-insensitive uniqueness.
-  usernameNormalized String    @unique
+  usernameNormalized String @unique
   /// Lowercased email.
-  email              String    @unique
+  email              String @unique
   passwordHash       String
 
   createdAt   DateTime  @default(now())
@@ -147,9 +147,9 @@ model RoundPlayer {
   /// Integer cents.
   cashCents BigInt @default(0)
 
-  turns                 Int      @default(0)
-  lastTurnCalculationAt DateTime @default(now())
-  lastActiveAt          DateTime @default(now())
+  turns                 Int       @default(0)
+  lastTurnCalculationAt DateTime  @default(now())
+  lastActiveAt          DateTime  @default(now())
   /// Durable away-bonus state. Prevents collecting twice by refresh spam.
   lastAwayBonusAt       DateTime?
 
@@ -168,22 +168,44 @@ model RoundPlayer {
   tek9s    Int @default(0)
   ak47s    Int @default(0)
 
+  /// What each shop currently has on the shelf for this player, and the clock
+  /// each shelf refills on. Same lazy-regeneration shape as turns: the counter only
+  /// moves when the player is looked at. A ruleset with no limit on a weapon
+  /// simply never reads its pair.
+  pistolStock    Int      @default(0)
+  pistolStockAt  DateTime @default(now())
+  shotgunStock   Int      @default(0)
+  shotgunStockAt DateTime @default(now())
+  tek9Stock      Int      @default(0)
+  tek9StockAt    DateTime @default(now())
+  ak47Stock      Int      @default(0)
+  ak47StockAt    DateTime @default(now())
+
+  lowRiderStock   Int      @default(0)
+  lowRiderStockAt DateTime @default(now())
+
+  condomStock     Int      @default(0)
+  condomStockAt   DateTime @default(now())
+  medicineStock   Int      @default(0)
+  medicineStockAt DateTime @default(now())
+  beerStock       Int      @default(0)
+  beerStockAt     DateTime @default(now())
+  crackStock      Int      @default(0)
+  crackStockAt    DateTime @default(now())
+  thugStock       Int      @default(0)
+  thugStockAt     DateTime @default(now())
+
   lowRiders Int @default(0)
 
   /// Round-long reputation and permanent purchasing access from Tommy's favors.
-  streetWorkTurns Int @default(0)
-  tek9Unlocked Boolean @default(false)
-  ak47Unlocked Boolean @default(false)
+  streetWorkTurns Int     @default(0)
+  tek9Unlocked    Boolean @default(false)
+  ak47Unlocked    Boolean @default(false)
 
   /// Derived from supplies, protection and fatigue. Stored so it can be read
   /// and ranked without recomputing, but never the source of truth.
   whoreHappiness Int @default(100)
   thugHappiness  Int @default(100)
-
-  /// Wear. Climbs when the crew works for a cut that does not justify it,
-  /// falls when they are paid well or left to rest. Subtracted from happiness.
-  whoreFatigue Int @default(0)
-  thugFatigue  Int @default(0)
 
   /// Integer cents.
   netWorthCents BigInt @default(0)

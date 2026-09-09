@@ -1,10 +1,5 @@
 import type { City, Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
-import {
-  calculateRest,
-  clampFatigue,
-  loadRulesetForRound,
-  type Ruleset,
-} from '@streets/rules-engine';
+import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
@@ -12,6 +7,7 @@ import { HappinessService } from './happiness.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { RankingService } from './ranking.service.js';
 import { TurnService, type TurnSettlement } from './turn.service.js';
+import { StockService, type StockSettlementSet } from './stock.service.js';
 
 export type PlayerWithCity = RoundPlayer & { city: City };
 
@@ -20,6 +16,8 @@ export interface SettledPlayer {
   round: Round;
   ruleset: Ruleset;
   turns: TurnSettlement;
+  /** Settled shop shelves, so a store can show what it actually has. */
+  stock: StockSettlementSet;
 }
 
 export interface SettleOptions {
@@ -69,23 +67,19 @@ export const PlayerStateService = {
       const { round, ...rest } = player;
       const ruleset = loadRulesetForRound(round);
 
-      // 1. Turns, and the rest those same intervals bought the crew.
+      // 1. Turns, and the shop shelves on the same clock.
       const turns = TurnService.settle(rest, now, ruleset);
-      const shed = calculateRest(turns.intervalsProcessed, ruleset);
+      const stock = StockService.settle(rest, now, ruleset);
 
-      const fatigue = {
-        whoreFatigue: clampFatigue(rest.whoreFatigue - shed, ruleset),
-        thugFatigue: clampFatigue(rest.thugFatigue - shed, ruleset),
-      };
-
-      // 2. Happiness, from the resources and the wear they are carrying.
-      const happiness = HappinessService.recalculate({ ...rest, ...fatigue }, ruleset);
+      // 2. Happiness, read straight off the player's current state.
+      const happiness = HappinessService.recalculate(rest, ruleset);
 
       // 3. Net worth.
       const netWorthCents = NetWorthService.calculate(rest, ruleset);
 
       // 4. Ranks, against the net worth we just derived.
       const ranks = await RankingService.ranksFor(tx, {
+        id: roundPlayerId,
         roundId: rest.roundId,
         cityId: rest.cityId,
         netWorthCents,
@@ -103,11 +97,8 @@ export const PlayerStateService = {
       if (turns.awayBonus.awarded) {
         data.lastAwayBonusAt = now;
       }
-      if (fatigue.whoreFatigue !== rest.whoreFatigue) {
-        data.whoreFatigue = fatigue.whoreFatigue;
-      }
-      if (fatigue.thugFatigue !== rest.thugFatigue) {
-        data.thugFatigue = fatigue.thugFatigue;
+      if (stock.changed) {
+        Object.assign(data, stock.counts, stock.clocks);
       }
       if (happiness.whoreHappiness !== rest.whoreHappiness) {
         data.whoreHappiness = happiness.whoreHappiness;
@@ -150,7 +141,7 @@ export const PlayerStateService = {
         });
       }
 
-      return { player: settled, round, ruleset, turns };
+      return { player: settled, round, ruleset, turns, stock };
     });
   },
 };

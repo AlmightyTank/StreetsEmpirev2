@@ -10,11 +10,9 @@ export function totalWeapons(player: ThugHappinessInput): number {
 }
 
 /**
- * Section 20, plus wear.
+ * Section 20. Frozen Classic formula - do not add terms to this.
  *
- * The Classic formula is frozen and still the base: a point off for every thug
- * without a beer and every thug without a gun. Fatigue from working and
- * cooking comes off on top of it.
+ *   thugHappiness = clamp(100 - missingBeer - missingWeapons, 0, 100)
  */
 export function calculateThugHappiness(
   player: ThugHappinessInput,
@@ -28,8 +26,7 @@ export function calculateThugHappiness(
   return clamp(
     h.max -
       missingBeer * h.thug.penaltyPerThugWithoutBeer -
-      missingWeapons * h.thug.penaltyPerThugWithoutWeapon -
-      Math.max(0, player.thugFatigue),
+      missingWeapons * h.thug.penaltyPerThugWithoutWeapon,
     h.min,
     h.max,
   );
@@ -38,16 +35,15 @@ export function calculateThugHappiness(
 /**
  * Section 21. BALANCE_APPROXIMATION.
  *
- * What you keep stocked and who is watching them, minus the wear they are
- * carrying:
+ * Four levers, all of them pimp decisions and all of them things the player can
+ * change on their next action:
+ *   payout      - every point below the neutral cut stings
  *   condoms     - stock per whore, scaled by how short the shelf is
  *   crack       - the same
  *   protection  - thugs available to cover the girls working
- *   fatigue     - driven by working for a cut that does not justify it
  *
- * The payout percentage is deliberately absent. A cut is only generous
- * relative to what the block actually pays, so it acts through fatigue when
- * they work rather than as a flat penalty for existing.
+ * Nothing here accumulates. The knobs live in the ruleset, and no service may
+ * reimplement this.
  */
 export function calculateWhoreHappiness(
   player: WhoreHappinessInput,
@@ -57,6 +53,10 @@ export function calculateWhoreHappiness(
   const w = h.whore;
 
   if (player.whores <= 0) return h.max;
+
+  const payoutPenalty =
+    Math.max(0, w.neutralPayoutPercent - player.payoutPercent) *
+    w.penaltyPerPayoutPercentBelowNeutral;
 
   const shortfallPenalty = (stock: number, perWhore: number, max: number): number => {
     const needed = player.whores * perWhore;
@@ -78,13 +78,155 @@ export function calculateWhoreHappiness(
 
   return clamp(
     Math.round(
-      h.max -
-        condomPenalty -
-        crackPenalty -
-        protectionPenalty -
-        Math.max(0, player.whoreFatigue),
+      h.max - payoutPenalty - condomPenalty - crackPenalty - protectionPenalty,
     ),
     h.min,
     h.max,
   );
+}
+
+export interface HappinessTerm {
+  /** Machine key, e.g. "condoms". */
+  key: string;
+  /** Player-facing name. */
+  label: string;
+  /** Points this is costing right now. */
+  penalty: number;
+  /** Worst this term can cost, so the UI can show it as a share. */
+  max: number;
+  /** A sentence naming what would fix it, when anything would. */
+  fix: string | null;
+}
+
+export interface HappinessBreakdown {
+  happiness: number;
+  terms: HappinessTerm[];
+  /** The single biggest drag, or null when nothing is wrong. */
+  worst: HappinessTerm | null;
+}
+
+function round1(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+/**
+ * Why happiness is where it is.
+ *
+ * The formulas live above and are not repeated here - this walks the same
+ * terms so a player can see which one is actually costing them, rather than
+ * buying supplies that cannot possibly move the number.
+ */
+export function explainWhoreHappiness(
+  player: WhoreHappinessInput,
+  ruleset: Ruleset = classicOgV01,
+): HappinessBreakdown {
+  const w = ruleset.happiness.whore;
+  const happiness = calculateWhoreHappiness(player, ruleset);
+
+  const shortfall = (stock: number, perWhore: number, max: number): number => {
+    const needed = player.whores * perWhore;
+    if (needed <= 0) return 0;
+    return (Math.max(0, needed - stock) / needed) * max;
+  };
+
+  const condomsWanted = player.whores * w.condomsPerWhore;
+  const crackWanted = player.whores * w.crackPerWhore;
+  const covered = player.thugs * w.whoresPerThug;
+
+  const terms: HappinessTerm[] = player.whores <= 0
+    ? []
+    : [
+        {
+          key: 'condoms',
+          label: 'Condoms',
+          penalty: round1(shortfall(player.condoms, w.condomsPerWhore, w.maxCondomPenalty)),
+          max: w.maxCondomPenalty,
+          fix:
+            player.condoms < condomsWanted
+              ? `Stock ${Math.ceil(condomsWanted - player.condoms)} more.`
+              : null,
+        },
+        {
+          key: 'crack',
+          label: 'Crack',
+          penalty: round1(shortfall(player.crack, w.crackPerWhore, w.maxCrackPenalty)),
+          max: w.maxCrackPenalty,
+          fix:
+            player.crack < crackWanted
+              ? `Stock ${Math.ceil(crackWanted - player.crack)} more.`
+              : null,
+        },
+        {
+          key: 'protection',
+          label: 'Protection',
+          penalty: round1(
+            (Math.max(0, player.whores - covered) / player.whores) * w.maxProtectionPenalty,
+          ),
+          max: w.maxProtectionPenalty,
+          fix:
+            covered < player.whores
+              ? `One thug covers ${w.whoresPerThug}. You need ${Math.ceil((player.whores - covered) / w.whoresPerThug)} more.`
+              : null,
+        },
+        {
+          key: 'payout',
+          label: 'Payout',
+          penalty: round1(
+            Math.max(0, w.neutralPayoutPercent - player.payoutPercent) *
+              w.penaltyPerPayoutPercentBelowNeutral,
+          ),
+          max: w.neutralPayoutPercent - 1,
+          fix:
+            player.payoutPercent < w.neutralPayoutPercent
+              ? `Raise their cut to ${w.neutralPayoutPercent}% to stop the grumbling.`
+              : null,
+        },
+      ];
+
+  const ranked = [...terms].sort((a, b) => b.penalty - a.penalty);
+
+  return {
+    happiness,
+    terms,
+    worst: ranked[0] && ranked[0].penalty > 0 ? ranked[0] : null,
+  };
+}
+
+/** The same, for the frozen thug formula. Beer and guns, nothing else. */
+export function explainThugHappiness(
+  player: ThugHappinessInput,
+  ruleset: Ruleset = classicOgV01,
+): HappinessBreakdown {
+  const h = ruleset.happiness;
+  const happiness = calculateThugHappiness(player, ruleset);
+
+  const missingBeer = Math.max(0, player.thugs - player.beer);
+  const missingWeapons = Math.max(0, player.thugs - totalWeapons(player));
+
+  const terms: HappinessTerm[] = player.thugs <= 0
+    ? []
+    : [
+        {
+          key: 'beer',
+          label: 'Beer',
+          penalty: round1(missingBeer * h.thug.penaltyPerThugWithoutBeer),
+          max: player.thugs,
+          fix: missingBeer > 0 ? `Buy ${missingBeer} more - one per thug.` : null,
+        },
+        {
+          key: 'weapons',
+          label: 'Guns',
+          penalty: round1(missingWeapons * h.thug.penaltyPerThugWithoutWeapon),
+          max: player.thugs,
+          fix: missingWeapons > 0 ? `Arm ${missingWeapons} more - one per thug.` : null,
+        },
+      ];
+
+  const ranked = [...terms].sort((a, b) => b.penalty - a.penalty);
+
+  return {
+    happiness,
+    terms,
+    worst: ranked[0] && ranked[0].penalty > 0 ? ranked[0] : null,
+  };
 }

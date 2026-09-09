@@ -1,5 +1,5 @@
 import type { Account, PrismaClient, Round, RoundPlayer } from '@prisma/client';
-import { loadRulesetForRound } from '@streets/rules-engine';
+import { loadRulesetForRound, startingStock } from '@streets/rules-engine';
 import { AppError } from '../utils/errors.js';
 import { HappinessService } from './happiness.service.js';
 import { NetWorthService } from './net-worth.service.js';
@@ -81,11 +81,7 @@ export const RoundPlayerService = {
         cashCents: BigInt(start.cashCents),
       };
 
-      // A brand new crew is rested.
-      const happiness = HappinessService.recalculate(
-        { ...seed, whoreFatigue: 0, thugFatigue: 0 },
-        ruleset,
-      );
+      const happiness = HappinessService.recalculate(seed, ruleset);
       const netWorthCents = NetWorthService.calculate(seed, ruleset);
 
       const ranks = await RankingService.ranksFor(tx, {
@@ -109,6 +105,11 @@ export const RoundPlayerService = {
           turns: start.turns,
           lastTurnCalculationAt: now,
           lastActiveAt: now,
+
+          // A new player finds the shelves stocked; the caps keep that from
+          // being worth much, and starting empty would mean waiting hours for
+          // a first shotgun for no reason worth explaining.
+          ...startingStock(ruleset, now),
 
           whoreHappiness: happiness.whoreHappiness,
           thugHappiness: happiness.thugHappiness,

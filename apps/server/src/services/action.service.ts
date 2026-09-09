@@ -6,12 +6,7 @@ import type {
   Round,
   RoundPlayer,
 } from '@prisma/client';
-import {
-  calculateRest,
-  clampFatigue,
-  loadRulesetForRound,
-  type Ruleset,
-} from '@streets/rules-engine';
+import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
 import type {
   GameActionResult,
   PlayerSnapshot,
@@ -23,9 +18,11 @@ import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
 import { HappinessService } from './happiness.service.js';
 import { IdempotencyService } from './idempotency.service.js';
+import { assertPlayerState } from './invariant.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { RankingService } from './ranking.service.js';
 import { TurnService } from './turn.service.js';
+import { StockService, type StockSettlementSet } from './stock.service.js';
 
 /**
  * Everything an action is allowed to move. Turn-settled before an action sees
@@ -35,10 +32,6 @@ export interface PlayerState {
   cashCents: bigint;
   turns: number;
   payoutPercent: number;
-
-  /** Wear. Actions move it; rest sheds it. Subtracted from happiness. */
-  whoreFatigue: number;
-  thugFatigue: number;
 
   whores: number;
   thugs: number;
@@ -57,6 +50,22 @@ export interface PlayerState {
   streetWorkTurns: number;
   tek9Unlocked: boolean;
   ak47Unlocked: boolean;
+
+  /**
+   * What Tommy has on the shelf, already settled. Counters rather than
+   * resources: they never reach a snapshot, and an action spends them the
+   * same way it spends turns.
+   */
+  pistolStock: number;
+  shotgunStock: number;
+  tek9Stock: number;
+  ak47Stock: number;
+  lowRiderStock: number;
+  condomStock: number;
+  medicineStock: number;
+  beerStock: number;
+  crackStock: number;
+  thugStock: number;
 }
 
 export interface ActionContext {
@@ -68,6 +77,8 @@ export interface ActionContext {
   round: Round;
   ruleset: Ruleset;
   now: Date;
+  /** Settled shop shelves, for actions that need to explain the wait. */
+  stock: StockSettlementSet;
 }
 
 export interface ActionOutcome<T> {
@@ -102,8 +113,6 @@ function toState(player: RoundPlayer): PlayerState {
     cashCents: player.cashCents,
     turns: player.turns,
     payoutPercent: player.payoutPercent,
-    whoreFatigue: player.whoreFatigue,
-    thugFatigue: player.thugFatigue,
     whores: player.whores,
     thugs: player.thugs,
     condoms: player.condoms,
@@ -118,6 +127,16 @@ function toState(player: RoundPlayer): PlayerState {
     streetWorkTurns: player.streetWorkTurns,
     tek9Unlocked: player.tek9Unlocked,
     ak47Unlocked: player.ak47Unlocked,
+    pistolStock: player.pistolStock,
+    shotgunStock: player.shotgunStock,
+    tek9Stock: player.tek9Stock,
+    ak47Stock: player.ak47Stock,
+    lowRiderStock: player.lowRiderStock,
+    condomStock: player.condomStock,
+    medicineStock: player.medicineStock,
+    beerStock: player.beerStock,
+    crackStock: player.crackStock,
+    thugStock: player.thugStock,
   };
 }
 
@@ -198,6 +217,7 @@ export const ActionService = {
           tx,
           options.actionId,
           roundPlayerId,
+          options.action,
         );
         // Section 52: the same action id answers with the original result
         // rather than executing a second time.
@@ -217,21 +237,20 @@ export const ActionService = {
 
       const ruleset = loadRulesetForRound(round);
 
-      // Turns first: an action always spends from a settled balance, and the
-      // same elapsed intervals are what the crew rested for.
+      // Turns first: an action always spends from a settled balance. The shop
+      // shelves settle in the same breath, for the same reason.
       const turns = TurnService.settle(player, now, ruleset);
-      const rested = calculateRest(turns.intervalsProcessed, ruleset);
-
-      const base = toState(player);
+      const stock = StockService.settle(player, now, ruleset);
       const current: PlayerState = {
-        ...base,
+        ...toState(player),
         turns: turns.turns,
-        whoreFatigue: clampFatigue(base.whoreFatigue - rested, ruleset),
-        thugFatigue: clampFatigue(base.thugFatigue - rested, ruleset),
+        ...stock.counts,
       };
+      assertPlayerState(current, ruleset, 'before');
       const beforeHappiness = HappinessService.recalculate(current, ruleset);
       const beforeNetWorth = NetWorthService.calculate(current, ruleset);
       const beforeRanks = await RankingService.ranksFor(tx, {
+        id: roundPlayerId,
         roundId: player.roundId,
         cityId: player.cityId,
         netWorthCents: beforeNetWorth,
@@ -245,12 +264,15 @@ export const ActionService = {
         round,
         ruleset,
         now,
+        stock,
       });
 
       const next = outcome.next;
+      assertPlayerState(next, ruleset, 'after');
       const afterHappiness = HappinessService.recalculate(next, ruleset);
       const afterNetWorth = NetWorthService.calculate(next, ruleset);
       const afterRanks = await RankingService.ranksFor(tx, {
+        id: roundPlayerId,
         roundId: player.roundId,
         cityId: player.cityId,
         netWorthCents: afterNetWorth,
@@ -262,6 +284,7 @@ export const ActionService = {
         where: { id: roundPlayerId },
         data: {
           ...next,
+          ...stock.clocks,
           lastTurnCalculationAt: turns.lastTurnCalculationAt,
           lastActiveAt: now,
           ...(turns.awayBonus.awarded ? { lastAwayBonusAt: now } : {}),

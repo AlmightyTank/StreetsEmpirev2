@@ -7,9 +7,11 @@ export interface ResultLine {
   /** Rendered as a signed delta when `delta` is set, plainly otherwise. */
   value?: ReactNode;
   delta?: number;
-  /** Money deltas format as currency. */
+  /** Optional post-action balance shown as `change / remaining`. */
+  remaining?: number;
+  /** Money deltas and remaining balances format as currency. */
   money?: boolean;
-  /** For lines where going up is the bad news, like wear. */
+  /** For lines where going up is the bad news. */
   invert?: boolean;
   muted?: boolean;
 }
@@ -36,6 +38,31 @@ function Delta({
   const tone = good ? ' se-good' : bad ? ' se-bad' : ' se-muted';
 
   return <span className={`se-num${tone}`}>{signed(value, money)}</span>;
+}
+
+function DeltaPair({
+  value,
+  remaining,
+  money,
+  invert,
+}: {
+  value: number;
+  remaining?: number;
+  money: boolean;
+  invert?: boolean;
+}) {
+  if (remaining === undefined) {
+    return <Delta value={value} money={money} invert={invert} />;
+  }
+
+  return (
+    <span className="se-result__delta-pair">
+      <Delta value={value} money={money} invert={invert} />
+      <span className="se-num se-result__remaining">
+        {money ? formatCents(remaining) : formatNumber(remaining)}
+      </span>
+    </span>
+  );
 }
 
 function Transition({
@@ -67,8 +94,9 @@ function Transition({
  * Sections 27, 30 and 37. Every action ends on the same shape of screen: what
  * you did, what it cost, and what it moved.
  *
- * The consequences half is built straight from the standard result model, so
- * it stays honest for every action without each page restating it.
+ * 0.1.0-G adds the optional `remaining` balance so inventory-changing rows can
+ * answer both questions at once: "what did this action use/find?" and "what do
+ * I have now?" without forcing the player back to the dashboard.
  */
 export function ActionResult<T>({
   title,
@@ -109,8 +137,9 @@ export function ActionResult<T>({
             <span className="se-row__label">{line.label}</span>
             <span className="se-row__value">
               {line.delta !== undefined ? (
-                <Delta
+                <DeltaPair
                   value={line.delta}
+                  remaining={line.remaining}
                   money={line.money ?? false}
                   invert={line.invert}
                 />

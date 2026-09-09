@@ -1,15 +1,19 @@
 /**
- * Produce Crack. Sections 28-30.
+ * Produce Crack. Manual 3.2, spec sections 28-30.
  *
  * BALANCE_APPROXIMATION.
  *
- * Turns and money in, crack out. Nobody earns anything cooking, and it grinds
- * the thugs down harder than a night on the block does, because there is no
- * take to pay them back with.
+ *   "Producing crack sends your whores out, while your thugs produce crack to
+ *    keep your whores happy, and keeps them from leaving you. But the whores
+ *    produce less money because the thugs are busy and not managing the hoes."
  *
- * The reason to do it anyway is the price: ingredients cost a fraction of what
- * Pip's charges for a finished rock, so a crew with muscle to spare turns cash
- * into product at a discount instead of buying it retail.
+ * So this is not a rest day. The girls are still out earning and still burning
+ * the shelf - they just earn less, because the muscle that would normally be
+ * running them is inside cooking. What you buy with that lost income is crack,
+ * and crack is what keeps them from walking out on you.
+ *
+ * The trade is therefore: money now, or the thing that stops your stable
+ * shrinking. Scouting is the greedy option; this is the one that keeps it.
  */
 
 import type { ProductionRules } from '../types.js';
@@ -26,20 +30,30 @@ export const production = {
     /** Random spread on the batch, plus or minus this fraction. */
     variance: 0.2,
     /**
-     * What the ingredients for one rock cost. Pip's sells a finished rock for
-     * ten times this, which is the whole argument for cooking your own. A
-     * batch you cannot pay for simply comes out smaller.
+     * What the ingredients for one rock cost. BALANCE_APPROXIMATION - neither
+     * the spec nor manual 3.2 mentions a cash cost for cooking.
+     *
+     * Crack is a running cost, not an investment. The three prices are meant
+     * to be read together:
+     *
+     *   cook it     $5   the cheap way to get a rock you need
+     *   dump it     $3   what Pip's pays, so selling is a loss you take
+     *                    when you need cash more than you need supply
+     *   buy it     $10   the expensive way, for when you will not spend turns
+     *
+     * Cooking at $5 for a rock worth $3 of net worth means the crack you
+     * supply your stable with costs you money, which is the point - it is
+     * upkeep. It is still half what Pip's charges, so it stays worth doing.
+     *
+     * A batch you cannot pay for simply comes out smaller.
      */
-    ingredientCentsPerRock: 100,
+    ingredientCentsPerRock: 500,
   },
 
-  /** Thugs on shift still drink. */
-  consumption: {
-    beerPerThugPerTurn: 0.02,
-  },
+  /**
+   * Manual 3.2: "the whores produce less money because the thugs are busy and
+   * not managing the hoes". They still go out; they just work unsupervised.
+   */
+  unsupervisedTakeMultiplier: 0.35,
 
-  fatigue: {
-    /** Cooking is unpaid grind, so it wears harder than working a district. */
-    thugPerTurn: 0.6,
-  },
 } as const satisfies ProductionRules;

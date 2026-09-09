@@ -1,6 +1,7 @@
 import { departures } from './departures.js';
 import { districts } from './districts.js';
 import { economy } from './economy.js';
+import { health } from './health.js';
 import { evidence } from './evidence.js';
 import { happiness } from './happiness.js';
 import { production } from './production.js';
@@ -11,7 +12,6 @@ import { lowRiderThugCapacity, storeBulkHelpers, stores } from './stores.js';
 import { turns } from './turns.js';
 import { weapons } from './weapons.js';
 import { weaponUnlocks } from './weapon-unlocks.js';
-import { work } from './work.js';
 import type { Ruleset } from '../types.js';
 
 /**
@@ -32,9 +32,9 @@ export const classicOgV01 = {
   happiness,
   districts,
   scouting,
-  work,
   production,
   departures,
+  health,
   stores,
   storeBulkHelpers,
   lowRiderThugCapacity,
@@ -46,6 +46,7 @@ export const classicOgV01 = {
 
 export {
   departures,
+  health,
   districts,
   economy,
   evidence,
@@ -60,5 +61,4 @@ export {
   turns,
   weapons,
   weaponUnlocks,
-  work,
 };

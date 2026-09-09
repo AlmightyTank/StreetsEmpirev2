@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { useRef, useState, type ReactNode } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { Shell } from './Shell.js';
+import { ConnectionBanner } from '../components/ConnectionBanner.js';
+import { usePageFreshness } from '../hooks/usePageFreshness.js';
 import { useSession } from '../stores/session.js';
 import { formatDuration } from '../utils/time.js';
 
@@ -16,26 +18,18 @@ interface NavSection {
   items: NavItem[];
 }
 
-/**
- * Section 22. The OG sidebar.
- *
- * Entries that do not exist yet are shown as plain dimmed text with the
- * milestone that brings them - signposting, not a button that does nothing.
- */
 const SECTIONS: NavSection[] = [
   {
     title: 'Actions',
     items: [
       { label: 'Home', to: '/game' },
       { label: 'Scout', to: '/game/scout' },
-      { label: 'Work the Streets', to: '/game/work' },
       { label: 'Produce Crack', to: '/game/produce' },
     ],
   },
   {
     title: 'Stores',
     items: [
-      // Short forms, as in the section 22 sidebar.
       { label: 'Corner Store', to: '/game/stores/corner' },
       { label: "Tek9 Tommy's", to: '/game/stores/tommy' },
       { label: "Charlie's", to: '/game/stores/charlie' },
@@ -45,23 +39,24 @@ const SECTIONS: NavSection[] = [
   {
     title: 'Players',
     items: [
-      { label: 'Rankings', soon: 'E' },
-      { label: 'Profile', soon: 'E' },
+      { label: 'Rankings', to: '/game/rankings' },
+      { label: 'Profile', to: '/game/profile' },
+      { label: 'Activity', to: '/game/activity' },
     ],
   },
   {
     title: 'Game',
     items: [
-      { label: 'News', soon: 'E' },
-      { label: 'Status', soon: 'E' },
-      { label: 'Rules', soon: 'E' },
+      { label: 'News', to: '/game/news' },
+      { label: 'Status', to: '/game/status' },
+      { label: 'Rules', to: '/game/rules' },
     ],
   },
 ];
 
-function GameNav() {
+function GameNav({ open, onNavigate }: { open: boolean; onNavigate: () => void }) {
   return (
-    <nav className="se-nav" aria-label="Game">
+    <nav id="game-navigation" className={`se-nav${open ? ' se-nav--open' : ''}`} aria-label="Game">
       {SECTIONS.map((section) => (
         <div className="se-nav__section" key={section.title}>
           <p className="se-nav__title">{section.title}</p>
@@ -70,6 +65,7 @@ function GameNav() {
               item.to ? (
                 <li key={item.label}>
                   <NavLink
+                    onClick={onNavigate}
                     to={item.to}
                     end
                     className={({ isActive }) =>
@@ -96,10 +92,17 @@ function GameNav() {
 }
 
 export function GameLayout({ children }: { children: ReactNode }) {
+  usePageFreshness();
   const round = useSession((s) => s.round);
+  const { pathname } = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const currentPage = SECTIONS.flatMap((section) => section.items)
+    .find((item) => item.to === pathname)?.label ?? 'Player profile';
 
   return (
     <Shell>
+      <ConnectionBanner />
       {round ? (
         <div className="se-gamebar">
           <span className="se-gamebar__name">{round.name}</span>
@@ -109,8 +112,20 @@ export function GameLayout({ children }: { children: ReactNode }) {
         </div>
       ) : null}
 
-      <div className="se-gamegrid">
-        <GameNav />
+      <div className="se-gamegrid" onKeyDown={(event) => {
+        if (event.key === 'Escape' && menuOpen) {
+          setMenuOpen(false);
+          menuButton.current?.focus();
+        }
+      }}>
+        <button ref={menuButton} type="button" className="se-mobile-menu"
+          aria-label={menuOpen ? 'Close game menu' : 'Open game menu'}
+          aria-expanded={menuOpen} aria-controls="game-navigation"
+          onClick={() => setMenuOpen((open) => !open)}>
+          <span>Menu <span aria-hidden="true">{menuOpen ? '−' : '+'}</span></span>
+          <span className="se-mobile-menu__current">{currentPage}</span>
+        </button>
+        <GameNav open={menuOpen} onNavigate={() => setMenuOpen(false)} />
         <div className="se-gamemain">{children}</div>
       </div>
     </Shell>

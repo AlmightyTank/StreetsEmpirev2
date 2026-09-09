@@ -78,6 +78,12 @@ export function PayoutControl() {
               ? `Update payout to ${draft}%`
               : `Payout is ${current}%`}
         </button>
+
+        {action.result ? (
+          <p className="se-action-confirm" role="status">
+            Payout updated: {action.result.result.before}% &rarr; {action.result.result.after}%.
+          </p>
+        ) : null}
       </form>
     </Panel>
   );

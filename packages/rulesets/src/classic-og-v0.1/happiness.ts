@@ -3,15 +3,11 @@
  *
  * Thug happiness is the frozen Classic formula and must not drift.
  *
- * Whore happiness is a BALANCE_APPROXIMATION, and it is no longer a pure
- * reading of the shelves: it is what you have stocked, minus the wear the crew
- * is carrying. Fatigue is stored on the player and moved by actions - working
- * a district for a cut that does not justify it drives it up, paying well or
- * resting brings it back down.
- *
- * The payout percentage deliberately does NOT appear here. A cut is only
- * generous relative to what the block actually pays, so it does its work
- * through fatigue in work.ts rather than as a flat penalty.
+ * Whore happiness is a BALANCE_APPROXIMATION of the Classic behaviour, and it
+ * is a pure reading of the player's current state - the cut they keep, what is
+ * on the shelves, and whether anyone is watching them. Nothing accumulates and
+ * nothing needs to be waited out: every input here is something the player can
+ * change on their next action.
  */
 
 import type { HappinessRules } from '../types.js';
@@ -27,6 +23,11 @@ export const happiness = {
   },
 
   whore: {
+    /** Payout at or above this costs nothing. */
+    neutralPayoutPercent: 50,
+    /** Unhappiness per percentage point below neutral. */
+    penaltyPerPayoutPercentBelowNeutral: 1,
+
     /** Condoms a whore expects to have stocked for her. */
     condomsPerWhore: 5,
     /** Worst case penalty when the condom shelf is completely empty. */
@@ -43,13 +44,4 @@ export const happiness = {
     maxProtectionPenalty: 25,
   },
 
-  fatigue: {
-    /** Fatigue is a 0..100 scale, subtracted straight off happiness. */
-    max: 100,
-    /**
-     * Wear shed per turn-regeneration interval of rest. At two turns every ten
-     * minutes, a night away clears most of a hard day.
-     */
-    restPerInterval: 0.5,
-  },
 } as const satisfies HappinessRules;

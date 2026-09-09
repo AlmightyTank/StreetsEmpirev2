@@ -6,20 +6,17 @@ import {
   roundStochastic,
   type Rng,
 } from '../rng.js';
+import { clientMultiplier } from './clients.js';
 import {
-  calculateCookConsumption,
   calculateDepartures,
+  calculateInfections,
   calculateWorkConsumption,
   calculateWorkSupplyNeeds,
   type Consumption,
   type Departures,
+  type Infections,
   type UpkeepInput,
 } from './upkeep.js';
-import {
-  calculateGrindFatigue,
-  calculateWorkFatigue,
-  type WorkFatigue,
-} from './fatigue.js';
 
 /** City modifiers, all 1.00 until Travel ships. Section 12. */
 export interface CityModifiers {
@@ -82,8 +79,7 @@ export function expectedRecruitsPerTurn(
 
 // --- scout ------------------------------------------------------------------
 
-export interface ScoutOutcome {
-  district: DistrictKey;
+export interface ScoutOutcome extends StreetTake {
   turnsSpent: number;
   whoresRecruited: number;
   thugsRecruited: number;
@@ -92,13 +88,19 @@ export interface ScoutOutcome {
 }
 
 /**
- * Section 26. Turns spent looking for people, and nothing else.
+ * Manual 3.1. "Where to go to make money for yourself, and go out and pickup
+ * some whores and thugs."
  *
- * Nobody is working: nothing is earned, nothing is consumed, nobody is worn
- * out. What you get is faces, and fewer of them the bigger you already are.
+ * One trip, both jobs: the girls work the block while you work the room. The
+ * district decides how well they earn and how few new faces there are to find,
+ * and those pull against each other, so no district is simply best.
  */
 export function calculateScout(
-  context: ActionContext & { district: DistrictKey },
+  context: ActionContext & {
+    district: DistrictKey;
+    clientCapacity: number;
+    payoutPercent: number;
+  },
 ): ScoutOutcome {
   const { player, turns, ruleset, district } = context;
   const rng = context.rng ?? defaultRng;
@@ -126,7 +128,7 @@ export function calculateScout(
     );
 
   return {
-    district,
+    ...calculateStreetTake({ ...context, rng }),
     turnsSpent: turns,
     recruitmentMultipliers: multipliers,
     whoresRecruited: recruit(definition.whoresPerTurn, multipliers.whores),
@@ -134,7 +136,7 @@ export function calculateScout(
   };
 }
 
-// --- work the streets -------------------------------------------------------
+// --- a night's earnings, shared by both actions ------------------------------
 
 export interface Exposure {
   /** Girls this block's thugs can cover. */
@@ -143,8 +145,6 @@ export interface Exposure {
   exposed: number;
   /** What that cost the take, 0..1 of it kept. */
   takeMultiplier: number;
-  /** What that did to the wear, 1.0 is untouched. */
-  fatigueMultiplier: number;
 }
 
 /**
@@ -157,7 +157,7 @@ export function calculateExposure(
   district: District,
   ruleset: Ruleset,
 ): Exposure {
-  const rules = ruleset.work.exposure;
+  const rules = ruleset.scouting.exposure;
 
   const covered = crew.thugs * district.protectionWhoresPerThug;
   const exposed =
@@ -167,17 +167,22 @@ export function calculateExposure(
     covered,
     exposed,
     takeMultiplier: 1 - exposed * rules.maxTakePenalty,
-    fatigueMultiplier: 1 + exposed * rules.maxExtraFatigue,
   };
 }
 
-export interface WorkOutcome {
-  district: DistrictKey;
-  turnsSpent: number;
+/**
+ * A night's earnings. Manual 3.1 and 3.2 both send the girls out, so both
+ * actions run this - Produce just does it at a reduced rate.
+ */
+export interface StreetTake {
   exposure: Exposure;
+  /** The block the girls actually worked, hidden or not. */
+  district: DistrictKey;
+  /** Clients on that block this hour, and what that did to the take. */
+  clients: { capacity: number; takeMultiplier: number };
   /** Everything the girls brought in. */
   grossCents: bigint;
-  /** The crew's share, which is what pays their fatigue back. */
+  /** The crew's share of the night. */
   crewTakeCents: bigint;
   /** Your share, which is what lands in cash. */
   pimpTakeCents: bigint;
@@ -186,28 +191,39 @@ export interface WorkOutcome {
   consumption: Consumption;
   shortages: { condoms: number; beer: number };
   departures: Departures;
-  fatigue: { whore: WorkFatigue; thug: WorkFatigue };
+  /** Who caught something working an under-supplied shift. */
+  infections: Infections;
 }
 
 /**
- * Work the Streets. The only action that makes money.
+ * What the girls bring in over `turns`.
  *
- * The girls earn, the district decides how well, and the whole crew comes home
- * more tired than they left. How much of that tiredness sticks depends on
- * whether their cut of the night was worth the night - and a block you do not
- * have the muscle to cover pays worse and hurts more.
+ * `district` null means they worked their usual spot rather than a block you
+ * picked - that is Produce Crack, where nobody is out choosing corners for
+ * them. `takeMultiplier` is how well the night went relative to a scouted one.
  */
-export function calculateWork(
-  context: ActionContext & { district: DistrictKey; payoutPercent: number },
-): WorkOutcome {
+export function calculateStreetTake(
+  context: ActionContext & {
+    district: DistrictKey;
+    clientCapacity: number;
+    payoutPercent: number;
+    takeMultiplier?: number;
+  },
+): StreetTake {
   const { player, turns, ruleset, district, payoutPercent } = context;
   const rng = context.rng ?? defaultRng;
   const city = context.city ?? NO_CITY_MODIFIERS;
+  const takeMultiplier = context.takeMultiplier ?? 1;
 
-  const rules = ruleset.work;
+  const rules = ruleset.scouting;
   const definition = rules.districts[district];
-
   const exposure = calculateExposure(player, definition, ruleset);
+
+  // A block only holds so many people willing to pay.
+  const clients = {
+    capacity: context.clientCapacity,
+    takeMultiplier: clientMultiplier(context.clientCapacity, player.whores),
+  };
 
   const earned = Math.floor(
     applyVariance(
@@ -216,9 +232,11 @@ export function calculateWork(
         turns *
         happinessMultiplier(player.whoreHappiness, rules.minHappinessMultiplier) *
         definition.payMultiplier *
+        takeMultiplier *
         exposure.takeMultiplier *
+        clients.takeMultiplier *
         city.incomeModifier,
-      rules.variance,
+      rules.takeVariance,
       rng,
     ),
   );
@@ -227,7 +245,6 @@ export function calculateWork(
   const crewTakeCents = BigInt(Math.floor(Number(grossCents) * (payoutPercent / 100)));
   const pimpTakeCents = grossCents - crewTakeCents;
 
-  const crewSize = player.whores + player.thugs;
   const needed = calculateWorkSupplyNeeds(player, turns, ruleset);
   const consumption = calculateWorkConsumption(player, turns, ruleset);
   const shortages = {
@@ -235,39 +252,7 @@ export function calculateWork(
     beer: needed.beer - consumption.beer,
   };
 
-  const fatigue = {
-    whore: calculateWorkFatigue(
-      {
-        turns,
-        crewSize,
-        crewTakeCents,
-        wearPerTurn: rules.fatigue.whorePerTurn * exposure.fatigueMultiplier,
-      },
-      ruleset,
-    ),
-    thug: calculateWorkFatigue(
-      {
-        turns,
-        crewSize,
-        crewTakeCents,
-        wearPerTurn: rules.fatigue.thugPerTurn * exposure.fatigueMultiplier,
-      },
-      ruleset,
-    ),
-  };
 
-  // Keep shortage wear in the persisted fatigue balance. A good payout can
-  // cover ordinary work wear, but cannot erase an unsupplied shift. Round up
-  // so a partial shortage survives the integer fatigue persistence.
-  const applyShortage = (wear: WorkFatigue, missing: number, required: number, rate: number) => {
-    if (missing <= 0 || required <= 0) return;
-    wear.relief = Math.min(wear.relief, wear.wear);
-    wear.wear += Math.ceil(turns * (missing / required) * rate);
-    wear.change = wear.wear - wear.relief;
-    wear.reliefRatio = wear.wear > 0 ? wear.relief / wear.wear : 1;
-  };
-  applyShortage(fatigue.whore, shortages.condoms, needed.condoms, rules.shortages.whorePerTurnWithoutCondoms);
-  applyShortage(fatigue.thug, shortages.beer, needed.beer, rules.shortages.thugPerTurnWithoutBeer);
 
   // Every so often a night turns up product instead of cash.
   let crackFound = 0;
@@ -279,43 +264,54 @@ export function calculateWork(
   }
 
   return {
-    district,
-    turnsSpent: turns,
     exposure,
+    district,
+    clients,
     grossCents,
     crewTakeCents,
     pimpTakeCents,
     crackFound,
     consumption,
     shortages,
-    departures: calculateDepartures(player, ruleset, rng),
-    fatigue,
+    departures: calculateDepartures(player, turns, ruleset, rng),
+    // Any shift that puts the girls out can go wrong without condoms.
+    infections: calculateInfections(
+      player,
+      turns,
+      needed.condoms > 0 ? shortages.condoms / needed.condoms : 0,
+      ruleset,
+      rng,
+    ),
   };
 }
 
 // --- produce crack ----------------------------------------------------------
 
-export interface ProduceOutcome {
+export interface ProduceOutcome extends StreetTake {
   turnsSpent: number;
   crackProduced: number;
   /** What the ingredients cost. */
   ingredientCents: bigint;
-  consumption: Consumption;
-  departures: Departures;
-  thugFatigue: number;
   /** True when cash, not thugs, was the limit on the batch. */
   limitedByCash: boolean;
 }
 
 /**
- * Section 29. Turns and money in, crack out.
+ * Manual 3.2. "Producing crack sends your whores out, while your thugs produce
+ * crack... But the whores produce less money because the thugs are busy and
+ * not managing the hoes."
  *
- * Nobody earns anything cooking and there is no take to pay the crew back
- * with, so every point of wear sticks. A batch you cannot afford the
- * ingredients for simply comes out smaller.
+ * So the girls still work and still burn the shelf - they just earn a fraction
+ * of a scouted night, because the muscle that would be running them is inside
+ * cooking. What that buys is the crack that keeps them from walking out.
  */
 export function calculateProduce(
-  context: ActionContext & { cashCents: bigint },
+  context: ActionContext & {
+    cashCents: bigint;
+    payoutPercent: number;
+    /** Capacity of `ruleset.scouting.produceDistrict` this hour. */
+    clientCapacity: number;
+  },
 ): ProduceOutcome {
   const { player, turns, ruleset, cashCents } = context;
   const rng = context.rng ?? defaultRng;
@@ -346,13 +342,20 @@ export function calculateProduce(
 
   const crackProduced = Math.min(batch, Math.max(0, affordable));
 
+  // The girls are still out - on their usual block, since nobody is choosing
+  // one for them tonight. Which block that is stays hidden.
+  const take = calculateStreetTake({
+    ...context,
+    rng,
+    district: ruleset.scouting.produceDistrict,
+    takeMultiplier: ruleset.production.unsupervisedTakeMultiplier,
+  });
+
   return {
+    ...take,
     turnsSpent: turns,
     crackProduced,
     ingredientCents: BigInt(crackProduced) * BigInt(crack.ingredientCentsPerRock),
-    consumption: calculateCookConsumption(player, turns, ruleset),
-    departures: calculateDepartures(player, ruleset, rng),
-    thugFatigue: calculateGrindFatigue(turns, ruleset.production.fatigue.thugPerTurn),
     limitedByCash: crackProduced < batch,
   };
 }

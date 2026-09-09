@@ -1,30 +1,9 @@
 import type { PrismaClient } from '@prisma/client';
-import {
-  calculateScout,
-  expectedRecruitsPerTurn,
-  recruitmentMultiplier,
-  type Rng,
-} from '@streets/rules-engine';
+import { calculateScout, districtCapacities, type Rng } from '@streets/rules-engine';
 import type { District, DistrictKey, Ruleset } from '@streets/rulesets';
 import type { DistrictDto, DistrictsDto, GameActionResult, ScoutResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns } from './action.service.js';
-
-/**
- * Bands a value against the spread of the ruleset's own districts, so the
- * guidance shown to players stays honest if the numbers are retuned and does
- * not hard-code a threshold anywhere.
- */
-function band(value: number, all: number[]): 'low' | 'medium' | 'high' {
-  const min = Math.min(...all);
-  const max = Math.max(...all);
-  if (max === min) return 'medium';
-
-  const position = (value - min) / (max - min);
-  if (position < 1 / 3) return 'low';
-  if (position < 2 / 3) return 'medium';
-  return 'high';
-}
 
 export interface Crew {
   whores: number;
@@ -40,8 +19,6 @@ export function toDistrictDto(
   ruleset: Ruleset,
   crew: Crew,
 ): DistrictDto {
-  const expected = expectedRecruitsPerTurn(district, crew, ruleset);
-
   const covered = crew.thugs * district.protectionWhoresPerThug;
   const exposed = crew.whores <= 0 ? 0 : Math.min(1, Math.max(0, 1 - covered / crew.whores));
 
@@ -49,16 +26,6 @@ export function toDistrictDto(
     key,
     slug: district.slug,
     name: district.name,
-    recruiting: band(
-      district.whoresPerTurn,
-      all.map((d) => d.whoresPerTurn),
-    ),
-    money: band(
-      district.payMultiplier,
-      all.map((d) => d.payMultiplier),
-    ),
-    expectedWhoresPerTurn: round2(expected.whores),
-    expectedThugsPerTurn: round2(expected.thugs),
     protectionWhoresPerThug: district.protectionWhoresPerThug,
     /** Girls this crew could cover on this block. */
     coveredWhores: covered,
@@ -80,16 +47,11 @@ export function findDistrict(
 
 export function districtsFor(ruleset: Ruleset, crew: Crew): DistrictsDto {
   const all = Object.values(ruleset.districts);
-  const caps = ruleset.scouting.recruitment;
 
   return {
     districts: Object.entries(ruleset.districts).map(([key, district]) =>
       toDistrictDto(key, district, all, ruleset, crew),
     ),
-    recruitment: {
-      whores: recruitmentMultiplier(crew.whores, caps.whoreSoftCap),
-      thugs: recruitmentMultiplier(crew.thugs, caps.thugSoftCap),
-    },
   };
 }
 
@@ -104,10 +66,11 @@ export const ScoutService = {
   districts: districtsFor,
 
   /**
-   * Section 26. Turns spent looking for people.
+   * Manual 3.1. Where you make money for yourself, and pick up whores and
+   * thugs while you are there.
    *
-   * Nobody is working, so nothing is earned, nothing is consumed and nobody
-   * comes home tired. Money is what Work the Streets is for.
+   * The girls work the block, you work the room. Both halves of the trip come
+   * out of the same turns, and the district decides how the trade lands.
    */
   scout(
     prisma: PrismaClient,
@@ -119,7 +82,7 @@ export const ScoutService = {
       action: 'SCOUT',
       actionId: input.actionId,
 
-      execute: ({ current, whoreHappiness, thugHappiness, player, ruleset }) => {
+      execute: ({ current, whoreHappiness, thugHappiness, player, ruleset, round, now }) => {
         const found = findDistrict(ruleset, input.district);
         if (!found) {
           throw AppError.badRequest(
@@ -139,32 +102,84 @@ export const ScoutService = {
 
         assertTurns(current.turns, input.turns);
 
+        // Who is out on that block this hour. Derived from the round clock,
+        // shared by everyone in the round, and never shown before you go.
+        const capacities = districtCapacities(round.id, now, ruleset);
+
         const outcome = calculateScout({
           player: { ...current, whoreHappiness, thugHappiness },
           turns: input.turns,
           ruleset,
           city: player.city,
           district: found.key,
+          clientCapacity: capacities[found.key],
+          payoutPercent: current.payoutPercent,
           rng,
         });
 
         const next = {
           ...current,
           turns: current.turns - input.turns,
-          whores: current.whores + outcome.whoresRecruited,
-          thugs: current.thugs + outcome.thugsRecruited,
+
+          // Manual 3.1: this is where you make money for yourself.
+          cashCents: current.cashCents + outcome.pimpTakeCents,
+
+          // Reputation for Tommy's unlocks is earned on the block, and this is
+          // now the only action that puts the crew on one.
+          streetWorkTurns: Math.min(
+            2_147_483_647,
+            current.streetWorkTurns + input.turns,
+          ),
+
+          whores: Math.max(
+            0,
+            current.whores +
+              outcome.whoresRecruited -
+              outcome.departures.whores -
+              outcome.infections.lost,
+          ),
+          thugs: Math.max(
+            0,
+            current.thugs + outcome.thugsRecruited - outcome.departures.thugs,
+          ),
+
+          condoms: current.condoms - outcome.consumption.condoms,
+          medicine: current.medicine - outcome.infections.medicineUsed,
+          crack: current.crack - outcome.consumption.crack + outcome.crackFound,
+          beer: current.beer - outcome.consumption.beer,
         };
 
         const all = Object.values(ruleset.districts);
 
         const result: ScoutResult = {
           district: toDistrictDto(found.key, found.district, all, ruleset, current),
+
           whoresRecruited: outcome.whoresRecruited,
           thugsRecruited: outcome.thugsRecruited,
-          recruitmentMultipliers: {
-            whores: round2(outcome.recruitmentMultipliers.whores),
-            thugs: round2(outcome.recruitmentMultipliers.thugs),
-          },
+
+          grossEarnedCents: Number(outcome.grossCents),
+          crewTakeCents: Number(outcome.crewTakeCents),
+          cashEarnedCents: Number(outcome.pimpTakeCents),
+          payoutPercent: current.payoutPercent,
+
+          crackFound: outcome.crackFound,
+          condomsUsed: outcome.consumption.condoms,
+          crackUsed: outcome.consumption.crack,
+          beerUsed: outcome.consumption.beer,
+          condomsMissing: outcome.shortages.condoms,
+          beerMissing: outcome.shortages.beer,
+
+          whoresLeft: outcome.departures.whores,
+          thugsLeft: outcome.departures.thugs,
+
+          infected: outcome.infections.infected,
+          treated: outcome.infections.treated,
+          medicineUsed: outcome.infections.medicineUsed,
+          lostToInfection: outcome.infections.lost,
+
+          exposedFraction: round2(outcome.exposure.exposed),
+          coveredWhores: outcome.exposure.covered,
+
           turnsUsed: input.turns,
           turnsRemaining: next.turns,
         };
@@ -179,6 +194,12 @@ export const ScoutService = {
               turns: input.turns,
               whores: outcome.whoresRecruited,
               thugs: outcome.thugsRecruited,
+              cashCents: Number(outcome.pimpTakeCents),
+              crackFound: outcome.crackFound,
+              whoresLeft: outcome.departures.whores,
+              thugsLeft: outcome.departures.thugs,
+              infected: outcome.infections.infected,
+              lostToInfection: outcome.infections.lost,
             },
           },
         };

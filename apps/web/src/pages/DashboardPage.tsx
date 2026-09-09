@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom';
-import type { RoundPlayerDto } from '@streets/shared';
+import type { HappinessTermDto, RoundPlayerDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { ActivityFeed } from '../components/ActivityFeed.js';
 import { Alert } from '../components/Alert.js';
@@ -18,6 +18,29 @@ function RankMovement({ movement }: { movement: number | null }) {
     <span className="se-good">&#9650; {movement} today</span>
   ) : (
     <span className="se-bad">&#9660; {Math.abs(movement)} today</span>
+  );
+}
+
+/**
+ * A low number is useless without the reason. Buying condoms cannot fix a
+ * stable whose real problem is the payout, so name the drags in order.
+ */
+function HappinessDrags({ terms }: { terms: HappinessTermDto[] }) {
+  const costing = terms.filter((t) => t.penalty > 0).sort((a, b) => b.penalty - a.penalty);
+  if (costing.length === 0) return null;
+
+  return (
+    <ul className="se-drags">
+      {costing.map((term) => (
+        <li className="se-drags__item" key={term.key}>
+          <span className="se-drags__head">
+            <span className="se-drags__label">{term.label}</span>
+            <span className="se-num se-bad">&minus;{term.penalty}</span>
+          </span>
+          {term.fix ? <span className="se-drags__fix">{term.fix}</span> : null}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -126,16 +149,15 @@ export function DashboardPage() {
 
           <Panel title="Happiness">
             <HappinessRow label="Whore happiness" value={me.happiness.whore} />
+            <HappinessDrags terms={me.happiness.whoreTerms} />
+
+            <hr className="se-hr" />
+
             <HappinessRow label="Thug happiness" value={me.happiness.thug} />
-            <p className="se-hint">
-              {me.happiness.thug < 100
-                ? 'Every thug without a beer and a gun costs a point.'
-                : 'Crew is fed and armed.'}
-              {' '}
-              {me.happiness.whore < 100
-                ? 'The girls want a fair cut, condoms and crack on the shelf, and thugs watching them.'
-                : ''}
-            </p>
+            <HappinessDrags terms={me.happiness.thugTerms} />
+            {me.happiness.whore === 100 && me.happiness.thug === 100 ? (
+              <p className="se-hint">Everybody is stocked, armed and rested.</p>
+            ) : null}
           </Panel>
 
           <Panel title="Weapons" flush>

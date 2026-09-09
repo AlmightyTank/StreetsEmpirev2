@@ -14,6 +14,7 @@ import type {
   RoundDto,
   RoundPlayerDto,
 } from '@streets/shared';
+import { explainThugHappiness, explainWhoreHappiness } from '@streets/rules-engine';
 import type { TurnSettlement } from '../services/turn.service.js';
 
 /**
@@ -111,8 +112,8 @@ export function toRoundPlayerDto(
     happiness: {
       whore: player.whoreHappiness,
       thug: player.thugHappiness,
-      whoreFatigue: player.whoreFatigue,
-      thugFatigue: player.thugFatigue,
+      whoreTerms: explainWhoreHappiness(player, ruleset).terms,
+      thugTerms: explainThugHappiness(player, ruleset).terms,
     },
 
     rank: {

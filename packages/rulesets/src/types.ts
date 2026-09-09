@@ -103,12 +103,19 @@ export interface EconomyRules {
   };
   /** Net worth contribution per unit owned, in cents. */
   readonly netWorth: {
+    /** What a dollar of cash is worth as net worth, in percent. */
+    readonly cashWeightPercent: number;
     readonly perWhoreCents: number;
     readonly perThugCents: number;
     readonly perLowRiderCents: number;
     readonly perMedicineCents: number;
     readonly perCrackCents: number;
     readonly perCondomCents: number;
+    readonly perBeerCents: number;
+    readonly perPistolCents: number;
+    readonly perShotgunCents: number;
+    readonly perTek9Cents: number;
+    readonly perAk47Cents: number;
   };
   readonly payout: {
     readonly min: number;
@@ -128,17 +135,14 @@ export interface HappinessRules {
     readonly penaltyPerThugWithoutWeapon: number;
   };
   readonly whore: {
+    readonly neutralPayoutPercent: number;
+    readonly penaltyPerPayoutPercentBelowNeutral: number;
     readonly condomsPerWhore: number;
     readonly maxCondomPenalty: number;
     readonly crackPerWhore: number;
     readonly maxCrackPenalty: number;
     readonly whoresPerThug: number;
     readonly maxProtectionPenalty: number;
-  };
-  readonly fatigue: {
-    readonly max: number;
-    /** Wear shed per turn-regeneration interval of rest. */
-    readonly restPerInterval: number;
   };
 }
 
@@ -158,10 +162,15 @@ export interface District {
 
 export type Districts = { readonly [K in DistrictKey]: District };
 
-/** Scouting is turns spent looking for people. It earns nothing. */
+/**
+ * Manual 3.1. One action: the crew works a block while you pick people up, so
+ * these rules cover both the recruiting and the earning.
+ */
 export interface ScoutingRules {
   readonly turnCostPerScout: number;
   readonly minTurns: number;
+  /** Manual 3.1's suggested spend per trip. */
+  readonly recommendedTurns: number;
   readonly districts: Districts;
   /** Crew size at which a district yields half its headline recruit rate. */
   readonly recruitment: {
@@ -169,37 +178,30 @@ export interface ScoutingRules {
     readonly thugSoftCap: number;
   };
   readonly variance: number;
-}
 
-/** Work the Streets is the only action that makes money. */
-export interface WorkRules {
-  readonly turnCostPerRun: number;
-  readonly minTurns: number;
-  readonly districts: Districts;
   readonly grossPerWhorePerTurnCents: number;
   readonly minHappinessMultiplier: number;
-  readonly variance: number;
-  /** Extra wear per fully unsupplied turn, scaled by the missing fraction. */
-  readonly shortages: {
-    readonly whorePerTurnWithoutCondoms: number;
-    readonly thugPerTurnWithoutBeer: number;
-  };
+  readonly takeVariance: number;
   readonly consumption: {
     readonly condomsPerWhorePerTurn: number;
     readonly crackPerWhorePerTurn: number;
     readonly beerPerThugPerTurn: number;
   };
-  readonly fatigue: {
-    readonly whorePerTurn: number;
-    readonly thugPerTurn: number;
-    /** Take per head per turn that exactly cancels a turn's wear. */
-    readonly fairTakePerHeadPerTurnCents: number;
-    readonly maxReliefMultiple: number;
-  };
   readonly exposure: {
     readonly maxTakePenalty: number;
-    readonly maxExtraFatigue: number;
   };
+  /**
+   * How many clients a block holds. Hidden from the player, and rotated
+   * between the districts on a clock - one value per district, reshuffled
+   * every `clients.rotationMinutes`.
+   */
+  readonly clients: {
+    /** Exactly one per district. Shuffled, never scaled. */
+    readonly capacities: readonly number[];
+    readonly rotationMinutes: number;
+  };
+  /** Where the girls work while the thugs cook. Never shown to the player. */
+  readonly produceDistrict: DistrictKey;
   readonly finds: {
     readonly chancePerTurn: number;
     readonly crackMin: number;
@@ -209,7 +211,9 @@ export interface WorkRules {
 
 // --- production -------------------------------------------------------------
 
-/** Cooking is turns and cash in, crack out. It earns nothing. */
+/**
+ * Manual 3.2. The girls still work while the thugs cook, just for less.
+ */
 export interface ProductionRules {
   readonly turnCostPerRun: number;
   readonly minTurns: number;
@@ -219,21 +223,76 @@ export interface ProductionRules {
     readonly variance: number;
     readonly ingredientCentsPerRock: number;
   };
-  readonly consumption: {
-    readonly beerPerThugPerTurn: number;
-  };
-  readonly fatigue: {
-    readonly thugPerTurn: number;
-  };
+  /** What an unsupervised shift earns against a scouted one. */
+  readonly unsupervisedTakeMultiplier: number;
+}
+
+/** Working without protection, and what medicine is for. */
+export interface HealthRules {
+  readonly infectionChancePerTurnUnprotected: number;
+  readonly medicinePerTreatment: number;
+  readonly maxInfectedFractionPerAction: number;
 }
 
 /** When unhappy people give up and walk. Shared by every action. */
 export interface DepartureRules {
   readonly happinessThreshold: number;
+  readonly chancePerTurn: number;
   readonly maxFractionPerAction: number;
 }
 
 // --- stores and weapons -----------------------------------------------------
+
+/** RoundPlayer columns holding an item's shelf count and that shelf's clock. */
+export type StockField =
+  | 'pistolStock'
+  | 'shotgunStock'
+  | 'tek9Stock'
+  | 'ak47Stock'
+  | 'lowRiderStock'
+  | 'condomStock'
+  | 'medicineStock'
+  | 'beerStock'
+  | 'crackStock'
+  | 'thugStock';
+export type StockAtField =
+  | 'pistolStockAt'
+  | 'shotgunStockAt'
+  | 'tek9StockAt'
+  | 'ak47StockAt'
+  | 'lowRiderStockAt'
+  | 'condomStockAt'
+  | 'medicineStockAt'
+  | 'beerStockAt'
+  | 'crackStockAt'
+  | 'thugStockAt';
+
+/**
+ * How many of something a shopkeeper can actually get hold of, and how often.
+ *
+ * Cash is not the only thing standing between a player and an arsenal or a
+ * fleet: the goods have to come from somewhere. A shelf holds `cap` at most
+ * and gains one every `intervalMinutes`, so the bigger the thing the longer
+ * the wait - the same lazy-regeneration shape as turns.
+ *
+ * Null on an item means no limit at all.
+ */
+export interface RestockRule {
+  /** Most that can ever be waiting for you at once. */
+  readonly cap: number;
+  /** Minutes before the next delivery. */
+  readonly intervalMinutes: number;
+  /**
+   * How many arrive per delivery. Defaults to 1.
+   *
+   * Supplies move in cases, not one condom at a time, so a corner store
+   * restocks in the thousands per hour while a chop shop builds one car in
+   * eight. Same rule, different units.
+   */
+  readonly perInterval?: number;
+  readonly stockField: StockField;
+  readonly stockAtField: StockAtField;
+}
 
 export interface Weapon {
   readonly field: ResourceField;
@@ -242,6 +301,8 @@ export interface Weapon {
   readonly sellCents: number;
   /** Unused until 0.2.0 combat. */
   readonly power: number;
+  /** Null means Tommy can get as many as you can pay for. */
+  readonly restock: RestockRule | null;
 }
 
 export interface StoreItem {
@@ -251,11 +312,15 @@ export interface StoreItem {
   readonly buyCents: number;
   /** Null means the store does not buy this back. */
   readonly sellCents: number | null;
+  /** Absent or null means the shop can get as many as you can pay for. */
+  readonly restock?: RestockRule | null;
 }
 
 export interface Store {
   readonly slug: string;
   readonly name: string;
+  /** Who is behind the counter. Used when the shop talks about its stock. */
+  readonly keeper: string;
   readonly blurb: string;
   /**
    * Item keys differ per store, so a lookup by a key from a request is
@@ -292,9 +357,9 @@ export interface Ruleset {
   readonly happiness: HappinessRules;
   readonly districts: Districts;
   readonly scouting: ScoutingRules;
-  readonly work: WorkRules;
   readonly production: ProductionRules;
   readonly departures: DepartureRules;
+  readonly health: HealthRules;
   readonly stores: { readonly [K in StoreKey]: Store };
   readonly storeBulkHelpers: readonly number[];
   readonly lowRiderThugCapacity: number;

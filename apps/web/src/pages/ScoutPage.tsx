@@ -17,9 +17,8 @@ export function ScoutPage() {
   const action = useGameAction<ScoutResult>();
 
   const [districts, setDistricts] = useState<DistrictDto[]>([]);
-  const [reach, setReach] = useState<{ whores: number; thugs: number } | null>(null);
   const [district, setDistrict] = useState<string>('');
-  const [turns, setTurns] = useState<number | ''>(10);
+  const [turns, setTurns] = useState<number | ''>(13);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Refetched whenever the crew changes, because the rates on offer depend on
@@ -31,7 +30,6 @@ export function ScoutPage() {
       .districts()
       .then((response) => {
         setDistricts(response.districts);
-        setReach(response.recruitment);
         setDistrict((current) => current || response.districts[0]?.key || '');
       })
       .catch(() => setLoadError('Could not load the districts. Try again in a moment.'));
@@ -58,8 +56,8 @@ export function ScoutPage() {
     <GameLayout>
       <div className="se-pagehead">
         <div>
-          <h1 className="se-title">Scout for Whores</h1>
-          <p className="se-eyebrow">Turns spent looking for new faces</p>
+          <h1 className="se-title">Scout</h1>
+          <p className="se-eyebrow">Find clients, and pick up whoever else you find</p>
         </div>
       </div>
 
@@ -74,7 +72,6 @@ export function ScoutPage() {
               districts={districts}
               value={district}
               onChange={setDistrict}
-              mode="scout"
               disabled={action.busy}
             />
 
@@ -91,38 +88,44 @@ export function ScoutPage() {
               {action.busy ? 'Working the block...' : 'Scout'}
             </button>
           </form>
+
+          <p className="se-hint">
+            One trip, both jobs: the girls work the block while you work the
+            room. Rich blocks have the money; poor ones have the people. What
+            counts for their cut is the money that reaches them, not the
+            percentage. Nothing else is posted &mdash; what a block is worth
+            changes by the hour, and you find out by going.
+          </p>
         </Panel>
 
-        <aside>
-          <Panel title="On hand" flush>
+        <aside className="se-grid">
+          <Panel title="The crew" flush>
             <div className="se-rows">
               <Row
                 label="Turns"
                 value={`${formatNumber(me.turns.turns)} / ${formatNumber(me.turns.turnCap)}`}
                 strong
               />
-              <Row label="Whores" value={formatNumber(me.resources.whores)} />
-              <Row label="Thugs" value={formatNumber(me.resources.thugs)} />
-              <Row label="Cash" value={formatCents(me.resources.cashCents)} />
+              <Row label="Whores" value={formatNumber(me.resources.whores)} strong />
+              <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong />
+              <Row label="They keep" value={`${me.payoutPercent}%`} />
+              <Row label="You keep" value={`${100 - me.payoutPercent}%`} />
+              <Row label="Whore happiness" value={`${me.happiness.whore}%`} />
+              <Row label="Thug happiness" value={`${me.happiness.thug}%`} />
             </div>
           </Panel>
 
-          <p className="se-hint">
-            Scouting is looking, not working. Nobody earns, nothing is used up
-            and nobody comes home tired. Poor districts are full of people with
-            nowhere else to go; rich ones barely have anyone to find.
-          </p>
+          {/* A trip burns the shelf. Nothing else on the page shows it. */}
+          <Panel title="Supplies for the trip" flush>
+            <div className="se-rows">
+              <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
+              <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
+              <Row label="Crack" value={formatNumber(me.resources.crack)} />
+              <Row label="Beer" value={formatNumber(me.resources.beer)} />
+              <Row label="Cash" value={formatCents(me.resources.cashCents)} strong />
+            </div>
+          </Panel>
 
-          {reach && reach.whores < 0.95 ? (
-            <p className="se-hint se-mt">
-              You already run most of the people worth running. New faces come
-              at <b className="se-num se-dim">{Math.round(reach.whores * 100)}%</b>{' '}
-              of the headline rate for whores and{' '}
-              <b className="se-num se-dim">{Math.round(reach.thugs * 100)}%</b> for
-              thugs. Past a certain size the money is worth more than the
-              recruiting.
-            </p>
-          ) : null}
         </aside>
       </div>
 
@@ -135,13 +138,118 @@ export function ScoutPage() {
             result={action.result}
             lines={[
               { label: 'Turns used', value: formatNumber(action.result.result.turnsUsed) },
-              { label: 'Whores recruited', delta: action.result.result.whoresRecruited },
-              { label: 'Thugs recruited', delta: action.result.result.thugsRecruited },
+              // Manual 3.1: this is where you make money for yourself.
               {
-                label: 'Recruiting reach',
-                value: `${Math.round(action.result.result.recruitmentMultipliers.whores * 100)}%`,
+                label: 'Brought in',
+                value: formatCents(action.result.result.grossEarnedCents),
+              },
+              {
+                label: `Their cut (${action.result.result.payoutPercent}%)`,
+                delta: -action.result.result.crewTakeCents,
+                money: true,
                 muted: true,
               },
+              {
+                label: 'Your cut',
+                delta: action.result.result.cashEarnedCents,
+                money: true,
+                remaining: action.result.after.cashCents,
+              },
+
+              {
+                label: 'Whores recruited',
+                delta: action.result.result.whoresRecruited,
+                remaining: action.result.after.resources.whores,
+              },
+              {
+                label: 'Thugs recruited',
+                delta: action.result.result.thugsRecruited,
+                remaining: action.result.after.resources.thugs,
+              },
+              ...(action.result.result.crackFound > 0
+                ? [
+                    {
+                      label: 'Product found',
+                      delta: action.result.result.crackFound,
+                      remaining: action.result.after.resources.crack,
+                    },
+                  ]
+                : []),
+
+
+              {
+                label: 'Condoms used',
+                delta: -action.result.result.condomsUsed,
+                remaining: action.result.after.resources.condoms,
+                muted: true,
+              },
+              ...(action.result.result.condomsMissing > 0
+                ? [
+                    {
+                      label: 'Worked without condoms',
+                      value: `${formatNumber(action.result.result.condomsMissing)} short`,
+                    },
+                  ]
+                : []),
+              {
+                label: 'Crack used',
+                delta: -action.result.result.crackUsed,
+                remaining: action.result.after.resources.crack,
+                muted: true,
+              },
+              {
+                label: 'Beer used',
+                delta: -action.result.result.beerUsed,
+                remaining: action.result.after.resources.beer,
+                muted: true,
+              },
+
+              ...(action.result.result.infected > 0
+                ? [
+                    {
+                      label: 'Caught something',
+                      delta: -action.result.result.infected,
+                    },
+                    ...(action.result.result.treated > 0
+                      ? [
+                          {
+                            label: 'Treated with medicine',
+                            delta: -action.result.result.medicineUsed,
+                            remaining: action.result.after.resources.medicine,
+                            muted: true,
+                          },
+                        ]
+                      : []),
+                    ...(action.result.result.lostToInfection > 0
+                      ? [
+                          {
+                            label: 'Lost, no medicine',
+                            delta: -action.result.result.lostToInfection,
+                            remaining: action.result.after.resources.whores,
+                          },
+                        ]
+                      : []),
+                  ]
+                : []),
+              ...(action.result.result.whoresLeft > 0
+                ? [
+                    {
+                      label: 'Whores walked out',
+                      delta: -action.result.result.whoresLeft,
+                      remaining: action.result.after.resources.whores,
+                    },
+                  ]
+                : []),
+              ...(action.result.result.thugsLeft > 0
+                ? [
+                    {
+                      label: 'Thugs walked out',
+                      delta: -action.result.result.thugsLeft,
+                      remaining: action.result.after.resources.thugs,
+                    },
+                  ]
+                : []),
+
               {
                 label: 'Turns remaining',
                 value: formatNumber(action.result.result.turnsRemaining),

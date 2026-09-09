@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { classicOgV01 } from '@streets/rulesets';
 import {
-  calculateCookConsumption,
   calculateDepartures,
   calculateWorkConsumption,
   type UpkeepInput,
@@ -15,6 +14,7 @@ function crew(overrides: Partial<UpkeepInput> = {}): UpkeepInput {
     condoms: 4_812,
     crack: 1_221,
     beer: 108,
+    medicine: 50,
     whoreHappiness: 100,
     thugHappiness: 100,
     ...overrides,
@@ -64,32 +64,52 @@ describe('calculateWorkConsumption', () => {
   });
 });
 
-describe('calculateCookConsumption', () => {
-  /** Nobody is on a corner, so the only thing burned is what thugs drink. */
-  it('drinks beer and touches nothing else', () => {
-    expect(calculateCookConsumption(crew(), 10, classicOgV01)).toEqual({
-      condoms: 0,
-      crack: 0,
-      beer: 8,
-    });
-  });
-
-  it('is capped at the beer on hand', () => {
-    expect(calculateCookConsumption(crew({ beer: 3 }), 10, classicOgV01)).toEqual({
-      condoms: 0,
-      crack: 0,
-      beer: 3,
-    });
-  });
-});
-
 describe('calculateDepartures', () => {
+  /** The manual's recommended spend, which the rate is calibrated against. */
+  const trip = classicOgV01.scouting.recommendedTurns;
+
   it('keeps everybody at or above the threshold', () => {
     const content = crew({ whoreHappiness: 40, thugHappiness: 40 });
-    expect(calculateDepartures(content, classicOgV01, flatRng)).toEqual({
+    expect(calculateDepartures(content, trip, classicOgV01, flatRng)).toEqual({
       whores: 0,
       thugs: 0,
     });
+  });
+
+  it('costs a recommended trip what the old per-action rule cost', () => {
+    // The rate is calibrated so nothing about a normal trip changed: 9.9%
+    // against the flat 10% this replaced.
+    const miserable = crew({ whores: 100, thugs: 100, whoreHappiness: 0, thugHappiness: 0 });
+    expect(calculateDepartures(miserable, trip, classicOgV01, flatRng).whores).toBe(10);
+  });
+
+  it('costs more the longer the crew is worked', () => {
+    // The bug this replaced: departures ran once per action regardless of
+    // turns, so one enormous trip carried the same risk as a single turn and
+    // batching was strictly free.
+    const miserable = crew({ whores: 100, thugs: 100, whoreHappiness: 0, thugHappiness: 0 });
+
+    const short = calculateDepartures(miserable, 1, classicOgV01, flatRng).whores;
+    const recommended = calculateDepartures(miserable, trip, classicOgV01, flatRng).whores;
+    const marathon = calculateDepartures(miserable, 200, classicOgV01, flatRng).whores;
+
+    expect(short).toBeLessThan(recommended);
+    expect(recommended).toBeLessThan(marathon);
+  });
+
+  it('costs nothing for an action that works nobody', () => {
+    const miserable = crew({ whores: 100, thugs: 100, whoreHappiness: 0, thugHappiness: 0 });
+    expect(calculateDepartures(miserable, 0, classicOgV01, flatRng))
+      .toEqual({ whores: 0, thugs: 0 });
+  });
+
+  it('never takes more than the safety rail allows', () => {
+    // However long and however miserable, one action cannot end the crew.
+    const miserable = crew({ whores: 100, thugs: 100, whoreHappiness: 0, thugHappiness: 0 });
+    const rail = classicOgV01.departures.maxFractionPerAction;
+
+    expect(calculateDepartures(miserable, 100_000, classicOgV01, flatRng).whores)
+      .toBeLessThanOrEqual(100 * rail);
   });
 
   it('loses the full fraction at zero happiness', () => {
@@ -99,7 +119,7 @@ describe('calculateDepartures', () => {
       whoreHappiness: 0,
       thugHappiness: 0,
     });
-    expect(calculateDepartures(miserable, classicOgV01, flatRng)).toEqual({
+    expect(calculateDepartures(miserable, trip, classicOgV01, flatRng)).toEqual({
       whores: 10,
       thugs: 10,
     });
@@ -112,7 +132,7 @@ describe('calculateDepartures', () => {
       whoreHappiness: 20,
       thugHappiness: 20,
     });
-    expect(calculateDepartures(unhappy, classicOgV01, flatRng)).toEqual({
+    expect(calculateDepartures(unhappy, trip, classicOgV01, flatRng)).toEqual({
       whores: 5,
       thugs: 5,
     });
@@ -125,7 +145,7 @@ describe('calculateDepartures', () => {
       whoreHappiness: 0,
       thugHappiness: 100,
     });
-    expect(calculateDepartures(lopsided, classicOgV01, flatRng)).toEqual({
+    expect(calculateDepartures(lopsided, trip, classicOgV01, flatRng)).toEqual({
       whores: 10,
       thugs: 0,
     });
@@ -133,7 +153,7 @@ describe('calculateDepartures', () => {
 
   it('cannot lose more than are there', () => {
     const tiny = crew({ whores: 1, thugs: 0, whoreHappiness: 0, thugHappiness: 0 });
-    const result = calculateDepartures(tiny, classicOgV01, flatRng);
+    const result = calculateDepartures(tiny, trip, classicOgV01, flatRng);
     expect(result.whores).toBeLessThanOrEqual(1);
     expect(result.thugs).toBe(0);
   });

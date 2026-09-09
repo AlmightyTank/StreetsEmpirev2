@@ -66,3 +66,62 @@ describe('RankingService.isDailySnapshotStale', () => {
     ).toBe(true);
   });
 });
+
+/**
+ * The player's own row still holds their PREVIOUS net worth while an action is
+ * mid-flight, so a rank computed for the new value must not count it.
+ *
+ * Without this, buying a single condom - $1 of cash for $0.10 of net worth -
+ * made the player rank behind themselves, and the receipt reported "#1 -> #2"
+ * for someone who was #1 by a hundred thousand dollars.
+ */
+describe('rank counting excludes the player themselves', () => {
+  function stubDb() {
+    const seen: Record<string, unknown>[] = [];
+    return {
+      seen,
+      db: {
+        roundPlayer: {
+          count: async ({ where }: { where: Record<string, unknown> }) => {
+            seen.push(where);
+            // Pretend one row is "ahead": the player's own stale net worth.
+            return where.id === undefined ? 1 : 0;
+          },
+        },
+      } as never,
+    };
+  }
+
+  it('passes the exclusion through to both queries', async () => {
+    const { db, seen } = stubDb();
+
+    const ranks = await RankingService.ranksFor(db, {
+      id: 'player-1',
+      roundId: 'round-1',
+      cityId: 'city-1',
+      netWorthCents: 100n,
+    });
+
+    expect(seen).toHaveLength(2);
+    for (const where of seen) {
+      expect(where.id).toEqual({ not: 'player-1' });
+    }
+    expect(ranks).toEqual({ localRank: 1, nationalRank: 1 });
+  });
+
+  it('still works for a player who has no row yet, as at join', async () => {
+    const { db, seen } = stubDb();
+
+    const ranks = await RankingService.ranksFor(db, {
+      roundId: 'round-1',
+      cityId: 'city-1',
+      netWorthCents: 100n,
+    });
+
+    for (const where of seen) {
+      expect(where.id).toBeUndefined();
+    }
+    // The stub counts one player ahead when nobody is excluded.
+    expect(ranks).toEqual({ localRank: 2, nationalRank: 2 });
+  });
+});

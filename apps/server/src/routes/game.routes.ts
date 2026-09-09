@@ -4,7 +4,6 @@ import {
   payoutSchema,
   produceCrackSchema,
   scoutSchema,
-  workSchema,
   storeTradeSchema,
   weaponUnlockSchema,
 } from '@streets/shared';
@@ -12,7 +11,6 @@ import { toGameSnapshotDto } from '../game/dto.js';
 import { PayoutService } from '../services/payout.service.js';
 import { ProductionService } from '../services/production.service.js';
 import { ScoutService } from '../services/scout.service.js';
-import { WorkService } from '../services/work.service.js';
 import { StoreService } from '../services/store.service.js';
 import { parseBody } from '../utils/validate.js';
 import { ActivityService } from '../services/activity.service.js';
@@ -86,7 +84,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/stores', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
-    return StoreService.catalog(settled.ruleset, settled.player);
+    return StoreService.catalog(settled.ruleset, settled.player, settled.stock);
   });
 
   fastify.post('/stores/trade', { preHandler: fastify.requireAuth }, async (request) => {
@@ -109,13 +107,6 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     return ScoutService.scout(fastify.prisma, player.id, body);
   });
 
-  /** Work the Streets. The only action that makes money. */
-  fastify.post('/work', { preHandler: fastify.requireAuth }, async (request) => {
-    const body = parseBody(workSchema, request.body);
-    const { player } = await requirePlayer(request.auth!.account.id);
-
-    return WorkService.work(fastify.prisma, player.id, body);
-  });
 
   /** Section 29. */
   fastify.post(

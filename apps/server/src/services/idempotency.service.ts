@@ -1,29 +1,38 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { Db } from '../utils/db.js';
+import { AppError } from '../utils/errors.js';
 
 /**
  * Section 52. How long a completed action can still be replayed by id.
- *
- * Long enough to cover a double click, a retry after a dropped connection or a
- * browser resend; short enough that the table stays small.
  */
 const RETENTION_MS = 10 * 60 * 1000;
 
 export const IdempotencyService = {
   /**
-   * The stored result for this action id, if it already ran.
+   * Return the stored result for this action id when it already ran.
    *
-   * Must be called with the player row already locked. Under READ COMMITTED
-   * the lock is what guarantees a concurrent duplicate sees the first
-   * request's committed row instead of racing past it and executing twice.
+   * H also binds an id to its action name. Reusing a Scout id for Produce,
+   * Payout, a store trade, etc. can never return a result of the wrong shape.
    */
-  async find<T>(db: Db, actionId: string, roundPlayerId: string): Promise<T | null> {
+  async find<T>(
+    db: Db,
+    actionId: string,
+    roundPlayerId: string,
+    expectedAction?: string,
+  ): Promise<T | null> {
     const existing = await db.processedAction.findUnique({
       where: { roundPlayerId_actionId: { roundPlayerId, actionId } },
     });
 
     if (!existing) return null;
     if (existing.expiresAt.getTime() <= Date.now()) return null;
+
+    if (expectedAction && existing.action !== expectedAction) {
+      throw AppError.conflict(
+        'ACTION_ID_REUSED',
+        'That request id belongs to a different action. Refresh the page and try again.',
+      );
+    }
 
     return existing.result as T;
   },
@@ -47,7 +56,6 @@ export const IdempotencyService = {
     });
   },
 
-  /** Housekeeping, called on boot alongside the session purge. */
   async purgeExpired(prisma: PrismaClient): Promise<number> {
     const { count } = await prisma.processedAction.deleteMany({
       where: { expiresAt: { lte: new Date() } },

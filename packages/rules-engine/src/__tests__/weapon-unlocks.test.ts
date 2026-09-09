@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { classicOgV01, type Ruleset } from '@streets/rulesets';
+import { fullShelves } from '../calculations/restock.js';
 import { calculateStoreTrade } from '../calculations/stores.js';
 import { calculateWeaponUnlock, weaponUnlockProgress } from '../calculations/weapon-unlocks.js';
 
 const player = {
   ...classicOgV01.round.startingPlayer, cashCents: 2_500_000n, thugs: 25,
   streetWorkTurns: 150, tek9Unlocked: false, ak47Unlocked: false,
+  ...fullShelves(classicOgV01),
 };
 
 describe('Tommy’s purchasing access', () => {

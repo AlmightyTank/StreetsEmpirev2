@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { classicOgV01, type Ruleset } from '@streets/rulesets';
+import { fullShelves } from '../calculations/restock.js';
 import { calculateStoreTrade, MAX_INVENTORY, maxStoreBuy, type StoreTradeInput } from '../calculations/stores.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import { storeTradeSchema } from '@streets/shared';
 
 const player = { ...classicOgV01.round.startingPlayer, cashCents: 10_000_000n,
-  streetWorkTurns: 150, tek9Unlocked: true, ak47Unlocked: true };
+  streetWorkTurns: 150, tek9Unlocked: true, ak47Unlocked: true,
+  // A real player arrives at Tommy's with the shelves stocked; the limit is
+  // exercised on purpose in restock.test.ts.
+  ...fullShelves(classicOgV01) };
 const order: StoreTradeInput = { store: 'CORNER', item: 'CONDOM', direction: 'buy', quantity: 100 };
 
 describe('store transactions', () => {
@@ -76,10 +80,17 @@ describe('store transactions', () => {
     expect(maxStoreBuy(1_000n, 0, rules.stores.CORNER.items.CONDOM!)).toBe(7);
   });
 
-  it('preserves net worth when selling crack at Pip’s', () => {
+  it('charges only the cash weight when selling crack at Pip’s', () => {
+    // Pip pays exactly what a rock is worth, so the only thing a sale costs
+    // is turning net worth into cash - which is weighted at 75%.
     const trade = calculateStoreTrade(player, { store: 'PIP', item: 'CRACK', direction: 'sell', quantity: 100 }, classicOgV01);
     const after = { ...player, cashCents: player.cashCents + trade.cashChangeCents, crack: player.crack + trade.quantityChange };
-    expect(calculateNetWorthCents(after)).toBe(calculateNetWorthCents(player));
+
+    const lost = calculateNetWorthCents(player) - calculateNetWorthCents(after);
+    const rockValue = BigInt(100 * classicOgV01.economy.netWorth.perCrackCents);
+    const weight = BigInt(classicOgV01.economy.netWorth.cashWeightPercent);
+
+    expect(lost).toBe(rockValue - (rockValue * weight) / 100n);
   });
 
   it('requires an action id and rejects malformed HTTP inputs', () => {

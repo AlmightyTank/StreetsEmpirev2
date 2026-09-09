@@ -1,31 +1,29 @@
 import type { DistrictDto } from '@streets/shared';
 
-const BAND: Record<string, string> = { low: 'Low', medium: 'Medium', high: 'High' };
-
 /**
- * The same five blocks, described by what you are going there to do.
+ * The same five blocks, and the only thing posted about any of them is whether
+ * your crew can hold a corner there.
  *
- * Scouting cares who is standing around; working cares what the block pays and
- * whether you have the muscle to hold a corner on it.
+ * Nothing else is: not what a block pays, not who is standing around. Both
+ * change with the hour or depend on how big you already are, so a printed rate
+ * would be a spoiler at best and a lie at worst. The name is the hint, and the
+ * receipt from a trip is the answer.
  */
 export function DistrictPicker({
   districts,
   value,
   onChange,
-  mode,
   disabled,
 }: {
   districts: DistrictDto[];
   value: string;
   onChange: (key: string) => void;
-  mode: 'scout' | 'work';
   disabled?: boolean;
 }) {
   return (
     <div className="se-choices">
       {districts.map((district) => {
         const exposed = Math.round(district.exposedFraction * 100);
-        const thin = mode === 'work' && exposed > 0;
 
         return (
           <label
@@ -43,27 +41,13 @@ export function DistrictPicker({
             <span className="se-choice__body">
               <span className="se-choice__name">{district.name}</span>
 
-              {mode === 'scout' ? (
-                <span className="se-choice__meta">
-                  <span>
-                    <b className="se-num se-dim">{district.expectedWhoresPerTurn}</b> whores
-                    {' / '}
-                    <b className="se-num se-dim">{district.expectedThugsPerTurn}</b> thugs
-                    per turn
-                  </span>
+              <span className="se-choice__meta">
+                <span className={exposed > 0 ? 'se-bad' : undefined}>
+                  {exposed > 0
+                    ? `${exposed}% working alone`
+                    : `Covered · 1 thug per ${district.protectionWhoresPerThug}`}
                 </span>
-              ) : (
-                <span className="se-choice__meta">
-                  <span>
-                    Pay <b className="se-dim">{BAND[district.money]}</b>
-                  </span>
-                  <span className={thin ? 'se-bad' : undefined}>
-                    {thin
-                      ? `${exposed}% working alone`
-                      : `Covered · 1 thug per ${district.protectionWhoresPerThug}`}
-                  </span>
-                </span>
-              )}
+              </span>
             </span>
           </label>
         );

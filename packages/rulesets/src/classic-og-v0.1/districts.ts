@@ -1,5 +1,5 @@
 /**
- * The districts, shared by Scout and Work the Streets. Sections 25-27.
+ * The districts. Manual 3.1, spec sections 25-27.
  *
  * BALANCE_APPROXIMATION.
  *
@@ -8,6 +8,13 @@
  * They pull in opposite directions on purpose - the places crawling with
  * people who have nowhere else to go are the places nobody has money, and the
  * places with money have barely anyone to recruit.
+ *
+ * The headline recruit rates are deliberately about an eighth of the figures
+ * spec section 27 illustrates. Those numbers assume a much smaller turn
+ * budget: at 288 turns a day, 1.8 whores a turn meant a single recommended
+ * 13-turn trip took a brand new player from 1 whore to 24, and blew through
+ * the diminishing-returns soft cap inside an evening. Recruiting is supposed
+ * to be the slow half of the game.
  *
  * Money is not the whole story of where to work, either. A rich block is
  * watched, and a girl standing on it without somebody of yours nearby gets
@@ -24,8 +31,8 @@ export const districts = {
   CASINO: {
     slug: 'casino',
     name: 'Casino District',
-    whoresPerTurn: 0.6,
-    thugsPerTurn: 0.2,
+    whoresPerTurn: 0.08,
+    thugsPerTurn: 0.03,
     /** Multiplies what the crew brings in per turn worked here. */
     payMultiplier: 2.5,
     protectionWhoresPerThug: 4,
@@ -33,32 +40,32 @@ export const districts = {
   WINO_SLUMS: {
     slug: 'wino-slums',
     name: 'Wino Slums',
-    whoresPerTurn: 1.8,
-    thugsPerTurn: 0.7,
+    whoresPerTurn: 0.22,
+    thugsPerTurn: 0.09,
     payMultiplier: 0.4,
     protectionWhoresPerThug: 20,
   },
   LOW_RENT: {
     slug: 'low-rent',
     name: 'Low Rent District',
-    whoresPerTurn: 1.3,
-    thugsPerTurn: 0.5,
+    whoresPerTurn: 0.16,
+    thugsPerTurn: 0.06,
     payMultiplier: 0.7,
     protectionWhoresPerThug: 14,
   },
   NIGHTCLUB: {
     slug: 'nightclub',
     name: 'Nightclub District',
-    whoresPerTurn: 1.1,
-    thugsPerTurn: 0.4,
+    whoresPerTurn: 0.14,
+    thugsPerTurn: 0.05,
     payMultiplier: 1.5,
     protectionWhoresPerThug: 8,
   },
   URBAN_GHETTO: {
     slug: 'urban-ghetto',
     name: 'Urban Ghetto',
-    whoresPerTurn: 1.5,
-    thugsPerTurn: 0.9,
+    whoresPerTurn: 0.19,
+    thugsPerTurn: 0.11,
     payMultiplier: 0.6,
     protectionWhoresPerThug: 18,
   },

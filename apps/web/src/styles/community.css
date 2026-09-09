@@ -1,0 +1,183 @@
+/* 0.1.0-E: community screens and the responsive navigation pass. */
+
+.se-tablewrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.se-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 560px;
+}
+
+.se-table th,
+.se-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--se-line-soft);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.se-table th {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--se-muted);
+  background: #101318;
+}
+
+.se-table tbody tr:last-child td { border-bottom: 0; }
+.se-table tbody tr:hover td { background: rgba(255, 255, 255, 0.018); }
+.se-table__number { text-align: right !important; }
+
+.se-rank-you td {
+  background: rgba(182, 255, 58, 0.055);
+}
+
+.se-rank-you td:first-child {
+  box-shadow: inset 2px 0 0 var(--se-accent);
+}
+
+.se-playerlink {
+  color: var(--se-text);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.se-playerlink:hover { color: var(--se-accent); }
+
+.se-you {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 5px;
+  border: 1px solid var(--se-accent-dim);
+  border-radius: 2px;
+  color: var(--se-accent);
+  font-family: var(--se-mono);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  vertical-align: 1px;
+}
+
+.se-rank-summary {
+  gap: 14px;
+  color: var(--se-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.se-rank-summary b {
+  color: #fff;
+  margin-left: 4px;
+}
+
+.se-news-list {
+  display: grid;
+  gap: 12px;
+}
+
+.se-news--pinned {
+  border-left: 3px solid var(--se-accent);
+}
+
+.se-news__date {
+  color: var(--se-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.se-news__body {
+  margin: 0;
+  color: var(--se-text);
+  white-space: pre-wrap;
+}
+
+.se-news__byline { margin-bottom: 0; }
+
+@media (max-width: 899px) {
+  /* E makes navigation immediately available on mobile instead of putting it
+     beneath the entire page. It scrolls horizontally rather than becoming a
+     giant four-column block. */
+  .se-gamegrid {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .se-nav {
+    order: 1;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 18px;
+    margin: 0 0 2px;
+    padding: 0 0 10px;
+    border-top: 0;
+    border-bottom: 1px solid var(--se-line-soft);
+    scrollbar-width: thin;
+  }
+
+  .se-nav__section {
+    flex: 0 0 auto;
+    min-width: max-content;
+  }
+
+  .se-nav__list {
+    display: flex;
+    gap: 4px;
+  }
+
+  .se-nav__link {
+    margin-left: 0;
+    padding: 6px 8px;
+    white-space: nowrap;
+  }
+
+  .se-gamemain { order: 2; }
+}
+
+@media (max-width: 600px) {
+  .se-shell { padding: 12px 10px 48px; }
+  .se-gamebar { margin-bottom: 10px; }
+
+  .se-pagehead {
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .se-pagehead__right { align-self: stretch; }
+  .se-rank-summary { justify-content: space-between; }
+
+  .se-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .se-table { min-width: 500px; }
+
+  .se-feed__item {
+    gap: 8px;
+    padding: 9px 10px;
+  }
+
+  .se-feed__time { width: 54px; }
+}
+
+@media (max-width: 420px) {
+  .se-topbar { padding: 0 10px; gap: 8px; }
+  .se-statusbar { display: none; }
+  .se-gamebar__time { font-size: 11px; }
+  .se-title { font-size: 20px; }
+  .se-stats { grid-template-columns: 1fr 1fr; }
+  .se-stat { padding: 9px 10px; }
+  .se-stat__value { font-size: 16px; }
+}
+
+@media (max-width: 480px) {
+  .se-store-order { grid-template-columns: 1fr; }
+  .se-store-prices { gap: 6px 14px; }
+  .se-choice__meta { gap: 8px; }
+}

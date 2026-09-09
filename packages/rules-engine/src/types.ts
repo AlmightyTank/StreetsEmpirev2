@@ -13,6 +13,11 @@ export interface NetWorthInput {
   medicine: number;
   crack: number;
   condoms: number;
+  beer: number;
+  pistols: number;
+  shotguns: number;
+  tek9s: number;
+  ak47s: number;
 }
 
 export interface ThugHappinessInput {
@@ -22,8 +27,6 @@ export interface ThugHappinessInput {
   shotguns: number;
   tek9s: number;
   ak47s: number;
-  /** Wear carried from working and cooking. */
-  thugFatigue: number;
 }
 
 export interface WhoreHappinessInput {
@@ -31,8 +34,7 @@ export interface WhoreHappinessInput {
   thugs: number;
   condoms: number;
   crack: number;
-  /** Wear carried from working for a cut that did not justify it. */
-  whoreFatigue: number;
+  payoutPercent: number;
 }
 
 export interface TurnState {

@@ -34,13 +34,17 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
 
     case 'SCOUT': {
       const found = [
+        num(p.cashCents) ? `+${formatCents(num(p.cashCents))}` : null,
         num(p.whores) ? `+${formatNumber(num(p.whores))} whores` : null,
         num(p.thugs) ? `+${formatNumber(num(p.thugs))} thugs` : null,
+        num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} crack found` : null,
+        num(p.whoresLeft) ? `${num(p.whoresLeft)} whores walked` : null,
+        num(p.thugsLeft) ? `${num(p.thugsLeft)} thugs walked` : null,
       ].filter(Boolean);
 
       return {
         text: `Scouted ${str(p.district, 'a district')} for ${formatNumber(num(p.turns))} turns.`,
-        detail: found.join(', ') || 'Nobody worth taking.',
+        detail: found.join(', ') || 'A quiet night.',
       };
     }
 
@@ -48,11 +52,6 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
       const detail = [
         `+${formatCents(num(p.cashCents))}`,
         num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} crack found` : null,
-        num(p.whoreFatigueChange) > 0
-          ? `crew worn down ${num(p.whoreFatigueChange).toFixed(1)}`
-          : num(p.whoreFatigueChange) < 0
-            ? `crew rested up ${Math.abs(num(p.whoreFatigueChange)).toFixed(1)}`
-            : null,
         num(p.whoresLeft) ? `${num(p.whoresLeft)} whores walked` : null,
         num(p.thugsLeft) ? `${num(p.thugsLeft)} thugs walked` : null,
       ].filter(Boolean);
@@ -66,6 +65,7 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
     case 'PRODUCE_CRACK': {
       const detail = [
         num(p.crack) ? `+${formatNumber(num(p.crack))} crack` : null,
+        num(p.cashCents) ? `+${formatCents(num(p.cashCents))}` : null,
         num(p.ingredientCents) ? `-${formatCents(num(p.ingredientCents))} ingredients` : null,
       ].filter(Boolean);
 

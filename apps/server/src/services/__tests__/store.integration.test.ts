@@ -24,11 +24,15 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
     const { RoundService } = await import('../round.service.js');
     const round = await RoundService.requireCurrent(app.prisma);
     const city = await app.prisma.city.findUniqueOrThrow({ where: { slug: classicOgV01.round.startingCitySlug } });
+    const { startingStock } = await import('@streets/rules-engine');
     const player = await app.prisma.roundPlayer.create({ data: {
       ...classicOgV01.round.startingPlayer,
       accountId: accountId!, roundId: round.id, cityId: city.id,
       publicPimpId: -Math.floor(Math.random() * 2_000_000_000) - 1, displayName: name,
-      cashCents: 500_000n, condoms: 0, beer: 0, whoreFatigue: 5, thugFatigue: 5,
+      cashCents: 500_000n, condoms: 0, beer: 0,
+      // This fixture skips the join service, so it has to seed the shelves
+      // the same way joining does.
+      ...startingStock(classicOgV01),
     } });
     playerId = player.id;
   });
@@ -50,10 +54,10 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
     const response = await app.inject({ method: 'GET', url: '/api/game/stores', headers: { cookie } });
     expect(response.statusCode).toBe(200);
     expect(response.json().stores).toHaveLength(4);
-    expect(response.json().bulkHelpers).toEqual([100, 1000]);
+    expect(response.json().bulkHelpers).toEqual([...classicOgV01.storeBulkHelpers]);
   });
 
-  it('buys supplies, restores supply happiness, preserves wear and spends no turns', async () => {
+  it('buys supplies, restores happiness immediately and spends no turns', async () => {
     const response = await trade({});
     expect(response.statusCode).toBe(200);
     const body = response.json();
@@ -63,9 +67,9 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
     expect(body.after.turns).toBe(body.before.turns);
     const beer = await trade({ item: 'BEER', quantity: 1 });
     expect(beer.json().after.thugHappiness).toBeGreaterThan(beer.json().before.thugHappiness);
+    // Supplies feed happiness directly: the shelf is the whole mechanism.
     const state = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
-    expect(state.whoreFatigue).toBe(5);
-    expect(state.thugFatigue).toBe(5);
+    expect(state.beer).toBeGreaterThan(0);
   });
 
   it('rejects malformed, cross-store, unsupported and unaffordable trades atomically', async () => {
@@ -170,15 +174,86 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
     expect(await app.prisma.playerActivity.count({ where: { roundPlayerId: playerId, type: 'WEAPON_UNLOCK' } })).toBe(2);
   });
 
-  it('increments reputation for street-work turns exactly once, not for scouting', async () => {
+  it('sells only what Tommy has on the shelf, and starts his clock on the buy', async () => {
+    const cap = classicOgV01.weapons.SHOTGUN.restock!.cap;
+    await app.prisma.roundPlayer.update({
+      where: { id: playerId },
+      data: { cashCents: 100_000_000n, shotgunStock: cap, shotgunStockAt: new Date() },
+    });
+
+    // Cash is not the limit here; supply is.
+    const overrun = await trade({ store: 'TOMMY', item: 'SHOTGUN', quantity: cap + 1 });
+    expect(overrun.statusCode).toBe(400);
+    expect(overrun.json().error.code).toBe('OUT_OF_STOCK');
+
+    expect((await trade({ store: 'TOMMY', item: 'SHOTGUN', quantity: cap })).statusCode).toBe(200);
+
+    const emptied = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
+    expect(emptied.shotgunStock).toBe(0);
+    expect((await trade({ store: 'TOMMY', item: 'SHOTGUN', quantity: 1 })).json().error.code)
+      .toBe('OUT_OF_STOCK');
+
+    // Back-date the clock by one interval and the whole crate is waiting -
+    // deliveries fill the shelf rather than adding one.
+    const interval = classicOgV01.weapons.SHOTGUN.restock!.intervalMinutes;
+    await app.prisma.roundPlayer.update({
+      where: { id: playerId },
+      data: { shotgunStockAt: new Date(Date.now() - interval * 60_000) },
+    });
+    const catalog = (await app.inject({ method: 'GET', url: '/api/game/stores', headers: { cookie } })).json();
+    const shotgun = catalog.stores
+      .find((store: { key: string }) => store.key === 'TOMMY')
+      .items.find((item: { key: string }) => item.key === 'SHOTGUN');
+    expect(shotgun.restock).toMatchObject({ stock: cap, cap });
+    expect(shotgun.maxBuy).toBe(cap);
+    expect((await trade({ store: 'TOMMY', item: 'SHOTGUN', quantity: cap })).statusCode).toBe(200);
+  });
+
+  it('limits Charlie the same way, and names him when he runs out', async () => {
+    const rule = classicOgV01.stores.CHARLIE.items.LOW_RIDER!.restock!;
+    await app.prisma.roundPlayer.update({
+      where: { id: playerId },
+      data: { cashCents: 100_000_000n, lowRiderStock: rule.cap, lowRiderStockAt: new Date() },
+    });
+
+    const overrun = await trade({ store: 'CHARLIE', item: 'LOW_RIDER', quantity: rule.cap + 1 });
+    expect(overrun.statusCode).toBe(400);
+    expect(overrun.json().error.message).toContain('Charlie');
+
+    expect((await trade({ store: 'CHARLIE', item: 'LOW_RIDER', quantity: rule.cap })).statusCode).toBe(200);
+    const emptied = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
+    expect(emptied.lowRiderStock).toBe(0);
+    expect(emptied.lowRiders).toBe(rule.cap);
+  });
+
+  it('gives the pistol a shelf deep enough to arm a crew', async () => {
+    const cap = classicOgV01.weapons.PISTOL.restock!.cap;
+    const catalog = (await app.inject({ method: 'GET', url: '/api/game/stores', headers: { cookie } })).json();
+    const pistol = catalog.stores
+      .find((store: { key: string }) => store.key === 'TOMMY')
+      .items.find((item: { key: string }) => item.key === 'PISTOL');
+
+    expect(pistol.restock).toMatchObject({ cap, stock: cap });
+    expect((await trade({ store: 'TOMMY', item: 'PISTOL', quantity: 40 })).statusCode).toBe(200);
+  });
+
+  it('credits reputation for scouting turns exactly once, even on a replay', async () => {
+    // Manual 3.1 makes scouting the street work, so it is what earns the
+    // reputation Tommy's gates on. A replayed action must not pay it twice.
     const actionId = randomUUID();
-    await app.prisma.roundPlayer.update({ where: { id: playerId }, data: { streetWorkTurns: 49, turns: 100, whores: 10, thugs: 10, condoms: 1000, beer: 100, crack: 1000 } });
-    const work = () => app.inject({ method: 'POST', url: '/api/game/work', headers: { cookie }, payload: { district: 'CASINO', turns: 1, actionId } });
-    const results = await Promise.all([work(), work()]);
+    await app.prisma.roundPlayer.update({ where: { id: playerId }, data: { streetWorkTurns: 48, turns: 100, whores: 10, thugs: 10, condoms: 1000, beer: 100, crack: 1000 } });
+
+    const scout = () => app.inject({ method: 'POST', url: '/api/game/scout', headers: { cookie }, payload: { district: 'CASINO', turns: 1, actionId } });
+    const results = await Promise.all([scout(), scout()]);
     expect(results.map((result) => result.statusCode)).toEqual([200, 200]);
     expect(results[0]!.json()).toEqual(results[1]!.json());
-    const scout = await app.inject({ method: 'POST', url: '/api/game/scout', headers: { cookie }, payload: { district: 'CASINO', turns: 1, actionId: randomUUID() } });
-    expect(scout.statusCode).toBe(200);
+
+    const afterReplay = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
+    expect(afterReplay.streetWorkTurns).toBe(49);
+
+    const second = await app.inject({ method: 'POST', url: '/api/game/scout', headers: { cookie }, payload: { district: 'CASINO', turns: 1, actionId: randomUUID() } });
+    expect(second.statusCode).toBe(200);
+
     const state = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
     expect(state.streetWorkTurns).toBe(50);
     expect(state.tek9Unlocked).toBe(true);

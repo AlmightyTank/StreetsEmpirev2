@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { calculateProduce, clampFatigue, type Rng } from '@streets/rules-engine';
+import { calculateProduce, districtCapacities, type Rng } from '@streets/rules-engine';
 import type { GameActionResult, ProduceCrackResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns } from './action.service.js';
@@ -14,7 +14,7 @@ export const ProductionService = {
    * Section 29. Turns and money in, crack out.
    *
    * Nobody earns anything cooking and there is no take to pay the crew back
-   * with, so every point of wear sticks. The reason to do it is the price:
+   * with. The reason to do it is the price:
    * ingredients cost a tenth of what Pip's charges for a finished rock.
    */
   produceCrack(
@@ -27,7 +27,7 @@ export const ProductionService = {
       action: 'PRODUCE_CRACK',
       actionId: input.actionId,
 
-      execute: ({ current, whoreHappiness, thugHappiness, player, ruleset }) => {
+      execute: ({ current, whoreHappiness, thugHappiness, player, ruleset, round, now }) => {
         if (input.turns < ruleset.production.minTurns) {
           throw AppError.badRequest(
             'TURNS_TOO_LOW',
@@ -53,27 +53,44 @@ export const ProductionService = {
 
         assertTurns(current.turns, input.turns);
 
+        // The girls work their usual block while the thugs cook. Which block
+        // that is stays hidden, so its capacity is looked up rather than
+        // chosen.
+        const capacities = districtCapacities(round.id, now, ruleset);
+
         const outcome = calculateProduce({
           player: { ...current, whoreHappiness, thugHappiness },
           turns: input.turns,
           ruleset,
           city: player.city,
+          clientCapacity: capacities[ruleset.scouting.produceDistrict],
           cashCents: current.cashCents,
+          payoutPercent: current.payoutPercent,
           rng,
         });
 
         const next = {
           ...current,
           turns: current.turns - input.turns,
-          cashCents: current.cashCents - outcome.ingredientCents,
+          // Manual 3.2: they still work, just for less.
+          cashCents:
+            current.cashCents - outcome.ingredientCents + outcome.pimpTakeCents,
 
-          whores: Math.max(0, current.whores - outcome.departures.whores),
+          whores: Math.max(
+            0,
+            current.whores - outcome.departures.whores - outcome.infections.lost,
+          ),
           thugs: Math.max(0, current.thugs - outcome.departures.thugs),
 
-          crack: current.crack + outcome.crackProduced,
+          crack:
+            current.crack +
+            outcome.crackProduced -
+            outcome.consumption.crack +
+            outcome.crackFound,
+          condoms: current.condoms - outcome.consumption.condoms,
+          medicine: current.medicine - outcome.infections.medicineUsed,
           beer: current.beer - outcome.consumption.beer,
 
-          thugFatigue: clampFatigue(current.thugFatigue + outcome.thugFatigue, ruleset),
         };
 
         const result: ProduceCrackResult = {
@@ -85,7 +102,22 @@ export const ProductionService = {
           whoresLeft: outcome.departures.whores,
           thugsLeft: outcome.departures.thugs,
 
-          thugFatigueChange: outcome.thugFatigue,
+          infected: outcome.infections.infected,
+          treated: outcome.infections.treated,
+          medicineUsed: outcome.infections.medicineUsed,
+          lostToInfection: outcome.infections.lost,
+
+          grossEarnedCents: Number(outcome.grossCents),
+          crewTakeCents: Number(outcome.crewTakeCents),
+          cashEarnedCents: Number(outcome.pimpTakeCents),
+          payoutPercent: current.payoutPercent,
+
+          crackFound: outcome.crackFound,
+          condomsUsed: outcome.consumption.condoms,
+          crackUsed: outcome.consumption.crack,
+          condomsMissing: outcome.shortages.condoms,
+          beerMissing: outcome.shortages.beer,
+
 
           turnsUsed: input.turns,
           turnsRemaining: next.turns,
@@ -100,7 +132,12 @@ export const ProductionService = {
               turns: input.turns,
               crack: outcome.crackProduced,
               ingredientCents: Number(outcome.ingredientCents),
-              thugFatigueChange: outcome.thugFatigue,
+              cashCents: Number(outcome.pimpTakeCents),
+              crackFound: outcome.crackFound,
+              whoresLeft: outcome.departures.whores,
+              thugsLeft: outcome.departures.thugs,
+              infected: outcome.infections.infected,
+              lostToInfection: outcome.infections.lost,
             },
           },
         };

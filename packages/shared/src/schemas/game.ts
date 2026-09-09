@@ -32,19 +32,12 @@ export const turnsToSpendSchema = z
 export const scoutSchema = z.object({
   district: z.string().trim().min(1, 'Pick a district to scout.'),
   turns: turnsToSpendSchema,
-  actionId: actionIdSchema.optional(),
-});
-
-/** Work the Streets takes the same shape as scouting: a block and some turns. */
-export const workSchema = z.object({
-  district: z.string().trim().min(1, 'Pick a district to work.'),
-  turns: turnsToSpendSchema,
-  actionId: actionIdSchema.optional(),
+  actionId: actionIdSchema,
 });
 
 export const produceCrackSchema = z.object({
   turns: turnsToSpendSchema,
-  actionId: actionIdSchema.optional(),
+  actionId: actionIdSchema,
 });
 
 /** Section 31. Bounds live in the ruleset; this only checks the shape. */
@@ -52,12 +45,11 @@ export const payoutSchema = z.object({
   percent: z
     .number({ invalid_type_error: 'Payout must be a whole percentage.' })
     .int('Payout must be a whole percentage.'),
-  actionId: actionIdSchema.optional(),
+  actionId: actionIdSchema,
 });
 
 export type JoinRoundInput = z.infer<typeof joinRoundSchema>;
 export type ScoutInput = z.infer<typeof scoutSchema>;
-export type WorkInput = z.infer<typeof workSchema>;
 export type ProduceCrackInput = z.infer<typeof produceCrackSchema>;
 export type PayoutInput = z.infer<typeof payoutSchema>;
 

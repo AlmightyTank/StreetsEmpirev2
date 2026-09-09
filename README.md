@@ -2,7 +2,7 @@
 
 A reconstruction of the OG Pimp War economic loop.
 
-**Version:** `0.1.0` &middot; **Ruleset:** `classic-og-v0.1` &middot; **Milestone:** `0.1.0-D` complete
+**Version:** `0.1.0` &middot; **Ruleset:** `classic-og-v0.1` &middot; **Milestone:** `0.1.0-H` complete
 
 ---
 
@@ -31,10 +31,12 @@ be sold without access. Thresholds and favor costs live in
 | --- | --- | --- |
 | **0.1.0-A** | monorepo, database, Prisma, Fastify, React, auth, ruleset loader, Round, RoundPlayer | **done** |
 | **0.1.0-B** | turn service, net worth service, happiness service, rank service, dashboard API | **done** |
-| **0.1.0-C** | Scout, Work the Streets, Produce Crack, Payout, supplies, wear, departures, action results | **done** |
+| **0.1.0-C** | Scout, Produce Crack, Payout, supplies, departures, action results | **done** |
 | **0.1.0-D** | Corner Store, Tek9 Tommy's, Charlie's Chop Shop, Pip's Deals on Wheels | **done** |
-| 0.1.0-E | rankings, profile, game status, news, activity, responsive UI | next |
-| 0.1.0-F | transaction tests, rate limits, mobile and reconnect testing (idempotency landed early, in C) | |
+| **0.1.0-E** | rankings, profile, game status, news, activity, responsive UI | **done** |
+| **0.1.0-F** | transaction tests, rate limits, mobile and reconnect testing (idempotency landed early, in C) | **done** |
+| **0.1.0-G** | quality-of-life, action receipts, quick resources, refresh-on-return, UI consistency | **done** |
+| **0.1.0-H** | release-candidate regression, load/exploit checks, balance and production QA | **done** |
 
 PvP, alliances, travel, messaging and the rest of 0.2.0 are deliberately absent. The
 database anticipates them (`ProcessedAction`, `City`, weapon `power`) without exposing
@@ -144,14 +146,37 @@ check runs *after* the row lock &mdash; checking before it lets two concurrent
 duplicates both look, both find nothing, and both spend. A repeat answers with the
 original result for ten minutes.
 
-**Scouting recruits; street work earns.** Scouting costs turns and recruits crew.
-Work the Streets earns the district's rate, consumes supplies and adds wear.
-Cooking costs turns and ingredients, drinks beer and wears down the thugs.
+**Two actions, straight from the manual.** There is no separate "work" action; the
+game has exactly what manual sections 3.1 and 3.2 describe.
 
-**The payout is a real decision.** Whore income scales linearly with whore happiness.
-The crew's actual take per head offsets work wear, so the same percentage can be
-generous in the Casino and inadequate in the slums. Below 40% happiness people start
-walking. Rest sheds wear over time.
+*Scout* (the manual's "Scout for Whores") is 3.1 &mdash; "where to go to make money for yourself, and go out
+and pickup some whores and thugs". One trip does both jobs on the same turns: the girls
+work the block while you work the room. That is why a district is two offers pulling
+against each other, and why no district is simply best. The manual's suggested spend of
+12-14 turns is `scouting.recommendedTurns`, and the turn box defaults to it.
+
+*Produce Crack* is 3.2 &mdash; "sends your whores out, while your thugs produce crack
+to keep your whores happy, and keeps them from leaving you. But the whores produce less
+money because the thugs are busy and not managing the hoes." So cooking is not a rest
+day: the girls still work and still burn the shelf, at `unsupervisedTakeMultiplier`
+(0.35x) of a scouted night, because the muscle that would be running them is inside.
+What that lost income buys is the crack that stops the stable shrinking.
+
+The trade is therefore money now versus the thing that keeps what you have. Both
+sentences of the manual have tests of their own so the model cannot drift back.
+
+**A hard low, never a dead end.** Earnings scale off whore happiness down to a
+floor (`minHappinessMultiplier`, 0.15) rather than to zero, so a crew at rock bottom
+still limps in enough to restock and raise the cut.
+
+**Happiness is a pure reading of current state.** The cut you pay, what is on the
+shelves and how many thugs are watching - nothing accumulates and nothing has to be
+waited out. Every input is something the player can change on their next action, and
+the dashboard names which term is costing them what.
+
+There is deliberately no fatigue or wear system. An earlier build had one; it was never
+in the spec, it modified the section 20 formula the spec calls frozen, and it grew to
+outweigh every specified term combined. It has been removed.
 
 **Recruitment has diminishing returns.** A district holds a finite number of people
 with nowhere better to be, so a headline rate is what a nobody gets, not what an empire
@@ -169,9 +194,7 @@ almost nothing, so there is no bill for a thug's cooking to replace and Produce 
 has no reason to exist at all.
 
 Street work rounds condom and beer demand up to whole items and uses only stock on
-hand. Missing condoms or beer add wear to the affected crew, proportional to the
-shortage (rounded up), even with a generous payout. Restocking fixes the inventory
-part of happiness; it does not erase wear from previous shifts.
+hand. Running the shelf down lowers happiness on the next read, and restocking lifts it straight back.
 
 **Stores validate the whole order.** Quantities must be positive integers, the item
 must belong to the store, and selling is offered only where a buyback price exists.
@@ -224,7 +247,7 @@ focus, on `visibilitychange`, every sixty seconds, and whenever the turn countdo
 lands &mdash; so it never acts on stale numbers.
 
 A new player gets exactly section 11: `$5,000`, 200 turns, 1 whore, 1 thug, 250 condoms,
-100 crack, 10 beer, 50% payout, New York City &mdash; which is a net worth of `$8,075`,
+100 crack, 10 beer, 50% payout, New York City &mdash; which is a net worth of `$6,827`,
 100% whore happiness and 99% thug happiness (one thug, no gun).
 
 **Tests** cover the frozen formulas, the loader and the services built on them:
@@ -260,6 +283,66 @@ one action's worth of turns, never negative.
 
 ---
 
+## 0.1.0-F hardening
+
+The foundation release is hardened for real browser/network behavior. Login/register,
+reads and writes have separate rate-limit buckets; confirmed writes still use the
+existing transactional action pipeline. Store transactions whose reply is lost are
+saved in session storage with the exact `actionId`, survive a reload, and can be
+replayed safely while the server's idempotency record is still live. API requests time
+out instead of hanging forever, and the dashboard refreshes immediately when the
+browser reconnects.
+
+F also adds opt-in PostgreSQL transaction tests for duplicate Scout, Produce Crack and
+Payout requests, concurrent turn spending, and rollback of rejected actions. Mobile
+hardening raises coarse-pointer touch targets, prevents iOS input zoom, and keeps dense
+result rows usable on narrow screens.
+
+To run both database-backed integration suites locally:
+
+```powershell
+$env:STORE_INTEGRATION = '1'
+$env:TRANSACTION_INTEGRATION = '1'
+npm test
+Remove-Item Env:STORE_INTEGRATION
+Remove-Item Env:TRANSACTION_INTEGRATION
+```
+
+---
+## 0.1.0-G quality-of-life
+
+G is the "stop making the player remember numbers" pass. Every game page now has a
+compact resource strip for Turns, Cash, crew and the consumables used by actions.
+Returning to a non-dashboard game page, switching back to the tab/window, restoring a
+back-forward-cache page, or reconnecting the browser refreshes the authoritative
+snapshot before the next decision.
+
+Action receipts use one `change / remaining` convention. Scouting shows recruits and
+the new crew total; Work shows found/used supplies and remaining stock; Production
+shows output, cash ingredients, beer and departures with what remains; store trades and
+Tommy favors show the resulting inventory/cash balance. Payout changes give an explicit
+success confirmation.
+
+---
+## 0.1.0-H release candidate
+
+H freezes the 0.1.0 foundation before 0.2.0 expands the game. Economy writes now
+require idempotency ids, and one id is bound to one action type. ActionService checks
+server-side invariants before committing so negative/fractional inventory, negative
+cash/turns or an invalid payout roll back instead of becoming exploitable
+state.
+
+The server exposes separate liveness (`/api/health`) and readiness (`/api/ready`)
+checks, adds production-safe API headers, and the browser makes offline state explicit.
+The release gate runs typecheck, unit tests and the production build, with opt-in
+PostgreSQL regression and production-environment checks. A configurable load-smoke
+runner and the complete mobile/deployment checklist live under `scripts/qa` and
+`docs/RELEASE-0.1.0-H.md`.
+
+With H complete, 0.1.0 is the frozen core foundation. New gameplay systems belong in
+0.2.0 rather than continuing the letter milestones.
+
+---
 ## Known gaps
 
 - District balance is a `BALANCE_APPROXIMATION`: recruitment and an income multiplier
