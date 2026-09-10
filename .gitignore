@@ -10,3 +10,4 @@ build/
 coverage/
 /StreetsEmpirev2-0.1.0-H-package
 .vitest/
+.claude/launch.json
