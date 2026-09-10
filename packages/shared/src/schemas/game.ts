@@ -65,7 +65,13 @@ export const storeTradeSchema = z.object({
 export type StoreTradeInput = z.infer<typeof storeTradeSchema>;
 
 export const weaponUnlockSchema = z.object({
-  weapon: z.enum(['TEK9', 'AK47']),
+  weapon: z.enum(['SHOTGUN', 'TEK9', 'AK47']),
   actionId: actionIdSchema,
 });
 export type WeaponUnlockInput = z.infer<typeof weaponUnlockSchema>;
+
+export const questCompleteSchema = z.object({
+  trader: z.enum(['CORNER', 'TOMMY', 'CHARLIE', 'PIP']),
+  actionId: actionIdSchema,
+});
+export type QuestCompleteInput = z.infer<typeof questCompleteSchema>;

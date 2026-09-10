@@ -124,6 +124,7 @@ export const stores = {
         restock: weapons.PISTOL.restock,
       },
       SHOTGUN: {
+        unlockKey: 'SHOTGUN',
         name: weapons.SHOTGUN.name,
         field: weapons.SHOTGUN.field,
         buyCents: weapons.SHOTGUN.buyCents,

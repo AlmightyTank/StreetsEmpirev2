@@ -124,12 +124,9 @@ export const ScoutService = {
           // Manual 3.1: this is where you make money for yourself.
           cashCents: current.cashCents + outcome.pimpTakeCents,
 
-          // Reputation for Tommy's unlocks is earned on the block, and this is
-          // now the only action that puts the crew on one.
-          streetWorkTurns: Math.min(
-            2_147_483_647,
-            current.streetWorkTurns + input.turns,
-          ),
+          // The clerk's favour: a trip counts only if nobody went out short.
+          cleanShiftStreak:
+            outcome.shortages.condoms > 0 ? 0 : current.cleanShiftStreak + 1,
 
           whores: Math.max(
             0,

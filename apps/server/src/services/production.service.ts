@@ -72,6 +72,12 @@ export const ProductionService = {
         const next = {
           ...current,
           turns: current.turns - input.turns,
+
+          // Manual 3.2 sends the girls out too, so a cook counts toward the
+          // clerk's favour on the same terms as a trip.
+          cleanShiftStreak:
+            outcome.shortages.condoms > 0 ? 0 : current.cleanShiftStreak + 1,
+
           // Manual 3.2: they still work, just for less.
           cashCents:
             current.cashCents - outcome.ingredientCents + outcome.pimpTakeCents,

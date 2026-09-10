@@ -5,6 +5,8 @@ import { health } from './health.js';
 import { evidence } from './evidence.js';
 import { happiness } from './happiness.js';
 import { production } from './production.js';
+import { quests } from './quests.js';
+import { reputation } from './reputation.js';
 import { rankings } from './rankings.js';
 import { round } from './round.js';
 import { scouting } from './scouting.js';
@@ -40,6 +42,8 @@ export const classicOgV01 = {
   lowRiderThugCapacity,
   weapons,
   weaponUnlocks,
+  reputation,
+  quests,
   rankings,
   evidence,
 } as const satisfies Ruleset;
@@ -61,4 +65,6 @@ export {
   turns,
   weapons,
   weaponUnlocks,
+  reputation,
+  quests,
 };

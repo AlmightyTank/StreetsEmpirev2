@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { formatCents, formatNumber, type StoreItemDto, type StoreRestockDto, type StoresDto, type StoreTradeInput, type StoreTradeResult, type WeaponUnlockInput, type WeaponUnlockResult } from '@streets/shared';
+import { formatCents, formatNumber, type QuestCompleteInput, type QuestCompleteResult, type StoreDto, type StoreItemDto, type StoreRestockDto, type StoresDto, type StoreTradeInput, type StoreTradeResult, type WeaponUnlockInput, type WeaponUnlockResult } from '@streets/shared';
 import { ApiError } from '../api/client.js';
+import { reputationApi } from '../api/reputation.js';
 import { storesApi } from '../api/stores.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
@@ -15,7 +16,10 @@ import { formatDuration } from '../utils/time.js';
 import { browserSessionStorage, clearPendingAction, loadPendingAction, savePendingAction } from '../utils/pendingAction.js';
 
 type Order = Omit<StoreTradeInput, 'actionId'>;
-type StoreCommand = { kind: 'trade'; order: Order } | { kind: 'unlock'; weapon: WeaponUnlockInput['weapon'] };
+type StoreCommand =
+  | { kind: 'trade'; order: Order }
+  | { kind: 'unlock'; weapon: WeaponUnlockInput['weapon'] }
+  | { kind: 'quest'; trader: QuestCompleteInput['trader'] };
 type PendingStoreCommand = { actionId: string; command: StoreCommand };
 
 /** "every 4 hours" - the wait, in the units it was written in. */
@@ -73,6 +77,47 @@ function RestockLine({ restock, name, keeper, onArrival }: {
   );
 }
 
+/**
+ * The favour this trader is asking for.
+ *
+ * Rendered in the same block Tommy's weapon favours have always used, and
+ * offered where the trader is: you square things with Charlie at Charlie's.
+ */
+function TraderFavour({ store, disabled, onComplete }: {
+  store: StoreDto;
+  disabled: boolean;
+  onComplete: (trader: QuestCompleteInput['trader']) => void;
+}) {
+  const { quest } = store;
+
+  // A favour that is done is not a job any more. It leaves the counter
+  // entirely rather than sitting there as a finished to-do; where you stand
+  // with everyone is on The Street, and the shorter wait shows on the shelf.
+  if (quest.done) return null;
+
+  return (
+    <div className="se-store-favor">
+      <h3 className="se-store-favor__title">{quest.title}</h3>
+      <p className="se-hint">{quest.description}</p>
+
+      <div className="se-rows">
+        <Row label="Progress" value={`${formatNumber(quest.have)} / ${formatNumber(quest.need)}`} strong />
+        <Row label="Worth" value={`+${formatNumber(quest.reward)} reputation`} />
+      </div>
+      {quest.blockedBy ? <p className="se-hint se-bad">{quest.blockedBy}</p> : null}
+      <button type="button" className="se-btn se-btn--block"
+        disabled={disabled || !quest.canComplete}
+        onClick={() => onComplete(store.key as QuestCompleteInput['trader'])}>
+        Do {store.keeper} the favour
+      </button>
+      <p className="se-hint">
+        Standing opens the gun rack and gets you served sooner. Every trader
+        counts toward the guns, so this one is worth doing whatever you buy here.
+      </p>
+    </div>
+  );
+}
+
 function StoreItem({ item, store, keeper, owned, cashCents, crack, bulkHelpers, disabled, onTrade, onUnlock, onRestock }: {
   item: StoreItemDto; store: string; keeper: string; owned: number; cashCents: number;
   crack: number;
@@ -117,20 +162,28 @@ function StoreItem({ item, store, keeper, owned, cashCents, crack, bulkHelpers, 
             <h3 className="se-store-favor__title">{favor.title}</h3>
             <p className="se-hint">{favor.description}</p>
             <div className="se-rows">
-              <Row label="Street-work turns" value={`${formatNumber(favor.workTurns)} / ${formatNumber(favor.workTurnsRequired)}`} />
-              <Row label="Thugs needed" value={`${formatNumber(favor.thugs)} / ${formatNumber(favor.thugsRequired)}`} />
+              <Row
+                label="Reputation"
+                value={`${formatNumber(favor.totalRep)} / ${formatNumber(favor.totalRepRequired)}`}
+                strong
+              />
               {favor.prerequisiteName ? <Row label={`${favor.prerequisiteName} access`} value={favor.prerequisiteMet ? 'Earned' : 'Required'} /> : null}
             </div>
-            <p className="se-hint">Earlier work counts. Any district builds reputation.</p>
-            {favor.crackCost > 0 ? <p className="se-hint">Favor: deliver {formatNumber(favor.crackCost)} crack. On hand: {formatNumber(crack)}.</p> : null}
-            {favor.cashCostCents > 0 ? <p className="se-hint">Favor: fund {formatCents(favor.cashCostCents)}. On hand: {formatCents(cashCents)}.</p> : null}
+            <p className="se-hint">
+              Standing with every trader in the city counts, not just this one.
+            </p>
             <button type="button" className="se-btn se-btn--block"
               disabled={disabled || !favor.canComplete} onClick={() => void onUnlock(favor.key)}>
-              {favor.crackCost > 0 ? `Deliver ${formatNumber(favor.crackCost)} crack` : `Fund ${formatCents(favor.cashCostCents)}`} · Unlock {item.name}
+              Unlock {item.name}
             </button>
             <p className="se-hint">
-              {!favor.reputationMet ? 'Meet the reputation and crew requirements to open this favor. ' : !favor.canComplete ? 'Bring the supplies or cash to complete this favor. ' : ''}
-              Access lasts for the round. Weapons are purchased separately.
+              {!favor.prerequisiteMet
+                ? `Earn ${favor.prerequisiteName} access first. `
+                : favor.totalRep < favor.totalRepRequired
+                  ? 'Do the traders their favours and keep dealing with them. '
+                  : ''}
+              Access costs nothing but standing, lasts the round, and never lapses.
+              Weapons are purchased separately.
             </p>
           </div>
         )
@@ -182,7 +235,7 @@ function StoreItem({ item, store, keeper, owned, cashCents, crack, bulkHelpers, 
 
 function StoreView({ slug }: { slug: string }) {
   const me = useSession((s) => s.me);
-  const action = useGameAction<StoreTradeResult | WeaponUnlockResult>();
+  const action = useGameAction<StoreTradeResult | WeaponUnlockResult | QuestCompleteResult>();
   const [catalog, setCatalog] = useState<StoresDto | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
@@ -209,9 +262,12 @@ function StoreView({ slug }: { slug: string }) {
   async function execute(command: StoreCommand, recoveredActionId?: string) {
     await action.run(async (actionId) => {
       try {
-        const result = command.kind === 'trade'
-          ? await storesApi.trade({ ...command.order, actionId })
-          : await storesApi.unlock({ weapon: command.weapon, actionId });
+        const result =
+          command.kind === 'trade'
+            ? await storesApi.trade({ ...command.order, actionId })
+            : command.kind === 'unlock'
+              ? await storesApi.unlock({ weapon: command.weapon, actionId })
+              : await reputationApi.completeQuest({ trader: command.trader, actionId });
         clearPendingAction(pendingStorage, pendingKey);
         setRetryOrder(null);
         return result;
@@ -240,7 +296,10 @@ function StoreView({ slug }: { slug: string }) {
   if (!me) return <Navigate to="/join" replace />;
   const store = catalog?.stores.find((entry) => entry.slug === slug);
   const receipt = action.result && 'direction' in action.result.result ? action.result.result : null;
-  const unlockReceipt = action.result && 'favorTitle' in action.result.result ? action.result.result : null;
+  const unlockReceipt =
+    action.result && 'weaponName' in action.result.result ? action.result.result : null;
+  const favourReceipt =
+    action.result && 'traderName' in action.result.result ? action.result.result : null;
 
   return (
     <GameLayout>
@@ -274,12 +333,26 @@ function StoreView({ slug }: { slug: string }) {
 
       {action.result && unlockReceipt ? (
         <div className="se-store-receipt" aria-live="polite">
-          <ActionResult title={`${unlockReceipt.weaponName} unlocked`} subtitle={unlockReceipt.favorTitle}
+          <ActionResult title={`${unlockReceipt.weaponName} unlocked`} subtitle={unlockReceipt.title}
             result={action.result} onDismiss={action.clear} lines={[
               { label: 'Access', value: 'Purchases unlocked for this round' },
-              ...(unlockReceipt.cashSpentCents > 0 ? [{ label: 'Shipment funded', delta: -unlockReceipt.cashSpentCents, money: true, remaining: action.result.after.cashCents }] : []),
-              ...(unlockReceipt.crackDelivered > 0 ? [{ label: 'Crack delivered', delta: -unlockReceipt.crackDelivered, remaining: action.result.after.resources.crack }] : []),
               { label: 'Turns used', value: '0' },
+            ]} />
+        </div>
+      ) : null}
+
+      {favourReceipt ? (
+        <div className="se-store-receipt" aria-live="polite">
+          <ActionResult title={`${favourReceipt.traderName} owes you one`} subtitle={favourReceipt.title}
+            result={action.result!} onDismiss={action.clear} lines={[
+              { label: 'Reputation', delta: favourReceipt.reputationGained, remaining: favourReceipt.totalRep },
+              ...(favourReceipt.crackDelivered > 0
+                ? [{ label: 'Crack delivered', delta: -favourReceipt.crackDelivered, remaining: action.result!.after.resources.crack }]
+                : []),
+              ...(favourReceipt.lowRidersHandedOver > 0
+                ? [{ label: 'Low-Riders handed over', delta: -favourReceipt.lowRidersHandedOver, remaining: action.result!.after.resources.lowRiders }]
+                : []),
+              ...favourReceipt.unlocked.map((weapon) => ({ label: 'Now on the menu', value: weapon })),
             ]} />
         </div>
       ) : null}
@@ -287,6 +360,9 @@ function StoreView({ slug }: { slug: string }) {
       {store && catalog ? (
         <div className="se-grid se-grid--sidebar">
           <div className="se-store-items">
+            <TraderFavour store={store}
+              disabled={action.busy || retryOrder !== null || loadError !== null}
+              onComplete={(trader) => execute({ kind: 'quest', trader })} />
             {store.items.map((item) => <StoreItem key={item.key} item={item} store={store.key} keeper={store.keeper}
               owned={me.resources[item.field]} cashCents={me.resources.cashCents}
               crack={me.resources.crack}
@@ -304,6 +380,12 @@ function StoreView({ slug }: { slug: string }) {
                 <Row label="Thug happiness" value={`${me.happiness.thug}%`} />
               </div>
             </Panel>
+            <p className="se-hint">
+              {store.keeper} counts you as <b className="se-dim">{store.standing}</b>
+              {store.restockSpeedup > 0
+                ? <> &mdash; they restock for you <b className="se-num">{store.restockSpeedup}%</b> sooner.</>
+                : '.'}
+            </p>
             <p className="se-hint">Shopping costs no turns. Prices are per item; the full total appears before you trade.</p>
             {store.key === 'CORNER' ? <p className="se-hint">Condoms and beer keep street work supplied. Restocking lifts happiness immediately.</p> : null}
             {store.key === 'TOMMY' ? <p className="se-hint">Thugs protect the crew. Keeping a gun and beer for each thug helps their happiness. Combat arrives in a later milestone.</p> : null}

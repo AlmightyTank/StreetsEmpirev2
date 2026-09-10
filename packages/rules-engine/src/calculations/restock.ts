@@ -61,9 +61,15 @@ export function settleStock(
   state: StockState,
   rule: RestockRule,
   now: Date = new Date(),
+  /**
+   * Minutes between deliveries for this player. Defaults to the rule's own,
+   * and is shortened by standing with the shop - never the cap, which is the
+   * anti-hoarding brake.
+   */
+  intervalMinutes: number = rule.intervalMinutes,
 ): RestockSettlement {
   const current = readStock(state, rule);
-  const intervalMs = rule.intervalMinutes * 60 * 1000;
+  const intervalMs = intervalMinutes * 60 * 1000;
 
   const held = Math.max(0, Math.min(rule.cap, current.stock));
 
@@ -89,7 +95,7 @@ export function settleStock(
     stockAt,
     gained: stock - held,
     cap: rule.cap,
-    intervalMinutes: rule.intervalMinutes,
+    intervalMinutes,
     perInterval: perInterval(rule),
     nextAt: stock >= rule.cap ? null : new Date(stockAt.getTime() + intervalMs),
     changed: stock !== current.stock || stockAt.getTime() !== current.stockAt.getTime(),

@@ -31,16 +31,72 @@ export type DistrictKey =
 export type StoreKey = 'CORNER' | 'TOMMY' | 'CHARLIE' | 'PIP';
 
 export type WeaponKey = 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47';
-export type WeaponUnlockKey = 'TEK9' | 'AK47';
+export type WeaponUnlockKey = 'SHOTGUN' | 'TEK9' | 'AK47';
 
+/**
+ * What a shopkeeper wants before he will sell you the heavy stuff.
+ *
+ * Standing, not time served. The gate is total reputation across every trader
+ * in the city - Tommy sells to you partly because Pip vouches for you.
+ */
 export interface WeaponUnlockRule {
   readonly title: string;
   readonly description: string;
-  readonly workTurns: number;
-  readonly thugs: number;
+  /** Reputation summed across all traders. */
+  readonly totalRep: number;
   readonly prerequisite: WeaponUnlockKey | null;
-  readonly cashCents: number;
-  readonly crack: number;
+}
+
+// --- reputation -------------------------------------------------------------
+
+export type TraderKey = StoreKey;
+export type QuestKey = StoreKey;
+
+/** One rung of standing with a single trader. */
+export interface ReputationTier {
+  /** Points at which this tier begins. */
+  readonly at: number;
+  readonly name: string;
+  /**
+   * How much sooner this trader restocks for you, 0..1 of the interval.
+   * Speed only - never the cap. See ReputationRules.
+   */
+  readonly restockSpeedup: number;
+}
+
+export interface ReputationRules {
+  readonly perTraderMax: number;
+  /** Ordered low to high. The first tier must start at 0. */
+  readonly tiers: readonly ReputationTier[];
+  /**
+   * Being a regular. Credited at most once per trader per day, so standing
+   * rewards showing up rather than spending.
+   */
+  readonly trade: {
+    readonly pointsPerDay: number;
+    /** Cap on points from trading alone, so quests stay mandatory. */
+    readonly maxPoints: number;
+  };
+  /** Paid once, for doing a trader an actual favour. */
+  readonly questPoints: number;
+}
+
+/**
+ * What a trader wants doing. One per trader, once each.
+ *
+ * Every quest is priced in a different resource on purpose - discipline,
+ * product, capital, production - so none of them can be bought through with
+ * cash alone.
+ */
+export interface QuestRule {
+  readonly title: string;
+  readonly description: string;
+  /** How progress is measured, and what finishing it costs. */
+  readonly goal:
+    | { readonly kind: 'CLEAN_SHIFTS'; readonly trips: number }
+    | { readonly kind: 'DELIVER_CRACK'; readonly crack: number; readonly thugs: number }
+    | { readonly kind: 'HAND_OVER_LOW_RIDER'; readonly lowRiders: number }
+    | { readonly kind: 'SUPPLY_ROCKS'; readonly crackSold: number };
 }
 
 export interface RulesetMeta {
@@ -365,6 +421,8 @@ export interface Ruleset {
   readonly lowRiderThugCapacity: number;
   readonly weapons: { readonly [K in WeaponKey]: Weapon };
   readonly weaponUnlocks: { readonly [K in WeaponUnlockKey]: WeaponUnlockRule };
+  readonly reputation: ReputationRules;
+  readonly quests: { readonly [K in QuestKey]: QuestRule };
   readonly rankings: RankingRules;
   readonly evidence: EvidenceRules;
 }

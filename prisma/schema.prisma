@@ -72,6 +72,30 @@ enum RoundStatus {
   ARCHIVED
 }
 
+/// Standing with one trader, for one player. Rows rather than columns because
+/// traders are ruleset-defined: a variant with a different set of shops must
+/// not need a migration.
+model PlayerReputation {
+  id            String @id @default(cuid())
+  roundPlayerId String
+  /// Ruleset store key: CORNER, TOMMY, CHARLIE, PIP.
+  trader        String
+
+  points      Int       @default(0)
+  /// Day the regular-trade credit was last paid, so it can be paid at most
+  /// once a day without keeping a history of every trade.
+  creditedOn  DateTime?
+  questDoneAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  roundPlayer RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  @@unique([roundPlayerId, trader])
+  @@index([roundPlayerId])
+}
+
 model Round {
   id   String @id @default(cuid())
   name String
@@ -197,10 +221,16 @@ model RoundPlayer {
 
   lowRiders Int @default(0)
 
-  /// Round-long reputation and permanent purchasing access from Tommy's favors.
-  streetWorkTurns Int     @default(0)
+  /// Weapon access, earned with reputation and never revoked once granted.
+  shotgunUnlocked Boolean @default(false)
   tek9Unlocked    Boolean @default(false)
   ak47Unlocked    Boolean @default(false)
+
+  /// Consecutive trips worked without sending anyone out short on condoms.
+  /// The clerk's favour is the only thing that reads it.
+  cleanShiftStreak   Int @default(0)
+  /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
+  rocksSuppliedToPip Int @default(0)
 
   /// Derived from supplies, protection and fatigue. Stored so it can be read
   /// and ranked without recomputing, but never the source of truth.
@@ -223,6 +253,7 @@ model RoundPlayer {
 
   activity         PlayerActivity[]
   processedActions ProcessedAction[]
+  reputation       PlayerReputation[]
 
   @@unique([roundId, accountId])
   @@unique([roundId, publicPimpId])

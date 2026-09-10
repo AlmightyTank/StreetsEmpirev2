@@ -10,6 +10,7 @@ import { ProducePage } from './pages/ProducePage.js';
 import { ProfilePage } from './pages/ProfilePage.js';
 import { RankingsPage } from './pages/RankingsPage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
+import { ReputationPage } from './pages/ReputationPage.js';
 import { RulesPage } from './pages/RulesPage.js';
 import { ScoutPage } from './pages/ScoutPage.js';
 import { StatusPage } from './pages/StatusPage.js';
@@ -64,6 +65,7 @@ export function App() {
       <Route path="/game/news" element={<Protected><NewsPage /></Protected>} />
       <Route path="/game/status" element={<Protected><StatusPage /></Protected>} />
       <Route path="/game/rules" element={<Protected><RulesPage /></Protected>} />
+      <Route path="/game/reputation" element={<Protected><ReputationPage /></Protected>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

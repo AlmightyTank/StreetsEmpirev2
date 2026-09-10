@@ -6,7 +6,7 @@ import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import { storeTradeSchema } from '@streets/shared';
 
 const player = { ...classicOgV01.round.startingPlayer, cashCents: 10_000_000n,
-  streetWorkTurns: 150, tek9Unlocked: true, ak47Unlocked: true,
+  shotgunUnlocked: true, tek9Unlocked: true, ak47Unlocked: true,
   // A real player arrives at Tommy's with the shelves stocked; the limit is
   // exercised on purpose in restock.test.ts.
   ...fullShelves(classicOgV01) };

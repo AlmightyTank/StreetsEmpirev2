@@ -3,6 +3,7 @@ import { loadRulesetForRound } from '@streets/rules-engine';
 import {
   payoutSchema,
   produceCrackSchema,
+  questCompleteSchema,
   scoutSchema,
   storeTradeSchema,
   weaponUnlockSchema,
@@ -10,7 +11,9 @@ import {
 import { toGameSnapshotDto } from '../game/dto.js';
 import { PayoutService } from '../services/payout.service.js';
 import { ProductionService } from '../services/production.service.js';
+import { QuestService } from '../services/quest.service.js';
 import { ScoutService } from '../services/scout.service.js';
+import { toState } from '../services/action.service.js';
 import { StoreService } from '../services/store.service.js';
 import { parseBody } from '../utils/validate.js';
 import { ActivityService } from '../services/activity.service.js';
@@ -84,7 +87,12 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/stores', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
-    return StoreService.catalog(settled.ruleset, settled.player, settled.stock);
+    return StoreService.catalog(
+      settled.ruleset,
+      toState(settled.player),
+      settled.stock,
+      settled.standings,
+    );
   });
 
   fastify.post('/stores/trade', { preHandler: fastify.requireAuth }, async (request) => {
@@ -97,6 +105,22 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const body = parseBody(weaponUnlockSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
     return StoreService.unlock(fastify.prisma, player.id, body);
+  });
+
+  /**
+   * Section 34. Standing with each trader, the favour each is asking for, and
+   * where that leaves the gun ladder.
+   */
+  fastify.get('/reputation', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
+    return QuestService.summary(settled.ruleset, toState(settled.player), settled.standings);
+  });
+
+  fastify.post('/reputation/quest', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(questCompleteSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return QuestService.complete(fastify.prisma, player.id, body);
   });
 
   /** Section 26. */

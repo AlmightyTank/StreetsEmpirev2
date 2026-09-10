@@ -1,5 +1,5 @@
 import type { City, Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
-import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
+import { loadRulesetForRound, type Ruleset, type Standings } from '@streets/rules-engine';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
@@ -7,6 +7,7 @@ import { HappinessService } from './happiness.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { RankingService } from './ranking.service.js';
 import { TurnService, type TurnSettlement } from './turn.service.js';
+import { ReputationService } from './reputation.service.js';
 import { StockService, type StockSettlementSet } from './stock.service.js';
 
 export type PlayerWithCity = RoundPlayer & { city: City };
@@ -18,6 +19,8 @@ export interface SettledPlayer {
   turns: TurnSettlement;
   /** Settled shop shelves, so a store can show what it actually has. */
   stock: StockSettlementSet;
+  /** Standing with each trader, which is what shortens those shelves' waits. */
+  standings: Standings;
 }
 
 export interface SettleOptions {
@@ -69,7 +72,8 @@ export const PlayerStateService = {
 
       // 1. Turns, and the shop shelves on the same clock.
       const turns = TurnService.settle(rest, now, ruleset);
-      const stock = StockService.settle(rest, now, ruleset);
+      const standings = await ReputationService.load(tx, roundPlayerId, ruleset);
+      const stock = StockService.settle(rest, now, ruleset, standings);
 
       // 2. Happiness, read straight off the player's current state.
       const happiness = HappinessService.recalculate(rest, ruleset);
@@ -141,7 +145,7 @@ export const PlayerStateService = {
         });
       }
 
-      return { player: settled, round, ruleset, turns, stock };
+      return { player: settled, round, ruleset, turns, stock, standings };
     });
   },
 };

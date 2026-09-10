@@ -27,7 +27,7 @@ function buyer(extra: Record<string, unknown> = {}) {
   return {
     ...rules.round.startingPlayer,
     cashCents: 1_000_000_000n,
-    streetWorkTurns: 500,
+    shotgunUnlocked: true,
     tek9Unlocked: true,
     ak47Unlocked: true,
     ...fullShelves(rules),

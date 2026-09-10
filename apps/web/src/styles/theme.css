@@ -972,3 +972,20 @@ a.se-nav__link:hover {
   color: var(--se-muted);
   margin-top: 1px;
 }
+
+/* --- reputation ---------------------------------------------------------- */
+
+.se-rep__bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--se-line-soft);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.se-rep__fill {
+  display: block;
+  height: 100%;
+  background: var(--se-accent);
+  transition: width 240ms ease;
+}

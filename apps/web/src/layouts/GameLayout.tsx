@@ -25,6 +25,7 @@ const SECTIONS: NavSection[] = [
       { label: 'Home', to: '/game' },
       { label: 'Scout', to: '/game/scout' },
       { label: 'Produce Crack', to: '/game/produce' },
+      { label: 'The Street', to: '/game/reputation' },
     ],
   },
   {

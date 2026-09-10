@@ -4,6 +4,7 @@ import { AppError } from '../utils/errors.js';
 import { HappinessService } from './happiness.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { RankingService } from './ranking.service.js';
+import { ReputationService } from './reputation.service.js';
 import { assertJoinable } from './round.service.js';
 
 export type RoundPlayerWithCity = Awaited<
@@ -110,6 +111,10 @@ export const RoundPlayerService = {
           // being worth much, and starting empty would mean waiting hours for
           // a first shotgun for no reason worth explaining.
           ...startingStock(ruleset, now),
+
+          // A stranger to everybody. Rows are created up front so the first
+          // trade has something to credit rather than racing to create it.
+          reputation: { create: ReputationService.seedFor(ruleset) },
 
           whoreHappiness: happiness.whoreHappiness,
           thugHappiness: happiness.thugHappiness,

@@ -1,5 +1,12 @@
-import { restockedItems, settleStock, type RestockSettlement, type Ruleset } from '@streets/rules-engine';
-import type { StockAtField, StockField } from '@streets/rulesets';
+import {
+  restockIntervalFor,
+  restockedItems,
+  settleStock,
+  type RestockSettlement,
+  type Ruleset,
+  type Standings,
+} from '@streets/rules-engine';
+import type { StockAtField, StockField, TraderKey } from '@streets/rulesets';
 
 export type StockCounts = Partial<Record<StockField, number>>;
 export type StockClocks = Partial<Record<StockAtField, Date>>;
@@ -23,14 +30,36 @@ export interface StockSettlementSet {
  * ruleset never appears here, so nothing is written for it.
  */
 export const StockService = {
-  settle(player: Record<string, unknown>, now: Date, ruleset: Ruleset): StockSettlementSet {
+  settle(
+    player: Record<string, unknown>,
+    now: Date,
+    ruleset: Ruleset,
+    /** Standing shortens a shop's wait. Omit for the stranger's rate. */
+    standings?: Standings,
+  ): StockSettlementSet {
     const counts: StockCounts = {};
     const clocks: StockClocks = {};
     const byField: Partial<Record<StockField, RestockSettlement>> = {};
     let changed = false;
 
+    // Which shop sells each restocked item, so standing can be applied to the
+    // right shelves and no others.
+    const traderOf = new Map<StockField, TraderKey>();
+    for (const [key, store] of Object.entries(ruleset.stores)) {
+      for (const item of Object.values(store.items)) {
+        if (item.restock) traderOf.set(item.restock.stockField, key as TraderKey);
+      }
+    }
+
     for (const [field, { rule }] of restockedItems(ruleset)) {
-      const settled = settleStock(player, rule, now);
+      const trader = traderOf.get(field);
+      const points = standings && trader ? (standings[trader]?.points ?? 0) : 0;
+      const settled = settleStock(
+        player,
+        rule,
+        now,
+        restockIntervalFor(rule.intervalMinutes, points, ruleset),
+      );
       counts[field] = settled.stock;
       clocks[rule.stockAtField] = settled.stockAt;
       byField[field] = settled;

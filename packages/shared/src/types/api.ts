@@ -329,29 +329,68 @@ export interface StoreRestockDto {
 }
 
 export interface WeaponUnlockDto {
-  key: 'TEK9' | 'AK47';
+  key: 'SHOTGUN' | 'TEK9' | 'AK47';
   weaponName: string;
   title: string;
   description: string;
   unlocked: boolean;
-  workTurns: number;
-  workTurnsRequired: number;
-  thugs: number;
-  thugsRequired: number;
+  /** Standing across every trader, and what this rung wants. */
+  totalRep: number;
+  totalRepRequired: number;
   prerequisiteName: string | null;
   prerequisiteMet: boolean;
-  cashCostCents: number;
-  crackCost: number;
-  reputationMet: boolean;
   canComplete: boolean;
 }
 
 export interface WeaponUnlockResult {
-  key: 'TEK9' | 'AK47';
+  key: 'SHOTGUN' | 'TEK9' | 'AK47';
   weaponName: string;
-  favorTitle: string;
-  cashSpentCents: number;
+  /** Unlocking costs standing only; buying the gun is a separate trade. */
+  title: string;
+}
+
+/** One trader's standing, and the favour they are asking for. */
+export interface ReputationDto {
+  trader: string;
+  traderName: string;
+  keeper: string;
+  points: number;
+  max: number;
+  standing: string;
+  /** How much sooner this shop restocks for you, as a percentage. */
+  restockSpeedup: number;
+  quest: QuestDto;
+}
+
+export interface QuestDto {
+  key: string;
+  title: string;
+  description: string;
+  done: boolean;
+  have: number;
+  need: number;
+  /** Set when something other than the counted goal is in the way. */
+  blockedBy: string | null;
+  canComplete: boolean;
+  reward: number;
+}
+
+export interface ReputationSummaryDto {
+  traders: ReputationDto[];
+  totalRep: number;
+  unlocks: WeaponUnlockDto[];
+}
+
+export interface QuestCompleteResult {
+  trader: string;
+  traderName: string;
+  title: string;
+  reputationGained: number;
+  totalRep: number;
   crackDelivered: number;
+  lowRidersHandedOver: number;
+  /** Weapons this favour just put on the menu. */
+  unlocked: string[];
 }
 
 export interface StoreDto {
@@ -361,6 +400,13 @@ export interface StoreDto {
   /** Who is behind the counter, for copy that talks about the stock. */
   keeper: string;
   blurb: string;
+  /** What this shopkeeper makes of you: Stranger, Known, Regular, Family. */
+  standing: string;
+  reputation: number;
+  /** How much sooner they restock for you at that standing, as a percentage. */
+  restockSpeedup: number;
+  /** The favour this trader is asking for. Done where the trader is. */
+  quest: QuestDto;
   items: StoreItemDto[];
 }
 
@@ -371,6 +417,11 @@ export interface StoresDto {
 }
 
 export interface StoreTradeResult {
+  /**
+   * Standing earned by dealing with them today. Zero when the day's credit is
+   * already paid or the trade cap is reached - trading more does not buy more.
+   */
+  reputationGained: number;
   storeKey: string;
   storeName: string;
   itemName: string;

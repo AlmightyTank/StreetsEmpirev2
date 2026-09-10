@@ -6,7 +6,7 @@ import type {
   Round,
   RoundPlayer,
 } from '@prisma/client';
-import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
+import { loadRulesetForRound, type Ruleset, type Standings } from '@streets/rules-engine';
 import type {
   GameActionResult,
   PlayerSnapshot,
@@ -22,6 +22,7 @@ import { assertPlayerState } from './invariant.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { RankingService } from './ranking.service.js';
 import { TurnService } from './turn.service.js';
+import { ReputationService, type ReputationChange } from './reputation.service.js';
 import { StockService, type StockSettlementSet } from './stock.service.js';
 
 /**
@@ -47,9 +48,15 @@ export interface PlayerState {
   ak47s: number;
 
   lowRiders: number;
-  streetWorkTurns: number;
+
+  /** Weapon access, earned with reputation and never revoked. */
+  shotgunUnlocked: boolean;
   tek9Unlocked: boolean;
   ak47Unlocked: boolean;
+
+  /** Quest progress that is per-player rather than per-trader. */
+  cleanShiftStreak: number;
+  rocksSuppliedToPip: number;
 
   /**
    * What Tommy has on the shelf, already settled. Counters rather than
@@ -79,12 +86,19 @@ export interface ActionContext {
   now: Date;
   /** Settled shop shelves, for actions that need to explain the wait. */
   stock: StockSettlementSet;
+  /** Standing with each trader, as it stands before the action. */
+  standings: Standings;
 }
 
 export interface ActionOutcome<T> {
   next: PlayerState;
   result: T;
   activity: { type: ActivityType; payload: Prisma.InputJsonValue };
+  /**
+   * Standing to write alongside the player, in the same transaction. Actions
+   * that do not touch reputation leave this out.
+   */
+  reputation?: ReputationChange[];
 }
 
 export interface RunActionOptions<T> {
@@ -108,7 +122,8 @@ export function assertTurns(available: number, requested: number): void {
   }
 }
 
-function toState(player: RoundPlayer): PlayerState {
+/** The action pipeline's view of a stored player. Also what the store reads. */
+export function toState(player: RoundPlayer): PlayerState {
   return {
     cashCents: player.cashCents,
     turns: player.turns,
@@ -124,9 +139,11 @@ function toState(player: RoundPlayer): PlayerState {
     tek9s: player.tek9s,
     ak47s: player.ak47s,
     lowRiders: player.lowRiders,
-    streetWorkTurns: player.streetWorkTurns,
+    shotgunUnlocked: player.shotgunUnlocked,
     tek9Unlocked: player.tek9Unlocked,
     ak47Unlocked: player.ak47Unlocked,
+    cleanShiftStreak: player.cleanShiftStreak,
+    rocksSuppliedToPip: player.rocksSuppliedToPip,
     pistolStock: player.pistolStock,
     shotgunStock: player.shotgunStock,
     tek9Stock: player.tek9Stock,
@@ -240,7 +257,10 @@ export const ActionService = {
       // Turns first: an action always spends from a settled balance. The shop
       // shelves settle in the same breath, for the same reason.
       const turns = TurnService.settle(player, now, ruleset);
-      const stock = StockService.settle(player, now, ruleset);
+      const standings = await ReputationService.load(tx, roundPlayerId, ruleset);
+      // Standing shortens a shop's wait, so it has to be read before the
+      // shelves settle - never the cap, only the interval.
+      const stock = StockService.settle(player, now, ruleset, standings);
       const current: PlayerState = {
         ...toState(player),
         turns: turns.turns,
@@ -265,10 +285,15 @@ export const ActionService = {
         ruleset,
         now,
         stock,
+        standings,
       });
 
       const next = outcome.next;
       assertPlayerState(next, ruleset, 'after');
+
+      if (outcome.reputation?.length) {
+        await ReputationService.write(tx, roundPlayerId, outcome.reputation);
+      }
       const afterHappiness = HappinessService.recalculate(next, ruleset);
       const afterNetWorth = NetWorthService.calculate(next, ruleset);
       const afterRanks = await RankingService.ranksFor(tx, {
