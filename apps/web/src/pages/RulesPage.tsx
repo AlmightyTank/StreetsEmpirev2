@@ -157,7 +157,7 @@ export function RulesPage() {
             </li>
             <li>
               A raid can be blocked by your protection, your cooldown, low turns, a
-              protected target, a target with no exposed cash, or a crew too small for
+              protected target, a target with no exposed cash or crack, or a crew too small for
               your full strength.
             </li>
             <li>
@@ -166,7 +166,7 @@ export function RulesPage() {
             </li>
             <li>
               Strategy rounds add recon and revenge: recon spends turns to reveal a
-              temporary target report, and revenge lets you answer someone who recently
+              temporary target report including crack stash when drug loot is live, and revenge lets you answer someone who recently
               raided you.
             </li>
             <li>

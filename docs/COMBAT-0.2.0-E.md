@@ -8,11 +8,12 @@
 - E inherits the full D combat model: immediate raids, recon intel, wounds, medicine treatment and 24-hour revenge windows.
 - Missing weapons now cost 3 thug-happiness points each in E. Beer still costs 1 point each.
 - E scouting requires armed fit thugs for street coverage. Unarmed thugs still belong to the player, but they do not cover whores on district scouting trips.
-- Public boards and profiles show bragging information: exact net worth, current rank, rank tenure, daily movement, prior ended-round results and achievements. Profiles show the full achievement catalog with earned cards and locked progress across rank, wealth, combat, intel, reputation and legacy. Rankings stay compact by showing only a few featured earned achievements. Opponent crew and weapons stay private, so recon remains the source of combat-ready numbers.
+- E raid loot is tuned higher than D for onboarding: successful raids can take 10% of exposed cash, up to $250 per fit attacker who makes it home, plus 10% of the defender's crack stash, up to 5 rocks per fit attacker.
+- Public boards and profiles show bragging information: exact net worth, current rank, rank tenure, daily movement, prior ended-round results and achievements. Profiles show the full achievement catalog with earned cards and locked progress across rank, wealth, combat, intel, reputation and legacy. Rankings stay compact by showing only a few featured earned achievements. Opponent crew, weapons, exposed cash and crack stash stay private, so recon remains the source of combat-ready numbers.
 - The default seed now creates `Game #005 - Raid Onboarding` as the latest active local round.
 - Game #005 seeds three inactive local rivals in New York City:
   - Razor Ray: even starter fight.
-  - Cashbox Carlo: cash-heavy target with lighter muscle.
+  - Cashbox Carlo: cash-and-crack-heavy target with lighter muscle.
   - Iron Maya: stronger defender for testing losses, wounds and treatment.
 
 The rivals are normal `RoundPlayer` rows backed by inactive local accounts. Combat uses the same target list, validation, battle reports, wounds, rankings and intel systems as human players.

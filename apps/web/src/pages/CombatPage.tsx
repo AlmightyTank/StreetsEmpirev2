@@ -15,7 +15,7 @@ const date = (value: string) => new Date(value).toLocaleString();
 const weaponName = (key: string) => key === 'TEK9' ? 'Tek-9' : key === 'AK47' ? 'AK-47' : key.toLowerCase();
 const weaponsText = (weapons: Record<string, number>) => Object.entries(weapons).filter(([, count]) => count > 0).map(([key, count]) => `${formatNumber(count)} ${weaponName(key)}`).join(', ') || 'unarmed';
 
-function BattleReport({ report }: { report: BattleReportDto }) {
+function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: () => void }) {
   return <Panel title={`${report.won ? 'Victory' : 'Defeat'} · ${report.role === 'ATTACKER' ? 'Raid' : 'Defense'}`}>
     <p>Against <b>{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
     <div className="se-rows">
@@ -23,6 +23,7 @@ function BattleReport({ report }: { report: BattleReportDto }) {
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds ?? 0)} / ${formatNumber(report.opponentWounds ?? 0)}`} />
       <Row label="Cash change / remaining" value={`${report.cashChangeCents >= 0 ? '+' : '−'}${formatCents(Math.abs(report.cashChangeCents))} / ${formatCents(report.cashAfterCents)}`} strong />
+      {report.crackChange !== undefined && report.crackAfter !== undefined ? <Row label="Crack change / remaining" value={`${report.crackChange >= 0 ? '+' : '−'}${formatNumber(Math.abs(report.crackChange))} / ${formatNumber(report.crackAfter)}`} strong /> : null}
       <Row label="Turns spent / remaining" value={`${report.turnsSpent} / ${report.turnsAfter}`} />
       <Row label="National rank — before / after" value={`#${report.nationalRankBefore} / #${report.nationalRankAfter}`} />
     </div>
@@ -31,6 +32,7 @@ function BattleReport({ report }: { report: BattleReportDto }) {
     {report.retaliation ? <p className="se-hint">This was retaliation. Revenge let you answer your attacker through the normal target filters.</p> : null}
     {report.protectedUntil ? <p className="se-hint">Protected until {date(report.protectedUntil)}. Your return is also required before another raid.</p> : null}
     {report.cooldownUntil ? <p className="se-hint">Next raid after {date(report.cooldownUntil)}.</p> : null}
+    {onClose ? <button type="button" className="se-btn se-btn--ghost se-btn--sm se-raid-report-close" onClick={onClose}>Close report</button> : null}
   </Panel>;
 }
 
@@ -153,7 +155,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     setNotice(null);
     try {
       const result = await combatApi.recon({ roundId, targetPublicPimpId: selected.publicPimpId, actionId: newActionId() });
-      setNotice(`Recon on ${result.intel.displayName}: ${formatNumber(result.intel.fitThugs)} fit thugs, ${weaponsText(result.intel.weapons)}, up to ${formatCents(result.intel.estimatedMaxLootCents)} exposed by cash.`);
+      setNotice(`Recon on ${result.intel.displayName}: ${formatNumber(result.intel.fitThugs)} fit thugs, ${weaponsText(result.intel.weapons)}, up to ${formatCents(result.intel.estimatedMaxLootCents)} cash${result.intel.estimatedMaxCrackLoot != null ? ` and ${formatNumber(result.intel.estimatedMaxCrackLoot)} crack` : ''} exposed.`);
       await refresh(true);
       await useSession.getState().refreshSnapshot();
     } catch (err) {
@@ -181,7 +183,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   }
 
   return <GameLayout>
-    <div className="se-pagehead"><div><h1 className="se-title">Raids</h1><p className="se-eyebrow">Your crew. Their cash.</p></div>
+    <div className="se-pagehead"><div><h1 className="se-title">Raids</h1><p className="se-eyebrow">Your crew. Their cash and crack.</p></div>
       <button type="button" className="se-btn" disabled={busy} onClick={() => { setError(null); setNotice(null); void refresh(); }}>Refresh</button>
     </div>
     {error ? <Alert>{error}</Alert> : null}
@@ -205,7 +207,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                   {target.displayName} (#{target.publicPimpId}) · {target.strength}{target.revengeAvailable ? ' · revenge' : ''}{target.blockedReason ? ` · ${target.blockedReason}` : ''}
                 </option>)}
               </select>
-              {selected ? <p className="se-hint" title="Net worth is public rank status. Recon reveals private raid intel: fit thugs, wounds, weapons, cash band and max exposed cash.">Net worth {formatCents(selected.netWorthCents)} · {selected.strength} crew. {selected.revengeAvailable ? 'Revenge window open.' : selected.blockedReason ?? 'The defender gets a home advantage.'}</p> : null}
+              {selected ? <p className="se-hint" title="Net worth is public rank status. Recon reveals private raid intel: fit thugs, wounds, weapons, cash band, crack and max loot.">Net worth {formatCents(selected.netWorthCents)} · {selected.strength} crew. {selected.revengeAvailable ? 'Revenge window open.' : selected.blockedReason ?? 'The defender gets a home advantage.'}</p> : null}
               {selected && rules?.reconTurnCost ? <div className="se-intel">
                 <button type="button" className="se-btn" disabled={busy || !!pending || me.turns.turns < rules.reconTurnCost} onClick={() => void reconTarget()}>
                   Recon {selected.displayName} · {rules.reconTurnCost} turns
@@ -216,8 +218,10 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                   <Row label="Full strength" value={selected.intel.strength.toFixed(1)} />
                   <Row label="Weapons spotted" value={weaponsText(selected.intel.weapons)} />
                   <Row label="Cash band" value={selected.intel.cashBand.label} />
-                  <Row label="Max cash exposed" value={formatCents(selected.intel.estimatedMaxLootCents)} />
-                </div> : <p className="se-hint">Spend recon turns to reveal fit thugs, weapons, cash band and the largest cash haul this crew could expose.</p>}
+                  <Row label="Max cash loot" value={formatCents(selected.intel.estimatedMaxLootCents)} />
+                  {selected.intel.crack != null ? <Row label="Crack stash" value={formatNumber(selected.intel.crack)} /> : null}
+                  {selected.intel.estimatedMaxCrackLoot != null ? <Row label="Max crack loot" value={formatNumber(selected.intel.estimatedMaxCrackLoot)} /> : null}
+                </div> : <p className="se-hint">Spend recon turns to reveal fit thugs, weapons, cash band, crack stash and the largest haul this crew could expose.</p>}
               </div> : null}
               <label htmlFor="raid-squad">Fit thugs to send (up to {formatNumber(maxSquad)})</label>
               <input id="raid-squad" className="se-input" type="number" inputMode="numeric" min="1" max={maxSquad} value={squad} onChange={(event) => setSquad(event.target.value)} />
@@ -245,6 +249,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
       <Panel title="How raids work">
         <p>Raids cost {rules!.turnCost} turns, win or lose. Defense is automatic and costs no turns.</p>
         <p>Win up to {rules!.lootPercent}% of cash above {formatCents(rules!.protectedCashCents)}, limited to {formatCents(rules!.perThugLootCents)} per thug you send.</p>
+        {rules!.drugLootPercent ? <p>Successful raids also take up to {rules!.drugLootPercent}% of the defender's crack, limited to {formatNumber(rules!.perThugCrackLoot ?? 0)} rocks per fit thug who makes it home.</p> : null}
         <p>{rules!.newcomerHours > 0 ? `New players have ${rules!.newcomerHours} hours of protection. ` : 'New players can raid immediately in this strategy round. '}Each raid protects its defender for {rules!.protectionHours} hours from everyone. Offline defenders must return before another raid.</p>
         <p>Your crew waits {rules!.cooldownMinutes} minutes between attacks. You cannot raid while protected or target a crew below half your full strength.</p>
         {rules!.reconTurnCost ? <p>Recon costs {rules!.reconTurnCost} turns and holds target intel for {rules!.intelExpiresMinutes} minutes. Revenge windows last {rules!.retaliationHours} hours against players who hit you.</p> : null}
@@ -267,7 +272,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
         })}
       </ul>}
       {nextBefore ? <button type="button" className="se-btn" disabled={busy} onClick={() => void olderReports()}>Older reports</button> : null}
-      {report ? <div ref={reportDetailRef} className="se-raid-report-detail"><BattleReport report={report} /></div> : null}
+      {report ? <div ref={reportDetailRef} className="se-raid-report-detail"><BattleReport report={report} onClose={() => setReport(null)} /></div> : null}
     </Panel></div>
   </GameLayout>;
 }

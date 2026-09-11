@@ -24,6 +24,8 @@ export interface CombatModel {
     readonly protectedCashCents: number;
     readonly exposedCashPercent: number;
     readonly perFitAttackerCents: number;
+    readonly exposedDrugPercent?: number;
+    readonly perFitAttackerCrack?: number;
   };
 }
 

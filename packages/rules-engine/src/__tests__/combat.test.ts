@@ -9,7 +9,7 @@ const crew = (thugs: number, pistols = thugs): CombatCrew => ({
 });
 const input = (overrides: Partial<RaidInput> = {}): RaidInput => ({
   attacker: crew(40), defender: crew(10), attackingThugs: 40,
-  attackerTurns: 200, defenderCashCents: 2_000_000n, ...overrides,
+  attackerTurns: 200, defenderCashCents: 2_000_000n, defenderCrack: 1_000, ...overrides,
 });
 const model = combatPrototype;
 
@@ -69,8 +69,24 @@ describe('raid outcome and resource boundaries', () => {
 
   it('charges turns for defeat and awards no loot or cash to either side', () => {
     const result = simulateRaid(input({ attacker: crew(10), attackingThugs: 10, defender: crew(40) }), model, flatRng);
-    expect(result).toMatchObject({ winner: 'DEFENDER', lootCents: 0n, attackerTurnsAfter: 190 });
+    expect(result).toMatchObject({ winner: 'DEFENDER', lootCents: 0n, lootCrack: 0, attackerTurnsAfter: 190 });
     expect(result.defenderCashAfterCents).toBe(2_000_000n);
+    expect(result.defenderCrackAfter).toBe(1_000);
+  });
+
+  it('steals bounded crack only when the ruleset enables drug loot', () => {
+    const cashOnly = simulateRaid(input(), model, flatRng);
+    expect(cashOnly.lootCrack).toBe(0);
+    expect(cashOnly.defenderCrackAfter).toBe(1_000);
+
+    const withDrugs: CombatModel = {
+      ...model,
+      loot: { ...model.loot, exposedDrugPercent: 10, perFitAttackerCrack: 5 },
+    };
+    const result = simulateRaid(input({ attackingThugs: 40, defenderCrack: 1_000 }), withDrugs, flatRng);
+    expect(result.lootCrack).toBe(100);
+    expect(result.crackChanges).toEqual({ attacker: 100, defender: -100 });
+    expect(result.defenderCrackAfter).toBe(900);
   });
 
   it('gives an exact strength tie to the defender', () => {
@@ -123,10 +139,10 @@ describe('raid outcome and resource boundaries', () => {
       ...model, version: 'test', squadCap: 50, turnCost: 7,
       strength: { ...model.strength, moraleFloor: 0.5, defenseMultiplier: 1, variance: 0 },
       wounds: { winnerFraction: 0.1, loserFraction: 0.2, maxFraction: 0.2, recoveryMinutes: 60 },
-      loot: { protectedCashCents: 0, exposedCashPercent: 100, perFitAttackerCents: 100 },
+      loot: { protectedCashCents: 0, exposedCashPercent: 100, perFitAttackerCents: 100, exposedDrugPercent: 100, perFitAttackerCrack: 2 },
     };
     const result = simulateRaid(input({ attacker: { ...crew(40), thugHappiness: 0 } }), variant, flatRng);
-    expect(result).toMatchObject({ modelVersion: 'test', attackerTurnsAfter: 193, lootCents: 3_600n,
+    expect(result).toMatchObject({ modelVersion: 'test', attackerTurnsAfter: 193, lootCents: 3_600n, lootCrack: 72,
       wounds: { attacker: 4, defender: 2, recoveryMinutes: 60 } });
     expect(result.attacker.moraleMultiplier).toBe(0.5);
   });
@@ -148,11 +164,15 @@ describe('raid outcome and resource boundaries', () => {
       for (let trial = 0; trial < 20; trial++) {
         const defenderSize = Math.floor(rng() * 150);
         const cash = BigInt(Math.floor(rng() * 100_000_000));
-        const result = simulateRaid(input({ attacker: crew(size), attackingThugs: size, defender: crew(defenderSize), defenderCashCents: cash }), model, rng);
+        const crack = Math.floor(rng() * 10_000);
+        const result = simulateRaid(input({ attacker: crew(size), attackingThugs: size, defender: crew(defenderSize), defenderCashCents: cash, defenderCrack: crack }), model, rng);
         expect(result.cashChanges.attackerCents + result.cashChanges.defenderCents).toBe(0n);
+        expect(result.crackChanges.attacker + result.crackChanges.defender).toBe(0);
         expect(result.defenderCashAfterCents + result.lootCents).toBe(cash);
+        expect(result.defenderCrackAfter + result.lootCrack).toBe(crack);
         expect(result.defenderCashAfterCents).toBeGreaterThanOrEqual(cash < 500_000n ? cash : 500_000n);
         expect(result.lootCents).toBeGreaterThanOrEqual(0n);
+        expect(result.lootCrack).toBeGreaterThanOrEqual(0);
         expect(result.lootCents).toBeLessThanOrEqual(BigInt(size - result.wounds.attacker) * 10_000n);
         for (const side of ['attacker', 'defender'] as const) {
           expect(Number.isInteger(result.wounds[side])).toBe(true);
@@ -183,12 +203,17 @@ describe('combat rejects invalid inputs before rolling', () => {
   it('rejects negative cash', () => {
     expect(() => simulateRaid(input({ defenderCashCents: -1n }), model, flatRng)).toThrow(CombatError);
   });
+  it('rejects invalid crack inventory', () => {
+    expect(() => simulateRaid(input({ defenderCrack: -1 }), model, flatRng)).toThrow(CombatError);
+    expect(() => simulateRaid(input({ defenderCrack: 1.5 }), model, flatRng)).toThrow(CombatError);
+  });
   it.each([-0.1, 1, NaN, Infinity])('rejects RNG output %s', (value) => {
     expect(() => simulateRaid(input(), model, () => value)).toThrow('Combat rolls');
   });
   it('rejects rules that can create negative strength or steal more than exposed cash', () => {
     expect(() => simulateRaid(input(), { ...model, strength: { ...model.strength, variance: 1 } }, flatRng)).toThrow(CombatError);
     expect(() => simulateRaid(input(), { ...model, loot: { ...model.loot, exposedCashPercent: 101 } }, flatRng)).toThrow(CombatError);
+    expect(() => simulateRaid(input(), { ...model, loot: { ...model.loot, exposedDrugPercent: 101 } }, flatRng)).toThrow(CombatError);
   });
 });
 

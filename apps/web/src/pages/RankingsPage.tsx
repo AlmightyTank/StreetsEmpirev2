@@ -107,7 +107,7 @@ export function RankingsPage() {
       {error ? <Alert>{error}</Alert> : null}
 
       {data ? (
-        <Alert tone="info">Rankings are public bragging rights: money, current rank, rank streak, movement, past placements and awards. Recon is still where you learn private raid intel like fit thugs, weapons and exposed cash.</Alert>
+        <Alert tone="info">Rankings are public bragging rights: money, current rank, rank streak, movement, past placements and awards. Recon is still where you learn private raid intel like fit thugs, weapons, exposed cash and crack stash.</Alert>
       ) : null}
 
       <div className="se-grid">

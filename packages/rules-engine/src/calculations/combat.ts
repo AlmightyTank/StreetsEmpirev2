@@ -24,6 +24,7 @@ export interface RaidInput {
   readonly attackingThugs: number;
   readonly attackerTurns: number;
   readonly defenderCashCents: bigint;
+  readonly defenderCrack?: number;
 }
 
 export interface RaidResult {
@@ -42,8 +43,11 @@ export interface RaidResult {
     readonly recoveryMinutes: number;
   };
   readonly lootCents: bigint;
+  readonly lootCrack: number;
   readonly cashChanges: { readonly attackerCents: bigint; readonly defenderCents: bigint };
+  readonly crackChanges: { readonly attacker: number; readonly defender: number };
   readonly defenderCashAfterCents: bigint;
+  readonly defenderCrackAfter: number;
 }
 
 export class CombatError extends Error {
@@ -98,6 +102,11 @@ export function validateCombatModel(model: CombatModel): void {
   count(model.loot.perFitAttackerCents, 'Carrying capacity');
   count(model.loot.exposedCashPercent, 'Loot percent');
   requireCondition(model.loot.exposedCashPercent <= 100, 'INVALID_MODEL', 'Loot percent cannot exceed 100.');
+  if (model.loot.exposedDrugPercent !== undefined) {
+    count(model.loot.exposedDrugPercent, 'Drug loot percent');
+    requireCondition(model.loot.exposedDrugPercent <= 100, 'INVALID_MODEL', 'Drug loot percent cannot exceed 100.');
+  }
+  if (model.loot.perFitAttackerCrack !== undefined) count(model.loot.perFitAttackerCrack, 'Drug carrying capacity');
 }
 
 function validateCrew(crew: CombatCrew, model: CombatModel): void {
@@ -162,6 +171,7 @@ export function simulateRaid(input: RaidInput, model: CombatModel, rng: Rng): Ra
   requireCondition(input.attackerTurns >= model.turnCost, 'NOT_ENOUGH_TURNS', 'There are not enough turns for this raid.');
   requireCondition(typeof input.defenderCashCents === 'bigint' && input.defenderCashCents >= 0n,
     'INVALID_CASH', 'Defender cash must be nonnegative BigInt cents.');
+  if (input.defenderCrack !== undefined) count(input.defenderCrack, 'Defender crack');
 
   const attacker = equip(input.attacker, input.attackingThugs, model);
   const defender = equip(input.defender, Math.min(input.defender.thugs, model.squadCap), model);
@@ -183,8 +193,13 @@ export function simulateRaid(input: RaidInput, model: CombatModel, rng: Rng): Ra
   const exposedCash = input.defenderCashCents > BigInt(model.loot.protectedCashCents)
     ? input.defenderCashCents - BigInt(model.loot.protectedCashCents) : 0n;
   const cashCap = exposedCash * BigInt(model.loot.exposedCashPercent) / 100n;
-  const carryCap = BigInt(attacker.committed - wounds.attacker) * BigInt(model.loot.perFitAttackerCents);
+  const fitAttackersAfterWounds = attacker.committed - wounds.attacker;
+  const carryCap = BigInt(fitAttackersAfterWounds) * BigInt(model.loot.perFitAttackerCents);
   const lootCents = won ? (cashCap < carryCap ? cashCap : carryCap) : 0n;
+  const defenderCrack = input.defenderCrack ?? 0;
+  const crackPercentCap = Math.floor(defenderCrack * (model.loot.exposedDrugPercent ?? 0) / 100);
+  const crackCarryCap = fitAttackersAfterWounds * (model.loot.perFitAttackerCrack ?? 0);
+  const lootCrack = won ? Math.min(defenderCrack, crackPercentCap, crackCarryCap) : 0;
   return {
     modelVersion: model.version,
     winner: won ? 'ATTACKER' : 'DEFENDER',
@@ -193,7 +208,10 @@ export function simulateRaid(input: RaidInput, model: CombatModel, rng: Rng): Ra
     attackerTurnsAfter: input.attackerTurns - model.turnCost,
     wounds,
     lootCents,
+    lootCrack,
     cashChanges: { attackerCents: lootCents, defenderCents: -lootCents },
+    crackChanges: { attacker: lootCrack, defender: -lootCrack },
     defenderCashAfterCents: input.defenderCashCents - lootCents,
+    defenderCrackAfter: defenderCrack - lootCrack,
   };
 }

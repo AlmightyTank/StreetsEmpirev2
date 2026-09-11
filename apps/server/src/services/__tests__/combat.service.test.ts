@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RoundPlayer } from '@prisma/client';
-import { classicOgV02, classicOgV02D } from '@streets/rulesets';
+import { classicOgV02, classicOgV02D, classicOgV02E } from '@streets/rulesets';
 import { combatAttackerBlock, combatProtectionUntil, combatTargetBlock } from '../combat.service.js';
 
 const model = classicOgV02.combat;
@@ -79,6 +79,13 @@ describe('combat eligibility helpers', () => {
     expect(classicOgV02D.round.startingPlayer.pistols).toBe(10);
   });
 
+  it('allows 0.2.0-E raids against protected cash when crack can be stolen', () => {
+    const attacker = player({ id: 'attacker', accountId: 'attacker-account', createdAt: old });
+    const defender = player({ id: 'defender', accountId: 'defender-account', publicPimpId: 1001, cashCents: 500_000n, crack: 25, createdAt: old });
+
+    expect(combatTargetBlock(attacker, defender, classicOgV02E.combat, now)).toBeNull();
+  });
+
   it('compares full available strength, not the attack squad size', () => {
     const attacker = player({ id: 'attacker', accountId: 'attacker-account', thugs: 40, woundedThugs: 20, pistols: 40 });
     const weak = player({ id: 'defender', accountId: 'defender-account', publicPimpId: 1001, thugs: 5, pistols: 5 });
@@ -88,11 +95,11 @@ describe('combat eligibility helpers', () => {
     expect(combatTargetBlock(attacker, fair, model, now)).toBeNull();
   });
 
-  it('requires same round, same city, exposed cash and a defender return after raids', () => {
+  it('requires same round, same city, exposed raid loot and a defender return after raids', () => {
     const attacker = player({ id: 'attacker', accountId: 'attacker-account' });
     expect(combatTargetBlock(attacker, player({ id: 'defender', accountId: 'defender-account', roundId: 'other' }), model, now)).toContain('round');
     expect(combatTargetBlock(attacker, player({ id: 'defender', accountId: 'defender-account', cityId: 'other' }), model, now)).toContain('city');
-    expect(combatTargetBlock(attacker, player({ id: 'defender', accountId: 'defender-account', cashCents: 500_000n }), model, now)).toContain('exposed cash');
+    expect(combatTargetBlock(attacker, player({ id: 'defender', accountId: 'defender-account', cashCents: 500_000n, crack: 0 }), model, now)).toContain('exposed cash or crack');
     expect(combatTargetBlock(attacker, player({
       id: 'defender',
       accountId: 'defender-account',

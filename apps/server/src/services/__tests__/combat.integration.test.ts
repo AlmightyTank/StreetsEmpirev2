@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { Prisma } from '@prisma/client';
-import { classicOgV01, classicOgV02, classicOgV02C, classicOgV02D } from '@streets/rulesets';
+import { classicOgV01, classicOgV02, classicOgV02C, classicOgV02D, classicOgV02E } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
 import type { BattleReportDto } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
@@ -97,9 +97,11 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     const report = response.json<BattleReportDto>();
     expect(report.won).toBe(true);
     expect(report.cashChangeCents).toBe(180_000);
+    expect(report.crackChange).toBe(0);
     const a = await state(0);
     const d = await state(1);
     expect(a.cashCents + d.cashCents).toBe(beforeA.cashCents + beforeD.cashCents);
+    expect(a.crack + d.crack).toBe(beforeA.crack + beforeD.crack);
     expect(a.turns).toBe(190);
     expect(d.turns).toBe(200);
     expect([a.thugs, a.woundedThugs, a.pistols, d.thugs, d.woundedThugs, d.pistols]).toEqual([40, 0, 40, 20, 0, 20]);
@@ -117,6 +119,33 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     expect(battles[0]!.modelVersion).toBe('0.2.0-B.1');
     expect(await app.prisma.combatInjury.count({ where: { roundPlayerId: { in: [a.id, d.id] } } })).toBe(0);
     expect(await app.prisma.playerActivity.count({ where: { roundPlayerId: { in: [a.id, d.id] }, type: { in: ['RAID_ATTACK', 'RAID_DEFENSE'] } } })).toBe(2);
+  });
+
+  it('uses 0.2.0-E tuning to transfer bigger cash and a portion of crack', async () => {
+    await app.prisma.round.update({ where: { id: roundId }, data: { rulesetId: classicOgV02E.meta.id, rulesetVersion: classicOgV02E.meta.version } });
+    await app.prisma.roundPlayer.update({
+      where: { id: players[1]! },
+      data: { crack: 1_000, netWorthCents: NetWorthService.calculate({ ...(await state(1)), crack: 1_000 }, classicOgV02E) },
+    });
+    const beforeA = await state(0);
+    const beforeD = await state(1);
+    const response = await raid();
+    expect(response.statusCode, response.body).toBe(200);
+    const report = response.json<BattleReportDto>();
+    expect(report).toMatchObject({
+      won: true,
+      modelVersion: '0.2.0-E.1',
+      cashChangeCents: 360_000,
+      crackChange: 100,
+    });
+    const a = await state(0);
+    const d = await state(1);
+    expect(a.cashCents + d.cashCents).toBe(beforeA.cashCents + beforeD.cashCents);
+    expect(a.crack + d.crack).toBe(beforeA.crack + beforeD.crack);
+    expect(a.crack).toBe(beforeA.crack + 100);
+    expect(d.crack).toBe(beforeD.crack - 100);
+    expect(a.netWorthCents).toBe(NetWorthService.calculate(a, classicOgV02E));
+    expect(d.netWorthCents).toBe(NetWorthService.calculate(d, classicOgV02E));
   });
 
   it('replays duplicate concurrent raids, even after cooldown or round closure', async () => {
@@ -239,9 +268,11 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     const beforeD = await state(1);
     const response = await raid(0, 1001, randomUUID(), 1);
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ won: false, cashChangeCents: 0, turnsSpent: 10 });
+    expect(response.json()).toMatchObject({ won: false, cashChangeCents: 0, crackChange: 0, turnsSpent: 10 });
     expect((await state(0)).cashCents).toBe(beforeA.cashCents);
     expect((await state(1)).cashCents).toBe(beforeD.cashCents);
+    expect((await state(0)).crack).toBe(beforeA.crack);
+    expect((await state(1)).crack).toBe(beforeD.crack);
     expect((await state(1)).raidProtectedUntil).not.toBeNull();
     expect((await state(0)).thugs).toBe(40);
     expect((await state(0)).woundedThugs).toBe(0);

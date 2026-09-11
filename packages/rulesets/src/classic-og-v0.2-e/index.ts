@@ -20,6 +20,17 @@ export const classicOgV02E = {
     hideOpponentCrew: true,
     hideOpponentWeapons: true,
   },
+  combat: {
+    ...classicOgV02D.combat,
+    version: '0.2.0-E.1',
+    loot: {
+      ...classicOgV02D.combat.loot,
+      exposedCashPercent: 10,
+      perFitAttackerCents: 25_000,
+      exposedDrugPercent: 10,
+      perFitAttackerCrack: 5,
+    },
+  },
   round: {
     ...classicOgV02D.round,
     seededRivals: [
@@ -28,21 +39,21 @@ export const classicOgV02E = {
         displayName: 'Razor Ray',
         publicPimpId: 1000,
         note: 'Even match with starter weapons. Good first raid target.',
-        startingPlayer: { cashCents: 3_000_000, thugs: 10, pistols: 10, beer: 10, medicine: 2 },
+        startingPlayer: { cashCents: 3_000_000, thugs: 10, pistols: 10, beer: 10, crack: 150, medicine: 2 },
       },
       {
         slug: 'cashbox-carlo',
         displayName: 'Cashbox Carlo',
         publicPimpId: 1001,
         note: 'Cash-heavy crew with lighter muscle. Good recon target.',
-        startingPlayer: { cashCents: 6_000_000, thugs: 8, pistols: 8, beer: 8, medicine: 4 },
+        startingPlayer: { cashCents: 6_000_000, thugs: 8, pistols: 8, beer: 8, crack: 500, medicine: 4 },
       },
       {
         slug: 'iron-maya',
         displayName: 'Iron Maya',
         publicPimpId: 1002,
         note: 'Stronger defender for testing losses, wounds and recovery.',
-        startingPlayer: { cashCents: 4_000_000, thugs: 16, pistols: 16, beer: 16, medicine: 8 },
+        startingPlayer: { cashCents: 4_000_000, thugs: 16, pistols: 16, beer: 16, crack: 350, medicine: 8 },
       },
     ],
   },

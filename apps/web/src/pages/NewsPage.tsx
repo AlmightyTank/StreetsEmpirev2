@@ -12,7 +12,7 @@ const developmentUpdates = [
   {
     id: 'dev-0.2.0-e',
     title: '0.2.0-E: Raid onboarding targets',
-    body: 'The current local development round now seeds three New York rivals so a fresh player can test raids without waiting for another human account. E also makes weapons and intel matter more: unarmed thugs take a bigger happiness hit, only armed fit thugs count as street cover when scouting, and rankings and profiles now show public money, rank streaks, past placements and achievements, while crew, weapons and exposed cash still require recon. Player profiles also have a full achievement gallery with earned badges and locked progress across rank, wealth, combat, intel, reputation and legacy. Hover the new help markers to see what each number means.',
+    body: 'The current local development round now seeds three New York rivals so a fresh player can test raids without waiting for another human account. E also makes weapons and intel matter more: unarmed thugs take a bigger happiness hit, only armed fit thugs count as street cover when scouting, and rankings and profiles now show public money, rank streaks, past placements and achievements, while crew, weapons, exposed cash and crack stash still require recon. Successful E-round raids now steal a bigger cash cut and part of the defender crack stash. Player profiles also have a full achievement gallery with earned badges and locked progress across rank, wealth, combat, intel, reputation and legacy. Hover the new help markers to see what each number means.',
   },
   {
     id: 'dev-0.2.0-d',

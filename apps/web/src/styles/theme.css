@@ -1005,6 +1005,7 @@ a.se-nav__link:hover {
 .se-raid-report-link__meta { color: var(--se-muted); font-family: var(--se-mono); font-size: 0.75rem; }
 .se-raid-report-detail { margin-top: 0.75rem; scroll-margin-top: 5rem; }
 .se-raid-report-detail .se-panel { margin: 0; }
+.se-raid-report-close { margin-top: 0.5rem; }
 
 
 /* --- tooltips ------------------------------------------------------------ */

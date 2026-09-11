@@ -77,7 +77,9 @@ export function combatTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, 
   if (combatProtectionUntil(defender, model) > now && !(retaliation && retaliationRules?.bypassProtection)) return 'This player is protected.';
   if (defender.lastRaidedAt && defender.lastActiveAt <= defender.lastRaidedAt) return 'This player has not returned since the last raid.';
   if (strength(defender, model) < strength(attacker, model) * model.minimumTargetStrengthRatio && !(retaliation && retaliationRules?.bypassMinimumStrength)) return 'This crew is too weak for you to raid.';
-  if (defender.cashCents <= BigInt(model.loot.protectedCashCents)) return 'This player has no exposed cash to raid.';
+  const hasExposedCash = defender.cashCents > BigInt(model.loot.protectedCashCents);
+  const hasExposedCrack = (model.loot.exposedDrugPercent ?? 0) > 0 && (model.loot.perFitAttackerCrack ?? 0) > 0 && defender.crack > 0;
+  if (!hasExposedCash && !hasExposedCrack) return 'This player has no exposed cash or crack to raid.';
   return null;
 }
 
@@ -98,6 +100,13 @@ function estimatedMaxLoot(cashCents: bigint, model: CombatRules): number {
   return Number(cashCap > BigInt(Number.MAX_SAFE_INTEGER) ? BigInt(Number.MAX_SAFE_INTEGER) : cashCap);
 }
 
+function estimatedMaxCrackLoot(crack: number, model: CombatRules): number | null {
+  const percent = model.loot.exposedDrugPercent ?? 0;
+  const carry = model.loot.perFitAttackerCrack ?? 0;
+  if (percent <= 0 || carry <= 0) return null;
+  return Math.floor(crack * percent / 100);
+}
+
 function intelReport(target: RoundPlayer, model: CombatRules, createdAt: Date, expiresAt: Date): CombatIntelReportDto {
   return {
     targetPublicPimpId: target.publicPimpId,
@@ -110,6 +119,8 @@ function intelReport(target: RoundPlayer, model: CombatRules, createdAt: Date, e
     weapons: { PISTOL: target.pistols, SHOTGUN: target.shotguns, TEK9: target.tek9s, AK47: target.ak47s },
     cashBand: cashBand(target.cashCents, model),
     estimatedMaxLootCents: estimatedMaxLoot(target.cashCents, model),
+    crack: model.loot.exposedDrugPercent ? target.crack : null,
+    estimatedMaxCrackLoot: estimatedMaxCrackLoot(target.crack, model),
   };
 }
 
@@ -172,6 +183,7 @@ export const CombatService = {
       rules: { squadCap: model.squadCap, turnCost: model.turnCost, newcomerHours: model.newcomerHours,
         protectionHours: model.protectionHours, cooldownMinutes: model.cooldownMinutes,
         protectedCashCents: model.loot.protectedCashCents, lootPercent: model.loot.exposedCashPercent, perThugLootCents: model.loot.perFitAttackerCents,
+        ...(model.loot.exposedDrugPercent && model.loot.perFitAttackerCrack ? { drugLootPercent: model.loot.exposedDrugPercent, perThugCrackLoot: model.loot.perFitAttackerCrack } : {}),
         ...(model.strategy ? { reconTurnCost: model.strategy.intel.turnCost, intelExpiresMinutes: model.strategy.intel.expiresMinutes, retaliationHours: model.strategy.retaliation.revengeHours } : {}),
       },
       targets: targets.slice(0, 25).map((target) => ({
@@ -221,19 +233,23 @@ export const CombatService = {
       const beforeA = await RankingService.ranksFor(tx, attacker);
       const beforeD = await RankingService.ranksFor(tx, defender);
       const result = simulateRaid({ attacker: crew(attacker), defender: crew(defender), attackingThugs: input.attackingThugs,
-        attackerTurns: attacker.turns, defenderCashCents: defender.cashCents }, model, () => randomInt(0, 2 ** 32) / 2 ** 32);
+        attackerTurns: attacker.turns, defenderCashCents: defender.cashCents, defenderCrack: defender.crack }, model, () => randomInt(0, 2 ** 32) / 2 ** 32);
       const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker,
-        turns: result.attackerTurnsAfter, cashCents: attacker.cashCents + result.lootCents };
+        turns: result.attackerTurnsAfter, cashCents: attacker.cashCents + result.lootCents, crack: attacker.crack + result.lootCrack };
       const nextD = { ...toState(defender), woundedThugs: defender.woundedThugs + result.wounds.defender,
-        cashCents: result.defenderCashAfterCents };
+        cashCents: result.defenderCashAfterCents, crack: result.defenderCrackAfter };
       assertPlayerState(nextA, ruleset);
       assertPlayerState(nextD, ruleset);
+      const happinessA = HappinessService.recalculate({ ...nextA, thugs: fitThugs(nextA) }, ruleset);
+      const happinessD = HappinessService.recalculate({ ...nextD, thugs: fitThugs(nextD) }, ruleset);
       const shield = new Date(now.getTime() + model.protectionHours * 3_600_000);
       const cooldown = new Date(now.getTime() + model.cooldownMinutes * 60_000);
       const recoverAt = new Date(now.getTime() + model.wounds.recoveryMinutes * 60_000);
       await tx.roundPlayer.update({ where: { id: attackerId }, data: { cashCents: nextA.cashCents, turns: nextA.turns,
-        woundedThugs: nextA.woundedThugs, netWorthCents: NetWorthService.calculate(nextA, ruleset), raidCooldownUntil: cooldown } });
-      await tx.roundPlayer.update({ where: { id: target.id }, data: { cashCents: nextD.cashCents, woundedThugs: nextD.woundedThugs,
+        crack: nextA.crack, woundedThugs: nextA.woundedThugs, whoreHappiness: happinessA.whoreHappiness, thugHappiness: happinessA.thugHappiness,
+        netWorthCents: NetWorthService.calculate(nextA, ruleset), raidCooldownUntil: cooldown } });
+      await tx.roundPlayer.update({ where: { id: target.id }, data: { cashCents: nextD.cashCents, crack: nextD.crack, woundedThugs: nextD.woundedThugs,
+        whoreHappiness: happinessD.whoreHappiness, thugHappiness: happinessD.thugHappiness,
         netWorthCents: NetWorthService.calculate(nextD, ruleset), raidProtectedUntil: shield, lastRaidedAt: now } });
       // Both final worths are in the transaction before either rank is calculated.
       const afterA = await RankingService.ranksFor(tx, { ...attacker, netWorthCents: NetWorthService.calculate(nextA, ruleset) });
@@ -262,6 +278,8 @@ export const CombatService = {
           nextRecoveryAt: ownWounds > 0 ? recoverAt.toISOString() : null,
           cashChangeCents: Number(isAttacker ? result.lootCents : -result.lootCents),
           cashAfterCents: Number(isAttacker ? nextA.cashCents : nextD.cashCents),
+          crackChange: isAttacker ? result.lootCrack : -result.lootCrack,
+          crackAfter: isAttacker ? nextA.crack : nextD.crack,
           turnsSpent: isAttacker ? model.turnCost : 0, turnsAfter: isAttacker ? nextA.turns : nextD.turns,
           nationalRankBefore: (isAttacker ? beforeA : beforeD).nationalRank,
           nationalRankAfter: (isAttacker ? afterA : afterD).nationalRank,
@@ -273,12 +291,12 @@ export const CombatService = {
       const defenderReport = makeReport(false);
       await tx.raidBattle.create({ data: { id, attackerId, defenderId: target.id, actionId: input.actionId,
         attackingThugs: input.attackingThugs, modelVersion: model.version,
-        calculation: json({ result, input: { attacker: crew(attacker), defender: crew(defender), defenderCashCents: defender.cashCents }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
+        calculation: json({ result, input: { attacker: crew(attacker), defender: crew(defender), defenderCashCents: defender.cashCents, defenderCrack: defender.crack }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
       for (const [playerId, type, report] of [[attackerId, 'RAID_ATTACK', attackerReport], [target.id, 'RAID_DEFENSE', defenderReport]] as const) {
-        await ActivityService.log(tx, playerId, type, json({ battleId: id, opponent: report.opponent.displayName, won: report.won, cashCents: report.cashChangeCents, turns: report.turnsSpent, wounds: report.yourWounds }));
+        await ActivityService.log(tx, playerId, type, json({ battleId: id, opponent: report.opponent.displayName, won: report.won, cashCents: report.cashChangeCents, crack: report.crackChange ?? 0, turns: report.turnsSpent, wounds: report.yourWounds }));
       }
       // Reserve the action namespace for the lifetime of this raid, including other action types.
       await tx.processedAction.create({ data: { roundPlayerId: attackerId, actionId: input.actionId, action: 'RAID', result: json(attackerReport), expiresAt: new Date('9999-12-31T00:00:00Z') } });

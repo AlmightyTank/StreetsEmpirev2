@@ -9,6 +9,8 @@ export interface CombatIntelReportDto {
   weapons: Record<string, number>;
   cashBand: { label: string; minCents: number; maxCents: number | null };
   estimatedMaxLootCents: number;
+  crack: number | null;
+  estimatedMaxCrackLoot: number | null;
 }
 
 export interface CombatReconResultDto {
@@ -35,6 +37,8 @@ export interface BattleReportDto {
   nextRecoveryAt: string | null;
   cashChangeCents: number;
   cashAfterCents: number;
+  crackChange?: number;
+  crackAfter?: number;
   turnsSpent: number;
   turnsAfter: number;
   nationalRankBefore: number;
@@ -82,6 +86,7 @@ export interface CombatPageDto {
     squadCap: number; turnCost: number; newcomerHours: number;
     protectionHours: number; cooldownMinutes: number;
     protectedCashCents: number; lootPercent: number; perThugLootCents: number;
+    drugLootPercent?: number; perThugCrackLoot?: number;
     reconTurnCost?: number; intelExpiresMinutes?: number; retaliationHours?: number;
   };
   targets: CombatTargetDto[];
