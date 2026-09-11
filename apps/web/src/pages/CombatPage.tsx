@@ -270,49 +270,51 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             {page.nextTarget !== null ? <button className="se-btn" disabled={busy || !!pending} onClick={() => { setAfter(page.nextTarget!); setTargetId(''); }}>More targets</button> : null}
           </div>
         </Panel>
+        <Panel title="Battle reports">
+          {!reports.length ? <p className="se-muted">Your attacks and defenses will appear here.</p> : <ul className="se-raid-reports">
+            {reports.map((battle) => {
+              const selectedReport = report?.id === battle.id;
+              return <li key={battle.id}><button
+                className={`se-btn se-raid-report-link${selectedReport ? ' se-raid-report-link--active' : ''}`}
+                type="button"
+                aria-current={selectedReport ? 'true' : undefined}
+                onClick={() => toggleReport(battle)}
+              >
+                <span>{battle.role === 'ATTACKER' ? 'Raid' : 'Defense'} · {battle.won ? 'Won' : 'Lost'} vs {battle.opponent.displayName}</span>
+                <span className="se-raid-report-link__meta">{date(battle.createdAt)}</span>
+              </button></li>;
+            })}
+          </ul>}
+          {nextBefore ? <button type="button" className="se-btn" disabled={busy} onClick={() => void olderReports()}>Older reports</button> : null}
+          {report ? <div ref={reportDetailRef} className={`se-raid-report-detail${closingReportId === report.id ? ' se-raid-report-detail--closing' : ''}`}><BattleReport report={report} onClose={closeReport} /></div> : null}
+        </Panel>
       </div>
-      {page.recovery ? <Panel title="Recovery">
-        <div className="se-rows">
-          <Row label="Fit thugs" value={formatNumber(page.recovery.fitThugs)} strong />
-          <Row label="Wounded thugs" value={formatNumber(page.recovery.woundedThugs)} />
-          <Row label="Next recovery" value={page.recovery.nextRecoveryAt ? date(page.recovery.nextRecoveryAt) : 'None'} />
-          <Row label="Medicine" value={`${formatNumber(me.resources.medicine)} on hand`} />
-        </div>
-        {page.recovery.woundedThugs > 0 ? <button type="button" className="se-btn se-btn--primary" disabled={busy || page.recovery.maxTreatableThugs <= 0} onClick={() => void treatWounded()}>
-          Treat {formatNumber(page.recovery.maxTreatableThugs)} with medicine
-        </button> : <p className="se-hint">Everybody is fit.</p>}
-      </Panel> : null}
-      <Panel title="How raids work">
-        <p>Raids cost {rules!.turnCost} turns, win or lose. Defense is automatic and costs no turns.</p>
-        {rules!.minLootPercent !== undefined && rules!.maxLootPercent !== undefined
-          ? <p>Successful raids roll a loot cut from {rules!.minLootPercent}% to {rules!.maxLootPercent}% of exposed cash above {formatCents(rules!.protectedCashCents)}. The roll is weighted low, so the full {rules!.maxLootPercent}% can happen but is rare. Cash is still limited to {formatCents(rules!.perThugLootCents)} per fit thug who makes it home.</p>
-          : <p>Win up to {rules!.lootPercent}% of cash above {formatCents(rules!.protectedCashCents)}, limited to {formatCents(rules!.perThugLootCents)} per thug you send.</p>}
-        {rules!.drugLootPercent ? <p>Successful raids also use that loot roll against the defender's crack, limited to {formatNumber(rules!.perThugCrackLoot ?? 0)} rocks per fit thug who makes it home.</p> : null}
-        {rules!.repeatLootPenaltyPercent ? <p>Hitting the same target back to back cuts the loot roll by {rules!.repeatLootPenaltyPercent}% each repeat, down to a {rules!.repeatLootFloorPercent ?? 0}% multiplier. Hitting a different target resets that repeat penalty.</p> : null}
-        <p>{rules!.newcomerHours > 0 ? `New players have ${rules!.newcomerHours} hours of protection. ` : 'New players can raid immediately in this strategy round. '}Each raid protects its defender for {rules!.protectionHours} hours from everyone. Offline defenders must return before another raid.</p>
-        <p>Your crew waits {rules!.cooldownMinutes} minutes between attacks. You cannot raid while protected or target a crew below half your full strength.</p>
-        {rules!.reconTurnCost ? <p>Recon costs {rules!.reconTurnCost} turns and holds target intel for {rules!.intelExpiresMinutes} minutes. Revenge windows last {rules!.retaliationHours} hours against players who hit you.</p> : null}
-        <p className="se-hint">Wounded thugs recover on the clock. Medicine brings them back immediately.</p>
-      </Panel>
+      <div className="se-grid">
+        {page.recovery ? <Panel title="Recovery">
+          <div className="se-rows">
+            <Row label="Fit thugs" value={formatNumber(page.recovery.fitThugs)} strong />
+            <Row label="Wounded thugs" value={formatNumber(page.recovery.woundedThugs)} />
+            <Row label="Next recovery" value={page.recovery.nextRecoveryAt ? date(page.recovery.nextRecoveryAt) : 'None'} />
+            <Row label="Medicine" value={`${formatNumber(me.resources.medicine)} on hand`} />
+          </div>
+          {page.recovery.woundedThugs > 0 ? <button type="button" className="se-btn se-btn--primary" disabled={busy || page.recovery.maxTreatableThugs <= 0} onClick={() => void treatWounded()}>
+            Treat {formatNumber(page.recovery.maxTreatableThugs)} with medicine
+          </button> : <p className="se-hint">Everybody is fit.</p>}
+        </Panel> : null}
+        <Panel title="How raids work">
+          <p>Raids cost {rules!.turnCost} turns, win or lose. Defense is automatic and costs no turns.</p>
+          {rules!.minLootPercent !== undefined && rules!.maxLootPercent !== undefined
+            ? <p>Successful raids roll a loot cut from {rules!.minLootPercent}% to {rules!.maxLootPercent}% of exposed cash above {formatCents(rules!.protectedCashCents)}. The roll is weighted low, so the full {rules!.maxLootPercent}% can happen but is rare. Cash is still limited to {formatCents(rules!.perThugLootCents)} per fit thug who makes it home.</p>
+            : <p>Win up to {rules!.lootPercent}% of cash above {formatCents(rules!.protectedCashCents)}, limited to {formatCents(rules!.perThugLootCents)} per thug you send.</p>}
+          {rules!.drugLootPercent ? <p>Successful raids also use that loot roll against the defender's crack, limited to {formatNumber(rules!.perThugCrackLoot ?? 0)} rocks per fit thug who makes it home.</p> : null}
+          {rules!.repeatLootPenaltyPercent ? <p>Hitting the same target back to back cuts the loot roll by {rules!.repeatLootPenaltyPercent}% each repeat, down to a {rules!.repeatLootFloorPercent ?? 0}% multiplier. Hitting a different target resets that repeat penalty.</p> : null}
+          <p>{rules!.newcomerHours > 0 ? `New players have ${rules!.newcomerHours} hours of protection. ` : 'New players can raid immediately in this strategy round. '}Each raid protects its defender for {rules!.protectionHours} hours from everyone. Offline defenders must return before another raid.</p>
+          <p>Your crew waits {rules!.cooldownMinutes} minutes between attacks. You cannot raid while protected or target a crew below half your full strength.</p>
+          {rules!.reconTurnCost ? <p>Recon costs {rules!.reconTurnCost} turns and holds target intel for {rules!.intelExpiresMinutes} minutes. Revenge windows last {rules!.retaliationHours} hours against players who hit you.</p> : null}
+          <p className="se-hint">Wounded thugs recover on the clock. Medicine brings them back immediately.</p>
+        </Panel>
+      </div>
     </div>}
-    <div className="se-mt"><Panel title="Battle reports">
-      {!reports.length ? <p className="se-muted">Your attacks and defenses will appear here.</p> : <ul className="se-raid-reports">
-        {reports.map((battle) => {
-          const selectedReport = report?.id === battle.id;
-          return <li key={battle.id}><button
-            className={`se-btn se-raid-report-link${selectedReport ? ' se-raid-report-link--active' : ''}`}
-            type="button"
-            aria-current={selectedReport ? 'true' : undefined}
-            onClick={() => toggleReport(battle)}
-          >
-            <span>{battle.role === 'ATTACKER' ? 'Raid' : 'Defense'} · {battle.won ? 'Won' : 'Lost'} vs {battle.opponent.displayName}</span>
-            <span className="se-raid-report-link__meta">{date(battle.createdAt)}</span>
-          </button></li>;
-        })}
-      </ul>}
-      {nextBefore ? <button type="button" className="se-btn" disabled={busy} onClick={() => void olderReports()}>Older reports</button> : null}
-      {report ? <div ref={reportDetailRef} className={`se-raid-report-detail${closingReportId === report.id ? ' se-raid-report-detail--closing' : ''}`}><BattleReport report={report} onClose={closeReport} /></div> : null}
-    </Panel></div>
   </GameLayout>;
 }
 
