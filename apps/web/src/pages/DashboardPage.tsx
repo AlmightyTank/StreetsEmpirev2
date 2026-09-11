@@ -134,49 +134,53 @@ export function DashboardPage() {
 
       <div className="se-grid se-grid--sidebar">
         <div className="se-grid se-grid--2">
-          <Panel title="Crew" flush>
-            <div className="se-rows">
-              <Row label="Whores" value={formatNumber(me.resources.whores)} strong tooltip="The crew earning on the street. They need condoms, crack, payout and protection." />
-              <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong tooltip="Only fit thugs can work, defend or raid. In 0.2.0-E, only armed fit thugs protect the street effectively." />
-              {me.resources.woundedThugs > 0 ? <Row label="Fit / wounded" value={`${formatNumber(me.resources.fitThugs)} / ${formatNumber(me.resources.woundedThugs)}`} tooltip="Wounded thugs remain yours, but they do not count for actions until they recover or get treated." /> : null}
-              <Row label="Armed / unarmed" value={`${formatNumber(me.resources.armedThugs)} / ${formatNumber(me.resources.unarmedThugs)}`} tooltip="Every fit thug wants a weapon. Unarmed thugs lower thug happiness and do not count as street cover in 0.2.0-E." />
-              <Row label="Low-Riders" value={formatNumber(me.resources.lowRiders)} />
-              <Row label="Payout" value={`${me.payoutPercent}%`} tooltip="The crew cut from street work. Lower cuts can drag whore happiness down." />
-            </div>
-          </Panel>
+          <div className="se-grid">
+            <Panel title="Crew" flush>
+              <div className="se-rows">
+                <Row label="Whores" value={formatNumber(me.resources.whores)} strong tooltip="The crew earning on the street. They need condoms, crack, payout and protection." />
+                <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong tooltip="Only fit thugs can work, defend or raid. In 0.2.0-E, only armed fit thugs protect the street effectively." />
+                {me.resources.woundedThugs > 0 ? <Row label="Fit / wounded" value={`${formatNumber(me.resources.fitThugs)} / ${formatNumber(me.resources.woundedThugs)}`} tooltip="Wounded thugs remain yours, but they do not count for actions until they recover or get treated." /> : null}
+                <Row label="Armed / unarmed" value={`${formatNumber(me.resources.armedThugs)} / ${formatNumber(me.resources.unarmedThugs)}`} tooltip="Every fit thug wants a weapon. Unarmed thugs lower thug happiness and do not count as street cover in 0.2.0-E." />
+                <Row label="Low-Riders" value={formatNumber(me.resources.lowRiders)} />
+                <Row label="Payout" value={`${me.payoutPercent}%`} tooltip="The crew cut from street work. Lower cuts can drag whore happiness down." />
+              </div>
+            </Panel>
 
-          <Panel title="Supplies" flush>
-            <div className="se-rows">
-              <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
-              <Row label="Crack" value={formatNumber(me.resources.crack)} />
-              <Row label="Beer" value={formatNumber(me.resources.beer)} />
-              <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
-            </div>
-          </Panel>
+            <Panel title="Happiness">
+              <HappinessRow label="Whore happiness" value={me.happiness.whore} />
+              <p className="se-hint">Hover the penalty rows to see what each drag means.</p>
+              <HappinessDrags terms={me.happiness.whoreTerms} />
 
-          <Panel title="Happiness">
-            <HappinessRow label="Whore happiness" value={me.happiness.whore} />
-            <p className="se-hint">Hover the penalty rows to see what each drag means.</p>
-            <HappinessDrags terms={me.happiness.whoreTerms} />
+              <hr className="se-hr" />
 
-            <hr className="se-hr" />
+              <HappinessRow label="Thug happiness" value={me.happiness.thug} />
+              <HappinessDrags terms={me.happiness.thugTerms} />
+              {me.happiness.whore === 100 && me.happiness.thug === 100 ? (
+                <p className="se-hint">Everybody is stocked, armed and rested.</p>
+              ) : null}
+            </Panel>
+          </div>
 
-            <HappinessRow label="Thug happiness" value={me.happiness.thug} />
-            <HappinessDrags terms={me.happiness.thugTerms} />
-            {me.happiness.whore === 100 && me.happiness.thug === 100 ? (
-              <p className="se-hint">Everybody is stocked, armed and rested.</p>
-            ) : null}
-          </Panel>
+          <div className="se-grid">
+            <Panel title="Supplies" flush>
+              <div className="se-rows">
+                <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
+                <Row label="Crack" value={formatNumber(me.resources.crack)} />
+                <Row label="Beer" value={formatNumber(me.resources.beer)} />
+                <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
+              </div>
+            </Panel>
 
-          <Panel title="Weapons" flush>
-            <div className="se-rows">
-              <Row label="Pistols" value={formatNumber(me.resources.pistols)} tooltip="Any weapon arms one thug for happiness and street coverage; stronger guns also improve combat strength." />
-              <Row label="Shotguns" value={formatNumber(me.resources.shotguns)} />
-              <Row label="Tek-9s" value={formatNumber(me.resources.tek9s)} />
-              <Row label="AK-47s" value={formatNumber(me.resources.ak47s)} />
-              <Row label="Total" value={formatNumber(weapons)} strong tooltip="Total guns available. Keep this at or above fit thugs to avoid unarmed penalties." />
-            </div>
-          </Panel>
+            <Panel title="Weapons" flush>
+              <div className="se-rows">
+                <Row label="Pistols" value={formatNumber(me.resources.pistols)} tooltip="Any weapon arms one thug for happiness and street coverage; stronger guns also improve combat strength." />
+                <Row label="Shotguns" value={formatNumber(me.resources.shotguns)} />
+                <Row label="Tek-9s" value={formatNumber(me.resources.tek9s)} />
+                <Row label="AK-47s" value={formatNumber(me.resources.ak47s)} />
+                <Row label="Total" value={formatNumber(weapons)} strong tooltip="Total guns available. Keep this at or above fit thugs to avoid unarmed penalties." />
+              </div>
+            </Panel>
+          </div>
         </div>
 
         <aside className="se-grid">
