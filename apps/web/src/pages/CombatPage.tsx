@@ -14,6 +14,7 @@ import { loadPendingRaid, savePendingRaid, type PendingRaid } from '../utils/pen
 const date = (value: string) => new Date(value).toLocaleString();
 const weaponName = (key: string) => key === 'TEK9' ? 'Tek-9' : key === 'AK47' ? 'AK-47' : key.toLowerCase();
 const weaponsText = (weapons: Record<string, number>) => Object.entries(weapons).filter(([, count]) => count > 0).map(([key, count]) => `${formatNumber(count)} ${weaponName(key)}`).join(', ') || 'unarmed';
+const reportAnimationMs = 180;
 
 function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: () => void }) {
   return <Panel title={`${report.won ? 'Victory' : 'Defeat'} · ${report.role === 'ATTACKER' ? 'Raid' : 'Defense'}`}>
@@ -46,6 +47,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const [reports, setReports] = useState<BattleReportDto[]>([]);
   const [nextBefore, setNextBefore] = useState<string | null>(null);
   const [report, setReport] = useState<BattleReportDto | null>(null);
+  const [closingReportId, setClosingReportId] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingRaid | null>(() => loadPendingRaid(browserSessionStorage(), playerId));
   const [targetId, setTargetId] = useState('');
   const [squad, setSquad] = useState('1');
@@ -55,6 +57,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const inFlight = useRef(false);
   const refreshSequence = useRef(0);
   const reportDetailRef = useRef<HTMLDivElement | null>(null);
+  const closeReportTimer = useRef<number | null>(null);
 
   const refresh = useCallback(async (background = false) => {
     const sequence = ++refreshSequence.current;
@@ -90,6 +93,33 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     reportDetailRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [report]);
 
+  useEffect(() => () => {
+    if (closeReportTimer.current !== null) window.clearTimeout(closeReportTimer.current);
+  }, []);
+
+  const closeReport = useCallback(() => {
+    if (!report) return;
+    if (closeReportTimer.current !== null) window.clearTimeout(closeReportTimer.current);
+    const reportId = report.id;
+    setClosingReportId(reportId);
+    closeReportTimer.current = window.setTimeout(() => {
+      setReport((current) => current?.id === reportId ? null : current);
+      setClosingReportId((current) => current === reportId ? null : current);
+      closeReportTimer.current = null;
+    }, reportAnimationMs);
+  }, [report]);
+
+  const toggleReport = useCallback((battle: BattleReportDto) => {
+    if (report?.id === battle.id) {
+      closeReport();
+      return;
+    }
+    if (closeReportTimer.current !== null) window.clearTimeout(closeReportTimer.current);
+    closeReportTimer.current = null;
+    setClosingReportId(null);
+    setReport(battle);
+  }, [closeReport, report?.id]);
+
   useEffect(() => {
     if (!page?.targets.length) return;
     if (targetId && page.targets.some((target) => String(target.publicPimpId) === targetId)) return;
@@ -124,6 +154,9 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     setSaved(request);
     try {
       const result = await combatApi.raid(request.input);
+      if (closeReportTimer.current !== null) window.clearTimeout(closeReportTimer.current);
+      closeReportTimer.current = null;
+      setClosingReportId(null);
       setReport(result);
       setSaved(null);
       setTargetId('');
@@ -270,7 +303,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             className={`se-btn se-raid-report-link${selectedReport ? ' se-raid-report-link--active' : ''}`}
             type="button"
             aria-current={selectedReport ? 'true' : undefined}
-            onClick={() => setReport((current) => current?.id === battle.id ? null : battle)}
+            onClick={() => toggleReport(battle)}
           >
             <span>{battle.role === 'ATTACKER' ? 'Raid' : 'Defense'} · {battle.won ? 'Won' : 'Lost'} vs {battle.opponent.displayName}</span>
             <span className="se-raid-report-link__meta">{date(battle.createdAt)}</span>
@@ -278,7 +311,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
         })}
       </ul>}
       {nextBefore ? <button type="button" className="se-btn" disabled={busy} onClick={() => void olderReports()}>Older reports</button> : null}
-      {report ? <div ref={reportDetailRef} className="se-raid-report-detail"><BattleReport report={report} onClose={() => setReport(null)} /></div> : null}
+      {report ? <div ref={reportDetailRef} className={`se-raid-report-detail${closingReportId === report.id ? ' se-raid-report-detail--closing' : ''}`}><BattleReport report={report} onClose={closeReport} /></div> : null}
     </Panel></div>
   </GameLayout>;
 }
