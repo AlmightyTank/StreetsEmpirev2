@@ -125,11 +125,21 @@ export interface StartingPlayer {
   readonly payoutPercent: number;
 }
 
+
+export interface SeededRivalRule {
+  readonly slug: string;
+  readonly displayName: string;
+  readonly publicPimpId: number;
+  readonly note: string;
+  readonly startingPlayer: Partial<StartingPlayer>;
+}
+
 export interface RoundRules {
   readonly defaultDurationDays: number;
   readonly publicPimpIdStart: number;
   readonly startingCitySlug: string;
   readonly startingPlayer: StartingPlayer;
+  readonly seededRivals?: readonly SeededRivalRule[];
 }
 
 // --- turns ------------------------------------------------------------------

@@ -2,7 +2,7 @@
 
 A reconstruction of the OG Pimp War economic loop.
 
-**Live version:** `0.2.0-D` &middot; **Ruleset:** `classic-og-v0.2-d` &middot; **Development:** strategy raids
+**Live version:** `0.2.0-E` &middot; **Ruleset:** `classic-og-v0.2-e` &middot; **Development:** raid onboarding
 
 ---
 
@@ -18,7 +18,7 @@ Earned access lasts for the round. Each trader's standing also speeds up restock
 targets, automatic defense, target protection, durable retry receipts and battle
 reports. **0.2.0-C** adds persistent temporary wounds, natural recovery, and
 medicine treatment in its own pinned ruleset. **0.2.0-D** adds recon intel and
-24-hour revenge windows in a new strategy ruleset. Older rounds stay pinned to their original rulesets, while the default local seed now makes Game #004 the current 0.2.0-D strategy raid round. Read the [D implementation notes](docs/COMBAT-0.2.0-D.md),
+24-hour revenge windows in a new strategy ruleset. **0.2.0-E** adds a self-contained onboarding round with seeded local rivals, so a solo developer can test recon, raids, wounds and reports immediately. Older rounds stay pinned to their original rulesets, while the default local seed now makes Game #005 the current 0.2.0-E raid onboarding round. Read the [D implementation notes](docs/COMBAT-0.2.0-D.md),
 the [C implementation notes](docs/COMBAT-0.2.0-C.md), the [B implementation notes](docs/COMBAT-0.2.0-B.md), the
 [staged combat design](docs/COMBAT-DESIGN-0.2.0.md) and the
 [simulation findings](docs/COMBAT-SIMULATION-0.2.0-A.md), or run `npm run qa:combat`.
@@ -38,6 +38,7 @@ the [C implementation notes](docs/COMBAT-0.2.0-C.md), the [B implementation note
 | **0.2.0-B** | selectable cash-raid ruleset, raid API, target protection, reports and retry recovery | **implemented for new combat rounds** |
 | **0.2.0-C** | persistent wounds, fit crew, natural recovery and medicine treatment | **implemented for new recovery rounds** |
 | **0.2.0-D** | recon intel, persisted scouting reports and 24-hour revenge attacks | **implemented for new strategy rounds** |
+| **0.2.0-E** | seeded local rivals and clearer raid onboarding for solo testing | **started; local seed implemented** |
 
 Playable PvP, alliances, travel and messaging are deliberately absent. The
 database anticipates them (`ProcessedAction`, `City`, weapon `power`) without exposing
@@ -54,11 +55,11 @@ npm install
 cp .env.example .env      # already done if .env exists
 npm run db:up             # postgres 16 on localhost:5433
 npm run db:migrate        # apply migrations
-npm run db:seed           # 8 cities, Game #001 archive seed, current Game #004 strategy raids
+npm run db:seed           # 8 cities, pinned older rounds, current Game #005 raid onboarding
 npm run dev               # api on :3001, web on :5173
 ```
 
-Open <http://localhost:5173>, register a name, and enter Game #004 - Strategy Raids. New players start with cash, thugs and pistols so raids work immediately.
+Open <http://localhost:5173>, register a name, and enter Game #005 - Raid Onboarding. New players start with cash, thugs and pistols, and the seed creates three local rivals to attack immediately.
 
 | Script | Does |
 | --- | --- |
@@ -71,6 +72,7 @@ Open <http://localhost:5173>, register a name, and enter Game #004 - Strategy Ra
 | `npm run db:seed:combat` | create local Game #002 with `classic-og-v0.2` cash raids |
 | `npm run db:seed:combat:recovery` | create local Game #003 with `classic-og-v0.2-c` recovery raids |
 | `npm run db:seed:combat:strategy` | create local Game #004 with `classic-og-v0.2-d` strategy raids |
+| `npm run db:seed:combat:onboarding` | create local Game #005 with `classic-og-v0.2-e` and seeded rivals |
 
 ---
 
@@ -257,7 +259,7 @@ lands &mdash; so it never acts on stale numbers.
 
 The frozen 0.1.0 round still gives exactly section 11: `$5,000`, 200 turns, 1 whore, 1 thug, 250 condoms,
 100 crack, 10 beer, 50% payout, New York City &mdash; which is a net worth of `$6,827`,
-100% whore happiness and 99% thug happiness (one thug, no gun). The current 0.2.0-D strategy raid round starts players at `$20,000` with 10 thugs, 10 pistols, beer and medicine so raids can be tested immediately.
+100% whore happiness and 99% thug happiness (one thug, no gun). The current 0.2.0-E raid onboarding round starts players at `$20,000` with 10 thugs, 10 pistols, beer and medicine, then adds three seeded local rivals so raids can be tested immediately.
 
 **Tests** cover the frozen formulas, the loader and the services built on them:
 turn regeneration and the cap, the remainder that survives a settle, the away bonus and

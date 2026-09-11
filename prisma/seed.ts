@@ -1,9 +1,10 @@
 import 'dotenv/config';
 import { PrismaClient, type Round } from '@prisma/client';
-import { classicOgV01, classicOgV02D, type Ruleset } from '@streets/rulesets';
+import { calculateNetWorthCents, calculateThugHappiness, calculateWhoreHappiness, startingStock } from '@streets/rules-engine';
+import { classicOgV01, classicOgV02D, classicOgV02E, type Ruleset, type StartingPlayer } from '@streets/rulesets';
 
 const prisma = new PrismaClient();
-const CURRENT_RULESET = classicOgV02D;
+const CURRENT_RULESET = classicOgV02E;
 
 /** Section 12. Travel is not player-facing yet, but the map exists from day one. */
 const CITIES = [
@@ -19,7 +20,7 @@ const CITIES = [
 
 async function seedCities() {
   for (const city of CITIES) {
-    // 0.2.0-D still starts in New York City. Other cities stay staged for travel.
+    // 0.2.0-E still starts in New York City. Other cities stay staged for travel.
     const isEnabled = city.slug === CURRENT_RULESET.round.startingCitySlug;
 
     await prisma.city.upsert({
@@ -78,14 +79,23 @@ async function seedClassicRound(now: Date) {
     name: 'Game #001',
     slug: 'game-001',
     ruleset: classicOgV01,
+    startsAt: new Date(now.getTime() - 120_000),
+  });
+}
+
+async function seedStrategyRound(now: Date) {
+  return upsertRound({
+    name: 'Game #004 - Strategy Raids',
+    slug: 'game-004-strategy',
+    ruleset: classicOgV02D,
     startsAt: new Date(now.getTime() - 60_000),
   });
 }
 
-async function seedCurrentStrategyRound(now: Date) {
+async function seedCurrentOnboardingRound(now: Date) {
   return upsertRound({
-    name: 'Game #004 - Strategy Raids',
-    slug: 'game-004-strategy',
+    name: 'Game #005 - Raid Onboarding',
+    slug: 'game-005-raid-onboarding',
     ruleset: CURRENT_RULESET,
     startsAt: now,
     refreshCurrent: true,
@@ -110,18 +120,181 @@ async function seedNews(roundId: string, title: string, body: string) {
   console.log(`  news:     ${title}`);
 }
 
+function materializeStart(ruleset: Ruleset, overrides: Partial<StartingPlayer>): StartingPlayer {
+  return { ...ruleset.round.startingPlayer, ...overrides };
+}
+
+function resourceSeed(start: StartingPlayer) {
+  return {
+    whores: start.whores,
+    thugs: start.thugs,
+    woundedThugs: 0,
+    condoms: start.condoms,
+    medicine: start.medicine,
+    crack: start.crack,
+    beer: start.beer,
+    pistols: start.pistols,
+    shotguns: start.shotguns,
+    tek9s: start.tek9s,
+    ak47s: start.ak47s,
+    lowRiders: start.lowRiders,
+    payoutPercent: start.payoutPercent,
+    cashCents: BigInt(start.cashCents),
+  };
+}
+
+async function refreshRoundRanks(roundId: string) {
+  const players = await prisma.roundPlayer.findMany({
+    where: { roundId },
+    select: { id: true, cityId: true, netWorthCents: true, publicPimpId: true },
+    orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
+  });
+
+  const localSeen = new Map<string, { count: number; rank: number; worth: bigint | null }>();
+  let nationalRank = 0;
+  let nationalWorth: bigint | null = null;
+
+  for (const [index, player] of players.entries()) {
+    if (nationalWorth === null || player.netWorthCents !== nationalWorth) {
+      nationalRank = index + 1;
+      nationalWorth = player.netWorthCents;
+    }
+
+    const local = localSeen.get(player.cityId) ?? { count: 0, rank: 0, worth: null };
+    local.count += 1;
+    if (local.worth === null || player.netWorthCents !== local.worth) {
+      local.rank = local.count;
+      local.worth = player.netWorthCents;
+    }
+    localSeen.set(player.cityId, local);
+
+    await prisma.roundPlayer.update({
+      where: { id: player.id },
+      data: {
+        nationalRank,
+        localRank: local.rank,
+        dailyStartingNationalRank: nationalRank,
+        dailyStartingLocalRank: local.rank,
+        dailyRankSnapshotAt: new Date(),
+      },
+    });
+  }
+}
+
+async function seedRivals(round: Round, ruleset: Ruleset, now: Date) {
+  const rivals = ruleset.round.seededRivals ?? [];
+  if (!rivals.length) return;
+
+  const city = await prisma.city.findUnique({ where: { slug: ruleset.round.startingCitySlug } });
+  if (!city?.isEnabled) throw new Error(`Starting city ${ruleset.round.startingCitySlug} is not enabled.`);
+
+  let maxPublicPimpId = ruleset.round.publicPimpIdStart - 1;
+
+  for (const rival of rivals) {
+    maxPublicPimpId = Math.max(maxPublicPimpId, rival.publicPimpId);
+    const username = `seed-rival-${rival.slug}`;
+    const email = `${username}@streets.local`;
+    const account = await prisma.account.upsert({
+      where: { email },
+      update: {
+        username,
+        usernameNormalized: username,
+        isActive: false,
+      },
+      create: {
+        username,
+        usernameNormalized: username,
+        email,
+        passwordHash: 'seeded-local-rival-account',
+        isActive: false,
+      },
+    });
+
+    const existing = await prisma.roundPlayer.findUnique({
+      where: { roundId_accountId: { roundId: round.id, accountId: account.id } },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await prisma.raidBattle.deleteMany({
+        where: { OR: [{ attackerId: existing.id }, { defenderId: existing.id }] },
+      });
+      await prisma.combatIntel.deleteMany({
+        where: { OR: [{ observerId: existing.id }, { targetId: existing.id }] },
+      });
+      await prisma.combatInjury.deleteMany({ where: { roundPlayerId: existing.id } });
+    }
+
+    const start = materializeStart(ruleset, rival.startingPlayer);
+    const resources = resourceSeed(start);
+    const whoreHappiness = calculateWhoreHappiness(resources, ruleset);
+    const thugHappiness = calculateThugHappiness(resources, ruleset);
+    const netWorthCents = calculateNetWorthCents(resources, ruleset);
+    const stock = startingStock(ruleset, now);
+
+    await prisma.roundPlayer.upsert({
+      where: { roundId_accountId: { roundId: round.id, accountId: account.id } },
+      update: {
+        publicPimpId: rival.publicPimpId,
+        displayName: rival.displayName,
+        cityId: city.id,
+        ...resources,
+        turns: start.turns,
+        lastTurnCalculationAt: now,
+        lastActiveAt: now,
+        lastAwayBonusAt: null,
+        raidProtectedUntil: null,
+        raidCooldownUntil: null,
+        lastRaidedAt: null,
+        whoreHappiness,
+        thugHappiness,
+        netWorthCents,
+        ...stock,
+      },
+      create: {
+        roundId: round.id,
+        accountId: account.id,
+        publicPimpId: rival.publicPimpId,
+        displayName: rival.displayName,
+        cityId: city.id,
+        ...resources,
+        turns: start.turns,
+        lastTurnCalculationAt: now,
+        lastActiveAt: now,
+        whoreHappiness,
+        thugHappiness,
+        netWorthCents,
+        ...stock,
+      },
+    });
+  }
+
+  const highestPlayer = await prisma.roundPlayer.aggregate({
+    where: { roundId: round.id },
+    _max: { publicPimpId: true },
+  });
+  await prisma.round.update({
+    where: { id: round.id },
+    data: { nextPublicPimpId: { set: Math.max(maxPublicPimpId, highestPlayer._max.publicPimpId ?? 0) + 1 } },
+  });
+  await refreshRoundRanks(round.id);
+  console.log(`  rivals:   ${rivals.length} seeded for ${round.name}`);
+}
+
 async function main() {
   console.log('Seeding Street Empire...');
   const now = new Date();
   await seedCities();
   const classicRound = await seedClassicRound(now);
   await seedNews(classicRound.id, 'GAME #001 HAS BEGUN', 'Welcome to the first Classic OG round.');
-  const strategyRound = await seedCurrentStrategyRound(new Date(now.getTime() + 1_000));
+  await seedStrategyRound(now);
+  const onboardingRound = await seedCurrentOnboardingRound(new Date(now.getTime() + 1_000));
   await seedNews(
-    strategyRound.id,
-    '0.2.0-D STRATEGY RAIDS ARE LIVE',
-    'The current development round opens raids immediately with recon intel, persistent wounds, medicine treatment and 24-hour revenge windows.',
+    onboardingRound.id,
+    '0.2.0-E RAID ONBOARDING IS LIVE',
+    'The current development round seeds three local rivals into New York City, so a new player can join, recon, raid and read battle reports immediately.',
   );
+  await seedRivals(onboardingRound, CURRENT_RULESET, new Date(now.getTime() + 1_000));
   console.log('Done.');
 }
 

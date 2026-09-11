@@ -10,6 +10,11 @@ import { formatDate } from '../utils/time.js';
 
 const developmentUpdates = [
   {
+    id: 'dev-0.2.0-e',
+    title: '0.2.0-E: Raid onboarding targets',
+    body: 'The current local development round now seeds three New York rivals so a fresh player can test raids without waiting for another human account. Razor Ray is an even starter fight, Cashbox Carlo carries more cash with lighter muscle, and Iron Maya is a stronger defender for testing losses, wounds and medicine recovery.',
+  },
+  {
     id: 'dev-0.2.0-d',
     title: '0.2.0-D: Strategy raids are being tested',
     body: 'Raids now have recon and revenge in strategy rounds, and fresh D-round players start with enough cash, crew and pistols to try combat immediately. Recon spends turns to reveal fit thugs, wounds, weapons, a cash band and estimated exposed loot. If someone raids you, a revenge window lets you answer that attacker through the normal target protection and weak-crew filters.',

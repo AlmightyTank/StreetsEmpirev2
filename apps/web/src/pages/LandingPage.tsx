@@ -20,7 +20,7 @@ export function LandingPage() {
     <Shell>
       <div className="se-grid se-grid--sidebar">
         <div>
-          <p className="se-eyebrow">Classic OG &middot; Ruleset {round?.rulesetId ?? 'classic-og-v0.2-d'}</p>
+          <p className="se-eyebrow">Classic OG &middot; Ruleset {round?.rulesetId ?? 'classic-og-v0.2-e'}</p>
           <h1 className="se-display se-hero">
             Run the block.
             <br />
@@ -64,7 +64,7 @@ export function LandingPage() {
                 <li>Messaging, console and rolodex</li>
               </ul>
               <p className="se-hint">
-                Raids are live in strategy rounds. Bigger PvP systems come after
+                Raids are live in onboarding rounds with local rivals. Bigger PvP systems come after
                 the core attack loop feels fair and readable.
               </p>
             </Panel>

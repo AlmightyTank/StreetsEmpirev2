@@ -218,7 +218,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               <p className="se-hint">Your best available guns are assigned automatically. Each fighter carries one weapon.</p>
               <button type="submit" className="se-btn se-btn--primary" disabled={disabled}>{selected?.blockedReason ? 'Raid blocked' : 'Raid'}{selected ? ` ${selected.displayName}` : ''} · {rules!.turnCost} turns</button>
             </fieldset>
-          </form> : <p className="se-muted">No other players on this target page. More targets appear as players join your city.</p>}
+          </form> : <p className="se-muted">No targets are available on this page. The 0.2.0-E onboarding seed adds three New York rivals for local testing; run npm run db:seed, then join the current round.</p>}
           <div className="se-raid-pagination">
             {after > 0 ? <button className="se-btn" disabled={busy || !!pending} onClick={() => { setAfter(0); setTargetId(''); }}>First targets</button> : null}
             {page.nextTarget !== null ? <button className="se-btn" disabled={busy || !!pending} onClick={() => { setAfter(page.nextTarget!); setTargetId(''); }}>More targets</button> : null}
