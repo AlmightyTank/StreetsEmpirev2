@@ -136,9 +136,11 @@ export const PlayerStateService = {
     }
     if (ranks.localRank !== rest.localRank) {
       data.localRank = ranks.localRank;
+      data.localRankSinceAt = now;
     }
     if (ranks.nationalRank !== rest.nationalRank) {
       data.nationalRank = ranks.nationalRank;
+      data.nationalRankSinceAt = now;
     }
     if (snapshotStale) {
       data.dailyStartingLocalRank = ranks.localRank;

@@ -52,7 +52,7 @@ async function refreshRoundRanks(roundId) {
     localSeen.set(player.cityId, local);
     await prisma.roundPlayer.update({
       where: { id: player.id },
-      data: { nationalRank, localRank: local.rank, dailyStartingNationalRank: nationalRank, dailyStartingLocalRank: local.rank, dailyRankSnapshotAt: new Date() },
+      data: { nationalRank, localRank: local.rank, dailyStartingNationalRank: nationalRank, dailyStartingLocalRank: local.rank, localRankSinceAt: new Date(), nationalRankSinceAt: new Date(), dailyRankSnapshotAt: new Date() },
     });
   }
 }

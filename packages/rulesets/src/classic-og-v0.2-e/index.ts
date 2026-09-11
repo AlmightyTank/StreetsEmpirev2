@@ -17,7 +17,6 @@ export const classicOgV02E = {
     requiresArmedThugs: true,
   },
   communityPrivacy: {
-    hideOpponentNetWorth: true,
     hideOpponentCrew: true,
     hideOpponentWeapons: true,
   },

@@ -62,7 +62,7 @@ export interface CombatTreatmentDto {
 export interface CombatTargetDto {
   publicPimpId: number;
   displayName: string;
-  netWorthCents: number | null;
+  netWorthCents: number;
   strength: 'Weaker' | 'Comparable' | 'Stronger';
   revengeAvailable?: boolean;
   intel?: CombatIntelReportDto | null;

@@ -339,6 +339,8 @@ export const ActionService = {
 
           localRank: afterRanks.localRank,
           nationalRank: afterRanks.nationalRank,
+          ...(afterRanks.localRank !== player.localRank ? { localRankSinceAt: now } : {}),
+          ...(afterRanks.nationalRank !== player.nationalRank ? { nationalRankSinceAt: now } : {}),
           ...(snapshotStale
             ? {
                 dailyStartingLocalRank: beforeRanks.localRank,

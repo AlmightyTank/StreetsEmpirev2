@@ -9,6 +9,27 @@ import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 
+function heldFor(iso: string): string {
+  const minutes = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000));
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
+function movementText(value: number | null): string {
+  if (value === null || value === 0) return 'even';
+  return value > 0 ? `up ${formatNumber(value)}` : `down ${formatNumber(Math.abs(value))}`;
+}
+
+function legacyText(row: RankingEntryDto): string {
+  if (row.legacy.roundWins > 0) return `${formatNumber(row.legacy.roundWins)} wins`;
+  if (row.legacy.bestNationalRank) return `best #${formatNumber(row.legacy.bestNationalRank)}`;
+  if (row.legacy.roundsPlayed > 0) return `${formatNumber(row.legacy.roundsPlayed)} played`;
+  return 'new blood';
+}
+
 function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: boolean }) {
   if (rows.length === 0) {
     return <div className="se-panel__body"><p className="se-muted">Nobody is ranked yet.</p></div>;
@@ -23,6 +44,10 @@ function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: b
             <th>Pimp</th>
             {showCity ? <th>City</th> : null}
             <th className="se-table__number">Net Worth</th>
+            <th>Held</th>
+            <th>Move</th>
+            <th>Legacy</th>
+            <th>Awards</th>
           </tr>
         </thead>
         <tbody>
@@ -36,9 +61,11 @@ function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: b
                 {row.isYou ? <span className="se-you">YOU</span> : null}
               </td>
               {showCity ? <td>{row.city.name}</td> : null}
-              <td className="se-table__number se-num" title={row.intelRequired ? 'Exact opponent net worth now requires recon.' : undefined}>
-                {row.netWorthCents === null ? 'Hidden' : formatCents(row.netWorthCents)}
-              </td>
+              <td className="se-table__number se-num">{formatCents(row.netWorthCents)}</td>
+              <td className="se-num" title={`Held since ${new Date(row.rankHeldSinceAt).toLocaleString()}`}>{heldFor(row.rankHeldSinceAt)}</td>
+              <td className="se-num">{movementText(row.rankMovement)}</td>
+              <td>{legacyText(row)}</td>
+              <td>{row.awards.length ? row.awards.map((award) => award.title).join(', ') : '—'}</td>
             </tr>
           ))}
         </tbody>
@@ -79,8 +106,8 @@ export function RankingsPage() {
 
       {error ? <Alert>{error}</Alert> : null}
 
-      {data?.national.some((row) => row.intelRequired) || data?.local.some((row) => row.intelRequired) ? (
-        <Alert tone="info">Ranks still show who is ahead, but exact opponent net worth is hidden in this combat round. Use recon on the Raids page for cash bands, fit thugs and weapons.</Alert>
+      {data ? (
+        <Alert tone="info">Rankings are public bragging rights: money, current rank, rank streak, movement, past placements and awards. Recon is still where you learn private raid intel like fit thugs, weapons and exposed cash.</Alert>
       ) : null}
 
       <div className="se-grid">

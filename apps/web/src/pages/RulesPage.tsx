@@ -170,8 +170,8 @@ export function RulesPage() {
               raided you.
             </li>
             <li>
-              Some combat rounds hide exact opponent net worth, crew and weapons on
-              public pages. Recon reveals the numbers you need before committing a raid.
+              Rankings and profiles are public bragging rights: money, current rank,
+              rank streaks, past placements and awards. Recon reveals private raid intel.
             </li>
           </ul>
         </Panel>
@@ -179,7 +179,7 @@ export function RulesPage() {
         <Panel title="Money and rank">
           <ul className="se-list">
             <li>Net worth decides local and national rank, and it is not just cash.</li>
-            <li>When a combat round hides opponent details, rankings still show position but not exact rival net worth.</li>
+            <li>Public net worth is visible because rank is meant to be argued over. It still does not tell you liquid cash or defense.</li>
             <li>
               A dollar in your pocket counts for less than a dollar of empire, so sitting
               on money is not free.

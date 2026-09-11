@@ -1,11 +1,28 @@
 import type { ActivityDto, CityDto, RoundDto } from './api.js';
 
+export interface PublicAwardDto {
+  key: string;
+  title: string;
+  description: string;
+}
+
+export interface PublicLegacyDto {
+  roundsPlayed: number;
+  roundWins: number;
+  bestNationalRank: number | null;
+  totalFinalNetWorthCents: number;
+}
+
 export interface RankingEntryDto {
   rank: number;
   publicPimpId: number;
   displayName: string;
   city: CityDto;
-  netWorthCents: number | null;
+  netWorthCents: number;
+  rankHeldSinceAt: string;
+  rankMovement: number | null;
+  legacy: PublicLegacyDto;
+  awards: PublicAwardDto[];
   isYou: boolean;
   intelRequired: boolean;
 }
@@ -25,11 +42,17 @@ export interface PublicPlayerProfileDto {
   publicPimpId: number;
   displayName: string;
   city: CityDto;
-  netWorthCents: number | null;
+  netWorthCents: number;
   rank: {
     local: number;
     national: number;
+    localHeldSinceAt: string;
+    nationalHeldSinceAt: string;
+    localMovement: number | null;
+    nationalMovement: number | null;
   };
+  legacy: PublicLegacyDto;
+  awards: PublicAwardDto[];
   crew: {
     whores: number;
     thugs: number;

@@ -123,6 +123,8 @@ export const RoundPlayerService = {
 
           localRank: ranks.localRank,
           nationalRank: ranks.nationalRank,
+          localRankSinceAt: now,
+          nationalRankSinceAt: now,
           dailyStartingLocalRank: ranks.localRank,
           dailyStartingNationalRank: ranks.nationalRank,
         },

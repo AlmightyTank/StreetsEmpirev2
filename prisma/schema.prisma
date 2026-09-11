@@ -243,6 +243,8 @@ model RoundPlayer {
 
   localRank    Int?
   nationalRank Int?
+  localRankSinceAt    DateTime @default(now())
+  nationalRankSinceAt DateTime @default(now())
 
   dailyStartingLocalRank    Int?
   dailyStartingNationalRank Int?

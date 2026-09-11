@@ -15,12 +15,23 @@ const city = {
   updatedAt: new Date('2026-09-07T00:00:00Z'),
 } satisfies City;
 
-function row(publicPimpId: number, worth: number) {
+function row(publicPimpId: number, worth: number, rank = publicPimpId - 1000) {
   return {
+    id: `player-${publicPimpId}`,
+    accountId: `account-${publicPimpId}`,
     publicPimpId,
     displayName: `Pimp ${publicPimpId}`,
     netWorthCents: BigInt(worth),
     city,
+    localRank: rank,
+    nationalRank: rank,
+    localRankSinceAt: new Date('2026-09-07T00:00:00Z'),
+    nationalRankSinceAt: new Date('2026-09-07T00:00:00Z'),
+    dailyStartingLocalRank: rank + 1,
+    dailyStartingNationalRank: rank + 1,
+    shotgunUnlocked: false,
+    tek9Unlocked: false,
+    ak47Unlocked: false,
   };
 }
 
@@ -35,9 +46,10 @@ describe('rankRows', () => {
     expect(ranked.map((entry) => entry.isYou)).toEqual([false, true]);
   });
 
-  it('can hide opponent net worth while keeping self exact', () => {
-    const ranked = rankRows([row(1001, 500), row(1002, 400)], 1002, true);
-    expect(ranked.map((entry) => entry.netWorthCents)).toEqual([null, 400]);
-    expect(ranked.map((entry) => entry.intelRequired)).toEqual([true, false]);
+  it('keeps public net worth visible and reports rank movement', () => {
+    const ranked = rankRows([row(1001, 500, 1), row(1002, 400, 2)], 1002);
+    expect(ranked.map((entry) => entry.netWorthCents)).toEqual([500, 400]);
+    expect(ranked.map((entry) => entry.rankMovement)).toEqual([1, 1]);
+    expect(ranked.map((entry) => entry.intelRequired)).toEqual([false, false]);
   });
 });

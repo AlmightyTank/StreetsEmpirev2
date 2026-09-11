@@ -199,7 +199,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                   {target.displayName} (#{target.publicPimpId}) · {target.strength}{target.revengeAvailable ? ' · revenge' : ''}{target.blockedReason ? ` · ${target.blockedReason}` : ''}
                 </option>)}
               </select>
-              {selected ? <p className="se-hint" title="Strength compares their armed, fit defense against your armed, fit attack crew with the round variance applied. Exact opponent net worth requires recon in this round.">Net worth {selected.netWorthCents === null ? 'Hidden' : formatCents(selected.netWorthCents)} · {selected.strength} crew. {selected.revengeAvailable ? 'Revenge window open.' : selected.blockedReason ?? 'The defender gets a home advantage.'}</p> : null}
+              {selected ? <p className="se-hint" title="Net worth is public rank status. Recon reveals private raid intel: fit thugs, wounds, weapons, cash band and max exposed cash.">Net worth {formatCents(selected.netWorthCents)} · {selected.strength} crew. {selected.revengeAvailable ? 'Revenge window open.' : selected.blockedReason ?? 'The defender gets a home advantage.'}</p> : null}
               {selected && rules?.reconTurnCost ? <div className="se-intel">
                 <button type="button" className="se-btn" disabled={busy || !!pending || me.turns.turns < rules.reconTurnCost} onClick={() => void reconTarget()}>
                   Recon {selected.displayName} · {rules.reconTurnCost} turns

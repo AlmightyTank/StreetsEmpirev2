@@ -163,7 +163,6 @@ export const CombatService = {
       }) : Promise.resolve([]),
     ]);
     const intelByTarget = new Map(intelRows.map((row) => [row.targetId, row.report as unknown as CombatIntelReportDto]));
-    const hideOpponentNetWorth = ruleset.communityPrivacy?.hideOpponentNetWorth ?? false;
     const ownStrength = strength(player, model);
     return {
       ...base, enabled: true, blockedReason,
@@ -177,7 +176,7 @@ export const CombatService = {
       },
       targets: targets.slice(0, 25).map((target) => ({
         publicPimpId: target.publicPimpId, displayName: target.displayName,
-        netWorthCents: hideOpponentNetWorth ? null : Number(NetWorthService.calculate(target, ruleset)),
+        netWorthCents: Number(NetWorthService.calculate(target, ruleset)),
         strength: strength(target, model) < ownStrength * (1 - model.strength.variance) ? 'Weaker' : strength(target, model) > ownStrength * (1 + model.strength.variance) ? 'Stronger' : 'Comparable',
         blockedReason: combatTargetBlock(player, target, model, now, revengeIds.has(target.id)),
         protectedUntil: combatProtectionUntil(target, model) > now ? iso(combatProtectionUntil(target, model)) : null,
@@ -241,6 +240,8 @@ export const CombatService = {
       const afterD = await RankingService.ranksFor(tx, { ...defender, netWorthCents: NetWorthService.calculate(nextD, ruleset) });
       for (const [id, priorPlayer, before, after] of [[attackerId, original, beforeA, afterA], [target.id, originalDefender, beforeD, afterD]] as const) {
         await tx.roundPlayer.update({ where: { id }, data: { ...after,
+          ...(after.localRank !== priorPlayer.localRank ? { localRankSinceAt: now } : {}),
+          ...(after.nationalRank !== priorPlayer.nationalRank ? { nationalRankSinceAt: now } : {}),
           ...(RankingService.isDailySnapshotStale(priorPlayer, now, ruleset) ? { dailyStartingLocalRank: before.localRank, dailyStartingNationalRank: before.nationalRank, dailyRankSnapshotAt: now } : {}),
         } });
       }

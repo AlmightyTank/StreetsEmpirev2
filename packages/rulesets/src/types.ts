@@ -407,8 +407,6 @@ export interface RankingRules {
 }
 
 export interface CommunityPrivacyRules {
-  /** Hide exact opponent net worth on public boards and raid target lists. */
-  readonly hideOpponentNetWorth: boolean;
   /** Hide exact opponent crew counts on public profiles. */
   readonly hideOpponentCrew: boolean;
   /** Hide exact opponent weapon counts on public profiles. */

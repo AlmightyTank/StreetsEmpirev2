@@ -175,6 +175,8 @@ async function refreshRoundRanks(roundId: string) {
         localRank: local.rank,
         dailyStartingNationalRank: nationalRank,
         dailyStartingLocalRank: local.rank,
+        localRankSinceAt: new Date(),
+        nationalRankSinceAt: new Date(),
         dailyRankSnapshotAt: new Date(),
       },
     });
