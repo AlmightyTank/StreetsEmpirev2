@@ -181,6 +181,7 @@ model RoundPlayer {
 
   whores Int @default(0)
   thugs  Int @default(0)
+  woundedThugs Int @default(0)
 
   condoms  Int @default(0)
   medicine Int @default(0)
@@ -254,6 +255,14 @@ model RoundPlayer {
   activity         PlayerActivity[]
   processedActions ProcessedAction[]
   reputation       PlayerReputation[]
+  raidsSent        RaidBattle[] @relation("RaidAttacker")
+  raidsReceived    RaidBattle[] @relation("RaidDefender")
+  combatInjuries   CombatInjury[]
+  observedIntel CombatIntel[] @relation("IntelObserver")
+  targetedIntel CombatIntel[] @relation("IntelTarget")
+  raidProtectedUntil DateTime?
+  raidCooldownUntil DateTime?
+  lastRaidedAt DateTime?
 
   @@unique([roundId, accountId])
   @@unique([roundId, publicPimpId])
@@ -287,6 +296,10 @@ model GameNews {
 }
 
 enum ActivityType {
+  RAID_ATTACK
+  RAID_DEFENSE
+  COMBAT_TREATMENT
+  COMBAT_RECON
   ROUND_JOINED
   SCOUT
   WORK_STREETS
@@ -296,6 +309,59 @@ enum ActivityType {
   WEAPON_UNLOCK
   PAYOUT_CHANGE
   AWAY_BONUS
+}
+
+/// Durable receipt and replay guard for the lifetime of both round players.
+model RaidBattle {
+  id String @id @default(cuid())
+  attackerId String
+  defenderId String
+  attacker RoundPlayer @relation("RaidAttacker", fields: [attackerId], references: [id], onDelete: Cascade)
+  defender RoundPlayer @relation("RaidDefender", fields: [defenderId], references: [id], onDelete: Cascade)
+  actionId String
+  attackingThugs Int
+  modelVersion String
+  /// Full internal calculation, including rolls; never returned wholesale.
+  calculation Json
+  attackerReport Json
+  defenderReport Json
+  injuries CombatInjury[]
+  createdAt DateTime @default(now())
+  @@unique([attackerId, actionId])
+  @@index([attackerId, createdAt(sort: Desc), id])
+  @@index([defenderId, createdAt(sort: Desc), id])
+}
+
+model CombatInjury {
+  id String @id @default(cuid())
+  roundPlayerId String
+  battleId String?
+  thugs Int
+  recoverAt DateTime
+  createdAt DateTime @default(now())
+  treatedAt DateTime?
+
+  roundPlayer RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  battle RaidBattle? @relation(fields: [battleId], references: [id], onDelete: Cascade)
+
+  @@index([roundPlayerId, recoverAt])
+  @@index([battleId])
+}
+
+model CombatIntel {
+  id String @id @default(cuid())
+  observerId String
+  targetId String
+  observer RoundPlayer @relation("IntelObserver", fields: [observerId], references: [id], onDelete: Cascade)
+  target RoundPlayer @relation("IntelTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  report Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([observerId, targetId])
+  @@index([observerId, expiresAt])
+  @@index([targetId])
 }
 
 model PlayerActivity {

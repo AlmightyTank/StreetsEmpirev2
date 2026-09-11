@@ -23,7 +23,7 @@ export function ScoutPage() {
 
   // Refetched whenever the crew changes, because the rates on offer depend on
   // how many people you already run.
-  const crewSize = me ? me.resources.whores + me.resources.thugs : 0;
+  const crewSize = me ? me.resources.whores + me.resources.fitThugs : 0;
 
   useEffect(() => {
     actionsApi
@@ -108,6 +108,7 @@ export function ScoutPage() {
               />
               <Row label="Whores" value={formatNumber(me.resources.whores)} strong />
               <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong />
+              {me.resources.woundedThugs > 0 ? <Row label="Fit / wounded" value={`${formatNumber(me.resources.fitThugs)} / ${formatNumber(me.resources.woundedThugs)}`} /> : null}
               <Row label="They keep" value={`${me.payoutPercent}%`} />
               <Row label="You keep" value={`${100 - me.payoutPercent}%`} />
               <Row label="Whore happiness" value={`${me.happiness.whore}%`} />

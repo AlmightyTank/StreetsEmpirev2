@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { classicOgV01, rulesets } from '@streets/rulesets';
 import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { useSession } from '../stores/session.js';
@@ -13,11 +14,13 @@ export function LandingPage() {
       ? { to: '/game', label: 'Back to the block' }
       : { to: '/join', label: `Enter ${round?.name ?? 'the game'}` };
 
+  const ruleset = round ? (rulesets[round.rulesetId] ?? classicOgV01) : null;
+
   return (
     <Shell>
       <div className="se-grid se-grid--sidebar">
         <div>
-          <p className="se-eyebrow">Classic OG &middot; Ruleset classic-og-v0.1</p>
+          <p className="se-eyebrow">Classic OG &middot; Ruleset {round?.rulesetId ?? 'classic-og-v0.2-d'}</p>
           <h1 className="se-display se-hero">
             Run the block.
             <br />
@@ -25,9 +28,9 @@ export function LandingPage() {
           </h1>
 
           <p className="se-lede">
-            Every ten minutes you get two more turns. Spend them scouting, cooking
-            or stacking cash &mdash; then watch where that lands you on the board.
-            Turns are the only currency that never comes back.
+            Every ten minutes you get two more turns. Spend them scouting, cooking,
+            stacking cash or raiding rivals &mdash; then watch where that lands you
+            on the board. Turns are the only currency that never comes back.
           </p>
 
           <div className="se-cta">
@@ -53,16 +56,16 @@ export function LandingPage() {
               </ul>
             </Panel>
 
-            <Panel title="Not in 0.1.0">
+            <Panel title="Still being built">
               <ul className="se-list se-list--muted">
-                <li>Pimp vs Pimp attacks and drive-bys</li>
+                <li>Drive-bys and deeper combat tactics</li>
                 <li>Alliances and alliance rankings</li>
                 <li>Travel between cities</li>
                 <li>Messaging, console and rolodex</li>
               </ul>
               <p className="se-hint">
-                The economy comes first. If the loop is not fun and stable, PvP
-                does not ship.
+                Raids are live in strategy rounds. Bigger PvP systems come after
+                the core attack loop feels fair and readable.
               </p>
             </Panel>
           </div>
@@ -81,8 +84,8 @@ export function LandingPage() {
                 <Row label="Started" value={formatDate(round.startsAt)} />
                 <Row label="Ends" value={formatDate(round.endsAt)} />
                 <Row label="Players" value={round.playerCount} />
-                <Row label="Turns" value="+2 every 10 min" />
-                <Row label="Maximum turns" value="200" />
+                <Row label="Turns" value={ruleset ? `+${ruleset.turns.amountPerInterval} every ${ruleset.turns.intervalMinutes} min` : '—'} />
+                <Row label="Maximum turns" value={ruleset ? String(ruleset.turns.cap) : '—'} />
                 <Row
                   label="Ruleset"
                   value={`${round.rulesetId}@${round.rulesetVersion}`}

@@ -405,7 +405,27 @@ export interface EvidenceRules {
 
 // --- the ruleset ------------------------------------------------------------
 
+export interface CombatStrategyRules {
+  readonly intel: {
+    readonly turnCost: number;
+    readonly expiresMinutes: number;
+  };
+  readonly retaliation: {
+    readonly revengeHours: number;
+    readonly bypassProtection: boolean;
+    readonly bypassMinimumStrength: boolean;
+  };
+}
+
 export interface Ruleset {
+  /** Absent on economic-only rounds. */
+  readonly combat?: import('./combat-prototype.js').CombatModel & {
+    readonly newcomerHours: number;
+    readonly protectionHours: number;
+    readonly cooldownMinutes: number;
+    readonly minimumTargetStrengthRatio: number;
+    readonly strategy?: CombatStrategyRules;
+  };
   readonly meta: RulesetMeta;
   readonly round: RoundRules;
   readonly turns: TurnRules;

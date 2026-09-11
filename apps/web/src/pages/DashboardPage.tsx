@@ -133,6 +133,7 @@ export function DashboardPage() {
             <div className="se-rows">
               <Row label="Whores" value={formatNumber(me.resources.whores)} strong />
               <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong />
+              {me.resources.woundedThugs > 0 ? <Row label="Fit / wounded" value={`${formatNumber(me.resources.fitThugs)} / ${formatNumber(me.resources.woundedThugs)}`} /> : null}
               <Row label="Low-Riders" value={formatNumber(me.resources.lowRiders)} />
               <Row label="Payout" value={`${me.payoutPercent}%`} />
             </div>

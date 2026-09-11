@@ -989,3 +989,9 @@ a.se-nav__link:hover {
   background: var(--se-accent);
   transition: width 240ms ease;
 }
+:root .se-raid-form { border: 0; padding: 0; min-width: 0; display: grid; gap: 0.65rem; }
+.se-raid-form .se-input { width: 100%; min-width: 0; }
+.se-intel { border: 1px solid var(--se-line-soft); border-radius: var(--se-radius-sm); padding: 0.75rem; background: rgba(255, 255, 255, 0.03); }
+.se-raid-pagination { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+.se-raid-reports { padding: 0; list-style: none; display: grid; gap: 0.5rem; }
+.se-raid-reports .se-btn { width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; }

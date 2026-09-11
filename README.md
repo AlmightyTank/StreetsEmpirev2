@@ -2,30 +2,26 @@
 
 A reconstruction of the OG Pimp War economic loop.
 
-**Version:** `0.1.0` &middot; **Ruleset:** `classic-og-v0.1` &middot; **Milestone:** `0.1.0-H` complete
+**Live version:** `0.2.0-D` &middot; **Ruleset:** `classic-og-v0.2-d` &middot; **Development:** strategy raids
 
 ---
 
 ## Where this is
 
-`0.1.0-D` &mdash; Stores. Players can buy supplies, hire thugs, buy and sell weapons
-and Low-Riders, and trade crack. All four stores use the round's prices, show the
-full order total, and return a before/after receipt. Shopping costs no turns.
+The economic foundation and [trader reputation](docs/REPUTATION-DESIGN.md) are built.
+Players earn standing through daily trading and four one-time favors. Total
+reputation opens shotguns at 50, Tek-9s at 150 and AK-47s at 248, in that order.
+Earned access lasts for the round. Each trader's standing also speeds up restocking.
 
-Tommy's high-end guns require reputation and a one-time favor:
-
-| Weapon | Requirements | Favor |
-| --- | --- | --- |
-| Pistol / Shotgun | None | Available immediately |
-| Tek-9 | 50 street-work turns and 10 thugs | Deliver 100 crack |
-| AK-47 | Tek-9 access, 150 street-work turns and 25 thugs | Fund a $25,000 shipment |
-
-Earlier recorded street work is credited by the migration. Each completed work turn
-adds reputation once, regardless of district. Favors grant purchasing access for the
-rest of that round, even after losing crew or spending cash. Weapons still cost their
-normal price. New rounds start locked; existing weapon inventory is retained and can
-be sold without access. Thresholds and favor costs live in
-`packages/rulesets/src/classic-og-v0.1/weapon-unlocks.ts` as balance approximations.
+**0.2.0-A** added an isolated combat model and repeatable balance simulator.
+**0.2.0-B** adds a selectable cash-raid ruleset for new rounds, with eligible
+targets, automatic defense, target protection, durable retry receipts and battle
+reports. **0.2.0-C** adds persistent temporary wounds, natural recovery, and
+medicine treatment in its own pinned ruleset. **0.2.0-D** adds recon intel and
+24-hour revenge windows in a new strategy ruleset. Older rounds stay pinned to their original rulesets, while the default local seed now makes Game #004 the current 0.2.0-D strategy raid round. Read the [D implementation notes](docs/COMBAT-0.2.0-D.md),
+the [C implementation notes](docs/COMBAT-0.2.0-C.md), the [B implementation notes](docs/COMBAT-0.2.0-B.md), the
+[staged combat design](docs/COMBAT-DESIGN-0.2.0.md) and the
+[simulation findings](docs/COMBAT-SIMULATION-0.2.0-A.md), or run `npm run qa:combat`.
 
 | Milestone | Scope | State |
 | --- | --- | --- |
@@ -37,8 +33,13 @@ be sold without access. Thresholds and favor costs live in
 | **0.1.0-F** | transaction tests, rate limits, mobile and reconnect testing (idempotency landed early, in C) | **done** |
 | **0.1.0-G** | quality-of-life, action receipts, quick resources, refresh-on-return, UI consistency | **done** |
 | **0.1.0-H** | release-candidate regression, load/exploit checks, balance and production QA | **done** |
+| **Reputation** | four trader quests, daily standing, restock perks, reputation weapon unlocks | **done** |
+| **0.2.0-A** | combat model, balance simulator, tests and staged design | **prototype complete; balance provisional** |
+| **0.2.0-B** | selectable cash-raid ruleset, raid API, target protection, reports and retry recovery | **implemented for new combat rounds** |
+| **0.2.0-C** | persistent wounds, fit crew, natural recovery and medicine treatment | **implemented for new recovery rounds** |
+| **0.2.0-D** | recon intel, persisted scouting reports and 24-hour revenge attacks | **implemented for new strategy rounds** |
 
-PvP, alliances, travel, messaging and the rest of 0.2.0 are deliberately absent. The
+Playable PvP, alliances, travel and messaging are deliberately absent. The
 database anticipates them (`ProcessedAction`, `City`, weapon `power`) without exposing
 anything half-built to players.
 
@@ -53,11 +54,11 @@ npm install
 cp .env.example .env      # already done if .env exists
 npm run db:up             # postgres 16 on localhost:5433
 npm run db:migrate        # apply migrations
-npm run db:seed           # 8 cities, Game #001, first news post
+npm run db:seed           # 8 cities, Game #001 archive seed, current Game #004 strategy raids
 npm run dev               # api on :3001, web on :5173
 ```
 
-Open <http://localhost:5173>, register a name, and enter Game #001.
+Open <http://localhost:5173>, register a name, and enter Game #004 - Strategy Raids. New players start with cash, thugs and pistols so raids work immediately.
 
 | Script | Does |
 | --- | --- |
@@ -67,6 +68,9 @@ Open <http://localhost:5173>, register a name, and enter Game #001.
 | `npm run typecheck` | every workspace |
 | `npm run db:studio` | Prisma Studio |
 | `npm run db:reset` | drop, re-migrate, re-seed |
+| `npm run db:seed:combat` | create local Game #002 with `classic-og-v0.2` cash raids |
+| `npm run db:seed:combat:recovery` | create local Game #003 with `classic-og-v0.2-c` recovery raids |
+| `npm run db:seed:combat:strategy` | create local Game #004 with `classic-og-v0.2-d` strategy raids |
 
 ---
 
@@ -236,6 +240,11 @@ PUT  /api/game/payout
 GET  /api/game/stores
 POST /api/game/stores/trade
 POST /api/game/stores/unlock
+GET  /api/game/combat
+POST /api/game/combat/raid
+POST /api/game/combat/recon
+POST /api/game/combat/treat
+GET  /api/game/combat/reports
 ```
 
 **Joining a round** runs as one transaction: allocate the public pimp id from the round
@@ -246,9 +255,9 @@ immediately, take the opening rank snapshot, and log `ROUND_JOINED`.
 focus, on `visibilitychange`, every sixty seconds, and whenever the turn countdown
 lands &mdash; so it never acts on stale numbers.
 
-A new player gets exactly section 11: `$5,000`, 200 turns, 1 whore, 1 thug, 250 condoms,
+The frozen 0.1.0 round still gives exactly section 11: `$5,000`, 200 turns, 1 whore, 1 thug, 250 condoms,
 100 crack, 10 beer, 50% payout, New York City &mdash; which is a net worth of `$6,827`,
-100% whore happiness and 99% thug happiness (one thug, no gun).
+100% whore happiness and 99% thug happiness (one thug, no gun). The current 0.2.0-D strategy raid round starts players at `$20,000` with 10 thugs, 10 pistols, beer and medicine so raids can be tested immediately.
 
 **Tests** cover the frozen formulas, the loader and the services built on them:
 turn regeneration and the cap, the remainder that survives a settle, the away bonus and
@@ -348,8 +357,8 @@ With H complete, 0.1.0 is the frozen core foundation. New gameplay systems belon
 - District balance is a `BALANCE_APPROXIMATION`: recruitment and an income multiplier
   that trade against each other. The spec's own examples only ever showed one district,
   so the spread across five is a design call, tuned wide on purpose.
-- Medicine and Low-Rider transport have no active use yet. Vehicles contribute net
-  worth and can be resold; combat, travel and healing arrive in later milestones.
+- Low-Rider transport has no active use yet. Vehicles contribute net worth and can be
+  resold; travel and transport objectives belong in later combat strategy slices.
 - Store orders retry safely while the page stays open. Persisting pending orders
   through reloads and broader reconnect testing remain in 0.1.0-F.
 - The daily rank snapshot is taken the first time a player is seen after the reset

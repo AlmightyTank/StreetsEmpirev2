@@ -17,6 +17,8 @@ run('Production build', npm, ['run', 'build']);
 if (withDb) {
   run('PostgreSQL integration regression', npm, ['test'], {
     ...process.env,
+    COMBAT_INTEGRATION: '1',
+    REPUTATION_INTEGRATION: '1',
     STORE_INTEGRATION: '1',
     TRANSACTION_INTEGRATION: '1',
     RELEASE_INTEGRATION: '1',
@@ -27,4 +29,4 @@ if (production) {
   run('Production environment', process.execPath, ['scripts/qa/check-production-env.mjs']);
 }
 
-console.log('\n0.1.0-H release checks passed.');
+console.log('\nRelease checks passed.');

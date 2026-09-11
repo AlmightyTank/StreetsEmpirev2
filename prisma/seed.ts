@@ -1,8 +1,9 @@
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
-import { classicOgV01 } from '@streets/rulesets';
+import { PrismaClient, type Round } from '@prisma/client';
+import { classicOgV01, classicOgV02D, type Ruleset } from '@streets/rulesets';
 
 const prisma = new PrismaClient();
+const CURRENT_RULESET = classicOgV02D;
 
 /** Section 12. Travel is not player-facing yet, but the map exists from day one. */
 const CITIES = [
@@ -18,8 +19,8 @@ const CITIES = [
 
 async function seedCities() {
   for (const city of CITIES) {
-    // 0.1.0: only the starting city is playable and every modifier is 1.00.
-    const isEnabled = city.slug === classicOgV01.round.startingCitySlug;
+    // 0.2.0-D still starts in New York City. Other cities stay staged for travel.
+    const isEnabled = city.slug === CURRENT_RULESET.round.startingCitySlug;
 
     await prisma.city.upsert({
       where: { slug: city.slug },
@@ -35,28 +36,34 @@ async function seedCities() {
       },
     });
   }
-  console.log(`  cities:   ${CITIES.length} (playable: ${classicOgV01.round.startingCitySlug})`);
+  console.log(`  cities:   ${CITIES.length} (playable: ${CURRENT_RULESET.round.startingCitySlug})`);
 }
 
-async function seedRound() {
-  const slug = 'game-001';
-  const startsAt = new Date();
-  const endsAt = new Date(
-    startsAt.getTime() + classicOgV01.round.defaultDurationDays * 24 * 60 * 60 * 1000,
-  );
+async function upsertRound(options: { name: string; slug: string; ruleset: Ruleset; startsAt: Date; refreshCurrent?: boolean }): Promise<Round> {
+  const { name, slug, ruleset, startsAt, refreshCurrent = false } = options;
+  const endsAt = new Date(startsAt.getTime() + ruleset.round.defaultDurationDays * 24 * 60 * 60 * 1000);
 
   const round = await prisma.round.upsert({
     where: { slug },
-    update: {},
+    update: refreshCurrent
+      ? {
+          name,
+          rulesetId: ruleset.meta.id,
+          rulesetVersion: ruleset.meta.version,
+          status: 'ACTIVE',
+          startsAt,
+          endsAt,
+        }
+      : {},
     create: {
-      name: 'Game #001',
+      name,
       slug,
-      rulesetId: classicOgV01.meta.id,
-      rulesetVersion: classicOgV01.meta.version,
+      rulesetId: ruleset.meta.id,
+      rulesetVersion: ruleset.meta.version,
       status: 'ACTIVE',
       startsAt,
       endsAt,
-      nextPublicPimpId: classicOgV01.round.publicPimpIdStart,
+      nextPublicPimpId: ruleset.round.publicPimpIdStart,
     },
   });
 
@@ -66,12 +73,29 @@ async function seedRound() {
   return round;
 }
 
-async function seedNews(roundId: string) {
-  const title = 'GAME #001 HAS BEGUN';
+async function seedClassicRound(now: Date) {
+  return upsertRound({
+    name: 'Game #001',
+    slug: 'game-001',
+    ruleset: classicOgV01,
+    startsAt: new Date(now.getTime() - 60_000),
+  });
+}
 
+async function seedCurrentStrategyRound(now: Date) {
+  return upsertRound({
+    name: 'Game #004 - Strategy Raids',
+    slug: 'game-004-strategy',
+    ruleset: CURRENT_RULESET,
+    startsAt: now,
+    refreshCurrent: true,
+  });
+}
+
+async function seedNews(roundId: string, title: string, body: string) {
   const existing = await prisma.gameNews.findFirst({ where: { roundId, title } });
   if (existing) {
-    console.log('  news:     already seeded');
+    console.log(`  news:     already seeded (${title})`);
     return;
   }
 
@@ -79,18 +103,25 @@ async function seedNews(roundId: string) {
     data: {
       roundId,
       title,
-      body: 'Welcome to the first Classic OG round.',
+      body,
       isPinned: true,
     },
   });
-  console.log('  news:     1 announcement');
+  console.log(`  news:     ${title}`);
 }
 
 async function main() {
   console.log('Seeding Street Empire...');
+  const now = new Date();
   await seedCities();
-  const round = await seedRound();
-  await seedNews(round.id);
+  const classicRound = await seedClassicRound(now);
+  await seedNews(classicRound.id, 'GAME #001 HAS BEGUN', 'Welcome to the first Classic OG round.');
+  const strategyRound = await seedCurrentStrategyRound(new Date(now.getTime() + 1_000));
+  await seedNews(
+    strategyRound.id,
+    '0.2.0-D STRATEGY RAIDS ARE LIVE',
+    'The current development round opens raids immediately with recon intel, persistent wounds, medicine treatment and 24-hour revenge windows.',
+  );
   console.log('Done.');
 }
 

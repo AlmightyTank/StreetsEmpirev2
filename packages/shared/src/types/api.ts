@@ -13,6 +13,10 @@ export type RoundStatus =
   | 'ARCHIVED';
 
 export type ActivityType =
+  | 'RAID_ATTACK'
+  | 'RAID_DEFENSE'
+  | 'COMBAT_TREATMENT'
+  | 'COMBAT_RECON'
   | 'ROUND_JOINED'
   | 'SCOUT'
   | 'WORK_STREETS'
@@ -78,6 +82,8 @@ export interface ResourcesDto {
 
   whores: number;
   thugs: number;
+  fitThugs: number;
+  woundedThugs: number;
 
   condoms: number;
   medicine: number;
@@ -308,7 +314,7 @@ export interface StoreItemDto {
   unlock: WeaponUnlockDto | null;
   key: string;
   name: string;
-  field: Exclude<keyof ResourcesDto, 'cashCents'>;
+  field: Exclude<keyof ResourcesDto, 'cashCents' | 'fitThugs' | 'woundedThugs'>;
   buyCents: number;
   sellCents: number | null;
   owned: number;

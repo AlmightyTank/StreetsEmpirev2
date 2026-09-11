@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import authRoutes from './auth.routes.js';
 import communityRoutes from './community.routes.js';
+import combatRoutes from './combat.routes.js';
 import gameRoutes from './game.routes.js';
 import healthRoutes from './health.routes.js';
 import roundInfoRoutes from './round-info.routes.js';
@@ -13,6 +14,7 @@ const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(roundInfoRoutes, { prefix: '/rounds' });
   await fastify.register(gameRoutes, { prefix: '/game' });
   await fastify.register(communityRoutes, { prefix: '/game' });
+  await fastify.register(combatRoutes, { prefix: '/game' });
 };
 
 export default routes;

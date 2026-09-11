@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ActivityPage } from './pages/ActivityPage.js';
+import { CombatPage } from './pages/CombatPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { JoinPage } from './pages/JoinPage.js';
 import { LandingPage } from './pages/LandingPage.js';
@@ -54,6 +55,7 @@ export function App() {
       <Route path="/join" element={<Protected><JoinPage /></Protected>} />
 
       <Route path="/game" element={<Protected><DashboardPage /></Protected>} />
+      <Route path="/game/combat" element={<Protected><CombatPage /></Protected>} />
       <Route path="/game/scout" element={<Protected><ScoutPage /></Protected>} />
       <Route path="/game/produce" element={<Protected><ProducePage /></Protected>} />
       <Route path="/game/stores/:slug" element={<Protected><StorePage /></Protected>} />

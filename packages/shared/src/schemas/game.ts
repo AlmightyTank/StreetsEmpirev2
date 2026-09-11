@@ -75,3 +75,25 @@ export const questCompleteSchema = z.object({
   actionId: actionIdSchema,
 });
 export type QuestCompleteInput = z.infer<typeof questCompleteSchema>;
+
+export const raidSchema = z.object({
+  roundId: z.string().min(1).max(64),
+  targetPublicPimpId: z.number().int().positive().max(2_147_483_647),
+  attackingThugs: z.number().int().positive().safe(),
+  actionId: actionIdSchema,
+}).strict();
+export type RaidInputDto = z.infer<typeof raidSchema>;
+
+export const combatTreatmentSchema = z.object({
+  roundId: z.string().min(1).max(64),
+  thugs: z.number().int().positive().safe(),
+  actionId: actionIdSchema,
+}).strict();
+export type CombatTreatmentInputDto = z.infer<typeof combatTreatmentSchema>;
+
+export const combatReconSchema = z.object({
+  roundId: z.string().min(1).max(64),
+  targetPublicPimpId: z.number().int().positive().max(2_147_483_647),
+  actionId: actionIdSchema,
+}).strict();
+export type CombatReconInputDto = z.infer<typeof combatReconSchema>;

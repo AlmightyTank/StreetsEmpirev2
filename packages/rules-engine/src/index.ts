@@ -11,5 +11,7 @@ export * from './calculations/stores.js';
 export * from './calculations/weapon-unlocks.js';
 export * from './calculations/restock.js';
 export * from './calculations/reputation.js';
+export * from './calculations/combat.js';
+export * from './simulations/combat.js';
 export * from './rng.js';
 export type { Ruleset } from '@streets/rulesets';

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { classicOgV01 } from '@streets/rulesets';
+import { startingStock } from '@streets/rules-engine';
 
 /**
  * H release-candidate regression. Opt-in because it uses the local PostgreSQL
@@ -38,6 +39,7 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
     const player = await app.prisma.roundPlayer.create({
       data: {
         ...classicOgV01.round.startingPlayer,
+        ...startingStock(classicOgV01),
         accountId: accountId!,
         roundId: round.id,
         cityId: city.id,

@@ -24,6 +24,7 @@ import { RankingService } from './ranking.service.js';
 import { TurnService } from './turn.service.js';
 import { ReputationService, type ReputationChange } from './reputation.service.js';
 import { StockService, type StockSettlementSet } from './stock.service.js';
+import { CombatRecoveryService, type RecoverySettlement } from './combat-recovery.service.js';
 
 /**
  * Everything an action is allowed to move. Turn-settled before an action sees
@@ -36,6 +37,7 @@ export interface PlayerState {
 
   whores: number;
   thugs: number;
+  woundedThugs: number;
 
   condoms: number;
   medicine: number;
@@ -88,6 +90,7 @@ export interface ActionContext {
   stock: StockSettlementSet;
   /** Standing with each trader, as it stands before the action. */
   standings: Standings;
+  recovery: RecoverySettlement;
 }
 
 export interface ActionOutcome<T> {
@@ -130,6 +133,7 @@ export function toState(player: RoundPlayer): PlayerState {
     payoutPercent: player.payoutPercent,
     whores: player.whores,
     thugs: player.thugs,
+    woundedThugs: player.woundedThugs,
     condoms: player.condoms,
     medicine: player.medicine,
     crack: player.crack,
@@ -157,6 +161,10 @@ export function toState(player: RoundPlayer): PlayerState {
   };
 }
 
+export function fitThugs(player: { thugs: number; woundedThugs: number }): number {
+  return Math.max(0, player.thugs - player.woundedThugs);
+}
+
 function toSnapshot(
   state: PlayerState,
   happiness: { whoreHappiness: number; thugHappiness: number },
@@ -172,6 +180,8 @@ function toSnapshot(
       cashCents: Number(state.cashCents),
       whores: state.whores,
       thugs: state.thugs,
+      fitThugs: fitThugs(state),
+      woundedThugs: state.woundedThugs,
       condoms: state.condoms,
       medicine: state.medicine,
       crack: state.crack,
@@ -253,6 +263,7 @@ export const ActionService = {
       assertRoundPlayable(round, now);
 
       const ruleset = loadRulesetForRound(round);
+      const recovery = await CombatRecoveryService.settle(tx, roundPlayerId, now);
 
       // Turns first: an action always spends from a settled balance. The shop
       // shelves settle in the same breath, for the same reason.
@@ -263,11 +274,12 @@ export const ActionService = {
       const stock = StockService.settle(player, now, ruleset, standings);
       const current: PlayerState = {
         ...toState(player),
+        woundedThugs: recovery.woundedThugs,
         turns: turns.turns,
         ...stock.counts,
       };
       assertPlayerState(current, ruleset, 'before');
-      const beforeHappiness = HappinessService.recalculate(current, ruleset);
+      const beforeHappiness = HappinessService.recalculate({ ...current, thugs: fitThugs(current) }, ruleset);
       const beforeNetWorth = NetWorthService.calculate(current, ruleset);
       const beforeRanks = await RankingService.ranksFor(tx, {
         id: roundPlayerId,
@@ -286,6 +298,7 @@ export const ActionService = {
         now,
         stock,
         standings,
+        recovery,
       });
 
       const next = outcome.next;
@@ -294,7 +307,7 @@ export const ActionService = {
       if (outcome.reputation?.length) {
         await ReputationService.write(tx, roundPlayerId, outcome.reputation);
       }
-      const afterHappiness = HappinessService.recalculate(next, ruleset);
+      const afterHappiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next) }, ruleset);
       const afterNetWorth = NetWorthService.calculate(next, ruleset);
       const afterRanks = await RankingService.ranksFor(tx, {
         id: roundPlayerId,

@@ -145,6 +145,33 @@ export function RulesPage() {
           </ul>
         </Panel>
 
+        <Panel title="Raids">
+          <ul className="se-list">
+            <li>
+              Combat rounds add a Raids page. If that page says raids are unavailable,
+              the current round is still an economic round.
+            </li>
+            <li>
+              You pick a same-city target and send fit thugs. Defense is automatic,
+              uses fit thugs, and assigns the best available guns on both sides.
+            </li>
+            <li>
+              A raid can be blocked by your protection, your cooldown, low turns, a
+              protected target, a target with no exposed cash, or a crew too small for
+              your full strength.
+            </li>
+            <li>
+              Wounded thugs still belong to you, but cannot work, cook, attack or
+              defend until they recover. Medicine can bring them back immediately.
+            </li>
+            <li>
+              Strategy rounds add recon and revenge: recon spends turns to reveal a
+              temporary target report, and revenge lets you answer someone who recently
+              raided you.
+            </li>
+          </ul>
+        </Panel>
+
         <Panel title="Money and rank">
           <ul className="se-list">
             <li>Net worth decides local and national rank, and it is not just cash.</li>

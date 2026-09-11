@@ -20,10 +20,10 @@ export function ProducePage() {
   if (!me) return <Navigate to="/join" replace />;
 
   const available = me.turns.turns;
-  const hasThugs = me.resources.thugs > 0;
+  const hasFitThugs = me.resources.fitThugs > 0;
   const canProduce =
     !action.busy &&
-    hasThugs &&
+    hasFitThugs &&
     typeof turns === 'number' &&
     turns >= 1 &&
     turns <= available;
@@ -45,10 +45,10 @@ export function ProducePage() {
       </div>
 
       {action.error ? <Alert>{action.error}</Alert> : null}
-      {!hasThugs ? (
+      {!hasFitThugs ? (
         <Alert tone="info">
-          You need at least one thug to cook. Scout for them, or pick some up at
-          Tek9 Tommy&rsquo;s.
+          You need at least one fit thug to cook. Scout for more, pick some up at
+          Tek9 Tommy&rsquo;s, or let the wounded recover.
         </Alert>
       ) : null}
 
@@ -59,7 +59,7 @@ export function ProducePage() {
               value={turns}
               onChange={setTurns}
               available={available}
-              disabled={action.busy || !hasThugs}
+              disabled={action.busy || !hasFitThugs}
             />
 
             <button className="se-btn se-btn--primary se-btn--block" disabled={!canProduce}>
@@ -91,6 +91,7 @@ export function ProducePage() {
               />
               <Row label="Whores" value={formatNumber(me.resources.whores)} strong />
               <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong />
+              {me.resources.woundedThugs > 0 ? <Row label="Fit / wounded" value={`${formatNumber(me.resources.fitThugs)} / ${formatNumber(me.resources.woundedThugs)}`} /> : null}
               <Row label="They keep" value={`${me.payoutPercent}%`} />
               <Row label="You keep" value={`${100 - me.payoutPercent}%`} />
               <Row label="Whore happiness" value={`${me.happiness.whore}%`} />

@@ -9,6 +9,7 @@ function valid(): InvariantPlayerState {
     payoutPercent: 50,
     whores: 10,
     thugs: 10,
+    woundedThugs: 0,
     condoms: 100,
     medicine: 10,
     crack: 100,
@@ -55,6 +56,10 @@ describe('assertPlayerState', () => {
   it('rejects fractional inventory and negative cash', () => {
     expect(() => assertPlayerState({ ...valid(), crack: 1.5 }, classicOgV01)).toThrow();
     expect(() => assertPlayerState({ ...valid(), cashCents: -1n }, classicOgV01)).toThrow();
+  });
+
+  it('rejects wounded thugs above the owned crew', () => {
+    expect(() => assertPlayerState({ ...valid(), woundedThugs: 11 }, classicOgV01)).toThrow(/woundedThugs cannot exceed total thugs/);
   });
 
   it('rejects a payout outside the ruleset', () => {

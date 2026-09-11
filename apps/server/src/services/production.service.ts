@@ -2,7 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import { calculateProduce, districtCapacities, type Rng } from '@streets/rules-engine';
 import type { GameActionResult, ProduceCrackResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
-import { ActionService, assertTurns } from './action.service.js';
+import { ActionService, assertTurns, fitThugs } from './action.service.js';
 
 export interface ProduceInput {
   turns: number;
@@ -36,10 +36,11 @@ export const ProductionService = {
           );
         }
 
-        if (current.thugs <= 0) {
+        const active = { ...current, thugs: fitThugs(current) };
+        if (active.thugs <= 0) {
           throw AppError.badRequest(
             'NO_THUGS',
-            'You need at least one thug to cook. Scout for them, or pick some up at Tek9 Tommy’s.',
+            'You need at least one fit thug to cook.',
           );
         }
 
@@ -59,7 +60,7 @@ export const ProductionService = {
         const capacities = districtCapacities(round.id, now, ruleset);
 
         const outcome = calculateProduce({
-          player: { ...current, whoreHappiness, thugHappiness },
+          player: { ...active, whoreHappiness, thugHappiness },
           turns: input.turns,
           ruleset,
           city: player.city,

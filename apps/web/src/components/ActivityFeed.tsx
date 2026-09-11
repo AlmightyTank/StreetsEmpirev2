@@ -20,6 +20,25 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
   const p = activity.payload;
 
   switch (activity.type) {
+    case 'RAID_ATTACK':
+    case 'RAID_DEFENSE':
+      return {
+        text: `${activity.type === 'RAID_ATTACK' ? 'Raided' : 'Defended against'} ${str(p.opponent)} — ${p.won ? 'won' : 'lost'}.`,
+        detail: [
+          `${num(p.cashCents) >= 0 ? '+' : '−'}${formatCents(Math.abs(num(p.cashCents)))} · ${num(p.turns)} turns`,
+          num(p.wounds) ? `${formatNumber(num(p.wounds))} wounded` : null,
+        ].filter(Boolean).join(' · '),
+      };
+    case 'COMBAT_TREATMENT':
+      return {
+        text: `Treated ${formatNumber(num(p.treatedThugs))} wounded thugs.`,
+        detail: `${formatNumber(num(p.medicineUsed))} medicine used`,
+      };
+    case 'COMBAT_RECON':
+      return {
+        text: `Recon on ${str(p.target)}.`,
+        detail: `${formatNumber(num(p.turns))} turns · intel expires ${str(p.expiresAt) ? new Date(str(p.expiresAt)).toLocaleString() : 'soon'}`,
+      };
     case 'ROUND_JOINED':
       return {
         text: `Entered ${str(p.roundName, 'the round')} as #${num(p.publicPimpId)}.`,

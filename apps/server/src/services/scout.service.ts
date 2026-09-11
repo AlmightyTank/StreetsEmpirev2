@@ -3,7 +3,7 @@ import { calculateScout, districtCapacities, type Rng } from '@streets/rules-eng
 import type { District, DistrictKey, Ruleset } from '@streets/rulesets';
 import type { DistrictDto, DistrictsDto, GameActionResult, ScoutResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
-import { ActionService, assertTurns } from './action.service.js';
+import { ActionService, assertTurns, fitThugs } from './action.service.js';
 
 export interface Crew {
   whores: number;
@@ -101,13 +101,14 @@ export const ScoutService = {
         }
 
         assertTurns(current.turns, input.turns);
+        const active = { ...current, thugs: fitThugs(current) };
 
         // Who is out on that block this hour. Derived from the round clock,
         // shared by everyone in the round, and never shown before you go.
         const capacities = districtCapacities(round.id, now, ruleset);
 
         const outcome = calculateScout({
-          player: { ...current, whoreHappiness, thugHappiness },
+          player: { ...active, whoreHappiness, thugHappiness },
           turns: input.turns,
           ruleset,
           city: player.city,
@@ -149,7 +150,7 @@ export const ScoutService = {
         const all = Object.values(ruleset.districts);
 
         const result: ScoutResult = {
-          district: toDistrictDto(found.key, found.district, all, ruleset, current),
+          district: toDistrictDto(found.key, found.district, all, ruleset, active),
 
           whoresRecruited: outcome.whoresRecruited,
           thugsRecruited: outcome.thugsRecruited,

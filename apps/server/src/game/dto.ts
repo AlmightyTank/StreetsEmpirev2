@@ -15,6 +15,7 @@ import type {
   RoundPlayerDto,
 } from '@streets/shared';
 import { explainThugHappiness, explainWhoreHappiness } from '@streets/rules-engine';
+import { fitThugs } from '../services/action.service.js';
 import type { TurnSettlement } from '../services/turn.service.js';
 
 /**
@@ -91,6 +92,8 @@ export function toRoundPlayerDto(
       cashCents: centsToNumber(player.cashCents),
       whores: player.whores,
       thugs: player.thugs,
+      fitThugs: fitThugs(player),
+      woundedThugs: player.woundedThugs,
       condoms: player.condoms,
       medicine: player.medicine,
       crack: player.crack,

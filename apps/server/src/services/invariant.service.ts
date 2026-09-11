@@ -6,6 +6,7 @@ export interface InvariantPlayerState {
   payoutPercent: number;
   whores: number;
   thugs: number;
+  woundedThugs: number;
   condoms: number;
   medicine: number;
   crack: number;
@@ -33,6 +34,7 @@ const WHOLE_NON_NEGATIVE: readonly (keyof InvariantPlayerState)[] = [
   'turns',
   'whores',
   'thugs',
+  'woundedThugs',
   'condoms',
   'medicine',
   'crack',
@@ -91,6 +93,10 @@ export function assertPlayerState(
     payout > ruleset.economy.payout.max
   ) {
     invalid(`${phase}.payoutPercent is outside the ruleset`);
+  }
+
+  if (state.woundedThugs > state.thugs) {
+    invalid(`${phase}.woundedThugs cannot exceed total thugs`);
   }
 
   // A shelf above its cap is how an unlimited-stock exploit would look.

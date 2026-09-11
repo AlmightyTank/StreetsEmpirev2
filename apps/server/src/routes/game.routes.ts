@@ -131,6 +131,13 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     return ScoutService.scout(fastify.prisma, player.id, body);
   });
 
+  fastify.post('/work', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(scoutSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+
+    return ScoutService.scout(fastify.prisma, player.id, body);
+  });
+
 
   /** Section 29. */
   fastify.post(
