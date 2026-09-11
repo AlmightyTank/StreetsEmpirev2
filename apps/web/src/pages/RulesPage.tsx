@@ -171,7 +171,7 @@ export function RulesPage() {
             </li>
             <li>
               Rankings and profiles are public bragging rights: money, current rank,
-              rank streaks, past placements and awards. Recon reveals private raid intel.
+              rank streaks, past placements and achievements. Profiles show earned badges and locked achievement progress, while recon reveals private raid intel.
             </li>
           </ul>
         </Panel>

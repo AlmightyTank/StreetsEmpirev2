@@ -32,6 +32,7 @@ function row(publicPimpId: number, worth: number, rank = publicPimpId - 1000) {
     shotgunUnlocked: false,
     tek9Unlocked: false,
     ak47Unlocked: false,
+    createdAt: new Date('2026-09-07T00:00:00Z'),
   };
 }
 
@@ -44,6 +45,16 @@ describe('rankRows', () => {
   it('marks the current player without changing ordering', () => {
     const ranked = rankRows([row(1001, 500), row(1002, 400)], 1002);
     expect(ranked.map((entry) => entry.isYou)).toEqual([false, true]);
+  });
+
+  it('returns rich public achievement metadata for earned ranking awards', () => {
+    const ranked = rankRows([row(1001, 50_000_00, 1), row(1002, 40_000_00, 2)], 1002);
+    expect(ranked[0]?.awards).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: 'national-number-one', category: 'rank', rarity: 'legendary', unlocked: true }),
+      expect.objectContaining({ key: 'city-boss', category: 'rank', rarity: 'epic', unlocked: true }),
+      expect.objectContaining({ key: 'top-ten', category: 'rank', rarity: 'rare', unlocked: true }),
+    ]));
+    expect(ranked[0]?.awards[0]?.progress).toEqual(expect.objectContaining({ current: 1, target: 1, label: 'rank #1' }));
   });
 
   it('keeps public net worth visible and reports rank movement', () => {

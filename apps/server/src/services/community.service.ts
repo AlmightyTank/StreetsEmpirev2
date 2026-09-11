@@ -1,6 +1,8 @@
 import type { City, PrismaClient } from '@prisma/client';
 import type { Ruleset } from '@streets/rules-engine';
 import type {
+  PublicAchievementCategory,
+  PublicAchievementRarity,
   PublicAwardDto,
   PublicLegacyDto,
   PublicPlayerProfileDto,
@@ -26,13 +28,23 @@ interface RankingRow {
   shotgunUnlocked: boolean;
   tek9Unlocked: boolean;
   ak47Unlocked: boolean;
+  createdAt: Date;
 }
 
 interface PublicContext {
   legacy: PublicLegacyDto;
+  raidAttacks: number;
   raidAttackWins: number;
+  raidDefenses: number;
+  firstRaidAt: Date | null;
   raidDefenseWins: number;
+  firstDefenseAt: Date | null;
   reconRuns: number;
+  questsCompleted: number;
+  firstRaidWinAt: Date | null;
+  firstDefenseWinAt: Date | null;
+  firstReconAt: Date | null;
+  firstQuestAt: Date | null;
 }
 
 const emptyLegacy = (): PublicLegacyDto => ({
@@ -41,6 +53,26 @@ const emptyLegacy = (): PublicLegacyDto => ({
   bestNationalRank: null,
   totalFinalNetWorthCents: 0,
 });
+
+const emptyContext = (): PublicContext => ({
+  legacy: emptyLegacy(),
+  raidAttacks: 0,
+  raidAttackWins: 0,
+  raidDefenses: 0,
+  firstRaidAt: null,
+  raidDefenseWins: 0,
+  firstDefenseAt: null,
+  reconRuns: 0,
+  questsCompleted: 0,
+  firstRaidWinAt: null,
+  firstDefenseWinAt: null,
+  firstReconAt: null,
+  firstQuestAt: null,
+});
+
+function earliest(a: Date | null, b: Date): Date {
+  return a && a.getTime() < b.getTime() ? a : b;
+}
 
 function movement(startingRank: number | null, currentRank: number): number | null {
   if (startingRank === null) return null;
@@ -53,22 +85,77 @@ function rankHeldSince(row: RankingRow, rank: number, scope: 'local' | 'national
   return storedRank === rank ? storedSince : now;
 }
 
-function awardsFor(row: RankingRow, rank: { local: number; national: number }, context: PublicContext): PublicAwardDto[] {
-  const awards: PublicAwardDto[] = [];
-  const add = (key: string, title: string, description: string) => awards.push({ key, title, description });
+function progress(current: number, target: number, label: string): PublicAwardDto['progress'] {
+  return { current: Math.max(0, current), target, label };
+}
 
-  if (rank.national === 1) add('national-number-one', 'National #1', 'Currently holds the top national rank.');
-  if (rank.local === 1) add('city-boss', 'City Boss', `Currently holds the top spot in ${row.city.name}.`);
-  if (context.legacy.roundWins > 0) add('past-winner', 'Past Winner', 'Finished a previous round at #1.');
-  if (context.raidAttackWins > 0) add('first-blood', 'First Blood', 'Won at least one raid as the attacker.');
-  if (context.raidDefenseWins > 0) add('held-the-line', 'Held the Line', 'Won at least one automatic defense.');
-  if (context.reconRuns > 0) add('street-intel', 'Street Intel', 'Has paid for recon this round.');
-  if (row.ak47Unlocked) add('heavy-metal', 'Heavy Metal', 'Unlocked AK-47 access through trader reputation.');
-  else if (row.tek9Unlocked) add('tek-runner', 'Tek Runner', 'Unlocked Tek-9 access through trader reputation.');
-  else if (row.shotgunUnlocked) add('shotgun-trust', 'Shotgun Trust', 'Unlocked shotgun access through trader reputation.');
-  if (Number(row.netWorthCents) >= 100_000_000) add('millionaire', 'Millionaire', 'Built a seven-figure public net worth.');
+function achievement(input: {
+  key: string;
+  title: string;
+  description: string;
+  category: PublicAchievementCategory;
+  rarity: PublicAchievementRarity;
+  current: number;
+  target: number;
+  progressLabel: string;
+  earnedAt?: Date | null;
+}): PublicAwardDto {
+  const unlocked = input.current >= input.target;
+  return {
+    key: input.key,
+    title: input.title,
+    description: input.description,
+    category: input.category,
+    rarity: input.rarity,
+    unlocked,
+    earnedAt: unlocked && input.earnedAt ? input.earnedAt.toISOString() : null,
+    progress: progress(input.current, input.target, input.progressLabel),
+  };
+}
 
-  return awards;
+function achievementsFor(row: RankingRow, rank: { local: number; national: number }, context: PublicContext): PublicAwardDto[] {
+  const netWorth = Number(row.netWorthCents);
+  const localMovement = movement(row.dailyStartingLocalRank, rank.local) ?? 0;
+  const nationalMovement = movement(row.dailyStartingNationalRank, rank.national) ?? 0;
+  const bestMovement = Math.max(localMovement, nationalMovement, 0);
+  const localHeldAt = rankHeldSince(row, rank.local, 'local', new Date());
+  const nationalHeldAt = rankHeldSince(row, rank.national, 'national', new Date());
+
+  return [
+    achievement({ key: 'national-number-one', title: 'National #1', description: 'Hold the top national rank.', category: 'rank', rarity: 'legendary', current: rank.national === 1 ? 1 : 0, target: 1, progressLabel: 'rank #1', earnedAt: nationalHeldAt }),
+    achievement({ key: 'city-boss', title: 'City Boss', description: `Hold the top spot in ${row.city.name}.`, category: 'rank', rarity: 'epic', current: rank.local === 1 ? 1 : 0, target: 1, progressLabel: 'rank #1', earnedAt: localHeldAt }),
+    achievement({ key: 'top-ten', title: 'Top Ten', description: 'Reach the national top ten.', category: 'rank', rarity: 'rare', current: rank.national <= 10 ? 10 : Math.max(0, 11 - rank.national), target: 10, progressLabel: 'top-ten standing', earnedAt: rank.national <= 10 ? nationalHeldAt : null }),
+    achievement({ key: 'climber', title: 'Climber', description: 'Move up at least five ranks in one day.', category: 'rank', rarity: 'uncommon', current: bestMovement, target: 5, progressLabel: 'ranks gained today' }),
+
+    achievement({ key: 'first-stack', title: 'First Stack', description: 'Reach $25,000 public net worth.', category: 'wealth', rarity: 'common', current: netWorth, target: 25_000_00, progressLabel: 'net worth', earnedAt: row.createdAt }),
+    achievement({ key: 'six-figures', title: 'Six Figures', description: 'Reach $100,000 public net worth.', category: 'wealth', rarity: 'uncommon', current: netWorth, target: 100_000_00, progressLabel: 'net worth' }),
+    achievement({ key: 'quarter-million', title: 'Big Fish', description: 'Reach $250,000 public net worth.', category: 'wealth', rarity: 'rare', current: netWorth, target: 250_000_00, progressLabel: 'net worth' }),
+    achievement({ key: 'millionaire', title: 'Millionaire', description: 'Reach $1,000,000 public net worth.', category: 'wealth', rarity: 'epic', current: netWorth, target: 1_000_000_00, progressLabel: 'net worth' }),
+    achievement({ key: 'empire-builder', title: 'Empire Builder', description: 'Reach $5,000,000 public net worth.', category: 'wealth', rarity: 'legendary', current: netWorth, target: 5_000_000_00, progressLabel: 'net worth' }),
+
+    achievement({ key: 'knock-knock', title: 'Knock Knock', description: 'Launch a raid against another player.', category: 'combat', rarity: 'common', current: context.raidAttacks, target: 1, progressLabel: 'raid attempts', earnedAt: context.firstRaidAt }),
+    achievement({ key: 'first-blood', title: 'First Blood', description: 'Win a raid as the attacker.', category: 'combat', rarity: 'common', current: context.raidAttackWins, target: 1, progressLabel: 'raid attack wins', earnedAt: context.firstRaidWinAt }),
+    achievement({ key: 'enforcer', title: 'Enforcer', description: 'Win five raids as the attacker.', category: 'combat', rarity: 'uncommon', current: context.raidAttackWins, target: 5, progressLabel: 'raid attack wins', earnedAt: context.firstRaidWinAt }),
+    achievement({ key: 'warpath', title: 'Warpath', description: 'Win twenty-five raids as the attacker.', category: 'combat', rarity: 'epic', current: context.raidAttackWins, target: 25, progressLabel: 'raid attack wins', earnedAt: context.firstRaidWinAt }),
+    achievement({ key: 'made-enemies', title: 'Made Enemies', description: 'Get raided by another player.', category: 'combat', rarity: 'common', current: context.raidDefenses, target: 1, progressLabel: 'incoming raids', earnedAt: context.firstDefenseAt }),
+    achievement({ key: 'held-the-line', title: 'Held the Line', description: 'Win an automatic defense.', category: 'combat', rarity: 'common', current: context.raidDefenseWins, target: 1, progressLabel: 'defense wins', earnedAt: context.firstDefenseWinAt }),
+    achievement({ key: 'untouchable', title: 'Untouchable', description: 'Win five automatic defenses.', category: 'combat', rarity: 'rare', current: context.raidDefenseWins, target: 5, progressLabel: 'defense wins', earnedAt: context.firstDefenseWinAt }),
+
+    achievement({ key: 'street-intel', title: 'Street Intel', description: 'Run recon on a target.', category: 'intel', rarity: 'common', current: context.reconRuns, target: 1, progressLabel: 'recon runs', earnedAt: context.firstReconAt }),
+    achievement({ key: 'wire-tapper', title: 'Wire Tapper', description: 'Run five recon jobs in one round.', category: 'intel', rarity: 'uncommon', current: context.reconRuns, target: 5, progressLabel: 'recon runs', earnedAt: context.firstReconAt }),
+    achievement({ key: 'eyes-everywhere', title: 'Eyes Everywhere', description: 'Run fifteen recon jobs in one round.', category: 'intel', rarity: 'rare', current: context.reconRuns, target: 15, progressLabel: 'recon runs', earnedAt: context.firstReconAt }),
+
+    achievement({ key: 'favor-done', title: 'Favor Done', description: 'Complete one trader favor.', category: 'reputation', rarity: 'common', current: context.questsCompleted, target: 1, progressLabel: 'trader favors', earnedAt: context.firstQuestAt }),
+    achievement({ key: 'connected', title: 'Connected', description: 'Complete all trader favors.', category: 'reputation', rarity: 'rare', current: context.questsCompleted, target: 4, progressLabel: 'trader favors', earnedAt: context.firstQuestAt }),
+    achievement({ key: 'shotgun-trust', title: 'Shotgun Trust', description: 'Unlock shotgun purchases through trader reputation.', category: 'reputation', rarity: 'uncommon', current: row.shotgunUnlocked ? 1 : 0, target: 1, progressLabel: 'unlock' }),
+    achievement({ key: 'tek-runner', title: 'Tek Runner', description: 'Unlock Tek-9 purchases through trader reputation.', category: 'reputation', rarity: 'rare', current: row.tek9Unlocked ? 1 : 0, target: 1, progressLabel: 'unlock' }),
+    achievement({ key: 'heavy-metal', title: 'Heavy Metal', description: 'Unlock AK-47 purchases through trader reputation.', category: 'reputation', rarity: 'epic', current: row.ak47Unlocked ? 1 : 0, target: 1, progressLabel: 'unlock' }),
+
+    achievement({ key: 'veteran', title: 'Veteran', description: 'Finish at least one previous round.', category: 'legacy', rarity: 'common', current: context.legacy.roundsPlayed, target: 1, progressLabel: 'past rounds' }),
+    achievement({ key: 'past-winner', title: 'Past Winner', description: 'Finish a previous round at national #1.', category: 'legacy', rarity: 'legendary', current: context.legacy.roundWins, target: 1, progressLabel: 'past round wins' }),
+    achievement({ key: 'hall-of-fame', title: 'Hall of Fame', description: 'Win three previous rounds.', category: 'legacy', rarity: 'legendary', current: context.legacy.roundWins, target: 3, progressLabel: 'past round wins' }),
+    achievement({ key: 'top-finisher', title: 'Top Finisher', description: 'Finish a previous round in the national top ten.', category: 'legacy', rarity: 'rare', current: context.legacy.bestNationalRank !== null && context.legacy.bestNationalRank <= 10 ? 1 : 0, target: 1, progressLabel: 'top-ten finish' }),
+  ];
 }
 
 async function loadPublicContexts(
@@ -79,22 +166,27 @@ async function loadPublicContexts(
   const contexts = new Map<string, PublicContext>();
   const ids = [...new Set(rows.map((row) => row.id))];
   const accountIds = [...new Set(rows.map((row) => row.accountId))];
-  for (const id of ids) contexts.set(id, { legacy: emptyLegacy(), raidAttackWins: 0, raidDefenseWins: 0, reconRuns: 0 });
+  for (const id of ids) contexts.set(id, emptyContext());
   if (!ids.length) return contexts;
 
-  const [pastRows, battles, reconGroups] = await Promise.all([
+  const [pastRows, battles, reconActivities, reputationRows] = await Promise.all([
     prisma.roundPlayer.findMany({
       where: { accountId: { in: accountIds }, roundId: { not: currentRoundId }, round: { status: { in: ['ENDED', 'ARCHIVED'] } } },
       select: { accountId: true, nationalRank: true, netWorthCents: true },
     }),
     prisma.raidBattle.findMany({
       where: { OR: [{ attackerId: { in: ids } }, { defenderId: { in: ids } }] },
-      select: { attackerId: true, defenderId: true, attackerReport: true, defenderReport: true },
+      select: { attackerId: true, defenderId: true, attackerReport: true, defenderReport: true, createdAt: true },
     }),
-    prisma.playerActivity.groupBy({
-      by: ['roundPlayerId'],
+    prisma.playerActivity.findMany({
       where: { roundPlayerId: { in: ids }, type: 'COMBAT_RECON' },
-      _count: { _all: true },
+      select: { roundPlayerId: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    }),
+    prisma.playerReputation.findMany({
+      where: { roundPlayerId: { in: ids }, questDoneAt: { not: null } },
+      select: { roundPlayerId: true, questDoneAt: true },
+      orderBy: { questDoneAt: 'asc' },
     }),
   ]);
 
@@ -112,21 +204,42 @@ async function loadPublicContexts(
 
   const idToAccount = new Map(rows.map((row) => [row.id, row.accountId]));
   for (const [id, accountId] of idToAccount) {
-    const context = contexts.get(id)!;
-    context.legacy = legacyByAccount.get(accountId) ?? emptyLegacy();
+    contexts.get(id)!.legacy = legacyByAccount.get(accountId) ?? emptyLegacy();
   }
 
   for (const battle of battles) {
-    if (contexts.has(battle.attackerId) && (battle.attackerReport as { won?: boolean }).won === true) {
-      contexts.get(battle.attackerId)!.raidAttackWins += 1;
+    if (contexts.has(battle.attackerId)) {
+      const context = contexts.get(battle.attackerId)!;
+      context.raidAttacks += 1;
+      context.firstRaidAt = earliest(context.firstRaidAt, battle.createdAt);
+      if ((battle.attackerReport as { won?: boolean }).won === true) {
+        context.raidAttackWins += 1;
+        context.firstRaidWinAt = earliest(context.firstRaidWinAt, battle.createdAt);
+      }
     }
-    if (contexts.has(battle.defenderId) && (battle.defenderReport as { won?: boolean }).won === true) {
-      contexts.get(battle.defenderId)!.raidDefenseWins += 1;
+    if (contexts.has(battle.defenderId)) {
+      const context = contexts.get(battle.defenderId)!;
+      context.raidDefenses += 1;
+      context.firstDefenseAt = earliest(context.firstDefenseAt, battle.createdAt);
+      if ((battle.defenderReport as { won?: boolean }).won === true) {
+        context.raidDefenseWins += 1;
+        context.firstDefenseWinAt = earliest(context.firstDefenseWinAt, battle.createdAt);
+      }
     }
   }
 
-  for (const group of reconGroups) {
-    contexts.get(group.roundPlayerId)!.reconRuns = group._count._all;
+  for (const activity of reconActivities) {
+    const context = contexts.get(activity.roundPlayerId);
+    if (!context) continue;
+    context.reconRuns += 1;
+    context.firstReconAt = context.firstReconAt ?? activity.createdAt;
+  }
+
+  for (const reputation of reputationRows) {
+    const context = contexts.get(reputation.roundPlayerId);
+    if (!context || !reputation.questDoneAt) continue;
+    context.questsCompleted += 1;
+    context.firstQuestAt = context.firstQuestAt ?? reputation.questDoneAt;
   }
 
   return contexts;
@@ -172,11 +285,12 @@ export function rankRows(
     }
 
     const isYou = row.publicPimpId === mePublicPimpId;
-    const context = contexts.get(row.id) ?? { legacy: emptyLegacy(), raidAttackWins: 0, raidDefenseWins: 0, reconRuns: 0 };
+    const context = contexts.get(row.id) ?? emptyContext();
     const rankPair = {
       local: scope === 'local' ? rank : row.localRank ?? rank,
       national: scope === 'national' ? rank : row.nationalRank ?? rank,
     };
+    const earned = achievementsFor(row, rankPair, context).filter((award) => award.unlocked);
 
     return {
       rank,
@@ -187,7 +301,7 @@ export function rankRows(
       rankHeldSinceAt: rankHeldSince(row, rank, scope, now).toISOString(),
       rankMovement: movement(scope === 'local' ? row.dailyStartingLocalRank : row.dailyStartingNationalRank, rank),
       legacy: context.legacy,
-      awards: awardsFor(row, rankPair, context).slice(0, 3),
+      awards: earned.slice(0, 3),
       isYou,
       intelRequired: false,
     };
@@ -282,7 +396,7 @@ export const CommunityService = {
     const hideCrew = Boolean(privacy?.hideOpponentCrew && !isYou);
     const hideWeapons = Boolean(privacy?.hideOpponentWeapons && !isYou);
     const weapons = player.pistols + player.shotguns + player.tek9s + player.ak47s;
-    const context = (await loadPublicContexts(prisma, roundId, [player])).get(player.id) ?? { legacy: emptyLegacy(), raidAttackWins: 0, raidDefenseWins: 0, reconRuns: 0 };
+    const context = (await loadPublicContexts(prisma, roundId, [player])).get(player.id) ?? emptyContext();
 
     return {
       publicPimpId: player.publicPimpId,
@@ -298,7 +412,7 @@ export const CommunityService = {
         nationalMovement: movement(player.dailyStartingNationalRank, nationalRank),
       },
       legacy: context.legacy,
-      awards: awardsFor(player, { local: localRank, national: nationalRank }, context),
+      awards: achievementsFor(player, { local: localRank, national: nationalRank }, context),
       crew: hideCrew ? null : {
         whores: player.whores,
         thugs: player.thugs,

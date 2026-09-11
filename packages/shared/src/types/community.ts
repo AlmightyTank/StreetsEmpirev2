@@ -1,9 +1,23 @@
 import type { ActivityDto, CityDto, RoundDto } from './api.js';
 
+export type PublicAchievementCategory = 'rank' | 'wealth' | 'combat' | 'intel' | 'reputation' | 'legacy';
+export type PublicAchievementRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+export interface PublicAchievementProgressDto {
+  current: number;
+  target: number;
+  label: string;
+}
+
 export interface PublicAwardDto {
   key: string;
   title: string;
   description: string;
+  category: PublicAchievementCategory;
+  rarity: PublicAchievementRarity;
+  unlocked: boolean;
+  earnedAt: string | null;
+  progress: PublicAchievementProgressDto | null;
 }
 
 export interface PublicLegacyDto {

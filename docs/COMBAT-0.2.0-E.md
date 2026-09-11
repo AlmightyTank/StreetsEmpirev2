@@ -8,7 +8,7 @@
 - E inherits the full D combat model: immediate raids, recon intel, wounds, medicine treatment and 24-hour revenge windows.
 - Missing weapons now cost 3 thug-happiness points each in E. Beer still costs 1 point each.
 - E scouting requires armed fit thugs for street coverage. Unarmed thugs still belong to the player, but they do not cover whores on district scouting trips.
-- Public boards and profiles show bragging information: exact net worth, current rank, rank tenure, daily movement, prior ended-round results and awards. Opponent crew and weapons stay private, so recon remains the source of combat-ready numbers.
+- Public boards and profiles show bragging information: exact net worth, current rank, rank tenure, daily movement, prior ended-round results and achievements. Profiles show the full achievement catalog with earned cards and locked progress across rank, wealth, combat, intel, reputation and legacy. Rankings stay compact by showing only a few featured earned achievements. Opponent crew and weapons stay private, so recon remains the source of combat-ready numbers.
 - The default seed now creates `Game #005 - Raid Onboarding` as the latest active local round.
 - Game #005 seeds three inactive local rivals in New York City:
   - Razor Ray: even starter fight.
@@ -36,3 +36,7 @@ npm run db:seed:combat:onboarding
 ```
 
 Re-running either seed refreshes the seeded rivals, clears their combat wounds/protection/reports and sets the round's next public pimp id above the rival ids so new human players do not collide with them.
+
+## Public achievements
+
+Profiles now expose a broader achievement gallery instead of a short awards list. The first catalog includes rank badges, wealth milestones, raid attempts, attack wins, incoming raids, defense wins, recon volume, trader favor progress, weapon unlocks and past-round legacy. Locked achievements show progress so players have a reason to open profiles even when a rival has no private combat intel revealed.
