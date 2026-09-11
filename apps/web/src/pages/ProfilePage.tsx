@@ -82,6 +82,7 @@ export function ProfilePage() {
   const target = params.publicPimpId ? Number(params.publicPimpId) : me?.publicPimpId;
   const [player, setPlayer] = useState<PublicPlayerProfileDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showLockedAchievements, setShowLockedAchievements] = useState(false);
 
   useEffect(() => {
     if (!target || !Number.isSafeInteger(target)) return;
@@ -159,10 +160,24 @@ export function ProfilePage() {
             </div>
             <div className="se-ach-section">
               <div className="se-ach-section__head">
-                <h3>Next milestones</h3>
-                <span className="se-num">{formatNumber(locked.length)}</span>
+                <h3 id="next-milestones-title">Next milestones</h3>
+                {locked.length ? (
+                  <button
+                    type="button"
+                    className="se-btn se-btn--ghost se-btn--sm se-ach-toggle"
+                    aria-expanded={showLockedAchievements}
+                    aria-controls="next-milestones-list"
+                    onClick={() => setShowLockedAchievements((open) => !open)}
+                  >
+                    {showLockedAchievements ? 'Hide' : 'Show'} {formatNumber(locked.length)}
+                  </button>
+                ) : <span className="se-num">0</span>}
               </div>
-              {locked.length ? <ul className="se-ach-grid">{locked.map((award) => <AchievementCard award={award} key={award.key} />)}</ul> : <p className="se-muted">Every listed achievement is unlocked.</p>}
+              {locked.length ? (
+                <div id="next-milestones-list" aria-labelledby="next-milestones-title" hidden={!showLockedAchievements}>
+                  <ul className="se-ach-grid">{locked.map((award) => <AchievementCard award={award} key={award.key} />)}</ul>
+                </div>
+              ) : <p className="se-muted">Every listed achievement is unlocked.</p>}
             </div>
           </Panel>
 
