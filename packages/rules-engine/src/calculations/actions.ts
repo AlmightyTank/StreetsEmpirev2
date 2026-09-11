@@ -152,14 +152,27 @@ export interface Exposure {
  * corners, so a thug there minds four girls; nobody in the slums cares enough
  * to stop twenty.
  */
+function weaponCount(crew: { pistols?: number; shotguns?: number; tek9s?: number; ak47s?: number }): number {
+  return (crew.pistols ?? 0) + (crew.shotguns ?? 0) + (crew.tek9s ?? 0) + (crew.ak47s ?? 0);
+}
+
+export function armedThugsForStreet(crew: { thugs: number; pistols?: number; shotguns?: number; tek9s?: number; ak47s?: number }, ruleset: Ruleset): number {
+  return ruleset.scouting.requiresArmedThugs ? Math.min(crew.thugs, weaponCount(crew)) : crew.thugs;
+}
+
+export function unarmedThugsForStreet(crew: { thugs: number; pistols?: number; shotguns?: number; tek9s?: number; ak47s?: number }, ruleset: Ruleset): number {
+  return Math.max(0, crew.thugs - armedThugsForStreet(crew, ruleset));
+}
+
 export function calculateExposure(
-  crew: { whores: number; thugs: number },
+  crew: { whores: number; thugs: number; pistols?: number; shotguns?: number; tek9s?: number; ak47s?: number },
   district: District,
   ruleset: Ruleset,
 ): Exposure {
   const rules = ruleset.scouting.exposure;
 
-  const covered = crew.thugs * district.protectionWhoresPerThug;
+  const effectiveThugs = armedThugsForStreet(crew, ruleset);
+  const covered = effectiveThugs * district.protectionWhoresPerThug;
   const exposed =
     crew.whores <= 0 ? 0 : Math.min(1, Math.max(0, 1 - covered / crew.whores));
 

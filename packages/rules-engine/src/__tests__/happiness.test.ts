@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { classicOgV02E } from '@streets/rulesets';
 import {
   calculateThugHappiness,
   calculateWhoreHappiness,
@@ -198,5 +199,19 @@ describe('explainThugHappiness', () => {
     expect(byKey.weapons!.penalty).toBe(10);
     expect(out.happiness).toBe(90);
     expect(out.worst?.key).toBe('weapons');
+  });
+});
+
+
+describe('0.2.0-E unarmed thugs', () => {
+  it('makes missing weapons a heavier happiness drag', () => {
+    const out = explainThugHappiness(
+      { thugs: 10, beer: 10, pistols: 4, shotguns: 0, tek9s: 0, ak47s: 0 },
+      classicOgV02E,
+    );
+
+    const weapons = out.terms.find((term) => term.key === 'weapons');
+    expect(weapons?.penalty).toBe(18);
+    expect(out.happiness).toBe(82);
   });
 });

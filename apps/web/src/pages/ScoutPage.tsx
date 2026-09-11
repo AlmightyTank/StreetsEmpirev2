@@ -91,7 +91,7 @@ export function ScoutPage() {
 
           <p className="se-hint">
             One trip, both jobs: the girls work the block while you work the
-            room. Rich blocks have the money; poor ones have the people. What
+            room. In 0.2.0-E, only armed fit thugs count as street protection. Rich blocks have the money; poor ones have the people. What
             counts for their cut is the money that reaches them, not the
             percentage. Nothing else is posted &mdash; what a block is worth
             changes by the hour, and you find out by going.
@@ -106,13 +106,14 @@ export function ScoutPage() {
                 value={`${formatNumber(me.turns.turns)} / ${formatNumber(me.turns.turnCap)}`}
                 strong
               />
-              <Row label="Whores" value={formatNumber(me.resources.whores)} strong />
-              <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong />
-              {me.resources.woundedThugs > 0 ? <Row label="Fit / wounded" value={`${formatNumber(me.resources.fitThugs)} / ${formatNumber(me.resources.woundedThugs)}`} /> : null}
+              <Row label="Whores" value={formatNumber(me.resources.whores)} strong tooltip="Girls working the block. Uncovered whores earn less and face more risk when supplies run short." />
+              <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong tooltip="In 0.2.0-E, a thug needs a weapon to count as street cover while scouting." />
+              {me.resources.woundedThugs > 0 ? <Row label="Fit / wounded" value={`${formatNumber(me.resources.fitThugs)} / ${formatNumber(me.resources.woundedThugs)}`} tooltip="Wounded thugs cannot cover the street, scout, cook, attack or defend." /> : null}
+              <Row label="Armed / unarmed" value={`${formatNumber(me.resources.armedThugs)} / ${formatNumber(me.resources.unarmedThugs)}`} tooltip="Only armed fit thugs count as protection in E scouting rounds." />
               <Row label="They keep" value={`${me.payoutPercent}%`} />
               <Row label="You keep" value={`${100 - me.payoutPercent}%`} />
-              <Row label="Whore happiness" value={`${me.happiness.whore}%`} />
-              <Row label="Thug happiness" value={`${me.happiness.thug}%`} />
+              <Row label="Whore happiness" value={`${me.happiness.whore}%`} tooltip="Affects street earnings. Supplies, protection and payout all matter." />
+              <Row label="Thug happiness" value={`${me.happiness.thug}%`} tooltip="Beer and weapons keep thugs happy. In E, missing weapons sting harder." />
             </div>
           </Panel>
 
@@ -122,7 +123,7 @@ export function ScoutPage() {
               <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
               <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
               <Row label="Crack" value={formatNumber(me.resources.crack)} />
-              <Row label="Beer" value={formatNumber(me.resources.beer)} />
+              <Row label="Beer" value={formatNumber(me.resources.beer)} tooltip="Thugs expect beer while they work. Missing beer lowers thug happiness." />
               <Row label="Cash" value={formatCents(me.resources.cashCents)} strong />
             </div>
           </Panel>
@@ -251,6 +252,10 @@ export function ScoutPage() {
                   ]
                 : []),
 
+              {
+                label: 'Armed street cover',
+                value: `${formatNumber(action.result.result.armedThugs)} armed / ${formatNumber(action.result.result.unarmedThugs)} unarmed`,
+              },
               {
                 label: 'Turns remaining',
                 value: formatNumber(action.result.result.turnsRemaining),

@@ -955,6 +955,11 @@ a.se-nav__link:hover {
   border-bottom: 0;
 }
 
+.se-drags__item:focus {
+  outline: 1px solid var(--se-accent-dim);
+  outline-offset: 2px;
+}
+
 .se-drags__head {
   display: flex;
   align-items: baseline;
@@ -995,3 +1000,29 @@ a.se-nav__link:hover {
 .se-raid-pagination { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
 .se-raid-reports { padding: 0; list-style: none; display: grid; gap: 0.5rem; }
 .se-raid-reports .se-btn { width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+
+
+/* --- tooltips ------------------------------------------------------------ */
+
+.se-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 6px;
+  border: 1px solid var(--se-line);
+  border-radius: 999px;
+  color: var(--se-accent);
+  font-family: var(--se-mono);
+  font-size: 10px;
+  line-height: 1;
+  cursor: help;
+  vertical-align: middle;
+}
+
+.se-tip:focus {
+  outline: none;
+  border-color: var(--se-accent);
+  box-shadow: 0 0 0 2px rgba(182, 255, 58, 0.18);
+}

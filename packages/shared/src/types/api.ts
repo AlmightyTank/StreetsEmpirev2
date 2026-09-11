@@ -84,6 +84,8 @@ export interface ResourcesDto {
   thugs: number;
   fitThugs: number;
   woundedThugs: number;
+  armedThugs: number;
+  unarmedThugs: number;
 
   condoms: number;
   medicine: number;
@@ -215,6 +217,11 @@ export interface DistrictDto {
   coveredWhores: number;
   /** Fraction of the stable that would be standing alone, 0..1. */
   exposedFraction: number;
+  /** Fit thugs with weapons counted for this block. */
+  armedThugs: number;
+  /** Fit thugs without weapons; E rounds do not count them as street cover. */
+  unarmedThugs: number;
+  requiresArmedThugs: boolean;
 }
 
 export interface DistrictsDto {
@@ -261,6 +268,8 @@ export interface ScoutResult {
   /** Fraction of the stable that worked with nobody watching, 0..1. */
   exposedFraction: number;
   coveredWhores: number;
+  armedThugs: number;
+  unarmedThugs: number;
 
   turnsUsed: number;
   turnsRemaining: number;

@@ -45,8 +45,13 @@ export function DistrictPicker({
                 <span className={exposed > 0 ? 'se-bad' : undefined}>
                   {exposed > 0
                     ? `${exposed}% working alone`
-                    : `Covered · 1 thug per ${district.protectionWhoresPerThug}`}
+                    : `Covered · 1 ${district.requiresArmedThugs ? 'armed thug' : 'thug'} per ${district.protectionWhoresPerThug}`}
                 </span>
+                {district.requiresArmedThugs && district.unarmedThugs > 0 ? (
+                  <span className="se-bad" title="Unarmed thugs do not count as street cover in this round.">
+                    {district.unarmedThugs} unarmed not covering
+                  </span>
+                ) : null}
               </span>
             </span>
           </label>

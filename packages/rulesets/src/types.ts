@@ -256,6 +256,8 @@ export interface ScoutingRules {
   readonly exposure: {
     readonly maxTakePenalty: number;
   };
+  /** When true, only fit thugs with weapons count as street protection. */
+  readonly requiresArmedThugs?: boolean;
   /**
    * How many clients a block holds. Hidden from the player, and rotated
    * between the districts on a clock - one value per district, reshuffled

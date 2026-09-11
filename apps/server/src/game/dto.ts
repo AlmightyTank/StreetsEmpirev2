@@ -14,7 +14,7 @@ import type {
   RoundDto,
   RoundPlayerDto,
 } from '@streets/shared';
-import { explainThugHappiness, explainWhoreHappiness } from '@streets/rules-engine';
+import { explainThugHappiness, explainWhoreHappiness, totalWeapons } from '@streets/rules-engine';
 import { fitThugs } from '../services/action.service.js';
 import type { TurnSettlement } from '../services/turn.service.js';
 
@@ -64,6 +64,10 @@ export function toRoundDto(round: Round, playerCount: number): RoundDto {
 }
 
 /** Lower rank number is better, so movement is start minus current. */
+function armedThugsForDto(player: RoundPlayer): number {
+  return Math.min(fitThugs(player), totalWeapons(player));
+}
+
 function movement(start: number | null, current: number | null): number | null {
   if (start === null || current === null) return null;
   return start - current;
@@ -94,6 +98,8 @@ export function toRoundPlayerDto(
       thugs: player.thugs,
       fitThugs: fitThugs(player),
       woundedThugs: player.woundedThugs,
+      armedThugs: armedThugsForDto(player),
+      unarmedThugs: Math.max(0, fitThugs(player) - armedThugsForDto(player)),
       condoms: player.condoms,
       medicine: player.medicine,
       crack: player.crack,

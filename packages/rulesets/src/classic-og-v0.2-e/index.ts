@@ -5,6 +5,17 @@ import type { Ruleset } from '../types.js';
 export const classicOgV02E = {
   ...classicOgV02D,
   meta: { id: 'classic-og-v0.2-e', version: '0.2.0-E', name: 'Classic OG - Testable Raids' },
+  happiness: {
+    ...classicOgV02D.happiness,
+    thug: {
+      ...classicOgV02D.happiness.thug,
+      penaltyPerThugWithoutWeapon: 3,
+    },
+  },
+  scouting: {
+    ...classicOgV02D.scouting,
+    requiresArmedThugs: true,
+  },
   round: {
     ...classicOgV02D.round,
     seededRivals: [

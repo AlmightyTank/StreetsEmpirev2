@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01 } from '@streets/rulesets';
+import { classicOgV01, classicOgV02D, classicOgV02E } from '@streets/rulesets';
 import {
   calculateExposure,
   calculateProduce,
@@ -231,6 +231,30 @@ describe('calculateExposure', () => {
     const result = calculateExposure({ whores: 40, thugs: 0 }, casino, classicOgV01);
     expect(result.exposed).toBe(1);
     expect(result.takeMultiplier).toBeCloseTo(0.4, 5);
+  });
+});
+
+
+describe('0.2.0-E armed scouting', () => {
+  const casino = classicOgV02E.districts.CASINO;
+
+  it('counts only armed fit thugs as street cover', () => {
+    const unarmed = calculateExposure({ whores: 40, thugs: 10, pistols: 0 }, casino, classicOgV02E);
+    const halfArmed = calculateExposure({ whores: 40, thugs: 10, pistols: 5 }, casino, classicOgV02E);
+    const armed = calculateExposure({ whores: 40, thugs: 10, pistols: 10 }, casino, classicOgV02E);
+
+    expect(unarmed.covered).toBe(0);
+    expect(unarmed.exposed).toBe(1);
+    expect(halfArmed.covered).toBe(20);
+    expect(halfArmed.exposed).toBe(0.5);
+    expect(armed.covered).toBe(40);
+    expect(armed.exposed).toBe(0);
+  });
+
+  it('keeps older strategy rounds pinned to ordinary thug coverage', () => {
+    const result = calculateExposure({ whores: 40, thugs: 10, pistols: 0 }, classicOgV02D.districts.CASINO, classicOgV02D);
+    expect(result.covered).toBe(40);
+    expect(result.exposed).toBe(0);
   });
 });
 

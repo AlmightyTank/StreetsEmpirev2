@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { calculateScout, districtCapacities, type Rng } from '@streets/rules-engine';
+import { armedThugsForStreet, calculateScout, districtCapacities, unarmedThugsForStreet, type Rng } from '@streets/rules-engine';
 import type { District, DistrictKey, Ruleset } from '@streets/rulesets';
 import type { DistrictDto, DistrictsDto, GameActionResult, ScoutResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
@@ -8,6 +8,10 @@ import { ActionService, assertTurns, fitThugs } from './action.service.js';
 export interface Crew {
   whores: number;
   thugs: number;
+  pistols?: number;
+  shotguns?: number;
+  tek9s?: number;
+  ak47s?: number;
 }
 
 const round2 = (value: number): number => Math.round(value * 100) / 100;
@@ -19,7 +23,9 @@ export function toDistrictDto(
   ruleset: Ruleset,
   crew: Crew,
 ): DistrictDto {
-  const covered = crew.thugs * district.protectionWhoresPerThug;
+  const armedThugs = armedThugsForStreet(crew, ruleset);
+  const unarmedThugs = unarmedThugsForStreet(crew, ruleset);
+  const covered = armedThugs * district.protectionWhoresPerThug;
   const exposed = crew.whores <= 0 ? 0 : Math.min(1, Math.max(0, 1 - covered / crew.whores));
 
   return {
@@ -30,6 +36,9 @@ export function toDistrictDto(
     /** Girls this crew could cover on this block. */
     coveredWhores: covered,
     exposedFraction: round2(exposed),
+    armedThugs,
+    unarmedThugs,
+    requiresArmedThugs: !!ruleset.scouting.requiresArmedThugs,
   };
 }
 
@@ -177,6 +186,8 @@ export const ScoutService = {
 
           exposedFraction: round2(outcome.exposure.exposed),
           coveredWhores: outcome.exposure.covered,
+          armedThugs: armedThugsForStreet(active, ruleset),
+          unarmedThugs: unarmedThugsForStreet(active, ruleset),
 
           turnsUsed: input.turns,
           turnsRemaining: next.turns,

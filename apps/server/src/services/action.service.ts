@@ -6,7 +6,7 @@ import type {
   Round,
   RoundPlayer,
 } from '@prisma/client';
-import { loadRulesetForRound, type Ruleset, type Standings } from '@streets/rules-engine';
+import { loadRulesetForRound, totalWeapons, type Ruleset, type Standings } from '@streets/rules-engine';
 import type {
   GameActionResult,
   PlayerSnapshot,
@@ -165,6 +165,10 @@ export function fitThugs(player: { thugs: number; woundedThugs: number }): numbe
   return Math.max(0, player.thugs - player.woundedThugs);
 }
 
+function armedThugsForSnapshot(state: PlayerState): number {
+  return Math.min(fitThugs(state), totalWeapons(state));
+}
+
 function toSnapshot(
   state: PlayerState,
   happiness: { whoreHappiness: number; thugHappiness: number },
@@ -182,6 +186,8 @@ function toSnapshot(
       thugs: state.thugs,
       fitThugs: fitThugs(state),
       woundedThugs: state.woundedThugs,
+      armedThugs: armedThugsForSnapshot(state),
+      unarmedThugs: Math.max(0, fitThugs(state) - armedThugsForSnapshot(state)),
       condoms: state.condoms,
       medicine: state.medicine,
       crack: state.crack,

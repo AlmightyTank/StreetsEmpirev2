@@ -12,7 +12,7 @@ const developmentUpdates = [
   {
     id: 'dev-0.2.0-e',
     title: '0.2.0-E: Raid onboarding targets',
-    body: 'The current local development round now seeds three New York rivals so a fresh player can test raids without waiting for another human account. Razor Ray is an even starter fight, Cashbox Carlo carries more cash with lighter muscle, and Iron Maya is a stronger defender for testing losses, wounds and medicine recovery.',
+    body: 'The current local development round now seeds three New York rivals so a fresh player can test raids without waiting for another human account. E also makes weapons matter more: unarmed thugs take a bigger happiness hit, and only armed fit thugs count as street cover when scouting. Hover the new help markers to see what each number means.',
   },
   {
     id: 'dev-0.2.0-d',
