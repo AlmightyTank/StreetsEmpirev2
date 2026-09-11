@@ -121,7 +121,7 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     expect(await app.prisma.playerActivity.count({ where: { roundPlayerId: { in: [a.id, d.id] }, type: { in: ['RAID_ATTACK', 'RAID_DEFENSE'] } } })).toBe(2);
   });
 
-  it('uses 0.2.0-E tuning to transfer bigger cash and a portion of crack', async () => {
+  it('uses 0.2.0-E tuning to transfer weighted cash and crack with repeat-target decay', async () => {
     await app.prisma.round.update({ where: { id: roundId }, data: { rulesetId: classicOgV02E.meta.id, rulesetVersion: classicOgV02E.meta.version } });
     await app.prisma.roundPlayer.update({
       where: { id: players[1]! },
@@ -132,20 +132,34 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     const response = await raid();
     expect(response.statusCode, response.body).toBe(200);
     const report = response.json<BattleReportDto>();
-    expect(report).toMatchObject({
-      won: true,
-      modelVersion: '0.2.0-E.1',
-      cashChangeCents: 360_000,
-      crackChange: 100,
-    });
+    expect(report.won).toBe(true);
+    expect(report.modelVersion).toBe('0.2.0-E.1');
+    expect(report.baseLootPercent).toBeGreaterThanOrEqual(5);
+    expect(report.baseLootPercent).toBeLessThanOrEqual(40);
+    expect(report.lootPercent).toBe(report.baseLootPercent);
+    expect(report.repeatTargetHits).toBe(0);
+    expect(report.repeatLootMultiplierPercent).toBe(100);
+    expect(report.cashChangeCents).toBeGreaterThanOrEqual(180_000);
+    expect(report.cashChangeCents).toBeLessThanOrEqual(1_000_000);
+    expect(report.crackChange).toBeGreaterThanOrEqual(50);
+    expect(report.crackChange).toBeLessThanOrEqual(200);
     const a = await state(0);
     const d = await state(1);
     expect(a.cashCents + d.cashCents).toBe(beforeA.cashCents + beforeD.cashCents);
     expect(a.crack + d.crack).toBe(beforeA.crack + beforeD.crack);
-    expect(a.crack).toBe(beforeA.crack + 100);
-    expect(d.crack).toBe(beforeD.crack - 100);
     expect(a.netWorthCents).toBe(NetWorthService.calculate(a, classicOgV02E));
     expect(d.netWorthCents).toBe(NetWorthService.calculate(d, classicOgV02E));
+
+    await app.prisma.combatInjury.deleteMany({ where: { roundPlayerId: { in: [players[0]!, players[1]!] } } });
+    await app.prisma.roundPlayer.update({ where: { id: players[0]! }, data: { woundedThugs: 0, raidCooldownUntil: null } });
+    await app.prisma.roundPlayer.update({ where: { id: players[1]! }, data: { woundedThugs: 0, raidProtectedUntil: null, lastRaidedAt: null, lastActiveAt: new Date() } });
+    const repeated = await raid();
+    expect(repeated.statusCode, repeated.body).toBe(200);
+    const repeatedReport = repeated.json<BattleReportDto>();
+    expect(repeatedReport.repeatTargetHits).toBe(1);
+    expect(repeatedReport.repeatLootMultiplierPercent).toBe(75);
+    expect(repeatedReport.lootPercent).toBe(Math.floor((repeatedReport.baseLootPercent ?? 0) * 0.75));
+    expect(repeatedReport.lootPercent).toBeLessThanOrEqual(30);
   });
 
   it('replays duplicate concurrent raids, even after cooldown or round closure', async () => {

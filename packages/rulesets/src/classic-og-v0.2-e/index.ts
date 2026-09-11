@@ -25,10 +25,17 @@ export const classicOgV02E = {
     version: '0.2.0-E.1',
     loot: {
       ...classicOgV02D.combat.loot,
-      exposedCashPercent: 10,
+      exposedCashPercent: 40,
       perFitAttackerCents: 25_000,
-      exposedDrugPercent: 10,
+      exposedDrugPercent: 40,
       perFitAttackerCrack: 5,
+      weightedPercent: {
+        minPercent: 5,
+        maxPercent: 40,
+        exponent: 2.5,
+        repeatPenaltyPercent: 25,
+        repeatFloorPercent: 25,
+      },
     },
   },
   round: {

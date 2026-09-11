@@ -24,6 +24,9 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds ?? 0)} / ${formatNumber(report.opponentWounds ?? 0)}`} />
       <Row label="Cash change / remaining" value={`${report.cashChangeCents >= 0 ? '+' : '−'}${formatCents(Math.abs(report.cashChangeCents))} / ${formatCents(report.cashAfterCents)}`} strong />
       {report.crackChange !== undefined && report.crackAfter !== undefined ? <Row label="Crack change / remaining" value={`${report.crackChange >= 0 ? '+' : '−'}${formatNumber(Math.abs(report.crackChange))} / ${formatNumber(report.crackAfter)}`} strong /> : null}
+      {report.won && report.lootPercent !== undefined ? <Row label="Loot roll" value={report.repeatTargetHits && report.repeatTargetHits > 0
+        ? `${formatNumber(report.baseLootPercent ?? report.lootPercent)}% × ${formatNumber(report.repeatLootMultiplierPercent ?? 100)}% repeat penalty = ${formatNumber(report.lootPercent)}%`
+        : `${formatNumber(report.lootPercent)}%`} /> : null}
       <Row label="Turns spent / remaining" value={`${report.turnsSpent} / ${report.turnsAfter}`} />
       <Row label="National rank — before / after" value={`#${report.nationalRankBefore} / #${report.nationalRankAfter}`} />
     </div>
@@ -248,8 +251,11 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
       </Panel> : null}
       <Panel title="How raids work">
         <p>Raids cost {rules!.turnCost} turns, win or lose. Defense is automatic and costs no turns.</p>
-        <p>Win up to {rules!.lootPercent}% of cash above {formatCents(rules!.protectedCashCents)}, limited to {formatCents(rules!.perThugLootCents)} per thug you send.</p>
-        {rules!.drugLootPercent ? <p>Successful raids also take up to {rules!.drugLootPercent}% of the defender's crack, limited to {formatNumber(rules!.perThugCrackLoot ?? 0)} rocks per fit thug who makes it home.</p> : null}
+        {rules!.minLootPercent !== undefined && rules!.maxLootPercent !== undefined
+          ? <p>Successful raids roll a loot cut from {rules!.minLootPercent}% to {rules!.maxLootPercent}% of exposed cash above {formatCents(rules!.protectedCashCents)}. The roll is weighted low, so the full {rules!.maxLootPercent}% can happen but is rare. Cash is still limited to {formatCents(rules!.perThugLootCents)} per fit thug who makes it home.</p>
+          : <p>Win up to {rules!.lootPercent}% of cash above {formatCents(rules!.protectedCashCents)}, limited to {formatCents(rules!.perThugLootCents)} per thug you send.</p>}
+        {rules!.drugLootPercent ? <p>Successful raids also use that loot roll against the defender's crack, limited to {formatNumber(rules!.perThugCrackLoot ?? 0)} rocks per fit thug who makes it home.</p> : null}
+        {rules!.repeatLootPenaltyPercent ? <p>Hitting the same target back to back cuts the loot roll by {rules!.repeatLootPenaltyPercent}% each repeat, down to a {rules!.repeatLootFloorPercent ?? 0}% multiplier. Hitting a different target resets that repeat penalty.</p> : null}
         <p>{rules!.newcomerHours > 0 ? `New players have ${rules!.newcomerHours} hours of protection. ` : 'New players can raid immediately in this strategy round. '}Each raid protects its defender for {rules!.protectionHours} hours from everyone. Offline defenders must return before another raid.</p>
         <p>Your crew waits {rules!.cooldownMinutes} minutes between attacks. You cannot raid while protected or target a crew below half your full strength.</p>
         {rules!.reconTurnCost ? <p>Recon costs {rules!.reconTurnCost} turns and holds target intel for {rules!.intelExpiresMinutes} minutes. Revenge windows last {rules!.retaliationHours} hours against players who hit you.</p> : null}
@@ -264,7 +270,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             className={`se-btn se-raid-report-link${selectedReport ? ' se-raid-report-link--active' : ''}`}
             type="button"
             aria-current={selectedReport ? 'true' : undefined}
-            onClick={() => setReport(battle)}
+            onClick={() => setReport((current) => current?.id === battle.id ? null : battle)}
           >
             <span>{battle.role === 'ATTACKER' ? 'Raid' : 'Defense'} · {battle.won ? 'Won' : 'Lost'} vs {battle.opponent.displayName}</span>
             <span className="se-raid-report-link__meta">{date(battle.createdAt)}</span>

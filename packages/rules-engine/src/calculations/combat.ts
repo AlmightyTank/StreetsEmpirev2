@@ -25,6 +25,7 @@ export interface RaidInput {
   readonly attackerTurns: number;
   readonly defenderCashCents: bigint;
   readonly defenderCrack?: number;
+  readonly repeatTargetHits?: number;
 }
 
 export interface RaidResult {
@@ -42,6 +43,10 @@ export interface RaidResult {
     readonly defender: number;
     readonly recoveryMinutes: number;
   };
+  readonly lootPercent: number;
+  readonly baseLootPercent: number;
+  readonly repeatTargetHits: number;
+  readonly repeatLootMultiplierPercent: number;
   readonly lootCents: bigint;
   readonly lootCrack: number;
   readonly cashChanges: { readonly attackerCents: bigint; readonly defenderCents: bigint };
@@ -107,6 +112,20 @@ export function validateCombatModel(model: CombatModel): void {
     requireCondition(model.loot.exposedDrugPercent <= 100, 'INVALID_MODEL', 'Drug loot percent cannot exceed 100.');
   }
   if (model.loot.perFitAttackerCrack !== undefined) count(model.loot.perFitAttackerCrack, 'Drug carrying capacity');
+  if (model.loot.weightedPercent) {
+    const weighted = model.loot.weightedPercent;
+    count(weighted.minPercent, 'Minimum weighted loot percent');
+    count(weighted.maxPercent, 'Maximum weighted loot percent');
+    requireCondition(weighted.minPercent <= weighted.maxPercent, 'INVALID_MODEL', 'Weighted loot minimum cannot exceed its maximum.');
+    requireCondition(weighted.maxPercent <= model.loot.exposedCashPercent, 'INVALID_MODEL', 'Weighted loot maximum cannot exceed the exposed cash percent.');
+    if (model.loot.exposedDrugPercent !== undefined) {
+      requireCondition(weighted.maxPercent <= model.loot.exposedDrugPercent, 'INVALID_MODEL', 'Weighted loot maximum cannot exceed the exposed drug percent.');
+    }
+    requireCondition(Number.isFinite(weighted.exponent) && weighted.exponent > 0, 'INVALID_MODEL', 'Weighted loot exponent must be finite and positive.');
+    count(weighted.repeatPenaltyPercent, 'Repeat-target loot penalty');
+    count(weighted.repeatFloorPercent, 'Repeat-target loot floor');
+    requireCondition(weighted.repeatPenaltyPercent <= 100 && weighted.repeatFloorPercent <= 100, 'INVALID_MODEL', 'Repeat-target loot settings must be percentages.');
+  }
 }
 
 function validateCrew(crew: CombatCrew, model: CombatModel): void {
@@ -155,10 +174,35 @@ function wounded(size: number, won: boolean, model: CombatModel, roll: number): 
   return Math.min(size, Math.ceil(size * model.wounds.maxFraction), roundStochastic(size * rate, () => roll));
 }
 
+function lootPercent(model: CombatModel, rng: Rng, repeatTargetHits: number): {
+  baseLootPercent: number;
+  lootPercent: number;
+  repeatLootMultiplierPercent: number;
+} {
+  const weighted = model.loot.weightedPercent;
+  if (!weighted) {
+    return {
+      baseLootPercent: model.loot.exposedCashPercent,
+      lootPercent: model.loot.exposedCashPercent,
+      repeatLootMultiplierPercent: 100,
+    };
+  }
+  const roll = checkedRoll(rng);
+  const spread = weighted.maxPercent - weighted.minPercent + 1;
+  const baseLootPercent = Math.min(weighted.maxPercent, weighted.minPercent + Math.floor(roll ** weighted.exponent * spread));
+  const repeatLootMultiplierPercent = Math.max(weighted.repeatFloorPercent, 100 - repeatTargetHits * weighted.repeatPenaltyPercent);
+  return {
+    baseLootPercent,
+    lootPercent: Math.floor(baseLootPercent * repeatLootMultiplierPercent / 100),
+    repeatLootMultiplierPercent,
+  };
+}
+
 /**
  * Pure 0.2.0-A simulation. Requires explicit model and RNG; never reads a DB,
  * clock, or default ruleset. Eligibility and repeated attacks belong to B.
- * Consumes exactly four rolls: attacker strength, defender strength, two wounds.
+ * Consumes exactly four rolls in fixed-loot models: attacker strength, defender
+ * strength and two wounds. Weighted-loot models consume one extra loot roll.
  */
 export function simulateRaid(input: RaidInput, model: CombatModel, rng: Rng): RaidResult {
   validateCombatModel(model);
@@ -172,6 +216,7 @@ export function simulateRaid(input: RaidInput, model: CombatModel, rng: Rng): Ra
   requireCondition(typeof input.defenderCashCents === 'bigint' && input.defenderCashCents >= 0n,
     'INVALID_CASH', 'Defender cash must be nonnegative BigInt cents.');
   if (input.defenderCrack !== undefined) count(input.defenderCrack, 'Defender crack');
+  if (input.repeatTargetHits !== undefined) count(input.repeatTargetHits, 'Repeat target hits');
 
   const attacker = equip(input.attacker, input.attackingThugs, model);
   const defender = equip(input.defender, Math.min(input.defender.thugs, model.squadCap), model);
@@ -192,12 +237,15 @@ export function simulateRaid(input: RaidInput, model: CombatModel, rng: Rng): Ra
   };
   const exposedCash = input.defenderCashCents > BigInt(model.loot.protectedCashCents)
     ? input.defenderCashCents - BigInt(model.loot.protectedCashCents) : 0n;
-  const cashCap = exposedCash * BigInt(model.loot.exposedCashPercent) / 100n;
+  const repeatTargetHits = input.repeatTargetHits ?? 0;
+  const lootRoll = lootPercent(model, rng, repeatTargetHits);
+  const cashCap = exposedCash * BigInt(lootRoll.lootPercent) / 100n;
   const fitAttackersAfterWounds = attacker.committed - wounds.attacker;
   const carryCap = BigInt(fitAttackersAfterWounds) * BigInt(model.loot.perFitAttackerCents);
   const lootCents = won ? (cashCap < carryCap ? cashCap : carryCap) : 0n;
   const defenderCrack = input.defenderCrack ?? 0;
-  const crackPercentCap = Math.floor(defenderCrack * (model.loot.exposedDrugPercent ?? 0) / 100);
+  const crackPercent = model.loot.weightedPercent ? Math.min(lootRoll.lootPercent, model.loot.exposedDrugPercent ?? 0) : model.loot.exposedDrugPercent ?? 0;
+  const crackPercentCap = Math.floor(defenderCrack * crackPercent / 100);
   const crackCarryCap = fitAttackersAfterWounds * (model.loot.perFitAttackerCrack ?? 0);
   const lootCrack = won ? Math.min(defenderCrack, crackPercentCap, crackCarryCap) : 0;
   return {
@@ -207,6 +255,10 @@ export function simulateRaid(input: RaidInput, model: CombatModel, rng: Rng): Ra
     turnCost: model.turnCost,
     attackerTurnsAfter: input.attackerTurns - model.turnCost,
     wounds,
+    lootPercent: lootRoll.lootPercent,
+    baseLootPercent: lootRoll.baseLootPercent,
+    repeatTargetHits,
+    repeatLootMultiplierPercent: lootRoll.repeatLootMultiplierPercent,
     lootCents,
     lootCrack,
     cashChanges: { attackerCents: lootCents, defenderCents: -lootCents },

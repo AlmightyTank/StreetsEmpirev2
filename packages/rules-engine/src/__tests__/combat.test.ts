@@ -89,6 +89,31 @@ describe('raid outcome and resource boundaries', () => {
     expect(result.defenderCrackAfter).toBe(900);
   });
 
+  it('can roll up to 40% rarely and reduces repeated target loot', () => {
+    const weighted: CombatModel = {
+      ...model,
+      strength: { ...model.strength, defenseMultiplier: 1, variance: 0 },
+      wounds: { ...model.wounds, winnerFraction: 0, loserFraction: 0, maxFraction: 0 },
+      loot: {
+        protectedCashCents: 0,
+        exposedCashPercent: 40,
+        perFitAttackerCents: 1_000_000,
+        exposedDrugPercent: 40,
+        perFitAttackerCrack: 1_000,
+        weightedPercent: { minPercent: 5, maxPercent: 40, exponent: 2.5, repeatPenaltyPercent: 25, repeatFloorPercent: 25 },
+      },
+    };
+    const maxRoll = simulateRaid(input({ defenderCashCents: 1_000_000n, defenderCrack: 1_000 }), weighted, () => 0.999999);
+    expect(maxRoll).toMatchObject({ baseLootPercent: 40, lootPercent: 40, repeatTargetHits: 0, repeatLootMultiplierPercent: 100 });
+    expect(maxRoll.lootCents).toBe(400_000n);
+    expect(maxRoll.lootCrack).toBe(400);
+
+    const repeated = simulateRaid(input({ defenderCashCents: 1_000_000n, defenderCrack: 1_000, repeatTargetHits: 2 }), weighted, () => 0.999999);
+    expect(repeated).toMatchObject({ baseLootPercent: 40, lootPercent: 20, repeatTargetHits: 2, repeatLootMultiplierPercent: 50 });
+    expect(repeated.lootCents).toBe(200_000n);
+    expect(repeated.lootCrack).toBe(200);
+  });
+
   it('gives an exact strength tie to the defender', () => {
     const variant: CombatModel = { ...model, strength: { ...model.strength, defenseMultiplier: 1, variance: 0 } };
     expect(simulateRaid(input({ defender: crew(40) }), variant, flatRng).winner).toBe('DEFENDER');
@@ -158,6 +183,16 @@ describe('raid outcome and resource boundaries', () => {
     expect(model).toEqual(beforeModel);
   });
 
+  it('uses one extra roll when weighted loot is enabled', () => {
+    const weighted: CombatModel = {
+      ...model,
+      loot: { ...model.loot, exposedCashPercent: 40, weightedPercent: { minPercent: 5, maxPercent: 40, exponent: 2.5, repeatPenaltyPercent: 25, repeatFloorPercent: 25 } },
+    };
+    let calls = 0;
+    simulateRaid(input(), weighted, () => { calls++; return 0.5; });
+    expect(calls).toBe(5);
+  });
+
   it('conserves cash, respects carrying capacity and bounds wounds across sizes and rolls', () => {
     const rng = combatSimulationRng(9876);
     for (let size = 1; size <= 100; size++) {
@@ -200,6 +235,10 @@ describe('combat rejects invalid inputs before rolling', () => {
   it('rejects insufficient turns without consuming random numbers', () => {
     expect(() => simulateRaid(input({ attackerTurns: 9 }), model, () => { throw new Error('Should not roll'); })).toThrow('not enough turns');
   });
+  it('rejects invalid repeat target counts', () => {
+    expect(() => simulateRaid(input({ repeatTargetHits: -1 }), model, flatRng)).toThrow(CombatError);
+    expect(() => simulateRaid(input({ repeatTargetHits: 1.5 }), model, flatRng)).toThrow(CombatError);
+  });
   it('rejects negative cash', () => {
     expect(() => simulateRaid(input({ defenderCashCents: -1n }), model, flatRng)).toThrow(CombatError);
   });
@@ -214,6 +253,8 @@ describe('combat rejects invalid inputs before rolling', () => {
     expect(() => simulateRaid(input(), { ...model, strength: { ...model.strength, variance: 1 } }, flatRng)).toThrow(CombatError);
     expect(() => simulateRaid(input(), { ...model, loot: { ...model.loot, exposedCashPercent: 101 } }, flatRng)).toThrow(CombatError);
     expect(() => simulateRaid(input(), { ...model, loot: { ...model.loot, exposedDrugPercent: 101 } }, flatRng)).toThrow(CombatError);
+    expect(() => simulateRaid(input(), { ...model, loot: { ...model.loot, weightedPercent: { minPercent: 41, maxPercent: 40, exponent: 2.5, repeatPenaltyPercent: 25, repeatFloorPercent: 25 } } }, flatRng)).toThrow(CombatError);
+    expect(() => simulateRaid(input(), { ...model, loot: { ...model.loot, exposedCashPercent: 40, weightedPercent: { minPercent: 5, maxPercent: 40, exponent: 0, repeatPenaltyPercent: 25, repeatFloorPercent: 25 } } }, flatRng)).toThrow(CombatError);
   });
 });
 

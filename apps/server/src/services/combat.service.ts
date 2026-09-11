@@ -107,6 +107,21 @@ function estimatedMaxCrackLoot(crack: number, model: CombatRules): number | null
   return Math.floor(crack * percent / 100);
 }
 
+async function consecutiveRepeatTargetHits(prisma: PrismaClient | Prisma.TransactionClient, attackerId: string, defenderId: string): Promise<number> {
+  const rows = await prisma.raidBattle.findMany({
+    where: { attackerId },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: 10,
+    select: { defenderId: true },
+  });
+  let repeats = 0;
+  for (const row of rows) {
+    if (row.defenderId !== defenderId) break;
+    repeats++;
+  }
+  return repeats;
+}
+
 function intelReport(target: RoundPlayer, model: CombatRules, createdAt: Date, expiresAt: Date): CombatIntelReportDto {
   return {
     targetPublicPimpId: target.publicPimpId,
@@ -184,6 +199,13 @@ export const CombatService = {
         protectionHours: model.protectionHours, cooldownMinutes: model.cooldownMinutes,
         protectedCashCents: model.loot.protectedCashCents, lootPercent: model.loot.exposedCashPercent, perThugLootCents: model.loot.perFitAttackerCents,
         ...(model.loot.exposedDrugPercent && model.loot.perFitAttackerCrack ? { drugLootPercent: model.loot.exposedDrugPercent, perThugCrackLoot: model.loot.perFitAttackerCrack } : {}),
+        ...(model.loot.weightedPercent ? {
+          minLootPercent: model.loot.weightedPercent.minPercent,
+          maxLootPercent: model.loot.weightedPercent.maxPercent,
+          weightedLootExponent: model.loot.weightedPercent.exponent,
+          repeatLootPenaltyPercent: model.loot.weightedPercent.repeatPenaltyPercent,
+          repeatLootFloorPercent: model.loot.weightedPercent.repeatFloorPercent,
+        } : {}),
         ...(model.strategy ? { reconTurnCost: model.strategy.intel.turnCost, intelExpiresMinutes: model.strategy.intel.expiresMinutes, retaliationHours: model.strategy.retaliation.revengeHours } : {}),
       },
       targets: targets.slice(0, 25).map((target) => ({
@@ -232,8 +254,9 @@ export const CombatService = {
       if (input.attackingThugs > Math.min(fitThugs(attacker), model.squadCap)) throw AppError.badRequest('INVALID_SQUAD', 'Your squad exceeds your fit crew or the raid limit.');
       const beforeA = await RankingService.ranksFor(tx, attacker);
       const beforeD = await RankingService.ranksFor(tx, defender);
+      const repeatTargetHits = await consecutiveRepeatTargetHits(tx, attackerId, target.id);
       const result = simulateRaid({ attacker: crew(attacker), defender: crew(defender), attackingThugs: input.attackingThugs,
-        attackerTurns: attacker.turns, defenderCashCents: defender.cashCents, defenderCrack: defender.crack }, model, () => randomInt(0, 2 ** 32) / 2 ** 32);
+        attackerTurns: attacker.turns, defenderCashCents: defender.cashCents, defenderCrack: defender.crack, repeatTargetHits }, model, () => randomInt(0, 2 ** 32) / 2 ** 32);
       const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker,
         turns: result.attackerTurnsAfter, cashCents: attacker.cashCents + result.lootCents, crack: attacker.crack + result.lootCrack };
       const nextD = { ...toState(defender), woundedThugs: defender.woundedThugs + result.wounds.defender,
@@ -280,6 +303,10 @@ export const CombatService = {
           cashAfterCents: Number(isAttacker ? nextA.cashCents : nextD.cashCents),
           crackChange: isAttacker ? result.lootCrack : -result.lootCrack,
           crackAfter: isAttacker ? nextA.crack : nextD.crack,
+          lootPercent: result.lootPercent,
+          baseLootPercent: result.baseLootPercent,
+          repeatTargetHits: result.repeatTargetHits,
+          repeatLootMultiplierPercent: result.repeatLootMultiplierPercent,
           turnsSpent: isAttacker ? model.turnCost : 0, turnsAfter: isAttacker ? nextA.turns : nextD.turns,
           nationalRankBefore: (isAttacker ? beforeA : beforeD).nationalRank,
           nationalRankAfter: (isAttacker ? afterA : afterD).nationalRank,

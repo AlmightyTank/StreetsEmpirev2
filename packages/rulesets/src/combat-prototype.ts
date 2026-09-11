@@ -26,6 +26,13 @@ export interface CombatModel {
     readonly perFitAttackerCents: number;
     readonly exposedDrugPercent?: number;
     readonly perFitAttackerCrack?: number;
+    readonly weightedPercent?: {
+      readonly minPercent: number;
+      readonly maxPercent: number;
+      readonly exponent: number;
+      readonly repeatPenaltyPercent: number;
+      readonly repeatFloorPercent: number;
+    };
   };
 }
 
