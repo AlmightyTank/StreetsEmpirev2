@@ -49,6 +49,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const [notice, setNotice] = useState<string | null>(null);
   const inFlight = useRef(false);
   const refreshSequence = useRef(0);
+  const reportDetailRef = useRef<HTMLDivElement | null>(null);
 
   const refresh = useCallback(async (background = false) => {
     const sequence = ++refreshSequence.current;
@@ -78,6 +79,11 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
       document.removeEventListener('visibilitychange', onReturn);
     };
   }, [refresh]);
+
+  useEffect(() => {
+    if (!report) return;
+    reportDetailRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [report]);
 
   useEffect(() => {
     if (!page?.targets.length) return;
@@ -224,7 +230,6 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             {page.nextTarget !== null ? <button className="se-btn" disabled={busy || !!pending} onClick={() => { setAfter(page.nextTarget!); setTargetId(''); }}>More targets</button> : null}
           </div>
         </Panel>
-        {report ? <BattleReport report={report} /> : null}
       </div>
       {page.recovery ? <Panel title="Recovery">
         <div className="se-rows">
@@ -248,13 +253,22 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     </div>}
     <div className="se-mt"><Panel title="Battle reports">
       {!reports.length ? <p className="se-muted">Your attacks and defenses will appear here.</p> : <ul className="se-raid-reports">
-        {reports.map((battle) => <li key={battle.id}><button className="se-btn" type="button" onClick={() => setReport(battle)}>
-          {battle.role === 'ATTACKER' ? 'Raid' : 'Defense'} · {battle.won ? 'Won' : 'Lost'} vs {battle.opponent.displayName} · {date(battle.createdAt)}
-        </button></li>)}
+        {reports.map((battle) => {
+          const selectedReport = report?.id === battle.id;
+          return <li key={battle.id}><button
+            className={`se-btn se-raid-report-link${selectedReport ? ' se-raid-report-link--active' : ''}`}
+            type="button"
+            aria-current={selectedReport ? 'true' : undefined}
+            onClick={() => setReport(battle)}
+          >
+            <span>{battle.role === 'ATTACKER' ? 'Raid' : 'Defense'} · {battle.won ? 'Won' : 'Lost'} vs {battle.opponent.displayName}</span>
+            <span className="se-raid-report-link__meta">{date(battle.createdAt)}</span>
+          </button></li>;
+        })}
       </ul>}
       {nextBefore ? <button type="button" className="se-btn" disabled={busy} onClick={() => void olderReports()}>Older reports</button> : null}
+      {report ? <div ref={reportDetailRef} className="se-raid-report-detail"><BattleReport report={report} /></div> : null}
     </Panel></div>
-    {!page?.enabled && report ? <BattleReport report={report} /> : null}
   </GameLayout>;
 }
 

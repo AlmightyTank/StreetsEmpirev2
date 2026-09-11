@@ -1000,6 +1000,11 @@ a.se-nav__link:hover {
 .se-raid-pagination { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
 .se-raid-reports { padding: 0; list-style: none; display: grid; gap: 0.5rem; }
 .se-raid-reports .se-btn { width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.se-raid-report-link { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.se-raid-report-link--active { border-color: var(--se-accent); box-shadow: 0 0 0 2px rgba(182, 255, 58, 0.16); }
+.se-raid-report-link__meta { color: var(--se-muted); font-family: var(--se-mono); font-size: 0.75rem; }
+.se-raid-report-detail { margin-top: 0.75rem; scroll-margin-top: 5rem; }
+.se-raid-report-detail .se-panel { margin: 0; }
 
 
 /* --- tooltips ------------------------------------------------------------ */
