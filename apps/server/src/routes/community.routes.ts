@@ -33,6 +33,7 @@ const communityRoutes: FastifyPluginAsync = async (fastify) => {
       fastify.prisma,
       settled.player,
       settled.ruleset.rankings.topCount,
+      settled.ruleset,
     );
   });
 
@@ -51,6 +52,7 @@ const communityRoutes: FastifyPluginAsync = async (fastify) => {
       round.id,
       publicPimpId,
       settled.player.publicPimpId,
+      settled.ruleset,
     );
 
     return { player };

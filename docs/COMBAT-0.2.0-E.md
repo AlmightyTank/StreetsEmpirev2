@@ -8,6 +8,7 @@
 - E inherits the full D combat model: immediate raids, recon intel, wounds, medicine treatment and 24-hour revenge windows.
 - Missing weapons now cost 3 thug-happiness points each in E. Beer still costs 1 point each.
 - E scouting requires armed fit thugs for street coverage. Unarmed thugs still belong to the player, but they do not cover whores on district scouting trips.
+- Public boards keep rank order, but opponent exact net worth is hidden in rankings and raid target lists. Opponent profiles also hide exact crew and weapons, so recon is the source of combat-ready numbers.
 - The default seed now creates `Game #005 - Raid Onboarding` as the latest active local round.
 - Game #005 seeds three inactive local rivals in New York City:
   - Razor Ray: even starter fight.
@@ -18,7 +19,7 @@ The rivals are normal `RoundPlayer` rows backed by inactive local accounts. Comb
 
 ## Tooltips
 
-The web UI now adds hover/focus help to resource rows, happiness drags, district coverage and raid target strength. The goal is to tell the player why a number matters at the moment they are about to act.
+The web UI now adds hover/focus help to resource rows, happiness drags, district coverage, hidden public intel and raid target strength. The goal is to tell the player why a number matters at the moment they are about to act.
 
 ## Local testing
 

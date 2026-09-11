@@ -163,6 +163,7 @@ export const CombatService = {
       }) : Promise.resolve([]),
     ]);
     const intelByTarget = new Map(intelRows.map((row) => [row.targetId, row.report as unknown as CombatIntelReportDto]));
+    const hideOpponentNetWorth = ruleset.communityPrivacy?.hideOpponentNetWorth ?? false;
     const ownStrength = strength(player, model);
     return {
       ...base, enabled: true, blockedReason,
@@ -176,7 +177,7 @@ export const CombatService = {
       },
       targets: targets.slice(0, 25).map((target) => ({
         publicPimpId: target.publicPimpId, displayName: target.displayName,
-        netWorthCents: Number(NetWorthService.calculate(target, ruleset)),
+        netWorthCents: hideOpponentNetWorth ? null : Number(NetWorthService.calculate(target, ruleset)),
         strength: strength(target, model) < ownStrength * (1 - model.strength.variance) ? 'Weaker' : strength(target, model) > ownStrength * (1 + model.strength.variance) ? 'Stronger' : 'Comparable',
         blockedReason: combatTargetBlock(player, target, model, now, revengeIds.has(target.id)),
         protectedUntil: combatProtectionUntil(target, model) > now ? iso(combatProtectionUntil(target, model)) : null,

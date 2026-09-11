@@ -5,8 +5,9 @@ export interface RankingEntryDto {
   publicPimpId: number;
   displayName: string;
   city: CityDto;
-  netWorthCents: number;
+  netWorthCents: number | null;
   isYou: boolean;
+  intelRequired: boolean;
 }
 
 export interface RankingsDto {
@@ -24,7 +25,7 @@ export interface PublicPlayerProfileDto {
   publicPimpId: number;
   displayName: string;
   city: CityDto;
-  netWorthCents: number;
+  netWorthCents: number | null;
   rank: {
     local: number;
     national: number;
@@ -32,15 +33,16 @@ export interface PublicPlayerProfileDto {
   crew: {
     whores: number;
     thugs: number;
-  };
+  } | null;
   weapons: {
     pistols: number;
     shotguns: number;
     tek9s: number;
     ak47s: number;
     total: number;
-  };
-  lowRiders: number;
+  } | null;
+  lowRiders: number | null;
+  intelRequired: boolean;
   joinedAt: string;
   lastActiveAt: string;
   isYou: boolean;

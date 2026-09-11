@@ -34,4 +34,10 @@ describe('rankRows', () => {
     const ranked = rankRows([row(1001, 500), row(1002, 400)], 1002);
     expect(ranked.map((entry) => entry.isYou)).toEqual([false, true]);
   });
+
+  it('can hide opponent net worth while keeping self exact', () => {
+    const ranked = rankRows([row(1001, 500), row(1002, 400)], 1002, true);
+    expect(ranked.map((entry) => entry.netWorthCents)).toEqual([null, 400]);
+    expect(ranked.map((entry) => entry.intelRequired)).toEqual([true, false]);
+  });
 });

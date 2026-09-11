@@ -406,6 +406,15 @@ export interface RankingRules {
   readonly dailyResetHourUtc: number;
 }
 
+export interface CommunityPrivacyRules {
+  /** Hide exact opponent net worth on public boards and raid target lists. */
+  readonly hideOpponentNetWorth: boolean;
+  /** Hide exact opponent crew counts on public profiles. */
+  readonly hideOpponentCrew: boolean;
+  /** Hide exact opponent weapon counts on public profiles. */
+  readonly hideOpponentWeapons: boolean;
+}
+
 export interface EvidenceRules {
   readonly enabled: boolean;
   readonly perScout: number;
@@ -456,5 +465,7 @@ export interface Ruleset {
   readonly reputation: ReputationRules;
   readonly quests: { readonly [K in QuestKey]: QuestRule };
   readonly rankings: RankingRules;
+  /** Optional round privacy for public community surfaces. */
+  readonly communityPrivacy?: CommunityPrivacyRules;
   readonly evidence: EvidenceRules;
 }

@@ -16,6 +16,11 @@ export const classicOgV02E = {
     ...classicOgV02D.scouting,
     requiresArmedThugs: true,
   },
+  communityPrivacy: {
+    hideOpponentNetWorth: true,
+    hideOpponentCrew: true,
+    hideOpponentWeapons: true,
+  },
   round: {
     ...classicOgV02D.round,
     seededRivals: [

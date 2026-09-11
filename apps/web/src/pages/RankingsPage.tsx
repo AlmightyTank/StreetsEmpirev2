@@ -36,7 +36,9 @@ function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: b
                 {row.isYou ? <span className="se-you">YOU</span> : null}
               </td>
               {showCity ? <td>{row.city.name}</td> : null}
-              <td className="se-table__number se-num">{formatCents(row.netWorthCents)}</td>
+              <td className="se-table__number se-num" title={row.intelRequired ? 'Exact opponent net worth now requires recon.' : undefined}>
+                {row.netWorthCents === null ? 'Hidden' : formatCents(row.netWorthCents)}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -76,6 +78,10 @@ export function RankingsPage() {
       </div>
 
       {error ? <Alert>{error}</Alert> : null}
+
+      {data?.national.some((row) => row.intelRequired) || data?.local.some((row) => row.intelRequired) ? (
+        <Alert tone="info">Ranks still show who is ahead, but exact opponent net worth is hidden in this combat round. Use recon on the Raids page for cash bands, fit thugs and weapons.</Alert>
+      ) : null}
 
       <div className="se-grid">
         <Panel title="National" flush>

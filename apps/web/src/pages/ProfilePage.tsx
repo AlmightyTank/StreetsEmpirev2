@@ -61,31 +61,38 @@ export function ProfilePage() {
       {player ? (
         <>
           <div className="se-stats se-mb">
-            <Stat label="Net Worth" value={formatCents(player.netWorthCents)} />
+            <Stat label="Net Worth" value={player.netWorthCents === null ? 'Hidden' : formatCents(player.netWorthCents)} tooltip={player.intelRequired ? 'Exact opponent net worth requires recon in this combat round.' : undefined} />
             <Stat label="Local Rank" value={`#${formatNumber(player.rank.local)}`} />
             <Stat label="National Rank" value={`#${formatNumber(player.rank.national)}`} />
             <Stat label="Last Seen" value={lastSeen(player.lastActiveAt)} />
           </div>
 
-          <div className="se-grid se-grid--2">
-            <Panel title="Crew" flush>
-              <div className="se-rows">
-                <Row label="Whores" value={formatNumber(player.crew.whores)} strong />
-                <Row label="Thugs" value={formatNumber(player.crew.thugs)} strong />
-                <Row label="Low-Riders" value={formatNumber(player.lowRiders)} />
-              </div>
+          {player.intelRequired ? (
+            <Panel title="Intel needed">
+              <p>Public profiles no longer show opponent crew, weapons or exact net worth in this combat round.</p>
+              <p className="se-hint">Use recon on the Raids page to reveal fit thugs, wounds, weapons, cash band and max exposed cash for this target.</p>
             </Panel>
+          ) : (
+            <div className="se-grid se-grid--2">
+              <Panel title="Crew" flush>
+                <div className="se-rows">
+                  <Row label="Whores" value={formatNumber(player.crew!.whores)} strong />
+                  <Row label="Thugs" value={formatNumber(player.crew!.thugs)} strong />
+                  <Row label="Low-Riders" value={formatNumber(player.lowRiders!)} />
+                </div>
+              </Panel>
 
-            <Panel title="Weapons" flush>
-              <div className="se-rows">
-                <Row label="Pistols" value={formatNumber(player.weapons.pistols)} />
-                <Row label="Shotguns" value={formatNumber(player.weapons.shotguns)} />
-                <Row label="Tek-9s" value={formatNumber(player.weapons.tek9s)} />
-                <Row label="AK-47s" value={formatNumber(player.weapons.ak47s)} />
-                <Row label="Total" value={formatNumber(player.weapons.total)} strong />
-              </div>
-            </Panel>
-          </div>
+              <Panel title="Weapons" flush>
+                <div className="se-rows">
+                  <Row label="Pistols" value={formatNumber(player.weapons!.pistols)} />
+                  <Row label="Shotguns" value={formatNumber(player.weapons!.shotguns)} />
+                  <Row label="Tek-9s" value={formatNumber(player.weapons!.tek9s)} />
+                  <Row label="AK-47s" value={formatNumber(player.weapons!.ak47s)} />
+                  <Row label="Total" value={formatNumber(player.weapons!.total)} strong />
+                </div>
+              </Panel>
+            </div>
+          )}
 
           <p className="se-hint se-mt">
             Joined {formatDate(player.joinedAt)}. Cash, supplies, payout and crew condition are private.
