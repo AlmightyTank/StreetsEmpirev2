@@ -94,89 +94,93 @@ export function AccountSettingsPage() {
 
       {message ? <Alert tone={tone}>{message}</Alert> : null}
 
-      <div className="se-grid se-grid--2 se-account-grid">
-        <Panel title="Login identity" flush>
-          <div className="se-rows">
-            <Row label="Pimp name" value={account.username} strong />
-            <Row label="Email" value={account.email} />
-            <Row label="Email status" value={account.emailVerifiedAt ? 'Verified' : 'Unverified'} />
-            <Row label="Discord" value={account.discordLinked ? account.discordUsername ?? 'Linked' : 'Not linked'} />
-          </div>
-        </Panel>
+      <div className="se-account-columns">
+        <div className="se-account-column">
+          <Panel title="Login identity" flush>
+            <div className="se-rows">
+              <Row label="Pimp name" value={account.username} strong />
+              <Row label="Email" value={account.email} />
+              <Row label="Email status" value={account.emailVerifiedAt ? 'Verified' : 'Unverified'} />
+              <Row label="Discord" value={account.discordLinked ? account.discordUsername ?? 'Linked' : 'Not linked'} />
+            </div>
+          </Panel>
 
-        <Panel title="Discord login">
-          <p>
-            Link Discord so you can log in without typing your password. Discord stays private and is only used for authentication.
-          </p>
-          {account.discordLinked ? (
-            <p className="se-good se-account-status">Discord is linked.</p>
-          ) : (
-            <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord?link=1">
-              Link Discord
-            </a>
-          )}
-        </Panel>
-
-        <Panel title="Current email verification">
-          <p>
-            Verify your current email before changing it. This proves you control the recovery address already on the account.
-          </p>
-          <button
-            type="button"
-            className="se-btn se-btn--primary se-btn--block"
-            onClick={verifyCurrentEmail}
-            disabled={busy !== null || Boolean(account.emailVerifiedAt)}
-          >
-            {account.emailVerifiedAt ? 'Email verified' : busy === 'verify' ? 'Sending...' : 'Verify current email'}
-          </button>
-        </Panel>
-
-        <Panel title="Change email">
-          <form onSubmit={requestEmailChange} noValidate>
-            <Field
-              label="New email"
-              name="email"
-              type="email"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              autoComplete="email"
-              required
-              error={fields.email}
-              hint="A confirmation link will be sent to the new email address."
-            />
-            <button className="se-btn se-btn--primary se-btn--block" disabled={busy !== null}>
-              {busy === 'email' ? 'Sending...' : 'Send change confirmation'}
+          <Panel title="Recovery">
+            <p>
+              Password recovery sends a one-hour reset link to your private account email.
+              The address is used for login and recovery only.
+            </p>
+            <button type="button" className="se-btn se-btn--primary se-btn--block" onClick={sendRecovery} disabled={busy !== null}>
+              {busy === 'recovery' ? 'Sending...' : 'Send recovery email'}
             </button>
-          </form>
-        </Panel>
+            <p className="se-hint">
+              Check your inbox after sending. Recovery links expire after one hour.
+            </p>
+          </Panel>
 
-        <Panel title="Recovery">
-          <p>
-            Password recovery sends a one-hour reset link to your private account email.
-            The address is used for login and recovery only.
-          </p>
-          <button type="button" className="se-btn se-btn--primary se-btn--block" onClick={sendRecovery} disabled={busy !== null}>
-            {busy === 'recovery' ? 'Sending...' : 'Send recovery email'}
-          </button>
-          <p className="se-hint">
-            Check your inbox after sending. Recovery links expire after one hour.
-          </p>
-        </Panel>
+          <Panel title="Account record" flush>
+            <div className="se-rows">
+              <Row label="Created" value={formatDate(account.createdAt)} />
+              <Row label="Last login" value={formatDate(account.lastLoginAt)} />
+            </div>
+          </Panel>
+        </div>
 
-        <Panel title="Account record" flush>
-          <div className="se-rows">
-            <Row label="Created" value={formatDate(account.createdAt)} />
-            <Row label="Last login" value={formatDate(account.lastLoginAt)} />
-          </div>
-        </Panel>
+        <div className="se-account-column">
+          <Panel title="Discord login">
+            <p>
+              Link Discord so you can log in without typing your password. Discord stays private and is only used for authentication.
+            </p>
+            {account.discordLinked ? (
+              <p className="se-good se-account-status">Discord is linked.</p>
+            ) : (
+              <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord?link=1">
+                Link Discord
+              </a>
+            )}
+          </Panel>
 
-        <Panel title="Profile shortcuts">
-          <p>Your game profile is where other players see your public record, awards and achievements.</p>
-          <div className="se-actions-row">
-            {me ? <Link className="se-btn se-btn--primary" to="/game/profile">Open public profile</Link> : <Link className="se-btn se-btn--primary" to="/join">Join the round</Link>}
-            <Link className="se-btn se-btn--ghost" to="/game">Back to game</Link>
-          </div>
-        </Panel>
+          <Panel title="Current email verification">
+            <p>
+              Verify your current email before changing it. This proves you control the recovery address already on the account.
+            </p>
+            <button
+              type="button"
+              className="se-btn se-btn--primary se-btn--block"
+              onClick={verifyCurrentEmail}
+              disabled={busy !== null || Boolean(account.emailVerifiedAt)}
+            >
+              {account.emailVerifiedAt ? 'Email verified' : busy === 'verify' ? 'Sending...' : 'Verify current email'}
+            </button>
+          </Panel>
+
+          <Panel title="Change email">
+            <form onSubmit={requestEmailChange} noValidate>
+              <Field
+                label="New email"
+                name="email"
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                autoComplete="email"
+                required
+                error={fields.email}
+                hint="A confirmation link will be sent to the new email address."
+              />
+              <button className="se-btn se-btn--primary se-btn--block" disabled={busy !== null}>
+                {busy === 'email' ? 'Sending...' : 'Send change confirmation'}
+              </button>
+            </form>
+          </Panel>
+
+          <Panel title="Profile shortcuts">
+            <p>Your game profile is where other players see your public record, awards and achievements.</p>
+            <div className="se-actions-row">
+              {me ? <Link className="se-btn se-btn--primary" to="/game/profile">Open public profile</Link> : <Link className="se-btn se-btn--primary" to="/join">Join the round</Link>}
+              <Link className="se-btn se-btn--ghost" to="/game">Back to game</Link>
+            </div>
+          </Panel>
+        </div>
       </div>
     </Shell>
   );

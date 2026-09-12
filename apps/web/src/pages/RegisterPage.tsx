@@ -41,67 +41,75 @@ export function RegisterPage() {
   }
 
   return (
-    <Shell narrow>
-      <p className="se-eyebrow">New pimp</p>
-      <h1 className="se-title se-mb">Claim your name</h1>
+    <Shell>
+      <div className="se-authpage">
+        <p className="se-eyebrow">New pimp</p>
+        <h1 className="se-title se-mb">Claim your name</h1>
 
-      <Panel title="Register">
-        <form onSubmit={onSubmit} noValidate>
-          {message ? <Alert>{message}</Alert> : null}
+        <div className="se-authgrid">
+          <Panel title="Register with email">
+            <form onSubmit={onSubmit} noValidate>
+              {message ? <Alert>{message}</Alert> : null}
 
-          <Field
-            label="Pimp name"
-            name="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoComplete="username"
-            autoFocus
-            required
-            error={fields.username}
-            hint={`${USERNAME_MIN}-${USERNAME_MAX} characters. Letters, numbers, _ and -.`}
-          />
+              <Field
+                label="Pimp name"
+                name="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+                autoFocus
+                required
+                error={fields.username}
+                hint={`${USERNAME_MIN}-${USERNAME_MAX} characters. Letters, numbers, _ and -.`}
+              />
 
-          <Field
-            label="Email"
-            name="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            required
-            error={fields.email}
-            hint="Used for login and account recovery. It is never shown to other players."
-          />
+              <Field
+                label="Email"
+                name="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                required
+                error={fields.email}
+                hint="Used for login and account recovery. It is never shown to other players."
+              />
 
-          <Field
-            label="Password"
-            name="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
-            required
-            error={fields.password}
-            hint={`At least ${PASSWORD_MIN} characters.`}
-          />
+              <Field
+                label="Password"
+                name="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                required
+                error={fields.password}
+                hint={`At least ${PASSWORD_MIN} characters.`}
+              />
 
-          <button className="se-btn se-btn--primary se-btn--block" disabled={busy}>
-            {busy ? 'Working...' : 'Create account'}
-          </button>
-        </form>
+              <button className="se-btn se-btn--primary se-btn--block" disabled={busy}>
+                {busy ? 'Working...' : 'Create account'}
+              </button>
+            </form>
+          </Panel>
 
-        <div className="se-auth-divider">or</div>
-        <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord">
-          Continue with Discord
-        </a>
-        <p className="se-hint">
-          Discord creates your account from your verified email, then sends you to join the round.
+          <Panel title="Register with Discord">
+            <p>
+              Discord creates your account from your verified email, then sends you straight to join the round.
+            </p>
+            <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord">
+              Continue with Discord
+            </a>
+            <p className="se-hint">
+              You can still add password recovery and change email from account settings after your account exists.
+            </p>
+          </Panel>
+        </div>
+
+        <p className="se-hint se-center">
+          Already running the streets? <Link to="/login">Log in</Link>
         </p>
-      </Panel>
-
-      <p className="se-hint se-center">
-        Already running the streets? <Link to="/login">Log in</Link>
-      </p>
+      </div>
     </Shell>
   );
 }

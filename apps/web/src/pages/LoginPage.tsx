@@ -42,58 +42,66 @@ export function LoginPage() {
   }
 
   return (
-    <Shell narrow>
-      <p className="se-eyebrow">Back on the block</p>
-      <h1 className="se-title se-mb">Log in</h1>
+    <Shell>
+      <div className="se-authpage">
+        <p className="se-eyebrow">Back on the block</p>
+        <h1 className="se-title se-mb">Log in</h1>
 
-      <Panel title="Log in">
-        <form onSubmit={onSubmit} noValidate>
-          {authError ? <Alert>{authError}</Alert> : null}
-          {message ? <Alert>{message}</Alert> : null}
+        <div className="se-authgrid">
+          <Panel title="Password login">
+            <form onSubmit={onSubmit} noValidate>
+              {authError ? <Alert>{authError}</Alert> : null}
+              {message ? <Alert>{message}</Alert> : null}
 
-          <Field
-            label="Email or pimp name"
-            name="identifier"
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-            autoComplete="username email"
-            autoFocus
-            required
-            error={fields.identifier}
-          />
+              <Field
+                label="Email or pimp name"
+                name="identifier"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                autoComplete="username email"
+                autoFocus
+                required
+                error={fields.identifier}
+              />
 
-          <Field
-            label="Password"
-            name="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-            error={fields.password}
-          />
+              <Field
+                label="Password"
+                name="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+                error={fields.password}
+              />
 
-          <p className="se-auth-help">
-            <Link to="/forgot-password">Forgot your password?</Link>
-          </p>
+              <p className="se-auth-help">
+                <Link to="/forgot-password">Forgot your password?</Link>
+              </p>
 
-          <button className="se-btn se-btn--primary se-btn--block" disabled={busy}>
-            {busy ? 'Working...' : 'Log in'}
-          </button>
-        </form>
+              <button className="se-btn se-btn--primary se-btn--block" disabled={busy}>
+                {busy ? 'Working...' : 'Log in'}
+              </button>
+            </form>
+          </Panel>
 
-        <div className="se-auth-divider">or</div>
-        <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord">
-          Log in with Discord
-        </a>
-        <p className="se-hint">
-          Discord uses your verified Discord email to create or link your account.
+          <Panel title="Discord login">
+            <p>
+              Use Discord to get back in without typing your password. Discord uses your verified email to find or create your Street Empire account.
+            </p>
+            <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord">
+              Log in with Discord
+            </a>
+            <p className="se-hint">
+              If you already have an account, use the same verified email on Discord or link Discord from account settings after logging in.
+            </p>
+          </Panel>
+        </div>
+
+        <p className="se-hint se-center">
+          No name yet? <Link to="/register">Register</Link>
         </p>
-      </Panel>
-
-      <p className="se-hint se-center">
-        No name yet? <Link to="/register">Register</Link>
-      </p>
+      </div>
     </Shell>
   );
 }

@@ -65,6 +65,14 @@
   .se-brand__ver { display: none; }
 
   .se-grid > *, .se-store-items, .se-panel { min-width: 0; }
+  .se-authpage {
+    max-width: 420px;
+  }
+
+  .se-authgrid,
+  .se-account-columns {
+    grid-template-columns: 1fr;
+  }
   .se-title { overflow-wrap: anywhere; }
   .se-store-order { grid-template-columns: 88px minmax(0, 1fr); gap: 10px; }
   .se-store-order > * { min-width: 0; }
