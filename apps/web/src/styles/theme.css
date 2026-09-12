@@ -282,6 +282,38 @@ body {
 .se-btn--block { width: 100%; }
 .se-btn--ghost { background: transparent; }
 
+.se-btn--discord {
+  background: #5865f2;
+  border-color: #5865f2;
+  color: #fff;
+}
+
+.se-btn--discord:hover:not(:disabled) {
+  background: #6875ff;
+  border-color: #6875ff;
+  color: #fff;
+}
+
+.se-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+  color: var(--se-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.se-auth-divider::before,
+.se-auth-divider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: var(--se-line-soft);
+}
+
 .se-field {
   margin-bottom: 14px;
 }

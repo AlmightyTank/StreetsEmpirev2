@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Field } from '../components/Field.js';
@@ -10,6 +10,8 @@ import { useSession } from '../stores/session.js';
 export function LoginPage() {
   const login = useSession((s) => s.login);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const authError = searchParams.get('authError');
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -46,14 +48,15 @@ export function LoginPage() {
 
       <Panel title="Log in">
         <form onSubmit={onSubmit} noValidate>
+          {authError ? <Alert>{authError}</Alert> : null}
           {message ? <Alert>{message}</Alert> : null}
 
           <Field
-            label="Pimp name or email"
+            label="Email or pimp name"
             name="identifier"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
-            autoComplete="username"
+            autoComplete="username email"
             autoFocus
             required
             error={fields.identifier}
@@ -74,6 +77,14 @@ export function LoginPage() {
             {busy ? 'Working...' : 'Log in'}
           </button>
         </form>
+
+        <div className="se-auth-divider">or</div>
+        <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord">
+          Log in with Discord
+        </a>
+        <p className="se-hint">
+          Discord uses your verified Discord email to create or link your account.
+        </p>
       </Panel>
 
       <p className="se-hint se-center">

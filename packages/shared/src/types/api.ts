@@ -44,6 +44,9 @@ export interface AccountDto {
   id: string;
   username: string;
   email: string;
+  emailVerifiedAt: string | null;
+  discordLinked: boolean;
+  discordUsername: string | null;
   isAdmin: boolean;
   createdAt: string;
   lastLoginAt: string | null;

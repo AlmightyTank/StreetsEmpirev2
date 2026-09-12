@@ -12,9 +12,11 @@ describe('rateLimitPolicyFor', () => {
     expect(rateLimitPolicyFor('OPTIONS', '/api/game/me')).toBeNull();
   });
 
-  it('uses the strict auth bucket for register and login', () => {
+  it('uses the strict auth bucket for password and Discord login', () => {
     expect(rateLimitPolicyFor('POST', '/api/auth/register')).toBe(RATE_LIMIT_POLICIES.auth);
     expect(rateLimitPolicyFor('POST', '/api/auth/login')).toBe(RATE_LIMIT_POLICIES.auth);
+    expect(rateLimitPolicyFor('GET', '/api/auth/discord')).toBe(RATE_LIMIT_POLICIES.auth);
+    expect(rateLimitPolicyFor('GET', '/api/auth/discord/callback')).toBe(RATE_LIMIT_POLICIES.auth);
   });
 
   it('separates normal reads and writes', () => {

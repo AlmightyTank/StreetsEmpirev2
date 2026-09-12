@@ -24,9 +24,15 @@ model Account {
   username           String
   /// Lowercased username. Enforces case-insensitive uniqueness.
   usernameNormalized String @unique
-  /// Lowercased email.
+  /// Lowercased email. Private account recovery and login address.
   email              String @unique
+  emailVerifiedAt    DateTime?
   passwordHash       String
+
+  discordId          String? @unique
+  discordUsername    String?
+  discordAvatar      String?
+  discordLinkedAt    DateTime?
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

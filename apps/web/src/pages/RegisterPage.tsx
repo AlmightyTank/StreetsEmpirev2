@@ -70,7 +70,7 @@ export function RegisterPage() {
             autoComplete="email"
             required
             error={fields.email}
-            hint="Used for account recovery only."
+            hint="Used for login and account recovery. It is never shown to other players."
           />
 
           <Field
@@ -89,6 +89,14 @@ export function RegisterPage() {
             {busy ? 'Working...' : 'Create account'}
           </button>
         </form>
+
+        <div className="se-auth-divider">or</div>
+        <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord">
+          Continue with Discord
+        </a>
+        <p className="se-hint">
+          Discord creates your account from your verified email, then sends you to join the round.
+        </p>
       </Panel>
 
       <p className="se-hint se-center">
