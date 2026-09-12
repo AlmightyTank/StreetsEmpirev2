@@ -1001,6 +1001,30 @@ a.se-nav__link:hover {
 .se-raid-pagination { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
 .se-raid-reports { padding: 0; list-style: none; display: grid; gap: 0.5rem; }
 .se-raid-reports .se-btn { width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+/* Two-way switch, e.g. Raid | Drive-by. */
+.se-seg {
+  display: inline-flex;
+  margin-bottom: 12px;
+  border: 1px solid var(--se-line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.se-seg__btn {
+  padding: 6px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--se-text-dim);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.se-seg__btn + .se-seg__btn { border-left: 1px solid var(--se-line); }
+.se-seg__btn:hover:not(:disabled) { color: var(--se-text); }
+.se-seg__btn--on { background: var(--se-accent); color: #0b0b0b; }
+.se-seg__btn--on:hover:not(:disabled) { color: #0b0b0b; }
+.se-seg__btn:disabled { cursor: default; opacity: 0.6; }
+
 .se-raid-report-link { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .se-raid-report-link--active { border-color: var(--se-accent); box-shadow: 0 0 0 2px rgba(182, 255, 58, 0.16); }
 .se-raid-report-link__meta { color: var(--se-muted); font-family: var(--se-mono); font-size: 0.75rem; }
@@ -1111,6 +1135,30 @@ a.se-nav__link:hover {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--se-text-dim);
+}
+
+/*
+ * Height-animated disclosure. Rows go 0fr -> 1fr so the panel eases to its
+ * real content height instead of a guessed max-height; the content stays in
+ * the DOM (inert while closed) so there is something to animate both ways.
+ */
+.se-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 240ms ease, opacity 200ms ease;
+}
+.se-collapse--open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.se-collapse__inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-collapse { transition: none; }
 }
 
 .se-ach-grid {

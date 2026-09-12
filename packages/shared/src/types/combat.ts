@@ -19,8 +19,12 @@ export interface CombatReconResultDto {
   turnsAfter: number;
 }
 
+export type BattleKindDto = 'RAID' | 'DRIVE_BY';
+
 export interface BattleReportDto {
   id: string;
+  /** Absent on reports written before drive-bys existed, which were all raids. */
+  kind?: BattleKindDto;
   createdAt: string;
   modelVersion: string;
   role: 'ATTACKER' | 'DEFENDER';
@@ -50,6 +54,17 @@ export interface BattleReportDto {
   protectedUntil: string | null;
   cooldownUntil: string | null;
   retaliation?: boolean;
+  /** Drive-by only. */
+  driveBy?: {
+    /** Whores killed on the target's side. Theirs when attacking, yours when defending. */
+    whoresKilled: number;
+    /** The defender's whores after the hit; only on the defender's own report. */
+    whoresAfter?: number;
+    /** Attacker only: cars sent, cars that did not come home, cars left. */
+    carsSent?: number;
+    lowRidersLost?: number;
+    lowRidersAfter?: number;
+  };
 }
 
 export interface CombatRecoveryDto {
@@ -76,6 +91,27 @@ export interface CombatTargetDto {
   intel?: CombatIntelReportDto | null;
   blockedReason: string | null;
   protectedUntil: string | null;
+  /** Present only where drive-bys exist. Null means you can hit them. */
+  driveByBlockedReason?: string | null;
+}
+
+/** Drive-by state for the attacker, on rounds that have them. */
+export interface CombatDriveByDto {
+  blockedReason: string | null;
+  cooldownUntil: string | null;
+  lowRiders: number;
+  maxShooters: number;
+  rules: {
+    turnCost: number;
+    thugsPerLowRider: number;
+    cooldownMinutes: number;
+    protectionHours: number;
+    defenderFieldedPercent: number;
+    minThugWoundPercent: number;
+    maxThugWoundPercent: number;
+    minWhoreKillPercent: number;
+    maxWhoreKillPercent: number;
+  };
 }
 
 export interface CombatPageDto {
@@ -97,4 +133,6 @@ export interface CombatPageDto {
   };
   targets: CombatTargetDto[];
   nextTarget: number | null;
+  /** Absent where drive-bys have not shipped. */
+  driveBy?: CombatDriveByDto;
 }

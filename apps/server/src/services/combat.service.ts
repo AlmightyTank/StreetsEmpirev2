@@ -1,11 +1,14 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
-import { equipCombatSquad, loadRulesetForRound, simulateRaid, type CombatCrew, type Ruleset } from '@streets/rules-engine';
+import { driveByMaxShooters, equipCombatSquad, loadRulesetForRound, simulateDriveBy, simulateRaid, type CombatCrew, type Ruleset } from '@streets/rules-engine';
+import type { DriveByRules } from '@streets/rulesets';
 import {
   combatReconSchema,
   combatTreatmentSchema,
+  driveBySchema,
   raidSchema,
   type BattleReportDto,
+  type CombatDriveByDto,
   type CombatIntelReportDto,
   type CombatPageDto,
   type CombatRecoveryDto,
@@ -13,6 +16,7 @@ import {
   type CombatReconInputDto,
   type CombatReconResultDto,
   type CombatTreatmentInputDto,
+  type DriveByInputDto,
   type RaidInputDto,
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
@@ -83,6 +87,70 @@ export function combatTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, 
   return null;
 }
 
+/**
+ * Drive-bys keep their own clocks. Nothing about one sets the raid shield or
+ * the raid cooldown, which is what lets a drive-by soften a crew for a raid.
+ */
+export function driveByAttackerBlock(player: RoundPlayer, model: CombatRules, rules: DriveByRules, now: Date): string | null {
+  if (combatProtectionUntil(player, model) > now) return 'You are protected. Wait until your protection ends before a drive-by.';
+  if (player.driveByCooldownUntil && player.driveByCooldownUntil > now) return 'Your cars are cooling off after the last drive-by.';
+  if (player.lowRiders < 1) return 'You need a Low-Rider for a drive-by. Charlie sells them.';
+  if (fitThugs(player) < 1) return 'Wait for a thug to recover before a drive-by.';
+  if (player.turns < rules.turnCost) return `You need ${rules.turnCost} turns for a drive-by.`;
+  return null;
+}
+
+export function driveByTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, model: CombatRules, now: Date, retaliation = false): string | null {
+  if (attacker.id === defender.id || attacker.accountId === defender.accountId) return 'You cannot hit your own block.';
+  if (attacker.roundId !== defender.roundId) return 'Pick a player in your round.';
+  if (attacker.cityId !== defender.cityId) return 'Pick a player in your city.';
+  const retaliationRules = model.strategy?.retaliation;
+  const bypassProtection = retaliation && retaliationRules?.bypassProtection;
+  if (combatProtectionUntil(defender, model) > now && !bypassProtection) return 'This player is protected.';
+  if (defender.driveByProtectedUntil && defender.driveByProtectedUntil > now && !bypassProtection) return 'Their block was shot up recently. Let it cool off.';
+  // The same anti-drain rule as raids: an offline player is hit once, not every shield.
+  if (defender.lastDrivenByAt && defender.lastActiveAt <= defender.lastDrivenByAt) return 'This player has not been back since the last drive-by.';
+  if (strength(defender, model) < strength(attacker, model) * model.minimumTargetStrengthRatio && !(retaliation && retaliationRules?.bypassMinimumStrength)) return 'This crew is too weak for you to hit.';
+  if (fitThugs(defender) < 1 && defender.whores < 1) return 'There is nobody on their block to hit.';
+  return null;
+}
+
+function driveByDto(player: RoundPlayer, model: CombatRules, rules: DriveByRules, now: Date): CombatDriveByDto {
+  return {
+    blockedReason: driveByAttackerBlock(player, model, rules, now),
+    cooldownUntil: player.driveByCooldownUntil && player.driveByCooldownUntil > now ? iso(player.driveByCooldownUntil) : null,
+    lowRiders: player.lowRiders,
+    maxShooters: driveByMaxShooters(fitThugs(player), player.lowRiders, model, rules),
+    rules: {
+      turnCost: rules.turnCost,
+      thugsPerLowRider: rules.thugsPerLowRider,
+      cooldownMinutes: rules.cooldownMinutes,
+      protectionHours: rules.protectionHours,
+      defenderFieldedPercent: Math.round(rules.defenderFieldedFraction * 100),
+      minThugWoundPercent: rules.hit.thugWounds.minPercent,
+      maxThugWoundPercent: rules.hit.thugWounds.maxPercent,
+      minWhoreKillPercent: rules.hit.whoreKills.minPercent,
+      maxWhoreKillPercent: rules.hit.whoreKills.maxPercent,
+    },
+  };
+}
+
+/** Both final worths must be written before either rank is read. */
+async function writeRanks(
+  tx: Prisma.TransactionClient,
+  ruleset: Ruleset,
+  now: Date,
+  sides: ReadonlyArray<readonly [id: string, prior: RoundPlayer, before: Awaited<ReturnType<typeof RankingService.ranksFor>>, after: Awaited<ReturnType<typeof RankingService.ranksFor>>]>,
+): Promise<void> {
+  for (const [id, priorPlayer, before, after] of sides) {
+    await tx.roundPlayer.update({ where: { id }, data: { ...after,
+      ...(after.localRank !== priorPlayer.localRank ? { localRankSinceAt: now } : {}),
+      ...(after.nationalRank !== priorPlayer.nationalRank ? { nationalRankSinceAt: now } : {}),
+      ...(RankingService.isDailySnapshotStale(priorPlayer, now, ruleset) ? { dailyStartingLocalRank: before.localRank, dailyStartingNationalRank: before.nationalRank, dailyRankSnapshotAt: now } : {}),
+    } });
+  }
+}
+
 
 
 function cashBand(cashCents: bigint, model: CombatRules): CombatIntelReportDto['cashBand'] {
@@ -109,7 +177,8 @@ function estimatedMaxCrackLoot(crack: number, model: CombatRules): number | null
 
 async function consecutiveRepeatTargetHits(prisma: PrismaClient | Prisma.TransactionClient, attackerId: string, defenderId: string): Promise<number> {
   const rows = await prisma.raidBattle.findMany({
-    where: { attackerId },
+    // A drive-by takes nothing, so it neither counts as a repeat nor resets one.
+    where: { attackerId, kind: 'RAID' },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: 10,
     select: { defenderId: true },
@@ -215,8 +284,10 @@ export const CombatService = {
         blockedReason: combatTargetBlock(player, target, model, now, revengeIds.has(target.id)),
         protectedUntil: combatProtectionUntil(target, model) > now ? iso(combatProtectionUntil(target, model)) : null,
         ...(model.strategy ? { revengeAvailable: revengeIds.has(target.id), intel: intelByTarget.get(target.id) ?? null } : {}),
+        ...(model.driveBy ? { driveByBlockedReason: driveByTargetBlock(player, target, model, now, revengeIds.has(target.id)) } : {}),
       })),
       nextTarget: targets.length > 25 ? targets[24]!.publicPimpId : null,
+      ...(model.driveBy ? { driveBy: driveByDto(player, model, model.driveBy, now) } : {}),
     };
   },
 
@@ -232,7 +303,7 @@ export const CombatService = {
       for (const id of [attackerId, target.id].sort()) await lockRoundPlayer(tx, id);
       const prior = await tx.raidBattle.findUnique({ where: { attackerId_actionId: { attackerId, actionId: input.actionId } } });
       if (prior) {
-        if (prior.defenderId !== target.id || prior.attackingThugs !== input.attackingThugs) throw AppError.conflict('ACTION_ID_REUSED', 'That raid id belongs to a different target or squad.');
+        if (prior.kind !== 'RAID' || prior.defenderId !== target.id || prior.attackingThugs !== input.attackingThugs) throw AppError.conflict('ACTION_ID_REUSED', 'That raid id belongs to a different target or squad.');
         return prior.attackerReport as unknown as BattleReportDto;
       }
       // Cross-action IDs are rejected even if the short-lived record has expired.
@@ -277,20 +348,14 @@ export const CombatService = {
       // Both final worths are in the transaction before either rank is calculated.
       const afterA = await RankingService.ranksFor(tx, { ...attacker, netWorthCents: NetWorthService.calculate(nextA, ruleset) });
       const afterD = await RankingService.ranksFor(tx, { ...defender, netWorthCents: NetWorthService.calculate(nextD, ruleset) });
-      for (const [id, priorPlayer, before, after] of [[attackerId, original, beforeA, afterA], [target.id, originalDefender, beforeD, afterD]] as const) {
-        await tx.roundPlayer.update({ where: { id }, data: { ...after,
-          ...(after.localRank !== priorPlayer.localRank ? { localRankSinceAt: now } : {}),
-          ...(after.nationalRank !== priorPlayer.nationalRank ? { nationalRankSinceAt: now } : {}),
-          ...(RankingService.isDailySnapshotStale(priorPlayer, now, ruleset) ? { dailyStartingLocalRank: before.localRank, dailyStartingNationalRank: before.nationalRank, dailyRankSnapshotAt: now } : {}),
-        } });
-      }
+      await writeRanks(tx, ruleset, now, [[attackerId, original, beforeA, afterA], [target.id, originalDefender, beforeD, afterD]]);
       const id = randomUUID();
       const makeReport = (isAttacker: boolean): BattleReportDto => {
         const own = isAttacker ? result.attacker : result.defender;
         const opponent = isAttacker ? defender : attacker;
         const ownWounds = isAttacker ? result.wounds.attacker : result.wounds.defender;
         const opponentWounds = isAttacker ? result.wounds.defender : result.wounds.attacker;
-        return { id, createdAt: now.toISOString(), modelVersion: model.version,
+        return { id, kind: 'RAID', createdAt: now.toISOString(), modelVersion: model.version,
           role: isAttacker ? 'ATTACKER' : 'DEFENDER', won: isAttacker === (result.winner === 'ATTACKER'),
           opponent: { publicPimpId: opponent.publicPimpId, displayName: opponent.displayName },
           yourSquad: own.committed, opponentSquad: (isAttacker ? result.defender : result.attacker).committed,
@@ -327,6 +392,112 @@ export const CombatService = {
       }
       // Reserve the action namespace for the lifetime of this raid, including other action types.
       await tx.processedAction.create({ data: { roundPlayerId: attackerId, actionId: input.actionId, action: 'RAID', result: json(attackerReport), expiresAt: new Date('9999-12-31T00:00:00Z') } });
+      return attackerReport;
+    }, { timeout: 15_000, maxWait: 10_000 });
+  },
+
+  /**
+   * A drive-by: the same two-player transaction as a raid, but it takes
+   * nothing. It wounds the target's crew, kills some of their whores, and can
+   * cost the shooter a car whose whole crew went down.
+   */
+  async driveBy(prisma: PrismaClient, attackerId: string, rawInput: DriveByInputDto): Promise<BattleReportDto> {
+    const input = driveBySchema.parse(rawInput);
+    const target = await prisma.roundPlayer.findUnique({ where: { roundId_publicPimpId: { roundId: input.roundId, publicPimpId: input.targetPublicPimpId } }, select: { id: true } });
+    if (!target) throw AppError.notFound('TARGET_NOT_FOUND', 'That target is not in this round.');
+    if (target.id === attackerId) throw AppError.badRequest('INVALID_TARGET', 'You cannot hit your own block.');
+
+    return prisma.$transaction(async (tx) => {
+      for (const id of [attackerId, target.id].sort()) await lockRoundPlayer(tx, id);
+      const prior = await tx.raidBattle.findUnique({ where: { attackerId_actionId: { attackerId, actionId: input.actionId } } });
+      if (prior) {
+        if (prior.kind !== 'DRIVE_BY' || prior.defenderId !== target.id || prior.attackingThugs !== input.attackingThugs) throw AppError.conflict('ACTION_ID_REUSED', 'That drive-by id belongs to a different target or squad.');
+        return prior.attackerReport as unknown as BattleReportDto;
+      }
+      const other = await tx.processedAction.findUnique({ where: { roundPlayerId_actionId: { roundPlayerId: attackerId, actionId: input.actionId } } });
+      if (other) throw AppError.conflict('ACTION_ID_REUSED', 'That request id has already been used.');
+      const original = await tx.roundPlayer.findUniqueOrThrow({ where: { id: attackerId }, include: { round: true } });
+      if (original.roundId !== input.roundId) throw AppError.badRequest('INVALID_TARGET', 'Pick a player in your round.');
+      const { ruleset, model } = modelFor(original.round);
+      const rules = model.driveBy;
+      if (!rules) throw AppError.conflict('DRIVE_BY_DISABLED', 'Drive-bys are not available in this round.');
+      const now = new Date();
+      playable(original.round, now);
+      const originalDefender = await tx.roundPlayer.findUniqueOrThrow({ where: { id: target.id } });
+      const attacker = (await PlayerStateService.settleInTransaction(tx, attackerId, { now, markActive: true })).player;
+      const defender = (await PlayerStateService.settleInTransaction(tx, target.id, { now, markActive: false })).player;
+      const retaliation = (await retaliationTargets(tx, attackerId, [target.id], model, now)).has(target.id);
+      const blocked = driveByAttackerBlock(attacker, model, rules, now) ?? driveByTargetBlock(attacker, defender, model, now, retaliation);
+      if (blocked) throw AppError.conflict('DRIVE_BY_BLOCKED', blocked);
+      const seats = driveByMaxShooters(fitThugs(attacker), attacker.lowRiders, model, rules);
+      if (input.attackingThugs > seats) throw AppError.badRequest('INVALID_SQUAD', `Your cars and fit crew can take ${seats} shooters.`);
+
+      const beforeA = await RankingService.ranksFor(tx, attacker);
+      const beforeD = await RankingService.ranksFor(tx, defender);
+      const result = simulateDriveBy({ attacker: crew(attacker), defender: crew(defender), shooters: input.attackingThugs,
+        lowRiders: attacker.lowRiders, attackerTurns: attacker.turns, defenderWhores: defender.whores }, model, rules, () => randomInt(0, 2 ** 32) / 2 ** 32);
+      const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker, turns: result.attackerTurnsAfter,
+        lowRiders: result.lowRidersAfter, driveBysDone: attacker.driveBysDone + 1 };
+      const nextD = { ...toState(defender), woundedThugs: defender.woundedThugs + result.wounds.defender, whores: result.defenderWhoresAfter };
+      assertPlayerState(nextA, ruleset);
+      assertPlayerState(nextD, ruleset);
+      const happinessA = HappinessService.recalculate({ ...nextA, thugs: fitThugs(nextA) }, ruleset);
+      const happinessD = HappinessService.recalculate({ ...nextD, thugs: fitThugs(nextD) }, ruleset);
+      const shield = new Date(now.getTime() + rules.protectionHours * 3_600_000);
+      const cooldown = new Date(now.getTime() + rules.cooldownMinutes * 60_000);
+      const recoverAt = new Date(now.getTime() + model.wounds.recoveryMinutes * 60_000);
+      await tx.roundPlayer.update({ where: { id: attackerId }, data: { turns: nextA.turns, woundedThugs: nextA.woundedThugs,
+        lowRiders: nextA.lowRiders, driveBysDone: nextA.driveBysDone,
+        whoreHappiness: happinessA.whoreHappiness, thugHappiness: happinessA.thugHappiness,
+        netWorthCents: NetWorthService.calculate(nextA, ruleset), driveByCooldownUntil: cooldown } });
+      await tx.roundPlayer.update({ where: { id: target.id }, data: { woundedThugs: nextD.woundedThugs, whores: nextD.whores,
+        whoreHappiness: happinessD.whoreHappiness, thugHappiness: happinessD.thugHappiness,
+        netWorthCents: NetWorthService.calculate(nextD, ruleset), driveByProtectedUntil: shield, lastDrivenByAt: now } });
+      const afterA = await RankingService.ranksFor(tx, { ...attacker, netWorthCents: NetWorthService.calculate(nextA, ruleset) });
+      const afterD = await RankingService.ranksFor(tx, { ...defender, netWorthCents: NetWorthService.calculate(nextD, ruleset) });
+      await writeRanks(tx, ruleset, now, [[attackerId, original, beforeA, afterA], [target.id, originalDefender, beforeD, afterD]]);
+
+      const id = randomUUID();
+      const makeReport = (isAttacker: boolean): BattleReportDto => {
+        const own = isAttacker ? result.attacker : result.defender;
+        const opponent = isAttacker ? defender : attacker;
+        const ownWounds = isAttacker ? result.wounds.attacker : result.wounds.defender;
+        return { id, kind: 'DRIVE_BY', createdAt: now.toISOString(), modelVersion: model.version,
+          role: isAttacker ? 'ATTACKER' : 'DEFENDER', won: isAttacker === (result.winner === 'ATTACKER'),
+          opponent: { publicPimpId: opponent.publicPimpId, displayName: opponent.displayName },
+          yourSquad: own.committed, opponentSquad: (isAttacker ? result.defender : result.attacker).committed,
+          yourEquipment: own.equipment, yourStrength: reportStrength(isAttacker ? result.effectiveStrength.attacker : result.effectiveStrength.defender),
+          opponentStrength: reportStrength(isAttacker ? result.effectiveStrength.defender : result.effectiveStrength.attacker),
+          yourWounds: ownWounds, opponentWounds: isAttacker ? result.wounds.defender : result.wounds.attacker,
+          woundedThugsAfter: isAttacker ? nextA.woundedThugs : nextD.woundedThugs,
+          nextRecoveryAt: ownWounds > 0 ? recoverAt.toISOString() : null,
+          cashChangeCents: 0,
+          cashAfterCents: Number(isAttacker ? nextA.cashCents : nextD.cashCents),
+          turnsSpent: isAttacker ? rules.turnCost : 0, turnsAfter: isAttacker ? nextA.turns : nextD.turns,
+          nationalRankBefore: (isAttacker ? beforeA : beforeD).nationalRank,
+          nationalRankAfter: (isAttacker ? afterA : afterD).nationalRank,
+          protectedUntil: isAttacker ? null : shield.toISOString(),
+          cooldownUntil: isAttacker ? cooldown.toISOString() : iso(defender.driveByCooldownUntil),
+          retaliation: isAttacker ? retaliation : false,
+          driveBy: isAttacker
+            ? { whoresKilled: result.whoresKilled, carsSent: result.cars.length, lowRidersLost: result.lowRidersLost, lowRidersAfter: nextA.lowRiders }
+            : { whoresKilled: result.whoresKilled, whoresAfter: nextD.whores },
+        };
+      };
+      const attackerReport = makeReport(true);
+      const defenderReport = makeReport(false);
+      await tx.raidBattle.create({ data: { id, kind: 'DRIVE_BY', attackerId, defenderId: target.id, actionId: input.actionId,
+        attackingThugs: input.attackingThugs, modelVersion: model.version,
+        calculation: json({ result, input: { attacker: crew(attacker), defender: crew(defender), lowRiders: attacker.lowRiders, defenderWhores: defender.whores }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
+        attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
+      await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
+      await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
+      for (const [playerId, type, report] of [[attackerId, 'DRIVE_BY_ATTACK', attackerReport], [target.id, 'DRIVE_BY_DEFENSE', defenderReport]] as const) {
+        await ActivityService.log(tx, playerId, type, json({ battleId: id, opponent: report.opponent.displayName, won: report.won,
+          wounds: report.yourWounds, opponentWounds: report.opponentWounds, whoresKilled: result.whoresKilled,
+          lowRidersLost: type === 'DRIVE_BY_ATTACK' ? result.lowRidersLost : 0, turns: report.turnsSpent }));
+      }
+      await tx.processedAction.create({ data: { roundPlayerId: attackerId, actionId: input.actionId, action: 'DRIVE_BY', result: json(attackerReport), expiresAt: new Date('9999-12-31T00:00:00Z') } });
       return attackerReport;
     }, { timeout: 15_000, maxWait: 10_000 });
   },

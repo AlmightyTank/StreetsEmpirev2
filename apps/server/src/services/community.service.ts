@@ -175,7 +175,8 @@ async function loadPublicContexts(
       select: { accountId: true, nationalRank: true, netWorthCents: true },
     }),
     prisma.raidBattle.findMany({
-      where: { OR: [{ attackerId: { in: ids } }, { defenderId: { in: ids } }] },
+      // Raid achievements count raids; a drive-by is not a raid attempt.
+      where: { kind: 'RAID', OR: [{ attackerId: { in: ids } }, { defenderId: { in: ids } }] },
       select: { attackerId: true, defenderId: true, attackerReport: true, defenderReport: true, createdAt: true },
     }),
     prisma.playerActivity.findMany({

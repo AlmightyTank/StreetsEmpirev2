@@ -18,6 +18,7 @@ export interface InvariantPlayerState {
   lowRiders: number;
   cleanShiftStreak: number;
   rocksSuppliedToPip: number;
+  driveBysDone: number;
   pistolStock: number;
   shotgunStock: number;
   tek9Stock: number;
@@ -46,6 +47,7 @@ const WHOLE_NON_NEGATIVE: readonly (keyof InvariantPlayerState)[] = [
   'lowRiders',
   'cleanShiftStreak',
   'rocksSuppliedToPip',
+  'driveBysDone',
   'pistolStock',
   'shotgunStock',
   'tek9Stock',

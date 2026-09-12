@@ -159,7 +159,7 @@ alone.
 |---|---|---|---|
 | **Corner Store** | *Keep them covered* — 10 consecutive trips with no condom shortfall | Discipline + upkeep | Streak resets on a short shift. Reinforces the health system. |
 | **Tek9 Tommy** | *A favour for Tommy* — deliver 100 crack, 10 thugs minimum | Crack + crew | The existing favour, kept as-is. It already works. |
-| **Charlie** | *Back on the lot* — hand him a Low-Rider | A $5,000 car + an 8h wait | Finally gives Low-Riders a use before travel. |
+| **Charlie** | *Back on the lot* — hand him a Low-Rider | A $5,000 car + an 8h wait | Finally gives Low-Riders a use before travel. In drive-by rounds (0.2.0-E) this becomes *Take it for a spin*: buy a Low-Rider, do one drive-by, and keep the car if somebody makes it back. See COMBAT-0.2.0-E.md. |
 | **Pip** | *Supply the corners* — sell him 500 rocks | Turns + thugs | No "must be cooked" flag needed: buying at $10 to sell at $3 loses 70%, so the economics already force cooking. |
 
 Pip's is worth a note — it is self-enforcing. Cooking 500 rocks costs $2,500 in

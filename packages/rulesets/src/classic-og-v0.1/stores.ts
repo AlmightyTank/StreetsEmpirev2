@@ -238,5 +238,5 @@ export const stores = {
  */
 export const storeBulkHelpers: readonly number[] = [1, 10, 100, 1000];
 
-/** Low-Rider capacity, shown as a hint before Travel and Drive-by exist. */
+/** Low-Rider capacity: the seats in a drive-by car, and a hint where drive-bys have not shipped. */
 export const lowRiderThugCapacity = 6;

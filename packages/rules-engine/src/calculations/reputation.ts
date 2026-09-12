@@ -158,6 +158,8 @@ export interface QuestPlayer {
   cleanShiftStreak: number;
   /** Rocks sold to Pip, cumulative for the round. */
   rocksSuppliedToPip: number;
+  /** Drive-bys carried out this round, landed or not. */
+  driveBys: number;
 }
 
 function goalProgress(
@@ -180,6 +182,16 @@ function goalProgress(
       return { have: player.lowRiders, need: quest.goal.lowRiders, blockedBy: null };
     case 'SUPPLY_ROCKS':
       return { have: player.rocksSuppliedToPip, need: quest.goal.crackSold, blockedBy: null };
+    case 'DRIVE_BY':
+      // Charlie wants to see a car used. Win or lose, a run counts. If the
+      // run already happened, he does not care whether the car survived it.
+      return {
+        have: player.driveBys,
+        need: quest.goal.driveBys,
+        blockedBy: player.driveBys < quest.goal.driveBys && player.lowRiders < 1
+          ? 'Charlie wants you to buy a Low-Rider and use it in a drive-by.'
+          : null,
+      };
   }
 }
 

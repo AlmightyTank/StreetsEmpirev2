@@ -174,8 +174,15 @@ export function ProfilePage() {
                 ) : <span className="se-num">0</span>}
               </div>
               {locked.length ? (
-                <div id="next-milestones-list" aria-labelledby="next-milestones-title" hidden={!showLockedAchievements}>
-                  <ul className="se-ach-grid">{locked.map((award) => <AchievementCard award={award} key={award.key} />)}</ul>
+                <div
+                  id="next-milestones-list"
+                  aria-labelledby="next-milestones-title"
+                  className={`se-collapse${showLockedAchievements ? ' se-collapse--open' : ''}`}
+                  inert={!showLockedAchievements}
+                >
+                  <div className="se-collapse__inner">
+                    <ul className="se-ach-grid">{locked.map((award) => <AchievementCard award={award} key={award.key} />)}</ul>
+                  </div>
                 </div>
               ) : <p className="se-muted">Every listed achievement is unlocked.</p>}
             </div>

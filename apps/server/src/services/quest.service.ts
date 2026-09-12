@@ -32,6 +32,7 @@ function toQuestPlayer(player: PlayerState): QuestPlayer {
     lowRiders: player.lowRiders,
     cleanShiftStreak: player.cleanShiftStreak,
     rocksSuppliedToPip: player.rocksSuppliedToPip,
+    driveBys: player.driveBysDone,
   };
 }
 

@@ -15,6 +15,8 @@ export type RoundStatus =
 export type ActivityType =
   | 'RAID_ATTACK'
   | 'RAID_DEFENSE'
+  | 'DRIVE_BY_ATTACK'
+  | 'DRIVE_BY_DEFENSE'
   | 'COMBAT_TREATMENT'
   | 'COMBAT_RECON'
   | 'ROUND_JOINED'

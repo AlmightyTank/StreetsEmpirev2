@@ -84,6 +84,10 @@ export const raidSchema = z.object({
 }).strict();
 export type RaidInputDto = z.infer<typeof raidSchema>;
 
+/** Same intent as a raid: a target, how many go, and a retry-safe id. */
+export const driveBySchema = raidSchema;
+export type DriveByInputDto = z.infer<typeof driveBySchema>;
+
 export const combatTreatmentSchema = z.object({
   roundId: z.string().min(1).max(64),
   thugs: z.number().int().positive().safe(),

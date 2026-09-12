@@ -1,4 +1,4 @@
-import type { CombatModel, WeaponKey } from '@streets/rulesets';
+import type { CombatModel, DriveByRules, WeaponKey, WeightedPercentRange } from '@streets/rulesets';
 import { roundStochastic, type Rng } from '../rng.js';
 
 /** Fit thugs only. An eventual service must exclude thugs still recovering. */
@@ -265,5 +265,185 @@ export function simulateRaid(input: RaidInput, model: CombatModel, rng: Rng): Ra
     crackChanges: { attacker: lootCrack, defender: -lootCrack },
     defenderCashAfterCents: input.defenderCashCents - lootCents,
     defenderCrackAfter: defenderCrack - lootCrack,
+  };
+}
+
+// --- drive-bys ----------------------------------------------------------------
+
+export interface DriveByInput {
+  readonly attacker: CombatCrew;
+  readonly defender: CombatCrew;
+  readonly shooters: number;
+  readonly lowRiders: number;
+  readonly attackerTurns: number;
+  readonly defenderWhores: number;
+}
+
+/** One Low-Rider's run: who rode in it, who went down, and whether it came home. */
+export interface DriveByCar {
+  readonly crew: number;
+  readonly down: number;
+  readonly lost: boolean;
+}
+
+export interface DriveByResult {
+  readonly modelVersion: string;
+  readonly winner: 'ATTACKER' | 'DEFENDER';
+  readonly attacker: CombatSquad;
+  readonly defender: CombatSquad;
+  readonly rolls: { readonly attacker: number; readonly defender: number };
+  readonly effectiveStrength: { readonly attacker: number; readonly defender: number };
+  readonly turnCost: number;
+  readonly attackerTurnsAfter: number;
+  /** Chance each shooter had of going down on this run. */
+  readonly casualtyChance: number;
+  readonly cars: readonly DriveByCar[];
+  readonly lowRidersLost: number;
+  readonly lowRidersAfter: number;
+  readonly wounds: {
+    readonly attacker: number;
+    readonly defender: number;
+    readonly recoveryMinutes: number;
+  };
+  /** Zero on a miss: nothing lands when the target's crew wins the exchange. */
+  readonly thugWoundPercent: number;
+  readonly whoreKillPercent: number;
+  readonly whoresKilled: number;
+  readonly defenderWhoresAfter: number;
+}
+
+function validateRange(range: WeightedPercentRange, name: string): void {
+  count(range.minPercent, `${name} minimum`);
+  count(range.maxPercent, `${name} maximum`);
+  requireCondition(range.minPercent <= range.maxPercent && range.maxPercent <= 100, 'INVALID_MODEL', `${name} must be an ordered percentage range.`);
+  requireCondition(Number.isFinite(range.exponent) && range.exponent > 0, 'INVALID_MODEL', `${name} exponent must be finite and positive.`);
+}
+
+export function validateDriveByRules(rules: DriveByRules): void {
+  count(rules.turnCost, 'Drive-by turn cost');
+  count(rules.thugsPerLowRider, 'Shooters per Low-Rider');
+  requireCondition(rules.turnCost > 0 && rules.thugsPerLowRider > 0, 'INVALID_MODEL', 'Drive-by turn cost and seats must be positive.');
+  count(rules.cooldownMinutes, 'Drive-by cooldown');
+  count(rules.protectionHours, 'Drive-by protection');
+  fraction(rules.defenderFieldedFraction, 'Fielded defenders');
+  requireCondition(Number.isFinite(rules.defenseMultiplier) && rules.defenseMultiplier > 0, 'INVALID_MODEL', 'Drive-by defense multiplier must be positive.');
+  validateRange(rules.hit.thugWounds, 'Thug wound roll');
+  validateRange(rules.hit.whoreKills, 'Whore kill roll');
+  count(rules.hit.perShooterThugWounds, 'Thug wounds per shooter');
+  count(rules.hit.perShooterWhoreKills, 'Whore kills per shooter');
+  const c = rules.casualties;
+  fraction(c.onHit, 'Casualties on a hit');
+  fraction(c.onMissBase, 'Casualties on a miss');
+  fraction(c.max, 'Casualty cap');
+  requireCondition(Number.isFinite(c.onMissPerMargin) && c.onMissPerMargin >= 0, 'INVALID_MODEL', 'Casualty margin must be finite and nonnegative.');
+  requireCondition(c.onHit <= c.onMissBase && c.onMissBase <= c.max, 'INVALID_MODEL', 'Casualties must rise from a hit to a miss and stay within the cap.');
+}
+
+/** Same weighting as raid loot: `roll ^ exponent` pulls toward the minimum. */
+function weightedPercent(range: WeightedPercentRange, roll: number): number {
+  const spread = range.maxPercent - range.minPercent + 1;
+  return Math.min(range.maxPercent, range.minPercent + Math.floor(roll ** range.exponent * spread));
+}
+
+/** Most shooters a player could put in their cars right now. */
+export function driveByMaxShooters(fitThugs: number, lowRiders: number, model: CombatModel, rules: DriveByRules): number {
+  return Math.max(0, Math.min(fitThugs, lowRiders * rules.thugsPerLowRider, model.squadCap));
+}
+
+/**
+ * A hit-and-run from Low-Riders. Pure: explicit model, rules and RNG.
+ *
+ * The exchange uses the raid strength model, but the target only has
+ * `defenderFieldedFraction` of their fit crew out front and gets
+ * `defenseMultiplier` rather than the raid home advantage.
+ *
+ * A hit wounds a rolled share of the target's fit thugs and kills a rolled
+ * share of their whores. It takes no cash or crack. Each shooter can drop only
+ * so many of each, so a single car never empties a big house.
+ *
+ * Casualties are rolled per shooter, car by car. Cars are filled in order and
+ * the last one takes the remainder; a car is lost only when everybody in it
+ * went down. If one of them makes it back, so does the car.
+ *
+ * Rolls are consumed in a fixed order: attacker strength, defender strength,
+ * thug-wound percent, whore-kill percent, thug-wound rounding, whore-kill
+ * rounding, defender wounds on a miss, then one per shooter.
+ */
+export function simulateDriveBy(input: DriveByInput, model: CombatModel, rules: DriveByRules, rng: Rng): DriveByResult {
+  validateCombatModel(model);
+  validateDriveByRules(rules);
+  validateCrew(input.attacker, model);
+  validateCrew(input.defender, model);
+  count(input.shooters, 'Shooters');
+  count(input.lowRiders, 'Low-Riders');
+  count(input.attackerTurns, 'Attacker turns');
+  count(input.defenderWhores, 'Defender whores');
+  requireCondition(input.lowRiders > 0, 'NO_LOW_RIDER', 'You need a Low-Rider for a drive-by.');
+  requireCondition(input.shooters > 0 && input.shooters <= driveByMaxShooters(input.attacker.thugs, input.lowRiders, model, rules),
+    'INVALID_SQUAD', `Send at least one fit thug, with no more than ${rules.thugsPerLowRider} to a car.`);
+  requireCondition(input.attackerTurns >= rules.turnCost, 'NOT_ENOUGH_TURNS', 'There are not enough turns for this drive-by.');
+
+  const fielded = Math.min(input.defender.thugs, model.squadCap, Math.ceil(input.defender.thugs * rules.defenderFieldedFraction));
+  const attacker = equip(input.attacker, input.shooters, model);
+  const defender = equip(input.defender, fielded, model);
+  const rolls = { attacker: checkedRoll(rng), defender: checkedRoll(rng) };
+  const hitRolls = { thugs: checkedRoll(rng), whores: checkedRoll(rng), thugRounding: checkedRoll(rng), whoreRounding: checkedRoll(rng) };
+  const missRoll = checkedRoll(rng);
+
+  const spread = (roll: number) => 1 + (roll * 2 - 1) * model.strength.variance;
+  const effectiveStrength = {
+    attacker: attacker.strength * spread(rolls.attacker),
+    defender: defender.strength * rules.defenseMultiplier * spread(rolls.defender),
+  };
+  const uncontested = defender.committed === 0;
+  // Exact ties go to the target, as in a raid.
+  const won = uncontested || effectiveStrength.attacker > effectiveStrength.defender;
+
+  let thugWoundPercent = 0;
+  let whoreKillPercent = 0;
+  let defenderWounds = 0;
+  let whoresKilled = 0;
+  if (won) {
+    thugWoundPercent = weightedPercent(rules.hit.thugWounds, hitRolls.thugs);
+    whoreKillPercent = weightedPercent(rules.hit.whoreKills, hitRolls.whores);
+    defenderWounds = Math.min(input.defender.thugs, input.shooters * rules.hit.perShooterThugWounds,
+      roundStochastic(input.defender.thugs * thugWoundPercent / 100, () => hitRolls.thugRounding));
+    whoresKilled = Math.min(input.defenderWhores, input.shooters * rules.hit.perShooterWhoreKills,
+      roundStochastic(input.defenderWhores * whoreKillPercent / 100, () => hitRolls.whoreRounding));
+  } else {
+    // The crew that saw them off takes the ordinary winner's scratches.
+    defenderWounds = wounded(defender.committed, true, model, missRoll);
+  }
+
+  const c = rules.casualties;
+  const casualtyChance = uncontested ? 0
+    : won ? c.onHit
+    : Math.min(c.max, c.onMissBase + c.onMissPerMargin * Math.max(0, effectiveStrength.defender / effectiveStrength.attacker - 1));
+
+  const cars: DriveByCar[] = [];
+  for (let seated = 0; seated < input.shooters; seated += rules.thugsPerLowRider) {
+    const crew = Math.min(rules.thugsPerLowRider, input.shooters - seated);
+    let down = 0;
+    for (let i = 0; i < crew; i++) if (checkedRoll(rng) < casualtyChance) down++;
+    cars.push({ crew, down, lost: down === crew });
+  }
+  const attackerWounds = cars.reduce((sum, car) => sum + car.down, 0);
+  const lowRidersLost = cars.filter((car) => car.lost).length;
+
+  return {
+    modelVersion: model.version,
+    winner: won ? 'ATTACKER' : 'DEFENDER',
+    attacker, defender, rolls, effectiveStrength,
+    turnCost: rules.turnCost,
+    attackerTurnsAfter: input.attackerTurns - rules.turnCost,
+    casualtyChance,
+    cars,
+    lowRidersLost,
+    lowRidersAfter: input.lowRiders - lowRidersLost,
+    wounds: { attacker: attackerWounds, defender: defenderWounds, recoveryMinutes: model.wounds.recoveryMinutes },
+    thugWoundPercent,
+    whoreKillPercent,
+    whoresKilled,
+    defenderWhoresAfter: input.defenderWhores - whoresKilled,
   };
 }

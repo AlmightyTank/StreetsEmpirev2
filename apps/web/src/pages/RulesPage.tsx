@@ -107,6 +107,12 @@ export function RulesPage() {
                 defend until they recover. Medicine can bring them back immediately.
               </li>
               <li>
+                Where drive-bys are live, a drive-by takes nothing: it wounds the target&rsquo;s
+                crew and kills some of their whores for good, which is how you soften someone
+                before a raid. It needs Low-Riders, six thugs fit in each car, and a car is
+                only lost if everybody in it goes down.
+              </li>
+              <li>
                 Strategy rounds add recon and revenge: recon spends turns to reveal a
                 temporary target report including crack stash when drug loot is live, and revenge lets you answer someone who recently
                 raided you.

@@ -59,6 +59,7 @@ export interface PlayerState {
   /** Quest progress that is per-player rather than per-trader. */
   cleanShiftStreak: number;
   rocksSuppliedToPip: number;
+  driveBysDone: number;
 
   /**
    * What Tommy has on the shelf, already settled. Counters rather than
@@ -148,6 +149,7 @@ export function toState(player: RoundPlayer): PlayerState {
     ak47Unlocked: player.ak47Unlocked,
     cleanShiftStreak: player.cleanShiftStreak,
     rocksSuppliedToPip: player.rocksSuppliedToPip,
+    driveBysDone: player.driveBysDone,
     pistolStock: player.pistolStock,
     shotgunStock: player.shotgunStock,
     tek9Stock: player.tek9Stock,

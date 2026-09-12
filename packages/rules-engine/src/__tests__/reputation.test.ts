@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01 } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E } from '@streets/rulesets';
 import type { QuestKey, TraderKey } from '@streets/rulesets';
 import {
   calculateQuestCompletion,
@@ -31,6 +31,7 @@ function generous(overrides: Partial<QuestPlayer> = {}): QuestPlayer {
     lowRiders: 5,
     cleanShiftStreak: 100,
     rocksSuppliedToPip: 10_000,
+    driveBys: 10,
     ...overrides,
   };
 }
@@ -203,6 +204,42 @@ describe('reputation', () => {
 
       expect(ceiling).toBeGreaterThanOrEqual(rules.weaponUnlocks.AK47.totalRep);
       expect(withoutFavours).toBeLessThan(rules.weaponUnlocks.AK47.totalRep);
+    });
+  });
+
+  describe('Charlie in drive-by rounds', () => {
+    const e = classicOgV02E;
+
+    it('asks for a drive-by instead of a car, and keeps the car', () => {
+      const standings = emptyStandings(e);
+      expect(e.quests.CHARLIE.goal.kind).toBe('DRIVE_BY');
+
+      const before = questProgress('CHARLIE', generous({ lowRiders: 1, driveBys: 0 }), standings, e);
+      expect(before.canComplete).toBe(false);
+      expect([before.have, before.need]).toEqual([0, 1]);
+
+      const done = calculateQuestCompletion('CHARLIE', generous({ driveBys: 1 }), standings, e);
+      expect(done.spend).toEqual({ crack: 0, lowRiders: 0 });
+    });
+
+    it('tells Charlie shoppers to buy a Low-Rider before the drive-by', () => {
+      const progress = questProgress('CHARLIE', generous({ lowRiders: 0, driveBys: 0 }), emptyStandings(e), e);
+      expect(progress.blockedBy).toMatch(/buy a Low-Rider/i);
+      expect(progress.canComplete).toBe(false);
+
+      const survivedOrNot = calculateQuestCompletion('CHARLIE', generous({ lowRiders: 0, driveBys: 1 }), emptyStandings(e), e);
+      expect(survivedOrNot.spend.lowRiders).toBe(0);
+    });
+
+    it('still asks every trader for something different', () => {
+      const kinds = traderKeys(e).map((key) => e.quests[key as QuestKey].goal.kind);
+      expect(new Set(kinds).size).toBe(kinds.length);
+    });
+
+    it('leaves economic rounds on the old favour, since they have no drive-bys', () => {
+      expect('combat' in rules).toBe(false);
+      expect(rules.quests.CHARLIE.goal.kind).toBe('HAND_OVER_LOW_RIDER');
+      expect(e.combat.driveBy).toBeDefined();
     });
   });
 

@@ -96,7 +96,8 @@ export interface QuestRule {
     | { readonly kind: 'CLEAN_SHIFTS'; readonly trips: number }
     | { readonly kind: 'DELIVER_CRACK'; readonly crack: number; readonly thugs: number }
     | { readonly kind: 'HAND_OVER_LOW_RIDER'; readonly lowRiders: number }
-    | { readonly kind: 'SUPPLY_ROCKS'; readonly crackSold: number };
+    | { readonly kind: 'SUPPLY_ROCKS'; readonly crackSold: number }
+    | { readonly kind: 'DRIVE_BY'; readonly driveBys: number };
 }
 
 export interface RulesetMeta {
@@ -436,6 +437,53 @@ export interface CombatStrategyRules {
   };
 }
 
+/** A percentage rolled between two bounds, weighted toward the low end. */
+export interface WeightedPercentRange {
+  readonly minPercent: number;
+  readonly maxPercent: number;
+  /** Above 1 pulls rolls toward `minPercent`; the top stays possible but rare. */
+  readonly exponent: number;
+}
+
+/**
+ * Drive-bys: a hit-and-run from Low-Riders that takes nothing and leaves the
+ * target weaker. Shooters ride in cars; a car comes home as long as anyone in
+ * it does, and is lost when its whole crew goes down.
+ */
+export interface DriveByRules {
+  readonly turnCost: number;
+  /** Shooters per Low-Rider. The squad can never outnumber the seats. */
+  readonly thugsPerLowRider: number;
+  /** The shooter's own wait between drive-bys. Separate from the raid clock. */
+  readonly cooldownMinutes: number;
+  /** How long a block that was shot up is left alone by everybody. */
+  readonly protectionHours: number;
+  /** Share of the target's fit crew out front to shoot back. */
+  readonly defenderFieldedFraction: number;
+  /** The target's bonus when shooting back. 1 means none. */
+  readonly defenseMultiplier: number;
+  /** What a successful drive-by does to the target. Nothing is taken. */
+  readonly hit: {
+    /** Of the target's fit thugs, wounded on the usual recovery clock. */
+    readonly thugWounds: WeightedPercentRange;
+    /** Of the target's whores, killed for good. */
+    readonly whoreKills: WeightedPercentRange;
+    /** Each shooter can drop at most this many of each. */
+    readonly perShooterThugWounds: number;
+    readonly perShooterWhoreKills: number;
+  };
+  /** Chance each shooter goes down, rolled person by person. */
+  readonly casualties: {
+    /** Return fire when the drive-by lands. */
+    readonly onHit: number;
+    /** When the target's crew wins the exchange... */
+    readonly onMissBase: number;
+    /** ...plus this for every 1.0 their strength exceeds yours by. */
+    readonly onMissPerMargin: number;
+    readonly max: number;
+  };
+}
+
 export interface Ruleset {
   /** Absent on economic-only rounds. */
   readonly combat?: import('./combat-prototype.js').CombatModel & {
@@ -444,6 +492,8 @@ export interface Ruleset {
     readonly cooldownMinutes: number;
     readonly minimumTargetStrengthRatio: number;
     readonly strategy?: CombatStrategyRules;
+    /** Absent where drive-bys have not shipped. */
+    readonly driveBy?: DriveByRules;
   };
   readonly meta: RulesetMeta;
   readonly round: RoundRules;

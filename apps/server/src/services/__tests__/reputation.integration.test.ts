@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { classicOgV01 } from '@streets/rulesets';
 
@@ -14,6 +14,7 @@ describe.runIf(process.env.REPUTATION_INTEGRATION === '1')('reputation API with 
   let accountId: string | undefined;
   let playerId: string;
   let cookie: string;
+  let roundId: string | undefined;
 
   const rules = classicOgV01;
 
@@ -35,7 +36,15 @@ describe.runIf(process.env.REPUTATION_INTEGRATION === '1')('reputation API with 
     const { ReputationService } = await import('../reputation.service.js');
     const { startingStock } = await import('@streets/rules-engine');
 
-    const round = await RoundService.requireCurrent(app.prisma);
+    // Its own v0.1 round, so the favours under test do not depend on which
+    // ruleset the dev database's current round happens to use.
+    const round = await app.prisma.round.create({ data: {
+      name: 'Reputation integration fixture', slug: `rep-test-${randomUUID()}`,
+      rulesetId: rules.meta.id, rulesetVersion: rules.meta.version, status: 'ACTIVE',
+      startsAt: new Date('2000-01-01'), endsAt: new Date(Date.now() + 86_400_000),
+    } });
+    roundId = round.id;
+    vi.spyOn(RoundService, 'requireCurrent').mockResolvedValue(round);
     const city = await app.prisma.city.findUniqueOrThrow({
       where: { slug: rules.round.startingCitySlug },
     });
@@ -57,6 +66,8 @@ describe.runIf(process.env.REPUTATION_INTEGRATION === '1')('reputation API with 
   });
 
   afterAll(async () => {
+    vi.restoreAllMocks();
+    if (roundId) await app.prisma.round.delete({ where: { id: roundId } });
     if (accountId) await app.prisma.account.delete({ where: { id: accountId } });
     await app.close();
   });

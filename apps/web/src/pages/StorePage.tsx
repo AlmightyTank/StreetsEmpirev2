@@ -388,10 +388,10 @@ function StoreView({ slug }: { slug: string }) {
             </p>
             <p className="se-hint">Shopping costs no turns. Prices are per item; the full total appears before you trade.</p>
             {store.key === 'CORNER' ? <p className="se-hint">Condoms and beer keep street work supplied. Restocking lifts happiness immediately.</p> : null}
-            {store.key === 'TOMMY' ? <p className="se-hint">Thugs protect the crew. Keeping a gun and beer for each thug helps their happiness. Combat arrives in a later milestone.</p> : null}
+            {store.key === 'TOMMY' ? <p className="se-hint">Thugs protect the crew and fight in raids or drive-bys. Keeping a gun and beer for each thug helps their happiness.</p> : null}
             {store.key === 'TOMMY' ? <p className="se-hint">Everything here comes in on Tommy&rsquo;s schedule. Pistols arrive by the crate because your thugs each need one; muscle and the heavier guns come a few at a time, and the better the gun the longer the wait.</p> : null}
             {store.key === 'TOMMY' ? <p className="se-hint">Pistols and shotguns are open to everyone. Work the streets to earn Tommy’s trust, then complete his favors for Tek-9 and AK-47 access. Earned access stays yours even if cash or crew drops.</p> : null}
-            {store.key === 'CHARLIE' ? <p className="se-hint">Each Low-Rider will carry {formatNumber(catalog.lowRiderThugCapacity)} thugs when travel and combat arrive. For now, vehicles add to net worth and can be resold &mdash; at a loss, so a fleet is worth building only if you mean to use it.</p> : null}
+            {store.key === 'CHARLIE' ? <p className="se-hint">Each Low-Rider carries {formatNumber(catalog.lowRiderThugCapacity)} shooters for a drive-by. If everybody in a car goes down, the car is lost; if one thug makes it back, the car comes home too.</p> : null}
             {store.key === 'CHARLIE' ? <p className="se-hint">Charlie builds them one at a time, so a fleet comes together over days rather than in one visit.</p> : null}
           </aside>
         </div>

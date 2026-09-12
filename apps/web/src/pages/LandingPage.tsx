@@ -58,13 +58,13 @@ export function LandingPage() {
 
             <Panel title="Still being built">
               <ul className="se-list se-list--muted">
-                <li>Drive-bys and deeper combat tactics</li>
+                <li>Deeper combat tactics</li>
                 <li>Alliances and alliance rankings</li>
                 <li>Travel between cities</li>
                 <li>Messaging, console and rolodex</li>
               </ul>
               <p className="se-hint">
-                Raids are live in onboarding rounds with local rivals. Bigger PvP systems come after
+                Raids and drive-bys are live in onboarding rounds with local rivals. Bigger PvP systems come after
                 the core attack loop feels fair and readable.
               </p>
             </Panel>

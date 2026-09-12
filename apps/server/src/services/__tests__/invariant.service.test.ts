@@ -21,6 +21,7 @@ function valid(): InvariantPlayerState {
     lowRiders: 0,
     cleanShiftStreak: 3,
     rocksSuppliedToPip: 0,
+    driveBysDone: 0,
     pistolStock: 0,
     shotgunStock: 5,
     tek9Stock: 3,

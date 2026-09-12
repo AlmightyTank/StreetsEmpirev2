@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { combatReconSchema, combatTreatmentSchema, raidSchema } from '@streets/shared';
+import { combatReconSchema, combatTreatmentSchema, driveBySchema, raidSchema } from '@streets/shared';
 import { CombatService } from '../services/combat.service.js';
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { RoundService } from '../services/round.service.js';
@@ -24,6 +24,11 @@ const combatRoutes: FastifyPluginAsync = async (app) => {
     // Explicit round pins retries to the original player if the current round changes.
     const me = await player(request.auth!.account.id, input.roundId);
     return CombatService.raid(app.prisma, me.id, input);
+  });
+  app.post('/combat/drive-by', { preHandler: app.requireAuth }, async (request) => {
+    const input = parseBody(driveBySchema, request.body);
+    const me = await player(request.auth!.account.id, input.roundId);
+    return CombatService.driveBy(app.prisma, me.id, input);
   });
   app.post('/combat/recon', { preHandler: app.requireAuth }, async (request) => {
     const input = parseBody(combatReconSchema, request.body);

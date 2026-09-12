@@ -232,6 +232,8 @@ model RoundPlayer {
   cleanShiftStreak   Int @default(0)
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
   rocksSuppliedToPip Int @default(0)
+  /// Drive-bys carried out this round, landed or not, for Charlie's favour.
+  driveBysDone       Int @default(0)
 
   /// Derived from supplies, protection and fatigue. Stored so it can be read
   /// and ranked without recomputing, but never the source of truth.
@@ -265,6 +267,10 @@ model RoundPlayer {
   raidProtectedUntil DateTime?
   raidCooldownUntil DateTime?
   lastRaidedAt DateTime?
+  /// Drive-bys run on their own clocks so one can set up a raid.
+  driveByCooldownUntil  DateTime?
+  driveByProtectedUntil DateTime?
+  lastDrivenByAt        DateTime?
 
   @@unique([roundId, accountId])
   @@unique([roundId, publicPimpId])
@@ -300,6 +306,8 @@ model GameNews {
 enum ActivityType {
   RAID_ATTACK
   RAID_DEFENSE
+  DRIVE_BY_ATTACK
+  DRIVE_BY_DEFENSE
   COMBAT_TREATMENT
   COMBAT_RECON
   ROUND_JOINED
@@ -313,9 +321,16 @@ enum ActivityType {
   AWAY_BONUS
 }
 
+enum BattleKind {
+  RAID
+  DRIVE_BY
+}
+
 /// Durable receipt and replay guard for the lifetime of both round players.
+/// Raids and drive-bys share it, so reports, revenge and replay see both.
 model RaidBattle {
   id String @id @default(cuid())
+  kind BattleKind @default(RAID)
   attackerId String
   defenderId String
   attacker RoundPlayer @relation("RaidAttacker", fields: [attackerId], references: [id], onDelete: Cascade)

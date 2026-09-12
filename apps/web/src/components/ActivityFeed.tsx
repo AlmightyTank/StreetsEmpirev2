@@ -29,6 +29,22 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
           num(p.wounds) ? `${formatNumber(num(p.wounds))} wounded` : null,
         ].filter(Boolean).join(' · '),
       };
+    case 'DRIVE_BY_ATTACK':
+    case 'DRIVE_BY_DEFENSE': {
+      const attacking = activity.type === 'DRIVE_BY_ATTACK';
+      return {
+        text: attacking
+          ? `Drive-by on ${str(p.opponent)} — ${p.won ? 'it landed' : 'they shot back and won'}.`
+          : `${str(p.opponent)} did a drive-by on your block — ${p.won ? 'your crew saw them off' : 'it landed'}.`,
+        detail: [
+          attacking ? `${num(p.turns)} turns` : null,
+          num(p.whoresKilled) ? `${formatNumber(num(p.whoresKilled))} ${attacking ? 'of their' : 'of your'} whores killed` : null,
+          num(p.wounds) ? `${formatNumber(num(p.wounds))} of yours wounded` : null,
+          num(p.opponentWounds) ? `${formatNumber(num(p.opponentWounds))} of theirs wounded` : null,
+          num(p.lowRidersLost) ? `${formatNumber(num(p.lowRidersLost))} Low-Rider${num(p.lowRidersLost) === 1 ? '' : 's'} lost` : null,
+        ].filter(Boolean).join(' · '),
+      };
+    }
     case 'COMBAT_TREATMENT':
       return {
         text: `Treated ${formatNumber(num(p.treatedThugs))} wounded thugs.`,

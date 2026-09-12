@@ -133,7 +133,7 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     expect(response.statusCode, response.body).toBe(200);
     const report = response.json<BattleReportDto>();
     expect(report.won).toBe(true);
-    expect(report.modelVersion).toBe('0.2.0-E.1');
+    expect(report.modelVersion).toBe('0.2.0-E.2');
     expect(report.baseLootPercent).toBeGreaterThanOrEqual(5);
     expect(report.baseLootPercent).toBeLessThanOrEqual(40);
     expect(report.lootPercent).toBe(report.baseLootPercent);
