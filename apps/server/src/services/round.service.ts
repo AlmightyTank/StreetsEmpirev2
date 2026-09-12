@@ -62,6 +62,6 @@ export const RoundService = {
   },
 
   playerCount(prisma: PrismaClient, roundId: string): Promise<number> {
-    return prisma.roundPlayer.count({ where: { roundId } });
+    return prisma.roundPlayer.count({ where: { roundId, account: { isActive: true } } });
   },
 };

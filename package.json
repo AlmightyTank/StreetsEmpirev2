@@ -31,7 +31,8 @@
     "db:push": "prisma db push",
     "db:reset": "prisma migrate reset",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:cleanup:seed-rivals": "tsx scripts/ops/remove-seed-rivals.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

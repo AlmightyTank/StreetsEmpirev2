@@ -23,13 +23,6 @@ function movementText(value: number | null): string {
   return value > 0 ? `up ${formatNumber(value)}` : `down ${formatNumber(Math.abs(value))}`;
 }
 
-function legacyText(row: RankingEntryDto): string {
-  if (row.legacy.roundWins > 0) return `${formatNumber(row.legacy.roundWins)} wins`;
-  if (row.legacy.bestNationalRank) return `best #${formatNumber(row.legacy.bestNationalRank)}`;
-  if (row.legacy.roundsPlayed > 0) return `${formatNumber(row.legacy.roundsPlayed)} played`;
-  return 'new blood';
-}
-
 function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: boolean }) {
   if (rows.length === 0) {
     return <div className="se-panel__body"><p className="se-muted">Nobody is ranked yet.</p></div>;
@@ -37,7 +30,7 @@ function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: b
 
   return (
     <div className="se-tablewrap">
-      <table className="se-table">
+      <table className="se-table se-ranking-table">
         <thead>
           <tr>
             <th>Rank</th>
@@ -46,8 +39,6 @@ function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: b
             <th className="se-table__number">Net Worth</th>
             <th>Held</th>
             <th>Move</th>
-            <th>Legacy</th>
-            <th>Awards</th>
           </tr>
         </thead>
         <tbody>
@@ -64,8 +55,6 @@ function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: b
               <td className="se-table__number se-num">{formatCents(row.netWorthCents)}</td>
               <td className="se-num" title={`Held since ${new Date(row.rankHeldSinceAt).toLocaleString()}`}>{heldFor(row.rankHeldSinceAt)}</td>
               <td className="se-num">{movementText(row.rankMovement)}</td>
-              <td>{legacyText(row)}</td>
-              <td>{row.awards.length ? row.awards.map((award) => award.title).join(', ') : '—'}</td>
             </tr>
           ))}
         </tbody>
@@ -107,7 +96,7 @@ export function RankingsPage() {
       {error ? <Alert>{error}</Alert> : null}
 
       {data ? (
-        <Alert tone="info">Rankings are public bragging rights: money, current rank, rank streak, movement, past placements and awards. Recon is still where you learn private raid intel like fit thugs, weapons, exposed cash and crack stash.</Alert>
+        <Alert tone="info">Rankings show money, rank order, rank streak and movement. Open a player profile for their public record and achievements; use recon for private raid intel.</Alert>
       ) : null}
 
       <div className="se-grid">

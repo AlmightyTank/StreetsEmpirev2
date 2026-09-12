@@ -246,7 +246,7 @@ export const CombatService = {
     let blockedReason = combatAttackerBlock(player, model, now);
     if (round.status !== 'ACTIVE' || round.startsAt > now || round.endsAt <= now) blockedReason = 'This round is not currently open for raids.';
     const targets = await prisma.roundPlayer.findMany({
-      where: { roundId: round.id, cityId: player.cityId, id: { not: playerId }, publicPimpId: { gt: after } },
+      where: { roundId: round.id, cityId: player.cityId, id: { not: playerId }, publicPimpId: { gt: after }, account: { isActive: true } },
       orderBy: { publicPimpId: 'asc' }, take: 26,
     });
     const targetIds = targets.slice(0, 25).map((target) => target.id);
@@ -294,7 +294,7 @@ export const CombatService = {
   async raid(prisma: PrismaClient, attackerId: string, rawInput: RaidInputDto): Promise<BattleReportDto> {
     const input = raidSchema.parse(rawInput);
     // Resolve only identity before locking. Eligibility and every mutable input are read again below.
-    const target = await prisma.roundPlayer.findUnique({ where: { roundId_publicPimpId: { roundId: input.roundId, publicPimpId: input.targetPublicPimpId } }, select: { id: true } });
+    const target = await prisma.roundPlayer.findFirst({ where: { roundId: input.roundId, publicPimpId: input.targetPublicPimpId, account: { isActive: true } }, select: { id: true } });
     if (!target) throw AppError.notFound('TARGET_NOT_FOUND', 'That target is not in this round.');
     if (target.id === attackerId) throw AppError.badRequest('INVALID_TARGET', 'You cannot raid yourself.');
 
@@ -403,7 +403,7 @@ export const CombatService = {
    */
   async driveBy(prisma: PrismaClient, attackerId: string, rawInput: DriveByInputDto): Promise<BattleReportDto> {
     const input = driveBySchema.parse(rawInput);
-    const target = await prisma.roundPlayer.findUnique({ where: { roundId_publicPimpId: { roundId: input.roundId, publicPimpId: input.targetPublicPimpId } }, select: { id: true } });
+    const target = await prisma.roundPlayer.findFirst({ where: { roundId: input.roundId, publicPimpId: input.targetPublicPimpId, account: { isActive: true } }, select: { id: true } });
     if (!target) throw AppError.notFound('TARGET_NOT_FOUND', 'That target is not in this round.');
     if (target.id === attackerId) throw AppError.badRequest('INVALID_TARGET', 'You cannot hit your own block.');
 
@@ -504,8 +504,8 @@ export const CombatService = {
 
   async recon(prisma: PrismaClient, playerId: string, rawInput: CombatReconInputDto): Promise<CombatReconResultDto> {
     const input = combatReconSchema.parse(rawInput);
-    const target = await prisma.roundPlayer.findUnique({
-      where: { roundId_publicPimpId: { roundId: input.roundId, publicPimpId: input.targetPublicPimpId } },
+    const target = await prisma.roundPlayer.findFirst({
+      where: { roundId: input.roundId, publicPimpId: input.targetPublicPimpId, account: { isActive: true } },
       select: { id: true },
     });
     if (!target) throw AppError.notFound('TARGET_NOT_FOUND', 'That target is not in this round.');

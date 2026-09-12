@@ -326,13 +326,13 @@ export const CommunityService = {
     const now = new Date();
     const [nationalRows, localRows] = await Promise.all([
       prisma.roundPlayer.findMany({
-        where: { roundId: player.roundId },
+        where: { roundId: player.roundId, account: { isActive: true } },
         include: { city: true },
         orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
         take: topCount,
       }),
       prisma.roundPlayer.findMany({
-        where: { roundId: player.roundId, cityId: player.cityId },
+        where: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true } },
         include: { city: true },
         orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
         take: topCount,
@@ -367,8 +367,8 @@ export const CommunityService = {
     viewerPublicPimpId: number,
     ruleset: Ruleset,
   ): Promise<PublicPlayerProfileDto> {
-    const player = await prisma.roundPlayer.findUnique({
-      where: { roundId_publicPimpId: { roundId, publicPimpId } },
+    const player = await prisma.roundPlayer.findFirst({
+      where: { roundId, publicPimpId, account: { isActive: true } },
       include: { city: true },
     });
 
@@ -378,13 +378,14 @@ export const CommunityService = {
 
     const [nationalAhead, localAhead] = await Promise.all([
       prisma.roundPlayer.count({
-        where: { roundId, netWorthCents: { gt: player.netWorthCents } },
+        where: { roundId, netWorthCents: { gt: player.netWorthCents }, account: { isActive: true } },
       }),
       prisma.roundPlayer.count({
         where: {
           roundId,
           cityId: player.cityId,
           netWorthCents: { gt: player.netWorthCents },
+          account: { isActive: true },
         },
       }),
     ]);

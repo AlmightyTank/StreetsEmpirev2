@@ -5,6 +5,7 @@ import { classicOgV01, classicOgV02D, classicOgV02E, type Ruleset, type Starting
 
 const prisma = new PrismaClient();
 const CURRENT_RULESET = classicOgV02E;
+const shouldSeedRivals = process.env.SEED_RIVALS === '1' || process.env.NODE_ENV !== 'production';
 
 /** Section 12. Travel is not player-facing yet, but the map exists from day one. */
 const CITIES = [
@@ -105,7 +106,11 @@ async function seedCurrentOnboardingRound(now: Date) {
 async function seedNews(roundId: string, title: string, body: string) {
   const existing = await prisma.gameNews.findFirst({ where: { roundId, title } });
   if (existing) {
-    console.log(`  news:     already seeded (${title})`);
+    await prisma.gameNews.update({
+      where: { id: existing.id },
+      data: { body, isPinned: true },
+    });
+    console.log(`  news:     updated (${title})`);
     return;
   }
 
@@ -186,6 +191,10 @@ async function refreshRoundRanks(roundId: string) {
 async function seedRivals(round: Round, ruleset: Ruleset, now: Date) {
   const rivals = ruleset.round.seededRivals ?? [];
   if (!rivals.length) return;
+  if (!shouldSeedRivals) {
+    console.log('  rivals:   skipped in production (set SEED_RIVALS=1 to create local test rivals)');
+    return;
+  }
 
   const city = await prisma.city.findUnique({ where: { slug: ruleset.round.startingCitySlug } });
   if (!city?.isEnabled) throw new Error(`Starting city ${ruleset.round.startingCitySlug} is not enabled.`);
@@ -294,7 +303,9 @@ async function main() {
   await seedNews(
     onboardingRound.id,
     '0.2.0-E RAID ONBOARDING IS LIVE',
-    'The current development round seeds three local rivals into New York City, so a new player can join, recon, raid and read battle reports immediately.',
+    shouldSeedRivals
+      ? 'The current development round has local test rivals available, so a new player can join, recon, raid and read battle reports immediately.'
+      : 'The current production round is open for real players. Rankings and combat targets only show active player accounts.',
   );
   await seedRivals(onboardingRound, CURRENT_RULESET, new Date(now.getTime() + 1_000));
   console.log('Done.');

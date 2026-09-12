@@ -48,6 +48,7 @@ export const RankingService = {
       where: {
         roundId,
         netWorthCents: { gt: netWorthCents },
+        account: { isActive: true },
         ...(excludePlayerId ? { id: { not: excludePlayerId } } : {}),
       },
     });
@@ -66,6 +67,7 @@ export const RankingService = {
         roundId,
         cityId,
         netWorthCents: { gt: netWorthCents },
+        account: { isActive: true },
         ...(excludePlayerId ? { id: { not: excludePlayerId } } : {}),
       },
     });
