@@ -65,8 +65,8 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
     </div>
     <p className="se-hint">Your weapons: {weaponsText(report.yourEquipment)}.</p>
     {(report.yourWounds ?? 0) > 0 ? <p className="se-hint">{formatNumber(report.yourWounds)} thugs are recovering{report.nextRecoveryAt ? ` until ${date(report.nextRecoveryAt)}` : ''}.</p> : null}
-    {report.retaliation ? <p className="se-hint">This was retaliation. Revenge let you answer your attacker through the normal target filters.</p> : null}
-    {report.protectedUntil ? <p className="se-hint">Protected until {date(report.protectedUntil)}. Your return is also required before another raid.</p> : null}
+    {report.retaliation ? <p className="se-hint">This was payback. Revenge let you answer the crew that hit you.</p> : null}
+    {report.protectedUntil ? <p className="se-hint">Your block is protected until {date(report.protectedUntil)}. You also need your crew back before the next raid.</p> : null}
     {report.cooldownUntil ? <p className="se-hint">Next raid after {date(report.cooldownUntil)}.</p> : null}
     {onClose ? <button type="button" className="se-btn se-btn--ghost se-btn--sm se-raid-report-close" onClick={onClose}>Close report</button> : null}
   </Panel>;
@@ -101,7 +101,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
       setReports(battles.reports);
       setNextBefore(battles.nextBefore);
     } catch (err) {
-      if (sequence === refreshSequence.current) setError(err instanceof Error ? err.message : 'Could not refresh raids.');
+      if (sequence === refreshSequence.current) setError(err instanceof Error ? err.message : 'Could not get the latest word from the street.');
     }
   }, [after, roundId]);
 
@@ -205,10 +205,10 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
       setTargetId('');
       await refresh(true);
       try { await useSession.getState().refreshSnapshot(); }
-      catch { setError(`The ${attackName(request.kind)} is confirmed. Your resource bar could not refresh yet.`); }
+      catch { setError(`The ${attackName(request.kind)} is settled. Your top bar could not catch up yet.`); }
     } catch (err) {
       if (err instanceof ApiError && !err.isRetryable && !err.isUnauthenticated) setSaved(null);
-      setError(err instanceof Error ? err.message : `The ${attackName(request.kind)} reply was lost. Retry the saved ${attackName(request.kind)} to retrieve its result.`);
+      setError(err instanceof Error ? err.message : `The street went quiet before the report came back. Retry the saved ${attackName(request.kind)} to get the result.`);
       void refresh(true);
     } finally {
       inFlight.current = false;
@@ -223,7 +223,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
       const next = await combatApi.reports(roundId, nextBefore);
       setReports((current) => [...current, ...next.reports.filter((entry) => !current.some((r) => r.id === entry.id))]);
       setNextBefore(next.nextBefore);
-    } catch (err) { setError(err instanceof Error ? err.message : 'Could not load older reports.'); }
+    } catch (err) { setError(err instanceof Error ? err.message : 'Could not pull older reports.'); }
     finally { setBusy(false); }
   }
 
@@ -234,11 +234,11 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     setNotice(null);
     try {
       const result = await combatApi.recon({ roundId, targetPublicPimpId: selected.publicPimpId, actionId: newActionId() });
-      setNotice(`Recon on ${result.intel.displayName}: ${formatNumber(result.intel.fitThugs)} fit thugs, ${weaponsText(result.intel.weapons)}, up to ${formatCents(result.intel.estimatedMaxLootCents)} cash${result.intel.estimatedMaxCrackLoot != null ? ` and ${formatNumber(result.intel.estimatedMaxCrackLoot)} crack` : ''} exposed.`);
+      setNotice(`Word on ${result.intel.displayName}: ${formatNumber(result.intel.fitThugs)} fit thugs, ${weaponsText(result.intel.weapons)}, up to ${formatCents(result.intel.estimatedMaxLootCents)} cash${result.intel.estimatedMaxCrackLoot != null ? ` and ${formatNumber(result.intel.estimatedMaxCrackLoot)} crack` : ''} exposed.`);
       await refresh(true);
       await useSession.getState().refreshSnapshot();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not recon that target.');
+      setError(err instanceof Error ? err.message : 'Could not get eyes on that crew.');
     } finally {
       setBusy(false);
     }
@@ -255,26 +255,26 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
       await refresh(true);
       await useSession.getState().refreshSnapshot();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not treat wounded thugs.');
+      setError(err instanceof Error ? err.message : 'Could not patch up the wounded.');
     } finally {
       setBusy(false);
     }
   }
 
   return <GameLayout>
-    <div className="se-pagehead"><div><h1 className="se-title">Raids</h1><p className="se-eyebrow">{page?.driveBy ? 'Take their cash and crack, or shoot up their block.' : 'Your crew. Their cash and crack.'}</p></div>
+    <div className="se-pagehead"><div><h1 className="se-title">Raids</h1><p className="se-eyebrow">{page?.driveBy ? 'Pick the mark. Send the crew. Settle the score.' : 'Pick the mark. Send the crew. Take the haul.'}</p></div>
       <button type="button" className="se-btn" disabled={busy} onClick={() => { setError(null); setNotice(null); void refresh(); }}>Refresh</button>
     </div>
     {error ? <Alert>{error}</Alert> : null}
     {notice ? <Alert tone="info">{notice}</Alert> : null}
-    {pending ? <Panel title={`Saved ${attackName(pending.kind)} awaiting confirmation`}>
-      <p>{pending.input.attackingThugs} thugs against {pending.targetName}. Retry to retrieve this {attackName(pending.kind)}’s result before starting another.</p>
+    {pending ? <Panel title={`Unsettled ${attackName(pending.kind)}`}>
+      <p>{pending.input.attackingThugs} thugs went at {pending.targetName}. Get that report before you start another hit.</p>
       <button type="button" className="se-btn se-btn--primary" disabled={busy} onClick={() => void submit()}>{busy ? 'Checking…' : `Retry saved ${attackName(pending.kind)}`}</button>
     </Panel> : null}
     {!page ? <p className="se-muted" role="status">Checking the streets…</p> : !page.enabled ? <Alert>{page.blockedReason}</Alert> : <div className="se-grid se-grid--sidebar">
       <div className="se-grid">
-        <Panel title="Pick a target">
-          {driveBy ? <div className="se-seg" role="group" aria-label="Kind of attack">
+        <Panel title="Choose your mark">
+          {driveBy ? <div className="se-seg" role="group" aria-label="Kind of hit">
             {(['RAID', 'DRIVE_BY'] as const).map((kind) => <button key={kind} type="button"
               className={`se-seg__btn${mode === kind ? ' se-seg__btn--on' : ''}`} aria-pressed={mode === kind}
               disabled={busy || !!pending} onClick={() => setMode(kind)}>
@@ -282,21 +282,21 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             </button>)}
           </div> : null}
           {modeBlock ? <p role="status">{modeBlock}</p> : null}
-          {page.protectedUntil ? <p className="se-hint">Your protection ends {date(page.protectedUntil)}.</p> : null}
-          {modeCooldown ? <p className="se-hint">Your {driving ? 'drive-by' : 'raid'} cooldown ends {date(modeCooldown)}.</p> : null}
+          {page.protectedUntil ? <p className="se-hint">Your block is protected until {date(page.protectedUntil)}.</p> : null}
+          {modeCooldown ? <p className="se-hint">Your crew is ready after {date(modeCooldown)}.</p> : null}
           {page.targets.length ? <form onSubmit={(e) => void submit(e)}>
             <fieldset disabled={busy || !!pending} className="se-raid-form">
-              <label htmlFor="raid-target">Target in your city</label>
+              <label htmlFor="raid-target">Mark in your city</label>
               <select id="raid-target" className="se-input" value={targetId} onChange={(event) => setTargetId(event.target.value)}>
-                <option value="">Select a player</option>
+                <option value="">Choose a mark</option>
                 {page.targets.map((target) => <option key={target.publicPimpId} value={target.publicPimpId}>
                   {target.displayName} (#{target.publicPimpId}) · {target.strength}{target.revengeAvailable ? ' · revenge' : ''}{targetBlock(target) ? ` · ${targetBlock(target)}` : ''}
                 </option>)}
               </select>
-              {selected ? <p className="se-hint" title="Net worth is public rank status. Recon reveals private raid intel: fit thugs, wounds, weapons, cash band, crack and max loot.">Net worth {formatCents(selected.netWorthCents)} · {selected.strength} crew. {selected.revengeAvailable ? 'Revenge window open.' : selectedBlock ?? (driving ? 'Only part of their crew is out front, and they get no home advantage.' : 'The defender gets a home advantage.')}</p> : null}
+              {selected ? <p className="se-hint" title="Net worth is street reputation. Scouting reveals the details: fit thugs, wounds, weapons, cash range, crack and max haul.">Net worth {formatCents(selected.netWorthCents)} · {selected.strength} crew. {selected.revengeAvailable ? 'Payback is open.' : selectedBlock ?? (driving ? 'Only part of their crew is on the street.' : 'They have home turf.')}</p> : null}
               {selected && rules?.reconTurnCost ? <div className="se-intel">
                 <button type="button" className="se-btn" disabled={busy || !!pending || me.turns.turns < rules.reconTurnCost} onClick={() => void reconTarget()}>
-                  Recon {selected.displayName} · {rules.reconTurnCost} turns
+                  Scout {selected.displayName} · {rules.reconTurnCost} turns
                 </button>
                 {selected.intel ? <div className="se-rows se-mt">
                   <Row label="Intel age" value={`${date(selected.intel.createdAt)} until ${date(selected.intel.expiresAt)}`} />
@@ -307,27 +307,27 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                   <Row label="Max cash loot" value={formatCents(selected.intel.estimatedMaxLootCents)} />
                   {selected.intel.crack != null ? <Row label="Crack stash" value={formatNumber(selected.intel.crack)} /> : null}
                   {selected.intel.estimatedMaxCrackLoot != null ? <Row label="Max crack loot" value={formatNumber(selected.intel.estimatedMaxCrackLoot)} /> : null}
-                </div> : <p className="se-hint">Spend recon turns to reveal fit thugs, weapons, cash band, crack stash and the largest haul this crew could expose.</p>}
+                </div> : <p className="se-hint">Scout them first to see fit thugs, guns, cash range, crack stash and the biggest haul they might expose.</p>}
               </div> : null}
               <label htmlFor="raid-squad">{driving
                 ? `Shooters to send (up to ${formatNumber(maxSquad)} · ${formatNumber(driveBy!.lowRiders)} Low-Rider${driveBy!.lowRiders === 1 ? '' : 's'}, ${driveBy!.rules.thugsPerLowRider} to a car)`
-                : `Fit thugs to send (up to ${formatNumber(maxSquad)})`}</label>
+                : `Thugs to send (up to ${formatNumber(maxSquad)})`}</label>
               <input id="raid-squad" className="se-input" type="number" inputMode="numeric" min="1" max={maxSquad} value={squad} onChange={(event) => setSquad(event.target.value)} />
               <p className="se-hint">{driving
                 ? `Cars fill ${driveBy!.rules.thugsPerLowRider} at a time. A car comes home if anyone in it does, so a half-empty car is the one you are most likely to lose.`
-                : 'Your best available guns are assigned automatically. Each fighter carries one weapon.'}</p>
+                : 'Your best guns go with the crew automatically. One weapon per fighter.'}</p>
               <button type="submit" className="se-btn se-btn--primary" disabled={disabled}>{driving
                 ? (selectedBlock ? 'Drive-by blocked' : 'Drive-by')
                 : (selectedBlock ? 'Raid blocked' : 'Raid')}{selected ? ` ${selected.displayName}` : ''} · {turnCost} turns</button>
             </fieldset>
-          </form> : <p className="se-muted">No targets are available on this page. Public rounds only show active players in your city. For local testing, run SEED_RIVALS=1 npm run db:seed to add test rivals.</p>}
+          </form> : <p className="se-muted">No marks are exposed in your city right now. Check back when another crew is active or protection drops.</p>}
           <div className="se-raid-pagination">
-            {after > 0 ? <button className="se-btn" disabled={busy || !!pending} onClick={() => { setAfter(0); setTargetId(''); }}>First targets</button> : null}
-            {page.nextTarget !== null ? <button className="se-btn" disabled={busy || !!pending} onClick={() => { setAfter(page.nextTarget!); setTargetId(''); }}>More targets</button> : null}
+            {after > 0 ? <button className="se-btn" disabled={busy || !!pending} onClick={() => { setAfter(0); setTargetId(''); }}>First marks</button> : null}
+            {page.nextTarget !== null ? <button className="se-btn" disabled={busy || !!pending} onClick={() => { setAfter(page.nextTarget!); setTargetId(''); }}>More marks</button> : null}
           </div>
         </Panel>
-        <Panel title="Battle reports">
-          {!reports.length ? <p className="se-muted">Your attacks and defenses will appear here.</p> : <ul className="se-raid-reports">
+        <Panel title="Street reports">
+          {!reports.length ? <p className="se-muted">Your hits and defenses land here.</p> : <ul className="se-raid-reports">
             {reports.map((battle) => {
               const selectedReport = report?.id === battle.id;
               return <li key={battle.id}><button
@@ -346,7 +346,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
         </Panel>
       </div>
       <div className="se-grid">
-        {page.recovery ? <Panel title="Recovery">
+        {page.recovery ? <Panel title="Crew recovery">
           <div className="se-rows">
             <Row label="Fit thugs" value={formatNumber(page.recovery.fitThugs)} strong />
             <Row label="Wounded thugs" value={formatNumber(page.recovery.woundedThugs)} />
@@ -354,26 +354,26 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             <Row label="Medicine" value={`${formatNumber(me.resources.medicine)} on hand`} />
           </div>
           {page.recovery.woundedThugs > 0 ? <button type="button" className="se-btn se-btn--primary" disabled={busy || page.recovery.maxTreatableThugs <= 0} onClick={() => void treatWounded()}>
-            Treat {formatNumber(page.recovery.maxTreatableThugs)} with medicine
-          </button> : <p className="se-hint">Everybody is fit.</p>}
+            Patch up {formatNumber(page.recovery.maxTreatableThugs)} with medicine
+          </button> : <p className="se-hint">Everybody is standing.</p>}
         </Panel> : null}
-        <Panel title="How raids work">
-          <p>Raids cost {rules!.turnCost} turns, win or lose. Defense is automatic and costs no turns.</p>
+        <Panel title="Raid rules">
+          <p>A raid costs {rules!.turnCost} turns whether it works or goes bad. Defense happens automatically and costs nothing.</p>
           {rules!.minLootPercent !== undefined && rules!.maxLootPercent !== undefined
-            ? <p>Successful raids roll a loot cut from {rules!.minLootPercent}% to {rules!.maxLootPercent}% of exposed cash above {formatCents(rules!.protectedCashCents)}. The roll is weighted low, so the full {rules!.maxLootPercent}% can happen but is rare. Cash is still limited to {formatCents(rules!.perThugLootCents)} per fit thug who makes it home.</p>
-            : <p>Win up to {rules!.lootPercent}% of cash above {formatCents(rules!.protectedCashCents)}, limited to {formatCents(rules!.perThugLootCents)} per thug you send.</p>}
-          {rules!.drugLootPercent ? <p>Successful raids also use that loot roll against the defender's crack, limited to {formatNumber(rules!.perThugCrackLoot ?? 0)} rocks per fit thug who makes it home.</p> : null}
-          {rules!.repeatLootPenaltyPercent ? <p>Hitting the same target back to back cuts the loot roll by {rules!.repeatLootPenaltyPercent}% each repeat, down to a {rules!.repeatLootFloorPercent ?? 0}% multiplier. Hitting a different target resets that repeat penalty.</p> : null}
-          <p>{rules!.newcomerHours > 0 ? `New players have ${rules!.newcomerHours} hours of protection. ` : 'New players can raid immediately in this strategy round. '}Each raid protects its defender for {rules!.protectionHours} hours from everyone. Offline defenders must return before another raid.</p>
-          <p>Your crew waits {rules!.cooldownMinutes} minutes between attacks. You cannot raid while protected or target a crew below half your full strength.</p>
-          {rules!.reconTurnCost ? <p>Recon costs {rules!.reconTurnCost} turns and holds target intel for {rules!.intelExpiresMinutes} minutes. Revenge windows last {rules!.retaliationHours} hours against players who hit you.</p> : null}
-          <p className="se-hint">Wounded thugs recover on the clock. Medicine brings them back immediately.</p>
+            ? <p>On a win, your crew takes {rules!.minLootPercent}%–{rules!.maxLootPercent}% of exposed cash above {formatCents(rules!.protectedCashCents)}. Big hauls can happen, but most scores are smaller. Each fit thug can carry up to {formatCents(rules!.perThugLootCents)} home.</p>
+            : <p>On a win, take up to {rules!.lootPercent}% of cash above {formatCents(rules!.protectedCashCents)}, limited to {formatCents(rules!.perThugLootCents)} per thug you send.</p>}
+          {rules!.drugLootPercent ? <p>A winning crew can grab crack too, up to {formatNumber(rules!.perThugCrackLoot ?? 0)} rocks per fit thug who makes it home.</p> : null}
+          {rules!.repeatLootPenaltyPercent ? <p>Keep hitting the same mark and the take dries up: each repeat cuts the loot roll by {rules!.repeatLootPenaltyPercent}%, down to {rules!.repeatLootFloorPercent ?? 0}% of normal. Hit somebody else to clear the heat.</p> : null}
+          <p>{rules!.newcomerHours > 0 ? `New players have ${rules!.newcomerHours} hours of protection. ` : 'New players can raid immediately in this round. '}After a raid, that block gets {rules!.protectionHours} hours of breathing room from everyone. Offline crews have to come back before they can be hit again.</p>
+          <p>Your crew needs {rules!.cooldownMinutes} minutes between attacks. You cannot raid while your own block is protected or hit a crew below half your strength.</p>
+          {rules!.reconTurnCost ? <p>Scouting costs {rules!.reconTurnCost} turns and keeps fresh intel for {rules!.intelExpiresMinutes} minutes. Payback stays open for {rules!.retaliationHours} hours against crews that hit you.</p> : null}
+          <p className="se-hint">Wounded thugs recover with time. Medicine gets them back on their feet now.</p>
         </Panel>
-        {driveBy ? <Panel title="How drive-bys work">
-          <p>A drive-by costs {driveBy.rules.turnCost} turns and takes nothing. It is how you soften a crew: land one and {driveBy.rules.minThugWoundPercent}%–{driveBy.rules.maxThugWoundPercent}% of their fit thugs are wounded and {driveBy.rules.minWhoreKillPercent}%–{driveBy.rules.maxWhoreKillPercent}% of their whores are killed for good. Both rolls are weighted low, and each shooter can only drop so many.</p>
-          <p>You need a Low-Rider, and each carries {driveBy.rules.thugsPerLowRider} shooters. About {driveBy.rules.defenderFieldedPercent}% of their fit crew is out front to shoot back, with no home advantage.</p>
-          <p>If they win the exchange, the worse you were outgunned the more of your shooters go down. A car whose whole crew goes down is lost; if one of them makes it back, so does the car.</p>
-          <p>Your cars wait {driveBy.rules.cooldownMinutes} minutes between drive-bys, on their own clock: a drive-by does not stop you raiding, and does not shield the target from a raid. A block that was hit is left alone by drive-bys for {driveBy.rules.protectionHours} hours, and an offline player has to come back first.</p>
+        {driveBy ? <Panel title="Drive-by rules">
+          <p>A drive-by costs {driveBy.rules.turnCost} turns and steals nothing. It softens a crew before the next move: land one and {driveBy.rules.minThugWoundPercent}%–{driveBy.rules.maxThugWoundPercent}% of their fit thugs are wounded, while {driveBy.rules.minWhoreKillPercent}%–{driveBy.rules.maxWhoreKillPercent}% of their whores are killed for good. Big damage is possible, but smaller hits are more common.</p>
+          <p>You need a Low-Rider. Each car carries {driveBy.rules.thugsPerLowRider} shooters. About {driveBy.rules.defenderFieldedPercent}% of their fit crew is out front to shoot back.</p>
+          <p>If they win the exchange, your shooters take the damage. Lose everyone in a car and the car is gone. If one shooter makes it back, the Low-Rider comes home too.</p>
+          <p>Your cars need {driveBy.rules.cooldownMinutes} minutes between drive-bys. Drive-bys and raids run on separate clocks. A block hit by a drive-by gets {driveBy.rules.protectionHours} hours before the next drive-by, and an offline crew has to come back first.</p>
         </Panel> : null}
       </div>
     </div>}
