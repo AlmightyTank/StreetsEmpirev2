@@ -88,6 +88,11 @@ export type RaidInputDto = z.infer<typeof raidSchema>;
 export const driveBySchema = raidSchema;
 export type DriveByInputDto = z.infer<typeof driveBySchema>;
 
+export const specialRaidSchema = raidSchema.extend({
+  kind: z.enum(['DRUG_HOES', 'STEAL_RIDE']),
+}).strict();
+export type SpecialRaidInputDto = z.infer<typeof specialRaidSchema>;
+
 export const combatTreatmentSchema = z.object({
   roundId: z.string().min(1).max(64),
   thugs: z.number().int().positive().safe(),

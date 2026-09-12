@@ -12,5 +12,22 @@ export const classicOgV02F = {
   combat: {
     ...classicOgV02E.combat,
     version: '0.2.0-F.1',
+    specialRaids: {
+      DRUG_HOES: {
+        title: 'Drug their hoes',
+        buttonLabel: 'Drug hoes',
+        turnCost: classicOgV02E.combat.turnCost,
+        crackPerWhore: 1,
+        whoresPerSurvivor: 2,
+        defenderCrackBurnPerWhore: 2,
+        defenderCondomBurnPerWhore: 4,
+      },
+      STEAL_RIDE: {
+        title: 'Steal a ride',
+        buttonLabel: 'Steal ride',
+        turnCost: classicOgV02E.combat.turnCost,
+        lowRidersStolen: 1,
+      },
+    },
   },
 } as const satisfies Ruleset;

@@ -39,7 +39,7 @@ the [C implementation notes](docs/COMBAT-0.2.0-C.md), the [B implementation note
 | **0.2.0-C** | persistent wounds, fit crew, natural recovery and medicine treatment | **implemented for new recovery rounds** |
 | **0.2.0-D** | recon intel, persisted scouting reports and 24-hour revenge attacks | **implemented for new strategy rounds** |
 | **0.2.0-E** | seeded local rivals, tooltips, harsher unarmed-thug morale, armed street coverage, public legacy rankings, fuller achievements and drive-bys | **implemented for local onboarding rounds** |
-| **0.2.0-F** | public raid round, production active-player targets, production bot cleanup and local opt-in rival seeding | **started; public baseline implemented** |
+| **0.2.0-F** | public raid round, drug-hoe runs, ride theft, production active-player targets and local opt-in rival seeding | **started; public baseline implemented** |
 
 Playable PvP, alliances, travel and messaging are deliberately absent. The
 database anticipates them (`ProcessedAction`, `City`, weapon `power`) without exposing

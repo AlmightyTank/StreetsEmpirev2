@@ -21,14 +21,24 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
 
   switch (activity.type) {
     case 'RAID_ATTACK':
-    case 'RAID_DEFENSE':
+    case 'RAID_DEFENSE': {
+      const move = str(p.move, activity.type === 'RAID_ATTACK' ? 'Raid' : 'Raid defense');
+      const attacking = activity.type === 'RAID_ATTACK';
+      const details = [
+        `${num(p.cashCents) >= 0 ? '+' : '−'}${formatCents(Math.abs(num(p.cashCents)))} · ${num(p.turns)} turns`,
+        num(p.crack) ? `${num(p.crack) >= 0 ? '+' : '−'}${formatNumber(Math.abs(num(p.crack)))} crack` : null,
+        num(p.whoresDrugged) ? `${formatNumber(num(p.whoresDrugged))} hoes drugged` : null,
+        num(p.defenderCondomsBurned) ? `${formatNumber(num(p.defenderCondomsBurned))} condoms burned` : null,
+        num(p.lowRidersStolen) ? `${formatNumber(num(p.lowRidersStolen))} Low-Rider${num(p.lowRidersStolen) === 1 ? '' : 's'} stolen` : null,
+        num(p.wounds) ? `${formatNumber(num(p.wounds))} wounded` : null,
+      ].filter(Boolean).join(' · ');
       return {
-        text: `${activity.type === 'RAID_ATTACK' ? 'Raided' : 'Defended against'} ${str(p.opponent)} — ${p.won ? 'won' : 'lost'}.`,
-        detail: [
-          `${num(p.cashCents) >= 0 ? '+' : '−'}${formatCents(Math.abs(num(p.cashCents)))} · ${num(p.turns)} turns`,
-          num(p.wounds) ? `${formatNumber(num(p.wounds))} wounded` : null,
-        ].filter(Boolean).join(' · '),
+        text: attacking
+          ? `${move} on ${str(p.opponent)} — ${p.won ? 'won' : 'lost'}.`
+          : `${str(p.opponent)} tried ${move.toLowerCase()} on you — ${p.won ? 'you held them off' : 'they got through'}.`,
+        detail: details,
       };
+    }
     case 'DRIVE_BY_ATTACK':
     case 'DRIVE_BY_DEFENSE': {
       const attacking = activity.type === 'DRIVE_BY_ATTACK';

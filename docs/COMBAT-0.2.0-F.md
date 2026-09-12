@@ -39,3 +39,13 @@ SEED_RIVALS=1 npm run db:seed
 ```
 
 That gives a developer immediate targets without changing the public-round rule that production play is active players only.
+
+
+## Expanded raid forms
+
+F adds two old-school raid forms beside the cash raid and drive-by:
+
+- **Drug their hoes** shares the normal raid clock. Your crew fights its way in with your crack; if it lands, their hoes burn through crack and condoms, which can drag down the target's earning power.
+- **Steal a ride** shares the normal raid clock. If your crew wins and at least one thug makes it home, one of the target's Low-Riders comes home with you.
+
+Both forms write attacker and defender reports, spend turns once through durable action receipts, can wound both crews, give the defender the normal raid breathing room, and do not count toward the cash-raid repeat-loot penalty.

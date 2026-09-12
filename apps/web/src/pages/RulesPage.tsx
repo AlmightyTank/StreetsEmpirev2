@@ -113,6 +113,10 @@ export function RulesPage() {
                 only lost if everybody in it goes down.
               </li>
               <li>
+                Some rounds add more raid forms. Drug their hoes to burn through supplies, or steal a ride
+                to bring one of their Low-Riders home if your crew wins.
+              </li>
+              <li>
                 Strategy rounds add recon and revenge: recon spends turns to reveal a
                 temporary target report including crack stash when drug loot is live, and revenge lets you answer someone who recently
                 raided you.

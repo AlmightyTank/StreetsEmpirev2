@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { raidSchema } from '@streets/shared';
 
 /** `kind` is absent on requests saved before drive-bys, which were all raids. */
-export const pendingRaidSchema = z.object({ input: raidSchema, targetName: z.string().max(100), kind: z.enum(['RAID', 'DRIVE_BY']).optional() });
+export const pendingRaidSchema = z.object({ input: raidSchema, targetName: z.string().max(100), kind: z.enum(['RAID', 'DRIVE_BY', 'DRUG_HOES', 'STEAL_RIDE']).optional() });
 export type PendingRaid = z.infer<typeof pendingRaidSchema>;
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 const key = (playerId: string) => `se.pending-raid.${playerId}`;

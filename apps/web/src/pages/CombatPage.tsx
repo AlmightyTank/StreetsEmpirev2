@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
-import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, type CombatTargetDto } from '@streets/shared';
+import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, type CombatSpecialRaidDto, type CombatTargetDto, type SpecialRaidKindDto } from '@streets/shared';
 import { combatApi } from '../api/combat.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
@@ -16,11 +16,13 @@ const weaponName = (key: string) => key === 'TEK9' ? 'Tek-9' : key === 'AK47' ? 
 const weaponsText = (weapons: Record<string, number>) => Object.entries(weapons).filter(([, count]) => count > 0).map(([key, count]) => `${formatNumber(count)} ${weaponName(key)}`).join(', ') || 'unarmed';
 const reportAnimationMs = 180;
 
-type Mode = 'RAID' | 'DRIVE_BY';
+type Mode = 'RAID' | 'DRIVE_BY' | SpecialRaidKindDto;
 
 /** How a report reads in the list and as its heading. */
 function reportLabel(report: BattleReportDto): string {
   if (report.kind === 'DRIVE_BY') return report.role === 'ATTACKER' ? 'Drive-by' : 'Drive-by on you';
+  if (report.kind === 'DRUG_HOES') return report.role === 'ATTACKER' ? 'Drug run' : 'Drug run on you';
+  if (report.kind === 'STEAL_RIDE') return report.role === 'ATTACKER' ? 'Ride theft' : 'Ride theft on you';
   return report.role === 'ATTACKER' ? 'Raid' : 'Defense';
 }
 
@@ -49,8 +51,37 @@ function DriveByReport({ report, onClose }: { report: BattleReportDto; onClose?:
   </Panel>;
 }
 
+
+function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?: () => void }) {
+  const form = report.raidForm!;
+  const attacking = report.role === 'ATTACKER';
+  const landed = attacking === report.won;
+  return <Panel title={`${landed ? (attacking ? 'It landed' : 'They got through') : (attacking ? 'They held you off' : 'You held them off')} · ${reportLabel(report)}`}>
+    <p>{attacking ? 'Against' : 'By'} <b>{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
+    <div className="se-rows">
+      <Row label="Crew — yours / theirs" value={`${report.yourSquad} / ${report.opponentSquad}`} />
+      <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
+      <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds ?? 0)} / ${formatNumber(report.opponentWounds ?? 0)}`} />
+      {form.whoresDrugged !== undefined ? <Row label={attacking ? 'Their hoes drugged' : 'Your hoes drugged'} value={formatNumber(form.whoresDrugged)} strong={form.whoresDrugged > 0} /> : null}
+      {form.crackSpent !== undefined && attacking ? <Row label="Crack spent" value={formatNumber(form.crackSpent)} /> : null}
+      {form.defenderCrackBurned !== undefined ? <Row label={attacking ? 'Their crack burned' : 'Your crack burned'} value={formatNumber(form.defenderCrackBurned)} strong={form.defenderCrackBurned > 0} /> : null}
+      {form.defenderCondomsBurned !== undefined ? <Row label={attacking ? 'Their condoms burned' : 'Your condoms burned'} value={formatNumber(form.defenderCondomsBurned)} strong={form.defenderCondomsBurned > 0} /> : null}
+      {form.lowRidersStolen !== undefined ? <Row label={attacking ? 'Low-Riders stolen' : 'Low-Riders lost'} value={`${formatNumber(form.lowRidersStolen)} · ${formatNumber(form.lowRidersAfter ?? 0)} left`} strong={form.lowRidersStolen > 0} /> : null}
+      {attacking ? <Row label="Turns spent / remaining" value={`${report.turnsSpent} / ${report.turnsAfter}`} /> : null}
+      <Row label="National rank — before / after" value={`#${report.nationalRankBefore} / #${report.nationalRankAfter}`} />
+    </div>
+    {attacking ? <p className="se-hint">Your weapons: {weaponsText(report.yourEquipment)}.</p> : null}
+    {(report.yourWounds ?? 0) > 0 ? <p className="se-hint">{formatNumber(report.yourWounds)} thugs are recovering{report.nextRecoveryAt ? ` until ${date(report.nextRecoveryAt)}` : ''}.</p> : null}
+    {report.retaliation ? <p className="se-hint">This was payback. Revenge let you answer the crew that hit you.</p> : null}
+    {report.protectedUntil ? <p className="se-hint">Your block is protected until {date(report.protectedUntil)}. You also need your crew back before the next raid.</p> : null}
+    {report.cooldownUntil ? <p className="se-hint">Next move after {date(report.cooldownUntil)}.</p> : null}
+    {onClose ? <button type="button" className="se-btn se-btn--ghost se-btn--sm se-raid-report-close" onClick={onClose}>Close report</button> : null}
+  </Panel>;
+}
+
 function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: () => void }) {
   if (report.kind === 'DRIVE_BY' && report.driveBy) return <DriveByReport report={report} onClose={onClose} />;
+  if ((report.kind === 'DRUG_HOES' || report.kind === 'STEAL_RIDE') && report.raidForm) return <RaidFormReport report={report} onClose={onClose} />;
   return <Panel title={`${report.won ? 'Victory' : 'Defeat'} · ${reportLabel(report)}`}>
     <p>Against <b>{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
     <div className="se-rows">
@@ -154,9 +185,16 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   }, [closeReport, report?.id]);
 
   const driveBy = page?.driveBy;
+  const specialRaids = page?.specialRaids ?? [];
+  const specialRaid = specialRaids.find((action) => action.kind === mode);
   const driving = mode === 'DRIVE_BY' && !!driveBy;
-  /** Each attack has its own blocks: a raid shield does not stop a drive-by clock, and the other way round. */
-  const targetBlock = useCallback((target: CombatTargetDto) => driving ? target.driveByBlockedReason ?? null : target.blockedReason, [driving]);
+  const doingSpecialRaid = !!specialRaid;
+  /** Drive-bys have their own clock. The other forms share the raid clock. */
+  const targetBlock = useCallback((target: CombatTargetDto) => {
+    if (driving) return target.driveByBlockedReason ?? null;
+    if (mode === 'DRUG_HOES' || mode === 'STEAL_RIDE') return target.specialRaidBlockedReasons?.[mode] ?? null;
+    return target.blockedReason;
+  }, [driving, mode]);
 
   useEffect(() => {
     if (!page?.targets.length) return;
@@ -173,12 +211,12 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const rules = page?.rules;
   const recovery = page?.recovery;
   const maxSquad = driving ? driveBy!.maxShooters : Math.min(recovery?.fitThugs ?? me.resources.fitThugs, rules?.squadCap ?? 0);
-  const modeBlock = driving ? driveBy!.blockedReason : page?.blockedReason ?? null;
-  const modeCooldown = driving ? driveBy!.cooldownUntil : page?.cooldownUntil ?? null;
-  const turnCost = driving ? driveBy!.rules.turnCost : rules?.turnCost ?? 0;
+  const modeBlock = driving ? driveBy!.blockedReason : doingSpecialRaid ? specialRaid.blockedReason : page?.blockedReason ?? null;
+  const modeCooldown = driving ? driveBy!.cooldownUntil : doingSpecialRaid ? specialRaid.cooldownUntil : page?.cooldownUntil ?? null;
+  const turnCost = driving ? driveBy!.rules.turnCost : doingSpecialRaid ? specialRaid.turnCost : rules?.turnCost ?? 0;
   const squadNumber = Number(squad);
   const disabled = busy || !rules || !!modeBlock || !selected || !!selectedBlock || !Number.isInteger(squadNumber) || squadNumber < 1 || squadNumber > maxSquad;
-  const attackName = (kind: Mode | undefined) => kind === 'DRIVE_BY' ? 'drive-by' : 'raid';
+  const attackName = (kind: Mode | undefined) => kind === 'DRIVE_BY' ? 'drive-by' : kind === 'DRUG_HOES' ? 'drug run' : kind === 'STEAL_RIDE' ? 'ride theft' : 'raid';
 
   useEffect(() => {
     if (!rules || maxSquad < 1) return;
@@ -189,14 +227,18 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   async function submit(event?: FormEvent) {
     event?.preventDefault();
     if (inFlight.current || (!pending && disabled)) return;
-    const request: PendingRaid = pending ?? { input: { roundId, targetPublicPimpId: selected!.publicPimpId, attackingThugs: squadNumber, actionId: newActionId() }, targetName: selected!.displayName, kind: driving ? 'DRIVE_BY' : 'RAID' };
+    const request: PendingRaid = pending ?? { input: { roundId, targetPublicPimpId: selected!.publicPimpId, attackingThugs: squadNumber, actionId: newActionId() }, targetName: selected!.displayName, kind: driving ? 'DRIVE_BY' : doingSpecialRaid ? specialRaid.kind : 'RAID' };
     inFlight.current = true;
     setBusy(true);
     setError(null);
     setNotice(null);
     setSaved(request);
     try {
-      const result = request.kind === 'DRIVE_BY' ? await combatApi.driveBy(request.input) : await combatApi.raid(request.input);
+      const result = request.kind === 'DRIVE_BY'
+        ? await combatApi.driveBy(request.input)
+        : request.kind === 'DRUG_HOES' || request.kind === 'STEAL_RIDE'
+          ? await combatApi.specialRaid({ ...request.input, kind: request.kind })
+          : await combatApi.raid(request.input);
       if (closeReportTimer.current !== null) window.clearTimeout(closeReportTimer.current);
       closeReportTimer.current = null;
       setClosingReportId(null);
@@ -274,11 +316,11 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     {!page ? <p className="se-muted" role="status">Checking the streets…</p> : !page.enabled ? <Alert>{page.blockedReason}</Alert> : <div className="se-grid se-grid--sidebar">
       <div className="se-grid">
         <Panel title="Choose your mark">
-          {driveBy ? <div className="se-seg" role="group" aria-label="Kind of hit">
-            {(['RAID', 'DRIVE_BY'] as const).map((kind) => <button key={kind} type="button"
-              className={`se-seg__btn${mode === kind ? ' se-seg__btn--on' : ''}`} aria-pressed={mode === kind}
-              disabled={busy || !!pending} onClick={() => setMode(kind)}>
-              {kind === 'RAID' ? 'Raid' : 'Drive-by'}
+          {(driveBy || specialRaids.length) ? <div className="se-seg" role="group" aria-label="Kind of hit">
+            {([{ kind: 'RAID' as const, label: 'Raid' }, ...(driveBy ? [{ kind: 'DRIVE_BY' as const, label: 'Drive-by' }] : []), ...specialRaids.map((action: CombatSpecialRaidDto) => ({ kind: action.kind, label: action.buttonLabel }))]).map((action) => <button key={action.kind} type="button"
+              className={`se-seg__btn${mode === action.kind ? ' se-seg__btn--on' : ''}`} aria-pressed={mode === action.kind}
+              disabled={busy || !!pending} onClick={() => setMode(action.kind)}>
+              {action.label}
             </button>)}
           </div> : null}
           {modeBlock ? <p role="status">{modeBlock}</p> : null}
@@ -290,7 +332,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               <select id="raid-target" className="se-input" value={targetId} onChange={(event) => setTargetId(event.target.value)}>
                 <option value="">Choose a mark</option>
                 {page.targets.map((target) => <option key={target.publicPimpId} value={target.publicPimpId}>
-                  {target.displayName} (#{target.publicPimpId}) · {target.strength}{target.revengeAvailable ? ' · revenge' : ''}{targetBlock(target) ? ` · ${targetBlock(target)}` : ''}
+                  {target.displayName} (#{target.publicPimpId}) · {target.strength}{target.revengeAvailable ? ' · payback' : ''}{targetBlock(target) ? ` · ${targetBlock(target)}` : ''}
                 </option>)}
               </select>
               {selected ? <p className="se-hint" title="Net worth is street reputation. Scouting reveals the details: fit thugs, wounds, weapons, cash range, crack and max haul.">Net worth {formatCents(selected.netWorthCents)} · {selected.strength} crew. {selected.revengeAvailable ? 'Payback is open.' : selectedBlock ?? (driving ? 'Only part of their crew is on the street.' : 'They have home turf.')}</p> : null}
@@ -315,10 +357,16 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               <input id="raid-squad" className="se-input" type="number" inputMode="numeric" min="1" max={maxSquad} value={squad} onChange={(event) => setSquad(event.target.value)} />
               <p className="se-hint">{driving
                 ? `Cars fill ${driveBy!.rules.thugsPerLowRider} at a time. A car comes home if anyone in it does, so a half-empty car is the one you are most likely to lose.`
-                : 'Your best guns go with the crew automatically. One weapon per fighter.'}</p>
+                : mode === 'DRUG_HOES'
+                  ? 'Your crew carries your crack in and burns through their supplies if the move lands.'
+                  : mode === 'STEAL_RIDE'
+                    ? 'If your crew wins and one thug makes it back, they bring one of their Low-Riders home.'
+                    : 'Your best guns go with the crew automatically. One weapon per fighter.'}</p>
               <button type="submit" className="se-btn se-btn--primary" disabled={disabled}>{driving
                 ? (selectedBlock ? 'Drive-by blocked' : 'Drive-by')
-                : (selectedBlock ? 'Raid blocked' : 'Raid')}{selected ? ` ${selected.displayName}` : ''} · {turnCost} turns</button>
+                : doingSpecialRaid
+                  ? (selectedBlock ? `${specialRaid.buttonLabel} blocked` : specialRaid.buttonLabel)
+                  : (selectedBlock ? 'Raid blocked' : 'Raid')}{selected ? ` ${selected.displayName}` : ''} · {turnCost} turns</button>
             </fieldset>
           </form> : <p className="se-muted">No marks are exposed in your city right now. Check back when another crew is active or protection drops.</p>}
           <div className="se-raid-pagination">
@@ -369,6 +417,12 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
           {rules!.reconTurnCost ? <p>Scouting costs {rules!.reconTurnCost} turns and keeps fresh intel for {rules!.intelExpiresMinutes} minutes. Payback stays open for {rules!.retaliationHours} hours against crews that hit you.</p> : null}
           <p className="se-hint">Wounded thugs recover with time. Medicine gets them back on their feet now.</p>
         </Panel>
+
+        {specialRaids.length ? <Panel title="Other ways to hit them">
+          <p><b>Drug hoes</b> sends your crew in with your crack. If it lands, their hoes burn through crack and condoms, dragging down the block's earning power.</p>
+          <p><b>Steal ride</b> sends your crew after one of their Low-Riders. If the crew wins and somebody makes it home, the car is yours.</p>
+          <p className="se-hint">These moves use the raid clock and give the target the same breathing room as a raid.</p>
+        </Panel> : null}
         {driveBy ? <Panel title="Drive-by rules">
           <p>A drive-by costs {driveBy.rules.turnCost} turns and steals nothing. It softens a crew before the next move: land one and {driveBy.rules.minThugWoundPercent}%–{driveBy.rules.maxThugWoundPercent}% of their fit thugs are wounded, while {driveBy.rules.minWhoreKillPercent}%–{driveBy.rules.maxWhoreKillPercent}% of their whores are killed for good. Big damage is possible, but smaller hits are more common.</p>
           <p>You need a Low-Rider. Each car carries {driveBy.rules.thugsPerLowRider} shooters. About {driveBy.rules.defenderFieldedPercent}% of their fit crew is out front to shoot back.</p>

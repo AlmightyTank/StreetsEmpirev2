@@ -19,7 +19,8 @@ export interface CombatReconResultDto {
   turnsAfter: number;
 }
 
-export type BattleKindDto = 'RAID' | 'DRIVE_BY';
+export type SpecialRaidKindDto = 'DRUG_HOES' | 'STEAL_RIDE';
+export type BattleKindDto = 'RAID' | 'DRIVE_BY' | SpecialRaidKindDto;
 
 export interface BattleReportDto {
   id: string;
@@ -54,6 +55,16 @@ export interface BattleReportDto {
   protectedUntil: string | null;
   cooldownUntil: string | null;
   retaliation?: boolean;
+  /** Special raid forms only. */
+  raidForm?: {
+    title: string;
+    whoresDrugged?: number;
+    crackSpent?: number;
+    defenderCrackBurned?: number;
+    defenderCondomsBurned?: number;
+    lowRidersStolen?: number;
+    lowRidersAfter?: number;
+  };
   /** Drive-by only. */
   driveBy?: {
     /** Whores killed on the target's side. Theirs when attacking, yours when defending. */
@@ -93,6 +104,18 @@ export interface CombatTargetDto {
   protectedUntil: string | null;
   /** Present only where drive-bys exist. Null means you can hit them. */
   driveByBlockedReason?: string | null;
+  /** Per-form blocks for optional raid forms. */
+  specialRaidBlockedReasons?: Partial<Record<SpecialRaidKindDto, string | null>>;
+}
+
+
+export interface CombatSpecialRaidDto {
+  kind: SpecialRaidKindDto;
+  title: string;
+  buttonLabel: string;
+  blockedReason: string | null;
+  cooldownUntil: string | null;
+  turnCost: number;
 }
 
 /** Drive-by state for the attacker, on rounds that have them. */
@@ -133,6 +156,8 @@ export interface CombatPageDto {
   };
   targets: CombatTargetDto[];
   nextTarget: number | null;
+  /** Optional old-school raid forms in this round. */
+  specialRaids?: CombatSpecialRaidDto[];
   /** Absent where drive-bys have not shipped. */
   driveBy?: CombatDriveByDto;
 }

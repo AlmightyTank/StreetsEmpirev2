@@ -425,6 +425,27 @@ export interface EvidenceRules {
 
 // --- the ruleset ------------------------------------------------------------
 
+
+export type SpecialRaidKind = 'DRUG_HOES' | 'STEAL_RIDE';
+
+export interface SpecialRaidRules {
+  readonly title: string;
+  readonly buttonLabel: string;
+  /** Defaults to the normal raid turn cost. */
+  readonly turnCost?: number;
+}
+
+export interface DrugHoesRules extends SpecialRaidRules {
+  readonly crackPerWhore: number;
+  readonly whoresPerSurvivor: number;
+  readonly defenderCrackBurnPerWhore: number;
+  readonly defenderCondomBurnPerWhore: number;
+}
+
+export interface StealRideRules extends SpecialRaidRules {
+  readonly lowRidersStolen: number;
+}
+
 export interface CombatStrategyRules {
   readonly intel: {
     readonly turnCost: number;
@@ -494,6 +515,11 @@ export interface Ruleset {
     readonly strategy?: CombatStrategyRules;
     /** Absent where drive-bys have not shipped. */
     readonly driveBy?: DriveByRules;
+    /** Optional old-school raid forms that share the raid clock and shield. */
+    readonly specialRaids?: {
+      readonly DRUG_HOES?: DrugHoesRules;
+      readonly STEAL_RIDE?: StealRideRules;
+    };
   };
   readonly meta: RulesetMeta;
   readonly round: RoundRules;
