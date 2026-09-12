@@ -59,9 +59,7 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds ?? 0)} / ${formatNumber(report.opponentWounds ?? 0)}`} />
       <Row label="Cash change / remaining" value={`${report.cashChangeCents >= 0 ? '+' : '−'}${formatCents(Math.abs(report.cashChangeCents))} / ${formatCents(report.cashAfterCents)}`} strong />
       {report.crackChange !== undefined && report.crackAfter !== undefined ? <Row label="Crack change / remaining" value={`${report.crackChange >= 0 ? '+' : '−'}${formatNumber(Math.abs(report.crackChange))} / ${formatNumber(report.crackAfter)}`} strong /> : null}
-      {report.won && report.lootPercent !== undefined ? <Row label="Loot roll" value={report.repeatTargetHits && report.repeatTargetHits > 0
-        ? `${formatNumber(report.baseLootPercent ?? report.lootPercent)}% × ${formatNumber(report.repeatLootMultiplierPercent ?? 100)}% repeat penalty = ${formatNumber(report.lootPercent)}%`
-        : `${formatNumber(report.lootPercent)}%`} /> : null}
+
       <Row label="Turns spent / remaining" value={`${report.turnsSpent} / ${report.turnsAfter}`} />
       <Row label="National rank — before / after" value={`#${report.nationalRankBefore} / #${report.nationalRankAfter}`} />
     </div>
