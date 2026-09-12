@@ -1,11 +1,11 @@
 import 'dotenv/config';
 import { PrismaClient, type Round } from '@prisma/client';
 import { calculateNetWorthCents, calculateThugHappiness, calculateWhoreHappiness, startingStock } from '@streets/rules-engine';
-import { classicOgV01, classicOgV02D, classicOgV02E, type Ruleset, type StartingPlayer } from '@streets/rulesets';
+import { classicOgV01, classicOgV02D, classicOgV02E, classicOgV02F, type Ruleset, type SeededRivalRule, type StartingPlayer } from '@streets/rulesets';
 
 const prisma = new PrismaClient();
-const CURRENT_RULESET = classicOgV02E;
-const shouldSeedRivals = process.env.SEED_RIVALS === '1' || process.env.NODE_ENV !== 'production';
+const CURRENT_RULESET = classicOgV02F;
+const shouldSeedRivals = process.env.SEED_RIVALS === '1';
 
 /** Section 12. Travel is not player-facing yet, but the map exists from day one. */
 const CITIES = [
@@ -21,7 +21,7 @@ const CITIES = [
 
 async function seedCities() {
   for (const city of CITIES) {
-    // 0.2.0-E still starts in New York City. Other cities stay staged for travel.
+    // 0.2.0-F still starts in New York City. Other cities stay staged for travel.
     const isEnabled = city.slug === CURRENT_RULESET.round.startingCitySlug;
 
     await prisma.city.upsert({
@@ -93,10 +93,10 @@ async function seedStrategyRound(now: Date) {
   });
 }
 
-async function seedCurrentOnboardingRound(now: Date) {
+async function seedCurrentPublicRound(now: Date) {
   return upsertRound({
-    name: 'Game #005 - Raid Onboarding',
-    slug: 'game-005-raid-onboarding',
+    name: 'Game #006 - Public Raids',
+    slug: 'game-006-public-raids',
     ruleset: CURRENT_RULESET,
     startsAt: now,
     refreshCurrent: true,
@@ -188,11 +188,10 @@ async function refreshRoundRanks(roundId: string) {
   }
 }
 
-async function seedRivals(round: Round, ruleset: Ruleset, now: Date) {
-  const rivals = ruleset.round.seededRivals ?? [];
+async function seedRivals(round: Round, ruleset: Ruleset, now: Date, rivals: readonly SeededRivalRule[] = ruleset.round.seededRivals ?? []) {
   if (!rivals.length) return;
   if (!shouldSeedRivals) {
-    console.log('  rivals:   skipped in production (set SEED_RIVALS=1 to create local test rivals)');
+    console.log('  rivals:   skipped (set SEED_RIVALS=1 to create local test rivals)');
     return;
   }
 
@@ -299,15 +298,15 @@ async function main() {
   const classicRound = await seedClassicRound(now);
   await seedNews(classicRound.id, 'GAME #001 HAS BEGUN', 'Welcome to the first Classic OG round.');
   await seedStrategyRound(now);
-  const onboardingRound = await seedCurrentOnboardingRound(new Date(now.getTime() + 1_000));
+  const publicRound = await seedCurrentPublicRound(new Date(now.getTime() + 1_000));
   await seedNews(
-    onboardingRound.id,
-    '0.2.0-E RAID ONBOARDING IS LIVE',
+    publicRound.id,
+    '0.2.0-F PUBLIC RAIDS ARE LIVE',
     shouldSeedRivals
-      ? 'The current development round has local test rivals available, so a new player can join, recon, raid and read battle reports immediately.'
-      : 'The current production round is open for real players. Rankings and combat targets only show active player accounts.',
+      ? 'The current F seed has local test rivals enabled, so a new player can join, recon, raid and read battle reports immediately.'
+      : 'The 0.2.0-F production round is open for real players. Rankings and combat targets only show active player accounts.',
   );
-  await seedRivals(onboardingRound, CURRENT_RULESET, new Date(now.getTime() + 1_000));
+  await seedRivals(publicRound, CURRENT_RULESET, new Date(now.getTime() + 1_000), classicOgV02E.round.seededRivals ?? []);
   console.log('Done.');
 }
 

@@ -20,7 +20,7 @@ export function LandingPage() {
     <Shell>
       <div className="se-grid se-grid--sidebar">
         <div>
-          <p className="se-eyebrow">Classic OG &middot; Ruleset {round?.rulesetId ?? 'classic-og-v0.2-e'}</p>
+          <p className="se-eyebrow">Classic OG &middot; Ruleset {round?.rulesetId ?? 'classic-og-v0.2-f'}</p>
           <h1 className="se-display se-hero">
             Run the block.
             <br />
@@ -64,8 +64,8 @@ export function LandingPage() {
                 <li>Messaging, console and rolodex</li>
               </ul>
               <p className="se-hint">
-                Raids and drive-bys are live in onboarding rounds with local rivals. Bigger PvP systems come after
-                the core attack loop feels fair and readable.
+                Raids and drive-bys are live in the public raid round. Local development can seed rivals when
+                the core attack loop needs quick solo testing.
               </p>
             </Panel>
           </div>

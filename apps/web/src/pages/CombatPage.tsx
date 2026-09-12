@@ -320,7 +320,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                 ? (selectedBlock ? 'Drive-by blocked' : 'Drive-by')
                 : (selectedBlock ? 'Raid blocked' : 'Raid')}{selected ? ` ${selected.displayName}` : ''} · {turnCost} turns</button>
             </fieldset>
-          </form> : <p className="se-muted">No targets are available on this page. The 0.2.0-E onboarding seed adds three New York rivals for local testing; run npm run db:seed, then join the current round.</p>}
+          </form> : <p className="se-muted">No targets are available on this page. Public rounds only show active players in your city. For local testing, run SEED_RIVALS=1 npm run db:seed to add test rivals.</p>}
           <div className="se-raid-pagination">
             {after > 0 ? <button className="se-btn" disabled={busy || !!pending} onClick={() => { setAfter(0); setTargetId(''); }}>First targets</button> : null}
             {page.nextTarget !== null ? <button className="se-btn" disabled={busy || !!pending} onClick={() => { setAfter(page.nextTarget!); setTargetId(''); }}>More targets</button> : null}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02F, type Ruleset } from '@streets/rulesets';
 import { regenerateTurns } from '../calculations/turns.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
@@ -38,7 +38,7 @@ describe('ruleset loader', () => {
   it('knows which ids it can serve', () => {
     expect(isKnownRulesetId('classic-og-v0.1')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(5);
+    expect(listRulesets()).toHaveLength(6);
   });
 });
 
@@ -46,6 +46,14 @@ describe('classic-og-v0.2-e contents', () => {
   it('seeds local onboarding rivals for solo raid testing', () => {
     expect(classicOgV02E.round.seededRivals).toHaveLength(3);
     expect(classicOgV02E.round.seededRivals?.map((rival) => rival.publicPimpId)).toEqual([1000, 1001, 1002]);
+  });
+});
+
+describe('classic-og-v0.2-f contents', () => {
+  it('loads the public raid ruleset as the current F milestone', () => {
+    expect(loadRuleset('classic-og-v0.2-f', '0.2.0-F')).toBe(classicOgV02F);
+    expect(classicOgV02F.combat.version).toBe('0.2.0-F.1');
+    expect(classicOgV02F.round.seededRivals).toHaveLength(0);
   });
 });
 

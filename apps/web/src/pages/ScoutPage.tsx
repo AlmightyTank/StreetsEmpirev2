@@ -91,7 +91,7 @@ export function ScoutPage() {
 
           <p className="se-hint">
             One trip, both jobs: the girls work the block while you work the
-            room. In 0.2.0-E, only armed fit thugs count as street protection. Rich blocks have the money; poor ones have the people. What
+            room. In 0.2.0-F, only armed fit thugs count as street protection. Rich blocks have the money; poor ones have the people. What
             counts for their cut is the money that reaches them, not the
             percentage. Nothing else is posted &mdash; what a block is worth
             changes by the hour, and you find out by going.
@@ -107,9 +107,9 @@ export function ScoutPage() {
                 strong
               />
               <Row label="Whores" value={formatNumber(me.resources.whores)} strong tooltip="Girls working the block. Uncovered whores earn less and face more risk when supplies run short." />
-              <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong tooltip="In 0.2.0-E, a thug needs a weapon to count as street cover while scouting." />
+              <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong tooltip="In 0.2.0-F, a thug needs a weapon to count as street cover while scouting." />
               {me.resources.woundedThugs > 0 ? <Row label="Fit / wounded" value={`${formatNumber(me.resources.fitThugs)} / ${formatNumber(me.resources.woundedThugs)}`} tooltip="Wounded thugs cannot cover the street, scout, cook, attack or defend." /> : null}
-              <Row label="Armed / unarmed" value={`${formatNumber(me.resources.armedThugs)} / ${formatNumber(me.resources.unarmedThugs)}`} tooltip="Only armed fit thugs count as protection in E scouting rounds." />
+              <Row label="Armed / unarmed" value={`${formatNumber(me.resources.armedThugs)} / ${formatNumber(me.resources.unarmedThugs)}`} tooltip="Only armed fit thugs count as protection in F public raid rounds." />
               <Row label="They keep" value={`${me.payoutPercent}%`} />
               <Row label="You keep" value={`${100 - me.payoutPercent}%`} />
               <Row label="Whore happiness" value={`${me.happiness.whore}%`} tooltip="Affects street earnings. Supplies, protection and payout all matter." />

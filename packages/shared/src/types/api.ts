@@ -224,7 +224,7 @@ export interface DistrictDto {
   exposedFraction: number;
   /** Fit thugs with weapons counted for this block. */
   armedThugs: number;
-  /** Fit thugs without weapons; E rounds do not count them as street cover. */
+  /** Fit thugs without weapons; E/F rounds do not count them as street cover. */
   unarmedThugs: number;
   requiresArmedThugs: boolean;
 }
