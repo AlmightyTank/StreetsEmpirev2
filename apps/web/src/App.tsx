@@ -18,6 +18,7 @@ import { ReputationPage } from './pages/ReputationPage.js';
 import { RulesPage } from './pages/RulesPage.js';
 import { ScoutPage } from './pages/ScoutPage.js';
 import { StatusPage } from './pages/StatusPage.js';
+import { VerifyEmailPage } from './pages/VerifyEmailPage.js';
 import { StorePage } from './pages/StorePage.js';
 import { useSession } from './stores/session.js';
 
@@ -56,7 +57,7 @@ export function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />`n      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/account" element={<RequireAccount><AccountSettingsPage /></RequireAccount>} />
       <Route path="/join" element={<Protected><JoinPage /></Protected>} />
 

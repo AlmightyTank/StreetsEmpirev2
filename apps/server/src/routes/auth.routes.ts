@@ -1,13 +1,13 @@
 import { createHash, randomBytes } from 'node:crypto';
-import type { Account, PrismaClient } from '@prisma/client';
+import type { Account, AccountEmailTokenPurpose, PrismaClient } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema } from '@streets/shared';
+import { changeEmailSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, verifyEmailTokenSchema } from '@streets/shared';
 import { z } from 'zod';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { createSession, destroySession } from '../auth/sessions.js';
 import { env } from '../config/env.js';
 import { toAccountDto } from '../game/dto.js';
-import { sendPasswordResetEmail } from '../services/email.service.js';
+import { sendCurrentEmailVerification, sendEmailChangeVerification, sendPasswordResetEmail } from '../services/email.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 
@@ -23,9 +23,14 @@ async function getDecoyHash(): Promise<string> {
 }
 
 const DISCORD_STATE_COOKIE = 'se_discord_oauth_state';
+const DISCORD_LINK_COOKIE = 'se_discord_oauth_link';
 const DISCORD_AUTHORIZE_URL = 'https://discord.com/oauth2/authorize';
 const DISCORD_TOKEN_URL = 'https://discord.com/api/oauth2/token';
 const DISCORD_ME_URL = 'https://discord.com/api/users/@me';
+
+const discordStartSchema = z.object({
+  link: z.coerce.boolean().optional(),
+});
 
 const discordCallbackSchema = z.object({
   code: z.string().optional(),
@@ -56,6 +61,12 @@ function authRedirect(message: string): string {
   return url.toString();
 }
 
+function accountRedirect(message: string): string {
+  const url = new URL('/account', env.frontendOrigin);
+  url.searchParams.set('accountMessage', message);
+  return url.toString();
+}
+
 function postLoginRedirect(): string {
   return new URL('/join', env.frontendOrigin).toString();
 }
@@ -66,7 +77,13 @@ function passwordResetUrl(token: string): string {
   return url.toString();
 }
 
-function hashResetToken(token: string): string {
+function emailVerificationUrl(token: string): string {
+  const url = new URL('/verify-email', env.frontendOrigin);
+  url.searchParams.set('token', token);
+  return url.toString();
+}
+
+function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
@@ -97,6 +114,29 @@ function setDiscordStateCookie(reply: FastifyReply, state: string): void {
 
 function clearDiscordStateCookie(reply: FastifyReply): void {
   reply.clearCookie(DISCORD_STATE_COOKIE, { path: '/api/auth' });
+}
+
+function setDiscordLinkCookie(reply: FastifyReply): void {
+  reply.setCookie(DISCORD_LINK_COOKIE, '1', {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: env.isProduction,
+    signed: true,
+    path: '/api/auth',
+    maxAge: 10 * 60,
+  });
+}
+
+function clearDiscordLinkCookie(reply: FastifyReply): void {
+  reply.clearCookie(DISCORD_LINK_COOKIE, { path: '/api/auth' });
+}
+
+function readDiscordLinkCookie(request: FastifyRequest): boolean {
+  const raw = request.cookies[DISCORD_LINK_COOKIE];
+  if (!raw) return false;
+
+  const unsigned = request.unsignCookie(raw);
+  return Boolean(unsigned.valid && unsigned.value === '1');
 }
 
 function readDiscordStateCookie(request: FastifyRequest): string | null {
@@ -243,6 +283,91 @@ async function accountForDiscordUser(
   });
 }
 
+
+async function linkDiscordToAccount(
+  prisma: PrismaClient,
+  account: Account,
+  user: DiscordUser,
+): Promise<Account> {
+  if (!user.email || user.verified !== true) {
+    throw new AppError(
+      400,
+      'DISCORD_EMAIL_NOT_VERIFIED',
+      'Discord did not return a verified email address.',
+    );
+  }
+
+  if (!account.isActive) throw AppError.forbidden('This account has been shut down.');
+
+  const existingByDiscord = await prisma.account.findUnique({
+    where: { discordId: user.id },
+  });
+  if (existingByDiscord && existingByDiscord.id !== account.id) {
+    throw new AppError(
+      409,
+      'DISCORD_ALREADY_LINKED',
+      'That Discord account is already linked to another player.',
+    );
+  }
+
+  const email = user.email.toLowerCase();
+  const existingByEmail = await prisma.account.findUnique({ where: { email } });
+  if (existingByEmail && existingByEmail.id !== account.id) {
+    throw new AppError(
+      409,
+      'DISCORD_EMAIL_ALREADY_USED',
+      'That Discord email already belongs to another account.',
+    );
+  }
+
+  if (account.discordId && account.discordId !== user.id) {
+    throw new AppError(
+      409,
+      'DISCORD_ALREADY_LINKED',
+      'This account is already linked to a different Discord account.',
+    );
+  }
+
+  const now = new Date();
+  return prisma.account.update({
+    where: { id: account.id },
+    data: {
+      discordId: user.id,
+      discordUsername: discordDisplayName(user),
+      discordAvatar: user.avatar ?? null,
+      discordLinkedAt: account.discordLinkedAt ?? now,
+      emailVerifiedAt: account.email === email ? account.emailVerifiedAt ?? now : account.emailVerifiedAt,
+      lastLoginAt: now,
+    },
+  });
+}
+
+async function createAccountEmailToken(input: {
+  prisma: PrismaClient;
+  accountId: string;
+  purpose: AccountEmailTokenPurpose;
+  newEmail?: string;
+  userAgent: string | undefined;
+  ip: string;
+}): Promise<{ token: string; expiresAt: Date }> {
+  const token = randomBytes(32).toString('base64url');
+  const expiresAt = new Date(Date.now() + env.email.verificationTtlMinutes * 60_000);
+
+  await input.prisma.accountEmailToken.create({
+    data: {
+      accountId: input.accountId,
+      tokenHash: hashToken(token),
+      purpose: input.purpose,
+      newEmail: input.newEmail,
+      expiresAt,
+      userAgent: input.userAgent,
+      ip: input.ip,
+    },
+  });
+
+  return { token, expiresAt };
+}
+
 const authRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/register', async (request, reply) => {
     const body = parseBody(registerSchema, request.body);
@@ -330,8 +455,17 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.get('/discord', async (request, reply) => {
+    const query = discordStartSchema.parse(request.query);
+    const linkMode = query.link === true;
+
     if (!env.discord.enabled) {
-      return reply.redirect(authRedirect('Discord login is not configured yet.'));
+      return reply.redirect(linkMode
+        ? accountRedirect('Discord login is not configured yet.')
+        : authRedirect('Discord login is not configured yet.'));
+    }
+
+    if (linkMode && !request.auth) {
+      return reply.redirect(authRedirect('Log in before linking Discord.'));
     }
 
     const state = randomBytes(32).toString('base64url');
@@ -344,25 +478,39 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     authorize.searchParams.set('state', state);
 
     setDiscordStateCookie(reply, state);
+    if (linkMode) setDiscordLinkCookie(reply);
     return reply.redirect(authorize.toString());
   });
 
   fastify.get('/discord/callback', async (request, reply) => {
     const query = discordCallbackSchema.parse(request.query);
     const expectedState = readDiscordStateCookie(request);
+    const linkMode = readDiscordLinkCookie(request);
     clearDiscordStateCookie(reply);
+    clearDiscordLinkCookie(reply);
 
     if (query.error) {
-      return reply.redirect(authRedirect('Discord login was cancelled.'));
+      return reply.redirect(linkMode
+        ? accountRedirect('Discord linking was cancelled.')
+        : authRedirect('Discord login was cancelled.'));
     }
 
     if (!query.code || !query.state || !expectedState || query.state !== expectedState) {
-      return reply.redirect(authRedirect('Discord login expired. Try again.'));
+      return reply.redirect(linkMode
+        ? accountRedirect('Discord linking expired. Try again.')
+        : authRedirect('Discord login expired. Try again.'));
     }
 
     try {
       const accessToken = await exchangeDiscordCode(query.code, discordRedirectUri(request));
       const discordUser = await fetchDiscordUser(accessToken);
+
+      if (linkMode) {
+        if (!request.auth) return reply.redirect(authRedirect('Log in before linking Discord.'));
+        await linkDiscordToAccount(fastify.prisma, request.auth.account, discordUser);
+        return reply.redirect(accountRedirect('Discord is linked.'));
+      }
+
       const account = await accountForDiscordUser(fastify.prisma, discordUser);
       const { token } = await createSession(fastify.prisma, account.id, {
         userAgent: request.headers['user-agent'],
@@ -372,9 +520,13 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
       return reply.redirect(postLoginRedirect());
     } catch (error) {
-      fastify.log.warn({ err: error }, 'discord login failed');
-      if (error instanceof AppError) return reply.redirect(authRedirect(error.message));
-      return reply.redirect(authRedirect('Discord login failed. Try again.'));
+      fastify.log.warn({ err: error }, linkMode ? 'discord link failed' : 'discord login failed');
+      if (error instanceof AppError) {
+        return reply.redirect(linkMode ? accountRedirect(error.message) : authRedirect(error.message));
+      }
+      return reply.redirect(linkMode
+        ? accountRedirect('Discord linking failed. Try again.')
+        : authRedirect('Discord login failed. Try again.'));
     }
   });
 
@@ -392,7 +544,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       await fastify.prisma.passwordResetToken.create({
         data: {
           accountId: account.id,
-          tokenHash: hashResetToken(token),
+          tokenHash: hashToken(token),
           expiresAt,
           userAgent: request.headers['user-agent'],
           ip: request.ip,
@@ -404,7 +556,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
           {
             to: account.email,
             username: account.username,
-            resetUrl: passwordResetUrl(token),
+            url: passwordResetUrl(token),
             expiresAt,
           },
           fastify.log,
@@ -425,7 +577,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/password/reset', async (request, reply) => {
     const body = parseBody(resetPasswordSchema, request.body);
-    const tokenHash = hashResetToken(body.token);
+    const tokenHash = hashToken(body.token);
     const now = new Date();
 
     const resetToken = await fastify.prisma.passwordResetToken.findFirst({
@@ -482,6 +634,162 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.setSessionCookie(reply, token);
 
     return { account: toAccountDto(account) };
+  });
+
+
+  fastify.post('/email/verify/request', { preHandler: fastify.requireAuth }, async (request) => {
+    const account = request.auth!.account;
+    if (account.emailVerifiedAt) {
+      return { ok: true, message: 'Your current email is already verified.' };
+    }
+
+    const { token, expiresAt } = await createAccountEmailToken({
+      prisma: fastify.prisma,
+      accountId: account.id,
+      purpose: 'VERIFY_EMAIL',
+      userAgent: request.headers['user-agent'],
+      ip: request.ip,
+    });
+
+    try {
+      await sendCurrentEmailVerification(
+        {
+          to: account.email,
+          username: account.username,
+          url: emailVerificationUrl(token),
+          expiresAt,
+        },
+        fastify.log,
+      );
+    } catch (error) {
+      fastify.log.error({ err: error, accountId: account.id }, 'email verification message failed');
+    }
+
+    return { ok: true, message: 'Verification instructions were sent to your current email.' };
+  });
+
+  fastify.post('/email/change/request', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(changeEmailSchema, request.body);
+    const account = request.auth!.account;
+
+    if (!account.emailVerifiedAt) {
+      throw AppError.badRequest(
+        'CURRENT_EMAIL_UNVERIFIED',
+        'Verify your current email before changing it.',
+      );
+    }
+
+    if (body.email === account.email) {
+      return { ok: true, message: 'That is already your account email.' };
+    }
+
+    const clash = await fastify.prisma.account.findUnique({
+      where: { email: body.email },
+      select: { id: true },
+    });
+    if (clash) {
+      throw AppError.conflict('EMAIL_TAKEN', 'There is already an account using that email address.', {
+        email: 'That email is already registered.',
+      });
+    }
+
+    const { token, expiresAt } = await createAccountEmailToken({
+      prisma: fastify.prisma,
+      accountId: account.id,
+      purpose: 'CHANGE_EMAIL',
+      newEmail: body.email,
+      userAgent: request.headers['user-agent'],
+      ip: request.ip,
+    });
+
+    try {
+      await sendEmailChangeVerification(
+        {
+          to: body.email,
+          currentEmail: account.email,
+          username: account.username,
+          url: emailVerificationUrl(token),
+          expiresAt,
+        },
+        fastify.log,
+      );
+    } catch (error) {
+      fastify.log.error({ err: error, accountId: account.id }, 'email change message failed');
+    }
+
+    return { ok: true, message: 'A confirmation link was sent to the new email.' };
+  });
+
+  fastify.post('/email/verify', async (request) => {
+    const body = parseBody(verifyEmailTokenSchema, request.body);
+    const tokenHash = hashToken(body.token);
+    const now = new Date();
+
+    const emailToken = await fastify.prisma.accountEmailToken.findFirst({
+      where: {
+        tokenHash,
+        usedAt: null,
+        expiresAt: { gt: now },
+      },
+      include: { account: true },
+    });
+
+    if (!emailToken || !emailToken.account.isActive) {
+      throw AppError.badRequest(
+        'EMAIL_TOKEN_INVALID',
+        'That email link is expired or has already been used.',
+      );
+    }
+
+    const updated = await fastify.prisma.$transaction(async (tx) => {
+      const claim = await tx.accountEmailToken.updateMany({
+        where: {
+          id: emailToken.id,
+          usedAt: null,
+          expiresAt: { gt: now },
+        },
+        data: { usedAt: now },
+      });
+
+      if (claim.count !== 1) {
+        throw AppError.badRequest(
+          'EMAIL_TOKEN_INVALID',
+          'That email link is expired or has already been used.',
+        );
+      }
+
+      if (emailToken.purpose === 'CHANGE_EMAIL') {
+        if (!emailToken.newEmail) {
+          throw AppError.badRequest('EMAIL_TOKEN_INVALID', 'That email link is not valid.');
+        }
+
+        const clash = await tx.account.findUnique({
+          where: { email: emailToken.newEmail },
+          select: { id: true },
+        });
+        if (clash && clash.id !== emailToken.accountId) {
+          throw AppError.conflict('EMAIL_TAKEN', 'There is already an account using that email address.');
+        }
+
+        return tx.account.update({
+          where: { id: emailToken.accountId },
+          data: { email: emailToken.newEmail, emailVerifiedAt: now },
+        });
+      }
+
+      return tx.account.update({
+        where: { id: emailToken.accountId },
+        data: { emailVerifiedAt: emailToken.account.emailVerifiedAt ?? now },
+      });
+    });
+
+    return {
+      ok: true,
+      message: emailToken.purpose === 'CHANGE_EMAIL'
+        ? 'Your account email was changed and verified.'
+        : 'Your account email is verified.',
+      account: request.auth?.account.id === updated.id ? toAccountDto(updated) : undefined,
+    };
   });
 
   fastify.post('/logout', async (request, reply) => {

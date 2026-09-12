@@ -81,7 +81,7 @@ export class FixedWindowRateLimiter {
 }
 
 export const RATE_LIMIT_POLICIES = {
-  auth: { name: 'auth', limit: 10, windowMs: 5 * 60_000 },
+  auth: { name: 'auth', limit: 20, windowMs: 5 * 60_000 },
   write: { name: 'write', limit: 90, windowMs: 60_000 },
   read: { name: 'read', limit: 300, windowMs: 60_000 },
 } as const satisfies Record<string, RateLimitPolicy>;
@@ -94,7 +94,10 @@ export function rateLimitPolicyFor(method: string, path: string): RateLimitPolic
     (method === 'POST' && (path === '/api/auth/register' ||
         path === '/api/auth/login' ||
         path === '/api/auth/password/forgot' ||
-        path === '/api/auth/password/reset')) ||
+        path === '/api/auth/password/reset' ||
+        path === '/api/auth/email/verify/request' ||
+        path === '/api/auth/email/change/request' ||
+        path === '/api/auth/email/verify')) ||
     (method === 'GET' &&
       (path === '/api/auth/discord' || path === '/api/auth/discord/callback'))
   ) {

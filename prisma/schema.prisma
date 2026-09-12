@@ -41,10 +41,37 @@ model Account {
   isActive Boolean @default(true)
   isAdmin  Boolean @default(false)
 
-  sessions            Session[]
-  passwordResetTokens PasswordResetToken[]
-  roundPlayers        RoundPlayer[]
-  authoredNews        GameNews[]            @relation("GameNewsAuthor")
+  sessions                Session[]
+  passwordResetTokens     PasswordResetToken[]
+  accountEmailTokens      AccountEmailToken[]
+  roundPlayers            RoundPlayer[]
+  authoredNews            GameNews[]            @relation("GameNewsAuthor")
+}
+
+enum AccountEmailTokenPurpose {
+  VERIFY_EMAIL
+  CHANGE_EMAIL
+}
+
+model AccountEmailToken {
+  id        String @id @default(cuid())
+  tokenHash String @unique
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  purpose  AccountEmailTokenPurpose
+  newEmail String?
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  userAgent String?
+  ip        String?
+
+  @@index([accountId])
+  @@index([expiresAt])
 }
 
 model PasswordResetToken {

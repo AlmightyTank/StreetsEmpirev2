@@ -49,7 +49,17 @@ export const resetPasswordSchema = z.object({
   password: passwordSchema,
 });
 
+export const changeEmailSchema = z.object({
+  email: emailSchema,
+});
+
+export const verifyEmailTokenSchema = z.object({
+  token: z.string().trim().min(32, 'Open the full email verification link.'),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type ChangeEmailInput = z.infer<typeof changeEmailSchema>;
+export type VerifyEmailTokenInput = z.infer<typeof verifyEmailTokenSchema>;

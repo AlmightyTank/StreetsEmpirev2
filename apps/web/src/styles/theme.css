@@ -1315,3 +1315,8 @@ a.se-nav__link:hover {
   flex-wrap: wrap;
   gap: 10px;
 }
+
+.se-account-status {
+  margin: 0;
+  font-weight: 700;
+}

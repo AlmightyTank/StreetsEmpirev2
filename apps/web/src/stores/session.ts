@@ -1,6 +1,7 @@
 import type {
   AccountDto,
   ActivityDto,
+  VerifyEmailTokenInput,
   LoginInput,
   RegisterInput,
   ResetPasswordInput,
@@ -33,6 +34,7 @@ interface SessionState {
   register: (input: RegisterInput) => Promise<void>;
   login: (input: LoginInput) => Promise<void>;
   resetPassword: (input: ResetPasswordInput) => Promise<void>;
+  verifyEmailToken: (input: VerifyEmailTokenInput) => Promise<string>;
   logout: () => Promise<void>;
   join: () => Promise<RoundPlayerDto>;
 }
@@ -91,6 +93,12 @@ export const useSession = create<SessionState>((set, get) => ({
     const { account } = await authApi.resetPassword(input);
     set({ account });
     await get().refreshRound();
+  },
+
+  async verifyEmailToken(input) {
+    const response = await authApi.verifyEmailToken(input);
+    if (response.account) set({ account: response.account });
+    return response.message;
   },
 
   async logout() {

@@ -1,72 +1,126 @@
 import type { FastifyBaseLogger } from 'fastify';
-import nodemailer from 'nodemailer';
-import type { Transporter } from 'nodemailer';
 import { env } from '../config/env.js';
 
-interface PasswordResetEmail {
+interface MailMessage {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+}
+
+interface TokenEmailInput {
   to: string;
   username: string;
-  resetUrl: string;
+  url: string;
   expiresAt: Date;
 }
 
-let transporter: Transporter | null = null;
+const RESEND_EMAIL_URL = 'https://api.resend.com/emails';
 
-function mailTransport(): Transporter {
-  transporter ??= nodemailer.createTransport({
-    host: env.email.host,
-    port: env.email.port,
-    secure: env.email.secure,
-    auth: env.email.user || env.email.pass
-      ? { user: env.email.user, pass: env.email.pass }
-      : undefined,
-  });
-  return transporter;
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
-function textBody(input: PasswordResetEmail): string {
+function tokenText(input: TokenEmailInput, action: string): string {
   return [
-    `Street Empire password recovery for ${input.username}`,
+    `Street Empire ${action} for ${input.username}`,
     '',
-    'Use this link to set a new password:',
-    input.resetUrl,
+    `Use this link to ${action}:`,
+    input.url,
     '',
     `This link expires at ${input.expiresAt.toLocaleString()}.`,
     'If you did not ask for this, you can ignore this email.',
   ].join('\n');
 }
 
-function htmlBody(input: PasswordResetEmail): string {
+function tokenHtml(input: TokenEmailInput, action: string): string {
+  const safeUser = escapeHtml(input.username);
+  const safeAction = escapeHtml(action);
+  const safeUrl = escapeHtml(input.url);
+  const safeExpires = escapeHtml(input.expiresAt.toLocaleString());
+
   return `
-    <p>Street Empire password recovery for <strong>${input.username}</strong></p>
-    <p><a href="${input.resetUrl}">Set a new password</a></p>
-    <p>This link expires at ${input.expiresAt.toLocaleString()}.</p>
+    <p>Street Empire ${safeAction} for <strong>${safeUser}</strong></p>
+    <p><a href="${safeUrl}">${safeAction}</a></p>
+    <p>This link expires at ${safeExpires}.</p>
     <p>If you did not ask for this, you can ignore this email.</p>
   `;
 }
 
-export async function sendPasswordResetEmail(
-  input: PasswordResetEmail,
-  log: FastifyBaseLogger,
-): Promise<void> {
+async function sendMail(message: MailMessage, log: FastifyBaseLogger): Promise<void> {
   if (!env.email.enabled) {
     if (env.isProduction) {
-      log.error({ to: input.to }, 'SMTP is not configured; password recovery email was not sent');
+      log.error({ to: message.to }, 'Resend is not configured; email was not sent');
     } else {
-      log.warn(
-        { resetUrl: input.resetUrl, to: input.to },
-        'SMTP is not configured; password recovery link was not emailed',
-      );
+      log.warn({ to: message.to, text: message.text }, 'Resend is not configured; email was not sent');
     }
     return;
   }
 
-  await mailTransport().sendMail({
-    from: env.email.from,
-    to: input.to,
-    subject: 'Street Empire password recovery',
-    text: textBody(input),
-    html: htmlBody(input),
+  const response = await fetch(RESEND_EMAIL_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.email.resendApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: env.email.from,
+      to: message.to,
+      subject: message.subject,
+      text: message.text,
+      html: message.html,
+    }),
   });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    throw new Error(`Resend email failed with ${response.status}: ${detail.slice(0, 500)}`);
+  }
 }
 
+export async function sendPasswordResetEmail(
+  input: TokenEmailInput,
+  log: FastifyBaseLogger,
+): Promise<void> {
+  const action = 'set a new password';
+  await sendMail({
+    to: input.to,
+    subject: 'Street Empire password recovery',
+    text: tokenText(input, action),
+    html: tokenHtml(input, action),
+  }, log);
+}
+
+export async function sendCurrentEmailVerification(
+  input: TokenEmailInput,
+  log: FastifyBaseLogger,
+): Promise<void> {
+  const action = 'verify your email';
+  await sendMail({
+    to: input.to,
+    subject: 'Verify your Street Empire email',
+    text: tokenText(input, action),
+    html: tokenHtml(input, action),
+  }, log);
+}
+
+export async function sendEmailChangeVerification(
+  input: TokenEmailInput & { currentEmail: string },
+  log: FastifyBaseLogger,
+): Promise<void> {
+  const action = 'change your email';
+  const text = `${tokenText(input, action)}\n\nCurrent email: ${input.currentEmail}\nNew email: ${input.to}`;
+  const html = `${tokenHtml(input, action)}<p>Current email: ${escapeHtml(input.currentEmail)}<br />New email: ${escapeHtml(input.to)}</p>`;
+
+  await sendMail({
+    to: input.to,
+    subject: 'Confirm your Street Empire email change',
+    text,
+    html,
+  }, log);
+}

@@ -28,13 +28,10 @@ const envSchema = z.object({
   DISCORD_CLIENT_SECRET: z.string().default(''),
   DISCORD_REDIRECT_URI: z.string().default(''),
 
-  SMTP_HOST: z.string().default(''),
-  SMTP_PORT: z.coerce.number().int().positive().default(587),
-  SMTP_SECURE: z.coerce.boolean().default(false),
-  SMTP_USER: z.string().default(''),
-  SMTP_PASS: z.string().default(''),
+  RESEND_API_KEY: z.string().default(''),
   EMAIL_FROM: z.string().default(''),
   PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().positive().default(60),
+  EMAIL_VERIFICATION_TTL_MINUTES: z.coerce.number().int().positive().default(60),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -63,14 +60,11 @@ export const env = {
     enabled: Boolean(parsed.data.DISCORD_CLIENT_ID && parsed.data.DISCORD_CLIENT_SECRET),
   },
   email: {
-    host: parsed.data.SMTP_HOST,
-    port: parsed.data.SMTP_PORT,
-    secure: parsed.data.SMTP_SECURE,
-    user: parsed.data.SMTP_USER,
-    pass: parsed.data.SMTP_PASS,
+    resendApiKey: parsed.data.RESEND_API_KEY,
     from: parsed.data.EMAIL_FROM,
-    enabled: Boolean(parsed.data.SMTP_HOST && parsed.data.EMAIL_FROM),
+    enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.RESEND_API_KEY && parsed.data.EMAIL_FROM),
     passwordResetTtlMinutes: parsed.data.PASSWORD_RESET_TTL_MINUTES,
+    verificationTtlMinutes: parsed.data.EMAIL_VERIFICATION_TTL_MINUTES,
   },
 };
 
