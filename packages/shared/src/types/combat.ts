@@ -19,7 +19,7 @@ export interface CombatReconResultDto {
   turnsAfter: number;
 }
 
-export type SpecialRaidKindDto = 'DRUG_HOES' | 'STEAL_RIDE';
+export type SpecialRaidKindDto = 'DRUG_HOES' | 'STEAL_RIDE' | 'LURE_CREW';
 export type BattleKindDto = 'RAID' | 'DRIVE_BY' | SpecialRaidKindDto;
 
 export interface BattleReportDto {
@@ -64,6 +64,11 @@ export interface BattleReportDto {
     defenderCondomsBurned?: number;
     lowRidersStolen?: number;
     lowRidersAfter?: number;
+    whoresLured?: number;
+    thugsLured?: number;
+    beerSpent?: number;
+    whoresAfter?: number;
+    thugsAfter?: number;
   };
   /** Drive-by only. */
   driveBy?: {

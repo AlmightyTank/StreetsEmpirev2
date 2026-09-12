@@ -1,7 +1,7 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
 import { driveByMaxShooters, equipCombatSquad, loadRulesetForRound, simulateDriveBy, simulateRaid, type CombatCrew, type Ruleset } from '@streets/rules-engine';
-import type { DriveByRules, DrugHoesRules, SpecialRaidKind, StealRideRules } from '@streets/rulesets';
+import type { DriveByRules, DrugHoesRules, LureCrewRules, SpecialRaidKind, StealRideRules } from '@streets/rulesets';
 import {
   combatReconSchema,
   combatTreatmentSchema,
@@ -145,7 +145,7 @@ function driveByDto(player: RoundPlayer, model: CombatRules, rules: DriveByRules
 }
 
 
-function specialRaidRule(model: CombatRules, kind: SpecialRaidKind): DrugHoesRules | StealRideRules | null {
+function specialRaidRule(model: CombatRules, kind: SpecialRaidKind): DrugHoesRules | StealRideRules | LureCrewRules | null {
   return model.specialRaids?.[kind] ?? null;
 }
 
@@ -162,6 +162,7 @@ function specialRaidAttackerBlock(player: RoundPlayer, model: CombatRules, kind:
   const turnCost = specialRaidTurnCost(model, kind);
   if (player.turns < turnCost) return `You need ${turnCost} turns for this move.`;
   if (kind === 'DRUG_HOES' && player.crack < 1) return 'You need crack to drug their hoes.';
+  if (kind === 'LURE_CREW' && player.crack < 1 && player.beer < 1) return 'Bring crack or beer before trying to lure anyone.';
   return null;
 }
 
@@ -178,11 +179,18 @@ function specialRaidTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, mo
     if (attacker.crack < 1) return 'You need crack to make that move.';
   }
   if (kind === 'STEAL_RIDE' && defender.lowRiders < 1) return 'They have no Low-Rider to steal.';
+  if (kind === 'LURE_CREW') {
+    const lureRule = specialRaidRule(model, kind) as LureCrewRules | null;
+    if (!lureRule) return 'That move is not available in this round.';
+    const canLureWhores = defender.whoreHappiness < lureRule.happinessBelow && defender.whores > 0 && attacker.crack >= lureRule.crackPerWhore;
+    const canLureThugs = defender.thugHappiness < lureRule.happinessBelow && fitThugs(defender) > 0 && attacker.beer >= lureRule.beerPerThug;
+    if (!canLureWhores && !canLureThugs) return `Nobody on that block is unhappy enough to leave for your stash.`;
+  }
   return null;
 }
 
 function specialRaidDtos(player: RoundPlayer, model: CombatRules, now: Date): CombatSpecialRaidDto[] | undefined {
-  const entries = Object.entries(model.specialRaids ?? {}) as [SpecialRaidKind, DrugHoesRules | StealRideRules][];
+  const entries = Object.entries(model.specialRaids ?? {}) as [SpecialRaidKind, DrugHoesRules | StealRideRules | LureCrewRules][];
   if (!entries.length) return undefined;
   return entries.map(([kind, rule]) => ({
     kind,
@@ -609,6 +617,9 @@ export const CombatService = {
       let defenderCrackBurned = 0;
       let defenderCondomsBurned = 0;
       let lowRidersStolen = 0;
+      let beerSpent = 0;
+      let whoresLured = 0;
+      let thugsLured = 0;
 
       if (won && input.kind === 'DRUG_HOES') {
         const drugRule = rule as DrugHoesRules;
@@ -621,11 +632,25 @@ export const CombatService = {
         const rideRule = rule as StealRideRules;
         lowRidersStolen = survivors > 0 ? Math.min(defender.lowRiders, rideRule.lowRidersStolen) : 0;
       }
+      if (won && input.kind === 'LURE_CREW') {
+        const lureRule = rule as LureCrewRules;
+        if (defender.whoreHappiness < lureRule.happinessBelow) {
+          whoresLured = Math.min(defender.whores, survivors * lureRule.whoresPerSurvivor, Math.floor(attacker.crack / lureRule.crackPerWhore));
+          crackSpent = whoresLured * lureRule.crackPerWhore;
+        }
+        if (defender.thugHappiness < lureRule.happinessBelow) {
+          const standingDefenders = Math.max(0, fitThugs(defender) - result.wounds.defender);
+          thugsLured = Math.min(standingDefenders, survivors * lureRule.thugsPerSurvivor, Math.floor(attacker.beer / lureRule.beerPerThug));
+          beerSpent = thugsLured * lureRule.beerPerThug;
+        }
+      }
 
       const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker,
-        turns: attacker.turns - turnCost, crack: attacker.crack - crackSpent, lowRiders: attacker.lowRiders + lowRidersStolen };
+        turns: attacker.turns - turnCost, crack: attacker.crack - crackSpent, beer: attacker.beer - beerSpent,
+        whores: attacker.whores + whoresLured, thugs: attacker.thugs + thugsLured, lowRiders: attacker.lowRiders + lowRidersStolen };
       const nextD = { ...toState(defender), woundedThugs: defender.woundedThugs + result.wounds.defender,
-        crack: defender.crack - defenderCrackBurned, condoms: defender.condoms - defenderCondomsBurned, lowRiders: defender.lowRiders - lowRidersStolen };
+        crack: defender.crack - defenderCrackBurned, condoms: defender.condoms - defenderCondomsBurned,
+        whores: defender.whores - whoresLured, thugs: defender.thugs - thugsLured, lowRiders: defender.lowRiders - lowRidersStolen };
       assertPlayerState(nextA, ruleset);
       assertPlayerState(nextD, ruleset);
       const happinessA = HappinessService.recalculate({ ...nextA, thugs: fitThugs(nextA) }, ruleset);
@@ -633,10 +658,12 @@ export const CombatService = {
       const shield = new Date(now.getTime() + model.protectionHours * 3_600_000);
       const cooldown = new Date(now.getTime() + model.cooldownMinutes * 60_000);
       const recoverAt = new Date(now.getTime() + model.wounds.recoveryMinutes * 60_000);
-      await tx.roundPlayer.update({ where: { id: attackerId }, data: { turns: nextA.turns, crack: nextA.crack, woundedThugs: nextA.woundedThugs,
+      await tx.roundPlayer.update({ where: { id: attackerId }, data: { turns: nextA.turns, crack: nextA.crack, beer: nextA.beer,
+        whores: nextA.whores, thugs: nextA.thugs, woundedThugs: nextA.woundedThugs,
         lowRiders: nextA.lowRiders, whoreHappiness: happinessA.whoreHappiness, thugHappiness: happinessA.thugHappiness,
         netWorthCents: NetWorthService.calculate(nextA, ruleset), raidCooldownUntil: cooldown } });
-      await tx.roundPlayer.update({ where: { id: target.id }, data: { crack: nextD.crack, condoms: nextD.condoms, woundedThugs: nextD.woundedThugs,
+      await tx.roundPlayer.update({ where: { id: target.id }, data: { crack: nextD.crack, condoms: nextD.condoms,
+        whores: nextD.whores, thugs: nextD.thugs, woundedThugs: nextD.woundedThugs,
         lowRiders: nextD.lowRiders, whoreHappiness: happinessD.whoreHappiness, thugHappiness: happinessD.thugHappiness,
         netWorthCents: NetWorthService.calculate(nextD, ruleset), raidProtectedUntil: shield, lastRaidedAt: now } });
       const afterA = await RankingService.ranksFor(tx, { ...attacker, netWorthCents: NetWorthService.calculate(nextA, ruleset) });
@@ -648,7 +675,9 @@ export const CombatService = {
         const own = isAttacker ? result.attacker : result.defender;
         const opponent = isAttacker ? defender : attacker;
         const ownWounds = isAttacker ? result.wounds.attacker : result.wounds.defender;
-        const ownCrackChange = input.kind === 'DRUG_HOES' ? (isAttacker ? -crackSpent : -defenderCrackBurned) : 0;
+        const ownCrackChange = input.kind === 'DRUG_HOES'
+          ? (isAttacker ? -crackSpent : -defenderCrackBurned)
+          : input.kind === 'LURE_CREW' && isAttacker ? -crackSpent : 0;
         return { id, kind: input.kind, createdAt: now.toISOString(), modelVersion: model.version,
           role: isAttacker ? 'ATTACKER' : 'DEFENDER', won: isAttacker === won,
           opponent: { publicPimpId: opponent.publicPimpId, displayName: opponent.displayName },
@@ -671,6 +700,7 @@ export const CombatService = {
             title: rule.title,
             ...(input.kind === 'DRUG_HOES' ? { whoresDrugged, crackSpent, defenderCrackBurned, defenderCondomsBurned } : {}),
             ...(input.kind === 'STEAL_RIDE' ? { lowRidersStolen, lowRidersAfter: isAttacker ? nextA.lowRiders : nextD.lowRiders } : {}),
+            ...(input.kind === 'LURE_CREW' ? { whoresLured, thugsLured, crackSpent, beerSpent, whoresAfter: isAttacker ? nextA.whores : nextD.whores, thugsAfter: isAttacker ? nextA.thugs : nextD.thugs } : {}),
           },
         };
       };
@@ -678,14 +708,14 @@ export const CombatService = {
       const defenderReport = makeReport(false);
       await tx.raidBattle.create({ data: { id, attackerId, defenderId: target.id, actionId: input.actionId,
         attackingThugs: input.attackingThugs, modelVersion: model.version,
-        calculation: json({ kind: input.kind, result, effects: { crackSpent, whoresDrugged, defenderCrackBurned, defenderCondomsBurned, lowRidersStolen }, input: { attacker: crew(attacker), defender: crew(defender) }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
+        calculation: json({ kind: input.kind, result, effects: { crackSpent, beerSpent, whoresDrugged, defenderCrackBurned, defenderCondomsBurned, lowRidersStolen, whoresLured, thugsLured }, input: { attacker: crew(attacker), defender: crew(defender) }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
       for (const [playerId, type, report] of [[attackerId, 'RAID_ATTACK', attackerReport], [target.id, 'RAID_DEFENSE', defenderReport]] as const) {
         await ActivityService.log(tx, playerId, type, json({ battleId: id, kind: input.kind, move: rule.title, opponent: report.opponent.displayName, won: report.won,
           cashCents: 0, crack: report.crackChange ?? 0, turns: report.turnsSpent, wounds: report.yourWounds,
-          whoresDrugged, defenderCrackBurned, defenderCondomsBurned, lowRidersStolen }));
+          whoresDrugged, defenderCrackBurned, defenderCondomsBurned, lowRidersStolen, whoresLured, thugsLured, beerSpent }));
       }
       await tx.processedAction.create({ data: { roundPlayerId: attackerId, actionId: input.actionId, action: input.kind, result: json(attackerReport), expiresAt: new Date('9999-12-31T00:00:00Z') } });
       return attackerReport;

@@ -11,7 +11,7 @@ export const classicOgV02F = {
   },
   combat: {
     ...classicOgV02E.combat,
-    version: '0.2.0-F.1',
+    version: '0.2.0-F.2',
     specialRaids: {
       DRUG_HOES: {
         title: 'Drug their hoes',
@@ -27,6 +27,16 @@ export const classicOgV02F = {
         buttonLabel: 'Steal ride',
         turnCost: classicOgV02E.combat.turnCost,
         lowRidersStolen: 1,
+      },
+      LURE_CREW: {
+        title: 'Lure their crew',
+        buttonLabel: 'Lure crew',
+        turnCost: classicOgV02E.combat.turnCost,
+        happinessBelow: 50,
+        crackPerWhore: 1,
+        beerPerThug: 1,
+        whoresPerSurvivor: 2,
+        thugsPerSurvivor: 1,
       },
     },
   },

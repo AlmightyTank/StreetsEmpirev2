@@ -5,7 +5,7 @@
 ## Status
 
 - Ruleset: `classic-og-v0.2-f` at version `0.2.0-F`.
-- Combat model version: `0.2.0-F.1`.
+- Combat model version: `0.2.0-F.2`.
 - Default seed: `Game #006 - Public Raids`.
 - Default seed behavior: inactive seed rivals are skipped.
 - Local test behavior: set `SEED_RIVALS=1` before `npm run db:seed` to add the same test rivals used by E.
@@ -43,7 +43,7 @@ That gives a developer immediate targets without changing the public-round rule 
 
 ## Expanded raid forms
 
-F adds two old-school raid forms beside the cash raid and drive-by:
+F adds old-school raid forms beside the cash raid and drive-by:
 
 - **Drug their hoes** shares the normal raid clock. Your crew fights its way in with your crack; if it lands, their hoes burn through crack and condoms, which can drag down the target's earning power.
 - **Steal a ride** shares the normal raid clock. If your crew wins and at least one thug makes it home, one of the target's Low-Riders comes home with you.

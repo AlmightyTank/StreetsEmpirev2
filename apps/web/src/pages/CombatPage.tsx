@@ -23,6 +23,7 @@ function reportLabel(report: BattleReportDto): string {
   if (report.kind === 'DRIVE_BY') return report.role === 'ATTACKER' ? 'Drive-by' : 'Drive-by on you';
   if (report.kind === 'DRUG_HOES') return report.role === 'ATTACKER' ? 'Drug run' : 'Drug run on you';
   if (report.kind === 'STEAL_RIDE') return report.role === 'ATTACKER' ? 'Ride theft' : 'Ride theft on you';
+  if (report.kind === 'LURE_CREW') return report.role === 'ATTACKER' ? 'Lure run' : 'Lure run on you';
   return report.role === 'ATTACKER' ? 'Raid' : 'Defense';
 }
 
@@ -81,7 +82,7 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
 
 function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: () => void }) {
   if (report.kind === 'DRIVE_BY' && report.driveBy) return <DriveByReport report={report} onClose={onClose} />;
-  if ((report.kind === 'DRUG_HOES' || report.kind === 'STEAL_RIDE') && report.raidForm) return <RaidFormReport report={report} onClose={onClose} />;
+  if ((report.kind === 'DRUG_HOES' || report.kind === 'STEAL_RIDE' || report.kind === 'LURE_CREW') && report.raidForm) return <RaidFormReport report={report} onClose={onClose} />;
   return <Panel title={`${report.won ? 'Victory' : 'Defeat'} · ${reportLabel(report)}`}>
     <p>Against <b>{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
     <div className="se-rows">
@@ -192,7 +193,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   /** Drive-bys have their own clock. The other forms share the raid clock. */
   const targetBlock = useCallback((target: CombatTargetDto) => {
     if (driving) return target.driveByBlockedReason ?? null;
-    if (mode === 'DRUG_HOES' || mode === 'STEAL_RIDE') return target.specialRaidBlockedReasons?.[mode] ?? null;
+    if (mode === 'DRUG_HOES' || mode === 'STEAL_RIDE' || mode === 'LURE_CREW') return target.specialRaidBlockedReasons?.[mode] ?? null;
     return target.blockedReason;
   }, [driving, mode]);
 
@@ -216,7 +217,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const turnCost = driving ? driveBy!.rules.turnCost : doingSpecialRaid ? specialRaid.turnCost : rules?.turnCost ?? 0;
   const squadNumber = Number(squad);
   const disabled = busy || !rules || !!modeBlock || !selected || !!selectedBlock || !Number.isInteger(squadNumber) || squadNumber < 1 || squadNumber > maxSquad;
-  const attackName = (kind: Mode | undefined) => kind === 'DRIVE_BY' ? 'drive-by' : kind === 'DRUG_HOES' ? 'drug run' : kind === 'STEAL_RIDE' ? 'ride theft' : 'raid';
+  const attackName = (kind: Mode | undefined) => kind === 'DRIVE_BY' ? 'drive-by' : kind === 'DRUG_HOES' ? 'drug run' : kind === 'STEAL_RIDE' ? 'ride theft' : kind === 'LURE_CREW' ? 'lure run' : 'raid';
 
   useEffect(() => {
     if (!rules || maxSquad < 1) return;
@@ -236,7 +237,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     try {
       const result = request.kind === 'DRIVE_BY'
         ? await combatApi.driveBy(request.input)
-        : request.kind === 'DRUG_HOES' || request.kind === 'STEAL_RIDE'
+        : request.kind === 'DRUG_HOES' || request.kind === 'STEAL_RIDE' || request.kind === 'LURE_CREW'
           ? await combatApi.specialRaid({ ...request.input, kind: request.kind })
           : await combatApi.raid(request.input);
       if (closeReportTimer.current !== null) window.clearTimeout(closeReportTimer.current);
@@ -361,7 +362,9 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                   ? 'Your crew carries your crack in and burns through their supplies if the move lands.'
                   : mode === 'STEAL_RIDE'
                     ? 'If your crew wins and one thug makes it back, they bring one of their Low-Riders home.'
-                    : 'Your best guns go with the crew automatically. One weapon per fighter.'}</p>
+                    : mode === 'LURE_CREW'
+                      ? 'Unhappy people can be pulled off their block: crack talks to hoes, beer talks to thugs.'
+                      : 'Your best guns go with the crew automatically. One weapon per fighter.'}</p>
               <button type="submit" className="se-btn se-btn--primary" disabled={disabled}>{driving
                 ? (selectedBlock ? 'Drive-by blocked' : 'Drive-by')
                 : doingSpecialRaid
@@ -421,6 +424,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
         {specialRaids.length ? <Panel title="Other ways to hit them">
           <p><b>Drug hoes</b> sends your crew in with your crack. If it lands, their hoes burn through crack and condoms, dragging down the block's earning power.</p>
           <p><b>Steal ride</b> sends your crew after one of their Low-Riders. If the crew wins and somebody makes it home, the car is yours.</p>
+          <p><b>Lure crew</b> works only when their people are unhappy. Bring crack for their hoes and beer for their thugs; if your crew lands the move, some of them come home with you.</p>
           <p className="se-hint">These moves use the raid clock and give the target the same breathing room as a raid.</p>
         </Panel> : null}
         {driveBy ? <Panel title="Drive-by rules">

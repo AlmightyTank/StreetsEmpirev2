@@ -18,7 +18,7 @@ Earned access lasts for the round. Each trader's standing also speeds up restock
 targets, automatic defense, target protection, durable retry receipts and battle
 reports. **0.2.0-C** adds persistent temporary wounds, natural recovery, and
 medicine treatment in its own pinned ruleset. **0.2.0-D** adds recon intel and
-24-hour revenge windows in a new strategy ruleset. **0.2.0-E** adds a self-contained onboarding round with seeded local rivals, tooltips, harsher unarmed-thug happiness penalties, armed-thug scouting coverage, public legacy rankings, weighted raid loot, repeat-target diminishing returns, drive-bys and a full achievement gallery. **0.2.0-F** turns that ruleset into the first public raid round: production rankings and combat targets only show active player accounts, while local development can opt into seeded rivals for solo testing. Older rounds stay pinned to their original rulesets, while the default seed now makes Game #006 the current 0.2.0-F public raid round. Read the [F implementation notes](docs/COMBAT-0.2.0-F.md), the [E implementation notes](docs/COMBAT-0.2.0-E.md), the [D implementation notes](docs/COMBAT-0.2.0-D.md),
+24-hour revenge windows in a new strategy ruleset. **0.2.0-E** adds a self-contained onboarding round with seeded local rivals, tooltips, harsher unarmed-thug happiness penalties, armed-thug scouting coverage, public legacy rankings, weighted raid loot, repeat-target diminishing returns, drive-bys and a full achievement gallery. **0.2.0-F** turns that ruleset into the first public raid round: production rankings and combat targets only show active player accounts, while local development can opt into seeded rivals for solo testing, and old-school raid forms now include drug runs, ride theft and luring unhappy crew. Older rounds stay pinned to their original rulesets, while the default seed now makes Game #006 the current 0.2.0-F public raid round. Read the [F implementation notes](docs/COMBAT-0.2.0-F.md), the [E implementation notes](docs/COMBAT-0.2.0-E.md), the [D implementation notes](docs/COMBAT-0.2.0-D.md),
 the [C implementation notes](docs/COMBAT-0.2.0-C.md), the [B implementation notes](docs/COMBAT-0.2.0-B.md), the
 [staged combat design](docs/COMBAT-DESIGN-0.2.0.md) and the
 [simulation findings](docs/COMBAT-SIMULATION-0.2.0-A.md), or run `npm run qa:combat`.
@@ -39,7 +39,7 @@ the [C implementation notes](docs/COMBAT-0.2.0-C.md), the [B implementation note
 | **0.2.0-C** | persistent wounds, fit crew, natural recovery and medicine treatment | **implemented for new recovery rounds** |
 | **0.2.0-D** | recon intel, persisted scouting reports and 24-hour revenge attacks | **implemented for new strategy rounds** |
 | **0.2.0-E** | seeded local rivals, tooltips, harsher unarmed-thug morale, armed street coverage, public legacy rankings, fuller achievements and drive-bys | **implemented for local onboarding rounds** |
-| **0.2.0-F** | public raid round, drug-hoe runs, ride theft, production active-player targets and local opt-in rival seeding | **started; public baseline implemented** |
+| **0.2.0-F** | public raid round, drug-hoe runs, ride theft, luring unhappy crew, production active-player targets and local opt-in rival seeding | **started; public baseline implemented** |
 
 Playable PvP, alliances, travel and messaging are deliberately absent. The
 database anticipates them (`ProcessedAction`, `City`, weapon `power`) without exposing
@@ -246,6 +246,8 @@ POST /api/game/stores/trade
 POST /api/game/stores/unlock
 GET  /api/game/combat
 POST /api/game/combat/raid
+POST /api/game/combat/drive-by
+POST /api/game/combat/special
 POST /api/game/combat/recon
 POST /api/game/combat/treat
 GET  /api/game/combat/reports
@@ -261,7 +263,7 @@ lands &mdash; so it never acts on stale numbers.
 
 The frozen 0.1.0 round still gives exactly section 11: `$5,000`, 200 turns, 1 whore, 1 thug, 250 condoms,
 100 crack, 10 beer, 50% payout, New York City &mdash; which is a net worth of `$6,827`,
-100% whore happiness and 99% thug happiness (one thug, no gun). The current 0.2.0-F public raid round starts players at `$20,000` with 10 thugs, 10 pistols, beer and medicine. In F, production rankings, profiles and combat lists show active player accounts only; local development can opt into the three seeded rivals with `SEED_RIVALS=1`. Missing guns cost more thug happiness, only armed fit thugs count as street cover while scouting, and public pages show money, rank tenure, movement, past results and a fuller achievement gallery while opponent crew, weapons, wounds, exposed cash and crack stash stay behind recon.
+100% whore happiness and 99% thug happiness (one thug, no gun). The current 0.2.0-F public raid round starts players at `$20,000` with 10 thugs, 10 pistols, beer and medicine. In F, production rankings, profiles and combat lists show active player accounts only; local development can opt into the three seeded rivals with `SEED_RIVALS=1`. Missing guns cost more thug happiness, only armed fit thugs count as street cover while scouting, luring can pull unhappy hoes and thugs with crack and beer, and public pages show money, rank tenure, movement, past results and a fuller achievement gallery while opponent crew, weapons, wounds, exposed cash and crack stash stay behind recon.
 
 **Tests** cover the frozen formulas, the loader and the services built on them:
 turn regeneration and the cap, the remainder that survives a settle, the away bonus and

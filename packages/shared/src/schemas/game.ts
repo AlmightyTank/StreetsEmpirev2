@@ -89,7 +89,7 @@ export const driveBySchema = raidSchema;
 export type DriveByInputDto = z.infer<typeof driveBySchema>;
 
 export const specialRaidSchema = raidSchema.extend({
-  kind: z.enum(['DRUG_HOES', 'STEAL_RIDE']),
+  kind: z.enum(['DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW']),
 }).strict();
 export type SpecialRaidInputDto = z.infer<typeof specialRaidSchema>;
 

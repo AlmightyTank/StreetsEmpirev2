@@ -426,7 +426,7 @@ export interface EvidenceRules {
 // --- the ruleset ------------------------------------------------------------
 
 
-export type SpecialRaidKind = 'DRUG_HOES' | 'STEAL_RIDE';
+export type SpecialRaidKind = 'DRUG_HOES' | 'STEAL_RIDE' | 'LURE_CREW';
 
 export interface SpecialRaidRules {
   readonly title: string;
@@ -444,6 +444,15 @@ export interface DrugHoesRules extends SpecialRaidRules {
 
 export interface StealRideRules extends SpecialRaidRules {
   readonly lowRidersStolen: number;
+}
+
+export interface LureCrewRules extends SpecialRaidRules {
+  /** Target happiness must be below this before anyone listens. */
+  readonly happinessBelow: number;
+  readonly crackPerWhore: number;
+  readonly beerPerThug: number;
+  readonly whoresPerSurvivor: number;
+  readonly thugsPerSurvivor: number;
 }
 
 export interface CombatStrategyRules {
@@ -519,6 +528,7 @@ export interface Ruleset {
     readonly specialRaids?: {
       readonly DRUG_HOES?: DrugHoesRules;
       readonly STEAL_RIDE?: StealRideRules;
+      readonly LURE_CREW?: LureCrewRules;
     };
   };
   readonly meta: RulesetMeta;

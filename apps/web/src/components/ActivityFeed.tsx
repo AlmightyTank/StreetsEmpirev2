@@ -30,6 +30,9 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
         num(p.whoresDrugged) ? `${formatNumber(num(p.whoresDrugged))} hoes drugged` : null,
         num(p.defenderCondomsBurned) ? `${formatNumber(num(p.defenderCondomsBurned))} condoms burned` : null,
         num(p.lowRidersStolen) ? `${formatNumber(num(p.lowRidersStolen))} Low-Rider${num(p.lowRidersStolen) === 1 ? '' : 's'} stolen` : null,
+        num(p.whoresLured) ? `${formatNumber(num(p.whoresLured))} hoes lured` : null,
+        num(p.thugsLured) ? `${formatNumber(num(p.thugsLured))} thugs lured` : null,
+        num(p.beerSpent) ? `${formatNumber(num(p.beerSpent))} beer spent` : null,
         num(p.wounds) ? `${formatNumber(num(p.wounds))} wounded` : null,
       ].filter(Boolean).join(' · ');
       return {

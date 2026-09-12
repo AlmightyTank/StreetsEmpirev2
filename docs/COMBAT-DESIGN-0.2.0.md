@@ -5,7 +5,7 @@ built and is the existing route to better guns. The A values below remain useful
 for balance experiments; B pins a cash-only live model at `0.2.0-B.1`, C
 pins persistent temporary wounds at `0.2.0-C.1`, D pins recon and retaliation
 at `0.2.0-D.1`, E pins onboarding raid polish and drive-bys at `0.2.0-E.2`,
-and F pins the first production-facing public raid round plus drug-hoe and ride-theft raid forms at `0.2.0-F.1`.
+and F pins the first production-facing public raid round plus drug-hoe, ride-theft and crew-lure raid forms at `0.2.0-F.2`.
 
 ## Purpose and scope
 
@@ -28,8 +28,8 @@ with recon intel and revenge windows. E adds local onboarding rivals, weighted
 loot, repeat-target diminishing returns, public legacy information, fuller
 achievements and drive-bys. F adds `classic-og-v0.2-f` as the first public raid
 round, makes production rankings and attack lists depend on active player
-accounts only, and adds old-school raid forms for drugging hoes and stealing
-Low-Riders.
+accounts only, and adds old-school raid forms for drugging hoes, stealing
+Low-Riders and luring unhappy crew with crack and beer.
 
 ## Stages and completion gates
 

@@ -52,10 +52,11 @@ describe('classic-og-v0.2-e contents', () => {
 describe('classic-og-v0.2-f contents', () => {
   it('loads the public raid ruleset as the current F milestone', () => {
     expect(loadRuleset('classic-og-v0.2-f', '0.2.0-F')).toBe(classicOgV02F);
-    expect(classicOgV02F.combat.version).toBe('0.2.0-F.1');
+    expect(classicOgV02F.combat.version).toBe('0.2.0-F.2');
     expect(classicOgV02F.round.seededRivals).toHaveLength(0);
     expect(classicOgV02F.combat.specialRaids?.DRUG_HOES?.title).toBe('Drug their hoes');
     expect(classicOgV02F.combat.specialRaids?.STEAL_RIDE?.title).toBe('Steal a ride');
+    expect(classicOgV02F.combat.specialRaids?.LURE_CREW?.title).toBe('Lure their crew');
   });
 });
 
