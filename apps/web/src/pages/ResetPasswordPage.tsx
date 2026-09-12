@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { PASSWORD_MIN } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Field } from '../components/Field.js';
@@ -7,14 +8,14 @@ import { Panel } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { useSession } from '../stores/session.js';
 
-export function LoginPage() {
-  const login = useSession((s) => s.login);
+export function ResetPasswordPage() {
+  const resetPassword = useSession((s) => s.resetPassword);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const authError = searchParams.get('authError');
+  const token = searchParams.get('token') ?? '';
 
-  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -22,12 +23,17 @@ export function LoginPage() {
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
-    setMessage(null);
     setFields({});
+    setMessage(null);
+
+    if (password !== confirm) {
+      setFields({ confirm: 'Passwords do not match.' });
+      setBusy(false);
+      return;
+    }
 
     try {
-      await login({ identifier, password });
-      // Where you land depends on whether you are already in the round.
+      await resetPassword({ token, password });
       navigate(useSession.getState().me ? '/game' : '/join');
     } catch (error) {
       if (error instanceof ApiError) {
@@ -43,56 +49,46 @@ export function LoginPage() {
 
   return (
     <Shell narrow>
-      <p className="se-eyebrow">Back on the block</p>
-      <h1 className="se-title se-mb">Log in</h1>
+      <p className="se-eyebrow">Account recovery</p>
+      <h1 className="se-title se-mb">Set a new password</h1>
 
-      <Panel title="Log in">
+      <Panel title="New password">
+        {!token ? <Alert>Open the full recovery link from your email.</Alert> : null}
         <form onSubmit={onSubmit} noValidate>
-          {authError ? <Alert>{authError}</Alert> : null}
           {message ? <Alert>{message}</Alert> : null}
 
           <Field
-            label="Email or pimp name"
-            name="identifier"
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-            autoComplete="username email"
-            autoFocus
-            required
-            error={fields.identifier}
-          />
-
-          <Field
-            label="Password"
+            label="New password"
             name="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
+            autoComplete="new-password"
+            autoFocus
             required
             error={fields.password}
+            hint={`At least ${PASSWORD_MIN} characters.`}
           />
 
-          <p className="se-auth-help">
-            <Link to="/forgot-password">Forgot your password?</Link>
-          </p>
+          <Field
+            label="Confirm password"
+            name="confirm"
+            type="password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="new-password"
+            required
+            error={fields.confirm}
+          />
 
-          <button className="se-btn se-btn--primary se-btn--block" disabled={busy}>
-            {busy ? 'Working...' : 'Log in'}
+          <button className="se-btn se-btn--primary se-btn--block" disabled={busy || !token}>
+            {busy ? 'Saving...' : 'Reset password'}
           </button>
         </form>
-
-        <div className="se-auth-divider">or</div>
-        <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord">
-          Log in with Discord
-        </a>
-        <p className="se-hint">
-          Discord uses your verified Discord email to create or link your account.
-        </p>
       </Panel>
 
       <p className="se-hint se-center">
-        No name yet? <Link to="/register">Register</Link>
+        Need a new link? <Link to="/forgot-password">Send recovery email</Link>
       </p>
     </Shell>
   );

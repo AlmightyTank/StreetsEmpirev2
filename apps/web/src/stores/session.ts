@@ -3,6 +3,7 @@ import type {
   ActivityDto,
   LoginInput,
   RegisterInput,
+  ResetPasswordInput,
   RoundDto,
   RoundPlayerDto,
 } from '@streets/shared';
@@ -31,6 +32,7 @@ interface SessionState {
 
   register: (input: RegisterInput) => Promise<void>;
   login: (input: LoginInput) => Promise<void>;
+  resetPassword: (input: ResetPasswordInput) => Promise<void>;
   logout: () => Promise<void>;
   join: () => Promise<RoundPlayerDto>;
 }
@@ -81,6 +83,12 @@ export const useSession = create<SessionState>((set, get) => ({
 
   async login(input) {
     const { account } = await authApi.login(input);
+    set({ account });
+    await get().refreshRound();
+  },
+
+  async resetPassword(input) {
+    const { account } = await authApi.resetPassword(input);
     set({ account });
     await get().refreshRound();
   },

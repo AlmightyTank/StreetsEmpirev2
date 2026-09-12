@@ -67,7 +67,9 @@ export function Shell({ children, narrow }: { children: ReactNode; narrow?: bool
         <div className="se-topbar__right">
           {account ? (
             <>
-              <span className="se-eyebrow se-topbar__who">{account.username}</span>
+              <Link className="se-eyebrow se-topbar__who se-topbar__account" to="/account">
+                {account.username}
+              </Link>
               <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={handleLogout}>
                 Log out
               </button>

@@ -41,9 +41,28 @@ model Account {
   isActive Boolean @default(true)
   isAdmin  Boolean @default(false)
 
-  sessions     Session[]
-  roundPlayers RoundPlayer[]
-  authoredNews GameNews[]    @relation("GameNewsAuthor")
+  sessions            Session[]
+  passwordResetTokens PasswordResetToken[]
+  roundPlayers        RoundPlayer[]
+  authoredNews        GameNews[]            @relation("GameNewsAuthor")
+}
+
+model PasswordResetToken {
+  id        String @id @default(cuid())
+  tokenHash String @unique
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  userAgent String?
+  ip        String?
+
+  @@index([accountId])
+  @@index([expiresAt])
 }
 
 /// Server-side session record. The cookie carries a random token; only its

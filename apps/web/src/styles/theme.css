@@ -1291,3 +1291,27 @@ a.se-nav__link:hover {
   font-size: 10px;
   color: var(--se-muted);
 }
+
+.se-topbar__account {
+  text-decoration: none;
+}
+
+.se-topbar__account:hover {
+  color: var(--se-text);
+}
+
+.se-auth-help {
+  margin: -6px 0 14px;
+  font-size: 12px;
+  text-align: right;
+}
+
+.se-account-grid {
+  align-items: start;
+}
+
+.se-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}

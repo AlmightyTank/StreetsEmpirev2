@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/index.js --external:fastify --external:@fastify/* --external:@prisma/client --external:.prisma/* --external:@node-rs/argon2 --external:zod --external:dotenv --external:fastify-plugin --external:pino-pretty",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/index.js --external:fastify --external:@fastify/* --external:@prisma/client --external:.prisma/* --external:@node-rs/argon2 --external:zod --external:dotenv --external:fastify-plugin --external:nodemailer --external:pino-pretty",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
@@ -18,10 +18,12 @@
     "@streets/rules-engine": "*",
     "@streets/rulesets": "*",
     "@streets/shared": "*",
+    "@types/nodemailer": "^8.0.1",
     "dotenv": "^16.4.7",
     "fastify": "^5.2.0",
-    "zod": "^3.24.1",
-    "fastify-plugin": "^5.0.1"
+    "fastify-plugin": "^5.0.1",
+    "nodemailer": "^10.0.8",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",

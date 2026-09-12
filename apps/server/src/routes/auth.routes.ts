@@ -1,12 +1,13 @@
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import type { Account, PrismaClient } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { loginSchema, registerSchema } from '@streets/shared';
+import { forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema } from '@streets/shared';
 import { z } from 'zod';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { createSession, destroySession } from '../auth/sessions.js';
 import { env } from '../config/env.js';
 import { toAccountDto } from '../game/dto.js';
+import { sendPasswordResetEmail } from '../services/email.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 
@@ -57,6 +58,16 @@ function authRedirect(message: string): string {
 
 function postLoginRedirect(): string {
   return new URL('/join', env.frontendOrigin).toString();
+}
+
+function passwordResetUrl(token: string): string {
+  const url = new URL('/reset-password', env.frontendOrigin);
+  url.searchParams.set('token', token);
+  return url.toString();
+}
+
+function hashResetToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
 }
 
 function firstHeader(value: string | string[] | undefined): string | undefined {
@@ -365,6 +376,112 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       if (error instanceof AppError) return reply.redirect(authRedirect(error.message));
       return reply.redirect(authRedirect('Discord login failed. Try again.'));
     }
+  });
+
+
+  fastify.post('/password/forgot', async (request) => {
+    const body = parseBody(forgotPasswordSchema, request.body);
+    const account = await fastify.prisma.account.findUnique({
+      where: { email: body.email },
+    });
+
+    if (account?.isActive) {
+      const token = randomBytes(32).toString('base64url');
+      const expiresAt = new Date(Date.now() + env.email.passwordResetTtlMinutes * 60_000);
+
+      await fastify.prisma.passwordResetToken.create({
+        data: {
+          accountId: account.id,
+          tokenHash: hashResetToken(token),
+          expiresAt,
+          userAgent: request.headers['user-agent'],
+          ip: request.ip,
+        },
+      });
+
+      try {
+        await sendPasswordResetEmail(
+          {
+            to: account.email,
+            username: account.username,
+            resetUrl: passwordResetUrl(token),
+            expiresAt,
+          },
+          fastify.log,
+        );
+      } catch (error) {
+        fastify.log.error(
+          { err: error, accountId: account.id },
+          'password recovery email failed',
+        );
+      }
+    }
+
+    return {
+      ok: true,
+      message: 'If that email is on an account, recovery instructions are on the way.',
+    };
+  });
+
+  fastify.post('/password/reset', async (request, reply) => {
+    const body = parseBody(resetPasswordSchema, request.body);
+    const tokenHash = hashResetToken(body.token);
+    const now = new Date();
+
+    const resetToken = await fastify.prisma.passwordResetToken.findFirst({
+      where: {
+        tokenHash,
+        usedAt: null,
+        expiresAt: { gt: now },
+      },
+      include: { account: true },
+    });
+
+    if (!resetToken || !resetToken.account.isActive) {
+      throw AppError.badRequest(
+        'PASSWORD_RESET_INVALID',
+        'That recovery link is expired or has already been used.',
+      );
+    }
+
+    const passwordHash = await hashPassword(body.password);
+
+    const account = await fastify.prisma.$transaction(async (tx) => {
+      const claim = await tx.passwordResetToken.updateMany({
+        where: {
+          id: resetToken.id,
+          usedAt: null,
+          expiresAt: { gt: now },
+        },
+        data: { usedAt: now },
+      });
+
+      if (claim.count !== 1) {
+        throw AppError.badRequest(
+          'PASSWORD_RESET_INVALID',
+          'That recovery link is expired or has already been used.',
+        );
+      }
+
+      await tx.session.deleteMany({ where: { accountId: resetToken.accountId } });
+
+      return tx.account.update({
+        where: { id: resetToken.accountId },
+        data: {
+          passwordHash,
+          emailVerifiedAt: resetToken.account.emailVerifiedAt ?? now,
+          lastLoginAt: now,
+        },
+      });
+    });
+
+    const { token } = await createSession(fastify.prisma, account.id, {
+      userAgent: request.headers['user-agent'],
+      ip: request.ip,
+    });
+    fastify.setSessionCookie(reply, token);
+
+    return { account: toAccountDto(account) };
   });
 
   fastify.post('/logout', async (request, reply) => {

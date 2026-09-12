@@ -15,6 +15,8 @@ describe('rateLimitPolicyFor', () => {
   it('uses the strict auth bucket for password and Discord login', () => {
     expect(rateLimitPolicyFor('POST', '/api/auth/register')).toBe(RATE_LIMIT_POLICIES.auth);
     expect(rateLimitPolicyFor('POST', '/api/auth/login')).toBe(RATE_LIMIT_POLICIES.auth);
+    expect(rateLimitPolicyFor('POST', '/api/auth/password/forgot')).toBe(RATE_LIMIT_POLICIES.auth);
+    expect(rateLimitPolicyFor('POST', '/api/auth/password/reset')).toBe(RATE_LIMIT_POLICIES.auth);
     expect(rateLimitPolicyFor('GET', '/api/auth/discord')).toBe(RATE_LIMIT_POLICIES.auth);
     expect(rateLimitPolicyFor('GET', '/api/auth/discord/callback')).toBe(RATE_LIMIT_POLICIES.auth);
   });

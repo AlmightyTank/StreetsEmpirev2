@@ -1,8 +1,10 @@
 import { useEffect, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { AccountSettingsPage } from './pages/AccountSettingsPage.js';
 import { ActivityPage } from './pages/ActivityPage.js';
 import { CombatPage } from './pages/CombatPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
 import { JoinPage } from './pages/JoinPage.js';
 import { LandingPage } from './pages/LandingPage.js';
 import { LoginPage } from './pages/LoginPage.js';
@@ -11,6 +13,7 @@ import { ProducePage } from './pages/ProducePage.js';
 import { ProfilePage } from './pages/ProfilePage.js';
 import { RankingsPage } from './pages/RankingsPage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
+import { ResetPasswordPage } from './pages/ResetPasswordPage.js';
 import { ReputationPage } from './pages/ReputationPage.js';
 import { RulesPage } from './pages/RulesPage.js';
 import { ScoutPage } from './pages/ScoutPage.js';
@@ -52,6 +55,9 @@ export function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/account" element={<RequireAccount><AccountSettingsPage /></RequireAccount>} />
       <Route path="/join" element={<Protected><JoinPage /></Protected>} />
 
       <Route path="/game" element={<Protected><DashboardPage /></Protected>} />

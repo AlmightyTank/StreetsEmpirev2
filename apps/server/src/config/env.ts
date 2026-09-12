@@ -27,6 +27,14 @@ const envSchema = z.object({
   DISCORD_CLIENT_ID: z.string().default(''),
   DISCORD_CLIENT_SECRET: z.string().default(''),
   DISCORD_REDIRECT_URI: z.string().default(''),
+
+  SMTP_HOST: z.string().default(''),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_SECURE: z.coerce.boolean().default(false),
+  SMTP_USER: z.string().default(''),
+  SMTP_PASS: z.string().default(''),
+  EMAIL_FROM: z.string().default(''),
+  PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().positive().default(60),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -53,6 +61,16 @@ export const env = {
     clientSecret: parsed.data.DISCORD_CLIENT_SECRET,
     redirectUri: parsed.data.DISCORD_REDIRECT_URI,
     enabled: Boolean(parsed.data.DISCORD_CLIENT_ID && parsed.data.DISCORD_CLIENT_SECRET),
+  },
+  email: {
+    host: parsed.data.SMTP_HOST,
+    port: parsed.data.SMTP_PORT,
+    secure: parsed.data.SMTP_SECURE,
+    user: parsed.data.SMTP_USER,
+    pass: parsed.data.SMTP_PASS,
+    from: parsed.data.EMAIL_FROM,
+    enabled: Boolean(parsed.data.SMTP_HOST && parsed.data.EMAIL_FROM),
+    passwordResetTtlMinutes: parsed.data.PASSWORD_RESET_TTL_MINUTES,
   },
 };
 

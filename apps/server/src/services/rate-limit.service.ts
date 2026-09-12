@@ -91,7 +91,10 @@ export function rateLimitPolicyFor(method: string, path: string): RateLimitPolic
   if (method === 'OPTIONS' || path === '/api/health' || path === '/api/ready') return null;
 
   if (
-    (method === 'POST' && (path === '/api/auth/register' || path === '/api/auth/login')) ||
+    (method === 'POST' && (path === '/api/auth/register' ||
+        path === '/api/auth/login' ||
+        path === '/api/auth/password/forgot' ||
+        path === '/api/auth/password/reset')) ||
     (method === 'GET' &&
       (path === '/api/auth/discord' || path === '/api/auth/discord/callback'))
   ) {
