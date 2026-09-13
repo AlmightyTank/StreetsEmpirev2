@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, type Ruleset } from '@streets/rulesets';
 import { regenerateTurns } from '../calculations/turns.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
@@ -38,7 +38,7 @@ describe('ruleset loader', () => {
   it('knows which ids it can serve', () => {
     expect(isKnownRulesetId('classic-og-v0.1')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(7);
+    expect(listRulesets()).toHaveLength(8);
   });
 });
 
@@ -66,6 +66,15 @@ describe('classic-og-v0.2-g contents', () => {
     expect(classicOgV02G.round.seededRivals).toHaveLength(0);
     expect(classicOgV02G.combat.specialRaids).toEqual(classicOgV02F.combat.specialRaids);
     expect(classicOgV02G.combat.version).toBe('0.2.0-G.1');
+  });
+});
+
+describe('classic-og-v0.2-h contents', () => {
+  it('loads the raid trophies ruleset without changing G balance', () => {
+    expect(loadRuleset('classic-og-v0.2-h', '0.2.0-H')).toBe(classicOgV02H);
+    expect(classicOgV02H.round.seededRivals).toHaveLength(0);
+    expect(classicOgV02H.combat.specialRaids).toEqual(classicOgV02G.combat.specialRaids);
+    expect(classicOgV02H.combat.version).toBe('0.2.0-H.1');
   });
 });
 

@@ -10,6 +10,11 @@ import { formatDate } from '../utils/time.js';
 
 const developmentUpdates = [
   {
+    id: 'dev-0.2.0-h',
+    title: '0.2.0-H: Raid trophies begin',
+    body: 'H keeps the G raid balance and starts the achievement pass for the expanded combat system. Drive-bys, drug runs, ride theft and lure runs now have their own public goals, including landing a drive-by, drugging rival hoes, stealing Low-Riders and pulling unhappy crew across the street.',
+  },
+  {
     id: 'dev-0.2.0-g',
     title: '0.2.0-G: Street polish begins',
     body: 'G keeps the F raid balance and starts making the public round feel more like a finished game. Raid reports now explain what actually happened, recon is being pulled closer to the target picker, the homepage explains the current loop for new players, and the community plan points at a free Flarum forum on forum.streetsempire.dev with Discord login first and Street Empire SSO later.',

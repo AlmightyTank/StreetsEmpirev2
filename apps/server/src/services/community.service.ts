@@ -36,9 +36,22 @@ interface PublicContext {
   raidAttacks: number;
   raidAttackWins: number;
   raidDefenses: number;
+  driveByAttacks: number;
+  driveByWins: number;
+  drugRunWins: number;
+  rideTheftWins: number;
+  lureRunWins: number;
+  whoresDrugged: number;
+  lowRidersStolen: number;
+  crewLured: number;
   firstRaidAt: Date | null;
   raidDefenseWins: number;
   firstDefenseAt: Date | null;
+  firstDriveByAt: Date | null;
+  firstDriveByWinAt: Date | null;
+  firstDrugRunWinAt: Date | null;
+  firstRideTheftWinAt: Date | null;
+  firstLureRunWinAt: Date | null;
   reconRuns: number;
   questsCompleted: number;
   firstRaidWinAt: Date | null;
@@ -59,9 +72,22 @@ const emptyContext = (): PublicContext => ({
   raidAttacks: 0,
   raidAttackWins: 0,
   raidDefenses: 0,
+  driveByAttacks: 0,
+  driveByWins: 0,
+  drugRunWins: 0,
+  rideTheftWins: 0,
+  lureRunWins: 0,
+  whoresDrugged: 0,
+  lowRidersStolen: 0,
+  crewLured: 0,
   firstRaidAt: null,
   raidDefenseWins: 0,
   firstDefenseAt: null,
+  firstDriveByAt: null,
+  firstDriveByWinAt: null,
+  firstDrugRunWinAt: null,
+  firstRideTheftWinAt: null,
+  firstLureRunWinAt: null,
   reconRuns: 0,
   questsCompleted: 0,
   firstRaidWinAt: null,
@@ -140,6 +166,14 @@ function achievementsFor(row: RankingRow, rank: { local: number; national: numbe
     achievement({ key: 'made-enemies', title: 'Made Enemies', description: 'Get raided by another player.', category: 'combat', rarity: 'common', current: context.raidDefenses, target: 1, progressLabel: 'incoming raids', earnedAt: context.firstDefenseAt }),
     achievement({ key: 'held-the-line', title: 'Held the Line', description: 'Win an automatic defense.', category: 'combat', rarity: 'common', current: context.raidDefenseWins, target: 1, progressLabel: 'defense wins', earnedAt: context.firstDefenseWinAt }),
     achievement({ key: 'untouchable', title: 'Untouchable', description: 'Win five automatic defenses.', category: 'combat', rarity: 'rare', current: context.raidDefenseWins, target: 5, progressLabel: 'defense wins', earnedAt: context.firstDefenseWinAt }),
+    achievement({ key: 'rolling-deep', title: 'Rolling Deep', description: 'Send a drive-by at another block.', category: 'combat', rarity: 'common', current: context.driveByAttacks, target: 1, progressLabel: 'drive-bys sent', earnedAt: context.firstDriveByAt }),
+    achievement({ key: 'clean-pass', title: 'Clean Pass', description: 'Land a drive-by.', category: 'combat', rarity: 'uncommon', current: context.driveByWins, target: 1, progressLabel: 'drive-bys landed', earnedAt: context.firstDriveByWinAt }),
+    achievement({ key: 'bad-batch', title: 'Bad Batch', description: 'Win a drug run against a rival block.', category: 'combat', rarity: 'uncommon', current: context.drugRunWins, target: 1, progressLabel: 'drug runs won', earnedAt: context.firstDrugRunWinAt }),
+    achievement({ key: 'burned-stable', title: 'Burned Stable', description: 'Drug twenty rival hoes in one round.', category: 'combat', rarity: 'rare', current: context.whoresDrugged, target: 20, progressLabel: 'hoes drugged' }),
+    achievement({ key: 'boosted', title: 'Boosted', description: 'Steal a Low-Rider from another crew.', category: 'combat', rarity: 'uncommon', current: context.rideTheftWins, target: 1, progressLabel: 'rides stolen', earnedAt: context.firstRideTheftWinAt }),
+    achievement({ key: 'chop-shop-regular', title: 'Chop Shop Regular', description: 'Steal three Low-Riders in one round.', category: 'combat', rarity: 'rare', current: context.lowRidersStolen, target: 3, progressLabel: 'Low-Riders stolen' }),
+    achievement({ key: 'silver-tongue', title: 'Silver Tongue', description: 'Win a lure run against an unhappy block.', category: 'combat', rarity: 'uncommon', current: context.lureRunWins, target: 1, progressLabel: 'lure runs won', earnedAt: context.firstLureRunWinAt }),
+    achievement({ key: 'recruiter', title: 'Recruiter', description: 'Lure twenty people away from rival crews in one round.', category: 'combat', rarity: 'rare', current: context.crewLured, target: 20, progressLabel: 'crew lured' }),
 
     achievement({ key: 'street-intel', title: 'Street Intel', description: 'Run recon on a target.', category: 'intel', rarity: 'common', current: context.reconRuns, target: 1, progressLabel: 'recon runs', earnedAt: context.firstReconAt }),
     achievement({ key: 'wire-tapper', title: 'Wire Tapper', description: 'Run five recon jobs in one round.', category: 'intel', rarity: 'uncommon', current: context.reconRuns, target: 5, progressLabel: 'recon runs', earnedAt: context.firstReconAt }),
@@ -175,8 +209,7 @@ async function loadPublicContexts(
       select: { accountId: true, nationalRank: true, netWorthCents: true },
     }),
     prisma.raidBattle.findMany({
-      // Raid achievements count raids; a drive-by is not a raid attempt.
-      where: { kind: 'RAID', OR: [{ attackerId: { in: ids } }, { defenderId: { in: ids } }] },
+      where: { OR: [{ attackerId: { in: ids } }, { defenderId: { in: ids } }] },
       select: { attackerId: true, defenderId: true, attackerReport: true, defenderReport: true, createdAt: true },
     }),
     prisma.playerActivity.findMany({
@@ -209,20 +242,56 @@ async function loadPublicContexts(
   }
 
   for (const battle of battles) {
+    const attackerReport = battle.attackerReport as {
+      kind?: string;
+      won?: boolean;
+      raidForm?: {
+        whoresDrugged?: number;
+        lowRidersStolen?: number;
+        whoresLured?: number;
+        thugsLured?: number;
+      };
+    };
+    const defenderReport = battle.defenderReport as { kind?: string; won?: boolean };
+    const battleKind = attackerReport.kind ?? 'RAID';
     if (contexts.has(battle.attackerId)) {
       const context = contexts.get(battle.attackerId)!;
-      context.raidAttacks += 1;
-      context.firstRaidAt = earliest(context.firstRaidAt, battle.createdAt);
-      if ((battle.attackerReport as { won?: boolean }).won === true) {
+      if (battleKind === 'RAID') {
+        context.raidAttacks += 1;
+        context.firstRaidAt = earliest(context.firstRaidAt, battle.createdAt);
+      } else if (battleKind === 'DRIVE_BY') {
+        context.driveByAttacks += 1;
+        context.firstDriveByAt = earliest(context.firstDriveByAt, battle.createdAt);
+      }
+      if (attackerReport.won === true && battleKind === 'RAID') {
         context.raidAttackWins += 1;
         context.firstRaidWinAt = earliest(context.firstRaidWinAt, battle.createdAt);
       }
+      if (attackerReport.won === true && battleKind === 'DRIVE_BY') {
+        context.driveByWins += 1;
+        context.firstDriveByWinAt = earliest(context.firstDriveByWinAt, battle.createdAt);
+      }
+      if (attackerReport.won === true && battleKind === 'DRUG_HOES') {
+        context.drugRunWins += 1;
+        context.firstDrugRunWinAt = earliest(context.firstDrugRunWinAt, battle.createdAt);
+        context.whoresDrugged += attackerReport.raidForm?.whoresDrugged ?? 0;
+      }
+      if (attackerReport.won === true && battleKind === 'STEAL_RIDE') {
+        context.rideTheftWins += 1;
+        context.firstRideTheftWinAt = earliest(context.firstRideTheftWinAt, battle.createdAt);
+        context.lowRidersStolen += attackerReport.raidForm?.lowRidersStolen ?? 0;
+      }
+      if (attackerReport.won === true && battleKind === 'LURE_CREW') {
+        context.lureRunWins += 1;
+        context.firstLureRunWinAt = earliest(context.firstLureRunWinAt, battle.createdAt);
+        context.crewLured += (attackerReport.raidForm?.whoresLured ?? 0) + (attackerReport.raidForm?.thugsLured ?? 0);
+      }
     }
-    if (contexts.has(battle.defenderId)) {
+    if (contexts.has(battle.defenderId) && battleKind !== 'DRIVE_BY') {
       const context = contexts.get(battle.defenderId)!;
       context.raidDefenses += 1;
       context.firstDefenseAt = earliest(context.firstDefenseAt, battle.createdAt);
-      if ((battle.defenderReport as { won?: boolean }).won === true) {
+      if (defenderReport.won === true) {
         context.raidDefenseWins += 1;
         context.firstDefenseWinAt = earliest(context.firstDefenseWinAt, battle.createdAt);
       }

@@ -25,5 +25,5 @@
 - Add a visible community/account-link status panel once the Flarum install exists.
 - Add a safe forum URL setting instead of hardcoding the forum domain.
 - Give recon a richer target card so the player sees public info, known intel and blocked reasons in one place.
-- Add more achievements for the new raid forms.
+- Continue achievement work in 0.2.0-H with trophies for the new raid forms.
 - Add an admin/dev-only panel or command for seeding and removing local test bots.

@@ -1,10 +1,10 @@
 import 'dotenv/config';
 import { PrismaClient, type Round } from '@prisma/client';
 import { calculateNetWorthCents, calculateThugHappiness, calculateWhoreHappiness, startingStock } from '@streets/rules-engine';
-import { classicOgV01, classicOgV02D, classicOgV02G, type Ruleset, type SeededRivalRule, type StartingPlayer } from '@streets/rulesets';
+import { classicOgV01, classicOgV02D, classicOgV02H, type Ruleset, type SeededRivalRule, type StartingPlayer } from '@streets/rulesets';
 
 const prisma = new PrismaClient();
-const CURRENT_RULESET = classicOgV02G;
+const CURRENT_RULESET = classicOgV02H;
 const shouldSeedRivals = process.env.SEED_DEV_BOTS === '1' || process.env.SEED_RIVALS === '1';
 
 
@@ -53,7 +53,7 @@ const CITIES = [
 
 async function seedCities() {
   for (const city of CITIES) {
-    // 0.2.0-G still starts in New York City. Other cities stay staged for travel.
+    // 0.2.0-H still starts in New York City. Other cities stay staged for travel.
     const isEnabled = city.slug === CURRENT_RULESET.round.startingCitySlug;
 
     await prisma.city.upsert({
@@ -127,8 +127,8 @@ async function seedStrategyRound(now: Date) {
 
 async function seedCurrentPublicRound(now: Date) {
   return upsertRound({
-    name: 'Game #007 - Street Polish',
-    slug: 'game-007-street-polish',
+    name: 'Game #008 - Raid Trophies',
+    slug: 'game-008-raid-trophies',
     ruleset: CURRENT_RULESET,
     startsAt: now,
     refreshCurrent: true,
@@ -348,10 +348,10 @@ async function main() {
   const publicRound = await seedCurrentPublicRound(new Date(now.getTime() + 1_000));
   await seedNews(
     publicRound.id,
-    '0.2.0-G STREET POLISH HAS STARTED',
+    '0.2.0-H RAID TROPHIES HAVE STARTED',
     shouldSeedRivals
-      ? 'The current G seed has active local dev bots enabled, so a new player can test cash raids, drug runs, ride theft, lures, drive-bys and clearer battle reports immediately.'
-      : 'The 0.2.0-G production round keeps F combat balance and starts the player-facing polish pass: clearer raid reports, better recon cues and the free forum path.',
+      ? 'The current H seed has active local dev bots enabled, so a new player can test cash raids, drug runs, ride theft, lures, drive-bys and raid-form achievements immediately.'
+      : 'The 0.2.0-H production round keeps G combat balance and starts the raid-form achievement pass.',
   );
   await seedRivals(publicRound, CURRENT_RULESET, new Date(now.getTime() + 1_000), DEV_TEST_RIVALS, { activeAccounts: true, label: 'dev bots' });
   console.log('Done.');
