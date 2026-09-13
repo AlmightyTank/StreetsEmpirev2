@@ -1,11 +1,43 @@
 import 'dotenv/config';
 import { PrismaClient, type Round } from '@prisma/client';
 import { calculateNetWorthCents, calculateThugHappiness, calculateWhoreHappiness, startingStock } from '@streets/rules-engine';
-import { classicOgV01, classicOgV02D, classicOgV02E, classicOgV02F, type Ruleset, type SeededRivalRule, type StartingPlayer } from '@streets/rulesets';
+import { classicOgV01, classicOgV02D, classicOgV02F, type Ruleset, type SeededRivalRule, type StartingPlayer } from '@streets/rulesets';
 
 const prisma = new PrismaClient();
 const CURRENT_RULESET = classicOgV02F;
-const shouldSeedRivals = process.env.SEED_RIVALS === '1';
+const shouldSeedRivals = process.env.SEED_DEV_BOTS === '1' || process.env.SEED_RIVALS === '1';
+
+
+const DEV_TEST_RIVALS = [
+  {
+    slug: 'razor-ray',
+    displayName: 'Razor Ray',
+    publicPimpId: 1000,
+    note: 'Even starter target for cash raids and basic reports.',
+    startingPlayer: { cashCents: 3_000_000, whores: 12, thugs: 10, pistols: 10, beer: 10, crack: 180, condoms: 180, medicine: 2 },
+  },
+  {
+    slug: 'cashbox-carlo',
+    displayName: 'Cashbox Carlo',
+    publicPimpId: 1001,
+    note: 'Cash-heavy target with enough stash to make recon and loot worth testing.',
+    startingPlayer: { cashCents: 8_000_000, whores: 28, thugs: 8, pistols: 8, beer: 8, crack: 700, condoms: 500, medicine: 4 },
+  },
+  {
+    slug: 'iron-maya',
+    displayName: 'Iron Maya',
+    publicPimpId: 1002,
+    note: 'Stronger defender with rides for testing drive-bys and steal-a-ride.',
+    startingPlayer: { cashCents: 4_000_000, whores: 20, thugs: 16, pistols: 16, shotguns: 5, beer: 16, crack: 400, condoms: 300, medicine: 8, lowRiders: 2 },
+  },
+  {
+    slug: 'low-morale-lou',
+    displayName: 'Low Morale Lou',
+    publicPimpId: 1003,
+    note: 'Unhappy crew for lure testing: no beer, no guns, low payout and thin shelves.',
+    startingPlayer: { cashCents: 2_500_000, whores: 20, thugs: 17, pistols: 0, beer: 0, crack: 20, condoms: 10, payoutPercent: 10, medicine: 1, lowRiders: 1 },
+  },
+] as const satisfies readonly SeededRivalRule[];
 
 /** Section 12. Travel is not player-facing yet, but the map exists from day one. */
 const CITIES = [
@@ -188,20 +220,26 @@ async function refreshRoundRanks(roundId: string) {
   }
 }
 
-async function seedRivals(round: Round, ruleset: Ruleset, now: Date, rivals: readonly SeededRivalRule[] = ruleset.round.seededRivals ?? []) {
+async function seedRivals(round: Round, ruleset: Ruleset, now: Date, rivals: readonly SeededRivalRule[] = ruleset.round.seededRivals ?? [], options: { activeAccounts?: boolean; label?: string } = {}) {
   if (!rivals.length) return;
   if (!shouldSeedRivals) {
-    console.log('  rivals:   skipped (set SEED_RIVALS=1 to create local test rivals)');
+    console.log('  dev bots: skipped (set SEED_DEV_BOTS=1 to create active local raid targets)');
     return;
   }
+
+  const activeAccounts = options.activeAccounts ?? false;
+  const label = options.label ?? 'rivals';
 
   const city = await prisma.city.findUnique({ where: { slug: ruleset.round.startingCitySlug } });
   if (!city?.isEnabled) throw new Error(`Starting city ${ruleset.round.startingCitySlug} is not enabled.`);
 
-  let maxPublicPimpId = ruleset.round.publicPimpIdStart - 1;
+  let nextAvailablePublicPimpId = (await prisma.roundPlayer.aggregate({
+    where: { roundId: round.id },
+    _max: { publicPimpId: true },
+  }))._max.publicPimpId ?? (ruleset.round.publicPimpIdStart - 1);
+  nextAvailablePublicPimpId += 1;
 
   for (const rival of rivals) {
-    maxPublicPimpId = Math.max(maxPublicPimpId, rival.publicPimpId);
     const username = `seed-rival-${rival.slug}`;
     const email = `${username}@streets.local`;
     const account = await prisma.account.upsert({
@@ -209,21 +247,30 @@ async function seedRivals(round: Round, ruleset: Ruleset, now: Date, rivals: rea
       update: {
         username,
         usernameNormalized: username,
-        isActive: false,
+        isActive: activeAccounts,
       },
       create: {
         username,
         usernameNormalized: username,
         email,
         passwordHash: 'seeded-local-rival-account',
-        isActive: false,
+        isActive: activeAccounts,
       },
     });
 
     const existing = await prisma.roundPlayer.findUnique({
       where: { roundId_accountId: { roundId: round.id, accountId: account.id } },
-      select: { id: true },
+      select: { id: true, publicPimpId: true },
     });
+    let publicPimpId = existing?.publicPimpId ?? rival.publicPimpId;
+    if (!existing) {
+      const taken = await prisma.roundPlayer.findUnique({
+        where: { roundId_publicPimpId: { roundId: round.id, publicPimpId } },
+        select: { id: true },
+      });
+      if (taken) publicPimpId = nextAvailablePublicPimpId;
+      nextAvailablePublicPimpId = Math.max(nextAvailablePublicPimpId, publicPimpId + 1);
+    }
 
     if (existing) {
       await prisma.raidBattle.deleteMany({
@@ -245,7 +292,7 @@ async function seedRivals(round: Round, ruleset: Ruleset, now: Date, rivals: rea
     await prisma.roundPlayer.upsert({
       where: { roundId_accountId: { roundId: round.id, accountId: account.id } },
       update: {
-        publicPimpId: rival.publicPimpId,
+        publicPimpId,
         displayName: rival.displayName,
         cityId: city.id,
         ...resources,
@@ -264,7 +311,7 @@ async function seedRivals(round: Round, ruleset: Ruleset, now: Date, rivals: rea
       create: {
         roundId: round.id,
         accountId: account.id,
-        publicPimpId: rival.publicPimpId,
+        publicPimpId,
         displayName: rival.displayName,
         cityId: city.id,
         ...resources,
@@ -285,10 +332,10 @@ async function seedRivals(round: Round, ruleset: Ruleset, now: Date, rivals: rea
   });
   await prisma.round.update({
     where: { id: round.id },
-    data: { nextPublicPimpId: { set: Math.max(maxPublicPimpId, highestPlayer._max.publicPimpId ?? 0) + 1 } },
+    data: { nextPublicPimpId: { set: (highestPlayer._max.publicPimpId ?? (ruleset.round.publicPimpIdStart - 1)) + 1 } },
   });
   await refreshRoundRanks(round.id);
-  console.log(`  rivals:   ${rivals.length} seeded for ${round.name}`);
+  console.log(`  ${label}: ${rivals.length} seeded for ${round.name}`);
 }
 
 async function main() {
@@ -303,10 +350,10 @@ async function main() {
     publicRound.id,
     '0.2.0-F PUBLIC RAIDS ARE LIVE',
     shouldSeedRivals
-      ? 'The current F seed has local test rivals enabled, so a new player can join, recon, raid and read battle reports immediately.'
+      ? 'The current F seed has active local dev bots enabled, so a new player can test cash raids, drug runs, ride theft, lures, drive-bys and battle reports immediately.'
       : 'The 0.2.0-F production round is open for real players. Rankings and combat targets only show active player accounts.',
   );
-  await seedRivals(publicRound, CURRENT_RULESET, new Date(now.getTime() + 1_000), classicOgV02E.round.seededRivals ?? []);
+  await seedRivals(publicRound, CURRENT_RULESET, new Date(now.getTime() + 1_000), DEV_TEST_RIVALS, { activeAccounts: true, label: 'dev bots' });
   console.log('Done.');
 }
 

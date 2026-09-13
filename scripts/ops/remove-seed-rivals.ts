@@ -8,7 +8,6 @@ async function main() {
     where: {
       username: { startsWith: 'seed-rival-' },
       email: { endsWith: '@streets.local' },
-      isActive: false,
     },
     select: {
       id: true,
@@ -19,7 +18,7 @@ async function main() {
   });
 
   if (accounts.length === 0) {
-    console.log('No seeded rival bot accounts found.');
+    console.log('No seeded rival/dev bot accounts found.');
     return;
   }
 
@@ -35,11 +34,10 @@ async function main() {
       id: { in: accounts.map((account) => account.id) },
       username: { startsWith: 'seed-rival-' },
       email: { endsWith: '@streets.local' },
-      isActive: false,
     },
   });
 
-  console.log(`Removed ${result.count} seeded rival bot account(s).`);
+  console.log(`Removed ${result.count} seeded rival/dev bot account(s).`);
 }
 
 main()

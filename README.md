@@ -60,7 +60,7 @@ npm run db:seed           # 8 cities, pinned older rounds, current Game #006 pub
 npm run dev               # api on :3001, web on :5173
 ```
 
-Open <http://localhost:5173>, register a name, and enter Game #006 - Public Raids. New players start with cash, thugs, pistols, beer and medicine. Default seeds no bot rivals; for local solo raid testing, run `SEED_RIVALS=1 npm run db:seed` to add the test rivals.
+Open <http://localhost:5173>, register a name, and enter Game #006 - Public Raids. New players start with cash, thugs, pistols, beer and medicine. Default seeds no bot rivals; for local solo raid testing, run `npm run db:seed:dev-bots` to add active dev bots for cash raids, drug runs, ride theft, lures and drive-bys.
 
 | Script | Does |
 | --- | --- |
@@ -74,7 +74,8 @@ Open <http://localhost:5173>, register a name, and enter Game #006 - Public Raid
 | `npm run db:seed:combat:recovery` | create local Game #003 with `classic-og-v0.2-c` recovery raids |
 | `npm run db:seed:combat:strategy` | create local Game #004 with `classic-og-v0.2-d` strategy raids |
 | `npm run db:seed:combat:onboarding` | create local Game #005 with `classic-og-v0.2-e` and seeded rivals |
-| `npm run db:cleanup:seed-rivals` | remove inactive seed rivals from production-style rounds |
+| `npm run db:seed:dev-bots` | reseed the current public raid round with active local bots for testing every raid form |
+| `npm run db:cleanup:seed-rivals` | remove seeded rival/dev bot accounts |
 
 ---
 
@@ -263,7 +264,7 @@ lands &mdash; so it never acts on stale numbers.
 
 The frozen 0.1.0 round still gives exactly section 11: `$5,000`, 200 turns, 1 whore, 1 thug, 250 condoms,
 100 crack, 10 beer, 50% payout, New York City &mdash; which is a net worth of `$6,827`,
-100% whore happiness and 99% thug happiness (one thug, no gun). The current 0.2.0-F public raid round starts players at `$20,000` with 10 thugs, 10 pistols, beer and medicine. In F, production rankings, profiles and combat lists show active player accounts only; local development can opt into the three seeded rivals with `SEED_RIVALS=1`. Missing guns cost more thug happiness, only armed fit thugs count as street cover while scouting, luring can pull unhappy hoes and thugs with crack and beer, and public pages show money, rank tenure, movement, past results and a fuller achievement gallery while opponent crew, weapons, wounds, exposed cash and crack stash stay behind recon.
+100% whore happiness and 99% thug happiness (one thug, no gun). The current 0.2.0-F public raid round starts players at `$20,000` with 10 thugs, 10 pistols, beer and medicine. In F, production rankings, profiles and combat lists show active player accounts only; local development can opt into active dev bots with `npm run db:seed:dev-bots`. Missing guns cost more thug happiness, only armed fit thugs count as street cover while scouting, luring can pull unhappy hoes and thugs with crack and beer, and public pages show money, rank tenure, movement, past results and a fuller achievement gallery while opponent crew, weapons, wounds, exposed cash and crack stash stay behind recon.
 
 **Tests** cover the frozen formulas, the loader and the services built on them:
 turn regeneration and the cap, the remainder that survives a settle, the away bonus and

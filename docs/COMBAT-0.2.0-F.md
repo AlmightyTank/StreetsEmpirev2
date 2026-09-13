@@ -7,8 +7,8 @@
 - Ruleset: `classic-og-v0.2-f` at version `0.2.0-F`.
 - Combat model version: `0.2.0-F.2`.
 - Default seed: `Game #006 - Public Raids`.
-- Default seed behavior: inactive seed rivals are skipped.
-- Local test behavior: set `SEED_RIVALS=1` before `npm run db:seed` to add the same test rivals used by E.
+- Default seed behavior: no bot rivals are created for the public player field.
+- Local test behavior: run `npm run db:seed:dev-bots` to add active test targets for cash raids, drug runs, ride theft, lures and drive-bys.
 
 ## What carries forward from E
 
@@ -20,7 +20,7 @@ F also keeps the E readability work: tooltips, harsher happiness loss for unarme
 
 Production rankings, public profiles, player counts, recon targets and combat targets show active player accounts. Seed rivals remain useful for local development, but they are not part of the public player field by default.
 
-If a production database already has inactive seed rivals from earlier tests, remove them with:
+If a production database already has seeded rival/dev bot accounts from earlier tests, remove them with:
 
 ```bash
 npm run db:cleanup:seed-rivals
@@ -35,7 +35,7 @@ NODE_ENV=production npm run db:seed
 For local solo testing, run:
 
 ```bash
-SEED_RIVALS=1 npm run db:seed
+npm run db:seed:dev-bots
 ```
 
 That gives a developer immediate targets without changing the public-round rule that production play is active players only.
@@ -47,5 +47,6 @@ F adds old-school raid forms beside the cash raid and drive-by:
 
 - **Drug their hoes** shares the normal raid clock. Your crew fights its way in with your crack; if it lands, their hoes burn through crack and condoms, which can drag down the target's earning power.
 - **Steal a ride** shares the normal raid clock. If your crew wins and at least one thug makes it home, one of the target's Low-Riders comes home with you.
+- **Lure their crew** shares the normal raid clock. It only works on unhappy blocks: crack can pull their hoes and beer can pull fit thugs. If your crew wins and people make it home, those people join your crew and leave theirs.
 
-Both forms write attacker and defender reports, spend turns once through durable action receipts, can wound both crews, give the defender the normal raid breathing room, and do not count toward the cash-raid repeat-loot penalty.
+All forms write attacker and defender reports, spend turns once through durable action receipts, can wound both crews, give the defender the normal raid breathing room, and do not count toward the cash-raid repeat-loot penalty.
