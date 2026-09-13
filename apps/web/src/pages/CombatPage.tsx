@@ -116,12 +116,71 @@ function raidFormOutcome(report: BattleReportDto): { text: string; tone: 'good' 
   return null;
 }
 
+function TrophyCallouts({ report }: { report: BattleReportDto }) {
+  if (!report.trophyCallouts?.length) return null;
+  return (
+    <div className="se-trophies" role="status" aria-label="Unlocked achievements">
+      <p className="se-trophies__label">
+        {report.trophyCallouts.length === 1 ? 'Achievement unlocked' : 'Achievements unlocked'}
+      </p>
+      <ul>
+        {report.trophyCallouts.map((trophy) => (
+          <li key={trophy.key}>
+            <span className="se-trophy__title">{trophy.title}</span>
+            <span className="se-trophy__desc">{trophy.description}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function TargetCard({ target, selectedBlock, driving }: { target: CombatTargetDto; selectedBlock: string | null; driving: boolean }) {
+  return (
+    <div className={`se-target-card${selectedBlock ? ' se-target-card--blocked' : ''}`}>
+      <div className="se-target-card__head">
+        <div>
+          <p className="se-target-card__name">{target.displayName} <span className="se-muted se-num">(#{target.publicPimpId})</span></p>
+          <p className="se-target-card__sub">
+            {selectedBlock ?? (target.revengeAvailable ? 'Payback is open.' : driving ? 'Street crew spotted outside.' : 'Home block advantage.')}
+          </p>
+        </div>
+        <div className="se-tags" aria-label="Target tags">
+          <span className={`se-tag${target.strength === 'Weaker' ? ' se-tag--good' : target.strength === 'Stronger' ? ' se-tag--bad' : ''}`}>{target.strength}</span>
+          {target.intel ? <span className="se-tag se-tag--good">Scouted</span> : <span className="se-tag">Unscouted</span>}
+          {target.revengeAvailable ? <span className="se-tag se-tag--warn">Payback</span> : null}
+        </div>
+      </div>
+      <div className="se-target-card__grid">
+        <div><span>Public worth</span><strong>{formatCents(target.netWorthCents)}</strong></div>
+        <div><span>Crew read</span><strong>{target.strength}</strong></div>
+        <div><span>Status</span><strong>{selectedBlock ? 'Blocked' : 'Open'}</strong></div>
+        <div><span>Intel</span><strong>{target.intel ? `Fresh until ${date(target.intel.expiresAt)}` : 'No recon yet'}</strong></div>
+      </div>
+      {target.intel ? (
+        <div className="se-target-card__intel">
+          <div><span>Fit / wounded</span><strong>{formatNumber(target.intel.fitThugs)} / {formatNumber(target.intel.woundedThugs)}</strong></div>
+          <div><span>Full strength</span><strong>{target.intel.strength.toFixed(1)}</strong></div>
+          <div><span>Weapons spotted</span><strong>{weaponsText(target.intel.weapons)}</strong></div>
+          <div><span>Cash band</span><strong>{target.intel.cashBand.label}</strong></div>
+          <div><span>Max cash haul</span><strong>{formatCents(target.intel.estimatedMaxLootCents)}</strong></div>
+          {target.intel.crack != null ? <div><span>Crack stash</span><strong>{formatNumber(target.intel.crack)}</strong></div> : null}
+          {target.intel.estimatedMaxCrackLoot != null ? <div><span>Max crack haul</span><strong>{formatNumber(target.intel.estimatedMaxCrackLoot)}</strong></div> : null}
+        </div>
+      ) : (
+        <p className="se-hint">Scout this mark to reveal fit thugs, wounds, weapons, cash band, crack stash and the biggest haul they might expose.</p>
+      )}
+    </div>
+  );
+}
+
 function DriveByReport({ report, onClose }: { report: BattleReportDto; onClose?: () => void }) {
   const d = report.driveBy!;
   const attacking = report.role === 'ATTACKER';
   const landed = attacking === report.won;
   return <Panel title={`${landed ? (attacking ? 'It landed' : 'They hit you') : (attacking ? 'They shot back' : 'Seen off')} · ${reportLabel(report)}`}>
     <p>{attacking ? 'On' : 'By'} <b>{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
+    <TrophyCallouts report={report} />
     <div className="se-rows">
       <Row label={attacking ? 'Shooters — yours / out front' : 'Out front — yours / shooters'} value={`${report.yourSquad} / ${report.opponentSquad}`} />
       <Row label="Firepower — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
@@ -150,6 +209,7 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
   return <Panel title={`${landed ? (attacking ? 'It landed' : 'They got through') : (attacking ? 'They held you off' : 'You held them off')} · ${reportLabel(report)}`}>
     <p>{attacking ? 'Against' : 'By'} <b>{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
     {outcome ? <p className={outcome.tone === 'good' ? 'se-good' : outcome.tone === 'bad' ? 'se-bad' : 'se-hint'}>{outcome.text}</p> : null}
+    <TrophyCallouts report={report} />
     <div className="se-rows">
       <Row label="Crew — yours / theirs" value={`${report.yourSquad} / ${report.opponentSquad}`} />
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
@@ -179,6 +239,7 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
   if ((report.kind === 'DRUG_HOES' || report.kind === 'STEAL_RIDE' || report.kind === 'LURE_CREW') && report.raidForm) return <RaidFormReport report={report} onClose={onClose} />;
   return <Panel title={`${report.won ? 'Victory' : 'Defeat'} · ${reportLabel(report)}`}>
     <p>Against <b>{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
+    <TrophyCallouts report={report} />
     <div className="se-rows">
       <Row label="Squads — yours / theirs" value={`${report.yourSquad} / ${report.opponentSquad}`} />
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
@@ -430,21 +491,14 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                   {target.displayName} (#{target.publicPimpId}) · {target.strength}{target.intel ? ' · scouted' : ''}{target.revengeAvailable ? ' · payback' : ''}{targetBlock(target) ? ` · ${targetBlock(target)}` : ''}
                 </option>)}
               </select>
-              {selected ? <p className="se-hint" title="Net worth is street reputation. Scouting reveals the details: fit thugs, wounds, weapons, cash range, crack and max haul.">Net worth {formatCents(selected.netWorthCents)} · {selected.strength} crew. {selected.intel ? `Fresh intel until ${date(selected.intel.expiresAt)}.` : selected.revengeAvailable ? 'Payback is open.' : selectedBlock ?? (driving ? 'Only part of their crew is on the street.' : 'They have home turf.')}</p> : null}
+              {selected ? <TargetCard target={selected} selectedBlock={selectedBlock} driving={driving} /> : null}
               {selected && rules?.reconTurnCost ? <div className="se-intel">
                 <button type="button" className="se-btn" disabled={busy || !!pending || me.turns.turns < rules.reconTurnCost} onClick={() => void reconTarget()}>
                   Scout {selected.displayName} · {rules.reconTurnCost} turns
                 </button>
-                {selected.intel ? <div className="se-rows se-mt">
-                  <Row label="Intel age" value={`${date(selected.intel.createdAt)} until ${date(selected.intel.expiresAt)}`} />
-                  <Row label="Fit / wounded" value={`${formatNumber(selected.intel.fitThugs)} / ${formatNumber(selected.intel.woundedThugs)}`} strong />
-                  <Row label="Full strength" value={selected.intel.strength.toFixed(1)} />
-                  <Row label="Weapons spotted" value={weaponsText(selected.intel.weapons)} />
-                  <Row label="Cash band" value={selected.intel.cashBand.label} />
-                  <Row label="Max cash loot" value={formatCents(selected.intel.estimatedMaxLootCents)} />
-                  {selected.intel.crack != null ? <Row label="Crack stash" value={formatNumber(selected.intel.crack)} /> : null}
-                  {selected.intel.estimatedMaxCrackLoot != null ? <Row label="Max crack loot" value={formatNumber(selected.intel.estimatedMaxCrackLoot)} /> : null}
-                </div> : <p className="se-hint">Scout them first to see fit thugs, guns, cash range, crack stash and the biggest haul they might expose.</p>}
+                <p className="se-hint">{selected.intel
+                  ? `Fresh eyes on this block until ${date(selected.intel.expiresAt)}.`
+                  : 'Recon shows the parts rankings do not: fit crew, wounds, guns, exposed cash and crack.'}</p>
               </div> : null}
               <label htmlFor="raid-squad">{driving
                 ? `Shooters to send (up to ${formatNumber(maxSquad)} · ${formatNumber(driveBy!.lowRiders)} Low-Rider${driveBy!.lowRiders === 1 ? '' : 's'}, ${driveBy!.rules.thugsPerLowRider} to a car)`

@@ -19,6 +19,10 @@ const categoryName: Record<PublicAwardDto['category'], string> = {
   legacy: 'Legacy',
 };
 
+const achievementCategories = Object.keys(categoryName) as PublicAwardDto['category'][];
+type AchievementStatusFilter = 'all' | 'earned' | 'locked';
+type AchievementCategoryFilter = 'all' | PublicAwardDto['category'];
+
 function heldFor(iso: string): string {
   const minutes = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000));
   if (minutes < 1) return 'just now';
@@ -83,6 +87,8 @@ export function ProfilePage() {
   const [player, setPlayer] = useState<PublicPlayerProfileDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showLockedAchievements, setShowLockedAchievements] = useState(false);
+  const [achievementStatusFilter, setAchievementStatusFilter] = useState<AchievementStatusFilter>('all');
+  const [achievementCategoryFilter, setAchievementCategoryFilter] = useState<AchievementCategoryFilter>('all');
 
   useEffect(() => {
     if (!target || !Number.isSafeInteger(target)) return;
@@ -99,6 +105,13 @@ export function ProfilePage() {
 
   const unlocked = player?.awards.filter((award) => award.unlocked) ?? [];
   const locked = player?.awards.filter((award) => !award.unlocked) ?? [];
+  const filtersActive = achievementStatusFilter !== 'all' || achievementCategoryFilter !== 'all';
+  const filteredAwards = (player?.awards ?? []).filter((award) => {
+    const matchesStatus = achievementStatusFilter === 'all'
+      || (achievementStatusFilter === 'earned' ? award.unlocked : !award.unlocked);
+    const matchesCategory = achievementCategoryFilter === 'all' || award.category === achievementCategoryFilter;
+    return matchesStatus && matchesCategory;
+  });
   const rarest = unlocked.find((award) => ['legendary', 'epic', 'rare'].includes(award.rarity));
 
   return (
@@ -151,41 +164,102 @@ export function ProfilePage() {
           </div>
 
           <Panel title="Achievements">
-            <div className="se-ach-section">
-              <div className="se-ach-section__head">
-                <h3>Earned</h3>
-                <span className="se-num">{formatNumber(unlocked.length)}</span>
+            <div className="se-ach-filters" aria-label="Achievement filters">
+              <div className="se-filter-group">
+                <span className="se-filter-label">Show</span>
+                <div className="se-seg" role="group" aria-label="Achievement status">
+                  {([
+                    ['all', 'All'],
+                    ['earned', 'Earned'],
+                    ['locked', 'Locked'],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      type="button"
+                      key={value}
+                      className={`se-seg__btn${achievementStatusFilter === value ? ' se-seg__btn--on' : ''}`}
+                      aria-pressed={achievementStatusFilter === value}
+                      onClick={() => setAchievementStatusFilter(value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              {unlocked.length ? <ul className="se-ach-grid">{unlocked.map((award) => <AchievementCard award={award} key={award.key} />)}</ul> : <p className="se-muted">No achievements earned yet.</p>}
-            </div>
-            <div className="se-ach-section">
-              <div className="se-ach-section__head">
-                <h3 id="next-milestones-title">Next milestones</h3>
-                {locked.length ? (
+              <div className="se-filter-group">
+                <span className="se-filter-label">Type</span>
+                <div className="se-seg" role="group" aria-label="Achievement category">
                   <button
                     type="button"
-                    className="se-btn se-btn--ghost se-btn--sm se-ach-toggle"
-                    aria-expanded={showLockedAchievements}
-                    aria-controls="next-milestones-list"
-                    onClick={() => setShowLockedAchievements((open) => !open)}
+                    className={`se-seg__btn${achievementCategoryFilter === 'all' ? ' se-seg__btn--on' : ''}`}
+                    aria-pressed={achievementCategoryFilter === 'all'}
+                    onClick={() => setAchievementCategoryFilter('all')}
                   >
-                    {showLockedAchievements ? 'Hide' : 'Show'} {formatNumber(locked.length)}
+                    All
                   </button>
-                ) : <span className="se-num">0</span>}
-              </div>
-              {locked.length ? (
-                <div
-                  id="next-milestones-list"
-                  aria-labelledby="next-milestones-title"
-                  className={`se-collapse${showLockedAchievements ? ' se-collapse--open' : ''}`}
-                  inert={!showLockedAchievements}
-                >
-                  <div className="se-collapse__inner">
-                    <ul className="se-ach-grid">{locked.map((award) => <AchievementCard award={award} key={award.key} />)}</ul>
-                  </div>
+                  {achievementCategories.map((category) => (
+                    <button
+                      type="button"
+                      key={category}
+                      className={`se-seg__btn${achievementCategoryFilter === category ? ' se-seg__btn--on' : ''}`}
+                      aria-pressed={achievementCategoryFilter === category}
+                      onClick={() => setAchievementCategoryFilter(category)}
+                    >
+                      {categoryName[category]}
+                    </button>
+                  ))}
                 </div>
-              ) : <p className="se-muted">Every listed achievement is unlocked.</p>}
+              </div>
             </div>
+
+            {filtersActive ? (
+              <div className="se-ach-section">
+                <div className="se-ach-section__head">
+                  <h3>Filtered trophies</h3>
+                  <span className="se-num">{formatNumber(filteredAwards.length)}</span>
+                </div>
+                {filteredAwards.length
+                  ? <ul className="se-ach-grid">{filteredAwards.map((award) => <AchievementCard award={award} key={award.key} />)}</ul>
+                  : <p className="se-muted">No achievements match those filters.</p>}
+              </div>
+            ) : (
+              <>
+                <div className="se-ach-section">
+                  <div className="se-ach-section__head">
+                    <h3>Earned</h3>
+                    <span className="se-num">{formatNumber(unlocked.length)}</span>
+                  </div>
+                  {unlocked.length ? <ul className="se-ach-grid">{unlocked.map((award) => <AchievementCard award={award} key={award.key} />)}</ul> : <p className="se-muted">No achievements earned yet.</p>}
+                </div>
+                <div className="se-ach-section">
+                  <div className="se-ach-section__head">
+                    <h3 id="next-milestones-title">Next milestones</h3>
+                    {locked.length ? (
+                      <button
+                        type="button"
+                        className="se-btn se-btn--ghost se-btn--sm se-ach-toggle"
+                        aria-expanded={showLockedAchievements}
+                        aria-controls="next-milestones-list"
+                        onClick={() => setShowLockedAchievements((open) => !open)}
+                      >
+                        {showLockedAchievements ? 'Hide' : 'Show'} {formatNumber(locked.length)}
+                      </button>
+                    ) : <span className="se-num">0</span>}
+                  </div>
+                  {locked.length ? (
+                    <div
+                      id="next-milestones-list"
+                      aria-labelledby="next-milestones-title"
+                      className={`se-collapse${showLockedAchievements ? ' se-collapse--open' : ''}`}
+                      inert={!showLockedAchievements}
+                    >
+                      <div className="se-collapse__inner">
+                        <ul className="se-ach-grid">{locked.map((award) => <AchievementCard award={award} key={award.key} />)}</ul>
+                      </div>
+                    </div>
+                  ) : <p className="se-muted">Every listed achievement is unlocked.</p>}
+                </div>
+              </>
+            )}
           </Panel>
 
           {player.intelRequired ? (

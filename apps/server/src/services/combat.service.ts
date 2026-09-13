@@ -44,6 +44,118 @@ function storedBattleKind(row: { kind: string; attackerReport: unknown }): strin
   return report?.kind ?? row.kind;
 }
 
+type TrophyCallout = NonNullable<BattleReportDto['trophyCallouts']>[number];
+type TrophyMove = 'RAID' | 'DRIVE_BY' | SpecialRaidKind;
+
+interface TrophyProgress {
+  raidAttacks: number;
+  raidAttackWins: number;
+  driveByAttacks: number;
+  driveByWins: number;
+  drugRunWins: number;
+  whoresDrugged: number;
+  rideTheftWins: number;
+  lowRidersStolen: number;
+  lureRunWins: number;
+  crewLured: number;
+}
+
+const emptyTrophyProgress = (): TrophyProgress => ({
+  raidAttacks: 0,
+  raidAttackWins: 0,
+  driveByAttacks: 0,
+  driveByWins: 0,
+  drugRunWins: 0,
+  whoresDrugged: 0,
+  rideTheftWins: 0,
+  lowRidersStolen: 0,
+  lureRunWins: 0,
+  crewLured: 0,
+});
+
+function reportWon(value: unknown): boolean {
+  return (value as { won?: boolean } | null)?.won === true;
+}
+
+function reportRaidForm(value: unknown): BattleReportDto['raidForm'] | undefined {
+  return (value as { raidForm?: BattleReportDto['raidForm'] } | null)?.raidForm;
+}
+
+async function attackerTrophyProgress(tx: Prisma.TransactionClient, attackerId: string): Promise<TrophyProgress> {
+  const progress = emptyTrophyProgress();
+  const rows = await tx.raidBattle.findMany({
+    where: { attackerId },
+    select: { kind: true, attackerReport: true },
+  });
+
+  for (const row of rows) {
+    const kind = storedBattleKind(row);
+    const won = reportWon(row.attackerReport);
+    const form = reportRaidForm(row.attackerReport);
+
+    if (kind === 'RAID') {
+      progress.raidAttacks += 1;
+      if (won) progress.raidAttackWins += 1;
+    } else if (kind === 'DRIVE_BY') {
+      progress.driveByAttacks += 1;
+      if (won) progress.driveByWins += 1;
+    } else if (kind === 'DRUG_HOES' && won) {
+      progress.drugRunWins += 1;
+      progress.whoresDrugged += form?.whoresDrugged ?? 0;
+    } else if (kind === 'STEAL_RIDE' && won) {
+      const stolen = form?.lowRidersStolen ?? 0;
+      if (stolen > 0) progress.rideTheftWins += 1;
+      progress.lowRidersStolen += stolen;
+    } else if (kind === 'LURE_CREW' && won) {
+      progress.lureRunWins += 1;
+      progress.crewLured += (form?.whoresLured ?? 0) + (form?.thugsLured ?? 0);
+    }
+  }
+
+  return progress;
+}
+
+function addTrophy(callouts: TrophyCallout[], condition: boolean, key: string, title: string, description: string): void {
+  if (condition) callouts.push({ key, title, description });
+}
+
+function trophyCalloutsFor(move: { kind: TrophyMove; won: boolean; whoresDrugged?: number; lowRidersStolen?: number; crewLured?: number }, before: TrophyProgress): TrophyCallout[] {
+  const callouts: TrophyCallout[] = [];
+
+  if (move.kind === 'RAID') {
+    addTrophy(callouts, before.raidAttacks === 0, 'knock-knock', 'Knock Knock', 'First raid launched. Your name is on the street now.');
+    addTrophy(callouts, move.won && before.raidAttackWins === 0, 'first-blood', 'First Blood', 'First raid win as the attacker.');
+    addTrophy(callouts, move.won && before.raidAttackWins === 4, 'enforcer', 'Enforcer', 'Five raid wins as the attacker.');
+    addTrophy(callouts, move.won && before.raidAttackWins === 24, 'warpath', 'Warpath', 'Twenty-five raid wins as the attacker.');
+    return callouts;
+  }
+
+  if (move.kind === 'DRIVE_BY') {
+    addTrophy(callouts, before.driveByAttacks === 0, 'rolling-deep', 'Rolling Deep', 'First drive-by sent at another block.');
+    addTrophy(callouts, move.won && before.driveByWins === 0, 'clean-pass', 'Clean Pass', 'First drive-by landed.');
+    return callouts;
+  }
+
+  if (move.kind === 'DRUG_HOES') {
+    const whoresDrugged = move.whoresDrugged ?? 0;
+    addTrophy(callouts, move.won && before.drugRunWins === 0, 'bad-batch', 'Bad Batch', 'First drug run won against a rival block.');
+    addTrophy(callouts, before.whoresDrugged < 20 && before.whoresDrugged + whoresDrugged >= 20, 'burned-stable', 'Burned Stable', 'Twenty rival hoes drugged this round.');
+    return callouts;
+  }
+
+  if (move.kind === 'STEAL_RIDE') {
+    const lowRidersStolen = move.lowRidersStolen ?? 0;
+    addTrophy(callouts, lowRidersStolen > 0 && before.rideTheftWins === 0, 'boosted', 'Boosted', 'First Low-Rider stolen from another crew.');
+    addTrophy(callouts, before.lowRidersStolen < 3 && before.lowRidersStolen + lowRidersStolen >= 3, 'chop-shop-regular', 'Chop Shop Regular', 'Three Low-Riders stolen this round.');
+    return callouts;
+  }
+
+  const crewLured = move.crewLured ?? 0;
+  addTrophy(callouts, move.won && before.lureRunWins === 0, 'silver-tongue', 'Silver Tongue', 'First lure run won against an unhappy block.');
+  addTrophy(callouts, before.crewLured < 20 && before.crewLured + crewLured >= 20, 'recruiter', 'Recruiter', 'Twenty people lured away from rival crews this round.');
+  return callouts;
+}
+
 function modelFor(round: Round): { ruleset: Ruleset; model: CombatRules } {
   const ruleset = loadRulesetForRound(round);
   if (!ruleset.combat) throw AppError.conflict('COMBAT_DISABLED', 'Raids are not available in this older economy round. Join the current 0.2.0-D strategy round to use raids, recon and revenge.');
@@ -420,6 +532,7 @@ export const CombatService = {
       const afterA = await RankingService.ranksFor(tx, { ...attacker, netWorthCents: NetWorthService.calculate(nextA, ruleset) });
       const afterD = await RankingService.ranksFor(tx, { ...defender, netWorthCents: NetWorthService.calculate(nextD, ruleset) });
       await writeRanks(tx, ruleset, now, [[attackerId, original, beforeA, afterA], [target.id, originalDefender, beforeD, afterD]]);
+      const trophyCallouts = trophyCalloutsFor({ kind: 'RAID', won: result.winner === 'ATTACKER' }, await attackerTrophyProgress(tx, attackerId));
       const id = randomUUID();
       const makeReport = (isAttacker: boolean): BattleReportDto => {
         const own = isAttacker ? result.attacker : result.defender;
@@ -448,6 +561,7 @@ export const CombatService = {
           nationalRankAfter: (isAttacker ? afterA : afterD).nationalRank,
           protectedUntil: isAttacker ? null : shield.toISOString(), cooldownUntil: isAttacker ? cooldown.toISOString() : iso(defender.raidCooldownUntil),
           retaliation: isAttacker ? retaliation : false,
+          ...(isAttacker && trophyCallouts.length ? { trophyCallouts } : {}),
         };
       };
       const attackerReport = makeReport(true);
@@ -527,6 +641,7 @@ export const CombatService = {
       const afterA = await RankingService.ranksFor(tx, { ...attacker, netWorthCents: NetWorthService.calculate(nextA, ruleset) });
       const afterD = await RankingService.ranksFor(tx, { ...defender, netWorthCents: NetWorthService.calculate(nextD, ruleset) });
       await writeRanks(tx, ruleset, now, [[attackerId, original, beforeA, afterA], [target.id, originalDefender, beforeD, afterD]]);
+      const trophyCallouts = trophyCalloutsFor({ kind: 'DRIVE_BY', won: result.winner === 'ATTACKER' }, await attackerTrophyProgress(tx, attackerId));
 
       const id = randomUUID();
       const makeReport = (isAttacker: boolean): BattleReportDto => {
@@ -550,6 +665,7 @@ export const CombatService = {
           protectedUntil: isAttacker ? null : shield.toISOString(),
           cooldownUntil: isAttacker ? cooldown.toISOString() : iso(defender.driveByCooldownUntil),
           retaliation: isAttacker ? retaliation : false,
+          ...(isAttacker && trophyCallouts.length ? { trophyCallouts } : {}),
           driveBy: isAttacker
             ? { whoresKilled: result.whoresKilled, carsSent: result.cars.length, lowRidersLost: result.lowRidersLost, lowRidersAfter: nextA.lowRiders }
             : { whoresKilled: result.whoresKilled, whoresAfter: nextD.whores },
@@ -669,6 +785,13 @@ export const CombatService = {
       const afterA = await RankingService.ranksFor(tx, { ...attacker, netWorthCents: NetWorthService.calculate(nextA, ruleset) });
       const afterD = await RankingService.ranksFor(tx, { ...defender, netWorthCents: NetWorthService.calculate(nextD, ruleset) });
       await writeRanks(tx, ruleset, now, [[attackerId, original, beforeA, afterA], [target.id, originalDefender, beforeD, afterD]]);
+      const trophyCallouts = trophyCalloutsFor({
+        kind: input.kind,
+        won,
+        whoresDrugged,
+        lowRidersStolen,
+        crewLured: whoresLured + thugsLured,
+      }, await attackerTrophyProgress(tx, attackerId));
 
       const id = randomUUID();
       const makeReport = (isAttacker: boolean): BattleReportDto => {
@@ -696,6 +819,7 @@ export const CombatService = {
           nationalRankAfter: (isAttacker ? afterA : afterD).nationalRank,
           protectedUntil: isAttacker ? null : shield.toISOString(), cooldownUntil: isAttacker ? cooldown.toISOString() : iso(defender.raidCooldownUntil),
           retaliation: isAttacker ? retaliation : false,
+          ...(isAttacker && trophyCallouts.length ? { trophyCallouts } : {}),
           raidForm: {
             title: rule.title,
             ...(input.kind === 'DRUG_HOES' ? { whoresDrugged, crackSpent, defenderCrackBurned, defenderCondomsBurned } : {}),

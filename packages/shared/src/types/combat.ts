@@ -55,6 +55,7 @@ export interface BattleReportDto {
   protectedUntil: string | null;
   cooldownUntil: string | null;
   retaliation?: boolean;
+  trophyCallouts?: Array<{ key: string; title: string; description: string }>;
   /** Special raid forms only. */
   raidForm?: {
     title: string;
