@@ -9,6 +9,7 @@ import { formatDuration } from '../utils/time.js';
 interface NavItem {
   label: string;
   to?: string;
+  href?: string;
   /** Milestone this arrives in. Present means it is not built yet. */
   soon?: string;
 }
@@ -51,6 +52,7 @@ const SECTIONS: NavSection[] = [
       { label: 'News', to: '/game/news' },
       { label: 'Status', to: '/game/status' },
       { label: 'Rules', to: '/game/rules' },
+      { label: 'Community', href: 'https://forum.streetsempire.dev' },
     ],
   },
 ];
@@ -75,6 +77,18 @@ function GameNav({ open, onNavigate }: { open: boolean; onNavigate: () => void }
                   >
                     {item.label}
                   </NavLink>
+                </li>
+              ) : item.href ? (
+                <li key={item.label}>
+                  <a
+                    className="se-nav__link"
+                    href={item.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={onNavigate}
+                  >
+                    {item.label}
+                  </a>
                 </li>
               ) : (
                 <li key={item.label}>

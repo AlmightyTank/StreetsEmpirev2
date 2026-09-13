@@ -10,6 +10,11 @@ import { formatDate } from '../utils/time.js';
 
 const developmentUpdates = [
   {
+    id: 'dev-0.2.0-g',
+    title: '0.2.0-G: Street polish begins',
+    body: 'G keeps the F raid balance and starts making the public round feel more like a finished game. Raid reports now explain what actually happened, recon is being pulled closer to the target picker, the homepage explains the current loop for new players, and the community plan points at a free Flarum forum on forum.streetsempire.dev with Discord login first and Street Empire SSO later.',
+  },
+  {
     id: 'dev-0.2.0-f',
     title: '0.2.0-F: Public raid round',
     body: 'F is the first public raid round: production rankings and targets are for real active players, while local dev can still seed test rivals when needed. The raid page now has more old-school ways to hit a rival: drug their hoes to burn through supplies, steal a Low-Rider if they have one, or lure unhappy hoes and thugs away with crack and beer. It keeps the E weapon, intel and raid tuning: unarmed thugs take a bigger happiness hit, only armed fit thugs count as street cover when scouting, and rankings and profiles show public money, rank streaks, past placements and achievements, while crew, weapons, exposed cash and crack stash still require recon. Successful raids roll a 5%-40% cut of exposed cash and crack, weighted low so the biggest hits are rare, and back-to-back hits on the same target pay less until you hit someone else. Player profiles also have a full achievement gallery with earned badges and locked progress across rank, wealth, combat, intel, reputation and legacy. Hover the help markers to see what each number means.',

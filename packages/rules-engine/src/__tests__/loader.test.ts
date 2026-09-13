@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, classicOgV02F, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, type Ruleset } from '@streets/rulesets';
 import { regenerateTurns } from '../calculations/turns.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
@@ -38,7 +38,7 @@ describe('ruleset loader', () => {
   it('knows which ids it can serve', () => {
     expect(isKnownRulesetId('classic-og-v0.1')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(6);
+    expect(listRulesets()).toHaveLength(7);
   });
 });
 
@@ -57,6 +57,15 @@ describe('classic-og-v0.2-f contents', () => {
     expect(classicOgV02F.combat.specialRaids?.DRUG_HOES?.title).toBe('Drug their hoes');
     expect(classicOgV02F.combat.specialRaids?.STEAL_RIDE?.title).toBe('Steal a ride');
     expect(classicOgV02F.combat.specialRaids?.LURE_CREW?.title).toBe('Lure their crew');
+  });
+});
+
+describe('classic-og-v0.2-g contents', () => {
+  it('loads the street polish ruleset without changing F balance', () => {
+    expect(loadRuleset('classic-og-v0.2-g', '0.2.0-G')).toBe(classicOgV02G);
+    expect(classicOgV02G.round.seededRivals).toHaveLength(0);
+    expect(classicOgV02G.combat.specialRaids).toEqual(classicOgV02F.combat.specialRaids);
+    expect(classicOgV02G.combat.version).toBe('0.2.0-G.1');
   });
 });
 

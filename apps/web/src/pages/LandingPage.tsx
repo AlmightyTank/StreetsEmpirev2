@@ -82,7 +82,7 @@ export function LandingPage() {
                 rival talk, crew recruiting, bug reports and war stories.
               </p>
               <p className="se-hint">
-                The best free first fit is Flarum with Discord login, then Street Empire SSO, so players can move between the
+                The free first fit is Flarum with Discord login, then Street Empire SSO, so players can move between the
                 game and community without juggling separate accounts.
               </p>
             </Panel>

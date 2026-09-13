@@ -73,6 +73,49 @@ function reportLabel(report: BattleReportDto): string {
   return report.role === 'ATTACKER' ? 'Raid' : 'Defense';
 }
 
+function raidFormOutcome(report: BattleReportDto): { text: string; tone: 'good' | 'bad' | 'hint' } | null {
+  const form = report.raidForm;
+  if (!form) return null;
+  const attacking = report.role === 'ATTACKER';
+  const landed = attacking === report.won;
+
+  if (report.kind === 'DRUG_HOES') {
+    const whoresDrugged = form.whoresDrugged ?? 0;
+    const suppliesBurned = (form.defenderCrackBurned ?? 0) + (form.defenderCondomsBurned ?? 0);
+    if (!landed) return { tone: attacking ? 'bad' : 'good', text: attacking ? 'Their crew kept you out before the stash reached the block.' : 'Your crew kept their stash off your block.' };
+    if (attacking) return whoresDrugged > 0
+      ? { tone: 'good', text: `${formatNumber(whoresDrugged)} hoes got hit and burned ${formatNumber(suppliesBurned)} supplies from their shelves.` }
+      : { tone: 'hint', text: 'You got through, but there were no hoes in reach for your stash.' };
+    return whoresDrugged > 0
+      ? { tone: 'bad', text: `${formatNumber(whoresDrugged)} hoes got hit and burned ${formatNumber(suppliesBurned)} supplies from your shelves.` }
+      : { tone: 'hint', text: 'They got through, but nobody on your block took the bait.' };
+  }
+
+  if (report.kind === 'STEAL_RIDE') {
+    const rides = form.lowRidersStolen ?? 0;
+    if (!landed) return { tone: attacking ? 'bad' : 'good', text: attacking ? 'Their crew kept you off the keys.' : 'Your crew kept the car on your block.' };
+    if (attacking) return rides > 0
+      ? { tone: 'good', text: `${formatNumber(rides)} Low-Rider came home with your crew.` }
+      : { tone: 'hint', text: 'You won the fight, but nobody made it back with a ride.' };
+    return rides > 0
+      ? { tone: 'bad', text: `${formatNumber(rides)} Low-Rider left your block.` }
+      : { tone: 'hint', text: 'They won the fight, but your ride stayed put.' };
+  }
+
+  if (report.kind === 'LURE_CREW') {
+    const crewLured = (form.whoresLured ?? 0) + (form.thugsLured ?? 0);
+    if (!landed) return { tone: attacking ? 'bad' : 'good', text: attacking ? 'Their crew broke up the pitch before anybody crossed over.' : 'Your crew broke up their pitch before anybody crossed over.' };
+    if (attacking) return crewLured > 0
+      ? { tone: 'good', text: `${formatNumber(crewLured)} people crossed the street and joined you.` }
+      : { tone: 'hint', text: 'You won the move, but nobody was unhappy enough or stocked enough to come over.' };
+    return crewLured > 0
+      ? { tone: 'bad', text: `${formatNumber(crewLured)} people left your block for their stash.` }
+      : { tone: 'hint', text: 'They won the fight, but nobody left your block.' };
+  }
+
+  return null;
+}
+
 function DriveByReport({ report, onClose }: { report: BattleReportDto; onClose?: () => void }) {
   const d = report.driveBy!;
   const attacking = report.role === 'ATTACKER';
@@ -103,19 +146,10 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
   const form = report.raidForm!;
   const attacking = report.role === 'ATTACKER';
   const landed = attacking === report.won;
-  const crewLured = (form.whoresLured ?? 0) + (form.thugsLured ?? 0);
-  const lureCopy = report.kind === 'LURE_CREW' && landed
-    ? attacking
-      ? crewLured > 0
-        ? `${formatNumber(crewLured)} people crossed the street and joined you.`
-        : 'You won the move, but nobody was unhappy enough or stocked enough to come over.'
-      : crewLured > 0
-        ? `${formatNumber(crewLured)} people left your block for their stash.`
-        : 'They won the fight, but nobody left your block.'
-    : null;
+  const outcome = raidFormOutcome(report);
   return <Panel title={`${landed ? (attacking ? 'It landed' : 'They got through') : (attacking ? 'They held you off' : 'You held them off')} · ${reportLabel(report)}`}>
     <p>{attacking ? 'Against' : 'By'} <b>{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
-    {lureCopy ? <p className={crewLured > 0 ? 'se-good' : 'se-hint'}>{lureCopy}</p> : null}
+    {outcome ? <p className={outcome.tone === 'good' ? 'se-good' : outcome.tone === 'bad' ? 'se-bad' : 'se-hint'}>{outcome.text}</p> : null}
     <div className="se-rows">
       <Row label="Crew — yours / theirs" value={`${report.yourSquad} / ${report.opponentSquad}`} />
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
@@ -393,10 +427,10 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               <select id="raid-target" className="se-input" value={targetId} onChange={(event) => setTargetId(event.target.value)}>
                 <option value="">Choose a mark</option>
                 {page.targets.map((target) => <option key={target.publicPimpId} value={target.publicPimpId}>
-                  {target.displayName} (#{target.publicPimpId}) · {target.strength}{target.revengeAvailable ? ' · payback' : ''}{targetBlock(target) ? ` · ${targetBlock(target)}` : ''}
+                  {target.displayName} (#{target.publicPimpId}) · {target.strength}{target.intel ? ' · scouted' : ''}{target.revengeAvailable ? ' · payback' : ''}{targetBlock(target) ? ` · ${targetBlock(target)}` : ''}
                 </option>)}
               </select>
-              {selected ? <p className="se-hint" title="Net worth is street reputation. Scouting reveals the details: fit thugs, wounds, weapons, cash range, crack and max haul.">Net worth {formatCents(selected.netWorthCents)} · {selected.strength} crew. {selected.revengeAvailable ? 'Payback is open.' : selectedBlock ?? (driving ? 'Only part of their crew is on the street.' : 'They have home turf.')}</p> : null}
+              {selected ? <p className="se-hint" title="Net worth is street reputation. Scouting reveals the details: fit thugs, wounds, weapons, cash range, crack and max haul.">Net worth {formatCents(selected.netWorthCents)} · {selected.strength} crew. {selected.intel ? `Fresh intel until ${date(selected.intel.expiresAt)}.` : selected.revengeAvailable ? 'Payback is open.' : selectedBlock ?? (driving ? 'Only part of their crew is on the street.' : 'They have home turf.')}</p> : null}
               {selected && rules?.reconTurnCost ? <div className="se-intel">
                 <button type="button" className="se-btn" disabled={busy || !!pending || me.turns.turns < rules.reconTurnCost} onClick={() => void reconTarget()}>
                   Scout {selected.displayName} · {rules.reconTurnCost} turns

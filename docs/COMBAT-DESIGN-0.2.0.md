@@ -1,11 +1,11 @@
 # Combat — staged 0.2.0 design
 
-Status: **0.2.0-F public raid round and expanded raid forms implemented.** Reputation is
+Status: **0.2.0-G street polish started.** Reputation is
 built and is the existing route to better guns. The A values below remain useful
 for balance experiments; B pins a cash-only live model at `0.2.0-B.1`, C
 pins persistent temporary wounds at `0.2.0-C.1`, D pins recon and retaliation
 at `0.2.0-D.1`, E pins onboarding raid polish and drive-bys at `0.2.0-E.2`,
-and F pins the first production-facing public raid round plus drug-hoe, ride-theft and crew-lure raid forms at `0.2.0-F.2`.
+and F pins the first production-facing public raid round plus drug-hoe, ride-theft and crew-lure raid forms at `0.2.0-F.2`. G inherits that balance at `0.2.0-G.1` and starts player-facing clarity work.
 
 ## Purpose and scope
 
