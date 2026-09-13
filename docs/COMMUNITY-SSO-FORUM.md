@@ -10,23 +10,23 @@ Street Empire should use the game account as the player identity and let communi
 
 That gives the game enough authentication foundation for public play now. The next SSO step is to make the game the source of truth for player identity, then connect community software to it.
 
-## Recommended forum path
+## Recommended free forum path
 
-Use **Discourse** first.
+Use **Flarum** first.
 
 Why it fits Street Empire:
 
-- It is a complete forum with moderation, announcements, categories, private messages and long-lived searchable threads.
-- It supports Discord login if the forum needs a quick shared identity path.
-- It supports DiscourseConnect and OAuth-style integrations, so Street Empire can later become the central login and push username/avatar/group state into the forum.
-- It is easier to run beside the game on `forum.streetsempire.dev` than building a custom forum during combat/ranking development.
+- It is free, open source and MIT licensed, so the forum software itself does not add a monthly bill.
+- It is lighter than Discourse and should be easier to run beside the game on the current VPS.
+- It has groups, permissions, tags, moderation and extensions, which are enough for announcements, bug reports, rival talk and recruiting.
+- Its extension model gives us a path to Discord login now and deeper Street Empire account linking later.
 
 Suggested rollout:
 
-1. Start with `forum.streetsempire.dev` as a separate Discourse install.
+1. Start with `forum.streetsempire.dev` as a separate Flarum install.
 2. Enable Discord login on both the game and forum so players have one practical login choice early.
-3. Add a Street Empire account setting that shows community link status.
-4. Later, make Street Empire the primary identity provider for the forum so display name, badges and round achievements can sync outward.
+3. Add a Street Empire account setting that shows forum link status.
+4. Later, add a Street Empire SSO bridge so display name, badges and round achievements can sync outward.
 
 ## Game integration ideas
 
@@ -38,12 +38,14 @@ Suggested rollout:
 
 ## Other options
 
-- **NodeBB** fits a JavaScript stack and can be themed tightly, but forum/plugin maintenance would likely compete with game work.
-- **Flarum** is lightweight and clean, but its ecosystem relies more heavily on extensions for the SSO and moderation shape Street Empire will need.
+- **Discourse** is still the best full community platform if the forum gets big. It is open source and self-hostable, but it is heavier to run and its official hosted SSO/features can move into paid territory.
+- **NodeBB** fits a JavaScript stack and can be themed tightly. It is open source and free to self-host, but it wants NodeBB-specific plugin upkeep while the game itself still needs combat, alliances and travel.
 
-The practical call for now: ship the game with Discord SSO and Resend email recovery, add Discourse as the community layer, then connect game identity and achievements to it in a later milestone.
+The practical call for now: ship the game with Discord SSO and Resend email recovery, add Flarum as the free self-hosted community layer, then connect game identity and achievements to it in a later milestone.
 
 ## References
 
+- Flarum official site: https://flarum.org/
+- NodeBB self-hosting/pricing page: https://nodebb.org/pricing
 - DiscourseConnect official SSO docs: https://meta.discourse.org/t/setup-discourseconnect-official-single-sign-on-for-discourse-sso/13045
 - Discourse SSO documentation index: https://meta.discourse.org/c/documentation/10?tags=sso
