@@ -2,6 +2,8 @@
 
 0.2.0-F is the first production-facing public raid round. It keeps the E combat loop intact and changes the default seed and public lists so live rounds are about real active players.
 
+Community/SSO planning lives in [COMMUNITY-SSO-FORUM.md](COMMUNITY-SSO-FORUM.md). The current game supports email/password, Resend-backed email recovery and Discord login/linking; the recommended forum path is Discourse on `forum.streetsempire.dev` with shared game/Discord identity.
+
 ## Status
 
 - Ruleset: `classic-og-v0.2-f` at version `0.2.0-F`.

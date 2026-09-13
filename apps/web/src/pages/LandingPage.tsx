@@ -15,22 +15,24 @@ export function LandingPage() {
       : { to: '/join', label: `Enter ${round?.name ?? 'the game'}` };
 
   const ruleset = round ? (rulesets[round.rulesetId] ?? classicOgV01) : null;
+  const activeRound = round?.status === 'ACTIVE';
 
   return (
     <Shell>
       <div className="se-grid se-grid--sidebar">
         <div>
-          <p className="se-eyebrow">Classic OG &middot; Ruleset {round?.rulesetId ?? 'classic-og-v0.2-f'}</p>
+          <p className="se-eyebrow">Street Empire &middot; 28 day strategy rounds</p>
           <h1 className="se-display se-hero">
-            Run the block.
+            Build your crew.
             <br />
-            <span className="se-accent">Own the city.</span>
+            <span className="se-accent">Take the streets.</span>
           </h1>
 
           <p className="se-lede">
-            Every ten minutes you get two more turns. Spend them scouting, cooking,
-            stacking cash or raiding rivals &mdash; then watch where that lands you
-            on the board. Turns are the only currency that never comes back.
+            Street Empire is a round-based crime strategy game. Start with a small block,
+            spend your turns scouting districts, working the street, stocking your crew
+            and making raid moves against rivals. The board is public, but the best intel
+            still belongs to players who put eyes on a target first.
           </p>
 
           <div className="se-cta">
@@ -47,25 +49,41 @@ export function LandingPage() {
           <hr className="se-hr" />
 
           <div className="se-grid se-grid--2">
-            <Panel title="The loop">
+            <Panel title="How the round plays">
               <ul className="se-list">
-                <li>Scout the districts for clients, whores and thugs.</li>
-                <li>Keep them stocked, armed and paid, or they walk.</li>
-                <li>Cook crack, move it, and turn cash into net worth.</li>
-                <li>Climb the local and national boards before the round ends.</li>
+                <li>Turns come back over time. Use them to scout, produce, attack or build.</li>
+                <li>Money, crew size, weapons, drugs and supplies all feed your net worth.</li>
+                <li>Stores unlock better gear as your reputation with each trader grows.</li>
+                <li>Rankings show money, rank streaks, movement, awards and past legacy.</li>
               </ul>
             </Panel>
 
-            <Panel title="Still being built">
-              <ul className="se-list se-list--muted">
-                <li>Deeper combat tactics</li>
-                <li>Alliances and alliance rankings</li>
-                <li>Travel between cities</li>
-                <li>Messaging, console and rolodex</li>
+            <Panel title="Raids are live">
+              <ul className="se-list">
+                <li>Cash raids take exposed money and crack from a scouted mark.</li>
+                <li>Drive-bys soften a block and can cost you a Low-Rider if nobody makes it home.</li>
+                <li>Drug runs burn a rival&apos;s hoes, crack and condoms.</li>
+                <li>Ride theft and lure runs steal cars or unhappy crew when the hit lands.</li>
               </ul>
+            </Panel>
+
+            <Panel title="Your account travels with you">
+              <ul className="se-list">
+                <li>Log in with email and password or Discord single sign-on.</li>
+                <li>Recover your account by email when you lose your password.</li>
+                <li>Link Discord and manage your recovery email from account settings.</li>
+                <li>Achievements, awards and past winnings build your public legacy.</li>
+              </ul>
+            </Panel>
+
+            <Panel title="Community next">
+              <p>
+                The game should have a real street forum beside the round: announcements,
+                rival talk, crew recruiting, bug reports and war stories.
+              </p>
               <p className="se-hint">
-                Raids and drive-bys are live in the public raid round. Local development can seed rivals when
-                the core attack loop needs quick solo testing.
+                The best next fit is Discourse with Street Empire/Discord SSO, so players can move between the
+                game and community without juggling separate accounts.
               </p>
             </Panel>
           </div>
@@ -73,7 +91,7 @@ export function LandingPage() {
 
         <aside>
           {round ? (
-            <Panel title={round.name} aside={round.status} flush>
+            <Panel title={round.name} aside={activeRound ? 'Open now' : round.status} flush>
               <div className="se-rows">
                 <Row label="Status" value={round.status} />
                 <Row
@@ -90,6 +108,14 @@ export function LandingPage() {
                   label="Ruleset"
                   value={`${round.rulesetId}@${round.rulesetVersion}`}
                 />
+              </div>
+              <div className="se-cta se-mt">
+                <Link className="se-btn se-btn--primary" to={cta.to}>
+                  {cta.label}
+                </Link>
+                <Link className="se-btn" to="/news">
+                  Latest changes
+                </Link>
               </div>
             </Panel>
           ) : (

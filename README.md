@@ -20,8 +20,9 @@ reports. **0.2.0-C** adds persistent temporary wounds, natural recovery, and
 medicine treatment in its own pinned ruleset. **0.2.0-D** adds recon intel and
 24-hour revenge windows in a new strategy ruleset. **0.2.0-E** adds a self-contained onboarding round with seeded local rivals, tooltips, harsher unarmed-thug happiness penalties, armed-thug scouting coverage, public legacy rankings, weighted raid loot, repeat-target diminishing returns, drive-bys and a full achievement gallery. **0.2.0-F** turns that ruleset into the first public raid round: production rankings and combat targets only show active player accounts, while local development can opt into seeded rivals for solo testing, and old-school raid forms now include drug runs, ride theft and luring unhappy crew. Older rounds stay pinned to their original rulesets, while the default seed now makes Game #006 the current 0.2.0-F public raid round. Read the [F implementation notes](docs/COMBAT-0.2.0-F.md), the [E implementation notes](docs/COMBAT-0.2.0-E.md), the [D implementation notes](docs/COMBAT-0.2.0-D.md),
 the [C implementation notes](docs/COMBAT-0.2.0-C.md), the [B implementation notes](docs/COMBAT-0.2.0-B.md), the
-[staged combat design](docs/COMBAT-DESIGN-0.2.0.md) and the
-[simulation findings](docs/COMBAT-SIMULATION-0.2.0-A.md), or run `npm run qa:combat`.
+[staged combat design](docs/COMBAT-DESIGN-0.2.0.md), the
+[simulation findings](docs/COMBAT-SIMULATION-0.2.0-A.md) and the
+[community/SSO forum plan](docs/COMMUNITY-SSO-FORUM.md), or run `npm run qa:combat`.
 
 | Milestone | Scope | State |
 | --- | --- | --- |

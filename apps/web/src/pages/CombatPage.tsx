@@ -103,14 +103,28 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
   const form = report.raidForm!;
   const attacking = report.role === 'ATTACKER';
   const landed = attacking === report.won;
+  const crewLured = (form.whoresLured ?? 0) + (form.thugsLured ?? 0);
+  const lureCopy = report.kind === 'LURE_CREW' && landed
+    ? attacking
+      ? crewLured > 0
+        ? `${formatNumber(crewLured)} people crossed the street and joined you.`
+        : 'You won the move, but nobody was unhappy enough or stocked enough to come over.'
+      : crewLured > 0
+        ? `${formatNumber(crewLured)} people left your block for their stash.`
+        : 'They won the fight, but nobody left your block.'
+    : null;
   return <Panel title={`${landed ? (attacking ? 'It landed' : 'They got through') : (attacking ? 'They held you off' : 'You held them off')} · ${reportLabel(report)}`}>
     <p>{attacking ? 'Against' : 'By'} <b>{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
+    {lureCopy ? <p className={crewLured > 0 ? 'se-good' : 'se-hint'}>{lureCopy}</p> : null}
     <div className="se-rows">
       <Row label="Crew — yours / theirs" value={`${report.yourSquad} / ${report.opponentSquad}`} />
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds ?? 0)} / ${formatNumber(report.opponentWounds ?? 0)}`} />
       {form.whoresDrugged !== undefined ? <Row label={attacking ? 'Their hoes drugged' : 'Your hoes drugged'} value={formatNumber(form.whoresDrugged)} strong={form.whoresDrugged > 0} /> : null}
+      {form.whoresLured !== undefined ? <Row label={attacking ? 'Hoes joined / now' : 'Hoes lost / left'} value={form.whoresAfter !== undefined ? `${formatNumber(form.whoresLured)} / ${formatNumber(form.whoresAfter)}` : formatNumber(form.whoresLured)} strong={form.whoresLured > 0} /> : null}
+      {form.thugsLured !== undefined ? <Row label={attacking ? 'Thugs joined / now' : 'Thugs lost / left'} value={form.thugsAfter !== undefined ? `${formatNumber(form.thugsLured)} / ${formatNumber(form.thugsAfter)}` : formatNumber(form.thugsLured)} strong={form.thugsLured > 0} /> : null}
       {form.crackSpent !== undefined && attacking ? <Row label="Crack spent" value={formatNumber(form.crackSpent)} /> : null}
+      {form.beerSpent !== undefined && attacking ? <Row label="Beer spent" value={formatNumber(form.beerSpent)} /> : null}
       {form.defenderCrackBurned !== undefined ? <Row label={attacking ? 'Their crack burned' : 'Your crack burned'} value={formatNumber(form.defenderCrackBurned)} strong={form.defenderCrackBurned > 0} /> : null}
       {form.defenderCondomsBurned !== undefined ? <Row label={attacking ? 'Their condoms burned' : 'Your condoms burned'} value={formatNumber(form.defenderCondomsBurned)} strong={form.defenderCondomsBurned > 0} /> : null}
       {form.lowRidersStolen !== undefined ? <Row label={attacking ? 'Low-Riders stolen' : 'Low-Riders lost'} value={`${formatNumber(form.lowRidersStolen)} · ${formatNumber(form.lowRidersAfter ?? 0)} left`} strong={form.lowRidersStolen > 0} /> : null}
