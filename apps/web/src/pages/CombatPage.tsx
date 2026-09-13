@@ -17,6 +17,52 @@ const weaponsText = (weapons: Record<string, number>) => Object.entries(weapons)
 const reportAnimationMs = 180;
 
 type Mode = 'RAID' | 'DRIVE_BY' | SpecialRaidKindDto;
+type CombatRulesDto = NonNullable<CombatPageDto['rules']>;
+type CombatDriveByState = NonNullable<CombatPageDto['driveBy']>;
+
+function HitRulesPanel({ mode, rules, driveBy, specialRaid }: { mode: Mode; rules: CombatRulesDto; driveBy?: CombatDriveByState; specialRaid?: CombatSpecialRaidDto }) {
+  if (mode === 'DRIVE_BY' && driveBy) return <Panel title="Drive-by rules">
+    <p>Send shooters in Low-Riders to soften a rival before the next score. A drive-by costs {driveBy.rules.turnCost} turns and steals nothing.</p>
+    <p>If it lands, {driveBy.rules.minThugWoundPercent}%–{driveBy.rules.maxThugWoundPercent}% of their fit thugs get wounded and {driveBy.rules.minWhoreKillPercent}%–{driveBy.rules.maxWhoreKillPercent}% of their hoes are killed for good. Bigger hits can happen, but smaller ones are more common.</p>
+    <p>Each Low-Rider carries {driveBy.rules.thugsPerLowRider} shooters. About {driveBy.rules.defenderFieldedPercent}% of their fit crew is out front to shoot back.</p>
+    <p>If your whole car gets dropped, that car is gone. If one shooter makes it home, the Low-Rider comes back.</p>
+    <p>Your cars need {driveBy.rules.cooldownMinutes} minutes before another drive-by. A block hit by a drive-by gets {driveBy.rules.protectionHours} hours before the next drive-by.</p>
+  </Panel>;
+
+  if (mode === 'DRUG_HOES' && specialRaid) return <Panel title="Drug hoes rules">
+    <p>Send your crew in with crack and wreck a rival&apos;s supply line. This move costs {specialRaid.turnCost} turns and uses the raid clock.</p>
+    <p>If your crew wins, their hoes burn through your crack plus extra crack and condoms from their own stash. It can drag down their earning power on future turns.</p>
+    <p>The more thugs make it home, the more hoes your crew can reach. Defense is automatic, and both crews can take wounds.</p>
+    <p>After the hit, their block gets {rules.protectionHours} hours of breathing room and your crew needs {rules.cooldownMinutes} minutes before another raid move.</p>
+  </Panel>;
+
+  if (mode === 'STEAL_RIDE' && specialRaid) return <Panel title="Steal ride rules">
+    <p>Send your crew after one of their Low-Riders. This move costs {specialRaid.turnCost} turns and uses the raid clock.</p>
+    <p>If your crew wins and at least one thug makes it back, one of their Low-Riders comes home with you.</p>
+    <p>Defense is automatic, and both crews can take wounds. If nobody makes it back, you do not get the ride.</p>
+    <p>After the hit, their block gets {rules.protectionHours} hours of breathing room and your crew needs {rules.cooldownMinutes} minutes before another raid move.</p>
+  </Panel>;
+
+  if (mode === 'LURE_CREW' && specialRaid) return <Panel title="Lure crew rules">
+    <p>Go after a rival whose people are unhappy. This move costs {specialRaid.turnCost} turns and uses the raid clock.</p>
+    <p>Crack can pull unhappy hoes. Beer can pull unhappy fit thugs. If their people are still loyal, nobody leaves for your stash.</p>
+    <p>If your crew wins, survivors bring whoever they talked into leaving back to your block. The target loses those people, and they join your crew.</p>
+    <p>After the hit, their block gets {rules.protectionHours} hours of breathing room and your crew needs {rules.cooldownMinutes} minutes before another raid move.</p>
+  </Panel>;
+
+  return <Panel title="Raid rules">
+    <p>Send fit thugs at a rival and take what they expose. A raid costs {rules.turnCost} turns whether it works or goes bad.</p>
+    {rules.minLootPercent !== undefined && rules.maxLootPercent !== undefined
+      ? <p>On a win, your crew takes {rules.minLootPercent}%–{rules.maxLootPercent}% of exposed cash above {formatCents(rules.protectedCashCents)}. Big hauls can happen, but most scores are smaller. Each fit thug can carry up to {formatCents(rules.perThugLootCents)} home.</p>
+      : <p>On a win, take up to {rules.lootPercent}% of cash above {formatCents(rules.protectedCashCents)}, limited to {formatCents(rules.perThugLootCents)} per thug you send.</p>}
+    {rules.drugLootPercent ? <p>A winning crew can grab crack too, up to {formatNumber(rules.perThugCrackLoot ?? 0)} rocks per fit thug who makes it home.</p> : null}
+    {rules.repeatLootPenaltyPercent ? <p>Keep hitting the same mark and the take dries up: each repeat cuts the loot roll by {rules.repeatLootPenaltyPercent}%, down to {rules.repeatLootFloorPercent ?? 0}% of normal. Hit somebody else to clear the heat.</p> : null}
+    <p>{rules.newcomerHours > 0 ? `New players have ${rules.newcomerHours} hours of protection. ` : 'New players can raid immediately in this round. '}After a raid, that block gets {rules.protectionHours} hours of breathing room from everyone.</p>
+    <p>Your crew needs {rules.cooldownMinutes} minutes between raids. You cannot raid while your own block is protected or hit a crew below half your strength.</p>
+    {rules.reconTurnCost ? <p>Scouting costs {rules.reconTurnCost} turns and keeps fresh intel for {rules.intelExpiresMinutes} minutes. Payback stays open for {rules.retaliationHours} hours against crews that hit you.</p> : null}
+    <p className="se-hint">Wounded thugs recover with time. Medicine gets them back on their feet now.</p>
+  </Panel>;
+}
 
 /** How a report reads in the list and as its heading. */
 function reportLabel(report: BattleReportDto): string {
@@ -408,31 +454,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             Patch up {formatNumber(page.recovery.maxTreatableThugs)} with medicine
           </button> : <p className="se-hint">Everybody is standing.</p>}
         </Panel> : null}
-        <Panel title="Raid rules">
-          <p>A raid costs {rules!.turnCost} turns whether it works or goes bad. Defense happens automatically and costs nothing.</p>
-          {rules!.minLootPercent !== undefined && rules!.maxLootPercent !== undefined
-            ? <p>On a win, your crew takes {rules!.minLootPercent}%–{rules!.maxLootPercent}% of exposed cash above {formatCents(rules!.protectedCashCents)}. Big hauls can happen, but most scores are smaller. Each fit thug can carry up to {formatCents(rules!.perThugLootCents)} home.</p>
-            : <p>On a win, take up to {rules!.lootPercent}% of cash above {formatCents(rules!.protectedCashCents)}, limited to {formatCents(rules!.perThugLootCents)} per thug you send.</p>}
-          {rules!.drugLootPercent ? <p>A winning crew can grab crack too, up to {formatNumber(rules!.perThugCrackLoot ?? 0)} rocks per fit thug who makes it home.</p> : null}
-          {rules!.repeatLootPenaltyPercent ? <p>Keep hitting the same mark and the take dries up: each repeat cuts the loot roll by {rules!.repeatLootPenaltyPercent}%, down to {rules!.repeatLootFloorPercent ?? 0}% of normal. Hit somebody else to clear the heat.</p> : null}
-          <p>{rules!.newcomerHours > 0 ? `New players have ${rules!.newcomerHours} hours of protection. ` : 'New players can raid immediately in this round. '}After a raid, that block gets {rules!.protectionHours} hours of breathing room from everyone. Offline crews have to come back before they can be hit again.</p>
-          <p>Your crew needs {rules!.cooldownMinutes} minutes between attacks. You cannot raid while your own block is protected or hit a crew below half your strength.</p>
-          {rules!.reconTurnCost ? <p>Scouting costs {rules!.reconTurnCost} turns and keeps fresh intel for {rules!.intelExpiresMinutes} minutes. Payback stays open for {rules!.retaliationHours} hours against crews that hit you.</p> : null}
-          <p className="se-hint">Wounded thugs recover with time. Medicine gets them back on their feet now.</p>
-        </Panel>
-
-        {specialRaids.length ? <Panel title="Other ways to hit them">
-          <p><b>Drug hoes</b> sends your crew in with your crack. If it lands, their hoes burn through crack and condoms, dragging down the block's earning power.</p>
-          <p><b>Steal ride</b> sends your crew after one of their Low-Riders. If the crew wins and somebody makes it home, the car is yours.</p>
-          <p><b>Lure crew</b> works only when their people are unhappy. Bring crack for their hoes and beer for their thugs; if your crew lands the move, some of them come home with you.</p>
-          <p className="se-hint">These moves use the raid clock and give the target the same breathing room as a raid.</p>
-        </Panel> : null}
-        {driveBy ? <Panel title="Drive-by rules">
-          <p>A drive-by costs {driveBy.rules.turnCost} turns and steals nothing. It softens a crew before the next move: land one and {driveBy.rules.minThugWoundPercent}%–{driveBy.rules.maxThugWoundPercent}% of their fit thugs are wounded, while {driveBy.rules.minWhoreKillPercent}%–{driveBy.rules.maxWhoreKillPercent}% of their whores are killed for good. Big damage is possible, but smaller hits are more common.</p>
-          <p>You need a Low-Rider. Each car carries {driveBy.rules.thugsPerLowRider} shooters. About {driveBy.rules.defenderFieldedPercent}% of their fit crew is out front to shoot back.</p>
-          <p>If they win the exchange, your shooters take the damage. Lose everyone in a car and the car is gone. If one shooter makes it back, the Low-Rider comes home too.</p>
-          <p>Your cars need {driveBy.rules.cooldownMinutes} minutes between drive-bys. Drive-bys and raids run on separate clocks. A block hit by a drive-by gets {driveBy.rules.protectionHours} hours before the next drive-by, and an offline crew has to come back first.</p>
-        </Panel> : null}
+        <HitRulesPanel mode={mode} rules={rules!} driveBy={driveBy} specialRaid={specialRaid} />
       </div>
     </div>}
   </GameLayout>;
