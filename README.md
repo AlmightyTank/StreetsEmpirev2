@@ -76,6 +76,7 @@ Open <http://localhost:5173>, register a name, and enter Game #008 - Raid Trophi
 | `npm run db:seed:combat:strategy` | create local Game #004 with `classic-og-v0.2-d` strategy raids |
 | `npm run db:seed:combat:onboarding` | create local Game #005 with `classic-og-v0.2-e` and seeded rivals |
 | `npm run db:seed:dev-bots` | reseed the current public raid round with active local bots for testing every raid form |
+| `npm run db:dev-bots:status` | show seeded bot accounts and whether they are in the current round |
 | `npm run db:cleanup:seed-rivals` | remove seeded rival/dev bot accounts |
 
 ---

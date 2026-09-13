@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { classicOgV01, rulesets } from '@streets/rulesets';
 import { formatCents, formatNumber } from '@streets/shared';
 import { ApiError } from '../api/client.js';
@@ -63,8 +63,8 @@ export function JoinPage() {
       <p className="se-eyebrow">Enter the round</p>
       <h1 className="se-display se-hero se-hero--sm">{round.name}</h1>
       <p className="se-lede">
-        You start in New York City with a name, a little cash and 200 turns.
-        What you do with them is on you. Strategy raid rounds start with a crew ready to fight.
+        You start in New York City with cash, turns, guns and a crew ready to fight.
+        Build income first, scout before risky hits, then climb the public board before the round clock runs out.
       </p>
 
       {message ? <Alert>{message}</Alert> : null}
@@ -90,12 +90,23 @@ export function JoinPage() {
           </div>
         </Panel>
 
+        <Panel title="First moves">
+          <ol className="se-list">
+            <li>Scout a district to bring in cash, whores and thugs.</li>
+            <li>Buy condoms, beer and weapons before happiness starts dragging you down.</li>
+            <li>Produce crack when your shelves get thin or you want stash for drug and lure runs.</li>
+            <li>Scout a rival on the raid page before you risk a serious hit.</li>
+          </ol>
+          <p className="se-hint">Rankings show public money and legacy. Recon is where you learn private raid info like wounds, weapons, crack and exposed cash.</p>
+        </Panel>
+
         <aside>
           <Panel title="Round" flush>
             <div className="se-rows">
               <Row label="Status" value={round.status} />
               <Row label="Time remaining" value={formatDuration(round.msRemaining)} strong />
               <Row label="Players" value={round.playerCount} />
+              <Row label="Window" value={`${formatDuration(round.msRemaining)} to build, raid and rank`} />
               <Row
                 label="Turns"
                 value={`+${ruleset.turns.amountPerInterval} every ${ruleset.turns.intervalMinutes} min`}
@@ -123,6 +134,9 @@ export function JoinPage() {
                 round ends.
               </p>
             )}
+            <p className="se-hint">
+              Want the latest patch notes first? Read the <Link to="/game/news">development wire</Link> after you join.
+            </p>
           </div>
         </aside>
       </div>

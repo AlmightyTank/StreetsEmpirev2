@@ -6,6 +6,27 @@ import { classicOgV01, classicOgV02D, classicOgV02H, type Ruleset, type SeededRi
 const prisma = new PrismaClient();
 const CURRENT_RULESET = classicOgV02H;
 const shouldSeedRivals = process.env.SEED_DEV_BOTS === '1' || process.env.SEED_RIVALS === '1';
+const allowUnsafeDevBots = process.env.ALLOW_DEV_BOTS === 'I_UNDERSTAND';
+
+function isLocalDatabase(url: string | undefined): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function assertSafeDevBotSeed(): void {
+  if (!shouldSeedRivals) return;
+  if (process.env.NODE_ENV === 'production' && !allowUnsafeDevBots) {
+    throw new Error('Refusing to seed dev bots with NODE_ENV=production. Set ALLOW_DEV_BOTS=I_UNDERSTAND only for a deliberate one-off test.');
+  }
+  if (!isLocalDatabase(process.env.DATABASE_URL) && !allowUnsafeDevBots) {
+    throw new Error('Refusing to seed dev bots into a non-local DATABASE_URL. Set ALLOW_DEV_BOTS=I_UNDERSTAND only if this is an isolated test database.');
+  }
+}
 
 
 const DEV_TEST_RIVALS = [
@@ -340,6 +361,7 @@ async function seedRivals(round: Round, ruleset: Ruleset, now: Date, rivals: rea
 
 async function main() {
   console.log('Seeding Street Empire...');
+  assertSafeDevBotSeed();
   const now = new Date();
   await seedCities();
   const classicRound = await seedClassicRound(now);

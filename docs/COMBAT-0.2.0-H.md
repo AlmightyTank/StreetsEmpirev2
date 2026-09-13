@@ -19,6 +19,9 @@
   - winning lure runs and recruiting rival crew.
 - The achievement context now reads existing battle reports for drive-bys and special raid forms, so older reports from this combat model count without a schema migration.
 - Seed, health, top bar, news and docs now identify the active work as 0.2.0-H.
+- Game Status now explains the current round phase, links players to raids and patch notes, and shows local-only dev bot commands on localhost.
+- Join onboarding now gives first-move guidance before a new player enters the round.
+- Dev bot seeding refuses production and non-local databases unless `ALLOW_DEV_BOTS=I_UNDERSTAND` is set for an intentional isolated test.
 
 ## Next H work
 
@@ -26,3 +29,4 @@
 - Add report callouts when a raid trophy unlocks.
 - Add profile filters for earned, locked and combat-only achievements.
 - Add a small balance simulation for special raid forms, similar to the cash raid simulator.
+- Move the forum URL into environment config before production points the Community nav at a live install.

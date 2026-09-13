@@ -12,7 +12,7 @@ const developmentUpdates = [
   {
     id: 'dev-0.2.0-h',
     title: '0.2.0-H: Raid trophies begin',
-    body: 'H keeps the G raid balance and starts the achievement pass for the expanded combat system. Drive-bys, drug runs, ride theft and lure runs now have their own public goals, including landing a drive-by, drugging rival hoes, stealing Low-Riders and pulling unhappy crew across the street.',
+    body: 'H keeps the G raid balance and starts the achievement pass for the expanded combat system. Drive-bys, drug runs, ride theft and lure runs now have their own public goals, including landing a drive-by, drugging rival hoes, stealing Low-Riders and pulling unhappy crew across the street. This pass also tightens production polish around round status, new-player onboarding and local-only dev bot controls.',
   },
   {
     id: 'dev-0.2.0-g',
