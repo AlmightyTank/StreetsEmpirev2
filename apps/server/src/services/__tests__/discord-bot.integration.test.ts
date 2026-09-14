@@ -270,7 +270,14 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
       const expected = {
         displayName: accounts[0]!.username,
         rounds: [{ name: 'Bot History Round', endedAt: past.endsAt.toISOString(), displayName: 'Old Name', rank: 3, netWorthCents: 1_234_500, city: 'Bot Test City' }],
-        legacy: { roundsPlayed: 1, roundWins: 0, bestNationalRank: 3, totalFinalNetWorthCents: 1_234_500 },
+        legacy: {
+          roundsPlayed: 1,
+          roundWins: 0,
+          topTenFinishes: 1,
+          bestNationalRank: 3,
+          bestLocalRank: null,
+          totalFinalNetWorthCents: 1_234_500,
+        },
       };
       const byDiscord = await app.inject({ url: `/api/internal/discord/history?discordId=${accounts[0]!.discordId}`, headers: auth() });
       expect(byDiscord.statusCode, byDiscord.body).toBe(200);

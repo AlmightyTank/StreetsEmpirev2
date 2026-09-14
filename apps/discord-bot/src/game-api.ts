@@ -21,7 +21,14 @@ const badgeSchema = z.object({
   permanent: z.boolean(),
 });
 
-const legacySchema = z.object({ roundsPlayed: z.number(), roundWins: z.number(), bestNationalRank: z.number().nullable() });
+const legacySchema = z.object({
+  roundsPlayed: z.number(),
+  roundWins: z.number(),
+  topTenFinishes: z.number(),
+  bestNationalRank: z.number().nullable(),
+  bestLocalRank: z.number().nullable(),
+  totalFinalNetWorthCents: z.number(),
+});
 
 const profileSchema = z.object({
   player: z.object({

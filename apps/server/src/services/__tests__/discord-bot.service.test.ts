@@ -4,7 +4,13 @@ import { botTokenMatches, competitionRanks, rankAlertFor, rankValues, reminderDe
 
 const token = 'bot-token-'.repeat(8);
 const legacy = (overrides: Partial<PublicLegacyDto> = {}): PublicLegacyDto => ({
-  roundsPlayed: 0, roundWins: 0, bestNationalRank: null, totalFinalNetWorthCents: 0, ...overrides,
+  roundsPlayed: 0,
+  roundWins: 0,
+  topTenFinishes: 0,
+  bestNationalRank: null,
+  bestLocalRank: null,
+  totalFinalNetWorthCents: 0,
+  ...overrides,
 });
 
 describe('botTokenMatches', () => {
@@ -39,7 +45,7 @@ describe('roleKeysFor', () => {
     expect(roleKeysFor({
       inRound: true,
       nationalRank: 1,
-      legacy: legacy({ roundsPlayed: 4, roundWins: 3, bestNationalRank: 1 }),
+      legacy: legacy({ roundsPlayed: 4, roundWins: 3, topTenFinishes: 3, bestNationalRank: 1 }),
       forumGroups: [{ name: 'Admin', color: '#b72a2a' }],
     })).toEqual(['linked', 'player', 'national-1', 'top-10', 'veteran', 'past-winner', 'hall-of-fame', 'top-finisher', 'forum:Admin']);
 

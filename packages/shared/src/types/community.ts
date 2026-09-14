@@ -41,8 +41,51 @@ export interface ForumGroupBadgeDto {
 export interface PublicLegacyDto {
   roundsPlayed: number;
   roundWins: number;
+  topTenFinishes: number;
   bestNationalRank: number | null;
+  bestLocalRank: number | null;
   totalFinalNetWorthCents: number;
+}
+
+export interface PublicSeasonStatsDto {
+  raidAttacks: number;
+  raidAttackWins: number;
+  raidDefenses: number;
+  raidDefenseWins: number;
+  driveByAttacks: number;
+  driveByWins: number;
+  reconRuns: number;
+  traderFavors: number;
+}
+
+export interface PublicSeasonResultDto {
+  round: {
+    id: string;
+    name: string;
+    slug: string;
+    status: RoundDto['status'];
+    rulesetId: string;
+    rulesetVersion: string;
+    startsAt: string;
+    endedAt: string;
+  };
+  publicPimpId: number;
+  displayName: string;
+  city: CityDto;
+  finalNetWorthCents: number;
+  finalCashCents: number;
+  rank: {
+    local: number | null;
+    national: number | null;
+  };
+  stats: PublicSeasonStatsDto;
+  joinedAt: string;
+  lastActiveAt: string;
+}
+
+export interface PublicCareerDto {
+  legacy: PublicLegacyDto;
+  seasons: PublicSeasonResultDto[];
 }
 
 export interface RankingEntryDto {
@@ -87,6 +130,7 @@ export interface PublicPlayerProfileDto {
     nationalMovement: number | null;
   };
   legacy: PublicLegacyDto;
+  career: PublicCareerDto;
   awards: PublicAwardDto[];
   crew: {
     whores: number;
@@ -108,6 +152,10 @@ export interface PublicPlayerProfileDto {
 
 export interface PublicPlayerProfileResponseDto {
   player: PublicPlayerProfileDto;
+}
+
+export interface PublicCareerResponseDto {
+  career: PublicCareerDto;
 }
 
 export interface ActivityHistoryDto {

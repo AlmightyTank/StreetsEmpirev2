@@ -141,7 +141,14 @@ function rankedEntries(rows: RankedRow[]): DiscordRankingEntryDto[] {
   }));
 }
 
-const emptyLegacy = (): PublicLegacyDto => ({ roundsPlayed: 0, roundWins: 0, bestNationalRank: null, totalFinalNetWorthCents: 0 });
+const emptyLegacy = (): PublicLegacyDto => ({
+  roundsPlayed: 0,
+  roundWins: 0,
+  topTenFinishes: 0,
+  bestNationalRank: null,
+  bestLocalRank: null,
+  totalFinalNetWorthCents: 0,
+});
 
 const notLinked = () => AppError.notFound('DISCORD_NOT_LINKED', 'That Discord account is not linked to a Street Empire account.');
 

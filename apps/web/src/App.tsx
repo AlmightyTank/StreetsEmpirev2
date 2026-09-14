@@ -80,7 +80,7 @@ export function App() {
 
       <Route path="/game/rankings" element={<Protected><LiveRound><RankingsPage /></LiveRound></Protected>} />
       <Route path="/game/hall-of-fame" element={<HallOfFamePage />} />
-      <Route path="/game/profile" element={<Protected><LiveRound><ProfilePage /></LiveRound></Protected>} />
+      <Route path="/game/profile" element={<Protected><ProfilePage /></Protected>} />
       <Route path="/game/forum/:forumUserId" element={<Protected><LiveRound><ProfilePage /></LiveRound></Protected>} />
       <Route path="/game/players/:publicPimpId" element={<Protected><LiveRound><ProfilePage /></LiveRound></Protected>} />
       <Route path="/game/activity" element={<Protected><LiveRound><ActivityPage /></LiveRound></Protected>} />

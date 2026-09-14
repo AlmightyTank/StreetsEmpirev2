@@ -31,7 +31,14 @@ const card: ProfileCard = {
   city: 'Detroit',
   netWorthCents: 123_456_78,
   rank: { local: 2, national: 5, nationalMovement: 3 },
-  legacy: { roundsPlayed: 2, roundWins: 1, bestNationalRank: 1 },
+  legacy: {
+    roundsPlayed: 2,
+    roundWins: 1,
+    topTenFinishes: 2,
+    bestNationalRank: 1,
+    bestLocalRank: 1,
+    totalFinalNetWorthCents: 10_000_000,
+  },
   badges: [
     { key: 'past-winner', title: 'Past Winner', description: 'd', rarity: 'legendary', permanent: true },
     { key: 'enforcer', title: 'Enforcer', description: 'd', rarity: 'uncommon', permanent: false },

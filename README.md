@@ -62,7 +62,7 @@ npm run db:seed           # 8 cities, pinned older rounds, current Game #009 sea
 npm run dev               # api on :3001, web on :5173
 ```
 
-Open <http://localhost:5173>, register a name, and enter Game #008 - Raid Trophies. New players start with cash, thugs, pistols, beer and medicine. Default seeds no bot rivals; for local solo raid testing, run `npm run db:seed:dev-bots` to add active dev bots for cash raids, drug runs, ride theft, lures and drive-bys.
+Open <http://localhost:5173>, register a name, and enter Game #009 - Season End. New players start with cash, thugs, pistols, beer and medicine. Default seeds no bot rivals; for local solo raid testing, run `npm run db:seed:dev-bots` to add active dev bots for cash raids, drug runs, ride theft, lures and drive-bys.
 
 | Script | Does |
 | --- | --- |
@@ -127,6 +127,14 @@ retuned in one place &mdash; whore happiness is the main one.
 **Rounds pin their ruleset.** `Round.rulesetId` and `Round.rulesetVersion` are loaded
 through `loadRulesetForRound()`, which throws rather than quietly playing by different
 numbers than the round was created with.
+
+**Seasons are fair competitive resets.** `Account` is the permanent identity;
+`RoundPlayer` is the seasonal run. Cash, crew, weapons, inventory, shop stock,
+cooldowns, protection, trader reputation and ranks live on `RoundPlayer` and do not
+carry into the next season. Finished seasons keep their frozen `RoundPlayer` rows as
+career history only: Hall of Fame podiums, profile badges, final ranks, final net worth
+and season stats can follow the account, but none of that history changes a new
+round's starting kit.
 
 **Turns regenerate lazily.** No job sweeps the player table every ten minutes. Whole
 elapsed intervals are settled on read and `lastTurnCalculationAt` advances by exactly
@@ -254,6 +262,11 @@ POST /api/game/combat/special
 POST /api/game/combat/recon
 POST /api/game/combat/treat
 GET  /api/game/combat/reports
+GET  /api/game/rankings
+GET  /api/game/hall-of-fame
+GET  /api/game/career
+GET  /api/game/players/:publicPimpId
+GET  /api/game/activity
 ```
 
 **Joining a round** runs as one transaction: allocate the public pimp id from the round
@@ -266,7 +279,7 @@ lands &mdash; so it never acts on stale numbers.
 
 The frozen 0.1.0 round still gives exactly section 11: `$5,000`, 200 turns, 1 whore, 1 thug, 250 condoms,
 100 crack, 10 beer, 50% payout, New York City &mdash; which is a net worth of `$6,827`,
-100% whore happiness and 99% thug happiness (one thug, no gun). The current 0.2.0-H public raid round starts players at `$20,000` with 10 thugs, 10 pistols, beer and medicine. In H, production rankings, profiles and combat lists show active player accounts only; local development can opt into active dev bots with `npm run db:seed:dev-bots`. Missing guns cost more thug happiness, only armed fit thugs count as street cover while scouting, luring can pull unhappy hoes and thugs with crack and beer, special raid reports explain the outcome, raid-form achievements track the newer attacks, and public pages show money, rank tenure, movement, past results and a fuller achievement gallery while opponent crew, weapons, wounds, exposed cash and crack stash stay behind recon.
+100% whore happiness and 99% thug happiness (one thug, no gun). The current 0.3.0-A public season starts players at `$20,000` with 10 thugs, 10 pistols, beer and medicine, then freezes final standings when the round ends. Production rankings, profiles and combat lists show active player accounts only; local development can opt into active dev bots with `npm run db:seed:dev-bots`. Missing guns cost more thug happiness, only armed fit thugs count as street cover while scouting, luring can pull unhappy hoes and thugs with crack and beer, special raid reports explain the outcome, raid-form achievements track the newer attacks, and public pages show money, rank tenure, movement, past results and a fuller achievement gallery while opponent crew, weapons, wounds, exposed cash and crack stash stay behind recon.
 
 **Tests** cover the frozen formulas, the loader and the services built on them:
 turn regeneration and the cap, the remainder that survives a settle, the away bonus and

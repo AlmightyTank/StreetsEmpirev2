@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
-import type { PublicAwardDto, PublicPlayerProfileDto } from '@streets/shared';
+import type { PublicAwardDto, PublicCareerDto, PublicPlayerProfileDto, PublicSeasonResultDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
@@ -58,6 +58,10 @@ function progressValue(award: PublicAwardDto, value: number): string {
   return award.progress?.label === 'net worth' ? formatCents(value) : formatNumber(value);
 }
 
+function rankLabel(rank: number | null): string {
+  return rank === null ? '-' : `#${formatNumber(rank)}`;
+}
+
 function AchievementCard({ award }: { award: PublicAwardDto }) {
   const percent = progressPercent(award);
   return (
@@ -81,30 +85,110 @@ function AchievementCard({ award }: { award: PublicAwardDto }) {
   );
 }
 
+function SeasonHistory({ career }: { career: PublicCareerDto }) {
+  const latest = career.seasons[0];
+  return (
+    <Panel title="Season history">
+      {career.seasons.length === 0 ? (
+        <p className="se-muted">Finished seasons will land here. Every season starts fresh; this page keeps the receipts.</p>
+      ) : (
+        <div className="se-grid">
+          <div className="se-stats">
+            <Stat label="Finished Seasons" value={formatNumber(career.legacy.roundsPlayed)} />
+            <Stat label="Best National" value={rankLabel(career.legacy.bestNationalRank)} />
+            <Stat label="Top 10s" value={formatNumber(career.legacy.topTenFinishes)} />
+            <Stat label="Season Wins" value={formatNumber(career.legacy.roundWins)} />
+          </div>
+
+          <div className="se-tablewrap">
+            <table className="se-table">
+              <thead>
+                <tr>
+                  <th>Season</th>
+                  <th>City</th>
+                  <th className="se-table__number">National</th>
+                  <th className="se-table__number">Local</th>
+                  <th className="se-table__number">Final Net Worth</th>
+                  <th className="se-table__number">Raids</th>
+                  <th className="se-table__number">Drive-bys</th>
+                  <th className="se-table__number">Recon</th>
+                </tr>
+              </thead>
+              <tbody>
+                {career.seasons.map((season: PublicSeasonResultDto) => (
+                  <tr key={season.round.id}>
+                    <td>
+                      <strong>{season.round.name}</strong>
+                      <br />
+                      <span className="se-muted">{formatDate(season.round.endedAt)}</span>
+                    </td>
+                    <td>{season.city.name}</td>
+                    <td className="se-table__number se-num">{rankLabel(season.rank.national)}</td>
+                    <td className="se-table__number se-num">{rankLabel(season.rank.local)}</td>
+                    <td className="se-table__number se-num">{formatCents(season.finalNetWorthCents)}</td>
+                    <td className="se-table__number se-num">{formatNumber(season.stats.raidAttackWins)} / {formatNumber(season.stats.raidAttacks)}</td>
+                    <td className="se-table__number se-num">{formatNumber(season.stats.driveByWins)} / {formatNumber(season.stats.driveByAttacks)}</td>
+                    <td className="se-table__number se-num">{formatNumber(season.stats.reconRuns)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {latest ? (
+            <p className="se-hint">
+              Latest finish: {latest.round.name}, national {rankLabel(latest.rank.national)}, local {rankLabel(latest.rank.local)}. Cash, crew, supplies and cooldowns stayed in that season.
+            </p>
+          ) : null}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 export function ProfilePage() {
   const me = useSession((s) => s.me);
+  const account = useSession((s) => s.account);
   const params = useParams<{ publicPimpId?: string; forumUserId?: string }>();
   const target = params.publicPimpId ? Number(params.publicPimpId) : me?.publicPimpId;
   const [player, setPlayer] = useState<PublicPlayerProfileDto | null>(null);
+  const [career, setCareer] = useState<PublicCareerDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showLockedAchievements, setShowLockedAchievements] = useState(false);
   const [achievementStatusFilter, setAchievementStatusFilter] = useState<AchievementStatusFilter>('all');
   const [achievementCategoryFilter, setAchievementCategoryFilter] = useState<AchievementCategoryFilter>('all');
 
   useEffect(() => {
-    if (!params.forumUserId && (!target || !Number.isSafeInteger(target))) return;
+    if (params.forumUserId || (target && Number.isSafeInteger(target))) {
+      let active = true;
+      setPlayer(null);
+      setCareer(null);
+      setError(null);
+      (params.forumUserId ? communityApi.forumProfile(params.forumUserId) : communityApi.profile(target!))
+        .then((response) => {
+          if (!active) return;
+          setPlayer(response.player);
+          setCareer(response.player.career);
+        })
+        .catch((caught: unknown) => {
+          if (active) setError(caught instanceof ApiError ? caught.message : 'Could not load that profile.');
+        });
+      return () => { active = false; };
+    }
+
     let active = true;
     setPlayer(null);
+    setCareer(null);
     setError(null);
-    (params.forumUserId ? communityApi.forumProfile(params.forumUserId) : communityApi.profile(target!))
-      .then((response) => { if (active) setPlayer(response.player); })
+    communityApi.career()
+      .then((response) => { if (active) setCareer(response.career); })
       .catch((caught: unknown) => {
-        if (active) setError(caught instanceof ApiError ? caught.message : 'Could not load that profile.');
+        if (active) setError(caught instanceof ApiError ? caught.message : 'Could not load your season history.');
       });
     return () => { active = false; };
   }, [target, params.forumUserId]);
 
-  if (!me) return <Navigate to="/join" replace />;
+  if (!me && (params.publicPimpId || params.forumUserId)) return <Navigate to="/game" replace />;
 
   const unlocked = player?.awards.filter((award) => award.unlocked) ?? [];
   const locked = player?.awards.filter((award) => !award.unlocked) ?? [];
@@ -122,11 +206,11 @@ export function ProfilePage() {
       <div className="se-pagehead">
         <div>
           <h1 className="se-title">
-            {player?.displayName ?? 'Profile'}{' '}
+            {player?.displayName ?? account?.username ?? 'Profile'}{' '}
             {player ? <span className="se-muted se-num">(#{player.publicPimpId})</span> : null}
           </h1>
           <p className="se-eyebrow">
-            {player ? `${player.city.name}${player.isYou ? ' · Your profile' : ''}` : 'Public street record'}
+            {player ? `${player.city.name}${player.isYou ? ' · Your profile' : ''}` : 'Permanent season record'}
           </p>
           {player ? <ProfileBadges badges={player.badges} forumGroups={player.forumGroups} /> : null}
         </div>
@@ -135,7 +219,9 @@ export function ProfilePage() {
 
       {error ? <Alert>{error}</Alert> : null}
 
-      {!player && !error ? <Panel title="Profile"><p className="se-muted">Pulling the street record...</p></Panel> : null}
+      {!player && !career && !error ? <Panel title="Profile"><p className="se-muted">Pulling the street record...</p></Panel> : null}
+
+      {!player && career ? <SeasonHistory career={career} /> : null}
 
       {player ? (
         <div className="se-profile-stack">
@@ -154,6 +240,8 @@ export function ProfilePage() {
                 <Row label="Past rounds" value={formatNumber(player.legacy.roundsPlayed)} />
                 <Row label="Past game winnings" value={formatCents(player.legacy.totalFinalNetWorthCents)} strong />
                 <Row label="Best past national rank" value={player.legacy.bestNationalRank ? `#${formatNumber(player.legacy.bestNationalRank)}` : 'None'} />
+                <Row label="Best past local rank" value={player.legacy.bestLocalRank ? `#${formatNumber(player.legacy.bestLocalRank)}` : 'None'} />
+                <Row label="Past top 10s" value={formatNumber(player.legacy.topTenFinishes)} />
                 <Row label="Past round wins" value={formatNumber(player.legacy.roundWins)} />
               </div>
             </Panel>
@@ -266,6 +354,8 @@ export function ProfilePage() {
               </>
             )}
           </Panel>
+
+          {career ? <SeasonHistory career={career} /> : null}
 
           {player.intelRequired ? (
             <Panel title="Recon needed">

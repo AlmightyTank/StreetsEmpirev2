@@ -1,12 +1,14 @@
-import type { City, PrismaClient } from '@prisma/client';
+import type { City, Prisma, PrismaClient } from '@prisma/client';
 import type { Ruleset } from '@streets/rules-engine';
 import type {
   PublicAchievementCategory,
   PublicAchievementRarity,
   PublicAwardDto,
+  PublicCareerDto,
   HallOfFameDto,
   PublicLegacyDto,
   PublicPlayerProfileDto,
+  PublicSeasonStatsDto,
   RankingEntryDto,
   RankingsDto,
 } from '@streets/shared';
@@ -68,16 +70,22 @@ interface PublicContext {
 const emptyLegacy = (): PublicLegacyDto => ({
   roundsPlayed: 0,
   roundWins: 0,
+  topTenFinishes: 0,
   bestNationalRank: null,
+  bestLocalRank: null,
   totalFinalNetWorthCents: 0,
 });
 
-function addPastRound(legacy: PublicLegacyDto, row: { nationalRank: number | null; netWorthCents: bigint | number }): PublicLegacyDto {
+function addPastRound(legacy: PublicLegacyDto, row: { localRank: number | null; nationalRank: number | null; netWorthCents: bigint | number }): PublicLegacyDto {
   legacy.roundsPlayed += 1;
   legacy.totalFinalNetWorthCents += Number(row.netWorthCents);
   if (row.nationalRank !== null) {
     legacy.bestNationalRank = legacy.bestNationalRank === null ? row.nationalRank : Math.min(legacy.bestNationalRank, row.nationalRank);
     if (row.nationalRank === 1) legacy.roundWins += 1;
+    if (row.nationalRank <= 10) legacy.topTenFinishes += 1;
+  }
+  if (row.localRank !== null) {
+    legacy.bestLocalRank = legacy.bestLocalRank === null ? row.localRank : Math.min(legacy.bestLocalRank, row.localRank);
   }
   return legacy;
 }
@@ -96,7 +104,7 @@ export async function loadLegacyByAccount(
       ...(currentRoundId ? { roundId: { not: currentRoundId } } : {}),
       round: { status: { in: ['ENDED', 'ARCHIVED'] } },
     },
-    select: { accountId: true, nationalRank: true, netWorthCents: true },
+    select: { accountId: true, localRank: true, nationalRank: true, netWorthCents: true },
   });
   for (const row of rows) {
     legacyByAccount.set(row.accountId, addPastRound(legacyByAccount.get(row.accountId) ?? emptyLegacy(), row));
@@ -110,6 +118,140 @@ export async function loadAccountLegacy(
   currentRoundId: string | null,
 ): Promise<PublicLegacyDto> {
   return (await loadLegacyByAccount(prisma, [accountId], currentRoundId)).get(accountId) ?? emptyLegacy();
+}
+
+const emptySeasonStats = (): PublicSeasonStatsDto => ({
+  raidAttacks: 0,
+  raidAttackWins: 0,
+  raidDefenses: 0,
+  raidDefenseWins: 0,
+  driveByAttacks: 0,
+  driveByWins: 0,
+  reconRuns: 0,
+  traderFavors: 0,
+});
+
+function addBattleToSeasonStats(
+  stats: PublicSeasonStatsDto,
+  battle: { attackerId: string; defenderId: string; attackerReport: unknown; defenderReport: unknown },
+  playerId: string,
+): void {
+  const attackerReport = battle.attackerReport as { kind?: string; won?: boolean };
+  const defenderReport = battle.defenderReport as { won?: boolean };
+  const battleKind = attackerReport.kind ?? 'RAID';
+
+  if (battle.attackerId === playerId) {
+    if (battleKind === 'DRIVE_BY') {
+      stats.driveByAttacks += 1;
+      if (attackerReport.won === true) stats.driveByWins += 1;
+    } else {
+      stats.raidAttacks += 1;
+      if (attackerReport.won === true) stats.raidAttackWins += 1;
+    }
+  }
+
+  if (battle.defenderId === playerId && battleKind !== 'DRIVE_BY') {
+    stats.raidDefenses += 1;
+    if (defenderReport.won === true) stats.raidDefenseWins += 1;
+  }
+}
+
+export async function loadCareerForAccount(
+  prisma: PrismaClient,
+  accountId: string,
+  options: { limit?: number; currentRoundId?: string | null } = {},
+): Promise<PublicCareerDto> {
+  const where: Prisma.RoundPlayerWhereInput = {
+    accountId,
+    ...(options.currentRoundId ? { roundId: { not: options.currentRoundId } } : {}),
+    round: { status: { in: ['ENDED', 'ARCHIVED'] } },
+  };
+  const players = await prisma.roundPlayer.findMany({
+    where,
+    include: { city: true, round: true },
+    orderBy: { round: { endsAt: 'desc' } },
+    take: options.limit,
+  });
+
+  const ids = players.map((player) => player.id);
+  const statsByPlayer = new Map(ids.map((id) => [id, emptySeasonStats()]));
+
+  if (ids.length) {
+    const [battles, reconActivities, reputationRows] = await Promise.all([
+      prisma.raidBattle.findMany({
+        where: { OR: [{ attackerId: { in: ids } }, { defenderId: { in: ids } }] },
+        select: { attackerId: true, defenderId: true, attackerReport: true, defenderReport: true },
+      }),
+      prisma.playerActivity.groupBy({
+        by: ['roundPlayerId'],
+        where: { roundPlayerId: { in: ids }, type: 'COMBAT_RECON' },
+        _count: { _all: true },
+      }),
+      prisma.playerReputation.groupBy({
+        by: ['roundPlayerId'],
+        where: { roundPlayerId: { in: ids }, questDoneAt: { not: null } },
+        _count: { _all: true },
+      }),
+    ]);
+
+    for (const battle of battles) {
+      const attackerStats = statsByPlayer.get(battle.attackerId);
+      if (attackerStats) addBattleToSeasonStats(attackerStats, battle, battle.attackerId);
+      const defenderStats = statsByPlayer.get(battle.defenderId);
+      if (defenderStats && battle.defenderId !== battle.attackerId) {
+        addBattleToSeasonStats(defenderStats, battle, battle.defenderId);
+      }
+    }
+
+    for (const activity of reconActivities) {
+      const stats = statsByPlayer.get(activity.roundPlayerId);
+      if (stats) stats.reconRuns = activity._count._all;
+    }
+
+    for (const reputation of reputationRows) {
+      const stats = statsByPlayer.get(reputation.roundPlayerId);
+      if (stats) stats.traderFavors = reputation._count._all;
+    }
+  }
+
+  const legacyRows = options.limit === undefined
+    ? players
+    : await prisma.roundPlayer.findMany({
+      where,
+      select: { localRank: true, nationalRank: true, netWorthCents: true },
+    });
+  const legacy = legacyRows.reduce(
+    (carry, player) => addPastRound(carry, player),
+    emptyLegacy(),
+  );
+
+  return {
+    legacy,
+    seasons: players.map((player) => ({
+      round: {
+        id: player.round.id,
+        name: player.round.name,
+        slug: player.round.slug,
+        status: player.round.status,
+        rulesetId: player.round.rulesetId,
+        rulesetVersion: player.round.rulesetVersion,
+        startsAt: player.round.startsAt.toISOString(),
+        endedAt: player.round.endsAt.toISOString(),
+      },
+      publicPimpId: player.publicPimpId,
+      displayName: player.displayName,
+      city: toCityDto(player.city),
+      finalNetWorthCents: Number(player.netWorthCents),
+      finalCashCents: Number(player.cashCents),
+      rank: {
+        local: player.localRank,
+        national: player.nationalRank,
+      },
+      stats: statsByPlayer.get(player.id) ?? emptySeasonStats(),
+      joinedAt: player.createdAt.toISOString(),
+      lastActiveAt: player.lastActiveAt.toISOString(),
+    })),
+  };
 }
 
 const emptyContext = (): PublicContext => ({
@@ -240,7 +382,7 @@ export function legacyAchievements(legacy: PublicLegacyDto): PublicAwardDto[] {
     achievement({ key: 'veteran', title: 'Veteran', description: 'Finish at least one previous round.', category: 'legacy', rarity: 'common', current: legacy.roundsPlayed, target: 1, progressLabel: 'past rounds' }),
     achievement({ key: 'past-winner', title: 'Past Winner', description: 'Finish a previous round at national #1.', category: 'legacy', rarity: 'legendary', current: legacy.roundWins, target: 1, progressLabel: 'past round wins' }),
     achievement({ key: 'hall-of-fame', title: 'Hall of Fame', description: 'Win three previous rounds.', category: 'legacy', rarity: 'legendary', current: legacy.roundWins, target: 3, progressLabel: 'past round wins' }),
-    achievement({ key: 'top-finisher', title: 'Top Finisher', description: 'Finish a previous round in the national top ten.', category: 'legacy', rarity: 'rare', current: legacy.bestNationalRank !== null && legacy.bestNationalRank <= 10 ? 1 : 0, target: 1, progressLabel: 'top-ten finish' }),
+    achievement({ key: 'top-finisher', title: 'Top Finisher', description: 'Finish a previous round in the national top ten.', category: 'legacy', rarity: 'rare', current: legacy.topTenFinishes, target: 1, progressLabel: 'top-ten finish' }),
   ];
 }
 
@@ -258,7 +400,7 @@ export async function loadPublicContexts(
   const [pastRows, battles, reconActivities, reputationRows] = await Promise.all([
     prisma.roundPlayer.findMany({
       where: { accountId: { in: accountIds }, roundId: { not: currentRoundId }, round: { status: { in: ['ENDED', 'ARCHIVED'] } } },
-      select: { accountId: true, nationalRank: true, netWorthCents: true },
+      select: { accountId: true, localRank: true, nationalRank: true, netWorthCents: true },
     }),
     prisma.raidBattle.findMany({
       where: { OR: [{ attackerId: { in: ids } }, { defenderId: { in: ids } }] },
@@ -424,6 +566,8 @@ export function rankRows(
 }
 
 export const CommunityService = {
+  career: loadCareerForAccount,
+
   async hallOfFame(prisma: PrismaClient, roundLimit = 10, podiumSize = 3): Promise<HallOfFameDto> {
     const rounds = await prisma.round.findMany({
       where: { status: { in: ['ENDED', 'ARCHIVED'] } },
@@ -548,9 +692,10 @@ export const CommunityService = {
     const hideCrew = Boolean(privacy?.hideOpponentCrew && !isYou);
     const hideWeapons = Boolean(privacy?.hideOpponentWeapons && !isYou);
     const weapons = player.pistols + player.shotguns + player.tek9s + player.ak47s;
-    const [contexts, forumGroups] = await Promise.all([
+    const [contexts, forumGroups, career] = await Promise.all([
       loadPublicContexts(prisma, roundId, [player]),
       forumLink && options.forumGroups !== false ? ForumGroupsService.groupsFor(forumLink.forumUserId) : [],
+      loadCareerForAccount(prisma, player.accountId, { currentRoundId: roundId, limit: 10 }),
     ]);
     const context = contexts.get(player.id) ?? emptyContext();
     const awards = achievementsFor(player, { local: localRank, national: nationalRank }, context);
@@ -572,6 +717,7 @@ export const CommunityService = {
         nationalMovement: movement(player.dailyStartingNationalRank, nationalRank),
       },
       legacy: context.legacy,
+      career,
       awards,
       crew: hideCrew ? null : {
         whores: player.whores,
