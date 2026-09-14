@@ -52,7 +52,7 @@ export function ForumLinkPanel() {
         </div>
       </div> : null}
     </> : status.enabled ? <>
-      <p>Connect your forum account to show a public link on both profiles. You’ll sign into the forum and confirm which account to connect.</p>
+      <p>Connect your forum account to show a public link on both profiles, plus your Street Empire badges on the forum and your forum role in the game. You’ll sign into the forum and confirm which account to connect.</p>
       <button type="button" className="se-btn se-btn--primary se-btn--block" disabled={busy} onClick={() => change(false)}>{busy ? 'Opening forum...' : 'Link Forum Account'}</button>
       <p className="se-hint">Your email and Discord details stay private. You can unlink at any time.</p>
     </> : <p className="se-muted">Forum account linking is coming soon.</p>}

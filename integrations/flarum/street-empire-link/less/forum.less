@@ -9,3 +9,32 @@
   text-underline-offset: 3px;
   font-weight: 700;
 }
+// Same rarity colors as the game's achievement cards; currentColor avoids LESS color functions on CSS variables.
+.StreetEmpireBadges {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+}
+.StreetEmpireBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  color: #98a1ad;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: default;
+}
+.StreetEmpireBadge--uncommon { color: #7fb028; }
+.StreetEmpireBadge--rare { color: #60a5fa; }
+.StreetEmpireBadge--epic { color: #c084fc; }
+.StreetEmpireBadge--legendary { color: #ffb020; }
+.StreetEmpireBadge--permanent {
+  background: rgba(255, 255, 255, 0.06);
+  &::before { content: '\25C6'; margin-right: 5px; font-size: 8px; }
+}

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { env } from '../config/env.js';
 import { ForumLinkService, forumLinkDto } from '../services/forum-link.service.js';
 import { forumUserIdSchema } from '../services/forum-proof.js';
+import { ProfileBadgeService } from '../services/profile-badges.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 
@@ -36,13 +37,23 @@ const forumRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/unlink', { preHandler: [fastify.requireAuth, requireGameOrigin] }, async (request) =>
     ForumLinkService.unlink(fastify.prisma, request.auth!.account.id));
 
-  // Public, explicitly consented link only. No game IDs, emails, or Discord IDs.
+  // Public, explicitly consented link and badges only (titles and rarity, never
+  // crew, weapons or cash). No game IDs, emails, or Discord IDs.
   fastify.get('/users/:forumUserId', async (request) => {
     const { forumUserId } = parseBody(z.object({ forumUserId: forumUserIdSchema }), request.params);
     const link = env.forum.enabled ? await fastify.prisma.forumLink.findFirst({ where: {
       forumOrigin: env.forum.origin, forumUserId, account: { isActive: true },
     } }) : null;
-    return { profileUrl: link ? new URL(`/game/forum/${forumUserId}`, env.frontendOrigin).toString() : null };
+    if (!link) return { profileUrl: null, badges: [] };
+
+    let badges: Awaited<ReturnType<typeof ProfileBadgeService.forAccount>> = [];
+    try {
+      badges = await ProfileBadgeService.forAccount(fastify.prisma, link.accountId);
+    } catch (error) {
+      // Badges are decoration; a failure must not hide the Game Profile link.
+      request.log.warn({ err: error, accountId: link.accountId }, 'forum badge lookup failed');
+    }
+    return { profileUrl: new URL(`/game/forum/${forumUserId}`, env.frontendOrigin).toString(), badges };
   });
 };
 export default forumRoutes;

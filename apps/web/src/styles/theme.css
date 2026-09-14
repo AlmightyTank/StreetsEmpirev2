@@ -1481,6 +1481,42 @@ a.se-nav__link:hover {
   color: var(--se-muted);
 }
 
+/* Profile badge strip: forum roles plus the best earned achievements, in achievement rarity colors. */
+.se-badges {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.se-badge {
+  --se-badge-color: var(--se-text-dim);
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 9px;
+  border: 1px solid color-mix(in srgb, var(--se-badge-color) 45%, transparent);
+  border-radius: 999px;
+  color: var(--se-badge-color);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: default;
+}
+.se-badge--uncommon { --se-badge-color: var(--se-accent-dim); }
+.se-badge--rare { --se-badge-color: #60a5fa; }
+.se-badge--epic { --se-badge-color: #c084fc; }
+.se-badge--legendary { --se-badge-color: var(--se-warn); }
+.se-badge--permanent { background: color-mix(in srgb, var(--se-badge-color) 12%, transparent); }
+.se-badge--permanent::before { content: '◆'; margin-right: 5px; font-size: 8px; }
+.se-badge--group {
+  background: color-mix(in srgb, var(--se-badge-color) 16%, transparent);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .se-topbar__account {
   text-decoration: none;
 }

@@ -56,7 +56,7 @@
             m('button.Button.Button--primary', { onclick: () => app.modal.show(LogInModal) }, 'Log in to the forum'),
           ] : this.preview ? [
             m('p', ['Connect game account ', m('strong', this.preview.gameUsername), ' to forum account ', m('strong', this.preview.forumUsername), '?']),
-            m('p', 'Both profiles will show a public link to each other. Email and Discord details stay private. You can unlink from your game account settings.'),
+            m('p', 'Both profiles will show a public link to each other, your forum profile will show your Street Empire badges, and your game profile will show your forum role. Email and Discord details stay private. You can unlink from your game account settings.'),
             m('button.Button.Button--primary', { disabled: this.busy, onclick: () => this.confirm() }, this.busy ? 'Connecting...' : 'Confirm these accounts'),
           ] : this.busy ? m('p', { role: 'status' }, 'Checking request...') : null,
           game ? m('p', m('a', { href: game + '/account', onclick: () => { try { sessionStorage.removeItem(storageKey); } catch (_) {} } }, 'Cancel / back to game account')) : null,
@@ -67,24 +67,38 @@
 
     // Hover cards re-run oninit on every open; look each user up once per page load.
     const profileLookups = new Map();
+    const rarities = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
     extend(UserCard.prototype, 'oninit', function () {
       this.streetEmpireUrl = null;
+      this.streetEmpireBadges = [];
       if (!app.forum.attribute('streetEmpireLinkEnabled')) return;
       const id = this.attrs.user.id();
       const expected = app.forum.attribute('streetEmpireGameOrigin') + '/game/forum/' + id;
       if (!profileLookups.has(id)) {
         profileLookups.set(id, app.request({ method: 'GET', url: app.forum.attribute('apiUrl') + '/street-empire/users/' + encodeURIComponent(id) })
-          .then((result) => (result.profileUrl === expected ? expected : null))
+          .then((result) => (result.profileUrl === expected
+            ? { url: expected, badges: Array.isArray(result.badges) ? result.badges.slice(0, 6) : [] }
+            : null))
           .catch(() => { profileLookups.delete(id); return null; }));
       }
-      profileLookups.get(id).then((url) => {
-        if (!url) return;
-        this.streetEmpireUrl = url;
+      profileLookups.get(id).then((found) => {
+        if (!found) return;
+        this.streetEmpireUrl = found.url;
+        this.streetEmpireBadges = found.badges;
         m.redraw();
       });
     });
     extend(UserCard.prototype, 'infoItems', function (items) {
       if (this.streetEmpireUrl) items.add('streetEmpireProfile', m('a', { href: this.streetEmpireUrl, className: 'StreetEmpireProfileLink' }, 'Game Profile'), 80);
+      if (this.streetEmpireBadges.length) {
+        // Mithril escapes text; the rarity is allowlisted before it becomes a class.
+        items.add('streetEmpireBadges', m('ul.StreetEmpireBadges', { 'aria-label': 'Street Empire badges' },
+          this.streetEmpireBadges.map((badge) => m('li.StreetEmpireBadge', {
+            key: badge.key,
+            className: 'StreetEmpireBadge--' + (rarities.includes(badge.rarity) ? badge.rarity : 'common') + (badge.permanent ? ' StreetEmpireBadge--permanent' : ''),
+            title: badge.description + (badge.permanent ? ' Permanent badge.' : ' Earned this round.'),
+          }, badge.title))), 70);
+      }
     });
   });
 

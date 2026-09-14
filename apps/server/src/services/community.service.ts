@@ -12,7 +12,9 @@ import type {
 import { env } from '../config/env.js';
 import { toCityDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
+import { ForumGroupsService } from './forum-groups.service.js';
 import { forumProfileUrl } from './forum-link.service.js';
+import { selectProfileBadges } from './profile-badges.js';
 
 interface RankingRow {
   id: string;
@@ -68,6 +70,33 @@ const emptyLegacy = (): PublicLegacyDto => ({
   bestNationalRank: null,
   totalFinalNetWorthCents: 0,
 });
+
+function addPastRound(legacy: PublicLegacyDto, row: { nationalRank: number | null; netWorthCents: bigint | number }): PublicLegacyDto {
+  legacy.roundsPlayed += 1;
+  legacy.totalFinalNetWorthCents += Number(row.netWorthCents);
+  if (row.nationalRank !== null) {
+    legacy.bestNationalRank = legacy.bestNationalRank === null ? row.nationalRank : Math.min(legacy.bestNationalRank, row.nationalRank);
+    if (row.nationalRank === 1) legacy.roundWins += 1;
+  }
+  return legacy;
+}
+
+/** Legacy for an account that may not be in the current round (forum badges). */
+export async function loadAccountLegacy(
+  prisma: PrismaClient,
+  accountId: string,
+  currentRoundId: string | null,
+): Promise<PublicLegacyDto> {
+  const rows = await prisma.roundPlayer.findMany({
+    where: {
+      accountId,
+      ...(currentRoundId ? { roundId: { not: currentRoundId } } : {}),
+      round: { status: { in: ['ENDED', 'ARCHIVED'] } },
+    },
+    select: { nationalRank: true, netWorthCents: true },
+  });
+  return rows.reduce((legacy, row) => addPastRound(legacy, row), emptyLegacy());
+}
 
 const emptyContext = (): PublicContext => ({
   legacy: emptyLegacy(),
@@ -187,10 +216,17 @@ function achievementsFor(row: RankingRow, rank: { local: number; national: numbe
     achievement({ key: 'tek-runner', title: 'Tek Runner', description: 'Unlock Tek-9 purchases through trader reputation.', category: 'reputation', rarity: 'rare', current: row.tek9Unlocked ? 1 : 0, target: 1, progressLabel: 'unlock' }),
     achievement({ key: 'heavy-metal', title: 'Heavy Metal', description: 'Unlock AK-47 purchases through trader reputation.', category: 'reputation', rarity: 'epic', current: row.ak47Unlocked ? 1 : 0, target: 1, progressLabel: 'unlock' }),
 
-    achievement({ key: 'veteran', title: 'Veteran', description: 'Finish at least one previous round.', category: 'legacy', rarity: 'common', current: context.legacy.roundsPlayed, target: 1, progressLabel: 'past rounds' }),
-    achievement({ key: 'past-winner', title: 'Past Winner', description: 'Finish a previous round at national #1.', category: 'legacy', rarity: 'legendary', current: context.legacy.roundWins, target: 1, progressLabel: 'past round wins' }),
-    achievement({ key: 'hall-of-fame', title: 'Hall of Fame', description: 'Win three previous rounds.', category: 'legacy', rarity: 'legendary', current: context.legacy.roundWins, target: 3, progressLabel: 'past round wins' }),
-    achievement({ key: 'top-finisher', title: 'Top Finisher', description: 'Finish a previous round in the national top ten.', category: 'legacy', rarity: 'rare', current: context.legacy.bestNationalRank !== null && context.legacy.bestNationalRank <= 10 ? 1 : 0, target: 1, progressLabel: 'top-ten finish' }),
+    ...legacyAchievements(context.legacy),
+  ];
+}
+
+/** Cross-round achievements. Exported so forum badges work for accounts not in the current round. */
+export function legacyAchievements(legacy: PublicLegacyDto): PublicAwardDto[] {
+  return [
+    achievement({ key: 'veteran', title: 'Veteran', description: 'Finish at least one previous round.', category: 'legacy', rarity: 'common', current: legacy.roundsPlayed, target: 1, progressLabel: 'past rounds' }),
+    achievement({ key: 'past-winner', title: 'Past Winner', description: 'Finish a previous round at national #1.', category: 'legacy', rarity: 'legendary', current: legacy.roundWins, target: 1, progressLabel: 'past round wins' }),
+    achievement({ key: 'hall-of-fame', title: 'Hall of Fame', description: 'Win three previous rounds.', category: 'legacy', rarity: 'legendary', current: legacy.roundWins, target: 3, progressLabel: 'past round wins' }),
+    achievement({ key: 'top-finisher', title: 'Top Finisher', description: 'Finish a previous round in the national top ten.', category: 'legacy', rarity: 'rare', current: legacy.bestNationalRank !== null && legacy.bestNationalRank <= 10 ? 1 : 0, target: 1, progressLabel: 'top-ten finish' }),
   ];
 }
 
@@ -228,14 +264,7 @@ async function loadPublicContexts(
 
   const legacyByAccount = new Map<string, PublicLegacyDto>();
   for (const row of pastRows) {
-    const legacy = legacyByAccount.get(row.accountId) ?? emptyLegacy();
-    legacy.roundsPlayed += 1;
-    legacy.totalFinalNetWorthCents += Number(row.netWorthCents);
-    if (row.nationalRank !== null) {
-      legacy.bestNationalRank = legacy.bestNationalRank === null ? row.nationalRank : Math.min(legacy.bestNationalRank, row.nationalRank);
-      if (row.nationalRank === 1) legacy.roundWins += 1;
-    }
-    legacyByAccount.set(row.accountId, legacy);
+    legacyByAccount.set(row.accountId, addPastRound(legacyByAccount.get(row.accountId) ?? emptyLegacy(), row));
   }
 
   const idToAccount = new Map(rows.map((row) => [row.id, row.accountId]));
@@ -437,6 +466,8 @@ export const CommunityService = {
     publicPimpId: number,
     viewerPublicPimpId: number,
     ruleset: Ruleset,
+    /** The forum's own badge lookup skips the forum round trip. */
+    options: { forumGroups?: boolean } = {},
   ): Promise<PublicPlayerProfileDto> {
     const player = await prisma.roundPlayer.findFirst({
       where: { roundId, publicPimpId, account: { isActive: true } },
@@ -473,10 +504,17 @@ export const CommunityService = {
     const hideCrew = Boolean(privacy?.hideOpponentCrew && !isYou);
     const hideWeapons = Boolean(privacy?.hideOpponentWeapons && !isYou);
     const weapons = player.pistols + player.shotguns + player.tek9s + player.ak47s;
-    const context = (await loadPublicContexts(prisma, roundId, [player])).get(player.id) ?? emptyContext();
+    const [contexts, forumGroups] = await Promise.all([
+      loadPublicContexts(prisma, roundId, [player]),
+      forumLink && options.forumGroups !== false ? ForumGroupsService.groupsFor(forumLink.forumUserId) : [],
+    ]);
+    const context = contexts.get(player.id) ?? emptyContext();
+    const awards = achievementsFor(player, { local: localRank, national: nationalRank }, context);
 
     return {
       forumProfileUrl: forumLink ? forumProfileUrl(forumLink) : null,
+      badges: selectProfileBadges(awards),
+      forumGroups,
       publicPimpId: player.publicPimpId,
       displayName: player.displayName,
       city: toCityDto(player.city),
@@ -490,7 +528,7 @@ export const CommunityService = {
         nationalMovement: movement(player.dailyStartingNationalRank, nationalRank),
       },
       legacy: context.legacy,
-      awards: achievementsFor(player, { local: localRank, national: nationalRank }, context),
+      awards,
       crew: hideCrew ? null : {
         whores: player.whores,
         thugs: player.thugs,

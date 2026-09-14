@@ -9,6 +9,10 @@ Once linked:
 - The game's public profile shows a **Forum Profile** button, in every round.
 - The forum user card (profile page and avatar hover) shows a **Game Profile**
   button, which opens that player's profile in the current round.
+- The forum user card also shows up to six **Street Empire badges**: permanent
+  legacy badges (◆) first, then the rarest achievements earned this round.
+- The game profile shows the same badge strip, plus the player's visible forum
+  groups (such as Admin) as role badges.
 - Players manage the connection under **Game → Account → Forum account**.
 
 ## How linking works
@@ -152,6 +156,15 @@ or `{"profileUrl":null}` when not linked.
   load. Game outages and rate-limit responses are not cached; the button is just
   hidden until the next lookup. This keeps the forum server's IP well inside the
   game's 300 reads per minute limit.
+- **Badges:** the game picks them and returns them with the profile URL from
+  `/api/forum/users/<id>`; the forum caches both together for 120 seconds.
+  Legacy badges (Veteran, Top Finisher, Past Winner, Hall of Fame) show even
+  when the player hasn't joined the current round; round badges reset with the
+  round. Only titles, descriptions and rarity are shared, never crew, weapons or
+  cash. The extension re-validates every field before showing it.
+- **Forum roles on the game profile:** the game reads the linked user's groups
+  from Flarum's public `/api/users/<id>`, skips hidden groups, keeps at most
+  three, and caches the result for five minutes (30 seconds after a failed lookup).
 - **Round scope:** the Game Profile button needs a signed-in game player who has
   joined the current round. Linked players who haven't joined yet show
   "This player has not entered the current round yet."

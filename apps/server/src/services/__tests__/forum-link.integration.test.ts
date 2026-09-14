@@ -78,15 +78,19 @@ describe.runIf(process.env.FORUM_LINK_INTEGRATION === '1')('verified forum links
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json().link.profileUrl).toBe(`${env.forum.origin}/street-empire/u/${forumId}`);
     const publicLink = await app.inject(`/api/forum/users/${forumId}`);
-    expect(publicLink.json()).toEqual({ profileUrl: new URL(`/game/forum/${forumId}`, env.frontendOrigin).toString() });
+    expect(publicLink.json()).toEqual({ profileUrl: new URL(`/game/forum/${forumId}`, env.frontendOrigin).toString(), badges: expect.any(Array) });
     const profile = await app.inject({ url: `/api/game/forum-players/${forumId}`, headers: headers(1) });
     expect(profile.statusCode, profile.body).toBe(200);
     expect(profile.json().player.publicPimpId).toBe(7001);
     expect(profile.json().player.forumProfileUrl).toBe(`${env.forum.origin}/street-empire/u/${forumId}`);
+    // Viewing a profile settles the viewer's turns, which can shift ranks and rank
+    // badges, so compare with a lookup taken after that view.
+    expect(profile.json().player.badges).toEqual((await app.inject(`/api/forum/users/${forumId}`)).json().badges);
+    expect(profile.json().player.forumGroups).toEqual(expect.any(Array));
     expect((await post('finish', 0, { proof: token })).statusCode).toBe(400);
     expect((await post('start')).statusCode).toBe(409);
     await post('unlink');
-    expect((await app.inject(`/api/forum/users/${forumId}`)).json()).toEqual({ profileUrl: null });
+    expect((await app.inject(`/api/forum/users/${forumId}`)).json()).toEqual({ profileUrl: null, badges: [] });
     expect((await app.inject({ url: `/api/game/forum-players/${forumId}`, headers: headers(1) })).statusCode).toBe(404);
   });
   it('binds the request to both the initiating account and session', async () => {
@@ -122,6 +126,10 @@ describe.runIf(process.env.FORUM_LINK_INTEGRATION === '1')('verified forum links
     const response = await app.inject({ url: `/api/game/forum-players/${forumId}`, headers: headers(1) });
     expect(response.statusCode, response.body).toBe(404);
     expect(response.json().error.code).toBe('PLAYER_NOT_IN_ROUND');
+    // Not in the round: the forum still gets the link, with legacy badges only (none for a new account).
+    expect((await app.inject(`/api/forum/users/${forumId}`)).json()).toEqual({
+      profileUrl: new URL(`/game/forum/${forumId}`, env.frontendOrigin).toString(), badges: [],
+    });
     expect(await app.prisma.forumLink.findUnique({ where: { accountId: accounts[0]!.id } })).not.toBeNull();
   });
 });

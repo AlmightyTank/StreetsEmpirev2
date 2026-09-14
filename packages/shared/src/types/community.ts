@@ -20,6 +20,24 @@ export interface PublicAwardDto {
   progress: PublicAchievementProgressDto | null;
 }
 
+/** A compact profile badge: an earned achievement, shown on game and forum profiles. */
+export interface ProfileBadgeDto {
+  key: string;
+  title: string;
+  description: string;
+  category: PublicAchievementCategory;
+  rarity: PublicAchievementRarity;
+  /** Legacy badges carry across rounds; the rest reset with the round. */
+  permanent: boolean;
+}
+
+/** A visible Flarum group (e.g. Admin) of a linked forum account. */
+export interface ForumGroupBadgeDto {
+  name: string;
+  /** Validated #rgb/#rrggbb, or null when the forum has none. */
+  color: string | null;
+}
+
 export interface PublicLegacyDto {
   roundsPlayed: number;
   roundWins: number;
@@ -54,6 +72,8 @@ export interface RankingsDto {
 
 export interface PublicPlayerProfileDto {
   forumProfileUrl: string | null;
+  badges: ProfileBadgeDto[];
+  forumGroups: ForumGroupBadgeDto[];
   publicPimpId: number;
   displayName: string;
   city: CityDto;

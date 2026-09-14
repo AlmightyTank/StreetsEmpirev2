@@ -5,6 +5,7 @@ import { formatCents, formatNumber } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { ProfileBadges } from '../components/ProfileBadges.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -127,6 +128,7 @@ export function ProfilePage() {
           <p className="se-eyebrow">
             {player ? `${player.city.name}${player.isYou ? ' · Your profile' : ''}` : 'Public street record'}
           </p>
+          {player ? <ProfileBadges badges={player.badges} forumGroups={player.forumGroups} /> : null}
         </div>
         {player?.forumProfileUrl ? <a className="se-btn se-btn--ghost se-btn--sm" href={player.forumProfileUrl}>Forum Profile</a> : null}
       </div>
