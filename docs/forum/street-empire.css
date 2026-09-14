@@ -141,6 +141,24 @@ body {
   box-shadow: inset 2px 0 0 var(--se-accent);
   border-radius: 2px;
 }
+/* Desktop sidebar: keep icons clear of the active bar. Icons sit 30px left of the text, so this shifts both. */
+@media (min-width: 768px) {
+  .sideNav .Dropdown--select .Dropdown-menu > li > a { padding-left: 40px; }
+}
+
+/* Sidebar tags: small dots instead of loud squares. Each tag's color still comes from Admin → Tags. */
+.sideNav .TagLinkButton { color: var(--se-dim); }
+.sideNav .TagLinkButton:hover { color: var(--se-text); }
+/* Specific enough to beat Flarum's sidebar icon margins; centers the dot in the 16px icon column. */
+.sideNav .Dropdown--select .Dropdown-menu > li > a.TagLinkButton .TagIcon {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 5px;
+  margin-left: -26px;
+  margin-right: 11px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color) 20%, transparent);
+}
 
 .IndexPage-toolbar {
   padding-bottom: 12px;
