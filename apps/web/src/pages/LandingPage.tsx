@@ -109,12 +109,15 @@ export function LandingPage() {
                   value={`${round.rulesetId}@${round.rulesetVersion}`}
                 />
               </div>
-              <div className="se-cta se-mt">
+              <div className="se-cta se-cta--stack se-mt">
                 <Link className="se-btn se-btn--primary" to={cta.to}>
                   {cta.label}
                 </Link>
-                <Link className="se-btn" to="/news">
+                <Link className="se-btn" to="/game/news">
                   Latest changes
+                </Link>
+                <Link className="se-btn" to="/game/rules">
+                  Rules
                 </Link>
               </div>
             </Panel>

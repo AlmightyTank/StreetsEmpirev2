@@ -548,6 +548,9 @@ a:hover { color: #c9ff63; }
   gap: 10px;
 }
 
+/* Narrow panels: one full-width action per row, so wrapped buttons stay aligned. */
+.se-cta--stack { flex-direction: column; }
+
 .se-list {
   margin: 0;
   padding-left: 18px;

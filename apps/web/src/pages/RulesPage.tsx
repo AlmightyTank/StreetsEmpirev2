@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
 import type { GameStatusDto } from '@streets/shared';
 import { roundsApi } from '../api/rounds.js';
 import { Panel } from '../components/Panel.js';
-import { GameLayout } from '../layouts/GameLayout.js';
-import { useSession } from '../stores/session.js';
+import { InfoLayout } from '../layouts/InfoLayout.js';
 
 /**
  * How the game works, not what the numbers are.
@@ -14,19 +12,18 @@ import { useSession } from '../stores/session.js';
  * player needs is live somewhere it belongs - the shelf on the store page, the
  * gates on The Street, the turn clock from the round status. Rules that only
  * describe mechanics survive a rebalance.
+ *
+ * Public: logged-out visitors and the forum footer link here.
  */
 export function RulesPage() {
-  const me = useSession((s) => s.me);
   const [status, setStatus] = useState<GameStatusDto | null>(null);
 
   useEffect(() => {
     roundsApi.status().then(setStatus).catch(() => setStatus(null));
   }, []);
 
-  if (!me) return <Navigate to="/join" replace />;
-
   return (
-    <GameLayout>
+    <InfoLayout>
       <div className="se-pagehead">
         <div>
           <h1 className="se-title">Rules</h1>
@@ -209,6 +206,6 @@ export function RulesPage() {
           </Panel>
         </div>
       </div>
-    </GameLayout>
+    </InfoLayout>
   );
 }

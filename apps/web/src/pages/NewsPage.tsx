@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
 import type { GameNewsDto } from '@streets/shared';
 import { roundsApi } from '../api/rounds.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
-import { GameLayout } from '../layouts/GameLayout.js';
-import { useSession } from '../stores/session.js';
+import { InfoLayout } from '../layouts/InfoLayout.js';
 import { formatDate } from '../utils/time.js';
 
 const developmentUpdates = [
@@ -46,8 +44,8 @@ const developmentUpdates = [
   },
 ] as const;
 
+/** Public: logged-out visitors and the forum footer link here. */
 export function NewsPage() {
-  const me = useSession((s) => s.me);
   const [news, setNews] = useState<GameNewsDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,10 +57,8 @@ export function NewsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (!me) return <Navigate to="/join" replace />;
-
   return (
-    <GameLayout>
+    <InfoLayout>
       <div className="se-pagehead">
         <div>
           <h1 className="se-title">News</h1>
@@ -100,6 +96,6 @@ export function NewsPage() {
           </article>
         ))}
       </div>
-    </GameLayout>
+    </InfoLayout>
   );
 }

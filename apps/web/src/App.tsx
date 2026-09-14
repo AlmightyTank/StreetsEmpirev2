@@ -58,7 +58,8 @@ export function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />`n      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/account" element={<RequireAccount><AccountSettingsPage /></RequireAccount>} />
       <Route path="/account/forum-link" element={<ForumLinkPage />} />
       <Route path="/join" element={<Protected><JoinPage /></Protected>} />
@@ -74,9 +75,9 @@ export function App() {
       <Route path="/game/forum/:forumUserId" element={<Protected><ProfilePage /></Protected>} />
       <Route path="/game/players/:publicPimpId" element={<Protected><ProfilePage /></Protected>} />
       <Route path="/game/activity" element={<Protected><ActivityPage /></Protected>} />
-      <Route path="/game/news" element={<Protected><NewsPage /></Protected>} />
+      <Route path="/game/news" element={<NewsPage />} />
       <Route path="/game/status" element={<Protected><StatusPage /></Protected>} />
-      <Route path="/game/rules" element={<Protected><RulesPage /></Protected>} />
+      <Route path="/game/rules" element={<RulesPage />} />
       <Route path="/game/reputation" element={<Protected><ReputationPage /></Protected>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
