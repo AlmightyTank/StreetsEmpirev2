@@ -585,27 +585,58 @@ export const CommunityService = {
       orderBy: { endsAt: 'desc' },
       take: roundLimit,
       select: {
+        id: true,
         name: true,
+        slug: true,
+        status: true,
+        rulesetId: true,
+        rulesetVersion: true,
+        startsAt: true,
         endsAt: true,
+        _count: { select: { players: true } },
         players: {
-          where: { nationalRank: { not: null, lte: podiumSize }, account: { isActive: true } },
+          where: { nationalRank: { not: null, lte: 10 }, account: { isActive: true } },
           orderBy: [{ nationalRank: 'asc' }, { netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
-          select: { nationalRank: true, displayName: true, netWorthCents: true, city: { select: { name: true } } },
+          select: {
+            nationalRank: true,
+            publicPimpId: true,
+            displayName: true,
+            netWorthCents: true,
+            cashCents: true,
+            createdAt: true,
+            lastActiveAt: true,
+            city: { select: { name: true } },
+          },
         },
       },
     });
 
     return {
-      rounds: rounds.map((round) => ({
-        name: round.name,
-        endedAt: round.endsAt.toISOString(),
-        podium: round.players.map((player) => ({
+      rounds: rounds.map((round) => {
+        const topTen = round.players.map((player) => ({
           rank: player.nationalRank!,
+          publicPimpId: player.publicPimpId,
           displayName: player.displayName,
           netWorthCents: Number(player.netWorthCents),
+          cashCents: Number(player.cashCents),
           city: player.city.name,
-        })),
-      })),
+          joinedAt: player.createdAt.toISOString(),
+          lastActiveAt: player.lastActiveAt.toISOString(),
+        }));
+        return {
+          id: round.id,
+          name: round.name,
+          slug: round.slug,
+          status: round.status,
+          rulesetId: round.rulesetId,
+          rulesetVersion: round.rulesetVersion,
+          startsAt: round.startsAt.toISOString(),
+          endedAt: round.endsAt.toISOString(),
+          playerCount: round._count.players,
+          podium: topTen.filter((player) => player.rank <= podiumSize),
+          topTen,
+        };
+      }),
     };
   },
 

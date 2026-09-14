@@ -52,6 +52,20 @@ export interface AccountDto {
   lastLoginAt: string | null;
 }
 
+export interface AccountSessionDto {
+  id: string;
+  current: boolean;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  userAgent: string | null;
+  ip: string | null;
+}
+
+export interface AccountSessionsResponseDto {
+  sessions: AccountSessionDto[];
+}
+
 export type ProfileAccent = 'default' | 'crimson' | 'gold' | 'green' | 'blue' | 'purple';
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
@@ -216,9 +230,28 @@ export interface RoundOverPlayerDto {
   lastActiveAt: string;
 }
 
+export interface RoundOverLegacyDto {
+  roundsPlayed: number;
+  roundWins: number;
+  topTenFinishes: number;
+  bestNationalRank: number | null;
+  bestLocalRank: number | null;
+  totalFinalNetWorthCents: number;
+}
+
+export interface RoundOverBadgeDto {
+  key: string;
+  title: string;
+  description: string;
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+}
+
 export interface RoundOverDto {
   round: RoundDto;
   player: RoundOverPlayerDto;
+  legacy: RoundOverLegacyDto;
+  earnedLegacyBadges: RoundOverBadgeDto[];
+  newLegacyBadges: RoundOverBadgeDto[];
 }
 
 export interface CurrentRoundDto {

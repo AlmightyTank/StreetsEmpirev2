@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import type { GameStatusDto } from '@streets/shared';
+import type { AdminSeasonChecklistDto, AdminSeasonChecklistItemDto, GameStatusDto } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
 import { roundsApi } from '../api/rounds.js';
 import { ApiError } from '../api/client.js';
@@ -33,16 +33,32 @@ function statusCopy(status: string) {
   };
 }
 
+function checklistTone(status: AdminSeasonChecklistItemDto['status']): string {
+  if (status === 'done') return 'se-tag--good';
+  if (status === 'warning') return 'se-tag--warn';
+  return 'se-tag--bad';
+}
+
 export function StatusPage() {
+  const account = useSession((s) => s.account);
   const me = useSession((s) => s.me);
   const [status, setStatus] = useState<GameStatusDto | null>(null);
+  const [checklist, setChecklist] = useState<AdminSeasonChecklistDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [checklistError, setChecklistError] = useState<string | null>(null);
 
   useEffect(() => {
     roundsApi.status()
       .then(setStatus)
       .catch((caught: unknown) => setError(caught instanceof ApiError ? caught.message : 'Could not load game status.'));
   }, []);
+
+  useEffect(() => {
+    if (!account?.isAdmin) return;
+    roundsApi.adminSeasonChecklist()
+      .then(setChecklist)
+      .catch((caught: unknown) => setChecklistError(caught instanceof ApiError ? caught.message : 'Could not load admin season checklist.'));
+  }, [account?.isAdmin]);
 
   if (!me) return <Navigate to="/join" replace />;
 
@@ -114,6 +130,35 @@ export function StatusPage() {
               </Panel>
             ) : null}
           </div>
+
+          {account?.isAdmin ? (
+            <Panel title="Admin season checklist">
+              {checklistError ? <Alert>{checklistError}</Alert> : null}
+              {!checklist && !checklistError ? <p className="se-muted">Checking season handoff...</p> : null}
+              {checklist ? (
+                <>
+                  <div className="se-stats se-admin-check-stats">
+                    <Stat label="Current" value={checklist.currentRound?.name ?? 'None'} />
+                    <Stat label="Latest ended" value={checklist.latestEndedRound?.name ?? 'None'} />
+                    <Stat label="Next handoff" value={checklist.nextRound?.name ?? 'None'} />
+                  </div>
+                  <div className="se-admin-checklist">
+                    {checklist.items.map((item) => (
+                      <article className="se-admin-check" key={item.key}>
+                        <div className="se-admin-check__head">
+                          <strong>{item.label}</strong>
+                          <span className={`se-tag ${checklistTone(item.status)}`}>{item.status}</span>
+                        </div>
+                        <p>{item.detail}</p>
+                        {item.action ? <p className="se-hint">{item.action}</p> : null}
+                        {item.href ? <Link className="se-btn se-btn--ghost se-btn--sm" to={item.href}>Open</Link> : null}
+                      </article>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+            </Panel>
+          ) : null}
         </>
       ) : status ? <Alert>No active game is running.</Alert> : null}
     </GameLayout>

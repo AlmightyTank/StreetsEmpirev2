@@ -89,6 +89,8 @@ function TurnsTile({
 
 function RoundOverScreen({ roundOver, nextRound, canJoin }: { roundOver: RoundOverDto; nextRound: RoundDto | null; canJoin: boolean }) {
   const player = roundOver.player;
+  const nationalFinish = player.rank.national === null ? '-' : `#${formatNumber(player.rank.national)}`;
+  const localFinish = player.rank.local === null ? '-' : `#${formatNumber(player.rank.local)}`;
   return (
     <GameLayout>
       <div className="se-pagehead">
@@ -104,9 +106,48 @@ function RoundOverScreen({ roundOver, nextRound, canJoin }: { roundOver: RoundOv
       <div className="se-stats se-mb">
         <Stat label="Final Net Worth" value={formatCents(player.netWorthCents)} />
         <Stat label="Cash Left" value={formatCents(player.cashCents)} />
-        <Stat label="National Finish" value={player.rank.national === null ? '-' : `#${formatNumber(player.rank.national)}`} />
-        <Stat label="Local Finish" value={player.rank.local === null ? '-' : `#${formatNumber(player.rank.local)}`} />
+        <Stat label="National Finish" value={nationalFinish} />
+        <Stat label="Local Finish" value={localFinish} />
       </div>
+
+      <Panel title="What carried forward">
+        <div className="se-season-callouts">
+          <div className="se-season-callout se-season-callout--saved">
+            <strong>Permanent record saved</strong>
+            <span>
+              {roundOver.round.name} now counts in your legacy: {nationalFinish} national,
+              {` ${localFinish}`} local, {formatCents(player.netWorthCents)} final net worth.
+            </span>
+          </div>
+          <div className="se-season-callout">
+            <strong>Fresh mechanics next season</strong>
+            <span>Cash, crew, supplies, turns, weapons, intel and cooldowns stay in this season. The next round starts clean.</span>
+          </div>
+          <div className="se-season-callout">
+            <strong>Cosmetics stay permanent</strong>
+            <span>Legacy badges and profile cosmetics remain on your account and can be featured from Login & settings.</span>
+          </div>
+        </div>
+
+        {roundOver.newLegacyBadges.length ? (
+          <>
+            <p className="se-trophies__label">New permanent badges</p>
+            <ul className="se-badges se-badges--block">
+              {roundOver.newLegacyBadges.map((badge) => (
+                <li
+                  className={`se-badge se-badge--${badge.rarity} se-badge--permanent`}
+                  key={badge.key}
+                  title={badge.description}
+                >
+                  {badge.title}
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="se-hint">No new legacy badge unlocked this time, but the finish still counts in your permanent record.</p>
+        )}
+      </Panel>
 
       <div className="se-grid se-grid--sidebar">
         <Panel title={`${player.displayName} (#${player.publicPimpId})`} flush>
@@ -115,6 +156,8 @@ function RoundOverScreen({ roundOver, nextRound, canJoin }: { roundOver: RoundOv
             <Row label="Joined" value={formatDate(player.joinedAt)} />
             <Row label="Season ended" value={formatDate(roundOver.round.endsAt)} strong />
             <Row label="Players" value={roundOver.round.playerCount} />
+            <Row label="Legacy seasons" value={formatNumber(roundOver.legacy.roundsPlayed)} />
+            <Row label="Best national" value={roundOver.legacy.bestNationalRank === null ? '-' : `#${formatNumber(roundOver.legacy.bestNationalRank)}`} />
           </div>
         </Panel>
 
@@ -125,16 +168,22 @@ function RoundOverScreen({ roundOver, nextRound, canJoin }: { roundOver: RoundOv
                 <p className="se-dim">
                   {nextRound.name} is {nextRound.status.toLowerCase()}. {nextRound.msRemaining > 0 ? `${formatDuration(nextRound.msRemaining)} remain on the clock.` : 'The clock has not opened yet.'}
                 </p>
+                <ol className="se-list se-season-steps">
+                  <li>Review your saved finish here or in Hall of Fame.</li>
+                  <li>Enter the next round from a fresh starting state.</li>
+                  <li>Rebuild and chase the new leaderboard on equal footing.</li>
+                </ol>
                 <div className="se-actions-row se-mt">
                   <Link className="se-btn se-btn--primary" to="/join">{canJoin ? 'Enter next round' : 'View next round'}</Link>
+                  <Link className="se-btn" to="/game/profile">Your legacy</Link>
                   <Link className="se-btn" to="/game/hall-of-fame">Hall of fame</Link>
-                  <Link className="se-btn" to="/game/news">Development wire</Link>
                 </div>
               </>
             ) : (
               <>
                 <p className="se-dim">No new round is open yet. Your final result is saved to your legacy.</p>
                 <div className="se-actions-row se-mt">
+                  <Link className="se-btn" to="/game/profile">Your legacy</Link>
                   <Link className="se-btn" to="/game/hall-of-fame">Hall of fame</Link>
                   <Link className="se-btn" to="/game/news">Development wire</Link>
                 </div>

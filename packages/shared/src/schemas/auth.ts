@@ -52,6 +52,7 @@ export const resetPasswordSchema = z.object({
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Enter your current password.'),
   password: passwordSchema,
+  revokeOtherSessions: z.boolean().default(true),
 });
 
 export const changeEmailSchema = z.object({

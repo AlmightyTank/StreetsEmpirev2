@@ -33,6 +33,15 @@ export function RulesPage() {
 
       <div className="se-grid se-grid--2">
         <div className="se-grid">
+          <Panel title="Fair seasons">
+            <ul className="se-list">
+              <li>Each season is mechanically fresh. New rounds reset cash, crew, supplies, weapons, turns, intel, cooldowns and rankings.</li>
+              <li>Your permanent account keeps history: finished seasons, placements, legacy totals, badges, titles, profile accents and featured cosmetics.</li>
+              <li>Permanent cosmetics never change action math, starting resources, combat odds, store access or rank calculations.</li>
+              <li>Hall of Fame and public profiles keep the receipts, but the next leaderboard starts on equal footing.</li>
+            </ul>
+          </Panel>
+
           <Panel title="Turns">
             <ul className="se-list">
               <li>Actions spend turns. Shopping, favours and changing the payout do not.</li>

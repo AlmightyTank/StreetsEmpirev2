@@ -602,6 +602,123 @@ a:hover { color: #c9ff63; }
   color: var(--se-muted);
 }
 
+.se-season-callouts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.se-season-callout {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid var(--se-line-soft);
+  border-radius: 3px;
+  background: rgba(11, 12, 14, 0.24);
+}
+
+.se-season-callout--saved {
+  border-color: rgba(182, 255, 58, 0.38);
+  background: rgba(182, 255, 58, 0.08);
+}
+
+.se-season-callout strong {
+  color: #fff;
+}
+
+.se-season-callout span {
+  color: var(--se-text-dim);
+  font-size: 12px;
+}
+
+.se-season-steps {
+  margin-top: 10px;
+}
+
+.se-archive-list {
+  margin-top: 14px;
+}
+
+.se-archive-stats {
+  margin-bottom: 12px;
+}
+
+.se-podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.se-podium-card {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--se-line-soft);
+  border-top: 3px solid var(--se-line);
+  border-radius: 3px;
+  background: rgba(11, 12, 14, 0.24);
+}
+
+.se-podium-card--1 { border-top-color: var(--se-warn); }
+.se-podium-card--2 { border-top-color: #cbd5e1; }
+.se-podium-card--3 { border-top-color: #b7794b; }
+
+.se-podium-card__rank {
+  color: var(--se-muted);
+  font-family: var(--se-mono);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.se-podium-card strong {
+  min-width: 0;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+
+.se-podium-card span:not(.se-podium-card__rank) {
+  color: var(--se-text-dim);
+}
+
+.se-admin-check-stats {
+  margin-bottom: 12px;
+}
+
+.se-admin-checklist {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.se-admin-check {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--se-line-soft);
+  border-radius: 3px;
+  background: rgba(11, 12, 14, 0.24);
+}
+
+.se-admin-check__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.se-admin-check strong {
+  color: #fff;
+}
+
+.se-admin-check p {
+  margin: 0;
+  color: var(--se-text-dim);
+}
+
 .se-pagehead {
   display: flex;
   align-items: flex-start;
@@ -1549,6 +1666,9 @@ a.se-nav__link:hover {
   margin: 10px 0 0;
   padding: 0;
 }
+.se-badges--block {
+  margin-top: 8px;
+}
 .se-badge {
   --se-badge-color: var(--se-text-dim);
   display: inline-flex;
@@ -1626,8 +1746,54 @@ a.se-nav__link:hover {
   font-weight: 700;
 }
 
-.se-account-columns + .se-panel {
+.se-account-columns + .se-panel,
+.se-account-columns + .se-panel + .se-panel {
   margin-top: 14px;
+}
+
+.se-session-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.se-session-head .se-hint {
+  margin: 0;
+}
+
+.se-session-list {
+  display: grid;
+  gap: 8px;
+}
+
+.se-session-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--se-line-soft);
+  border-radius: 3px;
+  background: rgba(11, 12, 14, 0.24);
+}
+
+.se-session-row strong,
+.se-session-row small {
+  display: block;
+}
+
+.se-session-row strong {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.se-session-row small {
+  margin-top: 3px;
+  color: var(--se-muted);
 }
 
 .se-account-cosmetics {
@@ -1718,6 +1884,10 @@ a.se-nav__link:hover {
   align-items: center;
 }
 
+.se-checkrow--inline {
+  margin-bottom: 12px;
+}
+
 .se-checkrow strong,
 .se-checkrow small {
   display: block;
@@ -1731,9 +1901,27 @@ a.se-nav__link:hover {
 }
 
 @media (max-width: 820px) {
+  .se-season-callouts {
+    grid-template-columns: 1fr;
+  }
+
+  .se-podium {
+    grid-template-columns: 1fr;
+  }
+
+  .se-admin-checklist {
+    grid-template-columns: 1fr;
+  }
+
   .se-account-cosmetics,
   .se-cosmetic-list--wide,
   .se-interface-preferences {
     grid-template-columns: 1fr;
+  }
+
+  .se-session-head,
+  .se-session-row {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

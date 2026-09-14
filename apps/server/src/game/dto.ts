@@ -11,7 +11,9 @@ import type {
   ActivityDto,
   CityDto,
   GameSnapshotDto,
+  RoundOverBadgeDto,
   RoundOverDto,
+  RoundOverLegacyDto,
   RoundDto,
   RoundPlayerDto,
 } from '@streets/shared';
@@ -150,6 +152,9 @@ export function toRoundOverDto(input: {
   round: Round;
   playerCount: number;
   player: RoundPlayer & { city: City };
+  legacy: RoundOverLegacyDto;
+  earnedLegacyBadges: RoundOverBadgeDto[];
+  newLegacyBadges: RoundOverBadgeDto[];
 }): RoundOverDto {
   return {
     round: toRoundDto(input.round, input.playerCount),
@@ -166,6 +171,9 @@ export function toRoundOverDto(input: {
       joinedAt: input.player.createdAt.toISOString(),
       lastActiveAt: input.player.lastActiveAt.toISOString(),
     },
+    legacy: input.legacy,
+    earnedLegacyBadges: input.earnedLegacyBadges,
+    newLegacyBadges: input.newLegacyBadges,
   };
 }
 

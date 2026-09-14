@@ -18,7 +18,7 @@ function rulesetFor(roundRulesetId: string) {
 }
 
 export function JoinPage() {
-  const { round, me, canJoin, join } = useSession();
+  const { round, me, canJoin, join, roundOver } = useSession();
   const navigate = useNavigate();
 
   const [message, setMessage] = useState<string | null>(null);
@@ -68,6 +68,24 @@ export function JoinPage() {
       </p>
 
       {message ? <Alert>{message}</Alert> : null}
+
+      {roundOver ? (
+        <Panel title="Fresh season handoff">
+          <div className="se-season-callouts">
+            <div className="se-season-callout se-season-callout--saved">
+              <strong>{roundOver.round.name} is saved</strong>
+              <span>
+                Your final {roundOver.player.rank.national === null ? 'national finish' : `#${formatNumber(roundOver.player.rank.national)} national finish`}
+                {` and ${formatCents(roundOver.player.netWorthCents)} net worth`} are now part of your legacy.
+              </span>
+            </div>
+            <div className="se-season-callout">
+              <strong>{round.name} starts clean</strong>
+              <span>No cash, crew, weapons, supplies, intel or cooldowns carry into this round. Everyone rebuilds from the same start.</span>
+            </div>
+          </div>
+        </Panel>
+      ) : null}
 
       <div className="se-grid se-grid--sidebar">
         <Panel title="What you start with" flush>
@@ -130,8 +148,7 @@ export function JoinPage() {
               </p>
             ) : (
               <p className="se-hint">
-                One player per account per round. You keep your account when the
-                round ends.
+                One player per account per round. You keep your account, legacy badges and cosmetics when the round ends.
               </p>
             )}
             <p className="se-hint">

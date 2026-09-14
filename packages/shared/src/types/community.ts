@@ -215,7 +215,34 @@ export interface DiscordHallOfFameDto {
   }>;
 }
 
-export type HallOfFameDto = DiscordHallOfFameDto;
+export interface HallOfFamePlayerDto {
+  rank: number;
+  publicPimpId: number;
+  displayName: string;
+  netWorthCents: number;
+  cashCents: number;
+  city: string;
+  joinedAt: string;
+  lastActiveAt: string;
+}
+
+export interface HallOfFameRoundDto {
+  id: string;
+  name: string;
+  slug: string;
+  status: RoundDto['status'];
+  rulesetId: string;
+  rulesetVersion: string;
+  startsAt: string;
+  endedAt: string;
+  playerCount: number;
+  podium: HallOfFamePlayerDto[];
+  topTen: HallOfFamePlayerDto[];
+}
+
+export interface HallOfFameDto {
+  rounds: HallOfFameRoundDto[];
+}
 
 /** Internal Discord bot API: a player's full achievement list for /badges. */
 export interface DiscordBadgesDto {
@@ -385,4 +412,25 @@ export interface GameStatusDto {
       amount: number;
     };
   } | null;
+}
+
+export type AdminSeasonChecklistStatus = 'done' | 'todo' | 'warning';
+
+export interface AdminSeasonChecklistItemDto {
+  key: string;
+  label: string;
+  status: AdminSeasonChecklistStatus;
+  detail: string;
+  action: string | null;
+  href: string | null;
+}
+
+export interface AdminSeasonChecklistDto {
+  now: string;
+  currentRound: RoundDto | null;
+  latestEndedRound: RoundDto | null;
+  nextRound: RoundDto | null;
+  openExpiredRounds: number;
+  activeRoundCount: number;
+  items: AdminSeasonChecklistItemDto[];
 }

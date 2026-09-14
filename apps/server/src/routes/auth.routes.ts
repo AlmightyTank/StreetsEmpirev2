@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
-import type { Account, AccountEmailTokenPurpose, PrismaClient } from '@prisma/client';
+import type { Account, AccountEmailTokenPurpose, PrismaClient, Session } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { changeEmailSchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema } from '@streets/shared';
+import { changeEmailSchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
 import { z } from 'zod';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { createSession, destroySession } from '../auth/sessions.js';
@@ -38,6 +38,10 @@ const discordCallbackSchema = z.object({
   state: z.string().optional(),
   error: z.string().optional(),
   error_description: z.string().optional(),
+});
+
+const sessionParamsSchema = z.object({
+  sessionId: z.string().min(1),
 });
 
 const discordTokenSchema = z.object({
@@ -181,6 +185,18 @@ async function fetchDiscordUser(accessToken: string): Promise<DiscordUser> {
 
 function discordDisplayName(user: DiscordUser): string {
   return user.global_name ? `${user.global_name} (@${user.username})` : user.username;
+}
+
+function toSessionDto(session: Session, currentSessionId: string): AccountSessionDto {
+  return {
+    id: session.id,
+    current: session.id === currentSessionId,
+    createdAt: session.createdAt.toISOString(),
+    lastSeenAt: session.lastSeenAt.toISOString(),
+    expiresAt: session.expiresAt.toISOString(),
+    userAgent: session.userAgent,
+    ip: session.ip,
+  };
 }
 
 function usernameBase(user: DiscordUser): string {
@@ -647,12 +663,30 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    await fastify.prisma.account.update({
-      where: { id: account.id },
-      data: { passwordHash: await hashPassword(body.password) },
+    const passwordHash = await hashPassword(body.password);
+
+    await fastify.prisma.$transaction(async (tx) => {
+      await tx.account.update({
+        where: { id: account.id },
+        data: { passwordHash },
+      });
+
+      if (body.revokeOtherSessions) {
+        await tx.session.deleteMany({
+          where: {
+            accountId: account.id,
+            id: { not: request.auth!.session.id },
+          },
+        });
+      }
     });
 
-    return { ok: true, message: 'Your password was changed.' };
+    return {
+      ok: true,
+      message: body.revokeOtherSessions
+        ? 'Your password was changed and other sessions were logged out.'
+        : 'Your password was changed.',
+    };
   });
 
 
@@ -821,6 +855,44 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
     fastify.clearSessionCookie(reply);
     return { ok: true };
+  });
+
+  fastify.get('/sessions', { preHandler: fastify.requireAuth }, async (request) => {
+    const sessions = await fastify.prisma.session.findMany({
+      where: {
+        accountId: request.auth!.account.id,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: [{ lastSeenAt: 'desc' }, { createdAt: 'desc' }],
+    });
+    return {
+      sessions: sessions.map((session) => toSessionDto(session, request.auth!.session.id)),
+    };
+  });
+
+  fastify.delete('/sessions/others', { preHandler: fastify.requireAuth }, async (request) => {
+    const result = await fastify.prisma.session.deleteMany({
+      where: {
+        accountId: request.auth!.account.id,
+        id: { not: request.auth!.session.id },
+      },
+    });
+    return { ok: true, revoked: result.count };
+  });
+
+  fastify.delete('/sessions/:sessionId', { preHandler: fastify.requireAuth }, async (request) => {
+    const params = sessionParamsSchema.parse(request.params);
+    if (params.sessionId === request.auth!.session.id) {
+      throw AppError.badRequest('CURRENT_SESSION', 'Use Log out to end your current session.');
+    }
+
+    const result = await fastify.prisma.session.deleteMany({
+      where: {
+        id: params.sessionId,
+        accountId: request.auth!.account.id,
+      },
+    });
+    return { ok: true, revoked: result.count };
   });
 
   fastify.get('/profile-settings', { preHandler: fastify.requireAuth }, async (request) =>

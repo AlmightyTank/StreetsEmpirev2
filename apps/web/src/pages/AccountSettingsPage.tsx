@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import type {
   AccountProfileSettingsResponseDto,
+  AccountSessionDto,
   DefaultLanding,
   MoneyFormat,
   ProfileAccent,
@@ -20,6 +21,15 @@ function formatDate(value: string | null): string {
   return value ? new Date(value).toLocaleString() : 'Never';
 }
 
+function sessionDevice(session: AccountSessionDto): string {
+  const agent = session.userAgent ?? '';
+  if (agent.includes('Edg/')) return 'Edge browser';
+  if (agent.includes('Chrome/')) return 'Chrome browser';
+  if (agent.includes('Firefox/')) return 'Firefox browser';
+  if (agent.includes('Safari/') && !agent.includes('Chrome/')) return 'Safari browser';
+  return session.userAgent ? 'Browser session' : 'Unknown device';
+}
+
 export function AccountSettingsPage() {
   const account = useSession((s) => s.account)!;
   const me = useSession((s) => s.me);
@@ -30,10 +40,12 @@ export function AccountSettingsPage() {
   const [newEmail, setNewEmail] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [revokeOtherSessionsOnPasswordChange, setRevokeOtherSessionsOnPasswordChange] = useState(true);
   const [message, setMessage] = useState<string | null>(accountMessage);
   const [tone, setTone] = useState<'error' | 'info'>('info');
   const [fields, setFields] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState<'recovery' | 'verify' | 'email' | 'password' | 'cosmetics' | null>(null);
+  const [busy, setBusy] = useState<'recovery' | 'verify' | 'email' | 'password' | 'sessions' | 'cosmetics' | null>(null);
+  const [sessions, setSessions] = useState<AccountSessionDto[]>([]);
   const [profileSettings, setProfileSettings] = useState<AccountProfileSettingsResponseDto | null>(null);
   const [cosmetics, setCosmetics] = useState(DEFAULT_PROFILE_SETTINGS);
 
@@ -70,6 +82,18 @@ export function AccountSettingsPage() {
             },
           });
         }
+      });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    authApi.sessions()
+      .then((response) => {
+        if (active) setSessions(response.sessions);
+      })
+      .catch(() => {
+        if (active) setSessions([]);
       });
     return () => { active = false; };
   }, []);
@@ -139,7 +163,12 @@ export function AccountSettingsPage() {
     setFields({});
 
     try {
-      const response = await authApi.changePassword({ currentPassword, password: newPassword });
+      const response = await authApi.changePassword({
+        currentPassword,
+        password: newPassword,
+        revokeOtherSessions: revokeOtherSessionsOnPasswordChange,
+      });
+      await refreshSessions();
       setTone('info');
       setMessage(response.message);
       setCurrentPassword('');
@@ -187,6 +216,48 @@ export function AccountSettingsPage() {
       } else {
         setMessage('Something went wrong. Try that again.');
       }
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function refreshSessions() {
+    const response = await authApi.sessions();
+    setSessions(response.sessions);
+    return response.sessions;
+  }
+
+  async function revokeSession(sessionId: string) {
+    setBusy('sessions');
+    setMessage(null);
+    setFields({});
+
+    try {
+      const response = await authApi.revokeSession(sessionId);
+      await refreshSessions();
+      setTone('info');
+      setMessage(response.revoked ? 'That session was logged out.' : 'That session was already gone.');
+    } catch (error) {
+      setTone('error');
+      setMessage(error instanceof ApiError ? error.message : 'Something went wrong. Try that again.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function revokeOtherSessions() {
+    setBusy('sessions');
+    setMessage(null);
+    setFields({});
+
+    try {
+      const response = await authApi.revokeOtherSessions();
+      await refreshSessions();
+      setTone('info');
+      setMessage(response.revoked ? `Logged out ${response.revoked} other session${response.revoked === 1 ? '' : 's'}.` : 'There were no other sessions to log out.');
+    } catch (error) {
+      setTone('error');
+      setMessage(error instanceof ApiError ? error.message : 'Something went wrong. Try that again.');
     } finally {
       setBusy(null);
     }
@@ -252,6 +323,17 @@ export function AccountSettingsPage() {
                 error={fields.password}
                 hint="Use at least 8 characters."
               />
+              <label className="se-checkrow se-checkrow--inline">
+                <input
+                  type="checkbox"
+                  checked={revokeOtherSessionsOnPasswordChange}
+                  onChange={(event) => setRevokeOtherSessionsOnPasswordChange(event.target.checked)}
+                />
+                <span>
+                  <strong>Log out other sessions</strong>
+                  <small>Keep this device signed in and revoke every other browser session.</small>
+                </span>
+              </label>
               <button className="se-btn se-btn--primary se-btn--block" disabled={busy !== null}>
                 {busy === 'password' ? 'Changing...' : 'Change password'}
               </button>
@@ -324,6 +406,52 @@ export function AccountSettingsPage() {
           </Panel>
         </div>
       </div>
+
+      <Panel title="Login sessions">
+        <div className="se-session-head">
+          <p className="se-hint">These are active browser sessions for this account.</p>
+          <button
+            type="button"
+            className="se-btn se-btn--ghost se-btn--sm"
+            onClick={revokeOtherSessions}
+            disabled={busy !== null || sessions.filter((session) => !session.current).length === 0}
+          >
+            {busy === 'sessions' ? 'Working...' : 'Log out other sessions'}
+          </button>
+        </div>
+
+        {sessions.length ? (
+          <div className="se-session-list">
+            {sessions.map((session) => (
+              <div className="se-session-row" key={session.id}>
+                <div>
+                  <strong>
+                    {session.current ? 'This session' : sessionDevice(session)}
+                    {session.current ? <span className="se-tag se-tag--good">Current</span> : null}
+                  </strong>
+                  <small>
+                    Last seen {formatDate(session.lastSeenAt)}
+                    {session.ip ? ` · ${session.ip}` : ''}
+                  </small>
+                  <small>Created {formatDate(session.createdAt)} · Expires {formatDate(session.expiresAt)}</small>
+                </div>
+                {session.current ? null : (
+                  <button
+                    type="button"
+                    className="se-btn se-btn--ghost se-btn--sm"
+                    onClick={() => revokeSession(session.id)}
+                    disabled={busy !== null}
+                  >
+                    Log out
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="se-muted">Session details are not available right now.</p>
+        )}
+      </Panel>
 
       <Panel title="Cosmetics & interface">
         {!profileSettings ? (

@@ -1,5 +1,6 @@
 import type {
   AccountDto,
+  AccountSessionsResponseDto,
   AccountProfileSettingsResponseDto,
   ChangeEmailInput,
   ChangePasswordInput,
@@ -54,6 +55,15 @@ export const authApi = {
 
   updateProfileSettings: (input: UpdateAccountProfileSettingsInput) =>
     api.put<AccountProfileSettingsResponseDto>('/auth/profile-settings', input),
+
+  sessions: () =>
+    api.get<AccountSessionsResponseDto>('/auth/sessions'),
+
+  revokeSession: (sessionId: string) =>
+    api.delete<{ ok: true; revoked: number }>(`/auth/sessions/${encodeURIComponent(sessionId)}`),
+
+  revokeOtherSessions: () =>
+    api.delete<{ ok: true; revoked: number }>('/auth/sessions/others'),
 
   logout: () => api.post<{ ok: true }>('/auth/logout'),
 
