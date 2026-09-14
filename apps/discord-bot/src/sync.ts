@@ -22,7 +22,13 @@ export class RoleSync {
     this.roles.clear();
     for (const role of this.managed) {
       const found = existing.find((candidate) => candidate.name === role.name)
-        ?? await this.guild.roles.create({ name: role.name, color: role.color ?? undefined, mentionable: false, hoist: false, reason: REASON });
+        ?? await this.guild.roles.create({
+          name: role.name,
+          ...(role.color === null ? {} : { colors: { primaryColor: role.color } }),
+          mentionable: false,
+          hoist: false,
+          reason: REASON,
+        });
       this.roles.set(role.key, found);
     }
   }
