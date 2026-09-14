@@ -13,7 +13,7 @@ export const stores = {
    *
    * BALANCE_APPROXIMATION - the shelf limits here.
    *
-   * These are upkeep, not trophies. The shelf refills in full every hour
+   * These are upkeep, not trophies. The shelf refills in full every half-hour
    * rather than trickling, so the cap is the delivery: a truck arrives, the
    * shelf is stocked, and what you did not take is not banked. Being away ten
    * hours gets you the same shelf as being away one.
@@ -22,7 +22,7 @@ export const stores = {
    * against a round's worth of hoarding. Recruiting flat out for 28 days
    * reaches roughly 374 whores, who want 5 condoms each:
    *
-   *   condoms   2,000 shelf   vs ~1,872 wanted on hand, ~450 burned an hour
+   *   condoms   2,000 shelf   vs ~1,872 wanted on hand, ~900 burned an hour
    *   beer      5,000 shelf   vs a few hundred thugs wanting one each
    *   medicine    500 shelf   vs dozens of infections on a bad night
    *
@@ -47,7 +47,7 @@ export const stores = {
         restock: {
           cap: 2_000,
           perInterval: 2_000,
-          intervalMinutes: 60,
+          intervalMinutes: 30,
           stockField: 'condomStock',
           stockAtField: 'condomStockAt',
         },
@@ -63,7 +63,7 @@ export const stores = {
         restock: {
           cap: 500,
           perInterval: 500,
-          intervalMinutes: 60,
+          intervalMinutes: 30,
           stockField: 'medicineStock',
           stockAtField: 'medicineStockAt',
         },
@@ -76,7 +76,7 @@ export const stores = {
         restock: {
           cap: 5_000,
           perInterval: 5_000,
-          intervalMinutes: 60,
+          intervalMinutes: 30,
           stockField: 'beerStock',
           stockAtField: 'beerStockAt',
         },
@@ -96,7 +96,7 @@ export const stores = {
         buyCents: 100_000,
         sellCents: null,
         /**
-         * BALANCE_APPROXIMATION. Five an hour - 120 a day against the ~18 a
+         * BALANCE_APPROXIMATION. Ten an hour - 240 a day against the ~63 a
          * day the best district recruits.
          *
          * Hiring is the one purchase that is net-worth-neutral: $1,000 of
@@ -111,7 +111,7 @@ export const stores = {
         restock: {
           cap: 5,
           perInterval: 5,
-          intervalMinutes: 60,
+          intervalMinutes: 30,
           stockField: 'thugStock',
           stockAtField: 'thugStockAt',
         },
@@ -165,16 +165,16 @@ export const stores = {
          * BALANCE_APPROXIMATION. A chop shop is one man and a lift, so a
          * fleet is something you build across days rather than buy in a
          * click - the same reasoning as Tommy's hardware, and the same
-         * shape: a batch of three every eight hours, not a trickle.
+         * shape: a batch of three every four hours, not a trickle.
          *
-         * Between the shotgun's four hours and the Tek-9's twelve: a car is
+         * Between the shotgun's two hours and the Tek-9's six: a car is
          * more work to put together than a gun is to source, and at six
          * thugs a car the fleet you need arrives over a couple of days.
          */
         restock: {
           cap: 3,
           perInterval: 3,
-          intervalMinutes: 480,
+          intervalMinutes: 240,
           stockField: 'lowRiderStock',
           stockAtField: 'lowRiderStockAt',
         },
@@ -194,7 +194,7 @@ export const stores = {
    * to buy is a spiral cash cannot fix. Crack has a way out, so Pip's shelf
    * can be sized to run out on purpose.
    *
-   *   500 an hour outpaces what even an 833-whore crew burns, so nobody is
+   *   1,000 an hour outpaces what even an 833-whore crew burns, so nobody is
    *   ever starved of rocks outright - but it only fully stocks the 2-per-
    *   whore the happiness formula wants up to about 250 whores, which a
    *   player recruiting hard passes around the middle of a round.
@@ -219,7 +219,7 @@ export const stores = {
         restock: {
           cap: 500,
           perInterval: 500,
-          intervalMinutes: 60,
+          intervalMinutes: 30,
           stockField: 'crackStock',
           stockAtField: 'crackStockAt',
         },

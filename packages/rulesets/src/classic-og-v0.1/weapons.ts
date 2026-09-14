@@ -13,10 +13,10 @@
  * limited by supply rather than by price: a crate arrives on the gun's own
  * clock and fills the shelf, and the better the gun the longer that wait.
  *
- *   Pistol   50 per 2h      the gun you actually arm a crew with
- *   Shotgun   5 per 4h      a stack you can build up over a day
- *   Tek-9     3 per 12h     six a day, and only after the favor
- *   AK-47     2 per day     the wall of them takes the whole round
+ *   Pistol   50 per 1h      the gun you actually arm a crew with
+ *   Shotgun   5 per 2h      a stack you can build up over a day
+ *   Tek-9     3 per 6h      twelve a day, and only after the favor
+ *   AK-47     2 per 12h     the wall of them takes the whole round
  *
  * The tier lives in the wait, not in the size of the crate. Every shelf in
  * this ruleset restocks in full - see the corner store - so what separates an
@@ -24,11 +24,11 @@
  *
  * The pistol's shelf is the one sized not to bite. Thug happiness wants one
  * weapon per thug, so a cheap gun that ran short would put a ceiling on
- * happiness itself. 600 a day against a busiest-day recruitment of about 18
- * thugs is roughly thirty times what hiring can consume - the shelf is there
+ * happiness itself. 1,200 a day against a busiest-day recruitment of about 63
+ * thugs is comfortably more than what hiring can consume - the shelf is there
  * to bound the item, not to ration it.
  *
- * Hiring cannot outrun it either: Tommy sells five thugs an hour, so the most
+ * Hiring cannot outrun it either: Tommy sells ten thugs an hour, so the most
  * a crew can grow in a day is well inside a day of pistols.
  *
  * Tommy buys back at 70% of what he charges. That number is load-bearing: a
@@ -55,7 +55,7 @@ export const weapons = {
     restock: {
       cap: 50,
       perInterval: 50,
-      intervalMinutes: 120,
+      intervalMinutes: 60,
       stockField: 'pistolStock',
       stockAtField: 'pistolStockAt',
     },
@@ -69,7 +69,7 @@ export const weapons = {
     restock: {
       cap: 5,
       perInterval: 5,
-      intervalMinutes: 240,
+      intervalMinutes: 120,
       stockField: 'shotgunStock',
       stockAtField: 'shotgunStockAt',
     },
@@ -83,7 +83,7 @@ export const weapons = {
     restock: {
       cap: 3,
       perInterval: 3,
-      intervalMinutes: 720,
+      intervalMinutes: 360,
       stockField: 'tek9Stock',
       stockAtField: 'tek9StockAt',
     },
@@ -97,7 +97,7 @@ export const weapons = {
     restock: {
       cap: 2,
       perInterval: 2,
-      intervalMinutes: 1_440,
+      intervalMinutes: 720,
       stockField: 'ak47Stock',
       stockAtField: 'ak47StockAt',
     },

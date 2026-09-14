@@ -63,7 +63,7 @@ describe('TurnService.settle', () => {
   it('applies the cap once, to the combined total', () => {
     const result = TurnService.settle(
       player({
-        turns: 196,
+        turns: 140,
         lastTurnCalculationAt: ago(INTERVAL_MS * 5), // would be +10
         lastActiveAt: ago(7 * HOUR), // would be +6
       }),
@@ -72,7 +72,7 @@ describe('TurnService.settle', () => {
     );
 
     // Regeneration alone fills to the cap, leaving no room for the bonus.
-    expect(result.turns).toBe(200);
+    expect(result.turns).toBe(144);
     expect(result.awayBonus.awarded).toBe(false);
     expect(result.turnsGeneratedNextTick).toBe(0);
   });
@@ -80,7 +80,7 @@ describe('TurnService.settle', () => {
   it('pays a partial away bonus rather than overfilling', () => {
     const result = TurnService.settle(
       player({
-        turns: 197,
+        turns: 141,
         lastTurnCalculationAt: ago(0),
         lastActiveAt: ago(7 * HOUR),
       }),
@@ -89,7 +89,7 @@ describe('TurnService.settle', () => {
     );
 
     expect(result.awayBonus).toEqual({ awarded: true, amount: 3 });
-    expect(result.turns).toBe(200);
+    expect(result.turns).toBe(144);
     expect(result.changed).toBe(true);
   });
 
@@ -110,6 +110,6 @@ describe('TurnService.settle', () => {
   it('reports the next tick size while below the cap', () => {
     const result = TurnService.settle(player({ turns: 10 }), now, classicOgV01);
     expect(result.turnsGeneratedNextTick).toBe(2);
-    expect(result.turnCap).toBe(200);
+    expect(result.turnCap).toBe(144);
   });
 });

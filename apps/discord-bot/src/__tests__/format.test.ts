@@ -108,9 +108,9 @@ describe('roundEmbed and newsEmbed', () => {
     const embed = roundEmbed({
       round: { name: 'Game #008', status: 'REGISTRATION', msRemaining: 3_600_000, playerCount: 12 },
       ruleset: { name: 'Classic OG' },
-      turns: { amountPerInterval: 2, intervalMinutes: 10, cap: 200 },
+      turns: { amountPerInterval: 2, intervalMinutes: 5, cap: 144 },
     }, origin);
-    expect(embed.fields!.map((field) => field.value)).toEqual(['Registration open', '1h 0m', '12', '+2 every 10 min, up to 200', 'Classic OG']);
+    expect(embed.fields!.map((field) => field.value)).toEqual(['Registration open', '1h 0m', '12', '+2 every 5 min, up to 144', 'Classic OG']);
     expect(roundEmbed({ round: null, ruleset: null, turns: null }, origin).title).toBe('No game running');
   });
 
@@ -264,14 +264,14 @@ describe('news posts and turn reminders', () => {
   });
 
   it('builds the turn reminder DM', () => {
-    const embed = turnReminderEmbed({ discordId: '1', displayName: 'Big_Daddy', roundName: 'Game #008', turns: 200, cap: 200, url: `${origin}/game` });
-    expect(embed.description).toBe('Big\\_Daddy is at 200/200 turns in Game \\#008. Spend some before new ones go to waste.');
+    const embed = turnReminderEmbed({ discordId: '1', displayName: 'Big_Daddy', roundName: 'Game #008', turns: 144, cap: 144, url: `${origin}/game` });
+    expect(embed.description).toBe('Big\\_Daddy is at 144/144 turns in Game \\#008. Spend some before new ones go to waste.');
     expect(embed.url).toBe(`${origin}/game`);
   });
 
   it('explains the reminder state', () => {
     expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: false }, roundName: 'Game #008', current: null })).toBe('Turn alerts are off.');
-    expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: true }, roundName: 'Game #008', current: { turns: 40, cap: 200, nationalRank: 5 } })).toContain("You're at 40/200 now.");
+    expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: true }, roundName: 'Game #008', current: { turns: 40, cap: 144, nationalRank: 5 } })).toContain("You're at 40/144 now.");
     expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: true }, roundName: 'Game #008', current: null })).toContain("You haven't joined Game #008 yet");
     expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: true }, roundName: null, current: null })).toContain('No round is running');
   });

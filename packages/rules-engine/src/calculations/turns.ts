@@ -13,7 +13,7 @@ import type {
  * intervals. Setting lastTurnCalculationAt to now would throw away the
  * fraction of an interval already served, every single time turns are read.
  *
- * The clock advances even when the player is at the cap, so idling at 200
+ * The clock advances even when the player is at the cap, so idling there
  * does not bank hours of turns that dump the moment one is spent.
  */
 export function regenerateTurns(

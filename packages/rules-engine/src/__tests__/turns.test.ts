@@ -21,22 +21,22 @@ describe('regenerateTurns', () => {
     expect(result.gained).toBe(6);
   });
 
-  // Section 53: 198 + 2 = 200
+  // Section 53: 142 + 2 = 144
   it('reaches the cap exactly', () => {
     const result = regenerateTurns(
-      { turns: 198, lastTurnCalculationAt: base },
+      { turns: 142, lastTurnCalculationAt: base },
       at(INTERVAL_MS),
     );
-    expect(result.turns).toBe(200);
+    expect(result.turns).toBe(144);
   });
 
-  // Section 53: 200 + 2 = 200
+  // Section 53: 144 + 2 = 144
   it('never exceeds the cap', () => {
     const result = regenerateTurns(
-      { turns: 200, lastTurnCalculationAt: base },
+      { turns: 144, lastTurnCalculationAt: base },
       at(INTERVAL_MS * 50),
     );
-    expect(result.turns).toBe(200);
+    expect(result.turns).toBe(144);
     expect(result.gained).toBe(0);
     expect(result.turnsGeneratedNextTick).toBe(0);
   });
@@ -76,7 +76,7 @@ describe('regenerateTurns', () => {
 
   it('settles the clock even while capped, so idle time cannot be banked', () => {
     const result = regenerateTurns(
-      { turns: 200, lastTurnCalculationAt: base },
+      { turns: 144, lastTurnCalculationAt: base },
       at(INTERVAL_MS * 12),
     );
     expect(result.lastTurnCalculationAt.getTime()).toBe(
@@ -84,13 +84,12 @@ describe('regenerateTurns', () => {
     );
   });
 
-  // Release test step 19: come back after 20 minutes, get 4 turns.
-  it('gives four turns after twenty minutes away', () => {
+  it('gives eight turns after twenty minutes away', () => {
     const result = regenerateTurns(
       { turns: 0, lastTurnCalculationAt: base },
       at(20 * 60 * 1000),
     );
-    expect(result.turns).toBe(4);
+    expect(result.turns).toBe(8);
   });
 
   it('is not fooled by a clock that runs backwards', () => {
@@ -154,17 +153,17 @@ describe('evaluateAwayBonus', () => {
 
   it('respects the turn cap rather than wasting the bonus', () => {
     const result = evaluateAwayBonus(
-      { turns: 200, lastActiveAt: base, lastAwayBonusAt: null },
+      { turns: 144, lastActiveAt: base, lastAwayBonusAt: null },
       at(SIX_HOURS),
     );
     expect(result.awarded).toBe(false);
 
     const partial = evaluateAwayBonus(
-      { turns: 198, lastActiveAt: base, lastAwayBonusAt: null },
+      { turns: 142, lastActiveAt: base, lastAwayBonusAt: null },
       at(SIX_HOURS),
     );
     expect(partial.awarded).toBe(true);
     expect(partial.amount).toBe(2);
-    expect(partial.turns).toBe(200);
+    expect(partial.turns).toBe(144);
   });
 });

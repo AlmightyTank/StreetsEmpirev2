@@ -136,10 +136,10 @@ career history only: Hall of Fame podiums, profile badges, final ranks, final ne
 and season stats can follow the account, but none of that history changes a new
 round's starting kit.
 
-**Turns regenerate lazily.** No job sweeps the player table every ten minutes. Whole
+**Turns regenerate lazily.** No job sweeps the player table every five minutes. Whole
 elapsed intervals are settled on read and `lastTurnCalculationAt` advances by exactly
 those intervals &mdash; never to `now`, which would discard the part-served interval on
-every page load. The clock advances even at the cap, so idling at 200 cannot bank
+every page load. The clock advances even at the cap, so idling there cannot bank
 hours of turns that dump the moment one is spent.
 
 **A background poll is not the player.** `GET /api/game/me?background=1` settles turns
@@ -277,7 +277,7 @@ immediately, take the opening rank snapshot, and log `ROUND_JOINED`.
 focus, on `visibilitychange`, every sixty seconds, and whenever the turn countdown
 lands &mdash; so it never acts on stale numbers.
 
-The frozen 0.1.0 round still gives exactly section 11: `$5,000`, 200 turns, 1 whore, 1 thug, 250 condoms,
+The frozen 0.1.0 round still gives exactly section 11: `$5,000`, 144 turns, 1 whore, 1 thug, 250 condoms,
 100 crack, 10 beer, 50% payout, New York City &mdash; which is a net worth of `$6,827`,
 100% whore happiness and 99% thug happiness (one thug, no gun). The current 0.3.0-A public season starts players at `$20,000` with 10 thugs, 10 pistols, beer and medicine, then freezes final standings when the round ends. Production rankings, profiles and combat lists show active player accounts only; local development can opt into active dev bots with `npm run db:seed:dev-bots`. Missing guns cost more thug happiness, only armed fit thugs count as street cover while scouting, luring can pull unhappy hoes and thugs with crack and beer, special raid reports explain the outcome, raid-form achievements track the newer attacks, and public pages show money, rank tenure, movement, past results and a fuller achievement gallery while opponent crew, weapons, wounds, exposed cash and crack stash stay behind recon.
 

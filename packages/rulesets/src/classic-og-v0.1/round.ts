@@ -22,7 +22,7 @@ export const round = {
   startingPlayer: {
     cashCents: 500_000,
 
-    turns: 200,
+    turns: 144,
 
     whores: 1,
     thugs: 1,

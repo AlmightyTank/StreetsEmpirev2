@@ -57,11 +57,11 @@ describe('roleKeysFor', () => {
 
 describe('reminderDecision', () => {
   it('arms below the cap, notifies once on reaching it, then waits for the next drop', () => {
-    expect(reminderDecision({ armed: false, turns: 150, cap: 200 })).toBe('arm');
-    expect(reminderDecision({ armed: true, turns: 199, cap: 200 })).toBe('none');
-    expect(reminderDecision({ armed: true, turns: 200, cap: 200 })).toBe('notify');
-    expect(reminderDecision({ armed: false, turns: 200, cap: 200 })).toBe('none');
-    expect(reminderDecision({ armed: false, turns: 210, cap: 200 })).toBe('none');
+    expect(reminderDecision({ armed: false, turns: 100, cap: 144 })).toBe('arm');
+    expect(reminderDecision({ armed: true, turns: 143, cap: 144 })).toBe('none');
+    expect(reminderDecision({ armed: true, turns: 144, cap: 144 })).toBe('notify');
+    expect(reminderDecision({ armed: false, turns: 144, cap: 144 })).toBe('none');
+    expect(reminderDecision({ armed: false, turns: 150, cap: 144 })).toBe('none');
   });
 });
 

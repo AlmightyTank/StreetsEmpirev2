@@ -108,7 +108,7 @@ describe('classic-og-v0.1 contents', () => {
   it('holds the starting resources from section 11', () => {
     expect(classicOgV01.round.startingPlayer).toMatchObject({
       cashCents: 500_000,
-      turns: 200,
+      turns: 144,
       whores: 1,
       thugs: 1,
       condoms: 250,
@@ -120,11 +120,11 @@ describe('classic-og-v0.1 contents', () => {
     });
   });
 
-  it('regenerates two turns every ten minutes up to two hundred', () => {
+  it('regenerates two turns every five minutes up to one hundred forty-four', () => {
     expect(classicOgV01.turns).toMatchObject({
       amountPerInterval: 2,
-      intervalMinutes: 10,
-      cap: 200,
+      intervalMinutes: 5,
+      cap: 144,
     });
     expect(classicOgV01.turns.awayBonus).toMatchObject({
       enabled: true,
