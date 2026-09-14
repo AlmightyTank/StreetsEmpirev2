@@ -7,13 +7,13 @@
 #   bash scripts/ops/install-bot-service.sh
 #
 # Settings (environment variables):
-#   API_SERVICE  existing systemd unit for the game API (default: streets-empire-api)
+#   API_SERVICE  existing systemd unit for the game API (default: streets-empire)
 #   BOT_SERVICE  name for the new bot unit             (default: streets-empire-bot)
 #   NODE_BIN     Node binary, if it can't be detected
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-API_SERVICE="${API_SERVICE:-streets-empire-api}"
+API_SERVICE="${API_SERVICE:-streets-empire}"
 BOT_SERVICE="${BOT_SERVICE:-streets-empire-bot}"
 SUDO=""
 [ "$(id -u)" -eq 0 ] || SUDO="sudo"

@@ -14,14 +14,14 @@ scripts work from wherever the repo is checked out.
 systemctl list-units --type=service | grep -i -E 'street|empire|node'
 ```
 
-The scripts assume `streets-empire-api`. If yours is different, put
+The scripts assume `streets-empire`. If yours is different, put
 `API_SERVICE=<name>` in front of each script command below, for example
 `API_SERVICE=streets-api bash scripts/ops/deploy.sh`.
 
 Make sure the API starts on boot:
 
 ```bash
-sudo systemctl enable streets-empire-api
+sudo systemctl enable streets-empire
 ```
 
 ### 2. Configure and build the bot
@@ -54,7 +54,7 @@ allow just those for your deploy user, run `sudo visudo -f /etc/sudoers.d/street
 and add this, with your user name and unit names:
 
 ```text
-deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart streets-empire-api, /usr/bin/systemctl restart streets-empire-bot, /usr/bin/journalctl -u streets-empire-api *, /usr/bin/journalctl -u streets-empire-bot *
+deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart streets-empire, /usr/bin/systemctl restart streets-empire-bot, /usr/bin/journalctl -u streets-empire *, /usr/bin/journalctl -u streets-empire-bot *
 ```
 
 ## Every update
@@ -82,7 +82,7 @@ The Flarum extension deploys separately; see
 ## Logs and status
 
 ```bash
-systemctl status streets-empire-api streets-empire-bot
+systemctl status streets-empire streets-empire-bot
 ```
 
 ```bash
@@ -90,7 +90,7 @@ journalctl -u streets-empire-bot -f
 ```
 
 ```bash
-journalctl -u streets-empire-api --since "1 hour ago"
+journalctl -u streets-empire --since "1 hour ago"
 ```
 
 ## Rolling back
@@ -117,5 +117,5 @@ git checkout main && bash scripts/ops/deploy.sh
 Both services should be `active (running)`:
 
 ```bash
-systemctl is-enabled streets-empire-api streets-empire-bot && systemctl is-active streets-empire-api streets-empire-bot
+systemctl is-enabled streets-empire streets-empire-bot && systemctl is-active streets-empire streets-empire-bot
 ```

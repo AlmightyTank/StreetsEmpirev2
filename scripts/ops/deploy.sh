@@ -5,7 +5,7 @@
 #   bash scripts/ops/deploy.sh
 #
 # Settings (environment variables):
-#   API_SERVICE  systemd unit for the game API   (default: streets-empire-api)
+#   API_SERVICE  systemd unit for the game API   (default: streets-empire)
 #   BOT_SERVICE  systemd unit for the Discord bot (default: streets-empire-bot)
 #   BRANCH       branch to deploy                 (default: main)
 #   API_URL      where the API listens locally     (default: http://127.0.0.1:3001)
@@ -13,7 +13,7 @@
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-API_SERVICE="${API_SERVICE:-streets-empire-api}"
+API_SERVICE="${API_SERVICE:-streets-empire}"
 BOT_SERVICE="${BOT_SERVICE:-streets-empire-bot}"
 BRANCH="${BRANCH:-main}"
 API_URL="${API_URL:-http://127.0.0.1:3001}"
