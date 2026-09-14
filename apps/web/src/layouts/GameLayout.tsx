@@ -53,6 +53,7 @@ const SECTIONS: NavSection[] = [
       { label: 'News', to: '/game/news' },
       { label: 'Status', to: '/game/status' },
       { label: 'Rules', to: '/game/rules' },
+      { label: 'Login & settings', to: '/account' },
       { label: 'Community', href: 'https://forum.streetsempire.dev' },
     ],
   },
