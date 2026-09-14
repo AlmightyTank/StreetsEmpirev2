@@ -1,4 +1,4 @@
-import type { ActivityDto, CityDto, RoundDto } from './api.js';
+import type { ActivityDto, CityDto, ProfileAccent, RoundDto } from './api.js';
 
 export type PublicAchievementCategory = 'rank' | 'wealth' | 'combat' | 'intel' | 'reputation' | 'legacy';
 export type PublicAchievementRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
@@ -117,6 +117,10 @@ export interface PublicPlayerProfileDto {
   forumProfileUrl: string | null;
   badges: ProfileBadgeDto[];
   forumGroups: ForumGroupBadgeDto[];
+  cosmetics: {
+    title: string | null;
+    accent: ProfileAccent;
+  };
   publicPimpId: number;
   displayName: string;
   city: CityDto;

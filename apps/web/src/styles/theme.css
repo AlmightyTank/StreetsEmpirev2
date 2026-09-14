@@ -1291,6 +1291,28 @@ a.se-nav__link:hover {
   padding-top: 2px;
 }
 
+.se-profile-accent {
+  --se-profile-accent: var(--se-accent);
+  border-left: 3px solid var(--se-profile-accent);
+  padding-left: 12px;
+}
+
+.se-profile-accent--crimson { --se-profile-accent: #ff5468; }
+.se-profile-accent--gold { --se-profile-accent: var(--se-warn); }
+.se-profile-accent--green { --se-profile-accent: #4ade80; }
+.se-profile-accent--blue { --se-profile-accent: #60a5fa; }
+.se-profile-accent--purple { --se-profile-accent: #c084fc; }
+
+.se-profile-title {
+  margin: 4px 0 0;
+  color: var(--se-profile-accent);
+  font-family: var(--se-mono);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .se-ach-filters {
   display: grid;
   gap: 10px;
@@ -1565,4 +1587,79 @@ a.se-nav__link:hover {
 .se-account-status {
   margin: 0;
   font-weight: 700;
+}
+
+.se-swatch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.se-swatch {
+  --se-swatch: var(--se-accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 5px 9px;
+  border: 1px solid var(--se-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--se-text-dim);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.se-swatch span {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--se-swatch);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--se-swatch) 22%, transparent);
+}
+
+.se-swatch--crimson { --se-swatch: #ff5468; }
+.se-swatch--gold { --se-swatch: var(--se-warn); }
+.se-swatch--green { --se-swatch: #4ade80; }
+.se-swatch--blue { --se-swatch: #60a5fa; }
+.se-swatch--purple { --se-swatch: #c084fc; }
+.se-swatch--on {
+  border-color: var(--se-swatch);
+  color: var(--se-text);
+  background: color-mix(in srgb, var(--se-swatch) 10%, transparent);
+}
+
+.se-cosmetic-list {
+  display: grid;
+  gap: 8px;
+}
+
+.se-checkrow {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 8px;
+  border: 1px solid var(--se-line-soft);
+  border-radius: 4px;
+  background: rgba(11, 12, 14, 0.24);
+  cursor: pointer;
+}
+
+.se-checkrow input {
+  margin-top: 3px;
+  accent-color: var(--se-accent);
+}
+
+.se-checkrow strong,
+.se-checkrow small {
+  display: block;
+}
+
+.se-checkrow small {
+  margin-top: 2px;
+  color: var(--se-muted);
+  font-size: 11px;
+  text-transform: capitalize;
 }

@@ -47,8 +47,23 @@ model Account {
   forumLink               ForumLink?
   forumLinkRequest        ForumLinkRequest?
   discordReminder         DiscordReminder?
+  profile                 AccountProfile?
   roundPlayers            RoundPlayer[]
   authoredNews            GameNews[]            @relation("GameNewsAuthor")
+}
+
+/// Cosmetic and preference settings. Pure prestige: never affects round starts,
+/// action math, stores, ranks or combat.
+model AccountProfile {
+  accountId String  @id
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  activeTitleKey   String?
+  featuredBadgeKeys Json @default("[]")
+  profileAccent    String @default("default")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 /// Verified public profile connection; owned by the permanent account.

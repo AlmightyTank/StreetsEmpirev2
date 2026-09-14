@@ -52,6 +52,34 @@ export interface AccountDto {
   lastLoginAt: string | null;
 }
 
+export type ProfileAccent = 'default' | 'crimson' | 'gold' | 'green' | 'blue' | 'purple';
+
+export interface CosmeticOptionDto {
+  key: string;
+  label: string;
+  description: string | null;
+}
+
+export interface BadgeCosmeticOptionDto extends CosmeticOptionDto {
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+  permanent: boolean;
+}
+
+export interface AccountProfileSettingsDto {
+  activeTitleKey: string | null;
+  featuredBadgeKeys: string[];
+  profileAccent: ProfileAccent;
+}
+
+export interface AccountProfileSettingsResponseDto {
+  settings: AccountProfileSettingsDto;
+  options: {
+    titles: BadgeCosmeticOptionDto[];
+    badges: BadgeCosmeticOptionDto[];
+    accents: CosmeticOptionDto[];
+  };
+}
+
 export interface CityDto {
   id: string;
   slug: string;

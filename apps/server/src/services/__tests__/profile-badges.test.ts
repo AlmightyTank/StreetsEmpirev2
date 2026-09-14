@@ -32,6 +32,16 @@ describe('selectProfileBadges', () => {
     expect(selectProfileBadges(awards, 2)).toHaveLength(2);
   });
 
+  it('puts selected featured badges first, then fills the strip normally', () => {
+    const badges = selectProfileBadges([
+      award('first-stack', 'common', 'wealth'),
+      award('veteran', 'common', 'legacy'),
+      award('millionaire', 'epic', 'wealth'),
+      award('past-winner', 'legendary', 'legacy'),
+    ], 4, ['first-stack', 'missing', 'veteran']);
+    expect(badges.map((badge) => badge.key)).toEqual(['first-stack', 'veteran', 'past-winner', 'millionaire']);
+  });
+
   it('shares only public badge fields', () => {
     expect(Object.keys(selectProfileBadges([award('veteran', 'common', 'legacy')])[0]!).sort())
       .toEqual(['category', 'description', 'key', 'permanent', 'rarity', 'title']);

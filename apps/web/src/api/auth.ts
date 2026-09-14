@@ -1,4 +1,15 @@
-import type { AccountDto, ChangeEmailInput, ForgotPasswordInput, LoginInput, RegisterInput, ResetPasswordInput, VerifyEmailTokenInput } from '@streets/shared';
+import type {
+  AccountDto,
+  AccountProfileSettingsResponseDto,
+  ChangeEmailInput,
+  ChangePasswordInput,
+  ForgotPasswordInput,
+  LoginInput,
+  RegisterInput,
+  ResetPasswordInput,
+  UpdateAccountProfileSettingsInput,
+  VerifyEmailTokenInput,
+} from '@streets/shared';
 import { api } from './client.js';
 
 interface AccountResponse {
@@ -26,6 +37,9 @@ export const authApi = {
   resetPassword: (input: ResetPasswordInput) =>
     api.post<AccountResponse>('/auth/password/reset', input),
 
+  changePassword: (input: ChangePasswordInput) =>
+    api.post<MessageResponse>('/auth/password/change', input),
+
   requestEmailVerification: () =>
     api.post<MessageResponse>('/auth/email/verify/request'),
 
@@ -34,6 +48,12 @@ export const authApi = {
 
   verifyEmailToken: (input: VerifyEmailTokenInput) =>
     api.post<OptionalAccountResponse>('/auth/email/verify', input),
+
+  profileSettings: () =>
+    api.get<AccountProfileSettingsResponseDto>('/auth/profile-settings'),
+
+  updateProfileSettings: (input: UpdateAccountProfileSettingsInput) =>
+    api.put<AccountProfileSettingsResponseDto>('/auth/profile-settings', input),
 
   logout: () => api.post<{ ok: true }>('/auth/logout'),
 

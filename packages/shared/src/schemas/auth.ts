@@ -49,6 +49,11 @@ export const resetPasswordSchema = z.object({
   password: passwordSchema,
 });
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Enter your current password.'),
+  password: passwordSchema,
+});
+
 export const changeEmailSchema = z.object({
   email: emailSchema,
 });
@@ -57,9 +62,20 @@ export const verifyEmailTokenSchema = z.object({
   token: z.string().trim().min(32, 'Open the full email verification link.'),
 });
 
+export const profileAccentSchema = z.enum(['default', 'crimson', 'gold', 'green', 'blue', 'purple']);
+
+export const updateAccountProfileSettingsSchema = z.object({
+  activeTitleKey: z.string().trim().min(1).max(80).nullable(),
+  featuredBadgeKeys: z.array(z.string().trim().min(1).max(80)).max(6),
+  profileAccent: profileAccentSchema,
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type ChangeEmailInput = z.infer<typeof changeEmailSchema>;
 export type VerifyEmailTokenInput = z.infer<typeof verifyEmailTokenSchema>;
+export type ProfileAccentInput = z.infer<typeof profileAccentSchema>;
+export type UpdateAccountProfileSettingsInput = z.infer<typeof updateAccountProfileSettingsSchema>;

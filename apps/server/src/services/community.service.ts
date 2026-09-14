@@ -9,6 +9,7 @@ import type {
   PublicLegacyDto,
   PublicPlayerProfileDto,
   PublicSeasonStatsDto,
+  ProfileAccent,
   RankingEntryDto,
   RankingsDto,
 } from '@streets/shared';
@@ -376,6 +377,16 @@ function achievementsFor(row: RankingRow, rank: { local: number; national: numbe
   ];
 }
 
+function jsonStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function profileAccent(value: string | null | undefined): ProfileAccent {
+  return ['default', 'crimson', 'gold', 'green', 'blue', 'purple'].includes(value ?? '')
+    ? value as ProfileAccent
+    : 'default';
+}
+
 /** Cross-round achievements. Exported so forum badges work for accounts not in the current round. */
 export function legacyAchievements(legacy: PublicLegacyDto): PublicAwardDto[] {
   return [
@@ -692,18 +703,27 @@ export const CommunityService = {
     const hideCrew = Boolean(privacy?.hideOpponentCrew && !isYou);
     const hideWeapons = Boolean(privacy?.hideOpponentWeapons && !isYou);
     const weapons = player.pistols + player.shotguns + player.tek9s + player.ak47s;
-    const [contexts, forumGroups, career] = await Promise.all([
+    const [contexts, forumGroups, career, profileSettings] = await Promise.all([
       loadPublicContexts(prisma, roundId, [player]),
       forumLink && options.forumGroups !== false ? ForumGroupsService.groupsFor(forumLink.forumUserId) : [],
       loadCareerForAccount(prisma, player.accountId, { currentRoundId: roundId, limit: 10 }),
+      prisma.accountProfile.findUnique({ where: { accountId: player.accountId } }),
     ]);
     const context = contexts.get(player.id) ?? emptyContext();
     const awards = achievementsFor(player, { local: localRank, national: nationalRank }, context);
+    const unlockedAwards = awards.filter((award) => award.unlocked);
+    const featuredBadgeKeys = jsonStringArray(profileSettings?.featuredBadgeKeys)
+      .filter((key) => unlockedAwards.some((award) => award.key === key));
+    const title = unlockedAwards.find((award) => award.key === profileSettings?.activeTitleKey)?.title ?? null;
 
     return {
       forumProfileUrl: forumLink ? forumProfileUrl(forumLink) : null,
-      badges: selectProfileBadges(awards),
+      badges: selectProfileBadges(awards, undefined, featuredBadgeKeys),
       forumGroups,
+      cosmetics: {
+        title,
+        accent: profileAccent(profileSettings?.profileAccent),
+      },
       publicPimpId: player.publicPimpId,
       displayName: player.displayName,
       city: toCityDto(player.city),

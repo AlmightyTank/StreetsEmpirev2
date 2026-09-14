@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import type { AccountProfileSettingsResponseDto, ProfileAccent } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
@@ -20,10 +21,37 @@ export function AccountSettingsPage() {
   const accountMessage = searchParams.get('accountMessage');
 
   const [newEmail, setNewEmail] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [message, setMessage] = useState<string | null>(accountMessage);
   const [tone, setTone] = useState<'error' | 'info'>('info');
   const [fields, setFields] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState<'recovery' | 'verify' | 'email' | null>(null);
+  const [busy, setBusy] = useState<'recovery' | 'verify' | 'email' | 'password' | 'cosmetics' | null>(null);
+  const [profileSettings, setProfileSettings] = useState<AccountProfileSettingsResponseDto | null>(null);
+  const [cosmetics, setCosmetics] = useState({
+    activeTitleKey: null as string | null,
+    featuredBadgeKeys: [] as string[],
+    profileAccent: 'default' as ProfileAccent,
+  });
+
+  useEffect(() => {
+    let active = true;
+    authApi.profileSettings()
+      .then((response) => {
+        if (!active) return;
+        setProfileSettings(response);
+        setCosmetics(response.settings);
+      })
+      .catch(() => {
+        if (active) {
+          setProfileSettings({
+            settings: cosmetics,
+            options: { titles: [], badges: [], accents: [{ key: 'default', label: 'Street Empire', description: null }] },
+          });
+        }
+      });
+    return () => { active = false; };
+  }, []);
 
   async function sendRecovery() {
     setBusy('recovery');
@@ -83,6 +111,65 @@ export function AccountSettingsPage() {
     }
   }
 
+  async function changePassword(event: FormEvent) {
+    event.preventDefault();
+    setBusy('password');
+    setMessage(null);
+    setFields({});
+
+    try {
+      const response = await authApi.changePassword({ currentPassword, password: newPassword });
+      setTone('info');
+      setMessage(response.message);
+      setCurrentPassword('');
+      setNewPassword('');
+    } catch (error) {
+      setTone('error');
+      if (error instanceof ApiError) {
+        setMessage(error.message);
+        setFields(error.fields ?? {});
+      } else {
+        setMessage('Something went wrong. Try that again.');
+      }
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function toggleFeaturedBadge(key: string) {
+    setCosmetics((current) => {
+      const selected = current.featuredBadgeKeys.includes(key)
+        ? current.featuredBadgeKeys.filter((candidate) => candidate !== key)
+        : [...current.featuredBadgeKeys, key].slice(0, 6);
+      return { ...current, featuredBadgeKeys: selected };
+    });
+  }
+
+  async function saveCosmetics(event: FormEvent) {
+    event.preventDefault();
+    setBusy('cosmetics');
+    setMessage(null);
+    setFields({});
+
+    try {
+      const response = await authApi.updateProfileSettings(cosmetics);
+      setProfileSettings(response);
+      setCosmetics(response.settings);
+      setTone('info');
+      setMessage('Profile cosmetics saved.');
+    } catch (error) {
+      setTone('error');
+      if (error instanceof ApiError) {
+        setMessage(error.message);
+        setFields(error.fields ?? {});
+      } else {
+        setMessage('Something went wrong. Try that again.');
+      }
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <Shell>
       <div className="se-pagehead">
@@ -119,6 +206,36 @@ export function AccountSettingsPage() {
             </p>
           </Panel>
 
+          <Panel title="Change password">
+            <form onSubmit={changePassword} noValidate>
+              <Field
+                label="Current password"
+                name="currentPassword"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+                error={fields.currentPassword}
+              />
+              <Field
+                label="New password"
+                name="password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+                required
+                minLength={8}
+                error={fields.password}
+                hint="Use at least 8 characters."
+              />
+              <button className="se-btn se-btn--primary se-btn--block" disabled={busy !== null}>
+                {busy === 'password' ? 'Changing...' : 'Change password'}
+              </button>
+            </form>
+          </Panel>
+
           <Panel title="Account record" flush>
             <div className="se-rows">
               <Row label="Created" value={formatDate(account.createdAt)} />
@@ -142,6 +259,84 @@ export function AccountSettingsPage() {
           </Panel>
 
           <ForumLinkPanel />
+
+          <Panel title="Profile cosmetics">
+            {!profileSettings ? (
+              <p className="se-muted">Loading your unlocked badges...</p>
+            ) : (
+              <form onSubmit={saveCosmetics} noValidate>
+                <div className="se-field">
+                  <label className="se-label" htmlFor="active-title">Profile title</label>
+                  <select
+                    id="active-title"
+                    className="se-input"
+                    value={cosmetics.activeTitleKey ?? ''}
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      activeTitleKey: event.target.value || null,
+                    }))}
+                  >
+                    <option value="">No title</option>
+                    {profileSettings.options.titles.map((option) => (
+                      <option value={option.key} key={option.key}>{option.label}</option>
+                    ))}
+                  </select>
+                  {fields.activeTitleKey ? <p className="se-error">{fields.activeTitleKey}</p> : <p className="se-hint">Titles come from achievements and legacy badges you have unlocked.</p>}
+                </div>
+
+                <div className="se-field">
+                  <span className="se-label">Profile accent</span>
+                  <div className="se-swatch-row" role="group" aria-label="Profile accent">
+                    {profileSettings.options.accents.map((option) => (
+                      <button
+                        type="button"
+                        key={option.key}
+                        className={`se-swatch se-swatch--${option.key}${cosmetics.profileAccent === option.key ? ' se-swatch--on' : ''}`}
+                        aria-pressed={cosmetics.profileAccent === option.key}
+                        title={option.description ?? option.label}
+                        onClick={() => setCosmetics((current) => ({ ...current, profileAccent: option.key as ProfileAccent }))}
+                      >
+                        <span aria-hidden="true" />
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="se-field">
+                  <span className="se-label">Featured badges</span>
+                  {profileSettings.options.badges.length ? (
+                    <div className="se-cosmetic-list">
+                      {profileSettings.options.badges.map((option) => {
+                        const checked = cosmetics.featuredBadgeKeys.includes(option.key);
+                        return (
+                          <label className="se-checkrow" key={option.key}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={!checked && cosmetics.featuredBadgeKeys.length >= 6}
+                              onChange={() => toggleFeaturedBadge(option.key)}
+                            />
+                            <span>
+                              <strong>{option.label}</strong>
+                              <small>{option.permanent ? 'Permanent' : 'This round'} · {option.rarity}</small>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="se-muted">Unlock achievements or finish a season to feature badges here.</p>
+                  )}
+                  {fields.featuredBadgeKeys ? <p className="se-error">{fields.featuredBadgeKeys}</p> : <p className="se-hint">Pick up to six. They appear first on your public profile.</p>}
+                </div>
+
+                <button className="se-btn se-btn--primary se-btn--block" disabled={busy !== null}>
+                  {busy === 'cosmetics' ? 'Saving...' : 'Save cosmetics'}
+                </button>
+              </form>
+            )}
+          </Panel>
 
           <Panel title="Current email verification">
             <p>

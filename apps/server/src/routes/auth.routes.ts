@@ -1,12 +1,13 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Account, AccountEmailTokenPurpose, PrismaClient } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { changeEmailSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, verifyEmailTokenSchema } from '@streets/shared';
+import { changeEmailSchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema } from '@streets/shared';
 import { z } from 'zod';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { createSession, destroySession } from '../auth/sessions.js';
 import { env } from '../config/env.js';
 import { toAccountDto } from '../game/dto.js';
+import { AccountProfileService } from '../services/account-profile.service.js';
 import { sendCurrentEmailVerification, sendEmailChangeVerification, sendPasswordResetEmail } from '../services/email.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
@@ -636,6 +637,24 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     return { account: toAccountDto(account) };
   });
 
+  fastify.post('/password/change', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(changePasswordSchema, request.body);
+    const account = request.auth!.account;
+    const ok = await verifyPassword(account.passwordHash, body.currentPassword);
+    if (!ok) {
+      throw AppError.badRequest('CURRENT_PASSWORD_INVALID', 'That current password does not match.', {
+        currentPassword: 'Enter your current password.',
+      });
+    }
+
+    await fastify.prisma.account.update({
+      where: { id: account.id },
+      data: { passwordHash: await hashPassword(body.password) },
+    });
+
+    return { ok: true, message: 'Your password was changed.' };
+  });
+
 
   fastify.post('/email/verify/request', { preHandler: fastify.requireAuth }, async (request) => {
     const account = request.auth!.account;
@@ -802,6 +821,14 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
     fastify.clearSessionCookie(reply);
     return { ok: true };
+  });
+
+  fastify.get('/profile-settings', { preHandler: fastify.requireAuth }, async (request) =>
+    AccountProfileService.settings(fastify.prisma, request.auth!.account.id));
+
+  fastify.put('/profile-settings', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(updateAccountProfileSettingsSchema, request.body);
+    return AccountProfileService.update(fastify.prisma, request.auth!.account.id, body);
   });
 
   fastify.get('/me', { preHandler: fastify.requireAuth }, async (request) => {
