@@ -1,6 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import type { AccountProfileSettingsResponseDto, ProfileAccent } from '@streets/shared';
+import type {
+  AccountProfileSettingsResponseDto,
+  DefaultLanding,
+  MoneyFormat,
+  ProfileAccent,
+  UiDensity,
+} from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
@@ -8,7 +14,7 @@ import { Field } from '../components/Field.js';
 import { ForumLinkPanel } from '../components/ForumLinkPanel.js';
 import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
-import { useSession } from '../stores/session.js';
+import { DEFAULT_PROFILE_SETTINGS, useSession } from '../stores/session.js';
 
 function formatDate(value: string | null): string {
   return value ? new Date(value).toLocaleString() : 'Never';
@@ -17,6 +23,7 @@ function formatDate(value: string | null): string {
 export function AccountSettingsPage() {
   const account = useSession((s) => s.account)!;
   const me = useSession((s) => s.me);
+  const setSessionProfileSettings = useSession((s) => s.setProfileSettings);
   const [searchParams] = useSearchParams();
   const accountMessage = searchParams.get('accountMessage');
 
@@ -28,11 +35,7 @@ export function AccountSettingsPage() {
   const [fields, setFields] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<'recovery' | 'verify' | 'email' | 'password' | 'cosmetics' | null>(null);
   const [profileSettings, setProfileSettings] = useState<AccountProfileSettingsResponseDto | null>(null);
-  const [cosmetics, setCosmetics] = useState({
-    activeTitleKey: null as string | null,
-    featuredBadgeKeys: [] as string[],
-    profileAccent: 'default' as ProfileAccent,
-  });
+  const [cosmetics, setCosmetics] = useState(DEFAULT_PROFILE_SETTINGS);
 
   useEffect(() => {
     let active = true;
@@ -46,7 +49,25 @@ export function AccountSettingsPage() {
         if (active) {
           setProfileSettings({
             settings: cosmetics,
-            options: { titles: [], badges: [], accents: [{ key: 'default', label: 'Street Empire', description: null }] },
+            options: {
+              titles: [],
+              badges: [],
+              accents: [{ key: 'default', label: 'Street Empire', description: null }],
+              densities: [
+                { key: 'comfortable', label: 'Comfortable', description: null },
+                { key: 'compact', label: 'Compact', description: null },
+              ],
+              moneyFormats: [
+                { key: 'full', label: 'Full money', description: null },
+                { key: 'compact', label: 'Compact money', description: null },
+              ],
+              defaultLandings: [
+                { key: 'game', label: 'Dashboard', description: null },
+                { key: 'profile', label: 'Profile', description: null },
+                { key: 'rankings', label: 'Rankings', description: null },
+                { key: 'news', label: 'News', description: null },
+              ],
+            },
           });
         }
       });
@@ -155,8 +176,9 @@ export function AccountSettingsPage() {
       const response = await authApi.updateProfileSettings(cosmetics);
       setProfileSettings(response);
       setCosmetics(response.settings);
+      setSessionProfileSettings(response.settings);
       setTone('info');
-      setMessage('Profile cosmetics saved.');
+      setMessage('Settings saved.');
     } catch (error) {
       setTone('error');
       if (error instanceof ApiError) {
@@ -260,84 +282,6 @@ export function AccountSettingsPage() {
 
           <ForumLinkPanel />
 
-          <Panel title="Profile cosmetics">
-            {!profileSettings ? (
-              <p className="se-muted">Loading your unlocked badges...</p>
-            ) : (
-              <form onSubmit={saveCosmetics} noValidate>
-                <div className="se-field">
-                  <label className="se-label" htmlFor="active-title">Profile title</label>
-                  <select
-                    id="active-title"
-                    className="se-input"
-                    value={cosmetics.activeTitleKey ?? ''}
-                    onChange={(event) => setCosmetics((current) => ({
-                      ...current,
-                      activeTitleKey: event.target.value || null,
-                    }))}
-                  >
-                    <option value="">No title</option>
-                    {profileSettings.options.titles.map((option) => (
-                      <option value={option.key} key={option.key}>{option.label}</option>
-                    ))}
-                  </select>
-                  {fields.activeTitleKey ? <p className="se-error">{fields.activeTitleKey}</p> : <p className="se-hint">Titles come from achievements and legacy badges you have unlocked.</p>}
-                </div>
-
-                <div className="se-field">
-                  <span className="se-label">Profile accent</span>
-                  <div className="se-swatch-row" role="group" aria-label="Profile accent">
-                    {profileSettings.options.accents.map((option) => (
-                      <button
-                        type="button"
-                        key={option.key}
-                        className={`se-swatch se-swatch--${option.key}${cosmetics.profileAccent === option.key ? ' se-swatch--on' : ''}`}
-                        aria-pressed={cosmetics.profileAccent === option.key}
-                        title={option.description ?? option.label}
-                        onClick={() => setCosmetics((current) => ({ ...current, profileAccent: option.key as ProfileAccent }))}
-                      >
-                        <span aria-hidden="true" />
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="se-field">
-                  <span className="se-label">Featured badges</span>
-                  {profileSettings.options.badges.length ? (
-                    <div className="se-cosmetic-list">
-                      {profileSettings.options.badges.map((option) => {
-                        const checked = cosmetics.featuredBadgeKeys.includes(option.key);
-                        return (
-                          <label className="se-checkrow" key={option.key}>
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              disabled={!checked && cosmetics.featuredBadgeKeys.length >= 6}
-                              onChange={() => toggleFeaturedBadge(option.key)}
-                            />
-                            <span>
-                              <strong>{option.label}</strong>
-                              <small>{option.permanent ? 'Permanent' : 'This round'} · {option.rarity}</small>
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="se-muted">Unlock achievements or finish a season to feature badges here.</p>
-                  )}
-                  {fields.featuredBadgeKeys ? <p className="se-error">{fields.featuredBadgeKeys}</p> : <p className="se-hint">Pick up to six. They appear first on your public profile.</p>}
-                </div>
-
-                <button className="se-btn se-btn--primary se-btn--block" disabled={busy !== null}>
-                  {busy === 'cosmetics' ? 'Saving...' : 'Save cosmetics'}
-                </button>
-              </form>
-            )}
-          </Panel>
-
           <Panel title="Current email verification">
             <p>
               Verify your current email before changing it. This proves you control the recovery address already on the account.
@@ -380,6 +324,156 @@ export function AccountSettingsPage() {
           </Panel>
         </div>
       </div>
+
+      <Panel title="Cosmetics & interface">
+        {!profileSettings ? (
+          <p className="se-muted">Loading your unlocked badges...</p>
+        ) : (
+          <form onSubmit={saveCosmetics} noValidate>
+            <div className="se-account-cosmetics">
+              <div>
+                <div className="se-field">
+                  <label className="se-label" htmlFor="active-title">Profile title</label>
+                  <select
+                    id="active-title"
+                    className="se-input"
+                    value={cosmetics.activeTitleKey ?? ''}
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      activeTitleKey: event.target.value || null,
+                    }))}
+                  >
+                    <option value="">No title</option>
+                    {profileSettings.options.titles.map((option) => (
+                      <option value={option.key} key={option.key}>{option.label}</option>
+                    ))}
+                  </select>
+                  {fields.activeTitleKey ? <p className="se-error">{fields.activeTitleKey}</p> : <p className="se-hint">Titles come from achievements and legacy badges you have unlocked.</p>}
+                </div>
+
+                <div className="se-field">
+                  <span className="se-label">Profile accent</span>
+                  <div className="se-swatch-row" role="group" aria-label="Profile accent">
+                    {profileSettings.options.accents.map((option) => (
+                      <button
+                        type="button"
+                        key={option.key}
+                        className={`se-swatch se-swatch--${option.key}${cosmetics.profileAccent === option.key ? ' se-swatch--on' : ''}`}
+                        aria-pressed={cosmetics.profileAccent === option.key}
+                        title={option.description ?? option.label}
+                        onClick={() => setCosmetics((current) => ({ ...current, profileAccent: option.key as ProfileAccent }))}
+                      >
+                        <span aria-hidden="true" />
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="se-field">
+                <span className="se-label">Featured badges</span>
+                {profileSettings.options.badges.length ? (
+                  <div className="se-cosmetic-list se-cosmetic-list--wide">
+                    {profileSettings.options.badges.map((option) => {
+                      const checked = cosmetics.featuredBadgeKeys.includes(option.key);
+                      return (
+                        <label className="se-checkrow" key={option.key}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={!checked && cosmetics.featuredBadgeKeys.length >= 6}
+                            onChange={() => toggleFeaturedBadge(option.key)}
+                          />
+                          <span>
+                            <strong>{option.label}</strong>
+                            <small>{option.permanent ? 'Permanent' : 'This round'} · {option.rarity}</small>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="se-muted">Unlock achievements or finish a season to feature badges here.</p>
+                )}
+                {fields.featuredBadgeKeys ? <p className="se-error">{fields.featuredBadgeKeys}</p> : <p className="se-hint">Pick up to six. They appear first on your public profile.</p>}
+              </div>
+            </div>
+
+            <div className="se-interface-preferences">
+              <div className="se-field">
+                <label className="se-label" htmlFor="ui-density">Interface density</label>
+                <select
+                  id="ui-density"
+                  className="se-input"
+                  value={cosmetics.uiDensity}
+                  onChange={(event) => setCosmetics((current) => ({
+                    ...current,
+                    uiDensity: event.target.value as UiDensity,
+                  }))}
+                >
+                  {profileSettings.options.densities.map((option) => (
+                    <option value={option.key} key={option.key}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="se-field">
+                <label className="se-label" htmlFor="money-format">Money display</label>
+                <select
+                  id="money-format"
+                  className="se-input"
+                  value={cosmetics.moneyFormat}
+                  onChange={(event) => setCosmetics((current) => ({
+                    ...current,
+                    moneyFormat: event.target.value as MoneyFormat,
+                  }))}
+                >
+                  {profileSettings.options.moneyFormats.map((option) => (
+                    <option value={option.key} key={option.key}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="se-field">
+                <label className="se-label" htmlFor="default-landing">After login</label>
+                <select
+                  id="default-landing"
+                  className="se-input"
+                  value={cosmetics.defaultLanding}
+                  onChange={(event) => setCosmetics((current) => ({
+                    ...current,
+                    defaultLanding: event.target.value as DefaultLanding,
+                  }))}
+                >
+                  {profileSettings.options.defaultLandings.map((option) => (
+                    <option value={option.key} key={option.key}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <label className="se-checkrow se-checkrow--toggle">
+                <input
+                  type="checkbox"
+                  checked={cosmetics.reducedMotion}
+                  onChange={(event) => setCosmetics((current) => ({
+                    ...current,
+                    reducedMotion: event.target.checked,
+                  }))}
+                />
+                <span>
+                  <strong>Reduced motion</strong>
+                  <small>Limit interface animation and transitions.</small>
+                </span>
+              </label>
+            </div>
+
+            <button className="se-btn se-btn--primary se-btn--block" disabled={busy !== null}>
+              {busy === 'cosmetics' ? 'Saving...' : 'Save settings'}
+            </button>
+          </form>
+        )}
+      </Panel>
     </Shell>
   );
 }

@@ -63,11 +63,18 @@ export const verifyEmailTokenSchema = z.object({
 });
 
 export const profileAccentSchema = z.enum(['default', 'crimson', 'gold', 'green', 'blue', 'purple']);
+export const uiDensitySchema = z.enum(['comfortable', 'compact']);
+export const moneyFormatSchema = z.enum(['full', 'compact']);
+export const defaultLandingSchema = z.enum(['game', 'profile', 'rankings', 'news']);
 
 export const updateAccountProfileSettingsSchema = z.object({
   activeTitleKey: z.string().trim().min(1).max(80).nullable(),
   featuredBadgeKeys: z.array(z.string().trim().min(1).max(80)).max(6),
   profileAccent: profileAccentSchema,
+  uiDensity: uiDensitySchema,
+  reducedMotion: z.boolean(),
+  moneyFormat: moneyFormatSchema,
+  defaultLanding: defaultLandingSchema,
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -78,4 +85,7 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type ChangeEmailInput = z.infer<typeof changeEmailSchema>;
 export type VerifyEmailTokenInput = z.infer<typeof verifyEmailTokenSchema>;
 export type ProfileAccentInput = z.infer<typeof profileAccentSchema>;
+export type UiDensityInput = z.infer<typeof uiDensitySchema>;
+export type MoneyFormatInput = z.infer<typeof moneyFormatSchema>;
+export type DefaultLandingInput = z.infer<typeof defaultLandingSchema>;
 export type UpdateAccountProfileSettingsInput = z.infer<typeof updateAccountProfileSettingsSchema>;

@@ -53,6 +53,9 @@ export interface AccountDto {
 }
 
 export type ProfileAccent = 'default' | 'crimson' | 'gold' | 'green' | 'blue' | 'purple';
+export type UiDensity = 'comfortable' | 'compact';
+export type MoneyFormat = 'full' | 'compact';
+export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
 
 export interface CosmeticOptionDto {
   key: string;
@@ -69,6 +72,10 @@ export interface AccountProfileSettingsDto {
   activeTitleKey: string | null;
   featuredBadgeKeys: string[];
   profileAccent: ProfileAccent;
+  uiDensity: UiDensity;
+  reducedMotion: boolean;
+  moneyFormat: MoneyFormat;
+  defaultLanding: DefaultLanding;
 }
 
 export interface AccountProfileSettingsResponseDto {
@@ -77,6 +84,9 @@ export interface AccountProfileSettingsResponseDto {
     titles: BadgeCosmeticOptionDto[];
     badges: BadgeCosmeticOptionDto[];
     accents: CosmeticOptionDto[];
+    densities: CosmeticOptionDto[];
+    moneyFormats: CosmeticOptionDto[];
+    defaultLandings: CosmeticOptionDto[];
   };
 }
 

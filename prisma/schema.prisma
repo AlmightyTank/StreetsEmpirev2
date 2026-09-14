@@ -61,6 +61,10 @@ model AccountProfile {
   activeTitleKey   String?
   featuredBadgeKeys Json @default("[]")
   profileAccent    String @default("default")
+  uiDensity        String  @default("comfortable")
+  reducedMotion    Boolean @default(false)
+  moneyFormat      String  @default("full")
+  defaultLanding   String  @default("game")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

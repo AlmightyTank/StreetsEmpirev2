@@ -1,6 +1,8 @@
 import type {
   AccountDto,
+  AccountProfileSettingsDto,
   ActivityDto,
+  DefaultLanding,
   GameSnapshotDto,
   VerifyEmailTokenInput,
   LoginInput,
@@ -18,10 +20,33 @@ import { ApiError } from '../api/client.js';
 
 type Phase = 'booting' | 'ready';
 
+export const DEFAULT_PROFILE_SETTINGS: AccountProfileSettingsDto = {
+  activeTitleKey: null,
+  featuredBadgeKeys: [],
+  profileAccent: 'default',
+  uiDensity: 'comfortable',
+  reducedMotion: false,
+  moneyFormat: 'full',
+  defaultLanding: 'game',
+};
+
+const LANDING_PATHS: Record<DefaultLanding, string> = {
+  game: '/game',
+  profile: '/game/profile',
+  rankings: '/game/rankings',
+  news: '/game/news',
+};
+
+export function landingPath(setting: DefaultLanding, hasPlayer: boolean): string {
+  if (!hasPlayer && setting !== 'news') return '/join';
+  return LANDING_PATHS[setting];
+}
+
 interface SessionState {
   phase: Phase;
 
   account: AccountDto | null;
+  profileSettings: AccountProfileSettingsDto;
   round: RoundDto | null;
   me: RoundPlayerDto | null;
   roundOver: RoundOverDto | null;
@@ -30,6 +55,8 @@ interface SessionState {
 
   /** Resolve who we are and which game is running. Runs once on mount. */
   bootstrap: () => Promise<void>;
+  refreshProfileSettings: () => Promise<AccountProfileSettingsDto>;
+  setProfileSettings: (settings: AccountProfileSettingsDto) => void;
   refreshRound: () => Promise<void>;
   /** Section 45/47. Pull the authoritative dashboard state. */
   refreshSnapshot: (options?: { background?: boolean }) => Promise<void>;
@@ -45,6 +72,7 @@ interface SessionState {
 export const useSession = create<SessionState>((set, get) => ({
   phase: 'booting',
   account: null,
+  profileSettings: DEFAULT_PROFILE_SETTINGS,
   round: null,
   me: null,
   roundOver: null,
@@ -62,8 +90,22 @@ export const useSession = create<SessionState>((set, get) => ({
       });
 
     set({ account });
+    if (account) await get().refreshProfileSettings();
     await get().refreshRound();
     set({ phase: 'ready' });
+  },
+
+  async refreshProfileSettings() {
+    const settings = await authApi
+      .profileSettings()
+      .then((r) => r.settings)
+      .catch(() => DEFAULT_PROFILE_SETTINGS);
+    set({ profileSettings: settings });
+    return settings;
+  },
+
+  setProfileSettings(profileSettings) {
+    set({ profileSettings });
   },
 
   async refreshRound() {
@@ -93,30 +135,43 @@ export const useSession = create<SessionState>((set, get) => ({
   async register(input) {
     const { account } = await authApi.register(input);
     set({ account });
+    await get().refreshProfileSettings();
     await get().refreshRound();
   },
 
   async login(input) {
     const { account } = await authApi.login(input);
     set({ account });
+    await get().refreshProfileSettings();
     await get().refreshRound();
   },
 
   async resetPassword(input) {
     const { account } = await authApi.resetPassword(input);
     set({ account });
+    await get().refreshProfileSettings();
     await get().refreshRound();
   },
 
   async verifyEmailToken(input) {
     const response = await authApi.verifyEmailToken(input);
-    if (response.account) set({ account: response.account });
+    if (response.account) {
+      set({ account: response.account });
+      await get().refreshProfileSettings();
+    }
     return response.message;
   },
 
   async logout() {
     await authApi.logout();
-    set({ account: null, me: null, roundOver: null, recentActivity: [], canJoin: false });
+    set({
+      account: null,
+      profileSettings: DEFAULT_PROFILE_SETTINGS,
+      me: null,
+      roundOver: null,
+      recentActivity: [],
+      canJoin: false,
+    });
     await get().refreshRound();
   },
 

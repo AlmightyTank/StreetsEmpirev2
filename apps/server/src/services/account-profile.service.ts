@@ -5,8 +5,11 @@ import type {
   AccountProfileSettingsResponseDto,
   BadgeCosmeticOptionDto,
   CosmeticOptionDto,
+  DefaultLanding,
+  MoneyFormat,
   ProfileAccent,
   PublicAwardDto,
+  UiDensity,
   UpdateAccountProfileSettingsInput,
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
@@ -23,6 +26,23 @@ export const PROFILE_ACCENTS: CosmeticOptionDto[] = [
   { key: 'green', label: 'Green', description: 'A money-green profile accent.' },
   { key: 'blue', label: 'Blue', description: 'A cool blue profile accent.' },
   { key: 'purple', label: 'Purple', description: 'A rare purple profile accent.' },
+];
+
+export const UI_DENSITIES: CosmeticOptionDto[] = [
+  { key: 'comfortable', label: 'Comfortable', description: 'Roomier spacing for slower, clearer scanning.' },
+  { key: 'compact', label: 'Compact', description: 'Tighter panels and rows for repeated play.' },
+];
+
+export const MONEY_FORMATS: CosmeticOptionDto[] = [
+  { key: 'full', label: 'Full money', description: 'Show full dollar amounts in the main status bar.' },
+  { key: 'compact', label: 'Compact money', description: 'Use shortened money labels in the main status bar.' },
+];
+
+export const DEFAULT_LANDINGS: CosmeticOptionDto[] = [
+  { key: 'game', label: 'Dashboard', description: 'Land on the main game dashboard after login.' },
+  { key: 'profile', label: 'Profile', description: 'Land on your public profile after login.' },
+  { key: 'rankings', label: 'Rankings', description: 'Land on the current rankings after login.' },
+  { key: 'news', label: 'News', description: 'Land on the news page after login.' },
 ];
 
 function stringArray(value: unknown): string[] {
@@ -53,7 +73,24 @@ function toSettingsDto(profile: AccountProfile | null, earnedKeys: Set<string>):
   const profileAccent = PROFILE_ACCENTS.some((option) => option.key === profile?.profileAccent)
     ? profile!.profileAccent as ProfileAccent
     : 'default';
-  return { activeTitleKey, featuredBadgeKeys, profileAccent };
+  const uiDensity = UI_DENSITIES.some((option) => option.key === profile?.uiDensity)
+    ? profile!.uiDensity as UiDensity
+    : 'comfortable';
+  const moneyFormat = MONEY_FORMATS.some((option) => option.key === profile?.moneyFormat)
+    ? profile!.moneyFormat as MoneyFormat
+    : 'full';
+  const defaultLanding = DEFAULT_LANDINGS.some((option) => option.key === profile?.defaultLanding)
+    ? profile!.defaultLanding as DefaultLanding
+    : 'game';
+  return {
+    activeTitleKey,
+    featuredBadgeKeys,
+    profileAccent,
+    uiDensity,
+    reducedMotion: profile?.reducedMotion ?? false,
+    moneyFormat,
+    defaultLanding,
+  };
 }
 
 async function earnedAwards(prisma: PrismaClient, accountId: string): Promise<PublicAwardDto[]> {
@@ -93,6 +130,9 @@ export const AccountProfileService = {
         titles: options,
         badges: options,
         accents: PROFILE_ACCENTS,
+        densities: UI_DENSITIES,
+        moneyFormats: MONEY_FORMATS,
+        defaultLandings: DEFAULT_LANDINGS,
       },
     };
   },
@@ -128,11 +168,19 @@ export const AccountProfileService = {
         activeTitleKey,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
+        uiDensity: input.uiDensity,
+        reducedMotion: input.reducedMotion,
+        moneyFormat: input.moneyFormat,
+        defaultLanding: input.defaultLanding,
       },
       update: {
         activeTitleKey,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
+        uiDensity: input.uiDensity,
+        reducedMotion: input.reducedMotion,
+        moneyFormat: input.moneyFormat,
+        defaultLanding: input.defaultLanding,
       },
     });
 

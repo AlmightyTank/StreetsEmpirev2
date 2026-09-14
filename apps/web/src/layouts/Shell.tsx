@@ -9,14 +9,16 @@ import { useSession } from '../stores/session.js';
  */
 function StatusBar() {
   const me = useSession((s) => s.me);
+  const moneyFormat = useSession((s) => s.profileSettings.moneyFormat);
   if (!me) return null;
+  const money = moneyFormat === 'compact' ? formatCentsCompact : formatCents;
 
   return (
     <div className="se-statusbar">
       <span className="se-statusbar__item">
         <span className="se-statusbar__k">Cash</span>
         <span className="se-num se-statusbar__v se-statusbar__v--wide">
-          {formatCents(me.resources.cashCents)}
+          {money(me.resources.cashCents)}
         </span>
         <span className="se-num se-statusbar__v se-statusbar__v--narrow">
           {formatCentsCompact(me.resources.cashCents)}
@@ -32,7 +34,7 @@ function StatusBar() {
       <span className="se-statusbar__item">
         <span className="se-statusbar__k">Net Worth</span>
         <span className="se-num se-statusbar__v se-statusbar__v--wide">
-          {formatCents(me.netWorthCents)}
+          {money(me.netWorthCents)}
         </span>
         <span className="se-num se-statusbar__v se-statusbar__v--narrow">
           {formatCentsCompact(me.netWorthCents)}
@@ -44,6 +46,7 @@ function StatusBar() {
 
 export function Shell({ children, narrow }: { children: ReactNode; narrow?: boolean }) {
   const account = useSession((s) => s.account);
+  const settings = useSession((s) => s.profileSettings);
   const logout = useSession((s) => s.logout);
   const navigate = useNavigate();
 
@@ -53,7 +56,7 @@ export function Shell({ children, narrow }: { children: ReactNode; narrow?: bool
   }
 
   return (
-    <>
+    <div className={`se-app se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}`}>
       <header className="se-topbar">
         <Link className="se-brand" to="/">
           <span className="se-brand__mark">
@@ -88,6 +91,6 @@ export function Shell({ children, narrow }: { children: ReactNode; narrow?: bool
       </header>
 
       <main className={narrow ? 'se-authshell' : 'se-shell'}>{children}</main>
-    </>
+    </div>
   );
 }

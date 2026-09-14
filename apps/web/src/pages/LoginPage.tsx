@@ -5,7 +5,7 @@ import { Alert } from '../components/Alert.js';
 import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
-import { useSession } from '../stores/session.js';
+import { landingPath, useSession } from '../stores/session.js';
 
 export function LoginPage() {
   const login = useSession((s) => s.login);
@@ -27,8 +27,8 @@ export function LoginPage() {
 
     try {
       await login({ identifier, password });
-      // Where you land depends on whether you are already in the round.
-      navigate(useSession.getState().me ? '/game' : '/join');
+      const session = useSession.getState();
+      navigate(landingPath(session.profileSettings.defaultLanding, Boolean(session.me)));
     } catch (error) {
       if (error instanceof ApiError) {
         setMessage(error.message);
