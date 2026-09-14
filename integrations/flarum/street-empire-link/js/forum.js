@@ -87,4 +87,8 @@
       if (this.streetEmpireUrl) items.add('streetEmpireProfile', m('a', { href: this.streetEmpireUrl, className: 'StreetEmpireProfileLink' }, 'Game Profile'), 80);
     });
   });
+
+  // Flarum wraps extension JS as `var module={}; ...; flarum.extensions[id]=module.exports`
+  // and its boot code reads `.extend` on that entry, so it must be an object.
+  module.exports = {};
 })();
