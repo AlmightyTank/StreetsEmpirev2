@@ -241,7 +241,6 @@ GET  /api/rounds/current/status
 GET  /api/game/me[?background=1]
 GET  /api/game/districts
 POST /api/game/scout
-POST /api/game/work
 POST /api/game/produce-crack
 PUT  /api/game/payout
 GET  /api/game/stores

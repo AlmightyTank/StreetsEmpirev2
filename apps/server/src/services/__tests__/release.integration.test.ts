@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { classicOgV01 } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
@@ -11,6 +11,7 @@ import { startingStock } from '@streets/rules-engine';
 describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regression', () => {
   let app: FastifyInstance;
   let accountId: string | undefined;
+  let roundId: string | undefined;
   let playerId: string;
   let publicPimpId: number;
   let cookie: string;
@@ -29,8 +30,16 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
     accountId = registered.json().account.id;
     cookie = registered.cookies.map((entry) => `${entry.name}=${entry.value}`).join('; ');
 
+    // Its own v0.1 round: this is the 0.1.0 regression, whatever the dev
+    // database's current round has moved on to.
     const { RoundService } = await import('../round.service.js');
-    const round = await RoundService.requireCurrent(app.prisma);
+    const round = await app.prisma.round.create({ data: {
+      name: 'Release integration fixture', slug: `release-test-${randomUUID()}`,
+      rulesetId: classicOgV01.meta.id, rulesetVersion: classicOgV01.meta.version, status: 'ACTIVE',
+      startsAt: new Date('2000-01-01'), endsAt: new Date(Date.now() + 86_400_000),
+    } });
+    roundId = round.id;
+    vi.spyOn(RoundService, 'requireCurrent').mockResolvedValue(round);
     const city = await app.prisma.city.findUniqueOrThrow({
       where: { slug: classicOgV01.round.startingCitySlug },
     });
@@ -58,6 +67,8 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
   });
 
   afterAll(async () => {
+    vi.restoreAllMocks();
+    if (roundId) await app.prisma.round.delete({ where: { id: roundId } });
     if (accountId) await app.prisma.account.delete({ where: { id: accountId } });
     if (app) await app.close();
   });
@@ -82,7 +93,6 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
   it('requires action ids on every mutable economy action', async () => {
     const requests = [
       { method: 'POST', url: '/api/game/scout', payload: { district: 'CASINO', turns: 1 } },
-      { method: 'POST', url: '/api/game/work', payload: { district: 'CASINO', turns: 1 } },
       { method: 'POST', url: '/api/game/produce-crack', payload: { turns: 1 } },
       { method: 'PUT', url: '/api/game/payout', payload: { percent: 55 } },
     ] as const;
@@ -96,7 +106,6 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
   it('runs the 0.1.0 gameplay loop without corrupting state', async () => {
     const actions = [
       { method: 'POST', url: '/api/game/scout', payload: { district: 'CASINO', turns: 1, actionId: randomUUID() } },
-      { method: 'POST', url: '/api/game/work', payload: { district: 'CASINO', turns: 1, actionId: randomUUID() } },
       { method: 'POST', url: '/api/game/produce-crack', payload: { turns: 1, actionId: randomUUID() } },
       { method: 'PUT', url: '/api/game/payout', payload: { percent: 55, actionId: randomUUID() } },
       { method: 'POST', url: '/api/game/stores/trade', payload: { store: 'CORNER', item: 'CONDOM', direction: 'buy', quantity: 10, actionId: randomUUID() } },

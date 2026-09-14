@@ -32,7 +32,7 @@ describe('rateLimitPolicyFor', () => {
 
   it('separates normal reads and writes', () => {
     expect(rateLimitPolicyFor('GET', '/api/game/me')).toBe(RATE_LIMIT_POLICIES.read);
-    expect(rateLimitPolicyFor('POST', '/api/game/work')).toBe(RATE_LIMIT_POLICIES.write);
+    expect(rateLimitPolicyFor('POST', '/api/game/scout')).toBe(RATE_LIMIT_POLICIES.write);
     expect(rateLimitPolicyFor('PUT', '/api/game/payout')).toBe(RATE_LIMIT_POLICIES.write);
   });
 });

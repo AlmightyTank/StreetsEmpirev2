@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { classicOgV01 } from '@streets/rulesets';
 
@@ -14,6 +14,7 @@ describe.runIf(process.env.TRANSACTION_INTEGRATION === '1')(
   () => {
     let app: FastifyInstance;
     let accountId: string | undefined;
+    let roundId: string | undefined;
     let playerId: string;
     let cookie: string;
 
@@ -35,8 +36,16 @@ describe.runIf(process.env.TRANSACTION_INTEGRATION === '1')(
       accountId = registered.json().account.id;
       cookie = registered.cookies.map((entry) => `${entry.name}=${entry.value}`).join('; ');
 
+      // Its own v0.1 round, so the dev database's current ruleset cannot
+      // change what these transactions do.
       const { RoundService } = await import('../round.service.js');
-      const round = await RoundService.requireCurrent(app.prisma);
+      const round = await app.prisma.round.create({ data: {
+        name: 'Transaction integration fixture', slug: `tx-test-${randomUUID()}`,
+        rulesetId: classicOgV01.meta.id, rulesetVersion: classicOgV01.meta.version, status: 'ACTIVE',
+        startsAt: new Date('2000-01-01'), endsAt: new Date(Date.now() + 86_400_000),
+      } });
+      roundId = round.id;
+      vi.spyOn(RoundService, 'requireCurrent').mockResolvedValue(round);
       const city = await app.prisma.city.findUniqueOrThrow({
         where: { slug: classicOgV01.round.startingCitySlug },
       });
@@ -63,6 +72,8 @@ describe.runIf(process.env.TRANSACTION_INTEGRATION === '1')(
     });
 
     afterAll(async () => {
+      vi.restoreAllMocks();
+      if (roundId) await app.prisma.round.delete({ where: { id: roundId } });
       if (accountId) await app.prisma.account.delete({ where: { id: accountId } });
       if (app) await app.close();
     });
@@ -148,8 +159,8 @@ describe.runIf(process.env.TRANSACTION_INTEGRATION === '1')(
       await reset({ turns: 1 });
 
       const responses = await Promise.all([
-        post('/api/game/work', { district: 'CASINO', turns: 1, actionId: randomUUID() }),
-        post('/api/game/work', { district: 'CASINO', turns: 1, actionId: randomUUID() }),
+        post('/api/game/scout', { district: 'CASINO', turns: 1, actionId: randomUUID() }),
+        post('/api/game/scout', { district: 'CASINO', turns: 1, actionId: randomUUID() }),
       ]);
 
       expect(responses.map((response) => response.statusCode).sort()).toEqual([200, 400]);
@@ -161,10 +172,10 @@ describe.runIf(process.env.TRANSACTION_INTEGRATION === '1')(
       const actionId = randomUUID();
       const before = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
       const beforeActivity = await app.prisma.playerActivity.count({
-        where: { roundPlayerId: playerId, type: 'WORK_STREETS' },
+        where: { roundPlayerId: playerId, type: 'SCOUT' },
       });
 
-      const response = await post('/api/game/work', {
+      const response = await post('/api/game/scout', {
         district: 'CASINO',
         turns: 1,
         actionId,
@@ -173,7 +184,7 @@ describe.runIf(process.env.TRANSACTION_INTEGRATION === '1')(
       expect(response.statusCode).toBe(400);
       expect(response.json().error.code).toBe('NOT_ENOUGH_TURNS');
       expect(await app.prisma.processedAction.count({ where: { roundPlayerId: playerId, actionId } })).toBe(0);
-      expect(await app.prisma.playerActivity.count({ where: { roundPlayerId: playerId, type: 'WORK_STREETS' } })).toBe(beforeActivity);
+      expect(await app.prisma.playerActivity.count({ where: { roundPlayerId: playerId, type: 'SCOUT' } })).toBe(beforeActivity);
 
       const after = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
       expect(after.turns).toBe(before.turns);
