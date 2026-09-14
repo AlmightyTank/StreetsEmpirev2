@@ -38,15 +38,20 @@ the person who ran the command.
 | `/badges` | Public | Every achievement: earned badges by rarity (◆ = permanent), and the eight locked ones closest to unlocking, with progress. Same `user:` / `name:` options as `/profile`. |
 | `/compare` | Public | Two players side by side. `player:` and `with:` take a name or an @mention; `with:` defaults to you. |
 | `/rankings` | Public | Current round national top 10 with links |
+| `/leaderboard` | Public | Top combat and intel counts this round: raids, defenses, drive-bys, recon, stolen rides and crew lured |
+| `/history` | Public | Finished round history for you, a linked member, or a current/past player name |
 | `/city` | Public | Top 10 in one city this round; city names autocomplete |
 | `/halloffame` | Public | Final top 3 of the five most recently finished rounds |
 | `/round` | Public | Round status, time left, players, turn rate |
 | `/news` | Public | Latest five news posts |
 | `/invite` | Public | How to register, join the current round and get roles, with the round's status |
 | `/link` | Private | Your game account, current-round player, forum link, and the roles you qualify for, or how to link |
-| `/remind` | Private | `turns:On` DMs you once each time your turns fill to the cap; `turns:Off` stops. See below. |
+| `/stats` | Private | Your own cash, crew, weapons, supplies, happiness, turns and ranks |
+| `/alerts` | Private | Turns on DMs for attacks, round events, rank drops or full turns. See below. |
+| `/remind` | Private | Compatibility shortcut for `/alerts type:turns` |
 | `/sync` | Private | Updates your roles now instead of at the next scheduled sync; once a minute per member |
 | `/help` | Private | Every command |
+| `/announce` | Private | Game admins: create a news post from Discord |
 | `/syncall` | Private | Mods: a full role sync for the whole server. Hidden from members without **Manage Roles**, and checked again when run. |
 
 **News auto-post.** When `DISCORD_NEWS_CHANNEL_ID` is set, the bot checks for
@@ -60,11 +65,15 @@ each item to that channel once.
   example because permissions changed, that post is skipped and logged, not
   retried.
 
-**Turn reminders.** Members opt in with `/remind turns:On`.
-- Every `DISCORD_REMINDER_MINUTES` (default 5), the bot DMs anyone whose turns
-  have filled to the cap since their last reminder.
-- They get one DM per fill-up. Spending turns sets up the next one.
-- Reminders only run during an active round, for members who have joined it.
+**Alerts and feeds.** Members opt in with `/alerts`.
+- Every `DISCORD_ALERTS_MINUTES` (default 1), the bot checks full-turn DMs,
+  attack DMs, rank-drop DMs, round-event DMs, the raid feed and round-end posts.
+- Turn alerts send one DM per fill-up. Spending turns sets up the next one.
+- Attack alerts DM the defender when they opted in. If `DISCORD_RAID_FEED_CHANNEL_ID`
+  is set, each new raid/combat result is also posted publicly once.
+- Rank alerts fire only when a member loses national #1 or falls out of the top 10.
+- Round alerts DM opted-in members when a round opens, is ending soon, or ends.
+  Ended rounds also post final standings to the news channel when configured.
 - A member who blocks DMs from server members won't get them; the bot logs that
   and moves on.
 
@@ -119,7 +128,8 @@ DISCORD_SYNC_MINUTES=10
 DISCORD_FORUM_GROUPS="Admin,Mod"
 DISCORD_NEWS_CHANNEL_ID="<channel id, or empty for no auto-posting>"
 DISCORD_NEWS_MINUTES=1
-DISCORD_REMINDER_MINUTES=5
+DISCORD_RAID_FEED_CHANNEL_ID="<channel id, or empty for no raid feed>"
+DISCORD_ALERTS_MINUTES=1
 ```
 
 - `GAME_API_URL` is where the bot reaches the API, as an origin with no path.
@@ -130,6 +140,8 @@ DISCORD_REMINDER_MINUTES=5
   Forum roles need forum linking (`FORUM_LINK_SECRET`) turned on.
 - `DISCORD_NEWS_CHANNEL_ID` is the channel for automatic news posts. Copy it by
   right-clicking the channel → **Copy Channel ID**, with Developer Mode on.
+- `DISCORD_RAID_FEED_CHANNEL_ID` is the channel for public raid/combat results.
+  Leave it empty to keep the feed off.
 
 Restart the game API after setting `DISCORD_BOT_API_TOKEN`.
 
@@ -148,7 +160,7 @@ boot and restarts after a crash. Install it once with
 On startup it logs `Street Empire bot ready as …`. The slash commands appear in
 your server immediately.
 
-The bot keeps one connection to Discord and claims news and reminders, so run
+The bot keeps one connection to Discord and claims news and alerts, so run
 exactly one copy of it.
 
 ## Updating
@@ -167,7 +179,8 @@ renamed or new commands need no extra step.
 | Warns `Cannot manage role "…"` | Drag the bot's role above that role (step 1.4). |
 | Commands reply "Street Empire is not answering" | The API is down or unreachable at `GAME_API_URL`, or the two `DISCORD_BOT_API_TOKEN` values differ. The bot logs the error. |
 | No news posts | Startup log says `News auto-post is off` and why: a wrong channel ID or missing channel permissions. News that existed before auto-posting is never posted. |
-| No reminder DMs | The round must be active and the member joined. They need DMs from server members allowed; failed DMs are logged as `Could not DM a turn reminder`. One DM per fill-up: spend turns to get the next. |
+| No alert DMs | The member must opt in with `/alerts`. Turn and rank alerts require an active round and a joined player. They need DMs from server members allowed; failed DMs are logged. |
+| No raid feed | Startup log says `Raid feed is off` and why: a wrong channel ID or missing channel permissions. Battles that existed before the feed was added are never posted. |
 | `/profile` says your Discord isn't linked | Sign in with Discord or link it under Game → Account, then wait for the next sync. |
 | No Forum roles | Forum linking must be on, the member's forum account linked, and the group listed in `DISCORD_FORUM_GROUPS` and visible on the forum. |
 
@@ -177,6 +190,7 @@ renamed or new commands need no extra step.
   compared in constant time. With no token set, it answers 404.
 - It is exempt from the per-IP rate limit so role sync on a large server isn't
   throttled. The 64+ character token makes guessing impractical.
-- It returns only public profile data: no emails, sessions, crew, weapons or cash.
+- It returns only public profile data except private `/stats`, which only shows
+  the caller's own current-round dashboard numbers.
 - Replies escape player-chosen text and disable all mentions, so a player name
   can't format a message or ping `@everyone`.

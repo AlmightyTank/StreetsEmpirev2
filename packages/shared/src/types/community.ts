@@ -193,11 +193,102 @@ export interface DiscordTurnReminderDto {
   url: string;
 }
 
-export interface DiscordReminderStateDto {
-  turns: boolean;
+export type DiscordAlertType = 'attacks' | 'round' | 'rank' | 'turns';
+
+/** Private /alerts state for one member. */
+export interface DiscordAlertSettingsDto {
+  alerts: Record<DiscordAlertType, boolean>;
   roundName: string | null;
-  /** Current turns and cap when the member has joined the current round. */
-  current: { turns: number; cap: number } | null;
+  /** Current turns and national rank when the member has joined the current round. */
+  current: { turns: number; cap: number; nationalRank: number } | null;
+}
+
+export type DiscordBattleKind = 'RAID' | 'DRIVE_BY' | 'DRUG_HOES' | 'STEAL_RIDE' | 'LURE_CREW';
+
+/** A new battle for the raid feed. Names and result only: no loot, crew or weapons. */
+export interface DiscordBattleEventDto {
+  id: string;
+  kind: DiscordBattleKind;
+  roundName: string;
+  attackerName: string;
+  attackerProfileUrl: string;
+  defenderName: string;
+  defenderProfileUrl: string;
+  attackerWon: boolean;
+  createdAt: string;
+  /** The defender's Discord ID when they opted in to attack alerts. */
+  alertDiscordId: string | null;
+}
+
+export interface DiscordRankAlertDto {
+  discordId: string;
+  displayName: string;
+  roundName: string;
+  kind: 'lost-first' | 'out-of-top-10';
+  rank: number;
+  leaderName: string | null;
+  url: string;
+}
+
+export interface DiscordRoundEventDto {
+  type: 'opened' | 'ending-soon' | 'ended';
+  roundName: string;
+  status: string;
+  startsAt: string;
+  endsAt: string;
+  url: string;
+  /** Final top 10, for "ended" only. */
+  standings: DiscordRankingEntryDto[];
+  /** Members with round alerts on; rank is theirs in that round, when they played it. */
+  recipients: Array<{ discordId: string; rank: number | null }>;
+}
+
+/** Everything the bot announces, each handed out once. */
+export interface DiscordAlertsClaimDto {
+  turns: DiscordTurnReminderDto[];
+  ranks: DiscordRankAlertDto[];
+  battles: DiscordBattleEventDto[];
+  rounds: DiscordRoundEventDto[];
+}
+
+/** Private /stats: the member's own dashboard numbers. */
+export interface DiscordStatsDto {
+  roundName: string;
+  displayName: string;
+  publicPimpId: number;
+  profileUrl: string;
+  cashCents: number;
+  netWorthCents: number;
+  payoutPercent: number;
+  turns: { turns: number; cap: number; nextTurnAt: string; perTick: number };
+  crew: { whores: number; thugs: number; fitThugs: number; woundedThugs: number; armedThugs: number };
+  weapons: { pistols: number; shotguns: number; tek9s: number; ak47s: number };
+  supplies: { condoms: number; medicine: number; crack: number; beer: number };
+  lowRiders: number;
+  happiness: { whore: number; thug: number };
+  rank: { local: number | null; national: number | null };
+}
+
+export type DiscordLeaderboardStat = 'raids' | 'defenses' | 'drive-bys' | 'recon' | 'rides' | 'lures';
+
+export interface DiscordLeaderboardDto {
+  round: { name: string; status: string; endsAt: string } | null;
+  stat: DiscordLeaderboardStat;
+  label: string;
+  entries: Array<{ rank: number; publicPimpId: number; displayName: string; city: string; value: number; profileUrl: string }>;
+}
+
+export interface DiscordHistoryDto {
+  displayName: string;
+  rounds: Array<{ name: string; endedAt: string; displayName: string; rank: number | null; netWorthCents: number; city: string }>;
+  legacy: PublicLegacyDto;
+}
+
+export interface DiscordNewsCreatedDto {
+  id: string;
+  title: string;
+  url: string;
+  roundName: string | null;
 }
 
 /** Private /link status for one Discord member. */

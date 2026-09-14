@@ -11,7 +11,14 @@ import {
 } from 'discord.js';
 import { commandData, handleAutocomplete, handleCommand, type CommandDeps } from './commands.js';
 import { loadConfig } from './config.js';
-import { newsPostEmbed, turnReminderEmbed } from './format.js';
+import {
+  attackAlertEmbed,
+  battleFeedEmbed,
+  newsPostEmbed,
+  rankAlertEmbed,
+  roundEventEmbed,
+  turnReminderEmbed,
+} from './format.js';
 import { createGameApi, type City } from './game-api.js';
 import { Cooldowns } from './lookup.js';
 import { managedRoles, parseForumGroupList } from './roles.js';
@@ -55,12 +62,12 @@ client.rest.on(RESTEvents.RateLimited, (info) => {
   console.warn(`Discord rate limit${info.global ? ' (global)' : ''} on ${info.method} ${info.route}: waiting ${info.timeToReset}ms.`);
 });
 
-/** The configured news channel, or null (with the reason logged) if the bot can't post there. */
-async function findNewsChannel(guild: Guild): Promise<GuildTextBasedChannel | null> {
-  if (!config.DISCORD_NEWS_CHANNEL_ID) return null;
-  const channel = await guild.channels.fetch(config.DISCORD_NEWS_CHANNEL_ID).catch(() => null);
+/** A configured text channel, or null (with the reason logged) if the bot can't post there. */
+async function findPostChannel(guild: Guild, channelId: string, label: string): Promise<GuildTextBasedChannel | null> {
+  if (!channelId) return null;
+  const channel = await guild.channels.fetch(channelId).catch(() => null);
   if (!channel?.isTextBased()) {
-    console.warn(`News auto-post is off: DISCORD_NEWS_CHANNEL_ID ${config.DISCORD_NEWS_CHANNEL_ID} is not a text channel in ${guild.name}.`);
+    console.warn(`${label} is off: channel ${channelId} is not a text channel in ${guild.name}.`);
     return null;
   }
   const me = await guild.members.fetchMe();
@@ -70,7 +77,7 @@ async function findNewsChannel(guild: Guild): Promise<GuildTextBasedChannel | nu
     PermissionFlagsBits.EmbedLinks,
   ]);
   if (missing.length) {
-    console.warn(`News auto-post is off: the bot needs ${missing.join(', ')} in #${channel.name}.`);
+    console.warn(`${label} is off: the bot needs ${missing.join(', ')} in #${channel.name}.`);
     return null;
   }
   return channel;
@@ -91,13 +98,59 @@ async function postNews(channel: GuildTextBasedChannel): Promise<void> {
   }
 }
 
-async function sendTurnReminders(): Promise<void> {
-  for (const reminder of await api.claimTurnReminders()) {
+async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFeed: GuildTextBasedChannel | null }): Promise<void> {
+  const claimed = await api.claimAlerts();
+
+  for (const reminder of claimed.turns) {
     try {
       await client.users.send(reminder.discordId, { embeds: [turnReminderEmbed(reminder)] });
     } catch (error) {
-      // Usually the member has DMs from server members turned off.
       console.warn(`Could not DM a turn reminder to ${reminder.discordId}:`, error instanceof Error ? error.message : error);
+    }
+  }
+
+  for (const alert of claimed.ranks) {
+    try {
+      await client.users.send(alert.discordId, { embeds: [rankAlertEmbed(alert)] });
+    } catch (error) {
+      console.warn(`Could not DM a rank alert to ${alert.discordId}:`, error instanceof Error ? error.message : error);
+    }
+  }
+
+  for (const battle of claimed.battles) {
+    if (channels.raidFeed) {
+      try {
+        await channels.raidFeed.send({ embeds: [battleFeedEmbed(battle)], allowedMentions: { parse: [] } });
+      } catch (error) {
+        console.error(`Could not post battle ${battle.id} to #${channels.raidFeed.name}:`, error);
+      }
+    }
+    if (battle.alertDiscordId) {
+      try {
+        await client.users.send(battle.alertDiscordId, { embeds: [attackAlertEmbed(battle)] });
+      } catch (error) {
+        console.warn(`Could not DM an attack alert to ${battle.alertDiscordId}:`, error instanceof Error ? error.message : error);
+      }
+    }
+  }
+
+  for (const event of claimed.rounds) {
+    if (event.type === 'ended' && channels.news) {
+      try {
+        const message = await channels.news.send({ embeds: [roundEventEmbed(event)], allowedMentions: { parse: [] } });
+        if (channels.news.type === ChannelType.GuildAnnouncement) {
+          await message.crosspost().catch((error: unknown) => console.warn('Could not publish round-end post to following servers:', error));
+        }
+      } catch (error) {
+        console.error(`Could not post round event "${event.roundName}" to #${channels.news.name}:`, error);
+      }
+    }
+    for (const recipient of event.recipients) {
+      try {
+        await client.users.send(recipient.discordId, { embeds: [roundEventEmbed(event)] });
+      } catch (error) {
+        console.warn(`Could not DM a round alert to ${recipient.discordId}:`, error instanceof Error ? error.message : error);
+      }
     }
   }
 }
@@ -128,13 +181,17 @@ client.once(Events.ClientReady, async (ready) => {
       if (summary) console.log(`Role sync: ${summary.members} members, ${summary.added} roles added, ${summary.removed} removed, ${summary.failed} failed.`);
     });
 
-    const newsChannel = await findNewsChannel(guild);
+    const newsChannel = await findPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'News auto-post');
     if (newsChannel) {
       console.log(`Posting new game news to #${newsChannel.name} (checking every ${config.DISCORD_NEWS_MINUTES} min).`);
       startPoller('News auto-post', config.DISCORD_NEWS_MINUTES * 60_000, () => postNews(newsChannel));
     }
 
-    startPoller('Turn reminders', config.DISCORD_REMINDER_MINUTES * 60_000, sendTurnReminders);
+    const raidFeedChannel = await findPostChannel(guild, config.DISCORD_RAID_FEED_CHANNEL_ID, 'Raid feed');
+    if (raidFeedChannel) console.log(`Posting raid feed events to #${raidFeedChannel.name}.`);
+
+    console.log(`Checking Discord alerts every ${config.DISCORD_ALERTS_MINUTES} min.`);
+    startPoller('Discord alerts', config.DISCORD_ALERTS_MINUTES * 60_000, () => sendAlerts({ news: newsChannel, raidFeed: raidFeedChannel }));
   } catch (error) {
     // Exit so systemd restarts us, instead of staying online but deaf.
     console.error('Startup failed:', error);

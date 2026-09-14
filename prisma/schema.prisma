@@ -72,15 +72,21 @@ model ForumLinkRequest {
   expiresAt DateTime
 }
 
-/// Opt-in Discord DM reminders. turnsArmed means turns were below the cap at the
-/// last check, so reaching the cap sends one reminder and disarms until they drop again.
+/// Opt-in Discord DM alerts for one account.
+/// turnsArmed: turns were below the cap at the last check, so reaching it sends one reminder.
+/// rankRoundId/rankLastNational: the national rank last seen, to notice losing #1 or the top 10.
 model DiscordReminder {
-  accountId       String    @id
-  account         Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  turnsEnabled    Boolean   @default(false)
-  turnsArmed      Boolean   @default(false)
-  turnsLastSentAt DateTime?
-  updatedAt       DateTime  @updatedAt
+  accountId        String    @id
+  account          Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  turnsEnabled     Boolean   @default(false)
+  turnsArmed       Boolean   @default(false)
+  turnsLastSentAt  DateTime?
+  attacksEnabled   Boolean   @default(false)
+  roundEnabled     Boolean   @default(false)
+  rankEnabled      Boolean   @default(false)
+  rankRoundId      String?
+  rankLastNational Int?
+  updatedAt        DateTime  @updatedAt
 
   @@index([turnsEnabled])
 }
@@ -199,6 +205,12 @@ model Round {
   endsAt   DateTime
 
   registrationOpensAt DateTime?
+
+  /// Discord round alerts and the round-end post, each sent once. Rounds that
+  /// already opened or ended before these existed were backfilled.
+  discordOpenedAt     DateTime?
+  discordEndingSoonAt DateTime?
+  discordEndedAt      DateTime?
 
   /// Next OG-style public pimp id to hand out. Raw database ids are never
   /// exposed; players see e.g. BigDaddy (#1842).
@@ -437,6 +449,8 @@ model RaidBattle {
   defenderReport Json
   injuries CombatInjury[]
   createdAt DateTime @default(now())
+  /// When the Discord bot claimed it for the raid feed and attack alerts (older battles backfilled).
+  discordPostedAt DateTime?
   @@unique([attackerId, actionId])
   @@index([attackerId, createdAt(sort: Desc), id])
   @@index([defenderId, createdAt(sort: Desc), id])

@@ -12,7 +12,16 @@ const playerQuery = z.union([
   z.object({ discordId: snowflake }).strict(),
   z.object({ name: z.string().trim().min(1).max(40) }).strict(),
 ]);
-const reminderSchema = z.object({ discordId: snowflake, turns: z.boolean() }).strict();
+const memberQuery = z.object({ discordId: snowflake }).strict();
+const leaderboardQuery = z.object({ stat: z.enum(['raids', 'defenses', 'drive-bys', 'recon', 'rides', 'lures']) }).strict();
+const alertSchema = z.object({ discordId: snowflake, type: z.enum(['attacks', 'round', 'rank', 'turns']), enabled: z.boolean() }).strict();
+const newsSchema = z.object({
+  discordId: snowflake,
+  title: z.string().trim().min(1).max(120),
+  body: z.string().trim().min(1).max(4000),
+  pinned: z.boolean(),
+  scope: z.enum(['round', 'global']),
+}).strict();
 
 /** Server-to-server API for apps/discord-bot. Not for browsers: no cookies, no CORS use. */
 const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
@@ -37,7 +46,14 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
     player: await DiscordBotService.badges(fastify.prisma, parseBody(playerQuery, request.query)),
   }));
 
+  fastify.get('/history', async (request) => DiscordBotService.history(fastify.prisma, parseBody(playerQuery, request.query)));
+
   fastify.get('/rankings', async () => DiscordBotService.rankings(fastify.prisma));
+
+  fastify.get('/leaderboard', async (request) => {
+    const { stat } = parseBody(leaderboardQuery, request.query);
+    return DiscordBotService.leaderboard(fastify.prisma, stat);
+  });
 
   fastify.get('/cities', async () => ({ cities: await DiscordBotService.cities(fastify.prisma) }));
 
@@ -49,18 +65,30 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/hall-of-fame', async () => DiscordBotService.hallOfFame(fastify.prisma));
 
   fastify.get('/member', async (request) => {
-    const { discordId } = parseBody(z.object({ discordId: snowflake }).strict(), request.query);
+    const { discordId } = parseBody(memberQuery, request.query);
     return DiscordBotService.member(fastify.prisma, discordId);
   });
 
-  fastify.post('/news/claim', async () => ({ news: await DiscordBotService.claimNews(fastify.prisma) }));
-
-  fastify.put('/reminders', async (request) => {
-    const { discordId, turns } = parseBody(reminderSchema, request.body);
-    return DiscordBotService.setTurnReminder(fastify.prisma, discordId, turns);
+  fastify.get('/stats', async (request) => {
+    const { discordId } = parseBody(memberQuery, request.query);
+    return DiscordBotService.stats(fastify.prisma, discordId);
   });
 
-  fastify.post('/reminders/claim', async () => ({ reminders: await DiscordBotService.claimTurnReminders(fastify.prisma) }));
+  fastify.post('/news', async (request) => DiscordBotService.createNews(fastify.prisma, parseBody(newsSchema, request.body)));
+
+  fastify.post('/news/claim', async () => ({ news: await DiscordBotService.claimNews(fastify.prisma) }));
+
+  fastify.get('/alerts', async (request) => {
+    const { discordId } = parseBody(memberQuery, request.query);
+    return DiscordBotService.alertSettings(fastify.prisma, discordId);
+  });
+
+  fastify.put('/alerts', async (request) => {
+    const { discordId, type, enabled } = parseBody(alertSchema, request.body);
+    return DiscordBotService.setAlert(fastify.prisma, discordId, type, enabled);
+  });
+
+  fastify.post('/alerts/claim', async () => DiscordBotService.claimAlerts(fastify.prisma));
 };
 
 export default discordBotRoutes;

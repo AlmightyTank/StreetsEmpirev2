@@ -70,13 +70,13 @@ describe('createGameApi', () => {
     ]);
   });
 
-  it('builds the badges, news claim and reminder requests', async () => {
+  it('builds the badges, news claim and alert requests', async () => {
     const calls: Array<{ path: string; method: string; body: unknown; contentType: string | undefined }> = [];
     const bodies: Record<string, unknown> = {
       '/api/internal/discord/badges': { player: { roundName: 'R', displayName: 'Big', publicPimpId: 1, profileUrl: 'http://game/game/players/1', awards: [] } },
       '/api/internal/discord/news/claim': { news: [] },
-      '/api/internal/discord/reminders': { turns: true, roundName: 'R', current: { turns: 5, cap: 200 } },
-      '/api/internal/discord/reminders/claim': { reminders: [] },
+      '/api/internal/discord/alerts': { alerts: { attacks: false, round: false, rank: false, turns: true }, roundName: 'R', current: { turns: 5, cap: 200, nationalRank: 7 } },
+      '/api/internal/discord/alerts/claim': { turns: [], ranks: [], battles: [], rounds: [] },
     };
     const fetchImpl = (async (url: URL | string, init: RequestInit = {}) => {
       const parsed = new URL(String(url));
@@ -88,14 +88,14 @@ describe('createGameApi', () => {
 
     expect((await api.badges({ name: 'Big Daddy' })).displayName).toBe('Big');
     expect(await api.claimNews()).toEqual([]);
-    expect((await api.setTurnReminder('123456789012345678', true)).current).toEqual({ turns: 5, cap: 200 });
-    expect(await api.claimTurnReminders()).toEqual([]);
+    expect((await api.setAlert('123456789012345678', 'turns', true)).current).toEqual({ turns: 5, cap: 200, nationalRank: 7 });
+    expect(await api.claimAlerts()).toEqual({ turns: [], ranks: [], battles: [], rounds: [] });
     expect(calls).toEqual([
       { path: '/api/internal/discord/badges?name=Big+Daddy', method: 'GET', body: undefined, contentType: undefined },
       // No body, so no JSON content type for Fastify to reject as empty.
       { path: '/api/internal/discord/news/claim', method: 'POST', body: undefined, contentType: undefined },
-      { path: '/api/internal/discord/reminders', method: 'PUT', body: '{"discordId":"123456789012345678","turns":true}', contentType: 'application/json' },
-      { path: '/api/internal/discord/reminders/claim', method: 'POST', body: undefined, contentType: undefined },
+      { path: '/api/internal/discord/alerts', method: 'PUT', body: '{"discordId":"123456789012345678","type":"turns","enabled":true}', contentType: 'application/json' },
+      { path: '/api/internal/discord/alerts/claim', method: 'POST', body: undefined, contentType: undefined },
     ]);
   });
 });

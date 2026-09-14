@@ -13,7 +13,7 @@ describe('commandData', () => {
   });
 
   it('keeps account commands private', () => {
-    expect([...PRIVATE_COMMANDS].sort()).toEqual(['help', 'link', 'remind', 'sync', 'syncall']);
+    expect([...PRIVATE_COMMANDS].sort()).toEqual(['alerts', 'announce', 'help', 'link', 'remind', 'stats', 'sync', 'syncall']);
     for (const name of PRIVATE_COMMANDS) expect(commandData.some((command) => command.name === name)).toBe(true);
   });
 

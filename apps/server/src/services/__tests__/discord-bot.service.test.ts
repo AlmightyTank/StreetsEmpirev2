@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PublicLegacyDto } from '@streets/shared';
-import { botTokenMatches, competitionRanks, reminderDecision, roleKeysFor } from '../discord-bot.service.js';
+import { botTokenMatches, competitionRanks, rankAlertFor, rankValues, reminderDecision, roleKeysFor } from '../discord-bot.service.js';
 
 const token = 'bot-token-'.repeat(8);
 const legacy = (overrides: Partial<PublicLegacyDto> = {}): PublicLegacyDto => ({
@@ -56,5 +56,25 @@ describe('reminderDecision', () => {
     expect(reminderDecision({ armed: true, turns: 200, cap: 200 })).toBe('notify');
     expect(reminderDecision({ armed: false, turns: 200, cap: 200 })).toBe('none');
     expect(reminderDecision({ armed: false, turns: 210, cap: 200 })).toBe('none');
+  });
+});
+
+describe('rankValues', () => {
+  it('ranks plain counts the same way as net worth', () => {
+    expect(rankValues([9, 7, 7, 3])).toEqual([1, 2, 2, 4]);
+    expect(rankValues([])).toEqual([]);
+  });
+});
+
+describe('rankAlertFor', () => {
+  it('alerts on losing #1 or falling out of the top 10, never on the way up', () => {
+    expect(rankAlertFor(1, 2)).toBe('lost-first');
+    expect(rankAlertFor(1, 40)).toBe('lost-first');
+    expect(rankAlertFor(10, 11)).toBe('out-of-top-10');
+    expect(rankAlertFor(4, 9)).toBeNull();
+    expect(rankAlertFor(12, 30)).toBeNull();
+    expect(rankAlertFor(2, 1)).toBeNull();
+    expect(rankAlertFor(1, 1)).toBeNull();
+    expect(rankAlertFor(null, 50)).toBeNull();
   });
 });

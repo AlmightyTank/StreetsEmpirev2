@@ -7,21 +7,26 @@ import {
   type ChatInputCommandInteraction,
 } from 'discord.js';
 import {
+  alertText,
   badgesEmbed,
   compareEmbed,
   hallOfFameEmbed,
   helpEmbed,
+  historyEmbed,
   inviteEmbed,
+  leaderboardEmbed,
   memberEmbed,
+  newsCreatedText,
   newsEmbed,
   profileEmbed,
   rankingsEmbed,
   reminderText,
   roundEmbed,
+  statsEmbed,
   syncAllText,
   syncMemberText,
 } from './format.js';
-import { GameApiError, type City, type GameApi } from './game-api.js';
+import { ALERT_TYPES, GameApiError, isLeaderboardStat, type AlertType, type City, type GameApi } from './game-api.js';
 import { cityChoices, parsePlayerRef, resolveCity, type Cooldowns } from './lookup.js';
 import { roleNamesForKeys, type ManagedRole } from './roles.js';
 import type { RoleSync } from './sync.js';
@@ -44,6 +49,26 @@ export const commandData = [
     .addStringOption((option) => option.setName('with').setDescription('Player name or @member (default: you)').setMaxLength(40)),
   new SlashCommandBuilder().setName('rankings').setDescription('Top 10 players in the current round'),
   new SlashCommandBuilder()
+    .setName('leaderboard')
+    .setDescription('Top combat and intel counts this round')
+    .addStringOption((option) => option
+      .setName('stat')
+      .setDescription('Leaderboard')
+      .setRequired(true)
+      .addChoices(
+        { name: 'Raid wins', value: 'raids' },
+        { name: 'Defense wins', value: 'defenses' },
+        { name: 'Drive-bys landed', value: 'drive-bys' },
+        { name: 'Recon runs', value: 'recon' },
+        { name: 'Low-riders stolen', value: 'rides' },
+        { name: 'Crew lured', value: 'lures' },
+      )),
+  new SlashCommandBuilder()
+    .setName('history')
+    .setDescription("Show a player's finished round history")
+    .addUserOption((option) => option.setName('user').setDescription('A Discord member with a linked game account'))
+    .addStringOption((option) => option.setName('name').setDescription('In-game player name, including a past name').setMaxLength(40)),
+  new SlashCommandBuilder()
     .setName('city')
     .setDescription('Top 10 in one city this round')
     .addStringOption((option) => option.setName('name').setDescription('City').setRequired(true).setAutocomplete(true).setMaxLength(60)),
@@ -52,6 +77,25 @@ export const commandData = [
   new SlashCommandBuilder().setName('news').setDescription('Latest Street Empire news'),
   new SlashCommandBuilder().setName('invite').setDescription('How to start playing Street Empire and get your roles'),
   new SlashCommandBuilder().setName('link').setDescription('Your link status and the roles you qualify for (only you see it)'),
+  new SlashCommandBuilder().setName('stats').setDescription('Your private cash, crew, weapons, supplies and turns'),
+  new SlashCommandBuilder()
+    .setName('alerts')
+    .setDescription('DM alerts from the Street Empire bot (only you see the reply)')
+    .addStringOption((option) => option
+      .setName('type')
+      .setDescription('Alert type')
+      .setRequired(true)
+      .addChoices(
+        { name: 'Attacks against me', value: 'attacks' },
+        { name: 'Round opened or ending', value: 'round' },
+        { name: 'Losing #1 or top 10', value: 'rank' },
+        { name: 'Turns full', value: 'turns' },
+      ))
+    .addStringOption((option) => option
+      .setName('enabled')
+      .setDescription('Turn this alert on or off')
+      .setRequired(true)
+      .addChoices({ name: 'On', value: 'on' }, { name: 'Off', value: 'off' })),
   new SlashCommandBuilder()
     .setName('remind')
     .setDescription('DM reminders from the Street Empire bot (only you see the reply)')
@@ -60,6 +104,17 @@ export const commandData = [
       .setDescription('DM me when my turns are full')
       .setRequired(true)
       .addChoices({ name: 'On', value: 'on' }, { name: 'Off', value: 'off' })),
+  new SlashCommandBuilder()
+    .setName('announce')
+    .setDescription('Game admins: post Street Empire news from Discord')
+    .addStringOption((option) => option.setName('title').setDescription('News title').setRequired(true).setMaxLength(120))
+    .addStringOption((option) => option.setName('body').setDescription('News body').setRequired(true).setMaxLength(4000))
+    .addStringOption((option) => option
+      .setName('scope')
+      .setDescription('Post for this round or globally')
+      .setRequired(true)
+      .addChoices({ name: 'Current round', value: 'round' }, { name: 'Global', value: 'global' }))
+    .addBooleanOption((option) => option.setName('pinned').setDescription('Pin this news post')),
   new SlashCommandBuilder().setName('sync').setDescription('Update your Street Empire roles now'),
   new SlashCommandBuilder().setName('help').setDescription('List the Street Empire bot commands'),
   new SlashCommandBuilder()
@@ -70,7 +125,7 @@ export const commandData = [
 ].map((command) => command.toJSON());
 
 /** Replies only the caller sees. */
-export const PRIVATE_COMMANDS: ReadonlySet<string> = new Set(['link', 'remind', 'sync', 'help', 'syncall']);
+export const PRIVATE_COMMANDS: ReadonlySet<string> = new Set(['alerts', 'announce', 'link', 'remind', 'stats', 'sync', 'help', 'syncall']);
 
 export interface CommandDeps {
   api: GameApi;
@@ -146,6 +201,24 @@ async function run(interaction: ChatInputCommandInteraction, deps: CommandDeps):
     case 'rankings':
       return { embeds: [rankingsEmbed(await api.rankings(), origin)] };
 
+    case 'leaderboard': {
+      const stat = interaction.options.getString('stat', true);
+      if (!isLeaderboardStat(stat)) return { content: 'Pick a leaderboard from the list.' };
+      return { embeds: [leaderboardEmbed(await api.leaderboard(stat), origin)] };
+    }
+
+    case 'history': {
+      const user = interaction.options.getUser('user');
+      const name = interaction.options.getString('name');
+      if (user) return { embeds: [historyEmbed(await api.history({ discordId: user.id }), origin)] };
+      if (name) return { embeds: [historyEmbed(await api.history({ name }), origin)] };
+      try {
+        return { embeds: [historyEmbed(await api.history({ discordId: interaction.user.id }), origin)] };
+      } catch (error) {
+        throw new SelfLookupError(error);
+      }
+    }
+
     case 'city': {
       const city = resolveCity(interaction.options.getString('name', true), await deps.getCities());
       if (!city) return { content: 'No city by that name. Pick one from the list as you type.' };
@@ -165,13 +238,39 @@ async function run(interaction: ChatInputCommandInteraction, deps: CommandDeps):
       // The steps still help when round status is unavailable.
       return { embeds: [inviteEmbed(await api.round().catch(() => null), origin)] };
 
-    case 'remind': {
-      const enabled = interaction.options.getString('turns', true) === 'on';
+    case 'stats':
       try {
-        return { content: reminderText(await api.setTurnReminder(interaction.user.id, enabled)) };
+        return { embeds: [statsEmbed(await api.stats(interaction.user.id))] };
       } catch (error) {
         throw new SelfLookupError(error);
       }
+
+    case 'alerts': {
+      const type = interaction.options.getString('type', true) as AlertType;
+      const enabled = interaction.options.getString('enabled', true) === 'on';
+      if (!(ALERT_TYPES as readonly string[]).includes(type)) return { content: 'Pick an alert type from the list.' };
+      try {
+        return { content: alertText(await api.setAlert(interaction.user.id, type, enabled), type, enabled) };
+      } catch (error) {
+        throw new SelfLookupError(error);
+      }
+    }
+
+    case 'remind': {
+      const enabled = interaction.options.getString('turns', true) === 'on';
+      try {
+        return { content: reminderText(await api.setAlert(interaction.user.id, 'turns', enabled)) };
+      } catch (error) {
+        throw new SelfLookupError(error);
+      }
+    }
+
+    case 'announce': {
+      const title = interaction.options.getString('title', true);
+      const body = interaction.options.getString('body', true);
+      const scope = interaction.options.getString('scope', true) === 'global' ? 'global' : 'round';
+      const pinned = interaction.options.getBoolean('pinned') ?? false;
+      return { content: newsCreatedText(await api.createNews({ discordId: interaction.user.id, title, body, pinned, scope })) };
     }
 
     case 'link': {

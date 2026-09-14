@@ -21,6 +21,8 @@ const badgeSchema = z.object({
   permanent: z.boolean(),
 });
 
+const legacySchema = z.object({ roundsPlayed: z.number(), roundWins: z.number(), bestNationalRank: z.number().nullable() });
+
 const profileSchema = z.object({
   player: z.object({
     roundName: z.string(),
@@ -29,7 +31,7 @@ const profileSchema = z.object({
     city: z.string(),
     netWorthCents: z.number(),
     rank: z.object({ local: z.number(), national: z.number(), nationalMovement: z.number().nullable() }),
-    legacy: z.object({ roundsPlayed: z.number(), roundWins: z.number(), bestNationalRank: z.number().nullable() }),
+    legacy: legacySchema,
     badges: z.array(badgeSchema),
     profileUrl: z.string().url(),
     forumProfileUrl: z.string().url().nullable(),
@@ -55,20 +57,39 @@ const badgesSchema = z.object({
   }),
 });
 
+const roundSummarySchema = z.object({ name: z.string(), status: z.string(), endsAt: z.string() });
 const citySchema = z.object({ slug: z.string(), name: z.string() });
 const citiesSchema = z.object({ cities: z.array(citySchema) });
 
+const rankingEntrySchema = z.object({
+  rank: z.number(),
+  publicPimpId: z.number(),
+  displayName: z.string(),
+  city: z.string(),
+  netWorthCents: z.number(),
+  movement: z.number().nullable(),
+  profileUrl: z.string().url(),
+});
+
 const rankingsSchema = z.object({
-  round: z.object({ name: z.string(), status: z.string(), endsAt: z.string() }).nullable(),
+  round: roundSummarySchema.nullable(),
   // Optional for game servers from before city rankings.
   city: citySchema.nullable().optional(),
+  entries: z.array(rankingEntrySchema),
+});
+
+const leaderboardStats = ['raids', 'defenses', 'drive-bys', 'recon', 'rides', 'lures'] as const;
+
+const leaderboardSchema = z.object({
+  round: roundSummarySchema.nullable(),
+  stat: z.enum(leaderboardStats),
+  label: z.string(),
   entries: z.array(z.object({
     rank: z.number(),
     publicPimpId: z.number(),
     displayName: z.string(),
     city: z.string(),
-    netWorthCents: z.number(),
-    movement: z.number().nullable(),
+    value: z.number(),
     profileUrl: z.string().url(),
   })),
 });
@@ -81,6 +102,19 @@ const hallOfFameSchema = z.object({
   })),
 });
 
+const historySchema = z.object({
+  displayName: z.string(),
+  rounds: z.array(z.object({
+    name: z.string(),
+    endedAt: z.string(),
+    displayName: z.string(),
+    rank: z.number().nullable(),
+    netWorthCents: z.number(),
+    city: z.string(),
+  })),
+  legacy: legacySchema,
+});
+
 const memberSchema = z.object({
   linked: z.boolean(),
   username: z.string().nullable(),
@@ -88,6 +122,23 @@ const memberSchema = z.object({
   roundName: z.string().nullable(),
   player: z.object({ displayName: z.string(), publicPimpId: z.number(), profileUrl: z.string().url() }).nullable(),
   roles: z.array(z.string()),
+});
+
+const statsSchema = z.object({
+  roundName: z.string(),
+  displayName: z.string(),
+  publicPimpId: z.number(),
+  profileUrl: z.string().url(),
+  cashCents: z.number(),
+  netWorthCents: z.number(),
+  payoutPercent: z.number(),
+  turns: z.object({ turns: z.number(), cap: z.number(), nextTurnAt: z.string(), perTick: z.number() }),
+  crew: z.object({ whores: z.number(), thugs: z.number(), fitThugs: z.number(), woundedThugs: z.number(), armedThugs: z.number() }),
+  weapons: z.object({ pistols: z.number(), shotguns: z.number(), tek9s: z.number(), ak47s: z.number() }),
+  supplies: z.object({ condoms: z.number(), medicine: z.number(), crack: z.number(), beer: z.number() }),
+  lowRiders: z.number(),
+  happiness: z.object({ whore: z.number(), thug: z.number() }),
+  rank: z.object({ local: z.number().nullable(), national: z.number().nullable() }),
 });
 
 const newsClaimSchema = z.object({
@@ -102,20 +153,55 @@ const newsClaimSchema = z.object({
   })),
 });
 
-const reminderStateSchema = z.object({
-  turns: z.boolean(),
+const newsCreatedSchema = z.object({ id: z.string(), title: z.string(), url: z.string().url(), roundName: z.string().nullable() });
+
+export const ALERT_TYPES = ['attacks', 'round', 'rank', 'turns'] as const;
+
+const alertSettingsSchema = z.object({
+  alerts: z.object({ attacks: z.boolean(), round: z.boolean(), rank: z.boolean(), turns: z.boolean() }),
   roundName: z.string().nullable(),
-  current: z.object({ turns: z.number(), cap: z.number() }).nullable(),
+  current: z.object({ turns: z.number(), cap: z.number(), nationalRank: z.number() }).nullable(),
 });
 
-const reminderClaimSchema = z.object({
-  reminders: z.array(z.object({
+const alertsClaimSchema = z.object({
+  turns: z.array(z.object({
     discordId: z.string(),
     displayName: z.string(),
     roundName: z.string(),
     turns: z.number(),
     cap: z.number(),
     url: z.string().url(),
+  })),
+  ranks: z.array(z.object({
+    discordId: z.string(),
+    displayName: z.string(),
+    roundName: z.string(),
+    kind: z.enum(['lost-first', 'out-of-top-10']),
+    rank: z.number(),
+    leaderName: z.string().nullable(),
+    url: z.string().url(),
+  })),
+  battles: z.array(z.object({
+    id: z.string(),
+    kind: z.enum(['RAID', 'DRIVE_BY', 'DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW']),
+    roundName: z.string(),
+    attackerName: z.string(),
+    attackerProfileUrl: z.string().url(),
+    defenderName: z.string(),
+    defenderProfileUrl: z.string().url(),
+    attackerWon: z.boolean(),
+    createdAt: z.string(),
+    alertDiscordId: z.string().nullable(),
+  })),
+  rounds: z.array(z.object({
+    type: z.enum(['opened', 'ending-soon', 'ended']),
+    roundName: z.string(),
+    status: z.string(),
+    startsAt: z.string(),
+    endsAt: z.string(),
+    url: z.string().url(),
+    standings: z.array(rankingEntrySchema),
+    recipients: z.array(z.object({ discordId: z.string(), rank: z.number().nullable() })),
   })),
 });
 
@@ -139,13 +225,27 @@ export type ProfileCard = z.infer<typeof profileSchema>['player'];
 export type BadgeCard = z.infer<typeof badgesSchema>['player'];
 export type City = z.infer<typeof citySchema>;
 export type Rankings = z.infer<typeof rankingsSchema>;
+export type LeaderboardStat = (typeof leaderboardStats)[number];
+export type Leaderboard = z.infer<typeof leaderboardSchema>;
 export type HallOfFame = z.infer<typeof hallOfFameSchema>;
+export type History = z.infer<typeof historySchema>;
 export type Member = z.infer<typeof memberSchema>;
+export type Stats = z.infer<typeof statsSchema>;
 export type NewsPost = z.infer<typeof newsClaimSchema>['news'][number];
-export type ReminderState = z.infer<typeof reminderStateSchema>;
-export type TurnReminder = z.infer<typeof reminderClaimSchema>['reminders'][number];
+export type NewsCreated = z.infer<typeof newsCreatedSchema>;
+export type AlertType = (typeof ALERT_TYPES)[number];
+export type AlertSettings = z.infer<typeof alertSettingsSchema>;
+export type AlertsClaim = z.infer<typeof alertsClaimSchema>;
+export type TurnReminder = AlertsClaim['turns'][number];
+export type RankAlert = AlertsClaim['ranks'][number];
+export type BattleEvent = AlertsClaim['battles'][number];
+export type RoundEvent = AlertsClaim['rounds'][number];
 export type RoundStatus = z.infer<typeof statusSchema>;
 export type NewsFeed = z.infer<typeof newsSchema>;
+
+export function isLeaderboardStat(value: string): value is LeaderboardStat {
+  return (leaderboardStats as readonly string[]).includes(value);
+}
 
 export function createGameApi(options: { baseUrl: string; token: string; fetch?: typeof fetch; timeoutMs?: number }) {
   const fetchImpl = options.fetch ?? fetch;
@@ -178,26 +278,33 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
     return parsed.data;
   }
 
+  const query = (params: Record<string, string>) => new URLSearchParams(params).toString();
+
   return {
     roles: (discordIds: string[]) =>
       call(rolesSchema, '/api/internal/discord/roles', { method: 'POST', body: { discordIds } }),
-    profile: async (query: { discordId: string } | { name: string }) =>
-      (await call(profileSchema, `/api/internal/discord/profile?${new URLSearchParams(query)}`)).player,
-    badges: async (query: { discordId: string } | { name: string }) =>
-      (await call(badgesSchema, `/api/internal/discord/badges?${new URLSearchParams(query)}`)).player,
+    profile: async (player: { discordId: string } | { name: string }) =>
+      (await call(profileSchema, `/api/internal/discord/profile?${query(player)}`)).player,
+    badges: async (player: { discordId: string } | { name: string }) =>
+      (await call(badgesSchema, `/api/internal/discord/badges?${query(player)}`)).player,
+    history: (player: { discordId: string } | { name: string }) =>
+      call(historySchema, `/api/internal/discord/history?${query(player)}`),
     rankings: () => call(rankingsSchema, '/api/internal/discord/rankings'),
+    leaderboard: (stat: LeaderboardStat) => call(leaderboardSchema, `/api/internal/discord/leaderboard?${query({ stat })}`),
     cities: async () => (await call(citiesSchema, '/api/internal/discord/cities')).cities,
-    cityRankings: (slug: string) =>
-      call(rankingsSchema, `/api/internal/discord/city-rankings?${new URLSearchParams({ city: slug })}`),
+    cityRankings: (slug: string) => call(rankingsSchema, `/api/internal/discord/city-rankings?${query({ city: slug })}`),
     hallOfFame: () => call(hallOfFameSchema, '/api/internal/discord/hall-of-fame'),
-    member: (discordId: string) =>
-      call(memberSchema, `/api/internal/discord/member?${new URLSearchParams({ discordId })}`),
+    member: (discordId: string) => call(memberSchema, `/api/internal/discord/member?${query({ discordId })}`),
+    stats: (discordId: string) => call(statsSchema, `/api/internal/discord/stats?${query({ discordId })}`),
+    createNews: (input: { discordId: string; title: string; body: string; pinned: boolean; scope: 'round' | 'global' }) =>
+      call(newsCreatedSchema, '/api/internal/discord/news', { method: 'POST', body: input }),
     /** Claimed posts count as posted, even if sending them fails. */
     claimNews: async () => (await call(newsClaimSchema, '/api/internal/discord/news/claim', { method: 'POST' })).news,
-    setTurnReminder: (discordId: string, turns: boolean) =>
-      call(reminderStateSchema, '/api/internal/discord/reminders', { method: 'PUT', body: { discordId, turns } }),
-    claimTurnReminders: async () =>
-      (await call(reminderClaimSchema, '/api/internal/discord/reminders/claim', { method: 'POST' })).reminders,
+    alertSettings: (discordId: string) => call(alertSettingsSchema, `/api/internal/discord/alerts?${query({ discordId })}`),
+    setAlert: (discordId: string, type: AlertType, enabled: boolean) =>
+      call(alertSettingsSchema, '/api/internal/discord/alerts', { method: 'PUT', body: { discordId, type, enabled } }),
+    /** Battles, round events, rank drops and full turns, each handed out once. */
+    claimAlerts: () => call(alertsClaimSchema, '/api/internal/discord/alerts/claim', { method: 'POST' }),
     round: () => call(statusSchema, '/api/rounds/current/status', { auth: false }),
     news: () => call(newsSchema, '/api/rounds/current/news', { auth: false }),
   };

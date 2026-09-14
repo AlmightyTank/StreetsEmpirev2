@@ -1,15 +1,23 @@
 import type { APIEmbed } from 'discord.js';
 import { formatCents, formatNumber } from '@streets/shared';
 import type {
+  AlertSettings,
+  AlertType,
   BadgeCard,
+  BattleEvent,
   HallOfFame,
+  History,
+  Leaderboard,
   Member,
+  NewsCreated,
   NewsFeed,
   NewsPost,
   ProfileCard,
+  RankAlert,
   Rankings,
-  ReminderState,
+  RoundEvent,
   RoundStatus,
+  Stats,
   TurnReminder,
 } from './game-api.js';
 import type { MemberSyncResult, SyncSummary } from './sync.js';
@@ -116,6 +124,52 @@ export function rankingsEmbed(rankings: Rankings, origin: string): APIEmbed {
   };
 }
 
+export function leaderboardEmbed(leaderboard: Leaderboard, origin: string): APIEmbed {
+  if (!leaderboard.round) return noRound(origin);
+  const lines = leaderboard.entries.map((entry) =>
+    `**#${entry.rank}** [${escapeMarkdown(truncate(entry.displayName, 40))}](${entry.profileUrl}) · ${formatNumber(entry.value)} · ${escapeMarkdown(entry.city)}`);
+  return {
+    title: `${leaderboard.round.name} · ${leaderboard.label}`,
+    url: `${origin}/game/rankings`,
+    color: BRAND_COLOR,
+    description: lines.length ? truncate(lines.join('\n'), 4096) : `Nobody has posted a ${leaderboard.label.toLowerCase()} score yet.`,
+  };
+}
+
+export function historyEmbed(history: History, origin: string): APIEmbed {
+  const lines = history.rounds.map((round) => {
+    const rank = round.rank === null ? 'unranked' : `#${round.rank}`;
+    return `**${escapeMarkdown(round.name)}** · ${rank} · ${formatCents(round.netWorthCents)} · ${escapeMarkdown(round.city)} · ${round.endedAt.slice(0, 10)}`;
+  });
+  return {
+    title: `${history.displayName} · History`,
+    url: origin,
+    color: BRAND_COLOR,
+    description: lines.length ? truncate(lines.join('\n'), 4096) : 'No finished rounds yet.',
+    fields: [
+      { name: 'Legacy', value: `${history.legacy.roundsPlayed} rounds · ${history.legacy.roundWins} wins · best ${history.legacy.bestNationalRank === null ? '—' : `#${history.legacy.bestNationalRank}`}` },
+    ],
+  };
+}
+
+export function statsEmbed(stats: Stats): APIEmbed {
+  return {
+    title: `${stats.displayName} (#${stats.publicPimpId}) · Private stats`,
+    url: stats.profileUrl,
+    color: BRAND_COLOR,
+    description: escapeMarkdown(stats.roundName),
+    fields: [
+      { name: 'Money', value: `Cash ${formatCents(stats.cashCents)}\nNet worth ${formatCents(stats.netWorthCents)}\nPayout ${stats.payoutPercent}%`, inline: true },
+      { name: 'Turns', value: `${stats.turns.turns}/${stats.turns.cap}\n+${stats.turns.perTick} next tick`, inline: true },
+      { name: 'Rank', value: `National ${stats.rank.national === null ? '—' : `#${stats.rank.national}`}\nLocal ${stats.rank.local === null ? '—' : `#${stats.rank.local}`}`, inline: true },
+      { name: 'Crew', value: `${formatNumber(stats.crew.whores)} whores\n${formatNumber(stats.crew.fitThugs)}/${formatNumber(stats.crew.thugs)} thugs fit\n${formatNumber(stats.crew.armedThugs)} armed`, inline: true },
+      { name: 'Weapons', value: `${formatNumber(stats.weapons.pistols)} pistols\n${formatNumber(stats.weapons.shotguns)} shotguns\n${formatNumber(stats.weapons.tek9s)} Tek-9s\n${formatNumber(stats.weapons.ak47s)} AK-47s`, inline: true },
+      { name: 'Supplies', value: `${formatNumber(stats.supplies.condoms)} condoms\n${formatNumber(stats.supplies.medicine)} medicine\n${formatNumber(stats.supplies.crack)} crack\n${formatNumber(stats.supplies.beer)} beer\n${formatNumber(stats.lowRiders)} low-riders`, inline: true },
+      { name: 'Happiness', value: `Whores ${stats.happiness.whore}% · Thugs ${stats.happiness.thug}%` },
+    ],
+  };
+}
+
 export function hallOfFameEmbed(hallOfFame: HallOfFame, origin: string): APIEmbed {
   if (!hallOfFame.rounds.length) {
     return { title: 'Hall of Fame', url: origin, color: BRAND_COLOR, description: 'No round has finished yet. The first winners land here.' };
@@ -210,15 +264,20 @@ export const HELP_LINES: Array<[string, string]> = [
   ['/badges [user] [name]', 'Every achievement: what a player has earned and what they are closest to.'],
   ['/compare player [with]', 'Two players side by side. Names or @mentions; "with" defaults to you.'],
   ['/rankings', 'National top 10 this round.'],
+  ['/leaderboard stat', 'Top combat and intel counts this round.'],
+  ['/history [user] [name]', 'Past finished rounds for a player. No option shows yours.'],
   ['/city name', 'Top 10 in one city this round.'],
   ['/halloffame', 'Podiums from recent finished rounds.'],
   ['/round', 'Round status and time left.'],
   ['/news', 'Latest news posts.'],
   ['/invite', 'How to start playing and get your roles.'],
   ['/link', 'Your link status and the roles you qualify for. Only you see it.'],
-  ['/remind turns', 'On or Off: a DM when your turns are full. Only you see the reply.'],
+  ['/stats', 'Your private cash, crew, weapons, supplies and turns. Only you see it.'],
+  ['/alerts type enabled', 'DM alerts for attacks, rounds, rank drops and full turns. Only you see it.'],
+  ['/remind turns', 'Shortcut for /alerts type:turns. Only you see it.'],
   ['/sync', 'Update your roles now (once a minute).'],
   ['/help', 'This list. Only you see it.'],
+  ['/announce title body', 'Game admins: post news from Discord. Only you see the result.'],
   ['/syncall', 'Mods: re-sync roles for every member. Needs Manage Roles.'],
 ];
 
@@ -322,16 +381,91 @@ export function turnReminderEmbed(reminder: TurnReminder): APIEmbed {
     url: reminder.url,
     color: BRAND_COLOR,
     description: `${escapeMarkdown(reminder.displayName)} is at ${reminder.turns}/${reminder.cap} turns in ${escapeMarkdown(reminder.roundName)}. Spend some before new ones go to waste.`,
-    footer: { text: 'Turn these off with /remind turns:Off in the Street Empire server.' },
+    footer: { text: 'Turn these off with /alerts type:turns enabled:Off in the Street Empire server.' },
   };
 }
 
-export function reminderText(state: ReminderState): string {
-  if (!state.turns) return 'Turn reminders are off.';
+export function alertText(state: AlertSettings, type: AlertType, enabled: boolean): string {
+  if (!enabled) return `${alertLabel(type)} alerts are off.`;
+  if (type !== 'turns') return `${alertLabel(type)} alerts are on. Keep DMs from server members allowed so they reach you.`;
   const where = state.current
     ? ` You're at ${state.current.turns}/${state.current.cap} now.`
     : state.roundName
       ? ` You haven't joined ${state.roundName} yet; reminders start once you do.`
       : ' No round is running; reminders start with the next one.';
   return `Turn reminders are on. I'll DM you once each time your turns fill up.${where} Keep DMs from server members allowed so they reach you.`;
+}
+
+export function reminderText(state: AlertSettings): string {
+  return alertText(state, 'turns', state.alerts.turns);
+}
+
+export function newsCreatedText(news: NewsCreated): string {
+  return `Posted "${news.title}"${news.roundName ? ` for ${news.roundName}` : ' globally'}. It will be picked up by the news channel.`;
+}
+
+function alertLabel(type: AlertType): string {
+  switch (type) {
+    case 'attacks': return 'Attack';
+    case 'round': return 'Round';
+    case 'rank': return 'Rank';
+    case 'turns': return 'Turn';
+  }
+}
+
+function battleKind(kind: BattleEvent['kind']): string {
+  switch (kind) {
+    case 'RAID': return 'Raid';
+    case 'DRIVE_BY': return 'Drive-by';
+    case 'DRUG_HOES': return 'Drug hoes';
+    case 'STEAL_RIDE': return 'Steal ride';
+    case 'LURE_CREW': return 'Lure crew';
+  }
+}
+
+export function battleFeedEmbed(battle: BattleEvent): APIEmbed {
+  const winner = battle.attackerWon ? battle.attackerName : battle.defenderName;
+  return {
+    title: `${battleKind(battle.kind)} · ${battle.attackerWon ? 'Attacker won' : 'Defender held'}`,
+    color: battle.attackerWon ? BRAND_COLOR : MUTED_COLOR,
+    description: `[${escapeMarkdown(battle.attackerName)}](${battle.attackerProfileUrl}) hit [${escapeMarkdown(battle.defenderName)}](${battle.defenderProfileUrl}) in ${escapeMarkdown(battle.roundName)}.\nWinner: ${escapeMarkdown(winner)}.`,
+    timestamp: battle.createdAt,
+  };
+}
+
+export function attackAlertEmbed(battle: BattleEvent): APIEmbed {
+  return {
+    ...battleFeedEmbed(battle),
+    title: `${battleKind(battle.kind)} against you`,
+    footer: { text: 'Turn these off with /alerts type:attacks enabled:Off.' },
+  };
+}
+
+export function rankAlertEmbed(alert: RankAlert): APIEmbed {
+  const description = alert.kind === 'lost-first'
+    ? `${escapeMarkdown(alert.displayName)} lost national #1${alert.leaderName ? ` to ${escapeMarkdown(alert.leaderName)}` : ''}.`
+    : `${escapeMarkdown(alert.displayName)} fell out of the national top 10.`;
+  return {
+    title: `Rank alert · ${alert.roundName}`,
+    url: alert.url,
+    color: MUTED_COLOR,
+    description: `${description}\nCurrent national rank: #${alert.rank}.`,
+    footer: { text: 'Turn these off with /alerts type:rank enabled:Off.' },
+  };
+}
+
+export function roundEventEmbed(event: RoundEvent): APIEmbed {
+  const title = event.type === 'opened'
+    ? `${event.roundName} is open`
+    : event.type === 'ending-soon'
+      ? `${event.roundName} ends soon`
+      : `${event.roundName} has ended`;
+  return {
+    title,
+    url: event.url,
+    color: event.type === 'ended' ? MUTED_COLOR : BRAND_COLOR,
+    description: event.type === 'ended' && event.standings.length
+      ? truncate(event.standings.map((entry) => `**#${entry.rank}** [${escapeMarkdown(entry.displayName)}](${entry.profileUrl}) · ${formatCents(entry.netWorthCents)} · ${escapeMarkdown(entry.city)}`).join('\n'), 4096)
+      : `${roundStatusLabel(event.status)} · ${event.endsAt.slice(0, 10)}`,
+  };
 }

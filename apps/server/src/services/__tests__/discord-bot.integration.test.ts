@@ -170,15 +170,155 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
     }
   });
 
+  it('hands out battles, rank drops and round events once each', async () => {
+    const [first, second, outsider] = [accounts[0]!, accounts[1]!, accounts[2]!];
+    const setAlert = (discordId: string, type: string, enabled: boolean) =>
+      app.inject({ method: 'PUT', url: '/api/internal/discord/alerts', headers: auth(), payload: { discordId, type, enabled } });
+    const claim = async () => {
+      const response = await app.inject({ method: 'POST', url: '/api/internal/discord/alerts/claim', headers: auth() });
+      expect(response.statusCode, response.body).toBe(200);
+      return response.json() as {
+        battles: Array<{ id: string }>;
+        ranks: Array<{ discordId: string }>;
+        rounds: Array<{ type: string; roundName: string; recipients: Array<{ discordId: string; rank: number | null }>; standings: Array<{ rank: number; publicPimpId: number }> }>;
+      };
+    };
+
+    const rankOn = await setAlert(first.discordId, 'rank', true);
+    expect(rankOn.statusCode, rankOn.body).toBe(200);
+    expect(rankOn.json()).toMatchObject({ alerts: { attacks: false, round: false, rank: true, turns: false }, roundName: 'Bot Test Round', current: { nationalRank: 1 } });
+    await setAlert(first.discordId, 'round', true);
+    await setAlert(outsider.discordId, 'round', true);
+    await setAlert(second.discordId, 'attacks', true);
+    expect((await app.inject({ url: `/api/internal/discord/alerts?discordId=${second.discordId}`, headers: auth() })).json().alerts)
+      .toEqual({ attacks: true, round: false, rank: false, turns: false });
+
+    const [firstPlayer, secondPlayer] = await Promise.all([
+      app.prisma.roundPlayer.findFirstOrThrow({ where: { accountId: first.id, roundId } }),
+      app.prisma.roundPlayer.findFirstOrThrow({ where: { accountId: second.id, roundId } }),
+    ]);
+    const nextRound = await app.prisma.round.create({ data: {
+      slug: `bot-next-${randomUUID()}`, name: 'Bot Next Round', rulesetId: classicOgV01.meta.id, rulesetVersion: classicOgV01.meta.version,
+      status: 'REGISTRATION', startsAt: new Date(Date.now() + 172_800_000), endsAt: new Date(Date.now() + 30 * 86_400_000),
+    } });
+    const finalRound = await app.prisma.round.create({ data: {
+      slug: `bot-final-${randomUUID()}`, name: 'Bot Final Round', rulesetId: classicOgV01.meta.id, rulesetVersion: classicOgV01.meta.version,
+      status: 'ENDED', startsAt: new Date(Date.now() - 30 * 86_400_000), endsAt: new Date(Date.now() - 86_400_000),
+    } });
+    try {
+      for (const [account, publicPimpId, netWorth] of [[first, 7301, 300_00n], [second, 7302, 500_00n]] as const) {
+        await app.prisma.roundPlayer.create({ data: {
+          ...classicOgV01.round.startingPlayer, accountId: account.id, roundId: finalRound.id, cityId, publicPimpId,
+          displayName: account.username, netWorthCents: netWorth, lastTurnCalculationAt: new Date(),
+        } });
+      }
+      const raid = await app.prisma.raidBattle.create({ data: {
+        attackerId: firstPlayer.id, defenderId: secondPlayer.id, actionId: randomUUID(), attackingThugs: 1, modelVersion: 'test',
+        calculation: {}, attackerReport: { kind: 'RAID', won: true }, defenderReport: { kind: 'RAID', won: false },
+      } });
+      // The second player overtakes the first: a rank drop for the first.
+      await app.prisma.roundPlayer.update({ where: { id: secondPlayer.id }, data: { netWorthCents: 950_000_00n } });
+
+      const claimed = await claim();
+      expect(claimed.battles.find((battle) => battle.id === raid.id)).toEqual({
+        id: raid.id, kind: 'RAID', roundName: 'Bot Test Round',
+        attackerName: first.username, attackerProfileUrl: new URL('/game/players/7101', env.frontendOrigin).toString(),
+        defenderName: second.username, defenderProfileUrl: new URL('/game/players/7102', env.frontendOrigin).toString(),
+        attackerWon: true, createdAt: raid.createdAt.toISOString(), alertDiscordId: second.discordId,
+      });
+      expect(claimed.ranks.filter((alert) => alert.discordId === first.discordId)).toEqual([{
+        discordId: first.discordId, displayName: first.username, roundName: 'Bot Test Round', kind: 'lost-first', rank: 2,
+        leaderName: second.username, url: new URL('/game/rankings', env.frontendOrigin).toString(),
+      }]);
+
+      const event = (type: string, name: string) => claimed.rounds.find((entry) => entry.type === type && entry.roundName === name);
+      expect(event('opened', 'Bot Next Round')!.recipients).toEqual(expect.arrayContaining([
+        { discordId: first.discordId, rank: null }, { discordId: outsider.discordId, rank: null },
+      ]));
+      expect(event('ending-soon', 'Bot Test Round')!.recipients).toEqual([{ discordId: first.discordId, rank: 2 }]);
+      const ended = event('ended', 'Bot Final Round')!;
+      expect(ended.standings.map((entry) => [entry.rank, entry.publicPimpId])).toEqual([[1, 7302], [2, 7301]]);
+      expect(ended.recipients).toEqual([{ discordId: first.discordId, rank: 2 }]);
+
+      const again = await claim();
+      expect(again.battles.some((battle) => battle.id === raid.id)).toBe(false);
+      expect(again.ranks.some((alert) => alert.discordId === first.discordId)).toBe(false);
+      expect(again.rounds.some((entry) => ['Bot Next Round', 'Bot Test Round', 'Bot Final Round'].includes(entry.roundName))).toBe(false);
+
+      // Raid wins now count on the leaderboard.
+      const raids = await app.inject({ url: '/api/internal/discord/leaderboard?stat=raids', headers: auth() });
+      expect(raids.statusCode, raids.body).toBe(200);
+      expect(raids.json()).toMatchObject({ stat: 'raids', label: 'Raid wins', entries: [{ rank: 1, publicPimpId: 7101, value: 1, city: 'Bot Test City' }] });
+      expect((await app.inject({ url: '/api/internal/discord/leaderboard?stat=defenses', headers: auth() })).json().entries).toEqual([]);
+      expect((await app.inject({ url: '/api/internal/discord/leaderboard?stat=gold', headers: auth() })).statusCode).toBe(400);
+    } finally {
+      await app.prisma.roundPlayer.update({ where: { id: secondPlayer.id }, data: { netWorthCents: 100_00n } });
+      await app.prisma.round.deleteMany({ where: { id: { in: [nextRound.id, finalRound.id] } } });
+    }
+  });
+
+  it('lists a player history by Discord member or by a past name', async () => {
+    const past = await app.prisma.round.create({ data: {
+      slug: `bot-history-${randomUUID()}`, name: 'Bot History Round', rulesetId: classicOgV01.meta.id, rulesetVersion: classicOgV01.meta.version,
+      status: 'ENDED', startsAt: new Date(Date.now() - 40 * 86_400_000), endsAt: new Date(Date.now() - 2 * 86_400_000),
+    } });
+    try {
+      await app.prisma.roundPlayer.create({ data: {
+        ...classicOgV01.round.startingPlayer, accountId: accounts[0]!.id, roundId: past.id, cityId, publicPimpId: 7401,
+        displayName: 'Old Name', netWorthCents: 12_345_00n, nationalRank: 3, lastTurnCalculationAt: new Date(),
+      } });
+      const expected = {
+        displayName: accounts[0]!.username,
+        rounds: [{ name: 'Bot History Round', endedAt: past.endsAt.toISOString(), displayName: 'Old Name', rank: 3, netWorthCents: 1_234_500, city: 'Bot Test City' }],
+        legacy: { roundsPlayed: 1, roundWins: 0, bestNationalRank: 3, totalFinalNetWorthCents: 1_234_500 },
+      };
+      const byDiscord = await app.inject({ url: `/api/internal/discord/history?discordId=${accounts[0]!.discordId}`, headers: auth() });
+      expect(byDiscord.statusCode, byDiscord.body).toBe(200);
+      expect(byDiscord.json()).toEqual(expected);
+      expect((await app.inject({ url: '/api/internal/discord/history?name=old%20name', headers: auth() })).json()).toEqual(expected);
+      const unknown = await app.inject({ url: '/api/internal/discord/history?name=nobody_by_this_name', headers: auth() });
+      expect(unknown.statusCode).toBe(404);
+      expect(unknown.json().error.code).toBe('PLAYER_NOT_FOUND');
+    } finally {
+      await app.prisma.round.delete({ where: { id: past.id } });
+    }
+  });
+
+  it('lets only game admins post news from Discord', async () => {
+    const post = (payload: object) => app.inject({ method: 'POST', url: '/api/internal/discord/news', headers: auth(), payload });
+    const payload = { discordId: accounts[0]!.discordId, title: 'Bot announcement', body: 'Round two is live.', pinned: true, scope: 'round' };
+    const denied = await post(payload);
+    expect(denied.statusCode).toBe(403);
+    expect(denied.json().error.code).toBe('FORBIDDEN');
+
+    await app.prisma.account.update({ where: { id: accounts[0]!.id }, data: { isAdmin: true } });
+    try {
+      const created = await post(payload);
+      expect(created.statusCode, created.body).toBe(200);
+      expect(created.json()).toMatchObject({ title: 'Bot announcement', url: new URL('/game/news', env.frontendOrigin).toString(), roundName: 'Bot Test Round' });
+      expect(await app.prisma.gameNews.findUniqueOrThrow({ where: { id: created.json().id } }))
+        .toMatchObject({ isPinned: true, roundId, createdByAccountId: accounts[0]!.id, discordPostedAt: null });
+
+      expect((await post({ ...payload, scope: 'global', pinned: false })).json().roundName).toBeNull();
+      for (const bad of [{ ...payload, title: '   ' }, { ...payload, scope: 'everywhere' }, { ...payload, body: 'x'.repeat(4001) }]) {
+        expect((await post(bad)).statusCode).toBe(400);
+      }
+      expect((await post({ ...payload, discordId: snowflake() })).statusCode).toBe(404);
+    } finally {
+      await app.prisma.gameNews.deleteMany({ where: { createdByAccountId: accounts[0]!.id } });
+      await app.prisma.account.update({ where: { id: accounts[0]!.id }, data: { isAdmin: false } });
+    }
+  });
+
   it('switches turn reminders, and reminds once each time turns fill', async () => {
     const discordId = accounts[1]!.discordId;
     const cap = classicOgV01.turns.cap;
-    const setReminder = (id: string, turns: boolean) =>
-      app.inject({ method: 'PUT', url: '/api/internal/discord/reminders', headers: auth(), payload: { discordId: id, turns } });
+    const setReminder = (id: string, enabled: boolean) =>
+      app.inject({ method: 'PUT', url: '/api/internal/discord/alerts', headers: auth(), payload: { discordId: id, type: 'turns', enabled } });
     const claimMine = async () => {
-      const response = await app.inject({ method: 'POST', url: '/api/internal/discord/reminders/claim', headers: auth() });
+      const response = await app.inject({ method: 'POST', url: '/api/internal/discord/alerts/claim', headers: auth() });
       expect(response.statusCode, response.body).toBe(200);
-      return (response.json().reminders as Array<{ discordId: string }>).filter((reminder) => reminder.discordId === discordId);
+      return (response.json().turns as Array<{ discordId: string }>).filter((reminder) => reminder.discordId === discordId);
     };
     const player = await app.prisma.roundPlayer.findFirstOrThrow({ where: { accountId: accounts[1]!.id, roundId } });
     const setTurns = (turns: number) => app.prisma.roundPlayer.update({ where: { id: player.id }, data: { turns, lastTurnCalculationAt: new Date() } });
@@ -186,7 +326,7 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
     await setTurns(0);
     const on = await setReminder(discordId, true);
     expect(on.statusCode, on.body).toBe(200);
-    expect(on.json()).toEqual({ turns: true, roundName: 'Bot Test Round', current: { turns: 0, cap } });
+    expect(on.json()).toMatchObject({ alerts: { turns: true }, roundName: 'Bot Test Round', current: { turns: 0, cap } });
     expect(await claimMine()).toEqual([]);
 
     await setTurns(cap);
@@ -199,17 +339,19 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
     await setTurns(cap);
     expect(await claimMine()).toHaveLength(1);
 
-    expect((await setReminder(discordId, false)).json()).toMatchObject({ turns: false });
+    expect((await setReminder(discordId, false)).json()).toMatchObject({ alerts: { turns: false } });
     await setTurns(0);
     await claimMine();
     await setTurns(cap);
     expect(await claimMine()).toEqual([]);
 
     expect((await setReminder(snowflake(), true)).statusCode).toBe(404);
-    expect((await app.inject({ method: 'PUT', url: '/api/internal/discord/reminders', headers: auth(), payload: { discordId, turns: 'yes' } })).statusCode).toBe(400);
+    for (const payload of [{ discordId, type: 'turns', enabled: 'yes' }, { discordId, type: 'weather', enabled: true }]) {
+      expect((await app.inject({ method: 'PUT', url: '/api/internal/discord/alerts', headers: auth(), payload })).statusCode).toBe(400);
+    }
   });
 
-  // Last: the finished round gives account 1 legacy roles.
+  // Near the end: the finished round gives account 1 legacy roles.
   it('lists podiums from finished rounds, and legacy roles follow them', async () => {
     const ended = await app.prisma.round.create({ data: {
       slug: `bot-ended-${randomUUID()}`, name: 'Bot Ended Round', rulesetId: classicOgV01.meta.id, rulesetVersion: classicOgV01.meta.version,
@@ -231,5 +373,25 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
     } finally {
       await app.prisma.round.delete({ where: { id: ended.id } });
     }
+  });
+
+  // Last: settling recalculates account 0's net worth.
+  it('returns a member their own private stats', async () => {
+    const response = await app.inject({ url: `/api/internal/discord/stats?discordId=${accounts[0]!.discordId}`, headers: auth() });
+    expect(response.statusCode, response.body).toBe(200);
+    const stats = response.json();
+    expect(stats).toMatchObject({
+      roundName: 'Bot Test Round', displayName: accounts[0]!.username, publicPimpId: 7101,
+      profileUrl: new URL('/game/players/7101', env.frontendOrigin).toString(), turns: { cap: classicOgV01.turns.cap },
+    });
+    expect(Object.keys(stats).sort()).toEqual([
+      'cashCents', 'crew', 'displayName', 'happiness', 'lowRiders', 'netWorthCents', 'payoutPercent', 'profileUrl',
+      'publicPimpId', 'rank', 'roundName', 'supplies', 'turns', 'weapons',
+    ]);
+
+    const outsider = await app.inject({ url: `/api/internal/discord/stats?discordId=${accounts[2]!.discordId}`, headers: auth() });
+    expect(outsider.json().error.code).toBe('PLAYER_NOT_IN_ROUND');
+    const stranger = await app.inject({ url: `/api/internal/discord/stats?discordId=${snowflake()}`, headers: auth() });
+    expect(stranger.json().error.code).toBe('DISCORD_NOT_LINKED');
   });
 });

@@ -263,9 +263,9 @@ describe('news posts and turn reminders', () => {
   });
 
   it('explains the reminder state', () => {
-    expect(reminderText({ turns: false, roundName: 'Game #008', current: null })).toBe('Turn reminders are off.');
-    expect(reminderText({ turns: true, roundName: 'Game #008', current: { turns: 40, cap: 200 } })).toContain("You're at 40/200 now.");
-    expect(reminderText({ turns: true, roundName: 'Game #008', current: null })).toContain("You haven't joined Game #008 yet");
-    expect(reminderText({ turns: true, roundName: null, current: null })).toContain('No round is running');
+    expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: false }, roundName: 'Game #008', current: null })).toBe('Turn alerts are off.');
+    expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: true }, roundName: 'Game #008', current: { turns: 40, cap: 200, nationalRank: 5 } })).toContain("You're at 40/200 now.");
+    expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: true }, roundName: 'Game #008', current: null })).toContain("You haven't joined Game #008 yet");
+    expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: true }, roundName: null, current: null })).toContain('No round is running');
   });
 });

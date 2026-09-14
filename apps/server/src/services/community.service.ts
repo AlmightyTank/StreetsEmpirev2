@@ -243,7 +243,7 @@ export function legacyAchievements(legacy: PublicLegacyDto): PublicAwardDto[] {
   ];
 }
 
-async function loadPublicContexts(
+export async function loadPublicContexts(
   prisma: PrismaClient,
   currentRoundId: string,
   rows: Array<Pick<RankingRow, 'id' | 'accountId'>>,
