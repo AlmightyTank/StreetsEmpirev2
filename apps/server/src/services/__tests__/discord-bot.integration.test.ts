@@ -142,6 +142,73 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
     expect((await app.inject({ url: '/api/internal/discord/member?discordId=abc', headers: auth() })).statusCode).toBe(400);
   });
 
+  it('returns the full achievement list for /badges', async () => {
+    const response = await app.inject({ url: `/api/internal/discord/badges?discordId=${accounts[0]!.discordId}`, headers: auth() });
+    expect(response.statusCode, response.body).toBe(200);
+    const player = response.json().player;
+    expect(player).toMatchObject({ roundName: 'Bot Test Round', publicPimpId: 7101, profileUrl: new URL('/game/players/7101', env.frontendOrigin).toString() });
+    expect(player.awards.length).toBeGreaterThan(20);
+    expect(player.awards.find((award: { key: string }) => award.key === 'national-number-one')).toMatchObject({ unlocked: true });
+    expect((await app.inject({ url: `/api/internal/discord/badges?discordId=${snowflake()}`, headers: auth() })).statusCode).toBe(404);
+  });
+
+  it('claims each published news post once, and never scheduled ones', async () => {
+    const published = await app.prisma.gameNews.create({ data: { title: 'Bot news test', body: 'Hello *world*', roundId, publishedAt: new Date(Date.now() - 1_000) } });
+    const scheduled = await app.prisma.gameNews.create({ data: { title: 'Bot future news', body: 'Later', roundId, publishedAt: new Date(Date.now() + 3_600_000) } });
+    try {
+      const claim = async () => {
+        const response = await app.inject({ method: 'POST', url: '/api/internal/discord/news/claim', headers: auth() });
+        expect(response.statusCode, response.body).toBe(200);
+        return response.json().news as Array<{ title: string; body: string; url: string }>;
+      };
+      const first = await claim();
+      expect(first.find((post) => post.title === 'Bot news test')).toMatchObject({ body: 'Hello *world*', url: new URL('/game/news', env.frontendOrigin).toString() });
+      expect(first.some((post) => post.title === 'Bot future news')).toBe(false);
+      expect((await claim()).some((post) => post.title === 'Bot news test')).toBe(false);
+    } finally {
+      await app.prisma.gameNews.deleteMany({ where: { id: { in: [published.id, scheduled.id] } } });
+    }
+  });
+
+  it('switches turn reminders, and reminds once each time turns fill', async () => {
+    const discordId = accounts[1]!.discordId;
+    const cap = classicOgV01.turns.cap;
+    const setReminder = (id: string, turns: boolean) =>
+      app.inject({ method: 'PUT', url: '/api/internal/discord/reminders', headers: auth(), payload: { discordId: id, turns } });
+    const claimMine = async () => {
+      const response = await app.inject({ method: 'POST', url: '/api/internal/discord/reminders/claim', headers: auth() });
+      expect(response.statusCode, response.body).toBe(200);
+      return (response.json().reminders as Array<{ discordId: string }>).filter((reminder) => reminder.discordId === discordId);
+    };
+    const player = await app.prisma.roundPlayer.findFirstOrThrow({ where: { accountId: accounts[1]!.id, roundId } });
+    const setTurns = (turns: number) => app.prisma.roundPlayer.update({ where: { id: player.id }, data: { turns, lastTurnCalculationAt: new Date() } });
+
+    await setTurns(0);
+    const on = await setReminder(discordId, true);
+    expect(on.statusCode, on.body).toBe(200);
+    expect(on.json()).toEqual({ turns: true, roundName: 'Bot Test Round', current: { turns: 0, cap } });
+    expect(await claimMine()).toEqual([]);
+
+    await setTurns(cap);
+    expect(await claimMine()).toEqual([{ discordId, displayName: accounts[1]!.username, roundName: 'Bot Test Round', turns: cap, cap, url: new URL('/game', env.frontendOrigin).toString() }]);
+    expect(await claimMine()).toEqual([]);
+
+    // Spending re-arms on the next check; filling again reminds again.
+    await setTurns(cap - 10);
+    expect(await claimMine()).toEqual([]);
+    await setTurns(cap);
+    expect(await claimMine()).toHaveLength(1);
+
+    expect((await setReminder(discordId, false)).json()).toMatchObject({ turns: false });
+    await setTurns(0);
+    await claimMine();
+    await setTurns(cap);
+    expect(await claimMine()).toEqual([]);
+
+    expect((await setReminder(snowflake(), true)).statusCode).toBe(404);
+    expect((await app.inject({ method: 'PUT', url: '/api/internal/discord/reminders', headers: auth(), payload: { discordId, turns: 'yes' } })).statusCode).toBe(400);
+  });
+
   // Last: the finished round gives account 1 legacy roles.
   it('lists podiums from finished rounds, and legacy roles follow them', async () => {
     const ended = await app.prisma.round.create({ data: {

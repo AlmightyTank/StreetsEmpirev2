@@ -35,16 +35,38 @@ the person who ran the command.
 | Command | Reply | Shows |
 | --- | --- | --- |
 | `/profile` | Public | Your own profile. `user:` shows a linked member's; `name:` looks up an in-game name. Net worth, ranks, badges, legacy and links. Never crew, weapons or cash. |
+| `/badges` | Public | Every achievement: earned badges by rarity (◆ = permanent), and the eight locked ones closest to unlocking, with progress. Same `user:` / `name:` options as `/profile`. |
 | `/compare` | Public | Two players side by side. `player:` and `with:` take a name or an @mention; `with:` defaults to you. |
 | `/rankings` | Public | Current round national top 10 with links |
 | `/city` | Public | Top 10 in one city this round; city names autocomplete |
 | `/halloffame` | Public | Final top 3 of the five most recently finished rounds |
 | `/round` | Public | Round status, time left, players, turn rate |
 | `/news` | Public | Latest five news posts |
+| `/invite` | Public | How to register, join the current round and get roles, with the round's status |
 | `/link` | Private | Your game account, current-round player, forum link, and the roles you qualify for, or how to link |
+| `/remind` | Private | `turns:On` DMs you once each time your turns fill to the cap; `turns:Off` stops. See below. |
 | `/sync` | Private | Updates your roles now instead of at the next scheduled sync; once a minute per member |
 | `/help` | Private | Every command |
 | `/syncall` | Private | Mods: a full role sync for the whole server. Hidden from members without **Manage Roles**, and checked again when run. |
+
+**News auto-post.** When `DISCORD_NEWS_CHANNEL_ID` is set, the bot checks for
+newly published game news every `DISCORD_NEWS_MINUTES` (default 1) and posts
+each item to that channel once.
+- In an Announcement channel, it also publishes the post to following servers.
+- News that already existed when auto-posting was added is never posted.
+- The bot needs **View Channel**, **Send Messages** and **Embed Links** in that
+  channel. It checks them at startup and logs what's missing instead of posting.
+- Each post is marked as sent before it goes out. If Discord rejects a send, for
+  example because permissions changed, that post is skipped and logged, not
+  retried.
+
+**Turn reminders.** Members opt in with `/remind turns:On`.
+- Every `DISCORD_REMINDER_MINUTES` (default 5), the bot DMs anyone whose turns
+  have filled to the cap since their last reminder.
+- They get one DM per fill-up. Spending turns sets up the next one.
+- Reminders only run during an active round, for members who have joined it.
+- A member who blocks DMs from server members won't get them; the bot logs that
+  and moves on.
 
 ## 1. Create the bot in Discord
 
@@ -95,6 +117,9 @@ GAME_API_URL="http://127.0.0.1:3001"
 FRONTEND_ORIGIN="https://streetsempire.dev"
 DISCORD_SYNC_MINUTES=10
 DISCORD_FORUM_GROUPS="Admin,Mod"
+DISCORD_NEWS_CHANNEL_ID="<channel id, or empty for no auto-posting>"
+DISCORD_NEWS_MINUTES=1
+DISCORD_REMINDER_MINUTES=5
 ```
 
 - `GAME_API_URL` is where the bot reaches the API, as an origin with no path.
@@ -103,6 +128,8 @@ DISCORD_FORUM_GROUPS="Admin,Mod"
 - `DISCORD_FORUM_GROUPS` lists which forum groups get a "Forum <group>" role.
   Names match the forum's group names, ignoring case. Leave it empty for none.
   Forum roles need forum linking (`FORUM_LINK_SECRET`) turned on.
+- `DISCORD_NEWS_CHANNEL_ID` is the channel for automatic news posts. Copy it by
+  right-clicking the channel → **Copy Channel ID**, with Developer Mode on.
 
 Restart the game API after setting `DISCORD_BOT_API_TOKEN`.
 
@@ -114,25 +141,21 @@ Local development, with the game API already running:
 npm run dev:bot
 ```
 
-Production: build it, then run it under your process manager next to the API.
-
-```bash
-npm run build -w @streets/discord-bot
-```
-
-```bash
-node apps/discord-bot/dist/index.js
-```
+Production runs the bot as a systemd service next to the API, so it starts on
+boot and restarts after a crash. Install it once with
+`scripts/ops/install-bot-service.sh`; see [docs/DEPLOY.md](../../docs/DEPLOY.md).
 
 On startup it logs `Street Empire bot ready as …`. The slash commands appear in
 your server immediately.
 
-The bot keeps one connection to Discord, so run exactly one copy of it.
+The bot keeps one connection to Discord and claims news and reminders, so run
+exactly one copy of it.
 
 ## Updating
 
-Pull, `npm ci`, rebuild the bot, restart it. Commands re-register on every
-start, so renamed or new commands need no extra step.
+Run `bash scripts/ops/deploy.sh` on the VPS. It pulls, rebuilds, migrates, and
+restarts the API and then the bot. Commands re-register on every start, so
+renamed or new commands need no extra step.
 
 ## Troubleshooting
 
@@ -143,6 +166,8 @@ start, so renamed or new commands need no extra step.
 | `Used disallowed intents` | Turn on **Server Members Intent** (step 1.2). |
 | Warns `Cannot manage role "…"` | Drag the bot's role above that role (step 1.4). |
 | Commands reply "Street Empire is not answering" | The API is down or unreachable at `GAME_API_URL`, or the two `DISCORD_BOT_API_TOKEN` values differ. The bot logs the error. |
+| No news posts | Startup log says `News auto-post is off` and why: a wrong channel ID or missing channel permissions. News that existed before auto-posting is never posted. |
+| No reminder DMs | The round must be active and the member joined. They need DMs from server members allowed; failed DMs are logged as `Could not DM a turn reminder`. One DM per fill-up: spend turns to get the next. |
 | `/profile` says your Discord isn't linked | Sign in with Discord or link it under Game → Account, then wait for the next sync. |
 | No Forum roles | Forum linking must be on, the member's forum account linked, and the group listed in `DISCORD_FORUM_GROUPS` and visible on the forum. |
 

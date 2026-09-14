@@ -46,6 +46,7 @@ model Account {
   accountEmailTokens      AccountEmailToken[]
   forumLink               ForumLink?
   forumLinkRequest        ForumLinkRequest?
+  discordReminder         DiscordReminder?
   roundPlayers            RoundPlayer[]
   authoredNews            GameNews[]            @relation("GameNewsAuthor")
 }
@@ -69,6 +70,19 @@ model ForumLinkRequest {
   nonceHash String @unique
   sessionId String
   expiresAt DateTime
+}
+
+/// Opt-in Discord DM reminders. turnsArmed means turns were below the cap at the
+/// last check, so reaching the cap sends one reminder and disarms until they drop again.
+model DiscordReminder {
+  accountId       String    @id
+  account         Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  turnsEnabled    Boolean   @default(false)
+  turnsArmed      Boolean   @default(false)
+  turnsLastSentAt DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  @@index([turnsEnabled])
 }
 
 enum AccountEmailTokenPurpose {
@@ -369,6 +383,10 @@ model GameNews {
 
   isPinned    Boolean  @default(false)
   publishedAt DateTime @default(now())
+
+  /// When the Discord bot claimed it for the news channel. Posts from before
+  /// auto-posting were backfilled so the first run doesn't flood the channel.
+  discordPostedAt DateTime?
 
   createdByAccountId String?
   createdBy          Account? @relation("GameNewsAuthor", fields: [createdByAccountId], references: [id], onDelete: SetNull)

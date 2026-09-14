@@ -1,6 +1,17 @@
 import type { APIEmbed } from 'discord.js';
-import { formatCents } from '@streets/shared';
-import type { HallOfFame, Member, NewsFeed, ProfileCard, Rankings, RoundStatus } from './game-api.js';
+import { formatCents, formatNumber } from '@streets/shared';
+import type {
+  BadgeCard,
+  HallOfFame,
+  Member,
+  NewsFeed,
+  NewsPost,
+  ProfileCard,
+  Rankings,
+  ReminderState,
+  RoundStatus,
+  TurnReminder,
+} from './game-api.js';
 import type { MemberSyncResult, SyncSummary } from './sync.js';
 
 export const BRAND_COLOR = 0xb6ff3a;
@@ -123,9 +134,13 @@ export function hallOfFameEmbed(hallOfFame: HallOfFame, origin: string): APIEmbe
   };
 }
 
+function roundStatusLabel(status: string): string {
+  return status === 'REGISTRATION' ? 'Registration open' : status.charAt(0) + status.slice(1).toLowerCase();
+}
+
 export function roundEmbed(status: RoundStatus, origin: string): APIEmbed {
   if (!status.round) return noRound(origin);
-  const statusLabel = status.round.status === 'REGISTRATION' ? 'Registration open' : status.round.status.charAt(0) + status.round.status.slice(1).toLowerCase();
+  const statusLabel = roundStatusLabel(status.round.status);
   return {
     title: status.round.name,
     url: origin,
@@ -192,13 +207,16 @@ export function memberEmbed(member: Member, roleNames: string[], origin: string)
 /** [usage, description]; the first word of each usage must be a registered command (tested). */
 export const HELP_LINES: Array<[string, string]> = [
   ['/profile [user] [name]', 'A public profile. No option shows yours.'],
+  ['/badges [user] [name]', 'Every achievement: what a player has earned and what they are closest to.'],
   ['/compare player [with]', 'Two players side by side. Names or @mentions; "with" defaults to you.'],
   ['/rankings', 'National top 10 this round.'],
   ['/city name', 'Top 10 in one city this round.'],
   ['/halloffame', 'Podiums from recent finished rounds.'],
   ['/round', 'Round status and time left.'],
   ['/news', 'Latest news posts.'],
+  ['/invite', 'How to start playing and get your roles.'],
   ['/link', 'Your link status and the roles you qualify for. Only you see it.'],
+  ['/remind turns', 'On or Off: a DM when your turns are full. Only you see the reply.'],
   ['/sync', 'Update your roles now (once a minute).'],
   ['/help', 'This list. Only you see it.'],
   ['/syncall', 'Mods: re-sync roles for every member. Needs Manage Roles.'],
@@ -224,4 +242,96 @@ export function syncMemberText(result: MemberSyncResult): string {
 export function syncAllText(summary: SyncSummary): string {
   const text = `Synced ${summary.members} members: ${summary.added} roles added, ${summary.removed} removed.`;
   return summary.failed ? `${text} ${summary.failed} members could not be updated; check the bot log.` : text;
+}
+
+const RARITY_ORDER = ['legendary', 'epic', 'rare', 'uncommon', 'common'] as const;
+
+type Award = BadgeCard['awards'][number];
+
+function progressText(award: Award): string {
+  const progress = award.progress;
+  if (!progress) return '';
+  const value = (amount: number) => (progress.label === 'net worth' ? formatCents(amount) : formatNumber(amount));
+  return `${value(Math.min(progress.current, progress.target))} / ${value(progress.target)} ${progress.label}`;
+}
+
+export function badgesEmbed(card: BadgeCard): APIEmbed {
+  const earned = card.awards.filter((award) => award.unlocked);
+  const ratio = (award: Award) => (award.progress && award.progress.target > 0 ? award.progress.current / award.progress.target : 0);
+  const closest = card.awards.filter((award) => !award.unlocked).sort((a, b) => ratio(b) - ratio(a)).slice(0, 8);
+  const earnedLines = RARITY_ORDER.map((rarity) => {
+    const titles = earned
+      .filter((award) => award.rarity === rarity)
+      .map((award) => `${award.category === 'legacy' ? '◆ ' : ''}${escapeMarkdown(award.title)}`);
+    return titles.length ? `**${rarity.charAt(0).toUpperCase()}${rarity.slice(1)}:** ${titles.join(', ')}` : '';
+  }).filter(Boolean);
+
+  return {
+    title: truncate(`${card.displayName} (#${card.publicPimpId}) · Badges`, 256),
+    url: card.profileUrl,
+    color: BRAND_COLOR,
+    description: escapeMarkdown(card.roundName),
+    fields: [
+      { name: `Earned (${earned.length}/${card.awards.length})`, value: earnedLines.length ? truncate(earnedLines.join('\n'), 1024) : 'None yet' },
+      ...(closest.length
+        ? [{
+          name: 'Closest to unlocking',
+          value: truncate(closest.map((award) => {
+            const progress = progressText(award);
+            return progress ? `${escapeMarkdown(award.title)} · ${progress}` : escapeMarkdown(award.title);
+          }).join('\n'), 1024),
+        }]
+        : []),
+    ],
+    footer: { text: '◆ = permanent legacy badge' },
+  };
+}
+
+export function inviteEmbed(status: RoundStatus | null, origin: string): APIEmbed {
+  const round = status?.round ?? null;
+  return {
+    title: 'Play Street Empire',
+    url: origin,
+    color: BRAND_COLOR,
+    description: round
+      ? `**${escapeMarkdown(round.name)}** · ${roundStatusLabel(round.status).toLowerCase()} · ${round.msRemaining > 0 ? `${formatRemaining(round.msRemaining)} left` : 'ended'} · ${round.playerCount} players`
+      : 'No round is running right now. Claim your name so you are ready for the next one.',
+    fields: [
+      { name: '1. Claim your name', value: `[Register](${origin}/register), or sign in with Discord.` },
+      { name: '2. Join the round', value: `[Enter the game](${origin}/join) and pick up your first turns.` },
+      { name: '3. Get your roles', value: `Link Discord under [Account](${origin}/account), then run /sync here.` },
+    ],
+  };
+}
+
+/** One automatic news channel post. */
+export function newsPostEmbed(post: NewsPost): APIEmbed {
+  return {
+    title: truncate(`${post.isPinned ? '📌 ' : ''}${post.title}`, 256),
+    url: post.url,
+    color: BRAND_COLOR,
+    description: truncate(escapeMarkdown(post.body), 1500),
+    footer: { text: post.authorName ? `Posted by ${post.authorName}` : 'Street Empire news' },
+    timestamp: post.publishedAt,
+  };
+}
+
+export function turnReminderEmbed(reminder: TurnReminder): APIEmbed {
+  return {
+    title: 'Your turns are full',
+    url: reminder.url,
+    color: BRAND_COLOR,
+    description: `${escapeMarkdown(reminder.displayName)} is at ${reminder.turns}/${reminder.cap} turns in ${escapeMarkdown(reminder.roundName)}. Spend some before new ones go to waste.`,
+    footer: { text: 'Turn these off with /remind turns:Off in the Street Empire server.' },
+  };
+}
+
+export function reminderText(state: ReminderState): string {
+  if (!state.turns) return 'Turn reminders are off.';
+  const where = state.current
+    ? ` You're at ${state.current.turns}/${state.current.cap} now.`
+    : state.roundName
+      ? ` You haven't joined ${state.roundName} yet; reminders start once you do.`
+      : ' No round is running; reminders start with the next one.';
+  return `Turn reminders are on. I'll DM you once each time your turns fill up.${where} Keep DMs from server members allowed so they reach you.`;
 }

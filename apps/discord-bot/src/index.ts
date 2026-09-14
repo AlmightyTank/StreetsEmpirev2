@@ -1,9 +1,21 @@
-import { Client, Events, GatewayIntentBits, MessageFlags, RESTEvents } from 'discord.js';
+import {
+  ChannelType,
+  Client,
+  Events,
+  GatewayIntentBits,
+  MessageFlags,
+  PermissionFlagsBits,
+  RESTEvents,
+  type Guild,
+  type GuildTextBasedChannel,
+} from 'discord.js';
 import { commandData, handleAutocomplete, handleCommand, type CommandDeps } from './commands.js';
 import { loadConfig } from './config.js';
+import { newsPostEmbed, turnReminderEmbed } from './format.js';
 import { createGameApi, type City } from './game-api.js';
 import { Cooldowns } from './lookup.js';
 import { managedRoles, parseForumGroupList } from './roles.js';
+import { startPoller } from './schedule.js';
 import { RoleSync } from './sync.js';
 
 const config = loadConfig();
@@ -43,12 +55,50 @@ client.rest.on(RESTEvents.RateLimited, (info) => {
   console.warn(`Discord rate limit${info.global ? ' (global)' : ''} on ${info.method} ${info.route}: waiting ${info.timeToReset}ms.`);
 });
 
-async function logSync(label: string): Promise<void> {
-  try {
-    const summary = await sync?.syncAll();
-    if (summary) console.log(`${label}: ${summary.members} members, ${summary.added} roles added, ${summary.removed} removed, ${summary.failed} failed.`);
-  } catch (error) {
-    console.error(`${label} failed:`, error);
+/** The configured news channel, or null (with the reason logged) if the bot can't post there. */
+async function findNewsChannel(guild: Guild): Promise<GuildTextBasedChannel | null> {
+  if (!config.DISCORD_NEWS_CHANNEL_ID) return null;
+  const channel = await guild.channels.fetch(config.DISCORD_NEWS_CHANNEL_ID).catch(() => null);
+  if (!channel?.isTextBased()) {
+    console.warn(`News auto-post is off: DISCORD_NEWS_CHANNEL_ID ${config.DISCORD_NEWS_CHANNEL_ID} is not a text channel in ${guild.name}.`);
+    return null;
+  }
+  const me = await guild.members.fetchMe();
+  const missing = channel.permissionsFor(me).missing([
+    PermissionFlagsBits.ViewChannel,
+    PermissionFlagsBits.SendMessages,
+    PermissionFlagsBits.EmbedLinks,
+  ]);
+  if (missing.length) {
+    console.warn(`News auto-post is off: the bot needs ${missing.join(', ')} in #${channel.name}.`);
+    return null;
+  }
+  return channel;
+}
+
+async function postNews(channel: GuildTextBasedChannel): Promise<void> {
+  // Claimed posts count as posted, which is why the channel is checked before any claim.
+  for (const post of await api.claimNews()) {
+    try {
+      const message = await channel.send({ embeds: [newsPostEmbed(post)], allowedMentions: { parse: [] } });
+      if (channel.type === ChannelType.GuildAnnouncement) {
+        await message.crosspost().catch((error: unknown) => console.warn('Could not publish news to following servers:', error));
+      }
+      console.log(`Posted news "${post.title}" to #${channel.name}.`);
+    } catch (error) {
+      console.error(`Could not post news "${post.title}":`, error);
+    }
+  }
+}
+
+async function sendTurnReminders(): Promise<void> {
+  for (const reminder of await api.claimTurnReminders()) {
+    try {
+      await client.users.send(reminder.discordId, { embeds: [turnReminderEmbed(reminder)] });
+    } catch (error) {
+      // Usually the member has DMs from server members turned off.
+      console.warn(`Could not DM a turn reminder to ${reminder.discordId}:`, error instanceof Error ? error.message : error);
+    }
   }
 }
 
@@ -68,14 +118,25 @@ client.once(Events.ClientReady, async (ready) => {
     await guild.commands.set(commandData);
     void getCities();
 
-    sync = new RoleSync(guild, managed, api);
+    const roleSync = new RoleSync(guild, managed, api);
+    sync = roleSync;
     console.log(`Street Empire bot ready as ${ready.user.tag} in ${guild.name} with ${commandData.length} commands; syncing roles every ${config.DISCORD_SYNC_MINUTES} min.`);
 
-    // Commands are answered while the first sync runs.
-    void logSync('Role sync');
-    setInterval(() => void logSync('Role sync'), config.DISCORD_SYNC_MINUTES * 60_000);
+    // Commands are answered while these run.
+    startPoller('Role sync', config.DISCORD_SYNC_MINUTES * 60_000, async () => {
+      const summary = await roleSync.syncAll();
+      if (summary) console.log(`Role sync: ${summary.members} members, ${summary.added} roles added, ${summary.removed} removed, ${summary.failed} failed.`);
+    });
+
+    const newsChannel = await findNewsChannel(guild);
+    if (newsChannel) {
+      console.log(`Posting new game news to #${newsChannel.name} (checking every ${config.DISCORD_NEWS_MINUTES} min).`);
+      startPoller('News auto-post', config.DISCORD_NEWS_MINUTES * 60_000, () => postNews(newsChannel));
+    }
+
+    startPoller('Turn reminders', config.DISCORD_REMINDER_MINUTES * 60_000, sendTurnReminders);
   } catch (error) {
-    // Exit so the process manager restarts us, instead of staying online but deaf.
+    // Exit so systemd restarts us, instead of staying online but deaf.
     console.error('Startup failed:', error);
     process.exit(1);
   }

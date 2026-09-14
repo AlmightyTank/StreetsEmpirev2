@@ -1,20 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import {
+  badgesEmbed,
   compareEmbed,
   escapeMarkdown,
   formatRemaining,
   hallOfFameEmbed,
+  HELP_LINES,
   helpEmbed,
+  inviteEmbed,
   memberEmbed,
   newsEmbed,
+  newsPostEmbed,
   profileEmbed,
   rankingsEmbed,
+  reminderText,
   roundEmbed,
   syncAllText,
   syncMemberText,
   truncate,
+  turnReminderEmbed,
 } from '../format.js';
-import type { ProfileCard } from '../game-api.js';
+import type { BadgeCard, ProfileCard } from '../game-api.js';
 
 const origin = 'https://streetsempire.dev';
 
@@ -186,7 +192,7 @@ describe('memberEmbed', () => {
 
 describe('help and sync text', () => {
   it('lists every help line', () => {
-    expect(helpEmbed(origin).description!.split('\n')).toHaveLength(11);
+    expect(helpEmbed(origin).description!.split('\n')).toHaveLength(HELP_LINES.length);
   });
 
   it('summarizes role changes', () => {
@@ -194,5 +200,72 @@ describe('help and sync text', () => {
     expect(syncMemberText({ added: [], removed: [], failed: false })).toBe('Your roles are already up to date.');
     expect(syncAllText({ members: 12, added: 3, removed: 1, failed: 0 })).toBe('Synced 12 members: 3 roles added, 1 removed.');
     expect(syncAllText({ members: 12, added: 3, removed: 1, failed: 2 })).toBe('Synced 12 members: 3 roles added, 1 removed. 2 members could not be updated; check the bot log.');
+  });
+});
+
+describe('badgesEmbed', () => {
+  type Award = BadgeCard['awards'][number];
+  const award = (title: string, rarity: Award['rarity'], category: Award['category'], unlocked: boolean, current: number, target: number, label = 'raid attack wins'): Award =>
+    ({ key: title.toLowerCase(), title, description: 'd', category, rarity, unlocked, earnedAt: null, progress: { current, target, label } });
+  const base = { roundName: 'Game #008', displayName: 'Big', publicPimpId: 1, profileUrl: `${origin}/game/players/1` };
+
+  it('groups earned badges by rarity and lists the closest locked ones with progress', () => {
+    const embed = badgesEmbed({ ...base, awards: [
+      award('First_Stack', 'common', 'wealth', true, 1, 1, 'net worth'),
+      award('Past Winner', 'legendary', 'legacy', true, 1, 1, 'past round wins'),
+      award('Warpath', 'epic', 'combat', false, 3, 25),
+      award('Enforcer', 'uncommon', 'combat', false, 3, 5),
+      award('Millionaire', 'epic', 'wealth', false, 50_000_000, 100_000_000, 'net worth'),
+    ] });
+    expect(embed.fields![0]).toEqual({ name: 'Earned (2/5)', value: '**Legendary:** ◆ Past Winner\n**Common:** First\\_Stack' });
+    expect(embed.fields![1]).toEqual({
+      name: 'Closest to unlocking',
+      value: 'Enforcer · 3 / 5 raid attack wins\nMillionaire · $500,000 / $1,000,000 net worth\nWarpath · 3 / 25 raid attack wins',
+    });
+  });
+
+  it('handles a player with nothing earned or locked', () => {
+    const embed = badgesEmbed({ ...base, awards: [] });
+    expect(embed.fields).toEqual([{ name: 'Earned (0/0)', value: 'None yet' }]);
+  });
+});
+
+describe('inviteEmbed', () => {
+  it('shows the running round and the three steps', () => {
+    const embed = inviteEmbed({ round: { name: 'Game #008', status: 'ACTIVE', msRemaining: 90 * 60_000, playerCount: 12 }, ruleset: null, turns: null }, origin);
+    expect(embed.description).toBe('**Game \\#008** · active · 1h 30m left · 12 players');
+    expect(embed.fields!.map((field) => field.value)).toEqual([
+      `[Register](${origin}/register), or sign in with Discord.`,
+      `[Enter the game](${origin}/join) and pick up your first turns.`,
+      `Link Discord under [Account](${origin}/account), then run /sync here.`,
+    ]);
+  });
+
+  it('still gives the steps without a round or round status', () => {
+    expect(inviteEmbed(null, origin).description).toMatch(/^No round is running/);
+    expect(inviteEmbed(null, origin).fields).toHaveLength(3);
+  });
+});
+
+describe('news posts and turn reminders', () => {
+  it('builds an escaped, bounded news channel post', () => {
+    const embed = newsPostEmbed({ id: 'n1', title: 'Big *update*', body: `**bold** ${'x'.repeat(2000)}`, isPinned: true, publishedAt: '2026-09-14T10:00:00.000Z', authorName: 'Admin', url: `${origin}/game/news` });
+    expect(embed.title).toBe('📌 Big *update*');
+    expect(embed.description!.startsWith('\\*\\*bold\\*\\*')).toBe(true);
+    expect(embed.description!.length).toBeLessThanOrEqual(1500);
+    expect(embed).toMatchObject({ url: `${origin}/game/news`, timestamp: '2026-09-14T10:00:00.000Z', footer: { text: 'Posted by Admin' } });
+  });
+
+  it('builds the turn reminder DM', () => {
+    const embed = turnReminderEmbed({ discordId: '1', displayName: 'Big_Daddy', roundName: 'Game #008', turns: 200, cap: 200, url: `${origin}/game` });
+    expect(embed.description).toBe('Big\\_Daddy is at 200/200 turns in Game \\#008. Spend some before new ones go to waste.');
+    expect(embed.url).toBe(`${origin}/game`);
+  });
+
+  it('explains the reminder state', () => {
+    expect(reminderText({ turns: false, roundName: 'Game #008', current: null })).toBe('Turn reminders are off.');
+    expect(reminderText({ turns: true, roundName: 'Game #008', current: { turns: 40, cap: 200 } })).toContain("You're at 40/200 now.");
+    expect(reminderText({ turns: true, roundName: 'Game #008', current: null })).toContain("You haven't joined Game #008 yet");
+    expect(reminderText({ turns: true, roundName: null, current: null })).toContain('No round is running');
   });
 });

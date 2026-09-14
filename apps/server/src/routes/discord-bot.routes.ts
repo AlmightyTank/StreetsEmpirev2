@@ -8,10 +8,11 @@ import { parseBody } from '../utils/validate.js';
 const snowflake = z.string().regex(/^[0-9]{17,20}$/);
 const citySlug = z.string().regex(/^[a-z0-9-]{1,60}$/);
 const rolesSchema = z.object({ discordIds: z.array(snowflake).min(1).max(1000) }).strict();
-const profileQuery = z.union([
+const playerQuery = z.union([
   z.object({ discordId: snowflake }).strict(),
   z.object({ name: z.string().trim().min(1).max(40) }).strict(),
 ]);
+const reminderSchema = z.object({ discordId: snowflake, turns: z.boolean() }).strict();
 
 /** Server-to-server API for apps/discord-bot. Not for browsers: no cookies, no CORS use. */
 const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
@@ -29,7 +30,11 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.get('/profile', async (request) => ({
-    player: await DiscordBotService.profileCard(fastify.prisma, parseBody(profileQuery, request.query)),
+    player: await DiscordBotService.profileCard(fastify.prisma, parseBody(playerQuery, request.query)),
+  }));
+
+  fastify.get('/badges', async (request) => ({
+    player: await DiscordBotService.badges(fastify.prisma, parseBody(playerQuery, request.query)),
   }));
 
   fastify.get('/rankings', async () => DiscordBotService.rankings(fastify.prisma));
@@ -47,6 +52,15 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
     const { discordId } = parseBody(z.object({ discordId: snowflake }).strict(), request.query);
     return DiscordBotService.member(fastify.prisma, discordId);
   });
+
+  fastify.post('/news/claim', async () => ({ news: await DiscordBotService.claimNews(fastify.prisma) }));
+
+  fastify.put('/reminders', async (request) => {
+    const { discordId, turns } = parseBody(reminderSchema, request.body);
+    return DiscordBotService.setTurnReminder(fastify.prisma, discordId, turns);
+  });
+
+  fastify.post('/reminders/claim', async () => ({ reminders: await DiscordBotService.claimTurnReminders(fastify.prisma) }));
 };
 
 export default discordBotRoutes;

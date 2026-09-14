@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PublicLegacyDto } from '@streets/shared';
-import { botTokenMatches, competitionRanks, roleKeysFor } from '../discord-bot.service.js';
+import { botTokenMatches, competitionRanks, reminderDecision, roleKeysFor } from '../discord-bot.service.js';
 
 const token = 'bot-token-'.repeat(8);
 const legacy = (overrides: Partial<PublicLegacyDto> = {}): PublicLegacyDto => ({
@@ -46,5 +46,15 @@ describe('roleKeysFor', () => {
     expect(roleKeysFor({ inRound: true, nationalRank: 10, legacy: legacy({ roundsPlayed: 1, bestNationalRank: 11 }), forumGroups: [] }))
       .toEqual(['linked', 'player', 'top-10', 'veteran']);
     expect(roleKeysFor({ inRound: true, nationalRank: 11, legacy: legacy(), forumGroups: [] })).not.toContain('top-10');
+  });
+});
+
+describe('reminderDecision', () => {
+  it('arms below the cap, notifies once on reaching it, then waits for the next drop', () => {
+    expect(reminderDecision({ armed: false, turns: 150, cap: 200 })).toBe('arm');
+    expect(reminderDecision({ armed: true, turns: 199, cap: 200 })).toBe('none');
+    expect(reminderDecision({ armed: true, turns: 200, cap: 200 })).toBe('notify');
+    expect(reminderDecision({ armed: false, turns: 200, cap: 200 })).toBe('none');
+    expect(reminderDecision({ armed: false, turns: 210, cap: 200 })).toBe('none');
   });
 });

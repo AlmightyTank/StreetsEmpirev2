@@ -163,6 +163,43 @@ export interface DiscordHallOfFameDto {
   }>;
 }
 
+/** Internal Discord bot API: a player's full achievement list for /badges. */
+export interface DiscordBadgesDto {
+  roundName: string;
+  displayName: string;
+  publicPimpId: number;
+  profileUrl: string;
+  awards: PublicAwardDto[];
+}
+
+/** A published news post the bot has claimed for its news channel. */
+export interface DiscordNewsPostDto {
+  id: string;
+  title: string;
+  body: string;
+  isPinned: boolean;
+  publishedAt: string;
+  authorName: string | null;
+  url: string;
+}
+
+/** A due turn reminder: the member's turns reached the cap since the last one. */
+export interface DiscordTurnReminderDto {
+  discordId: string;
+  displayName: string;
+  roundName: string;
+  turns: number;
+  cap: number;
+  url: string;
+}
+
+export interface DiscordReminderStateDto {
+  turns: boolean;
+  roundName: string | null;
+  /** Current turns and cap when the member has joined the current round. */
+  current: { turns: number; cap: number } | null;
+}
+
 /** Private /link status for one Discord member. */
 export interface DiscordMemberDto {
   linked: boolean;

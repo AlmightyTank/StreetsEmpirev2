@@ -21,6 +21,11 @@ const schema = z.object({
   DISCORD_SYNC_MINUTES: z.coerce.number().int().min(1).max(1440).default(10),
   /** Forum groups mirrored as "Forum <name>" roles. */
   DISCORD_FORUM_GROUPS: z.string().default('Admin,Mod'),
+  /** Channel that gets new game news automatically; empty turns auto-posting off. */
+  DISCORD_NEWS_CHANNEL_ID: z.union([z.literal(''), snowflake('DISCORD_NEWS_CHANNEL_ID')]).default(''),
+  DISCORD_NEWS_MINUTES: z.coerce.number().int().min(1).max(60).default(1),
+  /** How often opt-in turn reminders (/remind) are checked. */
+  DISCORD_REMINDER_MINUTES: z.coerce.number().int().min(1).max(60).default(5),
 });
 
 export type BotConfig = z.infer<typeof schema> & { frontendOrigin: string };

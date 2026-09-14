@@ -7,13 +7,16 @@ import {
   type ChatInputCommandInteraction,
 } from 'discord.js';
 import {
+  badgesEmbed,
   compareEmbed,
   hallOfFameEmbed,
   helpEmbed,
+  inviteEmbed,
   memberEmbed,
   newsEmbed,
   profileEmbed,
   rankingsEmbed,
+  reminderText,
   roundEmbed,
   syncAllText,
   syncMemberText,
@@ -30,6 +33,11 @@ export const commandData = [
     .addUserOption((option) => option.setName('user').setDescription('A Discord member with a linked game account'))
     .addStringOption((option) => option.setName('name').setDescription('In-game player name').setMaxLength(40)),
   new SlashCommandBuilder()
+    .setName('badges')
+    .setDescription("Every achievement a player has earned, and the ones they're closest to")
+    .addUserOption((option) => option.setName('user').setDescription('A Discord member with a linked game account'))
+    .addStringOption((option) => option.setName('name').setDescription('In-game player name').setMaxLength(40)),
+  new SlashCommandBuilder()
     .setName('compare')
     .setDescription('Compare two players side by side')
     .addStringOption((option) => option.setName('player').setDescription('Player name or @member').setRequired(true).setMaxLength(40))
@@ -42,7 +50,16 @@ export const commandData = [
   new SlashCommandBuilder().setName('halloffame').setDescription('Podiums from recent finished rounds'),
   new SlashCommandBuilder().setName('round').setDescription('Current round status and time left'),
   new SlashCommandBuilder().setName('news').setDescription('Latest Street Empire news'),
+  new SlashCommandBuilder().setName('invite').setDescription('How to start playing Street Empire and get your roles'),
   new SlashCommandBuilder().setName('link').setDescription('Your link status and the roles you qualify for (only you see it)'),
+  new SlashCommandBuilder()
+    .setName('remind')
+    .setDescription('DM reminders from the Street Empire bot (only you see the reply)')
+    .addStringOption((option) => option
+      .setName('turns')
+      .setDescription('DM me when my turns are full')
+      .setRequired(true)
+      .addChoices({ name: 'On', value: 'on' }, { name: 'Off', value: 'off' })),
   new SlashCommandBuilder().setName('sync').setDescription('Update your Street Empire roles now'),
   new SlashCommandBuilder().setName('help').setDescription('List the Street Empire bot commands'),
   new SlashCommandBuilder()
@@ -53,7 +70,7 @@ export const commandData = [
 ].map((command) => command.toJSON());
 
 /** Replies only the caller sees. */
-export const PRIVATE_COMMANDS: ReadonlySet<string> = new Set(['link', 'sync', 'help', 'syncall']);
+export const PRIVATE_COMMANDS: ReadonlySet<string> = new Set(['link', 'remind', 'sync', 'help', 'syncall']);
 
 export interface CommandDeps {
   api: GameApi;
@@ -114,6 +131,18 @@ async function run(interaction: ChatInputCommandInteraction, deps: CommandDeps):
       return { embeds: [compareEmbed(a.value, b.value)] };
     }
 
+    case 'badges': {
+      const user = interaction.options.getUser('user');
+      const name = interaction.options.getString('name');
+      if (user) return { embeds: [badgesEmbed(await api.badges({ discordId: user.id }))] };
+      if (name) return { embeds: [badgesEmbed(await api.badges({ name }))] };
+      try {
+        return { embeds: [badgesEmbed(await api.badges({ discordId: interaction.user.id }))] };
+      } catch (error) {
+        throw new SelfLookupError(error);
+      }
+    }
+
     case 'rankings':
       return { embeds: [rankingsEmbed(await api.rankings(), origin)] };
 
@@ -131,6 +160,19 @@ async function run(interaction: ChatInputCommandInteraction, deps: CommandDeps):
 
     case 'news':
       return { embeds: [newsEmbed(await api.news(), origin)] };
+
+    case 'invite':
+      // The steps still help when round status is unavailable.
+      return { embeds: [inviteEmbed(await api.round().catch(() => null), origin)] };
+
+    case 'remind': {
+      const enabled = interaction.options.getString('turns', true) === 'on';
+      try {
+        return { content: reminderText(await api.setTurnReminder(interaction.user.id, enabled)) };
+      } catch (error) {
+        throw new SelfLookupError(error);
+      }
+    }
 
     case 'link': {
       const member = await api.member(interaction.user.id);

@@ -69,4 +69,33 @@ describe('createGameApi', () => {
       '/api/internal/discord/cities auth',
     ]);
   });
+
+  it('builds the badges, news claim and reminder requests', async () => {
+    const calls: Array<{ path: string; method: string; body: unknown; contentType: string | undefined }> = [];
+    const bodies: Record<string, unknown> = {
+      '/api/internal/discord/badges': { player: { roundName: 'R', displayName: 'Big', publicPimpId: 1, profileUrl: 'http://game/game/players/1', awards: [] } },
+      '/api/internal/discord/news/claim': { news: [] },
+      '/api/internal/discord/reminders': { turns: true, roundName: 'R', current: { turns: 5, cap: 200 } },
+      '/api/internal/discord/reminders/claim': { reminders: [] },
+    };
+    const fetchImpl = (async (url: URL | string, init: RequestInit = {}) => {
+      const parsed = new URL(String(url));
+      const headers = init.headers as Record<string, string>;
+      calls.push({ path: `${parsed.pathname}${parsed.search}`, method: String(init.method), body: init.body, contentType: headers['content-type'] });
+      return new Response(JSON.stringify(bodies[parsed.pathname]), { status: 200 });
+    }) as typeof fetch;
+    const api = createGameApi({ baseUrl: 'http://game', token, fetch: fetchImpl });
+
+    expect((await api.badges({ name: 'Big Daddy' })).displayName).toBe('Big');
+    expect(await api.claimNews()).toEqual([]);
+    expect((await api.setTurnReminder('123456789012345678', true)).current).toEqual({ turns: 5, cap: 200 });
+    expect(await api.claimTurnReminders()).toEqual([]);
+    expect(calls).toEqual([
+      { path: '/api/internal/discord/badges?name=Big+Daddy', method: 'GET', body: undefined, contentType: undefined },
+      // No body, so no JSON content type for Fastify to reject as empty.
+      { path: '/api/internal/discord/news/claim', method: 'POST', body: undefined, contentType: undefined },
+      { path: '/api/internal/discord/reminders', method: 'PUT', body: '{"discordId":"123456789012345678","turns":true}', contentType: 'application/json' },
+      { path: '/api/internal/discord/reminders/claim', method: 'POST', body: undefined, contentType: undefined },
+    ]);
+  });
 });
