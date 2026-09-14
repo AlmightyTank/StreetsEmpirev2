@@ -1,5 +1,6 @@
 import type {
   ActivityHistoryDto,
+  HallOfFameDto,
   PublicPlayerProfileResponseDto,
   RankingsDto,
 } from '@streets/shared';
@@ -7,6 +8,7 @@ import { api } from './client.js';
 
 export const communityApi = {
   rankings: () => api.get<RankingsDto>('/game/rankings'),
+  hallOfFame: () => api.get<HallOfFameDto>('/game/hall-of-fame'),
   profile: (publicPimpId: number) =>
     api.get<PublicPlayerProfileResponseDto>(`/game/players/${publicPimpId}`),
   forumProfile: (forumUserId: string) =>

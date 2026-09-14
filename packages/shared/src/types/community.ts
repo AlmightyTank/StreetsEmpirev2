@@ -163,6 +163,8 @@ export interface DiscordHallOfFameDto {
   }>;
 }
 
+export type HallOfFameDto = DiscordHallOfFameDto;
+
 /** Internal Discord bot API: a player's full achievement list for /badges. */
 export interface DiscordBadgesDto {
   roundName: string;

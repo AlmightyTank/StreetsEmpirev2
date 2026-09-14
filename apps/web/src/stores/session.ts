@@ -1,11 +1,13 @@
 import type {
   AccountDto,
   ActivityDto,
+  GameSnapshotDto,
   VerifyEmailTokenInput,
   LoginInput,
   RegisterInput,
   ResetPasswordInput,
   RoundDto,
+  RoundOverDto,
   RoundPlayerDto,
 } from '@streets/shared';
 import { create } from 'zustand';
@@ -22,6 +24,7 @@ interface SessionState {
   account: AccountDto | null;
   round: RoundDto | null;
   me: RoundPlayerDto | null;
+  roundOver: RoundOverDto | null;
   canJoin: boolean;
   recentActivity: ActivityDto[];
 
@@ -44,6 +47,7 @@ export const useSession = create<SessionState>((set, get) => ({
   account: null,
   round: null,
   me: null,
+  roundOver: null,
   canJoin: false,
   recentActivity: [],
 
@@ -64,14 +68,23 @@ export const useSession = create<SessionState>((set, get) => ({
 
   async refreshRound() {
     const current = await roundsApi.current();
-    set({ round: current.round, me: current.me, canJoin: current.canJoin });
+    set({ round: current.round, me: current.me, canJoin: current.canJoin, roundOver: current.roundOver });
   },
 
   async refreshSnapshot(options = {}) {
-    const snapshot = await gameApi.me(options);
+    let snapshot: GameSnapshotDto;
+    try {
+      snapshot = await gameApi.me(options);
+    } catch (error) {
+      if (error instanceof ApiError && ['NOT_IN_ROUND', 'NO_ACTIVE_ROUND', 'ROUND_ENDED'].includes(error.code)) {
+        await get().refreshRound();
+      }
+      throw error;
+    }
     set({
       round: snapshot.round,
       me: snapshot.player,
+      roundOver: null,
       recentActivity: snapshot.recentActivity,
       canJoin: false,
     });
@@ -103,13 +116,13 @@ export const useSession = create<SessionState>((set, get) => ({
 
   async logout() {
     await authApi.logout();
-    set({ account: null, me: null, recentActivity: [], canJoin: false });
+    set({ account: null, me: null, roundOver: null, recentActivity: [], canJoin: false });
     await get().refreshRound();
   },
 
   async join() {
     const result = await roundsApi.join();
-    set({ round: result.round, me: result.me, canJoin: result.canJoin });
+    set({ round: result.round, me: result.me, canJoin: result.canJoin, roundOver: result.roundOver });
     if (!result.me) throw new Error('Join succeeded but returned no player.');
     return result.me;
   },

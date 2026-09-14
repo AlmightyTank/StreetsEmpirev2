@@ -164,6 +164,35 @@ export interface GameSnapshotDto {
   recentActivity: ActivityDto[];
 }
 
+export interface RoundOverPlayerDto {
+  publicPimpId: number;
+  displayName: string;
+  city: CityDto;
+  netWorthCents: number;
+  cashCents: number;
+  rank: {
+    local: number | null;
+    national: number | null;
+  };
+  joinedAt: string;
+  lastActiveAt: string;
+}
+
+export interface RoundOverDto {
+  round: RoundDto;
+  player: RoundOverPlayerDto;
+}
+
+export interface CurrentRoundDto {
+  /** Current active or registration round, usually the next season after round-over. */
+  round: RoundDto | null;
+  /** The account's player in the current round, when already joined. */
+  me: RoundPlayerDto | null;
+  canJoin: boolean;
+  /** Most recent finished round for this account, for the round-over screen. */
+  roundOver: RoundOverDto | null;
+}
+
 /** A single resource moving. Section 44. */
 export interface ResourceChange {
   resource: string;

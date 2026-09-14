@@ -4,6 +4,7 @@ import type {
   PublicAchievementCategory,
   PublicAchievementRarity,
   PublicAwardDto,
+  HallOfFameDto,
   PublicLegacyDto,
   PublicPlayerProfileDto,
   RankingEntryDto,
@@ -423,6 +424,36 @@ export function rankRows(
 }
 
 export const CommunityService = {
+  async hallOfFame(prisma: PrismaClient, roundLimit = 10, podiumSize = 3): Promise<HallOfFameDto> {
+    const rounds = await prisma.round.findMany({
+      where: { status: { in: ['ENDED', 'ARCHIVED'] } },
+      orderBy: { endsAt: 'desc' },
+      take: roundLimit,
+      select: {
+        name: true,
+        endsAt: true,
+        players: {
+          where: { nationalRank: { not: null, lte: podiumSize }, account: { isActive: true } },
+          orderBy: [{ nationalRank: 'asc' }, { netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
+          select: { nationalRank: true, displayName: true, netWorthCents: true, city: { select: { name: true } } },
+        },
+      },
+    });
+
+    return {
+      rounds: rounds.map((round) => ({
+        name: round.name,
+        endedAt: round.endsAt.toISOString(),
+        podium: round.players.map((player) => ({
+          rank: player.nationalRank!,
+          displayName: player.displayName,
+          netWorthCents: Number(player.netWorthCents),
+          city: player.city.name,
+        })),
+      })),
+    };
+  },
+
   async rankings(
     prisma: PrismaClient,
     player: {

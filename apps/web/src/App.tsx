@@ -6,6 +6,7 @@ import { ActivityPage } from './pages/ActivityPage.js';
 import { CombatPage } from './pages/CombatPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
+import { HallOfFamePage } from './pages/HallOfFamePage.js';
 import { JoinPage } from './pages/JoinPage.js';
 import { LandingPage } from './pages/LandingPage.js';
 import { LoginPage } from './pages/LoginPage.js';
@@ -31,6 +32,13 @@ function RequireAccount({ children }: { children: ReactNode }) {
 
 function Protected({ children }: { children: ReactNode }) {
   return <RequireAccount>{children}</RequireAccount>;
+}
+
+function LiveRound({ children }: { children: ReactNode }) {
+  const me = useSession((s) => s.me);
+  const roundOver = useSession((s) => s.roundOver);
+  if (!me) return <Navigate to={roundOver ? '/game' : '/join'} replace />;
+  return <>{children}</>;
 }
 
 function Booting() {
@@ -65,20 +73,21 @@ export function App() {
       <Route path="/join" element={<Protected><JoinPage /></Protected>} />
 
       <Route path="/game" element={<Protected><DashboardPage /></Protected>} />
-      <Route path="/game/combat" element={<Protected><CombatPage /></Protected>} />
-      <Route path="/game/scout" element={<Protected><ScoutPage /></Protected>} />
-      <Route path="/game/produce" element={<Protected><ProducePage /></Protected>} />
-      <Route path="/game/stores/:slug" element={<Protected><StorePage /></Protected>} />
+      <Route path="/game/combat" element={<Protected><LiveRound><CombatPage /></LiveRound></Protected>} />
+      <Route path="/game/scout" element={<Protected><LiveRound><ScoutPage /></LiveRound></Protected>} />
+      <Route path="/game/produce" element={<Protected><LiveRound><ProducePage /></LiveRound></Protected>} />
+      <Route path="/game/stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
 
-      <Route path="/game/rankings" element={<Protected><RankingsPage /></Protected>} />
-      <Route path="/game/profile" element={<Protected><ProfilePage /></Protected>} />
-      <Route path="/game/forum/:forumUserId" element={<Protected><ProfilePage /></Protected>} />
-      <Route path="/game/players/:publicPimpId" element={<Protected><ProfilePage /></Protected>} />
-      <Route path="/game/activity" element={<Protected><ActivityPage /></Protected>} />
+      <Route path="/game/rankings" element={<Protected><LiveRound><RankingsPage /></LiveRound></Protected>} />
+      <Route path="/game/hall-of-fame" element={<HallOfFamePage />} />
+      <Route path="/game/profile" element={<Protected><LiveRound><ProfilePage /></LiveRound></Protected>} />
+      <Route path="/game/forum/:forumUserId" element={<Protected><LiveRound><ProfilePage /></LiveRound></Protected>} />
+      <Route path="/game/players/:publicPimpId" element={<Protected><LiveRound><ProfilePage /></LiveRound></Protected>} />
+      <Route path="/game/activity" element={<Protected><LiveRound><ActivityPage /></LiveRound></Protected>} />
       <Route path="/game/news" element={<NewsPage />} />
       <Route path="/game/status" element={<Protected><StatusPage /></Protected>} />
       <Route path="/game/rules" element={<RulesPage />} />
-      <Route path="/game/reputation" element={<Protected><ReputationPage /></Protected>} />
+      <Route path="/game/reputation" element={<Protected><LiveRound><ReputationPage /></LiveRound></Protected>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

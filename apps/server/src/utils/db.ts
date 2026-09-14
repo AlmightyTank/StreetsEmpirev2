@@ -14,3 +14,8 @@ export type Db = Prisma.TransactionClient;
 export async function lockRoundPlayer(db: Db, roundPlayerId: string): Promise<void> {
   await db.$queryRaw`SELECT id FROM "RoundPlayer" WHERE id = ${roundPlayerId} FOR UPDATE`;
 }
+
+/** Serialise lifecycle transitions for one round. */
+export async function lockRound(db: Db, roundId: string): Promise<void> {
+  await db.$queryRaw`SELECT id FROM "Round" WHERE id = ${roundId} FOR UPDATE`;
+}

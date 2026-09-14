@@ -11,6 +11,7 @@ import type {
   ActivityDto,
   CityDto,
   GameSnapshotDto,
+  RoundOverDto,
   RoundDto,
   RoundPlayerDto,
 } from '@streets/shared';
@@ -142,6 +143,29 @@ export function toRoundPlayerDto(
 
     joinedAt: player.createdAt.toISOString(),
     lastActiveAt: player.lastActiveAt.toISOString(),
+  };
+}
+
+export function toRoundOverDto(input: {
+  round: Round;
+  playerCount: number;
+  player: RoundPlayer & { city: City };
+}): RoundOverDto {
+  return {
+    round: toRoundDto(input.round, input.playerCount),
+    player: {
+      publicPimpId: input.player.publicPimpId,
+      displayName: input.player.displayName,
+      city: toCityDto(input.player.city),
+      netWorthCents: centsToNumber(input.player.netWorthCents),
+      cashCents: centsToNumber(input.player.cashCents),
+      rank: {
+        local: input.player.localRank,
+        national: input.player.nationalRank,
+      },
+      joinedAt: input.player.createdAt.toISOString(),
+      lastActiveAt: input.player.lastActiveAt.toISOString(),
+    },
   };
 }
 

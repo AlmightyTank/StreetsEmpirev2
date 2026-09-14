@@ -1,5 +1,5 @@
-import { Navigate } from 'react-router-dom';
-import type { HappinessTermDto, RoundPlayerDto } from '@streets/shared';
+import { Link, Navigate } from 'react-router-dom';
+import type { HappinessTermDto, RoundDto, RoundOverDto, RoundPlayerDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { ActivityFeed } from '../components/ActivityFeed.js';
 import { Alert } from '../components/Alert.js';
@@ -9,6 +9,7 @@ import { useCountdown } from '../hooks/useCountdown.js';
 import { useLiveDashboard } from '../hooks/useLiveDashboard.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
+import { formatDate, formatDuration } from '../utils/time.js';
 
 function RankMovement({ movement }: { movement: number | null }) {
   if (movement === null || movement === 0) {
@@ -86,15 +87,69 @@ function TurnsTile({
   );
 }
 
-export function DashboardPage() {
-  const me = useSession((s) => s.me);
+function RoundOverScreen({ roundOver, nextRound, canJoin }: { roundOver: RoundOverDto; nextRound: RoundDto | null; canJoin: boolean }) {
+  const player = roundOver.player;
+  return (
+    <GameLayout>
+      <div className="se-pagehead">
+        <div>
+          <p className="se-eyebrow">Season complete</p>
+          <h1 className="se-title">{roundOver.round.name} is over</h1>
+        </div>
+        <div className="se-pagehead__right">
+          <span className="se-eyebrow">Final standings</span>
+        </div>
+      </div>
+
+      <div className="se-stats se-mb">
+        <Stat label="Final Net Worth" value={formatCents(player.netWorthCents)} />
+        <Stat label="Cash Left" value={formatCents(player.cashCents)} />
+        <Stat label="National Finish" value={player.rank.national === null ? '-' : `#${formatNumber(player.rank.national)}`} />
+        <Stat label="Local Finish" value={player.rank.local === null ? '-' : `#${formatNumber(player.rank.local)}`} />
+      </div>
+
+      <div className="se-grid se-grid--sidebar">
+        <Panel title={`${player.displayName} (#${player.publicPimpId})`} flush>
+          <div className="se-rows">
+            <Row label="City" value={player.city.name} />
+            <Row label="Joined" value={formatDate(player.joinedAt)} />
+            <Row label="Season ended" value={formatDate(roundOver.round.endsAt)} strong />
+            <Row label="Players" value={roundOver.round.playerCount} />
+          </div>
+        </Panel>
+
+        <aside className="se-grid">
+          <Panel title={nextRound ? 'Next round' : 'Between rounds'}>
+            {nextRound ? (
+              <>
+                <p className="se-dim">
+                  {nextRound.name} is {nextRound.status.toLowerCase()}. {nextRound.msRemaining > 0 ? `${formatDuration(nextRound.msRemaining)} remain on the clock.` : 'The clock has not opened yet.'}
+                </p>
+                <div className="se-actions-row se-mt">
+                  <Link className="se-btn se-btn--primary" to="/join">{canJoin ? 'Enter next round' : 'View next round'}</Link>
+                  <Link className="se-btn" to="/game/hall-of-fame">Hall of fame</Link>
+                  <Link className="se-btn" to="/game/news">Development wire</Link>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="se-dim">No new round is open yet. Your final result is saved to your legacy.</p>
+                <div className="se-actions-row se-mt">
+                  <Link className="se-btn" to="/game/hall-of-fame">Hall of fame</Link>
+                  <Link className="se-btn" to="/game/news">Development wire</Link>
+                </div>
+              </>
+            )}
+          </Panel>
+        </aside>
+      </div>
+    </GameLayout>
+  );
+}
+
+function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
   const activity = useSession((s) => s.recentActivity);
   const { refreshing, error, refresh } = useLiveDashboard();
-
-  if (!me) {
-    // Either not in the round yet, or the first snapshot has not landed.
-    return error ? <Navigate to="/join" replace /> : <GameLayout>{null}</GameLayout>;
-  }
 
   const weapons =
     me.resources.pistols + me.resources.shotguns + me.resources.tek9s + me.resources.ak47s;
@@ -193,4 +248,16 @@ export function DashboardPage() {
       </div>
     </GameLayout>
   );
+}
+
+export function DashboardPage() {
+  const me = useSession((s) => s.me);
+  const roundOver = useSession((s) => s.roundOver);
+  const round = useSession((s) => s.round);
+  const canJoin = useSession((s) => s.canJoin);
+
+  if (me) return <LiveDashboardPage me={me} />;
+  if (roundOver) return <RoundOverScreen roundOver={roundOver} nextRound={round} canJoin={canJoin} />;
+
+  return <Navigate to="/join" replace />;
 }

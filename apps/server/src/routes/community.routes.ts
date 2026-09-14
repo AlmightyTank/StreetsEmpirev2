@@ -41,6 +41,9 @@ const communityRoutes: FastifyPluginAsync = async (fastify) => {
     );
   });
 
+  /** 0.3.0-A: public past-round podiums. */
+  fastify.get('/hall-of-fame', async () => CommunityService.hallOfFame(fastify.prisma));
+
   /** 0.1.0-E: public, deliberately non-sensitive player profile. */
   fastify.get('/players/:publicPimpId', { preHandler: fastify.requireAuth }, async (request) => {
     const params = request.params as { publicPimpId?: string };

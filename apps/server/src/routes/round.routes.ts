@@ -1,11 +1,26 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { loadRulesetForRound } from '@streets/rules-engine';
-import { toRoundDto, toRoundPlayerDto } from '../game/dto.js';
+import { toRoundDto, toRoundOverDto, toRoundPlayerDto } from '../game/dto.js';
 import { PlayerStateService } from '../services/player-state.service.js';
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { isJoinable, RoundService } from '../services/round.service.js';
 
 const roundRoutes: FastifyPluginAsync = async (fastify) => {
+  async function latestRoundOver(accountId: string) {
+    const player = await fastify.prisma.roundPlayer.findFirst({
+      where: { accountId, round: { status: { in: ['ENDED', 'ARCHIVED'] } } },
+      orderBy: { round: { endsAt: 'desc' } },
+      include: { city: true, round: true },
+    });
+    if (!player) return null;
+    const { round, ...rest } = player;
+    return toRoundOverDto({
+      round,
+      player: rest,
+      playerCount: await RoundService.playerCount(fastify.prisma, round.id),
+    });
+  }
+
   /**
    * The round the player is sent to, plus their player in it if they have
    * one. Returns nulls rather than a 404 so the client can render "no game
@@ -14,8 +29,9 @@ const roundRoutes: FastifyPluginAsync = async (fastify) => {
    * Loading this page counts as being at the keyboard, and settles turns.
    */
   fastify.get('/current', async (request) => {
+    const roundOver = request.auth ? await latestRoundOver(request.auth.account.id) : null;
     const round = await RoundService.getCurrent(fastify.prisma);
-    if (!round) return { round: null, me: null, canJoin: false };
+    if (!round) return { round: null, me: null, canJoin: false, roundOver };
 
     const playerCount = await RoundService.playerCount(fastify.prisma, round.id);
 
@@ -28,6 +44,7 @@ const roundRoutes: FastifyPluginAsync = async (fastify) => {
         round: toRoundDto(round, playerCount),
         me: null,
         canJoin: Boolean(request.auth) && isJoinable(round),
+        roundOver,
       };
     }
 
@@ -37,6 +54,7 @@ const roundRoutes: FastifyPluginAsync = async (fastify) => {
       round: toRoundDto(settled.round, playerCount),
       me: toRoundPlayerDto(settled.player, settled.ruleset, settled.turns),
       canJoin: false,
+      roundOver,
     };
   });
 
@@ -61,6 +79,7 @@ const roundRoutes: FastifyPluginAsync = async (fastify) => {
         round: toRoundDto(settled.round, playerCount),
         me: toRoundPlayerDto(settled.player, settled.ruleset, settled.turns),
         canJoin: false,
+        roundOver: null,
       });
     },
   );

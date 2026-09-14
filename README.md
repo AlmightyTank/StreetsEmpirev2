@@ -2,7 +2,7 @@
 
 A reconstruction of the OG Pimp War economic loop.
 
-**Live version:** `0.2.0-H` &middot; **Ruleset:** `classic-og-v0.2-h` &middot; **Development:** raid trophies
+**Live version:** `0.3.0-A` &middot; **Ruleset:** `classic-og-v0.3-a` &middot; **Development:** season end
 
 ---
 
@@ -18,7 +18,7 @@ Earned access lasts for the round. Each trader's standing also speeds up restock
 targets, automatic defense, target protection, durable retry receipts and battle
 reports. **0.2.0-C** adds persistent temporary wounds, natural recovery, and
 medicine treatment in its own pinned ruleset. **0.2.0-D** adds recon intel and
-24-hour revenge windows in a new strategy ruleset. **0.2.0-E** adds a self-contained onboarding round with seeded local rivals, tooltips, harsher unarmed-thug happiness penalties, armed-thug scouting coverage, public legacy rankings, weighted raid loot, repeat-target diminishing returns, drive-bys and a full achievement gallery. **0.2.0-F** turns that ruleset into the first public raid round: production rankings and combat targets only show active player accounts, while local development can opt into seeded rivals for solo testing, and old-school raid forms now include drug runs, ride theft and luring unhappy crew. **0.2.0-G** keeps F balance and starts the street-polish pass: clearer special raid reports, scouted-target cues, public onboarding copy and a free Flarum community direction. **0.2.0-H** keeps G balance and starts raid trophies for drive-bys, drug runs, ride theft and lure runs. Older rounds stay pinned to their original rulesets, while the default seed now makes Game #008 the current 0.2.0-H public raid round. Read the [H implementation notes](docs/COMBAT-0.2.0-H.md), the [G implementation notes](docs/COMBAT-0.2.0-G.md), the [F implementation notes](docs/COMBAT-0.2.0-F.md), the [E implementation notes](docs/COMBAT-0.2.0-E.md), the [D implementation notes](docs/COMBAT-0.2.0-D.md),
+24-hour revenge windows in a new strategy ruleset. **0.2.0-E** adds a self-contained onboarding round with seeded local rivals, tooltips, harsher unarmed-thug happiness penalties, armed-thug scouting coverage, public legacy rankings, weighted raid loot, repeat-target diminishing returns, drive-bys and a full achievement gallery. **0.2.0-F** turns that ruleset into the first public raid round: production rankings and combat targets only show active player accounts, while local development can opt into seeded rivals for solo testing, and old-school raid forms now include drug runs, ride theft and luring unhappy crew. **0.2.0-G** keeps F balance and starts the street-polish pass: clearer special raid reports, scouted-target cues, public onboarding copy and a free Flarum community direction. **0.2.0-H** keeps G balance and starts raid trophies for drive-bys, drug runs, ride theft and lure runs. **0.3.0-A** keeps H balance and makes rounds real seasons: expired rounds close once, standings freeze, players see a round-over screen, and past podiums land in the Hall of Fame. Older rounds stay pinned to their original rulesets, while the default seed now makes Game #009 the current 0.3.0-A season-end round. Read the [H implementation notes](docs/COMBAT-0.2.0-H.md), the [G implementation notes](docs/COMBAT-0.2.0-G.md), the [F implementation notes](docs/COMBAT-0.2.0-F.md), the [E implementation notes](docs/COMBAT-0.2.0-E.md), the [D implementation notes](docs/COMBAT-0.2.0-D.md),
 the [C implementation notes](docs/COMBAT-0.2.0-C.md), the [B implementation notes](docs/COMBAT-0.2.0-B.md), the
 [staged combat design](docs/COMBAT-DESIGN-0.2.0.md), the
 [simulation findings](docs/COMBAT-SIMULATION-0.2.0-A.md) and the
@@ -43,6 +43,7 @@ the [C implementation notes](docs/COMBAT-0.2.0-C.md), the [B implementation note
 | **0.2.0-F** | public raid round, drug-hoe runs, ride theft, luring unhappy crew, production active-player targets and local opt-in rival seeding | **started; public baseline implemented** |
 | **0.2.0-G** | street polish, clearer raid reports, scouted target cues, homepage onboarding and free forum direction | **started** |
 | **0.2.0-H** | raid-form achievement trophies and special-raid balance pass | **started** |
+| **0.3.0-A** | season end, frozen final standings, round-over handoff and Hall of Fame | **implemented** |
 
 Cash raids, drive-bys and special raid forms are playable. Alliances, travel and messaging remain deliberately absent. The database anticipates them (`ProcessedAction`, `City`, weapon `power`) without exposing anything half-built to players.
 
@@ -57,7 +58,7 @@ npm install
 cp .env.example .env      # already done if .env exists
 npm run db:up             # postgres 16 on localhost:5433
 npm run db:migrate        # apply migrations
-npm run db:seed           # 8 cities, pinned older rounds, current Game #008 raid trophies round
+npm run db:seed           # 8 cities, pinned older rounds, current Game #009 season-end round
 npm run dev               # api on :3001, web on :5173
 ```
 

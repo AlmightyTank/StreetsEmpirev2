@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, type Ruleset } from '@streets/rulesets';
 import { regenerateTurns } from '../calculations/turns.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
@@ -38,7 +38,7 @@ describe('ruleset loader', () => {
   it('knows which ids it can serve', () => {
     expect(isKnownRulesetId('classic-og-v0.1')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(8);
+    expect(listRulesets()).toHaveLength(9);
   });
 });
 
@@ -75,6 +75,15 @@ describe('classic-og-v0.2-h contents', () => {
     expect(classicOgV02H.round.seededRivals).toHaveLength(0);
     expect(classicOgV02H.combat.specialRaids).toEqual(classicOgV02G.combat.specialRaids);
     expect(classicOgV02H.combat.version).toBe('0.2.0-H.1');
+  });
+});
+
+describe('classic-og-v0.3-a contents', () => {
+  it('pins the season-end ruleset without changing H balance', () => {
+    expect(loadRuleset('classic-og-v0.3-a', '0.3.0-A')).toBe(classicOgV03A);
+    expect(classicOgV03A.combat).toEqual(classicOgV02H.combat);
+    expect(classicOgV03A.round.startingPlayer).toEqual(classicOgV02H.round.startingPlayer);
+    expect(classicOgV03A.meta.name).toBe('Classic OG - Season End');
   });
 });
 
