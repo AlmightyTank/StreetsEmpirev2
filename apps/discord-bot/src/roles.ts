@@ -42,6 +42,12 @@ export function managedRoles(forumGroups: string[]): ManagedRole[] {
   ];
 }
 
+/** Display names for role keys, in managed-role order; unmanaged keys (e.g. unlisted forum groups) are skipped. */
+export function roleNamesForKeys(keys: string[], managed: ManagedRole[]): string[] {
+  const wanted = new Set(keys.map(normalizeRoleKey));
+  return managed.filter((role) => wanted.has(role.key)).map((role) => role.name);
+}
+
 /** Only managed keys are ever added or removed. */
 export function planRoleChanges(
   managedKeys: string[],

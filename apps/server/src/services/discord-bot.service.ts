@@ -1,8 +1,12 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Round } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import type {
+  DiscordCityDto,
+  DiscordHallOfFameDto,
+  DiscordMemberDto,
   DiscordProfileCardDto,
+  DiscordRankingEntryDto,
   DiscordRankingsDto,
   ForumGroupBadgeDto,
   PublicLegacyDto,
@@ -62,6 +66,28 @@ function playerUrl(publicPimpId: number): string {
   return new URL(`/game/players/${publicPimpId}`, env.frontendOrigin).toString();
 }
 
+function roundSummary(round: Round): NonNullable<DiscordRankingsDto['round']> {
+  return { name: round.name, status: round.status, endsAt: round.endsAt.toISOString() };
+}
+
+type RankedRow = { publicPimpId: number; displayName: string; netWorthCents: bigint; startingRank: number | null; city: string };
+
+/** Rows must already be sorted richest first. Movement compares with the day's starting rank. */
+function rankedEntries(rows: RankedRow[]): DiscordRankingEntryDto[] {
+  const ranks = competitionRanks(rows);
+  return rows.map((row, index) => ({
+    rank: ranks[index]!,
+    publicPimpId: row.publicPimpId,
+    displayName: row.displayName,
+    city: row.city,
+    netWorthCents: Number(row.netWorthCents),
+    movement: row.startingRank === null ? null : row.startingRank - ranks[index]!,
+    profileUrl: playerUrl(row.publicPimpId),
+  }));
+}
+
+const emptyLegacy = (): PublicLegacyDto => ({ roundsPlayed: 0, roundWins: 0, bestNationalRank: null, totalFinalNetWorthCents: 0 });
+
 export const DiscordBotService = {
   async rolesFor(prisma: PrismaClient, discordIds: string[]): Promise<Record<string, string[]>> {
     const accounts = await prisma.account.findMany({
@@ -97,7 +123,7 @@ export const DiscordBotService = {
       roleKeysFor({
         inRound: rankByAccount.has(account.id),
         nationalRank: ranked ? rankByAccount.get(account.id) ?? null : null,
-        legacy: legacyByAccount.get(account.id) ?? { roundsPlayed: 0, roundWins: 0, bestNationalRank: null, totalFinalNetWorthCents: 0 },
+        legacy: legacyByAccount.get(account.id) ?? emptyLegacy(),
         forumGroups: forumGroups[index]!,
       }),
     ]));
@@ -140,33 +166,99 @@ export const DiscordBotService = {
 
   async rankings(prisma: PrismaClient, limit = 10): Promise<DiscordRankingsDto> {
     const round = await RoundService.getCurrent(prisma);
-    if (!round) return { round: null, entries: [] };
+    if (!round) return { round: null, city: null, entries: [] };
 
     const rows = await prisma.roundPlayer.findMany({
       where: { roundId: round.id, account: { isActive: true } },
       orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
       take: limit,
+      select: { publicPimpId: true, displayName: true, netWorthCents: true, dailyStartingNationalRank: true, city: { select: { name: true } } },
+    });
+    return {
+      round: roundSummary(round),
+      city: null,
+      entries: rankedEntries(rows.map((row) => ({ ...row, startingRank: row.dailyStartingNationalRank, city: row.city.name }))),
+    };
+  },
+
+  async cities(prisma: PrismaClient): Promise<DiscordCityDto[]> {
+    return prisma.city.findMany({
+      where: { isEnabled: true },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      select: { slug: true, name: true },
+    });
+  },
+
+  async cityRankings(prisma: PrismaClient, citySlug: string, limit = 10): Promise<DiscordRankingsDto> {
+    const city = await prisma.city.findFirst({ where: { slug: citySlug, isEnabled: true }, select: { id: true, slug: true, name: true } });
+    if (!city) throw AppError.notFound('CITY_NOT_FOUND', 'No city by that name.');
+
+    const round = await RoundService.getCurrent(prisma);
+    if (!round) return { round: null, city: { slug: city.slug, name: city.name }, entries: [] };
+
+    const rows = await prisma.roundPlayer.findMany({
+      where: { roundId: round.id, cityId: city.id, account: { isActive: true } },
+      orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
+      take: limit,
+      select: { publicPimpId: true, displayName: true, netWorthCents: true, dailyStartingLocalRank: true },
+    });
+    return {
+      round: roundSummary(round),
+      city: { slug: city.slug, name: city.name },
+      entries: rankedEntries(rows.map((row) => ({ ...row, startingRank: row.dailyStartingLocalRank, city: city.name }))),
+    };
+  },
+
+  /** Final national podiums of the most recently finished rounds. Deactivated accounts are left out. */
+  async hallOfFame(prisma: PrismaClient, roundLimit = 5, podiumSize = 3): Promise<DiscordHallOfFameDto> {
+    const rounds = await prisma.round.findMany({
+      where: { status: { in: ['ENDED', 'ARCHIVED'] } },
+      orderBy: { endsAt: 'desc' },
+      take: roundLimit,
       select: {
-        publicPimpId: true,
-        displayName: true,
-        netWorthCents: true,
-        dailyStartingNationalRank: true,
-        city: { select: { name: true } },
+        name: true,
+        endsAt: true,
+        players: {
+          where: { nationalRank: { not: null, lte: podiumSize }, account: { isActive: true } },
+          orderBy: [{ nationalRank: 'asc' }, { netWorthCents: 'desc' }],
+          select: { nationalRank: true, displayName: true, netWorthCents: true, city: { select: { name: true } } },
+        },
       },
     });
-    const ranks = competitionRanks(rows);
-
     return {
-      round: { name: round.name, status: round.status, endsAt: round.endsAt.toISOString() },
-      entries: rows.map((row, index) => ({
-        rank: ranks[index]!,
-        publicPimpId: row.publicPimpId,
-        displayName: row.displayName,
-        city: row.city.name,
-        netWorthCents: Number(row.netWorthCents),
-        movement: row.dailyStartingNationalRank === null ? null : row.dailyStartingNationalRank - ranks[index]!,
-        profileUrl: playerUrl(row.publicPimpId),
+      rounds: rounds.map((round) => ({
+        name: round.name,
+        endedAt: round.endsAt.toISOString(),
+        podium: round.players.map((player) => ({
+          rank: player.nationalRank!,
+          displayName: player.displayName,
+          netWorthCents: Number(player.netWorthCents),
+          city: player.city.name,
+        })),
       })),
+    };
+  },
+
+  /** For the member's own private /link reply only: includes their account username. */
+  async member(prisma: PrismaClient, discordId: string): Promise<DiscordMemberDto> {
+    const account = await prisma.account.findFirst({
+      where: { discordId, isActive: true },
+      select: { id: true, username: true, forumLink: { select: { forumOrigin: true, forumUsername: true } } },
+    });
+    if (!account) return { linked: false, username: null, forumUsername: null, roundName: null, player: null, roles: [] };
+
+    const round = await RoundService.getCurrent(prisma);
+    const [player, roles] = await Promise.all([
+      round ? prisma.roundPlayer.findFirst({ where: { roundId: round.id, accountId: account.id }, select: { displayName: true, publicPimpId: true } }) : null,
+      DiscordBotService.rolesFor(prisma, [discordId]),
+    ]);
+    return {
+      linked: true,
+      username: account.username,
+      forumUsername: env.forum.enabled && account.forumLink?.forumOrigin === env.forum.origin ? account.forumLink.forumUsername : null,
+      roundName: round?.name ?? null,
+      player: player ? { displayName: player.displayName, publicPimpId: player.publicPimpId, profileUrl: playerUrl(player.publicPimpId) } : null,
+      roles: roles[discordId] ?? ['linked'],
     };
   },
 };

@@ -12,6 +12,7 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
   const accounts: { id: string; username: string; discordId: string }[] = [];
   let roundId: string;
   let cityId: string;
+  let citySlug: string;
 
   beforeAll(async () => {
     ({ env } = await import('../../config/env.js'));
@@ -27,6 +28,7 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
     }
     const city = await app.prisma.city.create({ data: { slug: `bot-test-${randomUUID()}`, name: 'Bot Test City', isEnabled: true } });
     cityId = city.id;
+    citySlug = city.slug;
     const round = await app.prisma.round.create({ data: {
       slug: `bot-test-${randomUUID()}`, name: 'Bot Test Round', rulesetId: classicOgV01.meta.id, rulesetVersion: classicOgV01.meta.version,
       status: 'ACTIVE', startsAt: new Date(Date.now() - 60000), endsAt: new Date(Date.now() + 86400000),
@@ -101,5 +103,66 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json().round.name).toBe('Bot Test Round');
     expect(response.json().entries.map((entry: { rank: number; publicPimpId: number }) => [entry.rank, entry.publicPimpId])).toEqual([[1, 7101], [2, 7102]]);
+    expect(response.json().city).toBeNull();
+  });
+
+  it('lists enabled cities and one city top ten', async () => {
+    const cities = await app.inject({ url: '/api/internal/discord/cities', headers: auth() });
+    expect(cities.statusCode, cities.body).toBe(200);
+    expect(cities.json().cities).toContainEqual({ slug: citySlug, name: 'Bot Test City' });
+
+    const ranked = await app.inject({ url: `/api/internal/discord/city-rankings?city=${citySlug}`, headers: auth() });
+    expect(ranked.statusCode, ranked.body).toBe(200);
+    expect(ranked.json().city).toEqual({ slug: citySlug, name: 'Bot Test City' });
+    expect(ranked.json().entries.map((entry: { rank: number; publicPimpId: number }) => [entry.rank, entry.publicPimpId])).toEqual([[1, 7101], [2, 7102]]);
+
+    const unknown = await app.inject({ url: '/api/internal/discord/city-rankings?city=nowhere-at-all', headers: auth() });
+    expect(unknown.statusCode).toBe(404);
+    expect(unknown.json().error.code).toBe('CITY_NOT_FOUND');
+    expect((await app.inject({ url: '/api/internal/discord/city-rankings?city=Bad%20Slug!', headers: auth() })).statusCode).toBe(400);
+  });
+
+  it('reports a member link status for their private /link reply', async () => {
+    const linked = await app.inject({ url: `/api/internal/discord/member?discordId=${accounts[0]!.discordId}`, headers: auth() });
+    expect(linked.statusCode, linked.body).toBe(200);
+    expect(linked.json()).toEqual({
+      linked: true,
+      username: accounts[0]!.username,
+      forumUsername: null,
+      roundName: 'Bot Test Round',
+      player: { displayName: accounts[0]!.username, publicPimpId: 7101, profileUrl: new URL('/game/players/7101', env.frontendOrigin).toString() },
+      roles: ['linked', 'player', 'national-1', 'top-10'],
+    });
+
+    const outsider = await app.inject({ url: `/api/internal/discord/member?discordId=${accounts[2]!.discordId}`, headers: auth() });
+    expect(outsider.json()).toMatchObject({ linked: true, player: null, roles: ['linked'] });
+
+    const stranger = await app.inject({ url: `/api/internal/discord/member?discordId=${snowflake()}`, headers: auth() });
+    expect(stranger.json()).toEqual({ linked: false, username: null, forumUsername: null, roundName: null, player: null, roles: [] });
+    expect((await app.inject({ url: '/api/internal/discord/member?discordId=abc', headers: auth() })).statusCode).toBe(400);
+  });
+
+  // Last: the finished round gives account 1 legacy roles.
+  it('lists podiums from finished rounds, and legacy roles follow them', async () => {
+    const ended = await app.prisma.round.create({ data: {
+      slug: `bot-ended-${randomUUID()}`, name: 'Bot Ended Round', rulesetId: classicOgV01.meta.id, rulesetVersion: classicOgV01.meta.version,
+      status: 'ENDED', startsAt: new Date(Date.now() - 172_800_000), endsAt: new Date(Date.now() - 1_000),
+    } });
+    try {
+      await app.prisma.roundPlayer.create({ data: {
+        ...classicOgV01.round.startingPlayer, accountId: accounts[1]!.id, roundId: ended.id, cityId, publicPimpId: 7201,
+        displayName: 'Old Champ', netWorthCents: 5_000_00n, nationalRank: 1, lastTurnCalculationAt: new Date(),
+      } });
+
+      const response = await app.inject({ url: '/api/internal/discord/hall-of-fame', headers: auth() });
+      expect(response.statusCode, response.body).toBe(200);
+      const round = response.json().rounds.find((entry: { name: string }) => entry.name === 'Bot Ended Round');
+      expect(round.podium).toEqual([{ rank: 1, displayName: 'Old Champ', netWorthCents: 500_000, city: 'Bot Test City' }]);
+
+      const roles = await app.inject({ method: 'POST', url: '/api/internal/discord/roles', headers: auth(), payload: { discordIds: [accounts[1]!.discordId] } });
+      expect(roles.json().members[accounts[1]!.discordId]).toEqual(['linked', 'player', 'top-10', 'veteran', 'past-winner', 'top-finisher']);
+    } finally {
+      await app.prisma.round.delete({ where: { id: ended.id } });
+    }
   });
 });

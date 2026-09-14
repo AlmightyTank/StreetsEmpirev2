@@ -42,4 +42,31 @@ describe('createGameApi', () => {
     expect(error).toBeInstanceOf(GameApiError);
     expect(error).toMatchObject({ status: 503, code: 'HTTP_ERROR' });
   });
+
+  it('builds the city, hall of fame and member requests with the bot token', async () => {
+    const calls: string[] = [];
+    const bodies: Record<string, unknown> = {
+      '/api/internal/discord/city-rankings': { round: null, city: { slug: 'new-orleans', name: 'New Orleans' }, entries: [] },
+      '/api/internal/discord/hall-of-fame': { rounds: [] },
+      '/api/internal/discord/member': { linked: false, username: null, forumUsername: null, roundName: null, player: null, roles: [] },
+      '/api/internal/discord/cities': { cities: [{ slug: 'detroit', name: 'Detroit' }] },
+    };
+    const fetchImpl = (async (url: URL | string, init: RequestInit = {}) => {
+      const parsed = new URL(String(url));
+      calls.push(`${parsed.pathname}${parsed.search} ${(init.headers as Record<string, string>).authorization ? 'auth' : 'public'}`);
+      return new Response(JSON.stringify(bodies[parsed.pathname]), { status: 200 });
+    }) as typeof fetch;
+    const api = createGameApi({ baseUrl: 'http://game', token, fetch: fetchImpl });
+
+    expect((await api.cityRankings('new-orleans')).city).toEqual({ slug: 'new-orleans', name: 'New Orleans' });
+    expect(await api.hallOfFame()).toEqual({ rounds: [] });
+    expect((await api.member('123456789012345678')).linked).toBe(false);
+    expect(await api.cities()).toEqual([{ slug: 'detroit', name: 'Detroit' }]);
+    expect(calls).toEqual([
+      '/api/internal/discord/city-rankings?city=new-orleans auth',
+      '/api/internal/discord/hall-of-fame auth',
+      '/api/internal/discord/member?discordId=123456789012345678 auth',
+      '/api/internal/discord/cities auth',
+    ]);
+  });
 });

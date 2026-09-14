@@ -145,7 +145,32 @@ export interface DiscordRankingEntryDto {
 
 export interface DiscordRankingsDto {
   round: { name: string; status: string; endsAt: string } | null;
+  /** Set for a city's rankings; null for national. */
+  city: DiscordCityDto | null;
   entries: DiscordRankingEntryDto[];
+}
+
+export interface DiscordCityDto {
+  slug: string;
+  name: string;
+}
+
+export interface DiscordHallOfFameDto {
+  rounds: Array<{
+    name: string;
+    endedAt: string;
+    podium: Array<{ rank: number; displayName: string; netWorthCents: number; city: string }>;
+  }>;
+}
+
+/** Private /link status for one Discord member. */
+export interface DiscordMemberDto {
+  linked: boolean;
+  username: string | null;
+  forumUsername: string | null;
+  roundName: string | null;
+  player: { displayName: string; publicPimpId: number; profileUrl: string } | null;
+  roles: string[];
 }
 
 export interface GameNewsDto {

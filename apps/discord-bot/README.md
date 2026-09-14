@@ -29,14 +29,22 @@ counts as linked once the player has signed in with Discord or linked it under
 - Linking or unlinking in the game shows up at the next sync.
 - Members who aren't linked lose every bot-owned role.
 
-**Commands.** Replies are public in the channel and never ping anyone.
+**Commands.** No reply ever pings anyone. Private replies are visible only to
+the person who ran the command.
 
-| Command | Shows |
-| --- | --- |
-| `/profile` | Your own profile. `user:` shows a linked member's; `name:` looks up an in-game name. Net worth, ranks, badges, legacy and links. Never crew, weapons or cash. |
-| `/rankings` | Current round national top 10 with links |
-| `/round` | Round status, time left, players, turn rate |
-| `/news` | Latest five news posts |
+| Command | Reply | Shows |
+| --- | --- | --- |
+| `/profile` | Public | Your own profile. `user:` shows a linked member's; `name:` looks up an in-game name. Net worth, ranks, badges, legacy and links. Never crew, weapons or cash. |
+| `/compare` | Public | Two players side by side. `player:` and `with:` take a name or an @mention; `with:` defaults to you. |
+| `/rankings` | Public | Current round national top 10 with links |
+| `/city` | Public | Top 10 in one city this round; city names autocomplete |
+| `/halloffame` | Public | Final top 3 of the five most recently finished rounds |
+| `/round` | Public | Round status, time left, players, turn rate |
+| `/news` | Public | Latest five news posts |
+| `/link` | Private | Your game account, current-round player, forum link, and the roles you qualify for, or how to link |
+| `/sync` | Private | Updates your roles now instead of at the next scheduled sync; once a minute per member |
+| `/help` | Private | Every command |
+| `/syncall` | Private | Mods: a full role sync for the whole server. Hidden from members without **Manage Roles**, and checked again when run. |
 
 ## 1. Create the bot in Discord
 
@@ -131,6 +139,7 @@ start, so renamed or new commands need no extra step.
 | Symptom | Check |
 | --- | --- |
 | Exits with `Invalid Discord bot configuration` | The listed variables are missing or malformed in `.env`. |
+| Commands say "The application did not respond" | Check the bot log. A startup warning about an **Interactions Endpoint URL** means Discord sends commands there instead of the bot: clear it under General Information in the developer portal. No log line at all means the bot process isn't running or is logged in with a different token. `Could not acknowledge` or `Discord rate limit` lines show how late commands arrived. |
 | `Used disallowed intents` | Turn on **Server Members Intent** (step 1.2). |
 | Warns `Cannot manage role "…"` | Drag the bot's role above that role (step 1.4). |
 | Commands reply "Street Empire is not answering" | The API is down or unreachable at `GAME_API_URL`, or the two `DISCORD_BOT_API_TOKEN` values differ. The bot logs the error. |

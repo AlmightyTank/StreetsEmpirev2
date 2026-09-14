@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { managedRoles, normalizeRoleKey, parseForumGroupList, planRoleChanges } from '../roles.js';
+import { managedRoles, normalizeRoleKey, parseForumGroupList, planRoleChanges, roleNamesForKeys } from '../roles.js';
 
 describe('parseForumGroupList', () => {
   it('trims, drops blanks and case-insensitive duplicates, and caps the list', () => {
@@ -40,5 +40,12 @@ describe('planRoleChanges', () => {
       .toEqual({ add: [], remove: ['linked', 'forum:admin'] });
     expect(planRoleChanges(managed, new Set(), new Set(['forum:mod', 'player'])))
       .toEqual({ add: ['player'], remove: [] });
+  });
+});
+
+describe('roleNamesForKeys', () => {
+  it('names managed roles in display order and skips unmanaged keys', () => {
+    expect(roleNamesForKeys(['top-10', 'forum:Admin', 'linked', 'forum:Mod', 'unknown'], managedRoles(['Admin'])))
+      .toEqual(['Linked', 'Top 10', 'Forum Admin']);
   });
 });

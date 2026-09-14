@@ -34,8 +34,13 @@ const profileSchema = z.object({
   }),
 });
 
+const citySchema = z.object({ slug: z.string(), name: z.string() });
+const citiesSchema = z.object({ cities: z.array(citySchema) });
+
 const rankingsSchema = z.object({
   round: z.object({ name: z.string(), status: z.string(), endsAt: z.string() }).nullable(),
+  // Optional for game servers from before city rankings.
+  city: citySchema.nullable().optional(),
   entries: z.array(z.object({
     rank: z.number(),
     publicPimpId: z.number(),
@@ -45,6 +50,23 @@ const rankingsSchema = z.object({
     movement: z.number().nullable(),
     profileUrl: z.string().url(),
   })),
+});
+
+const hallOfFameSchema = z.object({
+  rounds: z.array(z.object({
+    name: z.string(),
+    endedAt: z.string(),
+    podium: z.array(z.object({ rank: z.number(), displayName: z.string(), netWorthCents: z.number(), city: z.string() })),
+  })),
+});
+
+const memberSchema = z.object({
+  linked: z.boolean(),
+  username: z.string().nullable(),
+  forumUsername: z.string().nullable(),
+  roundName: z.string().nullable(),
+  player: z.object({ displayName: z.string(), publicPimpId: z.number(), profileUrl: z.string().url() }).nullable(),
+  roles: z.array(z.string()),
 });
 
 const statusSchema = z.object({
@@ -64,7 +86,10 @@ const newsSchema = z.object({
 });
 
 export type ProfileCard = z.infer<typeof profileSchema>['player'];
+export type City = z.infer<typeof citySchema>;
 export type Rankings = z.infer<typeof rankingsSchema>;
+export type HallOfFame = z.infer<typeof hallOfFameSchema>;
+export type Member = z.infer<typeof memberSchema>;
 export type RoundStatus = z.infer<typeof statusSchema>;
 export type NewsFeed = z.infer<typeof newsSchema>;
 
@@ -105,6 +130,12 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
     profile: async (query: { discordId: string } | { name: string }) =>
       (await call(profileSchema, `/api/internal/discord/profile?${new URLSearchParams(query)}`)).player,
     rankings: () => call(rankingsSchema, '/api/internal/discord/rankings'),
+    cities: async () => (await call(citiesSchema, '/api/internal/discord/cities')).cities,
+    cityRankings: (slug: string) =>
+      call(rankingsSchema, `/api/internal/discord/city-rankings?${new URLSearchParams({ city: slug })}`),
+    hallOfFame: () => call(hallOfFameSchema, '/api/internal/discord/hall-of-fame'),
+    member: (discordId: string) =>
+      call(memberSchema, `/api/internal/discord/member?${new URLSearchParams({ discordId })}`),
     round: () => call(statusSchema, '/api/rounds/current/status', { auth: false }),
     news: () => call(newsSchema, '/api/rounds/current/news', { auth: false }),
   };

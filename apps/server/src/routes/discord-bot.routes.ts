@@ -6,6 +6,7 @@ import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 
 const snowflake = z.string().regex(/^[0-9]{17,20}$/);
+const citySlug = z.string().regex(/^[a-z0-9-]{1,60}$/);
 const rolesSchema = z.object({ discordIds: z.array(snowflake).min(1).max(1000) }).strict();
 const profileQuery = z.union([
   z.object({ discordId: snowflake }).strict(),
@@ -32,6 +33,20 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
   }));
 
   fastify.get('/rankings', async () => DiscordBotService.rankings(fastify.prisma));
+
+  fastify.get('/cities', async () => ({ cities: await DiscordBotService.cities(fastify.prisma) }));
+
+  fastify.get('/city-rankings', async (request) => {
+    const { city } = parseBody(z.object({ city: citySlug }).strict(), request.query);
+    return DiscordBotService.cityRankings(fastify.prisma, city);
+  });
+
+  fastify.get('/hall-of-fame', async () => DiscordBotService.hallOfFame(fastify.prisma));
+
+  fastify.get('/member', async (request) => {
+    const { discordId } = parseBody(z.object({ discordId: snowflake }).strict(), request.query);
+    return DiscordBotService.member(fastify.prisma, discordId);
+  });
 };
 
 export default discordBotRoutes;
