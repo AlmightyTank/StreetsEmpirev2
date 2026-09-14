@@ -1,0 +1,201 @@
+/* Street Empire / Flarum — paste into Appearance > Custom Styles.
+ * Palette source: apps/web/src/styles/theme.css.
+ * Uses the CSS variables exposed by the live forum (September 2026).
+ * Keep Flarum's Dark Mode enabled as a fallback for extension styles.
+ */
+
+:root {
+  color-scheme: dark;
+  --se-bg: #0b0c0e;
+  --se-panel: #14161a;
+  --se-panel-hi: #191d23;
+  --se-line: #262b33;
+  --se-text: #dbe0e7;
+  --se-dim: #98a1ad;
+  --se-accent: #b6ff3a;
+  --se-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, monospace;
+
+  --primary-color: var(--se-accent);
+  --secondary-color: var(--se-panel-hi);
+  --body-bg: var(--se-bg);
+  --body-bg-shaded: #101216;
+  --body-bg-light: var(--se-panel);
+  --body-bg-faded: rgba(11, 12, 14, 0.96);
+  --text-color: var(--se-text);
+  --heading-color: var(--se-text);
+  --link-color: var(--se-accent);
+  --muted-color: var(--se-dim);
+  --muted-color-light: #aab2bd;
+  --muted-color-dark: var(--se-text);
+  --shadow-color: rgba(0, 0, 0, 0.45);
+  --control-bg: var(--se-panel-hi);
+  --control-bg-light: #20252d;
+  --control-bg-shaded: var(--se-line);
+  --control-color: var(--se-text);
+  --header-bg: var(--se-bg);
+  --header-color: var(--se-text);
+  --header-control-bg: var(--se-panel-hi);
+  --header-control-color: var(--se-dim);
+  --header-colored-color: var(--se-text);
+  --header-colored-control-color: var(--se-text);
+  --header-colored-control-bg: var(--se-panel-hi);
+  --header-colored-control-bg-shaded: var(--se-line);
+  --header-colored-control-bg-fadedin: var(--se-panel-hi);
+  --overlay-bg: rgba(0, 0, 0, 0.8);
+  --code-bg: #101216;
+  --code-color: var(--se-text);
+  --hero-bg: var(--se-panel);
+  --hero-color: var(--se-dim);
+  --discussion-title-color: #b4bdc9;
+  --discussion-list-item-bg-hover: var(--se-panel-hi);
+  --button-color: var(--se-text);
+  --button-bg: var(--se-panel-hi);
+  --button-bg-hover: #252c35;
+  --button-bg-active: #303946;
+  --button-bg-disabled: var(--se-panel-hi);
+  --button-primary-color: var(--se-bg);
+  --button-primary-bg: var(--se-accent);
+  --button-primary-bg-hover: #c8ff70;
+  --button-primary-bg-active: #a1e52f;
+  --button-primary-bg-disabled: #7fb028;
+  --button-inverted-color: var(--se-text);
+  --button-inverted-bg: var(--se-panel);
+  --button-inverted-bg-hover: var(--se-panel-hi);
+  --button-inverted-bg-active: var(--se-line);
+  --button-inverted-bg-disabled: var(--se-panel);
+  --button-toggled-color: var(--se-accent);
+  --button-toggled-bg: #26351c;
+  --button-toggled-bg-hover: #304323;
+  --button-toggled-bg-active: #3a5129;
+  --button-toggled-bg-disabled: #26351c;
+  --control-danger-color: #ff8a98;
+  --control-danger-bg: #351b24;
+  --control-danger-bg-hover: #482330;
+  --control-danger-bg-active: #572a39;
+  --control-danger-bg-disabled: #351b24;
+  --error-color: #ff5468;
+  --validation-error-color: #ff5468;
+  --alert-bg: #392b15;
+  --alert-color: #ffd18a;
+  --alert-error-bg: #351b24;
+  --alert-error-color: #ff9ca8;
+  --alert-success-bg: #153222;
+  --alert-success-color: #86efac;
+  --muted-more-color: var(--se-dim);
+  --muted-more-bg: var(--se-panel-hi);
+  --muted-more-bg-hover: var(--se-line);
+  --muted-more-bg-active: #303946;
+  --muted-more-bg-disabled: var(--se-panel-hi);
+  --usercard-bg: var(--se-panel-hi);
+  --tag-bg: var(--se-line);
+  --tag-color: var(--se-text);
+  --border-radius: 3px;
+}
+
+body {
+  background-color: var(--se-bg);
+  background-image:
+    radial-gradient(900px 500px at 15% 0%, rgba(182, 255, 58, 0.04), transparent 60%),
+    radial-gradient(800px 500px at 100% 0%, rgba(255, 45, 120, 0.035), transparent 55%);
+  color: var(--se-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.App-header {
+  border-bottom: 1px solid var(--se-line);
+  box-shadow: none;
+}
+
+.Header-title a {
+  color: var(--se-text);
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.Header-title a:hover { color: var(--se-accent); }
+
+.WelcomeHero {
+  background: linear-gradient(110deg, #182016, var(--se-panel) 60%, #1d151b);
+  border-bottom: 1px solid var(--se-line);
+}
+
+.WelcomeHero .container { padding-top: 26px; padding-bottom: 26px; }
+.WelcomeHero .Hero-title {
+  color: var(--se-text);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.WelcomeHero .Hero-subtitle { color: var(--se-dim); line-height: 1.6; }
+
+.Button { border-radius: 3px; }
+.Button--primary { font-weight: 800; }
+
+/* Don't resize the mobile navigation or override colored tag/group badges. */
+.sideNav .Dropdown--select .Dropdown-menu > li.active > a {
+  color: var(--se-accent);
+  background: rgba(182, 255, 58, 0.07);
+  box-shadow: inset 2px 0 0 var(--se-accent);
+  border-radius: 2px;
+}
+
+.IndexPage-toolbar {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--se-line);
+}
+
+.DiscussionListItem {
+  background: var(--se-panel);
+  border-bottom: 1px solid var(--se-line);
+}
+.DiscussionListItem:hover { background: var(--se-panel-hi); }
+.DiscussionListItem.unread .DiscussionListItem-title { color: var(--se-text); }
+.DiscussionListItem-count { font-family: var(--se-mono); font-variant-numeric: tabular-nums; }
+.DiscussionListItem-info { color: var(--se-dim); }
+.DiscussionList .Placeholder {
+  margin-top: 16px;
+  padding: 18px 14px;
+  background: var(--se-panel);
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  color: var(--se-dim);
+}
+.DiscussionList .Placeholder p { margin: 0; font-size: 14px; }
+
+.PostStream-item { border-bottom: 1px solid var(--se-line); }
+.Post-body { line-height: 1.65; }
+.Post-body a { text-decoration: underline; text-underline-offset: 2px; }
+.Post-body blockquote { border-left-color: #7fb028; }
+
+.FormControl { border: 1px solid var(--se-line); border-radius: 3px; }
+.FormControl::placeholder { color: var(--se-dim); opacity: 1; }
+.FormControl:focus { border-color: var(--se-accent); box-shadow: 0 0 0 2px rgba(182, 255, 58, 0.15); }
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--se-accent);
+  outline-offset: 3px;
+}
+
+.Dropdown-menu, .Modal-content, .Composer {
+  border: 1px solid var(--se-line);
+  background-color: var(--se-panel);
+}
+.Dropdown-header {
+  color: var(--se-dim);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.Dropdown-separator { background: var(--se-line); }
+.Modal-header, .Modal-footer { background-color: var(--se-panel-hi); }
+.Composer { box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.3); }
+
+@media (max-width: 767.98px) {
+  .App-drawer { background-color: var(--se-panel); }
+  .WelcomeHero .container { padding: 22px 20px; }
+  .WelcomeHero .Hero-title { font-size: 21px; }
+  .WelcomeHero .Hero-subtitle { font-size: 13px; }
+}

@@ -28,6 +28,9 @@ const envSchema = z.object({
   DISCORD_CLIENT_SECRET: z.string().default(''),
   DISCORD_REDIRECT_URI: z.string().default(''),
 
+  FORUM_ORIGIN: z.string().url().default('https://forum.streetsempire.dev'),
+  FORUM_LINK_SECRET: z.union([z.literal(''), z.string().min(64)]).default(''),
+
   RESEND_API_KEY: z.string().default(''),
   EMAIL_FROM: z.string().default(''),
   PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().positive().default(60),
@@ -47,12 +50,23 @@ const corsOrigins = parsed.data.CORS_ORIGINS.split(',')
   .map((o) => o.trim())
   .filter(Boolean);
 
+const forumUrl = new URL(parsed.data.FORUM_ORIGIN);
+if (forumUrl.username || forumUrl.password || forumUrl.pathname !== '/' || forumUrl.search || forumUrl.hash ||
+    (forumUrl.protocol !== 'https:' && !(parsed.data.NODE_ENV !== 'production' && forumUrl.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(forumUrl.hostname)))) {
+  throw new Error('FORUM_ORIGIN must be an HTTPS origin without a path (HTTP localhost is allowed in development).');
+}
+
 export const env = {
   ...parsed.data,
   isProduction: parsed.data.NODE_ENV === 'production',
   corsOrigins,
   frontendOrigin: parsed.data.FRONTEND_ORIGIN ?? corsOrigins[0] ?? 'http://localhost:5173',
   sessionTtlMs: parsed.data.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
+  forum: {
+    origin: new URL(parsed.data.FORUM_ORIGIN).origin,
+    secret: parsed.data.FORUM_LINK_SECRET,
+    enabled: Boolean(parsed.data.FORUM_LINK_SECRET),
+  },
   discord: {
     clientId: parsed.data.DISCORD_CLIENT_ID,
     clientSecret: parsed.data.DISCORD_CLIENT_SECRET,

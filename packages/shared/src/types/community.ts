@@ -53,6 +53,7 @@ export interface RankingsDto {
 }
 
 export interface PublicPlayerProfileDto {
+  forumProfileUrl: string | null;
   publicPimpId: number;
   displayName: string;
   city: CityDto;

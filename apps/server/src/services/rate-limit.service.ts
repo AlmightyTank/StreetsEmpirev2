@@ -97,7 +97,10 @@ export function rateLimitPolicyFor(method: string, path: string): RateLimitPolic
         path === '/api/auth/password/reset' ||
         path === '/api/auth/email/verify/request' ||
         path === '/api/auth/email/change/request' ||
-        path === '/api/auth/email/verify')) ||
+        path === '/api/auth/email/verify' ||
+        path === '/api/forum/start' ||
+        path === '/api/forum/finish' ||
+        path === '/api/forum/unlink')) ||
     (method === 'GET' &&
       (path === '/api/auth/discord' || path === '/api/auth/discord/callback'))
   ) {

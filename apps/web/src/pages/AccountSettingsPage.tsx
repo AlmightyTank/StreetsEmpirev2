@@ -4,6 +4,7 @@ import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
 import { Field } from '../components/Field.js';
+import { ForumLinkPanel } from '../components/ForumLinkPanel.js';
 import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { useSession } from '../stores/session.js';
@@ -139,6 +140,8 @@ export function AccountSettingsPage() {
               </a>
             )}
           </Panel>
+
+          <ForumLinkPanel />
 
           <Panel title="Current email verification">
             <p>

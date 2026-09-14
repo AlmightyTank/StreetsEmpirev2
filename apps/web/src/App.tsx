@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AccountSettingsPage } from './pages/AccountSettingsPage.js';
+import { ForumLinkPage } from './pages/ForumLinkPage.js';
 import { ActivityPage } from './pages/ActivityPage.js';
 import { CombatPage } from './pages/CombatPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
@@ -59,6 +60,7 @@ export function App() {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />`n      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/account" element={<RequireAccount><AccountSettingsPage /></RequireAccount>} />
+      <Route path="/account/forum-link" element={<ForumLinkPage />} />
       <Route path="/join" element={<Protected><JoinPage /></Protected>} />
 
       <Route path="/game" element={<Protected><DashboardPage /></Protected>} />
@@ -69,6 +71,7 @@ export function App() {
 
       <Route path="/game/rankings" element={<Protected><RankingsPage /></Protected>} />
       <Route path="/game/profile" element={<Protected><ProfilePage /></Protected>} />
+      <Route path="/game/forum/:forumUserId" element={<Protected><ProfilePage /></Protected>} />
       <Route path="/game/players/:publicPimpId" element={<Protected><ProfilePage /></Protected>} />
       <Route path="/game/activity" element={<Protected><ActivityPage /></Protected>} />
       <Route path="/game/news" element={<Protected><NewsPage /></Protected>} />

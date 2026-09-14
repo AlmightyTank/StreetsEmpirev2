@@ -6,6 +6,10 @@ import { PlayerStateService } from '../services/player-state.service.js';
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { RoundService } from '../services/round.service.js';
 import { AppError } from '../utils/errors.js';
+import { env } from '../config/env.js';
+import { forumUserIdSchema } from '../services/forum-proof.js';
+import { parseBody } from '../utils/validate.js';
+import { z } from 'zod';
 
 const MAX_ACTIVITY = 100;
 
@@ -59,6 +63,18 @@ const communityRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   /** 0.1.0-E: the player's full recent history rather than the dashboard's ten rows. */
+  fastify.get('/forum-players/:forumUserId', { preHandler: fastify.requireAuth }, async (request) => {
+    const { forumUserId } = parseBody(z.object({ forumUserId: forumUserIdSchema }), request.params);
+    const link = await fastify.prisma.forumLink.findFirst({ where: {
+      forumOrigin: env.forum.origin, forumUserId, account: { isActive: true },
+    } });
+    if (!link) throw AppError.notFound('FORUM_NOT_LINKED', 'This forum account has not linked a game profile.');
+    const { round, settled } = await requireSettledPlayer(request.auth!.account.id);
+    const target = await RoundPlayerService.find(fastify.prisma, round.id, link.accountId);
+    if (!target) throw AppError.notFound('PLAYER_NOT_IN_ROUND', 'This player has not entered the current round yet.');
+    return { player: await CommunityService.profile(fastify.prisma, round.id, target.publicPimpId, settled.player.publicPimpId, settled.ruleset) };
+  });
+
   fastify.get('/activity', { preHandler: fastify.requireAuth }, async (request) => {
     const query = request.query as { limit?: string };
     const requested = Number(query.limit ?? 50);

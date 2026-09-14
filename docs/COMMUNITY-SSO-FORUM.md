@@ -30,6 +30,13 @@ Suggested rollout:
 
 ## Game integration ideas
 
+The paste-ready [forum theme and setup instructions](forum/README.md) bring the
+game's charcoal and lime styling into Flarum through its Appearance settings.
+
+Verified profile linking (step 3, before shared login) ships as a Flarum
+extension plus game endpoints; see the
+[install guide](../integrations/flarum/street-empire-link/README.md).
+
 - Public profile: "Forum profile" link when connected.
 - Achievements: earn forum badges for round wins, national #1, city boss and rare combat awards.
 - News: mirror official game news into a read-only forum announcement category.

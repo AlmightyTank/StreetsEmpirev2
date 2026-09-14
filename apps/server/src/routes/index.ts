@@ -4,12 +4,14 @@ import communityRoutes from './community.routes.js';
 import combatRoutes from './combat.routes.js';
 import gameRoutes from './game.routes.js';
 import healthRoutes from './health.routes.js';
+import forumRoutes from './forum.routes.js';
 import roundInfoRoutes from './round-info.routes.js';
 import roundRoutes from './round.routes.js';
 
 const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(healthRoutes);
   await fastify.register(authRoutes, { prefix: '/auth' });
+  await fastify.register(forumRoutes, { prefix: '/forum' });
   await fastify.register(roundRoutes, { prefix: '/rounds' });
   await fastify.register(roundInfoRoutes, { prefix: '/rounds' });
   await fastify.register(gameRoutes, { prefix: '/game' });

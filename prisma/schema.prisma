@@ -44,8 +44,31 @@ model Account {
   sessions                Session[]
   passwordResetTokens     PasswordResetToken[]
   accountEmailTokens      AccountEmailToken[]
+  forumLink               ForumLink?
+  forumLinkRequest        ForumLinkRequest?
   roundPlayers            RoundPlayer[]
   authoredNews            GameNews[]            @relation("GameNewsAuthor")
+}
+
+/// Verified public profile connection; owned by the permanent account.
+model ForumLink {
+  accountId     String @id
+  account       Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  forumOrigin   String
+  forumUserId   String
+  forumUsername String
+  createdAt     DateTime @default(now())
+
+  @@unique([forumOrigin, forumUserId])
+}
+
+/// Only the latest request in the initiating game session can be completed.
+model ForumLinkRequest {
+  accountId String @id
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  nonceHash String @unique
+  sessionId String
+  expiresAt DateTime
 }
 
 enum AccountEmailTokenPurpose {

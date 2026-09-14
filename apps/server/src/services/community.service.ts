@@ -9,8 +9,10 @@ import type {
   RankingEntryDto,
   RankingsDto,
 } from '@streets/shared';
+import { env } from '../config/env.js';
 import { toCityDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
+import { forumProfileUrl } from './forum-link.service.js';
 
 interface RankingRow {
   id: string;
@@ -445,7 +447,7 @@ export const CommunityService = {
       throw AppError.notFound('PLAYER_NOT_FOUND', 'That pimp is not in this round.');
     }
 
-    const [nationalAhead, localAhead] = await Promise.all([
+    const [nationalAhead, localAhead, forumLink] = await Promise.all([
       prisma.roundPlayer.count({
         where: { roundId, netWorthCents: { gt: player.netWorthCents }, account: { isActive: true } },
       }),
@@ -457,6 +459,10 @@ export const CommunityService = {
           account: { isActive: true },
         },
       }),
+      // Same rules as the forum-side lookup: linking enabled and the current forum only.
+      env.forum.enabled
+        ? prisma.forumLink.findFirst({ where: { accountId: player.accountId, forumOrigin: env.forum.origin } })
+        : null,
     ]);
 
     const localRank = localAhead + 1;
@@ -470,6 +476,7 @@ export const CommunityService = {
     const context = (await loadPublicContexts(prisma, roundId, [player])).get(player.id) ?? emptyContext();
 
     return {
+      forumProfileUrl: forumLink ? forumProfileUrl(forumLink) : null,
       publicPimpId: player.publicPimpId,
       displayName: player.displayName,
       city: toCityDto(player.city),

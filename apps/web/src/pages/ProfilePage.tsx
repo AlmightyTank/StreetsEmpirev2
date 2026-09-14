@@ -82,7 +82,7 @@ function AchievementCard({ award }: { award: PublicAwardDto }) {
 
 export function ProfilePage() {
   const me = useSession((s) => s.me);
-  const params = useParams<{ publicPimpId?: string }>();
+  const params = useParams<{ publicPimpId?: string; forumUserId?: string }>();
   const target = params.publicPimpId ? Number(params.publicPimpId) : me?.publicPimpId;
   const [player, setPlayer] = useState<PublicPlayerProfileDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -91,15 +91,17 @@ export function ProfilePage() {
   const [achievementCategoryFilter, setAchievementCategoryFilter] = useState<AchievementCategoryFilter>('all');
 
   useEffect(() => {
-    if (!target || !Number.isSafeInteger(target)) return;
+    if (!params.forumUserId && (!target || !Number.isSafeInteger(target))) return;
+    let active = true;
     setPlayer(null);
     setError(null);
-    communityApi.profile(target)
-      .then((response) => setPlayer(response.player))
+    (params.forumUserId ? communityApi.forumProfile(params.forumUserId) : communityApi.profile(target!))
+      .then((response) => { if (active) setPlayer(response.player); })
       .catch((caught: unknown) => {
-        setError(caught instanceof ApiError ? caught.message : 'Could not load that profile.');
+        if (active) setError(caught instanceof ApiError ? caught.message : 'Could not load that profile.');
       });
-  }, [target]);
+    return () => { active = false; };
+  }, [target, params.forumUserId]);
 
   if (!me) return <Navigate to="/join" replace />;
 
@@ -126,6 +128,7 @@ export function ProfilePage() {
             {player ? `${player.city.name}${player.isYou ? ' · Your profile' : ''}` : 'Public street record'}
           </p>
         </div>
+        {player?.forumProfileUrl ? <a className="se-btn se-btn--ghost se-btn--sm" href={player.forumProfileUrl}>Forum Profile</a> : null}
       </div>
 
       {error ? <Alert>{error}</Alert> : null}
