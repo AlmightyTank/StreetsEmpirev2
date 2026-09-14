@@ -81,21 +81,34 @@ function addPastRound(legacy: PublicLegacyDto, row: { nationalRank: number | nul
   return legacy;
 }
 
-/** Legacy for an account that may not be in the current round (forum badges). */
+/** Legacy for accounts that may not be in the current round (forum badges, Discord roles). One query. */
+export async function loadLegacyByAccount(
+  prisma: PrismaClient,
+  accountIds: string[],
+  currentRoundId: string | null,
+): Promise<Map<string, PublicLegacyDto>> {
+  const legacyByAccount = new Map<string, PublicLegacyDto>();
+  if (!accountIds.length) return legacyByAccount;
+  const rows = await prisma.roundPlayer.findMany({
+    where: {
+      accountId: { in: accountIds },
+      ...(currentRoundId ? { roundId: { not: currentRoundId } } : {}),
+      round: { status: { in: ['ENDED', 'ARCHIVED'] } },
+    },
+    select: { accountId: true, nationalRank: true, netWorthCents: true },
+  });
+  for (const row of rows) {
+    legacyByAccount.set(row.accountId, addPastRound(legacyByAccount.get(row.accountId) ?? emptyLegacy(), row));
+  }
+  return legacyByAccount;
+}
+
 export async function loadAccountLegacy(
   prisma: PrismaClient,
   accountId: string,
   currentRoundId: string | null,
 ): Promise<PublicLegacyDto> {
-  const rows = await prisma.roundPlayer.findMany({
-    where: {
-      accountId,
-      ...(currentRoundId ? { roundId: { not: currentRoundId } } : {}),
-      round: { status: { in: ['ENDED', 'ARCHIVED'] } },
-    },
-    select: { nationalRank: true, netWorthCents: true },
-  });
-  return rows.reduce((legacy, row) => addPastRound(legacy, row), emptyLegacy());
+  return (await loadLegacyByAccount(prisma, [accountId], currentRoundId)).get(accountId) ?? emptyLegacy();
 }
 
 const emptyContext = (): PublicContext => ({

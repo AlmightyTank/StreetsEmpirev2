@@ -114,6 +114,40 @@ export interface ActivityHistoryDto {
   activity: ActivityDto[];
 }
 
+/** Internal Discord bot API: role keys per Discord member ID (linked, active accounts only). */
+export interface DiscordRoleSyncDto {
+  members: Record<string, string[]>;
+}
+
+/** Internal Discord bot API: public profile card. Never crew, weapons or cash. */
+export interface DiscordProfileCardDto {
+  roundName: string;
+  displayName: string;
+  publicPimpId: number;
+  city: string;
+  netWorthCents: number;
+  rank: { local: number; national: number; nationalMovement: number | null };
+  legacy: PublicLegacyDto;
+  badges: ProfileBadgeDto[];
+  profileUrl: string;
+  forumProfileUrl: string | null;
+}
+
+export interface DiscordRankingEntryDto {
+  rank: number;
+  publicPimpId: number;
+  displayName: string;
+  city: string;
+  netWorthCents: number;
+  movement: number | null;
+  profileUrl: string;
+}
+
+export interface DiscordRankingsDto {
+  round: { name: string; status: string; endsAt: string } | null;
+  entries: DiscordRankingEntryDto[];
+}
+
 export interface GameNewsDto {
   id: string;
   title: string;

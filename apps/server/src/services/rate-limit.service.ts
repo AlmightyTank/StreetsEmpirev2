@@ -89,6 +89,9 @@ export const RATE_LIMIT_POLICIES = {
 /** Requests that should share a bucket. Null means do not rate limit. */
 export function rateLimitPolicyFor(method: string, path: string): RateLimitPolicy | null {
   if (method === 'OPTIONS' || path === '/api/health' || path === '/api/ready') return null;
+  // The Discord bot's server-to-server API: one trusted caller behind a 64+ character
+  // bearer token, and full role syncs on big servers would otherwise hit the per-IP limit.
+  if (path.startsWith('/api/internal/discord/')) return null;
 
   if (
     (method === 'POST' && (path === '/api/auth/register' ||

@@ -12,6 +12,12 @@ describe('rateLimitPolicyFor', () => {
     expect(rateLimitPolicyFor('OPTIONS', '/api/game/me')).toBeNull();
   });
 
+  it('does not throttle the token-guarded Discord bot API, and only that prefix', () => {
+    expect(rateLimitPolicyFor('POST', '/api/internal/discord/roles')).toBeNull();
+    expect(rateLimitPolicyFor('GET', '/api/internal/discord/rankings')).toBeNull();
+    expect(rateLimitPolicyFor('GET', '/api/internal/discordx')).toBe(RATE_LIMIT_POLICIES.read);
+  });
+
   it('uses the strict auth bucket for password and Discord login', () => {
     expect(rateLimitPolicyFor('POST', '/api/auth/register')).toBe(RATE_LIMIT_POLICIES.auth);
     expect(rateLimitPolicyFor('POST', '/api/auth/login')).toBe(RATE_LIMIT_POLICIES.auth);

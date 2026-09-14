@@ -1,0 +1,22 @@
+{
+  "name": "@streets/discord-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/index.js --external:discord.js --external:dotenv --external:zod",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@streets/shared": "*",
+    "discord.js": "^14.27.0",
+    "dotenv": "^16.4.7",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

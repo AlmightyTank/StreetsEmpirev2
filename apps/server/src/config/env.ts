@@ -31,6 +31,8 @@ const envSchema = z.object({
   FORUM_ORIGIN: z.string().url().default('https://forum.streetsempire.dev'),
   FORUM_LINK_SECRET: z.union([z.literal(''), z.string().min(64)]).default(''),
 
+  DISCORD_BOT_API_TOKEN: z.union([z.literal(''), z.string().min(64)]).default(''),
+
   RESEND_API_KEY: z.string().default(''),
   EMAIL_FROM: z.string().default(''),
   PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().positive().default(60),
@@ -66,6 +68,10 @@ export const env = {
     origin: new URL(parsed.data.FORUM_ORIGIN).origin,
     secret: parsed.data.FORUM_LINK_SECRET,
     enabled: Boolean(parsed.data.FORUM_LINK_SECRET),
+  },
+  discordBot: {
+    apiToken: parsed.data.DISCORD_BOT_API_TOKEN,
+    enabled: Boolean(parsed.data.DISCORD_BOT_API_TOKEN),
   },
   discord: {
     clientId: parsed.data.DISCORD_CLIENT_ID,
