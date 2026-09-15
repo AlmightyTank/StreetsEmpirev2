@@ -9,9 +9,11 @@ import healthRoutes from './health.routes.js';
 import forumRoutes from './forum.routes.js';
 import roundInfoRoutes from './round-info.routes.js';
 import roundRoutes from './round.routes.js';
+import siteRoutes from './site.routes.js';
 
 const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(healthRoutes);
+  await fastify.register(siteRoutes, { prefix: '/site' });
   await fastify.register(authRoutes, { prefix: '/auth' });
   await fastify.register(forumRoutes, { prefix: '/forum' });
   await fastify.register(discordBotRoutes, { prefix: '/internal/discord' });

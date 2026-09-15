@@ -3,8 +3,11 @@ import { usernameSchema } from '@streets/shared';
 import { z } from 'zod';
 import { AdminAccountService } from '../services/admin-account.service.js';
 import { AdminAuditService } from '../services/admin-audit.service.js';
+import { AdminHealthService } from '../services/admin-health.service.js';
+import { AdminNewsService } from '../services/admin-news.service.js';
 import { AdminPlayerService } from '../services/admin-player.service.js';
 import { AdminRoundService } from '../services/admin-round.service.js';
+import { SiteBannerService } from '../services/site-banner.service.js';
 import { parseBody } from '../utils/validate.js';
 
 const isoDate = z.coerce.date();
@@ -20,15 +23,47 @@ const scheduleRoundSchema = z.object({
   registrationOpensAt: isoDate.nullable().optional(),
 }).strict();
 
+const updateRoundSchema = z.object({
+  reason,
+  name: z.string().trim().min(3).max(80).optional(),
+  startsAt: isoDate.optional(),
+  endsAt: isoDate.optional(),
+  registrationOpensAt: isoDate.nullable().optional(),
+}).strict();
+
 const roundParams = z.object({ roundId: id }).strict();
 const accountParams = z.object({ accountId: id }).strict();
 const playerParams = z.object({ roundPlayerId: id }).strict();
+const newsParams = z.object({ newsId: id }).strict();
+const bannerParams = z.object({ bannerId: id }).strict();
 const emptyBody = z.object({}).strict();
 const reasonBody = z.object({ reason }).strict();
 const startRoundSchema = z.object({ confirmHandoff: z.boolean().optional() }).strict();
 const revokeSessionsSchema = z.object({ reason, sessionId: id.optional() }).strict();
 const renameSchema = z.object({ reason, username: usernameSchema }).strict();
 const adminRoleSchema = z.object({ reason, isAdmin: z.boolean() }).strict();
+
+const createNewsSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  body: z.string().trim().min(1).max(4000),
+  pinned: z.boolean(),
+  roundId: id.nullable(),
+  publishedAt: isoDate.optional(),
+  mirrorToForum: z.boolean(),
+}).strict();
+
+const updateNewsSchema = z.object({
+  title: z.string().trim().min(1).max(120).optional(),
+  body: z.string().trim().min(1).max(4000).optional(),
+  pinned: z.boolean().optional(),
+}).strict();
+
+const createBannerSchema = z.object({
+  message: z.string().trim().min(3).max(280),
+  tone: z.enum(['info', 'warning', 'critical']),
+  startsAt: isoDate.optional(),
+  endsAt: isoDate,
+}).strict();
 
 const accountSearchQuery = z.object({
   query: z.string().trim().max(80).optional(),
@@ -67,6 +102,22 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return reply.status(201).send({ round });
   });
 
+  fastify.post('/rounds/close-expired', async (request) => {
+    parseBody(emptyBody, request.body ?? {});
+    return { closed: await AdminRoundService.closeExpiredNow(fastify.prisma, request.auth!.account) };
+  });
+
+  fastify.get('/rounds/:roundId/health', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    return AdminHealthService.roundHealth(fastify.prisma, roundId);
+  });
+
+  fastify.post('/rounds/:roundId/update', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    const input = parseBody(updateRoundSchema, request.body ?? {});
+    return { round: await AdminRoundService.update(fastify.prisma, request.auth!.account, roundId, input) };
+  });
+
   fastify.post('/rounds/:roundId/open-registration', async (request) => {
     const { roundId } = parseBody(roundParams, request.params);
     parseBody(emptyBody, request.body ?? {});
@@ -89,6 +140,46 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { roundId } = parseBody(roundParams, request.params);
     parseBody(emptyBody, request.body ?? {});
     return { round: await AdminRoundService.archive(fastify.prisma, request.auth!.account, roundId) };
+  });
+
+  // News and the site banner
+
+  fastify.get('/news', async () => AdminNewsService.list(fastify.prisma));
+
+  fastify.post('/news', async (request, reply) => {
+    const input = parseBody(createNewsSchema, request.body ?? {});
+    return reply.status(201).send(await AdminNewsService.create(fastify.prisma, request.auth!.account, input));
+  });
+
+  fastify.post('/news/:newsId/update', async (request) => {
+    const { newsId } = parseBody(newsParams, request.params);
+    const input = parseBody(updateNewsSchema, request.body ?? {});
+    return AdminNewsService.update(fastify.prisma, request.auth!.account, newsId, input);
+  });
+
+  fastify.post('/news/:newsId/delete', async (request) => {
+    const { newsId } = parseBody(newsParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminNewsService.remove(fastify.prisma, request.auth!.account, newsId, body.reason);
+  });
+
+  fastify.post('/news/:newsId/mirror', async (request) => {
+    const { newsId } = parseBody(newsParams, request.params);
+    parseBody(emptyBody, request.body ?? {});
+    return AdminNewsService.retryMirror(fastify.prisma, request.auth!.account, newsId);
+  });
+
+  fastify.get('/banners', async () => SiteBannerService.adminList(fastify.prisma));
+
+  fastify.post('/banners', async (request, reply) => {
+    const input = parseBody(createBannerSchema, request.body ?? {});
+    return reply.status(201).send(await SiteBannerService.create(fastify.prisma, request.auth!.account, input));
+  });
+
+  fastify.post('/banners/:bannerId/end', async (request) => {
+    const { bannerId } = parseBody(bannerParams, request.params);
+    parseBody(emptyBody, request.body ?? {});
+    return SiteBannerService.end(fastify.prisma, request.auth!.account, bannerId);
   });
 
   // Accounts

@@ -30,6 +30,11 @@ const envSchema = z.object({
 
   FORUM_ORIGIN: z.string().url().default('https://forum.streetsempire.dev'),
   FORUM_LINK_SECRET: z.union([z.literal(''), z.string().min(64)]).default(''),
+  /** Flarum admin API key used to mirror news into the announcements tag. */
+  FORUM_API_KEY: z.string().default(''),
+  /** The forum user the mirrored discussions are posted as. */
+  FORUM_API_USER_ID: z.coerce.number().int().positive().default(1),
+  FORUM_NEWS_TAG_ID: z.string().regex(/^\d*$/, 'FORUM_NEWS_TAG_ID must be a numeric Flarum tag id.').default(''),
 
   DISCORD_BOT_API_TOKEN: z.union([z.literal(''), z.string().min(64)]).default(''),
 
@@ -68,6 +73,13 @@ export const env = {
     origin: new URL(parsed.data.FORUM_ORIGIN).origin,
     secret: parsed.data.FORUM_LINK_SECRET,
     enabled: Boolean(parsed.data.FORUM_LINK_SECRET),
+    news: {
+      apiKey: parsed.data.FORUM_API_KEY,
+      userId: parsed.data.FORUM_API_USER_ID,
+      tagId: parsed.data.FORUM_NEWS_TAG_ID,
+      /** Off in tests so no test run ever posts to a real forum. */
+      enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.FORUM_API_KEY && parsed.data.FORUM_NEWS_TAG_ID),
+    },
   },
   discordBot: {
     apiToken: parsed.data.DISCORD_BOT_API_TOKEN,

@@ -65,6 +65,7 @@ const ADMIN_SECTION: NavSection = {
   title: 'Admin',
   items: [
     { label: 'Rounds', to: '/game/admin' },
+    { label: 'News & banner', to: '/game/admin/news' },
     { label: 'Accounts', to: '/game/admin/accounts' },
     { label: 'Audit log', to: '/game/admin/audit' },
   ],

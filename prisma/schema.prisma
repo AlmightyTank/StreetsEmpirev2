@@ -455,9 +455,38 @@ model GameNews {
   createdByAccountId String?
   createdBy          Account? @relation("GameNewsAuthor", fields: [createdByAccountId], references: [id], onDelete: SetNull)
 
+  /// 0.3.0-B forum announcements mirror. The discussion id is set once the forum
+  /// accepted the post; forumError keeps the last failure for a retry.
+  forumDiscussionId String?
+  forumPostedAt     DateTime?
+  forumError        String?
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([roundId, isPinned, publishedAt(sort: Desc)])
+}
+
+/// 0.3.0-B. A short site-wide notice (maintenance, downtime, round reminders)
+/// shown above every page while it is live.
+model SiteBanner {
+  id String @id @default(cuid())
+
+  message String
+  /// info, warning or critical.
+  tone    String @default("info")
+
+  startsAt DateTime @default(now())
+  endsAt   DateTime
+
+  /// No foreign key: a banner outlives the admin who posted it.
+  createdByAccountId String?
+  createdByUsername  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([startsAt, endsAt])
 }
 
 enum ActivityType {

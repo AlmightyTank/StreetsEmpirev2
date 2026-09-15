@@ -11,6 +11,14 @@ export function localInputToIso(local: string): string | undefined {
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
+/** The value a datetime-local input needs to show an ISO timestamp in local time. */
+export function isoToLocalInput(iso: string | null): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export function snapshotJson(value: unknown): string {
   return value === null || value === undefined ? 'nothing' : JSON.stringify(value, null, 2);
 }

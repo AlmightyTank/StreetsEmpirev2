@@ -1365,6 +1365,51 @@ a.se-nav__link:hover {
 .se-admin-json--inline {
   max-height: 96px;
 }
+.se-admin-textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+.se-admin-news {
+  padding: 12px 16px;
+  border-top: 1px solid var(--se-line);
+}
+.se-admin-news:first-child {
+  border-top: 0;
+}
+.se-admin-news h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.se-admin-news p {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+.se-site-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--se-line);
+  background: color-mix(in srgb, var(--se-accent) 10%, var(--se-panel));
+  color: var(--se-text);
+  font-size: 13px;
+}
+.se-site-banner--warning {
+  background: color-mix(in srgb, var(--se-warn) 18%, var(--se-panel));
+}
+.se-site-banner--critical {
+  background: color-mix(in srgb, var(--se-bad) 22%, var(--se-panel));
+}
+.se-site-banner button {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--se-text-dim);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
 .se-admin-audit__head {
   display: flex;
   justify-content: space-between;

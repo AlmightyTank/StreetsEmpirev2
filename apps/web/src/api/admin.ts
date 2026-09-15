@@ -4,11 +4,19 @@ import type {
   AdminAccountStatusFilter,
   AdminAuditFilters,
   AdminAuditLogDto,
+  AdminCloseExpiredResultDto,
+  AdminCreateBannerInput,
+  AdminCreateNewsInput,
+  AdminNewsDto,
   AdminPlayerBattlesDto,
   AdminPlayerDto,
+  AdminRoundHealthDto,
   AdminRoundResultDto,
   AdminRoundsDto,
   AdminScheduleRoundInput,
+  AdminSiteBannersDto,
+  AdminUpdateNewsInput,
+  AdminUpdateRoundInput,
 } from '@streets/shared';
 import { api } from './client.js';
 
@@ -32,6 +40,19 @@ export const adminApi = {
   startRound: (roundId: string, confirmHandoff: boolean) => api.post<AdminRoundResultDto>(roundPath(roundId, 'start'), { confirmHandoff }),
   endRoundEarly: (roundId: string, reason: string) => api.post<AdminRoundResultDto>(roundPath(roundId, 'end-early'), { reason }),
   archiveRound: (roundId: string) => api.post<AdminRoundResultDto>(roundPath(roundId, 'archive')),
+  updateRound: (roundId: string, input: AdminUpdateRoundInput) => api.post<AdminRoundResultDto>(roundPath(roundId, 'update'), input),
+  roundHealth: (roundId: string) => api.get<AdminRoundHealthDto>(roundPath(roundId, 'health')),
+  closeExpiredRounds: () => api.post<AdminCloseExpiredResultDto>('/admin/rounds/close-expired'),
+
+  news: () => api.get<AdminNewsDto>('/admin/news'),
+  createNews: (input: AdminCreateNewsInput) => api.post<AdminNewsDto>('/admin/news', input),
+  updateNews: (newsId: string, input: AdminUpdateNewsInput) => api.post<AdminNewsDto>(`/admin/news/${enc(newsId)}/update`, input),
+  deleteNews: (newsId: string, reason: string) => api.post<AdminNewsDto>(`/admin/news/${enc(newsId)}/delete`, { reason }),
+  mirrorNews: (newsId: string) => api.post<AdminNewsDto>(`/admin/news/${enc(newsId)}/mirror`),
+
+  banners: () => api.get<AdminSiteBannersDto>('/admin/banners'),
+  createBanner: (input: AdminCreateBannerInput) => api.post<AdminSiteBannersDto>('/admin/banners', input),
+  endBanner: (bannerId: string) => api.post<AdminSiteBannersDto>(`/admin/banners/${enc(bannerId)}/end`),
 
   accounts: (params: { query?: string | undefined; status?: AdminAccountStatusFilter | undefined; limit?: number | undefined } = {}) =>
     api.get<AdminAccountSearchDto>(`/admin/accounts${queryString(params)}`),

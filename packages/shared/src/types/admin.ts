@@ -171,3 +171,113 @@ export interface AdminPlayerBattlesDto {
   reports: BattleReportDto[];
   nextBefore: string | null;
 }
+
+export type SiteBannerTone = 'info' | 'warning' | 'critical';
+
+/** A short site-wide notice. Public: GET /api/site/banner. */
+export interface SiteBannerDto {
+  id: string;
+  message: string;
+  tone: SiteBannerTone;
+  startsAt: string;
+  endsAt: string;
+  createdByUsername: string;
+}
+
+export interface SiteBannerResponseDto {
+  banner: SiteBannerDto | null;
+}
+
+export interface AdminSiteBannersDto {
+  current: SiteBannerDto | null;
+  /** Newest first, live and ended. */
+  banners: SiteBannerDto[];
+}
+
+export interface AdminCreateBannerInput {
+  message: string;
+  tone: SiteBannerTone;
+  startsAt?: string;
+  endsAt: string;
+}
+
+export interface AdminNewsPostDto {
+  id: string;
+  title: string;
+  body: string;
+  isPinned: boolean;
+  publishedAt: string;
+  /** Null for a global announcement shown in every round. */
+  roundId: string | null;
+  roundName: string | null;
+  authorName: string | null;
+  discordPostedAt: string | null;
+  forumDiscussionId: string | null;
+  forumUrl: string | null;
+  forumPostedAt: string | null;
+  forumError: string | null;
+  updatedAt: string;
+}
+
+export interface AdminNewsDto {
+  posts: AdminNewsPostDto[];
+  /** Rounds a post can be attached to, newest first. */
+  rounds: Array<{ id: string; name: string; status: RoundStatus }>;
+  forumMirrorEnabled: boolean;
+}
+
+export interface AdminCreateNewsInput {
+  title: string;
+  body: string;
+  pinned: boolean;
+  roundId: string | null;
+  /** Defaults to now. A future time schedules the post. */
+  publishedAt?: string;
+  mirrorToForum: boolean;
+}
+
+export interface AdminUpdateNewsInput {
+  title?: string;
+  body?: string;
+  pinned?: boolean;
+}
+
+export interface AdminUpdateRoundInput {
+  reason: string;
+  name?: string;
+  startsAt?: string;
+  endsAt?: string;
+  registrationOpensAt?: string | null;
+}
+
+export interface AdminCloseExpiredResultDto {
+  closed: AdminRoundDto[];
+}
+
+export interface AdminRoundHealthDayDto {
+  /** UTC calendar day, YYYY-MM-DD. */
+  day: string;
+  joins: number;
+  /** Players with at least one action that day. */
+  activePlayers: number;
+  turnsSpent: number;
+  raids: number;
+  driveBys: number;
+  specialRaids: number;
+  recon: number;
+}
+
+export interface AdminRoundHealthDto {
+  round: AdminRoundDto;
+  players: { total: number; active24h: number; active7d: number; neverActed: number };
+  /** Newest first, up to the last 14 days of the round. */
+  days: AdminRoundHealthDayDto[];
+  topPlayers: Array<{
+    roundPlayerId: string;
+    displayName: string;
+    publicPimpId: number;
+    netWorthCents: number;
+    nationalRank: number | null;
+    lastActiveAt: string;
+  }>;
+}
