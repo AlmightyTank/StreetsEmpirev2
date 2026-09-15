@@ -61,6 +61,12 @@ export interface PlayerState {
   rocksSuppliedToPip: number;
   driveBysDone: number;
 
+  /** Seasonal hideout rooms. Reset by new round-player rows. */
+  hideoutSafeRoomLevel: number;
+  hideoutLookoutsLevel: number;
+  hideoutWorkshopLevel: number;
+  hideoutBackOfficeLevel: number;
+
   /**
    * What Tommy has on the shelf, already settled. Counters rather than
    * resources: they never reach a snapshot, and an action spends them the
@@ -150,6 +156,10 @@ export function toState(player: RoundPlayer): PlayerState {
     cleanShiftStreak: player.cleanShiftStreak,
     rocksSuppliedToPip: player.rocksSuppliedToPip,
     driveBysDone: player.driveBysDone,
+    hideoutSafeRoomLevel: player.hideoutSafeRoomLevel,
+    hideoutLookoutsLevel: player.hideoutLookoutsLevel,
+    hideoutWorkshopLevel: player.hideoutWorkshopLevel,
+    hideoutBackOfficeLevel: player.hideoutBackOfficeLevel,
     pistolStock: player.pistolStock,
     shotgunStock: player.shotgunStock,
     tek9Stock: player.tek9Stock,

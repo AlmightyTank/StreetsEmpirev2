@@ -19,6 +19,10 @@ export interface InvariantPlayerState {
   cleanShiftStreak: number;
   rocksSuppliedToPip: number;
   driveBysDone: number;
+  hideoutSafeRoomLevel: number;
+  hideoutLookoutsLevel: number;
+  hideoutWorkshopLevel: number;
+  hideoutBackOfficeLevel: number;
   pistolStock: number;
   shotgunStock: number;
   tek9Stock: number;
@@ -48,6 +52,10 @@ const WHOLE_NON_NEGATIVE: readonly (keyof InvariantPlayerState)[] = [
   'cleanShiftStreak',
   'rocksSuppliedToPip',
   'driveBysDone',
+  'hideoutSafeRoomLevel',
+  'hideoutLookoutsLevel',
+  'hideoutWorkshopLevel',
+  'hideoutBackOfficeLevel',
   'pistolStock',
   'shotgunStock',
   'tek9Stock',
@@ -99,6 +107,19 @@ export function assertPlayerState(
 
   if (state.woundedThugs > state.thugs) {
     invalid(`${phase}.woundedThugs cannot exceed total thugs`);
+  }
+
+  const hideout = ruleset.hideout;
+  if (hideout) {
+    const max = {
+      hideoutSafeRoomLevel: hideout.rooms.SAFE_ROOM.maxLevel,
+      hideoutLookoutsLevel: hideout.rooms.LOOKOUTS.maxLevel,
+      hideoutWorkshopLevel: hideout.rooms.WORKSHOP.maxLevel,
+      hideoutBackOfficeLevel: hideout.rooms.BACK_OFFICE.maxLevel,
+    };
+    for (const [field, cap] of Object.entries(max) as Array<[keyof typeof max, number]>) {
+      if (state[field] > cap) invalid(`${phase}.${field} is above the ruleset cap`);
+    }
   }
 
   // A shelf above its cap is how an unlimited-stock exploit would look.

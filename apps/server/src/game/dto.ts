@@ -16,6 +16,7 @@ import type {
   RoundOverLegacyDto,
   RoundDto,
   RoundPlayerDto,
+  SeasonHideoutDto,
 } from '@streets/shared';
 import { explainThugHappiness, explainWhoreHappiness, totalWeapons } from '@streets/rules-engine';
 import { fitThugs } from '../services/action.service.js';
@@ -77,6 +78,19 @@ function armedThugsForDto(player: RoundPlayer): number {
 function movement(start: number | null, current: number | null): number | null {
   if (start === null || current === null) return null;
   return start - current;
+}
+
+export function toSeasonHideoutDto(player: Pick<RoundPlayer,
+  'hideoutSafeRoomLevel' | 'hideoutLookoutsLevel' | 'hideoutWorkshopLevel' | 'hideoutBackOfficeLevel'
+>): SeasonHideoutDto {
+  return {
+    totalLevel:
+      player.hideoutSafeRoomLevel +
+      player.hideoutLookoutsLevel +
+      player.hideoutWorkshopLevel +
+      player.hideoutBackOfficeLevel,
+    totalMaxLevel: 20,
+  };
 }
 
 /**
@@ -168,6 +182,7 @@ export function toRoundOverDto(input: {
         local: input.player.localRank,
         national: input.player.nationalRank,
       },
+      hideout: toSeasonHideoutDto(input.player),
       joinedAt: input.player.createdAt.toISOString(),
       lastActiveAt: input.player.lastActiveAt.toISOString(),
     },

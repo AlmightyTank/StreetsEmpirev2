@@ -1,4 +1,4 @@
-import type { ActivityDto, CityDto, ProfileAccent, RoundDto } from './api.js';
+import type { ActivityDto, CityDto, ProfileAccent, RoundDto, SeasonHideoutDto } from './api.js';
 
 export type PublicAchievementCategory = 'rank' | 'wealth' | 'combat' | 'intel' | 'reputation' | 'legacy';
 export type PublicAchievementRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
@@ -79,6 +79,7 @@ export interface PublicSeasonResultDto {
     national: number | null;
   };
   stats: PublicSeasonStatsDto;
+  hideout: SeasonHideoutDto;
   joinedAt: string;
   lastActiveAt: string;
 }
@@ -222,6 +223,7 @@ export interface HallOfFamePlayerDto {
   netWorthCents: number;
   cashCents: number;
   city: string;
+  hideout: SeasonHideoutDto;
   joinedAt: string;
   lastActiveAt: string;
 }

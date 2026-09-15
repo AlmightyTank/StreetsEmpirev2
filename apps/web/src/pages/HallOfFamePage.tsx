@@ -85,6 +85,7 @@ export function HallOfFamePage() {
                           <th>City</th>
                           <th className="se-table__number">Final Net Worth</th>
                           <th className="se-table__number">Cash Left</th>
+                          <th className="se-table__number">Hideout</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -95,6 +96,7 @@ export function HallOfFamePage() {
                             <td>{player.city}</td>
                             <td className="se-table__number se-num">{formatCents(player.netWorthCents)}</td>
                             <td className="se-table__number se-num">{formatCents(player.cashCents)}</td>
+                            <td className="se-table__number se-num">{formatNumber(player.hideout.totalLevel)} / {formatNumber(player.hideout.totalMaxLevel)}</td>
                           </tr>
                         ))}
                       </tbody>

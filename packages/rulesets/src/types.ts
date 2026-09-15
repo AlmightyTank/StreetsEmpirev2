@@ -32,6 +32,7 @@ export type StoreKey = 'CORNER' | 'TOMMY' | 'CHARLIE' | 'PIP';
 
 export type WeaponKey = 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47';
 export type WeaponUnlockKey = 'SHOTGUN' | 'TEK9' | 'AK47';
+export type HideoutRoomKey = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE';
 
 /**
  * What a shopkeeper wants before he will sell you the heavy stuff.
@@ -423,6 +424,26 @@ export interface EvidenceRules {
   readonly bustThreshold: number;
 }
 
+// --- seasonal hideout -------------------------------------------------------
+
+export interface HideoutRoomRule {
+  readonly name: string;
+  readonly blurb: string;
+  readonly maxLevel: number;
+  /** Cost for levels 1..maxLevel, in cents. */
+  readonly costsCents: readonly number[];
+}
+
+export interface HideoutRules {
+  readonly rooms: { readonly [K in HideoutRoomKey]: HideoutRoomRule };
+  readonly buffs: {
+    readonly safeRoomProtectedCashCentsPerLevel: number;
+    readonly lookoutsDefenseBonusPercentPerLevel: number;
+    readonly workshopCrackBonusPercentPerLevel: number;
+    readonly backOfficeTakeBonusPercentPerLevel: number;
+  };
+}
+
 // --- the ruleset ------------------------------------------------------------
 
 
@@ -551,5 +572,7 @@ export interface Ruleset {
   readonly rankings: RankingRules;
   /** Optional round privacy for public community surfaces. */
   readonly communityPrivacy?: CommunityPrivacyRules;
+  /** Optional seasonal money sink. Mechanical levels reset with each round. */
+  readonly hideout?: HideoutRules;
   readonly evidence: EvidenceRules;
 }

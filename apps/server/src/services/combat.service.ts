@@ -32,6 +32,7 @@ import { assertPlayerState } from './invariant.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { PlayerStateService } from './player-state.service.js';
 import { RankingService } from './ranking.service.js';
+import { hideoutDefenseBonusPercent, hideoutProtectedCashBonusCents } from './hideout.service.js';
 
 type CombatRules = NonNullable<Ruleset['combat']>;
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value, (_, v: unknown) => typeof v === 'bigint' ? v.toString() : v));
@@ -160,6 +161,24 @@ function modelFor(round: Round): { ruleset: Ruleset; model: CombatRules } {
   const ruleset = loadRulesetForRound(round);
   if (!ruleset.combat) throw AppError.conflict('COMBAT_DISABLED', 'Raids are not available in this older economy round. Join the current 0.2.0-D strategy round to use raids, recon and revenge.');
   return { ruleset, model: ruleset.combat };
+}
+
+function modelWithDefenderHideout(model: CombatRules, ruleset: Ruleset, defender: RoundPlayer): CombatRules {
+  const protectedCashBonus = hideoutProtectedCashBonusCents(ruleset, defender);
+  const defenseBonusPercent = hideoutDefenseBonusPercent(ruleset, defender);
+  if (protectedCashBonus <= 0 && defenseBonusPercent <= 0) return model;
+
+  return {
+    ...model,
+    strength: {
+      ...model.strength,
+      defenseMultiplier: model.strength.defenseMultiplier * (1 + defenseBonusPercent / 100),
+    },
+    loot: {
+      ...model.loot,
+      protectedCashCents: model.loot.protectedCashCents + protectedCashBonus,
+    },
+  };
 }
 
 function playable(round: Round, now: Date): void {
@@ -462,7 +481,7 @@ export const CombatService = {
         publicPimpId: target.publicPimpId, displayName: target.displayName,
         netWorthCents: Number(NetWorthService.calculate(target, ruleset)),
         strength: strength(target, model) < ownStrength * (1 - model.strength.variance) ? 'Weaker' : strength(target, model) > ownStrength * (1 + model.strength.variance) ? 'Stronger' : 'Comparable',
-        blockedReason: combatTargetBlock(player, target, model, now, revengeIds.has(target.id)),
+        blockedReason: combatTargetBlock(player, target, modelWithDefenderHideout(model, ruleset, target), now, revengeIds.has(target.id)),
         protectedUntil: combatProtectionUntil(target, model) > now ? iso(combatProtectionUntil(target, model)) : null,
         ...(model.strategy ? { revengeAvailable: revengeIds.has(target.id), intel: intelByTarget.get(target.id) ?? null } : {}),
         ...(model.driveBy ? { driveByBlockedReason: driveByTargetBlock(player, target, model, now, revengeIds.has(target.id)) } : {}),
@@ -502,15 +521,18 @@ export const CombatService = {
       const d = await PlayerStateService.settleInTransaction(tx, target.id, { now, markActive: false });
       const attacker = a.player;
       const defender = d.player;
+      const protectedCashBonus = hideoutProtectedCashBonusCents(ruleset, defender);
+      const defenseBonusPercent = hideoutDefenseBonusPercent(ruleset, defender);
+      const defenderModel = modelWithDefenderHideout(model, ruleset, defender);
       const retaliation = (await retaliationTargets(tx, attackerId, [target.id], model, now)).has(target.id);
-      const blocked = combatAttackerBlock(attacker, model, now) ?? combatTargetBlock(attacker, defender, model, now, retaliation);
+      const blocked = combatAttackerBlock(attacker, model, now) ?? combatTargetBlock(attacker, defender, defenderModel, now, retaliation);
       if (blocked) throw AppError.conflict('RAID_BLOCKED', blocked);
       if (input.attackingThugs > Math.min(fitThugs(attacker), model.squadCap)) throw AppError.badRequest('INVALID_SQUAD', 'Your squad exceeds your fit crew or the raid limit.');
       const beforeA = await RankingService.ranksFor(tx, attacker);
       const beforeD = await RankingService.ranksFor(tx, defender);
       const repeatTargetHits = await consecutiveRepeatTargetHits(tx, attackerId, target.id);
       const result = simulateRaid({ attacker: crew(attacker), defender: crew(defender), attackingThugs: input.attackingThugs,
-        attackerTurns: attacker.turns, defenderCashCents: defender.cashCents, defenderCrack: defender.crack, repeatTargetHits }, model, () => randomInt(0, 2 ** 32) / 2 ** 32);
+        attackerTurns: attacker.turns, defenderCashCents: defender.cashCents, defenderCrack: defender.crack, repeatTargetHits }, defenderModel, () => randomInt(0, 2 ** 32) / 2 ** 32);
       const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker,
         turns: result.attackerTurnsAfter, cashCents: attacker.cashCents + result.lootCents, crack: attacker.crack + result.lootCrack };
       const nextD = { ...toState(defender), woundedThugs: defender.woundedThugs + result.wounds.defender,
@@ -568,7 +590,7 @@ export const CombatService = {
       const defenderReport = makeReport(false);
       await tx.raidBattle.create({ data: { id, attackerId, defenderId: target.id, actionId: input.actionId,
         attackingThugs: input.attackingThugs, modelVersion: model.version,
-        calculation: json({ result, input: { attacker: crew(attacker), defender: crew(defender), defenderCashCents: defender.cashCents, defenderCrack: defender.crack }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
+        calculation: json({ result, input: { attacker: crew(attacker), defender: crew(defender), defenderCashCents: defender.cashCents, defenderCrack: defender.crack }, defenderHideout: { protectedCashBonus, defenseBonusPercent }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
@@ -715,6 +737,7 @@ export const CombatService = {
       const originalDefender = await tx.roundPlayer.findUniqueOrThrow({ where: { id: target.id } });
       const attacker = (await PlayerStateService.settleInTransaction(tx, attackerId, { now, markActive: true })).player;
       const defender = (await PlayerStateService.settleInTransaction(tx, target.id, { now, markActive: false })).player;
+      const defenderModel = modelWithDefenderHideout(model, ruleset, defender);
       const retaliation = (await retaliationTargets(tx, attackerId, [target.id], model, now)).has(target.id);
       const blocked = specialRaidAttackerBlock(attacker, model, input.kind, now) ?? specialRaidTargetBlock(attacker, defender, model, input.kind, now, retaliation);
       if (blocked) throw AppError.conflict('SPECIAL_RAID_BLOCKED', blocked);
@@ -723,7 +746,7 @@ export const CombatService = {
       const beforeA = await RankingService.ranksFor(tx, attacker);
       const beforeD = await RankingService.ranksFor(tx, defender);
       const result = simulateRaid({ attacker: crew(attacker), defender: crew(defender), attackingThugs: input.attackingThugs,
-        attackerTurns: attacker.turns, defenderCashCents: defender.cashCents, defenderCrack: defender.crack, repeatTargetHits: 0 }, model, () => randomInt(0, 2 ** 32) / 2 ** 32);
+        attackerTurns: attacker.turns, defenderCashCents: defender.cashCents, defenderCrack: defender.crack, repeatTargetHits: 0 }, defenderModel, () => randomInt(0, 2 ** 32) / 2 ** 32);
       const won = result.winner === 'ATTACKER';
       const survivors = Math.max(0, input.attackingThugs - result.wounds.attacker);
       const turnCost = specialRaidTurnCost(model, input.kind);
@@ -880,7 +903,7 @@ export const CombatService = {
 
       const turnsAfter = observer.turns - turnCost;
       const expiresAt = new Date(now.getTime() + model.strategy.intel.expiresMinutes * 60_000);
-      const report = intelReport(defender, model, now, expiresAt);
+      const report = intelReport(defender, modelWithDefenderHideout(model, settled.ruleset, defender), now, expiresAt);
       const result: CombatReconResultDto = { intel: report, turnsSpent: turnCost, turnsAfter };
 
       await tx.roundPlayer.update({ where: { id: playerId }, data: { turns: turnsAfter, lastActiveAt: now } });

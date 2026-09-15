@@ -3,6 +3,7 @@ import { calculateProduce, districtCapacities, type Rng } from '@streets/rules-e
 import type { GameActionResult, ProduceCrackResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
+import { hideoutBackOfficeBonusCents, hideoutWorkshopBonusCrack } from './hideout.service.js';
 
 export interface ProduceInput {
   turns: number;
@@ -69,6 +70,10 @@ export const ProductionService = {
           payoutPercent: current.payoutPercent,
           rng,
         });
+        const hideoutBonusCents = hideoutBackOfficeBonusCents(outcome.pimpTakeCents, ruleset, current);
+        const pimpTakeCents = outcome.pimpTakeCents + hideoutBonusCents;
+        const hideoutBonusCrack = hideoutWorkshopBonusCrack(outcome.crackProduced, ruleset, current);
+        const crackProduced = outcome.crackProduced + hideoutBonusCrack;
 
         const next = {
           ...current,
@@ -81,7 +86,7 @@ export const ProductionService = {
 
           // Manual 3.2: they still work, just for less.
           cashCents:
-            current.cashCents - outcome.ingredientCents + outcome.pimpTakeCents,
+            current.cashCents - outcome.ingredientCents + pimpTakeCents,
 
           whores: Math.max(
             0,
@@ -91,7 +96,7 @@ export const ProductionService = {
 
           crack:
             current.crack +
-            outcome.crackProduced -
+            crackProduced -
             outcome.consumption.crack +
             outcome.crackFound,
           condoms: current.condoms - outcome.consumption.condoms,
@@ -101,7 +106,8 @@ export const ProductionService = {
         };
 
         const result: ProduceCrackResult = {
-          crackProduced: outcome.crackProduced,
+          crackProduced,
+          hideoutBonusCrack,
           ingredientCents: Number(outcome.ingredientCents),
           limitedByCash: outcome.limitedByCash,
 
@@ -116,7 +122,8 @@ export const ProductionService = {
 
           grossEarnedCents: Number(outcome.grossCents),
           crewTakeCents: Number(outcome.crewTakeCents),
-          cashEarnedCents: Number(outcome.pimpTakeCents),
+          cashEarnedCents: Number(pimpTakeCents),
+          hideoutBonusCents: Number(hideoutBonusCents),
           payoutPercent: current.payoutPercent,
 
           crackFound: outcome.crackFound,
@@ -137,9 +144,11 @@ export const ProductionService = {
             type: 'PRODUCE_CRACK',
             payload: {
               turns: input.turns,
-              crack: outcome.crackProduced,
+              crack: crackProduced,
+              hideoutBonusCrack,
               ingredientCents: Number(outcome.ingredientCents),
-              cashCents: Number(outcome.pimpTakeCents),
+              cashCents: Number(pimpTakeCents),
+              hideoutBonusCents: Number(hideoutBonusCents),
               crackFound: outcome.crackFound,
               whoresLeft: outcome.departures.whores,
               thugsLeft: outcome.departures.thugs,

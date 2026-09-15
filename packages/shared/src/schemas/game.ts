@@ -53,6 +53,12 @@ export type ScoutInput = z.infer<typeof scoutSchema>;
 export type ProduceCrackInput = z.infer<typeof produceCrackSchema>;
 export type PayoutInput = z.infer<typeof payoutSchema>;
 
+export const hideoutUpgradeSchema = z.object({
+  room: z.enum(['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE']),
+  actionId: actionIdSchema,
+});
+export type HideoutUpgradeInput = z.infer<typeof hideoutUpgradeSchema>;
+
 export const storeTradeSchema = z.object({
   store: z.string().trim().min(1, 'Pick a store.').max(64),
   item: z.string().trim().min(1, 'Pick an item.').max(64),

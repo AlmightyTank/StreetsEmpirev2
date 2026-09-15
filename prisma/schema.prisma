@@ -392,6 +392,13 @@ model RoundPlayer {
   driveByProtectedUntil DateTime?
   lastDrivenByAt        DateTime?
 
+  /// Seasonal hideout rooms. These reset naturally because each round creates
+  /// a fresh RoundPlayer row, while ended rows keep the final build archived.
+  hideoutSafeRoomLevel   Int @default(0)
+  hideoutLookoutsLevel   Int @default(0)
+  hideoutWorkshopLevel   Int @default(0)
+  hideoutBackOfficeLevel Int @default(0)
+
   @@unique([roundId, accountId])
   @@unique([roundId, publicPimpId])
   @@index([roundId, netWorthCents(sort: Desc)])
@@ -443,6 +450,7 @@ enum ActivityType {
   WEAPON_UNLOCK
   PAYOUT_CHANGE
   AWAY_BONUS
+  HIDEOUT_UPGRADE
 }
 
 enum BattleKind {

@@ -7,6 +7,7 @@ import {
   scoutSchema,
   storeTradeSchema,
   weaponUnlockSchema,
+  hideoutUpgradeSchema,
 } from '@streets/shared';
 import { toGameSnapshotDto } from '../game/dto.js';
 import { PayoutService } from '../services/payout.service.js';
@@ -15,6 +16,7 @@ import { QuestService } from '../services/quest.service.js';
 import { ScoutService } from '../services/scout.service.js';
 import { toState } from '../services/action.service.js';
 import { StoreService } from '../services/store.service.js';
+import { HideoutService } from '../services/hideout.service.js';
 import { parseBody } from '../utils/validate.js';
 import { ActivityService } from '../services/activity.service.js';
 import { PlayerStateService } from '../services/player-state.service.js';
@@ -105,6 +107,18 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const body = parseBody(weaponUnlockSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
     return StoreService.unlock(fastify.prisma, player.id, body);
+  });
+
+  fastify.get('/hideout', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
+    return HideoutService.catalog(settled.ruleset, toState(settled.player));
+  });
+
+  fastify.post('/hideout/upgrade', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(hideoutUpgradeSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return HideoutService.upgrade(fastify.prisma, player.id, body);
   });
 
   /**

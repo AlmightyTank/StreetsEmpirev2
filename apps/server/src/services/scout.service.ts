@@ -4,6 +4,7 @@ import type { District, DistrictKey, Ruleset } from '@streets/rulesets';
 import type { DistrictDto, DistrictsDto, GameActionResult, ScoutResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
+import { hideoutBackOfficeBonusCents } from './hideout.service.js';
 
 export interface Crew {
   whores: number;
@@ -126,13 +127,15 @@ export const ScoutService = {
           payoutPercent: current.payoutPercent,
           rng,
         });
+        const hideoutBonusCents = hideoutBackOfficeBonusCents(outcome.pimpTakeCents, ruleset, current);
+        const pimpTakeCents = outcome.pimpTakeCents + hideoutBonusCents;
 
         const next = {
           ...current,
           turns: current.turns - input.turns,
 
           // Manual 3.1: this is where you make money for yourself.
-          cashCents: current.cashCents + outcome.pimpTakeCents,
+          cashCents: current.cashCents + pimpTakeCents,
 
           // The clerk's favour: a trip counts only if nobody went out short.
           cleanShiftStreak:
@@ -166,7 +169,8 @@ export const ScoutService = {
 
           grossEarnedCents: Number(outcome.grossCents),
           crewTakeCents: Number(outcome.crewTakeCents),
-          cashEarnedCents: Number(outcome.pimpTakeCents),
+          cashEarnedCents: Number(pimpTakeCents),
+          hideoutBonusCents: Number(hideoutBonusCents),
           payoutPercent: current.payoutPercent,
 
           crackFound: outcome.crackFound,
@@ -203,7 +207,8 @@ export const ScoutService = {
               turns: input.turns,
               whores: outcome.whoresRecruited,
               thugs: outcome.thugsRecruited,
-              cashCents: Number(outcome.pimpTakeCents),
+              cashCents: Number(pimpTakeCents),
+              hideoutBonusCents: Number(hideoutBonusCents),
               crackFound: outcome.crackFound,
               whoresLeft: outcome.departures.whores,
               thugsLeft: outcome.departures.thugs,

@@ -36,6 +36,7 @@ export function RulesPage() {
           <Panel title="Fair seasons">
             <ul className="se-list">
               <li>Each season is mechanically fresh. New rounds reset cash, crew, supplies, weapons, turns, intel, cooldowns and rankings.</li>
+              <li>Hideout upgrades are season mechanics too. Their buffs reset with the next round, while the finished build remains on your season archive.</li>
               <li>Your permanent account keeps history: finished seasons, placements, legacy totals, badges, titles, profile accents and featured cosmetics.</li>
               <li>Permanent cosmetics never change action math, starting resources, combat odds, store access or rank calculations.</li>
               <li>Hall of Fame and public profiles keep the receipts, but the next leaderboard starts on equal footing.</li>
@@ -90,6 +91,15 @@ export function RulesPage() {
                 Crack is the one thing a shop can run short of on purpose &mdash; Pip cannot
                 keep a large stable supplied, which is what cooking is for.
               </li>
+            </ul>
+          </Panel>
+
+          <Panel title="Hideout">
+            <ul className="se-list">
+              <li>The hideout is a seasonal money sink for small capped buffs, not permanent power.</li>
+              <li>Safe Room protects more cash from raids. Lookouts add a small home-defense bonus.</li>
+              <li>Workshop adds a little production efficiency, and Back Office adds a little more personal cash take from street work.</li>
+              <li>Every room has a cap. Maxing it is a season achievement, not an account advantage next season.</li>
             </ul>
           </Panel>
 

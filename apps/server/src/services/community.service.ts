@@ -14,7 +14,7 @@ import type {
   RankingsDto,
 } from '@streets/shared';
 import { env } from '../config/env.js';
-import { toCityDto } from '../game/dto.js';
+import { toCityDto, toSeasonHideoutDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
 import { ForumGroupsService } from './forum-groups.service.js';
 import { forumProfileUrl } from './forum-link.service.js';
@@ -249,6 +249,7 @@ export async function loadCareerForAccount(
         national: player.nationalRank,
       },
       stats: statsByPlayer.get(player.id) ?? emptySeasonStats(),
+      hideout: toSeasonHideoutDto(player),
       joinedAt: player.createdAt.toISOString(),
       lastActiveAt: player.lastActiveAt.toISOString(),
     })),
@@ -603,6 +604,10 @@ export const CommunityService = {
             displayName: true,
             netWorthCents: true,
             cashCents: true,
+            hideoutSafeRoomLevel: true,
+            hideoutLookoutsLevel: true,
+            hideoutWorkshopLevel: true,
+            hideoutBackOfficeLevel: true,
             createdAt: true,
             lastActiveAt: true,
             city: { select: { name: true } },
@@ -620,6 +625,7 @@ export const CommunityService = {
           netWorthCents: Number(player.netWorthCents),
           cashCents: Number(player.cashCents),
           city: player.city.name,
+          hideout: toSeasonHideoutDto(player),
           joinedAt: player.createdAt.toISOString(),
           lastActiveAt: player.lastActiveAt.toISOString(),
         }));

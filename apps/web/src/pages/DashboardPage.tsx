@@ -108,6 +108,7 @@ function RoundOverScreen({ roundOver, nextRound, canJoin }: { roundOver: RoundOv
         <Stat label="Cash Left" value={formatCents(player.cashCents)} />
         <Stat label="National Finish" value={nationalFinish} />
         <Stat label="Local Finish" value={localFinish} />
+        <Stat label="Hideout Built" value={`${formatNumber(player.hideout.totalLevel)} / ${formatNumber(player.hideout.totalMaxLevel)}`} />
       </div>
 
       <Panel title="What carried forward">

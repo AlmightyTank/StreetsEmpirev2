@@ -27,7 +27,8 @@ export type ActivityType =
   | 'STORE_SELL'
   | 'WEAPON_UNLOCK'
   | 'PAYOUT_CHANGE'
-  | 'AWAY_BONUS';
+  | 'AWAY_BONUS'
+  | 'HIDEOUT_UPGRADE';
 
 export interface ApiErrorBody {
   error: {
@@ -226,8 +227,35 @@ export interface RoundOverPlayerDto {
     local: number | null;
     national: number | null;
   };
+  hideout: SeasonHideoutDto;
   joinedAt: string;
   lastActiveAt: string;
+}
+
+export interface SeasonHideoutDto {
+  totalLevel: number;
+  totalMaxLevel: number;
+}
+
+export type HideoutRoomKeyDto = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE';
+
+export interface HideoutRoomDto {
+  key: HideoutRoomKeyDto;
+  name: string;
+  blurb: string;
+  level: number;
+  maxLevel: number;
+  nextCostCents: number | null;
+  currentEffect: string;
+  nextEffect: string | null;
+}
+
+export interface HideoutDto {
+  enabled: boolean;
+  seasonScoped: boolean;
+  totalLevel: number;
+  totalMaxLevel: number;
+  rooms: HideoutRoomDto[];
 }
 
 export interface RoundOverLegacyDto {
@@ -349,6 +377,7 @@ export interface ScoutResult {
   crewTakeCents: number;
   /** Your share, which is what landed in cash. */
   cashEarnedCents: number;
+  hideoutBonusCents?: number;
   payoutPercent: number;
 
   crackFound: number;
@@ -387,6 +416,7 @@ export interface ScoutResult {
 export interface ProduceCrackResult {
 
   crackProduced: number;
+  hideoutBonusCrack?: number;
   ingredientCents: number;
   /** True when cash, not thugs, was the limit on the batch. */
   limitedByCash: boolean;
@@ -395,6 +425,7 @@ export interface ProduceCrackResult {
   grossEarnedCents: number;
   crewTakeCents: number;
   cashEarnedCents: number;
+  hideoutBonusCents?: number;
   payoutPercent: number;
 
   crackFound: number;
@@ -422,6 +453,15 @@ export interface ProduceCrackResult {
 export interface PayoutResult {
   before: number;
   after: number;
+}
+
+export interface HideoutUpgradeResult {
+  room: HideoutRoomKeyDto;
+  roomName: string;
+  levelBefore: number;
+  levelAfter: number;
+  costCents: number;
+  effect: string;
 }
 
 export interface StoreItemDto {

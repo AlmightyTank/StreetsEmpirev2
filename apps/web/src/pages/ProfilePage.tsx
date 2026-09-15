@@ -234,6 +234,7 @@ function SeasonHistory({ career }: { career: PublicCareerDto }) {
                   <th className="se-table__number">National</th>
                   <th className="se-table__number">Local</th>
                   <th className="se-table__number">Final Net Worth</th>
+                  <th className="se-table__number">Hideout</th>
                   <th className="se-table__number">Raids</th>
                   <th className="se-table__number">Drive-bys</th>
                   <th className="se-table__number">Recon</th>
@@ -251,6 +252,7 @@ function SeasonHistory({ career }: { career: PublicCareerDto }) {
                     <td className="se-table__number se-num">{rankLabel(season.rank.national)}</td>
                     <td className="se-table__number se-num">{rankLabel(season.rank.local)}</td>
                     <td className="se-table__number se-num">{formatCents(season.finalNetWorthCents)}</td>
+                    <td className="se-table__number se-num">{formatNumber(season.hideout.totalLevel)} / {formatNumber(season.hideout.totalMaxLevel)}</td>
                     <td className="se-table__number se-num">{formatNumber(season.stats.raidAttackWins)} / {formatNumber(season.stats.raidAttacks)}</td>
                     <td className="se-table__number se-num">{formatNumber(season.stats.driveByWins)} / {formatNumber(season.stats.driveByAttacks)}</td>
                     <td className="se-table__number se-num">{formatNumber(season.stats.reconRuns)}</td>

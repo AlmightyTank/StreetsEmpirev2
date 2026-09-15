@@ -128,6 +128,12 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
         text: `Changed payout from ${num(p.before)}% to ${num(p.after)}%.`,
       };
 
+    case 'HIDEOUT_UPGRADE':
+      return {
+        text: `Upgraded ${str(p.name, 'the hideout')} to level ${formatNumber(num(p.level))}.`,
+        detail: `-${formatCents(num(p.costCents))}`,
+      };
+
     case 'STORE_BUY':
     case 'STORE_SELL':
       return {
