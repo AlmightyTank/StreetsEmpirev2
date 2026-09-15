@@ -1248,14 +1248,29 @@ a.se-nav__link:hover {
 .se-tag--dim {
   opacity: 0.5;
 }
+.se-tag--partial {
+  border-color: color-mix(in srgb, var(--se-text) 38%, transparent);
+  color: var(--se-text);
+}
 .se-room-chips {
   display: grid;
   justify-items: end;
   gap: 5px;
-  min-width: 190px;
+  min-width: 232px;
+}
+.se-room-chips .se-tags {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
 }
 .se-room-chips .se-tag {
+  justify-content: center;
   white-space: nowrap;
+}
+.se-room-chips__empty {
+  color: var(--se-text-dim);
+  font-size: 11px;
 }
 .se-target-card__grid,
 .se-target-card__intel {
