@@ -212,7 +212,7 @@ export function roundEmbed(status: RoundStatus, origin: string): APIEmbed {
 export function newsEmbed(feed: NewsFeed, origin: string, limit = 5): APIEmbed {
   const posts = feed.news.slice(0, limit);
   return {
-    title: 'Street Empire news',
+    title: 'StreetsEmpire news',
     url: `${origin}/game/news`,
     color: BRAND_COLOR,
     ...(posts.length
@@ -233,7 +233,7 @@ export function memberEmbed(member: Member, roleNames: string[], origin: string)
       title: 'Discord not linked',
       color: MUTED_COLOR,
       description: [
-        "Your Discord isn't linked to a Street Empire account.",
+        "Your Discord isn't linked to a StreetsEmpire account.",
         '',
         `1. Sign in with Discord at ${origin}/login, or link it from ${origin}/account if you already play.`,
         '2. Run /sync here, or wait a few minutes for your roles.',
@@ -241,7 +241,7 @@ export function memberEmbed(member: Member, roleNames: string[], origin: string)
     };
   }
   return {
-    title: 'Your Street Empire link',
+    title: 'Your StreetsEmpire link',
     color: BRAND_COLOR,
     fields: [
       { name: 'Game account', value: escapeMarkdown(member.username ?? '—'), inline: true },
@@ -283,7 +283,7 @@ export const HELP_LINES: Array<[string, string]> = [
 
 export function helpEmbed(origin: string): APIEmbed {
   return {
-    title: 'Street Empire bot',
+    title: 'StreetsEmpire bot',
     url: origin,
     color: BRAND_COLOR,
     description: HELP_LINES.map(([usage, description]) => `\`${usage}\` · ${description}`).join('\n'),
@@ -349,7 +349,7 @@ export function badgesEmbed(card: BadgeCard): APIEmbed {
 export function inviteEmbed(status: RoundStatus | null, origin: string): APIEmbed {
   const round = status?.round ?? null;
   return {
-    title: 'Play Street Empire',
+    title: 'Play StreetsEmpire',
     url: origin,
     color: BRAND_COLOR,
     description: round
@@ -370,7 +370,7 @@ export function newsPostEmbed(post: NewsPost): APIEmbed {
     url: post.url,
     color: BRAND_COLOR,
     description: truncate(escapeMarkdown(post.body), 1500),
-    footer: { text: post.authorName ? `Posted by ${post.authorName}` : 'Street Empire news' },
+    footer: { text: post.authorName ? `Posted by ${post.authorName}` : 'StreetsEmpire news' },
     timestamp: post.publishedAt,
   };
 }
@@ -381,7 +381,7 @@ export function turnReminderEmbed(reminder: TurnReminder): APIEmbed {
     url: reminder.url,
     color: BRAND_COLOR,
     description: `${escapeMarkdown(reminder.displayName)} is at ${reminder.turns}/${reminder.cap} turns in ${escapeMarkdown(reminder.roundName)}. Spend some before new ones go to waste.`,
-    footer: { text: 'Turn these off with /alerts type:turns enabled:Off in the Street Empire server.' },
+    footer: { text: 'Turn these off with /alerts type:turns enabled:Off in the StreetsEmpire server.' },
   };
 }
 

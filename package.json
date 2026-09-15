@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Street Empire - Classic OG reconstruction (ruleset classic-og-v0.1)",
+  "description": "StreetsEmpire - Classic OG reconstruction (ruleset classic-og-v0.1)",
   "workspaces": [
     "packages/*",
     "apps/*"

@@ -360,7 +360,7 @@ async function seedRivals(round: Round, ruleset: Ruleset, now: Date, rivals: rea
 }
 
 async function main() {
-  console.log('Seeding Street Empire...');
+  console.log('Seeding StreetsEmpire...');
   assertSafeDevBotSeed();
   const now = new Date();
   await seedCities();

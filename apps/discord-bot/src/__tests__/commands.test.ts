@@ -25,17 +25,17 @@ describe('commandData', () => {
 });
 
 describe('errorReply', () => {
-  const notLinked = new GameApiError(404, 'DISCORD_NOT_LINKED', 'That Discord account is not linked to a Street Empire account.');
+  const notLinked = new GameApiError(404, 'DISCORD_NOT_LINKED', 'That Discord account is not linked to a StreetsEmpire account.');
 
   it('tells people how to link their own account', () => {
-    expect(errorReply(notLinked, origin, true)).toBe(`Your Discord isn't linked to a Street Empire account yet. Link it from ${origin}/account, then try again.`);
+    expect(errorReply(notLinked, origin, true)).toBe(`Your Discord isn't linked to a StreetsEmpire account yet. Link it from ${origin}/account, then try again.`);
     expect(errorReply(notLinked, origin, false)).toBe(notLinked.message);
   });
 
   it('passes through other not-found messages and hides everything else', () => {
     expect(errorReply(new GameApiError(404, 'PLAYER_NOT_FOUND', 'No player by that name in Game #008.'), origin, false)).toBe('No player by that name in Game #008.');
     for (const error of [new GameApiError(500, 'INTERNAL', 'stack trace here'), new Error('boom'), 'nope']) {
-      expect(errorReply(error, origin, false)).toBe('Street Empire is not answering right now. Try again in a minute.');
+      expect(errorReply(error, origin, false)).toBe('StreetsEmpire is not answering right now. Try again in a minute.');
     }
   });
 });

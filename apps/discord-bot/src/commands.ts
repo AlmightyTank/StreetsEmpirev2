@@ -34,7 +34,7 @@ import type { RoleSync } from './sync.js';
 export const commandData = [
   new SlashCommandBuilder()
     .setName('profile')
-    .setDescription("Show a player's public Street Empire profile")
+    .setDescription("Show a player's public StreetsEmpire profile")
     .addUserOption((option) => option.setName('user').setDescription('A Discord member with a linked game account'))
     .addStringOption((option) => option.setName('name').setDescription('In-game player name').setMaxLength(40)),
   new SlashCommandBuilder()
@@ -74,13 +74,13 @@ export const commandData = [
     .addStringOption((option) => option.setName('name').setDescription('City').setRequired(true).setAutocomplete(true).setMaxLength(60)),
   new SlashCommandBuilder().setName('halloffame').setDescription('Podiums from recent finished rounds'),
   new SlashCommandBuilder().setName('round').setDescription('Current round status and time left'),
-  new SlashCommandBuilder().setName('news').setDescription('Latest Street Empire news'),
-  new SlashCommandBuilder().setName('invite').setDescription('How to start playing Street Empire and get your roles'),
+  new SlashCommandBuilder().setName('news').setDescription('Latest StreetsEmpire news'),
+  new SlashCommandBuilder().setName('invite').setDescription('How to start playing StreetsEmpire and get your roles'),
   new SlashCommandBuilder().setName('link').setDescription('Your link status and the roles you qualify for (only you see it)'),
   new SlashCommandBuilder().setName('stats').setDescription('Your private cash, crew, weapons, supplies and turns'),
   new SlashCommandBuilder()
     .setName('alerts')
-    .setDescription('DM alerts from the Street Empire bot (only you see the reply)')
+    .setDescription('DM alerts from the StreetsEmpire bot (only you see the reply)')
     .addStringOption((option) => option
       .setName('type')
       .setDescription('Alert type')
@@ -98,7 +98,7 @@ export const commandData = [
       .addChoices({ name: 'On', value: 'on' }, { name: 'Off', value: 'off' })),
   new SlashCommandBuilder()
     .setName('remind')
-    .setDescription('DM reminders from the Street Empire bot (only you see the reply)')
+    .setDescription('DM reminders from the StreetsEmpire bot (only you see the reply)')
     .addStringOption((option) => option
       .setName('turns')
       .setDescription('DM me when my turns are full')
@@ -106,7 +106,7 @@ export const commandData = [
       .addChoices({ name: 'On', value: 'on' }, { name: 'Off', value: 'off' })),
   new SlashCommandBuilder()
     .setName('announce')
-    .setDescription('Game admins: post Street Empire news from Discord')
+    .setDescription('Game admins: post StreetsEmpire news from Discord')
     .addStringOption((option) => option.setName('title').setDescription('News title').setRequired(true).setMaxLength(120))
     .addStringOption((option) => option.setName('body').setDescription('News body').setRequired(true).setMaxLength(4000))
     .addStringOption((option) => option
@@ -115,11 +115,11 @@ export const commandData = [
       .setRequired(true)
       .addChoices({ name: 'Current round', value: 'round' }, { name: 'Global', value: 'global' }))
     .addBooleanOption((option) => option.setName('pinned').setDescription('Pin this news post')),
-  new SlashCommandBuilder().setName('sync').setDescription('Update your Street Empire roles now'),
-  new SlashCommandBuilder().setName('help').setDescription('List the Street Empire bot commands'),
+  new SlashCommandBuilder().setName('sync').setDescription('Update your StreetsEmpire roles now'),
+  new SlashCommandBuilder().setName('help').setDescription('List the StreetsEmpire bot commands'),
   new SlashCommandBuilder()
     .setName('syncall')
-    .setDescription('Re-sync Street Empire roles for every member (mods)')
+    .setDescription('Re-sync StreetsEmpire roles for every member (mods)')
     // Hidden from members without Manage Roles; also checked at run time, since server admins can override it.
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 ].map((command) => command.toJSON());
@@ -145,12 +145,12 @@ export function errorReply(error: unknown, origin: string, self: boolean): strin
   if (error instanceof GameApiError && error.status === 404) {
     if (error.code === 'DISCORD_NOT_LINKED') {
       return self
-        ? `Your Discord isn't linked to a Street Empire account yet. Link it from ${origin}/account, then try again.`
+        ? `Your Discord isn't linked to a StreetsEmpire account yet. Link it from ${origin}/account, then try again.`
         : error.message;
     }
     return error.message;
   }
-  return 'Street Empire is not answering right now. Try again in a minute.';
+  return 'StreetsEmpire is not answering right now. Try again in a minute.';
 }
 
 /** Marks a lookup of the caller's own account, so "not linked" can say how to link. */

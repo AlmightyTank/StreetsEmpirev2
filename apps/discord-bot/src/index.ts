@@ -173,7 +173,7 @@ client.once(Events.ClientReady, async (ready) => {
 
     const roleSync = new RoleSync(guild, managed, api);
     sync = roleSync;
-    console.log(`Street Empire bot ready as ${ready.user.tag} in ${guild.name} with ${commandData.length} commands; syncing roles every ${config.DISCORD_SYNC_MINUTES} min.`);
+    console.log(`StreetsEmpire bot ready as ${ready.user.tag} in ${guild.name} with ${commandData.length} commands; syncing roles every ${config.DISCORD_SYNC_MINUTES} min.`);
 
     // Commands are answered while these run.
     startPoller('Role sync', config.DISCORD_SYNC_MINUTES * 60_000, async () => {
@@ -208,7 +208,7 @@ client.on(Events.InteractionCreate, (interaction) => {
   if (interaction.guildId !== config.DISCORD_GUILD_ID) {
     if (interaction.isChatInputCommand()) {
       console.warn(`Ignoring /${interaction.commandName} from ${interaction.guildId ? `server ${interaction.guildId}` : 'a DM'}; DISCORD_GUILD_ID is ${config.DISCORD_GUILD_ID}.`);
-      interaction.reply({ content: 'This bot only works in the Street Empire server.', flags: MessageFlags.Ephemeral })
+      interaction.reply({ content: 'This bot only works in the StreetsEmpire server.', flags: MessageFlags.Ephemeral })
         .catch(() => undefined);
     }
     return;

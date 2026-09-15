@@ -44,7 +44,7 @@ unit="/etc/systemd/system/$BOT_SERVICE.service"
 echo "Writing $unit (user: ${run_user:-root}, node: $node_bin)"
 $SUDO tee "$unit" >/dev/null <<EOF
 [Unit]
-Description=Street Empire Discord bot
+Description=StreetsEmpire Discord bot
 Wants=network-online.target
 After=network-online.target $API_SERVICE.service
 

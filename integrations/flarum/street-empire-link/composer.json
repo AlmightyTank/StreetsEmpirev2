@@ -1,6 +1,6 @@
 {
   "name": "street-empire/flarum-profile-link",
-  "description": "Verified profile links between Street Empire and Flarum.",
+  "description": "Verified profile links between StreetsEmpire and Flarum.",
   "type": "flarum-extension",
   "version": "0.1.0",
   "license": "proprietary",
@@ -8,7 +8,7 @@
   "autoload": { "psr-4": { "StreetEmpire\\ForumLink\\": "src/" } },
   "extra": {
     "flarum-extension": {
-      "title": "Street Empire Profile Link",
+      "title": "StreetsEmpire Profile Link",
       "icon": { "name": "fas fa-link", "backgroundColor": "#14161a", "color": "#b6ff3a" }
     }
   }

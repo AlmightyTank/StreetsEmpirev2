@@ -1,4 +1,4 @@
-# Street Empire
+# StreetsEmpire
 
 A reconstruction of the OG Pimp War economic loop.
 

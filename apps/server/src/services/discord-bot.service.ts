@@ -150,7 +150,7 @@ const emptyLegacy = (): PublicLegacyDto => ({
   totalFinalNetWorthCents: 0,
 });
 
-const notLinked = () => AppError.notFound('DISCORD_NOT_LINKED', 'That Discord account is not linked to a Street Empire account.');
+const notLinked = () => AppError.notFound('DISCORD_NOT_LINKED', 'That Discord account is not linked to a StreetsEmpire account.');
 
 async function findLinkedAccount(prisma: PrismaClient, discordId: string) {
   const account = await prisma.account.findFirst({ where: { discordId, isActive: true }, select: { id: true, isAdmin: true } });

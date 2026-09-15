@@ -1,4 +1,4 @@
-# Street Empire forum styling
+# StreetsEmpire forum styling
 
 A light Flarum theme using the game's charcoal panels, lime actions, crisp borders,
 and compact typography. No extension or game deployment is needed.
@@ -25,7 +25,7 @@ Verified links between game and forum profiles are separate: see the
 Suggested welcome text, entered in Flarum's welcome banner settings:
 
 - **Title:** The streets keep talking.
-- **Message:** Round news, strategy, crew recruitment, and rival talk. Welcome to the Street Empire community.
+- **Message:** Round news, strategy, crew recruitment, and rival talk. Welcome to the StreetsEmpire community.
 
 The welcome text is a separate setting; CSS does not replace it. The current
 forum title can stay as it is.

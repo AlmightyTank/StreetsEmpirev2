@@ -24,7 +24,7 @@ class BridgeConfig
 
     public function requireEnabled(): void
     {
-        if (!$this->enabled()) throw new RuntimeException('Street Empire profile linking is not configured.');
+        if (!$this->enabled()) throw new RuntimeException('StreetsEmpire profile linking is not configured.');
     }
 
     private function validOrigin(string $origin): bool

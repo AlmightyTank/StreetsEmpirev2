@@ -1,6 +1,6 @@
-# Street Empire Discord bot
+# StreetsEmpire Discord bot
 
-Keeps Street Empire roles in sync on your Discord server and answers a few slash
+Keeps StreetsEmpire roles in sync on your Discord server and answers a few slash
 commands. It runs as its own process next to the game API and reads game data
 through the API; it has no database access.
 
@@ -157,7 +157,7 @@ Production runs the bot as a systemd service next to the API, so it starts on
 boot and restarts after a crash. Install it once with
 `scripts/ops/install-bot-service.sh`; see [docs/DEPLOY.md](../../docs/DEPLOY.md).
 
-On startup it logs `Street Empire bot ready as …`. The slash commands appear in
+On startup it logs `StreetsEmpire bot ready as …`. The slash commands appear in
 your server immediately.
 
 The bot keeps one connection to Discord and claims news and alerts, so run
@@ -177,7 +177,7 @@ renamed or new commands need no extra step.
 | Commands say "The application did not respond" | Check the bot log. A startup warning about an **Interactions Endpoint URL** means Discord sends commands there instead of the bot: clear it under General Information in the developer portal. No log line at all means the bot process isn't running or is logged in with a different token. `Could not acknowledge` or `Discord rate limit` lines show how late commands arrived. |
 | `Used disallowed intents` | Turn on **Server Members Intent** (step 1.2). |
 | Warns `Cannot manage role "…"` | Drag the bot's role above that role (step 1.4). |
-| Commands reply "Street Empire is not answering" | The API is down or unreachable at `GAME_API_URL`, or the two `DISCORD_BOT_API_TOKEN` values differ. The bot logs the error. |
+| Commands reply "StreetsEmpire is not answering" | The API is down or unreachable at `GAME_API_URL`, or the two `DISCORD_BOT_API_TOKEN` values differ. The bot logs the error. |
 | No news posts | Startup log says `News auto-post is off` and why: a wrong channel ID or missing channel permissions. News that existed before auto-posting is never posted. |
 | No alert DMs | The member must opt in with `/alerts`. Turn and rank alerts require an active round and a joined player. They need DMs from server members allowed; failed DMs are logged. |
 | No raid feed | Startup log says `Raid feed is off` and why: a wrong channel ID or missing channel permissions. Battles that existed before the feed was added are never posted. |

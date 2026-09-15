@@ -53,7 +53,7 @@ function LiveRound({ children }: { children: ReactNode }) {
 function Booting() {
   return (
     <div className="se-booting">
-      <span className="se-eyebrow">Street Empire</span>
+      <span className="se-eyebrow">StreetsEmpire</span>
       <p className="se-muted">Checking the streets...</p>
     </div>
   );

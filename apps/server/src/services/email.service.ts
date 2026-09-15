@@ -28,7 +28,7 @@ function escapeHtml(value: string): string {
 
 function tokenText(input: TokenEmailInput, action: string): string {
   return [
-    `Street Empire ${action} for ${input.username}`,
+    `StreetsEmpire ${action} for ${input.username}`,
     '',
     `Use this link to ${action}:`,
     input.url,
@@ -45,7 +45,7 @@ function tokenHtml(input: TokenEmailInput, action: string): string {
   const safeExpires = escapeHtml(input.expiresAt.toLocaleString());
 
   return `
-    <p>Street Empire ${safeAction} for <strong>${safeUser}</strong></p>
+    <p>StreetsEmpire ${safeAction} for <strong>${safeUser}</strong></p>
     <p><a href="${safeUrl}">${safeAction}</a></p>
     <p>This link expires at ${safeExpires}.</p>
     <p>If you did not ask for this, you can ignore this email.</p>
@@ -90,7 +90,7 @@ export async function sendPasswordResetEmail(
   const action = 'set a new password';
   await sendMail({
     to: input.to,
-    subject: 'Street Empire password recovery',
+    subject: 'StreetsEmpire password recovery',
     text: tokenText(input, action),
     html: tokenHtml(input, action),
   }, log);
@@ -103,7 +103,7 @@ export async function sendCurrentEmailVerification(
   const action = 'verify your email';
   await sendMail({
     to: input.to,
-    subject: 'Verify your Street Empire email',
+    subject: 'Verify your StreetsEmpire email',
     text: tokenText(input, action),
     html: tokenHtml(input, action),
   }, log);
@@ -119,7 +119,7 @@ export async function sendEmailChangeVerification(
 
   await sendMail({
     to: input.to,
-    subject: 'Confirm your Street Empire email change',
+    subject: 'Confirm your StreetsEmpire email change',
     text,
     html,
   }, log);

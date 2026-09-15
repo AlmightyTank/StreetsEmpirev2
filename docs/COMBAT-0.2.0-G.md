@@ -17,7 +17,7 @@
   - lure runs say how many people crossed over or why nobody moved.
 - Target options now mark scouted crews directly in the dropdown, and the selected target line shows when fresh intel expires.
 - The game nav now includes a Community link for `forum.streetsempire.dev`.
-- The free forum direction is Flarum first, with Discord login early and Street Empire SSO later.
+- The free forum direction is Flarum first, with Discord login early and StreetsEmpire SSO later.
 - The homepage, news wire, health check and seed path now identify the active work as 0.2.0-G.
 
 ## Next G work

@@ -1,4 +1,4 @@
-# Street Empire 0.1.0-H — release candidate checklist
+# StreetsEmpire 0.1.0-H — release candidate checklist
 
 H freezes the 0.1.0 foundation before 0.2.0 starts adding PvP, travel and other
 systems that multiply the cost of finding a core-state bug.

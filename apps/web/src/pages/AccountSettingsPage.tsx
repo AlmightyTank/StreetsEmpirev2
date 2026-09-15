@@ -64,7 +64,7 @@ export function AccountSettingsPage() {
             options: {
               titles: [],
               badges: [],
-              accents: [{ key: 'default', label: 'Street Empire', description: null }],
+              accents: [{ key: 'default', label: 'StreetsEmpire', description: null }],
               densities: [
                 { key: 'comfortable', label: 'Comfortable', description: null },
                 { key: 'compact', label: 'Compact', description: null },

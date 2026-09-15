@@ -56,7 +56,7 @@
             m('button.Button.Button--primary', { onclick: () => app.modal.show(LogInModal) }, 'Log in to the forum'),
           ] : this.preview ? [
             m('p', ['Connect game account ', m('strong', this.preview.gameUsername), ' to forum account ', m('strong', this.preview.forumUsername), '?']),
-            m('p', 'Both profiles will show a public link to each other, your forum profile will show your Street Empire badges, and your game profile will show your forum role. Email and Discord details stay private. You can unlink from your game account settings.'),
+            m('p', 'Both profiles will show a public link to each other, your forum profile will show your StreetsEmpire badges, and your game profile will show your forum role. Email and Discord details stay private. You can unlink from your game account settings.'),
             m('button.Button.Button--primary', { disabled: this.busy, onclick: () => this.confirm() }, this.busy ? 'Connecting...' : 'Confirm these accounts'),
           ] : this.busy ? m('p', { role: 'status' }, 'Checking request...') : null,
           game ? m('p', m('a', { href: game + '/account', onclick: () => { try { sessionStorage.removeItem(storageKey); } catch (_) {} } }, 'Cancel / back to game account')) : null,
@@ -92,7 +92,7 @@
       if (this.streetEmpireUrl) items.add('streetEmpireProfile', m('a', { href: this.streetEmpireUrl, className: 'StreetEmpireProfileLink' }, 'Game Profile'), 80);
       if (this.streetEmpireBadges.length) {
         // Mithril escapes text; the rarity is allowlisted before it becomes a class.
-        items.add('streetEmpireBadges', m('ul.StreetEmpireBadges', { 'aria-label': 'Street Empire badges' },
+        items.add('streetEmpireBadges', m('ul.StreetEmpireBadges', { 'aria-label': 'StreetsEmpire badges' },
           this.streetEmpireBadges.map((badge) => m('li.StreetEmpireBadge', {
             key: badge.key,
             className: 'StreetEmpireBadge--' + (rarities.includes(badge.rarity) ? badge.rarity : 'common') + (badge.permanent ? ' StreetEmpireBadge--permanent' : ''),

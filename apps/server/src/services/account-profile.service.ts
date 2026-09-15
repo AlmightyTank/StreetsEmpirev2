@@ -20,7 +20,7 @@ import { RoundService } from './round.service.js';
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
 
 export const PROFILE_ACCENTS: CosmeticOptionDto[] = [
-  { key: 'default', label: 'Street Empire', description: 'The classic red and neon profile accent.' },
+  { key: 'default', label: 'StreetsEmpire', description: 'The classic red and neon profile accent.' },
   { key: 'crimson', label: 'Crimson', description: 'A deep red profile accent.' },
   { key: 'gold', label: 'Gold', description: 'A winner-style gold profile accent.' },
   { key: 'green', label: 'Green', description: 'A money-green profile accent.' },

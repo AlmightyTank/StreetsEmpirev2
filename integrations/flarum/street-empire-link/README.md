@@ -1,6 +1,6 @@
-# Street Empire Profile Link (Flarum extension)
+# StreetsEmpire Profile Link (Flarum extension)
 
-Verified, opt-in links between a permanent Street Empire game account and a
+Verified, opt-in links between a permanent StreetsEmpire game account and a
 Flarum account. Players keep their existing accounts and usernames; this is not
 shared login.
 
@@ -9,7 +9,7 @@ Once linked:
 - The game's public profile shows a **Forum Profile** button, in every round.
 - The forum user card (profile page and avatar hover) shows a **Game Profile**
   button, which opens that player's profile in the current round.
-- The forum user card also shows up to six **Street Empire badges**: permanent
+- The forum user card also shows up to six **StreetsEmpire badges**: permanent
   legacy badges (◆) first, then the rarest achievements earned this round.
 - The game profile shows the same badge strip, plus the player's visible forum
   groups (such as Admin) as role badges.
@@ -114,7 +114,7 @@ composer require street-empire/flarum-profile-link:^0.1
 php flarum cache:clear
 ```
 
-Finally, open **Administration → Extensions → Street Empire Profile Link** and
+Finally, open **Administration → Extensions → StreetsEmpire Profile Link** and
 enable it.
 
 The Composer path repository symlinks the package, so later updates only need

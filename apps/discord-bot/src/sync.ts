@@ -2,7 +2,7 @@ import type { Guild, GuildMember, Role } from 'discord.js';
 import type { GameApi } from './game-api.js';
 import { normalizeRoleKey, planRoleChanges, type ManagedRole } from './roles.js';
 
-const REASON = 'Street Empire role sync';
+const REASON = 'StreetsEmpire role sync';
 const CHUNK = 1000;
 
 export interface MemberSyncResult {

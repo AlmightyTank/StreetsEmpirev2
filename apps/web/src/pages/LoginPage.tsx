@@ -87,7 +87,7 @@ export function LoginPage() {
 
           <Panel title="Discord login">
             <p>
-              Use Discord to get back in without typing your password. Discord uses your verified email to find or create your Street Empire account.
+              Use Discord to get back in without typing your password. Discord uses your verified email to find or create your StreetsEmpire account.
             </p>
             <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord">
               Log in with Discord

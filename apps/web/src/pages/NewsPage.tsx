@@ -15,7 +15,7 @@ const developmentUpdates = [
   {
     id: 'dev-0.2.0-g',
     title: '0.2.0-G: Street polish begins',
-    body: 'G keeps the F raid balance and starts making the public round feel more like a finished game. Raid reports now explain what actually happened, recon is being pulled closer to the target picker, the homepage explains the current loop for new players, and the community plan points at a free Flarum forum on forum.streetsempire.dev with Discord login first and Street Empire SSO later.',
+    body: 'G keeps the F raid balance and starts making the public round feel more like a finished game. Raid reports now explain what actually happened, recon is being pulled closer to the target picker, the homepage explains the current loop for new players, and the community plan points at a free Flarum forum on forum.streetsempire.dev with Discord login first and StreetsEmpire SSO later.',
   },
   {
     id: 'dev-0.2.0-f',
@@ -79,7 +79,7 @@ export function NewsPage() {
             </div>
             <div className="se-panel__body">
               <p className="se-news__body">{post.body}</p>
-              <p className="se-hint se-news__byline">Street Empire development wire</p>
+              <p className="se-hint se-news__byline">StreetsEmpire development wire</p>
             </div>
           </article>
         ))}
@@ -91,7 +91,7 @@ export function NewsPage() {
             </div>
             <div className="se-panel__body">
               <p className="se-news__body">{post.body}</p>
-              <p className="se-hint se-news__byline">{post.authorName ? `Posted by ${post.authorName}` : 'Street Empire wire'}</p>
+              <p className="se-hint se-news__byline">{post.authorName ? `Posted by ${post.authorName}` : 'StreetsEmpire wire'}</p>
             </div>
           </article>
         ))}

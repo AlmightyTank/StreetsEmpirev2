@@ -21,7 +21,7 @@ export function LandingPage() {
     <Shell>
       <div className="se-grid se-grid--sidebar">
         <div>
-          <p className="se-eyebrow">Street Empire &middot; 28 day strategy rounds</p>
+          <p className="se-eyebrow">StreetsEmpire &middot; 28 day strategy rounds</p>
           <h1 className="se-display se-hero">
             Build your crew.
             <br />
@@ -29,7 +29,7 @@ export function LandingPage() {
           </h1>
 
           <p className="se-lede">
-            Street Empire is a round-based crime strategy game. Start with a small block,
+            StreetsEmpire is a round-based crime strategy game. Start with a small block,
             spend your turns scouting districts, working the street, stocking your crew
             and making raid moves against rivals. The board is public, but the best intel
             still belongs to players who put eyes on a target first.
@@ -82,7 +82,7 @@ export function LandingPage() {
                 rival talk, crew recruiting, bug reports and war stories.
               </p>
               <p className="se-hint">
-                The free first fit is Flarum with Discord login, then Street Empire SSO, so players can move between the
+                The free first fit is Flarum with Discord login, then StreetsEmpire SSO, so players can move between the
                 game and community without juggling separate accounts.
               </p>
             </Panel>

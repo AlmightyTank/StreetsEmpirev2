@@ -1,4 +1,4 @@
-// Street Empire - 0.1.0 "Classic Foundation"
+// StreetsEmpire - 0.1.0 "Classic Foundation"
 // Ruleset: classic-og-v0.1
 //
 // Money is stored as INTEGER CENTS (BigInt). $1.00 = 100. Never floats.
