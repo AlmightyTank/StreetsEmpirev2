@@ -1,0 +1,287 @@
+import { Prisma, type Account, type PrismaClient } from '@prisma/client';
+import type {
+  AdminAccountDetailDto,
+  AdminAccountSearchDto,
+  AdminAccountStatusFilter,
+  AdminAccountSummaryDto,
+} from '@streets/shared';
+import { lockAccount, type Db } from '../utils/db.js';
+import { AppError } from '../utils/errors.js';
+import { AdminAuditService, toAuditEntryDto, type AuditActor } from './admin-audit.service.js';
+
+/**
+ * A coarse label such as "Chrome on Windows". Admins never see the IP address
+ * or the raw browser string on a session.
+ */
+export function deviceLabel(userAgent: string | null): string {
+  if (!userAgent) return 'Unknown device';
+  const browser = /Edg\//.test(userAgent) ? 'Edge'
+    : /OPR\//.test(userAgent) ? 'Opera'
+      : /Firefox\//.test(userAgent) ? 'Firefox'
+        : /Chrome\//.test(userAgent) ? 'Chrome'
+          : /Safari\//.test(userAgent) ? 'Safari'
+            : /curl|node|undici|lightMyRequest/i.test(userAgent) ? 'Script'
+              : 'Other browser';
+  const os = /Windows/.test(userAgent) ? 'Windows'
+    : /iPhone|iPad|iOS/.test(userAgent) ? 'iOS'
+      : /Android/.test(userAgent) ? 'Android'
+        : /Mac OS X|Macintosh/.test(userAgent) ? 'macOS'
+          : /Linux/.test(userAgent) ? 'Linux'
+            : null;
+  return os ? `${browser} on ${os}` : browser;
+}
+
+/** The account fields an audit record keeps. Never the password hash. */
+export function accountSnapshot(account: Account) {
+  return {
+    id: account.id,
+    username: account.username,
+    email: account.email,
+    emailVerifiedAt: account.emailVerifiedAt,
+    isActive: account.isActive,
+    isAdmin: account.isAdmin,
+    discordUsername: account.discordUsername,
+  };
+}
+
+const summaryInclude = {
+  forumLink: { select: { forumUsername: true } },
+  _count: { select: { roundPlayers: true } },
+} satisfies Prisma.AccountInclude;
+
+type SummaryAccount = Account & { forumLink: { forumUsername: string } | null; _count: { roundPlayers: number } };
+
+function toSummary(account: SummaryAccount, activeSessions: number): AdminAccountSummaryDto {
+  return {
+    id: account.id,
+    username: account.username,
+    email: account.email,
+    emailVerified: Boolean(account.emailVerifiedAt),
+    isActive: account.isActive,
+    isAdmin: account.isAdmin,
+    discordUsername: account.discordUsername,
+    forumUsername: account.forumLink?.forumUsername ?? null,
+    createdAt: account.createdAt.toISOString(),
+    lastLoginAt: account.lastLoginAt?.toISOString() ?? null,
+    activeSessions,
+    roundsPlayed: account._count.roundPlayers,
+  };
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+type Change = { account: Account; detail?: Record<string, unknown> };
+
+/**
+ * One moderation action on another admin's or player's account, with its audit
+ * record in the same transaction. Moderation is serialised and the acting admin
+ * is re-checked inside it, so two admins cannot remove each other at once.
+ */
+async function moderate(
+  prisma: PrismaClient,
+  actor: AuditActor,
+  accountId: string,
+  action: string,
+  reason: string,
+  apply: (tx: Db, account: Account) => Promise<Change>,
+): Promise<void> {
+  if (actor.id === accountId) {
+    throw AppError.conflict('ADMIN_SELF_ACTION', 'Admins cannot moderate their own account. Ask another admin.');
+  }
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(3003)`;
+      const me = await tx.account.findUnique({ where: { id: actor.id }, select: { isAdmin: true, isActive: true } });
+      if (!me?.isAdmin || !me.isActive) throw AppError.forbidden('Only game admins can do that.');
+
+      await lockAccount(tx, accountId);
+      const before = await tx.account.findUnique({ where: { id: accountId } });
+      if (!before) throw AppError.notFound('ACCOUNT_NOT_FOUND', 'That account does not exist.');
+
+      const change = await apply(tx, before);
+      await AdminAuditService.record(tx, actor, {
+        action: `account.${action}`,
+        targetType: 'account',
+        targetId: accountId,
+        reason,
+        before: accountSnapshot(before),
+        after: { ...accountSnapshot(change.account), ...change.detail },
+      });
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw AppError.conflict('USERNAME_TAKEN', 'That pimp name was just taken.', { username: 'That pimp name is taken.' });
+    }
+    throw error;
+  }
+}
+
+export const AdminAccountService = {
+  async search(
+    prisma: PrismaClient,
+    input: { query?: string | undefined; status?: AdminAccountStatusFilter | undefined; limit?: number | undefined },
+    now = new Date(),
+  ): Promise<AdminAccountSearchDto> {
+    const query = input.query?.trim();
+    const pimpId = query && /^#?\d{1,9}$/.test(query) ? Number(query.replace('#', '')) : null;
+    const where: Prisma.AccountWhereInput = {
+      ...(query
+        ? {
+            OR: [
+              { usernameNormalized: { contains: query.toLowerCase() } },
+              { email: { contains: query.toLowerCase() } },
+              { discordUsername: { contains: query, mode: 'insensitive' } },
+              { id: query },
+              ...(pimpId ? [{ roundPlayers: { some: { publicPimpId: pimpId } } }] : []),
+            ],
+          }
+        : {}),
+      ...(input.status === 'active' ? { isActive: true }
+        : input.status === 'inactive' ? { isActive: false }
+          : input.status === 'admin' ? { isAdmin: true }
+            : {}),
+    };
+
+    const rows = await prisma.account.findMany({
+      where,
+      include: summaryInclude,
+      orderBy: [{ lastLoginAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
+      take: input.limit ?? 50,
+    });
+    const sessions = await prisma.session.groupBy({
+      by: ['accountId'],
+      where: { accountId: { in: rows.map((row) => row.id) }, expiresAt: { gt: now } },
+      _count: { _all: true },
+    });
+    const sessionsFor = new Map(sessions.map((row) => [row.accountId, row._count._all]));
+    return { accounts: rows.map((row) => toSummary(row, sessionsFor.get(row.id) ?? 0)) };
+  },
+
+  async detail(prisma: PrismaClient, accountId: string, now = new Date()): Promise<AdminAccountDetailDto> {
+    const account = await prisma.account.findUnique({
+      where: { id: accountId },
+      include: {
+        ...summaryInclude,
+        profile: true,
+        sessions: { where: { expiresAt: { gt: now } }, orderBy: [{ lastSeenAt: 'desc' }, { createdAt: 'desc' }] },
+        roundPlayers: { include: { round: { select: { id: true, name: true, status: true } } }, orderBy: { createdAt: 'desc' } },
+      },
+    });
+    if (!account) throw AppError.notFound('ACCOUNT_NOT_FOUND', 'That account does not exist.');
+
+    const audit = await prisma.adminAuditLog.findMany({
+      where: { targetType: 'account', targetId: account.id },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: 25,
+    });
+
+    return {
+      account: toSummary(account, account.sessions.length),
+      profile: {
+        activeTitleKey: account.profile?.activeTitleKey ?? null,
+        profileAccent: account.profile?.profileAccent ?? 'default',
+        featuredBadgeKeys: stringArray(account.profile?.featuredBadgeKeys),
+      },
+      sessions: account.sessions.map((session) => ({
+        id: session.id,
+        device: deviceLabel(session.userAgent),
+        createdAt: session.createdAt.toISOString(),
+        lastSeenAt: session.lastSeenAt.toISOString(),
+        expiresAt: session.expiresAt.toISOString(),
+      })),
+      rounds: account.roundPlayers.map((player) => ({
+        roundPlayerId: player.id,
+        roundId: player.round.id,
+        roundName: player.round.name,
+        roundStatus: player.round.status,
+        publicPimpId: player.publicPimpId,
+        displayName: player.displayName,
+        netWorthCents: Number(player.netWorthCents),
+        nationalRank: player.nationalRank,
+        localRank: player.localRank,
+        joinedAt: player.createdAt.toISOString(),
+      })),
+      audit: audit.map(toAuditEntryDto),
+    };
+  },
+
+  /** Deactivating signs the account out everywhere; resolveSession already refuses inactive accounts. */
+  async setActive(prisma: PrismaClient, actor: AuditActor, accountId: string, isActive: boolean, reason: string): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, isActive ? 'reactivate' : 'deactivate', reason, async (tx, before) => {
+      if (before.isActive === isActive) {
+        throw AppError.conflict('ACCOUNT_STATUS_UNCHANGED', isActive ? `${before.username} is already active.` : `${before.username} is already deactivated.`);
+      }
+      const account = await tx.account.update({ where: { id: before.id }, data: { isActive } });
+      if (isActive) return { account };
+      const { count } = await tx.session.deleteMany({ where: { accountId: before.id } });
+      return { account, detail: { sessionsRevoked: count } };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  async revokeSessions(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string, sessionId?: string): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, 'revoke-sessions', reason, async (tx, before) => {
+      const { count } = await tx.session.deleteMany({ where: { accountId: before.id, ...(sessionId ? { id: sessionId } : {}) } });
+      if (sessionId && count === 0) throw AppError.notFound('SESSION_NOT_FOUND', 'That session has already ended.');
+      return { account: before, detail: { sessionsRevoked: count, ...(sessionId ? { sessionId } : {}) } };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  /** Renames the account and the name on every round it played, archived results included. */
+  async rename(prisma: PrismaClient, actor: AuditActor, accountId: string, username: string, reason: string): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, 'rename', reason, async (tx, before) => {
+      if (before.username === username) {
+        throw AppError.badRequest('USERNAME_UNCHANGED', `${before.username} already has that name.`, { username: 'Pick a different name.' });
+      }
+      const usernameNormalized = username.toLowerCase();
+      const clash = await tx.account.findFirst({ where: { usernameNormalized, id: { not: before.id } }, select: { id: true } });
+      if (clash) throw AppError.conflict('USERNAME_TAKEN', `${username} is already taken.`, { username: 'That pimp name is taken.' });
+      const account = await tx.account.update({ where: { id: before.id }, data: { username, usernameNormalized } });
+      const { count } = await tx.roundPlayer.updateMany({ where: { accountId: before.id }, data: { displayName: username } });
+      return { account, detail: { roundNamesUpdated: count } };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  async resetProfile(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, 'reset-profile', reason, async (tx, before) => {
+      const profile = await tx.accountProfile.findUnique({ where: { accountId: before.id } });
+      if (profile) {
+        await tx.accountProfile.update({
+          where: { accountId: before.id },
+          data: { activeTitleKey: null, featuredBadgeKeys: [], profileAccent: 'default' },
+        });
+      }
+      return {
+        account: before,
+        detail: {
+          previousProfile: profile
+            ? { activeTitleKey: profile.activeTitleKey, featuredBadgeKeys: stringArray(profile.featuredBadgeKeys), profileAccent: profile.profileAccent }
+            : null,
+        },
+      };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  async setAdmin(prisma: PrismaClient, actor: AuditActor, accountId: string, isAdmin: boolean, reason: string): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, isAdmin ? 'grant-admin' : 'revoke-admin', reason, async (tx, before) => {
+      if (before.isAdmin === isAdmin) {
+        throw AppError.conflict('ADMIN_ROLE_UNCHANGED', isAdmin ? `${before.username} is already an admin.` : `${before.username} is not an admin.`);
+      }
+      if (isAdmin && !before.isActive) {
+        throw AppError.conflict('ACCOUNT_INACTIVE', `Reactivate ${before.username} before making them an admin.`);
+      }
+      if (!isAdmin) {
+        const others = await tx.account.count({ where: { isAdmin: true, isActive: true, id: { not: before.id } } });
+        if (others === 0) throw AppError.conflict('LAST_ADMIN', 'The game needs at least one active admin.');
+      }
+      const account = await tx.account.update({ where: { id: before.id }, data: { isAdmin } });
+      return { account };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+};

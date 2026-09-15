@@ -1,7 +1,11 @@
 import { useEffect, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AccountSettingsPage } from './pages/AccountSettingsPage.js';
+import { AdminAccountPage } from './pages/AdminAccountPage.js';
+import { AdminAccountsPage } from './pages/AdminAccountsPage.js';
+import { AdminAuditPage } from './pages/AdminAuditPage.js';
 import { AdminPage } from './pages/AdminPage.js';
+import { AdminPlayerPage } from './pages/AdminPlayerPage.js';
 import { ForumLinkPage } from './pages/ForumLinkPage.js';
 import { ActivityPage } from './pages/ActivityPage.js';
 import { CombatPage } from './pages/CombatPage.js';
@@ -97,6 +101,10 @@ export function App() {
       <Route path="/game/news" element={<NewsPage />} />
       <Route path="/game/status" element={<Protected><StatusPage /></Protected>} />
       <Route path="/game/admin" element={<Protected><RequireAdmin><AdminPage /></RequireAdmin></Protected>} />
+      <Route path="/game/admin/accounts" element={<Protected><RequireAdmin><AdminAccountsPage /></RequireAdmin></Protected>} />
+      <Route path="/game/admin/accounts/:accountId" element={<Protected><RequireAdmin><AdminAccountPage /></RequireAdmin></Protected>} />
+      <Route path="/game/admin/players/:roundPlayerId" element={<Protected><RequireAdmin><AdminPlayerPage /></RequireAdmin></Protected>} />
+      <Route path="/game/admin/audit" element={<Protected><RequireAdmin><AdminAuditPage /></RequireAdmin></Protected>} />
       <Route path="/game/rules" element={<RulesPage />} />
       <Route path="/game/reputation" element={<Protected><LiveRound><ReputationPage /></LiveRound></Protected>} />
 

@@ -90,6 +90,19 @@ Closing a round follows the same lazy pattern as turns and shelves: no cron job.
   (carried from G). Still refused against production.
 - Every admin action writes an audit record: who, what, when, before and after.
 
+The panel grew past the original list. It ships in four phases, each its own commit:
+
+1. **Moderation:** account search, deactivate/reactivate (signs the player out), sessions with device labels
+   but no IP addresses, a read-only player inspector with battle reports, renames and profile resets, admin
+   grants and removals (never yourself, never the last admin), and audit log filters.
+2. **Round operations:** news with the forum announcements mirror, editing round details, round health
+   stats, season checklist actions and a site banner.
+3. **Integrations:** Discord resync and queue status, email verification tools, forum link tools, a
+   ruleset viewer, and dev bots from the panel (still refused against production).
+4. **Corrections:** voiding a battle by reversing its recorded changes (limited to what each side still
+   has, and excluded from revenge, trophies and repeat-target limits), capped compensation grants, and
+   multi-account signals that show matches without raw IPs.
+
 Admin comes before alliances because alliances and shared messaging need
 moderation from day one.
 

@@ -1,10 +1,15 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { usernameSchema } from '@streets/shared';
 import { z } from 'zod';
+import { AdminAccountService } from '../services/admin-account.service.js';
 import { AdminAuditService } from '../services/admin-audit.service.js';
+import { AdminPlayerService } from '../services/admin-player.service.js';
 import { AdminRoundService } from '../services/admin-round.service.js';
 import { parseBody } from '../utils/validate.js';
 
 const isoDate = z.coerce.date();
+const id = z.string().min(1).max(64);
+const reason = z.string().trim().min(5, 'Give a reason of at least 5 characters.').max(500);
 
 const scheduleRoundSchema = z.object({
   name: z.string().trim().min(3).max(80),
@@ -15,15 +20,33 @@ const scheduleRoundSchema = z.object({
   registrationOpensAt: isoDate.nullable().optional(),
 }).strict();
 
-const roundParams = z.object({ roundId: z.string().min(1).max(64) }).strict();
+const roundParams = z.object({ roundId: id }).strict();
+const accountParams = z.object({ accountId: id }).strict();
+const playerParams = z.object({ roundPlayerId: id }).strict();
 const emptyBody = z.object({}).strict();
+const reasonBody = z.object({ reason }).strict();
 const startRoundSchema = z.object({ confirmHandoff: z.boolean().optional() }).strict();
-const endRoundSchema = z.object({ reason: z.string().trim().min(5).max(500) }).strict();
+const revokeSessionsSchema = z.object({ reason, sessionId: id.optional() }).strict();
+const renameSchema = z.object({ reason, username: usernameSchema }).strict();
+const adminRoleSchema = z.object({ reason, isAdmin: z.boolean() }).strict();
+
+const accountSearchQuery = z.object({
+  query: z.string().trim().max(80).optional(),
+  status: z.enum(['all', 'active', 'inactive', 'admin']).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+}).strict();
+
+const battlesQuery = z.object({ before: id.optional() }).strict();
 
 const auditQuery = z.object({
   limit: z.coerce.number().int().min(1).max(200).optional(),
+  actor: z.string().trim().min(1).max(40).optional(),
+  action: z.string().trim().min(1).max(60).optional(),
   targetType: z.string().trim().min(1).max(40).optional(),
   targetId: z.string().trim().min(1).max(64).optional(),
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+  before: id.optional(),
 }).strict();
 
 /**
@@ -33,6 +56,8 @@ const auditQuery = z.object({
  */
 const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('onRequest', fastify.requireAdmin);
+
+  // Rounds
 
   fastify.get('/rounds', async () => AdminRoundService.list(fastify.prisma));
 
@@ -56,8 +81,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/rounds/:roundId/end-early', async (request) => {
     const { roundId } = parseBody(roundParams, request.params);
-    const { reason } = parseBody(endRoundSchema, request.body ?? {});
-    return { round: await AdminRoundService.endEarly(fastify.prisma, request.auth!.account, roundId, reason) };
+    const body = parseBody(reasonBody, request.body ?? {});
+    return { round: await AdminRoundService.endEarly(fastify.prisma, request.auth!.account, roundId, body.reason) };
   });
 
   fastify.post('/rounds/:roundId/archive', async (request) => {
@@ -65,6 +90,66 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     parseBody(emptyBody, request.body ?? {});
     return { round: await AdminRoundService.archive(fastify.prisma, request.auth!.account, roundId) };
   });
+
+  // Accounts
+
+  fastify.get('/accounts', async (request) => AdminAccountService.search(fastify.prisma, parseBody(accountSearchQuery, request.query)));
+
+  fastify.get('/accounts/:accountId', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    return AdminAccountService.detail(fastify.prisma, accountId);
+  });
+
+  fastify.post('/accounts/:accountId/deactivate', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminAccountService.setActive(fastify.prisma, request.auth!.account, accountId, false, body.reason);
+  });
+
+  fastify.post('/accounts/:accountId/reactivate', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminAccountService.setActive(fastify.prisma, request.auth!.account, accountId, true, body.reason);
+  });
+
+  fastify.post('/accounts/:accountId/sessions/revoke', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(revokeSessionsSchema, request.body ?? {});
+    return AdminAccountService.revokeSessions(fastify.prisma, request.auth!.account, accountId, body.reason, body.sessionId);
+  });
+
+  fastify.post('/accounts/:accountId/rename', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(renameSchema, request.body ?? {});
+    return AdminAccountService.rename(fastify.prisma, request.auth!.account, accountId, body.username, body.reason);
+  });
+
+  fastify.post('/accounts/:accountId/reset-profile', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminAccountService.resetProfile(fastify.prisma, request.auth!.account, accountId, body.reason);
+  });
+
+  fastify.post('/accounts/:accountId/admin', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(adminRoleSchema, request.body ?? {});
+    return AdminAccountService.setAdmin(fastify.prisma, request.auth!.account, accountId, body.isAdmin, body.reason);
+  });
+
+  // Player inspector
+
+  fastify.get('/players/:roundPlayerId', async (request) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    return AdminPlayerService.inspect(fastify.prisma, roundPlayerId);
+  });
+
+  fastify.get('/players/:roundPlayerId/battles', async (request) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    const { before } = parseBody(battlesQuery, request.query);
+    return AdminPlayerService.battles(fastify.prisma, roundPlayerId, before);
+  });
+
+  // Audit
 
   fastify.get('/audit', async (request) => AdminAuditService.list(fastify.prisma, parseBody(auditQuery, request.query)));
 };
