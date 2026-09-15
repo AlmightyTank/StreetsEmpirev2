@@ -14,6 +14,8 @@ declare module 'fastify' {
   interface FastifyInstance {
     /** preHandler that 401s anyone without a live session. */
     requireAuth: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+    /** 401s guests and 403s anyone who is not a game admin. */
+    requireAdmin: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
     setSessionCookie: (reply: FastifyReply, token: string) => void;
     clearSessionCookie: (reply: FastifyReply) => void;
   }
@@ -56,6 +58,11 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
 
   fastify.decorate('requireAuth', async (request: FastifyRequest) => {
     if (!request.auth) throw AppError.unauthenticated();
+  });
+
+  fastify.decorate('requireAdmin', async (request: FastifyRequest) => {
+    if (!request.auth) throw AppError.unauthenticated();
+    if (!request.auth.account.isAdmin) throw AppError.forbidden('Only game admins can do that.');
   });
 };
 

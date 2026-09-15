@@ -1272,6 +1272,59 @@ a.se-nav__link:hover {
   color: var(--se-text-dim);
   font-size: 11px;
 }
+.se-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+/* Keep round actions in reach when the admin rounds table scrolls sideways. */
+.se-table:has(.se-admin-actions) th:last-child,
+.se-table td:has(> .se-admin-actions) {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: var(--se-panel);
+  box-shadow: -1px 0 0 var(--se-line);
+}
+.se-admin-pad {
+  margin: 0;
+  padding: 14px 16px;
+}
+.se-admin-reason {
+  min-height: 84px;
+  resize: vertical;
+}
+.se-admin-notice {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(74, 222, 128, 0.42);
+  border-radius: 6px;
+  color: var(--se-good);
+}
+.se-admin-audit {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.se-admin-audit__entry {
+  padding: 10px 16px;
+  border-top: 1px solid var(--se-line);
+}
+.se-admin-audit__entry:first-child {
+  border-top: 0;
+}
+.se-admin-audit__entry p {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+.se-admin-audit__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-family: var(--se-mono);
+  font-size: 12px;
+}
 .se-target-card__grid,
 .se-target-card__intel {
   display: grid;

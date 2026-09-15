@@ -1,6 +1,6 @@
 # 0.3.0 roadmap - the season
 
-Status: **proposed.** Nothing here is built. 0.2.0 made the street dangerous; 0.3.0
+Status: **in progress.** 0.3.0-A is built and 0.3.0-B is started. 0.2.0 made the street dangerous; 0.3.0
 makes a round a season with a finish line, and gives players a reason to play
 together. Travel is deliberately held for 0.4.0.
 
@@ -83,7 +83,7 @@ Closing a round follows the same lazy pattern as turns and shelves: no cron job.
 
 - **Rounds:** schedule, open registration, start, end early, archive.
 - **News:** write, pin and unpin posts (today only the seed can); optionally
-  mirror them to the forum announcements category.
+  mirror them to the forum announcements category (decided: included in B).
 - **Accounts:** search, deactivate/reactivate (`isActive`), view a player's
   battle reports when handling a dispute.
 - **Dev bots:** seed and remove local test bots from the panel instead of the CLI
@@ -156,5 +156,5 @@ worth it yet.
 4. **Messaging scope.** Recommendation: alliance wire and contacts only, no open DMs.
 5. **Season length and breaks.** Rounds default to 28 days. Is there a
    registration gap between seasons, and how long?
-6. **Early end.** Can an admin end a round early, and do final awards still apply
-   if they do?
+6. **Early end.** Decided in 0.3.0-B: an admin can end a round early with a required reason. It settles and freezes like a normal finish, so final awards still apply,
+   and the reason is audited.

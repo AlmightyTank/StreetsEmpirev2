@@ -127,32 +127,50 @@ export const RoundService = {
     return closed;
   },
 
-  async closeRoundAt(prisma: PrismaClient, roundId: string, finalAt: Date): Promise<{ closed: boolean; round: Round }> {
-    return prisma.$transaction(async (tx) => {
-      await lockRound(tx, roundId);
-      const round = await tx.round.findUnique({ where: { id: roundId } });
-      if (!round) throw AppError.notFound('ROUND_NOT_FOUND', 'That round does not exist.');
-      if (round.status === 'ENDED' || round.status === 'ARCHIVED') {
-        return { closed: false, round };
-      }
-      if (round.status !== 'ACTIVE' && round.status !== 'REGISTRATION') return { closed: false, round };
+  /**
+   * Settle, freeze and end one round inside the caller's transaction, so an
+   * admin close and its audit record commit together. `endsAt` pulls the end
+   * date forward for an early end; it never pushes one back.
+   */
+  async closeRoundInTransaction(
+    tx: Db,
+    roundId: string,
+    finalAt: Date,
+    options: { endsAt?: Date } = {},
+  ): Promise<{ closed: boolean; round: Round; previous: Round }> {
+    await lockRound(tx, roundId);
+    const round = await tx.round.findUnique({ where: { id: roundId } });
+    if (!round) throw AppError.notFound('ROUND_NOT_FOUND', 'That round does not exist.');
+    if (round.status !== 'ACTIVE' && round.status !== 'REGISTRATION') return { closed: false, round, previous: round };
 
-      const freezeAt = new Date(Math.min(round.endsAt.getTime(), finalAt.getTime()));
-      const players = await tx.roundPlayer.findMany({
-        where: { roundId: round.id },
-        orderBy: { publicPimpId: 'asc' },
-        select: { id: true },
-      });
-      for (const player of players) {
-        await PlayerStateService.settleInTransaction(tx, player.id, { now: freezeAt, markActive: false });
-      }
-      await freezeFinalStandings(tx, round.id, freezeAt);
-      const ended = await tx.round.update({
-        where: { id: round.id },
-        data: { status: 'ENDED' },
-      });
-      return { closed: true, round: ended };
-    }, { maxWait: 10_000, timeout: 30_000 });
+    const freezeAt = new Date(Math.min(round.endsAt.getTime(), finalAt.getTime()));
+    const players = await tx.roundPlayer.findMany({
+      where: { roundId: round.id },
+      orderBy: { publicPimpId: 'asc' },
+      select: { id: true },
+    });
+    for (const player of players) {
+      await PlayerStateService.settleInTransaction(tx, player.id, { now: freezeAt, markActive: false });
+    }
+    await freezeFinalStandings(tx, round.id, freezeAt);
+
+    const endsAt = options.endsAt && options.endsAt.getTime() < round.endsAt.getTime() ? options.endsAt : null;
+    const ended = await tx.round.update({
+      where: { id: round.id },
+      data: {
+        status: 'ENDED',
+        ...(endsAt ? { endsAt, ...(endsAt.getTime() < round.startsAt.getTime() ? { startsAt: endsAt } : {}) } : {}),
+      },
+    });
+    return { closed: true, round: ended, previous: round };
+  },
+
+  async closeRoundAt(prisma: PrismaClient, roundId: string, finalAt: Date): Promise<{ closed: boolean; round: Round }> {
+    const { closed, round } = await prisma.$transaction(
+      (tx) => RoundService.closeRoundInTransaction(tx, roundId, finalAt),
+      { maxWait: 10_000, timeout: 30_000 },
+    );
+    return { closed, round };
   },
 
   async closeIfExpired(prisma: PrismaClient, roundId: string, now = new Date()): Promise<{ closed: boolean; round: Round }> {

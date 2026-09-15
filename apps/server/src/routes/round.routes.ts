@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
+import type { FastifyPluginAsync } from 'fastify';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import type { AdminSeasonChecklistItemDto } from '@streets/shared';
 import { toRoundDto, toRoundOverDto, toRoundPlayerDto } from '../game/dto.js';
@@ -6,13 +6,9 @@ import { legacyAchievements, loadAccountLegacy } from '../services/community.ser
 import { PlayerStateService } from '../services/player-state.service.js';
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { isJoinable, RoundService } from '../services/round.service.js';
-import { AppError } from '../utils/errors.js';
 
 const roundRoutes: FastifyPluginAsync = async (fastify) => {
-  async function requireAdmin(request: FastifyRequest) {
-    if (!request.auth) throw AppError.unauthenticated();
-    if (!request.auth!.account.isAdmin) throw AppError.forbidden('Only admins can view the season checklist.');
-  }
+  const requireAdmin = fastify.requireAdmin;
 
   function item(input: AdminSeasonChecklistItemDto): AdminSeasonChecklistItemDto {
     return input;

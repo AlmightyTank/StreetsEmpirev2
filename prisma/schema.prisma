@@ -50,6 +50,32 @@ model Account {
   profile                 AccountProfile?
   roundPlayers            RoundPlayer[]
   authoredNews            GameNews[]            @relation("GameNewsAuthor")
+  adminAuditEntries       AdminAuditLog[]       @relation("AdminAuditActor")
+}
+
+/// 0.3.0-B. One row per admin action: who, what, when, and the target before
+/// and after. The app only ever inserts these.
+model AdminAuditLog {
+  id String @id @default(cuid())
+
+  /// Null once the acting account is deleted; actorUsername keeps the name.
+  actorAccountId String?
+  actor          Account? @relation("AdminAuditActor", fields: [actorAccountId], references: [id], onDelete: SetNull)
+  actorUsername  String
+
+  /// Dotted verb, e.g. round.schedule or round.end-early.
+  action     String
+  targetType String
+  targetId   String?
+  reason     String?
+
+  before Json?
+  after  Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([targetType, targetId])
 }
 
 /// Cosmetic and preference settings. Pure prestige: never affects round starts,

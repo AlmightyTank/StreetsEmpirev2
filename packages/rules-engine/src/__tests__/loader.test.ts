@@ -38,7 +38,7 @@ describe('ruleset loader', () => {
   it('knows which ids it can serve', () => {
     expect(isKnownRulesetId('classic-og-v0.1')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(9);
+    expect(listRulesets()).toHaveLength(10);
   });
 });
 
@@ -84,6 +84,14 @@ describe('classic-og-v0.3-a contents', () => {
     expect(classicOgV03A.combat).toEqual(classicOgV02H.combat);
     expect(classicOgV03A.round.startingPlayer).toEqual(classicOgV02H.round.startingPlayer);
     expect(classicOgV03A.meta.name).toBe('Classic OG - Season End');
+  });
+});
+
+describe('classic-og-v0.3-b contents', () => {
+  it('pins the admin ruleset without changing 0.3.0-A balance', () => {
+    const ruleset = loadRuleset('classic-og-v0.3-b', '0.3.0-B');
+    expect(ruleset.meta.name).toBe('Classic OG - Admin');
+    expect({ ...ruleset, meta: null }).toEqual({ ...classicOgV03A, meta: null });
   });
 });
 

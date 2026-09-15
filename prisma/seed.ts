@@ -1,10 +1,10 @@
 import 'dotenv/config';
 import { PrismaClient, type Round } from '@prisma/client';
 import { calculateNetWorthCents, calculateThugHappiness, calculateWhoreHappiness, startingStock } from '@streets/rules-engine';
-import { classicOgV01, classicOgV02D, classicOgV03A, type Ruleset, type SeededRivalRule, type StartingPlayer } from '@streets/rulesets';
+import { classicOgV01, classicOgV02D, classicOgV03B, type Ruleset, type SeededRivalRule, type StartingPlayer } from '@streets/rulesets';
 
 const prisma = new PrismaClient();
-const CURRENT_RULESET = classicOgV03A;
+const CURRENT_RULESET = classicOgV03B;
 const shouldSeedRivals = process.env.SEED_DEV_BOTS === '1' || process.env.SEED_RIVALS === '1';
 const allowUnsafeDevBots = process.env.ALLOW_DEV_BOTS === 'I_UNDERSTAND';
 
@@ -74,7 +74,7 @@ const CITIES = [
 
 async function seedCities() {
   for (const city of CITIES) {
-    // 0.3.0-A still starts in New York City. Other cities stay staged for travel.
+    // 0.3.0-B still starts in New York City. Other cities stay staged for travel.
     const isEnabled = city.slug === CURRENT_RULESET.round.startingCitySlug;
 
     await prisma.city.upsert({
@@ -148,8 +148,8 @@ async function seedStrategyRound(now: Date) {
 
 async function seedCurrentPublicRound(now: Date) {
   return upsertRound({
-    name: 'Game #009 - Season End',
-    slug: 'game-009-season-end',
+    name: 'Game #010 - Admin',
+    slug: 'game-010-admin',
     ruleset: CURRENT_RULESET,
     startsAt: now,
     refreshCurrent: true,
@@ -370,10 +370,10 @@ async function main() {
   const publicRound = await seedCurrentPublicRound(new Date(now.getTime() + 1_000));
   await seedNews(
     publicRound.id,
-    '0.3.0-A SEASONS NOW END',
+    '0.3.0-B ADMIN TOOLS',
     shouldSeedRivals
-      ? 'The current A seed has active local dev bots enabled, and expired seasons now close into final standings before the next round takes over.'
-      : 'The 0.3.0-A production round keeps H combat balance and adds season endings, final standings, round-over handoff and the Hall of Fame.',
+      ? 'The current B seed has active local dev bots enabled. Admins can now schedule, open, start, end and archive rounds from the admin panel, and every admin action is audited.'
+      : 'The 0.3.0-B round keeps 0.3.0-A balance. Admins now run seasons from the admin panel instead of the seed, and every admin action is audited.',
   );
   await seedRivals(publicRound, CURRENT_RULESET, new Date(now.getTime() + 1_000), DEV_TEST_RIVALS, { activeAccounts: true, label: 'dev bots' });
   console.log('Done.');

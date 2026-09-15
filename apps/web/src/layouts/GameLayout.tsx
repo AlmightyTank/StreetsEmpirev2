@@ -60,10 +60,22 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
+/** Only shown to game admins. The server enforces the same rule on every admin route. */
+const ADMIN_SECTION: NavSection = {
+  title: 'Admin',
+  items: [{ label: 'Admin panel', to: '/game/admin' }],
+};
+
+function useSections(): NavSection[] {
+  const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
+  return isAdmin ? [...SECTIONS, ADMIN_SECTION] : SECTIONS;
+}
+
 function GameNav({ open, onNavigate }: { open: boolean; onNavigate: () => void }) {
+  const sections = useSections();
   return (
     <nav id="game-navigation" className={`se-nav${open ? ' se-nav--open' : ''}`} aria-label="Game">
-      {SECTIONS.map((section) => (
+      {sections.map((section) => (
         <div className="se-nav__section" key={section.title}>
           <p className="se-nav__title">{section.title}</p>
           <ul className="se-nav__list">
@@ -112,10 +124,11 @@ function GameNav({ open, onNavigate }: { open: boolean; onNavigate: () => void }
 export function GameLayout({ children }: { children: ReactNode }) {
   usePageFreshness();
   const round = useSession((s) => s.round);
+  const sections = useSections();
   const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
-  const currentPage = SECTIONS.flatMap((section) => section.items)
+  const currentPage = sections.flatMap((section) => section.items)
     .find((item) => item.to === pathname)?.label ?? 'Player profile';
 
   return (

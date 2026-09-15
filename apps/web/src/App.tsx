@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AccountSettingsPage } from './pages/AccountSettingsPage.js';
+import { AdminPage } from './pages/AdminPage.js';
 import { ForumLinkPage } from './pages/ForumLinkPage.js';
 import { ActivityPage } from './pages/ActivityPage.js';
 import { CombatPage } from './pages/CombatPage.js';
@@ -33,6 +34,13 @@ function RequireAccount({ children }: { children: ReactNode }) {
 
 function Protected({ children }: { children: ReactNode }) {
   return <RequireAccount>{children}</RequireAccount>;
+}
+
+/** Hides admin pages from players. The server checks isAdmin on every admin route regardless. */
+function RequireAdmin({ children }: { children: ReactNode }) {
+  const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
+  if (!isAdmin) return <Navigate to="/game" replace />;
+  return <>{children}</>;
 }
 
 function LiveRound({ children }: { children: ReactNode }) {
@@ -88,6 +96,7 @@ export function App() {
       <Route path="/game/activity" element={<Protected><LiveRound><ActivityPage /></LiveRound></Protected>} />
       <Route path="/game/news" element={<NewsPage />} />
       <Route path="/game/status" element={<Protected><StatusPage /></Protected>} />
+      <Route path="/game/admin" element={<Protected><RequireAdmin><AdminPage /></RequireAdmin></Protected>} />
       <Route path="/game/rules" element={<RulesPage />} />
       <Route path="/game/reputation" element={<Protected><LiveRound><ReputationPage /></LiveRound></Protected>} />
 

@@ -132,7 +132,7 @@ export function StatusPage() {
           </div>
 
           {account?.isAdmin ? (
-            <Panel title="Admin season checklist">
+            <Panel title="Admin season checklist" aside={<Link to="/game/admin">Admin panel</Link>}>
               {checklistError ? <Alert>{checklistError}</Alert> : null}
               {!checklist && !checklistError ? <p className="se-muted">Checking season handoff...</p> : null}
               {checklist ? (
