@@ -1,7 +1,16 @@
 import { useEffect, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AccountSettingsPage } from './pages/AccountSettingsPage.js';
+import { AdminAccountPage } from './pages/AdminAccountPage.js';
+import { AdminAccountsPage } from './pages/AdminAccountsPage.js';
+import { AdminAuditPage } from './pages/AdminAuditPage.js';
+import { AdminIntegrationsPage } from './pages/AdminIntegrationsPage.js';
+import { AdminNewsPage } from './pages/AdminNewsPage.js';
 import { AdminPage } from './pages/AdminPage.js';
+import { AdminPlayerPage } from './pages/AdminPlayerPage.js';
+import { AdminRoundPage } from './pages/AdminRoundPage.js';
+import { AdminRulesetsPage } from './pages/AdminRulesetsPage.js';
+import { AdminSignalsPage } from './pages/AdminSignalsPage.js';
 import { ForumLinkPage } from './pages/ForumLinkPage.js';
 import { ActivityPage } from './pages/ActivityPage.js';
 import { CombatPage } from './pages/CombatPage.js';
@@ -59,6 +68,8 @@ function Booting() {
   );
 }
 
+const admin = (page: ReactNode) => <Protected><RequireAdmin>{page}</RequireAdmin></Protected>;
+
 export function App() {
   const phase = useSession((s) => s.phase);
   const bootstrap = useSession((s) => s.bootstrap);
@@ -96,9 +107,19 @@ export function App() {
       <Route path="/game/activity" element={<Protected><LiveRound><ActivityPage /></LiveRound></Protected>} />
       <Route path="/game/news" element={<NewsPage />} />
       <Route path="/game/status" element={<Protected><StatusPage /></Protected>} />
-      <Route path="/game/admin" element={<Protected><RequireAdmin><AdminPage /></RequireAdmin></Protected>} />
       <Route path="/game/rules" element={<RulesPage />} />
       <Route path="/game/reputation" element={<Protected><LiveRound><ReputationPage /></LiveRound></Protected>} />
+
+      <Route path="/game/admin" element={admin(<AdminPage />)} />
+      <Route path="/game/admin/rounds/:roundId" element={admin(<AdminRoundPage />)} />
+      <Route path="/game/admin/news" element={admin(<AdminNewsPage />)} />
+      <Route path="/game/admin/accounts" element={admin(<AdminAccountsPage />)} />
+      <Route path="/game/admin/accounts/:accountId" element={admin(<AdminAccountPage />)} />
+      <Route path="/game/admin/players/:roundPlayerId" element={admin(<AdminPlayerPage />)} />
+      <Route path="/game/admin/integrations" element={admin(<AdminIntegrationsPage />)} />
+      <Route path="/game/admin/rulesets" element={admin(<AdminRulesetsPage />)} />
+      <Route path="/game/admin/signals" element={admin(<AdminSignalsPage />)} />
+      <Route path="/game/admin/audit" element={admin(<AdminAuditPage />)} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

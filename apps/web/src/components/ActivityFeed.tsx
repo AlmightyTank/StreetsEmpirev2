@@ -9,6 +9,23 @@ function str(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
 
+const CHANGE_LABELS: Record<string, string> = {
+  cashCents: 'cash', woundedThugs: 'wounded thugs', lowRiders: 'Low-Riders', tek9s: 'Tek-9s', ak47s: 'AK-47s', driveBysDone: 'drive-bys',
+};
+
+/** "+$500, -3 wounded thugs" from an admin correction's changes. */
+function changeSummary(value: unknown): string {
+  if (!value || typeof value !== 'object') return '';
+  return Object.entries(value as Record<string, unknown>)
+    .filter((entry): entry is [string, number] => typeof entry[1] === 'number' && entry[1] !== 0)
+    .map(([field, amount]) => {
+      const sign = amount > 0 ? '+' : '−';
+      const size = field === 'cashCents' ? formatCents(Math.abs(amount)) : formatNumber(Math.abs(amount));
+      return `${sign}${size}${field === 'cashCents' ? '' : ` ${CHANGE_LABELS[field] ?? field}`}`;
+    })
+    .join(', ');
+}
+
 /**
  * Section 42. One line per thing the player did, in their words.
  *
@@ -146,6 +163,21 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
         text: `Earned ${str(p.weapon)} access at Tommy’s.`,
         detail: [str(p.favor), num(p.cashSpentCents) ? `-${formatCents(num(p.cashSpentCents))}` : '',
           num(p.crackDelivered) ? `${formatNumber(num(p.crackDelivered))} crack delivered` : ''].filter(Boolean).join(', '),
+      };
+
+    case 'BATTLE_VOIDED':
+      return {
+        text: `An admin voided your battle with ${str(p.opponent, 'another player')}.`,
+        detail: [
+          str(p.reason),
+          changeSummary(p.changes),
+        ].filter(Boolean).join(' · '),
+      };
+
+    case 'ADMIN_GRANT':
+      return {
+        text: 'An admin sent you compensation.',
+        detail: [str(p.reason), changeSummary(p.granted)].filter(Boolean).join(' · '),
       };
 
     default:

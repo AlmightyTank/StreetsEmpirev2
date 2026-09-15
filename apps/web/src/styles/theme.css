@@ -1318,6 +1318,106 @@ a.se-nav__link:hover {
   margin: 4px 0 0;
   font-size: 13px;
 }
+.se-admin-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.se-admin-moderation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.se-admin-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0 12px;
+  align-items: end;
+}
+.se-admin-snapshot {
+  margin-top: 6px;
+  font-size: 12px;
+}
+.se-admin-snapshot summary {
+  cursor: pointer;
+  color: var(--se-text-dim);
+}
+.se-admin-snapshot__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+.se-admin-json {
+  margin: 4px 0 0;
+  padding: 8px;
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--se-line-soft);
+  background: var(--se-bg);
+  color: var(--se-text-dim);
+  font-family: var(--se-mono);
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.se-admin-json--inline {
+  max-height: 96px;
+}
+.se-admin-textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+.se-admin-row--changed td {
+  background: color-mix(in srgb, var(--se-warn) 10%, transparent);
+}
+.se-admin-ruleset-value {
+  font-family: var(--se-mono);
+  font-size: 12px;
+  word-break: break-word;
+}
+.se-admin-news {
+  padding: 12px 16px;
+  border-top: 1px solid var(--se-line);
+}
+.se-admin-news:first-child {
+  border-top: 0;
+}
+.se-admin-news h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.se-admin-news p {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+.se-site-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--se-line);
+  background: color-mix(in srgb, var(--se-accent) 10%, var(--se-panel));
+  color: var(--se-text);
+  font-size: 13px;
+}
+.se-site-banner--warning {
+  background: color-mix(in srgb, var(--se-warn) 18%, var(--se-panel));
+}
+.se-site-banner--critical {
+  background: color-mix(in srgb, var(--se-bad) 22%, var(--se-panel));
+}
+.se-site-banner button {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--se-text-dim);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
 .se-admin-audit__head {
   display: flex;
   justify-content: space-between;

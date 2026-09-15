@@ -192,6 +192,20 @@ client.once(Events.ClientReady, async (ready) => {
 
     console.log(`Checking Discord alerts every ${config.DISCORD_ALERTS_MINUTES} min.`);
     startPoller('Discord alerts', config.DISCORD_ALERTS_MINUTES * 60_000, () => sendAlerts({ news: newsChannel, raidFeed: raidFeedChannel }));
+
+    // Resyncs an admin asked for in the game panel. A full sync that is already
+    // running covers an "everyone" request, so a skipped run is not lost work.
+    startPoller('Admin role resync', config.DISCORD_ALERTS_MINUTES * 60_000, async () => {
+      const claim = await api.claimResync();
+      if (claim.all) {
+        const summary = await roleSync.syncAll();
+        if (summary) console.log(`Admin resync: ${summary.members} members, ${summary.added} roles added, ${summary.removed} removed, ${summary.failed} failed.`);
+      } else if (claim.discordIds.length) {
+        const members = await guild.members.fetch({ user: claim.discordIds }).catch(() => null);
+        if (members?.size) await roleSync.syncMembers([...members.values()]);
+        console.log(`Admin resync: ${members?.size ?? 0} of ${claim.discordIds.length} requested members synced.`);
+      }
+    });
   } catch (error) {
     // Exit so systemd restarts us, instead of staying online but deaf.
     console.error('Startup failed:', error);

@@ -1,4 +1,5 @@
-import type { RoundDto } from './api.js';
+import type { ActivityDto, RoundDto, RoundStatus } from './api.js';
+import type { BattleReportDto } from './combat.js';
 
 /** 0.3.0-B. Lifecycle moves an admin can make on a round in its current status. */
 export type AdminRoundAction = 'open-registration' | 'start' | 'end-early' | 'archive';
@@ -50,4 +51,374 @@ export interface AdminAuditEntryDto {
 
 export interface AdminAuditLogDto {
   entries: AdminAuditEntryDto[];
+  /** Pass back as `before` for the next, older page. */
+  nextBefore: string | null;
+}
+
+export interface AdminAuditFilters {
+  actor?: string | undefined;
+  /** Matches the start of the action, so `account.` finds every account action. */
+  action?: string | undefined;
+  targetType?: string | undefined;
+  targetId?: string | undefined;
+  from?: string | undefined;
+  to?: string | undefined;
+  before?: string | undefined;
+  limit?: number | undefined;
+}
+
+export type AdminAccountStatusFilter = 'all' | 'active' | 'inactive' | 'admin';
+
+export type AdminAccountAction =
+  | 'deactivate'
+  | 'reactivate'
+  | 'revoke-sessions'
+  | 'rename'
+  | 'reset-profile'
+  | 'grant-admin'
+  | 'revoke-admin'
+  | 'resend-verification'
+  | 'mark-email-verified'
+  | 'unlink-forum'
+  | 'resync-discord';
+
+export interface AdminAccountSummaryDto {
+  id: string;
+  username: string;
+  email: string;
+  emailVerified: boolean;
+  isActive: boolean;
+  isAdmin: boolean;
+  discordUsername: string | null;
+  forumUsername: string | null;
+  createdAt: string;
+  lastLoginAt: string | null;
+  activeSessions: number;
+  roundsPlayed: number;
+}
+
+export interface AdminAccountSearchDto {
+  accounts: AdminAccountSummaryDto[];
+}
+
+/** No IP address or raw browser string: only a coarse device label. */
+export interface AdminSessionDto {
+  id: string;
+  device: string;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+}
+
+export interface AdminAccountRoundDto {
+  roundPlayerId: string;
+  roundId: string;
+  roundName: string;
+  roundStatus: RoundStatus;
+  publicPimpId: number;
+  displayName: string;
+  netWorthCents: number;
+  nationalRank: number | null;
+  localRank: number | null;
+  joinedAt: string;
+}
+
+export interface AdminAccountDetailDto {
+  account: AdminAccountSummaryDto;
+  profile: {
+    activeTitleKey: string | null;
+    profileAccent: string;
+    featuredBadgeKeys: string[];
+  };
+  email: {
+    verifiedAt: string | null;
+    /** False when the server has no mailer configured, so resending cannot work. */
+    sendingEnabled: boolean;
+  };
+  forumLink: {
+    forumUserId: string;
+    forumUsername: string;
+    profileUrl: string;
+    linkedAt: string;
+  } | null;
+  discord: {
+    linked: boolean;
+    username: string | null;
+    /** False when the bot API is not configured, so a resync request would never be picked up. */
+    botApiEnabled: boolean;
+  };
+  sessions: AdminSessionDto[];
+  rounds: AdminAccountRoundDto[];
+  /** Latest admin actions on this account. */
+  audit: AdminAuditEntryDto[];
+}
+
+/** Read-only player state as stored. Turns are as of the last settlement, not regenerated. */
+export interface AdminPlayerDto {
+  roundPlayerId: string;
+  account: { id: string; username: string; isActive: boolean };
+  round: { id: string; name: string; status: RoundStatus; rulesetVersion: string };
+  publicPimpId: number;
+  displayName: string;
+  city: string;
+  netWorthCents: number;
+  cashCents: number;
+  turns: number;
+  /** The ruleset turn cap: grants and void refunds never push turns past it. */
+  turnCap: number;
+  /** Registration or active: corrections are refused once standings are frozen. */
+  live: boolean;
+  lastTurnCalculationAt: string;
+  lastActiveAt: string;
+  payoutPercent: number;
+  crew: { whores: number; thugs: number; woundedThugs: number; lowRiders: number };
+  supplies: { condoms: number; medicine: number; crack: number; beer: number };
+  weapons: { pistols: number; shotguns: number; tek9s: number; ak47s: number };
+  unlocks: { shotgun: boolean; tek9: boolean; ak47: boolean };
+  happiness: { whores: number; thugs: number };
+  ranks: { national: number | null; local: number | null };
+  timers: {
+    raidProtectedUntil: string | null;
+    raidCooldownUntil: string | null;
+    lastRaidedAt: string | null;
+    driveByProtectedUntil: string | null;
+    driveByCooldownUntil: string | null;
+    lastDrivenByAt: string | null;
+  };
+  hideout: { safeRoom: number; lookouts: number; workshop: number; backOffice: number };
+  reputation: Array<{ trader: string; points: number; questDone: boolean }>;
+  injuries: Array<{ id: string; thugs: number; recoverAt: string; battleId: string | null }>;
+  intel: { observing: number; observedBy: number };
+  activity: ActivityDto[];
+}
+
+export interface AdminPlayerBattlesDto {
+  reports: BattleReportDto[];
+  nextBefore: string | null;
+}
+
+export type SiteBannerTone = 'info' | 'warning' | 'critical';
+
+/** A short site-wide notice. Public: GET /api/site/banner. */
+export interface SiteBannerDto {
+  id: string;
+  message: string;
+  tone: SiteBannerTone;
+  startsAt: string;
+  endsAt: string;
+  createdByUsername: string;
+}
+
+export interface SiteBannerResponseDto {
+  banner: SiteBannerDto | null;
+}
+
+export interface AdminSiteBannersDto {
+  current: SiteBannerDto | null;
+  /** Newest first, live and ended. */
+  banners: SiteBannerDto[];
+}
+
+export interface AdminCreateBannerInput {
+  message: string;
+  tone: SiteBannerTone;
+  startsAt?: string;
+  endsAt: string;
+}
+
+export interface AdminNewsPostDto {
+  id: string;
+  title: string;
+  body: string;
+  isPinned: boolean;
+  publishedAt: string;
+  /** Null for a global announcement shown in every round. */
+  roundId: string | null;
+  roundName: string | null;
+  authorName: string | null;
+  discordPostedAt: string | null;
+  forumDiscussionId: string | null;
+  forumUrl: string | null;
+  forumPostedAt: string | null;
+  forumError: string | null;
+  updatedAt: string;
+}
+
+export interface AdminNewsDto {
+  posts: AdminNewsPostDto[];
+  /** Rounds a post can be attached to, newest first. */
+  rounds: Array<{ id: string; name: string; status: RoundStatus }>;
+  forumMirrorEnabled: boolean;
+}
+
+export interface AdminCreateNewsInput {
+  title: string;
+  body: string;
+  pinned: boolean;
+  roundId: string | null;
+  /** Defaults to now. A future time schedules the post. */
+  publishedAt?: string;
+  mirrorToForum: boolean;
+}
+
+export interface AdminUpdateNewsInput {
+  title?: string;
+  body?: string;
+  pinned?: boolean;
+}
+
+export interface AdminUpdateRoundInput {
+  reason: string;
+  name?: string;
+  startsAt?: string;
+  endsAt?: string;
+  registrationOpensAt?: string | null;
+}
+
+export interface AdminCloseExpiredResultDto {
+  closed: AdminRoundDto[];
+}
+
+export interface AdminRoundHealthDayDto {
+  /** UTC calendar day, YYYY-MM-DD. */
+  day: string;
+  joins: number;
+  /** Players with at least one action that day. */
+  activePlayers: number;
+  turnsSpent: number;
+  raids: number;
+  driveBys: number;
+  specialRaids: number;
+  recon: number;
+}
+
+export interface AdminRoundHealthDto {
+  round: AdminRoundDto;
+  players: { total: number; active24h: number; active7d: number; neverActed: number };
+  /** Newest first, up to the last 14 days of the round. */
+  days: AdminRoundHealthDayDto[];
+  topPlayers: Array<{
+    roundPlayerId: string;
+    displayName: string;
+    publicPimpId: number;
+    netWorthCents: number;
+    nationalRank: number | null;
+    lastActiveAt: string;
+  }>;
+}
+
+/** What the Discord bot still has to pick up. The bot only pulls, so a growing oldest item means it is down. */
+export interface AdminDiscordStatusDto {
+  botApiEnabled: boolean;
+  linkedAccounts: number;
+  queues: {
+    news: { pending: number; oldestAt: string | null };
+    battles: { pending: number; oldestAt: string | null };
+    roundOpenings: number;
+    roundEndings: number;
+    resyncs: number;
+  };
+  recentResyncs: Array<{
+    id: string;
+    everyone: boolean;
+    requestedByUsername: string;
+    createdAt: string;
+    claimedAt: string | null;
+  }>;
+}
+
+export interface AdminRulesetRowDto {
+  /** Dotted path such as `turns.cap` or `hideout.rooms.SAFE_ROOM.costsCents`. */
+  path: string;
+  /** JSON-encoded value, or null when the path does not exist in this ruleset. */
+  value: string | null;
+  compareValue: string | null;
+  changed: boolean;
+}
+
+export interface AdminRulesetViewDto {
+  ruleset: AdminRulesetOptionDto;
+  compareTo: AdminRulesetOptionDto | null;
+  /** Every loadable ruleset, newest first. */
+  rulesets: AdminRulesetOptionDto[];
+  sections: Array<{ key: string; rows: AdminRulesetRowDto[]; changed: number }>;
+  changedCount: number;
+}
+
+export interface AdminDevBotsDto {
+  /** Why dev bots are refused on this server, or null when they are allowed. */
+  blockedReason: string | null;
+  currentRound: { id: string; name: string; rulesetVersion: string } | null;
+  bots: Array<{
+    accountId: string;
+    username: string;
+    isActive: boolean;
+    roundsPlayed: number;
+    inCurrentRound: { roundPlayerId: string; displayName: string; publicPimpId: number; netWorthCents: number } | null;
+  }>;
+}
+
+/** Most an admin can give in one compensation grant. Turns are capped by the round's ruleset instead. */
+export const ADMIN_GRANT_CAPS = {
+  cashCents: 10_000_000,
+  whores: 50,
+  thugs: 50,
+  condoms: 500,
+  medicine: 500,
+  crack: 500,
+  beer: 500,
+  pistols: 25,
+  shotguns: 10,
+  tek9s: 10,
+  ak47s: 10,
+  lowRiders: 5,
+} as const;
+
+export type AdminGrantItem = keyof typeof ADMIN_GRANT_CAPS;
+
+export type AdminGrantInput = { reason: string; turns?: number } & Partial<Record<AdminGrantItem, number>>;
+
+export interface AdminVoidSideDto {
+  roundPlayerId: string;
+  displayName: string;
+  /** Signed change applied to each field of this player. */
+  changes: Record<string, number>;
+  /** What could not be taken back from this player because they no longer had it. */
+  shortfall: Record<string, number>;
+}
+
+export interface AdminVoidBattleResultDto {
+  battleId: string;
+  kind: string;
+  attacker: AdminVoidSideDto;
+  defender: AdminVoidSideDto;
+}
+
+export type AdminSignal = 'shared-network' | 'same-device' | 'created-together';
+
+export interface AdminSignalAccountDto {
+  id: string;
+  username: string;
+  isActive: boolean;
+  isAdmin: boolean;
+  createdAt: string;
+  lastLoginAt: string | null;
+  /** Coarse label only, never the raw browser string. */
+  device: string;
+  sightings: number;
+}
+
+export interface AdminSignalClusterDto {
+  /** Opaque and stable on this server; never the IP address. */
+  key: string;
+  signals: AdminSignal[];
+  firstSeenAt: string;
+  lastSeenAt: string;
+  accounts: AdminSignalAccountDto[];
+}
+
+export interface AdminSignalsDto {
+  windowDays: number;
+  generatedAt: string;
+  clusters: AdminSignalClusterDto[];
 }

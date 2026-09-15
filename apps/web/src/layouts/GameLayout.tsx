@@ -63,7 +63,15 @@ const SECTIONS: NavSection[] = [
 /** Only shown to game admins. The server enforces the same rule on every admin route. */
 const ADMIN_SECTION: NavSection = {
   title: 'Admin',
-  items: [{ label: 'Admin panel', to: '/game/admin' }],
+  items: [
+    { label: 'Rounds', to: '/game/admin' },
+    { label: 'News & banner', to: '/game/admin/news' },
+    { label: 'Accounts', to: '/game/admin/accounts' },
+    { label: 'Integrations', to: '/game/admin/integrations' },
+    { label: 'Rulesets', to: '/game/admin/rulesets' },
+    { label: 'Signals', to: '/game/admin/signals' },
+    { label: 'Audit log', to: '/game/admin/audit' },
+  ],
 };
 
 function useSections(): NavSection[] {

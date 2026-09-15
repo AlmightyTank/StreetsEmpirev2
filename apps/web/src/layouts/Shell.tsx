@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatCents, formatCentsCompact } from '@streets/shared';
+import { SiteBanner } from '../components/SiteBanner.js';
 import { useSession } from '../stores/session.js';
 
 /**
@@ -89,6 +90,8 @@ export function Shell({ children, narrow }: { children: ReactNode; narrow?: bool
           )}
         </div>
       </header>
+
+      <SiteBanner />
 
       <main className={narrow ? 'se-authshell' : 'se-shell'}>{children}</main>
     </div>

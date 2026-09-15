@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import { botTokenMatches, DiscordBotService } from '../services/discord-bot.service.js';
+import { claimResyncRequests } from '../services/discord-resync.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 
@@ -89,6 +90,9 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.post('/alerts/claim', async () => DiscordBotService.claimAlerts(fastify.prisma));
+
+  /** 0.3.0-B: role resyncs an admin asked for from the panel, each handed out once. */
+  fastify.post('/resync/claim', async () => claimResyncRequests(fastify.prisma));
 };
 
 export default discordBotRoutes;

@@ -1,12 +1,24 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import type { AdminAuditEntryDto, AdminRoundAction, AdminRoundDto, AdminRoundsDto, RoundStatus } from '@streets/shared';
+import { Link } from 'react-router-dom';
+import type {
+  AdminAuditEntryDto,
+  AdminRoundAction,
+  AdminRoundDto,
+  AdminRoundsDto,
+  AdminSeasonChecklistDto,
+  AdminSeasonChecklistItemDto,
+  RoundStatus,
+} from '@streets/shared';
 import { formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
+import { roundsApi } from '../api/rounds.js';
+import { AuditEntryList } from '../components/AdminParts.js';
 import { Alert } from '../components/Alert.js';
 import { Field } from '../components/Field.js';
 import { Panel, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { adminWhen, localInputToIso } from '../utils/admin.js';
 
 const actionLabel: Record<AdminRoundAction, string> = {
   'open-registration': 'Open registration',
@@ -38,27 +50,10 @@ function statusTone(status: RoundStatus): string {
   return '';
 }
 
-function when(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-}
-
-/** datetime-local inputs hold local time with no zone; the API takes ISO timestamps. */
-function toIso(local: string): string | undefined {
-  if (!local) return undefined;
-  const date = new Date(local);
-  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
-}
-
-function snapshotStatus(value: unknown): string | null {
-  if (!value || typeof value !== 'object' || !('status' in value)) return null;
-  return String((value as { status: unknown }).status);
-}
-
-function auditChange(entry: AdminAuditEntryDto): string {
-  const before = snapshotStatus(entry.before);
-  const after = snapshotStatus(entry.after);
-  if (before && after) return before === after ? after : `${before} → ${after}`;
-  return after ? `created as ${after}` : '-';
+function checklistTone(status: AdminSeasonChecklistItemDto['status']): string {
+  if (status === 'done') return 'se-tag--good';
+  if (status === 'warning') return 'se-tag--warn';
+  return 'se-tag--bad';
 }
 
 interface Pending {
@@ -69,6 +64,7 @@ interface Pending {
 export function AdminPage() {
   const [data, setData] = useState<AdminRoundsDto | null>(null);
   const [audit, setAudit] = useState<AdminAuditEntryDto[] | null>(null);
+  const [checklist, setChecklist] = useState<AdminSeasonChecklistDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -84,9 +80,10 @@ export function AdminPage() {
 
   const load = useCallback(async () => {
     try {
-      const [rounds, log] = await Promise.all([adminApi.rounds(), adminApi.audit()]);
+      const [rounds, log, season] = await Promise.all([adminApi.rounds(), adminApi.audit({ limit: 20 }), roundsApi.adminSeasonChecklist()]);
       setData(rounds);
       setAudit(log.entries);
+      setChecklist(season);
       setForm((current) => (current.rulesetId ? current : { ...current, rulesetId: rounds.rulesets[0]?.id ?? '' }));
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not load the admin panel.');
@@ -138,6 +135,23 @@ export function AdminPage() {
     }
   }
 
+  async function closeExpired() {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await adminApi.closeExpiredRounds();
+      setNotice(result.closed.length
+        ? `Closed ${result.closed.map((round) => round.name).join(', ')}.`
+        : 'No rounds needed closing.');
+      await load();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not close expired rounds.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function scheduleRound(event: FormEvent) {
     event.preventDefault();
     setScheduling(true);
@@ -145,13 +159,13 @@ export function AdminPage() {
     setError(null);
     setNotice(null);
     try {
-      const startsAt = toIso(form.startsAt);
+      const startsAt = localInputToIso(form.startsAt);
       if (!startsAt) {
         setFields({ startsAt: 'Pick a start date and time.' });
         return;
       }
-      const endsAt = toIso(form.endsAt);
-      const registrationOpensAt = toIso(form.registrationOpensAt);
+      const endsAt = localInputToIso(form.endsAt);
+      const registrationOpensAt = localInputToIso(form.registrationOpensAt);
       const result = await adminApi.scheduleRound({
         name: form.name.trim(),
         rulesetId: form.rulesetId,
@@ -234,6 +248,46 @@ export function AdminPage() {
         </Panel>
       ) : null}
 
+      <Panel
+        title="Season checklist"
+        aside={checklist ? `${checklist.items.filter((item) => item.status === 'done').length}/${checklist.items.length} done` : undefined}
+        className="se-mb"
+      >
+        {!checklist ? (
+          <p className="se-muted">Checking season handoff...</p>
+        ) : (
+          <>
+            {checklist.openExpiredRounds > 0 ? (
+              <div className="se-cta se-mb">
+                <button type="button" className="se-btn se-btn--primary" onClick={() => void closeExpired()} disabled={busy}>
+                  {busy ? 'Closing...' : `Close ${checklist.openExpiredRounds} expired round${checklist.openExpiredRounds === 1 ? '' : 's'} now`}
+                </button>
+              </div>
+            ) : null}
+            <div className="se-admin-checklist">
+              {checklist.items.map((item) => (
+                <article className="se-admin-check" key={item.key}>
+                  <div className="se-admin-check__head">
+                    <strong>{item.label}</strong>
+                    <span className={`se-tag ${checklistTone(item.status)}`}>{item.status}</span>
+                  </div>
+                  <p>{item.detail}</p>
+                  {item.key === 'round-end-post' && item.status !== 'done' ? (
+                    <p className="se-hint">The Discord bot claims this on its next check. Nothing to press here.</p>
+                  ) : item.key === 'news-post' && item.status !== 'done' ? (
+                    <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/admin/news">Write a wrap-up post</Link>
+                  ) : item.key === 'next-round-ready' && item.status !== 'done' ? (
+                    <a className="se-btn se-btn--ghost se-btn--sm" href="#schedule-round">Schedule the next round</a>
+                  ) : item.action && item.key !== 'expired-rounds-closed' ? (
+                    <p className="se-hint">{item.action}</p>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          </>
+        )}
+      </Panel>
+
       <Panel title="Rounds" aside={data ? `${formatNumber(rounds.length)} shown` : undefined} flush className="se-mb">
         {!data ? (
           <p className="se-muted se-admin-pad">Loading rounds...</p>
@@ -257,14 +311,14 @@ export function AdminPage() {
                 {rounds.map((round) => (
                   <tr key={round.id}>
                     <td>
-                      <strong>{round.name}</strong>
+                      <Link to={`/game/admin/rounds/${round.id}`}><strong>{round.name}</strong></Link>
                       <br />
                       <span className="se-muted">{round.slug}</span>
                     </td>
                     <td><span className={`se-tag${statusTone(round.status)}`}>{round.status}</span></td>
                     <td className="se-num">{round.rulesetVersion}</td>
-                    <td>{when(round.startsAt)}</td>
-                    <td>{when(round.endsAt)}</td>
+                    <td>{adminWhen(round.startsAt)}</td>
+                    <td>{adminWhen(round.endsAt)}</td>
                     <td className="se-table__number se-num">{formatNumber(round.playerCount)}</td>
                     <td className="se-table__number">
                       <div className="se-admin-actions">
@@ -291,7 +345,7 @@ export function AdminPage() {
 
       <div className="se-grid se-grid--2">
         <Panel title="Schedule a round">
-          <form onSubmit={scheduleRound} noValidate>
+          <form id="schedule-round" onSubmit={scheduleRound} noValidate>
             <Field
               id="admin-round-name"
               label="Name"
@@ -359,26 +413,11 @@ export function AdminPage() {
           </form>
         </Panel>
 
-        <Panel title="Audit log" aside="Latest 50" flush>
+        <Panel title="Recent admin actions" aside={<Link to="/game/admin/audit">Full audit log</Link>} flush>
           {!audit ? (
             <p className="se-muted se-admin-pad">Loading audit log...</p>
-          ) : audit.length === 0 ? (
-            <p className="se-muted se-admin-pad">No admin actions yet.</p>
           ) : (
-            <ol className="se-admin-audit">
-              {audit.map((entry) => (
-                <li className="se-admin-audit__entry" key={entry.id}>
-                  <div className="se-admin-audit__head">
-                    <strong>{entry.action}</strong>
-                    <span className="se-muted">{when(entry.createdAt)}</span>
-                  </div>
-                  <p>
-                    {entry.actorUsername} · {entry.targetId ? roundNames.get(entry.targetId) ?? entry.targetId : entry.targetType} · {auditChange(entry)}
-                  </p>
-                  {entry.reason ? <p className="se-hint">Reason: {entry.reason}</p> : null}
-                </li>
-              ))}
-            </ol>
+            <AuditEntryList entries={audit} names={roundNames} />
           )}
         </Panel>
       </div>

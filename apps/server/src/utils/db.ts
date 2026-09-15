@@ -19,3 +19,8 @@ export async function lockRoundPlayer(db: Db, roundPlayerId: string): Promise<vo
 export async function lockRound(db: Db, roundId: string): Promise<void> {
   await db.$queryRaw`SELECT id FROM "Round" WHERE id = ${roundId} FOR UPDATE`;
 }
+
+/** Serialise admin moderation of one account. */
+export async function lockAccount(db: Db, accountId: string): Promise<void> {
+  await db.$queryRaw`SELECT id FROM "Account" WHERE id = ${accountId} FOR UPDATE`;
+}

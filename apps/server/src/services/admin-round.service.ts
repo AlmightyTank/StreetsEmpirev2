@@ -81,7 +81,7 @@ function toAdminRoundDto(round: Round, playerCount: number): AdminRoundDto {
   return { ...toRoundDto(round, playerCount), createdAt: round.createdAt.toISOString(), actions: availableRoundActions(round) };
 }
 
-async function adminRound(prisma: PrismaClient, round: Round): Promise<AdminRoundDto> {
+export async function adminRound(prisma: PrismaClient, round: Round): Promise<AdminRoundDto> {
   return toAdminRoundDto(round, await RoundService.playerCount(prisma, round.id));
 }
 
@@ -252,4 +252,80 @@ export const AdminRoundService = {
     }, LIFECYCLE_TRANSACTION);
     return adminRound(prisma, round);
   },
+
+  /**
+   * Rename a round or move its dates before it finishes. A running round keeps
+   * its start date, and a new end date has to be in the future (End early
+   * finishes a round now). Moving the end past the next day re-arms the Discord
+   * "ending soon" alert.
+   */
+  async update(prisma: PrismaClient, actor: AuditActor, roundId: string, input: RoundUpdateInput, now = new Date()): Promise<AdminRoundDto> {
+    const round = await prisma.$transaction(async (tx) => {
+      await lockRound(tx, roundId);
+      const before = await tx.round.findUnique({ where: { id: roundId } });
+      if (!before) throw AppError.notFound('ROUND_NOT_FOUND', 'That round does not exist.');
+      if (before.status === 'ENDED' || before.status === 'ARCHIVED') {
+        throw AppError.conflict('ROUND_FINISHED', `${before.name} has finished, so its details are frozen.`);
+      }
+
+      const name = input.name ?? before.name;
+      const startsAt = input.startsAt ?? before.startsAt;
+      const endsAt = input.endsAt ?? before.endsAt;
+      const registrationOpensAt = input.registrationOpensAt === undefined ? before.registrationOpensAt : input.registrationOpensAt;
+      const startMoved = startsAt.getTime() !== before.startsAt.getTime();
+      const endMoved = endsAt.getTime() !== before.endsAt.getTime();
+
+      if (before.status === 'ACTIVE' && startMoved) {
+        throw AppError.conflict('ROUND_ALREADY_STARTED', `${before.name} is already running, so its start date is fixed.`);
+      }
+      if (endsAt.getTime() <= startsAt.getTime()) {
+        throw AppError.badRequest('INVALID_ROUND_WINDOW', 'The round has to end after it starts.', { endsAt: 'Must be after the start.' });
+      }
+      if (endMoved && endsAt.getTime() <= now.getTime()) {
+        throw AppError.badRequest('INVALID_ROUND_WINDOW', 'The new end date has to be in the future. Use End early to finish a round now.', { endsAt: 'Must be in the future.' });
+      }
+      if (registrationOpensAt && registrationOpensAt.getTime() > startsAt.getTime()) {
+        throw AppError.badRequest('INVALID_ROUND_WINDOW', 'Registration has to open before the round starts.', { registrationOpensAt: 'Must be before the start.' });
+      }
+      const changed = name !== before.name || startMoved || endMoved
+        || (registrationOpensAt?.getTime() ?? null) !== (before.registrationOpensAt?.getTime() ?? null);
+      if (!changed) throw AppError.badRequest('NO_CHANGES', 'Nothing changed on that round.');
+
+      const rearmEndingSoon = Boolean(before.discordEndingSoonAt) && endMoved && endsAt.getTime() > now.getTime() + DAY_MS;
+      const updated = await tx.round.update({
+        where: { id: before.id },
+        data: { name, startsAt, endsAt, registrationOpensAt, ...(rearmEndingSoon ? { discordEndingSoonAt: null } : {}) },
+      });
+      await AdminAuditService.record(tx, actor, { action: 'round.update', targetType: 'round', targetId: before.id, reason: input.reason, before, after: updated });
+      return updated;
+    }, LIFECYCLE_TRANSACTION);
+    return adminRound(prisma, round);
+  },
+
+  /** Season checklist action: close every round past its end date now instead of waiting for a visitor. */
+  async closeExpiredNow(prisma: PrismaClient, actor: AuditActor, now = new Date()): Promise<AdminRoundDto[]> {
+    const closed = await RoundService.closeExpired(prisma, now);
+    if (closed.length) {
+      await prisma.$transaction(async (tx) => {
+        for (const round of closed) {
+          await AdminAuditService.record(tx, actor, {
+            action: 'round.close-expired',
+            targetType: 'round',
+            targetId: round.id,
+            reason: 'Closed from the season checklist.',
+            after: round,
+          });
+        }
+      });
+    }
+    return Promise.all(closed.map((round) => adminRound(prisma, round)));
+  },
 };
+
+export interface RoundUpdateInput {
+  reason: string;
+  name?: string | undefined;
+  startsAt?: Date | undefined;
+  endsAt?: Date | undefined;
+  registrationOpensAt?: Date | null | undefined;
+}
