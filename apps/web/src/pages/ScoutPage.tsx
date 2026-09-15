@@ -5,6 +5,7 @@ import { formatCents, formatNumber } from '@streets/shared';
 import { actionsApi } from '../api/actions.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { DistrictPicker } from '../components/DistrictPicker.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
@@ -45,6 +46,15 @@ export function ScoutPage() {
     typeof turns === 'number' &&
     turns >= 1 &&
     turns <= available;
+  const scoutBlock = action.busy
+    ? 'Your crew is still out on the last job.'
+    : district === ''
+      ? 'Pick a district to work first.'
+      : typeof turns !== 'number' || turns < 1
+        ? 'Say how many turns to spend - at least one.'
+        : turns > available
+          ? `You only have ${formatNumber(available)} turns.`
+          : null;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -83,11 +93,12 @@ export function ScoutPage() {
               onChange={setTurns}
               available={available}
               disabled={action.busy}
+              disabledReason={action.busy ? 'Your crew is still out on the last job.' : null}
             />
 
-            <button className="se-btn se-btn--primary se-btn--block" disabled={!canScout}>
+            <Button className="se-btn se-btn--primary se-btn--block" disabledReason={scoutBlock}>
               {action.busy ? 'Working the block...' : 'Scout'}
-            </button>
+            </Button>
           </form>
 
           <p className="se-hint">

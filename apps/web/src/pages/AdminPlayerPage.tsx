@@ -5,6 +5,7 @@ import { formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -42,6 +43,7 @@ export function AdminPlayerPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [busy, setBusy] = useState(false);
+  const working = 'The last admin action is still going through.';
 
   const [voiding, setVoiding] = useState<BattleReportDto | null>(null);
   const [voidReason, setVoidReason] = useState('');
@@ -181,8 +183,9 @@ export function AdminPlayerPage() {
               <p className="se-hint">Shown to both players and saved to the audit log. At least 5 characters.</p>
             </div>
             <div className="se-cta se-mt">
-              <button className="se-btn se-btn--primary" disabled={busy || voidReason.trim().length < 5}>{busy ? 'Voiding...' : 'Confirm void'}</button>
-              <button type="button" className="se-btn se-btn--ghost" onClick={() => setVoiding(null)} disabled={busy}>Cancel</button>
+              <Button className="se-btn se-btn--primary"
+                disabledReason={busy ? working : voidReason.trim().length < 5 ? 'Both players see this reason, so write at least 5 characters.' : null}>{busy ? 'Voiding...' : 'Confirm void'}</Button>
+              <Button type="button" className="se-btn se-btn--ghost" onClick={() => setVoiding(null)} disabledReason={busy ? working : null}>Cancel</Button>
             </div>
           </form>
         </Panel>
@@ -287,7 +290,11 @@ export function AdminPlayerPage() {
               <textarea id="admin-grant-reason" className="se-input se-admin-reason" maxLength={500} value={grantReason} onChange={(event) => setGrantReason(event.target.value)} />
               {grantFields.reason ? <p className="se-error">{grantFields.reason}</p> : <p className="se-hint">Shown in the player's activity feed and saved to the audit log. Weapons they have not unlocked are refused.</p>}
             </div>
-            <button className="se-btn se-btn--primary" disabled={busy || grantEmpty || grantReason.trim().length < 5}>{busy ? 'Granting...' : 'Grant'}</button>
+            <Button className="se-btn se-btn--primary"
+              disabledReason={busy ? working
+                : grantEmpty ? 'Fill in at least one amount to send.'
+                  : grantReason.trim().length < 5 ? 'The player sees this reason, so write at least 5 characters.'
+                    : null}>{busy ? 'Granting...' : 'Grant'}</Button>
           </form>
         )}
       </Panel>
@@ -338,9 +345,9 @@ export function AdminPlayerPage() {
                       <td className="se-table__number se-num">{formatNumber(report.turnsSpent ?? 0)}</td>
                       <td className="se-table__number">
                         {report.voided || !player.live ? <span className="se-muted">-</span> : (
-                          <button type="button" className="se-btn se-btn--sm" onClick={() => { setVoiding(report); setVoidReason(''); setVoidResult(null); }} disabled={busy}>
+                          <Button type="button" className="se-btn se-btn--sm" onClick={() => { setVoiding(report); setVoidReason(''); setVoidResult(null); }} disabledReason={busy ? working : null}>
                             Void
-                          </button>
+                          </Button>
                         )}
                       </td>
                     </tr>
@@ -350,9 +357,9 @@ export function AdminPlayerPage() {
             </div>
             {nextBefore ? (
               <div className="se-admin-pad">
-                <button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => void loadOlder()} disabled={loadingMore}>
+                <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => void loadOlder()} disabledReason={loadingMore ? 'Still loading the last page of reports.' : null}>
                   {loadingMore ? 'Loading...' : 'Load older reports'}
-                </button>
+                </Button>
               </div>
             ) : null}
           </>

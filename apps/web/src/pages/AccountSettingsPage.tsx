@@ -11,6 +11,7 @@ import type {
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { ForumLinkPanel } from '../components/ForumLinkPanel.js';
 import { Panel, Row } from '../components/Panel.js';
@@ -45,6 +46,8 @@ export function AccountSettingsPage() {
   const [tone, setTone] = useState<'error' | 'info'>('info');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<'recovery' | 'verify' | 'email' | 'password' | 'sessions' | 'cosmetics' | null>(null);
+  /** One line for every button while another request is in flight. */
+  const working = 'Finishing the last thing you asked for.';
   const [sessions, setSessions] = useState<AccountSessionDto[]>([]);
   const [profileSettings, setProfileSettings] = useState<AccountProfileSettingsResponseDto | null>(null);
   const [cosmetics, setCosmetics] = useState(DEFAULT_PROFILE_SETTINGS);
@@ -291,9 +294,9 @@ export function AccountSettingsPage() {
               Password recovery sends a one-hour reset link to your private account email.
               The address is used for login and recovery only.
             </p>
-            <button type="button" className="se-btn se-btn--primary se-btn--block" onClick={sendRecovery} disabled={busy !== null}>
+            <Button type="button" className="se-btn se-btn--primary se-btn--block" onClick={sendRecovery} disabledReason={busy !== null ? working : null}>
               {busy === 'recovery' ? 'Sending...' : 'Send recovery email'}
-            </button>
+            </Button>
             <p className="se-hint">
               Check your inbox after sending. Recovery links expire after one hour.
             </p>
@@ -334,9 +337,9 @@ export function AccountSettingsPage() {
                   <small>Keep this device signed in and revoke every other browser session.</small>
                 </span>
               </label>
-              <button className="se-btn se-btn--primary se-btn--block" disabled={busy !== null}>
+              <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy !== null ? working : null}>
                 {busy === 'password' ? 'Changing...' : 'Change password'}
-              </button>
+              </Button>
             </form>
           </Panel>
 
@@ -368,14 +371,14 @@ export function AccountSettingsPage() {
             <p>
               Verify your current email before changing it. This proves you control the recovery address already on the account.
             </p>
-            <button
+            <Button
               type="button"
               className="se-btn se-btn--primary se-btn--block"
               onClick={verifyCurrentEmail}
-              disabled={busy !== null || Boolean(account.emailVerifiedAt)}
+              disabledReason={busy !== null ? working : account.emailVerifiedAt ? 'This address is already verified. Nothing to send.' : null}
             >
               {account.emailVerifiedAt ? 'Email verified' : busy === 'verify' ? 'Sending...' : 'Verify current email'}
-            </button>
+            </Button>
           </Panel>
 
           <Panel title="Change email">
@@ -391,9 +394,9 @@ export function AccountSettingsPage() {
                 error={fields.email}
                 hint="A confirmation link will be sent to the new email address."
               />
-              <button className="se-btn se-btn--primary se-btn--block" disabled={busy !== null}>
+              <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy !== null ? working : null}>
                 {busy === 'email' ? 'Sending...' : 'Send change confirmation'}
-              </button>
+              </Button>
             </form>
           </Panel>
 
@@ -410,14 +413,14 @@ export function AccountSettingsPage() {
       <Panel title="Login sessions">
         <div className="se-session-head">
           <p className="se-hint">These are active browser sessions for this account.</p>
-          <button
+          <Button
             type="button"
             className="se-btn se-btn--ghost se-btn--sm"
             onClick={revokeOtherSessions}
-            disabled={busy !== null || sessions.filter((session) => !session.current).length === 0}
+            disabledReason={busy !== null ? working : sessions.some((session) => !session.current) ? null : 'This is the only session signed in.'}
           >
             {busy === 'sessions' ? 'Working...' : 'Log out other sessions'}
-          </button>
+          </Button>
         </div>
 
         {sessions.length ? (
@@ -436,14 +439,14 @@ export function AccountSettingsPage() {
                   <small>Created {formatDate(session.createdAt)} · Expires {formatDate(session.expiresAt)}</small>
                 </div>
                 {session.current ? null : (
-                  <button
+                  <Button
                     type="button"
                     className="se-btn se-btn--ghost se-btn--sm"
                     onClick={() => revokeSession(session.id)}
-                    disabled={busy !== null}
+                    disabledReason={busy !== null ? working : null}
                   >
                     Log out
-                  </button>
+                  </Button>
                 )}
               </div>
             ))}
@@ -506,7 +509,8 @@ export function AccountSettingsPage() {
                     {profileSettings.options.badges.map((option) => {
                       const checked = cosmetics.featuredBadgeKeys.includes(option.key);
                       return (
-                        <label className="se-checkrow" key={option.key}>
+                        <label className="se-checkrow" key={option.key}
+                          title={!checked && cosmetics.featuredBadgeKeys.length >= 6 ? 'Six badges is the most a profile shows. Clear one to swap this in.' : undefined}>
                           <input
                             type="checkbox"
                             checked={checked}
@@ -596,9 +600,9 @@ export function AccountSettingsPage() {
               </label>
             </div>
 
-            <button className="se-btn se-btn--primary se-btn--block" disabled={busy !== null}>
+            <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy !== null ? working : null}>
               {busy === 'cosmetics' ? 'Saving...' : 'Save settings'}
-            </button>
+            </Button>
           </form>
         )}
       </Panel>

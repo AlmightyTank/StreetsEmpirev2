@@ -280,6 +280,53 @@ body {
 }
 
 .se-btn--block { width: 100%; }
+
+/*
+ * Why a button is off. A disabled button gets no mouse events of its own, so
+ * the reason hangs off a wrapper and shows on hover. It stays in the page while
+ * hidden so screen readers, which never hover, still hear it.
+ */
+.se-why {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.se-why--block {
+  display: flex;
+  width: 100%;
+}
+
+.se-why__text {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 40;
+  width: max-content;
+  max-width: min(260px, 70vw);
+  padding: 7px 10px;
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  background: var(--se-panel-hi);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+  color: var(--se-text-dim);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.45;
+  text-align: center;
+  text-transform: none;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  pointer-events: none;
+}
+
+.se-why:hover .se-why__text,
+.se-why:focus-within .se-why__text {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
 .se-btn--ghost { background: transparent; }
 
 .se-btn--discord {

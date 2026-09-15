@@ -6,6 +6,7 @@ import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { AuditEntryList } from '../components/AdminParts.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -116,8 +117,8 @@ export function AdminAuditPage() {
           <Field id="admin-audit-from" label="From" type="datetime-local" value={form.from} onChange={(event) => update('from', event.target.value)} />
           <Field id="admin-audit-to" label="To" type="datetime-local" value={form.to} onChange={(event) => update('to', event.target.value)} />
           <div className="se-field se-cta">
-            <button className="se-btn se-btn--primary" disabled={busy}>Apply</button>
-            <button type="button" className="se-btn se-btn--ghost" onClick={clear} disabled={busy}>Clear</button>
+            <Button className="se-btn se-btn--primary" disabledReason={busy ? 'Still loading the last set of entries.' : null}>Apply</Button>
+            <Button type="button" className="se-btn se-btn--ghost" onClick={clear} disabledReason={busy ? 'Still loading the last set of entries.' : null}>Clear</Button>
           </div>
         </form>
       </Panel>
@@ -130,9 +131,9 @@ export function AdminAuditPage() {
             <AuditEntryList entries={entries} empty="No admin actions match these filters." />
             {nextBefore ? (
               <div className="se-admin-pad">
-                <button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => void load(applied, nextBefore)} disabled={busy}>
+                <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => void load(applied, nextBefore)} disabledReason={busy ? 'Still loading the last set of entries.' : null}>
                   {busy ? 'Loading...' : 'Load older entries'}
-                </button>
+                </Button>
               </div>
             ) : null}
           </>

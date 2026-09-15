@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
@@ -79,9 +80,9 @@ export function LoginPage() {
                 <Link to="/forgot-password">Forgot your password?</Link>
               </p>
 
-              <button className="se-btn se-btn--primary se-btn--block" disabled={busy}>
+              <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy ? 'Checking those details with the server.' : null}>
                 {busy ? 'Working...' : 'Log in'}
-              </button>
+              </Button>
             </form>
           </Panel>
 

@@ -5,6 +5,7 @@ import { hideoutApi } from '../api/hideout.js';
 import { ApiError } from '../api/client.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -13,12 +14,13 @@ import { useSession } from '../stores/session.js';
 function RoomCard({
   room,
   cashCents,
-  disabled,
+  blocked,
   onUpgrade,
 }: {
   room: HideoutRoomDto;
   cashCents: number;
-  disabled: boolean;
+  /** Why no room can be upgraded right now, or null when they can. */
+  blocked: string | null;
   onUpgrade: (room: HideoutRoomDto) => void;
 }) {
   const maxed = room.nextCostCents === null;
@@ -36,14 +38,19 @@ function RoomCard({
         <Row label="Next" value={room.nextEffect ?? 'Fully upgraded'} strong />
         <Row label="Cost" value={room.nextCostCents === null ? '-' : formatCents(room.nextCostCents)} />
       </div>
-      <button
+      <Button
         type="button"
         className="se-btn se-btn--primary se-btn--block"
-        disabled={disabled || maxed || !affordable}
+        disabledReason={blocked
+          ?? (maxed
+            ? `The ${room.name} is at level ${formatNumber(room.maxLevel)}, as far as it goes this season.`
+            : !affordable
+              ? `This costs ${formatCents(room.nextCostCents!)} and you are ${formatCents(room.nextCostCents! - cashCents)} short.`
+              : null)}
         onClick={() => onUpgrade(room)}
       >
         {maxed ? 'Fully upgraded' : affordable ? `Upgrade ${room.name}` : `Need ${formatCents(room.nextCostCents!)}`}
-      </button>
+      </Button>
     </Panel>
   );
 }
@@ -137,7 +144,7 @@ export function HideoutPage() {
                   key={room.key}
                   room={room}
                   cashCents={me.resources.cashCents}
-                  disabled={action.busy || loadError !== null}
+                  blocked={action.busy ? 'Your last upgrade is still going through.' : loadError !== null ? 'The hideout could not be loaded, so nothing can be built yet.' : null}
                   onUpgrade={(next) => void upgrade(next)}
                 />
               ))}
@@ -152,16 +159,20 @@ export function HideoutPage() {
                       <Row label="Cost" value={formatCents(nextRoom.nextCostCents!)} />
                       <Row label="Effect" value={nextRoom.nextEffect} />
                     </div>
-                    <button
+                    <Button
                       type="button"
                       className="se-btn se-btn--primary se-btn--block"
-                      disabled={action.busy || me.resources.cashCents < nextRoom.nextCostCents!}
+                      disabledReason={action.busy
+                        ? 'Your last upgrade is still going through.'
+                        : me.resources.cashCents < nextRoom.nextCostCents!
+                          ? `This costs ${formatCents(nextRoom.nextCostCents!)} and you are ${formatCents(nextRoom.nextCostCents! - me.resources.cashCents)} short.`
+                          : null}
                       onClick={() => void upgrade(nextRoom)}
                     >
                       {me.resources.cashCents >= nextRoom.nextCostCents!
                         ? `Upgrade ${nextRoom.name}`
                         : `Need ${formatCents(nextRoom.nextCostCents!)}`}
-                    </button>
+                    </Button>
                   </>
                 ) : (
                   <p className="se-muted">Every room is fully upgraded for this season.</p>

@@ -5,6 +5,7 @@ import { formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { adminWhen } from '../utils/admin.js';
@@ -43,6 +44,7 @@ export function AdminIntegrationsPage() {
   const [pending, setPending] = useState<Pending | null>(null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const working = 'The last admin action is still going through.';
 
   const load = useCallback(async () => {
     try {
@@ -114,10 +116,14 @@ export function AdminIntegrationsPage() {
               <p className="se-hint">Saved to the audit log.{needsReason ? ' At least 5 characters.' : ''}</p>
             </div>
             <div className="se-cta se-mt">
-              <button className="se-btn se-btn--primary" disabled={busy || (needsReason && reason.trim().length < 5) || (!needsReason && reason.trim().length > 0 && reason.trim().length < 5)}>
+              <Button className="se-btn se-btn--primary"
+                disabledReason={busy ? working
+                  : needsReason && reason.trim().length < 5 ? 'This action needs a reason of at least 5 characters for the audit log.'
+                    : !needsReason && reason.trim().length > 0 && reason.trim().length < 5 ? 'Either leave the note empty or write at least 5 characters.'
+                      : null}>
                 {busy ? 'Working...' : 'Confirm'}
-              </button>
-              <button type="button" className="se-btn se-btn--ghost" onClick={() => setPending(null)} disabled={busy}>Cancel</button>
+              </Button>
+              <Button type="button" className="se-btn se-btn--ghost" onClick={() => setPending(null)} disabledReason={busy ? working : null}>Cancel</Button>
             </div>
           </form>
         </Panel>
@@ -142,9 +148,10 @@ export function AdminIntegrationsPage() {
                   The bot only pulls from the game. If an oldest item keeps getting older, the bot is not polling.
                   {discord.botApiEnabled ? '' : ' Set DISCORD_BOT_API_TOKEN on the server and the bot to turn it on.'}
                 </p>
-                <button type="button" className="se-btn se-btn--sm se-mt" onClick={() => choose('resync-everyone')} disabled={busy || !discord.botApiEnabled}>
+                <Button type="button" className="se-btn se-btn--sm se-mt" onClick={() => choose('resync-everyone')}
+                  disabledReason={busy ? working : !discord.botApiEnabled ? 'The bot API is off. Set DISCORD_BOT_API_TOKEN on the server and the bot.' : null}>
                   Resync everyone's roles
-                </button>
+                </Button>
                 <p className="se-hint se-mt">To resync one player, use the button on their account page.</p>
               </div>
               {discord.recentResyncs.length ? (
@@ -176,12 +183,14 @@ export function AdminIntegrationsPage() {
                   <>
                     <p className="se-hint">Local raid targets for testing cash raids, drive-bys, drug runs, ride theft and lures.</p>
                     <div className="se-admin-moderation se-mt">
-                      <button type="button" className="se-btn se-btn--sm" onClick={() => choose('seed-bots')} disabled={busy || !bots.currentRound}>
+                      <Button type="button" className="se-btn se-btn--sm" onClick={() => choose('seed-bots')}
+                        disabledReason={busy ? working : !bots.currentRound ? 'There is no open round for bots to join.' : null}>
                         {bots.bots.some((bot) => bot.inCurrentRound) ? 'Reset bots in this round' : 'Add bots to this round'}
-                      </button>
-                      <button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => choose('remove-bots')} disabled={busy || bots.bots.length === 0}>
+                      </Button>
+                      <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => choose('remove-bots')}
+                        disabledReason={busy ? working : bots.bots.length === 0 ? 'There are no dev bots on this server.' : null}>
                         Remove every bot
-                      </button>
+                      </Button>
                     </div>
                     {!bots.currentRound ? <p className="se-hint se-mt">There is no current round to add them to.</p> : null}
                   </>

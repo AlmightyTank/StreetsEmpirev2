@@ -4,6 +4,7 @@ import { classicOgV01, rulesets } from '@streets/rulesets';
 import { formatCents, formatNumber } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { useSession } from '../stores/session.js';
@@ -134,14 +135,18 @@ export function JoinPage() {
           </Panel>
 
           <div className="se-mt">
-            <button
+            <Button
               type="button"
               className="se-btn se-btn--primary se-btn--block"
               onClick={onJoin}
-              disabled={busy || !canJoin}
+              disabledReason={busy
+                ? 'Putting you on the streets now.'
+                : !canJoin
+                  ? `${round.name} is ${round.status.toLowerCase()} and is not taking new players.`
+                  : null}
             >
               {busy ? 'Entering...' : `Enter ${round.name}`}
-            </button>
+            </Button>
             {!canJoin ? (
               <p className="se-hint">
                 This round is not taking new players right now.

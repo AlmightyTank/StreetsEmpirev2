@@ -5,6 +5,7 @@ import { formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -217,9 +218,10 @@ export function AdminRoundPage() {
                 <textarea id="admin-round-edit-reason" className="se-input se-admin-reason" maxLength={500} value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} />
                 {fields.reason ? <p className="se-error">{fields.reason}</p> : <p className="se-hint">Saved to the audit log. At least 5 characters.</p>}
               </div>
-              <button className="se-btn se-btn--primary se-btn--block" disabled={busy || form.reason.trim().length < 5}>
+              <Button className="se-btn se-btn--primary se-btn--block"
+                disabledReason={busy ? 'The last admin action is still going through.' : form.reason.trim().length < 5 ? 'The audit log needs a reason of at least 5 characters.' : null}>
                 {busy ? 'Saving...' : 'Save changes'}
-              </button>
+              </Button>
             </form>
           )}
           <p className="se-hint se-mt">

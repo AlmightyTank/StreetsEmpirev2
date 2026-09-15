@@ -1,4 +1,5 @@
 import { formatNumber } from '@streets/shared';
+import { Button } from './Button.js';
 
 /**
  * The +1 / +10 / +100 / +1000 / Max row, shared by every quantity input in the
@@ -15,6 +16,8 @@ export function QuantitySteps({
   max,
   steps,
   disabled,
+  disabledReason,
+  emptyReason,
   label = 'Max',
 }: {
   value: number | '';
@@ -22,35 +25,41 @@ export function QuantitySteps({
   max: number;
   steps: readonly number[];
   disabled?: boolean;
+  /** Why the whole row is off, from whatever is blocking the form around it. */
+  disabledReason?: string | null;
+  /** Why there is no maximum worth filling in, when the caller knows. */
+  emptyReason?: string | null;
   label?: string;
 }) {
   const current = typeof value === 'number' && Number.isFinite(value) ? value : 0;
   const atMax = current >= max;
+  const blocked = disabled ? disabledReason || 'Not right now.' : disabledReason || null;
+  const full = `The box is already at ${formatNumber(max)}, the most you can take.`;
 
   return (
     <>
       {steps
         .filter((step) => step <= max)
         .map((step) => (
-          <button
+          <Button
             type="button"
             key={step}
             className="se-btn se-btn--sm"
-            disabled={disabled || atMax}
+            disabledReason={blocked ?? (atMax ? full : null)}
             onClick={() => onChange(Math.min(max, current + step))}
           >
             +{formatNumber(step)}
-          </button>
+          </Button>
         ))}
 
-      <button
+      <Button
         type="button"
         className="se-btn se-btn--sm"
-        disabled={disabled || max < 1 || atMax}
+        disabledReason={blocked ?? (max < 1 ? emptyReason || 'There is nothing to fill in.' : atMax ? full : null)}
         onClick={() => onChange(max)}
       >
         {label}
-      </button>
+      </Button>
     </>
   );
 }

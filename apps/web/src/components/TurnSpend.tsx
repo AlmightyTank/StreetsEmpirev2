@@ -13,11 +13,14 @@ export function TurnSpend({
   onChange,
   available,
   disabled,
+  disabledReason,
 }: {
   value: number | '';
   onChange: (value: number | '') => void;
   available: number;
   disabled?: boolean;
+  /** Why turns cannot be spent right now, shown when the helpers are hovered. */
+  disabledReason?: string | null;
 }) {
   const tooMany = typeof value === 'number' && value > available;
 
@@ -49,6 +52,8 @@ export function TurnSpend({
           max={available}
           steps={storeBulkHelpers}
           disabled={disabled}
+          disabledReason={disabledReason ?? null}
+          emptyReason="You have no turns left. They come back over time."
         />
       </div>
 
