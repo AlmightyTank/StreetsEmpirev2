@@ -4,6 +4,7 @@ import { formatCents, formatNumber } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { HideoutRoomChips } from '../components/HideoutRoomChips.js';
 import { Panel, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { formatDate } from '../utils/time.js';
@@ -96,7 +97,7 @@ export function HallOfFamePage() {
                             <td>{player.city}</td>
                             <td className="se-table__number se-num">{formatCents(player.netWorthCents)}</td>
                             <td className="se-table__number se-num">{formatCents(player.cashCents)}</td>
-                            <td className="se-table__number se-num">{formatNumber(player.hideout.totalLevel)} / {formatNumber(player.hideout.totalMaxLevel)}</td>
+                            <td className="se-table__number"><HideoutRoomChips hideout={player.hideout} /></td>
                           </tr>
                         ))}
                       </tbody>

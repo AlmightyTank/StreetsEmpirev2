@@ -75,6 +75,9 @@ export function HideoutPage() {
   }
 
   const receipt = action.result?.result ?? null;
+  const openRooms = hideout?.rooms.filter((room) => room.nextCostCents !== null) ?? [];
+  const affordableRooms = me ? openRooms.filter((room) => me.resources.cashCents >= room.nextCostCents!) : [];
+  const nextRoom = [...openRooms].sort((a, b) => a.nextCostCents! - b.nextCostCents!)[0] ?? null;
 
   return (
     <GameLayout>
@@ -124,19 +127,54 @@ export function HideoutPage() {
           <div className="se-stats se-mb">
             <Stat label="Cash" value={formatCents(me.resources.cashCents)} />
             <Stat label="Upgrades" value={`${formatNumber(hideout.totalLevel)} / ${formatNumber(hideout.totalMaxLevel)}`} />
-            <Stat label="Scope" value="Seasonal" />
+            <Stat label="Affordable" value={formatNumber(affordableRooms.length)} />
           </div>
 
-          <div className="se-grid se-grid--2">
-            {hideout.rooms.map((room) => (
-              <RoomCard
-                key={room.key}
-                room={room}
-                cashCents={me.resources.cashCents}
-                disabled={action.busy || loadError !== null}
-                onUpgrade={(next) => void upgrade(next)}
-              />
-            ))}
+          <div className="se-grid se-grid--sidebar">
+            <div className="se-grid se-grid--2">
+              {hideout.rooms.map((room) => (
+                <RoomCard
+                  key={room.key}
+                  room={room}
+                  cashCents={me.resources.cashCents}
+                  disabled={action.busy || loadError !== null}
+                  onUpgrade={(next) => void upgrade(next)}
+                />
+              ))}
+            </div>
+
+            <aside className="se-grid">
+              <Panel title="Next upgrade" flush>
+                {nextRoom ? (
+                  <>
+                    <div className="se-rows">
+                      <Row label="Room" value={nextRoom.name} strong />
+                      <Row label="Cost" value={formatCents(nextRoom.nextCostCents!)} />
+                      <Row label="Effect" value={nextRoom.nextEffect} />
+                    </div>
+                    <button
+                      type="button"
+                      className="se-btn se-btn--primary se-btn--block"
+                      disabled={action.busy || me.resources.cashCents < nextRoom.nextCostCents!}
+                      onClick={() => void upgrade(nextRoom)}
+                    >
+                      {me.resources.cashCents >= nextRoom.nextCostCents!
+                        ? `Upgrade ${nextRoom.name}`
+                        : `Need ${formatCents(nextRoom.nextCostCents!)}`}
+                    </button>
+                  </>
+                ) : (
+                  <p className="se-muted">Every room is fully upgraded for this season.</p>
+                )}
+              </Panel>
+
+              <Panel title="Season scope">
+                <p className="se-dim">
+                  These bonuses help only this round. The build is saved to the season archive,
+                  then the next round starts everyone from a clean hideout.
+                </p>
+              </Panel>
+            </aside>
           </div>
         </>
       ) : null}

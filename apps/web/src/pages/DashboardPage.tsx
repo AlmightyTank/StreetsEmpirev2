@@ -197,6 +197,32 @@ function RoundOverScreen({ roundOver, nextRound, canJoin }: { roundOver: RoundOv
   );
 }
 
+function HideoutPanel({ hideout }: { hideout: RoundPlayerDto['hideout'] }) {
+  const builtRooms = hideout.rooms.filter((room) => room.level > 0);
+
+  return (
+    <Panel title="Hideout" flush>
+      <div className="se-rows">
+        <Row label="Built" value={`${formatNumber(hideout.totalLevel)} / ${formatNumber(hideout.totalMaxLevel)}`} strong />
+        {builtRooms.length ? (
+          builtRooms.map((room) => (
+            <Row
+              key={room.key}
+              label={room.name}
+              value={`${formatNumber(room.level)} / ${formatNumber(room.maxLevel)}`}
+            />
+          ))
+        ) : (
+          <Row label="Rooms" value="None yet" />
+        )}
+      </div>
+      <div className="se-actions-row se-mt">
+        <Link className="se-btn se-btn--sm" to="/game/hideout">Upgrade hideout</Link>
+      </div>
+    </Panel>
+  );
+}
+
 function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
   const activity = useSession((s) => s.recentActivity);
   const { refreshing, error, refresh } = useLiveDashboard();
@@ -290,6 +316,8 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
 
         <aside className="se-grid">
           <PayoutControl />
+
+          <HideoutPanel hideout={me.hideout} />
 
           <Panel title="Activity" flush>
             <ActivityFeed activity={activity} />

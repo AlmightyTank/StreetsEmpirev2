@@ -83,13 +83,17 @@ function movement(start: number | null, current: number | null): number | null {
 export function toSeasonHideoutDto(player: Pick<RoundPlayer,
   'hideoutSafeRoomLevel' | 'hideoutLookoutsLevel' | 'hideoutWorkshopLevel' | 'hideoutBackOfficeLevel'
 >): SeasonHideoutDto {
+  const rooms = [
+    { key: 'SAFE_ROOM' as const, name: 'Safe Room', level: player.hideoutSafeRoomLevel, maxLevel: 5 },
+    { key: 'LOOKOUTS' as const, name: 'Lookouts', level: player.hideoutLookoutsLevel, maxLevel: 5 },
+    { key: 'WORKSHOP' as const, name: 'Workshop', level: player.hideoutWorkshopLevel, maxLevel: 5 },
+    { key: 'BACK_OFFICE' as const, name: 'Back Office', level: player.hideoutBackOfficeLevel, maxLevel: 5 },
+  ];
+
   return {
-    totalLevel:
-      player.hideoutSafeRoomLevel +
-      player.hideoutLookoutsLevel +
-      player.hideoutWorkshopLevel +
-      player.hideoutBackOfficeLevel,
-    totalMaxLevel: 20,
+    totalLevel: rooms.reduce((sum, room) => sum + room.level, 0),
+    totalMaxLevel: rooms.reduce((sum, room) => sum + room.maxLevel, 0),
+    rooms,
   };
 }
 
@@ -156,6 +160,7 @@ export function toRoundPlayerDto(
         player.nationalRank,
       ),
     },
+    hideout: toSeasonHideoutDto(player),
 
     joinedAt: player.createdAt.toISOString(),
     lastActiveAt: player.lastActiveAt.toISOString(),

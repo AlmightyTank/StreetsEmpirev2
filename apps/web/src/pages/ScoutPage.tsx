@@ -38,6 +38,7 @@ export function ScoutPage() {
   if (!me) return <Navigate to="/join" replace />;
 
   const available = me.turns.turns;
+  const backOfficeBonusCents = action.result?.result.hideoutBonusCents ?? 0;
   const canScout =
     !action.busy &&
     district !== '' &&
@@ -157,6 +158,14 @@ export function ScoutPage() {
                 money: true,
                 remaining: action.result.after.cashCents,
               },
+              ...(backOfficeBonusCents > 0
+                ? [
+                    {
+                      label: 'Back Office bonus',
+                      value: `${formatCents(backOfficeBonusCents)} included`,
+                    },
+                  ]
+                : []),
 
               {
                 label: 'Whores recruited',

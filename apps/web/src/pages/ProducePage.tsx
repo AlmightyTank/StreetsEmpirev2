@@ -21,6 +21,8 @@ export function ProducePage() {
 
   const available = me.turns.turns;
   const hasFitThugs = me.resources.fitThugs > 0;
+  const workshopBonusCrack = action.result?.result.hideoutBonusCrack ?? 0;
+  const backOfficeBonusCents = action.result?.result.hideoutBonusCents ?? 0;
   const canProduce =
     !action.busy &&
     hasFitThugs &&
@@ -132,6 +134,14 @@ export function ProducePage() {
                 delta: action.result.result.crackProduced,
                 remaining: action.result.after.resources.crack,
               },
+              ...(workshopBonusCrack > 0
+                ? [
+                    {
+                      label: 'Workshop bonus',
+                      value: `${formatNumber(workshopBonusCrack)} included`,
+                    },
+                  ]
+                : []),
               {
                 label: 'Ingredients',
                 delta: -action.result.result.ingredientCents,
@@ -163,6 +173,14 @@ export function ProducePage() {
                   action.result.result.ingredientCents +
                   action.result.result.cashEarnedCents,
               },
+              ...(backOfficeBonusCents > 0
+                ? [
+                    {
+                      label: 'Back Office bonus',
+                      value: `${formatCents(backOfficeBonusCents)} included`,
+                    },
+                  ]
+                : []),
               ...(action.result.result.crackFound > 0
                 ? [
                     {

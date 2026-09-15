@@ -1245,6 +1245,18 @@ a.se-nav__link:hover {
   border-color: rgba(255, 176, 32, 0.45);
   color: var(--se-warn);
 }
+.se-tag--dim {
+  opacity: 0.5;
+}
+.se-room-chips {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+  min-width: 190px;
+}
+.se-room-chips .se-tag {
+  white-space: nowrap;
+}
 .se-target-card__grid,
 .se-target-card__intel {
   display: grid;

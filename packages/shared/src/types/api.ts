@@ -198,6 +198,7 @@ export interface RoundPlayerDto {
   turns: TurnsDto;
   happiness: HappinessDto;
   rank: RankDto;
+  hideout: SeasonHideoutDto;
 
   joinedAt: string;
   lastActiveAt: string;
@@ -235,6 +236,12 @@ export interface RoundOverPlayerDto {
 export interface SeasonHideoutDto {
   totalLevel: number;
   totalMaxLevel: number;
+  rooms: Array<{
+    key: HideoutRoomKeyDto;
+    name: string;
+    level: number;
+    maxLevel: number;
+  }>;
 }
 
 export type HideoutRoomKeyDto = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE';

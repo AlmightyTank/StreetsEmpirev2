@@ -5,6 +5,7 @@ import { formatCents, formatNumber } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { HideoutRoomChips } from '../components/HideoutRoomChips.js';
 import { ProfileBadges } from '../components/ProfileBadges.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -17,6 +18,7 @@ const categoryName: Record<PublicAwardDto['category'], string> = {
   combat: 'Combat',
   intel: 'Intel',
   reputation: 'Reputation',
+  hideout: 'Hideout',
   legacy: 'Legacy',
 };
 
@@ -252,7 +254,7 @@ function SeasonHistory({ career }: { career: PublicCareerDto }) {
                     <td className="se-table__number se-num">{rankLabel(season.rank.national)}</td>
                     <td className="se-table__number se-num">{rankLabel(season.rank.local)}</td>
                     <td className="se-table__number se-num">{formatCents(season.finalNetWorthCents)}</td>
-                    <td className="se-table__number se-num">{formatNumber(season.hideout.totalLevel)} / {formatNumber(season.hideout.totalMaxLevel)}</td>
+                    <td className="se-table__number"><HideoutRoomChips hideout={season.hideout} /></td>
                     <td className="se-table__number se-num">{formatNumber(season.stats.raidAttackWins)} / {formatNumber(season.stats.raidAttacks)}</td>
                     <td className="se-table__number se-num">{formatNumber(season.stats.driveByWins)} / {formatNumber(season.stats.driveByAttacks)}</td>
                     <td className="se-table__number se-num">{formatNumber(season.stats.reconRuns)}</td>

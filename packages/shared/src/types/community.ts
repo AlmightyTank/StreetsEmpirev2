@@ -1,6 +1,6 @@
 import type { ActivityDto, CityDto, ProfileAccent, RoundDto, SeasonHideoutDto } from './api.js';
 
-export type PublicAchievementCategory = 'rank' | 'wealth' | 'combat' | 'intel' | 'reputation' | 'legacy';
+export type PublicAchievementCategory = 'rank' | 'wealth' | 'combat' | 'intel' | 'reputation' | 'hideout' | 'legacy';
 export type PublicAchievementRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
 export interface PublicAchievementProgressDto {
