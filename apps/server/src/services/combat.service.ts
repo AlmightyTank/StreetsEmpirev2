@@ -85,7 +85,7 @@ function reportRaidForm(value: unknown): BattleReportDto['raidForm'] | undefined
 async function attackerTrophyProgress(tx: Prisma.TransactionClient, attackerId: string): Promise<TrophyProgress> {
   const progress = emptyTrophyProgress();
   const rows = await tx.raidBattle.findMany({
-    where: { attackerId },
+    where: { attackerId, voidedAt: null },
     select: { kind: true, attackerReport: true },
   });
 
@@ -334,7 +334,7 @@ function specialRaidDtos(player: RoundPlayer, model: CombatRules, now: Date): Co
 }
 
 /** Both final worths must be written before either rank is read. */
-async function writeRanks(
+export async function writeRanks(
   tx: Prisma.TransactionClient,
   ruleset: Ruleset,
   now: Date,
@@ -377,7 +377,7 @@ async function consecutiveRepeatTargetHits(prisma: PrismaClient | Prisma.Transac
   const rows = await prisma.raidBattle.findMany({
     // Drive-bys and special raid forms take no cash, so they neither count as
     // loot repeats nor reset the cash-raid streak.
-    where: { attackerId },
+    where: { attackerId, voidedAt: null },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: 20,
     select: { defenderId: true, kind: true, attackerReport: true },
@@ -413,7 +413,7 @@ async function retaliationTargets(prisma: PrismaClient | Prisma.TransactionClien
   if (revengeHours <= 0 || targetIds.length === 0) return new Set();
   const since = new Date(now.getTime() - revengeHours * 3_600_000);
   const rows = await prisma.raidBattle.findMany({
-    where: { defenderId: playerId, attackerId: { in: targetIds }, createdAt: { gte: since } },
+    where: { defenderId: playerId, attackerId: { in: targetIds }, createdAt: { gte: since }, voidedAt: null },
     select: { attackerId: true },
   });
   return new Set(rows.map((row) => row.attackerId));
@@ -968,7 +968,10 @@ export const CombatService = {
       where: { AND: [participation, ...(cursor ? [{ OR: [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { lt: cursor.id } }] }] : [])] },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 26,
     });
-    return { reports: rows.slice(0, 25).map((row) => (row.attackerId === playerId ? row.attackerReport : row.defenderReport) as unknown as BattleReportDto),
+    return { reports: rows.slice(0, 25).map((row) => ({
+      ...((row.attackerId === playerId ? row.attackerReport : row.defenderReport) as unknown as BattleReportDto),
+      ...(row.voidedAt ? { voided: { at: row.voidedAt.toISOString(), reason: row.voidReason ?? '', byUsername: row.voidedByUsername ?? 'admin' } } : {}),
+    })),
       nextBefore: rows.length > 25 ? rows[24]!.id : null };
   },
 };

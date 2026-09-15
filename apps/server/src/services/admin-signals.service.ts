@@ -1,0 +1,116 @@
+import { createHash } from 'node:crypto';
+import type { PrismaClient } from '@prisma/client';
+import type { AdminSignalClusterDto, AdminSignalsDto } from '@streets/shared';
+import { env } from '../config/env.js';
+import { deviceLabel } from './admin-account.service.js';
+
+const DAY_MS = 86_400_000;
+const WINDOW_DAYS = 30;
+const CREATED_TOGETHER_MS = 30 * 60_000;
+/** Local development traffic all comes from here, so it would link every account. */
+const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1', 'localhost']);
+
+interface Sighting {
+  accountId: string;
+  ip: string;
+  userAgent: string | null;
+  at: Date;
+}
+
+/**
+ * An opaque label for a match, stable on this server, that never reveals the
+ * address or browser string it came from.
+ */
+export function matchKey(kind: string, value: string, secret = env.SESSION_SECRET): string {
+  return createHash('sha256').update(`${secret}:${kind}:${value}`).digest('hex').slice(0, 10);
+}
+
+/**
+ * Accounts seen from the same network, strengthened when they also share an
+ * exact browser or were created within half an hour of each other. Signals
+ * only: nothing here acts on an account.
+ */
+export function buildClusters(
+  sightings: Sighting[],
+  accounts: Map<string, { id: string; username: string; isActive: boolean; isAdmin: boolean; createdAt: Date; lastLoginAt: Date | null }>,
+  secret = env.SESSION_SECRET,
+): AdminSignalClusterDto[] {
+  const byNetwork = new Map<string, Sighting[]>();
+  for (const sighting of sightings) {
+    if (LOOPBACK.has(sighting.ip)) continue;
+    byNetwork.set(sighting.ip, [...(byNetwork.get(sighting.ip) ?? []), sighting]);
+  }
+
+  const clusters: AdminSignalClusterDto[] = [];
+  for (const [ip, rows] of byNetwork) {
+    const accountIds = [...new Set(rows.map((row) => row.accountId))].filter((id) => accounts.has(id));
+    if (accountIds.length < 2) continue;
+
+    const agentsByAccount = new Map(accountIds.map((id) => [id, new Set(rows.filter((row) => row.accountId === id && row.userAgent).map((row) => row.userAgent!))]));
+    const sameDevice = accountIds.some((id, index) => accountIds.slice(index + 1).some((other) =>
+      [...agentsByAccount.get(id)!].some((agent) => agentsByAccount.get(other)!.has(agent))));
+    const created = accountIds.map((id) => accounts.get(id)!.createdAt.getTime()).sort((a, b) => a - b);
+    const createdTogether = created.some((time, index) => index > 0 && time - created[index - 1]! <= CREATED_TOGETHER_MS);
+
+    const signals: AdminSignalClusterDto['signals'] = ['shared-network'];
+    if (sameDevice) signals.push('same-device');
+    if (createdTogether) signals.push('created-together');
+
+    clusters.push({
+      key: matchKey('network', ip, secret),
+      signals,
+      firstSeenAt: new Date(Math.min(...rows.map((row) => row.at.getTime()))).toISOString(),
+      lastSeenAt: new Date(Math.max(...rows.map((row) => row.at.getTime()))).toISOString(),
+      accounts: accountIds.map((id) => {
+        const account = accounts.get(id)!;
+        const latest = rows.filter((row) => row.accountId === id).sort((a, b) => b.at.getTime() - a.at.getTime())[0]!;
+        return {
+          id: account.id,
+          username: account.username,
+          isActive: account.isActive,
+          isAdmin: account.isAdmin,
+          createdAt: account.createdAt.toISOString(),
+          lastLoginAt: account.lastLoginAt?.toISOString() ?? null,
+          device: deviceLabel(latest.userAgent),
+          sightings: rows.filter((row) => row.accountId === id).length,
+        };
+      }).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    });
+  }
+
+  return clusters.sort((a, b) => b.signals.length - a.signals.length || b.accounts.length - a.accounts.length || b.lastSeenAt.localeCompare(a.lastSeenAt));
+}
+
+export const AdminSignalsService = {
+  /** Built from sessions and email/password tokens of the last 30 days, the only places the game keeps an address. */
+  async clusters(prisma: PrismaClient, now = new Date()): Promise<AdminSignalsDto> {
+    const since = new Date(now.getTime() - WINDOW_DAYS * DAY_MS);
+    const [sessions, emailTokens, resetTokens] = await Promise.all([
+      prisma.session.findMany({
+        where: { OR: [{ lastSeenAt: { gte: since } }, { createdAt: { gte: since } }], ip: { not: null } },
+        select: { accountId: true, ip: true, userAgent: true, lastSeenAt: true },
+      }),
+      prisma.accountEmailToken.findMany({
+        where: { createdAt: { gte: since }, ip: { not: null }, NOT: { ip: 'admin-panel' } },
+        select: { accountId: true, ip: true, userAgent: true, createdAt: true },
+      }),
+      prisma.passwordResetToken.findMany({
+        where: { createdAt: { gte: since }, ip: { not: null } },
+        select: { accountId: true, ip: true, userAgent: true, createdAt: true },
+      }),
+    ]);
+
+    const sightings: Sighting[] = [
+      ...sessions.map((row) => ({ accountId: row.accountId, ip: row.ip!, userAgent: row.userAgent, at: row.lastSeenAt })),
+      ...emailTokens.map((row) => ({ accountId: row.accountId, ip: row.ip!, userAgent: row.userAgent, at: row.createdAt })),
+      ...resetTokens.map((row) => ({ accountId: row.accountId, ip: row.ip!, userAgent: row.userAgent, at: row.createdAt })),
+    ];
+    const accountRows = await prisma.account.findMany({
+      where: { id: { in: [...new Set(sightings.map((row) => row.accountId))] } },
+      select: { id: true, username: true, isActive: true, isAdmin: true, createdAt: true, lastLoginAt: true },
+    });
+
+    const clusters = buildClusters(sightings, new Map(accountRows.map((row) => [row.id, row])));
+    return { windowDays: WINDOW_DAYS, generatedAt: now.toISOString(), clusters };
+  },
+};

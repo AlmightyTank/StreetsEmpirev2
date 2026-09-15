@@ -9,6 +9,7 @@ import type {
   AdminCreateNewsInput,
   AdminDevBotsDto,
   AdminDiscordStatusDto,
+  AdminGrantInput,
   AdminNewsDto,
   AdminPlayerBattlesDto,
   AdminPlayerDto,
@@ -17,9 +18,11 @@ import type {
   AdminRoundsDto,
   AdminRulesetViewDto,
   AdminScheduleRoundInput,
+  AdminSignalsDto,
   AdminSiteBannersDto,
   AdminUpdateNewsInput,
   AdminUpdateRoundInput,
+  AdminVoidBattleResultDto,
 } from '@streets/shared';
 import { api } from './client.js';
 
@@ -82,6 +85,9 @@ export const adminApi = {
   unlinkForum: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'forum/unlink'), { reason }),
 
   player: (roundPlayerId: string) => api.get<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}`),
+  grantToPlayer: (roundPlayerId: string, input: AdminGrantInput) => api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/grant`, input),
+  voidBattle: (battleId: string, reason: string) => api.post<AdminVoidBattleResultDto>(`/admin/battles/${enc(battleId)}/void`, { reason }),
+  signals: () => api.get<AdminSignalsDto>('/admin/signals'),
   playerBattles: (roundPlayerId: string, before?: string) =>
     api.get<AdminPlayerBattlesDto>(`/admin/players/${enc(roundPlayerId)}/battles${queryString({ before })}`),
 

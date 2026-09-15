@@ -28,6 +28,8 @@ export type ActivityType =
   | 'WEAPON_UNLOCK'
   | 'PAYOUT_CHANGE'
   | 'AWAY_BONUS'
+  | 'BATTLE_VOIDED'
+  | 'ADMIN_GRANT'
   | 'HIDEOUT_UPGRADE';
 
 export interface ApiErrorBody {

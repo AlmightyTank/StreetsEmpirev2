@@ -55,7 +55,7 @@ export const AdminHealthService = {
                  AND COALESCE(b."attackerReport"->>'kind', 'RAID') IN ('DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW'))::int AS special
         FROM "RaidBattle" b
         JOIN "RoundPlayer" p ON p.id = b."attackerId"
-        WHERE p."roundId" = ${roundId} AND b."createdAt" >= ${firstDay}
+        WHERE p."roundId" = ${roundId} AND b."createdAt" >= ${firstDay} AND b."voidedAt" IS NULL
         GROUP BY 1`,
       prisma.$queryRaw<Array<{ day: string; joins: number }>>`
         SELECT to_char(date_trunc('day', "createdAt"), 'YYYY-MM-DD') AS day, COUNT(*)::int AS joins

@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { AdminPlayerBattlesDto, AdminPlayerDto } from '@streets/shared';
+import { loadRulesetForRound } from '@streets/rules-engine';
 import { toActivityDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
 import { ActivityService } from './activity.service.js';
@@ -17,7 +18,7 @@ export const AdminPlayerService = {
       where: { id: roundPlayerId },
       include: {
         account: { select: { id: true, username: true, isActive: true } },
-        round: { select: { id: true, name: true, status: true, rulesetVersion: true } },
+        round: { select: { id: true, name: true, status: true, rulesetId: true, rulesetVersion: true } },
         city: { select: { name: true } },
         reputation: { orderBy: { trader: 'asc' } },
         combatInjuries: { where: { treatedAt: null, recoverAt: { gt: now } }, orderBy: { recoverAt: 'asc' } },
@@ -34,13 +35,15 @@ export const AdminPlayerService = {
     return {
       roundPlayerId: player.id,
       account: player.account,
-      round: player.round,
+      round: { id: player.round.id, name: player.round.name, status: player.round.status, rulesetVersion: player.round.rulesetVersion },
       publicPimpId: player.publicPimpId,
       displayName: player.displayName,
       city: player.city.name,
       netWorthCents: Number(player.netWorthCents),
       cashCents: Number(player.cashCents),
       turns: player.turns,
+      turnCap: loadRulesetForRound(player.round).turns.cap,
+      live: player.round.status === 'ACTIVE' || player.round.status === 'REGISTRATION',
       lastTurnCalculationAt: player.lastTurnCalculationAt.toISOString(),
       lastActiveAt: player.lastActiveAt.toISOString(),
       payoutPercent: player.payoutPercent,

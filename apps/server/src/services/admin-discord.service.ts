@@ -15,8 +15,8 @@ export const AdminDiscordService = {
     const [news, oldestNews, battles, oldestBattle, roundOpenings, roundEndings, resyncs, recentResyncs, linkedAccounts] = await Promise.all([
       prisma.gameNews.count({ where: { discordPostedAt: null, publishedAt: { lte: now } } }),
       prisma.gameNews.findFirst({ where: { discordPostedAt: null, publishedAt: { lte: now } }, orderBy: { publishedAt: 'asc' }, select: { publishedAt: true } }),
-      prisma.raidBattle.count({ where: { discordPostedAt: null } }),
-      prisma.raidBattle.findFirst({ where: { discordPostedAt: null }, orderBy: { createdAt: 'asc' }, select: { createdAt: true } }),
+      prisma.raidBattle.count({ where: { discordPostedAt: null, voidedAt: null } }),
+      prisma.raidBattle.findFirst({ where: { discordPostedAt: null, voidedAt: null }, orderBy: { createdAt: 'asc' }, select: { createdAt: true } }),
       prisma.round.count({ where: { discordOpenedAt: null, status: { in: ['REGISTRATION', 'ACTIVE'] } } }),
       prisma.round.count({ where: { discordEndedAt: null, status: { in: ['ENDED', 'ARCHIVED'] } } }),
       prisma.discordResyncRequest.count({ where: { claimedAt: null } }),

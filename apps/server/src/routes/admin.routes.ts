@@ -1,21 +1,25 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { usernameSchema } from '@streets/shared';
+import { ADMIN_GRANT_CAPS, usernameSchema } from '@streets/shared';
 import { z } from 'zod';
 import { AdminAccountService } from '../services/admin-account.service.js';
 import { AdminAuditService } from '../services/admin-audit.service.js';
+import { AdminBattleService } from '../services/admin-battle.service.js';
 import { AdminDevBotsService } from '../services/admin-dev-bots.service.js';
 import { AdminDiscordService } from '../services/admin-discord.service.js';
+import { AdminGrantService } from '../services/admin-grant.service.js';
 import { AdminHealthService } from '../services/admin-health.service.js';
 import { AdminNewsService } from '../services/admin-news.service.js';
 import { AdminPlayerService } from '../services/admin-player.service.js';
 import { AdminRoundService } from '../services/admin-round.service.js';
 import { AdminRulesetService } from '../services/admin-ruleset.service.js';
+import { AdminSignalsService } from '../services/admin-signals.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
 import { parseBody } from '../utils/validate.js';
 
 const isoDate = z.coerce.date();
 const id = z.string().min(1).max(64);
 const reason = z.string().trim().min(5, 'Give a reason of at least 5 characters.').max(500);
+const grantAmount = (cap: number) => z.number().int().min(0).max(cap, `At most ${cap} per grant.`).optional();
 
 const scheduleRoundSchema = z.object({
   name: z.string().trim().min(3).max(80),
@@ -37,6 +41,7 @@ const updateRoundSchema = z.object({
 const roundParams = z.object({ roundId: id }).strict();
 const accountParams = z.object({ accountId: id }).strict();
 const playerParams = z.object({ roundPlayerId: id }).strict();
+const battleParams = z.object({ battleId: id }).strict();
 const newsParams = z.object({ newsId: id }).strict();
 const bannerParams = z.object({ bannerId: id }).strict();
 const rulesetParams = z.object({ rulesetId: id }).strict();
@@ -48,6 +53,23 @@ const renameSchema = z.object({ reason, username: usernameSchema }).strict();
 const adminRoleSchema = z.object({ reason, isAdmin: z.boolean() }).strict();
 const resyncSchema = z.object({ accountId: id.optional(), reason: reason.optional() }).strict();
 const rulesetQuery = z.object({ compare: id.optional() }).strict();
+
+const grantSchema = z.object({
+  reason,
+  turns: z.number().int().min(0).max(10_000).optional(),
+  cashCents: grantAmount(ADMIN_GRANT_CAPS.cashCents),
+  whores: grantAmount(ADMIN_GRANT_CAPS.whores),
+  thugs: grantAmount(ADMIN_GRANT_CAPS.thugs),
+  condoms: grantAmount(ADMIN_GRANT_CAPS.condoms),
+  medicine: grantAmount(ADMIN_GRANT_CAPS.medicine),
+  crack: grantAmount(ADMIN_GRANT_CAPS.crack),
+  beer: grantAmount(ADMIN_GRANT_CAPS.beer),
+  pistols: grantAmount(ADMIN_GRANT_CAPS.pistols),
+  shotguns: grantAmount(ADMIN_GRANT_CAPS.shotguns),
+  tek9s: grantAmount(ADMIN_GRANT_CAPS.tek9s),
+  ak47s: grantAmount(ADMIN_GRANT_CAPS.ak47s),
+  lowRiders: grantAmount(ADMIN_GRANT_CAPS.lowRiders),
+}).strict();
 
 const createNewsSchema = z.object({
   title: z.string().trim().min(1).max(120),
@@ -277,7 +299,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return AdminAccountService.unlinkForum(fastify.prisma, request.auth!.account, accountId, body.reason);
   });
 
-  // Player inspector
+  // Player inspector and corrections
 
   fastify.get('/players/:roundPlayerId', async (request) => {
     const { roundPlayerId } = parseBody(playerParams, request.params);
@@ -289,6 +311,20 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { before } = parseBody(battlesQuery, request.query);
     return AdminPlayerService.battles(fastify.prisma, roundPlayerId, before);
   });
+
+  fastify.post('/players/:roundPlayerId/grant', async (request) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    const input = parseBody(grantSchema, request.body ?? {});
+    return AdminGrantService.grant(fastify.prisma, request.auth!.account, roundPlayerId, input);
+  });
+
+  fastify.post('/battles/:battleId/void', async (request) => {
+    const { battleId } = parseBody(battleParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminBattleService.voidBattle(fastify.prisma, request.auth!.account, battleId, body.reason);
+  });
+
+  fastify.get('/signals', async () => AdminSignalsService.clusters(fastify.prisma));
 
   // Audit
 

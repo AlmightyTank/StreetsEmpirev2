@@ -164,6 +164,10 @@ export interface AdminPlayerDto {
   netWorthCents: number;
   cashCents: number;
   turns: number;
+  /** The ruleset turn cap: grants and void refunds never push turns past it. */
+  turnCap: number;
+  /** Registration or active: corrections are refused once standings are frozen. */
+  live: boolean;
   lastTurnCalculationAt: string;
   lastActiveAt: string;
   payoutPercent: number;
@@ -352,4 +356,69 @@ export interface AdminDevBotsDto {
     roundsPlayed: number;
     inCurrentRound: { roundPlayerId: string; displayName: string; publicPimpId: number; netWorthCents: number } | null;
   }>;
+}
+
+/** Most an admin can give in one compensation grant. Turns are capped by the round's ruleset instead. */
+export const ADMIN_GRANT_CAPS = {
+  cashCents: 10_000_000,
+  whores: 50,
+  thugs: 50,
+  condoms: 500,
+  medicine: 500,
+  crack: 500,
+  beer: 500,
+  pistols: 25,
+  shotguns: 10,
+  tek9s: 10,
+  ak47s: 10,
+  lowRiders: 5,
+} as const;
+
+export type AdminGrantItem = keyof typeof ADMIN_GRANT_CAPS;
+
+export type AdminGrantInput = { reason: string; turns?: number } & Partial<Record<AdminGrantItem, number>>;
+
+export interface AdminVoidSideDto {
+  roundPlayerId: string;
+  displayName: string;
+  /** Signed change applied to each field of this player. */
+  changes: Record<string, number>;
+  /** What could not be taken back from this player because they no longer had it. */
+  shortfall: Record<string, number>;
+}
+
+export interface AdminVoidBattleResultDto {
+  battleId: string;
+  kind: string;
+  attacker: AdminVoidSideDto;
+  defender: AdminVoidSideDto;
+}
+
+export type AdminSignal = 'shared-network' | 'same-device' | 'created-together';
+
+export interface AdminSignalAccountDto {
+  id: string;
+  username: string;
+  isActive: boolean;
+  isAdmin: boolean;
+  createdAt: string;
+  lastLoginAt: string | null;
+  /** Coarse label only, never the raw browser string. */
+  device: string;
+  sightings: number;
+}
+
+export interface AdminSignalClusterDto {
+  /** Opaque and stable on this server; never the IP address. */
+  key: string;
+  signals: AdminSignal[];
+  firstSeenAt: string;
+  lastSeenAt: string;
+  accounts: AdminSignalAccountDto[];
+}
+
+export interface AdminSignalsDto {
+  windowDays: number;
+  generatedAt: string;
+  clusters: AdminSignalClusterDto[];
 }

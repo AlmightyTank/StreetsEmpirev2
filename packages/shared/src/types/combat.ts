@@ -71,6 +71,8 @@ export interface BattleReportDto {
     whoresAfter?: number;
     thugsAfter?: number;
   };
+  /** 0.3.0-B. Set when an admin reversed this battle. */
+  voided?: { at: string; reason: string; byUsername: string };
   /** Drive-by only. */
   driveBy?: {
     /** Whores killed on the target's side. Theirs when attacking, yours when defending. */

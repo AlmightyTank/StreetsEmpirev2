@@ -184,7 +184,7 @@ export async function loadCareerForAccount(
   if (ids.length) {
     const [battles, reconActivities, reputationRows] = await Promise.all([
       prisma.raidBattle.findMany({
-        where: { OR: [{ attackerId: { in: ids } }, { defenderId: { in: ids } }] },
+        where: { OR: [{ attackerId: { in: ids } }, { defenderId: { in: ids } }], voidedAt: null },
         select: { attackerId: true, defenderId: true, attackerReport: true, defenderReport: true },
       }),
       prisma.playerActivity.groupBy({
@@ -435,7 +435,7 @@ export async function loadPublicContexts(
       select: { accountId: true, localRank: true, nationalRank: true, netWorthCents: true },
     }),
     prisma.raidBattle.findMany({
-      where: { OR: [{ attackerId: { in: ids } }, { defenderId: { in: ids } }] },
+      where: { OR: [{ attackerId: { in: ids } }, { defenderId: { in: ids } }], voidedAt: null },
       select: { attackerId: true, defenderId: true, attackerReport: true, defenderReport: true, createdAt: true },
     }),
     prisma.playerActivity.findMany({

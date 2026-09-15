@@ -69,6 +69,7 @@ const ADMIN_SECTION: NavSection = {
     { label: 'Accounts', to: '/game/admin/accounts' },
     { label: 'Integrations', to: '/game/admin/integrations' },
     { label: 'Rulesets', to: '/game/admin/rulesets' },
+    { label: 'Signals', to: '/game/admin/signals' },
     { label: 'Audit log', to: '/game/admin/audit' },
   ],
 };

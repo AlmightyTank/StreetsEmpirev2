@@ -238,7 +238,7 @@ async function roundStandings(prisma: PrismaClient, roundId: string) {
 async function claimBattles(prisma: PrismaClient, now: Date, limit = 25): Promise<DiscordBattleEventDto[]> {
   return prisma.$transaction(async (tx) => {
     const rows = await tx.raidBattle.findMany({
-      where: { discordPostedAt: null },
+      where: { discordPostedAt: null, voidedAt: null },
       orderBy: { createdAt: 'asc' },
       take: limit,
       select: {

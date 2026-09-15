@@ -1,18 +1,36 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import type { AdminPlayerDto, BattleReportDto } from '@streets/shared';
+import { ADMIN_GRANT_CAPS, type AdminGrantItem, type AdminPlayerDto, type AdminVoidBattleResultDto, type BattleReportDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { Field } from '../components/Field.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { adminWhen } from '../utils/admin.js';
 
 const yesNo = (value: boolean) => (value ? 'Yes' : 'No');
 
-function battleResult(report: BattleReportDto): string {
-  return report.won ? 'Won' : 'Lost';
+const GRANT_FIELDS: Array<{ item: AdminGrantItem; label: string }> = [
+  { item: 'cashCents', label: 'Cash ($)' },
+  { item: 'whores', label: 'Whores' },
+  { item: 'thugs', label: 'Thugs' },
+  { item: 'condoms', label: 'Condoms' },
+  { item: 'medicine', label: 'Medicine' },
+  { item: 'crack', label: 'Crack' },
+  { item: 'beer', label: 'Beer' },
+  { item: 'pistols', label: 'Pistols' },
+  { item: 'shotguns', label: 'Shotguns' },
+  { item: 'tek9s', label: 'Tek-9s' },
+  { item: 'ak47s', label: 'AK-47s' },
+  { item: 'lowRiders', label: 'Low-Riders' },
+];
+
+function describeChanges(changes: Record<string, number>): string {
+  const entries = Object.entries(changes);
+  if (!entries.length) return 'nothing';
+  return entries.map(([field, value]) => `${value > 0 ? '+' : ''}${field === 'cashCents' ? formatCents(value) : formatNumber(value)} ${field === 'cashCents' ? 'cash' : field}`).join(', ');
 }
 
 export function AdminPlayerPage() {
@@ -21,7 +39,17 @@ export function AdminPlayerPage() {
   const [reports, setReports] = useState<BattleReportDto[]>([]);
   const [nextBefore, setNextBefore] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const [voiding, setVoiding] = useState<BattleReportDto | null>(null);
+  const [voidReason, setVoidReason] = useState('');
+  const [voidResult, setVoidResult] = useState<AdminVoidBattleResultDto | null>(null);
+
+  const [grant, setGrant] = useState<Record<string, string>>({});
+  const [grantReason, setGrantReason] = useState('');
+  const [grantFields, setGrantFields] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     try {
@@ -52,6 +80,59 @@ export function AdminPlayerPage() {
     }
   }
 
+  async function confirmVoid(event: FormEvent) {
+    event.preventDefault();
+    if (!voiding) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await adminApi.voidBattle(voiding.id, voidReason.trim());
+      setVoidResult(result);
+      setVoiding(null);
+      setNotice('Battle voided. Both players were updated and told in their activity feed.');
+      await load();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'That void did not go through. Refresh before trying again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitGrant(event: FormEvent) {
+    event.preventDefault();
+    setGrantFields({});
+    setError(null);
+    setNotice(null);
+    const input: Record<string, number> = {};
+    for (const [key, raw] of Object.entries(grant)) {
+      if (!raw.trim()) continue;
+      const value = Number(raw);
+      if (!Number.isFinite(value) || value < 0) {
+        setGrantFields({ [key]: 'Enter a whole number of zero or more.' });
+        return;
+      }
+      input[key] = key === 'cashCents' ? Math.round(value * 100) : Math.floor(value);
+    }
+    setBusy(true);
+    try {
+      const updated = await adminApi.grantToPlayer(roundPlayerId, { reason: grantReason.trim(), ...input });
+      setPlayer(updated);
+      setGrant({});
+      setGrantReason('');
+      setNotice('Grant applied and added to the player\'s activity feed.');
+    } catch (caught) {
+      if (caught instanceof ApiError) {
+        setGrantFields(caught.fields ?? {});
+        setError(caught.message);
+      } else {
+        setError('That grant did not go through. Refresh before trying again.');
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!player) {
     return (
       <GameLayout>
@@ -61,6 +142,7 @@ export function AdminPlayerPage() {
   }
 
   const timers = player.timers;
+  const grantEmpty = !Object.values(grant).some((value) => value.trim() && Number(value) > 0);
 
   return (
     <GameLayout>
@@ -75,14 +157,47 @@ export function AdminPlayerPage() {
       </div>
 
       {error ? <Alert>{error}</Alert> : null}
-      <p className="se-hint se-mb">Read-only. Opening this page never settles the player, so turns show what was stored at their last settlement.</p>
+      {notice ? <p className="se-admin-notice" role="status">{notice}</p> : null}
+      <p className="se-hint se-mb">Opening this page never settles the player, so turns show what was stored at their last settlement.</p>
 
       <div className="se-stats se-mb">
         <Stat label="Net worth" value={formatCents(player.netWorthCents)} />
         <Stat label="Cash" value={formatCents(player.cashCents)} />
-        <Stat label="Turns" value={formatNumber(player.turns)} sub={`as of ${adminWhen(player.lastTurnCalculationAt)}`} />
+        <Stat label="Turns" value={`${formatNumber(player.turns)} / ${formatNumber(player.turnCap)}`} sub={`as of ${adminWhen(player.lastTurnCalculationAt)}`} />
         <Stat label="National rank" value={player.ranks.national ? `#${player.ranks.national}` : '-'} sub={player.ranks.local ? `Local #${player.ranks.local}` : undefined} />
       </div>
+
+      {voiding ? (
+        <Panel title={`Void: ${voiding.raidForm?.title ?? voiding.kind ?? 'Raid'} vs ${voiding.opponent.displayName}`} className="se-mb">
+          <form onSubmit={confirmVoid} noValidate>
+            <p>
+              Reverses what this battle moved, limited to what the side that gained it still has, takes back its wounds that are still healing,
+              and refunds the attacker's turns up to the cap. Protection and cooldown timers stay as they are. The battle stays visible, marked voided,
+              and stops counting for revenge, trophies and repeat-target limits. Both players see it in their activity feed. This cannot be undone.
+            </p>
+            <div className="se-field">
+              <label className="se-label" htmlFor="admin-void-reason">Reason</label>
+              <textarea id="admin-void-reason" className="se-input se-admin-reason" maxLength={500} value={voidReason} onChange={(event) => setVoidReason(event.target.value)} />
+              <p className="se-hint">Shown to both players and saved to the audit log. At least 5 characters.</p>
+            </div>
+            <div className="se-cta se-mt">
+              <button className="se-btn se-btn--primary" disabled={busy || voidReason.trim().length < 5}>{busy ? 'Voiding...' : 'Confirm void'}</button>
+              <button type="button" className="se-btn se-btn--ghost" onClick={() => setVoiding(null)} disabled={busy}>Cancel</button>
+            </div>
+          </form>
+        </Panel>
+      ) : null}
+
+      {voidResult ? (
+        <Panel title="Void result" className="se-mb">
+          {[voidResult.attacker, voidResult.defender].map((side, index) => (
+            <div key={side.roundPlayerId} className={index ? 'se-mt' : undefined}>
+              <p><strong>{index ? 'Defender' : 'Attacker'} {side.displayName}:</strong> {describeChanges(side.changes)}</p>
+              {Object.keys(side.shortfall).length ? <p className="se-hint">Could not take back: {describeChanges(side.shortfall)} (already spent or gone).</p> : null}
+            </div>
+          ))}
+        </Panel>
+      ) : null}
 
       <div className="se-grid se-grid--2 se-mb">
         <Panel title="Crew and weapons" flush>
@@ -132,6 +247,51 @@ export function AdminPlayerPage() {
         </Panel>
       </div>
 
+      <Panel title="Compensation grant" aside={player.live ? `Turns up to ${formatNumber(player.turnCap)}` : 'Round finished'} className="se-mb">
+        {!player.live ? (
+          <p className="se-hint">This round has finished, so its standings are frozen and grants are refused.</p>
+        ) : (
+          <form onSubmit={submitGrant} noValidate>
+            <div className="se-admin-filters">
+              <Field
+                id="admin-grant-turns"
+                label="Turns"
+                type="number"
+                min={0}
+                max={player.turnCap}
+                value={grant.turns ?? ''}
+                onChange={(event) => setGrant({ ...grant, turns: event.target.value })}
+                error={grantFields.turns}
+                hint={`Never past ${formatNumber(player.turnCap)}.`}
+              />
+              {GRANT_FIELDS.map(({ item, label }) => {
+                const cap = ADMIN_GRANT_CAPS[item];
+                return (
+                  <Field
+                    key={item}
+                    id={`admin-grant-${item}`}
+                    label={label}
+                    type="number"
+                    min={0}
+                    step={item === 'cashCents' ? 0.01 : 1}
+                    value={grant[item] ?? ''}
+                    onChange={(event) => setGrant({ ...grant, [item]: event.target.value })}
+                    error={grantFields[item]}
+                    hint={`Up to ${item === 'cashCents' ? formatCents(cap) : formatNumber(cap)}`}
+                  />
+                );
+              })}
+            </div>
+            <div className="se-field">
+              <label className="se-label" htmlFor="admin-grant-reason">Reason</label>
+              <textarea id="admin-grant-reason" className="se-input se-admin-reason" maxLength={500} value={grantReason} onChange={(event) => setGrantReason(event.target.value)} />
+              {grantFields.reason ? <p className="se-error">{grantFields.reason}</p> : <p className="se-hint">Shown in the player's activity feed and saved to the audit log. Weapons they have not unlocked are refused.</p>}
+            </div>
+            <button className="se-btn se-btn--primary" disabled={busy || grantEmpty || grantReason.trim().length < 5}>{busy ? 'Granting...' : 'Grant'}</button>
+          </form>
+        )}
+      </Panel>
+
       {player.injuries.length ? (
         <Panel title="Wounds healing" flush className="se-mb">
           <div className="se-rows">
@@ -159,6 +319,7 @@ export function AdminPlayerPage() {
                     <th className="se-table__number">Cash</th>
                     <th className="se-table__number">Wounds</th>
                     <th className="se-table__number">Turns</th>
+                    <th className="se-table__number">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -167,11 +328,21 @@ export function AdminPlayerPage() {
                       <td>{adminWhen(report.createdAt)}</td>
                       <td>{report.raidForm?.title ?? report.kind ?? 'RAID'}</td>
                       <td>{report.role}</td>
-                      <td><span className={`se-tag ${report.won ? 'se-tag--good' : 'se-tag--bad'}`}>{battleResult(report)}</span></td>
+                      <td>
+                        <span className={`se-tag ${report.won ? 'se-tag--good' : 'se-tag--bad'}`}>{report.won ? 'Won' : 'Lost'}</span>
+                        {report.voided ? <span className="se-tag se-tag--warn" title={`${report.voided.reason} (${report.voided.byUsername})`}>Voided</span> : null}
+                      </td>
                       <td>{report.opponent.displayName} <span className="se-muted">#{report.opponent.publicPimpId}</span></td>
                       <td className="se-table__number se-num">{typeof report.cashChangeCents === 'number' ? formatCents(report.cashChangeCents) : '-'}</td>
                       <td className="se-table__number se-num">{`${report.yourWounds ?? 0} / ${report.opponentWounds ?? 0}`}</td>
                       <td className="se-table__number se-num">{formatNumber(report.turnsSpent ?? 0)}</td>
+                      <td className="se-table__number">
+                        {report.voided || !player.live ? <span className="se-muted">-</span> : (
+                          <button type="button" className="se-btn se-btn--sm" onClick={() => { setVoiding(report); setVoidReason(''); setVoidResult(null); }} disabled={busy}>
+                            Void
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
