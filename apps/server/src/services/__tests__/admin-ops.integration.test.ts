@@ -9,6 +9,12 @@ type RoundStatus = 'SCHEDULED' | 'REGISTRATION' | 'ACTIVE' | 'ENDED';
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
+/**
+ * The admin suites share one database and create ACTIVE rounds with old start
+ * dates, so a newer live round never gets closed by them. Any current-round
+ * lookup in a parallel suite would close those test rounds as superseded, so
+ * run the ADMIN_INTEGRATION suites one file at a time (--no-file-parallelism).
+ */
 describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin news, banner, round operations and health API with PostgreSQL', () => {
   let app: FastifyInstance;
   let cookieName: string;

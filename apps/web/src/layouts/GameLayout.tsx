@@ -67,6 +67,8 @@ const ADMIN_SECTION: NavSection = {
     { label: 'Rounds', to: '/game/admin' },
     { label: 'News & banner', to: '/game/admin/news' },
     { label: 'Accounts', to: '/game/admin/accounts' },
+    { label: 'Integrations', to: '/game/admin/integrations' },
+    { label: 'Rulesets', to: '/game/admin/rulesets' },
     { label: 'Audit log', to: '/game/admin/audit' },
   ],
 };

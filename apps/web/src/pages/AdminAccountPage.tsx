@@ -20,7 +20,13 @@ const actionText: Record<AdminAccountAction, { label: string; copy: string }> = 
   'reset-profile': { label: 'Reset profile', copy: 'Clears their profile title and featured badges and resets their accent.' },
   'grant-admin': { label: 'Make admin', copy: 'Gives full admin panel access. Everything they do there is audited.' },
   'revoke-admin': { label: 'Remove admin', copy: 'Removes admin panel access.' },
+  'resend-verification': { label: 'Resend verification email', copy: 'Sends a fresh verification link to their current email address.' },
+  'mark-email-verified': { label: 'Mark email verified', copy: 'Marks their current email as verified without a link. Only do this once you have confirmed they own it.' },
+  'unlink-forum': { label: 'Unlink forum', copy: 'Removes the connection to their forum account on both sides. They can link again from their account settings.' },
+  'resync-discord': { label: 'Resync Discord roles', copy: 'Asks the Discord bot to re-check their roles on its next pass, about a minute.' },
 };
+
+const DESTRUCTIVE: AdminAccountAction[] = ['deactivate', 'revoke-admin', 'unlink-forum'];
 
 function statusTone(status: RoundStatus): string {
   if (status === 'ACTIVE') return ' se-tag--good';
@@ -74,7 +80,7 @@ export function AdminAccountPage() {
     setFields({});
     const why = reason.trim();
     try {
-      const run = (): Promise<AdminAccountDetailDto> => {
+      const run = async (): Promise<AdminAccountDetailDto> => {
         switch (pending.action) {
           case 'deactivate': return adminApi.deactivateAccount(accountId, why);
           case 'reactivate': return adminApi.reactivateAccount(accountId, why);
@@ -83,6 +89,12 @@ export function AdminAccountPage() {
           case 'reset-profile': return adminApi.resetProfile(accountId, why);
           case 'grant-admin': return adminApi.setAdmin(accountId, true, why);
           case 'revoke-admin': return adminApi.setAdmin(accountId, false, why);
+          case 'resend-verification': return adminApi.resendVerification(accountId, why);
+          case 'mark-email-verified': return adminApi.markEmailVerified(accountId, why);
+          case 'unlink-forum': return adminApi.unlinkForum(accountId, why);
+          case 'resync-discord':
+            await adminApi.requestDiscordResync({ accountId, reason: why });
+            return adminApi.account(accountId);
         }
       };
       const updated = await run();
@@ -109,16 +121,34 @@ export function AdminAccountPage() {
     );
   }
 
-  const { account } = detail;
+  const { account, email, forumLink, discord } = detail;
   const isSelf = account.id === myAccountId;
-  const actions: AdminAccountAction[] = [
+  const accountActions: AdminAccountAction[] = [
     account.isActive ? 'deactivate' : 'reactivate',
     'revoke-sessions',
     'rename',
     'reset-profile',
     ...(account.isAdmin ? ['revoke-admin' as const] : account.isActive ? ['grant-admin' as const] : []),
   ];
+  const linkActions: AdminAccountAction[] = [
+    ...(!email.verifiedAt && email.sendingEnabled ? ['resend-verification' as const] : []),
+    ...(!email.verifiedAt ? ['mark-email-verified' as const] : []),
+    ...(forumLink ? ['unlink-forum' as const] : []),
+    ...(discord.linked && discord.botApiEnabled ? ['resync-discord' as const] : []),
+  ];
   const reasonTooShort = reason.trim().length < 5;
+
+  const actionButton = (action: AdminAccountAction) => (
+    <button
+      type="button"
+      key={action}
+      className={`se-btn se-btn--sm${DESTRUCTIVE.includes(action) ? '' : ' se-btn--ghost'}`}
+      onClick={() => choose(action)}
+      disabled={busy}
+    >
+      {actionText[action].label}
+    </button>
+  );
 
   return (
     <GameLayout>
@@ -181,9 +211,12 @@ export function AdminAccountPage() {
         <Panel title="Account" flush>
           <div className="se-rows">
             <Row label="Email" value={account.email} />
-            <Row label="Email verified" value={account.emailVerified ? 'Yes' : 'No'} />
-            <Row label="Discord" value={account.discordUsername ?? '-'} />
-            <Row label="Forum" value={account.forumUsername ?? '-'} />
+            <Row label="Email verified" value={email.verifiedAt ? adminWhen(email.verifiedAt) : 'No'} />
+            <Row label="Discord" value={discord.username ?? (discord.linked ? 'Linked' : '-')} />
+            <Row
+              label="Forum"
+              value={forumLink ? <a href={forumLink.profileUrl} target="_blank" rel="noreferrer">{forumLink.forumUsername}</a> : '-'}
+            />
             <Row label="Profile title" value={detail.profile.activeTitleKey ?? '-'} />
             <Row label="Accent" value={detail.profile.profileAccent} />
             <Row label="Featured badges" value={formatNumber(detail.profile.featuredBadgeKeys.length)} />
@@ -195,19 +228,19 @@ export function AdminAccountPage() {
           {isSelf ? (
             <p className="se-hint">This is your own account. Another admin has to moderate it.</p>
           ) : (
-            <div className="se-admin-moderation">
-              {actions.map((action) => (
-                <button
-                  type="button"
-                  key={action}
-                  className={`se-btn se-btn--sm${action === 'deactivate' || action === 'revoke-admin' ? '' : ' se-btn--ghost'}`}
-                  onClick={() => choose(action)}
-                  disabled={busy}
-                >
-                  {actionText[action].label}
-                </button>
-              ))}
-            </div>
+            <>
+              <p className="se-label">Account</p>
+              <div className="se-admin-moderation">{accountActions.map(actionButton)}</div>
+              <p className="se-label se-mt">Email, forum and Discord</p>
+              {linkActions.length ? (
+                <div className="se-admin-moderation">{linkActions.map(actionButton)}</div>
+              ) : (
+                <p className="se-hint">Nothing to do: {email.verifiedAt ? 'the email is verified' : 'the mailer is off'}, {forumLink ? 'the forum is linked' : 'no forum link'}, {discord.linked ? (discord.botApiEnabled ? 'Discord is linked' : 'the bot API is off') : 'no Discord link'}.</p>
+              )}
+              {!email.verifiedAt && !email.sendingEnabled ? (
+                <p className="se-hint se-mt">Resending is unavailable because the server has no mailer configured.</p>
+              ) : null}
+            </>
           )}
           <p className="se-hint se-mt">
             <Link to={`/game/admin/audit?targetType=account&targetId=${account.id}`}>Full audit history for this account</Link>

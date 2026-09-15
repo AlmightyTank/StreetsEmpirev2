@@ -3,10 +3,13 @@ import { usernameSchema } from '@streets/shared';
 import { z } from 'zod';
 import { AdminAccountService } from '../services/admin-account.service.js';
 import { AdminAuditService } from '../services/admin-audit.service.js';
+import { AdminDevBotsService } from '../services/admin-dev-bots.service.js';
+import { AdminDiscordService } from '../services/admin-discord.service.js';
 import { AdminHealthService } from '../services/admin-health.service.js';
 import { AdminNewsService } from '../services/admin-news.service.js';
 import { AdminPlayerService } from '../services/admin-player.service.js';
 import { AdminRoundService } from '../services/admin-round.service.js';
+import { AdminRulesetService } from '../services/admin-ruleset.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
 import { parseBody } from '../utils/validate.js';
 
@@ -36,12 +39,15 @@ const accountParams = z.object({ accountId: id }).strict();
 const playerParams = z.object({ roundPlayerId: id }).strict();
 const newsParams = z.object({ newsId: id }).strict();
 const bannerParams = z.object({ bannerId: id }).strict();
+const rulesetParams = z.object({ rulesetId: id }).strict();
 const emptyBody = z.object({}).strict();
 const reasonBody = z.object({ reason }).strict();
 const startRoundSchema = z.object({ confirmHandoff: z.boolean().optional() }).strict();
 const revokeSessionsSchema = z.object({ reason, sessionId: id.optional() }).strict();
 const renameSchema = z.object({ reason, username: usernameSchema }).strict();
 const adminRoleSchema = z.object({ reason, isAdmin: z.boolean() }).strict();
+const resyncSchema = z.object({ accountId: id.optional(), reason: reason.optional() }).strict();
+const rulesetQuery = z.object({ compare: id.optional() }).strict();
 
 const createNewsSchema = z.object({
   title: z.string().trim().min(1).max(120),
@@ -86,8 +92,7 @@ const auditQuery = z.object({
 
 /**
  * 0.3.0-B admin API. The admin guard is a hook on this whole plugin, so a
- * route added here cannot forget it. Every change writes an audit record in
- * the same transaction.
+ * route added here cannot forget it. Every change writes an audit record.
  */
 const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('onRequest', fastify.requireAdmin);
@@ -182,6 +187,33 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return SiteBannerService.end(fastify.prisma, request.auth!.account, bannerId);
   });
 
+  // Integrations
+
+  fastify.get('/discord', async () => AdminDiscordService.status(fastify.prisma));
+
+  fastify.post('/discord/resync', async (request) => {
+    const body = parseBody(resyncSchema, request.body ?? {});
+    return AdminDiscordService.requestResync(fastify.prisma, request.auth!.account, body.accountId, body.reason);
+  });
+
+  fastify.get('/rulesets/:rulesetId', async (request) => {
+    const { rulesetId } = parseBody(rulesetParams, request.params);
+    const { compare } = parseBody(rulesetQuery, request.query);
+    return AdminRulesetService.view(rulesetId, compare);
+  });
+
+  fastify.get('/dev-bots', async () => AdminDevBotsService.status(fastify.prisma));
+
+  fastify.post('/dev-bots/seed', async (request) => {
+    parseBody(emptyBody, request.body ?? {});
+    return AdminDevBotsService.seed(fastify.prisma, request.auth!.account);
+  });
+
+  fastify.post('/dev-bots/remove', async (request) => {
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminDevBotsService.remove(fastify.prisma, request.auth!.account, body.reason);
+  });
+
   // Accounts
 
   fastify.get('/accounts', async (request) => AdminAccountService.search(fastify.prisma, parseBody(accountSearchQuery, request.query)));
@@ -225,6 +257,24 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { accountId } = parseBody(accountParams, request.params);
     const body = parseBody(adminRoleSchema, request.body ?? {});
     return AdminAccountService.setAdmin(fastify.prisma, request.auth!.account, accountId, body.isAdmin, body.reason);
+  });
+
+  fastify.post('/accounts/:accountId/email/resend', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminAccountService.resendVerification(fastify.prisma, request.auth!.account, accountId, body.reason, fastify.log);
+  });
+
+  fastify.post('/accounts/:accountId/email/verify', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminAccountService.markEmailVerified(fastify.prisma, request.auth!.account, accountId, body.reason);
+  });
+
+  fastify.post('/accounts/:accountId/forum/unlink', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminAccountService.unlinkForum(fastify.prisma, request.auth!.account, accountId, body.reason);
   });
 
   // Player inspector

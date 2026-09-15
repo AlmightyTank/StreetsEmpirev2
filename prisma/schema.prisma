@@ -489,6 +489,24 @@ model SiteBanner {
   @@index([startsAt, endsAt])
 }
 
+/// 0.3.0-B. An admin asked the Discord bot to re-sync roles now instead of on its
+/// next scheduled pass. A null discordId means every member. The bot claims each
+/// request once, like the news and alert queues.
+model DiscordResyncRequest {
+  id String @id @default(cuid())
+
+  discordId String?
+
+  /// No foreign key: the request outlives the admin who made it.
+  requestedByAccountId String?
+  requestedByUsername  String
+
+  createdAt DateTime  @default(now())
+  claimedAt DateTime?
+
+  @@index([claimedAt, createdAt])
+}
+
 enum ActivityType {
   RAID_ATTACK
   RAID_DEFENSE

@@ -7,12 +7,15 @@ import type {
   AdminCloseExpiredResultDto,
   AdminCreateBannerInput,
   AdminCreateNewsInput,
+  AdminDevBotsDto,
+  AdminDiscordStatusDto,
   AdminNewsDto,
   AdminPlayerBattlesDto,
   AdminPlayerDto,
   AdminRoundHealthDto,
   AdminRoundResultDto,
   AdminRoundsDto,
+  AdminRulesetViewDto,
   AdminScheduleRoundInput,
   AdminSiteBannersDto,
   AdminUpdateNewsInput,
@@ -54,6 +57,14 @@ export const adminApi = {
   createBanner: (input: AdminCreateBannerInput) => api.post<AdminSiteBannersDto>('/admin/banners', input),
   endBanner: (bannerId: string) => api.post<AdminSiteBannersDto>(`/admin/banners/${enc(bannerId)}/end`),
 
+  discord: () => api.get<AdminDiscordStatusDto>('/admin/discord'),
+  requestDiscordResync: (input: { accountId?: string; reason?: string } = {}) => api.post<AdminDiscordStatusDto>('/admin/discord/resync', input),
+  ruleset: (rulesetId: string, compare?: string) =>
+    api.get<AdminRulesetViewDto>(`/admin/rulesets/${enc(rulesetId)}${queryString({ compare })}`),
+  devBots: () => api.get<AdminDevBotsDto>('/admin/dev-bots'),
+  seedDevBots: () => api.post<AdminDevBotsDto>('/admin/dev-bots/seed'),
+  removeDevBots: (reason: string) => api.post<AdminDevBotsDto>('/admin/dev-bots/remove', { reason }),
+
   accounts: (params: { query?: string | undefined; status?: AdminAccountStatusFilter | undefined; limit?: number | undefined } = {}) =>
     api.get<AdminAccountSearchDto>(`/admin/accounts${queryString(params)}`),
   account: (accountId: string) => api.get<AdminAccountDetailDto>(accountPath(accountId)),
@@ -66,6 +77,9 @@ export const adminApi = {
   resetProfile: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'reset-profile'), { reason }),
   setAdmin: (accountId: string, isAdmin: boolean, reason: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'admin'), { isAdmin, reason }),
+  resendVerification: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'email/resend'), { reason }),
+  markEmailVerified: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'email/verify'), { reason }),
+  unlinkForum: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'forum/unlink'), { reason }),
 
   player: (roundPlayerId: string) => api.get<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}`),
   playerBattles: (roundPlayerId: string, before?: string) =>

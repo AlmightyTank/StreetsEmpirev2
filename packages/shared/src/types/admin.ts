@@ -76,7 +76,11 @@ export type AdminAccountAction =
   | 'rename'
   | 'reset-profile'
   | 'grant-admin'
-  | 'revoke-admin';
+  | 'revoke-admin'
+  | 'resend-verification'
+  | 'mark-email-verified'
+  | 'unlink-forum'
+  | 'resync-discord';
 
 export interface AdminAccountSummaryDto {
   id: string;
@@ -125,6 +129,23 @@ export interface AdminAccountDetailDto {
     activeTitleKey: string | null;
     profileAccent: string;
     featuredBadgeKeys: string[];
+  };
+  email: {
+    verifiedAt: string | null;
+    /** False when the server has no mailer configured, so resending cannot work. */
+    sendingEnabled: boolean;
+  };
+  forumLink: {
+    forumUserId: string;
+    forumUsername: string;
+    profileUrl: string;
+    linkedAt: string;
+  } | null;
+  discord: {
+    linked: boolean;
+    username: string | null;
+    /** False when the bot API is not configured, so a resync request would never be picked up. */
+    botApiEnabled: boolean;
   };
   sessions: AdminSessionDto[];
   rounds: AdminAccountRoundDto[];
@@ -279,5 +300,56 @@ export interface AdminRoundHealthDto {
     netWorthCents: number;
     nationalRank: number | null;
     lastActiveAt: string;
+  }>;
+}
+
+/** What the Discord bot still has to pick up. The bot only pulls, so a growing oldest item means it is down. */
+export interface AdminDiscordStatusDto {
+  botApiEnabled: boolean;
+  linkedAccounts: number;
+  queues: {
+    news: { pending: number; oldestAt: string | null };
+    battles: { pending: number; oldestAt: string | null };
+    roundOpenings: number;
+    roundEndings: number;
+    resyncs: number;
+  };
+  recentResyncs: Array<{
+    id: string;
+    everyone: boolean;
+    requestedByUsername: string;
+    createdAt: string;
+    claimedAt: string | null;
+  }>;
+}
+
+export interface AdminRulesetRowDto {
+  /** Dotted path such as `turns.cap` or `hideout.rooms.SAFE_ROOM.costsCents`. */
+  path: string;
+  /** JSON-encoded value, or null when the path does not exist in this ruleset. */
+  value: string | null;
+  compareValue: string | null;
+  changed: boolean;
+}
+
+export interface AdminRulesetViewDto {
+  ruleset: AdminRulesetOptionDto;
+  compareTo: AdminRulesetOptionDto | null;
+  /** Every loadable ruleset, newest first. */
+  rulesets: AdminRulesetOptionDto[];
+  sections: Array<{ key: string; rows: AdminRulesetRowDto[]; changed: number }>;
+  changedCount: number;
+}
+
+export interface AdminDevBotsDto {
+  /** Why dev bots are refused on this server, or null when they are allowed. */
+  blockedReason: string | null;
+  currentRound: { id: string; name: string; rulesetVersion: string } | null;
+  bots: Array<{
+    accountId: string;
+    username: string;
+    isActive: boolean;
+    roundsPlayed: number;
+    inCurrentRound: { roundPlayerId: string; displayName: string; publicPimpId: number; netWorthCents: number } | null;
   }>;
 }

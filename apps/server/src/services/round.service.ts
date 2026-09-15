@@ -121,8 +121,14 @@ export const RoundService = {
     });
     const closed: Round[] = [];
     for (const round of expired) {
-      const result = await RoundService.closeIfExpired(prisma, round.id, now);
-      if (result.closed) closed.push(result.round);
+      try {
+        const result = await RoundService.closeIfExpired(prisma, round.id, now);
+        if (result.closed) closed.push(result.round);
+      } catch (error) {
+        // Deleted between the listing and the close: nothing left to close.
+        if (error instanceof AppError && error.code === 'ROUND_NOT_FOUND') continue;
+        throw error;
+      }
     }
     return closed;
   },

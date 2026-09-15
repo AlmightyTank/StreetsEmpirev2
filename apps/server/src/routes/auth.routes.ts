@@ -1,9 +1,10 @@
 import { createHash, randomBytes } from 'node:crypto';
-import type { Account, AccountEmailTokenPurpose, PrismaClient, Session } from '@prisma/client';
+import type { Account, PrismaClient, Session } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { changeEmailSchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
 import { z } from 'zod';
 import { hashPassword, verifyPassword } from '../auth/password.js';
+import { createAccountEmailToken, emailVerificationUrl } from '../auth/email-tokens.js';
 import { createSession, destroySession } from '../auth/sessions.js';
 import { env } from '../config/env.js';
 import { toAccountDto } from '../game/dto.js';
@@ -78,12 +79,6 @@ function postLoginRedirect(): string {
 
 function passwordResetUrl(token: string): string {
   const url = new URL('/reset-password', env.frontendOrigin);
-  url.searchParams.set('token', token);
-  return url.toString();
-}
-
-function emailVerificationUrl(token: string): string {
-  const url = new URL('/verify-email', env.frontendOrigin);
   url.searchParams.set('token', token);
   return url.toString();
 }
@@ -357,32 +352,6 @@ async function linkDiscordToAccount(
       lastLoginAt: now,
     },
   });
-}
-
-async function createAccountEmailToken(input: {
-  prisma: PrismaClient;
-  accountId: string;
-  purpose: AccountEmailTokenPurpose;
-  newEmail?: string;
-  userAgent: string | undefined;
-  ip: string;
-}): Promise<{ token: string; expiresAt: Date }> {
-  const token = randomBytes(32).toString('base64url');
-  const expiresAt = new Date(Date.now() + env.email.verificationTtlMinutes * 60_000);
-
-  await input.prisma.accountEmailToken.create({
-    data: {
-      accountId: input.accountId,
-      tokenHash: hashToken(token),
-      purpose: input.purpose,
-      newEmail: input.newEmail,
-      expiresAt,
-      userAgent: input.userAgent,
-      ip: input.ip,
-    },
-  });
-
-  return { token, expiresAt };
 }
 
 const authRoutes: FastifyPluginAsync = async (fastify) => {

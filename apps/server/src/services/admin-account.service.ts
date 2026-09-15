@@ -1,13 +1,17 @@
 import { Prisma, type Account, type PrismaClient } from '@prisma/client';
+import type { FastifyBaseLogger } from 'fastify';
 import type {
   AdminAccountDetailDto,
   AdminAccountSearchDto,
   AdminAccountStatusFilter,
   AdminAccountSummaryDto,
 } from '@streets/shared';
+import { createAccountEmailToken, emailVerificationUrl } from '../auth/email-tokens.js';
+import { env } from '../config/env.js';
 import { lockAccount, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, toAuditEntryDto, type AuditActor } from './admin-audit.service.js';
+import { sendCurrentEmailVerification } from './email.service.js';
 
 /**
  * A coarse label such as "Chrome on Windows". Admins never see the IP address
@@ -42,6 +46,10 @@ export function accountSnapshot(account: Account) {
     isAdmin: account.isAdmin,
     discordUsername: account.discordUsername,
   };
+}
+
+function forumProfileUrl(forumOrigin: string, forumUsername: string): string {
+  return `${forumOrigin}/u/${encodeURIComponent(forumUsername)}`;
 }
 
 const summaryInclude = {
@@ -164,6 +172,7 @@ export const AdminAccountService = {
       where: { id: accountId },
       include: {
         ...summaryInclude,
+        forumLink: true,
         profile: true,
         sessions: { where: { expiresAt: { gt: now } }, orderBy: [{ lastSeenAt: 'desc' }, { createdAt: 'desc' }] },
         roundPlayers: { include: { round: { select: { id: true, name: true, status: true } } }, orderBy: { createdAt: 'desc' } },
@@ -183,6 +192,23 @@ export const AdminAccountService = {
         activeTitleKey: account.profile?.activeTitleKey ?? null,
         profileAccent: account.profile?.profileAccent ?? 'default',
         featuredBadgeKeys: stringArray(account.profile?.featuredBadgeKeys),
+      },
+      email: {
+        verifiedAt: account.emailVerifiedAt?.toISOString() ?? null,
+        sendingEnabled: env.email.enabled,
+      },
+      forumLink: account.forumLink
+        ? {
+            forumUserId: account.forumLink.forumUserId,
+            forumUsername: account.forumLink.forumUsername,
+            profileUrl: forumProfileUrl(account.forumLink.forumOrigin, account.forumLink.forumUsername),
+            linkedAt: account.forumLink.createdAt.toISOString(),
+          }
+        : null,
+      discord: {
+        linked: Boolean(account.discordId),
+        username: account.discordUsername,
+        botApiEnabled: env.discordBot.enabled,
       },
       sessions: account.sessions.map((session) => ({
         id: session.id,
@@ -281,6 +307,67 @@ export const AdminAccountService = {
       }
       const account = await tx.account.update({ where: { id: before.id }, data: { isAdmin } });
       return { account };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  /** A fresh verification link to the account's current email. The mail goes out after the audited change commits. */
+  async resendVerification(
+    prisma: PrismaClient,
+    actor: AuditActor,
+    accountId: string,
+    reason: string,
+    log: FastifyBaseLogger,
+  ): Promise<AdminAccountDetailDto> {
+    let mail: { to: string; username: string; token: string; expiresAt: Date } | null = null;
+    await moderate(prisma, actor, accountId, 'resend-verification', reason, async (tx, before) => {
+      if (before.emailVerifiedAt) throw AppError.conflict('EMAIL_ALREADY_VERIFIED', `${before.username}'s email is already verified.`);
+      if (!env.email.enabled) {
+        throw AppError.badRequest('EMAIL_SENDING_DISABLED', 'This server has no mailer configured, so a verification email cannot be sent.');
+      }
+      const { token, expiresAt } = await createAccountEmailToken({
+        prisma: tx,
+        accountId: before.id,
+        purpose: 'VERIFY_EMAIL',
+        userAgent: `admin:${actor.username}`,
+        ip: 'admin-panel',
+      });
+      mail = { to: before.email, username: before.username, token, expiresAt };
+      return { account: before, detail: { verificationSentTo: before.email, expiresAt } };
+    });
+
+    const sent = mail as { to: string; username: string; token: string; expiresAt: Date } | null;
+    if (sent) {
+      try {
+        await sendCurrentEmailVerification({ to: sent.to, username: sent.username, url: emailVerificationUrl(sent.token), expiresAt: sent.expiresAt }, log);
+      } catch (error) {
+        log.error({ err: error, accountId }, 'admin email verification resend failed');
+        throw AppError.conflict('EMAIL_SEND_FAILED', 'The verification link was created, but the mailer failed to send it. Try again shortly.');
+      }
+    }
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  async markEmailVerified(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, 'mark-email-verified', reason, async (tx, before) => {
+      if (before.emailVerifiedAt) throw AppError.conflict('EMAIL_ALREADY_VERIFIED', `${before.username}'s email is already verified.`);
+      const account = await tx.account.update({ where: { id: before.id }, data: { emailVerifiedAt: new Date() } });
+      return { account };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  /** Removes the verified forum link and any link still in progress. The player can link again later. */
+  async unlinkForum(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, 'unlink-forum', reason, async (tx, before) => {
+      const link = await tx.forumLink.findUnique({ where: { accountId: before.id } });
+      if (!link) throw AppError.notFound('FORUM_NOT_LINKED', `${before.username} has no forum account linked.`);
+      await tx.forumLinkRequest.deleteMany({ where: { accountId: before.id } });
+      await tx.forumLink.delete({ where: { accountId: before.id } });
+      return {
+        account: before,
+        detail: { unlinkedForum: { forumOrigin: link.forumOrigin, forumUserId: link.forumUserId, forumUsername: link.forumUsername } },
+      };
     });
     return AdminAccountService.detail(prisma, accountId);
   },
