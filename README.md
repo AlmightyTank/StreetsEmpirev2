@@ -80,6 +80,7 @@ Open <http://localhost:5173>, register a name, and enter Game #009 - Season End.
 | `npm run db:seed:dev-bots` | reseed the current public raid round with active local bots for testing every raid form |
 | `npm run db:dev-bots:status` | show seeded bot accounts and whether they are in the current round |
 | `npm run db:cleanup:seed-rivals` | remove seeded rival/dev bot accounts |
+| `npm run admin -- <username or email>` | make an account an admin (`--off` removes it, `--list` shows who has it); writes to the admin audit log |
 
 ---
 
