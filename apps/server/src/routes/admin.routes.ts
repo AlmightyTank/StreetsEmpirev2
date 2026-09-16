@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { ADMIN_GRANT_CAPS, usernameSchema } from '@streets/shared';
+import { ADMIN_GRANT_CAPS, ADMIN_SUSPENSION_LENGTHS, usernameSchema, type AdminSuspensionLength } from '@streets/shared';
 import { z } from 'zod';
 import { AdminAccountService } from '../services/admin-account.service.js';
 import { AdminAuditService } from '../services/admin-audit.service.js';
@@ -95,8 +95,19 @@ const createBannerSchema = z.object({
 
 const accountSearchQuery = z.object({
   query: z.string().trim().max(80).optional(),
-  status: z.enum(['all', 'active', 'inactive', 'admin']).optional(),
+  status: z.enum(['all', 'active', 'inactive', 'admin', 'suspended']).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
+}).strict();
+
+const playerSearchQuery = z.object({
+  query: z.string().trim().min(1, 'Type a pimp name or public id.').max(80),
+  roundId: id.optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+}).strict();
+
+const suspendSchema = z.object({
+  reason,
+  length: z.enum(ADMIN_SUSPENSION_LENGTHS.map((option) => option.key) as [string, ...string[]]),
 }).strict();
 
 const battlesQuery = z.object({ before: id.optional() }).strict();
@@ -257,6 +268,18 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return AdminAccountService.setActive(fastify.prisma, request.auth!.account, accountId, true, body.reason);
   });
 
+  fastify.post('/accounts/:accountId/suspend', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(suspendSchema, request.body ?? {});
+    return AdminAccountService.suspend(fastify.prisma, request.auth!.account, accountId, body.length as AdminSuspensionLength, body.reason);
+  });
+
+  fastify.post('/accounts/:accountId/suspend/lift', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminAccountService.liftSuspension(fastify.prisma, request.auth!.account, accountId, body.reason);
+  });
+
   fastify.post('/accounts/:accountId/sessions/revoke', async (request) => {
     const { accountId } = parseBody(accountParams, request.params);
     const body = parseBody(revokeSessionsSchema, request.body ?? {});
@@ -300,6 +323,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // Player inspector and corrections
+
+  fastify.get('/players', async (request) => AdminPlayerService.search(fastify.prisma, parseBody(playerSearchQuery, request.query)));
 
   fastify.get('/players/:roundPlayerId', async (request) => {
     const { roundPlayerId } = parseBody(playerParams, request.params);

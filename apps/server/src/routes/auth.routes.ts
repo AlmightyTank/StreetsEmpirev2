@@ -3,6 +3,7 @@ import type { Account, PrismaClient, Session } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { changeEmailSchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
 import { z } from 'zod';
+import { assertCanSignIn, clearExpiredSuspension } from '../auth/account-status.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { createAccountEmailToken, emailVerificationUrl } from '../auth/email-tokens.js';
 import { createSession, destroySession } from '../auth/sessions.js';
@@ -237,7 +238,8 @@ async function accountForDiscordUser(
   });
 
   if (existingByDiscord) {
-    if (!existingByDiscord.isActive) throw AppError.forbidden('This account has been shut down.');
+    await clearExpiredSuspension(prisma, existingByDiscord, now);
+    assertCanSignIn(existingByDiscord, now);
 
     return prisma.account.update({
       where: { id: existingByDiscord.id },
@@ -255,7 +257,8 @@ async function accountForDiscordUser(
   const existingByEmail = await prisma.account.findUnique({ where: { email } });
 
   if (existingByEmail) {
-    if (!existingByEmail.isActive) throw AppError.forbidden('This account has been shut down.');
+    await clearExpiredSuspension(prisma, existingByEmail, now);
+    assertCanSignIn(existingByEmail, now);
     if (existingByEmail.discordId) {
       throw new AppError(
         409,
@@ -309,7 +312,8 @@ async function linkDiscordToAccount(
     );
   }
 
-  if (!account.isActive) throw AppError.forbidden('This account has been shut down.');
+  await clearExpiredSuspension(prisma, account);
+  assertCanSignIn(account);
 
   const existingByDiscord = await prisma.account.findUnique({
     where: { discordId: user.id },
@@ -422,9 +426,8 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       );
     }
 
-    if (!account.isActive) {
-      throw AppError.forbidden('This account has been shut down.');
-    }
+    await clearExpiredSuspension(fastify.prisma, account);
+    assertCanSignIn(account);
 
     const updated = await fastify.prisma.account.update({
       where: { id: account.id },

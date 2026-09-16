@@ -41,6 +41,12 @@ model Account {
   isActive Boolean @default(true)
   isAdmin  Boolean @default(false)
 
+  /// 0.3.0-B. A timed suspension. The account signs back in on its own once this
+  /// passes; the fields are cleared lazily on the next sign-in attempt.
+  suspendedUntil      DateTime?
+  suspendedReason     String?
+  suspendedByUsername String?
+
   sessions                Session[]
   passwordResetTokens     PasswordResetToken[]
   accountEmailTokens      AccountEmailToken[]

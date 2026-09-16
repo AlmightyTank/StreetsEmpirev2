@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import type { AdminAccountAction, AdminAccountDetailDto, RoundStatus } from '@streets/shared';
-import { formatCents, formatNumber } from '@streets/shared';
+import type { AdminAccountAction, AdminAccountDetailDto, AdminSuspensionLength, RoundStatus } from '@streets/shared';
+import { ADMIN_SUSPENSION_LENGTHS, formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { AccountTags, AuditEntryList } from '../components/AdminParts.js';
@@ -16,6 +16,8 @@ import { adminWhen } from '../utils/admin.js';
 const actionText: Record<AdminAccountAction, { label: string; copy: string }> = {
   deactivate: { label: 'Deactivate', copy: 'Signs them out everywhere, hides them from rankings and raid targets, and blocks login until an admin reactivates them.' },
   reactivate: { label: 'Reactivate', copy: 'Lets them log in again and puts them back in rankings.' },
+  suspend: { label: 'Suspend', copy: 'A cool-off with an end date. Signs them out now, refuses login until it passes, and shows them the reason and the date. It lifts itself - no admin has to remember.' },
+  'lift-suspension': { label: 'Lift suspension', copy: 'Ends the suspension now. They can log straight back in.' },
   'revoke-sessions': { label: 'Sign out everywhere', copy: 'Ends every active session. They can log straight back in.' },
   rename: { label: 'Rename', copy: 'Changes their pimp name and the name on every round they played, archived results included.' },
   'reset-profile': { label: 'Reset profile', copy: 'Clears their profile title and featured badges and resets their accent.' },
@@ -27,7 +29,7 @@ const actionText: Record<AdminAccountAction, { label: string; copy: string }> = 
   'resync-discord': { label: 'Resync Discord roles', copy: 'Asks the Discord bot to re-check their roles on its next pass, about a minute.' },
 };
 
-const DESTRUCTIVE: AdminAccountAction[] = ['deactivate', 'revoke-admin', 'unlink-forum'];
+const DESTRUCTIVE: AdminAccountAction[] = ['deactivate', 'suspend', 'revoke-admin', 'unlink-forum'];
 
 function statusTone(status: RoundStatus): string {
   if (status === 'ACTIVE') return ' se-tag--good';
@@ -49,6 +51,7 @@ export function AdminAccountPage() {
   const [pending, setPending] = useState<Pending | null>(null);
   const [reason, setReason] = useState('');
   const [newName, setNewName] = useState('');
+  const [length, setLength] = useState<AdminSuspensionLength>('7d');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
@@ -85,6 +88,8 @@ export function AdminAccountPage() {
         switch (pending.action) {
           case 'deactivate': return adminApi.deactivateAccount(accountId, why);
           case 'reactivate': return adminApi.reactivateAccount(accountId, why);
+          case 'suspend': return adminApi.suspendAccount(accountId, length, why);
+          case 'lift-suspension': return adminApi.liftSuspension(accountId, why);
           case 'revoke-sessions': return adminApi.revokeSessions(accountId, why, pending.sessionId);
           case 'rename': return adminApi.renameAccount(accountId, newName.trim(), why);
           case 'reset-profile': return adminApi.resetProfile(accountId, why);
@@ -126,6 +131,7 @@ export function AdminAccountPage() {
   const isSelf = account.id === myAccountId;
   const accountActions: AdminAccountAction[] = [
     account.isActive ? 'deactivate' : 'reactivate',
+    ...(account.suspension ? ['lift-suspension' as const] : account.isActive && !account.isAdmin ? ['suspend' as const] : []),
     'revoke-sessions',
     'rename',
     'reset-profile',
@@ -176,6 +182,15 @@ export function AdminAccountPage() {
         <Panel title={`${pending.sessionId ? 'Sign out this session' : actionText[pending.action].label}: ${account.username}`} className="se-mb">
           <form onSubmit={confirm} noValidate>
             <p>{pending.sessionId ? 'Ends this one session. They can log straight back in.' : actionText[pending.action].copy}</p>
+            {pending.action === 'suspend' ? (
+              <div className="se-field">
+                <label className="se-label" htmlFor="admin-suspend-length">How long</label>
+                <select id="admin-suspend-length" className="se-input" value={length} onChange={(event) => setLength(event.target.value as AdminSuspensionLength)}>
+                  {ADMIN_SUSPENSION_LENGTHS.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
+                </select>
+                <p className="se-hint">Ends {new Date(Date.now() + (ADMIN_SUSPENSION_LENGTHS.find((option) => option.key === length)?.hours ?? 0) * 3_600_000).toLocaleString()}.</p>
+              </div>
+            ) : null}
             {pending.action === 'rename' ? (
               <Field
                 id="admin-rename"
@@ -197,7 +212,12 @@ export function AdminAccountPage() {
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
               />
-              {fields.reason ? <p className="se-error">{fields.reason}</p> : <p className="se-hint">Saved to the audit log. At least 5 characters.</p>}
+              {fields.reason ? <p className="se-error">{fields.reason}</p> : (
+                <p className="se-hint">
+                  Saved to the audit log. At least 5 characters.
+                  {pending.action === 'suspend' ? ' The player is shown this reason when they try to log in.' : ''}
+                </p>
+              )}
             </div>
             <div className="se-cta se-mt">
               <Button className="se-btn se-btn--primary"
@@ -217,6 +237,14 @@ export function AdminAccountPage() {
         <Panel title="Account" flush>
           <div className="se-rows">
             <Row label="Email" value={account.email} />
+            {account.suspension ? (
+              <Row
+                label="Suspended until"
+                value={`${adminWhen(account.suspension.until)}${account.suspension.byUsername ? ` by ${account.suspension.byUsername}` : ''}`}
+                strong
+              />
+            ) : null}
+            {account.suspension?.reason ? <Row label="Suspension reason" value={account.suspension.reason} /> : null}
             <Row label="Email verified" value={email.verifiedAt ? adminWhen(email.verifiedAt) : 'No'} />
             <Row label="Discord" value={discord.username ?? (discord.linked ? 'Linked' : '-')} />
             <Row

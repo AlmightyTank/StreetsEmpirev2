@@ -13,12 +13,14 @@ import type {
   AdminNewsDto,
   AdminPlayerBattlesDto,
   AdminPlayerDto,
+  AdminPlayerSearchDto,
   AdminRoundHealthDto,
   AdminRoundResultDto,
   AdminRoundsDto,
   AdminRulesetViewDto,
   AdminScheduleRoundInput,
   AdminSignalsDto,
+  AdminSuspensionLength,
   AdminSiteBannersDto,
   AdminUpdateNewsInput,
   AdminUpdateRoundInput,
@@ -73,6 +75,9 @@ export const adminApi = {
   account: (accountId: string) => api.get<AdminAccountDetailDto>(accountPath(accountId)),
   deactivateAccount: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'deactivate'), { reason }),
   reactivateAccount: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'reactivate'), { reason }),
+  suspendAccount: (accountId: string, length: AdminSuspensionLength, reason: string) =>
+    api.post<AdminAccountDetailDto>(accountPath(accountId, 'suspend'), { length, reason }),
+  liftSuspension: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'suspend/lift'), { reason }),
   revokeSessions: (accountId: string, reason: string, sessionId?: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'sessions/revoke'), { reason, ...(sessionId ? { sessionId } : {}) }),
   renameAccount: (accountId: string, username: string, reason: string) =>
@@ -84,6 +89,8 @@ export const adminApi = {
   markEmailVerified: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'email/verify'), { reason }),
   unlinkForum: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'forum/unlink'), { reason }),
 
+  players: (params: { query: string; roundId?: string | undefined; limit?: number | undefined }) =>
+    api.get<AdminPlayerSearchDto>(`/admin/players${queryString(params)}`),
   player: (roundPlayerId: string) => api.get<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}`),
   grantToPlayer: (roundPlayerId: string, input: AdminGrantInput) => api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/grant`, input),
   voidBattle: (battleId: string, reason: string) => api.post<AdminVoidBattleResultDto>(`/admin/battles/${enc(battleId)}/void`, { reason }),
