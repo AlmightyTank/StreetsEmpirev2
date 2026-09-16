@@ -603,7 +603,8 @@ export const CommunityService = {
   async hallOfFame(prisma: PrismaClient, roundLimit = 10, podiumSize = 3): Promise<HallOfFameDto> {
     const rounds = await prisma.round.findMany({
       where: { status: { in: ['ENDED', 'ARCHIVED'] } },
-      orderBy: { endsAt: 'desc' },
+      // Seasons superseded together share an end, so the later start goes first.
+      orderBy: [{ endsAt: 'desc' }, { startsAt: 'desc' }],
       take: roundLimit,
       select: {
         id: true,
