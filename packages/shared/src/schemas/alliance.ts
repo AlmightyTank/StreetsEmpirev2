@@ -26,6 +26,12 @@ export const createAllianceSchema = z.object({ name: allianceNameSchema, tag: al
 export const alliancePlayerSchema = z.object({ targetPublicPimpId: publicPimpId }).strict();
 export const allianceInviteAnswerSchema = z.object({ tag: allianceTagSchema }).strict();
 
+export const ALLIANCE_PITCH_MAX = 500;
+export const allianceForumPostSchema = z.object({
+  pitch: z.string().trim().max(ALLIANCE_PITCH_MAX, `Keep the pitch under ${ALLIANCE_PITCH_MAX} characters.`).optional(),
+}).strict();
+export type AllianceForumPostInputDto = z.infer<typeof allianceForumPostSchema>;
+
 export type CreateAllianceInputDto = z.infer<typeof createAllianceSchema>;
 export type AlliancePlayerInputDto = z.infer<typeof alliancePlayerSchema>;
 export type AllianceInviteAnswerInputDto = z.infer<typeof allianceInviteAnswerSchema>;

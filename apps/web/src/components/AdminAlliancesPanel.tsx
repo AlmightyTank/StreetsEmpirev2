@@ -95,6 +95,7 @@ export function AdminAlliancesPanel({ roundId, finished }: { roundId: string; fi
                           setNotice(null);
                         }}>Moderate</button>
                       )}
+                      {alliance.forumUrl ? <a className="se-btn se-btn--sm se-btn--ghost" href={alliance.forumUrl} target="_blank" rel="noreferrer">Forum</a> : null}
                       <Link className="se-btn se-btn--sm se-btn--ghost" to={`/game/admin/audit?targetType=alliance&targetId=${alliance.id}`}>Audit</Link>
                     </span>
                   </td>

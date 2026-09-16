@@ -3,6 +3,7 @@ import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
 import {
   allianceInviteAnswerSchema,
   alliancePlayerSchema,
+  allianceForumPostSchema,
   createAllianceSchema,
   type AdminAlliancesDto,
   type AllianceDetailDto,
@@ -14,7 +15,10 @@ import {
 } from '@streets/shared';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import { env } from '../config/env.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
+import { queueAllianceRoleResync } from './discord-resync.service.js';
+import { forumDiscussionUrl, postRecruitmentThread, updateForumDiscussion } from './forum-news.service.js';
 
 type AllianceRules = NonNullable<Ruleset['alliances']>;
 
@@ -121,6 +125,20 @@ async function disbandInTransaction(tx: Db, alliance: Alliance, rules: Pick<Alli
     tagNormalized: `${alliance.tagNormalized}#${alliance.id}`,
   } });
   await event(tx, alliance.id, 'DISBANDED', actorName, null, reason);
+  await queueAllianceRoleResync(tx, 'all');
+}
+
+function recruitmentTitle(alliance: Pick<Alliance, 'name' | 'tag'>, disbanded = false): string {
+  return disbanded ? `[${alliance.tag}] ${alliance.name} (disbanded)` : `[${alliance.tag}] ${alliance.name} is recruiting`;
+}
+
+/** Keep the recruitment thread honest after a rename or disband. Best effort, after the change commits. */
+async function syncForumThread(prisma: PrismaClient, allianceId: string): Promise<void> {
+  const alliance = await prisma.alliance.findUnique({ where: { id: allianceId } });
+  if (!alliance?.forumDiscussionId || !env.forum.recruitment.enabled) return;
+  const disbanded = Boolean(alliance.disbandedAt);
+  const error = await updateForumDiscussion(alliance.forumDiscussionId, { title: recruitmentTitle(alliance, disbanded), ...(disbanded ? { isLocked: true } : {}) });
+  await prisma.alliance.update({ where: { id: allianceId }, data: { forumError: error } });
 }
 
 interface Standing {
@@ -189,6 +207,7 @@ async function detail(db: Db | PrismaClient, alliance: Alliance, standing: Stand
     })),
     foundedAt: alliance.createdAt.toISOString(),
     isYours: viewer.allianceId === alliance.id,
+    forumUrl: alliance.forumDiscussionId ? forumDiscussionUrl(alliance.forumDiscussionId) : null,
   };
 }
 
@@ -246,7 +265,8 @@ export const AllianceService = {
     const now = new Date();
     const { rules } = rulesFor(player.round);
     const open = roundOpen(player.round, now);
-    const empty: MyAllianceDto = { enabled: Boolean(rules), rules, alliance: null, isLeader: false, outgoingInvites: [], events: [], incomingInvites: [], cooldownUntil: null, formerAlliance: null, roundOpen: open };
+    const empty: MyAllianceDto = { enabled: Boolean(rules), rules, alliance: null, isLeader: false, outgoingInvites: [], events: [], incomingInvites: [], cooldownUntil: null, formerAlliance: null, roundOpen: open,
+      forum: { enabled: env.forum.recruitment.enabled, error: null } };
     if (!rules) return empty;
 
     const cooling = player.allianceCooldownUntil && player.allianceCooldownUntil > now ? player.allianceCooldownUntil : null;
@@ -284,6 +304,7 @@ export const AllianceService = {
       isLeader,
       outgoingInvites: outgoing.map((invite) => ({ publicPimpId: invite.invitee.publicPimpId, displayName: invite.invitee.displayName, invitedByName: invite.invitedByName, expiresAt: invite.expiresAt.toISOString() })),
       events: events.map(toEventDto),
+      forum: { enabled: env.forum.recruitment.enabled, error: isLeader ? alliance.forumError : null },
     };
   },
 
@@ -329,6 +350,7 @@ export const AllianceService = {
         await tx.roundPlayer.update({ where: { id: me.id }, data: { allianceId: alliance.id, allianceJoinedAt: now } });
         await tx.allianceInvite.deleteMany({ where: { inviteeId: me.id } });
         await event(tx, alliance.id, 'FOUNDED', me.displayName);
+        await queueAllianceRoleResync(tx, { accountIds: [me.accountId] });
       }, { timeout: 15_000, maxWait: 10_000 });
     } catch (error) {
       const message = uniqueViolation(error);
@@ -395,6 +417,7 @@ export const AllianceService = {
       await tx.roundPlayer.update({ where: { id: me.id }, data: { allianceId: alliance.id, allianceJoinedAt: now } });
       await tx.allianceInvite.deleteMany({ where: { inviteeId: me.id } });
       await event(tx, alliance.id, 'JOINED', me.displayName);
+      await queueAllianceRoleResync(tx, { accountIds: [me.accountId] });
     }, { timeout: 15_000, maxWait: 10_000 });
     return AllianceService.mine(prisma, playerId);
   },
@@ -407,13 +430,16 @@ export const AllianceService = {
   },
 
   async leave(prisma: PrismaClient, playerId: string): Promise<MyAllianceDto> {
-    await withOwnAlliance(prisma, playerId, async ({ tx, alliance, me, rules, now }) => {
+    const left = await withOwnAlliance(prisma, playerId, async ({ tx, alliance, me, rules, now }) => {
       const others = await tx.roundPlayer.count({ where: { allianceId: alliance.id, id: { not: me.id } } });
       if (alliance.leaderId === me.id && others > 0) throw AppError.conflict('LEADER_MUST_HAND_OVER', 'Hand leadership to another member before you leave.');
       await tx.roundPlayer.update({ where: { id: me.id }, data: cooldownData(alliance.id, rules, now) });
       await event(tx, alliance.id, 'LEFT', me.displayName);
+      await queueAllianceRoleResync(tx, { accountIds: [me.accountId] });
       if (others === 0) await disbandInTransaction(tx, alliance, rules, now, me.displayName, null);
+      return { allianceId: alliance.id, disbanded: others === 0 };
     });
+    if (left.disbanded) await syncForumThread(prisma, left.allianceId);
     return AllianceService.mine(prisma, playerId);
   },
 
@@ -429,6 +455,7 @@ export const AllianceService = {
       if (current.allianceId !== alliance.id) throw AppError.conflict('NOT_A_MEMBER', `${current.displayName} is not in ${alliance.name}.`);
       await tx.roundPlayer.update({ where: { id: current.id }, data: cooldownData(alliance.id, rules, now) });
       await event(tx, alliance.id, 'KICKED', me.displayName, current.displayName);
+      await queueAllianceRoleResync(tx, { accountIds: [current.accountId] });
     }, [target.id]);
     return AllianceService.mine(prisma, playerId);
   },
@@ -445,6 +472,43 @@ export const AllianceService = {
       await tx.alliance.update({ where: { id: alliance.id }, data: { leaderId: current.id } });
       await event(tx, alliance.id, 'LEADER', me.displayName, current.displayName);
     }, [target.id]);
+    return AllianceService.mine(prisma, playerId);
+  },
+
+  /**
+   * One recruitment thread per alliance, posted by the leader into the forum's
+   * recruitment tag. The alliance row is claimed under its lock before the forum
+   * is called, so a double click or two tabs cannot open two threads.
+   */
+  async postForumThread(prisma: PrismaClient, playerId: string, rawInput: unknown): Promise<MyAllianceDto> {
+    const input = allianceForumPostSchema.parse(rawInput);
+    if (!env.forum.recruitment.enabled) throw AppError.conflict('FORUM_RECRUITMENT_DISABLED', 'Forum recruitment is not set up on this server.');
+    const claim = await withOwnAlliance(prisma, playerId, async ({ tx, alliance, me, rules, now, round }) => {
+      requireLeader(alliance, me, 'post a recruitment thread');
+      if (alliance.forumDiscussionId) throw AppError.conflict('FORUM_THREAD_EXISTS', `${alliance.name} already has a recruitment thread.`);
+      if (alliance.forumPostStartedAt && now.getTime() - alliance.forumPostStartedAt.getTime() < 60_000) {
+        throw AppError.conflict('FORUM_THREAD_POSTING', 'Your recruitment thread is already on its way.');
+      }
+      await tx.alliance.update({ where: { id: alliance.id }, data: { forumPostStartedAt: now, forumError: null } });
+      const members = await tx.roundPlayer.count({ where: { allianceId: alliance.id } });
+      return { alliance, leaderName: me.displayName, members, maxMembers: rules.maxMembers, roundName: round.name };
+    });
+    const { alliance } = claim;
+    const url = `${env.frontendOrigin}/game/alliances/${encodeURIComponent(alliance.tag)}`;
+    const body = [
+      `**[${alliance.tag}] ${alliance.name}** is recruiting in ${claim.roundName}.`,
+      ...(input.pitch ? ['', input.pitch] : []),
+      '',
+      `Led by ${claim.leaderName} · ${claim.members}/${claim.maxMembers} members.`,
+      '',
+      `Alliance page: ${url}`,
+      'Invites go out by pimp number, so reply with yours.',
+    ].join('\n');
+    const result = await postRecruitmentThread({ title: recruitmentTitle(alliance), body });
+    await prisma.alliance.update({ where: { id: alliance.id }, data: result.ok
+      ? { forumDiscussionId: result.discussionId, forumError: null }
+      : { forumPostStartedAt: null, forumError: result.error } });
+    if (!result.ok) throw AppError.conflict('FORUM_POST_FAILED', `The forum did not take the thread: ${result.error} Try again shortly.`);
     return AllianceService.mine(prisma, playerId);
   },
 
@@ -473,6 +537,7 @@ export const AllianceService = {
           createdAt: row.createdAt.toISOString(),
           disbandedAt: row.disbandedAt?.toISOString() ?? null,
           disbandReason: row.disbandReason,
+          forumUrl: row.forumDiscussionId ? forumDiscussionUrl(row.forumDiscussionId) : null,
         };
       }),
     };
@@ -494,7 +559,10 @@ export const AllianceService = {
         await event(tx, allianceId, 'RENAMED', 'An admin', null, `[${before.tag}] ${before.name} -> [${after.tag}] ${after.name}`);
         await AdminAuditService.record(tx, actor, { action: 'alliance.rename', targetType: 'alliance', targetId: allianceId, reason: input.reason,
           before: { name: before.name, tag: before.tag }, after: { name: after.name, tag: after.tag } });
+        // A new tag means a new Discord role; a full resync also retires the old one.
+        if (after.tag !== before.tag) await queueAllianceRoleResync(tx, 'all');
       });
+      await syncForumThread(prisma, allianceId);
     } catch (error) {
       const message = uniqueViolation(error);
       if (message) throw AppError.conflict('ALLIANCE_NAME_TAKEN', message);
@@ -517,5 +585,6 @@ export const AllianceService = {
       await AdminAuditService.record(tx, actor, { action: 'alliance.disband', targetType: 'alliance', targetId: allianceId, reason,
         before: { name: alliance.name, tag: alliance.tag, leaderId: alliance.leaderId, members }, after: { disbanded: true } });
     }, { timeout: 15_000, maxWait: 10_000 });
+    await syncForumThread(prisma, allianceId);
   },
 };

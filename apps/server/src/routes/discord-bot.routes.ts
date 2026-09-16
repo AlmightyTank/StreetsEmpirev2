@@ -39,6 +39,9 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
     return { members: await DiscordBotService.rolesFor(fastify.prisma, discordIds) };
   });
 
+  /** 0.3.0-C: live alliances in the current round, so the bot keeps one role per alliance. */
+  fastify.get('/alliances', async () => ({ alliances: await DiscordBotService.alliances(fastify.prisma) }));
+
   fastify.get('/profile', async (request) => ({
     player: await DiscordBotService.profileCard(fastify.prisma, parseBody(playerQuery, request.query)),
   }));

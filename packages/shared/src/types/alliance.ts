@@ -49,6 +49,8 @@ export interface AllianceDetailDto extends AllianceTagDto {
   members: AllianceMemberDto[];
   foundedAt: string;
   isYours: boolean;
+  /** 0.3.0-C recruitment thread on the forum, once the leader has posted one. */
+  forumUrl: string | null;
 }
 
 export interface AllianceIncomingInviteDto extends AllianceTagDto {
@@ -72,6 +74,8 @@ export interface MyAllianceDto {
   cooldownUntil: string | null;
   formerAlliance: AllianceTagDto | null;
   roundOpen: boolean;
+  /** Forum recruitment: whether this server posts threads, and the last failure (leader only). */
+  forum: { enabled: boolean; error: string | null };
 }
 
 export interface AllianceRankingEntryDto extends AllianceTagDto {
@@ -94,6 +98,7 @@ export interface AdminAllianceDto extends AllianceTagDto {
   createdAt: string;
   disbandedAt: string | null;
   disbandReason: string | null;
+  forumUrl: string | null;
 }
 
 export interface AdminAlliancesDto {

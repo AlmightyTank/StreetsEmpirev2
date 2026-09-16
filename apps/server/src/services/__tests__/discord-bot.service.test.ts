@@ -55,6 +55,11 @@ describe('roleKeysFor', () => {
       .toEqual(['linked', 'player', 'top-10', 'veteran']);
     expect(roleKeysFor({ inRound: true, nationalRank: 11, legacy: legacy(), forumGroups: [] })).not.toContain('top-10');
   });
+
+  it('adds the alliance role only for players in the round', () => {
+    expect(roleKeysFor({ inRound: true, nationalRank: 3, legacy: legacy(), forumGroups: [], allianceTag: 'esk' })).toEqual(['linked', 'player', 'alliance:ESK', 'top-10']);
+    expect(roleKeysFor({ inRound: false, nationalRank: null, legacy: legacy(), forumGroups: [], allianceTag: 'ESK' })).toEqual(['linked']);
+  });
 });
 
 describe('reminderDecision', () => {

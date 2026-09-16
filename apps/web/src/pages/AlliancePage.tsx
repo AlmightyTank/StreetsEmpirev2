@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { AllianceDetailDto, AllianceEventDto, MyAllianceDto } from '@streets/shared';
-import { ALLIANCE_NAME_MAX, ALLIANCE_TAG_MAX, formatCents, formatNumber } from '@streets/shared';
+import { ALLIANCE_NAME_MAX, ALLIANCE_PITCH_MAX, ALLIANCE_TAG_MAX, formatCents, formatNumber } from '@streets/shared';
 import { allianceApi } from '../api/alliances.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
@@ -88,6 +88,7 @@ export function AlliancePage() {
   const [tag, setTag] = useState('');
   const [invitee, setInvitee] = useState('');
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [pitch, setPitch] = useState('');
 
   useEffect(() => {
     allianceApi.mine().then(setData).catch((caught: unknown) => {
@@ -260,6 +261,30 @@ export function AlliancePage() {
                       ))}
                     </div>
                   ) : null}
+                </Panel>
+              ) : null}
+
+              {alliance.forumUrl || (data.isLeader && data.forum.enabled) ? (
+                <Panel title="Forum recruitment">
+                  {alliance.forumUrl ? (
+                    <>
+                      <p className="se-dim">Your recruitment thread is up. Players reply there with their pimp numbers.</p>
+                      <a className="se-btn se-btn--ghost se-btn--block" href={alliance.forumUrl} target="_blank" rel="noreferrer">Open the thread</a>
+                    </>
+                  ) : (
+                    <>
+                      <p className="se-dim">Post one recruitment thread to the forum. It links back to this alliance, and it is renamed or locked if the alliance changes.</p>
+                      <div className="se-field">
+                        <label className="se-label" htmlFor="alliance-pitch">Pitch (optional)</label>
+                        <textarea id="alliance-pitch" className="se-input se-admin-textarea" maxLength={ALLIANCE_PITCH_MAX} value={pitch} onChange={(event) => setPitch(event.target.value)} />
+                        {data.forum.error ? <p className="se-error">Last try failed: {data.forum.error}</p> : <p className="se-hint">What you want and who you are looking for.</p>}
+                      </div>
+                      <Button type="button" className="se-btn se-btn--primary se-btn--block" disabledReason={waiting ?? closed}
+                        onClick={() => void run(() => allianceApi.postForumThread(pitch))}>
+                        Post recruitment thread
+                      </Button>
+                    </>
+                  )}
                 </Panel>
               ) : null}
 

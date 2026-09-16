@@ -1,6 +1,6 @@
 # 0.3.0 roadmap - the season
 
-Status: **in progress.** 0.3.0-A is built, 0.3.0-B is started, and the 0.3.0-C alliance core is built. 0.2.0 made the street dangerous; 0.3.0
+Status: **in progress.** 0.3.0-A is built, 0.3.0-B is started, and 0.3.0-C alliances and their community hooks are built. 0.2.0 made the street dangerous; 0.3.0
 makes a round a season with a finish line, and gives players a reason to play
 together. Travel is deliberately held for 0.4.0.
 
@@ -151,7 +151,18 @@ How the gate is met in the core build:
 - **Moderation.** Admins can rename or disband an alliance from the round page. Both are
   audited; disbanding puts every member on the normal cooldown.
 
-The community hooks follow as their own commit.
+Community hooks:
+
+- **Discord.** The bot keeps an `Alliance [TAG]` role for every live alliance in the
+  current round and gives it to linked members. Founding, joining, leaving and kicking
+  queue a resync for that member; a disband or tag change queues a full sync, which
+  deletes roles for alliances that are gone. Only roles named exactly `Alliance [TAG]`
+  are ever deleted.
+- **Forum.** Leaders post one recruitment thread each into a configured Recruitment
+  tag (`FORUM_RECRUITMENT_TAG_ID`). The alliance row is claimed under its lock before
+  the forum is called, so a double click cannot open two threads. Admin renames retitle
+  the thread and disbands lock it. Forum failures are shown to the leader, never block
+  the game, and can be retried.
 
 ## 0.3.0-D - Playing together
 

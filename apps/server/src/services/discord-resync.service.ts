@@ -1,4 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
+import { env } from '../config/env.js';
+import type { Db } from '../utils/db.js';
 
 export interface DiscordResyncClaimDto {
   /** Re-sync every member; discordIds is empty when this is true. */
@@ -28,4 +30,22 @@ export async function claimResyncRequests(prisma: PrismaClient, now = new Date()
       discordIds: all ? [] : [...new Set(rows.map((row) => row.discordId).filter((id): id is string => Boolean(id)))],
     };
   });
+}
+
+/**
+ * 0.3.0-C. Ask the bot to refresh alliance roles now instead of on its next pass.
+ * 'all' also retires roles for alliances that disbanded or were renamed. Accounts
+ * without Discord linked are skipped, and nothing is queued while the bot is off.
+ */
+export async function queueAllianceRoleResync(db: Db, target: { accountIds: string[] } | 'all', requestedBy = 'Alliance change'): Promise<void> {
+  if (!env.discordBot.enabled) return;
+  if (target === 'all') {
+    await db.discordResyncRequest.create({ data: { discordId: null, requestedByUsername: requestedBy } });
+    return;
+  }
+  if (!target.accountIds.length) return;
+  const accounts = await db.account.findMany({ where: { id: { in: target.accountIds }, discordId: { not: null } }, select: { discordId: true } });
+  if (accounts.length) {
+    await db.discordResyncRequest.createMany({ data: accounts.map((account) => ({ discordId: account.discordId, requestedByUsername: requestedBy })) });
+  }
 }

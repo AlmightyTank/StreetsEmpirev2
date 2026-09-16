@@ -254,6 +254,9 @@ export type RoundEvent = AlertsClaim['rounds'][number];
 export type RoundStatus = z.infer<typeof statusSchema>;
 export type NewsFeed = z.infer<typeof newsSchema>;
 
+/** 0.3.0-C. Live alliances in the current round, one Discord role each. */
+export const alliancesSchema = z.object({ alliances: z.array(z.object({ tag: z.string(), name: z.string() })) });
+
 /** Role resyncs an admin asked for from the game panel. */
 export const resyncClaimSchema = z.object({ all: z.boolean(), discordIds: z.array(z.string()) });
 export type ResyncClaim = z.infer<typeof resyncClaimSchema>;
@@ -320,6 +323,7 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
       call(alertSettingsSchema, '/api/internal/discord/alerts', { method: 'PUT', body: { discordId, type, enabled } }),
     /** Battles, round events, rank drops and full turns, each handed out once. */
     claimAlerts: () => call(alertsClaimSchema, '/api/internal/discord/alerts/claim', { method: 'POST' }),
+    alliances: () => call(alliancesSchema, '/api/internal/discord/alliances'),
     /** Admin-requested role resyncs, each handed out once. */
     claimResync: () => call(resyncClaimSchema, '/api/internal/discord/resync/claim', { method: 'POST' }),
     round: () => call(statusSchema, '/api/rounds/current/status', { auth: false }),

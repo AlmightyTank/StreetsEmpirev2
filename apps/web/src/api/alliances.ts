@@ -21,6 +21,7 @@ export const allianceApi = {
   kick: (publicPimpId: number) => api.post<MyAllianceDto>('/game/alliance/kick', player(publicPimpId)),
   transfer: (publicPimpId: number) => api.post<MyAllianceDto>('/game/alliance/transfer', player(publicPimpId)),
   leave: () => api.post<MyAllianceDto>('/game/alliance/leave', {}),
+  postForumThread: (pitch: string) => api.post<MyAllianceDto>('/game/alliance/forum-thread', pitch.trim() ? { pitch } : {}),
 };
 
 export const adminAllianceApi = {

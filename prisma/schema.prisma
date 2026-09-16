@@ -531,6 +531,12 @@ model Alliance {
   disbandedAt   DateTime?
   disbandReason String?
 
+  /// 0.3.0-C recruitment thread in the forum's recruitment tag. Posted once, by the leader.
+  /// forumPostStartedAt claims the post so a double click cannot open two threads.
+  forumDiscussionId  String?
+  forumPostStartedAt DateTime?
+  forumError         String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

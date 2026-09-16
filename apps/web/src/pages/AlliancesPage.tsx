@@ -105,6 +105,7 @@ export function AllianceDetailPage() {
       {alliance ? (
         <>
           {alliance.isYours ? <Alert tone="info">This is your alliance. <Link to="/game/alliance">Manage it here.</Link></Alert> : null}
+          {alliance.forumUrl ? <p className="se-mb"><a className="se-btn se-btn--ghost se-btn--sm" href={alliance.forumUrl} target="_blank" rel="noreferrer">Recruitment thread on the forum</a></p> : null}
           <AllianceSummary alliance={alliance} />
           <Panel title="Members" flush>
             <AllianceMembers alliance={alliance} />

@@ -53,9 +53,12 @@ export function roleKeysFor(input: {
   nationalRank: number | null;
   legacy: PublicLegacyDto;
   forumGroups: ForumGroupBadgeDto[];
+  /** 0.3.0-C. The tag of the live alliance they are in this round. */
+  allianceTag?: string | null;
 }): string[] {
   const keys = ['linked'];
   if (input.inRound) keys.push('player');
+  if (input.inRound && input.allianceTag) keys.push(`alliance:${input.allianceTag.toUpperCase()}`);
   if (input.nationalRank === 1) keys.push('national-1');
   if (input.nationalRank !== null && input.nationalRank <= 10) keys.push('top-10');
   for (const award of legacyAchievements(input.legacy)) if (award.unlocked) keys.push(award.key);
@@ -207,7 +210,7 @@ export const DiscordBotService = {
       round
         ? prisma.roundPlayer.findMany({
           where: { roundId: round.id, account: { isActive: true } },
-          select: { accountId: true, netWorthCents: true },
+          select: { accountId: true, netWorthCents: true, alliance: { select: { tag: true, disbandedAt: true } } },
           orderBy: { netWorthCents: 'desc' },
         })
         : [],
@@ -221,6 +224,7 @@ export const DiscordBotService = {
 
     const ranks = competitionRanks(standings);
     const rankByAccount = new Map(standings.map((row, index) => [row.accountId, ranks[index]!]));
+    const allianceByAccount = new Map(standings.map((row) => [row.accountId, row.alliance && !row.alliance.disbandedAt ? row.alliance.tag : null]));
     // Rank roles only mean something while the round is running.
     const ranked = round?.status === 'ACTIVE';
 
@@ -231,8 +235,17 @@ export const DiscordBotService = {
         nationalRank: ranked ? rankByAccount.get(account.id) ?? null : null,
         legacy: legacyByAccount.get(account.id) ?? emptyLegacy(),
         forumGroups: forumGroups[index]!,
+        // Alliance roles only mean something while the round can still change.
+        allianceTag: round && (round.status === 'ACTIVE' || round.status === 'REGISTRATION') ? allianceByAccount.get(account.id) ?? null : null,
       }),
     ]));
+  },
+
+  /** Live alliances in the current round. Empty once the round closes, so the bot retires their roles. */
+  async alliances(prisma: PrismaClient): Promise<Array<{ tag: string; name: string }>> {
+    const round = await RoundService.getCurrent(prisma);
+    if (!round || (round.status !== 'ACTIVE' && round.status !== 'REGISTRATION')) return [];
+    return prisma.alliance.findMany({ where: { roundId: round.id, disbandedAt: null }, select: { tag: true, name: true }, orderBy: { createdAt: 'asc' } });
   },
 
   async profileCard(prisma: PrismaClient, query: PlayerQuery): Promise<DiscordProfileCardDto> {
