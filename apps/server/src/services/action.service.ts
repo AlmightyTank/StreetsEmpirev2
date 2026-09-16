@@ -60,6 +60,11 @@ export interface PlayerState {
   cleanShiftStreak: number;
   rocksSuppliedToPip: number;
   driveBysDone: number;
+  condomsBought: number;
+  medicineBought: number;
+  beerBought: number;
+  pistolsBought: number;
+  raidsDone: number;
 
   /** Seasonal hideout rooms. Reset by new round-player rows. */
   hideoutSafeRoomLevel: number;
@@ -156,6 +161,11 @@ export function toState(player: RoundPlayer): PlayerState {
     cleanShiftStreak: player.cleanShiftStreak,
     rocksSuppliedToPip: player.rocksSuppliedToPip,
     driveBysDone: player.driveBysDone,
+    condomsBought: player.condomsBought,
+    medicineBought: player.medicineBought,
+    beerBought: player.beerBought,
+    pistolsBought: player.pistolsBought,
+    raidsDone: player.raidsDone,
     hideoutSafeRoomLevel: player.hideoutSafeRoomLevel,
     hideoutLookoutsLevel: player.hideoutLookoutsLevel,
     hideoutWorkshopLevel: player.hideoutWorkshopLevel,

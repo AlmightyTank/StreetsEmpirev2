@@ -386,6 +386,14 @@ model RoundPlayer {
   rocksSuppliedToPip Int @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
   driveBysDone       Int @default(0)
+  /// 0.3.0-B favours. Store purchases this round, whichever shop sold them. Rows from
+  /// rounds before these were added start at zero.
+  condomsBought  Int @default(0)
+  medicineBought Int @default(0)
+  beerBought     Int @default(0)
+  pistolsBought  Int @default(0)
+  /// Raids carried out this round in any form but the drive-by, landed or not.
+  raidsDone      Int @default(0)
 
   /// Derived from supplies, protection and fatigue. Stored so it can be read
   /// and ranked without recomputing, but never the source of truth.

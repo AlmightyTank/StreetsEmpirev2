@@ -101,6 +101,9 @@ export const AdminBattleService = {
         a.beer += form.beerSpent ?? 0;
       }
 
+      // A voided raid no longer counts toward Tommy's favour.
+      if (kind !== 'DRIVE_BY') a.raidsDone = Math.max(0, a.raidsDone - 1);
+
       const refund = Math.max(0, report.turnsSpent ?? 0);
       const turnsAfter = Math.max(a.turns, Math.min(ruleset.turns.cap, a.turns + refund));
       if (refund > turnsAfter - a.turns) shortA.turns = refund - (turnsAfter - a.turns);
@@ -118,7 +121,7 @@ export const AdminBattleService = {
       await tx.roundPlayer.update({
         where: { id: attacker.id },
         data: { cashCents: a.cashCents, turns: a.turns, whores: a.whores, thugs: a.thugs, woundedThugs: a.woundedThugs,
-          crack: a.crack, beer: a.beer, lowRiders: a.lowRiders, driveBysDone: a.driveBysDone,
+          crack: a.crack, beer: a.beer, lowRiders: a.lowRiders, driveBysDone: a.driveBysDone, raidsDone: a.raidsDone,
           whoreHappiness: happyA.whoreHappiness, thugHappiness: happyA.thugHappiness, netWorthCents: worthA },
       });
       await tx.roundPlayer.update({

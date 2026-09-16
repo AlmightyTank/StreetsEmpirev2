@@ -101,7 +101,7 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin corrections and sig
 
   it('voids a raid: loot and turns go back, healing wounds are taken back, and it cannot run twice', async () => {
     const round = await liveRound();
-    const attacker = await player(round.id, attackerAccount, 0, { cashCents: 1_050_000n, crack: 60, turns: 40 });
+    const attacker = await player(round.id, attackerAccount, 0, { cashCents: 1_050_000n, crack: 60, turns: 40, raidsDone: 1 });
     const defender = await player(round.id, defenderAccount, 1, { cashCents: 950_000n, crack: 40, thugs: 12, woundedThugs: 3 });
     const battle = await app.prisma.raidBattle.create({
       data: {
@@ -132,7 +132,7 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin corrections and sig
       app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: defender.id } }),
       app.prisma.raidBattle.findUniqueOrThrow({ where: { id: battle.id } }),
     ]);
-    expect(afterAttacker).toMatchObject({ cashCents: 1_000_000n, crack: 50, turns: 45 });
+    expect(afterAttacker).toMatchObject({ cashCents: 1_000_000n, crack: 50, turns: 45, raidsDone: 0 });
     expect(afterDefender).toMatchObject({ cashCents: 1_000_000n, crack: 50, woundedThugs: 0 });
     expect(row).toMatchObject({ voidedByUsername: admin.username, voidReason: 'Loot bug in the raid model' });
     expect(row.voidedAt).not.toBeNull();

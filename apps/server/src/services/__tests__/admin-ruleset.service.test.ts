@@ -14,11 +14,12 @@ describe('flattenRuleset', () => {
 });
 
 describe('AdminRulesetService.view', () => {
-  it('groups by section and finds no differences between rulesets that only rename meta', () => {
+  it('groups by section and finds only the favours changed between 0.3.0-A and 0.3.0-B', () => {
     const view = AdminRulesetService.view('classic-og-v0.3-b', 'classic-og-v0.3-a');
     expect(view.ruleset.id).toBe('classic-og-v0.3-b');
     expect(view.compareTo?.id).toBe('classic-og-v0.3-a');
-    expect(view.changedCount).toBe(0);
+    expect(view.changedCount).toBeGreaterThan(0);
+    expect(view.sections.filter((section) => section.changed > 0).map((section) => section.key)).toEqual(['quests']);
     expect(view.sections.map((section) => section.key)).toContain('turns');
     expect(view.sections.some((section) => section.key === 'meta')).toBe(false);
   });

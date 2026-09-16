@@ -88,10 +88,13 @@ describe('classic-og-v0.3-a contents', () => {
 });
 
 describe('classic-og-v0.3-b contents', () => {
-  it('pins the admin ruleset without changing 0.3.0-A balance', () => {
+  it('keeps 0.3.0-A balance apart from the clerk and Tommy favours', () => {
     const ruleset = loadRuleset('classic-og-v0.3-b', '0.3.0-B');
     expect(ruleset.meta.name).toBe('Classic OG - Admin');
-    expect({ ...ruleset, meta: null }).toEqual({ ...classicOgV03A, meta: null });
+    expect({ ...ruleset, meta: null, quests: null }).toEqual({ ...classicOgV03A, meta: null, quests: null });
+    expect({ ...ruleset.quests, CORNER: null, TOMMY: null }).toEqual({ ...classicOgV03A.quests, CORNER: null, TOMMY: null });
+    expect(ruleset.quests.CORNER.goal.kind).toBe('BUY_SUPPLIES');
+    expect(ruleset.quests.TOMMY.goal.kind).toBe('BUY_AND_RAID');
   });
 });
 

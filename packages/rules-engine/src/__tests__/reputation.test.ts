@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV03B } from '@streets/rulesets';
 import type { QuestKey, TraderKey } from '@streets/rulesets';
 import {
   calculateQuestCompletion,
@@ -32,6 +32,11 @@ function generous(overrides: Partial<QuestPlayer> = {}): QuestPlayer {
     cleanShiftStreak: 100,
     rocksSuppliedToPip: 10_000,
     driveBys: 10,
+    condomsBought: 10_000,
+    medicineBought: 10_000,
+    beerBought: 10_000,
+    pistolsBought: 100,
+    raidsDone: 10,
     ...overrides,
   };
 }
@@ -204,6 +209,49 @@ describe('reputation', () => {
 
       expect(ceiling).toBeGreaterThanOrEqual(rules.weaponUnlocks.AK47.totalRep);
       expect(withoutFavours).toBeLessThan(rules.weaponUnlocks.AK47.totalRep);
+    });
+  });
+
+  describe('the 0.3.0-B clerk and Tommy', () => {
+    const b = classicOgV03B;
+
+    it('has the clerk count condoms, medicine and beer bought, and take nothing', () => {
+      expect(b.quests.CORNER.goal).toEqual({ kind: 'BUY_SUPPLIES', condoms: 2_000, medicine: 15, beer: 2_000 });
+      const short = generous({ condomsBought: 3_000, medicineBought: 4, beerBought: 1_999 });
+      const progress = questProgress('CORNER', short, emptyStandings(b), b);
+
+      // Extra condoms do not stand in for the medicine.
+      expect([progress.have, progress.need]).toEqual([2_000 + 4 + 1_999, 4_015]);
+      expect(progress.parts.map((part) => [part.label, part.have, part.need])).toEqual([
+        ['Condoms bought', 2_000, 2_000], ['Medicine bought', 4, 15], ['Beer bought', 1_999, 2_000],
+      ]);
+      expect(progress.stillNeeded).toBe('Still to go: 11 medicine and 1 beer.');
+      expect(progress.canComplete).toBe(false);
+      expect(() => calculateQuestCompletion('CORNER', short, emptyStandings(b), b)).toThrow(/11 medicine and 1 beer/);
+
+      const done = calculateQuestCompletion('CORNER', generous({ condomsBought: 2_000, medicineBought: 15, beerBought: 2_000 }), emptyStandings(b), b);
+      expect(done.spend).toEqual({ crack: 0, lowRiders: 0 });
+      expect(done.clearsCleanShiftStreak).toBe(false);
+    });
+
+    it('has Tommy want five pistols bought and a raid', () => {
+      expect(b.quests.TOMMY.goal).toEqual({ kind: 'BUY_AND_RAID', pistols: 5, raids: 1 });
+      const noRaid = questProgress('TOMMY', generous({ pistolsBought: 5, raidsDone: 0, thugs: 0, crack: 0 }), emptyStandings(b), b);
+      expect(noRaid.stillNeeded).toBe('Still to go: 1 raid.');
+      expect(noRaid.canComplete).toBe(false);
+
+      const noGuns = questProgress('TOMMY', generous({ pistolsBought: 3, raidsDone: 2 }), emptyStandings(b), b);
+      expect([noGuns.have, noGuns.need, noGuns.stillNeeded]).toEqual([4, 6, 'Still to go: 2 pistols.']);
+
+      // No crew minimum and no rock any more.
+      const done = calculateQuestCompletion('TOMMY', generous({ pistolsBought: 5, raidsDone: 1, thugs: 0, crack: 0 }), emptyStandings(b), b);
+      expect(done.spend).toEqual({ crack: 0, lowRiders: 0 });
+    });
+
+    it('leaves the single-count favours without parts', () => {
+      const pip = questProgress('PIP', generous(), emptyStandings(b), b);
+      expect(pip.parts).toEqual([]);
+      expect(pip.stillNeeded).toBeNull();
     });
   });
 

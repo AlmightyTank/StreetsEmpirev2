@@ -272,4 +272,30 @@ describe.runIf(process.env.REPUTATION_INTEGRATION === '1')('reputation API with 
     state = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
     expect(state.rocksSuppliedToPip).toBe(50);
   });
+
+  it('counts condoms and pistols bought, and not what is sold back', async () => {
+    await app.prisma.roundPlayer.update({
+      where: { id: playerId },
+      data: { cashCents: 10_000_000n, condomsBought: 0, pistolsBought: 0 },
+    });
+    const trade = (store: string, item: string, direction: string, quantity: number) =>
+      app.inject({
+        method: 'POST',
+        url: '/api/game/stores/trade',
+        headers: { cookie },
+        payload: { store, item, direction, quantity, actionId: randomUUID() },
+      });
+
+    let response = await trade('CORNER', 'CONDOM', 'buy', 25);
+    expect(response.statusCode, response.body).toBe(200);
+    response = await trade('TOMMY', 'PISTOL', 'buy', 2);
+    expect(response.statusCode, response.body).toBe(200);
+    let state = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
+    expect([state.condomsBought, state.pistolsBought]).toEqual([25, 2]);
+
+    response = await trade('TOMMY', 'PISTOL', 'sell', 1);
+    expect(response.statusCode, response.body).toBe(200);
+    state = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
+    expect(state.pistolsBought).toBe(2);
+  });
 });

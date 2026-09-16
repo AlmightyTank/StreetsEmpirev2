@@ -549,8 +549,18 @@ export interface QuestDto {
   need: number;
   /** Set when something other than the counted goal is in the way. */
   blockedBy: string | null;
+  /** One line per thing asked for, when a favour asks for more than one. Empty otherwise. */
+  parts: QuestPartDto[];
+  /** What is still missing, in words, for favours with parts. */
+  stillNeeded: string | null;
   canComplete: boolean;
   reward: number;
+}
+
+export interface QuestPartDto {
+  label: string;
+  have: number;
+  need: number;
 }
 
 export interface ReputationSummaryDto {

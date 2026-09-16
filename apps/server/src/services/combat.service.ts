@@ -534,7 +534,7 @@ export const CombatService = {
       const result = simulateRaid({ attacker: crew(attacker), defender: crew(defender), attackingThugs: input.attackingThugs,
         attackerTurns: attacker.turns, defenderCashCents: defender.cashCents, defenderCrack: defender.crack, repeatTargetHits }, defenderModel, () => randomInt(0, 2 ** 32) / 2 ** 32);
       const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker,
-        turns: result.attackerTurnsAfter, cashCents: attacker.cashCents + result.lootCents, crack: attacker.crack + result.lootCrack };
+        turns: result.attackerTurnsAfter, cashCents: attacker.cashCents + result.lootCents, crack: attacker.crack + result.lootCrack, raidsDone: attacker.raidsDone + 1 };
       const nextD = { ...toState(defender), woundedThugs: defender.woundedThugs + result.wounds.defender,
         cashCents: result.defenderCashAfterCents, crack: result.defenderCrackAfter };
       assertPlayerState(nextA, ruleset);
@@ -545,7 +545,7 @@ export const CombatService = {
       const cooldown = new Date(now.getTime() + model.cooldownMinutes * 60_000);
       const recoverAt = new Date(now.getTime() + model.wounds.recoveryMinutes * 60_000);
       await tx.roundPlayer.update({ where: { id: attackerId }, data: { cashCents: nextA.cashCents, turns: nextA.turns,
-        crack: nextA.crack, woundedThugs: nextA.woundedThugs, whoreHappiness: happinessA.whoreHappiness, thugHappiness: happinessA.thugHappiness,
+        crack: nextA.crack, woundedThugs: nextA.woundedThugs, raidsDone: nextA.raidsDone, whoreHappiness: happinessA.whoreHappiness, thugHappiness: happinessA.thugHappiness,
         netWorthCents: NetWorthService.calculate(nextA, ruleset), raidCooldownUntil: cooldown } });
       await tx.roundPlayer.update({ where: { id: target.id }, data: { cashCents: nextD.cashCents, crack: nextD.crack, woundedThugs: nextD.woundedThugs,
         whoreHappiness: happinessD.whoreHappiness, thugHappiness: happinessD.thugHappiness,
@@ -786,7 +786,7 @@ export const CombatService = {
 
       const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker,
         turns: attacker.turns - turnCost, crack: attacker.crack - crackSpent, beer: attacker.beer - beerSpent,
-        whores: attacker.whores + whoresLured, thugs: attacker.thugs + thugsLured, lowRiders: attacker.lowRiders + lowRidersStolen };
+        whores: attacker.whores + whoresLured, thugs: attacker.thugs + thugsLured, lowRiders: attacker.lowRiders + lowRidersStolen, raidsDone: attacker.raidsDone + 1 };
       const nextD = { ...toState(defender), woundedThugs: defender.woundedThugs + result.wounds.defender,
         crack: defender.crack - defenderCrackBurned, condoms: defender.condoms - defenderCondomsBurned,
         whores: defender.whores - whoresLured, thugs: defender.thugs - thugsLured, lowRiders: defender.lowRiders - lowRidersStolen };
@@ -799,7 +799,7 @@ export const CombatService = {
       const recoverAt = new Date(now.getTime() + model.wounds.recoveryMinutes * 60_000);
       await tx.roundPlayer.update({ where: { id: attackerId }, data: { turns: nextA.turns, crack: nextA.crack, beer: nextA.beer,
         whores: nextA.whores, thugs: nextA.thugs, woundedThugs: nextA.woundedThugs,
-        lowRiders: nextA.lowRiders, whoreHappiness: happinessA.whoreHappiness, thugHappiness: happinessA.thugHappiness,
+        lowRiders: nextA.lowRiders, raidsDone: nextA.raidsDone, whoreHappiness: happinessA.whoreHappiness, thugHappiness: happinessA.thugHappiness,
         netWorthCents: NetWorthService.calculate(nextA, ruleset), raidCooldownUntil: cooldown } });
       await tx.roundPlayer.update({ where: { id: target.id }, data: { crack: nextD.crack, condoms: nextD.condoms,
         whores: nextD.whores, thugs: nextD.thugs, woundedThugs: nextD.woundedThugs,
