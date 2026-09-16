@@ -347,7 +347,11 @@ a.se-nav__link:hover {
   background: rgba(5, 7, 10, 0.5);
 }
 
-.se-seg__btn--on {
+.se-seg__btn--on,
+/* The achievement pills set their own resting background above, which would
+   otherwise outrank the selected state and leave dark text on a dark pill. */
+.se-ach-filters .se-seg__btn--on {
+  border-color: rgba(182, 255, 58, 0.76);
   background: linear-gradient(180deg, #c9ff63, var(--se-accent));
   color: #07090c;
 }
