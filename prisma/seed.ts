@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import { PrismaClient, type Round } from '@prisma/client';
-import { classicOgV01, classicOgV02D, classicOgV03B, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02D, classicOgV03C, type Ruleset } from '@streets/rulesets';
 // The panel and the seed create the same bots from one definition. Changing the
 // roster in the service changes it here too.
 import { DEV_TEST_RIVALS, seedDevBots } from '../apps/server/src/services/dev-bots.service.js';
 
 const prisma = new PrismaClient();
-const CURRENT_RULESET = classicOgV03B;
+const CURRENT_RULESET = classicOgV03C;
 const shouldSeedRivals = process.env.SEED_DEV_BOTS === '1' || process.env.SEED_RIVALS === '1';
 const allowUnsafeDevBots = process.env.ALLOW_DEV_BOTS === 'I_UNDERSTAND';
 
@@ -45,7 +45,7 @@ const CITIES = [
 
 async function seedCities() {
   for (const city of CITIES) {
-    // 0.3.0-B still starts in New York City. Other cities stay staged for travel.
+    // 0.3.0-C still starts in New York City. Other cities stay staged for travel.
     const isEnabled = city.slug === CURRENT_RULESET.round.startingCitySlug;
 
     await prisma.city.upsert({
@@ -119,8 +119,8 @@ async function seedStrategyRound(now: Date) {
 
 async function seedCurrentPublicRound(now: Date) {
   return upsertRound({
-    name: 'Game #010 - Admin',
-    slug: 'game-010-admin',
+    name: 'Game #011 - Alliances',
+    slug: 'game-011-alliances',
     ruleset: CURRENT_RULESET,
     startsAt: now,
     refreshCurrent: true,
@@ -160,10 +160,10 @@ async function main() {
   const publicRound = await seedCurrentPublicRound(new Date(now.getTime() + 1_000));
   await seedNews(
     publicRound.id,
-    '0.3.0-B ADMIN TOOLS',
+    '0.3.0-C ALLIANCES',
     shouldSeedRivals
-      ? 'The current B seed has active local dev bots enabled. Admins can now schedule, open, start, end and archive rounds from the admin panel, and every admin action is audited.'
-      : 'The 0.3.0-B round keeps 0.3.0-A balance. Admins now run seasons from the admin panel instead of the seed, and every admin action is audited.',
+      ? 'The current C seed has active local dev bots enabled. Found an alliance of up to five, invite players by pimp number, and hit back together: a hit on one member opens revenge for all of them.'
+      : 'The 0.3.0-C round keeps 0.3.0-B balance and adds alliances of up to five. Allies cannot hit each other, a hit on one member opens revenge for all of them, and anyone who leaves waits 24 hours before joining again or trading blows with their old crew.',
   );
   if (shouldSeedRivals) {
     const seeded = await seedDevBots(prisma, publicRound, CURRENT_RULESET, new Date(now.getTime() + 1_000), DEV_TEST_RIVALS, { activeAccounts: true });

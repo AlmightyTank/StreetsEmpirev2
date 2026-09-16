@@ -1,6 +1,6 @@
 # 0.3.0 roadmap - the season
 
-Status: **in progress.** 0.3.0-A is built and 0.3.0-B is started. 0.2.0 made the street dangerous; 0.3.0
+Status: **in progress.** 0.3.0-A is built, 0.3.0-B is started, and the 0.3.0-C alliance core is built. 0.2.0 made the street dangerous; 0.3.0
 makes a round a season with a finish line, and gives players a reason to play
 together. Travel is deliberately held for 0.4.0.
 
@@ -129,6 +129,30 @@ Alliances belong to a round and reset with it, like everything else in a season.
 - **Community hooks:** a forum recruitment category and a Discord role per
   alliance, both driven by the existing bot and forum link.
 
+Decided for `classic-og-v0.3-c`: a cap of **5 members** and a **24-hour** leave
+cooldown, matching the revenge window so dropping a member cannot outlast it.
+
+How the gate is met in the core build:
+
+- **Atomic membership.** Every change locks the alliance row, then its players in id
+  order, and re-reads before writing. Accepting an invite counts members under that
+  lock, so two players taking the last seat at once cannot both get in, and one player
+  accepting two invites at once joins only one. Combat never locks alliances, so the two
+  cannot deadlock.
+- **No friendly fire.** Raids, drive-bys, drug runs, ride theft, lure runs and recon all
+  refuse an ally, and revenge never overrides it. The raid page shows the reason.
+- **Leaving is not a shield.** Leaving or being kicked records the old alliance and a
+  cooldown. Until it passes the player cannot join or found an alliance, and they and
+  that alliance cannot hit each other in either direction.
+- **Shared revenge that survives leaving.** Each battle records the defender's alliance
+  when it landed. A member may hit back for any hit on the alliance since they joined,
+  so the victim leaving does not close the window, and a late joiner gets no payback
+  for hits they never took.
+- **Moderation.** Admins can rename or disband an alliance from the round page. Both are
+  audited; disbanding puts every member on the normal cooldown.
+
+The community hooks follow as their own commit.
+
 ## 0.3.0-D - Playing together
 
 In-game messaging stays narrow on purpose. General chat already has the forum
@@ -167,8 +191,7 @@ worth it yet.
 
 ## Decisions needed
 
-1. **Alliance size cap.** Small (around 5) keeps ranks competitive; large invites
-   one alliance owning a round.
+1. **Alliance size cap.** Decided in 0.3.0-C: 5 members, with a 24-hour leave cooldown.
 2. **Resource transfers between allies.** Recommendation: none in 0.3.0.
 3. **What carries between seasons.** Recommendation: only legacy stats, awards
    and badges; each round starts fresh.

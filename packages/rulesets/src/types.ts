@@ -438,6 +438,23 @@ export interface HideoutRoomRule {
   readonly costsCents: readonly number[];
 }
 
+/**
+ * 0.3.0-C. Alliances belong to one round and reset with it. Absent on rounds
+ * where alliances have not shipped, which keeps every older ruleset unchanged.
+ */
+export interface AllianceRules {
+  /** Members including the leader. Checked under a lock whenever someone joins. */
+  readonly maxMembers: number;
+  /**
+   * After leaving or being kicked, a player cannot join or found an alliance,
+   * and cannot hit or be hit by the alliance they left, until this passes.
+   */
+  readonly leaveCooldownHours: number;
+  readonly inviteExpiresHours: number;
+  /** Outstanding invites one alliance can have at once. */
+  readonly maxPendingInvites: number;
+}
+
 export interface HideoutRules {
   readonly rooms: { readonly [K in HideoutRoomKey]: HideoutRoomRule };
   readonly buffs: {
@@ -578,5 +595,7 @@ export interface Ruleset {
   readonly communityPrivacy?: CommunityPrivacyRules;
   /** Optional seasonal money sink. Mechanical levels reset with each round. */
   readonly hideout?: HideoutRules;
+  /** 0.3.0-C. Absent where alliances have not shipped. */
+  readonly alliances?: AllianceRules;
   readonly evidence: EvidenceRules;
 }

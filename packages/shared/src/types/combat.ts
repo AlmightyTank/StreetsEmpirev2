@@ -1,3 +1,4 @@
+import type { AllianceTagDto } from './alliance.js';
 export interface CombatIntelReportDto {
   targetPublicPimpId: number;
   displayName: string;
@@ -106,6 +107,8 @@ export interface CombatTargetDto {
   displayName: string;
   netWorthCents: number;
   strength: 'Weaker' | 'Comparable' | 'Stronger';
+  /** 0.3.0-C. The target's alliance tag, when they are in one. */
+  alliance?: AllianceTagDto | null;
   revengeAvailable?: boolean;
   intel?: CombatIntelReportDto | null;
   blockedReason: string | null;

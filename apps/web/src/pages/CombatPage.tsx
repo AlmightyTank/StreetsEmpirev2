@@ -4,6 +4,7 @@ import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, ty
 import { combatApi } from '../api/combat.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { AllianceTag } from '../components/AllianceTag.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -141,7 +142,7 @@ function TargetCard({ target, selectedBlock, driving }: { target: CombatTargetDt
     <div className={`se-target-card${selectedBlock ? ' se-target-card--blocked' : ''}`}>
       <div className="se-target-card__head">
         <div>
-          <p className="se-target-card__name">{target.displayName} <span className="se-muted se-num">(#{target.publicPimpId})</span></p>
+          <p className="se-target-card__name"><AllianceTag alliance={target.alliance} />{target.displayName} <span className="se-muted se-num">(#{target.publicPimpId})</span></p>
           <p className="se-target-card__sub">
             {selectedBlock ?? (target.revengeAvailable ? 'Payback is open.' : driving ? 'Street crew spotted outside.' : 'Home block advantage.')}
           </p>
@@ -511,7 +512,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               <select id="raid-target" className="se-input" value={targetId} onChange={(event) => setTargetId(event.target.value)}>
                 <option value="">Choose a mark</option>
                 {page.targets.map((target) => <option key={target.publicPimpId} value={target.publicPimpId}>
-                  {target.displayName} (#{target.publicPimpId}) · {target.strength}{target.intel ? ' · scouted' : ''}{target.revengeAvailable ? ' · payback' : ''}{targetBlock(target) ? ` · ${targetBlock(target)}` : ''}
+                  {target.alliance ? `[${target.alliance.tag}] ` : ''}{target.displayName} (#{target.publicPimpId}) · {target.strength}{target.intel ? ' · scouted' : ''}{target.revengeAvailable ? ' · payback' : ''}{targetBlock(target) ? ` · ${targetBlock(target)}` : ''}
                 </option>)}
               </select>
               {selected ? <TargetCard target={selected} selectedBlock={selectedBlock} driving={driving} /> : null}
