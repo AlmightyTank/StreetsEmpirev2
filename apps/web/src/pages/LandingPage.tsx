@@ -7,7 +7,7 @@ import { communityApi } from '../api/community.js';
 import { Seo } from '../components/Seo.js';
 import { Shell } from '../layouts/Shell.js';
 import { useSession } from '../stores/session.js';
-import { formatDuration } from '../utils/time.js';
+import { formatDate, formatDuration } from '../utils/time.js';
 
 const SEO_TITLE = 'StreetsEmpire - Free Browser Crime Strategy Game';
 const SEO_DESCRIPTION = 'Play StreetsEmpire, a free browser crime strategy game with turn-based crew management, raids, rankings, achievements and fair seasonal resets.';
@@ -71,7 +71,8 @@ export function LandingPage() {
   useEffect(() => {
     let active = true;
     communityApi.hallOfFame()
-      .then((data) => { if (active) setLastSeason(data.rounds[0] ?? null); })
+      // The newest season with a winner: an empty round has nobody to show.
+      .then((data) => { if (active) setLastSeason(data.rounds.find((season) => season.podium.length > 0) ?? null); })
       // The archive is a nice-to-have here: the page stands without it.
       .catch(() => { if (active) setLastSeason(null); });
     return () => { active = false; };
@@ -245,11 +246,13 @@ export function LandingPage() {
         <section className="se-land-section">
           <div className="se-land-champ">
             <div>
-              <p className="se-eyebrow">Last season &middot; {lastSeason.name}</p>
+              <p className="se-eyebrow">Last season &middot; {lastSeason.name} &middot; ended {formatDate(lastSeason.endedAt)}</p>
               <h2 className="se-land-champ__name">{champion.displayName}</h2>
               <p className="se-hint">
-                Finished first in {champion.city} with <b className="se-num">{formatCents(champion.netWorthCents)}</b>,
-                ahead of {formatNumber(Math.max(0, lastSeason.playerCount - 1))} other crews.
+                Finished first in {champion.city} with <b className="se-num">{formatCents(champion.netWorthCents)}</b>
+                {lastSeason.playerCount > 2
+                  ? `, ahead of ${formatNumber(lastSeason.playerCount - 1)} other crews.`
+                  : lastSeason.playerCount === 2 ? ', ahead of one other crew.' : '.'}
               </p>
             </div>
             <Link className="se-btn" to="/game/hall-of-fame">See the podium</Link>
