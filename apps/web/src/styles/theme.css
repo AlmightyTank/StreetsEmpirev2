@@ -1902,6 +1902,8 @@ a.se-nav__link:hover {
   border: 0;
   border-radius: 0;
   gap: 6px;
+  /* Loose pills, not a joined bar: no strip of its own behind them. */
+  background: transparent;
 }
 
 .se-ach-filters .se-seg__btn {
