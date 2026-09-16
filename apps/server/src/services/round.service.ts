@@ -135,8 +135,10 @@ export const RoundService = {
 
   /**
    * Settle, freeze and end one round inside the caller's transaction, so an
-   * admin close and its audit record commit together. `endsAt` pulls the end
-   * date forward for an early end; it never pushes one back.
+   * admin close and its audit record commit together. The end date becomes the
+   * moment standings froze, so a round closed early - by an admin or by a newer
+   * season superseding it - does not keep advertising its original end.
+   * `endsAt` can pull it earlier still; nothing ever pushes one back.
    */
   async closeRoundInTransaction(
     tx: Db,
@@ -160,7 +162,8 @@ export const RoundService = {
     }
     await freezeFinalStandings(tx, round.id, freezeAt);
 
-    const endsAt = options.endsAt && options.endsAt.getTime() < round.endsAt.getTime() ? options.endsAt : null;
+    const closedAt = options.endsAt && options.endsAt.getTime() < freezeAt.getTime() ? options.endsAt : freezeAt;
+    const endsAt = closedAt.getTime() < round.endsAt.getTime() ? closedAt : null;
     const ended = await tx.round.update({
       where: { id: round.id },
       data: {

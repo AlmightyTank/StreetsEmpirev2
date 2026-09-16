@@ -106,7 +106,10 @@ describe.runIf(process.env.ROUND_INTEGRATION === '1')('RoundService season end w
       RoundService.closeIfExpired(app.prisma, round.id, now),
     ]);
     expect([a.closed, b.closed].sort()).toEqual([false, true]);
-    expect((await app.prisma.round.findUniqueOrThrow({ where: { id: round.id } })).status).toBe('ENDED');
+    const closed = await app.prisma.round.findUniqueOrThrow({ where: { id: round.id } });
+    expect(closed.status).toBe('ENDED');
+    // Closing on schedule leaves the end date alone.
+    expect(closed.endsAt).toEqual(round.endsAt);
 
     const players = await app.prisma.roundPlayer.findMany({ where: { roundId: round.id }, orderBy: { publicPimpId: 'asc' } });
     expect(players.map((player) => [player.publicPimpId, player.nationalRank, player.localRank])).toEqual([
@@ -142,7 +145,10 @@ describe.runIf(process.env.ROUND_INTEGRATION === '1')('RoundService season end w
     roundIds.push(older.id, newer.id);
     try {
       await RoundService.closeSupersededActive(app.prisma, newer);
-      expect((await app.prisma.round.findUniqueOrThrow({ where: { id: older.id } })).status).toBe('ENDED');
+      const ended = await app.prisma.round.findUniqueOrThrow({ where: { id: older.id } });
+      expect(ended.status).toBe('ENDED');
+      // It ended when the newer season started, not on the date it was scheduled for.
+      expect(ended.endsAt).toEqual(newer.startsAt);
       expect((await app.prisma.round.findUniqueOrThrow({ where: { id: newer.id } })).status).toBe('ACTIVE');
     } finally {
       await app.prisma.round.deleteMany({ where: { id: { in: [older.id, newer.id] } } });
