@@ -100,6 +100,8 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     expect(report.crackChange).toBe(0);
     const a = await state(0);
     const d = await state(1);
+    // Tommy's favour counts the raid for the attacker only.
+    expect([a.raidsDone, d.raidsDone]).toEqual([beforeA.raidsDone + 1, beforeD.raidsDone]);
     expect(a.cashCents + d.cashCents).toBe(beforeA.cashCents + beforeD.cashCents);
     expect(a.crack + d.crack).toBe(beforeA.crack + beforeD.crack);
     expect(a.turns).toBe(190);

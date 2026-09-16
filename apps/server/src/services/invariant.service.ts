@@ -19,6 +19,11 @@ export interface InvariantPlayerState {
   cleanShiftStreak: number;
   rocksSuppliedToPip: number;
   driveBysDone: number;
+  condomsBought: number;
+  medicineBought: number;
+  beerBought: number;
+  pistolsBought: number;
+  raidsDone: number;
   hideoutSafeRoomLevel: number;
   hideoutLookoutsLevel: number;
   hideoutWorkshopLevel: number;
@@ -52,6 +57,11 @@ const WHOLE_NON_NEGATIVE: readonly (keyof InvariantPlayerState)[] = [
   'cleanShiftStreak',
   'rocksSuppliedToPip',
   'driveBysDone',
+  'condomsBought',
+  'medicineBought',
+  'beerBought',
+  'pistolsBought',
+  'raidsDone',
   'hideoutSafeRoomLevel',
   'hideoutLookoutsLevel',
   'hideoutWorkshopLevel',

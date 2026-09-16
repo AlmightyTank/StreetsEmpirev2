@@ -25,7 +25,7 @@ import { ActionService, type PlayerState } from './action.service.js';
 import { AppError } from '../utils/errors.js';
 
 /** Everything a quest reads, pulled off the settled player. */
-function toQuestPlayer(player: PlayerState): QuestPlayer {
+export function toQuestPlayer(player: PlayerState): QuestPlayer {
   return {
     crack: player.crack,
     thugs: player.thugs,
@@ -33,6 +33,11 @@ function toQuestPlayer(player: PlayerState): QuestPlayer {
     cleanShiftStreak: player.cleanShiftStreak,
     rocksSuppliedToPip: player.rocksSuppliedToPip,
     driveBys: player.driveBysDone,
+    condomsBought: player.condomsBought,
+    medicineBought: player.medicineBought,
+    beerBought: player.beerBought,
+    pistolsBought: player.pistolsBought,
+    raidsDone: player.raidsDone,
   };
 }
 

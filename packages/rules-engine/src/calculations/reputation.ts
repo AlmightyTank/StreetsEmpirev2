@@ -146,6 +146,10 @@ export interface QuestProgress {
   need: number;
   /** Extra condition that is not the counted goal, e.g. Tommy's crew size. */
   blockedBy: string | null;
+  /** One line per thing asked for, when a favour asks for more than one. */
+  parts: QuestPart[];
+  /** What is still missing, in words, for favours with parts. */
+  stillNeeded: string | null;
   canComplete: boolean;
   reward: number;
 }
@@ -160,17 +164,77 @@ export interface QuestPlayer {
   rocksSuppliedToPip: number;
   /** Drive-bys carried out this round, landed or not. */
   driveBys: number;
+  /** Bought from the shops this round, for the favours that count purchases. */
+  condomsBought: number;
+  medicineBought: number;
+  beerBought: number;
+  pistolsBought: number;
+  /** Raids in any form but the drive-by, this round, landed or not. */
+  raidsDone: number;
+}
+
+/** One line of a favour that asks for more than one thing. */
+export interface QuestPart {
+  label: string;
+  have: number;
+  need: number;
+}
+
+/** A part, plus how to name what is still missing. */
+interface CountedPart extends QuestPart {
+  one: string;
+  many: string;
+}
+
+function amount(count: number, one: string, many: string): string {
+  return `${count.toLocaleString('en-US')} ${count === 1 ? one : many}`;
+}
+
+function listed(items: string[]): string {
+  if (items.length <= 1) return items.join('');
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+}
+
+/**
+ * Several counts read as one favour. Progress caps each part at what it asks
+ * for, so 3,000 condoms cannot stand in for the medicine nobody bought.
+ */
+function combine(parts: CountedPart[]): { have: number; need: number; parts: QuestPart[]; stillNeeded: string | null } {
+  const asked = parts.filter((part) => part.need > 0);
+  const missing = asked
+    .filter((part) => part.have < part.need)
+    .map((part) => amount(part.need - part.have, part.one, part.many));
+  return {
+    have: asked.reduce((sum, part) => sum + Math.min(part.have, part.need), 0),
+    need: asked.reduce((sum, part) => sum + part.need, 0),
+    parts: asked.map(({ label, have, need }) => ({ label, have: Math.min(have, need), need })),
+    stillNeeded: missing.length ? `Still to go: ${listed(missing)}.` : null,
+  };
+}
+
+interface GoalProgress {
+  have: number;
+  need: number;
+  blockedBy: string | null;
+  parts: QuestPart[];
+  stillNeeded: string | null;
+}
+
+/** A favour that counts one thing. */
+function single(): Pick<GoalProgress, 'parts' | 'stillNeeded'> {
+  return { parts: [], stillNeeded: null };
 }
 
 function goalProgress(
   quest: QuestRule,
   player: QuestPlayer,
-): { have: number; need: number; blockedBy: string | null } {
+): GoalProgress {
   switch (quest.goal.kind) {
     case 'CLEAN_SHIFTS':
-      return { have: player.cleanShiftStreak, need: quest.goal.trips, blockedBy: null };
+      return { ...single(), have: player.cleanShiftStreak, need: quest.goal.trips, blockedBy: null };
     case 'DELIVER_CRACK':
       return {
+        ...single(),
         have: player.crack,
         need: quest.goal.crack,
         blockedBy:
@@ -179,18 +243,36 @@ function goalProgress(
             : `Tommy wants to see ${quest.goal.thugs} thugs on your crew first.`,
       };
     case 'HAND_OVER_LOW_RIDER':
-      return { have: player.lowRiders, need: quest.goal.lowRiders, blockedBy: null };
+      return { ...single(), have: player.lowRiders, need: quest.goal.lowRiders, blockedBy: null };
     case 'SUPPLY_ROCKS':
-      return { have: player.rocksSuppliedToPip, need: quest.goal.crackSold, blockedBy: null };
+      return { ...single(), have: player.rocksSuppliedToPip, need: quest.goal.crackSold, blockedBy: null };
     case 'DRIVE_BY':
       // Charlie wants to see a car used. Win or lose, a run counts. If the
       // run already happened, he does not care whether the car survived it.
       return {
+        ...single(),
         have: player.driveBys,
         need: quest.goal.driveBys,
         blockedBy: player.driveBys < quest.goal.driveBys && player.lowRiders < 1
           ? 'Charlie wants you to buy a Low-Rider and use it in a drive-by.'
           : null,
+      };
+    case 'BUY_SUPPLIES':
+      return {
+        ...combine([
+          { label: 'Condoms bought', have: player.condomsBought, need: quest.goal.condoms, one: 'condom', many: 'condoms' },
+          { label: 'Medicine bought', have: player.medicineBought, need: quest.goal.medicine, one: 'medicine', many: 'medicine' },
+          { label: 'Beer bought', have: player.beerBought, need: quest.goal.beer, one: 'beer', many: 'beers' },
+        ]),
+        blockedBy: null,
+      };
+    case 'BUY_AND_RAID':
+      return {
+        ...combine([
+          { label: 'Pistols bought', have: player.pistolsBought, need: quest.goal.pistols, one: 'pistol', many: 'pistols' },
+          { label: 'Raids carried out', have: player.raidsDone, need: quest.goal.raids, one: 'raid', many: 'raids' },
+        ]),
+        blockedBy: null,
       };
   }
 }
@@ -203,7 +285,7 @@ export function questProgress(
 ): QuestProgress {
   const quest = ruleset.quests[key];
   const done = standings[key]?.questDone ?? false;
-  const { have, need, blockedBy } = goalProgress(quest, player);
+  const { have, need, blockedBy, parts, stillNeeded } = goalProgress(quest, player);
 
   return {
     key,
@@ -214,6 +296,8 @@ export function questProgress(
     have,
     need,
     blockedBy,
+    parts,
+    stillNeeded,
     canComplete: !done && have >= need && blockedBy === null,
     reward: ruleset.reputation.questPoints,
   };
@@ -254,7 +338,9 @@ export function calculateQuestCompletion(
   if (progress.have < progress.need) {
     throw new QuestError(
       'QUEST_INCOMPLETE',
-      `${progress.traderName} wants ${progress.need.toLocaleString('en-US')} and you have ${progress.have.toLocaleString('en-US')}.`,
+      progress.stillNeeded
+        ? `${progress.traderName} is not done with you. ${progress.stillNeeded}`
+        : `${progress.traderName} wants ${progress.need.toLocaleString('en-US')} and you have ${progress.have.toLocaleString('en-US')}.`,
     );
   }
 

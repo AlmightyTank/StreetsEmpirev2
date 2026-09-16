@@ -98,7 +98,11 @@ export interface QuestRule {
     | { readonly kind: 'DELIVER_CRACK'; readonly crack: number; readonly thugs: number }
     | { readonly kind: 'HAND_OVER_LOW_RIDER'; readonly lowRiders: number }
     | { readonly kind: 'SUPPLY_ROCKS'; readonly crackSold: number }
-    | { readonly kind: 'DRIVE_BY'; readonly driveBys: number };
+    | { readonly kind: 'DRIVE_BY'; readonly driveBys: number }
+    /** Bought over the counter this round. Nothing is handed over at the end. */
+    | { readonly kind: 'BUY_SUPPLIES'; readonly condoms: number; readonly medicine: number; readonly beer: number }
+    /** Guns bought this round, and raids carried out with them, won or lost. */
+    | { readonly kind: 'BUY_AND_RAID'; readonly pistols: number; readonly raids: number };
 }
 
 export interface RulesetMeta {

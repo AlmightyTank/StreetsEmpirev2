@@ -103,12 +103,16 @@ function TraderFavour({ store, blocked, onComplete }: {
       <p className="se-hint">{quest.description}</p>
 
       <div className="se-rows">
-        <Row label="Progress" value={`${formatNumber(quest.have)} / ${formatNumber(quest.need)}`} strong />
+        {quest.parts.length ? quest.parts.map((part) => (
+          <Row key={part.label} label={part.label} value={`${formatNumber(part.have)} / ${formatNumber(part.need)}`} strong />
+        )) : (
+          <Row label="Progress" value={`${formatNumber(quest.have)} / ${formatNumber(quest.need)}`} strong />
+        )}
         <Row label="Worth" value={`+${formatNumber(quest.reward)} reputation`} />
       </div>
       {quest.blockedBy ? <p className="se-hint se-bad">{quest.blockedBy}</p> : null}
       <Button type="button" className="se-btn se-btn--block"
-        disabledReason={blocked ?? (quest.canComplete ? null : quest.blockedBy
+        disabledReason={blocked ?? (quest.canComplete ? null : quest.blockedBy ?? quest.stillNeeded
           ?? `You have ${formatNumber(quest.have)} of the ${formatNumber(quest.need)} ${store.keeper} asked for.`)}
         onClick={() => onComplete(store.key as QuestCompleteInput['trader'])}>
         Do {store.keeper} the favour
