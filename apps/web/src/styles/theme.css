@@ -67,13 +67,13 @@ body {
 .se-title {
   font-size: 22px;
   font-weight: 800;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   margin: 0;
 }
 
 .se-display {
   font-weight: 900;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
   line-height: 0.95;
   text-transform: uppercase;
 }
@@ -81,7 +81,7 @@ body {
 .se-num {
   font-family: var(--se-mono);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .se-accent { color: var(--se-accent); }
@@ -207,7 +207,7 @@ body {
   font-variant-numeric: tabular-nums;
   font-size: 19px;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   color: #fff;
   margin-top: 2px;
 }
@@ -492,7 +492,7 @@ body {
 .se-brand__mark {
   font-weight: 900;
   font-size: 15px;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -1244,7 +1244,7 @@ a.se-nav__link:hover {
 .se-payout__value {
   font-size: 24px;
   font-weight: 800;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
   color: #fff;
 }
 

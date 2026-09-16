@@ -12,7 +12,7 @@
     min-height: 46px;
     padding: 10px 12px;
     border: 1px solid var(--se-line);
-    border-radius: 3px;
+    border-radius: var(--se-radius);
     background: var(--se-panel);
     color: var(--se-accent);
     font-size: 13px;
@@ -21,6 +21,10 @@
   }
 
   .se-mobile-menu__current {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: var(--se-text-dim);
     font-size: 12px;
     font-weight: 500;
@@ -38,7 +42,7 @@
     margin: -6px 0 0;
     background: var(--se-panel);
     border: 1px solid var(--se-line);
-    border-radius: 3px;
+    border-radius: var(--se-radius);
   }
 
   .se-nav__section { min-width: 0; }
@@ -62,6 +66,11 @@
   /* The full resource grid below the header already carries cash and turns. */
   .se-statusbar { display: none; }
   .se-topbar .se-btn { padding: 8px 10px; }
+  .se-topbar__right,
+  .se-topbar__right .se-btn {
+    flex: none;
+    white-space: nowrap;
+  }
   .se-brand__ver { display: none; }
 
   .se-grid > *, .se-store-items, .se-panel { min-width: 0; }
@@ -118,8 +127,11 @@
     display: block;
     padding: 10px 12px;
     border: 1px solid var(--se-line);
-    border-radius: 3px;
-    background: var(--se-panel-hi);
+    border-radius: var(--se-radius);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.032), rgba(255, 255, 255, 0.008)),
+      var(--se-panel-hi);
+    box-shadow: var(--se-shadow-soft);
   }
 
   .se-table--cards tr + tr { margin-top: 10px; }
