@@ -124,7 +124,7 @@ export function AdminAccountsPage() {
           <p className="se-muted">No player in any round matches that.</p>
         ) : (
           <div className="se-tablewrap">
-            <table className="se-table">
+            <table className="se-table se-table--cards">
               <thead>
                 <tr>
                   <th>Player</th>
@@ -138,24 +138,24 @@ export function AdminAccountsPage() {
               <tbody>
                 {players.players.map((player) => (
                   <tr key={player.roundPlayerId}>
-                    <td>
+                    <td className="se-td--title">
                       <Link to={`/game/admin/players/${player.roundPlayerId}`}><strong>{player.displayName}</strong></Link>
                       <br />
                       <span className="se-muted">#{player.publicPimpId}{player.nationalRank ? ` · rank ${player.nationalRank}` : ''}</span>
                     </td>
-                    <td>
+                    <td data-label="Round">
                       <Link to={`/game/admin/rounds/${player.roundId}`}>{player.roundName}</Link>
                       <br />
                       <span className={`se-tag${player.roundStatus === 'ACTIVE' ? ' se-tag--good' : player.roundStatus === 'REGISTRATION' ? ' se-tag--warn' : ''}`}>{player.roundStatus}</span>
                     </td>
-                    <td>{player.city}</td>
-                    <td className="se-table__number se-num">{formatCents(player.netWorthCents)}</td>
-                    <td>
+                    <td data-label="City">{player.city}</td>
+                    <td className="se-table__number se-num" data-label="Net worth">{formatCents(player.netWorthCents)}</td>
+                    <td data-label="Account">
                       <Link to={`/game/admin/accounts/${player.account.id}`}>{player.account.username}</Link>
                       {player.account.isActive ? null : <span className="se-tag se-tag--bad">Deactivated</span>}
                       {player.account.suspended ? <span className="se-tag se-tag--bad">Suspended</span> : null}
                     </td>
-                    <td>{adminWhen(player.lastActiveAt)}</td>
+                    <td data-label="Last active">{adminWhen(player.lastActiveAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -172,7 +172,7 @@ export function AdminAccountsPage() {
           <p className="se-muted se-admin-pad">No accounts match that search.</p>
         ) : (
           <div className="se-tablewrap">
-            <table className="se-table">
+            <table className="se-table se-table--cards">
               <thead>
                 <tr>
                   <th>Account</th>
@@ -187,17 +187,17 @@ export function AdminAccountsPage() {
               <tbody>
                 {accounts.map((account) => (
                   <tr key={account.id}>
-                    <td>
+                    <td className="se-td--title">
                       <Link to={`/game/admin/accounts/${account.id}`}><strong>{account.username}</strong></Link>
                       <br />
                       <span className="se-muted">{account.email}</span>
                     </td>
-                    <td><AccountTags account={account} /></td>
-                    <td>{account.discordUsername ?? <span className="se-muted">-</span>}</td>
-                    <td>{account.forumUsername ?? <span className="se-muted">-</span>}</td>
-                    <td className="se-table__number se-num">{formatNumber(account.activeSessions)}</td>
-                    <td className="se-table__number se-num">{formatNumber(account.roundsPlayed)}</td>
-                    <td>{adminWhen(account.lastLoginAt)}</td>
+                    <td data-label="Status"><AccountTags account={account} /></td>
+                    <td data-label="Discord">{account.discordUsername ?? <span className="se-muted">-</span>}</td>
+                    <td data-label="Forum">{account.forumUsername ?? <span className="se-muted">-</span>}</td>
+                    <td className="se-table__number se-num" data-label="Sessions">{formatNumber(account.activeSessions)}</td>
+                    <td className="se-table__number se-num" data-label="Rounds">{formatNumber(account.roundsPlayed)}</td>
+                    <td data-label="Last login">{adminWhen(account.lastLoginAt)}</td>
                   </tr>
                 ))}
               </tbody>

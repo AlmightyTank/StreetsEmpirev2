@@ -87,6 +87,7 @@ export function AdminRulesetsPage() {
             <input type="checkbox" checked={onlyChanges} disabled={!comparing} onChange={(event) => setOnlyChanges(event.target.checked)} />
             <span><strong>Only differences</strong><small>{comparing ? 'Hide values both rulesets share.' : 'Pick a ruleset to compare with first.'}</small></span>
           </label>
+          <p className="se-hint se-narrow-only">Ruleset values keep their wide table. Scroll it sideways to line both versions up.</p>
         </div>
       </Panel>
 

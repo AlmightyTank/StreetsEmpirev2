@@ -57,7 +57,7 @@ export function AdminSignalsPage() {
               </span>
             </div>
             <div className="se-tablewrap">
-              <table className="se-table">
+              <table className="se-table se-table--cards">
                 <thead>
                   <tr>
                     <th>Account</th>
@@ -71,12 +71,12 @@ export function AdminSignalsPage() {
                 <tbody>
                   {cluster.accounts.map((account) => (
                     <tr key={account.id}>
-                      <td><Link to={`/game/admin/accounts/${account.id}`}>{account.username}</Link></td>
-                      <td><AccountTags account={{ isActive: account.isActive, isAdmin: account.isAdmin, emailVerified: true }} /></td>
-                      <td>{account.device}</td>
-                      <td>{adminWhen(account.createdAt)}</td>
-                      <td>{adminWhen(account.lastLoginAt)}</td>
-                      <td className="se-table__number se-num">{account.sightings}</td>
+                      <td className="se-td--title"><Link to={`/game/admin/accounts/${account.id}`}>{account.username}</Link></td>
+                      <td data-label="Status"><AccountTags account={{ isActive: account.isActive, isAdmin: account.isAdmin, emailVerified: true }} /></td>
+                      <td data-label="Device">{account.device}</td>
+                      <td data-label="Created">{adminWhen(account.createdAt)}</td>
+                      <td data-label="Last login">{adminWhen(account.lastLoginAt)}</td>
+                      <td className="se-table__number se-num" data-label="Sightings">{account.sightings}</td>
                     </tr>
                   ))}
                 </tbody>

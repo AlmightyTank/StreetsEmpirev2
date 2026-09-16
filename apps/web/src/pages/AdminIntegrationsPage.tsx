@@ -200,7 +200,7 @@ export function AdminIntegrationsPage() {
                 <p className="se-muted se-admin-pad">No dev bots exist.</p>
               ) : (
                 <div className="se-tablewrap">
-                  <table className="se-table">
+                  <table className="se-table se-table--cards">
                     <thead>
                       <tr>
                         <th>Bot</th>
@@ -212,17 +212,17 @@ export function AdminIntegrationsPage() {
                     <tbody>
                       {bots.bots.map((bot) => (
                         <tr key={bot.accountId}>
-                          <td>
+                          <td className="se-td--title">
                             <Link to={`/game/admin/accounts/${bot.accountId}`}>{bot.username}</Link>
                             {bot.isActive ? null : <span className="se-tag se-tag--bad">Inactive</span>}
                           </td>
-                          <td>
+                          <td data-label="This round">
                             {bot.inCurrentRound
                               ? <Link to={`/game/admin/players/${bot.inCurrentRound.roundPlayerId}`}>{bot.inCurrentRound.displayName} #{bot.inCurrentRound.publicPimpId}</Link>
                               : <span className="se-muted">Not in it</span>}
                           </td>
-                          <td className="se-table__number se-num">{bot.inCurrentRound ? formatCents(bot.inCurrentRound.netWorthCents) : '-'}</td>
-                          <td className="se-table__number se-num">{formatNumber(bot.roundsPlayed)}</td>
+                          <td className="se-table__number se-num" data-label="Net worth">{bot.inCurrentRound ? formatCents(bot.inCurrentRound.netWorthCents) : '-'}</td>
+                          <td className="se-table__number se-num" data-label="Rounds">{formatNumber(bot.roundsPlayed)}</td>
                         </tr>
                       ))}
                     </tbody>

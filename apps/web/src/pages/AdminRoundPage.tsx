@@ -116,7 +116,7 @@ export function AdminRoundPage() {
           <p className="se-muted se-admin-pad">No activity yet.</p>
         ) : (
           <div className="se-tablewrap">
-            <table className="se-table">
+            <table className="se-table se-table--cards">
               <thead>
                 <tr>
                   <th>Day</th>
@@ -132,14 +132,14 @@ export function AdminRoundPage() {
               <tbody>
                 {days.map((day) => (
                   <tr key={day.day}>
-                    <td className="se-num">{day.day}</td>
-                    <td className="se-table__number se-num">{formatNumber(day.joins)}</td>
-                    <td className="se-table__number se-num">{formatNumber(day.activePlayers)}</td>
-                    <td className="se-table__number se-num">{formatNumber(day.turnsSpent)}</td>
-                    <td className="se-table__number se-num">{formatNumber(day.raids)}</td>
-                    <td className="se-table__number se-num">{formatNumber(day.driveBys)}</td>
-                    <td className="se-table__number se-num">{formatNumber(day.specialRaids)}</td>
-                    <td className="se-table__number se-num">{formatNumber(day.recon)}</td>
+                    <td className="se-td--title se-num">{day.day}</td>
+                    <td className="se-table__number se-num" data-label="Joins">{formatNumber(day.joins)}</td>
+                    <td className="se-table__number se-num" data-label="Active">{formatNumber(day.activePlayers)}</td>
+                    <td className="se-table__number se-num" data-label="Turns spent">{formatNumber(day.turnsSpent)}</td>
+                    <td className="se-table__number se-num" data-label="Raids">{formatNumber(day.raids)}</td>
+                    <td className="se-table__number se-num" data-label="Drive-bys">{formatNumber(day.driveBys)}</td>
+                    <td className="se-table__number se-num" data-label="Special raids">{formatNumber(day.specialRaids)}</td>
+                    <td className="se-table__number se-num" data-label="Recon">{formatNumber(day.recon)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -154,7 +154,7 @@ export function AdminRoundPage() {
             <p className="se-muted se-admin-pad">Nobody has joined yet.</p>
           ) : (
             <div className="se-tablewrap">
-              <table className="se-table">
+              <table className="se-table se-table--cards">
                 <thead>
                   <tr>
                     <th>Player</th>
@@ -165,12 +165,12 @@ export function AdminRoundPage() {
                 <tbody>
                   {topPlayers.map((player) => (
                     <tr key={player.roundPlayerId}>
-                      <td>
+                      <td className="se-td--title">
                         <Link to={`/game/admin/players/${player.roundPlayerId}`}>{player.displayName}</Link>{' '}
                         <span className="se-muted">#{player.publicPimpId}{player.nationalRank ? ` · rank ${player.nationalRank}` : ''}</span>
                       </td>
-                      <td className="se-table__number se-num">{formatCents(player.netWorthCents)}</td>
-                      <td>{adminWhen(player.lastActiveAt)}</td>
+                      <td className="se-table__number se-num" data-label="Net worth">{formatCents(player.netWorthCents)}</td>
+                      <td data-label="Last active">{adminWhen(player.lastActiveAt)}</td>
                     </tr>
                   ))}
                 </tbody>

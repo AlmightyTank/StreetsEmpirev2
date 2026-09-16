@@ -315,7 +315,7 @@ export function AdminPlayerPage() {
         ) : (
           <>
             <div className="se-tablewrap">
-              <table className="se-table">
+              <table className="se-table se-table--cards">
                 <thead>
                   <tr>
                     <th>When</th>
@@ -332,18 +332,18 @@ export function AdminPlayerPage() {
                 <tbody>
                   {reports.map((report) => (
                     <tr key={`${report.id}-${report.createdAt}`}>
-                      <td>{adminWhen(report.createdAt)}</td>
-                      <td>{report.raidForm?.title ?? report.kind ?? 'RAID'}</td>
-                      <td>{report.role}</td>
-                      <td>
+                      <td className="se-td--title">{adminWhen(report.createdAt)}</td>
+                      <td data-label="Kind">{report.raidForm?.title ?? report.kind ?? 'RAID'}</td>
+                      <td data-label="Role">{report.role}</td>
+                      <td data-label="Result">
                         <span className={`se-tag ${report.won ? 'se-tag--good' : 'se-tag--bad'}`}>{report.won ? 'Won' : 'Lost'}</span>
                         {report.voided ? <span className="se-tag se-tag--warn" title={`${report.voided.reason} (${report.voided.byUsername})`}>Voided</span> : null}
                       </td>
-                      <td>{report.opponent.displayName} <span className="se-muted">#{report.opponent.publicPimpId}</span></td>
-                      <td className="se-table__number se-num">{typeof report.cashChangeCents === 'number' ? formatCents(report.cashChangeCents) : '-'}</td>
-                      <td className="se-table__number se-num">{`${report.yourWounds ?? 0} / ${report.opponentWounds ?? 0}`}</td>
-                      <td className="se-table__number se-num">{formatNumber(report.turnsSpent ?? 0)}</td>
-                      <td className="se-table__number">
+                      <td data-label="Opponent">{report.opponent.displayName} <span className="se-muted">#{report.opponent.publicPimpId}</span></td>
+                      <td className="se-table__number se-num" data-label="Cash">{typeof report.cashChangeCents === 'number' ? formatCents(report.cashChangeCents) : '-'}</td>
+                      <td className="se-table__number se-num" data-label="Wounds">{`${report.yourWounds ?? 0} / ${report.opponentWounds ?? 0}`}</td>
+                      <td className="se-table__number se-num" data-label="Turns">{formatNumber(report.turnsSpent ?? 0)}</td>
+                      <td className="se-table__number" data-label="Actions">
                         {report.voided || !player.live ? <span className="se-muted">-</span> : (
                           <Button type="button" className="se-btn se-btn--sm" onClick={() => { setVoiding(report); setVoidReason(''); setVoidResult(null); }} disabledReason={busy ? working : null}>
                             Void

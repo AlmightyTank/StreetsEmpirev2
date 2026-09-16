@@ -78,7 +78,7 @@ export function HallOfFamePage() {
                   </div>
 
                   <div className="se-tablewrap se-mt">
-                    <table className="se-table">
+                    <table className="se-table se-table--cards">
                       <thead>
                         <tr>
                           <th>Finish</th>
@@ -92,12 +92,12 @@ export function HallOfFamePage() {
                       <tbody>
                         {round.topTen.map((player) => (
                           <tr key={`${round.id}-top-${player.rank}-${player.publicPimpId}`}>
-                            <td className="se-num">{medal(player.rank)}</td>
-                            <td>{player.displayName}</td>
-                            <td>{player.city}</td>
-                            <td className="se-table__number se-num">{formatCents(player.netWorthCents)}</td>
-                            <td className="se-table__number se-num">{formatCents(player.cashCents)}</td>
-                            <td className="se-table__number"><HideoutRoomChips hideout={player.hideout} /></td>
+                            <td className="se-num" data-label="Finish">{medal(player.rank)}</td>
+                            <td className="se-td--title">{player.displayName}</td>
+                            <td data-label="City">{player.city}</td>
+                            <td className="se-table__number se-num" data-label="Final net worth">{formatCents(player.netWorthCents)}</td>
+                            <td className="se-table__number se-num" data-label="Cash left">{formatCents(player.cashCents)}</td>
+                            <td className="se-table__number" data-label="Hideout"><HideoutRoomChips hideout={player.hideout} /></td>
                           </tr>
                         ))}
                       </tbody>

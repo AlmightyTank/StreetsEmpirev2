@@ -90,6 +90,132 @@
   .se-result .se-row__value { min-width: 0; }
 }
 
+
+/*
+ * Phone tables. A six-column table on a 375px screen puts everything that
+ * matters off the right edge, so tables marked se-table--cards stop being
+ * tables: every row becomes a card and every cell a labelled line, using the
+ * column heading each cell carries in data-label. Wide reference tables (the
+ * ruleset diff) keep their sideways scroll instead - a card per path would be
+ * longer than the screen.
+ */
+.se-narrow-only { display: none; }
+
+@media (max-width: 700px) {
+  .se-narrow-only { display: block; }
+
+  .se-table--cards {
+    min-width: 0;
+    display: block;
+    border-collapse: separate;
+  }
+
+  .se-table--cards thead { display: none; }
+  .se-table--cards tbody { display: block; }
+
+  .se-table--cards tr {
+    display: block;
+    padding: 10px 12px;
+    border: 1px solid var(--se-line);
+    border-radius: 3px;
+    background: var(--se-panel-hi);
+  }
+
+  .se-table--cards tr + tr { margin-top: 10px; }
+
+  .se-table--cards td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    width: auto;
+    padding: 5px 0;
+    border: 0;
+    text-align: right;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .se-table--cards td + td { border-top: 1px solid var(--se-line-soft); }
+
+  .se-table--cards td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    color: var(--se-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  /* The name of the thing: a card heading, not a labelled line. */
+  .se-table--cards td.se-td--title {
+    display: block;
+    padding-top: 0;
+    padding-bottom: 8px;
+    text-align: left;
+    font-size: 14px;
+  }
+
+  .se-table--cards td.se-td--title::before { content: none; }
+  .se-table--cards td.se-td--title + td { border-top: 1px solid var(--se-line-soft); }
+
+  /* Rows of buttons keep their own spacing and fill the card. */
+  .se-table--cards td .se-admin-actions,
+  .se-table--cards td .se-why,
+  .se-table--cards td .se-btn { width: 100%; }
+
+  .se-table--cards td .se-admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .se-table--cards td .se-admin-actions .se-btn,
+  .se-table--cards td .se-admin-actions .se-why { width: auto; }
+
+  /* The sticky actions column only makes sense while the table still scrolls. */
+  .se-table--cards:has(.se-admin-actions) th:last-child,
+  .se-table--cards td:has(> .se-admin-actions) {
+    position: static;
+    box-shadow: none;
+    background: none;
+  }
+
+  .se-rank-you { border-left: 2px solid var(--se-accent); }
+
+  /* Rank reads as an eyebrow over the name rather than a line of its own. */
+  .se-ranking-table td[data-label="Rank"] {
+    display: block;
+    padding: 0;
+    color: var(--se-muted);
+    font-size: 12px;
+    text-align: left;
+  }
+
+  .se-ranking-table td[data-label="Rank"]::before { content: none; }
+  .se-ranking-table td.se-td--title { padding-top: 2px; }
+  .se-ranking-table td[data-label="Rank"] + td.se-td--title { border-top: 0; }
+}
+
+@media (pointer: coarse) {
+  /* Everything you tap gets a finger-sized box, not just the main buttons. */
+  .se-seg__btn,
+  .se-swatch,
+  .se-tab { min-height: 44px; }
+
+  .se-table--cards td .se-playerlink,
+  .se-table--cards td > a,
+  .se-panel__head a,
+  summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
 .se-mobile-menu:focus-visible {
   outline: 2px solid var(--se-accent);
   outline-offset: 3px;

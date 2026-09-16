@@ -287,7 +287,7 @@ export function AdminAccountPage() {
           <p className="se-muted se-admin-pad">No active sessions.</p>
         ) : (
           <div className="se-tablewrap">
-            <table className="se-table">
+            <table className="se-table se-table--cards">
               <thead>
                 <tr>
                   <th>Device</th>
@@ -300,11 +300,11 @@ export function AdminAccountPage() {
               <tbody>
                 {detail.sessions.map((session) => (
                   <tr key={session.id}>
-                    <td>{session.device}</td>
-                    <td>{adminWhen(session.createdAt)}</td>
-                    <td>{adminWhen(session.lastSeenAt)}</td>
-                    <td>{adminWhen(session.expiresAt)}</td>
-                    <td className="se-table__number">
+                    <td className="se-td--title">{session.device}</td>
+                    <td data-label="Created">{adminWhen(session.createdAt)}</td>
+                    <td data-label="Last seen">{adminWhen(session.lastSeenAt)}</td>
+                    <td data-label="Expires">{adminWhen(session.expiresAt)}</td>
+                    <td className="se-table__number" data-label="Actions">
                       {isSelf ? <span className="se-muted">-</span> : (
                         <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => choose('revoke-sessions', session.id)} disabledReason={busy ? working : null}>
                           Sign out
@@ -324,7 +324,7 @@ export function AdminAccountPage() {
           <p className="se-muted se-admin-pad">This account has not joined a round.</p>
         ) : (
           <div className="se-tablewrap">
-            <table className="se-table">
+            <table className="se-table se-table--cards">
               <thead>
                 <tr>
                   <th>Round</th>
@@ -338,16 +338,16 @@ export function AdminAccountPage() {
               <tbody>
                 {detail.rounds.map((round) => (
                   <tr key={round.roundPlayerId}>
-                    <td>
+                    <td className="se-td--title">
                       <strong>{round.roundName}</strong>
                       <br />
                       <span className={`se-tag${statusTone(round.roundStatus)}`}>{round.roundStatus}</span>
                     </td>
-                    <td>{round.displayName} <span className="se-muted">#{round.publicPimpId}</span></td>
-                    <td className="se-table__number se-num">{formatCents(round.netWorthCents)}</td>
-                    <td className="se-table__number se-num">{round.nationalRank ? `#${round.nationalRank}` : '-'}</td>
-                    <td className="se-table__number se-num">{round.localRank ? `#${round.localRank}` : '-'}</td>
-                    <td className="se-table__number">
+                    <td data-label="Player">{round.displayName} <span className="se-muted">#{round.publicPimpId}</span></td>
+                    <td className="se-table__number se-num" data-label="Net worth">{formatCents(round.netWorthCents)}</td>
+                    <td className="se-table__number se-num" data-label="National">{round.nationalRank ? `#${round.nationalRank}` : '-'}</td>
+                    <td className="se-table__number se-num" data-label="Local">{round.localRank ? `#${round.localRank}` : '-'}</td>
+                    <td className="se-table__number" data-label="Actions">
                       <Link className="se-btn se-btn--sm se-btn--ghost" to={`/game/admin/players/${round.roundPlayerId}`}>Inspect</Link>
                     </td>
                   </tr>
