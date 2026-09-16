@@ -23,6 +23,7 @@ the [C implementation notes](docs/COMBAT-0.2.0-C.md), the [B implementation note
 [staged combat design](docs/COMBAT-DESIGN-0.2.0.md), the
 [simulation findings](docs/COMBAT-SIMULATION-0.2.0-A.md) and the
 [community/SSO forum plan](docs/COMMUNITY-SSO-FORUM.md), or run `npm run qa:combat`.
+Admins run seasons, moderation and disputes from the [admin runbook](docs/ADMIN-RUNBOOK.md).
 
 | Milestone | Scope | State |
 | --- | --- | --- |

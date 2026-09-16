@@ -102,6 +102,10 @@ The panel grew past the original list. It ships in four phases, each its own com
 4. **Corrections:** voiding a battle by reversing its recorded changes (limited to what each side still
    has, and excluded from revenge, trophies and repeat-target limits), capped compensation grants, and
    multi-account signals that show matches without raw IPs.
+5. **Closing the panel out:** a player lookup by pimp name or public id, so a dispute that names a pimp
+   rather than an account still lands in the inspector; timed suspensions that sign a player out, tell
+   them the reason and the end date, and lift themselves; an [admin runbook](ADMIN-RUNBOOK.md); and one
+   shared dev-bot definition for the seed and the panel.
 
 Admin comes before alliances because alliances and shared messaging need
 moderation from day one.
