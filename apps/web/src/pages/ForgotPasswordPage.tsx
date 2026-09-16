@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
@@ -59,9 +60,9 @@ export function ForgotPasswordPage() {
             hint="We will send a one-hour password reset link if the email is on an account."
           />
 
-          <button className="se-btn se-btn--primary se-btn--block" disabled={busy}>
+          <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy ? 'Sending that email now.' : null}>
             {busy ? 'Sending...' : 'Send recovery email'}
-          </button>
+          </Button>
         </form>
       </Panel>
 

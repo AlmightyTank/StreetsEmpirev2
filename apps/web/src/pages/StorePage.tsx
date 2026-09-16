@@ -6,6 +6,7 @@ import { reputationApi } from '../api/reputation.js';
 import { storesApi } from '../api/stores.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { QuantitySteps } from '../components/QuantitySteps.js';
 import { useCountdown } from '../hooks/useCountdown.js';
@@ -83,9 +84,10 @@ function RestockLine({ restock, name, keeper, onArrival }: {
  * Rendered in the same block Tommy's weapon favours have always used, and
  * offered where the trader is: you square things with Charlie at Charlie's.
  */
-function TraderFavour({ store, disabled, onComplete }: {
+function TraderFavour({ store, blocked, onComplete }: {
   store: StoreDto;
-  disabled: boolean;
+  /** Why nothing on this counter can be pressed, or null when it can. */
+  blocked: string | null;
   onComplete: (trader: QuestCompleteInput['trader']) => void;
 }) {
   const { quest } = store;
@@ -105,11 +107,12 @@ function TraderFavour({ store, disabled, onComplete }: {
         <Row label="Worth" value={`+${formatNumber(quest.reward)} reputation`} />
       </div>
       {quest.blockedBy ? <p className="se-hint se-bad">{quest.blockedBy}</p> : null}
-      <button type="button" className="se-btn se-btn--block"
-        disabled={disabled || !quest.canComplete}
+      <Button type="button" className="se-btn se-btn--block"
+        disabledReason={blocked ?? (quest.canComplete ? null : quest.blockedBy
+          ?? `You have ${formatNumber(quest.have)} of the ${formatNumber(quest.need)} ${store.keeper} asked for.`)}
         onClick={() => onComplete(store.key as QuestCompleteInput['trader'])}>
         Do {store.keeper} the favour
-      </button>
+      </Button>
       <p className="se-hint">
         Standing opens the gun rack and gets you served sooner. Every trader
         counts toward the guns, so this one is worth doing whatever you buy here.
@@ -118,10 +121,11 @@ function TraderFavour({ store, disabled, onComplete }: {
   );
 }
 
-function StoreItem({ item, store, keeper, owned, cashCents, crack, bulkHelpers, disabled, onTrade, onUnlock, onRestock }: {
+function StoreItem({ item, store, keeper, owned, cashCents, crack, bulkHelpers, blocked, onTrade, onUnlock, onRestock }: {
   item: StoreItemDto; store: string; keeper: string; owned: number; cashCents: number;
   crack: number;
-  bulkHelpers: number[]; disabled: boolean; onTrade: (order: Order) => Promise<void>;
+  /** Why the whole shelf is off, or null when it is open for business. */
+  bulkHelpers: number[]; blocked: string | null; onTrade: (order: Order) => Promise<void>;
   onUnlock: (weapon: WeaponUnlockInput['weapon']) => Promise<void>;
   onRestock: () => void;
 }) {
@@ -139,10 +143,22 @@ function StoreItem({ item, store, keeper, owned, cashCents, crack, bulkHelpers, 
   const valid = typeof quantity === 'number' && Number.isSafeInteger(quantity) && quantity > 0 && quantity <= max;
   const total = valid && unitCents !== null ? quantity * unitCents : null;
   const quantityId = `quantity-${item.key}`;
+  const noneToBuy = soldOut
+    ? `${keeper} is sold out of ${item.name} until the next delivery.`
+    : `You cannot afford a single ${item.name} at ${formatCents(item.buyCents)}.`;
+  const emptyReason = buying ? noneToBuy : `You have no ${item.name} to sell.`;
+  const tradeBlock = blocked
+    ?? (purchaseLocked
+      ? `Do ${keeper} the favour above before buying ${item.name}.`
+      : max < 1
+        ? emptyReason
+        : !valid || total === null
+          ? `Enter a whole number from 1 to ${formatNumber(max)}.`
+          : null);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (disabled || purchaseLocked || !valid || typeof quantity !== 'number') return;
+    if (blocked || purchaseLocked || !valid || typeof quantity !== 'number') return;
     await onTrade({ store, item: item.key, quantity, direction });
   }
 
@@ -172,10 +188,13 @@ function StoreItem({ item, store, keeper, owned, cashCents, crack, bulkHelpers, 
             <p className="se-hint">
               Standing with every trader in the city counts, not just this one.
             </p>
-            <button type="button" className="se-btn se-btn--block"
-              disabled={disabled || !favor.canComplete} onClick={() => void onUnlock(favor.key)}>
+            <Button type="button" className="se-btn se-btn--block"
+              disabledReason={blocked ?? (favor.canComplete ? null : !favor.prerequisiteMet
+                ? `Earn ${favor.prerequisiteName} access first.`
+                : `You need ${formatNumber(favor.totalRepRequired - favor.totalRep)} more reputation across the city's traders.`)}
+              onClick={() => void onUnlock(favor.key)}>
               Unlock {item.name}
-            </button>
+            </Button>
             <p className="se-hint">
               {!favor.prerequisiteMet
                 ? `Earn ${favor.prerequisiteName} access first. `
@@ -192,7 +211,7 @@ function StoreItem({ item, store, keeper, owned, cashCents, crack, bulkHelpers, 
         <div className="se-store-order">
           <div>
             <label className="se-label" htmlFor={`direction-${item.key}`}>Trade</label>
-            <select id={`direction-${item.key}`} className="se-input" value={direction} disabled={disabled}
+            <select id={`direction-${item.key}`} className="se-input" value={direction} disabled={blocked !== null}
               onChange={(e) => setDirection(e.target.value as 'buy' | 'sell')}>
               <option value="buy">Buy</option>
               {item.sellCents !== null ? <option value="sell">Sell</option> : null}
@@ -201,7 +220,7 @@ function StoreItem({ item, store, keeper, owned, cashCents, crack, bulkHelpers, 
           <div>
             <label className="se-label" htmlFor={quantityId}>Quantity</label>
             <input id={quantityId} className="se-input" type="number" inputMode="numeric"
-              min={1} max={max} step={1} value={quantity} disabled={disabled || purchaseLocked}
+              min={1} max={max} step={1} value={quantity} disabled={blocked !== null || purchaseLocked}
               aria-describedby={`${quantityId}-hint`}
               onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))} />
           </div>
@@ -212,7 +231,9 @@ function StoreItem({ item, store, keeper, owned, cashCents, crack, bulkHelpers, 
             onChange={setQuantity}
             max={max}
             steps={bulkHelpers}
-            disabled={disabled || purchaseLocked}
+            disabled={blocked !== null || purchaseLocked}
+            disabledReason={blocked ?? (purchaseLocked ? `Do ${keeper} the favour above before buying ${item.name}.` : null)}
+            emptyReason={emptyReason}
           />
         </div>
         <p id={`${quantityId}-hint`} className="se-hint">
@@ -225,9 +246,9 @@ function StoreItem({ item, store, keeper, owned, cashCents, crack, bulkHelpers, 
             {quantity !== '' && !valid ? ' Enter a whole quantity within that limit.' : ''}
           </>}
         </p>
-        <button className="se-btn se-btn--primary se-btn--block" disabled={disabled || purchaseLocked || !valid || total === null}>
+        <Button className="se-btn se-btn--primary se-btn--block" disabledReason={tradeBlock}>
           {purchaseLocked ? `Unlock ${item.name} above to buy` : `${buying ? 'Buy' : 'Sell'} ${item.name}${total !== null ? ` · ${formatCents(total)}` : ''}`}
-        </button>
+        </Button>
       </form> : null}
     </Panel>
   );
@@ -295,6 +316,14 @@ function StoreView({ slug }: { slug: string }) {
 
   if (!me) return <Navigate to="/join" replace />;
   const store = catalog?.stores.find((entry) => entry.slug === slug);
+  // One reason for every control on the counter, so a dead shelf explains itself.
+  const counterBlock = action.busy
+    ? 'Your last order is still going through.'
+    : retryOrder !== null
+      ? 'Settle the unconfirmed transaction above first.'
+      : loadError !== null
+        ? 'Prices could not be loaded, so nothing can be traded yet.'
+        : null;
   const receipt = action.result && 'direction' in action.result.result ? action.result.result : null;
   const unlockReceipt =
     action.result && 'weaponName' in action.result.result ? action.result.result : null;
@@ -309,11 +338,11 @@ function StoreView({ slug }: { slug: string }) {
           <p className="se-eyebrow">{store?.blurb ?? 'Stock up for the next shift'}</p>
         </div>
       </div>
-      {loadError ? <Alert>{loadError} <button className="se-btn se-btn--sm" onClick={() => setReload((n) => n + 1)}>Retry loading</button></Alert> : null}
+      {loadError ? <Alert>{loadError} <Button className="se-btn se-btn--sm" disabledReason={action.busy ? 'Your last order is still going through.' : null} onClick={() => setReload((n) => n + 1)}>Retry loading</Button></Alert> : null}
       {action.error ? <Alert>{action.error}</Alert> : null}
       {retryOrder ? <Alert tone="info">
         The last transaction could not be confirmed. Retry it to check the result safely.
-        {' '}<button className="se-btn se-btn--sm" disabled={action.busy} onClick={() => void execute(retryOrder.command, retryOrder.actionId)}>Retry transaction</button>
+        {' '}<Button className="se-btn se-btn--sm" disabledReason={action.busy ? 'Checking the last transaction with the server.' : null} onClick={() => void execute(retryOrder.command, retryOrder.actionId)}>Retry transaction</Button>
       </Alert> : null}
       {!catalog && !loadError ? <p className="se-muted" role="status">Loading the shelves...</p> : null}
       {catalog && !store ? <Alert>That store is not open. <Link to="/game/stores/corner">Visit the Corner Store</Link>.</Alert> : null}
@@ -361,12 +390,12 @@ function StoreView({ slug }: { slug: string }) {
         <div className="se-grid se-grid--sidebar">
           <div className="se-store-items">
             <TraderFavour store={store}
-              disabled={action.busy || retryOrder !== null || loadError !== null}
+              blocked={counterBlock}
               onComplete={(trader) => execute({ kind: 'quest', trader })} />
             {store.items.map((item) => <StoreItem key={item.key} item={item} store={store.key} keeper={store.keeper}
               owned={me.resources[item.field]} cashCents={me.resources.cashCents}
               crack={me.resources.crack}
-              bulkHelpers={catalog.bulkHelpers} disabled={action.busy || retryOrder !== null || loadError !== null}
+              bulkHelpers={catalog.bulkHelpers} blocked={counterBlock}
               onTrade={(order) => execute({ kind: 'trade', order })}
               onUnlock={(weapon) => execute({ kind: 'unlock', weapon })}
               onRestock={() => setReload((n) => n + 1)} />)}

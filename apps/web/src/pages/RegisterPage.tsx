@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { PASSWORD_MIN, USERNAME_MAX, USERNAME_MIN } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
@@ -87,9 +88,9 @@ export function RegisterPage() {
                 hint={`At least ${PASSWORD_MIN} characters.`}
               />
 
-              <button className="se-btn se-btn--primary se-btn--block" disabled={busy}>
+              <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy ? 'Setting up your account now.' : null}>
                 {busy ? 'Working...' : 'Create account'}
-              </button>
+              </Button>
             </form>
           </Panel>
 

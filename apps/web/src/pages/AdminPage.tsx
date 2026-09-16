@@ -15,6 +15,7 @@ import { ApiError } from '../api/client.js';
 import { roundsApi } from '../api/rounds.js';
 import { AuditEntryList } from '../components/AdminParts.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -191,6 +192,7 @@ export function AdminPage() {
 
   const rounds = data?.rounds ?? [];
   const reasonTooShort = pending?.action === 'end-early' && reason.trim().length < 5;
+  const working = 'The last admin action is still going through.';
 
   return (
     <GameLayout>
@@ -239,10 +241,14 @@ export function AdminPage() {
               </label>
             ) : null}
             <div className="se-cta se-mt">
-              <button className="se-btn se-btn--primary" disabled={busy || reasonTooShort || (handoffWarning !== null && !confirmHandoff)}>
+              <Button className="se-btn se-btn--primary"
+                disabledReason={busy ? working
+                  : reasonTooShort ? 'Ending a round early needs a reason of at least 5 characters for the audit log.'
+                    : handoffWarning !== null && !confirmHandoff ? 'Tick the handoff box above to confirm you are replacing the live round.'
+                      : null}>
                 {busy ? 'Working...' : `Confirm: ${actionLabel[pending.action].toLowerCase()}`}
-              </button>
-              <button type="button" className="se-btn se-btn--ghost" onClick={() => setPending(null)} disabled={busy}>Cancel</button>
+              </Button>
+              <Button type="button" className="se-btn se-btn--ghost" onClick={() => setPending(null)} disabledReason={busy ? working : null}>Cancel</Button>
             </div>
           </form>
         </Panel>
@@ -259,9 +265,9 @@ export function AdminPage() {
           <>
             {checklist.openExpiredRounds > 0 ? (
               <div className="se-cta se-mb">
-                <button type="button" className="se-btn se-btn--primary" onClick={() => void closeExpired()} disabled={busy}>
+                <Button type="button" className="se-btn se-btn--primary" onClick={() => void closeExpired()} disabledReason={busy ? working : null}>
                   {busy ? 'Closing...' : `Close ${checklist.openExpiredRounds} expired round${checklist.openExpiredRounds === 1 ? '' : 's'} now`}
-                </button>
+                </Button>
               </div>
             ) : null}
             <div className="se-admin-checklist">
@@ -323,15 +329,15 @@ export function AdminPage() {
                     <td className="se-table__number">
                       <div className="se-admin-actions">
                         {round.actions.length ? round.actions.map((action) => (
-                          <button
+                          <Button
                             type="button"
                             key={action}
                             className={`se-btn se-btn--sm${action === 'end-early' ? '' : ' se-btn--ghost'}`}
                             onClick={() => choose(round, action)}
-                            disabled={busy}
+                            disabledReason={busy ? working : null}
                           >
                             {actionLabel[action]}
-                          </button>
+                          </Button>
                         )) : <span className="se-muted">-</span>}
                       </div>
                     </td>
@@ -407,9 +413,10 @@ export function AdminPage() {
               error={fields.registrationOpensAt}
               hint="Optional. Players cannot join before this, even once registration is open."
             />
-            <button className="se-btn se-btn--primary se-btn--block" disabled={scheduling || !data}>
+            <Button className="se-btn se-btn--primary se-btn--block"
+              disabledReason={scheduling ? 'Scheduling that round now.' : !data ? 'The round list has not loaded yet.' : null}>
               {scheduling ? 'Scheduling...' : 'Schedule round'}
-            </button>
+            </Button>
           </form>
         </Panel>
 

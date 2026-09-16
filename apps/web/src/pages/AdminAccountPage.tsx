@@ -6,6 +6,7 @@ import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { AccountTags, AuditEntryList } from '../components/AdminParts.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -137,17 +138,18 @@ export function AdminAccountPage() {
     ...(discord.linked && discord.botApiEnabled ? ['resync-discord' as const] : []),
   ];
   const reasonTooShort = reason.trim().length < 5;
+  const working = 'The last admin action is still going through.';
 
   const actionButton = (action: AdminAccountAction) => (
-    <button
+    <Button
       type="button"
       key={action}
       className={`se-btn se-btn--sm${DESTRUCTIVE.includes(action) ? '' : ' se-btn--ghost'}`}
       onClick={() => choose(action)}
-      disabled={busy}
+      disabledReason={busy ? working : null}
     >
       {actionText[action].label}
-    </button>
+    </Button>
   );
 
   return (
@@ -198,10 +200,14 @@ export function AdminAccountPage() {
               {fields.reason ? <p className="se-error">{fields.reason}</p> : <p className="se-hint">Saved to the audit log. At least 5 characters.</p>}
             </div>
             <div className="se-cta se-mt">
-              <button className="se-btn se-btn--primary" disabled={busy || reasonTooShort || (pending.action === 'rename' && newName.trim().length < 3)}>
+              <Button className="se-btn se-btn--primary"
+                disabledReason={busy ? working
+                  : reasonTooShort ? 'The audit log needs a reason of at least 5 characters.'
+                    : pending.action === 'rename' && newName.trim().length < 3 ? 'A new name needs at least 3 characters.'
+                      : null}>
                 {busy ? 'Working...' : 'Confirm'}
-              </button>
-              <button type="button" className="se-btn se-btn--ghost" onClick={() => setPending(null)} disabled={busy}>Cancel</button>
+              </Button>
+              <Button type="button" className="se-btn se-btn--ghost" onClick={() => setPending(null)} disabledReason={busy ? working : null}>Cancel</Button>
             </div>
           </form>
         </Panel>
@@ -272,9 +278,9 @@ export function AdminAccountPage() {
                     <td>{adminWhen(session.expiresAt)}</td>
                     <td className="se-table__number">
                       {isSelf ? <span className="se-muted">-</span> : (
-                        <button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => choose('revoke-sessions', session.id)} disabled={busy}>
+                        <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => choose('revoke-sessions', session.id)} disabledReason={busy ? working : null}>
                           Sign out
-                        </button>
+                        </Button>
                       )}
                     </td>
                   </tr>

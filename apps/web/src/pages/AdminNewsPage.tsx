@@ -3,6 +3,7 @@ import type { AdminNewsDto, AdminNewsPostDto, AdminSiteBannersDto, SiteBannerTon
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -34,6 +35,7 @@ export function AdminNewsPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const working = 'The last admin action is still going through.';
 
   const [post, setPost] = useState(emptyPost);
   const [postFields, setPostFields] = useState<Record<string, string>>({});
@@ -206,13 +208,18 @@ export function AdminNewsPage() {
               </>
             )}
             <div className="se-cta se-mt">
-              <button
+              <Button
                 className="se-btn se-btn--primary"
-                disabled={busy || (pending.kind === 'delete' ? reason.trim().length < 5 : !editTitle.trim() || !editBody.trim())}
+                disabledReason={busy ? working
+                  : pending.kind === 'delete'
+                    ? (reason.trim().length < 5 ? 'The audit log needs a reason of at least 5 characters.' : null)
+                    : !editTitle.trim() ? 'The post needs a title.'
+                      : !editBody.trim() ? 'The post needs a body.'
+                        : null}
               >
                 {busy ? 'Working...' : 'Confirm'}
-              </button>
-              <button type="button" className="se-btn se-btn--ghost" onClick={() => setPending(null)} disabled={busy}>Cancel</button>
+              </Button>
+              <Button type="button" className="se-btn se-btn--ghost" onClick={() => setPending(null)} disabledReason={busy ? working : null}>Cancel</Button>
             </div>
           </form>
         </Panel>
@@ -256,9 +263,14 @@ export function AdminNewsPage() {
                 <small>{mirrorEnabled ? 'Creates a discussion in the forum announcements tag.' : 'Off: set FORUM_API_KEY and FORUM_NEWS_TAG_ID on the server to enable.'}</small>
               </span>
             </label>
-            <button className="se-btn se-btn--primary se-btn--block se-mt" disabled={busy || !news || !post.title.trim() || !post.body.trim()}>
+            <Button className="se-btn se-btn--primary se-btn--block se-mt"
+              disabledReason={busy ? working
+                : !news ? 'The news list has not loaded yet.'
+                  : !post.title.trim() ? 'Give the post a title.'
+                    : !post.body.trim() ? 'Write the post body.'
+                      : null}>
               {busy ? 'Posting...' : 'Post news'}
-            </button>
+            </Button>
           </form>
         </Panel>
 
@@ -266,7 +278,7 @@ export function AdminNewsPage() {
           {banners?.current ? (
             <div className={`se-site-banner se-site-banner--${banners.current.tone} se-mb`}>
               <span>{banners.current.message}</span>
-              <button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => endBanner(banners.current!.id)} disabled={busy}>End now</button>
+              <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => endBanner(banners.current!.id)} disabledReason={busy ? working : null}>End now</Button>
             </div>
           ) : (
             <p className="se-hint">No banner is showing right now.</p>
@@ -287,7 +299,8 @@ export function AdminNewsPage() {
             </div>
             <Field id="admin-banner-starts" label="Starts" type="datetime-local" value={banner.startsAt} onChange={(event) => setBanner({ ...banner, startsAt: event.target.value })} hint="Optional. Leave blank to show it now." />
             <Field id="admin-banner-ends" label="Ends" type="datetime-local" value={banner.endsAt} onChange={(event) => setBanner({ ...banner, endsAt: event.target.value })} error={bannerFields.endsAt} hint="Up to 30 days after it starts." />
-            <button className="se-btn se-btn--primary se-btn--block" disabled={busy || banner.message.trim().length < 3}>Post banner</button>
+            <Button className="se-btn se-btn--primary se-btn--block"
+              disabledReason={busy ? working : banner.message.trim().length < 3 ? 'Write the banner message first - at least 3 characters.' : null}>Post banner</Button>
           </form>
           {banners?.banners.length ? (
             <ol className="se-admin-audit se-mt">
@@ -322,14 +335,14 @@ export function AdminNewsPage() {
               <p>{row.body.length > 280 ? `${row.body.slice(0, 280)}…` : row.body}</p>
               <p className="se-hint">{row.authorName ? `By ${row.authorName}` : 'Seeded'}{row.forumError && !row.forumUrl ? ` · Forum error: ${row.forumError}` : ''}</p>
               <div className="se-admin-moderation se-mt">
-                <button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => togglePin(row)} disabled={busy}>{row.isPinned ? 'Unpin' : 'Pin'}</button>
-                <button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => choose('edit', row)} disabled={busy}>Edit</button>
+                <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => togglePin(row)} disabledReason={busy ? working : null}>{row.isPinned ? 'Unpin' : 'Pin'}</Button>
+                <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => choose('edit', row)} disabledReason={busy ? working : null}>Edit</Button>
                 {mirrorEnabled && !row.forumUrl ? (
-                  <button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => retryMirror(row)} disabled={busy}>
+                  <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => retryMirror(row)} disabledReason={busy ? working : null}>
                     {row.forumError ? 'Retry forum' : 'Post to forum'}
-                  </button>
+                  </Button>
                 ) : null}
-                <button type="button" className="se-btn se-btn--sm" onClick={() => choose('delete', row)} disabled={busy}>Delete</button>
+                <Button type="button" className="se-btn se-btn--sm" onClick={() => choose('delete', row)} disabledReason={busy ? working : null}>Delete</Button>
               </div>
             </article>
           ))

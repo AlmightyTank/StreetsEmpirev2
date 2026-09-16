@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PASSWORD_MIN } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
@@ -81,9 +82,10 @@ export function ResetPasswordPage() {
             error={fields.confirm}
           />
 
-          <button className="se-btn se-btn--primary se-btn--block" disabled={busy || !token}>
+          <Button className="se-btn se-btn--primary se-btn--block"
+            disabledReason={busy ? 'Saving your new password.' : !token ? 'This link is missing its reset code. Request a new email.' : null}>
             {busy ? 'Saving...' : 'Reset password'}
-          </button>
+          </Button>
         </form>
       </Panel>
 

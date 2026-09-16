@@ -5,6 +5,7 @@ import { formatCents, formatNumber } from '@streets/shared';
 import { actionsApi } from '../api/actions.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
 import { useGameAction } from '../hooks/useGameAction.js';
@@ -29,6 +30,15 @@ export function ProducePage() {
     typeof turns === 'number' &&
     turns >= 1 &&
     turns <= available;
+  const produceBlock = action.busy
+    ? 'The last batch is still cooking.'
+    : !hasFitThugs
+      ? 'Cooking takes a fit thug. Scout for more, buy some at Tommy\u2019s, or let the wounded recover.'
+      : typeof turns !== 'number' || turns < 1
+        ? 'Say how many turns to spend - at least one.'
+        : turns > available
+          ? `You only have ${formatNumber(available)} turns.`
+          : null;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -62,11 +72,12 @@ export function ProducePage() {
               onChange={setTurns}
               available={available}
               disabled={action.busy || !hasFitThugs}
+              disabledReason={action.busy ? 'The last batch is still cooking.' : !hasFitThugs ? 'Cooking takes a fit thug, and none of yours can work.' : null}
             />
 
-            <button className="se-btn se-btn--primary se-btn--block" disabled={!canProduce}>
+            <Button className="se-btn se-btn--primary se-btn--block" disabledReason={produceBlock}>
               {action.busy ? 'Cooking...' : 'Produce'}
-            </button>
+            </Button>
           </form>
 
           <p className="se-hint">

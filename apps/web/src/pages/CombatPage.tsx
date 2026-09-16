@@ -4,6 +4,7 @@ import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, ty
 import { combatApi } from '../api/combat.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -371,7 +372,28 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const modeCooldown = driving ? driveBy!.cooldownUntil : doingSpecialRaid ? specialRaid.cooldownUntil : page?.cooldownUntil ?? null;
   const turnCost = driving ? driveBy!.rules.turnCost : doingSpecialRaid ? specialRaid.turnCost : rules?.turnCost ?? 0;
   const squadNumber = Number(squad);
-  const disabled = busy || !rules || !!modeBlock || !selected || !!selectedBlock || !Number.isInteger(squadNumber) || squadNumber < 1 || squadNumber > maxSquad;
+  // Why the crew is not going out, in the order a player would hit the problems.
+  const attackBlock = busy
+    ? 'Your last hit is still going through.'
+    : pending
+      ? 'Get the report for your unsettled hit first.'
+      : !rules
+        ? 'The streets have not loaded yet.'
+        : modeBlock
+          ? modeBlock
+          : !selected
+            ? 'Choose a mark from the list first.'
+            : selectedBlock
+              ? selectedBlock
+              : maxSquad < 1
+                ? (driving ? 'You need a Low-Rider and a fit thug to ride in it.' : 'You have no fit thugs to send.')
+                : !Number.isInteger(squadNumber) || squadNumber < 1
+                  ? 'Say how many to send - at least one.'
+                  : squadNumber > maxSquad
+                    ? `You can send at most ${formatNumber(maxSquad)}.`
+                    : null;
+  const disabled = attackBlock !== null;
+  const pagingBlock = busy ? 'Your last hit is still going through.' : pending ? 'Get the report for your unsettled hit first.' : null;
   const attackName = (kind: Mode | undefined) => kind === 'DRIVE_BY' ? 'drive-by' : kind === 'DRUG_HOES' ? 'drug run' : kind === 'STEAL_RIDE' ? 'ride theft' : kind === 'LURE_CREW' ? 'lure run' : 'raid';
 
   useEffect(() => {
@@ -461,13 +483,13 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
 
   return <GameLayout>
     <div className="se-pagehead"><div><h1 className="se-title">Raids</h1><p className="se-eyebrow">{page?.driveBy ? 'Pick the mark. Send the crew. Settle the score.' : 'Pick the mark. Send the crew. Take the haul.'}</p></div>
-      <button type="button" className="se-btn" disabled={busy} onClick={() => { setError(null); setNotice(null); void refresh(); }}>Refresh</button>
+      <Button type="button" className="se-btn" disabledReason={busy ? 'Your last hit is still going through.' : null} onClick={() => { setError(null); setNotice(null); void refresh(); }}>Refresh</Button>
     </div>
     {error ? <Alert>{error}</Alert> : null}
     {notice ? <Alert tone="info">{notice}</Alert> : null}
     {pending ? <Panel title={`Unsettled ${attackName(pending.kind)}`}>
       <p>{pending.input.attackingThugs} thugs went at {pending.targetName}. Get that report before you start another hit.</p>
-      <button type="button" className="se-btn se-btn--primary" disabled={busy} onClick={() => void submit()}>{busy ? 'Checking…' : `Retry saved ${attackName(pending.kind)}`}</button>
+      <Button type="button" className="se-btn se-btn--primary" disabledReason={busy ? 'Checking that hit with the server now.' : null} onClick={() => void submit()}>{busy ? 'Checking…' : `Retry saved ${attackName(pending.kind)}`}</Button>
     </Panel> : null}
     {!page ? <p className="se-muted" role="status">Checking the streets…</p> : !page.enabled ? <Alert>{page.blockedReason}</Alert> : <div className="se-grid se-grid--sidebar">
       <div className="se-grid">
@@ -475,7 +497,8 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
           {(driveBy || specialRaids.length) ? <div className="se-seg" role="group" aria-label="Kind of hit">
             {([{ kind: 'RAID' as const, label: 'Raid' }, ...(driveBy ? [{ kind: 'DRIVE_BY' as const, label: 'Drive-by' }] : []), ...specialRaids.map((action: CombatSpecialRaidDto) => ({ kind: action.kind, label: action.buttonLabel }))]).map((action) => <button key={action.kind} type="button"
               className={`se-seg__btn${mode === action.kind ? ' se-seg__btn--on' : ''}`} aria-pressed={mode === action.kind}
-              disabled={busy || !!pending} onClick={() => setMode(action.kind)}>
+              disabled={busy || !!pending} title={busy ? 'Your last hit is still going through.' : pending ? 'Get the report for your unsettled hit first.' : undefined}
+              onClick={() => setMode(action.kind)}>
               {action.label}
             </button>)}
           </div> : null}
@@ -493,9 +516,14 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               </select>
               {selected ? <TargetCard target={selected} selectedBlock={selectedBlock} driving={driving} /> : null}
               {selected && rules?.reconTurnCost ? <div className="se-intel">
-                <button type="button" className="se-btn" disabled={busy || !!pending || me.turns.turns < rules.reconTurnCost} onClick={() => void reconTarget()}>
+                <Button type="button" className="se-btn"
+                  disabledReason={busy ? 'Your last hit is still going through.'
+                    : pending ? 'Get the report for your unsettled hit first.'
+                      : me.turns.turns < rules.reconTurnCost ? `Scouting costs ${rules.reconTurnCost} turns and you have ${formatNumber(me.turns.turns)}.`
+                        : null}
+                  onClick={() => void reconTarget()}>
                   Scout {selected.displayName} · {rules.reconTurnCost} turns
-                </button>
+                </Button>
                 <p className="se-hint">{selected.intel
                   ? `Fresh eyes on this block until ${date(selected.intel.expiresAt)}.`
                   : 'Recon shows the parts rankings do not: fit crew, wounds, guns, exposed cash and crack.'}</p>
@@ -513,16 +541,16 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                     : mode === 'LURE_CREW'
                       ? 'Unhappy people can be pulled off their block: crack talks to hoes, beer talks to thugs.'
                       : 'Your best guns go with the crew automatically. One weapon per fighter.'}</p>
-              <button type="submit" className="se-btn se-btn--primary" disabled={disabled}>{driving
+              <Button type="submit" className="se-btn se-btn--primary" disabledReason={attackBlock}>{driving
                 ? (selectedBlock ? 'Drive-by blocked' : 'Drive-by')
                 : doingSpecialRaid
                   ? (selectedBlock ? `${specialRaid.buttonLabel} blocked` : specialRaid.buttonLabel)
-                  : (selectedBlock ? 'Raid blocked' : 'Raid')}{selected ? ` ${selected.displayName}` : ''} · {turnCost} turns</button>
+                  : (selectedBlock ? 'Raid blocked' : 'Raid')}{selected ? ` ${selected.displayName}` : ''} · {turnCost} turns</Button>
             </fieldset>
           </form> : <p className="se-muted">No marks are exposed in your city right now. Check back when another crew is active or protection drops.</p>}
           <div className="se-raid-pagination">
-            {after > 0 ? <button className="se-btn" disabled={busy || !!pending} onClick={() => { setAfter(0); setTargetId(''); }}>First marks</button> : null}
-            {page.nextTarget !== null ? <button className="se-btn" disabled={busy || !!pending} onClick={() => { setAfter(page.nextTarget!); setTargetId(''); }}>More marks</button> : null}
+            {after > 0 ? <Button className="se-btn" disabledReason={pagingBlock} onClick={() => { setAfter(0); setTargetId(''); }}>First marks</Button> : null}
+            {page.nextTarget !== null ? <Button className="se-btn" disabledReason={pagingBlock} onClick={() => { setAfter(page.nextTarget!); setTargetId(''); }}>More marks</Button> : null}
           </div>
         </Panel>
         <Panel title="Street reports">
@@ -540,7 +568,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               </button></li>;
             })}
           </ul>}
-          {nextBefore ? <button type="button" className="se-btn" disabled={busy} onClick={() => void olderReports()}>Older reports</button> : null}
+          {nextBefore ? <Button type="button" className="se-btn" disabledReason={busy ? 'Your last hit is still going through.' : null} onClick={() => void olderReports()}>Older reports</Button> : null}
           {report ? <div ref={reportDetailRef} className={`se-raid-report-detail${closingReportId === report.id ? ' se-raid-report-detail--closing' : ''}`}><BattleReport report={report} onClose={closeReport} /></div> : null}
         </Panel>
       </div>
@@ -552,9 +580,13 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             <Row label="Next recovery" value={page.recovery.nextRecoveryAt ? date(page.recovery.nextRecoveryAt) : 'None'} />
             <Row label="Medicine" value={`${formatNumber(me.resources.medicine)} on hand`} />
           </div>
-          {page.recovery.woundedThugs > 0 ? <button type="button" className="se-btn se-btn--primary" disabled={busy || page.recovery.maxTreatableThugs <= 0} onClick={() => void treatWounded()}>
+          {page.recovery.woundedThugs > 0 ? <Button type="button" className="se-btn se-btn--primary"
+            disabledReason={busy ? 'Your last hit is still going through.'
+              : page.recovery.maxTreatableThugs <= 0 ? `Treating a thug takes medicine, and you have ${formatNumber(me.resources.medicine)}. Buy some at the Corner Store.`
+                : null}
+            onClick={() => void treatWounded()}>
             Patch up {formatNumber(page.recovery.maxTreatableThugs)} with medicine
-          </button> : <p className="se-hint">Everybody is standing.</p>}
+          </Button> : <p className="se-hint">Everybody is standing.</p>}
         </Panel> : null}
         <HitRulesPanel mode={mode} rules={rules!} driveBy={driveBy} specialRaid={specialRaid} />
       </div>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { forumApi } from '../api/forum.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Panel } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { useSession } from '../stores/session.js';
@@ -28,7 +29,7 @@ export function ForumLinkPage() {
       <Link className="se-btn se-btn--primary" to="/login">Sign in</Link>
     </> : proof ? <>
       <p>Finish connecting the forum account you just confirmed to <strong>{account.username}</strong>? Both profiles will show a public link to each other.</p>
-      <button type="button" className="se-btn se-btn--primary" disabled={busy} onClick={finish}>{busy ? 'Linking...' : 'Finish linking'}</button>
+      <Button type="button" className="se-btn se-btn--primary" disabledReason={busy ? 'Connecting the two accounts now.' : null} onClick={finish}>{busy ? 'Linking...' : 'Finish linking'}</Button>
     </> : <p>This linking request is missing. Start again from your account settings.</p>}
     <p><Link to="/account">{linked ? 'Back to account settings' : 'Cancel / account settings'}</Link></p>
   </Panel></Shell>;

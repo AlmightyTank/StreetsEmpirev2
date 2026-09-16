@@ -3,6 +3,7 @@ import type { PayoutResult } from '@streets/shared';
 import { actionsApi } from '../api/actions.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { useSession } from '../stores/session.js';
+import { Button } from './Button.js';
 import { Panel } from './Panel.js';
 
 const MIN = 1;
@@ -67,9 +68,13 @@ export function PayoutControl() {
 
         {action.error ? <p className="se-error">{action.error}</p> : null}
 
-        <button
+        <Button
           className="se-btn se-btn--block"
-          disabled={!dirty || action.busy}
+          disabledReason={action.busy
+            ? 'Your last change is still going through.'
+            : !dirty
+              ? `The cut is already ${current}%. Move the slider to change it.`
+              : null}
           style={{ marginTop: 10 }}
         >
           {action.busy
@@ -77,7 +82,7 @@ export function PayoutControl() {
             : dirty
               ? `Update payout to ${draft}%`
               : `Payout is ${current}%`}
-        </button>
+        </Button>
 
         {action.result ? (
           <p className="se-action-confirm" role="status">

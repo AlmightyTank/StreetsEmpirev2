@@ -6,6 +6,7 @@ import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { AccountTags } from '../components/AdminParts.js';
 import { Alert } from '../components/Alert.js';
+import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -75,7 +76,7 @@ export function AdminAccountsPage() {
             </select>
           </div>
           <div className="se-field">
-            <button className="se-btn se-btn--primary se-btn--block" disabled={busy}>{busy ? 'Searching...' : 'Search'}</button>
+            <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy ? 'Still searching for the last query.' : null}>{busy ? 'Searching...' : 'Search'}</Button>
           </div>
         </form>
       </Panel>
