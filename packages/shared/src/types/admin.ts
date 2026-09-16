@@ -67,11 +67,13 @@ export interface AdminAuditFilters {
   limit?: number | undefined;
 }
 
-export type AdminAccountStatusFilter = 'all' | 'active' | 'inactive' | 'admin';
+export type AdminAccountStatusFilter = 'all' | 'active' | 'inactive' | 'admin' | 'suspended';
 
 export type AdminAccountAction =
   | 'deactivate'
   | 'reactivate'
+  | 'suspend'
+  | 'lift-suspension'
   | 'revoke-sessions'
   | 'rename'
   | 'reset-profile'
@@ -82,6 +84,13 @@ export type AdminAccountAction =
   | 'unlink-forum'
   | 'resync-discord';
 
+/** A timed suspension. Null once it is lifted or has run out. */
+export interface AdminSuspensionDto {
+  until: string;
+  reason: string;
+  byUsername: string | null;
+}
+
 export interface AdminAccountSummaryDto {
   id: string;
   username: string;
@@ -89,6 +98,7 @@ export interface AdminAccountSummaryDto {
   emailVerified: boolean;
   isActive: boolean;
   isAdmin: boolean;
+  suspension: AdminSuspensionDto | null;
   discordUsername: string | null;
   forumUsername: string | null;
   createdAt: string;
@@ -99,6 +109,39 @@ export interface AdminAccountSummaryDto {
 
 export interface AdminAccountSearchDto {
   accounts: AdminAccountSummaryDto[];
+}
+
+/** How long a suspension runs. Admins pick a length, never a raw date. */
+export const ADMIN_SUSPENSION_LENGTHS = [
+  { key: '1d', label: '1 day', hours: 24 },
+  { key: '3d', label: '3 days', hours: 24 * 3 },
+  { key: '7d', label: '7 days', hours: 24 * 7 },
+  { key: '14d', label: '14 days', hours: 24 * 14 },
+  { key: '30d', label: '30 days', hours: 24 * 30 },
+  { key: '90d', label: '90 days', hours: 24 * 90 },
+] as const;
+
+export type AdminSuspensionLength = (typeof ADMIN_SUSPENSION_LENGTHS)[number]['key'];
+
+/** One player in one round, found by name or public id rather than by account. */
+export interface AdminPlayerSearchRowDto {
+  roundPlayerId: string;
+  displayName: string;
+  publicPimpId: number;
+  roundId: string;
+  roundName: string;
+  roundStatus: RoundStatus;
+  city: string;
+  netWorthCents: number;
+  nationalRank: number | null;
+  lastActiveAt: string;
+  account: { id: string; username: string; isActive: boolean; suspended: boolean };
+}
+
+export interface AdminPlayerSearchDto {
+  players: AdminPlayerSearchRowDto[];
+  /** True when more players matched than the limit returned. */
+  truncated: boolean;
 }
 
 /** No IP address or raw browser string: only a coarse device label. */

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import type { AdminAccountStatusFilter, AdminAccountSummaryDto } from '@streets/shared';
-import { formatNumber } from '@streets/shared';
+import type { AdminAccountStatusFilter, AdminAccountSummaryDto, AdminPlayerSearchDto } from '@streets/shared';
+import { formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { AccountTags } from '../components/AdminParts.js';
@@ -18,6 +18,9 @@ export function AdminAccountsPage() {
   const [accounts, setAccounts] = useState<AdminAccountSummaryDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [playerQuery, setPlayerQuery] = useState('');
+  const [players, setPlayers] = useState<AdminPlayerSearchDto | null>(null);
+  const [playerBusy, setPlayerBusy] = useState(false);
 
   const search = useCallback(async (nextQuery: string, nextStatus: AdminAccountStatusFilter) => {
     setBusy(true);
@@ -39,6 +42,21 @@ export function AdminAccountsPage() {
   function submit(event: FormEvent) {
     event.preventDefault();
     void search(query, status);
+  }
+
+  async function searchPlayers(event: FormEvent) {
+    event.preventDefault();
+    const needle = playerQuery.trim();
+    if (!needle) return;
+    setPlayerBusy(true);
+    setError(null);
+    try {
+      setPlayers(await adminApi.players({ query: needle }));
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not search players.');
+    } finally {
+      setPlayerBusy(false);
+    }
   }
 
   return (
@@ -72,6 +90,7 @@ export function AdminAccountsPage() {
               <option value="all">All accounts</option>
               <option value="active">Active</option>
               <option value="inactive">Deactivated</option>
+              <option value="suspended">Suspended</option>
               <option value="admin">Admins</option>
             </select>
           </div>
@@ -79,6 +98,71 @@ export function AdminAccountsPage() {
             <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy ? 'Still searching for the last query.' : null}>{busy ? 'Searching...' : 'Search'}</Button>
           </div>
         </form>
+      </Panel>
+
+      <Panel title="Find a player" className="se-mb">
+        <p className="se-hint">
+          A dispute usually names a pimp, not an account. Search a pimp name or public id to open the inspector.
+        </p>
+        <form className="se-admin-filters" onSubmit={searchPlayers} noValidate>
+          <Field
+            id="admin-player-query"
+            label="Pimp name or #id"
+            value={playerQuery}
+            onChange={(event) => setPlayerQuery(event.target.value)}
+            maxLength={80}
+          />
+          <div className="se-field">
+            <Button className="se-btn se-btn--primary se-btn--block"
+              disabledReason={playerBusy ? 'Still looking for the last name.' : playerQuery.trim().length < 1 ? 'Type a pimp name or public id first.' : null}>
+              {playerBusy ? 'Looking...' : 'Find player'}
+            </Button>
+          </div>
+        </form>
+
+        {players === null ? null : players.players.length === 0 ? (
+          <p className="se-muted">No player in any round matches that.</p>
+        ) : (
+          <div className="se-tablewrap">
+            <table className="se-table">
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th>Round</th>
+                  <th>City</th>
+                  <th className="se-table__number">Net worth</th>
+                  <th>Account</th>
+                  <th>Last active</th>
+                </tr>
+              </thead>
+              <tbody>
+                {players.players.map((player) => (
+                  <tr key={player.roundPlayerId}>
+                    <td>
+                      <Link to={`/game/admin/players/${player.roundPlayerId}`}><strong>{player.displayName}</strong></Link>
+                      <br />
+                      <span className="se-muted">#{player.publicPimpId}{player.nationalRank ? ` · rank ${player.nationalRank}` : ''}</span>
+                    </td>
+                    <td>
+                      <Link to={`/game/admin/rounds/${player.roundId}`}>{player.roundName}</Link>
+                      <br />
+                      <span className={`se-tag${player.roundStatus === 'ACTIVE' ? ' se-tag--good' : player.roundStatus === 'REGISTRATION' ? ' se-tag--warn' : ''}`}>{player.roundStatus}</span>
+                    </td>
+                    <td>{player.city}</td>
+                    <td className="se-table__number se-num">{formatCents(player.netWorthCents)}</td>
+                    <td>
+                      <Link to={`/game/admin/accounts/${player.account.id}`}>{player.account.username}</Link>
+                      {player.account.isActive ? null : <span className="se-tag se-tag--bad">Deactivated</span>}
+                      {player.account.suspended ? <span className="se-tag se-tag--bad">Suspended</span> : null}
+                    </td>
+                    <td>{adminWhen(player.lastActiveAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {players.truncated ? <p className="se-hint se-admin-pad">More players matched than are shown. Narrow the name or use the public id.</p> : null}
+          </div>
+        )}
       </Panel>
 
       <Panel title="Accounts" aside={accounts ? `${formatNumber(accounts.length)} shown` : undefined} flush>

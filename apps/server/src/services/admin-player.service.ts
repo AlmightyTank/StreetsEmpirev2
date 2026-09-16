@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import type { AdminPlayerBattlesDto, AdminPlayerDto } from '@streets/shared';
+import type { AdminPlayerBattlesDto, AdminPlayerDto, AdminPlayerSearchDto } from '@streets/shared';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import { toActivityDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
@@ -13,6 +13,67 @@ const iso = (date: Date | null) => date?.toISOString() ?? null;
  * the inspector cannot regenerate turns or change anything the player sees.
  */
 export const AdminPlayerService = {
+  /**
+   * Finds a player the way a dispute names one: by pimp name or public id,
+   * with the account only as a fallback. Disputes rarely arrive with an
+   * account attached, so this is the way into the inspector.
+   */
+  async search(
+    prisma: PrismaClient,
+    input: { query: string; roundId?: string | undefined; limit?: number | undefined },
+  ): Promise<AdminPlayerSearchDto> {
+    const query = input.query.trim();
+    if (query.length < 1) throw AppError.badRequest('PLAYER_SEARCH_EMPTY', 'Type a pimp name or public id to search for.');
+    const limit = input.limit ?? 25;
+    const publicPimpId = /^#?\d{1,9}$/.test(query) ? Number(query.replace('#', '')) : null;
+
+    const rows = await prisma.roundPlayer.findMany({
+      where: {
+        ...(input.roundId ? { roundId: input.roundId } : {}),
+        OR: [
+          { displayName: { contains: query, mode: 'insensitive' } },
+          ...(publicPimpId === null ? [] : [{ publicPimpId }]),
+          { account: { usernameNormalized: { contains: query.toLowerCase() } } },
+          { id: query },
+        ],
+      },
+      include: {
+        account: { select: { id: true, username: true, isActive: true, suspendedUntil: true } },
+        round: { select: { id: true, name: true, status: true } },
+        city: { select: { name: true } },
+      },
+      // Live rounds first, then the newest season, then the biggest name in it.
+      orderBy: [{ round: { startsAt: 'desc' } }, { netWorthCents: 'desc' }],
+      take: limit + 1,
+    });
+
+    const now = Date.now();
+    const live = (status: string) => (status === 'ACTIVE' ? 0 : status === 'REGISTRATION' ? 1 : 2);
+    const found = rows.slice(0, limit).sort((a, b) => live(a.round.status) - live(b.round.status));
+
+    return {
+      players: found.map((player) => ({
+        roundPlayerId: player.id,
+        displayName: player.displayName,
+        publicPimpId: player.publicPimpId,
+        roundId: player.round.id,
+        roundName: player.round.name,
+        roundStatus: player.round.status,
+        city: player.city.name,
+        netWorthCents: Number(player.netWorthCents),
+        nationalRank: player.nationalRank,
+        lastActiveAt: player.lastActiveAt.toISOString(),
+        account: {
+          id: player.account.id,
+          username: player.account.username,
+          isActive: player.account.isActive,
+          suspended: Boolean(player.account.suspendedUntil && player.account.suspendedUntil.getTime() > now),
+        },
+      })),
+      truncated: rows.length > limit,
+    };
+  },
+
   async inspect(prisma: PrismaClient, roundPlayerId: string, now = new Date()): Promise<AdminPlayerDto> {
     const player = await prisma.roundPlayer.findUnique({
       where: { id: roundPlayerId },

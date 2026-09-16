@@ -5,7 +5,9 @@ import type {
   AdminAccountSearchDto,
   AdminAccountStatusFilter,
   AdminAccountSummaryDto,
+  AdminSuspensionDto,
 } from '@streets/shared';
+import { ADMIN_SUSPENSION_LENGTHS, type AdminSuspensionLength } from '@streets/shared';
 import { createAccountEmailToken, emailVerificationUrl } from '../auth/email-tokens.js';
 import { env } from '../config/env.js';
 import { lockAccount, type Db } from '../utils/db.js';
@@ -45,6 +47,18 @@ export function accountSnapshot(account: Account) {
     isActive: account.isActive,
     isAdmin: account.isAdmin,
     discordUsername: account.discordUsername,
+    suspendedUntil: account.suspendedUntil,
+    suspendedReason: account.suspendedReason,
+  };
+}
+
+/** A suspension still running, in the shape the panel shows. */
+export function toSuspensionDto(account: Account, now = new Date()): AdminSuspensionDto | null {
+  if (!account.suspendedUntil || account.suspendedUntil.getTime() <= now.getTime()) return null;
+  return {
+    until: account.suspendedUntil.toISOString(),
+    reason: account.suspendedReason ?? '',
+    byUsername: account.suspendedByUsername,
   };
 }
 
@@ -59,7 +73,7 @@ const summaryInclude = {
 
 type SummaryAccount = Account & { forumLink: { forumUsername: string } | null; _count: { roundPlayers: number } };
 
-function toSummary(account: SummaryAccount, activeSessions: number): AdminAccountSummaryDto {
+function toSummary(account: SummaryAccount, activeSessions: number, now = new Date()): AdminAccountSummaryDto {
   return {
     id: account.id,
     username: account.username,
@@ -67,6 +81,7 @@ function toSummary(account: SummaryAccount, activeSessions: number): AdminAccoun
     emailVerified: Boolean(account.emailVerifiedAt),
     isActive: account.isActive,
     isAdmin: account.isAdmin,
+    suspension: toSuspensionDto(account, now),
     discordUsername: account.discordUsername,
     forumUsername: account.forumLink?.forumUsername ?? null,
     createdAt: account.createdAt.toISOString(),
@@ -149,7 +164,8 @@ export const AdminAccountService = {
       ...(input.status === 'active' ? { isActive: true }
         : input.status === 'inactive' ? { isActive: false }
           : input.status === 'admin' ? { isAdmin: true }
-            : {}),
+            : input.status === 'suspended' ? { suspendedUntil: { gt: now } }
+              : {}),
     };
 
     const rows = await prisma.account.findMany({
@@ -164,7 +180,7 @@ export const AdminAccountService = {
       _count: { _all: true },
     });
     const sessionsFor = new Map(sessions.map((row) => [row.accountId, row._count._all]));
-    return { accounts: rows.map((row) => toSummary(row, sessionsFor.get(row.id) ?? 0)) };
+    return { accounts: rows.map((row) => toSummary(row, sessionsFor.get(row.id) ?? 0, now)) };
   },
 
   async detail(prisma: PrismaClient, accountId: string, now = new Date()): Promise<AdminAccountDetailDto> {
@@ -187,7 +203,7 @@ export const AdminAccountService = {
     });
 
     return {
-      account: toSummary(account, account.sessions.length),
+      account: toSummary(account, account.sessions.length, now),
       profile: {
         activeTitleKey: account.profile?.activeTitleKey ?? null,
         profileAccent: account.profile?.profileAccent ?? 'default',
@@ -243,6 +259,56 @@ export const AdminAccountService = {
       if (isActive) return { account };
       const { count } = await tx.session.deleteMany({ where: { accountId: before.id } });
       return { account, detail: { sessionsRevoked: count } };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  /**
+   * A timed suspension: the player is signed out now and back in on their own
+   * when it runs out. Deactivation stays the tool for shutting an account down
+   * for good; this one is the cool-off, and the player is told both the reason
+   * and the date it ends.
+   */
+  async suspend(
+    prisma: PrismaClient,
+    actor: AuditActor,
+    accountId: string,
+    length: AdminSuspensionLength,
+    reason: string,
+    now = new Date(),
+  ): Promise<AdminAccountDetailDto> {
+    const chosen = ADMIN_SUSPENSION_LENGTHS.find((option) => option.key === length);
+    if (!chosen) throw AppError.badRequest('SUSPENSION_LENGTH_UNKNOWN', 'Pick one of the offered suspension lengths.');
+    const until = new Date(now.getTime() + chosen.hours * 60 * 60_000);
+
+    await moderate(prisma, actor, accountId, 'suspend', reason, async (tx, before) => {
+      if (!before.isActive) {
+        throw AppError.conflict('ACCOUNT_INACTIVE', `${before.username} is deactivated, which already keeps them out.`);
+      }
+      if (before.isAdmin) {
+        throw AppError.conflict('ADMIN_SUSPENSION', `Remove ${before.username}'s admin role before suspending them.`);
+      }
+      const account = await tx.account.update({
+        where: { id: before.id },
+        data: { suspendedUntil: until, suspendedReason: reason, suspendedByUsername: actor.username },
+      });
+      const { count } = await tx.session.deleteMany({ where: { accountId: before.id } });
+      return { account, detail: { suspendedUntil: until, sessionsRevoked: count, length: chosen.label } };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  /** Ends a suspension early. A suspension that simply runs out needs no admin. */
+  async liftSuspension(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string, now = new Date()): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, 'lift-suspension', reason, async (tx, before) => {
+      if (!before.suspendedUntil || before.suspendedUntil.getTime() <= now.getTime()) {
+        throw AppError.conflict('NOT_SUSPENDED', `${before.username} is not suspended.`);
+      }
+      const account = await tx.account.update({
+        where: { id: before.id },
+        data: { suspendedUntil: null, suspendedReason: null, suspendedByUsername: null },
+      });
+      return { account };
     });
     return AdminAccountService.detail(prisma, accountId);
   },

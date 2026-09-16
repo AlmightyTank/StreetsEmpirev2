@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Account, PrismaClient, Session } from '@prisma/client';
 import { env } from '../config/env.js';
+import { activeSuspension, clearExpiredSuspension } from './account-status.js';
 
 /**
  * The cookie carries a 256-bit random token. Only its SHA-256 hash is stored,
@@ -57,6 +58,15 @@ export async function resolveSession(
   }
 
   if (!session.account.isActive) return null;
+
+  // A suspended account is signed out for as long as the suspension runs, and
+  // signs itself back in the moment it passes.
+  if (activeSuspension(session.account)) return null;
+  if (await clearExpiredSuspension(prisma, session.account)) {
+    session.account.suspendedUntil = null;
+    session.account.suspendedReason = null;
+    session.account.suspendedByUsername = null;
+  }
 
   const { account, ...rest } = session;
   return { session: rest, account };

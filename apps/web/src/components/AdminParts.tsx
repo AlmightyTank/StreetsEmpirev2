@@ -1,10 +1,18 @@
-import type { AdminAccountSummaryDto, AdminAuditEntryDto } from '@streets/shared';
+import type { AdminAccountSummaryDto, AdminAuditEntryDto, AdminSuspensionDto } from '@streets/shared';
 import { adminWhen, snapshotJson } from '../utils/admin.js';
 
-export function AccountTags({ account }: { account: Pick<AdminAccountSummaryDto, 'isActive' | 'isAdmin' | 'emailVerified'> }) {
+type TaggedAccount = Pick<AdminAccountSummaryDto, 'isActive' | 'isAdmin' | 'emailVerified'> & { suspension?: AdminSuspensionDto | null };
+
+export function AccountTags({ account }: { account: TaggedAccount }) {
+  const suspension = account.suspension ?? null;
   return (
     <span className="se-admin-tags">
       <span className={`se-tag ${account.isActive ? 'se-tag--good' : 'se-tag--bad'}`}>{account.isActive ? 'Active' : 'Deactivated'}</span>
+      {suspension ? (
+        <span className="se-tag se-tag--bad" title={`${suspension.reason}${suspension.byUsername ? ` (${suspension.byUsername})` : ''}`}>
+          Suspended to {adminWhen(suspension.until)}
+        </span>
+      ) : null}
       {account.isAdmin ? <span className="se-tag se-tag--warn">Admin</span> : null}
       {account.emailVerified ? null : <span className="se-tag">Unverified</span>}
     </span>
