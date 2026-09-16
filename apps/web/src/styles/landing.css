@@ -1,0 +1,448 @@
+/*
+ * The landing page. It is the only page a stranger sees before deciding to
+ * play, so it is built as a sequence of full-width sections rather than the
+ * sidebar layout the game uses once you are inside.
+ */
+
+.se-land-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+  gap: 24px;
+  align-items: center;
+  padding: 22px 0 8px;
+  min-height: min(680px, calc(100vh - 92px));
+}
+
+.se-land-hero__copy {
+  min-width: 0;
+}
+
+.se-land-hero .se-lede {
+  max-width: 62ch;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.se-land-hero .se-eyebrow {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.se-land-visual {
+  position: relative;
+  min-height: 420px;
+  border: 1px solid var(--se-line);
+  border-radius: 6px;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(182, 255, 58, 0.08), transparent 26%),
+    linear-gradient(315deg, rgba(255, 45, 120, 0.1), transparent 28%),
+    #101318;
+  box-shadow: 0 24px 55px rgba(0, 0, 0, 0.35);
+}
+
+.se-land-map {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 46px 46px;
+}
+
+.se-land-map__road,
+.se-land-map__zone {
+  position: absolute;
+  display: block;
+}
+
+.se-land-map__road {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.se-land-map__road--a {
+  top: 22%;
+  left: -18%;
+  width: 136%;
+  height: 18px;
+  transform: rotate(-14deg);
+}
+
+.se-land-map__road--b {
+  top: -10%;
+  left: 58%;
+  width: 20px;
+  height: 120%;
+  transform: rotate(18deg);
+}
+
+.se-land-map__road--c {
+  right: -12%;
+  bottom: 18%;
+  width: 118%;
+  height: 14px;
+  transform: rotate(24deg);
+}
+
+.se-land-map__zone {
+  display: grid;
+  place-items: center;
+  min-width: 72px;
+  min-height: 72px;
+  padding: 10px;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+  background: rgba(11, 12, 14, 0.74);
+  color: var(--se-text);
+  font-family: var(--se-mono);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.se-land-map__zone::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  opacity: 0.28;
+}
+
+.se-land-map__zone--home {
+  left: 16%;
+  top: 22%;
+  color: var(--se-accent);
+}
+
+.se-land-map__zone--rival {
+  right: 15%;
+  top: 14%;
+  color: var(--se-accent-2);
+}
+
+.se-land-map__zone--shop {
+  right: 24%;
+  bottom: 18%;
+  color: var(--se-warn);
+}
+
+.se-land-terminal {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 20px;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+  background: rgba(11, 12, 14, 0.88);
+  backdrop-filter: blur(8px);
+}
+
+.se-land-terminal__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--se-line);
+  color: var(--se-muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.se-land-terminal__head b {
+  color: var(--se-accent);
+}
+
+.se-land-terminal__rows {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--se-line-soft);
+}
+
+.se-land-terminal__rows span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 11px 12px;
+  background: rgba(20, 22, 26, 0.96);
+}
+
+.se-land-terminal__rows b {
+  color: var(--se-muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.se-land-terminal__rows strong {
+  min-width: 0;
+  color: #fff;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+/* The live round, stated as fact rather than sold. */
+.se-land-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  margin-top: 22px;
+  padding: 12px 16px;
+  border: 1px solid var(--se-line);
+  border-left: 2px solid var(--se-accent);
+  border-radius: 3px;
+  background: var(--se-panel);
+}
+
+.se-land-hero + .se-land-strip {
+  margin-top: 8px;
+}
+
+.se-land-strip__lead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.se-land-strip__lead strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.se-land-strip__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+}
+
+.se-land-proof {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.se-land-proof__item {
+  min-width: 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--se-line);
+}
+
+.se-land-proof__item strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--se-text);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.se-land-strip__facts > span {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.se-land-strip__k {
+  color: var(--se-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.se-land-section {
+  margin-top: 34px;
+}
+
+.se-land-h2 {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.se-land-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.se-land-card {
+  padding: 18px;
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  background: var(--se-panel);
+  color: var(--se-text-dim);
+}
+
+.se-land-card p { margin: 0 0 10px; }
+.se-land-card .se-list { margin: 0; }
+
+/* The loop: four steps, numbered, in the order a player meets them. */
+.se-land-loop {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+
+.se-land-loop__item {
+  padding: 16px;
+  border: 1px solid var(--se-line);
+  border-top: 2px solid var(--se-accent-dim);
+  border-radius: 3px;
+  background: var(--se-panel);
+}
+
+.se-land-loop__item p {
+  margin: 0;
+  color: var(--se-text-dim);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.se-land-loop__n {
+  display: block;
+  color: var(--se-accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.se-land-loop__title {
+  margin: 4px 0 8px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--se-text);
+}
+
+.se-land-defs {
+  margin: 0 0 12px;
+}
+
+.se-land-defs__row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 4px 14px;
+  padding: 8px 0;
+  border-top: 1px solid var(--se-line-soft);
+}
+
+.se-land-defs__row:first-child { border-top: 0; padding-top: 0; }
+
+.se-land-defs dt {
+  color: var(--se-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.se-land-defs dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Last season's winner, in their own line rather than buried in a table. */
+.se-land-champ {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 20px;
+  padding: 18px;
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  background: linear-gradient(120deg, var(--se-panel-hi), var(--se-panel) 60%);
+}
+
+.se-land-champ__name {
+  margin: 4px 0 6px;
+  font-size: clamp(22px, 4vw, 30px);
+  font-weight: 900;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.se-land-champ .se-hint { margin: 0; max-width: 60ch; }
+
+.se-land-kit {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.se-land-kit > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid var(--se-line-soft);
+  border-radius: 3px;
+  background: var(--se-panel-hi);
+  color: var(--se-muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.se-land-kit b {
+  color: var(--se-text);
+  font-size: 16px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.se-land-foot {
+  margin-top: 34px;
+  padding: 24px 20px;
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
+  text-align: center;
+}
+
+.se-land-foot .se-lede {
+  margin: 0 auto 16px;
+  max-width: 54ch;
+}
+
+.se-land-foot .se-cta { justify-content: center; }
+
+@media (max-width: 900px) {
+  .se-land-hero {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+
+  .se-land-visual {
+    min-height: 360px;
+  }
+
+  .se-land-loop { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 700px) {
+  .se-land-hero { padding-top: 14px; }
+  .se-land-visual { min-height: 340px; }
+  .se-land-terminal { left: 12px; right: 12px; bottom: 12px; }
+  .se-land-map__zone { min-width: 60px; min-height: 60px; font-size: 10px; }
+  .se-land-proof { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .se-land-two { grid-template-columns: minmax(0, 1fr); }
+  .se-land-loop { grid-template-columns: minmax(0, 1fr); }
+  .se-land-defs__row { grid-template-columns: minmax(0, 1fr); }
+  .se-land-kit { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .se-land-strip { flex-direction: column; align-items: flex-start; }
+  .se-land-strip__facts { gap: 8px 16px; }
+  .se-land-champ { flex-direction: column; align-items: flex-start; }
+}

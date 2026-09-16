@@ -88,8 +88,8 @@ export function RulesPage() {
                 deliveries. Pistols arrive by the crate; an AK-47 comes once a day.
               </li>
               <li>
-                Crack is the one thing a shop can run short of on purpose &mdash; Pip cannot
-                keep a large stable supplied, which is what cooking is for.
+                Product is the one thing a shop can run short of on purpose &mdash; Pip cannot
+                keep a large stable supplied, which is what production is for.
               </li>
             </ul>
           </Panel>
@@ -115,11 +115,11 @@ export function RulesPage() {
               </li>
               <li>
                 A raid can be blocked by your protection, your cooldown, low turns, a
-                protected target, a target with no exposed cash or crack, or a crew too small for
+                protected target, a target with no exposed cash or product, or a crew too small for
                 your full strength.
               </li>
               <li>
-                Wounded thugs still belong to you, but cannot work, cook, attack or
+                Wounded thugs still belong to you, but cannot work, produce, attack or
                 defend until they recover. Medicine can bring them back immediately.
               </li>
               <li>
@@ -130,11 +130,11 @@ export function RulesPage() {
               </li>
               <li>
                 Some rounds add more raid forms. Drug their hoes to burn through supplies, steal a ride
-                to bring one of their Low-Riders home, or lure unhappy hoes and thugs with crack and beer if your crew wins.
+                to bring one of their Low-Riders home, or lure unhappy hoes and thugs with product and beer if your crew wins.
               </li>
               <li>
                 Strategy rounds add recon and revenge: recon spends turns to reveal a
-                temporary target report including crack stash when drug loot is live, and revenge lets you answer someone who recently
+                temporary target report including product stash when drug loot is live, and revenge lets you answer someone who recently
                 raided you.
               </li>
               <li>
@@ -153,8 +153,8 @@ export function RulesPage() {
                 the room for clients, and you pick up whoever is worth taking home.
               </li>
               <li>
-                Producing crack sends them out too, on their usual block, for a fraction of
-                a scouted night &mdash; the muscle that would be running them is inside cooking.
+                Producing product sends them out too, on their usual block, for a fraction of
+                a scouted night &mdash; the muscle that would be running them is inside producing.
               </li>
               <li>
                 A block only holds so many paying clients, and how many changes every hour.

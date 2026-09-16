@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
-import type { ProduceCrackResult } from '@streets/shared';
+import type { ProduceCrackResult, ProductTypeDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { actionsApi } from '../api/actions.js';
 import { ActionResult } from '../components/ActionResult.js';
@@ -12,17 +12,29 @@ import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 
+const PRODUCT_PROFILES: Array<{ key: ProductTypeDto; name: string; role: string }> = [
+  { key: 'WEED', name: 'Weed', role: 'Safe baseline product for keeping the block supplied.' },
+  { key: 'COKE', name: 'Coke', role: 'High-demand product for bigger money runs.' },
+  { key: 'DOWNERS', name: 'Downers', role: 'Utility supply for keeping unhappy people listening.' },
+  { key: 'ECSTASY', name: 'Ecstasy', role: 'Nightlife product for timing-heavy street work.' },
+  { key: 'HEROIN', name: 'Heroin', role: 'Dangerous top-end product with future risk hooks.' },
+  { key: 'ACID', name: 'Acid', role: 'Niche product for swingy, event-driven demand.' },
+];
+
 export function ProducePage() {
   const me = useSession((s) => s.me);
   const action = useGameAction<ProduceCrackResult>();
 
   const [turns, setTurns] = useState<number | ''>(10);
+  const [productType, setProductType] = useState<ProductTypeDto>('WEED');
 
   if (!me) return <Navigate to="/join" replace />;
 
   const available = me.turns.turns;
   const hasFitThugs = me.resources.fitThugs > 0;
-  const workshopBonusCrack = action.result?.result.hideoutBonusCrack ?? 0;
+  const selectedProfile = PRODUCT_PROFILES.find((profile) => profile.key === productType) ?? PRODUCT_PROFILES[0]!;
+  const producedName = action.result?.result.productName ?? selectedProfile.name;
+  const workshopBonusProduct = action.result?.result.hideoutBonusProduct ?? action.result?.result.hideoutBonusCrack ?? 0;
   const backOfficeBonusCents = action.result?.result.hideoutBonusCents ?? 0;
   const canProduce =
     !action.busy &&
@@ -31,9 +43,9 @@ export function ProducePage() {
     turns >= 1 &&
     turns <= available;
   const produceBlock = action.busy
-    ? 'The last batch is still cooking.'
+    ? 'The last batch is still producing.'
     : !hasFitThugs
-      ? 'Cooking takes a fit thug. Scout for more, buy some at Tommy\u2019s, or let the wounded recover.'
+      ? 'Production takes a fit thug. Scout for more, buy some at Tommy\u2019s, or let the wounded recover.'
       : typeof turns !== 'number' || turns < 1
         ? 'Say how many turns to spend - at least one.'
         : turns > available
@@ -44,14 +56,14 @@ export function ProducePage() {
     event.preventDefault();
     if (!canProduce || typeof turns !== 'number') return;
 
-    await action.run((actionId) => actionsApi.produceCrack({ turns, actionId }));
+    await action.run((actionId) => actionsApi.produceCrack({ turns, productType, actionId }));
   }
 
   return (
     <GameLayout>
       <div className="se-pagehead">
         <div>
-          <h1 className="se-title">Produce Crack</h1>
+          <h1 className="se-title">Produce Product</h1>
           <p className="se-eyebrow">Turns and money in, product out</p>
         </div>
       </div>
@@ -59,7 +71,7 @@ export function ProducePage() {
       {action.error ? <Alert>{action.error}</Alert> : null}
       {!hasFitThugs ? (
         <Alert tone="info">
-          You need at least one fit thug to cook. Scout for more, pick some up at
+          You need at least one fit thug to produce. Scout for more, pick some up at
           Tek9 Tommy&rsquo;s, or let the wounded recover.
         </Alert>
       ) : null}
@@ -67,30 +79,54 @@ export function ProducePage() {
       <div className="se-grid se-grid--sidebar">
         <Panel title="Produce">
           <form onSubmit={onSubmit}>
+            <div className="se-field">
+              <span className="se-label">Batch</span>
+              <div className="se-choices se-product-choices">
+                {PRODUCT_PROFILES.map((profile) => (
+                  <label
+                    className={`se-choice${productType === profile.key ? ' se-choice--on' : ''}`}
+                    key={profile.key}
+                  >
+                    <input
+                      type="radio"
+                      name="productType"
+                      className="se-choice__input"
+                      checked={productType === profile.key}
+                      disabled={action.busy || !hasFitThugs}
+                      onChange={() => setProductType(profile.key)}
+                    />
+                    <span className="se-choice__body">
+                      <span className="se-choice__name">{profile.name}</span>
+                      <span className="se-choice__meta">{profile.role}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
             <TurnSpend
               value={turns}
               onChange={setTurns}
               available={available}
               disabled={action.busy || !hasFitThugs}
-              disabledReason={action.busy ? 'The last batch is still cooking.' : !hasFitThugs ? 'Cooking takes a fit thug, and none of yours can work.' : null}
+              disabledReason={action.busy ? 'The last batch is still producing.' : !hasFitThugs ? 'Production takes a fit thug, and none of yours can work.' : null}
             />
 
             <Button className="se-btn se-btn--primary se-btn--block" disabledReason={produceBlock}>
-              {action.busy ? 'Cooking...' : 'Produce'}
+              {action.busy ? 'Producing...' : `Produce ${selectedProfile.name}`}
             </Button>
           </form>
 
           <p className="se-hint">
-            Thugs do the cooking, so a batch is only as good as their happiness
-            &mdash; and the girls still work while they cook, just for a
+            Thugs handle production, so a batch is only as good as their happiness
+            &mdash; and the girls still work while they produce, just for a
             fraction of a scouted night. What you get for that lost income is
-            crack at $5 a rock, against the $10 Pip&rsquo;s charges for a
-            finished one.
+            product at the workshop price, against Pip&rsquo;s markup for finished supply.
           </p>
         </Panel>
 
         {/*
-          Manual 3.2 sends the girls out too, so a cook is not a thugs-only
+          Manual 3.2 sends the girls out too, so production is not a thugs-only
           screen: the same crew, cut and shelf apply as on a scouting trip.
           This mirrors the scouting sidebar for that reason.
         */}
@@ -112,12 +148,12 @@ export function ProducePage() {
             </div>
           </Panel>
 
-          {/* A cook burns the shelf the same way a trip does. */}
-          <Panel title="Supplies for the cook" flush>
+          {/* Production burns the shelf the same way a trip does. */}
+          <Panel title="Supplies for the run" flush>
             <div className="se-rows">
               <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
               <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
-              <Row label="Crack" value={formatNumber(me.resources.crack)} />
+              <Row label="Product" value={formatNumber(me.resources.product)} />
               <Row label="Beer" value={formatNumber(me.resources.beer)} />
               <Row label="Cash" value={formatCents(me.resources.cashCents)} strong />
             </div>
@@ -133,23 +169,23 @@ export function ProducePage() {
             that point rather than the final total repeated twice.
           */}
           <ActionResult
-            title="Production Results"
+            title={`${producedName} Production Results`}
             onDismiss={action.clear}
             result={action.result}
             lines={[
               { label: 'Turns used', value: formatNumber(action.result.result.turnsUsed) },
 
-              // The cook itself.
+              // The batch itself.
               {
-                label: 'Crack produced',
-                delta: action.result.result.crackProduced,
-                remaining: action.result.after.resources.crack,
+                label: 'Product produced',
+                delta: action.result.result.productProduced,
+                remaining: action.result.after.resources.product,
               },
-              ...(workshopBonusCrack > 0
+              ...(workshopBonusProduct > 0
                 ? [
                     {
                       label: 'Workshop bonus',
-                      value: `${formatNumber(workshopBonusCrack)} included`,
+                      value: `${formatNumber(workshopBonusProduct)} included`,
                     },
                   ]
                 : []),
@@ -164,7 +200,7 @@ export function ProducePage() {
                 ? [{ label: 'Short on cash', value: 'batch cut down', muted: true }]
                 : []),
 
-              // Manual 3.2: the girls are still out while the thugs cook.
+              // Manual 3.2: the girls are still out while the thugs produce.
               {
                 label: 'Brought in',
                 value: formatCents(action.result.result.grossEarnedCents),
@@ -197,7 +233,7 @@ export function ProducePage() {
                     {
                       label: 'Product found',
                       delta: action.result.result.crackFound,
-                      remaining: action.result.after.resources.crack,
+                      remaining: action.result.after.resources.product,
                     },
                   ]
                 : []),
@@ -218,9 +254,9 @@ export function ProducePage() {
                   ]
                 : []),
               {
-                label: 'Crack used',
+                label: 'Product used',
                 delta: -action.result.result.crackUsed,
-                remaining: action.result.after.resources.crack,
+                remaining: action.result.after.resources.product,
                 muted: true,
               },
               {

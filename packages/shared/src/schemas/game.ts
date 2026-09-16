@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PRODUCT_TYPES } from '../types/api.js';
 
 /**
  * Every resource-changing request carries a client generated actionId so a
@@ -37,6 +38,7 @@ export const scoutSchema = z.object({
 
 export const produceCrackSchema = z.object({
   turns: turnsToSpendSchema,
+  productType: z.enum(PRODUCT_TYPES).default('WEED'),
   actionId: actionIdSchema,
 });
 

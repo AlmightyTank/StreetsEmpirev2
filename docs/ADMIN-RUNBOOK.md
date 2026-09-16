@@ -137,6 +137,18 @@ look at the players' behaviour, never as a verdict on its own.
 the reason and the full before and after snapshots, so "who changed this and
 why" is always answerable. Console actions appear as `console:<os user>`.
 
+**Download CSV** saves exactly the rows the filters are showing, newest first,
+up to 10,000 of them, with the before and after snapshots as JSON columns. It
+opens in a spreadsheet: cells that start with `=`, `+`, `-` or `@` are quoted so
+nothing is treated as a formula.
+
+**Retention** is `ADMIN_AUDIT_RETENTION_DAYS` on the server, a year by default,
+and `0` keeps everything forever. Nothing is deleted on a timer: the panel shows
+how many entries are past the window and an admin presses **Purge**, which needs
+a reason and writes its own record of how many rows went and where the cutoff
+was. Purge records are never purged, so a gap in the history always has an entry
+explaining it. Export before purging if the rows still matter.
+
 ---
 
 ## Local commands

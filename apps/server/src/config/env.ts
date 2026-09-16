@@ -40,6 +40,8 @@ const envSchema = z.object({
 
   RESEND_API_KEY: z.string().default(''),
   EMAIL_FROM: z.string().default(''),
+  /** How long admin audit entries are kept. 0 keeps them forever. */
+  ADMIN_AUDIT_RETENTION_DAYS: z.coerce.number().int().min(0).max(3650).default(365),
   PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().positive().default(60),
   EMAIL_VERIFICATION_TTL_MINUTES: z.coerce.number().int().positive().default(60),
 });
@@ -69,6 +71,7 @@ export const env = {
   corsOrigins,
   frontendOrigin: parsed.data.FRONTEND_ORIGIN ?? corsOrigins[0] ?? 'http://localhost:5173',
   sessionTtlMs: parsed.data.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
+  auditRetentionDays: parsed.data.ADMIN_AUDIT_RETENTION_DAYS,
   forum: {
     origin: new URL(parsed.data.FORUM_ORIGIN).origin,
     secret: parsed.data.FORUM_LINK_SECRET,

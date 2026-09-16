@@ -107,6 +107,9 @@ export interface AccountProfileSettingsResponseDto {
   };
 }
 
+export const PRODUCT_TYPES = ['WEED', 'COKE', 'DOWNERS', 'ECSTASY', 'HEROIN', 'ACID'] as const;
+export type ProductTypeDto = typeof PRODUCT_TYPES[number];
+
 export interface CityDto {
   id: string;
   slug: string;
@@ -149,6 +152,8 @@ export interface ResourcesDto {
 
   condoms: number;
   medicine: number;
+  /** Player-facing alias for the product stash. Kept beside crack during the migration. */
+  product: number;
   crack: number;
   beer: number;
 
@@ -424,6 +429,10 @@ export interface ScoutResult {
  */
 export interface ProduceCrackResult {
 
+  productType: ProductTypeDto;
+  productName: string;
+  productProduced: number;
+  hideoutBonusProduct?: number;
   crackProduced: number;
   hideoutBonusCrack?: number;
   ingredientCents: number;

@@ -202,6 +202,7 @@ function toSnapshot(
       unarmedThugs: Math.max(0, fitThugs(state) - armedThugsForSnapshot(state)),
       condoms: state.condoms,
       medicine: state.medicine,
+      product: state.crack,
       crack: state.crack,
       beer: state.beer,
       pistols: state.pistols,
@@ -229,6 +230,7 @@ function diff(before: PlayerSnapshot, after: PlayerSnapshot): ResourceChange[] {
 
   for (const key of Object.keys(before.resources) as (keyof typeof before.resources)[]) {
     if (key === 'cashCents') continue; // already reported above
+    if (key === 'product') continue; // alias for crack during the product migration
     push(key, before.resources[key], after.resources[key]);
   }
 

@@ -43,7 +43,7 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
       const attacking = activity.type === 'RAID_ATTACK';
       const details = [
         `${num(p.cashCents) >= 0 ? '+' : '−'}${formatCents(Math.abs(num(p.cashCents)))} · ${num(p.turns)} turns`,
-        num(p.crack) ? `${num(p.crack) >= 0 ? '+' : '−'}${formatNumber(Math.abs(num(p.crack)))} crack` : null,
+        num(p.crack) ? `${num(p.crack) >= 0 ? '+' : '−'}${formatNumber(Math.abs(num(p.crack)))} product` : null,
         num(p.whoresDrugged) ? `${formatNumber(num(p.whoresDrugged))} hoes drugged` : null,
         num(p.defenderCondomsBurned) ? `${formatNumber(num(p.defenderCondomsBurned))} condoms burned` : null,
         num(p.lowRidersStolen) ? `${formatNumber(num(p.lowRidersStolen))} Low-Rider${num(p.lowRidersStolen) === 1 ? '' : 's'} stolen` : null,
@@ -102,7 +102,7 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
         num(p.cashCents) ? `+${formatCents(num(p.cashCents))}` : null,
         num(p.whores) ? `+${formatNumber(num(p.whores))} whores` : null,
         num(p.thugs) ? `+${formatNumber(num(p.thugs))} thugs` : null,
-        num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} crack found` : null,
+        num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} product found` : null,
         num(p.whoresLeft) ? `${num(p.whoresLeft)} whores walked` : null,
         num(p.thugsLeft) ? `${num(p.thugsLeft)} thugs walked` : null,
       ].filter(Boolean);
@@ -116,7 +116,7 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
     case 'WORK_STREETS': {
       const detail = [
         `+${formatCents(num(p.cashCents))}`,
-        num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} crack found` : null,
+        num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} product found` : null,
         num(p.whoresLeft) ? `${num(p.whoresLeft)} whores walked` : null,
         num(p.thugsLeft) ? `${num(p.thugsLeft)} thugs walked` : null,
       ].filter(Boolean);
@@ -129,13 +129,13 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
 
     case 'PRODUCE_CRACK': {
       const detail = [
-        num(p.crack) ? `+${formatNumber(num(p.crack))} crack` : null,
+        num(p.product ?? p.crack) ? `+${formatNumber(num(p.product ?? p.crack))} ${str(p.productName, 'product')}` : null,
         num(p.cashCents) ? `+${formatCents(num(p.cashCents))}` : null,
         num(p.ingredientCents) ? `-${formatCents(num(p.ingredientCents))} ingredients` : null,
       ].filter(Boolean);
 
       return {
-        text: `Cooked for ${formatNumber(num(p.turns))} turns.`,
+        text: `Produced ${str(p.productName, 'product')} for ${formatNumber(num(p.turns))} turns.`,
         detail: detail.join(', ') || 'Nothing came out of it.',
       };
     }
@@ -162,7 +162,7 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
       return {
         text: `Earned ${str(p.weapon)} access at Tommy’s.`,
         detail: [str(p.favor), num(p.cashSpentCents) ? `-${formatCents(num(p.cashSpentCents))}` : '',
-          num(p.crackDelivered) ? `${formatNumber(num(p.crackDelivered))} crack delivered` : ''].filter(Boolean).join(', '),
+          num(p.crackDelivered) ? `${formatNumber(num(p.crackDelivered))} product delivered` : ''].filter(Boolean).join(', '),
       };
 
     case 'BATTLE_VOIDED':

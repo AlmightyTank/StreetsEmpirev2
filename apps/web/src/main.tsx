@@ -7,6 +7,7 @@ import './styles/community.css';
 import './styles/stability.css';
 import './styles/polish.css';
 import './styles/release.css';
+import './styles/landing.css';
 import './styles/mobile.css';
 import { App } from './App.js';
 

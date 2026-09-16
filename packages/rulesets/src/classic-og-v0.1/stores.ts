@@ -188,8 +188,8 @@ export const stores = {
    * BALANCE_APPROXIMATION - the shelf limit here, and it is the one shelf in
    * the game that is meant to stop being enough.
    *
-   * Crack is the only supply with a second source: you can cook it for $5 or
-   * buy it from Pip for $10. That changes what a limit is allowed to do here.
+   * Product is the only supply with a second source: you can produce it for $5
+   * or buy it from Pip for $10. That changes what a limit is allowed to do here.
    * Everywhere else a shelf must always outrun demand, because being unable
    * to buy is a spiral cash cannot fix. Crack has a way out, so Pip's shelf
    * can be sized to run out on purpose.
@@ -199,18 +199,18 @@ export const stores = {
    *   whore the happiness formula wants up to about 250 whores, which a
    *   player recruiting hard passes around the middle of a round.
    *
-   * So Pip carries you through the first half, and after that cooking has to
-   * become the main line. That is the job Produce Crack was missing: not a
+   * So Pip carries you through the first half, and after that production has to
+   * become the main line. That is the job Produce Product was missing: not a
    * cheaper way to buy rocks, but the only way to supply a large stable.
    */
   PIP: {
     slug: 'pip',
     keeper: 'Pip',
     name: "Pip's Deals on Wheels",
-    blurb: 'Rock in, rock out. Selling at $3 preserves the net worth value.',
+    blurb: 'Product in, product out. Selling at $3 preserves the net worth value.',
     items: {
       CRACK: {
-        name: 'Crack',
+        name: 'Product',
         field: 'crack',
         buyCents: 1_000,
         sellCents: 300,

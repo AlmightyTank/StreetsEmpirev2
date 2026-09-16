@@ -45,7 +45,7 @@ function effect(room: HideoutRoomKey, level: number, ruleset: Ruleset): string {
     return `+${level * buffs.lookoutsDefenseBonusPercentPerLevel}% home raid defense strength.`;
   }
   if (room === 'WORKSHOP') {
-    return `+${level * buffs.workshopCrackBonusPercentPerLevel}% crack from production.`;
+    return `+${level * buffs.workshopCrackBonusPercentPerLevel}% product from production.`;
   }
   return `+${level * buffs.backOfficeTakeBonusPercentPerLevel}% personal cash take from street work.`;
 }

@@ -31,8 +31,8 @@ function HitRulesPanel({ mode, rules, driveBy, specialRaid }: { mode: Mode; rule
   </Panel>;
 
   if (mode === 'DRUG_HOES' && specialRaid) return <Panel title="Drug their hoes">
-    <p>Send the crew in with your crack and poison a rival&apos;s night. It costs {specialRaid.turnCost} turns and runs on the raid clock.</p>
-    <p>If your crew gets through, their hoes burn your crack and chew up extra crack and condoms from their stash. Their next nights get weaker if the shelves run dry.</p>
+    <p>Send the crew in with your product and poison a rival&apos;s night. It costs {specialRaid.turnCost} turns and runs on the raid clock.</p>
+    <p>If your crew gets through, their hoes burn your product and chew up extra product and condoms from their stash. Their next nights get weaker if the shelves run dry.</p>
     <p>Survivors matter. The more thugs make it home, the more of their hoes you can reach. Their crew fights back, and both sides can take wounds.</p>
     <p>Afterward, their block gets {rules.protectionHours} hours to breathe and your crew needs {rules.cooldownMinutes} minutes before another raid move.</p>
   </Panel>;
@@ -46,7 +46,7 @@ function HitRulesPanel({ mode, rules, driveBy, specialRaid }: { mode: Mode; rule
 
   if (mode === 'LURE_CREW' && specialRaid) return <Panel title="Lure their crew">
     <p>Work a miserable block and make their people an offer. It costs {specialRaid.turnCost} turns and runs on the raid clock.</p>
-    <p>Crack talks to unhappy hoes. Beer talks to unhappy fit thugs. If their people are still loyal, they stay put and your stash does nothing.</p>
+    <p>Product talks to unhappy hoes. Beer talks to unhappy fit thugs. If their people are still loyal, they stay put and your stash does nothing.</p>
     <p>Win the fight and your survivors bring the convinced ones home. They leave the rival&apos;s crew and join yours.</p>
     <p>Afterward, their block gets {rules.protectionHours} hours to breathe and your crew needs {rules.cooldownMinutes} minutes before another raid move.</p>
   </Panel>;
@@ -56,7 +56,7 @@ function HitRulesPanel({ mode, rules, driveBy, specialRaid }: { mode: Mode; rule
     {rules.minLootPercent !== undefined && rules.maxLootPercent !== undefined
       ? <p>On a win, the take is {rules.minLootPercent}%–{rules.maxLootPercent}% of cash above {formatCents(rules.protectedCashCents)}. Big scores can happen, but most crews come home with a smaller cut. Each fit thug can carry {formatCents(rules.perThugLootCents)}.</p>
       : <p>On a win, the take is up to {rules.lootPercent}% of cash above {formatCents(rules.protectedCashCents)}, capped at {formatCents(rules.perThugLootCents)} per thug you send.</p>}
-    {rules.drugLootPercent ? <p>If they have crack exposed, your crew can grab up to {formatNumber(rules.perThugCrackLoot ?? 0)} rocks per fit thug who makes it home.</p> : null}
+    {rules.drugLootPercent ? <p>If they have product exposed, your crew can grab up to {formatNumber(rules.perThugCrackLoot ?? 0)} units per fit thug who makes it home.</p> : null}
     {rules.repeatLootPenaltyPercent ? <p>Keep farming the same mark and the score dries up: each repeat cuts the roll by {rules.repeatLootPenaltyPercent}%, down to {rules.repeatLootFloorPercent ?? 0}% of normal. Hit somebody else to cool it off.</p> : null}
     <p>{rules.newcomerHours > 0 ? `New crews get ${rules.newcomerHours} hours before the street opens on them. ` : 'New crews can be hit right away in this round. '}After a raid, that block gets {rules.protectionHours} hours of breathing room.</p>
     <p>Your crew needs {rules.cooldownMinutes} minutes between raids. You cannot move while your own block is protected, and crews far below your strength are off limits.</p>
@@ -165,11 +165,11 @@ function TargetCard({ target, selectedBlock, driving }: { target: CombatTargetDt
           <div><span>Weapons spotted</span><strong>{weaponsText(target.intel.weapons)}</strong></div>
           <div><span>Cash band</span><strong>{target.intel.cashBand.label}</strong></div>
           <div><span>Max cash haul</span><strong>{formatCents(target.intel.estimatedMaxLootCents)}</strong></div>
-          {target.intel.crack != null ? <div><span>Crack stash</span><strong>{formatNumber(target.intel.crack)}</strong></div> : null}
-          {target.intel.estimatedMaxCrackLoot != null ? <div><span>Max crack haul</span><strong>{formatNumber(target.intel.estimatedMaxCrackLoot)}</strong></div> : null}
+          {target.intel.crack != null ? <div><span>Product stash</span><strong>{formatNumber(target.intel.crack)}</strong></div> : null}
+          {target.intel.estimatedMaxCrackLoot != null ? <div><span>Max product haul</span><strong>{formatNumber(target.intel.estimatedMaxCrackLoot)}</strong></div> : null}
         </div>
       ) : (
-        <p className="se-hint">Scout this mark to reveal fit thugs, wounds, weapons, cash band, crack stash and the biggest haul they might expose.</p>
+        <p className="se-hint">Scout this mark to reveal fit thugs, wounds, weapons, cash band, product stash and the biggest haul they might expose.</p>
       )}
     </div>
   );
@@ -218,9 +218,9 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
       {form.whoresDrugged !== undefined ? <Row label={attacking ? 'Their hoes drugged' : 'Your hoes drugged'} value={formatNumber(form.whoresDrugged)} strong={form.whoresDrugged > 0} /> : null}
       {form.whoresLured !== undefined ? <Row label={attacking ? 'Hoes joined / now' : 'Hoes lost / left'} value={form.whoresAfter !== undefined ? `${formatNumber(form.whoresLured)} / ${formatNumber(form.whoresAfter)}` : formatNumber(form.whoresLured)} strong={form.whoresLured > 0} /> : null}
       {form.thugsLured !== undefined ? <Row label={attacking ? 'Thugs joined / now' : 'Thugs lost / left'} value={form.thugsAfter !== undefined ? `${formatNumber(form.thugsLured)} / ${formatNumber(form.thugsAfter)}` : formatNumber(form.thugsLured)} strong={form.thugsLured > 0} /> : null}
-      {form.crackSpent !== undefined && attacking ? <Row label="Crack spent" value={formatNumber(form.crackSpent)} /> : null}
+      {form.crackSpent !== undefined && attacking ? <Row label="Product spent" value={formatNumber(form.crackSpent)} /> : null}
       {form.beerSpent !== undefined && attacking ? <Row label="Beer spent" value={formatNumber(form.beerSpent)} /> : null}
-      {form.defenderCrackBurned !== undefined ? <Row label={attacking ? 'Their crack burned' : 'Your crack burned'} value={formatNumber(form.defenderCrackBurned)} strong={form.defenderCrackBurned > 0} /> : null}
+      {form.defenderCrackBurned !== undefined ? <Row label={attacking ? 'Their product burned' : 'Your product burned'} value={formatNumber(form.defenderCrackBurned)} strong={form.defenderCrackBurned > 0} /> : null}
       {form.defenderCondomsBurned !== undefined ? <Row label={attacking ? 'Their condoms burned' : 'Your condoms burned'} value={formatNumber(form.defenderCondomsBurned)} strong={form.defenderCondomsBurned > 0} /> : null}
       {form.lowRidersStolen !== undefined ? <Row label={attacking ? 'Low-Riders stolen' : 'Low-Riders lost'} value={`${formatNumber(form.lowRidersStolen)} · ${formatNumber(form.lowRidersAfter ?? 0)} left`} strong={form.lowRidersStolen > 0} /> : null}
       {attacking ? <Row label="Turns spent / remaining" value={`${report.turnsSpent} / ${report.turnsAfter}`} /> : null}
@@ -246,7 +246,7 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds ?? 0)} / ${formatNumber(report.opponentWounds ?? 0)}`} />
       <Row label="Cash change / remaining" value={`${report.cashChangeCents >= 0 ? '+' : '−'}${formatCents(Math.abs(report.cashChangeCents))} / ${formatCents(report.cashAfterCents)}`} strong />
-      {report.crackChange !== undefined && report.crackAfter !== undefined ? <Row label="Crack change / remaining" value={`${report.crackChange >= 0 ? '+' : '−'}${formatNumber(Math.abs(report.crackChange))} / ${formatNumber(report.crackAfter)}`} strong /> : null}
+      {report.crackChange !== undefined && report.crackAfter !== undefined ? <Row label="Product change / remaining" value={`${report.crackChange >= 0 ? '+' : '−'}${formatNumber(Math.abs(report.crackChange))} / ${formatNumber(report.crackAfter)}`} strong /> : null}
 
       <Row label="Turns spent / remaining" value={`${report.turnsSpent} / ${report.turnsAfter}`} />
       <Row label="National rank — before / after" value={`#${report.nationalRankBefore} / #${report.nationalRankAfter}`} />
@@ -454,7 +454,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     setNotice(null);
     try {
       const result = await combatApi.recon({ roundId, targetPublicPimpId: selected.publicPimpId, actionId: newActionId() });
-      setNotice(`Word on ${result.intel.displayName}: ${formatNumber(result.intel.fitThugs)} fit thugs, ${weaponsText(result.intel.weapons)}, up to ${formatCents(result.intel.estimatedMaxLootCents)} cash${result.intel.estimatedMaxCrackLoot != null ? ` and ${formatNumber(result.intel.estimatedMaxCrackLoot)} crack` : ''} exposed.`);
+      setNotice(`Word on ${result.intel.displayName}: ${formatNumber(result.intel.fitThugs)} fit thugs, ${weaponsText(result.intel.weapons)}, up to ${formatCents(result.intel.estimatedMaxLootCents)} cash${result.intel.estimatedMaxCrackLoot != null ? ` and ${formatNumber(result.intel.estimatedMaxCrackLoot)} product` : ''} exposed.`);
       await refresh(true);
       await useSession.getState().refreshSnapshot();
     } catch (err) {
@@ -526,7 +526,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                 </Button>
                 <p className="se-hint">{selected.intel
                   ? `Fresh eyes on this block until ${date(selected.intel.expiresAt)}.`
-                  : 'Recon shows the parts rankings do not: fit crew, wounds, guns, exposed cash and crack.'}</p>
+                  : 'Recon shows the parts rankings do not: fit crew, wounds, guns, exposed cash and product.'}</p>
               </div> : null}
               <label htmlFor="raid-squad">{driving
                 ? `Shooters to send (up to ${formatNumber(maxSquad)} · ${formatNumber(driveBy!.lowRiders)} Low-Rider${driveBy!.lowRiders === 1 ? '' : 's'}, ${driveBy!.rules.thugsPerLowRider} to a car)`
@@ -535,11 +535,11 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               <p className="se-hint">{driving
                 ? `Cars fill ${driveBy!.rules.thugsPerLowRider} at a time. A car comes home if anyone in it does, so a half-empty car is the one you are most likely to lose.`
                 : mode === 'DRUG_HOES'
-                  ? 'Your crew carries your crack in and burns through their supplies if the move lands.'
+                  ? 'Your crew carries your product in and burns through their supplies if the move lands.'
                   : mode === 'STEAL_RIDE'
                     ? 'If your crew wins and one thug makes it back, they bring one of their Low-Riders home.'
                     : mode === 'LURE_CREW'
-                      ? 'Unhappy people can be pulled off their block: crack talks to hoes, beer talks to thugs.'
+                      ? 'Unhappy people can be pulled off their block: product talks to hoes, beer talks to thugs.'
                       : 'Your best guns go with the crew automatically. One weapon per fighter.'}</p>
               <Button type="submit" className="se-btn se-btn--primary" disabledReason={attackBlock}>{driving
                 ? (selectedBlock ? 'Drive-by blocked' : 'Drive-by')

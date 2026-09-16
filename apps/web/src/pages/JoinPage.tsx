@@ -96,7 +96,7 @@ export function JoinPage() {
             <Row label="Whores" value={formatNumber(start.whores)} />
             <Row label="Thugs" value={formatNumber(start.thugs)} />
             <Row label="Condoms" value={formatNumber(start.condoms)} />
-            <Row label="Crack" value={formatNumber(start.crack)} />
+            <Row label="Product" value={formatNumber(start.crack)} />
             <Row label="Beer" value={formatNumber(start.beer)} />
             <Row label="Medicine" value={formatNumber(start.medicine)} />
             <Row label="Pistols" value={formatNumber(start.pistols)} />
@@ -113,10 +113,10 @@ export function JoinPage() {
           <ol className="se-list">
             <li>Scout a district to bring in cash, whores and thugs.</li>
             <li>Buy condoms, beer and weapons before happiness starts dragging you down.</li>
-            <li>Produce crack when your shelves get thin or you want stash for drug and lure runs.</li>
+            <li>Produce product when your shelves get thin or you want stash for drug and lure runs.</li>
             <li>Scout a rival on the raid page before you risk a serious hit.</li>
           </ol>
-          <p className="se-hint">Rankings show public money and legacy. Recon is where you learn private raid info like wounds, weapons, crack and exposed cash.</p>
+          <p className="se-hint">Rankings show public money and legacy. Recon is where you learn private raid info like wounds, weapons, product and exposed cash.</p>
         </Panel>
 
         <aside>

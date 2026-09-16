@@ -120,7 +120,7 @@ export function ScoutPage() {
               />
               <Row label="Whores" value={formatNumber(me.resources.whores)} strong tooltip="Girls working the block. Uncovered whores earn less and face more risk when supplies run short." />
               <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong tooltip="In 0.2.0-H, a thug needs a weapon to count as street cover while scouting." />
-              {me.resources.woundedThugs > 0 ? <Row label="Fit / wounded" value={`${formatNumber(me.resources.fitThugs)} / ${formatNumber(me.resources.woundedThugs)}`} tooltip="Wounded thugs cannot cover the street, scout, cook, attack or defend." /> : null}
+              {me.resources.woundedThugs > 0 ? <Row label="Fit / wounded" value={`${formatNumber(me.resources.fitThugs)} / ${formatNumber(me.resources.woundedThugs)}`} tooltip="Wounded thugs cannot cover the street, scout, produce, attack or defend." /> : null}
               <Row label="Armed / unarmed" value={`${formatNumber(me.resources.armedThugs)} / ${formatNumber(me.resources.unarmedThugs)}`} tooltip="Only armed fit thugs count as protection in F public raid rounds." />
               <Row label="They keep" value={`${me.payoutPercent}%`} />
               <Row label="You keep" value={`${100 - me.payoutPercent}%`} />
@@ -134,7 +134,7 @@ export function ScoutPage() {
             <div className="se-rows">
               <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
               <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
-              <Row label="Crack" value={formatNumber(me.resources.crack)} />
+              <Row label="Product" value={formatNumber(me.resources.product)} />
               <Row label="Beer" value={formatNumber(me.resources.beer)} tooltip="Thugs expect beer while they work. Missing beer lowers thug happiness." />
               <Row label="Cash" value={formatCents(me.resources.cashCents)} strong />
             </div>
@@ -193,7 +193,7 @@ export function ScoutPage() {
                     {
                       label: 'Product found',
                       delta: action.result.result.crackFound,
-                      remaining: action.result.after.resources.crack,
+                      remaining: action.result.after.resources.product,
                     },
                   ]
                 : []),
@@ -214,9 +214,9 @@ export function ScoutPage() {
                   ]
                 : []),
               {
-                label: 'Crack used',
+                label: 'Product used',
                 delta: -action.result.result.crackUsed,
-                remaining: action.result.after.resources.crack,
+                remaining: action.result.after.resources.product,
                 muted: true,
               },
               {

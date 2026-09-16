@@ -3,6 +3,7 @@ import type {
   GameActionResult,
   PayoutResult,
   ProduceCrackResult,
+  ProductTypeDto,
   ScoutResult,
 } from '@streets/shared';
 import { api } from './client.js';
@@ -14,7 +15,7 @@ export const actionsApi = {
     api.post<GameActionResult<ScoutResult>>('/game/scout', input),
 
 
-  produceCrack: (input: { turns: number; actionId: string }) =>
+  produceCrack: (input: { turns: number; productType: ProductTypeDto; actionId: string }) =>
     api.post<GameActionResult<ProduceCrackResult>>('/game/produce-crack', input),
 
   setPayout: (input: { percent: number; actionId: string }) =>
