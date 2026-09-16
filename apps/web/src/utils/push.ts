@@ -64,8 +64,27 @@ export function deviceLabel(): string {
   return isStandalone() ? `${device} app` : browser ? `${device} ${browser}` : device;
 }
 
+/**
+ * Whether a subscription was made with this server key. A subscription made with an
+ * older key is useless: the push service refuses every alert signed with the new one.
+ */
+export function subscriptionMatchesKey(subscription: PushSubscription, vapidPublicKey: string): boolean {
+  const current = subscription.options?.applicationServerKey;
+  // Browsers that don't expose the key: assume it matches rather than resubscribing forever.
+  if (!current) return true;
+  const expected = applicationServerKey(vapidPublicKey);
+  const actual = new Uint8Array(current);
+  return actual.length === expected.length && actual.every((byte, index) => byte === expected[index]);
+}
+
+export interface PushSubscribeResult {
+  subscription: PushSubscriptionJSON;
+  /** An old subscription made with different server keys, now unsubscribed; the server should forget it. */
+  replacedEndpoint: string | null;
+}
+
 /** Must run from a tap or click: browsers only show the permission prompt for a user gesture. */
-export async function subscribeToPush(vapidPublicKey: string): Promise<PushSubscriptionJSON> {
+export async function subscribeToPush(vapidPublicKey: string): Promise<PushSubscribeResult> {
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') {
     throw new Error(permission === 'denied'
@@ -74,12 +93,18 @@ export async function subscribeToPush(vapidPublicKey: string): Promise<PushSubsc
   }
   const registration = await navigator.serviceWorker.register(SW_URL, { scope: '/' });
   await navigator.serviceWorker.ready;
-  const existing = await registration.pushManager.getSubscription();
+  let existing = await registration.pushManager.getSubscription();
+  let replacedEndpoint: string | null = null;
+  if (existing && !subscriptionMatchesKey(existing, vapidPublicKey)) {
+    replacedEndpoint = existing.endpoint;
+    await existing.unsubscribe().catch(() => false);
+    existing = null;
+  }
   const subscription = existing ?? await registration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: applicationServerKey(vapidPublicKey),
   });
-  return subscription.toJSON();
+  return { subscription: subscription.toJSON(), replacedEndpoint };
 }
 
 /** Stops this browser receiving pushes. Returns the endpoint it had, for the server to forget. */

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatCents, formatCentsCompact } from '@streets/shared';
+import { InstallBanner } from '../components/InstallBanner.js';
 import { SiteBanner } from '../components/SiteBanner.js';
 import { useSession } from '../stores/session.js';
 
@@ -100,6 +101,8 @@ export function Shell({ children, narrow }: { children: ReactNode; narrow?: bool
 
   return (
     <div className={`se-app se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}`}>
+      <InstallBanner />
+
       <header className="se-topbar">
         <Link className="se-brand" to="/">
           <span className="se-brand__mark">

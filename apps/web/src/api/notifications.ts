@@ -15,5 +15,10 @@ export const notificationsApi = {
 
   forget: (endpoint: string) => api.post<{ ok: true }>('/notifications/push/forget', { endpoint }),
 
-  test: () => api.post<{ ok: true; devices: number; delivered: number }>('/notifications/push/test'),
+  test: () => api.post<{
+    ok: true;
+    devices: number;
+    delivered: number;
+    failures: Array<{ deviceId: string; label: string | null; status: number | null; reason: string }>;
+  }>('/notifications/push/test'),
 };

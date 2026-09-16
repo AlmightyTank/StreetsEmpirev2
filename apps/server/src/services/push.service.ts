@@ -112,24 +112,46 @@ const isGone = (error: unknown) => {
   return status === 404 || status === 410;
 };
 
+/** Why one device did not get a push, in terms a player or admin can act on. */
+export function pushFailureReason(error: unknown): { status: number | null; reason: string } {
+  const { statusCode, body, message } = error as { statusCode?: number; body?: string; message?: string };
+  const status = typeof statusCode === 'number' ? statusCode : null;
+  if (status === 404 || status === 410) return { status, reason: 'The push service no longer knows this device, so it was removed.' };
+  if (status === 403) {
+    return { status, reason: "The push service says this device signed up with different server keys. Turn alerts on again on that device." };
+  }
+  if (status === 400 || status === 401) {
+    return { status, reason: 'The push service rejected the server signature. Check VAPID_SUBJECT and that the server clock is right.' };
+  }
+  if (status === 413) return { status, reason: 'The alert was too large for the push service.' };
+  if (status === 429) return { status, reason: 'The push service is rate limiting this server. Try again in a minute.' };
+  if (status !== null) return { status, reason: `The push service answered ${status}${body ? `: ${body.slice(0, 160)}` : ''}.` };
+  // Thrown before any request: usually a bad key or subject in .env.
+  return { status, reason: `The server could not send the alert (${(message ?? 'unknown error').replace(/\.$/, '')}). Check the VAPID settings.` };
+}
+
 async function sendToAccount(prisma: PrismaClient, accountId: string, message: PushMessage, send: Sender, now: Date) {
   const devices = await prisma.pushSubscription.findMany({ where: { accountId } });
   const body = JSON.stringify(message);
   let delivered = 0;
+  const failures: Array<{ deviceId: string; label: string | null; status: number | null; reason: string }> = [];
   for (const device of devices) {
     try {
       await send({ endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth } }, body);
       delivered++;
       await prisma.pushSubscription.update({ where: { id: device.id }, data: { lastSuccessAt: now } });
     } catch (error) {
+      const failure = pushFailureReason(error);
+      failures.push({ deviceId: device.id, label: device.deviceLabel, ...failure });
       if (isGone(error)) {
         await prisma.pushSubscription.deleteMany({ where: { id: device.id } });
       } else {
-        console.warn(`Push to device ${device.id} failed:`, error instanceof Error ? error.message : error);
+        const detail = (error as { body?: string }).body;
+        console.warn(`Push to device ${device.id} failed (${failure.status ?? 'no response'}):`, error instanceof Error ? error.message : error, detail ?? '');
       }
     }
   }
-  return { devices: devices.length, delivered };
+  return { devices: devices.length, delivered, failures };
 }
 
 export const PushService = {
