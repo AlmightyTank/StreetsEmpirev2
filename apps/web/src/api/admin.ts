@@ -4,6 +4,8 @@ import type {
   AdminAccountStatusFilter,
   AdminAuditFilters,
   AdminAuditLogDto,
+  AdminAuditPurgeResultDto,
+  AdminAuditRetentionDto,
   AdminCloseExpiredResultDto,
   AdminCreateBannerInput,
   AdminCreateNewsInput,
@@ -99,4 +101,8 @@ export const adminApi = {
     api.get<AdminPlayerBattlesDto>(`/admin/players/${enc(roundPlayerId)}/battles${queryString({ before })}`),
 
   audit: (filters: AdminAuditFilters = {}) => api.get<AdminAuditLogDto>(`/admin/audit${queryString({ ...filters })}`),
+  auditRetention: () => api.get<AdminAuditRetentionDto>('/admin/audit/retention'),
+  purgeAudit: (reason: string) => api.post<AdminAuditPurgeResultDto>('/admin/audit/purge', { reason }),
+  /** A plain link: the browser downloads it with the session cookie it already has. */
+  auditExportUrl: (filters: AdminAuditFilters = {}) => `/api/admin/audit/export${queryString({ ...filters, before: undefined })}`,
 };

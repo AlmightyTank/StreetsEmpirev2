@@ -49,6 +49,26 @@ export interface AdminAuditEntryDto {
   createdAt: string;
 }
 
+
+/** One click can never try to stream the whole table into a browser. */
+export const AUDIT_EXPORT_MAX_ROWS = 10_000;
+
+export interface AdminAuditRetentionDto {
+  /** How many days of history this server keeps. 0 means forever. */
+  days: number;
+  /** Entries older than this would be removed by a purge, or null when nothing expires. */
+  cutoff: string | null;
+  total: number;
+  expired: number;
+  oldestAt: string | null;
+}
+
+export interface AdminAuditPurgeResultDto {
+  removed: number;
+  cutoff: string;
+  retention: AdminAuditRetentionDto;
+}
+
 export interface AdminAuditLogDto {
   entries: AdminAuditEntryDto[];
   /** Pass back as `before` for the next, older page. */

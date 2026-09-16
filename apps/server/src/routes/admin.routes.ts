@@ -123,6 +123,8 @@ const auditQuery = z.object({
   before: id.optional(),
 }).strict();
 
+const auditExportQuery = auditQuery.omit({ before: true }).strict();
+
 /**
  * 0.3.0-B admin API. The admin guard is a hook on this whole plugin, so a
  * route added here cannot forget it. Every change writes an audit record.
@@ -354,6 +356,26 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   // Audit
 
   fastify.get('/audit', async (request) => AdminAuditService.list(fastify.prisma, parseBody(auditQuery, request.query)));
+
+  fastify.get('/audit/retention', async () => AdminAuditService.retention(fastify.prisma));
+
+  /** The rows on screen as a spreadsheet, downloaded rather than rendered. */
+  fastify.get('/audit/export', async (request, reply) => {
+    const filters = parseBody(auditExportQuery, request.query);
+    const { csv, rows, truncated } = await AdminAuditService.exportCsv(fastify.prisma, filters);
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    return reply
+      .header('content-type', 'text/csv; charset=utf-8')
+      .header('content-disposition', `attachment; filename="streetsempire-audit-${stamp}.csv"`)
+      .header('x-audit-rows', String(rows))
+      .header('x-audit-truncated', String(truncated))
+      .send(csv);
+  });
+
+  fastify.post('/audit/purge', async (request) => {
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminAuditService.purge(fastify.prisma, request.auth!.account, body.reason);
+  });
 };
 
 export default adminRoutes;

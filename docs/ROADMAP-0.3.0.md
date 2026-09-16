@@ -106,6 +106,8 @@ The panel grew past the original list. It ships in four phases, each its own com
    rather than an account still lands in the inspector; timed suspensions that sign a player out, tell
    them the reason and the end date, and lift themselves; an [admin runbook](ADMIN-RUNBOOK.md); and one
    shared dev-bot definition for the seed and the panel.
+6. **Keeping the log:** a CSV export of whatever the audit filters show, and a retention window an
+   admin purges by hand - never on a timer - with the purge itself recorded.
 
 Admin comes before alliances because alliances and shared messaging need
 moderation from day one.
