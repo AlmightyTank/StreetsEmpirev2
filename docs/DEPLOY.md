@@ -57,6 +57,38 @@ and add this, with your user name and unit names:
 deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart streets-empire, /usr/bin/systemctl restart streets-empire-bot, /usr/bin/journalctl -u streets-empire *, /usr/bin/journalctl -u streets-empire-bot *
 ```
 
+### 5. Optional: phone and browser alerts
+
+Players can get alerts on their phone lock screen through Web Push. It needs a
+key pair on the server and nothing else: no app store, no third-party account.
+
+1. Generate the keys once, on any machine:
+
+   ```bash
+   npx web-push generate-vapid-keys
+   ```
+
+2. Put them in `.env` with a contact address, then restart the API:
+
+   ```text
+   VAPID_PUBLIC_KEY="<public key>"
+   VAPID_PRIVATE_KEY="<private key>"
+   VAPID_SUBJECT="mailto:you@example.com"
+   ```
+
+   Keep the private key secret, and never replace the pair once players have
+   subscribed: every registered device would silently stop getting alerts.
+
+3. Check how the web server serves the built site (`apps/web/dist`). Alerts need:
+   - HTTPS. Push only works on a secure origin.
+   - `/sw.js` served from the site root with `Cache-Control: no-cache`, so a new
+     service worker reaches players on their next visit.
+   - `/manifest.webmanifest` served as `application/manifest+json`. iPhones only
+     offer push to a site added to the Home Screen, which needs the manifest.
+
+The API sends alerts itself about once a minute. The Discord bot is not needed
+for push.
+
 ## Every update
 
 After pushing to `main`:

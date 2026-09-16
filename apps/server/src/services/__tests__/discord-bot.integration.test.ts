@@ -177,10 +177,13 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
     const claim = async () => {
       const response = await app.inject({ method: 'POST', url: '/api/internal/discord/alerts/claim', headers: auth() });
       expect(response.statusCode, response.body).toBe(200);
+      type RoundEvent = { type: string; roundName: string; standings: Array<{ rank: number; publicPimpId: number }> };
       return response.json() as {
         battles: Array<{ id: string }>;
+        attacks: Array<{ id: string; discordId: string }>;
         ranks: Array<{ discordId: string }>;
-        rounds: Array<{ type: string; roundName: string; recipients: Array<{ discordId: string; rank: number | null }>; standings: Array<{ rank: number; publicPimpId: number }> }>;
+        rounds: RoundEvent[];
+        roundAlerts: Array<RoundEvent & { discordId: string; rank: number | null }>;
       };
     };
 
@@ -220,30 +223,50 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
       await app.prisma.roundPlayer.update({ where: { id: secondPlayer.id }, data: { netWorthCents: 950_000_00n } });
 
       const claimed = await claim();
-      expect(claimed.battles.find((battle) => battle.id === raid.id)).toEqual({
+      const battle = {
         id: raid.id, kind: 'RAID', roundName: 'Bot Test Round',
         attackerName: first.username, attackerProfileUrl: new URL('/game/players/7101', env.frontendOrigin).toString(),
         defenderName: second.username, defenderProfileUrl: new URL('/game/players/7102', env.frontendOrigin).toString(),
-        attackerWon: true, createdAt: raid.createdAt.toISOString(), alertDiscordId: second.discordId,
-      });
+        attackerWon: true, createdAt: raid.createdAt.toISOString(),
+      };
+      // The public feed has every battle; only the defender who opted in gets the DM.
+      expect(claimed.battles.find((entry) => entry.id === raid.id)).toEqual(battle);
+      expect(claimed.attacks.filter((entry) => entry.id === raid.id)).toEqual([{ ...battle, discordId: second.discordId }]);
       expect(claimed.ranks.filter((alert) => alert.discordId === first.discordId)).toEqual([{
         discordId: first.discordId, displayName: first.username, roundName: 'Bot Test Round', kind: 'lost-first', rank: 2,
         leaderName: second.username, url: new URL('/game/rankings', env.frontendOrigin).toString(),
       }]);
 
-      const event = (type: string, name: string) => claimed.rounds.find((entry) => entry.type === type && entry.roundName === name);
-      expect(event('opened', 'Bot Next Round')!.recipients).toEqual(expect.arrayContaining([
+      const recipients = (type: string, name: string) => claimed.roundAlerts
+        .filter((entry) => entry.type === type && entry.roundName === name)
+        .map((entry) => ({ discordId: entry.discordId, rank: entry.rank }));
+      expect(recipients('opened', 'Bot Next Round')).toEqual(expect.arrayContaining([
         { discordId: first.discordId, rank: null }, { discordId: outsider.discordId, rank: null },
       ]));
-      expect(event('ending-soon', 'Bot Test Round')!.recipients).toEqual([{ discordId: first.discordId, rank: 2 }]);
-      const ended = event('ended', 'Bot Final Round')!;
-      expect(ended.standings.map((entry) => [entry.rank, entry.publicPimpId])).toEqual([[1, 7302], [2, 7301]]);
-      expect(ended.recipients).toEqual([{ discordId: first.discordId, rank: 2 }]);
+      expect(recipients('ending-soon', 'Bot Test Round')).toEqual([{ discordId: first.discordId, rank: 2 }]);
+      expect(recipients('ended', 'Bot Final Round')).toEqual([{ discordId: first.discordId, rank: 2 }]);
+      // Only the round end is public.
+      const ended = claimed.rounds.filter((entry) => ['Bot Next Round', 'Bot Test Round', 'Bot Final Round'].includes(entry.roundName));
+      expect(ended.map((entry) => [entry.type, entry.roundName])).toEqual([['ended', 'Bot Final Round']]);
+      expect(ended[0]!.standings.map((entry) => [entry.rank, entry.publicPimpId])).toEqual([[1, 7302], [2, 7301]]);
 
       const again = await claim();
-      expect(again.battles.some((battle) => battle.id === raid.id)).toBe(false);
+      expect(again.battles.some((entry) => entry.id === raid.id)).toBe(false);
+      expect(again.attacks.some((entry) => entry.id === raid.id)).toBe(false);
       expect(again.ranks.some((alert) => alert.discordId === first.discordId)).toBe(false);
       expect(again.rounds.some((entry) => ['Bot Next Round', 'Bot Test Round', 'Bot Final Round'].includes(entry.roundName))).toBe(false);
+      expect(again.roundAlerts.some((entry) => ['Bot Next Round', 'Bot Test Round', 'Bot Final Round'].includes(entry.roundName))).toBe(false);
+
+      // Discord DMs switched off: the next attack is collected but never reaches Discord.
+      await app.prisma.notificationSettings.update({ where: { accountId: second.id }, data: { discordEnabled: false } });
+      const quiet = await app.prisma.raidBattle.create({ data: {
+        attackerId: firstPlayer.id, defenderId: secondPlayer.id, actionId: randomUUID(), attackingThugs: 1, modelVersion: 'test',
+        calculation: {}, attackerReport: { kind: 'DRIVE_BY', won: false }, defenderReport: { kind: 'DRIVE_BY', won: true },
+      } });
+      const afterOff = await claim();
+      expect(afterOff.battles.some((entry) => entry.id === quiet.id)).toBe(true);
+      expect(afterOff.attacks.some((entry) => entry.id === quiet.id)).toBe(false);
+      await app.prisma.notificationSettings.update({ where: { accountId: second.id }, data: { discordEnabled: true } });
 
       // Raid wins now count on the leaderboard.
       const raids = await app.inject({ url: '/api/internal/discord/leaderboard?stat=raids', headers: auth() });

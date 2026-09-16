@@ -40,7 +40,7 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin news, banner, round
   const post = (url: string, payload?: object, who: Who = admin) =>
     app.inject({ method: 'POST', url, headers: headers(who), ...(payload ? { payload } : {}) });
 
-  async function createRound(status: RoundStatus, startsAt: Date, endsAt: Date, extra: { discordEndingSoonAt?: Date } = {}) {
+  async function createRound(status: RoundStatus, startsAt: Date, endsAt: Date, extra: { alertsEndingSoonAt?: Date } = {}) {
     const round = await app.prisma.round.create({
       data: {
         slug: `admin-ops-${randomUUID()}`,
@@ -176,14 +176,14 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin news, banner, round
     expect((audit.before as { name: string }).name).toBe(scheduled.name);
 
     const soon = new Date(Date.now() + 12 * HOUR);
-    const active = await createRound('ACTIVE', new Date('2020-01-01T00:00:00.000Z'), soon, { discordEndingSoonAt: new Date() });
+    const active = await createRound('ACTIVE', new Date('2020-01-01T00:00:00.000Z'), soon, { alertsEndingSoonAt: new Date() });
     const moveStart = await post(`/api/admin/rounds/${active.id}/update`, { reason: 'Trying to move the start', startsAt: new Date().toISOString() });
     expect(moveStart.statusCode, moveStart.body).toBe(409);
     expect(moveStart.json().error.code).toBe('ROUND_ALREADY_STARTED');
     expect((await post(`/api/admin/rounds/${active.id}/update`, { reason: 'Ending in the past', endsAt: new Date(Date.now() - HOUR).toISOString() })).statusCode).toBe(400);
     const extended = await post(`/api/admin/rounds/${active.id}/update`, { reason: 'Downtime makeup days', endsAt: new Date(Date.now() + 5 * DAY).toISOString() });
     expect(extended.statusCode, extended.body).toBe(200);
-    expect((await app.prisma.round.findUniqueOrThrow({ where: { id: active.id } })).discordEndingSoonAt).toBeNull();
+    expect((await app.prisma.round.findUniqueOrThrow({ where: { id: active.id } })).alertsEndingSoonAt).toBeNull();
 
     const ended = await createRound('ENDED', new Date('2020-01-01T00:00:00.000Z'), new Date('2020-01-29T00:00:00.000Z'));
     const frozen = await post(`/api/admin/rounds/${ended.id}/update`, { reason: 'Rewriting history', name: 'Nope' });

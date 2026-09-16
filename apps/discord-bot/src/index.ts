@@ -125,12 +125,13 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
         console.error(`Could not post battle ${battle.id} to #${channels.raidFeed.name}:`, error);
       }
     }
-    if (battle.alertDiscordId) {
-      try {
-        await client.users.send(battle.alertDiscordId, { embeds: [attackAlertEmbed(battle)] });
-      } catch (error) {
-        console.warn(`Could not DM an attack alert to ${battle.alertDiscordId}:`, error instanceof Error ? error.message : error);
-      }
+  }
+
+  for (const alert of claimed.attacks) {
+    try {
+      await client.users.send(alert.discordId, { embeds: [attackAlertEmbed(alert)] });
+    } catch (error) {
+      console.warn(`Could not DM an attack alert to ${alert.discordId}:`, error instanceof Error ? error.message : error);
     }
   }
 
@@ -145,12 +146,13 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
         console.error(`Could not post round event "${event.roundName}" to #${channels.news.name}:`, error);
       }
     }
-    for (const recipient of event.recipients) {
-      try {
-        await client.users.send(recipient.discordId, { embeds: [roundEventEmbed(event)] });
-      } catch (error) {
-        console.warn(`Could not DM a round alert to ${recipient.discordId}:`, error instanceof Error ? error.message : error);
-      }
+  }
+
+  for (const alert of claimed.roundAlerts) {
+    try {
+      await client.users.send(alert.discordId, { embeds: [roundEventEmbed(alert)] });
+    } catch (error) {
+      console.warn(`Could not DM a round alert to ${alert.discordId}:`, error instanceof Error ? error.message : error);
     }
   }
 }

@@ -14,6 +14,7 @@ import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { ForumLinkPanel } from '../components/ForumLinkPanel.js';
+import { NotificationsPanel } from '../components/NotificationsPanel.js';
 import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { DEFAULT_PROFILE_SETTINGS, useSession } from '../stores/session.js';
@@ -364,6 +365,8 @@ export function AccountSettingsPage() {
               </a>
             )}
           </Panel>
+
+          <NotificationsPanel />
 
           <ForumLinkPanel />
 

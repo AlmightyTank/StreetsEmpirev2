@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { PublicLegacyDto } from '@streets/shared';
-import { botTokenMatches, competitionRanks, rankAlertFor, rankValues, reminderDecision, roleKeysFor } from '../discord-bot.service.js';
+import { botTokenMatches, roleKeysFor } from '../discord-bot.service.js';
+import { rankAlertFor, reminderDecision } from '../notification.service.js';
+import { competitionRanks, rankValues } from '../standings.js';
 
 const token = 'bot-token-'.repeat(8);
 const legacy = (overrides: Partial<PublicLegacyDto> = {}): PublicLegacyDto => ({

@@ -52,7 +52,9 @@ model Account {
   accountEmailTokens      AccountEmailToken[]
   forumLink               ForumLink?
   forumLinkRequest        ForumLinkRequest?
-  discordReminder         DiscordReminder?
+  notificationSettings    NotificationSettings?
+  notificationOutbox      NotificationOutbox[]
+  pushSubscriptions       PushSubscription[]
   profile                 AccountProfile?
   roundPlayers            RoundPlayer[]
   authoredNews            GameNews[]            @relation("GameNewsAuthor")
@@ -123,10 +125,10 @@ model ForumLinkRequest {
   expiresAt DateTime
 }
 
-/// Opt-in Discord DM alerts for one account.
+/// Opt-in alerts for one account: which categories, and which channels deliver them.
 /// turnsArmed: turns were below the cap at the last check, so reaching it sends one reminder.
 /// rankRoundId/rankLastNational: the national rank last seen, to notice losing #1 or the top 10.
-model DiscordReminder {
+model NotificationSettings {
   accountId        String    @id
   account          Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
   turnsEnabled     Boolean   @default(false)
@@ -137,9 +139,54 @@ model DiscordReminder {
   rankEnabled      Boolean   @default(false)
   rankRoundId      String?
   rankLastNational Int?
+  /// Discord DMs; only delivered while Discord is linked.
+  discordEnabled   Boolean   @default(true)
+  /// Web Push to every registered device.
+  pushEnabled      Boolean   @default(false)
   updatedAt        DateTime  @updatedAt
 
   @@index([turnsEnabled])
+}
+
+enum NotificationChannel {
+  DISCORD
+  PUSH
+}
+
+/// One alert waiting for one channel. The server works out what is due once and
+/// writes a row per channel; each channel claims its own rows, so none steals another's.
+model NotificationOutbox {
+  id        String              @id @default(cuid())
+  accountId String
+  account   Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  channel   NotificationChannel
+  /// attacks | turns | round | rank
+  category  String
+  /// The alert itself, without any channel address (see @streets/shared NotificationPayload).
+  payload   Json
+  /// e.g. battle:<id>:<account>:PUSH, so a repeated collection never duplicates an alert.
+  dedupeKey String              @unique
+  createdAt DateTime            @default(now())
+  claimedAt DateTime?
+
+  @@index([channel, claimedAt, createdAt])
+  @@index([createdAt])
+}
+
+/// A browser or phone that accepts Web Push for an account.
+model PushSubscription {
+  id            String    @id @default(cuid())
+  accountId     String
+  account       Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  endpoint      String    @unique
+  p256dh        String
+  auth          String
+  deviceLabel   String?
+  userAgent     String?
+  createdAt     DateTime  @default(now())
+  lastSuccessAt DateTime?
+
+  @@index([accountId])
 }
 
 enum AccountEmailTokenPurpose {
@@ -257,11 +304,13 @@ model Round {
 
   registrationOpensAt DateTime?
 
-  /// Discord round alerts and the round-end post, each sent once. Rounds that
-  /// already opened or ended before these existed were backfilled.
-  discordOpenedAt     DateTime?
-  discordEndingSoonAt DateTime?
-  discordEndedAt      DateTime?
+  /// Round alerts collected for players, each once. Rounds that already opened
+  /// or ended before these existed were backfilled.
+  alertsOpenedAt     DateTime?
+  alertsEndingSoonAt DateTime?
+  alertsEndedAt      DateTime?
+  /// When the Discord bot claimed the public round-end post.
+  discordEndedAt     DateTime?
 
   /// Next OG-style public pimp id to hand out. Raw database ids are never
   /// exposed; players see e.g. BigDaddy (#1842).
@@ -565,8 +614,10 @@ model RaidBattle {
   defenderReport Json
   injuries CombatInjury[]
   createdAt DateTime @default(now())
-  /// When the Discord bot claimed it for the raid feed and attack alerts (older battles backfilled).
+  /// When the Discord bot claimed it for the public raid feed (older battles backfilled).
   discordPostedAt DateTime?
+  /// When the defender's attack alert was collected (older battles backfilled).
+  alertsCollectedAt DateTime?
   /// 0.3.0-B. An admin reversed this battle. Voided battles stay visible but no longer count for
   /// revenge, trophies, repeat-target limits, stats or the raid feed.
   voidedAt         DateTime?

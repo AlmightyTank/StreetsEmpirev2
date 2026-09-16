@@ -299,8 +299,6 @@ export interface DiscordBattleEventDto {
   defenderProfileUrl: string;
   attackerWon: boolean;
   createdAt: string;
-  /** The defender's Discord ID when they opted in to attack alerts. */
-  alertDiscordId: string | null;
 }
 
 export interface DiscordRankAlertDto {
@@ -322,16 +320,63 @@ export interface DiscordRoundEventDto {
   url: string;
   /** Final top 10, for "ended" only. */
   standings: DiscordRankingEntryDto[];
-  /** Members with round alerts on; rank is theirs in that round, when they played it. */
-  recipients: Array<{ discordId: string; rank: number | null }>;
 }
 
-/** Everything the bot announces, each handed out once. */
+/** A battle DM for the defender. */
+export interface DiscordAttackAlertDto extends DiscordBattleEventDto {
+  discordId: string;
+}
+
+/** A round DM; rank is the member's in that round, when they played it. */
+export interface DiscordRoundAlertDto extends DiscordRoundEventDto {
+  discordId: string;
+  rank: number | null;
+}
+
+/**
+ * Everything the bot sends, each handed out once. battles and rounds feed the
+ * public channels; the rest are private DMs.
+ */
 export interface DiscordAlertsClaimDto {
   turns: DiscordTurnReminderDto[];
   ranks: DiscordRankAlertDto[];
+  attacks: DiscordAttackAlertDto[];
+  roundAlerts: DiscordRoundAlertDto[];
   battles: DiscordBattleEventDto[];
   rounds: DiscordRoundEventDto[];
+}
+
+/** Alert categories a player can switch on, delivered by any channel. */
+export type NotificationCategory = DiscordAlertType;
+
+/** One alert as the server stores it, before a channel adds its own address. */
+export type NotificationPayload =
+  | { category: 'attacks'; battle: DiscordBattleEventDto }
+  | { category: 'turns'; reminder: Omit<DiscordTurnReminderDto, 'discordId'> }
+  | { category: 'rank'; alert: Omit<DiscordRankAlertDto, 'discordId'> }
+  | { category: 'round'; event: DiscordRoundEventDto; rank: number | null };
+
+export interface PushDeviceDto {
+  id: string;
+  /** First 16 hex characters of the endpoint's SHA-256, so a browser can spot itself without the endpoint leaving the server. */
+  endpointHash: string;
+  label: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  lastSuccessAt: string | null;
+}
+
+/** The account settings Alerts panel. */
+export interface NotificationSettingsDto {
+  categories: Record<NotificationCategory, boolean>;
+  channels: { discord: boolean; push: boolean };
+  discordLinked: boolean;
+  push: {
+    /** False until the server has VAPID keys. */
+    available: boolean;
+    vapidPublicKey: string | null;
+    devices: PushDeviceDto[];
+  };
 }
 
 /** Private /stats: the member's own dashboard numbers. */

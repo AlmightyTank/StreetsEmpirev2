@@ -38,6 +38,12 @@ const envSchema = z.object({
 
   DISCORD_BOT_API_TOKEN: z.union([z.literal(''), z.string().min(64)]).default(''),
 
+  /** Web Push. Generate a pair with `npx web-push generate-vapid-keys`. */
+  VAPID_PUBLIC_KEY: z.string().default(''),
+  VAPID_PRIVATE_KEY: z.string().default(''),
+  /** A mailto: or https: contact the push services can reach. */
+  VAPID_SUBJECT: z.union([z.literal(''), z.string().regex(/^(mailto:|https:\/\/)/, 'VAPID_SUBJECT must start with mailto: or https://.')]).default(''),
+
   RESEND_API_KEY: z.string().default(''),
   EMAIL_FROM: z.string().default(''),
   /** How long admin audit entries are kept. 0 keeps them forever. */
@@ -87,6 +93,15 @@ export const env = {
   discordBot: {
     apiToken: parsed.data.DISCORD_BOT_API_TOKEN,
     enabled: Boolean(parsed.data.DISCORD_BOT_API_TOKEN),
+  },
+  push: {
+    publicKey: parsed.data.VAPID_PUBLIC_KEY,
+    privateKey: parsed.data.VAPID_PRIVATE_KEY,
+    subject: parsed.data.VAPID_SUBJECT,
+    /** Keys are set, so players can subscribe and alerts are collected for push. */
+    configured: Boolean(parsed.data.VAPID_PUBLIC_KEY && parsed.data.VAPID_PRIVATE_KEY && parsed.data.VAPID_SUBJECT),
+    /** Off in tests so no test run ever calls a real push service. */
+    enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.VAPID_PUBLIC_KEY && parsed.data.VAPID_PRIVATE_KEY && parsed.data.VAPID_SUBJECT),
   },
   discord: {
     clientId: parsed.data.DISCORD_CLIENT_ID,
