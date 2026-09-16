@@ -30,7 +30,7 @@ function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: b
 
   return (
     <div className="se-tablewrap">
-      <table className="se-table se-ranking-table">
+      <table className="se-table se-table--cards se-ranking-table">
         <thead>
           <tr>
             <th>Rank</th>
@@ -44,17 +44,17 @@ function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: b
         <tbody>
           {rows.map((row) => (
             <tr key={row.publicPimpId} className={row.isYou ? 'se-rank-you' : undefined}>
-              <td className="se-num">#{formatNumber(row.rank)}</td>
-              <td>
+              <td className="se-num" data-label="Rank">#{formatNumber(row.rank)}</td>
+              <td className="se-td--title">
                 <Link to={`/game/players/${row.publicPimpId}`} className="se-playerlink">
                   {row.displayName} <span className="se-muted se-num">(#{row.publicPimpId})</span>
                 </Link>
                 {row.isYou ? <span className="se-you">YOU</span> : null}
               </td>
-              {showCity ? <td>{row.city.name}</td> : null}
-              <td className="se-table__number se-num">{formatCents(row.netWorthCents)}</td>
-              <td className="se-num" title={`Held since ${new Date(row.rankHeldSinceAt).toLocaleString()}`}>{heldFor(row.rankHeldSinceAt)}</td>
-              <td className="se-num">{movementText(row.rankMovement)}</td>
+              {showCity ? <td data-label="City">{row.city.name}</td> : null}
+              <td className="se-table__number se-num" data-label="Net worth">{formatCents(row.netWorthCents)}</td>
+              <td className="se-num" data-label="Held" title={`Held since ${new Date(row.rankHeldSinceAt).toLocaleString()}`}>{heldFor(row.rankHeldSinceAt)}</td>
+              <td className="se-num" data-label="Move">{movementText(row.rankMovement)}</td>
             </tr>
           ))}
         </tbody>

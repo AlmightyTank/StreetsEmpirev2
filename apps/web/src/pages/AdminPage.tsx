@@ -301,7 +301,7 @@ export function AdminPage() {
           <p className="se-muted se-admin-pad">No rounds yet. Schedule the first one below.</p>
         ) : (
           <div className="se-tablewrap">
-            <table className="se-table">
+            <table className="se-table se-table--cards">
               <thead>
                 <tr>
                   <th>Round</th>
@@ -316,17 +316,17 @@ export function AdminPage() {
               <tbody>
                 {rounds.map((round) => (
                   <tr key={round.id}>
-                    <td>
+                    <td className="se-td--title">
                       <Link to={`/game/admin/rounds/${round.id}`}><strong>{round.name}</strong></Link>
                       <br />
                       <span className="se-muted">{round.slug}</span>
                     </td>
-                    <td><span className={`se-tag${statusTone(round.status)}`}>{round.status}</span></td>
-                    <td className="se-num">{round.rulesetVersion}</td>
-                    <td>{adminWhen(round.startsAt)}</td>
-                    <td>{adminWhen(round.endsAt)}</td>
-                    <td className="se-table__number se-num">{formatNumber(round.playerCount)}</td>
-                    <td className="se-table__number">
+                    <td data-label="Status"><span className={`se-tag${statusTone(round.status)}`}>{round.status}</span></td>
+                    <td className="se-num" data-label="Ruleset">{round.rulesetVersion}</td>
+                    <td data-label="Starts">{adminWhen(round.startsAt)}</td>
+                    <td data-label="Ends">{adminWhen(round.endsAt)}</td>
+                    <td className="se-table__number se-num" data-label="Players">{formatNumber(round.playerCount)}</td>
+                    <td className="se-table__number" data-label="Actions">
                       <div className="se-admin-actions">
                         {round.actions.length ? round.actions.map((action) => (
                           <Button

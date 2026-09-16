@@ -228,7 +228,7 @@ function SeasonHistory({ career }: { career: PublicCareerDto }) {
           </div>
 
           <div className="se-tablewrap">
-            <table className="se-table">
+            <table className="se-table se-table--cards">
               <thead>
                 <tr>
                   <th>Season</th>
@@ -245,19 +245,19 @@ function SeasonHistory({ career }: { career: PublicCareerDto }) {
               <tbody>
                 {career.seasons.map((season: PublicSeasonResultDto) => (
                   <tr key={season.round.id}>
-                    <td>
+                    <td className="se-td--title">
                       <strong>{season.round.name}</strong>
                       <br />
                       <span className="se-muted">{formatDate(season.round.endedAt)}</span>
                     </td>
-                    <td>{season.city.name}</td>
-                    <td className="se-table__number se-num">{rankLabel(season.rank.national)}</td>
-                    <td className="se-table__number se-num">{rankLabel(season.rank.local)}</td>
-                    <td className="se-table__number se-num">{formatCents(season.finalNetWorthCents)}</td>
-                    <td className="se-table__number"><HideoutRoomChips hideout={season.hideout} /></td>
-                    <td className="se-table__number se-num">{formatNumber(season.stats.raidAttackWins)} / {formatNumber(season.stats.raidAttacks)}</td>
-                    <td className="se-table__number se-num">{formatNumber(season.stats.driveByWins)} / {formatNumber(season.stats.driveByAttacks)}</td>
-                    <td className="se-table__number se-num">{formatNumber(season.stats.reconRuns)}</td>
+                    <td data-label="City">{season.city.name}</td>
+                    <td className="se-table__number se-num" data-label="National">{rankLabel(season.rank.national)}</td>
+                    <td className="se-table__number se-num" data-label="Local">{rankLabel(season.rank.local)}</td>
+                    <td className="se-table__number se-num" data-label="Final net worth">{formatCents(season.finalNetWorthCents)}</td>
+                    <td className="se-table__number" data-label="Hideout"><HideoutRoomChips hideout={season.hideout} /></td>
+                    <td className="se-table__number se-num" data-label="Raids">{formatNumber(season.stats.raidAttackWins)} / {formatNumber(season.stats.raidAttacks)}</td>
+                    <td className="se-table__number se-num" data-label="Drive-bys">{formatNumber(season.stats.driveByWins)} / {formatNumber(season.stats.driveByAttacks)}</td>
+                    <td className="se-table__number se-num" data-label="Recon">{formatNumber(season.stats.reconRuns)}</td>
                   </tr>
                 ))}
               </tbody>
