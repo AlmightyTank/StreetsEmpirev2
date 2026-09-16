@@ -72,6 +72,10 @@ describe('classic-og-v0.2-g contents', () => {
 describe('classic-og-v0.2-h contents', () => {
   it('loads the raid trophies ruleset without changing G balance', () => {
     expect(loadRuleset('classic-og-v0.2-h', '0.2.0-H')).toBe(classicOgV02H);
+    // Only the clerk's and Tommy's favours moved on from G.
+    expect({ ...classicOgV02H.quests, CORNER: null, TOMMY: null }).toEqual({ ...classicOgV02G.quests, CORNER: null, TOMMY: null });
+    expect(classicOgV02H.quests.CORNER.goal.kind).toBe('BUY_SUPPLIES');
+    expect(classicOgV02H.quests.TOMMY.goal.kind).toBe('BUY_AND_RAID');
     expect(classicOgV02H.round.seededRivals).toHaveLength(0);
     expect(classicOgV02H.combat.specialRaids).toEqual(classicOgV02G.combat.specialRaids);
     expect(classicOgV02H.combat.version).toBe('0.2.0-H.1');
@@ -88,13 +92,10 @@ describe('classic-og-v0.3-a contents', () => {
 });
 
 describe('classic-og-v0.3-b contents', () => {
-  it('keeps 0.3.0-A balance apart from the clerk and Tommy favours', () => {
+  it('pins the admin ruleset without changing 0.3.0-A balance', () => {
     const ruleset = loadRuleset('classic-og-v0.3-b', '0.3.0-B');
     expect(ruleset.meta.name).toBe('Classic OG - Admin');
-    expect({ ...ruleset, meta: null, quests: null }).toEqual({ ...classicOgV03A, meta: null, quests: null });
-    expect({ ...ruleset.quests, CORNER: null, TOMMY: null }).toEqual({ ...classicOgV03A.quests, CORNER: null, TOMMY: null });
-    expect(ruleset.quests.CORNER.goal.kind).toBe('BUY_SUPPLIES');
-    expect(ruleset.quests.TOMMY.goal.kind).toBe('BUY_AND_RAID');
+    expect({ ...ruleset, meta: null }).toEqual({ ...classicOgV03A, meta: null });
   });
 });
 

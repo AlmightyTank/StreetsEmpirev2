@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, classicOgV03B } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02H, classicOgV03B } from '@streets/rulesets';
 import type { QuestKey, TraderKey } from '@streets/rulesets';
 import {
   calculateQuestCompletion,
@@ -212,8 +212,12 @@ describe('reputation', () => {
     });
   });
 
-  describe('the 0.3.0-B clerk and Tommy', () => {
-    const b = classicOgV03B;
+  describe('the 0.2.0-H clerk and Tommy', () => {
+    const b = classicOgV02H;
+
+    it('carries forward into 0.3.0-B', () => {
+      expect(classicOgV03B.quests).toEqual(b.quests);
+    });
 
     it('has the clerk count condoms, medicine and beer bought, and take nothing', () => {
       expect(b.quests.CORNER.goal).toEqual({ kind: 'BUY_SUPPLIES', condoms: 2_000, medicine: 15, beer: 2_000 });
