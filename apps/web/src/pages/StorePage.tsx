@@ -121,9 +121,8 @@ function TraderFavour({ store, blocked, onComplete }: {
   );
 }
 
-function StoreItem({ item, store, keeper, owned, cashCents, crack, bulkHelpers, blocked, onTrade, onUnlock, onRestock }: {
+function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked, onTrade, onUnlock, onRestock }: {
   item: StoreItemDto; store: string; keeper: string; owned: number; cashCents: number;
-  crack: number;
   /** Why the whole shelf is off, or null when it is open for business. */
   bulkHelpers: number[]; blocked: string | null; onTrade: (order: Order) => Promise<void>;
   onUnlock: (weapon: WeaponUnlockInput['weapon']) => Promise<void>;
@@ -376,7 +375,7 @@ function StoreView({ slug }: { slug: string }) {
             result={action.result!} onDismiss={action.clear} lines={[
               { label: 'Reputation', delta: favourReceipt.reputationGained, remaining: favourReceipt.totalRep },
               ...(favourReceipt.crackDelivered > 0
-                ? [{ label: 'Crack delivered', delta: -favourReceipt.crackDelivered, remaining: action.result!.after.resources.crack }]
+                ? [{ label: 'Product delivered', delta: -favourReceipt.crackDelivered, remaining: action.result!.after.resources.product }]
                 : []),
               ...(favourReceipt.lowRidersHandedOver > 0
                 ? [{ label: 'Low-Riders handed over', delta: -favourReceipt.lowRidersHandedOver, remaining: action.result!.after.resources.lowRiders }]
@@ -394,7 +393,6 @@ function StoreView({ slug }: { slug: string }) {
               onComplete={(trader) => execute({ kind: 'quest', trader })} />
             {store.items.map((item) => <StoreItem key={item.key} item={item} store={store.key} keeper={store.keeper}
               owned={me.resources[item.field]} cashCents={me.resources.cashCents}
-              crack={me.resources.crack}
               bulkHelpers={catalog.bulkHelpers} blocked={counterBlock}
               onTrade={(order) => execute({ kind: 'trade', order })}
               onUnlock={(weapon) => execute({ kind: 'unlock', weapon })}

@@ -4,24 +4,51 @@ import type { HallOfFameRoundDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { classicOgV01, rulesets } from '@streets/rulesets';
 import { communityApi } from '../api/community.js';
+import { Seo } from '../components/Seo.js';
 import { Shell } from '../layouts/Shell.js';
 import { useSession } from '../stores/session.js';
 import { formatDuration } from '../utils/time.js';
 
-/** What the turn loop actually asks of a player, in the order they meet it. */
+const SEO_TITLE = 'StreetsEmpire - Free Browser Crime Strategy Game';
+const SEO_DESCRIPTION = 'Play StreetsEmpire, a free browser crime strategy game with turn-based crew management, raids, rankings, achievements and fair seasonal resets.';
+
+const GAME_STRUCTURED_DATA = {
+  '@context': 'https://schema.org',
+  '@type': 'VideoGame',
+  name: 'StreetsEmpire',
+  applicationCategory: 'GameApplication',
+  gamePlatform: 'Web browser',
+  genre: ['Strategy', 'Browser game', 'Crime'],
+  playMode: 'MultiPlayer',
+  operatingSystem: 'Any',
+  description: SEO_DESCRIPTION,
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'USD',
+  },
+};
+
+/** What the season asks of a player, in the order they feel it. */
 const LOOP = [
-  { step: 'Spend turns', text: 'Turns come back on a clock. Scout a district, work the block or cook - every move costs them, and nothing costs money you have not made yet.' },
-  { step: 'Build income', text: 'Hoes earn on the street, thugs guard the block and cook the product. Keep them supplied and happy or the take drops.' },
-  { step: 'Gear up', text: 'Four traders, four shelves. Standing with them opens the gun rack, and your hideout turns cash into a permanent edge for the season.' },
-  { step: 'Take it from someone', text: 'Scout a rival first, then hit them. What you take is theirs, what you lose is gone, and the whole board can see the score.' },
+  { step: 'Spend turns', text: 'Turns return on a clock, so every action has weight: scout, produce, shop, heal or hold for the raid window.' },
+  { step: 'Grow the take', text: 'Crew, supplies, happiness and district choice decide whether your block prints money or drains it.' },
+  { step: 'Buy leverage', text: 'Trader reputation opens better weapons, restocks faster shelves and makes the hideout worth pouring cash into.' },
+  { step: 'Hit rivals', text: 'Recon shows what rankings hide. Pick the angle, send fit muscle, then live with the public result.' },
 ] as const;
 
 const RAIDS = [
-  { name: 'Cash raid', text: 'Walk off with the money and crack a scouted mark left exposed.' },
-  { name: 'Drive-by', text: 'Cars full of shooters. A car comes home if anyone in it does.' },
-  { name: 'Drug run', text: 'Burn through a rival supply of crack, condoms and working hoes.' },
-  { name: 'Ride theft', text: 'Come back with one of their Low-Riders if a thug makes it out.' },
-  { name: 'Lure run', text: 'Crack talks to unhappy hoes, beer talks to unhappy thugs.' },
+  { name: 'Cash raid', text: 'Take exposed money from a scouted target.' },
+  { name: 'Drive-by', text: 'Wound defenders and soften a crew before the real grab.' },
+  { name: 'Drug run', text: 'Burn a rival stash and cut into their street work.' },
+  { name: 'Ride theft', text: 'Send thugs after Low-Riders and bring one home if they survive.' },
+  { name: 'Lure run', text: 'Turn unhappy crew with the supplies they want most.' },
+] as const;
+
+const PROOF = [
+  { label: 'Fair resets', value: 'Every season starts from the same kit' },
+  { label: 'Public stakes', value: 'Rankings, raid reports and final podiums stay visible' },
+  { label: 'Permanent bragging rights', value: 'Badges, titles and Hall of Fame finishes follow the account' },
 ] as const;
 
 function statusTone(status: string): string {
@@ -64,30 +91,74 @@ export function LandingPage() {
 
   return (
     <Shell>
-      <section className="se-land-hero">
-        <p className="se-eyebrow">StreetsEmpire &middot; {ruleset.round.defaultDurationDays}-day seasons &middot; free in your browser</p>
-        <h1 className="se-display se-hero">
-          Everyone starts with nothing.
-          <br />
-          <span className="se-accent">Somebody ends up owning the city.</span>
-        </h1>
-        <p className="se-lede">
-          A round-based crime strategy game. You get a block, a handful of crew and a clock.
-          Spend turns to earn, buy what your people need, then decide whether the fastest way up
-          the board is building your own money or taking someone else&rsquo;s.
-        </p>
+      <Seo title={SEO_TITLE} description={SEO_DESCRIPTION} structuredData={GAME_STRUCTURED_DATA} />
 
-        <div className="se-cta">
-          <Link className="se-btn se-btn--primary" to={cta.to}>{cta.label}</Link>
-          {account ? (
-            <Link className="se-btn se-btn--ghost" to="/game/rules">Read the rules</Link>
-          ) : (
-            <Link className="se-btn se-btn--ghost" to="/login">I already have a name</Link>
-          )}
+      <section className="se-land-hero" aria-labelledby="landing-title">
+        <div className="se-land-hero__copy">
+          <p className="se-eyebrow">StreetsEmpire &middot; {ruleset.round.defaultDurationDays}-day seasons &middot; free browser strategy</p>
+          <h1 id="landing-title" className="se-display se-hero">
+            Claim the block.
+            <br />
+            Build the crew.
+            <br />
+            <span className="se-accent">End the season on top.</span>
+          </h1>
+          <p className="se-lede">
+            StreetsEmpire is a round-based crime strategy game where turns, supplies,
+            crew morale and raids all push on the same leaderboard. Build steady income,
+            scout vulnerable rivals, then decide when the city is worth taking by force.
+          </p>
+
+          <div className="se-cta">
+            <Link className="se-btn se-btn--primary" to={cta.to}>{cta.label}</Link>
+            {account ? (
+              <Link className="se-btn se-btn--ghost" to="/game/rules">Read the rules</Link>
+            ) : (
+              <Link className="se-btn se-btn--ghost" to="/login">I already have a name</Link>
+            )}
+          </div>
         </div>
 
+        <div className="se-land-visual" aria-label="Example season dashboard">
+          <div className="se-land-map">
+            <span className="se-land-map__road se-land-map__road--a" />
+            <span className="se-land-map__road se-land-map__road--b" />
+            <span className="se-land-map__road se-land-map__road--c" />
+            <span className="se-land-map__zone se-land-map__zone--home">You</span>
+            <span className="se-land-map__zone se-land-map__zone--rival">Rival</span>
+            <span className="se-land-map__zone se-land-map__zone--shop">Trader</span>
+          </div>
+
+          <div className="se-land-terminal">
+            <div className="se-land-terminal__head">
+              <span>Season board</span>
+              <b className="se-num">{round?.rulesetVersion ?? ruleset.meta.version}</b>
+            </div>
+            <div className="se-land-terminal__rows">
+              <span>
+                <b>Cash</b>
+                <strong className="se-num">{formatCents(start.cashCents)}</strong>
+              </span>
+              <span>
+                <b>Turns</b>
+                <strong className="se-num">+{ruleset.turns.amountPerInterval}/{ruleset.turns.intervalMinutes}m</strong>
+              </span>
+              <span>
+                <b>Season</b>
+                <strong>{round ? statusLine(round.status) : 'Next round'}</strong>
+              </span>
+              <span>
+                <b>Objective</b>
+                <strong>Own the leaderboard</strong>
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="se-land-strip" aria-label="Current season status">
         {round ? (
-          <div className="se-land-strip">
+          <>
             <div className="se-land-strip__lead">
               <span className={`se-tag${statusTone(round.status)}`}>{statusLine(round.status)}</span>
               <strong>{round.name}</strong>
@@ -98,9 +169,9 @@ export function LandingPage() {
               <span><span className="se-land-strip__k">Turns</span><b className="se-num">+{ruleset.turns.amountPerInterval}/{ruleset.turns.intervalMinutes}m</b></span>
               <span><span className="se-land-strip__k">Ruleset</span><b className="se-num">{round.rulesetVersion}</b></span>
             </div>
-          </div>
+          </>
         ) : (
-          <div className="se-land-strip">
+          <>
             <div className="se-land-strip__lead">
               <span className="se-tag">Between seasons</span>
               <strong>No round is open right now</strong>
@@ -108,12 +179,21 @@ export function LandingPage() {
             <div className="se-land-strip__facts">
               <span className="se-hint">Register anyway - your name, badges and past results are waiting when the next one opens.</span>
             </div>
-          </div>
+          </>
         )}
       </section>
 
+      <section className="se-land-proof" aria-label="Why the season matters">
+        {PROOF.map((item) => (
+          <div className="se-land-proof__item" key={item.label}>
+            <span className="se-eyebrow">{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </section>
+
       <section className="se-land-section">
-        <h2 className="se-land-h2">A turn at a time</h2>
+        <h2 className="se-land-h2">The loop that pulls you in</h2>
         <ol className="se-land-loop">
           {LOOP.map((entry, index) => (
             <li className="se-land-loop__item" key={entry.step}>
@@ -127,7 +207,7 @@ export function LandingPage() {
 
       <section className="se-land-section se-land-two">
         <div className="se-land-card">
-          <h2 className="se-land-h2">Five ways to take it</h2>
+          <h2 className="se-land-h2">Five ways to make a move</h2>
           <dl className="se-land-defs">
             {RAIDS.map((raid) => (
               <div className="se-land-defs__row" key={raid.name}>
@@ -137,13 +217,13 @@ export function LandingPage() {
             ))}
           </dl>
           <p className="se-hint">
-            Recon first. Rankings show money and rank; only scouting shows a rival&rsquo;s crew,
+            Scout first. Rankings show money and rank; only recon shows a rival&rsquo;s crew,
             guns, wounds and the cash they left out.
           </p>
         </div>
 
         <div className="se-land-card">
-          <h2 className="se-land-h2">Seasons actually end</h2>
+          <h2 className="se-land-h2">Seasons end cleanly</h2>
           <p>
             When the clock runs out the round freezes. Final net worth and ranks are written once,
             the podium goes into the hall of fame, and the next season starts everyone from the
@@ -179,13 +259,13 @@ export function LandingPage() {
 
       <section className="se-land-section se-land-two">
         <div className="se-land-card">
-          <h2 className="se-land-h2">What you start with</h2>
+          <h2 className="se-land-h2">Everyone starts equal</h2>
           <div className="se-land-kit">
             <span><b className="se-num">{formatCents(start.cashCents)}</b>cash</span>
             <span><b className="se-num">{formatNumber(ruleset.turns.cap)}</b>turns</span>
             <span><b className="se-num">{formatNumber(start.thugs)}</b>thugs</span>
             <span><b className="se-num">{formatNumber(start.pistols)}</b>pistols</span>
-            <span><b className="se-num">{formatNumber(start.crack)}</b>crack</span>
+            <span><b className="se-num">{formatNumber(start.crack)}</b>product</span>
             <span><b className="se-num">{formatNumber(start.medicine)}</b>medicine</span>
           </div>
           <p className="se-hint">
@@ -195,7 +275,7 @@ export function LandingPage() {
         </div>
 
         <div className="se-land-card">
-          <h2 className="se-land-h2">One name, everywhere</h2>
+          <h2 className="se-land-h2">One identity across the city</h2>
           <ul className="se-list">
             <li>Sign in with email and password, or with Discord.</li>
             <li>Link your forum account: both profiles point at each other, and your badges show up on the forum.</li>
@@ -203,7 +283,7 @@ export function LandingPage() {
             <li>Lose your password and email gets you back in.</li>
           </ul>
           <div className="se-cta se-mt">
-            <Link className="se-btn se-btn--sm" to="/game/community">Community</Link>
+            <a className="se-btn se-btn--sm" href="https://forum.streetsempire.dev">Forum</a>
             <Link className="se-btn se-btn--sm se-btn--ghost" to="/game/rules">Rules</Link>
           </div>
         </div>

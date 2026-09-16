@@ -45,6 +45,48 @@ function StatusBar() {
   );
 }
 
+function Footer() {
+  const account = useSession((s) => s.account);
+  const me = useSession((s) => s.me);
+
+  return (
+    <footer className="se-footer">
+      <div className="se-footer__inner">
+        <div className="se-footer__brand">
+          <Link className="se-brand" to="/">
+            <span className="se-brand__mark">
+              Streets<span className="se-accent">Empire</span>
+            </span>
+            <span className="se-brand__ver">0.3.0-B</span>
+          </Link>
+          <p>
+            Free browser crime strategy with turn clocks, crew management,
+            raids, rankings and fair seasonal resets.
+          </p>
+        </div>
+
+        <nav className="se-footer__links" aria-label="Footer">
+          <Link to="/game/rules">Rules</Link>
+          <Link to="/game/news">News</Link>
+          <Link to="/game/hall-of-fame">Hall of Fame</Link>
+          <a href="https://forum.streetsempire.dev">Forum</a>
+          {account ? (
+            <>
+              <Link to={me ? '/game' : '/join'}>{me ? 'Dashboard' : 'Join a season'}</Link>
+              <Link to="/account">Account</Link>
+            </>
+          ) : (
+            <>
+              <Link to="/register">Register</Link>
+              <Link to="/login">Log in</Link>
+            </>
+          )}
+        </nav>
+      </div>
+    </footer>
+  );
+}
+
 export function Shell({ children, narrow }: { children: ReactNode; narrow?: boolean }) {
   const account = useSession((s) => s.account);
   const settings = useSession((s) => s.profileSettings);
@@ -94,6 +136,8 @@ export function Shell({ children, narrow }: { children: ReactNode; narrow?: bool
       <SiteBanner />
 
       <main className={narrow ? 'se-authshell' : 'se-shell'}>{children}</main>
+
+      <Footer />
     </div>
   );
 }

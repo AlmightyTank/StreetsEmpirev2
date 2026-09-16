@@ -39,7 +39,7 @@ export function calculateThugHappiness(
  * change on their next action:
  *   payout      - every point below the neutral cut stings
  *   condoms     - stock per whore, scaled by how short the shelf is
- *   crack       - the same
+ *   product     - the same
  *   protection  - thugs available to cover the girls working
  *
  * Nothing here accumulates. The knobs live in the ruleset, and no service may
@@ -70,7 +70,7 @@ export function calculateWhoreHappiness(
     w.maxCondomPenalty,
   );
 
-  const crackPenalty = shortfallPenalty(player.crack, w.crackPerWhore, w.maxCrackPenalty);
+  const productPenalty = shortfallPenalty(player.crack, w.crackPerWhore, w.maxCrackPenalty);
 
   const protectedWhores = player.thugs * w.whoresPerThug;
   const unprotected = Math.max(0, player.whores - protectedWhores);
@@ -78,7 +78,7 @@ export function calculateWhoreHappiness(
 
   return clamp(
     Math.round(
-      h.max - payoutPenalty - condomPenalty - crackPenalty - protectionPenalty,
+      h.max - payoutPenalty - condomPenalty - productPenalty - protectionPenalty,
     ),
     h.min,
     h.max,
@@ -130,7 +130,7 @@ export function explainWhoreHappiness(
   };
 
   const condomsWanted = player.whores * w.condomsPerWhore;
-  const crackWanted = player.whores * w.crackPerWhore;
+  const productWanted = player.whores * w.crackPerWhore;
   const covered = player.thugs * w.whoresPerThug;
 
   const terms: HappinessTerm[] = player.whores <= 0
@@ -148,12 +148,12 @@ export function explainWhoreHappiness(
         },
         {
           key: 'crack',
-          label: 'Crack',
+          label: 'Product',
           penalty: round1(shortfall(player.crack, w.crackPerWhore, w.maxCrackPenalty)),
           max: w.maxCrackPenalty,
           fix:
-            player.crack < crackWanted
-              ? `Stock ${Math.ceil(crackWanted - player.crack)} more.`
+            player.crack < productWanted
+              ? `Stock ${Math.ceil(productWanted - player.crack)} more.`
               : null,
         },
         {

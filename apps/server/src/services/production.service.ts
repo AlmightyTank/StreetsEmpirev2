@@ -1,22 +1,32 @@
 import type { PrismaClient } from '@prisma/client';
 import { calculateProduce, districtCapacities, type Rng } from '@streets/rules-engine';
-import type { GameActionResult, ProduceCrackResult } from '@streets/shared';
+import type { GameActionResult, ProduceCrackResult, ProductTypeDto } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { hideoutBackOfficeBonusCents, hideoutWorkshopBonusCrack } from './hideout.service.js';
 
 export interface ProduceInput {
   turns: number;
+  productType?: ProductTypeDto;
   actionId?: string;
 }
 
+const PRODUCT_NAMES: Record<ProductTypeDto, string> = {
+  WEED: 'Weed',
+  COKE: 'Coke',
+  DOWNERS: 'Downers',
+  ECSTASY: 'Ecstasy',
+  HEROIN: 'Heroin',
+  ACID: 'Acid',
+};
+
 export const ProductionService = {
   /**
-   * Section 29. Turns and money in, crack out.
+   * Section 29. Turns and money in, product out.
    *
-   * Nobody earns anything cooking and there is no take to pay the crew back
+   * Nobody earns anything producing and there is no take to pay the crew back
    * with. The reason to do it is the price:
-   * ingredients cost a tenth of what Pip's charges for a finished rock.
+   * ingredients cost a tenth of what Pip's charges for a finished unit.
    */
   produceCrack(
     prisma: PrismaClient,
@@ -24,6 +34,9 @@ export const ProductionService = {
     input: ProduceInput,
     rng?: Rng,
   ): Promise<GameActionResult<ProduceCrackResult>> {
+    const productType = input.productType ?? 'WEED';
+    const productName = PRODUCT_NAMES[productType] ?? 'Product';
+
     return ActionService.run<ProduceCrackResult>(prisma, roundPlayerId, {
       action: 'PRODUCE_CRACK',
       actionId: input.actionId,
@@ -32,7 +45,7 @@ export const ProductionService = {
         if (input.turns < ruleset.production.minTurns) {
           throw AppError.badRequest(
             'TURNS_TOO_LOW',
-            `Cooking costs at least ${ruleset.production.minTurns} turn.`,
+            `Production costs at least ${ruleset.production.minTurns} turn.`,
             { turns: 'Spend at least one turn.' },
           );
         }
@@ -41,7 +54,7 @@ export const ProductionService = {
         if (active.thugs <= 0) {
           throw AppError.badRequest(
             'NO_THUGS',
-            'You need at least one fit thug to cook.',
+            'You need at least one fit thug to produce.',
           );
         }
 
@@ -49,13 +62,13 @@ export const ProductionService = {
         if (current.cashCents < BigInt(perRock)) {
           throw AppError.badRequest(
             'NO_INGREDIENT_MONEY',
-            `Ingredients cost $${(perRock / 100).toFixed(2)} a rock and you cannot cover one.`,
+            `Ingredients cost $${(perRock / 100).toFixed(2)} per product unit and you cannot cover one.`,
           );
         }
 
         assertTurns(current.turns, input.turns);
 
-        // The girls work their usual block while the thugs cook. Which block
+        // The girls work their usual block while the thugs produce. Which block
         // that is stays hidden, so its capacity is looked up rather than
         // chosen.
         const capacities = districtCapacities(round.id, now, ruleset);
@@ -79,7 +92,7 @@ export const ProductionService = {
           ...current,
           turns: current.turns - input.turns,
 
-          // Manual 3.2 sends the girls out too, so a cook counts toward the
+          // Manual 3.2 sends the girls out too, so production counts toward the
           // clerk's favour on the same terms as a trip.
           cleanShiftStreak:
             outcome.shortages.condoms > 0 ? 0 : current.cleanShiftStreak + 1,
@@ -106,6 +119,10 @@ export const ProductionService = {
         };
 
         const result: ProduceCrackResult = {
+          productType,
+          productName,
+          productProduced: crackProduced,
+          hideoutBonusProduct: hideoutBonusCrack,
           crackProduced,
           hideoutBonusCrack,
           ingredientCents: Number(outcome.ingredientCents),
@@ -144,6 +161,9 @@ export const ProductionService = {
             type: 'PRODUCE_CRACK',
             payload: {
               turns: input.turns,
+              productType,
+              productName,
+              product: crackProduced,
               crack: crackProduced,
               hideoutBonusCrack,
               ingredientCents: Number(outcome.ingredientCents),

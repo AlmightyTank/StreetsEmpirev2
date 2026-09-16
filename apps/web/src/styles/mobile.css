@@ -80,6 +80,7 @@
   .se-store-favor { padding: 10px; margin-bottom: 0; }
   .se-store-favor .se-btn { white-space: normal; letter-spacing: 0.04em; }
   .se-hint { font-size: 12px; line-height: 1.5; }
+  .se-product-choices { grid-template-columns: 1fr; }
 
   .se-spend__row { gap: 8px; }
   .se-spend__row .se-btn { flex: 1 0 44px; padding-right: 8px; padding-left: 8px; }

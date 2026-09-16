@@ -390,8 +390,8 @@ export function ProfilePage() {
 
           {player.intelRequired ? (
             <Panel title="Recon needed">
-              <p>Public profiles show status, money, legacy and achievements. They do not show opponent crew, weapons, wounds, exposed cash or crack stash in this combat round.</p>
-              <p className="se-hint">Use recon on the Raids page to reveal fit thugs, wounds, weapons, cash band, crack stash and max loot for this target.</p>
+              <p>Public profiles show status, money, legacy and achievements. They do not show opponent crew, weapons, wounds, exposed cash or product stash in this combat round.</p>
+              <p className="se-hint">Use recon on the Raids page to reveal fit thugs, wounds, weapons, cash band, product stash and max loot for this target.</p>
             </Panel>
           ) : (
             <div className="se-grid se-grid--2">

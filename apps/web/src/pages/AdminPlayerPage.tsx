@@ -19,7 +19,7 @@ const GRANT_FIELDS: Array<{ item: AdminGrantItem; label: string }> = [
   { item: 'thugs', label: 'Thugs' },
   { item: 'condoms', label: 'Condoms' },
   { item: 'medicine', label: 'Medicine' },
-  { item: 'crack', label: 'Crack' },
+  { item: 'crack', label: 'Product' },
   { item: 'beer', label: 'Beer' },
   { item: 'pistols', label: 'Pistols' },
   { item: 'shotguns', label: 'Shotguns' },
@@ -219,7 +219,7 @@ export function AdminPlayerPage() {
           <div className="se-rows">
             <Row label="Condoms" value={formatNumber(player.supplies.condoms)} />
             <Row label="Medicine" value={formatNumber(player.supplies.medicine)} />
-            <Row label="Crack" value={formatNumber(player.supplies.crack)} />
+            <Row label="Product" value={formatNumber(player.supplies.crack)} />
             <Row label="Beer" value={formatNumber(player.supplies.beer)} />
             <Row label="Happiness" value={`Whores ${player.happiness.whores}% · Thugs ${player.happiness.thugs}%`} />
             <Row label="Payout" value={`${player.payoutPercent}%`} />
