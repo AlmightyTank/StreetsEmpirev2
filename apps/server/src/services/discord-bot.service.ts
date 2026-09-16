@@ -1,13 +1,12 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
-import type { Prisma, PrismaClient, Round } from '@prisma/client';
-import { loadRulesetForRound, regenerateTurns } from '@streets/rules-engine';
+import type { PrismaClient, Round } from '@prisma/client';
+import { loadRulesetForRound } from '@streets/rules-engine';
 import type {
   DiscordAlertSettingsDto,
   DiscordAlertType,
   DiscordAlertsClaimDto,
   DiscordBadgesDto,
   DiscordBattleEventDto,
-  DiscordBattleKind,
   DiscordCityDto,
   DiscordHallOfFameDto,
   DiscordHistoryDto,
@@ -17,12 +16,10 @@ import type {
   DiscordNewsCreatedDto,
   DiscordNewsPostDto,
   DiscordProfileCardDto,
-  DiscordRankAlertDto,
   DiscordRankingEntryDto,
   DiscordRankingsDto,
   DiscordRoundEventDto,
   DiscordStatsDto,
-  DiscordTurnReminderDto,
   ForumGroupBadgeDto,
   PublicLegacyDto,
 } from '@streets/shared';
@@ -32,27 +29,22 @@ import { AppError } from '../utils/errors.js';
 import { CommunityService, legacyAchievements, loadLegacyByAccount, loadPublicContexts } from './community.service.js';
 import { ForumGroupsService } from './forum-groups.service.js';
 import { PlayerStateService } from './player-state.service.js';
+import {
+  battleEventDto,
+  battleEventSelect,
+  endedRoundsWhere,
+  finalStandings,
+  NotificationService,
+  roundEventDto,
+} from './notification.service.js';
 import { RoundService } from './round.service.js';
+import { competitionRanks, gameUrl, playerUrl, rankValues } from './standings.js';
 
 /** Constant-time bearer check; hashing first makes the lengths equal. */
 export function botTokenMatches(header: string | undefined, token: string): boolean {
   if (!token || !header?.startsWith('Bearer ')) return false;
   const digest = (value: string) => createHash('sha256').update(value).digest();
   return timingSafeEqual(digest(header.slice('Bearer '.length)), digest(token));
-}
-
-/** Ranks for values already sorted high to low: ties share a rank and skip the tied positions. */
-export function rankValues(sortedDesc: Array<number | bigint>): number[] {
-  const ranks: number[] = [];
-  sortedDesc.forEach((value, index) => {
-    ranks.push(index > 0 && sortedDesc[index - 1] === value ? ranks[index - 1]! : index + 1);
-  });
-  return ranks;
-}
-
-/** Rankings-style ranks for rows already sorted by net worth, richest first. */
-export function competitionRanks(sortedDesc: Array<{ netWorthCents: bigint }>): number[] {
-  return rankValues(sortedDesc.map((row) => row.netWorthCents));
 }
 
 /** Role keys the bot maps to Discord roles. Every linked, active account is at least "linked". */
@@ -71,23 +63,6 @@ export function roleKeysFor(input: {
   return keys;
 }
 
-/**
- * Turn reminder state machine. Turns only regenerate while below the cap, so
- * "armed" (seen below the cap) then "full" means they filled up since last time.
- */
-export function reminderDecision(input: { armed: boolean; turns: number; cap: number }): 'arm' | 'notify' | 'none' {
-  if (input.turns >= input.cap) return input.armed ? 'notify' : 'none';
-  return input.armed ? 'none' : 'arm';
-}
-
-/** Rank alerts fire on the way down only: losing #1, or falling out of the top 10. */
-export function rankAlertFor(previous: number | null, current: number): DiscordRankAlertDto['kind'] | null {
-  if (previous === null) return null;
-  if (previous === 1 && current > 1) return 'lost-first';
-  if (previous <= 10 && current > 10) return 'out-of-top-10';
-  return null;
-}
-
 type PublicContext = NonNullable<ReturnType<Awaited<ReturnType<typeof loadPublicContexts>>['get']>>;
 
 export const LEADERBOARD_STATS: Record<DiscordLeaderboardStat, { label: string; value: (context: PublicContext) => number }> = {
@@ -99,8 +74,6 @@ export const LEADERBOARD_STATS: Record<DiscordLeaderboardStat, { label: string; 
   lures: { label: 'Crew lured', value: (context) => context.crewLured },
 };
 
-const BATTLE_KINDS: readonly DiscordBattleKind[] = ['RAID', 'DRIVE_BY', 'DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW'];
-
 async function mapWithLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const results = new Array<R>(items.length);
   let next = 0;
@@ -111,14 +84,6 @@ async function mapWithLimit<T, R>(items: T[], limit: number, fn: (item: T) => Pr
     }
   }));
   return results;
-}
-
-function gameUrl(path: string): string {
-  return new URL(path, env.frontendOrigin).toString();
-}
-
-function playerUrl(publicPimpId: number): string {
-  return gameUrl(`/game/players/${publicPimpId}`);
 }
 
 function roundSummary(round: Round): NonNullable<DiscordRankingsDto['round']> {
@@ -185,25 +150,6 @@ async function publicProfile(prisma: PrismaClient, query: PlayerQuery) {
   return { round, profile };
 }
 
-/** Current round, plus the account's turns and national rank in it when they have joined. */
-async function currentStanding(prisma: PrismaClient, accountId: string) {
-  const round = await RoundService.getCurrent(prisma);
-  if (!round) return { round: null, current: null };
-  const player = await prisma.roundPlayer.findFirst({
-    where: { roundId: round.id, accountId },
-    select: { turns: true, lastTurnCalculationAt: true, netWorthCents: true },
-  });
-  if (!player) return { round, current: null };
-  const ruleset = loadRulesetForRound(round);
-  const ahead = await prisma.roundPlayer.count({
-    where: { roundId: round.id, netWorthCents: { gt: player.netWorthCents }, account: { isActive: true } },
-  });
-  return {
-    round,
-    current: { turns: regenerateTurns(player, new Date(), ruleset).turns, cap: ruleset.turns.cap, nationalRank: ahead + 1 },
-  };
-}
-
 type AlertRow = { attacksEnabled: boolean; roundEnabled: boolean; rankEnabled: boolean; turnsEnabled: boolean };
 
 function alertSettingsDto(
@@ -223,201 +169,29 @@ function alertSettingsDto(
   };
 }
 
-/** Active players of a round, richest first, with tie-aware ranks. */
-async function roundStandings(prisma: PrismaClient, roundId: string) {
-  const players = await prisma.roundPlayer.findMany({
-    where: { roundId, account: { isActive: true } },
-    orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
-    select: { accountId: true, publicPimpId: true, displayName: true, netWorthCents: true, city: { select: { name: true } } },
-  });
-  const ranks = competitionRanks(players);
-  return { players, ranks, rankByAccount: new Map(players.map((player, index) => [player.accountId, ranks[index]!])) };
-}
-
-/** New battles, oldest first, marked as posted before the bot sends anything. */
+/** New battles for the public raid feed, oldest first, marked as posted before the bot sends anything. */
 async function claimBattles(prisma: PrismaClient, now: Date, limit = 25): Promise<DiscordBattleEventDto[]> {
   return prisma.$transaction(async (tx) => {
     const rows = await tx.raidBattle.findMany({
       where: { discordPostedAt: null, voidedAt: null },
       orderBy: { createdAt: 'asc' },
       take: limit,
-      select: {
-        id: true,
-        kind: true,
-        attackerReport: true,
-        createdAt: true,
-        attacker: { select: { displayName: true, publicPimpId: true, round: { select: { name: true } } } },
-        defender: {
-          select: {
-            displayName: true,
-            publicPimpId: true,
-            account: { select: { discordId: true, isActive: true, discordReminder: { select: { attacksEnabled: true } } } },
-          },
-        },
-      },
+      select: battleEventSelect,
     });
     if (!rows.length) return [];
     await tx.raidBattle.updateMany({ where: { id: { in: rows.map((row) => row.id) }, discordPostedAt: null }, data: { discordPostedAt: now } });
-
-    return rows.map((row) => {
-      const report = row.attackerReport as { kind?: string; won?: boolean };
-      const kind = BATTLE_KINDS.find((candidate) => candidate === report.kind) ?? row.kind;
-      const defender = row.defender.account;
-      return {
-        id: row.id,
-        kind,
-        roundName: row.attacker.round.name,
-        attackerName: row.attacker.displayName,
-        attackerProfileUrl: playerUrl(row.attacker.publicPimpId),
-        defenderName: row.defender.displayName,
-        defenderProfileUrl: playerUrl(row.defender.publicPimpId),
-        attackerWon: report.won === true,
-        createdAt: row.createdAt.toISOString(),
-        alertDiscordId: defender.isActive && defender.discordId && defender.discordReminder?.attacksEnabled ? defender.discordId : null,
-      };
-    });
+    return rows.map(battleEventDto);
   });
 }
 
-async function claimRoundEvents(prisma: PrismaClient, now: Date): Promise<DiscordRoundEventDto[]> {
-  const soon = new Date(now.getTime() + 24 * 60 * 60_000);
-  const [openedRounds, endingSoonRounds, endedRounds] = await Promise.all([
-    prisma.round.findMany({ where: { discordOpenedAt: null, status: { in: ['REGISTRATION', 'ACTIVE'] } } }),
-    prisma.round.findMany({ where: { discordEndingSoonAt: null, discordEndedAt: null, status: 'ACTIVE', endsAt: { gt: now, lte: soon } } }),
-    prisma.round.findMany({
-      where: {
-        discordEndedAt: null,
-        OR: [{ status: { in: ['ENDED', 'ARCHIVED'] } }, { status: { in: ['REGISTRATION', 'ACTIVE'] }, endsAt: { lte: now } }],
-      },
-    }),
-  ]);
-  if (!openedRounds.length && !endingSoonRounds.length && !endedRounds.length) return [];
-
-  const endedIds = endedRounds.map((round) => round.id);
-  await prisma.$transaction([
-    prisma.round.updateMany({ where: { id: { in: openedRounds.map((round) => round.id) }, discordOpenedAt: null }, data: { discordOpenedAt: now } }),
-    prisma.round.updateMany({ where: { id: { in: endingSoonRounds.map((round) => round.id) }, discordEndingSoonAt: null }, data: { discordEndingSoonAt: now } }),
-    prisma.round.updateMany({ where: { id: { in: endedIds }, discordEndedAt: null }, data: { discordEndedAt: now } }),
-    // An ended round never needs its "ending soon" alert any more.
-    prisma.round.updateMany({ where: { id: { in: endedIds }, discordEndingSoonAt: null }, data: { discordEndingSoonAt: now } }),
-  ]);
-
-  const subscribers = await prisma.discordReminder.findMany({
-    where: { roundEnabled: true, account: { isActive: true, discordId: { not: null } } },
-    select: { accountId: true, account: { select: { discordId: true } } },
-  });
-  const base = (type: DiscordRoundEventDto['type'], round: Round) => ({
-    type,
-    roundName: round.name,
-    status: round.status,
-    startsAt: round.startsAt.toISOString(),
-    endsAt: round.endsAt.toISOString(),
-    url: gameUrl(type === 'ended' ? '/game/rankings' : '/join'),
-  });
-
+/** Finished rounds for the public round-end post. Opening and ending-soon news reach players as alerts only. */
+async function claimRoundEnds(prisma: PrismaClient, now: Date): Promise<DiscordRoundEventDto[]> {
+  const rounds = await prisma.round.findMany({ where: endedRoundsWhere('discordEndedAt', now) });
+  if (!rounds.length) return [];
+  await prisma.round.updateMany({ where: { id: { in: rounds.map((round) => round.id) }, discordEndedAt: null }, data: { discordEndedAt: now } });
   const events: DiscordRoundEventDto[] = [];
-  for (const round of openedRounds) {
-    // A round that opened and ended between checks only announces the ending.
-    if (endedIds.includes(round.id)) continue;
-    events.push({ ...base('opened', round), standings: [], recipients: subscribers.map((s) => ({ discordId: s.account.discordId!, rank: null })) });
-  }
-  for (const round of endingSoonRounds) {
-    const { rankByAccount } = await roundStandings(prisma, round.id);
-    events.push({
-      ...base('ending-soon', round),
-      standings: [],
-      recipients: subscribers.filter((s) => rankByAccount.has(s.accountId)).map((s) => ({ discordId: s.account.discordId!, rank: rankByAccount.get(s.accountId)! })),
-    });
-  }
-  for (const round of endedRounds) {
-    const { players, ranks, rankByAccount } = await roundStandings(prisma, round.id);
-    events.push({
-      ...base('ended', round),
-      standings: players.slice(0, 10).map((player, index) => ({
-        rank: ranks[index]!,
-        publicPimpId: player.publicPimpId,
-        displayName: player.displayName,
-        city: player.city.name,
-        netWorthCents: Number(player.netWorthCents),
-        movement: null,
-        profileUrl: playerUrl(player.publicPimpId),
-      })),
-      recipients: subscribers.filter((s) => rankByAccount.has(s.accountId)).map((s) => ({ discordId: s.account.discordId!, rank: rankByAccount.get(s.accountId)! })),
-    });
-  }
+  for (const round of rounds) events.push(roundEventDto('ended', round, (await finalStandings(prisma, round.id)).top));
   return events;
-}
-
-/** Turn and rank alerts for the running round. */
-async function claimPlayerAlerts(prisma: PrismaClient, round: Round, now: Date): Promise<Pick<DiscordAlertsClaimDto, 'turns' | 'ranks'>> {
-  const settings = await prisma.discordReminder.findMany({
-    where: { OR: [{ turnsEnabled: true }, { rankEnabled: true }], account: { isActive: true, discordId: { not: null } } },
-    select: {
-      accountId: true,
-      turnsEnabled: true,
-      turnsArmed: true,
-      rankEnabled: true,
-      rankRoundId: true,
-      rankLastNational: true,
-      account: { select: { discordId: true } },
-    },
-  });
-  if (!settings.length) return { turns: [], ranks: [] };
-
-  const [players, standings] = await Promise.all([
-    prisma.roundPlayer.findMany({
-      where: { roundId: round.id, accountId: { in: settings.map((setting) => setting.accountId) } },
-      select: { accountId: true, displayName: true, turns: true, lastTurnCalculationAt: true },
-    }),
-    settings.some((setting) => setting.rankEnabled) ? roundStandings(prisma, round.id) : null,
-  ]);
-  const playerByAccount = new Map(players.map((player) => [player.accountId, player]));
-  const ruleset = loadRulesetForRound(round);
-
-  const arm: string[] = [];
-  const turnsDue: string[] = [];
-  const turns: DiscordTurnReminderDto[] = [];
-  const ranks: DiscordRankAlertDto[] = [];
-  const rankUpdates: Array<{ accountId: string; rank: number }> = [];
-
-  for (const setting of settings) {
-    const player = playerByAccount.get(setting.accountId);
-    if (!player) continue;
-    const discordId = setting.account.discordId!;
-
-    if (setting.turnsEnabled) {
-      const current = regenerateTurns(player, now, ruleset).turns;
-      const decision = reminderDecision({ armed: setting.turnsArmed, turns: current, cap: ruleset.turns.cap });
-      if (decision === 'arm') arm.push(setting.accountId);
-      if (decision === 'notify') {
-        turnsDue.push(setting.accountId);
-        turns.push({ discordId, displayName: player.displayName, roundName: round.name, turns: current, cap: ruleset.turns.cap, url: gameUrl('/game') });
-      }
-    }
-
-    const rank = standings?.rankByAccount.get(setting.accountId);
-    if (setting.rankEnabled && rank !== undefined) {
-      // A rank remembered from another round says nothing about this one.
-      const previous = setting.rankRoundId === round.id ? setting.rankLastNational : null;
-      const kind = rankAlertFor(previous, rank);
-      if (kind) {
-        ranks.push({ discordId, displayName: player.displayName, roundName: round.name, kind, rank, leaderName: standings!.players[0]?.displayName ?? null, url: gameUrl('/game/rankings') });
-      }
-      if (setting.rankRoundId !== round.id || setting.rankLastNational !== rank) rankUpdates.push({ accountId: setting.accountId, rank });
-    }
-  }
-
-  if (arm.length || turnsDue.length || rankUpdates.length) {
-    await prisma.$transaction([
-      prisma.discordReminder.updateMany({ where: { accountId: { in: arm } }, data: { turnsArmed: true } }),
-      prisma.discordReminder.updateMany({ where: { accountId: { in: turnsDue }, turnsArmed: true }, data: { turnsArmed: false, turnsLastSentAt: now } }),
-      ...rankUpdates.map((update) => prisma.discordReminder.update({
-        where: { accountId: update.accountId },
-        data: { rankRoundId: round.id, rankLastNational: update.rank },
-      })),
-    ]);
-  }
-  return { turns, ranks };
 }
 
 export const DiscordBotService = {
@@ -755,55 +529,31 @@ export const DiscordBotService = {
   async alertSettings(prisma: PrismaClient, discordId: string): Promise<DiscordAlertSettingsDto> {
     const account = await findLinkedAccount(prisma, discordId);
     const [{ round, current }, row] = await Promise.all([
-      currentStanding(prisma, account.id),
-      prisma.discordReminder.findUnique({ where: { accountId: account.id } }),
+      NotificationService.currentStanding(prisma, account.id),
+      prisma.notificationSettings.findUnique({ where: { accountId: account.id } }),
     ]);
     return alertSettingsDto(row, round, current);
   },
 
   async setAlert(prisma: PrismaClient, discordId: string, type: DiscordAlertType, enabled: boolean): Promise<DiscordAlertSettingsDto> {
     const account = await findLinkedAccount(prisma, discordId);
-    const { round, current } = await currentStanding(prisma, account.id);
-
-    let data: Prisma.DiscordReminderUncheckedCreateWithoutAccountInput;
-    switch (type) {
-      case 'attacks':
-        data = { attacksEnabled: enabled };
-        break;
-      case 'round':
-        data = { roundEnabled: enabled };
-        break;
-      case 'rank':
-        // Start from the current rank, so switching on never alerts about the past.
-        data = {
-          rankEnabled: enabled,
-          rankRoundId: enabled && round && current ? round.id : null,
-          rankLastNational: enabled && current ? current.nationalRank : null,
-        };
-        break;
-      case 'turns':
-        // Already full when switching on: the first reminder waits until they spend and refill.
-        data = { turnsEnabled: enabled, turnsArmed: enabled && (current ? current.turns < current.cap : true) };
-        break;
-    }
-
-    const row = await prisma.discordReminder.upsert({
-      where: { accountId: account.id },
-      create: { accountId: account.id, ...data },
-      update: data,
-    });
-    return alertSettingsDto(row, round, current);
+    const standing = await NotificationService.currentStanding(prisma, account.id);
+    const row = await NotificationService.setCategory(prisma, account.id, type, enabled, standing);
+    return alertSettingsDto(row, standing.round, standing.current);
   },
 
-  /** Everything due to announce, each handed out once: new battles, round events, rank drops and full turns. */
+  /**
+   * Everything due to announce, each handed out once: the public raid feed and round-end
+   * posts, plus DMs. Collecting first means a DM never waits for the server's own timer.
+   */
   async claimAlerts(prisma: PrismaClient): Promise<DiscordAlertsClaimDto> {
     const now = new Date();
-    const [round, battles, rounds] = await Promise.all([
-      RoundService.getCurrent(prisma),
+    await NotificationService.collect(prisma, now);
+    const [battles, rounds, dms] = await Promise.all([
       claimBattles(prisma, now),
-      claimRoundEvents(prisma, now),
+      claimRoundEnds(prisma, now),
+      NotificationService.claimDiscord(prisma, now),
     ]);
-    const player = round?.status === 'ACTIVE' ? await claimPlayerAlerts(prisma, round, now) : { turns: [], ranks: [] };
-    return { ...player, battles, rounds };
+    return { ...dms, battles, rounds };
   },
 };

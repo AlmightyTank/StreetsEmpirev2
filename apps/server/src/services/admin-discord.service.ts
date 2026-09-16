@@ -12,12 +12,13 @@ const iso = (date: Date | null | undefined) => date?.toISOString() ?? null;
  */
 export const AdminDiscordService = {
   async status(prisma: PrismaClient, now = new Date()): Promise<AdminDiscordStatusDto> {
-    const [news, oldestNews, battles, oldestBattle, roundOpenings, roundEndings, resyncs, recentResyncs, linkedAccounts] = await Promise.all([
+    const [news, oldestNews, battles, oldestBattle, dms, oldestDm, roundEndings, resyncs, recentResyncs, linkedAccounts] = await Promise.all([
       prisma.gameNews.count({ where: { discordPostedAt: null, publishedAt: { lte: now } } }),
       prisma.gameNews.findFirst({ where: { discordPostedAt: null, publishedAt: { lte: now } }, orderBy: { publishedAt: 'asc' }, select: { publishedAt: true } }),
       prisma.raidBattle.count({ where: { discordPostedAt: null, voidedAt: null } }),
       prisma.raidBattle.findFirst({ where: { discordPostedAt: null, voidedAt: null }, orderBy: { createdAt: 'asc' }, select: { createdAt: true } }),
-      prisma.round.count({ where: { discordOpenedAt: null, status: { in: ['REGISTRATION', 'ACTIVE'] } } }),
+      prisma.notificationOutbox.count({ where: { channel: 'DISCORD', claimedAt: null } }),
+      prisma.notificationOutbox.findFirst({ where: { channel: 'DISCORD', claimedAt: null }, orderBy: { createdAt: 'asc' }, select: { createdAt: true } }),
       prisma.round.count({ where: { discordEndedAt: null, status: { in: ['ENDED', 'ARCHIVED'] } } }),
       prisma.discordResyncRequest.count({ where: { claimedAt: null } }),
       prisma.discordResyncRequest.findMany({ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 10 }),
@@ -30,7 +31,7 @@ export const AdminDiscordService = {
       queues: {
         news: { pending: news, oldestAt: iso(oldestNews?.publishedAt) },
         battles: { pending: battles, oldestAt: iso(oldestBattle?.createdAt) },
-        roundOpenings,
+        dms: { pending: dms, oldestAt: iso(oldestDm?.createdAt) },
         roundEndings,
         resyncs,
       },

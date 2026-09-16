@@ -291,10 +291,10 @@ export const AdminRoundService = {
         || (registrationOpensAt?.getTime() ?? null) !== (before.registrationOpensAt?.getTime() ?? null);
       if (!changed) throw AppError.badRequest('NO_CHANGES', 'Nothing changed on that round.');
 
-      const rearmEndingSoon = Boolean(before.discordEndingSoonAt) && endMoved && endsAt.getTime() > now.getTime() + DAY_MS;
+      const rearmEndingSoon = Boolean(before.alertsEndingSoonAt) && endMoved && endsAt.getTime() > now.getTime() + DAY_MS;
       const updated = await tx.round.update({
         where: { id: before.id },
-        data: { name, startsAt, endsAt, registrationOpensAt, ...(rearmEndingSoon ? { discordEndingSoonAt: null } : {}) },
+        data: { name, startsAt, endsAt, registrationOpensAt, ...(rearmEndingSoon ? { alertsEndingSoonAt: null } : {}) },
       });
       await AdminAuditService.record(tx, actor, { action: 'round.update', targetType: 'round', targetId: before.id, reason: input.reason, before, after: updated });
       return updated;

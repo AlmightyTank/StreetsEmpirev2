@@ -78,6 +78,27 @@ export const updateAccountProfileSettingsSchema = z.object({
   defaultLanding: defaultLandingSchema,
 });
 
+const notificationToggles = z.object({
+  attacks: z.boolean(),
+  turns: z.boolean(),
+  round: z.boolean(),
+  rank: z.boolean(),
+}).partial().strict();
+
+export const updateNotificationSettingsSchema = z.object({
+  categories: notificationToggles.optional(),
+  channels: z.object({ discord: z.boolean(), push: z.boolean() }).partial().strict().optional(),
+}).strict();
+
+export const pushSubscribeSchema = z.object({
+  endpoint: z.string().trim().url().max(1000),
+  keys: z.object({
+    p256dh: z.string().trim().min(1).max(200),
+    auth: z.string().trim().min(1).max(100),
+  }),
+  label: z.string().trim().min(1).max(60).nullable().optional(),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
@@ -90,3 +111,5 @@ export type UiDensityInput = z.infer<typeof uiDensitySchema>;
 export type MoneyFormatInput = z.infer<typeof moneyFormatSchema>;
 export type DefaultLandingInput = z.infer<typeof defaultLandingSchema>;
 export type UpdateAccountProfileSettingsInput = z.infer<typeof updateAccountProfileSettingsSchema>;
+export type UpdateNotificationSettingsInput = z.infer<typeof updateNotificationSettingsSchema>;
+export type PushSubscribeInput = z.infer<typeof pushSubscribeSchema>;

@@ -103,7 +103,9 @@ export function rateLimitPolicyFor(method: string, path: string): RateLimitPolic
         path === '/api/auth/email/verify' ||
         path === '/api/forum/start' ||
         path === '/api/forum/finish' ||
-        path === '/api/forum/unlink')) ||
+        path === '/api/forum/unlink' ||
+        // Each test is a real push to every device.
+        path === '/api/notifications/push/test')) ||
     (method === 'GET' &&
       (path === '/api/auth/discord' || path === '/api/auth/discord/callback'))
   ) {

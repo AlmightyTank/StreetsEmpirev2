@@ -139,7 +139,7 @@ export function AdminIntegrationsPage() {
                 <Row label="Linked accounts" value={formatNumber(discord.linkedAccounts)} />
                 <Row label="News posts waiting" value={`${formatNumber(discord.queues.news.pending)} · ${age(discord.queues.news.oldestAt)}`} />
                 <Row label="Raid feed waiting" value={`${formatNumber(discord.queues.battles.pending)} · ${age(discord.queues.battles.oldestAt)}`} />
-                <Row label="Round openings waiting" value={formatNumber(discord.queues.roundOpenings)} />
+                <Row label="Alert DMs waiting" value={`${formatNumber(discord.queues.dms.pending)} · ${age(discord.queues.dms.oldestAt)}`} />
                 <Row label="Round endings waiting" value={formatNumber(discord.queues.roundEndings)} />
                 <Row label="Resyncs waiting" value={formatNumber(discord.queues.resyncs)} />
               </div>

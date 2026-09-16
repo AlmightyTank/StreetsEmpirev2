@@ -377,7 +377,8 @@ export interface AdminDiscordStatusDto {
   queues: {
     news: { pending: number; oldestAt: string | null };
     battles: { pending: number; oldestAt: string | null };
-    roundOpenings: number;
+    /** Alert DMs collected but not yet picked up by the bot. */
+    dms: { pending: number; oldestAt: string | null };
     roundEndings: number;
     resyncs: number;
   };

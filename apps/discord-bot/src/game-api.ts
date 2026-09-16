@@ -170,6 +170,28 @@ const alertSettingsSchema = z.object({
   current: z.object({ turns: z.number(), cap: z.number(), nationalRank: z.number() }).nullable(),
 });
 
+const battleEventSchema = z.object({
+  id: z.string(),
+  kind: z.enum(['RAID', 'DRIVE_BY', 'DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW']),
+  roundName: z.string(),
+  attackerName: z.string(),
+  attackerProfileUrl: z.string().url(),
+  defenderName: z.string(),
+  defenderProfileUrl: z.string().url(),
+  attackerWon: z.boolean(),
+  createdAt: z.string(),
+});
+
+const roundEventSchema = z.object({
+  type: z.enum(['opened', 'ending-soon', 'ended']),
+  roundName: z.string(),
+  status: z.string(),
+  startsAt: z.string(),
+  endsAt: z.string(),
+  url: z.string().url(),
+  standings: z.array(rankingEntrySchema),
+});
+
 const alertsClaimSchema = z.object({
   turns: z.array(z.object({
     discordId: z.string(),
@@ -188,28 +210,10 @@ const alertsClaimSchema = z.object({
     leaderName: z.string().nullable(),
     url: z.string().url(),
   })),
-  battles: z.array(z.object({
-    id: z.string(),
-    kind: z.enum(['RAID', 'DRIVE_BY', 'DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW']),
-    roundName: z.string(),
-    attackerName: z.string(),
-    attackerProfileUrl: z.string().url(),
-    defenderName: z.string(),
-    defenderProfileUrl: z.string().url(),
-    attackerWon: z.boolean(),
-    createdAt: z.string(),
-    alertDiscordId: z.string().nullable(),
-  })),
-  rounds: z.array(z.object({
-    type: z.enum(['opened', 'ending-soon', 'ended']),
-    roundName: z.string(),
-    status: z.string(),
-    startsAt: z.string(),
-    endsAt: z.string(),
-    url: z.string().url(),
-    standings: z.array(rankingEntrySchema),
-    recipients: z.array(z.object({ discordId: z.string(), rank: z.number().nullable() })),
-  })),
+  attacks: z.array(battleEventSchema.extend({ discordId: z.string() })),
+  roundAlerts: z.array(roundEventSchema.extend({ discordId: z.string(), rank: z.number().nullable() })),
+  battles: z.array(battleEventSchema),
+  rounds: z.array(roundEventSchema),
 });
 
 const statusSchema = z.object({

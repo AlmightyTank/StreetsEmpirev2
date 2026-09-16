@@ -15,8 +15,10 @@ import type {
 import { create } from 'zustand';
 import { authApi } from '../api/auth.js';
 import { gameApi } from '../api/game.js';
+import { notificationsApi } from '../api/notifications.js';
 import { roundsApi } from '../api/rounds.js';
 import { ApiError } from '../api/client.js';
+import { unsubscribeFromPush } from '../utils/push.js';
 
 type Phase = 'booting' | 'ready';
 
@@ -163,6 +165,13 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   async logout() {
+    // A shared phone should stop getting this player's alerts. Best effort: never block signing out.
+    try {
+      const endpoint = await unsubscribeFromPush();
+      if (endpoint) await notificationsApi.forget(endpoint);
+    } catch {
+      // The device stays listed until removed or its push service drops it.
+    }
     await authApi.logout();
     set({
       account: null,
