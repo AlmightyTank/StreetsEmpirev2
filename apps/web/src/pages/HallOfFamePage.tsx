@@ -8,6 +8,7 @@ import { HideoutRoomChips } from '../components/HideoutRoomChips.js';
 import { Panel, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { formatDate } from '../utils/time.js';
+import { AllianceTag } from '../components/AllianceTag.js';
 
 function medal(rank: number): string {
   if (rank === 1) return '1st';
@@ -70,7 +71,7 @@ export function HallOfFamePage() {
                     {round.podium.map((player) => (
                       <article className={`se-podium-card se-podium-card--${player.rank}`} key={`${round.id}-${player.rank}-${player.publicPimpId}`}>
                         <span className="se-podium-card__rank">{medal(player.rank)}</span>
-                        <strong>{player.displayName}</strong>
+                        <strong><AllianceTag alliance={player.alliance} link={false} />{player.displayName}</strong>
                         <span>{player.city}</span>
                         <span className="se-num">{formatCents(player.netWorthCents)}</span>
                       </article>
@@ -93,7 +94,7 @@ export function HallOfFamePage() {
                         {round.topTen.map((player) => (
                           <tr key={`${round.id}-top-${player.rank}-${player.publicPimpId}`}>
                             <td className="se-num" data-label="Finish">{medal(player.rank)}</td>
-                            <td className="se-td--title">{player.displayName}</td>
+                            <td className="se-td--title"><AllianceTag alliance={player.alliance} link={false} />{player.displayName}</td>
                             <td data-label="City">{player.city}</td>
                             <td className="se-table__number se-num" data-label="Final net worth">{formatCents(player.netWorthCents)}</td>
                             <td className="se-table__number se-num" data-label="Cash left">{formatCents(player.cashCents)}</td>

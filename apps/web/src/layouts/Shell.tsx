@@ -90,6 +90,7 @@ function Footer() {
 
 export function Shell({ children, narrow }: { children: ReactNode; narrow?: boolean }) {
   const account = useSession((s) => s.account);
+  const me = useSession((s) => s.me);
   const settings = useSession((s) => s.profileSettings);
   const logout = useSession((s) => s.logout);
   const navigate = useNavigate();
@@ -117,6 +118,7 @@ export function Shell({ children, narrow }: { children: ReactNode; narrow?: bool
           {account ? (
             <>
               <Link className="se-eyebrow se-topbar__who se-topbar__account" to="/account">
+                {me?.alliance ? <span className="se-alliance-tag" title={me.alliance.name}>[{me.alliance.tag}]</span> : null}
                 {account.username}
               </Link>
               <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={handleLogout}>

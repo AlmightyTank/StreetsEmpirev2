@@ -415,6 +415,14 @@ function intelReport(target: RoundPlayer, model: CombatRules, createdAt: Date, e
   };
 }
 
+/** Both sides' alliance tags as they stood when the battle landed, for reports and the feed. */
+async function battleTags(tx: Prisma.TransactionClient, attacker: RoundPlayer, defender: RoundPlayer) {
+  const ids = [attacker.allianceId, defender.allianceId].filter((id): id is string => Boolean(id));
+  const rows = ids.length ? await tx.alliance.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, tag: true } }) : [];
+  const find = (id: string | null) => allianceTagDto(rows.find((row) => row.id === id));
+  return { attacker: find(attacker.allianceId), defender: find(defender.allianceId) };
+}
+
 /**
  * Who this player may hit back. 0.3.0-C shares it: a hit on any member of their
  * alliance since they joined counts. The defender's alliance is recorded on the
@@ -570,6 +578,7 @@ export const CombatService = {
       await writeRanks(tx, ruleset, now, [[attackerId, original, beforeA, afterA], [target.id, originalDefender, beforeD, afterD]]);
       const trophyCallouts = trophyCalloutsFor({ kind: 'RAID', won: result.winner === 'ATTACKER' }, await attackerTrophyProgress(tx, attackerId));
       const id = randomUUID();
+      const tags = await battleTags(tx, attacker, defender);
       const makeReport = (isAttacker: boolean): BattleReportDto => {
         const own = isAttacker ? result.attacker : result.defender;
         const opponent = isAttacker ? defender : attacker;
@@ -577,7 +586,7 @@ export const CombatService = {
         const opponentWounds = isAttacker ? result.wounds.defender : result.wounds.attacker;
         return { id, kind: 'RAID', createdAt: now.toISOString(), modelVersion: model.version,
           role: isAttacker ? 'ATTACKER' : 'DEFENDER', won: isAttacker === (result.winner === 'ATTACKER'),
-          opponent: { publicPimpId: opponent.publicPimpId, displayName: opponent.displayName },
+          opponent: { publicPimpId: opponent.publicPimpId, displayName: opponent.displayName, alliance: isAttacker ? tags.defender : tags.attacker },
           yourSquad: own.committed, opponentSquad: (isAttacker ? result.defender : result.attacker).committed,
           yourEquipment: own.equipment, yourStrength: reportStrength(isAttacker ? result.effectiveStrength.attacker : result.effectiveStrength.defender),
           opponentStrength: reportStrength(isAttacker ? result.effectiveStrength.defender : result.effectiveStrength.attacker),
@@ -609,7 +618,7 @@ export const CombatService = {
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
       for (const [playerId, type, report] of [[attackerId, 'RAID_ATTACK', attackerReport], [target.id, 'RAID_DEFENSE', defenderReport]] as const) {
-        await ActivityService.log(tx, playerId, type, json({ battleId: id, opponent: report.opponent.displayName, won: report.won, cashCents: report.cashChangeCents, crack: report.crackChange ?? 0, turns: report.turnsSpent, wounds: report.yourWounds }));
+        await ActivityService.log(tx, playerId, type, json({ battleId: id, opponent: report.opponent.displayName, opponentTag: report.opponent.alliance?.tag ?? null, won: report.won, cashCents: report.cashChangeCents, crack: report.crackChange ?? 0, turns: report.turnsSpent, wounds: report.yourWounds }));
       }
       // Reserve the action namespace for the lifetime of this raid, including other action types.
       await tx.processedAction.create({ data: { roundPlayerId: attackerId, actionId: input.actionId, action: 'RAID', result: json(attackerReport), expiresAt: new Date('9999-12-31T00:00:00Z') } });
@@ -680,13 +689,14 @@ export const CombatService = {
       const trophyCallouts = trophyCalloutsFor({ kind: 'DRIVE_BY', won: result.winner === 'ATTACKER' }, await attackerTrophyProgress(tx, attackerId));
 
       const id = randomUUID();
+      const tags = await battleTags(tx, attacker, defender);
       const makeReport = (isAttacker: boolean): BattleReportDto => {
         const own = isAttacker ? result.attacker : result.defender;
         const opponent = isAttacker ? defender : attacker;
         const ownWounds = isAttacker ? result.wounds.attacker : result.wounds.defender;
         return { id, kind: 'DRIVE_BY', createdAt: now.toISOString(), modelVersion: model.version,
           role: isAttacker ? 'ATTACKER' : 'DEFENDER', won: isAttacker === (result.winner === 'ATTACKER'),
-          opponent: { publicPimpId: opponent.publicPimpId, displayName: opponent.displayName },
+          opponent: { publicPimpId: opponent.publicPimpId, displayName: opponent.displayName, alliance: isAttacker ? tags.defender : tags.attacker },
           yourSquad: own.committed, opponentSquad: (isAttacker ? result.defender : result.attacker).committed,
           yourEquipment: own.equipment, yourStrength: reportStrength(isAttacker ? result.effectiveStrength.attacker : result.effectiveStrength.defender),
           opponentStrength: reportStrength(isAttacker ? result.effectiveStrength.defender : result.effectiveStrength.attacker),
@@ -716,7 +726,7 @@ export const CombatService = {
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
       for (const [playerId, type, report] of [[attackerId, 'DRIVE_BY_ATTACK', attackerReport], [target.id, 'DRIVE_BY_DEFENSE', defenderReport]] as const) {
-        await ActivityService.log(tx, playerId, type, json({ battleId: id, opponent: report.opponent.displayName, won: report.won,
+        await ActivityService.log(tx, playerId, type, json({ battleId: id, opponent: report.opponent.displayName, opponentTag: report.opponent.alliance?.tag ?? null, won: report.won,
           wounds: report.yourWounds, opponentWounds: report.opponentWounds, whoresKilled: result.whoresKilled,
           lowRidersLost: type === 'DRIVE_BY_ATTACK' ? result.lowRidersLost : 0, turns: report.turnsSpent }));
       }
@@ -831,6 +841,7 @@ export const CombatService = {
       }, await attackerTrophyProgress(tx, attackerId));
 
       const id = randomUUID();
+      const tags = await battleTags(tx, attacker, defender);
       const makeReport = (isAttacker: boolean): BattleReportDto => {
         const own = isAttacker ? result.attacker : result.defender;
         const opponent = isAttacker ? defender : attacker;
@@ -840,7 +851,7 @@ export const CombatService = {
           : input.kind === 'LURE_CREW' && isAttacker ? -crackSpent : 0;
         return { id, kind: input.kind, createdAt: now.toISOString(), modelVersion: model.version,
           role: isAttacker ? 'ATTACKER' : 'DEFENDER', won: isAttacker === won,
-          opponent: { publicPimpId: opponent.publicPimpId, displayName: opponent.displayName },
+          opponent: { publicPimpId: opponent.publicPimpId, displayName: opponent.displayName, alliance: isAttacker ? tags.defender : tags.attacker },
           yourSquad: own.committed, opponentSquad: (isAttacker ? result.defender : result.attacker).committed,
           yourEquipment: own.equipment, yourStrength: reportStrength(isAttacker ? result.effectiveStrength.attacker : result.effectiveStrength.defender),
           opponentStrength: reportStrength(isAttacker ? result.effectiveStrength.defender : result.effectiveStrength.attacker),
@@ -874,7 +885,7 @@ export const CombatService = {
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
       for (const [playerId, type, report] of [[attackerId, 'RAID_ATTACK', attackerReport], [target.id, 'RAID_DEFENSE', defenderReport]] as const) {
-        await ActivityService.log(tx, playerId, type, json({ battleId: id, kind: input.kind, move: rule.title, opponent: report.opponent.displayName, won: report.won,
+        await ActivityService.log(tx, playerId, type, json({ battleId: id, kind: input.kind, move: rule.title, opponent: report.opponent.displayName, opponentTag: report.opponent.alliance?.tag ?? null, won: report.won,
           cashCents: 0, crack: report.crackChange ?? 0, turns: report.turnsSpent, wounds: report.yourWounds,
           whoresDrugged, defenderCrackBurned, defenderCondomsBurned, lowRidersStolen, whoresLured, thugsLured, beerSpent }));
       }

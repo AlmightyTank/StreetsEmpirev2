@@ -225,6 +225,8 @@ export interface HallOfFamePlayerDto {
   rank: number;
   publicPimpId: number;
   displayName: string;
+  /** 0.3.0-C. The alliance they finished the season in. */
+  alliance: AllianceTagDto | null;
   netWorthCents: number;
   cashCents: number;
   city: string;

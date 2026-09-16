@@ -12,7 +12,10 @@ import { StockService, type StockSettlementSet } from './stock.service.js';
 import { CombatRecoveryService, type RecoverySettlement } from './combat-recovery.service.js';
 import { fitThugs } from './action.service.js';
 
-export type PlayerWithCity = RoundPlayer & { city: City };
+/** 0.3.0-C: the alliance tag rides along so every screen can show it before the name. */
+export type PlayerWithCity = RoundPlayer & { city: City; alliance: { name: string; tag: string } | null };
+
+const ALLIANCE_TAG = { select: { name: true, tag: true } } as const;
 
 export interface SettledPlayer {
   player: PlayerWithCity;
@@ -73,7 +76,7 @@ export const PlayerStateService = {
 
     const player = await tx.roundPlayer.findUnique({
       where: { id: roundPlayerId },
-      include: { city: true, round: true },
+      include: { city: true, round: true, alliance: ALLIANCE_TAG },
     });
 
     if (!player) {
@@ -157,7 +160,7 @@ export const PlayerStateService = {
       settled = await tx.roundPlayer.update({
         where: { id: roundPlayerId },
         data,
-        include: { city: true },
+        include: { city: true, alliance: ALLIANCE_TAG },
       });
     }
 

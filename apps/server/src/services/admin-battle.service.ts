@@ -15,6 +15,12 @@ import { RankingService } from './ranking.service.js';
 type Counts = Record<string, number>;
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 
+/** The opponent's alliance tag as the battle report recorded it; null before 0.3.0-C. */
+function reportTag(report: unknown): string | null {
+  const tag = (report as { opponent?: { alliance?: { tag?: unknown } | null } } | null)?.opponent?.alliance?.tag;
+  return typeof tag === 'string' ? tag : null;
+}
+
 export const AdminBattleService = {
   /**
    * Reverse one battle after a confirmed bug or exploit. What the report says
@@ -140,8 +146,8 @@ export const AdminBattleService = {
       const afterD = correctionSnapshot(d);
       const changesA = correctionChanges(beforeA, afterA);
       const changesD = correctionChanges(beforeD, afterD);
-      await ActivityService.log(tx, attacker.id, 'BATTLE_VOIDED', json({ battleId: battle.id, kind, opponent: defender.displayName, reason, changes: changesA, shortfall: shortA }));
-      await ActivityService.log(tx, defender.id, 'BATTLE_VOIDED', json({ battleId: battle.id, kind, opponent: attacker.displayName, reason, changes: changesD, shortfall: shortD }));
+      await ActivityService.log(tx, attacker.id, 'BATTLE_VOIDED', json({ battleId: battle.id, kind, opponent: defender.displayName, opponentTag: reportTag(battle.attackerReport), reason, changes: changesA, shortfall: shortA }));
+      await ActivityService.log(tx, defender.id, 'BATTLE_VOIDED', json({ battleId: battle.id, kind, opponent: attacker.displayName, opponentTag: reportTag(battle.defenderReport), reason, changes: changesD, shortfall: shortD }));
       await AdminAuditService.record(tx, actor, {
         action: 'battle.void',
         targetType: 'battle',

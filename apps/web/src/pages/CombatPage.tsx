@@ -181,7 +181,7 @@ function DriveByReport({ report, onClose }: { report: BattleReportDto; onClose?:
   const attacking = report.role === 'ATTACKER';
   const landed = attacking === report.won;
   return <Panel title={`${landed ? (attacking ? 'It landed' : 'They hit you') : (attacking ? 'They shot back' : 'Seen off')} · ${reportLabel(report)}`}>
-    <p>{attacking ? 'On' : 'By'} <b>{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
+    <p>{attacking ? 'On' : 'By'} <b><AllianceTag alliance={report.opponent.alliance} link={false} />{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
     <TrophyCallouts report={report} />
     <div className="se-rows">
       <Row label={attacking ? 'Shooters — yours / out front' : 'Out front — yours / shooters'} value={`${report.yourSquad} / ${report.opponentSquad}`} />
@@ -209,7 +209,7 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
   const landed = attacking === report.won;
   const outcome = raidFormOutcome(report);
   return <Panel title={`${landed ? (attacking ? 'It landed' : 'They got through') : (attacking ? 'They held you off' : 'You held them off')} · ${reportLabel(report)}`}>
-    <p>{attacking ? 'Against' : 'By'} <b>{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
+    <p>{attacking ? 'Against' : 'By'} <b><AllianceTag alliance={report.opponent.alliance} link={false} />{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
     {outcome ? <p className={outcome.tone === 'good' ? 'se-good' : outcome.tone === 'bad' ? 'se-bad' : 'se-hint'}>{outcome.text}</p> : null}
     <TrophyCallouts report={report} />
     <div className="se-rows">
@@ -240,7 +240,7 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
   if (report.kind === 'DRIVE_BY' && report.driveBy) return <DriveByReport report={report} onClose={onClose} />;
   if ((report.kind === 'DRUG_HOES' || report.kind === 'STEAL_RIDE' || report.kind === 'LURE_CREW') && report.raidForm) return <RaidFormReport report={report} onClose={onClose} />;
   return <Panel title={`${report.won ? 'Victory' : 'Defeat'} · ${reportLabel(report)}`}>
-    <p>Against <b>{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
+    <p>Against <b><AllianceTag alliance={report.opponent.alliance} link={false} />{report.opponent.displayName}</b> (#{report.opponent.publicPimpId}) · {date(report.createdAt)}</p>
     <TrophyCallouts report={report} />
     <div className="se-rows">
       <Row label="Squads — yours / theirs" value={`${report.yourSquad} / ${report.opponentSquad}`} />
@@ -564,7 +564,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                 aria-current={selectedReport ? 'true' : undefined}
                 onClick={() => toggleReport(battle)}
               >
-                <span>{reportLabel(battle)} · {battle.won ? 'Won' : 'Lost'} vs {battle.opponent.displayName}</span>
+                <span>{reportLabel(battle)} · {battle.won ? 'Won' : 'Lost'} vs {battle.opponent.alliance ? `[${battle.opponent.alliance.tag}] ` : ''}{battle.opponent.displayName}</span>
                 <span className="se-raid-report-link__meta">{date(battle.createdAt)}</span>
               </button></li>;
             })}
