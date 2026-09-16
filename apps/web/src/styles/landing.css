@@ -1,0 +1,238 @@
+/*
+ * The landing page. It is the only page a stranger sees before deciding to
+ * play, so it is built as a sequence of full-width sections rather than the
+ * sidebar layout the game uses once you are inside.
+ */
+
+.se-land-hero {
+  padding: 8px 0 4px;
+}
+
+.se-land-hero .se-lede {
+  max-width: 62ch;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* The live round, stated as fact rather than sold. */
+.se-land-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  margin-top: 22px;
+  padding: 12px 16px;
+  border: 1px solid var(--se-line);
+  border-left: 2px solid var(--se-accent);
+  border-radius: 3px;
+  background: var(--se-panel);
+}
+
+.se-land-strip__lead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.se-land-strip__lead strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.se-land-strip__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+}
+
+.se-land-strip__facts > span {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.se-land-strip__k {
+  color: var(--se-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.se-land-section {
+  margin-top: 34px;
+}
+
+.se-land-h2 {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+.se-land-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.se-land-card {
+  padding: 18px;
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  background: var(--se-panel);
+  color: var(--se-text-dim);
+}
+
+.se-land-card p { margin: 0 0 10px; }
+.se-land-card .se-list { margin: 0; }
+
+/* The loop: four steps, numbered, in the order a player meets them. */
+.se-land-loop {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+
+.se-land-loop__item {
+  padding: 16px;
+  border: 1px solid var(--se-line);
+  border-top: 2px solid var(--se-accent-dim);
+  border-radius: 3px;
+  background: var(--se-panel);
+}
+
+.se-land-loop__item p {
+  margin: 0;
+  color: var(--se-text-dim);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.se-land-loop__n {
+  display: block;
+  color: var(--se-accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.se-land-loop__title {
+  margin: 4px 0 8px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--se-text);
+}
+
+.se-land-defs {
+  margin: 0 0 12px;
+}
+
+.se-land-defs__row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 4px 14px;
+  padding: 8px 0;
+  border-top: 1px solid var(--se-line-soft);
+}
+
+.se-land-defs__row:first-child { border-top: 0; padding-top: 0; }
+
+.se-land-defs dt {
+  color: var(--se-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.se-land-defs dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Last season's winner, in their own line rather than buried in a table. */
+.se-land-champ {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 20px;
+  padding: 18px;
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  background: linear-gradient(120deg, var(--se-panel-hi), var(--se-panel) 60%);
+}
+
+.se-land-champ__name {
+  margin: 4px 0 6px;
+  font-size: clamp(22px, 4vw, 30px);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.se-land-champ .se-hint { margin: 0; max-width: 60ch; }
+
+.se-land-kit {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.se-land-kit > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid var(--se-line-soft);
+  border-radius: 3px;
+  background: var(--se-panel-hi);
+  color: var(--se-muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.se-land-kit b {
+  color: var(--se-text);
+  font-size: 16px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.se-land-foot {
+  margin-top: 34px;
+  padding: 24px 20px;
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
+  text-align: center;
+}
+
+.se-land-foot .se-lede {
+  margin: 0 auto 16px;
+  max-width: 54ch;
+}
+
+.se-land-foot .se-cta { justify-content: center; }
+
+@media (max-width: 900px) {
+  .se-land-loop { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 700px) {
+  .se-land-two { grid-template-columns: minmax(0, 1fr); }
+  .se-land-loop { grid-template-columns: minmax(0, 1fr); }
+  .se-land-defs__row { grid-template-columns: minmax(0, 1fr); }
+  .se-land-kit { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .se-land-strip { flex-direction: column; align-items: flex-start; }
+  .se-land-strip__facts { gap: 8px 16px; }
+  .se-land-champ { flex-direction: column; align-items: flex-start; }
+}

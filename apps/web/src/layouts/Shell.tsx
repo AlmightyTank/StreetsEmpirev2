@@ -63,7 +63,7 @@ export function Shell({ children, narrow }: { children: ReactNode; narrow?: bool
           <span className="se-brand__mark">
             Streets<span className="se-accent">Empire</span>
           </span>
-          <span className="se-brand__ver">0.2.0-H</span>
+          <span className="se-brand__ver">0.3.0-B</span>
         </Link>
 
         <StatusBar />
