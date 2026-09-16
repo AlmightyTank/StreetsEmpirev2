@@ -2,7 +2,16 @@ import { useEffect, useState } from 'react';
 import type { NotificationCategory, NotificationSettingsDto, UpdateNotificationSettingsInput } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { notificationsApi } from '../api/notifications.js';
-import { currentSubscription, deviceLabel, endpointHash, pushSupport, subscribeToPush, unsubscribeFromPush, type PushSupport } from '../utils/push.js';
+import {
+  currentSubscription,
+  deviceLabel,
+  endpointHash,
+  pushSupport,
+  subscribeToPush,
+  subscriptionMatchesKey,
+  unsubscribeFromPush,
+  type PushSupport,
+} from '../utils/push.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
@@ -33,7 +42,9 @@ export function NotificationsPanel() {
     try {
       const [loaded, subscription] = await Promise.all([notificationsApi.settings(), currentSubscription().catch(() => null)]);
       setSettings(loaded);
-      setThisHash(subscription ? await endpointHash(subscription.endpoint) : null);
+      // A subscription made with old server keys can't receive anything; offer to turn alerts on again.
+      const usable = subscription && loaded.push.vapidPublicKey && subscriptionMatchesKey(subscription, loaded.push.vapidPublicKey);
+      setThisHash(usable ? await endpointHash(subscription.endpoint) : null);
     } catch {
       setError('Could not load your alert settings. Try again.');
     }
@@ -61,7 +72,8 @@ export function NotificationsPanel() {
 
   const enableThisDevice = () => run('enable', async () => {
     if (!settings?.push.vapidPublicKey) throw new Error('Phone alerts are not set up on this server yet.');
-    const subscription = await subscribeToPush(settings.push.vapidPublicKey);
+    const { subscription, replacedEndpoint } = await subscribeToPush(settings.push.vapidPublicKey);
+    if (replacedEndpoint) await notificationsApi.forget(replacedEndpoint).catch(() => undefined);
     if (!subscription.endpoint || !subscription.keys?.p256dh || !subscription.keys.auth) {
       throw new Error('This browser did not hand over a push subscription. Try again.');
     }
@@ -85,9 +97,15 @@ export function NotificationsPanel() {
     const result = await notificationsApi.test();
     // Devices the push service refused are gone now; show the list as it really is.
     setSettings(await notificationsApi.settings());
-    return result.delivered
-      ? `Test sent to ${result.delivered} of ${result.devices} device${result.devices === 1 ? '' : 's'}.`
-      : 'The test did not reach any device. Devices that no longer accept alerts were removed; turn alerts on again.';
+    const problems = result.failures.map((failure) => `${failure.label ?? 'A device'}: ${failure.reason}`);
+    if (!result.delivered) {
+      throw new Error(['The test did not reach any device.', ...problems].join(' '));
+    }
+    return [
+      `Test sent to ${result.delivered} of ${result.devices} device${result.devices === 1 ? '' : 's'}.`,
+      ...problems,
+      'Nothing showed up? Check that notifications are allowed for your browser or the StreetsEmpire app in your phone settings, and that Do Not Disturb is off.',
+    ].join(' ');
   });
 
   if (!settings) {

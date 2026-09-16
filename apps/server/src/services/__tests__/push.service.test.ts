@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DiscordBattleEventDto } from '@streets/shared';
-import { isAllowedPushEndpoint, pushMessageFor } from '../push.service.js';
+import { isAllowedPushEndpoint, pushFailureReason, pushMessageFor } from '../push.service.js';
 
 const battle: DiscordBattleEventDto = {
   id: 'b1', kind: 'DRIVE_BY', roundName: 'Game #008',
@@ -60,5 +60,25 @@ describe('pushMessageFor', () => {
     expect(pushMessageFor({ category: 'round', event: { ...event, type: 'ending-soon' }, rank: 3 }).body).toBe("Last day to climb. You're #3 nationally.");
     expect(pushMessageFor({ category: 'round', event: { ...event, type: 'ended' }, rank: 1 }).body).toBe('You finished #1 nationally.');
     expect(pushMessageFor({ category: 'round', event: { ...event, type: 'ended' }, rank: null }).body).toBe('See the final rankings.');
+  });
+});
+
+describe('pushFailureReason', () => {
+  const failed = (statusCode?: number, body?: string) => Object.assign(new Error('Received unexpected response code'), { statusCode, body });
+
+  it('explains what the push service answered', () => {
+    expect(pushFailureReason(failed(410))).toMatchObject({ status: 410, reason: expect.stringContaining('removed') });
+    expect(pushFailureReason(failed(403)).reason).toContain('different server keys');
+    expect(pushFailureReason(failed(401)).reason).toContain('VAPID_SUBJECT');
+    expect(pushFailureReason(failed(502, 'upstream down')).reason).toBe('The push service answered 502: upstream down.');
+  });
+
+  it('blames the server settings when nothing was sent', () => {
+    expect(pushFailureReason(new Error('No subject set in vapidDetails.subject')).reason)
+      .toBe('The server could not send the alert (No subject set in vapidDetails.subject). Check the VAPID settings.');
+    expect(pushFailureReason(new Error('Vapid public key should be 65 bytes long when decoded.'))).toEqual({
+      status: null,
+      reason: 'The server could not send the alert (Vapid public key should be 65 bytes long when decoded). Check the VAPID settings.',
+    });
   });
 });
