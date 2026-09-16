@@ -18,6 +18,8 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
   const players: string[] = [];
   const cookies: string[] = [];
   const rules = classicOgV02;
+  // Every player is reset to the starting kit, so turn checks count down from it.
+  const START_TURNS = rules.round.startingPlayer.turns;
 
   beforeAll(async () => {
     const { buildApp } = await import('../../app.js');
@@ -104,8 +106,8 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     expect([a.raidsDone, d.raidsDone]).toEqual([beforeA.raidsDone + 1, beforeD.raidsDone]);
     expect(a.cashCents + d.cashCents).toBe(beforeA.cashCents + beforeD.cashCents);
     expect(a.crack + d.crack).toBe(beforeA.crack + beforeD.crack);
-    expect(a.turns).toBe(190);
-    expect(d.turns).toBe(200);
+    expect(a.turns).toBe(START_TURNS - 10);
+    expect(d.turns).toBe(START_TURNS);
     expect([a.thugs, a.woundedThugs, a.pistols, d.thugs, d.woundedThugs, d.pistols]).toEqual([40, 0, 40, 20, 0, 20]);
     expect(d.lastActiveAt).toEqual(beforeD.lastActiveAt);
     for (const p of [a, d]) {
@@ -169,7 +171,7 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     const [a, b] = await Promise.all([raid(0, 1001, id), raid(0, 1001, id)]);
     expect([a.statusCode, b.statusCode]).toEqual([200, 200]);
     expect(a.json()).toEqual(b.json());
-    expect((await state(0)).turns).toBe(190);
+    expect((await state(0)).turns).toBe(START_TURNS - 10);
     await app.prisma.round.update({ where: { id: roundId }, data: { status: 'ENDED' } });
     // Remove the ordinary cache to prove the durable receipt alone prevents replay spending.
     await app.prisma.processedAction.deleteMany({ where: { roundPlayerId: players[0] } });
@@ -200,20 +202,20 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
   it('serializes two different attackers; the second cannot bypass new target protection', async () => {
     const results = await Promise.all([raid(), raid(2)]);
     expect(results.map((r) => r.statusCode).sort()).toEqual([200, 409]);
-    expect((await state(0)).turns + (await state(2)).turns).toBe(390);
+    expect((await state(0)).turns + (await state(2)).turns).toBe(START_TURNS * 2 - 10);
     expect((await state(1)).cashCents).toBe(3_920_000n);
   });
 
   it('serializes reciprocal raids without deadlock or an unprotected second attack', async () => {
     const results = await Promise.all([raid(0, 1002), raid(2, 1000)]);
     expect(results.map((r) => r.statusCode).sort()).toEqual([200, 409]);
-    expect((await state(0)).turns + (await state(2)).turns).toBe(390);
+    expect((await state(0)).turns + (await state(2)).turns).toBe(START_TURNS * 2 - 10);
   });
 
   it('serializes concurrent attacks by the same player against different targets', async () => {
     const results = await Promise.all([raid(0, 1001), raid(0, 1002)]);
     expect(results.map((r) => r.statusCode).sort()).toEqual([200, 409]);
-    expect((await state(0)).turns).toBe(190);
+    expect((await state(0)).turns).toBe(START_TURNS - 10);
   });
 
   it('rolls back both players, protection, activities and receipt after a later write fails', async () => {
@@ -247,7 +249,7 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     const city = await app.prisma.city.findFirstOrThrow({ where: { id: { not: cityId } } });
     await app.prisma.roundPlayer.update({ where: { id: players[1] }, data: { cityId: city.id } });
     expect((await raid()).statusCode).toBe(409);
-    expect((await state(0)).turns).toBe(200);
+    expect((await state(0)).turns).toBe(START_TURNS);
   });
 
   it('does not let sending one thug bypass the full-crew strength restriction', async () => {
@@ -268,7 +270,9 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
 
   it('settles away turns once without marking the offline defender active', async () => {
     const inactive = new Date(Date.now() - 7 * 3_600_000);
-    await app.prisma.roundPlayer.update({ where: { id: players[1] }, data: { turns: 0, lastActiveAt: inactive, lastTurnCalculationAt: inactive } });
+    // Only the activity clock is old. Seven hours of regeneration would refill
+    // the 144 cap and leave the away bonus no room to pay out.
+    await app.prisma.roundPlayer.update({ where: { id: players[1] }, data: { turns: 0, lastActiveAt: inactive, lastTurnCalculationAt: new Date() } });
     expect((await raid()).statusCode).toBe(200);
     const defender = await state(1);
     expect(defender.lastActiveAt).toEqual(inactive);
@@ -410,7 +414,7 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json()).toMatchObject({
       turnsSpent: 2,
-      turnsAfter: 198,
+      turnsAfter: START_TURNS - 2,
       intel: {
         targetPublicPimpId: 1001,
         fitThugs: 20,
@@ -419,7 +423,7 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
         estimatedMaxLootCents: 180_000,
       },
     });
-    expect((await state(0)).turns).toBe(198);
+    expect((await state(0)).turns).toBe(START_TURNS - 2);
 
     const page = await app.inject({ method: 'GET', url: '/api/game/combat', headers: { cookie: cookies[0]! } });
     expect(page.statusCode).toBe(200);
@@ -432,7 +436,7 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     const replay = await recon(0, 1001, actionId);
     expect(replay.statusCode).toBe(200);
     expect(replay.json()).toEqual(response.json());
-    expect((await state(0)).turns).toBe(198);
+    expect((await state(0)).turns).toBe(START_TURNS - 2);
     expect(await app.prisma.playerActivity.count({ where: { roundPlayerId: players[0]!, type: 'COMBAT_RECON' } })).toBe(1);
 
     await app.prisma.round.update({ where: { id: roundId }, data: { rulesetId: rules.meta.id, rulesetVersion: rules.meta.version } });
@@ -472,7 +476,7 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     const response = await raid(1, 1000, randomUUID(), 40);
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json<BattleReportDto>()).toMatchObject({ retaliation: true, turnsSpent: 10 });
-    expect((await state(1)).turns).toBe(190);
+    expect((await state(1)).turns).toBe(START_TURNS - 10);
   });
 
   it('closes stale 0.2.0-D revenge windows before bypassing raid blocks', async () => {
@@ -495,7 +499,7 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     const response = await raid(1, 1000, randomUUID(), 40);
     expect(response.statusCode).toBe(409);
     expect(response.json().error.code).toBe('RAID_BLOCKED');
-    expect((await state(1)).turns).toBe(200);
+    expect((await state(1)).turns).toBe(START_TURNS);
   });
 
   it('keeps classic rounds combat-free and rejects closed or future rounds', async () => {
