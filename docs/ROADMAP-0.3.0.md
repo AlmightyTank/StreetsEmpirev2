@@ -2,7 +2,7 @@
 
 Status: **in progress.** 0.3.0-A is built, 0.3.0-B is started, 0.3.0-C alliances and 0.3.0-D playing together are built, and 0.3.0-E release tooling is built; its balance decisions wait for the first public alliance round. 0.2.0 made the street dangerous; 0.3.0
 makes a round a season with a finish line, and gives players a reason to play
-together. Travel is deliberately held for 0.4.0.
+together. Travel is deliberately held for 0.5.0; 0.4.0 is Products & Vice (see [ROADMAP-0.4.0.md](ROADMAP-0.4.0.md)).
 
 0.3.0 follows the 0.2.0 pattern: lettered stages, each with a gate, each shipping
 in its own pinned ruleset (`classic-og-v0.3-a`, `-b`, ...) so older rounds keep
@@ -221,7 +221,7 @@ Built so far (see [RELEASE-0.3.0-E.md](RELEASE-0.3.0-E.md)):
 
 ## Not in 0.3.0
 
-- **Travel (0.4.0).** The eight cities already exist, with scout, income and crack
+- **Travel (0.5.0, after 0.4.0 Products & Vice).** The eight cities already exist, with scout, income and crack
   modifiers on `City`, but only New York City is enabled. Travel changes
   targeting (combat is same-city only), local rankings and the economy at once,
   so it gets its own milestone. Low-Riders are the natural transport.
