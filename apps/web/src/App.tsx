@@ -16,6 +16,7 @@ import { ActivityPage } from './pages/ActivityPage.js';
 import { AlliancePage } from './pages/AlliancePage.js';
 import { AllianceDetailPage, AlliancesPage } from './pages/AlliancesPage.js';
 import { ContactsPage } from './pages/ContactsPage.js';
+import { ProductsPage } from './pages/ProductsPage.js';
 import { CombatPage } from './pages/CombatPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
@@ -99,6 +100,7 @@ export function App() {
       <Route path="/game/combat" element={<Protected><LiveRound><CombatPage /></LiveRound></Protected>} />
       <Route path="/game/scout" element={<Protected><LiveRound><ScoutPage /></LiveRound></Protected>} />
       <Route path="/game/hideout" element={<Protected><LiveRound><HideoutPage /></LiveRound></Protected>} />
+      <Route path="/game/products" element={<Protected><LiveRound><ProductsPage /></LiveRound></Protected>} />
       <Route path="/game/produce" element={<Protected><LiveRound><ProducePage /></LiveRound></Protected>} />
       <Route path="/game/stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
 

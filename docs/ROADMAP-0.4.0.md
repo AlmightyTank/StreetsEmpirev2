@@ -72,6 +72,12 @@ to change city to city: prices, availability, production bonuses and demand.
 - **Admin:** the player inspector shows product stock.
 - **Net worth:** unchanged in A. Non-crack products count once they have prices, in D.
 
+Built: the `classic-og-v0.4-a` ruleset (0.3.0-D balance plus the catalog), `PlayerProduct` with a
+database check that stock is never negative, `ProductInventoryService`, `GET /api/game/products`
+and the Products page, product stock in the admin player inspector, and a `PRODUCT_INTEGRATION`
+suite in the release gate covering column and row mapping, whole-change refusal, unknown products,
+concurrent spending and single-product rounds.
+
 ## 0.4.0-B - Work supply
 
 - Per district, a supply policy: **primary → fallback → emergency → work without**, or

@@ -5,6 +5,7 @@ import { toActivityDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
 import { ActivityService } from './activity.service.js';
 import { CombatService } from './combat.service.js';
+import { ProductInventoryService, productKeys } from './product-inventory.service.js';
 
 const iso = (date: Date | null) => date?.toISOString() ?? null;
 
@@ -12,6 +13,12 @@ const iso = (date: Date | null) => date?.toISOString() ?? null;
  * Read-only player state for disputes. It never settles the player, so opening
  * the inspector cannot regenerate turns or change anything the player sees.
  */
+async function adminProducts(prisma: PrismaClient, roundPlayerId: string, ruleset: ReturnType<typeof loadRulesetForRound>) {
+  if (!ruleset.products) return [];
+  const inventory = await ProductInventoryService.read(prisma, roundPlayerId, ruleset);
+  return productKeys(ruleset).map((key) => ({ key, name: ruleset.products![key]!.name, quantity: inventory[key] ?? 0 }));
+}
+
 export const AdminPlayerService = {
   /**
    * Finds a player the way a dispute names one: by pimp name or public id,
@@ -110,6 +117,7 @@ export const AdminPlayerService = {
       payoutPercent: player.payoutPercent,
       crew: { whores: player.whores, thugs: player.thugs, woundedThugs: player.woundedThugs, lowRiders: player.lowRiders },
       supplies: { condoms: player.condoms, medicine: player.medicine, crack: player.crack, beer: player.beer },
+      products: await adminProducts(prisma, player.id, loadRulesetForRound(player.round)),
       weapons: { pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s },
       unlocks: { shotgun: player.shotgunUnlocked, tek9: player.tek9Unlocked, ak47: player.ak47Unlocked },
       happiness: { whores: player.whoreHappiness, thugs: player.thugHappiness },

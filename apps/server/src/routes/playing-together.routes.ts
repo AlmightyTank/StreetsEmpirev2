@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { addContactSchema, updateContactSchema, wirePostSchema } from '@streets/shared';
 import { ContactsService } from '../services/contacts.service.js';
+import { ProductInventoryService } from '../services/product-inventory.service.js';
 import { RoundService } from '../services/round.service.js';
 import { WireService } from '../services/wire.service.js';
 import { AppError } from '../utils/errors.js';
@@ -32,6 +33,10 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     const { postId } = parseBody(postParams, request.params);
     return WireService.remove(app.prisma, await me(request.auth!.account.id), postId);
   });
+
+  /** 0.4.0-A: the round's product catalog with the player's stock. */
+  app.get('/products', { preHandler: app.requireAuth }, async (request) =>
+    ProductInventoryService.page(app.prisma, await me(request.auth!.account.id)));
 
   app.get('/contacts', { preHandler: app.requireAuth }, async (request) =>
     ContactsService.list(app.prisma, await me(request.auth!.account.id)));

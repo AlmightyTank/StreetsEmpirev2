@@ -499,6 +499,8 @@ model RoundPlayer {
   formerAllianceId      String?
   allianceCooldownUntil DateTime?
   allianceInvites       AllianceInvite[] @relation("AllianceInvitee")
+  /// 0.4.0-A. Every product except crack, which stays on the `crack` column in every round.
+  products       PlayerProduct[]
   /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
   wirePosts      AllianceWirePost[] @relation("WireAuthor")
   contacts       PlayerContact[]    @relation("ContactOwner")
@@ -590,6 +592,22 @@ model AllianceWirePost {
 
   @@index([allianceId, createdAt(sort: Desc)])
   @@index([authorId, createdAt(sort: Desc)])
+}
+
+/// 0.4.0-A. Stock of one product for one round player. Crack is never stored here: it keeps
+/// the RoundPlayer.crack column so older rounds and every crack reader stay unchanged. Which
+/// products exist, and what they do, comes from the round's pinned ruleset.
+model PlayerProduct {
+  id            String      @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  /// Ruleset product key, e.g. ECSTASY.
+  productKey    String
+  quantity      Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([roundPlayerId, productKey])
 }
 
 /// 0.3.0-D. A player's private rolodex entry for another player in the same round.

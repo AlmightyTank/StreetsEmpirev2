@@ -457,6 +457,19 @@ export interface AllianceRules {
   readonly sharedIntel?: boolean;
 }
 
+/**
+ * 0.4.0-A. One product a round knows about. Keys are uppercase, e.g. ECSTASY.
+ * CRACK is always stored on the player's crack column; every other key is stored
+ * as a product row, so adding a product never needs a schema change.
+ */
+export interface ProductDefinition {
+  readonly name: string;
+  readonly blurb: string;
+  readonly sortOrder: number;
+}
+
+export type ProductCatalog = { readonly CRACK: ProductDefinition } & { readonly [key: string]: ProductDefinition };
+
 export interface HideoutRules {
   readonly rooms: { readonly [K in HideoutRoomKey]: HideoutRoomRule };
   readonly buffs: {
@@ -599,5 +612,7 @@ export interface Ruleset {
   readonly hideout?: HideoutRules;
   /** 0.3.0-C. Absent where alliances have not shipped. */
   readonly alliances?: AllianceRules;
+  /** 0.4.0-A. Absent on rounds where Product is still only crack. */
+  readonly products?: ProductCatalog;
   readonly evidence: EvidenceRules;
 }

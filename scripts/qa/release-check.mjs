@@ -28,6 +28,8 @@ if (withDb) {
     RELEASE_INTEGRATION: '1',
     // 0.3.0: alliances, community hooks, shared recon, wire and contacts. Fixtures use their own rounds.
     ALLIANCE_INTEGRATION: '1',
+    // 0.4.0: the product inventory.
+    PRODUCT_INTEGRATION: '1',
   });
 }
 

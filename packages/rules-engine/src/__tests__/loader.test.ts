@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, type Ruleset } from '@streets/rulesets';
 import { regenerateTurns } from '../calculations/turns.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
@@ -38,7 +38,7 @@ describe('ruleset loader', () => {
   it('knows which ids it can serve', () => {
     expect(isKnownRulesetId('classic-og-v0.1')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(12);
+    expect(listRulesets()).toHaveLength(13);
   });
 });
 
@@ -118,6 +118,17 @@ describe('classic-og-v0.3-d contents', () => {
     expect(ruleset.alliances).toEqual({ ...classicOgV03C.alliances, sharedIntel: true });
     expect({ ...ruleset, meta: null, alliances: null }).toEqual({ ...classicOgV03C, meta: null, alliances: null });
     expect((classicOgV03C as Ruleset).alliances?.sharedIntel).toBeUndefined();
+  });
+});
+
+describe('classic-og-v0.4-a contents', () => {
+  it('adds the product catalog without changing 0.3.0-D balance', () => {
+    const ruleset = loadRuleset('classic-og-v0.4-a', '0.4.0-A');
+    expect(ruleset.meta.name).toBe('Classic OG - Product Foundation');
+    expect(Object.keys(ruleset.products!)).toEqual(['CRACK', 'WEED', 'ECSTASY', 'COCAINE', 'METH', 'HEROIN']);
+    expect({ ...ruleset, meta: null, products: null }).toEqual({ ...classicOgV03D, meta: null, products: null });
+    expect((classicOgV03D as Ruleset).products).toBeUndefined();
+    for (const key of Object.keys(ruleset.products!)) expect(key).toMatch(/^[A-Z][A-Z0-9_]{1,31}$/);
   });
 });
 

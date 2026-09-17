@@ -623,3 +623,17 @@ export interface StoreTradeResult {
   cashChangeCents: number;
   quantityChange: number;
 }
+
+/** 0.4.0-A. One product the round knows about, with the player's stock. */
+export interface ProductStockDto {
+  key: string;
+  name: string;
+  blurb: string;
+  quantity: number;
+}
+
+/** GET /api/game/products. Disabled on rounds where Product is still only crack. */
+export interface ProductsDto {
+  enabled: boolean;
+  products: ProductStockDto[];
+}

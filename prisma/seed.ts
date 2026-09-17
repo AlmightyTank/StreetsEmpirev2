@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import { PrismaClient, type Round } from '@prisma/client';
-import { classicOgV01, classicOgV02D, classicOgV03D, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02D, classicOgV04A, type Ruleset } from '@streets/rulesets';
 // The panel and the seed create the same bots from one definition. Changing the
 // roster in the service changes it here too.
 import { DEV_TEST_RIVALS, seedDevBots } from '../apps/server/src/services/dev-bots.service.js';
 
 const prisma = new PrismaClient();
-const CURRENT_RULESET = classicOgV03D;
+const CURRENT_RULESET = classicOgV04A;
 const shouldSeedRivals = process.env.SEED_DEV_BOTS === '1' || process.env.SEED_RIVALS === '1';
 const allowUnsafeDevBots = process.env.ALLOW_DEV_BOTS === 'I_UNDERSTAND';
 
@@ -45,7 +45,7 @@ const CITIES = [
 
 async function seedCities() {
   for (const city of CITIES) {
-    // 0.3.0-D still starts in New York City. Other cities stay staged for travel.
+    // 0.4.0-A still starts in New York City. Other cities stay staged for travel.
     const isEnabled = city.slug === CURRENT_RULESET.round.startingCitySlug;
 
     await prisma.city.upsert({
@@ -119,8 +119,8 @@ async function seedStrategyRound(now: Date) {
 
 async function seedCurrentPublicRound(now: Date) {
   return upsertRound({
-    name: 'Game #012 - Playing Together',
-    slug: 'game-012-together',
+    name: 'Game #013 - Product Foundation',
+    slug: 'game-013-products',
     ruleset: CURRENT_RULESET,
     startsAt: now,
     refreshCurrent: true,
@@ -160,10 +160,10 @@ async function main() {
   const publicRound = await seedCurrentPublicRound(new Date(now.getTime() + 1_000));
   await seedNews(
     publicRound.id,
-    '0.3.0-D PLAYING TOGETHER',
+    '0.4.0-A PRODUCTS',
     shouldSeedRivals
-      ? 'The current D seed has active local dev bots enabled. Alliances now share fresh recon, talk on a members-only wire, and every player keeps a private contacts rolodex.'
-      : 'The 0.3.0-D round keeps 0.3.0-C balance. Fresh recon is shared with your alliance until it expires, the alliance wire carries short members-only posts, and Contacts tracks the players you care about with private notes.',
+      ? 'The current 0.4.0-A seed has active local dev bots enabled. The Products page lists every product in the round; crack works exactly as before while the rest wait for their rules.'
+      : 'The 0.4.0-A round keeps 0.3.0-D balance and lays down Products: crack works exactly as before, and Weed, Ecstasy, Cocaine, Meth and Heroin are on the books ahead of supply choices, effects and prices in the next stages.',
   );
   if (shouldSeedRivals) {
     const seeded = await seedDevBots(prisma, publicRound, CURRENT_RULESET, new Date(now.getTime() + 1_000), DEV_TEST_RIVALS, { activeAccounts: true });

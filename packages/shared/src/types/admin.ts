@@ -236,6 +236,8 @@ export interface AdminPlayerDto {
   payoutPercent: number;
   crew: { whores: number; thugs: number; woundedThugs: number; lowRiders: number };
   supplies: { condoms: number; medicine: number; crack: number; beer: number };
+  /** 0.4.0-A. Every product in the round's catalog, crack included. Empty on single-product rounds. */
+  products: Array<{ key: string; name: string; quantity: number }>;
   weapons: { pistols: number; shotguns: number; tek9s: number; ak47s: number };
   unlocks: { shotgun: boolean; tek9: boolean; ak47: boolean };
   happiness: { whores: number; thugs: number };

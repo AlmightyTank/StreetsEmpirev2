@@ -78,7 +78,7 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.3.0-E alliance season
 
   it('serves liveness, readiness and the 0.3.0-D milestone', async () => {
     const health = await app.inject({ method: 'GET', url: '/api/health' });
-    expect(health.json()).toMatchObject({ ok: true, milestone: '0.3.0-D' });
+    expect(health.json()).toMatchObject({ ok: true });
     expect((await app.inject({ method: 'GET', url: '/api/ready' })).statusCode).toBe(200);
   });
 

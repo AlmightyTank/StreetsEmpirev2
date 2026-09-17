@@ -219,7 +219,9 @@ export function AdminPlayerPage() {
           <div className="se-rows">
             <Row label="Condoms" value={formatNumber(player.supplies.condoms)} />
             <Row label="Medicine" value={formatNumber(player.supplies.medicine)} />
-            <Row label="Product" value={formatNumber(player.supplies.crack)} />
+            {player.products.length
+              ? player.products.map((product) => <Row key={product.key} label={product.name} value={formatNumber(product.quantity)} />)
+              : <Row label="Product" value={formatNumber(player.supplies.crack)} />}
             <Row label="Beer" value={formatNumber(player.supplies.beer)} />
             <Row label="Happiness" value={`Whores ${player.happiness.whores}% · Thugs ${player.happiness.thugs}%`} />
             <Row label="Payout" value={`${player.payoutPercent}%`} />

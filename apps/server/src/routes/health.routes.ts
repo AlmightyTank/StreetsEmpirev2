@@ -6,8 +6,8 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
   /** Liveness: process is up. Deliberately has no database dependency. */
   fastify.get('/health', async () => ({
     ok: true,
-    version: '0.3.0',
-    milestone: '0.3.0-D',
+    version: '0.4.0',
+    milestone: '0.4.0-A',
   }));
 
   /**

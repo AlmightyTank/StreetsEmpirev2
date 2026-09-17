@@ -28,6 +28,7 @@ const SECTIONS: NavSection[] = [
       { label: 'Hideout', to: '/game/hideout' },
       { label: 'Scout', to: '/game/scout' },
       { label: 'Produce Product', to: '/game/produce' },
+      { label: 'Products', to: '/game/products' },
       { label: 'Raids', to: '/game/combat' },
     ],
   },
