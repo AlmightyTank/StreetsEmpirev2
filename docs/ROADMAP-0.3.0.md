@@ -193,7 +193,7 @@ Built so far, in the pinned `classic-og-v0.3-d` ruleset:
   standing (rank, net worth, alliance, last seen) - never recon intel. Add from the Contacts
   page or a player's profile.
 
-Defense reinforcement is next, simulated before any numbers go into the ruleset.
+Defense reinforcement has been simulated (`npm run qa:reinforcement`); the findings and the options are in [COMBAT-0.3.0-D.md](COMBAT-0.3.0-D.md). No reinforcement numbers are in a ruleset yet.
 
 ## 0.3.0-E - Balance and release
 

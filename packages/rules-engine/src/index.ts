@@ -15,3 +15,4 @@ export * from './calculations/combat.js';
 export * from './simulations/combat.js';
 export * from './rng.js';
 export type { Ruleset } from '@streets/rulesets';
+export * from './simulations/reinforcement.js';
