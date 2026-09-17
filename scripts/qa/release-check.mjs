@@ -6,7 +6,9 @@ const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 function run(label, command, args, env = process.env) {
   console.log(`\n== ${label} ==`);
-  const result = spawnSync(command, args, { stdio: 'inherit', env });
+  // Node refuses to spawn npm.cmd without a shell on Windows (CVE-2024-27980), and says nothing unless asked.
+  const result = spawnSync(command, args, { stdio: 'inherit', env, shell: process.platform === 'win32' && command === npm });
+  if (result.error) console.error(`${label} could not start: ${result.error.message}`);
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
@@ -15,13 +17,17 @@ run('Unit tests', npm, ['test']);
 run('Production build', npm, ['run', 'build']);
 
 if (withDb) {
-  run('PostgreSQL integration regression', npm, ['test'], {
+  // One file at a time: suites share the .env database, and any real current-round lookup
+  // closes older active rounds, including another suite's fixture round mid-run.
+  run('PostgreSQL integration regression', npm, ['test', '--', '--no-file-parallelism'], {
     ...process.env,
     COMBAT_INTEGRATION: '1',
     REPUTATION_INTEGRATION: '1',
     STORE_INTEGRATION: '1',
     TRANSACTION_INTEGRATION: '1',
     RELEASE_INTEGRATION: '1',
+    // 0.3.0: alliances, community hooks, shared recon, wire and contacts. Fixtures use their own rounds.
+    ALLIANCE_INTEGRATION: '1',
   });
 }
 

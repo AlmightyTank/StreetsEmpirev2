@@ -40,6 +40,8 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
     } });
     roundId = round.id;
     vi.spyOn(RoundService, 'requireCurrent').mockResolvedValue(round);
+    // /api/ready looks up the current round, which would close this older fixture as superseded.
+    vi.spyOn(RoundService, 'getCurrent').mockResolvedValue(round);
     const city = await app.prisma.city.findUniqueOrThrow({
       where: { slug: classicOgV01.round.startingCitySlug },
     });

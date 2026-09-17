@@ -1,6 +1,6 @@
 # 0.3.0 roadmap - the season
 
-Status: **in progress.** 0.3.0-A is built, 0.3.0-B is started, and 0.3.0-C alliances and 0.3.0-D playing together are built. 0.2.0 made the street dangerous; 0.3.0
+Status: **in progress.** 0.3.0-A is built, 0.3.0-B is started, 0.3.0-C alliances and 0.3.0-D playing together are built, and 0.3.0-E release tooling is built; its balance decisions wait for the first public alliance round. 0.2.0 made the street dangerous; 0.3.0
 makes a round a season with a finish line, and gives players a reason to play
 together. Travel is deliberately held for 0.4.0.
 
@@ -205,6 +205,19 @@ Defense reinforcement was simulated (`npm run qa:reinforcement`; findings in [CO
 - Any 0.2.0-H tuning carried forward.
 - A release regression suite in the style of 0.1.0-H, against a public alliance
   round, plus load and exploit checks for membership and reinforcement.
+
+Built so far (see [RELEASE-0.3.0-E.md](RELEASE-0.3.0-E.md)):
+
+- **Release regression.** `qa:release -- --with-db` runs a full alliance season through the
+  API and membership exploit checks, plus every alliance suite, without touching the local
+  dev round.
+- **Balance data.** Battles now record the attacker's alliance and whose recon they used. An
+  admin alliance balance report (panel and `npm run qa:alliance-balance`) shows attacker win
+  rates for solo and alliance matchups, revenge, recon source and each raid form, plus how
+  much of the top ten and total net worth alliances hold.
+- **Decisions held for real data.** Reinforcement, alliance size, shared recon and the carried
+  0.2.0-H special-raid rewards are decided from the first public alliance round's report,
+  using the guidance in the release notes, and ship as a new pinned ruleset.
 
 ## Not in 0.3.0
 
