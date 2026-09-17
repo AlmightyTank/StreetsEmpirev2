@@ -200,7 +200,8 @@
 }
 /* Nested grids in a sidebar layout must be allowed to shrink, or a wide table pushes under the aside. */
 .se-grid--sidebar > *,
-.se-grid--sidebar > .se-grid > * { min-width: 0; }
+.se-grid--sidebar > .se-grid > *,
+.se-grid--2 > * { min-width: 0; }
 .se-row--wrap { flex-wrap: wrap; gap: 6px; }
 
 /* 0.3.0-D alliance wire and contacts */
