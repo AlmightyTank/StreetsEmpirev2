@@ -499,6 +499,10 @@ model RoundPlayer {
   formerAllianceId      String?
   allianceCooldownUntil DateTime?
   allianceInvites       AllianceInvite[] @relation("AllianceInvitee")
+  /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
+  wirePosts      AllianceWirePost[] @relation("WireAuthor")
+  contacts       PlayerContact[]    @relation("ContactOwner")
+  contactOf      PlayerContact[]    @relation("ContactTarget")
 
   @@unique([roundId, accountId])
   @@unique([roundId, publicPimpId])
@@ -543,6 +547,7 @@ model Alliance {
   members RoundPlayer[]    @relation("AllianceMembers")
   invites AllianceInvite[]
   events  AllianceEvent[]
+  wire    AllianceWirePost[]
 
   @@unique([roundId, nameNormalized])
   @@unique([roundId, tagNormalized])
@@ -563,6 +568,43 @@ model AllianceInvite {
 
   @@unique([allianceId, inviteeId])
   @@index([inviteeId, expiresAt])
+}
+
+/// 0.3.0-D. A short post only the alliance's current members can read.
+/// Removed posts stay for moderation history but are never shown to players.
+model AllianceWirePost {
+  id         String      @id @default(cuid())
+  allianceId String
+  alliance   Alliance    @relation(fields: [allianceId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     RoundPlayer @relation("WireAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  body       String
+  createdAt  DateTime    @default(now())
+
+  /// Set when the author, the alliance leader or an admin removed it.
+  removedAt         DateTime?
+  removedByName     String?
+  /// author, leader or admin.
+  removedByRole     String?
+  removedReason     String?
+
+  @@index([allianceId, createdAt(sort: Desc)])
+  @@index([authorId, createdAt(sort: Desc)])
+}
+
+/// 0.3.0-D. A player's private rolodex entry for another player in the same round.
+model PlayerContact {
+  id       String      @id @default(cuid())
+  ownerId  String
+  owner    RoundPlayer @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  targetId String
+  target   RoundPlayer @relation("ContactTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  note     String      @default("")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([ownerId, targetId])
+  @@index([ownerId, updatedAt(sort: Desc)])
 }
 
 /// The alliance's own history: founded, joined, left, kicked, handed over, renamed, disbanded.

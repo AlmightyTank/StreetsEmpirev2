@@ -12,6 +12,8 @@ export interface CombatIntelReportDto {
   estimatedMaxLootCents: number;
   crack: number | null;
   estimatedMaxCrackLoot: number | null;
+  /** 0.3.0-D. The ally who gathered it, when it is shared alliance intel rather than your own. */
+  sharedBy?: string | null;
 }
 
 export interface CombatReconResultDto {

@@ -1,6 +1,6 @@
 # 0.3.0 roadmap - the season
 
-Status: **in progress.** 0.3.0-A is built, 0.3.0-B is started, and 0.3.0-C alliances and their community hooks are built. 0.2.0 made the street dangerous; 0.3.0
+Status: **in progress.** 0.3.0-A is built, 0.3.0-B is started, 0.3.0-C alliances are built, and 0.3.0-D is started. 0.2.0 made the street dangerous; 0.3.0
 makes a round a season with a finish line, and gives players a reason to play
 together. Travel is deliberately held for 0.4.0.
 
@@ -179,6 +179,21 @@ worth it yet.
   biggest balance risk in 0.3.0, so it is simulated first - squad caps, how many
   allies can reinforce, and whether reinforcements take wounds - before it goes
   into a ruleset.
+
+Built so far, in the pinned `classic-og-v0.3-d` ruleset:
+
+- **Shared recon.** Allies read each other's fresh recon on the raid page, marked with who
+  gathered it; your own report wins when both exist. Membership is read live, so leaving or
+  being kicked cuts access in both directions at once, and outsiders, including the target,
+  never see it.
+- **Alliance wire.** Posts of up to 280 characters, one per member every 15 seconds, readable
+  only by current members. Authors and the leader remove posts; admins see removed posts too
+  and remove with an audited reason.
+- **Contacts.** A private rolodex of up to 100 players per round with notes and live public
+  standing (rank, net worth, alliance, last seen) - never recon intel. Add from the Contacts
+  page or a player's profile.
+
+Defense reinforcement is next, simulated before any numbers go into the ruleset.
 
 ## 0.3.0-E - Balance and release
 

@@ -15,6 +15,7 @@ import { ForumLinkPage } from './pages/ForumLinkPage.js';
 import { ActivityPage } from './pages/ActivityPage.js';
 import { AlliancePage } from './pages/AlliancePage.js';
 import { AllianceDetailPage, AlliancesPage } from './pages/AlliancesPage.js';
+import { ContactsPage } from './pages/ContactsPage.js';
 import { CombatPage } from './pages/CombatPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
@@ -104,6 +105,7 @@ export function App() {
       <Route path="/game/rankings" element={<Protected><LiveRound><RankingsPage /></LiveRound></Protected>} />
       <Route path="/game/alliance" element={<Protected><LiveRound><AlliancePage /></LiveRound></Protected>} />
       <Route path="/game/alliances" element={<Protected><LiveRound><AlliancesPage /></LiveRound></Protected>} />
+      <Route path="/game/contacts" element={<Protected><LiveRound><ContactsPage /></LiveRound></Protected>} />
       <Route path="/game/alliances/:tag" element={<Protected><LiveRound><AllianceDetailPage /></LiveRound></Protected>} />
       <Route path="/game/hall-of-fame" element={<HallOfFamePage />} />
       <Route path="/game/profile" element={<Protected><ProfilePage /></Protected>} />

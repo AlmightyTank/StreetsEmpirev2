@@ -439,6 +439,25 @@ async function retaliationTargets(prisma: PrismaClient | Prisma.TransactionClien
   return new Set(rows.map((row) => row.attackerId));
 }
 
+/** Your own intel first; otherwise the ally report that stays fresh longest, marked with who gathered it. */
+export function sharedIntelByTarget(
+  rows: Array<{ observerId: string; targetId: string; report: unknown; expiresAt: Date; observer: { displayName: string } }>,
+  playerId: string,
+): Map<string, CombatIntelReportDto> {
+  const best = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    const current = best.get(row.targetId);
+    const mine = row.observerId === playerId;
+    if (!current
+      || (mine && current.observerId !== playerId)
+      || (mine === (current.observerId === playerId) && row.expiresAt > current.expiresAt)) best.set(row.targetId, row);
+  }
+  return new Map([...best].map(([targetId, row]) => [targetId, {
+    ...(row.report as CombatIntelReportDto),
+    sharedBy: row.observerId === playerId ? null : row.observer.displayName,
+  }]));
+}
+
 async function recoveryDto(prisma: PrismaClient, playerId: string, player: RoundPlayer, model: CombatRules): Promise<CombatRecoveryDto> {
   const next = await prisma.combatInjury.findFirst({
     where: { roundPlayerId: playerId },
@@ -474,11 +493,15 @@ export const CombatService = {
     const [revengeIds, intelRows] = await Promise.all([
       retaliationTargets(prisma, player, targetIds, model, now),
       model.strategy ? prisma.combatIntel.findMany({
-        where: { observerId: playerId, targetId: { in: targetIds }, expiresAt: { gt: now } },
-        select: { targetId: true, report: true },
+        where: {
+          targetId: { in: targetIds }, expiresAt: { gt: now },
+          // 0.3.0-D: current allies' fresh intel is shared. Membership is read live, so leaving cuts it off.
+          OR: [{ observerId: playerId }, ...(ruleset.alliances?.sharedIntel && player.allianceId ? [{ observer: { allianceId: player.allianceId } }] : [])],
+        },
+        select: { observerId: true, targetId: true, report: true, expiresAt: true, observer: { select: { displayName: true } } },
       }) : Promise.resolve([]),
     ]);
-    const intelByTarget = new Map(intelRows.map((row) => [row.targetId, row.report as unknown as CombatIntelReportDto]));
+    const intelByTarget = sharedIntelByTarget(intelRows, playerId);
     const ownStrength = strength(player, model);
     return {
       ...base, enabled: true, blockedReason,

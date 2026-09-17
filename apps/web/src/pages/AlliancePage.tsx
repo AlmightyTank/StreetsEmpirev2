@@ -6,6 +6,7 @@ import { allianceApi } from '../api/alliances.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
+import { AllianceWire } from '../components/AllianceWire.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
@@ -211,6 +212,8 @@ export function AlliancePage() {
           <AllianceSummary alliance={alliance} />
           <div className="se-grid se-grid--sidebar">
             <div className="se-grid">
+              <AllianceWire />
+
               <Panel title="Members" flush>
                 <AllianceMembers alliance={alliance} actions={data.isLeader ? (member) => member.isYou ? null : (
                   <span className="se-inline-actions">

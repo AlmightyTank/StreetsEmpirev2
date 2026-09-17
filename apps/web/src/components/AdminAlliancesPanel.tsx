@@ -5,6 +5,7 @@ import { formatCents, formatNumber } from '@streets/shared';
 import { adminAllianceApi } from '../api/alliances.js';
 import { ApiError } from '../api/client.js';
 import { adminWhen } from '../utils/admin.js';
+import { AdminWireView } from './AdminWireView.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
@@ -17,6 +18,7 @@ export function AdminAlliancesPanel({ roundId, finished }: { roundId: string; fi
   const [editing, setEditing] = useState<AdminAllianceDto | null>(null);
   const [form, setForm] = useState({ name: '', tag: '', reason: '' });
   const [busy, setBusy] = useState(false);
+  const [wireFor, setWireFor] = useState<string | null>(null);
 
   const load = useCallback(() => {
     adminAllianceApi.list(roundId).then(setData).catch((caught: unknown) => {
@@ -95,6 +97,7 @@ export function AdminAlliancesPanel({ roundId, finished }: { roundId: string; fi
                           setNotice(null);
                         }}>Moderate</button>
                       )}
+                      <button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => setWireFor(alliance.id)}>Wire</button>
                       {alliance.forumUrl ? <a className="se-btn se-btn--sm se-btn--ghost" href={alliance.forumUrl} target="_blank" rel="noreferrer">Forum</a> : null}
                       <Link className="se-btn se-btn--sm se-btn--ghost" to={`/game/admin/audit?targetType=alliance&targetId=${alliance.id}`}>Audit</Link>
                     </span>
@@ -105,6 +108,8 @@ export function AdminAlliancesPanel({ roundId, finished }: { roundId: string; fi
           </table>
         </div>
       ) : null}
+
+      {wireFor ? <AdminWireView allianceId={wireFor} onClose={() => setWireFor(null)} /> : null}
 
       {editing ? (
         <div className="se-admin-pad">

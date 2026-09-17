@@ -6,6 +6,7 @@ import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
+import { ContactButton } from '../components/ContactButton.js';
 import { HideoutRoomChips } from '../components/HideoutRoomChips.js';
 import { ProfileBadges } from '../components/ProfileBadges.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
@@ -346,7 +347,10 @@ export function ProfilePage() {
           </p>
           {player ? <ProfileBadges badges={player.badges} forumGroups={player.forumGroups} /> : null}
         </div>
-        {player?.forumProfileUrl ? <a className="se-btn se-btn--ghost se-btn--sm" href={player.forumProfileUrl}>Forum Profile</a> : null}
+        <div className="se-inline-actions">
+          {player && !player.isYou ? <ContactButton publicPimpId={player.publicPimpId} /> : null}
+          {player?.forumProfileUrl ? <a className="se-btn se-btn--ghost se-btn--sm" href={player.forumProfileUrl}>Forum Profile</a> : null}
+        </div>
       </div>
 
       {error ? <Alert>{error}</Alert> : null}

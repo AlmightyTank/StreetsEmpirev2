@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { RoundPlayer } from '@prisma/client';
 import { classicOgV03C } from '@streets/rulesets';
 import { allianceRelation, allianceTargetBlock, normalizeAllianceName, sharedRevengeScope } from '../alliance.service.js';
-import { combatTargetBlock, driveByTargetBlock } from '../combat.service.js';
+import { combatTargetBlock, driveByTargetBlock, sharedIntelByTarget } from '../combat.service.js';
 
 const now = new Date('2026-09-20T12:00:00.000Z');
 const old = new Date('2026-09-10T00:00:00.000Z');
@@ -81,5 +81,22 @@ describe('no friendly fire in combat eligibility', () => {
     expect(combatTargetBlock(attacker, dropped, model, now, true)).toContain('cooldown');
     expect(combatTargetBlock(dropped, attacker, model, now, true)).toContain('cooldown');
     expect(driveByTargetBlock(dropped, attacker, model, now)).toContain('cooldown');
+  });
+});
+
+describe('shared alliance intel', () => {
+  const at = (hours: number) => new Date(Date.UTC(2026, 8, 20, hours));
+  const row = (observerId: string, targetId: string, expiresAt: Date, name = observerId) =>
+    ({ observerId, targetId, expiresAt, report: { targetPublicPimpId: 1, expiresAt: expiresAt.toISOString() }, observer: { displayName: name } });
+
+  it('prefers your own report, then the ally report that stays fresh longest', () => {
+    const picked = sharedIntelByTarget([
+      row('ally-a', 't1', at(5), 'Ally A'),
+      row('me', 't1', at(2)),
+      row('ally-a', 't2', at(3), 'Ally A'),
+      row('ally-b', 't2', at(6), 'Ally B'),
+    ], 'me');
+    expect(picked.get('t1')!.sharedBy).toBeNull();
+    expect(picked.get('t2')!.sharedBy).toBe('Ally B');
   });
 });
