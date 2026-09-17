@@ -1,3 +1,4 @@
+import type { AllianceTagDto } from './alliance.js';
 import type { ActivityDto, CityDto, ProfileAccent, RoundDto, SeasonHideoutDto } from './api.js';
 
 export type PublicAchievementCategory = 'rank' | 'wealth' | 'combat' | 'intel' | 'reputation' | 'hideout' | 'legacy';
@@ -101,6 +102,8 @@ export interface RankingEntryDto {
   awards: PublicAwardDto[];
   isYou: boolean;
   intelRequired: boolean;
+  /** 0.3.0-C. Null for solo players and on rounds without alliances. */
+  alliance: AllianceTagDto | null;
 }
 
 export interface RankingsDto {
@@ -124,6 +127,8 @@ export interface PublicPlayerProfileDto {
   };
   publicPimpId: number;
   displayName: string;
+  /** 0.3.0-C. Null for solo players and on rounds without alliances. */
+  alliance: AllianceTagDto | null;
   city: CityDto;
   netWorthCents: number;
   rank: {
@@ -220,6 +225,8 @@ export interface HallOfFamePlayerDto {
   rank: number;
   publicPimpId: number;
   displayName: string;
+  /** 0.3.0-C. The alliance they finished the season in. */
+  alliance: AllianceTagDto | null;
   netWorthCents: number;
   cashCents: number;
   city: string;

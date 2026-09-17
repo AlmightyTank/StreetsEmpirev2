@@ -196,6 +196,8 @@ export interface RoundPlayerDto {
   id: string;
   publicPimpId: number;
   displayName: string;
+  /** 0.3.0-C. Null for solo players and on rounds without alliances. */
+  alliance: { name: string; tag: string } | null;
   city: CityDto;
 
   payoutPercent: number;

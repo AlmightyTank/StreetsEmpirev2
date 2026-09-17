@@ -5,6 +5,7 @@ import { formatCents, formatNumber } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { AllianceTag } from '../components/AllianceTag.js';
 import { HideoutRoomChips } from '../components/HideoutRoomChips.js';
 import { ProfileBadges } from '../components/ProfileBadges.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
@@ -335,6 +336,7 @@ export function ProfilePage() {
       <div className={`se-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}`}>
         <div>
           <h1 className="se-title">
+            {player ? <AllianceTag alliance={player.alliance} /> : null}
             {player?.displayName ?? account?.username ?? 'Profile'}{' '}
             {player ? <span className="se-muted se-num">(#{player.publicPimpId})</span> : null}
           </h1>

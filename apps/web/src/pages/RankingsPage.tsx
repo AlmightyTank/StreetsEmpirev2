@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import type { RankingEntryDto, RankingsDto } from '@streets/shared';
+import type { AllianceRankingsDto, RankingEntryDto, RankingsDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
+import { allianceApi } from '../api/alliances.js';
 import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { AllianceTag } from '../components/AllianceTag.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
+import { AllianceRankingTable } from './AlliancesPage.js';
 
 function heldFor(iso: string): string {
   const minutes = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000));
@@ -46,6 +49,7 @@ function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: b
             <tr key={row.publicPimpId} className={row.isYou ? 'se-rank-you' : undefined}>
               <td className="se-num" data-label="Rank">#{formatNumber(row.rank)}</td>
               <td className="se-td--title">
+                <AllianceTag alliance={row.alliance} />
                 <Link to={`/game/players/${row.publicPimpId}`} className="se-playerlink">
                   {row.displayName} <span className="se-muted se-num">(#{row.publicPimpId})</span>
                 </Link>
@@ -67,6 +71,7 @@ export function RankingsPage() {
   const me = useSession((s) => s.me);
   const [data, setData] = useState<RankingsDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [alliances, setAlliances] = useState<AllianceRankingsDto | null>(null);
 
   useEffect(() => {
     communityApi.rankings()
@@ -74,6 +79,8 @@ export function RankingsPage() {
       .catch((caught: unknown) => {
         setError(caught instanceof ApiError ? caught.message : 'Could not load the rankings.');
       });
+    // Solo rounds report enabled: false and the panel stays hidden.
+    allianceApi.rankings().then(setAlliances).catch(() => setAlliances(null));
   }, []);
 
   if (!me) return <Navigate to="/join" replace />;
@@ -107,6 +114,14 @@ export function RankingsPage() {
         <Panel title={data ? data.localCity.name : 'Local'} flush>
           {data ? <RankingTable rows={data.local} showCity={false} /> : <div className="se-panel__body"><p className="se-muted">Loading your city...</p></div>}
         </Panel>
+
+        {alliances?.enabled ? (
+          <Panel title="Alliances" aside={<Link to="/game/alliances">Full board</Link>} flush>
+            {alliances.alliances.length
+              ? <AllianceRankingTable rows={alliances.alliances.slice(0, 10)} />
+              : <div className="se-panel__body"><p className="se-muted">No alliances yet. <Link to="/game/alliance">Found the first one.</Link></p></div>}
+          </Panel>
+        ) : null}
       </div>
     </GameLayout>
   );

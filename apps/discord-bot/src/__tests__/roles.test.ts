@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { managedRoles, normalizeRoleKey, parseForumGroupList, planRoleChanges, roleNamesForKeys } from '../roles.js';
+import { allianceRoles, managedRoles, normalizeRoleKey, parseForumGroupList, planRoleChanges, roleNamesForKeys, staleAllianceRoleNames } from '../roles.js';
 
 describe('parseForumGroupList', () => {
   it('trims, drops blanks and case-insensitive duplicates, and caps the list', () => {
@@ -47,5 +47,28 @@ describe('roleNamesForKeys', () => {
   it('names managed roles in display order and skips unmanaged keys', () => {
     expect(roleNamesForKeys(['top-10', 'forum:Admin', 'linked', 'forum:Mod', 'unknown'], managedRoles(['Admin'])))
       .toEqual(['Linked', 'Top 10', 'Forum Admin']);
+  });
+
+  it('names alliance roles from their keys', () => {
+    expect(roleNamesForKeys(['player', 'alliance:ESK'], managedRoles([]))).toEqual(['Player', 'Alliance [ESK]']);
+  });
+});
+
+describe('allianceRoles', () => {
+  it('owns one "Alliance [TAG]" role per live alliance, ignoring bad and duplicate tags', () => {
+    expect(allianceRoles([{ tag: 'esk' }, { tag: 'WC' }, { tag: 'ESK' }, { tag: 'no spaces' }, { tag: 'TOOLONG' }]))
+      .toEqual([
+        { key: 'alliance:ESK', name: 'Alliance [ESK]', color: null },
+        { key: 'alliance:WC', name: 'Alliance [WC]', color: null },
+      ]);
+  });
+});
+
+describe('staleAllianceRoleNames', () => {
+  it('retires alliance roles that are no longer live and never touches anything else', () => {
+    const live = allianceRoles([{ tag: 'ESK' }]);
+    expect(staleAllianceRoleNames(['Alliance [ESK]', 'Alliance [OLD]', 'Alliance [old]', 'Alliance Leaders', 'Player', 'Forum Admin', 'Alliance [TOOLONG]'], live))
+      .toEqual(['Alliance [OLD]']);
+    expect(staleAllianceRoleNames(['Alliance [ESK]'], [])).toEqual(['Alliance [ESK]']);
   });
 });

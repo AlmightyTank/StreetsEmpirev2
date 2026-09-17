@@ -3,6 +3,7 @@ import { ADMIN_GRANT_CAPS, ADMIN_SUSPENSION_LENGTHS, usernameSchema, type AdminS
 import { z } from 'zod';
 import { AdminAccountService } from '../services/admin-account.service.js';
 import { AdminAuditService } from '../services/admin-audit.service.js';
+import { AllianceService } from '../services/alliance.service.js';
 import { AdminBattleService } from '../services/admin-battle.service.js';
 import { AdminDevBotsService } from '../services/admin-dev-bots.service.js';
 import { AdminDiscordService } from '../services/admin-discord.service.js';
@@ -42,6 +43,8 @@ const roundParams = z.object({ roundId: id }).strict();
 const accountParams = z.object({ accountId: id }).strict();
 const playerParams = z.object({ roundPlayerId: id }).strict();
 const battleParams = z.object({ battleId: id }).strict();
+const allianceParams = z.object({ allianceId: id }).strict();
+const renameAllianceSchema = z.object({ reason, name: z.string().optional(), tag: z.string().optional() }).strict();
 const newsParams = z.object({ newsId: id }).strict();
 const bannerParams = z.object({ bannerId: id }).strict();
 const rulesetParams = z.object({ rulesetId: id }).strict();
@@ -180,6 +183,27 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { roundId } = parseBody(roundParams, request.params);
     parseBody(emptyBody, request.body ?? {});
     return { round: await AdminRoundService.archive(fastify.prisma, request.auth!.account, roundId) };
+  });
+
+  // Alliances (0.3.0-C)
+
+  fastify.get('/rounds/:roundId/alliances', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    return AllianceService.adminList(fastify.prisma, roundId);
+  });
+
+  fastify.post('/alliances/:allianceId/rename', async (request) => {
+    const { allianceId } = parseBody(allianceParams, request.params);
+    const input = parseBody(renameAllianceSchema, request.body ?? {});
+    await AllianceService.adminRename(fastify.prisma, request.auth!.account, allianceId, input);
+    return { ok: true };
+  });
+
+  fastify.post('/alliances/:allianceId/disband', async (request) => {
+    const { allianceId } = parseBody(allianceParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    await AllianceService.adminDisband(fastify.prisma, request.auth!.account, allianceId, body.reason);
+    return { ok: true };
   });
 
   // News and the site banner

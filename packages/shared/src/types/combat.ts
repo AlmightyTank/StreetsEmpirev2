@@ -1,3 +1,4 @@
+import type { AllianceTagDto } from './alliance.js';
 export interface CombatIntelReportDto {
   targetPublicPimpId: number;
   displayName: string;
@@ -30,7 +31,8 @@ export interface BattleReportDto {
   modelVersion: string;
   role: 'ATTACKER' | 'DEFENDER';
   won: boolean;
-  opponent: { publicPimpId: number; displayName: string };
+  /** alliance is the opponent's tag when the battle happened; absent on reports from before 0.3.0-C. */
+  opponent: { publicPimpId: number; displayName: string; alliance?: AllianceTagDto | null };
   yourSquad: number;
   opponentSquad: number;
   yourEquipment: Record<string, number>;
@@ -106,6 +108,8 @@ export interface CombatTargetDto {
   displayName: string;
   netWorthCents: number;
   strength: 'Weaker' | 'Comparable' | 'Stronger';
+  /** 0.3.0-C. The target's alliance tag, when they are in one. */
+  alliance?: AllianceTagDto | null;
   revengeAvailable?: boolean;
   intel?: CombatIntelReportDto | null;
   blockedReason: string | null;

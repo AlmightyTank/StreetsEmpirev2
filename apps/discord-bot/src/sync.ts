@@ -1,6 +1,6 @@
 import type { Guild, GuildMember, Role } from 'discord.js';
 import type { GameApi } from './game-api.js';
-import { normalizeRoleKey, planRoleChanges, type ManagedRole } from './roles.js';
+import { allianceRoles, normalizeRoleKey, planRoleChanges, staleAllianceRoleNames, type ManagedRole } from './roles.js';
 
 const REASON = 'StreetsEmpire role sync';
 const CHUNK = 1000;
@@ -35,15 +35,27 @@ export class RoleSync {
 
   constructor(
     private readonly guild: Guild,
+    /** Fixed and forum-group roles. Alliance roles are added from the game on every refresh. */
     private readonly managed: ManagedRole[],
     private readonly api: GameApi,
   ) {}
 
-  /** Find each managed role by exact name, creating it if missing. Re-run every full sync in case one was deleted. */
+  /**
+   * Find each managed role by exact name, creating it if missing. Re-run every full sync in case one was deleted.
+   * Alliance roles follow the current round: new alliances get a role, and roles for alliances that disbanded,
+   * were renamed or belonged to a finished round are deleted.
+   */
   async ensureRoles(): Promise<void> {
+    const alliances = allianceRoles((await this.api.alliances()).alliances);
     const existing = await this.guild.roles.fetch();
     this.roles.clear();
-    for (const role of this.managed) {
+    for (const name of staleAllianceRoleNames([...existing.values()].map((role) => role.name), alliances)) {
+      for (const role of existing.filter((candidate) => candidate.name === name).values()) {
+        if (!role.editable) continue;
+        await role.delete(REASON).catch((error: unknown) => console.warn(`Could not delete stale role "${name}":`, error));
+      }
+    }
+    for (const role of [...this.managed, ...alliances]) {
       const found = existing.find((candidate) => candidate.name === role.name)
         ?? await this.guild.roles.create({
           name: role.name,
@@ -80,6 +92,9 @@ export class RoleSync {
     for (let start = 0; start < humans.length; start += CHUNK) {
       const chunk = humans.slice(start, start + CHUNK);
       const { members: keysById } = await this.api.roles(chunk.map((member) => member.id));
+      // An alliance founded since the last full sync has no role yet.
+      const unknownAlliance = Object.values(keysById).flat().some((key) => key.startsWith('alliance:') && !this.roles.has(key));
+      if (unknownAlliance) await this.ensureRoles();
       for (const member of chunk) {
         // Missing from the response = not linked (or deactivated): remove every managed role.
         results.push(await this.applyMember(member, new Set((keysById[member.id] ?? []).map(normalizeRoleKey))));

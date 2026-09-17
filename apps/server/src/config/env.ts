@@ -35,6 +35,8 @@ const envSchema = z.object({
   /** The forum user the mirrored discussions are posted as. */
   FORUM_API_USER_ID: z.coerce.number().int().positive().default(1),
   FORUM_NEWS_TAG_ID: z.string().regex(/^\d*$/, 'FORUM_NEWS_TAG_ID must be a numeric Flarum tag id.').default(''),
+  /** 0.3.0-C. The recruitment tag alliance leaders post their threads into. */
+  FORUM_RECRUITMENT_TAG_ID: z.string().regex(/^\d*$/, 'FORUM_RECRUITMENT_TAG_ID must be a numeric Flarum tag id.').default(''),
 
   DISCORD_BOT_API_TOKEN: z.union([z.literal(''), z.string().min(64)]).default(''),
 
@@ -88,6 +90,12 @@ export const env = {
       tagId: parsed.data.FORUM_NEWS_TAG_ID,
       /** Off in tests so no test run ever posts to a real forum. */
       enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.FORUM_API_KEY && parsed.data.FORUM_NEWS_TAG_ID),
+    },
+    recruitment: {
+      apiKey: parsed.data.FORUM_API_KEY,
+      userId: parsed.data.FORUM_API_USER_ID,
+      tagId: parsed.data.FORUM_RECRUITMENT_TAG_ID,
+      enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.FORUM_API_KEY && parsed.data.FORUM_RECRUITMENT_TAG_ID),
     },
   },
   discordBot: {

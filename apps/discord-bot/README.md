@@ -21,9 +21,17 @@ counts as linked once the player has signed in with Discord or linked it under
 | Past Winner | Won a past round |
 | Hall of Fame | Won three past rounds |
 | Forum Admin, Forum Mod, … | Linked forum account is in that visible forum group (see `DISCORD_FORUM_GROUPS`) |
+| Alliance [TAG] | Linked members in that alliance in the current round (0.3.0-C) |
 
 - The bot owns only the roles in this table. It finds them by exact name, or
   creates them the first time, and never adds or removes any other role.
+- Alliance roles follow the game. Each full sync creates a role for a new
+  alliance and **deletes** `Alliance [TAG]` roles whose alliance disbanded, was
+  renamed to a new tag, or belonged to a finished round. Only roles named exactly
+  `Alliance [TAG]` are ever deleted, so don't give a hand-made role that name.
+- Founding, joining, leaving and kicking queue a resync for that member, so
+  alliance roles change within `DISCORD_ALERTS_MINUTES` instead of waiting for
+  the full sync. A disband or tag change queues a full sync.
 - A full sync runs on startup and every `DISCORD_SYNC_MINUTES` (default 10).
   Members who join the server are synced straight away.
 - Linking or unlinking in the game shows up at the next sync.

@@ -103,7 +103,7 @@ export function toSeasonHideoutDto(player: Pick<RoundPlayer,
  * used to hand out those turns.
  */
 export function toRoundPlayerDto(
-  player: RoundPlayer & { city: City },
+  player: RoundPlayer & { city: City; alliance?: { name: string; tag: string } | null },
   ruleset: Ruleset,
   turns: TurnSettlement,
 ): RoundPlayerDto {
@@ -111,6 +111,7 @@ export function toRoundPlayerDto(
     id: player.id,
     publicPimpId: player.publicPimpId,
     displayName: player.displayName,
+    alliance: player.alliance ? { name: player.alliance.name, tag: player.alliance.tag } : null,
     city: toCityDto(player.city),
 
     payoutPercent: player.payoutPercent,

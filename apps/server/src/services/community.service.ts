@@ -16,6 +16,7 @@ import type {
 import { env } from '../config/env.js';
 import { toCityDto, toSeasonHideoutDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
+import { allianceTagDto } from './alliance.service.js';
 import { ForumGroupsService } from './forum-groups.service.js';
 import { forumProfileUrl } from './forum-link.service.js';
 import { selectProfileBadges } from './profile-badges.js';
@@ -41,6 +42,8 @@ interface RankingRow {
   hideoutWorkshopLevel: number;
   hideoutBackOfficeLevel: number;
   createdAt: Date;
+  /** 0.3.0-C. Loaded where the ranking or profile shows a tag. */
+  alliance?: { name: string; tag: string } | null;
 }
 
 interface PublicContext {
@@ -593,6 +596,7 @@ export function rankRows(
       awards: earned.slice(0, 3),
       isYou,
       intelRequired: false,
+      alliance: allianceTagDto(row.alliance),
     };
   });
 }
@@ -623,6 +627,7 @@ export const CommunityService = {
             nationalRank: true,
             publicPimpId: true,
             displayName: true,
+            alliance: { select: { name: true, tag: true } },
             netWorthCents: true,
             cashCents: true,
             hideoutSafeRoomLevel: true,
@@ -643,6 +648,7 @@ export const CommunityService = {
           rank: player.nationalRank!,
           publicPimpId: player.publicPimpId,
           displayName: player.displayName,
+          alliance: allianceTagDto(player.alliance),
           netWorthCents: Number(player.netWorthCents),
           cashCents: Number(player.cashCents),
           city: player.city.name,
@@ -684,13 +690,13 @@ export const CommunityService = {
     const [nationalRows, localRows] = await Promise.all([
       prisma.roundPlayer.findMany({
         where: { roundId: player.roundId, account: { isActive: true } },
-        include: { city: true },
+        include: { city: true, alliance: { select: { name: true, tag: true } } },
         orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
         take: topCount,
       }),
       prisma.roundPlayer.findMany({
         where: { roundId: player.roundId, cityId: player.cityId, account: { isActive: true } },
-        include: { city: true },
+        include: { city: true, alliance: { select: { name: true, tag: true } } },
         orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
         take: topCount,
       }),
@@ -728,7 +734,7 @@ export const CommunityService = {
   ): Promise<PublicPlayerProfileDto> {
     const player = await prisma.roundPlayer.findFirst({
       where: { roundId, publicPimpId, account: { isActive: true } },
-      include: { city: true },
+      include: { city: true, alliance: { select: { name: true, tag: true } } },
     });
 
     if (!player) {
@@ -784,6 +790,7 @@ export const CommunityService = {
       },
       publicPimpId: player.publicPimpId,
       displayName: player.displayName,
+      alliance: allianceTagDto(player.alliance),
       city: toCityDto(player.city),
       netWorthCents: Number(player.netWorthCents),
       rank: {

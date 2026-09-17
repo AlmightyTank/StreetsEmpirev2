@@ -319,8 +319,9 @@ model Round {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  players RoundPlayer[]
-  news    GameNews[]
+  players   RoundPlayer[]
+  news      GameNews[]
+  alliances Alliance[]
 
   @@index([status])
 }
@@ -488,10 +489,95 @@ model RoundPlayer {
   hideoutWorkshopLevel   Int @default(0)
   hideoutBackOfficeLevel Int @default(0)
 
+  /// 0.3.0-C. The alliance this player is in now, and since when. Shared revenge only
+  /// counts hits on the alliance from after the member joined.
+  allianceId       String?
+  alliance         Alliance? @relation("AllianceMembers", fields: [allianceId], references: [id], onDelete: SetNull)
+  allianceJoinedAt DateTime?
+  /// The alliance this player last left or was kicked from. Until the cooldown passes
+  /// they cannot join or found an alliance, and they and that alliance cannot hit each other.
+  formerAllianceId      String?
+  allianceCooldownUntil DateTime?
+  allianceInvites       AllianceInvite[] @relation("AllianceInvitee")
+
   @@unique([roundId, accountId])
   @@unique([roundId, publicPimpId])
   @@index([roundId, netWorthCents(sort: Desc)])
   @@index([roundId, cityId, netWorthCents(sort: Desc)])
+  @@index([allianceId])
+}
+
+// ---------------------------------------------------------------------------
+// Alliances (0.3.0-C)
+// ---------------------------------------------------------------------------
+
+/// A crew of players inside one round. Resets with the round like everything else.
+model Alliance {
+  id      String @id @default(cuid())
+  roundId String
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  name String
+  /// Lowercased. A disbanded alliance gets its id appended so the name is free again.
+  nameNormalized String
+  /// Shown in brackets beside member names, e.g. [NYC].
+  tag            String
+  tagNormalized  String
+
+  /// A RoundPlayer id. No foreign key: leadership moves inside the same locked
+  /// transaction as membership, and a disbanded alliance keeps its last leader.
+  leaderId String
+
+  disbandedAt   DateTime?
+  disbandReason String?
+
+  /// 0.3.0-C recruitment thread in the forum's recruitment tag. Posted once, by the leader.
+  /// forumPostStartedAt claims the post so a double click cannot open two threads.
+  forumDiscussionId  String?
+  forumPostStartedAt DateTime?
+  forumError         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members RoundPlayer[]    @relation("AllianceMembers")
+  invites AllianceInvite[]
+  events  AllianceEvent[]
+
+  @@unique([roundId, nameNormalized])
+  @@unique([roundId, tagNormalized])
+  @@index([roundId, disbandedAt])
+}
+
+/// A standing offer to one player. Accepting re-checks the cap under the alliance lock.
+model AllianceInvite {
+  id         String      @id @default(cuid())
+  allianceId String
+  alliance   Alliance    @relation(fields: [allianceId], references: [id], onDelete: Cascade)
+  inviteeId  String
+  invitee    RoundPlayer @relation("AllianceInvitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+  /// Display name of whoever sent it, kept as text so it survives them leaving.
+  invitedByName String
+  createdAt     DateTime @default(now())
+  expiresAt     DateTime
+
+  @@unique([allianceId, inviteeId])
+  @@index([inviteeId, expiresAt])
+}
+
+/// The alliance's own history: founded, joined, left, kicked, handed over, renamed, disbanded.
+model AllianceEvent {
+  id         String   @id @default(cuid())
+  allianceId String
+  alliance   Alliance @relation(fields: [allianceId], references: [id], onDelete: Cascade)
+  type       String
+  /// Names as text: history outlives membership.
+  actorName   String?
+  subjectName String?
+  detail      String?
+  createdAt   DateTime @default(now())
+
+  @@index([allianceId, createdAt(sort: Desc)])
 }
 
 // ---------------------------------------------------------------------------
@@ -623,9 +709,13 @@ model RaidBattle {
   voidedAt         DateTime?
   voidedByUsername String?
   voidReason       String?
+  /// 0.3.0-C. The defender's alliance when the hit landed. Shared revenge reads this, so
+  /// the victim leaving afterwards cannot take the window away from the alliance.
+  defenderAllianceId String?
   @@unique([attackerId, actionId])
   @@index([attackerId, createdAt(sort: Desc), id])
   @@index([defenderId, createdAt(sort: Desc), id])
+  @@index([defenderAllianceId, attackerId, createdAt])
 }
 
 model CombatInjury {

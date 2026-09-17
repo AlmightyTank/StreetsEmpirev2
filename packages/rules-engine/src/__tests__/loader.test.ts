@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, type Ruleset } from '@streets/rulesets';
 import { regenerateTurns } from '../calculations/turns.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
@@ -38,7 +38,7 @@ describe('ruleset loader', () => {
   it('knows which ids it can serve', () => {
     expect(isKnownRulesetId('classic-og-v0.1')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(10);
+    expect(listRulesets()).toHaveLength(11);
   });
 });
 
@@ -96,6 +96,18 @@ describe('classic-og-v0.3-b contents', () => {
     const ruleset = loadRuleset('classic-og-v0.3-b', '0.3.0-B');
     expect(ruleset.meta.name).toBe('Classic OG - Admin');
     expect({ ...ruleset, meta: null }).toEqual({ ...classicOgV03A, meta: null });
+  });
+});
+
+describe('classic-og-v0.3-c contents', () => {
+  it('adds alliances without changing 0.3.0-B balance', () => {
+    const ruleset = loadRuleset('classic-og-v0.3-c', '0.3.0-C');
+    expect(ruleset.meta.name).toBe('Classic OG - Alliances');
+    expect(ruleset.alliances).toEqual({ maxMembers: 5, leaveCooldownHours: 24, inviteExpiresHours: 48, maxPendingInvites: 10 });
+    // The cooldown must outlast revenge, or dropping a member would dodge it.
+    expect(ruleset.alliances!.leaveCooldownHours).toBeGreaterThanOrEqual(ruleset.combat!.strategy!.retaliation.revengeHours);
+    expect({ ...ruleset, meta: null, alliances: null }).toEqual({ ...classicOgV03B, meta: null, alliances: null });
+    expect((classicOgV03B as Ruleset).alliances).toBeUndefined();
   });
 });
 

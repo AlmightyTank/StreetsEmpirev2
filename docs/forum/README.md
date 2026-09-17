@@ -38,6 +38,24 @@ between the game and forum. Both snippets wrap on small screens and contain no
 scripts or external assets. The header stays in normal document flow so Flarum
 can manage its own sticky navigation.
 
+## Alliance recruitment (0.3.0-C)
+
+Alliance leaders can post one recruitment thread each from the game's alliance page.
+
+1. In Flarum administration, open **Tags** and create a **Recruitment** tag. Let
+   everyone reply; start-discussion permission is not needed, because the game
+   posts as the API user.
+2. Find the tag's numeric id (the admin API at `/api/tags` lists it).
+3. Set `FORUM_RECRUITMENT_TAG_ID` on the game server. It reuses `FORUM_API_KEY`
+   and `FORUM_API_USER_ID` from news mirroring. Recruitment stays off while the
+   tag id or key is empty.
+
+Each thread is titled `[TAG] Name is recruiting`, carries the leader's optional
+pitch, and links back to the alliance page. If an admin renames the alliance the
+title follows; if the alliance disbands the thread is retitled `(disbanded)` and
+locked. Locking uses Flarum's bundled **Lock** extension, so keep it enabled. A
+forum outage never blocks the game: the leader sees the error and can retry.
+
 ## Scope and rollback
 
 Colors come from `apps/web/src/styles/theme.css`. The stylesheet uses the CSS

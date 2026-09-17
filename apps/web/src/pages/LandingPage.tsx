@@ -8,6 +8,7 @@ import { Seo } from '../components/Seo.js';
 import { Shell } from '../layouts/Shell.js';
 import { useSession } from '../stores/session.js';
 import { formatDate, formatDuration } from '../utils/time.js';
+import { AllianceTag } from '../components/AllianceTag.js';
 
 const SEO_TITLE = 'StreetsEmpire - Free Browser Crime Strategy Game';
 const SEO_DESCRIPTION = 'Play StreetsEmpire, a free browser crime strategy game with turn-based crew management, raids, rankings, achievements and fair seasonal resets.';
@@ -247,7 +248,7 @@ export function LandingPage() {
           <div className="se-land-champ">
             <div>
               <p className="se-eyebrow">Last season &middot; {lastSeason.name} &middot; ended {formatDate(lastSeason.endedAt)}</p>
-              <h2 className="se-land-champ__name">{champion.displayName}</h2>
+              <h2 className="se-land-champ__name"><AllianceTag alliance={champion.alliance} link={false} />{champion.displayName}</h2>
               <p className="se-hint">
                 Finished first in {champion.city} with <b className="se-num">{formatCents(champion.netWorthCents)}</b>
                 {lastSeason.playerCount > 2

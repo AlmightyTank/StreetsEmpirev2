@@ -181,3 +181,24 @@
   .se-store-prices { gap: 6px 14px; }
   .se-choice__meta { gap: 8px; }
 }
+
+/* 0.3.0-C alliances */
+.se-alliance-tag {
+  margin-right: 5px;
+  color: var(--se-accent);
+  font-family: var(--se-mono);
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.se-alliance-tag:hover { text-decoration: underline; }
+.se-inline-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+/* Nested grids in a sidebar layout must be allowed to shrink, or a wide table pushes under the aside. */
+.se-grid--sidebar > *,
+.se-grid--sidebar > .se-grid > * { min-width: 0; }
+.se-row--wrap { flex-wrap: wrap; gap: 6px; }

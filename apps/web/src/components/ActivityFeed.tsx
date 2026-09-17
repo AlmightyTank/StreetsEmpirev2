@@ -9,6 +9,13 @@ function str(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
 
+/** The opponent as the feed names them: "[WC] Iron Maya", or just the name for solo players and older entries. */
+function opponent(p: Record<string, unknown>, fallback = ''): string {
+  const name = str(p.opponent, fallback);
+  const tag = str(p.opponentTag);
+  return tag && name ? `[${tag}] ${name}` : name;
+}
+
 const CHANGE_LABELS: Record<string, string> = {
   cashCents: 'cash', woundedThugs: 'wounded thugs', lowRiders: 'Low-Riders', tek9s: 'Tek-9s', ak47s: 'AK-47s', driveBysDone: 'drive-bys',
 };
@@ -54,8 +61,8 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
       ].filter(Boolean).join(' · ');
       return {
         text: attacking
-          ? `${move} on ${str(p.opponent)} — ${p.won ? 'won' : 'lost'}.`
-          : `${str(p.opponent)} tried ${move.toLowerCase()} on you — ${p.won ? 'you held them off' : 'they got through'}.`,
+          ? `${move} on ${opponent(p)} — ${p.won ? 'won' : 'lost'}.`
+          : `${opponent(p)} tried ${move.toLowerCase()} on you — ${p.won ? 'you held them off' : 'they got through'}.`,
         detail: details,
       };
     }
@@ -64,8 +71,8 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
       const attacking = activity.type === 'DRIVE_BY_ATTACK';
       return {
         text: attacking
-          ? `Drive-by on ${str(p.opponent)} — ${p.won ? 'it landed' : 'they shot back and won'}.`
-          : `${str(p.opponent)} did a drive-by on your block — ${p.won ? 'your crew saw them off' : 'it landed'}.`,
+          ? `Drive-by on ${opponent(p)} — ${p.won ? 'it landed' : 'they shot back and won'}.`
+          : `${opponent(p)} did a drive-by on your block — ${p.won ? 'your crew saw them off' : 'it landed'}.`,
         detail: [
           attacking ? `${num(p.turns)} turns` : null,
           num(p.whoresKilled) ? `${formatNumber(num(p.whoresKilled))} ${attacking ? 'of their' : 'of your'} whores killed` : null,
@@ -167,7 +174,7 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
 
     case 'BATTLE_VOIDED':
       return {
-        text: `An admin voided your battle with ${str(p.opponent, 'another player')}.`,
+        text: `An admin voided your battle with ${opponent(p, 'another player')}.`,
         detail: [
           str(p.reason),
           changeSummary(p.changes),
