@@ -20,3 +20,5 @@ export * from './rng.js';
 export type { Ruleset } from '@streets/rulesets';
 export * from './simulations/reinforcement.js';
 export * from './simulations/products.js';
+export * from './simulations/combat-products.js';
+export * from './simulations/product-round.js';

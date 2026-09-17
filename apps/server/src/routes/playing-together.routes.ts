@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, heatBribeSchema, productTradeSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, heatBribeSchema, productTradeSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { ContactsService } from '../services/contacts.service.js';
 import { ProductMarketService } from '../services/product-market.service.js';
 import { RoundService } from '../services/round.service.js';
@@ -50,6 +50,11 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/work-supply/policy', { preHandler: app.requireAuth }, async (request) =>
     WorkSupplyService.setPolicy(app.prisma, await me(request.auth!.account.id), parseBody(workSupplyPolicySchema, request.body ?? {})));
+
+  app.post('/work-supply/policy/clear', { preHandler: app.requireAuth }, async (request) => {
+    const { job } = parseBody(workSupplyClearSchema, request.body ?? {});
+    return WorkSupplyService.clearPolicy(app.prisma, await me(request.auth!.account.id), job);
+  });
 
   app.get('/work-supply/preview', { preHandler: app.requireAuth }, async (request) => {
     const { job, turns } = parseBody(workSupplyPreviewSchema, request.query);

@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { AdminPlayerBattlesDto, AdminPlayerDto, AdminPlayerSearchDto } from '@streets/shared';
-import { loadRulesetForRound } from '@streets/rules-engine';
+import { loadRulesetForRound, productEconomy } from '@streets/rules-engine';
 import { toActivityDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
 import { ActivityService } from './activity.service.js';
@@ -16,7 +16,11 @@ const iso = (date: Date | null) => date?.toISOString() ?? null;
 async function adminProducts(prisma: PrismaClient, roundPlayerId: string, ruleset: ReturnType<typeof loadRulesetForRound>) {
   if (!ruleset.products) return [];
   const inventory = await ProductInventoryService.read(prisma, roundPlayerId, ruleset);
-  return productKeys(ruleset).map((key) => ({ key, name: ruleset.products![key]!.name, quantity: inventory[key] ?? 0 }));
+  return productKeys(ruleset).map((key) => {
+    const quantity = inventory[key] ?? 0;
+    const unit = !ruleset.productEconomy ? null : key === 'CRACK' ? ruleset.economy.netWorth.perCrackCents : productEconomy(ruleset, key)?.netWorthCents ?? 0;
+    return { key, name: ruleset.products![key]!.name, quantity, ...(unit === null ? {} : { valueCents: quantity * unit }) };
+  });
 }
 
 export const AdminPlayerService = {

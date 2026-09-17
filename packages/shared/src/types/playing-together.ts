@@ -89,13 +89,15 @@ export interface WorkSupplySliceDto {
   departureMultiplier: number;
   morale: number;
   heat: number;
+  /** 0.4.0-E. Share of a fighting squad wounded; 1 for other roles. */
+  woundMultiplier: number;
 }
 
 /** The plan a trip follows: preview before clicking, and the same plan on the receipt. */
 export interface WorkSupplyPlanDto {
   job: string;
-  /** 0.4.0-C. The girls working, or the thugs cooking. */
-  role: 'hoes' | 'thugs';
+  /** 0.4.0-C. The girls working, or the thugs cooking; 0.4.0-E adds thugs in a fight. */
+  role: 'hoes' | 'thugs' | 'fighters';
   policy: WorkSupplyPolicyDto;
   need: number;
   perTurn: number;
@@ -105,6 +107,7 @@ export interface WorkSupplyPlanDto {
   recruitmentMultiplier: number;
   departureMultiplier: number;
   morale: number;
+  woundMultiplier: number;
   /** 0.4.0-C. Heat the trip adds, before rounding. */
   heat: number;
   switchesAtTurn: number | null;
@@ -145,9 +148,28 @@ export interface TripHeatDto {
   fineCents: number;
 }
 
+/** 0.4.0-E. GET /api/game/work-supply/preview: the plan, plus what the screen should warn about. */
+export interface WorkSupplyPreviewDto extends WorkSupplyPlanDto {
+  status: {
+    /** Turns the allowed stock lasts at this crew size; null when the job burns nothing. */
+    turnsOfSupply: number | null;
+    /** Workers left without product on this trip. */
+    shortWorkers: number;
+    /**
+     * Roughly what running short costs you: take for girls, cents; for cooks and fighters, null.
+     * Ignores the hour's clients and cover, so it is an estimate, not a promise.
+     */
+    estimatedLossCents: number | null;
+  };
+}
+
 /** GET /api/game/work-supply. */
 export interface WorkSupplyDto {
   enabled: boolean;
   products: Array<{ key: string; name: string; quantity: number }>;
-  jobs: Array<{ key: string; name: string; policy: WorkSupplyPolicyDto; isDefault: boolean }>;
+  /**
+   * `role` and `optIn` since 0.4.0-E. An opt-in job (a fight) burns nothing until a policy is
+   * saved; `active` says whether this job burns product at all right now.
+   */
+  jobs: Array<{ key: string; name: string; role: 'hoes' | 'thugs' | 'fighters'; optIn: boolean; active: boolean; policy: WorkSupplyPolicyDto; isDefault: boolean }>;
 }

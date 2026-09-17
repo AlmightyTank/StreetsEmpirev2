@@ -91,7 +91,8 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('product effects and Hea
     const expected = classicOgV04C.products.ECSTASY.effects.hoes;
     expect(preview.takeMultiplier).toBeCloseTo(expected.take * expected.jobTake.NIGHTCLUB, 10);
     const trip = await ScoutService.scout(app.prisma, players.c, { district: 'NIGHTCLUB', turns: 12, actionId: randomUUID() }, never);
-    expect(trip.result.supply).toEqual(preview);
+    // The preview adds a status block for the screen; the plan itself matches the receipt.
+    expect(trip.result.supply).toEqual({ ...preview, status: undefined });
     expect(trip.result.heat).toMatchObject({ before: 0, added: Math.round(preview.heat), after: Math.round(preview.heat), busted: false });
     expect((await row()).heat).toBe(Math.round(preview.heat));
   });

@@ -1,6 +1,6 @@
 # 0.4.0-D product economy
 
-Ruleset: classic-og-v0.4-d. Every number here is integer cents in the ruleset.
+Ruleset: classic-og-v0.4-e. Every number here is integer cents in the ruleset.
 
 ## Gate: no free money loop
 

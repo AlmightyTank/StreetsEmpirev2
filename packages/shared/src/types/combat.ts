@@ -50,6 +50,8 @@ export interface BattleReportDto {
   cashAfterCents: number;
   crackChange?: number;
   crackAfter?: number;
+  /** 0.4.0-E. The product this side took into the fight, when it had a RAID or DEFENSE policy. */
+  yourSupply?: import('./playing-together.js').WorkSupplyPlanDto;
   /** 0.4.0-D. Every other product that changed hands or burned, from this side's view. */
   productChanges?: Array<{ product: string; name: string; change: number }>;
   lootPercent?: number;

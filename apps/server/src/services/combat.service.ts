@@ -1,6 +1,6 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
-import { driveByMaxShooters, equipCombatSquad, loadRulesetForRound, productStashHint, simulateDriveBy, simulateRaid, splitProductUnits, type CombatCrew, type Ruleset } from '@streets/rules-engine';
+import { DEFENSE_JOB, RAID_JOB, driveByMaxShooters, equipCombatSquad, loadRulesetForRound, planWorkSupply, productStashHint, simulateDriveBy, simulateRaid, splitProductUnits, type CombatBoost, type CombatCrew, type Ruleset, type WorkSupplyPlan } from '@streets/rules-engine';
 import type { DriveByRules, DrugHoesRules, LureCrewRules, SpecialRaidKind, StealRideRules } from '@streets/rulesets';
 import {
   combatReconSchema,
@@ -31,8 +31,9 @@ import { CombatRecoveryService } from './combat-recovery.service.js';
 import { HappinessService } from './happiness.service.js';
 import { assertPlayerState } from './invariant.service.js';
 import { NetWorthService } from './net-worth.service.js';
-import { PlayerStateService } from './player-state.service.js';
+import { PlayerStateService, type SettledPlayer } from './player-state.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
+import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 import { RankingService } from './ranking.service.js';
 import { hideoutDefenseBonusPercent, hideoutProtectedCashBonusCents } from './hideout.service.js';
 
@@ -215,7 +216,9 @@ export function combatAttackerBlock(player: RoundPlayer, model: CombatRules, now
   return null;
 }
 
-export function combatTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, model: CombatRules, now: Date, retaliation = false): string | null {
+export function combatTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, model: CombatRules, now: Date, retaliation = false,
+  /** 0.4.0-D. Non-crack product units the defender holds, which a product round's raid can take. */
+  otherProductUnits = 0): string | null {
   if (attacker.id === defender.id || attacker.accountId === defender.accountId) return 'You cannot raid yourself.';
   if (attacker.roundId !== defender.roundId) return 'Pick a player in your round.';
   const allied = allianceTargetBlock(attacker, defender, now);
@@ -226,7 +229,7 @@ export function combatTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, 
   if (defender.lastRaidedAt && defender.lastActiveAt <= defender.lastRaidedAt) return 'This player has not returned since the last raid.';
   if (strength(defender, model) < strength(attacker, model) * model.minimumTargetStrengthRatio && !(retaliation && retaliationRules?.bypassMinimumStrength)) return 'This crew is too weak for you to raid.';
   const hasExposedCash = defender.cashCents > BigInt(model.loot.protectedCashCents);
-  const hasExposedCrack = (model.loot.exposedDrugPercent ?? 0) > 0 && (model.loot.perFitAttackerCrack ?? 0) > 0 && defender.crack > 0;
+  const hasExposedCrack = (model.loot.exposedDrugPercent ?? 0) > 0 && (model.loot.perFitAttackerCrack ?? 0) > 0 && defender.crack + otherProductUnits > 0;
   if (!hasExposedCash && !hasExposedCrack) return 'This player has no exposed cash or crack to raid.';
   return null;
 }
@@ -408,6 +411,31 @@ async function moveProducts(tx: Prisma.TransactionClient, ruleset: Ruleset, unit
   return { from: fromAfter, to: toAfter };
 }
 
+/**
+ * 0.4.0-E. Supply a side going into a fight from its RAID or DEFENSE policy, if it
+ * set one: burn the product, add its Heat, and hand back the player with the
+ * stash that is left. A side without a policy fights as it always has.
+ */
+async function fightSupply(tx: Prisma.TransactionClient, ruleset: Ruleset, settled: SettledPlayer, job: string, committed: number): Promise<SettledPlayer & { supply?: WorkSupplyPlan }> {
+  if (!ruleset.combatSupply || committed <= 0) return settled;
+  const row = await tx.workSupplyPolicy.findUnique({ where: { roundPlayerId_job: { roundPlayerId: settled.player.id, job } } });
+  if (!row) return settled;
+  const supply = planWorkSupply({
+    job, role: 'fighters', workers: committed, turns: 1, ruleset,
+    policy: { primary: row.primary, fallback: row.fallback, emergency: row.emergency, strict: row.strict },
+    inventory: stashOf(settled.player.crack, settled.products),
+  });
+  await WorkSupplyService.consume(tx, settled.player.id, ruleset, supply);
+  const products = { ...(settled.products ?? {}) };
+  for (const [key, units] of Object.entries(supply.consumed)) if (key !== 'CRACK') products[key] = (products[key] ?? 0) - units;
+  const heat = ruleset.heat ? Math.min(ruleset.heat.max, settled.player.heat + Math.round(supply.heat)) : settled.player.heat;
+  return { ...settled, products, supply, player: { ...settled.player, crack: settled.player.crack - (supply.consumed.CRACK ?? 0), heat } };
+}
+
+function boostOf(side: { supply?: WorkSupplyPlan }): CombatBoost | undefined {
+  return side.supply ? { strength: side.supply.takeMultiplier, wounds: side.supply.woundMultiplier } : undefined;
+}
+
 /** Report lines for non-crack products, signed for the side reading them. */
 function productChanges(ruleset: Ruleset, units: ProductStock, sign: 1 | -1): Array<{ product: string; name: string; change: number }> {
   return Object.entries(units).filter(([key, count]) => key !== 'CRACK' && count > 0)
@@ -553,6 +581,12 @@ export const CombatService = {
     ]);
     const intelByTarget = sharedIntelByTarget(intelRows, playerId);
     const ownStrength = strength(player, model);
+    // 0.4.0-D: product a raid could take, one query for the whole list.
+    const otherProducts = new Map<string, number>();
+    if (ruleset.productEconomy && targets.length) {
+      const sums = await prisma.playerProduct.groupBy({ by: ['roundPlayerId'], where: { roundPlayerId: { in: targets.slice(0, 25).map((target) => target.id) } }, _sum: { quantity: true } });
+      for (const row of sums) otherProducts.set(row.roundPlayerId, row._sum.quantity ?? 0);
+    }
     return {
       ...base, enabled: true, blockedReason,
       protectedUntil: combatProtectionUntil(player, model) > now ? iso(combatProtectionUntil(player, model)) : null,
@@ -577,7 +611,7 @@ export const CombatService = {
         // Stored, because 0.4.0-D worth includes product rows this list does not load.
         netWorthCents: Number(target.netWorthCents),
         strength: strength(target, model) < ownStrength * (1 - model.strength.variance) ? 'Weaker' : strength(target, model) > ownStrength * (1 + model.strength.variance) ? 'Stronger' : 'Comparable',
-        blockedReason: combatTargetBlock(player, target, modelWithDefenderHideout(model, ruleset, target), now, revengeIds.has(target.id)),
+        blockedReason: combatTargetBlock(player, target, modelWithDefenderHideout(model, ruleset, target), now, revengeIds.has(target.id), otherProducts.get(target.id) ?? 0),
         protectedUntil: combatProtectionUntil(target, model) > now ? iso(combatProtectionUntil(target, model)) : null,
         ...(model.strategy ? { revengeAvailable: revengeIds.has(target.id), intel: intelByTarget.get(target.id) ?? null } : {}),
         ...(model.driveBy ? { driveByBlockedReason: driveByTargetBlock(player, target, model, now, revengeIds.has(target.id)) } : {}),
@@ -613,8 +647,10 @@ export const CombatService = {
       const now = new Date(); // Taken after the locks; waiting cannot bypass a new shield.
       playable(original.round, now);
       const originalDefender = await tx.roundPlayer.findUniqueOrThrow({ where: { id: target.id } });
-      const a = await PlayerStateService.settleInTransaction(tx, attackerId, { now, markActive: true });
-      const d = await PlayerStateService.settleInTransaction(tx, target.id, { now, markActive: false });
+      // 0.4.0-E: each side burns its fight supply going in, before anything is taken or counted.
+      const settledD = await PlayerStateService.settleInTransaction(tx, target.id, { now, markActive: false });
+      const a = await fightSupply(tx, ruleset, await PlayerStateService.settleInTransaction(tx, attackerId, { now, markActive: true }), RAID_JOB, input.attackingThugs);
+      const d = await fightSupply(tx, ruleset, settledD, DEFENSE_JOB, Math.min(fitThugs(settledD.player), model.squadCap));
       const attacker = a.player;
       const defender = d.player;
       const protectedCashBonus = hideoutProtectedCashBonusCents(ruleset, defender);
@@ -622,7 +658,8 @@ export const CombatService = {
       const defenderModel = modelWithDefenderHideout(model, ruleset, defender);
       const retaliation = (await retaliationTargets(tx, attacker, [target.id], model, now)).has(target.id);
       const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
-      const blocked = combatAttackerBlock(attacker, model, now) ?? combatTargetBlock(attacker, defender, defenderModel, now, retaliation);
+      const blocked = combatAttackerBlock(attacker, model, now) ?? combatTargetBlock(attacker, defender, defenderModel, now, retaliation,
+        ruleset.productEconomy ? Object.values(d.products ?? {}).reduce((sum, units) => sum + Math.max(0, units), 0) : 0);
       if (blocked) throw AppError.conflict('RAID_BLOCKED', blocked);
       if (input.attackingThugs > Math.min(fitThugs(attacker), model.squadCap)) throw AppError.badRequest('INVALID_SQUAD', 'Your squad exceeds your fit crew or the raid limit.');
       const beforeA = await RankingService.ranksFor(tx, attacker);
@@ -631,7 +668,7 @@ export const CombatService = {
       // 0.4.0-D: on a product round the haul is drawn from the whole stash, then split across what they hold.
       const stashD = stashOf(defender.crack, d.products);
       const lootable = ruleset.productEconomy ? Object.values(stashD).reduce((sum, count) => sum + count, 0) : defender.crack;
-      const result = simulateRaid({ attacker: crew(attacker), defender: crew(defender), attackingThugs: input.attackingThugs,
+      const result = simulateRaid({ attacker: crew(attacker), defender: crew(defender), attackerBoost: boostOf(a), defenderBoost: boostOf(d), attackingThugs: input.attackingThugs,
         attackerTurns: attacker.turns, defenderCashCents: defender.cashCents, defenderCrack: lootable, repeatTargetHits }, defenderModel, () => randomInt(0, 2 ** 32) / 2 ** 32);
       const productLoot = ruleset.productEconomy ? splitProductUnits(stashD, result.lootCrack, ruleset) : { CRACK: result.lootCrack };
       const crackLoot = productLoot.CRACK ?? 0;
@@ -649,10 +686,10 @@ export const CombatService = {
       const shield = new Date(now.getTime() + model.protectionHours * 3_600_000);
       const cooldown = new Date(now.getTime() + model.cooldownMinutes * 60_000);
       const recoverAt = new Date(now.getTime() + model.wounds.recoveryMinutes * 60_000);
-      await tx.roundPlayer.update({ where: { id: attackerId }, data: { cashCents: nextA.cashCents, turns: nextA.turns,
+      await tx.roundPlayer.update({ where: { id: attackerId }, data: { heat: nextA.heat, cashCents: nextA.cashCents, turns: nextA.turns,
         crack: nextA.crack, woundedThugs: nextA.woundedThugs, raidsDone: nextA.raidsDone, whoreHappiness: happinessA.whoreHappiness, thugHappiness: happinessA.thugHappiness,
         netWorthCents: NetWorthService.calculate({ ...nextA, products: productsA }, ruleset), raidCooldownUntil: cooldown } });
-      await tx.roundPlayer.update({ where: { id: target.id }, data: { cashCents: nextD.cashCents, crack: nextD.crack, woundedThugs: nextD.woundedThugs,
+      await tx.roundPlayer.update({ where: { id: target.id }, data: { heat: nextD.heat, cashCents: nextD.cashCents, crack: nextD.crack, woundedThugs: nextD.woundedThugs,
         whoreHappiness: happinessD.whoreHappiness, thugHappiness: happinessD.thugHappiness,
         netWorthCents: NetWorthService.calculate({ ...nextD, products: productsD }, ruleset), raidProtectedUntil: shield, lastRaidedAt: now } });
       // Both final worths are in the transaction before either rank is calculated.
@@ -668,7 +705,7 @@ export const CombatService = {
         const ownWounds = isAttacker ? result.wounds.attacker : result.wounds.defender;
         const opponentWounds = isAttacker ? result.wounds.defender : result.wounds.attacker;
         return { id, kind: 'RAID', createdAt: now.toISOString(), modelVersion: model.version,
-          role: isAttacker ? 'ATTACKER' : 'DEFENDER', won: isAttacker === (result.winner === 'ATTACKER'),
+          role: isAttacker ? 'ATTACKER' : 'DEFENDER', ...((isAttacker ? a : d).supply ? { yourSupply: toPlanDto((isAttacker ? a : d).supply!, ruleset) } : {}), won: isAttacker === (result.winner === 'ATTACKER'),
           opponent: { publicPimpId: opponent.publicPimpId, displayName: opponent.displayName, alliance: isAttacker ? tags.defender : tags.attacker },
           yourSquad: own.committed, opponentSquad: (isAttacker ? result.defender : result.attacker).committed,
           yourEquipment: own.equipment, yourStrength: reportStrength(isAttacker ? result.effectiveStrength.attacker : result.effectiveStrength.defender),
@@ -738,8 +775,11 @@ export const CombatService = {
       const now = new Date();
       playable(original.round, now);
       const originalDefender = await tx.roundPlayer.findUniqueOrThrow({ where: { id: target.id } });
-      const a = await PlayerStateService.settleInTransaction(tx, attackerId, { now, markActive: true });
-      const d = await PlayerStateService.settleInTransaction(tx, target.id, { now, markActive: false });
+      // 0.4.0-E: each side burns its fight supply going in.
+      const settledD = await PlayerStateService.settleInTransaction(tx, target.id, { now, markActive: false });
+      const fielded = Math.min(fitThugs(settledD.player), model.squadCap, Math.ceil(fitThugs(settledD.player) * rules.defenderFieldedFraction));
+      const a = await fightSupply(tx, ruleset, await PlayerStateService.settleInTransaction(tx, attackerId, { now, markActive: true }), RAID_JOB, input.attackingThugs);
+      const d = await fightSupply(tx, ruleset, settledD, DEFENSE_JOB, fielded);
       const attacker = a.player;
       const defender = d.player;
       const retaliation = (await retaliationTargets(tx, attacker, [target.id], model, now)).has(target.id);
@@ -751,7 +791,7 @@ export const CombatService = {
 
       const beforeA = await RankingService.ranksFor(tx, attacker);
       const beforeD = await RankingService.ranksFor(tx, defender);
-      const result = simulateDriveBy({ attacker: crew(attacker), defender: crew(defender), shooters: input.attackingThugs,
+      const result = simulateDriveBy({ attacker: crew(attacker), defender: crew(defender), attackerBoost: boostOf(a), defenderBoost: boostOf(d), shooters: input.attackingThugs,
         lowRiders: attacker.lowRiders, attackerTurns: attacker.turns, defenderWhores: defender.whores }, model, rules, () => randomInt(0, 2 ** 32) / 2 ** 32);
       const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker, turns: result.attackerTurnsAfter,
         lowRiders: result.lowRidersAfter, driveBysDone: attacker.driveBysDone + 1 };
@@ -765,11 +805,11 @@ export const CombatService = {
       const shield = new Date(now.getTime() + rules.protectionHours * 3_600_000);
       const cooldown = new Date(now.getTime() + rules.cooldownMinutes * 60_000);
       const recoverAt = new Date(now.getTime() + model.wounds.recoveryMinutes * 60_000);
-      await tx.roundPlayer.update({ where: { id: attackerId }, data: { turns: nextA.turns, woundedThugs: nextA.woundedThugs,
+      await tx.roundPlayer.update({ where: { id: attackerId }, data: { heat: nextA.heat, crack: nextA.crack, turns: nextA.turns, woundedThugs: nextA.woundedThugs,
         lowRiders: nextA.lowRiders, driveBysDone: nextA.driveBysDone,
         whoreHappiness: happinessA.whoreHappiness, thugHappiness: happinessA.thugHappiness,
         netWorthCents: NetWorthService.calculate({ ...nextA, products: productsA }, ruleset), driveByCooldownUntil: cooldown } });
-      await tx.roundPlayer.update({ where: { id: target.id }, data: { woundedThugs: nextD.woundedThugs, whores: nextD.whores,
+      await tx.roundPlayer.update({ where: { id: target.id }, data: { heat: nextD.heat, crack: nextD.crack, woundedThugs: nextD.woundedThugs, whores: nextD.whores,
         whoreHappiness: happinessD.whoreHappiness, thugHappiness: happinessD.thugHappiness,
         netWorthCents: NetWorthService.calculate({ ...nextD, products: productsD }, ruleset), driveByProtectedUntil: shield, lastDrivenByAt: now } });
       const afterA = await RankingService.ranksFor(tx, { ...attacker, netWorthCents: NetWorthService.calculate({ ...nextA, products: productsA }, ruleset) });
@@ -784,7 +824,7 @@ export const CombatService = {
         const opponent = isAttacker ? defender : attacker;
         const ownWounds = isAttacker ? result.wounds.attacker : result.wounds.defender;
         return { id, kind: 'DRIVE_BY', createdAt: now.toISOString(), modelVersion: model.version,
-          role: isAttacker ? 'ATTACKER' : 'DEFENDER', won: isAttacker === (result.winner === 'ATTACKER'),
+          role: isAttacker ? 'ATTACKER' : 'DEFENDER', ...((isAttacker ? a : d).supply ? { yourSupply: toPlanDto((isAttacker ? a : d).supply!, ruleset) } : {}), won: isAttacker === (result.winner === 'ATTACKER'),
           opponent: { publicPimpId: opponent.publicPimpId, displayName: opponent.displayName, alliance: isAttacker ? tags.defender : tags.attacker },
           yourSquad: own.committed, opponentSquad: (isAttacker ? result.defender : result.attacker).committed,
           yourEquipment: own.equipment, yourStrength: reportStrength(isAttacker ? result.effectiveStrength.attacker : result.effectiveStrength.defender),
@@ -848,8 +888,10 @@ export const CombatService = {
       const now = new Date();
       playable(original.round, now);
       const originalDefender = await tx.roundPlayer.findUniqueOrThrow({ where: { id: target.id } });
-      const a = await PlayerStateService.settleInTransaction(tx, attackerId, { now, markActive: true });
-      const d = await PlayerStateService.settleInTransaction(tx, target.id, { now, markActive: false });
+      // 0.4.0-E: each side burns its fight supply going in, before anything is taken or counted.
+      const settledD = await PlayerStateService.settleInTransaction(tx, target.id, { now, markActive: false });
+      const a = await fightSupply(tx, ruleset, await PlayerStateService.settleInTransaction(tx, attackerId, { now, markActive: true }), RAID_JOB, input.attackingThugs);
+      const d = await fightSupply(tx, ruleset, settledD, DEFENSE_JOB, Math.min(fitThugs(settledD.player), model.squadCap));
       const attacker = a.player;
       const defender = d.player;
       const defenderModel = modelWithDefenderHideout(model, ruleset, defender);
@@ -861,7 +903,7 @@ export const CombatService = {
 
       const beforeA = await RankingService.ranksFor(tx, attacker);
       const beforeD = await RankingService.ranksFor(tx, defender);
-      const result = simulateRaid({ attacker: crew(attacker), defender: crew(defender), attackingThugs: input.attackingThugs,
+      const result = simulateRaid({ attacker: crew(attacker), defender: crew(defender), attackerBoost: boostOf(a), defenderBoost: boostOf(d), attackingThugs: input.attackingThugs,
         attackerTurns: attacker.turns, defenderCashCents: defender.cashCents, defenderCrack: defender.crack, repeatTargetHits: 0 }, defenderModel, () => randomInt(0, 2 ** 32) / 2 ** 32);
       const won = result.winner === 'ATTACKER';
       const survivors = Math.max(0, input.attackingThugs - result.wounds.attacker);
@@ -920,11 +962,11 @@ export const CombatService = {
       const shield = new Date(now.getTime() + model.protectionHours * 3_600_000);
       const cooldown = new Date(now.getTime() + model.cooldownMinutes * 60_000);
       const recoverAt = new Date(now.getTime() + model.wounds.recoveryMinutes * 60_000);
-      await tx.roundPlayer.update({ where: { id: attackerId }, data: { turns: nextA.turns, crack: nextA.crack, beer: nextA.beer,
+      await tx.roundPlayer.update({ where: { id: attackerId }, data: { heat: nextA.heat, turns: nextA.turns, crack: nextA.crack, beer: nextA.beer,
         whores: nextA.whores, thugs: nextA.thugs, woundedThugs: nextA.woundedThugs,
         lowRiders: nextA.lowRiders, raidsDone: nextA.raidsDone, whoreHappiness: happinessA.whoreHappiness, thugHappiness: happinessA.thugHappiness,
         netWorthCents: NetWorthService.calculate({ ...nextA, products: productsA }, ruleset), raidCooldownUntil: cooldown } });
-      await tx.roundPlayer.update({ where: { id: target.id }, data: { crack: nextD.crack, condoms: nextD.condoms,
+      await tx.roundPlayer.update({ where: { id: target.id }, data: { heat: nextD.heat, crack: nextD.crack, condoms: nextD.condoms,
         whores: nextD.whores, thugs: nextD.thugs, woundedThugs: nextD.woundedThugs,
         lowRiders: nextD.lowRiders, whoreHappiness: happinessD.whoreHappiness, thugHappiness: happinessD.thugHappiness,
         netWorthCents: NetWorthService.calculate({ ...nextD, products: productsD }, ruleset), raidProtectedUntil: shield, lastRaidedAt: now } });
@@ -949,7 +991,7 @@ export const CombatService = {
           ? (isAttacker ? -crackSpent : -defenderCrackBurned)
           : input.kind === 'LURE_CREW' && isAttacker ? -crackSpent : 0;
         return { id, kind: input.kind, createdAt: now.toISOString(), modelVersion: model.version,
-          role: isAttacker ? 'ATTACKER' : 'DEFENDER', won: isAttacker === won,
+          role: isAttacker ? 'ATTACKER' : 'DEFENDER', ...((isAttacker ? a : d).supply ? { yourSupply: toPlanDto((isAttacker ? a : d).supply!, ruleset) } : {}), won: isAttacker === won,
           opponent: { publicPimpId: opponent.publicPimpId, displayName: opponent.displayName, alliance: isAttacker ? tags.defender : tags.attacker },
           yourSquad: own.committed, opponentSquad: (isAttacker ? result.defender : result.attacker).committed,
           yourEquipment: own.equipment, yourStrength: reportStrength(isAttacker ? result.effectiveStrength.attacker : result.effectiveStrength.defender),

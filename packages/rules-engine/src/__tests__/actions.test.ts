@@ -298,7 +298,7 @@ describe('calculateStreetTake', () => {
     const base = night(50);
     const plan = {
       job: 'CASINO', role: 'hoes' as const, policy: { primary: 'ECSTASY', fallback: 'CRACK', emergency: null, strict: false },
-      need: 5, perTurn: 0.5, switchesAtTurn: 6, takeMultiplier: 0.5, recruitmentMultiplier: 1, departureMultiplier: 1, morale: 0, heat: 0,
+      need: 5, perTurn: 0.5, switchesAtTurn: 6, takeMultiplier: 0.5, recruitmentMultiplier: 1, departureMultiplier: 1, morale: 0, woundMultiplier: 1, heat: 0,
       consumed: { ECSTASY: 3, CRACK: 2 },
       slices: [],
     };

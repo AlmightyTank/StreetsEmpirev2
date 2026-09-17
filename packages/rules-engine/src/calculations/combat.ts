@@ -18,9 +18,29 @@ export interface CombatSquad {
   readonly strength: number;
 }
 
+/**
+ * 0.4.0-E. What the product a side took into the fight does: a strength
+ * multiplier and a wound multiplier. Absent means 1 and 1, every older fight.
+ */
+export interface CombatBoost {
+  readonly strength: number;
+  readonly wounds: number;
+}
+
+const NO_BOOST: CombatBoost = { strength: 1, wounds: 1 };
+
+function boost(value: CombatBoost | undefined): CombatBoost {
+  if (!value) return NO_BOOST;
+  requireCondition(Number.isFinite(value.strength) && value.strength > 0 && Number.isFinite(value.wounds) && value.wounds >= 0,
+    'INVALID_BOOST', 'Combat boosts must be finite, with positive strength.');
+  return value;
+}
+
 export interface RaidInput {
   readonly attacker: CombatCrew;
   readonly defender: CombatCrew;
+  readonly attackerBoost?: CombatBoost;
+  readonly defenderBoost?: CombatBoost;
   readonly attackingThugs: number;
   readonly attackerTurns: number;
   readonly defenderCashCents: bigint;
@@ -167,8 +187,8 @@ function checkedRoll(rng: Rng): number {
   return value;
 }
 
-function wounded(size: number, won: boolean, model: CombatModel, roll: number): number {
-  const rate = won ? model.wounds.winnerFraction : model.wounds.loserFraction;
+function wounded(size: number, won: boolean, model: CombatModel, roll: number, multiplier = 1): number {
+  const rate = (won ? model.wounds.winnerFraction : model.wounds.loserFraction) * multiplier;
   // Stochastic rounding keeps tiny squads from being permanently immune.
   // Whole-person cap rounds up: a one-thug squad can have one temporary wound.
   return Math.min(size, Math.ceil(size * model.wounds.maxFraction), roundStochastic(size * rate, () => roll));
@@ -218,21 +238,23 @@ export function simulateRaid(input: RaidInput, model: CombatModel, rng: Rng): Ra
   if (input.defenderCrack !== undefined) count(input.defenderCrack, 'Defender crack');
   if (input.repeatTargetHits !== undefined) count(input.repeatTargetHits, 'Repeat target hits');
 
+  const attackerBoost = boost(input.attackerBoost);
+  const defenderBoost = boost(input.defenderBoost);
   const attacker = equip(input.attacker, input.attackingThugs, model);
   const defender = equip(input.defender, Math.min(input.defender.thugs, model.squadCap), model);
   const rolls = { attacker: checkedRoll(rng), defender: checkedRoll(rng) };
   const woundRolls = { attacker: checkedRoll(rng), defender: checkedRoll(rng) };
   const spread = (roll: number) => 1 + (roll * 2 - 1) * model.strength.variance;
   const effectiveStrength = {
-    attacker: attacker.strength * spread(rolls.attacker),
-    defender: defender.strength * model.strength.defenseMultiplier * spread(rolls.defender),
+    attacker: attacker.strength * attackerBoost.strength * spread(rolls.attacker),
+    defender: defender.strength * model.strength.defenseMultiplier * defenderBoost.strength * spread(rolls.defender),
   };
   // Holding the ground is sufficient: exact ties go to the defender.
   const won = effectiveStrength.attacker > effectiveStrength.defender;
   const uncontested = defender.committed === 0;
   const wounds = {
-    attacker: uncontested ? 0 : wounded(attacker.committed, won, model, woundRolls.attacker),
-    defender: uncontested ? 0 : wounded(defender.committed, !won, model, woundRolls.defender),
+    attacker: uncontested ? 0 : wounded(attacker.committed, won, model, woundRolls.attacker, attackerBoost.wounds),
+    defender: uncontested ? 0 : wounded(defender.committed, !won, model, woundRolls.defender, defenderBoost.wounds),
     recoveryMinutes: model.wounds.recoveryMinutes,
   };
   const exposedCash = input.defenderCashCents > BigInt(model.loot.protectedCashCents)
@@ -277,6 +299,8 @@ export interface DriveByInput {
   readonly lowRiders: number;
   readonly attackerTurns: number;
   readonly defenderWhores: number;
+  readonly attackerBoost?: CombatBoost;
+  readonly defenderBoost?: CombatBoost;
 }
 
 /** One Low-Rider's run: who rode in it, who went down, and whether it came home. */
@@ -383,6 +407,8 @@ export function simulateDriveBy(input: DriveByInput, model: CombatModel, rules: 
     'INVALID_SQUAD', `Send at least one fit thug, with no more than ${rules.thugsPerLowRider} to a car.`);
   requireCondition(input.attackerTurns >= rules.turnCost, 'NOT_ENOUGH_TURNS', 'There are not enough turns for this drive-by.');
 
+  const attackerBoost = boost(input.attackerBoost);
+  const defenderBoost = boost(input.defenderBoost);
   const fielded = Math.min(input.defender.thugs, model.squadCap, Math.ceil(input.defender.thugs * rules.defenderFieldedFraction));
   const attacker = equip(input.attacker, input.shooters, model);
   const defender = equip(input.defender, fielded, model);
@@ -392,8 +418,8 @@ export function simulateDriveBy(input: DriveByInput, model: CombatModel, rules: 
 
   const spread = (roll: number) => 1 + (roll * 2 - 1) * model.strength.variance;
   const effectiveStrength = {
-    attacker: attacker.strength * spread(rolls.attacker),
-    defender: defender.strength * rules.defenseMultiplier * spread(rolls.defender),
+    attacker: attacker.strength * attackerBoost.strength * spread(rolls.attacker),
+    defender: defender.strength * rules.defenseMultiplier * defenderBoost.strength * spread(rolls.defender),
   };
   const uncontested = defender.committed === 0;
   // Exact ties go to the target, as in a raid.
@@ -407,18 +433,18 @@ export function simulateDriveBy(input: DriveByInput, model: CombatModel, rules: 
     thugWoundPercent = weightedPercent(rules.hit.thugWounds, hitRolls.thugs);
     whoreKillPercent = weightedPercent(rules.hit.whoreKills, hitRolls.whores);
     defenderWounds = Math.min(input.defender.thugs, input.shooters * rules.hit.perShooterThugWounds,
-      roundStochastic(input.defender.thugs * thugWoundPercent / 100, () => hitRolls.thugRounding));
+      roundStochastic(input.defender.thugs * thugWoundPercent / 100 * defenderBoost.wounds, () => hitRolls.thugRounding));
     whoresKilled = Math.min(input.defenderWhores, input.shooters * rules.hit.perShooterWhoreKills,
       roundStochastic(input.defenderWhores * whoreKillPercent / 100, () => hitRolls.whoreRounding));
   } else {
     // The crew that saw them off takes the ordinary winner's scratches.
-    defenderWounds = wounded(defender.committed, true, model, missRoll);
+    defenderWounds = wounded(defender.committed, true, model, missRoll, defenderBoost.wounds);
   }
 
   const c = rules.casualties;
   const casualtyChance = uncontested ? 0
-    : won ? c.onHit
-    : Math.min(c.max, c.onMissBase + c.onMissPerMargin * Math.max(0, effectiveStrength.defender / effectiveStrength.attacker - 1));
+    : Math.min(c.max, attackerBoost.wounds * (won ? c.onHit
+      : c.onMissBase + c.onMissPerMargin * Math.max(0, effectiveStrength.defender / effectiveStrength.attacker - 1)));
 
   const cars: DriveByCar[] = [];
   for (let seated = 0; seated < input.shooters; seated += rules.thugsPerLowRider) {

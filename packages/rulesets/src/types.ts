@@ -538,6 +538,18 @@ export interface ProductEffects {
     /** Heat per turn this product supplies a crew of `heat.crewScale.thugs`. */
     readonly heatPerTurn: number;
   };
+  /**
+   * 0.4.0-E. Thugs in a fight: a raid, drive-by or special raid they send, or a
+   * defense of their own block. Absent means no effect.
+   */
+  readonly combat?: {
+    /** Strength when attacking. */
+    readonly attack: number;
+    /** Strength when defending. */
+    readonly defense: number;
+    /** Share of the squad wounded, win or lose. */
+    readonly wounds: number;
+  };
 }
 
 /** 0.4.0-B. How work trips burn products and what running dry costs. */
@@ -555,6 +567,12 @@ export interface WorkSupplyRules {
    * trip cannot take a product's effects without burning any of it.
    */
   readonly roundNeedUp?: boolean;
+}
+
+/** 0.4.0-E. Product burned by thugs in a fight, under the RAID and DEFENSE supply policies. */
+export interface CombatSupplyRules {
+  /** Units each committed thug burns per fight. */
+  readonly productPerThugPerFight: number;
 }
 
 /** 0.4.0-D. Round-wide product economy switches. */
@@ -755,5 +773,7 @@ export interface Ruleset {
    * Raids and drug runs then take a mix of products rather than crack alone.
    */
   readonly productEconomy?: ProductEconomyRules;
+  /** 0.4.0-E. Absent where thugs burn no product in fights. */
+  readonly combatSupply?: CombatSupplyRules;
   readonly evidence: EvidenceRules;
 }

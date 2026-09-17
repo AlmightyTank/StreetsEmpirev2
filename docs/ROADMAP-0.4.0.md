@@ -1,6 +1,6 @@
 # 0.4.0 roadmap - Products & Vice
 
-Status: **in progress.** 0.4.0-A through 0.4.0-D are built.
+Status: **built.** 0.4.0-A through 0.4.0-E are implemented; E is the release gate.
 
 0.3.0 made a round a season you play together. 0.4.0 turns Product from one generic
 upkeep number into a management system: several products, each useful for different
@@ -220,6 +220,27 @@ Built, in the pinned `classic-og-v0.4-d` ruleset (0.4.0-C balance plus the econo
   switches, or short with how many workers and the estimated income loss.
 - Full-round simulations so no product is the automatic answer.
 - A release regression and exploit checks in the 0.3.0-E style, against a products round.
+
+Decided: E also ships **thug product effects in combat**, held from C.
+
+Built, in the pinned `classic-og-v0.4-e` ruleset (0.4.0-D balance plus fight supply). The release
+notes are [RELEASE-0.4.0-E.md](RELEASE-0.4.0-E.md).
+
+- **Fight supply.** Opt-in `RAID` and `DEFENSE` policies. A fight burns 0.25 units a committed
+  thug; each product carries `effects.combat` (attack, defense, wounds), applied as strength and
+  wound multipliers in raids, drive-bys and special raids, plus the product's Heat. Reports carry
+  each side's supply. Effects stay within ±5% strength; see
+  [COMBAT-PRODUCTS-0.4.0-E.md](COMBAT-PRODUCTS-0.4.0-E.md).
+- **Supply status.** The preview returns turns of supply on hand, workers left short and, for
+  girls, an estimated take lost; every supply panel leads with fully supplied, running low or
+  short, and any saved policy can be reset.
+- **Full-round simulation.** 28 days of trips with Pip's shelves, Heat and growth, two play
+  styles and two starts: a mixed strategy wins every time. See
+  [PRODUCTS-ROUND-0.4.0-E.md](PRODUCTS-ROUND-0.4.0-E.md).
+- **Gates.** `npm run qa:products` fails on any of the four product gates and runs inside
+  `qa:release`. `release-0.4.integration.test.ts` plays a products season with exploit checks.
+- **Fixes from D.** Raid eligibility counts non-crack product; the admin inspector values
+  product holdings.
 
 ## Not in 0.4.0
 

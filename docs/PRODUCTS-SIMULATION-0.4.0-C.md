@@ -1,6 +1,6 @@
 # 0.4.0-C product effects and Heat simulation
 
-Ruleset: classic-og-v0.4-d. Expected values, no dice: every row runs one product on one job for the whole horizon, fully supplied.
+Ruleset: classic-og-v0.4-e. Expected values, no dice: every row runs one product on one job for the whole horizon, fully supplied.
 Girls are fully covered on a block with room, on a 50% cut. Product is priced at each product's reference cost; cooked
 product is worth crack's reference cost less ingredients. A bust fines cash and seizes half of a two-trip product buffer.
 Score is net cash plus workers gained or lost, each worth a day of baseline work.
