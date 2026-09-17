@@ -126,14 +126,14 @@ export function ProducePage() {
           </p>
         </Panel>
 
-        <WorkSupplyPanel job="PRODUCE" jobLabel="the girls' shift" turns={turns} refreshKey={action.result} />
-
         {/*
           Manual 3.2 sends the girls out too, so production is not a thugs-only
           screen: the same crew, cut and shelf apply as on a scouting trip.
           This mirrors the scouting sidebar for that reason.
         */}
         <aside className="se-grid">
+          <WorkSupplyPanel job="PRODUCE" jobLabel="the girls' shift" turns={turns} refreshKey={action.result} />
+
           <Panel title="The crew" flush>
             <div className="se-rows">
               <Row
