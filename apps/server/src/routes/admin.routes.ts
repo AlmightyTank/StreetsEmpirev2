@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { AdminAccountService } from '../services/admin-account.service.js';
 import { AdminAuditService } from '../services/admin-audit.service.js';
 import { AllianceService } from '../services/alliance.service.js';
+import { WireService } from '../services/wire.service.js';
 import { AdminBattleService } from '../services/admin-battle.service.js';
 import { AdminDevBotsService } from '../services/admin-dev-bots.service.js';
 import { AdminDiscordService } from '../services/admin-discord.service.js';
@@ -44,6 +45,7 @@ const accountParams = z.object({ accountId: id }).strict();
 const playerParams = z.object({ roundPlayerId: id }).strict();
 const battleParams = z.object({ battleId: id }).strict();
 const allianceParams = z.object({ allianceId: id }).strict();
+const wirePostParams = z.object({ postId: id }).strict();
 const renameAllianceSchema = z.object({ reason, name: z.string().optional(), tag: z.string().optional() }).strict();
 const newsParams = z.object({ newsId: id }).strict();
 const bannerParams = z.object({ bannerId: id }).strict();
@@ -196,6 +198,18 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { allianceId } = parseBody(allianceParams, request.params);
     const input = parseBody(renameAllianceSchema, request.body ?? {});
     await AllianceService.adminRename(fastify.prisma, request.auth!.account, allianceId, input);
+    return { ok: true };
+  });
+
+  fastify.get('/alliances/:allianceId/wire', async (request) => {
+    const { allianceId } = parseBody(allianceParams, request.params);
+    return WireService.adminList(fastify.prisma, allianceId);
+  });
+
+  fastify.post('/wire/:postId/remove', async (request) => {
+    const { postId } = parseBody(wirePostParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    await WireService.adminRemove(fastify.prisma, request.auth!.account, postId, body.reason);
     return { ok: true };
   });
 

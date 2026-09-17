@@ -157,7 +157,7 @@ function TargetCard({ target, selectedBlock, driving }: { target: CombatTargetDt
         <div><span>Public worth</span><strong>{formatCents(target.netWorthCents)}</strong></div>
         <div><span>Crew read</span><strong>{target.strength}</strong></div>
         <div><span>Status</span><strong>{selectedBlock ? 'Blocked' : 'Open'}</strong></div>
-        <div><span>Intel</span><strong>{target.intel ? `Fresh until ${date(target.intel.expiresAt)}` : 'No recon yet'}</strong></div>
+        <div><span>Intel</span><strong>{target.intel ? `${target.intel.sharedBy ? `From ${target.intel.sharedBy} · ` : ''}fresh until ${date(target.intel.expiresAt)}` : 'No recon yet'}</strong></div>
       </div>
       {target.intel ? (
         <div className="se-target-card__intel">
@@ -526,7 +526,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                   Scout {selected.displayName} · {rules.reconTurnCost} turns
                 </Button>
                 <p className="se-hint">{selected.intel
-                  ? `Fresh eyes on this block until ${date(selected.intel.expiresAt)}.`
+                  ? `${selected.intel.sharedBy ? `${selected.intel.sharedBy} scouted this block. ` : ''}Fresh eyes on it until ${date(selected.intel.expiresAt)}.`
                   : 'Recon shows the parts rankings do not: fit crew, wounds, guns, exposed cash and product.'}</p>
               </div> : null}
               <label htmlFor="raid-squad">{driving

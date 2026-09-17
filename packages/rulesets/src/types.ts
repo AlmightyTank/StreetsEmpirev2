@@ -453,6 +453,8 @@ export interface AllianceRules {
   readonly inviteExpiresHours: number;
   /** Outstanding invites one alliance can have at once. */
   readonly maxPendingInvites: number;
+  /** 0.3.0-D. Fresh recon one member gathers is visible to every current member until it expires. */
+  readonly sharedIntel?: boolean;
 }
 
 export interface HideoutRules {

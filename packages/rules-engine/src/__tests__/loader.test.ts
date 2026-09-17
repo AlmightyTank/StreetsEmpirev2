@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, type Ruleset } from '@streets/rulesets';
 import { regenerateTurns } from '../calculations/turns.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
@@ -38,7 +38,7 @@ describe('ruleset loader', () => {
   it('knows which ids it can serve', () => {
     expect(isKnownRulesetId('classic-og-v0.1')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(11);
+    expect(listRulesets()).toHaveLength(12);
   });
 });
 
@@ -108,6 +108,16 @@ describe('classic-og-v0.3-c contents', () => {
     expect(ruleset.alliances!.leaveCooldownHours).toBeGreaterThanOrEqual(ruleset.combat!.strategy!.retaliation.revengeHours);
     expect({ ...ruleset, meta: null, alliances: null }).toEqual({ ...classicOgV03B, meta: null, alliances: null });
     expect((classicOgV03B as Ruleset).alliances).toBeUndefined();
+  });
+});
+
+describe('classic-og-v0.3-d contents', () => {
+  it('shares alliance intel without changing 0.3.0-C balance', () => {
+    const ruleset = loadRuleset('classic-og-v0.3-d', '0.3.0-D');
+    expect(ruleset.meta.name).toBe('Classic OG - Playing Together');
+    expect(ruleset.alliances).toEqual({ ...classicOgV03C.alliances, sharedIntel: true });
+    expect({ ...ruleset, meta: null, alliances: null }).toEqual({ ...classicOgV03C, meta: null, alliances: null });
+    expect((classicOgV03C as Ruleset).alliances?.sharedIntel).toBeUndefined();
   });
 });
 

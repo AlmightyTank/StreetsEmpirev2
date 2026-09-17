@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import adminRoutes from './admin.routes.js';
 import allianceRoutes from './alliance.routes.js';
+import playingTogetherRoutes from './playing-together.routes.js';
 import authRoutes from './auth.routes.js';
 import communityRoutes from './community.routes.js';
 import combatRoutes from './combat.routes.js';
@@ -27,6 +28,7 @@ const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(communityRoutes, { prefix: '/game' });
   await fastify.register(combatRoutes, { prefix: '/game' });
   await fastify.register(allianceRoutes, { prefix: '/game' });
+  await fastify.register(playingTogetherRoutes, { prefix: '/game' });
 };
 
 export default routes;

@@ -47,6 +47,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: 'Rankings', to: '/game/rankings' },
       { label: 'Alliance', to: '/game/alliance' },
+      { label: 'Contacts', to: '/game/contacts' },
       { label: 'Profile', to: '/game/profile' },
       { label: 'Activity', to: '/game/activity' },
     ],
