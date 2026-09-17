@@ -1,6 +1,6 @@
 # 0.3.0 roadmap - the season
 
-Status: **in progress.** 0.3.0-A is built, 0.3.0-B is started, 0.3.0-C alliances are built, and 0.3.0-D is started. 0.2.0 made the street dangerous; 0.3.0
+Status: **in progress.** 0.3.0-A is built, 0.3.0-B is started, and 0.3.0-C alliances and 0.3.0-D playing together are built. 0.2.0 made the street dangerous; 0.3.0
 makes a round a season with a finish line, and gives players a reason to play
 together. Travel is deliberately held for 0.4.0.
 
@@ -54,7 +54,7 @@ Gaps that shape this plan:
 | **0.3.0-A - Season end** | Rounds close on their end date, final standings are frozen, a round-over screen, a hall of fame, handoff to the next round. | A round past `endsAt` closes exactly once under concurrent requests; legacy, round wins, Discord roles and forum badges show real past-round data; no action can change a closed round. |
 | **0.3.0-B - Admin** | Admin panel for rounds, news, accounts and dev bots. | Every admin route is `isAdmin`-gated server-side and audited; a round can be scheduled, opened and ended without re-running the seed. |
 | **0.3.0-C - Alliances** | Create, invite, join, leave; size cap; alliance page and rankings; no friendly fire; shared revenge. | Membership changes are atomic and cannot bypass the cap; no attack form can target an ally; leaving mid-fight cannot dodge a revenge window. |
-| **0.3.0-D - Playing together** | Alliance wire, contacts (the OG rolodex), shared recon, defense reinforcement. | Shared intel never leaks outside the alliance; reinforcement is simulated before it ships, like 0.2.0-A. |
+| **0.3.0-D - Playing together** | Alliance wire, contacts (the OG rolodex), shared recon; defense reinforcement simulated and moved to E. | Shared intel never leaks outside the alliance; reinforcement is simulated before it ships, like 0.2.0-A. |
 | **0.3.0-E - Balance and release** | Alliance-round balance pass, carried 0.2.0-H tuning, release regression. | A 0.1.0-H-style regression suite passes against a public alliance round. |
 
 ## 0.3.0-A - Season end
@@ -193,12 +193,15 @@ Built so far, in the pinned `classic-og-v0.3-d` ruleset:
   standing (rank, net worth, alliance, last seen) - never recon intel. Add from the Contacts
   page or a player's profile.
 
-Defense reinforcement has been simulated (`npm run qa:reinforcement`); the findings and the options are in [COMBAT-0.3.0-D.md](COMBAT-0.3.0-D.md). No reinforcement numbers are in a ruleset yet.
+Defense reinforcement was simulated (`npm run qa:reinforcement`; findings in [COMBAT-0.3.0-D.md](COMBAT-0.3.0-D.md)) and **decided: held for 0.3.0-E**. Uncapped help makes alliance members near unraidable, and even capped help flattens outcomes, so it is tuned in the alliance-round balance pass with real alliance-round data instead of shipping on fixtures alone.
 
 ## 0.3.0-E - Balance and release
 
 - Balance pass for alliance rounds: alliance size against solo players,
   reinforcement, and shared intel.
+- **Defense reinforcement** (moved from D): choose between the simulated shapes in
+  [COMBAT-0.3.0-D.md](COMBAT-0.3.0-D.md) - a small flat cap, or larger help that only
+  sometimes shows up - using win rates from real alliance rounds.
 - Any 0.2.0-H tuning carried forward.
 - A release regression suite in the style of 0.1.0-H, against a public alliance
   round, plus load and exploit checks for membership and reinforcement.

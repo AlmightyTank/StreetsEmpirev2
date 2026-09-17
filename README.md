@@ -47,7 +47,7 @@ Admins run seasons, moderation and disputes from the [admin runbook](docs/ADMIN-
 | **0.3.0-A** | season end, frozen final standings, round-over handoff and Hall of Fame | **implemented** |
 | **0.3.0-B** | admin panel: audited round scheduling and lifecycle controls first; news with forum mirroring, accounts and dev bots next | **started** |
 | **0.3.0-C** | alliances: membership with an atomic size cap, alliance page and rankings, tags, no friendly fire, shared revenge, leave cooldown, admin rename and disband, Discord alliance roles and forum recruitment threads | **implemented** |
-| **0.3.0-D** | playing together: shared alliance recon, members-only alliance wire with moderation, private contacts; defense reinforcement after simulation | **started** |
+| **0.3.0-D** | playing together: shared alliance recon, members-only alliance wire with moderation, private contacts; defense reinforcement simulated and held for 0.3.0-E | **implemented** |
 
 Cash raids, drive-bys, special raid forms and alliances are playable. Travel and messaging remain deliberately absent. The database anticipates them (`ProcessedAction`, `City`, weapon `power`) without exposing anything half-built to players.
 
