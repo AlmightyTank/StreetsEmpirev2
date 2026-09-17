@@ -6,7 +6,7 @@ import type {
   Round,
   RoundPlayer,
 } from '@prisma/client';
-import { loadRulesetForRound, totalWeapons, type Ruleset, type Standings } from '@streets/rules-engine';
+import { decayHeat, loadRulesetForRound, totalWeapons, type Ruleset, type Standings } from '@streets/rules-engine';
 import type {
   GameActionResult,
   PlayerSnapshot,
@@ -55,6 +55,9 @@ export interface PlayerState {
   shotgunUnlocked: boolean;
   tek9Unlocked: boolean;
   ak47Unlocked: boolean;
+
+  /** 0.4.0-C. Settled Heat: decayed on the turn clock before an action sees it. Always 0 without Heat. */
+  heat: number;
 
   /** Quest progress that is per-player rather than per-trader. */
   cleanShiftStreak: number;
@@ -160,6 +163,7 @@ export function toState(player: RoundPlayer): PlayerState {
     shotgunUnlocked: player.shotgunUnlocked,
     tek9Unlocked: player.tek9Unlocked,
     ak47Unlocked: player.ak47Unlocked,
+    heat: player.heat,
     cleanShiftStreak: player.cleanShiftStreak,
     rocksSuppliedToPip: player.rocksSuppliedToPip,
     driveBysDone: player.driveBysDone,
@@ -308,11 +312,14 @@ export const ActionService = {
         ...toState(player),
         woundedThugs: recovery.woundedThugs,
         turns: turns.turns,
+        // 0.4.0-C: Heat cools on the same clock turns regenerate on.
+        heat: ruleset.heat ? decayHeat(player.heat, turns.intervalsProcessed, ruleset.heat) : player.heat,
         ...stock.counts,
       };
       assertPlayerState(current, ruleset, 'before');
-      const beforeHappiness = HappinessService.recalculate({ ...current, thugs: fitThugs(current) }, ruleset);
-      const beforeNetWorth = NetWorthService.calculate(current, ruleset);
+      const beforeProducts = await HappinessService.otherProducts(tx, roundPlayerId, ruleset);
+      const beforeHappiness = HappinessService.recalculate({ ...current, thugs: fitThugs(current), products: beforeProducts }, ruleset);
+      const beforeNetWorth = NetWorthService.calculate({ ...current, products: beforeProducts }, ruleset);
       const beforeRanks = await RankingService.ranksFor(tx, {
         id: roundPlayerId,
         roundId: player.roundId,
@@ -340,8 +347,10 @@ export const ActionService = {
       if (outcome.reputation?.length) {
         await ReputationService.write(tx, roundPlayerId, outcome.reputation);
       }
-      const afterHappiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next) }, ruleset);
-      const afterNetWorth = NetWorthService.calculate(next, ruleset);
+      // The action may have moved product rows, so they are read again.
+      const afterProducts = beforeProducts && (await HappinessService.otherProducts(tx, roundPlayerId, ruleset));
+      const afterHappiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next), products: afterProducts }, ruleset);
+      const afterNetWorth = NetWorthService.calculate({ ...next, products: afterProducts }, ruleset);
       const afterRanks = await RankingService.ranksFor(tx, {
         id: roundPlayerId,
         roundId: player.roundId,

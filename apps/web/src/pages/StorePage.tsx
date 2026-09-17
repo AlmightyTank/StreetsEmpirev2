@@ -418,6 +418,7 @@ function StoreView({ slug }: { slug: string }) {
                 : '.'}
             </p>
             <p className="se-hint">Shopping costs no turns. Prices are per item; the full total appears before you trade.</p>
+            {store.key === 'PIP' && catalog.productCounter ? <p className="se-hint">Product here is crack. Pip deals every other product on the <Link to="/game/products">Products</Link> page.</p> : null}
             {store.key === 'CORNER' ? <p className="se-hint">Condoms and beer keep street work supplied. Restocking lifts happiness immediately.</p> : null}
             {store.key === 'TOMMY' ? <p className="se-hint">Thugs protect the crew and fight in raids or drive-bys. Keeping a gun and beer for each thug helps their happiness.</p> : null}
             {store.key === 'TOMMY' ? <p className="se-hint">Everything here comes in on Tommy&rsquo;s schedule. Pistols arrive by the crate because your thugs each need one; muscle and the heavier guns come a few at a time, and the better the gun the longer the wait.</p> : null}

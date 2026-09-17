@@ -1,4 +1,4 @@
-import type { WorkSupplyPlanDto } from './playing-together.js';
+import type { HeatDto, TripHeatDto, WorkSupplyPlanDto } from './playing-together.js';
 /**
  * The contract between apps/server and apps/web.
  *
@@ -31,6 +31,7 @@ export type ActivityType =
   | 'AWAY_BONUS'
   | 'BATTLE_VOIDED'
   | 'ADMIN_GRANT'
+  | 'HEAT_BRIBE'
   | 'HIDEOUT_UPGRADE';
 
 export interface ApiErrorBody {
@@ -108,8 +109,13 @@ export interface AccountProfileSettingsResponseDto {
   };
 }
 
-export const PRODUCT_TYPES = ['WEED', 'COKE', 'DOWNERS', 'ECSTASY', 'HEROIN', 'ACID'] as const;
-export type ProductTypeDto = typeof PRODUCT_TYPES[number];
+/**
+ * Produce Product batches. 0.4.0-D replaces the old placeholder list with catalog keys:
+ * what a round can actually cook comes from its ruleset. The old names stay accepted so
+ * older clients do not break; they all cook crack, as they always did.
+ */
+export const LEGACY_PRODUCT_TYPES = ['WEED', 'COKE', 'DOWNERS', 'ECSTASY', 'HEROIN', 'ACID'] as const;
+export type ProductTypeDto = string;
 
 export interface CityDto {
   id: string;
@@ -207,6 +213,8 @@ export interface RoundPlayerDto {
   resources: ResourcesDto;
   turns: TurnsDto;
   happiness: HappinessDto;
+  /** 0.4.0-C. Null on rounds without Heat. */
+  heat: HeatDto | null;
   rank: RankDto;
   hideout: SeasonHideoutDto;
 
@@ -386,6 +394,8 @@ export interface ScoutResult {
   district: DistrictDto;
   /** 0.4.0-B. How the trip was supplied, on rounds with work supply. */
   supply?: WorkSupplyPlanDto;
+  /** 0.4.0-C. On rounds with Heat. */
+  heat?: TripHeatDto;
 
   whoresRecruited: number;
   thugsRecruited: number;
@@ -435,6 +445,10 @@ export interface ScoutResult {
 export interface ProduceCrackResult {
   /** 0.4.0-B. How the girls' shift was supplied, on rounds with work supply. */
   supply?: WorkSupplyPlanDto;
+  /** 0.4.0-C. On rounds with Heat. */
+  /** 0.4.0-C. What the cooking thugs burned, on rounds where they burn product. */
+  cook?: WorkSupplyPlanDto;
+  heat?: TripHeatDto;
 
   productType: ProductTypeDto;
   productName: string;
@@ -609,6 +623,8 @@ export interface StoresDto {
   stores: StoreDto[];
   bulkHelpers: number[];
   lowRiderThugCapacity: number;
+  /** 0.4.0-D. Pip deals every product, on the Products page. */
+  productCounter?: boolean;
 }
 
 export interface StoreTradeResult {
@@ -635,10 +651,41 @@ export interface ProductStockDto {
   name: string;
   blurb: string;
   quantity: number;
+  /** 0.4.0-D. What one unit adds to net worth. Absent before product values. */
+  netWorthCents?: number;
+  /** 0.4.0-D. Pip's counter for this product. Absent for crack, which Pip sells as Product. */
+  pip?: {
+    buyCents: number;
+    sellCents: number;
+    stock: number;
+    cap: number;
+    perInterval: number;
+    intervalMinutes: number;
+    nextAt: string | null;
+    maxBuy: number;
+  } | null;
+  /** 0.4.0-D. Present where Produce Product can cook it. */
+  recipe?: { perThugPerTurn: number; ingredientCentsPerUnit: number; heatPerUnit: number } | null;
+}
+
+/** 0.4.0-D. POST /api/game/products/trade. */
+export interface ProductTradeResult {
+  product: string;
+  productName: string;
+  direction: 'buy' | 'sell';
+  quantity: number;
+  unitCents: number;
+  totalCents: number;
+  cashChangeCents: number;
+  quantityAfter: number;
+  stockAfter: number | null;
+  reputationGained: number;
 }
 
 /** GET /api/game/products. Disabled on rounds where Product is still only crack. */
 export interface ProductsDto {
   enabled: boolean;
+  /** 0.4.0-D. True where Pip deals, and Produce cooks, more than crack. */
+  economy?: boolean;
   products: ProductStockDto[];
 }

@@ -470,6 +470,86 @@ export interface ProductDefinition {
   readonly work?: {
     readonly takeMultiplier?: number;
   };
+  /** 0.4.0-C. The product's identity for each role. Takes precedence over `work`. */
+  readonly effects?: ProductEffects;
+  /**
+   * 0.4.0-D. Price, shelf, value and production. Crack leaves this out: it keeps
+   * Pip's Product item, `economy.netWorth.perCrackCents` and `production.crack`.
+   */
+  readonly economy?: ProductEconomy;
+}
+
+/** 0.4.0-D. Integer cents throughout. */
+export interface ProductEconomy {
+  /** What one unit adds to net worth. Never above `pip.sellCents`, so buying never raises net worth. */
+  readonly netWorthCents: number;
+  /** Pip's counter. Null where Pip does not deal it. */
+  readonly pip: {
+    readonly buyCents: number;
+    readonly sellCents: number;
+    readonly restock: { readonly cap: number; readonly perInterval: number; readonly intervalMinutes: number };
+  } | null;
+  /** Produce Product. Null where it cannot be cooked. */
+  readonly production: {
+    readonly perThugPerTurn: number;
+    /** Ingredients per unit. Never below `pip.sellCents`, so cooking to sell is never free money. */
+    readonly ingredientCentsPerUnit: number;
+    readonly variance: number;
+    readonly minHappinessMultiplier: number;
+    /** Heat per unit cooked. */
+    readonly heatPerUnit: number;
+  } | null;
+}
+
+/**
+ * 0.4.0-C. What a product does to the group that burns it. Every multiplier is
+ * 1 for "no change" and applies only to the share of the trip the product
+ * supplied, so a product that runs out part-way only counts for its slice.
+ */
+export interface ProductEffects {
+  /**
+   * What the product is worth, in cents, for simulation. 0.4.0-D prices products
+   * at Pip's and for net worth around these numbers.
+   */
+  readonly referenceCostCents: number;
+  readonly hoes: {
+    /** Take on any job. */
+    readonly take: number;
+    /** Fit per job (district key or PRODUCE), multiplied on top of `take`. Missing jobs are 1. */
+    readonly jobTake?: Readonly<Record<string, number>>;
+    /** How much one unit on hand counts toward whore happiness, against crack's 1. */
+    readonly happinessWeight: number;
+    /** Whores recruited on a Scout trip: client attraction. */
+    readonly recruitment: number;
+    /** Chance an unhappy whore walks. */
+    readonly departures: number;
+    /** Departures on the dry part of a trip after this product ran out. Absent means no crash. */
+    readonly crashDepartures?: number;
+    /** Heat per turn this product supplies a crew of `heat.crewScale.whores`. */
+    readonly heatPerTurn: number;
+  };
+  readonly thugs: {
+    /** Production output while cooking. */
+    readonly output: number;
+    /** Happiness points added to the crew's mood while cooking, capped at 100. */
+    readonly morale: number;
+    /** Chance an unhappy thug walks while cooking. */
+    readonly departures: number;
+    /** Heat per turn this product supplies a crew of `heat.crewScale.thugs`. */
+    readonly heatPerTurn: number;
+  };
+  /**
+   * 0.4.0-E. Thugs in a fight: a raid, drive-by or special raid they send, or a
+   * defense of their own block. Absent means no effect.
+   */
+  readonly combat?: {
+    /** Strength when attacking. */
+    readonly attack: number;
+    /** Strength when defending. */
+    readonly defense: number;
+    /** Share of the squad wounded, win or lose. */
+    readonly wounds: number;
+  };
 }
 
 /** 0.4.0-B. How work trips burn products and what running dry costs. */
@@ -478,6 +558,64 @@ export interface WorkSupplyRules {
   readonly productPerWhorePerTurn: number;
   /** Take multiplier for the part of a trip with no allowed product left. */
   readonly dryTakeMultiplier: number;
+  /** 0.4.0-C. Departure chance on the dry part of a trip. Absent means 1. */
+  readonly dryDepartureMultiplier?: number;
+  /** 0.4.0-C. Product units one fit thug burns per turn cooking. Absent means thugs burn nothing. */
+  readonly productPerThugPerTurn?: number;
+  /**
+   * 0.4.0-C. Round a trip's need up rather than down, so a small crew on a short
+   * trip cannot take a product's effects without burning any of it.
+   */
+  readonly roundNeedUp?: boolean;
+}
+
+/** 0.4.0-E. Product burned by thugs in a fight, under the RAID and DEFENSE supply policies. */
+export interface CombatSupplyRules {
+  /** Units each committed thug burns per fight. */
+  readonly productPerThugPerFight: number;
+}
+
+/** 0.4.0-D. Round-wide product economy switches. */
+export interface ProductEconomyRules {
+  /** Recon's stock level, in product units per whore the target runs. */
+  readonly intel: { readonly lightBelowPerWhore: number; readonly heavyFromPerWhore: number };
+}
+
+/**
+ * 0.4.0-C. Heat: how much attention the crew's product draws. It rises with risky
+ * product, decays on the turn clock, drags the take when high and risks a bust
+ * when higher. A bribe brings it down for a price that grows with net worth.
+ */
+export interface HeatRules {
+  readonly max: number;
+  /** Heat lost per turn interval, on the same clock turns regenerate on. */
+  readonly decayPerInterval: number;
+  /** Crew sizes at which a product's `heatPerTurn` applies as written. Heat scales with the square root of crew over these. */
+  readonly crewScale: { readonly whores: number; readonly thugs: number };
+  readonly drag: {
+    /** Heat at which the take starts to suffer. */
+    readonly startsAt: number;
+    /** Take lost at max Heat, 0..1. */
+    readonly maxTakePenalty: number;
+  };
+  readonly bust: {
+    /** Heat at which a Scout or Produce trip can be busted. */
+    readonly startsAt: number;
+    /** Bust chance per trip at max Heat. */
+    readonly chanceAtMax: number;
+    /** Share of every product on hand seized. */
+    readonly productSeizedFraction: number;
+    /** Share of cash taken as a fine. */
+    readonly cashFineFraction: number;
+    /** Heat a bust burns off. */
+    readonly heatDrop: number;
+  };
+  readonly bribe: {
+    /** The least one point of Heat costs. */
+    readonly minCentsPerPoint: number;
+    /** Share of net worth one point costs, when that is more. */
+    readonly netWorthFractionPerPoint: number;
+  };
 }
 
 export type ProductCatalog = { readonly CRACK: ProductDefinition } & { readonly [key: string]: ProductDefinition };
@@ -628,5 +766,14 @@ export interface Ruleset {
   readonly products?: ProductCatalog;
   /** 0.4.0-B. Absent where work supply policies have not shipped. */
   readonly workSupply?: WorkSupplyRules;
+  /** 0.4.0-C. Absent where Heat has not shipped. */
+  readonly heat?: HeatRules;
+  /**
+   * 0.4.0-D. Present where every product is traded, cooked, looted and valued.
+   * Raids and drug runs then take a mix of products rather than crack alone.
+   */
+  readonly productEconomy?: ProductEconomyRules;
+  /** 0.4.0-E. Absent where thugs burn no product in fights. */
+  readonly combatSupply?: CombatSupplyRules;
   readonly evidence: EvidenceRules;
 }

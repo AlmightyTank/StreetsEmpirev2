@@ -12,6 +12,8 @@ export interface CombatIntelReportDto {
   estimatedMaxLootCents: number;
   crack: number | null;
   estimatedMaxCrackLoot: number | null;
+  /** 0.4.0-D. How deep the stash runs and what they hold most of, never counts. Replaces `crack` on product rounds. */
+  productStash?: { level: 'none' | 'light' | 'stocked' | 'heavy'; primary: string | null };
   /** 0.3.0-D. The ally who gathered it, when it is shared alliance intel rather than your own. */
   sharedBy?: string | null;
 }
@@ -48,6 +50,10 @@ export interface BattleReportDto {
   cashAfterCents: number;
   crackChange?: number;
   crackAfter?: number;
+  /** 0.4.0-E. The product this side took into the fight, when it had a RAID or DEFENSE policy. */
+  yourSupply?: import('./playing-together.js').WorkSupplyPlanDto;
+  /** 0.4.0-D. Every other product that changed hands or burned, from this side's view. */
+  productChanges?: Array<{ product: string; name: string; change: number }>;
   lootPercent?: number;
   baseLootPercent?: number;
   repeatTargetHits?: number;

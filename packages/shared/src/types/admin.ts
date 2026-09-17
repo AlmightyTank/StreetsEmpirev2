@@ -237,10 +237,13 @@ export interface AdminPlayerDto {
   crew: { whores: number; thugs: number; woundedThugs: number; lowRiders: number };
   supplies: { condoms: number; medicine: number; crack: number; beer: number };
   /** 0.4.0-A. Every product in the round's catalog, crack included. Empty on single-product rounds. */
-  products: Array<{ key: string; name: string; quantity: number }>;
+  /** `valueCents` since 0.4.0-E: what the holding adds to net worth, where products are valued. */
+  products: Array<{ key: string; name: string; quantity: number; valueCents?: number }>;
   weapons: { pistols: number; shotguns: number; tek9s: number; ak47s: number };
   unlocks: { shotgun: boolean; tek9: boolean; ak47: boolean };
   happiness: { whores: number; thugs: number };
+  /** 0.4.0-C. Stored Heat, as of the player's last settle. Null on rounds without Heat. */
+  heat: number | null;
   ranks: { national: number | null; local: number | null };
   timers: {
     raidProtectedUntil: string | null;

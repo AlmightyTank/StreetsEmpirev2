@@ -79,25 +79,27 @@ export function calculateDepartures(
   turns: number,
   ruleset: Ruleset,
   rng: Rng,
+  /** 0.4.0-C. What the product each group burned did to its chance of walking. */
+  multipliers: { whores?: number; thugs?: number } = {},
 ): Departures {
   const d = ruleset.departures;
   const worked = Math.max(0, turns);
 
-  const leaving = (count: number, happiness: number): number => {
+  const leaving = (count: number, happiness: number, multiplier = 1): number => {
     if (count <= 0 || worked <= 0 || happiness >= d.happinessThreshold) return 0;
 
     const severity = (d.happinessThreshold - happiness) / d.happinessThreshold;
     // Each turn is its own chance, so the fraction compounds toward - but
     // never past - the whole crew.
-    const perTurn = d.chancePerTurn * severity;
+    const perTurn = Math.min(1, d.chancePerTurn * severity * Math.max(0, multiplier));
     const fraction = Math.min(1 - (1 - perTurn) ** worked, d.maxFractionPerAction);
 
     return Math.min(count, roundStochastic(count * fraction, rng));
   };
 
   return {
-    whores: leaving(player.whores, player.whoreHappiness),
-    thugs: leaving(player.thugs, player.thugHappiness),
+    whores: leaving(player.whores, player.whoreHappiness, multipliers.whores),
+    thugs: leaving(player.thugs, player.thugHappiness, multipliers.thugs),
   };
 }
 

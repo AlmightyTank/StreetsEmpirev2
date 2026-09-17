@@ -19,6 +19,7 @@ function valid(): InvariantPlayerState {
     tek9s: 0,
     ak47s: 0,
     lowRiders: 0,
+    heat: 0,
     cleanShiftStreak: 3,
     rocksSuppliedToPip: 0,
     driveBysDone: 0,

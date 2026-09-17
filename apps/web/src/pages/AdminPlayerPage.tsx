@@ -222,10 +222,11 @@ export function AdminPlayerPage() {
             <Row label="Condoms" value={formatNumber(player.supplies.condoms)} />
             <Row label="Medicine" value={formatNumber(player.supplies.medicine)} />
             {player.products.length
-              ? player.products.map((product) => <Row key={product.key} label={product.name} value={formatNumber(product.quantity)} />)
+              ? player.products.map((product) => <Row key={product.key} label={product.name} value={`${formatNumber(product.quantity)}${product.valueCents !== undefined ? ` · ${formatCents(product.valueCents)}` : ''}`} />)
               : <Row label="Product" value={formatNumber(player.supplies.crack)} />}
             <Row label="Beer" value={formatNumber(player.supplies.beer)} />
             <Row label="Happiness" value={`Whores ${player.happiness.whores}% · Thugs ${player.happiness.thugs}%`} />
+            {player.heat !== null ? <Row label="Heat" value={formatNumber(player.heat)} /> : null}
             <Row label="Payout" value={`${player.payoutPercent}%`} />
             <Row label="Last active" value={adminWhen(player.lastActiveAt)} />
           </div>

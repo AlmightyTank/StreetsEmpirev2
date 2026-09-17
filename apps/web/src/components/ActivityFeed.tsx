@@ -112,6 +112,7 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
         num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} product found` : null,
         num(p.whoresLeft) ? `${num(p.whoresLeft)} whores walked` : null,
         num(p.thugsLeft) ? `${num(p.thugsLeft)} thugs walked` : null,
+        p.busted ? `BUSTED, fined ${formatCents(num(p.fineCents))}` : null,
       ].filter(Boolean);
 
       return {
@@ -139,6 +140,7 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
         num(p.product ?? p.crack) ? `+${formatNumber(num(p.product ?? p.crack))} ${str(p.productName, 'product')}` : null,
         num(p.cashCents) ? `+${formatCents(num(p.cashCents))}` : null,
         num(p.ingredientCents) ? `-${formatCents(num(p.ingredientCents))} ingredients` : null,
+        p.busted ? `BUSTED, fined ${formatCents(num(p.fineCents))}` : null,
       ].filter(Boolean);
 
       return {
@@ -146,6 +148,12 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
         detail: detail.join(', ') || 'Nothing came out of it.',
       };
     }
+
+    case 'HEAT_BRIBE':
+      return {
+        text: `Paid off ${formatNumber(num(p.points))} Heat.`,
+        detail: `-${formatCents(num(p.costCents))}, Heat ${num(p.heatBefore)} → ${num(p.heatAfter)}`,
+      };
 
     case 'PAYOUT_CHANGE':
       return {

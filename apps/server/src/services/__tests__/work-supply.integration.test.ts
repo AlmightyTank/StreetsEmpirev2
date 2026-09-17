@@ -98,7 +98,8 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('work supply with Postgr
     ]);
 
     const trip = await scout('b', 'CASINO', 20);
-    expect(trip.result.supply).toEqual(preview);
+    // The preview adds a status block for the screen; the plan itself matches the receipt.
+    expect(trip.result.supply).toEqual({ ...preview, status: undefined });
     const after = await ProductInventoryService.read(app.prisma, players.b, classicOgV04B);
     expect(after).toMatchObject({ ECSTASY: 0, COCAINE: 0 });
     // No crack on hand, so the emergency product burned nothing and crack only moved by finds.

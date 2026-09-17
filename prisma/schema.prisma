@@ -432,6 +432,10 @@ model RoundPlayer {
   /// Consecutive trips worked without sending anyone out short on condoms.
   /// The clerk's favour is the only thing that reads it.
   cleanShiftStreak   Int @default(0)
+
+  /// 0.4.0-C. Attention the crew's product draws, 0..ruleset heat max. Decays on the turn clock
+  /// (lastTurnCalculationAt), so it needs no clock of its own. Always 0 on rounds without Heat.
+  heat Int @default(0)
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
   rocksSuppliedToPip Int @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
@@ -501,6 +505,7 @@ model RoundPlayer {
   allianceInvites       AllianceInvite[] @relation("AllianceInvitee")
   /// 0.4.0-A. Every product except crack, which stays on the `crack` column in every round.
   products       PlayerProduct[]
+  productShelves ProductShelf[]
   /// 0.4.0-B. Which products each job burns, in order.
   supplyPolicies WorkSupplyPolicy[]
   /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
@@ -608,6 +613,19 @@ model PlayerProduct {
   quantity      Int         @default(0)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+
+  @@unique([roundPlayerId, productKey])
+}
+
+/// 0.4.0-D. Pip's shelf for one non-crack product, per player, on the lazy restock clock.
+/// No row means a full shelf; crack keeps its crackStock columns.
+model ProductShelf {
+  id            String      @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  productKey    String
+  stock         Int
+  stockAt       DateTime
 
   @@unique([roundPlayerId, productKey])
 }
@@ -755,6 +773,7 @@ enum ActivityType {
   HIDEOUT_UPGRADE
   BATTLE_VOIDED
   ADMIN_GRANT
+  HEAT_BRIBE
 }
 
 enum BattleKind {

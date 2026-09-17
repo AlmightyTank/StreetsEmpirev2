@@ -1,5 +1,5 @@
 import type { City, Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
-import { loadRulesetForRound, type Ruleset, type Standings } from '@streets/rules-engine';
+import { decayHeat, loadRulesetForRound, type Ruleset, type Standings } from '@streets/rules-engine';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
@@ -27,6 +27,8 @@ export interface SettledPlayer {
   /** Standing with each trader, which is what shortens those shelves' waits. */
   standings: Standings;
   recovery: RecoverySettlement;
+  /** 0.4.0-C. Non-crack product stock on rounds where it moves happiness; undefined elsewhere. */
+  products?: Record<string, number>;
 }
 
 export interface SettleOptions {
@@ -86,21 +88,22 @@ export const PlayerStateService = {
     const { round, ...rest } = player;
     const ruleset = loadRulesetForRound(round);
     const recovery = await CombatRecoveryService.settle(tx, roundPlayerId, now);
-    const recovered = { ...rest, woundedThugs: recovery.woundedThugs };
-
-    // 1. Turns, and the shop shelves on the same clock.
-    const turns = TurnService.settle(recovered, now, ruleset);
+    // 1. Turns, and the shop shelves on the same clock. Heat cools on it too.
+    const turns = TurnService.settle(rest, now, ruleset);
+    const heat = ruleset.heat ? decayHeat(rest.heat, turns.intervalsProcessed, ruleset.heat) : rest.heat;
+    const recovered = { ...rest, woundedThugs: recovery.woundedThugs, heat };
     const standings = await ReputationService.load(tx, roundPlayerId, ruleset);
     const stock = StockService.settle(recovered, now, ruleset, standings);
 
     // 2. Happiness, read straight off the player's current state.
+    const products = await HappinessService.otherProducts(tx, roundPlayerId, ruleset);
     const happiness = HappinessService.recalculate(
-      { ...recovered, thugs: fitThugs(recovered) },
+      { ...recovered, thugs: fitThugs(recovered), products },
       ruleset,
     );
 
     // 3. Net worth.
-    const netWorthCents = NetWorthService.calculate(recovered, ruleset);
+    const netWorthCents = NetWorthService.calculate({ ...recovered, products }, ruleset);
 
     // 4. Ranks, against the net worth we just derived.
     const ranks = await RankingService.ranksFor(tx, {
@@ -124,6 +127,9 @@ export const PlayerStateService = {
     }
     if (turns.awayBonus.awarded) {
       data.lastAwayBonusAt = now;
+    }
+    if (heat !== rest.heat) {
+      data.heat = heat;
     }
     if (stock.changed) {
       Object.assign(data, stock.counts, stock.clocks);
@@ -171,6 +177,6 @@ export const PlayerStateService = {
       });
     }
 
-    return { player: settled, round, ruleset, turns, stock, standings, recovery };
+    return { player: settled, round, ruleset, turns, stock, standings, recovery, products };
   },
 };

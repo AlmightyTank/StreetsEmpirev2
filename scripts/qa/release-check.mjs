@@ -15,6 +15,8 @@ function run(label, command, args, env = process.env) {
 run('Typecheck', npm, ['run', 'typecheck']);
 run('Unit tests', npm, ['test']);
 run('Production build', npm, ['run', 'build']);
+// 0.4.0: product effects, money loops, product in combat and a full round.
+run('Product balance gates', npm, ['run', 'qa:products', '--', '--samples', '4000', '--quiet']);
 
 if (withDb) {
   // One file at a time: suites share the .env database, and any real current-round lookup
@@ -25,10 +27,11 @@ if (withDb) {
     REPUTATION_INTEGRATION: '1',
     STORE_INTEGRATION: '1',
     TRANSACTION_INTEGRATION: '1',
+    // Includes the 0.3.0 alliance season and 0.4.0 products season regressions.
     RELEASE_INTEGRATION: '1',
     // 0.3.0: alliances, community hooks, shared recon, wire and contacts. Fixtures use their own rounds.
     ALLIANCE_INTEGRATION: '1',
-    // 0.4.0: the product inventory.
+    // 0.4.0: product inventory, work supply, Heat and the product economy.
     PRODUCT_INTEGRATION: '1',
   });
 }

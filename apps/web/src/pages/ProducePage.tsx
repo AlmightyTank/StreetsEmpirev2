@@ -1,33 +1,46 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
-import type { ProduceCrackResult, ProductTypeDto } from '@streets/shared';
+import type { ProduceCrackResult, ProductsDto, ProductTypeDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { actionsApi } from '../api/actions.js';
+import { api } from '../api/client.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
 import { supplyReceiptLines, WorkSupplyPanel } from '../components/WorkSupplyPanel.js';
+import { HeatPanel, heatReceiptLines } from '../components/HeatPanel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 
-const PRODUCT_PROFILES: Array<{ key: ProductTypeDto; name: string; role: string }> = [
-  { key: 'WEED', name: 'Weed', role: 'Safe baseline product for keeping the block supplied.' },
-  { key: 'COKE', name: 'Coke', role: 'High-demand product for bigger money runs.' },
-  { key: 'DOWNERS', name: 'Downers', role: 'Utility supply for keeping unhappy people listening.' },
-  { key: 'ECSTASY', name: 'Ecstasy', role: 'Nightlife product for timing-heavy street work.' },
-  { key: 'HEROIN', name: 'Heroin', role: 'Dangerous top-end product with future risk hooks.' },
-  { key: 'ACID', name: 'Acid', role: 'Niche product for swingy, event-driven demand.' },
-];
+type Profile = { key: ProductTypeDto; name: string; role: string };
+
+/** What a round without a product economy cooks: crack, as it always has. */
+const CRACK_ONLY: Profile[] = [{ key: 'CRACK', name: 'Product', role: 'The one product this round. Cheap to cook and in every job.' }];
+
+/** 0.4.0-D. The catalog's cookable products, from the round's recipes. */
+function recipeProfiles(data: ProductsDto | null): Profile[] {
+  if (!data?.economy) return CRACK_ONLY;
+  return data.products.filter((product) => product.recipe).map((product) => ({
+    key: product.key,
+    name: product.name,
+    role: `${product.recipe!.perThugPerTurn} a thug a turn · ${formatCents(product.recipe!.ingredientCentsPerUnit)} ingredients each · worth ${formatCents(product.netWorthCents ?? 0)}${product.recipe!.heatPerUnit > 0 ? ' · draws Heat' : ''}`,
+  }));
+}
 
 export function ProducePage() {
   const me = useSession((s) => s.me);
   const action = useGameAction<ProduceCrackResult>();
 
   const [turns, setTurns] = useState<number | ''>(10);
-  const [productType, setProductType] = useState<ProductTypeDto>('WEED');
+  const [productType, setProductType] = useState<ProductTypeDto>('CRACK');
+  const [catalog, setCatalog] = useState<ProductsDto | null>(null);
+  useEffect(() => {
+    api.get<ProductsDto>('/game/products').then(setCatalog).catch(() => setCatalog(null));
+  }, []);
+  const PRODUCT_PROFILES = recipeProfiles(catalog);
 
   if (!me) return <Navigate to="/join" replace />;
 
@@ -133,6 +146,8 @@ export function ProducePage() {
         */}
         <aside className="se-grid">
           <WorkSupplyPanel job="PRODUCE" jobLabel="the girls' shift" turns={turns} refreshKey={action.result} />
+          <WorkSupplyPanel job="COOK" jobLabel="the cooks" turns={turns} refreshKey={action.result} />
+          <HeatPanel />
 
           <Panel title="The crew" flush>
             <div className="se-rows">
@@ -177,13 +192,15 @@ export function ProducePage() {
             result={action.result}
             lines={[
               ...supplyReceiptLines(action.result.result.supply),
+              ...supplyReceiptLines(action.result.result.cook, 'Cooks: '),
+              ...heatReceiptLines(action.result.result.heat),
               { label: 'Turns used', value: formatNumber(action.result.result.turnsUsed) },
 
               // The batch itself.
               {
-                label: 'Product produced',
+                label: `${action.result.result.productName} produced`,
                 delta: action.result.result.productProduced,
-                remaining: action.result.after.resources.product,
+                ...(action.result.result.productType === 'CRACK' ? { remaining: action.result.after.resources.product } : {}),
               },
               ...(workshopBonusProduct > 0
                 ? [

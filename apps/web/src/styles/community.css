@@ -224,3 +224,10 @@
 .se-supply__status--good { border-left-color: var(--se-good); }
 .se-supply__status--warn { border-left-color: var(--se-warn); }
 .se-supply__status--bad { border-left-color: var(--se-bad); }
+
+/* 0.4.0-C Heat */
+.se-warn { color: var(--se-warn); }
+.se-heat__meter { height: 8px; margin: 0 0 8px; }
+.se-heat__status { margin: 0 0 6px; font-weight: 600; }
+.se-heat__bribe { margin-top: 10px; display: grid; gap: 6px; }
+.se-heat__bribe-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }

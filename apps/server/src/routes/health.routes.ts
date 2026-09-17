@@ -7,7 +7,7 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/health', async () => ({
     ok: true,
     version: '0.4.0',
-    milestone: '0.4.0-B',
+    milestone: '0.4.0-E',
   }));
 
   /**
