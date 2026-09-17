@@ -4,6 +4,7 @@ import type { AdminRoundHealthDto, AdminUpdateRoundInput } from '@streets/shared
 import { formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
+import { AdminAllianceBalancePanel } from '../components/AdminAllianceBalancePanel.js';
 import { AdminAlliancesPanel } from '../components/AdminAlliancesPanel.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
@@ -232,6 +233,7 @@ export function AdminRoundPage() {
       </div>
 
       <AdminAlliancesPanel roundId={round.id} finished={finished} />
+      <AdminAllianceBalancePanel roundId={round.id} />
     </GameLayout>
   );
 }

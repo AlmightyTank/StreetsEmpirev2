@@ -3,6 +3,7 @@ import { ADMIN_GRANT_CAPS, ADMIN_SUSPENSION_LENGTHS, usernameSchema, type AdminS
 import { z } from 'zod';
 import { AdminAccountService } from '../services/admin-account.service.js';
 import { AdminAuditService } from '../services/admin-audit.service.js';
+import { AllianceBalanceService } from '../services/alliance-balance.service.js';
 import { AllianceService } from '../services/alliance.service.js';
 import { WireService } from '../services/wire.service.js';
 import { AdminBattleService } from '../services/admin-battle.service.js';
@@ -188,6 +189,11 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // Alliances (0.3.0-C)
+
+  fastify.get('/rounds/:roundId/alliance-balance', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    return AllianceBalanceService.report(fastify.prisma, roundId);
+  });
 
   fastify.get('/rounds/:roundId/alliances', async (request) => {
     const { roundId } = parseBody(roundParams, request.params);

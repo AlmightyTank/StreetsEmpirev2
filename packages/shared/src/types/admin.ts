@@ -486,3 +486,40 @@ export interface AdminSignalsDto {
   generatedAt: string;
   clusters: AdminSignalClusterDto[];
 }
+
+/** 0.3.0-E. One matchup in the alliance balance report. */
+export interface AllianceBalanceCellDto {
+  battles: number;
+  attackerWins: number;
+  /** Null when there were no battles. */
+  attackerWinPercent: number | null;
+}
+
+/** 0.3.0-E. What an alliance round actually did, for the balance pass. */
+export interface AllianceBalanceDto {
+  roundId: string;
+  roundName: string;
+  rulesetId: string;
+  alliancesEnabled: boolean;
+  sharedIntelEnabled: boolean;
+  players: { total: number; inAlliances: number; alliances: number };
+  standings: {
+    topCount: number;
+    topInAlliances: number;
+    medianSoloNetWorthCents: number;
+    medianMemberNetWorthCents: number;
+    alliances: Array<{ name: string; tag: string; members: number; inTopCount: number; netWorthSharePercent: number }>;
+  };
+  battles: {
+    all: AllianceBalanceCellDto;
+    soloIntoSolo: AllianceBalanceCellDto;
+    soloIntoAlliance: AllianceBalanceCellDto;
+    allianceIntoSolo: AllianceBalanceCellDto;
+    allianceIntoAlliance: AllianceBalanceCellDto;
+    revenge: AllianceBalanceCellDto;
+    withOwnIntel: AllianceBalanceCellDto;
+    withAllyIntel: AllianceBalanceCellDto;
+    withoutIntel: AllianceBalanceCellDto;
+    byKind: Array<AllianceBalanceCellDto & { kind: string }>;
+  };
+}

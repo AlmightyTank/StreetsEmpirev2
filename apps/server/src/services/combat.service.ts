@@ -439,6 +439,19 @@ async function retaliationTargets(prisma: PrismaClient | Prisma.TransactionClien
   return new Set(rows.map((row) => row.attackerId));
 }
 
+/** 0.3.0-E balance data: whose fresh recon the attacker had on the target when they hit. */
+async function attackerIntelSource(tx: Prisma.TransactionClient, attacker: RoundPlayer, targetId: string, ruleset: Ruleset, now: Date): Promise<'own' | 'ally' | null> {
+  const rows = await tx.combatIntel.findMany({
+    where: {
+      targetId, expiresAt: { gt: now },
+      OR: [{ observerId: attacker.id }, ...(ruleset.alliances?.sharedIntel && attacker.allianceId ? [{ observer: { allianceId: attacker.allianceId } }] : [])],
+    },
+    select: { observerId: true },
+  });
+  if (rows.some((row) => row.observerId === attacker.id)) return 'own';
+  return rows.length ? 'ally' : null;
+}
+
 /** Your own intel first; otherwise the ally report that stays fresh longest, marked with who gathered it. */
 export function sharedIntelByTarget(
   rows: Array<{ observerId: string; targetId: string; report: unknown; expiresAt: Date; observer: { displayName: string } }>,
@@ -570,6 +583,7 @@ export const CombatService = {
       const defenseBonusPercent = hideoutDefenseBonusPercent(ruleset, defender);
       const defenderModel = modelWithDefenderHideout(model, ruleset, defender);
       const retaliation = (await retaliationTargets(tx, attacker, [target.id], model, now)).has(target.id);
+      const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
       const blocked = combatAttackerBlock(attacker, model, now) ?? combatTargetBlock(attacker, defender, defenderModel, now, retaliation);
       if (blocked) throw AppError.conflict('RAID_BLOCKED', blocked);
       if (input.attackingThugs > Math.min(fitThugs(attacker), model.squadCap)) throw AppError.badRequest('INVALID_SQUAD', 'Your squad exceeds your fit crew or the raid limit.');
@@ -634,7 +648,7 @@ export const CombatService = {
       };
       const attackerReport = makeReport(true);
       const defenderReport = makeReport(false);
-      await tx.raidBattle.create({ data: { id, attackerId, defenderId: target.id, defenderAllianceId: defender.allianceId, actionId: input.actionId,
+      await tx.raidBattle.create({ data: { id, attackerId, defenderId: target.id, defenderAllianceId: defender.allianceId, attackerAllianceId: attacker.allianceId, attackerIntel, actionId: input.actionId,
         attackingThugs: input.attackingThugs, modelVersion: model.version,
         calculation: json({ result, input: { attacker: crew(attacker), defender: crew(defender), defenderCashCents: defender.cashCents, defenderCrack: defender.crack }, defenderHideout: { protectedCashBonus, defenseBonusPercent }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
@@ -680,6 +694,7 @@ export const CombatService = {
       const attacker = (await PlayerStateService.settleInTransaction(tx, attackerId, { now, markActive: true })).player;
       const defender = (await PlayerStateService.settleInTransaction(tx, target.id, { now, markActive: false })).player;
       const retaliation = (await retaliationTargets(tx, attacker, [target.id], model, now)).has(target.id);
+      const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
       const blocked = driveByAttackerBlock(attacker, model, rules, now) ?? driveByTargetBlock(attacker, defender, model, now, retaliation);
       if (blocked) throw AppError.conflict('DRIVE_BY_BLOCKED', blocked);
       const seats = driveByMaxShooters(fitThugs(attacker), attacker.lowRiders, model, rules);
@@ -742,7 +757,7 @@ export const CombatService = {
       };
       const attackerReport = makeReport(true);
       const defenderReport = makeReport(false);
-      await tx.raidBattle.create({ data: { id, kind: 'DRIVE_BY', attackerId, defenderId: target.id, defenderAllianceId: defender.allianceId, actionId: input.actionId,
+      await tx.raidBattle.create({ data: { id, kind: 'DRIVE_BY', attackerId, defenderId: target.id, defenderAllianceId: defender.allianceId, attackerAllianceId: attacker.allianceId, attackerIntel, actionId: input.actionId,
         attackingThugs: input.attackingThugs, modelVersion: model.version,
         calculation: json({ result, input: { attacker: crew(attacker), defender: crew(defender), lowRiders: attacker.lowRiders, defenderWhores: defender.whores }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
@@ -786,6 +801,7 @@ export const CombatService = {
       const defender = (await PlayerStateService.settleInTransaction(tx, target.id, { now, markActive: false })).player;
       const defenderModel = modelWithDefenderHideout(model, ruleset, defender);
       const retaliation = (await retaliationTargets(tx, attacker, [target.id], model, now)).has(target.id);
+      const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
       const blocked = specialRaidAttackerBlock(attacker, model, input.kind, now) ?? specialRaidTargetBlock(attacker, defender, model, input.kind, now, retaliation);
       if (blocked) throw AppError.conflict('SPECIAL_RAID_BLOCKED', blocked);
       if (input.attackingThugs > Math.min(fitThugs(attacker), model.squadCap)) throw AppError.badRequest('INVALID_SQUAD', 'Your squad exceeds your fit crew or the raid limit.');
@@ -901,7 +917,7 @@ export const CombatService = {
       };
       const attackerReport = makeReport(true);
       const defenderReport = makeReport(false);
-      await tx.raidBattle.create({ data: { id, attackerId, defenderId: target.id, defenderAllianceId: defender.allianceId, actionId: input.actionId,
+      await tx.raidBattle.create({ data: { id, attackerId, defenderId: target.id, defenderAllianceId: defender.allianceId, attackerAllianceId: attacker.allianceId, attackerIntel, actionId: input.actionId,
         attackingThugs: input.attackingThugs, modelVersion: model.version,
         calculation: json({ kind: input.kind, result, effects: { crackSpent, beerSpent, whoresDrugged, defenderCrackBurned, defenderCondomsBurned, lowRidersStolen, whoresLured, thugsLured }, input: { attacker: crew(attacker), defender: crew(defender) }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });

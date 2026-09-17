@@ -754,6 +754,10 @@ model RaidBattle {
   /// 0.3.0-C. The defender's alliance when the hit landed. Shared revenge reads this, so
   /// the victim leaving afterwards cannot take the window away from the alliance.
   defenderAllianceId String?
+  /// 0.3.0-E. The attacker's alliance when the hit landed, and whose recon they had
+  /// (own, ally or none), so alliance rounds can be balanced from real battles.
+  attackerAllianceId String?
+  attackerIntel      String?
   @@unique([attackerId, actionId])
   @@index([attackerId, createdAt(sort: Desc), id])
   @@index([defenderId, createdAt(sort: Desc), id])
