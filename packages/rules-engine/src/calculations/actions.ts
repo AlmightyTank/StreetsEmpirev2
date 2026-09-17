@@ -1,4 +1,5 @@
 import type { District, DistrictKey, Ruleset } from '@streets/rulesets';
+import type { WorkSupplyPlan } from './work-supply.js';
 import {
   applyVariance,
   defaultRng,
@@ -100,6 +101,8 @@ export function calculateScout(
     district: DistrictKey;
     clientCapacity: number;
     payoutPercent: number;
+    /** 0.4.0-B. Passed through to the street take. */
+    supply?: WorkSupplyPlan;
   },
 ): ScoutOutcome {
   const { player, turns, ruleset, district } = context;
@@ -221,6 +224,11 @@ export function calculateStreetTake(
     clientCapacity: number;
     payoutPercent: number;
     takeMultiplier?: number;
+    /**
+     * 0.4.0-B. The trip's supply plan, on rounds with work supply. It decides
+     * how much crack is burned and weights the take by each slice.
+     */
+    supply?: WorkSupplyPlan;
   },
 ): StreetTake {
   const { player, turns, ruleset, district, payoutPercent } = context;
@@ -248,6 +256,7 @@ export function calculateStreetTake(
         takeMultiplier *
         exposure.takeMultiplier *
         clients.takeMultiplier *
+        (context.supply?.takeMultiplier ?? 1) *
         city.incomeModifier,
       rules.takeVariance,
       rng,
@@ -260,6 +269,8 @@ export function calculateStreetTake(
 
   const needed = calculateWorkSupplyNeeds(player, turns, ruleset);
   const consumption = calculateWorkConsumption(player, turns, ruleset);
+  // With a supply plan, crack is only what the plan burns from the crack column.
+  if (context.supply) consumption.crack = context.supply.consumed.CRACK ?? 0;
   const shortages = {
     condoms: needed.condoms - consumption.condoms,
     beer: needed.beer - consumption.beer,
@@ -324,6 +335,8 @@ export function calculateProduce(
     payoutPercent: number;
     /** Capacity of `ruleset.scouting.produceDistrict` this hour. */
     clientCapacity: number;
+    /** 0.4.0-B. Passed through to the street take. */
+    supply?: WorkSupplyPlan;
   },
 ): ProduceOutcome {
   const { player, turns, ruleset, cashCents } = context;

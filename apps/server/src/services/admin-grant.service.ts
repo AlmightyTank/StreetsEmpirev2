@@ -10,6 +10,7 @@ import { writeRanks } from './combat.service.js';
 import { HappinessService } from './happiness.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { PlayerStateService } from './player-state.service.js';
+import { CRACK, ProductInventoryService } from './product-inventory.service.js';
 import { RankingService } from './ranking.service.js';
 
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -32,7 +33,10 @@ export const AdminGrantService = {
       .map((item) => ({ item, amount: input[item] ?? 0, cap: ADMIN_GRANT_CAPS[item] }))
       .filter((row) => row.amount > 0);
     const turns = input.turns ?? 0;
-    if (!items.length && turns <= 0) throw AppError.badRequest('NOTHING_TO_GRANT', 'Choose at least one thing to grant.');
+    // 0.4.0-B: non-crack products. Crack keeps its own field and cap.
+    const products = Object.fromEntries(Object.entries(input.products ?? {}).filter(([, amount]) => amount > 0));
+    if (Object.hasOwn(products, CRACK)) throw AppError.badRequest('GRANT_CRACK_FIELD', 'Grant crack with the crack field.', { crack: 'Use this field for crack.' });
+    if (!items.length && turns <= 0 && !Object.keys(products).length) throw AppError.badRequest('NOTHING_TO_GRANT', 'Choose at least one thing to grant.');
     for (const row of items) {
       if (!Number.isSafeInteger(row.amount) || row.amount > row.cap) {
         throw AppError.badRequest('GRANT_OVER_CAP', `A grant can include at most ${row.cap} ${row.item}.`, { [row.item]: `At most ${row.cap} per grant.` });
@@ -83,8 +87,13 @@ export const AdminGrantService = {
       const ranksAfter = await RankingService.ranksFor(tx, { ...player, netWorthCents: worth });
       await writeRanks(tx, ruleset, now, [[player.id, prior, ranksBefore, ranksAfter]]);
 
+      if (Object.keys(products).length) {
+        if (!ruleset.products) throw AppError.badRequest('UNKNOWN_PRODUCT', 'This round only has one product.');
+        await ProductInventoryService.adjust(tx, player.id, ruleset, products);
+      }
+
       const after = correctionSnapshot(next);
-      const granted = correctionChanges(before, after);
+      const granted = { ...correctionChanges(before, after), ...products };
       await ActivityService.log(tx, player.id, 'ADMIN_GRANT', json({ reason: input.reason, granted, turnsRequested: turns }));
       await AdminAuditService.record(tx, actor, {
         action: 'player.grant',

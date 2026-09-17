@@ -442,7 +442,10 @@ export const ADMIN_GRANT_CAPS = {
 
 export type AdminGrantItem = keyof typeof ADMIN_GRANT_CAPS;
 
-export type AdminGrantInput = { reason: string; turns?: number } & Partial<Record<AdminGrantItem, number>>;
+/** 0.4.0-B. Most of any one non-crack product a single grant can include. Crack uses its own cap above. */
+export const ADMIN_PRODUCT_GRANT_CAP = 500;
+
+export type AdminGrantInput = { reason: string; turns?: number; products?: Record<string, number> } & Partial<Record<AdminGrantItem, number>>;
 
 export interface AdminVoidSideDto {
   roundPlayerId: string;

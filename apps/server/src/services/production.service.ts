@@ -1,9 +1,10 @@
 import type { PrismaClient } from '@prisma/client';
-import { calculateProduce, districtCapacities, type Rng } from '@streets/rules-engine';
+import { PRODUCE_JOB, calculateProduce, districtCapacities, type Rng } from '@streets/rules-engine';
 import type { GameActionResult, ProduceCrackResult, ProductTypeDto } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { hideoutBackOfficeBonusCents, hideoutWorkshopBonusCrack } from './hideout.service.js';
+import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 
 export interface ProduceInput {
   turns: number;
@@ -41,7 +42,7 @@ export const ProductionService = {
       action: 'PRODUCE_CRACK',
       actionId: input.actionId,
 
-      execute: ({ current, whoreHappiness, thugHappiness, player, ruleset, round, now }) => {
+      execute: async ({ tx, current, whoreHappiness, thugHappiness, player, ruleset, round, now }) => {
         if (input.turns < ruleset.production.minTurns) {
           throw AppError.badRequest(
             'TURNS_TOO_LOW',
@@ -73,7 +74,15 @@ export const ProductionService = {
         // chosen.
         const capacities = districtCapacities(round.id, now, ruleset);
 
+        // 0.4.0-B: the girls' shift burns products by the PRODUCE policy. Consumption is
+        // planned from stock before this batch is cooked, as crack always was.
+        const supply = ruleset.workSupply
+          ? await WorkSupplyService.plan(tx, roundPlayerId, ruleset, { job: PRODUCE_JOB, whores: active.whores, turns: input.turns, crack: current.crack })
+          : undefined;
+        if (supply) await WorkSupplyService.consume(tx, roundPlayerId, ruleset, supply);
+
         const outcome = calculateProduce({
+          supply,
           player: { ...active, whoreHappiness, thugHappiness },
           turns: input.turns,
           ruleset,
@@ -119,6 +128,7 @@ export const ProductionService = {
         };
 
         const result: ProduceCrackResult = {
+          ...(supply ? { supply: toPlanDto(supply, ruleset) } : {}),
           productType,
           productName,
           productProduced: crackProduced,

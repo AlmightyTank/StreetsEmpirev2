@@ -90,6 +90,8 @@ export interface PlayerState {
 }
 
 export interface ActionContext {
+  /** The action's transaction, with the player already locked. For product rows; everything else goes in `next`. */
+  tx: Db;
   /** Turn-settled, happiness and net worth already true for these numbers. */
   current: PlayerState;
   whoreHappiness: number;
@@ -319,6 +321,7 @@ export const ActionService = {
       });
 
       const outcome = await options.execute({
+        tx,
         current,
         whoreHappiness: beforeHappiness.whoreHappiness,
         thugHappiness: beforeHappiness.thugHappiness,

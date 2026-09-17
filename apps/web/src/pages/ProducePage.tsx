@@ -8,6 +8,7 @@ import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
+import { supplyReceiptLines, WorkSupplyPanel } from '../components/WorkSupplyPanel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -125,6 +126,8 @@ export function ProducePage() {
           </p>
         </Panel>
 
+        <WorkSupplyPanel job="PRODUCE" jobLabel="the girls' shift" turns={turns} refreshKey={action.result} />
+
         {/*
           Manual 3.2 sends the girls out too, so production is not a thugs-only
           screen: the same crew, cut and shelf apply as on a scouting trip.
@@ -173,6 +176,7 @@ export function ProducePage() {
             onDismiss={action.clear}
             result={action.result}
             lines={[
+              ...supplyReceiptLines(action.result.result.supply),
               { label: 'Turns used', value: formatNumber(action.result.result.turnsUsed) },
 
               // The batch itself.

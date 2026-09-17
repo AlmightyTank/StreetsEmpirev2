@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { ADMIN_GRANT_CAPS, ADMIN_SUSPENSION_LENGTHS, usernameSchema, type AdminSuspensionLength } from '@streets/shared';
+import { ADMIN_GRANT_CAPS, ADMIN_PRODUCT_GRANT_CAP, ADMIN_SUSPENSION_LENGTHS, usernameSchema, type AdminSuspensionLength } from '@streets/shared';
 import { z } from 'zod';
 import { AdminAccountService } from '../services/admin-account.service.js';
 import { AdminAuditService } from '../services/admin-audit.service.js';
@@ -75,6 +75,7 @@ const grantSchema = z.object({
   tek9s: grantAmount(ADMIN_GRANT_CAPS.tek9s),
   ak47s: grantAmount(ADMIN_GRANT_CAPS.ak47s),
   lowRiders: grantAmount(ADMIN_GRANT_CAPS.lowRiders),
+  products: z.record(z.string().regex(/^[A-Z][A-Z0-9_]{1,31}$/), z.number().int().min(0).max(ADMIN_PRODUCT_GRANT_CAP, `At most ${ADMIN_PRODUCT_GRANT_CAP} per grant.`)).optional(),
 }).strict();
 
 const createNewsSchema = z.object({

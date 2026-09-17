@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, type Ruleset } from '@streets/rulesets';
 import { regenerateTurns } from '../calculations/turns.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
@@ -38,7 +38,7 @@ describe('ruleset loader', () => {
   it('knows which ids it can serve', () => {
     expect(isKnownRulesetId('classic-og-v0.1')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(13);
+    expect(listRulesets()).toHaveLength(14);
   });
 });
 
@@ -129,6 +129,15 @@ describe('classic-og-v0.4-a contents', () => {
     expect({ ...ruleset, meta: null, products: null }).toEqual({ ...classicOgV03D, meta: null, products: null });
     expect((classicOgV03D as Ruleset).products).toBeUndefined();
     for (const key of Object.keys(ruleset.products!)) expect(key).toMatch(/^[A-Z][A-Z0-9_]{1,31}$/);
+  });
+});
+
+describe('classic-og-v0.4-b contents', () => {
+  it('adds work supply that burns and pays exactly like crack', () => {
+    const ruleset = loadRuleset('classic-og-v0.4-b', '0.4.0-B');
+    expect(ruleset.meta.name).toBe('Classic OG - Work Supply');
+    expect(ruleset.workSupply).toEqual({ productPerWhorePerTurn: ruleset.scouting.consumption.crackPerWhorePerTurn, dryTakeMultiplier: 1 });
+    expect({ ...ruleset, meta: null, workSupply: null }).toEqual({ ...classicOgV04A, meta: null, workSupply: null });
   });
 });
 

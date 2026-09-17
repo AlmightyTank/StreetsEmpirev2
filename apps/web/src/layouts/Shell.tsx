@@ -58,7 +58,7 @@ function Footer() {
             <span className="se-brand__mark">
               Streets<span className="se-accent">Empire</span>
             </span>
-            <span className="se-brand__ver">0.4.0-A</span>
+            <span className="se-brand__ver">0.4.0-B</span>
           </Link>
           <p>
             Free browser crime strategy with turn clocks, crew management,
@@ -109,7 +109,7 @@ export function Shell({ children, narrow }: { children: ReactNode; narrow?: bool
           <span className="se-brand__mark">
             Streets<span className="se-accent">Empire</span>
           </span>
-          <span className="se-brand__ver">0.4.0-A</span>
+          <span className="se-brand__ver">0.4.0-B</span>
         </Link>
 
         <StatusBar />

@@ -67,3 +67,40 @@ export interface AdminWireDto {
   alliance: AllianceTagDto;
   posts: AdminWirePostDto[];
 }
+
+/** 0.4.0-B. What one job burns, in order. */
+export interface WorkSupplyPolicyDto {
+  primary: string;
+  fallback: string | null;
+  emergency: string | null;
+  strict: boolean;
+}
+
+export interface WorkSupplySliceDto {
+  product: string | null;
+  productName: string | null;
+  state: 'supplied' | 'substituted' | 'dry';
+  units: number;
+  share: number;
+  turns: number;
+  takeMultiplier: number;
+}
+
+/** The plan a trip follows: preview before clicking, and the same plan on the receipt. */
+export interface WorkSupplyPlanDto {
+  job: string;
+  policy: WorkSupplyPolicyDto;
+  need: number;
+  perTurn: number;
+  takeMultiplier: number;
+  switchesAtTurn: number | null;
+  consumed: Record<string, number>;
+  slices: WorkSupplySliceDto[];
+}
+
+/** GET /api/game/work-supply. */
+export interface WorkSupplyDto {
+  enabled: boolean;
+  products: Array<{ key: string; name: string; quantity: number }>;
+  jobs: Array<{ key: string; name: string; policy: WorkSupplyPolicyDto; isDefault: boolean }>;
+}

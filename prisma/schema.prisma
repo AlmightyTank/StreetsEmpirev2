@@ -501,6 +501,8 @@ model RoundPlayer {
   allianceInvites       AllianceInvite[] @relation("AllianceInvitee")
   /// 0.4.0-A. Every product except crack, which stays on the `crack` column in every round.
   products       PlayerProduct[]
+  /// 0.4.0-B. Which products each job burns, in order.
+  supplyPolicies WorkSupplyPolicy[]
   /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
   wirePosts      AllianceWirePost[] @relation("WireAuthor")
   contacts       PlayerContact[]    @relation("ContactOwner")
@@ -608,6 +610,24 @@ model PlayerProduct {
   updatedAt     DateTime    @updatedAt
 
   @@unique([roundPlayerId, productKey])
+}
+
+/// 0.4.0-B. What one job burns: a district worked on a Scout trip, or PRODUCE. No row means
+/// the default, crack only, as every older round works.
+model WorkSupplyPolicy {
+  id            String      @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  /// Ruleset district key, e.g. CASINO, or PRODUCE.
+  job           String
+  primary       String
+  fallback      String?
+  emergency     String?
+  /// Only the primary is ever burned.
+  strict        Boolean     @default(false)
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([roundPlayerId, job])
 }
 
 /// 0.3.0-D. A player's private rolodex entry for another player in the same round.

@@ -466,6 +466,18 @@ export interface ProductDefinition {
   readonly name: string;
   readonly blurb: string;
   readonly sortOrder: number;
+  /** 0.4.0-B. What a slice of a work trip supplied with this product does. Absent means no change. */
+  readonly work?: {
+    readonly takeMultiplier?: number;
+  };
+}
+
+/** 0.4.0-B. How work trips burn products and what running dry costs. */
+export interface WorkSupplyRules {
+  /** Product units one whore burns per turn worked, whichever product it is. */
+  readonly productPerWhorePerTurn: number;
+  /** Take multiplier for the part of a trip with no allowed product left. */
+  readonly dryTakeMultiplier: number;
 }
 
 export type ProductCatalog = { readonly CRACK: ProductDefinition } & { readonly [key: string]: ProductDefinition };
@@ -614,5 +626,7 @@ export interface Ruleset {
   readonly alliances?: AllianceRules;
   /** 0.4.0-A. Absent on rounds where Product is still only crack. */
   readonly products?: ProductCatalog;
+  /** 0.4.0-B. Absent where work supply policies have not shipped. */
+  readonly workSupply?: WorkSupplyRules;
   readonly evidence: EvidenceRules;
 }

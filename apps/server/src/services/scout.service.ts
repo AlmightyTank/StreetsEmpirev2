@@ -5,6 +5,7 @@ import type { DistrictDto, DistrictsDto, GameActionResult, ScoutResult } from '@
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { hideoutBackOfficeBonusCents } from './hideout.service.js';
+import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 
 export interface Crew {
   whores: number;
@@ -92,7 +93,7 @@ export const ScoutService = {
       action: 'SCOUT',
       actionId: input.actionId,
 
-      execute: ({ current, whoreHappiness, thugHappiness, player, ruleset, round, now }) => {
+      execute: async ({ tx, current, whoreHappiness, thugHappiness, player, ruleset, round, now }) => {
         const found = findDistrict(ruleset, input.district);
         if (!found) {
           throw AppError.badRequest(
@@ -117,7 +118,14 @@ export const ScoutService = {
         // shared by everyone in the round, and never shown before you go.
         const capacities = districtCapacities(round.id, now, ruleset);
 
+        // 0.4.0-B: which products this district burns, sliced across the trip.
+        const supply = ruleset.workSupply
+          ? await WorkSupplyService.plan(tx, roundPlayerId, ruleset, { job: found.key, whores: active.whores, turns: input.turns, crack: current.crack })
+          : undefined;
+        if (supply) await WorkSupplyService.consume(tx, roundPlayerId, ruleset, supply);
+
         const outcome = calculateScout({
+          supply,
           player: { ...active, whoreHappiness, thugHappiness },
           turns: input.turns,
           ruleset,
@@ -163,6 +171,7 @@ export const ScoutService = {
 
         const result: ScoutResult = {
           district: toDistrictDto(found.key, found.district, all, ruleset, active),
+          ...(supply ? { supply: toPlanDto(supply, ruleset) } : {}),
 
           whoresRecruited: outcome.whoresRecruited,
           thugsRecruited: outcome.thugsRecruited,

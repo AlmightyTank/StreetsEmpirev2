@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ADMIN_GRANT_CAPS, type AdminGrantItem, type AdminPlayerDto, type AdminVoidBattleResultDto, type BattleReportDto } from '@streets/shared';
+import { ADMIN_GRANT_CAPS, ADMIN_PRODUCT_GRANT_CAP, type AdminGrantItem, type AdminPlayerDto, type AdminVoidBattleResultDto, type BattleReportDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
@@ -107,6 +107,7 @@ export function AdminPlayerPage() {
     setError(null);
     setNotice(null);
     const input: Record<string, number> = {};
+    const products: Record<string, number> = {};
     for (const [key, raw] of Object.entries(grant)) {
       if (!raw.trim()) continue;
       const value = Number(raw);
@@ -114,11 +115,12 @@ export function AdminPlayerPage() {
         setGrantFields({ [key]: 'Enter a whole number of zero or more.' });
         return;
       }
-      input[key] = key === 'cashCents' ? Math.round(value * 100) : Math.floor(value);
+      if (key.startsWith('product:')) products[key.slice('product:'.length)] = Math.floor(value);
+      else input[key] = key === 'cashCents' ? Math.round(value * 100) : Math.floor(value);
     }
     setBusy(true);
     try {
-      const updated = await adminApi.grantToPlayer(roundPlayerId, { reason: grantReason.trim(), ...input });
+      const updated = await adminApi.grantToPlayer(roundPlayerId, { reason: grantReason.trim(), ...input, ...(Object.keys(products).length ? { products } : {}) });
       setPlayer(updated);
       setGrant({});
       setGrantReason('');
@@ -286,6 +288,20 @@ export function AdminPlayerPage() {
                   />
                 );
               })}
+              {player.products.filter((product) => product.key !== 'CRACK').map((product) => (
+                <Field
+                  key={product.key}
+                  id={`admin-grant-product-${product.key}`}
+                  label={product.name}
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={grant[`product:${product.key}`] ?? ''}
+                  onChange={(event) => setGrant({ ...grant, [`product:${product.key}`]: event.target.value })}
+                  error={grantFields[`products.${product.key}`]}
+                  hint={`Up to ${formatNumber(ADMIN_PRODUCT_GRANT_CAP)}`}
+                />
+              ))}
             </div>
             <div className="se-field">
               <label className="se-label" htmlFor="admin-grant-reason">Reason</label>

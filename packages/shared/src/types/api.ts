@@ -1,3 +1,4 @@
+import type { WorkSupplyPlanDto } from './playing-together.js';
 /**
  * The contract between apps/server and apps/web.
  *
@@ -383,6 +384,8 @@ export interface DistrictsDto {
  */
 export interface ScoutResult {
   district: DistrictDto;
+  /** 0.4.0-B. How the trip was supplied, on rounds with work supply. */
+  supply?: WorkSupplyPlanDto;
 
   whoresRecruited: number;
   thugsRecruited: number;
@@ -430,6 +433,8 @@ export interface ScoutResult {
  * fraction of a scouted night, because nobody is out there running them.
  */
 export interface ProduceCrackResult {
+  /** 0.4.0-B. How the girls' shift was supplied, on rounds with work supply. */
+  supply?: WorkSupplyPlanDto;
 
   productType: ProductTypeDto;
   productName: string;

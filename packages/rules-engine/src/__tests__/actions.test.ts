@@ -294,6 +294,19 @@ describe('calculateStreetTake', () => {
     expect(night(50).consumption).toEqual({ condoms: 10, crack: 5, beer: 1 });
   });
 
+  it('0.4.0-B: pays by the supply plan and burns only the crack the plan takes', () => {
+    const base = night(50);
+    const plan = {
+      job: 'CASINO', policy: { primary: 'ECSTASY', fallback: 'CRACK', emergency: null, strict: false },
+      need: 5, perTurn: 0.5, switchesAtTurn: 6, takeMultiplier: 0.5,
+      consumed: { ECSTASY: 3, CRACK: 2 },
+      slices: [],
+    };
+    const supplied = calculateStreetTake({ player: covered, turns: 10, ruleset: classicOgV01, clientCapacity: BLOCK, district: 'CASINO', payoutPercent: 50, rng: noFinds, supply: plan });
+    expect(supplied.grossCents).toBe(base.grossCents / 2n);
+    expect(supplied.consumption).toEqual({ condoms: 10, crack: 2, beer: 1 });
+  });
+
   /**
    * The point of the whole rework: a stingy cut is survivable somewhere rich
    * and ruinous somewhere poor, because relief is measured in money reaching

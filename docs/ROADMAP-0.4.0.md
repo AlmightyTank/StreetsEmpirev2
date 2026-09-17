@@ -1,6 +1,6 @@
 # 0.4.0 roadmap - Products & Vice
 
-Status: **in progress.** 0.4.0-A is started.
+Status: **in progress.** 0.4.0-A and 0.4.0-B are built.
 
 0.3.0 made a round a season you play together. 0.4.0 turns Product from one generic
 upkeep number into a management system: several products, each useful for different
@@ -92,6 +92,26 @@ concurrent spending and single-product rounds.
   switches.
 - Consumption is aware of role (hoes, thugs), district, action (work, produce) and turns.
 
+Built, in the pinned `classic-og-v0.4-b` ruleset:
+
+- **Jobs and policies.** A policy per job: each district, plus `PRODUCE` for the girls' shift while
+  the thugs cook (a separate job keeps Produce's district hidden, as it always was). No saved
+  policy means crack only, so every older habit keeps working.
+- **Slices.** The trip's need is `floor(whores x rate x turns)`, the formula crack always used. Each
+  allowed product covers what its stock allows, in order, and the rest is dry. A slice's share is
+  its units over the need, and the take is weighted by `share x multiplier` per slice.
+- **Numbers.** B ships the machinery, not the balance: every product burns at crack's rate and pays
+  like crack, and a dry slice pays the same (`dryTakeMultiplier: 1`), so a crack-only player sees no
+  change. Product take multipliers and the cost of running dry are set in 0.4.0-C.
+- **Where products are burned.** Crack burned by a trip stays on the action's state, written to the
+  crack column; other products leave through the inventory service in the same locked transaction.
+- **Preview.** Scout and Produce show the job's policy, what the trip burns per turn and in total,
+  and whether it stays supplied, switches after N turns, or runs dry. The receipt carries the same
+  plan.
+- **Admin.** Compensation grants can include non-crack products, capped at 500 each.
+- **Still to come in C.** Whore happiness still reads crack only; product-aware happiness is part of
+  product effects. Thugs do not burn product yet.
+
 ## 0.4.0-C - Product effects & Heat
 
 Starting identities, to be tuned by simulation:
@@ -125,6 +145,9 @@ Starting identities, to be tuned by simulation:
 - **Loot:** drug runs and raids take a mix of products. Recon can show product stock level and
   the primary product without exact counts.
 - **Net worth:** every product counts at its ruleset value.
+- **Reconcile Produce batches.** The Produce page already offers batch types from earlier work
+  (Weed, Coke, Downers, Ecstasy, Heroin, Acid). They do not match this catalog and all still produce
+  crack; D replaces them with the catalog's producible products.
 
 ## 0.4.0-E - UI, consequences & balance
 

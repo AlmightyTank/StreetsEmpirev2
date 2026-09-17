@@ -216,3 +216,11 @@
 .se-wire__meta .se-btn { margin-left: auto; }
 .se-wire__body { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .se-contact__note { min-width: 180px; }
+
+/* 0.4.0-B product supply */
+.se-supply__policy { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 520px) { .se-supply__policy { grid-template-columns: 1fr; } }
+.se-supply__status { display: grid; gap: 3px; margin-top: 10px; padding: 8px 10px; border: 1px solid var(--se-line); border-left-width: 3px; border-radius: 6px; font-size: 13px; }
+.se-supply__status--good { border-left-color: var(--se-good); }
+.se-supply__status--warn { border-left-color: var(--se-warn); }
+.se-supply__status--bad { border-left-color: var(--se-bad); }
