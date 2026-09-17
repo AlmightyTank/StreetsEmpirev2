@@ -1,9 +1,11 @@
 import type { PrismaClient } from '@prisma/client';
-import { PRODUCE_JOB, calculateProduce, districtCapacities, type Rng } from '@streets/rules-engine';
+import { COOK_JOB, PRODUCE_JOB, calculateProduce, districtCapacities, productRecipes, type Rng } from '@streets/rules-engine';
 import type { GameActionResult, ProduceCrackResult, ProductTypeDto } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
+import { HeatService } from './heat.service.js';
 import { hideoutBackOfficeBonusCents, hideoutWorkshopBonusCrack } from './hideout.service.js';
+import { CRACK, ProductInventoryService } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 
 export interface ProduceInput {
@@ -12,7 +14,8 @@ export interface ProduceInput {
   actionId?: string;
 }
 
-const PRODUCT_NAMES: Record<ProductTypeDto, string> = {
+/** Names the old placeholder batches showed. Before 0.4.0-D every one of them cooked crack. */
+const LEGACY_PRODUCT_NAMES: Record<string, string> = {
   WEED: 'Weed',
   COKE: 'Coke',
   DOWNERS: 'Downers',
@@ -35,8 +38,7 @@ export const ProductionService = {
     input: ProduceInput,
     rng?: Rng,
   ): Promise<GameActionResult<ProduceCrackResult>> {
-    const productType = input.productType ?? 'WEED';
-    const productName = PRODUCT_NAMES[productType] ?? 'Product';
+    const requested = (input.productType ?? CRACK).toUpperCase();
 
     return ActionService.run<ProduceCrackResult>(prisma, roundPlayerId, {
       action: 'PRODUCE_CRACK',
@@ -59,7 +61,17 @@ export const ProductionService = {
           );
         }
 
-        const perRock = ruleset.production.crack.ingredientCentsPerRock;
+        // 0.4.0-D: a product round cooks what was asked for, from its recipes. Older rounds
+        // cook crack whatever the batch was called, as they always have.
+        const recipes = productRecipes(ruleset);
+        const recipe = ruleset.productEconomy ? recipes.find((candidate) => candidate.product === requested) : recipes[0]!;
+        if (!recipe) {
+          throw AppError.badRequest('UNKNOWN_RECIPE', 'Your crew cannot cook that.', { productType: `Pick one of: ${recipes.map((row) => row.name).join(', ')}.` });
+        }
+        const productType = ruleset.productEconomy ? recipe.product : requested;
+        const productName = ruleset.productEconomy ? recipe.name : LEGACY_PRODUCT_NAMES[requested] ?? 'Product';
+
+        const perRock = recipe.ingredientCentsPerUnit;
         if (current.cashCents < BigInt(perRock)) {
           throw AppError.badRequest(
             'NO_INGREDIENT_MONEY',
@@ -77,13 +89,22 @@ export const ProductionService = {
         // 0.4.0-B: the girls' shift burns products by the PRODUCE policy. Consumption is
         // planned from stock before this batch is cooked, as crack always was.
         const supply = ruleset.workSupply
-          ? await WorkSupplyService.plan(tx, roundPlayerId, ruleset, { job: PRODUCE_JOB, whores: active.whores, turns: input.turns, crack: current.crack })
+          ? await WorkSupplyService.plan(tx, roundPlayerId, ruleset, { job: PRODUCE_JOB, workers: active.whores, turns: input.turns, crack: current.crack })
           : undefined;
         if (supply) await WorkSupplyService.consume(tx, roundPlayerId, ruleset, supply);
 
+        // 0.4.0-C: the cooks burn product of their own, from whatever the girls' shift left.
+        const cook = ruleset.workSupply?.productPerThugPerTurn
+          ? await WorkSupplyService.plan(tx, roundPlayerId, ruleset, { job: COOK_JOB, role: 'thugs', workers: active.thugs, turns: input.turns, crack: current.crack - (supply?.consumed.CRACK ?? 0) })
+          : undefined;
+        if (cook) await WorkSupplyService.consume(tx, roundPlayerId, ruleset, cook);
+
         const outcome = calculateProduce({
           supply,
+          cook,
+          heat: current.heat,
           player: { ...active, whoreHappiness, thugHappiness },
+          recipe,
           turns: input.turns,
           ruleset,
           city: player.city,
@@ -94,10 +115,16 @@ export const ProductionService = {
         });
         const hideoutBonusCents = hideoutBackOfficeBonusCents(outcome.pimpTakeCents, ruleset, current);
         const pimpTakeCents = outcome.pimpTakeCents + hideoutBonusCents;
-        const hideoutBonusCrack = hideoutWorkshopBonusCrack(outcome.crackProduced, ruleset, current);
-        const crackProduced = outcome.crackProduced + hideoutBonusCrack;
+        const hideoutBonusProduct = hideoutWorkshopBonusCrack(outcome.crackProduced, ruleset, current);
+        const productProduced = outcome.crackProduced + hideoutBonusProduct;
+        const cookingCrack = recipe.product === CRACK;
+        const crackProduced = cookingCrack ? productProduced : 0;
+        const hideoutBonusCrack = cookingCrack ? hideoutBonusProduct : 0;
+        if (!cookingCrack && productProduced > 0) {
+          await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, { [recipe.product]: productProduced });
+        }
 
-        const next = {
+        const worked = {
           ...current,
           turns: current.turns - input.turns,
 
@@ -119,7 +146,8 @@ export const ProductionService = {
           crack:
             current.crack +
             crackProduced -
-            outcome.consumption.crack +
+            outcome.consumption.crack -
+            (cook?.consumed.CRACK ?? 0) +
             outcome.crackFound,
           condoms: current.condoms - outcome.consumption.condoms,
           medicine: current.medicine - outcome.infections.medicineUsed,
@@ -127,12 +155,22 @@ export const ProductionService = {
 
         };
 
+        // 0.4.0-C: the shift's Heat lands, and a hot crew can be busted.
+        const trip = await HeatService.afterTrip(tx, roundPlayerId, ruleset, {
+          startHeat: current.heat, plans: [supply, cook], next: worked, rng,
+          // 0.4.0-D: some cooks draw attention of their own.
+          extraHeat: productProduced * recipe.heatPerUnit,
+        });
+        const next = trip.next;
+
         const result: ProduceCrackResult = {
           ...(supply ? { supply: toPlanDto(supply, ruleset) } : {}),
+          ...(cook ? { cook: toPlanDto(cook, ruleset) } : {}),
+          ...(trip.heat ? { heat: trip.heat } : {}),
           productType,
           productName,
-          productProduced: crackProduced,
-          hideoutBonusProduct: hideoutBonusCrack,
+          productProduced,
+          hideoutBonusProduct,
           crackProduced,
           hideoutBonusCrack,
           ingredientCents: Number(outcome.ingredientCents),
@@ -173,7 +211,7 @@ export const ProductionService = {
               turns: input.turns,
               productType,
               productName,
-              product: crackProduced,
+              product: productProduced,
               crack: crackProduced,
               hideoutBonusCrack,
               ingredientCents: Number(outcome.ingredientCents),
@@ -184,6 +222,7 @@ export const ProductionService = {
               thugsLeft: outcome.departures.thugs,
               infected: outcome.infections.infected,
               lostToInfection: outcome.infections.lost,
+              ...(trip.heat ? { heat: trip.heat.after, heatAdded: trip.heat.added, busted: trip.heat.busted, fineCents: trip.heat.fineCents } : {}),
             },
           },
         };

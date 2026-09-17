@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PRODUCT_TYPES } from '../types/api.js';
+
 
 /**
  * Every resource-changing request carries a client generated actionId so a
@@ -38,7 +38,8 @@ export const scoutSchema = z.object({
 
 export const produceCrackSchema = z.object({
   turns: turnsToSpendSchema,
-  productType: z.enum(PRODUCT_TYPES).default('WEED'),
+  /** A product key the round can cook. Defaults to crack. */
+  productType: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick something to cook.').default('CRACK'),
   actionId: actionIdSchema,
 });
 
@@ -71,6 +72,16 @@ export const storeTradeSchema = z.object({
 });
 
 export type StoreTradeInput = z.infer<typeof storeTradeSchema>;
+
+/** 0.4.0-D. Pip's counter for a non-crack product. */
+export const productTradeSchema = z.object({
+  product: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.'),
+  direction: z.enum(['buy', 'sell']),
+  quantity: z.number({ invalid_type_error: 'Enter a quantity.' })
+    .int('Quantity must be a whole number.').positive('Enter at least one.').safe(),
+  actionId: actionIdSchema,
+});
+export type ProductTradeInput = z.infer<typeof productTradeSchema>;
 
 export const weaponUnlockSchema = z.object({
   weapon: z.enum(['SHOTGUN', 'TEK9', 'AK47']),

@@ -4,6 +4,7 @@ import type { District, DistrictKey, Ruleset } from '@streets/rulesets';
 import type { DistrictDto, DistrictsDto, GameActionResult, ScoutResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
+import { HeatService } from './heat.service.js';
 import { hideoutBackOfficeBonusCents } from './hideout.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 
@@ -120,12 +121,13 @@ export const ScoutService = {
 
         // 0.4.0-B: which products this district burns, sliced across the trip.
         const supply = ruleset.workSupply
-          ? await WorkSupplyService.plan(tx, roundPlayerId, ruleset, { job: found.key, whores: active.whores, turns: input.turns, crack: current.crack })
+          ? await WorkSupplyService.plan(tx, roundPlayerId, ruleset, { job: found.key, workers: active.whores, turns: input.turns, crack: current.crack })
           : undefined;
         if (supply) await WorkSupplyService.consume(tx, roundPlayerId, ruleset, supply);
 
         const outcome = calculateScout({
           supply,
+          heat: current.heat,
           player: { ...active, whoreHappiness, thugHappiness },
           turns: input.turns,
           ruleset,
@@ -138,7 +140,7 @@ export const ScoutService = {
         const hideoutBonusCents = hideoutBackOfficeBonusCents(outcome.pimpTakeCents, ruleset, current);
         const pimpTakeCents = outcome.pimpTakeCents + hideoutBonusCents;
 
-        const next = {
+        const worked = {
           ...current,
           turns: current.turns - input.turns,
 
@@ -167,11 +169,16 @@ export const ScoutService = {
           beer: current.beer - outcome.consumption.beer,
         };
 
+        // 0.4.0-C: the trip's Heat lands, and a hot crew can be busted on the way home.
+        const trip = await HeatService.afterTrip(tx, roundPlayerId, ruleset, { startHeat: current.heat, plans: [supply], next: worked, rng });
+        const next = trip.next;
+
         const all = Object.values(ruleset.districts);
 
         const result: ScoutResult = {
           district: toDistrictDto(found.key, found.district, all, ruleset, active),
           ...(supply ? { supply: toPlanDto(supply, ruleset) } : {}),
+          ...(trip.heat ? { heat: trip.heat } : {}),
 
           whoresRecruited: outcome.whoresRecruited,
           thugsRecruited: outcome.thugsRecruited,
@@ -223,6 +230,7 @@ export const ScoutService = {
               thugsLeft: outcome.departures.thugs,
               infected: outcome.infections.infected,
               lostToInfection: outcome.infections.lost,
+              ...(trip.heat ? { heat: trip.heat.after, heatAdded: trip.heat.added, busted: trip.heat.busted, fineCents: trip.heat.fineCents } : {}),
             },
           },
         };

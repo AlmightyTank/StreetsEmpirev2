@@ -33,6 +33,14 @@ function StatusBar() {
           <span className="se-muted">/{me.turns.turnCap}</span>
         </span>
       </span>
+      {me.heat ? (
+        <span className="se-statusbar__item" title={`Heat ${me.heat.heat} of ${me.heat.max}`}>
+          <span className="se-statusbar__k">Heat</span>
+          <span className={`se-num se-statusbar__v${me.heat.heat >= me.heat.bustStartsAt ? ' se-bad' : me.heat.heat >= me.heat.dragStartsAt ? ' se-warn' : ''}`}>
+            {me.heat.heat}
+          </span>
+        </span>
+      ) : null}
       <span className="se-statusbar__item">
         <span className="se-statusbar__k">Net Worth</span>
         <span className="se-num se-statusbar__v se-statusbar__v--wide">
@@ -58,7 +66,7 @@ function Footer() {
             <span className="se-brand__mark">
               Streets<span className="se-accent">Empire</span>
             </span>
-            <span className="se-brand__ver">0.4.0-B</span>
+            <span className="se-brand__ver">0.4.0-D</span>
           </Link>
           <p>
             Free browser crime strategy with turn clocks, crew management,
@@ -109,7 +117,7 @@ export function Shell({ children, narrow }: { children: ReactNode; narrow?: bool
           <span className="se-brand__mark">
             Streets<span className="se-accent">Empire</span>
           </span>
-          <span className="se-brand__ver">0.4.0-B</span>
+          <span className="se-brand__ver">0.4.0-D</span>
         </Link>
 
         <StatusBar />

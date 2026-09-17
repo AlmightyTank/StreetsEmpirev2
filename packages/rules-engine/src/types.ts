@@ -18,6 +18,8 @@ export interface NetWorthInput {
   shotguns: number;
   tek9s: number;
   ak47s: number;
+  /** 0.4.0-D. Non-crack product stock, valued where products have an economy. */
+  products?: Readonly<Record<string, number>>;
 }
 
 export interface ThugHappinessInput {
@@ -35,6 +37,11 @@ export interface WhoreHappinessInput {
   condoms: number;
   crack: number;
   payoutPercent: number;
+  /**
+   * 0.4.0-C. Non-crack product stock, for rounds where products count toward
+   * whore happiness. Crack always comes from `crack`.
+   */
+  products?: Readonly<Record<string, number>>;
 }
 
 export interface TurnState {

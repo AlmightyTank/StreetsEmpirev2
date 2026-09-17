@@ -1,6 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
-import type { ProductsDto } from '@streets/shared';
+import type { Ruleset } from '@streets/rules-engine';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 
@@ -80,22 +79,5 @@ export const ProductInventoryService = {
       }
     }
     return after;
-  },
-
-  /** The products page: the round's catalog with the player's stock. */
-  async page(prisma: PrismaClient, roundPlayerId: string): Promise<ProductsDto> {
-    const player = await prisma.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, include: { round: true } });
-    const ruleset = loadRulesetForRound(player.round);
-    if (!ruleset.products) return { enabled: false, products: [] };
-    const inventory = await ProductInventoryService.read(prisma, roundPlayerId, ruleset);
-    return {
-      enabled: true,
-      products: productKeys(ruleset).map((key) => ({
-        key,
-        name: ruleset.products![key]!.name,
-        blurb: ruleset.products![key]!.blurb,
-        quantity: inventory[key] ?? 0,
-      })),
-    };
   },
 };

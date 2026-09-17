@@ -226,6 +226,7 @@ export function AdminPlayerPage() {
               : <Row label="Product" value={formatNumber(player.supplies.crack)} />}
             <Row label="Beer" value={formatNumber(player.supplies.beer)} />
             <Row label="Happiness" value={`Whores ${player.happiness.whores}% · Thugs ${player.happiness.thugs}%`} />
+            {player.heat !== null ? <Row label="Heat" value={formatNumber(player.heat)} /> : null}
             <Row label="Payout" value={`${player.payoutPercent}%`} />
             <Row label="Last active" value={adminWhen(player.lastActiveAt)} />
           </div>

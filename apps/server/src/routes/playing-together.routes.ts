@@ -1,11 +1,13 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, heatBribeSchema, productTradeSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { ContactsService } from '../services/contacts.service.js';
-import { ProductInventoryService } from '../services/product-inventory.service.js';
+import { ProductMarketService } from '../services/product-market.service.js';
 import { RoundService } from '../services/round.service.js';
 import { WireService } from '../services/wire.service.js';
 import { WorkSupplyService } from '../services/work-supply.service.js';
+import { HeatService, toHeatDto } from '../services/heat.service.js';
+import { PlayerStateService } from '../services/player-state.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 
@@ -35,9 +37,12 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     return WireService.remove(app.prisma, await me(request.auth!.account.id), postId);
   });
 
-  /** 0.4.0-A: the round's product catalog with the player's stock. */
+  /** 0.4.0-A: the round's product catalog with the player's stock; 0.4.0-D adds Pip's counter and recipes. */
   app.get('/products', { preHandler: app.requireAuth }, async (request) =>
-    ProductInventoryService.page(app.prisma, await me(request.auth!.account.id)));
+    ProductMarketService.page(app.prisma, await me(request.auth!.account.id)));
+
+  app.post('/products/trade', { preHandler: app.requireAuth }, async (request) =>
+    ProductMarketService.trade(app.prisma, await me(request.auth!.account.id), parseBody(productTradeSchema, request.body ?? {})));
 
   /** 0.4.0-B: per-job supply policies and a preview of what a trip will burn. */
   app.get('/work-supply', { preHandler: app.requireAuth }, async (request) =>
@@ -50,6 +55,17 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     const { job, turns } = parseBody(workSupplyPreviewSchema, request.query);
     return WorkSupplyService.preview(app.prisma, await me(request.auth!.account.id), job, turns);
   });
+
+  /** 0.4.0-C: Heat as it stands, and paying it down. */
+  app.get('/heat', { preHandler: app.requireAuth }, async (request) => {
+    const settled = await PlayerStateService.settle(app.prisma, await me(request.auth!.account.id), { markActive: false });
+    const heat = toHeatDto(settled.player.heat, settled.player.netWorthCents, settled.ruleset);
+    if (!heat) throw AppError.conflict('HEAT_DISABLED', 'There is no Heat in this round.');
+    return heat;
+  });
+
+  app.post('/heat/bribe', { preHandler: app.requireAuth }, async (request) =>
+    HeatService.bribe(app.prisma, await me(request.auth!.account.id), parseBody(heatBribeSchema, request.body ?? {})));
 
   app.get('/contacts', { preHandler: app.requireAuth }, async (request) =>
     ContactsService.list(app.prisma, await me(request.auth!.account.id)));

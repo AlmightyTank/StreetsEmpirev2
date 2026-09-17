@@ -121,6 +121,7 @@ export const AdminPlayerService = {
       weapons: { pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s },
       unlocks: { shotgun: player.shotgunUnlocked, tek9: player.tek9Unlocked, ak47: player.ak47Unlocked },
       happiness: { whores: player.whoreHappiness, thugs: player.thugHappiness },
+      heat: loadRulesetForRound(player.round).heat ? player.heat : null,
       ranks: { national: player.nationalRank, local: player.localRank },
       timers: {
         raidProtectedUntil: iso(player.raidProtectedUntil),

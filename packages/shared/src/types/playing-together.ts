@@ -84,18 +84,65 @@ export interface WorkSupplySliceDto {
   share: number;
   turns: number;
   takeMultiplier: number;
+  /** 0.4.0-C. */
+  recruitmentMultiplier: number;
+  departureMultiplier: number;
+  morale: number;
+  heat: number;
 }
 
 /** The plan a trip follows: preview before clicking, and the same plan on the receipt. */
 export interface WorkSupplyPlanDto {
   job: string;
+  /** 0.4.0-C. The girls working, or the thugs cooking. */
+  role: 'hoes' | 'thugs';
   policy: WorkSupplyPolicyDto;
   need: number;
   perTurn: number;
+  /** The take, or production output for thugs. */
   takeMultiplier: number;
+  /** 0.4.0-C. Share-weighted across the trip. */
+  recruitmentMultiplier: number;
+  departureMultiplier: number;
+  morale: number;
+  /** 0.4.0-C. Heat the trip adds, before rounding. */
+  heat: number;
   switchesAtTurn: number | null;
   consumed: Record<string, number>;
   slices: WorkSupplySliceDto[];
+}
+
+/** 0.4.0-C. GET /api/game/heat, and the Heat block on the player. */
+export interface HeatDto {
+  heat: number;
+  max: number;
+  /** Heat lost per turn interval. */
+  decayPerInterval: number;
+  intervalMinutes: number;
+  dragStartsAt: number;
+  bustStartsAt: number;
+  /** What Heat is doing to the take right now, 0..1. */
+  takeMultiplier: number;
+  /** Chance the next Scout or Produce trip is busted. */
+  bustChance: number;
+  bust: { productSeizedFraction: number; cashFineFraction: number; heatDrop: number };
+  /** Price of one point off today. */
+  bribeCentsPerPoint: number;
+}
+
+/** 0.4.0-C. What a trip did to Heat, on the receipt. */
+export interface TripHeatDto {
+  before: number;
+  added: number;
+  after: number;
+  max: number;
+  /** What Heat did to this trip's take. */
+  takeMultiplier: number;
+  bustChance: number;
+  busted: boolean;
+  /** Units seized, by product. */
+  seized: Record<string, number>;
+  fineCents: number;
 }
 
 /** GET /api/game/work-supply. */

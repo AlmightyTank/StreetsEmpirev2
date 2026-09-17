@@ -441,7 +441,7 @@ export const DiscordBotService = {
     if (!player) throw AppError.notFound('PLAYER_NOT_IN_ROUND', `You have not joined ${round.name} yet.`);
 
     const settled = await PlayerStateService.settle(prisma, player.id, { markActive: false });
-    const dto = toRoundPlayerDto(settled.player, settled.ruleset, settled.turns);
+    const dto = toRoundPlayerDto(settled.player, settled.ruleset, settled.turns, settled.products);
     return {
       roundName: round.name,
       displayName: dto.displayName,

@@ -72,9 +72,16 @@ export const AdminGrantService = {
       if (turns > 0) next.turns = Math.max(next.turns, Math.min(ruleset.turns.cap, next.turns + turns));
       assertCorrectionState(next, ruleset, player.displayName);
 
+      // Products first: whore happiness reads them.
+      if (Object.keys(products).length) {
+        if (!ruleset.products) throw AppError.badRequest('UNKNOWN_PRODUCT', 'This round only has one product.');
+        await ProductInventoryService.adjust(tx, player.id, ruleset, products);
+      }
+
       const ranksBefore = await RankingService.ranksFor(tx, player);
-      const worth = NetWorthService.calculate(next, ruleset);
-      const happiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next) }, ruleset);
+      const held = await HappinessService.otherProducts(tx, player.id, ruleset);
+      const worth = NetWorthService.calculate({ ...next, products: held }, ruleset);
+      const happiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next), products: held }, ruleset);
       await tx.roundPlayer.update({
         where: { id: player.id },
         data: {
@@ -86,11 +93,6 @@ export const AdminGrantService = {
       });
       const ranksAfter = await RankingService.ranksFor(tx, { ...player, netWorthCents: worth });
       await writeRanks(tx, ruleset, now, [[player.id, prior, ranksBefore, ranksAfter]]);
-
-      if (Object.keys(products).length) {
-        if (!ruleset.products) throw AppError.badRequest('UNKNOWN_PRODUCT', 'This round only has one product.');
-        await ProductInventoryService.adjust(tx, player.id, ruleset, products);
-      }
 
       const after = correctionSnapshot(next);
       const granted = { ...correctionChanges(before, after), ...products };

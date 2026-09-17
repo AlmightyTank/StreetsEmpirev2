@@ -8,6 +8,8 @@ import {
   type Rng,
 } from '../rng.js';
 import { clientMultiplier } from './clients.js';
+import { heatTakeMultiplier } from './heat.js';
+import type { ProductRecipe } from './product-economy.js';
 import {
   calculateDepartures,
   calculateInfections,
@@ -103,6 +105,8 @@ export function calculateScout(
     payoutPercent: number;
     /** 0.4.0-B. Passed through to the street take. */
     supply?: WorkSupplyPlan;
+    /** 0.4.0-C. Passed through to the street take. */
+    heat?: number;
   },
 ): ScoutOutcome {
   const { player, turns, ruleset, district } = context;
@@ -134,7 +138,8 @@ export function calculateScout(
     ...calculateStreetTake({ ...context, rng }),
     turnsSpent: turns,
     recruitmentMultipliers: multipliers,
-    whoresRecruited: recruit(definition.whoresPerTurn, multipliers.whores),
+    // 0.4.0-C: the product the girls work on draws clients, and with them new faces.
+    whoresRecruited: recruit(definition.whoresPerTurn, multipliers.whores * (context.supply?.recruitmentMultiplier ?? 1)),
     thugsRecruited: recruit(definition.thugsPerTurn, multipliers.thugs),
   };
 }
@@ -229,6 +234,10 @@ export function calculateStreetTake(
      * how much crack is burned and weights the take by each slice.
      */
     supply?: WorkSupplyPlan;
+    /** 0.4.0-C. Heat as the trip starts, on rounds with Heat. High Heat drags the take. */
+    heat?: number;
+    /** 0.4.0-C. Thug departures, when thugs are cooking on their own supply. */
+    thugDepartureMultiplier?: number;
   },
 ): StreetTake {
   const { player, turns, ruleset, district, payoutPercent } = context;
@@ -257,6 +266,7 @@ export function calculateStreetTake(
         exposure.takeMultiplier *
         clients.takeMultiplier *
         (context.supply?.takeMultiplier ?? 1) *
+        heatTakeMultiplier(context.heat ?? 0, ruleset) *
         city.incomeModifier,
       rules.takeVariance,
       rng,
@@ -297,7 +307,10 @@ export function calculateStreetTake(
     crackFound,
     consumption,
     shortages,
-    departures: calculateDepartures(player, turns, ruleset, rng),
+    departures: calculateDepartures(player, turns, ruleset, rng, {
+      whores: context.supply?.departureMultiplier,
+      thugs: context.thugDepartureMultiplier,
+    }),
     // Any shift that puts the girls out can go wrong without condoms.
     infections: calculateInfections(
       player,
@@ -337,13 +350,26 @@ export function calculateProduce(
     clientCapacity: number;
     /** 0.4.0-B. Passed through to the street take. */
     supply?: WorkSupplyPlan;
+    /** 0.4.0-C. Passed through to the street take. */
+    heat?: number;
+    /** 0.4.0-C. What the cooking thugs burn: output, morale and departures. */
+    cook?: WorkSupplyPlan;
+    /** 0.4.0-D. What is being cooked. Defaults to crack from `production.crack`. */
+    recipe?: ProductRecipe;
   },
 ): ProduceOutcome {
-  const { player, turns, ruleset, cashCents } = context;
+  const { ruleset, turns, cashCents } = context;
   const rng = context.rng ?? defaultRng;
   const city = context.city ?? NO_CITY_MODIFIERS;
 
-  const crack = ruleset.production.crack;
+  const legacy = ruleset.production.crack;
+  const crack = context.recipe
+    ? { perThugPerTurn: context.recipe.perThugPerTurn, minHappinessMultiplier: context.recipe.minHappinessMultiplier, variance: context.recipe.variance, ingredientCentsPerRock: context.recipe.ingredientCentsPerUnit }
+    : legacy;
+  // Product lifts the cooks' mood for the shift, and the shift only.
+  const player = context.cook
+    ? { ...context.player, thugHappiness: Math.min(ruleset.happiness.max, context.player.thugHappiness + context.cook.morale) }
+    : context.player;
 
   const batch = Math.max(
     0,
@@ -353,6 +379,7 @@ export function calculateProduce(
           crack.perThugPerTurn *
           turns *
           happinessMultiplier(player.thugHappiness, crack.minHappinessMultiplier) *
+          (context.cook?.takeMultiplier ?? 1) *
           city.crackModifier,
         crack.variance,
         rng,
@@ -372,6 +399,8 @@ export function calculateProduce(
   // one for them tonight. Which block that is stays hidden.
   const take = calculateStreetTake({
     ...context,
+    player,
+    thugDepartureMultiplier: context.cook?.departureMultiplier,
     rng,
     district: ruleset.scouting.produceDistrict,
     takeMultiplier: ruleset.production.unsupervisedTakeMultiplier,

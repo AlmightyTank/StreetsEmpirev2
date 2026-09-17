@@ -21,6 +21,7 @@ import type {
 import { explainThugHappiness, explainWhoreHappiness, totalWeapons } from '@streets/rules-engine';
 import { fitThugs } from '../services/action.service.js';
 import type { TurnSettlement } from '../services/turn.service.js';
+import { toHeatDto } from '../services/heat.service.js';
 
 /**
  * Money leaves the server as integer cents in a *Cents field and is never
@@ -106,6 +107,8 @@ export function toRoundPlayerDto(
   player: RoundPlayer & { city: City; alliance?: { name: string; tag: string } | null },
   ruleset: Ruleset,
   turns: TurnSettlement,
+  /** 0.4.0-C. Non-crack product stock from settling, where products move happiness. */
+  products?: Record<string, number>,
 ): RoundPlayerDto {
   return {
     id: player.id,
@@ -147,7 +150,7 @@ export function toRoundPlayerDto(
     happiness: {
       whore: player.whoreHappiness,
       thug: player.thugHappiness,
-      whoreTerms: explainWhoreHappiness(player, ruleset).terms,
+      whoreTerms: explainWhoreHappiness({ ...player, products }, ruleset).terms,
       thugTerms: explainThugHappiness(player, ruleset).terms,
     },
 
@@ -163,6 +166,7 @@ export function toRoundPlayerDto(
       ),
     },
     hideout: toSeasonHideoutDto(player),
+    heat: toHeatDto(player.heat, player.netWorthCents, ruleset),
 
     joinedAt: player.createdAt.toISOString(),
     lastActiveAt: player.lastActiveAt.toISOString(),
@@ -215,11 +219,12 @@ export function toGameSnapshotDto(input: {
   player: RoundPlayer & { city: City };
   ruleset: Ruleset;
   turns: TurnSettlement;
+  products?: Record<string, number>;
   recentActivity: PlayerActivity[];
 }): GameSnapshotDto {
   return {
     round: toRoundDto(input.round, input.playerCount),
-    player: toRoundPlayerDto(input.player, input.ruleset, input.turns),
+    player: toRoundPlayerDto(input.player, input.ruleset, input.turns, input.products),
     recentActivity: input.recentActivity.map(toActivityDto),
   };
 }

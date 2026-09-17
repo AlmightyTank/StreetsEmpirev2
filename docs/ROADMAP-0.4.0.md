@@ -1,6 +1,6 @@
 # 0.4.0 roadmap - Products & Vice
 
-Status: **in progress.** 0.4.0-A and 0.4.0-B are built.
+Status: **in progress.** 0.4.0-A through 0.4.0-D are built.
 
 0.3.0 made a round a season you play together. 0.4.0 turns Product from one generic
 upkeep number into a management system: several products, each useful for different
@@ -135,6 +135,43 @@ Starting identities, to be tuned by simulation:
 - **Heat:** per-product Heat, decay per turn interval, visible to the player, and a cost at
   high Heat. The whole system is simulated before it ships.
 
+Decided: C ships **production thugs only**; thug effects on raids, drive-bys and defense
+(readiness, defense, injury chance) move to 0.4.0-E. High Heat costs **both** a take drag and
+bust rolls. Heat comes down by **decay and bribes**, with bribes priced on net worth.
+
+Built, in the pinned `classic-og-v0.4-c` ruleset:
+
+- **Identities.** Each product carries `effects` for hoes (take, per-job fit, happiness weight,
+  recruits, walkouts, an optional crash when it runs out, Heat per turn) and thugs (output,
+  morale, walkouts, Heat per turn), plus a reference cost for simulation. Every multiplier
+  applies only to the share of the trip that product supplied.
+- **Running dry now costs.** The dry part of a trip takes x0.8 and walkouts x1.5. A crew whose
+  Heroin ran out part-way crashes: walkouts on the dry part are multiplied again.
+- **Needs round up**, so a small crew on a short trip cannot take a product's effects free.
+- **Production thugs.** A `COOK` job with its own policy. Cooks burn 0.05 a thug a turn from
+  what the girls' shift left; product sets output, adds morale for the shift and changes thug
+  walkouts. Cooks without product work exactly as before.
+- **Happiness reads every product.** Whore happiness counts stock at each product's weight
+  (Heroin 2, Weed 1.4, Crack 1 and down to Meth 0.4). Combat, treatment and admin tools all
+  recalculate with it.
+- **Heat** is stored on the player (0-100) and cools 1 a turn interval on the turn clock, in
+  settling and in every action. A trip adds its products' Heat, scaled by the square root of
+  crew size. From 40 the take drags (up to 35% at 100); from 70 each Scout or Produce trip rolls a
+  bust (up to 35% at 100), rolled at the Heat the trip started with. A bust seizes half of every
+  product, fines 5% of cash and burns off 40 Heat.
+- **Bribes.** `POST /api/game/heat/bribe` takes points off at the greater of $100 or 0.2% of net
+  worth a point.
+- **UI.** Heat in the status bar and a Heat panel with the bribe on Scout and Produce; supply
+  previews and receipts show each plan's effects and Heat; Produce has a cooks' supply panel;
+  receipts and the activity feed show busts and bribes; the admin inspector shows Heat.
+- **Simulation gate.** `npm run qa:products` runs every product on every job for three crew
+  sizes, happy and struggling, spending a banked cap and playing all day, as expected values.
+  It fails if one product is best on every job anywhere. The current report is
+  [PRODUCTS-SIMULATION-0.4.0-C.md](PRODUCTS-SIMULATION-0.4.0-C.md): every product wins at least
+  one job, and Heat from max clears the bust line in 2.5 hours of waiting.
+- **Not in C.** Client capacity use is unchanged. Reference costs are for simulation only until
+  0.4.0-D prices products at Pip's and in net worth.
+
 ## 0.4.0-D - Product economy
 
 - **Pip:** a dealer inventory with per-product buy and sell prices, stock and restock,
@@ -148,6 +185,34 @@ Starting identities, to be tuned by simulation:
 - **Reconcile Produce batches.** The Produce page already offers batch types from earlier work
   (Weed, Coke, Downers, Ecstasy, Heroin, Acid). They do not match this catalog and all still produce
   crack; D replaces them with the catalog's producible products.
+
+Built, in the pinned `classic-og-v0.4-d` ruleset (0.4.0-C balance plus the economy):
+
+- **Prices live on the product.** Each non-crack product carries `economy`: net worth value, Pip's
+  buy and sell prices and shelf, and a recipe where it can be cooked. Crack keeps Pip's Product
+  item, `perCrackCents` and `production.crack`. Prices sit at 0.4.0-C's reference costs.
+- **Pip's counter.** `GET /api/game/products` lists each product with its value, Pip's prices,
+  a settled shelf and the most you can buy; `POST /api/game/products/trade` buys or sells. Each
+  product has its own shelf on the lazy restock clock (`ProductShelf`, no row means full),
+  shortened by standing with Pip, and a trade counts as a day at Pip's for reputation. Crack is
+  still bought and sold as Product at Pip's store, which now points to the Products page.
+- **Produce Product** cooks what you pick from the round's recipes: Crack (0.5 a thug a turn, $5),
+  Meth (0.4, $7, draws Heat) or Ecstasy (0.15, $15, draws Heat). Cocaine, Weed and Heroin cannot be
+  cooked. Cooked product lands in its own stock, and a workshop bonus applies to any recipe. Older
+  rounds cook crack whatever the batch was called, as before; the old batch list is gone from the page.
+- **Net worth** counts every product at its value, in integer cents, in actions, settling, combat,
+  treatment, bribes, grants and battle voids. The combat target list reads stored worth.
+- **Loot.** A raid's product haul is drawn from the whole stash with crack's old share and carry
+  caps, then split across products in proportion to holdings by largest remainder, so the parts
+  sum exactly and every unit taken lands with the attacker. Drug runs burn the stash the same way.
+  Reports list each product that moved, and voiding a battle returns it.
+- **Recon** on a product round shows a stash level (empty, light, stocked, heavy, by units per
+  whore) and the product held most, instead of the crack count.
+- **Gate.** `productLoops` fails if Pip ever buys back at or above his price, net worth values a
+  unit above Pip's buyback, or ingredients cost less than the buyback or the value. It runs in unit
+  tests and in `npm run qa:products`, which writes
+  [PRODUCTS-ECONOMY-0.4.0-D.md](PRODUCTS-ECONOMY-0.4.0-D.md). A `PRODUCT_INTEGRATION` suite checks
+  trades, shelves, recipes, raid conservation, recon and net worth against PostgreSQL.
 
 ## 0.4.0-E - UI, consequences & balance
 

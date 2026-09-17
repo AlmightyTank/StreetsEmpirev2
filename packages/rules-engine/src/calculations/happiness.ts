@@ -33,6 +33,22 @@ export function calculateThugHappiness(
 }
 
 /**
+ * 0.4.0-C. Product on hand as whore happiness sees it: crack at face value, and
+ * every other product at its happiness weight. Rounds without product effects
+ * count crack alone, as they always have.
+ */
+export function happinessProductStock(player: WhoreHappinessInput, ruleset: Ruleset = classicOgV01): number {
+  const catalog = ruleset.products as Record<string, { effects?: { hoes: { happinessWeight: number } } }> | undefined;
+  const weight = (key: string) => catalog?.[key]?.effects?.hoes.happinessWeight;
+  let stock = Math.max(0, player.crack) * (weight('CRACK') ?? 1);
+  for (const [key, quantity] of Object.entries(player.products ?? {})) {
+    if (key === 'CRACK') continue;
+    stock += Math.max(0, quantity) * (weight(key) ?? 0);
+  }
+  return stock;
+}
+
+/**
  * Section 21. BALANCE_APPROXIMATION.
  *
  * Four levers, all of them pimp decisions and all of them things the player can
@@ -70,7 +86,7 @@ export function calculateWhoreHappiness(
     w.maxCondomPenalty,
   );
 
-  const productPenalty = shortfallPenalty(player.crack, w.crackPerWhore, w.maxCrackPenalty);
+  const productPenalty = shortfallPenalty(happinessProductStock(player, ruleset), w.crackPerWhore, w.maxCrackPenalty);
 
   const protectedWhores = player.thugs * w.whoresPerThug;
   const unprotected = Math.max(0, player.whores - protectedWhores);
@@ -131,6 +147,8 @@ export function explainWhoreHappiness(
 
   const condomsWanted = player.whores * w.condomsPerWhore;
   const productWanted = player.whores * w.crackPerWhore;
+  const productStock = happinessProductStock(player, ruleset);
+  const weighted = Boolean(player.products && Object.keys(player.products).length && ruleset.products);
   const covered = player.thugs * w.whoresPerThug;
 
   const terms: HappinessTerm[] = player.whores <= 0
@@ -149,11 +167,13 @@ export function explainWhoreHappiness(
         {
           key: 'crack',
           label: 'Product',
-          penalty: round1(shortfall(player.crack, w.crackPerWhore, w.maxCrackPenalty)),
+          penalty: round1(shortfall(productStock, w.crackPerWhore, w.maxCrackPenalty)),
           max: w.maxCrackPenalty,
           fix:
-            player.crack < productWanted
-              ? `Stock ${Math.ceil(productWanted - player.crack)} more.`
+            productStock < productWanted
+              ? weighted
+                ? `Stock about ${Math.ceil(productWanted - productStock)} more crack's worth. Some products calm them more than others.`
+                : `Stock ${Math.ceil(productWanted - productStock)} more.`
               : null,
         },
         {

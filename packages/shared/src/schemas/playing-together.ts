@@ -41,6 +41,12 @@ export const workSupplyPolicySchema = z.object({
   if (policy.emergency && !policy.fallback) ctx.addIssue({ code: 'custom', path: ['emergency'], message: 'Set a fallback before an emergency product.' });
 });
 
+/** 0.4.0-C. POST /api/game/heat/bribe. */
+export const heatBribeSchema = z.object({
+  points: z.number().int().min(1).max(1_000),
+  actionId: z.string().min(1).max(128).optional(),
+}).strict();
+
 export const workSupplyPreviewSchema = z.object({
   job: z.string().regex(/^[A-Z][A-Z0-9_]{1,31}$/),
   turns: z.coerce.number().int().min(1).max(10_000),

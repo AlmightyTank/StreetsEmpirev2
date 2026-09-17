@@ -10,6 +10,7 @@ import { DistrictPicker } from '../components/DistrictPicker.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
 import { supplyReceiptLines, WorkSupplyPanel } from '../components/WorkSupplyPanel.js';
+import { HeatPanel, heatReceiptLines } from '../components/HeatPanel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -113,6 +114,7 @@ export function ScoutPage() {
 
         <aside className="se-grid">
           <WorkSupplyPanel job={district} jobLabel={districts.find((row) => row.key === district)?.name ?? 'this district'} turns={turns} refreshKey={action.result} />
+          <HeatPanel />
 
           <Panel title="The crew" flush>
             <div className="se-rows">
@@ -156,6 +158,7 @@ export function ScoutPage() {
             lines={[
               { label: 'Turns used', value: formatNumber(action.result.result.turnsUsed) },
               ...supplyReceiptLines(action.result.result.supply),
+              ...heatReceiptLines(action.result.result.heat),
               // Manual 3.1: this is where you make money for yourself.
               {
                 label: 'Brought in',

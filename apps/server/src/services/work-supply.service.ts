@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import {
+  COOK_JOB,
   PRODUCE_JOB,
   defaultWorkSupplyPolicy,
   loadRulesetForRound,
@@ -7,18 +8,21 @@ import {
   type Ruleset,
   type WorkSupplyPlan,
   type WorkSupplyPolicy,
+  type WorkSupplyRole,
 } from '@streets/rules-engine';
 import { workSupplyPolicySchema, type WorkSupplyDto, type WorkSupplyPlanDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import { fitThugs } from './action.service.js';
 import { PlayerStateService } from './player-state.service.js';
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
 
-/** Jobs a round has: every district, plus the Produce shift. */
-export function workSupplyJobs(ruleset: Ruleset): Array<{ key: string; name: string }> {
+/** Jobs a round has: every district, the Produce shift, and (0.4.0-C) the thugs cooking. */
+export function workSupplyJobs(ruleset: Ruleset): Array<{ key: string; name: string; role: WorkSupplyRole }> {
   return [
-    ...Object.entries(ruleset.districts).map(([key, district]) => ({ key, name: district.name })),
-    { key: PRODUCE_JOB, name: 'Produce Product shift' },
+    ...Object.entries(ruleset.districts).map(([key, district]) => ({ key, name: district.name, role: 'hoes' as const })),
+    { key: PRODUCE_JOB, name: 'Produce Product shift', role: 'hoes' as const },
+    ...(ruleset.workSupply?.productPerThugPerTurn ? [{ key: COOK_JOB, name: 'Production thugs', role: 'thugs' as const }] : []),
   ];
 }
 
@@ -37,10 +41,15 @@ export function toPlanDto(plan: WorkSupplyPlan, ruleset: Ruleset): WorkSupplyPla
   const name = (key: string | null) => (key ? ruleset.products?.[key]?.name ?? key : null);
   return {
     job: plan.job,
+    role: plan.role,
     policy: plan.policy,
     need: plan.need,
     perTurn: plan.perTurn,
     takeMultiplier: plan.takeMultiplier,
+    recruitmentMultiplier: plan.recruitmentMultiplier,
+    departureMultiplier: plan.departureMultiplier,
+    morale: plan.morale,
+    heat: plan.heat,
     switchesAtTurn: plan.switchesAtTurn,
     consumed: plan.consumed,
     slices: plan.slices.map((slice) => ({ ...slice, productName: name(slice.product) })),
@@ -52,15 +61,19 @@ export function toPlanDto(plan: WorkSupplyPlan, ruleset: Ruleset): WorkSupplyPla
  * that plan's product use inside the action's locked transaction.
  */
 export const WorkSupplyService = {
-  /** The plan for a trip, read in the caller's transaction. Crack comes from `crack`, the settled column value. */
-  async plan(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, input: { job: string; whores: number; turns: number; crack: number }): Promise<WorkSupplyPlan> {
+  /**
+   * The plan for a trip, read in the caller's transaction. Crack comes from `crack`, the settled
+   * column value less anything an earlier plan in the same action already burned.
+   */
+  async plan(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, input: { job: string; role?: WorkSupplyRole; workers: number; turns: number; crack: number }): Promise<WorkSupplyPlan> {
     const [policies, inventory] = await Promise.all([
       loadPolicies(db, roundPlayerId),
       ProductInventoryService.read(db, roundPlayerId, ruleset),
     ]);
     return planWorkSupply({
       job: input.job,
-      whores: input.whores,
+      role: input.role,
+      workers: input.workers,
       turns: input.turns,
       policy: policies.get(input.job) ?? defaultWorkSupplyPolicy(),
       inventory: { ...inventory, [CRACK]: input.crack },
@@ -117,8 +130,22 @@ export const WorkSupplyService = {
   async preview(prisma: PrismaClient, roundPlayerId: string, job: string, turns: number): Promise<WorkSupplyPlanDto> {
     const settled = await PlayerStateService.settle(prisma, roundPlayerId, { markActive: false });
     requireWorkSupply(settled.ruleset);
-    if (!workSupplyJobs(settled.ruleset).some((candidate) => candidate.key === job)) throw AppError.badRequest('UNKNOWN_JOB', 'That is not a job you can supply.');
-    const plan = await WorkSupplyService.plan(prisma, roundPlayerId, settled.ruleset, { job, whores: settled.player.whores, turns, crack: settled.player.crack });
+    const found = workSupplyJobs(settled.ruleset).find((candidate) => candidate.key === job);
+    if (!found) throw AppError.badRequest('UNKNOWN_JOB', 'That is not a job you can supply.');
+    const workers = found.role === 'thugs' ? fitThugs(settled.player) : settled.player.whores;
+    const crack = settled.player.crack;
+    // Cooks are supplied after the girls' Produce shift, from what that shift leaves.
+    if (job === COOK_JOB) {
+      const shift = await WorkSupplyService.plan(prisma, roundPlayerId, settled.ruleset, { job: PRODUCE_JOB, workers: settled.player.whores, turns, crack });
+      const left = await ProductInventoryService.read(prisma, roundPlayerId, settled.ruleset);
+      const cook = planWorkSupply({
+        job, role: 'thugs', workers, turns, ruleset: settled.ruleset,
+        policy: (await loadPolicies(prisma, roundPlayerId)).get(job) ?? defaultWorkSupplyPolicy(),
+        inventory: Object.fromEntries(Object.entries({ ...left, [CRACK]: crack }).map(([key, quantity]) => [key, quantity - (shift.consumed[key] ?? 0)])),
+      });
+      return toPlanDto(cook, settled.ruleset);
+    }
+    const plan = await WorkSupplyService.plan(prisma, roundPlayerId, settled.ruleset, { job, role: found.role, workers, turns, crack });
     return toPlanDto(plan, settled.ruleset);
   },
 };

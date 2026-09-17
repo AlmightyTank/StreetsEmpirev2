@@ -17,20 +17,37 @@ export function supplySummary(plan: WorkSupplyPlanDto): string {
 }
 
 /** Receipt lines for a trip's supply, shared by Scout and Produce results. */
-export function supplyReceiptLines(plan: WorkSupplyPlanDto | undefined): Array<{ label: string; value: string }> {
+export function supplyReceiptLines(plan: WorkSupplyPlanDto | undefined, prefix = ''): Array<{ label: string; value: string }> {
   if (!plan || plan.need === 0) return [];
   return [
-    { label: 'Supply', value: supplySummary(plan) },
+    { label: `${prefix}Supply`, value: supplySummary(plan) },
     ...plan.slices.filter((slice) => slice.product && slice.product !== 'CRACK').map((slice) => ({ label: `${slice.productName} used`, value: formatNumber(slice.units) })),
+    ...(plan.role ? [{ label: 'Supply effects', value: supplyEffects(plan) }] : []),
   ];
+}
+
+const times = (value: number) => `×${(Math.round(value * 100) / 100).toFixed(2)}`;
+
+/** 0.4.0-C. What the plan's products do, in one line. Only what differs from plain crack-era work is shown. */
+export function supplyEffects(plan: WorkSupplyPlanDto): string {
+  const parts = [
+    `${plan.role === 'thugs' ? 'Output' : 'Take'} ${times(plan.takeMultiplier)}`,
+    plan.role === 'hoes' && Math.abs(plan.recruitmentMultiplier - 1) > 0.005 ? `recruits ${times(plan.recruitmentMultiplier)}` : null,
+    Math.abs(plan.departureMultiplier - 1) > 0.005 ? `walkouts ${times(plan.departureMultiplier)}` : null,
+    plan.morale > 0.5 ? `morale +${Math.round(plan.morale)}` : null,
+    plan.heat > 0 ? `+${Math.round(plan.heat)} Heat` : null,
+  ];
+  return parts.filter(Boolean).join(' · ');
 }
 
 function status(plan: WorkSupplyPlanDto): { tone: 'good' | 'warn' | 'bad'; text: string } {
   const dry = plan.slices.find((slice) => slice.state === 'dry');
   const primaryName = plan.slices.find((slice) => slice.product === plan.policy.primary)?.productName ?? plan.policy.primary;
   if (plan.need === 0) return { tone: 'good', text: 'Nobody working, nothing burned.' };
-  if (dry && dry.share >= 1) return { tone: 'bad', text: 'No allowed product on hand: the whole trip runs dry.' };
-  if (dry) return { tone: 'bad', text: `Runs dry for the last ${turnsText(dry.turns)}.` };
+  // Cooks without product work as they always have, so running out is a missed boost, not a loss.
+  const dryTone = plan.role === 'thugs' ? 'warn' : 'bad';
+  if (dry && dry.share >= 1) return { tone: dryTone, text: plan.role === 'thugs' ? 'No allowed product on hand: the cooks work without.' : 'No allowed product on hand: the whole trip runs dry.' };
+  if (dry) return { tone: dryTone, text: `Runs dry for the last ${turnsText(dry.turns)}.` };
   if (plan.switchesAtTurn === 0) return { tone: 'warn', text: `No ${primaryName} left: the trip starts on a substitute.` };
   if (plan.switchesAtTurn !== null) return { tone: 'warn', text: `${primaryName} runs low: switches after ${turnsText(plan.switchesAtTurn)}.` };
   return { tone: 'good', text: `Fully supplied with ${primaryName}.` };
@@ -125,6 +142,7 @@ export function WorkSupplyPanel({ job, jobLabel, turns, refreshKey }: { job: str
             Burns about {formatNumber(Math.round(plan.perTurn * 10) / 10)} a turn · {formatNumber(plan.need)} for this trip
             {plan.policy.primary ? ` · ${formatNumber(stock(plan.policy.primary))} ${options.find((product) => product.key === plan.policy.primary)?.name ?? ''} on hand` : ''}
           </span>
+          {plan.role ? <span className="se-muted">{supplyEffects(plan)}</span> : null}
         </div>
       ) : null}
     </Panel>

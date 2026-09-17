@@ -11,6 +11,9 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
 import { browserSessionStorage } from '../utils/pendingAction.js';
+
+/** 0.4.0-D. Recon reads a stash's depth, never its count. */
+const STASH_LABELS = { none: 'Empty', light: 'Light', stocked: 'Stocked', heavy: 'Heavy' } as const;
 import { loadPendingRaid, savePendingRaid, type PendingRaid } from '../utils/pendingRaid.js';
 
 const date = (value: string) => new Date(value).toLocaleString();
@@ -168,6 +171,7 @@ function TargetCard({ target, selectedBlock, driving }: { target: CombatTargetDt
           <div><span>Max cash haul</span><strong>{formatCents(target.intel.estimatedMaxLootCents)}</strong></div>
           {target.intel.crack != null ? <div><span>Product stash</span><strong>{formatNumber(target.intel.crack)}</strong></div> : null}
           {target.intel.estimatedMaxCrackLoot != null ? <div><span>Max product haul</span><strong>{formatNumber(target.intel.estimatedMaxCrackLoot)}</strong></div> : null}
+          {target.intel.productStash ? <div><span>Product stash</span><strong>{STASH_LABELS[target.intel.productStash.level]}{target.intel.productStash.primary ? `, mostly ${target.intel.productStash.primary}` : ''}</strong></div> : null}
         </div>
       ) : (
         <p className="se-hint">Scout this mark to reveal fit thugs, wounds, weapons, cash band, product stash and the biggest haul they might expose.</p>
@@ -247,7 +251,8 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds ?? 0)} / ${formatNumber(report.opponentWounds ?? 0)}`} />
       <Row label="Cash change / remaining" value={`${report.cashChangeCents >= 0 ? '+' : '−'}${formatCents(Math.abs(report.cashChangeCents))} / ${formatCents(report.cashAfterCents)}`} strong />
-      {report.crackChange !== undefined && report.crackAfter !== undefined ? <Row label="Product change / remaining" value={`${report.crackChange >= 0 ? '+' : '−'}${formatNumber(Math.abs(report.crackChange))} / ${formatNumber(report.crackAfter)}`} strong /> : null}
+      {report.crackChange !== undefined && report.crackAfter !== undefined ? <Row label={report.productChanges ? 'Crack change / remaining' : 'Product change / remaining'} value={`${report.crackChange >= 0 ? '+' : '−'}${formatNumber(Math.abs(report.crackChange))} / ${formatNumber(report.crackAfter)}`} strong /> : null}
+      {(report.productChanges ?? []).map((row) => <Row key={row.product} label={`${row.name} change`} value={`${row.change >= 0 ? '+' : '−'}${formatNumber(Math.abs(row.change))}`} strong />)}
 
       <Row label="Turns spent / remaining" value={`${report.turnsSpent} / ${report.turnsAfter}`} />
       <Row label="National rank — before / after" value={`#${report.nationalRankBefore} / #${report.nationalRankAfter}`} />
@@ -455,7 +460,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     setNotice(null);
     try {
       const result = await combatApi.recon({ roundId, targetPublicPimpId: selected.publicPimpId, actionId: newActionId() });
-      setNotice(`Word on ${result.intel.displayName}: ${formatNumber(result.intel.fitThugs)} fit thugs, ${weaponsText(result.intel.weapons)}, up to ${formatCents(result.intel.estimatedMaxLootCents)} cash${result.intel.estimatedMaxCrackLoot != null ? ` and ${formatNumber(result.intel.estimatedMaxCrackLoot)} product` : ''} exposed.`);
+      setNotice(`Word on ${result.intel.displayName}: ${formatNumber(result.intel.fitThugs)} fit thugs, ${weaponsText(result.intel.weapons)}, up to ${formatCents(result.intel.estimatedMaxLootCents)} cash${result.intel.estimatedMaxCrackLoot != null ? ` and ${formatNumber(result.intel.estimatedMaxCrackLoot)} product` : ''} exposed${result.intel.productStash ? `, a ${STASH_LABELS[result.intel.productStash.level].toLowerCase()} product stash` : ''}.`);
       await refresh(true);
       await useSession.getState().refreshSnapshot();
     } catch (err) {

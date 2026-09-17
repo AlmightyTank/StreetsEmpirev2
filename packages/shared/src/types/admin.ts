@@ -241,6 +241,8 @@ export interface AdminPlayerDto {
   weapons: { pistols: number; shotguns: number; tek9s: number; ak47s: number };
   unlocks: { shotgun: boolean; tek9: boolean; ak47: boolean };
   happiness: { whores: number; thugs: number };
+  /** 0.4.0-C. Stored Heat, as of the player's last settle. Null on rounds without Heat. */
+  heat: number | null;
   ranks: { national: number | null; local: number | null };
   timers: {
     raidProtectedUntil: string | null;

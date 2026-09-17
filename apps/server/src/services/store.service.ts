@@ -78,6 +78,7 @@ export const StoreService = {
       })),
       bulkHelpers: [...ruleset.storeBulkHelpers],
       lowRiderThugCapacity: ruleset.lowRiderThugCapacity,
+      productCounter: Boolean(ruleset.productEconomy),
     };
   },
 

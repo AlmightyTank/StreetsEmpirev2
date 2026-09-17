@@ -1,5 +1,6 @@
 import { classicOgV01, type Ruleset } from '@streets/rulesets';
 import type { NetWorthInput } from '../types.js';
+import { productNetWorthCents } from './product-economy.js';
 
 /**
  * Section 16. Integer cents only - money never touches a float.
@@ -30,6 +31,8 @@ export function calculateNetWorthCents(
     BigInt(player.pistols) * BigInt(v.perPistolCents) +
     BigInt(player.shotguns) * BigInt(v.perShotgunCents) +
     BigInt(player.tek9s) * BigInt(v.perTek9Cents) +
-    BigInt(player.ak47s) * BigInt(v.perAk47Cents)
+    BigInt(player.ak47s) * BigInt(v.perAk47Cents) +
+    // 0.4.0-D: every other product at its own value. Nothing on older rounds.
+    productNetWorthCents(player.products, ruleset)
   );
 }

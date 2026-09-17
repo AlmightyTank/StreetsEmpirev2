@@ -10,6 +10,7 @@ import { writeRanks } from './combat.service.js';
 import { HappinessService } from './happiness.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { PlayerStateService } from './player-state.service.js';
+import { ProductInventoryService } from './product-inventory.service.js';
 import { RankingService } from './ranking.service.js';
 
 type Counts = Record<string, number>;
@@ -118,12 +119,31 @@ export const AdminBattleService = {
       assertCorrectionState(a, ruleset, attacker.displayName);
       assertCorrectionState(d, ruleset, defender.displayName);
 
+      // 0.4.0-D: other products go back too. Looted product returns from what the attacker still holds;
+      // product a drug run burned is restored to the defender.
+      const productsA = { ...(settledAttacker.products ?? {}) };
+      const productsD = { ...(settledDefender.products ?? {}) };
+      const looted = kind === 'RAID' ? (report.productChanges ?? []).filter((row) => row.change > 0) : [];
+      const burned = kind === 'DRUG_HOES' ? ((battle.defenderReport as unknown as BattleReportDto).productChanges ?? []).filter((row) => row.change < 0) : [];
+      const toAttacker: Counts = {};
+      const toDefender: Counts = {};
+      for (const row of looted) {
+        const back = Math.min(productsA[row.product] ?? 0, row.change);
+        if (back > 0) { toAttacker[row.product] = -back; toDefender[row.product] = back; }
+        if (row.change > back) shortA[row.product] = row.change - back;
+      }
+      for (const row of burned) toDefender[row.product] = (toDefender[row.product] ?? 0) - row.change;
+      if (Object.keys(toAttacker).length) await ProductInventoryService.adjust(tx, attacker.id, ruleset, toAttacker);
+      if (Object.keys(toDefender).length) await ProductInventoryService.adjust(tx, defender.id, ruleset, toDefender);
+      for (const [key, change] of Object.entries(toAttacker)) productsA[key] = (productsA[key] ?? 0) + change;
+      for (const [key, change] of Object.entries(toDefender)) productsD[key] = (productsD[key] ?? 0) + change;
+
       const ranksBeforeA = await RankingService.ranksFor(tx, attacker);
       const ranksBeforeD = await RankingService.ranksFor(tx, defender);
-      const worthA = NetWorthService.calculate(a, ruleset);
-      const worthD = NetWorthService.calculate(d, ruleset);
-      const happyA = HappinessService.recalculate({ ...a, thugs: fitThugs(a) }, ruleset);
-      const happyD = HappinessService.recalculate({ ...d, thugs: fitThugs(d) }, ruleset);
+      const worthA = NetWorthService.calculate({ ...a, products: productsA }, ruleset);
+      const worthD = NetWorthService.calculate({ ...d, products: productsD }, ruleset);
+      const happyA = HappinessService.recalculate({ ...a, thugs: fitThugs(a), products: productsA }, ruleset);
+      const happyD = HappinessService.recalculate({ ...d, thugs: fitThugs(d), products: productsD }, ruleset);
       await tx.roundPlayer.update({
         where: { id: attacker.id },
         data: { cashCents: a.cashCents, turns: a.turns, whores: a.whores, thugs: a.thugs, woundedThugs: a.woundedThugs,
@@ -144,8 +164,8 @@ export const AdminBattleService = {
 
       const afterA = correctionSnapshot(a);
       const afterD = correctionSnapshot(d);
-      const changesA = correctionChanges(beforeA, afterA);
-      const changesD = correctionChanges(beforeD, afterD);
+      const changesA = { ...correctionChanges(beforeA, afterA), ...toAttacker };
+      const changesD = { ...correctionChanges(beforeD, afterD), ...toDefender };
       await ActivityService.log(tx, attacker.id, 'BATTLE_VOIDED', json({ battleId: battle.id, kind, opponent: defender.displayName, opponentTag: reportTag(battle.attackerReport), reason, changes: changesA, shortfall: shortA }));
       await ActivityService.log(tx, defender.id, 'BATTLE_VOIDED', json({ battleId: battle.id, kind, opponent: attacker.displayName, opponentTag: reportTag(battle.defenderReport), reason, changes: changesD, shortfall: shortD }));
       await AdminAuditService.record(tx, actor, {
