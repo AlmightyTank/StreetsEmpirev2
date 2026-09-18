@@ -99,46 +99,6 @@
 
 .se-news__byline { margin-bottom: 0; }
 
-@media (max-width: 899px) {
-  /* E makes navigation immediately available on mobile instead of putting it
-     beneath the entire page. It scrolls horizontally rather than becoming a
-     giant four-column block. */
-  .se-gamegrid {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .se-nav {
-    order: 1;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: 18px;
-    margin: 0 0 2px;
-    padding: 0 0 10px;
-    border-top: 0;
-    border-bottom: 1px solid var(--se-line-soft);
-    scrollbar-width: thin;
-  }
-
-  .se-nav__section {
-    flex: 0 0 auto;
-    min-width: max-content;
-  }
-
-  .se-nav__list {
-    display: flex;
-    gap: 4px;
-  }
-
-  .se-nav__link {
-    margin-left: 0;
-    padding: 6px 8px;
-    white-space: nowrap;
-  }
-
-  .se-gamemain { order: 2; }
-}
-
 @media (max-width: 600px) {
   .se-shell { padding: 12px 10px 48px; }
   .se-gamebar { margin-bottom: 10px; }

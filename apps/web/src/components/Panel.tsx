@@ -11,11 +11,13 @@ interface PanelProps {
   /** Rows and tables sit flush against the border. */
   flush?: boolean;
   className?: string;
+  /** Anchor for links that land on this panel, e.g. /game#heat. */
+  id?: string;
 }
 
-export function Panel({ title, aside, children, flush, className }: PanelProps) {
+export function Panel({ title, aside, children, flush, className, id }: PanelProps) {
   return (
-    <section className={`se-panel ${className ?? ''}`}>
+    <section id={id} tabIndex={id ? -1 : undefined} className={`se-panel ${className ?? ''}`}>
       <header className="se-panel__head">
         <h2 className="se-panel__title">{title}</h2>
         {aside ? <div className="se-eyebrow">{aside}</div> : null}

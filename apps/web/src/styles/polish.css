@@ -395,16 +395,6 @@ a.se-nav__link:hover {
   .se-shell {
     padding-top: 16px;
   }
-
-  .se-mobile-menu,
-  .se-nav--open {
-    border-color: rgba(255, 255, 255, 0.1);
-    border-radius: var(--se-radius);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)),
-      var(--se-panel);
-    box-shadow: var(--se-shadow-soft);
-  }
 }
 
 

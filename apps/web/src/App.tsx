@@ -35,7 +35,7 @@ import { RulesPage } from './pages/RulesPage.js';
 import { ScoutPage } from './pages/ScoutPage.js';
 import { StatusPage } from './pages/StatusPage.js';
 import { VerifyEmailPage } from './pages/VerifyEmailPage.js';
-import { StorePage } from './pages/StorePage.js';
+import { StorePage, StoresIndexPage } from './pages/StorePage.js';
 import { useSession } from './stores/session.js';
 
 function RequireAccount({ children }: { children: ReactNode }) {
@@ -102,6 +102,7 @@ export function App() {
       {/* 0.4.0-E: products are traded at Pip's; old links land there. */}
       <Route path="/game/products" element={<Navigate to="/game/stores/pip" replace />} />
       <Route path="/game/produce" element={<Protected><LiveRound><ProducePage /></LiveRound></Protected>} />
+      <Route path="/game/stores" element={<Protected><LiveRound><StoresIndexPage /></LiveRound></Protected>} />
       <Route path="/game/stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
 
       <Route path="/game/rankings" element={<Protected><LiveRound><RankingsPage /></LiveRound></Protected>} />

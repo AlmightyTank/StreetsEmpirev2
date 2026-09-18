@@ -7,7 +7,8 @@ import { useSession } from '../stores/session.js';
 
 /**
  * Top bar. Section 23: cash, turns and net worth stay visible on every
- * authenticated page, and collapse to short form on a phone.
+ * authenticated page, and collapse to short form on a phone. Each number is
+ * also the way to the page that acts on it.
  */
 function StatusBar() {
   const me = useSession((s) => s.me);
@@ -17,7 +18,7 @@ function StatusBar() {
 
   return (
     <div className="se-statusbar">
-      <span className="se-statusbar__item">
+      <Link className="se-statusbar__item" to="/game" title="Cash: open the dashboard">
         <span className="se-statusbar__k">Cash</span>
         <span className="se-num se-statusbar__v se-statusbar__v--wide">
           {money(me.resources.cashCents)}
@@ -25,24 +26,24 @@ function StatusBar() {
         <span className="se-num se-statusbar__v se-statusbar__v--narrow">
           {formatCentsCompact(me.resources.cashCents)}
         </span>
-      </span>
-      <span className="se-statusbar__item">
+      </Link>
+      <Link className="se-statusbar__item" to="/game/scout" title="Turns: spend them on Scout">
         <span className="se-statusbar__k">Turns</span>
         <span className="se-num se-statusbar__v">
           {me.turns.turns}
           <span className="se-muted">/{me.turns.turnCap}</span>
         </span>
-      </span>
+      </Link>
       {me.heat ? (
-        <span className="se-statusbar__item" title={`Heat ${me.heat.heat} of ${me.heat.max}`}>
+        <Link className="se-statusbar__item" to="/game#heat" title={`Heat ${me.heat.heat} of ${me.heat.max}: cool it on the dashboard`}>
           {/* Kept when other labels drop at mid widths: a bare Heat number reads as another count. */}
           <span className="se-statusbar__k se-statusbar__k--keep">Heat</span>
           <span className={`se-num se-statusbar__v${me.heat.heat >= me.heat.bustStartsAt ? ' se-bad' : me.heat.heat >= me.heat.dragStartsAt ? ' se-warn' : ''}`}>
             {me.heat.heat}
           </span>
-        </span>
+        </Link>
       ) : null}
-      <span className="se-statusbar__item se-statusbar__item--worth">
+      <Link className="se-statusbar__item se-statusbar__item--worth" to="/game/rankings" title="Net worth: see where it ranks">
         <span className="se-statusbar__k">Net Worth</span>
         <span className="se-num se-statusbar__v se-statusbar__v--wide">
           {money(me.netWorthCents)}
@@ -50,7 +51,7 @@ function StatusBar() {
         <span className="se-num se-statusbar__v se-statusbar__v--narrow">
           {formatCentsCompact(me.netWorthCents)}
         </span>
-      </span>
+      </Link>
     </div>
   );
 }
@@ -97,7 +98,12 @@ function Footer() {
   );
 }
 
-export function Shell({ children, narrow }: { children: ReactNode; narrow?: boolean }) {
+export function Shell({ children, narrow, tabbar }: {
+  children: ReactNode;
+  narrow?: boolean;
+  /** Phone game navigation, fixed to the bottom of the screen. */
+  tabbar?: ReactNode;
+}) {
   const account = useSession((s) => s.account);
   const me = useSession((s) => s.me);
   const settings = useSession((s) => s.profileSettings);
@@ -110,7 +116,7 @@ export function Shell({ children, narrow }: { children: ReactNode; narrow?: bool
   }
 
   return (
-    <div className={`se-app se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}`}>
+    <div className={`se-app se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}`}>
       <InstallBanner />
 
       <header className="se-topbar">
@@ -152,6 +158,7 @@ export function Shell({ children, narrow }: { children: ReactNode; narrow?: bool
       <main className={narrow ? 'se-authshell' : 'se-shell'}>{children}</main>
 
       <Footer />
+      {tabbar}
     </div>
   );
 }

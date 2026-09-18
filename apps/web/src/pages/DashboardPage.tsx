@@ -27,6 +27,16 @@ function RankMovement({ movement }: { movement: number | null }) {
  * A low number is useless without the reason. Buying condoms cannot fix a
  * stable whose real problem is the payout, so name the drags in order.
  */
+/** Where each happiness drag gets fixed. */
+const DRAG_FIXES: Record<string, { to: string; label: string }> = {
+  condoms: { to: '/game/stores/corner', label: 'Corner Store' },
+  beer: { to: '/game/stores/corner', label: 'Corner Store' },
+  crack: { to: '/game/stores/pip', label: 'Pip\u2019s' },
+  protection: { to: '/game/stores/tommy', label: 'Tommy\u2019s' },
+  weapons: { to: '/game/stores/tommy', label: 'Tommy\u2019s' },
+  payout: { to: '#payout', label: 'Payout' },
+};
+
 function HappinessDrags({ terms }: { terms: HappinessTermDto[] }) {
   const costing = terms.filter((t) => t.penalty > 0).sort((a, b) => b.penalty - a.penalty);
   if (costing.length === 0) return null;
@@ -45,6 +55,9 @@ function HappinessDrags({ terms }: { terms: HappinessTermDto[] }) {
             <span className="se-num se-bad">&minus;{term.penalty}</span>
           </span>
           {term.fix ? <span className="se-drags__fix">{term.fix}</span> : null}
+          {DRAG_FIXES[term.key] ? (
+            <Link className="se-golink se-drags__go" to={DRAG_FIXES[term.key]!.to}>{DRAG_FIXES[term.key]!.label}</Link>
+          ) : null}
         </li>
       ))}
     </ul>
@@ -232,7 +245,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
     me.resources.pistols + me.resources.shotguns + me.resources.tek9s + me.resources.ak47s;
 
   const suppliesPanel = (
-    <Panel title="Supplies" flush>
+    <Panel title="Supplies" aside={<Link to="/game/stores/corner">Corner Store</Link>} flush>
                   <div className="se-rows">
                     <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
                     {me.products ? null : <Row label="Product" value={formatNumber(me.resources.product)} />}
@@ -319,7 +332,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
               </Panel>
             ) : null}
 
-            <Panel title="Weapons" flush>
+            <Panel title="Weapons" aside={<Link to="/game/stores/tommy">Tommy&rsquo;s</Link>} flush>
               <div className="se-rows">
                 <Row label="Pistols" value={formatNumber(me.resources.pistols)} tooltip="Any weapon arms one thug for happiness and street coverage; stronger guns also improve combat strength." />
                 <Row label="Shotguns" value={formatNumber(me.resources.shotguns)} />

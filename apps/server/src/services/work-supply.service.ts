@@ -8,6 +8,8 @@ import {
   happinessMultiplier,
   heatTakeMultiplier,
   loadRulesetForRound,
+  productEconomy,
+  productRecipes,
   planWorkSupply,
   productSliceEffects,
   workSupplyStatus,
@@ -111,9 +113,16 @@ export const WorkSupplyService = {
     const ruleset = loadRulesetForRound(player.round);
     if (!ruleset.workSupply || !ruleset.products) return { enabled: false, jobs: [], products: [] };
     const [policies, inventory] = await Promise.all([loadPolicies(prisma, roundPlayerId), ProductInventoryService.read(prisma, roundPlayerId, ruleset)]);
+    // Crack is always Pip's Product and always cooks; the rest only once the round has a product economy.
+    const economyOn = Boolean(ruleset.productEconomy);
+    const cookable = new Set(productRecipes(ruleset).map((recipe) => recipe.product));
     return {
       enabled: true,
-      products: productKeys(ruleset).map((key) => ({ key, name: ruleset.products![key]!.name, quantity: inventory[key] ?? 0 })),
+      products: productKeys(ruleset).map((key) => ({
+        key, name: ruleset.products![key]!.name, quantity: inventory[key] ?? 0,
+        pip: key === CRACK || (economyOn && Boolean(productEconomy(ruleset, key)?.pip)),
+        cookable: key === CRACK || (economyOn && cookable.has(key)),
+      })),
       jobs: workSupplyJobs(ruleset).map((job) => ({ ...job, policy: policies.get(job.key) ?? defaultWorkSupplyPolicy(), isDefault: !policies.has(job.key), active: !job.optIn || policies.has(job.key) })),
     };
   },

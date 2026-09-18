@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, type CombatSpecialRaidDto, type CombatTargetDto, type SpecialRaidKindDto } from '@streets/shared';
 import { combatApi } from '../api/combat.js';
 import { ApiError } from '../api/client.js';
@@ -599,6 +599,8 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             onClick={() => void treatWounded()}>
             Patch up {formatNumber(page.recovery.maxTreatableThugs)} with medicine
           </Button> : <p className="se-hint">Everybody is standing.</p>}
+          {page.recovery.woundedThugs > 0 && page.recovery.maxTreatableThugs <= 0
+            ? <p className="se-hint se-golinks"><Link className="se-golink" to="/game/stores/corner">Buy medicine at the Corner Store</Link></p> : null}
         </Panel> : null}
         <HitRulesPanel mode={mode} rules={rules!} driveBy={driveBy} specialRaid={specialRaid} />
       </div>

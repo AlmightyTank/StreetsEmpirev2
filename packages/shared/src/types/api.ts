@@ -628,7 +628,7 @@ export interface StoresDto {
   stores: StoreDto[];
   bulkHelpers: number[];
   lowRiderThugCapacity: number;
-  /** 0.4.0-D. Pip deals every product, on the Products page. */
+  /** 0.4.0-D. Pip deals every product at his counter. */
   productCounter?: boolean;
 }
 
@@ -669,7 +669,7 @@ export interface ProductStockDto {
     nextAt: string | null;
     maxBuy: number;
   } | null;
-  /** 0.4.0-D. Present where Produce Product can cook it. */
+  /** 0.4.0-D. Present where Produce can cook it. */
   recipe?: { perThugPerTurn: number; ingredientCentsPerUnit: number; heatPerUnit: number } | null;
 }
 

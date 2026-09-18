@@ -37,7 +37,7 @@ export function PayoutControl() {
   }
 
   return (
-    <Panel title="Whore Payout">
+    <Panel title="Whore Payout" id="payout">
       <form onSubmit={onSubmit}>
         <div className="se-payout__split">
           <div>

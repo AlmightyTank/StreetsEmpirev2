@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Link, Navigate, NavLink, useParams } from 'react-router-dom';
 import { formatCents, formatNumber, type ProductsDto, type QuestCompleteInput, type QuestCompleteResult, type StoreDto, type StoreItemDto, type StoreRestockDto, type StoresDto, type StoreTradeInput, type StoreTradeResult, type WeaponUnlockInput, type WeaponUnlockResult } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { reputationApi } from '../api/reputation.js';
@@ -258,10 +258,53 @@ function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked
   );
 }
 
+/** Short names for the store tabs; the page title keeps the full one. */
+const TAB_NAMES: Record<string, string> = { CORNER: 'Corner', TOMMY: 'Tommy’s', CHARLIE: 'Charlie’s', PIP: 'Pip’s' };
+const LAST_STORE_KEY = 'streets.lastStore.v1';
+
+/**
+ * The last catalog this player loaded. Switching store tabs remounts the view,
+ * and without this every tab would open on "Loading the shelves" before the
+ * same prices came back. The fetch still runs and replaces it.
+ */
+let cachedCatalog: { playerId: string; data: StoresDto } | null = null;
+
+function rememberStore(slug: string): void {
+  try {
+    window.localStorage.setItem(LAST_STORE_KEY, slug);
+  } catch {
+    // Stores still open on the Corner Store without it.
+  }
+}
+
+/** /game/stores: back to the counter you used last. */
+export function StoresIndexPage() {
+  let slug = 'corner';
+  try {
+    slug = window.localStorage.getItem(LAST_STORE_KEY) ?? 'corner';
+  } catch {
+    // Private browsing: the Corner Store it is.
+  }
+  return <Navigate to={`/game/stores/${encodeURIComponent(slug)}`} replace />;
+}
+
+function StoreTabs({ stores, slug }: { stores: StoreDto[]; slug: string }) {
+  return (
+    <nav className="se-storetabs" aria-label="Stores">
+      {stores.map((store) => (
+        <NavLink key={store.slug} to={`/game/stores/${store.slug}`} replace
+          className={`se-storetabs__tab${store.slug === slug ? ' se-storetabs__tab--active' : ''}`}>
+          {TAB_NAMES[store.key] ?? store.name}
+        </NavLink>
+      ))}
+    </nav>
+  );
+}
+
 function StoreView({ slug }: { slug: string }) {
   const me = useSession((s) => s.me);
   const action = useGameAction<StoreTradeResult | WeaponUnlockResult | QuestCompleteResult>();
-  const [catalog, setCatalog] = useState<StoresDto | null>(null);
+  const [catalog, setCatalog] = useState<StoresDto | null>(() => (cachedCatalog && cachedCatalog.playerId === me?.id ? cachedCatalog.data : null));
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const [retryOrder, setRetryOrder] = useState<PendingStoreCommand | null>(null);
@@ -284,6 +327,7 @@ function StoreView({ slug }: { slug: string }) {
   useEffect(() => {
     let active = true;
     storesApi.catalog().then((data) => {
+      if (me) cachedCatalog = { playerId: me.id, data };
       if (active) { setCatalog(data); setLoadError(null); }
     }).catch(() => {
       if (active) setLoadError('Could not load store prices. Try again.');
@@ -327,6 +371,7 @@ function StoreView({ slug }: { slug: string }) {
 
   if (!me) return <Navigate to="/join" replace />;
   const store = catalog?.stores.find((entry) => entry.slug === slug);
+  if (store) rememberStore(store.slug);
   // One reason for every control on the counter, so a dead shelf explains itself.
   const counterBlock = action.busy
     ? 'Your last order is still going through.'
@@ -349,6 +394,7 @@ function StoreView({ slug }: { slug: string }) {
           <p className="se-eyebrow">{store?.blurb ?? 'Stock up for the next shift'}</p>
         </div>
       </div>
+      {catalog ? <StoreTabs stores={catalog.stores} slug={slug} /> : null}
       {loadError ? <Alert>{loadError} <Button className="se-btn se-btn--sm" disabledReason={action.busy ? 'Your last order is still going through.' : null} onClick={() => setReload((n) => n + 1)}>Retry loading</Button></Alert> : null}
       {action.error ? <Alert>{action.error}</Alert> : null}
       {retryOrder ? <Alert tone="info">

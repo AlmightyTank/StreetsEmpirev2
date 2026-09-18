@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import type { HeatDto, TripHeatDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { api } from '../api/client.js';
@@ -43,6 +44,25 @@ export function heatReceiptLines(heat: TripHeatDto | undefined): Array<{ label: 
 }
 
 /**
+ * One line on Scout and Produce once Heat is costing something: what it costs,
+ * and the way to the bribe on the dashboard. Nothing while things are quiet.
+ */
+export function HeatNotice() {
+  const heat = useSession((s) => s.me?.heat);
+  if (!heat || heatTone(heat) === 'good') return null;
+  const tone = heatTone(heat);
+  return (
+    <p className={`se-hint se-${tone} se-golinks`}>
+      <span>
+        Heat {formatNumber(heat.heat)}: take down {percent(1 - heat.takeMultiplier)}
+        {tone === 'bad' ? `, ${percent(heat.bustChance)} bust risk each trip` : ''}.
+      </span>
+      <Link className="se-golink" to="/game#heat">Cool it on the dashboard</Link>
+    </p>
+  );
+}
+
+/**
  * 0.4.0-C. Heat as it stands: what it costs now, how fast it cools, and a
  * bribe to bring it down. Hidden on rounds without Heat.
  */
@@ -84,7 +104,7 @@ export function HeatPanel() {
       : 'Quiet. Nobody is costing you anything yet.';
 
   return (
-    <Panel title="Heat" aside={`${formatNumber(heat.heat)} / ${formatNumber(heat.max)}`}>
+    <Panel title="Heat" id="heat" aside={`${formatNumber(heat.heat)} / ${formatNumber(heat.max)}`}>
       <div className="se-meter se-heat__meter">
         <div className={`se-meter__fill${tone === 'bad' ? ' se-meter__fill--bad' : tone === 'warn' ? ' se-meter__fill--warn' : ''}`} style={{ width: `${Math.min(100, (heat.heat / heat.max) * 100)}%` }} />
       </div>

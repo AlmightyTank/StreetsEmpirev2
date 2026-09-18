@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import type { WorkSupplyDto, WorkSupplyPlanDto, WorkSupplyPolicyDto, WorkSupplyPreviewDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
@@ -19,12 +21,14 @@ export function supplySummary(plan: WorkSupplyPlanDto): string {
 }
 
 /** Receipt lines for a trip's supply, shared by Scout and Produce results. */
-export function supplyReceiptLines(plan: WorkSupplyPlanDto | undefined, prefix = ''): Array<{ label: string; value: string }> {
+export function supplyReceiptLines(plan: WorkSupplyPlanDto | undefined, prefix = ''): Array<{ label: string; value: ReactNode }> {
   if (!plan || plan.need === 0) return [];
+  const ranDry = plan.slices.some((slice) => slice.state === 'dry');
   return [
     { label: `${prefix}Supply`, value: supplySummary(plan) },
     ...plan.slices.filter((slice) => slice.product && slice.product !== 'CRACK').map((slice) => ({ label: `${prefix}${slice.productName} used`, value: formatNumber(slice.units) })),
     ...(plan.role ? [{ label: `${prefix}Supply effects`, value: supplyEffects(plan) }] : []),
+    ...(ranDry ? [{ label: `${prefix}Restock`, value: <Link className="se-golink" to="/game/stores/pip">Pip&rsquo;s</Link> }] : []),
   ];
 }
 
@@ -92,6 +96,7 @@ function SupplyRow({ overview, row, jobLabel, turns, refreshKey, onOverview }: {
   overview: WorkSupplyDto; row: JobRow; jobLabel: string; turns: number | ''; refreshKey?: unknown; onOverview: (next: WorkSupplyDto) => void;
 }) {
   const job = row.key;
+  const { pathname } = useLocation();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<WorkSupplyPolicyDto>(row.policy);
   const [plan, setPlan] = useState<WorkSupplyPreviewDto | null>(null);
@@ -139,6 +144,12 @@ function SupplyRow({ overview, row, jobLabel, turns, refreshKey, onOverview }: {
 
   const current = plan ? supplyStatus(plan, nameOf) : null;
   const busy = saving ? 'Saving...' : null;
+  // Where more of the primary comes from, when the status says it is needed.
+  const primary = options.find((product) => product.key === row.policy.primary);
+  const restock = current && current.tone !== 'good' && primary ? [
+    primary.pip ? <Link key="pip" className="se-golink" to="/game/stores/pip">Buy {primary.name} at Pip&rsquo;s</Link> : null,
+    primary.cookable && pathname !== '/game/produce' ? <Link key="cook" className="se-golink" to="/game/produce">Cook {primary.name}</Link> : null,
+  ].filter(Boolean) : [];
 
   return (
     <div className="se-supply">
@@ -158,6 +169,7 @@ function SupplyRow({ overview, row, jobLabel, turns, refreshKey, onOverview }: {
           <span className="se-muted">
             {[current.detail, plan.role === 'fighters' ? `${formatNumber(plan.need)} a fight` : `${formatNumber(plan.need)} this trip`, supplyEffects(plan)].filter(Boolean).join(' · ')}
           </span>
+          {restock.length ? <span className="se-golinks">{restock}</span> : null}
         </div>
       ) : null}
       {!row.active && !editing ? <p className="se-hint">They go in with nothing, and nothing is burned.</p> : null}

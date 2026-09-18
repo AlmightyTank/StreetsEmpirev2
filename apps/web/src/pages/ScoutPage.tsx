@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import type { DistrictDto, ScoutResult } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { actionsApi } from '../api/actions.js';
@@ -10,7 +10,7 @@ import { DistrictPicker } from '../components/DistrictPicker.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
 import { supplyReceiptLines, WorkSupplyPanel } from '../components/WorkSupplyPanel.js';
-import { heatReceiptLines } from '../components/HeatPanel.js';
+import { HeatNotice, heatReceiptLines } from '../components/HeatPanel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -110,6 +110,7 @@ export function ScoutPage() {
             </p>
           </Panel>
 
+          <HeatNotice />
           <WorkSupplyPanel jobs={district ? [{ job: district, label: districts.find((row) => row.key === district)?.name ?? 'This district' }] : []} turns={turns} refreshKey={action.result} />
         </div>
 
@@ -134,7 +135,7 @@ export function ScoutPage() {
           </Panel>
 
           {/* A trip burns the shelf. Nothing else on the page shows it. */}
-          <Panel title="Supplies for the trip" flush>
+          <Panel title="Supplies for the trip" aside={<Link to="/game/stores/corner">Corner Store</Link>} flush>
             <div className="se-rows">
               <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
               <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
@@ -215,7 +216,7 @@ export function ScoutPage() {
                 ? [
                     {
                       label: 'Worked without condoms',
-                      value: `${formatNumber(action.result.result.condomsMissing)} short`,
+                      value: <>{formatNumber(action.result.result.condomsMissing)} short · <Link className="se-golink" to="/game/stores/corner">Corner Store</Link></>,
                     },
                   ]
                 : []),
@@ -255,6 +256,7 @@ export function ScoutPage() {
                             delta: -action.result.result.lostToInfection,
                             remaining: action.result.after.resources.whores,
                           },
+                          { label: 'Medicine', value: <Link className="se-golink" to="/game/stores/corner">Corner Store</Link> },
                         ]
                       : []),
                   ]

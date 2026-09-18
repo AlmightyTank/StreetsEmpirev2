@@ -166,7 +166,8 @@ export interface WorkSupplyPreviewDto extends WorkSupplyPlanDto {
 /** GET /api/game/work-supply. */
 export interface WorkSupplyDto {
   enabled: boolean;
-  products: Array<{ key: string; name: string; quantity: number }>;
+  /** `pip` and `cookable` say where more comes from: Pip's counter, the Produce shift, or both. */
+  products: Array<{ key: string; name: string; quantity: number; pip: boolean; cookable: boolean }>;
   /**
    * `role` and `optIn` since 0.4.0-E. An opt-in job (a fight) burns nothing until a policy is
    * saved; `active` says whether this job burns product at all right now.
