@@ -25,6 +25,7 @@ const SECTIONS: NavSection[] = [
     id: 'actions',
     title: 'Actions',
     items: [
+      { label: 'Dashboard', to: '/game' },
       { label: 'Hideout', to: '/game/hideout' },
       { label: 'Scout', to: '/game/scout' },
       { label: 'Produce', to: '/game/produce' },
