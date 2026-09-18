@@ -220,6 +220,8 @@ export interface RoundPlayerDto {
    * where Product is still only crack.
    */
   products: Array<{ key: string; name: string; quantity: number }> | null;
+  /** 0.5.0-B. A run out of town, or null. */
+  run: { phase: 'road' | 'town'; city: string; cityName: string; until: string } | null;
   rank: RankDto;
   hideout: SeasonHideoutDto;
 

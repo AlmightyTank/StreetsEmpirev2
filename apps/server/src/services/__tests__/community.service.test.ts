@@ -8,9 +8,6 @@ const city = {
   name: 'New York City',
   sortOrder: 0,
   isEnabled: true,
-  scoutModifier: 1,
-  incomeModifier: 1,
-  crackModifier: 1,
   createdAt: new Date('2026-09-07T00:00:00Z'),
   updatedAt: new Date('2026-09-07T00:00:00Z'),
 } satisfies City;

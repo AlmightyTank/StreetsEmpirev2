@@ -174,3 +174,200 @@ export interface WorkSupplyDto {
    */
   jobs: Array<{ key: string; name: string; role: 'hoes' | 'thugs' | 'fighters'; optIn: boolean; active: boolean; policy: WorkSupplyPolicyDto; isDefault: boolean }>;
 }
+
+/** 0.5.0-A. How much of a product Pip has in a city. */
+export type SupplyLevelDto = 'PLENTIFUL' | 'NORMAL' | 'LOW' | 'OUT';
+
+/**
+ * 0.5.0-A. One city as the Cities page shows it. What anyone can know without going:
+ * its character, street talk, the roads and how the police lean. Pip's prices only
+ * where the player knows them: home, and (0.5.0-B) cities their runs have seen.
+ */
+export interface CityCharacterDto {
+  slug: string;
+  name: string;
+  /** "The Exchange". */
+  trait: string;
+  blurb: string;
+  /** Always true, never a number. */
+  talk: string[];
+  isHome: boolean;
+  /** Shortest drive from home, in drive hours and game minutes; null for home. */
+  driveHours: number | null;
+  gameMinutes: number | null;
+  police: 'Light' | 'Average' | 'Heavy' | 'Heaviest';
+  /** When busts start here, against home. Home gets the numbers in `heat`. */
+  busts: 'much sooner' | 'sooner' | 'the same' | 'later' | 'much later';
+  /** Home only. */
+  heat: { dragStartsAt: number; bustStartsAt: number } | null;
+  roads: Array<{ to: string; toName: string; name: string; driveHours: number; police: number; note: string | null }>;
+  /** Pip's counter where the player knows it, or null where they have not been. */
+  counter: {
+    /** When they saw it; null for home, which is always current. */
+    seenAt: string | null;
+    /** `stock` is what was on the player's shelf when the crew saw it; null at home, where Pip's store shows it. */
+    products: Array<{ key: string; supply: SupplyLevelDto | null; buyCents: number | null; sellCents: number | null; stock: number | null }>;
+  } | null;
+}
+
+/** 0.5.0-A. GET /api/game/cities. */
+export interface CitiesDto {
+  enabled: boolean;
+  homeCity: string | null;
+  products: Array<{ key: string; name: string }>;
+  cities: CityCharacterDto[];
+}
+
+// --- 0.5.0-B runs ----------------------------------------------------------------
+
+/** 0.5.0-B. One way from here to a city, with what it costs. */
+export interface TravelRouteDto {
+  index: number;
+  cities: Array<{ slug: string; name: string }>;
+  passesThrough: string[];
+  driveHours: number;
+  gameMinutes: number;
+  /** Turns this costs now: out and home for a launch, the extra road for driving on. */
+  turns: number;
+  /** The worst police on the way; 1 is an ordinary road. */
+  police: number;
+  /** When the run would get there if it left now. */
+  arriveAt: string;
+}
+
+/** 0.5.0-B. GET /api/game/travel/routes. */
+export interface TravelRoutesDto {
+  from: string;
+  to: string;
+  routes: TravelRouteDto[];
+}
+
+export interface RunStopDto {
+  city: string;
+  cityName: string;
+  isHome: boolean;
+  route: Array<{ slug: string; name: string }>;
+  departAt: string;
+  arriveAt: string;
+  leaveAt: string | null;
+}
+
+export interface RunTradeDto {
+  city: string;
+  cityName: string;
+  product: string;
+  direction: 'buy' | 'sell';
+  quantity: number;
+  unitCents: number;
+  totalCents: number;
+  at: string;
+}
+
+/** 0.5.0-B. A run out on the road. */
+export interface RunDto {
+  id: string;
+  launchedAt: string;
+  lowRiders: number;
+  escortThugs: number;
+  cashCents: number;
+  startCashCents: number;
+  capacity: number;
+  cargo: Array<{ key: string; quantity: number; startQuantity: number }>;
+  turnsSpent: number;
+  stops: RunStopDto[];
+  position: {
+    phase: 'road' | 'town';
+    stopIndex: number;
+    city: string;
+    cityName: string;
+    from: string;
+    fromName: string;
+    /** Share of this leg driven, 0..1. */
+    progress: number;
+    road: { from: string; to: string; progress: number } | null;
+    /** When it gets there (road), or when the window closes (town). */
+    until: string;
+  };
+  /** Pip's counter where the run is, while it is in town. */
+  counter: {
+    city: string;
+    products: Array<{ key: string; supply: SupplyLevelDto | null; buyCents: number | null; sellCents: number | null; stock: number; nextAt: string | null }>;
+  } | null;
+  trades: RunTradeDto[];
+}
+
+/** 0.5.0-B. What the last run brought home. */
+export interface RunReceiptDto {
+  id: string;
+  launchedAt: string;
+  returnedAt: string;
+  cities: Array<{ slug: string; name: string }>;
+  lowRiders: number;
+  escortThugs: number;
+  startCashCents: number;
+  cashCents: number;
+  cargo: Array<{ key: string; startQuantity: number; quantity: number }>;
+  turnsSpent: number;
+  trades: RunTradeDto[];
+}
+
+/** 0.5.0-B. GET /api/game/travel: the map, what the crew knows, and the run. */
+export interface TravelDto extends CitiesDto {
+  runsEnabled: boolean;
+  rules: {
+    cargoPerLowRider: number;
+    thugsPerLowRider: number;
+    townWindowMinutes: number;
+    turnsPerDriveHour: number;
+  };
+  /** What home has to load up with. */
+  home: {
+    cashCents: number;
+    lowRiders: number;
+    fitThugs: number;
+    turns: number;
+    products: Array<{ key: string; quantity: number }>;
+  };
+  run: RunDto | null;
+  lastRun: RunReceiptDto | null;
+}
+
+/** 0.5.0-B. What a launch did. */
+export interface RunLaunchResult {
+  runId: string;
+  city: string;
+  cityName: string;
+  route: string[];
+  arriveAt: string;
+  leaveAt: string;
+  backAt: string;
+  turns: number;
+  lowRiders: number;
+  escortThugs: number;
+  cashCents: number;
+  cargo: Record<string, number>;
+}
+
+export interface RunTradeResult {
+  city: string;
+  cityName: string;
+  product: string;
+  productName: string;
+  direction: 'buy' | 'sell';
+  quantity: number;
+  unitCents: number;
+  totalCents: number;
+  runCashCents: number;
+  held: number;
+  trunkUnits: number;
+  capacity: number;
+  shelfStock: number;
+}
+
+export interface RunMoveResult {
+  city: string;
+  cityName: string;
+  /** When it gets there; for heading home, when it is back. */
+  arriveAt: string;
+  turns: number;
+}

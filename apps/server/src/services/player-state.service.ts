@@ -1,5 +1,5 @@
 import type { City, Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
-import { decayHeat, loadRulesetForRound, type Ruleset, type Standings } from '@streets/rules-engine';
+import { decayHeat, loadRulesetForRound, rulesetForCity, type Ruleset, type Standings } from '@streets/rules-engine';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
@@ -11,6 +11,8 @@ import { ReputationService } from './reputation.service.js';
 import { StockService, type StockSettlementSet } from './stock.service.js';
 import { CombatRecoveryService, type RecoverySettlement } from './combat-recovery.service.js';
 import { fitThugs } from './action.service.js';
+import { RunSettleService, runSummary } from './run-settle.service.js';
+import type { RoundPlayerDto } from '@streets/shared';
 
 /** 0.3.0-C: the alliance tag rides along so every screen can show it before the name. */
 export type PlayerWithCity = RoundPlayer & { city: City; alliance: { name: string; tag: string } | null };
@@ -29,6 +31,8 @@ export interface SettledPlayer {
   recovery: RecoverySettlement;
   /** 0.4.0-C. Non-crack product stock on rounds where it moves happiness; undefined elsewhere. */
   products?: Record<string, number>;
+  /** 0.5.0-B. The player's run in one line, or null. */
+  run: RoundPlayerDto['run'];
 }
 
 export interface SettleOptions {
@@ -75,6 +79,8 @@ export const PlayerStateService = {
     const markActive = options.markActive ?? true;
 
     await lockRoundPlayer(tx, roundPlayerId);
+    // 0.5.0-B: a run that is due home is home before the player is read.
+    await RunSettleService.settle(tx, roundPlayerId, now);
 
     const player = await tx.roundPlayer.findUnique({
       where: { id: roundPlayerId },
@@ -86,7 +92,8 @@ export const PlayerStateService = {
     }
 
     const { round, ...rest } = player;
-    const ruleset = loadRulesetForRound(round);
+    // 0.5.0-A: Heat reads the player's own city.
+    const ruleset = rulesetForCity(loadRulesetForRound(round), rest.city.slug);
     const recovery = await CombatRecoveryService.settle(tx, roundPlayerId, now);
     // 1. Turns, and the shop shelves on the same clock. Heat cools on it too.
     const turns = TurnService.settle(rest, now, ruleset);
@@ -177,6 +184,7 @@ export const PlayerStateService = {
       });
     }
 
-    return { player: settled, round, ruleset, turns, stock, standings, recovery, products };
+    const run = await runSummary(tx, roundPlayerId, ruleset, now);
+    return { player: settled, round, ruleset, turns, stock, standings, recovery, products, run };
   },
 };

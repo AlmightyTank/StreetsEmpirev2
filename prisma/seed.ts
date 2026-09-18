@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import { PrismaClient, type Round } from '@prisma/client';
-import { classicOgV01, classicOgV02D, classicOgV04E, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02D, classicOgV05B, type Ruleset } from '@streets/rulesets';
 // The panel and the seed create the same bots from one definition. Changing the
 // roster in the service changes it here too.
 import { DEV_TEST_RIVALS, seedDevBots } from '../apps/server/src/services/dev-bots.service.js';
 
 const prisma = new PrismaClient();
-const CURRENT_RULESET = classicOgV04E;
+const CURRENT_RULESET = classicOgV05B;
 const shouldSeedRivals = process.env.SEED_DEV_BOTS === '1' || process.env.SEED_RIVALS === '1';
 const allowUnsafeDevBots = process.env.ALLOW_DEV_BOTS === 'I_UNDERSTAND';
 
@@ -31,7 +31,7 @@ function assertSafeDevBotSeed(): void {
 }
 
 
-/** Section 12. Travel is not player-facing yet, but the map exists from day one. */
+/** Section 12. 0.5.0: every city is open. Their characters live in the ruleset; the table is names and order. */
 const CITIES = [
   { slug: 'new-york-city', name: 'New York City', sortOrder: 1 },
   { slug: 'detroit', name: 'Detroit', sortOrder: 2 },
@@ -45,8 +45,8 @@ const CITIES = [
 
 async function seedCities() {
   for (const city of CITIES) {
-    // 0.4.0-E still starts in New York City. Other cities stay staged for travel.
-    const isEnabled = city.slug === CURRENT_RULESET.round.startingCitySlug;
+    // Everyone still starts in New York City, and every city is somewhere to go.
+    const isEnabled = true;
 
     await prisma.city.upsert({
       where: { slug: city.slug },
@@ -56,13 +56,10 @@ async function seedCities() {
         name: city.name,
         sortOrder: city.sortOrder,
         isEnabled,
-        scoutModifier: 1.0,
-        incomeModifier: 1.0,
-        crackModifier: 1.0,
       },
     });
   }
-  console.log(`  cities:   ${CITIES.length} (playable: ${CURRENT_RULESET.round.startingCitySlug})`);
+  console.log(`  cities:   ${CITIES.length} (starting: ${CURRENT_RULESET.round.startingCitySlug})`);
 }
 
 async function upsertRound(options: { name: string; slug: string; ruleset: Ruleset; startsAt: Date; refreshCurrent?: boolean }): Promise<Round> {
@@ -119,8 +116,8 @@ async function seedStrategyRound(now: Date) {
 
 async function seedCurrentPublicRound(now: Date) {
   return upsertRound({
-    name: 'Game #017 - Products & Vice',
-    slug: 'game-017-products-vice',
+    name: 'Game #018 - Travel',
+    slug: 'game-018-travel',
     ruleset: CURRENT_RULESET,
     startsAt: now,
     refreshCurrent: true,
@@ -160,10 +157,10 @@ async function main() {
   const publicRound = await seedCurrentPublicRound(new Date(now.getTime() + 1_000));
   await seedNews(
     publicRound.id,
-    '0.4.0-E PRODUCTS & VICE',
+    '0.5.0-B ON THE ROAD',
     shouldSeedRivals
-      ? 'The current 0.4.0-E seed has active local dev bots enabled. Thugs can now take product into a fight, and supply screens warn when a job is about to run short.'
-      : 'The 0.4.0 season: every product works differently by district, Pip deals them all, Heat follows risky product, and now thugs can take product into a fight. Cocaine sharpens a raid, Meth holds a block, Heroin keeps a crew standing. Set what your squads and defenders burn on the Combat page; supply screens say how long your stock lasts and what running short costs.',
+      ? 'The current 0.5.0-B seed has active local dev bots enabled. Runs are open: see the Travel page.'
+      : 'Load up a Low-Rider and go. A run takes cash, product and escorts out of town on the real interstates, trades at Pip\'s counter wherever it stops, and brings home whatever it holds. It only has what it took, so pack for the trip. Street talk tells you where to go; your crew finds out the prices when it gets there. Plan it on the Travel page.',
   );
   if (shouldSeedRivals) {
     const seeded = await seedDevBots(prisma, publicRound, CURRENT_RULESET, new Date(now.getTime() + 1_000), DEV_TEST_RIVALS, { activeAccounts: true });

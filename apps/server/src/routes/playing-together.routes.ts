@@ -1,6 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, heatBribeSchema, productTradeSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, heatBribeSchema, travelRoutesSchema, productTradeSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { CitiesService } from '../services/cities.service.js';
+import { TravelService } from '../services/travel.service.js';
 import { ContactsService } from '../services/contacts.service.js';
 import { ProductMarketService } from '../services/product-market.service.js';
 import { RoundService } from '../services/round.service.js';
@@ -36,6 +38,26 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     const { postId } = parseBody(postParams, request.params);
     return WireService.remove(app.prisma, await me(request.auth!.account.id), postId);
   });
+
+  /** 0.5.0-A: every city's character, Pip's usual supply there and the roads, from home. */
+  app.get('/cities', { preHandler: app.requireAuth }, async (request) =>
+    CitiesService.page(app.prisma, await me(request.auth!.account.id)));
+
+  /** 0.5.0-B: runs. The map, what the crew knows and the run; the ways out; and the four moves. */
+  app.get('/travel', { preHandler: app.requireAuth }, async (request) =>
+    TravelService.page(app.prisma, await me(request.auth!.account.id)));
+  app.get('/travel/routes', { preHandler: app.requireAuth }, async (request) => {
+    const { to } = parseBody(travelRoutesSchema, request.query);
+    return TravelService.routes(app.prisma, await me(request.auth!.account.id), to);
+  });
+  app.post('/travel/launch', { preHandler: app.requireAuth }, async (request) =>
+    TravelService.launch(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+  app.post('/travel/trade', { preHandler: app.requireAuth }, async (request) =>
+    TravelService.trade(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+  app.post('/travel/drive-on', { preHandler: app.requireAuth }, async (request) =>
+    TravelService.driveOn(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+  app.post('/travel/head-home', { preHandler: app.requireAuth }, async (request) =>
+    TravelService.headHome(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
 
   /** 0.4.0-A: the round's product catalog with the player's stock; 0.4.0-D adds Pip's counter and recipes. */
   app.get('/products', { preHandler: app.requireAuth }, async (request) =>

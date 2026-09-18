@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { actionIdSchema } from './game.js';
 import { CONTACT_NOTE_MAX, WIRE_POST_MAX } from '../types/playing-together.js';
 
 const publicPimpId = z.number({ invalid_type_error: 'Pick a player by pimp number.' }).int().min(1).max(2_147_483_647);
@@ -56,3 +57,39 @@ export const workSupplyPreviewSchema = z.object({
   job: z.string().regex(/^[A-Z][A-Z0-9_]{1,31}$/),
   turns: z.coerce.number().int().min(1).max(10_000),
 }).strict();
+
+// --- 0.5.0-B runs ----------------------------------------------------------------
+
+const citySlug = z.string().trim().regex(/^[a-z][a-z-]{1,40}$/, 'Pick a city.');
+const runProduct = z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.');
+const wholeCount = (what: string) => z.number({ invalid_type_error: `Enter ${what}.` }).int(`${what} must be a whole number.`).min(0).safe();
+
+export const travelRoutesSchema = z.object({ to: citySlug }).strict();
+
+export const runLaunchSchema = z.object({
+  to: citySlug,
+  route: z.number().int().min(0).max(9),
+  lowRiders: z.number({ invalid_type_error: 'Say how many Low-Riders go.' }).int().min(1, 'A run needs at least one Low-Rider.').safe(),
+  escortThugs: wholeCount('escorts'),
+  cashCents: wholeCount('cash'),
+  cargo: z.record(runProduct, wholeCount('a quantity')).default({}),
+  actionId: actionIdSchema,
+}).strict();
+export type RunLaunchInput = z.infer<typeof runLaunchSchema>;
+
+export const runTradeSchema = z.object({
+  product: runProduct,
+  direction: z.enum(['buy', 'sell']),
+  quantity: z.number({ invalid_type_error: 'Enter a quantity.' }).int('Quantity must be a whole number.').positive('Enter at least one.').safe(),
+  actionId: actionIdSchema,
+}).strict();
+export type RunTradeInput = z.infer<typeof runTradeSchema>;
+
+export const runDriveOnSchema = z.object({
+  to: citySlug,
+  route: z.number().int().min(0).max(9),
+  actionId: actionIdSchema,
+}).strict();
+export type RunDriveOnInput = z.infer<typeof runDriveOnSchema>;
+
+export const runHeadHomeSchema = z.object({ actionId: actionIdSchema }).strict();

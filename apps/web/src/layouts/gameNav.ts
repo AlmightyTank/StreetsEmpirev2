@@ -20,7 +20,7 @@ export interface NavSection {
 }
 
 export type IconName =
-  | 'dashboard' | 'hideout' | 'scout' | 'produce' | 'raids' | 'stores'
+  | 'dashboard' | 'hideout' | 'scout' | 'produce' | 'raids' | 'stores' | 'cities'
   | 'rankings' | 'alliance' | 'contacts' | 'profile' | 'activity'
   | 'status' | 'rules' | 'news' | 'fame' | 'admin';
 
@@ -35,6 +35,7 @@ export const SECTIONS: NavSection[] = [
       { key: 'raids', label: 'Raids', to: '/game/combat', icon: 'raids' },
       { key: 'stores', label: 'Stores', to: '/game/stores', icon: 'stores', prefix: '/game/stores/' },
       { key: 'hideout', label: 'Hideout', to: '/game/hideout', icon: 'hideout' },
+      { key: 'travel', label: 'Travel', to: '/game/travel', icon: 'cities' },
     ],
   },
   {
@@ -196,6 +197,7 @@ function badgeCount(value: number): string {
  * - Scout carries your turns, amber once they sit at the cap.
  * - Raids gets a red dot when someone hit you since you last looked at Raids or Activity.
  * - Dashboard goes amber when Heat is dragging the take and red when busts are live.
+ * - Travel goes amber while a run sits in town, trading only when you are there.
  */
 export function useNavBadges(pathname: string): Record<string, NavBadge> {
   const me = useSession((s) => s.me);
@@ -237,6 +239,11 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
 
   if (latestHit && seen !== null && latestHit > seen && !looking) {
     badges.raids = { tone: 'bad', label: 'You were hit since you last looked' };
+  }
+
+  // 0.5.0-B: a run in town is waiting on you; it only trades while you are there.
+  if (me.run?.phase === 'town') {
+    badges.travel = { tone: 'warn', label: `Your run is in ${me.run.cityName}, waiting on you` };
   }
 
   if (me.heat && me.heat.heat >= me.heat.dragStartsAt) {

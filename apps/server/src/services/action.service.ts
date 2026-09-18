@@ -6,7 +6,7 @@ import type {
   Round,
   RoundPlayer,
 } from '@prisma/client';
-import { decayHeat, loadRulesetForRound, totalWeapons, type Ruleset, type Standings } from '@streets/rules-engine';
+import { decayHeat, loadRulesetForRound, rulesetForCity, totalWeapons, type Ruleset, type Standings } from '@streets/rules-engine';
 import type {
   GameActionResult,
   PlayerSnapshot,
@@ -25,6 +25,7 @@ import { TurnService } from './turn.service.js';
 import { ReputationService, type ReputationChange } from './reputation.service.js';
 import { StockService, type StockSettlementSet } from './stock.service.js';
 import { CombatRecoveryService, type RecoverySettlement } from './combat-recovery.service.js';
+import { RunSettleService } from './run-settle.service.js';
 
 /**
  * Everything an action is allowed to move. Turn-settled before an action sees
@@ -58,6 +59,8 @@ export interface PlayerState {
 
   /** 0.4.0-C. Settled Heat: decayed on the turn clock before an action sees it. Always 0 without Heat. */
   heat: number;
+  /** 0.5.0-B. Net worth of what is out on a run. Runs move it; nothing else does. */
+  awayNetWorthCents: bigint;
 
   /** Quest progress that is per-player rather than per-trader. */
   cleanShiftStreak: number;
@@ -113,7 +116,8 @@ export interface ActionContext {
 export interface ActionOutcome<T> {
   next: PlayerState;
   result: T;
-  activity: { type: ActivityType; payload: Prisma.InputJsonValue };
+  /** Left out by actions too small for the feed, like one trade on a run. */
+  activity?: { type: ActivityType; payload: Prisma.InputJsonValue };
   /**
    * Standing to write alongside the player, in the same transaction. Actions
    * that do not touch reputation leave this out.
@@ -164,6 +168,7 @@ export function toState(player: RoundPlayer): PlayerState {
     tek9Unlocked: player.tek9Unlocked,
     ak47Unlocked: player.ak47Unlocked,
     heat: player.heat,
+    awayNetWorthCents: player.awayNetWorthCents,
     cleanShiftStreak: player.cleanShiftStreak,
     rocksSuppliedToPip: player.rocksSuppliedToPip,
     driveBysDone: player.driveBysDone,
@@ -287,6 +292,9 @@ export const ActionService = {
         if (replay) return replay;
       }
 
+      // 0.5.0-B: a run that is due home is home before anything reads the player.
+      await RunSettleService.settle(tx, roundPlayerId, now);
+
       const loaded = await tx.roundPlayer.findUnique({
         where: { id: roundPlayerId },
         include: { city: true, round: true },
@@ -298,7 +306,8 @@ export const ActionService = {
       const { round, ...player } = loaded;
       assertRoundPlayable(round, now);
 
-      const ruleset = loadRulesetForRound(round);
+      // 0.5.0-A: Heat reads the player's own city.
+      const ruleset = rulesetForCity(loadRulesetForRound(round), player.city.slug);
       const recovery = await CombatRecoveryService.settle(tx, roundPlayerId, now);
 
       // Turns first: an action always spends from a settled balance. The shop
@@ -394,12 +403,14 @@ export const ActionService = {
         });
       }
 
-      await ActivityService.log(
-        tx,
-        roundPlayerId,
-        outcome.activity.type,
-        outcome.activity.payload,
-      );
+      if (outcome.activity) {
+        await ActivityService.log(
+          tx,
+          roundPlayerId,
+          outcome.activity.type,
+          outcome.activity.payload,
+        );
+      }
 
       const before = toSnapshot(current, beforeHappiness, beforeNetWorth);
       const after = toSnapshot(next, afterHappiness, afterNetWorth);

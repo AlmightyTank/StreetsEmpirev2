@@ -21,7 +21,7 @@ import {
   type UpkeepInput,
 } from './upkeep.js';
 
-/** City modifiers, all 1.00 until Travel ships. Section 12. */
+/** City modifiers. Section 12. From 0.5.0-A they come from the ruleset's `cities` (see `cityModifiers`), and 1.00 before it. */
 export interface CityModifiers {
   scoutModifier: number;
   incomeModifier: number;

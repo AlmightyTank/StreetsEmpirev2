@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { armedThugsForStreet, calculateScout, districtCapacities, unarmedThugsForStreet, type Rng } from '@streets/rules-engine';
+import { armedThugsForStreet, calculateScout, cityModifiers, districtCapacities, unarmedThugsForStreet, type Rng } from '@streets/rules-engine';
 import type { District, DistrictKey, Ruleset } from '@streets/rulesets';
 import type { DistrictDto, DistrictsDto, GameActionResult, ScoutResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
@@ -131,7 +131,7 @@ export const ScoutService = {
           player: { ...active, whoreHappiness, thugHappiness },
           turns: input.turns,
           ruleset,
-          city: player.city,
+          city: cityModifiers(ruleset, player.city.slug),
           district: found.key,
           clientCapacity: capacities[found.key],
           payoutPercent: current.payoutPercent,

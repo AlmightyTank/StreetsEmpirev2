@@ -74,6 +74,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       ruleset: settled.ruleset,
       turns: settled.turns,
       products: settled.products,
+      run: settled.run,
       recentActivity,
     });
   });

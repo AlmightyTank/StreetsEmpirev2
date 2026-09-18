@@ -575,6 +575,110 @@ export interface CombatSupplyRules {
   readonly productPerThugPerFight: number;
 }
 
+// --- 0.5.0 travel -------------------------------------------------------------
+
+/** 0.5.0-A. How much of a product Pip has in a city. */
+export type SupplyLevel = 'PLENTIFUL' | 'NORMAL' | 'LOW' | 'OUT';
+
+/** 0.5.0-A. One product in one city. */
+export interface CityProductRules {
+  /** Pip's buy and sell prices here against his base prices, before supply leans on them. */
+  readonly price: number;
+  /**
+   * The high market's baseline here, as a multiple of Pip's base buy price. Kept at or
+   * below `price` times the cheapest supply lean, less the spread, so buying at Pip's
+   * and selling on the high market in the same city always loses.
+   */
+  readonly demand: number;
+  /** Pip's usual supply here, or null where he does not carry it. */
+  readonly supply: SupplyLevel | null;
+}
+
+/**
+ * 0.5.0-A. What Heat means in a city. Heat is one number that goes wherever the
+ * player goes; each city decides where it starts to cost.
+ */
+export interface CityHeatRules {
+  readonly dragStartsAt: number;
+  readonly bustStartsAt: number;
+  /** Arrests arrive in 0.5.0-C. */
+  readonly arrestStartsAt: number;
+  /** Multiplies the round's bust seizure and fine here. */
+  readonly bustSeverity: number;
+}
+
+/** 0.5.0-A. A city's character. Everything here is balance, so it lives in the ruleset, not the City table. */
+export interface CityRules {
+  readonly name: string;
+  /** The headline: "The Exchange". */
+  readonly trait: string;
+  readonly blurb: string;
+  /**
+   * Street talk: what anyone can find out about a city without going. Always true, never
+   * a number. It names what is cheap and what sells, so a trip is never wasted, but not
+   * by how much, so no route can be ruled out from home.
+   */
+  readonly talk: readonly string[];
+  /** Every catalog product, crack included. */
+  readonly products: { readonly [product: string]: CityProductRules };
+  /** How far and how often supply moves over a round, 0 (steady) to 1 (the swing city). Swings arrive in 0.5.0-C. */
+  readonly supplySwing: number;
+  /** The lowest supply level any product here falls to in a swing. */
+  readonly supplyFloor: SupplyLevel;
+  /** Multiplies Heat gained on runs here. */
+  readonly policePressure: number;
+  /** High-market units that move the price 1%. */
+  readonly marketDepth: number;
+  readonly heat: CityHeatRules;
+  /** The scout, income and crack modifiers that used to sit on the City row. */
+  readonly modifiers: { readonly scout: number; readonly income: number; readonly crack: number };
+  /** Drive hours out along each road its locals can follow a run. */
+  readonly zoneHours: number;
+  /** District pay for players living here. Applied from 0.5.0-D, with relocation. */
+  readonly districtPay?: { readonly [K in DistrictKey]?: number };
+  /** Store prices for players living here. Applied from 0.5.0-D, with relocation. */
+  readonly storePrices?: { readonly [K in StoreKey]?: number };
+}
+
+/** 0.5.0-A. A real road between two cities. */
+export interface RoadRules {
+  readonly from: string;
+  readonly to: string;
+  /** "I-95". */
+  readonly name: string;
+  readonly driveHours: number;
+  /** Road-stop pressure, 1 for an ordinary road. Stops arrive in 0.5.0-C. */
+  readonly police: number;
+  readonly note?: string;
+}
+
+/** 0.5.0-A. Roads, run costs and Pip's supply levels, round-wide. */
+export interface TravelRules {
+  readonly roads: readonly RoadRules[];
+  /** Real time per drive hour. */
+  readonly gameMinutesPerDriveHour: number;
+  /** Turns a run spends per drive hour. */
+  readonly turnsPerDriveHour: number;
+  /** Units of product one Low-Rider carries. */
+  readonly cargoPerLowRider: number;
+  /** Other routes are offered when they are no more than this share longer than the shortest. */
+  readonly alternativeRouteShare: number;
+  /** Most routes offered between two cities. */
+  readonly maxRoutes: number;
+  /** What each supply level does to a shelf's size, its restock and Pip's prices. */
+  readonly supplyLevels: { readonly [K in SupplyLevel]: { readonly shelf: number; readonly restock: number; readonly price: number } };
+  /** The high market's cut: buyers pay baseline x (1 + spread), sellers get x (1 - spread). */
+  readonly highMarketSpread: number;
+  /** 0.5.0-B. Absent where cities have characters but nobody drives yet. */
+  readonly runs?: RunRules;
+}
+
+/** 0.5.0-B. Runs: a crew on the road with its own wallet and trunk. */
+export interface RunRules {
+  /** Real minutes a run stays in a city it stops at before it heads home on its own. */
+  readonly townWindowMinutes: number;
+}
+
 /** 0.4.0-D. Round-wide product economy switches. */
 export interface ProductEconomyRules {
   /** Recon's stock level, in product units per whore the target runs. */
@@ -775,5 +879,9 @@ export interface Ruleset {
   readonly productEconomy?: ProductEconomyRules;
   /** 0.4.0-E. Absent where thugs burn no product in fights. */
   readonly combatSupply?: CombatSupplyRules;
+  /** 0.5.0-A. Absent where cities are all alike and nobody travels. Keyed by City slug. */
+  readonly cities?: { readonly [slug: string]: CityRules };
+  /** 0.5.0-A. Absent where nobody travels. */
+  readonly travel?: TravelRules;
   readonly evidence: EvidenceRules;
 }

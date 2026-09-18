@@ -54,8 +54,10 @@ Admins run seasons, moderation and disputes from the [admin runbook](docs/ADMIN-
 | **0.4.0-C** | product effects and Heat: each product's take, recruits, walkouts and happiness by district; production thugs burn product; Heat drags the take, risks busts, cools and can be bribed down | **implemented** |
 | **0.4.0-D** | product economy: Pip deals every product from its own shelf, Produce cooks Crack, Meth or Ecstasy, raids and drug runs take a product mix, recon reads stash levels, every product counts toward net worth | **implemented** |
 | **0.4.0-E** | products release: thugs take product into fights (RAID and DEFENSE policies), supply status and shortage warnings, combat and full-round product simulations, 0.4.0 release regression | **implemented** |
+| **0.5.0-A** | travel, cities: every city's character in the ruleset (Pip's prices and supply, demand, police, Heat levels), real interstates between them, the Cities page, and the travel simulation gate; everyone still lives in New York | **implemented** |
+| **0.5.0-B** | runs: Low-Riders carry escorts, cash and product out of home stock on real roads; trade at Pip's counter in other cities from the run's own wallet and trunk; drive on or head home; the crew remembers what it saw; the Travel page | **implemented** |
 
-Cash raids, drive-bys, special raid forms and alliances are playable. Travel and messaging remain deliberately absent. The database anticipates them (`ProcessedAction`, `City`, weapon `power`) without exposing anything half-built to players.
+Cash raids, drive-bys, special raid forms and alliances are playable. Runs drive the road map to trade at Pip's counters in other cities; see [docs/ROADMAP-0.5.0.md](docs/ROADMAP-0.5.0.md). Messaging remains deliberately absent.
 
 ---
 

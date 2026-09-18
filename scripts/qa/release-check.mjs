@@ -17,6 +17,8 @@ run('Unit tests', npm, ['test']);
 run('Production build', npm, ['run', 'build']);
 // 0.4.0: product effects, money loops, product in combat and a full round.
 run('Product balance gates', npm, ['run', 'qa:products', '--', '--samples', '4000', '--quiet']);
+// 0.5.0: every city worth a run, no run better than the street, no same-city loops.
+run('Travel balance gates', npm, ['run', 'qa:travel', '--', '--quiet']);
 
 if (withDb) {
   // One file at a time: suites share the .env database, and any real current-round lookup
@@ -33,6 +35,8 @@ if (withDb) {
     ALLIANCE_INTEGRATION: '1',
     // 0.4.0: product inventory, work supply, Heat and the product economy.
     PRODUCT_INTEGRATION: '1',
+    // 0.5.0: runs out of town, city counters and what the crew saw there.
+    TRAVEL_INTEGRATION: '1',
   });
 }
 

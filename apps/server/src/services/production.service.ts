@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { COOK_JOB, PRODUCE_JOB, calculateProduce, districtCapacities, productRecipes, type Rng } from '@streets/rules-engine';
+import { COOK_JOB, PRODUCE_JOB, calculateProduce, cityModifiers, districtCapacities, productRecipes, type Rng } from '@streets/rules-engine';
 import type { GameActionResult, ProduceCrackResult, ProductTypeDto } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
@@ -107,7 +107,7 @@ export const ProductionService = {
           recipe,
           turns: input.turns,
           ruleset,
-          city: player.city,
+          city: cityModifiers(ruleset, player.city.slug),
           clientCapacity: capacities[ruleset.scouting.produceDistrict],
           cashCents: current.cashCents,
           payoutPercent: current.payoutPercent,
