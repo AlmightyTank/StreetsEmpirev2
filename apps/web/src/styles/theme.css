@@ -636,7 +636,7 @@ a:hover { color: #c9ff63; }
   .se-statusbar {
     gap: 12px;
   }
-  .se-statusbar__k {
+  .se-statusbar__k:not(.se-statusbar__k--keep) {
     display: none;
   }
   .se-statusbar__v--wide {
@@ -2331,7 +2331,8 @@ a.se-nav__link:hover {
   margin-top: 2px;
   color: var(--se-muted);
   font-size: 11px;
-  text-transform: capitalize;
+  /* These are sentences; capitalising every word made them read as Title Case. */
+  text-transform: none;
 }
 
 @media (max-width: 820px) {

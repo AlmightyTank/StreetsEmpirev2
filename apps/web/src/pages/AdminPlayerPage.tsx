@@ -19,7 +19,7 @@ const GRANT_FIELDS: Array<{ item: AdminGrantItem; label: string }> = [
   { item: 'thugs', label: 'Thugs' },
   { item: 'condoms', label: 'Condoms' },
   { item: 'medicine', label: 'Medicine' },
-  { item: 'crack', label: 'Product' },
+  { item: 'crack', label: 'Crack' },
   { item: 'beer', label: 'Beer' },
   { item: 'pistols', label: 'Pistols' },
   { item: 'shotguns', label: 'Shotguns' },

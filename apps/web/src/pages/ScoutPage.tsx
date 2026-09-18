@@ -123,7 +123,7 @@ export function ScoutPage() {
                 strong
               />
               <Row label="Whores" value={formatNumber(me.resources.whores)} strong tooltip="Girls working the block. Uncovered whores earn less and face more risk when supplies run short." />
-              <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong tooltip="In 0.2.0-H, a thug needs a weapon to count as street cover while scouting." />
+              <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong tooltip="A thug needs a weapon to count as street cover while scouting." />
               {me.resources.woundedThugs > 0 ? <Row label="Fit / wounded" value={`${formatNumber(me.resources.fitThugs)} / ${formatNumber(me.resources.woundedThugs)}`} tooltip="Wounded thugs cannot cover the street, scout, produce, attack or defend." /> : null}
               <Row label="Armed / unarmed" value={`${formatNumber(me.resources.armedThugs)} / ${formatNumber(me.resources.unarmedThugs)}`} tooltip="Only armed fit thugs count as protection in F public raid rounds." />
               <Row label="They keep" value={`${me.payoutPercent}%`} />
@@ -197,7 +197,7 @@ export function ScoutPage() {
               ...(action.result.result.crackFound > 0
                 ? [
                     {
-                      label: 'Product found',
+                      label: me.products ? 'Crack found' : 'Product found',
                       delta: action.result.result.crackFound,
                       remaining: action.result.after.resources.product,
                     },
@@ -220,7 +220,7 @@ export function ScoutPage() {
                   ]
                 : []),
               {
-                label: 'Product used',
+                label: me.products ? 'Crack used' : 'Product used',
                 delta: -action.result.result.crackUsed,
                 remaining: action.result.after.resources.product,
                 muted: true,

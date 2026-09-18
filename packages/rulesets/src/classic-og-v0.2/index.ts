@@ -4,7 +4,7 @@ import type { Ruleset } from '../types.js';
 /** 0.2.0-B cash raids. Values are pinned separately from the A experiment. */
 export const classicOgV02 = {
   ...classicOgV01,
-  meta: { id: 'classic-og-v0.2', version: '0.2.0', name: 'Classic OG — Cash Raids' },
+  meta: { id: 'classic-og-v0.2', version: '0.2.0', name: 'Classic OG - Cash Raids' },
   combat: {
     version: '0.2.0-B.1', weapons: classicOgV01.weapons,
     squadCap: 100, turnCost: 10,

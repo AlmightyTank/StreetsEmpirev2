@@ -111,8 +111,8 @@ export function AdminRulesetsPage() {
                   {section.rows.map((row) => (
                     <tr key={row.path} className={row.changed ? 'se-admin-row--changed' : undefined}>
                       <td className="se-admin-ruleset-value">{row.path}</td>
-                      <td className="se-admin-ruleset-value">{row.value ?? <span className="se-muted">not set</span>}</td>
-                      {comparing ? <td className="se-admin-ruleset-value">{row.compareValue ?? <span className="se-muted">not set</span>}</td> : null}
+                      <td className="se-admin-ruleset-value">{row.value === 'null' ? <span className="se-muted">none</span> : row.value ?? <span className="se-muted">not set</span>}</td>
+                      {comparing ? <td className="se-admin-ruleset-value">{row.compareValue === 'null' ? <span className="se-muted">none</span> : row.compareValue ?? <span className="se-muted">not set</span>}</td> : null}
                     </tr>
                   ))}
                 </tbody>

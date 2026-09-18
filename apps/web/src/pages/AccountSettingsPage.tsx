@@ -522,7 +522,7 @@ export function AccountSettingsPage() {
                           />
                           <span>
                             <strong>{option.label}</strong>
-                            <small>{option.permanent ? 'Permanent' : 'This round'} · {option.rarity}</small>
+                            <small>{option.permanent ? 'Permanent' : 'This round'} · {option.rarity.charAt(0).toUpperCase() + option.rarity.slice(1)}</small>
                           </span>
                         </label>
                       );

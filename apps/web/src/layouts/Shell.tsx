@@ -35,13 +35,14 @@ function StatusBar() {
       </span>
       {me.heat ? (
         <span className="se-statusbar__item" title={`Heat ${me.heat.heat} of ${me.heat.max}`}>
-          <span className="se-statusbar__k">Heat</span>
+          {/* Kept when other labels drop at mid widths: a bare Heat number reads as another count. */}
+          <span className="se-statusbar__k se-statusbar__k--keep">Heat</span>
           <span className={`se-num se-statusbar__v${me.heat.heat >= me.heat.bustStartsAt ? ' se-bad' : me.heat.heat >= me.heat.dragStartsAt ? ' se-warn' : ''}`}>
             {me.heat.heat}
           </span>
         </span>
       ) : null}
-      <span className="se-statusbar__item">
+      <span className="se-statusbar__item se-statusbar__item--worth">
         <span className="se-statusbar__k">Net Worth</span>
         <span className="se-num se-statusbar__v se-statusbar__v--wide">
           {money(me.netWorthCents)}

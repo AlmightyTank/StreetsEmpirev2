@@ -96,7 +96,7 @@ export function JoinPage() {
             <Row label="Whores" value={formatNumber(start.whores)} />
             <Row label="Thugs" value={formatNumber(start.thugs)} />
             <Row label="Condoms" value={formatNumber(start.condoms)} />
-            <Row label="Product" value={formatNumber(start.crack)} />
+            <Row label={'products' in ruleset && ruleset.products ? 'Crack' : 'Product'} value={formatNumber(start.crack)} />
             <Row label="Beer" value={formatNumber(start.beer)} />
             <Row label="Medicine" value={formatNumber(start.medicine)} />
             <Row label="Pistols" value={formatNumber(start.pistols)} />

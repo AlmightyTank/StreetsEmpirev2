@@ -33,7 +33,7 @@ const GAME_STRUCTURED_DATA = {
 /** What the season asks of a player, in the order they feel it. */
 const LOOP = [
   { step: 'Spend turns', text: 'Turns return on a clock, so every action has weight: scout, produce, shop, heal or hold for the raid window.' },
-  { step: 'Grow the take', text: 'Crew, supplies, happiness and district choice decide whether your block prints money or drains it.' },
+  { step: 'Grow the take', text: 'Crew, supplies, the product they work on and district choice decide whether your block prints money or drains it.' },
   { step: 'Buy leverage', text: 'Trader reputation opens better weapons, restocks faster shelves and makes the hideout worth pouring cash into.' },
   { step: 'Hit rivals', text: 'Recon shows what rankings hide. Pick the angle, send fit muscle, then live with the public result.' },
 ] as const;
@@ -219,7 +219,7 @@ export function LandingPage() {
             ))}
           </dl>
           <p className="se-hint">
-            Scout first. Rankings show money and rank; only recon shows a rival&rsquo;s crew,
+            Recon first. Rankings show money and rank; only recon shows a rival&rsquo;s crew,
             guns, wounds and the cash they left out.
           </p>
         </div>
@@ -269,7 +269,7 @@ export function LandingPage() {
             <span><b className="se-num">{formatNumber(ruleset.turns.cap)}</b>turns</span>
             <span><b className="se-num">{formatNumber(start.thugs)}</b>thugs</span>
             <span><b className="se-num">{formatNumber(start.pistols)}</b>pistols</span>
-            <span><b className="se-num">{formatNumber(start.crack)}</b>product</span>
+            <span><b className="se-num">{formatNumber(start.crack)}</b>{'products' in ruleset && ruleset.products ? 'crack' : 'product'}</span>
             <span><b className="se-num">{formatNumber(start.medicine)}</b>medicine</span>
           </div>
           <p className="se-hint">

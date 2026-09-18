@@ -65,7 +65,7 @@ function HitRulesPanel({ mode, rules, driveBy, specialRaid }: { mode: Mode; rule
     {rules.repeatLootPenaltyPercent ? <p>Keep farming the same mark and the score dries up: each repeat cuts the roll by {rules.repeatLootPenaltyPercent}%, down to {rules.repeatLootFloorPercent ?? 0}% of normal. Hit somebody else to cool it off.</p> : null}
     <p>{rules.newcomerHours > 0 ? `New crews get ${rules.newcomerHours} hours before the street opens on them. ` : 'New crews can be hit right away in this round. '}After a raid, that block gets {rules.protectionHours} hours of breathing room.</p>
     <p>Your crew needs {rules.cooldownMinutes} minutes between raids. You cannot move while your own block is protected, and crews far below your strength are off limits.</p>
-    {rules.reconTurnCost ? <p>Scout a mark for {rules.reconTurnCost} turns to see the useful dirt for {rules.intelExpiresMinutes} minutes. If somebody hits you, payback stays open for {rules.retaliationHours} hours.</p> : null}
+    {rules.reconTurnCost ? <p>Recon a mark for {rules.reconTurnCost} turns to see the useful dirt for {rules.intelExpiresMinutes} minutes. If somebody hits you, payback stays open for {rules.retaliationHours} hours.</p> : null}
     <p className="se-hint">Wounded thugs sit out until they heal. Medicine gets them back on the street now.</p>
   </Panel>;
 }
@@ -529,13 +529,13 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                 <Button type="button" className="se-btn"
                   disabledReason={busy ? 'Your last hit is still going through.'
                     : pending ? 'Get the report for your unsettled hit first.'
-                      : me.turns.turns < rules.reconTurnCost ? `Scouting costs ${rules.reconTurnCost} turns and you have ${formatNumber(me.turns.turns)}.`
+                      : me.turns.turns < rules.reconTurnCost ? `Recon costs ${rules.reconTurnCost} turns and you have ${formatNumber(me.turns.turns)}.`
                         : null}
                   onClick={() => void reconTarget()}>
-                  Scout {selected.displayName} · {rules.reconTurnCost} turns
+                  Recon {selected.displayName} · {rules.reconTurnCost} turns
                 </Button>
                 <p className="se-hint">{selected.intel
-                  ? `${selected.intel.sharedBy ? `${selected.intel.sharedBy} scouted this block. ` : ''}Fresh eyes on it until ${date(selected.intel.expiresAt)}.`
+                  ? `${selected.intel.sharedBy ? `${selected.intel.sharedBy} ran recon on this block. ` : ''}Fresh eyes on it until ${date(selected.intel.expiresAt)}.`
                   : 'Recon shows the parts rankings do not: fit crew, wounds, guns, exposed cash and product.'}</p>
               </div> : null}
               <label htmlFor="raid-squad">{driving

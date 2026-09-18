@@ -13,8 +13,8 @@ import { formatDate, formatDuration } from '../utils/time.js';
 function statusCopy(status: string) {
   if (status === 'ACTIVE') return {
     title: 'The streets are open',
-    body: 'Players can join, earn turns, build their crew, scout marks and make raid moves until the round clock expires.',
-    action: 'Spend turns before they sit at the cap. Scout first when you need private raid intel.',
+    body: 'Players can join, earn turns, build their crew, run recon and make raid moves until the round clock expires.',
+    action: 'Spend turns before they sit at the cap. Run recon first when you need private raid intel.',
   };
   if (status === 'REGISTRATION') return {
     title: 'Registration is open',

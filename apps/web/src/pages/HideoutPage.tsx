@@ -33,11 +33,11 @@ function RoomCard({
       <div className="se-meter" aria-hidden="true">
         <div className="se-meter__fill" style={{ width: `${meter}%` }} />
       </div>
-      <div className="se-rows se-mt">
-        <Row label="Current" value={room.currentEffect} />
-        <Row label="Next" value={room.nextEffect ?? 'Fully upgraded'} strong />
-        <Row label="Cost" value={room.nextCostCents === null ? '-' : formatCents(room.nextCostCents)} />
-      </div>
+      <dl className="se-effects se-mt">
+        <div><dt>Now</dt><dd>{room.currentEffect}</dd></div>
+        <div><dt>Next</dt><dd className="se-effects__next">{room.nextEffect ?? 'Fully upgraded'}</dd></div>
+        <div><dt>Cost</dt><dd className="se-num">{room.nextCostCents === null ? '-' : formatCents(room.nextCostCents)}</dd></div>
+      </dl>
       <Button
         type="button"
         className="se-btn se-btn--primary se-btn--block"

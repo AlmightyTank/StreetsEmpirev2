@@ -146,7 +146,7 @@ export function AlliancePage() {
 
       {data && !data.enabled ? (
         <Panel title="No alliances this round">
-          <p className="se-muted">This round is played solo. Alliances arrive with the 0.3.0-C ruleset.</p>
+          <p className="se-muted">This round is played solo: its ruleset has no alliances.</p>
         </Panel>
       ) : null}
 

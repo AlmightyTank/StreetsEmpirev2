@@ -251,7 +251,7 @@ export function ProducePage() {
               ...(action.result.result.crackFound > 0
                 ? [
                     {
-                      label: 'Product found',
+                      label: me.products ? 'Crack found' : 'Product found',
                       delta: action.result.result.crackFound,
                       remaining: action.result.after.resources.product,
                     },
@@ -274,7 +274,7 @@ export function ProducePage() {
                   ]
                 : []),
               {
-                label: 'Product used',
+                label: me.products ? 'Crack used' : 'Product used',
                 delta: -action.result.result.crackUsed,
                 remaining: action.result.after.resources.product,
                 muted: true,

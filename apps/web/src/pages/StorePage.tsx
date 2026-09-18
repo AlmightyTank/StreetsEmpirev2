@@ -387,7 +387,7 @@ function StoreView({ slug }: { slug: string }) {
             result={action.result!} onDismiss={action.clear} lines={[
               { label: 'Reputation', delta: favourReceipt.reputationGained, remaining: favourReceipt.totalRep },
               ...(favourReceipt.crackDelivered > 0
-                ? [{ label: 'Product delivered', delta: -favourReceipt.crackDelivered, remaining: action.result!.after.resources.product }]
+                ? [{ label: catalog?.productCounter ? 'Crack delivered' : 'Product delivered', delta: -favourReceipt.crackDelivered, remaining: action.result!.after.resources.product }]
                 : []),
               ...(favourReceipt.lowRidersHandedOver > 0
                 ? [{ label: 'Low-Riders handed over', delta: -favourReceipt.lowRidersHandedOver, remaining: action.result!.after.resources.lowRiders }]

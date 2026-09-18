@@ -1,5 +1,6 @@
 import type { ActivityDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
+import { useSession } from '../stores/session.js';
 
 function num(value: unknown, fallback = 0): number {
   return typeof value === 'number' ? value : fallback;
@@ -40,7 +41,7 @@ function changeSummary(value: unknown): string {
  * build does not render yet, so they degrade to the type name rather than
  * disappearing from the feed.
  */
-function describe(activity: ActivityDto): { text: string; detail?: string } {
+function describe(activity: ActivityDto, crackWord: string): { text: string; detail?: string } {
   const p = activity.payload;
 
   switch (activity.type) {
@@ -109,7 +110,7 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
         num(p.cashCents) ? `+${formatCents(num(p.cashCents))}` : null,
         num(p.whores) ? `+${formatNumber(num(p.whores))} whores` : null,
         num(p.thugs) ? `+${formatNumber(num(p.thugs))} thugs` : null,
-        num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} product found` : null,
+        num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} ${crackWord} found` : null,
         num(p.whoresLeft) ? `${num(p.whoresLeft)} whores walked` : null,
         num(p.thugsLeft) ? `${num(p.thugsLeft)} thugs walked` : null,
         p.busted ? `BUSTED, fined ${formatCents(num(p.fineCents))}` : null,
@@ -124,7 +125,7 @@ function describe(activity: ActivityDto): { text: string; detail?: string } {
     case 'WORK_STREETS': {
       const detail = [
         `+${formatCents(num(p.cashCents))}`,
-        num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} product found` : null,
+        num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} ${crackWord} found` : null,
         num(p.whoresLeft) ? `${num(p.whoresLeft)} whores walked` : null,
         num(p.thugsLeft) ? `${num(p.thugsLeft)} thugs walked` : null,
       ].filter(Boolean);
@@ -209,6 +210,8 @@ function time(iso: string): string {
 }
 
 export function ActivityFeed({ activity }: { activity: ActivityDto[] }) {
+  // Crack is "product" on rounds with only one, and crack by name once there are others.
+  const crackWord = useSession((s) => s.me?.products) ? 'crack' : 'product';
   if (activity.length === 0) {
     return (
       <div className="se-panel__body">
@@ -220,7 +223,7 @@ export function ActivityFeed({ activity }: { activity: ActivityDto[] }) {
   return (
     <ul className="se-feed">
       {activity.map((entry) => {
-        const { text, detail } = describe(entry);
+        const { text, detail } = describe(entry, crackWord);
         return (
           <li className="se-feed__item" key={entry.id}>
             <span className="se-feed__time se-num">{time(entry.createdAt)}</span>

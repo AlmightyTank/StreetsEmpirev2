@@ -63,8 +63,10 @@
 
 @media (max-width: 600px) {
   .se-topbar { gap: 8px; padding-right: 10px; padding-left: 10px; }
-  /* The full resource grid below the header already carries cash and turns. */
-  .se-statusbar { display: none; }
+  /* On a phone the numbers get a row of their own under the header, labelled and compact. */
+  .se-topbar { flex-wrap: wrap; height: auto; min-height: 48px; padding-top: 6px; padding-bottom: 6px; row-gap: 6px; }
+  .se-statusbar { order: 3; flex: 1 0 100%; justify-content: space-between; gap: 8px; padding-top: 6px; border-top: 1px solid var(--se-line); }
+  .se-statusbar .se-statusbar__k { display: inline; }
   .se-topbar .se-btn { padding: 8px 10px; }
   .se-topbar__right,
   .se-topbar__right .se-btn {
@@ -232,4 +234,9 @@
 .se-mobile-menu:focus-visible {
   outline: 2px solid var(--se-accent);
   outline-offset: 3px;
+}
+
+/* The phone status row holds three: net worth is the first thing on the dashboard anyway. */
+@media (max-width: 420px) {
+  .se-statusbar__item--worth { display: none; }
 }

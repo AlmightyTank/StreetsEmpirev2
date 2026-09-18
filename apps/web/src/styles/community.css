@@ -168,7 +168,6 @@
 
 @media (max-width: 420px) {
   .se-topbar { padding: 0 10px; gap: 8px; }
-  .se-statusbar { display: none; }
   .se-gamebar__time { font-size: 11px; }
   .se-title { font-size: 20px; }
   .se-stats { grid-template-columns: 1fr 1fr; }
@@ -256,3 +255,16 @@
 /* 0.4.0-D: Pip carries six products, so his shelf items sit two to a row; his favour spans both. */
 .se-store-items--pair { grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); align-items: start; }
 .se-store-items--pair > :not(.se-panel) { grid-column: 1 / -1; }
+
+/* Hall of Fame: a long season window wraps instead of pushing the page sideways. */
+.se-archive-list > * { min-width: 0; }
+.se-archive-stats .se-stat { min-width: 0; }
+.se-archive-stats .se-stat__value { white-space: normal; overflow-wrap: anywhere; }
+
+/* Hideout room effects: label over a sentence, which reads in a narrow card. */
+.se-effects { display: grid; gap: 8px; margin: 12px 0; }
+.se-effects > div { display: grid; gap: 2px; padding-bottom: 8px; border-bottom: 1px solid var(--se-line); }
+.se-effects > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.se-effects dt { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--se-muted); }
+.se-effects dd { margin: 0; font-size: 13px; }
+.se-effects__next { color: var(--se-text); font-weight: 600; }

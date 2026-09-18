@@ -88,8 +88,8 @@ export function RulesPage() {
                 deliveries. Pistols arrive by the crate; an AK-47 comes once a day.
               </li>
               <li>
-                Product is the one thing a shop can run short of on purpose &mdash; Pip cannot
-                keep a large stable supplied, which is what production is for.
+                Product is where shelves bite. Pip cannot keep a large stable supplied, which
+                is what production is for.
               </li>
             </ul>
           </Panel>
@@ -163,6 +163,32 @@ export function RulesPage() {
               <li>
                 Nothing about a block is posted except whether your thugs can cover it.
                 You find the rest out by going.
+              </li>
+            </ul>
+          </Panel>
+
+          <Panel title="Products and Heat">
+            <ul className="se-list">
+              <li>
+                Rounds with more than one product give each its own character: some pay best
+                in rich blocks, some on the street, some keep a crew happy, and some cook or
+                fight better. No product is best at everything.
+              </li>
+              <li>
+                Each job has a supply order &mdash; a primary, then a fallback, then an
+                emergency product &mdash; set on Scout, Produce and Raids. A trip that runs
+                out part-way is charged and paid for each part, and the part with nothing
+                earns less.
+              </li>
+              <li>
+                Pip deals every product from shelves of their own. What can be cooked is
+                cooked on Produce. Everything you hold counts toward net worth, and raids
+                take a share of all of it.
+              </li>
+              <li>
+                Risky product draws Heat. High Heat cuts the take, and higher Heat risks a
+                bust that seizes product and fines cash. Heat cools on the turn clock, and a
+                bribe on the dashboard takes it down faster.
               </li>
             </ul>
           </Panel>
