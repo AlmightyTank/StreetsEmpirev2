@@ -231,3 +231,28 @@
 .se-heat__status { margin: 0 0 6px; font-weight: 600; }
 .se-heat__bribe { margin-top: 10px; display: grid; gap: 6px; }
 .se-heat__bribe-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
+/* The bribe button sits at the right edge of a sidebar; its reason opens leftward so it never widens the page. */
+.se-heat__bribe-row .se-why__text { left: auto; right: 0; transform: translate(0, 4px); }
+.se-heat__bribe-row .se-why:hover .se-why__text,
+.se-heat__bribe-row .se-why:focus-within .se-why__text { transform: translate(0, 0); }
+/* Status bar values are white by default; Heat takes the warning colours. */
+.se-statusbar__v.se-warn { color: var(--se-warn); }
+.se-statusbar__v.se-bad { color: var(--se-bad); }
+
+/* 0.4.0-E compact supply rows */
+.se-supply__list { display: grid; gap: 12px; }
+.se-supply + .se-supply { padding-top: 12px; border-top: 1px solid var(--se-line); }
+.se-supply__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.se-supply__job { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--se-muted); }
+.se-supply__line { flex: 1 1 auto; min-width: 0; font-weight: 600; }
+.se-supply__head .se-btn { margin-left: auto; }
+.se-supply__status { margin-top: 8px; }
+.se-supply__editor { display: grid; gap: 8px; margin-top: 8px; }
+
+/* 0.4.0-D: three recipes fit one row, which keeps the Produce column level with its sidebar. */
+.se-product-choices--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 720px) { .se-product-choices--3 { grid-template-columns: 1fr; } }
+
+/* 0.4.0-D: Pip carries six products, so his shelf items sit two to a row; his favour spans both. */
+.se-store-items--pair { grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); align-items: start; }
+.se-store-items--pair > :not(.se-panel) { grid-column: 1 / -1; }

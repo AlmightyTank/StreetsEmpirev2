@@ -17,7 +17,7 @@ Ruleset: classic-og-v0.4-e. Every number here is integer cents in the ruleset.
 | Meth | $15.00 | $4.50 | $4.50 | 200 / 200 every 30 min | 70% |
 | Heroin | $15.00 | $4.50 | $4.50 | 100 / 100 every 60 min | 70% |
 
-## Produce Product
+## Produce
 
 Cooking pays by saving the difference between Pip's price and the ingredients, before thug happiness, cook supply and variance.
 

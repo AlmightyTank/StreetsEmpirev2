@@ -215,6 +215,11 @@ export interface RoundPlayerDto {
   happiness: HappinessDto;
   /** 0.4.0-C. Null on rounds without Heat. */
   heat: HeatDto | null;
+  /**
+   * Every product the player holds, crack included, in catalog order. Null on rounds
+   * where Product is still only crack.
+   */
+  products: Array<{ key: string; name: string; quantity: number }> | null;
   rank: RankDto;
   hideout: SeasonHideoutDto;
 

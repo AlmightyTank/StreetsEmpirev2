@@ -10,6 +10,13 @@ import { Panel } from './Panel.js';
 
 const percent = (value: number) => `${Math.round(value * 100)}%`;
 
+/** "25 minutes", "1 hour", "2.5 hours". */
+function coolText(hours: number): string {
+  if (hours < 1) return `${Math.round(hours * 60)} minutes`;
+  const rounded = Math.round(hours * 10) / 10;
+  return rounded === 1 ? '1 hour' : `${rounded} hours`;
+}
+
 /** "Crack", "Ecstasy": product keys read as names on receipts. */
 function productLabel(key: string): string {
   return key.charAt(0) + key.slice(1).toLowerCase();
@@ -71,7 +78,7 @@ export function HeatPanel() {
   }
 
   const status = tone === 'bad'
-    ? `Every trip risks a bust: ${percent(heat.bustChance)} right now.`
+    ? `Every trip risks a bust: ${percent(heat.bustChance)} right now, and the take is down ${percent(1 - heat.takeMultiplier)}.`
     : tone === 'warn'
       ? `The attention is costing you ${percent(1 - heat.takeMultiplier)} of the take.`
       : 'Quiet. Nobody is costing you anything yet.';
@@ -85,7 +92,7 @@ export function HeatPanel() {
       <p className="se-hint">
         Take drag from {heat.dragStartsAt}, bust risk from {heat.bustStartsAt}. A bust seizes {percent(heat.bust.productSeizedFraction)} of your
         product and fines {percent(heat.bust.cashFineFraction)} of your cash. Heat cools {formatNumber(heat.decayPerInterval)} every{' '}
-        {heat.intervalMinutes} minutes{hoursToCool > 0 ? `, about ${hoursToCool.toFixed(1)} hours to clear` : ''}.
+        {heat.intervalMinutes} minutes{hoursToCool > 0 ? `, about ${coolText(hoursToCool)} to clear` : ''}.
       </p>
 
       {heat.heat > 0 ? (

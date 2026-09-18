@@ -9,6 +9,7 @@ import { useCountdown } from '../hooks/useCountdown.js';
 import { useLiveDashboard } from '../hooks/useLiveDashboard.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
+import { HeatPanel } from '../components/HeatPanel.js';
 import { formatDate, formatDuration } from '../utils/time.js';
 
 function RankMovement({ movement }: { movement: number | null }) {
@@ -230,6 +231,17 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
   const weapons =
     me.resources.pistols + me.resources.shotguns + me.resources.tek9s + me.resources.ak47s;
 
+  const suppliesPanel = (
+    <Panel title="Supplies" flush>
+                  <div className="se-rows">
+                    <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
+                    {me.products ? null : <Row label="Product" value={formatNumber(me.resources.product)} />}
+                    <Row label="Beer" value={formatNumber(me.resources.beer)} />
+                    <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
+                  </div>
+                </Panel>
+  );
+
   return (
     <GameLayout>
       <div className="se-pagehead">
@@ -277,6 +289,9 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
               </div>
             </Panel>
 
+            {/* With products the middle column fills up, so supplies sit under the crew to even the columns. */}
+            {me.products ? suppliesPanel : null}
+
             <Panel title="Happiness">
               <HappinessRow label="Whore happiness" value={me.happiness.whore} />
               <p className="se-hint">Hover the penalty rows to see what each drag means.</p>
@@ -293,14 +308,16 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
           </div>
 
           <div className="se-grid">
-            <Panel title="Supplies" flush>
-              <div className="se-rows">
-                <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
-                <Row label="Product" value={formatNumber(me.resources.product)} />
-                <Row label="Beer" value={formatNumber(me.resources.beer)} />
-                <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
-              </div>
-            </Panel>
+            {me.products ? null : suppliesPanel}
+
+            {/* 0.4.0: every product held, now that there is no Products page. Trade them at Pip's. */}
+            {me.products ? (
+              <Panel title="Products" aside={<Link to="/game/stores/pip">Pip&rsquo;s</Link>} flush>
+                <div className="se-rows">
+                  {me.products.map((product) => <Row key={product.key} label={product.name} value={formatNumber(product.quantity)} />)}
+                </div>
+              </Panel>
+            ) : null}
 
             <Panel title="Weapons" flush>
               <div className="se-rows">
@@ -315,6 +332,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
         </div>
 
         <aside className="se-grid">
+          <HeatPanel />
           <PayoutControl />
 
           <HideoutPanel hideout={me.hideout} />

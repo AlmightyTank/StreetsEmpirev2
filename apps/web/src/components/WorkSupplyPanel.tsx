@@ -23,8 +23,8 @@ export function supplyReceiptLines(plan: WorkSupplyPlanDto | undefined, prefix =
   if (!plan || plan.need === 0) return [];
   return [
     { label: `${prefix}Supply`, value: supplySummary(plan) },
-    ...plan.slices.filter((slice) => slice.product && slice.product !== 'CRACK').map((slice) => ({ label: `${slice.productName} used`, value: formatNumber(slice.units) })),
-    ...(plan.role ? [{ label: 'Supply effects', value: supplyEffects(plan) }] : []),
+    ...plan.slices.filter((slice) => slice.product && slice.product !== 'CRACK').map((slice) => ({ label: `${prefix}${slice.productName} used`, value: formatNumber(slice.units) })),
+    ...(plan.role ? [{ label: `${prefix}Supply effects`, value: supplyEffects(plan) }] : []),
   ];
 }
 
@@ -33,7 +33,8 @@ const times = (value: number) => `×${(Math.round(value * 100) / 100).toFixed(2)
 /** 0.4.0-C. What the plan's products do, in one line. Only what differs from plain crack-era work is shown. */
 export function supplyEffects(plan: WorkSupplyPlanDto): string {
   const parts = [
-    `${plan.role === 'fighters' ? (plan.job === 'DEFENSE' ? 'Defense' : 'Attack') : plan.role === 'thugs' ? 'Output' : 'Take'} ${times(plan.takeMultiplier)}`,
+    // Only what moves: a neutral ×1.00 says nothing.
+    Math.abs(plan.takeMultiplier - 1) > 0.005 ? `${plan.role === 'fighters' ? (plan.job === 'DEFENSE' ? 'Defense' : 'Attack') : plan.role === 'thugs' ? 'Output' : 'Take'} ${times(plan.takeMultiplier)}` : null,
     plan.role === 'fighters' && Math.abs(plan.woundMultiplier - 1) > 0.005 ? `wounds ${times(plan.woundMultiplier)}` : null,
     plan.role === 'hoes' && Math.abs(plan.recruitmentMultiplier - 1) > 0.005 ? `recruits ${times(plan.recruitmentMultiplier)}` : null,
     Math.abs(plan.departureMultiplier - 1) > 0.005 ? `walkouts ${times(plan.departureMultiplier)}` : null,
@@ -49,9 +50,10 @@ const WORKERS: Record<WorkSupplyPlanDto['role'], string> = { hoes: 'whores', thu
  * 0.4.0-E. The warning a supply screen leads with: fully supplied and for how long,
  * running low and when it switches, or short with how many go without and what it costs.
  */
-export function supplyStatus(plan: WorkSupplyPreviewDto): { tone: 'good' | 'warn' | 'bad'; text: string; detail: string | null } {
+export function supplyStatus(plan: WorkSupplyPreviewDto, nameOf: (key: string) => string | undefined = () => undefined): { tone: 'good' | 'warn' | 'bad'; text: string; detail: string | null } {
   const dry = plan.slices.find((slice) => slice.state === 'dry');
-  const primaryName = plan.slices.find((slice) => slice.product === plan.policy.primary)?.productName ?? plan.policy.primary;
+  // A primary with no stock has no slice of its own, so its name comes from the catalog.
+  const primaryName = plan.slices.find((slice) => slice.product === plan.policy.primary)?.productName ?? nameOf(plan.policy.primary) ?? plan.policy.primary;
   const fight = plan.role === 'fighters';
   const supplyTurns = plan.status.turnsOfSupply;
   const lasts = supplyTurns === null ? null
@@ -62,7 +64,7 @@ export function supplyStatus(plan: WorkSupplyPreviewDto): { tone: 'good' | 'warn
   const dryTone = plan.role === 'hoes' ? 'bad' : 'warn';
   if (dry) {
     const who = `${formatNumber(plan.status.shortWorkers)} ${WORKERS[plan.role]}`;
-    const cost = plan.status.estimatedLossCents ? ` · about ${formatCents(plan.status.estimatedLossCents)} less take` : '';
+    const cost = plan.status.estimatedLossCents ? ` · about ${formatCents(plan.status.estimatedLossCents)} less take than a full ${primaryName} trip` : '';
     const text = dry.share >= 1
       ? fight ? 'No allowed product on hand: they fight without.' : plan.role === 'thugs' ? 'No allowed product on hand: the cooks work without.' : 'No allowed product on hand: the whole trip runs dry.'
       : fight ? `Short: ${who} go in without.` : `Short: runs dry for the last ${turnsText(dry.turns)}.`;
@@ -73,65 +75,51 @@ export function supplyStatus(plan: WorkSupplyPreviewDto): { tone: 'good' | 'warn
   return { tone: 'good', text: `Fully supplied with ${primaryName}.`, detail: lasts };
 }
 
+/** "Cocaine → Ecstasy → Crack", or "Cocaine only" when strict. */
+function policyLine(policy: WorkSupplyPolicyDto, nameOf: (key: string) => string): string {
+  if (policy.strict) return `${nameOf(policy.primary)} only`;
+  return [policy.primary, policy.fallback, policy.emergency].filter((key): key is string => Boolean(key)).map(nameOf).join(' → ');
+}
+
+type JobRow = WorkSupplyDto['jobs'][number];
+
 /**
- * 0.4.0-B. The product policy for one job and what the next trip will burn.
- * The preview runs the same plan as the action, so it matches the receipt as
- * long as stock and crew do not change in between. Hidden on rounds without work supply.
+ * One job's supply, compact: the policy on one line, what the next trip does on
+ * another, and the editor only when asked for. The preview runs the same plan as
+ * the action, so it matches the receipt as long as stock and crew do not change.
  */
-export function WorkSupplyPanel({ job, jobLabel, turns, refreshKey, title = 'Product supply' }: { job: string; jobLabel: string; turns: number | ''; refreshKey?: unknown; title?: string }) {
-  const [overview, setOverview] = useState<WorkSupplyDto | null>(null);
-  const [draft, setDraft] = useState<WorkSupplyPolicyDto | null>(null);
+function SupplyRow({ overview, row, jobLabel, turns, refreshKey, onOverview }: {
+  overview: WorkSupplyDto; row: JobRow; jobLabel: string; turns: number | ''; refreshKey?: unknown; onOverview: (next: WorkSupplyDto) => void;
+}) {
+  const job = row.key;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<WorkSupplyPolicyDto>(row.policy);
   const [plan, setPlan] = useState<WorkSupplyPreviewDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const options = overview.products;
+  const nameOf = (key: string) => options.find((product) => product.key === key)?.name ?? key;
 
-  const load = useCallback(() => {
-    api.get<WorkSupplyDto>('/game/work-supply').then(setOverview).catch(() => setOverview(null));
-  }, []);
-  useEffect(load, [load, refreshKey]);
-
-  const row = overview?.jobs.find((candidate) => candidate.key === job) ?? null;
-  const saved = row?.policy ?? null;
-  // 0.4.0-E: a fight job burns nothing until its policy is saved.
-  const inactive = Boolean(row && !row.active);
-  useEffect(() => { setDraft(saved); }, [saved?.primary, saved?.fallback, saved?.emergency, saved?.strict, job]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setDraft(row.policy); }, [row.policy.primary, row.policy.fallback, row.policy.emergency, row.policy.strict]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!overview?.enabled || !job || typeof turns !== 'number' || turns < 1) { setPlan(null); return; }
+    if (!row.active || typeof turns !== 'number' || turns < 1) { setPlan(null); return; }
     const timer = window.setTimeout(() => {
       api.get<WorkSupplyPreviewDto>(`/game/work-supply/preview?job=${encodeURIComponent(job)}&turns=${turns}`)
         .then((next) => { setPlan(next); setError(null); })
         .catch((caught: unknown) => setError(caught instanceof ApiError ? caught.message : 'Could not preview supply.'));
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [overview, job, turns, refreshKey]);
+  }, [row.active, row.policy, job, turns, refreshKey]);
 
-  if (!overview?.enabled || !draft) return null;
-
-  const changed = inactive || JSON.stringify(draft) !== JSON.stringify(saved);
-  const options = overview.products;
-  const stock = (key: string | null) => options.find((product) => product.key === key)?.quantity ?? 0;
-
-  async function save() {
-    if (!draft) return;
+  async function send(path: string, body: object, failure: string) {
     setSaving(true);
     setError(null);
     try {
-      setOverview(await api.post<WorkSupplyDto>('/game/work-supply/policy', { job, ...draft }));
+      onOverview(await api.post<WorkSupplyDto>(path, body));
+      setEditing(false);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not save the supply policy.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function clear() {
-    setSaving(true);
-    setError(null);
-    try {
-      setOverview(await api.post<WorkSupplyDto>('/game/work-supply/policy/clear', { job }));
-    } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not clear the supply policy.');
+      setError(caught instanceof ApiError ? caught.message : failure);
     } finally {
       setSaving(false);
     }
@@ -143,50 +131,95 @@ export function WorkSupplyPanel({ job, jobLabel, turns, refreshKey, title = 'Pro
       <select id={`supply-${job}-${field}`} className="se-input" disabled={disabled} value={draft[field] ?? ''}
         onChange={(event) => setDraft({ ...draft, [field]: event.target.value || null, ...(field === 'fallback' && !event.target.value ? { emergency: null } : {}) })}>
         {allowNone ? <option value="">None</option> : null}
-        {options.map((product) => <option key={product.key} value={product.key}>{product.name} ({formatNumber(product.quantity)})</option>)}
+        {/* Names only: counts do not fit a sidebar, and stock shows in the status line. */}
+        {options.map((product) => <option key={product.key} value={product.key}>{product.name}</option>)}
       </select>
     </div>
   );
 
-  const current = plan && !changed ? supplyStatus(plan) : null;
+  const current = plan ? supplyStatus(plan, nameOf) : null;
+  const busy = saving ? 'Saving...' : null;
 
   return (
-    <Panel title={title} aside={jobLabel}>
-      {inactive ? <p className="se-hint">Not supplied: nothing goes in with {jobLabel} and nothing is burned. Pick a product and start supplying them.</p> : null}
-      <div className="se-supply__policy">
-        {select('primary', 'Primary', false)}
-        {select('fallback', 'Fallback', true, draft.strict)}
-        {select('emergency', 'Emergency', true, draft.strict || !draft.fallback)}
+    <div className="se-supply">
+      <div className="se-supply__head">
+        <span className="se-supply__job">{jobLabel}</span>
+        <span className="se-supply__line">{row.active ? policyLine(row.policy, nameOf) : 'Not supplied'}</span>
+        {!editing ? (
+          <Button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => setEditing(true)}>
+            {row.active ? 'Change' : 'Supply'}
+          </Button>
+        ) : null}
       </div>
-      <label className="se-checkrow se-checkrow--inline">
-        <input type="checkbox" checked={draft.strict} onChange={(event) => setDraft({ ...draft, strict: event.target.checked })} />
-        <span>Strict supply: only ever burn the primary</span>
-      </label>
-      {changed ? (
-        <Button type="button" className="se-btn se-btn--primary se-btn--sm se-mt" disabledReason={saving ? 'Saving...' : null} onClick={() => void save()}>
-          {inactive ? 'Start supplying' : 'Save supply for'} {jobLabel}
-        </Button>
-      ) : null}
-      {row && !row.isDefault && !changed ? (
-        <Button type="button" className="se-btn se-btn--ghost se-btn--sm se-mt" disabledReason={saving ? 'Saving...' : null} onClick={() => void clear()}>
-          {row.optIn ? 'Stop supplying' : 'Back to crack only'}
-        </Button>
-      ) : null}
 
-      {error ? <p className="se-error">{error}</p> : null}
-      {changed && !inactive ? <p className="se-hint se-mt">Save the policy to preview the trip with it.</p> : null}
-      {current && plan ? (
+      {current && plan && !editing ? (
         <div className={`se-supply__status se-supply__status--${current.tone}`}>
           <strong>{current.text}</strong>
-          {current.detail ? <span>{current.detail}</span> : null}
-          {plan.role !== 'fighters' ? <span>{supplySummary(plan)}</span> : null}
           <span className="se-muted">
-            {plan.role === 'fighters' ? `Burns ${formatNumber(plan.need)} a fight` : `Burns about ${formatNumber(Math.round(plan.perTurn * 10) / 10)} a turn · ${formatNumber(plan.need)} for this trip`}
-            {plan.policy.primary ? ` · ${formatNumber(stock(plan.policy.primary))} ${options.find((product) => product.key === plan.policy.primary)?.name ?? ''} on hand` : ''}
+            {[current.detail, plan.role === 'fighters' ? `${formatNumber(plan.need)} a fight` : `${formatNumber(plan.need)} this trip`, supplyEffects(plan)].filter(Boolean).join(' · ')}
           </span>
-          {plan.role ? <span className="se-muted">{supplyEffects(plan)}</span> : null}
         </div>
       ) : null}
+      {!row.active && !editing ? <p className="se-hint">They go in with nothing, and nothing is burned.</p> : null}
+
+      {editing ? (
+        <div className="se-supply__editor">
+          <div className="se-supply__policy">
+            {select('primary', 'Primary', false)}
+            {select('fallback', 'Fallback', true, draft.strict)}
+            {select('emergency', 'Emergency', true, draft.strict || !draft.fallback)}
+          </div>
+          <label className="se-checkrow se-checkrow--inline">
+            <input type="checkbox" checked={draft.strict} onChange={(event) => setDraft({ ...draft, strict: event.target.checked })} />
+            <span>Strict: only ever burn the primary</span>
+          </label>
+          <div className="se-actions-row">
+            <Button type="button" className="se-btn se-btn--primary se-btn--sm" disabledReason={busy}
+              onClick={() => void send('/game/work-supply/policy', { job, ...draft }, 'Could not save the supply policy.')}>
+              Save
+            </Button>
+            <Button type="button" className="se-btn se-btn--ghost se-btn--sm" disabledReason={busy} onClick={() => { setDraft(row.policy); setEditing(false); }}>
+              Cancel
+            </Button>
+            {!row.isDefault ? (
+              <Button type="button" className="se-btn se-btn--ghost se-btn--sm" disabledReason={busy}
+                onClick={() => void send('/game/work-supply/policy/clear', { job }, 'Could not clear the supply policy.')}>
+                {row.optIn ? 'Stop supplying' : 'Back to crack only'}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+      {error ? <p className="se-error">{error}</p> : null}
+    </div>
+  );
+}
+
+/**
+ * 0.4.0-B. Product supply for one or more jobs, in one panel: the Scout district,
+ * the Produce shift and its cooks, or a crew's squads and defenders. Hidden on
+ * rounds without work supply, and any job the round does not have is left out.
+ */
+export function WorkSupplyPanel({ jobs, turns, refreshKey, title = 'Product supply' }: {
+  jobs: Array<{ job: string; label: string }>; turns: number | ''; refreshKey?: unknown; title?: string;
+}) {
+  const [overview, setOverview] = useState<WorkSupplyDto | null>(null);
+  const load = useCallback(() => {
+    api.get<WorkSupplyDto>('/game/work-supply').then(setOverview).catch(() => setOverview(null));
+  }, []);
+  useEffect(load, [load, refreshKey]);
+
+  if (!overview?.enabled) return null;
+  const rows = jobs.map((entry) => ({ ...entry, row: overview.jobs.find((candidate) => candidate.key === entry.job) })).filter((entry) => entry.row);
+  if (!rows.length) return null;
+
+  return (
+    <Panel title={title}>
+      <div className="se-supply__list">
+        {rows.map(({ job, label, row }) => (
+          <SupplyRow key={job} overview={overview} row={row!} jobLabel={label} turns={turns} refreshKey={refreshKey} onOverview={setOverview} />
+        ))}
+      </div>
     </Panel>
   );
 }

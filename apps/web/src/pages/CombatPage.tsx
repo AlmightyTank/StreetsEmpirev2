@@ -581,6 +581,8 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
           {nextBefore ? <Button type="button" className="se-btn" disabledReason={busy ? 'Your last hit is still going through.' : null} onClick={() => void olderReports()}>Older reports</Button> : null}
           {report ? <div ref={reportDetailRef} className={`se-raid-report-detail${closingReportId === report.id ? ' se-raid-report-detail--closing' : ''}`}><BattleReport report={report} onClose={closeReport} /></div> : null}
         </Panel>
+        {/* 0.4.0-E: product thugs take into fights, next to the fights. Hidden on rounds without fight supply. */}
+        <WorkSupplyPanel title="Fight supply" jobs={[{ job: 'RAID', label: 'Squads you send' }, { job: 'DEFENSE', label: 'Your defenders' }]} turns={1} refreshKey={report?.id} />
       </div>
       <div className="se-grid">
         {page.recovery ? <Panel title="Crew recovery">
@@ -598,9 +600,6 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             Patch up {formatNumber(page.recovery.maxTreatableThugs)} with medicine
           </Button> : <p className="se-hint">Everybody is standing.</p>}
         </Panel> : null}
-        {/* 0.4.0-E: product thugs take into fights. Hidden on rounds without fight supply. */}
-        <WorkSupplyPanel title="Fight supply" job="RAID" jobLabel="squads you send" turns={1} refreshKey={report?.id} />
-        <WorkSupplyPanel title="Fight supply" job="DEFENSE" jobLabel="your defenders" turns={1} refreshKey={report?.id} />
         <HitRulesPanel mode={mode} rules={rules!} driveBy={driveBy} specialRaid={specialRaid} />
       </div>
     </div>}

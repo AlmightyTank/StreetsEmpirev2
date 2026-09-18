@@ -347,7 +347,7 @@ export function productEconomyMarkdown(ruleset: Ruleset): string {
     "## Pip's counter", '',
     '| Product | Buy | Sell | Net worth | Shelf | Round trip loses |', '| --- | ---: | ---: | ---: | ---: | ---: |',
     ...priceRows, '',
-    '## Produce Product', '',
+    '## Produce', '',
     'Cooking pays by saving the difference between Pip\'s price and the ingredients, before thug happiness, cook supply and variance.', '',
     '| Recipe | Per thug per turn | Ingredients each | Pip sells at | Saved per thug per turn | Heat per turn, 40 thugs |', '| --- | ---: | ---: | ---: | ---: | ---: |',
     ...recipeRows, '',

@@ -241,6 +241,13 @@ notes are [RELEASE-0.4.0-E.md](RELEASE-0.4.0-E.md).
   `qa:release`. `release-0.4.integration.test.ts` plays a products season with exploit checks.
 - **Fixes from D.** Raid eligibility counts non-crack product; the admin inspector values
   product holdings.
+- **Page pass after playtesting.** The Products page is gone (old links go to Pip's): every
+  product is bought and sold on Pip's page, in the same cards as his other stock; recipes show
+  only on Produce Product; holdings list on the dashboard with the Heat panel and its bribe, and
+  work pages show Heat only in the status bar. Supply panels are one compact row per job (policy,
+  one status line, Change), with Produce's two jobs and the Raids page's two in one panel each,
+  next to the action rather than in the sidebar. Columns on Dashboard, Scout, Produce, Raids and
+  Pip's were rebalanced.
 
 ## Not in 0.4.0
 

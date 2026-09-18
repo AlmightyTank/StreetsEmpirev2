@@ -180,6 +180,10 @@ body {
   box-shadow: 0 0 16px rgba(182, 255, 58, 0.26);
 }
 
+/* The gradient above must not swallow the warning states: a low or dangerous meter reads as one. */
+.se-meter__fill--warn { background: var(--se-warn); box-shadow: none; }
+.se-meter__fill--bad { background: var(--se-bad); box-shadow: none; }
+
 .se-btn {
   border-color: rgba(255, 255, 255, 0.11);
   border-radius: var(--se-radius-sm);

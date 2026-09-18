@@ -97,7 +97,7 @@ export function calculateProductTrade(input: {
     const stock = Math.max(0, shelfStock ?? 0);
     if (quantity > stock) {
       const { perInterval, intervalMinutes } = economy.pip.restock;
-      const delivery = `Another ${perInterval.toLocaleString('en-US')} come in every ${intervalMinutes >= 60 ? `${intervalMinutes / 60} hours` : `${intervalMinutes} minutes`}.`;
+      const delivery = `Another ${perInterval.toLocaleString('en-US')} come in every ${intervalMinutes < 60 ? `${intervalMinutes} minutes` : intervalMinutes === 60 ? 'hour' : `${intervalMinutes / 60} hours`}.`;
       throw new StoreTradeError('OUT_OF_STOCK', stock === 0
         ? `Pip has no ${name} left. ${delivery}`
         : `Pip only has ${stock.toLocaleString('en-US')} ${name} right now. ${delivery}`, 'quantity');

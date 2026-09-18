@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
 import type { ProduceCrackResult, ProductsDto, ProductTypeDto } from '@streets/shared';
-import { formatCents, formatNumber } from '@streets/shared';
+import { formatCents, formatCentsExact, formatNumber } from '@streets/shared';
 import { actionsApi } from '../api/actions.js';
 import { api } from '../api/client.js';
 import { ActionResult } from '../components/ActionResult.js';
@@ -10,7 +10,7 @@ import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
 import { supplyReceiptLines, WorkSupplyPanel } from '../components/WorkSupplyPanel.js';
-import { HeatPanel, heatReceiptLines } from '../components/HeatPanel.js';
+import { heatReceiptLines } from '../components/HeatPanel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -26,7 +26,7 @@ function recipeProfiles(data: ProductsDto | null): Profile[] {
   return data.products.filter((product) => product.recipe).map((product) => ({
     key: product.key,
     name: product.name,
-    role: `${product.recipe!.perThugPerTurn} a thug a turn · ${formatCents(product.recipe!.ingredientCentsPerUnit)} ingredients each · worth ${formatCents(product.netWorthCents ?? 0)}${product.recipe!.heatPerUnit > 0 ? ' · draws Heat' : ''}`,
+    role: `${product.recipe!.perThugPerTurn} a thug a turn · ${formatCentsExact(product.recipe!.ingredientCentsPerUnit)} each${product.recipe!.heatPerUnit > 0 ? ' · draws Heat' : ''}`,
   }));
 }
 
@@ -77,7 +77,7 @@ export function ProducePage() {
     <GameLayout>
       <div className="se-pagehead">
         <div>
-          <h1 className="se-title">Produce Product</h1>
+          <h1 className="se-title">Produce</h1>
           <p className="se-eyebrow">Turns and money in, product out</p>
         </div>
       </div>
@@ -91,53 +91,55 @@ export function ProducePage() {
       ) : null}
 
       <div className="se-grid se-grid--sidebar">
-        <Panel title="Produce">
-          <form onSubmit={onSubmit}>
-            <div className="se-field">
-              <span className="se-label">Batch</span>
-              <div className="se-choices se-product-choices">
-                {PRODUCT_PROFILES.map((profile) => (
-                  <label
-                    className={`se-choice${productType === profile.key ? ' se-choice--on' : ''}`}
-                    key={profile.key}
-                  >
-                    <input
-                      type="radio"
-                      name="productType"
-                      className="se-choice__input"
-                      checked={productType === profile.key}
-                      disabled={action.busy || !hasFitThugs}
-                      onChange={() => setProductType(profile.key)}
-                    />
-                    <span className="se-choice__body">
-                      <span className="se-choice__name">{profile.name}</span>
-                      <span className="se-choice__meta">{profile.role}</span>
-                    </span>
-                  </label>
-                ))}
+        {/* The trip and what it burns sit together; the sidebar keeps the crew. */}
+        <div className="se-grid">
+          <Panel title="Produce">
+            <form onSubmit={onSubmit}>
+              <div className="se-field">
+                <span className="se-label">Batch</span>
+                <div className={`se-choices se-product-choices${PRODUCT_PROFILES.length === 3 ? ' se-product-choices--3' : ''}`}>
+                  {PRODUCT_PROFILES.map((profile) => (
+                    <label
+                      className={`se-choice${productType === profile.key ? ' se-choice--on' : ''}`}
+                      key={profile.key}
+                    >
+                      <input
+                        type="radio"
+                        name="productType"
+                        className="se-choice__input"
+                        checked={productType === profile.key}
+                        disabled={action.busy || !hasFitThugs}
+                        onChange={() => setProductType(profile.key)}
+                      />
+                      <span className="se-choice__body">
+                        <span className="se-choice__name">{profile.name}</span>
+                        <span className="se-choice__meta">{profile.role}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <TurnSpend
-              value={turns}
-              onChange={setTurns}
-              available={available}
-              disabled={action.busy || !hasFitThugs}
-              disabledReason={action.busy ? 'The last batch is still producing.' : !hasFitThugs ? 'Production takes a fit thug, and none of yours can work.' : null}
-            />
+              <TurnSpend
+                value={turns}
+                onChange={setTurns}
+                available={available}
+                disabled={action.busy || !hasFitThugs}
+                disabledReason={action.busy ? 'The last batch is still producing.' : !hasFitThugs ? 'Production takes a fit thug, and none of yours can work.' : null}
+              />
 
-            <Button className="se-btn se-btn--primary se-btn--block" disabledReason={produceBlock}>
-              {action.busy ? 'Producing...' : `Produce ${selectedProfile.name}`}
-            </Button>
-          </form>
+              <Button className="se-btn se-btn--primary se-btn--block" disabledReason={produceBlock}>
+                {action.busy ? 'Producing...' : `Produce ${selectedProfile.name}`}
+              </Button>
+            </form>
 
-          <p className="se-hint">
-            Thugs handle production, so a batch is only as good as their happiness
-            &mdash; and the girls still work while they produce, just for a
-            fraction of a scouted night. What you get for that lost income is
-            product at the workshop price, against Pip&rsquo;s markup for finished supply.
-          </p>
-        </Panel>
+            <p className="se-hint">
+              Thugs cook as well as their happiness lets them. The girls keep working, for a fraction of a scouted night; that lost income buys product at the workshop price.
+            </p>
+          </Panel>
+
+          <WorkSupplyPanel jobs={[{ job: 'PRODUCE', label: "Girls' shift" }, { job: 'COOK', label: 'Cooks' }]} turns={turns} refreshKey={action.result} />
+        </div>
 
         {/*
           Manual 3.2 sends the girls out too, so production is not a thugs-only
@@ -145,9 +147,6 @@ export function ProducePage() {
           This mirrors the scouting sidebar for that reason.
         */}
         <aside className="se-grid">
-          <WorkSupplyPanel job="PRODUCE" jobLabel="the girls' shift" turns={turns} refreshKey={action.result} />
-          <WorkSupplyPanel job="COOK" jobLabel="the cooks" turns={turns} refreshKey={action.result} />
-          <HeatPanel />
 
           <Panel title="The crew" flush>
             <div className="se-rows">
@@ -171,7 +170,7 @@ export function ProducePage() {
             <div className="se-rows">
               <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
               <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
-              <Row label="Product" value={formatNumber(me.resources.product)} />
+              <Row label={me.products ? 'Crack' : 'Product'} value={formatNumber(me.resources.product)} />
               <Row label="Beer" value={formatNumber(me.resources.beer)} />
               <Row label="Cash" value={formatCents(me.resources.cashCents)} strong />
             </div>

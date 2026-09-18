@@ -31,7 +31,7 @@ import { CRACK, ProductInventoryService, productKeys } from './product-inventory
 export function workSupplyJobs(ruleset: Ruleset): Array<{ key: string; name: string; role: WorkSupplyRole; optIn: boolean }> {
   return [
     ...Object.entries(ruleset.districts).map(([key, district]) => ({ key, name: district.name, role: 'hoes' as const, optIn: false })),
-    { key: PRODUCE_JOB, name: 'Produce Product shift', role: 'hoes' as const, optIn: false },
+    { key: PRODUCE_JOB, name: 'Produce shift', role: 'hoes' as const, optIn: false },
     ...(ruleset.workSupply?.productPerThugPerTurn ? [{ key: COOK_JOB, name: 'Production thugs', role: 'thugs' as const, optIn: false }] : []),
     ...(ruleset.combatSupply ? [
       { key: RAID_JOB, name: 'Squads you send', role: 'fighters' as const, optIn: true },

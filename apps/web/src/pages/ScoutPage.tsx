@@ -10,7 +10,7 @@ import { DistrictPicker } from '../components/DistrictPicker.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
 import { supplyReceiptLines, WorkSupplyPanel } from '../components/WorkSupplyPanel.js';
-import { HeatPanel, heatReceiptLines } from '../components/HeatPanel.js';
+import { heatReceiptLines } from '../components/HeatPanel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -78,43 +78,42 @@ export function ScoutPage() {
       {action.error ? <Alert>{action.error}</Alert> : null}
 
       <div className="se-grid se-grid--sidebar">
-        <Panel title="Scout">
-          <form onSubmit={onSubmit}>
-            <p className="se-label">District</p>
-            <DistrictPicker
-              districts={districts}
-              value={district}
-              onChange={setDistrict}
-              disabled={action.busy}
-            />
+        {/* The trip and what it burns sit together; the sidebar keeps the crew. */}
+        <div className="se-grid">
+          <Panel title="Scout">
+            <form onSubmit={onSubmit}>
+              <p className="se-label">District</p>
+              <DistrictPicker
+                districts={districts}
+                value={district}
+                onChange={setDistrict}
+                disabled={action.busy}
+              />
 
-            <hr className="se-hr" />
+              <hr className="se-hr" />
 
-            <TurnSpend
-              value={turns}
-              onChange={setTurns}
-              available={available}
-              disabled={action.busy}
-              disabledReason={action.busy ? 'Your crew is still out on the last job.' : null}
-            />
+              <TurnSpend
+                value={turns}
+                onChange={setTurns}
+                available={available}
+                disabled={action.busy}
+                disabledReason={action.busy ? 'Your crew is still out on the last job.' : null}
+              />
 
-            <Button className="se-btn se-btn--primary se-btn--block" disabledReason={scoutBlock}>
-              {action.busy ? 'Working the block...' : 'Scout'}
-            </Button>
-          </form>
+              <Button className="se-btn se-btn--primary se-btn--block" disabledReason={scoutBlock}>
+                {action.busy ? 'Working the block...' : 'Scout'}
+              </Button>
+            </form>
 
-          <p className="se-hint">
-            One trip, both jobs: the girls work the block while you work the
-            room. In 0.2.0-H, only armed fit thugs count as street protection. Rich blocks have the money; poor ones have the people. What
-            counts for their cut is the money that reaches them, not the
-            percentage. Nothing else is posted &mdash; what a block is worth
-            changes by the hour, and you find out by going.
-          </p>
-        </Panel>
+            <p className="se-hint">
+              One trip, both jobs: the girls work the block while you work the room. Only armed fit thugs cover the street. What a block pays changes by the hour, and you find out by going.
+            </p>
+          </Panel>
+
+          <WorkSupplyPanel jobs={district ? [{ job: district, label: districts.find((row) => row.key === district)?.name ?? 'This district' }] : []} turns={turns} refreshKey={action.result} />
+        </div>
 
         <aside className="se-grid">
-          <WorkSupplyPanel job={district} jobLabel={districts.find((row) => row.key === district)?.name ?? 'this district'} turns={turns} refreshKey={action.result} />
-          <HeatPanel />
 
           <Panel title="The crew" flush>
             <div className="se-rows">
@@ -139,7 +138,7 @@ export function ScoutPage() {
             <div className="se-rows">
               <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
               <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
-              <Row label="Product" value={formatNumber(me.resources.product)} />
+              <Row label={me.products ? 'Crack' : 'Product'} value={formatNumber(me.resources.product)} />
               <Row label="Beer" value={formatNumber(me.resources.beer)} tooltip="Thugs expect beer while they work. Missing beer lowers thug happiness." />
               <Row label="Cash" value={formatCents(me.resources.cashCents)} strong />
             </div>

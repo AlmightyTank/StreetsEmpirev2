@@ -1,13 +1,14 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { formatCents, formatNumber, type QuestCompleteInput, type QuestCompleteResult, type StoreDto, type StoreItemDto, type StoreRestockDto, type StoresDto, type StoreTradeInput, type StoreTradeResult, type WeaponUnlockInput, type WeaponUnlockResult } from '@streets/shared';
-import { ApiError } from '../api/client.js';
+import { formatCents, formatNumber, type ProductsDto, type QuestCompleteInput, type QuestCompleteResult, type StoreDto, type StoreItemDto, type StoreRestockDto, type StoresDto, type StoreTradeInput, type StoreTradeResult, type WeaponUnlockInput, type WeaponUnlockResult } from '@streets/shared';
+import { api, ApiError } from '../api/client.js';
 import { reputationApi } from '../api/reputation.js';
 import { storesApi } from '../api/stores.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
+import { ProductCounter } from '../components/ProductCounter.js';
 import { QuantitySteps } from '../components/QuantitySteps.js';
 import { useCountdown } from '../hooks/useCountdown.js';
 import { useGameAction } from '../hooks/useGameAction.js';
@@ -264,6 +265,13 @@ function StoreView({ slug }: { slug: string }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const [retryOrder, setRetryOrder] = useState<PendingStoreCommand | null>(null);
+  // 0.4.0-D: Pip deals every product. Other stores never ask.
+  const [products, setProducts] = useState<ProductsDto | null>(null);
+  const loadProducts = useCallback(() => {
+    if (slug !== 'pip') return;
+    api.get<ProductsDto>('/game/products').then(setProducts).catch(() => setProducts(null));
+  }, [slug]);
+  useEffect(loadProducts, [loadProducts, reload]);
   const pendingStorage = browserSessionStorage();
   const pendingKey = `store:${me?.id ?? 'signed-out'}`;
 
@@ -391,16 +399,25 @@ function StoreView({ slug }: { slug: string }) {
 
       {store && catalog ? (
         <div className="se-grid se-grid--sidebar">
-          <div className="se-store-items">
+          <div className={`se-store-items${store.key === 'PIP' && catalog.productCounter ? ' se-store-items--pair' : ''}`}>
             <TraderFavour store={store}
               blocked={counterBlock}
               onComplete={(trader) => execute({ kind: 'quest', trader })} />
-            {store.items.map((item) => <StoreItem key={item.key} item={item} store={store.key} keeper={store.keeper}
+            {store.items.map((item) => <StoreItem key={item.key}
+              // 0.4.0-D: next to the other products, Pip's Product is crack by name.
+              item={store.key === 'PIP' && catalog.productCounter && item.key === 'CRACK' ? { ...item, name: 'Crack' } : item}
+              store={store.key} keeper={store.keeper}
               owned={me.resources[item.field]} cashCents={me.resources.cashCents}
               bulkHelpers={catalog.bulkHelpers} blocked={counterBlock}
               onTrade={(order) => execute({ kind: 'trade', order })}
               onUnlock={(weapon) => execute({ kind: 'unlock', weapon })}
               onRestock={() => setReload((n) => n + 1)} />)}
+            {store.key === 'PIP' && products?.economy
+              ? products.products.filter((product) => product.pip).map((product) => (
+                <ProductCounter key={product.key} product={product} cashCents={me.resources.cashCents}
+                  bulkHelpers={catalog.bulkHelpers} blocked={counterBlock} onDone={loadProducts} />
+              ))
+              : null}
           </div>
           <aside>
             <Panel title="On hand" flush>
@@ -418,7 +435,7 @@ function StoreView({ slug }: { slug: string }) {
                 : '.'}
             </p>
             <p className="se-hint">Shopping costs no turns. Prices are per item; the full total appears before you trade.</p>
-            {store.key === 'PIP' && catalog.productCounter ? <p className="se-hint">Product here is crack. Pip deals every other product on the <Link to="/game/products">Products</Link> page.</p> : null}
+            {store.key === 'PIP' && catalog.productCounter ? <p className="se-hint">Pip deals every product. What each one does on the street is set per district on Scout; what you can cook is on Produce.</p> : null}
             {store.key === 'CORNER' ? <p className="se-hint">Condoms and beer keep street work supplied. Restocking lifts happiness immediately.</p> : null}
             {store.key === 'TOMMY' ? <p className="se-hint">Thugs protect the crew and fight in raids or drive-bys. Keeping a gun and beer for each thug helps their happiness.</p> : null}
             {store.key === 'TOMMY' ? <p className="se-hint">Everything here comes in on Tommy&rsquo;s schedule. Pistols arrive by the crate because your thugs each need one; muscle and the heavier guns come a few at a time, and the better the gun the longer the wait.</p> : null}
