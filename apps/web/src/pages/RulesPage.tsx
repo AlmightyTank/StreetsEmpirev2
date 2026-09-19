@@ -231,6 +231,44 @@ export function RulesPage() {
             </ul>
           </Panel>
 
+          <Panel title="The road">
+            <ul className="se-list">
+              <li>
+                Rounds with travel open every city. Each one deals differently: what is
+                plentiful is cheap there, what a city wants it pays for. Anyone can hear a
+                city&rsquo;s street talk from home, and your crew brings back Pip&rsquo;s
+                prices from where it has been.
+              </li>
+              <li>
+                A run loads up Low-Riders with cash, product and escorts and drives out.
+                What it took is all it has: it buys with the cash in the car and sells what
+                is in the trunk, at Pip&rsquo;s counter or on the city&rsquo;s high market,
+                which everyone in the round shares and every trade moves. It trades in a
+                town for a while, drives on, or comes home on its own.
+              </li>
+              <li>
+                Home works while the run is out, with what the run did not take. Escorts
+                ride armed and are not at home to defend, cover the street or cook.
+              </li>
+              <li>
+                Police watch the roads: the longer the drive, the heavier the load and the
+                hotter you are, the more likely a stop. Selling draws Heat in the town you
+                sell in, and a town&rsquo;s patience is its own.
+              </li>
+              <li>
+                Near a city a run can be hit by the crews who live there. Recon your area
+                to find runs coming near, in town or leaving, then tail one. Nobody warns
+                the owner: only lookouts at the hideout spot a tail, and only in its last
+                minutes.
+              </li>
+              <li>
+                You can move the whole operation to another city for a fee and a stretch on
+                the road. Everything goes with you, Heat included, and your rank, targets
+                and feeds follow.
+              </li>
+            </ul>
+          </Panel>
+
           <Panel title="Money and rank">
             <ul className="se-list">
               <li>Net worth decides local and national rank, and it is not just cash.</li>

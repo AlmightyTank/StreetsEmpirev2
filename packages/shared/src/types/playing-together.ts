@@ -388,6 +388,8 @@ export interface TravelDto extends CitiesDto {
     turnsPerDriveHour: number;
     /** 0.5.0-C. Null without a live high market. */
     market: { spread: number; quoteTolerance: number } | null;
+    /** 0.5.0-F. A run can buy on the home high market as it loads up. */
+    homeMarketAtLaunch: boolean;
   };
   /** What home has to load up with. */
   home: {
@@ -463,6 +465,9 @@ export interface RunLaunchResult {
   escortThugs: number;
   cashCents: number;
   cargo: Record<string, number>;
+  /** 0.5.0-F. What it bought on the home market on the way out, and what that cost. */
+  market: Record<string, number>;
+  marketCents: number;
 }
 
 export interface RunTradeResult {

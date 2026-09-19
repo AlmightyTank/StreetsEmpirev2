@@ -2,7 +2,7 @@
 
 A reconstruction of the OG Pimp War economic loop.
 
-**Live version:** `0.4.0-E` &middot; **Development:** `0.5.0-E` Travel &middot; **Dev ruleset:** `classic-og-v0.5-e`
+**Live version:** `0.4.0-E` &middot; **Development:** `0.5.0-F` Travel &middot; **Dev ruleset:** `classic-og-v0.5-f`
 
 ---
 
@@ -59,6 +59,7 @@ Admins run seasons, moderation and disputes from the [admin runbook](docs/ADMIN-
 | **0.5.0-C** | high market & risk: shared city markets with price impact and recovery; seeded Pip supply swings and price events; street wire; sale Heat; road stops; city arrests and downtime; market/risk simulation gate | **implemented** |
 | **0.5.0-D** | relocation: move the whole operation for a fee on net worth and six hours on the road; still a target at home until arrival; no moves with a run out, inside a revenge window, within the cooldown or in the round's last day; where you live sets district pay, store prices, Pip's home counter and Heat lines | **implemented** |
 | **0.5.0-E** | convoys: a crew recons its area for turns to find runs coming near, in town or leaving; only a run it spotted can be tailed, and the hit lands when an eight-minute window closes if the run is still in reach; no alerts, only a Lookouts heads-up of a few minutes; home backup near home, backup the owner sends and allies who answer a call once seen; escorts ride armed from home and lose their guns to a bust or arrest; CONVOY fight supply; cash and cargo loot, a Low-Rider when the escort goes down; no hits on allies or linked accounts; admin void and signals; convoy win-rate gate | **implemented** |
+| **0.5.0-F** | the travel release: a run can buy wholesale on its own city's high market as it loads up (buying only, so cooking to sell still never pays); Seattle's and Miami's casinos pay a little less and Miami's Pip runs short of ecstasy, so every home city has a reason to drive; a full-round simulation of street-only, runner, mover, hijacker and mixed play across all eight cities, gated so mixed play beats the street alone and running alone; a Travel panel on the Rules page; travel suites in the release regression | **implemented** |
 
 Cash raids, drive-bys, special raid forms and alliances are playable. Runs drive the road map to trade at Pip's counters and shared high markets in other cities, with changing supply, road stops and city-specific Heat thresholds; see [docs/ROADMAP-0.5.0.md](docs/ROADMAP-0.5.0.md). Messaging remains deliberately absent.
 
@@ -73,11 +74,11 @@ npm install
 cp .env.example .env      # already done if .env exists
 npm run db:up             # postgres 16 on localhost:5433
 npm run db:migrate        # apply migrations
-npm run db:seed           # 8 cities, pinned older rounds, current Game #018 Travel / 0.5.0-E round
+npm run db:seed           # 8 cities, pinned older rounds, current Game #018 Travel / 0.5.0-F round
 npm run dev               # api on :3001, web on :5173
 ```
 
-Open <http://localhost:5173>, register a name, and enter Game #018 - Travel. New players start in New York and can send Low-Rider runs to all eight cities. The current development round uses `classic-og-v0.5-c`, so shared high markets, moving Pip supply, price events, road stops, sale Heat and arrests are active. Default seeds no bot rivals; for local solo raid testing, run `npm run db:seed:dev-bots` to add active dev bots for cash raids, drug runs, ride theft, lures and drive-bys.
+Open <http://localhost:5173>, register a name, and enter Game #018 - Travel. New players start in New York and can send Low-Rider runs to all eight cities. The current development round uses `classic-og-v0.5-f`, so shared high markets, moving Pip supply, price events, road stops, sale Heat, arrests, moving house, convoys and loading up on your own city's market are all active. Default seeds no bot rivals; for local solo raid testing, run `npm run db:seed:dev-bots` to add active dev bots for cash raids, drug runs, ride theft, lures and drive-bys.
 
 | Script | Does |
 | --- | --- |

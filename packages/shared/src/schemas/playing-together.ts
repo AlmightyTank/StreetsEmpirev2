@@ -73,6 +73,10 @@ export const runLaunchSchema = z.object({
   escortThugs: wholeCount('escorts'),
   cashCents: wholeCount('cash'),
   cargo: z.record(runProduct, wholeCount('a quantity')).default({}),
+  /** 0.5.0-F. Bought on the home high market as it leaves, straight into the trunk. */
+  market: z.record(runProduct, wholeCount('a quantity')).default({}),
+  /** The next-unit prices the player saw on the home market; the launch is refused if one has moved too far. */
+  marketQuotes: z.record(runProduct, z.number().int().positive().safe()).optional(),
   actionId: actionIdSchema,
 }).strict();
 export type RunLaunchInput = z.infer<typeof runLaunchSchema>;

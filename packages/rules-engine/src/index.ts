@@ -31,3 +31,4 @@ export * from './simulations/product-round.js';
 export * from './simulations/travel.js';
 export * from './simulations/travel-risk.js';
 export * from './simulations/convoys.js';
+export * from './simulations/travel-round.js';

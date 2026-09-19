@@ -79,6 +79,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
   const [escorts, setEscorts] = useState<number | ''>(0);
   const [cash, setCash] = useState<number | ''>(0);
   const [cargo, setCargo] = useState<Record<string, number | ''>>({});
+  const [buy, setBuy] = useState<Record<string, number | ''>>({});
   const destination = data.cities.find((city) => city.slug === to && !city.isHome) ?? null;
   const { routes, error: routeError } = useRoutes(destination ? to : '', data.home.turns);
   useEffect(() => { setRoute(0); }, [to]);
@@ -95,18 +96,26 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
   const cars = typeof lowRiders === 'number' ? lowRiders : 0;
   const capacity = cars * rules.cargoPerLowRider;
   const seats = cars * rules.thugsPerLowRider;
-  const loaded = Object.values(cargo).reduce<number>((sum, units) => sum + (typeof units === 'number' ? units : 0), 0);
+  const units = (from: Record<string, number | ''>) => Object.values(from).reduce<number>((sum, count) => sum + (typeof count === 'number' ? count : 0), 0);
   const held = home.products;
   const hasProduct = held.some((product) => product.quantity > 0);
   const chosen = routes?.routes[route] ?? null;
   const cashCents = (typeof cash === 'number' ? cash : 0) * 100;
+  // 0.5.0-F: the home market, wholesale, as the crew loads up.
+  const homeCity = data.cities.find((city) => city.isHome) ?? null;
+  const wholesale = rules.homeMarketAtLaunch
+    ? (homeCity?.counter?.products ?? []).flatMap((entry) => (entry.market ? [{ key: entry.key, market: entry.market }] : []))
+    : [];
+  const bought = Object.fromEntries(Object.entries(buy).filter(([, count]) => typeof count === 'number' && count > 0)) as Record<string, number>;
+  const marketCents = wholesale.reduce((sum, entry) => sum + marketEstimate(entry.market, true, bought[entry.key] ?? 0), 0);
+  const loaded = units(cargo) + units(buy);
 
   const block = launch.busy ? 'The crew is loading up.'
     : !destination ? 'Pick a city on the map or in the list.'
       : !chosen ? (routeError ?? 'Planning the drive...')
         : cars < 1 || cars > home.lowRiders ? `Send between 1 and ${home.lowRiders} Low-Riders.`
           : (typeof escorts === 'number' ? escorts : 0) > Math.min(home.fitThugs, seats) ? `Send at most ${Math.min(home.fitThugs, seats)} escorts: ${seats} seats, ${home.fitThugs} fit thugs at home.`
-            : cashCents > home.cashCents ? `You have ${formatCents(home.cashCents)} at home.`
+            : cashCents + marketCents > home.cashCents ? `You have ${formatCents(home.cashCents)} at home, and that is ${formatCents(cashCents + marketCents)} with what the market comes to.`
               : loaded > capacity ? `${cars} Low-Rider${cars === 1 ? '' : 's'} carry ${formatNumber(capacity)} units, and that is ${formatNumber(loaded)}.`
                 : held.some((product) => (typeof cargo[product.key] === 'number' ? cargo[product.key] as number : 0) > product.quantity) ? 'You cannot load more than you have.'
                   : chosen.turns > home.turns ? `The drive costs ${chosen.turns} turns and you have ${home.turns}.`
@@ -115,9 +124,10 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (block || !chosen) return;
-    const load = Object.fromEntries(Object.entries(cargo).filter(([, units]) => typeof units === 'number' && units > 0)) as Record<string, number>;
+    const load = Object.fromEntries(Object.entries(cargo).filter(([, count]) => typeof count === 'number' && count > 0)) as Record<string, number>;
+    const quotes = Object.fromEntries(wholesale.filter((entry) => bought[entry.key]).map((entry) => [entry.key, entry.market.buyCents]));
     await launch.run((actionId): Promise<GameActionResult<RunLaunchResult>> => api.post('/game/travel/launch', {
-      to, route, lowRiders: cars, escortThugs: typeof escorts === 'number' ? escorts : 0, cashCents, cargo: load, actionId,
+      to, route, lowRiders: cars, escortThugs: typeof escorts === 'number' ? escorts : 0, cashCents, cargo: load, market: bought, marketQuotes: quotes, actionId,
     }));
     onDone();
   }
@@ -174,7 +184,27 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
             </div>
           ))}
         </div>
-        {!hasProduct ? <p className="se-hint">Nothing at home to load. A run can still go with cash and come back with product.</p> : null}
+        {!hasProduct && !wholesale.length ? <p className="se-hint">Nothing at home to load. A run can still go with cash and come back with product.</p> : null}
+
+        {wholesale.length ? (
+          <>
+            <h3 className="se-city__heading">Buy on the {homeCity?.name} market {marketCents > 0 ? <span className="se-num">{formatCents(marketCents)}</span> : null}</h3>
+            <div className="se-launch__cargo">
+              {wholesale.map((entry) => (
+                <div className="se-field" key={entry.key}>
+                  <label className="se-label" htmlFor={`run-buy-${entry.key}`}>
+                    {nameOf(data.products, entry.key)} <span className="se-muted se-num">{unitPrice(entry.market.buyCents)}</span>
+                  </label>
+                  <input id={`run-buy-${entry.key}`} className="se-input" type="number" inputMode="numeric" min={0}
+                    max={marketMaxBuy(entry.market, home.cashCents - cashCents, Math.max(0, capacity - units(cargo)))}
+                    value={buy[entry.key] ?? ''} placeholder="0"
+                    onChange={(event) => setBuy({ ...buy, [entry.key]: whole(event.target.value) })} />
+                </div>
+              ))}
+            </div>
+            <p className="se-hint">Wholesale, out of home cash and straight into the trunk. Every unit you buy moves the price, and you cannot sell here: the market at home is for loading up.</p>
+          </>
+        ) : null}
 
         <Button className="se-btn se-btn--primary se-btn--block se-mt" disabledReason={block}>
           {launch.busy ? 'Loading up...' : destination ? `Send the run to ${destination.name}${chosen ? ` · ${chosen.turns} turns` : ''}` : 'Send the run'}

@@ -245,8 +245,17 @@ export const TravelService = {
     const run = await activeRun(prisma, roundPlayerId);
     const travel = ruleset.travel;
     const seed = player.roundId;
+    // 0.5.0-F: with the home market open at launch, home shows its wholesale prices too.
+    const homeMarketAtLaunch = Boolean(travel?.market && runRules(ruleset)?.homeMarketAtLaunch);
+    const homePushes = homeMarketAtLaunch ? await HighMarketService.pushes(prisma, ruleset, seed, player.city.slug, now) : null;
+    const cities = homePushes
+      ? map.cities.map((city) => (city.isHome && city.counter
+        ? { ...city, counter: { ...city.counter, products: city.counter.products.map((entry) => ({ ...entry, market: marketPrice(ruleset, seed, player.city.slug, entry.key, homePushes.get(entry.key) ?? 0, now) })) } }
+        : city))
+      : map.cities;
     return {
       ...map,
+      cities,
       runsEnabled: Boolean(runRules(ruleset)),
       rules: {
         cargoPerLowRider: travel?.cargoPerLowRider ?? 0,
@@ -254,6 +263,7 @@ export const TravelService = {
         townWindowMinutes: runRules(ruleset)?.townWindowMinutes ?? 0,
         turnsPerDriveHour: travel?.turnsPerDriveHour ?? 0,
         market: travel?.market ? { spread: travel.highMarketSpread, quoteTolerance: travel.market.quoteTolerance } : null,
+        homeMarketAtLaunch: Boolean(travel?.market && runRules(ruleset)?.homeMarketAtLaunch),
       },
       home: {
         cashCents: Number(player.cashCents),
@@ -336,20 +346,54 @@ export const TravelService = {
           throw AppError.badRequest('NOT_ENOUGH_CASH', 'You cannot take more cash than you have.', { cashCents: 'More than you have.' });
         }
         const inventory = await ProductInventoryService.read(tx, roundPlayerId, ruleset);
-        const cargo = Object.fromEntries(Object.entries(input.cargo).filter(([, quantity]) => quantity > 0));
-        for (const [key, quantity] of Object.entries(cargo)) {
+        /** Out of home stock. What the crew buys on the way out is added to `cargo` below. */
+        const fromHome = Object.fromEntries(Object.entries(input.cargo).filter(([, quantity]) => quantity > 0));
+        const cargo: Record<string, number> = { ...fromHome };
+        const marketTrades: Array<{ productKey: string; quantity: number; unitCents: number; totalCents: bigint }> = [];
+        for (const [key, quantity] of Object.entries(fromHome)) {
           if (!(key in inventory)) throw AppError.badRequest('UNKNOWN_PRODUCT', 'That product is not part of this round.');
           if (quantity > inventory[key]!) {
             throw AppError.badRequest('NOT_ENOUGH_PRODUCT', `You only have ${inventory[key]} ${productName(ruleset, key)}.`, { cargo: `Only ${inventory[key]} ${productName(ruleset, key)}.` });
           }
         }
+        // 0.5.0-F: buy on the home market as the crew loads up, straight into the trunk and
+        // paid out of home cash. Buying only, so nobody sells on their own market.
+        const bought = Object.fromEntries(Object.entries(input.market).filter(([, quantity]) => quantity > 0));
+        let marketCents = 0n;
+        if (Object.keys(bought).length) {
+          const rules = ruleset.travel?.market;
+          if (!runRules(ruleset)?.homeMarketAtLaunch || !rules) {
+            throw AppError.conflict('NO_HOME_MARKET', 'You cannot buy on your own city\'s high market this round.');
+          }
+          const seed = player.roundId;
+          // In catalog order, so two crews loading up at once never take their locks the other way round.
+          for (const key of productKeys(ruleset).filter((product) => (bought[product] ?? 0) > 0)) {
+            const quantity = bought[key]!;
+            const market = await HighMarketService.lock(tx, ruleset, seed, player.city.slug, key, now);
+            const view = marketView(ruleset, seed, player.city.slug, key, market.push, now);
+            if (!view) throw AppError.badRequest('NO_MARKET_PRICE', `Nobody in ${cityName(ruleset, player.city.slug)} deals ${productName(ruleset, key)} in bulk.`, { market: 'No market for it here.' });
+            const fill = fillMarket(view, rules, 'buy', quantity);
+            const quoted = input.marketQuotes?.[key];
+            if (quoted !== undefined && quoteMoved(rules, 'buy', quoted, fill.firstUnitCents)) {
+              throw AppError.conflict('PRICE_MOVED', `The price moved: ${productName(ruleset, key)} now costs $${(fill.firstUnitCents / 100).toLocaleString('en-US')} a unit. Check it and try again.`);
+            }
+            await HighMarketService.write(tx, market.id, fill.pushAfter, now);
+            marketCents += fill.totalCents;
+            cargo[key] = (cargo[key] ?? 0) + quantity;
+            marketTrades.push({ productKey: key, quantity, unitCents: Math.round(Number(fill.totalCents) / quantity), totalCents: fill.totalCents });
+          }
+          if (cashCents + marketCents > current.cashCents) {
+            throw AppError.badRequest('NOT_ENOUGH_CASH', `The market comes to $${(Number(marketCents) / 100).toLocaleString('en-US')}, and with the cash in the car that is more than you have at home.`, { market: 'More than you have.' });
+          }
+        }
+
         const capacity = runCapacity(ruleset, input.lowRiders);
         if (cargoUnits(cargo) > capacity) {
           throw AppError.badRequest('TRUNK_FULL', `${input.lowRiders} Low-Rider${input.lowRiders === 1 ? '' : 's'} carry ${capacity} units.`, { cargo: `At most ${capacity} units.` });
         }
 
         // Crack leaves on the column with everything else in `next`; other products are rows.
-        const rows = Object.fromEntries(Object.entries(cargo).filter(([key]) => key !== CRACK).map(([key, quantity]) => [key, -quantity]));
+        const rows = Object.fromEntries(Object.entries(fromHome).filter(([key]) => key !== CRACK).map(([key, quantity]) => [key, -quantity]));
         if (Object.keys(rows).length) await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, rows);
         // 0.5.0-E: escorts always ride armed, one gun each, the best first, out of home stock.
         const guns = ruleset.travel?.convoys ? armEscorts(ruleset, input.escortThugs, current) : { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
@@ -368,6 +412,11 @@ export const TravelService = {
           },
         });
         await writeStops(tx, run.id, plan.stops);
+        for (const trade of marketTrades) {
+          await tx.runTrade.create({
+            data: { runId: run.id, city: player.city.slug, productKey: trade.productKey, direction: 'buy', venue: 'market', quantity: trade.quantity, unitCents: trade.unitCents, totalCents: trade.totalCents, createdAt: now },
+          });
+        }
 
         const [out, home] = plan.stops;
         const result: RunLaunchResult = {
@@ -383,15 +432,17 @@ export const TravelService = {
           escortThugs: input.escortThugs,
           cashCents: input.cashCents,
           cargo,
+          market: Object.fromEntries(marketTrades.map((trade) => [trade.productKey, trade.quantity])),
+          marketCents: Number(marketCents),
         };
         return {
           next: {
             ...current,
             turns: current.turns - plan.turns,
-            cashCents: current.cashCents - cashCents,
+            cashCents: current.cashCents - cashCents - marketCents,
             lowRiders: current.lowRiders - input.lowRiders,
             thugs: current.thugs - input.escortThugs,
-            crack: current.crack - (cargo[CRACK] ?? 0),
+            crack: current.crack - (fromHome[CRACK] ?? 0),
             pistols: current.pistols - guns.pistols,
             shotguns: current.shotguns - guns.shotguns,
             tek9s: current.tek9s - guns.tek9s,

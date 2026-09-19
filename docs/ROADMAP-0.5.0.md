@@ -1,6 +1,6 @@
 # 0.5.0 roadmap - Travel
 
-Status: **in progress.** 0.5.0-A through E are built. F is planned.
+Status: **built.** 0.5.0-A through F are done; 0.5.0 is ready to release.
 
 0.4.0 turned Product into an economy with six products, prices, cooking and Heat. 0.5.0
 gives that economy somewhere to go. Everyone starts in New York, and there are two ways to
@@ -648,6 +648,41 @@ How it settled (with the design changes made while building it):
 - **UI:** a phone pass on Travel, the price board and the move screen; the Rules page gains
   a Travel panel.
 - **Release regression:** travel integration suites join `qa:release`.
+
+Built: the `classic-og-v0.5-f` ruleset, `runTravelRoundSimulation` and its gate in
+`npm run qa:travel`, loading up on the home high market at launch, a Travel panel on the
+Rules page, and a `TRAVEL_INTEGRATION` release suite for the launch that buys wholesale.
+
+How it settled:
+- **A whole round, as a player plays it.** 28 days of turns spent on the street, at the
+  stove, on runs and on other people's runs, from New York and from each other city
+  (moving there as soon as the fee is affordable). The street earns the **average block**,
+  not the busiest one the A simulation compares against: capacities are hidden and
+  reshuffled hourly, so a player cannot pick the packed one. Runs are planned from the
+  crew's cash, cars and home, driven one at a time in real time, and kept at their C
+  risk-model average. Mixed play tries a few thresholds for when a run is worth its turns
+  and keeps the best, the way a player settles into one.
+- **The gate:** in every play style, start and home city, mixed play beats the street
+  alone, the street with Produce, and running alone. It does, from all eight cities.
+- **Loading up at home (the one rule change).** A run could only take what the home Pip's
+  shelf held, so living in the port, the Valley or the rainy corner cut a crew off from the
+  very thing its city is known for: the market there was closed to its own. A run can now
+  **buy on its home high market as it leaves**, wholesale, straight into the trunk and out
+  of home cash. Buying only, so nobody sells on their own market and cooking to sell still
+  never pays. Every unit moves the price like any other buy, and the crew's own push is
+  still there next time it loads up.
+- **Three cities were tuned** so that travel is worth turns from everywhere: Seattle was
+  the best street in the game and its casinos now pay 10% less; Miami's clubs buy up Pip's
+  ecstasy (his shelf there is low) and its casinos pay 5% less.
+- **What the round says about the rest:** running alone lands at 10-40% of the street,
+  because a run is real-time bound and a market only absorbs so much. The stove never pays
+  a turn it could spend on the street; it is for covering what shelves cannot. Hijacking
+  loses to the street played all day and beats it by 5-13% played twice a day, where turns
+  are scarce and a hit brings product home: that rests on an assumed rate of runs in reach,
+  and it is the first thing to check against a real round.
+- **Everywhere is worth living**, and where you live changes what you do: Beverly Hills and
+  Seattle pay the most on the block, Detroit and Atlanta the least and lean on runs, and
+  Las Vegas gains the most from mixing.
 
 ## Open questions
 

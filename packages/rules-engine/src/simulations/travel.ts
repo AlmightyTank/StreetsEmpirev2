@@ -2,6 +2,7 @@ import type { DistrictKey, Ruleset } from '@streets/rulesets';
 import { happinessMultiplier } from '../rng.js';
 import { recruitmentMultiplier } from '../calculations/actions.js';
 import { clientMultiplier } from '../calculations/clients.js';
+import { runRules } from '../calculations/runs.js';
 import {
   cityCounter,
   cityRulesetProblems,
@@ -147,7 +148,8 @@ export function runTravelSimulation(ruleset: Ruleset, crews: readonly TravelCrew
 
     for (const buyCity of cities) {
       for (const sellCity of cities) {
-        if (buyCity === sellCity) continue;
+        // Home is where a run starts and ends, never a town it trades in.
+        if (buyCity === sellCity || sellCity === home) continue;
         const driveHours = legHours(ruleset, home, buyCity) + legHours(ruleset, buyCity, sellCity) + legHours(ruleset, sellCity, home);
         const turns = Math.max(1, Math.ceil(driveHours * travel.turnsPerDriveHour));
 
@@ -157,11 +159,14 @@ export function runTravelSimulation(ruleset: Ruleset, crews: readonly TravelCrew
           const sellCounter = cityCounter(ruleset, sellCity, product);
           const sellQuote = highMarketBaseline(ruleset, sellCity, product);
           // Unit i's price, counting from 0: Pip's is flat, a market moves 1% per `depth` units.
+          // A run trades in the towns it stops at. At home it loads Pip's shelf, and (0.5.0-F,
+          // where the rules allow it) buys on the home market as it leaves; it never sells there.
+          const homeMarketOk = buyCity !== home || (runRules(ruleset)?.homeMarketAtLaunch ?? false);
           const sources = [
             counter && counter.shelfCap > 0
               ? { from: 'pip' as const, shelf: counter.shelfCap, costOf: () => counter.buyCents }
               : null,
-            buyQuote ? { from: 'market' as const, shelf: Number.POSITIVE_INFINITY, costOf: (unit: number) => Math.round(buyQuote.buyCents * (1 + unit / (buyQuote.depth * 100))) } : null,
+            buyQuote && homeMarketOk ? { from: 'market' as const, shelf: Number.POSITIVE_INFINITY, costOf: (unit: number) => Math.round(buyQuote.buyCents * (1 + unit / (buyQuote.depth * 100))) } : null,
           ].filter((source) => source !== null);
           const sales = [
             sellQuote ? { to: 'market' as const, revenueOf: (unit: number) => Math.round(sellQuote.sellCents * Math.max(0.1, 1 - unit / (sellQuote.depth * 100))) } : null,

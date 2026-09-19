@@ -283,9 +283,24 @@ function toRoute(ruleset: Ruleset, cities: string[], roads: RoadRules[]): Travel
  * that is no more than `alternativeRouteShare` longer, up to `maxRoutes`. The map
  * is eight cities, so every simple path is enumerated.
  */
+/** Routes depend only on the travel block, which a ruleset never changes: walk each pair once. */
+const routeMemo = new WeakMap<object, Map<string, TravelRoute[]>>();
+
 export function findRoutes(ruleset: Ruleset, from: string, to: string): TravelRoute[] {
   const travel = ruleset.travel;
   if (!travel || from === to) return [];
+  let memo = routeMemo.get(travel);
+  if (!memo) routeMemo.set(travel, (memo = new Map()));
+  const key = `${from}>${to}`;
+  const known = memo.get(key);
+  if (known) return [...known];
+  const routes = walkRoutes(ruleset, from, to);
+  memo.set(key, routes);
+  return [...routes];
+}
+
+function walkRoutes(ruleset: Ruleset, from: string, to: string): TravelRoute[] {
+  const travel = ruleset.travel!;
   const found: TravelRoute[] = [];
   const walk = (at: string, cities: string[], roads: RoadRules[]) => {
     if (at === to) { found.push(toRoute(ruleset, cities, roads)); return; }

@@ -1,5 +1,5 @@
 import { writeFile } from 'node:fs/promises';
-import { classicOgV04E } from '@streets/rulesets';
+import { classicOgV04E, classicOgV05F } from '@streets/rulesets';
 import {
   combatProductGate,
   combatProductMarkdown,
@@ -60,6 +60,15 @@ try {
     ...combatProductGate(combatRows).problems.map((line) => `Combat: ${line}`),
     ...productRoundGate(roundRows).map((line) => `Round: ${line}`),
   ];
+  // 0.5.0-F: the product gates hold on the travel ruleset too, where every city prices product.
+  const travel = [
+    ...dominantProducts(productWinners(runProductSimulation(classicOgV05F))).map((row) => `Effects: ${row.product} is best on every job in ${row.situation}.`),
+    ...productLoops(classicOgV05F).map((line) => `Economy: ${line}`),
+    ...combatProductGate(runCombatProductSimulation(classicOgV05F, samples, seed)).problems.map((line) => `Combat: ${line}`),
+    ...productRoundGate(runProductRoundSimulation(classicOgV05F)).map((line) => `Round: ${line}`),
+  ].map((line) => `${classicOgV05F.meta.version}: ${line}`);
+  failures.push(...travel);
+
   if (failures.length) {
     console.error(`\nProduct gates failed:\n${failures.map((line) => `- ${line}`).join('\n')}`);
     process.exitCode = 1;

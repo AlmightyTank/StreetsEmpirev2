@@ -852,6 +852,12 @@ export interface SaleHeatRules {
 export interface RunRules {
   /** Real minutes a run stays in a city it stops at before it heads home on its own. */
   readonly townWindowMinutes: number;
+  /**
+   * 0.5.0-F. A run can buy on its home city's high market as it loads up, straight into the
+   * trunk and paid from home cash. Buying only: nobody sells on their own market, so cooking
+   * to sell still never pays.
+   */
+  readonly homeMarketAtLaunch?: boolean;
 }
 
 /** 0.4.0-D. Round-wide product economy switches. */
