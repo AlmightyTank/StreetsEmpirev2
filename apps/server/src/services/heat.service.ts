@@ -1,9 +1,11 @@
 import type { PrismaClient } from '@prisma/client';
 import {
   addHeat,
+  arrestChance,
   bribeCentsPerPoint,
   bustChance,
   heatTakeMultiplier,
+  resolveArrest,
   resolveBust,
   tripHeat,
   type Rng,
@@ -24,10 +26,11 @@ export interface HeatBribeResult {
   heatAfter: number;
 }
 
-/** The Heat block the player sees, or null on rounds without Heat. */
-export function toHeatDto(heat: number, netWorthCents: bigint, ruleset: Ruleset): HeatDto | null {
+/** The Heat block the player sees, or null on rounds without Heat. The ruleset is the player's own city's. */
+export function toHeatDto(heat: number, netWorthCents: bigint, ruleset: Ruleset, lockedUntil: Date | null = null, now: Date = new Date()): HeatDto | null {
   const rules = ruleset.heat;
   if (!rules) return null;
+  const arrest = rules.arrest;
   return {
     heat,
     max: rules.max,
@@ -38,6 +41,17 @@ export function toHeatDto(heat: number, netWorthCents: bigint, ruleset: Ruleset)
     takeMultiplier: heatTakeMultiplier(heat, ruleset),
     bustChance: bustChance(heat, ruleset),
     bust: { productSeizedFraction: rules.bust.productSeizedFraction, cashFineFraction: rules.bust.cashFineFraction, heatDrop: rules.bust.heatDrop },
+    arrest: arrest
+      ? {
+          startsAt: arrest.startsAt,
+          chance: arrestChance(heat, ruleset),
+          productSeizedFraction: arrest.productSeizedFraction,
+          cashFineFraction: arrest.cashFineFraction,
+          heatDrop: arrest.heatDrop,
+          downtimeMinutes: arrest.downtimeMinutes,
+        }
+      : null,
+    lockedUntil: lockedUntil && lockedUntil.getTime() > now.getTime() ? lockedUntil.toISOString() : null,
     bribeCentsPerPoint: Number(bribeCentsPerPoint(netWorthCents, rules)),
   };
 }
@@ -50,37 +64,41 @@ export function toHeatDto(heat: number, netWorthCents: bigint, ruleset: Ruleset)
  */
 export const HeatService = {
   /**
-   * Called by Scout and Produce once the trip's own numbers are settled. The
-   * bust is rolled at the Heat the trip started with, against what the trip
-   * left the player holding; the trip's Heat lands either way.
+   * Called by Scout and Produce once the trip's own numbers are settled. An
+   * arrest (0.5.0-C) and then a bust are rolled at the Heat the trip started
+   * with, against what the trip left the player holding; the trip's Heat lands
+   * either way. An arrest takes the bust's place, and locks the player up.
    */
   async afterTrip(
     tx: Db,
     roundPlayerId: string,
     ruleset: Ruleset,
-    input: { startHeat: number; plans: Array<WorkSupplyPlan | undefined>; next: PlayerState; rng?: Rng; extraHeat?: number },
+    input: { startHeat: number; plans: Array<WorkSupplyPlan | undefined>; next: PlayerState; rng?: Rng; extraHeat?: number; now?: Date },
   ): Promise<{ next: PlayerState; heat?: TripHeatDto }> {
     const rules = ruleset.heat;
     if (!rules) return { next: input.next };
 
     const added = Math.round(tripHeat(input.plans) + (input.extraHeat ?? 0));
     const inventory = await ProductInventoryService.read(tx, roundPlayerId, ruleset);
-    const bust = resolveBust({
-      heat: input.startHeat,
-      cashCents: input.next.cashCents,
-      products: { ...inventory, [CRACK]: input.next.crack },
-      ruleset,
-      rng: input.rng ?? Math.random,
-    });
+    const products = { ...inventory, [CRACK]: input.next.crack };
+    const rng = input.rng ?? Math.random;
+    // The arrest rolls first, and only where one is possible, so older rounds roll as they did.
+    const arrest = resolveArrest({ heat: input.startHeat, cashCents: input.next.cashCents, products, ruleset, rng });
+    const bust = arrest.arrested
+      ? { busted: false, chance: 0, seized: {} as Record<string, number>, fineCents: 0n }
+      : resolveBust({ heat: input.startHeat, cashCents: input.next.cashCents, products, ruleset, rng });
+    const taken = arrest.arrested ? arrest : bust.busted ? bust : null;
 
     let next = input.next;
-    if (bust.busted) {
-      const rows = Object.fromEntries(Object.entries(bust.seized).filter(([key]) => key !== CRACK).map(([key, units]) => [key, -units]));
+    if (taken) {
+      const rows = Object.fromEntries(Object.entries(taken.seized).filter(([key]) => key !== CRACK).map(([key, units]) => [key, -units]));
       if (Object.keys(rows).length) await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, rows);
-      next = { ...next, crack: next.crack - (bust.seized[CRACK] ?? 0), cashCents: next.cashCents - bust.fineCents };
+      next = { ...next, crack: next.crack - (taken.seized[CRACK] ?? 0), cashCents: next.cashCents - taken.fineCents };
     }
-    const after = addHeat(input.startHeat, added - (bust.busted ? rules.bust.heatDrop : 0), rules);
-    next = { ...next, heat: after };
+    const drop = arrest.arrested ? rules.arrest!.heatDrop : bust.busted ? rules.bust.heatDrop : 0;
+    const after = addHeat(input.startHeat, added - drop, rules);
+    const lockedUntil = arrest.arrested ? new Date((input.now ?? new Date()).getTime() + arrest.downtimeMinutes * 60_000) : null;
+    next = { ...next, heat: after, ...(lockedUntil ? { lockedUntil } : {}) };
 
     return {
       next,
@@ -90,10 +108,11 @@ export const HeatService = {
         after,
         max: rules.max,
         takeMultiplier: heatTakeMultiplier(input.startHeat, ruleset),
-        bustChance: bust.chance,
+        bustChance: bustChance(input.startHeat, ruleset),
         busted: bust.busted,
-        seized: bust.seized,
-        fineCents: Number(bust.fineCents),
+        ...(rules.arrest ? { arrested: arrest.arrested, arrestChance: arrest.chance, lockedUntil: lockedUntil?.toISOString() ?? null } : {}),
+        seized: taken?.seized ?? {},
+        fineCents: Number(taken?.fineCents ?? 0n),
       },
     };
   },

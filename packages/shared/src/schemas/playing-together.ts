@@ -80,6 +80,10 @@ export type RunLaunchInput = z.infer<typeof runLaunchSchema>;
 export const runTradeSchema = z.object({
   product: runProduct,
   direction: z.enum(['buy', 'sell']),
+  /** 0.5.0-C. Pip's counter, or the high market. */
+  venue: z.enum(['pip', 'market']).default('pip'),
+  /** 0.5.0-C. The next-unit price the player saw on the high market; the trade is refused if it has moved too far. */
+  quoteCents: z.number().int().positive().safe().optional(),
   quantity: z.number({ invalid_type_error: 'Enter a quantity.' }).int('Quantity must be a whole number.').positive('Enter at least one.').safe(),
   actionId: actionIdSchema,
 }).strict();

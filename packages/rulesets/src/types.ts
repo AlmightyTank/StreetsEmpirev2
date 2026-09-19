@@ -601,7 +601,7 @@ export interface CityProductRules {
 export interface CityHeatRules {
   readonly dragStartsAt: number;
   readonly bustStartsAt: number;
-  /** Arrests arrive in 0.5.0-C. */
+  /** 0.5.0-C. Where arrests start. */
   readonly arrestStartsAt: number;
   /** Multiplies the round's bust seizure and fine here. */
   readonly bustSeverity: number;
@@ -621,7 +621,7 @@ export interface CityRules {
   readonly talk: readonly string[];
   /** Every catalog product, crack included. */
   readonly products: { readonly [product: string]: CityProductRules };
-  /** How far and how often supply moves over a round, 0 (steady) to 1 (the swing city). Swings arrive in 0.5.0-C. */
+  /** How far and how often supply moves over a round, 0 (steady) to 1 (the swing city). Also how often price events land. */
   readonly supplySwing: number;
   /** The lowest supply level any product here falls to in a swing. */
   readonly supplyFloor: SupplyLevel;
@@ -647,7 +647,7 @@ export interface RoadRules {
   /** "I-95". */
   readonly name: string;
   readonly driveHours: number;
-  /** Road-stop pressure, 1 for an ordinary road. Stops arrive in 0.5.0-C. */
+  /** Road-stop pressure, 1 for an ordinary road. */
   readonly police: number;
   readonly note?: string;
 }
@@ -666,11 +666,111 @@ export interface TravelRules {
   /** Most routes offered between two cities. */
   readonly maxRoutes: number;
   /** What each supply level does to a shelf's size, its restock and Pip's prices. */
-  readonly supplyLevels: { readonly [K in SupplyLevel]: { readonly shelf: number; readonly restock: number; readonly price: number } };
+  readonly supplyLevels: { readonly [K in SupplyLevel]: SupplyLevelRules };
   /** The high market's cut: buyers pay baseline x (1 + spread), sellers get x (1 - spread). */
   readonly highMarketSpread: number;
   /** 0.5.0-B. Absent where cities have characters but nobody drives yet. */
   readonly runs?: RunRules;
+  /** 0.5.0-C. The live high market. Absent: runs trade at Pip's counters only. */
+  readonly market?: HighMarketRules;
+  /** 0.5.0-C. Pip's supply moving over the round. Absent: every city keeps its usual supply. */
+  readonly swings?: SupplySwingRules;
+  /** 0.5.0-C. Gluts and droughts. Absent: none. */
+  readonly events?: PriceEventRules;
+  /** 0.5.0-C. Police stops on the road. Absent: the road is safe. */
+  readonly stops?: RoadStopRules;
+  /** 0.5.0-C. Heat a run draws by selling. Absent: selling is quiet. */
+  readonly saleHeat?: SaleHeatRules;
+}
+
+/** 0.5.0-A. What a supply level does to Pip's counter (and from 0.5.0-C the high market). */
+export interface SupplyLevelRules {
+  readonly shelf: number;
+  readonly restock: number;
+  readonly price: number;
+  /** 0.5.0-C. The high market's baseline leans the same way as Pip's supply. Missing is 1. */
+  readonly market?: number;
+}
+
+/**
+ * 0.5.0-C. The high market: one shared price per round, city and product. Trades push
+ * it; it drifts back to its baseline.
+ */
+export interface HighMarketRules {
+  /** Real minutes for half of any push off the baseline to wear off. */
+  readonly recoveryHalfLifeMinutes: number;
+  /** How far the price may be pushed, as shares of the baseline: [-down, +up]. */
+  readonly maxPushDown: number;
+  readonly maxPushUp: number;
+  /** A trade is refused when its first unit is worse than the quote the player saw by more than this share. */
+  readonly quoteTolerance: number;
+}
+
+/**
+ * 0.5.0-C. Pip's supply moves on a schedule seeded per round, so rounds differ and a
+ * round can be replayed. Each slot a product may step away from its usual level: how
+ * often and how far is the city's `supplySwing`.
+ */
+export interface SupplySwingRules {
+  /** Real minutes a supply level holds before the next roll. */
+  readonly slotMinutes: number;
+  /** Chance a product is off its usual level in a slot, at a swing of 1. */
+  readonly moveChance: number;
+  /** Share of moves that go two levels rather than one, at a swing of 1. */
+  readonly bigMoveShare: number;
+  /** Share of level changes to or from out or plentiful that make the street wire. */
+  readonly wireShare: number;
+  /**
+   * The most a high market's baseline drifts either way in a slot, at a swing of 1,
+   * whatever Pip's supply does. Live prices move; Pip's counter does not drift.
+   */
+  readonly marketDrift: number;
+}
+
+export type PriceEventKind = 'GLUT' | 'DROUGHT';
+
+/** 0.5.0-C. Price events: bigger and rarer than a swing, and always on the wire. */
+export interface PriceEventRules {
+  /** Real minutes per roll. At most one event per city per slot. */
+  readonly slotMinutes: number;
+  /** Chance of an event in a slot at a `supplySwing` of 1. */
+  readonly chance: number;
+  readonly kinds: { readonly [K in PriceEventKind]: PriceEventKindRules };
+}
+
+export interface PriceEventKindRules {
+  /** Share of events that are this kind. */
+  readonly weight: number;
+  readonly durationMinutes: number;
+  /** Pip's supply while it lasts. */
+  readonly supply: SupplyLevel;
+  /** The high market's baseline while it lasts. Above 1 only with Pip out, or it is a loop. */
+  readonly marketMultiplier: number;
+}
+
+/** 0.5.0-C. Police stops on the road, rolled once per leg. */
+export interface RoadStopRules {
+  /** Chance per drive hour on a road with police 1, before cargo, Heat and escorts. */
+  readonly chancePerDriveHour: number;
+  /** Units at which cargo doubles the chance of an empty car. */
+  readonly cargoScale: number;
+  /** The most cargo can multiply the chance by. */
+  readonly maxCargoFactor: number;
+  /** Chance cut per escort, down to `minEscortFactor`. */
+  readonly escortCut: number;
+  readonly minEscortFactor: number;
+  /** Share of each product in the trunk taken. */
+  readonly productSeizedFraction: number;
+  /** Share of the run's cash taken. */
+  readonly cashFineFraction: number;
+}
+
+/**
+ * 0.5.0-C. Heat from selling on a run: the city's police pressure x `perTenThousandDollars`
+ * x the square root of the sale in ten-thousands of dollars. Split sales draw more, not less.
+ */
+export interface SaleHeatRules {
+  readonly perTenThousandDollars: number;
 }
 
 /** 0.5.0-B. Runs: a crew on the road with its own wallet and trunk. */
@@ -713,6 +813,24 @@ export interface HeatRules {
     readonly cashFineFraction: number;
     /** Heat a bust burns off. */
     readonly heatDrop: number;
+  };
+  /**
+   * 0.5.0-C. Arrests: a tier above busts. At home an arrest seizes and fines more than a
+   * bust and locks the player up; on a run it takes the trunk and part of the wallet and
+   * sends the run home. Absent: no arrests.
+   */
+  readonly arrest?: {
+    /** Heat at which arrests start. Each city sets its own. */
+    readonly startsAt: number;
+    /** Arrest chance per trip or trade at max Heat. */
+    readonly chanceAtMax: number;
+    readonly productSeizedFraction: number;
+    readonly cashFineFraction: number;
+    readonly heatDrop: number;
+    /** Real minutes locked up after an arrest at home. */
+    readonly downtimeMinutes: number;
+    /** Share of a run's cash taken when the run is arrested. Its whole trunk goes. */
+    readonly runCashSeizedFraction: number;
   };
   readonly bribe: {
     /** The least one point of Heat costs. */

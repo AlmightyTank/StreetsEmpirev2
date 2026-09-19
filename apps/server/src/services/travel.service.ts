@@ -1,21 +1,31 @@
-import type { PrismaClient, RunTrade } from '@prisma/client';
+import type { Prisma, PrismaClient, RunTrade } from '@prisma/client';
 import {
   RunError,
+  addHeat,
+  bustChance,
   calculateCityTrade,
   cargoUnits,
-  cityCounter,
+  cityEventAt,
   driveMs,
   driveTurns,
+  fillMarket,
   findRoutes,
+  loadRulesetForRound,
+  marketView,
   planDriveOn,
   planHeadHome,
   planLaunch,
+  quoteMoved,
+  resolveRunTrouble,
   routeHours,
+  rulesetForCity,
   runCapacity,
-  runNetWorthCents,
   runPosition,
   runRules,
-  settleCityShelf,
+  saleHeat,
+  settleLiveShelf,
+  streetWire,
+  type Rng,
   type Ruleset,
   type RunStopPlan,
 } from '@streets/rules-engine';
@@ -33,14 +43,27 @@ import {
   type RunTradeResult,
   type TravelDto,
   type TravelRoutesDto,
+  type WireItemDto,
 } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { CitiesService } from './cities.service.js';
 import { PlayerStateService } from './player-state.service.js';
+import { ActivityService } from './activity.service.js';
+import { HighMarketService } from './high-market.service.js';
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
-import { RUN_INCLUDE, cargoOf, recordSighting, toStopPlans, type LoadedRun } from './run-settle.service.js';
+import {
+  RUN_INCLUDE,
+  awayWorth,
+  cargoOf,
+  marketPrice,
+  recordSighting,
+  takeFromRun,
+  toIncidentDto,
+  toStopPlans,
+  type LoadedRun,
+} from './run-settle.service.js';
 
 /** Engine refusals become player-facing errors, pointing at the field that caused them. */
 function refuse(error: unknown): never {
@@ -82,6 +105,7 @@ function toTradeDto(ruleset: Ruleset, trade: RunTrade): RunTradeDto {
     quantity: trade.quantity,
     unitCents: trade.unitCents,
     totalCents: Number(trade.totalCents),
+    venue: trade.venue === 'market' ? 'market' : 'pip',
     at: trade.createdAt.toISOString(),
   };
 }
@@ -99,26 +123,31 @@ function stopsDto(ruleset: Ruleset, stops: readonly RunStopPlan[]): RunDto['stop
   }));
 }
 
-/** Pip's counter where a run is, with the player's own shelf there. */
-async function liveCounter(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, city: string, now: Date): Promise<NonNullable<RunDto['counter']>> {
+/** Pip's counter and the high market where a run is, with the player's own shelf there. */
+async function liveCounter(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, seed: string, city: string, now: Date): Promise<NonNullable<RunDto['counter']>> {
   const shelves = await db.cityShelf.findMany({ where: { roundPlayerId, city } });
+  const pushes = await HighMarketService.pushes(db, ruleset, seed, city, now);
+  const event = cityEventAt(ruleset, seed, city, now);
   return {
     city,
+    event: event ? { kind: event.kind, product: event.product, endsAt: event.endsAt.toISOString() } : null,
     products: productKeys(ruleset).map((key) => {
-      const counter = cityCounter(ruleset, city, key);
-      if (!counter) return { key, supply: null, buyCents: null, sellCents: null, stock: 0, nextAt: null };
       const row = shelves.find((shelf) => shelf.productKey === key) ?? null;
-      const settled = settleCityShelf(row, counter, now);
-      return { key, supply: counter.supply, buyCents: counter.buyCents, sellCents: counter.sellCents, stock: settled.stock, nextAt: settled.nextAt?.toISOString() ?? null };
+      const settled = settleLiveShelf(row, ruleset, seed, city, key, now);
+      const counter = settled.counter;
+      const market = marketPrice(ruleset, seed, city, key, pushes.get(key) ?? 0, now);
+      if (!counter) return { key, supply: null, buyCents: null, sellCents: null, stock: 0, nextAt: null, market };
+      return { key, supply: counter.supply, buyCents: counter.buyCents, sellCents: counter.sellCents, stock: settled.stock, nextAt: settled.nextAt?.toISOString() ?? null, market };
     }),
   };
 }
 
-async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, run: LoadedRun, now: Date): Promise<RunDto | null> {
+async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, seed: string, run: LoadedRun, now: Date): Promise<RunDto | null> {
   const stops = toStopPlans(run.stops);
   const position = runPosition(ruleset, stops, now);
   if (position.phase === 'home') return null;
   const trades = await db.runTrade.findMany({ where: { runId: run.id }, orderBy: { createdAt: 'asc' } });
+  const incidents = await db.runIncident.findMany({ where: { runId: run.id }, orderBy: { at: 'asc' } });
   return {
     id: run.id,
     launchedAt: run.launchedAt.toISOString(),
@@ -141,8 +170,9 @@ async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Rul
       road: position.road,
       until: position.until.toISOString(),
     },
-    counter: position.phase === 'town' ? await liveCounter(db, roundPlayerId, ruleset, position.city, now) : null,
+    counter: position.phase === 'town' ? await liveCounter(db, roundPlayerId, ruleset, seed, position.city, now) : null,
     trades: trades.map((trade) => toTradeDto(ruleset, trade)),
+    incidents: incidents.map((incident) => toIncidentDto(ruleset, incident)),
   };
 }
 
@@ -150,7 +180,7 @@ async function lastRunDto(db: Db | PrismaClient, roundPlayerId: string, ruleset:
   const run = await db.run.findFirst({
     where: { roundPlayerId, status: 'RETURNED' },
     orderBy: { returnedAt: 'desc' },
-    include: { ...RUN_INCLUDE, trades: { orderBy: { createdAt: 'asc' } } },
+    include: { ...RUN_INCLUDE, trades: { orderBy: { createdAt: 'asc' } }, incidents: { orderBy: { at: 'asc' } } },
   });
   if (!run || !run.returnedAt) return null;
   const visited = [...new Set(run.stops.slice(0, -1).map((stop) => stop.city))];
@@ -166,12 +196,34 @@ async function lastRunDto(db: Db | PrismaClient, roundPlayerId: string, ruleset:
     cargo: run.cargo.map((row) => ({ key: row.productKey, startQuantity: row.startQuantity, quantity: row.quantity })),
     turnsSpent: run.turnsSpent,
     trades: run.trades.map((trade) => toTradeDto(ruleset, trade)),
+    incidents: run.incidents.map((incident) => toIncidentDto(ruleset, incident)),
   };
 }
 
-/** A run's away net worth, from its wallet, cars, escorts and trunk. */
-function awayWorth(ruleset: Ruleset, run: { cashCents: bigint; lowRiders: number; escortThugs: number }, cargo: Record<string, number>): bigint {
-  return runNetWorthCents(ruleset, { cashCents: run.cashCents, lowRiders: run.lowRiders, escortThugs: run.escortThugs, cargo });
+/** The street wire in words. Never a price, never a number. */
+function wireText(ruleset: Ruleset, item: ReturnType<typeof streetWire>[number]): string {
+  const city = cityName(ruleset, item.city);
+  const product = productName(ruleset, item.product).toLowerCase();
+  if (item.kind === 'GLUT') return `A shipment of ${product} landed in ${city}. It is cheap there while it lasts.`;
+  if (item.kind === 'DROUGHT') return `The police hit the ${product} suppliers in ${city}. Pip is dry, and the market is paying through the nose.`;
+  if (item.supply === 'OUT') return `Pip has run out of ${product} in ${city}.`;
+  if (item.supply === 'PLENTIFUL') return `Pip has plenty of ${product} in ${city}.`;
+  return `Pip's ${product} in ${city} is back to ${item.supply === 'LOW' ? 'a trickle' : 'normal'}.`;
+}
+
+const WIRE_HOURS = 24;
+
+function wireDto(ruleset: Ruleset, seed: string, now: Date): WireItemDto[] {
+  return streetWire(ruleset, seed, new Date(now.getTime() - WIRE_HOURS * 3_600_000), now).map((item) => ({
+    at: item.at.toISOString(),
+    city: item.city,
+    cityName: cityName(ruleset, item.city),
+    product: item.product,
+    kind: item.kind,
+    supply: item.supply ?? null,
+    endsAt: item.endsAt?.toISOString() ?? null,
+    text: wireText(ruleset, item),
+  }));
 }
 
 /**
@@ -187,6 +239,7 @@ export const TravelService = {
     const inventory = await ProductInventoryService.read(prisma, roundPlayerId, ruleset);
     const run = await activeRun(prisma, roundPlayerId);
     const travel = ruleset.travel;
+    const seed = player.roundId;
     return {
       ...map,
       runsEnabled: Boolean(runRules(ruleset)),
@@ -195,6 +248,7 @@ export const TravelService = {
         thugsPerLowRider: ruleset.lowRiderThugCapacity,
         townWindowMinutes: runRules(ruleset)?.townWindowMinutes ?? 0,
         turnsPerDriveHour: travel?.turnsPerDriveHour ?? 0,
+        market: travel?.market ? { spread: travel.highMarketSpread, quoteTolerance: travel.market.quoteTolerance } : null,
       },
       home: {
         cashCents: Number(player.cashCents),
@@ -203,8 +257,9 @@ export const TravelService = {
         turns: player.turns,
         products: Object.entries(inventory).map(([key, quantity]) => ({ key, quantity })),
       },
-      run: run ? await runDto(prisma, roundPlayerId, ruleset, run, now) : null,
+      run: run ? await runDto(prisma, roundPlayerId, ruleset, seed, run, now) : null,
       lastRun: await lastRunDto(prisma, roundPlayerId, ruleset),
+      wire: wireDto(ruleset, seed, now),
     };
   },
 
@@ -337,74 +392,145 @@ export const TravelService = {
     });
   },
 
-  /** Buy or sell at Pip's counter in the town the run is in, out of the run's wallet and trunk. */
-  trade(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown): Promise<GameActionResult<RunTradeResult>> {
+  /**
+   * Buy or sell in the town the run is in, out of the run's wallet and trunk: at Pip's
+   * counter, or (0.5.0-C) on the high market, which the whole round shares. Selling
+   * draws Heat by the town's police pressure, and every trade risks the town's bust or
+   * arrest at the Heat the run walked in with. `rng` is for tests.
+   */
+  trade(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown, rng?: Rng): Promise<GameActionResult<RunTradeResult>> {
     const input = runTradeSchema.parse(rawInput);
     return ActionService.run<RunTradeResult>(prisma, roundPlayerId, {
       action: 'RUN_TRADE',
       actionId: input.actionId,
-      execute: async ({ tx, current, ruleset, now }) => {
-        requireRuns(ruleset);
+      execute: async ({ tx, current, round, now }) => {
+        // The round's own rules, not the home city's: the town decides busts and arrests here.
+        const base = loadRulesetForRound(round);
+        requireRuns(base);
+        const seed = round.id;
         const run = await requireActiveRun(tx, roundPlayerId);
-        const position = runPosition(ruleset, toStopPlans(run.stops), now);
+        const stops = toStopPlans(run.stops);
+        const position = runPosition(base, stops, now);
         if (position.phase !== 'town') {
-          throw AppError.conflict('NOT_IN_TOWN', position.phase === 'road' ? `The run is still on the road to ${cityName(ruleset, position.city)}.` : 'The run is home.');
+          throw AppError.conflict('NOT_IN_TOWN', position.phase === 'road' ? `The run is still on the road to ${cityName(base, position.city)}.` : 'The run is home.');
         }
         const city = position.city;
-        const counter = cityCounter(ruleset, city, input.product);
-        const shelfRow = await tx.cityShelf.findUnique({ where: { roundPlayerId_city_productKey: { roundPlayerId, city, productKey: input.product } } });
-        const shelf = counter ? settleCityShelf(shelfRow, counter, now) : null;
+        const name = productName(base, input.product);
+        if (!productKeys(base).includes(input.product)) throw AppError.badRequest('UNKNOWN_PRODUCT', 'That product is not part of this round.', { product: 'Pick a product.' });
         const cargo = cargoOf(run);
-        const capacity = runCapacity(ruleset, run.lowRiders);
-        let trade;
-        try {
-          trade = calculateCityTrade({
-            ruleset, city, product: input.product, direction: input.direction, quantity: input.quantity,
-            runCashCents: run.cashCents, held: cargo[input.product] ?? 0, trunkUnits: cargoUnits(cargo), capacity, shelfStock: shelf?.stock ?? 0,
-          });
-        } catch (error) { refuse(error); }
+        const capacity = runCapacity(base, run.lowRiders);
+        const buying = input.direction === 'buy';
+        let unitCents: number;
+        let totalCents: bigint;
+        let shelfStock = 0;
 
-        const cashCents = run.cashCents + trade.cashChangeCents;
-        const held = (cargo[input.product] ?? 0) + trade.quantityChange;
+        if (input.venue === 'market') {
+          const rules = base.travel?.market;
+          if (!rules) throw AppError.conflict('NO_MARKET', 'There is no high market this round.');
+          // Locked after the player, one market per trade: two runs selling here line up.
+          const market = await HighMarketService.lock(tx, base, seed, city, input.product, now);
+          const view = marketView(base, seed, city, input.product, market.push, now);
+          if (!view) throw AppError.badRequest('NO_MARKET_PRICE', `Nobody in ${cityName(base, city)} deals ${name} in bulk.`, { product: 'No market for it here.' });
+          const fill = fillMarket(view, rules, input.direction, input.quantity);
+          if (input.quoteCents !== undefined && quoteMoved(rules, input.direction, input.quoteCents, fill.firstUnitCents)) {
+            throw AppError.conflict('PRICE_MOVED', `The price moved: ${name} now ${buying ? 'costs' : 'pays'} $${(fill.firstUnitCents / 100).toLocaleString('en-US')} a unit. Check it and try again.`);
+          }
+          if (buying) {
+            if (fill.totalCents > run.cashCents) {
+              throw AppError.badRequest('NOT_ENOUGH_CASH', `That is $${(Number(fill.totalCents) / 100).toLocaleString('en-US')}, and the run only carries $${(Number(run.cashCents) / 100).toLocaleString('en-US')}.`, { quantity: 'Not enough cash in the car.' });
+            }
+            const room = Math.max(0, capacity - cargoUnits(cargo));
+            if (input.quantity > room) throw AppError.badRequest('TRUNK_FULL', room === 0 ? 'The trunk is full.' : `There is only room for ${room.toLocaleString('en-US')} more.`, { quantity: `At most ${room}.` });
+          } else if (input.quantity > (cargo[input.product] ?? 0)) {
+            const held = cargo[input.product] ?? 0;
+            throw AppError.badRequest('NOT_ENOUGH_PRODUCT', held === 0 ? `There is no ${name} in the trunk.` : `The trunk only has ${held.toLocaleString('en-US')} ${name}.`, { quantity: `At most ${held}.` });
+          }
+          await HighMarketService.write(tx, market.id, fill.pushAfter, now);
+          totalCents = fill.totalCents;
+          unitCents = Math.round(Number(fill.totalCents) / input.quantity);
+        } else {
+          const shelfRow = await tx.cityShelf.findUnique({ where: { roundPlayerId_city_productKey: { roundPlayerId, city, productKey: input.product } } });
+          const shelf = settleLiveShelf(shelfRow, base, seed, city, input.product, now);
+          let trade;
+          try {
+            trade = calculateCityTrade({
+              ruleset: base, city, product: input.product, direction: input.direction, quantity: input.quantity, counter: shelf.counter,
+              runCashCents: run.cashCents, held: cargo[input.product] ?? 0, trunkUnits: cargoUnits(cargo), capacity, shelfStock: shelf.stock,
+            });
+          } catch (error) { refuse(error); }
+          if (shelf.counter) {
+            // A sale never touches the shelf, but settling it is still kept, or a parked clock is lost.
+            shelfStock = shelf.stock - trade.stockTaken;
+            await tx.cityShelf.upsert({
+              where: { roundPlayerId_city_productKey: { roundPlayerId, city, productKey: input.product } },
+              create: { roundPlayerId, city, productKey: input.product, stock: shelfStock, stockAt: shelf.stockAt },
+              update: { stock: shelfStock, stockAt: shelf.stockAt },
+            });
+          }
+          totalCents = trade.totalCents;
+          unitCents = trade.unitCents;
+        }
+
+        const cashCents = buying ? run.cashCents - totalCents : run.cashCents + totalCents;
+        const held = (cargo[input.product] ?? 0) + (buying ? input.quantity : -input.quantity);
         await tx.run.update({ where: { id: run.id }, data: { cashCents } });
         await tx.runCargo.upsert({
           where: { runId_productKey: { runId: run.id, productKey: input.product } },
           create: { runId: run.id, productKey: input.product, quantity: held, startQuantity: 0 },
           update: { quantity: held },
         });
-        if (shelf && counter) {
-          // A sale never touches the shelf, but settling it is still kept, or a parked clock is lost.
-          const stock = shelf.stock - trade.stockTaken;
-          await tx.cityShelf.upsert({
-            where: { roundPlayerId_city_productKey: { roundPlayerId, city, productKey: input.product } },
-            create: { roundPlayerId, city, productKey: input.product, stock, stockAt: shelf.stockAt },
-            update: { stock, stockAt: shelf.stockAt },
-          });
-        }
         await tx.runTrade.create({
-          data: { runId: run.id, city, productKey: input.product, direction: input.direction, quantity: trade.quantity, unitCents: trade.unitCents, totalCents: trade.totalCents, createdAt: now },
+          data: { runId: run.id, city, productKey: input.product, direction: input.direction, venue: input.venue, quantity: input.quantity, unitCents, totalCents, createdAt: now },
         });
-        // The crew saw the counter as it was left.
-        await tx.citySighting.deleteMany({ where: { roundPlayerId, city } });
-        await recordSighting(tx, roundPlayerId, ruleset, city, now);
 
-        const nextCargo = { ...cargo, [input.product]: held };
+        // The town's police, at the Heat the run walked in with; the sale's own Heat lands after.
+        const town = rulesetForCity(base, city);
+        let traded = await requireActiveRun(tx, roundPlayerId);
+        const roll = town.heat
+          ? resolveRunTrouble({ heat: current.heat, cashCents: traded.cashCents, cargo: cargoOf(traded), ruleset: town, bustChance: bustChance(current.heat, town), rng: rng ?? Math.random })
+          : null;
+        const added = !buying ? saleHeat(base, city, totalCents) : 0;
+        const heatAfter = town.heat ? addHeat(roll?.kind ? roll.heatAfter : current.heat, added, town.heat) : current.heat;
+        let trouble: RunTradeResult['trouble'] = null;
+        if (roll?.kind) {
+          traded = await takeFromRun(tx, roundPlayerId, base, traded, roll);
+          const incident = await tx.runIncident.create({
+            data: { runId: run.id, kind: roll.kind, city, road: null, seized: roll.seized, fineCents: roll.fineCents, at: now },
+          });
+          trouble = toIncidentDto(base, incident);
+          await ActivityService.log(tx, roundPlayerId, 'RUN_INCIDENT', { runId: run.id, ...trouble } as unknown as Prisma.InputJsonValue);
+          // An arrest ends the trip: the crew is let go with the empty car and drives home.
+          if (roll.kind === 'ARREST') await writeStops(tx, run.id, planHeadHome(base, stops, now));
+        }
+
+        // The crew saw the counter and the market as they left them.
+        await tx.citySighting.deleteMany({ where: { roundPlayerId, city } });
+        await recordSighting(tx, roundPlayerId, base, seed, city, now);
+
+        const nextCargo = cargoOf(traded);
         return {
-          next: { ...current, awayNetWorthCents: awayWorth(ruleset, { cashCents, lowRiders: run.lowRiders, escortThugs: run.escortThugs }, nextCargo) },
+          next: {
+            ...current,
+            heat: heatAfter,
+            awayNetWorthCents: awayWorth(base, traded, nextCargo),
+          },
           result: {
             city,
-            cityName: cityName(ruleset, city),
+            cityName: cityName(base, city),
             product: input.product,
-            productName: productName(ruleset, input.product),
+            productName: name,
             direction: input.direction,
-            quantity: trade.quantity,
-            unitCents: trade.unitCents,
-            totalCents: Number(trade.totalCents),
-            runCashCents: Number(cashCents),
-            held,
+            venue: input.venue,
+            quantity: input.quantity,
+            unitCents,
+            totalCents: Number(totalCents),
+            runCashCents: Number(traded.cashCents),
+            held: nextCargo[input.product] ?? 0,
             trunkUnits: cargoUnits(nextCargo),
             capacity,
-            shelfStock: shelf ? shelf.stock - trade.stockTaken : 0,
+            shelfStock,
+            heat: town.heat ? { before: current.heat, added, after: heatAfter } : null,
+            trouble,
           },
         };
       },

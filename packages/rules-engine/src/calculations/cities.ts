@@ -38,6 +38,15 @@ export function cityHeatRules(ruleset: Ruleset, slug: string | undefined): HeatR
       productSeizedFraction: Math.min(1, base.bust.productSeizedFraction * city.heat.bustSeverity),
       cashFineFraction: Math.min(1, base.bust.cashFineFraction * city.heat.bustSeverity),
     },
+    // 0.5.0-C: arrests start at the city's own level and hit as hard as its busts do.
+    ...(base.arrest ? {
+      arrest: {
+        ...base.arrest,
+        startsAt: city.heat.arrestStartsAt,
+        productSeizedFraction: Math.min(1, base.arrest.productSeizedFraction * city.heat.bustSeverity),
+        cashFineFraction: Math.min(1, base.arrest.cashFineFraction * city.heat.bustSeverity),
+      },
+    } : {}),
   };
 }
 
@@ -264,6 +273,13 @@ export function cityRulesetProblems(ruleset: Ruleset): string[] {
   const leans = SUPPLY_LEVELS.map((level) => travel.supplyLevels[level].price);
   const cheapest = Math.min(...leans);
   const dearest = Math.max(...leans);
+  // 0.5.0-C: the live market leans with supply and events, so the loop check runs at every level.
+  const marketLean = (level: SupplyLevel) => travel.supplyLevels[level].market ?? 1;
+  const events = travel.events ? Object.entries(travel.events.kinds) : [];
+  for (const [kind, rules] of events) {
+    if (rules.marketMultiplier > 1 && rules.supply !== 'OUT') problems.push(`A ${kind} lifts the high market, so Pip must be out while it lasts.`);
+    if (rules.durationMinutes > travel.events!.slotMinutes) problems.push(`A ${kind} must not outlast its slot.`);
+  }
   for (const [slug, city] of Object.entries(cities)) {
     const { dragStartsAt, bustStartsAt, arrestStartsAt } = city.heat;
     if (ruleset.heat && !(dragStartsAt < bustStartsAt && bustStartsAt < arrestStartsAt && arrestStartsAt <= ruleset.heat.max)) {
@@ -278,6 +294,21 @@ export function cityRulesetProblems(ruleset: Ruleset): string[] {
       const pipBuy = base.buyCents * row.price * cheapest;
       const marketSell = base.buyCents * row.demand * (1 - travel.highMarketSpread);
       if (row.supply !== null && marketSell >= pipBuy) problems.push(`${city.name} ${product}: buying at Pip's and selling on the high market is a loop.`);
+      if (row.supply !== null && travel.market) {
+        // Pip and the market at the same level, and during every event that leaves Pip dealing.
+        // The market's drift never lifts it past Pip's price (see marketView).
+        // The market leans by how far supply is from Pip's usual level.
+        const usual = row.supply;
+        for (const level of SUPPLY_LEVELS.filter((entry) => entry !== 'OUT')) {
+          const multipliers = [1, ...events.filter(([, rules]) => rules.supply === level).map(([, rules]) => rules.marketMultiplier)];
+          for (const multiplier of multipliers) {
+            const sell = base.buyCents * row.demand * (marketLean(level) / marketLean(usual)) * multiplier * (1 - travel.highMarketSpread);
+            if (sell >= base.buyCents * row.price * travel.supplyLevels[level].price) {
+              problems.push(`${city.name} ${product}: at ${level.toLowerCase()} supply, buying at Pip's and selling on the high market is a loop.`);
+            }
+          }
+        }
+      }
       // The high market's buy here against Pip's dearest buyback here.
       const marketBuy = base.buyCents * Math.max(row.price, row.demand) * (1 + travel.highMarketSpread);
       const pipSell = base.sellCents * row.price * dearest;

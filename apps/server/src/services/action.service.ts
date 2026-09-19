@@ -61,6 +61,8 @@ export interface PlayerState {
   heat: number;
   /** 0.5.0-B. Net worth of what is out on a run. Runs move it; nothing else does. */
   awayNetWorthCents: bigint;
+  /** 0.5.0-C. Set by an arrest at home; left out, it is not written. */
+  lockedUntil?: Date | null;
 
   /** Quest progress that is per-player rather than per-trader. */
   cleanShiftStreak: number;
@@ -305,6 +307,11 @@ export const ActionService = {
 
       const { round, ...player } = loaded;
       assertRoundPlayable(round, now);
+      // 0.5.0-C: nobody acts from a cell. A run still out comes home on its own.
+      if (player.lockedUntil && player.lockedUntil.getTime() > now.getTime()) {
+        const minutes = Math.ceil((player.lockedUntil.getTime() - now.getTime()) / 60_000);
+        throw AppError.conflict('LOCKED_UP', `You are locked up for another ${minutes} minute${minutes === 1 ? '' : 's'}. Nothing moves until you are out.`);
+      }
 
       // 0.5.0-A: Heat reads the player's own city.
       const ruleset = rulesetForCity(loadRulesetForRound(round), player.city.slug);

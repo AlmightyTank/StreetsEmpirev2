@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import type { GameActionResult, RunDto, RunLaunchResult, RunMoveResult, RunReceiptDto, RunTradeResult, TravelDto, TravelRoutesDto } from '@streets/shared';
+import type { GameActionResult, MarketPriceDto, RunDto, RunIncidentDto, RunLaunchResult, RunMoveResult, RunReceiptDto, RunTradeResult, TravelDto, TravelRoutesDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { useCountdown } from '../hooks/useCountdown.js';
@@ -190,58 +190,124 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
   );
 }
 
-/** Trade at Pip's in the town the run is in. */
-function TownCounter({ run, products, onDone }: { run: RunDto; products: Products; onDone: () => void }) {
+/**
+ * Roughly what `quantity` units come to on the high market from its next unit: every
+ * unit moves the price 1% per `depth` units, against the trader. The server prices it
+ * exactly; this is the estimate on the button.
+ */
+function marketEstimate(market: MarketPriceDto, buying: boolean, quantity: number): number {
+  if (quantity < 1) return 0;
+  const drift = (quantity - 1) / (2 * market.depth * 100);
+  return Math.round(quantity * (buying ? market.buyCents * (1 + drift) : market.sellCents * Math.max(0.1, 1 - drift)));
+}
+
+/** The most units a run can buy on the high market with its cash, by the estimate. */
+function marketMaxBuy(market: MarketPriceDto, cashCents: number, room: number): number {
+  let low = 0;
+  let high = Math.max(0, room);
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (marketEstimate(market, true, mid) <= cashCents) low = mid; else high = mid - 1;
+  }
+  return low;
+}
+
+const EVENT_WORDS: Record<'GLUT' | 'DROUGHT', (product: string) => string> = {
+  GLUT: (product) => `A shipment of ${product} just landed: it is cheap here, at Pip's and on the market.`,
+  DROUGHT: (product) => `The ${product} suppliers got hit: Pip is dry and the market is paying through the nose.`,
+};
+
+/** Trade in the town the run is in: at Pip's counter, or (0.5.0-C) on the high market. */
+function TownCounter({ run, data, onDone }: { run: RunDto; data: TravelDto; onDone: () => void }) {
+  const products = data.products;
   const trade = useGameAction<RunTradeResult>();
   const counter = run.counter!;
-  const carried = counter.products.filter((product) => product.supply !== null);
-  const [product, setProduct] = useState(carried[0]?.key ?? '');
+  const hasMarket = Boolean(data.rules.market) && counter.products.some((entry) => entry.market);
+  const [venue, setVenue] = useState<'pip' | 'market'>('pip');
+  const tradable = counter.products.filter((entry) => (venue === 'pip' ? entry.supply !== null : entry.market !== null));
+  const [product, setProduct] = useState(tradable[0]?.key ?? '');
   const [direction, setDirection] = useState<'buy' | 'sell'>('buy');
   const [quantity, setQuantity] = useState<number | ''>('');
   const row = counter.products.find((entry) => entry.key === product) ?? null;
   const inTrunk = run.cargo.find((entry) => entry.key === product)?.quantity ?? 0;
   const trunk = run.cargo.reduce((sum, entry) => sum + entry.quantity, 0);
+  const room = Math.max(0, run.capacity - trunk);
   const buying = direction === 'buy';
-  const unit = row ? (buying ? row.buyCents ?? 0 : row.sellCents ?? 0) : 0;
-  const max = !row || row.supply === null ? 0
-    : buying ? Math.max(0, Math.min(row.stock, run.capacity - trunk, unit > 0 ? Math.floor(run.cashCents / unit) : 0))
-      : inTrunk;
+  const onMarket = venue === 'market';
+  const market = row?.market ?? null;
+  const unit = !row ? 0 : onMarket ? (market ? (buying ? market.buyCents : market.sellCents) : 0) : (buying ? row.buyCents ?? 0 : row.sellCents ?? 0);
+  const open = !row ? false : onMarket ? market !== null : row.supply !== null;
+  const max = !open ? 0
+    : !buying ? inTrunk
+      : onMarket ? marketMaxBuy(market!, run.cashCents, room)
+        : Math.max(0, Math.min(row!.stock, room, unit > 0 ? Math.floor(run.cashCents / unit) : 0));
   const qty = typeof quantity === 'number' ? quantity : 0;
+  const total = onMarket && market ? marketEstimate(market, buying, qty) : qty * unit;
   const block = trade.busy ? 'Counting it out.'
-    : !row || row.supply === null ? 'Pick something Pip carries here.'
-      : max < 1 ? (buying ? (row.stock === 0 ? 'Pip has none left here.' : run.capacity - trunk <= 0 ? 'The trunk is full.' : 'The run cannot afford one.') : 'There is none in the trunk.')
+    : !open ? (onMarket ? 'Nobody here trades that in bulk.' : 'Pick something Pip carries here.')
+      : max < 1 ? (buying ? (!onMarket && row!.stock === 0 ? 'Pip has none left here.' : room <= 0 ? 'The trunk is full.' : 'The run cannot afford one.') : 'There is none in the trunk.')
         : qty < 1 || qty > max ? `Enter a whole number from 1 to ${formatNumber(max)}.`
           : null;
+  const eventProduct = counter.event ? nameOf(products, counter.event.product).toLowerCase() : '';
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (block) return;
-    await trade.run((actionId): Promise<GameActionResult<RunTradeResult>> => api.post('/game/travel/trade', { product, direction, quantity: qty, actionId }));
+    await trade.run((actionId): Promise<GameActionResult<RunTradeResult>> => api.post('/game/travel/trade', {
+      product, direction, venue, quantity: qty, actionId, ...(onMarket ? { quoteCents: unit } : {}),
+    }));
     setQuantity('');
     onDone();
   }
 
+  const result = trade.result?.result;
   return (
     <div className="se-towncounter">
-      <h3 className="se-city__heading">Pip&rsquo;s in {run.position.cityName}</h3>
+      <h3 className="se-city__heading">Trading in {run.position.cityName}</h3>
+      {counter.event ? (
+        <p className={`se-hint se-towncounter__event se-${counter.event.kind === 'GLUT' ? 'good' : 'warn'}`}>
+          {EVENT_WORDS[counter.event.kind](eventProduct)} Until {clock(counter.event.endsAt)}.
+        </p>
+      ) : null}
+      {hasMarket ? (
+        <div className="se-seg se-towncounter__venue" role="group" aria-label="Where to trade">
+          <button type="button" className={`se-seg__btn${!onMarket ? ' se-seg__btn--on' : ''}`} aria-pressed={!onMarket} onClick={() => setVenue('pip')}>Pip&rsquo;s counter</button>
+          <button type="button" className={`se-seg__btn${onMarket ? ' se-seg__btn--on' : ''}`} aria-pressed={onMarket} onClick={() => setVenue('market')}>High market</button>
+        </div>
+      ) : null}
+      <p className="se-hint">
+        {onMarket
+          ? 'Everyone in the round trades here. Every unit moves the price against you, and it drifts back over the next few hours.'
+          : 'Your own shelf: nobody else can buy it out from under you. Buy / sell prices each.'}
+      </p>
       <div className="se-rows">
-        {counter.products.map((entry) => (
-          <button type="button" key={entry.key} disabled={entry.supply === null}
-            className={`se-row se-towncounter__row${entry.key === product ? ' se-towncounter__row--on' : ''}`}
-            onClick={() => setProduct(entry.key)}>
-            <span className="se-row__label">{nameOf(products, entry.key)}</span>
-            <span className="se-row__value">
-              {entry.supply === null ? <span className="se-muted">Not carried</span> : (
-                <>
-                  <span className={`se-city__supply se-city__supply--${entry.supply.toLowerCase()}`}>{SUPPLY_WORD[entry.supply]}</span>
-                  <span className="se-muted se-num"> ({formatNumber(entry.stock)})</span>
-                  {' '}<span className="se-num">{unitPrice(entry.buyCents!)}</span>
-                  <span className="se-muted se-num"> / {unitPrice(entry.sellCents!)}</span>
-                </>
-              )}
-            </span>
-          </button>
-        ))}
+        {counter.products.map((entry) => {
+          const usable = onMarket ? entry.market !== null : entry.supply !== null;
+          return (
+            <button type="button" key={entry.key} disabled={!usable}
+              className={`se-row se-towncounter__row${entry.key === product ? ' se-towncounter__row--on' : ''}`}
+              onClick={() => setProduct(entry.key)}>
+              <span className="se-row__label">{nameOf(products, entry.key)}</span>
+              <span className="se-row__value">
+                {onMarket ? (
+                  entry.market ? (
+                    <>
+                      <span className="se-num">{unitPrice(entry.market.buyCents)}</span>
+                      <span className="se-muted se-num"> / {unitPrice(entry.market.sellCents)}</span>
+                    </>
+                  ) : <span className="se-muted">No market</span>
+                ) : entry.supply === null ? <span className="se-muted">Not carried</span> : (
+                  <>
+                    <span className={`se-city__supply se-city__supply--${entry.supply.toLowerCase()}`}>{SUPPLY_WORD[entry.supply]}</span>
+                    <span className="se-muted se-num"> ({formatNumber(entry.stock)})</span>
+                    {' '}<span className="se-num">{unitPrice(entry.buyCents!)}</span>
+                    <span className="se-muted se-num"> / {unitPrice(entry.sellCents!)}</span>
+                  </>
+                )}
+              </span>
+            </button>
+          );
+        })}
       </div>
       <form className="se-towncounter__form" onSubmit={submit}>
         <div className="se-seg" role="group" aria-label="Buy or sell">
@@ -254,17 +320,41 @@ function TownCounter({ run, products, onDone }: { run: RunDto; products: Product
           <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={max < 1} onClick={() => setQuantity(max)}>Max</button>
         </div>
         <Button className="se-btn se-btn--primary se-btn--block" disabledReason={block}>
-          {buying ? 'Buy' : 'Sell'} {row ? nameOf(products, row.key) : ''}{!block ? ` · ${formatCents(qty * unit)}` : ''}
+          {buying ? 'Buy' : 'Sell'} {row ? nameOf(products, row.key) : ''}{!block ? ` · ${onMarket ? 'about ' : ''}${formatCents(total)}` : ''}
         </Button>
+        {!buying ? <p className="se-hint">Selling draws Heat here, more in towns with more police. Every trade risks a bust once your Heat is past this town&rsquo;s line.</p> : null}
       </form>
       {trade.error ? <Alert>{trade.error}</Alert> : null}
-      {trade.result ? (
-        <p className="se-hint se-good">
-          {trade.result.result.direction === 'buy' ? 'Bought' : 'Sold'} {formatNumber(trade.result.result.quantity)} {trade.result.result.productName} for {formatCents(trade.result.result.totalCents)}.
-          The run carries {formatCents(trade.result.result.runCashCents)}.
+      {result ? (
+        <p className={`se-hint ${result.trouble ? 'se-bad' : 'se-good'}`}>
+          {result.direction === 'buy' ? 'Bought' : 'Sold'} {formatNumber(result.quantity)} {result.productName} for {formatCents(result.totalCents)}
+          {result.venue === 'market' ? ` (${unitPrice(result.unitCents)} each on average)` : ''}.
+          {result.heat && result.heat.added > 0 ? ` Heat ${result.heat.before} → ${result.heat.after}.` : ''}
+          {result.trouble ? ` ${incidentText(result.trouble, products)}` : ` The run carries ${formatCents(result.runCashCents)}.`}
         </p>
       ) : null}
     </div>
+  );
+}
+
+/** A stop, bust or arrest in one line. */
+function incidentText(incident: RunIncidentDto, products: Products): string {
+  const taken = Object.entries(incident.seized).filter(([, units]) => units > 0).map(([key, units]) => `${formatNumber(units)} ${nameOf(products, key)}`);
+  const lost = [taken.join(', '), incident.fineCents > 0 ? formatCents(incident.fineCents) : ''].filter(Boolean).join(' and ') || 'nothing';
+  if (incident.kind === 'STOP') return `Stopped on ${incident.road ?? 'the road'} into ${SHORT_NAME(incident.cityName)}: the police took ${lost}.`;
+  if (incident.kind === 'BUST') return `Busted in ${SHORT_NAME(incident.cityName)}: the police took ${lost}.`;
+  return `Arrested in ${SHORT_NAME(incident.cityName)}: the police took ${lost}, and the crew is driving home.`;
+}
+
+function IncidentList({ incidents, products }: { incidents: RunIncidentDto[]; products: Products }) {
+  if (!incidents.length) return null;
+  return (
+    <>
+      <h3 className="se-city__heading">Trouble</h3>
+      <ul className="se-run__trades se-run__incidents">
+        {incidents.map((incident, index) => <li key={index} className="se-bad">{incidentText(incident, products)}</li>)}
+      </ul>
+    </>
   );
 }
 
@@ -356,13 +446,14 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
 
       {inTown ? (
         <>
-          <TownCounter run={run} products={data.products} onDone={onDone} />
+          <TownCounter run={run} data={data} onDone={onDone} />
           <MoveOn run={run} data={data} onDone={onDone} />
         </>
       ) : (
         <p className="se-hint">You can trade once it gets there. A run left alone trades nothing: it waits out its window and comes home with what it has.</p>
       )}
 
+      <IncidentList incidents={run.incidents} products={data.products} />
       {run.trades.length ? (
         <>
           <h3 className="se-city__heading">Trades so far</h3>
@@ -390,7 +481,7 @@ function TradeList({ trades, products }: { trades: RunDto['trades']; products: P
     <ul className="se-run__trades">
       {trades.map((trade, index) => (
         <li key={index}>
-          <span>{trade.direction === 'buy' ? 'Bought' : 'Sold'} {formatNumber(trade.quantity)} {nameOf(products, trade.product)} in {SHORT_NAME(trade.cityName)}</span>
+          <span>{trade.direction === 'buy' ? 'Bought' : 'Sold'} {formatNumber(trade.quantity)} {nameOf(products, trade.product)} in {SHORT_NAME(trade.cityName)}{trade.venue === 'market' ? ' (market)' : ''}</span>
           <span className={`se-num ${trade.direction === 'buy' ? 'se-bad' : 'se-good'}`}>{trade.direction === 'buy' ? '-' : '+'}{formatCents(trade.totalCents)}</span>
         </li>
       ))}
@@ -412,6 +503,7 @@ export function ReceiptPanel({ receipt, products }: { receipt: RunReceiptDto; pr
         ))}
         <Row label="Turns" value={formatNumber(receipt.turnsSpent)} />
       </div>
+      <IncidentList incidents={receipt.incidents} products={products} />
       {receipt.trades.length ? <TradeList trades={receipt.trades} products={products} /> : <p className="se-hint">No trades: the crew only looked.</p>}
     </Panel>
   );

@@ -170,7 +170,7 @@ export const ScoutService = {
         };
 
         // 0.4.0-C: the trip's Heat lands, and a hot crew can be busted on the way home.
-        const trip = await HeatService.afterTrip(tx, roundPlayerId, ruleset, { startHeat: current.heat, plans: [supply], next: worked, rng });
+        const trip = await HeatService.afterTrip(tx, roundPlayerId, ruleset, { startHeat: current.heat, plans: [supply], next: worked, rng, now });
         const next = trip.next;
 
         const all = Object.values(ruleset.districts);

@@ -296,10 +296,12 @@ export function calculateCityTrade(input: {
   trunkUnits: number;
   capacity: number;
   shelfStock: number;
+  /** 0.5.0-C. Pip's counter at today's supply; his usual one when left out. */
+  counter?: CityCounter | null;
 }): CityTrade {
   const { ruleset, city, product, direction, quantity } = input;
   const name = ruleset.products?.[product]?.name ?? product.charAt(0) + product.slice(1).toLowerCase();
-  const counter = cityCounter(ruleset, city, product);
+  const counter = input.counter !== undefined ? input.counter : cityCounter(ruleset, city, product);
   if (!counter) throw new RunError('NOT_CARRIED', `Pip does not deal ${name} in ${cityName(ruleset, city)}.`, 'product');
   if (direction !== 'buy' && direction !== 'sell') throw new RunError('INVALID_TRADE', 'Choose buy or sell.', 'direction');
   if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > MAX_INVENTORY) {

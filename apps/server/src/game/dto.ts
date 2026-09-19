@@ -168,7 +168,7 @@ export function toRoundPlayerDto(
       ),
     },
     hideout: toSeasonHideoutDto(player),
-    heat: toHeatDto(player.heat, player.netWorthCents, ruleset),
+    heat: toHeatDto(player.heat, player.netWorthCents, ruleset, player.lockedUntil),
     run,
     products: ruleset.products
       ? Object.entries(ruleset.products).sort(([, a], [, b]) => a.sortOrder - b.sortOrder).map(([key, product]) => ({

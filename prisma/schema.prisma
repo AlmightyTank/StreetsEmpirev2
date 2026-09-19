@@ -319,9 +319,10 @@ model Round {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  players   RoundPlayer[]
-  news      GameNews[]
-  alliances Alliance[]
+  players     RoundPlayer[]
+  news        GameNews[]
+  alliances   Alliance[]
+  highMarkets HighMarket[]
 
   @@index([status])
 }
@@ -435,6 +436,8 @@ model RoundPlayer {
   /// 0.4.0-C. Attention the crew's product draws, 0..ruleset heat max. Decays on the turn clock
   /// (lastTurnCalculationAt), so it needs no clock of its own. Always 0 on rounds without Heat.
   heat               Int @default(0)
+  /// 0.5.0-C. Locked up after an arrest at home: no actions until then.
+  lockedUntil        DateTime?
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
   rocksSuppliedToPip Int @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
@@ -653,9 +656,12 @@ model Run {
   turnsSpent     Int
   launchedAt     DateTime    @default(now())
   returnedAt     DateTime?
+  /// 0.5.0-C. Stops whose road in has been rolled for a police stop, counted from the first.
+  roadChecks     Int         @default(0)
   stops          RunStop[]
   cargo          RunCargo[]
   trades         RunTrade[]
+  incidents      RunIncident[]
 
   @@index([roundPlayerId, status])
 }
@@ -705,6 +711,8 @@ model RunTrade {
   productKey String
   /// "buy" or "sell".
   direction  String
+  /// 0.5.0-C. "pip" (his counter) or "market" (the high market).
+  venue      String   @default("pip")
   quantity   Int
   unitCents  Int
   totalCents BigInt
@@ -728,6 +736,45 @@ model CityShelf {
 }
 
 /// 0.5.0-B. What a player's crew last saw at Pip's counter in a city: supply, prices and stock.
+/// 0.5.0-C. What went wrong on a run: a police stop on a road, or a bust or arrest in a town.
+enum RunIncidentKind {
+  STOP
+  BUST
+  ARREST
+}
+
+model RunIncident {
+  id        String          @id @default(cuid())
+  runId     String
+  run       Run             @relation(fields: [runId], references: [id], onDelete: Cascade)
+  kind      RunIncidentKind
+  /// The town, for a bust or arrest; the city the road led to, for a stop.
+  city      String
+  /// The road, for a stop: "I-95".
+  road      String?
+  /// Units taken, by product.
+  seized    Json
+  fineCents BigInt
+  at        DateTime
+
+  @@index([runId])
+}
+
+/// 0.5.0-C. One shared high market per round, city and product. Only the push off the
+/// baseline is stored: the baseline itself is the round's seeded schedule.
+model HighMarket {
+  id         String   @id @default(cuid())
+  roundId    String
+  round      Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  city       String
+  productKey String
+  /// Share off the baseline as of `pushAt`, wearing off from there.
+  push       Float    @default(0)
+  pushAt     DateTime
+
+  @@unique([roundId, city, productKey])
+}
+
 model CitySighting {
   id            String      @id @default(cuid())
   roundPlayerId String
@@ -885,6 +932,7 @@ enum ActivityType {
   HEAT_BRIBE
   RUN_LAUNCHED
   RUN_RETURNED
+  RUN_INCIDENT
 }
 
 enum BattleKind {

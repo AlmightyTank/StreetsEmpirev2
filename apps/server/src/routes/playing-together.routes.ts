@@ -86,7 +86,7 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
   /** 0.4.0-C: Heat as it stands, and paying it down. */
   app.get('/heat', { preHandler: app.requireAuth }, async (request) => {
     const settled = await PlayerStateService.settle(app.prisma, await me(request.auth!.account.id), { markActive: false });
-    const heat = toHeatDto(settled.player.heat, settled.player.netWorthCents, settled.ruleset);
+    const heat = toHeatDto(settled.player.heat, settled.player.netWorthCents, settled.ruleset, settled.player.lockedUntil);
     if (!heat) throw AppError.conflict('HEAT_DISABLED', 'There is no Heat in this round.');
     return heat;
   });

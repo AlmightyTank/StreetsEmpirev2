@@ -129,6 +129,17 @@ export interface HeatDto {
   /** Chance the next Scout or Produce trip is busted. */
   bustChance: number;
   bust: { productSeizedFraction: number; cashFineFraction: number; heatDrop: number };
+  /** 0.5.0-C. Arrests at home: where they start, the chance on the next trip, and what one costs. Null without arrests. */
+  arrest: {
+    startsAt: number;
+    chance: number;
+    productSeizedFraction: number;
+    cashFineFraction: number;
+    heatDrop: number;
+    downtimeMinutes: number;
+  } | null;
+  /** 0.5.0-C. Locked up after an arrest until then; null when free. */
+  lockedUntil: string | null;
   /** Price of one point off today. */
   bribeCentsPerPoint: number;
 }
@@ -143,6 +154,10 @@ export interface TripHeatDto {
   takeMultiplier: number;
   bustChance: number;
   busted: boolean;
+  /** 0.5.0-C. Arrested instead of busted: a bigger seizure and fine, and locked up until `lockedUntil`. */
+  arrested?: boolean;
+  arrestChance?: number;
+  lockedUntil?: string | null;
   /** Units seized, by product. */
   seized: Record<string, number>;
   fineCents: number;
@@ -205,9 +220,26 @@ export interface CityCharacterDto {
   counter: {
     /** When they saw it; null for home, which is always current. */
     seenAt: string | null;
-    /** `stock` is what was on the player's shelf when the crew saw it; null at home, where Pip's store shows it. */
-    products: Array<{ key: string; supply: SupplyLevelDto | null; buyCents: number | null; sellCents: number | null; stock: number | null }>;
+    /**
+     * `stock` is what was on the player's shelf when the crew saw it; null at home, where Pip's store shows it.
+     * `market` (0.5.0-C) is the high market's next unit each way, live at home and as seen elsewhere.
+     */
+    products: Array<{ key: string; supply: SupplyLevelDto | null; buyCents: number | null; sellCents: number | null; stock: number | null; market?: MarketPriceDto | null }>;
   } | null;
+}
+
+/** 0.5.0-C. The high market for one product: the next unit bought and sold, and how many units move it 1%. */
+export interface MarketPriceDto {
+  buyCents: number;
+  sellCents: number;
+  depth: number;
+}
+
+/** 0.5.0-C. A glut or drought, where the player can see it. */
+export interface PriceEventDto {
+  kind: 'GLUT' | 'DROUGHT';
+  product: string;
+  endsAt: string;
 }
 
 /** 0.5.0-A. GET /api/game/cities. */
@@ -260,6 +292,8 @@ export interface RunTradeDto {
   quantity: number;
   unitCents: number;
   totalCents: number;
+  /** 0.5.0-C. Pip's counter or the high market. */
+  venue: 'pip' | 'market';
   at: string;
 }
 
@@ -288,12 +322,42 @@ export interface RunDto {
     /** When it gets there (road), or when the window closes (town). */
     until: string;
   };
-  /** Pip's counter where the run is, while it is in town. */
+  /** Pip's counter and (0.5.0-C) the high market where the run is, while it is in town. */
   counter: {
     city: string;
-    products: Array<{ key: string; supply: SupplyLevelDto | null; buyCents: number | null; sellCents: number | null; stock: number; nextAt: string | null }>;
+    products: Array<{ key: string; supply: SupplyLevelDto | null; buyCents: number | null; sellCents: number | null; stock: number; nextAt: string | null; market: MarketPriceDto | null }>;
+    /** A glut or drought in town right now. */
+    event: PriceEventDto | null;
   } | null;
   trades: RunTradeDto[];
+  /** 0.5.0-C. Stops, busts and arrests so far. */
+  incidents: RunIncidentDto[];
+}
+
+/** 0.5.0-C. What went wrong on a run. */
+export interface RunIncidentDto {
+  kind: 'STOP' | 'BUST' | 'ARREST';
+  city: string;
+  cityName: string;
+  /** The road, for a stop. */
+  road: string | null;
+  seized: Record<string, number>;
+  fineCents: number;
+  at: string;
+}
+
+/** 0.5.0-C. What the street hears: gluts, droughts and some of Pip's supply changes. */
+export interface WireItemDto {
+  at: string;
+  city: string;
+  cityName: string;
+  product: string;
+  kind: 'GLUT' | 'DROUGHT' | 'SUPPLY';
+  /** For a supply item, where Pip's supply went. */
+  supply: SupplyLevelDto | null;
+  /** For an event, when it ends. */
+  endsAt: string | null;
+  text: string;
 }
 
 /** 0.5.0-B. What the last run brought home. */
@@ -309,6 +373,7 @@ export interface RunReceiptDto {
   cargo: Array<{ key: string; startQuantity: number; quantity: number }>;
   turnsSpent: number;
   trades: RunTradeDto[];
+  incidents: RunIncidentDto[];
 }
 
 /** 0.5.0-B. GET /api/game/travel: the map, what the crew knows, and the run. */
@@ -319,6 +384,8 @@ export interface TravelDto extends CitiesDto {
     thugsPerLowRider: number;
     townWindowMinutes: number;
     turnsPerDriveHour: number;
+    /** 0.5.0-C. Null without a live high market. */
+    market: { spread: number; quoteTolerance: number } | null;
   };
   /** What home has to load up with. */
   home: {
@@ -330,6 +397,8 @@ export interface TravelDto extends CitiesDto {
   };
   run: RunDto | null;
   lastRun: RunReceiptDto | null;
+  /** 0.5.0-C. The last day on the street wire, newest first. */
+  wire: WireItemDto[];
 }
 
 /** 0.5.0-B. What a launch did. */
@@ -362,6 +431,10 @@ export interface RunTradeResult {
   trunkUnits: number;
   capacity: number;
   shelfStock: number;
+  venue: 'pip' | 'market';
+  /** 0.5.0-C. What selling did to Heat, and whether the town's police got the run. */
+  heat: { before: number; added: number; after: number } | null;
+  trouble: RunIncidentDto | null;
 }
 
 export interface RunMoveResult {
