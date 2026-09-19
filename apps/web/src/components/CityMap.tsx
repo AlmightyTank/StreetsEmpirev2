@@ -138,6 +138,30 @@ function Counter({ counter, products }: { counter: NonNullable<CityCharacterDto[
   );
 }
 
+/** 0.5.0-C. The high market as the crew last saw it: the next unit each way. */
+function MarketSeen({ counter, products }: { counter: NonNullable<CityCharacterDto['counter']>; products: CitiesDto['products'] }) {
+  const nameOf = (key: string) => products.find((product) => product.key === key)?.name ?? key;
+  const priced = counter.products.filter((product) => product.market);
+  if (!priced.length) return null;
+  return (
+    <>
+      <h3 className="se-city__heading">High market{counter.seenAt ? <span className="se-city__seen"> · seen {agoText(counter.seenAt)}</span> : null}</h3>
+      <div className="se-rows">
+        {priced.map((product) => (
+          <div className="se-row" key={product.key}>
+            <span className="se-row__label">{nameOf(product.key)}</span>
+            <span className="se-row__value">
+              <span className="se-num">{unitPrice(product.market!.buyCents)}</span>
+              <span className="se-muted se-num"> / {unitPrice(product.market!.sellCents)}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="se-hint">What the next unit cost and paid when your crew was here. Everyone trades this market, so it has likely moved.</p>
+    </>
+  );
+}
+
 export function CityDetail({ city, products, home }: { city: CityCharacterDto; products: CitiesDto['products']; home: string }) {
   return (
     <Panel title={city.name} aside={city.isHome ? 'Home' : city.gameMinutes !== null ? `${minutesText(city.gameMinutes)} from ${home}` : undefined}>
@@ -183,6 +207,8 @@ export function CityDetail({ city, products, home }: { city: CityCharacterDto; p
           charges, and how much he has, you find out when a run gets there.
         </p>
       )}
+
+      {city.counter && !city.isHome ? <MarketSeen counter={city.counter} products={products} /> : null}
 
       <h3 className="se-city__heading">Roads out</h3>
       <ul className="se-city__roads">

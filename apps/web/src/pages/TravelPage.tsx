@@ -1,13 +1,38 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import type { TravelDto } from '@streets/shared';
+import type { TravelDto, WireItemDto } from '@streets/shared';
 import { api } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
-import { CityDetail, RoadMap, SHORT_CITY } from '../components/CityMap.js';
+import { CityDetail, RoadMap, SHORT_CITY, agoText } from '../components/CityMap.js';
 import { Panel } from '../components/Panel.js';
 import { LaunchPanel, ReceiptPanel, RunPanel } from '../components/RunPanels.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
+
+const WIRE_SHOWN = 8;
+
+/** 0.5.0-C. What the street heard in the last day, newest first: gluts, droughts and some of Pip's supply news. */
+function StreetWire({ items }: { items: WireItemDto[] }) {
+  return (
+    <Panel title="Street wire" aside="Last 24 hours">
+      {items.length ? (
+        <ul className="se-streetwire">
+          {items.slice(0, WIRE_SHOWN).map((item) => {
+            const live = item.endsAt !== null && new Date(item.endsAt).getTime() > Date.now();
+            const tone = item.kind === 'GLUT' || item.supply === 'PLENTIFUL' ? 'good' : item.kind === 'DROUGHT' || item.supply === 'OUT' ? 'warn' : '';
+            return (
+              <li key={`${item.at}-${item.city}-${item.product}-${item.kind}`} className={`se-streetwire__item${tone ? ` se-streetwire__item--${tone}` : ''}`}>
+                <span className="se-streetwire__when se-muted">{agoText(item.at)}{live ? ' · still on' : ''}</span>
+                <span>{item.text}</span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : <p className="se-hint">Quiet out there. Nothing worth a phone call in the last day.</p>}
+      <p className="se-hint">The street hears about every glut and drought, and some of Pip&rsquo;s shortages. Not all of them.</p>
+    </Panel>
+  );
+}
 
 /**
  * 0.5.0-B. Travel: the run (loading one up, or where it is and what it holds), what
@@ -78,6 +103,7 @@ export function TravelPage() {
             </Panel>
             <CityDetail city={selected} products={data.products} home={home.name} />
           </div>
+          {data.runsEnabled && data.rules.market ? <StreetWire items={data.wire} /> : null}
         </div>
       ) : null}
     </GameLayout>

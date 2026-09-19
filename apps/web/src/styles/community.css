@@ -335,3 +335,13 @@
 .se-towncounter__form { display: grid; gap: 8px; margin-top: 10px; }
 .se-towncounter__form .se-seg { margin-bottom: 0; justify-self: start; }
 .se-moveon { margin-top: 6px; }
+
+/* 0.5.0-C: the town counter's venue and events, trouble on a run, and the street wire. */
+.se-towncounter__venue { margin: 6px 0 4px; }
+.se-towncounter__event { margin: 4px 0 8px; }
+.se-run__incidents li { display: block; }
+.se-streetwire { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
+.se-streetwire__item { display: grid; gap: 2px; padding: 6px 10px; border-left: 3px solid var(--se-line); min-width: 0; overflow-wrap: anywhere; }
+.se-streetwire__item--good { border-left-color: var(--se-good); }
+.se-streetwire__item--warn { border-left-color: var(--se-warn); }
+.se-streetwire__when { font-size: 12px; }
