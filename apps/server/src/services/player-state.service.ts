@@ -11,6 +11,7 @@ import { ReputationService } from './reputation.service.js';
 import { StockService, type StockSettlementSet } from './stock.service.js';
 import { CombatRecoveryService, type RecoverySettlement } from './combat-recovery.service.js';
 import { fitThugs } from './action.service.js';
+import { ConvoyService } from './convoy.service.js';
 import { RelocationService } from './relocation.service.js';
 import { RunSettleService, runSummary } from './run-settle.service.js';
 import type { RoundPlayerDto } from '@streets/shared';
@@ -36,6 +37,8 @@ export interface SettledPlayer {
   run: RoundPlayerDto['run'];
   /** 0.5.0-D. The player's move on the road, or null. */
   moving: RoundPlayerDto['moving'];
+  /** 0.5.0-E. A tail on the player's run, or an ally's call. */
+  convoyAlert: RoundPlayerDto['convoyAlert'];
 }
 
 export interface SettleOptions {
@@ -86,6 +89,8 @@ export const PlayerStateService = {
     await RunSettleService.settle(tx, roundPlayerId, now);
     // 0.5.0-D: and a move that has arrived has arrived.
     await RelocationService.settleOwn(tx, roundPlayerId, now);
+    // 0.5.0-E: and whatever came back from a convoy fight is back.
+    await ConvoyService.credit(tx, roundPlayerId, now);
 
     const player = await tx.roundPlayer.findUnique({
       where: { id: roundPlayerId },
@@ -192,6 +197,7 @@ export const PlayerStateService = {
     const run = await runSummary(tx, roundPlayerId, ruleset, now);
     const move = await tx.relocation.findFirst({ where: { roundPlayerId, arrivedAt: null }, select: { toCity: true, arrivesAt: true } });
     const moving = move ? { to: move.toCity, toName: ruleset.cities?.[move.toCity]?.name ?? move.toCity, arrivesAt: move.arrivesAt.toISOString() } : null;
-    return { player: settled, round, ruleset, turns, stock, standings, recovery, products, run, moving };
+    const convoyAlert = await ConvoyService.alertFor(tx, settled, ruleset, now);
+    return { player: settled, round, ruleset, turns, stock, standings, recovery, products, run, moving, convoyAlert };
   },
 };

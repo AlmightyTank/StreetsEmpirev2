@@ -158,7 +158,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
             </div>
           </div>
         </div>
-        <p className="se-hint">The run spends only the cash it carries. Escorts are away from home while it is out: they don&rsquo;t defend, cover the street or cook.</p>
+        <p className="se-hint">The run spends only the cash it carries. Escorts ride armed with the best guns from home, one each, and are away while it is out: they don&rsquo;t defend, cover the street or cook. A bust or an arrest takes their guns.</p>
 
         <h3 className="se-city__heading">In the trunk <span className="se-num">{formatNumber(loaded)} / {formatNumber(capacity)}</span></h3>
         <div className="se-meter se-launch__meter" aria-hidden="true">
@@ -337,9 +337,13 @@ function TownCounter({ run, data, onDone }: { run: RunDto; data: TravelDto; onDo
   );
 }
 
+const GUN_NAMES: Record<string, [string, string]> = { PISTOL: ['pistol', 'pistols'], SHOTGUN: ['shotgun', 'shotguns'], TEK9: ['Tek-9', 'Tek-9s'], AK47: ['AK-47', 'AK-47s'] };
+const gunText = (key: string, count: number) => `${formatNumber(count)} ${GUN_NAMES[key]![count === 1 ? 0 : 1]}`;
+
 /** A stop, bust or arrest in one line. */
 function incidentText(incident: RunIncidentDto, products: Products): string {
-  const taken = Object.entries(incident.seized).filter(([, units]) => units > 0).map(([key, units]) => `${formatNumber(units)} ${nameOf(products, key)}`);
+  const taken = Object.entries(incident.seized).filter(([, units]) => units > 0)
+    .map(([key, units]) => (GUN_NAMES[key] ? gunText(key, units) : `${formatNumber(units)} ${nameOf(products, key)}`));
   const lost = [taken.join(', '), incident.fineCents > 0 ? formatCents(incident.fineCents) : ''].filter(Boolean).join(' and ') || 'nothing';
   if (incident.kind === 'STOP') return `Stopped on ${incident.road ?? 'the road'} into ${SHORT_NAME(incident.cityName)}: the police took ${lost}.`;
   if (incident.kind === 'BUST') return `Busted in ${SHORT_NAME(incident.cityName)}: the police took ${lost}.`;
@@ -438,6 +442,10 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
       <div className="se-rows se-mt">
         <Row label="Cash in the car" value={formatCents(run.cashCents)} strong tooltip="What the run can spend. Home cash never reaches it." />
         <Row label="Trunk" value={`${formatNumber(trunk)} / ${formatNumber(run.capacity)}`} />
+        {run.escortThugs > 0 ? (
+          <Row label="Escorts carry" tooltip="Out of home stock, the best first. A bust or an arrest takes every one."
+            value={Object.entries(run.guns).filter(([, count]) => count > 0).map(([key, count]) => gunText(key, count)).join(', ') || 'No guns'} />
+        ) : null}
         {run.cargo.filter((entry) => entry.quantity > 0).map((entry) => (
           <Row key={entry.key} label={nameOf(data.products, entry.key)} value={formatNumber(entry.quantity)} />
         ))}

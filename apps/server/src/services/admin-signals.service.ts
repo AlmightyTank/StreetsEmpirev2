@@ -81,6 +81,26 @@ export function buildClusters(
   return clusters.sort((a, b) => b.signals.length - a.signals.length || b.accounts.length - a.accounts.length || b.lastSeenAt.localeCompare(a.lastSeenAt));
 }
 
+/**
+ * 0.5.0-E. Whether two accounts have been seen on the same real network in the signal
+ * window: a hijack between them would be a way to move goods from one to the other.
+ * Local development traffic never counts.
+ */
+export async function accountsShareNetwork(prisma: Pick<PrismaClient, 'session'>, accountA: string, accountB: string, now = new Date()): Promise<boolean> {
+  if (accountA === accountB) return true;
+  const since = new Date(now.getTime() - WINDOW_DAYS * DAY_MS);
+  const rows = await prisma.session.findMany({
+    where: { accountId: { in: [accountA, accountB] }, ip: { not: null }, OR: [{ lastSeenAt: { gte: since } }, { createdAt: { gte: since } }] },
+    select: { accountId: true, ip: true },
+  });
+  const seen = new Map<string, Set<string>>();
+  for (const row of rows) {
+    if (!row.ip || LOOPBACK.has(row.ip)) continue;
+    seen.set(row.ip, (seen.get(row.ip) ?? new Set()).add(row.accountId));
+  }
+  return [...seen.values()].some((accounts) => accounts.size > 1);
+}
+
 export const AdminSignalsService = {
   /** Built from sessions and email/password tokens of the last 30 days, the only places the game keeps an address. */
   async clusters(prisma: PrismaClient, now = new Date()): Promise<AdminSignalsDto> {
@@ -111,6 +131,17 @@ export const AdminSignalsService = {
     });
 
     const clusters = buildClusters(sightings, new Map(accountRows.map((row) => [row.id, row])));
+    // 0.5.0-E: hits between linked accounts are refused, but any that landed before the link showed are listed.
+    const linkedIds = [...new Set(clusters.flatMap((cluster) => cluster.accounts.map((account) => account.id)))];
+    const hits = linkedIds.length ? await prisma.convoyTail.findMany({
+      where: { status: 'LANDED', startedAt: { gte: since }, attacker: { accountId: { in: linkedIds } }, owner: { accountId: { in: linkedIds } } },
+      select: { id: true, landsAt: true, voidedAt: true, attacker: { select: { accountId: true, displayName: true } }, owner: { select: { accountId: true, displayName: true } } },
+    }) : [];
+    for (const cluster of clusters) {
+      const ids = new Set(cluster.accounts.map((account) => account.id));
+      const inside = hits.filter((hit) => ids.has(hit.attacker.accountId) && ids.has(hit.owner.accountId));
+      if (inside.length) cluster.convoyHits = inside.map((hit) => ({ tailId: hit.id, attacker: hit.attacker.displayName, owner: hit.owner.displayName, at: hit.landsAt.toISOString(), voided: hit.voidedAt !== null }));
+    }
     return { windowDays: WINDOW_DAYS, generatedAt: now.toISOString(), clusters };
   },
 };

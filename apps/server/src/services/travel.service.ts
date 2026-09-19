@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient, RunTrade } from '@prisma/client';
 import {
   RunError,
   addHeat,
+  armEscorts,
   bustChance,
   calculateCityTrade,
   cargoUnits,
@@ -158,6 +159,7 @@ async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Rul
     startCashCents: Number(run.startCashCents),
     capacity: runCapacity(ruleset, run.lowRiders),
     cargo: run.cargo.map((row) => ({ key: row.productKey, quantity: row.quantity, startQuantity: row.startQuantity })),
+    guns: { PISTOL: run.pistols, SHOTGUN: run.shotguns, TEK9: run.tek9s, AK47: run.ak47s },
     turnsSpent: run.turnsSpent,
     stops: stopsDto(ruleset, stops),
     position: {
@@ -349,12 +351,15 @@ export const TravelService = {
         // Crack leaves on the column with everything else in `next`; other products are rows.
         const rows = Object.fromEntries(Object.entries(cargo).filter(([key]) => key !== CRACK).map(([key, quantity]) => [key, -quantity]));
         if (Object.keys(rows).length) await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, rows);
+        // 0.5.0-E: escorts always ride armed, one gun each, the best first, out of home stock.
+        const guns = ruleset.travel?.convoys ? armEscorts(ruleset, input.escortThugs, current) : { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
         const run = await tx.run.create({
           data: {
             roundPlayerId,
             homeCity: player.city.slug,
             lowRiders: input.lowRiders,
             escortThugs: input.escortThugs,
+            ...guns,
             cashCents,
             startCashCents: cashCents,
             turnsSpent: plan.turns,
@@ -387,7 +392,11 @@ export const TravelService = {
             lowRiders: current.lowRiders - input.lowRiders,
             thugs: current.thugs - input.escortThugs,
             crack: current.crack - (cargo[CRACK] ?? 0),
-            awayNetWorthCents: awayWorth(ruleset, { cashCents, lowRiders: input.lowRiders, escortThugs: input.escortThugs }, cargo),
+            pistols: current.pistols - guns.pistols,
+            shotguns: current.shotguns - guns.shotguns,
+            tek9s: current.tek9s - guns.tek9s,
+            ak47s: current.ak47s - guns.ak47s,
+            awayNetWorthCents: awayWorth(ruleset, { cashCents, lowRiders: input.lowRiders, escortThugs: input.escortThugs, ...guns }, cargo),
           },
           result,
           activity: { type: 'RUN_LAUNCHED', payload: { ...result, cities: [cityName(ruleset, input.to)] } },
@@ -498,8 +507,15 @@ export const TravelService = {
         let trouble: RunTradeResult['trouble'] = null;
         if (roll?.kind) {
           traded = await takeFromRun(tx, roundPlayerId, base, traded, roll);
+          // 0.5.0-E: busted or arrested, the escorts lose every gun they carried.
+          const guns = { PISTOL: traded.pistols, SHOTGUN: traded.shotguns, TEK9: traded.tek9s, AK47: traded.ak47s };
+          if (Object.values(guns).some((count) => count > 0)) {
+            traded = { ...traded, pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
+            await tx.run.update({ where: { id: run.id }, data: { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 } });
+          }
+          const seized = { ...roll.seized, ...Object.fromEntries(Object.entries(guns).filter(([, count]) => count > 0)) };
           const incident = await tx.runIncident.create({
-            data: { runId: run.id, kind: roll.kind, city, road: null, seized: roll.seized, fineCents: roll.fineCents, at: now },
+            data: { runId: run.id, kind: roll.kind, city, road: null, seized, fineCents: roll.fineCents, at: now },
           });
           trouble = toIncidentDto(base, incident);
           await ActivityService.log(tx, roundPlayerId, 'RUN_INCIDENT', { runId: run.id, ...trouble } as unknown as Prisma.InputJsonValue);

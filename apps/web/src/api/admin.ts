@@ -97,6 +97,8 @@ export const adminApi = {
   grantToPlayer: (roundPlayerId: string, input: AdminGrantInput) => api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/grant`, input),
   voidBattle: (battleId: string, reason: string) => api.post<AdminVoidBattleResultDto>(`/admin/battles/${enc(battleId)}/void`, { reason }),
   signals: () => api.get<AdminSignalsDto>('/admin/signals'),
+  /** 0.5.0-E. */
+  voidConvoy: (tailId: string, reason: string) => api.post<{ tailId: string }>(`/admin/convoys/${enc(tailId)}/void`, { reason }),
   playerBattles: (roundPlayerId: string, before?: string) =>
     api.get<AdminPlayerBattlesDto>(`/admin/players/${enc(roundPlayerId)}/battles${queryString({ before })}`),
 

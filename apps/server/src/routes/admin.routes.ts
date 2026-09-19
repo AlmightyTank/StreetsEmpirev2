@@ -7,6 +7,7 @@ import { AllianceBalanceService } from '../services/alliance-balance.service.js'
 import { AllianceService } from '../services/alliance.service.js';
 import { WireService } from '../services/wire.service.js';
 import { AdminBattleService } from '../services/admin-battle.service.js';
+import { AdminConvoyService } from '../services/admin-convoy.service.js';
 import { AdminDevBotsService } from '../services/admin-dev-bots.service.js';
 import { AdminDiscordService } from '../services/admin-discord.service.js';
 import { AdminGrantService } from '../services/admin-grant.service.js';
@@ -45,6 +46,7 @@ const roundParams = z.object({ roundId: id }).strict();
 const accountParams = z.object({ accountId: id }).strict();
 const playerParams = z.object({ roundPlayerId: id }).strict();
 const battleParams = z.object({ battleId: id }).strict();
+const tailParams = z.object({ tailId: id }).strict();
 const allianceParams = z.object({ allianceId: id }).strict();
 const wirePostParams = z.object({ postId: id }).strict();
 const renameAllianceSchema = z.object({ reason, name: z.string().optional(), tag: z.string().optional() }).strict();
@@ -394,6 +396,13 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { battleId } = parseBody(battleParams, request.params);
     const body = parseBody(reasonBody, request.body ?? {});
     return AdminBattleService.voidBattle(fastify.prisma, request.auth!.account, battleId, body.reason);
+  });
+
+  /** 0.5.0-E: reverse a convoy hit, like a battle. */
+  fastify.post('/convoys/:tailId/void', async (request) => {
+    const { tailId } = parseBody(tailParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminConvoyService.voidTail(fastify.prisma, request.auth!.account, tailId, body.reason);
   });
 
   fastify.get('/signals', async () => AdminSignalsService.clusters(fastify.prisma));

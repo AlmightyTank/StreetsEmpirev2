@@ -582,7 +582,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
           {report ? <div ref={reportDetailRef} className={`se-raid-report-detail${closingReportId === report.id ? ' se-raid-report-detail--closing' : ''}`}><BattleReport report={report} onClose={closeReport} /></div> : null}
         </Panel>
         {/* 0.4.0-E: product thugs take into fights, next to the fights. Hidden on rounds without fight supply. */}
-        <WorkSupplyPanel title="Fight supply" jobs={[{ job: 'RAID', label: 'Squads you send' }, { job: 'DEFENSE', label: 'Your defenders' }]} turns={1} refreshKey={report?.id} />
+        <WorkSupplyPanel title="Fight supply" jobs={[{ job: 'RAID', label: 'Squads you send' }, { job: 'DEFENSE', label: 'Your defenders' }, { job: 'CONVOY', label: 'Escorts on a run' }]} turns={1} refreshKey={report?.id} />
       </div>
       <div className="se-grid">
         {page.recovery ? <Panel title="Crew recovery">

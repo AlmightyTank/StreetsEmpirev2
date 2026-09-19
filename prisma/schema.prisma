@@ -441,6 +441,9 @@ model RoundPlayer {
   /// 0.5.0-D. On the road to a new home until then: no actions, and still a target in
   /// the old city (cityId changes on arrival). The move itself is a Relocation row.
   movingUntil        DateTime?
+  /// 0.5.0-E. Thugs out on a tail or riding backup for a convoy: still the player's, still
+  /// in net worth, but not fit for anything else until the fight is settled.
+  busyThugs          Int @default(0)
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
   rocksSuppliedToPip Int @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
@@ -519,6 +522,10 @@ model RoundPlayer {
   cityShelves           CityShelf[]
   citySightings         CitySighting[]
   relocations           Relocation[]
+  convoyTailsOwned      ConvoyTail[]   @relation("ConvoyTailOwner")
+  convoyTailsStarted    ConvoyTail[]   @relation("ConvoyTailAttacker")
+  convoyBackups         ConvoyBackup[]
+  convoyRecon           ConvoyRecon?
   /// 0.4.0-B. Which products each job burns, in order.
   supplyPolicies        WorkSupplyPolicy[]
   /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
@@ -662,6 +669,18 @@ model Run {
   returnedAt     DateTime?
   /// 0.5.0-C. Stops whose road in has been rolled for a police stop, counted from the first.
   roadChecks     Int         @default(0)
+  /// 0.5.0-E. Escorts wounded in a convoy fight: not fit to fight again on this run, and
+  /// still healing when they get home if their wounds have not run out.
+  woundedEscorts Int         @default(0)
+  /// 0.5.0-E. When the run was last hit, for the re-hit cooldown.
+  lastHitAt      DateTime?
+  /// 0.5.0-E. The guns the escorts carry, out of home stock, best first. A bust or an
+  /// arrest on the run takes them all.
+  pistols        Int         @default(0)
+  shotguns       Int         @default(0)
+  tek9s          Int         @default(0)
+  ak47s          Int         @default(0)
+  tails          ConvoyTail[]
   stops          RunStop[]
   cargo          RunCargo[]
   trades         RunTrade[]
@@ -740,6 +759,83 @@ model CityShelf {
 }
 
 /// 0.5.0-B. What a player's crew last saw at Pip's counter in a city: supply, prices and stock.
+/// 0.5.0-E. A tail on a run: the attacker's squad is committed, and the hit lands at
+/// `landsAt` if the run is still in reach of `city` then.
+enum ConvoyTailStatus {
+  PENDING
+  LANDED
+  ESCAPED
+}
+
+model ConvoyTail {
+  id                 String           @id @default(cuid())
+  runId              String
+  run                Run              @relation(fields: [runId], references: [id], onDelete: Cascade)
+  ownerId            String
+  owner              RoundPlayer      @relation("ConvoyTailOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  attackerId         String
+  attacker           RoundPlayer      @relation("ConvoyTailAttacker", fields: [attackerId], references: [id], onDelete: Cascade)
+  /// "HOME" (a squad from where the attacker lives) or "RUN" (the escorts of the attacker's own run).
+  source             String
+  attackerRunId      String?
+  /// The city whose reach the hit lands in.
+  city               String
+  squad              Int
+  /// The squad as it set out: morale, weapons, and the supply boost it burned.
+  attackerCrew       Json
+  turnsSpent         Int
+  actionId           String
+  startedAt          DateTime
+  landsAt            DateTime
+  status             ConvoyTailStatus @default(PENDING)
+  settledAt          DateTime?
+  /// The fight and what moved, for both sides' reports.
+  result             Json?
+  /// When the attacker's side (loot, the squad home, its wounds) reached them.
+  attackerCreditedAt DateTime?
+  alliesCalledAt     DateTime?
+  voidedAt           DateTime?
+  backups            ConvoyBackup[]
+
+  @@unique([attackerId, actionId])
+  @@index([runId, status])
+  @@index([status, landsAt])
+  @@index([attackerId, attackerCreditedAt])
+}
+
+/// 0.5.0-E. A player's last recon of the area: the runs coming near, in town or leaving
+/// where they live and where their run is, as seen then. Only a run it found can be tailed.
+model ConvoyRecon {
+  id            String      @id @default(cuid())
+  roundPlayerId String      @unique
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  seenAt        DateTime
+  expiresAt     DateTime
+  /// The targets as seen, for the page and for checking a tail.
+  targets       Json
+}
+
+/// 0.5.0-E. Thugs sent to a convoy's fight by its owner or an ally. They come home after
+/// it, win or lose, with any wounds they took.
+model ConvoyBackup {
+  id         String      @id @default(cuid())
+  tailId     String
+  tail       ConvoyTail  @relation(fields: [tailId], references: [id], onDelete: Cascade)
+  playerId   String
+  player     RoundPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  /// "OWNER" or "ALLY".
+  kind       String
+  thugs      Int
+  /// Weapons and morale as they rode out.
+  crew       Json
+  sentAt     DateTime
+  wounded    Int         @default(0)
+  creditedAt DateTime?
+
+  @@unique([tailId, playerId])
+  @@index([playerId, creditedAt])
+}
+
 /// 0.5.0-D. A move of the whole operation to another city. Pending until `arrivedAt`.
 model Relocation {
   id            String      @id @default(cuid())
@@ -955,6 +1051,12 @@ enum ActivityType {
   RUN_INCIDENT
   RELOCATION_STARTED
   RELOCATED
+  CONVOY_TAIL
+  /// Unused since nobody is told a tail started; kept because Postgres cannot drop an enum value.
+  CONVOY_TAILED
+  CONVOY_ATTACK
+  CONVOY_DEFENSE
+  CONVOY_BACKUP
 }
 
 enum BattleKind {

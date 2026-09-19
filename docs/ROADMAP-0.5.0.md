@@ -1,6 +1,6 @@
 # 0.5.0 roadmap - Travel
 
-Status: **in progress.** 0.5.0-A through D are built. E and F are planned.
+Status: **in progress.** 0.5.0-A through E are built. F is planned.
 
 0.4.0 turned Product into an economy with six products, prices, cooking and Heat. 0.5.0
 gives that economy somewhere to go. Everyone starts in New York, and there are two ways to
@@ -591,6 +591,53 @@ How it settled:
     players;
   - admin void, like battles.
 - **The owner is alerted** by push and activity when a tail starts and when it lands.
+
+Built: the `classic-og-v0.5-e` ruleset (`travel.convoys`: an eight-minute window, eight
+turns a tail, two turns a recon that stays good for twenty minutes, two hours before a run
+can be hit again, half the fit crew at home riding out in the home town, the road's own
+strength roll, and cash and cargo loot capped by what the squad carries), `ConvoyTail`,
+`ConvoyBackup` and `ConvoyRecon`, one tail waiting per run and one squad out per attacker,
+`RoundPlayer.busyThugs`, the escorts' guns and `woundedEscorts` on `Run`, the CONVOY
+supply job, the recon, tail, backup and call-allies actions, the Convoys panel on Travel,
+an admin void and convoy hits in Signals, `runConvoySimulation` in `npm run qa:travel`, and
+a `TRAVEL_INTEGRATION` convoy suite.
+
+How it settled (with the design changes made while building it):
+- **No convoy alerts.** Nobody is pushed or badged when a tail starts. A crew **recons its
+  area** for turns: every run coming near, in town or leaving where it lives, and near its
+  own run where that is, as far ahead as it can see. It is a snapshot that goes stale, with
+  the runs' wallets, trunks and escorts in bands as they were, and only a run it found can
+  be tailed.
+- **Lookouts give a small heads-up**, to both sides. An owner sees a tail on their run only
+  in its last minutes: 0.8 a Lookouts level, four at the top of an eight-minute window, none
+  without lookouts (they find out when it lands). A recon sees ten minutes ahead, plus four a
+  level. Only once they see it can an owner send backup from home or call allies who live
+  there; allies see the call on their Travel page, and nothing is pushed.
+- **Escorts always ride armed.** A launch hands each escort one gun from home, the best
+  first, as far as the arsenal goes; the guns count in the run's net worth and come home
+  with it. A bust or an arrest on the run takes every one of them. Escorts fight with the
+  guns they carry; the crew riding out from home takes the best of the home arsenal. Guns
+  are never looted in a convoy hit.
+- **Nobody holds two locks.** Starting a tail commits the squad under the attacker's lock:
+  its thugs stay theirs and count for net worth but are busy, not fit. Backup rides out the
+  same way under its sender's lock. The hit lands in the run's settle under the owner's lock
+  alone, and each other side's share (the squad and its haul, an ally's thugs, their
+  wounds) reaches them at their next settle. Two runs tailing each other cannot deadlock.
+- **A tail lands whoever is online.** Any read by the attacker, the owner or someone who
+  sent backup lands a due tail first, and the alerts poller sweeps every due tail each
+  minute.
+- **Order on the road.** A run's settle rolls its police stops first, then lands its tails,
+  then brings it home, so a stop sees the trunk as it drove and a run that got home before
+  the hit got away.
+- **The fight** is the raid engine with the road's own roll: an ambush takes the defender's
+  1.1 edge away and the variance goes from 10% to 30%, because raids' near-certain outcomes
+  made a run at home untouchable and an even fight a sure thing for the defender. Raids
+  are unchanged.
+- **Linked accounts** are refused at the tail: two accounts seen on the same real network
+  in the signal window cannot hit each other's runs. Any hit that landed before the link
+  showed is listed in Signals with a void button.
+- **Rival runs** hit with their fit escorts and the guns those escorts carry, and their haul
+  goes into their own trunk, as far as it holds. They burn no fight supply.
 
 ## 0.5.0-F - Release
 

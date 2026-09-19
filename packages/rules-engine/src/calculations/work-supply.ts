@@ -18,6 +18,8 @@ export const COOK_JOB = 'COOK';
 export const RAID_JOB = 'RAID';
 /** 0.4.0-E. The crew holding the player's block when someone hits it. */
 export const DEFENSE_JOB = 'DEFENSE';
+/** 0.5.0-E. A run's escorts when it is hit on the road, burned from its own trunk. */
+export const CONVOY_JOB = 'CONVOY';
 
 /** Who burns the product: the girls working, the thugs cooking, or (0.4.0-E) thugs in a fight. */
 export type WorkSupplyRole = 'hoes' | 'thugs' | 'fighters';
@@ -108,10 +110,11 @@ export function productSliceEffects(ruleset: Ruleset, key: string, role: WorkSup
     return { ...NEUTRAL, takeMultiplier: take };
   }
   if (role === 'fighters') {
-    // A fight's strength is the product's attack for a squad sent out, its defense at home.
+    // A fight's strength is the product's attack for a squad sent out, its defense at home and on the road.
     const combat = effects.combat;
     if (!combat) return { ...NEUTRAL, heatPerTurn: effects.thugs.heatPerTurn };
-    return { ...NEUTRAL, takeMultiplier: job === DEFENSE_JOB ? combat.defense : combat.attack, woundMultiplier: combat.wounds, heatPerTurn: effects.thugs.heatPerTurn };
+    const defending = job === DEFENSE_JOB || job === CONVOY_JOB;
+    return { ...NEUTRAL, takeMultiplier: defending ? combat.defense : combat.attack, woundMultiplier: combat.wounds, heatPerTurn: effects.thugs.heatPerTurn };
   }
   if (role === 'thugs') {
     const thugs = effects.thugs;

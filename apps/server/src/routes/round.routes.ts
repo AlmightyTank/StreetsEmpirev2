@@ -80,7 +80,7 @@ const roundRoutes: FastifyPluginAsync = async (fastify) => {
 
     return {
       round: toRoundDto(settled.round, playerCount),
-      me: toRoundPlayerDto(settled.player, settled.ruleset, settled.turns, settled.products, settled.run, settled.moving),
+      me: toRoundPlayerDto(settled.player, settled.ruleset, settled.turns, settled.products, settled.run, settled.moving, settled.convoyAlert),
       canJoin: false,
       roundOver,
     };
@@ -105,7 +105,7 @@ const roundRoutes: FastifyPluginAsync = async (fastify) => {
 
       return reply.status(201).send({
         round: toRoundDto(settled.round, playerCount),
-        me: toRoundPlayerDto(settled.player, settled.ruleset, settled.turns, settled.products, settled.run, settled.moving),
+        me: toRoundPlayerDto(settled.player, settled.ruleset, settled.turns, settled.products, settled.run, settled.moving, settled.convoyAlert),
         canJoin: false,
         roundOver: null,
       });

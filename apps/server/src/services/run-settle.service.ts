@@ -8,12 +8,15 @@ import {
   runPosition,
   seededRng,
   settleLiveShelf,
+  type RunGuns,
   type Ruleset,
   type RunStopPlan,
 } from '@streets/rules-engine';
 import type { MarketPriceDto, RunIncidentDto, SupplyLevelDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
+import { CombatRecoveryService } from './combat-recovery.service.js';
+import { ConvoyService } from './convoy.service.js';
 import { HighMarketService } from './high-market.service.js';
 import { CRACK, productKeys } from './product-inventory.service.js';
 
@@ -52,9 +55,10 @@ export function toIncidentDto(ruleset: Ruleset, incident: RunIncident): RunIncid
   };
 }
 
-/** A run's away net worth, from its wallet, cars, escorts and trunk. */
-export function awayWorth(ruleset: Ruleset, run: { cashCents: bigint; lowRiders: number; escortThugs: number }, cargo: Record<string, number>): bigint {
-  return runNetWorthCents(ruleset, { cashCents: run.cashCents, lowRiders: run.lowRiders, escortThugs: run.escortThugs, cargo });
+/** A run's away net worth, from its wallet, cars, escorts, their guns (0.5.0-E) and its trunk. */
+export function awayWorth(ruleset: Ruleset, run: { cashCents: bigint; lowRiders: number; escortThugs: number } & Partial<RunGuns>, cargo: Record<string, number>): bigint {
+  const guns = { pistols: run.pistols ?? 0, shotguns: run.shotguns ?? 0, tek9s: run.tek9s ?? 0, ak47s: run.ak47s ?? 0 };
+  return runNetWorthCents(ruleset, { cashCents: run.cashCents, lowRiders: run.lowRiders, escortThugs: run.escortThugs, cargo, guns });
 }
 
 /** The high market's next unit each way for a product in a city, or null where it has no price. */
@@ -188,11 +192,22 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
       cashCents: { increment: run.cashCents },
       lowRiders: { increment: run.lowRiders },
       thugs: { increment: run.escortThugs },
+      // 0.5.0-E: the escorts' guns come home with them.
+      pistols: { increment: run.pistols },
+      shotguns: { increment: run.shotguns },
+      tek9s: { increment: run.tek9s },
+      ak47s: { increment: run.ak47s },
       crack: { increment: cargo[CRACK] ?? 0 },
       awayNetWorthCents: 0,
     },
   });
   await tx.run.update({ where: { id: run.id }, data: { status: 'RETURNED', returnedAt } });
+  // 0.5.0-E: escorts wounded on the road come home still healing, if their wounds have not run out.
+  const recovery = ruleset.combat?.wounds.recoveryMinutes ?? 0;
+  if (run.woundedEscorts > 0 && run.lastHitAt) {
+    const recoverAt = new Date(run.lastHitAt.getTime() + recovery * 60_000);
+    if (recoverAt > returnedAt) await CombatRecoveryService.add(tx, roundPlayerId, null, run.woundedEscorts, recoverAt);
+  }
   const incidents = await tx.runIncident.findMany({ where: { runId: run.id }, orderBy: { at: 'asc' } });
   await ActivityService.log(tx, roundPlayerId, 'RUN_RETURNED', {
     runId: run.id,
@@ -220,7 +235,8 @@ export async function runSummary(db: Db, roundPlayerId: string, ruleset: Ruleset
 /**
  * 0.5.0-B. Settle a player's run. Called under the player's lock, before anything
  * reads the player: every action and every settle sees a run that is home as home.
- * Rolls the road for every leg driven (0.5.0-C), records what the crew saw in each
+ * Rolls the road for every leg driven (0.5.0-C), lands any tail whose window has closed
+ * (0.5.0-E), records what the crew saw in each
  * town it reached, and brings the run home when it is due. Idempotent: reading twice
  * at the same moment changes nothing the second time.
  */
@@ -231,7 +247,9 @@ export const RunSettleService = {
     const { round } = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { round: { select: { id: true, rulesetId: true, rulesetVersion: true } } } });
     const ruleset = loadRulesetForRound(round);
     const stops = toStopPlans(loaded.stops);
-    const run = await rollRoadStops(tx, roundPlayerId, ruleset, loaded, stops, now);
+    const driven = await rollRoadStops(tx, roundPlayerId, ruleset, loaded, stops, now);
+    // 0.5.0-E: then tails whose window has closed land, before the run can come home.
+    const run = await ConvoyService.landTails(tx, roundPlayerId, ruleset, driven, stops, now);
     await recordStops(tx, roundPlayerId, ruleset, round.id, stops, now);
     if (runPosition(ruleset, stops, now).phase === 'home') await bringHome(tx, roundPlayerId, ruleset, run, stops);
   },

@@ -307,6 +307,8 @@ export interface RunDto {
   startCashCents: number;
   capacity: number;
   cargo: Array<{ key: string; quantity: number; startQuantity: number }>;
+  /** 0.5.0-E. The guns the escorts carry. A bust or an arrest takes them all. */
+  guns: { PISTOL: number; SHOTGUN: number; TEK9: number; AK47: number };
   turnsSpent: number;
   stops: RunStopDto[];
   position: {
@@ -489,4 +491,119 @@ export interface RunMoveResult {
   /** When it gets there; for heading home, when it is back. */
   arriveAt: string;
   turns: number;
+}
+
+// --- 0.5.0-E convoys --------------------------------------------------------------
+
+export type ConvoyReachKindDto = 'leaving' | 'town' | 'passing' | 'arriving';
+export type ConvoyTailStatusDto = 'PENDING' | 'LANDED' | 'ESCAPED';
+
+/** 0.5.0-E. A run your recon of the area found: in reach now, or coming through soon. Bands are as the recon saw them. */
+export interface ConvoyTargetDto {
+  runId: string;
+  owner: { publicPimpId: number; displayName: string; allianceTag: string | null };
+  /** The city you would hit it in. */
+  city: string;
+  cityName: string;
+  /** Your squad from where you live, or your own run's escorts where it is. */
+  source: 'HOME' | 'RUN';
+  /** The towns either side of this one on its route. Never where it is headed. */
+  routeHere: { fromName: string | null; toName: string | null };
+  kinds: ConvoyReachKindDto[];
+  inReachFrom: string;
+  inReachUntil: string;
+  inReachNow: boolean;
+  /** Where it is right now, for its progress bar. */
+  position: { phase: 'road' | 'town'; cityName: string; progress: number };
+  /** A look at it, while it is in reach: bands, never exact. */
+  bands: { cash: 'light' | 'loaded' | 'heavy'; cargo: 'empty' | 'light' | 'half' | 'full'; escort: 'none' | 'light' | 'armed' | 'heavy' } | null;
+  /** Someone already on its tail. */
+  tailed: boolean;
+  blockedReason: string | null;
+}
+
+/** 0.5.0-E. What a landed tail did, from one side's view. */
+export interface ConvoyReportDto {
+  escaped: boolean;
+  /** Your side won. Null for a tail that never landed. */
+  won: boolean | null;
+  attackers: number;
+  defenders: { escorts: number; homeBackup: number; sentBackup: number; allyBackup: number };
+  yourWounds: number;
+  opponentWounds: number;
+  /** Signed for the side reading it. */
+  cashCents: number;
+  cargo: Record<string, number>;
+  lowRider: number;
+}
+
+/** 0.5.0-E. A tail you are part of: yours on someone's run, one on your run, or one an ally called you to. */
+export interface ConvoyTailDto {
+  id: string;
+  role: 'attacker' | 'owner' | 'ally';
+  status: ConvoyTailStatusDto;
+  city: string;
+  cityName: string;
+  startedAt: string;
+  landsAt: string;
+  squad: number;
+  source: 'HOME' | 'RUN';
+  attacker: { publicPimpId: number; displayName: string };
+  owner: { publicPimpId: number; displayName: string };
+  /** Backup on its way so far: from the owner and from allies. */
+  backup: { owner: number; allies: number };
+  alliesCalled: boolean;
+  /** The owner's backup: how many can ride, how long it takes, and why not. */
+  sendBackup: { max: number; minutes: number; reason: string | null } | null;
+  /** An ally's answer: how many they can send, and why not. */
+  answer: { max: number; reason: string | null } | null;
+  voided: boolean;
+  report: ConvoyReportDto | null;
+}
+
+/** 0.5.0-E. GET /api/game/convoys. */
+export interface ConvoysDto {
+  enabled: boolean;
+  rules: {
+    warningMinutes: number;
+    turnCost: number;
+    squadCap: number;
+    rehitMinutes: number;
+    reconTurnCost: number;
+    reconFreshMinutes: number;
+    /** How far ahead your recon sees runs coming, with your lookouts. */
+    lookaheadMinutes: number;
+    /** How long before a hit your lookouts spot a tail on your run. */
+    headsUpMinutes: number;
+  } | null;
+  /** Your last recon of the area, while it is still good. The targets are what it found. */
+  recon: { seenAt: string; expiresAt: string } | null;
+  /** What you can send from where you live. */
+  squad: { fit: number; turns: number; city: string; cityName: string; blockedReason: string | null };
+  /** What your own run can hit with, where it is. */
+  run: { escorts: number; cityName: string } | null;
+  targets: ConvoyTargetDto[];
+  tails: ConvoyTailDto[];
+}
+
+export interface ConvoyTailResult {
+  tailId: string;
+  landsAt: string;
+  city: string;
+  cityName: string;
+  squad: number;
+  turns: number;
+}
+
+export interface ConvoyReconResult {
+  found: number;
+  lookaheadMinutes: number;
+  expiresAt: string;
+  turns: number;
+}
+
+export interface ConvoyBackupResult {
+  tailId: string;
+  thugs: number;
+  landsAt: string;
 }

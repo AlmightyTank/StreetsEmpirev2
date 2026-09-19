@@ -302,6 +302,10 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                   <Row label="On a run" tooltip="Low-Riders and escorts on a run are not home: they don't defend, cover the street or cook until it is back."
                     value={<Link to="/game/travel">{me.run.phase === 'town' ? `In ${me.run.cityName}` : `On the road to ${me.run.cityName}`}</Link>} />
                 ) : null}
+                {me.convoyAlert ? (
+                  <Row label={me.convoyAlert.kind === 'tailed' ? 'Run tailed' : 'Backup called'} tooltip="Send help from the Travel page before it hits."
+                    value={<Link to="/game/travel" className="se-bad">{`Near ${me.convoyAlert.cityName}, hits ${new Date(me.convoyAlert.landsAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`}</Link>} />
+                ) : null}
                 {me.moving ? (
                   <Row label="Moving house" tooltip="Nothing moves until the truck arrives, and you are still a target where you live now."
                     value={<Link to="/game/travel">{`To ${me.moving.toName}, there ${new Date(me.moving.arrivesAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`}</Link>} />

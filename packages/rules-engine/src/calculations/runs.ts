@@ -230,9 +230,40 @@ export function cargoUnits(cargo: Readonly<Record<string, number>>): number {
   return Object.values(cargo).reduce((sum, units) => sum + Math.max(0, units), 0);
 }
 
-/** What a run is worth to net worth: its wallet at the cash weight, its cars, its escorts and its cargo at home values. */
-export function runNetWorthCents(ruleset: Ruleset, run: { cashCents: bigint; lowRiders: number; escortThugs: number; cargo: Readonly<Record<string, number>> }): bigint {
+export interface RunGuns {
+  pistols: number;
+  shotguns: number;
+  tek9s: number;
+  ak47s: number;
+}
+
+export const NO_GUNS: RunGuns = { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
+
+/**
+ * 0.5.0-E. The guns escorts take on a run: one each, the best first, out of what is at
+ * home. Escorts always ride armed as far as the arsenal goes.
+ */
+export function armEscorts(ruleset: Ruleset, escorts: number, home: RunGuns): RunGuns {
+  const order = (Object.keys(ruleset.combat?.weapons ?? {}) as Array<keyof typeof GUN_FIELDS>)
+    .sort((a, b) => (ruleset.combat!.weapons[b].power - ruleset.combat!.weapons[a].power) || a.localeCompare(b));
+  let left = Math.max(0, escorts);
+  const taken: RunGuns = { ...NO_GUNS };
+  for (const key of order) {
+    const field = GUN_FIELDS[key];
+    const count = Math.min(home[field], left);
+    taken[field] = count;
+    left -= count;
+  }
+  return taken;
+}
+
+/** Weapon key to the field it is counted in. */
+export const GUN_FIELDS = { PISTOL: 'pistols', SHOTGUN: 'shotguns', TEK9: 'tek9s', AK47: 'ak47s' } as const;
+
+/** What a run is worth to net worth: its wallet at the cash weight, its cars, its escorts, their guns and its cargo at home values. */
+export function runNetWorthCents(ruleset: Ruleset, run: { cashCents: bigint; lowRiders: number; escortThugs: number; cargo: Readonly<Record<string, number>>; guns?: RunGuns }): bigint {
   const { [CRACK_PRODUCT]: crack = 0, ...products } = run.cargo;
+  const guns = run.guns ?? NO_GUNS;
   return calculateNetWorthCents({
     cashCents: run.cashCents,
     whores: 0,
@@ -242,10 +273,10 @@ export function runNetWorthCents(ruleset: Ruleset, run: { cashCents: bigint; low
     crack,
     condoms: 0,
     beer: 0,
-    pistols: 0,
-    shotguns: 0,
-    tek9s: 0,
-    ak47s: 0,
+    pistols: guns.pistols,
+    shotguns: guns.shotguns,
+    tek9s: guns.tek9s,
+    ak47s: guns.ak47s,
     products,
   }, ruleset);
 }

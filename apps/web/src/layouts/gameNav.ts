@@ -199,7 +199,8 @@ function badgeCount(value: number): string {
  * - Dashboard goes amber when Heat drags the take, red when bust/arrest risk is live,
  *   and red while an arrest has the player locked up.
  * - Travel goes amber while a run sits in town, trading only when you are there, and
- *   while the truck is on the road to a new home.
+ *   while the truck is on the road to a new home; (0.5.0-E) red while someone is on your
+ *   run's tail, amber while an ally calls you for backup.
  */
 export function useNavBadges(pathname: string): Record<string, NavBadge> {
   const me = useSession((s) => s.me);
@@ -243,7 +244,11 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
     badges.raids = { tone: 'bad', label: 'You were hit since you last looked' };
   }
 
-  if (me.moving) {
+  if (me.convoyAlert?.kind === 'tailed') {
+    badges.travel = { tone: 'bad', label: `Your run is being tailed near ${me.convoyAlert.cityName}` };
+  } else if (me.convoyAlert?.kind === 'call') {
+    badges.travel = { tone: 'warn', label: `An ally needs backup in ${me.convoyAlert.cityName}` };
+  } else if (me.moving) {
     badges.travel = { tone: 'warn', label: `Moving house to ${me.moving.toName}` };
   } else if (me.run?.phase === 'town') {
     badges.travel = { tone: 'warn', label: `Your run is in ${me.run.cityName}, waiting on you` };

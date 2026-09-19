@@ -5,6 +5,7 @@ import { api } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { CityDetail, RoadMap, SHORT_CITY, agoText } from '../components/CityMap.js';
 import { Panel } from '../components/Panel.js';
+import { ConvoysPanel } from '../components/ConvoysPanel.js';
 import { MovePanel } from '../components/MovePanel.js';
 import { LaunchPanel, ReceiptPanel, RunPanel } from '../components/RunPanels.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -57,6 +58,7 @@ export function TravelPage() {
   const selected = data?.cities.find((city) => city.slug === params.get('city')) ?? home ?? data?.cities[0];
   const select = (slug: string) => setParams(slug === home?.slug ? {} : { city: slug }, { replace: true });
   const run = data?.run ?? null;
+  const urgent = Boolean(me?.convoyAlert);
   const runAt = run ? (run.position.road ?? { city: run.position.city }) : null;
 
   return (
@@ -81,6 +83,8 @@ export function TravelPage() {
 
       {data?.enabled && selected && home ? (
         <div className="se-grid">
+          {/* A tail on your run or an ally's call goes first; otherwise the convoys wait below your own run. */}
+          {data.runsEnabled && urgent ? <ConvoysPanel products={data.products} refreshKey={data} /> : null}
           {data.runsEnabled ? (
             <div className="se-grid se-grid--2 se-cities">
               {run
@@ -89,6 +93,7 @@ export function TravelPage() {
               {data.lastRun && !run ? <ReceiptPanel receipt={data.lastRun} products={data.products} /> : null}
             </div>
           ) : null}
+          {data.runsEnabled && !urgent ? <ConvoysPanel products={data.products} refreshKey={data} /> : null}
           <div className="se-grid se-grid--2 se-cities">
             <Panel title="The roads" flush>
               <RoadMap data={data} selected={selected.slug} onSelect={select} runAt={runAt} />

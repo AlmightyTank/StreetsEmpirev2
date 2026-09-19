@@ -345,3 +345,12 @@
 .se-streetwire__item--good { border-left-color: var(--se-good); }
 .se-streetwire__item--warn { border-left-color: var(--se-warn); }
 .se-streetwire__when { font-size: 12px; }
+
+/* 0.5.0-E: convoys. */
+.se-convoys__list { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 8px; }
+.se-convoys__target, .se-convoys__tail { border: 1px solid var(--se-line); border-radius: 8px; padding: 8px 10px; min-width: 0; overflow-wrap: anywhere; }
+.se-convoys__tail--alert { border-color: var(--se-bad); }
+.se-convoys__line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; margin: 0; }
+.se-convoys__meter { margin: 6px 0; }
+.se-convoys__help { display: grid; gap: 6px; margin-top: 6px; }
+.se-convoys__recon { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }

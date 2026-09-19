@@ -25,6 +25,7 @@ import { TurnService } from './turn.service.js';
 import { ReputationService, type ReputationChange } from './reputation.service.js';
 import { StockService, type StockSettlementSet } from './stock.service.js';
 import { CombatRecoveryService, type RecoverySettlement } from './combat-recovery.service.js';
+import { ConvoyService } from './convoy.service.js';
 import { RelocationService } from './relocation.service.js';
 import { RunSettleService } from './run-settle.service.js';
 
@@ -66,6 +67,8 @@ export interface PlayerState {
   lockedUntil?: Date | null;
   /** 0.5.0-D. Set by a move; left out, it is not written. */
   movingUntil?: Date | null;
+  /** 0.5.0-E. Thugs on a tail or convoy backup: counted, never fit. */
+  busyThugs: number;
 
   /** Quest progress that is per-player rather than per-trader. */
   cleanShiftStreak: number;
@@ -174,6 +177,7 @@ export function toState(player: RoundPlayer): PlayerState {
     ak47Unlocked: player.ak47Unlocked,
     heat: player.heat,
     awayNetWorthCents: player.awayNetWorthCents,
+    busyThugs: player.busyThugs,
     cleanShiftStreak: player.cleanShiftStreak,
     rocksSuppliedToPip: player.rocksSuppliedToPip,
     driveBysDone: player.driveBysDone,
@@ -199,8 +203,9 @@ export function toState(player: RoundPlayer): PlayerState {
   };
 }
 
-export function fitThugs(player: { thugs: number; woundedThugs: number }): number {
-  return Math.max(0, player.thugs - player.woundedThugs);
+/** Thugs who can do something: not wounded, and (0.5.0-E) not out on a tail or convoy backup. */
+export function fitThugs(player: { thugs: number; woundedThugs: number; busyThugs?: number }): number {
+  return Math.max(0, player.thugs - player.woundedThugs - (player.busyThugs ?? 0));
 }
 
 function armedThugsForSnapshot(state: PlayerState): number {
@@ -301,6 +306,8 @@ export const ActionService = {
       await RunSettleService.settle(tx, roundPlayerId, now);
       // 0.5.0-D: and a move that has arrived has arrived.
       await RelocationService.settleOwn(tx, roundPlayerId, now);
+      // 0.5.0-E: and whatever came back from a convoy fight is back.
+      await ConvoyService.credit(tx, roundPlayerId, now);
 
       const loaded = await tx.roundPlayer.findUnique({
         where: { id: roundPlayerId },

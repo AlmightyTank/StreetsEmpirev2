@@ -102,3 +102,19 @@ export const runHeadHomeSchema = z.object({ actionId: actionIdSchema }).strict()
 
 export const relocationSchema = z.object({ to: citySlug, actionId: actionIdSchema }).strict();
 export type RelocationInput = z.infer<typeof relocationSchema>;
+
+// --- 0.5.0-E convoys ----------------------------------------------------------------
+
+const convoyId = z.string().trim().min(1).max(64);
+export const convoyTailSchema = z.object({
+  runId: convoyId,
+  squad: z.number({ invalid_type_error: 'Say how many ride.' }).int('Send whole thugs.').positive('Send at least one thug.').safe(),
+  actionId: actionIdSchema,
+}).strict();
+export const convoyBackupSchema = z.object({
+  tailId: convoyId,
+  thugs: z.number({ invalid_type_error: 'Say how many ride.' }).int('Send whole thugs.').positive('Send at least one thug.').safe(),
+  actionId: actionIdSchema,
+}).strict();
+export const convoyCallSchema = z.object({ tailId: convoyId }).strict();
+export const convoyReconSchema = z.object({ actionId: actionIdSchema }).strict();

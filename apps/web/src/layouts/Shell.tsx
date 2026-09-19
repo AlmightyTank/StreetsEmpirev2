@@ -83,7 +83,7 @@ function Footer() {
             <span className="se-brand__mark">
               Streets<span className="se-accent">Empire</span>
             </span>
-            <span className="se-brand__ver">0.5.0-D</span>
+            <span className="se-brand__ver">0.5.0-E</span>
           </Link>
           <p>
             Free browser crime strategy with turn clocks, crew management,
@@ -139,7 +139,7 @@ export function Shell({ children, narrow, tabbar }: {
           <span className="se-brand__mark">
             Streets<span className="se-accent">Empire</span>
           </span>
-          <span className="se-brand__ver">0.5.0-D</span>
+          <span className="se-brand__ver">0.5.0-E</span>
         </Link>
 
         <StatusBar />

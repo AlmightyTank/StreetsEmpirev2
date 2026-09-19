@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { addContactSchema, heatBribeSchema, travelRoutesSchema, productTradeSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
+import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
 import { TravelService } from '../services/travel.service.js';
 import { ContactsService } from '../services/contacts.service.js';
@@ -59,6 +60,22 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     TravelService.driveOn(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
   app.post('/travel/head-home', { preHandler: app.requireAuth }, async (request) =>
     TravelService.headHome(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+
+  /** 0.5.0-E: runs you can hit, and the tails you are part of. */
+  app.get('/convoys', { preHandler: app.requireAuth }, async (request) =>
+    ConvoyService.page(app.prisma, await me(request.auth!.account.id)));
+
+  app.post('/convoys/recon', { preHandler: app.requireAuth }, async (request) =>
+    ConvoyService.recon(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+
+  app.post('/convoys/tail', { preHandler: app.requireAuth }, async (request) =>
+    ConvoyService.tail(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+
+  app.post('/convoys/backup', { preHandler: app.requireAuth }, async (request) =>
+    ConvoyService.backup(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+
+  app.post('/convoys/call', { preHandler: app.requireAuth }, async (request) =>
+    ConvoyService.callAllies(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
 
   /** 0.5.0-D: move the whole operation to another city. */
   app.post('/travel/move', { preHandler: app.requireAuth }, async (request) =>

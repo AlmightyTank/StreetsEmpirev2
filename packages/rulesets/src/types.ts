@@ -687,6 +687,61 @@ export interface TravelRules {
    * counter at that city's prices and usual supply.
    */
   readonly relocation?: RelocationRules;
+  /** 0.5.0-E. Runs near a city can be tailed and hit. Absent: runs only meet the police. */
+  readonly convoys?: ConvoyRules;
+}
+
+/**
+ * 0.5.0-E. Convoys: a run can be hit near a city (leaving it, in town, or coming in),
+ * by the players who live there and by rival runs in reach at the same time. A hit is a
+ * tail first: the squad is committed and the hit lands when a warning window closes, if
+ * the run is still in reach.
+ */
+export interface ConvoyRules {
+  /** Real minutes between starting a tail and the hit landing. */
+  readonly warningMinutes: number;
+  /**
+   * Nobody is alerted. The owner only sees a tail on their run in its last minutes, this
+   * many per Lookouts level: none at level 0, a little at the top.
+   */
+  readonly headsUpMinutesPerLookouts: number;
+  /**
+   * Recon of the area: runs coming near, in town or leaving where you live (and where your
+   * run is), for turns. It goes stale, and only a run it found can be tailed.
+   */
+  readonly recon: {
+    readonly turnCost: number;
+    /** Real minutes a recon stays good. */
+    readonly freshMinutes: number;
+    /** How far ahead it sees runs coming, and how much more per Lookouts level. */
+    readonly lookaheadMinutes: number;
+    readonly lookaheadMinutesPerLookouts: number;
+  };
+  readonly turnCost: number;
+  /** Minutes after a run is hit before anyone can tail it again. */
+  readonly rehitMinutes: number;
+  /**
+   * Share of the owner's fit thugs at home who ride out on their own when a run is hit
+   * at home: the most in the home town, falling to none at the edge of the home zone.
+   */
+  readonly homeBackupMaxShare: number;
+  /**
+   * The raid engine's strength roll, as it plays on the road: an ambush takes away most
+   * of a defender's edge, and a fight on the move swings more than a fight on a block.
+   */
+  readonly fight: { readonly defenseMultiplier: number; readonly variance: number };
+  readonly loot: {
+    /** Share of the run's cash taken, rolled in this range. */
+    readonly cashPercent: { readonly min: number; readonly max: number };
+    /** Share of the run's cargo taken, rolled in this range, split across products by largest remainder. */
+    readonly cargoPercent: { readonly min: number; readonly max: number };
+    /** Cash each fit attacker can carry away. */
+    readonly cashPerAttackerCents: number;
+    /** Cargo units each fit attacker can carry away. */
+    readonly cargoPerAttacker: number;
+    /** Chance at one of the run's Low-Riders when its whole escort goes down (the run keeps at least one). */
+    readonly lowRiderChance: number;
+  };
 }
 
 /** 0.5.0-D. Relocation: a fee priced on net worth, hours on the road, and limits. */

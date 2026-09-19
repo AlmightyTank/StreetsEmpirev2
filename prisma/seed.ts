@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import { PrismaClient, type Round } from '@prisma/client';
-import { classicOgV01, classicOgV02D, classicOgV05D, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02D, classicOgV05E, type Ruleset } from '@streets/rulesets';
 // The panel and the seed create the same bots from one definition. Changing the
 // roster in the service changes it here too.
 import { DEV_TEST_RIVALS, seedDevBots } from '../apps/server/src/services/dev-bots.service.js';
 
 const prisma = new PrismaClient();
-const CURRENT_RULESET = classicOgV05D;
+const CURRENT_RULESET = classicOgV05E;
 const shouldSeedRivals = process.env.SEED_DEV_BOTS === '1' || process.env.SEED_RIVALS === '1';
 const allowUnsafeDevBots = process.env.ALLOW_DEV_BOTS === 'I_UNDERSTAND';
 
@@ -156,14 +156,14 @@ async function main() {
   await seedStrategyRound(now);
   const publicRound = await seedCurrentPublicRound(new Date(now.getTime() + 1_000));
 
-  // A reused dev database may still have an older announcement pinned. D replaces them.
-  await prisma.gameNews.deleteMany({ where: { roundId: publicRound.id, title: { in: ['0.5.0-B ON THE ROAD', '0.5.0-C HIGH MARKET & RISK'] } } });
+  // A reused dev database may still have an older announcement pinned. E replaces them.
+  await prisma.gameNews.deleteMany({ where: { roundId: publicRound.id, title: { in: ['0.5.0-B ON THE ROAD', '0.5.0-C HIGH MARKET & RISK', '0.5.0-D MOVING HOUSE'] } } });
   await seedNews(
     publicRound.id,
-    '0.5.0-D MOVING HOUSE',
+    '0.5.0-E CONVOYS',
     shouldSeedRivals
-      ? 'The current 0.5.0-D seed has active local dev bots enabled. Crews can move the whole operation to another city from the Travel page.'
-      : 'New York is where everyone starts, not where everyone has to stay. Move the whole operation to another city for a cut of your net worth and a night on the road: the stable, the stock, the cars, the hideout and your Heat all come along. Where you live sets what the blocks pay, what the stores charge, what Pip has on his shelf and how much Heat the police let slide. You stay a target at home until the truck arrives, so nobody runs from a fight they started. See what your Heat would mean anywhere on the Travel page before you pay.',
+      ? 'The current 0.5.0-E seed has active local dev bots enabled. Runs near a city can be tailed and hit from the Travel page.'
+      : 'The road is not only the police now. Recon your area to find runs coming near, in town or leaving, then tail one: the hit lands a few minutes later if the run is still in reach. Nobody warns the owner. Only lookouts at the hideout spot a tail in its last minutes, in time to send thugs from home or call allies who live there, and near its home town half the crew at home rides out for a run. Escorts ride with the best guns from home, and a bust or an arrest takes every one. See the Convoys panel on the Travel page.',
   );
 
   if (shouldSeedRivals) {
