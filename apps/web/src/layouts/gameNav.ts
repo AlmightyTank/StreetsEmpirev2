@@ -196,7 +196,8 @@ function badgeCount(value: number): string {
  * What each page wants you to know before you open it:
  * - Scout carries your turns, amber once they sit at the cap.
  * - Raids gets a red dot when someone hit you since you last looked at Raids or Activity.
- * - Dashboard goes amber when Heat is dragging the take and red when busts are live.
+ * - Dashboard goes amber when Heat drags the take, red when bust/arrest risk is live,
+ *   and red while an arrest has the player locked up.
  * - Travel goes amber while a run sits in town, trading only when you are there.
  */
 export function useNavBadges(pathname: string): Record<string, NavBadge> {
@@ -241,16 +242,25 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
     badges.raids = { tone: 'bad', label: 'You were hit since you last looked' };
   }
 
-  // 0.5.0-B: a run in town is waiting on you; it only trades while you are there.
   if (me.run?.phase === 'town') {
     badges.travel = { tone: 'warn', label: `Your run is in ${me.run.cityName}, waiting on you` };
   }
 
-  if (me.heat && me.heat.heat >= me.heat.dragStartsAt) {
+  if (me.heat?.lockedUntil) {
+    badges.dashboard = {
+      tone: 'bad',
+      label: `Locked up until ${new Date(me.heat.lockedUntil).toLocaleString()}`,
+    };
+  } else if (me.heat && me.heat.heat >= me.heat.dragStartsAt) {
+    const arresting = Boolean(me.heat.arrest && me.heat.heat >= me.heat.arrest.startsAt);
     const busting = me.heat.heat >= me.heat.bustStartsAt;
     badges.dashboard = {
-      tone: busting ? 'bad' : 'warn',
-      label: busting ? `Heat ${me.heat.heat}: busts are live` : `Heat ${me.heat.heat}: dragging the take`,
+      tone: arresting || busting ? 'bad' : 'warn',
+      label: arresting && me.heat.arrest
+        ? `Heat ${me.heat.heat}: arrests are live (${Math.round(me.heat.arrest.chance * 100)}% next-trip risk)`
+        : busting
+          ? `Heat ${me.heat.heat}: busts are live (${Math.round(me.heat.bustChance * 100)}% next-trip risk)`
+          : `Heat ${me.heat.heat}: dragging the take`,
     };
   }
 

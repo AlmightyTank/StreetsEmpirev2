@@ -1,6 +1,6 @@
 # 0.5.0 roadmap - Travel
 
-Status: **in progress.** 0.5.0-A and B are built. C through F are planned.
+Status: **in progress.** 0.5.0-A through C are built. D through F are planned.
 
 0.4.0 turned Product into an economy with six products, prices, cooking and Heat. 0.5.0
 gives that economy somewhere to go. Everyone starts in New York, and there are two ways to
@@ -419,7 +419,7 @@ How it settled:
     ago"), or only the street talk if you have never been;
   - the wire carries some news for free ("A boat came in at Miami"), not all of it.
 - **Price events:**
-  - a per-round event table, seeded like the supply schedule;
+  - a per-round seeded schedule, replayable from the round id like supply swings;
   - bigger and rarer than a supply swing: for example, "Coke glut in Miami: baseline -40%
     for 6h" or "Vegas bust: ecstasy doubled, Pip out";
   - they are announced on the wire, and Vegas rolls them most often.
@@ -435,12 +435,39 @@ How it settled:
     locked up in which you cannot act, like a move. Heat drops more than a bust drops it;
   - on a run, an arrest seizes the whole trunk and part of the run's cash, and the run
     heads home.
-  - The dashboard Heat panel, the status bar and the nav badge show how close you are to
-    your city's bust and arrest levels, not fixed numbers.
+  - The dashboard Heat panel, the status bar and the nav badge show the city's drag, bust
+    and arrest state; Scout/Produce receipts show an arrest, seizure, fine and lockup.
 - **Road stops:**
   - the chance rises with cargo size, Heat and the road's police level (I-95 and I-10 are
     the worst), and escorts reduce it;
   - a stop seizes part of the cargo and fines part of the run's cash, like a bust.
+
+Built: the `classic-og-v0.5-c` ruleset, the shared `HighMarket` row and row lock,
+seeded Pip supply swings and gluts/droughts, shelf settlement across supply boundaries,
+high-market quote tolerance and price recovery, street-wire market news, sale Heat,
+once-per-leg road stops, home and run arrests, run incident receipts, and the Travel
+page's high-market trading/incident UI. `TRAVEL_INTEGRATION` covers shared prices,
+stale quotes, same-market loss, road-stop idempotence, run arrests, home arrest downtime
+and unknown-city information hiding. `qa:travel` runs both the original route gate and
+the C risk/pump gate. See [TRAVEL-SIMULATION-0.5.0-C.md](TRAVEL-SIMULATION-0.5.0-C.md).
+
+How it settled:
+- **The high market is actually shared.** A trade locks one round/city/product row; the
+  next trader sees the moved price. A pushed price has a 90-minute recovery half-life,
+  and a quote is rejected once the first unit moved more than 2% against the player.
+- **Pip moves on a seeded clock.** Supply rolls in four-hour slots; larger gluts and
+  droughts roll in half-day slots and last six hours. The street wire exposes some of
+  those changes without leaking future prices.
+- **Risk is swing, not a new income source.** The gate rejects market pump-and-cash-out
+  loops, any average run that beats street work, an expected value too far from the
+  planned route, or a best route whose 10th-to-90th percentile is too narrow.
+- **Police risk follows the load.** Road-stop odds rise with road police, cargo and Heat;
+  escorts cut the odds. A stop takes 25% of each product in the trunk and 10% of run
+  cash under the base C rules.
+- **Arrest sits above bust.** NYC's base arrest line is 90 Heat. A home arrest takes a
+  larger product/cash share, drops more Heat and locks actions for two hours; a run
+  arrest takes the trunk and part of its wallet and sends the cars home. Each city's
+  own Heat thresholds still override the base through its city rules.
 
 ## 0.5.0-D - Relocation
 

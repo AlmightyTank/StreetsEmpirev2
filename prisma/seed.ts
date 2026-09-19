@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import { PrismaClient, type Round } from '@prisma/client';
-import { classicOgV01, classicOgV02D, classicOgV05B, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02D, classicOgV05C, type Ruleset } from '@streets/rulesets';
 // The panel and the seed create the same bots from one definition. Changing the
 // roster in the service changes it here too.
 import { DEV_TEST_RIVALS, seedDevBots } from '../apps/server/src/services/dev-bots.service.js';
 
 const prisma = new PrismaClient();
-const CURRENT_RULESET = classicOgV05B;
+const CURRENT_RULESET = classicOgV05C;
 const shouldSeedRivals = process.env.SEED_DEV_BOTS === '1' || process.env.SEED_RIVALS === '1';
 const allowUnsafeDevBots = process.env.ALLOW_DEV_BOTS === 'I_UNDERSTAND';
 
@@ -155,13 +155,17 @@ async function main() {
   await seedNews(classicRound.id, 'GAME #001 HAS BEGUN', 'Welcome to the first Classic OG round.');
   await seedStrategyRound(now);
   const publicRound = await seedCurrentPublicRound(new Date(now.getTime() + 1_000));
+
+  // A reused dev database may still have the B announcement pinned. C replaces it.
+  await prisma.gameNews.deleteMany({ where: { roundId: publicRound.id, title: '0.5.0-B ON THE ROAD' } });
   await seedNews(
     publicRound.id,
-    '0.5.0-B ON THE ROAD',
+    '0.5.0-C HIGH MARKET & RISK',
     shouldSeedRivals
-      ? 'The current 0.5.0-B seed has active local dev bots enabled. Runs are open: see the Travel page.'
-      : 'Load up a Low-Rider and go. A run takes cash, product and escorts out of town on the real interstates, trades at Pip\'s counter wherever it stops, and brings home whatever it holds. It only has what it took, so pack for the trip. Street talk tells you where to go; your crew finds out the prices when it gets there. Plan it on the Travel page.',
+      ? 'The current 0.5.0-C seed has active local dev bots enabled. Shared high markets, moving Pip supply, price events, sale Heat, road stops and arrests are live on the Travel page.'
+      : 'The road has teeth now. Every city has a shared high market whose price moves when players trade, Pip\'s supply shifts through the round, and gluts or droughts can hit without warning. Selling draws Heat, police can stop loaded runs on the interstate, and high Heat can turn a bust into an arrest. Watch the street wire, check the quote before a bulk trade, and decide how much risk the margin is worth on the Travel page.',
   );
+
   if (shouldSeedRivals) {
     const seeded = await seedDevBots(prisma, publicRound, CURRENT_RULESET, new Date(now.getTime() + 1_000), DEV_TEST_RIVALS, { activeAccounts: true });
     console.log(`  dev bots: ${seeded} seeded for ${publicRound.name}`);

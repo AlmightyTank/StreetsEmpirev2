@@ -2,7 +2,7 @@
 
 A reconstruction of the OG Pimp War economic loop.
 
-**Live version:** `0.4.0-E` &middot; **Ruleset:** `classic-og-v0.4-e` &middot; **Development:** products & vice
+**Live version:** `0.4.0-E` &middot; **Development:** `0.5.0-C` Travel &middot; **Dev ruleset:** `classic-og-v0.5-c`
 
 ---
 
@@ -18,7 +18,7 @@ Earned access lasts for the round. Each trader's standing also speeds up restock
 targets, automatic defense, target protection, durable retry receipts and battle
 reports. **0.2.0-C** adds persistent temporary wounds, natural recovery, and
 medicine treatment in its own pinned ruleset. **0.2.0-D** adds recon intel and
-24-hour revenge windows in a new strategy ruleset. **0.2.0-E** adds a self-contained onboarding round with seeded local rivals, tooltips, harsher unarmed-thug happiness penalties, armed-thug scouting coverage, public legacy rankings, weighted raid loot, repeat-target diminishing returns, drive-bys and a full achievement gallery. **0.2.0-F** turns that ruleset into the first public raid round: production rankings and combat targets only show active player accounts, while local development can opt into seeded rivals for solo testing, and old-school raid forms now include drug runs, ride theft and luring unhappy crew. **0.2.0-G** keeps F balance and starts the street-polish pass: clearer special raid reports, scouted-target cues, public onboarding copy and a free Flarum community direction. **0.2.0-H** keeps G balance and starts raid trophies for drive-bys, drug runs, ride theft and lure runs. **0.3.0-A** keeps H balance and makes rounds real seasons: expired rounds close once, standings freeze, players see a round-over screen, and past podiums land in the Hall of Fame. **0.3.0-B** keeps A balance and starts the admin panel: admins can schedule, open, start, end early and archive rounds without re-running the seed, and every admin action writes an audit record. **0.3.0-C** keeps B balance and adds alliances of up to five: allies cannot raid, drive-by, run any special raid form on or recon each other, a hit on one member opens revenge for all of them, and anyone who leaves or is kicked waits 24 hours before joining another alliance or trading blows with their old crew. **0.3.0-D** keeps C balance and lets alliances play together: fresh recon is shared with current allies, alliances talk on a members-only wire, and every player keeps a private contacts rolodex. Older rounds stay pinned to their original rulesets, while the default seed now makes Game #017 the current 0.4.0-E round. **0.4.0** turns Product into a management system; see the [0.4.0 roadmap](docs/ROADMAP-0.4.0.md). Read the [H implementation notes](docs/COMBAT-0.2.0-H.md), the [G implementation notes](docs/COMBAT-0.2.0-G.md), the [F implementation notes](docs/COMBAT-0.2.0-F.md), the [E implementation notes](docs/COMBAT-0.2.0-E.md), the [D implementation notes](docs/COMBAT-0.2.0-D.md),
+24-hour revenge windows in a new strategy ruleset. **0.2.0-E** adds a self-contained onboarding round with seeded local rivals, tooltips, harsher unarmed-thug happiness penalties, armed-thug scouting coverage, public legacy rankings, weighted raid loot, repeat-target diminishing returns, drive-bys and a full achievement gallery. **0.2.0-F** turns that ruleset into the first public raid round: production rankings and combat targets only show active player accounts, while local development can opt into seeded rivals for solo testing, and old-school raid forms now include drug runs, ride theft and luring unhappy crew. **0.2.0-G** keeps F balance and starts the street-polish pass: clearer special raid reports, scouted-target cues, public onboarding copy and a free Flarum community direction. **0.2.0-H** keeps G balance and starts raid trophies for drive-bys, drug runs, ride theft and lure runs. **0.3.0-A** keeps H balance and makes rounds real seasons: expired rounds close once, standings freeze, players see a round-over screen, and past podiums land in the Hall of Fame. **0.3.0-B** keeps A balance and starts the admin panel: admins can schedule, open, start, end early and archive rounds without re-running the seed, and every admin action writes an audit record. **0.3.0-C** keeps B balance and adds alliances of up to five: allies cannot raid, drive-by, run any special raid form on or recon each other, a hit on one member opens revenge for all of them, and anyone who leaves or is kicked waits 24 hours before joining another alliance or trading blows with their old crew. **0.3.0-D** keeps C balance and lets alliances play together: fresh recon is shared with current allies, alliances talk on a members-only wire, and every player keeps a private contacts rolodex. Older rounds stay pinned to their original rulesets, while the default development seed now makes Game #018 the current `classic-og-v0.5-c` Travel round. **0.4.0** turns Product into a management system; see the [0.4.0 roadmap](docs/ROADMAP-0.4.0.md). **0.5.0** adds cities, runs, shared high markets and road risk; see the [0.5.0 roadmap](docs/ROADMAP-0.5.0.md). Read the [H implementation notes](docs/COMBAT-0.2.0-H.md), the [G implementation notes](docs/COMBAT-0.2.0-G.md), the [F implementation notes](docs/COMBAT-0.2.0-F.md), the [E implementation notes](docs/COMBAT-0.2.0-E.md), the [D implementation notes](docs/COMBAT-0.2.0-D.md),
 the [C implementation notes](docs/COMBAT-0.2.0-C.md), the [B implementation notes](docs/COMBAT-0.2.0-B.md), the
 [staged combat design](docs/COMBAT-DESIGN-0.2.0.md), the
 [simulation findings](docs/COMBAT-SIMULATION-0.2.0-A.md) and the
@@ -56,8 +56,9 @@ Admins run seasons, moderation and disputes from the [admin runbook](docs/ADMIN-
 | **0.4.0-E** | products release: thugs take product into fights (RAID and DEFENSE policies), supply status and shortage warnings, combat and full-round product simulations, 0.4.0 release regression | **implemented** |
 | **0.5.0-A** | travel, cities: every city's character in the ruleset (Pip's prices and supply, demand, police, Heat levels), real interstates between them, the Cities page, and the travel simulation gate; everyone still lives in New York | **implemented** |
 | **0.5.0-B** | runs: Low-Riders carry escorts, cash and product out of home stock on real roads; trade at Pip's counter in other cities from the run's own wallet and trunk; drive on or head home; the crew remembers what it saw; the Travel page | **implemented** |
+| **0.5.0-C** | high market & risk: shared city markets with price impact and recovery; seeded Pip supply swings and price events; street wire; sale Heat; road stops; city arrests and downtime; market/risk simulation gate | **implemented** |
 
-Cash raids, drive-bys, special raid forms and alliances are playable. Runs drive the road map to trade at Pip's counters in other cities; see [docs/ROADMAP-0.5.0.md](docs/ROADMAP-0.5.0.md). Messaging remains deliberately absent.
+Cash raids, drive-bys, special raid forms and alliances are playable. Runs drive the road map to trade at Pip's counters and shared high markets in other cities, with changing supply, road stops and city-specific Heat thresholds; see [docs/ROADMAP-0.5.0.md](docs/ROADMAP-0.5.0.md). Messaging remains deliberately absent.
 
 ---
 
@@ -70,11 +71,11 @@ npm install
 cp .env.example .env      # already done if .env exists
 npm run db:up             # postgres 16 on localhost:5433
 npm run db:migrate        # apply migrations
-npm run db:seed           # 8 cities, pinned older rounds, current Game #017 products round
+npm run db:seed           # 8 cities, pinned older rounds, current Game #018 Travel / 0.5.0-C round
 npm run dev               # api on :3001, web on :5173
 ```
 
-Open <http://localhost:5173>, register a name, and enter Game #017 - Products & Vice. New players start with cash, thugs, pistols, beer and medicine. Default seeds no bot rivals; for local solo raid testing, run `npm run db:seed:dev-bots` to add active dev bots for cash raids, drug runs, ride theft, lures and drive-bys.
+Open <http://localhost:5173>, register a name, and enter Game #018 - Travel. New players start in New York and can send Low-Rider runs to all eight cities. The current development round uses `classic-og-v0.5-c`, so shared high markets, moving Pip supply, price events, road stops, sale Heat and arrests are active. Default seeds no bot rivals; for local solo raid testing, run `npm run db:seed:dev-bots` to add active dev bots for cash raids, drug runs, ride theft, lures and drive-bys.
 
 | Script | Does |
 | --- | --- |
@@ -392,8 +393,7 @@ With H complete, 0.1.0 is the frozen core foundation. New gameplay systems belon
 - District balance is a `BALANCE_APPROXIMATION`: recruitment and an income multiplier
   that trade against each other. The spec's own examples only ever showed one district,
   so the spread across five is a design call, tuned wide on purpose.
-- Low-Rider transport has no active use yet. Vehicles contribute net worth and can be
-  resold; travel and transport objectives belong in later combat strategy slices.
+- Low-Riders now set run cargo capacity and escort seats in 0.5.0-B/C. Convoy combat around those runs is reserved for 0.5.0-E.
 - Store orders retry safely while the page stays open. Persisting pending orders
   through reloads and broader reconnect testing remain in 0.1.0-F.
 - The daily rank snapshot is taken the first time a player is seen after the reset
