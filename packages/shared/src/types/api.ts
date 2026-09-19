@@ -222,6 +222,8 @@ export interface RoundPlayerDto {
   products: Array<{ key: string; name: string; quantity: number }> | null;
   /** 0.5.0-B. A run out of town, or null. */
   run: { phase: 'road' | 'town'; city: string; cityName: string; until: string } | null;
+  /** 0.5.0-D. On the road to a new home, or null. */
+  moving: { to: string; toName: string; arrivesAt: string } | null;
   rank: RankDto;
   hideout: SeasonHideoutDto;
 

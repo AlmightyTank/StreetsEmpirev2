@@ -1,4 +1,5 @@
 import type { PrismaClient, Round } from '@prisma/client';
+import { RelocationService } from './relocation.service.js';
 import { AppError } from '../utils/errors.js';
 import { lockRound, type Db } from '../utils/db.js';
 import { PlayerStateService } from './player-state.service.js';
@@ -81,6 +82,8 @@ export function finalStandingRanks(players: FinalRankPlayer[]): Map<string, { lo
 }
 
 async function freezeFinalStandings(tx: Db, roundId: string, now: Date): Promise<void> {
+  // 0.5.0-D: a move that has arrived counts in the final city standings.
+  await RelocationService.settleDue(tx, roundId, now);
   const players = await tx.roundPlayer.findMany({
     where: { roundId },
     orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],

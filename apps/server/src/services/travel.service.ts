@@ -50,6 +50,7 @@ import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { CitiesService } from './cities.service.js';
 import { PlayerStateService } from './player-state.service.js';
+import { RelocationService } from './relocation.service.js';
 import { ActivityService } from './activity.service.js';
 import { HighMarketService } from './high-market.service.js';
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
@@ -235,6 +236,8 @@ export const TravelService = {
   async page(prisma: PrismaClient, roundPlayerId: string, now: Date = new Date()): Promise<TravelDto> {
     const settled = await PlayerStateService.settle(prisma, roundPlayerId, { markActive: false, now });
     const { ruleset, player } = settled;
+    // Other cities' counters and Heat lines read the round's own rules, not home's.
+    const base = loadRulesetForRound(settled.round);
     const map = await CitiesService.page(prisma, roundPlayerId);
     const inventory = await ProductInventoryService.read(prisma, roundPlayerId, ruleset);
     const run = await activeRun(prisma, roundPlayerId);
@@ -257,9 +260,10 @@ export const TravelService = {
         turns: player.turns,
         products: Object.entries(inventory).map(([key, quantity]) => ({ key, quantity })),
       },
-      run: run ? await runDto(prisma, roundPlayerId, ruleset, seed, run, now) : null,
-      lastRun: await lastRunDto(prisma, roundPlayerId, ruleset),
-      wire: wireDto(ruleset, seed, now),
+      run: run ? await runDto(prisma, roundPlayerId, base, seed, run, now) : null,
+      lastRun: await lastRunDto(prisma, roundPlayerId, base),
+      wire: wireDto(base, seed, now),
+      relocation: await RelocationService.page(prisma, player, base, settled.round.endsAt, player.heat, now),
     };
   },
 

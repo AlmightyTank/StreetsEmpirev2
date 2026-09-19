@@ -35,7 +35,7 @@ if (withDb) {
     ALLIANCE_INTEGRATION: '1',
     // 0.4.0: product inventory, work supply, Heat and the product economy.
     PRODUCT_INTEGRATION: '1',
-    // 0.5.0: runs out of town, city counters and what the crew saw there.
+    // 0.5.0: runs out of town, city counters and what the crew saw there, markets and risk, and moving house.
     TRAVEL_INTEGRATION: '1',
   });
 }

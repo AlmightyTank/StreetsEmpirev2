@@ -97,3 +97,8 @@ export const runDriveOnSchema = z.object({
 export type RunDriveOnInput = z.infer<typeof runDriveOnSchema>;
 
 export const runHeadHomeSchema = z.object({ actionId: actionIdSchema }).strict();
+
+// --- 0.5.0-D relocation ------------------------------------------------------------
+
+export const relocationSchema = z.object({ to: citySlug, actionId: actionIdSchema }).strict();
+export type RelocationInput = z.infer<typeof relocationSchema>;

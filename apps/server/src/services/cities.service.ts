@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { CRACK_PRODUCT, cityCounter, driveHoursFrom, findRoutes, loadRulesetForRound } from '@streets/rules-engine';
+import { CRACK_PRODUCT, cityCounter, driveHoursFrom, findRoutes, loadRulesetForRound, pipBase, rulesetForCity } from '@streets/rules-engine';
 import type { CitiesDto, CityCharacterDto } from '@streets/shared';
 import type { SightingCounter } from './run-settle.service.js';
 
@@ -45,6 +45,7 @@ export const CitiesService = {
       ? Object.entries(ruleset.products).sort(([, a], [, b]) => a.sortOrder - b.sortOrder).map(([key, product]) => ({ key, name: product.name }))
       : [{ key: CRACK_PRODUCT, name: 'Crack' }];
     const nameOf = (slug: string) => cities[slug]?.name ?? slug;
+    const living = rulesetForCity(ruleset, home);
 
     return {
       enabled: true,
@@ -76,9 +77,12 @@ export const CitiesService = {
           counter: isHome
             ? {
                 seenAt: null,
+                // Home is Pip's store as it charges you: the city's prices from 0.5.0-D, his base buyback.
                 products: catalog.map(({ key }) => {
                   const counter = cityCounter(ruleset, slug, key);
-                  return { key, supply: counter?.supply ?? null, buyCents: counter?.buyCents ?? null, sellCents: counter?.sellCents ?? null, stock: null };
+                  const store = pipBase(living, key);
+                  if (!counter || !store || store.shelfCap <= 0) return { key, supply: null, buyCents: null, sellCents: null, stock: null };
+                  return { key, supply: counter.supply, buyCents: store.buyCents, sellCents: store.sellCents, stock: null };
                 }),
               }
             : sightings.has(slug)

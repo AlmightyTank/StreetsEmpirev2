@@ -2,7 +2,7 @@
 
 A reconstruction of the OG Pimp War economic loop.
 
-**Live version:** `0.4.0-E` &middot; **Development:** `0.5.0-C` Travel &middot; **Dev ruleset:** `classic-og-v0.5-c`
+**Live version:** `0.4.0-E` &middot; **Development:** `0.5.0-D` Travel &middot; **Dev ruleset:** `classic-og-v0.5-d`
 
 ---
 
@@ -57,6 +57,7 @@ Admins run seasons, moderation and disputes from the [admin runbook](docs/ADMIN-
 | **0.5.0-A** | travel, cities: every city's character in the ruleset (Pip's prices and supply, demand, police, Heat levels), real interstates between them, the Cities page, and the travel simulation gate; everyone still lives in New York | **implemented** |
 | **0.5.0-B** | runs: Low-Riders carry escorts, cash and product out of home stock on real roads; trade at Pip's counter in other cities from the run's own wallet and trunk; drive on or head home; the crew remembers what it saw; the Travel page | **implemented** |
 | **0.5.0-C** | high market & risk: shared city markets with price impact and recovery; seeded Pip supply swings and price events; street wire; sale Heat; road stops; city arrests and downtime; market/risk simulation gate | **implemented** |
+| **0.5.0-D** | relocation: move the whole operation for a fee on net worth and six hours on the road; still a target at home until arrival; no moves with a run out, inside a revenge window, within the cooldown or in the round's last day; where you live sets district pay, store prices, Pip's home counter and Heat lines | **implemented** |
 
 Cash raids, drive-bys, special raid forms and alliances are playable. Runs drive the road map to trade at Pip's counters and shared high markets in other cities, with changing supply, road stops and city-specific Heat thresholds; see [docs/ROADMAP-0.5.0.md](docs/ROADMAP-0.5.0.md). Messaging remains deliberately absent.
 
@@ -71,7 +72,7 @@ npm install
 cp .env.example .env      # already done if .env exists
 npm run db:up             # postgres 16 on localhost:5433
 npm run db:migrate        # apply migrations
-npm run db:seed           # 8 cities, pinned older rounds, current Game #018 Travel / 0.5.0-C round
+npm run db:seed           # 8 cities, pinned older rounds, current Game #018 Travel / 0.5.0-D round
 npm run dev               # api on :3001, web on :5173
 ```
 

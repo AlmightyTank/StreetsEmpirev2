@@ -399,6 +399,52 @@ export interface TravelDto extends CitiesDto {
   lastRun: RunReceiptDto | null;
   /** 0.5.0-C. The last day on the street wire, newest first. */
   wire: WireItemDto[];
+  /** 0.5.0-D. Moving house. Null before 0.5.0-D. */
+  relocation: RelocationDto | null;
+}
+
+/** 0.5.0-D. What a player's Heat would mean living in a city. */
+export interface HeatThereDto {
+  dragStartsAt: number;
+  bustStartsAt: number;
+  arrestStartsAt: number | null;
+  /** What Heat would do to the take there, 0..1. */
+  takeMultiplier: number;
+  bustChance: number;
+  arrestChance: number;
+}
+
+/** 0.5.0-D. The move screen. */
+export interface RelocationDto {
+  /** What a move costs right now. */
+  feeCents: number;
+  feeFloorCents: number;
+  feeNetWorthFraction: number;
+  downtimeMinutes: number;
+  cooldownHours: number;
+  cooldownUntil: string | null;
+  /** When moves close for the round. */
+  cutoffAt: string;
+  /** What stops any move right now, in words. */
+  blockedReason: string | null;
+  blockedCode: string | null;
+  /** When that reason goes away on its own, if it does. */
+  blockedUntil: string | null;
+  /** The move on the road, if there is one. */
+  moving: { from: string; fromName: string; to: string; toName: string; startedAt: string; arrivesAt: string } | null;
+  heat: number;
+  here: HeatThereDto | null;
+  destinations: Array<{ slug: string; name: string; heat: HeatThereDto | null; reachable: boolean }>;
+}
+
+/** 0.5.0-D. POST /api/game/travel/move. */
+export interface RelocationResult {
+  from: string;
+  fromName: string;
+  to: string;
+  toName: string;
+  feeCents: number;
+  arrivesAt: string;
 }
 
 /** 0.5.0-B. What a launch did. */

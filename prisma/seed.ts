@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import { PrismaClient, type Round } from '@prisma/client';
-import { classicOgV01, classicOgV02D, classicOgV05C, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02D, classicOgV05D, type Ruleset } from '@streets/rulesets';
 // The panel and the seed create the same bots from one definition. Changing the
 // roster in the service changes it here too.
 import { DEV_TEST_RIVALS, seedDevBots } from '../apps/server/src/services/dev-bots.service.js';
 
 const prisma = new PrismaClient();
-const CURRENT_RULESET = classicOgV05C;
+const CURRENT_RULESET = classicOgV05D;
 const shouldSeedRivals = process.env.SEED_DEV_BOTS === '1' || process.env.SEED_RIVALS === '1';
 const allowUnsafeDevBots = process.env.ALLOW_DEV_BOTS === 'I_UNDERSTAND';
 
@@ -156,14 +156,14 @@ async function main() {
   await seedStrategyRound(now);
   const publicRound = await seedCurrentPublicRound(new Date(now.getTime() + 1_000));
 
-  // A reused dev database may still have the B announcement pinned. C replaces it.
-  await prisma.gameNews.deleteMany({ where: { roundId: publicRound.id, title: '0.5.0-B ON THE ROAD' } });
+  // A reused dev database may still have an older announcement pinned. D replaces them.
+  await prisma.gameNews.deleteMany({ where: { roundId: publicRound.id, title: { in: ['0.5.0-B ON THE ROAD', '0.5.0-C HIGH MARKET & RISK'] } } });
   await seedNews(
     publicRound.id,
-    '0.5.0-C HIGH MARKET & RISK',
+    '0.5.0-D MOVING HOUSE',
     shouldSeedRivals
-      ? 'The current 0.5.0-C seed has active local dev bots enabled. Shared high markets, moving Pip supply, price events, sale Heat, road stops and arrests are live on the Travel page.'
-      : 'The road has teeth now. Every city has a shared high market whose price moves when players trade, Pip\'s supply shifts through the round, and gluts or droughts can hit without warning. Selling draws Heat, police can stop loaded runs on the interstate, and high Heat can turn a bust into an arrest. Watch the street wire, check the quote before a bulk trade, and decide how much risk the margin is worth on the Travel page.',
+      ? 'The current 0.5.0-D seed has active local dev bots enabled. Crews can move the whole operation to another city from the Travel page.'
+      : 'New York is where everyone starts, not where everyone has to stay. Move the whole operation to another city for a cut of your net worth and a night on the road: the stable, the stock, the cars, the hideout and your Heat all come along. Where you live sets what the blocks pay, what the stores charge, what Pip has on his shelf and how much Heat the police let slide. You stay a target at home until the truck arrives, so nobody runs from a fight they started. See what your Heat would mean anywhere on the Travel page before you pay.',
   );
 
   if (shouldSeedRivals) {

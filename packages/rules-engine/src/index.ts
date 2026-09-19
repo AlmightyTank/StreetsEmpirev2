@@ -19,6 +19,7 @@ export * from './calculations/cities.js';
 export * from './calculations/runs.js';
 export * from './calculations/markets.js';
 export * from './calculations/road-risk.js';
+export * from './calculations/relocation.js';
 export * from './simulations/combat.js';
 export * from './rng.js';
 export type { Ruleset } from '@streets/rulesets';

@@ -7,6 +7,7 @@ import {
   cityRulesetProblems,
   findRoutes,
   highMarketBaseline,
+  rulesetForCity,
 } from '../calculations/cities.js';
 
 /**
@@ -138,7 +139,8 @@ export function runTravelSimulation(ruleset: Ruleset, crews: readonly TravelCrew
   const products = Object.keys(ruleset.products ?? { CRACK: true });
 
   return crews.map((crew) => {
-    const street = streetPerTurn(ruleset, crew);
+    // Street work where the crew lives, with that city's district pay (0.5.0-D).
+    const street = streetPerTurn(rulesetForCity(ruleset, home), crew);
     const cashWeight = ruleset.economy.netWorth.cashWeightPercent / 100;
     const trunk = crew.lowRiders * travel.cargoPerLowRider;
     const trades: TravelTrade[] = [];
@@ -278,5 +280,35 @@ export function travelMarkdown(ruleset: Ruleset, summaries: readonly TravelCrewS
     gate.problems.length ? gate.problems.map((line) => `- ${line}`).join('\n') : '- Passes: no run beats the street for any crew, every city has a reason to go, and no city makes a same-city loop.',
     '',
   );
+  return lines.join('\n');
+}
+
+/**
+ * 0.5.0-D. Where to live: street work per turn for each crew living in each city, with
+ * the city's district pay, against the starting city. A report, not a gate: the
+ * cities that pay more on the block pay for it elsewhere (Pip's prices, Heat lines),
+ * which street work alone does not show.
+ */
+export function livingMarkdown(ruleset: Ruleset, crews: readonly TravelCrew[] = travelCrews): string {
+  const cities = Object.keys(ruleset.cities ?? {});
+  const home = ruleset.round.startingCitySlug;
+  const lines = [
+    `# Where to live - ${ruleset.meta.version}`,
+    '',
+    `Street work per turn living in each city, against ${name(ruleset, home)}, on the best block the crew can cover. The Heat lines are listed because they are part of what the better blocks cost; so are Pip's home prices, which follow each city's character.`,
+    '',
+    `| City | Busts from | Arrests from | ${crews.map((crew) => crew.name).join(' | ')} |`,
+    `| --- | ---: | ---: | ${crews.map(() => '---:').join(' | ')} |`,
+  ];
+  for (const slug of cities) {
+    const city = ruleset.cities![slug]!;
+    const shares = crews.map((crew) => {
+      const base = streetPerTurn(rulesetForCity(ruleset, home), crew).worthCents;
+      const here = streetPerTurn(rulesetForCity(ruleset, slug), crew);
+      return `${percent(base > 0 ? here.worthCents / base : 0)} (${ruleset.scouting.districts[here.district].name})`;
+    });
+    lines.push(`| ${city.name} | ${city.heat.bustStartsAt} | ${city.heat.arrestStartsAt} | ${shares.join(' | ')} |`);
+  }
+  lines.push('');
   return lines.join('\n');
 }

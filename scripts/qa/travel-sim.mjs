@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
-import { classicOgV05C } from '@streets/rulesets';
-import { runTravelRiskSimulation, runTravelSimulation, travelGate, travelMarkdown, travelRiskGate, travelRiskMarkdown } from '@streets/rules-engine';
+import { classicOgV05D } from '@streets/rulesets';
+import { livingMarkdown, runTravelRiskSimulation, runTravelSimulation, travelGate, travelMarkdown, travelRiskGate, travelRiskMarkdown } from '@streets/rules-engine';
 
 const args = process.argv.slice(2);
 let output = null;
@@ -17,12 +17,11 @@ try {
     if (!args[i + 1] || args[i + 1].startsWith('--')) throw new Error(`Incomplete option: ${flag}`);
     output = args[++i];
   }
-  // The current travel ruleset: 0.5.0-A cities and roads, 0.5.0-B runs and 0.5.0-C markets and risk, on 0.4.0-E balance.
-  const ruleset = classicOgV05C;
+  // The current travel ruleset: 0.5.0-A cities and roads, 0.5.0-B runs, 0.5.0-C markets and risk and 0.5.0-D moves, on 0.4.0-E balance.
+  const ruleset = classicOgV05D;
   const summaries = runTravelSimulation(ruleset);
   const risk = runTravelRiskSimulation(ruleset);
-  const report = `${travelMarkdown(ruleset, summaries)}
-${travelRiskMarkdown(ruleset, risk)}`;
+  const report = `${travelMarkdown(ruleset, summaries)}\n${travelRiskMarkdown(ruleset, risk)}\n${livingMarkdown(ruleset)}`;
   if (output) await writeFile(output, report, 'utf8');
   if (!quiet) console.log(report);
 

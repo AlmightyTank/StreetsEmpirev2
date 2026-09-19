@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { addContactSchema, heatBribeSchema, travelRoutesSchema, productTradeSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
+import { RelocationService } from '../services/relocation.service.js';
 import { TravelService } from '../services/travel.service.js';
 import { ContactsService } from '../services/contacts.service.js';
 import { ProductMarketService } from '../services/product-market.service.js';
@@ -58,6 +59,10 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     TravelService.driveOn(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
   app.post('/travel/head-home', { preHandler: app.requireAuth }, async (request) =>
     TravelService.headHome(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+
+  /** 0.5.0-D: move the whole operation to another city. */
+  app.post('/travel/move', { preHandler: app.requireAuth }, async (request) =>
+    RelocationService.move(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
 
   /** 0.4.0-A: the round's product catalog with the player's stock; 0.4.0-D adds Pip's counter and recipes. */
   app.get('/products', { preHandler: app.requireAuth }, async (request) =>

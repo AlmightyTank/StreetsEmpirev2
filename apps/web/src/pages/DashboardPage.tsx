@@ -302,6 +302,10 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                   <Row label="On a run" tooltip="Low-Riders and escorts on a run are not home: they don't defend, cover the street or cook until it is back."
                     value={<Link to="/game/travel">{me.run.phase === 'town' ? `In ${me.run.cityName}` : `On the road to ${me.run.cityName}`}</Link>} />
                 ) : null}
+                {me.moving ? (
+                  <Row label="Moving house" tooltip="Nothing moves until the truck arrives, and you are still a target where you live now."
+                    value={<Link to="/game/travel">{`To ${me.moving.toName}, there ${new Date(me.moving.arrivesAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`}</Link>} />
+                ) : null}
                 <Row label="Payout" value={`${me.payoutPercent}%`} tooltip="The crew cut from street work. Lower cuts can drag whore happiness down." />
               </div>
             </Panel>

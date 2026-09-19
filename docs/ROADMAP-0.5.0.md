@@ -1,6 +1,6 @@
 # 0.5.0 roadmap - Travel
 
-Status: **in progress.** 0.5.0-A through C are built. D through F are planned.
+Status: **in progress.** 0.5.0-A through D are built. E and F are planned.
 
 0.4.0 turned Product into an economy with six products, prices, cooking and Heat. 0.5.0
 gives that economy somewhere to go. Everyone starts in New York, and there are two ways to
@@ -495,6 +495,39 @@ How it settled:
     Hills with high Heat can put you over its arrest level on day one.
   - The move screen shows what your Heat will mean in the new city before you pay.
 - **Hideout:** built levels move with you. The fee is what pays for moving them.
+
+Built: the `classic-og-v0.5-d` ruleset (`travel.relocation`: 5% of net worth with a
+$25,000 floor, six hours on the road, a 24-hour cooldown, no moves in the round's last 24
+hours), the `Relocation` table (one move on the road at a time, enforced by a partial
+unique index) and `RoundPlayer.movingUntil`, the move action on the action pipeline, the
+move panel on the Travel page with every city's Heat lines against yours, a dashboard line
+and a Travel badge while the truck is on the road, and a `TRAVEL_INTEGRATION` relocation
+suite.
+
+How it settled:
+- **Arrival is lazy.** `cityId` changes when the truck arrives: the mover's own settle
+  brings them in, and every city-wide list (targets, the rankings page, the Discord city
+  feed, the final standings) first brings in anyone due, skipping rows another transaction
+  holds so it never waits or deadlocks. A stored local rank can lag one arrival until that
+  player next acts.
+- **A fight in progress** is a revenge window: combat resolves instantly, so the escape a
+  move could offer is hitting someone and leaving before they can hit back. A move is
+  refused while anyone the player attacked can still take revenge. The one who was hit can
+  always move.
+- **Nothing moves on the road or in a cell.** The action pipeline refuses every action
+  while the truck is out, as it does while locked up. Combat takes its own locks, so raids,
+  drive-bys, special raids, recon and treatment now check both too; before D, a player
+  locked up after an arrest could still raid.
+- **Living in a city.** With `travel.relocation`, `rulesetForCity` also applies the city's
+  district pay and store prices, and puts Pip's home counter at the city's price and usual
+  supply (his shelf there, none where he does not deal it: Beverly Hills has no crack or
+  meth on the shelf). What any store or Pip pays back stays at base, so buying never raises
+  net worth and cooking to sell never pays in any city; a unit test checks every city.
+  New York is unchanged but for its Nightclub (+10%), which no crew picks over the Casino
+  District, so a New York round plays as it did.
+- **Where to live** is a report in `npm run qa:travel`, not a gate: Beverly Hills' Casino
+  District pays big crews 20% more and Las Vegas 15%, and both pay for it in Heat lines and
+  Pip's prices.
 
 ## 0.5.0-E - Convoys
 

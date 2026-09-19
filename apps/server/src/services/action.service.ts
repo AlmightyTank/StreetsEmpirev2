@@ -25,6 +25,7 @@ import { TurnService } from './turn.service.js';
 import { ReputationService, type ReputationChange } from './reputation.service.js';
 import { StockService, type StockSettlementSet } from './stock.service.js';
 import { CombatRecoveryService, type RecoverySettlement } from './combat-recovery.service.js';
+import { RelocationService } from './relocation.service.js';
 import { RunSettleService } from './run-settle.service.js';
 
 /**
@@ -63,6 +64,8 @@ export interface PlayerState {
   awayNetWorthCents: bigint;
   /** 0.5.0-C. Set by an arrest at home; left out, it is not written. */
   lockedUntil?: Date | null;
+  /** 0.5.0-D. Set by a move; left out, it is not written. */
+  movingUntil?: Date | null;
 
   /** Quest progress that is per-player rather than per-trader. */
   cleanShiftStreak: number;
@@ -296,6 +299,8 @@ export const ActionService = {
 
       // 0.5.0-B: a run that is due home is home before anything reads the player.
       await RunSettleService.settle(tx, roundPlayerId, now);
+      // 0.5.0-D: and a move that has arrived has arrived.
+      await RelocationService.settleOwn(tx, roundPlayerId, now);
 
       const loaded = await tx.roundPlayer.findUnique({
         where: { id: roundPlayerId },
@@ -311,6 +316,11 @@ export const ActionService = {
       if (player.lockedUntil && player.lockedUntil.getTime() > now.getTime()) {
         const minutes = Math.ceil((player.lockedUntil.getTime() - now.getTime()) / 60_000);
         throw AppError.conflict('LOCKED_UP', `You are locked up for another ${minutes} minute${minutes === 1 ? '' : 's'}. Nothing moves until you are out.`);
+      }
+      // 0.5.0-D: nor from the cab of a moving truck.
+      if (player.movingUntil && player.movingUntil.getTime() > now.getTime()) {
+        const minutes = Math.ceil((player.movingUntil.getTime() - now.getTime()) / 60_000);
+        throw AppError.conflict('ON_THE_ROAD', `You are moving house: another ${minutes} minute${minutes === 1 ? '' : 's'} on the road. Nothing moves until you arrive.`);
       }
 
       // 0.5.0-A: Heat reads the player's own city.

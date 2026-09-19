@@ -438,6 +438,9 @@ model RoundPlayer {
   heat               Int @default(0)
   /// 0.5.0-C. Locked up after an arrest at home: no actions until then.
   lockedUntil        DateTime?
+  /// 0.5.0-D. On the road to a new home until then: no actions, and still a target in
+  /// the old city (cityId changes on arrival). The move itself is a Relocation row.
+  movingUntil        DateTime?
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
   rocksSuppliedToPip Int @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
@@ -515,6 +518,7 @@ model RoundPlayer {
   runs                  Run[]
   cityShelves           CityShelf[]
   citySightings         CitySighting[]
+  relocations           Relocation[]
   /// 0.4.0-B. Which products each job burns, in order.
   supplyPolicies        WorkSupplyPolicy[]
   /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
@@ -736,6 +740,22 @@ model CityShelf {
 }
 
 /// 0.5.0-B. What a player's crew last saw at Pip's counter in a city: supply, prices and stock.
+/// 0.5.0-D. A move of the whole operation to another city. Pending until `arrivedAt`.
+model Relocation {
+  id            String      @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  fromCity      String
+  toCity        String
+  feeCents      BigInt
+  startedAt     DateTime
+  arrivesAt     DateTime
+  arrivedAt     DateTime?
+
+  @@index([roundPlayerId, startedAt(sort: Desc)])
+  @@index([arrivedAt, arrivesAt])
+}
+
 /// 0.5.0-C. What went wrong on a run: a police stop on a road, or a bust or arrest in a town.
 enum RunIncidentKind {
   STOP
@@ -933,6 +953,8 @@ enum ActivityType {
   RUN_LAUNCHED
   RUN_RETURNED
   RUN_INCIDENT
+  RELOCATION_STARTED
+  RELOCATED
 }
 
 enum BattleKind {

@@ -11,6 +11,7 @@ import { ReputationService } from './reputation.service.js';
 import { StockService, type StockSettlementSet } from './stock.service.js';
 import { CombatRecoveryService, type RecoverySettlement } from './combat-recovery.service.js';
 import { fitThugs } from './action.service.js';
+import { RelocationService } from './relocation.service.js';
 import { RunSettleService, runSummary } from './run-settle.service.js';
 import type { RoundPlayerDto } from '@streets/shared';
 
@@ -33,6 +34,8 @@ export interface SettledPlayer {
   products?: Record<string, number>;
   /** 0.5.0-B. The player's run in one line, or null. */
   run: RoundPlayerDto['run'];
+  /** 0.5.0-D. The player's move on the road, or null. */
+  moving: RoundPlayerDto['moving'];
 }
 
 export interface SettleOptions {
@@ -81,6 +84,8 @@ export const PlayerStateService = {
     await lockRoundPlayer(tx, roundPlayerId);
     // 0.5.0-B: a run that is due home is home before the player is read.
     await RunSettleService.settle(tx, roundPlayerId, now);
+    // 0.5.0-D: and a move that has arrived has arrived.
+    await RelocationService.settleOwn(tx, roundPlayerId, now);
 
     const player = await tx.roundPlayer.findUnique({
       where: { id: roundPlayerId },
@@ -185,6 +190,8 @@ export const PlayerStateService = {
     }
 
     const run = await runSummary(tx, roundPlayerId, ruleset, now);
-    return { player: settled, round, ruleset, turns, stock, standings, recovery, products, run };
+    const move = await tx.relocation.findFirst({ where: { roundPlayerId, arrivedAt: null }, select: { toCity: true, arrivesAt: true } });
+    const moving = move ? { to: move.toCity, toName: ruleset.cities?.[move.toCity]?.name ?? move.toCity, arrivesAt: move.arrivesAt.toISOString() } : null;
+    return { player: settled, round, ruleset, turns, stock, standings, recovery, products, run, moving };
   },
 };

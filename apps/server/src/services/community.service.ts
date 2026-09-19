@@ -1,4 +1,5 @@
 import type { City, Prisma, PrismaClient } from '@prisma/client';
+import { RelocationService } from './relocation.service.js';
 import type { Ruleset } from '@streets/rules-engine';
 import type {
   PublicAchievementCategory,
@@ -687,6 +688,8 @@ export const CommunityService = {
     _ruleset: Ruleset,
   ): Promise<RankingsDto> {
     const now = new Date();
+    // 0.5.0-D: movers who have arrived rank in their new city.
+    await RelocationService.settleDue(prisma, player.roundId, now);
     const [nationalRows, localRows] = await Promise.all([
       prisma.roundPlayer.findMany({
         where: { roundId: player.roundId, account: { isActive: true } },

@@ -198,7 +198,8 @@ function badgeCount(value: number): string {
  * - Raids gets a red dot when someone hit you since you last looked at Raids or Activity.
  * - Dashboard goes amber when Heat drags the take, red when bust/arrest risk is live,
  *   and red while an arrest has the player locked up.
- * - Travel goes amber while a run sits in town, trading only when you are there.
+ * - Travel goes amber while a run sits in town, trading only when you are there, and
+ *   while the truck is on the road to a new home.
  */
 export function useNavBadges(pathname: string): Record<string, NavBadge> {
   const me = useSession((s) => s.me);
@@ -242,7 +243,9 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
     badges.raids = { tone: 'bad', label: 'You were hit since you last looked' };
   }
 
-  if (me.run?.phase === 'town') {
+  if (me.moving) {
+    badges.travel = { tone: 'warn', label: `Moving house to ${me.moving.toName}` };
+  } else if (me.run?.phase === 'town') {
     badges.travel = { tone: 'warn', label: `Your run is in ${me.run.cityName}, waiting on you` };
   }
 

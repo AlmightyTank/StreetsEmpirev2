@@ -634,9 +634,9 @@ export interface CityRules {
   readonly modifiers: { readonly scout: number; readonly income: number; readonly crack: number };
   /** Drive hours out along each road its locals can follow a run. */
   readonly zoneHours: number;
-  /** District pay for players living here. Applied from 0.5.0-D, with relocation. */
+  /** District pay for players living here. Applied from 0.5.0-D (with `travel.relocation`). */
   readonly districtPay?: { readonly [K in DistrictKey]?: number };
-  /** Store prices for players living here. Applied from 0.5.0-D, with relocation. */
+  /** What stores charge players living here. Applied from 0.5.0-D (with `travel.relocation`); buyback prices do not move. */
   readonly storePrices?: { readonly [K in StoreKey]?: number };
 }
 
@@ -681,6 +681,26 @@ export interface TravelRules {
   readonly stops?: RoadStopRules;
   /** 0.5.0-C. Heat a run draws by selling. Absent: selling is quiet. */
   readonly saleHeat?: SaleHeatRules;
+  /**
+   * 0.5.0-D. Moving the whole operation to another city. Present, it also turns on each
+   * city's living rules for its residents: district pay, store prices and Pip's home
+   * counter at that city's prices and usual supply.
+   */
+  readonly relocation?: RelocationRules;
+}
+
+/** 0.5.0-D. Relocation: a fee priced on net worth, hours on the road, and limits. */
+export interface RelocationRules {
+  /** The least a move costs. */
+  readonly feeFloorCents: number;
+  /** Share of net worth a move costs, when that is more. */
+  readonly feeNetWorthFraction: number;
+  /** Real minutes on the road: no actions, still a target in the old city. */
+  readonly downtimeMinutes: number;
+  /** Hours from the start of one move before the next. */
+  readonly cooldownHours: number;
+  /** No moves in the round's last hours, so nobody reshuffles local ranks at the end. */
+  readonly cutoffHours: number;
 }
 
 /** 0.5.0-A. What a supply level does to Pip's counter (and from 0.5.0-C the high market). */

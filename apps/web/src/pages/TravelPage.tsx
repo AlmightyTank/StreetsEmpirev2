@@ -5,6 +5,7 @@ import { api } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { CityDetail, RoadMap, SHORT_CITY, agoText } from '../components/CityMap.js';
 import { Panel } from '../components/Panel.js';
+import { MovePanel } from '../components/MovePanel.js';
 import { LaunchPanel, ReceiptPanel, RunPanel } from '../components/RunPanels.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -103,7 +104,10 @@ export function TravelPage() {
             </Panel>
             <CityDetail city={selected} products={data.products} home={home.name} />
           </div>
-          {data.runsEnabled && data.rules.market ? <StreetWire items={data.wire} /> : null}
+          <div className="se-grid se-grid--2 se-cities">
+            {data.relocation ? <MovePanel data={data} selected={selected.slug} onDone={load} /> : null}
+            {data.runsEnabled && data.rules.market ? <StreetWire items={data.wire} /> : null}
+          </div>
         </div>
       ) : null}
     </GameLayout>

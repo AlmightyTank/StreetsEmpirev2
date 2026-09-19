@@ -1,4 +1,4 @@
-import type { CityRules, HeatRules, RoadRules, Ruleset, SupplyLevel } from '@streets/rulesets';
+import type { CityRules, DistrictKey, HeatRules, RoadRules, Ruleset, StoreKey, SupplyLevel } from '@streets/rulesets';
 import type { CityModifiers } from './actions.js';
 import { CRACK_PRODUCT, productEconomy } from './product-economy.js';
 
@@ -51,13 +51,79 @@ export function cityHeatRules(ruleset: Ruleset, slug: string | undefined): HeatR
 }
 
 /**
- * The ruleset as it applies to someone living in `slug`. Only Heat differs in
- * 0.5.0-A, so everything that reads `ruleset.heat` (the take, busts, the
- * dashboard) uses the player's own city without being told about cities.
+ * 0.5.0-D. What changes for someone who lives in a city, beyond its Heat levels:
+ * - its district pay;
+ * - what the stores charge (never what they pay back);
+ * - Pip's home counter at the city's price and usual supply: his shelf is as big and
+ *   restocks as fast as his usual supply there, and where he does not deal a product
+ *   he has none. What he pays back stays at his base price, so cooking to sell never
+ *   pays anywhere, and a product never counts for more than he would pay for it.
+ * Null before 0.5.0-D, when everyone lives on the base prices.
+ */
+function livingRules(ruleset: Ruleset, city: CityRules): Pick<Ruleset, 'scouting' | 'stores' | 'products'> | null {
+  const travel = ruleset.travel;
+  if (!travel?.relocation) return null;
+  const lean = (product: string) => {
+    const row = city.products[product];
+    if (!row || row.supply === null) return null;
+    const level = travel.supplyLevels[row.supply];
+    return { price: row.price * level.price, shelf: level.shelf, restock: level.restock };
+  };
+  const scale = (cents: number, by: number) => Math.max(1, Math.round(cents * by));
+
+  const districts = Object.fromEntries(Object.entries(ruleset.scouting.districts).map(([key, district]) => {
+    const pay = city.districtPay?.[key as DistrictKey];
+    return [key, pay ? { ...district, payMultiplier: district.payMultiplier * pay } : district];
+  })) as unknown as Ruleset['scouting']['districts'];
+
+  const stores = Object.fromEntries(Object.entries(ruleset.stores).map(([storeKey, store]) => {
+    const price = city.storePrices?.[storeKey as StoreKey] ?? 1;
+    const items = Object.fromEntries(Object.entries(store.items).map(([itemKey, item]) => {
+      if (!item) return [itemKey, item];
+      let next = price === 1 ? item : { ...item, buyCents: scale(item.buyCents, price) };
+      // Pip's crack follows the city like his other products.
+      if (storeKey === 'PIP' && itemKey === CRACK_PRODUCT) {
+        const crack = lean(CRACK_PRODUCT);
+        next = crack
+          ? { ...next, buyCents: scale(next.buyCents, crack.price), restock: next.restock ? { ...next.restock, cap: Math.floor(next.restock.cap * crack.shelf), perInterval: Math.floor((next.restock.perInterval ?? 1) * crack.restock) } : next.restock }
+          : { ...next, restock: next.restock ? { ...next.restock, cap: 0, perInterval: 0 } : next.restock };
+      }
+      return [itemKey, next];
+    }));
+    return [storeKey, { ...store, items }];
+  })) as unknown as Ruleset['stores'];
+
+  const products = ruleset.products
+    ? Object.fromEntries(Object.entries(ruleset.products).map(([key, product]) => {
+        const economy = productEconomy(ruleset, key);
+        if (!economy?.pip) return [key, product];
+        const here = lean(key);
+        const pip = here
+          ? {
+              ...economy.pip,
+              buyCents: Math.max(economy.pip.sellCents + 1, scale(economy.pip.buyCents, here.price)),
+              restock: { ...economy.pip.restock, cap: Math.floor(economy.pip.restock.cap * here.shelf), perInterval: Math.max(1, Math.floor(economy.pip.restock.perInterval * here.restock)) },
+            }
+          : null;
+        return [key, { ...product, economy: { ...economy, pip } }];
+      })) as unknown as Ruleset['products']
+    : ruleset.products;
+
+  return { scouting: { ...ruleset.scouting, districts }, stores, products };
+}
+
+/**
+ * The ruleset as it applies to someone living in `slug`: the city's Heat levels (from
+ * 0.5.0-A), and from 0.5.0-D its district pay, store prices and Pip's home counter.
+ * Everything that reads the ruleset (the take, busts, the stores, the dashboard) uses
+ * the player's own city without being told about cities.
  */
 export function rulesetForCity(ruleset: Ruleset, slug: string | undefined): Ruleset {
   const heat = cityHeatRules(ruleset, slug);
-  return heat === ruleset.heat ? ruleset : { ...ruleset, heat };
+  const city = slug ? cityRules(ruleset, slug) : undefined;
+  const living = city ? livingRules(ruleset, city) : null;
+  if (heat === ruleset.heat && !living) return ruleset;
+  return { ...ruleset, ...(living ?? {}), heat };
 }
 
 // --- Pip's counter in every city ---------------------------------------------
