@@ -1,6 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, heatBribeSchema, productTradeSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, heatBribeSchema, travelRoutesSchema, productTradeSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { CitiesService } from '../services/cities.service.js';
+import { ConvoyService } from '../services/convoy.service.js';
+import { RelocationService } from '../services/relocation.service.js';
+import { TravelService } from '../services/travel.service.js';
 import { ContactsService } from '../services/contacts.service.js';
 import { ProductMarketService } from '../services/product-market.service.js';
 import { RoundService } from '../services/round.service.js';
@@ -37,6 +41,46 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     return WireService.remove(app.prisma, await me(request.auth!.account.id), postId);
   });
 
+  /** 0.5.0-A: every city's character, Pip's usual supply there and the roads, from home. */
+  app.get('/cities', { preHandler: app.requireAuth }, async (request) =>
+    CitiesService.page(app.prisma, await me(request.auth!.account.id)));
+
+  /** 0.5.0-B: runs. The map, what the crew knows and the run; the ways out; and the four moves. */
+  app.get('/travel', { preHandler: app.requireAuth }, async (request) =>
+    TravelService.page(app.prisma, await me(request.auth!.account.id)));
+  app.get('/travel/routes', { preHandler: app.requireAuth }, async (request) => {
+    const { to } = parseBody(travelRoutesSchema, request.query);
+    return TravelService.routes(app.prisma, await me(request.auth!.account.id), to);
+  });
+  app.post('/travel/launch', { preHandler: app.requireAuth }, async (request) =>
+    TravelService.launch(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+  app.post('/travel/trade', { preHandler: app.requireAuth }, async (request) =>
+    TravelService.trade(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+  app.post('/travel/drive-on', { preHandler: app.requireAuth }, async (request) =>
+    TravelService.driveOn(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+  app.post('/travel/head-home', { preHandler: app.requireAuth }, async (request) =>
+    TravelService.headHome(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+
+  /** 0.5.0-E: runs you can hit, and the tails you are part of. */
+  app.get('/convoys', { preHandler: app.requireAuth }, async (request) =>
+    ConvoyService.page(app.prisma, await me(request.auth!.account.id)));
+
+  app.post('/convoys/recon', { preHandler: app.requireAuth }, async (request) =>
+    ConvoyService.recon(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+
+  app.post('/convoys/tail', { preHandler: app.requireAuth }, async (request) =>
+    ConvoyService.tail(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+
+  app.post('/convoys/backup', { preHandler: app.requireAuth }, async (request) =>
+    ConvoyService.backup(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+
+  app.post('/convoys/call', { preHandler: app.requireAuth }, async (request) =>
+    ConvoyService.callAllies(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+
+  /** 0.5.0-D: move the whole operation to another city. */
+  app.post('/travel/move', { preHandler: app.requireAuth }, async (request) =>
+    RelocationService.move(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+
   /** 0.4.0-A: the round's product catalog with the player's stock; 0.4.0-D adds Pip's counter and recipes. */
   app.get('/products', { preHandler: app.requireAuth }, async (request) =>
     ProductMarketService.page(app.prisma, await me(request.auth!.account.id)));
@@ -64,7 +108,7 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
   /** 0.4.0-C: Heat as it stands, and paying it down. */
   app.get('/heat', { preHandler: app.requireAuth }, async (request) => {
     const settled = await PlayerStateService.settle(app.prisma, await me(request.auth!.account.id), { markActive: false });
-    const heat = toHeatDto(settled.player.heat, settled.player.netWorthCents, settled.ruleset);
+    const heat = toHeatDto(settled.player.heat, settled.player.netWorthCents, settled.ruleset, settled.player.lockedUntil);
     if (!heat) throw AppError.conflict('HEAT_DISABLED', 'There is no Heat in this round.');
     return heat;
   });

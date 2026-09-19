@@ -228,3 +228,129 @@
 .se-effects dt { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--se-muted); }
 .se-effects dd { margin: 0; font-size: 13px; }
 .se-effects__next { color: var(--se-text); font-weight: 600; }
+
+/* --- 0.5.0-A Cities --------------------------------------------------------- */
+
+.se-cities { align-items: start; }
+.se-citymap { display: block; width: 100%; height: auto; max-height: 340px; padding: 8px 4px 0; }
+.se-citymap__road { stroke: var(--se-line); stroke-width: 2.5; stroke-linecap: round; }
+.se-citymap__road--police { stroke-dasharray: 6 4; }
+.se-citymap__road--on { stroke: rgba(182, 255, 58, 0.55); }
+.se-citymap__city { cursor: pointer; outline: none; }
+.se-citymap__hit { fill: transparent; }
+.se-citymap__dot { fill: var(--se-text-dim); stroke: var(--se-panel); stroke-width: 2; }
+.se-citymap__ring { fill: none; stroke: var(--se-accent); stroke-width: 1.5; opacity: 0.7; }
+.se-citymap__label { fill: var(--se-text-dim); font-size: 11px; font-weight: 600; pointer-events: none; }
+.se-citymap__city:hover .se-citymap__dot,
+.se-citymap__city:focus-visible .se-citymap__dot { fill: #fff; }
+.se-citymap__city:focus-visible .se-citymap__hit { stroke: var(--se-accent); stroke-width: 1.5; }
+.se-citymap__city--on .se-citymap__dot { fill: var(--se-accent); }
+.se-citymap__city--on .se-citymap__label { fill: #fff; }
+
+.se-citypicker { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px 12px; border-top: 1px solid var(--se-line-soft); }
+.se-citypicker__city {
+  padding: 5px 10px;
+  border: 1px solid var(--se-line);
+  border-radius: 999px;
+  background: none;
+  color: var(--se-text-dim);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.se-citypicker__city:hover { color: #fff; border-color: var(--se-text-dim); }
+.se-citypicker__city--on,
+.se-citypicker__city--on:hover { color: #0b0c0e; background: var(--se-accent); border-color: var(--se-accent); }
+@media (pointer: coarse) { .se-citypicker__city { min-height: 36px; } }
+
+.se-city__trait { margin: 0 0 4px; color: var(--se-accent); font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+.se-city__heading { margin: 16px 0 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--se-muted); }
+.se-city__supply { font-weight: 600; }
+.se-city__supply--plentiful { color: var(--se-good); }
+.se-city__supply--normal { color: var(--se-text); }
+.se-city__supply--low { color: var(--se-warn); }
+.se-city__supply--out { color: var(--se-bad); }
+.se-city__talk { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.se-city__talk li {
+  padding: 6px 10px;
+  border-left: 2px solid var(--se-accent-dim);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--se-text);
+  font-size: 13px;
+  font-style: italic;
+}
+.se-city__roads { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.se-city__roads li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; font-size: 13px; }
+.se-city__roads li .se-hint { grid-column: 1 / -1; margin: 0; }
+
+
+/* --- 0.5.0-B Travel ------------------------------------------------------------ */
+
+.se-citymap__run-glow { fill: rgba(182, 255, 58, 0.25); }
+.se-citymap__run-dot { fill: var(--se-accent); stroke: #0b0c0e; stroke-width: 1.5; }
+.se-city__seen { color: var(--se-text-dim); letter-spacing: 0.04em; text-transform: none; font-weight: 600; }
+
+.se-routes { display: grid; gap: 6px; margin: 4px 0 12px; }
+.se-routes__route {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--se-line);
+  border-radius: var(--se-radius);
+  cursor: pointer;
+}
+.se-routes__route input { grid-row: span 2; accent-color: var(--se-accent); }
+.se-routes__route--on { border-color: rgba(182, 255, 58, 0.5); background: rgba(182, 255, 58, 0.05); }
+.se-routes__way { font-weight: 600; font-size: 13px; }
+.se-routes__meta { font-size: 12px; color: var(--se-text-dim); }
+
+.se-launch__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.se-launch__with-all { display: flex; gap: 6px; }
+.se-launch__with-all .se-input { min-width: 0; flex: 1 1 auto; }
+.se-launch__cargo { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.se-launch__meter { margin: 0 0 10px; }
+@media (max-width: 520px) {
+  .se-launch__grid { grid-template-columns: 1fr 1fr; }
+  .se-launch__cash { grid-column: 1 / -1; }
+}
+
+.se-run__headline { margin: 0 0 10px; font-weight: 700; color: #fff; }
+.se-run__headline--town { color: var(--se-accent); }
+.se-run__trip { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin: 0 0 10px; padding: 0; list-style: none; font-size: 12px; }
+.se-run__node { display: inline-flex; align-items: center; }
+.se-run__node + .se-run__node::before { content: '92'; margin: 0 6px; color: var(--se-muted); }
+.se-run__node--stop { font-weight: 700; color: var(--se-text); }
+.se-run__node--pass { color: var(--se-muted); font-style: italic; }
+.se-run__node--here { color: var(--se-accent); }
+.se-run__leg { display: grid; gap: 4px; font-size: 12px; color: var(--se-text-dim); }
+.se-run__trades { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.se-run__trades li { display: flex; justify-content: space-between; gap: 10px; }
+
+.se-towncounter__row { width: 100%; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.se-towncounter__row:disabled { cursor: default; opacity: 0.6; }
+.se-towncounter__row--on { background: rgba(182, 255, 58, 0.06); box-shadow: inset 2px 0 0 var(--se-accent); }
+.se-towncounter__form { display: grid; gap: 8px; margin-top: 10px; }
+.se-towncounter__form .se-seg { margin-bottom: 0; justify-self: start; }
+.se-moveon { margin-top: 6px; }
+
+/* 0.5.0-C: the town counter's venue and events, trouble on a run, and the street wire. */
+.se-towncounter__venue { margin: 6px 0 4px; }
+.se-towncounter__event { margin: 4px 0 8px; }
+.se-run__incidents li { display: block; }
+.se-streetwire { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
+.se-streetwire__item { display: grid; gap: 2px; padding: 6px 10px; border-left: 3px solid var(--se-line); min-width: 0; overflow-wrap: anywhere; }
+.se-streetwire__item--good { border-left-color: var(--se-good); }
+.se-streetwire__item--warn { border-left-color: var(--se-warn); }
+.se-streetwire__when { font-size: 12px; }
+
+/* 0.5.0-E: convoys. */
+.se-convoys__list { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 8px; }
+.se-convoys__target, .se-convoys__tail { border: 1px solid var(--se-line); border-radius: 8px; padding: 8px 10px; min-width: 0; overflow-wrap: anywhere; }
+.se-convoys__tail--alert { border-color: var(--se-bad); }
+.se-convoys__line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; margin: 0; }
+.se-convoys__meter { margin: 6px 0; }
+.se-convoys__help { display: grid; gap: 6px; margin-top: 6px; }
+.se-convoys__recon { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }

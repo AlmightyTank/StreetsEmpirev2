@@ -41,7 +41,8 @@ export const CombatRecoveryService = {
     };
   },
 
-  async add(tx: Db, roundPlayerId: string, battleId: string, thugs: number, recoverAt: Date): Promise<void> {
+  /** `battleId` is null for wounds from a 0.5.0-E convoy fight, which has no battle row. */
+  async add(tx: Db, roundPlayerId: string, battleId: string | null, thugs: number, recoverAt: Date): Promise<void> {
     if (thugs <= 0) return;
     await tx.combatInjury.create({ data: { roundPlayerId, battleId, thugs, recoverAt } });
   },

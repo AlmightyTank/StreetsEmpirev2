@@ -32,7 +32,16 @@ export type ActivityType =
   | 'BATTLE_VOIDED'
   | 'ADMIN_GRANT'
   | 'HEAT_BRIBE'
-  | 'HIDEOUT_UPGRADE';
+  | 'HIDEOUT_UPGRADE'
+  | 'RUN_LAUNCHED'
+  | 'RUN_RETURNED'
+  | 'RUN_INCIDENT'
+  | 'RELOCATION_STARTED'
+  | 'RELOCATED'
+  | 'CONVOY_TAIL'
+  | 'CONVOY_ATTACK'
+  | 'CONVOY_DEFENSE'
+  | 'CONVOY_BACKUP';
 
 export interface ApiErrorBody {
   error: {
@@ -220,6 +229,12 @@ export interface RoundPlayerDto {
    * where Product is still only crack.
    */
   products: Array<{ key: string; name: string; quantity: number }> | null;
+  /** 0.5.0-B. A run out of town, or null. */
+  run: { phase: 'road' | 'town'; city: string; cityName: string; until: string } | null;
+  /** 0.5.0-D. On the road to a new home, or null. */
+  moving: { to: string; toName: string; arrivesAt: string } | null;
+  /** 0.5.0-E. Someone on your run's tail, or an ally's call you can answer: the soonest to land. */
+  convoyAlert: { kind: 'tailed' | 'call'; cityName: string; landsAt: string } | null;
   rank: RankDto;
   hideout: SeasonHideoutDto;
 

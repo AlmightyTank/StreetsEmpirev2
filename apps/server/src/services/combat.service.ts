@@ -24,6 +24,7 @@ import {
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer } from '../utils/db.js';
+import { RelocationService } from './relocation.service.js';
 import { fitThugs, toState } from './action.service.js';
 import { ActivityService } from './activity.service.js';
 import { allianceTagDto, allianceTargetBlock, sharedRevengeScope } from './alliance.service.js';
@@ -208,7 +209,19 @@ export function combatProtectionUntil(player: Pick<RoundPlayer, 'createdAt' | 'r
   return new Date(Math.max(player.createdAt.getTime() + model.newcomerHours * 3_600_000, player.raidProtectedUntil?.getTime() ?? 0));
 }
 
+/**
+ * 0.5.0-C/D. Nobody fights from a cell or from the cab of a moving truck. Combat takes
+ * its own locks rather than the action pipeline, so it checks this itself.
+ */
+export function awayBlock(player: Pick<RoundPlayer, 'lockedUntil' | 'movingUntil'>, now: Date): string | null {
+  if (player.lockedUntil && player.lockedUntil > now) return 'You are locked up. Nothing moves until you are out.';
+  if (player.movingUntil && player.movingUntil > now) return 'You are moving house. Nothing moves until you arrive.';
+  return null;
+}
+
 export function combatAttackerBlock(player: RoundPlayer, model: CombatRules, now: Date): string | null {
+  const away = awayBlock(player, now);
+  if (away) return away;
   if (combatProtectionUntil(player, model) > now) return 'You are protected. Wait until your protection ends before raiding.';
   if (player.raidCooldownUntil && player.raidCooldownUntil > now) return 'Your crew is regrouping after its last raid.';
   if (fitThugs(player) < 1) return 'Wait for a thug to recover before raiding.';
@@ -239,6 +252,8 @@ export function combatTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, 
  * the raid cooldown, which is what lets a drive-by soften a crew for a raid.
  */
 export function driveByAttackerBlock(player: RoundPlayer, model: CombatRules, rules: DriveByRules, now: Date): string | null {
+  const away = awayBlock(player, now);
+  if (away) return away;
   if (combatProtectionUntil(player, model) > now) return 'You are protected. Wait until your protection ends before a drive-by.';
   if (player.driveByCooldownUntil && player.driveByCooldownUntil > now) return 'Your cars are cooling off after the last drive-by.';
   if (player.lowRiders < 1) return 'You need a Low-Rider for a drive-by. Charlie sells them.';
@@ -296,6 +311,8 @@ function specialRaidTurnCost(model: CombatRules, kind: SpecialRaidKind): number 
 function specialRaidAttackerBlock(player: RoundPlayer, model: CombatRules, kind: SpecialRaidKind, now: Date): string | null {
   const rule = specialRaidRule(model, kind);
   if (!rule) return 'That move is not available in this round.';
+  const away = awayBlock(player, now);
+  if (away) return away;
   if (combatProtectionUntil(player, model) > now) return 'Your block is protected. Wait until protection ends before making a move.';
   if (player.raidCooldownUntil && player.raidCooldownUntil > now) return 'Your crew is regrouping after its last move.';
   if (fitThugs(player) < 1) return 'Wait for a thug to recover before making a move.';
@@ -562,6 +579,8 @@ export const CombatService = {
     const model = ruleset.combat;
     let blockedReason = combatAttackerBlock(player, model, now);
     if (round.status !== 'ACTIVE' || round.startsAt > now || round.endsAt <= now) blockedReason = 'This round is not currently open for raids.';
+    // 0.5.0-D: movers who have arrived are in their new city's list, not this one.
+    await RelocationService.settleDue(prisma, round.id, now);
     const targets = await prisma.roundPlayer.findMany({
       where: { roundId: round.id, cityId: player.cityId, id: { not: playerId }, publicPimpId: { gt: after }, account: { isActive: true } },
       include: { alliance: { select: { name: true, tag: true } } },
@@ -1063,6 +1082,8 @@ export const CombatService = {
       const targetSettled = await PlayerStateService.settleInTransaction(tx, target.id, { now, markActive: false });
       const observer = settled.player;
       const defender = targetSettled.player;
+      const away = awayBlock(observer, now);
+      if (away) throw AppError.conflict('AWAY', away);
       if (observer.roundId !== defender.roundId) throw AppError.badRequest('INVALID_TARGET', 'Pick a player in your round.');
       if (observer.cityId !== defender.cityId) throw AppError.conflict('RECON_BLOCKED', 'You can only recon players in your city.');
       const allied = allianceTargetBlock(observer, defender, now);
@@ -1102,6 +1123,8 @@ export const CombatService = {
       const model = settled.ruleset.combat;
       if (!model) throw AppError.conflict('COMBAT_DISABLED', 'Recovery is not available in this round.');
       playable(settled.round, now);
+      const away = awayBlock(settled.player, now);
+      if (away) throw AppError.conflict('AWAY', away);
       const medicinePerThug = 1;
       const treatment = await CombatRecoveryService.treat(tx, playerId, input.thugs, settled.player.medicine, medicinePerThug);
       const next = { ...toState(settled.player), woundedThugs: treatment.woundedThugs, medicine: settled.player.medicine - treatment.medicineUsed };

@@ -3,6 +3,7 @@ import { buildApp } from './app.js';
 import { env } from './config/env.js';
 import { IdempotencyService } from './services/idempotency.service.js';
 import { NotificationService } from './services/notification.service.js';
+import { ConvoyService } from './services/convoy.service.js';
 import { PushService } from './services/push.service.js';
 import { startPoller } from './utils/poller.js';
 
@@ -27,6 +28,8 @@ let pruneAt = 0;
 const stopAlerts = env.discordBot.enabled || env.push.enabled
   ? startPoller('Alerts', 60_000, async () => {
     const now = new Date();
+    // 0.5.0-E: land tails whose window has closed, so a landing is pushed even if nobody is on.
+    await ConvoyService.sweep(app.prisma, now);
     await NotificationService.collect(app.prisma, now);
     if (env.push.enabled) await PushService.deliverPending(app.prisma);
     if (now.getTime() >= pruneAt) {

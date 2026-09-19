@@ -39,3 +39,43 @@ export function happinessMultiplier(happiness: number, floor: number): number {
   const clamped = Math.min(100, Math.max(0, happiness));
   return floor + (1 - floor) * (clamped / 100);
 }
+
+/**
+ * 0.5.0-C. A 32-bit hash of some parts, for schedules seeded per round. The same
+ * parts always give the same number, so a round's supply swings and price events
+ * can be worked out whenever they are read, and replayed.
+ */
+export function hashParts(...parts: Array<string | number>): number {
+  let hash = 2166136261;
+  for (const part of parts) {
+    const text = `${part}|`;
+    for (let index = 0; index < text.length; index++) {
+      hash ^= text.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+  }
+  // A final mix, so parts that differ in one character still land far apart.
+  hash ^= hash >>> 16;
+  hash = Math.imul(hash, 0x85ebca6b);
+  hash ^= hash >>> 13;
+  hash = Math.imul(hash, 0xc2b2ae35);
+  hash ^= hash >>> 16;
+  return hash >>> 0;
+}
+
+/** A roll in [0, 1) from some parts. */
+export function hashRoll(...parts: Array<string | number>): number {
+  return hashParts(...parts) / 4294967296;
+}
+
+/** A seeded `Rng` (mulberry32): the same seed rolls the same sequence. */
+export function seededRng(seed: number): Rng {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}

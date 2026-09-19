@@ -20,19 +20,19 @@ datasource db {
 
 /// A permanent player identity. Survives every round.
 model Account {
-  id                 String @id @default(cuid())
+  id                 String    @id @default(cuid())
   username           String
   /// Lowercased username. Enforces case-insensitive uniqueness.
-  usernameNormalized String @unique
+  usernameNormalized String    @unique
   /// Lowercased email. Private account recovery and login address.
-  email              String @unique
+  email              String    @unique
   emailVerifiedAt    DateTime?
   passwordHash       String
 
-  discordId          String? @unique
-  discordUsername    String?
-  discordAvatar      String?
-  discordLinkedAt    DateTime?
+  discordId       String?   @unique
+  discordUsername String?
+  discordAvatar   String?
+  discordLinkedAt DateTime?
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -47,18 +47,18 @@ model Account {
   suspendedReason     String?
   suspendedByUsername String?
 
-  sessions                Session[]
-  passwordResetTokens     PasswordResetToken[]
-  accountEmailTokens      AccountEmailToken[]
-  forumLink               ForumLink?
-  forumLinkRequest        ForumLinkRequest?
-  notificationSettings    NotificationSettings?
-  notificationOutbox      NotificationOutbox[]
-  pushSubscriptions       PushSubscription[]
-  profile                 AccountProfile?
-  roundPlayers            RoundPlayer[]
-  authoredNews            GameNews[]            @relation("GameNewsAuthor")
-  adminAuditEntries       AdminAuditLog[]       @relation("AdminAuditActor")
+  sessions             Session[]
+  passwordResetTokens  PasswordResetToken[]
+  accountEmailTokens   AccountEmailToken[]
+  forumLink            ForumLink?
+  forumLinkRequest     ForumLinkRequest?
+  notificationSettings NotificationSettings?
+  notificationOutbox   NotificationOutbox[]
+  pushSubscriptions    PushSubscription[]
+  profile              AccountProfile?
+  roundPlayers         RoundPlayer[]
+  authoredNews         GameNews[]            @relation("GameNewsAuthor")
+  adminAuditEntries    AdminAuditLog[]       @relation("AdminAuditActor")
 }
 
 /// 0.3.0-B. One row per admin action: who, what, when, and the target before
@@ -92,13 +92,13 @@ model AccountProfile {
   accountId String  @id
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  activeTitleKey   String?
-  featuredBadgeKeys Json @default("[]")
-  profileAccent    String @default("default")
-  uiDensity        String  @default("comfortable")
-  reducedMotion    Boolean @default(false)
-  moneyFormat      String  @default("full")
-  defaultLanding   String  @default("game")
+  activeTitleKey    String?
+  featuredBadgeKeys Json    @default("[]")
+  profileAccent     String  @default("default")
+  uiDensity         String  @default("comfortable")
+  reducedMotion     Boolean @default(false)
+  moneyFormat       String  @default("full")
+  defaultLanding    String  @default("game")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -106,8 +106,8 @@ model AccountProfile {
 
 /// Verified public profile connection; owned by the permanent account.
 model ForumLink {
-  accountId     String @id
-  account       Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId     String   @id
+  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   forumOrigin   String
   forumUserId   String
   forumUsername String
@@ -118,9 +118,9 @@ model ForumLink {
 
 /// Only the latest request in the initiating game session can be completed.
 model ForumLinkRequest {
-  accountId String @id
-  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  nonceHash String @unique
+  accountId String   @id
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  nonceHash String   @unique
   sessionId String
   expiresAt DateTime
 }
@@ -204,7 +204,7 @@ model AccountEmailToken {
   purpose  AccountEmailTokenPurpose
   newEmail String?
 
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   expiresAt DateTime
   usedAt    DateTime?
 
@@ -222,7 +222,7 @@ model PasswordResetToken {
   accountId String
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   expiresAt DateTime
   usedAt    DateTime?
 
@@ -319,9 +319,10 @@ model Round {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  players   RoundPlayer[]
-  news      GameNews[]
-  alliances Alliance[]
+  players     RoundPlayer[]
+  news        GameNews[]
+  alliances   Alliance[]
+  highMarkets HighMarket[]
 
   @@index([status])
 }
@@ -339,9 +340,8 @@ model City {
   sortOrder Int     @default(0)
   isEnabled Boolean @default(false)
 
-  scoutModifier  Float @default(1.0)
-  incomeModifier Float @default(1.0)
-  crackModifier  Float @default(1.0)
+  // 0.5.0-A: a city's character (prices, supply, police, Heat levels, roads and the
+  // old scout/income/crack modifiers) lives in the round's pinned ruleset.
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -381,8 +381,8 @@ model RoundPlayer {
 
   payoutPercent Int @default(50)
 
-  whores Int @default(0)
-  thugs  Int @default(0)
+  whores       Int @default(0)
+  thugs        Int @default(0)
   woundedThugs Int @default(0)
 
   condoms  Int @default(0)
@@ -431,23 +431,31 @@ model RoundPlayer {
 
   /// Consecutive trips worked without sending anyone out short on condoms.
   /// The clerk's favour is the only thing that reads it.
-  cleanShiftStreak   Int @default(0)
+  cleanShiftStreak Int @default(0)
 
   /// 0.4.0-C. Attention the crew's product draws, 0..ruleset heat max. Decays on the turn clock
   /// (lastTurnCalculationAt), so it needs no clock of its own. Always 0 on rounds without Heat.
-  heat Int @default(0)
+  heat               Int @default(0)
+  /// 0.5.0-C. Locked up after an arrest at home: no actions until then.
+  lockedUntil        DateTime?
+  /// 0.5.0-D. On the road to a new home until then: no actions, and still a target in
+  /// the old city (cityId changes on arrival). The move itself is a Relocation row.
+  movingUntil        DateTime?
+  /// 0.5.0-E. Thugs out on a tail or riding backup for a convoy: still the player's, still
+  /// in net worth, but not fit for anything else until the fight is settled.
+  busyThugs          Int @default(0)
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
   rocksSuppliedToPip Int @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
   driveBysDone       Int @default(0)
   /// 0.3.0-B favours. Store purchases this round, whichever shop sold them. Rows from
   /// rounds before these were added start at zero.
-  condomsBought  Int @default(0)
-  medicineBought Int @default(0)
-  beerBought     Int @default(0)
-  pistolsBought  Int @default(0)
+  condomsBought      Int @default(0)
+  medicineBought     Int @default(0)
+  beerBought         Int @default(0)
+  pistolsBought      Int @default(0)
   /// Raids carried out this round in any form but the drive-by, landed or not.
-  raidsDone      Int @default(0)
+  raidsDone          Int @default(0)
 
   /// Derived from supplies, protection and fatigue. Stored so it can be read
   /// and ranked without recomputing, but never the source of truth.
@@ -455,10 +463,13 @@ model RoundPlayer {
   thugHappiness  Int @default(100)
 
   /// Integer cents.
-  netWorthCents BigInt @default(0)
+  netWorthCents     BigInt @default(0)
+  /// 0.5.0-B. Net worth of what is out on a run (cash, cars, escorts, cargo), which has
+  /// left the columns above. Zero when nothing is out.
+  awayNetWorthCents BigInt @default(0)
 
-  localRank    Int?
-  nationalRank Int?
+  localRank           Int?
+  nationalRank        Int?
   localRankSinceAt    DateTime @default(now())
   nationalRankSinceAt DateTime @default(now())
 
@@ -470,17 +481,17 @@ model RoundPlayer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  activity         PlayerActivity[]
-  processedActions ProcessedAction[]
-  reputation       PlayerReputation[]
-  raidsSent        RaidBattle[] @relation("RaidAttacker")
-  raidsReceived    RaidBattle[] @relation("RaidDefender")
-  combatInjuries   CombatInjury[]
-  observedIntel CombatIntel[] @relation("IntelObserver")
-  targetedIntel CombatIntel[] @relation("IntelTarget")
-  raidProtectedUntil DateTime?
-  raidCooldownUntil DateTime?
-  lastRaidedAt DateTime?
+  activity              PlayerActivity[]
+  processedActions      ProcessedAction[]
+  reputation            PlayerReputation[]
+  raidsSent             RaidBattle[]       @relation("RaidAttacker")
+  raidsReceived         RaidBattle[]       @relation("RaidDefender")
+  combatInjuries        CombatInjury[]
+  observedIntel         CombatIntel[]      @relation("IntelObserver")
+  targetedIntel         CombatIntel[]      @relation("IntelTarget")
+  raidProtectedUntil    DateTime?
+  raidCooldownUntil     DateTime?
+  lastRaidedAt          DateTime?
   /// Drive-bys run on their own clocks so one can set up a raid.
   driveByCooldownUntil  DateTime?
   driveByProtectedUntil DateTime?
@@ -495,23 +506,32 @@ model RoundPlayer {
 
   /// 0.3.0-C. The alliance this player is in now, and since when. Shared revenge only
   /// counts hits on the alliance from after the member joined.
-  allianceId       String?
-  alliance         Alliance? @relation("AllianceMembers", fields: [allianceId], references: [id], onDelete: SetNull)
-  allianceJoinedAt DateTime?
+  allianceId            String?
+  alliance              Alliance?          @relation("AllianceMembers", fields: [allianceId], references: [id], onDelete: SetNull)
+  allianceJoinedAt      DateTime?
   /// The alliance this player last left or was kicked from. Until the cooldown passes
   /// they cannot join or found an alliance, and they and that alliance cannot hit each other.
   formerAllianceId      String?
   allianceCooldownUntil DateTime?
-  allianceInvites       AllianceInvite[] @relation("AllianceInvitee")
+  allianceInvites       AllianceInvite[]   @relation("AllianceInvitee")
   /// 0.4.0-A. Every product except crack, which stays on the `crack` column in every round.
-  products       PlayerProduct[]
-  productShelves ProductShelf[]
+  products              PlayerProduct[]
+  productShelves        ProductShelf[]
+  /// 0.5.0-B. Runs out of town, Pip's shelves in other cities, and what the crew saw there.
+  runs                  Run[]
+  cityShelves           CityShelf[]
+  citySightings         CitySighting[]
+  relocations           Relocation[]
+  convoyTailsOwned      ConvoyTail[]   @relation("ConvoyTailOwner")
+  convoyTailsStarted    ConvoyTail[]   @relation("ConvoyTailAttacker")
+  convoyBackups         ConvoyBackup[]
+  convoyRecon           ConvoyRecon?
   /// 0.4.0-B. Which products each job burns, in order.
-  supplyPolicies WorkSupplyPolicy[]
+  supplyPolicies        WorkSupplyPolicy[]
   /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
-  wirePosts      AllianceWirePost[] @relation("WireAuthor")
-  contacts       PlayerContact[]    @relation("ContactOwner")
-  contactOf      PlayerContact[]    @relation("ContactTarget")
+  wirePosts             AllianceWirePost[] @relation("WireAuthor")
+  contacts              PlayerContact[]    @relation("ContactOwner")
+  contactOf             PlayerContact[]    @relation("ContactTarget")
 
   @@unique([roundId, accountId])
   @@unique([roundId, publicPimpId])
@@ -530,7 +550,7 @@ model Alliance {
   roundId String
   round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
 
-  name String
+  name           String
   /// Lowercased. A disbanded alliance gets its id appended so the name is free again.
   nameNormalized String
   /// Shown in brackets beside member names, e.g. [NYC].
@@ -553,7 +573,7 @@ model Alliance {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members RoundPlayer[]    @relation("AllianceMembers")
+  members RoundPlayer[]      @relation("AllianceMembers")
   invites AllianceInvite[]
   events  AllianceEvent[]
   wire    AllianceWirePost[]
@@ -565,14 +585,14 @@ model Alliance {
 
 /// A standing offer to one player. Accepting re-checks the cap under the alliance lock.
 model AllianceInvite {
-  id         String      @id @default(cuid())
-  allianceId String
-  alliance   Alliance    @relation(fields: [allianceId], references: [id], onDelete: Cascade)
-  inviteeId  String
-  invitee    RoundPlayer @relation("AllianceInvitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+  id            String      @id @default(cuid())
+  allianceId    String
+  alliance      Alliance    @relation(fields: [allianceId], references: [id], onDelete: Cascade)
+  inviteeId     String
+  invitee       RoundPlayer @relation("AllianceInvitee", fields: [inviteeId], references: [id], onDelete: Cascade)
   /// Display name of whoever sent it, kept as text so it survives them leaving.
   invitedByName String
-  createdAt     DateTime @default(now())
+  createdAt     DateTime    @default(now())
   expiresAt     DateTime
 
   @@unique([allianceId, inviteeId])
@@ -591,11 +611,11 @@ model AllianceWirePost {
   createdAt  DateTime    @default(now())
 
   /// Set when the author, the alliance leader or an admin removed it.
-  removedAt         DateTime?
-  removedByName     String?
+  removedAt     DateTime?
+  removedByName String?
   /// author, leader or admin.
-  removedByRole     String?
-  removedReason     String?
+  removedByRole String?
+  removedReason String?
 
   @@index([allianceId, createdAt(sort: Desc)])
   @@index([authorId, createdAt(sort: Desc)])
@@ -630,6 +650,258 @@ model ProductShelf {
   @@unique([roundPlayerId, productKey])
 }
 
+/// 0.5.0-B. A run: Low-Riders, escorts, cash and product out on the road. What it took is
+/// all it has; everything it holds comes home when it does.
+model Run {
+  id             String      @id @default(cuid())
+  roundPlayerId  String
+  roundPlayer    RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  status         RunStatus   @default(ACTIVE)
+  /// City slug the run left from and returns to.
+  homeCity       String
+  lowRiders      Int
+  escortThugs    Int
+  /// The run's wallet, integer cents. Never below zero.
+  cashCents      BigInt
+  startCashCents BigInt
+  turnsSpent     Int
+  launchedAt     DateTime    @default(now())
+  returnedAt     DateTime?
+  /// 0.5.0-C. Stops whose road in has been rolled for a police stop, counted from the first.
+  roadChecks     Int         @default(0)
+  /// 0.5.0-E. Escorts wounded in a convoy fight: not fit to fight again on this run, and
+  /// still healing when they get home if their wounds have not run out.
+  woundedEscorts Int         @default(0)
+  /// 0.5.0-E. When the run was last hit, for the re-hit cooldown.
+  lastHitAt      DateTime?
+  /// 0.5.0-E. The guns the escorts carry, out of home stock, best first. A bust or an
+  /// arrest on the run takes them all.
+  pistols        Int         @default(0)
+  shotguns       Int         @default(0)
+  tek9s          Int         @default(0)
+  ak47s          Int         @default(0)
+  tails          ConvoyTail[]
+  stops          RunStop[]
+  cargo          RunCargo[]
+  trades         RunTrade[]
+  incidents      RunIncident[]
+
+  @@index([roundPlayerId, status])
+}
+
+enum RunStatus {
+  ACTIVE
+  RETURNED
+}
+
+/// 0.5.0-B. One leg of a run and the stop it ends at. The last stop is always home, with no
+/// trading window. Where the run is at any moment is worked out from these times.
+model RunStop {
+  id       String    @id @default(cuid())
+  runId    String
+  run      Run       @relation(fields: [runId], references: [id], onDelete: Cascade)
+  order    Int
+  city     String
+  /// City slugs driven from the previous stop to this one, both ends included.
+  route    Json
+  departAt DateTime
+  arriveAt DateTime
+  /// When the trading window closes. Null for the drive home.
+  leaveAt  DateTime?
+
+  @@unique([runId, order])
+}
+
+/// 0.5.0-B. What is in the trunk.
+model RunCargo {
+  id            String @id @default(cuid())
+  runId         String
+  run           Run    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  productKey    String
+  quantity      Int
+  /// What was loaded at home, for the receipt.
+  startQuantity Int
+
+  @@unique([runId, productKey])
+}
+
+/// 0.5.0-B. Every trade a run made, for the receipt.
+model RunTrade {
+  id         String   @id @default(cuid())
+  runId      String
+  run        Run      @relation(fields: [runId], references: [id], onDelete: Cascade)
+  city       String
+  productKey String
+  /// "buy" or "sell".
+  direction  String
+  /// 0.5.0-C. "pip" (his counter) or "market" (the high market).
+  venue      String   @default("pip")
+  quantity   Int
+  unitCents  Int
+  totalCents BigInt
+  createdAt  DateTime @default(now())
+
+  @@index([runId])
+}
+
+/// 0.5.0-B. Pip's shelf for one product in another city, per player, on the lazy restock clock.
+/// No row means a full shelf at the city's supply level.
+model CityShelf {
+  id            String      @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  city          String
+  productKey    String
+  stock         Int
+  stockAt       DateTime
+
+  @@unique([roundPlayerId, city, productKey])
+}
+
+/// 0.5.0-B. What a player's crew last saw at Pip's counter in a city: supply, prices and stock.
+/// 0.5.0-E. A tail on a run: the attacker's squad is committed, and the hit lands at
+/// `landsAt` if the run is still in reach of `city` then.
+enum ConvoyTailStatus {
+  PENDING
+  LANDED
+  ESCAPED
+}
+
+model ConvoyTail {
+  id                 String           @id @default(cuid())
+  runId              String
+  run                Run              @relation(fields: [runId], references: [id], onDelete: Cascade)
+  ownerId            String
+  owner              RoundPlayer      @relation("ConvoyTailOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  attackerId         String
+  attacker           RoundPlayer      @relation("ConvoyTailAttacker", fields: [attackerId], references: [id], onDelete: Cascade)
+  /// "HOME" (a squad from where the attacker lives) or "RUN" (the escorts of the attacker's own run).
+  source             String
+  attackerRunId      String?
+  /// The city whose reach the hit lands in.
+  city               String
+  squad              Int
+  /// The squad as it set out: morale, weapons, and the supply boost it burned.
+  attackerCrew       Json
+  turnsSpent         Int
+  actionId           String
+  startedAt          DateTime
+  landsAt            DateTime
+  status             ConvoyTailStatus @default(PENDING)
+  settledAt          DateTime?
+  /// The fight and what moved, for both sides' reports.
+  result             Json?
+  /// When the attacker's side (loot, the squad home, its wounds) reached them.
+  attackerCreditedAt DateTime?
+  alliesCalledAt     DateTime?
+  voidedAt           DateTime?
+  backups            ConvoyBackup[]
+
+  @@unique([attackerId, actionId])
+  @@index([runId, status])
+  @@index([status, landsAt])
+  @@index([attackerId, attackerCreditedAt])
+}
+
+/// 0.5.0-E. A player's last recon of the area: the runs coming near, in town or leaving
+/// where they live and where their run is, as seen then. Only a run it found can be tailed.
+model ConvoyRecon {
+  id            String      @id @default(cuid())
+  roundPlayerId String      @unique
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  seenAt        DateTime
+  expiresAt     DateTime
+  /// The targets as seen, for the page and for checking a tail.
+  targets       Json
+}
+
+/// 0.5.0-E. Thugs sent to a convoy's fight by its owner or an ally. They come home after
+/// it, win or lose, with any wounds they took.
+model ConvoyBackup {
+  id         String      @id @default(cuid())
+  tailId     String
+  tail       ConvoyTail  @relation(fields: [tailId], references: [id], onDelete: Cascade)
+  playerId   String
+  player     RoundPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  /// "OWNER" or "ALLY".
+  kind       String
+  thugs      Int
+  /// Weapons and morale as they rode out.
+  crew       Json
+  sentAt     DateTime
+  wounded    Int         @default(0)
+  creditedAt DateTime?
+
+  @@unique([tailId, playerId])
+  @@index([playerId, creditedAt])
+}
+
+/// 0.5.0-D. A move of the whole operation to another city. Pending until `arrivedAt`.
+model Relocation {
+  id            String      @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  fromCity      String
+  toCity        String
+  feeCents      BigInt
+  startedAt     DateTime
+  arrivesAt     DateTime
+  arrivedAt     DateTime?
+
+  @@index([roundPlayerId, startedAt(sort: Desc)])
+  @@index([arrivedAt, arrivesAt])
+}
+
+/// 0.5.0-C. What went wrong on a run: a police stop on a road, or a bust or arrest in a town.
+enum RunIncidentKind {
+  STOP
+  BUST
+  ARREST
+}
+
+model RunIncident {
+  id        String          @id @default(cuid())
+  runId     String
+  run       Run             @relation(fields: [runId], references: [id], onDelete: Cascade)
+  kind      RunIncidentKind
+  /// The town, for a bust or arrest; the city the road led to, for a stop.
+  city      String
+  /// The road, for a stop: "I-95".
+  road      String?
+  /// Units taken, by product.
+  seized    Json
+  fineCents BigInt
+  at        DateTime
+
+  @@index([runId])
+}
+
+/// 0.5.0-C. One shared high market per round, city and product. Only the push off the
+/// baseline is stored: the baseline itself is the round's seeded schedule.
+model HighMarket {
+  id         String   @id @default(cuid())
+  roundId    String
+  round      Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  city       String
+  productKey String
+  /// Share off the baseline as of `pushAt`, wearing off from there.
+  push       Float    @default(0)
+  pushAt     DateTime
+
+  @@unique([roundId, city, productKey])
+}
+
+model CitySighting {
+  id            String      @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  city          String
+  seenAt        DateTime
+  counter       Json
+
+  @@unique([roundPlayerId, city])
+}
+
 /// 0.4.0-B. What one job burns: a district worked on a Scout trip, or PRODUCE. No row means
 /// the default, crack only, as every older round works.
 model WorkSupplyPolicy {
@@ -650,14 +922,14 @@ model WorkSupplyPolicy {
 
 /// 0.3.0-D. A player's private rolodex entry for another player in the same round.
 model PlayerContact {
-  id       String      @id @default(cuid())
-  ownerId  String
-  owner    RoundPlayer @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  targetId String
-  target   RoundPlayer @relation("ContactTarget", fields: [targetId], references: [id], onDelete: Cascade)
-  note     String      @default("")
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id        String      @id @default(cuid())
+  ownerId   String
+  owner     RoundPlayer @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  targetId  String
+  target    RoundPlayer @relation("ContactTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  note      String      @default("")
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   @@unique([ownerId, targetId])
   @@index([ownerId, updatedAt(sort: Desc)])
@@ -665,10 +937,10 @@ model PlayerContact {
 
 /// The alliance's own history: founded, joined, left, kicked, handed over, renamed, disbanded.
 model AllianceEvent {
-  id         String   @id @default(cuid())
-  allianceId String
-  alliance   Alliance @relation(fields: [allianceId], references: [id], onDelete: Cascade)
-  type       String
+  id          String   @id @default(cuid())
+  allianceId  String
+  alliance    Alliance @relation(fields: [allianceId], references: [id], onDelete: Cascade)
+  type        String
   /// Names as text: history outlives membership.
   actorName   String?
   subjectName String?
@@ -774,6 +1046,17 @@ enum ActivityType {
   BATTLE_VOIDED
   ADMIN_GRANT
   HEAT_BRIBE
+  RUN_LAUNCHED
+  RUN_RETURNED
+  RUN_INCIDENT
+  RELOCATION_STARTED
+  RELOCATED
+  CONVOY_TAIL
+  /// Unused since nobody is told a tail started; kept because Postgres cannot drop an enum value.
+  CONVOY_TAILED
+  CONVOY_ATTACK
+  CONVOY_DEFENSE
+  CONVOY_BACKUP
 }
 
 enum BattleKind {
@@ -784,30 +1067,30 @@ enum BattleKind {
 /// Durable receipt and replay guard for the lifetime of both round players.
 /// Raids and drive-bys share it, so reports, revenge and replay see both.
 model RaidBattle {
-  id String @id @default(cuid())
-  kind BattleKind @default(RAID)
-  attackerId String
-  defenderId String
-  attacker RoundPlayer @relation("RaidAttacker", fields: [attackerId], references: [id], onDelete: Cascade)
-  defender RoundPlayer @relation("RaidDefender", fields: [defenderId], references: [id], onDelete: Cascade)
-  actionId String
-  attackingThugs Int
-  modelVersion String
+  id                 String         @id @default(cuid())
+  kind               BattleKind     @default(RAID)
+  attackerId         String
+  defenderId         String
+  attacker           RoundPlayer    @relation("RaidAttacker", fields: [attackerId], references: [id], onDelete: Cascade)
+  defender           RoundPlayer    @relation("RaidDefender", fields: [defenderId], references: [id], onDelete: Cascade)
+  actionId           String
+  attackingThugs     Int
+  modelVersion       String
   /// Full internal calculation, including rolls; never returned wholesale.
-  calculation Json
-  attackerReport Json
-  defenderReport Json
-  injuries CombatInjury[]
-  createdAt DateTime @default(now())
+  calculation        Json
+  attackerReport     Json
+  defenderReport     Json
+  injuries           CombatInjury[]
+  createdAt          DateTime       @default(now())
   /// When the Discord bot claimed it for the public raid feed (older battles backfilled).
-  discordPostedAt DateTime?
+  discordPostedAt    DateTime?
   /// When the defender's attack alert was collected (older battles backfilled).
-  alertsCollectedAt DateTime?
+  alertsCollectedAt  DateTime?
   /// 0.3.0-B. An admin reversed this battle. Voided battles stay visible but no longer count for
   /// revenge, trophies, repeat-target limits, stats or the raid feed.
-  voidedAt         DateTime?
-  voidedByUsername String?
-  voidReason       String?
+  voidedAt           DateTime?
+  voidedByUsername   String?
+  voidReason         String?
   /// 0.3.0-C. The defender's alliance when the hit landed. Shared revenge reads this, so
   /// the victim leaving afterwards cannot take the window away from the alliance.
   defenderAllianceId String?
@@ -815,6 +1098,7 @@ model RaidBattle {
   /// (own, ally or none), so alliance rounds can be balanced from real battles.
   attackerAllianceId String?
   attackerIntel      String?
+
   @@unique([attackerId, actionId])
   @@index([attackerId, createdAt(sort: Desc), id])
   @@index([defenderId, createdAt(sort: Desc), id])
@@ -822,31 +1106,31 @@ model RaidBattle {
 }
 
 model CombatInjury {
-  id String @id @default(cuid())
+  id            String    @id @default(cuid())
   roundPlayerId String
-  battleId String?
-  thugs Int
-  recoverAt DateTime
-  createdAt DateTime @default(now())
-  treatedAt DateTime?
+  battleId      String?
+  thugs         Int
+  recoverAt     DateTime
+  createdAt     DateTime  @default(now())
+  treatedAt     DateTime?
 
   roundPlayer RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
-  battle RaidBattle? @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  battle      RaidBattle? @relation(fields: [battleId], references: [id], onDelete: Cascade)
 
   @@index([roundPlayerId, recoverAt])
   @@index([battleId])
 }
 
 model CombatIntel {
-  id String @id @default(cuid())
+  id         String      @id @default(cuid())
   observerId String
-  targetId String
-  observer RoundPlayer @relation("IntelObserver", fields: [observerId], references: [id], onDelete: Cascade)
-  target RoundPlayer @relation("IntelTarget", fields: [targetId], references: [id], onDelete: Cascade)
-  report Json
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  targetId   String
+  observer   RoundPlayer @relation("IntelObserver", fields: [observerId], references: [id], onDelete: Cascade)
+  target     RoundPlayer @relation("IntelTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  report     Json
+  expiresAt  DateTime
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 
   @@unique([observerId, targetId])
   @@index([observerId, expiresAt])

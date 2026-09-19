@@ -484,6 +484,8 @@ export interface AdminSignalClusterDto {
   /** Opaque and stable on this server; never the IP address. */
   key: string;
   signals: AdminSignal[];
+  /** 0.5.0-E. Convoy hits that landed between accounts in this cluster: a way goods could move between them. */
+  convoyHits?: Array<{ tailId: string; attacker: string; owner: string; at: string; voided: boolean }>;
   firstSeenAt: string;
   lastSeenAt: string;
   accounts: AdminSignalAccountDto[];

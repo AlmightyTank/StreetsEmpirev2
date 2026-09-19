@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { COOK_JOB, PRODUCE_JOB, calculateProduce, districtCapacities, productRecipes, type Rng } from '@streets/rules-engine';
+import { COOK_JOB, PRODUCE_JOB, calculateProduce, cityModifiers, districtCapacities, productRecipes, type Rng } from '@streets/rules-engine';
 import type { GameActionResult, ProduceCrackResult, ProductTypeDto } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
@@ -107,7 +107,7 @@ export const ProductionService = {
           recipe,
           turns: input.turns,
           ruleset,
-          city: player.city,
+          city: cityModifiers(ruleset, player.city.slug),
           clientCapacity: capacities[ruleset.scouting.produceDistrict],
           cashCents: current.cashCents,
           payoutPercent: current.payoutPercent,
@@ -157,7 +157,7 @@ export const ProductionService = {
 
         // 0.4.0-C: the shift's Heat lands, and a hot crew can be busted.
         const trip = await HeatService.afterTrip(tx, roundPlayerId, ruleset, {
-          startHeat: current.heat, plans: [supply, cook], next: worked, rng,
+          startHeat: current.heat, plans: [supply, cook], next: worked, rng, now,
           // 0.4.0-D: some cooks draw attention of their own.
           extraHeat: productProduced * recipe.heatPerUnit,
         });

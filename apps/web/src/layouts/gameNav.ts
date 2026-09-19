@@ -20,7 +20,7 @@ export interface NavSection {
 }
 
 export type IconName =
-  | 'dashboard' | 'hideout' | 'scout' | 'produce' | 'raids' | 'stores'
+  | 'dashboard' | 'hideout' | 'scout' | 'produce' | 'raids' | 'stores' | 'cities'
   | 'rankings' | 'alliance' | 'contacts' | 'profile' | 'activity'
   | 'status' | 'rules' | 'news' | 'fame' | 'admin';
 
@@ -35,6 +35,7 @@ export const SECTIONS: NavSection[] = [
       { key: 'raids', label: 'Raids', to: '/game/combat', icon: 'raids' },
       { key: 'stores', label: 'Stores', to: '/game/stores', icon: 'stores', prefix: '/game/stores/' },
       { key: 'hideout', label: 'Hideout', to: '/game/hideout', icon: 'hideout' },
+      { key: 'travel', label: 'Travel', to: '/game/travel', icon: 'cities' },
     ],
   },
   {
@@ -195,7 +196,11 @@ function badgeCount(value: number): string {
  * What each page wants you to know before you open it:
  * - Scout carries your turns, amber once they sit at the cap.
  * - Raids gets a red dot when someone hit you since you last looked at Raids or Activity.
- * - Dashboard goes amber when Heat is dragging the take and red when busts are live.
+ * - Dashboard goes amber when Heat drags the take, red when bust/arrest risk is live,
+ *   and red while an arrest has the player locked up.
+ * - Travel goes amber while a run sits in town, trading only when you are there, and
+ *   while the truck is on the road to a new home; (0.5.0-E) red while someone is on your
+ *   run's tail, amber while an ally calls you for backup.
  */
 export function useNavBadges(pathname: string): Record<string, NavBadge> {
   const me = useSession((s) => s.me);
@@ -239,11 +244,31 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
     badges.raids = { tone: 'bad', label: 'You were hit since you last looked' };
   }
 
-  if (me.heat && me.heat.heat >= me.heat.dragStartsAt) {
+  if (me.convoyAlert?.kind === 'tailed') {
+    badges.travel = { tone: 'bad', label: `Your run is being tailed near ${me.convoyAlert.cityName}` };
+  } else if (me.convoyAlert?.kind === 'call') {
+    badges.travel = { tone: 'warn', label: `An ally needs backup in ${me.convoyAlert.cityName}` };
+  } else if (me.moving) {
+    badges.travel = { tone: 'warn', label: `Moving house to ${me.moving.toName}` };
+  } else if (me.run?.phase === 'town') {
+    badges.travel = { tone: 'warn', label: `Your run is in ${me.run.cityName}, waiting on you` };
+  }
+
+  if (me.heat?.lockedUntil) {
+    badges.dashboard = {
+      tone: 'bad',
+      label: `Locked up until ${new Date(me.heat.lockedUntil).toLocaleString()}`,
+    };
+  } else if (me.heat && me.heat.heat >= me.heat.dragStartsAt) {
+    const arresting = Boolean(me.heat.arrest && me.heat.heat >= me.heat.arrest.startsAt);
     const busting = me.heat.heat >= me.heat.bustStartsAt;
     badges.dashboard = {
-      tone: busting ? 'bad' : 'warn',
-      label: busting ? `Heat ${me.heat.heat}: busts are live` : `Heat ${me.heat.heat}: dragging the take`,
+      tone: arresting || busting ? 'bad' : 'warn',
+      label: arresting && me.heat.arrest
+        ? `Heat ${me.heat.heat}: arrests are live (${Math.round(me.heat.arrest.chance * 100)}% next-trip risk)`
+        : busting
+          ? `Heat ${me.heat.heat}: busts are live (${Math.round(me.heat.bustChance * 100)}% next-trip risk)`
+          : `Heat ${me.heat.heat}: dragging the take`,
     };
   }
 

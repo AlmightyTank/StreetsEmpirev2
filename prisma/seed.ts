@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import { PrismaClient, type Round } from '@prisma/client';
-import { classicOgV01, classicOgV02D, classicOgV04E, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02D, classicOgV05F, type Ruleset } from '@streets/rulesets';
 // The panel and the seed create the same bots from one definition. Changing the
 // roster in the service changes it here too.
 import { DEV_TEST_RIVALS, seedDevBots } from '../apps/server/src/services/dev-bots.service.js';
 
 const prisma = new PrismaClient();
-const CURRENT_RULESET = classicOgV04E;
+const CURRENT_RULESET = classicOgV05F;
 const shouldSeedRivals = process.env.SEED_DEV_BOTS === '1' || process.env.SEED_RIVALS === '1';
 const allowUnsafeDevBots = process.env.ALLOW_DEV_BOTS === 'I_UNDERSTAND';
 
@@ -31,7 +31,7 @@ function assertSafeDevBotSeed(): void {
 }
 
 
-/** Section 12. Travel is not player-facing yet, but the map exists from day one. */
+/** Section 12. 0.5.0: every city is open. Their characters live in the ruleset; the table is names and order. */
 const CITIES = [
   { slug: 'new-york-city', name: 'New York City', sortOrder: 1 },
   { slug: 'detroit', name: 'Detroit', sortOrder: 2 },
@@ -45,8 +45,8 @@ const CITIES = [
 
 async function seedCities() {
   for (const city of CITIES) {
-    // 0.4.0-E still starts in New York City. Other cities stay staged for travel.
-    const isEnabled = city.slug === CURRENT_RULESET.round.startingCitySlug;
+    // Everyone still starts in New York City, and every city is somewhere to go.
+    const isEnabled = true;
 
     await prisma.city.upsert({
       where: { slug: city.slug },
@@ -56,13 +56,10 @@ async function seedCities() {
         name: city.name,
         sortOrder: city.sortOrder,
         isEnabled,
-        scoutModifier: 1.0,
-        incomeModifier: 1.0,
-        crackModifier: 1.0,
       },
     });
   }
-  console.log(`  cities:   ${CITIES.length} (playable: ${CURRENT_RULESET.round.startingCitySlug})`);
+  console.log(`  cities:   ${CITIES.length} (starting: ${CURRENT_RULESET.round.startingCitySlug})`);
 }
 
 async function upsertRound(options: { name: string; slug: string; ruleset: Ruleset; startsAt: Date; refreshCurrent?: boolean }): Promise<Round> {
@@ -119,8 +116,8 @@ async function seedStrategyRound(now: Date) {
 
 async function seedCurrentPublicRound(now: Date) {
   return upsertRound({
-    name: 'Game #017 - Products & Vice',
-    slug: 'game-017-products-vice',
+    name: 'Game #018 - Travel',
+    slug: 'game-018-travel',
     ruleset: CURRENT_RULESET,
     startsAt: now,
     refreshCurrent: true,
@@ -158,13 +155,17 @@ async function main() {
   await seedNews(classicRound.id, 'GAME #001 HAS BEGUN', 'Welcome to the first Classic OG round.');
   await seedStrategyRound(now);
   const publicRound = await seedCurrentPublicRound(new Date(now.getTime() + 1_000));
+
+  // A reused dev database may still have an older announcement pinned. F replaces them.
+  await prisma.gameNews.deleteMany({ where: { roundId: publicRound.id, title: { in: ['0.5.0-B ON THE ROAD', '0.5.0-C HIGH MARKET & RISK', '0.5.0-D MOVING HOUSE', '0.5.0-E CONVOYS'] } } });
   await seedNews(
     publicRound.id,
-    '0.4.0-E PRODUCTS & VICE',
+    '0.5.0 TRAVEL',
     shouldSeedRivals
-      ? 'The current 0.4.0-E seed has active local dev bots enabled. Thugs can now take product into a fight, and supply screens warn when a job is about to run short.'
-      : 'The 0.4.0 season: every product works differently by district, Pip deals them all, Heat follows risky product, and now thugs can take product into a fight. Cocaine sharpens a raid, Meth holds a block, Heroin keeps a crew standing. Set what your squads and defenders burn on the Combat page; supply screens say how long your stock lasts and what running short costs.',
+      ? 'The current 0.5.0 seed has active local dev bots enabled. Runs near a city can be tailed and hit from the Travel page.'
+      : 'Eight cities are open. Load up a Low-Rider with cash and product, buy wholesale on your own market on the way out, and drive: every city deals different, and what a town pays is where the money is. Move house for a fee if somewhere else suits you better. The road is not only the police now. Recon your area to find runs coming near, in town or leaving, then tail one: the hit lands a few minutes later if the run is still in reach. Nobody warns the owner. Only lookouts at the hideout spot a tail in its last minutes, in time to send thugs from home or call allies who live there, and near its home town half the crew at home rides out for a run. Escorts ride with the best guns from home, and a bust or an arrest takes every one. See the Convoys panel on the Travel page.',
   );
+
   if (shouldSeedRivals) {
     const seeded = await seedDevBots(prisma, publicRound, CURRENT_RULESET, new Date(now.getTime() + 1_000), DEV_TEST_RIVALS, { activeAccounts: true });
     console.log(`  dev bots: ${seeded} seeded for ${publicRound.name}`);

@@ -190,6 +190,46 @@ function describe(activity: ActivityDto, crackWord: string): { text: string; det
         ].filter(Boolean).join(' · '),
       };
 
+    case 'RUN_LAUNCHED':
+      return { text: `Sent a run to ${str(p.cityName, 'another city')}.`, detail: `${formatNumber(num(p.turns))} turns` };
+
+    case 'RUN_RETURNED':
+      return {
+        text: `Your run came home from ${Array.isArray(p.cities) ? (p.cities as unknown[]).map(String).join(', ') : 'the road'}.`,
+        detail: `${formatCents(num(p.startCashCents))} → ${formatCents(num(p.cashCents))}`,
+      };
+
+    case 'RUN_INCIDENT':
+      return {
+        text: str(p.kind) === 'STOP' ? `Police stopped your run on ${str(p.road, 'the road')}.`
+          : str(p.kind) === 'ARREST' ? `Your run was arrested in ${str(p.cityName, 'town')}.` : `Your run was busted in ${str(p.cityName, 'town')}.`,
+        detail: num(p.fineCents) ? `-${formatCents(num(p.fineCents))}` : '',
+      };
+
+    case 'RELOCATION_STARTED':
+      return { text: `Started moving to ${str(p.toName, 'a new city')}.`, detail: `-${formatCents(num(p.feeCents))}` };
+
+    case 'RELOCATED':
+      return { text: 'Moved in. The new city\u2019s rules apply now.' };
+
+    case 'CONVOY_TAIL':
+      return { text: `Put ${formatNumber(num(p.squad))} on ${str(p.owner, 'a')}'s run near ${str(p.cityName, 'town')}.`, detail: `${formatNumber(num(p.turns))} turns` };
+
+    case 'CONVOY_ATTACK':
+      return {
+        text: p.escaped ? `${str(p.owner, 'Their')}'s run got away from your squad.` : p.won ? `Hit ${str(p.owner, 'a')}'s run near ${str(p.city, 'town')}.` : `${str(p.owner, 'Their')}'s crew held off your squad.`,
+        detail: num(p.cashCents) ? `+${formatCents(num(p.cashCents))}` : '',
+      };
+
+    case 'CONVOY_DEFENSE':
+      return {
+        text: p.escaped ? `Your run slipped ${str(p.attacker, 'a')}'s tail near ${str(p.city, 'town')}.` : p.held ? `Your run held off ${str(p.attacker, 'an attack')} near ${str(p.city, 'town')}.` : `${str(p.attacker, 'Someone')} hit your run near ${str(p.city, 'town')}.`,
+        detail: num(p.cashCents) ? `${formatCents(num(p.cashCents))}` : '',
+      };
+
+    case 'CONVOY_BACKUP':
+      return { text: `Sent ${formatNumber(num(p.thugs))} to back up ${str(p.owner, 'a')}'s run near ${str(p.city, 'town')}.` };
+
     case 'ADMIN_GRANT':
       return {
         text: 'An admin sent you compensation.',

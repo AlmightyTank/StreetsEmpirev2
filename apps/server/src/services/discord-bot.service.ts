@@ -1,4 +1,5 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
+import { RelocationService } from './relocation.service.js';
 import type { PrismaClient, Round } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import type {
@@ -308,6 +309,7 @@ export const DiscordBotService = {
     const round = await RoundService.getCurrent(prisma);
     if (!round) return { round: null, city: { slug: city.slug, name: city.name }, entries: [] };
 
+    await RelocationService.settleDue(prisma, round.id, new Date());
     const rows = await prisma.roundPlayer.findMany({
       where: { roundId: round.id, cityId: city.id, account: { isActive: true } },
       orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
@@ -441,7 +443,7 @@ export const DiscordBotService = {
     if (!player) throw AppError.notFound('PLAYER_NOT_IN_ROUND', `You have not joined ${round.name} yet.`);
 
     const settled = await PlayerStateService.settle(prisma, player.id, { markActive: false });
-    const dto = toRoundPlayerDto(settled.player, settled.ruleset, settled.turns, settled.products);
+    const dto = toRoundPlayerDto(settled.player, settled.ruleset, settled.turns, settled.products, settled.run, settled.moving, settled.convoyAlert);
     return {
       roundName: round.name,
       displayName: dto.displayName,

@@ -298,6 +298,18 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                 {me.resources.woundedThugs > 0 ? <Row label="Fit / wounded" value={`${formatNumber(me.resources.fitThugs)} / ${formatNumber(me.resources.woundedThugs)}`} tooltip="Wounded thugs remain yours, but they do not count for actions until they recover or get treated." /> : null}
                 <Row label="Armed / unarmed" value={`${formatNumber(me.resources.armedThugs)} / ${formatNumber(me.resources.unarmedThugs)}`} tooltip="Every fit thug wants a weapon. Unarmed thugs lower thug happiness and do not count as street cover." />
                 <Row label="Low-Riders" value={formatNumber(me.resources.lowRiders)} />
+                {me.run ? (
+                  <Row label="On a run" tooltip="Low-Riders and escorts on a run are not home: they don't defend, cover the street or cook until it is back."
+                    value={<Link to="/game/travel">{me.run.phase === 'town' ? `In ${me.run.cityName}` : `On the road to ${me.run.cityName}`}</Link>} />
+                ) : null}
+                {me.convoyAlert ? (
+                  <Row label={me.convoyAlert.kind === 'tailed' ? 'Run tailed' : 'Backup called'} tooltip="Send help from the Travel page before it hits."
+                    value={<Link to="/game/travel" className="se-bad">{`Near ${me.convoyAlert.cityName}, hits ${new Date(me.convoyAlert.landsAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`}</Link>} />
+                ) : null}
+                {me.moving ? (
+                  <Row label="Moving house" tooltip="Nothing moves until the truck arrives, and you are still a target where you live now."
+                    value={<Link to="/game/travel">{`To ${me.moving.toName}, there ${new Date(me.moving.arrivesAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`}</Link>} />
+                ) : null}
                 <Row label="Payout" value={`${me.payoutPercent}%`} tooltip="The crew cut from street work. Lower cuts can drag whore happiness down." />
               </div>
             </Panel>

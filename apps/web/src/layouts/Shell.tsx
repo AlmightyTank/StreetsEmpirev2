@@ -16,6 +16,20 @@ function StatusBar() {
   if (!me) return null;
   const money = moneyFormat === 'compact' ? formatCentsCompact : formatCents;
 
+  const heat = me.heat;
+  const arresting = Boolean(heat?.arrest && heat.heat >= heat.arrest.startsAt);
+  const busting = Boolean(heat && heat.heat >= heat.bustStartsAt);
+  const dragging = Boolean(heat && heat.heat >= heat.dragStartsAt);
+  const heatTitle = heat
+    ? [
+        `Heat ${heat.heat} of ${heat.max}`,
+        `take drag from ${heat.dragStartsAt}`,
+        `busts from ${heat.bustStartsAt}`,
+        heat.arrest ? `arrests from ${heat.arrest.startsAt}` : null,
+        heat.lockedUntil ? `locked up until ${new Date(heat.lockedUntil).toLocaleString()}` : null,
+      ].filter(Boolean).join(' · ')
+    : '';
+
   return (
     <div className="se-statusbar">
       <Link className="se-statusbar__item" to="/game" title="Cash: open the dashboard">
@@ -34,12 +48,13 @@ function StatusBar() {
           <span className="se-muted">/{me.turns.turnCap}</span>
         </span>
       </Link>
-      {me.heat ? (
-        <Link className="se-statusbar__item" to="/game#heat" title={`Heat ${me.heat.heat} of ${me.heat.max}: cool it on the dashboard`}>
-          {/* Kept when other labels drop at mid widths: a bare Heat number reads as another count. */}
-          <span className="se-statusbar__k se-statusbar__k--keep">Heat</span>
-          <span className={`se-num se-statusbar__v${me.heat.heat >= me.heat.bustStartsAt ? ' se-bad' : me.heat.heat >= me.heat.dragStartsAt ? ' se-warn' : ''}`}>
-            {me.heat.heat}
+      {heat ? (
+        <Link className="se-statusbar__item" to="/game#heat" title={heatTitle}>
+          <span className="se-statusbar__k se-statusbar__k--keep">
+            {heat.lockedUntil ? 'Locked' : arresting ? 'Arrest' : busting ? 'Bust' : 'Heat'}
+          </span>
+          <span className={`se-num se-statusbar__v${busting || arresting || heat.lockedUntil ? ' se-bad' : dragging ? ' se-warn' : ''}`}>
+            {heat.heat}
           </span>
         </Link>
       ) : null}
@@ -68,7 +83,7 @@ function Footer() {
             <span className="se-brand__mark">
               Streets<span className="se-accent">Empire</span>
             </span>
-            <span className="se-brand__ver">0.4.0-E</span>
+            <span className="se-brand__ver">0.5.0</span>
           </Link>
           <p>
             Free browser crime strategy with turn clocks, crew management,
@@ -124,7 +139,7 @@ export function Shell({ children, narrow, tabbar }: {
           <span className="se-brand__mark">
             Streets<span className="se-accent">Empire</span>
           </span>
-          <span className="se-brand__ver">0.4.0-E</span>
+          <span className="se-brand__ver">0.5.0</span>
         </Link>
 
         <StatusBar />

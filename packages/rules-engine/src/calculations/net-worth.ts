@@ -33,6 +33,8 @@ export function calculateNetWorthCents(
     BigInt(player.tek9s) * BigInt(v.perTek9Cents) +
     BigInt(player.ak47s) * BigInt(v.perAk47Cents) +
     // 0.4.0-D: every other product at its own value. Nothing on older rounds.
-    productNetWorthCents(player.products, ruleset)
+    productNetWorthCents(player.products, ruleset) +
+    // 0.5.0-B: a run's cash, cars, escorts and cargo, revalued as it trades.
+    BigInt(player.awayNetWorthCents ?? 0)
   );
 }

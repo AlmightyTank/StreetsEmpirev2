@@ -252,6 +252,7 @@ notes are [RELEASE-0.4.0-E.md](RELEASE-0.4.0-E.md).
 ## Not in 0.4.0
 
 - **Travel and city economies (0.5.0).** Cities already carry scout, income and crack
-  modifiers; 0.5.0 extends them to per-product prices and demand.
+  modifiers; 0.5.0 extends them to per-product prices and demand. See
+  [ROADMAP-0.5.0.md](ROADMAP-0.5.0.md).
 - **Individual worker records.** Preferences stay per role and job.
 - **Pills.** Possible later as one more ruleset entry, with no schema change.

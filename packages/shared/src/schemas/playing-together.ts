@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { actionIdSchema } from './game.js';
 import { CONTACT_NOTE_MAX, WIRE_POST_MAX } from '../types/playing-together.js';
 
 const publicPimpId = z.number({ invalid_type_error: 'Pick a player by pimp number.' }).int().min(1).max(2_147_483_647);
@@ -56,3 +57,68 @@ export const workSupplyPreviewSchema = z.object({
   job: z.string().regex(/^[A-Z][A-Z0-9_]{1,31}$/),
   turns: z.coerce.number().int().min(1).max(10_000),
 }).strict();
+
+// --- 0.5.0-B runs ----------------------------------------------------------------
+
+const citySlug = z.string().trim().regex(/^[a-z][a-z-]{1,40}$/, 'Pick a city.');
+const runProduct = z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.');
+const wholeCount = (what: string) => z.number({ invalid_type_error: `Enter ${what}.` }).int(`${what} must be a whole number.`).min(0).safe();
+
+export const travelRoutesSchema = z.object({ to: citySlug }).strict();
+
+export const runLaunchSchema = z.object({
+  to: citySlug,
+  route: z.number().int().min(0).max(9),
+  lowRiders: z.number({ invalid_type_error: 'Say how many Low-Riders go.' }).int().min(1, 'A run needs at least one Low-Rider.').safe(),
+  escortThugs: wholeCount('escorts'),
+  cashCents: wholeCount('cash'),
+  cargo: z.record(runProduct, wholeCount('a quantity')).default({}),
+  /** 0.5.0-F. Bought on the home high market as it leaves, straight into the trunk. */
+  market: z.record(runProduct, wholeCount('a quantity')).default({}),
+  /** The next-unit prices the player saw on the home market; the launch is refused if one has moved too far. */
+  marketQuotes: z.record(runProduct, z.number().int().positive().safe()).optional(),
+  actionId: actionIdSchema,
+}).strict();
+export type RunLaunchInput = z.infer<typeof runLaunchSchema>;
+
+export const runTradeSchema = z.object({
+  product: runProduct,
+  direction: z.enum(['buy', 'sell']),
+  /** 0.5.0-C. Pip's counter, or the high market. */
+  venue: z.enum(['pip', 'market']).default('pip'),
+  /** 0.5.0-C. The next-unit price the player saw on the high market; the trade is refused if it has moved too far. */
+  quoteCents: z.number().int().positive().safe().optional(),
+  quantity: z.number({ invalid_type_error: 'Enter a quantity.' }).int('Quantity must be a whole number.').positive('Enter at least one.').safe(),
+  actionId: actionIdSchema,
+}).strict();
+export type RunTradeInput = z.infer<typeof runTradeSchema>;
+
+export const runDriveOnSchema = z.object({
+  to: citySlug,
+  route: z.number().int().min(0).max(9),
+  actionId: actionIdSchema,
+}).strict();
+export type RunDriveOnInput = z.infer<typeof runDriveOnSchema>;
+
+export const runHeadHomeSchema = z.object({ actionId: actionIdSchema }).strict();
+
+// --- 0.5.0-D relocation ------------------------------------------------------------
+
+export const relocationSchema = z.object({ to: citySlug, actionId: actionIdSchema }).strict();
+export type RelocationInput = z.infer<typeof relocationSchema>;
+
+// --- 0.5.0-E convoys ----------------------------------------------------------------
+
+const convoyId = z.string().trim().min(1).max(64);
+export const convoyTailSchema = z.object({
+  runId: convoyId,
+  squad: z.number({ invalid_type_error: 'Say how many ride.' }).int('Send whole thugs.').positive('Send at least one thug.').safe(),
+  actionId: actionIdSchema,
+}).strict();
+export const convoyBackupSchema = z.object({
+  tailId: convoyId,
+  thugs: z.number({ invalid_type_error: 'Say how many ride.' }).int('Send whole thugs.').positive('Send at least one thug.').safe(),
+  actionId: actionIdSchema,
+}).strict();
+export const convoyCallSchema = z.object({ tailId: convoyId }).strict();
+export const convoyReconSchema = z.object({ actionId: actionIdSchema }).strict();
