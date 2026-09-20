@@ -287,8 +287,8 @@ scored for every city, both session styles, fresh/mid starts and solo/alliance f
 home-corner opportunity cost, push turnover, capped outpost loot, weekly outpost service and
 the Garage purchase priced into the result. The release gate requires mixed play to beat
 pure holding, turf raiding and running everywhere, while optional Turf may never make the
-same move/road plan worse. The seeded crackdown, phone pass and turf integration regression
-remain.
+same move/road plan worse. The full-round gate is green; see [TURF-SIMULATION-0.6.0-F.md](TURF-SIMULATION-0.6.0-F.md).
+The seeded crackdown, phone pass and turf integration regression remain.
 
 - **Balance:** a pass over all 40 blocks on `qa:turf` and full-round runs, including
   outposts, the Garage and the tax caps.
