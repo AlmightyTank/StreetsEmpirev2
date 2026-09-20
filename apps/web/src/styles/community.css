@@ -286,6 +286,58 @@
 .se-city__roads li > span { min-width: 0; overflow-wrap: anywhere; }
 .se-city__roads li > .se-num { white-space: nowrap; }
 .se-city__roads li .se-hint { grid-column: 1 / -1; margin: 0; }
+.se-turfmap {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "casino nightclub"
+    "low-rent low-rent"
+    "urban-ghetto wino-slums";
+  gap: 7px;
+  margin: 0 0 8px;
+}
+.se-turfmap__block {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+  min-height: 78px;
+  padding: 9px 10px;
+  border: 1px solid var(--se-line);
+  border-top: 3px solid var(--se-text-dim);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.018);
+}
+.se-turfmap__block--casino { grid-area: casino; }
+.se-turfmap__block--nightclub { grid-area: nightclub; }
+.se-turfmap__block--low-rent { grid-area: low-rent; }
+.se-turfmap__block--urban-ghetto { grid-area: urban-ghetto; }
+.se-turfmap__block--wino-slums { grid-area: wino-slums; }
+.se-turfmap__block--held { border-top-color: var(--se-warn); background: rgba(255, 188, 68, 0.035); }
+.se-turfmap__block--mine { border-top-color: var(--se-accent); background: rgba(182, 255, 58, 0.055); }
+.se-turfmap__district {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--se-text);
+}
+.se-turfmap__holder {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  color: var(--se-text-dim);
+}
+.se-turfmap__block--mine .se-turfmap__holder { color: var(--se-accent); }
+.se-turfmap__strength,
+.se-turfmap__presence {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 10px;
+  color: var(--se-muted);
+}
+.se-turfmap__presence { color: var(--se-text-dim); }
+
 .se-turfblocks { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .se-turfblocks__block {
   display: grid;
@@ -302,6 +354,16 @@
 .se-turfblocks__block > span { min-width: 0; overflow-wrap: anywhere; }
 .se-turfblocks__block .se-hint { grid-column: 1 / -1; margin: 0; }
 @media (max-width: 520px) {
+  .se-turfmap {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "casino"
+      "nightclub"
+      "low-rent"
+      "urban-ghetto"
+      "wino-slums";
+  }
+  .se-turfmap__block { min-height: 0; }
   .se-city__roads li,
   .se-turfblocks__block { grid-template-columns: minmax(0, 1fr); }
   .se-city__roads li > .se-num,

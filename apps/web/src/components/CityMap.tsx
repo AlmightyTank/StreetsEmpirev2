@@ -26,6 +26,9 @@ export const SHORT_CITY: Record<string, string> = {
 
 export const SUPPLY_WORD: Record<SupplyLevelDto, string> = { PLENTIFUL: 'Plenty', NORMAL: 'In stock', LOW: 'Low', OUT: 'Out' };
 const TURF_ORDER: Record<TurfBlockDto['district'], number> = { CASINO: 0, NIGHTCLUB: 1, LOW_RENT: 2, URBAN_GHETTO: 3, WINO_SLUMS: 4 };
+const TURF_AREA_CLASS: Record<TurfBlockDto['district'], string> = {
+  CASINO: 'casino', NIGHTCLUB: 'nightclub', LOW_RENT: 'low-rent', URBAN_GHETTO: 'urban-ghetto', WINO_SLUMS: 'wino-slums',
+};
 
 /** "$10", or "$2.40" where the cents matter. */
 export const unitPrice = (cents: number) => (cents % 100 === 0 ? `$${(cents / 100).toLocaleString('en-US')}` : formatCentsExact(cents));
@@ -184,7 +187,31 @@ function TurfBlocks({ city, onChanged }: { city: CityCharacterDto; onChanged?: (
   const toughest = blocks.reduce<TurfBlockDto | null>((best, block) => (!best || block.localsFullThugs > best.localsFullThugs ? block : best), null);
   return (
     <>
-      <h3 className="se-city__heading">Blocks</h3>
+      <h3 className="se-city__heading">City turf</h3>
+      <div className="se-turfmap" role="list" aria-label={`${city.name} turf map`}>
+        {blocks.map((block) => {
+          const state = block.isMine ? 'mine' : block.holder ? 'held' : 'locals';
+          return (
+            <div
+              key={block.district}
+              role="listitem"
+              className={`se-turfmap__block se-turfmap__block--${TURF_AREA_CLASS[block.district]} se-turfmap__block--${state}`}
+            >
+              <span className="se-turfmap__district">{block.districtName}</span>
+              <strong className="se-turfmap__holder">{holderName(block)}</strong>
+              <span className="se-turfmap__strength se-num">
+                {block.holder
+                  ? `${formatNumber(block.cornerThugs)} posted · ${formatNumber(block.cornerGuns.total)} guns`
+                  : localsText(block)}
+              </span>
+              {block.presenceTurns > 0 ? <span className="se-turfmap__presence">{Math.floor(block.presenceTurns)} presence</span> : null}
+            </div>
+          );
+        })}
+      </div>
+      <p className="se-hint">Every city has five turf blocks. Your corners are highlighted; other crews and locals show who currently controls the block.</p>
+
+      <h3 className="se-city__heading">Corner details</h3>
       <ul className="se-turfblocks">
         {blocks.map((block) => (
           <li key={block.district} className={block.holder ? 'se-turfblocks__block se-turfblocks__block--held' : 'se-turfblocks__block'}>
