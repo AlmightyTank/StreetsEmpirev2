@@ -24,6 +24,7 @@ import {
   territoryControlForCity,
   type CityControl,
 } from './turf-territory.service.js';
+import { endPlayerTurfHolds, startPlayerTurfHolds } from './turf-history.service.js';
 
 type AllianceRules = NonNullable<Ruleset['alliances']>;
 
@@ -153,7 +154,9 @@ function cooldownData(allianceId: string, rules: Pick<AllianceRules, 'leaveCoold
 async function disbandInTransaction(tx: Db, alliance: Alliance, rules: Pick<AllianceRules, 'leaveCooldownHours'>, now: Date, actorName: string | null, reason: string | null): Promise<void> {
   const members = await tx.roundPlayer.findMany({ where: { allianceId: alliance.id }, select: { id: true } });
   for (const { id } of members.sort((a, b) => a.id.localeCompare(b.id))) await lockRoundPlayer(tx, id);
+  for (const { id } of members) await endPlayerTurfHolds(tx, id, now);
   await tx.roundPlayer.updateMany({ where: { allianceId: alliance.id }, data: cooldownData(alliance.id, rules, now) });
+  for (const { id } of members) await startPlayerTurfHolds(tx, id, now);
   await tx.allianceInvite.deleteMany({ where: { allianceId: alliance.id } });
   await tx.alliance.update({ where: { id: alliance.id }, data: {
     disbandedAt: now, disbandReason: reason,
@@ -382,10 +385,12 @@ export const AllianceService = {
         }
         const base = loadRulesetForRound(player.round);
         const territoryBefore = await territoryBeforeForPlayers(tx, me.roundId, [me.id], base);
+        await endPlayerTurfHolds(tx, me.id, now);
         const alliance = await tx.alliance.create({ data: {
           roundId: me.roundId, name, nameNormalized: normalizeAllianceName(name), tag, tagNormalized: tag.toLowerCase(), leaderId: me.id,
         } });
         await tx.roundPlayer.update({ where: { id: me.id }, data: { allianceId: alliance.id, allianceJoinedAt: now } });
+        await startPlayerTurfHolds(tx, me.id, now);
         await recordTerritoryCities(tx, me.roundId, base, territoryBefore, now);
         await tx.allianceInvite.deleteMany({ where: { inviteeId: me.id } });
         await event(tx, alliance.id, 'FOUNDED', me.displayName);
@@ -455,7 +460,9 @@ export const AllianceService = {
       if (members >= rules.maxMembers) throw AppError.conflict('ALLIANCE_FULL', `${alliance.name} is full (${rules.maxMembers} members).`);
       const base = loadRulesetForRound(player.round);
       const territoryBefore = await territoryBeforeForPlayers(tx, me.roundId, [me.id], base);
+      await endPlayerTurfHolds(tx, me.id, now);
       await tx.roundPlayer.update({ where: { id: me.id }, data: { allianceId: alliance.id, allianceJoinedAt: now } });
+      await startPlayerTurfHolds(tx, me.id, now);
       await recordTerritoryCities(tx, me.roundId, base, territoryBefore, now);
       await tx.allianceInvite.deleteMany({ where: { inviteeId: me.id } });
       await event(tx, alliance.id, 'JOINED', me.displayName);
@@ -477,7 +484,9 @@ export const AllianceService = {
       if (alliance.leaderId === me.id && others > 0) throw AppError.conflict('LEADER_MUST_HAND_OVER', 'Hand leadership to another member before you leave.');
       const base = loadRulesetForRound(round);
       const territoryBefore = await territoryBeforeForPlayers(tx, me.roundId, [me.id], base);
+      await endPlayerTurfHolds(tx, me.id, now);
       await tx.roundPlayer.update({ where: { id: me.id }, data: cooldownData(alliance.id, rules, now) });
+      await startPlayerTurfHolds(tx, me.id, now);
       await event(tx, alliance.id, 'LEFT', me.displayName);
       await queueAllianceRoleResync(tx, { accountIds: [me.accountId] });
       if (others === 0) await disbandInTransaction(tx, alliance, rules, now, me.displayName, null);
@@ -500,7 +509,9 @@ export const AllianceService = {
       if (current.allianceId !== alliance.id) throw AppError.conflict('NOT_A_MEMBER', `${current.displayName} is not in ${alliance.name}.`);
       const base = loadRulesetForRound(round);
       const territoryBefore = await territoryBeforeForPlayers(tx, current.roundId, [current.id], base);
+      await endPlayerTurfHolds(tx, current.id, now);
       await tx.roundPlayer.update({ where: { id: current.id }, data: cooldownData(alliance.id, rules, now) });
+      await startPlayerTurfHolds(tx, current.id, now);
       await recordTerritoryCities(tx, current.roundId, base, territoryBefore, now);
       await event(tx, alliance.id, 'KICKED', me.displayName, current.displayName);
       await queueAllianceRoleResync(tx, { accountIds: [current.accountId] });
