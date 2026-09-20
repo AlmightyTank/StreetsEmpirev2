@@ -260,17 +260,25 @@ async function wireDto(prisma: PrismaClient, roundId: string, ruleset: Ruleset, 
   }));
   if (!ruleset.turf?.wars) return market;
 
-  const fights = await prisma.turfPush.findMany({
-    where: { roundId, status: 'LANDED', captured: true, settledAt: { gte: since } },
-    select: {
-      settledAt: true,
-      attackerAllianceId: true,
-      attacker: { select: { displayName: true } },
-      turf: { select: { district: true, city: { select: { slug: true } } } },
-    },
-    orderBy: { settledAt: 'desc' },
-    take: 50,
-  });
+  const [fights, crackdown] = await Promise.all([
+    prisma.turfPush.findMany({
+      where: { roundId, status: 'LANDED', captured: true, settledAt: { gte: since } },
+      select: {
+        settledAt: true,
+        attackerAllianceId: true,
+        attacker: { select: { displayName: true } },
+        turf: { select: { district: true, city: { select: { slug: true } } } },
+      },
+      orderBy: { settledAt: 'desc' },
+      take: 50,
+    }),
+    ruleset.turf?.crackdown
+      ? prisma.turfCrackdown.findUnique({
+        where: { roundId },
+        include: { city: { select: { slug: true, name: true } } },
+      })
+      : Promise.resolve(null),
+  ]);
   const allianceIds = [...new Set(fights.map((fight) => fight.attackerAllianceId).filter((id): id is string => Boolean(id)))];
   const alliances = allianceIds.length
     ? await prisma.alliance.findMany({ where: { id: { in: allianceIds } }, select: { id: true, tag: true } })
@@ -294,7 +302,36 @@ async function wireDto(prisma: PrismaClient, roundId: string, ruleset: Ruleset, 
       text: `${block} in ${cityName(ruleset, slug)} fell to ${holder}.`,
     }];
   });
-  return [...market, ...turf].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+  const federal: WireItemDto[] = [];
+  if (crackdown) {
+    if (crackdown.sweepAt > now && crackdown.warningAt <= now && crackdown.warningAt >= since) {
+      federal.push({
+        at: crackdown.warningAt.toISOString(),
+        city: crackdown.city.slug,
+        cityName: crackdown.city.name,
+        product: null,
+        kind: 'CRACKDOWN',
+        supply: null,
+        endsAt: crackdown.sweepAt.toISOString(),
+        text: `Word is the Feds are sweeping ${crackdown.city.name} tomorrow. Turf crews have until then to pull out.`,
+      });
+    }
+    if (crackdown.sweptAt && crackdown.sweepAt <= now && crackdown.sweepAt >= since) {
+      federal.push({
+        at: crackdown.sweepAt.toISOString(),
+        city: crackdown.city.slug,
+        cityName: crackdown.city.name,
+        product: null,
+        kind: 'CRACKDOWN',
+        supply: null,
+        endsAt: null,
+        text: crackdown.thugsPickedUp > 0
+          ? `The Feds swept ${crackdown.city.name}. ${crackdown.thugsPickedUp} corner men got picked up across ${crackdown.holdersAffected} crew${crackdown.holdersAffected === 1 ? '' : 's'}.`
+          : `The Feds swept ${crackdown.city.name}, but every turf crew had already cleared out.`,
+      });
+    }
+  }
+  return [...market, ...turf, ...federal].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 }
 
 /**
