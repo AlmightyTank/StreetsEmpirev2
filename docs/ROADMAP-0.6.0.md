@@ -255,12 +255,15 @@ into outposts up to the away cap, and releases any overflow when the move arrive
 
 ## 0.6.0-E - Territory
 
-Status: **in progress.** E1-E2 are built: the E ruleset turns three of five blocks into
+Status: **in progress.** E1-E3 are built: the E ruleset turns three of five blocks into
 alliance city control, controlled cities are tagged on the Travel map, and members of the
-controlling alliance pay no street tax there. A personally held corner now gives a live,
-free sighting of runs passing that city, without paid-recon lookahead or wallet/trunk/escort
+controlling alliance pay no street tax there. A personally held corner gives a live, free
+sighting of runs passing that city, without paid-recon lookahead or wallet/trunk/escort
 bands; it can support a tail only when the player's home crew or own run is actually in
-reach. The Discord control feed, territory board/history and Hall of Fame remain next.
+reach. City-control gains, losses and direct steals are now durable events posted once to
+the Discord street/combat feed, including flips caused by claims, pushes, releases,
+starvation, relocation and alliance membership changes. Territory board/history and Hall
+of Fame remain next.
 
 - **Alliance territory:** the blocks every member holds, shown on the city map in the
   alliance's tag.
