@@ -336,7 +336,13 @@ export const TurfService = {
       ruleset.turf.wars
         ? db.turfPush.findMany({
             where: { roundId: player.roundId, status: 'PENDING' },
-            select: { id: true, turfId: true, attackerId: true, defenderId: true, squad: true, startedAt: true, landsAt: true },
+            select: {
+              id: true, turfId: true, attackerId: true, defenderId: true, squad: true, startedAt: true, landsAt: true,
+              alliesCalledAt: true,
+              attacker: { select: { allianceId: true } },
+              defender: { select: { allianceId: true } },
+              backups: { select: { playerId: true } },
+            },
           })
         : Promise.resolve([]),
       ruleset.turf.wars
@@ -355,8 +361,14 @@ export const TurfService = {
     const crewThugs = player.thugs + (activeRun?.escortThugs ?? 0);
     const armedAtHome = Math.min(homeFit(player), gunCount({ pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s }));
     const heldAtHome = rows.filter((row) => row.city.id === player.cityId && row.holder?.id === player.id).length;
+    const cityByTurfId = new Map(rows.map((row) => [row.id, row.city.id]));
+    const reservedAtHome = pendingPushes.filter((push) => push.attackerId === player.id && cityByTurfId.get(push.turfId) === player.cityId).length;
+    const heldOrReservedAtHome = heldAtHome + reservedAtHome;
     const allianceHeld = (cityId: string) => player.allianceId
       ? rows.filter((row) => row.city.id === cityId && row.holder?.allianceId === player.allianceId).length : 0;
+    const allianceReserved = (cityId: string) => player.allianceId
+      ? pendingPushes.filter((push) => cityByTurfId.get(push.turfId) === cityId && push.attacker.allianceId === player.allianceId).length : 0;
+    const allianceHeldOrReserved = (cityId: string) => allianceHeld(cityId) + allianceReserved(cityId);
 
     const byCity = new Map<string, CityTurfDto>();
     for (const row of rows) {
@@ -371,18 +383,27 @@ export const TurfService = {
       let claimBlockedReason: string | null = null;
       let pushBlockedReason: string | null = null;
       const pending = pendingPushes.find((push) => push.turfId === row.id) ?? null;
-      const visiblePush = pending && (
-        pending.attackerId === player.id ||
-        (pending.defenderId === player.id &&
-          pending.landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel) * 60_000))
-      ) ? pending : null;
+      const defenderSees = pending?.defenderId === player.id &&
+        pending.landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel) * 60_000);
+      const allySees = Boolean(
+        pending?.alliesCalledAt &&
+        player.allianceId &&
+        pending.defender.allianceId === player.allianceId &&
+        pending.defenderId !== player.id &&
+        row.city.id === player.cityId,
+      );
+      const visiblePush = pending && (pending.attackerId === player.id || defenderSees || allySees) ? pending : null;
+      const pushRole = !visiblePush ? null
+        : visiblePush.attackerId === player.id ? 'attacker' as const
+        : visiblePush.defenderId === player.id ? 'defender' as const
+        : 'ally' as const;
 
       if (holdingOn(ruleset) && !row.holder) {
         if (row.city.id !== player.cityId) claimBlockedReason = 'Outposts arrive in 0.6.0-D.';
         else if (player.lockedUntil && player.lockedUntil > now) claimBlockedReason = 'You cannot claim turf while locked up.';
         else if (player.movingUntil && player.movingUntil > now) claimBlockedReason = 'Finish moving house before claiming turf.';
-        else if (heldAtHome >= ruleset.turf.caps.blocksPerCrewHome) claimBlockedReason = `You already hold your ${ruleset.turf.caps.blocksPerCrewHome}-block home cap.`;
-        else if (player.allianceId && allianceHeld(row.city.id) >= ruleset.turf.caps.blocksPerAllianceInCity) claimBlockedReason = `Your alliance already holds ${ruleset.turf.caps.blocksPerAllianceInCity} blocks here.`;
+        else if (heldOrReservedAtHome >= ruleset.turf.caps.blocksPerCrewHome) claimBlockedReason = `You already hold your ${ruleset.turf.caps.blocksPerCrewHome}-block home cap.`;
+        else if (player.allianceId && allianceHeldOrReserved(row.city.id) >= ruleset.turf.caps.blocksPerAllianceInCity) claimBlockedReason = `Your alliance already holds ${ruleset.turf.caps.blocksPerAllianceInCity} blocks here.`;
         else if (p < ruleset.turf.presence.turnsToClaim) claimBlockedReason = `Work this block until you have ${ruleset.turf.presence.turnsToClaim} presence.`;
         else if (armedAtHome < minimum) claimBlockedReason = `You need ${minimum} fit, armed thugs at home.`;
       } else if (holdingOn(ruleset) && row.holder && !isMine && !ruleset.turf.wars) {
@@ -395,8 +416,8 @@ export const TurfService = {
         else if (row.shieldUntil && row.shieldUntil > now) pushBlockedReason = `Shielded until ${row.shieldUntil.toLocaleTimeString()}.`;
         else if (pending) pushBlockedReason = 'Someone is already pushing this block.';
         else if (myRecentPushes.some((push) => push.turfId === row.id)) pushBlockedReason = 'Your crew pushed this block too recently.';
-        else if (heldAtHome >= ruleset.turf.caps.blocksPerCrewHome) pushBlockedReason = `You already hold your ${ruleset.turf.caps.blocksPerCrewHome}-block home cap.`;
-        else if (player.allianceId && allianceHeld(row.city.id) >= ruleset.turf.caps.blocksPerAllianceInCity) pushBlockedReason = `Your alliance already holds ${ruleset.turf.caps.blocksPerAllianceInCity} blocks here.`;
+        else if (heldOrReservedAtHome >= ruleset.turf.caps.blocksPerCrewHome) pushBlockedReason = `You already hold your ${ruleset.turf.caps.blocksPerCrewHome}-block home cap.`;
+        else if (player.allianceId && allianceHeldOrReserved(row.city.id) >= ruleset.turf.caps.blocksPerAllianceInCity) pushBlockedReason = `Your alliance already holds ${ruleset.turf.caps.blocksPerAllianceInCity} blocks here.`;
         else if (p < ruleset.turf.presence.turnsToClaim) pushBlockedReason = `Work this block until you have ${ruleset.turf.presence.turnsToClaim} presence.`;
         else if (armedAtHome < minimum) pushBlockedReason = `You need ${minimum} fit, armed thugs at home.`;
       }
@@ -411,12 +432,15 @@ export const TurfService = {
         localsThugs: Math.round(localsAfter(ruleset, block, row.localsThugs, hoursSince(row.localsAt, now))),
         localsFullThugs: fullLocals, heldSince: row.heldSince?.toISOString() ?? null,
         shieldUntil: row.shieldUntil?.toISOString() ?? null, presenceTurns: p, claimBlockedReason,
-        push: visiblePush ? {
+        push: visiblePush && pushRole ? {
           id: visiblePush.id,
-          role: visiblePush.attackerId === player.id ? 'attacker' : 'defender',
+          role: pushRole,
           squad: visiblePush.squad,
           startedAt: visiblePush.startedAt.toISOString(),
           landsAt: visiblePush.landsAt.toISOString(),
+          alliesCalled: Boolean(visiblePush.alliesCalledAt),
+          backupSent: visiblePush.backups.some((backup) => backup.playerId === player.id),
+          canCallAllies: pushRole === 'defender' && Boolean(player.allianceId) && !visiblePush.alliesCalledAt,
         } : null,
         pushBlockedReason,
       });
