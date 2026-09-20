@@ -53,6 +53,21 @@ export const payoutSchema = z.object({
 
 export type JoinRoundInput = z.infer<typeof joinRoundSchema>;
 export type ScoutInput = z.infer<typeof scoutSchema>;
+
+const turfMoveSchema = z.object({
+  district: z.string().trim().min(1, 'Pick a turf block.'),
+  thugs: z.number({ invalid_type_error: 'Enter how many thugs to send.' })
+    .int('Thugs must be a whole number.').positive('Send at least one thug.').safe(),
+  actionId: actionIdSchema,
+}).strict();
+
+export const turfClaimSchema = turfMoveSchema;
+export const turfPostSchema = turfMoveSchema;
+export const turfPullSchema = turfMoveSchema;
+export type TurfClaimInput = z.infer<typeof turfClaimSchema>;
+export type TurfPostInput = z.infer<typeof turfPostSchema>;
+export type TurfPullInput = z.infer<typeof turfPullSchema>;
+
 export type ProduceCrackInput = z.infer<typeof produceCrackSchema>;
 export type PayoutInput = z.infer<typeof payoutSchema>;
 

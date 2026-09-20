@@ -150,8 +150,19 @@ export const ScoutService = {
           payoutPercent: current.payoutPercent,
           rng,
         });
-        const hideoutBonusCents = hideoutBackOfficeBonusCents(outcome.pimpTakeCents, ruleset, current);
-        const pimpTakeCents = outcome.pimpTakeCents + hideoutBonusCents;
+        const turf = await TurfService.scoutEconomy(tx, {
+          roundPlayerId,
+          accountId: player.accountId,
+          roundId: round.id,
+          cityId: player.cityId,
+          district: found.key,
+          takeCents: Number(outcome.pimpTakeCents),
+          ruleset,
+          now,
+        });
+        const turfTakeCents = outcome.pimpTakeCents + BigInt(turf.holdBonusCents - turf.taxPaidCents);
+        const hideoutBonusCents = hideoutBackOfficeBonusCents(turfTakeCents, ruleset, current);
+        const pimpTakeCents = turfTakeCents + hideoutBonusCents;
 
         const worked = {
           ...current,
@@ -199,6 +210,7 @@ export const ScoutService = {
 
         const result: ScoutResult = {
           district: toDistrictDto(found.key, found.district, all, ruleset, active, player.city.slug),
+          ...(ruleset.turf?.holding ? { turf } : {}),
           ...(supply ? { supply: toPlanDto(supply, ruleset) } : {}),
           ...(trip.heat ? { heat: trip.heat } : {}),
 

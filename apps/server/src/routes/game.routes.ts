@@ -77,6 +77,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       run: settled.run,
       moving: settled.moving,
       convoyAlert: settled.convoyAlert,
+      turf: settled.turf,
       recentActivity,
     });
   });

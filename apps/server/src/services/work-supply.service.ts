@@ -44,7 +44,7 @@ export function workSupplyJobs(ruleset: Ruleset): Array<{ key: string; name: str
     ] : []),
     // 0.5.0-E: escorts burn from their own trunk when a run is hit.
     ...(ruleset.combatSupply && ruleset.travel?.convoys ? [{ key: CONVOY_JOB, name: 'Escorts on a run', role: 'fighters' as const, optIn: true }] : []),
-    ...(ruleset.turf ? [{ key: CORNER_JOB, name: 'Corner crews', role: 'thugs' as const, optIn: false }] : []),
+    ...(ruleset.turf?.holding ? [{ key: CORNER_JOB, name: 'Corner crews', role: 'thugs' as const, optIn: false }] : []),
   ];
 }
 

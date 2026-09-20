@@ -143,6 +143,15 @@ export function scoutReceiptLines(action: GameActionResult<ScoutResult>, me: Pro
       money: true,
       muted: true,
     },
+    ...(result.turf?.holdBonusCents
+      ? [{ label: 'Home turf bonus', value: `${formatCents(result.turf.holdBonusCents)} included` }]
+      : []),
+    ...(result.turf?.taxPaidCents
+      ? [{ label: `Street tax${result.turf.holder ? ` · ${result.turf.holder.displayName}` : ''}`, delta: -result.turf.taxPaidCents, money: true }]
+      : []),
+    ...(result.turf?.linked
+      ? [{ label: 'Street tax', value: 'Linked crew · no tax', muted: true }]
+      : []),
     {
       label: 'Your cut',
       delta: result.cashEarnedCents,

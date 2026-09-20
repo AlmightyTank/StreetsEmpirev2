@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, heatBribeSchema, travelRoutesSchema, productTradeSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, heatBribeSchema, travelRoutesSchema, productTradeSchema, turfClaimSchema, turfPostSchema, turfPullSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
 import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
@@ -12,6 +12,7 @@ import { WireService } from '../services/wire.service.js';
 import { WorkSupplyService } from '../services/work-supply.service.js';
 import { HeatService, toHeatDto } from '../services/heat.service.js';
 import { PlayerStateService } from '../services/player-state.service.js';
+import { TurfActionService } from '../services/turf-action.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 
@@ -44,6 +45,14 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
   /** 0.5.0-A: every city's character, Pip's usual supply there and the roads, from home. */
   app.get('/cities', { preHandler: app.requireAuth }, async (request) =>
     CitiesService.page(app.prisma, await me(request.auth!.account.id)));
+
+  /** 0.6.0-B: claim locals, reinforce a held corner, or pull thugs home. */
+  app.post('/turf/claim', { preHandler: app.requireAuth }, async (request) =>
+    TurfActionService.claim(app.prisma, await me(request.auth!.account.id), parseBody(turfClaimSchema, request.body ?? {})));
+  app.post('/turf/post', { preHandler: app.requireAuth }, async (request) =>
+    TurfActionService.post(app.prisma, await me(request.auth!.account.id), parseBody(turfPostSchema, request.body ?? {})));
+  app.post('/turf/pull', { preHandler: app.requireAuth }, async (request) =>
+    TurfActionService.pull(app.prisma, await me(request.auth!.account.id), parseBody(turfPullSchema, request.body ?? {})));
 
   /** 0.5.0-B: runs. The map, what the crew knows and the run; the ways out; and the four moves. */
   app.get('/travel', { preHandler: app.requireAuth }, async (request) =>
