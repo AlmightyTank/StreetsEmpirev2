@@ -40,6 +40,20 @@ function districtName(ruleset: Ruleset, citySlug: string, district: string): str
     ?? district;
 }
 function hoursSince(at: Date, now: Date): number { return Math.max(0, (now.getTime() - at.getTime()) / HOUR_MS); }
+
+export function localsOnBlock(
+  ruleset: Ruleset,
+  row: { holderId?: string | null; citySlug: string; district: DistrictKey; localsThugs: number; localsAt: Date; localsReclaimAt?: Date | null },
+  now: Date,
+): number {
+  if (row.holderId) return 0;
+  if (row.localsReclaimAt && row.localsReclaimAt > now) return 0;
+  return Math.round(localsAfter(ruleset, { citySlug: row.citySlug, district: row.district }, row.localsThugs, hoursSince(row.localsAt, now)));
+}
+
+export function localsReclaimAt(ruleset: Ruleset, releasedAt: Date): Date {
+  return new Date(releasedAt.getTime() + (ruleset.turf?.locals.reclaimHours ?? 0) * HOUR_MS);
+}
 function utcDay(now: Date): Date { return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())); }
 function holdingOn(ruleset: Ruleset): boolean { return ruleset.turf?.holding === true; }
 function homeFit(player: { thugs: number; woundedThugs: number; busyThugs: number; postedThugs: number }): number {
@@ -211,7 +225,7 @@ export const TurfService = {
           ? { cornerThugs: cornerAfter, ...turfGunData(gunsAfter), upkeepAt: advanceTo }
           : {
               holderId: null, cornerThugs: 0, ...turfGunData(EMPTY_GUNS), heldSince: null, shieldUntil: null,
-              upkeepAt: advanceTo, localsThugs: localsThugs(ruleset, block), localsAt: now,
+              upkeepAt: advanceTo, localsThugs: 0, localsAt: now, localsReclaimAt: localsReclaimAt(ruleset, now),
             },
       });
     }
@@ -429,8 +443,13 @@ export const TurfService = {
           alliance: row.holder.alliance ? { name: row.holder.alliance.name, tag: row.holder.alliance.tag } : null,
         } : null,
         isMine, cornerThugs: row.cornerThugs, cornerMinimumThugs: minimum, cornerGuns: dtoGuns(gunsFromTurf(row)),
-        localsThugs: Math.round(localsAfter(ruleset, block, row.localsThugs, hoursSince(row.localsAt, now))),
-        localsFullThugs: fullLocals, heldSince: row.heldSince?.toISOString() ?? null,
+        localsThugs: localsOnBlock(ruleset, {
+          holderId: row.holderId, citySlug, district, localsThugs: row.localsThugs,
+          localsAt: row.localsAt, localsReclaimAt: row.localsReclaimAt,
+        }, now),
+        localsFullThugs: fullLocals,
+        localsReclaimAt: !row.holderId && row.localsReclaimAt && row.localsReclaimAt > now ? row.localsReclaimAt.toISOString() : null,
+        heldSince: row.heldSince?.toISOString() ?? null,
         shieldUntil: row.shieldUntil?.toISOString() ?? null, presenceTurns: p, claimBlockedReason,
         push: visiblePush && pushRole ? {
           id: visiblePush.id,
