@@ -32,7 +32,8 @@ export type StoreKey = 'CORNER' | 'TOMMY' | 'CHARLIE' | 'PIP';
 
 export type WeaponKey = 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47';
 export type WeaponUnlockKey = 'SHOTGUN' | 'TEK9' | 'AK47';
-export type HideoutRoomKey = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE';
+export type BaseHideoutRoomKey = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE';
+export type HideoutRoomKey = BaseHideoutRoomKey | 'GARAGE';
 
 /**
  * What a shopkeeper wants before he will sell you the heavy stuff.
@@ -1065,12 +1066,14 @@ export interface HeatRules {
 export type ProductCatalog = { readonly CRACK: ProductDefinition } & { readonly [key: string]: ProductDefinition };
 
 export interface HideoutRules {
-  readonly rooms: { readonly [K in HideoutRoomKey]: HideoutRoomRule };
+  readonly rooms: { readonly [K in BaseHideoutRoomKey]: HideoutRoomRule } & { readonly GARAGE?: HideoutRoomRule };
   readonly buffs: {
     readonly safeRoomProtectedCashCentsPerLevel: number;
     readonly lookoutsDefenseBonusPercentPerLevel: number;
     readonly workshopCrackBonusPercentPerLevel: number;
     readonly backOfficeTakeBonusPercentPerLevel: number;
+    /** 0.6.0-D. Active-run limit once the Garage exists. */
+    readonly garageRunLimit?: number;
   };
 }
 
