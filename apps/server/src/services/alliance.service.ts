@@ -628,8 +628,12 @@ export const AllianceService = {
     await prisma.$transaction(async (tx) => {
       const alliance = await lockAlliance(tx, allianceId);
       if (alliance.disbandedAt) throw AppError.conflict('ALLIANCE_DISBANDED', 'That alliance has already disbanded.');
-      const members = await tx.roundPlayer.findMany({ where: { allianceId }, select: { publicPimpId: true, displayName: true } });
-      await disbandInTransaction(tx, alliance, rules, new Date(), 'An admin', reason);
+      const members = await tx.roundPlayer.findMany({ where: { allianceId }, select: { id: true, publicPimpId: true, displayName: true } });
+      const base = loadRulesetForRound(found.round);
+      const at = new Date();
+      const territoryBefore = await territoryBeforeForPlayers(tx, found.round.id, members.map((member) => member.id), base);
+      await disbandInTransaction(tx, alliance, rules, at, 'An admin', reason);
+      await recordTerritoryCities(tx, found.round.id, base, territoryBefore, at);
       await AdminAuditService.record(tx, actor, { action: 'alliance.disband', targetType: 'alliance', targetId: allianceId, reason,
         before: { name: alliance.name, tag: alliance.tag, leaderId: alliance.leaderId, members }, after: { disbanded: true } });
     }, { timeout: 15_000, maxWait: 10_000 });
