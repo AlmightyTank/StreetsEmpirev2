@@ -208,6 +208,18 @@ const territoryEventSchema = z.object({
   happenedAt: z.string(),
 });
 
+const crackdownEventSchema = z.object({
+  id: z.string(),
+  phase: z.enum(['warning', 'sweep']),
+  roundName: z.string(),
+  city: z.string(),
+  cityName: z.string(),
+  warningAt: z.string(),
+  sweepAt: z.string(),
+  holdersAffected: z.number(),
+  thugsPickedUp: z.number(),
+});
+
 const roundEventSchema = z.object({
   type: z.enum(['opened', 'ending-soon', 'ended']),
   roundName: z.string(),
@@ -241,6 +253,7 @@ const alertsClaimSchema = z.object({
   battles: z.array(battleEventSchema),
   turf: z.array(turfEventSchema),
   territory: z.array(territoryEventSchema),
+  crackdowns: z.array(crackdownEventSchema),
   rounds: z.array(roundEventSchema),
 });
 
@@ -280,6 +293,7 @@ export type RankAlert = AlertsClaim['ranks'][number];
 export type BattleEvent = AlertsClaim['battles'][number];
 export type TurfEvent = AlertsClaim['turf'][number];
 export type TerritoryEvent = AlertsClaim['territory'][number];
+export type CrackdownEvent = AlertsClaim['crackdowns'][number];
 export type RoundEvent = AlertsClaim['rounds'][number];
 export type RoundStatus = z.infer<typeof statusSchema>;
 export type NewsFeed = z.infer<typeof newsSchema>;
