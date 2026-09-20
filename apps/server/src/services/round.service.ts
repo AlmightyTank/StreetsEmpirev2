@@ -1,8 +1,11 @@
 import type { PrismaClient, Round } from '@prisma/client';
+import { loadRulesetForRound } from '@streets/rules-engine';
 import { RelocationService } from './relocation.service.js';
 import { AppError } from '../utils/errors.js';
 import { lockRound, type Db } from '../utils/db.js';
 import { PlayerStateService } from './player-state.service.js';
+import { TurfCrackdownService } from './turf-crackdown.service.js';
+import { TurfWarSettlementService } from './turf-war-settle.service.js';
 
 /**
  * A round is joinable while it is taking registrations or already running,
@@ -155,6 +158,8 @@ export const RoundService = {
     if (round.status !== 'ACTIVE' && round.status !== 'REGISTRATION') return { closed: false, round, previous: round };
 
     const freezeAt = new Date(Math.min(round.endsAt.getTime(), finalAt.getTime()));
+    await TurfWarSettlementService.resolveRoundAtCutoff(tx, round.id, freezeAt);
+    await TurfCrackdownService.settleInTransaction(tx, round, loadRulesetForRound(round), freezeAt);
     const players = await tx.roundPlayer.findMany({
       where: { roundId: round.id },
       orderBy: { publicPimpId: 'asc' },
@@ -216,6 +221,7 @@ export const RoundService = {
     });
     if (active) {
       await RoundService.closeSupersededActive(prisma, active);
+      await TurfCrackdownService.settleDue(prisma, active, loadRulesetForRound(active), now);
       return active;
     }
 

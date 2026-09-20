@@ -6,6 +6,7 @@ import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { HeatService } from './heat.service.js';
 import { hideoutBackOfficeBonusCents } from './hideout.service.js';
+import { TurfService } from './turf.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 
 export interface Crew {
@@ -19,22 +20,34 @@ export interface Crew {
 
 const round2 = (value: number): number => Math.round(value * 100) / 100;
 
+function localDistrict(ruleset: Ruleset, citySlug: string | undefined, key: DistrictKey, district: District) {
+  const local = citySlug ? ruleset.cities?.[citySlug]?.districts?.[key] : undefined;
+  return {
+    name: local?.name ?? district.name,
+    blurb: local?.blurb,
+  };
+}
+
 export function toDistrictDto(
   key: string,
   district: District,
   all: District[],
   ruleset: Ruleset,
   crew: Crew,
+  citySlug?: string,
 ): DistrictDto {
   const armedThugs = armedThugsForStreet(crew, ruleset);
   const unarmedThugs = unarmedThugsForStreet(crew, ruleset);
   const covered = armedThugs * district.protectionWhoresPerThug;
   const exposed = crew.whores <= 0 ? 0 : Math.min(1, Math.max(0, 1 - covered / crew.whores));
 
+  const local = localDistrict(ruleset, citySlug, key as DistrictKey, district);
+
   return {
     key,
     slug: district.slug,
-    name: district.name,
+    name: local.name,
+    ...(local.blurb ? { blurb: local.blurb } : {}),
     protectionWhoresPerThug: district.protectionWhoresPerThug,
     /** Girls this crew could cover on this block. */
     coveredWhores: covered,
@@ -57,12 +70,12 @@ export function findDistrict(
   return district ? { key: normalized as DistrictKey, district } : null;
 }
 
-export function districtsFor(ruleset: Ruleset, crew: Crew): DistrictsDto {
+export function districtsFor(ruleset: Ruleset, crew: Crew, citySlug?: string): DistrictsDto {
   const all = Object.values(ruleset.districts);
 
   return {
     districts: Object.entries(ruleset.districts).map(([key, district]) =>
-      toDistrictDto(key, district, all, ruleset, crew),
+      toDistrictDto(key, district, all, ruleset, crew, citySlug),
     ),
   };
 }
@@ -137,8 +150,19 @@ export const ScoutService = {
           payoutPercent: current.payoutPercent,
           rng,
         });
-        const hideoutBonusCents = hideoutBackOfficeBonusCents(outcome.pimpTakeCents, ruleset, current);
-        const pimpTakeCents = outcome.pimpTakeCents + hideoutBonusCents;
+        const turf = await TurfService.scoutEconomy(tx, {
+          roundPlayerId,
+          accountId: player.accountId,
+          roundId: round.id,
+          cityId: player.cityId,
+          district: found.key,
+          takeCents: Number(outcome.pimpTakeCents),
+          ruleset,
+          now,
+        });
+        const turfTakeCents = outcome.pimpTakeCents + BigInt(turf.holdBonusCents - turf.taxPaidCents);
+        const hideoutBonusCents = hideoutBackOfficeBonusCents(turfTakeCents, ruleset, current);
+        const pimpTakeCents = turfTakeCents + hideoutBonusCents;
 
         const worked = {
           ...current,
@@ -172,11 +196,21 @@ export const ScoutService = {
         // 0.4.0-C: the trip's Heat lands, and a hot crew can be busted on the way home.
         const trip = await HeatService.afterTrip(tx, roundPlayerId, ruleset, { startHeat: current.heat, plans: [supply], next: worked, rng, now });
         const next = trip.next;
+        await TurfService.addPresence(tx, {
+          roundPlayerId,
+          roundId: round.id,
+          cityId: player.cityId,
+          district: found.key,
+          turns: input.turns,
+          ruleset,
+          now,
+        });
 
         const all = Object.values(ruleset.districts);
 
         const result: ScoutResult = {
-          district: toDistrictDto(found.key, found.district, all, ruleset, active),
+          district: toDistrictDto(found.key, found.district, all, ruleset, active, player.city.slug),
+          ...(ruleset.turf?.holding ? { turf } : {}),
           ...(supply ? { supply: toPlanDto(supply, ruleset) } : {}),
           ...(trip.heat ? { heat: trip.heat } : {}),
 
@@ -213,13 +247,15 @@ export const ScoutService = {
           turnsRemaining: next.turns,
         };
 
+        const local = localDistrict(ruleset, player.city.slug, found.key, found.district);
+
         return {
           next,
           result,
           activity: {
             type: 'SCOUT',
             payload: {
-              district: found.district.name,
+              district: local.name,
               turns: input.turns,
               whores: outcome.whoresRecruited,
               thugs: outcome.thugsRecruited,

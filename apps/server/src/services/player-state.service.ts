@@ -15,6 +15,8 @@ import { ConvoyService } from './convoy.service.js';
 import { RelocationService } from './relocation.service.js';
 import { RunSettleService, runSummary } from './run-settle.service.js';
 import type { RoundPlayerDto } from '@streets/shared';
+import { TurfService } from './turf.service.js';
+import { TurfWarSettlementService } from './turf-war-settle.service.js';
 
 /** 0.3.0-C: the alliance tag rides along so every screen can show it before the name. */
 export type PlayerWithCity = RoundPlayer & { city: City; alliance: { name: string; tag: string } | null };
@@ -39,6 +41,8 @@ export interface SettledPlayer {
   moving: RoundPlayerDto['moving'];
   /** 0.5.0-E. A tail on the player's run, or an ally's call. */
   convoyAlert: RoundPlayerDto['convoyAlert'];
+  /** 0.6.0-B. Home turf summary. */
+  turf: RoundPlayerDto['turf'];
 }
 
 export interface SettleOptions {
@@ -70,8 +74,10 @@ export const PlayerStateService = {
     roundPlayerId: string,
     options: SettleOptions = {},
   ): Promise<SettledPlayer> {
+    const now = options.now ?? new Date();
+    await TurfWarSettlementService.settleDueFor(prisma, roundPlayerId, now);
     return prisma.$transaction((tx) =>
-      PlayerStateService.settleInTransaction(tx, roundPlayerId, options),
+      PlayerStateService.settleInTransaction(tx, roundPlayerId, { ...options, now }),
     );
   },
 
@@ -91,6 +97,8 @@ export const PlayerStateService = {
     await RelocationService.settleOwn(tx, roundPlayerId, now);
     // 0.5.0-E: and whatever came back from a convoy fight is back.
     await ConvoyService.credit(tx, roundPlayerId, now);
+    // 0.6.0-C: and turf-war squads/help are back or posted after the landing.
+    await TurfWarSettlementService.credit(tx, roundPlayerId, now);
 
     const player = await tx.roundPlayer.findUnique({
       where: { id: roundPlayerId },
@@ -101,9 +109,27 @@ export const PlayerStateService = {
       throw AppError.notFound('PLAYER_NOT_FOUND', 'That player is not in this round.');
     }
 
-    const { round, ...rest } = player;
+    const { round, ...loadedRest } = player;
+    let rest = loadedRest;
     // 0.5.0-A: Heat reads the player's own city.
     const ruleset = rulesetForCity(loadRulesetForRound(round), rest.city.slug);
+    const turfSettlement = await TurfService.settlePlayer(tx, roundPlayerId, ruleset, now);
+    if (turfSettlement) {
+      rest = {
+        ...rest,
+        cashCents: turfSettlement.cashCents,
+        beer: turfSettlement.beer,
+        crack: turfSettlement.crack,
+        thugs: turfSettlement.thugs,
+        postedThugs: turfSettlement.postedThugs,
+        postedNetWorthCents: turfSettlement.postedNetWorthCents,
+        outpostNetWorthCents: turfSettlement.outpostNetWorthCents,
+        pistols: turfSettlement.pistols,
+        shotguns: turfSettlement.shotguns,
+        tek9s: turfSettlement.tek9s,
+        ak47s: turfSettlement.ak47s,
+      };
+    }
     const recovery = await CombatRecoveryService.settle(tx, roundPlayerId, now);
     // 1. Turns, and the shop shelves on the same clock. Heat cools on it too.
     const turns = TurnService.settle(rest, now, ruleset);
@@ -198,6 +224,7 @@ export const PlayerStateService = {
     const move = await tx.relocation.findFirst({ where: { roundPlayerId, arrivedAt: null }, select: { toCity: true, arrivesAt: true } });
     const moving = move ? { to: move.toCity, toName: ruleset.cities?.[move.toCity]?.name ?? move.toCity, arrivesAt: move.arrivesAt.toISOString() } : null;
     const convoyAlert = await ConvoyService.alertFor(tx, settled, ruleset, now);
-    return { player: settled, round, ruleset, turns, stock, standings, recovery, products, run, moving, convoyAlert };
+    const turf = await TurfService.summary(tx, roundPlayerId, ruleset, now);
+    return { player: settled, round, ruleset, turns, stock, standings, recovery, products, run, moving, convoyAlert, turf };
   },
 };

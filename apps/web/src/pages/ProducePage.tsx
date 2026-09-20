@@ -9,10 +9,11 @@ import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
-import { supplyReceiptLines, WorkSupplyPanel } from '../components/WorkSupplyPanel.js';
-import { HeatNotice, heatReceiptLines } from '../components/HeatPanel.js';
+import { WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
+import { HeatNotice } from '../components/HeatPanel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { produceReceiptLines } from '../receipts/actionReceipts.js';
 import { useSession } from '../stores/session.js';
 
 type Profile = { key: ProductTypeDto; name: string; role: string };
@@ -48,8 +49,7 @@ export function ProducePage() {
   const hasFitThugs = me.resources.fitThugs > 0;
   const selectedProfile = PRODUCT_PROFILES.find((profile) => profile.key === productType) ?? PRODUCT_PROFILES[0]!;
   const producedName = action.result?.result.productName ?? selectedProfile.name;
-  const workshopBonusProduct = action.result?.result.hideoutBonusProduct ?? action.result?.result.hideoutBonusCrack ?? 0;
-  const backOfficeBonusCents = action.result?.result.hideoutBonusCents ?? 0;
+  const supplyJobs = [{ job: 'PRODUCE', label: "Girls' shift" }, { job: 'COOK', label: 'Cooks' }];
   const canProduce =
     !action.busy &&
     hasFitThugs &&
@@ -139,7 +139,7 @@ export function ProducePage() {
           </Panel>
 
           <HeatNotice />
-          <WorkSupplyPanel jobs={[{ job: 'PRODUCE', label: "Girls' shift" }, { job: 'COOK', label: 'Cooks' }]} turns={turns} refreshKey={action.result} />
+          <WorkSupplyPanel jobs={supplyJobs} turns={turns} refreshKey={action.result} />
         </div>
 
         {/*
@@ -157,8 +157,8 @@ export function ProducePage() {
                 strong
               />
               <Row label="Whores" value={formatNumber(me.resources.whores)} strong />
-              <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong />
-              {me.resources.woundedThugs > 0 ? <Row label="Fit / wounded" value={`${formatNumber(me.resources.fitThugs)} / ${formatNumber(me.resources.woundedThugs)}`} /> : null}
+              <Row label="Thugs / available" value={`${formatNumber(me.resources.thugs)} / ${formatNumber(me.resources.fitThugs)}`} strong tooltip="Total thugs / fit thugs at home. Wounded and posted thugs cannot scout, produce, attack, defend or cover the street." />
+              {me.resources.postedThugs > 0 || me.resources.woundedThugs > 0 ? <Row label="Posted / wounded" value={`${formatNumber(me.resources.postedThugs)} / ${formatNumber(me.resources.woundedThugs)}`} tooltip="Posted thugs are holding turf. Wounded thugs are recovering." /> : null}
               <Row label="They keep" value={`${me.payoutPercent}%`} />
               <Row label="You keep" value={`${100 - me.payoutPercent}%`} />
               <Row label="Whore happiness" value={`${me.happiness.whore}%`} />
@@ -171,7 +171,8 @@ export function ProducePage() {
             <div className="se-rows">
               <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
               <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
-              <Row label={me.products ? 'Crack' : 'Product'} value={formatNumber(me.resources.product)} />
+              {me.products ? null : <Row label="Product" value={formatNumber(me.resources.product)} />}
+              <WorkSupplyStockRows jobs={supplyJobs} refreshKey={action.result} />
               <Row label="Beer" value={formatNumber(me.resources.beer)} />
               <Row label="Cash" value={formatCents(me.resources.cashCents)} strong />
             </div>
@@ -190,155 +191,7 @@ export function ProducePage() {
             title={`${producedName} Production Results`}
             onDismiss={action.clear}
             result={action.result}
-            lines={[
-              ...supplyReceiptLines(action.result.result.supply),
-              ...supplyReceiptLines(action.result.result.cook, 'Cooks: '),
-              ...heatReceiptLines(action.result.result.heat),
-              { label: 'Turns used', value: formatNumber(action.result.result.turnsUsed) },
-
-              // The batch itself.
-              {
-                label: `${action.result.result.productName} produced`,
-                delta: action.result.result.productProduced,
-                ...(action.result.result.productType === 'CRACK' ? { remaining: action.result.after.resources.product } : {}),
-              },
-              ...(workshopBonusProduct > 0
-                ? [
-                    {
-                      label: 'Workshop bonus',
-                      value: `${formatNumber(workshopBonusProduct)} included`,
-                    },
-                  ]
-                : []),
-              {
-                label: 'Ingredients',
-                delta: -action.result.result.ingredientCents,
-                money: true,
-                remaining:
-                  action.result.before.cashCents - action.result.result.ingredientCents,
-              },
-              ...(action.result.result.limitedByCash
-                ? [{ label: 'Short on cash', value: 'batch cut down', muted: true }]
-                : []),
-
-              // Manual 3.2: the girls are still out while the thugs produce.
-              {
-                label: 'Brought in',
-                value: formatCents(action.result.result.grossEarnedCents),
-              },
-              {
-                label: `Their cut (${action.result.result.payoutPercent}%)`,
-                delta: -action.result.result.crewTakeCents,
-                money: true,
-                muted: true,
-              },
-              {
-                label: 'Your cut',
-                delta: action.result.result.cashEarnedCents,
-                money: true,
-                remaining:
-                  action.result.before.cashCents -
-                  action.result.result.ingredientCents +
-                  action.result.result.cashEarnedCents,
-              },
-              ...(backOfficeBonusCents > 0
-                ? [
-                    {
-                      label: 'Back Office bonus',
-                      value: `${formatCents(backOfficeBonusCents)} included`,
-                    },
-                  ]
-                : []),
-              ...(action.result.result.crackFound > 0
-                ? [
-                    {
-                      label: me.products ? 'Crack found' : 'Product found',
-                      delta: action.result.result.crackFound,
-                      remaining: action.result.after.resources.product,
-                    },
-                  ]
-                : []),
-
-              // What the shift cost the shelf.
-              {
-                label: 'Condoms used',
-                delta: -action.result.result.condomsUsed,
-                remaining: action.result.after.resources.condoms,
-                muted: true,
-              },
-              ...(action.result.result.condomsMissing > 0
-                ? [
-                    {
-                      label: 'Worked without condoms',
-                      value: <>{formatNumber(action.result.result.condomsMissing)} short · <Link className="se-golink" to="/game/stores/corner">Corner Store</Link></>,
-                    },
-                  ]
-                : []),
-              {
-                label: me.products ? 'Crack used' : 'Product used',
-                delta: -action.result.result.crackUsed,
-                remaining: action.result.after.resources.product,
-                muted: true,
-              },
-              {
-                label: 'Beer used',
-                delta: -action.result.result.beerUsed,
-                remaining: action.result.after.resources.beer,
-                muted: true,
-              },
-
-              ...(action.result.result.infected > 0
-                ? [
-                    {
-                      label: 'Caught something',
-                      delta: -action.result.result.infected,
-                    },
-                    ...(action.result.result.treated > 0
-                      ? [
-                          {
-                            label: 'Treated with medicine',
-                            delta: -action.result.result.medicineUsed,
-                            remaining: action.result.after.resources.medicine,
-                            muted: true,
-                          },
-                        ]
-                      : []),
-                    ...(action.result.result.lostToInfection > 0
-                      ? [
-                          {
-                            label: 'Lost, no medicine',
-                            delta: -action.result.result.lostToInfection,
-                            remaining: action.result.after.resources.whores,
-                          },
-                          { label: 'Medicine', value: <Link className="se-golink" to="/game/stores/corner">Corner Store</Link> },
-                        ]
-                      : []),
-                  ]
-                : []),
-              ...(action.result.result.whoresLeft > 0
-                ? [
-                    {
-                      label: 'Whores walked out',
-                      delta: -action.result.result.whoresLeft,
-                      remaining: action.result.after.resources.whores,
-                    },
-                  ]
-                : []),
-              ...(action.result.result.thugsLeft > 0
-                ? [
-                    {
-                      label: 'Thugs walked out',
-                      delta: -action.result.result.thugsLeft,
-                      remaining: action.result.after.resources.thugs,
-                    },
-                  ]
-                : []),
-
-              {
-                label: 'Turns remaining',
-                value: formatNumber(action.result.result.turnsRemaining),
-              },
-            ]}
+            lines={produceReceiptLines(action.result, me)}
           />
         </div>
       ) : null}

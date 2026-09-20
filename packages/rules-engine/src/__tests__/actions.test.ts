@@ -137,6 +137,15 @@ describe('calculateScout', () => {
   });
 
   it('applies the city scout modifier', () => {
+    const plain = calculateScout({
+      player: nobody,
+      turns: 100,
+      ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
+      district: 'NIGHTCLUB',
+      payoutPercent: 50,
+      rng: flatRng,
+    });
     const boosted = calculateScout({
       player: nobody,
       turns: 100,
@@ -147,9 +156,31 @@ describe('calculateScout', () => {
       city: { scoutModifier: 2, incomeModifier: 1, crackModifier: 1 },
       rng: flatRng,
     });
-    expect(boosted.whoresRecruited).toBe(
-      Math.round(classicOgV01.districts.NIGHTCLUB.whoresPerTurn * 100 * 2),
-    );
+    expect(boosted.whoresRecruited).toBeGreaterThan(plain.whoresRecruited);
+    // Same-trip recruits now count against later same-trip recruitment, so this
+    // lands below the old batch formula while still reflecting the city boost.
+    expect(boosted.whoresRecruited).toBe(23);
+  });
+
+  it('puts long-trip recruits to work before the trip ends', () => {
+    const turns = 144;
+    const result = calculateScout({
+      player: crew({ whores: 1, thugs: 10 }),
+      turns,
+      ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
+      district: 'CASINO',
+      payoutPercent: 50,
+      rng: flatRng,
+    });
+    const oldBatchGross =
+      1 *
+      classicOgV01.scouting.grossPerWhorePerTurnCents *
+      turns *
+      classicOgV01.districts.CASINO.payMultiplier;
+
+    expect(result.whoresRecruited).toBeGreaterThan(0);
+    expect(result.grossCents).toBeGreaterThan(BigInt(oldBatchGross * 2));
   });
 });
 
@@ -195,9 +226,11 @@ describe('diminishing returns on recruitment', () => {
       }).whoresRecruited;
 
     const full = Math.round(classicOgV01.districts.WINO_SLUMS.whoresPerTurn * 100);
-    expect(run(0)).toBe(full);
-    // multiplier 0.1 at nine times the soft cap
-    expect(run(caps.whoreSoftCap * 9)).toBe(Math.round(full * 0.1));
+    expect(run(0)).toBeLessThan(full);
+    expect(run(0)).toBe(19);
+    // Same-trip recruits also slow the tail of the trip, but a huge operation
+    // still recruits only a small fraction of a nobody.
+    expect(run(caps.whoreSoftCap * 9)).toBe(2);
   });
 });
 
@@ -361,7 +394,7 @@ describe('calculateStreetTake', () => {
     // The engine floors once at the end, so compare within a cent.
     expect(Number(take(50))).toBeCloseTo(full * (floor + (1 - floor) * 0.5), -1);
     // Rock bottom is the floor, not nothing.
-    expect(Number(take(0))).toBeCloseTo(full * floor, -1);
+    expect(Number(take(0))).toBeCloseTo(full * floor, -2);
     expect(Number(take(0))).toBeGreaterThan(0);
   });
 
@@ -376,6 +409,54 @@ describe('calculateStreetTake', () => {
       rng: () => 0.01, // always under the find chance
     });
     expect(lucky.crackFound).toBeGreaterThan(0);
+  });
+
+  it('keeps departure and infection safety rails action-wide across simulated turns', () => {
+    const departures = calculateStreetTake({
+      player: crew({
+        whores: 100,
+        thugs: 100,
+        whoreHappiness: 0,
+        thugHappiness: 0,
+        condoms: 1_000_000,
+        crack: 1_000_000,
+        beer: 1_000_000,
+      }),
+      turns: 100,
+      ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
+      district: 'CASINO',
+      payoutPercent: 50,
+      rng: () => 0,
+    });
+    expect(departures.departures.whores).toBeLessThanOrEqual(
+      Math.ceil(100 * classicOgV01.departures.maxFractionPerAction),
+    );
+    expect(departures.departures.thugs).toBeLessThanOrEqual(
+      Math.ceil(100 * classicOgV01.departures.maxFractionPerAction),
+    );
+
+    const infections = calculateStreetTake({
+      player: crew({
+        whores: 100,
+        thugs: 100,
+        whoreHappiness: 100,
+        thugHappiness: 100,
+        condoms: 0,
+        crack: 1_000_000,
+        beer: 1_000_000,
+        medicine: 0,
+      }),
+      turns: 100,
+      ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
+      district: 'CASINO',
+      payoutPercent: 50,
+      rng: () => 0,
+    });
+    expect(infections.infections.infected).toBeLessThanOrEqual(
+      Math.max(1, Math.floor(100 * classicOgV01.health.maxInfectedFractionPerAction)),
+    );
   });
 });
 

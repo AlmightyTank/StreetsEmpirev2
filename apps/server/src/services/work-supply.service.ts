@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import {
   CONVOY_JOB,
+  CORNER_JOB,
   COOK_JOB,
   DEFENSE_JOB,
   PRODUCE_JOB,
@@ -28,8 +29,8 @@ import { CRACK, ProductInventoryService, productKeys } from './product-inventory
 
 /**
  * Jobs a round has: every district, the Produce shift, (0.4.0-C) the thugs cooking, and
- * (0.4.0-E) the squad sent into a fight and the crew defending, and (0.5.0-E) a run's
- * escorts, who burn from the run's trunk. Fight jobs are opt-in:
+ * (0.4.0-E) the squad sent into a fight and the crew defending, (0.5.0-E) a run's
+ * escorts, who burn from the run's trunk, and (0.6.0-B) corner crews. Fight jobs are opt-in:
  * with no saved policy they burn nothing.
  */
 export function workSupplyJobs(ruleset: Ruleset): Array<{ key: string; name: string; role: WorkSupplyRole; optIn: boolean }> {
@@ -43,6 +44,7 @@ export function workSupplyJobs(ruleset: Ruleset): Array<{ key: string; name: str
     ] : []),
     // 0.5.0-E: escorts burn from their own trunk when a run is hit.
     ...(ruleset.combatSupply && ruleset.travel?.convoys ? [{ key: CONVOY_JOB, name: 'Escorts on a run', role: 'fighters' as const, optIn: true }] : []),
+    ...(ruleset.turf?.holding ? [{ key: CORNER_JOB, name: 'Corner crews', role: 'thugs' as const, optIn: false }] : []),
   ];
 }
 

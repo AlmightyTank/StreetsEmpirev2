@@ -37,6 +37,7 @@ import { StatusPage } from './pages/StatusPage.js';
 import { VerifyEmailPage } from './pages/VerifyEmailPage.js';
 import { StorePage, StoresIndexPage } from './pages/StorePage.js';
 import { TravelPage } from './pages/TravelPage.js';
+import { TurfPage } from './pages/TurfPage.js';
 import { useSession } from './stores/session.js';
 
 function RequireAccount({ children }: { children: ReactNode }) {
@@ -107,7 +108,9 @@ export function App() {
       <Route path="/game/stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
 
       <Route path="/game/travel" element={<Protected><LiveRound><TravelPage /></LiveRound></Protected>} />
-      {/* 0.5.0-A had a Cities page; the map lives on Travel now. */}
+      <Route path="/game/turf" element={<Protected><LiveRound><TurfPage /></LiveRound></Protected>} />
+      <Route path="/game/blocks" element={<Navigate to="/game/turf" replace />} />
+      {/* 0.5.0-A had a Cities page; the road map still lives on Travel. */}
       <Route path="/game/cities" element={<Navigate to="/game/travel" replace />} />
       <Route path="/game/rankings" element={<Protected><LiveRound><RankingsPage /></LiveRound></Protected>} />
       <Route path="/game/alliance" element={<Protected><LiveRound><AlliancePage /></LiveRound></Protected>} />

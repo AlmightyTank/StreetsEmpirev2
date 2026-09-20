@@ -6,6 +6,7 @@ import { lockRound, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
 import { RoundService } from './round.service.js';
+import { TurfService } from './turf.service.js';
 
 const DAY_MS = 86_400_000;
 const LIFECYCLE_TRANSACTION = { maxWait: 10_000, timeout: 60_000 };
@@ -147,6 +148,7 @@ export const AdminRoundService = {
             nextPublicPimpId: ruleset.round.publicPimpIdStart,
           },
         });
+        await TurfService.ensureRound(tx, created.id, ruleset);
         await AdminAuditService.record(tx, actor, { action: 'round.schedule', targetType: 'round', targetId: created.id, after: created });
         return created;
       });
@@ -218,6 +220,8 @@ export const AdminRoundService = {
           ...(before.registrationOpensAt && before.registrationOpensAt.getTime() > now.getTime() ? { registrationOpensAt: now } : {}),
         },
       });
+      const ruleset = rulesets[started.rulesetId];
+      if (ruleset) await TurfService.ensureRound(tx, started.id, ruleset);
       await AdminAuditService.record(tx, actor, { action: 'round.start', targetType: 'round', targetId: before.id, before, after: started });
       return started;
     }, LIFECYCLE_TRANSACTION);

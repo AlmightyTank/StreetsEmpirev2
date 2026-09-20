@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
-import type { CitiesDto, CityCharacterDto, SupplyLevelDto } from '@streets/shared';
+import type { CitiesDto, CityCharacterDto, SupplyLevelDto, TurfBlockDto } from '@streets/shared';
 import { formatCentsExact, formatNumber } from '@streets/shared';
 import { Panel, Row } from './Panel.js';
+import { TurfActions } from './TurfActions.js';
 
 /** Where each city sits on the map, roughly where it is on the real one. */
 const MAP: Record<string, { x: number; y: number; label: 'left' | 'right' | 'above' | 'below' }> = {
@@ -24,6 +25,10 @@ export const SHORT_CITY: Record<string, string> = {
 };
 
 export const SUPPLY_WORD: Record<SupplyLevelDto, string> = { PLENTIFUL: 'Plenty', NORMAL: 'In stock', LOW: 'Low', OUT: 'Out' };
+const TURF_ORDER: Record<TurfBlockDto['district'], number> = { CASINO: 0, NIGHTCLUB: 1, LOW_RENT: 2, URBAN_GHETTO: 3, WINO_SLUMS: 4 };
+const TURF_AREA_CLASS: Record<TurfBlockDto['district'], string> = {
+  CASINO: 'casino', NIGHTCLUB: 'nightclub', LOW_RENT: 'low-rent', URBAN_GHETTO: 'urban-ghetto', WINO_SLUMS: 'wino-slums',
+};
 
 /** "$10", or "$2.40" where the cents matter. */
 export const unitPrice = (cents: number) => (cents % 100 === 0 ? `$${(cents / 100).toLocaleString('en-US')}` : formatCentsExact(cents));
@@ -49,12 +54,14 @@ export function agoText(iso: string, now = Date.now()): string {
   return `${Math.round(hours / 24)} days ago`;
 }
 
-export function RoadMap({ data, selected, onSelect, runAt }: {
+export function RoadMap({ data, selected, onSelect, runAt, runAts }: {
   data: CitiesDto;
   selected: string;
   onSelect: (slug: string) => void;
-  /** Where a run is, to draw it on the road. */
+  /** Backward-compatible single marker. */
   runAt?: { from: string; to: string; progress: number } | { city: string } | null;
+  /** 0.6.0-D Garage: every active run gets its own marker. */
+  runAts?: Array<{ from: string; to: string; progress: number } | { city: string }>;
 }) {
   // Only draw roads when both endpoint cities were actually returned by the API.
   // This prevents orphan/ghost road lines if the City catalog is ever out of sync.
@@ -67,14 +74,18 @@ export function RoadMap({ data, selected, onSelect, runAt }: {
     seen.add(key);
     return true;
   }).map((road) => ({ ...road, from: city.slug })));
-  const marker = !runAt ? null
-    : 'city' in runAt ? MAP[runAt.city] ?? null
-      : MAP[runAt.from] && MAP[runAt.to]
-        ? { x: MAP[runAt.from]!.x + (MAP[runAt.to]!.x - MAP[runAt.from]!.x) * runAt.progress, y: MAP[runAt.from]!.y + (MAP[runAt.to]!.y - MAP[runAt.from]!.y) * runAt.progress }
+  const markerInputs = runAts ?? (runAt ? [runAt] : []);
+  const markers = markerInputs.flatMap((at, index) => {
+    const point = 'city' in at ? MAP[at.city] ?? null
+      : MAP[at.from] && MAP[at.to]
+        ? { x: MAP[at.from]!.x + (MAP[at.to]!.x - MAP[at.from]!.x) * at.progress, y: MAP[at.from]!.y + (MAP[at.to]!.y - MAP[at.from]!.y) * at.progress }
         : null;
+    return point ? [{ ...point, index }] : [];
+  });
 
   return (
-    <svg className="se-citymap" viewBox="0 0 400 230" role="group" aria-label="The road map">
+    <div className="se-citymap-scroll" role="region" aria-label="Road map">
+      <svg className="se-citymap" viewBox="0 0 400 230" role="group" aria-label="The road map">
       {roads.map((road) => {
         const a = MAP[road.from];
         const b = MAP[road.to];
@@ -92,29 +103,41 @@ export function RoadMap({ data, selected, onSelect, runAt }: {
         if (!at) return null;
         const on = city.slug === selected;
         const label = SHORT_CITY[city.slug] ?? city.name;
+        const control = city.turf?.control ?? null;
         const text = at.label === 'left' ? { x: at.x - 9, y: at.y + 4, anchor: 'end' as const }
           : at.label === 'right' ? { x: at.x + 9, y: at.y + 4, anchor: 'start' as const }
             : at.label === 'above' ? { x: at.x, y: at.y - 10, anchor: 'middle' as const }
               : { x: at.x, y: at.y + 18, anchor: 'middle' as const };
         return (
           <g key={city.slug} className={`se-citymap__city${on ? ' se-citymap__city--on' : ''}${city.isHome ? ' se-citymap__city--home' : ''}`}
-            role="button" tabIndex={0} aria-pressed={on} aria-label={`${city.name}${city.isHome ? ', home' : ''}`}
+            role="button" tabIndex={0} aria-pressed={on} aria-label={`${city.name}${city.isHome ? ', home' : ''}${control ? `, controlled by ${control.alliance.name}` : ''}`}
             onClick={() => onSelect(city.slug)}
             onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(city.slug); } }}>
             <circle cx={at.x} cy={at.y} r={14} className="se-citymap__hit" />
             {city.isHome ? <circle cx={at.x} cy={at.y} r={9} className="se-citymap__ring" /> : null}
             <circle cx={at.x} cy={at.y} r={5.5} className="se-citymap__dot" />
             <text x={text.x} y={text.y} textAnchor={text.anchor} className="se-citymap__label">{label}</text>
+            {control ? (
+              <text
+                x={at.x}
+                y={at.y + (at.label === 'below' ? -11 : 14)}
+                textAnchor="middle"
+                className={`se-citymap__control${control.isYours ? ' se-citymap__control--mine' : ''}`}
+              >
+                [{control.alliance.tag}]
+              </text>
+            ) : null}
           </g>
         );
       })}
-      {marker ? (
-        <g className="se-citymap__run" aria-label="Your run">
+      {markers.map((marker) => (
+        <g key={marker.index} className="se-citymap__run" aria-label={markers.length > 1 ? `Your run ${marker.index + 1}` : 'Your run'}>
           <circle cx={marker.x} cy={marker.y} r={7} className="se-citymap__run-glow" />
           <circle cx={marker.x} cy={marker.y} r={3.5} className="se-citymap__run-dot" />
         </g>
-      ) : null}
-    </svg>
+      ))}
+      </svg>
+    </div>
   );
 }
 
@@ -166,11 +189,137 @@ function MarketSeen({ counter, products }: { counter: NonNullable<CityCharacterD
   );
 }
 
-export function CityDetail({ city, products, home }: { city: CityCharacterDto; products: CitiesDto['products']; home: string }) {
+function holderName(block: TurfBlockDto): string {
+  if (!block.holder) return block.localsReclaimAt ? 'Vacant' : 'Locals';
+  return block.holder.alliance ? `[${block.holder.alliance.tag}] ${block.holder.displayName}` : block.holder.displayName;
+}
+
+function localsText(block: TurfBlockDto): string {
+  if (block.localsReclaimAt) {
+    return `locals return ${new Date(block.localsReclaimAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+  }
+  if (block.localsThugs >= block.localsFullThugs) return `${formatNumber(block.localsThugs)} locals`;
+  return `${formatNumber(block.localsThugs)} / ${formatNumber(block.localsFullThugs)} locals`;
+}
+
+function turfName(player: { displayName: string; allianceTag: string | null }): string {
+  return player.allianceTag ? `[${player.allianceTag}] ${player.displayName}` : player.displayName;
+}
+
+function TurfReports({ city }: { city: CityCharacterDto }) {
+  const reports = city.turf?.reports ?? [];
+  if (!reports.length) return null;
+  return (
+    <>
+      <h3 className="se-city__heading">Recent turf fights</h3>
+      <ul className="se-turfblocks">
+        {reports.slice(0, 5).map((report) => {
+          const opponent = report.role === 'attacker' ? report.defender : report.attacker;
+          const result = report.stale
+            ? 'Corner changed before the push landed'
+            : report.role === 'attacker'
+              ? report.captured ? 'You took the block' : 'The corner held'
+              : report.captured ? 'The block was lost' : 'Your side held';
+          return (
+            <li key={report.id} className="se-turfblocks__block">
+              <span><strong>{report.districtName}</strong><span className="se-muted"> · {result}</span></span>
+              <span className="se-hint">
+                vs {turfName(opponent)} · {formatNumber(report.attackers)} attackers · {formatNumber(report.defenders.corner + report.defenders.ownerBackup + report.defenders.allyShowed)} defenders
+              </span>
+              <span className="se-hint">
+                Wounds: {formatNumber(report.yourWounds)} yours / {formatNumber(report.opponentWounds)} theirs
+                {report.role === 'ally' ? report.showedUp ? ' · your backup showed' : ' · your backup did not arrive' : ''}
+              </span>
+              {report.outpostLoot ? (
+                <span className="se-hint">
+                  Outpost loot: {formatCentsExact(report.outpostLoot.cashCents)}
+                  {report.outpostLoot.beer ? ` · ${formatNumber(report.outpostLoot.beer)} beer` : ''}
+                  {Object.entries(report.outpostLoot.products).map(([key, quantity]) => ` · ${formatNumber(quantity)} ${key.toLowerCase()}`).join('')}
+                </span>
+              ) : null}
+              {report.revengeUntil && new Date(report.revengeUntil).getTime() > Date.now()
+                ? <span className="se-hint">Revenge open until {new Date(report.revengeUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. It waives presence, not the hold shield.</span>
+                : null}
+            </li>
+          );
+        })}
+      </ul>
+    </>
+  );
+}
+
+function TurfBlocks({ city, onChanged }: { city: CityCharacterDto; onChanged?: () => void }) {
+  if (!city.turf) return null;
+  const blocks = [...city.turf.blocks].sort((a, b) => TURF_ORDER[a.district] - TURF_ORDER[b.district]);
+  const toughest = blocks.reduce<TurfBlockDto | null>((best, block) => (!best || block.localsFullThugs > best.localsFullThugs ? block : best), null);
+  return (
+    <>
+      <h3 className="se-city__heading">City turf</h3>
+      <div className="se-turfmap" role="list" aria-label={`${city.name} turf map`}>
+        {blocks.map((block) => {
+          const state = block.isMine ? 'mine' : block.holder ? 'held' : 'locals';
+          return (
+            <div
+              key={block.district}
+              role="listitem"
+              className={`se-turfmap__block se-turfmap__block--${TURF_AREA_CLASS[block.district]} se-turfmap__block--${state}`}
+            >
+              <span className="se-turfmap__district">{block.districtName}</span>
+              <strong className="se-turfmap__holder">{holderName(block)}</strong>
+              <span className="se-turfmap__strength se-num">
+                {block.holder
+                  ? `${formatNumber(block.cornerThugs)} posted · ${formatNumber(block.cornerGuns.total)} guns`
+                  : localsText(block)}
+              </span>
+              {block.presenceTurns > 0 ? <span className="se-turfmap__presence">{Math.floor(block.presenceTurns)} presence</span> : null}
+            </div>
+          );
+        })}
+      </div>
+      <p className="se-hint">Every city has five turf blocks. Your corners are highlighted; other crews and locals show who currently controls the block.</p>
+
+      <h3 className="se-city__heading">Corner details</h3>
+      <ul className="se-turfblocks">
+        {blocks.map((block) => (
+          <li key={block.district} className={block.holder ? 'se-turfblocks__block se-turfblocks__block--held' : 'se-turfblocks__block'}>
+            <span>
+              <strong>{block.districtName}</strong>
+              <span className="se-muted"> · {holderName(block)}</span>
+            </span>
+            <span className="se-num se-muted">
+              {block.holder ? `${formatNumber(block.cornerThugs)} posted · ${formatNumber(block.cornerGuns.total)} guns` : localsText(block)}
+            </span>
+            {block.presenceTurns > 0 ? <span className="se-hint">{Math.floor(block.presenceTurns)} presence here</span> : null}
+            {block.revengeAvailable && block.revengeUntil
+              ? <span className="se-hint">Revenge active until {new Date(block.revengeUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · no presence required.</span>
+              : null}
+            <TurfActions
+              block={block}
+              isHome={city.isHome}
+              holdingEnabled={city.turf?.holdingEnabled ?? false}
+              warsEnabled={city.turf?.warsEnabled ?? false}
+              onChanged={onChanged}
+            />
+          </li>
+        ))}
+      </ul>
+      {toughest ? <p className="se-hint">Toughest local corner: {toughest.districtName}, {formatNumber(toughest.localsFullThugs)} thugs.</p> : null}
+    </>
+  );
+}
+
+export function CityDetail({ city, products, home, onTurfChanged }: { city: CityCharacterDto; products: CitiesDto['products']; home: string; onTurfChanged?: () => void }) {
   return (
     <Panel title={city.name} aside={city.isHome ? 'Home' : city.gameMinutes !== null ? `${minutesText(city.gameMinutes)} from ${home}` : undefined}>
       <p className="se-city__trait">{city.trait}</p>
       <p className="se-dim">{city.blurb}</p>
+      {city.turf?.control ? (
+        <p className={`se-hint${city.turf.control.isYours ? ' se-good' : ''}`}>
+          <strong>[{city.turf.control.alliance.tag}] {city.turf.control.alliance.name}</strong> controls this city
+          {' '}· {formatNumber(city.turf.control.blocksHeld)}/{formatNumber(city.turf.control.blocksTotal)} blocks
+          {city.turf.control.isYours ? ' · your alliance pays no street tax here' : ''}
+        </p>
+      ) : null}
 
       <h3 className="se-city__heading">Street talk</h3>
       <ul className="se-city__talk">
@@ -213,6 +362,9 @@ export function CityDetail({ city, products, home }: { city: CityCharacterDto; p
       )}
 
       {city.counter && !city.isHome ? <MarketSeen counter={city.counter} products={products} /> : null}
+
+      <TurfBlocks city={city} onChanged={onTurfChanged} />
+      <TurfReports city={city} />
 
       <h3 className="se-city__heading">Roads out</h3>
       <ul className="se-city__roads">

@@ -1,8 +1,9 @@
 import type { DistrictDto } from '@streets/shared';
 
 /**
- * The same five blocks, and the only thing posted about any of them is whether
- * your crew can hold a corner there.
+ * The same five mechanical district archetypes, dressed for the city the crew
+ * currently lives in. The public name and flavor can change by city; the hidden
+ * balance key does not.
  *
  * Nothing else is: not what a block pays, not who is standing around. Both
  * change with the hour or depend on how big you already are, so a printed rate
@@ -40,6 +41,7 @@ export function DistrictPicker({
             />
             <span className="se-choice__body">
               <span className="se-choice__name">{district.name}</span>
+              {district.blurb ? <span className="se-choice__blurb">{district.blurb}</span> : null}
 
               <span className="se-choice__meta">
                 <span className={exposed > 0 ? 'se-bad' : undefined}>

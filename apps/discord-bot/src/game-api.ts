@@ -182,6 +182,44 @@ const battleEventSchema = z.object({
   createdAt: z.string(),
 });
 
+const turfEventSchema = z.object({
+  id: z.string(),
+  roundName: z.string(),
+  city: z.string(),
+  cityName: z.string(),
+  district: z.string(),
+  districtName: z.string(),
+  attackerName: z.string(),
+  attackerProfileUrl: z.string().url(),
+  attackerAllianceTag: z.string().nullable(),
+  defenderName: z.string(),
+  defenderProfileUrl: z.string().url(),
+  settledAt: z.string(),
+});
+
+const territoryEventSchema = z.object({
+  id: z.string(),
+  roundName: z.string(),
+  city: z.string(),
+  cityName: z.string(),
+  previous: z.object({ name: z.string(), tag: z.string(), blocksHeld: z.number() }).nullable(),
+  next: z.object({ name: z.string(), tag: z.string(), blocksHeld: z.number() }).nullable(),
+  blocksTotal: z.number(),
+  happenedAt: z.string(),
+});
+
+const crackdownEventSchema = z.object({
+  id: z.string(),
+  phase: z.enum(['warning', 'sweep']),
+  roundName: z.string(),
+  city: z.string(),
+  cityName: z.string(),
+  warningAt: z.string(),
+  sweepAt: z.string(),
+  holdersAffected: z.number(),
+  thugsPickedUp: z.number(),
+});
+
 const roundEventSchema = z.object({
   type: z.enum(['opened', 'ending-soon', 'ended']),
   roundName: z.string(),
@@ -213,6 +251,9 @@ const alertsClaimSchema = z.object({
   attacks: z.array(battleEventSchema.extend({ discordId: z.string() })),
   roundAlerts: z.array(roundEventSchema.extend({ discordId: z.string(), rank: z.number().nullable() })),
   battles: z.array(battleEventSchema),
+  turf: z.array(turfEventSchema),
+  territory: z.array(territoryEventSchema),
+  crackdowns: z.array(crackdownEventSchema),
   rounds: z.array(roundEventSchema),
 });
 
@@ -250,6 +291,9 @@ export type AlertsClaim = z.infer<typeof alertsClaimSchema>;
 export type TurnReminder = AlertsClaim['turns'][number];
 export type RankAlert = AlertsClaim['ranks'][number];
 export type BattleEvent = AlertsClaim['battles'][number];
+export type TurfEvent = AlertsClaim['turf'][number];
+export type TerritoryEvent = AlertsClaim['territory'][number];
+export type CrackdownEvent = AlertsClaim['crackdowns'][number];
 export type RoundEvent = AlertsClaim['rounds'][number];
 export type RoundStatus = z.infer<typeof statusSchema>;
 export type NewsFeed = z.infer<typeof newsSchema>;

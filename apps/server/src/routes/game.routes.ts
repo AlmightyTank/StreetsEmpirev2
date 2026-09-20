@@ -77,6 +77,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       run: settled.run,
       moving: settled.moving,
       convoyAlert: settled.convoyAlert,
+      turf: settled.turf,
       recentActivity,
     });
   });
@@ -87,7 +88,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get('/districts', { preHandler: fastify.requireAuth }, async (request) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
-    return ScoutService.districts(loadRulesetForRound(round), player);
+    return ScoutService.districts(loadRulesetForRound(round), player, player.city.slug);
   });
 
   fastify.get('/stores', { preHandler: fastify.requireAuth }, async (request) => {

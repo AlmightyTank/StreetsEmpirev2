@@ -1,7 +1,11 @@
 # 0.6.0 roadmap - Turf
 
-Status: **draft.** Nothing is built. Decisions marked *(proposed)* are open until the
-0.5.0 public round reports in.
+Status: **complete.** 0.6.0-A through 0.6.0-F are built and release-gated. Blocks, holding,
+Turf Wars, outposts, territory control/history, City Blocks, the seeded Federal crackdown,
+phone/touch layouts, Discord/Street Wire events, full-round balance simulation and the
+database-backed release regression are all included in the pinned 0.6.0 rulesets. Remaining
+*(proposed)* items and open questions below are post-release tuning topics, not blockers for
+0.6.0.
 
 0.4.0 gave the crew product to manage, and 0.5.0 gave it roads to move that product on.
 Neither gave a crew anything to **hold**. Working a district never touches another player,
@@ -126,21 +130,38 @@ in its own pinned ruleset (`classic-og-v0.6-a`, `-b`, ...) so older rounds keep 
 
 - **Ruleset:** a `turf` block. It holds:
   - per district: the hold bonus, the tax share burned from the worker, the tax share paid to
-    the holder, and the corner crew minimum;
+    the holder, the corner crew minimum, and the holder's crew share posted on that corner;
   - per city and district: the locals' strength and how fast they grow back;
   - presence: turns needed to claim, and how fast presence decays;
   - caps: blocks per crew at home and away, per-payer daily tax, and blocks per alliance in
     one city;
   - shields and cooldowns for C, and push timings reusing the convoy shape.
 - **Schema:**
-  - `Turf (roundId, citySlug, district, holderRoundPlayerId?, cornerThugs, heldSince,
+  - `Turf (roundId, cityId, district, holderRoundPlayerId?, cornerThugs, heldSince,
     shieldUntil, localsStrength, localsAt)`, with one row per block, created with the round.
     A null holder means the locals hold it.
-  - `TurfPresence (roundPlayerId, citySlug, district, turns, at)`.
+  - `TurfPresence (roundPlayerId, cityId, district, turns, at)`.
   - `RoundPlayer.postedThugs`, separate from `busyThugs` because it has no settle deadline.
 - **City map:** the Travel page's city view shows each city's five blocks and who holds them
   (the locals everywhere in A), plus the locals' strength in words ("Detroit's Urban Ghetto:
   the toughest corner in the game").
+Built in A: the `classic-og-v0.6-a` ruleset (0.5.0-F balance plus a `turf` block), the
+engine's turf calculations (`turfBlocks`, `localsThugs`, `turfTax`, `turfHoldBonus`,
+`presenceAfter`, `canClaim`, `cornerUpkeep`) with `turfRulesetProblems`,
+`runTurfSimulation` with its gate behind `npm run qa:turf`, the `Turf`/`TurfPresence`
+schema, lazy block seeding, and the city map readout. See
+[TURF-SIMULATION-0.6.0-A.md](TURF-SIMULATION-0.6.0-A.md).
+
+What the simulation settled:
+- **Turf supplements the street.** The best block pays a mid-round crew about a quarter of
+  a street day; the slums a fiftieth.
+- **Corners scale with the holder.** The Casino takes 10% of the holder's crew and the
+  slums take 5%, so filling the home cap costs a mid-round crew roughly 22-36% of its
+  thugs instead of being free for late crews.
+- **The locals are a ladder**: a fresh crew can take nothing, a mid-round crew can take
+  anything, and Detroit's Casino (42 thugs) is the hardest corner in the game against
+  Seattle's (21).
+
 - **Simulation (`qa:turf`):**
   - for each block: the hold bonus plus the expected tax against what the corner crew would
     earn and defend at home, across early, middle and late crews, and with 1, 5 and 20 crews
@@ -191,13 +212,28 @@ in its own pinned ruleset (`classic-og-v0.6-a`, `-b`, ...) so older rounds keep 
 - **The wire:** the street wire and the Discord city feed carry blocks changing hands
   ("Low Rent in Detroit fell to [TAG] Slick").
 
+Built in C: the full delayed fight lifecycle above, plus battle reports, shared retaliation
+against the taker (presence waiver only; the hold shield still stands), a six-hour vacant
+window before locals reclaim an abandoned corner, and public Street Wire/Discord
+hand-change lines. The C simulation is recorded in
+[TURF-SIMULATION-0.6.0-C.md](TURF-SIMULATION-0.6.0-C.md): equal 20-thug crews produce
+38.7% attacker wins without backup and 23.2% with an alliance call; 48.7% of help showed
+against the configured 50%.
+
 ## 0.6.0-D - Outposts
+
+Status: **complete.** Away turf now has its full playable loop: runs can establish and
+service outposts; upkeep and street tax stay in the remote box; player pushes can capture
+an outpost and steal a capped exposed share; the one-level Garage raises the active-run
+limit to two with independent routing, trading, convoy reach and aggregate away net worth;
+and relocation previews then converts destination outposts into home turf, old-home blocks
+into outposts up to the away cap, and releases any overflow when the move arrives.
 
 - **An outpost is a corner crew away from home.** It is how a crew holds turf in more than
   one city without leaving home.
 - **Delivered by a run:** a run stopping in a town can drop thugs, guns, beer, product and
-  cash into an outpost there. It still needs presence, from Scout trips made while living
-  there or from what the run's crew sees (to be decided in the D simulation).
+  cash into an outpost there. It still needs the normal turf-presence requirement earned
+  by Scout work; merely driving a run through town does not create presence.
 - **The box:** each outpost has its own stock. Upkeep burns from it, and tax earned there
   lands in it.
   - Nothing is wired home. Collecting tax means sending a run.
@@ -214,6 +250,15 @@ in its own pinned ruleset (`classic-og-v0.6-a`, `-b`, ...) so older rounds keep 
 
 ## 0.6.0-E - Territory
 
+Status: **complete.** Three of five blocks gives an alliance city control, controlled
+cities are tagged on the Travel map, and the controlling alliance pays no street tax there.
+Personally held corners provide live, bandless run sightings without replacing paid recon.
+City-control gains/losses/transfers are durable one-time Discord feed events. The Rankings
+page now carries crew and alliance Territory boards based on cumulative block-time, with
+ownership and alliance-membership changes split into durable history segments; tied #1
+leaders share the turf-leader mark. Finished Territory rounds archive their leading crew
+and alliance in the Hall of Fame.
+
 - **Alliance territory:** the blocks every member holds, shown on the city map in the
   alliance's tag.
 - **City control:** an alliance holding a set share of a city's blocks controls it.
@@ -228,6 +273,18 @@ in its own pinned ruleset (`classic-og-v0.6-a`, `-b`, ...) so older rounds keep 
 
 ## 0.6.0-F - Release
 
+Status: **complete.** The `classic-og-v0.6-f` shipping ruleset is pinned from E without
+changing balance, `qa:turf` runs against F, the Turf balance gate runs inside
+`qa:release`, and the public Rules page has its Turf/territory panel. The full-round
+strategy simulation covers holder, turf-raider, runner, mover and mixed empires in every
+city, both session styles, fresh/mid starts and solo/alliance fields, with home-corner
+opportunity cost, push turnover, capped outpost loot, weekly outpost service and the Garage
+purchase priced into the result. The release gate requires mixed play to beat pure holding,
+turf raiding and running everywhere, while optional Turf may never make the same move/road
+plan worse. The full-round gate is green; see [TURF-SIMULATION-0.6.0-F.md](TURF-SIMULATION-0.6.0-F.md).
+The seeded Federal crackdown, phone/touch pass, City Blocks dashboard and Turf integration
+regression are complete and verified.
+
 - **Balance:** a pass over all 40 blocks on `qa:turf` and full-round runs, including
   outposts, the Garage and the tax caps.
 - **Full-round simulation:** holder, raider, runner, mover and mixed crews, solo and in
@@ -235,6 +292,14 @@ in its own pinned ruleset (`classic-og-v0.6-a`, `-b`, ...) so older rounds keep 
 - **The crackdown:** one seeded event near the end of the round. The Feds sweep one city:
   its holders' corner crews take Heat and some are picked up. It is announced on the wire a
   day ahead, so crews decide whether to hold or pull out.
+
+Built in F: the city is deterministic from the round/ruleset seed; the warning lands 24
+hours before a sweep 48 hours before the round ends. Every held block adds 12 Heat to its
+holder. The Feds pick up 20% of each posted corner crew, capped at 6 per block, while always
+leaving at least one thug so the event weakens turf rather than auto-flipping it. Picked-up
+thugs and their posted guns leave the player's net worth/custody correctly. The warning and
+result are durable one-time Street Wire and Discord feed events, and round close settles a
+due sweep before final standings freeze.
 - **UI:** a phone pass on the city map, the push screen and outposts; the Rules page gains a
   Turf panel.
 - **Release regression:** turf integration suites join `qa:release`.
@@ -246,8 +311,10 @@ in its own pinned ruleset (`classic-og-v0.6-a`, `-b`, ...) so older rounds keep 
    share simply be smaller than the worker's loss?
 2. **Caps.** Blocks per crew at home and away, and per alliance in a city. Two at home, one
    away, and three of five per alliance are starting points for the A simulation.
-3. **Does holding draw Heat?** Tax is dirty money. A little Heat per dollar would tie turf
-   to the city's police lines, and to the crackdown.
+3. **Heat from holding (resolved for 0.6.0-F).** Ordinary holding and street-tax income do
+   not add passive Heat. The seeded crackdown is the Turf police pressure instead: holders
+   caught in its target city take Heat per block. Revisit passive dirty-money Heat only if
+   public-round data shows holding is too safe.
 4. **Presence for outposts.** Can a run's crew build presence in a town, or must you have
    lived there?
 5. **Reinforcement beyond turf.** If the chance-to-show-up shape plays well on turf, does it

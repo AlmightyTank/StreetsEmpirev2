@@ -13,8 +13,6 @@ import type { ProductRecipe } from './product-economy.js';
 import {
   calculateDepartures,
   calculateInfections,
-  calculateWorkConsumption,
-  calculateWorkSupplyNeeds,
   type Consumption,
   type Departures,
   type Infections,
@@ -40,6 +38,77 @@ export interface ActionContext {
   ruleset: Ruleset;
   city?: CityModifiers;
   rng?: Rng;
+}
+
+function emptyConsumption(): Consumption {
+  return { condoms: 0, crack: 0, beer: 0 };
+}
+
+function emptyDepartures(): Departures {
+  return { whores: 0, thugs: 0 };
+}
+
+function emptyInfections(): Infections {
+  return { infected: 0, treated: 0, medicineUsed: 0, lost: 0 };
+}
+
+function addConsumption(target: Consumption, next: Consumption): void {
+  target.condoms += next.condoms;
+  target.crack += next.crack;
+  target.beer += next.beer;
+}
+
+function addDepartures(target: Departures, next: Departures): void {
+  target.whores += next.whores;
+  target.thugs += next.thugs;
+}
+
+function addInfections(target: Infections, next: Infections): void {
+  target.infected += next.infected;
+  target.treated += next.treated;
+  target.medicineUsed += next.medicineUsed;
+  target.lost += next.lost;
+}
+
+type TurnSupplyEffects = Pick<WorkSupplyPlan, 'takeMultiplier' | 'recruitmentMultiplier' | 'departureMultiplier' | 'morale'>;
+
+function supplyEffectsForTurn(plan: WorkSupplyPlan | undefined, turn: number): TurnSupplyEffects {
+  if (!plan || plan.slices.length === 0) {
+    return {
+      takeMultiplier: plan?.takeMultiplier ?? 1,
+      recruitmentMultiplier: plan?.recruitmentMultiplier ?? 1,
+      departureMultiplier: plan?.departureMultiplier ?? 1,
+      morale: plan?.morale ?? 0,
+    };
+  }
+
+  const midpoint = turn + 0.5;
+  let elapsed = 0;
+  for (const slice of plan.slices) {
+    elapsed += slice.turns;
+    if (midpoint <= elapsed + 1e-9) {
+      return {
+        takeMultiplier: slice.takeMultiplier,
+        recruitmentMultiplier: slice.recruitmentMultiplier,
+        departureMultiplier: slice.departureMultiplier,
+        morale: slice.morale,
+      };
+    }
+  }
+
+  const last = plan.slices[plan.slices.length - 1]!;
+  return {
+    takeMultiplier: last.takeMultiplier,
+    recruitmentMultiplier: last.recruitmentMultiplier,
+    departureMultiplier: last.departureMultiplier,
+    morale: last.morale,
+  };
+}
+
+function spendCrew(state: UpkeepInput, departures: Departures, infections: Infections): void {
+  state.whores = Math.max(0, state.whores - departures.whores - infections.lost);
+  state.thugs = Math.max(0, state.thugs - departures.thugs);
+  state.medicine = Math.max(0, state.medicine - infections.medicineUsed);
 }
 
 // --- recruitment ------------------------------------------------------------
@@ -115,32 +184,60 @@ export function calculateScout(
 
   const rules = ruleset.scouting;
   const definition = rules.districts[district];
-
-  const multipliers = {
+  const state: UpkeepInput = { ...player };
+  const initialMultipliers = {
     whores: recruitmentMultiplier(player.whores, rules.recruitment.whoreSoftCap),
     thugs: recruitmentMultiplier(player.thugs, rules.recruitment.thugSoftCap),
   };
+  const whoreVariance = 1 + (rng() * 2 - 1) * rules.variance;
+  const thugVariance = 1 + (rng() * 2 - 1) * rules.variance;
+  let whoreCarry = 0;
+  let thugCarry = 0;
+  let whoresRecruited = 0;
+  let thugsRecruited = 0;
 
-  const recruit = (perTurn: number, multiplier: number): number =>
-    Math.max(
-      0,
-      roundStochastic(
-        applyVariance(
-          perTurn * turns * multiplier * city.scoutModifier,
-          rules.variance,
-          rng,
-        ),
-        rng,
-      ),
-    );
+  const take = calculateStreetTake({
+    ...context,
+    player: state,
+    rng,
+    afterTurn: (turnState, turn) => {
+      const supply = supplyEffectsForTurn(context.supply, turn);
+      whoreCarry +=
+        definition.whoresPerTurn *
+        recruitmentMultiplier(turnState.whores, rules.recruitment.whoreSoftCap) *
+        supply.recruitmentMultiplier *
+        city.scoutModifier *
+        whoreVariance;
+      thugCarry +=
+        definition.thugsPerTurn *
+        recruitmentMultiplier(turnState.thugs, rules.recruitment.thugSoftCap) *
+        city.scoutModifier *
+        thugVariance;
+
+      const joinedWhores = Math.floor(whoreCarry);
+      const joinedThugs = Math.floor(thugCarry);
+      if (joinedWhores > 0) {
+        turnState.whores += joinedWhores;
+        whoresRecruited += joinedWhores;
+        whoreCarry -= joinedWhores;
+      }
+      if (joinedThugs > 0) {
+        turnState.thugs += joinedThugs;
+        thugsRecruited += joinedThugs;
+        thugCarry -= joinedThugs;
+      }
+    },
+  });
+
+  if (roundStochastic(whoreCarry, rng) > 0) whoresRecruited++;
+  if (roundStochastic(thugCarry, rng) > 0) thugsRecruited++;
 
   return {
-    ...calculateStreetTake({ ...context, rng }),
+    ...take,
     turnsSpent: turns,
-    recruitmentMultipliers: multipliers,
-    // 0.4.0-C: the product the girls work on draws clients, and with them new faces.
-    whoresRecruited: recruit(definition.whoresPerTurn, multipliers.whores * (context.supply?.recruitmentMultiplier ?? 1)),
-    thugsRecruited: recruit(definition.thugsPerTurn, multipliers.thugs),
+    recruitmentMultipliers: initialMultipliers,
+    whoresRecruited,
+    thugsRecruited,
   };
 }
 
@@ -238,6 +335,11 @@ export function calculateStreetTake(
     heat?: number;
     /** 0.4.0-C. Thug departures, when thugs are cooking on their own supply. */
     thugDepartureMultiplier?: number;
+    thugDepartureMultiplierForTurn?: (turn: number) => number | undefined;
+    /** Runs after the turn's work is done, before end-of-turn losses. */
+    onTurnWorked?: (state: UpkeepInput, turn: number) => void;
+    /** Runs after one turn's losses are applied, so callers can add same-trip changes. */
+    afterTurn?: (state: UpkeepInput, turn: number) => void;
   },
 ): StreetTake {
   const { player, turns, ruleset, district, payoutPercent } = context;
@@ -247,55 +349,135 @@ export function calculateStreetTake(
 
   const rules = ruleset.scouting;
   const definition = rules.districts[district];
-  const exposure = calculateExposure(player, definition, ruleset);
-
-  // A block only holds so many people willing to pay.
-  const clients = {
+  const state: UpkeepInput = { ...player };
+  let exposure = calculateExposure(state, definition, ruleset);
+  let clients = {
     capacity: context.clientCapacity,
-    takeMultiplier: clientMultiplier(context.clientCapacity, player.whores),
+    takeMultiplier: clientMultiplier(context.clientCapacity, state.whores),
   };
-
-  const earned = Math.floor(
-    applyVariance(
-      player.whores *
-        rules.grossPerWhorePerTurnCents *
-        turns *
-        happinessMultiplier(player.whoreHappiness, rules.minHappinessMultiplier) *
-        definition.payMultiplier *
-        takeMultiplier *
-        exposure.takeMultiplier *
-        clients.takeMultiplier *
-        (context.supply?.takeMultiplier ?? 1) *
-        heatTakeMultiplier(context.heat ?? 0, ruleset) *
-        city.incomeModifier,
-      rules.takeVariance,
-      rng,
-    ),
-  );
-
-  const grossCents = BigInt(Math.max(0, earned));
-  const crewTakeCents = BigInt(Math.floor(Number(grossCents) * (payoutPercent / 100)));
-  const pimpTakeCents = grossCents - crewTakeCents;
-
-  const needed = calculateWorkSupplyNeeds(player, turns, ruleset);
-  const consumption = calculateWorkConsumption(player, turns, ruleset);
-  // With a supply plan, crack is only what the plan burns from the crack column.
-  if (context.supply) consumption.crack = context.supply.consumed.CRACK ?? 0;
-  const shortages = {
-    condoms: needed.condoms - consumption.condoms,
-    beer: needed.beer - consumption.beer,
+  const consumption = emptyConsumption();
+  const departures = emptyDepartures();
+  const infections = emptyInfections();
+  // Loss rails are per action, not per simulated turn. calculateDepartures /
+  // calculateInfections still apply their own one-call ceilings, but this loop
+  // calls them once per turn so we also keep the remaining action-wide budget.
+  const departureCaps = {
+    whores: Math.ceil(Math.max(0, player.whores) * ruleset.departures.maxFractionPerAction),
+    thugs: Math.ceil(Math.max(0, player.thugs) * ruleset.departures.maxFractionPerAction),
   };
-
-
-
-  // Every so often a night turns up product instead of cash.
+  const infectionCap = player.whores <= 0
+    ? 0
+    : Math.max(1, Math.floor(player.whores * ruleset.health.maxInfectedFractionPerAction));
+  const shortages = { condoms: 0, beer: 0 };
+  const needCarry = { condoms: 0, crack: 0, beer: 0 };
+  let gross = 0;
   let crackFound = 0;
-  for (let turn = 0; turn < turns; turn++) {
+  const workedTurns = Math.max(0, turns);
+
+  for (let turn = 0; turn < workedTurns; turn++) {
+    const supply = supplyEffectsForTurn(context.supply, turn);
+    exposure = calculateExposure(state, definition, ruleset);
+    clients = {
+      capacity: context.clientCapacity,
+      takeMultiplier: clientMultiplier(context.clientCapacity, state.whores),
+    };
+
+    gross += Math.floor(
+      applyVariance(
+        state.whores *
+          rules.grossPerWhorePerTurnCents *
+          happinessMultiplier(state.whoreHappiness, rules.minHappinessMultiplier) *
+          definition.payMultiplier *
+          takeMultiplier *
+          exposure.takeMultiplier *
+          clients.takeMultiplier *
+          supply.takeMultiplier *
+          heatTakeMultiplier(context.heat ?? 0, ruleset) *
+          city.incomeModifier,
+        rules.takeVariance,
+        rng,
+      ),
+    );
+
+    const rates = rules.consumption;
+    needCarry.condoms += state.whores * rates.condomsPerWhorePerTurn;
+    needCarry.crack += state.whores * rates.crackPerWhorePerTurn;
+    needCarry.beer += state.thugs * rates.beerPerThugPerTurn;
+    const turnNeeded = {
+      condoms: Math.floor(needCarry.condoms),
+      crack: Math.floor(needCarry.crack),
+      beer: Math.floor(needCarry.beer),
+    };
+    needCarry.condoms -= turnNeeded.condoms;
+    needCarry.crack -= turnNeeded.crack;
+    needCarry.beer -= turnNeeded.beer;
+    if (turn === workedTurns - 1) {
+      const finalCondoms = Math.ceil(needCarry.condoms - 1e-9);
+      const finalBeer = Math.ceil(needCarry.beer - 1e-9);
+      turnNeeded.condoms += finalCondoms;
+      turnNeeded.beer += finalBeer;
+      needCarry.condoms = 0;
+      needCarry.beer = 0;
+    }
+    const turnConsumption = {
+      condoms: Math.min(turnNeeded.condoms, state.condoms),
+      crack: Math.min(turnNeeded.crack, state.crack),
+      beer: Math.min(turnNeeded.beer, state.beer),
+    };
+    if (context.supply) turnConsumption.crack = 0;
+    addConsumption(consumption, turnConsumption);
+    state.condoms = Math.max(0, state.condoms - turnConsumption.condoms);
+    state.crack = Math.max(0, state.crack - turnConsumption.crack);
+    state.beer = Math.max(0, state.beer - turnConsumption.beer);
+    shortages.condoms += turnNeeded.condoms - turnConsumption.condoms;
+    shortages.beer += turnNeeded.beer - turnConsumption.beer;
+
     if (rng() < rules.finds.chancePerTurn) {
       const span = rules.finds.crackMax - rules.finds.crackMin;
       crackFound += rules.finds.crackMin + Math.floor(rng() * (span + 1));
     }
+
+    context.onTurnWorked?.(state, turn);
+
+    const rawDepartures = calculateDepartures(state, 1, ruleset, rng, {
+      whores: supply.departureMultiplier,
+      thugs: context.thugDepartureMultiplierForTurn?.(turn) ?? context.thugDepartureMultiplier,
+    });
+    const turnDepartures = {
+      whores: Math.min(rawDepartures.whores, Math.max(0, departureCaps.whores - departures.whores)),
+      thugs: Math.min(rawDepartures.thugs, Math.max(0, departureCaps.thugs - departures.thugs)),
+    };
+
+    const infectionRoom = Math.max(0, infectionCap - infections.infected);
+    const rawInfections = infectionRoom > 0
+      ? calculateInfections(
+          state,
+          1,
+          turnNeeded.condoms > 0 ? (turnNeeded.condoms - turnConsumption.condoms) / turnNeeded.condoms : 0,
+          ruleset,
+          rng,
+        )
+      : emptyInfections();
+    const infected = Math.min(rawInfections.infected, infectionRoom);
+    const treated = Math.min(infected, rawInfections.treated);
+    const turnInfections = {
+      infected,
+      treated,
+      medicineUsed: treated * ruleset.health.medicinePerTreatment,
+      lost: infected - treated,
+    };
+
+    addDepartures(departures, turnDepartures);
+    addInfections(infections, turnInfections);
+    spendCrew(state, turnDepartures, turnInfections);
+    context.afterTurn?.(state, turn);
   }
+
+  if (context.supply) consumption.crack = context.supply.consumed.CRACK ?? 0;
+
+  const grossCents = BigInt(Math.max(0, gross));
+  const crewTakeCents = BigInt(Math.floor(Number(grossCents) * (payoutPercent / 100)));
+  const pimpTakeCents = grossCents - crewTakeCents;
 
   return {
     exposure,
@@ -307,18 +489,8 @@ export function calculateStreetTake(
     crackFound,
     consumption,
     shortages,
-    departures: calculateDepartures(player, turns, ruleset, rng, {
-      whores: context.supply?.departureMultiplier,
-      thugs: context.thugDepartureMultiplier,
-    }),
-    // Any shift that puts the girls out can go wrong without condoms.
-    infections: calculateInfections(
-      player,
-      turns,
-      needed.condoms > 0 ? shortages.condoms / needed.condoms : 0,
-      ruleset,
-      rng,
-    ),
+    departures,
+    infections,
   };
 }
 
@@ -366,51 +538,55 @@ export function calculateProduce(
   const crack = context.recipe
     ? { perThugPerTurn: context.recipe.perThugPerTurn, minHappinessMultiplier: context.recipe.minHappinessMultiplier, variance: context.recipe.variance, ingredientCentsPerRock: context.recipe.ingredientCentsPerUnit }
     : legacy;
-  // Product lifts the cooks' mood for the shift, and the shift only.
-  const player = context.cook
-    ? { ...context.player, thugHappiness: Math.min(ruleset.happiness.max, context.player.thugHappiness + context.cook.morale) }
-    : context.player;
-
-  const batch = Math.max(
-    0,
-    roundStochastic(
-      applyVariance(
-        player.thugs *
-          crack.perThugPerTurn *
-          turns *
-          happinessMultiplier(player.thugHappiness, crack.minHappinessMultiplier) *
-          (context.cook?.takeMultiplier ?? 1) *
-          city.crackModifier,
-        crack.variance,
-        rng,
-      ),
-      rng,
-    ),
-  );
-
+  const productionVariance = 1 + (rng() * 2 - 1) * crack.variance;
   const affordable =
     crack.ingredientCentsPerRock > 0
       ? Number(cashCents / BigInt(crack.ingredientCentsPerRock))
-      : batch;
-
-  const crackProduced = Math.min(batch, Math.max(0, affordable));
+      : Number.POSITIVE_INFINITY;
+  let productCarry = 0;
+  let crackProduced = 0;
+  let limitedByCash = false;
+  const addProduct = (units: number): void => {
+    const allowed = Math.max(0, affordable - crackProduced);
+    const made = Math.min(units, allowed);
+    if (made < units) limitedByCash = true;
+    crackProduced += made;
+  };
 
   // The girls are still out - on their usual block, since nobody is choosing
   // one for them tonight. Which block that is stays hidden.
   const take = calculateStreetTake({
     ...context,
-    player,
-    thugDepartureMultiplier: context.cook?.departureMultiplier,
+    player: context.player,
+    thugDepartureMultiplierForTurn: (turn) => supplyEffectsForTurn(context.cook, turn).departureMultiplier,
+    onTurnWorked: (state, turn) => {
+      const cook = supplyEffectsForTurn(context.cook, turn);
+      const thugHappiness = Math.min(ruleset.happiness.max ?? 100, state.thugHappiness + cook.morale);
+      productCarry +=
+        state.thugs *
+        crack.perThugPerTurn *
+        happinessMultiplier(thugHappiness, crack.minHappinessMultiplier) *
+        cook.takeMultiplier *
+        city.crackModifier *
+        productionVariance;
+      const whole = Math.floor(productCarry);
+      if (whole > 0) {
+        addProduct(whole);
+        productCarry -= whole;
+      }
+    },
     rng,
     district: ruleset.scouting.produceDistrict,
     takeMultiplier: ruleset.production.unsupervisedTakeMultiplier,
   });
+  const roundedRemainder = roundStochastic(productCarry, rng);
+  if (roundedRemainder > 0) addProduct(roundedRemainder);
 
   return {
     ...take,
     turnsSpent: turns,
     crackProduced,
     ingredientCents: BigInt(crackProduced) * BigInt(crack.ingredientCentsPerRock),
-    limitedByCash: crackProduced < batch,
+    limitedByCash,
   };
 }

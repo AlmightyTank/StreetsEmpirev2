@@ -10,6 +10,8 @@ function valid(): InvariantPlayerState {
     whores: 10,
     thugs: 10,
     woundedThugs: 0,
+    busyThugs: 0,
+    postedThugs: 0,
     condoms: 100,
     medicine: 10,
     crack: 100,
@@ -71,6 +73,10 @@ describe('assertPlayerState', () => {
 
   it('rejects wounded thugs above the owned crew', () => {
     expect(() => assertPlayerState({ ...valid(), woundedThugs: 11 }, classicOgV01)).toThrow(/woundedThugs cannot exceed total thugs/);
+  });
+
+  it('rejects thugs being unavailable in more than one place than the crew can cover', () => {
+    expect(() => assertPlayerState({ ...valid(), woundedThugs: 4, busyThugs: 4, postedThugs: 3 }, classicOgV01)).toThrow(/postedThugs cannot exceed total thugs/);
   });
 
   it('rejects a payout outside the ruleset', () => {

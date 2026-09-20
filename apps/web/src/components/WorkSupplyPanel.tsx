@@ -5,7 +5,7 @@ import type { WorkSupplyDto, WorkSupplyPlanDto, WorkSupplyPolicyDto, WorkSupplyP
 import { formatCents, formatNumber } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { Button } from './Button.js';
-import { Panel } from './Panel.js';
+import { Panel, Row } from './Panel.js';
 
 function turnsText(turns: number): string {
   const rounded = Math.round(turns * 10) / 10;
@@ -86,6 +86,53 @@ function policyLine(policy: WorkSupplyPolicyDto, nameOf: (key: string) => string
 }
 
 type JobRow = WorkSupplyDto['jobs'][number];
+const WORK_SUPPLY_CHANGED = 'streets:work-supply-changed';
+
+function announceWorkSupplyChanged() {
+  window.dispatchEvent(new Event(WORK_SUPPLY_CHANGED));
+}
+
+const policyProducts = (policy: WorkSupplyPolicyDto) => (
+  [policy.primary, policy.fallback, policy.emergency]
+    .filter((key): key is string => Boolean(key))
+    .filter((key, index, keys) => keys.indexOf(key) === index)
+);
+
+function fuelLine(row: JobRow, products: WorkSupplyDto['products']): string {
+  if (!row.active) return 'Not supplied';
+  const choices = policyProducts(row.policy).map((key) => {
+    const product = products.find((entry) => entry.key === key);
+    return `${product?.name ?? key} ${formatNumber(product?.quantity ?? 0)}`;
+  });
+  return `${choices.join(row.policy.strict ? ', ' : ' -> ')}${row.policy.strict ? ' only' : ''}`;
+}
+
+/** Stock rows for the drugs the selected jobs are configured to burn. */
+export function WorkSupplyStockRows({ jobs, refreshKey }: {
+  jobs: Array<{ job: string; label: string }>; refreshKey?: unknown;
+}) {
+  const [overview, setOverview] = useState<WorkSupplyDto | null>(null);
+  const load = useCallback(() => {
+    api.get<WorkSupplyDto>('/game/work-supply').then(setOverview).catch(() => setOverview(null));
+  }, []);
+  useEffect(load, [load, refreshKey]);
+  useEffect(() => {
+    window.addEventListener(WORK_SUPPLY_CHANGED, load);
+    return () => window.removeEventListener(WORK_SUPPLY_CHANGED, load);
+  }, [load]);
+
+  if (!overview?.enabled) return null;
+  const rows = jobs.map((entry) => ({ ...entry, row: overview.jobs.find((candidate) => candidate.key === entry.job) })).filter((entry) => entry.row);
+  if (!rows.length) return null;
+
+  return (
+    <>
+      {rows.map(({ job, label, row }) => (
+        <Row key={job} label={`${label} fuel`} value={fuelLine(row!, overview.products)} />
+      ))}
+    </>
+  );
+}
 
 /**
  * One job's supply, compact: the policy on one line, what the next trip does on
@@ -121,7 +168,9 @@ function SupplyRow({ overview, row, jobLabel, turns, refreshKey, onOverview }: {
     setSaving(true);
     setError(null);
     try {
-      onOverview(await api.post<WorkSupplyDto>(path, body));
+      const next = await api.post<WorkSupplyDto>(path, body);
+      onOverview(next);
+      announceWorkSupplyChanged();
       setEditing(false);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : failure);

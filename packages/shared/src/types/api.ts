@@ -1,4 +1,4 @@
-import type { HeatDto, TripHeatDto, WorkSupplyPlanDto } from './playing-together.js';
+import type { HeatDto, TripHeatDto, TurfSummaryDto, TurfTripDto, WorkSupplyPlanDto } from './playing-together.js';
 /**
  * The contract between apps/server and apps/web.
  *
@@ -41,7 +41,16 @@ export type ActivityType =
   | 'CONVOY_TAIL'
   | 'CONVOY_ATTACK'
   | 'CONVOY_DEFENSE'
-  | 'CONVOY_BACKUP';
+  | 'CONVOY_BACKUP'
+  | 'TURF_CLAIM'
+  | 'TURF_POST'
+  | 'TURF_PULL'
+  | 'TURF_PUSH'
+  | 'TURF_PUSH_BACKUP'
+  | 'TURF_PUSH_ATTACK'
+  | 'TURF_PUSH_DEFENSE'
+  | 'TURF_OUTPOST_ESTABLISH'
+  | 'TURF_OUTPOST_TRANSFER';
 
 export interface ApiErrorBody {
   error: {
@@ -163,6 +172,8 @@ export interface ResourcesDto {
   thugs: number;
   fitThugs: number;
   woundedThugs: number;
+  /** 0.6.0-A. Thugs standing on held corners, unavailable at home. */
+  postedThugs: number;
   armedThugs: number;
   unarmedThugs: number;
 
@@ -235,6 +246,8 @@ export interface RoundPlayerDto {
   moving: { to: string; toName: string; arrivesAt: string } | null;
   /** 0.5.0-E. Someone on your run's tail, or an ally's call you can answer: the soonest to land. */
   convoyAlert: { kind: 'tailed' | 'call'; cityName: string; landsAt: string } | null;
+  /** 0.6.0-B. Home turf and today's house-minted street tax. */
+  turf: TurfSummaryDto | null;
   rank: RankDto;
   hideout: SeasonHideoutDto;
 
@@ -282,7 +295,7 @@ export interface SeasonHideoutDto {
   }>;
 }
 
-export type HideoutRoomKeyDto = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE';
+export type HideoutRoomKeyDto = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE' | 'GARAGE';
 
 export interface HideoutRoomDto {
   key: HideoutRoomKeyDto;
@@ -378,6 +391,8 @@ export interface DistrictDto {
   key: string;
   slug: string;
   name: string;
+  /** City-specific street flavor. Older rulesets may omit it. */
+  blurb?: string;
   /*
    * There is deliberately no pay band and no recruit rate here.
    *
@@ -412,6 +427,8 @@ export interface DistrictsDto {
  */
 export interface ScoutResult {
   district: DistrictDto;
+  /** 0.6.0-B. Hold bonus or street tax applied to this trip. */
+  turf?: TurfTripDto;
   /** 0.4.0-B. How the trip was supplied, on rounds with work supply. */
   supply?: WorkSupplyPlanDto;
   /** 0.4.0-C. On rounds with Heat. */

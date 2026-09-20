@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   badgesEmbed,
   compareEmbed,
+  crackdownFeedEmbed,
   escapeMarkdown,
   formatRemaining,
   hallOfFameEmbed,
@@ -17,6 +18,7 @@ import {
   roundEmbed,
   syncAllText,
   syncMemberText,
+  territoryFeedEmbed,
   truncate,
   turnReminderEmbed,
 } from '../format.js';
@@ -169,6 +171,92 @@ describe('hallOfFameEmbed', () => {
     });
     expect(embed.fields![1]!.value).toBe('No final standings recorded.');
     expect(hallOfFameEmbed({ rounds: [] }, origin).description).toMatch(/^No round has finished yet/);
+  });
+});
+
+describe('crackdownFeedEmbed', () => {
+  const base = {
+    id: 'crackdown-1',
+    roundName: 'Game #008',
+    city: 'detroit',
+    cityName: 'Detroit',
+    warningAt: '2026-09-26T00:00:00.000Z',
+    sweepAt: '2026-09-27T00:00:00.000Z',
+  };
+
+  it('warns turf holders before the sweep', () => {
+    const embed = crackdownFeedEmbed({
+      ...base,
+      phase: 'warning',
+      holdersAffected: 0,
+      thugsPickedUp: 0,
+    });
+    expect(embed.title).toBe('Detroit · Federal sweep incoming');
+    expect(embed.description).toContain('Turf crews have until then to pull out.');
+    expect(embed.timestamp).toBe(base.warningAt);
+  });
+
+  it('reports the landed sweep without naming private holder losses', () => {
+    const embed = crackdownFeedEmbed({
+      ...base,
+      phase: 'sweep',
+      holdersAffected: 3,
+      thugsPickedUp: 11,
+    });
+    expect(embed.title).toBe('Detroit · Federal sweep landed');
+    expect(embed.description).toContain('11 corner men were picked up across 3 crews.');
+    expect(embed.timestamp).toBe(base.sweepAt);
+  });
+
+  it('distinguishes protected one-man corners from an empty city', () => {
+    const protectedSweep = crackdownFeedEmbed({
+      ...base,
+      phase: 'sweep',
+      holdersAffected: 2,
+      thugsPickedUp: 0,
+    });
+    expect(protectedSweep.description).toContain('2 crews were caught holding corners, but nobody was picked up.');
+
+    const emptySweep = crackdownFeedEmbed({
+      ...base,
+      phase: 'sweep',
+      holdersAffected: 0,
+      thugsPickedUp: 0,
+    });
+    expect(emptySweep.description).toContain('the corners were already clear.');
+  });
+});
+
+describe('territoryFeedEmbed', () => {
+  it('describes gains, losses and direct control steals without mentions', () => {
+    const base = {
+      id: 'territory-1',
+      roundName: 'Game #008',
+      city: 'detroit',
+      cityName: 'Detroit',
+      blocksTotal: 5,
+      happenedAt: '2026-09-20T18:00:00.000Z',
+    };
+    const gained = territoryFeedEmbed({
+      ...base,
+      previous: null,
+      next: { name: 'Aces', tag: 'ACE', blocksHeld: 3 },
+    });
+    expect(gained.description).toContain('[ACE] Aces took control of Detroit · 3/5 blocks.');
+
+    const stolen = territoryFeedEmbed({
+      ...base,
+      previous: { name: 'Aces', tag: 'ACE', blocksHeld: 3 },
+      next: { name: 'Kings', tag: 'KNG', blocksHeld: 3 },
+    });
+    expect(stolen.description).toContain('[KNG] Kings took control of Detroit from [ACE] Aces');
+
+    const lost = territoryFeedEmbed({
+      ...base,
+      previous: { name: 'Kings', tag: 'KNG', blocksHeld: 3 },
+      next: null,
+    });
+    expect(lost.description).toContain('No alliance controls it now.');
   });
 });
 

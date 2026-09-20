@@ -261,7 +261,7 @@ export function armEscorts(ruleset: Ruleset, escorts: number, home: RunGuns): Ru
 export const GUN_FIELDS = { PISTOL: 'pistols', SHOTGUN: 'shotguns', TEK9: 'tek9s', AK47: 'ak47s' } as const;
 
 /** What a run is worth to net worth: its wallet at the cash weight, its cars, its escorts, their guns and its cargo at home values. */
-export function runNetWorthCents(ruleset: Ruleset, run: { cashCents: bigint; lowRiders: number; escortThugs: number; cargo: Readonly<Record<string, number>>; guns?: RunGuns }): bigint {
+export function runNetWorthCents(ruleset: Ruleset, run: { cashCents: bigint; lowRiders: number; escortThugs: number; beer?: number; cargo: Readonly<Record<string, number>>; guns?: RunGuns }): bigint {
   const { [CRACK_PRODUCT]: crack = 0, ...products } = run.cargo;
   const guns = run.guns ?? NO_GUNS;
   return calculateNetWorthCents({
@@ -272,7 +272,7 @@ export function runNetWorthCents(ruleset: Ruleset, run: { cashCents: bigint; low
     medicine: 0,
     crack,
     condoms: 0,
-    beer: 0,
+    beer: run.beer ?? 0,
     pistols: guns.pistols,
     shotguns: guns.shotguns,
     tek9s: guns.tek9s,

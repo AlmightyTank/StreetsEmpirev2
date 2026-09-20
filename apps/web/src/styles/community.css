@@ -212,8 +212,8 @@
 .se-product-choices--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 720px) { .se-product-choices--3 { grid-template-columns: 1fr; } }
 
-/* 0.4.0-D: Pip carries six products, so his shelf items sit two to a row; his favour spans both. */
-.se-store-items--pair { grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); align-items: start; }
+/* 0.4.0-D: Pip carries six products, but his shelf should still read like the other stores. */
+.se-store-items--pair { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
 .se-store-items--pair > :not(.se-panel) { grid-column: 1 / -1; }
 
 /* Hall of Fame: a long season window wraps instead of pushing the page sideways. */
@@ -232,6 +232,7 @@
 /* --- 0.5.0-A Cities --------------------------------------------------------- */
 
 .se-cities { align-items: start; }
+.se-grid--2.se-cities { grid-template-columns: repeat(auto-fit, minmax(min(100%, 500px), 1fr)); }
 .se-citymap { display: block; width: 100%; height: auto; max-height: 340px; padding: 8px 4px 0; }
 .se-citymap__road { stroke: var(--se-line); stroke-width: 2.5; stroke-linecap: round; }
 .se-citymap__road--police { stroke-dasharray: 6 4; }
@@ -241,6 +242,8 @@
 .se-citymap__dot { fill: var(--se-text-dim); stroke: var(--se-panel); stroke-width: 2; }
 .se-citymap__ring { fill: none; stroke: var(--se-accent); stroke-width: 1.5; opacity: 0.7; }
 .se-citymap__label { fill: var(--se-text-dim); font-size: 11px; font-weight: 600; pointer-events: none; }
+.se-citymap__control { fill: var(--se-text-dim); font-size: 8px; font-weight: 700; letter-spacing: .04em; pointer-events: none; opacity: .8; }
+.se-citymap__control--mine { fill: var(--se-accent); opacity: 1; }
 .se-citymap__city:hover .se-citymap__dot,
 .se-citymap__city:focus-visible .se-citymap__dot { fill: #fff; }
 .se-citymap__city:focus-visible .se-citymap__hit { stroke: var(--se-accent); stroke-width: 1.5; }
@@ -282,7 +285,92 @@
 }
 .se-city__roads { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .se-city__roads li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; font-size: 13px; }
+.se-city__roads li > span { min-width: 0; overflow-wrap: anywhere; }
+.se-city__roads li > .se-num { white-space: nowrap; }
 .se-city__roads li .se-hint { grid-column: 1 / -1; margin: 0; }
+.se-turfmap {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "casino nightclub"
+    "low-rent low-rent"
+    "urban-ghetto wino-slums";
+  gap: 7px;
+  margin: 0 0 8px;
+}
+.se-turfmap__block {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+  min-height: 78px;
+  padding: 9px 10px;
+  border: 1px solid var(--se-line);
+  border-top: 3px solid var(--se-text-dim);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.018);
+}
+.se-turfmap__block--casino { grid-area: casino; }
+.se-turfmap__block--nightclub { grid-area: nightclub; }
+.se-turfmap__block--low-rent { grid-area: low-rent; }
+.se-turfmap__block--urban-ghetto { grid-area: urban-ghetto; }
+.se-turfmap__block--wino-slums { grid-area: wino-slums; }
+.se-turfmap__block--held { border-top-color: var(--se-warn); background: rgba(255, 188, 68, 0.035); }
+.se-turfmap__block--mine { border-top-color: var(--se-accent); background: rgba(182, 255, 58, 0.055); }
+.se-turfmap__district {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--se-text);
+}
+.se-turfmap__holder {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  color: var(--se-text-dim);
+}
+.se-turfmap__block--mine .se-turfmap__holder { color: var(--se-accent); }
+.se-turfmap__strength,
+.se-turfmap__presence {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 10px;
+  color: var(--se-muted);
+}
+.se-turfmap__presence { color: var(--se-text-dim); }
+
+.se-turfblocks { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.se-turfblocks__block {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  align-items: baseline;
+  padding: 7px 9px;
+  border: 1px solid var(--se-line-soft);
+  border-left: 2px solid var(--se-text-dim);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.se-turfblocks__block--held { border-left-color: var(--se-accent); background: rgba(182, 255, 58, 0.035); }
+.se-turfblocks__block > span { min-width: 0; overflow-wrap: anywhere; }
+.se-turfblocks__block .se-hint { grid-column: 1 / -1; margin: 0; }
+@media (max-width: 520px) {
+  .se-turfmap {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "casino"
+      "nightclub"
+      "low-rent"
+      "urban-ghetto"
+      "wino-slums";
+  }
+  .se-turfmap__block { min-height: 0; }
+  .se-city__roads li,
+  .se-turfblocks__block { grid-template-columns: minmax(0, 1fr); }
+  .se-city__roads li > .se-num,
+  .se-turfblocks__block > .se-num { text-align: left; white-space: normal; }
+}
 
 
 /* --- 0.5.0-B Travel ------------------------------------------------------------ */
@@ -310,7 +398,7 @@
 .se-launch__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .se-launch__with-all { display: flex; gap: 6px; }
 .se-launch__with-all .se-input { min-width: 0; flex: 1 1 auto; }
-.se-launch__cargo { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.se-launch__cargo { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
 .se-launch__meter { margin: 0 0 10px; }
 @media (max-width: 520px) {
   .se-launch__grid { grid-template-columns: 1fr 1fr; }
@@ -321,11 +409,13 @@
 .se-run__headline--town { color: var(--se-accent); }
 .se-run__trip { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin: 0 0 10px; padding: 0; list-style: none; font-size: 12px; }
 .se-run__node { display: inline-flex; align-items: center; }
-.se-run__node + .se-run__node::before { content: '92'; margin: 0 6px; color: var(--se-muted); }
+.se-run__node + .se-run__node::before { content: '→'; margin: 0 6px; color: var(--se-muted); }
 .se-run__node--stop { font-weight: 700; color: var(--se-text); }
 .se-run__node--pass { color: var(--se-muted); font-style: italic; }
 .se-run__node--here { color: var(--se-accent); }
 .se-run__leg { display: grid; gap: 4px; font-size: 12px; color: var(--se-text-dim); }
+.se-run__leg-head { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 10px; }
+.se-run__leg-head strong { color: var(--se-text); font-size: 12px; }
 .se-run__trades { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
 .se-run__trades li { display: flex; justify-content: space-between; gap: 10px; }
 
@@ -354,3 +444,196 @@
 .se-convoys__meter { margin: 6px 0; }
 .se-convoys__help { display: grid; gap: 6px; margin-top: 6px; }
 .se-convoys__recon { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }
+
+
+/* --- 0.6.0-F Turf release phone pass + City Blocks dashboard ---------------- */
+
+.se-citymap-scroll { min-width: 0; overflow: hidden; }
+
+.se-turfcitystrip {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 2px 1px 8px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+}
+.se-turfcitystrip__city {
+  display: grid;
+  flex: 1 0 150px;
+  gap: 2px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--se-line);
+  border-radius: var(--se-radius);
+  background: var(--se-panel);
+  color: var(--se-text-dim);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.se-turfcitystrip__city strong { color: var(--se-text); font-size: 13px; }
+.se-turfcitystrip__city span { font-size: 11px; overflow-wrap: anywhere; }
+.se-turfcitystrip__city--on {
+  border-color: var(--se-accent);
+  box-shadow: inset 0 0 0 1px var(--se-accent-dim);
+}
+.se-turfcitystrip__city--on strong { color: var(--se-accent); }
+
+.se-turfpulse {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+  gap: 8px;
+}
+.se-turfpulse > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--se-line-soft);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.018);
+}
+.se-turfpulse span {
+  color: var(--se-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.se-turfpulse strong { color: var(--se-text); font-size: 17px; }
+
+.se-turfboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
+  gap: 8px;
+}
+.se-turfboard__block {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--se-line);
+  border-left: 3px solid var(--se-text-dim);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.016);
+}
+.se-turfboard__block--held { border-left-color: var(--se-warn); }
+.se-turfboard__block--mine { border-left-color: var(--se-accent); background: rgba(182, 255, 58, 0.04); }
+.se-turfboard__block--vacant { border-left-style: dashed; }
+.se-turfboard__head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.se-turfboard__head > div { min-width: 0; }
+.se-turfboard__holder { margin-top: 2px; min-width: 0; overflow-wrap: anywhere; }
+.se-turfboard__owner { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+.se-turfboard__age { flex: none; color: var(--se-muted); font-size: 11px; white-space: nowrap; }
+.se-turfboard__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.se-turfboard__stats > span {
+  display: grid;
+  min-width: 0;
+  padding: 7px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.025);
+}
+.se-turfboard__stats b { font-size: 14px; }
+.se-turfboard__stats small { color: var(--se-muted); font-size: 10px; overflow-wrap: anywhere; }
+.se-turfboard__pressure {
+  display: grid;
+  gap: 1px;
+  padding: 7px 8px;
+  border-left: 2px solid var(--se-warn);
+  background: rgba(255, 188, 68, 0.04);
+  font-size: 11px;
+}
+.se-turfboard__pressure span { color: var(--se-text-dim); }
+.se-turfboard__outpost {
+  justify-self: start;
+  padding: 2px 7px;
+  border: 1px solid var(--se-accent-dim);
+  border-radius: 999px;
+  color: var(--se-accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.se-turfleaders {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.se-turfleaders li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--se-line-soft);
+  font-size: 12px;
+}
+.se-turfleaders li:last-child { border-bottom: 0; }
+.se-turfleaders li > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.se-turfleaders li > span:last-child { flex: none; color: var(--se-text-dim); }
+.se-turfleaders__you { box-shadow: inset 2px 0 0 var(--se-accent); padding-left: 8px !important; }
+
+.se-turfactions {
+  display: grid;
+  gap: 7px;
+  margin-top: 6px;
+}
+.se-turfactions .se-field { margin: 0; }
+
+@media (max-width: 620px) {
+  .se-citymap-scroll {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+  .se-citymap {
+    width: 520px;
+    max-width: none;
+    max-height: none;
+    padding-bottom: 4px;
+  }
+
+  .se-turfcitystrip__city { flex-basis: 142px; min-height: 68px; }
+  .se-turfpulse { grid-template-columns: 1fr 1fr; }
+  .se-turfboard { grid-template-columns: 1fr; }
+  .se-turfboard__head { align-items: baseline; }
+  .se-turfboard__stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .se-turfleaders li { display: grid; gap: 3px; }
+  .se-turfleaders li > span:last-child { justify-self: start; }
+
+  .se-turfactions .se-actions-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+  .se-turfactions .se-actions-row .se-btn,
+  .se-turfactions > .se-actions-row > * { width: 100%; }
+  .se-turfactions .se-input { width: 100%; }
+
+  .se-outposts .se-launch__grid { grid-template-columns: 1fr; }
+  .se-outposts .se-seg { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .se-outposts .se-seg__btn { width: 100%; }
+  .se-outposts > .se-grid > .se-btn,
+  .se-outposts .se-grid.se-mt > .se-btn { width: 100%; }
+}
+
+@media (max-width: 380px) {
+  .se-turfpulse { grid-template-columns: 1fr; }
+  .se-turfboard__stats { grid-template-columns: 1fr 1fr; }
+}

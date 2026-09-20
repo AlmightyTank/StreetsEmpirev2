@@ -115,6 +115,8 @@ export function toRoundPlayerDto(
   moving: RoundPlayerDto['moving'] = null,
   /** 0.5.0-E. A tail on the player's run or an ally's call, from settling. */
   convoyAlert: RoundPlayerDto['convoyAlert'] = null,
+  /** 0.6.0-B. Home turf summary, from settling. */
+  turf: RoundPlayerDto['turf'] = null,
 ): RoundPlayerDto {
   return {
     id: player.id,
@@ -132,6 +134,7 @@ export function toRoundPlayerDto(
       thugs: player.thugs,
       fitThugs: fitThugs(player),
       woundedThugs: player.woundedThugs,
+      postedThugs: player.postedThugs,
       armedThugs: armedThugsForDto(player),
       unarmedThugs: Math.max(0, fitThugs(player) - armedThugsForDto(player)),
       condoms: player.condoms,
@@ -176,6 +179,7 @@ export function toRoundPlayerDto(
     run,
     moving,
     convoyAlert,
+    turf,
     products: ruleset.products
       ? Object.entries(ruleset.products).sort(([, a], [, b]) => a.sortOrder - b.sortOrder).map(([key, product]) => ({
         key, name: product.name, quantity: key === 'CRACK' ? player.crack : products?.[key] ?? 0,
@@ -237,11 +241,12 @@ export function toGameSnapshotDto(input: {
   run?: RoundPlayerDto['run'];
   moving?: RoundPlayerDto['moving'];
   convoyAlert?: RoundPlayerDto['convoyAlert'];
+  turf?: RoundPlayerDto['turf'];
   recentActivity: PlayerActivity[];
 }): GameSnapshotDto {
   return {
     round: toRoundDto(input.round, input.playerCount),
-    player: toRoundPlayerDto(input.player, input.ruleset, input.turns, input.products, input.run ?? null, input.moving ?? null, input.convoyAlert ?? null),
+    player: toRoundPlayerDto(input.player, input.ruleset, input.turns, input.products, input.run ?? null, input.moving ?? null, input.convoyAlert ?? null, input.turf ?? null),
     recentActivity: input.recentActivity.map(toActivityDto),
   };
 }

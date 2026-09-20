@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import type { GameActionResult, MarketPriceDto, RunDto, RunIncidentDto, RunLaunchResult, RunMoveResult, RunReceiptDto, RunTradeResult, TravelDto, TravelRoutesDto } from '@streets/shared';
+import type { GameActionResult, MarketPriceDto, RunDto, RunIncidentDto, RunLaunchResult, RunMoveResult, RunOutpostEstablishResult, RunOutpostTransferResult, RunReceiptDto, RunTradeResult, TravelDto, TravelRoutesDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { useCountdown } from '../hooks/useCountdown.js';
@@ -23,17 +23,17 @@ function whole(value: string): number | '' {
 }
 
 /** The ways to a city, fetched as the player picks it. */
-function useRoutes(to: string, reloadKey: unknown): { routes: TravelRoutesDto | null; error: string | null } {
+function useRoutes(to: string, reloadKey: unknown, runId?: string): { routes: TravelRoutesDto | null; error: string | null } {
   const [routes, setRoutes] = useState<TravelRoutesDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (!to) { setRoutes(null); return; }
     let active = true;
-    api.get<TravelRoutesDto>(`/game/travel/routes?to=${encodeURIComponent(to)}`)
+    api.get<TravelRoutesDto>(`/game/travel/routes?to=${encodeURIComponent(to)}${runId ? `&runId=${encodeURIComponent(runId)}` : ''}`)
       .then((next) => { if (active) { setRoutes(next); setError(null); } })
       .catch((caught: unknown) => { if (active) { setRoutes(null); setError(caught instanceof ApiError ? caught.message : 'Could not plan that drive.'); } });
     return () => { active = false; };
-  }, [to, reloadKey]);
+  }, [to, reloadKey, runId]);
   return { routes, error };
 }
 
@@ -78,6 +78,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
   const [lowRiders, setLowRiders] = useState<number | ''>(Math.min(1, home.lowRiders));
   const [escorts, setEscorts] = useState<number | ''>(0);
   const [cash, setCash] = useState<number | ''>(0);
+  const [beer, setBeer] = useState<number | ''>(0);
   const [cargo, setCargo] = useState<Record<string, number | ''>>({});
   const [buy, setBuy] = useState<Record<string, number | ''>>({});
   const destination = data.cities.find((city) => city.slug === to && !city.isHome) ?? null;
@@ -108,7 +109,8 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
     : [];
   const bought = Object.fromEntries(Object.entries(buy).filter(([, count]) => typeof count === 'number' && count > 0)) as Record<string, number>;
   const marketCents = wholesale.reduce((sum, entry) => sum + marketEstimate(entry.market, true, bought[entry.key] ?? 0), 0);
-  const loaded = units(cargo) + units(buy);
+  const beerUnits = typeof beer === 'number' ? beer : 0;
+  const loaded = units(cargo) + units(buy) + beerUnits;
 
   const block = launch.busy ? 'The crew is loading up.'
     : !destination ? 'Pick a city on the map or in the list.'
@@ -116,6 +118,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
         : cars < 1 || cars > home.lowRiders ? `Send between 1 and ${home.lowRiders} Low-Riders.`
           : (typeof escorts === 'number' ? escorts : 0) > Math.min(home.fitThugs, seats) ? `Send at most ${Math.min(home.fitThugs, seats)} escorts: ${seats} seats, ${home.fitThugs} fit thugs at home.`
             : cashCents + marketCents > home.cashCents ? `You have ${formatCents(home.cashCents)} at home, and that is ${formatCents(cashCents + marketCents)} with what the market comes to.`
+              : beerUnits > home.beer ? `You only have ${formatNumber(home.beer)} beer at home.`
               : loaded > capacity ? `${cars} Low-Rider${cars === 1 ? '' : 's'} carry ${formatNumber(capacity)} units, and that is ${formatNumber(loaded)}.`
                 : held.some((product) => (typeof cargo[product.key] === 'number' ? cargo[product.key] as number : 0) > product.quantity) ? 'You cannot load more than you have.'
                   : chosen.turns > home.turns ? `The drive costs ${chosen.turns} turns and you have ${home.turns}.`
@@ -127,7 +130,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
     const load = Object.fromEntries(Object.entries(cargo).filter(([, count]) => typeof count === 'number' && count > 0)) as Record<string, number>;
     const quotes = Object.fromEntries(wholesale.filter((entry) => bought[entry.key]).map((entry) => [entry.key, entry.market.buyCents]));
     await launch.run((actionId): Promise<GameActionResult<RunLaunchResult>> => api.post('/game/travel/launch', {
-      to, route, lowRiders: cars, escortThugs: typeof escorts === 'number' ? escorts : 0, cashCents, cargo: load, market: bought, marketQuotes: quotes, actionId,
+      to, route, lowRiders: cars, escortThugs: typeof escorts === 'number' ? escorts : 0, cashCents, beer: beerUnits, cargo: load, market: bought, marketQuotes: quotes, actionId,
     }));
     onDone();
   }
@@ -167,8 +170,13 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
               <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => setCash(Math.floor(home.cashCents / 100))}>All</button>
             </div>
           </div>
+          <div className="se-field">
+            <label className="se-label" htmlFor="run-beer">Beer <span className="se-muted">of {formatNumber(home.beer)}</span></label>
+            <input id="run-beer" className="se-input" type="number" inputMode="numeric" min={0} max={home.beer} value={beer}
+              onChange={(event) => setBeer(whole(event.target.value))} />
+          </div>
         </div>
-        <p className="se-hint">The run spends only the cash it carries. Escorts ride armed with the best guns from home, one each, and are away while it is out: they don&rsquo;t defend, cover the street or cook. A bust or an arrest takes their guns.</p>
+        <p className="se-hint">The run spends only the cash it carries. Beer takes trunk space too, so an outpost has to be supplied by a real load. Escorts ride armed with the best guns from home, one each, and are away while it is out: they don&rsquo;t defend, cover the street or cook. A bust or an arrest takes their guns.</p>
 
         <h3 className="se-city__heading">In the trunk <span className="se-num">{formatNumber(loaded)} / {formatNumber(capacity)}</span></h3>
         <div className="se-meter se-launch__meter" aria-hidden="true">
@@ -284,7 +292,7 @@ function TownCounter({ run, data, onDone }: { run: RunDto; data: TravelDto; onDo
     event.preventDefault();
     if (block) return;
     await trade.run((actionId): Promise<GameActionResult<RunTradeResult>> => api.post('/game/travel/trade', {
-      product, direction, venue, quantity: qty, actionId, ...(onMarket ? { quoteCents: unit } : {}),
+      runId: run.id, product, direction, venue, quantity: qty, actionId, ...(onMarket ? { quoteCents: unit } : {}),
     }));
     setQuantity('');
     onDone();
@@ -392,12 +400,209 @@ function IncidentList({ incidents, products }: { incidents: RunIncidentDto[]; pr
   );
 }
 
+/** 0.6.0-D. Establish or service an away corner while the run is physically in town. */
+function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; onDone: () => void }) {
+  const rules = data.rules.outposts;
+  const city = data.cities.find((entry) => entry.slug === run.position.city) ?? null;
+  const turf = city?.turf ?? null;
+  const establish = useGameAction<RunOutpostEstablishResult>();
+  const transfer = useGameAction<RunOutpostTransferResult>();
+  const openBlocks = turf?.blocks.filter((block) => !block.holder) ?? [];
+  const owned = turf?.blocks.filter((block) => block.isMine && block.outpost) ?? [];
+  const [district, setDistrict] = useState(openBlocks[0]?.district ?? '');
+  const target = openBlocks.find((block) => block.district === district) ?? openBlocks[0] ?? null;
+  const [thugs, setThugs] = useState<number | ''>(target?.cornerMinimumThugs ?? 1);
+  const [cash, setCash] = useState<number | ''>(0);
+  const [beer, setBeer] = useState<number | ''>(0);
+  const [product, setProduct] = useState(run.cargo.find((entry) => entry.quantity > 0)?.key ?? data.products[0]?.key ?? '');
+  const [productQty, setProductQty] = useState<number | ''>(0);
+
+  const [serviceDistrict, setServiceDistrict] = useState(owned[0]?.district ?? '');
+  const boxBlock = owned.find((block) => block.district === serviceDistrict) ?? owned[0] ?? null;
+  const [direction, setDirection] = useState<'deposit' | 'withdraw'>('deposit');
+  const [moveCash, setMoveCash] = useState<number | ''>(0);
+  const [moveBeer, setMoveBeer] = useState<number | ''>(0);
+  const [moveProduct, setMoveProduct] = useState(run.cargo.find((entry) => entry.quantity > 0)?.key ?? data.products[0]?.key ?? '');
+  const [moveQty, setMoveQty] = useState<number | ''>(0);
+
+  useEffect(() => {
+    if (target) setThugs((current) => current === '' || current < target.cornerMinimumThugs ? target.cornerMinimumThugs : current);
+  }, [target?.district, target?.cornerMinimumThugs]);
+
+  if (!rules || !city || city.isHome || !turf) return null;
+
+  const guns = Object.values(run.guns).reduce((sum, count) => sum + count, 0);
+  const fitEscorts = run.escortThugs;
+  const seedCashCents = (typeof cash === 'number' ? cash : 0) * 100;
+  const seedBeer = typeof beer === 'number' ? beer : 0;
+  const seedQty = typeof productQty === 'number' ? productQty : 0;
+  const seedProducts = product && seedQty > 0 ? { [product]: seedQty } : {};
+  const runHeld = run.cargo.find((entry) => entry.key === product)?.quantity ?? 0;
+  const seedThugs = typeof thugs === 'number' ? thugs : 0;
+
+  const establishBlock = establish.busy ? 'Setting up the corner.'
+    : !target ? 'No open block is available in this city.'
+      : turf.heldAway >= turf.awayCap ? `You already hold your ${turf.awayCap}-block away cap.`
+        : target.presenceTurns < turf.presenceRequired ? `You need ${turf.presenceRequired} presence here; you have ${Math.floor(target.presenceTurns)}.`
+          : seedThugs < target.cornerMinimumThugs ? `Leave at least ${target.cornerMinimumThugs} escorts.`
+            : seedThugs > fitEscorts ? `The run only has ${fitEscorts} escorts.`
+              : seedThugs > guns ? `The run only has ${guns} guns.`
+                : seedCashCents > run.cashCents ? 'The run does not carry that much cash.'
+                  : seedCashCents > rules.cashCapCents ? `The box holds at most ${formatCents(rules.cashCapCents)}.`
+                    : seedBeer > run.beer ? `The run only carries ${run.beer} beer.`
+                      : seedBeer > rules.beerCap ? `The box holds at most ${rules.beerCap} beer.`
+                        : seedQty > runHeld ? `The run only carries ${runHeld} ${nameOf(data.products, product)}.`
+                          : seedQty > rules.productCap ? `The box holds at most ${rules.productCap} product units.`
+                            : data.home.turns < turf.postTurnCost + rules.transferTurnCost ? `This setup costs ${turf.postTurnCost + rules.transferTurnCost} turns.`
+                              : null;
+
+  const moveCashCents = (typeof moveCash === 'number' ? moveCash : 0) * 100;
+  const moveBeerCount = typeof moveBeer === 'number' ? moveBeer : 0;
+  const moveProductQty = typeof moveQty === 'number' ? moveQty : 0;
+  const movedProducts = moveProduct && moveProductQty > 0 ? { [moveProduct]: moveProductQty } : {};
+  const box = boxBlock?.outpost ?? null;
+  const runProduct = run.cargo.find((entry) => entry.key === moveProduct)?.quantity ?? 0;
+  const boxProduct = box?.products[moveProduct] ?? 0;
+  const moveSomething = moveCashCents > 0 || moveBeerCount > 0 || moveProductQty > 0;
+  const transferBlock = transfer.busy ? 'Moving stock.'
+    : !boxBlock || !box ? 'Pick one of your outposts.'
+      : !moveSomething ? 'Choose something to move.'
+        : data.home.turns < rules.transferTurnCost ? `This transfer costs ${rules.transferTurnCost} turns.`
+          : direction === 'deposit'
+            ? moveCashCents > run.cashCents ? 'The run does not carry that much cash.'
+              : moveBeerCount > run.beer ? `The run only carries ${run.beer} beer.`
+                : moveProductQty > runProduct ? `The run only carries ${runProduct} ${nameOf(data.products, moveProduct)}.`
+                  : box.cashCents + moveCashCents > rules.cashCapCents ? 'The outpost cash box would overflow.'
+                    : box.beer + moveBeerCount > rules.beerCap ? 'The outpost beer stock would overflow.'
+                      : Object.values(box.products).reduce((sum, value) => sum + value, 0) + moveProductQty > rules.productCap ? 'The outpost product box would overflow.'
+                        : null
+            : moveCashCents > box.cashCents ? 'The outpost does not hold that much cash.'
+              : moveBeerCount > box.beer ? `The outpost only holds ${box.beer} beer.`
+                : moveProductQty > boxProduct ? `The outpost only holds ${boxProduct} ${nameOf(data.products, moveProduct)}.`
+                  : run.cargo.reduce((sum, entry) => sum + entry.quantity, run.beer) + moveBeerCount + moveProductQty > run.capacity ? 'The run does not have enough trunk room.'
+                    : null;
+
+  return (
+    <div className="se-moveon se-outposts">
+      <h3 className="se-city__heading">Outposts in {city.name}</h3>
+      {openBlocks.length ? (
+        <div className="se-grid">
+          <div className="se-field">
+            <label className="se-label" htmlFor="outpost-block">Open block</label>
+            <select id="outpost-block" className="se-input" value={target?.district ?? ''} onChange={(event) => setDistrict(event.target.value)}>
+              {openBlocks.map((block) => <option key={block.district} value={block.district}>{block.districtName} · {Math.floor(block.presenceTurns)}/{turf.presenceRequired} presence</option>)}
+            </select>
+          </div>
+          <div className="se-launch__grid">
+            <div className="se-field">
+              <label className="se-label" htmlFor="outpost-thugs">Escorts staying</label>
+              <input id="outpost-thugs" className="se-input" type="number" inputMode="numeric" min={target?.cornerMinimumThugs ?? 1} max={run.escortThugs} value={thugs}
+                onChange={(event) => setThugs(whole(event.target.value))} />
+            </div>
+            <div className="se-field">
+              <label className="se-label" htmlFor="outpost-cash">Seed cash</label>
+              <input id="outpost-cash" className="se-input" type="number" inputMode="numeric" min={0} value={cash}
+                onChange={(event) => setCash(whole(event.target.value))} />
+            </div>
+            <div className="se-field">
+              <label className="se-label" htmlFor="outpost-beer">Seed beer</label>
+              <input id="outpost-beer" className="se-input" type="number" inputMode="numeric" min={0} value={beer}
+                onChange={(event) => setBeer(whole(event.target.value))} />
+            </div>
+          </div>
+          <div className="se-launch__grid">
+            <div className="se-field">
+              <label className="se-label" htmlFor="outpost-product">Seed product</label>
+              <select id="outpost-product" className="se-input" value={product} onChange={(event) => setProduct(event.target.value)}>
+                {data.products.map((entry) => <option key={entry.key} value={entry.key}>{entry.name}</option>)}
+              </select>
+            </div>
+            <div className="se-field">
+              <label className="se-label" htmlFor="outpost-product-qty">Units</label>
+              <input id="outpost-product-qty" className="se-input" type="number" inputMode="numeric" min={0} value={productQty}
+                onChange={(event) => setProductQty(whole(event.target.value))} />
+            </div>
+          </div>
+          <Button type="button" className="se-btn se-btn--primary" disabledReason={establishBlock}
+            onClick={async () => {
+              if (!target) return;
+              await establish.run((actionId): Promise<GameActionResult<RunOutpostEstablishResult>> => api.post('/game/travel/outpost/establish', {
+                runId: run.id, district: target.district, thugs: seedThugs, cashCents: seedCashCents, beer: seedBeer, products: seedProducts, actionId,
+              }));
+              onDone();
+            }}>
+            Establish {target?.districtName ?? 'outpost'}
+          </Button>
+          <p className="se-hint">Remote turf still needs normal scouting presence. A win leaves these escorts and their guns on the corner; the seeded stock stays in the outpost box.</p>
+          {establish.error ? <Alert>{establish.error}</Alert> : null}
+        </div>
+      ) : <p className="se-hint">No locals-held block is open for a new outpost here.</p>}
+
+      {owned.length && boxBlock?.outpost ? (
+        <div className="se-grid se-mt">
+          <div className="se-field">
+            <label className="se-label" htmlFor="outpost-service">Service outpost</label>
+            <select id="outpost-service" className="se-input" value={boxBlock.district} onChange={(event) => setServiceDistrict(event.target.value)}>
+              {owned.map((block) => <option key={block.district} value={block.district}>{block.districtName}</option>)}
+            </select>
+          </div>
+          <div className="se-rows">
+            <Row label="Box cash" value={formatCents(boxBlock.outpost.cashCents)} />
+            <Row label="Box beer" value={formatNumber(boxBlock.outpost.beer)} />
+            {Object.entries(boxBlock.outpost.products).filter(([, quantity]) => quantity > 0).map(([key, quantity]) => (
+              <Row key={key} label={nameOf(data.products, key)} value={formatNumber(quantity)} />
+            ))}
+          </div>
+          <p className="se-hint">Street tax lands in this cash box until it is full. Corner upkeep burns beer and your CORNER supply from this box each hour; if it runs dry, thugs can walk.</p>
+          <div className="se-seg" role="group" aria-label="Outpost transfer direction">
+            <button type="button" className={`se-seg__btn${direction === 'deposit' ? ' se-seg__btn--on' : ''}`} onClick={() => setDirection('deposit')}>Drop off</button>
+            <button type="button" className={`se-seg__btn${direction === 'withdraw' ? ' se-seg__btn--on' : ''}`} onClick={() => setDirection('withdraw')}>Pick up</button>
+          </div>
+          <div className="se-launch__grid">
+            <div className="se-field">
+              <label className="se-label" htmlFor="outpost-move-cash">Cash</label>
+              <input id="outpost-move-cash" className="se-input" type="number" inputMode="numeric" min={0} value={moveCash}
+                onChange={(event) => setMoveCash(whole(event.target.value))} />
+            </div>
+            <div className="se-field">
+              <label className="se-label" htmlFor="outpost-move-beer">Beer</label>
+              <input id="outpost-move-beer" className="se-input" type="number" inputMode="numeric" min={0} value={moveBeer}
+                onChange={(event) => setMoveBeer(whole(event.target.value))} />
+            </div>
+            <div className="se-field">
+              <label className="se-label" htmlFor="outpost-move-product">Product</label>
+              <select id="outpost-move-product" className="se-input" value={moveProduct} onChange={(event) => setMoveProduct(event.target.value)}>
+                {data.products.map((entry) => <option key={entry.key} value={entry.key}>{entry.name}</option>)}
+              </select>
+            </div>
+            <div className="se-field">
+              <label className="se-label" htmlFor="outpost-move-qty">Units</label>
+              <input id="outpost-move-qty" className="se-input" type="number" inputMode="numeric" min={0} value={moveQty}
+                onChange={(event) => setMoveQty(whole(event.target.value))} />
+            </div>
+          </div>
+          <Button type="button" className="se-btn" disabledReason={transferBlock}
+            onClick={async () => {
+              await transfer.run((actionId): Promise<GameActionResult<RunOutpostTransferResult>> => api.post('/game/travel/outpost/transfer', {
+                runId: run.id, district: boxBlock.district, direction, cashCents: moveCashCents, beer: moveBeerCount, products: movedProducts, actionId,
+              }));
+              onDone();
+            }}>
+            {direction === 'deposit' ? 'Drop off at outpost' : 'Pick up from outpost'} · {rules.transferTurnCost} turns
+          </Button>
+          {transfer.error ? <Alert>{transfer.error}</Alert> : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /** Leave town: for another city, or home. */
 function MoveOn({ run, data, onDone }: { run: RunDto; data: TravelDto; onDone: () => void }) {
   const move = useGameAction<RunMoveResult>();
   const [to, setTo] = useState('');
   const [route, setRoute] = useState(0);
-  const { routes, error } = useRoutes(to, run.position.city);
+  const { routes, error } = useRoutes(to, run.position.city, run.id);
   useEffect(() => { setRoute(0); }, [to]);
   const chosen = routes?.routes[route] ?? null;
   const block = move.busy ? 'On the move.' : !to ? 'Pick a city.' : !chosen ? (error ?? 'Planning the drive...') : chosen.turns > data.home.turns ? `That costs ${chosen.turns} more turns and you have ${data.home.turns}.` : null;
@@ -412,18 +617,18 @@ function MoveOn({ run, data, onDone }: { run: RunDto; data: TravelDto; onDone: (
           {data.cities.filter((city) => !city.isHome && city.slug !== run.position.city).map((city) => <option key={city.slug} value={city.slug}>{city.name}</option>)}
         </select>
       </div>
-      {to && routes ? <RoutePicker routes={routes} value={route} onChange={setRoute} name="next-route" costLabel={(turns) => (turns ? `${turns} more turns` : 'no extra turns')} /> : null}
+      {to && routes ? <RoutePicker routes={routes} value={route} onChange={setRoute} name={`next-route-${run.id}`} costLabel={(turns) => (turns ? `${turns} more turns` : 'no extra turns')} /> : null}
       <div className="se-actions-row">
         <Button type="button" className="se-btn se-btn--primary" disabledReason={block}
           onClick={async () => {
-            await move.run((actionId): Promise<GameActionResult<RunMoveResult>> => api.post('/game/travel/drive-on', { to, route, actionId }));
+            await move.run((actionId): Promise<GameActionResult<RunMoveResult>> => api.post('/game/travel/drive-on', { runId: run.id, to, route, actionId }));
             onDone();
           }}>
           Drive on
         </Button>
         <Button type="button" className="se-btn" disabledReason={move.busy ? 'On the move.' : null}
           onClick={async () => {
-            await move.run((actionId): Promise<GameActionResult<RunMoveResult>> => api.post('/game/travel/head-home', { actionId }));
+            await move.run((actionId): Promise<GameActionResult<RunMoveResult>> => api.post('/game/travel/head-home', { runId: run.id, actionId }));
             onDone();
           }}>
           Head home now
@@ -462,7 +667,13 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
       </ol>
       {!inTown ? (
         <div className="se-run__leg">
-          <span className="se-num">{run.position.road ? `${cityLabel(data, run.position.road.from)} → ${cityLabel(data, run.position.road.to)}` : ''}</span>
+          <div className="se-run__leg-head">
+            <span className="se-muted">Current leg</span>
+            <strong className="se-num">
+              {run.position.road ? `${cityLabel(data, run.position.road.from)} → ${cityLabel(data, run.position.road.to)}` : ''}
+            </strong>
+            <span className="se-muted se-num">{Math.round(run.position.progress * 100)}%</span>
+          </div>
           <div className="se-meter" aria-label={`${Math.round(run.position.progress * 100)}% of the way`}>
             <div className="se-meter__fill" style={{ width: `${Math.round(run.position.progress * 100)}%` }} />
           </div>
@@ -471,7 +682,8 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
 
       <div className="se-rows se-mt">
         <Row label="Cash in the car" value={formatCents(run.cashCents)} strong tooltip="What the run can spend. Home cash never reaches it." />
-        <Row label="Trunk" value={`${formatNumber(trunk)} / ${formatNumber(run.capacity)}`} />
+        <Row label="Trunk" value={`${formatNumber(trunk + run.beer)} / ${formatNumber(run.capacity)}`} />
+        {run.beer > 0 ? <Row label="Beer" value={formatNumber(run.beer)} /> : null}
         {run.escortThugs > 0 ? (
           <Row label="Escorts carry" tooltip="Out of home stock, the best first. A bust or an arrest takes every one."
             value={Object.entries(run.guns).filter(([, count]) => count > 0).map(([key, count]) => gunText(key, count)).join(', ') || 'No guns'} />
@@ -485,6 +697,7 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
       {inTown ? (
         <>
           <TownCounter run={run} data={data} onDone={onDone} />
+          <OutpostStopPanel run={run} data={data} onDone={onDone} />
           <MoveOn run={run} data={data} onDone={onDone} />
         </>
       ) : (
@@ -536,6 +749,7 @@ export function ReceiptPanel({ receipt, products }: { receipt: RunReceiptDto; pr
       <div className="se-rows">
         <Row label="Went to" value={receipt.cities.map((city) => city.name).join(', ') || 'Nowhere'} />
         <Row label="Cash" value={<span className="se-num">{formatCents(receipt.startCashCents)} → {formatCents(receipt.cashCents)} <span className={cashChange >= 0 ? 'se-good' : 'se-bad'}>({cashChange >= 0 ? '+' : ''}{formatCents(cashChange)})</span></span>} strong />
+        {receipt.startBeer > 0 || receipt.beer > 0 ? <Row label="Beer" value={<span className="se-num">{formatNumber(receipt.startBeer)} → {formatNumber(receipt.beer)}</span>} /> : null}
         {moved.map((entry) => (
           <Row key={entry.key} label={nameOf(products, entry.key)} value={<span className="se-num">{formatNumber(entry.startQuantity)} → {formatNumber(entry.quantity)}</span>} />
         ))}

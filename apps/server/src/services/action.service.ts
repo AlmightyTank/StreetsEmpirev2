@@ -28,6 +28,8 @@ import { CombatRecoveryService, type RecoverySettlement } from './combat-recover
 import { ConvoyService } from './convoy.service.js';
 import { RelocationService } from './relocation.service.js';
 import { RunSettleService } from './run-settle.service.js';
+import { TurfService } from './turf.service.js';
+import { TurfWarSettlementService } from './turf-war-settle.service.js';
 
 /**
  * Everything an action is allowed to move. Turn-settled before an action sees
@@ -63,12 +65,18 @@ export interface PlayerState {
   heat: number;
   /** 0.5.0-B. Net worth of what is out on a run. Runs move it; nothing else does. */
   awayNetWorthCents: bigint;
+  /** 0.6.0-B/C. Net worth of turf-deployed guns removed from the home arsenal. */
+  postedNetWorthCents: bigint;
+  /** 0.6.0-D. Net worth stored in away outpost boxes. */
+  outpostNetWorthCents: bigint;
   /** 0.5.0-C. Set by an arrest at home; left out, it is not written. */
   lockedUntil?: Date | null;
   /** 0.5.0-D. Set by a move; left out, it is not written. */
   movingUntil?: Date | null;
   /** 0.5.0-E. Thugs on a tail or convoy backup: counted, never fit. */
   busyThugs: number;
+  /** 0.6.0-A. Thugs on held corners: counted, never fit at home. */
+  postedThugs: number;
 
   /** Quest progress that is per-player rather than per-trader. */
   cleanShiftStreak: number;
@@ -85,6 +93,7 @@ export interface PlayerState {
   hideoutLookoutsLevel: number;
   hideoutWorkshopLevel: number;
   hideoutBackOfficeLevel: number;
+  hideoutGarageLevel: number;
 
   /**
    * What Tommy has on the shelf, already settled. Counters rather than
@@ -177,7 +186,10 @@ export function toState(player: RoundPlayer): PlayerState {
     ak47Unlocked: player.ak47Unlocked,
     heat: player.heat,
     awayNetWorthCents: player.awayNetWorthCents,
+    postedNetWorthCents: player.postedNetWorthCents,
+    outpostNetWorthCents: player.outpostNetWorthCents,
     busyThugs: player.busyThugs,
+    postedThugs: player.postedThugs,
     cleanShiftStreak: player.cleanShiftStreak,
     rocksSuppliedToPip: player.rocksSuppliedToPip,
     driveBysDone: player.driveBysDone,
@@ -190,6 +202,7 @@ export function toState(player: RoundPlayer): PlayerState {
     hideoutLookoutsLevel: player.hideoutLookoutsLevel,
     hideoutWorkshopLevel: player.hideoutWorkshopLevel,
     hideoutBackOfficeLevel: player.hideoutBackOfficeLevel,
+    hideoutGarageLevel: player.hideoutGarageLevel,
     pistolStock: player.pistolStock,
     shotgunStock: player.shotgunStock,
     tek9Stock: player.tek9Stock,
@@ -203,9 +216,9 @@ export function toState(player: RoundPlayer): PlayerState {
   };
 }
 
-/** Thugs who can do something: not wounded, and (0.5.0-E) not out on a tail or convoy backup. */
-export function fitThugs(player: { thugs: number; woundedThugs: number; busyThugs?: number }): number {
-  return Math.max(0, player.thugs - player.woundedThugs - (player.busyThugs ?? 0));
+/** Thugs who can do something at home: not wounded, busy elsewhere, or posted on a corner. */
+export function fitThugs(player: { thugs: number; woundedThugs: number; busyThugs?: number; postedThugs?: number }): number {
+  return Math.max(0, player.thugs - player.woundedThugs - (player.busyThugs ?? 0) - (player.postedThugs ?? 0));
 }
 
 function armedThugsForSnapshot(state: PlayerState): number {
@@ -229,6 +242,7 @@ function toSnapshot(
       thugs: state.thugs,
       fitThugs: fitThugs(state),
       woundedThugs: state.woundedThugs,
+      postedThugs: state.postedThugs,
       armedThugs: armedThugsForSnapshot(state),
       unarmedThugs: Math.max(0, fitThugs(state) - armedThugsForSnapshot(state)),
       condoms: state.condoms,
@@ -285,6 +299,7 @@ export const ActionService = {
     options: RunActionOptions<T>,
     now: Date = new Date(),
   ): Promise<GameActionResult<T>> {
+    await TurfWarSettlementService.settleDueFor(prisma, roundPlayerId, now);
     return prisma.$transaction(async (tx) => {
       // The lock comes first. Checking for a replay before taking it lets two
       // concurrent duplicates both look, both find nothing, and both execute.
@@ -308,6 +323,8 @@ export const ActionService = {
       await RelocationService.settleOwn(tx, roundPlayerId, now);
       // 0.5.0-E: and whatever came back from a convoy fight is back.
       await ConvoyService.credit(tx, roundPlayerId, now);
+      // 0.6.0-C: turf squads and allied backup return before another action reads them.
+      await TurfWarSettlementService.credit(tx, roundPlayerId, now);
 
       const loaded = await tx.roundPlayer.findUnique({
         where: { id: roundPlayerId },
@@ -317,7 +334,8 @@ export const ActionService = {
         throw AppError.notFound('PLAYER_NOT_FOUND', 'That player is not in this round.');
       }
 
-      const { round, ...player } = loaded;
+      const { round, ...loadedPlayer } = loaded;
+      let player = loadedPlayer;
       assertRoundPlayable(round, now);
       // 0.5.0-C: nobody acts from a cell. A run still out comes home on its own.
       if (player.lockedUntil && player.lockedUntil.getTime() > now.getTime()) {
@@ -332,6 +350,15 @@ export const ActionService = {
 
       // 0.5.0-A: Heat reads the player's own city.
       const ruleset = rulesetForCity(loadRulesetForRound(round), player.city.slug);
+      // 0.6.0-B: settle corner upkeep/walkouts and pending house-minted tax before
+      // an action reads cash, thugs, product or the home arsenal.
+      const turfSettlement = await TurfService.settlePlayer(tx, roundPlayerId, ruleset, now);
+      if (turfSettlement) {
+        player = await tx.roundPlayer.findUniqueOrThrow({
+          where: { id: roundPlayerId },
+          include: { city: true },
+        });
+      }
       const recovery = await CombatRecoveryService.settle(tx, roundPlayerId, now);
 
       // Turns first: an action always spends from a settled balance. The shop
