@@ -1,0 +1,23 @@
+name: Verify 0.6.0-F crackdown
+
+on:
+  push:
+    branches:
+      - turf-0.6.0-f
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run typecheck
+      - run: npm test -- packages/rules-engine/src/__tests__/loader.test.ts apps/server/src/services/__tests__/turf-crackdown.service.test.ts apps/discord-bot/src/__tests__/game-api.test.ts apps/discord-bot/src/__tests__/format.test.ts
+      - run: npm run qa:turf -- --quiet
