@@ -12,6 +12,7 @@ import type {
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
+import { allianceTargetBlock } from './alliance.service.js';
 import {
   TurfService,
   allocateCornerGuns,
@@ -110,7 +111,8 @@ export const TurfWarService = {
         const defender = fresh.holder;
         if (!defender) throw AppError.conflict('LOCALS_BLOCK', 'The locals hold that block. Claim it instead of starting a turf war.');
         if (defender.id === attackerId || defender.accountId === player.accountId) throw AppError.badRequest('OWN_TURF', 'That is your own block.');
-        if (player.allianceId && defender.allianceId === player.allianceId) throw AppError.conflict('ALLIED', 'You cannot push an ally off their turf.');
+        const allied = allianceTargetBlock(player, defender, now);
+        if (allied) throw AppError.conflict('ALLIED', allied);
         if (await accountsShareNetwork(tx, player.accountId, defender.accountId, now)) {
           throw AppError.conflict('LINKED_ACCOUNTS', 'You have played from the same network as this crew, so you cannot push their turf.');
         }
