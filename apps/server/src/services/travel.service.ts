@@ -158,6 +158,8 @@ async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Rul
     escortThugs: run.escortThugs,
     cashCents: Number(run.cashCents),
     startCashCents: Number(run.startCashCents),
+    beer: run.beer,
+    startBeer: run.startBeer,
     capacity: runCapacity(ruleset, run.lowRiders),
     cargo: run.cargo.map((row) => ({ key: row.productKey, quantity: row.quantity, startQuantity: row.startQuantity })),
     guns: { PISTOL: run.pistols, SHOTGUN: run.shotguns, TEK9: run.tek9s, AK47: run.ak47s },
@@ -197,6 +199,8 @@ async function lastRunDto(db: Db | PrismaClient, roundPlayerId: string, ruleset:
     escortThugs: run.escortThugs,
     startCashCents: Number(run.startCashCents),
     cashCents: Number(run.cashCents),
+    startBeer: run.startBeer,
+    beer: run.beer,
     cargo: run.cargo.map((row) => ({ key: row.productKey, startQuantity: row.startQuantity, quantity: row.quantity })),
     turnsSpent: run.turnsSpent,
     trades: run.trades.map((trade) => toTradeDto(ruleset, trade)),
@@ -306,6 +310,7 @@ export const TravelService = {
       },
       home: {
         cashCents: Number(player.cashCents),
+        beer: player.beer,
         lowRiders: player.lowRiders,
         fitThugs: fitThugs(player),
         turns: player.turns,
@@ -384,6 +389,9 @@ export const TravelService = {
         if (cashCents > current.cashCents) {
           throw AppError.badRequest('NOT_ENOUGH_CASH', 'You cannot take more cash than you have.', { cashCents: 'More than you have.' });
         }
+        if (input.beer > current.beer) {
+          throw AppError.badRequest('NOT_ENOUGH_BEER', `You only have ${current.beer} beer at home.`, { beer: `At most ${current.beer}.` });
+        }
         const inventory = await ProductInventoryService.read(tx, roundPlayerId, ruleset);
         /** Out of home stock. What the crew buys on the way out is added to `cargo` below. */
         const fromHome = Object.fromEntries(Object.entries(input.cargo).filter(([, quantity]) => quantity > 0));
@@ -427,8 +435,8 @@ export const TravelService = {
         }
 
         const capacity = runCapacity(ruleset, input.lowRiders);
-        if (cargoUnits(cargo) > capacity) {
-          throw AppError.badRequest('TRUNK_FULL', `${input.lowRiders} Low-Rider${input.lowRiders === 1 ? '' : 's'} carry ${capacity} units.`, { cargo: `At most ${capacity} units.` });
+        if (cargoUnits(cargo) + input.beer > capacity) {
+          throw AppError.badRequest('TRUNK_FULL', `${input.lowRiders} Low-Rider${input.lowRiders === 1 ? '' : 's'} carry ${capacity} units including beer.`, { cargo: `At most ${capacity} total units.` });
         }
 
         // Crack leaves on the column with everything else in `next`; other products are rows.
@@ -445,6 +453,8 @@ export const TravelService = {
             ...guns,
             cashCents,
             startCashCents: cashCents,
+            beer: input.beer,
+            startBeer: input.beer,
             turnsSpent: plan.turns,
             launchedAt: now,
             cargo: { create: productKeys(ruleset).filter((key) => (cargo[key] ?? 0) > 0).map((key) => ({ productKey: key, quantity: cargo[key]!, startQuantity: cargo[key]! })) },
@@ -470,6 +480,7 @@ export const TravelService = {
           lowRiders: input.lowRiders,
           escortThugs: input.escortThugs,
           cashCents: input.cashCents,
+          beer: input.beer,
           cargo,
           market: Object.fromEntries(marketTrades.map((trade) => [trade.productKey, trade.quantity])),
           marketCents: Number(marketCents),
@@ -479,6 +490,7 @@ export const TravelService = {
             ...current,
             turns: current.turns - plan.turns,
             cashCents: current.cashCents - cashCents - marketCents,
+            beer: current.beer - input.beer,
             lowRiders: current.lowRiders - input.lowRiders,
             thugs: current.thugs - input.escortThugs,
             crack: current.crack - (fromHome[CRACK] ?? 0),
@@ -486,7 +498,7 @@ export const TravelService = {
             shotguns: current.shotguns - guns.shotguns,
             tek9s: current.tek9s - guns.tek9s,
             ak47s: current.ak47s - guns.ak47s,
-            awayNetWorthCents: awayWorth(ruleset, { cashCents, lowRiders: input.lowRiders, escortThugs: input.escortThugs, ...guns }, cargo),
+            awayNetWorthCents: awayWorth(ruleset, { cashCents, beer: input.beer, lowRiders: input.lowRiders, escortThugs: input.escortThugs, ...guns }, cargo),
           },
           result,
           activity: { type: 'RUN_LAUNCHED', payload: { ...result, cities: [cityName(ruleset, input.to)] } },
