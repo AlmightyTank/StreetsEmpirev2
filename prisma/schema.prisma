@@ -1217,6 +1217,9 @@ model Turf {
   /// What the locals hold it with, and when that was last worked out.
   localsThugs Int
   localsAt    DateTime @default(now())
+  /// 0.6.0-C. A released block stays vacant until this time, then the locals return.
+  /// Null means the locals are already on a holderless block, or a player currently holds it.
+  localsReclaimAt DateTime?
 
   /// 0.6.0-B. Last corner-upkeep boundary settled.
   upkeepAt DateTime @default(now())
@@ -1270,10 +1273,13 @@ model TurfPush {
 
   attackerId String
   attacker   RoundPlayer @relation("TurfPushAttacker", fields: [attackerId], references: [id], onDelete: Cascade)
+  /// Alliance snapshots make shared revenge stable if either player later leaves.
+  attackerAllianceId String?
 
   /// Holder when the push started. The block may be abandoned before it lands.
   defenderId String
   defender   RoundPlayer @relation("TurfPushDefender", fields: [defenderId], references: [id], onDelete: Cascade)
+  defenderAllianceId String?
 
   squad        Int
   /// Morale and the exact guns committed from home.
@@ -1284,15 +1290,22 @@ model TurfPush {
   landsAt      DateTime
   status       TurfPushStatus @default(PENDING)
   settledAt    DateTime?
+  /// True only when this push actually transferred the block to the attacker.
+  captured     Boolean @default(false)
   result       Json?
   attackerCreditedAt DateTime?
   alliesCalledAt DateTime?
+  /// Public turf-feed claim, parallel to RaidBattle.discordPostedAt.
+  discordPostedAt DateTime?
   backups      TurfPushBackup[]
 
   @@unique([attackerId, actionId])
   @@index([turfId, status])
   @@index([roundId, status, landsAt])
+  @@index([roundId, captured, settledAt(sort: Desc)])
   @@index([attackerId, turfId, startedAt(sort: Desc)])
+  @@index([attackerId, captured, settledAt(sort: Desc)])
+  @@index([defenderAllianceId, attackerId, captured, settledAt(sort: Desc)])
   @@index([attackerId, attackerCreditedAt])
 }
 
