@@ -171,6 +171,17 @@ describe('0.6.0-C turf combat', () => {
   });
 });
 
+describe('0.6.0-C push balance gate', () => {
+  it('keeps an equal push live, while a reinforcement call matters without making a corner untouchable', () => {
+    const push = runTurfPushSimulation(classicOgV06C)!;
+    expect(push.noBackupWinRate).toBeGreaterThanOrEqual(0.30);
+    expect(push.noBackupWinRate).toBeLessThanOrEqual(0.47);
+    expect(push.reinforcementWinRate).toBeGreaterThanOrEqual(0.14);
+    expect(push.reinforcementWinRate).toBeLessThanOrEqual(0.32);
+    expect(push.noBackupWinRate - push.reinforcementWinRate).toBeGreaterThanOrEqual(0.08);
+  });
+});
+
 describe('0.6.0-A the gate', () => {
   it('passes on the shipped ruleset', () => {
     expect(turfGate(ruleset, runTurfSimulation(ruleset))).toEqual([]);
