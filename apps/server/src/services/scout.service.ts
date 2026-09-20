@@ -20,22 +20,34 @@ export interface Crew {
 
 const round2 = (value: number): number => Math.round(value * 100) / 100;
 
+function localDistrict(ruleset: Ruleset, citySlug: string | undefined, key: DistrictKey, district: District) {
+  const local = citySlug ? ruleset.cities?.[citySlug]?.districts?.[key] : undefined;
+  return {
+    name: local?.name ?? district.name,
+    blurb: local?.blurb,
+  };
+}
+
 export function toDistrictDto(
   key: string,
   district: District,
   all: District[],
   ruleset: Ruleset,
   crew: Crew,
+  citySlug?: string,
 ): DistrictDto {
   const armedThugs = armedThugsForStreet(crew, ruleset);
   const unarmedThugs = unarmedThugsForStreet(crew, ruleset);
   const covered = armedThugs * district.protectionWhoresPerThug;
   const exposed = crew.whores <= 0 ? 0 : Math.min(1, Math.max(0, 1 - covered / crew.whores));
 
+  const local = localDistrict(ruleset, citySlug, key as DistrictKey, district);
+
   return {
     key,
     slug: district.slug,
-    name: district.name,
+    name: local.name,
+    ...(local.blurb ? { blurb: local.blurb } : {}),
     protectionWhoresPerThug: district.protectionWhoresPerThug,
     /** Girls this crew could cover on this block. */
     coveredWhores: covered,
@@ -58,12 +70,12 @@ export function findDistrict(
   return district ? { key: normalized as DistrictKey, district } : null;
 }
 
-export function districtsFor(ruleset: Ruleset, crew: Crew): DistrictsDto {
+export function districtsFor(ruleset: Ruleset, crew: Crew, citySlug?: string): DistrictsDto {
   const all = Object.values(ruleset.districts);
 
   return {
     districts: Object.entries(ruleset.districts).map(([key, district]) =>
-      toDistrictDto(key, district, all, ruleset, crew),
+      toDistrictDto(key, district, all, ruleset, crew, citySlug),
     ),
   };
 }
@@ -186,7 +198,7 @@ export const ScoutService = {
         const all = Object.values(ruleset.districts);
 
         const result: ScoutResult = {
-          district: toDistrictDto(found.key, found.district, all, ruleset, active),
+          district: toDistrictDto(found.key, found.district, all, ruleset, active, player.city.slug),
           ...(supply ? { supply: toPlanDto(supply, ruleset) } : {}),
           ...(trip.heat ? { heat: trip.heat } : {}),
 
@@ -223,13 +235,15 @@ export const ScoutService = {
           turnsRemaining: next.turns,
         };
 
+        const local = localDistrict(ruleset, player.city.slug, found.key, found.district);
+
         return {
           next,
           result,
           activity: {
             type: 'SCOUT',
             payload: {
-              district: found.district.name,
+              district: local.name,
               turns: input.turns,
               whores: outcome.whoresRecruited,
               thugs: outcome.thugsRecruited,

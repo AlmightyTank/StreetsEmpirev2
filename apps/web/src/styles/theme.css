@@ -1169,6 +1169,13 @@ a.se-nav__link:hover {
   font-weight: 600;
 }
 
+.se-choice__blurb {
+  flex-basis: 100%;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--se-muted);
+}
+
 .se-choice__meta {
   display: flex;
   gap: 14px;

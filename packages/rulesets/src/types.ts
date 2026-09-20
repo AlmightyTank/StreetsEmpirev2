@@ -607,6 +607,12 @@ export interface CityHeatRules {
   readonly bustSeverity: number;
 }
 
+/** Local presentation for one mechanical district in one city. */
+export interface CityDistrictRules {
+  readonly name: string;
+  readonly blurb: string;
+}
+
 /** 0.5.0-A. A city's character. Everything here is balance, so it lives in the ruleset, not the City table. */
 export interface CityRules {
   readonly name: string;
@@ -634,6 +640,11 @@ export interface CityRules {
   readonly modifiers: { readonly scout: number; readonly income: number; readonly crack: number };
   /** Drive hours out along each road its locals can follow a run. */
   readonly zoneHours: number;
+  /**
+   * Local names and flavor for the five mechanical district archetypes.
+   * The keys stay stable for scouting/turf balance and persistence; only presentation changes by city.
+   */
+  readonly districts?: { readonly [K in DistrictKey]?: CityDistrictRules };
   /** District pay for players living here. Applied from 0.5.0-D (with `travel.relocation`). */
   readonly districtPay?: { readonly [K in DistrictKey]?: number };
   /** What stores charge players living here. Applied from 0.5.0-D (with `travel.relocation`); buyback prices do not move. */
