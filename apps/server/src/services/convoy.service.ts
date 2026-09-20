@@ -139,7 +139,7 @@ function ownerSees(ruleset: Ruleset, owner: Pick<RoundPlayer, 'hideoutLookoutsLe
 }
 
 /** What an area recon keeps about a run it found. */
-type ReconTarget = Omit<ConvoyTargetDto, 'blockedReason' | 'tailed'>;
+type ReconTarget = Omit<ConvoyTargetDto, 'blockedReason' | 'tailed' | 'maxSquad'>;
 
 /**
  * Every run that is near, or coming near within `lookaheadMs`, where the player lives, and
@@ -177,6 +177,7 @@ async function scanTargets(db: Db | PrismaClient, ruleset: Ruleset, player: Roun
       city: window.city,
       cityName: cityName(ruleset, window.city),
       source: window === runWindow ? 'RUN' : 'HOME',
+      sighting: 'RECON',
       routeHere: routeAround(ruleset, stops, window),
       kinds: span.kinds,
       inReachFrom: span.from.toISOString(),
@@ -187,6 +188,80 @@ async function scanTargets(db: Db | PrismaClient, ruleset: Ruleset, player: Roun
     });
   }
   return targets.sort((a, b) => Number(b.inReachNow) - Number(a.inReachNow) || a.inReachFrom.localeCompare(b.inReachFrom));
+}
+
+/**
+ * 0.6.0-E. A personally held corner is a live lookout in that city.
+ * It never sees future traffic or paid-recon value/escort bands.
+ */
+async function cornerTargets(
+  db: Db | PrismaClient,
+  ruleset: Ruleset,
+  player: RoundPlayer & { city: { slug: string } },
+  roundId: string,
+  now: Date,
+): Promise<ReconTarget[]> {
+  if (!ruleset.turf?.territory?.cornerRunSightings) return [];
+  const held = await db.turf.findMany({
+    where: { holderId: player.id, roundId },
+    select: { city: { select: { slug: true } } },
+  });
+  const cities = new Set(held.map((row) => row.city.slug));
+  if (!cities.size) return [];
+
+  const runs = await db.run.findMany({
+    where: { status: 'ACTIVE', roundPlayerId: { not: player.id }, roundPlayer: { roundId } },
+    include: { ...RUN_INCLUDE, roundPlayer: { include: { alliance: { select: { tag: true } } } } },
+  });
+  const targets: ReconTarget[] = [];
+  for (const run of runs) {
+    const stops = toStopPlans(run.stops);
+    const position = runPosition(ruleset, stops, now);
+    if (position.phase === 'home') continue;
+    const windows = reachWindows(ruleset, stops);
+    const window = reachAt(windows, now).find((entry) => cities.has(entry.city));
+    if (!window) continue;
+    const span = reachSpans(windows).find((entry) => entry.city === window.city && entry.from <= window.from && entry.to >= window.to)
+      ?? { city: window.city, from: window.from, to: window.to, kinds: [window.kind] };
+    targets.push({
+      runId: run.id,
+      owner: {
+        publicPimpId: run.roundPlayer.publicPimpId,
+        displayName: run.roundPlayer.displayName,
+        allianceTag: run.roundPlayer.alliance?.tag ?? null,
+      },
+      city: window.city,
+      cityName: cityName(ruleset, window.city),
+      source: window.city === player.city.slug ? 'HOME' : 'CORNER',
+      sighting: 'CORNER',
+      routeHere: routeAround(ruleset, stops, window),
+      kinds: span.kinds,
+      inReachFrom: span.from.toISOString(),
+      inReachUntil: span.to.toISOString(),
+      inReachNow: true,
+      position: { phase: position.phase, cityName: cityName(ruleset, position.city), progress: position.progress },
+      bands: null,
+    });
+  }
+  return targets.sort((a, b) => a.inReachUntil.localeCompare(b.inReachUntil));
+}
+
+async function cornerSpotsRun(
+  db: Db | PrismaClient,
+  ruleset: Ruleset,
+  playerId: string,
+  roundId: string,
+  run: LoadedRun,
+  now: Date,
+): Promise<boolean> {
+  if (!ruleset.turf?.territory?.cornerRunSightings) return false;
+  const held = await db.turf.findMany({
+    where: { holderId: playerId, roundId },
+    select: { city: { select: { slug: true } } },
+  });
+  if (!held.length) return false;
+  const cities = new Set(held.map((row) => row.city.slug));
+  return reachAt(reachWindows(ruleset, toStopPlans(run.stops)), now).some((window) => cities.has(window.city));
 }
 
 /** Why a player cannot start a tail at all right now, before any target is picked. */
@@ -231,10 +306,15 @@ export const ConvoyService = {
         }
         const blocked = squadBlock(base, player, current.turns, at);
         if (blocked) throw AppError.conflict('TAIL_BLOCKED', blocked);
-        // Only a run your recon of the area found, while that recon is still good.
+        // Paid recon spots ahead; 0.6.0-E corners can spot only traffic that is live now.
         const recon = await tx.convoyRecon.findUnique({ where: { roundPlayerId: attackerId } });
-        const found = recon && recon.expiresAt > at && (recon.targets as unknown as ReconTarget[]).some((target) => target.runId === run.id);
-        if (!found) throw AppError.conflict('NOT_SPOTTED', 'Recon the area first: you have not spotted that run.');
+        const reconFound = Boolean(recon && recon.expiresAt > at && (recon.targets as unknown as ReconTarget[]).some((target) => target.runId === run.id));
+        const cornerFound = !reconFound && await cornerSpotsRun(tx, base, attackerId, round.id, run, at);
+        if (!reconFound && !cornerFound) {
+          throw AppError.conflict('NOT_SPOTTED', base.turf?.territory?.cornerRunSightings
+            ? 'Recon the area or hold a corner where that run is passing before you tail it.'
+            : 'Recon the area first: you have not spotted that run.');
+        }
         assertTurns(current.turns, rules.turnCost);
         if (run.lastHitAt && run.lastHitAt.getTime() + rules.rehitMinutes * 60_000 > at.getTime()) throw AppError.conflict('RECENTLY_HIT', 'That run was hit a moment ago. Nobody gets it again for a while.');
         if (await tx.convoyTail.findFirst({ where: { runId: run.id, status: 'PENDING' } })) throw AppError.conflict('ALREADY_TAILED', 'Someone is already on that run.');
@@ -609,16 +689,23 @@ export const ConvoyService = {
     const squad = { fit: model ? Math.min(fitThugs(player), model.squadCap) : 0, turns: player.turns, city: myCity, cityName: cityName(base, myCity), blockedReason: squadBlock(base, player, player.turns, now) };
     if (!rules || !model) return { enabled: false, rules: null, recon: null, squad, run: null, targets: [], tails: [] };
 
-    const mine = await prisma.run.findFirst({
+    const mineRuns = await prisma.run.findMany({
       where: { roundPlayerId: playerId, status: 'ACTIVE' },
       include: RUN_INCLUDE,
       orderBy: [{ launchedAt: 'asc' }, { id: 'asc' }],
     });
+    const mine = mineRuns[0] ?? null;
     const myRunPosition = mine ? runPosition(base, toStopPlans(mine.stops), now) : null;
-    // What your last recon found, as it was then; who is tailed or blocked is as it is now.
+    // Paid recon is a snapshot; held corners add current, bandless sightings on top.
     const recon = await prisma.convoyRecon.findUnique({ where: { roundPlayerId: playerId } });
     const fresh = recon && recon.expiresAt > now ? recon : null;
-    const seen = (fresh?.targets as unknown as ReconTarget[] | undefined) ?? [];
+    const paidSeen = ((fresh?.targets as unknown as ReconTarget[] | undefined) ?? [])
+      .map((target) => ({ ...target, sighting: 'RECON' as const }));
+    const passiveSeen = await cornerTargets(prisma, base, player, round.id, now);
+    const combined = new Map(passiveSeen.map((target) => [target.runId, target]));
+    // Paid recon wins the de-dupe because it contains the richer bands and lookahead window.
+    for (const target of paidSeen) combined.set(target.runId, target);
+    const seen = [...combined.values()];
     const live = seen.length ? await prisma.run.findMany({
       where: { id: { in: seen.map((target) => target.runId) } },
       select: { id: true, status: true, lastHitAt: true, roundPlayer: true, tails: { where: { status: 'PENDING' }, select: { id: true } } },
@@ -631,8 +718,20 @@ export const ConvoyService = {
       const owner = run.roundPlayer;
       if (!linked.has(owner.accountId)) linked.set(owner.accountId, await accountsShareNetwork(prisma, player.accountId, owner.accountId, now));
       const inReachNow = new Date(target.inReachFrom) <= now && now < new Date(target.inReachUntil);
+      const runInReach = inReachNow
+        ? mineRuns.find((ownRun) => reachAt(reachWindows(base, toStopPlans(ownRun.stops)), now).some((window) => window.city === target.city))
+        : null;
+      const source: ConvoyTargetDto['source'] = target.city === myCity ? 'HOME' : runInReach ? 'RUN' : target.sighting === 'CORNER' ? 'CORNER' : target.source;
+      const maxSquad = source === 'HOME'
+        ? squad.fit
+        : source === 'RUN' && runInReach
+          ? Math.min(Math.max(0, runInReach.escortThugs - runInReach.woundedEscorts), model.squadCap)
+          : 0;
       targets.push({
         ...target,
+        source,
+        sighting: target.sighting ?? 'RECON',
+        maxSquad,
         inReachNow,
         tailed: run.tails.length > 0,
         blockedReason: allianceTargetBlock(player, owner, now)
@@ -640,9 +739,10 @@ export const ConvoyService = {
           ?? (run.tails.length ? 'Someone is already on it.' : null)
           ?? (run.lastHitAt && run.lastHitAt.getTime() + rules.rehitMinutes * 60_000 > now.getTime() ? 'It was hit a moment ago.' : null)
           ?? (!inReachNow ? (new Date(target.inReachUntil) <= now ? 'Gone by now.' : 'Not in reach yet.') : null)
-          ?? (target.source === 'RUN' && (!mine || mine.escortThugs - mine.woundedEscorts < 1) ? 'Your run has no fit escorts.' : null)
           ?? squad.blockedReason
-          ?? (target.source === 'HOME' && squad.fit < 1 ? 'You have no fit thugs to send.' : null),
+          ?? (source === 'RUN' && maxSquad < 1 ? 'Your run has no fit escorts.' : null)
+          ?? (source === 'HOME' && maxSquad < 1 ? 'You have no fit thugs to send.' : null)
+          ?? (source === 'CORNER' ? 'Your corner sees it, but no home crew or run is in reach to start a tail.' : null),
       });
     }
 
