@@ -175,7 +175,7 @@ export const TurfService = {
     await TurfService.ensureRound(tx, player.roundId, ruleset);
     const held = await tx.turf.findMany({
       where: { roundId: player.roundId, holderId: roundPlayerId },
-      include: { city: { select: { slug: true } } },
+      include: { city: { select: { slug: true } }, outpost: { select: { id: true } } },
       orderBy: [{ city: { sortOrder: 'asc' } }, { district: 'asc' }],
     });
 
@@ -208,6 +208,9 @@ export const TurfService = {
     };
 
     for (const row of held) {
+      // 0.6.0-D: away corners burn from their own box. That settlement lands in
+      // the next D slice; never fall back to home supplies in the meantime.
+      if (row.outpost) continue;
       const wholeHours = Math.floor(hoursSince(row.upkeepAt, now));
       if (wholeHours <= 0 || row.cornerThugs <= 0) continue;
       const need = cornerUpkeep(ruleset, row.cornerThugs, wholeHours);
@@ -282,7 +285,10 @@ export const TurfService = {
     await TurfService.ensureRound(tx, input.roundId, input.ruleset);
     const row = await tx.turf.findUnique({
       where: { roundId_cityId_district: { roundId: input.roundId, cityId: input.cityId, district: input.district } },
-      include: { holder: { select: { id: true, accountId: true, publicPimpId: true, displayName: true } } },
+      include: {
+        holder: { select: { id: true, accountId: true, publicPimpId: true, displayName: true } },
+        outpost: { select: { id: true } },
+      },
     });
     if (!row?.holder) return empty;
     if (row.holder.id === input.roundPlayerId) {
@@ -298,6 +304,14 @@ export const TurfService = {
       return {
         kind: 'rival', holder: { publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName },
         holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: true,
+      };
+    }
+    // 0.6.0-D: outpost tax belongs in the remote box. Until that box-ledger slice
+    // lands, do not burn the worker or mint money into the holder's home balance.
+    if (row.outpost) {
+      return {
+        kind: 'rival', holder: { publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName },
+        holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: false,
       };
     }
 
