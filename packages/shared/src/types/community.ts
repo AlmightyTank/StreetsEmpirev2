@@ -324,6 +324,18 @@ export interface DiscordTurfEventDto {
   settledAt: string;
 }
 
+/** 0.6.0-E. An alliance gained, lost or directly stole control of a city. */
+export interface DiscordTerritoryEventDto {
+  id: string;
+  roundName: string;
+  city: string;
+  cityName: string;
+  previous: { name: string; tag: string; blocksHeld: number } | null;
+  next: { name: string; tag: string; blocksHeld: number } | null;
+  blocksTotal: number;
+  happenedAt: string;
+}
+
 export interface DiscordRankAlertDto {
   discordId: string;
   displayName: string;
@@ -367,6 +379,7 @@ export interface DiscordAlertsClaimDto {
   roundAlerts: DiscordRoundAlertDto[];
   battles: DiscordBattleEventDto[];
   turf: DiscordTurfEventDto[];
+  territory: DiscordTerritoryEventDto[];
   rounds: DiscordRoundEventDto[];
 }
 
