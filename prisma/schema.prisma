@@ -455,6 +455,8 @@ model RoundPlayer {
   postedThugs        Int @default(0)
   /// 0.6.0-B. Net-worth value of guns removed from the home arsenal and posted on turf.
   postedNetWorthCents BigInt @default(0)
+  /// 0.6.0-D. Net-worth value stored in away outpost boxes.
+  outpostNetWorthCents BigInt @default(0)
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
   rocksSuppliedToPip Int @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
