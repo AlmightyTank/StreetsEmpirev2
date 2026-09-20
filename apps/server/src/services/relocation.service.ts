@@ -26,6 +26,7 @@ import {
   type CornerGuns,
 } from './turf.service.js';
 import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
+import { endTurfHold } from './turf-history.service.js';
 
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
 
@@ -119,6 +120,7 @@ async function finishMove(tx: Db, roundPlayerId: string, move: { id: string; fro
         returnedThugs += row.cornerThugs;
         returnedGuns = addCornerGuns(returnedGuns, gunsFromTurf(row));
         if (row.outpost) await tx.turfOutpost.delete({ where: { id: row.outpost.id } });
+        await endTurfHold(tx, row.id, move.arrivesAt);
         await tx.turf.update({
           where: { id: row.id },
           data: {
