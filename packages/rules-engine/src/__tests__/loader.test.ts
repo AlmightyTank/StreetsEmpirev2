@@ -179,11 +179,27 @@ describe('classic-og-v0.6-e contents', () => {
 });
 
 describe('classic-og-v0.6-f contents', () => {
-  it('pins the Turf release without changing E balance', () => {
+  it('adds the Federal crackdown without changing E turf balance', () => {
     const ruleset = loadRuleset('classic-og-v0.6-f', '0.6.0-F');
     expect(ruleset).toBe(classicOgV06F);
     expect(ruleset.meta.name).toBe('Classic OG - Turf Release');
-    expect({ ...ruleset, meta: null }).toEqual({ ...classicOgV06E, meta: null });
+    expect(ruleset.turf?.crackdown).toEqual({
+      hoursBeforeRoundEnd: 48,
+      warningHours: 24,
+      heatPerHeldBlock: 12,
+      pickupShare: 0.2,
+      maxPickedUpPerBlock: 6,
+      minimumCornerSurvivors: 1,
+    });
+    expect({
+      ...ruleset,
+      meta: null,
+      turf: { ...ruleset.turf!, crackdown: null },
+    }).toEqual({
+      ...classicOgV06E,
+      meta: null,
+      turf: { ...classicOgV06E.turf, crackdown: null },
+    });
   });
 });
 
