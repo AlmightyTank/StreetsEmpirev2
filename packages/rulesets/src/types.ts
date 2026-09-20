@@ -723,8 +723,17 @@ export interface TurfRules {
   readonly wars?: boolean;
   /** 0.6.0-D. Away holdings with their own supply/tax box. */
   readonly outposts?: TurfOutpostRules;
+  /** 0.6.0-E. Alliance territory and city-control rules. */
+  readonly territory?: TurfTerritoryRules;
   /** 0.6.0-C. Taking a block. Data in A. */
   readonly push: TurfPushRules;
+}
+
+export interface TurfTerritoryRules {
+  /** Share of the city's five blocks one alliance must hold to control it. */
+  readonly cityControlShare: number;
+  /** Controlled-city alliance members do not pay street tax there. */
+  readonly controlledCityNoTax: boolean;
 }
 
 export interface TurfOutpostRules {
