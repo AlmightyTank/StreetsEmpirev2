@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import { CRACK_PRODUCT, cityCounter, driveHoursFrom, findRoutes, loadRulesetForRound, pipBase, rulesetForCity } from '@streets/rules-engine';
 import type { CitiesDto, CityCharacterDto } from '@streets/shared';
 import type { SightingCounter } from './run-settle.service.js';
+import { TurfService } from './turf.service.js';
 
 function policeWord(pressure: number): CityCharacterDto['police'] {
   if (pressure < 0.8) return 'Light';
@@ -27,7 +28,7 @@ function bustsAgainstHome(here: number, home: number): CityCharacterDto['busts']
  * the response to find either.
  */
 export const CitiesService = {
-  async page(prisma: PrismaClient, roundPlayerId: string): Promise<CitiesDto> {
+  async page(prisma: PrismaClient, roundPlayerId: string, now = new Date()): Promise<CitiesDto> {
     const player = await prisma.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, include: { round: true, city: true } });
     const ruleset = loadRulesetForRound(player.round);
     const cities = ruleset.cities;
@@ -46,6 +47,7 @@ export const CitiesService = {
       : [{ key: CRACK_PRODUCT, name: 'Crack' }];
     const nameOf = (slug: string) => cities[slug]?.name ?? slug;
     const living = rulesetForCity(ruleset, home);
+    const turfByCity = await TurfService.byCity(prisma, roundPlayerId, ruleset, now);
 
     return {
       enabled: true,
@@ -89,8 +91,9 @@ export const CitiesService = {
               ? {
                   seenAt: sightings.get(slug)!.seenAt.toISOString(),
                   products: (sightings.get(slug)!.counter as unknown as SightingCounter).products,
-                }
-              : null,
+              }
+            : null,
+          turf: turfByCity?.get(slug) ?? null,
         };
       }),
     };

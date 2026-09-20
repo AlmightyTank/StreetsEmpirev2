@@ -323,6 +323,7 @@ model Round {
   news        GameNews[]
   alliances   Alliance[]
   highMarkets HighMarket[]
+  turf        Turf[]
 
   @@index([status])
 }
@@ -347,6 +348,8 @@ model City {
   updatedAt DateTime @updatedAt
 
   players RoundPlayer[]
+  turf    Turf[]
+  turfPresence TurfPresence[]
 }
 
 // ---------------------------------------------------------------------------
@@ -444,6 +447,10 @@ model RoundPlayer {
   /// 0.5.0-E. Thugs out on a tail or riding backup for a convoy: still the player's, still
   /// in net worth, but not fit for anything else until the fight is settled.
   busyThugs          Int @default(0)
+  /// 0.6.0-A. Thugs standing on corners this crew holds: still the player's and still in
+  /// net worth, but not at home to work, cover the street, cook or defend. Unlike
+  /// `busyThugs` they have no deadline: they stand there until they are pulled or pushed off.
+  postedThugs        Int @default(0)
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
   rocksSuppliedToPip Int @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
@@ -526,6 +533,9 @@ model RoundPlayer {
   convoyTailsStarted    ConvoyTail[]   @relation("ConvoyTailAttacker")
   convoyBackups         ConvoyBackup[]
   convoyRecon           ConvoyRecon?
+  /// 0.6.0-A. Blocks this crew holds, and the blocks it has worked lately.
+  turfHeld              Turf[]             @relation("TurfHolder")
+  turfPresence          TurfPresence[]
   /// 0.4.0-B. Which products each job burns, in order.
   supplyPolicies        WorkSupplyPolicy[]
   /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
@@ -1149,6 +1159,69 @@ model PlayerActivity {
   createdAt DateTime @default(now())
 
   @@index([roundPlayerId, createdAt(sort: Desc)])
+}
+
+// ---------------------------------------------------------------------------
+// Turf (0.6.0-A)
+// ---------------------------------------------------------------------------
+
+/// One district in one city: forty blocks a round with all eight cities enabled. A row is
+/// created for every block when the round first reads its turf, held by the locals.
+///
+/// A null `holderId` means the locals have it. `localsThugs` is what they hold it with
+/// now, growing back from `localsAt` on the ruleset's clock, exactly like Pip's shelves:
+/// nothing sweeps this table.
+model Turf {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id])
+
+  /// Ruleset district key, e.g. CASINO.
+  district String
+
+  /// The crew standing on it, or null for the locals.
+  holderId    String?
+  holder      RoundPlayer? @relation("TurfHolder", fields: [holderId], references: [id], onDelete: SetNull)
+  /// The holder's posted thugs on this corner. Part of the holder's `postedThugs`.
+  cornerThugs Int          @default(0)
+  heldSince   DateTime?
+  /// 0.6.0-C. Taken blocks cannot be taken again until this passes.
+  shieldUntil DateTime?
+
+  /// What the locals hold it with, and when that was last worked out.
+  localsThugs Int
+  localsAt    DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundId, cityId, district])
+  @@index([roundId, holderId])
+}
+
+/// 0.6.0-A. Turns a crew has worked on a block lately. You cannot claim a block you have
+/// never worked, and presence fades on the ruleset's half-life, settled from `at` on read.
+model TurfPresence {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id])
+
+  /// Ruleset district key, e.g. CASINO.
+  district String
+
+  /// Turns worked, as of `at`. Faded on read, never by a sweep.
+  turns Float    @default(0)
+  at    DateTime @default(now())
+
+  @@unique([roundPlayerId, cityId, district])
 }
 
 // ---------------------------------------------------------------------------

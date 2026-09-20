@@ -1,8 +1,8 @@
 # 0.6.0 roadmap - Turf
 
-Status: **in progress.** 0.6.0-A's ruleset and simulation are built; the rest of A (the
-schema and the city map) and B through F are planned. Decisions marked *(proposed)* are
-open until the 0.5.0 public round reports in.
+Status: **in progress.** 0.6.0-A is built: ruleset, simulation, schema, API read path and
+city map. B through F are planned. Decisions marked *(proposed)* are open until the 0.5.0
+public round reports in.
 
 0.4.0 gave the crew product to manage, and 0.5.0 gave it roads to move that product on.
 Neither gave a crew anything to **hold**. Working a district never touches another player,
@@ -127,33 +127,34 @@ in its own pinned ruleset (`classic-og-v0.6-a`, `-b`, ...) so older rounds keep 
 
 - **Ruleset:** a `turf` block. It holds:
   - per district: the hold bonus, the tax share burned from the worker, the tax share paid to
-    the holder, and the corner crew minimum;
+    the holder, the corner crew minimum, and the holder's crew share posted on that corner;
   - per city and district: the locals' strength and how fast they grow back;
   - presence: turns needed to claim, and how fast presence decays;
   - caps: blocks per crew at home and away, per-payer daily tax, and blocks per alliance in
     one city;
   - shields and cooldowns for C, and push timings reusing the convoy shape.
 - **Schema:**
-  - `Turf (roundId, citySlug, district, holderRoundPlayerId?, cornerThugs, heldSince,
+  - `Turf (roundId, cityId, district, holderRoundPlayerId?, cornerThugs, heldSince,
     shieldUntil, localsStrength, localsAt)`, with one row per block, created with the round.
     A null holder means the locals hold it.
-  - `TurfPresence (roundPlayerId, citySlug, district, turns, at)`.
+  - `TurfPresence (roundPlayerId, cityId, district, turns, at)`.
   - `RoundPlayer.postedThugs`, separate from `busyThugs` because it has no settle deadline.
 - **City map:** the Travel page's city view shows each city's five blocks and who holds them
   (the locals everywhere in A), plus the locals' strength in words ("Detroit's Urban Ghetto:
   the toughest corner in the game").
-Built so far: the `classic-og-v0.6-a` ruleset (0.5.0-F balance plus a `turf` block), the
+Built in A: the `classic-og-v0.6-a` ruleset (0.5.0-F balance plus a `turf` block), the
 engine's turf calculations (`turfBlocks`, `localsThugs`, `turfTax`, `turfHoldBonus`,
-`presenceAfter`, `canClaim`, `cornerUpkeep`) with `turfRulesetProblems`, and
-`runTurfSimulation` with its gate behind `npm run qa:turf`. The schema, the city map and
-the API are still to come. See [TURF-SIMULATION-0.6.0-A.md](TURF-SIMULATION-0.6.0-A.md).
+`presenceAfter`, `canClaim`, `cornerUpkeep`) with `turfRulesetProblems`,
+`runTurfSimulation` with its gate behind `npm run qa:turf`, the `Turf`/`TurfPresence`
+schema, lazy block seeding, and the city map readout. See
+[TURF-SIMULATION-0.6.0-A.md](TURF-SIMULATION-0.6.0-A.md).
 
 What the simulation settled:
 - **Turf supplements the street.** The best block pays a mid-round crew about a quarter of
   a street day; the slums a fiftieth.
-- **Only the Casino costs real muscle**, at 16% of a mid-round crew off the house. Every
-  other block is nearly free to hold, so the caps, not the economics, are what stop a crew
-  holding a city. Pushes (C) have to make a cheap block expensive to keep.
+- **Corners scale with the holder.** The Casino takes 10% of the holder's crew and the
+  slums take 5%, so filling the home cap costs a mid-round crew roughly 22-36% of its
+  thugs instead of being free for late crews.
 - **The locals are a ladder**: a fresh crew can take nothing, a mid-round crew can take
   anything, and Detroit's Casino (42 thugs) is the hardest corner in the game against
   Seattle's (21).

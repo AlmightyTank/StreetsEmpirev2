@@ -719,8 +719,14 @@ export interface TurfDistrictRules {
   readonly taxBurn: number;
   /** Share of that worker's take paid to the holder from the house, capped per payer per day. */
   readonly taxMint: number;
-  /** Fit, armed thugs a corner crew needs to hold this block. */
+  /** Fit, armed thugs a corner crew needs to hold this block, however small the crew. */
   readonly cornerMinimum: number;
+  /**
+   * A corner is as big as the crew that holds it: this share of the holder's thugs, when
+   * that is more than the minimum. Without it a late crew holds the slums on 1% of its
+   * muscle and turf is free money for whoever is already winning.
+   */
+  readonly cornerShareOfCrew: number;
   /** Thugs the locals hold this block with, before the city multiplier. */
   readonly localsThugs: number;
 }

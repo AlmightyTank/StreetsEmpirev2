@@ -232,6 +232,7 @@
 /* --- 0.5.0-A Cities --------------------------------------------------------- */
 
 .se-cities { align-items: start; }
+.se-grid--2.se-cities { grid-template-columns: repeat(auto-fit, minmax(min(100%, 500px), 1fr)); }
 .se-citymap { display: block; width: 100%; height: auto; max-height: 340px; padding: 8px 4px 0; }
 .se-citymap__road { stroke: var(--se-line); stroke-width: 2.5; stroke-linecap: round; }
 .se-citymap__road--police { stroke-dasharray: 6 4; }
@@ -282,7 +283,30 @@
 }
 .se-city__roads { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .se-city__roads li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; font-size: 13px; }
+.se-city__roads li > span { min-width: 0; overflow-wrap: anywhere; }
+.se-city__roads li > .se-num { white-space: nowrap; }
 .se-city__roads li .se-hint { grid-column: 1 / -1; margin: 0; }
+.se-turfblocks { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.se-turfblocks__block {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  align-items: baseline;
+  padding: 7px 9px;
+  border: 1px solid var(--se-line-soft);
+  border-left: 2px solid var(--se-text-dim);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.se-turfblocks__block--held { border-left-color: var(--se-accent); background: rgba(182, 255, 58, 0.035); }
+.se-turfblocks__block > span { min-width: 0; overflow-wrap: anywhere; }
+.se-turfblocks__block .se-hint { grid-column: 1 / -1; margin: 0; }
+@media (max-width: 520px) {
+  .se-city__roads li,
+  .se-turfblocks__block { grid-template-columns: minmax(0, 1fr); }
+  .se-city__roads li > .se-num,
+  .se-turfblocks__block > .se-num { text-align: left; white-space: normal; }
+}
 
 
 /* --- 0.5.0-B Travel ------------------------------------------------------------ */
@@ -310,7 +334,7 @@
 .se-launch__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .se-launch__with-all { display: flex; gap: 6px; }
 .se-launch__with-all .se-input { min-width: 0; flex: 1 1 auto; }
-.se-launch__cargo { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.se-launch__cargo { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
 .se-launch__meter { margin: 0 0 10px; }
 @media (max-width: 520px) {
   .se-launch__grid { grid-template-columns: 1fr 1fr; }

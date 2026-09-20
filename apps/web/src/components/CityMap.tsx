@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import type { CitiesDto, CityCharacterDto, SupplyLevelDto } from '@streets/shared';
+import type { CitiesDto, CityCharacterDto, SupplyLevelDto, TurfBlockDto } from '@streets/shared';
 import { formatCentsExact, formatNumber } from '@streets/shared';
 import { Panel, Row } from './Panel.js';
 
@@ -24,6 +24,7 @@ export const SHORT_CITY: Record<string, string> = {
 };
 
 export const SUPPLY_WORD: Record<SupplyLevelDto, string> = { PLENTIFUL: 'Plenty', NORMAL: 'In stock', LOW: 'Low', OUT: 'Out' };
+const TURF_ORDER: Record<TurfBlockDto['district'], number> = { CASINO: 0, NIGHTCLUB: 1, LOW_RENT: 2, URBAN_GHETTO: 3, WINO_SLUMS: 4 };
 
 /** "$10", or "$2.40" where the cents matter. */
 export const unitPrice = (cents: number) => (cents % 100 === 0 ? `$${(cents / 100).toLocaleString('en-US')}` : formatCentsExact(cents));
@@ -162,6 +163,42 @@ function MarketSeen({ counter, products }: { counter: NonNullable<CityCharacterD
   );
 }
 
+function holderName(block: TurfBlockDto): string {
+  if (!block.holder) return 'Locals';
+  return block.holder.alliance ? `[${block.holder.alliance.tag}] ${block.holder.displayName}` : block.holder.displayName;
+}
+
+function localsText(block: TurfBlockDto): string {
+  if (block.localsThugs >= block.localsFullThugs) return `${formatNumber(block.localsThugs)} locals`;
+  return `${formatNumber(block.localsThugs)} / ${formatNumber(block.localsFullThugs)} locals`;
+}
+
+function TurfBlocks({ city }: { city: CityCharacterDto }) {
+  if (!city.turf) return null;
+  const blocks = [...city.turf.blocks].sort((a, b) => TURF_ORDER[a.district] - TURF_ORDER[b.district]);
+  const toughest = blocks.reduce<TurfBlockDto | null>((best, block) => (!best || block.localsFullThugs > best.localsFullThugs ? block : best), null);
+  return (
+    <>
+      <h3 className="se-city__heading">Blocks</h3>
+      <ul className="se-turfblocks">
+        {blocks.map((block) => (
+          <li key={block.district} className={block.holder ? 'se-turfblocks__block se-turfblocks__block--held' : 'se-turfblocks__block'}>
+            <span>
+              <strong>{block.districtName}</strong>
+              <span className="se-muted"> · {holderName(block)}</span>
+            </span>
+            <span className="se-num se-muted">
+              {block.holder ? `${formatNumber(block.cornerThugs)} posted` : localsText(block)}
+            </span>
+            {block.presenceTurns > 0 ? <span className="se-hint">{Math.floor(block.presenceTurns)} presence here</span> : null}
+          </li>
+        ))}
+      </ul>
+      {toughest ? <p className="se-hint">Toughest local corner: {toughest.districtName}, {formatNumber(toughest.localsFullThugs)} thugs.</p> : null}
+    </>
+  );
+}
+
 export function CityDetail({ city, products, home }: { city: CityCharacterDto; products: CitiesDto['products']; home: string }) {
   return (
     <Panel title={city.name} aside={city.isHome ? 'Home' : city.gameMinutes !== null ? `${minutesText(city.gameMinutes)} from ${home}` : undefined}>
@@ -209,6 +246,8 @@ export function CityDetail({ city, products, home }: { city: CityCharacterDto; p
       )}
 
       {city.counter && !city.isHome ? <MarketSeen counter={city.counter} products={products} /> : null}
+
+      <TurfBlocks city={city} />
 
       <h3 className="se-city__heading">Roads out</h3>
       <ul className="se-city__roads">

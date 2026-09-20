@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { classicOgV05F, classicOgV06A, type Ruleset } from '@streets/rulesets';
 import {
   canClaim,
+  cornerMinimumFor,
   cornerUpkeep,
   localsAfter,
   localsThugs,
@@ -111,12 +112,40 @@ describe('0.6.0-A presence and the corner', () => {
     expect(presenceAfter(ruleset, 40, 0)).toBe(40);
   });
 
+  it('makes a corner as big as the crew that holds it', () => {
+    const casino = ruleset.turf!.districts.CASINO;
+    // A small crew posts the block's own minimum; a big one posts its share.
+    expect(cornerMinimumFor(ruleset, 'CASINO', 10)).toBe(casino.cornerMinimum);
+    expect(cornerMinimumFor(ruleset, 'CASINO', 250)).toBe(Math.ceil(250 * casino.cornerShareOfCrew));
+    expect(cornerMinimumFor(ruleset, 'CASINO', 250)).toBeGreaterThan(casino.cornerMinimum);
+    // The share follows the pay: a Casino corner costs more of the crew than the slums.
+    expect(cornerMinimumFor(ruleset, 'CASINO', 250)).toBeGreaterThan(cornerMinimumFor(ruleset, 'WINO_SLUMS', 250));
+    expect(cornerMinimumFor(before, 'CASINO', 250)).toBe(0);
+  });
+
+  it('catches a rich block that costs a smaller share of the crew than a poor one', () => {
+    const broken = {
+      ...ruleset,
+      turf: {
+        ...ruleset.turf!,
+        districts: {
+          ...ruleset.turf!.districts,
+          CASINO: { ...ruleset.turf!.districts.CASINO, cornerShareOfCrew: 0.01 },
+        },
+      },
+    } as Ruleset;
+    expect(turfRulesetProblems(broken).join(' ')).toContain('smaller share of the crew');
+  });
+
   it('will not let a crew claim a block it has never worked, or one it cannot man', () => {
     const turns = ruleset.turf!.presence.turnsToClaim;
     const minimum = ruleset.turf!.districts.CASINO.cornerMinimum;
     expect(canClaim(ruleset, 'CASINO', turns, minimum)).toBe(true);
     expect(canClaim(ruleset, 'CASINO', turns - 1, minimum)).toBe(false);
     expect(canClaim(ruleset, 'CASINO', turns, minimum - 1)).toBe(false);
+    // A big crew has to post a corner its own size, not the block's floor.
+    expect(canClaim(ruleset, 'CASINO', turns, minimum, 250)).toBe(false);
+    expect(canClaim(ruleset, 'CASINO', turns, cornerMinimumFor(ruleset, 'CASINO', 250), 250)).toBe(true);
     expect(canClaim(before, 'CASINO', 1_000, 1_000)).toBe(false);
   });
 

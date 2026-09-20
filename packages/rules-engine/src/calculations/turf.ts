@@ -45,6 +45,17 @@ export function localsAfter(ruleset: Ruleset, block: Block, thugs: number, hours
   return Math.min(localsThugs(ruleset, block), thugs + rules.locals.regrowPerHour * hours);
 }
 
+/**
+ * Fit, armed thugs this crew needs to hold this block: the block's own minimum, or a share
+ * of the crew, whichever is larger. A corner is as big as the crew that holds it, so turf
+ * costs the late crews as much of their muscle as it costs the mid ones.
+ */
+export function cornerMinimumFor(ruleset: Ruleset, district: DistrictKey, crewThugs: number): number {
+  const rules = turfDistrictRules(ruleset, district);
+  if (!rules) return 0;
+  return Math.max(rules.cornerMinimum, Math.ceil(Math.max(0, crewThugs) * rules.cornerShareOfCrew));
+}
+
 /** Multiplies the holder's own take on their own block. 1 for everyone else. */
 export function turfHoldBonus(ruleset: Ruleset, district: DistrictKey, isHolder: boolean): number {
   if (!isHolder) return 1;
@@ -87,17 +98,20 @@ export function presenceAfter(ruleset: Ruleset, turns: number, hours: number): n
   return turns * Math.pow(0.5, hours / rules.presence.halfLifeHours);
 }
 
-/** Can this crew post a corner here at all: enough presence, enough fit armed thugs. */
+/**
+ * Can this crew post a corner here at all: enough presence, and enough fit armed thugs for
+ * a corner its own size. `crewThugs` is the whole crew, `armedFitThugs` what it can post.
+ */
 export function canClaim(
   ruleset: Ruleset,
   district: DistrictKey,
   presence: number,
   armedFitThugs: number,
+  crewThugs = armedFitThugs,
 ): boolean {
   const rules = ruleset.turf;
-  const district_ = turfDistrictRules(ruleset, district);
-  if (!rules || !district_) return false;
-  return presence >= rules.presence.turnsToClaim && armedFitThugs >= district_.cornerMinimum;
+  if (!rules || !turfDistrictRules(ruleset, district)) return false;
+  return presence >= rules.presence.turnsToClaim && armedFitThugs >= cornerMinimumFor(ruleset, district, crewThugs);
 }
 
 /** Beer and product a corner crew burns standing there for `hours`. */
@@ -129,6 +143,7 @@ export function turfRulesetProblems(ruleset: Ruleset): string[] {
     if (row.taxMint > row.taxBurn) problems.push(`${district}: the holder's share (${row.taxMint}) must not exceed what the worker loses (${row.taxBurn}).`);
     if (row.taxBurn >= 1 - ruleset.scouting.minHappinessMultiplier) problems.push(`${district}: a tax of ${row.taxBurn} takes more than a bad night on the block.`);
     if (row.cornerMinimum < 1) problems.push(`${district}: a corner needs somebody standing on it.`);
+    if (row.cornerShareOfCrew <= 0) problems.push(`${district}: a corner must cost a share of the crew, or the big crews hold it for nothing.`);
     if (row.localsThugs < row.cornerMinimum) problems.push(`${district}: the locals hold it with fewer thugs than the block needs to keep.`);
     // A richer block has to cost more muscle, the same trade the districts already make.
     for (const other of DISTRICT_KEYS) {
@@ -136,6 +151,7 @@ export function turfRulesetProblems(ruleset: Ruleset): string[] {
       const otherPay = ruleset.districts[other];
       if (!otherRow || pay.payMultiplier <= otherPay.payMultiplier) continue;
       if (row.cornerMinimum < otherRow.cornerMinimum) problems.push(`${district} pays more than ${other} but is cheaper to hold.`);
+      if (row.cornerShareOfCrew < otherRow.cornerShareOfCrew) problems.push(`${district} pays more than ${other} but costs a smaller share of the crew.`);
     }
   }
 

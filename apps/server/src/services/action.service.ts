@@ -69,6 +69,8 @@ export interface PlayerState {
   movingUntil?: Date | null;
   /** 0.5.0-E. Thugs on a tail or convoy backup: counted, never fit. */
   busyThugs: number;
+  /** 0.6.0-A. Thugs on held corners: counted, never fit at home. */
+  postedThugs: number;
 
   /** Quest progress that is per-player rather than per-trader. */
   cleanShiftStreak: number;
@@ -178,6 +180,7 @@ export function toState(player: RoundPlayer): PlayerState {
     heat: player.heat,
     awayNetWorthCents: player.awayNetWorthCents,
     busyThugs: player.busyThugs,
+    postedThugs: player.postedThugs,
     cleanShiftStreak: player.cleanShiftStreak,
     rocksSuppliedToPip: player.rocksSuppliedToPip,
     driveBysDone: player.driveBysDone,
@@ -203,9 +206,9 @@ export function toState(player: RoundPlayer): PlayerState {
   };
 }
 
-/** Thugs who can do something: not wounded, and (0.5.0-E) not out on a tail or convoy backup. */
-export function fitThugs(player: { thugs: number; woundedThugs: number; busyThugs?: number }): number {
-  return Math.max(0, player.thugs - player.woundedThugs - (player.busyThugs ?? 0));
+/** Thugs who can do something at home: not wounded, busy elsewhere, or posted on a corner. */
+export function fitThugs(player: { thugs: number; woundedThugs: number; busyThugs?: number; postedThugs?: number }): number {
+  return Math.max(0, player.thugs - player.woundedThugs - (player.busyThugs ?? 0) - (player.postedThugs ?? 0));
 }
 
 function armedThugsForSnapshot(state: PlayerState): number {
@@ -229,6 +232,7 @@ function toSnapshot(
       thugs: state.thugs,
       fitThugs: fitThugs(state),
       woundedThugs: state.woundedThugs,
+      postedThugs: state.postedThugs,
       armedThugs: armedThugsForSnapshot(state),
       unarmedThugs: Math.max(0, fitThugs(state) - armedThugsForSnapshot(state)),
       condoms: state.condoms,

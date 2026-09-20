@@ -193,6 +193,30 @@ export interface WorkSupplyDto {
 /** 0.5.0-A. How much of a product Pip has in a city. */
 export type SupplyLevelDto = 'PLENTIFUL' | 'NORMAL' | 'LOW' | 'OUT';
 
+export interface TurfBlockDto {
+  city: string;
+  district: 'CASINO' | 'NIGHTCLUB' | 'LOW_RENT' | 'URBAN_GHETTO' | 'WINO_SLUMS';
+  districtName: string;
+  /** Null means the locals hold the block. */
+  holder: {
+    publicPimpId: number;
+    displayName: string;
+    alliance: AllianceTagDto | null;
+  } | null;
+  cornerThugs: number;
+  localsThugs: number;
+  localsFullThugs: number;
+  heldSince: string | null;
+  shieldUntil: string | null;
+  /** This player's faded turns worked here. A uses it for display; B spends it. */
+  presenceTurns: number;
+}
+
+export interface CityTurfDto {
+  enabled: true;
+  blocks: TurfBlockDto[];
+}
+
 /**
  * 0.5.0-A. One city as the Cities page shows it. What anyone can know without going:
  * its character, street talk, the roads and how the police lean. Pip's prices only
@@ -226,6 +250,8 @@ export interface CityCharacterDto {
      */
     products: Array<{ key: string; supply: SupplyLevelDto | null; buyCents: number | null; sellCents: number | null; stock: number | null; market?: MarketPriceDto | null }>;
   } | null;
+  /** 0.6.0-A. The five blocks in this city, or null before turf rounds. */
+  turf: CityTurfDto | null;
 }
 
 /** 0.5.0-C. The high market for one product: the next unit bought and sold, and how many units move it 1%. */

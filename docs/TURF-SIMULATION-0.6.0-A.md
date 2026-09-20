@@ -33,8 +33,8 @@ every day. 0.6.0-C cuts into this ceiling.
    game;
 3. a block that pays more than working the street (`streetShare >= 1`);
 4. a fresh crew that can take every corner in the game, or a late crew shut out of any;
-5. a mid-round crew that can fill its home cap on under 10% of its thugs, or only by
-   posting over 60% of them.
+5. any crew big enough to fill its home cap on under 10% of its thugs, or only by posting
+   over 60% of them.
 
 ## What it settled
 
@@ -42,17 +42,18 @@ every day. 0.6.0-C cuts into this ceiling.
   mid-round crew about **a quarter of a street day** (0.26x), and the Wino Slums about a
   fiftieth. That is the intended shape: turf is a second income, and the crew still has to
   work.
-- **The Casino is the only corner that costs real muscle.** It wants eight thugs and covers
-  four girls each, so posting it takes 16% of a mid-round crew off the house and pays back
-  1.6x. Every other block pays back in the hundreds, because a crew with spare thugs gives
-  up almost nothing by posting them.
-- **So the caps are doing the work, not the economics.** Two blocks at home is what stops a
-  crew from holding a city, not the price of holding them. That is a real risk and the
-  first thing for 0.6.0-B and C to answer: pushes have to make a cheap block expensive to
-  *keep*, or holding the slums is free money.
-- **A late crew holds turf almost for free** (1-3% of its thugs per corner). Turf does not
-  scale against the biggest crews, which means it is a mid-game system unless the corner
-  minimum grows with what it is defending. Worth revisiting in C with real push data.
+- **A corner now scales with the crew holding it.** The district minimum still protects
+  small crews, but bigger crews post a share of their muscle: 10% on Casino blocks, down to
+  5% in the Wino Slums. Filling the home cap costs a mid-round crew about 22-36% of its
+  thugs, and a late crew about 17-33%, instead of 1-3%.
+- **Cheap blocks are still cheap in cash terms, but not free in defense terms.** The Casino
+  remains the only block with a meaningful cash opportunity cost, paying back about 1.6x
+  for a mid-round holder. Slums and low-rent blocks still pay back fast because those thugs
+  were spare street cover, but they now leave a visible hole at home.
+- **Caps still matter, but they are not alone.** Two blocks at home keeps one crew from
+  holding a city; the scaling corner means those two blocks also reserve roughly a fifth to
+  a third of the holder's crew. C still has to price neglected turf through pushes and
+  short-supplied corners, especially on cheap blocks.
 - **The locals are a ladder.** A fresh crew (5 thugs) can take nothing; a mid-round crew
   (50) can take every block; a late crew is shut out of none. The spread between cities
   holds the characters the cities already have: Detroit's Casino is the hardest corner in
@@ -66,8 +67,9 @@ every day. 0.6.0-C cuts into this ceiling.
 1. **Is the tax cap the right shape?** At $50,000 a payer a day, a busy Casino block mints
    about $22,000 a day for a mid-round holder: real money, but nowhere near a street day.
    A quiet block with one rival mints a third of that.
-2. **Cheap corners are nearly free to hold.** Either the corner minimum grows with the
-   holder's crew, or pushes have to be frequent enough to price them. C decides.
+2. **How often do cheap blocks get pushed?** The scaling corner fixed the home-defense hole,
+   but slums still have tiny cash opportunity cost. C decides whether frequent pushes and
+   corner supply make them expensive enough to keep.
 3. **Where does the money come from?** The tax is minted, so turf adds cash to a round.
    The cap bounds it per payer per day, but a full-round simulation in F has to show it
    does not inflate a season.

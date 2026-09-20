@@ -163,6 +163,8 @@ export interface ResourcesDto {
   thugs: number;
   fitThugs: number;
   woundedThugs: number;
+  /** 0.6.0-A. Thugs standing on held corners, unavailable at home. */
+  postedThugs: number;
   armedThugs: number;
   unarmedThugs: number;
 

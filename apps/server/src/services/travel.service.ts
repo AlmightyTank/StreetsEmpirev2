@@ -240,7 +240,7 @@ export const TravelService = {
     const { ruleset, player } = settled;
     // Other cities' counters and Heat lines read the round's own rules, not home's.
     const base = loadRulesetForRound(settled.round);
-    const map = await CitiesService.page(prisma, roundPlayerId);
+    const map = await CitiesService.page(prisma, roundPlayerId, now);
     const inventory = await ProductInventoryService.read(prisma, roundPlayerId, ruleset);
     const run = await activeRun(prisma, roundPlayerId);
     const travel = ruleset.travel;

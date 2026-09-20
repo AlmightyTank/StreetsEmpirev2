@@ -4,6 +4,7 @@ import { clientMultiplier } from '../calculations/clients.js';
 import { cityRules, rulesetForCity } from '../calculations/cities.js';
 import {
   DISTRICT_KEYS,
+  cornerMinimumFor,
   cornerUpkeep,
   localsThugs,
   turfBlocks,
@@ -119,7 +120,8 @@ export function runTurfSimulation(ruleset: Ruleset, crews: readonly TravelCrew[]
     const home = ruleset.round.startingCitySlug;
     const summaries = blocks.map((block) => {
       const district = rules.districts[block.district];
-      const cornerThugs = district.cornerMinimum;
+      // A corner is as big as the crew that holds it, so a late crew posts more than a mid one.
+      const cornerThugs = cornerMinimumFor(ruleset, block.district, crew.thugs);
       const locals = localsThugs(ruleset, block);
       const take = takePerTurnCents(ruleset, crew, block.citySlug, block.district);
 
@@ -194,18 +196,33 @@ export function turfGate(ruleset: Ruleset, summaries: readonly TurfCrewSummary[]
     }
   }
 
-  // The cheapest and dearest ways to fill the home cap, for the crew turf is aimed at.
+  // The cheapest and dearest ways to fill the home cap, for every crew big enough to try.
+  // A corner scales with its holder, so this has to bite the late crew as hard as the mid one.
   const cap = ruleset.turf.caps.blocksPerCrewHome;
-  const mid = summaries[Math.floor(summaries.length / 2)];
-  if (mid) {
-    const shares = [...mid.blocks].map((row) => row.defenseShare).sort((a, b) => a - b);
-    const cheapest = shares.slice(0, cap).reduce((sum, share) => sum + share, 0);
-    const dearest = shares.slice(-cap).reduce((sum, share) => sum + share, 0);
+  for (const summary of summaries) {
+    // The home cap is blocks in one city, so each city is weighed on its own.
+    const byCity = new Map<string, number[]>();
+    for (const row of summary.blocks) {
+      const shares = byCity.get(row.block.citySlug) ?? [];
+      shares.push(row.defenseShare);
+      byCity.set(row.block.citySlug, shares);
+    }
+    const sums = [...byCity.values()].map((shares) => {
+      const sorted = [...shares].sort((a, b) => a - b);
+      return {
+        cheapest: sorted.slice(0, cap).reduce((sum, share) => sum + share, 0),
+        dearest: sorted.slice(-cap).reduce((sum, share) => sum + share, 0),
+      };
+    });
+    const cheapest = Math.min(...sums.map((entry) => entry.cheapest));
+    const dearest = Math.max(...sums.map((entry) => entry.dearest));
+    // A crew that cannot man the cap at all is not who the caps are for.
+    if (cheapest > 1) continue;
     if (cheapest < TURF_MIN_DEFENSE_SHARE) {
-      problems.push(`${mid.crew.name} can hold the cap on ${(cheapest * 100).toFixed(0)}% of its crew: turf costs it nothing to defend.`);
+      problems.push(`${summary.crew.name} can hold the cap on ${(cheapest * 100).toFixed(0)}% of its crew: turf costs it nothing to defend.`);
     }
     if (dearest > TURF_MAX_DEFENSE_SHARE) {
-      problems.push(`${mid.crew.name} holding the dearest blocks posts ${(dearest * 100).toFixed(0)}% of its crew: the house is left bare.`);
+      problems.push(`${summary.crew.name} holding the dearest blocks posts ${(dearest * 100).toFixed(0)}% of its crew: the house is left bare.`);
     }
   }
 

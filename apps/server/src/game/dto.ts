@@ -132,6 +132,7 @@ export function toRoundPlayerDto(
       thugs: player.thugs,
       fitThugs: fitThugs(player),
       woundedThugs: player.woundedThugs,
+      postedThugs: player.postedThugs,
       armedThugs: armedThugsForDto(player),
       unarmedThugs: Math.max(0, fitThugs(player) - armedThugsForDto(player)),
       condoms: player.condoms,
