@@ -211,7 +211,7 @@ function TurfReports({ city }: { city: CityCharacterDto }) {
               </span>
               {report.outpostLoot ? (
                 <span className="se-hint">
-                  Outpost loot: {formatCents(report.outpostLoot.cashCents)}
+                  Outpost loot: {formatCentsExact(report.outpostLoot.cashCents)}
                   {report.outpostLoot.beer ? ` · ${formatNumber(report.outpostLoot.beer)} beer` : ''}
                   {Object.entries(report.outpostLoot.products).map(([key, quantity]) => ` · ${formatNumber(quantity)} ${key.toLowerCase()}`).join('')}
                 </span>
