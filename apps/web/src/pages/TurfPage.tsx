@@ -105,13 +105,6 @@ function CityBlockBoard({ city, onChanged }: { city: CityCharacterDto; onChanged
               <span><b className="se-num">{Math.floor(block.presenceTurns)}</b><small>your presence</small></span>
             </div>
 
-            {block.push ? (
-              <div className="se-turfboard__pressure">
-                <strong>{block.push.role === 'attacker' ? 'Your push' : block.push.role === 'defender' ? 'Incoming push' : 'Alliance call'}</strong>
-                <span>{formatNumber(block.push.squad)} attacking · lands {new Date(block.push.landsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
-              </div>
-            ) : null}
-
             {block.outpost ? <span className="se-turfboard__outpost">Your outpost</span> : null}
             <TurfActions
               block={block}
