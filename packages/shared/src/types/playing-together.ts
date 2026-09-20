@@ -228,10 +228,13 @@ export interface TurfBlockDto {
 
 export interface TurfPushDto {
   id: string;
-  role: 'attacker' | 'defender';
+  role: 'attacker' | 'defender' | 'ally';
   squad: number;
   startedAt: string;
   landsAt: string;
+  alliesCalled: boolean;
+  backupSent: boolean;
+  canCallAllies: boolean;
 }
 
 export interface CityTurfDto {
@@ -724,4 +727,16 @@ export interface TurfPushStartResult {
   turnsUsed: number;
   startedAt: string;
   landsAt: string;
+}
+
+export interface TurfPushBackupResult {
+  pushId: string;
+  thugs: number;
+  kind: 'OWNER' | 'ALLY';
+  landsAt: string;
+}
+
+export interface TurfPushCallResult {
+  pushId: string;
+  called: number;
 }
