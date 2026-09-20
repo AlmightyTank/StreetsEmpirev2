@@ -1,7 +1,8 @@
 # 0.6.0 roadmap - Turf
 
-Status: **draft.** Nothing is built. Decisions marked *(proposed)* are open until the
-0.5.0 public round reports in.
+Status: **in progress.** 0.6.0-A's ruleset and simulation are built; the rest of A (the
+schema and the city map) and B through F are planned. Decisions marked *(proposed)* are
+open until the 0.5.0 public round reports in.
 
 0.4.0 gave the crew product to manage, and 0.5.0 gave it roads to move that product on.
 Neither gave a crew anything to **hold**. Working a district never touches another player,
@@ -141,6 +142,22 @@ in its own pinned ruleset (`classic-og-v0.6-a`, `-b`, ...) so older rounds keep 
 - **City map:** the Travel page's city view shows each city's five blocks and who holds them
   (the locals everywhere in A), plus the locals' strength in words ("Detroit's Urban Ghetto:
   the toughest corner in the game").
+Built so far: the `classic-og-v0.6-a` ruleset (0.5.0-F balance plus a `turf` block), the
+engine's turf calculations (`turfBlocks`, `localsThugs`, `turfTax`, `turfHoldBonus`,
+`presenceAfter`, `canClaim`, `cornerUpkeep`) with `turfRulesetProblems`, and
+`runTurfSimulation` with its gate behind `npm run qa:turf`. The schema, the city map and
+the API are still to come. See [TURF-SIMULATION-0.6.0-A.md](TURF-SIMULATION-0.6.0-A.md).
+
+What the simulation settled:
+- **Turf supplements the street.** The best block pays a mid-round crew about a quarter of
+  a street day; the slums a fiftieth.
+- **Only the Casino costs real muscle**, at 16% of a mid-round crew off the house. Every
+  other block is nearly free to hold, so the caps, not the economics, are what stop a crew
+  holding a city. Pushes (C) have to make a cheap block expensive to keep.
+- **The locals are a ladder**: a fresh crew can take nothing, a mid-round crew can take
+  anything, and Detroit's Casino (42 thugs) is the hardest corner in the game against
+  Seattle's (21).
+
 - **Simulation (`qa:turf`):**
   - for each block: the hold bonus plus the expected tax against what the corner crew would
     earn and defend at home, across early, middle and late crews, and with 1, 5 and 20 crews

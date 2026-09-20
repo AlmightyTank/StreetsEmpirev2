@@ -692,6 +692,107 @@ export interface TravelRules {
 }
 
 /**
+ * 0.6.0-A. Turf: a block is one district in one city, forty in all, and it is held by
+ * whoever has a corner crew standing on it. Holding pays a bonus on the holder's own
+ * trips there and a street tax on everyone else's, and costs fit, armed thugs who are
+ * not at home.
+ *
+ * Data only in A: nothing reads these numbers until 0.6.0-B posts the first corner crew.
+ */
+export interface TurfRules {
+  readonly districts: { readonly [K in DistrictKey]: TurfDistrictRules };
+  readonly locals: TurfLocalsRules;
+  readonly presence: TurfPresenceRules;
+  readonly corner: TurfCornerRules;
+  readonly caps: TurfCapRules;
+  /** 0.6.0-C. Taking a block. Data in A. */
+  readonly push: TurfPushRules;
+}
+
+export interface TurfDistrictRules {
+  /** Multiplies the holder's own take on this block. */
+  readonly holdBonus: number;
+  /**
+   * Share of the take a crew loses working someone else's block. It is burned: money
+   * never moves from one player to another, because that is the multi-account route.
+   */
+  readonly taxBurn: number;
+  /** Share of that worker's take paid to the holder from the house, capped per payer per day. */
+  readonly taxMint: number;
+  /** Fit, armed thugs a corner crew needs to hold this block. */
+  readonly cornerMinimum: number;
+  /** Thugs the locals hold this block with, before the city multiplier. */
+  readonly localsThugs: number;
+}
+
+/**
+ * Every block opens the round held by the locals, so there is always something to take,
+ * even in a city with one player in it. A block nobody holds goes back to them.
+ */
+export interface TurfLocalsRules {
+  /** Multiplies `localsThugs` in each city: Detroit's corners are the hardest. */
+  readonly byCity: { readonly [slug: string]: number };
+  /** What the locals fight with, and the share of them carrying it. */
+  readonly weapon: WeaponKey;
+  readonly armedShare: number;
+  /** Thugs the locals get back an hour after losing a block, up to their full strength. */
+  readonly regrowPerHour: number;
+  /** Hours after a block is released before the locals move back onto it. */
+  readonly reclaimHours: number;
+}
+
+/** You cannot claim a block you have never worked. Presence is turns worked there, and it fades. */
+export interface TurfPresenceRules {
+  readonly turnsToClaim: number;
+  readonly halfLifeHours: number;
+  /** Presence a Scout turn on the block adds. Produce trips add none. */
+  readonly perScoutTurn: number;
+}
+
+/** What a corner crew costs to keep standing. */
+export interface TurfCornerRules {
+  readonly postTurnCost: number;
+  readonly pullTurnCost: number;
+  readonly beerPerThugPerHour: number;
+  readonly productPerThugPerHour: number;
+  /** Share of a short-supplied corner crew that walks each hour. */
+  readonly walkoutSharePerHour: number;
+}
+
+export interface TurfCapRules {
+  readonly blocksPerCrewHome: number;
+  /** 0.6.0-D. Blocks held away from home, through outposts. */
+  readonly blocksPerCrewAway: number;
+  readonly blocksPerAllianceInCity: number;
+  /** Most tax one payer can mint for a holder in a day. */
+  readonly dailyTaxCapCentsPerPayer: number;
+}
+
+export interface TurfPushRules {
+  /** Real minutes between starting a push and it landing, as a convoy tail works. */
+  readonly warningMinutes: number;
+  readonly turnCost: number;
+  /** Hours a newly taken block cannot be taken again. */
+  readonly shieldHours: number;
+  /** Hours before the same crew can push the same block again. */
+  readonly attackerCooldownHours: number;
+  /**
+   * The raid engine's roll on a corner: a smaller edge than a home defense, and a wider
+   * swing. Between a raid (1.1, 0.1) and a convoy ambush (1.0, 0.3).
+   */
+  readonly fight: { readonly defenseMultiplier: number; readonly variance: number };
+  /**
+   * 0.3.0-D's held reinforcement, shipping on turf first: allies send real help, but only
+   * sometimes, which keeps the swing a flat cap would flatten. Home raids stay unhelped.
+   */
+  readonly allies: {
+    readonly maxShareOfDefender: number;
+    readonly chanceToShowUp: number;
+    readonly maxHelpers: number;
+  };
+}
+
+/**
  * 0.5.0-E. Convoys: a run can be hit near a city (leaving it, in town, or coming in),
  * by the players who live there and by rival runs in reach at the same time. A hit is a
  * tail first: the squad is committed and the hit lands when a warning window closes, if
@@ -1082,5 +1183,7 @@ export interface Ruleset {
   readonly cities?: { readonly [slug: string]: CityRules };
   /** 0.5.0-A. Absent where nobody travels. */
   readonly travel?: TravelRules;
+  /** 0.6.0-A. Absent where the street belongs to nobody. */
+  readonly turf?: TurfRules;
   readonly evidence: EvidenceRules;
 }
