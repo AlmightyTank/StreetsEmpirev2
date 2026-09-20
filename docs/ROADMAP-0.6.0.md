@@ -227,6 +227,11 @@ against the configured 50%.
 
 ## 0.6.0-D - Outposts
 
+Status: **in progress.** The D ruleset and persistence foundation are built: outposts have
+their own cash/beer/product box, away-cap data is exposed on the turf DTO, and older C
+rounds remain unchanged. Run delivery/establishment, outpost upkeep/tax routing, Garage,
+outpost raids and relocation conversion are the next D slices.
+
 - **An outpost is a corner crew away from home.** It is how a crew holds turf in more than
   one city without leaving home.
 - **Delivered by a run:** a run stopping in a town can drop thugs, guns, beer, product and
