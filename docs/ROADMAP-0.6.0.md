@@ -8,9 +8,10 @@ own pinned ruleset: delayed pushes, Lookouts warnings, defender and same-city al
 backup, chance-to-show reinforcement, offline landing, combat/wounds, block transfer,
 hold shields, attacker cooldowns, revenge, delayed locals reclaim, real squad+gun custody,
 cap reservations, battle reports, Street Wire/Discord hand-change lines and the C balance
-gate are built. The seeded gate lands at 38.7% attacker wins without backup and 23.2% with
-an alliance call. 0.6.0-D Outposts is next. Decisions marked *(proposed)* remain open until
-the 0.5.0 public round reports in.
+gate are built. 0.6.0-D Outposts and 0.6.0-E Territory are complete. 0.6.0-F Release is now
+in progress, starting with the pinned release ruleset, release balance gates and public Turf
+rules documentation. Decisions marked *(proposed)* remain open until the 0.5.0 public round
+reports in.
 
 0.4.0 gave the crew product to manage, and 0.5.0 gave it roads to move that product on.
 Neither gave a crew anything to **hold**. Working a district never touches another player,
@@ -277,6 +278,11 @@ and alliance in the Hall of Fame.
   net-worth rankings. A Hall of Fame badge for the crew and the alliance that held the most.
 
 ## 0.6.0-F - Release
+
+Status: **in progress.** The `classic-og-v0.6-f` shipping ruleset is pinned from E without
+changing balance, `qa:turf` now runs against F, the turf balance gate runs inside
+`qa:release`, and the public Rules page has its Turf/territory panel. The full-round
+strategy simulation, seeded crackdown, phone pass and turf integration regression remain.
 
 - **Balance:** a pass over all 40 blocks on `qa:turf` and full-round runs, including
   outposts, the Garage and the tax caps.
