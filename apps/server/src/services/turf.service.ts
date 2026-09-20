@@ -151,7 +151,7 @@ async function lockOutpost(tx: Db, id: string): Promise<void> {
   await tx.$queryRaw`SELECT id FROM "TurfOutpost" WHERE id = ${id} FOR UPDATE`;
 }
 
-interface CityControl {
+export interface CityControl {
   allianceId: string;
   alliance: { name: string; tag: string };
   blocksHeld: number;
