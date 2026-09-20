@@ -686,6 +686,9 @@ model Run {
   /// The run's wallet, integer cents. Never below zero.
   cashCents      BigInt
   startCashCents BigInt
+  /// 0.6.0-D. Beer carried by the run for outpost supply.
+  beer           Int         @default(0)
+  startBeer      Int         @default(0)
   turnsSpent     Int
   launchedAt     DateTime    @default(now())
   returnedAt     DateTime?
@@ -1086,6 +1089,8 @@ enum ActivityType {
   TURF_PUSH_BACKUP
   TURF_PUSH_ATTACK
   TURF_PUSH_DEFENSE
+  TURF_OUTPOST_ESTABLISH
+  TURF_OUTPOST_TRANSFER
 }
 
 enum BattleKind {
