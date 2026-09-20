@@ -22,14 +22,19 @@ const price = (cents: number) => (cents % 100 === 0 ? formatCents(cents) : forma
 
 function ShelfLine({ pip, name, onArrival }: { pip: NonNullable<ProductStockDto['pip']>; name: string; onArrival: () => void }) {
   const { msRemaining } = useCountdown(pip.nextAt, onArrival);
-  const delivery = `${formatNumber(pip.perInterval)} every ${waitText(pip.intervalMinutes)}`;
+  const cadence = waitText(pip.intervalMinutes);
+  const delivery = pip.perInterval >= pip.cap
+    ? `the shelf restocks in full every ${cadence}`
+    : pip.perInterval === 1
+      ? `one more every ${cadence}`
+      : `another ${formatNumber(pip.perInterval)} every ${cadence}`;
   return (
     <p className={`se-hint${pip.stock === 0 ? ' se-warn' : ''}`}>
       Pip has <strong className="se-num">{formatNumber(pip.stock)}</strong> of <strong className="se-num">{formatNumber(pip.cap)}</strong>.{' '}
       {pip.stock >= pip.cap
-        ? `Fully stocked, ${delivery}.`
+        ? `Fully stocked — ${delivery}.`
         : pip.stock === 0
-          ? `Out of ${name}, next delivery in ${formatDuration(msRemaining)}.`
+          ? `Out of ${name} — next delivery in ${formatDuration(msRemaining)}.`
           : `Next delivery in ${formatDuration(msRemaining)}, then ${delivery}.`}
     </p>
   );

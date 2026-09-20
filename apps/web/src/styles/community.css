@@ -212,8 +212,8 @@
 .se-product-choices--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 720px) { .se-product-choices--3 { grid-template-columns: 1fr; } }
 
-/* 0.4.0-D: Pip carries six products, so his shelf items sit two to a row; his favour spans both. */
-.se-store-items--pair { grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); align-items: start; }
+/* 0.4.0-D: Pip carries six products, but his shelf should still read like the other stores. */
+.se-store-items--pair { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
 .se-store-items--pair > :not(.se-panel) { grid-column: 1 / -1; }
 
 /* Hall of Fame: a long season window wraps instead of pushing the page sideways. */
