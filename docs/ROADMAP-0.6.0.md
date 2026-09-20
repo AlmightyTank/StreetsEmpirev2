@@ -3,13 +3,14 @@
 Status: **in progress.** 0.6.0-A is built. 0.6.0-B Holding is implemented on its own
 pinned ruleset: Scout presence, local claims, posting/reinforcing/pulling home corners,
 real gun custody, lazy upkeep and walkouts, hold bonus, capped house-minted street tax,
-linked-account guard, receipts and dashboard. 0.6.0-C is now in progress: the pinned C
-ruleset, delayed pushes, Lookouts warnings, defender and same-city alliance backup,
-chance-to-show reinforcement, offline landing, combat/wounds, block transfer, hold
-shields, attacker cooldowns, real squad+gun custody, cap reservations and Travel fight
-controls are built. Battle reports/revenge, locals reclaim, wire/Discord hand-change
-lines and the C balance gate remain. Decisions marked *(proposed)* remain open until the
-0.5.0 public round reports in.
+linked-account guard, receipts and dashboard. 0.6.0-C Turf Wars is implemented on its
+own pinned ruleset: delayed pushes, Lookouts warnings, defender and same-city alliance
+backup, chance-to-show reinforcement, offline landing, combat/wounds, block transfer,
+hold shields, attacker cooldowns, revenge, delayed locals reclaim, real squad+gun custody,
+cap reservations, battle reports, Street Wire/Discord hand-change lines and the C balance
+gate are built. The seeded gate lands at 38.7% attacker wins without backup and 23.2% with
+an alliance call. 0.6.0-D Outposts is next. Decisions marked *(proposed)* remain open until
+the 0.5.0 public round reports in.
 
 0.4.0 gave the crew product to manage, and 0.5.0 gave it roads to move that product on.
 Neither gave a crew anything to **hold**. Working a district never touches another player,
@@ -215,6 +216,14 @@ What the simulation settled:
 - **Revenge:** losing a block opens revenge against the taker, as a raid does.
 - **The wire:** the street wire and the Discord city feed carry blocks changing hands
   ("Low Rent in Detroit fell to [TAG] Slick").
+
+Built in C: the full delayed fight lifecycle above, plus battle reports, shared retaliation
+against the taker (presence waiver only; the hold shield still stands), a six-hour vacant
+window before locals reclaim an abandoned corner, and public Street Wire/Discord
+hand-change lines. The C simulation is recorded in
+[TURF-SIMULATION-0.6.0-C.md](TURF-SIMULATION-0.6.0-C.md): equal 20-thug crews produce
+38.7% attacker wins without backup and 23.2% with an alliance call; 48.7% of help showed
+against the configured 50%.
 
 ## 0.6.0-D - Outposts
 
