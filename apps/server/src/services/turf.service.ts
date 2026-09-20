@@ -20,6 +20,12 @@ import type { Db } from '../utils/db.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
 import { turfRevengeByAttacker } from './turf-revenge.service.js';
+import {
+  controlFromRows,
+  recordTerritoryControlChange,
+  territoryControlForCity,
+  type CityControl,
+} from './turf-territory.service.js';
 
 type TurfDb = PrismaClient | Db;
 const HOUR_MS = 3_600_000;
@@ -151,58 +157,7 @@ async function lockOutpost(tx: Db, id: string): Promise<void> {
   await tx.$queryRaw`SELECT id FROM "TurfOutpost" WHERE id = ${id} FOR UPDATE`;
 }
 
-export interface CityControl {
-  allianceId: string;
-  alliance: { name: string; tag: string };
-  blocksHeld: number;
-  blocksTotal: number;
-  share: number;
-}
-
-export function controlFromRows(
-  ruleset: Ruleset,
-  rows: Array<{ holder: { allianceId: string | null; alliance?: { name: string; tag: string } | null } | null }>,
-): CityControl | null {
-  const territory = ruleset.turf?.territory;
-  if (!territory || rows.length === 0) return null;
-  const byAlliance = new Map<string, { alliance: { name: string; tag: string }; blocks: number }>();
-  for (const row of rows) {
-    const allianceId = row.holder?.allianceId;
-    const alliance = row.holder?.alliance;
-    if (!allianceId || !alliance) continue;
-    const current = byAlliance.get(allianceId) ?? { alliance, blocks: 0 };
-    current.blocks += 1;
-    byAlliance.set(allianceId, current);
-  }
-  const needed = Math.ceil(rows.length * territory.cityControlShare);
-  const winner = [...byAlliance.entries()]
-    .map(([allianceId, value]) => ({ allianceId, ...value }))
-    .filter((entry) => entry.blocks >= needed)
-    .sort((a, b) => b.blocks - a.blocks || a.allianceId.localeCompare(b.allianceId))[0];
-  return winner ? {
-    allianceId: winner.allianceId,
-    alliance: winner.alliance,
-    blocksHeld: winner.blocks,
-    blocksTotal: rows.length,
-    share: winner.blocks / rows.length,
-  } : null;
-}
-
-async function cityControl(db: TurfDb, roundId: string, cityId: string, ruleset: Ruleset): Promise<CityControl | null> {
-  if (!ruleset.turf?.territory) return null;
-  const rows = await db.turf.findMany({
-    where: { roundId, cityId },
-    select: {
-      holder: {
-        select: {
-          allianceId: true,
-          alliance: { select: { name: true, tag: true } },
-        },
-      },
-    },
-  });
-  return controlFromRows(ruleset, rows);
-}
+export { controlFromRows } from './turf-territory.service.js';
 
 interface StoredTurfFight {
   won: boolean;
@@ -460,7 +415,7 @@ export const TurfService = {
       ? await tx.roundPlayer.findUniqueOrThrow({ where: { id: input.roundPlayerId }, select: { allianceId: true } })
       : null;
     const control = worker?.allianceId
-      ? await cityControl(tx, input.roundId, input.cityId, input.ruleset)
+      ? await territoryControlForCity(tx, input.roundId, input.cityId, input.ruleset)
       : null;
     if (worker?.allianceId && control?.allianceId === worker.allianceId) {
       return {
