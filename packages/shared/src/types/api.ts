@@ -383,6 +383,8 @@ export interface DistrictDto {
   key: string;
   slug: string;
   name: string;
+  /** City-specific street flavor. Older rulesets may omit it. */
+  blurb?: string;
   /*
    * There is deliberately no pay band and no recruit rate here.
    *
