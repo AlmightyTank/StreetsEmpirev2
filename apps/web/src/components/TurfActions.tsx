@@ -109,6 +109,16 @@ export function TurfActions({
               >
                 {block.push.backupSent ? 'Backup sent' : <>Send {formatNumber(thugs)}</>}
               </Button>
+              {block.push.role === 'defender' ? (
+                <Button
+                  type="button"
+                  className="se-btn se-btn--ghost se-btn--sm"
+                  disabledReason={action.busy ? 'That turf move is still going through.' : null}
+                  onClick={() => void run('/game/turf/pull', block.cornerThugs)}
+                >
+                  Abandon corner
+                </Button>
+              ) : null}
               {block.push.canCallAllies ? (
                 <Button
                   type="button"
