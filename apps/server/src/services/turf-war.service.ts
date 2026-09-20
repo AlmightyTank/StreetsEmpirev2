@@ -1,7 +1,14 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { cornerMinimumFor, type Ruleset } from '@streets/rules-engine';
+import { cornerMinimumFor, headsUpMinutes, turfPushCombatModel, type Ruleset } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
-import type { TurfPushInput, TurfPushStartResult } from '@streets/shared';
+import type {
+  TurfPushBackupInput,
+  TurfPushBackupResult,
+  TurfPushCallInput,
+  TurfPushCallResult,
+  TurfPushInput,
+  TurfPushStartResult,
+} from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
@@ -35,20 +42,30 @@ async function crewSize(tx: any, playerId: string, homeThugs: number): Promise<n
 
 async function assertRoom(tx: any, player: any, roundId: string, cityId: string, ruleset: Ruleset): Promise<void> {
   const rules = ruleset.turf!;
-  const home = await tx.turf.count({ where: { roundId, cityId, holderId: player.id } });
-  if (home >= rules.caps.blocksPerCrewHome) {
-    throw AppError.conflict('TURF_CREW_CAP', `You already hold your ${rules.caps.blocksPerCrewHome}-block home cap.`);
+  const [held, reserved] = await Promise.all([
+    tx.turf.count({ where: { roundId, cityId, holderId: player.id } }),
+    rules.wars ? tx.turfPush.count({ where: { roundId, attackerId: player.id, status: 'PENDING', turf: { cityId } } }) : 0,
+  ]);
+  if (held + reserved >= rules.caps.blocksPerCrewHome) {
+    throw AppError.conflict('TURF_CREW_CAP', `You already hold or are pushing for your ${rules.caps.blocksPerCrewHome}-block home cap.`);
   }
   if (player.allianceId) {
-    const alliance = await tx.turf.count({ where: { roundId, cityId, holder: { allianceId: player.allianceId } } });
-    if (alliance >= rules.caps.blocksPerAllianceInCity) {
-      throw AppError.conflict('TURF_ALLIANCE_CAP', `Your alliance already holds ${rules.caps.blocksPerAllianceInCity} blocks in this city.`);
+    const [allianceHeld, allianceReserved] = await Promise.all([
+      tx.turf.count({ where: { roundId, cityId, holder: { allianceId: player.allianceId } } }),
+      rules.wars ? tx.turfPush.count({ where: { roundId, status: 'PENDING', turf: { cityId }, attacker: { allianceId: player.allianceId } } }) : 0,
+    ]);
+    if (allianceHeld + allianceReserved >= rules.caps.blocksPerAllianceInCity) {
+      throw AppError.conflict('TURF_ALLIANCE_CAP', `Your alliance already holds or is pushing for ${rules.caps.blocksPerAllianceInCity} blocks in this city.`);
     }
   }
 }
 
 function districtName(ruleset: Ruleset, city: string, district: DistrictKey): string {
   return ruleset.cities?.[city]?.districts?.[district]?.name ?? ruleset.districts[district].name;
+}
+
+function seesPush(ruleset: Ruleset, player: { hideoutLookoutsLevel: number }, landsAt: Date, now: Date): boolean {
+  return landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel) * 60_000);
 }
 
 /**
@@ -58,13 +75,13 @@ function districtName(ruleset: Ruleset, city: string, district: DistrictKey): st
  * the durable window C will settle even if neither player is online.
  */
 export const TurfWarService = {
-  start(prisma: PrismaClient, attackerId: string, input: TurfPushInput) {
+  start(prisma: PrismaClient, attackerId: string, input: TurfPushInput, at: Date = new Date()) {
     return ActionService.run<TurfPushStartResult>(prisma, attackerId, {
       action: 'TURF_PUSH',
       actionId: input.actionId,
       execute: async ({ tx, current, player, round, ruleset, now }) => {
         const turfRules = requireWars(ruleset);
-        const model = ruleset.combat;
+        const model = turfPushCombatModel(ruleset);
         if (!model) throw AppError.conflict('COMBAT_DISABLED', 'Street fights are not enabled in this round.');
         const district = input.district as DistrictKey;
         if (!turfRules.districts[district]) throw AppError.badRequest('UNKNOWN_DISTRICT', 'That is not a turf block.');
@@ -165,6 +182,6 @@ export const TurfWarService = {
           activity: { type: 'TURF_PUSH', payload: json(result) },
         };
       },
-    });
+    }, at);
   },
 };
