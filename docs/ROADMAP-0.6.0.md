@@ -255,6 +255,11 @@ into outposts up to the away cap, and releases any overflow when the move arrive
 
 ## 0.6.0-E - Territory
 
+Status: **in progress.** E1 is built: the E ruleset turns three of five blocks into
+alliance city control, controlled cities are tagged on the Travel map, and members of the
+controlling alliance pay no street tax there. Passive corner sightings, the Discord control
+feed, territory board/history and Hall of Fame remain the next E slices.
+
 - **Alliance territory:** the blocks every member holds, shown on the city map in the
   alliance's tag.
 - **City control:** an alliance holding a set share of a city's blocks controls it.
