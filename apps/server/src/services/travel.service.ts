@@ -327,7 +327,9 @@ async function wireDto(prisma: PrismaClient, roundId: string, ruleset: Ruleset, 
         endsAt: null,
         text: crackdown.thugsPickedUp > 0
           ? `The Feds swept ${crackdown.city.name}. ${crackdown.thugsPickedUp} corner men got picked up across ${crackdown.holdersAffected} crew${crackdown.holdersAffected === 1 ? '' : 's'}.`
-          : `The Feds swept ${crackdown.city.name}, but every turf crew had already cleared out.`,
+          : crackdown.holdersAffected > 0
+            ? `The Feds swept ${crackdown.city.name}. ${crackdown.holdersAffected} crew${crackdown.holdersAffected === 1 ? ' was' : 's were'} caught holding corners, but nobody got picked up.`
+            : `The Feds swept ${crackdown.city.name}, but every turf crew had already cleared out.`,
       });
     }
   }
