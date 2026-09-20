@@ -143,8 +143,8 @@ export interface RankingsDto {
     localRank: number;
     nationalRank: number;
   };
-  /** 0.6.0-E. Block-time board; null on older rulesets. */
-  territory: TerritoryBoardDto | null;
+  /** 0.6.0-E. Block-time board; null/absent on older rulesets or older servers. */
+  territory?: TerritoryBoardDto | null;
 }
 
 export interface PublicPlayerProfileDto {
@@ -278,7 +278,7 @@ export interface HallOfFameRoundDto {
   podium: HallOfFamePlayerDto[];
   topTen: HallOfFamePlayerDto[];
   /** 0.6.0-E. Final block-time leaders for this season, when Territory was enabled. */
-  territory: {
+  territory?: {
     crews: Array<Pick<TerritoryCrewStandingDto, 'publicPimpId' | 'displayName' | 'alliance' | 'heldSeconds'>>;
     alliances: Array<Pick<TerritoryAllianceStandingDto, 'name' | 'tag' | 'heldSeconds'>>;
   } | null;
