@@ -9,6 +9,7 @@ import {
   localsOnBlock, localsReclaimAt, releaseCornerGuns, subtractCornerGuns, turfGunData, type CornerGuns,
 } from './turf.service.js';
 import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
+import { endTurfHold, startTurfHold } from './turf-history.service.js';
 
 function localDistrictName(ruleset: Ruleset, citySlug: string, district: DistrictKey): string {
   return ruleset.cities?.[citySlug]?.districts?.[district]?.name ?? ruleset.districts[district].name;
@@ -116,6 +117,7 @@ export const TurfActionService = {
               shieldUntil: null, upkeepAt: now, localsThugs: locals, localsAt: now, localsReclaimAt: null,
             },
           });
+          await startTurfHold(tx, fresh.id, now);
           await recordTerritoryControlChange(tx, {
             roundId: round.id, cityId: player.cityId, ruleset, before: controlBefore, at: now,
           });
@@ -205,6 +207,7 @@ export const TurfActionService = {
         const existingGuns = gunsFromTurf(fresh);
         const returned = releaseCornerGuns(existingGuns, input.thugs);
         const remainingGuns = subtractCornerGuns(existingGuns, returned);
+        if (released) await endTurfHold(tx, fresh.id, now);
         await tx.turf.update({
           where: { id: fresh.id },
           data: released ? {
