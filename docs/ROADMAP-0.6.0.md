@@ -227,16 +227,18 @@ against the configured 50%.
 
 ## 0.6.0-D - Outposts
 
-Status: **in progress.** The D ruleset and persistence foundation are built: outposts have
-their own cash/beer/product box, away-cap data is exposed on the turf DTO, and older C
-rounds remain unchanged. Run delivery/establishment, outpost upkeep/tax routing, Garage,
-outpost raids and relocation conversion are the next D slices.
+Status: **in progress.** The D ruleset, persistence and first playable run flow are built:
+outposts have their own cash/beer/product box; runs can carry beer, fight the locals with
+real escorts/guns, establish an away corner, seed its box, and later drop off or collect
+cash/beer/product while physically in town. Outpost-box value has its own net-worth ledger.
+Box-funded upkeep/tax routing, outpost raids/loot, Garage/multi-run and relocation
+conversion remain the next D slices.
 
 - **An outpost is a corner crew away from home.** It is how a crew holds turf in more than
   one city without leaving home.
 - **Delivered by a run:** a run stopping in a town can drop thugs, guns, beer, product and
-  cash into an outpost there. It still needs presence, from Scout trips made while living
-  there or from what the run's crew sees (to be decided in the D simulation).
+  cash into an outpost there. It still needs the normal turf-presence requirement earned
+  by Scout work; merely driving a run through town does not create presence.
 - **The box:** each outpost has its own stock. Upkeep burns from it, and tax earned there
   lands in it.
   - Nothing is wired home. Collecting tax means sending a run.
