@@ -34,6 +34,9 @@ function engineGuns(guns: CornerGuns) {
 async function lockBlock(tx: any, id: string): Promise<void> {
   await tx.$queryRaw`SELECT id FROM "Turf" WHERE id = ${id} FOR UPDATE`;
 }
+async function lockPush(tx: any, id: string): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM "TurfPush" WHERE id = ${id} FOR UPDATE`;
+}
 
 async function crewSize(tx: any, playerId: string, homeThugs: number): Promise<number> {
   const run = await tx.run.findFirst({ where: { roundPlayerId: playerId, status: 'ACTIVE' }, select: { escortThugs: true } });
@@ -193,6 +196,7 @@ export const TurfWarService = {
         const model = turfPushCombatModel(ruleset);
         if (!model) throw AppError.conflict('COMBAT_DISABLED', 'Street fights are not enabled in this round.');
 
+        await lockPush(tx, input.pushId);
         const push = await tx.turfPush.findUnique({
           where: { id: input.pushId },
           include: {
@@ -274,6 +278,7 @@ export const TurfWarService = {
       actionId: input.actionId,
       execute: async ({ tx, current, player, round, ruleset, now }) => {
         requireWars(ruleset);
+        await lockPush(tx, input.pushId);
         const push = await tx.turfPush.findUnique({
           where: { id: input.pushId },
           include: { turf: true, defender: { select: { allianceId: true } } },
