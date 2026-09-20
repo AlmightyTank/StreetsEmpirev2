@@ -28,6 +28,7 @@ import {
   turfGunData,
   type CornerGuns,
 } from './turf.service.js';
+import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
 
 function requireOutposts(ruleset: Ruleset) {
   const rules = ruleset.turf?.outposts;
@@ -217,6 +218,7 @@ export const TurfOutpostService = {
           };
         }
 
+        const controlBefore = await territoryControlForCity(tx, round.id, city.id, ruleset);
         const remainingGuns = subtractGuns(runGuns(run), guns);
         const remainingCargo = applyProducts(cargo, products, -1);
         const runCash = run.cashCents - BigInt(input.cashCents);
@@ -238,6 +240,9 @@ export const TurfOutpostService = {
             beer: input.beer,
             products: products as Prisma.InputJsonValue,
           },
+        });
+        await recordTerritoryControlChange(tx, {
+          roundId: round.id, cityId: city.id, ruleset, before: controlBefore, at: now,
         });
         await writeCargo(tx, run.id, remainingCargo);
         await tx.run.update({
