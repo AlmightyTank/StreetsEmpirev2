@@ -86,6 +86,11 @@ function policyLine(policy: WorkSupplyPolicyDto, nameOf: (key: string) => string
 }
 
 type JobRow = WorkSupplyDto['jobs'][number];
+const WORK_SUPPLY_CHANGED = 'streets:work-supply-changed';
+
+function announceWorkSupplyChanged() {
+  window.dispatchEvent(new Event(WORK_SUPPLY_CHANGED));
+}
 
 const policyProducts = (policy: WorkSupplyPolicyDto) => (
   [policy.primary, policy.fallback, policy.emergency]
@@ -111,6 +116,10 @@ export function WorkSupplyStockRows({ jobs, refreshKey }: {
     api.get<WorkSupplyDto>('/game/work-supply').then(setOverview).catch(() => setOverview(null));
   }, []);
   useEffect(load, [load, refreshKey]);
+  useEffect(() => {
+    window.addEventListener(WORK_SUPPLY_CHANGED, load);
+    return () => window.removeEventListener(WORK_SUPPLY_CHANGED, load);
+  }, [load]);
 
   if (!overview?.enabled) return null;
   const rows = jobs.map((entry) => ({ ...entry, row: overview.jobs.find((candidate) => candidate.key === entry.job) })).filter((entry) => entry.row);
@@ -159,7 +168,9 @@ function SupplyRow({ overview, row, jobLabel, turns, refreshKey, onOverview }: {
     setSaving(true);
     setError(null);
     try {
-      onOverview(await api.post<WorkSupplyDto>(path, body));
+      const next = await api.post<WorkSupplyDto>(path, body);
+      onOverview(next);
+      announceWorkSupplyChanged();
       setEditing(false);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : failure);
