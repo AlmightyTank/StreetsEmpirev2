@@ -18,6 +18,7 @@ import type {
   RoundEvent,
   RoundStatus,
   Stats,
+  TerritoryEvent,
   TurfEvent,
   TurnReminder,
 } from './game-api.js';
@@ -443,6 +444,24 @@ export function turfFeedEmbed(event: TurfEvent): APIEmbed {
     color: BRAND_COLOR,
     description: `[${escapeMarkdown(event.defenderName)}](${event.defenderProfileUrl}) lost the block to [${newHolder}](${event.attackerProfileUrl}) in ${escapeMarkdown(event.roundName)}.`,
     timestamp: event.settledAt,
+  };
+}
+
+export function territoryFeedEmbed(event: TerritoryEvent): APIEmbed {
+  const previous = event.previous ? `[${escapeMarkdown(event.previous.tag)}] ${escapeMarkdown(event.previous.name)}` : null;
+  const next = event.next ? `[${escapeMarkdown(event.next.tag)}] ${escapeMarkdown(event.next.name)}` : null;
+  const description = previous && next
+    ? `${next} took control of ${escapeMarkdown(event.cityName)} from ${previous} · ${event.next!.blocksHeld}/${event.blocksTotal} blocks.`
+    : next
+      ? `${next} took control of ${escapeMarkdown(event.cityName)} · ${event.next!.blocksHeld}/${event.blocksTotal} blocks.`
+      : previous
+        ? `${previous} lost control of ${escapeMarkdown(event.cityName)}. No alliance controls it now.`
+        : `Control of ${escapeMarkdown(event.cityName)} changed.`;
+  return {
+    title: `${escapeMarkdown(event.cityName)} · city control changed`,
+    color: event.next ? BRAND_COLOR : MUTED_COLOR,
+    description: `${description}\n${escapeMarkdown(event.roundName)}`,
+    timestamp: event.happenedAt,
   };
 }
 
