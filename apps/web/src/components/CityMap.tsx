@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom';
-import type { CitiesDto, CityCharacterDto, SupplyLevelDto, TurfBlockDto } from '@streets/shared';
+import type { CitiesDto, CityCharacterDto, SupplyLevelDto } from '@streets/shared';
 import { formatCentsExact, formatNumber } from '@streets/shared';
 import { Panel, Row } from './Panel.js';
-import { TurfActions } from './TurfActions.js';
 
 /** Where each city sits on the map, roughly where it is on the real one. */
 const MAP: Record<string, { x: number; y: number; label: 'left' | 'right' | 'above' | 'below' }> = {
@@ -25,10 +24,6 @@ export const SHORT_CITY: Record<string, string> = {
 };
 
 export const SUPPLY_WORD: Record<SupplyLevelDto, string> = { PLENTIFUL: 'Plenty', NORMAL: 'In stock', LOW: 'Low', OUT: 'Out' };
-const TURF_ORDER: Record<TurfBlockDto['district'], number> = { CASINO: 0, NIGHTCLUB: 1, LOW_RENT: 2, URBAN_GHETTO: 3, WINO_SLUMS: 4 };
-const TURF_AREA_CLASS: Record<TurfBlockDto['district'], string> = {
-  CASINO: 'casino', NIGHTCLUB: 'nightclub', LOW_RENT: 'low-rent', URBAN_GHETTO: 'urban-ghetto', WINO_SLUMS: 'wino-slums',
-};
 
 /** "$10", or "$2.40" where the cents matter. */
 export const unitPrice = (cents: number) => (cents % 100 === 0 ? `$${(cents / 100).toLocaleString('en-US')}` : formatCentsExact(cents));
@@ -189,126 +184,7 @@ function MarketSeen({ counter, products }: { counter: NonNullable<CityCharacterD
   );
 }
 
-function holderName(block: TurfBlockDto): string {
-  if (!block.holder) return block.localsReclaimAt ? 'Vacant' : 'Locals';
-  return block.holder.alliance ? `[${block.holder.alliance.tag}] ${block.holder.displayName}` : block.holder.displayName;
-}
-
-function localsText(block: TurfBlockDto): string {
-  if (block.localsReclaimAt) {
-    return `locals return ${new Date(block.localsReclaimAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
-  }
-  if (block.localsThugs >= block.localsFullThugs) return `${formatNumber(block.localsThugs)} locals`;
-  return `${formatNumber(block.localsThugs)} / ${formatNumber(block.localsFullThugs)} locals`;
-}
-
-function turfName(player: { displayName: string; allianceTag: string | null }): string {
-  return player.allianceTag ? `[${player.allianceTag}] ${player.displayName}` : player.displayName;
-}
-
-function TurfReports({ city }: { city: CityCharacterDto }) {
-  const reports = city.turf?.reports ?? [];
-  if (!reports.length) return null;
-  return (
-    <>
-      <h3 className="se-city__heading">Recent turf fights</h3>
-      <ul className="se-turfblocks">
-        {reports.slice(0, 5).map((report) => {
-          const opponent = report.role === 'attacker' ? report.defender : report.attacker;
-          const result = report.stale
-            ? 'Corner changed before the push landed'
-            : report.role === 'attacker'
-              ? report.captured ? 'You took the block' : 'The corner held'
-              : report.captured ? 'The block was lost' : 'Your side held';
-          return (
-            <li key={report.id} className="se-turfblocks__block">
-              <span><strong>{report.districtName}</strong><span className="se-muted"> · {result}</span></span>
-              <span className="se-hint">
-                vs {turfName(opponent)} · {formatNumber(report.attackers)} attackers · {formatNumber(report.defenders.corner + report.defenders.ownerBackup + report.defenders.allyShowed)} defenders
-              </span>
-              <span className="se-hint">
-                Wounds: {formatNumber(report.yourWounds)} yours / {formatNumber(report.opponentWounds)} theirs
-                {report.role === 'ally' ? report.showedUp ? ' · your backup showed' : ' · your backup did not arrive' : ''}
-              </span>
-              {report.outpostLoot ? (
-                <span className="se-hint">
-                  Outpost loot: {formatCentsExact(report.outpostLoot.cashCents)}
-                  {report.outpostLoot.beer ? ` · ${formatNumber(report.outpostLoot.beer)} beer` : ''}
-                  {Object.entries(report.outpostLoot.products).map(([key, quantity]) => ` · ${formatNumber(quantity)} ${key.toLowerCase()}`).join('')}
-                </span>
-              ) : null}
-              {report.revengeUntil && new Date(report.revengeUntil).getTime() > Date.now()
-                ? <span className="se-hint">Revenge open until {new Date(report.revengeUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. It waives presence, not the hold shield.</span>
-                : null}
-            </li>
-          );
-        })}
-      </ul>
-    </>
-  );
-}
-
-function TurfBlocks({ city, onChanged }: { city: CityCharacterDto; onChanged?: () => void }) {
-  if (!city.turf) return null;
-  const blocks = [...city.turf.blocks].sort((a, b) => TURF_ORDER[a.district] - TURF_ORDER[b.district]);
-  const toughest = blocks.reduce<TurfBlockDto | null>((best, block) => (!best || block.localsFullThugs > best.localsFullThugs ? block : best), null);
-  return (
-    <>
-      <h3 className="se-city__heading">City turf</h3>
-      <div className="se-turfmap" role="list" aria-label={`${city.name} turf map`}>
-        {blocks.map((block) => {
-          const state = block.isMine ? 'mine' : block.holder ? 'held' : 'locals';
-          return (
-            <div
-              key={block.district}
-              role="listitem"
-              className={`se-turfmap__block se-turfmap__block--${TURF_AREA_CLASS[block.district]} se-turfmap__block--${state}`}
-            >
-              <span className="se-turfmap__district">{block.districtName}</span>
-              <strong className="se-turfmap__holder">{holderName(block)}</strong>
-              <span className="se-turfmap__strength se-num">
-                {block.holder
-                  ? `${formatNumber(block.cornerThugs)} posted · ${formatNumber(block.cornerGuns.total)} guns`
-                  : localsText(block)}
-              </span>
-              {block.presenceTurns > 0 ? <span className="se-turfmap__presence">{Math.floor(block.presenceTurns)} presence</span> : null}
-            </div>
-          );
-        })}
-      </div>
-      <p className="se-hint">Every city has five turf blocks. Your corners are highlighted; other crews and locals show who currently controls the block.</p>
-
-      <h3 className="se-city__heading">Corner details</h3>
-      <ul className="se-turfblocks">
-        {blocks.map((block) => (
-          <li key={block.district} className={block.holder ? 'se-turfblocks__block se-turfblocks__block--held' : 'se-turfblocks__block'}>
-            <span>
-              <strong>{block.districtName}</strong>
-              <span className="se-muted"> · {holderName(block)}</span>
-            </span>
-            <span className="se-num se-muted">
-              {block.holder ? `${formatNumber(block.cornerThugs)} posted · ${formatNumber(block.cornerGuns.total)} guns` : localsText(block)}
-            </span>
-            {block.presenceTurns > 0 ? <span className="se-hint">{Math.floor(block.presenceTurns)} presence here</span> : null}
-            {block.revengeAvailable && block.revengeUntil
-              ? <span className="se-hint">Revenge active until {new Date(block.revengeUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · no presence required.</span>
-              : null}
-            <TurfActions
-              block={block}
-              isHome={city.isHome}
-              holdingEnabled={city.turf?.holdingEnabled ?? false}
-              warsEnabled={city.turf?.warsEnabled ?? false}
-              onChanged={onChanged}
-            />
-          </li>
-        ))}
-      </ul>
-      {toughest ? <p className="se-hint">Toughest local corner: {toughest.districtName}, {formatNumber(toughest.localsFullThugs)} thugs.</p> : null}
-    </>
-  );
-}
-
-export function CityDetail({ city, products, home, onTurfChanged }: { city: CityCharacterDto; products: CitiesDto['products']; home: string; onTurfChanged?: () => void }) {
+export function CityDetail({ city, products, home }: { city: CityCharacterDto; products: CitiesDto['products']; home: string }) {
   return (
     <Panel title={city.name} aside={city.isHome ? 'Home' : city.gameMinutes !== null ? `${minutesText(city.gameMinutes)} from ${home}` : undefined}>
       <p className="se-city__trait">{city.trait}</p>
@@ -363,8 +239,14 @@ export function CityDetail({ city, products, home, onTurfChanged }: { city: City
 
       {city.counter && !city.isHome ? <MarketSeen counter={city.counter} products={products} /> : null}
 
-      <TurfBlocks city={city} onChanged={onTurfChanged} />
-      <TurfReports city={city} />
+      {city.turf ? (
+        <>
+          <h3 className="se-city__heading">Turf</h3>
+          <p className="se-hint">
+            Corner crews, pushes and outposts are managed on <Link to={`/game/turf?city=${encodeURIComponent(city.slug)}`}>City Blocks</Link>.
+          </p>
+        </>
+      ) : null}
 
       <h3 className="se-city__heading">Roads out</h3>
       <ul className="se-city__roads">

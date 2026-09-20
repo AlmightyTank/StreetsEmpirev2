@@ -38,7 +38,7 @@ export function TurfActions({
   const action = useGameAction<TurfResult>();
   const [thugs, setThugs] = useState(Math.max(1, block.cornerMinimumThugs));
 
-  if (!holdingEnabled || !isHome) return null;
+  if (!holdingEnabled) return null;
 
   async function run(path: string, amount: number) {
     await action.run((actionId) => api.post<GameActionResult<TurfResult>>(path, {
@@ -110,7 +110,7 @@ export function TurfActions({
               >
                 {block.push.backupSent ? 'Backup sent' : <>Send {formatNumber(thugs)}</>}
               </Button>
-              {block.push.role === 'defender' ? (
+              {block.push.role === 'defender' && isHome ? (
                 <Button
                   type="button"
                   className="se-btn se-btn--ghost se-btn--sm"
@@ -139,6 +139,10 @@ export function TurfActions({
       </div>
     );
   }
+
+  // Away corners are established/serviced by a run below the City Blocks board.
+  // Incoming pushes still need to be defendable here by the remote owner.
+  if (!isHome) return null;
 
   const controls = !block.holder ? (
     <Button

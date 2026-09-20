@@ -118,7 +118,7 @@ export function TravelPage() {
                 ))}
               </nav>
             </Panel>
-            <CityDetail city={selected} products={data.products} home={home.name} onTurfChanged={load} />
+            <CityDetail city={selected} products={data.products} home={home.name} />
           </div>
           <div className="se-grid se-grid--2 se-cities">
             {data.relocation ? <MovePanel data={data} selected={selected.slug} onDone={load} /> : null}

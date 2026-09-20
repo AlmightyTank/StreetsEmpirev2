@@ -401,7 +401,7 @@ function IncidentList({ incidents, products }: { incidents: RunIncidentDto[]; pr
 }
 
 /** 0.6.0-D. Establish or service an away corner while the run is physically in town. */
-function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; onDone: () => void }) {
+export function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; onDone: () => void }) {
   const rules = data.rules.outposts;
   const city = data.cities.find((entry) => entry.slug === run.position.city) ?? null;
   const turf = city?.turf ?? null;
@@ -697,7 +697,11 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
       {inTown ? (
         <>
           <TownCounter run={run} data={data} onDone={onDone} />
-          <OutpostStopPanel run={run} data={data} onDone={onDone} />
+          {data.rules.outposts && !stop.isHome ? (
+            <p className="se-hint">
+              Corner and outpost work is on <Link to={`/game/turf?city=${encodeURIComponent(run.position.city)}`}>City Blocks</Link>.
+            </p>
+          ) : null}
           <MoveOn run={run} data={data} onDone={onDone} />
         </>
       ) : (
