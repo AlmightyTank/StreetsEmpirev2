@@ -19,6 +19,11 @@ import { env } from '../config/env.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
 import { queueAllianceRoleResync } from './discord-resync.service.js';
 import { forumDiscussionUrl, postRecruitmentThread, updateForumDiscussion } from './forum-news.service.js';
+import {
+  recordTerritoryControlChange,
+  territoryControlForCity,
+  type CityControl,
+} from './turf-territory.service.js';
 
 type AllianceRules = NonNullable<Ruleset['alliances']>;
 
@@ -102,6 +107,37 @@ async function lockAlliance(db: Db, allianceId: string): Promise<Alliance> {
 
 async function event(db: Db, allianceId: string, type: AllianceEventType, actorName: string | null, subjectName: string | null = null, detail: string | null = null): Promise<void> {
   await db.allianceEvent.create({ data: { allianceId, type, actorName, subjectName, detail } });
+}
+
+async function territoryBeforeForPlayers(
+  tx: Db,
+  roundId: string,
+  playerIds: string[],
+  ruleset: Ruleset,
+): Promise<Map<string, CityControl | null>> {
+  if (!ruleset.turf?.territory || !playerIds.length) return new Map();
+  const rows = await tx.turf.findMany({
+    where: { roundId, holderId: { in: playerIds } },
+    select: { cityId: true },
+  });
+  const cityIds = [...new Set(rows.map((row) => row.cityId))].sort();
+  const before = new Map<string, CityControl | null>();
+  for (const cityId of cityIds) {
+    before.set(cityId, await territoryControlForCity(tx, roundId, cityId, ruleset));
+  }
+  return before;
+}
+
+async function recordTerritoryCities(
+  tx: Db,
+  roundId: string,
+  ruleset: Ruleset,
+  before: Map<string, CityControl | null>,
+  at: Date,
+): Promise<void> {
+  for (const [cityId, control] of before) {
+    await recordTerritoryControlChange(tx, { roundId, cityId, ruleset, before: control, at });
+  }
 }
 
 function cooldownData(allianceId: string, rules: Pick<AllianceRules, 'leaveCooldownHours'>, now: Date) {
