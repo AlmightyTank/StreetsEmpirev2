@@ -281,6 +281,14 @@ export interface CityTurfDto {
   enabled: true;
   holdingEnabled: boolean;
   warsEnabled: boolean;
+  /** 0.6.0-E. Public alliance control of this city, if one alliance holds the threshold. */
+  control: {
+    alliance: AllianceTagDto;
+    blocksHeld: number;
+    blocksTotal: number;
+    share: number;
+    isYours: boolean;
+  } | null;
   presenceRequired: number;
   postTurnCost: number;
   pullTurnCost: number;
@@ -302,6 +310,8 @@ export interface TurfTripDto {
   taxPaidCents: number;
   taxMintedCents: number;
   linked: boolean;
+  /** 0.6.0-E. This alliance controls the city, so this trip owed no street tax. */
+  controlledCityExempt: boolean;
 }
 
 export interface TurfSummaryDto {
