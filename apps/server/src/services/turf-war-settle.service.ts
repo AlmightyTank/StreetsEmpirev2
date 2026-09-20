@@ -26,6 +26,7 @@ import {
   type CornerGuns,
 } from './turf.service.js';
 import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
+import { endTurfHold, startTurfHold } from './turf-history.service.js';
 
 type Weapons = Record<WeaponKey, number>;
 type PushModel = NonNullable<ReturnType<typeof turfPushCombatModel>>;
@@ -329,6 +330,7 @@ export const TurfWarSettlementService = {
         await tx.turfOutpost.delete({ where: { id: capturedOutpost.id } });
       }
       if (won) {
+        await endTurfHold(tx, turf.id, at);
         await tx.turf.update({
           where: { id: turf.id },
           data: {
@@ -342,6 +344,7 @@ export const TurfWarSettlementService = {
             localsReclaimAt: null,
           },
         });
+        await startTurfHold(tx, turf.id, at);
         await recordTerritoryControlChange(tx, {
           roundId: loaded.roundId, cityId: turf.cityId, ruleset: base, before: controlBefore, at,
         });
