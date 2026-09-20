@@ -42,6 +42,56 @@ export const TurfService = {
     });
   },
 
+  /**
+   * 0.6.0-B. Scout presence is earned where the crew lives right now. The old value
+   * fades first, then the new trip is added, so many small trips and one long trip
+   * age the same way once time passes.
+   */
+  async addPresence(
+    db: TurfDb,
+    input: {
+      roundPlayerId: string;
+      roundId: string;
+      cityId: string;
+      district: string;
+      turns: number;
+      ruleset: Ruleset;
+      now?: Date;
+    },
+  ): Promise<number> {
+    if (!input.ruleset.turf || input.turns <= 0) return 0;
+
+    const now = input.now ?? new Date();
+    await TurfService.ensureRound(db, input.roundId, input.ruleset);
+
+    const where = {
+      roundPlayerId_cityId_district: {
+        roundPlayerId: input.roundPlayerId,
+        cityId: input.cityId,
+        district: input.district,
+      },
+    };
+    const existing = await db.turfPresence.findUnique({ where });
+    const faded = existing
+      ? presenceAfter(input.ruleset, existing.turns, hoursSince(existing.at, now))
+      : 0;
+    const turns = faded + input.turns;
+
+    await db.turfPresence.upsert({
+      where,
+      create: {
+        roundPlayerId: input.roundPlayerId,
+        cityId: input.cityId,
+        district: input.district,
+        turns,
+        at: now,
+      },
+      update: { turns, at: now },
+    });
+
+    return turns;
+  },
+
   async byCity(db: TurfDb, roundPlayerId: string, ruleset: Ruleset, now = new Date()): Promise<Map<string, CityTurfDto> | null> {
     if (!ruleset.turf) return null;
 

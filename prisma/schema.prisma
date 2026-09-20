@@ -324,6 +324,7 @@ model Round {
   alliances   Alliance[]
   highMarkets HighMarket[]
   turf        Turf[]
+  turfTax     TurfTaxLedger[]
 
   @@index([status])
 }
@@ -536,6 +537,8 @@ model RoundPlayer {
   /// 0.6.0-A. Blocks this crew holds, and the blocks it has worked lately.
   turfHeld              Turf[]             @relation("TurfHolder")
   turfPresence          TurfPresence[]
+  turfTaxPaid           TurfTaxLedger[]    @relation("TurfTaxPayer")
+  turfTaxEarned         TurfTaxLedger[]    @relation("TurfTaxHolder")
   /// 0.4.0-B. Which products each job burns, in order.
   supplyPolicies        WorkSupplyPolicy[]
   /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
@@ -1067,6 +1070,9 @@ enum ActivityType {
   CONVOY_ATTACK
   CONVOY_DEFENSE
   CONVOY_BACKUP
+  TURF_CLAIM
+  TURF_POST
+  TURF_PULL
 }
 
 enum BattleKind {
@@ -1222,6 +1228,32 @@ model TurfPresence {
   at    DateTime @default(now())
 
   @@unique([roundPlayerId, cityId, district])
+}
+
+/// 0.6.0-B. The daily turf-tax cap is per payer and holder. The worker's burn is not
+/// stored here; only the minted holder share needs a cap and a dashboard/history read.
+model TurfTaxLedger {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  payerId String
+  payer   RoundPlayer @relation("TurfTaxPayer", fields: [payerId], references: [id], onDelete: Cascade)
+
+  holderId String
+  holder   RoundPlayer @relation("TurfTaxHolder", fields: [holderId], references: [id], onDelete: Cascade)
+
+  /// UTC calendar day, stored at midnight.
+  day DateTime
+
+  mintedCents BigInt @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundId, payerId, holderId, day])
+  @@index([roundId, holderId, day])
 }
 
 // ---------------------------------------------------------------------------

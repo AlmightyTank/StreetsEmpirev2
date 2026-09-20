@@ -20,6 +20,8 @@ export const RAID_JOB = 'RAID';
 export const DEFENSE_JOB = 'DEFENSE';
 /** 0.5.0-E. A run's escorts when it is hit on the road, burned from its own trunk. */
 export const CONVOY_JOB = 'CONVOY';
+/** 0.6.0-B. Thugs posted on a held corner. */
+export const CORNER_JOB = 'CORNER';
 
 /** Who burns the product: the girls working, the thugs cooking, or (0.4.0-E) thugs in a fight. */
 export type WorkSupplyRole = 'hoes' | 'thugs' | 'fighters';

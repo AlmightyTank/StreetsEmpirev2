@@ -6,6 +6,7 @@ import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { HeatService } from './heat.service.js';
 import { hideoutBackOfficeBonusCents } from './hideout.service.js';
+import { TurfService } from './turf.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 
 export interface Crew {
@@ -172,6 +173,15 @@ export const ScoutService = {
         // 0.4.0-C: the trip's Heat lands, and a hot crew can be busted on the way home.
         const trip = await HeatService.afterTrip(tx, roundPlayerId, ruleset, { startHeat: current.heat, plans: [supply], next: worked, rng, now });
         const next = trip.next;
+        await TurfService.addPresence(tx, {
+          roundPlayerId,
+          roundId: round.id,
+          cityId: player.cityId,
+          district: found.key,
+          turns: input.turns,
+          ruleset,
+          now,
+        });
 
         const all = Object.values(ruleset.districts);
 
