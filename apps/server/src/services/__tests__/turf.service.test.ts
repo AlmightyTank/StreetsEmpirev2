@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { classicOgV06C, classicOgV06D, classicOgV06E } from '@streets/rulesets';
 import { localsThugs } from '@streets/rules-engine';
 import { controlFromRows, localsOnBlock, localsReclaimAt, outpostBoxWorthCents, settleOutpostSupplies } from '../turf.service.js';
+import { recordTerritoryControlChange } from '../turf-territory.service.js';
 
 const ruleset = classicOgV06C;
 const block = { citySlug: 'atlanta', district: 'LOW_RENT' } as const;
@@ -91,6 +92,52 @@ describe('0.6.0-E alliance city control', () => {
       locals,
       locals,
     ])).toBeNull();
+  });
+});
+
+describe('0.6.0-E durable territory control changes', () => {
+  it('writes one event when control flips, and none when the controller is unchanged', async () => {
+    const before = controlFromRows(classicOgV06E, [
+      { holder: { allianceId: 'a', alliance: { name: 'Aces', tag: 'ACE' } } },
+      { holder: { allianceId: 'a', alliance: { name: 'Aces', tag: 'ACE' } } },
+      { holder: { allianceId: 'a', alliance: { name: 'Aces', tag: 'ACE' } } },
+      { holder: { allianceId: 'b', alliance: { name: 'Kings', tag: 'KNG' } } },
+      { holder: { allianceId: 'b', alliance: { name: 'Kings', tag: 'KNG' } } },
+    ]);
+    const afterRows = [
+      { holder: { allianceId: 'a', alliance: { name: 'Aces', tag: 'ACE' } } },
+      { holder: { allianceId: 'a', alliance: { name: 'Aces', tag: 'ACE' } } },
+      { holder: { allianceId: 'b', alliance: { name: 'Kings', tag: 'KNG' } } },
+      { holder: { allianceId: 'b', alliance: { name: 'Kings', tag: 'KNG' } } },
+      { holder: { allianceId: 'b', alliance: { name: 'Kings', tag: 'KNG' } } },
+    ];
+    const created: any[] = [];
+    const db: any = {
+      turf: { findMany: async () => afterRows },
+      turfControlEvent: { create: async ({ data }: any) => { created.push(data); return { id: 'event-1', ...data }; } },
+    };
+    const at = new Date('2026-09-20T18:00:00.000Z');
+
+    await recordTerritoryControlChange(db, {
+      roundId: 'round', cityId: 'detroit', ruleset: classicOgV06E, before, at,
+    });
+    expect(created).toHaveLength(1);
+    expect(created[0]).toMatchObject({
+      previousAllianceId: 'a',
+      previousAllianceTag: 'ACE',
+      nextAllianceId: 'b',
+      nextAllianceTag: 'KNG',
+      previousBlocksHeld: 3,
+      nextBlocksHeld: 3,
+      blocksTotal: 5,
+      happenedAt: at,
+    });
+
+    const kings = controlFromRows(classicOgV06E, afterRows);
+    await recordTerritoryControlChange(db, {
+      roundId: 'round', cityId: 'detroit', ruleset: classicOgV06E, before: kings, at,
+    });
+    expect(created).toHaveLength(1);
   });
 });
 
