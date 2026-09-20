@@ -70,8 +70,9 @@ function holder(block: TurfBlockDto) {
 }
 
 function CityBlockBoard({ city, onChanged }: { city: CityCharacterDto; onChanged: () => void }) {
-  if (!city.turf) return <p className="se-muted">Turf is not enabled in this round.</p>;
-  const blocks = [...city.turf.blocks].sort((a, b) => ORDER[a.district] - ORDER[b.district]);
+  const turf = city.turf;
+  if (!turf) return <p className="se-muted">Turf is not enabled in this round.</p>;
+  const blocks = [...turf.blocks].sort((a, b) => ORDER[a.district] - ORDER[b.district]);
 
   return (
     <div className="se-turfboard" role="list" aria-label={`${city.name} district control`}>
@@ -115,8 +116,8 @@ function CityBlockBoard({ city, onChanged }: { city: CityCharacterDto; onChanged
             <TurfActions
               block={block}
               isHome={city.isHome}
-              holdingEnabled={city.turf.holdingEnabled}
-              warsEnabled={city.turf.warsEnabled}
+              holdingEnabled={turf.holdingEnabled}
+              warsEnabled={turf.warsEnabled}
               onChanged={onChanged}
             />
           </article>
