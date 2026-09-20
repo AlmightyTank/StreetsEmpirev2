@@ -720,8 +720,21 @@ export interface TurfRules {
   readonly holding?: boolean;
   /** 0.6.0-C. Player-vs-player pushes and turf-war windows. */
   readonly wars?: boolean;
+  /** 0.6.0-D. Away holdings with their own supply/tax box. */
+  readonly outposts?: TurfOutpostRules;
   /** 0.6.0-C. Taking a block. Data in A. */
   readonly push: TurfPushRules;
+}
+
+export interface TurfOutpostRules {
+  /** Cash the box may hold before a run has to collect it. */
+  readonly cashCapCents: number;
+  /** Beer kept at the outpost for corner upkeep. */
+  readonly beerCap: number;
+  /** Total product units kept in the box across all products. */
+  readonly productCap: number;
+  /** Turns a run spends moving stock between its trunk/wallet and an outpost. */
+  readonly transferTurnCost: number;
 }
 
 export interface TurfDistrictRules {
