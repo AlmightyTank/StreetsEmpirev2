@@ -207,6 +207,24 @@ describe('crackdownFeedEmbed', () => {
     expect(embed.description).toContain('11 corner men were picked up across 3 crews.');
     expect(embed.timestamp).toBe(base.sweepAt);
   });
+
+  it('distinguishes protected one-man corners from an empty city', () => {
+    const protectedSweep = crackdownFeedEmbed({
+      ...base,
+      phase: 'sweep',
+      holdersAffected: 2,
+      thugsPickedUp: 0,
+    });
+    expect(protectedSweep.description).toContain('2 crews were caught holding corners, but nobody was picked up.');
+
+    const emptySweep = crackdownFeedEmbed({
+      ...base,
+      phase: 'sweep',
+      holdersAffected: 0,
+      thugsPickedUp: 0,
+    });
+    expect(emptySweep.description).toContain('the corners were already clear.');
+  });
 });
 
 describe('territoryFeedEmbed', () => {
