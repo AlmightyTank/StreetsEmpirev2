@@ -8,6 +8,7 @@ import {
   TurfService, addCornerGuns, allocateCornerGuns, cornerGunWorthCents, gunsFromTurf,
   localsOnBlock, localsReclaimAt, releaseCornerGuns, subtractCornerGuns, turfGunData, type CornerGuns,
 } from './turf.service.js';
+import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
 
 function localDistrictName(ruleset: Ruleset, citySlug: string, district: DistrictKey): string {
   return ruleset.cities?.[citySlug]?.districts?.[district]?.name ?? ruleset.districts[district].name;
@@ -106,13 +107,19 @@ export const TurfActionService = {
         const defenderStrength = defender.strength * ruleset.turf!.push.fight.defenseMultiplier;
         const won = attackerStrength > defenderStrength;
 
-        if (won) await tx.turf.update({
-          where: { id: fresh.id },
-          data: {
-            holderId: roundPlayerId, cornerThugs: input.thugs, ...turfGunData(guns), heldSince: now,
-            shieldUntil: null, upkeepAt: now, localsThugs: locals, localsAt: now, localsReclaimAt: null,
-          },
-        });
+        if (won) {
+          const controlBefore = await territoryControlForCity(tx, round.id, player.cityId, ruleset);
+          await tx.turf.update({
+            where: { id: fresh.id },
+            data: {
+              holderId: roundPlayerId, cornerThugs: input.thugs, ...turfGunData(guns), heldSince: now,
+              shieldUntil: null, upkeepAt: now, localsThugs: locals, localsAt: now, localsReclaimAt: null,
+            },
+          });
+          await recordTerritoryControlChange(tx, {
+            roundId: round.id, cityId: player.cityId, ruleset, before: controlBefore, at: now,
+          });
+        }
 
         const moved = won ? nextWithPostedGuns(current, guns, 1, ruleset) : current;
         const next = { ...moved, turns: current.turns - ruleset.turf!.corner.postTurnCost, postedThugs: current.postedThugs + (won ? input.thugs : 0) };
@@ -192,6 +199,9 @@ export const TurfActionService = {
           if (cornerThugs < minimum) throw AppError.conflict('TURF_CORNER_MINIMUM', `Leave at least ${minimum} on the corner, or pull the whole crew.`);
         }
 
+        const controlBefore = released
+          ? await territoryControlForCity(tx, round.id, player.cityId, ruleset)
+          : null;
         const existingGuns = gunsFromTurf(fresh);
         const returned = releaseCornerGuns(existingGuns, input.thugs);
         const remainingGuns = subtractCornerGuns(existingGuns, returned);
@@ -203,6 +213,11 @@ export const TurfActionService = {
             localsThugs: 0, localsAt: now, localsReclaimAt: localsReclaimAt(ruleset, now),
           } : { cornerThugs, ...turfGunData(remainingGuns), upkeepAt: now },
         });
+        if (released) {
+          await recordTerritoryControlChange(tx, {
+            roundId: round.id, cityId: player.cityId, ruleset, before: controlBefore, at: now,
+          });
+        }
 
         const moved = nextWithPostedGuns(current, returned, -1, ruleset);
         return {
