@@ -318,6 +318,7 @@ export const TurfService = {
       select: {
         id: true, roundId: true, cityId: true, thugs: true, woundedThugs: true, busyThugs: true, postedThugs: true,
         pistols: true, shotguns: true, tek9s: true, ak47s: true, allianceId: true, lockedUntil: true, movingUntil: true,
+        hideoutLookoutsLevel: true,
       },
     });
     await TurfService.ensureRound(db, player.roundId, ruleset);
