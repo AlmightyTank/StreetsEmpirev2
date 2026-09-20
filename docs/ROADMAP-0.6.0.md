@@ -227,13 +227,12 @@ against the configured 50%.
 
 ## 0.6.0-D - Outposts
 
-Status: **in progress.** The D ruleset, persistence, first playable run flow and box
-economy are built: outposts have their own cash/beer/product box; runs can carry beer,
-fight the locals with real escorts/guns, establish an away corner, seed its box, and later
-drop off or collect stock while physically in town. Outpost upkeep burns only from that
-box, remote street tax lands in its cash box, and the box value is reconciled into net
-worth on settlement. Outpost raids/loot, Garage/multi-run and relocation conversion remain
-the next D slices.
+Status: **complete.** Away turf now has its full playable loop: runs can establish and
+service outposts; upkeep and street tax stay in the remote box; player pushes can capture
+an outpost and steal a capped exposed share; the one-level Garage raises the active-run
+limit to two with independent routing, trading, convoy reach and aggregate away net worth;
+and relocation previews then converts destination outposts into home turf, old-home blocks
+into outposts up to the away cap, and releases any overflow when the move arrives.
 
 - **An outpost is a corner crew away from home.** It is how a crew holds turf in more than
   one city without leaving home.
