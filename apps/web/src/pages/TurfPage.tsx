@@ -9,6 +9,7 @@ import { AllianceTag } from '../components/AllianceTag.js';
 import { Panel } from '../components/Panel.js';
 import { OutpostStopPanel } from '../components/RunPanels.js';
 import { TurfActions } from '../components/TurfActions.js';
+import { useCountdown } from '../hooks/useCountdown.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 
@@ -106,6 +107,11 @@ function CityBlockBoard({ city, onChanged }: { city: CityCharacterDto; onChanged
             </div>
 
             {block.outpost ? <span className="se-turfboard__outpost">Your outpost</span> : null}
+            {block.revengeAvailable && block.revengeUntil ? (
+              <span className="se-hint se-good">
+                Revenge active until {new Date(block.revengeUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · no presence required.
+              </span>
+            ) : null}
             <TurfActions
               block={block}
               isHome={city.isHome}
@@ -142,7 +148,15 @@ function TurfReports({ city }: { city: CityCharacterDto }) {
             <span className="se-hint">
               vs {turfName(opponent)} · {formatNumber(report.attackers)} attackers · {formatNumber(report.defenders.corner + report.defenders.ownerBackup + report.defenders.allyShowed)} defenders
             </span>
-            <span className="se-hint">Wounds: {formatNumber(report.yourWounds)} yours / {formatNumber(report.opponentWounds)} theirs</span>
+            <span className="se-hint">
+              Wounds: {formatNumber(report.yourWounds)} yours / {formatNumber(report.opponentWounds)} theirs
+              {report.role === 'ally' ? report.showedUp ? ' · your backup showed' : ' · your backup did not arrive' : ''}
+            </span>
+            {report.revengeUntil && new Date(report.revengeUntil).getTime() > Date.now() ? (
+              <span className="se-hint">
+                Revenge open until {new Date(report.revengeUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. It waives presence, not the hold shield.
+              </span>
+            ) : null}
             {report.outpostLoot ? (
               <span className="se-hint">
                 Outpost loot: {formatCentsExact(report.outpostLoot.cashCents)}
@@ -189,6 +203,12 @@ export function TurfPage() {
     ?? null;
   const selectedPulse = selected ? pulse(selected) : null;
   const activeRuns = travel?.runs ?? (travel?.run ? [travel.run] : []);
+  const nextRunDeadline = activeRuns.reduce<string | null>((next, run) => {
+    if (!next) return run.position.until;
+    return new Date(run.position.until).getTime() < new Date(next).getTime() ? run.position.until : next;
+  }, null);
+  useCountdown(nextRunDeadline, load);
+
   const runsHere = selected
     ? activeRuns.filter((run) => run.position.phase === 'town' && run.position.city === selected.slug)
     : [];
