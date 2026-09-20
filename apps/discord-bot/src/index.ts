@@ -17,6 +17,7 @@ import {
   newsPostEmbed,
   rankAlertEmbed,
   roundEventEmbed,
+  territoryFeedEmbed,
   turfFeedEmbed,
   turnReminderEmbed,
 } from './format.js';
@@ -134,6 +135,16 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
         await channels.raidFeed.send({ embeds: [turfFeedEmbed(event)], allowedMentions: { parse: [] } });
       } catch (error) {
         console.error(`Could not post turf change ${event.id} to #${channels.raidFeed.name}:`, error);
+      }
+    }
+  }
+
+  for (const event of claimed.territory) {
+    if (channels.raidFeed) {
+      try {
+        await channels.raidFeed.send({ embeds: [territoryFeedEmbed(event)], allowedMentions: { parse: [] } });
+      } catch (error) {
+        console.error(`Could not post city-control change ${event.id} to #${channels.raidFeed.name}:`, error);
       }
     }
   }
