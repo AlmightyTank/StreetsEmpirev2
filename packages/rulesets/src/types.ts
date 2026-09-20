@@ -735,6 +735,12 @@ export interface TurfOutpostRules {
   readonly productCap: number;
   /** Turns a run spends moving stock between its trunk/wallet and an outpost. */
   readonly transferTurnCost: number;
+  /** Share of each stored resource exposed when the outpost is captured. */
+  readonly lootShare: number;
+  /** Hard caps keep one rich box from deciding a round in a single push. */
+  readonly lootCashCapCents: number;
+  readonly lootBeerCap: number;
+  readonly lootProductCap: number;
 }
 
 export interface TurfDistrictRules {
