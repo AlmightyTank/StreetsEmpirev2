@@ -2,11 +2,10 @@ import { classicOgV06C } from '../classic-og-v0.6-c/index.js';
 import type { Ruleset } from '../types.js';
 
 /**
- * 0.6.0-D turns away turf into an outpost with its own box.
- *
- * This first D slice only pins the storage/transfer balance contract. Establishing and
- * supplying an outpost through a run follows in the next slice so the remote-presence
- * rule can be decided deliberately rather than hidden inside persistence code.
+ * 0.6.0-D completes away turf: run-delivered outposts with remote boxes, capped
+ * capture loot, a Garage-backed second run, and turf conversion when relocating.
+ * Remote establishment still requires ordinary Scout presence; driving through town
+ * never creates presence by itself.
  */
 export const classicOgV06D = {
   ...classicOgV06C,
