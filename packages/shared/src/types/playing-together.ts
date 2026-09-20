@@ -544,8 +544,13 @@ export interface TravelDto extends CitiesDto {
     market: { spread: number; quoteTolerance: number } | null;
     /** 0.5.0-F. A run can buy on the home high market as it loads up. */
     homeMarketAtLaunch: boolean;
+    /** 0.6.0-D. How many active runs this hideout may have. */
+    runLimit: number;
     /** 0.6.0-D. Null before away turf boxes exist. */
-    outposts: { cashCapCents: number; beerCap: number; productCap: number; transferTurnCost: number } | null;
+    outposts: {
+      cashCapCents: number; beerCap: number; productCap: number; transferTurnCost: number;
+      lootShare: number; lootCashCapCents: number; lootBeerCap: number; lootProductCap: number;
+    } | null;
   };
   /** What home has to load up with. */
   home: {
@@ -556,7 +561,10 @@ export interface TravelDto extends CitiesDto {
     turns: number;
     products: Array<{ key: string; quantity: number }>;
   };
+  /** Backward-compatible primary run: the oldest active run, if any. */
   run: RunDto | null;
+  /** 0.6.0-D Garage: every active run, oldest first. */
+  runs: RunDto[];
   lastRun: RunReceiptDto | null;
   /** 0.5.0-C. The last day on the street wire, newest first. */
   wire: WireItemDto[];
