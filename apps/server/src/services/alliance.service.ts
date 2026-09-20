@@ -472,13 +472,16 @@ export const AllianceService = {
   },
 
   async leave(prisma: PrismaClient, playerId: string): Promise<MyAllianceDto> {
-    const left = await withOwnAlliance(prisma, playerId, async ({ tx, alliance, me, rules, now }) => {
+    const left = await withOwnAlliance(prisma, playerId, async ({ tx, alliance, me, rules, now, round }) => {
       const others = await tx.roundPlayer.count({ where: { allianceId: alliance.id, id: { not: me.id } } });
       if (alliance.leaderId === me.id && others > 0) throw AppError.conflict('LEADER_MUST_HAND_OVER', 'Hand leadership to another member before you leave.');
+      const base = loadRulesetForRound(round);
+      const territoryBefore = await territoryBeforeForPlayers(tx, me.roundId, [me.id], base);
       await tx.roundPlayer.update({ where: { id: me.id }, data: cooldownData(alliance.id, rules, now) });
       await event(tx, alliance.id, 'LEFT', me.displayName);
       await queueAllianceRoleResync(tx, { accountIds: [me.accountId] });
       if (others === 0) await disbandInTransaction(tx, alliance, rules, now, me.displayName, null);
+      await recordTerritoryCities(tx, me.roundId, base, territoryBefore, now);
       return { allianceId: alliance.id, disbanded: others === 0 };
     });
     if (left.disbanded) await syncForumThread(prisma, left.allianceId);
@@ -491,11 +494,14 @@ export const AllianceService = {
     const target = await prisma.roundPlayer.findFirst({ where: { roundId: player.roundId, publicPimpId: input.targetPublicPimpId } });
     if (!target) throw AppError.notFound('TARGET_NOT_FOUND', 'That player is not in this round.');
     if (target.id === playerId) throw AppError.badRequest('INVALID_TARGET', 'Leave the alliance instead of kicking yourself.');
-    await withOwnAlliance(prisma, playerId, async ({ tx, alliance, me, rules, now }) => {
+    await withOwnAlliance(prisma, playerId, async ({ tx, alliance, me, rules, now, round }) => {
       requireLeader(alliance, me, 'kick members');
       const current = await tx.roundPlayer.findUniqueOrThrow({ where: { id: target.id } });
       if (current.allianceId !== alliance.id) throw AppError.conflict('NOT_A_MEMBER', `${current.displayName} is not in ${alliance.name}.`);
+      const base = loadRulesetForRound(round);
+      const territoryBefore = await territoryBeforeForPlayers(tx, current.roundId, [current.id], base);
       await tx.roundPlayer.update({ where: { id: current.id }, data: cooldownData(alliance.id, rules, now) });
+      await recordTerritoryCities(tx, current.roundId, base, territoryBefore, now);
       await event(tx, alliance.id, 'KICKED', me.displayName, current.displayName);
       await queueAllianceRoleResync(tx, { accountIds: [current.accountId] });
     }, [target.id]);
