@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import type { CitiesDto, CityCharacterDto, SupplyLevelDto, TurfBlockDto } from '@streets/shared';
 import { formatCentsExact, formatNumber } from '@streets/shared';
 import { Panel, Row } from './Panel.js';
+import { TurfActions } from './TurfActions.js';
 
 /** Where each city sits on the map, roughly where it is on the real one. */
 const MAP: Record<string, { x: number; y: number; label: 'left' | 'right' | 'above' | 'below' }> = {
@@ -177,7 +178,7 @@ function localsText(block: TurfBlockDto): string {
   return `${formatNumber(block.localsThugs)} / ${formatNumber(block.localsFullThugs)} locals`;
 }
 
-function TurfBlocks({ city }: { city: CityCharacterDto }) {
+function TurfBlocks({ city, onChanged }: { city: CityCharacterDto; onChanged?: () => void }) {
   if (!city.turf) return null;
   const blocks = [...city.turf.blocks].sort((a, b) => TURF_ORDER[a.district] - TURF_ORDER[b.district]);
   const toughest = blocks.reduce<TurfBlockDto | null>((best, block) => (!best || block.localsFullThugs > best.localsFullThugs ? block : best), null);
@@ -192,9 +193,10 @@ function TurfBlocks({ city }: { city: CityCharacterDto }) {
               <span className="se-muted"> · {holderName(block)}</span>
             </span>
             <span className="se-num se-muted">
-              {block.holder ? `${formatNumber(block.cornerThugs)} posted` : localsText(block)}
+              {block.holder ? `${formatNumber(block.cornerThugs)} posted · ${formatNumber(block.cornerGuns.total)} guns` : localsText(block)}
             </span>
             {block.presenceTurns > 0 ? <span className="se-hint">{Math.floor(block.presenceTurns)} presence here</span> : null}
+            <TurfActions block={block} isHome={city.isHome} holdingEnabled={city.turf?.holdingEnabled ?? false} onChanged={onChanged} />
           </li>
         ))}
       </ul>
@@ -203,7 +205,7 @@ function TurfBlocks({ city }: { city: CityCharacterDto }) {
   );
 }
 
-export function CityDetail({ city, products, home }: { city: CityCharacterDto; products: CitiesDto['products']; home: string }) {
+export function CityDetail({ city, products, home, onTurfChanged }: { city: CityCharacterDto; products: CitiesDto['products']; home: string; onTurfChanged?: () => void }) {
   return (
     <Panel title={city.name} aside={city.isHome ? 'Home' : city.gameMinutes !== null ? `${minutesText(city.gameMinutes)} from ${home}` : undefined}>
       <p className="se-city__trait">{city.trait}</p>
@@ -251,7 +253,7 @@ export function CityDetail({ city, products, home }: { city: CityCharacterDto; p
 
       {city.counter && !city.isHome ? <MarketSeen counter={city.counter} products={products} /> : null}
 
-      <TurfBlocks city={city} />
+      <TurfBlocks city={city} onChanged={onTurfChanged} />
 
       <h3 className="se-city__heading">Roads out</h3>
       <ul className="se-city__roads">

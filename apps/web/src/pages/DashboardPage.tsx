@@ -241,8 +241,10 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
   const activity = useSession((s) => s.recentActivity);
   const { refreshing, error, refresh } = useLiveDashboard();
 
-  const weapons =
+  const homeWeapons =
     me.resources.pistols + me.resources.shotguns + me.resources.tek9s + me.resources.ak47s;
+  const postedWeapons = me.turf?.postedGuns.total ?? 0;
+  const weapons = homeWeapons + postedWeapons;
 
   const suppliesPanel = (
     <Panel title="Supplies" aside={<Link to="/game/stores/corner">Corner Store</Link>} flush>
@@ -296,6 +298,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                 <Row label="Whores" value={formatNumber(me.resources.whores)} strong tooltip="The crew earning on the street. They need condoms, product, payout and protection." />
                 <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong tooltip="Only fit thugs can work, defend or raid, and only armed fit thugs protect the street." />
                 {me.resources.woundedThugs > 0 ? <Row label="Fit / wounded" value={`${formatNumber(me.resources.fitThugs)} / ${formatNumber(me.resources.woundedThugs)}`} tooltip="Wounded thugs remain yours, but they do not count for actions until they recover or get treated." /> : null}
+                {me.resources.postedThugs > 0 ? <Row label="On corners" value={formatNumber(me.resources.postedThugs)} tooltip="Posted thugs are yours, but they are off the house defending turf." /> : null}
                 <Row label="Armed / unarmed" value={`${formatNumber(me.resources.armedThugs)} / ${formatNumber(me.resources.unarmedThugs)}`} tooltip="Every fit thug wants a weapon. Unarmed thugs lower thug happiness and do not count as street cover." />
                 <Row label="Low-Riders" value={formatNumber(me.resources.lowRiders)} />
                 {me.run ? (
@@ -350,7 +353,8 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                 <Row label="Shotguns" value={formatNumber(me.resources.shotguns)} />
                 <Row label="Tek-9s" value={formatNumber(me.resources.tek9s)} />
                 <Row label="AK-47s" value={formatNumber(me.resources.ak47s)} />
-                <Row label="Total" value={formatNumber(weapons)} strong tooltip="Total guns available. Keep this at or above fit thugs to avoid unarmed penalties." />
+                {postedWeapons > 0 ? <Row label="On corners" value={formatNumber(postedWeapons)} tooltip="These guns are still yours and still count in net worth, but are not available at home." /> : null}
+                <Row label="Total owned" value={formatNumber(weapons)} strong tooltip="Home arsenal plus guns posted on your corners." />
               </div>
             </Panel>
           </div>
@@ -361,6 +365,19 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
           <PayoutControl />
 
           <HideoutPanel hideout={me.hideout} />
+
+          {me.turf ? (
+            <Panel title="Turf" aside={<Link to="/game/travel">Blocks</Link>} flush>
+              <div className="se-rows">
+                <Row label="Blocks held" value={formatNumber(me.turf.blocksHeld)} strong />
+                <Row label="Corner guns" value={formatNumber(me.turf.postedGuns.total)} />
+                <Row label="Tax earned today" value={formatCents(me.turf.taxEarnedTodayCents)} />
+                <Row label="Payers today" value={formatNumber(me.turf.taxPayersToday)} />
+                {me.turf.taxPendingCents > 0 ? <Row label="Pending settle" value={formatCents(me.turf.taxPendingCents)} /> : null}
+              </div>
+              <p className="se-hint">Street tax is house-minted, capped per payer, and zero between linked accounts.</p>
+            </Panel>
+          ) : null}
 
           <Panel title="Activity" flush>
             <ActivityFeed activity={activity} />
