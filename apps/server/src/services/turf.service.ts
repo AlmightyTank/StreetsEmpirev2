@@ -436,7 +436,7 @@ export const TurfService = {
     roundPlayerId: string; accountId: string; roundId: string; cityId: string;
     district: DistrictKey; takeCents: number; ruleset: Ruleset; now?: Date;
   }): Promise<TurfTripDto> {
-    const empty: TurfTripDto = { kind: 'locals', holder: null, holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: false, controlledCityExempt: false, controlledCityExempt: false };
+    const empty: TurfTripDto = { kind: 'locals', holder: null, holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: false, controlledCityExempt: false };
     if (!holdingOn(input.ruleset) || input.takeCents <= 0) return empty;
     const now = input.now ?? new Date();
     await TurfService.ensureRound(tx, input.roundId, input.ruleset);
@@ -465,7 +465,7 @@ export const TurfService = {
     if (worker?.allianceId && control?.allianceId === worker.allianceId) {
       return {
         kind: 'rival', holder: { publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName },
-        holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: false, controlledCityExempt: false, controlledCityExempt: true,
+        holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: false, controlledCityExempt: true,
       };
     }
 
