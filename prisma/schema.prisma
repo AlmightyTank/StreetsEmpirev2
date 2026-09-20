@@ -1383,7 +1383,7 @@ model TurfTaxLedger {
   day DateTime
 
   mintedCents   BigInt @default(0)
-  /// House-minted tax already credited to the holder's cash.
+  /// House-minted tax already credited to the holder's home cash or, in 0.6.0-D, an outpost box.
   creditedCents BigInt @default(0)
 
   createdAt DateTime @default(now())
