@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient, RunTrade } from '@prisma/client';
+import type { DistrictKey } from '@streets/rulesets';
 import {
   RunError,
   addHeat,
