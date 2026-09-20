@@ -14,6 +14,7 @@ export const classicOgV06E = {
     territory: {
       cityControlShare: 0.6,
       controlledCityNoTax: true,
+      cornerRunSightings: true,
     },
   },
 } as const satisfies Ruleset;
