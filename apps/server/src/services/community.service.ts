@@ -698,8 +698,10 @@ export const CommunityService = {
   async rankings(
     prisma: PrismaClient,
     player: {
+      id: string;
       roundId: string;
       cityId: string;
+      allianceId: string | null;
       publicPimpId: number;
       localRank: number | null;
       nationalRank: number | null;
@@ -736,12 +738,8 @@ export const CommunityService = {
     ]);
 
     const territory = await TurfHistoryService.board(prisma, player.roundId, ruleset, {
-      id: nationalRows.find((row) => row.publicPimpId === player.publicPimpId)?.id
-        ?? localRows.find((row) => row.publicPimpId === player.publicPimpId)?.id
-        ?? '',
-      allianceId: nationalRows.find((row) => row.publicPimpId === player.publicPimpId)?.allianceId
-        ?? localRows.find((row) => row.publicPimpId === player.publicPimpId)?.allianceId
-        ?? null,
+      id: player.id,
+      allianceId: player.allianceId,
     }, now);
 
     return {
