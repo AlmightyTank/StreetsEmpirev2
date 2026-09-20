@@ -509,7 +509,9 @@ export const TurfService = {
         : 'ally' as const;
 
       if (holdingOn(ruleset) && !row.holder) {
-        if (row.city.id !== player.cityId) claimBlockedReason = 'Outposts arrive in 0.6.0-D.';
+        if (row.city.id !== player.cityId) claimBlockedReason = ruleset.turf.outposts
+          ? 'Send a run into town to establish an outpost on this block.'
+          : 'Outposts arrive in 0.6.0-D.';
         else if (player.lockedUntil && player.lockedUntil > now) claimBlockedReason = 'You cannot claim turf while locked up.';
         else if (player.movingUntil && player.movingUntil > now) claimBlockedReason = 'Finish moving house before claiming turf.';
         else if (heldOrReservedAtHome >= ruleset.turf.caps.blocksPerCrewHome) claimBlockedReason = `You already hold your ${ruleset.turf.caps.blocksPerCrewHome}-block home cap.`;
