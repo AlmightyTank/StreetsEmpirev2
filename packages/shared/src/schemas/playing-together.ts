@@ -72,6 +72,8 @@ export const runLaunchSchema = z.object({
   lowRiders: z.number({ invalid_type_error: 'Say how many Low-Riders go.' }).int().min(1, 'A run needs at least one Low-Rider.').safe(),
   escortThugs: wholeCount('escorts'),
   cashCents: wholeCount('cash'),
+  /** 0.6.0-D. Beer rides as real cargo so a run can supply an outpost. */
+  beer: wholeCount('beer').default(0),
   cargo: z.record(runProduct, wholeCount('a quantity')).default({}),
   /** 0.5.0-F. Bought on the home high market as it leaves, straight into the trunk. */
   market: z.record(runProduct, wholeCount('a quantity')).default({}),
@@ -101,6 +103,36 @@ export const runDriveOnSchema = z.object({
 export type RunDriveOnInput = z.infer<typeof runDriveOnSchema>;
 
 export const runHeadHomeSchema = z.object({ actionId: actionIdSchema }).strict();
+
+// --- 0.6.0-D outposts --------------------------------------------------------------
+
+const outpostDistrict = z.enum(['CASINO', 'NIGHTCLUB', 'LOW_RENT', 'URBAN_GHETTO', 'WINO_SLUMS']);
+const outpostProducts = z.record(runProduct, wholeCount('a quantity')).default({});
+
+export const runOutpostEstablishSchema = z.object({
+  district: outpostDistrict,
+  thugs: z.number({ invalid_type_error: 'Say how many escorts stay.' }).int('Send whole thugs.').positive('Leave at least one thug.').safe(),
+  cashCents: wholeCount('cash'),
+  beer: wholeCount('beer'),
+  products: outpostProducts,
+  actionId: actionIdSchema,
+}).strict();
+export type RunOutpostEstablishInput = z.infer<typeof runOutpostEstablishSchema>;
+
+export const runOutpostTransferSchema = z.object({
+  district: outpostDistrict,
+  direction: z.enum(['deposit', 'withdraw']),
+  cashCents: wholeCount('cash'),
+  beer: wholeCount('beer'),
+  products: outpostProducts,
+  actionId: actionIdSchema,
+}).strict().superRefine((input, ctx) => {
+  const units = Object.values(input.products).reduce<number>((sum, quantity) => sum + quantity, 0);
+  if (input.cashCents === 0 && input.beer === 0 && units === 0) {
+    ctx.addIssue({ code: 'custom', message: 'Move at least one thing.' });
+  }
+});
+export type RunOutpostTransferInput = z.infer<typeof runOutpostTransferSchema>;
 
 // --- 0.5.0-D relocation ------------------------------------------------------------
 
