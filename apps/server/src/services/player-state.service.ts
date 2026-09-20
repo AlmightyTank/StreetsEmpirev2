@@ -123,6 +123,7 @@ export const PlayerStateService = {
         thugs: turfSettlement.thugs,
         postedThugs: turfSettlement.postedThugs,
         postedNetWorthCents: turfSettlement.postedNetWorthCents,
+        outpostNetWorthCents: turfSettlement.outpostNetWorthCents,
         pistols: turfSettlement.pistols,
         shotguns: turfSettlement.shotguns,
         tek9s: turfSettlement.tek9s,
