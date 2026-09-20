@@ -233,7 +233,6 @@ export const TurfService = {
         if (postedNetWorthCents < 0n) throw new RangeError('Posted turf net worth fell below zero.');
       }
 
-      const block = { citySlug: row.city.slug, district: row.district as DistrictKey };
       await tx.turf.update({
         where: { id: row.id },
         data: cornerAfter > 0
