@@ -10,13 +10,15 @@ import {
   turfHoldBonus,
   turfTax,
   workSupplyOrder,
+  headsUpMinutes,
   type Ruleset,
 } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
-import type { CityTurfDto, TurfBlockDto, TurfSummaryDto, TurfTripDto } from '@streets/shared';
+import type { CityTurfDto, TurfBattleReportDto, TurfBlockDto, TurfSummaryDto, TurfTripDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
+import { turfRevengeByAttacker } from './turf-revenge.service.js';
 
 type TurfDb = PrismaClient | Db;
 const HOUR_MS = 3_600_000;
@@ -39,6 +41,20 @@ function districtName(ruleset: Ruleset, citySlug: string, district: string): str
     ?? district;
 }
 function hoursSince(at: Date, now: Date): number { return Math.max(0, (now.getTime() - at.getTime()) / HOUR_MS); }
+
+export function localsOnBlock(
+  ruleset: Ruleset,
+  row: { holderId?: string | null; citySlug: string; district: DistrictKey; localsThugs: number; localsAt: Date; localsReclaimAt?: Date | null },
+  now: Date,
+): number {
+  if (row.holderId) return 0;
+  if (row.localsReclaimAt && row.localsReclaimAt > now) return 0;
+  return Math.round(localsAfter(ruleset, { citySlug: row.citySlug, district: row.district }, row.localsThugs, hoursSince(row.localsAt, now)));
+}
+
+export function localsReclaimAt(ruleset: Ruleset, releasedAt: Date): Date {
+  return new Date(releasedAt.getTime() + (ruleset.turf?.locals.reclaimHours ?? 0) * HOUR_MS);
+}
 function utcDay(now: Date): Date { return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())); }
 function holdingOn(ruleset: Ruleset): boolean { return ruleset.turf?.holding === true; }
 function homeFit(player: { thugs: number; woundedThugs: number; busyThugs: number; postedThugs: number }): number {
@@ -90,6 +106,20 @@ export function cornerGunWorthCents(ruleset: Ruleset, guns: CornerGuns): bigint 
     + BigInt(guns.ak47s) * BigInt(v.perAk47Cents);
 }
 function dtoGuns(guns: CornerGuns) { return { ...guns, total: gunCount(guns) }; }
+
+interface StoredTurfFight {
+  won: boolean;
+  unopposed: boolean;
+  stale: boolean;
+  attackerWounds: number;
+  defenderWounds: number;
+  cornerWounds: number;
+  ownerBackupWounds: number;
+  allyBackup: number;
+  defenders?: { corner: number; ownerBackup: number; allyCommitted: number; allyShowed: number };
+  strength: { attacker: number; defender: number } | null;
+  shieldUntil?: string | null;
+}
 
 export const TurfService = {
   holdingEnabled: holdingOn,
@@ -203,14 +233,13 @@ export const TurfService = {
         if (postedNetWorthCents < 0n) throw new RangeError('Posted turf net worth fell below zero.');
       }
 
-      const block = { citySlug: row.city.slug, district: row.district as DistrictKey };
       await tx.turf.update({
         where: { id: row.id },
         data: cornerAfter > 0
           ? { cornerThugs: cornerAfter, ...turfGunData(gunsAfter), upkeepAt: advanceTo }
           : {
               holderId: null, cornerThugs: 0, ...turfGunData(EMPTY_GUNS), heldSince: null, shieldUntil: null,
-              upkeepAt: advanceTo, localsThugs: localsThugs(ruleset, block), localsAt: now,
+              upkeepAt: advanceTo, localsThugs: 0, localsAt: now, localsReclaimAt: localsReclaimAt(ruleset, now),
             },
       });
     }
@@ -316,11 +345,12 @@ export const TurfService = {
       where: { id: roundPlayerId },
       select: {
         id: true, roundId: true, cityId: true, thugs: true, woundedThugs: true, busyThugs: true, postedThugs: true,
-        pistols: true, shotguns: true, tek9s: true, ak47s: true, allianceId: true, lockedUntil: true, movingUntil: true,
+        pistols: true, shotguns: true, tek9s: true, ak47s: true, allianceId: true, allianceJoinedAt: true,
+        lockedUntil: true, movingUntil: true, hideoutLookoutsLevel: true,
       },
     });
     await TurfService.ensureRound(db, player.roundId, ruleset);
-    const [rows, presenceRows, activeRun] = await Promise.all([
+    const [rows, presenceRows, activeRun, pendingPushes, myRecentPushes, recentFights, revengeByAttacker] = await Promise.all([
       db.turf.findMany({
         where: { roundId: player.roundId },
         include: {
@@ -331,14 +361,120 @@ export const TurfService = {
       }),
       db.turfPresence.findMany({ where: { roundPlayerId: player.id }, include: { city: { select: { slug: true } } } }),
       db.run.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { escortThugs: true } }),
+      ruleset.turf.wars
+        ? db.turfPush.findMany({
+            where: { roundId: player.roundId, status: 'PENDING' },
+            select: {
+              id: true, turfId: true, attackerId: true, defenderId: true, squad: true, startedAt: true, landsAt: true,
+              alliesCalledAt: true,
+              attacker: { select: { allianceId: true } },
+              defender: { select: { allianceId: true } },
+              backups: { select: { playerId: true } },
+            },
+          })
+        : Promise.resolve([]),
+      ruleset.turf.wars
+        ? db.turfPush.findMany({
+            where: {
+              roundId: player.roundId,
+              attackerId: player.id,
+              startedAt: { gt: new Date(now.getTime() - ruleset.turf.push.attackerCooldownHours * HOUR_MS) },
+            },
+            select: { turfId: true },
+          })
+        : Promise.resolve([]),
+      ruleset.turf.wars
+        ? db.turfPush.findMany({
+            where: {
+              roundId: player.roundId,
+              status: 'LANDED',
+              OR: [{ attackerId: player.id }, { defenderId: player.id }, { backups: { some: { playerId: player.id } } }],
+            },
+            include: {
+              turf: { include: { city: { select: { slug: true } } } },
+              attacker: { select: { publicPimpId: true, displayName: true } },
+              defender: { select: { publicPimpId: true, displayName: true } },
+              backups: { select: { playerId: true, kind: true, thugs: true, showedUp: true, wounded: true } },
+            },
+            orderBy: { settledAt: 'desc' },
+            take: 40,
+          })
+        : Promise.resolve([]),
+      ruleset.turf.wars
+        ? turfRevengeByAttacker(db, player, player.roundId, ruleset, now)
+        : Promise.resolve(new Map<string, Date>()),
     ]);
+
+    const allianceIds = [...new Set(recentFights.flatMap((fight) => [fight.attackerAllianceId, fight.defenderAllianceId]).filter((id): id is string => Boolean(id)))];
+    const allianceRows = allianceIds.length
+      ? await db.alliance.findMany({ where: { id: { in: allianceIds } }, select: { id: true, tag: true } })
+      : [];
+    const allianceTags = new Map(allianceRows.map((alliance) => [alliance.id, alliance.tag]));
+    const reportsByCity = new Map<string, TurfBattleReportDto[]>();
+    for (const fight of recentFights) {
+      if (!fight.settledAt || !fight.result) continue;
+      const result = fight.result as unknown as StoredTurfFight;
+      const role: TurfBattleReportDto['role'] = fight.attackerId === player.id
+        ? 'attacker'
+        : fight.defenderId === player.id ? 'defender' : 'ally';
+      const myBackup = role === 'ally' ? fight.backups.find((backup) => backup.playerId === player.id) ?? null : null;
+      const defenders = result.defenders ?? {
+        corner: 0,
+        ownerBackup: fight.backups.filter((backup) => backup.kind === 'OWNER').reduce((sum, backup) => sum + backup.thugs, 0),
+        allyCommitted: fight.backups.filter((backup) => backup.kind === 'ALLY').reduce((sum, backup) => sum + backup.thugs, 0),
+        allyShowed: result.allyBackup ?? 0,
+      };
+      const revengeUntil = role === 'attacker' ? null : revengeByAttacker.get(fight.attackerId) ?? null;
+      const report: TurfBattleReportDto = {
+        id: fight.id,
+        city: fight.turf.city.slug,
+        cityName: ruleset.cities?.[fight.turf.city.slug]?.name ?? fight.turf.city.slug,
+        district: fight.turf.district as TurfBlockDto['district'],
+        districtName: districtName(ruleset, fight.turf.city.slug, fight.turf.district),
+        settledAt: fight.settledAt.toISOString(),
+        role,
+        won: role === 'attacker' ? result.won : !result.won,
+        captured: fight.captured,
+        unopposed: result.unopposed,
+        stale: result.stale,
+        attacker: {
+          publicPimpId: fight.attacker.publicPimpId,
+          displayName: fight.attacker.displayName,
+          allianceTag: fight.attackerAllianceId ? allianceTags.get(fight.attackerAllianceId) ?? null : null,
+        },
+        defender: {
+          publicPimpId: fight.defender.publicPimpId,
+          displayName: fight.defender.displayName,
+          allianceTag: fight.defenderAllianceId ? allianceTags.get(fight.defenderAllianceId) ?? null : null,
+        },
+        attackers: fight.squad,
+        defenders,
+        yourWounds: role === 'attacker'
+          ? result.attackerWounds
+          : role === 'defender' ? result.cornerWounds + result.ownerBackupWounds : myBackup?.wounded ?? 0,
+        opponentWounds: role === 'attacker' ? result.defenderWounds : result.attackerWounds,
+        showedUp: role === 'ally' ? myBackup?.showedUp ?? false : null,
+        strength: result.strength,
+        shieldUntil: result.shieldUntil ?? null,
+        revengeUntil: revengeUntil?.toISOString() ?? null,
+      };
+      const cityReports = reportsByCity.get(report.city) ?? [];
+      cityReports.push(report);
+      reportsByCity.set(report.city, cityReports);
+    }
 
     const presence = new Map(presenceRows.map((row) => [`${row.city.slug}:${row.district}`, presenceAfter(ruleset, row.turns, hoursSince(row.at, now))]));
     const crewThugs = player.thugs + (activeRun?.escortThugs ?? 0);
     const armedAtHome = Math.min(homeFit(player), gunCount({ pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s }));
     const heldAtHome = rows.filter((row) => row.city.id === player.cityId && row.holder?.id === player.id).length;
+    const cityByTurfId = new Map(rows.map((row) => [row.id, row.city.id]));
+    const reservedAtHome = pendingPushes.filter((push) => push.attackerId === player.id && cityByTurfId.get(push.turfId) === player.cityId).length;
+    const heldOrReservedAtHome = heldAtHome + reservedAtHome;
     const allianceHeld = (cityId: string) => player.allianceId
       ? rows.filter((row) => row.city.id === cityId && row.holder?.allianceId === player.allianceId).length : 0;
+    const allianceReserved = (cityId: string) => player.allianceId
+      ? pendingPushes.filter((push) => cityByTurfId.get(push.turfId) === cityId && push.attacker.allianceId === player.allianceId).length : 0;
+    const allianceHeldOrReserved = (cityId: string) => allianceHeld(cityId) + allianceReserved(cityId);
 
     const byCity = new Map<string, CityTurfDto>();
     for (const row of rows) {
@@ -349,18 +485,50 @@ export const TurfService = {
       const fullLocals = localsThugs(ruleset, block);
       const p = presence.get(`${citySlug}:${row.district}`) ?? 0;
       const isMine = row.holder?.id === player.id;
+      const revengeUntil = row.holder ? revengeByAttacker.get(row.holder.id) ?? null : null;
+      const revengeAvailable = Boolean(revengeUntil && revengeUntil > now);
       const minimum = cornerMinimumFor(ruleset, district, crewThugs);
       let claimBlockedReason: string | null = null;
+      let pushBlockedReason: string | null = null;
+      const pending = pendingPushes.find((push) => push.turfId === row.id) ?? null;
+      const defenderSees = pending?.defenderId === player.id &&
+        pending.landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel) * 60_000);
+      const allySees = Boolean(
+        pending?.alliesCalledAt &&
+        player.allianceId &&
+        pending.defender.allianceId === player.allianceId &&
+        pending.defenderId !== player.id &&
+        row.city.id === player.cityId,
+      );
+      const visiblePush = pending && (pending.attackerId === player.id || defenderSees || allySees) ? pending : null;
+      const pushRole = !visiblePush ? null
+        : visiblePush.attackerId === player.id ? 'attacker' as const
+        : visiblePush.defenderId === player.id ? 'defender' as const
+        : 'ally' as const;
 
       if (holdingOn(ruleset) && !row.holder) {
         if (row.city.id !== player.cityId) claimBlockedReason = 'Outposts arrive in 0.6.0-D.';
         else if (player.lockedUntil && player.lockedUntil > now) claimBlockedReason = 'You cannot claim turf while locked up.';
         else if (player.movingUntil && player.movingUntil > now) claimBlockedReason = 'Finish moving house before claiming turf.';
-        else if (heldAtHome >= ruleset.turf.caps.blocksPerCrewHome) claimBlockedReason = `You already hold your ${ruleset.turf.caps.blocksPerCrewHome}-block home cap.`;
-        else if (player.allianceId && allianceHeld(row.city.id) >= ruleset.turf.caps.blocksPerAllianceInCity) claimBlockedReason = `Your alliance already holds ${ruleset.turf.caps.blocksPerAllianceInCity} blocks here.`;
+        else if (heldOrReservedAtHome >= ruleset.turf.caps.blocksPerCrewHome) claimBlockedReason = `You already hold your ${ruleset.turf.caps.blocksPerCrewHome}-block home cap.`;
+        else if (player.allianceId && allianceHeldOrReserved(row.city.id) >= ruleset.turf.caps.blocksPerAllianceInCity) claimBlockedReason = `Your alliance already holds ${ruleset.turf.caps.blocksPerAllianceInCity} blocks here.`;
         else if (p < ruleset.turf.presence.turnsToClaim) claimBlockedReason = `Work this block until you have ${ruleset.turf.presence.turnsToClaim} presence.`;
         else if (armedAtHome < minimum) claimBlockedReason = `You need ${minimum} fit, armed thugs at home.`;
-      } else if (holdingOn(ruleset) && row.holder && !isMine) claimBlockedReason = 'A crew holds this block. Turf pushes arrive in 0.6.0-C.';
+      } else if (holdingOn(ruleset) && row.holder && !isMine && !ruleset.turf.wars) {
+        claimBlockedReason = 'A crew holds this block. Turf pushes arrive in 0.6.0-C.';
+      }
+
+      if (ruleset.turf.wars && row.holder && !isMine) {
+        if (row.city.id !== player.cityId) pushBlockedReason = 'Outpost turf wars arrive in 0.6.0-D.';
+        else if (row.holder.allianceId && player.allianceId === row.holder.allianceId) pushBlockedReason = 'That block belongs to an ally.';
+        else if (row.shieldUntil && row.shieldUntil > now) pushBlockedReason = `Shielded until ${row.shieldUntil.toLocaleTimeString()}.`;
+        else if (pending) pushBlockedReason = 'Someone is already pushing this block.';
+        else if (myRecentPushes.some((push) => push.turfId === row.id)) pushBlockedReason = 'Your crew pushed this block too recently.';
+        else if (heldOrReservedAtHome >= ruleset.turf.caps.blocksPerCrewHome) pushBlockedReason = `You already hold your ${ruleset.turf.caps.blocksPerCrewHome}-block home cap.`;
+        else if (player.allianceId && allianceHeldOrReserved(row.city.id) >= ruleset.turf.caps.blocksPerAllianceInCity) pushBlockedReason = `Your alliance already holds ${ruleset.turf.caps.blocksPerAllianceInCity} blocks here.`;
+        else if (!revengeAvailable && p < ruleset.turf.presence.turnsToClaim) pushBlockedReason = `Work this block until you have ${ruleset.turf.presence.turnsToClaim} presence.`;
+        else if (armedAtHome < minimum) pushBlockedReason = `You need ${minimum} fit, armed thugs at home.`;
+      }
 
       blocks.push({
         city: citySlug, district, districtName: districtName(ruleset, citySlug, row.district),
@@ -369,14 +537,41 @@ export const TurfService = {
           alliance: row.holder.alliance ? { name: row.holder.alliance.name, tag: row.holder.alliance.tag } : null,
         } : null,
         isMine, cornerThugs: row.cornerThugs, cornerMinimumThugs: minimum, cornerGuns: dtoGuns(gunsFromTurf(row)),
-        localsThugs: Math.round(localsAfter(ruleset, block, row.localsThugs, hoursSince(row.localsAt, now))),
-        localsFullThugs: fullLocals, heldSince: row.heldSince?.toISOString() ?? null,
+        localsThugs: localsOnBlock(ruleset, {
+          holderId: row.holderId, citySlug, district, localsThugs: row.localsThugs,
+          localsAt: row.localsAt, localsReclaimAt: row.localsReclaimAt,
+        }, now),
+        localsFullThugs: fullLocals,
+        localsReclaimAt: !row.holderId && row.localsReclaimAt && row.localsReclaimAt > now ? row.localsReclaimAt.toISOString() : null,
+        heldSince: row.heldSince?.toISOString() ?? null,
         shieldUntil: row.shieldUntil?.toISOString() ?? null, presenceTurns: p, claimBlockedReason,
+        push: visiblePush && pushRole ? {
+          id: visiblePush.id,
+          role: pushRole,
+          squad: visiblePush.squad,
+          startedAt: visiblePush.startedAt.toISOString(),
+          landsAt: visiblePush.landsAt.toISOString(),
+          alliesCalled: Boolean(visiblePush.alliesCalledAt),
+          backupSent: visiblePush.backups.some((backup) => backup.playerId === player.id),
+          canCallAllies: pushRole === 'defender' && Boolean(player.allianceId) && !visiblePush.alliesCalledAt,
+        } : null,
+        revengeAvailable,
+        revengeUntil: revengeUntil?.toISOString() ?? null,
+        pushBlockedReason,
       });
       byCity.set(citySlug, {
-        enabled: true, holdingEnabled: holdingOn(ruleset), presenceRequired: ruleset.turf.presence.turnsToClaim,
-        postTurnCost: ruleset.turf.corner.postTurnCost, pullTurnCost: ruleset.turf.corner.pullTurnCost,
-        homeCap: ruleset.turf.caps.blocksPerCrewHome, heldAtHome, blocks,
+        enabled: true,
+        holdingEnabled: holdingOn(ruleset),
+        warsEnabled: ruleset.turf.wars === true,
+        presenceRequired: ruleset.turf.presence.turnsToClaim,
+        postTurnCost: ruleset.turf.corner.postTurnCost,
+        pullTurnCost: ruleset.turf.corner.pullTurnCost,
+        pushTurnCost: ruleset.turf.push.turnCost,
+        pushWarningMinutes: ruleset.turf.push.warningMinutes,
+        homeCap: ruleset.turf.caps.blocksPerCrewHome,
+        heldAtHome,
+        blocks,
+        reports: reportsByCity.get(citySlug) ?? [],
       });
     }
     return byCity;

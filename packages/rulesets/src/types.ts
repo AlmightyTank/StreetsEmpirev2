@@ -718,6 +718,8 @@ export interface TurfRules {
   readonly caps: TurfCapRules;
   /** 0.6.0-B. A owns the data/map; B turns claiming and holding on. */
   readonly holding?: boolean;
+  /** 0.6.0-C. Player-vs-player pushes and turf-war windows. */
+  readonly wars?: boolean;
   /** 0.6.0-C. Taking a block. Data in A. */
   readonly push: TurfPushRules;
 }

@@ -325,6 +325,7 @@ model Round {
   highMarkets HighMarket[]
   turf        Turf[]
   turfTax     TurfTaxLedger[]
+  turfPushes  TurfPush[]
 
   @@index([status])
 }
@@ -541,6 +542,10 @@ model RoundPlayer {
   turfPresence          TurfPresence[]
   turfTaxPaid           TurfTaxLedger[]    @relation("TurfTaxPayer")
   turfTaxEarned         TurfTaxLedger[]    @relation("TurfTaxHolder")
+  /// 0.6.0-C. Turf wars started against or defended by this crew.
+  turfPushesStarted      TurfPush[]          @relation("TurfPushAttacker")
+  turfPushesDefended     TurfPush[]          @relation("TurfPushDefender")
+  turfPushBackups        TurfPushBackup[]
   /// 0.4.0-B. Which products each job burns, in order.
   supplyPolicies        WorkSupplyPolicy[]
   /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
@@ -1075,6 +1080,10 @@ enum ActivityType {
   TURF_CLAIM
   TURF_POST
   TURF_PULL
+  TURF_PUSH
+  TURF_PUSH_BACKUP
+  TURF_PUSH_ATTACK
+  TURF_PUSH_DEFENSE
 }
 
 enum BattleKind {
@@ -1176,9 +1185,9 @@ model PlayerActivity {
 /// One district in one city: forty blocks a round with all eight cities enabled. A row is
 /// created for every block when the round first reads its turf, held by the locals.
 ///
-/// A null `holderId` means the locals have it. `localsThugs` is what they hold it with
-/// now, growing back from `localsAt` on the ruleset's clock, exactly like Pip's shelves:
-/// nothing sweeps this table.
+/// A null `holderId` means no player holds it. Before `localsReclaimAt` it is vacant;
+/// afterwards the locals have it. `localsThugs` grows back from `localsAt` on the
+/// ruleset's clock, exactly like Pip's shelves: nothing sweeps this table.
 model Turf {
   id String @id @default(cuid())
 
@@ -1208,12 +1217,17 @@ model Turf {
   /// What the locals hold it with, and when that was last worked out.
   localsThugs Int
   localsAt    DateTime @default(now())
+  /// 0.6.0-C. A released block stays vacant until this time, then the locals return.
+  /// Null means the locals are already on a holderless block, or a player currently holds it.
+  localsReclaimAt DateTime?
 
   /// 0.6.0-B. Last corner-upkeep boundary settled.
   upkeepAt DateTime @default(now())
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  pushes TurfPush[]
 
   @@unique([roundId, cityId, district])
   @@index([roundId, holderId])
@@ -1238,6 +1252,85 @@ model TurfPresence {
   at    DateTime @default(now())
 
   @@unique([roundPlayerId, cityId, district])
+}
+
+
+/// 0.6.0-C. A player-vs-player attempt to take one block. The attacking squad
+/// is committed at start and the fight lands after the warning window.
+enum TurfPushStatus {
+  PENDING
+  LANDED
+}
+
+model TurfPush {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  turfId String
+  turf   Turf @relation(fields: [turfId], references: [id], onDelete: Cascade)
+
+  attackerId String
+  attacker   RoundPlayer @relation("TurfPushAttacker", fields: [attackerId], references: [id], onDelete: Cascade)
+  /// Alliance snapshots make shared revenge stable if either player later leaves.
+  attackerAllianceId String?
+
+  /// Holder when the push started. The block may be abandoned before it lands.
+  defenderId String
+  defender   RoundPlayer @relation("TurfPushDefender", fields: [defenderId], references: [id], onDelete: Cascade)
+  defenderAllianceId String?
+
+  squad        Int
+  /// Morale and the exact guns committed from home.
+  attackerCrew Json
+  turnsSpent   Int
+  actionId     String
+  startedAt    DateTime
+  landsAt      DateTime
+  status       TurfPushStatus @default(PENDING)
+  settledAt    DateTime?
+  /// True only when this push actually transferred the block to the attacker.
+  captured     Boolean @default(false)
+  result       Json?
+  attackerCreditedAt DateTime?
+  alliesCalledAt DateTime?
+  /// Public turf-feed claim, parallel to RaidBattle.discordPostedAt.
+  discordPostedAt DateTime?
+  backups      TurfPushBackup[]
+
+  @@unique([attackerId, actionId])
+  @@index([turfId, status])
+  @@index([roundId, status, landsAt])
+  @@index([roundId, captured, settledAt(sort: Desc)])
+  @@index([attackerId, turfId, startedAt(sort: Desc)])
+  @@index([attackerId, captured, settledAt(sort: Desc)])
+  @@index([defenderAllianceId, attackerId, captured, settledAt(sort: Desc)])
+  @@index([attackerId, attackerCreditedAt])
+}
+
+/// Real home/alliance help committed to a pending turf push. C landing decides
+/// whether an ally's uncertain reinforcement actually arrives.
+model TurfPushBackup {
+  id String @id @default(cuid())
+
+  pushId String
+  push   TurfPush @relation(fields: [pushId], references: [id], onDelete: Cascade)
+
+  playerId String
+  player   RoundPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  /// OWNER or ALLY.
+  kind    String
+  thugs   Int
+  crew    Json
+  sentAt  DateTime
+  showedUp Boolean?
+  wounded Int @default(0)
+  creditedAt DateTime?
+
+  @@unique([pushId, playerId])
+  @@index([playerId, creditedAt])
 }
 
 /// 0.6.0-B. The daily turf-tax cap is per payer and holder. The worker's burn is not

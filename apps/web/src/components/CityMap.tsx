@@ -172,13 +172,55 @@ function MarketSeen({ counter, products }: { counter: NonNullable<CityCharacterD
 }
 
 function holderName(block: TurfBlockDto): string {
-  if (!block.holder) return 'Locals';
+  if (!block.holder) return block.localsReclaimAt ? 'Vacant' : 'Locals';
   return block.holder.alliance ? `[${block.holder.alliance.tag}] ${block.holder.displayName}` : block.holder.displayName;
 }
 
 function localsText(block: TurfBlockDto): string {
+  if (block.localsReclaimAt) {
+    return `locals return ${new Date(block.localsReclaimAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+  }
   if (block.localsThugs >= block.localsFullThugs) return `${formatNumber(block.localsThugs)} locals`;
   return `${formatNumber(block.localsThugs)} / ${formatNumber(block.localsFullThugs)} locals`;
+}
+
+function turfName(player: { displayName: string; allianceTag: string | null }): string {
+  return player.allianceTag ? `[${player.allianceTag}] ${player.displayName}` : player.displayName;
+}
+
+function TurfReports({ city }: { city: CityCharacterDto }) {
+  const reports = city.turf?.reports ?? [];
+  if (!reports.length) return null;
+  return (
+    <>
+      <h3 className="se-city__heading">Recent turf fights</h3>
+      <ul className="se-turfblocks">
+        {reports.slice(0, 5).map((report) => {
+          const opponent = report.role === 'attacker' ? report.defender : report.attacker;
+          const result = report.stale
+            ? 'Corner changed before the push landed'
+            : report.role === 'attacker'
+              ? report.captured ? 'You took the block' : 'The corner held'
+              : report.captured ? 'The block was lost' : 'Your side held';
+          return (
+            <li key={report.id} className="se-turfblocks__block">
+              <span><strong>{report.districtName}</strong><span className="se-muted"> · {result}</span></span>
+              <span className="se-hint">
+                vs {turfName(opponent)} · {formatNumber(report.attackers)} attackers · {formatNumber(report.defenders.corner + report.defenders.ownerBackup + report.defenders.allyShowed)} defenders
+              </span>
+              <span className="se-hint">
+                Wounds: {formatNumber(report.yourWounds)} yours / {formatNumber(report.opponentWounds)} theirs
+                {report.role === 'ally' ? report.showedUp ? ' · your backup showed' : ' · your backup did not arrive' : ''}
+              </span>
+              {report.revengeUntil && new Date(report.revengeUntil).getTime() > Date.now()
+                ? <span className="se-hint">Revenge open until {new Date(report.revengeUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. It waives presence, not the hold shield.</span>
+                : null}
+            </li>
+          );
+        })}
+      </ul>
+    </>
+  );
 }
 
 function TurfBlocks({ city, onChanged }: { city: CityCharacterDto; onChanged?: () => void }) {
@@ -223,7 +265,16 @@ function TurfBlocks({ city, onChanged }: { city: CityCharacterDto; onChanged?: (
               {block.holder ? `${formatNumber(block.cornerThugs)} posted · ${formatNumber(block.cornerGuns.total)} guns` : localsText(block)}
             </span>
             {block.presenceTurns > 0 ? <span className="se-hint">{Math.floor(block.presenceTurns)} presence here</span> : null}
-            <TurfActions block={block} isHome={city.isHome} holdingEnabled={city.turf?.holdingEnabled ?? false} onChanged={onChanged} />
+            {block.revengeAvailable && block.revengeUntil
+              ? <span className="se-hint">Revenge active until {new Date(block.revengeUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · no presence required.</span>
+              : null}
+            <TurfActions
+              block={block}
+              isHome={city.isHome}
+              holdingEnabled={city.turf?.holdingEnabled ?? false}
+              warsEnabled={city.turf?.warsEnabled ?? false}
+              onChanged={onChanged}
+            />
           </li>
         ))}
       </ul>
@@ -281,6 +332,7 @@ export function CityDetail({ city, products, home, onTurfChanged }: { city: City
       {city.counter && !city.isHome ? <MarketSeen counter={city.counter} products={products} /> : null}
 
       <TurfBlocks city={city} onChanged={onTurfChanged} />
+      <TurfReports city={city} />
 
       <h3 className="se-city__heading">Roads out</h3>
       <ul className="se-city__roads">

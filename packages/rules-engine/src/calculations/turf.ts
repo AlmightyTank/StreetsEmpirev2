@@ -30,6 +30,22 @@ export function turfDistrictRules(ruleset: Ruleset, district: DistrictKey): Turf
   return ruleset.turf?.districts[district];
 }
 
+/** The home-raid model as it plays on a turf corner. Loot is ignored by the service. */
+export function turfPushCombatModel(ruleset: Ruleset): NonNullable<Ruleset['combat']> | null {
+  const model = ruleset.combat;
+  const push = ruleset.turf?.push;
+  if (!model || !push) return null;
+  return {
+    ...model,
+    turnCost: push.turnCost,
+    strength: {
+      ...model.strength,
+      defenseMultiplier: push.fight.defenseMultiplier,
+      variance: push.fight.variance,
+    },
+  };
+}
+
 /** What the locals hold a block with at full strength. */
 export function localsThugs(ruleset: Ruleset, block: Block): number {
   const rules = ruleset.turf;

@@ -39,6 +39,32 @@ async function moveInputs(db: Db | PrismaClient, ruleset: Ruleset, player: Round
   return { lastMoveAt: lastMove?.startedAt ?? null, runOut: Boolean(run), revengeOpenUntil: revenge };
 }
 
+async function turfMoveBlock(db: Db | PrismaClient, ruleset: Ruleset, playerId: string): Promise<{ code: string; reason: string } | null> {
+  if (!ruleset.turf?.holding) return null;
+  const [held, activeFight] = await Promise.all([
+    db.turf.count({ where: { holderId: playerId } }),
+    ruleset.turf.wars
+      ? db.turfPush.count({
+          where: {
+            status: 'PENDING',
+            OR: [
+              { attackerId: playerId },
+              { defenderId: playerId },
+              { backups: { some: { playerId } } },
+            ],
+          },
+        })
+      : 0,
+  ]);
+  if (activeFight > 0) {
+    return { code: 'TURF_FIGHT_ACTIVE', reason: 'Finish your pending turf fight before moving to another city.' };
+  }
+  if (held > 0) {
+    return { code: 'TURF_MOVE_BLOCKED', reason: 'Pull your home turf before moving. Outposts arrive in 0.6.0-D.' };
+  }
+  return null;
+}
+
 function refusal(check: MoveCheck): AppError {
   const code = check.code ?? 'MOVE_BLOCKED';
   const message = check.blockedReason ?? 'You cannot move right now.';
@@ -96,8 +122,11 @@ export const RelocationService = {
     const rules = relocationRules(ruleset);
     if (!rules) return null;
     const home = player.city.slug;
-    const inputs = await moveInputs(db, ruleset, player, now);
-    const pending = await db.relocation.findFirst({ where: { roundPlayerId: player.id, arrivedAt: null }, orderBy: { startedAt: 'desc' } });
+    const [inputs, turfBlock, pending] = await Promise.all([
+      moveInputs(db, ruleset, player, now),
+      turfMoveBlock(db, ruleset, player.id),
+      db.relocation.findFirst({ where: { roundPlayerId: player.id, arrivedAt: null }, orderBy: { startedAt: 'desc' } }),
+    ]);
     const base = { from: home, now, netWorthCents: player.netWorthCents, cashCents: player.cashCents, roundEndsAt, movingUntil: player.movingUntil, lockedUntil: player.lockedUntil, ...inputs };
     const here = heatThere(ruleset, heat, home);
     // Any city but home shows the same general reason; the per-city ones (no road) are rare.
@@ -110,8 +139,8 @@ export const RelocationService = {
       cooldownHours: rules.cooldownHours,
       cooldownUntil: general.cooldownUntil?.toISOString() ?? null,
       cutoffAt: general.cutoffAt.toISOString(),
-      blockedReason: general.blockedReason,
-      blockedCode: general.code,
+      blockedReason: turfBlock?.reason ?? general.blockedReason,
+      blockedCode: turfBlock?.code ?? general.code,
       blockedUntil: general.blockedUntil?.toISOString() ?? null,
       moving: pending ? { from: pending.fromCity, fromName: cityName(ruleset, pending.fromCity), to: pending.toCity, toName: cityName(ruleset, pending.toCity), startedAt: pending.startedAt.toISOString(), arrivesAt: pending.arrivesAt.toISOString() } : null,
       heat,
@@ -137,7 +166,11 @@ export const RelocationService = {
       execute: async ({ tx, current, player, round, now }) => {
         // The round's rules for the check: the destination's own rules apply on arrival.
         const base = loadRulesetForRound(round);
-        const inputs = await moveInputs(tx, base, player, now);
+        const [inputs, turfBlock] = await Promise.all([
+          moveInputs(tx, base, player, now),
+          turfMoveBlock(tx, base, roundPlayerId),
+        ]);
+        if (turfBlock) throw AppError.conflict(turfBlock.code, turfBlock.reason);
         const check = checkMove(base, {
           from: player.city.slug, to: input.to, now, netWorthCents: player.netWorthCents, cashCents: current.cashCents,
           roundEndsAt: round.endsAt, movingUntil: player.movingUntil, lockedUntil: player.lockedUntil, ...inputs,

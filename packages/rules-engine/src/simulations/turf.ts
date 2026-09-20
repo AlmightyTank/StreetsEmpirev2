@@ -1,5 +1,5 @@
 import type { DistrictKey, Ruleset } from '@streets/rulesets';
-import { happinessMultiplier } from '../rng.js';
+import { hashParts, happinessMultiplier, seededRng } from '../rng.js';
 import { clientMultiplier } from '../calculations/clients.js';
 import { cityRules, rulesetForCity } from '../calculations/cities.js';
 import {
@@ -10,8 +10,10 @@ import {
   turfBlocks,
   turfRulesetProblems,
   turfTax,
+  turfPushCombatModel,
   type Block,
 } from '../calculations/turf.js';
+import { simulateRaid } from '../calculations/combat.js';
 import { travelCrews, type TravelCrew } from './travel.js';
 
 /**
@@ -164,6 +166,66 @@ export function runTurfSimulation(ruleset: Ruleset, crews: readonly TravelCrew[]
   });
 }
 
+export interface TurfPushSimulation {
+  samples: number;
+  squad: number;
+  helperThugs: number;
+  noBackupWinRate: number;
+  reinforcementWinRate: number;
+  reinforcementShowRate: number;
+}
+
+/**
+ * 0.6.0-C's fight gate. Equal, pistol-armed crews contest the same corner many
+ * deterministic times. The reinforced line includes the configured alliance show-up roll,
+ * rather than pretending every call arrives.
+ */
+export function runTurfPushSimulation(ruleset: Ruleset, samples = 4_000): TurfPushSimulation | null {
+  if (!ruleset.turf?.wars) return null;
+  const model = turfPushCombatModel(ruleset);
+  if (!model) return null;
+  const squad = Math.min(20, model.squadCap);
+  const helperThugs = Math.max(1, Math.floor(squad * ruleset.turf.push.allies.maxShareOfDefender));
+  const weapons = (count: number) => ({ PISTOL: count, SHOTGUN: 0, TEK9: 0, AK47: 0 });
+  const crew = (count: number) => ({ thugs: count, thugHappiness: HAPPINESS, weapons: weapons(count) });
+  let noBackupWins = 0;
+  let reinforcementWins = 0;
+  let showed = 0;
+
+  for (let i = 0; i < samples; i++) {
+    const plain = simulateRaid({
+      attacker: crew(squad),
+      defender: crew(squad),
+      attackingThugs: squad,
+      attackerTurns: model.turnCost,
+      defenderCashCents: 0n,
+    }, model, seededRng(hashParts(ruleset.meta.id, 'turf-push-plain', i)));
+    if (plain.winner === 'ATTACKER') noBackupWins += 1;
+
+    const rng = seededRng(hashParts(ruleset.meta.id, 'turf-push-help', i));
+    const help = rng() < ruleset.turf.push.allies.chanceToShowUp;
+    if (help) showed += 1;
+    const defended = squad + (help ? helperThugs : 0);
+    const reinforced = simulateRaid({
+      attacker: crew(squad),
+      defender: crew(defended),
+      attackingThugs: squad,
+      attackerTurns: model.turnCost,
+      defenderCashCents: 0n,
+    }, model, rng);
+    if (reinforced.winner === 'ATTACKER') reinforcementWins += 1;
+  }
+
+  return {
+    samples,
+    squad,
+    helperThugs,
+    noBackupWinRate: noBackupWins / samples,
+    reinforcementWinRate: reinforcementWins / samples,
+    reinforcementShowRate: showed / samples,
+  };
+}
+
 /**
  * The 0.6.0-A gate:
  * - the ruleset's turf numbers hold together;
@@ -236,6 +298,22 @@ export function turfGate(ruleset: Ruleset, summaries: readonly TurfCrewSummary[]
     problems.push(`${late.crew.name} cannot take ${shut.join(', ')}.`);
   }
 
+  const push = runTurfPushSimulation(ruleset);
+  if (push) {
+    if (push.noBackupWinRate < 0.30 || push.noBackupWinRate > 0.47) {
+      problems.push(`Turf push without backup wins ${(push.noBackupWinRate * 100).toFixed(1)}%: expected 30-47%.`);
+    }
+    if (push.reinforcementWinRate < 0.14 || push.reinforcementWinRate > 0.32) {
+      problems.push(`Turf push against a reinforcement call wins ${(push.reinforcementWinRate * 100).toFixed(1)}%: expected 14-32%.`);
+    }
+    if (push.noBackupWinRate - push.reinforcementWinRate < 0.08) {
+      problems.push('Turf backup changes attacker win rate by less than 8 points: the call is not worth making.');
+    }
+    if (Math.abs(push.reinforcementShowRate - ruleset.turf.push.allies.chanceToShowUp) > 0.03) {
+      problems.push(`Turf helper show rate ${(push.reinforcementShowRate * 100).toFixed(1)}% missed the configured ${(ruleset.turf.push.allies.chanceToShowUp * 100).toFixed(0)}% by more than 3 points.`);
+    }
+  }
+
   return problems;
 }
 
@@ -246,6 +324,12 @@ function money(cents: number): string {
 export function turfMarkdown(ruleset: Ruleset, summaries: readonly TurfCrewSummary[]): string {
   if (!ruleset.turf || summaries.length === 0) return '## Turf\n\nThis ruleset has no turf.\n';
   const lines: string[] = ['## Turf', '', `Holding a block for a day, against a day of street work. A holder works its own block ${HOLDER_TURNS_PER_DAY} turns a day; ${BUSY_RIVALS} rivals work it ${RIVAL_TURNS_PER_DAY} turns each.`, ''];
+
+  const push = runTurfPushSimulation(ruleset);
+  if (push) {
+    lines.push('### Turf wars', '');
+    lines.push(`Equal ${push.squad}-thug pistol crews over ${push.samples.toLocaleString('en-US')} seeded pushes: **${(push.noBackupWinRate * 100).toFixed(1)}%** attacker wins without backup, **${(push.reinforcementWinRate * 100).toFixed(1)}%** with an alliance call (${push.helperThugs} potential helpers, ${(push.reinforcementShowRate * 100).toFixed(1)}% showed).`, '');
+  }
 
   for (const summary of summaries) {
     lines.push(`### ${summary.crew.name}`, '');

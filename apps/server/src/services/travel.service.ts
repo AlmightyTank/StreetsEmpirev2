@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient, RunTrade } from '@prisma/client';
+import type { DistrictKey } from '@streets/rulesets';
 import {
   RunError,
   addHeat,
@@ -216,8 +217,9 @@ function wireText(ruleset: Ruleset, item: ReturnType<typeof streetWire>[number])
 
 const WIRE_HOURS = 24;
 
-function wireDto(ruleset: Ruleset, seed: string, now: Date): WireItemDto[] {
-  return streetWire(ruleset, seed, new Date(now.getTime() - WIRE_HOURS * 3_600_000), now).map((item) => ({
+async function wireDto(prisma: PrismaClient, roundId: string, ruleset: Ruleset, seed: string, now: Date): Promise<WireItemDto[]> {
+  const since = new Date(now.getTime() - WIRE_HOURS * 3_600_000);
+  const market: WireItemDto[] = streetWire(ruleset, seed, since, now).map((item) => ({
     at: item.at.toISOString(),
     city: item.city,
     cityName: cityName(ruleset, item.city),
@@ -227,6 +229,43 @@ function wireDto(ruleset: Ruleset, seed: string, now: Date): WireItemDto[] {
     endsAt: item.endsAt?.toISOString() ?? null,
     text: wireText(ruleset, item),
   }));
+  if (!ruleset.turf?.wars) return market;
+
+  const fights = await prisma.turfPush.findMany({
+    where: { roundId, status: 'LANDED', captured: true, settledAt: { gte: since } },
+    select: {
+      settledAt: true,
+      attackerAllianceId: true,
+      attacker: { select: { displayName: true } },
+      turf: { select: { district: true, city: { select: { slug: true } } } },
+    },
+    orderBy: { settledAt: 'desc' },
+    take: 50,
+  });
+  const allianceIds = [...new Set(fights.map((fight) => fight.attackerAllianceId).filter((id): id is string => Boolean(id)))];
+  const alliances = allianceIds.length
+    ? await prisma.alliance.findMany({ where: { id: { in: allianceIds } }, select: { id: true, tag: true } })
+    : [];
+  const tags = new Map(alliances.map((alliance) => [alliance.id, alliance.tag]));
+  const turf: WireItemDto[] = fights.flatMap((fight) => {
+    if (!fight.settledAt) return [];
+    const slug = fight.turf.city.slug;
+    const district = fight.turf.district as DistrictKey;
+    const block = ruleset.cities?.[slug]?.districts?.[district]?.name ?? ruleset.districts[district]?.name ?? fight.turf.district;
+    const tag = fight.attackerAllianceId ? tags.get(fight.attackerAllianceId) ?? null : null;
+    const holder = tag ? `[${tag}] ${fight.attacker.displayName}` : fight.attacker.displayName;
+    return [{
+      at: fight.settledAt.toISOString(),
+      city: slug,
+      cityName: cityName(ruleset, slug),
+      product: null,
+      kind: 'TURF' as const,
+      supply: null,
+      endsAt: null,
+      text: `${block} in ${cityName(ruleset, slug)} fell to ${holder}.`,
+    }];
+  });
+  return [...market, ...turf].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 }
 
 /**
@@ -274,7 +313,7 @@ export const TravelService = {
       },
       run: run ? await runDto(prisma, roundPlayerId, base, seed, run, now) : null,
       lastRun: await lastRunDto(prisma, roundPlayerId, base),
-      wire: wireDto(base, seed, now),
+      wire: await wireDto(prisma, player.roundId, base, seed, now),
       relocation: await RelocationService.page(prisma, player, base, settled.round.endsAt, player.heat, now),
     };
   },

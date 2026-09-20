@@ -76,7 +76,7 @@ describe('createGameApi', () => {
       '/api/internal/discord/badges': { player: { roundName: 'R', displayName: 'Big', publicPimpId: 1, profileUrl: 'http://game/game/players/1', awards: [] } },
       '/api/internal/discord/news/claim': { news: [] },
       '/api/internal/discord/alerts': { alerts: { attacks: false, round: false, rank: false, turns: true }, roundName: 'R', current: { turns: 5, cap: 144, nationalRank: 7 } },
-      '/api/internal/discord/alerts/claim': { turns: [], ranks: [], attacks: [], roundAlerts: [], battles: [], rounds: [] },
+      '/api/internal/discord/alerts/claim': { turns: [], ranks: [], attacks: [], roundAlerts: [], battles: [], turf: [], rounds: [] },
     };
     const fetchImpl = (async (url: URL | string, init: RequestInit = {}) => {
       const parsed = new URL(String(url));
@@ -89,7 +89,7 @@ describe('createGameApi', () => {
     expect((await api.badges({ name: 'Big Daddy' })).displayName).toBe('Big');
     expect(await api.claimNews()).toEqual([]);
     expect((await api.setAlert('123456789012345678', 'turns', true)).current).toEqual({ turns: 5, cap: 144, nationalRank: 7 });
-    expect(await api.claimAlerts()).toEqual({ turns: [], ranks: [], attacks: [], roundAlerts: [], battles: [], rounds: [] });
+    expect(await api.claimAlerts()).toEqual({ turns: [], ranks: [], attacks: [], roundAlerts: [], battles: [], turf: [], rounds: [] });
     expect(calls).toEqual([
       { path: '/api/internal/discord/badges?name=Big+Daddy', method: 'GET', body: undefined, contentType: undefined },
       // No body, so no JSON content type for Fastify to reject as empty.

@@ -29,6 +29,7 @@ import { ConvoyService } from './convoy.service.js';
 import { RelocationService } from './relocation.service.js';
 import { RunSettleService } from './run-settle.service.js';
 import { TurfService } from './turf.service.js';
+import { TurfWarSettlementService } from './turf-war-settle.service.js';
 
 /**
  * Everything an action is allowed to move. Turn-settled before an action sees
@@ -64,7 +65,7 @@ export interface PlayerState {
   heat: number;
   /** 0.5.0-B. Net worth of what is out on a run. Runs move it; nothing else does. */
   awayNetWorthCents: bigint;
-  /** 0.6.0-B. Net worth of corner guns removed from the home arsenal. */
+  /** 0.6.0-B/C. Net worth of turf-deployed guns removed from the home arsenal. */
   postedNetWorthCents: bigint;
   /** 0.5.0-C. Set by an arrest at home; left out, it is not written. */
   lockedUntil?: Date | null;
@@ -293,6 +294,7 @@ export const ActionService = {
     options: RunActionOptions<T>,
     now: Date = new Date(),
   ): Promise<GameActionResult<T>> {
+    await TurfWarSettlementService.settleDueFor(prisma, roundPlayerId, now);
     return prisma.$transaction(async (tx) => {
       // The lock comes first. Checking for a replay before taking it lets two
       // concurrent duplicates both look, both find nothing, and both execute.
@@ -316,6 +318,8 @@ export const ActionService = {
       await RelocationService.settleOwn(tx, roundPlayerId, now);
       // 0.5.0-E: and whatever came back from a convoy fight is back.
       await ConvoyService.credit(tx, roundPlayerId, now);
+      // 0.6.0-C: turf squads and allied backup return before another action reads them.
+      await TurfWarSettlementService.credit(tx, roundPlayerId, now);
 
       const loaded = await tx.roundPlayer.findUnique({
         where: { id: roundPlayerId },

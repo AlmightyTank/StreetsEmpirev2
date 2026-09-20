@@ -205,7 +205,7 @@ export interface TurfBlockDto {
   city: string;
   district: 'CASINO' | 'NIGHTCLUB' | 'LOW_RENT' | 'URBAN_GHETTO' | 'WINO_SLUMS';
   districtName: string;
-  /** Null means the locals hold the block. */
+  /** Null means the block is either vacant or held by the locals; localsReclaimAt distinguishes them. */
   holder: {
     publicPimpId: number;
     displayName: string;
@@ -217,21 +217,70 @@ export interface TurfBlockDto {
   cornerGuns: TurfGunsDto;
   localsThugs: number;
   localsFullThugs: number;
+  /** Future while the block is vacant; null once the locals are back or a player holds it. */
+  localsReclaimAt: string | null;
   heldSince: string | null;
   shieldUntil: string | null;
   presenceTurns: number;
   claimBlockedReason: string | null;
+  /** 0.6.0-C. Visible pending push: always to its attacker, and to the holder once Lookouts spot it. */
+  push: TurfPushDto | null;
+  /** Payback against this holder is live. It waives presence, never the hold shield. */
+  revengeAvailable: boolean;
+  revengeUntil: string | null;
+  pushBlockedReason: string | null;
+}
+
+export interface TurfPushDto {
+  id: string;
+  role: 'attacker' | 'defender' | 'ally';
+  squad: number;
+  startedAt: string;
+  landsAt: string;
+  alliesCalled: boolean;
+  backupSent: boolean;
+  canCallAllies: boolean;
+}
+
+export interface TurfBattleReportDto {
+  id: string;
+  city: string;
+  cityName: string;
+  district: TurfBlockDto['district'];
+  districtName: string;
+  settledAt: string;
+  role: 'attacker' | 'defender' | 'ally';
+  won: boolean;
+  captured: boolean;
+  unopposed: boolean;
+  stale: boolean;
+  attacker: { publicPimpId: number; displayName: string; allianceTag: string | null };
+  defender: { publicPimpId: number; displayName: string; allianceTag: string | null };
+  attackers: number;
+  defenders: { corner: number; ownerBackup: number; allyCommitted: number; allyShowed: number };
+  yourWounds: number;
+  opponentWounds: number;
+  /** An ally may commit but fail the ruleset's show-up roll. Null for attacker/defender. */
+  showedUp: boolean | null;
+  strength: { attacker: number; defender: number } | null;
+  shieldUntil: string | null;
+  revengeUntil: string | null;
 }
 
 export interface CityTurfDto {
   enabled: true;
   holdingEnabled: boolean;
+  warsEnabled: boolean;
   presenceRequired: number;
   postTurnCost: number;
   pullTurnCost: number;
+  pushTurnCost: number;
+  pushWarningMinutes: number;
   homeCap: number;
   heldAtHome: number;
   blocks: TurfBlockDto[];
+  /** Recent fights in this city that this player took part in, newest first. */
+  reports: TurfBattleReportDto[];
 }
 
 export interface TurfTripDto {
@@ -435,13 +484,14 @@ export interface RunIncidentDto {
   at: string;
 }
 
-/** 0.5.0-C. What the street hears: gluts, droughts and some of Pip's supply changes. */
+/** What the street hears: market/supply swings and, from 0.6.0-C, turf changing hands. */
 export interface WireItemDto {
   at: string;
   city: string;
   cityName: string;
-  product: string;
-  kind: 'GLUT' | 'DROUGHT' | 'SUPPLY';
+  /** Null for a turf hand-change line. */
+  product: string | null;
+  kind: 'GLUT' | 'DROUGHT' | 'SUPPLY' | 'TURF';
   /** For a supply item, where Pip's supply went. */
   supply: SupplyLevelDto | null;
   /** For an event, when it ends. */
@@ -698,4 +748,28 @@ export interface ConvoyBackupResult {
   tailId: string;
   thugs: number;
   landsAt: string;
+}
+
+
+export interface TurfPushStartResult {
+  pushId: string;
+  district: TurfBlockDto['district'];
+  districtName: string;
+  defender: { publicPimpId: number; displayName: string };
+  squad: number;
+  turnsUsed: number;
+  startedAt: string;
+  landsAt: string;
+}
+
+export interface TurfPushBackupResult {
+  pushId: string;
+  thugs: number;
+  kind: 'OWNER' | 'ALLY';
+  landsAt: string;
+}
+
+export interface TurfPushCallResult {
+  pushId: string;
+  called: number;
 }

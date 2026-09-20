@@ -44,7 +44,11 @@ export type ActivityType =
   | 'CONVOY_BACKUP'
   | 'TURF_CLAIM'
   | 'TURF_POST'
-  | 'TURF_PULL';
+  | 'TURF_PULL'
+  | 'TURF_PUSH'
+  | 'TURF_PUSH_BACKUP'
+  | 'TURF_PUSH_ATTACK'
+  | 'TURF_PUSH_DEFENSE';
 
 export interface ApiErrorBody {
   error: {

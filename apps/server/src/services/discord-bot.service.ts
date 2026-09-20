@@ -2,6 +2,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { RelocationService } from './relocation.service.js';
 import type { PrismaClient, Round } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
+import type { DistrictKey } from '@streets/rulesets';
 import type {
   DiscordAlertSettingsDto,
   DiscordAlertType,
@@ -21,6 +22,7 @@ import type {
   DiscordRankingsDto,
   DiscordRoundEventDto,
   DiscordStatsDto,
+  DiscordTurfEventDto,
   ForumGroupBadgeDto,
   PublicLegacyDto,
 } from '@streets/shared';
@@ -185,6 +187,53 @@ async function claimBattles(prisma: PrismaClient, now: Date, limit = 25): Promis
     if (!rows.length) return [];
     await tx.raidBattle.updateMany({ where: { id: { in: rows.map((row) => row.id) }, discordPostedAt: null }, data: { discordPostedAt: now } });
     return rows.map(battleEventDto);
+  });
+}
+
+/** Successful turf hand-changes for the public combat/street feed, oldest first. */
+async function claimTurf(prisma: PrismaClient, now: Date, limit = 25): Promise<DiscordTurfEventDto[]> {
+  return prisma.$transaction(async (tx) => {
+    const rows = await tx.turfPush.findMany({
+      where: { status: 'LANDED', captured: true, discordPostedAt: null },
+      orderBy: { settledAt: 'asc' },
+      take: limit,
+      include: {
+        round: true,
+        turf: { include: { city: { select: { slug: true } } } },
+        attacker: { select: { publicPimpId: true, displayName: true } },
+        defender: { select: { publicPimpId: true, displayName: true } },
+      },
+    });
+    if (!rows.length) return [];
+    const allianceIds = [...new Set(rows.map((row) => row.attackerAllianceId).filter((id): id is string => Boolean(id)))];
+    const alliances = allianceIds.length
+      ? await tx.alliance.findMany({ where: { id: { in: allianceIds } }, select: { id: true, tag: true } })
+      : [];
+    const tags = new Map(alliances.map((alliance) => [alliance.id, alliance.tag]));
+    await tx.turfPush.updateMany({
+      where: { id: { in: rows.map((row) => row.id) }, discordPostedAt: null },
+      data: { discordPostedAt: now },
+    });
+    return rows.flatMap((row): DiscordTurfEventDto[] => {
+      if (!row.settledAt) return [];
+      const ruleset = loadRulesetForRound(row.round);
+      const city = row.turf.city.slug;
+      const district = row.turf.district as DistrictKey;
+      return [{
+        id: row.id,
+        roundName: row.round.name,
+        city,
+        cityName: ruleset.cities?.[city]?.name ?? city,
+        district: row.turf.district,
+        districtName: ruleset.cities?.[city]?.districts?.[district]?.name ?? ruleset.districts[district]?.name ?? row.turf.district,
+        attackerName: row.attacker.displayName,
+        attackerProfileUrl: playerUrl(row.attacker.publicPimpId),
+        attackerAllianceTag: row.attackerAllianceId ? tags.get(row.attackerAllianceId) ?? null : null,
+        defenderName: row.defender.displayName,
+        defenderProfileUrl: playerUrl(row.defender.publicPimpId),
+        settledAt: row.settledAt.toISOString(),
+      }];
+    });
   });
 }
 
@@ -564,11 +613,12 @@ export const DiscordBotService = {
   async claimAlerts(prisma: PrismaClient): Promise<DiscordAlertsClaimDto> {
     const now = new Date();
     await NotificationService.collect(prisma, now);
-    const [battles, rounds, dms] = await Promise.all([
+    const [battles, turf, rounds, dms] = await Promise.all([
       claimBattles(prisma, now),
+      claimTurf(prisma, now),
       claimRoundEnds(prisma, now),
       NotificationService.claimDiscord(prisma, now),
     ]);
-    return { ...dms, battles, rounds };
+    return { ...dms, battles, turf, rounds };
   },
 };
