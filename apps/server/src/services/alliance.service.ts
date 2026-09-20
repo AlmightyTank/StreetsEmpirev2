@@ -380,10 +380,13 @@ export const AllianceService = {
         if (me.allianceCooldownUntil && me.allianceCooldownUntil > now) {
           throw AppError.conflict('ALLIANCE_COOLDOWN', `You left an alliance recently. You can found or join one in ${waitText(me.allianceCooldownUntil, now)}.`);
         }
+        const base = loadRulesetForRound(player.round);
+        const territoryBefore = await territoryBeforeForPlayers(tx, me.roundId, [me.id], base);
         const alliance = await tx.alliance.create({ data: {
           roundId: me.roundId, name, nameNormalized: normalizeAllianceName(name), tag, tagNormalized: tag.toLowerCase(), leaderId: me.id,
         } });
         await tx.roundPlayer.update({ where: { id: me.id }, data: { allianceId: alliance.id, allianceJoinedAt: now } });
+        await recordTerritoryCities(tx, me.roundId, base, territoryBefore, now);
         await tx.allianceInvite.deleteMany({ where: { inviteeId: me.id } });
         await event(tx, alliance.id, 'FOUNDED', me.displayName);
         await queueAllianceRoleResync(tx, { accountIds: [me.accountId] });
@@ -450,7 +453,10 @@ export const AllianceService = {
       }
       const members = await tx.roundPlayer.count({ where: { allianceId: alliance.id } });
       if (members >= rules.maxMembers) throw AppError.conflict('ALLIANCE_FULL', `${alliance.name} is full (${rules.maxMembers} members).`);
+      const base = loadRulesetForRound(player.round);
+      const territoryBefore = await territoryBeforeForPlayers(tx, me.roundId, [me.id], base);
       await tx.roundPlayer.update({ where: { id: me.id }, data: { allianceId: alliance.id, allianceJoinedAt: now } });
+      await recordTerritoryCities(tx, me.roundId, base, territoryBefore, now);
       await tx.allianceInvite.deleteMany({ where: { inviteeId: me.id } });
       await event(tx, alliance.id, 'JOINED', me.displayName);
       await queueAllianceRoleResync(tx, { accountIds: [me.accountId] });
