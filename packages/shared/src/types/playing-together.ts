@@ -484,7 +484,7 @@ export interface RunIncidentDto {
   at: string;
 }
 
-/** 0.5.0-C. What the street hears: gluts, droughts and some of Pip's supply changes. */
+/** What the street hears: market/supply swings and, from 0.6.0-C, turf changing hands. */
 export interface WireItemDto {
   at: string;
   city: string;
