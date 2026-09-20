@@ -1,17 +1,11 @@
 # 0.6.0 roadmap - Turf
 
-Status: **in progress.** 0.6.0-A is built. 0.6.0-B Holding is implemented on its own
-pinned ruleset: Scout presence, local claims, posting/reinforcing/pulling home corners,
-real gun custody, lazy upkeep and walkouts, hold bonus, capped house-minted street tax,
-linked-account guard, receipts and dashboard. 0.6.0-C Turf Wars is implemented on its
-own pinned ruleset: delayed pushes, Lookouts warnings, defender and same-city alliance
-backup, chance-to-show reinforcement, offline landing, combat/wounds, block transfer,
-hold shields, attacker cooldowns, revenge, delayed locals reclaim, real squad+gun custody,
-cap reservations, battle reports, Street Wire/Discord hand-change lines and the C balance
-gate are built. 0.6.0-D Outposts and 0.6.0-E Territory are complete. 0.6.0-F Release is now
-in progress, starting with the pinned release ruleset, release balance gates and public Turf
-rules documentation. Decisions marked *(proposed)* remain open until the 0.5.0 public round
-reports in.
+Status: **complete.** 0.6.0-A through 0.6.0-F are built and release-gated. Blocks, holding,
+Turf Wars, outposts, territory control/history, City Blocks, the seeded Federal crackdown,
+phone/touch layouts, Discord/Street Wire events, full-round balance simulation and the
+database-backed release regression are all included in the pinned 0.6.0 rulesets. Remaining
+*(proposed)* items and open questions below are post-release tuning topics, not blockers for
+0.6.0.
 
 0.4.0 gave the crew product to manage, and 0.5.0 gave it roads to move that product on.
 Neither gave a crew anything to **hold**. Working a district never touches another player,
@@ -279,17 +273,17 @@ and alliance in the Hall of Fame.
 
 ## 0.6.0-F - Release
 
-Status: **in progress.** The `classic-og-v0.6-f` shipping ruleset is pinned from E without
-changing balance, `qa:turf` now runs against F, the turf balance gate runs inside
+Status: **complete.** The `classic-og-v0.6-f` shipping ruleset is pinned from E without
+changing balance, `qa:turf` runs against F, the Turf balance gate runs inside
 `qa:release`, and the public Rules page has its Turf/territory panel. The full-round
-strategy simulation is now wired: holder, turf-raider, runner, mover and mixed empires are
-scored for every city, both session styles, fresh/mid starts and solo/alliance fields, with
-home-corner opportunity cost, push turnover, capped outpost loot, weekly outpost service and
-the Garage purchase priced into the result. The release gate requires mixed play to beat
-pure holding, turf raiding and running everywhere, while optional Turf may never make the
-same move/road plan worse. The full-round gate is green; see [TURF-SIMULATION-0.6.0-F.md](TURF-SIMULATION-0.6.0-F.md).
-The seeded Federal crackdown is complete and verified. The phone pass and turf integration
-regression remain.
+strategy simulation covers holder, turf-raider, runner, mover and mixed empires in every
+city, both session styles, fresh/mid starts and solo/alliance fields, with home-corner
+opportunity cost, push turnover, capped outpost loot, weekly outpost service and the Garage
+purchase priced into the result. The release gate requires mixed play to beat pure holding,
+turf raiding and running everywhere, while optional Turf may never make the same move/road
+plan worse. The full-round gate is green; see [TURF-SIMULATION-0.6.0-F.md](TURF-SIMULATION-0.6.0-F.md).
+The seeded Federal crackdown, phone/touch pass, City Blocks dashboard and Turf integration
+regression are complete and verified.
 
 - **Balance:** a pass over all 40 blocks on `qa:turf` and full-round runs, including
   outposts, the Garage and the tax caps.
