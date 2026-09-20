@@ -25,6 +25,7 @@ import {
   turfGunData,
   type CornerGuns,
 } from './turf.service.js';
+import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
 
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
 
@@ -89,6 +90,9 @@ async function finishMove(tx: Db, roundPlayerId: string, move: { id: string; fro
   let returnedGuns: CornerGuns = { ...EMPTY_GUNS };
 
   if (base.turf?.outposts) {
+    const oldCityControl = plan.released.length
+      ? await territoryControlForCity(tx, loaded.round.id, loaded.cityId, base)
+      : null;
     const homeDistricts = new Set(plan.toHome.map((entry) => entry.district));
     const keepDistricts = new Set(plan.toOutposts.map((entry) => entry.district));
     const releaseDistricts = new Set(plan.released.map((entry) => entry.district));
@@ -130,6 +134,15 @@ async function finishMove(tx: Db, roundPlayerId: string, move: { id: string; fro
           },
         });
       }
+    }
+    if (plan.released.length) {
+      await recordTerritoryControlChange(tx, {
+        roundId: loaded.round.id,
+        cityId: loaded.cityId,
+        ruleset: base,
+        before: oldCityControl,
+        at: move.arrivesAt,
+      });
     }
   }
 
