@@ -193,6 +193,14 @@ export interface WorkSupplyDto {
 /** 0.5.0-A. How much of a product Pip has in a city. */
 export type SupplyLevelDto = 'PLENTIFUL' | 'NORMAL' | 'LOW' | 'OUT';
 
+export interface TurfGunsDto {
+  pistols: number;
+  shotguns: number;
+  tek9s: number;
+  ak47s: number;
+  total: number;
+}
+
 export interface TurfBlockDto {
   city: string;
   district: 'CASINO' | 'NIGHTCLUB' | 'LOW_RENT' | 'URBAN_GHETTO' | 'WINO_SLUMS';
@@ -203,18 +211,71 @@ export interface TurfBlockDto {
     displayName: string;
     alliance: AllianceTagDto | null;
   } | null;
+  isMine: boolean;
   cornerThugs: number;
+  cornerMinimumThugs: number;
+  cornerGuns: TurfGunsDto;
   localsThugs: number;
   localsFullThugs: number;
   heldSince: string | null;
   shieldUntil: string | null;
-  /** This player's faded turns worked here. A uses it for display; B spends it. */
   presenceTurns: number;
+  claimBlockedReason: string | null;
 }
 
 export interface CityTurfDto {
   enabled: true;
+  holdingEnabled: boolean;
+  presenceRequired: number;
+  postTurnCost: number;
+  pullTurnCost: number;
+  homeCap: number;
+  heldAtHome: number;
   blocks: TurfBlockDto[];
+}
+
+export interface TurfTripDto {
+  kind: 'own' | 'rival' | 'locals';
+  holder: { publicPimpId: number; displayName: string } | null;
+  holdBonusCents: number;
+  taxPaidCents: number;
+  taxMintedCents: number;
+  linked: boolean;
+}
+
+export interface TurfSummaryDto {
+  enabled: true;
+  blocksHeld: number;
+  postedGuns: TurfGunsDto;
+  taxEarnedTodayCents: number;
+  taxPendingCents: number;
+  taxPayersToday: number;
+  dailyTaxCapCentsPerPayer: number;
+}
+
+export interface TurfClaimResult {
+  district: TurfBlockDto['district'];
+  districtName: string;
+  won: boolean;
+  squad: number;
+  localsThugs: number;
+  cornerThugs: number;
+  turnsUsed: number;
+}
+export interface TurfPostResult {
+  district: TurfBlockDto['district'];
+  districtName: string;
+  posted: number;
+  cornerThugs: number;
+  turnsUsed: number;
+}
+export interface TurfPullResult {
+  district: TurfBlockDto['district'];
+  districtName: string;
+  pulled: number;
+  cornerThugs: number;
+  released: boolean;
+  turnsUsed: number;
 }
 
 /**

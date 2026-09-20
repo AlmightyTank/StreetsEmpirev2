@@ -1,4 +1,4 @@
-import type { HeatDto, TripHeatDto, WorkSupplyPlanDto } from './playing-together.js';
+import type { HeatDto, TripHeatDto, TurfSummaryDto, TurfTripDto, WorkSupplyPlanDto } from './playing-together.js';
 /**
  * The contract between apps/server and apps/web.
  *
@@ -240,6 +240,8 @@ export interface RoundPlayerDto {
   moving: { to: string; toName: string; arrivesAt: string } | null;
   /** 0.5.0-E. Someone on your run's tail, or an ally's call you can answer: the soonest to land. */
   convoyAlert: { kind: 'tailed' | 'call'; cityName: string; landsAt: string } | null;
+  /** 0.6.0-B. Home turf and today's house-minted street tax. */
+  turf: TurfSummaryDto | null;
   rank: RankDto;
   hideout: SeasonHideoutDto;
 
@@ -419,6 +421,8 @@ export interface DistrictsDto {
  */
 export interface ScoutResult {
   district: DistrictDto;
+  /** 0.6.0-B. Hold bonus or street tax applied to this trip. */
+  turf?: TurfTripDto;
   /** 0.4.0-B. How the trip was supplied, on rounds with work supply. */
   supply?: WorkSupplyPlanDto;
   /** 0.4.0-C. On rounds with Heat. */
