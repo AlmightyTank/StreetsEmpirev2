@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
-import { cornerMinimumFor, equipCombatSquad, localsAfter, localsThugs, type DistrictKey, type Rng, type Ruleset } from '@streets/rules-engine';
+import { cornerMinimumFor, equipCombatSquad, localsAfter, localsThugs, type Rng, type Ruleset } from '@streets/rules-engine';
+import type { DistrictKey } from '@streets/rulesets';
 import type { TurfClaimInput, TurfClaimResult, TurfPostInput, TurfPostResult, TurfPullInput, TurfPullResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
