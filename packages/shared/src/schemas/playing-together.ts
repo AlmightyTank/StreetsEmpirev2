@@ -64,7 +64,8 @@ const citySlug = z.string().trim().regex(/^[a-z][a-z-]{1,40}$/, 'Pick a city.');
 const runProduct = z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.');
 const wholeCount = (what: string) => z.number({ invalid_type_error: `Enter ${what}.` }).int(`${what} must be a whole number.`).min(0).safe();
 
-export const travelRoutesSchema = z.object({ to: citySlug }).strict();
+const runId = z.string().trim().min(1).max(64);
+export const travelRoutesSchema = z.object({ to: citySlug, runId: runId.optional() }).strict();
 
 export const runLaunchSchema = z.object({
   to: citySlug,
@@ -84,6 +85,7 @@ export const runLaunchSchema = z.object({
 export type RunLaunchInput = z.infer<typeof runLaunchSchema>;
 
 export const runTradeSchema = z.object({
+  runId: runId.optional(),
   product: runProduct,
   direction: z.enum(['buy', 'sell']),
   /** 0.5.0-C. Pip's counter, or the high market. */
@@ -96,13 +98,14 @@ export const runTradeSchema = z.object({
 export type RunTradeInput = z.infer<typeof runTradeSchema>;
 
 export const runDriveOnSchema = z.object({
+  runId: runId.optional(),
   to: citySlug,
   route: z.number().int().min(0).max(9),
   actionId: actionIdSchema,
 }).strict();
 export type RunDriveOnInput = z.infer<typeof runDriveOnSchema>;
 
-export const runHeadHomeSchema = z.object({ actionId: actionIdSchema }).strict();
+export const runHeadHomeSchema = z.object({ runId: runId.optional(), actionId: actionIdSchema }).strict();
 
 // --- 0.6.0-D outposts --------------------------------------------------------------
 
@@ -110,6 +113,7 @@ const outpostDistrict = z.enum(['CASINO', 'NIGHTCLUB', 'LOW_RENT', 'URBAN_GHETTO
 const outpostProducts = z.record(runProduct, wholeCount('a quantity')).default({});
 
 export const runOutpostEstablishSchema = z.object({
+  runId: runId.optional(),
   district: outpostDistrict,
   thugs: z.number({ invalid_type_error: 'Say how many escorts stay.' }).int('Send whole thugs.').positive('Leave at least one thug.').safe(),
   cashCents: wholeCount('cash'),
@@ -120,6 +124,7 @@ export const runOutpostEstablishSchema = z.object({
 export type RunOutpostEstablishInput = z.infer<typeof runOutpostEstablishSchema>;
 
 export const runOutpostTransferSchema = z.object({
+  runId: runId.optional(),
   district: outpostDistrict,
   direction: z.enum(['deposit', 'withdraw']),
   cashCents: wholeCount('cash'),
