@@ -282,7 +282,13 @@ and alliance in the Hall of Fame.
 Status: **in progress.** The `classic-og-v0.6-f` shipping ruleset is pinned from E without
 changing balance, `qa:turf` now runs against F, the turf balance gate runs inside
 `qa:release`, and the public Rules page has its Turf/territory panel. The full-round
-strategy simulation, seeded crackdown, phone pass and turf integration regression remain.
+strategy simulation is now wired: holder, turf-raider, runner, mover and mixed empires are
+scored for every city, both session styles, fresh/mid starts and solo/alliance fields, with
+home-corner opportunity cost, push turnover, capped outpost loot, weekly outpost service and
+the Garage purchase priced into the result. The release gate requires mixed play to beat
+pure holding, turf raiding and running everywhere, while optional Turf may never make the
+same move/road plan worse. The seeded crackdown, phone pass and turf integration regression
+remain.
 
 - **Balance:** a pass over all 40 blocks on `qa:turf` and full-round runs, including
   outposts, the Garage and the tax caps.
