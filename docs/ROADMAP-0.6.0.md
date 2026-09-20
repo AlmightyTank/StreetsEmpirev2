@@ -227,12 +227,13 @@ against the configured 50%.
 
 ## 0.6.0-D - Outposts
 
-Status: **in progress.** The D ruleset, persistence and first playable run flow are built:
-outposts have their own cash/beer/product box; runs can carry beer, fight the locals with
-real escorts/guns, establish an away corner, seed its box, and later drop off or collect
-cash/beer/product while physically in town. Outpost-box value has its own net-worth ledger.
-Box-funded upkeep/tax routing, outpost raids/loot, Garage/multi-run and relocation
-conversion remain the next D slices.
+Status: **in progress.** The D ruleset, persistence, first playable run flow and box
+economy are built: outposts have their own cash/beer/product box; runs can carry beer,
+fight the locals with real escorts/guns, establish an away corner, seed its box, and later
+drop off or collect stock while physically in town. Outpost upkeep burns only from that
+box, remote street tax lands in its cash box, and the box value is reconciled into net
+worth on settlement. Outpost raids/loot, Garage/multi-run and relocation conversion remain
+the next D slices.
 
 - **An outpost is a corner crew away from home.** It is how a crew holds turf in more than
   one city without leaving home.
