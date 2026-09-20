@@ -2,6 +2,7 @@ import { restockedItems, type Ruleset } from '@streets/rules-engine';
 
 export interface InvariantPlayerState {
   cashCents: bigint;
+  postedNetWorthCents: bigint;
   turns: number;
   payoutPercent: number;
   whores: number;
@@ -104,6 +105,7 @@ export function assertPlayerState(
   phase: 'before' | 'after' = 'after',
 ): void {
   if (state.cashCents < 0n) invalid(`${phase}.cashCents is negative`);
+  if (state.postedNetWorthCents < 0n) invalid(`${phase}.postedNetWorthCents is negative`);
 
   for (const field of WHOLE_NON_NEGATIVE) {
     const value = state[field];

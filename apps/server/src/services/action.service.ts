@@ -28,6 +28,7 @@ import { CombatRecoveryService, type RecoverySettlement } from './combat-recover
 import { ConvoyService } from './convoy.service.js';
 import { RelocationService } from './relocation.service.js';
 import { RunSettleService } from './run-settle.service.js';
+import { TurfService } from './turf.service.js';
 
 /**
  * Everything an action is allowed to move. Turn-settled before an action sees
@@ -63,6 +64,8 @@ export interface PlayerState {
   heat: number;
   /** 0.5.0-B. Net worth of what is out on a run. Runs move it; nothing else does. */
   awayNetWorthCents: bigint;
+  /** 0.6.0-B. Net worth of corner guns removed from the home arsenal. */
+  postedNetWorthCents: bigint;
   /** 0.5.0-C. Set by an arrest at home; left out, it is not written. */
   lockedUntil?: Date | null;
   /** 0.5.0-D. Set by a move; left out, it is not written. */
@@ -179,6 +182,7 @@ export function toState(player: RoundPlayer): PlayerState {
     ak47Unlocked: player.ak47Unlocked,
     heat: player.heat,
     awayNetWorthCents: player.awayNetWorthCents,
+    postedNetWorthCents: player.postedNetWorthCents,
     busyThugs: player.busyThugs,
     postedThugs: player.postedThugs,
     cleanShiftStreak: player.cleanShiftStreak,
@@ -321,7 +325,8 @@ export const ActionService = {
         throw AppError.notFound('PLAYER_NOT_FOUND', 'That player is not in this round.');
       }
 
-      const { round, ...player } = loaded;
+      const { round, ...loadedPlayer } = loaded;
+      let player = loadedPlayer;
       assertRoundPlayable(round, now);
       // 0.5.0-C: nobody acts from a cell. A run still out comes home on its own.
       if (player.lockedUntil && player.lockedUntil.getTime() > now.getTime()) {
@@ -336,6 +341,15 @@ export const ActionService = {
 
       // 0.5.0-A: Heat reads the player's own city.
       const ruleset = rulesetForCity(loadRulesetForRound(round), player.city.slug);
+      // 0.6.0-B: settle corner upkeep/walkouts and pending house-minted tax before
+      // an action reads cash, thugs, product or the home arsenal.
+      const turfSettlement = await TurfService.settlePlayer(tx, roundPlayerId, ruleset, now);
+      if (turfSettlement) {
+        player = await tx.roundPlayer.findUniqueOrThrow({
+          where: { id: roundPlayerId },
+          include: { city: true },
+        });
+      }
       const recovery = await CombatRecoveryService.settle(tx, roundPlayerId, now);
 
       // Turns first: an action always spends from a settled balance. The shop
