@@ -135,8 +135,24 @@ describe('classic-og-v0.6-d contents', () => {
       lootBeerCap: 500,
       lootProductCap: 1_000,
     });
-    expect({ ...ruleset, meta: null, turf: { ...ruleset.turf!, outposts: null } })
-      .toEqual({ ...classicOgV06C, meta: null, turf: { ...classicOgV06C.turf, outposts: null } });
+    expect(ruleset.hideout?.rooms.GARAGE).toEqual({
+      name: 'Garage',
+      blurb: 'A second bay lets another crew take a Low-Rider run out while the first is still away.',
+      maxLevel: 1,
+      costsCents: [2_500_000],
+    });
+    expect(ruleset.hideout?.buffs.garageRunLimit).toBe(2);
+    expect({
+      ...ruleset,
+      meta: null,
+      hideout: null,
+      turf: { ...ruleset.turf!, outposts: null },
+    }).toEqual({
+      ...classicOgV06C,
+      meta: null,
+      hideout: null,
+      turf: { ...classicOgV06C.turf, outposts: null },
+    });
   });
 });
 
