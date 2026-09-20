@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, heatBribeSchema, travelRoutesSchema, productTradeSchema, turfClaimSchema, turfPostSchema, turfPullSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, heatBribeSchema, travelRoutesSchema, productTradeSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
 import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
@@ -13,6 +13,7 @@ import { WorkSupplyService } from '../services/work-supply.service.js';
 import { HeatService, toHeatDto } from '../services/heat.service.js';
 import { PlayerStateService } from '../services/player-state.service.js';
 import { TurfActionService } from '../services/turf-action.service.js';
+import { TurfWarService } from '../services/turf-war.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 
@@ -53,6 +54,10 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     TurfActionService.post(app.prisma, await me(request.auth!.account.id), parseBody(turfPostSchema, request.body ?? {})));
   app.post('/turf/pull', { preHandler: app.requireAuth }, async (request) =>
     TurfActionService.pull(app.prisma, await me(request.auth!.account.id), parseBody(turfPullSchema, request.body ?? {})));
+
+  /** 0.6.0-C: commit a squad to a delayed player-vs-player turf push. */
+  app.post('/turf/push', { preHandler: app.requireAuth }, async (request) =>
+    TurfWarService.start(app.prisma, await me(request.auth!.account.id), parseBody(turfPushSchema, request.body ?? {})));
 
   /** 0.5.0-B: runs. The map, what the crew knows and the run; the ways out; and the four moves. */
   app.get('/travel', { preHandler: app.requireAuth }, async (request) =>

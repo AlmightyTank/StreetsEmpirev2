@@ -196,7 +196,13 @@ function TurfBlocks({ city, onChanged }: { city: CityCharacterDto; onChanged?: (
               {block.holder ? `${formatNumber(block.cornerThugs)} posted · ${formatNumber(block.cornerGuns.total)} guns` : localsText(block)}
             </span>
             {block.presenceTurns > 0 ? <span className="se-hint">{Math.floor(block.presenceTurns)} presence here</span> : null}
-            <TurfActions block={block} isHome={city.isHome} holdingEnabled={city.turf?.holdingEnabled ?? false} onChanged={onChanged} />
+            <TurfActions
+              block={block}
+              isHome={city.isHome}
+              holdingEnabled={city.turf?.holdingEnabled ?? false}
+              warsEnabled={city.turf?.warsEnabled ?? false}
+              onChanged={onChanged}
+            />
           </li>
         ))}
       </ul>

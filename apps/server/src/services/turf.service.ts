@@ -10,6 +10,7 @@ import {
   turfHoldBonus,
   turfTax,
   workSupplyOrder,
+  headsUpMinutes,
   type Ruleset,
 } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
@@ -320,7 +321,7 @@ export const TurfService = {
       },
     });
     await TurfService.ensureRound(db, player.roundId, ruleset);
-    const [rows, presenceRows, activeRun] = await Promise.all([
+    const [rows, presenceRows, activeRun, pendingPushes, myRecentPushes] = await Promise.all([
       db.turf.findMany({
         where: { roundId: player.roundId },
         include: {
@@ -331,6 +332,22 @@ export const TurfService = {
       }),
       db.turfPresence.findMany({ where: { roundPlayerId: player.id }, include: { city: { select: { slug: true } } } }),
       db.run.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { escortThugs: true } }),
+      ruleset.turf.wars
+        ? db.turfPush.findMany({
+            where: { roundId: player.roundId, status: 'PENDING' },
+            select: { id: true, turfId: true, attackerId: true, defenderId: true, squad: true, startedAt: true, landsAt: true },
+          })
+        : Promise.resolve([]),
+      ruleset.turf.wars
+        ? db.turfPush.findMany({
+            where: {
+              roundId: player.roundId,
+              attackerId: player.id,
+              startedAt: { gt: new Date(now.getTime() - ruleset.turf.push.attackerCooldownHours * 3_600_000) },
+            },
+            select: { turfId: true },
+          })
+        : Promise.resolve([]),
     ]);
 
     const presence = new Map(presenceRows.map((row) => [`${row.city.slug}:${row.district}`, presenceAfter(ruleset, row.turns, hoursSince(row.at, now))]));
@@ -351,6 +368,13 @@ export const TurfService = {
       const isMine = row.holder?.id === player.id;
       const minimum = cornerMinimumFor(ruleset, district, crewThugs);
       let claimBlockedReason: string | null = null;
+      let pushBlockedReason: string | null = null;
+      const pending = pendingPushes.find((push) => push.turfId === row.id) ?? null;
+      const visiblePush = pending && (
+        pending.attackerId === player.id ||
+        (pending.defenderId === player.id &&
+          pending.landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel) * 60_000))
+      ) ? pending : null;
 
       if (holdingOn(ruleset) && !row.holder) {
         if (row.city.id !== player.cityId) claimBlockedReason = 'Outposts arrive in 0.6.0-D.';
@@ -360,7 +384,21 @@ export const TurfService = {
         else if (player.allianceId && allianceHeld(row.city.id) >= ruleset.turf.caps.blocksPerAllianceInCity) claimBlockedReason = `Your alliance already holds ${ruleset.turf.caps.blocksPerAllianceInCity} blocks here.`;
         else if (p < ruleset.turf.presence.turnsToClaim) claimBlockedReason = `Work this block until you have ${ruleset.turf.presence.turnsToClaim} presence.`;
         else if (armedAtHome < minimum) claimBlockedReason = `You need ${minimum} fit, armed thugs at home.`;
-      } else if (holdingOn(ruleset) && row.holder && !isMine) claimBlockedReason = 'A crew holds this block. Turf pushes arrive in 0.6.0-C.';
+      } else if (holdingOn(ruleset) && row.holder && !isMine && !ruleset.turf.wars) {
+        claimBlockedReason = 'A crew holds this block. Turf pushes arrive in 0.6.0-C.';
+      }
+
+      if (ruleset.turf.wars && row.holder && !isMine) {
+        if (row.city.id !== player.cityId) pushBlockedReason = 'Outpost turf wars arrive in 0.6.0-D.';
+        else if (row.holder.allianceId && player.allianceId === row.holder.allianceId) pushBlockedReason = 'That block belongs to an ally.';
+        else if (row.shieldUntil && row.shieldUntil > now) pushBlockedReason = `Shielded until ${row.shieldUntil.toLocaleTimeString()}.`;
+        else if (pending) pushBlockedReason = 'Someone is already pushing this block.';
+        else if (myRecentPushes.some((push) => push.turfId === row.id)) pushBlockedReason = 'Your crew pushed this block too recently.';
+        else if (heldAtHome >= ruleset.turf.caps.blocksPerCrewHome) pushBlockedReason = `You already hold your ${ruleset.turf.caps.blocksPerCrewHome}-block home cap.`;
+        else if (player.allianceId && allianceHeld(row.city.id) >= ruleset.turf.caps.blocksPerAllianceInCity) pushBlockedReason = `Your alliance already holds ${ruleset.turf.caps.blocksPerAllianceInCity} blocks here.`;
+        else if (p < ruleset.turf.presence.turnsToClaim) pushBlockedReason = `Work this block until you have ${ruleset.turf.presence.turnsToClaim} presence.`;
+        else if (armedAtHome < minimum) pushBlockedReason = `You need ${minimum} fit, armed thugs at home.`;
+      }
 
       blocks.push({
         city: citySlug, district, districtName: districtName(ruleset, citySlug, row.district),
@@ -372,11 +410,27 @@ export const TurfService = {
         localsThugs: Math.round(localsAfter(ruleset, block, row.localsThugs, hoursSince(row.localsAt, now))),
         localsFullThugs: fullLocals, heldSince: row.heldSince?.toISOString() ?? null,
         shieldUntil: row.shieldUntil?.toISOString() ?? null, presenceTurns: p, claimBlockedReason,
+        push: visiblePush ? {
+          id: visiblePush.id,
+          role: visiblePush.attackerId === player.id ? 'attacker' : 'defender',
+          squad: visiblePush.squad,
+          startedAt: visiblePush.startedAt.toISOString(),
+          landsAt: visiblePush.landsAt.toISOString(),
+        } : null,
+        pushBlockedReason,
       });
       byCity.set(citySlug, {
-        enabled: true, holdingEnabled: holdingOn(ruleset), presenceRequired: ruleset.turf.presence.turnsToClaim,
-        postTurnCost: ruleset.turf.corner.postTurnCost, pullTurnCost: ruleset.turf.corner.pullTurnCost,
-        homeCap: ruleset.turf.caps.blocksPerCrewHome, heldAtHome, blocks,
+        enabled: true,
+        holdingEnabled: holdingOn(ruleset),
+        warsEnabled: ruleset.turf.wars === true,
+        presenceRequired: ruleset.turf.presence.turnsToClaim,
+        postTurnCost: ruleset.turf.corner.postTurnCost,
+        pullTurnCost: ruleset.turf.corner.pullTurnCost,
+        pushTurnCost: ruleset.turf.push.turnCost,
+        pushWarningMinutes: ruleset.turf.push.warningMinutes,
+        homeCap: ruleset.turf.caps.blocksPerCrewHome,
+        heldAtHome,
+        blocks,
       });
     }
     return byCity;

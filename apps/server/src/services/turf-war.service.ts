@@ -1,0 +1,170 @@
+import type { Prisma, PrismaClient } from '@prisma/client';
+import { cornerMinimumFor, type Ruleset } from '@streets/rules-engine';
+import type { DistrictKey } from '@streets/rulesets';
+import type { TurfPushInput, TurfPushStartResult } from '@streets/shared';
+import { AppError } from '../utils/errors.js';
+import { ActionService, assertTurns, fitThugs } from './action.service.js';
+import { accountsShareNetwork } from './admin-signals.service.js';
+import {
+  TurfService,
+  allocateCornerGuns,
+  cornerGunWorthCents,
+  type CornerGuns,
+} from './turf.service.js';
+
+const json = (value: unknown): Prisma.InputJsonValue =>
+  JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+
+function requireWars(ruleset: Ruleset) {
+  if (!ruleset.turf?.wars) throw AppError.conflict('TURF_WARS_DISABLED', 'Player turf wars are not open in this round.');
+  return ruleset.turf;
+}
+
+function engineGuns(guns: CornerGuns) {
+  return { PISTOL: guns.pistols, SHOTGUN: guns.shotguns, TEK9: guns.tek9s, AK47: guns.ak47s };
+}
+
+async function lockBlock(tx: any, id: string): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM "Turf" WHERE id = ${id} FOR UPDATE`;
+}
+
+async function crewSize(tx: any, playerId: string, homeThugs: number): Promise<number> {
+  const run = await tx.run.findFirst({ where: { roundPlayerId: playerId, status: 'ACTIVE' }, select: { escortThugs: true } });
+  return homeThugs + (run?.escortThugs ?? 0);
+}
+
+async function assertRoom(tx: any, player: any, roundId: string, cityId: string, ruleset: Ruleset): Promise<void> {
+  const rules = ruleset.turf!;
+  const home = await tx.turf.count({ where: { roundId, cityId, holderId: player.id } });
+  if (home >= rules.caps.blocksPerCrewHome) {
+    throw AppError.conflict('TURF_CREW_CAP', `You already hold your ${rules.caps.blocksPerCrewHome}-block home cap.`);
+  }
+  if (player.allianceId) {
+    const alliance = await tx.turf.count({ where: { roundId, cityId, holder: { allianceId: player.allianceId } } });
+    if (alliance >= rules.caps.blocksPerAllianceInCity) {
+      throw AppError.conflict('TURF_ALLIANCE_CAP', `Your alliance already holds ${rules.caps.blocksPerAllianceInCity} blocks in this city.`);
+    }
+  }
+}
+
+function districtName(ruleset: Ruleset, city: string, district: DistrictKey): string {
+  return ruleset.cities?.[city]?.districts?.[district]?.name ?? ruleset.districts[district].name;
+}
+
+/**
+ * C1: commit a real squad and its real guns to a delayed push.
+ *
+ * Landing and reinforcement are deliberately separate: this start path creates
+ * the durable window C will settle even if neither player is online.
+ */
+export const TurfWarService = {
+  start(prisma: PrismaClient, attackerId: string, input: TurfPushInput) {
+    return ActionService.run<TurfPushStartResult>(prisma, attackerId, {
+      action: 'TURF_PUSH',
+      actionId: input.actionId,
+      execute: async ({ tx, current, player, round, ruleset, now }) => {
+        const turfRules = requireWars(ruleset);
+        const model = ruleset.combat;
+        if (!model) throw AppError.conflict('COMBAT_DISABLED', 'Street fights are not enabled in this round.');
+        const district = input.district as DistrictKey;
+        if (!turfRules.districts[district]) throw AppError.badRequest('UNKNOWN_DISTRICT', 'That is not a turf block.');
+
+        await TurfService.ensureRound(tx, round.id, ruleset);
+        const block = await tx.turf.findUnique({
+          where: { roundId_cityId_district: { roundId: round.id, cityId: player.cityId, district } },
+          include: {
+            city: { select: { id: true, slug: true } },
+            holder: { select: { id: true, accountId: true, allianceId: true, publicPimpId: true, displayName: true } },
+          },
+        });
+        if (!block) throw AppError.notFound('TURF_NOT_FOUND', 'That block is not in your city.');
+        await lockBlock(tx, block.id);
+        const fresh = await tx.turf.findUniqueOrThrow({
+          where: { id: block.id },
+          include: {
+            city: { select: { id: true, slug: true } },
+            holder: { select: { id: true, accountId: true, allianceId: true, publicPimpId: true, displayName: true } },
+          },
+        });
+
+        const defender = fresh.holder;
+        if (!defender) throw AppError.conflict('LOCALS_BLOCK', 'The locals hold that block. Claim it instead of starting a turf war.');
+        if (defender.id === attackerId || defender.accountId === player.accountId) throw AppError.badRequest('OWN_TURF', 'That is your own block.');
+        if (player.allianceId && defender.allianceId === player.allianceId) throw AppError.conflict('ALLIED', 'You cannot push an ally off their turf.');
+        if (await accountsShareNetwork(tx, player.accountId, defender.accountId, now)) {
+          throw AppError.conflict('LINKED_ACCOUNTS', 'You have played from the same network as this crew, so you cannot push their turf.');
+        }
+        if (fresh.shieldUntil && fresh.shieldUntil > now) {
+          throw AppError.conflict('TURF_SHIELDED', `That block is protected until ${fresh.shieldUntil.toISOString()}.`);
+        }
+        if (await tx.turfPush.findFirst({ where: { turfId: fresh.id, status: 'PENDING' } })) {
+          throw AppError.conflict('TURF_PUSH_PENDING', 'Someone is already pushing that block.');
+        }
+        const cooldownSince = new Date(now.getTime() - turfRules.push.attackerCooldownHours * 3_600_000);
+        if (await tx.turfPush.findFirst({ where: { turfId: fresh.id, attackerId, startedAt: { gt: cooldownSince } } })) {
+          throw AppError.conflict('TURF_PUSH_COOLDOWN', 'Your crew pushed this block too recently.');
+        }
+
+        await assertRoom(tx, player, round.id, player.cityId, ruleset);
+        const presence = await TurfService.presenceFor(tx, attackerId, player.cityId, district, ruleset, now);
+        if (presence < turfRules.presence.turnsToClaim) {
+          throw AppError.conflict('TURF_NO_PRESENCE', `Work this block until you have ${turfRules.presence.turnsToClaim} presence before pushing it.`);
+        }
+
+        const fullCrew = await crewSize(tx, attackerId, current.thugs);
+        const minimum = cornerMinimumFor(ruleset, district, fullCrew);
+        if (input.squad < minimum) {
+          throw AppError.badRequest('TURF_SQUAD_SMALL', `A winning corner here needs at least ${minimum} thugs.`);
+        }
+        const fit = Math.min(fitThugs(current), model.squadCap);
+        if (input.squad > fit) throw AppError.badRequest('TURF_SQUAD_TOO_BIG', `Send at most ${fit} fit thugs.`);
+        const guns = allocateCornerGuns(current, input.squad);
+        if (!guns) throw AppError.conflict('TURF_NOT_ENOUGH_ARMED', `You need ${input.squad} home guns to send that squad.`);
+        assertTurns(current.turns, turfRules.push.turnCost);
+
+        const landsAt = new Date(now.getTime() + turfRules.push.warningMinutes * 60_000);
+        const push = await tx.turfPush.create({
+          data: {
+            roundId: round.id,
+            turfId: fresh.id,
+            attackerId,
+            defenderId: defender.id,
+            squad: input.squad,
+            attackerCrew: json({ thugHappiness: player.thugHappiness, weapons: engineGuns(guns) }),
+            turnsSpent: turfRules.push.turnCost,
+            actionId: input.actionId,
+            startedAt: now,
+            landsAt,
+          },
+        });
+
+        const worth = cornerGunWorthCents(ruleset, guns);
+        const result: TurfPushStartResult = {
+          pushId: push.id,
+          district,
+          districtName: districtName(ruleset, fresh.city.slug, district),
+          defender: { publicPimpId: defender.publicPimpId, displayName: defender.displayName },
+          squad: input.squad,
+          turnsUsed: turfRules.push.turnCost,
+          startedAt: now.toISOString(),
+          landsAt: landsAt.toISOString(),
+        };
+
+        return {
+          next: {
+            ...current,
+            turns: current.turns - turfRules.push.turnCost,
+            busyThugs: current.busyThugs + input.squad,
+            pistols: current.pistols - guns.pistols,
+            shotguns: current.shotguns - guns.shotguns,
+            tek9s: current.tek9s - guns.tek9s,
+            ak47s: current.ak47s - guns.ak47s,
+            postedNetWorthCents: current.postedNetWorthCents + worth,
+          },
+          result,
+          activity: { type: 'TURF_PUSH', payload: json(result) },
+        };
+      },
+    });
+  },
+};
