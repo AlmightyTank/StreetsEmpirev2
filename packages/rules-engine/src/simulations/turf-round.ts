@@ -125,10 +125,19 @@ function bestRows(rows: readonly TurfBlockSummary[], limit: number): TurfBlockSu
     .slice(0, Math.max(0, limit));
 }
 
+const pushRateCache = new WeakMap<object, { solo: number; alliance: number }>();
+
 function fieldAttackerWinRate(ruleset: Ruleset, field: TurfRoundField): number {
-  const pushes = runTurfPushSimulation(ruleset);
-  if (!pushes) return 0;
-  return field === 'alliance' ? pushes.reinforcementWinRate : pushes.noBackupWinRate;
+  let cached = pushRateCache.get(ruleset);
+  if (!cached) {
+    const pushes = runTurfPushSimulation(ruleset);
+    cached = {
+      solo: pushes?.noBackupWinRate ?? 0,
+      alliance: pushes?.reinforcementWinRate ?? 0,
+    };
+    pushRateCache.set(ruleset, cached);
+  }
+  return cached[field];
 }
 
 function holdDays(ruleset: Ruleset, field: TurfRoundField, days: number): number {
