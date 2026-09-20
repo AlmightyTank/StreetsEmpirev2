@@ -5,6 +5,7 @@ import type {
   AlertType,
   BadgeCard,
   BattleEvent,
+  CrackdownEvent,
   HallOfFame,
   History,
   Leaderboard,
@@ -462,6 +463,23 @@ export function territoryFeedEmbed(event: TerritoryEvent): APIEmbed {
     color: event.next ? BRAND_COLOR : MUTED_COLOR,
     description: `${description}\n${escapeMarkdown(event.roundName)}`,
     timestamp: event.happenedAt,
+  };
+}
+
+export function crackdownFeedEmbed(event: CrackdownEvent): APIEmbed {
+  const warning = event.phase === 'warning';
+  const description = warning
+    ? `Word is the Feds are sweeping **${escapeMarkdown(event.cityName)}** tomorrow. Turf crews have until then to pull out.`
+    : event.thugsPickedUp > 0
+      ? `The Feds swept **${escapeMarkdown(event.cityName)}**. ${event.thugsPickedUp} corner men were picked up across ${event.holdersAffected} crew${event.holdersAffected === 1 ? '' : 's'}.`
+      : `The Feds swept **${escapeMarkdown(event.cityName)}**, but the corners were already clear.`;
+  return {
+    title: warning
+      ? `${escapeMarkdown(event.cityName)} · Federal sweep incoming`
+      : `${escapeMarkdown(event.cityName)} · Federal sweep landed`,
+    color: warning ? BRAND_COLOR : MUTED_COLOR,
+    description: `${description}\n${escapeMarkdown(event.roundName)}`,
+    timestamp: warning ? event.warningAt : event.sweepAt,
   };
 }
 
