@@ -273,6 +273,8 @@ export interface TurfBattleReportDto {
   strength: { attacker: number; defender: number } | null;
   shieldUntil: string | null;
   revengeUntil: string | null;
+  /** 0.6.0-D. Positive for the attacker, negative for the defender; empty on home turf. */
+  outpostLoot: { cashCents: number; beer: number; products: Record<string, number> } | null;
 }
 
 export interface CityTurfDto {
