@@ -434,7 +434,7 @@ function MoveOn({ run, data, onDone }: { run: RunDto; data: TravelDto; onDone: (
   );
 }
 
-/** The whole trip as a line of stops, the run's place on it, and what it carries. */
+/** Shows the active run's itinerary, current leg and progress, cargo, and town actions. */
 export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; onDone: () => void }) {
   const { msRemaining } = useCountdown(run.position.until, onDone);
   const inTown = run.position.phase === 'town';
