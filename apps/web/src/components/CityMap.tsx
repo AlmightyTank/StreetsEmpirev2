@@ -99,19 +99,30 @@ export function RoadMap({ data, selected, onSelect, runAt, runAts }: {
         if (!at) return null;
         const on = city.slug === selected;
         const label = SHORT_CITY[city.slug] ?? city.name;
+        const control = city.turf?.control ?? null;
         const text = at.label === 'left' ? { x: at.x - 9, y: at.y + 4, anchor: 'end' as const }
           : at.label === 'right' ? { x: at.x + 9, y: at.y + 4, anchor: 'start' as const }
             : at.label === 'above' ? { x: at.x, y: at.y - 10, anchor: 'middle' as const }
               : { x: at.x, y: at.y + 18, anchor: 'middle' as const };
         return (
           <g key={city.slug} className={`se-citymap__city${on ? ' se-citymap__city--on' : ''}${city.isHome ? ' se-citymap__city--home' : ''}`}
-            role="button" tabIndex={0} aria-pressed={on} aria-label={`${city.name}${city.isHome ? ', home' : ''}`}
+            role="button" tabIndex={0} aria-pressed={on} aria-label={`${city.name}${city.isHome ? ', home' : ''}${control ? `, controlled by ${control.alliance.name}` : ''}`}
             onClick={() => onSelect(city.slug)}
             onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(city.slug); } }}>
             <circle cx={at.x} cy={at.y} r={14} className="se-citymap__hit" />
             {city.isHome ? <circle cx={at.x} cy={at.y} r={9} className="se-citymap__ring" /> : null}
             <circle cx={at.x} cy={at.y} r={5.5} className="se-citymap__dot" />
             <text x={text.x} y={text.y} textAnchor={text.anchor} className="se-citymap__label">{label}</text>
+            {control ? (
+              <text
+                x={at.x}
+                y={at.y + (at.label === 'below' ? -11 : 14)}
+                textAnchor="middle"
+                className={`se-citymap__control${control.isYours ? ' se-citymap__control--mine' : ''}`}
+              >
+                [{control.alliance.tag}]
+              </text>
+            ) : null}
           </g>
         );
       })}
@@ -273,6 +284,13 @@ export function CityDetail({ city, products, home, onTurfChanged }: { city: City
     <Panel title={city.name} aside={city.isHome ? 'Home' : city.gameMinutes !== null ? `${minutesText(city.gameMinutes)} from ${home}` : undefined}>
       <p className="se-city__trait">{city.trait}</p>
       <p className="se-dim">{city.blurb}</p>
+      {city.turf?.control ? (
+        <p className={`se-hint${city.turf.control.isYours ? ' se-good' : ''}`}>
+          <strong>[{city.turf.control.alliance.tag}] {city.turf.control.alliance.name}</strong> controls this city
+          {' '}· {formatNumber(city.turf.control.blocksHeld)}/{formatNumber(city.turf.control.blocksTotal)} blocks
+          {city.turf.control.isYours ? ' · your alliance pays no street tax here' : ''}
+        </p>
+      ) : null}
 
       <h3 className="se-city__heading">Street talk</h3>
       <ul className="se-city__talk">
