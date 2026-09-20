@@ -18,7 +18,7 @@ try {
     output = args[++i];
   }
   // 0.6.0-F release gate: run all existing 40-block and push balance checks against the shipping ruleset.
-  const ruleset = classicOgV06C;
+  const ruleset = classicOgV06F;
   const summaries = runTurfSimulation(ruleset);
   const round = runTurfRoundSimulation(ruleset);
   const report = [turfMarkdown(ruleset, summaries), turfRoundMarkdown(ruleset, round)].join('\n\n');
