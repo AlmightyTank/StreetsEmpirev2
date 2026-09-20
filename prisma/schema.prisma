@@ -326,6 +326,7 @@ model Round {
   turf        Turf[]
   turfTax     TurfTaxLedger[]
   turfPushes  TurfPush[]
+  turfControlEvents TurfControlEvent[]
 
   @@index([status])
 }
@@ -352,6 +353,7 @@ model City {
   players RoundPlayer[]
   turf    Turf[]
   turfPresence TurfPresence[]
+  turfControlEvents TurfControlEvent[]
 }
 
 // ---------------------------------------------------------------------------
@@ -1365,6 +1367,35 @@ model TurfPushBackup {
 
   @@unique([pushId, playerId])
   @@index([playerId, creditedAt])
+}
+
+/// 0.6.0-E. One durable alliance city-control change. Snapshot names/tags keep
+/// history readable if an alliance later renames or disbands.
+model TurfControlEvent {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  previousAllianceId   String?
+  previousAllianceName String?
+  previousAllianceTag  String?
+  nextAllianceId       String?
+  nextAllianceName     String?
+  nextAllianceTag      String?
+
+  previousBlocksHeld Int @default(0)
+  nextBlocksHeld     Int @default(0)
+  blocksTotal        Int
+
+  happenedAt       DateTime
+  discordPostedAt  DateTime?
+
+  @@index([roundId, happenedAt(sort: Desc)])
+  @@index([discordPostedAt, happenedAt])
 }
 
 /// 0.6.0-B. The daily turf-tax cap is per payer and holder. The worker's burn is not
