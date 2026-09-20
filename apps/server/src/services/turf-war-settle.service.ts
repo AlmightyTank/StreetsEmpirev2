@@ -152,8 +152,8 @@ export const TurfWarSettlementService = {
     return due.length;
   },
 
-  async land(prisma: PrismaClient, pushId: string, now: Date = new Date()): Promise<boolean> {
-    return prisma.$transaction(async (tx) => {
+  async land(prisma: PrismaClient | Db, pushId: string, now: Date = new Date()): Promise<boolean> {
+    const settle = async (tx: Db): Promise<boolean> => {
       const candidate = await tx.turfPush.findUnique({
         where: { id: pushId },
         include: { round: true, turf: { include: { city: true } } },
@@ -373,7 +373,85 @@ export const TurfWarSettlementService = {
         outpostLoot,
       }));
       return true;
-    }, { timeout: 15_000, maxWait: 10_000 });
+    };
+    return typeof (prisma as PrismaClient).$transaction === 'function'
+      ? (prisma as PrismaClient).$transaction((tx) => settle(tx as Db), { timeout: 15_000, maxWait: 10_000 })
+      : settle(prisma as Db);
+  },
+
+  /**
+   * Resolve every pending push at the standings cutoff. Pushes whose landing
+   * time has arrived are landed in order; later pushes are expired at the
+   * cutoff and their committed crews are returned by the normal credit pass.
+   * This leaves no PENDING push able to mutate turf after a round is frozen.
+   */
+  async resolveRoundAtCutoff(tx: Db, roundId: string, cutoff: Date): Promise<number> {
+    const due = await tx.turfPush.findMany({
+      where: { roundId, status: 'PENDING', landsAt: { lte: cutoff } },
+      select: { id: true },
+      orderBy: { landsAt: 'asc' },
+    });
+    let resolved = 0;
+    for (const row of due) {
+      if (await TurfWarSettlementService.land(tx, row.id, cutoff)) resolved++;
+    }
+
+    const future = await tx.turfPush.findMany({
+      where: { roundId, status: 'PENDING', landsAt: { gt: cutoff } },
+      select: { id: true },
+      orderBy: { landsAt: 'asc' },
+    });
+    for (const row of future) {
+      await lockPush(tx, row.id);
+      const push = await tx.turfPush.findUnique({
+        where: { id: row.id },
+        include: { backups: true },
+      });
+      if (!push || push.status !== 'PENDING' || push.landsAt <= cutoff) continue;
+
+      const attacker = crew(push.attackerCrew);
+      const attackerReturnedGuns = fromWeapons(attacker.weapons);
+      const result: StoredPushResult = {
+        won: false,
+        unopposed: false,
+        stale: true,
+        attackerWounds: 0,
+        defenderWounds: 0,
+        cornerWounds: 0,
+        ownerBackupWounds: 0,
+        allyBackup: 0,
+        defenders: {
+          corner: 0,
+          ownerBackup: 0,
+          allyCommitted: push.backups
+            .filter((backup) => backup.kind === 'ALLY')
+            .reduce((sum, backup) => sum + backup.thugs, 0),
+          allyShowed: 0,
+        },
+        attackerPostedThugs: 0,
+        attackerPostedGuns: { ...EMPTY },
+        attackerReturnedGuns,
+        strength: null,
+        shieldUntil: null,
+        recoverAt: null,
+        outpostLoot: null,
+      };
+      await tx.turfPushBackup.updateMany({
+        where: { pushId: push.id },
+        data: { showedUp: false, wounded: 0 },
+      });
+      await tx.turfPush.update({
+        where: { id: push.id },
+        data: {
+          status: 'LANDED',
+          settledAt: cutoff,
+          captured: false,
+          result: json(result),
+        },
+      });
+      resolved++;
+    }
+    return resolved;
   },
 
   async credit(tx: Db, playerId: string, now: Date = new Date()): Promise<void> {
