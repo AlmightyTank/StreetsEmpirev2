@@ -22,11 +22,21 @@ async function totalCrewThugs(tx: any, roundPlayerId: string, homeThugs: number)
 }
 async function lockBlock(tx: any, id: string): Promise<void> { await tx.$queryRaw`SELECT id FROM "Turf" WHERE id = ${id} FOR UPDATE`; }
 async function assertCaps(tx: any, player: any, roundId: string, cityId: string, ruleset: Ruleset): Promise<void> {
-  const home = await tx.turf.count({ where: { roundId, holderId: player.id, cityId } });
-  if (home >= ruleset.turf!.caps.blocksPerCrewHome) throw AppError.conflict('TURF_CREW_CAP', `You already hold your ${ruleset.turf!.caps.blocksPerCrewHome}-block home cap.`);
+  const [home, reserved] = await Promise.all([
+    tx.turf.count({ where: { roundId, holderId: player.id, cityId } }),
+    ruleset.turf?.wars ? tx.turfPush.count({ where: { roundId, attackerId: player.id, status: 'PENDING', turf: { cityId } } }) : 0,
+  ]);
+  if (home + reserved >= ruleset.turf!.caps.blocksPerCrewHome) {
+    throw AppError.conflict('TURF_CREW_CAP', `You already hold or are pushing for your ${ruleset.turf!.caps.blocksPerCrewHome}-block home cap.`);
+  }
   if (player.allianceId) {
-    const alliance = await tx.turf.count({ where: { roundId, cityId, holder: { allianceId: player.allianceId } } });
-    if (alliance >= ruleset.turf!.caps.blocksPerAllianceInCity) throw AppError.conflict('TURF_ALLIANCE_CAP', `Your alliance already holds ${ruleset.turf!.caps.blocksPerAllianceInCity} blocks in this city.`);
+    const [alliance, allianceReserved] = await Promise.all([
+      tx.turf.count({ where: { roundId, cityId, holder: { allianceId: player.allianceId } } }),
+      ruleset.turf?.wars ? tx.turfPush.count({ where: { roundId, status: 'PENDING', turf: { cityId }, attacker: { allianceId: player.allianceId } } }) : 0,
+    ]);
+    if (alliance + allianceReserved >= ruleset.turf!.caps.blocksPerAllianceInCity) {
+      throw AppError.conflict('TURF_ALLIANCE_CAP', `Your alliance already holds or is pushing for ${ruleset.turf!.caps.blocksPerAllianceInCity} blocks in this city.`);
+    }
   }
 }
 function engineGuns(guns: CornerGuns) { return { PISTOL: guns.pistols, SHOTGUN: guns.shotguns, TEK9: guns.tek9s, AK47: guns.ak47s }; }
@@ -124,6 +134,9 @@ export const TurfActionService = {
         await lockBlock(tx, block.id);
         const fresh = await tx.turf.findUniqueOrThrow({ where: { id: block.id } });
         if (fresh.holderId !== roundPlayerId) throw AppError.conflict('NOT_YOUR_TURF', 'You do not hold that block.');
+        if (ruleset.turf?.wars && await tx.turfPush.findFirst({ where: { turfId: fresh.id, status: 'PENDING' } })) {
+          throw AppError.conflict('TURF_UNDER_PUSH', 'That corner is under a push. Send fight backup instead of permanently posting more thugs.');
+        }
 
         const fit = fitThugs(current);
         if (input.thugs > fit) throw AppError.conflict('TURF_NOT_ENOUGH_FIT', `You only have ${fit} fit thugs at home.`);
