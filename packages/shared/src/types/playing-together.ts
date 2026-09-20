@@ -542,6 +542,8 @@ export interface TravelDto extends CitiesDto {
     market: { spread: number; quoteTolerance: number } | null;
     /** 0.5.0-F. A run can buy on the home high market as it loads up. */
     homeMarketAtLaunch: boolean;
+    /** 0.6.0-D. Null before away turf boxes exist. */
+    outposts: { cashCapCents: number; beerCap: number; productCap: number; transferTurnCost: number } | null;
   };
   /** What home has to load up with. */
   home: {
