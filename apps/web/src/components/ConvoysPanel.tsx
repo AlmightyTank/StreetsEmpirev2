@@ -137,7 +137,7 @@ function TargetRow({ target, data, squadFit, onDone }: { target: ConvoyTargetDto
   const nowMs = Date.now();
   const inReachNow = new Date(target.inReachFrom).getTime() <= nowMs && nowMs < new Date(target.inReachUntil).getTime();
   const gone = new Date(target.inReachUntil).getTime() <= nowMs;
-  const max = target.source === 'RUN' ? data.run?.escorts ?? 0 : squadFit;
+  const max = target.maxSquad;
   const [squad, setSquad] = useState<number | ''>(max > 0 ? max : '');
   const count = typeof squad === 'number' ? squad : 0;
   const block = tail.busy ? 'Getting on it.'
@@ -155,11 +155,14 @@ function TargetRow({ target, data, squadFit, onDone }: { target: ConvoyTargetDto
           : <span className="se-muted se-num">{gone ? `gone ${clock(target.inReachUntil)}` : `from ${clock(target.inReachFrom)}`}</span>}
       </p>
       <p className="se-hint se-num">{around}</p>
+      {target.sighting === 'CORNER'
+        ? <p className="se-hint">Corner sighting · live traffic only · no wallet, trunk or escort read.</p>
+        : <p className="se-hint">Paid recon sighting.</p>}
       <div className="se-meter se-convoys__meter" aria-label={`${Math.round(target.position.progress * 100)}% of its leg`}>
         <div className="se-meter__fill" style={{ width: `${Math.round(target.position.progress * 100)}%` }} />
       </div>
       {target.bands ? <p className="se-hint">{CASH_WORDS[target.bands.cash]} · {CARGO_WORDS[target.bands.cargo]} · {ESCORT_WORDS[target.bands.escort]}</p> : null}
-      {inReachNow ? (
+      {inReachNow && max > 0 ? (
         <div className="se-launch__with-all">
           <input className="se-input" type="number" inputMode="numeric" min={1} max={max} value={squad} aria-label="Squad"
             onChange={(event) => setSquad(whole(event.target.value))} />
@@ -226,18 +229,18 @@ export function ConvoysPanel({ products, refreshKey }: { products: Products; ref
       {alerts.length ? <ul className="se-convoys__list">{alerts.map((tail) => <TailRow key={tail.id} tail={tail} products={products} onDone={load} />)}</ul> : null}
       <p className="se-dim">
         Recon {data.squad.cityName}{data.run ? ` and around your run in ${data.run.cityName}` : ''} to find runs coming in, in town, driving through or leaving,
-        up to {data.rules.lookaheadMinutes} minutes ahead. A tail commits your squad and lands in {data.rules.warningMinutes} minutes if the run is still in reach.
-        Nobody is warned: an owner only spots a tail if their lookouts do.
+        up to {data.rules.lookaheadMinutes} minutes ahead. Your held corners also report live traffic for free, but without value or escort bands.
+        A tail commits your squad and lands in {data.rules.warningMinutes} minutes if the run is still in reach. Nobody is warned: an owner only spots a tail if their lookouts do.
       </p>
       <div className="se-convoys__recon">
         <ReconButton data={data} onDone={load} />
         {data.recon ? <span className="se-hint">Last recon {clock(data.recon.seenAt)}, good until {clock(data.recon.expiresAt)}.</span> : null}
       </div>
-      {data.recon
-        ? data.targets.length
-          ? <ul className="se-convoys__list">{data.targets.map((target) => <TargetRow key={target.runId} target={target} data={data} squadFit={data.squad.fit} onDone={load} />)}</ul>
-          : <p className="se-hint">Your recon found nothing coming near.</p>
-        : null}
+      {data.targets.length
+        ? <ul className="se-convoys__list">{data.targets.map((target) => <TargetRow key={target.runId} target={target} data={data} squadFit={data.squad.fit} onDone={load} />)}</ul>
+        : data.recon
+          ? <p className="se-hint">Your recon found nothing coming near, and no held corner sees live traffic.</p>
+          : <p className="se-hint">No held corner sees a run passing right now.</p>}
       <p className="se-hint">
         {data.rules.headsUpMinutes > 0
           ? `Your lookouts spot a tail on your own run about ${formatDuration(data.rules.headsUpMinutes * 60_000)} before it hits.`
