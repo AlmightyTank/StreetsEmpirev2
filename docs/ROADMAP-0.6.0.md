@@ -317,8 +317,10 @@ due sweep before final standings freeze.
    share simply be smaller than the worker's loss?
 2. **Caps.** Blocks per crew at home and away, and per alliance in a city. Two at home, one
    away, and three of five per alliance are starting points for the A simulation.
-3. **Does holding draw Heat?** Tax is dirty money. A little Heat per dollar would tie turf
-   to the city's police lines, and to the crackdown.
+3. **Heat from holding (resolved for 0.6.0-F).** Ordinary holding and street-tax income do
+   not add passive Heat. The seeded crackdown is the Turf police pressure instead: holders
+   caught in its target city take Heat per block. Revisit passive dirty-money Heat only if
+   public-round data shows holding is too safe.
 4. **Presence for outposts.** Can a run's crew build presence in a town, or must you have
    lived there?
 5. **Reinforcement beyond turf.** If the chance-to-show-up shape plays well on turf, does it
