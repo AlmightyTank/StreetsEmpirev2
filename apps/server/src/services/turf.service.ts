@@ -20,6 +20,7 @@ import type { Db } from '../utils/db.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
 import { turfRevengeByAttacker } from './turf-revenge.service.js';
+import { endTurfHold } from './turf-history.service.js';
 import {
   controlFromRows,
   recordTerritoryControlChange,
@@ -304,6 +305,7 @@ export const TurfService = {
           // Nobody remains to secure the remote box. Deserters take their guns and the
           // abandoned stock is lost rather than teleporting back to the home city.
           await tx.turfOutpost.delete({ where: { id: box.id } });
+          await endTurfHold(tx, row.id, now);
           await tx.turf.update({
             where: { id: row.id },
             data: {
@@ -317,7 +319,6 @@ export const TurfService = {
         }
         continue;
       }
-      if (wholeHours <= 0 || row.cornerThugs <= 0) continue;
       if (wholeHours <= 0 || row.cornerThugs <= 0) continue;
       const need = cornerUpkeep(ruleset, row.cornerThugs, wholeHours);
       const beerUsed = Math.min(beer, need.beer);
@@ -345,6 +346,7 @@ export const TurfService = {
       const controlBefore = cornerAfter <= 0
         ? await territoryControlForCity(tx, player.roundId, row.cityId, ruleset)
         : null;
+      if (cornerAfter <= 0) await endTurfHold(tx, row.id, now);
       await tx.turf.update({
         where: { id: row.id },
         data: cornerAfter > 0
