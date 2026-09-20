@@ -242,6 +242,8 @@
 .se-citymap__dot { fill: var(--se-text-dim); stroke: var(--se-panel); stroke-width: 2; }
 .se-citymap__ring { fill: none; stroke: var(--se-accent); stroke-width: 1.5; opacity: 0.7; }
 .se-citymap__label { fill: var(--se-text-dim); font-size: 11px; font-weight: 600; pointer-events: none; }
+.se-citymap__control { fill: var(--se-text-dim); font-size: 8px; font-weight: 700; letter-spacing: .04em; pointer-events: none; opacity: .8; }
+.se-citymap__control--mine { fill: var(--se-accent); opacity: 1; }
 .se-citymap__city:hover .se-citymap__dot,
 .se-citymap__city:focus-visible .se-citymap__dot { fill: #fff; }
 .se-citymap__city:focus-visible .se-citymap__hit { stroke: var(--se-accent); stroke-width: 1.5; }
