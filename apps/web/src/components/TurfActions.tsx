@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type {
   GameActionResult,
   TurfBlockDto,
@@ -12,6 +12,7 @@ import type {
 import { formatNumber } from '@streets/shared';
 import { api } from '../api/client.js';
 import { useGameAction } from '../hooks/useGameAction.js';
+import { useSession } from '../stores/session.js';
 import { Button } from './Button.js';
 
 type TurfResult =
@@ -36,7 +37,17 @@ export function TurfActions({
   onChanged?: () => void;
 }) {
   const action = useGameAction<TurfResult>();
-  const [thugs, setThugs] = useState(Math.max(1, block.cornerMinimumThugs));
+  const me = useSession((s) => s.me);
+  const armedAtHome = me?.resources.armedThugs ?? 0;
+  const suggested = block.holder
+    ? Math.max(1, block.cornerMinimumThugs)
+    : Math.max(1, block.cornerMinimumThugs, Math.ceil(block.localsThugs * 1.25));
+  const suggestedWithinCrew = armedAtHome > 0 ? Math.min(suggested, armedAtHome) : suggested;
+  const [thugs, setThugs] = useState(suggestedWithinCrew);
+
+  useEffect(() => {
+    setThugs(suggestedWithinCrew);
+  }, [block.city, block.district, block.holder?.publicPimpId, block.cornerMinimumThugs, block.localsThugs, suggestedWithinCrew]);
 
   if (!holdingEnabled) return null;
 
@@ -144,11 +155,15 @@ export function TurfActions({
   // Incoming pushes still need to be defendable here by the remote owner.
   if (!isHome) return null;
 
+  const claimAmountBlockedReason = !block.holder && armedAtHome > 0 && thugs > armedAtHome
+    ? `You only have ${formatNumber(armedAtHome)} fit, armed thugs at home.`
+    : null;
+
   const controls = !block.holder ? (
     <Button
       type="button"
       className="se-btn se-btn--sm"
-      disabledReason={action.busy ? 'That corner move is still going through.' : block.claimBlockedReason}
+      disabledReason={action.busy ? 'That corner move is still going through.' : block.claimBlockedReason ?? claimAmountBlockedReason}
       onClick={() => void run('/game/turf/claim', thugs)}
     >
       Claim with {formatNumber(thugs)}
@@ -188,22 +203,32 @@ export function TurfActions({
   return (
     <div className="se-turfactions">
       <label className="se-field">
-        <span className="se-field__label">Corner thugs</span>
+        <span className="se-field__label">{block.holder ? 'Corner thugs' : 'Claim squad'}</span>
         <input
           className="se-input"
           type="number"
           inputMode="numeric"
           min={1}
+          max={armedAtHome > 0 ? armedAtHome : undefined}
           step={1}
           value={thugs}
           onChange={(event) => setThugs(Math.max(1, Math.floor(Number(event.target.value) || 1)))}
         />
       </label>
+      {!block.holder ? (
+        <span className="se-hint">
+          Locals have {formatNumber(block.localsThugs)} on this block. The {formatNumber(block.cornerMinimumThugs)}-thug corner minimum is what you must leave posted after a win, not the force needed to beat them.
+        </span>
+      ) : null}
       <div className="se-actions-row">{controls}</div>
       {block.claimBlockedReason && !block.isMine ? <span className="se-hint">{block.claimBlockedReason}</span> : null}
       {block.pushBlockedReason && block.holder && !block.isMine ? <span className="se-hint">{block.pushBlockedReason}</span> : null}
       {action.error ? <span className="se-error">{action.error}</span> : null}
-      {action.result ? <span className="se-action-confirm">Corner updated.</span> : null}
+      {action.result && 'won' in action.result.result && 'localsThugs' in action.result.result ? (
+        action.result.result.won
+          ? <span className="se-action-confirm">You took {action.result.result.districtName} with {formatNumber(action.result.result.squad)} thugs.</span>
+          : <span className="se-error">The locals held {action.result.result.districtName}. Your {formatNumber(action.result.result.squad)}-thug squad lost to {formatNumber(action.result.result.localsThugs)} locals.</span>
+      ) : action.result ? <span className="se-action-confirm">Corner updated.</span> : null}
     </div>
   );
 }
