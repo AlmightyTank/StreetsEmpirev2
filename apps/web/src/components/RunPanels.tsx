@@ -462,7 +462,13 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
       </ol>
       {!inTown ? (
         <div className="se-run__leg">
-          <span className="se-num">{run.position.road ? `${cityLabel(data, run.position.road.from)} → ${cityLabel(data, run.position.road.to)}` : ''}</span>
+          <div className="se-run__leg-head">
+            <span className="se-muted">Current leg</span>
+            <strong className="se-num">
+              {run.position.road ? `${cityLabel(data, run.position.road.from)} → ${cityLabel(data, run.position.road.to)}` : ''}
+            </strong>
+            <span className="se-muted se-num">{Math.round(run.position.progress * 100)}%</span>
+          </div>
           <div className="se-meter" aria-label={`${Math.round(run.position.progress * 100)}% of the way`}>
             <div className="se-meter__fill" style={{ width: `${Math.round(run.position.progress * 100)}%` }} />
           </div>
