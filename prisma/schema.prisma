@@ -327,6 +327,7 @@ model Round {
   turfTax     TurfTaxLedger[]
   turfPushes  TurfPush[]
   turfControlEvents TurfControlEvent[]
+  turfHoldSegments TurfHoldSegment[]
 
   @@index([status])
 }
@@ -554,6 +555,7 @@ model RoundPlayer {
   turfPushBackups        TurfPushBackup[]
   /// 0.6.0-D. Supply/tax boxes for away turf.
   turfOutposts           TurfOutpost[]
+  turfHoldSegments       TurfHoldSegment[]
   /// 0.4.0-B. Which products each job burns, in order.
   supplyPolicies        WorkSupplyPolicy[]
   /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
@@ -1242,6 +1244,7 @@ model Turf {
 
   pushes TurfPush[]
   outpost TurfOutpost?
+  holdSegments TurfHoldSegment[]
 
   @@unique([roundId, cityId, district])
   @@index([roundId, holderId])
@@ -1367,6 +1370,39 @@ model TurfPushBackup {
 
   @@unique([pushId, playerId])
   @@index([playerId, creditedAt])
+}
+
+/// 0.6.0-E. One continuous stretch where a crew held a block with one alliance
+/// identity. Alliance membership changes split the segment so old hours never move
+/// retroactively to a new alliance.
+model TurfHoldSegment {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  turfId String
+  turf   Turf @relation(fields: [turfId], references: [id], onDelete: Cascade)
+
+  holderId String
+  holder   RoundPlayer @relation(fields: [holderId], references: [id], onDelete: Cascade)
+
+  holderPublicPimpId Int
+  holderName         String
+
+  /// Snapshot only. We deliberately do not FK this because disband/rename history must survive.
+  allianceId   String?
+  allianceName String?
+  allianceTag  String?
+
+  startedAt DateTime
+  endedAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([roundId, holderId, startedAt])
+  @@index([roundId, allianceId, startedAt])
+  @@index([turfId, endedAt])
 }
 
 /// 0.6.0-E. One durable alliance city-control change. Snapshot names/tags keep
