@@ -13,11 +13,13 @@ import type { Db } from '../utils/db.js';
 import { lockRoundPlayer } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
 import { CombatRecoveryService } from './combat-recovery.service.js';
+import { ProductInventoryService } from './product-inventory.service.js';
 import {
   TurfService,
   addCornerGuns,
   cornerGunWorthCents,
   gunsFromTurf,
+  outpostBoxWorthCents,
   releaseCornerGuns,
   subtractCornerGuns,
   turfGunData,
@@ -27,6 +29,12 @@ import {
 type Weapons = Record<WeaponKey, number>;
 type PushModel = NonNullable<ReturnType<typeof turfPushCombatModel>>;
 interface CrewSnapshot { thugHappiness: number; weapons: Weapons; }
+interface OutpostLoot {
+  cashCents: number;
+  beer: number;
+  products: Record<string, number>;
+}
+
 interface StoredPushResult {
   won: boolean;
   unopposed: boolean;
@@ -43,6 +51,7 @@ interface StoredPushResult {
   strength: { attacker: number; defender: number } | null;
   shieldUntil: string | null;
   recoverAt: string | null;
+  outpostLoot: OutpostLoot | null;
 }
 
 const EMPTY: CornerGuns = { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
@@ -76,6 +85,35 @@ function committedWeapons(snapshot: CrewSnapshot, count: number, model: PushMode
     left -= take;
   }
   return out;
+}
+
+function outpostCaptureLoot(
+  ruleset: ReturnType<typeof loadRulesetForRound>,
+  box: { cashCents: bigint; beer: number; products: Prisma.JsonValue },
+): OutpostLoot {
+  const rules = ruleset.turf?.outposts;
+  if (!rules) return { cashCents: 0, beer: 0, products: {} };
+  const products = box.products as Record<string, number>;
+  let productRoom = rules.lootProductCap;
+  const lootedProducts: Record<string, number> = {};
+  for (const key of Object.keys(products).sort()) {
+    if (productRoom <= 0) break;
+    const quantity = Math.max(0, products[key] ?? 0);
+    const take = Math.min(productRoom, Math.floor(quantity * rules.lootShare));
+    if (take > 0) {
+      lootedProducts[key] = take;
+      productRoom -= take;
+    }
+  }
+  return {
+    cashCents: Math.min(rules.lootCashCapCents, Math.floor(Number(box.cashCents) * rules.lootShare)),
+    beer: Math.min(rules.lootBeerCap, Math.floor(box.beer * rules.lootShare)),
+    products: lootedProducts,
+  };
+}
+
+function hasLoot(loot: OutpostLoot): boolean {
+  return loot.cashCents > 0 || loot.beer > 0 || Object.values(loot.products).some((quantity) => quantity > 0);
 }
 
 async function lockPush(tx: Db, id: string): Promise<void> {
@@ -139,7 +177,7 @@ export const TurfWarSettlementService = {
       await lockBlock(tx, loaded.turfId);
 
       const [turf, defender, backups] = await Promise.all([
-        tx.turf.findUniqueOrThrow({ where: { id: loaded.turfId }, include: { city: true } }),
+        tx.turf.findUniqueOrThrow({ where: { id: loaded.turfId }, include: { city: true, outpost: true } }),
         tx.roundPlayer.findUniqueOrThrow({ where: { id: loaded.defenderId } }),
         tx.turfPushBackup.findMany({ where: { pushId }, orderBy: { sentAt: 'asc' } }),
       ]);
@@ -221,6 +259,16 @@ export const TurfWarSettlementService = {
       const attackerPostedGuns = won ? subtractCornerGuns(attackerGuns, attackerReturnedGuns) : { ...EMPTY };
       const attackerPostedThugs = won ? Math.max(0, loaded.squad - attackerWounds) : 0;
 
+      const capturedOutpost = won && stillDefended && turf.outpost ? turf.outpost : null;
+      const outpostLoot = capturedOutpost ? outpostCaptureLoot(base, capturedOutpost) : null;
+      const capturedOutpostWorth = capturedOutpost
+        ? outpostBoxWorthCents(base, {
+            cashCents: capturedOutpost.cashCents,
+            beer: capturedOutpost.beer,
+            products: capturedOutpost.products as Record<string, number>,
+          })
+        : 0n;
+
       const ownerBackupGuns = ownerBackups.reduce(
         (sum, backup) => addCornerGuns(sum, fromWeapons(crew(backup.crew).weapons)),
         { ...EMPTY },
@@ -243,6 +291,11 @@ export const TurfWarSettlementService = {
             postedNetWorthCents: defender.postedNetWorthCents >= defenderReturnedWorth
               ? defender.postedNetWorthCents - defenderReturnedWorth
               : 0n,
+            ...(capturedOutpost ? {
+              outpostNetWorthCents: defender.outpostNetWorthCents >= capturedOutpostWorth
+                ? defender.outpostNetWorthCents - capturedOutpostWorth
+                : 0n,
+            } : {}),
           },
         });
       }
@@ -266,6 +319,11 @@ export const TurfWarSettlementService = {
       }
 
       const shieldUntil = won ? new Date(at.getTime() + rules.push.shieldHours * 3_600_000) : null;
+      if (capturedOutpost) {
+        // The local winner keeps only the capped exposed share. The rest of an
+        // unsecured remote box is lost with the outpost; it is never wired home.
+        await tx.turfOutpost.delete({ where: { id: capturedOutpost.id } });
+      }
       if (won) {
         await tx.turf.update({
           where: { id: turf.id },
@@ -293,6 +351,7 @@ export const TurfWarSettlementService = {
         },
         attackerPostedThugs, attackerPostedGuns, attackerReturnedGuns,
         strength, shieldUntil: shieldUntil?.toISOString() ?? null, recoverAt: recoverAt?.toISOString() ?? null,
+        outpostLoot,
       };
       await tx.turfPush.update({
         where: { id: loaded.id },
@@ -301,6 +360,7 @@ export const TurfWarSettlementService = {
       await ActivityService.log(tx, defender.id, 'TURF_PUSH_DEFENSE', json({
         pushId: loaded.id, district: turf.district, held: !won, unopposed, stale,
         attackerWounds, defenderWounds, cornerWounds, ownerBackupWounds, allyBackup: allyShown, strength,
+        outpostLoot,
       }));
       return true;
     }, { timeout: 15_000, maxWait: 10_000 });
@@ -325,6 +385,9 @@ export const TurfWarSettlementService = {
     let busyThugs = player.busyThugs;
     let postedThugs = player.postedThugs;
     let postedNetWorthCents = player.postedNetWorthCents;
+    let cashCents = player.cashCents;
+    let beer = player.beer;
+    const productLoot: Record<string, number> = {};
     let homeGuns: CornerGuns = { pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s };
 
     for (const push of pushes) {
@@ -337,10 +400,18 @@ export const TurfWarSettlementService = {
       if (result.recoverAt && result.attackerWounds > 0) {
         await CombatRecoveryService.add(tx, playerId, null, result.attackerWounds, new Date(result.recoverAt));
       }
+      if (result.outpostLoot && hasLoot(result.outpostLoot)) {
+        cashCents += BigInt(result.outpostLoot.cashCents);
+        beer += result.outpostLoot.beer;
+        for (const [key, quantity] of Object.entries(result.outpostLoot.products)) {
+          productLoot[key] = (productLoot[key] ?? 0) + quantity;
+        }
+      }
       await tx.turfPush.update({ where: { id: push.id }, data: { attackerCreditedAt: now } });
       await ActivityService.log(tx, playerId, 'TURF_PUSH_ATTACK', json({
         pushId: push.id, won: result.won, unopposed: result.unopposed, stale: result.stale,
         wounds: result.attackerWounds, posted: result.attackerPostedThugs, strength: result.strength,
+        outpostLoot: result.outpostLoot,
       }));
     }
 
@@ -360,9 +431,12 @@ export const TurfWarSettlementService = {
       }));
     }
 
+    if (Object.keys(productLoot).length > 0) {
+      await ProductInventoryService.adjust(tx, playerId, ruleset, productLoot);
+    }
     await tx.roundPlayer.update({
       where: { id: playerId },
-      data: { busyThugs, postedThugs, postedNetWorthCents, ...homeGuns },
+      data: { cashCents, beer, busyThugs, postedThugs, postedNetWorthCents, ...homeGuns },
     });
   },
 };
