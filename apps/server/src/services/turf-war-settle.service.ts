@@ -25,6 +25,7 @@ import {
 } from './turf.service.js';
 
 type Weapons = Record<WeaponKey, number>;
+type PushModel = NonNullable<ReturnType<typeof turfPushCombatModel>>;
 interface CrewSnapshot { thugHappiness: number; weapons: Weapons; }
 interface StoredPushResult {
   won: boolean;
@@ -48,6 +49,32 @@ const fromWeapons = (w: Weapons): CornerGuns => ({ pistols: w.PISTOL ?? 0, shotg
 const toWeapons = (g: CornerGuns): Weapons => ({ PISTOL: g.pistols, SHOTGUN: g.shotguns, TEK9: g.tek9s, AK47: g.ak47s });
 const addWeapons = (a: Weapons, b: Weapons): Weapons => ({ PISTOL: a.PISTOL + b.PISTOL, SHOTGUN: a.SHOTGUN + b.SHOTGUN, TEK9: a.TEK9 + b.TEK9, AK47: a.AK47 + b.AK47 });
 const crew = (value: Prisma.JsonValue) => value as unknown as CrewSnapshot;
+
+function engagement(groups: Array<{ key: string; size: number }>, cap: number): Record<string, number> {
+  const engaged: Record<string, number> = {};
+  let left = cap;
+  for (const group of groups) {
+    const count = Math.min(Math.max(0, group.size), left);
+    engaged[group.key] = count;
+    left -= count;
+    if (left <= 0) break;
+  }
+  return engaged;
+}
+
+function committedWeapons(snapshot: CrewSnapshot, count: number, model: PushModel): Weapons {
+  const out: Weapons = { PISTOL: 0, SHOTGUN: 0, TEK9: 0, AK47: 0 };
+  let left = count;
+  const keys = (Object.keys(model.weapons) as WeaponKey[])
+    .sort((a, b) => model.weapons[b].power - model.weapons[a].power || a.localeCompare(b));
+  for (const key of keys) {
+    if (left <= 0) break;
+    const take = Math.min(snapshot.weapons[key] ?? 0, left);
+    out[key] = take;
+    left -= take;
+  }
+  return out;
+}
 
 async function lockPush(tx: Db, id: string): Promise<void> {
   await tx.$queryRaw`SELECT id FROM "TurfPush" WHERE id = ${id} FOR UPDATE`;
@@ -143,24 +170,23 @@ export const TurfWarSettlementService = {
       const woundByBackup = new Map<string, number>();
 
       if (stillDefended) {
-        const groups: Record<string, number> = { corner: turf.cornerThugs };
-        let defenderWeapons = toWeapons(gunsFromTurf(turf));
-        let defenderCount = turf.cornerThugs;
-        let moraleTotal = turf.cornerThugs * defender.thugHappiness;
-
-        for (const backup of ownerBackups) {
-          groups[`owner:${backup.id}`] = backup.thugs;
-          defenderCount += backup.thugs;
-          const snap = crew(backup.crew);
-          defenderWeapons = addWeapons(defenderWeapons, snap.weapons);
-          moraleTotal += backup.thugs * snap.thugHappiness;
-        }
-        for (const backup of shownAllies) {
-          groups[`ally:${backup.id}`] = backup.thugs;
-          defenderCount += backup.thugs;
-          const snap = crew(backup.crew);
-          defenderWeapons = addWeapons(defenderWeapons, snap.weapons);
-          moraleTotal += backup.thugs * snap.thugHappiness;
+        const groups = [
+          { key: 'corner', size: turf.cornerThugs, snapshot: { thugHappiness: defender.thugHappiness, weapons: toWeapons(gunsFromTurf(turf)) } },
+          ...ownerBackups.map((backup) => ({ key: `owner:${backup.id}`, size: backup.thugs, snapshot: crew(backup.crew) })),
+          ...shownAllies.map((backup) => ({ key: `ally:${backup.id}`, size: backup.thugs, snapshot: crew(backup.crew) })),
+        ];
+        // The combat model has a hard engagement cap. Corner thugs fill it first,
+        // then owner backup, then allies in send order; only engaged groups can be wounded.
+        const engaged = engagement(groups.map(({ key, size }) => ({ key, size })), model.squadCap);
+        let defenderWeapons: Weapons = { PISTOL: 0, SHOTGUN: 0, TEK9: 0, AK47: 0 };
+        let defenderCount = 0;
+        let moraleTotal = 0;
+        for (const group of groups) {
+          const count = engaged[group.key] ?? 0;
+          if (count <= 0) continue;
+          defenderCount += count;
+          moraleTotal += count * group.snapshot.thugHappiness;
+          defenderWeapons = addWeapons(defenderWeapons, committedWeapons(group.snapshot, count, model));
         }
 
         const fight = simulateRaid({
@@ -182,7 +208,7 @@ export const TurfWarSettlementService = {
         strength = { attacker: Math.round(fight.effectiveStrength.attacker), defender: Math.round(fight.effectiveStrength.defender) };
         recoverAt = new Date(at.getTime() + model.wounds.recoveryMinutes * 60_000);
 
-        const split = splitWounds(defenderWounds, groups);
+        const split = splitWounds(defenderWounds, engaged);
         cornerWounds = split.corner ?? 0;
         for (const backup of ownerBackups) woundByBackup.set(backup.id, split[`owner:${backup.id}`] ?? 0);
         for (const backup of shownAllies) woundByBackup.set(backup.id, split[`ally:${backup.id}`] ?? 0);
