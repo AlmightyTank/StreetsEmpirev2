@@ -25,6 +25,7 @@ import {
   turfGunData,
   type CornerGuns,
 } from './turf.service.js';
+import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
 
 type Weapons = Record<WeaponKey, number>;
 type PushModel = NonNullable<ReturnType<typeof turfPushCombatModel>>;
@@ -318,6 +319,9 @@ export const TurfWarSettlementService = {
         });
       }
 
+      const controlBefore = won
+        ? await territoryControlForCity(tx, loaded.roundId, turf.cityId, base)
+        : null;
       const shieldUntil = won ? new Date(at.getTime() + rules.push.shieldHours * 3_600_000) : null;
       if (capturedOutpost) {
         // The local winner keeps only the capped exposed share. The rest of an
@@ -337,6 +341,9 @@ export const TurfWarSettlementService = {
             localsAt: at,
             localsReclaimAt: null,
           },
+        });
+        await recordTerritoryControlChange(tx, {
+          roundId: loaded.roundId, cityId: turf.cityId, ruleset: base, before: controlBefore, at,
         });
       }
 
