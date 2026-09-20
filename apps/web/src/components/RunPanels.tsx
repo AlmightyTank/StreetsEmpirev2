@@ -23,17 +23,17 @@ function whole(value: string): number | '' {
 }
 
 /** The ways to a city, fetched as the player picks it. */
-function useRoutes(to: string, reloadKey: unknown): { routes: TravelRoutesDto | null; error: string | null } {
+function useRoutes(to: string, reloadKey: unknown, runId?: string): { routes: TravelRoutesDto | null; error: string | null } {
   const [routes, setRoutes] = useState<TravelRoutesDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (!to) { setRoutes(null); return; }
     let active = true;
-    api.get<TravelRoutesDto>(`/game/travel/routes?to=${encodeURIComponent(to)}`)
+    api.get<TravelRoutesDto>(`/game/travel/routes?to=${encodeURIComponent(to)}${runId ? `&runId=${encodeURIComponent(runId)}` : ''}`)
       .then((next) => { if (active) { setRoutes(next); setError(null); } })
       .catch((caught: unknown) => { if (active) { setRoutes(null); setError(caught instanceof ApiError ? caught.message : 'Could not plan that drive.'); } });
     return () => { active = false; };
-  }, [to, reloadKey]);
+  }, [to, reloadKey, runId]);
   return { routes, error };
 }
 
@@ -292,7 +292,7 @@ function TownCounter({ run, data, onDone }: { run: RunDto; data: TravelDto; onDo
     event.preventDefault();
     if (block) return;
     await trade.run((actionId): Promise<GameActionResult<RunTradeResult>> => api.post('/game/travel/trade', {
-      product, direction, venue, quantity: qty, actionId, ...(onMarket ? { quoteCents: unit } : {}),
+      runId: run.id, product, direction, venue, quantity: qty, actionId, ...(onMarket ? { quoteCents: unit } : {}),
     }));
     setQuantity('');
     onDone();
@@ -527,7 +527,7 @@ function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: TravelDto;
             onClick={async () => {
               if (!target) return;
               await establish.run((actionId): Promise<GameActionResult<RunOutpostEstablishResult>> => api.post('/game/travel/outpost/establish', {
-                district: target.district, thugs: seedThugs, cashCents: seedCashCents, beer: seedBeer, products: seedProducts, actionId,
+                runId: run.id, district: target.district, thugs: seedThugs, cashCents: seedCashCents, beer: seedBeer, products: seedProducts, actionId,
               }));
               onDone();
             }}>
@@ -584,7 +584,7 @@ function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: TravelDto;
           <Button type="button" className="se-btn" disabledReason={transferBlock}
             onClick={async () => {
               await transfer.run((actionId): Promise<GameActionResult<RunOutpostTransferResult>> => api.post('/game/travel/outpost/transfer', {
-                district: boxBlock.district, direction, cashCents: moveCashCents, beer: moveBeerCount, products: movedProducts, actionId,
+                runId: run.id, district: boxBlock.district, direction, cashCents: moveCashCents, beer: moveBeerCount, products: movedProducts, actionId,
               }));
               onDone();
             }}>
@@ -602,7 +602,7 @@ function MoveOn({ run, data, onDone }: { run: RunDto; data: TravelDto; onDone: (
   const move = useGameAction<RunMoveResult>();
   const [to, setTo] = useState('');
   const [route, setRoute] = useState(0);
-  const { routes, error } = useRoutes(to, run.position.city);
+  const { routes, error } = useRoutes(to, run.position.city, run.id);
   useEffect(() => { setRoute(0); }, [to]);
   const chosen = routes?.routes[route] ?? null;
   const block = move.busy ? 'On the move.' : !to ? 'Pick a city.' : !chosen ? (error ?? 'Planning the drive...') : chosen.turns > data.home.turns ? `That costs ${chosen.turns} more turns and you have ${data.home.turns}.` : null;
@@ -617,18 +617,18 @@ function MoveOn({ run, data, onDone }: { run: RunDto; data: TravelDto; onDone: (
           {data.cities.filter((city) => !city.isHome && city.slug !== run.position.city).map((city) => <option key={city.slug} value={city.slug}>{city.name}</option>)}
         </select>
       </div>
-      {to && routes ? <RoutePicker routes={routes} value={route} onChange={setRoute} name="next-route" costLabel={(turns) => (turns ? `${turns} more turns` : 'no extra turns')} /> : null}
+      {to && routes ? <RoutePicker routes={routes} value={route} onChange={setRoute} name={`next-route-${run.id}`} costLabel={(turns) => (turns ? `${turns} more turns` : 'no extra turns')} /> : null}
       <div className="se-actions-row">
         <Button type="button" className="se-btn se-btn--primary" disabledReason={block}
           onClick={async () => {
-            await move.run((actionId): Promise<GameActionResult<RunMoveResult>> => api.post('/game/travel/drive-on', { to, route, actionId }));
+            await move.run((actionId): Promise<GameActionResult<RunMoveResult>> => api.post('/game/travel/drive-on', { runId: run.id, to, route, actionId }));
             onDone();
           }}>
           Drive on
         </Button>
         <Button type="button" className="se-btn" disabledReason={move.busy ? 'On the move.' : null}
           onClick={async () => {
-            await move.run((actionId): Promise<GameActionResult<RunMoveResult>> => api.post('/game/travel/head-home', { actionId }));
+            await move.run((actionId): Promise<GameActionResult<RunMoveResult>> => api.post('/game/travel/head-home', { runId: run.id, actionId }));
             onDone();
           }}>
           Head home now
