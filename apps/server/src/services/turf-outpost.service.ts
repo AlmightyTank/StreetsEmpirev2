@@ -19,7 +19,7 @@ import type {
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns } from './action.service.js';
 import { productKeys } from './product-inventory.service.js';
-import { RUN_INCLUDE, awayWorth, cargoOf, toStopPlans, type LoadedRun } from './run-settle.service.js';
+import { RUN_INCLUDE, cargoOf, toStopPlans, totalAwayWorth, type LoadedRun } from './run-settle.service.js';
 import {
   TurfService,
   cornerGunWorthCents,
@@ -80,9 +80,15 @@ function productUnits(products: Record<string, number>): number {
   return Object.values(products).reduce((sum, quantity) => sum + quantity, 0);
 }
 
-async function activeRunInTown(tx: any, roundPlayerId: string, ruleset: Ruleset, now: Date): Promise<{ run: LoadedRun; city: string }> {
-  const run = await tx.run.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, include: RUN_INCLUDE });
-  if (!run) throw AppError.conflict('NO_RUN', 'You have no run out.');
+async function activeRunInTown(tx: any, roundPlayerId: string, ruleset: Ruleset, now: Date, runId?: string): Promise<{ run: LoadedRun; city: string }> {
+  if (!runId) {
+    const count = await tx.run.count({ where: { roundPlayerId, status: 'ACTIVE' } });
+    if (count > 1) throw AppError.badRequest('RUN_PICK_REQUIRED', 'Pick which run is servicing the outpost.');
+  }
+  const run = runId
+    ? await tx.run.findUnique({ where: { id: runId }, include: RUN_INCLUDE })
+    : await tx.run.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, include: RUN_INCLUDE, orderBy: [{ launchedAt: 'asc' }, { id: 'asc' }] });
+  if (!run || run.roundPlayerId !== roundPlayerId || run.status !== 'ACTIVE') throw AppError.conflict('NO_RUN', 'That active run is not available.');
   const position = runPosition(ruleset, toStopPlans(run.stops), now);
   if (position.phase !== 'town') {
     throw AppError.conflict('NOT_IN_TOWN', position.phase === 'road' ? 'The run is still on the road.' : 'The run is already home.');
@@ -117,7 +123,7 @@ export const TurfOutpostService = {
       execute: async ({ tx, current, thugHappiness, player, round, ruleset, now }) => {
         const outpostRules = requireOutposts(ruleset);
         await TurfService.ensureRound(tx, round.id, ruleset);
-        const { run, city: citySlug } = await activeRunInTown(tx, roundPlayerId, ruleset, now);
+        const { run, city: citySlug } = await activeRunInTown(tx, roundPlayerId, ruleset, now, input.runId);
         if (citySlug === player.city.slug) throw AppError.conflict('OUTPOST_AT_HOME', 'Home turf is not an outpost.');
 
         const city = await tx.city.findUniqueOrThrow({ where: { slug: citySlug } });
@@ -249,10 +255,7 @@ export const TurfOutpostService = {
 
         const seedWorth = outpostBoxWorthCents(ruleset, { cashCents: BigInt(input.cashCents), beer: input.beer, products });
         const postedWorth = cornerGunWorthCents(ruleset, guns);
-        const newAway = awayWorth(ruleset, {
-          cashCents: runCash, beer: runBeer, lowRiders: run.lowRiders, escortThugs: runEscorts,
-          pistols: remainingGuns.pistols, shotguns: remainingGuns.shotguns, tek9s: remainingGuns.tek9s, ak47s: remainingGuns.ak47s,
-        }, remainingCargo);
+        const newAway = await totalAwayWorth(tx, roundPlayerId, ruleset);
 
         return {
           next: {
@@ -284,7 +287,7 @@ export const TurfOutpostService = {
       actionId: input.actionId,
       execute: async ({ tx, current, player, ruleset, now }) => {
         const outpostRules = requireOutposts(ruleset);
-        const { run, city: citySlug } = await activeRunInTown(tx, roundPlayerId, ruleset, now);
+        const { run, city: citySlug } = await activeRunInTown(tx, roundPlayerId, ruleset, now, input.runId);
         if (citySlug === player.city.slug) throw AppError.conflict('OUTPOST_AT_HOME', 'There is no away outpost to service at home.');
         const city = await tx.city.findUniqueOrThrow({ where: { slug: citySlug } });
         const key = input.district as DistrictKey;
@@ -362,10 +365,7 @@ export const TurfOutpostService = {
         }
         await tx.run.update({ where: { id: run.id }, data: { cashCents: nextRunCash, beer: nextRunBeer } });
 
-        const newAway = awayWorth(ruleset, {
-          cashCents: nextRunCash, beer: nextRunBeer, lowRiders: run.lowRiders, escortThugs: run.escortThugs,
-          pistols: run.pistols, shotguns: run.shotguns, tek9s: run.tek9s, ak47s: run.ak47s,
-        }, nextRunCargo);
+        const newAway = await totalAwayWorth(tx, roundPlayerId, ruleset);
         const outpostNetWorthCents = current.outpostNetWorthCents + (newWorth - oldWorth);
         if (outpostNetWorthCents < 0n) throw new RangeError('Outpost net worth fell below zero.');
 
