@@ -732,8 +732,10 @@ export interface ConvoyTargetDto {
   /** The city you would hit it in. */
   city: string;
   cityName: string;
-  /** Your squad from where you live, or your own run's escorts where it is. */
-  source: 'HOME' | 'RUN';
+  /** Your squad from home, your own run, or a corner that only sees the traffic. */
+  source: 'HOME' | 'RUN' | 'CORNER';
+  /** Paid recon has bands/lookahead; a corner sighting is live-only and bandless. */
+  sighting: 'RECON' | 'CORNER';
   /** The towns either side of this one on its route. Never where it is headed. */
   routeHere: { fromName: string | null; toName: string | null };
   kinds: ConvoyReachKindDto[];
@@ -744,6 +746,8 @@ export interface ConvoyTargetDto {
   position: { phase: 'road' | 'town'; cityName: string; progress: number };
   /** A look at it, while it is in reach: bands, never exact. */
   bands: { cash: 'light' | 'loaded' | 'heavy'; cargo: 'empty' | 'light' | 'half' | 'full'; escort: 'none' | 'light' | 'armed' | 'heavy' } | null;
+  /** Live squad size that can actually start a tail from this sighting. */
+  maxSquad: number;
   /** Someone already on its tail. */
   tailed: boolean;
   blockedReason: string | null;
