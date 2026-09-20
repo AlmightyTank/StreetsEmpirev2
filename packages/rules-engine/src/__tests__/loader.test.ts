@@ -130,6 +130,10 @@ describe('classic-og-v0.6-d contents', () => {
       beerCap: 2_000,
       productCap: 5_000,
       transferTurnCost: 2,
+      lootShare: 0.25,
+      lootCashCapCents: 5_000_000,
+      lootBeerCap: 500,
+      lootProductCap: 1_000,
     });
     expect({ ...ruleset, meta: null, turf: { ...ruleset.turf!, outposts: null } })
       .toEqual({ ...classicOgV06C, meta: null, turf: { ...classicOgV06C.turf, outposts: null } });
