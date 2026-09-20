@@ -308,6 +308,22 @@ export interface DiscordBattleEventDto {
   createdAt: string;
 }
 
+/** A successful turf push for the public street/combat feed. */
+export interface DiscordTurfEventDto {
+  id: string;
+  roundName: string;
+  city: string;
+  cityName: string;
+  district: string;
+  districtName: string;
+  attackerName: string;
+  attackerProfileUrl: string;
+  attackerAllianceTag: string | null;
+  defenderName: string;
+  defenderProfileUrl: string;
+  settledAt: string;
+}
+
 export interface DiscordRankAlertDto {
   discordId: string;
   displayName: string;
@@ -350,6 +366,7 @@ export interface DiscordAlertsClaimDto {
   attacks: DiscordAttackAlertDto[];
   roundAlerts: DiscordRoundAlertDto[];
   battles: DiscordBattleEventDto[];
+  turf: DiscordTurfEventDto[];
   rounds: DiscordRoundEventDto[];
 }
 
