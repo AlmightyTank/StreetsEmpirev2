@@ -1,11 +1,26 @@
 import { useState } from 'react';
-import type { GameActionResult, TurfBlockDto, TurfClaimResult, TurfPostResult, TurfPullResult, TurfPushStartResult } from '@streets/shared';
+import type {
+  GameActionResult,
+  TurfBlockDto,
+  TurfClaimResult,
+  TurfPostResult,
+  TurfPullResult,
+  TurfPushBackupResult,
+  TurfPushCallResult,
+  TurfPushStartResult,
+} from '@streets/shared';
 import { formatNumber } from '@streets/shared';
 import { api } from '../api/client.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { Button } from './Button.js';
 
-type TurfResult = TurfClaimResult | TurfPostResult | TurfPullResult | TurfPushStartResult;
+type TurfResult =
+  | TurfClaimResult
+  | TurfPostResult
+  | TurfPullResult
+  | TurfPushStartResult
+  | TurfPushBackupResult
+  | TurfPushCallResult;
 
 export function TurfActions({
   block,
@@ -43,12 +58,73 @@ export function TurfActions({
     onChanged?.();
   }
 
+  async function backup(pushId: string, amount: number) {
+    await action.run((actionId) => api.post<GameActionResult<TurfResult>>('/game/turf/push/backup', {
+      pushId,
+      thugs: amount,
+      actionId,
+    }));
+    onChanged?.();
+  }
+
+  async function callAllies(pushId: string) {
+    await action.run((actionId) => api.post<GameActionResult<TurfResult>>('/game/turf/push/call', {
+      pushId,
+      actionId,
+    }));
+    onChanged?.();
+  }
+
   if (block.push) {
+    const label = block.push.role === 'attacker'
+      ? 'Your push'
+      : block.push.role === 'defender'
+        ? 'Incoming push'
+        : 'Alliance call';
     return (
       <div className="se-turfactions">
         <span className="se-hint">
-          {block.push.role === 'attacker' ? 'Your push' : 'Incoming push'} · {formatNumber(block.push.squad)} thugs · lands {new Date(block.push.landsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+          {label} · {formatNumber(block.push.squad)} attacking · lands {new Date(block.push.landsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
         </span>
+        {block.push.role !== 'attacker' ? (
+          <>
+            <label className="se-field">
+              <span className="se-field__label">Fight backup</span>
+              <input
+                className="se-input"
+                type="number"
+                min={1}
+                step={1}
+                value={thugs}
+                disabled={block.push.backupSent || action.busy}
+                onChange={(event) => setThugs(Math.max(1, Math.floor(Number(event.target.value) || 1)))}
+              />
+            </label>
+            <div className="se-actions-row">
+              <Button
+                type="button"
+                className="se-btn se-btn--sm"
+                disabledReason={block.push.backupSent ? 'Your help is already committed.' : action.busy ? 'That turf move is still going through.' : null}
+                onClick={() => void backup(block.push!.id, thugs)}
+              >
+                {block.push.backupSent ? 'Backup sent' : <>Send {formatNumber(thugs)}</>}
+              </Button>
+              {block.push.canCallAllies ? (
+                <Button
+                  type="button"
+                  className="se-btn se-btn--ghost se-btn--sm"
+                  disabledReason={action.busy ? 'That turf move is still going through.' : null}
+                  onClick={() => void callAllies(block.push!.id)}
+                >
+                  Call allies
+                </Button>
+              ) : null}
+            </div>
+            {block.push.role === 'ally' ? <span className="se-hint">Alliance help has a chance to arrive when the push lands.</span> : null}
+            {block.push.alliesCalled && block.push.role === 'defender' ? <span className="se-hint">Alliance call is out.</span> : null}
+            {action.error ? <span className="se-error">{action.error}</span> : null}
+          </>
+        ) : null}
       </div>
     );
   }
