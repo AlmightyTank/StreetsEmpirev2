@@ -459,6 +459,40 @@ export const AllianceService = {
       const members = await tx.roundPlayer.count({ where: { allianceId: alliance.id } });
       if (members >= rules.maxMembers) throw AppError.conflict('ALLIANCE_FULL', `${alliance.name} is full (${rules.maxMembers} members).`);
       const base = loadRulesetForRound(player.round);
+      if (base.turf) {
+        const [held, reserved] = await Promise.all([
+          tx.turf.findMany({
+            where: {
+              roundId: me.roundId,
+              OR: [{ holder: { allianceId: alliance.id } }, { holderId: me.id }],
+            },
+            select: { cityId: true },
+          }),
+          base.turf.wars
+            ? tx.turfPush.findMany({
+                where: {
+                  roundId: me.roundId,
+                  status: 'PENDING',
+                  OR: [{ attacker: { allianceId: alliance.id } }, { attackerId: me.id }],
+                },
+                select: { turf: { select: { cityId: true } } },
+              })
+            : [],
+        ]);
+        const byCity = new Map<string, number>();
+        for (const row of held) byCity.set(row.cityId, (byCity.get(row.cityId) ?? 0) + 1);
+        for (const row of reserved) {
+          const cityId = row.turf.cityId;
+          byCity.set(cityId, (byCity.get(cityId) ?? 0) + 1);
+        }
+        const cap = base.turf.caps.blocksPerAllianceInCity;
+        if ([...byCity.values()].some((count) => count > cap)) {
+          throw AppError.conflict(
+            'TURF_ALLIANCE_CAP',
+            `Joining would put ${alliance.name} over its ${cap}-block city Turf cap.`,
+          );
+        }
+      }
       const territoryBefore = await territoryBeforeForPlayers(tx, me.roundId, [me.id], base);
       await endPlayerTurfHolds(tx, me.id, now);
       await tx.roundPlayer.update({ where: { id: me.id }, data: { allianceId: alliance.id, allianceJoinedAt: now } });
