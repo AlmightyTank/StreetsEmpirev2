@@ -201,6 +201,12 @@ export interface TurfGunsDto {
   total: number;
 }
 
+export interface TurfOutpostDto {
+  cashCents: number;
+  beer: number;
+  products: Record<string, number>;
+}
+
 export interface TurfBlockDto {
   city: string;
   district: 'CASINO' | 'NIGHTCLUB' | 'LOW_RENT' | 'URBAN_GHETTO' | 'WINO_SLUMS';
@@ -215,6 +221,8 @@ export interface TurfBlockDto {
   cornerThugs: number;
   cornerMinimumThugs: number;
   cornerGuns: TurfGunsDto;
+  /** 0.6.0-D. Present only for an away block this player owns. */
+  outpost: TurfOutpostDto | null;
   localsThugs: number;
   localsFullThugs: number;
   /** Future while the block is vacant; null once the locals are back or a player holds it. */
@@ -277,7 +285,9 @@ export interface CityTurfDto {
   pushTurnCost: number;
   pushWarningMinutes: number;
   homeCap: number;
+  awayCap: number;
   heldAtHome: number;
+  heldAway: number;
   blocks: TurfBlockDto[];
   /** Recent fights in this city that this player took part in, newest first. */
   reports: TurfBattleReportDto[];
