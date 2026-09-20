@@ -29,6 +29,7 @@ import {
   type CornerGuns,
 } from './turf.service.js';
 import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
+import { startTurfHold } from './turf-history.service.js';
 
 function requireOutposts(ruleset: Ruleset) {
   const rules = ruleset.turf?.outposts;
@@ -241,6 +242,7 @@ export const TurfOutpostService = {
             products: products as Prisma.InputJsonValue,
           },
         });
+        await startTurfHold(tx, fresh.id, now);
         await recordTerritoryControlChange(tx, {
           roundId: round.id, cityId: city.id, ruleset, before: controlBefore, at: now,
         });
