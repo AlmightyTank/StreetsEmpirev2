@@ -209,6 +209,13 @@ function TurfReports({ city }: { city: CityCharacterDto }) {
                 Wounds: {formatNumber(report.yourWounds)} yours / {formatNumber(report.opponentWounds)} theirs
                 {report.role === 'ally' ? report.showedUp ? ' · your backup showed' : ' · your backup did not arrive' : ''}
               </span>
+              {report.outpostLoot ? (
+                <span className="se-hint">
+                  Outpost loot: {formatCents(report.outpostLoot.cashCents)}
+                  {report.outpostLoot.beer ? ` · ${formatNumber(report.outpostLoot.beer)} beer` : ''}
+                  {Object.entries(report.outpostLoot.products).map(([key, quantity]) => ` · ${formatNumber(quantity)} ${key.toLowerCase()}`).join('')}
+                </span>
+              ) : null}
               {report.revengeUntil && new Date(report.revengeUntil).getTime() > Date.now()
                 ? <span className="se-hint">Revenge open until {new Date(report.revengeUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. It waives presence, not the hold shield.</span>
                 : null}
