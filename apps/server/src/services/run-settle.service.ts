@@ -56,9 +56,9 @@ export function toIncidentDto(ruleset: Ruleset, incident: RunIncident): RunIncid
 }
 
 /** A run's away net worth, from its wallet, cars, escorts, their guns (0.5.0-E) and its trunk. */
-export function awayWorth(ruleset: Ruleset, run: { cashCents: bigint; lowRiders: number; escortThugs: number } & Partial<RunGuns>, cargo: Record<string, number>): bigint {
+export function awayWorth(ruleset: Ruleset, run: { cashCents: bigint; lowRiders: number; escortThugs: number; beer?: number } & Partial<RunGuns>, cargo: Record<string, number>): bigint {
   const guns = { pistols: run.pistols ?? 0, shotguns: run.shotguns ?? 0, tek9s: run.tek9s ?? 0, ak47s: run.ak47s ?? 0 };
-  return runNetWorthCents(ruleset, { cashCents: run.cashCents, lowRiders: run.lowRiders, escortThugs: run.escortThugs, cargo, guns });
+  return runNetWorthCents(ruleset, { cashCents: run.cashCents, lowRiders: run.lowRiders, escortThugs: run.escortThugs, beer: run.beer ?? 0, cargo, guns });
 }
 
 /** The high market's next unit each way for a product in a city, or null where it has no price. */
@@ -190,6 +190,7 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
     where: { id: roundPlayerId },
     data: {
       cashCents: { increment: run.cashCents },
+      beer: { increment: run.beer },
       lowRiders: { increment: run.lowRiders },
       thugs: { increment: run.escortThugs },
       // 0.5.0-E: the escorts' guns come home with them.
