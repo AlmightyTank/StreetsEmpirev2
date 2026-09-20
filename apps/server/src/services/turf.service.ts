@@ -5,8 +5,11 @@ import type { Db } from '../utils/db.js';
 
 type TurfDb = PrismaClient | Db;
 
-function districtName(ruleset: Ruleset, district: string): string {
-  return ruleset.districts[district as keyof typeof ruleset.districts]?.name ?? district;
+function districtName(ruleset: Ruleset, citySlug: string, district: string): string {
+  const key = district as keyof typeof ruleset.districts;
+  return ruleset.cities?.[citySlug]?.districts?.[key]?.name
+    ?? ruleset.districts[key]?.name
+    ?? district;
 }
 
 function hoursSince(at: Date, now: Date): number {
@@ -136,7 +139,7 @@ export const TurfService = {
       blocks.push({
         city: citySlug,
         district: block.district,
-        districtName: districtName(ruleset, row.district),
+        districtName: districtName(ruleset, citySlug, row.district),
         holder: row.holder
           ? {
               publicPimpId: row.holder.publicPimpId,
