@@ -57,8 +57,12 @@ export function RoadMap({ data, selected, onSelect, runAt }: {
   /** Where a run is, to draw it on the road. */
   runAt?: { from: string; to: string; progress: number } | { city: string } | null;
 }) {
+  // Only draw roads when both endpoint cities were actually returned by the API.
+  // This prevents orphan/ghost road lines if the City catalog is ever out of sync.
+  const available = new Set(data.cities.map((city) => city.slug));
   const seen = new Set<string>();
   const roads = data.cities.flatMap((city) => city.roads.filter((road) => {
+    if (!available.has(road.to)) return false;
     const key = [city.slug, road.to].sort().join('|');
     if (seen.has(key)) return false;
     seen.add(key);
