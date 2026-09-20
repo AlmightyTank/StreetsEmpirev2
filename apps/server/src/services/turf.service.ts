@@ -350,7 +350,6 @@ export const TurfService = {
       },
     });
     await TurfService.ensureRound(db, player.roundId, ruleset);
-    const recentSince = new Date(now.getTime() - 24 * HOUR_MS);
     const [rows, presenceRows, activeRun, pendingPushes, myRecentPushes, recentFights, revengeByAttacker] = await Promise.all([
       db.turf.findMany({
         where: { roundId: player.roundId },
@@ -389,7 +388,6 @@ export const TurfService = {
             where: {
               roundId: player.roundId,
               status: 'LANDED',
-              settledAt: { gte: recentSince },
               OR: [{ attackerId: player.id }, { defenderId: player.id }, { backups: { some: { playerId: player.id } } }],
             },
             include: {
