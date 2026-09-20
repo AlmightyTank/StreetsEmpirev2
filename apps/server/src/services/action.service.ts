@@ -93,6 +93,7 @@ export interface PlayerState {
   hideoutLookoutsLevel: number;
   hideoutWorkshopLevel: number;
   hideoutBackOfficeLevel: number;
+  hideoutGarageLevel: number;
 
   /**
    * What Tommy has on the shelf, already settled. Counters rather than
@@ -201,6 +202,7 @@ export function toState(player: RoundPlayer): PlayerState {
     hideoutLookoutsLevel: player.hideoutLookoutsLevel,
     hideoutWorkshopLevel: player.hideoutWorkshopLevel,
     hideoutBackOfficeLevel: player.hideoutBackOfficeLevel,
+    hideoutGarageLevel: player.hideoutGarageLevel,
     pistolStock: player.pistolStock,
     shotgunStock: player.shotgunStock,
     tek9Stock: player.tek9Stock,
