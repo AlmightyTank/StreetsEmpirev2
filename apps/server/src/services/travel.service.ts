@@ -313,7 +313,6 @@ export const TravelService = {
     const active = await activeRuns(prisma, roundPlayerId);
     const runDtos = (await Promise.all(active.map((run) => runDto(prisma, roundPlayerId, base, player.roundId, run, now))))
       .filter((run): run is RunDto => Boolean(run));
-    const run = active[0] ?? null;
     const limit = runLimit(ruleset, player.hideoutGarageLevel);
     const travel = ruleset.travel;
     const seed = player.roundId;
