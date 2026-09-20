@@ -84,7 +84,8 @@ export function RoadMap({ data, selected, onSelect, runAt, runAts }: {
   });
 
   return (
-    <svg className="se-citymap" viewBox="0 0 400 230" role="group" aria-label="The road map">
+    <div className="se-citymap-scroll" role="region" aria-label="Road map">
+      <svg className="se-citymap" viewBox="0 0 400 230" role="group" aria-label="The road map">
       {roads.map((road) => {
         const a = MAP[road.from];
         const b = MAP[road.to];
@@ -135,7 +136,8 @@ export function RoadMap({ data, selected, onSelect, runAt, runAts }: {
           <circle cx={marker.x} cy={marker.y} r={3.5} className="se-citymap__run-dot" />
         </g>
       ))}
-    </svg>
+      </svg>
+    </div>
   );
 }
 
