@@ -95,7 +95,7 @@ export const TurfWarService = {
           where: { roundId_cityId_district: { roundId: round.id, cityId: player.cityId, district } },
           include: {
             city: { select: { id: true, slug: true } },
-            holder: { select: { id: true, accountId: true, allianceId: true, publicPimpId: true, displayName: true } },
+            holder: { select: { id: true, accountId: true, allianceId: true, formerAllianceId: true, allianceCooldownUntil: true, publicPimpId: true, displayName: true } },
           },
         });
         if (!block) throw AppError.notFound('TURF_NOT_FOUND', 'That block is not in your city.');
@@ -104,7 +104,7 @@ export const TurfWarService = {
           where: { id: block.id },
           include: {
             city: { select: { id: true, slug: true } },
-            holder: { select: { id: true, accountId: true, allianceId: true, publicPimpId: true, displayName: true } },
+            holder: { select: { id: true, accountId: true, allianceId: true, formerAllianceId: true, allianceCooldownUntil: true, publicPimpId: true, displayName: true } },
           },
         });
 
