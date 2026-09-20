@@ -14,16 +14,18 @@ type HideoutField =
   | 'hideoutSafeRoomLevel'
   | 'hideoutLookoutsLevel'
   | 'hideoutWorkshopLevel'
-  | 'hideoutBackOfficeLevel';
+  | 'hideoutBackOfficeLevel'
+  | 'hideoutGarageLevel';
 
 const ROOM_FIELDS: Record<HideoutRoomKey, HideoutField> = {
   SAFE_ROOM: 'hideoutSafeRoomLevel',
   LOOKOUTS: 'hideoutLookoutsLevel',
   WORKSHOP: 'hideoutWorkshopLevel',
   BACK_OFFICE: 'hideoutBackOfficeLevel',
+  GARAGE: 'hideoutGarageLevel',
 };
 
-const ROOM_ORDER: readonly HideoutRoomKey[] = ['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE'];
+const ROOM_ORDER: readonly HideoutRoomKey[] = ['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE', 'GARAGE'];
 
 function levelOf(player: Pick<PlayerState, HideoutField>, room: HideoutRoomKey): number {
   return player[ROOM_FIELDS[room]];
@@ -47,11 +49,15 @@ function effect(room: HideoutRoomKey, level: number, ruleset: Ruleset): string {
   if (room === 'WORKSHOP') {
     return `+${level * buffs.workshopCrackBonusPercentPerLevel}% product from production.`;
   }
+  if (room === 'GARAGE') {
+    return `Up to ${level > 0 ? (buffs.garageRunLimit ?? 2) : 1} active runs at once.`;
+  }
   return `+${level * buffs.backOfficeTakeBonusPercentPerLevel}% personal cash take from street work.`;
 }
 
 function toRoomDto(room: HideoutRoomKey, ruleset: Ruleset, player: Pick<PlayerState, HideoutField>): HideoutRoomDto {
   const rule = ruleset.hideout!.rooms[room];
+  if (!rule) throw new RangeError(`Hideout room ${room} is not enabled in this ruleset.`);
   const level = levelOf(player, room);
   const nextCostCents = level >= rule.maxLevel ? null : rule.costsCents[level] ?? null;
 
@@ -72,7 +78,8 @@ export function hideoutCatalog(ruleset: Ruleset, player: Pick<PlayerState, Hideo
     return { enabled: false, seasonScoped: true, totalLevel: 0, totalMaxLevel: 0, rooms: [] };
   }
 
-  const rooms = ROOM_ORDER.map((room) => toRoomDto(room, ruleset, player));
+  const rooms = ROOM_ORDER.filter((room) => Boolean(ruleset.hideout!.rooms[room]))
+    .map((room) => toRoomDto(room, ruleset, player));
   return {
     enabled: true,
     seasonScoped: true,
@@ -122,6 +129,7 @@ export const HideoutService = {
         const room = input.room as HideoutRoomKey;
         const rule = hideout.rooms[room];
         const field = ROOM_FIELDS[room];
+        if (!rule) throw AppError.badRequest('HIDEOUT_ROOM_DISABLED', 'That room is not available in this round.');
         const levelBefore = current[field];
         if (levelBefore >= rule.maxLevel) {
           throw AppError.badRequest('HIDEOUT_MAXED', `${rule.name} is already fully upgraded.`);
