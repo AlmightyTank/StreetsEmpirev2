@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
-import type { CitiesDto, CityCharacterDto, RankingsDto, TurfBlockDto } from '@streets/shared';
-import { formatNumber } from '@streets/shared';
+import type { CitiesDto, CityCharacterDto, RankingsDto, TravelDto, TurfBlockDto } from '@streets/shared';
+import { formatCentsExact, formatNumber } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { api, ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { Panel } from '../components/Panel.js';
+import { OutpostStopPanel } from '../components/RunPanels.js';
+import { TurfActions } from '../components/TurfActions.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 
@@ -67,7 +69,7 @@ function holder(block: TurfBlockDto) {
   );
 }
 
-function CityBlockBoard({ city }: { city: CityCharacterDto }) {
+function CityBlockBoard({ city, onChanged }: { city: CityCharacterDto; onChanged: () => void }) {
   if (!city.turf) return <p className="se-muted">Turf is not enabled in this round.</p>;
   const blocks = [...city.turf.blocks].sort((a, b) => ORDER[a.district] - ORDER[b.district]);
 
@@ -110,6 +112,13 @@ function CityBlockBoard({ city }: { city: CityCharacterDto }) {
             ) : null}
 
             {block.outpost ? <span className="se-turfboard__outpost">Your outpost</span> : null}
+            <TurfActions
+              block={block}
+              isHome={city.isHome}
+              holdingEnabled={city.turf.holdingEnabled}
+              warsEnabled={city.turf.warsEnabled}
+              onChanged={onChanged}
+            />
           </article>
         );
       })}
@@ -117,25 +126,67 @@ function CityBlockBoard({ city }: { city: CityCharacterDto }) {
   );
 }
 
+function turfName(player: { displayName: string; allianceTag: string | null }): string {
+  return player.allianceTag ? `[${player.allianceTag}] ${player.displayName}` : player.displayName;
+}
+
+function TurfReports({ city }: { city: CityCharacterDto }) {
+  const reports = city.turf?.reports ?? [];
+  if (!reports.length) return <p className="se-muted">No recent Turf fights in this city.</p>;
+  return (
+    <ul className="se-turfblocks">
+      {reports.slice(0, 5).map((report) => {
+        const opponent = report.role === 'attacker' ? report.defender : report.attacker;
+        const result = report.stale
+          ? 'Corner changed before the push landed'
+          : report.role === 'attacker'
+            ? report.captured ? 'You took the block' : 'The corner held'
+            : report.captured ? 'The block was lost' : 'Your side held';
+        return (
+          <li key={report.id} className="se-turfblocks__block">
+            <span><strong>{report.districtName}</strong><span className="se-muted"> · {result}</span></span>
+            <span className="se-hint">
+              vs {turfName(opponent)} · {formatNumber(report.attackers)} attackers · {formatNumber(report.defenders.corner + report.defenders.ownerBackup + report.defenders.allyShowed)} defenders
+            </span>
+            <span className="se-hint">Wounds: {formatNumber(report.yourWounds)} yours / {formatNumber(report.opponentWounds)} theirs</span>
+            {report.outpostLoot ? (
+              <span className="se-hint">
+                Outpost loot: {formatCentsExact(report.outpostLoot.cashCents)}
+                {report.outpostLoot.beer ? ` · ${formatNumber(report.outpostLoot.beer)} beer` : ''}
+                {Object.entries(report.outpostLoot.products).map(([key, quantity]) => ` · ${formatNumber(quantity)} ${key.toLowerCase()}`).join('')}
+              </span>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function TurfPage() {
   const me = useSession((s) => s.me);
   const [cities, setCities] = useState<CitiesDto | null>(null);
   const [rankings, setRankings] = useState<RankingsDto | null>(null);
+  const [travel, setTravel] = useState<TravelDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [params, setParams] = useSearchParams();
 
-  useEffect(() => {
+  const load = useCallback(() => {
     Promise.all([
       api.get<CitiesDto>('/game/cities'),
       communityApi.rankings(),
-    ]).then(([cityData, rankingData]) => {
+      api.get<TravelDto>('/game/travel'),
+    ]).then(([cityData, rankingData, travelData]) => {
       setCities(cityData);
       setRankings(rankingData);
+      setTravel(travelData);
       setError(null);
     }).catch((caught: unknown) => {
       setError(caught instanceof ApiError ? caught.message : 'Could not load city blocks.');
     });
-  }, [me?.id]);
+  }, []);
+
+  useEffect(load, [load, me?.id]);
 
   const turfCities = useMemo(() => cities?.cities.filter((city) => city.turf) ?? [], [cities]);
   const selected = turfCities.find((city) => city.slug === params.get('city'))
@@ -143,6 +194,10 @@ export function TurfPage() {
     ?? turfCities[0]
     ?? null;
   const selectedPulse = selected ? pulse(selected) : null;
+  const activeRuns = travel?.runs ?? (travel?.run ? [travel.run] : []);
+  const runsHere = selected
+    ? activeRuns.filter((run) => run.position.phase === 'town' && run.position.city === selected.slug)
+    : [];
 
   if (!me) return <Navigate to="/join" replace />;
 
@@ -151,9 +206,9 @@ export function TurfPage() {
       <div className="se-pagehead">
         <div>
           <h1 className="se-title">City Blocks</h1>
-          <p className="se-eyebrow">Who controls every district · how the Turf race is moving</p>
+          <p className="se-eyebrow">Control, defend and work every corner from one place</p>
         </div>
-        {selected ? <Link className="se-btn se-btn--ghost se-btn--sm" to={`/game/travel?city=${encodeURIComponent(selected.slug)}`}>Open {selected.name}</Link> : null}
+        {selected ? <Link className="se-btn se-btn--ghost se-btn--sm" to={`/game/travel?city=${encodeURIComponent(selected.slug)}`}>Travel / roads</Link> : null}
       </div>
 
       {error ? <Alert>{error}</Alert> : null}
@@ -208,8 +263,27 @@ export function TurfPage() {
                 <p className="se-hint">The city pulse is a current snapshot. Cumulative Turf performance below uses block-time across the whole round.</p>
               </Panel>
 
-              <Panel title="District control" aside="5 blocks">
-                <CityBlockBoard city={selected} />
+              <Panel title="District control & corner work" aside="5 blocks">
+                <CityBlockBoard city={selected} onChanged={load} />
+              </Panel>
+
+              {!selected.isHome && travel?.rules.outposts ? (
+                <Panel title="Away corners & outposts" aside={runsHere.length ? `${runsHere.length} run${runsHere.length === 1 ? '' : 's'} in town` : 'Run required'}>
+                  {runsHere.length ? (
+                    <div className="se-grid">
+                      {runsHere.map((run) => <OutpostStopPanel key={run.id} run={run} data={travel} onDone={load} />)}
+                    </div>
+                  ) : (
+                    <p className="se-hint">
+                      Establishing or servicing an away corner requires one of your runs to be physically in {selected.name}.{' '}
+                      <Link to={`/game/travel?city=${encodeURIComponent(selected.slug)}`}>Send or move a run from Travel.</Link>
+                    </p>
+                  )}
+                </Panel>
+              ) : null}
+
+              <Panel title="Recent Turf fights" aside={selected.name}>
+                <TurfReports city={selected} />
               </Panel>
 
               {rankings?.territory ? (
