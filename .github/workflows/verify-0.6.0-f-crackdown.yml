@@ -12,6 +12,10 @@ jobs:
     timeout-minutes: 25
     env:
       NODE_ENV: test
+      DATABASE_URL: postgresql://streets_test:streets_test@127.0.0.1:5432/streets_test
+      SESSION_SECRET: 0.6.0-f-crackdown-ci-only-secret-000000
+    env:
+      NODE_ENV: test
       DATABASE_URL: postgresql://test:test@127.0.0.1:5432/streets_test
       SESSION_SECRET: test-session-secret-0123456789abcdef0123456789abcdef
     steps:
