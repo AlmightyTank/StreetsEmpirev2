@@ -5,16 +5,179 @@ import {
   heatThere,
   loadRulesetForRound,
   relocationRules,
+  rulesetForCity,
   type MoveCheck,
   type Ruleset,
 } from '@streets/rules-engine';
-import { relocationSchema, type GameActionResult, type RelocationDto, type RelocationResult } from '@streets/shared';
-import type { Db } from '../utils/db.js';
+import { relocationSchema, type GameActionResult, type RelocationDto, type RelocationResult, type RelocationTurfPlanDto } from '@streets/shared';
+import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActionService } from './action.service.js';
 import { ActivityService } from './activity.service.js';
+import { ProductInventoryService } from './product-inventory.service.js';
+import {
+  TurfService,
+  addCornerGuns,
+  cornerGunWorthCents,
+  gunsFromTurf,
+  localsReclaimAt,
+  outpostBoxWorthCents,
+  turfGunData,
+  type CornerGuns,
+} from './turf.service.js';
 
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
+
+const EMPTY_GUNS: CornerGuns = { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
+const districtName = (ruleset: Ruleset, city: string, district: string) =>
+  ruleset.cities?.[city]?.districts?.[district as keyof Ruleset['districts']]?.name
+  ?? ruleset.districts[district as keyof Ruleset['districts']]?.name
+  ?? district;
+
+async function heldTurf(db: Db | PrismaClient, playerId: string) {
+  return db.turf.findMany({
+    where: { holderId: playerId },
+    include: { city: { select: { id: true, slug: true } }, outpost: true },
+    orderBy: [{ heldSince: 'asc' }, { district: 'asc' }],
+  });
+}
+
+function turfPlan(
+  rows: Awaited<ReturnType<typeof heldTurf>>,
+  ruleset: Ruleset,
+  fromCity: string,
+  toCity: string,
+): RelocationTurfPlanDto {
+  if (!ruleset.turf?.outposts) return { toHome: [], toOutposts: [], released: [] };
+  const destination = rows.filter((row) => row.city.slug === toCity);
+  const oldHome = rows.filter((row) => row.city.slug === fromCity);
+  const alreadyAwayElsewhere = rows.filter((row) => row.city.slug !== fromCity && row.city.slug !== toCity).length;
+  const room = Math.max(0, ruleset.turf.caps.blocksPerCrewAway - alreadyAwayElsewhere);
+  const keep = oldHome.slice(0, room);
+  const release = oldHome.slice(room);
+  const dto = (city: string, row: (typeof rows)[number]) => ({
+    district: row.district as RelocationTurfPlanDto['toHome'][number]['district'],
+    districtName: districtName(ruleset, city, row.district),
+  });
+  return {
+    toHome: destination.map((row) => dto(toCity, row)),
+    toOutposts: keep.map((row) => dto(fromCity, row)),
+    released: release.map((row) => dto(fromCity, row)),
+  };
+}
+
+async function finishMove(tx: Db, roundPlayerId: string, move: { id: string; fromCity: string; toCity: string; arrivesAt: Date }): Promise<RelocationTurfPlanDto> {
+  const loaded = await tx.roundPlayer.findUniqueOrThrow({
+    where: { id: roundPlayerId },
+    include: { city: true, round: true },
+  });
+  const base = loadRulesetForRound(loaded.round);
+  const destination = await tx.city.findUniqueOrThrow({ where: { slug: move.toCity }, select: { id: true } });
+
+  // Settle the old arrangement exactly at arrival before deciding which blocks convert.
+  if (base.turf?.holding) {
+    await TurfService.settlePlayer(tx, roundPlayerId, rulesetForCity(base, move.fromCity), move.arrivesAt);
+  }
+  const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId } });
+  const rows = await heldTurf(tx, roundPlayerId);
+  const plan = turfPlan(rows, base, move.fromCity, move.toCity);
+
+  let boxCash = 0n;
+  let boxBeer = 0;
+  const boxProducts: Record<string, number> = {};
+  let returnedThugs = 0;
+  let returnedGuns: CornerGuns = { ...EMPTY_GUNS };
+
+  if (base.turf?.outposts) {
+    const homeDistricts = new Set(plan.toHome.map((entry) => entry.district));
+    const keepDistricts = new Set(plan.toOutposts.map((entry) => entry.district));
+    const releaseDistricts = new Set(plan.released.map((entry) => entry.district));
+
+    for (const row of rows) {
+      if (row.city.slug === move.toCity && homeDistricts.has(row.district as any)) {
+        if (row.outpost) {
+          boxCash += row.outpost.cashCents;
+          boxBeer += row.outpost.beer;
+          for (const [key, quantity] of Object.entries(row.outpost.products as Record<string, number>)) {
+            boxProducts[key] = (boxProducts[key] ?? 0) + quantity;
+          }
+          await tx.turfOutpost.delete({ where: { id: row.outpost.id } });
+        }
+        await tx.turf.update({ where: { id: row.id }, data: { upkeepAt: move.arrivesAt } });
+      } else if (row.city.slug === move.fromCity && keepDistricts.has(row.district as any)) {
+        await tx.turfOutpost.upsert({
+          where: { turfId: row.id },
+          create: { turfId: row.id, ownerId: roundPlayerId },
+          update: { ownerId: roundPlayerId },
+        });
+        await tx.turf.update({ where: { id: row.id }, data: { upkeepAt: move.arrivesAt } });
+      } else if (row.city.slug === move.fromCity && releaseDistricts.has(row.district as any)) {
+        returnedThugs += row.cornerThugs;
+        returnedGuns = addCornerGuns(returnedGuns, gunsFromTurf(row));
+        if (row.outpost) await tx.turfOutpost.delete({ where: { id: row.outpost.id } });
+        await tx.turf.update({
+          where: { id: row.id },
+          data: {
+            holderId: null,
+            cornerThugs: 0,
+            ...turfGunData(EMPTY_GUNS),
+            heldSince: null,
+            shieldUntil: null,
+            upkeepAt: move.arrivesAt,
+            localsThugs: 0,
+            localsAt: move.arrivesAt,
+            localsReclaimAt: localsReclaimAt(base, move.arrivesAt),
+          },
+        });
+      }
+    }
+  }
+
+  if (Object.values(boxProducts).some((quantity) => quantity > 0)) {
+    await ProductInventoryService.adjust(tx, roundPlayerId, base, boxProducts);
+  }
+
+  const postedWorthReturned = cornerGunWorthCents(base, returnedGuns);
+  const remainingBoxes = await tx.turfOutpost.findMany({
+    where: { ownerId: roundPlayerId },
+    select: { cashCents: true, beer: true, products: true },
+  });
+  const outpostNetWorthCents = remainingBoxes.reduce(
+    (sum, box) => sum + outpostBoxWorthCents(base, {
+      cashCents: box.cashCents,
+      beer: box.beer,
+      products: box.products as Record<string, number>,
+    }),
+    0n,
+  );
+
+  await tx.roundPlayer.update({
+    where: { id: roundPlayerId },
+    data: {
+      cityId: destination.id,
+      movingUntil: null,
+      cashCents: player.cashCents + boxCash,
+      beer: player.beer + boxBeer,
+      postedThugs: Math.max(0, player.postedThugs - returnedThugs),
+      postedNetWorthCents: player.postedNetWorthCents >= postedWorthReturned
+        ? player.postedNetWorthCents - postedWorthReturned
+        : 0n,
+      outpostNetWorthCents,
+      pistols: player.pistols + returnedGuns.pistols,
+      shotguns: player.shotguns + returnedGuns.shotguns,
+      tek9s: player.tek9s + returnedGuns.tek9s,
+      ak47s: player.ak47s + returnedGuns.ak47s,
+    },
+  });
+  await tx.relocation.update({ where: { id: move.id }, data: { arrivedAt: move.arrivesAt } });
+  await ActivityService.log(tx, roundPlayerId, 'RELOCATED', {
+    from: move.fromCity,
+    to: move.toCity,
+    arrivedAt: move.arrivesAt.toISOString(),
+    turfPlan: plan,
+  } as Prisma.InputJsonValue);
+  return plan;
+}
 
 /** When the last revenge window anyone holds on this player closes, if one is still open. */
 async function revengeOpenUntil(db: Db | PrismaClient, ruleset: Ruleset, playerId: string, now: Date): Promise<Date | null> {
@@ -59,8 +222,8 @@ async function turfMoveBlock(db: Db | PrismaClient, ruleset: Ruleset, playerId: 
   if (activeFight > 0) {
     return { code: 'TURF_FIGHT_ACTIVE', reason: 'Finish your pending turf fight before moving to another city.' };
   }
-  if (held > 0) {
-    return { code: 'TURF_MOVE_BLOCKED', reason: 'Pull your home turf before moving. Outposts arrive in 0.6.0-D.' };
+  if (held > 0 && !ruleset.turf.outposts) {
+    return { code: 'TURF_MOVE_BLOCKED', reason: 'Pull your turf before moving in this ruleset.' };
   }
   return null;
 }
@@ -87,10 +250,7 @@ export const RelocationService = {
   async settleOwn(tx: Db, roundPlayerId: string, now: Date): Promise<void> {
     const move = await tx.relocation.findFirst({ where: { roundPlayerId, arrivedAt: null, arrivesAt: { lte: now } } });
     if (!move) return;
-    const city = await tx.city.findUniqueOrThrow({ where: { slug: move.toCity }, select: { id: true } });
-    await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { cityId: city.id, movingUntil: null } });
-    await tx.relocation.update({ where: { id: move.id }, data: { arrivedAt: move.arrivesAt } });
-    await ActivityService.log(tx, roundPlayerId, 'RELOCATED', { from: move.fromCity, to: move.toCity, arrivedAt: move.arrivesAt.toISOString() });
+    await finishMove(tx, roundPlayerId, move);
   },
 
   /**
@@ -99,22 +259,21 @@ export const RelocationService = {
    * never waited on: that player is being settled right now anyway, and a list read a
    * moment early is fine. So this can run anywhere without a deadlock.
    */
-  async settleDue(db: Db | PrismaClient, roundId: string, now: Date): Promise<void> {
-    await db.$executeRaw`
-      WITH due AS (
-        SELECT r."id", r."roundPlayerId", r."toCity", r."arrivesAt"
-        FROM "Relocation" r
-        JOIN "RoundPlayer" p ON p."id" = r."roundPlayerId"
-        WHERE r."arrivedAt" IS NULL AND r."arrivesAt" <= ${now} AND p."roundId" = ${roundId}
-        FOR UPDATE OF r, p SKIP LOCKED
-      ), moved AS (
-        UPDATE "RoundPlayer" p SET "cityId" = c."id", "movingUntil" = NULL
-        FROM due JOIN "City" c ON c."slug" = due."toCity"
-        WHERE p."id" = due."roundPlayerId"
-        RETURNING p."id"
-      )
-      UPDATE "Relocation" r SET "arrivedAt" = due."arrivesAt"
-      FROM due WHERE r."id" = due."id"`;
+  async settleDue(prisma: PrismaClient, roundId: string, now: Date): Promise<void> {
+    const due = await prisma.relocation.findMany({
+      where: { arrivedAt: null, arrivesAt: { lte: now }, roundPlayer: { roundId } },
+      select: { id: true, roundPlayerId: true },
+      orderBy: { arrivesAt: 'asc' },
+      take: 100,
+    });
+    for (const candidate of due) {
+      await prisma.$transaction(async (tx) => {
+        await lockRoundPlayer(tx, candidate.roundPlayerId);
+        const move = await tx.relocation.findUnique({ where: { id: candidate.id } });
+        if (!move || move.arrivedAt || move.arrivesAt > now) return;
+        await finishMove(tx, candidate.roundPlayerId, move);
+      }, { timeout: 15_000, maxWait: 10_000 });
+    }
   },
 
   /** What the move screen shows: the fee, the time on the road, what stops a move, and what Heat means in every city. */
@@ -128,6 +287,11 @@ export const RelocationService = {
       db.relocation.findFirst({ where: { roundPlayerId: player.id, arrivedAt: null }, orderBy: { startedAt: 'desc' } }),
     ]);
     const base = { from: home, now, netWorthCents: player.netWorthCents, cashCents: player.cashCents, roundEndsAt, movingUntil: player.movingUntil, lockedUntil: player.lockedUntil, ...inputs };
+    const held = await heldTurf(db, player.id);
+    const turfPlans = Object.fromEntries(
+      Object.keys(ruleset.cities ?? {}).filter((slug) => slug !== home)
+        .map((slug) => [slug, turfPlan(held, ruleset, home, slug)]),
+    );
     const here = heatThere(ruleset, heat, home);
     // Any city but home shows the same general reason; the per-city ones (no road) are rare.
     const general = checkMove(ruleset, { ...base, to: Object.keys(ruleset.cities ?? {}).find((slug) => slug !== home) ?? home });
@@ -151,6 +315,7 @@ export const RelocationService = {
         heat: heatThere(ruleset, heat, slug),
         reachable: findRoutes(ruleset, home, slug).length > 0,
       })),
+      turfPlans,
     };
   },
 
@@ -166,9 +331,10 @@ export const RelocationService = {
       execute: async ({ tx, current, player, round, now }) => {
         // The round's rules for the check: the destination's own rules apply on arrival.
         const base = loadRulesetForRound(round);
-        const [inputs, turfBlock] = await Promise.all([
+        const [inputs, turfBlock, held] = await Promise.all([
           moveInputs(tx, base, player, now),
           turfMoveBlock(tx, base, roundPlayerId),
+          heldTurf(tx, roundPlayerId),
         ]);
         if (turfBlock) throw AppError.conflict(turfBlock.code, turfBlock.reason);
         const check = checkMove(base, {
@@ -189,6 +355,7 @@ export const RelocationService = {
           toName: cityName(base, input.to),
           feeCents: Number(check.feeCents),
           arrivesAt: check.arrivesAt.toISOString(),
+          turfPlan: turfPlan(held, base, player.city.slug, input.to),
         };
         return {
           next: { ...current, cashCents: current.cashCents - check.feeCents, movingUntil: check.arrivesAt },
