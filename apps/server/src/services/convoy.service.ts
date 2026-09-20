@@ -53,7 +53,7 @@ import { allianceTargetBlock } from './alliance.service.js';
 import { CombatRecoveryService } from './combat-recovery.service.js';
 import { PlayerStateService } from './player-state.service.js';
 import { CRACK, ProductInventoryService } from './product-inventory.service.js';
-import { RUN_INCLUDE, awayWorth, cargoOf, takeFromRun, toStopPlans, type LoadedRun } from './run-settle.service.js';
+import { RUN_INCLUDE, cargoOf, takeFromRun, toStopPlans, totalAwayWorth, type LoadedRun } from './run-settle.service.js';
 import { WorkSupplyService } from './work-supply.service.js';
 
 type Weapons = Record<WeaponKey, number>;
@@ -147,8 +147,12 @@ type ReconTarget = Omit<ConvoyTargetDto, 'blockedReason' | 'tailed'>;
  */
 async function scanTargets(db: Db | PrismaClient, ruleset: Ruleset, player: RoundPlayer & { city: { slug: string } }, roundId: string, now: Date, lookaheadMs: number): Promise<ReconTarget[]> {
   const myCity = player.city.slug;
-  const mine = await db.run.findFirst({ where: { roundPlayerId: player.id, status: 'ACTIVE' }, include: RUN_INCLUDE });
-  const myReach = mine ? reachAt(reachWindows(ruleset, toStopPlans(mine.stops)), now) : [];
+  const mine = await db.run.findMany({
+    where: { roundPlayerId: player.id, status: 'ACTIVE' },
+    include: RUN_INCLUDE,
+    orderBy: [{ launchedAt: 'asc' }, { id: 'asc' }],
+  });
+  const myReach = mine.flatMap((run) => reachAt(reachWindows(ruleset, toStopPlans(run.stops)), now));
   const runs = await db.run.findMany({
     where: { status: 'ACTIVE', roundPlayerId: { not: player.id }, roundPlayer: { roundId } },
     include: { ...RUN_INCLUDE, roundPlayer: { include: { alliance: { select: { tag: true } } } } },
@@ -249,14 +253,22 @@ export const ConvoyService = {
           city = player.city.slug;
           maxSquad = Math.min(fitThugs(current), model.squadCap);
         } else {
-          const mine = await tx.run.findFirst({ where: { roundPlayerId: attackerId, status: 'ACTIVE' }, include: RUN_INCLUDE });
-          const shared = mine ? reachAt(reachWindows(base, toStopPlans(mine.stops)), at).find((window) => reach.some((other) => other.city === window.city)) : undefined;
-          if (mine && shared) {
+          const mine = await tx.run.findMany({
+            where: { roundPlayerId: attackerId, status: 'ACTIVE' },
+            include: RUN_INCLUDE,
+            orderBy: [{ launchedAt: 'asc' }, { id: 'asc' }],
+          });
+          const candidate = mine.map((ownRun) => ({
+            run: ownRun,
+            shared: reachAt(reachWindows(base, toStopPlans(ownRun.stops)), at)
+              .find((window) => reach.some((other) => other.city === window.city)),
+          })).find((entry) => Boolean(entry.shared));
+          if (candidate?.shared) {
             source = 'RUN';
-            city = shared.city;
-            attackerRunId = mine.id;
-            maxSquad = Math.min(mine.escortThugs - mine.woundedEscorts, model.squadCap);
-            runGuns = weaponsOf(mine);
+            city = candidate.shared.city;
+            attackerRunId = candidate.run.id;
+            maxSquad = Math.min(candidate.run.escortThugs - candidate.run.woundedEscorts, model.squadCap);
+            runGuns = weaponsOf(candidate.run);
           }
         }
         if (!source) throw AppError.conflict('OUT_OF_REACH', 'That run is not near where you live, or near your run.');
@@ -432,7 +444,7 @@ export const ConvoyService = {
           lowRider = 1;
           run = { ...run, lowRiders: run.lowRiders - 1 };
           await tx.run.update({ where: { id: run.id }, data: { lowRiders: run.lowRiders } });
-          await tx.roundPlayer.update({ where: { id: ownerId }, data: { awayNetWorthCents: awayWorth(ruleset, run, cargoOf(run)) } });
+          await tx.roundPlayer.update({ where: { id: ownerId }, data: { awayNetWorthCents: await totalAwayWorth(tx, ownerId, ruleset) } });
         }
       }
 
@@ -496,7 +508,7 @@ export const ConvoyService = {
         const woundedEscorts = Math.min(attackerRun.escortThugs, attackerRun.woundedEscorts + result.attackerWounds);
         const cashCents = attackerRun.cashCents + cash;
         await tx.run.update({ where: { id: attackerRun.id }, data: { cashCents, woundedEscorts, lowRiders: attackerRun.lowRiders + result.lowRider } });
-        await tx.roundPlayer.update({ where: { id: playerId }, data: { awayNetWorthCents: awayWorth(ruleset, { ...attackerRun, cashCents, lowRiders: attackerRun.lowRiders + result.lowRider }, held) } });
+        await tx.roundPlayer.update({ where: { id: playerId }, data: { awayNetWorthCents: await totalAwayWorth(tx, playerId, ruleset) } });
       } else {
         // From home, or a run that has since come home: the squad, the haul and its wounds come home.
         if (tail.source === 'HOME') busy = Math.max(0, busy - tail.squad);
@@ -597,7 +609,11 @@ export const ConvoyService = {
     const squad = { fit: model ? Math.min(fitThugs(player), model.squadCap) : 0, turns: player.turns, city: myCity, cityName: cityName(base, myCity), blockedReason: squadBlock(base, player, player.turns, now) };
     if (!rules || !model) return { enabled: false, rules: null, recon: null, squad, run: null, targets: [], tails: [] };
 
-    const mine = await prisma.run.findFirst({ where: { roundPlayerId: playerId, status: 'ACTIVE' }, include: RUN_INCLUDE });
+    const mine = await prisma.run.findFirst({
+      where: { roundPlayerId: playerId, status: 'ACTIVE' },
+      include: RUN_INCLUDE,
+      orderBy: [{ launchedAt: 'asc' }, { id: 'asc' }],
+    });
     const myRunPosition = mine ? runPosition(base, toStopPlans(mine.stops), now) : null;
     // What your last recon found, as it was then; who is tailed or blocked is as it is now.
     const recon = await prisma.convoyRecon.findUnique({ where: { roundPlayerId: playerId } });
