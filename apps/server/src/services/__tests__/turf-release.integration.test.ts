@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import type { FastifyInstance } from 'fastify';
 import { classicOgV06F } from '@streets/rulesets';
 import { cornerMinimumFor, startingStock } from '@streets/rules-engine';
+import { AllianceService } from '../alliance.service.js';
 import { NetWorthService } from '../net-worth.service.js';
 import { ReputationService } from '../reputation.service.js';
 import { RoundService } from '../round.service.js';
@@ -306,6 +307,136 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('0.6.0-F turf release regre
     });
     expect(board!.alliances[0]!.heldSeconds).toBeGreaterThanOrEqual(6 * 3_600 - 5);
     expect(board!.crews.filter((row) => row.currentBlocks === 1)).toHaveLength(3);
+  });
+
+  it('settles an offline holder before deciding whether a worker owes turf tax', async () => {
+    const { round, home, players, now } = await fixture();
+    const holder = players[0]!;
+    const worker = players[1]!;
+    const walkoutHours = Math.ceil(1 / rules.turf!.corner.walkoutSharePerHour) + 1;
+    const heldAt = new Date(now.getTime() - walkoutHours * 3_600_000);
+    const block = await postBlock({
+      roundId: round.id,
+      cityId: home.id,
+      district: 'CASINO',
+      holderId: holder.id,
+      thugs: 10,
+      at: heldAt,
+    });
+    await app.prisma.roundPlayer.update({
+      where: { id: holder.id },
+      data: { beer: 0 },
+    });
+
+    const trip = await app.prisma.$transaction((tx) => TurfService.scoutEconomy(tx, {
+      roundPlayerId: worker.id,
+      accountId: worker.accountId,
+      roundId: round.id,
+      cityId: home.id,
+      district: 'CASINO',
+      takeCents: 100_000,
+      ruleset: rules,
+      now,
+    }));
+
+    expect(trip).toMatchObject({ kind: 'locals', taxPaidCents: 0, taxMintedCents: 0 });
+    expect((await app.prisma.turf.findUniqueOrThrow({ where: { id: block.id } })).holderId).toBeNull();
+  });
+
+  it('refuses an alliance join that would bypass the city turf cap', async () => {
+    const { round, home, players, now } = await fixture();
+    const leader = players[0]!;
+    const invitee = players[1]!;
+    const alliance = await app.prisma.alliance.create({
+      data: {
+        roundId: round.id,
+        name: 'Cap Crew',
+        nameNormalized: `cap-crew-${round.id}`,
+        tag: 'CAP',
+        tagNormalized: 'cap',
+        leaderId: leader.id,
+      },
+    });
+    await app.prisma.roundPlayer.update({
+      where: { id: leader.id },
+      data: { allianceId: alliance.id, allianceJoinedAt: now },
+    });
+
+    await postBlock({ roundId: round.id, cityId: home.id, district: 'CASINO', holderId: leader.id, thugs: 8, at: now });
+    await postBlock({ roundId: round.id, cityId: home.id, district: 'NIGHTCLUB', holderId: leader.id, thugs: 8, at: now });
+    await postBlock({ roundId: round.id, cityId: home.id, district: 'LOW_RENT', holderId: invitee.id, thugs: 8, at: now });
+    await postBlock({ roundId: round.id, cityId: home.id, district: 'URBAN_GHETTO', holderId: invitee.id, thugs: 8, at: now });
+
+    await app.prisma.allianceInvite.create({
+      data: {
+        allianceId: alliance.id,
+        inviteeId: invitee.id,
+        invitedByName: leader.displayName,
+        expiresAt: new Date(Date.now() + 3_600_000),
+      },
+    });
+
+    await expect(AllianceService.accept(app.prisma, invitee.id, { tag: 'CAP' }))
+      .rejects.toMatchObject({ code: 'TURF_ALLIANCE_CAP' });
+    expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: invitee.id } })).allianceId).toBeNull();
+  });
+
+  it('resolves due pushes and expires later pushes before final standings freeze', async () => {
+    const { round, home, players, now } = await fixture();
+    const defender = players[1]!;
+    await postBlock({ roundId: round.id, cityId: home.id, district: 'CASINO', holderId: defender.id, thugs: 20, at: now });
+    await postBlock({ roundId: round.id, cityId: home.id, district: 'NIGHTCLUB', holderId: defender.id, thugs: 20, at: now });
+
+    await app.prisma.turfPresence.createMany({
+      data: [
+        { roundPlayerId: players[0]!.id, cityId: home.id, district: 'CASINO', turns: 100, at: now },
+        { roundPlayerId: players[2]!.id, cityId: home.id, district: 'NIGHTCLUB', turns: 100, at: now },
+      ],
+    });
+
+    const firstSquad = cornerMinimumFor(rules, 'CASINO', players[0]!.thugs);
+    const secondSquad = cornerMinimumFor(rules, 'NIGHTCLUB', players[2]!.thugs);
+    const first = await TurfWarService.start(
+      app.prisma,
+      players[0]!.id,
+      { district: 'CASINO', squad: firstSquad, actionId: randomUUID() },
+      now,
+    );
+    const secondBefore = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: players[2]!.id } });
+    const second = await TurfWarService.start(
+      app.prisma,
+      players[2]!.id,
+      { district: 'NIGHTCLUB', squad: secondSquad, actionId: randomUUID() },
+      now,
+    );
+
+    const freezeAt = new Date(now.getTime() + 60 * 60_000);
+    const dueAt = new Date(freezeAt.getTime() - 60_000);
+    await app.prisma.turfPush.update({
+      where: { id: first.result.pushId },
+      data: { landsAt: dueAt },
+    });
+    await app.prisma.turfPush.update({
+      where: { id: second.result.pushId },
+      data: { landsAt: new Date(freezeAt.getTime() + 60 * 60_000) },
+    });
+
+    await RoundService.closeRoundAt(app.prisma, round.id, freezeAt);
+
+    const [due, expired] = await Promise.all([
+      app.prisma.turfPush.findUniqueOrThrow({ where: { id: first.result.pushId } }),
+      app.prisma.turfPush.findUniqueOrThrow({ where: { id: second.result.pushId } }),
+    ]);
+    expect(due.status).toBe('LANDED');
+    expect(due.settledAt).toEqual(dueAt);
+    expect(expired).toMatchObject({ status: 'LANDED', captured: false });
+    expect(expired.settledAt).toEqual(freezeAt);
+    expect(await app.prisma.turfPush.count({ where: { roundId: round.id, status: 'PENDING' } })).toBe(0);
+
+    const secondAfter = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: players[2]!.id } });
+    expect(secondAfter.busyThugs).toBe(0);
+    expect(secondAfter.ak47s).toBe(secondBefore.ak47s);
+    expect((await app.prisma.round.findUniqueOrThrow({ where: { id: round.id } })).status).toBe('ENDED');
   });
 
   it('applies the seeded Federal sweep once and never double-picks a corner crew', async () => {
