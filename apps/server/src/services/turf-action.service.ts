@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { cornerMinimumFor, equipCombatSquad, localsAfter, localsThugs, type Rng, type Ruleset } from '@streets/rules-engine';
+import { cornerMinimumFor, equipCombatSquad, headsUpMinutes, localsAfter, localsThugs, type Rng, type Ruleset } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
 import type { TurfClaimInput, TurfClaimResult, TurfPostInput, TurfPostResult, TurfPullInput, TurfPullResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
@@ -134,8 +134,12 @@ export const TurfActionService = {
         await lockBlock(tx, block.id);
         const fresh = await tx.turf.findUniqueOrThrow({ where: { id: block.id } });
         if (fresh.holderId !== roundPlayerId) throw AppError.conflict('NOT_YOUR_TURF', 'You do not hold that block.');
-        if (ruleset.turf?.wars && await tx.turfPush.findFirst({ where: { turfId: fresh.id, status: 'PENDING' } })) {
-          throw AppError.conflict('TURF_UNDER_PUSH', 'That corner is under a push. Send fight backup instead of permanently posting more thugs.');
+        if (ruleset.turf?.wars) {
+          const push = await tx.turfPush.findFirst({ where: { turfId: fresh.id, status: 'PENDING' }, select: { landsAt: true } });
+          const spotted = push && push.landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel) * 60_000);
+          if (spotted) {
+            throw AppError.conflict('TURF_UNDER_PUSH', 'Your Lookouts spotted a push here. Send fight backup instead of permanently posting more thugs.');
+          }
         }
 
         const fit = fitThugs(current);
