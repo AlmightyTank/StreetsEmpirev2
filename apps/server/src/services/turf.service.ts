@@ -6,6 +6,7 @@ import {
   localsAfter,
   localsThugs,
   presenceAfter,
+  runNetWorthCents,
   turfBlocks,
   turfHoldBonus,
   turfTax,
@@ -107,6 +108,49 @@ export function cornerGunWorthCents(ruleset: Ruleset, guns: CornerGuns): bigint 
 }
 function dtoGuns(guns: CornerGuns) { return { ...guns, total: gunCount(guns) }; }
 
+export function outpostBoxWorthCents(
+  ruleset: Ruleset,
+  box: { cashCents: bigint; beer: number; products: Record<string, number> },
+): bigint {
+  return runNetWorthCents(ruleset, {
+    cashCents: box.cashCents,
+    lowRiders: 0,
+    escortThugs: 0,
+    beer: box.beer,
+    cargo: box.products,
+  });
+}
+
+export function settleOutpostSupplies(
+  ruleset: Ruleset,
+  input: { thugs: number; hours: number; beer: number; products: Record<string, number>; order: readonly string[] },
+): { beer: number; products: Record<string, number>; beerUsed: number; productUsed: number; leaving: number } {
+  const need = cornerUpkeep(ruleset, input.thugs, input.hours);
+  const beerUsed = Math.min(Math.max(0, input.beer), need.beer);
+  const products = { ...input.products };
+  let productUsed = 0;
+  for (const key of input.order) {
+    if (productUsed >= need.product) break;
+    const available = Math.max(0, products[key] ?? 0);
+    const amount = Math.min(available, need.product - productUsed);
+    if (amount <= 0) continue;
+    products[key] = available - amount;
+    productUsed += amount;
+  }
+  const beerShare = need.beer > 0 ? beerUsed / need.beer : 1;
+  const productShare = need.product > 0 ? productUsed / need.product : 1;
+  const missingShare = Math.max(0, 1 - Math.min(beerShare, productShare));
+  const leaving = Math.min(
+    input.thugs,
+    Math.ceil(input.thugs * (ruleset.turf?.corner.walkoutSharePerHour ?? 0) * input.hours * missingShare),
+  );
+  return { beer: input.beer - beerUsed, products, beerUsed, productUsed, leaving };
+}
+
+async function lockOutpost(tx: Db, id: string): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM "TurfOutpost" WHERE id = ${id} FOR UPDATE`;
+}
+
 interface StoredTurfFight {
   won: boolean;
   unopposed: boolean;
@@ -169,13 +213,13 @@ export const TurfService = {
       where: { id: roundPlayerId },
       select: {
         id: true, roundId: true, cashCents: true, beer: true, crack: true, thugs: true,
-        postedThugs: true, postedNetWorthCents: true, pistols: true, shotguns: true, tek9s: true, ak47s: true,
+        postedThugs: true, postedNetWorthCents: true, outpostNetWorthCents: true, pistols: true, shotguns: true, tek9s: true, ak47s: true,
       },
     });
     await TurfService.ensureRound(tx, player.roundId, ruleset);
     const held = await tx.turf.findMany({
       where: { roundId: player.roundId, holderId: roundPlayerId },
-      include: { city: { select: { slug: true } }, outpost: { select: { id: true } } },
+      include: { city: { select: { slug: true } }, outpost: true },
       orderBy: [{ city: { sortOrder: 'asc' } }, { district: 'asc' }],
     });
 
@@ -183,6 +227,7 @@ export const TurfService = {
     let thugs = player.thugs;
     let postedThugs = player.postedThugs;
     let postedNetWorthCents = player.postedNetWorthCents;
+    let outpostNetWorthCents = player.outpostNetWorthCents;
     let homeGuns: CornerGuns = { pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s };
     let walkouts = 0;
 
@@ -208,10 +253,56 @@ export const TurfService = {
     };
 
     for (const row of held) {
-      // 0.6.0-D: away corners burn from their own box. That settlement lands in
-      // the next D slice; never fall back to home supplies in the meantime.
-      if (row.outpost) continue;
       const wholeHours = Math.floor(hoursSince(row.upkeepAt, now));
+      if (row.outpost) {
+        if (wholeHours <= 0 || row.cornerThugs <= 0) continue;
+        await lockOutpost(tx, row.outpost.id);
+        const box = await tx.turfOutpost.findUniqueOrThrow({ where: { id: row.outpost.id } });
+        const settled = settleOutpostSupplies(ruleset, {
+          thugs: row.cornerThugs,
+          hours: wholeHours,
+          beer: box.beer,
+          products: box.products as Record<string, number>,
+          order,
+        });
+        const advanceTo = new Date(row.upkeepAt.getTime() + wholeHours * HOUR_MS);
+        const gunsBefore = gunsFromTurf(row);
+        const desertedGuns = settled.leaving > 0 ? releaseCornerGuns(gunsBefore, settled.leaving) : { ...EMPTY_GUNS };
+        const gunsAfter = subtractCornerGuns(gunsBefore, desertedGuns);
+        const cornerAfter = row.cornerThugs - settled.leaving;
+
+        if (settled.leaving > 0) {
+          walkouts += settled.leaving;
+          thugs = Math.max(0, thugs - settled.leaving);
+          postedThugs = Math.max(0, postedThugs - settled.leaving);
+          postedNetWorthCents -= cornerGunWorthCents(ruleset, desertedGuns);
+          if (postedNetWorthCents < 0n) throw new RangeError('Posted turf net worth fell below zero.');
+        }
+
+        if (cornerAfter > 0) {
+          await tx.turfOutpost.update({
+            where: { id: box.id },
+            data: { beer: settled.beer, products: settled.products as Prisma.InputJsonValue },
+          });
+          await tx.turf.update({
+            where: { id: row.id },
+            data: { cornerThugs: cornerAfter, ...turfGunData(gunsAfter), upkeepAt: advanceTo },
+          });
+        } else {
+          // Nobody remains to secure the remote box. Deserters take their guns and the
+          // abandoned stock is lost rather than teleporting back to the home city.
+          await tx.turfOutpost.delete({ where: { id: box.id } });
+          await tx.turf.update({
+            where: { id: row.id },
+            data: {
+              holderId: null, cornerThugs: 0, ...turfGunData(EMPTY_GUNS), heldSince: null, shieldUntil: null,
+              upkeepAt: advanceTo, localsThugs: 0, localsAt: now, localsReclaimAt: localsReclaimAt(ruleset, now),
+            },
+          });
+        }
+        continue;
+      }
+      if (wholeHours <= 0 || row.cornerThugs <= 0) continue;
       if (wholeHours <= 0 || row.cornerThugs <= 0) continue;
       const need = cornerUpkeep(ruleset, row.cornerThugs, wholeHours);
       const beerUsed = Math.min(beer, need.beer);
@@ -258,20 +349,32 @@ export const TurfService = {
       await tx.turfTaxLedger.update({ where: { id: row.id }, data: { creditedCents: row.mintedCents } });
     }
     const cashCents = player.cashCents + taxCreditedCents;
+    const boxes = await tx.turfOutpost.findMany({
+      where: { ownerId: roundPlayerId },
+      select: { cashCents: true, beer: true, products: true },
+    });
+    outpostNetWorthCents = boxes.reduce(
+      (sum, box) => sum + outpostBoxWorthCents(ruleset, {
+        cashCents: box.cashCents,
+        beer: box.beer,
+        products: box.products as Record<string, number>,
+      }),
+      0n,
+    );
 
     if (beer !== player.beer || thugs !== player.thugs || postedThugs !== player.postedThugs ||
-        postedNetWorthCents !== player.postedNetWorthCents || homeGuns.pistols !== player.pistols ||
-        homeGuns.shotguns !== player.shotguns || homeGuns.tek9s !== player.tek9s || homeGuns.ak47s !== player.ak47s ||
-        taxCreditedCents > 0n) {
+        postedNetWorthCents !== player.postedNetWorthCents || outpostNetWorthCents !== player.outpostNetWorthCents ||
+        homeGuns.pistols !== player.pistols || homeGuns.shotguns !== player.shotguns ||
+        homeGuns.tek9s !== player.tek9s || homeGuns.ak47s !== player.ak47s || taxCreditedCents > 0n) {
       await tx.roundPlayer.update({
         where: { id: roundPlayerId },
-        data: { cashCents, beer, thugs, postedThugs, postedNetWorthCents, ...homeGuns },
+        data: { cashCents, beer, thugs, postedThugs, postedNetWorthCents, outpostNetWorthCents, ...homeGuns },
       });
     }
 
     return {
       cashCents, beer, crack: inventory.CRACK ?? player.crack, thugs, postedThugs, postedNetWorthCents,
-      ...homeGuns, taxCreditedCents, walkouts,
+      outpostNetWorthCents, ...homeGuns, taxCreditedCents, walkouts,
     };
   },
 
@@ -306,20 +409,48 @@ export const TurfService = {
         holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: true,
       };
     }
-    // 0.6.0-D: outpost tax belongs in the remote box. Until that box-ledger slice
-    // lands, do not burn the worker or mint money into the holder's home balance.
-    if (row.outpost) {
-      return {
-        kind: 'rival', holder: { publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName },
-        holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: false,
-      };
-    }
-
     const day = utcDay(now);
     const ledger = await tx.turfTaxLedger.findUnique({
       where: { roundId_payerId_holderId_day: { roundId: input.roundId, payerId: input.roundPlayerId, holderId: row.holder.id, day } },
     });
     const tax = turfTax(input.ruleset, input.district, input.takeCents, Number(ledger?.mintedCents ?? 0n));
+    if (row.outpost) {
+      const rules = input.ruleset.turf?.outposts;
+      if (!rules) {
+        return {
+          kind: 'rival', holder: { publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName },
+          holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: false,
+        };
+      }
+      await lockOutpost(tx, row.outpost.id);
+      const box = await tx.turfOutpost.findUniqueOrThrow({ where: { id: row.outpost.id } });
+      const room = Math.max(0, rules.cashCapCents - Number(box.cashCents));
+      const mintCents = Math.min(tax.mintCents, room);
+      if (mintCents > 0) {
+        await tx.turfOutpost.update({
+          where: { id: box.id },
+          data: { cashCents: { increment: BigInt(mintCents) } },
+        });
+        // Credited moves with minted here because the money already landed in the remote
+        // box. The shared ledger still enforces the daily payer/holder cap across all blocks.
+        await tx.turfTaxLedger.upsert({
+          where: { roundId_payerId_holderId_day: { roundId: input.roundId, payerId: input.roundPlayerId, holderId: row.holder.id, day } },
+          create: {
+            roundId: input.roundId, payerId: input.roundPlayerId, holderId: row.holder.id, day,
+            mintedCents: BigInt(mintCents), creditedCents: BigInt(mintCents),
+          },
+          update: {
+            mintedCents: { increment: BigInt(mintCents) },
+            creditedCents: { increment: BigInt(mintCents) },
+          },
+        });
+      }
+      return {
+        kind: 'rival', holder: { publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName },
+        holdBonusCents: 0, taxPaidCents: tax.burnCents, taxMintedCents: mintCents, linked: false,
+      };
+    }
+
     if (tax.mintCents > 0) {
       await tx.turfTaxLedger.upsert({
         where: { roundId_payerId_holderId_day: { roundId: input.roundId, payerId: input.roundPlayerId, holderId: row.holder.id, day } },
