@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, classicOgV06C, classicOgV06D, type Ruleset } from '@streets/rulesets';
 import { regenerateTurns } from '../calculations/turns.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
@@ -38,7 +38,7 @@ describe('ruleset loader', () => {
   it('knows which ids it can serve', () => {
     expect(isKnownRulesetId('classic-og-v0.1')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(26);
+    expect(listRulesets()).toHaveLength(27);
   });
 });
 
@@ -118,6 +118,21 @@ describe('classic-og-v0.3-d contents', () => {
     expect(ruleset.alliances).toEqual({ ...classicOgV03C.alliances, sharedIntel: true });
     expect({ ...ruleset, meta: null, alliances: null }).toEqual({ ...classicOgV03C, meta: null, alliances: null });
     expect((classicOgV03C as Ruleset).alliances?.sharedIntel).toBeUndefined();
+  });
+});
+
+describe('classic-og-v0.6-d contents', () => {
+  it('pins outpost storage without changing C turf-war balance', () => {
+    const ruleset = loadRuleset('classic-og-v0.6-d', '0.6.0-D');
+    expect(ruleset).toBe(classicOgV06D);
+    expect(ruleset.turf?.outposts).toEqual({
+      cashCapCents: 25_000_000,
+      beerCap: 2_000,
+      productCap: 5_000,
+      transferTurnCost: 2,
+    });
+    expect({ ...ruleset, meta: null, turf: { ...ruleset.turf!, outposts: null } })
+      .toEqual({ ...classicOgV06C, meta: null, turf: { ...classicOgV06C.turf, outposts: null } });
   });
 });
 
