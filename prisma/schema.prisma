@@ -452,6 +452,8 @@ model RoundPlayer {
   /// net worth, but not at home to work, cover the street, cook or defend. Unlike
   /// `busyThugs` they have no deadline: they stand there until they are pulled or pushed off.
   postedThugs        Int @default(0)
+  /// 0.6.0-B. Net-worth value of guns removed from the home arsenal and posted on turf.
+  postedNetWorthCents BigInt @default(0)
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
   rocksSuppliedToPip Int @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
@@ -1193,14 +1195,22 @@ model Turf {
   holderId    String?
   holder      RoundPlayer? @relation("TurfHolder", fields: [holderId], references: [id], onDelete: SetNull)
   /// The holder's posted thugs on this corner. Part of the holder's `postedThugs`.
-  cornerThugs Int          @default(0)
-  heldSince   DateTime?
+  cornerThugs    Int @default(0)
+  /// Their guns have physically left the holder's home arsenal while posted.
+  cornerPistols  Int @default(0)
+  cornerShotguns Int @default(0)
+  cornerTek9s    Int @default(0)
+  cornerAk47s    Int @default(0)
+  heldSince      DateTime?
   /// 0.6.0-C. Taken blocks cannot be taken again until this passes.
   shieldUntil DateTime?
 
   /// What the locals hold it with, and when that was last worked out.
   localsThugs Int
   localsAt    DateTime @default(now())
+
+  /// 0.6.0-B. Last corner-upkeep boundary settled.
+  upkeepAt DateTime @default(now())
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1247,7 +1257,9 @@ model TurfTaxLedger {
   /// UTC calendar day, stored at midnight.
   day DateTime
 
-  mintedCents BigInt @default(0)
+  mintedCents   BigInt @default(0)
+  /// House-minted tax already credited to the holder's cash.
+  creditedCents BigInt @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

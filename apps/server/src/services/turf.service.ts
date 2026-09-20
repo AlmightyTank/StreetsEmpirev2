@@ -1,9 +1,36 @@
 import type { PrismaClient } from '@prisma/client';
-import { localsAfter, localsThugs, presenceAfter, turfBlocks, type Ruleset } from '@streets/rules-engine';
-import type { CityTurfDto, TurfBlockDto } from '@streets/shared';
+import {
+  cornerMinimumFor,
+  cornerUpkeep,
+  defaultWorkSupplyPolicy,
+  localsAfter,
+  localsThugs,
+  presenceAfter,
+  turfBlocks,
+  turfHoldBonus,
+  turfTax,
+  workSupplyOrder,
+  type DistrictKey,
+  type Ruleset,
+} from '@streets/rules-engine';
+import type { CityTurfDto, TurfBlockDto, TurfSummaryDto, TurfTripDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
+import { accountsShareNetwork } from './admin-signals.service.js';
+import { ProductInventoryService } from './product-inventory.service.js';
 
 type TurfDb = PrismaClient | Db;
+const HOUR_MS = 3_600_000;
+
+export interface CornerGuns {
+  pistols: number;
+  shotguns: number;
+  tek9s: number;
+  ak47s: number;
+}
+
+const EMPTY_GUNS: CornerGuns = { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
+const BEST_FIRST = ['ak47s', 'tek9s', 'shotguns', 'pistols'] as const;
+const RETURN_FIRST = ['pistols', 'shotguns', 'tek9s', 'ak47s'] as const;
 
 function districtName(ruleset: Ruleset, citySlug: string, district: string): string {
   const key = district as keyof typeof ruleset.districts;
@@ -11,152 +38,347 @@ function districtName(ruleset: Ruleset, citySlug: string, district: string): str
     ?? ruleset.districts[key]?.name
     ?? district;
 }
-
-function hoursSince(at: Date, now: Date): number {
-  return Math.max(0, (now.getTime() - at.getTime()) / 3_600_000);
+function hoursSince(at: Date, now: Date): number { return Math.max(0, (now.getTime() - at.getTime()) / HOUR_MS); }
+function utcDay(now: Date): Date { return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())); }
+function holdingOn(ruleset: Ruleset): boolean { return ruleset.turf?.holding === true; }
+function homeFit(player: { thugs: number; woundedThugs: number; busyThugs: number; postedThugs: number }): number {
+  return Math.max(0, player.thugs - player.woundedThugs - player.busyThugs - player.postedThugs);
 }
+function gunCount(guns: CornerGuns): number { return guns.pistols + guns.shotguns + guns.tek9s + guns.ak47s; }
 
-/**
- * 0.6.0-A. Turf is read-only for players in A, but the rows exist from the round's
- * first read so the map, later presence, and B's claim actions all see the same blocks.
- */
+export function cornerGunCount(guns: CornerGuns): number { return gunCount(guns); }
+export function gunsFromTurf(row: { cornerPistols: number; cornerShotguns: number; cornerTek9s: number; cornerAk47s: number }): CornerGuns {
+  return { pistols: row.cornerPistols, shotguns: row.cornerShotguns, tek9s: row.cornerTek9s, ak47s: row.cornerAk47s };
+}
+export function turfGunData(guns: CornerGuns) {
+  return { cornerPistols: guns.pistols, cornerShotguns: guns.shotguns, cornerTek9s: guns.tek9s, cornerAk47s: guns.ak47s };
+}
+export function addCornerGuns(a: CornerGuns, b: CornerGuns): CornerGuns {
+  return { pistols: a.pistols + b.pistols, shotguns: a.shotguns + b.shotguns, tek9s: a.tek9s + b.tek9s, ak47s: a.ak47s + b.ak47s };
+}
+export function subtractCornerGuns(a: CornerGuns, b: CornerGuns): CornerGuns {
+  return { pistols: a.pistols - b.pistols, shotguns: a.shotguns - b.shotguns, tek9s: a.tek9s - b.tek9s, ak47s: a.ak47s - b.ak47s };
+}
+export function allocateCornerGuns(source: CornerGuns, count: number): CornerGuns | null {
+  const guns: CornerGuns = { ...EMPTY_GUNS };
+  let remaining = count;
+  for (const key of BEST_FIRST) {
+    if (remaining <= 0) break;
+    const amount = Math.min(Math.max(0, source[key]), remaining);
+    guns[key] = amount;
+    remaining -= amount;
+  }
+  return remaining === 0 ? guns : null;
+}
+export function releaseCornerGuns(source: CornerGuns, count: number): CornerGuns {
+  const guns: CornerGuns = { ...EMPTY_GUNS };
+  let remaining = count;
+  for (const key of RETURN_FIRST) {
+    if (remaining <= 0) break;
+    const amount = Math.min(Math.max(0, source[key]), remaining);
+    guns[key] = amount;
+    remaining -= amount;
+  }
+  if (remaining !== 0) throw new RangeError('Corner gun custody is below the posted thug count.');
+  return guns;
+}
+export function cornerGunWorthCents(ruleset: Ruleset, guns: CornerGuns): bigint {
+  const v = ruleset.economy.netWorth;
+  return BigInt(guns.pistols) * BigInt(v.perPistolCents)
+    + BigInt(guns.shotguns) * BigInt(v.perShotgunCents)
+    + BigInt(guns.tek9s) * BigInt(v.perTek9Cents)
+    + BigInt(guns.ak47s) * BigInt(v.perAk47Cents);
+}
+function dtoGuns(guns: CornerGuns) { return { ...guns, total: gunCount(guns) }; }
+
 export const TurfService = {
+  holdingEnabled: holdingOn,
+
   async ensureRound(db: TurfDb, roundId: string, ruleset: Ruleset): Promise<void> {
     const blocks = turfBlocks(ruleset);
     if (!blocks.length) return;
-
     const slugs = [...new Set(blocks.map((block) => block.citySlug))];
     const cities = await db.city.findMany({ where: { slug: { in: slugs } }, select: { id: true, slug: true } });
     const cityBySlug = new Map(cities.map((city) => [city.slug, city.id]));
-
     await db.turf.createMany({
       skipDuplicates: true,
       data: blocks.flatMap((block) => {
         const cityId = cityBySlug.get(block.citySlug);
-        return cityId
-          ? [{
-              roundId,
-              cityId,
-              district: block.district,
-              localsThugs: localsThugs(ruleset, block),
-            }]
-          : [];
+        return cityId ? [{ roundId, cityId, district: block.district, localsThugs: localsThugs(ruleset, block) }] : [];
       }),
     });
   },
 
-  /**
-   * 0.6.0-B. Scout presence is earned where the crew lives right now. The old value
-   * fades first, then the new trip is added, so many small trips and one long trip
-   * age the same way once time passes.
-   */
-  async addPresence(
-    db: TurfDb,
-    input: {
-      roundPlayerId: string;
-      roundId: string;
-      cityId: string;
-      district: string;
-      turns: number;
-      ruleset: Ruleset;
-      now?: Date;
-    },
-  ): Promise<number> {
-    if (!input.ruleset.turf || input.turns <= 0) return 0;
-
+  async addPresence(db: TurfDb, input: {
+    roundPlayerId: string; roundId: string; cityId: string; district: string;
+    turns: number; ruleset: Ruleset; now?: Date;
+  }): Promise<number> {
+    if (!holdingOn(input.ruleset) || input.turns <= 0) return 0;
     const now = input.now ?? new Date();
     await TurfService.ensureRound(db, input.roundId, input.ruleset);
-
-    const where = {
-      roundPlayerId_cityId_district: {
-        roundPlayerId: input.roundPlayerId,
-        cityId: input.cityId,
-        district: input.district,
-      },
-    };
+    const where = { roundPlayerId_cityId_district: { roundPlayerId: input.roundPlayerId, cityId: input.cityId, district: input.district } };
     const existing = await db.turfPresence.findUnique({ where });
-    const faded = existing
-      ? presenceAfter(input.ruleset, existing.turns, hoursSince(existing.at, now))
-      : 0;
-    const turns = faded + input.turns;
-
+    const faded = existing ? presenceAfter(input.ruleset, existing.turns, hoursSince(existing.at, now)) : 0;
+    const turns = faded + input.turns * input.ruleset.turf!.presence.perScoutTurn;
     await db.turfPresence.upsert({
       where,
-      create: {
-        roundPlayerId: input.roundPlayerId,
-        cityId: input.cityId,
-        district: input.district,
-        turns,
-        at: now,
-      },
+      create: { roundPlayerId: input.roundPlayerId, cityId: input.cityId, district: input.district, turns, at: now },
       update: { turns, at: now },
     });
-
     return turns;
+  },
+
+  async presenceFor(db: TurfDb, roundPlayerId: string, cityId: string, district: string, ruleset: Ruleset, now = new Date()): Promise<number> {
+    const row = await db.turfPresence.findUnique({ where: { roundPlayerId_cityId_district: { roundPlayerId, cityId, district } } });
+    return row ? presenceAfter(ruleset, row.turns, hoursSince(row.at, now)) : 0;
+  },
+
+  async settlePlayer(tx: Db, roundPlayerId: string, ruleset: Ruleset, now = new Date()) {
+    if (!holdingOn(ruleset)) return null;
+    const player = await tx.roundPlayer.findUniqueOrThrow({
+      where: { id: roundPlayerId },
+      select: {
+        id: true, roundId: true, cashCents: true, beer: true, crack: true, thugs: true,
+        postedThugs: true, postedNetWorthCents: true, pistols: true, shotguns: true, tek9s: true, ak47s: true,
+      },
+    });
+    await TurfService.ensureRound(tx, player.roundId, ruleset);
+    const held = await tx.turf.findMany({
+      where: { roundId: player.roundId, holderId: roundPlayerId },
+      include: { city: { select: { slug: true } } },
+      orderBy: [{ city: { sortOrder: 'asc' } }, { district: 'asc' }],
+    });
+
+    let beer = player.beer;
+    let thugs = player.thugs;
+    let postedThugs = player.postedThugs;
+    let postedNetWorthCents = player.postedNetWorthCents;
+    let homeGuns: CornerGuns = { pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s };
+    let walkouts = 0;
+
+    const inventory = await ProductInventoryService.read(tx, roundPlayerId, ruleset);
+    const productChanges: Record<string, number> = {};
+    const policyRow = await tx.workSupplyPolicy.findUnique({ where: { roundPlayerId_job: { roundPlayerId, job: 'CORNER' } } });
+    const policy = policyRow
+      ? { primary: policyRow.primary, fallback: policyRow.fallback, emergency: policyRow.emergency, strict: policyRow.strict }
+      : defaultWorkSupplyPolicy();
+    const order = workSupplyOrder(policy);
+    const takeProduct = (need: number): number => {
+      let used = 0;
+      for (const key of order) {
+        if (used >= need) break;
+        const available = Math.max(0, inventory[key] ?? 0);
+        const amount = Math.min(available, need - used);
+        if (amount <= 0) continue;
+        inventory[key] = available - amount;
+        productChanges[key] = (productChanges[key] ?? 0) - amount;
+        used += amount;
+      }
+      return used;
+    };
+
+    for (const row of held) {
+      const wholeHours = Math.floor(hoursSince(row.upkeepAt, now));
+      if (wholeHours <= 0 || row.cornerThugs <= 0) continue;
+      const need = cornerUpkeep(ruleset, row.cornerThugs, wholeHours);
+      const beerUsed = Math.min(beer, need.beer);
+      beer -= beerUsed;
+      const productUsed = takeProduct(need.product);
+      const beerShare = need.beer > 0 ? beerUsed / need.beer : 1;
+      const productShare = need.product > 0 ? productUsed / need.product : 1;
+      const missingShare = Math.max(0, 1 - Math.min(beerShare, productShare));
+      const leaving = Math.min(row.cornerThugs, Math.ceil(row.cornerThugs * ruleset.turf!.corner.walkoutSharePerHour * wholeHours * missingShare));
+      const advanceTo = new Date(row.upkeepAt.getTime() + wholeHours * HOUR_MS);
+      const gunsBefore = gunsFromTurf(row);
+      const returned = leaving > 0 ? releaseCornerGuns(gunsBefore, leaving) : { ...EMPTY_GUNS };
+      const gunsAfter = subtractCornerGuns(gunsBefore, returned);
+      const cornerAfter = row.cornerThugs - leaving;
+
+      if (leaving > 0) {
+        walkouts += leaving;
+        thugs = Math.max(0, thugs - leaving);
+        postedThugs = Math.max(0, postedThugs - leaving);
+        homeGuns = addCornerGuns(homeGuns, returned);
+        postedNetWorthCents -= cornerGunWorthCents(ruleset, returned);
+        if (postedNetWorthCents < 0n) throw new RangeError('Posted turf net worth fell below zero.');
+      }
+
+      const block = { citySlug: row.city.slug, district: row.district as DistrictKey };
+      await tx.turf.update({
+        where: { id: row.id },
+        data: cornerAfter > 0
+          ? { cornerThugs: cornerAfter, ...turfGunData(gunsAfter), upkeepAt: advanceTo }
+          : {
+              holderId: null, cornerThugs: 0, ...turfGunData(EMPTY_GUNS), heldSince: null, shieldUntil: null,
+              upkeepAt: advanceTo, localsThugs: localsThugs(ruleset, block), localsAt: now,
+            },
+      });
+    }
+
+    if (Object.keys(productChanges).length > 0) await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, productChanges);
+
+    const ledgers = await tx.turfTaxLedger.findMany({ where: { holderId: roundPlayerId } });
+    let taxCreditedCents = 0n;
+    for (const row of ledgers) {
+      const due = row.mintedCents - row.creditedCents;
+      if (due <= 0n) continue;
+      taxCreditedCents += due;
+      await tx.turfTaxLedger.update({ where: { id: row.id }, data: { creditedCents: row.mintedCents } });
+    }
+    const cashCents = player.cashCents + taxCreditedCents;
+
+    if (beer !== player.beer || thugs !== player.thugs || postedThugs !== player.postedThugs ||
+        postedNetWorthCents !== player.postedNetWorthCents || homeGuns.pistols !== player.pistols ||
+        homeGuns.shotguns !== player.shotguns || homeGuns.tek9s !== player.tek9s || homeGuns.ak47s !== player.ak47s ||
+        taxCreditedCents > 0n) {
+      await tx.roundPlayer.update({
+        where: { id: roundPlayerId },
+        data: { cashCents, beer, thugs, postedThugs, postedNetWorthCents, ...homeGuns },
+      });
+    }
+
+    return {
+      cashCents, beer, crack: inventory.CRACK ?? player.crack, thugs, postedThugs, postedNetWorthCents,
+      ...homeGuns, taxCreditedCents, walkouts,
+    };
+  },
+
+  async scoutEconomy(tx: Db, input: {
+    roundPlayerId: string; accountId: string; roundId: string; cityId: string;
+    district: DistrictKey; takeCents: number; ruleset: Ruleset; now?: Date;
+  }): Promise<TurfTripDto> {
+    const empty: TurfTripDto = { kind: 'locals', holder: null, holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: false };
+    if (!holdingOn(input.ruleset) || input.takeCents <= 0) return empty;
+    const now = input.now ?? new Date();
+    await TurfService.ensureRound(tx, input.roundId, input.ruleset);
+    const row = await tx.turf.findUnique({
+      where: { roundId_cityId_district: { roundId: input.roundId, cityId: input.cityId, district: input.district } },
+      include: { holder: { select: { id: true, accountId: true, publicPimpId: true, displayName: true } } },
+    });
+    if (!row?.holder) return empty;
+    if (row.holder.id === input.roundPlayerId) {
+      const multiplier = turfHoldBonus(input.ruleset, input.district, true);
+      return {
+        kind: 'own', holder: { publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName },
+        holdBonusCents: Math.max(0, Math.round(input.takeCents * (multiplier - 1))), taxPaidCents: 0, taxMintedCents: 0, linked: false,
+      };
+    }
+
+    const linked = await accountsShareNetwork(tx, input.accountId, row.holder.accountId, now);
+    if (linked) {
+      return {
+        kind: 'rival', holder: { publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName },
+        holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: true,
+      };
+    }
+
+    const day = utcDay(now);
+    const ledger = await tx.turfTaxLedger.findUnique({
+      where: { roundId_payerId_holderId_day: { roundId: input.roundId, payerId: input.roundPlayerId, holderId: row.holder.id, day } },
+    });
+    const tax = turfTax(input.ruleset, input.district, input.takeCents, Number(ledger?.mintedCents ?? 0n));
+    if (tax.mintCents > 0) {
+      await tx.turfTaxLedger.upsert({
+        where: { roundId_payerId_holderId_day: { roundId: input.roundId, payerId: input.roundPlayerId, holderId: row.holder.id, day } },
+        create: { roundId: input.roundId, payerId: input.roundPlayerId, holderId: row.holder.id, day, mintedCents: BigInt(tax.mintCents) },
+        update: { mintedCents: { increment: BigInt(tax.mintCents) } },
+      });
+    }
+    return {
+      kind: 'rival', holder: { publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName },
+      holdBonusCents: 0, taxPaidCents: tax.burnCents, taxMintedCents: tax.mintCents, linked: false,
+    };
+  },
+
+  async summary(db: TurfDb, roundPlayerId: string, ruleset: Ruleset, now = new Date()): Promise<TurfSummaryDto | null> {
+    if (!holdingOn(ruleset)) return null;
+    const player = await db.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { roundId: true } });
+    const day = utcDay(now);
+    const [held, today, all] = await Promise.all([
+      db.turf.findMany({ where: { roundId: player.roundId, holderId: roundPlayerId }, select: { cornerPistols: true, cornerShotguns: true, cornerTek9s: true, cornerAk47s: true } }),
+      db.turfTaxLedger.findMany({ where: { roundId: player.roundId, holderId: roundPlayerId, day } }),
+      db.turfTaxLedger.findMany({ where: { roundId: player.roundId, holderId: roundPlayerId } }),
+    ]);
+    const posted = held.reduce((sum, row) => addCornerGuns(sum, gunsFromTurf(row)), { ...EMPTY_GUNS });
+    const earned = today.reduce((sum, row) => sum + row.mintedCents, 0n);
+    const pending = all.reduce((sum, row) => sum + (row.mintedCents - row.creditedCents), 0n);
+    return {
+      enabled: true, blocksHeld: held.length, postedGuns: dtoGuns(posted),
+      taxEarnedTodayCents: Number(earned), taxPendingCents: Number(pending),
+      taxPayersToday: new Set(today.map((row) => row.payerId)).size,
+      dailyTaxCapCentsPerPayer: ruleset.turf!.caps.dailyTaxCapCentsPerPayer,
+    };
   },
 
   async byCity(db: TurfDb, roundPlayerId: string, ruleset: Ruleset, now = new Date()): Promise<Map<string, CityTurfDto> | null> {
     if (!ruleset.turf) return null;
-
     const player = await db.roundPlayer.findUniqueOrThrow({
       where: { id: roundPlayerId },
-      select: { id: true, roundId: true },
+      select: {
+        id: true, roundId: true, cityId: true, thugs: true, woundedThugs: true, busyThugs: true, postedThugs: true,
+        pistols: true, shotguns: true, tek9s: true, ak47s: true, allianceId: true, lockedUntil: true, movingUntil: true,
+      },
     });
     await TurfService.ensureRound(db, player.roundId, ruleset);
-
-    const [rows, presenceRows] = await Promise.all([
+    const [rows, presenceRows, activeRun] = await Promise.all([
       db.turf.findMany({
         where: { roundId: player.roundId },
         include: {
-          city: { select: { slug: true } },
-          holder: {
-            select: {
-              publicPimpId: true,
-              displayName: true,
-              alliance: { select: { name: true, tag: true } },
-            },
-          },
+          city: { select: { id: true, slug: true } },
+          holder: { select: { id: true, allianceId: true, publicPimpId: true, displayName: true, alliance: { select: { name: true, tag: true } } } },
         },
         orderBy: [{ city: { sortOrder: 'asc' } }, { district: 'asc' }],
       }),
-      db.turfPresence.findMany({
-        where: { roundPlayerId: player.id },
-        include: { city: { select: { slug: true } } },
-      }),
+      db.turfPresence.findMany({ where: { roundPlayerId: player.id }, include: { city: { select: { slug: true } } } }),
+      db.run.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { escortThugs: true } }),
     ]);
 
-    const presence = new Map(presenceRows.map((row) => [
-      `${row.city.slug}:${row.district}`,
-      presenceAfter(ruleset, row.turns, hoursSince(row.at, now)),
-    ]));
+    const presence = new Map(presenceRows.map((row) => [`${row.city.slug}:${row.district}`, presenceAfter(ruleset, row.turns, hoursSince(row.at, now))]));
+    const crewThugs = player.thugs + (activeRun?.escortThugs ?? 0);
+    const armedAtHome = Math.min(homeFit(player), gunCount({ pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s }));
+    const heldAtHome = rows.filter((row) => row.city.id === player.cityId && row.holder?.id === player.id).length;
+    const allianceHeld = (cityId: string) => player.allianceId
+      ? rows.filter((row) => row.city.id === cityId && row.holder?.allianceId === player.allianceId).length : 0;
 
     const byCity = new Map<string, CityTurfDto>();
     for (const row of rows) {
       const citySlug = row.city.slug;
-      const block = { citySlug, district: row.district as TurfBlockDto['district'] };
+      const district = row.district as TurfBlockDto['district'];
+      const block = { citySlug, district };
       const blocks = byCity.get(citySlug)?.blocks ?? [];
       const fullLocals = localsThugs(ruleset, block);
-      blocks.push({
-        city: citySlug,
-        district: block.district,
-        districtName: districtName(ruleset, citySlug, row.district),
-        holder: row.holder
-          ? {
-              publicPimpId: row.holder.publicPimpId,
-              displayName: row.holder.displayName,
-              alliance: row.holder.alliance ? { name: row.holder.alliance.name, tag: row.holder.alliance.tag } : null,
-            }
-          : null,
-        cornerThugs: row.cornerThugs,
-        localsThugs: Math.round(localsAfter(ruleset, block, row.localsThugs, hoursSince(row.localsAt, now))),
-        localsFullThugs: fullLocals,
-        heldSince: row.heldSince?.toISOString() ?? null,
-        shieldUntil: row.shieldUntil?.toISOString() ?? null,
-        presenceTurns: presence.get(`${citySlug}:${row.district}`) ?? 0,
-      });
-      byCity.set(citySlug, { enabled: true, blocks });
-    }
+      const p = presence.get(`${citySlug}:${row.district}`) ?? 0;
+      const isMine = row.holder?.id === player.id;
+      const minimum = cornerMinimumFor(ruleset, district, crewThugs);
+      let claimBlockedReason: string | null = null;
 
+      if (holdingOn(ruleset) && !row.holder) {
+        if (row.city.id !== player.cityId) claimBlockedReason = 'Outposts arrive in 0.6.0-D.';
+        else if (player.lockedUntil && player.lockedUntil > now) claimBlockedReason = 'You cannot claim turf while locked up.';
+        else if (player.movingUntil && player.movingUntil > now) claimBlockedReason = 'Finish moving house before claiming turf.';
+        else if (heldAtHome >= ruleset.turf.caps.blocksPerCrewHome) claimBlockedReason = `You already hold your ${ruleset.turf.caps.blocksPerCrewHome}-block home cap.`;
+        else if (player.allianceId && allianceHeld(row.city.id) >= ruleset.turf.caps.blocksPerAllianceInCity) claimBlockedReason = `Your alliance already holds ${ruleset.turf.caps.blocksPerAllianceInCity} blocks here.`;
+        else if (p < ruleset.turf.presence.turnsToClaim) claimBlockedReason = `Work this block until you have ${ruleset.turf.presence.turnsToClaim} presence.`;
+        else if (armedAtHome < minimum) claimBlockedReason = `You need ${minimum} fit, armed thugs at home.`;
+      } else if (holdingOn(ruleset) && row.holder && !isMine) claimBlockedReason = 'A crew holds this block. Turf pushes arrive in 0.6.0-C.';
+
+      blocks.push({
+        city: citySlug, district, districtName: districtName(ruleset, citySlug, row.district),
+        holder: row.holder ? {
+          publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName,
+          alliance: row.holder.alliance ? { name: row.holder.alliance.name, tag: row.holder.alliance.tag } : null,
+        } : null,
+        isMine, cornerThugs: row.cornerThugs, cornerMinimumThugs: minimum, cornerGuns: dtoGuns(gunsFromTurf(row)),
+        localsThugs: Math.round(localsAfter(ruleset, block, row.localsThugs, hoursSince(row.localsAt, now))),
+        localsFullThugs: fullLocals, heldSince: row.heldSince?.toISOString() ?? null,
+        shieldUntil: row.shieldUntil?.toISOString() ?? null, presenceTurns: p, claimBlockedReason,
+      });
+      byCity.set(citySlug, {
+        enabled: true, holdingEnabled: holdingOn(ruleset), presenceRequired: ruleset.turf.presence.turnsToClaim,
+        postTurnCost: ruleset.turf.corner.postTurnCost, pullTurnCost: ruleset.turf.corner.pullTurnCost,
+        homeCap: ruleset.turf.caps.blocksPerCrewHome, heldAtHome, blocks,
+      });
+    }
     return byCity;
   },
 };

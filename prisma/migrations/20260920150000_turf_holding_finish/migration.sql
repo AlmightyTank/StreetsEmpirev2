@@ -1,0 +1,14 @@
+-- 0.6.0-B Holding: real corner gun custody, upkeep clock and idempotent tax credit.
+
+ALTER TABLE "RoundPlayer"
+ADD COLUMN "postedNetWorthCents" BIGINT NOT NULL DEFAULT 0;
+
+ALTER TABLE "Turf"
+ADD COLUMN "cornerPistols" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "cornerShotguns" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "cornerTek9s" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "cornerAk47s" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "upkeepAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE "TurfTaxLedger"
+ADD COLUMN "creditedCents" BIGINT NOT NULL DEFAULT 0;
