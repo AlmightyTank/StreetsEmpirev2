@@ -13,7 +13,7 @@ import {
   turfRulesetProblems,
   turfTax,
 } from '../calculations/turf.js';
-import { runTurfSimulation, turfGate } from '../simulations/turf.js';
+import { runTurfPushSimulation, runTurfSimulation, turfGate } from '../simulations/turf.js';
 
 const ruleset: Ruleset = classicOgV06A;
 const before: Ruleset = classicOgV05F;
