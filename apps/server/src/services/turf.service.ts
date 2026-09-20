@@ -288,6 +288,9 @@ export const TurfService = {
           if (postedNetWorthCents < 0n) throw new RangeError('Posted turf net worth fell below zero.');
         }
 
+        const controlBefore = cornerAfter <= 0
+          ? await territoryControlForCity(tx, player.roundId, row.cityId, ruleset)
+          : null;
         if (cornerAfter > 0) {
           await tx.turfOutpost.update({
             where: { id: box.id },
@@ -307,6 +310,9 @@ export const TurfService = {
               holderId: null, cornerThugs: 0, ...turfGunData(EMPTY_GUNS), heldSince: null, shieldUntil: null,
               upkeepAt: advanceTo, localsThugs: 0, localsAt: now, localsReclaimAt: localsReclaimAt(ruleset, now),
             },
+          });
+          await recordTerritoryControlChange(tx, {
+            roundId: player.roundId, cityId: row.cityId, ruleset, before: controlBefore, at: now,
           });
         }
         continue;
@@ -336,6 +342,9 @@ export const TurfService = {
         if (postedNetWorthCents < 0n) throw new RangeError('Posted turf net worth fell below zero.');
       }
 
+      const controlBefore = cornerAfter <= 0
+        ? await territoryControlForCity(tx, player.roundId, row.cityId, ruleset)
+        : null;
       await tx.turf.update({
         where: { id: row.id },
         data: cornerAfter > 0
@@ -345,6 +354,11 @@ export const TurfService = {
               upkeepAt: advanceTo, localsThugs: 0, localsAt: now, localsReclaimAt: localsReclaimAt(ruleset, now),
             },
       });
+      if (cornerAfter <= 0) {
+        await recordTerritoryControlChange(tx, {
+          roundId: player.roundId, cityId: row.cityId, ruleset, before: controlBefore, at: now,
+        });
+      }
     }
 
     if (Object.keys(productChanges).length > 0) await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, productChanges);
