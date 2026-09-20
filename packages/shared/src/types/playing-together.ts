@@ -572,6 +572,15 @@ export interface TravelDto extends CitiesDto {
   relocation: RelocationDto | null;
 }
 
+export interface RelocationTurfPlanDto {
+  /** Destination outposts that become normal home turf. */
+  toHome: Array<{ district: TurfBlockDto['district']; districtName: string }>;
+  /** Old-home blocks that stay owned as empty-box outposts. */
+  toOutposts: Array<{ district: TurfBlockDto['district']; districtName: string }>;
+  /** Old-home blocks released because the away cap is full. */
+  released: Array<{ district: TurfBlockDto['district']; districtName: string }>;
+}
+
 /** 0.5.0-D. What a player's Heat would mean living in a city. */
 export interface HeatThereDto {
   dragStartsAt: number;
@@ -604,6 +613,8 @@ export interface RelocationDto {
   heat: number;
   here: HeatThereDto | null;
   destinations: Array<{ slug: string; name: string; heat: HeatThereDto | null; reachable: boolean }>;
+  /** 0.6.0-D. Exact turf conversion preview keyed by destination slug. */
+  turfPlans: Record<string, RelocationTurfPlanDto>;
 }
 
 /** 0.5.0-D. POST /api/game/travel/move. */
@@ -614,6 +625,8 @@ export interface RelocationResult {
   toName: string;
   feeCents: number;
   arrivesAt: string;
+  /** 0.6.0-D. What will happen to held turf on arrival. */
+  turfPlan: RelocationTurfPlanDto;
 }
 
 /** 0.5.0-B. What a launch did. */
