@@ -8,9 +8,10 @@ own pinned ruleset: delayed pushes, Lookouts warnings, defender and same-city al
 backup, chance-to-show reinforcement, offline landing, combat/wounds, block transfer,
 hold shields, attacker cooldowns, revenge, delayed locals reclaim, real squad+gun custody,
 cap reservations, battle reports, Street Wire/Discord hand-change lines and the C balance
-gate are built. The seeded gate lands at 38.7% attacker wins without backup and 23.2% with
-an alliance call. 0.6.0-D Outposts is next. Decisions marked *(proposed)* remain open until
-the 0.5.0 public round reports in.
+gate are built. 0.6.0-D Outposts and 0.6.0-E Territory are complete. 0.6.0-F Release is now
+in progress, starting with the pinned release ruleset, release balance gates and public Turf
+rules documentation. Decisions marked *(proposed)* remain open until the 0.5.0 public round
+reports in.
 
 0.4.0 gave the crew product to manage, and 0.5.0 gave it roads to move that product on.
 Neither gave a crew anything to **hold**. Working a district never touches another player,
@@ -278,6 +279,18 @@ and alliance in the Hall of Fame.
 
 ## 0.6.0-F - Release
 
+Status: **in progress.** The `classic-og-v0.6-f` shipping ruleset is pinned from E without
+changing balance, `qa:turf` now runs against F, the turf balance gate runs inside
+`qa:release`, and the public Rules page has its Turf/territory panel. The full-round
+strategy simulation is now wired: holder, turf-raider, runner, mover and mixed empires are
+scored for every city, both session styles, fresh/mid starts and solo/alliance fields, with
+home-corner opportunity cost, push turnover, capped outpost loot, weekly outpost service and
+the Garage purchase priced into the result. The release gate requires mixed play to beat
+pure holding, turf raiding and running everywhere, while optional Turf may never make the
+same move/road plan worse. The full-round gate is green; see [TURF-SIMULATION-0.6.0-F.md](TURF-SIMULATION-0.6.0-F.md).
+The seeded Federal crackdown is complete and verified. The phone pass and turf integration
+regression remain.
+
 - **Balance:** a pass over all 40 blocks on `qa:turf` and full-round runs, including
   outposts, the Garage and the tax caps.
 - **Full-round simulation:** holder, raider, runner, mover and mixed crews, solo and in
@@ -285,6 +298,14 @@ and alliance in the Hall of Fame.
 - **The crackdown:** one seeded event near the end of the round. The Feds sweep one city:
   its holders' corner crews take Heat and some are picked up. It is announced on the wire a
   day ahead, so crews decide whether to hold or pull out.
+
+Built in F: the city is deterministic from the round/ruleset seed; the warning lands 24
+hours before a sweep 48 hours before the round ends. Every held block adds 12 Heat to its
+holder. The Feds pick up 20% of each posted corner crew, capped at 6 per block, while always
+leaving at least one thug so the event weakens turf rather than auto-flipping it. Picked-up
+thugs and their posted guns leave the player's net worth/custody correctly. The warning and
+result are durable one-time Street Wire and Discord feed events, and round close settles a
+due sweep before final standings freeze.
 - **UI:** a phone pass on the city map, the push screen and outposts; the Rules page gains a
   Turf panel.
 - **Release regression:** turf integration suites join `qa:release`.
@@ -296,8 +317,10 @@ and alliance in the Hall of Fame.
    share simply be smaller than the worker's loss?
 2. **Caps.** Blocks per crew at home and away, and per alliance in a city. Two at home, one
    away, and three of five per alliance are starting points for the A simulation.
-3. **Does holding draw Heat?** Tax is dirty money. A little Heat per dollar would tie turf
-   to the city's police lines, and to the crackdown.
+3. **Heat from holding (resolved for 0.6.0-F).** Ordinary holding and street-tax income do
+   not add passive Heat. The seeded crackdown is the Turf police pressure instead: holders
+   caught in its target city take Heat per block. Revisit passive dirty-money Heat only if
+   public-round data shows holding is too safe.
 4. **Presence for outposts.** Can a run's crew build presence in a town, or must you have
    lived there?
 5. **Reinforcement beyond turf.** If the chance-to-show-up shape plays well on turf, does it

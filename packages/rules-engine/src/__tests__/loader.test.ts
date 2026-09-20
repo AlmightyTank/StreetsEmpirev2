@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, classicOgV06C, classicOgV06D, classicOgV06E, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, classicOgV06C, classicOgV06D, classicOgV06E, classicOgV06F, type Ruleset } from '@streets/rulesets';
 import { regenerateTurns } from '../calculations/turns.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
@@ -38,7 +38,7 @@ describe('ruleset loader', () => {
   it('knows which ids it can serve', () => {
     expect(isKnownRulesetId('classic-og-v0.1')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(28);
+    expect(listRulesets()).toHaveLength(29);
   });
 });
 
@@ -174,6 +174,31 @@ describe('classic-og-v0.6-e contents', () => {
       ...classicOgV06D,
       meta: null,
       turf: { ...classicOgV06D.turf, territory: null },
+    });
+  });
+});
+
+describe('classic-og-v0.6-f contents', () => {
+  it('adds the Federal crackdown without changing E turf balance', () => {
+    const ruleset = loadRuleset('classic-og-v0.6-f', '0.6.0-F');
+    expect(ruleset).toBe(classicOgV06F);
+    expect(ruleset.meta.name).toBe('Classic OG - Turf Release');
+    expect(ruleset.turf?.crackdown).toEqual({
+      hoursBeforeRoundEnd: 48,
+      warningHours: 24,
+      heatPerHeldBlock: 12,
+      pickupShare: 0.2,
+      maxPickedUpPerBlock: 6,
+      minimumCornerSurvivors: 1,
+    });
+    expect({
+      ...ruleset,
+      meta: null,
+      turf: { ...ruleset.turf!, crackdown: null },
+    }).toEqual({
+      ...classicOgV06E,
+      meta: null,
+      turf: { ...classicOgV06E.turf, crackdown: null },
     });
   });
 });

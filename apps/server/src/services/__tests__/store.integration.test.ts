@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { classicOgV01 } from '@streets/rulesets';
 
@@ -8,6 +8,7 @@ import { classicOgV01 } from '@streets/rulesets';
 describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL', () => {
   let app: FastifyInstance;
   let accountId: string | undefined;
+  let roundId: string | undefined;
   let playerId: string;
   let cookie: string;
 
@@ -21,8 +22,18 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
     expect(registered.statusCode).toBe(201);
     accountId = registered.json().account.id;
     cookie = registered.cookies.map((entry) => `${entry.name}=${entry.value}`).join('; ');
+    // Own the round this suite depends on. The full release regression runs
+    // integration suites sequentially, so Store must not depend on another
+    // suite leaving a current round behind.
     const { RoundService } = await import('../round.service.js');
-    const round = await RoundService.requireCurrent(app.prisma);
+    const round = await app.prisma.round.create({ data: {
+      name: 'Store integration fixture', slug: `store-test-${randomUUID()}`,
+      rulesetId: classicOgV01.meta.id, rulesetVersion: classicOgV01.meta.version, status: 'ACTIVE',
+      startsAt: new Date('2000-01-01'), endsAt: new Date(Date.now() + 86_400_000),
+    } });
+    roundId = round.id;
+    vi.spyOn(RoundService, 'requireCurrent').mockResolvedValue(round);
+    vi.spyOn(RoundService, 'getCurrent').mockResolvedValue(round);
     const city = await app.prisma.city.findUniqueOrThrow({ where: { slug: classicOgV01.round.startingCitySlug } });
     const { startingStock } = await import('@streets/rules-engine');
     const player = await app.prisma.roundPlayer.create({ data: {
@@ -38,6 +49,8 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
   });
 
   afterAll(async () => {
+    vi.restoreAllMocks();
+    if (roundId) await app.prisma.round.delete({ where: { id: roundId } });
     if (accountId) await app.prisma.account.delete({ where: { id: accountId } });
     if (app) await app.close();
   });

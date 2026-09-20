@@ -371,6 +371,19 @@ export interface DiscordTerritoryEventDto {
   happenedAt: string;
 }
 
+/** 0.6.0-F. Public warning/result for the one seeded late-round Federal turf sweep. */
+export interface DiscordCrackdownEventDto {
+  id: string;
+  phase: 'warning' | 'sweep';
+  roundName: string;
+  city: string;
+  cityName: string;
+  warningAt: string;
+  sweepAt: string;
+  holdersAffected: number;
+  thugsPickedUp: number;
+}
+
 export interface DiscordRankAlertDto {
   discordId: string;
   displayName: string;
@@ -415,6 +428,7 @@ export interface DiscordAlertsClaimDto {
   battles: DiscordBattleEventDto[];
   turf: DiscordTurfEventDto[];
   territory: DiscordTerritoryEventDto[];
+  crackdowns: DiscordCrackdownEventDto[];
   rounds: DiscordRoundEventDto[];
 }
 

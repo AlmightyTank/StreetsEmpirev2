@@ -21,7 +21,11 @@ function StreetWire({ items }: { items: WireItemDto[] }) {
         <ul className="se-streetwire">
           {items.slice(0, WIRE_SHOWN).map((item) => {
             const live = item.endsAt !== null && new Date(item.endsAt).getTime() > Date.now();
-            const tone = item.kind === 'GLUT' || item.supply === 'PLENTIFUL' ? 'good' : item.kind === 'DROUGHT' || item.supply === 'OUT' ? 'warn' : '';
+            const tone = item.kind === 'GLUT' || item.supply === 'PLENTIFUL'
+              ? 'good'
+              : item.kind === 'DROUGHT' || item.kind === 'CRACKDOWN' || item.supply === 'OUT'
+                ? 'warn'
+                : '';
             return (
               <li key={`${item.at}-${item.city}-${item.product}-${item.kind}`} className={`se-streetwire__item${tone ? ` se-streetwire__item--${tone}` : ''}`}>
                 <span className="se-streetwire__when se-muted">{agoText(item.at)}{live ? ' · still on' : ''}</span>
@@ -31,7 +35,7 @@ function StreetWire({ items }: { items: WireItemDto[] }) {
           })}
         </ul>
       ) : <p className="se-hint">Quiet out there. Nothing worth a phone call in the last day.</p>}
-      <p className="se-hint">The street hears about every glut and drought, and some of Pip&rsquo;s shortages. Not all of them.</p>
+      <p className="se-hint">The street hears about gluts, droughts, some of Pip&rsquo;s shortages, turf changing hands and Federal sweep warnings.</p>
     </Panel>
   );
 }

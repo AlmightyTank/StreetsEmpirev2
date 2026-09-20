@@ -328,6 +328,7 @@ model Round {
   turfPushes  TurfPush[]
   turfControlEvents TurfControlEvent[]
   turfHoldSegments TurfHoldSegment[]
+  turfCrackdown TurfCrackdown?
 
   @@index([status])
 }
@@ -355,6 +356,7 @@ model City {
   turf    Turf[]
   turfPresence TurfPresence[]
   turfControlEvents TurfControlEvent[]
+  turfCrackdowns TurfCrackdown[]
 }
 
 // ---------------------------------------------------------------------------
@@ -1432,6 +1434,38 @@ model TurfControlEvent {
 
   @@index([roundId, happenedAt(sort: Desc)])
   @@index([discordPostedAt, happenedAt])
+}
+
+/// 0.6.0-F. One seeded late-round Federal sweep. The target and clock are fixed per
+/// round, so the warning and the sweep can be replayed/idempotently claimed by Discord.
+model TurfCrackdown {
+  id String @id @default(cuid())
+
+  roundId String @unique
+  round   Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  warningAt DateTime
+  sweepAt   DateTime
+  sweptAt   DateTime?
+
+  holdersAffected Int @default(0)
+  thugsPickedUp   Int @default(0)
+  /// Per-holder result snapshots for receipts/feed summaries.
+  results Json @default("[]")
+
+  warningDiscordPostedAt DateTime?
+  sweepDiscordPostedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([warningAt])
+  @@index([sweepAt, sweptAt])
+  @@index([warningDiscordPostedAt, warningAt])
+  @@index([sweepDiscordPostedAt, sweepAt])
 }
 
 /// 0.6.0-B. The daily turf-tax cap is per payer and holder. The worker's burn is not

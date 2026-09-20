@@ -269,6 +269,33 @@ export function RulesPage() {
             </ul>
           </Panel>
 
+          <Panel title="Turf and territory">
+            <ul className="se-list">
+              <li>
+                Turf rounds turn each city district into a block somebody can hold. Scout work builds
+                presence; claiming and defending a corner commits armed thugs who are no longer at home
+                working, cooking or defending.
+              </li>
+              <li>
+                Holding your own block boosts work there and can earn capped street tax when other crews
+                work it. Linked accounts never feed each other turf tax.
+              </li>
+              <li>
+                Taking player turf is a delayed push. Lookouts can warn the holder, defenders can commit
+                backup and eligible allies may answer the call; shields and attacker cooldowns stop a
+                block from being bounced back and forth instantly.
+              </li>
+              <li>
+                Away turf is an outpost. Runs establish and service its box with crew, guns, beer,
+                product and cash, and a Garage can open a second active run.
+              </li>
+              <li>
+                Alliance blocks can add up to city control. Territory standings count cumulative
+                block-time for crews and alliances, but final season placement is still decided by net worth.
+              </li>
+            </ul>
+          </Panel>
+
           <Panel title="Money and rank">
             <ul className="se-list">
               <li>Net worth decides local and national rank, and it is not just cash.</li>

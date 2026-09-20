@@ -514,9 +514,9 @@ export interface WireItemDto {
   at: string;
   city: string;
   cityName: string;
-  /** Null for a turf hand-change line. */
+  /** Null for turf/crackdown lines. */
   product: string | null;
-  kind: 'GLUT' | 'DROUGHT' | 'SUPPLY' | 'TURF';
+  kind: 'GLUT' | 'DROUGHT' | 'SUPPLY' | 'TURF' | 'CRACKDOWN';
   /** For a supply item, where Pip's supply went. */
   supply: SupplyLevelDto | null;
   /** For an event, when it ends. */
