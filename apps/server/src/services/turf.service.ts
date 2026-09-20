@@ -507,7 +507,7 @@ export const TurfService = {
         orderBy: [{ city: { sortOrder: 'asc' } }, { district: 'asc' }],
       }),
       db.turfPresence.findMany({ where: { roundPlayerId: player.id }, include: { city: { select: { slug: true } } } }),
-      db.run.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { escortThugs: true } }),
+      db.run.findMany({ where: { roundPlayerId, status: 'ACTIVE' }, select: { escortThugs: true } }),
       ruleset.turf.wars
         ? db.turfPush.findMany({
             where: { roundId: player.roundId, status: 'PENDING' },
@@ -612,7 +612,7 @@ export const TurfService = {
     }
 
     const presence = new Map(presenceRows.map((row) => [`${row.city.slug}:${row.district}`, presenceAfter(ruleset, row.turns, hoursSince(row.at, now))]));
-    const crewThugs = player.thugs + (activeRun?.escortThugs ?? 0);
+    const crewThugs = player.thugs + activeRun.reduce((sum, run) => sum + run.escortThugs, 0);
     const armedAtHome = Math.min(homeFit(player), gunCount({ pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s }));
     const heldAtHome = rows.filter((row) => row.city.id === player.cityId && row.holder?.id === player.id).length;
     const heldAway = rows.filter((row) => row.city.id !== player.cityId && row.holder?.id === player.id).length;
