@@ -1,15 +1,14 @@
 import type { PrismaClient } from '@prisma/client';
-import { cornerMinimumFor, equipCombatSquad, headsUpMinutes, localsAfter, localsThugs, type Rng, type Ruleset } from '@streets/rules-engine';
+import { cornerMinimumFor, equipCombatSquad, headsUpMinutes, type Rng, type Ruleset } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
 import type { TurfClaimInput, TurfClaimResult, TurfPostInput, TurfPostResult, TurfPullInput, TurfPullResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import {
   TurfService, addCornerGuns, allocateCornerGuns, cornerGunWorthCents, gunsFromTurf,
-  releaseCornerGuns, subtractCornerGuns, turfGunData, type CornerGuns,
+  localsOnBlock, localsReclaimAt, releaseCornerGuns, subtractCornerGuns, turfGunData, type CornerGuns,
 } from './turf.service.js';
 
-const HOUR_MS = 3_600_000;
 function localDistrictName(ruleset: Ruleset, citySlug: string, district: DistrictKey): string {
   return ruleset.cities?.[citySlug]?.districts?.[district]?.name ?? ruleset.districts[district].name;
 }
@@ -90,7 +89,14 @@ export const TurfActionService = {
         if (!guns) throw AppError.conflict('TURF_NOT_ENOUGH_ARMED', `You need ${input.thugs} home guns to post that squad.`);
         assertTurns(current.turns, ruleset.turf!.corner.postTurnCost);
 
-        const locals = Math.round(localsAfter(ruleset, { citySlug: fresh.city.slug, district: key }, fresh.localsThugs, Math.max(0, (now.getTime() - fresh.localsAt.getTime()) / HOUR_MS)));
+        const locals = localsOnBlock(ruleset, {
+          holderId: fresh.holderId,
+          citySlug: fresh.city.slug,
+          district: key,
+          localsThugs: fresh.localsThugs,
+          localsAt: fresh.localsAt,
+          localsReclaimAt: fresh.localsReclaimAt,
+        }, now);
         const model = ruleset.combat;
         if (!model) throw AppError.conflict('COMBAT_DISABLED', 'There is no street fight model in this round.');
         const attacker = equipCombatSquad({ thugs: input.thugs, thugHappiness, weapons: engineGuns(guns) }, Math.min(input.thugs, model.squadCap), model);
@@ -104,7 +110,7 @@ export const TurfActionService = {
           where: { id: fresh.id },
           data: {
             holderId: roundPlayerId, cornerThugs: input.thugs, ...turfGunData(guns), heldSince: now,
-            shieldUntil: null, upkeepAt: now, localsThugs: locals, localsAt: now,
+            shieldUntil: null, upkeepAt: now, localsThugs: locals, localsAt: now, localsReclaimAt: null,
           },
         });
 
@@ -194,7 +200,7 @@ export const TurfActionService = {
           data: released ? {
             holderId: null, cornerThugs: 0, ...turfGunData({ pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 }),
             heldSince: null, shieldUntil: null, upkeepAt: now,
-            localsThugs: localsThugs(ruleset, { citySlug: fresh.city.slug, district: key }), localsAt: now,
+            localsThugs: 0, localsAt: now, localsReclaimAt: localsReclaimAt(ruleset, now),
           } : { cornerThugs, ...turfGunData(remainingGuns), upkeepAt: now },
         });
 
