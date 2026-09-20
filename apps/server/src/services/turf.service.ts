@@ -10,9 +10,9 @@ import {
   turfHoldBonus,
   turfTax,
   workSupplyOrder,
-  type DistrictKey,
   type Ruleset,
 } from '@streets/rules-engine';
+import type { DistrictKey } from '@streets/rulesets';
 import type { CityTurfDto, TurfBlockDto, TurfSummaryDto, TurfTripDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
