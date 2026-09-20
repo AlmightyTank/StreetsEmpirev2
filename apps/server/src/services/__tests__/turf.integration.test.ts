@@ -15,6 +15,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('0.6.0-B turf holding with 
   let roundId = '';
   let playerId = '';
   let accountId = '';
+  let cookie = '';
   let cityId = '';
   const rules = classicOgV06B;
 
@@ -29,6 +30,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('0.6.0-B turf holding with 
       payload: { username: accountName, email: `${accountName}@example.invalid`, password: randomUUID() },
     });
     accountId = registered.json().account.id;
+    cookie = registered.cookies.map((entry) => `${entry.name}=${entry.value}`).join('; ');
 
     const round = await app.prisma.round.create({
       data: {
@@ -120,6 +122,30 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('0.6.0-B turf holding with 
     const home = byCity?.get(rules.round.startingCitySlug);
     expect(home?.blocks.find((block) => block.district === 'CASINO')?.presenceTurns).toBeCloseTo(row.turns, 4);
     expect(home?.holdingEnabled).toBe(true);
+  });
+
+  it('accepts a claim through the same HTTP route used by City Blocks', async () => {
+    await app.prisma.turfPresence.create({
+      data: { roundPlayerId: playerId, cityId, district: 'WINO_SLUMS', turns: 100, at: new Date() },
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/game/turf/claim',
+      headers: { cookie },
+      payload: { district: 'WINO_SLUMS', thugs: 40, actionId: randomUUID() },
+    });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().result).toMatchObject({
+      district: 'WINO_SLUMS',
+      squad: 40,
+      won: true,
+      cornerThugs: 40,
+    });
+    expect((await app.prisma.turf.findUniqueOrThrow({
+      where: { roundId_cityId_district: { roundId, cityId, district: 'WINO_SLUMS' } },
+    })).holderId).toBe(playerId);
   });
 
   it('moves thugs and real guns onto a claimed corner without changing net worth, then returns them on pull', async () => {
