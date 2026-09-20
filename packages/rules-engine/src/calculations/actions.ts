@@ -358,6 +358,16 @@ export function calculateStreetTake(
   const consumption = emptyConsumption();
   const departures = emptyDepartures();
   const infections = emptyInfections();
+  // Loss rails are per action, not per simulated turn. calculateDepartures /
+  // calculateInfections still apply their own one-call ceilings, but this loop
+  // calls them once per turn so we also keep the remaining action-wide budget.
+  const departureCaps = {
+    whores: Math.ceil(Math.max(0, player.whores) * ruleset.departures.maxFractionPerAction),
+    thugs: Math.ceil(Math.max(0, player.thugs) * ruleset.departures.maxFractionPerAction),
+  };
+  const infectionCap = player.whores <= 0
+    ? 0
+    : Math.max(1, Math.floor(player.whores * ruleset.health.maxInfectedFractionPerAction));
   const shortages = { condoms: 0, beer: 0 };
   const needCarry = { condoms: 0, crack: 0, beer: 0 };
   let gross = 0;
@@ -429,17 +439,34 @@ export function calculateStreetTake(
 
     context.onTurnWorked?.(state, turn);
 
-    const turnDepartures = calculateDepartures(state, 1, ruleset, rng, {
+    const rawDepartures = calculateDepartures(state, 1, ruleset, rng, {
       whores: supply.departureMultiplier,
       thugs: context.thugDepartureMultiplierForTurn?.(turn) ?? context.thugDepartureMultiplier,
     });
-    const turnInfections = calculateInfections(
-      state,
-      1,
-      turnNeeded.condoms > 0 ? (turnNeeded.condoms - turnConsumption.condoms) / turnNeeded.condoms : 0,
-      ruleset,
-      rng,
-    );
+    const turnDepartures = {
+      whores: Math.min(rawDepartures.whores, Math.max(0, departureCaps.whores - departures.whores)),
+      thugs: Math.min(rawDepartures.thugs, Math.max(0, departureCaps.thugs - departures.thugs)),
+    };
+
+    const infectionRoom = Math.max(0, infectionCap - infections.infected);
+    const rawInfections = infectionRoom > 0
+      ? calculateInfections(
+          state,
+          1,
+          turnNeeded.condoms > 0 ? (turnNeeded.condoms - turnConsumption.condoms) / turnNeeded.condoms : 0,
+          ruleset,
+          rng,
+        )
+      : emptyInfections();
+    const infected = Math.min(rawInfections.infected, infectionRoom);
+    const treated = Math.min(infected, rawInfections.treated);
+    const turnInfections = {
+      infected,
+      treated,
+      medicineUsed: treated * ruleset.health.medicinePerTreatment,
+      lost: infected - treated,
+    };
+
     addDepartures(departures, turnDepartures);
     addInfections(infections, turnInfections);
     spendCrew(state, turnDepartures, turnInfections);
