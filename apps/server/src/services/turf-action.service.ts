@@ -16,8 +16,8 @@ function assertHolding(ruleset: Ruleset): void {
   if (!TurfService.holdingEnabled(ruleset)) throw AppError.conflict('TURF_HOLDING_DISABLED', 'Corners cannot be claimed in this round.');
 }
 async function totalCrewThugs(tx: any, roundPlayerId: string, homeThugs: number): Promise<number> {
-  const run = await tx.run.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { escortThugs: true } });
-  return homeThugs + (run?.escortThugs ?? 0);
+  const runs = await tx.run.findMany({ where: { roundPlayerId, status: 'ACTIVE' }, select: { escortThugs: true } });
+  return homeThugs + runs.reduce((sum: number, run: { escortThugs: number }) => sum + run.escortThugs, 0);
 }
 async function lockBlock(tx: any, id: string): Promise<void> { await tx.$queryRaw`SELECT id FROM "Turf" WHERE id = ${id} FOR UPDATE`; }
 async function assertCaps(tx: any, player: any, roundId: string, cityId: string, ruleset: Ruleset): Promise<void> {
