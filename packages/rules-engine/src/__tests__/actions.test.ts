@@ -410,6 +410,54 @@ describe('calculateStreetTake', () => {
     });
     expect(lucky.crackFound).toBeGreaterThan(0);
   });
+
+  it('keeps departure and infection safety rails action-wide across simulated turns', () => {
+    const departures = calculateStreetTake({
+      player: crew({
+        whores: 100,
+        thugs: 100,
+        whoreHappiness: 0,
+        thugHappiness: 0,
+        condoms: 1_000_000,
+        crack: 1_000_000,
+        beer: 1_000_000,
+      }),
+      turns: 100,
+      ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
+      district: 'CASINO',
+      payoutPercent: 50,
+      rng: () => 0,
+    });
+    expect(departures.departures.whores).toBeLessThanOrEqual(
+      Math.ceil(100 * classicOgV01.departures.maxFractionPerAction),
+    );
+    expect(departures.departures.thugs).toBeLessThanOrEqual(
+      Math.ceil(100 * classicOgV01.departures.maxFractionPerAction),
+    );
+
+    const infections = calculateStreetTake({
+      player: crew({
+        whores: 100,
+        thugs: 100,
+        whoreHappiness: 100,
+        thugHappiness: 100,
+        condoms: 0,
+        crack: 1_000_000,
+        beer: 1_000_000,
+        medicine: 0,
+      }),
+      turns: 100,
+      ruleset: classicOgV01,
+      clientCapacity: OPEN_BLOCK,
+      district: 'CASINO',
+      payoutPercent: 50,
+      rng: () => 0,
+    });
+    expect(infections.infections.infected).toBeLessThanOrEqual(
+      Math.max(1, Math.floor(100 * classicOgV01.health.maxInfectedFractionPerAction)),
+    );
+  });
 });
 
 describe('calculateProduce', () => {
