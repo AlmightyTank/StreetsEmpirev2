@@ -4,9 +4,12 @@ Status: **in progress.** 0.6.0-A is built. 0.6.0-B Holding is implemented on its
 pinned ruleset: Scout presence, local claims, posting/reinforcing/pulling home corners,
 real gun custody, lazy upkeep and walkouts, hold bonus, capped house-minted street tax,
 linked-account guard, receipts and dashboard. 0.6.0-C is now in progress: the pinned C
-ruleset, durable delayed push records, start validation, cooldown/shield checks, real
-squad+gun commitment and Travel push controls are built; landing and reinforcement are
-the next slice. Decisions marked *(proposed)* remain open until the 0.5.0 public round reports in.
+ruleset, delayed pushes, Lookouts warnings, defender and same-city alliance backup,
+chance-to-show reinforcement, offline landing, combat/wounds, block transfer, hold
+shields, attacker cooldowns, real squad+gun custody, cap reservations and Travel fight
+controls are built. Battle reports/revenge, locals reclaim, wire/Discord hand-change
+lines and the C balance gate remain. Decisions marked *(proposed)* remain open until the
+0.5.0 public round reports in.
 
 0.4.0 gave the crew product to manage, and 0.5.0 gave it roads to move that product on.
 Neither gave a crew anything to **hold**. Working a district never touches another player,
