@@ -134,19 +134,6 @@ export const TurfCrackdownService = {
     for (const block of blocks) {
       if (!block.holder) continue;
       const pickedUp = pickupCount(block.cornerThugs, ruleset);
-      if (pickedUp <= 0) continue;
-
-      const before = gunsFromTurf(block);
-      const seized = releaseCornerGuns(before, pickedUp);
-      const after = subtractCornerGuns(before, seized);
-      await tx.turf.update({
-        where: { id: block.id },
-        data: {
-          cornerThugs: block.cornerThugs - pickedUp,
-          ...turfGunData(after),
-        },
-      });
-
       const current = byHolder.get(block.holder.id) ?? {
         publicPimpId: block.holder.publicPimpId,
         displayName: block.holder.displayName,
@@ -155,9 +142,24 @@ export const TurfCrackdownService = {
         pickedUp: 0,
         seizedWorth: 0n,
       };
+      // Heat is for holding the corner when the sweep lands, even if the
+      // minimum-survivor rule means this particular block loses no thugs.
       current.blocks += 1;
-      current.pickedUp += pickedUp;
-      current.seizedWorth += cornerGunWorthCents(ruleset, seized);
+
+      if (pickedUp > 0) {
+        const before = gunsFromTurf(block);
+        const seized = releaseCornerGuns(before, pickedUp);
+        const after = subtractCornerGuns(before, seized);
+        await tx.turf.update({
+          where: { id: block.id },
+          data: {
+            cornerThugs: block.cornerThugs - pickedUp,
+            ...turfGunData(after),
+          },
+        });
+        current.pickedUp += pickedUp;
+        current.seizedWorth += cornerGunWorthCents(ruleset, seized);
+      }
       byHolder.set(block.holder.id, current);
     }
 
