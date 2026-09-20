@@ -164,6 +164,7 @@ describe('classic-og-v0.6-e contents', () => {
     expect(ruleset.turf?.territory).toEqual({
       cityControlShare: 0.6,
       controlledCityNoTax: true,
+      cornerRunSightings: true,
     });
     expect({
       ...ruleset,
