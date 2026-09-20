@@ -325,6 +325,7 @@ model Round {
   highMarkets HighMarket[]
   turf        Turf[]
   turfTax     TurfTaxLedger[]
+  turfPushes  TurfPush[]
 
   @@index([status])
 }
@@ -541,6 +542,10 @@ model RoundPlayer {
   turfPresence          TurfPresence[]
   turfTaxPaid           TurfTaxLedger[]    @relation("TurfTaxPayer")
   turfTaxEarned         TurfTaxLedger[]    @relation("TurfTaxHolder")
+  /// 0.6.0-C. Turf wars started against or defended by this crew.
+  turfPushesStarted      TurfPush[]          @relation("TurfPushAttacker")
+  turfPushesDefended     TurfPush[]          @relation("TurfPushDefender")
+  turfPushBackups        TurfPushBackup[]
   /// 0.4.0-B. Which products each job burns, in order.
   supplyPolicies        WorkSupplyPolicy[]
   /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
@@ -1075,6 +1080,10 @@ enum ActivityType {
   TURF_CLAIM
   TURF_POST
   TURF_PULL
+  TURF_PUSH
+  TURF_PUSH_BACKUP
+  TURF_PUSH_ATTACK
+  TURF_PUSH_DEFENSE
 }
 
 enum BattleKind {
@@ -1215,6 +1224,8 @@ model Turf {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  pushes TurfPush[]
+
   @@unique([roundId, cityId, district])
   @@index([roundId, holderId])
 }
@@ -1238,6 +1249,75 @@ model TurfPresence {
   at    DateTime @default(now())
 
   @@unique([roundPlayerId, cityId, district])
+}
+
+
+/// 0.6.0-C. A player-vs-player attempt to take one block. The attacking squad
+/// is committed at start and the fight lands after the warning window.
+enum TurfPushStatus {
+  PENDING
+  LANDED
+}
+
+model TurfPush {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  turfId String
+  turf   Turf @relation(fields: [turfId], references: [id], onDelete: Cascade)
+
+  attackerId String
+  attacker   RoundPlayer @relation("TurfPushAttacker", fields: [attackerId], references: [id], onDelete: Cascade)
+
+  /// Holder when the push started. The block may be abandoned before it lands.
+  defenderId String
+  defender   RoundPlayer @relation("TurfPushDefender", fields: [defenderId], references: [id], onDelete: Cascade)
+
+  squad        Int
+  /// Morale and the exact guns committed from home.
+  attackerCrew Json
+  turnsSpent   Int
+  actionId     String
+  startedAt    DateTime
+  landsAt      DateTime
+  status       TurfPushStatus @default(PENDING)
+  settledAt    DateTime?
+  result       Json?
+  attackerCreditedAt DateTime?
+  alliesCalledAt DateTime?
+  backups      TurfPushBackup[]
+
+  @@unique([attackerId, actionId])
+  @@index([turfId, status])
+  @@index([roundId, status, landsAt])
+  @@index([attackerId, turfId, startedAt(sort: Desc)])
+  @@index([attackerId, attackerCreditedAt])
+}
+
+/// Real home/alliance help committed to a pending turf push. C landing decides
+/// whether an ally's uncertain reinforcement actually arrives.
+model TurfPushBackup {
+  id String @id @default(cuid())
+
+  pushId String
+  push   TurfPush @relation(fields: [pushId], references: [id], onDelete: Cascade)
+
+  playerId String
+  player   RoundPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  /// OWNER or ALLY.
+  kind    String
+  thugs   Int
+  crew    Json
+  sentAt  DateTime
+  showedUp Boolean?
+  wounded Int @default(0)
+  creditedAt DateTime?
+
+  @@unique([pushId, playerId])
+  @@index([playerId, creditedAt])
 }
 
 /// 0.6.0-B. The daily turf-tax cap is per payer and holder. The worker's burn is not

@@ -221,14 +221,28 @@ export interface TurfBlockDto {
   shieldUntil: string | null;
   presenceTurns: number;
   claimBlockedReason: string | null;
+  /** 0.6.0-C. Visible pending push: always to its attacker, and to the holder once Lookouts spot it. */
+  push: TurfPushDto | null;
+  pushBlockedReason: string | null;
+}
+
+export interface TurfPushDto {
+  id: string;
+  role: 'attacker' | 'defender';
+  squad: number;
+  startedAt: string;
+  landsAt: string;
 }
 
 export interface CityTurfDto {
   enabled: true;
   holdingEnabled: boolean;
+  warsEnabled: boolean;
   presenceRequired: number;
   postTurnCost: number;
   pullTurnCost: number;
+  pushTurnCost: number;
+  pushWarningMinutes: number;
   homeCap: number;
   heldAtHome: number;
   blocks: TurfBlockDto[];
@@ -697,5 +711,17 @@ export interface ConvoyReconResult {
 export interface ConvoyBackupResult {
   tailId: string;
   thugs: number;
+  landsAt: string;
+}
+
+
+export interface TurfPushStartResult {
+  pushId: string;
+  district: TurfBlockDto['district'];
+  districtName: string;
+  defender: { publicPimpId: number; displayName: string };
+  squad: number;
+  turnsUsed: number;
+  startedAt: string;
   landsAt: string;
 }
