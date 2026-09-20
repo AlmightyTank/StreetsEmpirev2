@@ -126,7 +126,7 @@ function TailRow({ tail, products, onDone }: { tail: ConvoyTailDto; products: Pr
   );
 }
 
-function TargetRow({ target, data, squadFit, onDone }: { target: ConvoyTargetDto; data: ConvoysDto; squadFit: number; onDone: () => void }) {
+function TargetRow({ target, onDone }: { target: ConvoyTargetDto; onDone: () => void }) {
   const tail = useGameAction<ConvoyTailResult>();
   // The recon's times are fixed; whether it is in reach is now.
   const [, tick] = useState(0);
@@ -237,7 +237,7 @@ export function ConvoysPanel({ products, refreshKey }: { products: Products; ref
         {data.recon ? <span className="se-hint">Last recon {clock(data.recon.seenAt)}, good until {clock(data.recon.expiresAt)}.</span> : null}
       </div>
       {data.targets.length
-        ? <ul className="se-convoys__list">{data.targets.map((target) => <TargetRow key={target.runId} target={target} data={data} squadFit={data.squad.fit} onDone={load} />)}</ul>
+        ? <ul className="se-convoys__list">{data.targets.map((target) => <TargetRow key={target.runId} target={target} onDone={load} />)}</ul>
         : data.recon
           ? <p className="se-hint">Your recon found nothing coming near, and no held corner sees live traffic.</p>
           : <p className="se-hint">No held corner sees a run passing right now.</p>}
