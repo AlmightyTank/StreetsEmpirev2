@@ -7,7 +7,6 @@ import {
   simulateRaid,
   splitWounds,
   turfPushCombatModel,
-  type Ruleset,
 } from '@streets/rules-engine';
 import type { WeaponKey } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
@@ -44,7 +43,6 @@ interface StoredPushResult {
 }
 
 const EMPTY: CornerGuns = { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
-const NO_WEAPONS: Weapons = { PISTOL: 0, SHOTGUN: 0, TEK9: 0, AK47: 0 };
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 const fromWeapons = (w: Weapons): CornerGuns => ({ pistols: w.PISTOL ?? 0, shotguns: w.SHOTGUN ?? 0, tek9s: w.TEK9 ?? 0, ak47s: w.AK47 ?? 0 });
 const toWeapons = (g: CornerGuns): Weapons => ({ PISTOL: g.pistols, SHOTGUN: g.shotguns, TEK9: g.tek9s, AK47: g.ak47s });
@@ -87,6 +85,14 @@ export const TurfWarSettlementService = {
 
   async land(prisma: PrismaClient, pushId: string, now: Date = new Date()): Promise<boolean> {
     return prisma.$transaction(async (tx) => {
+      const candidate = await tx.turfPush.findUnique({
+        where: { id: pushId },
+        include: { round: true, turf: { include: { city: true } } },
+      });
+      if (!candidate || candidate.status !== 'PENDING' || candidate.landsAt > now) return false;
+
+      // Keep the same lock order as defender actions: player first, then the push.
+      await lockRoundPlayer(tx, candidate.defenderId);
       await lockPush(tx, pushId);
       const loaded = await tx.turfPush.findUnique({
         where: { id: pushId },
@@ -100,7 +106,6 @@ export const TurfWarSettlementService = {
       if (!rules?.wars || !model) return false;
       const at = loaded.landsAt;
 
-      await lockRoundPlayer(tx, loaded.defenderId);
       await TurfService.settlePlayer(tx, loaded.defenderId, rulesetForCity(base, loaded.turf.city.slug), at);
       await lockBlock(tx, loaded.turfId);
 
