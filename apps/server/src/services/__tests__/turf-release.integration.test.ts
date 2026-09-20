@@ -25,13 +25,15 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('0.6.0-F turf release regre
 
     for (const label of ['alpha', 'bravo', 'charlie']) {
       const username = `turf_f_${label}_${randomUUID().slice(0, 6)}`;
-      const registered = await app.inject({
-        method: 'POST',
-        url: '/api/auth/register',
-        payload: { username, email: `${username}@example.invalid`, password: randomUUID() },
+      const account = await app.prisma.account.create({
+        data: {
+          username,
+          usernameNormalized: username.toLowerCase(),
+          email: `${username}@example.invalid`,
+          passwordHash: 'integration-fixture',
+        },
       });
-      expect(registered.statusCode).toBe(201);
-      accountIds.push(registered.json().account.id);
+      accountIds.push(account.id);
     }
 
     const current = async () => {
