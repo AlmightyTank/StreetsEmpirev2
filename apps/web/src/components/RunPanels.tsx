@@ -697,6 +697,11 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
       {inTown ? (
         <>
           <TownCounter run={run} data={data} onDone={onDone} />
+          {data.rules.outposts && !stop.isHome ? (
+            <p className="se-hint">
+              Corner and outpost work is on <Link to={`/game/turf?city=${encodeURIComponent(run.position.city)}`}>City Blocks</Link>.
+            </p>
+          ) : null}
           <MoveOn run={run} data={data} onDone={onDone} />
         </>
       ) : (
