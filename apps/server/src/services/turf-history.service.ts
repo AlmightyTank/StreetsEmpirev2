@@ -110,7 +110,7 @@ async function seedRound(db: TurfDb, roundId: string, at: Date): Promise<void> {
   for (const row of rows) await startTurfHold(db, row.id, at);
 }
 
-function ranks(values: number[]): number[] {
+export function territoryRanks(values: number[]): number[] {
   let previous: number | null = null;
   let rank = 0;
   return values.map((value, index) => {
@@ -118,6 +118,11 @@ function ranks(values: number[]): number[] {
     previous = value;
     return rank;
   });
+}
+
+export function turfHeldSeconds(startedAt: Date, endedAt: Date | null, asOf: Date): number {
+  const end = endedAt && endedAt < asOf ? endedAt : asOf;
+  return Math.max(0, Math.floor((end.getTime() - startedAt.getTime()) / 1000));
 }
 
 export const TurfHistoryService = {
@@ -142,11 +147,23 @@ export const TurfHistoryService = {
       where: { roundId, startedAt: { lte: asOf } },
       orderBy: [{ startedAt: 'asc' }, { id: 'asc' }],
     });
-    const live = await db.turf.groupBy({
-      by: ['holderId'],
-      where: { roundId, holderId: { not: null } },
-      _count: { _all: true },
-    });
+    const [live, currentPlayers] = await Promise.all([
+      db.turf.groupBy({
+        by: ['holderId'],
+        where: { roundId, holderId: { not: null } },
+        _count: { _all: true },
+      }),
+      db.roundPlayer.findMany({
+        where: { roundId },
+        select: {
+          id: true,
+          publicPimpId: true,
+          displayName: true,
+          allianceId: true,
+          alliance: { select: { name: true, tag: true } },
+        },
+      }),
+    ]);
     const liveByHolder = new Map(live.flatMap((row) => row.holderId ? [[row.holderId, row._count._all] as const] : []));
 
     const crews = new Map<string, {
@@ -158,8 +175,7 @@ export const TurfHistoryService = {
     }>();
 
     for (const segment of segments) {
-      const end = segment.endedAt && segment.endedAt < asOf ? segment.endedAt : asOf;
-      const seconds = Math.max(0, Math.floor((end.getTime() - segment.startedAt.getTime()) / 1000));
+      const seconds = turfHeldSeconds(segment.startedAt, segment.endedAt, asOf);
       if (seconds <= 0) continue;
 
       const crew = crews.get(segment.holderId) ?? {
@@ -200,14 +216,36 @@ export const TurfHistoryService = {
       if (standing) standing.currentBlocks += 1;
     }
 
+    const playersById = new Map(currentPlayers.map((player) => [player.id, player]));
+    for (const [id, crew] of crews) {
+      const current = playersById.get(id);
+      if (!current) continue;
+      crew.publicPimpId = current.publicPimpId;
+      crew.displayName = current.displayName;
+      crew.alliance = current.alliance ? { name: current.alliance.name, tag: current.alliance.tag } : null;
+    }
+    const currentAllianceIds = [...new Set(currentPlayers.map((player) => player.allianceId).filter((id): id is string => Boolean(id)))];
+    const currentAlliances = currentAllianceIds.length
+      ? await db.alliance.findMany({
+          where: { id: { in: currentAllianceIds } },
+          select: { id: true, name: true, tag: true },
+        })
+      : [];
+    for (const alliance of currentAlliances) {
+      const standing = alliances.get(alliance.id);
+      if (!standing) continue;
+      standing.name = alliance.name;
+      standing.tag = alliance.tag;
+    }
+
     const crewRows = [...crews.entries()]
       .map(([id, value]) => ({ id, ...value }))
       .sort((a, b) => b.heldSeconds - a.heldSeconds || a.publicPimpId - b.publicPimpId);
     const allianceRows = [...alliances.entries()]
       .map(([id, value]) => ({ id, ...value }))
       .sort((a, b) => b.heldSeconds - a.heldSeconds || a.tag.localeCompare(b.tag));
-    const crewRanks = ranks(crewRows.map((row) => row.heldSeconds));
-    const allianceRanks = ranks(allianceRows.map((row) => row.heldSeconds));
+    const crewRanks = territoryRanks(crewRows.map((row) => row.heldSeconds));
+    const allianceRanks = territoryRanks(allianceRows.map((row) => row.heldSeconds));
 
     return {
       enabled: true,
