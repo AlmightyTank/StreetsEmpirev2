@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import type { GameActionResult, MarketPriceDto, RunDto, RunIncidentDto, RunLaunchResult, RunMoveResult, RunReceiptDto, RunTradeResult, TravelDto, TravelRoutesDto } from '@streets/shared';
+import type { GameActionResult, MarketPriceDto, RunDto, RunIncidentDto, RunLaunchResult, RunMoveResult, RunOutpostEstablishResult, RunOutpostTransferResult, RunReceiptDto, RunTradeResult, TravelDto, TravelRoutesDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { useCountdown } from '../hooks/useCountdown.js';
@@ -78,6 +78,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
   const [lowRiders, setLowRiders] = useState<number | ''>(Math.min(1, home.lowRiders));
   const [escorts, setEscorts] = useState<number | ''>(0);
   const [cash, setCash] = useState<number | ''>(0);
+  const [beer, setBeer] = useState<number | ''>(0);
   const [cargo, setCargo] = useState<Record<string, number | ''>>({});
   const [buy, setBuy] = useState<Record<string, number | ''>>({});
   const destination = data.cities.find((city) => city.slug === to && !city.isHome) ?? null;
@@ -108,7 +109,8 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
     : [];
   const bought = Object.fromEntries(Object.entries(buy).filter(([, count]) => typeof count === 'number' && count > 0)) as Record<string, number>;
   const marketCents = wholesale.reduce((sum, entry) => sum + marketEstimate(entry.market, true, bought[entry.key] ?? 0), 0);
-  const loaded = units(cargo) + units(buy);
+  const beerUnits = typeof beer === 'number' ? beer : 0;
+  const loaded = units(cargo) + units(buy) + beerUnits;
 
   const block = launch.busy ? 'The crew is loading up.'
     : !destination ? 'Pick a city on the map or in the list.'
@@ -116,6 +118,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
         : cars < 1 || cars > home.lowRiders ? `Send between 1 and ${home.lowRiders} Low-Riders.`
           : (typeof escorts === 'number' ? escorts : 0) > Math.min(home.fitThugs, seats) ? `Send at most ${Math.min(home.fitThugs, seats)} escorts: ${seats} seats, ${home.fitThugs} fit thugs at home.`
             : cashCents + marketCents > home.cashCents ? `You have ${formatCents(home.cashCents)} at home, and that is ${formatCents(cashCents + marketCents)} with what the market comes to.`
+              : beerUnits > home.beer ? `You only have ${formatNumber(home.beer)} beer at home.`
               : loaded > capacity ? `${cars} Low-Rider${cars === 1 ? '' : 's'} carry ${formatNumber(capacity)} units, and that is ${formatNumber(loaded)}.`
                 : held.some((product) => (typeof cargo[product.key] === 'number' ? cargo[product.key] as number : 0) > product.quantity) ? 'You cannot load more than you have.'
                   : chosen.turns > home.turns ? `The drive costs ${chosen.turns} turns and you have ${home.turns}.`
@@ -127,7 +130,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
     const load = Object.fromEntries(Object.entries(cargo).filter(([, count]) => typeof count === 'number' && count > 0)) as Record<string, number>;
     const quotes = Object.fromEntries(wholesale.filter((entry) => bought[entry.key]).map((entry) => [entry.key, entry.market.buyCents]));
     await launch.run((actionId): Promise<GameActionResult<RunLaunchResult>> => api.post('/game/travel/launch', {
-      to, route, lowRiders: cars, escortThugs: typeof escorts === 'number' ? escorts : 0, cashCents, cargo: load, market: bought, marketQuotes: quotes, actionId,
+      to, route, lowRiders: cars, escortThugs: typeof escorts === 'number' ? escorts : 0, cashCents, beer: beerUnits, cargo: load, market: bought, marketQuotes: quotes, actionId,
     }));
     onDone();
   }
@@ -167,8 +170,13 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
               <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => setCash(Math.floor(home.cashCents / 100))}>All</button>
             </div>
           </div>
+          <div className="se-field">
+            <label className="se-label" htmlFor="run-beer">Beer <span className="se-muted">of {formatNumber(home.beer)}</span></label>
+            <input id="run-beer" className="se-input" type="number" inputMode="numeric" min={0} max={home.beer} value={beer}
+              onChange={(event) => setBeer(whole(event.target.value))} />
+          </div>
         </div>
-        <p className="se-hint">The run spends only the cash it carries. Escorts ride armed with the best guns from home, one each, and are away while it is out: they don&rsquo;t defend, cover the street or cook. A bust or an arrest takes their guns.</p>
+        <p className="se-hint">The run spends only the cash it carries. Beer takes trunk space too, so an outpost has to be supplied by a real load. Escorts ride armed with the best guns from home, one each, and are away while it is out: they don&rsquo;t defend, cover the street or cook. A bust or an arrest takes their guns.</p>
 
         <h3 className="se-city__heading">In the trunk <span className="se-num">{formatNumber(loaded)} / {formatNumber(capacity)}</span></h3>
         <div className="se-meter se-launch__meter" aria-hidden="true">
@@ -477,7 +485,8 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
 
       <div className="se-rows se-mt">
         <Row label="Cash in the car" value={formatCents(run.cashCents)} strong tooltip="What the run can spend. Home cash never reaches it." />
-        <Row label="Trunk" value={`${formatNumber(trunk)} / ${formatNumber(run.capacity)}`} />
+        <Row label="Trunk" value={`${formatNumber(trunk + run.beer)} / ${formatNumber(run.capacity)}`} />
+        {run.beer > 0 ? <Row label="Beer" value={formatNumber(run.beer)} /> : null}
         {run.escortThugs > 0 ? (
           <Row label="Escorts carry" tooltip="Out of home stock, the best first. A bust or an arrest takes every one."
             value={Object.entries(run.guns).filter(([, count]) => count > 0).map(([key, count]) => gunText(key, count)).join(', ') || 'No guns'} />
@@ -542,6 +551,7 @@ export function ReceiptPanel({ receipt, products }: { receipt: RunReceiptDto; pr
       <div className="se-rows">
         <Row label="Went to" value={receipt.cities.map((city) => city.name).join(', ') || 'Nowhere'} />
         <Row label="Cash" value={<span className="se-num">{formatCents(receipt.startCashCents)} → {formatCents(receipt.cashCents)} <span className={cashChange >= 0 ? 'se-good' : 'se-bad'}>({cashChange >= 0 ? '+' : ''}{formatCents(cashChange)})</span></span>} strong />
+        {receipt.startBeer > 0 || receipt.beer > 0 ? <Row label="Beer" value={<span className="se-num">{formatNumber(receipt.startBeer)} → {formatNumber(receipt.beer)}</span>} /> : null}
         {moved.map((entry) => (
           <Row key={entry.key} label={nameOf(products, entry.key)} value={<span className="se-num">{formatNumber(entry.startQuantity)} → {formatNumber(entry.quantity)}</span>} />
         ))}
