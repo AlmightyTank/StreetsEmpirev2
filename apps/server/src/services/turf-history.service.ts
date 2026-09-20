@@ -104,12 +104,6 @@ export async function startPlayerTurfHolds(db: TurfDb, playerId: string, at: Dat
   for (const row of rows) await startTurfHold(db, row.id, at);
 }
 
-/** Seed live blocks that pre-date E's history ledger. Safe to call on every board read. */
-async function seedRound(db: TurfDb, roundId: string, at: Date): Promise<void> {
-  const rows = await db.turf.findMany({ where: { roundId, holderId: { not: null } }, select: { id: true } });
-  for (const row of rows) await startTurfHold(db, row.id, at);
-}
-
 export function territoryRanks(values: number[]): number[] {
   let previous: number | null = null;
   let rank = 0;
@@ -142,7 +136,6 @@ export const TurfHistoryService = {
       ? (round.endsAt < now ? round.endsAt : now)
       : now;
 
-    await seedRound(db, roundId, asOf);
     const segments = await db.turfHoldSegment.findMany({
       where: { roundId, startedAt: { lte: asOf } },
       orderBy: [{ startedAt: 'asc' }, { id: 'asc' }],
