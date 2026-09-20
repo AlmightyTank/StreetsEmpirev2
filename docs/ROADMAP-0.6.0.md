@@ -288,7 +288,8 @@ home-corner opportunity cost, push turnover, capped outpost loot, weekly outpost
 the Garage purchase priced into the result. The release gate requires mixed play to beat
 pure holding, turf raiding and running everywhere, while optional Turf may never make the
 same move/road plan worse. The full-round gate is green; see [TURF-SIMULATION-0.6.0-F.md](TURF-SIMULATION-0.6.0-F.md).
-The seeded crackdown, phone pass and turf integration regression remain.
+The seeded Federal crackdown is complete and verified. The phone pass and turf integration
+regression remain.
 
 - **Balance:** a pass over all 40 blocks on `qa:turf` and full-round runs, including
   outposts, the Garage and the tax caps.
@@ -297,6 +298,14 @@ The seeded crackdown, phone pass and turf integration regression remain.
 - **The crackdown:** one seeded event near the end of the round. The Feds sweep one city:
   its holders' corner crews take Heat and some are picked up. It is announced on the wire a
   day ahead, so crews decide whether to hold or pull out.
+
+Built in F: the city is deterministic from the round/ruleset seed; the warning lands 24
+hours before a sweep 48 hours before the round ends. Every held block adds 12 Heat to its
+holder. The Feds pick up 20% of each posted corner crew, capped at 6 per block, while always
+leaving at least one thug so the event weakens turf rather than auto-flipping it. Picked-up
+thugs and their posted guns leave the player's net worth/custody correctly. The warning and
+result are durable one-time Street Wire and Discord feed events, and round close settles a
+due sweep before final standings freeze.
 - **UI:** a phone pass on the city map, the push screen and outposts; the Rules page gains a
   Turf panel.
 - **Release regression:** turf integration suites join `qa:release`.
