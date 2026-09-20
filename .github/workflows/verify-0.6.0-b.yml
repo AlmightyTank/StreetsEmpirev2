@@ -6,6 +6,10 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/streetsempire_test
+      SESSION_SECRET: ci-only-session-secret-at-least-32-characters
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
