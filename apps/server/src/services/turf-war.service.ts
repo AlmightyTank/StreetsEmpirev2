@@ -13,6 +13,7 @@ import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
 import { allianceTargetBlock } from './alliance.service.js';
+import { hasTurfRevenge } from './turf-revenge.service.js';
 import {
   TurfService,
   allocateCornerGuns,
@@ -128,8 +129,9 @@ export const TurfWarService = {
         }
 
         await assertRoom(tx, player, round.id, player.cityId, ruleset);
+        const revengeUntil = await hasTurfRevenge(tx, player, round.id, defender.id, ruleset, now);
         const presence = await TurfService.presenceFor(tx, attackerId, player.cityId, district, ruleset, now);
-        if (presence < turfRules.presence.turnsToClaim) {
+        if (!revengeUntil && presence < turfRules.presence.turnsToClaim) {
           throw AppError.conflict('TURF_NO_PRESENCE', `Work this block until you have ${turfRules.presence.turnsToClaim} presence before pushing it.`);
         }
 
@@ -150,7 +152,9 @@ export const TurfWarService = {
             roundId: round.id,
             turfId: fresh.id,
             attackerId,
+            attackerAllianceId: player.allianceId,
             defenderId: defender.id,
+            defenderAllianceId: defender.allianceId,
             squad: input.squad,
             attackerCrew: json({ thugHappiness: player.thugHappiness, weapons: engineGuns(guns) }),
             turnsSpent: turfRules.push.turnCost,
@@ -184,7 +188,7 @@ export const TurfWarService = {
             postedNetWorthCents: current.postedNetWorthCents + worth,
           },
           result,
-          activity: { type: 'TURF_PUSH', payload: json(result) },
+          activity: { type: 'TURF_PUSH', payload: json({ ...result, revenge: Boolean(revengeUntil) }) },
         };
       },
     }, at);
