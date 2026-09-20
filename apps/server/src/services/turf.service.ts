@@ -163,6 +163,7 @@ interface StoredTurfFight {
   defenders?: { corner: number; ownerBackup: number; allyCommitted: number; allyShowed: number };
   strength: { attacker: number; defender: number } | null;
   shieldUntil?: string | null;
+  outpostLoot?: { cashCents: number; beer: number; products: Record<string, number> } | null;
 }
 
 export const TurfService = {
@@ -603,6 +604,7 @@ export const TurfService = {
         strength: result.strength,
         shieldUntil: result.shieldUntil ?? null,
         revengeUntil: revengeUntil?.toISOString() ?? null,
+        outpostLoot: result.outpostLoot ?? null,
       };
       const cityReports = reportsByCity.get(report.city) ?? [];
       cityReports.push(report);
