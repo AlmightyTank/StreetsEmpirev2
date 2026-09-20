@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, heatBribeSchema, travelRoutesSchema, productTradeSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, heatBribeSchema, travelRoutesSchema, productTradeSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushSchema, turfPushBackupSchema, turfPushCallSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
 import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
@@ -58,6 +58,10 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
   /** 0.6.0-C: commit a squad to a delayed player-vs-player turf push. */
   app.post('/turf/push', { preHandler: app.requireAuth }, async (request) =>
     TurfWarService.start(app.prisma, await me(request.auth!.account.id), parseBody(turfPushSchema, request.body ?? {})));
+  app.post('/turf/push/backup', { preHandler: app.requireAuth }, async (request) =>
+    TurfWarService.backup(app.prisma, await me(request.auth!.account.id), parseBody(turfPushBackupSchema, request.body ?? {})));
+  app.post('/turf/push/call', { preHandler: app.requireAuth }, async (request) =>
+    TurfWarService.callAllies(app.prisma, await me(request.auth!.account.id), parseBody(turfPushCallSchema, request.body ?? {})));
 
   /** 0.5.0-B: runs. The map, what the crew knows and the run; the ways out; and the four moves. */
   app.get('/travel', { preHandler: app.requireAuth }, async (request) =>
