@@ -1185,9 +1185,9 @@ model PlayerActivity {
 /// One district in one city: forty blocks a round with all eight cities enabled. A row is
 /// created for every block when the round first reads its turf, held by the locals.
 ///
-/// A null `holderId` means the locals have it. `localsThugs` is what they hold it with
-/// now, growing back from `localsAt` on the ruleset's clock, exactly like Pip's shelves:
-/// nothing sweeps this table.
+/// A null `holderId` means no player holds it. Before `localsReclaimAt` it is vacant;
+/// afterwards the locals have it. `localsThugs` grows back from `localsAt` on the
+/// ruleset's clock, exactly like Pip's shelves: nothing sweeps this table.
 model Turf {
   id String @id @default(cuid())
 
