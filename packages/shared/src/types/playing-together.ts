@@ -451,6 +451,9 @@ export interface RunDto {
   escortThugs: number;
   cashCents: number;
   startCashCents: number;
+  /** 0.6.0-D. Beer physically riding with the run. */
+  beer: number;
+  startBeer: number;
   capacity: number;
   cargo: Array<{ key: string; quantity: number; startQuantity: number }>;
   /** 0.5.0-E. The guns the escorts carry. A bust or an arrest takes them all. */
@@ -519,6 +522,8 @@ export interface RunReceiptDto {
   escortThugs: number;
   startCashCents: number;
   cashCents: number;
+  startBeer: number;
+  beer: number;
   cargo: Array<{ key: string; startQuantity: number; quantity: number }>;
   turnsSpent: number;
   trades: RunTradeDto[];
@@ -541,6 +546,7 @@ export interface TravelDto extends CitiesDto {
   /** What home has to load up with. */
   home: {
     cashCents: number;
+    beer: number;
     lowRiders: number;
     fitThugs: number;
     turns: number;
@@ -611,10 +617,44 @@ export interface RunLaunchResult {
   lowRiders: number;
   escortThugs: number;
   cashCents: number;
+  beer: number;
   cargo: Record<string, number>;
   /** 0.5.0-F. What it bought on the home market on the way out, and what that cost. */
   market: Record<string, number>;
   marketCents: number;
+}
+
+export interface RunOutpostEstablishResult {
+  outpostId: string;
+  city: string;
+  cityName: string;
+  district: TurfBlockDto['district'];
+  districtName: string;
+  won: boolean;
+  squad: number;
+  localsThugs: number;
+  cornerThugs: number;
+  cashCents: number;
+  beer: number;
+  products: Record<string, number>;
+  turnsUsed: number;
+}
+
+export interface RunOutpostTransferResult {
+  outpostId: string;
+  city: string;
+  cityName: string;
+  district: TurfBlockDto['district'];
+  districtName: string;
+  direction: 'deposit' | 'withdraw';
+  cashCents: number;
+  beer: number;
+  products: Record<string, number>;
+  box: TurfOutpostDto;
+  runCashCents: number;
+  runBeer: number;
+  runCargo: Record<string, number>;
+  turnsUsed: number;
 }
 
 export interface RunTradeResult {
