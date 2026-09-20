@@ -16,7 +16,6 @@ import type {
   RunOutpostEstablishResult,
   RunOutpostTransferInput,
   RunOutpostTransferResult,
-  TurfOutpostDto,
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns } from './action.service.js';
