@@ -17,6 +17,7 @@ import {
   roundEmbed,
   syncAllText,
   syncMemberText,
+  territoryFeedEmbed,
   truncate,
   turnReminderEmbed,
 } from '../format.js';
@@ -169,6 +170,39 @@ describe('hallOfFameEmbed', () => {
     });
     expect(embed.fields![1]!.value).toBe('No final standings recorded.');
     expect(hallOfFameEmbed({ rounds: [] }, origin).description).toMatch(/^No round has finished yet/);
+  });
+});
+
+describe('territoryFeedEmbed', () => {
+  it('describes gains, losses and direct control steals without mentions', () => {
+    const base = {
+      id: 'territory-1',
+      roundName: 'Game #008',
+      city: 'detroit',
+      cityName: 'Detroit',
+      blocksTotal: 5,
+      happenedAt: '2026-09-20T18:00:00.000Z',
+    };
+    const gained = territoryFeedEmbed({
+      ...base,
+      previous: null,
+      next: { name: 'Aces', tag: 'ACE', blocksHeld: 3 },
+    });
+    expect(gained.description).toContain('[ACE] Aces took control of Detroit · 3/5 blocks.');
+
+    const stolen = territoryFeedEmbed({
+      ...base,
+      previous: { name: 'Aces', tag: 'ACE', blocksHeld: 3 },
+      next: { name: 'Kings', tag: 'KNG', blocksHeld: 3 },
+    });
+    expect(stolen.description).toContain('[KNG] Kings took control of Detroit from [ACE] Aces');
+
+    const lost = territoryFeedEmbed({
+      ...base,
+      previous: { name: 'Kings', tag: 'KNG', blocksHeld: 3 },
+      next: null,
+    });
+    expect(lost.description).toContain('No alliance controls it now.');
   });
 });
 
