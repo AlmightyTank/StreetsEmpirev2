@@ -41,7 +41,7 @@ function changeSummary(value: unknown): string {
  * build does not render yet, so they degrade to the type name rather than
  * disappearing from the feed.
  */
-function describe(activity: ActivityDto, crackWord: string): { text: string; detail?: string } {
+export function describeActivity(activity: ActivityDto, crackWord: string): { text: string; detail?: string } {
   const p = activity.payload;
 
   switch (activity.type) {
@@ -174,12 +174,18 @@ function describe(activity: ActivityDto, crackWord: string): { text: string; det
         detail: `${activity.type === 'STORE_BUY' ? '-' : '+'}${formatCents(num(p.totalCents))}`,
       };
 
-    case 'WEAPON_UNLOCK':
+    case 'WEAPON_UNLOCK': {
+      const weapon = str(p.weapon);
+      const purchaseName = weapon ? `${weapon} purchases` : 'Tommy’s locked weapon purchases';
       return {
-        text: `Earned ${str(p.weapon)} access at Tommy’s.`,
-        detail: [str(p.favor), num(p.cashSpentCents) ? `-${formatCents(num(p.cashSpentCents))}` : '',
-          num(p.crackDelivered) ? `${formatNumber(num(p.crackDelivered))} product delivered` : ''].filter(Boolean).join(', '),
+        text: `Earned ${weapon || 'weapon'} access at Tommy’s.`,
+        detail: [
+          str(p.unlock) || str(p.favor) || str(p.title),
+          `${purchaseName} are unlocked for the rest of the round.`,
+          'Buying one still uses Tommy’s shelf and your cash.',
+        ].filter(Boolean).join(' · '),
       };
+    }
 
     case 'BATTLE_VOIDED':
       return {
@@ -263,7 +269,7 @@ export function ActivityFeed({ activity }: { activity: ActivityDto[] }) {
   return (
     <ul className="se-feed">
       {activity.map((entry) => {
-        const { text, detail } = describe(entry, crackWord);
+        const { text, detail } = describeActivity(entry, crackWord);
         return (
           <li className="se-feed__item" key={entry.id}>
             <span className="se-feed__time se-num">{time(entry.createdAt)}</span>

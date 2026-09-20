@@ -9,10 +9,11 @@ import { Button } from '../components/Button.js';
 import { DistrictPicker } from '../components/DistrictPicker.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
-import { supplyReceiptLines, WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
-import { HeatNotice, heatReceiptLines } from '../components/HeatPanel.js';
+import { WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
+import { HeatNotice } from '../components/HeatPanel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { scoutReceiptLines } from '../receipts/actionReceipts.js';
 import { useSession } from '../stores/session.js';
 
 export function ScoutPage() {
@@ -41,7 +42,6 @@ export function ScoutPage() {
   if (!me) return <Navigate to="/join" replace />;
 
   const available = me.turns.turns;
-  const backOfficeBonusCents = action.result?.result.hideoutBonusCents ?? 0;
   const supplyJobs = district ? [{ job: district, label: districts.find((row) => row.key === district)?.name ?? 'This district' }] : [];
   const canScout =
     !action.busy &&
@@ -125,9 +125,9 @@ export function ScoutPage() {
                 strong
               />
               <Row label="Whores" value={formatNumber(me.resources.whores)} strong tooltip="Girls working the block. Uncovered whores earn less and face more risk when supplies run short." />
-              <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong tooltip="A thug needs a weapon to count as street cover while scouting." />
-              {me.resources.woundedThugs > 0 ? <Row label="Fit / wounded" value={`${formatNumber(me.resources.fitThugs)} / ${formatNumber(me.resources.woundedThugs)}`} tooltip="Wounded thugs cannot cover the street, scout, produce, attack or defend." /> : null}
-              <Row label="Armed / unarmed" value={`${formatNumber(me.resources.armedThugs)} / ${formatNumber(me.resources.unarmedThugs)}`} tooltip="Only armed fit thugs count as protection in F public raid rounds." />
+              <Row label="Thugs / available" value={`${formatNumber(me.resources.thugs)} / ${formatNumber(me.resources.fitThugs)}`} strong tooltip="Total thugs / fit thugs at home. Wounded and posted thugs cannot scout, produce, attack, defend or cover the street." />
+              {me.resources.postedThugs > 0 || me.resources.woundedThugs > 0 ? <Row label="Posted / wounded" value={`${formatNumber(me.resources.postedThugs)} / ${formatNumber(me.resources.woundedThugs)}`} tooltip="Posted thugs are holding turf. Wounded thugs are recovering." /> : null}
+              <Row label="Armed / unarmed" value={`${formatNumber(me.resources.armedThugs)} / ${formatNumber(me.resources.unarmedThugs)}`} tooltip="Only armed available thugs count as protection in F public raid rounds." />
               <Row label="They keep" value={`${me.payoutPercent}%`} />
               <Row label="You keep" value={`${100 - me.payoutPercent}%`} />
               <Row label="Whore happiness" value={`${me.happiness.whore}%`} tooltip="Affects street earnings. Supplies, protection and payout all matter." />
@@ -140,7 +140,7 @@ export function ScoutPage() {
             <div className="se-rows">
               <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
               <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
-              <Row label={me.products ? 'Crack' : 'Product'} value={formatNumber(me.resources.product)} />
+              {me.products ? null : <Row label="Product" value={formatNumber(me.resources.product)} />}
               <WorkSupplyStockRows jobs={supplyJobs} refreshKey={action.result} />
               <Row label="Beer" value={formatNumber(me.resources.beer)} tooltip="Thugs expect beer while they work. Missing beer lowers thug happiness." />
               <Row label="Cash" value={formatCents(me.resources.cashCents)} strong />
@@ -157,140 +157,7 @@ export function ScoutPage() {
             subtitle={action.result.result.district.name}
             onDismiss={action.clear}
             result={action.result}
-            lines={[
-              { label: 'Turns used', value: formatNumber(action.result.result.turnsUsed) },
-              ...supplyReceiptLines(action.result.result.supply),
-              ...heatReceiptLines(action.result.result.heat),
-              // Manual 3.1: this is where you make money for yourself.
-              {
-                label: 'Brought in',
-                value: formatCents(action.result.result.grossEarnedCents),
-              },
-              {
-                label: `Their cut (${action.result.result.payoutPercent}%)`,
-                delta: -action.result.result.crewTakeCents,
-                money: true,
-                muted: true,
-              },
-              {
-                label: 'Your cut',
-                delta: action.result.result.cashEarnedCents,
-                money: true,
-                remaining: action.result.after.cashCents,
-              },
-              ...(backOfficeBonusCents > 0
-                ? [
-                    {
-                      label: 'Back Office bonus',
-                      value: `${formatCents(backOfficeBonusCents)} included`,
-                    },
-                  ]
-                : []),
-
-              {
-                label: 'Whores recruited',
-                delta: action.result.result.whoresRecruited,
-                remaining: action.result.after.resources.whores,
-              },
-              {
-                label: 'Thugs recruited',
-                delta: action.result.result.thugsRecruited,
-                remaining: action.result.after.resources.thugs,
-              },
-              ...(action.result.result.crackFound > 0
-                ? [
-                    {
-                      label: me.products ? 'Crack found' : 'Product found',
-                      delta: action.result.result.crackFound,
-                      remaining: action.result.after.resources.product,
-                    },
-                  ]
-                : []),
-
-
-              {
-                label: 'Condoms used',
-                delta: -action.result.result.condomsUsed,
-                remaining: action.result.after.resources.condoms,
-                muted: true,
-              },
-              ...(action.result.result.condomsMissing > 0
-                ? [
-                    {
-                      label: 'Worked without condoms',
-                      value: <>{formatNumber(action.result.result.condomsMissing)} short · <Link className="se-golink" to="/game/stores/corner">Corner Store</Link></>,
-                    },
-                  ]
-                : []),
-              {
-                label: me.products ? 'Crack used' : 'Product used',
-                delta: -action.result.result.crackUsed,
-                remaining: action.result.after.resources.product,
-                muted: true,
-              },
-              {
-                label: 'Beer used',
-                delta: -action.result.result.beerUsed,
-                remaining: action.result.after.resources.beer,
-                muted: true,
-              },
-
-              ...(action.result.result.infected > 0
-                ? [
-                    {
-                      label: 'Caught something',
-                      delta: -action.result.result.infected,
-                    },
-                    ...(action.result.result.treated > 0
-                      ? [
-                          {
-                            label: 'Treated with medicine',
-                            delta: -action.result.result.medicineUsed,
-                            remaining: action.result.after.resources.medicine,
-                            muted: true,
-                          },
-                        ]
-                      : []),
-                    ...(action.result.result.lostToInfection > 0
-                      ? [
-                          {
-                            label: 'Lost, no medicine',
-                            delta: -action.result.result.lostToInfection,
-                            remaining: action.result.after.resources.whores,
-                          },
-                          { label: 'Medicine', value: <Link className="se-golink" to="/game/stores/corner">Corner Store</Link> },
-                        ]
-                      : []),
-                  ]
-                : []),
-              ...(action.result.result.whoresLeft > 0
-                ? [
-                    {
-                      label: 'Whores walked out',
-                      delta: -action.result.result.whoresLeft,
-                      remaining: action.result.after.resources.whores,
-                    },
-                  ]
-                : []),
-              ...(action.result.result.thugsLeft > 0
-                ? [
-                    {
-                      label: 'Thugs walked out',
-                      delta: -action.result.result.thugsLeft,
-                      remaining: action.result.after.resources.thugs,
-                    },
-                  ]
-                : []),
-
-              {
-                label: 'Armed street cover',
-                value: `${formatNumber(action.result.result.armedThugs)} armed / ${formatNumber(action.result.result.unarmedThugs)} unarmed`,
-              },
-              {
-                label: 'Turns remaining',
-                value: formatNumber(action.result.result.turnsRemaining),
-              },
-            ]}
+            lines={scoutReceiptLines(action.result, me)}
           />
         </div>
       ) : null}

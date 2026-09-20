@@ -1,9 +1,42 @@
-import type { ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, type ReactNode } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { formatCents, formatCentsCompact } from '@streets/shared';
 import { InstallBanner } from '../components/InstallBanner.js';
 import { SiteBanner } from '../components/SiteBanner.js';
 import { useSession } from '../stores/session.js';
+
+const TURN_ACTION_PAGES = ['/game/scout', '/game/produce', '/game/combat'] as const;
+const LAST_TURN_ACTION_KEY = 'streets.lastTurnActionPage';
+
+function turnActionIndex(pathname: string) {
+  return TURN_ACTION_PAGES.findIndex((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
+
+function storedTurnActionIndex() {
+  if (typeof window === 'undefined') return -1;
+
+  try {
+    const stored = window.localStorage.getItem(LAST_TURN_ACTION_KEY);
+    return TURN_ACTION_PAGES.indexOf(stored as (typeof TURN_ACTION_PAGES)[number]);
+  } catch {
+    return -1;
+  }
+}
+
+function nextTurnActionPath(pathname: string) {
+  const current = turnActionIndex(pathname);
+  if (current >= 0) {
+    return TURN_ACTION_PAGES[(current + 1) % TURN_ACTION_PAGES.length] ?? TURN_ACTION_PAGES[0];
+  }
+
+  const last = storedTurnActionIndex();
+  if (last >= 0) {
+    const lastPath = TURN_ACTION_PAGES[last];
+    if (lastPath) return lastPath;
+  }
+
+  return TURN_ACTION_PAGES[0];
+}
 
 /**
  * Top bar. Section 23: cash, turns and net worth stay visible on every
@@ -13,8 +46,24 @@ import { useSession } from '../stores/session.js';
 function StatusBar() {
   const me = useSession((s) => s.me);
   const moneyFormat = useSession((s) => s.profileSettings.moneyFormat);
+  const location = useLocation();
+  const currentTurnAction = turnActionIndex(location.pathname);
+
+  useEffect(() => {
+    if (currentTurnAction < 0 || typeof window === 'undefined') return;
+    const currentPath = TURN_ACTION_PAGES[currentTurnAction];
+    if (!currentPath) return;
+
+    try {
+      window.localStorage.setItem(LAST_TURN_ACTION_KEY, currentPath);
+    } catch {
+      // Private browsing or locked-down storage should not break navigation.
+    }
+  }, [currentTurnAction]);
+
   if (!me) return null;
   const money = moneyFormat === 'compact' ? formatCentsCompact : formatCents;
+  const turnActionPath = nextTurnActionPath(location.pathname);
 
   const heat = me.heat;
   const arresting = Boolean(heat?.arrest && heat.heat >= heat.arrest.startsAt);
@@ -41,7 +90,7 @@ function StatusBar() {
           {formatCentsCompact(me.resources.cashCents)}
         </span>
       </Link>
-      <Link className="se-statusbar__item" to="/game/scout" title="Turns: spend them on Scout">
+      <Link className="se-statusbar__item" to={turnActionPath} title="Turns: cycle Scout, Produce and Raids">
         <span className="se-statusbar__k">Turns</span>
         <span className="se-num se-statusbar__v">
           {me.turns.turns}
