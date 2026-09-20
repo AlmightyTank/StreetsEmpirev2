@@ -151,6 +151,59 @@ async function lockOutpost(tx: Db, id: string): Promise<void> {
   await tx.$queryRaw`SELECT id FROM "TurfOutpost" WHERE id = ${id} FOR UPDATE`;
 }
 
+interface CityControl {
+  allianceId: string;
+  alliance: { name: string; tag: string };
+  blocksHeld: number;
+  blocksTotal: number;
+  share: number;
+}
+
+function controlFromRows(
+  ruleset: Ruleset,
+  rows: Array<{ holder: { allianceId: string | null; alliance?: { name: string; tag: string } | null } | null }>,
+): CityControl | null {
+  const territory = ruleset.turf?.territory;
+  if (!territory || rows.length === 0) return null;
+  const byAlliance = new Map<string, { alliance: { name: string; tag: string }; blocks: number }>();
+  for (const row of rows) {
+    const allianceId = row.holder?.allianceId;
+    const alliance = row.holder?.alliance;
+    if (!allianceId || !alliance) continue;
+    const current = byAlliance.get(allianceId) ?? { alliance, blocks: 0 };
+    current.blocks += 1;
+    byAlliance.set(allianceId, current);
+  }
+  const needed = Math.ceil(rows.length * territory.cityControlShare);
+  const winner = [...byAlliance.entries()]
+    .map(([allianceId, value]) => ({ allianceId, ...value }))
+    .filter((entry) => entry.blocks >= needed)
+    .sort((a, b) => b.blocks - a.blocks || a.allianceId.localeCompare(b.allianceId))[0];
+  return winner ? {
+    allianceId: winner.allianceId,
+    alliance: winner.alliance,
+    blocksHeld: winner.blocks,
+    blocksTotal: rows.length,
+    share: winner.blocks / rows.length,
+  } : null;
+}
+
+async function cityControl(db: TurfDb, roundId: string, cityId: string, ruleset: Ruleset): Promise<CityControl | null> {
+  if (!ruleset.turf?.territory) return null;
+  const rows = await db.turf.findMany({
+    where: { roundId, cityId },
+    select: {
+      holder: {
+        select: {
+          allianceId: true,
+          alliance: { select: { name: true, tag: true } },
+        },
+      },
+    },
+  });
+  return controlFromRows(ruleset, rows);
+}
+
 interface StoredTurfFight {
   won: boolean;
   unopposed: boolean;
@@ -383,7 +436,7 @@ export const TurfService = {
     roundPlayerId: string; accountId: string; roundId: string; cityId: string;
     district: DistrictKey; takeCents: number; ruleset: Ruleset; now?: Date;
   }): Promise<TurfTripDto> {
-    const empty: TurfTripDto = { kind: 'locals', holder: null, holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: false };
+    const empty: TurfTripDto = { kind: 'locals', holder: null, holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: false, controlledCityExempt: false, controlledCityExempt: false };
     if (!holdingOn(input.ruleset) || input.takeCents <= 0) return empty;
     const now = input.now ?? new Date();
     await TurfService.ensureRound(tx, input.roundId, input.ruleset);
@@ -399,7 +452,20 @@ export const TurfService = {
       const multiplier = turfHoldBonus(input.ruleset, input.district, true);
       return {
         kind: 'own', holder: { publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName },
-        holdBonusCents: Math.max(0, Math.round(input.takeCents * (multiplier - 1))), taxPaidCents: 0, taxMintedCents: 0, linked: false,
+        holdBonusCents: Math.max(0, Math.round(input.takeCents * (multiplier - 1))), taxPaidCents: 0, taxMintedCents: 0, linked: false, controlledCityExempt: false,
+      };
+    }
+
+    const worker = input.ruleset.turf?.territory?.controlledCityNoTax
+      ? await tx.roundPlayer.findUniqueOrThrow({ where: { id: input.roundPlayerId }, select: { allianceId: true } })
+      : null;
+    const control = worker?.allianceId
+      ? await cityControl(tx, input.roundId, input.cityId, input.ruleset)
+      : null;
+    if (worker?.allianceId && control?.allianceId === worker.allianceId) {
+      return {
+        kind: 'rival', holder: { publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName },
+        holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: false, controlledCityExempt: false, controlledCityExempt: true,
       };
     }
 
@@ -407,7 +473,7 @@ export const TurfService = {
     if (linked) {
       return {
         kind: 'rival', holder: { publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName },
-        holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: true,
+        holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: true, controlledCityExempt: false,
       };
     }
     const day = utcDay(now);
@@ -420,7 +486,7 @@ export const TurfService = {
       if (!rules) {
         return {
           kind: 'rival', holder: { publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName },
-          holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: false,
+          holdBonusCents: 0, taxPaidCents: 0, taxMintedCents: 0, linked: false, controlledCityExempt: false,
         };
       }
       await lockOutpost(tx, row.outpost.id);
@@ -448,7 +514,7 @@ export const TurfService = {
       }
       return {
         kind: 'rival', holder: { publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName },
-        holdBonusCents: 0, taxPaidCents: tax.burnCents, taxMintedCents: mintCents, linked: false,
+        holdBonusCents: 0, taxPaidCents: tax.burnCents, taxMintedCents: mintCents, linked: false, controlledCityExempt: false,
       };
     }
 
@@ -461,7 +527,7 @@ export const TurfService = {
     }
     return {
       kind: 'rival', holder: { publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName },
-      holdBonusCents: 0, taxPaidCents: tax.burnCents, taxMintedCents: tax.mintCents, linked: false,
+      holdBonusCents: 0, taxPaidCents: tax.burnCents, taxMintedCents: tax.mintCents, linked: false, controlledCityExempt: false,
     };
   },
 
@@ -624,6 +690,10 @@ export const TurfService = {
     const allianceReserved = (cityId: string) => player.allianceId
       ? pendingPushes.filter((push) => cityByTurfId.get(push.turfId) === cityId && push.attacker.allianceId === player.allianceId).length : 0;
     const allianceHeldOrReserved = (cityId: string) => allianceHeld(cityId) + allianceReserved(cityId);
+    const controlByCityId = new Map<string, CityControl | null>();
+    for (const cityId of new Set(rows.map((row) => row.city.id))) {
+      controlByCityId.set(cityId, controlFromRows(ruleset, rows.filter((row) => row.city.id === cityId)));
+    }
 
     const byCity = new Map<string, CityTurfDto>();
     for (const row of rows) {
@@ -715,10 +785,18 @@ export const TurfService = {
         revengeUntil: revengeUntil?.toISOString() ?? null,
         pushBlockedReason,
       });
+      const cityControl = controlByCityId.get(row.city.id) ?? null;
       byCity.set(citySlug, {
         enabled: true,
         holdingEnabled: holdingOn(ruleset),
         warsEnabled: ruleset.turf.wars === true,
+        control: cityControl ? {
+          alliance: cityControl.alliance,
+          blocksHeld: cityControl.blocksHeld,
+          blocksTotal: cityControl.blocksTotal,
+          share: cityControl.share,
+          isYours: cityControl.allianceId === player.allianceId,
+        } : null,
         presenceRequired: ruleset.turf.presence.turnsToClaim,
         postTurnCost: ruleset.turf.corner.postTurnCost,
         pullTurnCost: ruleset.turf.corner.pullTurnCost,
