@@ -734,6 +734,11 @@ export interface TurfTerritoryRules {
   readonly cityControlShare: number;
   /** Controlled-city alliance members do not pay street tax there. */
   readonly controlledCityNoTax: boolean;
+  /**
+   * A personally held corner acts as a live road lookout in that city. It sees
+   * who is passing now, but never paid-recon wallet/trunk/escort bands or lookahead.
+   */
+  readonly cornerRunSightings: boolean;
 }
 
 export interface TurfOutpostRules {
