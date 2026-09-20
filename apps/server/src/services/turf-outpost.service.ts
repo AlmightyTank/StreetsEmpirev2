@@ -30,8 +30,6 @@ import {
   type CornerGuns,
 } from './turf.service.js';
 
-const EMPTY_GUNS: CornerGuns = { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
-
 function requireOutposts(ruleset: Ruleset) {
   const rules = ruleset.turf?.outposts;
   if (!rules) throw AppError.conflict('OUTPOSTS_DISABLED', 'Away turf is not open in this round.');
@@ -81,14 +79,6 @@ function positiveProducts(input: Record<string, number>, allowed: readonly strin
 
 function productUnits(products: Record<string, number>): number {
   return Object.values(products).reduce((sum, quantity) => sum + quantity, 0);
-}
-
-function boxDto(box: { cashCents: bigint; beer: number; products: Prisma.JsonValue }): TurfOutpostDto {
-  return {
-    cashCents: Number(box.cashCents),
-    beer: box.beer,
-    products: box.products as Record<string, number>,
-  };
 }
 
 function boxWorth(ruleset: Ruleset, box: { cashCents: bigint; beer: number; products: Record<string, number> }): bigint {
