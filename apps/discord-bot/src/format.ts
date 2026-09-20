@@ -18,6 +18,7 @@ import type {
   RoundEvent,
   RoundStatus,
   Stats,
+  TurfEvent,
   TurnReminder,
 } from './game-api.js';
 import type { MemberSyncResult, SyncSummary } from './sync.js';
@@ -430,6 +431,18 @@ export function battleFeedEmbed(battle: BattleEvent): APIEmbed {
     color: battle.attackerWon ? BRAND_COLOR : MUTED_COLOR,
     description: `[${escapeMarkdown(battle.attackerName)}](${battle.attackerProfileUrl}) hit [${escapeMarkdown(battle.defenderName)}](${battle.defenderProfileUrl}) in ${escapeMarkdown(battle.roundName)}.\nWinner: ${escapeMarkdown(winner)}.`,
     timestamp: battle.createdAt,
+  };
+}
+
+export function turfFeedEmbed(event: TurfEvent): APIEmbed {
+  const newHolder = event.attackerAllianceTag
+    ? `[${escapeMarkdown(event.attackerAllianceTag)}] ${escapeMarkdown(event.attackerName)}`
+    : escapeMarkdown(event.attackerName);
+  return {
+    title: `${escapeMarkdown(event.cityName)} · ${escapeMarkdown(event.districtName)} changed hands`,
+    color: BRAND_COLOR,
+    description: `[${escapeMarkdown(event.defenderName)}](${event.defenderProfileUrl}) lost the block to [${newHolder}](${event.attackerProfileUrl}) in ${escapeMarkdown(event.roundName)}.`,
+    timestamp: event.settledAt,
   };
 }
 
