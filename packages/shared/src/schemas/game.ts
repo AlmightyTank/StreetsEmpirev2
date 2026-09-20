@@ -95,7 +95,7 @@ export type ProduceCrackInput = z.infer<typeof produceCrackSchema>;
 export type PayoutInput = z.infer<typeof payoutSchema>;
 
 export const hideoutUpgradeSchema = z.object({
-  room: z.enum(['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE']),
+  room: z.enum(['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE', 'GARAGE']),
   actionId: actionIdSchema,
 });
 export type HideoutUpgradeInput = z.infer<typeof hideoutUpgradeSchema>;
