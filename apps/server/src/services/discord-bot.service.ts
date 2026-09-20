@@ -22,6 +22,7 @@ import type {
   DiscordRankingsDto,
   DiscordRoundEventDto,
   DiscordStatsDto,
+  DiscordTerritoryEventDto,
   DiscordTurfEventDto,
   ForumGroupBadgeDto,
   PublicLegacyDto,
@@ -234,6 +235,40 @@ async function claimTurf(prisma: PrismaClient, now: Date, limit = 25): Promise<D
         settledAt: row.settledAt.toISOString(),
       }];
     });
+  });
+}
+
+/** 0.6.0-E. Alliance city-control changes, handed out once to the public street feed. */
+async function claimTerritory(prisma: PrismaClient, now: Date, limit = 25): Promise<DiscordTerritoryEventDto[]> {
+  return prisma.$transaction(async (tx) => {
+    const rows = await tx.turfControlEvent.findMany({
+      where: { discordPostedAt: null },
+      orderBy: { happenedAt: 'asc' },
+      take: limit,
+      include: {
+        round: { select: { name: true, rulesetId: true, rulesetVersion: true } },
+        city: { select: { slug: true, name: true } },
+      },
+    });
+    if (!rows.length) return [];
+    await tx.turfControlEvent.updateMany({
+      where: { id: { in: rows.map((row) => row.id) }, discordPostedAt: null },
+      data: { discordPostedAt: now },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      roundName: row.round.name,
+      city: row.city.slug,
+      cityName: row.city.name,
+      previous: row.previousAllianceName && row.previousAllianceTag
+        ? { name: row.previousAllianceName, tag: row.previousAllianceTag, blocksHeld: row.previousBlocksHeld }
+        : null,
+      next: row.nextAllianceName && row.nextAllianceTag
+        ? { name: row.nextAllianceName, tag: row.nextAllianceTag, blocksHeld: row.nextBlocksHeld }
+        : null,
+      blocksTotal: row.blocksTotal,
+      happenedAt: row.happenedAt.toISOString(),
+    }));
   });
 }
 
@@ -613,12 +648,13 @@ export const DiscordBotService = {
   async claimAlerts(prisma: PrismaClient): Promise<DiscordAlertsClaimDto> {
     const now = new Date();
     await NotificationService.collect(prisma, now);
-    const [battles, turf, rounds, dms] = await Promise.all([
+    const [battles, turf, territory, rounds, dms] = await Promise.all([
       claimBattles(prisma, now),
       claimTurf(prisma, now),
+      claimTerritory(prisma, now),
       claimRoundEnds(prisma, now),
       NotificationService.claimDiscord(prisma, now),
     ]);
-    return { ...dms, battles, turf, rounds };
+    return { ...dms, battles, turf, territory, rounds };
   },
 };
