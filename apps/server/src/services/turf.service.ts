@@ -356,6 +356,7 @@ export const TurfService = {
         include: {
           city: { select: { id: true, slug: true } },
           holder: { select: { id: true, allianceId: true, publicPimpId: true, displayName: true, alliance: { select: { name: true, tag: true } } } },
+          outpost: true,
         },
         orderBy: [{ city: { sortOrder: 'asc' } }, { district: 'asc' }],
       }),
@@ -467,6 +468,7 @@ export const TurfService = {
     const crewThugs = player.thugs + (activeRun?.escortThugs ?? 0);
     const armedAtHome = Math.min(homeFit(player), gunCount({ pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s }));
     const heldAtHome = rows.filter((row) => row.city.id === player.cityId && row.holder?.id === player.id).length;
+    const heldAway = rows.filter((row) => row.city.id !== player.cityId && row.holder?.id === player.id).length;
     const cityByTurfId = new Map(rows.map((row) => [row.id, row.city.id]));
     const reservedAtHome = pendingPushes.filter((push) => push.attackerId === player.id && cityByTurfId.get(push.turfId) === player.cityId).length;
     const heldOrReservedAtHome = heldAtHome + reservedAtHome;
@@ -537,6 +539,11 @@ export const TurfService = {
           alliance: row.holder.alliance ? { name: row.holder.alliance.name, tag: row.holder.alliance.tag } : null,
         } : null,
         isMine, cornerThugs: row.cornerThugs, cornerMinimumThugs: minimum, cornerGuns: dtoGuns(gunsFromTurf(row)),
+        outpost: isMine && row.city.id !== player.cityId && row.outpost ? {
+          cashCents: Number(row.outpost.cashCents),
+          beer: row.outpost.beer,
+          products: row.outpost.products as Record<string, number>,
+        } : null,
         localsThugs: localsOnBlock(ruleset, {
           holderId: row.holderId, citySlug, district, localsThugs: row.localsThugs,
           localsAt: row.localsAt, localsReclaimAt: row.localsReclaimAt,
@@ -569,7 +576,9 @@ export const TurfService = {
         pushTurnCost: ruleset.turf.push.turnCost,
         pushWarningMinutes: ruleset.turf.push.warningMinutes,
         homeCap: ruleset.turf.caps.blocksPerCrewHome,
+        awayCap: ruleset.turf.caps.blocksPerCrewAway,
         heldAtHome,
+        heldAway,
         blocks,
         reports: reportsByCity.get(citySlug) ?? [],
       });
