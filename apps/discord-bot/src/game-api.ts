@@ -197,6 +197,17 @@ const turfEventSchema = z.object({
   settledAt: z.string(),
 });
 
+const territoryEventSchema = z.object({
+  id: z.string(),
+  roundName: z.string(),
+  city: z.string(),
+  cityName: z.string(),
+  previous: z.object({ name: z.string(), tag: z.string(), blocksHeld: z.number() }).nullable(),
+  next: z.object({ name: z.string(), tag: z.string(), blocksHeld: z.number() }).nullable(),
+  blocksTotal: z.number(),
+  happenedAt: z.string(),
+});
+
 const roundEventSchema = z.object({
   type: z.enum(['opened', 'ending-soon', 'ended']),
   roundName: z.string(),
@@ -229,6 +240,7 @@ const alertsClaimSchema = z.object({
   roundAlerts: z.array(roundEventSchema.extend({ discordId: z.string(), rank: z.number().nullable() })),
   battles: z.array(battleEventSchema),
   turf: z.array(turfEventSchema),
+  territory: z.array(territoryEventSchema),
   rounds: z.array(roundEventSchema),
 });
 
@@ -267,6 +279,7 @@ export type TurnReminder = AlertsClaim['turns'][number];
 export type RankAlert = AlertsClaim['ranks'][number];
 export type BattleEvent = AlertsClaim['battles'][number];
 export type TurfEvent = AlertsClaim['turf'][number];
+export type TerritoryEvent = AlertsClaim['territory'][number];
 export type RoundEvent = AlertsClaim['rounds'][number];
 export type RoundStatus = z.infer<typeof statusSchema>;
 export type NewsFeed = z.infer<typeof newsSchema>;
