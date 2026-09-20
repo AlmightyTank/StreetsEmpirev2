@@ -159,7 +159,7 @@ interface CityControl {
   share: number;
 }
 
-function controlFromRows(
+export function controlFromRows(
   ruleset: Ruleset,
   rows: Array<{ holder: { allianceId: string | null; alliance?: { name: string; tag: string } | null } | null }>,
 ): CityControl | null {
