@@ -10,6 +10,7 @@ import type {
   DiscordBadgesDto,
   DiscordBattleEventDto,
   DiscordCityDto,
+  DiscordCrackdownEventDto,
   DiscordHallOfFameDto,
   DiscordHistoryDto,
   DiscordLeaderboardDto,
@@ -269,6 +270,68 @@ async function claimTerritory(prisma: PrismaClient, now: Date, limit = 25): Prom
       blocksTotal: row.blocksTotal,
       happenedAt: row.happenedAt.toISOString(),
     }));
+  });
+}
+
+/** 0.6.0-F. Claim the Federal warning and the landed sweep independently, each once. */
+async function claimCrackdowns(prisma: PrismaClient, now: Date, limit = 25): Promise<DiscordCrackdownEventDto[]> {
+  return prisma.$transaction(async (tx) => {
+    const [warnings, sweeps] = await Promise.all([
+      tx.turfCrackdown.findMany({
+        where: { warningDiscordPostedAt: null, warningAt: { lte: now }, sweepAt: { gt: now } },
+        orderBy: { warningAt: 'asc' },
+        take: limit,
+        include: { round: { select: { name: true } }, city: { select: { slug: true, name: true } } },
+      }),
+      tx.turfCrackdown.findMany({
+        where: { sweepDiscordPostedAt: null, sweptAt: { not: null }, sweepAt: { lte: now } },
+        orderBy: { sweepAt: 'asc' },
+        take: limit,
+        include: { round: { select: { name: true } }, city: { select: { slug: true, name: true } } },
+      }),
+    ]);
+
+    if (warnings.length) {
+      await tx.turfCrackdown.updateMany({
+        where: { id: { in: warnings.map((row) => row.id) }, warningDiscordPostedAt: null },
+        data: { warningDiscordPostedAt: now },
+      });
+    }
+    for (const row of sweeps) {
+      await tx.turfCrackdown.update({
+        where: { id: row.id },
+        data: {
+          sweepDiscordPostedAt: now,
+          ...(row.warningDiscordPostedAt ? {} : { warningDiscordPostedAt: now }),
+        },
+      });
+    }
+
+    return [
+      ...warnings.map((row): DiscordCrackdownEventDto => ({
+        id: row.id,
+        phase: 'warning',
+        roundName: row.round.name,
+        city: row.city.slug,
+        cityName: row.city.name,
+        warningAt: row.warningAt.toISOString(),
+        sweepAt: row.sweepAt.toISOString(),
+        holdersAffected: 0,
+        thugsPickedUp: 0,
+      })),
+      ...sweeps.map((row): DiscordCrackdownEventDto => ({
+        id: row.id,
+        phase: 'sweep',
+        roundName: row.round.name,
+        city: row.city.slug,
+        cityName: row.city.name,
+        warningAt: row.warningAt.toISOString(),
+        sweepAt: row.sweepAt.toISOString(),
+        holdersAffected: row.holdersAffected,
+        thugsPickedUp: row.thugsPickedUp,
+      })),
+    ].sort((a, b) => new Date(a.phase === 'warning' ? a.warningAt : a.sweepAt).getTime()
+      - new Date(b.phase === 'warning' ? b.warningAt : b.sweepAt).getTime());
   });
 }
 
@@ -648,13 +711,14 @@ export const DiscordBotService = {
   async claimAlerts(prisma: PrismaClient): Promise<DiscordAlertsClaimDto> {
     const now = new Date();
     await NotificationService.collect(prisma, now);
-    const [battles, turf, territory, rounds, dms] = await Promise.all([
+    const [battles, turf, territory, crackdowns, rounds, dms] = await Promise.all([
       claimBattles(prisma, now),
       claimTurf(prisma, now),
       claimTerritory(prisma, now),
+      claimCrackdowns(prisma, now),
       claimRoundEnds(prisma, now),
       NotificationService.claimDiscord(prisma, now),
     ]);
-    return { ...dms, battles, turf, territory, rounds };
+    return { ...dms, battles, turf, territory, crackdowns, rounds };
   },
 };
