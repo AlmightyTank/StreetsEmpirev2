@@ -51,12 +51,14 @@ export function agoText(iso: string, now = Date.now()): string {
   return `${Math.round(hours / 24)} days ago`;
 }
 
-export function RoadMap({ data, selected, onSelect, runAt }: {
+export function RoadMap({ data, selected, onSelect, runAt, runAts }: {
   data: CitiesDto;
   selected: string;
   onSelect: (slug: string) => void;
-  /** Where a run is, to draw it on the road. */
+  /** Backward-compatible single marker. */
   runAt?: { from: string; to: string; progress: number } | { city: string } | null;
+  /** 0.6.0-D Garage: every active run gets its own marker. */
+  runAts?: Array<{ from: string; to: string; progress: number } | { city: string }>;
 }) {
   // Only draw roads when both endpoint cities were actually returned by the API.
   // This prevents orphan/ghost road lines if the City catalog is ever out of sync.
@@ -69,11 +71,14 @@ export function RoadMap({ data, selected, onSelect, runAt }: {
     seen.add(key);
     return true;
   }).map((road) => ({ ...road, from: city.slug })));
-  const marker = !runAt ? null
-    : 'city' in runAt ? MAP[runAt.city] ?? null
-      : MAP[runAt.from] && MAP[runAt.to]
-        ? { x: MAP[runAt.from]!.x + (MAP[runAt.to]!.x - MAP[runAt.from]!.x) * runAt.progress, y: MAP[runAt.from]!.y + (MAP[runAt.to]!.y - MAP[runAt.from]!.y) * runAt.progress }
+  const markerInputs = runAts ?? (runAt ? [runAt] : []);
+  const markers = markerInputs.flatMap((at, index) => {
+    const point = 'city' in at ? MAP[at.city] ?? null
+      : MAP[at.from] && MAP[at.to]
+        ? { x: MAP[at.from]!.x + (MAP[at.to]!.x - MAP[at.from]!.x) * at.progress, y: MAP[at.from]!.y + (MAP[at.to]!.y - MAP[at.from]!.y) * at.progress }
         : null;
+    return point ? [{ ...point, index }] : [];
+  });
 
   return (
     <svg className="se-citymap" viewBox="0 0 400 230" role="group" aria-label="The road map">
@@ -110,12 +115,12 @@ export function RoadMap({ data, selected, onSelect, runAt }: {
           </g>
         );
       })}
-      {marker ? (
-        <g className="se-citymap__run" aria-label="Your run">
+      {markers.map((marker) => (
+        <g key={marker.index} className="se-citymap__run" aria-label={markers.length > 1 ? `Your run ${marker.index + 1}` : 'Your run'}>
           <circle cx={marker.x} cy={marker.y} r={7} className="se-citymap__run-glow" />
           <circle cx={marker.x} cy={marker.y} r={3.5} className="se-citymap__run-dot" />
         </g>
-      ) : null}
+      ))}
     </svg>
   );
 }
