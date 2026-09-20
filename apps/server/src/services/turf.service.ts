@@ -411,13 +411,28 @@ export const TurfService = {
     if (!holdingOn(input.ruleset) || input.takeCents <= 0) return empty;
     const now = input.now ?? new Date();
     await TurfService.ensureRound(tx, input.roundId, input.ruleset);
-    const row = await tx.turf.findUnique({
+    let row = await tx.turf.findUnique({
       where: { roundId_cityId_district: { roundId: input.roundId, cityId: input.cityId, district: input.district } },
       include: {
         holder: { select: { id: true, accountId: true, publicPimpId: true, displayName: true } },
         outpost: { select: { id: true } },
       },
     });
+
+    // A rival's persisted corner may be hours out of date. Settle its upkeep
+    // before deciding whether this worker owes tax, then reread the block in
+    // case the corner walked out while the holder was offline.
+    if (row?.holder && row.holder.id !== input.roundPlayerId) {
+      await TurfService.settlePlayer(tx, row.holder.id, input.ruleset, now);
+      row = await tx.turf.findUnique({
+        where: { roundId_cityId_district: { roundId: input.roundId, cityId: input.cityId, district: input.district } },
+        include: {
+          holder: { select: { id: true, accountId: true, publicPimpId: true, displayName: true } },
+          outpost: { select: { id: true } },
+        },
+      });
+    }
+
     if (!row?.holder) return empty;
     if (row.holder.id === input.roundPlayerId) {
       const multiplier = turfHoldBonus(input.ruleset, input.district, true);
