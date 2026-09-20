@@ -1,5 +1,5 @@
 import { writeFile } from 'node:fs/promises';
-import { classicOgV06C } from '@streets/rulesets';
+import { classicOgV06F } from '@streets/rulesets';
 import { runTurfSimulation, turfGate, turfMarkdown } from '@streets/rules-engine';
 
 const args = process.argv.slice(2);
@@ -17,7 +17,7 @@ try {
     if (!args[i + 1] || args[i + 1].startsWith('--')) throw new Error(`Incomplete option: ${flag}`);
     output = args[++i];
   }
-  // The current turf ruleset: holding plus live 0.6.0-C player-vs-player pushes.
+  // 0.6.0-F release gate: run all existing 40-block and push balance checks against the shipping ruleset.
   const ruleset = classicOgV06C;
   const summaries = runTurfSimulation(ruleset);
   const report = turfMarkdown(ruleset, summaries);
