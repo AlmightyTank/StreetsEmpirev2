@@ -307,6 +307,7 @@ export const TravelService = {
         turnsPerDriveHour: travel?.turnsPerDriveHour ?? 0,
         market: travel?.market ? { spread: travel.highMarketSpread, quoteTolerance: travel.market.quoteTolerance } : null,
         homeMarketAtLaunch: Boolean(travel?.market && runRules(ruleset)?.homeMarketAtLaunch),
+        outposts: ruleset.turf?.outposts ? { ...ruleset.turf.outposts } : null,
       },
       home: {
         cashCents: Number(player.cashCents),
