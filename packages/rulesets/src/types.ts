@@ -725,8 +725,25 @@ export interface TurfRules {
   readonly outposts?: TurfOutpostRules;
   /** 0.6.0-E. Alliance territory and city-control rules. */
   readonly territory?: TurfTerritoryRules;
+  /** 0.6.0-F. One seeded late-round Federal sweep of a city's held corners. */
+  readonly crackdown?: TurfCrackdownRules;
   /** 0.6.0-C. Taking a block. Data in A. */
   readonly push: TurfPushRules;
+}
+
+export interface TurfCrackdownRules {
+  /** The sweep lands this many hours before the scheduled round end. */
+  readonly hoursBeforeRoundEnd: number;
+  /** How many hours before the sweep the target city is made public. */
+  readonly warningHours: number;
+  /** Heat added to a holder for each corner they still hold when the sweep lands. */
+  readonly heatPerHeldBlock: number;
+  /** Share of each posted corner crew the Feds pick up. */
+  readonly pickupShare: number;
+  /** Hard cap per block so one event cannot erase a large late-round crew. */
+  readonly maxPickedUpPerBlock: number;
+  /** Always leave this many on a non-empty corner; the sweep weakens turf rather than auto-flipping it. */
+  readonly minimumCornerSurvivors: number;
 }
 
 export interface TurfTerritoryRules {
