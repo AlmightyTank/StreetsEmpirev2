@@ -483,7 +483,7 @@ function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: TravelDto;
                     : null;
 
   return (
-    <div className="se-moveon">
+    <div className="se-moveon se-outposts">
       <h3 className="se-city__heading">Outposts in {city.name}</h3>
       {openBlocks.length ? (
         <div className="se-grid">
@@ -496,17 +496,17 @@ function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: TravelDto;
           <div className="se-launch__grid">
             <div className="se-field">
               <label className="se-label" htmlFor="outpost-thugs">Escorts staying</label>
-              <input id="outpost-thugs" className="se-input" type="number" min={target?.cornerMinimumThugs ?? 1} max={run.escortThugs} value={thugs}
+              <input id="outpost-thugs" className="se-input" type="number" inputMode="numeric" min={target?.cornerMinimumThugs ?? 1} max={run.escortThugs} value={thugs}
                 onChange={(event) => setThugs(whole(event.target.value))} />
             </div>
             <div className="se-field">
               <label className="se-label" htmlFor="outpost-cash">Seed cash</label>
-              <input id="outpost-cash" className="se-input" type="number" min={0} value={cash}
+              <input id="outpost-cash" className="se-input" type="number" inputMode="numeric" min={0} value={cash}
                 onChange={(event) => setCash(whole(event.target.value))} />
             </div>
             <div className="se-field">
               <label className="se-label" htmlFor="outpost-beer">Seed beer</label>
-              <input id="outpost-beer" className="se-input" type="number" min={0} value={beer}
+              <input id="outpost-beer" className="se-input" type="number" inputMode="numeric" min={0} value={beer}
                 onChange={(event) => setBeer(whole(event.target.value))} />
             </div>
           </div>
@@ -519,7 +519,7 @@ function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: TravelDto;
             </div>
             <div className="se-field">
               <label className="se-label" htmlFor="outpost-product-qty">Units</label>
-              <input id="outpost-product-qty" className="se-input" type="number" min={0} value={productQty}
+              <input id="outpost-product-qty" className="se-input" type="number" inputMode="numeric" min={0} value={productQty}
                 onChange={(event) => setProductQty(whole(event.target.value))} />
             </div>
           </div>
@@ -561,12 +561,12 @@ function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: TravelDto;
           <div className="se-launch__grid">
             <div className="se-field">
               <label className="se-label" htmlFor="outpost-move-cash">Cash</label>
-              <input id="outpost-move-cash" className="se-input" type="number" min={0} value={moveCash}
+              <input id="outpost-move-cash" className="se-input" type="number" inputMode="numeric" min={0} value={moveCash}
                 onChange={(event) => setMoveCash(whole(event.target.value))} />
             </div>
             <div className="se-field">
               <label className="se-label" htmlFor="outpost-move-beer">Beer</label>
-              <input id="outpost-move-beer" className="se-input" type="number" min={0} value={moveBeer}
+              <input id="outpost-move-beer" className="se-input" type="number" inputMode="numeric" min={0} value={moveBeer}
                 onChange={(event) => setMoveBeer(whole(event.target.value))} />
             </div>
             <div className="se-field">
@@ -577,7 +577,7 @@ function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: TravelDto;
             </div>
             <div className="se-field">
               <label className="se-label" htmlFor="outpost-move-qty">Units</label>
-              <input id="outpost-move-qty" className="se-input" type="number" min={0} value={moveQty}
+              <input id="outpost-move-qty" className="se-input" type="number" inputMode="numeric" min={0} value={moveQty}
                 onChange={(event) => setMoveQty(whole(event.target.value))} />
             </div>
           </div>
