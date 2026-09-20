@@ -175,7 +175,7 @@ async function finishMove(tx: Db, roundPlayerId: string, move: { id: string; fro
     to: move.toCity,
     arrivedAt: move.arrivesAt.toISOString(),
     turfPlan: plan,
-  } as Prisma.InputJsonValue);
+  } as unknown as Prisma.InputJsonValue);
   return plan;
 }
 
@@ -259,20 +259,26 @@ export const RelocationService = {
    * never waited on: that player is being settled right now anyway, and a list read a
    * moment early is fine. So this can run anywhere without a deadlock.
    */
-  async settleDue(prisma: PrismaClient, roundId: string, now: Date): Promise<void> {
-    const due = await prisma.relocation.findMany({
+  async settleDue(db: Db | PrismaClient, roundId: string, now: Date): Promise<void> {
+    const due = await db.relocation.findMany({
       where: { arrivedAt: null, arrivesAt: { lte: now }, roundPlayer: { roundId } },
       select: { id: true, roundPlayerId: true },
       orderBy: { arrivesAt: 'asc' },
       take: 100,
     });
+    const settleOne = async (tx: Db, candidate: { id: string; roundPlayerId: string }) => {
+      await lockRoundPlayer(tx, candidate.roundPlayerId);
+      const move = await tx.relocation.findUnique({ where: { id: candidate.id } });
+      if (!move || move.arrivedAt || move.arrivesAt > now) return;
+      await finishMove(tx, candidate.roundPlayerId, move);
+    };
     for (const candidate of due) {
-      await prisma.$transaction(async (tx) => {
-        await lockRoundPlayer(tx, candidate.roundPlayerId);
-        const move = await tx.relocation.findUnique({ where: { id: candidate.id } });
-        if (!move || move.arrivedAt || move.arrivesAt > now) return;
-        await finishMove(tx, candidate.roundPlayerId, move);
-      }, { timeout: 15_000, maxWait: 10_000 });
+      if ('$transaction' in db) {
+        await db.$transaction((tx) => settleOne(tx, candidate), { timeout: 15_000, maxWait: 10_000 });
+      } else {
+        // Round-finalization already owns this transaction, so reuse its lock scope.
+        await settleOne(db, candidate);
+      }
     }
   },
 
