@@ -50,6 +50,7 @@ export function MovePanel({ data, selected, onDone }: { data: TravelDto; selecte
   if (relocation.moving) return <Moving moving={relocation.moving} onDone={onDone} />;
 
   const destination = relocation.destinations.find((city) => city.slug === to) ?? null;
+  const turfPlan = to ? relocation.turfPlans[to] ?? null : null;
   const arrives = new Date(Date.now() + relocation.downtimeMinutes * 60_000).toISOString();
   const blocked = relocation.blockedReason
     ? `${relocation.blockedReason}${relocation.blockedUntil ? ` You can move from ${when(relocation.blockedUntil)}.` : ''}`
@@ -101,6 +102,26 @@ export function MovePanel({ data, selected, onDone }: { data: TravelDto; selecte
           </p>
         </>
       ) : null}
+      {turfPlan && (turfPlan.toHome.length || turfPlan.toOutposts.length || turfPlan.released.length) ? (
+        <>
+          <h3 className="se-city__heading">Turf on arrival</h3>
+          <div className="se-rows">
+            {turfPlan.toHome.length ? (
+              <Row label="Becomes home turf" value={turfPlan.toHome.map((entry) => entry.districtName).join(', ')}
+                tooltip="Outpost boxes in your destination unload into your new home, and those blocks stop being outposts." />
+            ) : null}
+            {turfPlan.toOutposts.length ? (
+              <Row label="Becomes outposts" value={turfPlan.toOutposts.map((entry) => entry.districtName).join(', ')}
+                tooltip="These blocks in the city you leave stay yours, with new empty outpost boxes that need a run to supply them." />
+            ) : null}
+            {turfPlan.released.length ? (
+              <Row label="Released" value={turfPlan.released.map((entry) => entry.districtName).join(', ')}
+                tooltip="Your away-turf cap has no room for these blocks. Their corner crews and guns return when the move arrives, and the locals reclaim them later." />
+            ) : null}
+          </div>
+          <p className="se-hint">This conversion happens when the truck arrives, not when you pay the move fee.</p>
+        </>
+      ) : null}
       <Button type="button" className="se-btn se-btn--primary se-btn--block se-mt" disabledReason={block} onClick={submit}>
         {move.busy ? 'Loading the truck...'
           : confirming ? `Confirm: move to ${destination?.name} for ${formatCents(relocation.feeCents)}`
@@ -108,7 +129,8 @@ export function MovePanel({ data, selected, onDone }: { data: TravelDto; selecte
       </Button>
       {confirming ? (
         <p className="se-hint se-warn">
-          You cannot act for {minutesText(relocation.downtimeMinutes)}, and the fee is gone either way.{' '}
+          You cannot act for {minutesText(relocation.downtimeMinutes)}, and the fee is gone either way.
+          {turfPlan?.released.length ? ` ${turfPlan.released.length} block${turfPlan.released.length === 1 ? '' : 's'} will be released when you arrive.` : ''}{' '}
           <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => setConfirming(false)}>Cancel</button>
         </p>
       ) : null}

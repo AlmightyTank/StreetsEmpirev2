@@ -326,6 +326,8 @@ model Round {
   turf        Turf[]
   turfTax     TurfTaxLedger[]
   turfPushes  TurfPush[]
+  turfControlEvents TurfControlEvent[]
+  turfHoldSegments TurfHoldSegment[]
 
   @@index([status])
 }
@@ -352,6 +354,7 @@ model City {
   players RoundPlayer[]
   turf    Turf[]
   turfPresence TurfPresence[]
+  turfControlEvents TurfControlEvent[]
 }
 
 // ---------------------------------------------------------------------------
@@ -455,6 +458,8 @@ model RoundPlayer {
   postedThugs        Int @default(0)
   /// 0.6.0-B. Net-worth value of guns removed from the home arsenal and posted on turf.
   postedNetWorthCents BigInt @default(0)
+  /// 0.6.0-D. Net-worth value stored in away outpost boxes.
+  outpostNetWorthCents BigInt @default(0)
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
   rocksSuppliedToPip Int @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
@@ -514,6 +519,8 @@ model RoundPlayer {
   hideoutLookoutsLevel   Int @default(0)
   hideoutWorkshopLevel   Int @default(0)
   hideoutBackOfficeLevel Int @default(0)
+  /// 0.6.0-D. One level opens a second concurrent travel run.
+  hideoutGarageLevel    Int @default(0)
 
   /// 0.3.0-C. The alliance this player is in now, and since when. Shared revenge only
   /// counts hits on the alliance from after the member joined.
@@ -546,6 +553,9 @@ model RoundPlayer {
   turfPushesStarted      TurfPush[]          @relation("TurfPushAttacker")
   turfPushesDefended     TurfPush[]          @relation("TurfPushDefender")
   turfPushBackups        TurfPushBackup[]
+  /// 0.6.0-D. Supply/tax boxes for away turf.
+  turfOutposts           TurfOutpost[]
+  turfHoldSegments       TurfHoldSegment[]
   /// 0.4.0-B. Which products each job burns, in order.
   supplyPolicies        WorkSupplyPolicy[]
   /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
@@ -684,6 +694,9 @@ model Run {
   /// The run's wallet, integer cents. Never below zero.
   cashCents      BigInt
   startCashCents BigInt
+  /// 0.6.0-D. Beer carried by the run for outpost supply.
+  beer           Int         @default(0)
+  startBeer      Int         @default(0)
   turnsSpent     Int
   launchedAt     DateTime    @default(now())
   returnedAt     DateTime?
@@ -1084,6 +1097,8 @@ enum ActivityType {
   TURF_PUSH_BACKUP
   TURF_PUSH_ATTACK
   TURF_PUSH_DEFENSE
+  TURF_OUTPOST_ESTABLISH
+  TURF_OUTPOST_TRANSFER
 }
 
 enum BattleKind {
@@ -1228,9 +1243,33 @@ model Turf {
   updatedAt DateTime @updatedAt
 
   pushes TurfPush[]
+  outpost TurfOutpost?
+  holdSegments TurfHoldSegment[]
 
   @@unique([roundId, cityId, district])
   @@index([roundId, holderId])
+}
+
+/// 0.6.0-D. The box attached to one away-held block. A home block never needs one.
+/// Runs are the only intended way to move stock in or out; later D slices enforce that.
+model TurfOutpost {
+  id String @id @default(cuid())
+
+  turfId String @unique
+  turf   Turf   @relation(fields: [turfId], references: [id], onDelete: Cascade)
+
+  ownerId String
+  owner   RoundPlayer @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  cashCents BigInt @default(0)
+  beer      Int    @default(0)
+  /// Product-key -> quantity. Crack is stored here too because this is not home inventory.
+  products  Json   @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
 }
 
 /// 0.6.0-A. Turns a crew has worked on a block lately. You cannot claim a block you have
@@ -1333,6 +1372,68 @@ model TurfPushBackup {
   @@index([playerId, creditedAt])
 }
 
+/// 0.6.0-E. One continuous stretch where a crew held a block with one alliance
+/// identity. Alliance membership changes split the segment so old hours never move
+/// retroactively to a new alliance.
+model TurfHoldSegment {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  turfId String
+  turf   Turf @relation(fields: [turfId], references: [id], onDelete: Cascade)
+
+  holderId String
+  holder   RoundPlayer @relation(fields: [holderId], references: [id], onDelete: Cascade)
+
+  holderPublicPimpId Int
+  holderName         String
+
+  /// Snapshot only. We deliberately do not FK this because disband/rename history must survive.
+  allianceId   String?
+  allianceName String?
+  allianceTag  String?
+
+  startedAt DateTime
+  endedAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([roundId, holderId, startedAt])
+  @@index([roundId, allianceId, startedAt])
+  @@index([turfId, endedAt])
+}
+
+/// 0.6.0-E. One durable alliance city-control change. Snapshot names/tags keep
+/// history readable if an alliance later renames or disbands.
+model TurfControlEvent {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  previousAllianceId   String?
+  previousAllianceName String?
+  previousAllianceTag  String?
+  nextAllianceId       String?
+  nextAllianceName     String?
+  nextAllianceTag      String?
+
+  previousBlocksHeld Int @default(0)
+  nextBlocksHeld     Int @default(0)
+  blocksTotal        Int
+
+  happenedAt       DateTime
+  discordPostedAt  DateTime?
+
+  @@index([roundId, happenedAt(sort: Desc)])
+  @@index([discordPostedAt, happenedAt])
+}
+
 /// 0.6.0-B. The daily turf-tax cap is per payer and holder. The worker's burn is not
 /// stored here; only the minted holder share needs a cap and a dashboard/history read.
 model TurfTaxLedger {
@@ -1351,7 +1452,7 @@ model TurfTaxLedger {
   day DateTime
 
   mintedCents   BigInt @default(0)
-  /// House-minted tax already credited to the holder's cash.
+  /// House-minted tax already credited to the holder's home cash or, in 0.6.0-D, an outpost box.
   creditedCents BigInt @default(0)
 
   createdAt DateTime @default(now())

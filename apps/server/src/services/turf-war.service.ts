@@ -41,8 +41,8 @@ async function lockPush(tx: any, id: string): Promise<void> {
 }
 
 async function crewSize(tx: any, playerId: string, homeThugs: number): Promise<number> {
-  const run = await tx.run.findFirst({ where: { roundPlayerId: playerId, status: 'ACTIVE' }, select: { escortThugs: true } });
-  return homeThugs + (run?.escortThugs ?? 0);
+  const runs = await tx.run.findMany({ where: { roundPlayerId: playerId, status: 'ACTIVE' }, select: { escortThugs: true } });
+  return homeThugs + runs.reduce((sum: number, run: { escortThugs: number }) => sum + run.escortThugs, 0);
 }
 
 async function assertRoom(tx: any, player: any, roundId: string, cityId: string, ruleset: Ruleset): Promise<void> {

@@ -48,7 +48,9 @@ export type ActivityType =
   | 'TURF_PUSH'
   | 'TURF_PUSH_BACKUP'
   | 'TURF_PUSH_ATTACK'
-  | 'TURF_PUSH_DEFENSE';
+  | 'TURF_PUSH_DEFENSE'
+  | 'TURF_OUTPOST_ESTABLISH'
+  | 'TURF_OUTPOST_TRANSFER';
 
 export interface ApiErrorBody {
   error: {
@@ -293,7 +295,7 @@ export interface SeasonHideoutDto {
   }>;
 }
 
-export type HideoutRoomKeyDto = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE';
+export type HideoutRoomKeyDto = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE' | 'GARAGE';
 
 export interface HideoutRoomDto {
   key: HideoutRoomKeyDto;

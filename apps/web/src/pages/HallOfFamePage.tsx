@@ -21,6 +21,11 @@ function seasonWindow(round: HallOfFameRoundDto): string {
   return `${formatDate(round.startsAt)} - ${formatDate(round.endedAt)}`;
 }
 
+function turfTime(seconds: number): string {
+  const hours = seconds / 3600;
+  return hours < 48 ? `${hours.toFixed(hours < 10 ? 1 : 0)}h` : `${(hours / 24).toFixed(1)}d`;
+}
+
 export function HallOfFamePage() {
   const [data, setData] = useState<HallOfFameDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +69,26 @@ export function HallOfFamePage() {
                 <Stat label="Ruleset" value={round.rulesetVersion} />
                 <Stat label="Window" value={seasonWindow(round)} />
               </div>
+
+              {round.territory && (round.territory.crews.length || round.territory.alliances.length) ? (
+                <div className="se-mt">
+                  <h3 className="se-city__heading">Turf Hall of Fame</h3>
+                  <div className="se-rows">
+                    {round.territory.crews.map((crew) => (
+                      <div className="se-row" key={`crew-${crew.publicPimpId}`}>
+                        <span className="se-row__label">Crew leader</span>
+                        <span className="se-row__value"><AllianceTag alliance={crew.alliance} link={false} />{crew.displayName} · <span className="se-num">{turfTime(crew.heldSeconds)}</span></span>
+                      </div>
+                    ))}
+                    {round.territory.alliances.map((alliance) => (
+                      <div className="se-row" key={`alliance-${alliance.tag}`}>
+                        <span className="se-row__label">Alliance leader</span>
+                        <span className="se-row__value">[{alliance.tag}] {alliance.name} · <span className="se-num">{turfTime(alliance.heldSeconds)}</span></span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               {round.podium.length ? (
                 <>

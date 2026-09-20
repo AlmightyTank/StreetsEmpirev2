@@ -67,6 +67,8 @@ export interface PlayerState {
   awayNetWorthCents: bigint;
   /** 0.6.0-B/C. Net worth of turf-deployed guns removed from the home arsenal. */
   postedNetWorthCents: bigint;
+  /** 0.6.0-D. Net worth stored in away outpost boxes. */
+  outpostNetWorthCents: bigint;
   /** 0.5.0-C. Set by an arrest at home; left out, it is not written. */
   lockedUntil?: Date | null;
   /** 0.5.0-D. Set by a move; left out, it is not written. */
@@ -91,6 +93,7 @@ export interface PlayerState {
   hideoutLookoutsLevel: number;
   hideoutWorkshopLevel: number;
   hideoutBackOfficeLevel: number;
+  hideoutGarageLevel: number;
 
   /**
    * What Tommy has on the shelf, already settled. Counters rather than
@@ -184,6 +187,7 @@ export function toState(player: RoundPlayer): PlayerState {
     heat: player.heat,
     awayNetWorthCents: player.awayNetWorthCents,
     postedNetWorthCents: player.postedNetWorthCents,
+    outpostNetWorthCents: player.outpostNetWorthCents,
     busyThugs: player.busyThugs,
     postedThugs: player.postedThugs,
     cleanShiftStreak: player.cleanShiftStreak,
@@ -198,6 +202,7 @@ export function toState(player: RoundPlayer): PlayerState {
     hideoutLookoutsLevel: player.hideoutLookoutsLevel,
     hideoutWorkshopLevel: player.hideoutWorkshopLevel,
     hideoutBackOfficeLevel: player.hideoutBackOfficeLevel,
+    hideoutGarageLevel: player.hideoutGarageLevel,
     pistolStock: player.pistolStock,
     shotgunStock: player.shotgunStock,
     tek9Stock: player.tek9Stock,

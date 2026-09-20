@@ -56,9 +56,29 @@ export function toIncidentDto(ruleset: Ruleset, incident: RunIncident): RunIncid
 }
 
 /** A run's away net worth, from its wallet, cars, escorts, their guns (0.5.0-E) and its trunk. */
-export function awayWorth(ruleset: Ruleset, run: { cashCents: bigint; lowRiders: number; escortThugs: number } & Partial<RunGuns>, cargo: Record<string, number>): bigint {
+export function awayWorth(ruleset: Ruleset, run: { cashCents: bigint; lowRiders: number; escortThugs: number; beer?: number } & Partial<RunGuns>, cargo: Record<string, number>): bigint {
   const guns = { pistols: run.pistols ?? 0, shotguns: run.shotguns ?? 0, tek9s: run.tek9s ?? 0, ak47s: run.ak47s ?? 0 };
-  return runNetWorthCents(ruleset, { cashCents: run.cashCents, lowRiders: run.lowRiders, escortThugs: run.escortThugs, cargo, guns });
+  return runNetWorthCents(ruleset, { cashCents: run.cashCents, lowRiders: run.lowRiders, escortThugs: run.escortThugs, beer: run.beer ?? 0, cargo, guns });
+}
+
+export async function activeRuns(db: Db, roundPlayerId: string): Promise<LoadedRun[]> {
+  return db.run.findMany({
+    where: { roundPlayerId, status: 'ACTIVE' },
+    include: RUN_INCLUDE,
+    orderBy: [{ launchedAt: 'asc' }, { id: 'asc' }],
+  });
+}
+
+/** 0.6.0-D Garage: away value is the sum of every active run, never whichever one moved last. */
+export async function totalAwayWorth(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<bigint> {
+  const runs = await activeRuns(tx, roundPlayerId);
+  return runs.reduce((sum, run) => sum + awayWorth(ruleset, run, cargoOf(run)), 0n);
+}
+
+export async function refreshAwayWorth(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<bigint> {
+  const awayNetWorthCents = await totalAwayWorth(tx, roundPlayerId, ruleset);
+  await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { awayNetWorthCents } });
+  return awayNetWorthCents;
 }
 
 /** The high market's next unit each way for a product in a city, or null where it has no price. */
@@ -132,7 +152,7 @@ export async function takeFromRun(
   }
   const cashCents = run.cashCents - (taken.fineCents > run.cashCents ? run.cashCents : taken.fineCents);
   await tx.run.update({ where: { id: run.id }, data: { cashCents } });
-  await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { awayNetWorthCents: awayWorth(ruleset, { ...run, cashCents }, cargo) } });
+  await refreshAwayWorth(tx, roundPlayerId, ruleset);
   return { ...run, cashCents, cargo: run.cargo.map((row) => ({ ...row, quantity: cargo[row.productKey] ?? row.quantity })) };
 }
 
@@ -186,10 +206,13 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
       update: { quantity: { increment: quantity } },
     });
   }
+  await tx.run.update({ where: { id: run.id }, data: { status: 'RETURNED', returnedAt } });
+  const awayNetWorthCents = await totalAwayWorth(tx, roundPlayerId, ruleset);
   await tx.roundPlayer.update({
     where: { id: roundPlayerId },
     data: {
       cashCents: { increment: run.cashCents },
+      beer: { increment: run.beer },
       lowRiders: { increment: run.lowRiders },
       thugs: { increment: run.escortThugs },
       // 0.5.0-E: the escorts' guns come home with them.
@@ -198,10 +221,9 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
       tek9s: { increment: run.tek9s },
       ak47s: { increment: run.ak47s },
       crack: { increment: cargo[CRACK] ?? 0 },
-      awayNetWorthCents: 0,
+      awayNetWorthCents,
     },
   });
-  await tx.run.update({ where: { id: run.id }, data: { status: 'RETURNED', returnedAt } });
   // 0.5.0-E: escorts wounded on the road come home still healing, if their wounds have not run out.
   const recovery = ruleset.combat?.wounds.recoveryMinutes ?? 0;
   if (run.woundedEscorts > 0 && run.lastHitAt) {
@@ -242,15 +264,17 @@ export async function runSummary(db: Db, roundPlayerId: string, ruleset: Ruleset
  */
 export const RunSettleService = {
   async settle(tx: Db, roundPlayerId: string, now: Date): Promise<void> {
-    const loaded = await tx.run.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, include: RUN_INCLUDE });
-    if (!loaded) return;
+    const loaded = await activeRuns(tx, roundPlayerId);
+    if (!loaded.length) return;
     const { round } = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { round: { select: { id: true, rulesetId: true, rulesetVersion: true } } } });
     const ruleset = loadRulesetForRound(round);
-    const stops = toStopPlans(loaded.stops);
-    const driven = await rollRoadStops(tx, roundPlayerId, ruleset, loaded, stops, now);
-    // 0.5.0-E: then tails whose window has closed land, before the run can come home.
-    const run = await ConvoyService.landTails(tx, roundPlayerId, ruleset, driven, stops, now);
-    await recordStops(tx, roundPlayerId, ruleset, round.id, stops, now);
-    if (runPosition(ruleset, stops, now).phase === 'home') await bringHome(tx, roundPlayerId, ruleset, run, stops);
+    for (const active of loaded) {
+      const stops = toStopPlans(active.stops);
+      const driven = await rollRoadStops(tx, roundPlayerId, ruleset, active, stops, now);
+      // 0.5.0-E: then tails whose window has closed land, before this run can come home.
+      const run = await ConvoyService.landTails(tx, roundPlayerId, ruleset, driven, stops, now);
+      await recordStops(tx, roundPlayerId, ruleset, round.id, stops, now);
+      if (runPosition(ruleset, stops, now).phase === 'home') await bringHome(tx, roundPlayerId, ruleset, run, stops);
+    }
   },
 };

@@ -26,6 +26,13 @@ function movementText(value: number | null): string {
   return value > 0 ? `up ${formatNumber(value)}` : `down ${formatNumber(Math.abs(value))}`;
 }
 
+function turfTime(seconds: number): string {
+  const hours = seconds / 3600;
+  if (hours < 1) return `${Math.max(1, Math.floor(seconds / 60))}m`;
+  if (hours < 48) return `${hours.toFixed(hours < 10 ? 1 : 0)}h`;
+  return `${(hours / 24).toFixed(1)}d`;
+}
+
 function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: boolean }) {
   if (rows.length === 0) {
     return <div className="se-panel__body"><p className="se-muted">Nobody is ranked yet.</p></div>;
@@ -103,7 +110,7 @@ export function RankingsPage() {
       {error ? <Alert>{error}</Alert> : null}
 
       {data ? (
-        <Alert tone="info">Rankings show money, rank order, rank streak and movement. Open a player profile for their public record and achievements; use recon for private raid intel.</Alert>
+        <Alert tone="info">Rankings show money, rank order, rank streak and movement. Territory ranks use cumulative block-time, not just blocks held right now. Open a player profile for their public record and achievements; use recon for private raid intel.</Alert>
       ) : null}
 
       <div className="se-grid">
@@ -120,6 +127,57 @@ export function RankingsPage() {
             {alliances.alliances.length
               ? <AllianceRankingTable rows={alliances.alliances.slice(0, 10)} />
               : <div className="se-panel__body"><p className="se-muted">No alliances yet. <Link to="/game/alliance">Found the first one.</Link></p></div>}
+          </Panel>
+        ) : null}
+
+        {data?.territory ? (
+          <Panel title="Territory · Crews" aside="block-time" flush>
+            {data.territory.crews.length ? (
+              <div className="se-tablewrap">
+                <table className="se-table se-table--cards">
+                  <thead><tr><th>Rank</th><th>Crew</th><th className="se-table__number">Held</th><th className="se-table__number">Now</th></tr></thead>
+                  <tbody>
+                    {data.territory.crews.slice(0, 10).map((row) => (
+                      <tr key={row.publicPimpId} className={row.isYou ? 'se-rank-you' : undefined}>
+                        <td className="se-num" data-label="Rank">#{row.rank}</td>
+                        <td className="se-td--title">
+                          <AllianceTag alliance={row.alliance} />
+                          <Link to={`/game/players/${row.publicPimpId}`} className="se-playerlink">{row.displayName}</Link>
+                          {row.hallOfFameLeader ? <span className="se-you">TURF LEADER</span> : null}
+                        </td>
+                        <td className="se-table__number se-num" data-label="Held">{turfTime(row.heldSeconds)}</td>
+                        <td className="se-table__number se-num" data-label="Now">{formatNumber(row.currentBlocks)} blocks</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : <div className="se-panel__body"><p className="se-muted">Nobody has held a block long enough to hit the ledger yet.</p></div>}
+          </Panel>
+        ) : null}
+
+        {data?.territory ? (
+          <Panel title="Territory · Alliances" aside="block-time" flush>
+            {data.territory.alliances.length ? (
+              <div className="se-tablewrap">
+                <table className="se-table se-table--cards">
+                  <thead><tr><th>Rank</th><th>Alliance</th><th className="se-table__number">Held</th><th className="se-table__number">Now</th></tr></thead>
+                  <tbody>
+                    {data.territory.alliances.slice(0, 10).map((row) => (
+                      <tr key={row.tag} className={row.isYours ? 'se-rank-you' : undefined}>
+                        <td className="se-num" data-label="Rank">#{row.rank}</td>
+                        <td className="se-td--title">
+                          <Link to={`/game/alliances/${encodeURIComponent(row.tag)}`} className="se-playerlink">[{row.tag}] {row.name}</Link>
+                          {row.hallOfFameLeader ? <span className="se-you">TURF LEADER</span> : null}
+                        </td>
+                        <td className="se-table__number se-num" data-label="Held">{turfTime(row.heldSeconds)}</td>
+                        <td className="se-table__number se-num" data-label="Now">{formatNumber(row.currentBlocks)} blocks</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : <div className="se-panel__body"><p className="se-muted">No alliance has earned block-time yet.</p></div>}
           </Panel>
         ) : null}
       </div>

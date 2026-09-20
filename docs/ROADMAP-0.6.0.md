@@ -227,11 +227,18 @@ against the configured 50%.
 
 ## 0.6.0-D - Outposts
 
+Status: **complete.** Away turf now has its full playable loop: runs can establish and
+service outposts; upkeep and street tax stay in the remote box; player pushes can capture
+an outpost and steal a capped exposed share; the one-level Garage raises the active-run
+limit to two with independent routing, trading, convoy reach and aggregate away net worth;
+and relocation previews then converts destination outposts into home turf, old-home blocks
+into outposts up to the away cap, and releases any overflow when the move arrives.
+
 - **An outpost is a corner crew away from home.** It is how a crew holds turf in more than
   one city without leaving home.
 - **Delivered by a run:** a run stopping in a town can drop thugs, guns, beer, product and
-  cash into an outpost there. It still needs presence, from Scout trips made while living
-  there or from what the run's crew sees (to be decided in the D simulation).
+  cash into an outpost there. It still needs the normal turf-presence requirement earned
+  by Scout work; merely driving a run through town does not create presence.
 - **The box:** each outpost has its own stock. Upkeep burns from it, and tax earned there
   lands in it.
   - Nothing is wired home. Collecting tax means sending a run.
@@ -247,6 +254,15 @@ against the configured 50%.
   - The move screen shows which.
 
 ## 0.6.0-E - Territory
+
+Status: **complete.** Three of five blocks gives an alliance city control, controlled
+cities are tagged on the Travel map, and the controlling alliance pays no street tax there.
+Personally held corners provide live, bandless run sightings without replacing paid recon.
+City-control gains/losses/transfers are durable one-time Discord feed events. The Rankings
+page now carries crew and alliance Territory boards based on cumulative block-time, with
+ownership and alliance-membership changes split into durable history segments; tied #1
+leaders share the turf-leader mark. Finished Territory rounds archive their leading crew
+and alliance in the Hall of Fame.
 
 - **Alliance territory:** the blocks every member holds, shown on the city map in the
   alliance's tag.

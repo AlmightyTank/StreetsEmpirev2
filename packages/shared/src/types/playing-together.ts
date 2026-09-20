@@ -201,6 +201,12 @@ export interface TurfGunsDto {
   total: number;
 }
 
+export interface TurfOutpostDto {
+  cashCents: number;
+  beer: number;
+  products: Record<string, number>;
+}
+
 export interface TurfBlockDto {
   city: string;
   district: 'CASINO' | 'NIGHTCLUB' | 'LOW_RENT' | 'URBAN_GHETTO' | 'WINO_SLUMS';
@@ -215,6 +221,8 @@ export interface TurfBlockDto {
   cornerThugs: number;
   cornerMinimumThugs: number;
   cornerGuns: TurfGunsDto;
+  /** 0.6.0-D. Present only for an away block this player owns. */
+  outpost: TurfOutpostDto | null;
   localsThugs: number;
   localsFullThugs: number;
   /** Future while the block is vacant; null once the locals are back or a player holds it. */
@@ -265,19 +273,31 @@ export interface TurfBattleReportDto {
   strength: { attacker: number; defender: number } | null;
   shieldUntil: string | null;
   revengeUntil: string | null;
+  /** 0.6.0-D. Positive for the attacker, negative for the defender; empty on home turf. */
+  outpostLoot: { cashCents: number; beer: number; products: Record<string, number> } | null;
 }
 
 export interface CityTurfDto {
   enabled: true;
   holdingEnabled: boolean;
   warsEnabled: boolean;
+  /** 0.6.0-E. Public alliance control of this city, if one alliance holds the threshold. */
+  control: {
+    alliance: AllianceTagDto;
+    blocksHeld: number;
+    blocksTotal: number;
+    share: number;
+    isYours: boolean;
+  } | null;
   presenceRequired: number;
   postTurnCost: number;
   pullTurnCost: number;
   pushTurnCost: number;
   pushWarningMinutes: number;
   homeCap: number;
+  awayCap: number;
   heldAtHome: number;
+  heldAway: number;
   blocks: TurfBlockDto[];
   /** Recent fights in this city that this player took part in, newest first. */
   reports: TurfBattleReportDto[];
@@ -290,6 +310,8 @@ export interface TurfTripDto {
   taxPaidCents: number;
   taxMintedCents: number;
   linked: boolean;
+  /** 0.6.0-E. This alliance controls the city, so this trip owed no street tax. */
+  controlledCityExempt: boolean;
 }
 
 export interface TurfSummaryDto {
@@ -441,6 +463,9 @@ export interface RunDto {
   escortThugs: number;
   cashCents: number;
   startCashCents: number;
+  /** 0.6.0-D. Beer physically riding with the run. */
+  beer: number;
+  startBeer: number;
   capacity: number;
   cargo: Array<{ key: string; quantity: number; startQuantity: number }>;
   /** 0.5.0-E. The guns the escorts carry. A bust or an arrest takes them all. */
@@ -509,6 +534,8 @@ export interface RunReceiptDto {
   escortThugs: number;
   startCashCents: number;
   cashCents: number;
+  startBeer: number;
+  beer: number;
   cargo: Array<{ key: string; startQuantity: number; quantity: number }>;
   turnsSpent: number;
   trades: RunTradeDto[];
@@ -527,21 +554,41 @@ export interface TravelDto extends CitiesDto {
     market: { spread: number; quoteTolerance: number } | null;
     /** 0.5.0-F. A run can buy on the home high market as it loads up. */
     homeMarketAtLaunch: boolean;
+    /** 0.6.0-D. How many active runs this hideout may have. */
+    runLimit: number;
+    /** 0.6.0-D. Null before away turf boxes exist. */
+    outposts: {
+      cashCapCents: number; beerCap: number; productCap: number; transferTurnCost: number;
+      lootShare: number; lootCashCapCents: number; lootBeerCap: number; lootProductCap: number;
+    } | null;
   };
   /** What home has to load up with. */
   home: {
     cashCents: number;
+    beer: number;
     lowRiders: number;
     fitThugs: number;
     turns: number;
     products: Array<{ key: string; quantity: number }>;
   };
+  /** Backward-compatible primary run: the oldest active run, if any. */
   run: RunDto | null;
+  /** 0.6.0-D Garage: every active run, oldest first. */
+  runs: RunDto[];
   lastRun: RunReceiptDto | null;
   /** 0.5.0-C. The last day on the street wire, newest first. */
   wire: WireItemDto[];
   /** 0.5.0-D. Moving house. Null before 0.5.0-D. */
   relocation: RelocationDto | null;
+}
+
+export interface RelocationTurfPlanDto {
+  /** Destination outposts that become normal home turf. */
+  toHome: Array<{ district: TurfBlockDto['district']; districtName: string }>;
+  /** Old-home blocks that stay owned as empty-box outposts. */
+  toOutposts: Array<{ district: TurfBlockDto['district']; districtName: string }>;
+  /** Old-home blocks released because the away cap is full. */
+  released: Array<{ district: TurfBlockDto['district']; districtName: string }>;
 }
 
 /** 0.5.0-D. What a player's Heat would mean living in a city. */
@@ -576,6 +623,8 @@ export interface RelocationDto {
   heat: number;
   here: HeatThereDto | null;
   destinations: Array<{ slug: string; name: string; heat: HeatThereDto | null; reachable: boolean }>;
+  /** 0.6.0-D. Exact turf conversion preview keyed by destination slug. */
+  turfPlans: Record<string, RelocationTurfPlanDto>;
 }
 
 /** 0.5.0-D. POST /api/game/travel/move. */
@@ -586,6 +635,8 @@ export interface RelocationResult {
   toName: string;
   feeCents: number;
   arrivesAt: string;
+  /** 0.6.0-D. What will happen to held turf on arrival. */
+  turfPlan: RelocationTurfPlanDto;
 }
 
 /** 0.5.0-B. What a launch did. */
@@ -601,10 +652,44 @@ export interface RunLaunchResult {
   lowRiders: number;
   escortThugs: number;
   cashCents: number;
+  beer: number;
   cargo: Record<string, number>;
   /** 0.5.0-F. What it bought on the home market on the way out, and what that cost. */
   market: Record<string, number>;
   marketCents: number;
+}
+
+export interface RunOutpostEstablishResult {
+  outpostId: string;
+  city: string;
+  cityName: string;
+  district: TurfBlockDto['district'];
+  districtName: string;
+  won: boolean;
+  squad: number;
+  localsThugs: number;
+  cornerThugs: number;
+  cashCents: number;
+  beer: number;
+  products: Record<string, number>;
+  turnsUsed: number;
+}
+
+export interface RunOutpostTransferResult {
+  outpostId: string;
+  city: string;
+  cityName: string;
+  district: TurfBlockDto['district'];
+  districtName: string;
+  direction: 'deposit' | 'withdraw';
+  cashCents: number;
+  beer: number;
+  products: Record<string, number>;
+  box: TurfOutpostDto;
+  runCashCents: number;
+  runBeer: number;
+  runCargo: Record<string, number>;
+  turnsUsed: number;
 }
 
 export interface RunTradeResult {
@@ -647,8 +732,10 @@ export interface ConvoyTargetDto {
   /** The city you would hit it in. */
   city: string;
   cityName: string;
-  /** Your squad from where you live, or your own run's escorts where it is. */
-  source: 'HOME' | 'RUN';
+  /** Your squad from home, your own run, or a corner that only sees the traffic. */
+  source: 'HOME' | 'RUN' | 'CORNER';
+  /** Paid recon has bands/lookahead; a corner sighting is live-only and bandless. */
+  sighting: 'RECON' | 'CORNER';
   /** The towns either side of this one on its route. Never where it is headed. */
   routeHere: { fromName: string | null; toName: string | null };
   kinds: ConvoyReachKindDto[];
@@ -659,6 +746,8 @@ export interface ConvoyTargetDto {
   position: { phase: 'road' | 'town'; cityName: string; progress: number };
   /** A look at it, while it is in reach: bands, never exact. */
   bands: { cash: 'light' | 'loaded' | 'heavy'; cargo: 'empty' | 'light' | 'half' | 'full'; escort: 'none' | 'light' | 'armed' | 'heavy' } | null;
+  /** Live squad size that can actually start a tail from this sighting. */
+  maxSquad: number;
   /** Someone already on its tail. */
   tailed: boolean;
   blockedReason: string | null;

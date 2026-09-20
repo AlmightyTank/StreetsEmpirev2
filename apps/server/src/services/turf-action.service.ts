@@ -8,6 +8,8 @@ import {
   TurfService, addCornerGuns, allocateCornerGuns, cornerGunWorthCents, gunsFromTurf,
   localsOnBlock, localsReclaimAt, releaseCornerGuns, subtractCornerGuns, turfGunData, type CornerGuns,
 } from './turf.service.js';
+import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
+import { endTurfHold, startTurfHold } from './turf-history.service.js';
 
 function localDistrictName(ruleset: Ruleset, citySlug: string, district: DistrictKey): string {
   return ruleset.cities?.[citySlug]?.districts?.[district]?.name ?? ruleset.districts[district].name;
@@ -16,8 +18,8 @@ function assertHolding(ruleset: Ruleset): void {
   if (!TurfService.holdingEnabled(ruleset)) throw AppError.conflict('TURF_HOLDING_DISABLED', 'Corners cannot be claimed in this round.');
 }
 async function totalCrewThugs(tx: any, roundPlayerId: string, homeThugs: number): Promise<number> {
-  const run = await tx.run.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { escortThugs: true } });
-  return homeThugs + (run?.escortThugs ?? 0);
+  const runs = await tx.run.findMany({ where: { roundPlayerId, status: 'ACTIVE' }, select: { escortThugs: true } });
+  return homeThugs + runs.reduce((sum: number, run: { escortThugs: number }) => sum + run.escortThugs, 0);
 }
 async function lockBlock(tx: any, id: string): Promise<void> { await tx.$queryRaw`SELECT id FROM "Turf" WHERE id = ${id} FOR UPDATE`; }
 async function assertCaps(tx: any, player: any, roundId: string, cityId: string, ruleset: Ruleset): Promise<void> {
@@ -106,13 +108,20 @@ export const TurfActionService = {
         const defenderStrength = defender.strength * ruleset.turf!.push.fight.defenseMultiplier;
         const won = attackerStrength > defenderStrength;
 
-        if (won) await tx.turf.update({
-          where: { id: fresh.id },
-          data: {
-            holderId: roundPlayerId, cornerThugs: input.thugs, ...turfGunData(guns), heldSince: now,
-            shieldUntil: null, upkeepAt: now, localsThugs: locals, localsAt: now, localsReclaimAt: null,
-          },
-        });
+        if (won) {
+          const controlBefore = await territoryControlForCity(tx, round.id, player.cityId, ruleset);
+          await tx.turf.update({
+            where: { id: fresh.id },
+            data: {
+              holderId: roundPlayerId, cornerThugs: input.thugs, ...turfGunData(guns), heldSince: now,
+              shieldUntil: null, upkeepAt: now, localsThugs: locals, localsAt: now, localsReclaimAt: null,
+            },
+          });
+          await startTurfHold(tx, fresh.id, now);
+          await recordTerritoryControlChange(tx, {
+            roundId: round.id, cityId: player.cityId, ruleset, before: controlBefore, at: now,
+          });
+        }
 
         const moved = won ? nextWithPostedGuns(current, guns, 1, ruleset) : current;
         const next = { ...moved, turns: current.turns - ruleset.turf!.corner.postTurnCost, postedThugs: current.postedThugs + (won ? input.thugs : 0) };
@@ -192,9 +201,13 @@ export const TurfActionService = {
           if (cornerThugs < minimum) throw AppError.conflict('TURF_CORNER_MINIMUM', `Leave at least ${minimum} on the corner, or pull the whole crew.`);
         }
 
+        const controlBefore = released
+          ? await territoryControlForCity(tx, round.id, player.cityId, ruleset)
+          : null;
         const existingGuns = gunsFromTurf(fresh);
         const returned = releaseCornerGuns(existingGuns, input.thugs);
         const remainingGuns = subtractCornerGuns(existingGuns, returned);
+        if (released) await endTurfHold(tx, fresh.id, now);
         await tx.turf.update({
           where: { id: fresh.id },
           data: released ? {
@@ -203,6 +216,11 @@ export const TurfActionService = {
             localsThugs: 0, localsAt: now, localsReclaimAt: localsReclaimAt(ruleset, now),
           } : { cornerThugs, ...turfGunData(remainingGuns), upkeepAt: now },
         });
+        if (released) {
+          await recordTerritoryControlChange(tx, {
+            roundId: round.id, cityId: player.cityId, ruleset, before: controlBefore, at: now,
+          });
+        }
 
         const moved = nextWithPostedGuns(current, returned, -1, ruleset);
         return {

@@ -19,6 +19,12 @@ import { env } from '../config/env.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
 import { queueAllianceRoleResync } from './discord-resync.service.js';
 import { forumDiscussionUrl, postRecruitmentThread, updateForumDiscussion } from './forum-news.service.js';
+import {
+  recordTerritoryControlChange,
+  territoryControlForCity,
+  type CityControl,
+} from './turf-territory.service.js';
+import { endPlayerTurfHolds, startPlayerTurfHolds } from './turf-history.service.js';
 
 type AllianceRules = NonNullable<Ruleset['alliances']>;
 
@@ -104,6 +110,37 @@ async function event(db: Db, allianceId: string, type: AllianceEventType, actorN
   await db.allianceEvent.create({ data: { allianceId, type, actorName, subjectName, detail } });
 }
 
+async function territoryBeforeForPlayers(
+  tx: Db,
+  roundId: string,
+  playerIds: string[],
+  ruleset: Ruleset,
+): Promise<Map<string, CityControl | null>> {
+  if (!ruleset.turf?.territory || !playerIds.length) return new Map();
+  const rows = await tx.turf.findMany({
+    where: { roundId, holderId: { in: playerIds } },
+    select: { cityId: true },
+  });
+  const cityIds = [...new Set(rows.map((row) => row.cityId))].sort();
+  const before = new Map<string, CityControl | null>();
+  for (const cityId of cityIds) {
+    before.set(cityId, await territoryControlForCity(tx, roundId, cityId, ruleset));
+  }
+  return before;
+}
+
+async function recordTerritoryCities(
+  tx: Db,
+  roundId: string,
+  ruleset: Ruleset,
+  before: Map<string, CityControl | null>,
+  at: Date,
+): Promise<void> {
+  for (const [cityId, control] of before) {
+    await recordTerritoryControlChange(tx, { roundId, cityId, ruleset, before: control, at });
+  }
+}
+
 function cooldownData(allianceId: string, rules: Pick<AllianceRules, 'leaveCooldownHours'>, now: Date) {
   return {
     allianceId: null,
@@ -117,7 +154,9 @@ function cooldownData(allianceId: string, rules: Pick<AllianceRules, 'leaveCoold
 async function disbandInTransaction(tx: Db, alliance: Alliance, rules: Pick<AllianceRules, 'leaveCooldownHours'>, now: Date, actorName: string | null, reason: string | null): Promise<void> {
   const members = await tx.roundPlayer.findMany({ where: { allianceId: alliance.id }, select: { id: true } });
   for (const { id } of members.sort((a, b) => a.id.localeCompare(b.id))) await lockRoundPlayer(tx, id);
+  for (const { id } of members) await endPlayerTurfHolds(tx, id, now);
   await tx.roundPlayer.updateMany({ where: { allianceId: alliance.id }, data: cooldownData(alliance.id, rules, now) });
+  for (const { id } of members) await startPlayerTurfHolds(tx, id, now);
   await tx.allianceInvite.deleteMany({ where: { allianceId: alliance.id } });
   await tx.alliance.update({ where: { id: alliance.id }, data: {
     disbandedAt: now, disbandReason: reason,
@@ -344,10 +383,15 @@ export const AllianceService = {
         if (me.allianceCooldownUntil && me.allianceCooldownUntil > now) {
           throw AppError.conflict('ALLIANCE_COOLDOWN', `You left an alliance recently. You can found or join one in ${waitText(me.allianceCooldownUntil, now)}.`);
         }
+        const base = loadRulesetForRound(player.round);
+        const territoryBefore = await territoryBeforeForPlayers(tx, me.roundId, [me.id], base);
+        await endPlayerTurfHolds(tx, me.id, now);
         const alliance = await tx.alliance.create({ data: {
           roundId: me.roundId, name, nameNormalized: normalizeAllianceName(name), tag, tagNormalized: tag.toLowerCase(), leaderId: me.id,
         } });
         await tx.roundPlayer.update({ where: { id: me.id }, data: { allianceId: alliance.id, allianceJoinedAt: now } });
+        await startPlayerTurfHolds(tx, me.id, now);
+        await recordTerritoryCities(tx, me.roundId, base, territoryBefore, now);
         await tx.allianceInvite.deleteMany({ where: { inviteeId: me.id } });
         await event(tx, alliance.id, 'FOUNDED', me.displayName);
         await queueAllianceRoleResync(tx, { accountIds: [me.accountId] });
@@ -414,7 +458,12 @@ export const AllianceService = {
       }
       const members = await tx.roundPlayer.count({ where: { allianceId: alliance.id } });
       if (members >= rules.maxMembers) throw AppError.conflict('ALLIANCE_FULL', `${alliance.name} is full (${rules.maxMembers} members).`);
+      const base = loadRulesetForRound(player.round);
+      const territoryBefore = await territoryBeforeForPlayers(tx, me.roundId, [me.id], base);
+      await endPlayerTurfHolds(tx, me.id, now);
       await tx.roundPlayer.update({ where: { id: me.id }, data: { allianceId: alliance.id, allianceJoinedAt: now } });
+      await startPlayerTurfHolds(tx, me.id, now);
+      await recordTerritoryCities(tx, me.roundId, base, territoryBefore, now);
       await tx.allianceInvite.deleteMany({ where: { inviteeId: me.id } });
       await event(tx, alliance.id, 'JOINED', me.displayName);
       await queueAllianceRoleResync(tx, { accountIds: [me.accountId] });
@@ -430,13 +479,18 @@ export const AllianceService = {
   },
 
   async leave(prisma: PrismaClient, playerId: string): Promise<MyAllianceDto> {
-    const left = await withOwnAlliance(prisma, playerId, async ({ tx, alliance, me, rules, now }) => {
+    const left = await withOwnAlliance(prisma, playerId, async ({ tx, alliance, me, rules, now, round }) => {
       const others = await tx.roundPlayer.count({ where: { allianceId: alliance.id, id: { not: me.id } } });
       if (alliance.leaderId === me.id && others > 0) throw AppError.conflict('LEADER_MUST_HAND_OVER', 'Hand leadership to another member before you leave.');
+      const base = loadRulesetForRound(round);
+      const territoryBefore = await territoryBeforeForPlayers(tx, me.roundId, [me.id], base);
+      await endPlayerTurfHolds(tx, me.id, now);
       await tx.roundPlayer.update({ where: { id: me.id }, data: cooldownData(alliance.id, rules, now) });
+      await startPlayerTurfHolds(tx, me.id, now);
       await event(tx, alliance.id, 'LEFT', me.displayName);
       await queueAllianceRoleResync(tx, { accountIds: [me.accountId] });
       if (others === 0) await disbandInTransaction(tx, alliance, rules, now, me.displayName, null);
+      await recordTerritoryCities(tx, me.roundId, base, territoryBefore, now);
       return { allianceId: alliance.id, disbanded: others === 0 };
     });
     if (left.disbanded) await syncForumThread(prisma, left.allianceId);
@@ -449,11 +503,16 @@ export const AllianceService = {
     const target = await prisma.roundPlayer.findFirst({ where: { roundId: player.roundId, publicPimpId: input.targetPublicPimpId } });
     if (!target) throw AppError.notFound('TARGET_NOT_FOUND', 'That player is not in this round.');
     if (target.id === playerId) throw AppError.badRequest('INVALID_TARGET', 'Leave the alliance instead of kicking yourself.');
-    await withOwnAlliance(prisma, playerId, async ({ tx, alliance, me, rules, now }) => {
+    await withOwnAlliance(prisma, playerId, async ({ tx, alliance, me, rules, now, round }) => {
       requireLeader(alliance, me, 'kick members');
       const current = await tx.roundPlayer.findUniqueOrThrow({ where: { id: target.id } });
       if (current.allianceId !== alliance.id) throw AppError.conflict('NOT_A_MEMBER', `${current.displayName} is not in ${alliance.name}.`);
+      const base = loadRulesetForRound(round);
+      const territoryBefore = await territoryBeforeForPlayers(tx, current.roundId, [current.id], base);
+      await endPlayerTurfHolds(tx, current.id, now);
       await tx.roundPlayer.update({ where: { id: current.id }, data: cooldownData(alliance.id, rules, now) });
+      await startPlayerTurfHolds(tx, current.id, now);
+      await recordTerritoryCities(tx, current.roundId, base, territoryBefore, now);
       await event(tx, alliance.id, 'KICKED', me.displayName, current.displayName);
       await queueAllianceRoleResync(tx, { accountIds: [current.accountId] });
     }, [target.id]);
@@ -580,8 +639,12 @@ export const AllianceService = {
     await prisma.$transaction(async (tx) => {
       const alliance = await lockAlliance(tx, allianceId);
       if (alliance.disbandedAt) throw AppError.conflict('ALLIANCE_DISBANDED', 'That alliance has already disbanded.');
-      const members = await tx.roundPlayer.findMany({ where: { allianceId }, select: { publicPimpId: true, displayName: true } });
-      await disbandInTransaction(tx, alliance, rules, new Date(), 'An admin', reason);
+      const members = await tx.roundPlayer.findMany({ where: { allianceId }, select: { id: true, publicPimpId: true, displayName: true } });
+      const base = loadRulesetForRound(found.round);
+      const at = new Date();
+      const territoryBefore = await territoryBeforeForPlayers(tx, found.round.id, members.map((member) => member.id), base);
+      await disbandInTransaction(tx, alliance, rules, at, 'An admin', reason);
+      await recordTerritoryCities(tx, found.round.id, base, territoryBefore, at);
       await AdminAuditService.record(tx, actor, { action: 'alliance.disband', targetType: 'alliance', targetId: allianceId, reason,
         before: { name: alliance.name, tag: alliance.tag, leaderId: alliance.leaderId, members }, after: { disbanded: true } });
     }, { timeout: 15_000, maxWait: 10_000 });

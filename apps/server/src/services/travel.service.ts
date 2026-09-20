@@ -60,6 +60,7 @@ import {
   RUN_INCLUDE,
   awayWorth,
   cargoOf,
+  totalAwayWorth,
   marketPrice,
   recordSighting,
   takeFromRun,
@@ -81,14 +82,38 @@ function requireRuns(ruleset: Ruleset): void {
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
 const productName = (ruleset: Ruleset, key: string) => ruleset.products?.[key]?.name ?? (key === CRACK ? 'Crack' : key);
 
-async function activeRun(db: Db | PrismaClient, roundPlayerId: string): Promise<LoadedRun | null> {
-  return db.run.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, include: RUN_INCLUDE });
+async function activeRuns(db: Db | PrismaClient, roundPlayerId: string): Promise<LoadedRun[]> {
+  return db.run.findMany({
+    where: { roundPlayerId, status: 'ACTIVE' },
+    include: RUN_INCLUDE,
+    orderBy: [{ launchedAt: 'asc' }, { id: 'asc' }],
+  });
 }
 
-async function requireActiveRun(tx: Db, roundPlayerId: string): Promise<LoadedRun> {
-  const run = await activeRun(tx, roundPlayerId);
-  if (!run) throw AppError.conflict('NO_RUN', 'You have no run out.');
+async function activeRun(db: Db | PrismaClient, roundPlayerId: string, runId?: string): Promise<LoadedRun | null> {
+  if (runId) {
+    const run = await db.run.findUnique({ where: { id: runId }, include: RUN_INCLUDE });
+    return run?.roundPlayerId === roundPlayerId && run.status === 'ACTIVE' ? run : null;
+  }
+  return db.run.findFirst({
+    where: { roundPlayerId, status: 'ACTIVE' },
+    include: RUN_INCLUDE,
+    orderBy: [{ launchedAt: 'asc' }, { id: 'asc' }],
+  });
+}
+
+async function requireActiveRun(tx: Db, roundPlayerId: string, runId?: string): Promise<LoadedRun> {
+  if (!runId) {
+    const count = await tx.run.count({ where: { roundPlayerId, status: 'ACTIVE' } });
+    if (count > 1) throw AppError.badRequest('RUN_PICK_REQUIRED', 'Pick which run you want to use.');
+  }
+  const run = await activeRun(tx, roundPlayerId, runId);
+  if (!run) throw AppError.conflict('NO_RUN', 'That active run is not available.');
   return run;
+}
+
+function runLimit(ruleset: Ruleset, garageLevel: number): number {
+  return garageLevel > 0 ? Math.max(2, ruleset.hideout?.buffs.garageRunLimit ?? 2) : 1;
 }
 
 /** Replace a run's stops with a new plan. Stops are few, so they are rewritten whole. */
@@ -158,6 +183,8 @@ async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Rul
     escortThugs: run.escortThugs,
     cashCents: Number(run.cashCents),
     startCashCents: Number(run.startCashCents),
+    beer: run.beer,
+    startBeer: run.startBeer,
     capacity: runCapacity(ruleset, run.lowRiders),
     cargo: run.cargo.map((row) => ({ key: row.productKey, quantity: row.quantity, startQuantity: row.startQuantity })),
     guns: { PISTOL: run.pistols, SHOTGUN: run.shotguns, TEK9: run.tek9s, AK47: run.ak47s },
@@ -197,6 +224,8 @@ async function lastRunDto(db: Db | PrismaClient, roundPlayerId: string, ruleset:
     escortThugs: run.escortThugs,
     startCashCents: Number(run.startCashCents),
     cashCents: Number(run.cashCents),
+    startBeer: run.startBeer,
+    beer: run.beer,
     cargo: run.cargo.map((row) => ({ key: row.productKey, startQuantity: row.startQuantity, quantity: row.quantity })),
     turnsSpent: run.turnsSpent,
     trades: run.trades.map((trade) => toTradeDto(ruleset, trade)),
@@ -281,7 +310,10 @@ export const TravelService = {
     const base = loadRulesetForRound(settled.round);
     const map = await CitiesService.page(prisma, roundPlayerId, now);
     const inventory = await ProductInventoryService.read(prisma, roundPlayerId, ruleset);
-    const run = await activeRun(prisma, roundPlayerId);
+    const active = await activeRuns(prisma, roundPlayerId);
+    const runDtos = (await Promise.all(active.map((run) => runDto(prisma, roundPlayerId, base, player.roundId, run, now))))
+      .filter((run): run is RunDto => Boolean(run));
+    const limit = runLimit(ruleset, player.hideoutGarageLevel);
     const travel = ruleset.travel;
     const seed = player.roundId;
     // 0.5.0-F: with the home market open at launch, home shows its wholesale prices too.
@@ -303,15 +335,19 @@ export const TravelService = {
         turnsPerDriveHour: travel?.turnsPerDriveHour ?? 0,
         market: travel?.market ? { spread: travel.highMarketSpread, quoteTolerance: travel.market.quoteTolerance } : null,
         homeMarketAtLaunch: Boolean(travel?.market && runRules(ruleset)?.homeMarketAtLaunch),
+        runLimit: limit,
+        outposts: ruleset.turf?.outposts ? { ...ruleset.turf.outposts } : null,
       },
       home: {
         cashCents: Number(player.cashCents),
+        beer: player.beer,
         lowRiders: player.lowRiders,
         fitThugs: fitThugs(player),
         turns: player.turns,
         products: Object.entries(inventory).map(([key, quantity]) => ({ key, quantity })),
       },
-      run: run ? await runDto(prisma, roundPlayerId, base, seed, run, now) : null,
+      run: runDtos[0] ?? null,
+      runs: runDtos,
       lastRun: await lastRunDto(prisma, roundPlayerId, base),
       wire: await wireDto(prisma, player.roundId, base, seed, now),
       relocation: await RelocationService.page(prisma, player, base, settled.round.endsAt, player.heat, now),
@@ -323,12 +359,13 @@ export const TravelService = {
    * the town the run is in. Turns are what leaving now would cost, the same sum the
    * action charges.
    */
-  async routes(prisma: PrismaClient, roundPlayerId: string, to: string, now: Date = new Date()): Promise<TravelRoutesDto> {
+  async routes(prisma: PrismaClient, roundPlayerId: string, to: string, runId?: string, now: Date = new Date()): Promise<TravelRoutesDto> {
     const settled = await PlayerStateService.settle(prisma, roundPlayerId, { markActive: false, now });
     const { ruleset, player } = settled;
     requireRuns(ruleset);
     const home = player.city.slug;
-    const run = await activeRun(prisma, roundPlayerId);
+    const run = runId ? await activeRun(prisma, roundPlayerId, runId) : null;
+    if (runId && !run) throw AppError.notFound('RUN_NOT_FOUND', 'That active run is not available.');
     let from = home;
     let paidHome = 0;
     if (run) {
@@ -364,7 +401,13 @@ export const TravelService = {
       actionId: input.actionId,
       execute: async ({ tx, current, ruleset, player, now }) => {
         requireRuns(ruleset);
-        if (await activeRun(tx, roundPlayerId)) throw AppError.conflict('RUN_OUT', 'You already have a run out. Wait for it to come home.');
+        const activeCount = await tx.run.count({ where: { roundPlayerId, status: 'ACTIVE' } });
+        const limit = runLimit(ruleset, player.hideoutGarageLevel);
+        if (activeCount >= limit) {
+          throw AppError.conflict('RUN_LIMIT', limit === 1
+            ? 'You already have a run out. Build the Garage or wait for it to come home.'
+            : `Your Garage supports ${limit} active runs, and they are already out.`);
+        }
         let plan;
         try {
           plan = planLaunch(ruleset, { home: player.city.slug, to: input.to, routeIndex: input.route, now });
@@ -383,6 +426,9 @@ export const TravelService = {
         const cashCents = BigInt(input.cashCents);
         if (cashCents > current.cashCents) {
           throw AppError.badRequest('NOT_ENOUGH_CASH', 'You cannot take more cash than you have.', { cashCents: 'More than you have.' });
+        }
+        if (input.beer > current.beer) {
+          throw AppError.badRequest('NOT_ENOUGH_BEER', `You only have ${current.beer} beer at home.`, { beer: `At most ${current.beer}.` });
         }
         const inventory = await ProductInventoryService.read(tx, roundPlayerId, ruleset);
         /** Out of home stock. What the crew buys on the way out is added to `cargo` below. */
@@ -427,8 +473,8 @@ export const TravelService = {
         }
 
         const capacity = runCapacity(ruleset, input.lowRiders);
-        if (cargoUnits(cargo) > capacity) {
-          throw AppError.badRequest('TRUNK_FULL', `${input.lowRiders} Low-Rider${input.lowRiders === 1 ? '' : 's'} carry ${capacity} units.`, { cargo: `At most ${capacity} units.` });
+        if (cargoUnits(cargo) + input.beer > capacity) {
+          throw AppError.badRequest('TRUNK_FULL', `${input.lowRiders} Low-Rider${input.lowRiders === 1 ? '' : 's'} carry ${capacity} units including beer.`, { cargo: `At most ${capacity} total units.` });
         }
 
         // Crack leaves on the column with everything else in `next`; other products are rows.
@@ -445,6 +491,8 @@ export const TravelService = {
             ...guns,
             cashCents,
             startCashCents: cashCents,
+            beer: input.beer,
+            startBeer: input.beer,
             turnsSpent: plan.turns,
             launchedAt: now,
             cargo: { create: productKeys(ruleset).filter((key) => (cargo[key] ?? 0) > 0).map((key) => ({ productKey: key, quantity: cargo[key]!, startQuantity: cargo[key]! })) },
@@ -470,6 +518,7 @@ export const TravelService = {
           lowRiders: input.lowRiders,
           escortThugs: input.escortThugs,
           cashCents: input.cashCents,
+          beer: input.beer,
           cargo,
           market: Object.fromEntries(marketTrades.map((trade) => [trade.productKey, trade.quantity])),
           marketCents: Number(marketCents),
@@ -479,6 +528,7 @@ export const TravelService = {
             ...current,
             turns: current.turns - plan.turns,
             cashCents: current.cashCents - cashCents - marketCents,
+            beer: current.beer - input.beer,
             lowRiders: current.lowRiders - input.lowRiders,
             thugs: current.thugs - input.escortThugs,
             crack: current.crack - (fromHome[CRACK] ?? 0),
@@ -486,7 +536,8 @@ export const TravelService = {
             shotguns: current.shotguns - guns.shotguns,
             tek9s: current.tek9s - guns.tek9s,
             ak47s: current.ak47s - guns.ak47s,
-            awayNetWorthCents: awayWorth(ruleset, { cashCents, lowRiders: input.lowRiders, escortThugs: input.escortThugs, ...guns }, cargo),
+            awayNetWorthCents: current.awayNetWorthCents
+              + awayWorth(ruleset, { cashCents, beer: input.beer, lowRiders: input.lowRiders, escortThugs: input.escortThugs, ...guns }, cargo),
           },
           result,
           activity: { type: 'RUN_LAUNCHED', payload: { ...result, cities: [cityName(ruleset, input.to)] } },
@@ -511,7 +562,7 @@ export const TravelService = {
         const base = loadRulesetForRound(round);
         requireRuns(base);
         const seed = round.id;
-        const run = await requireActiveRun(tx, roundPlayerId);
+        const run = await requireActiveRun(tx, roundPlayerId, input.runId);
         const stops = toStopPlans(run.stops);
         const position = runPosition(base, stops, now);
         if (position.phase !== 'town') {
@@ -588,7 +639,7 @@ export const TravelService = {
 
         // The town's police, at the Heat the run walked in with; the sale's own Heat lands after.
         const town = rulesetForCity(base, city);
-        let traded = await requireActiveRun(tx, roundPlayerId);
+        let traded = await requireActiveRun(tx, roundPlayerId, input.runId);
         const roll = town.heat
           ? resolveRunTrouble({ heat: current.heat, cashCents: traded.cashCents, cargo: cargoOf(traded), ruleset: town, bustChance: bustChance(current.heat, town), rng: rng ?? Math.random })
           : null;
@@ -618,11 +669,12 @@ export const TravelService = {
         await recordSighting(tx, roundPlayerId, base, seed, city, now);
 
         const nextCargo = cargoOf(traded);
+        const awayNetWorthCents = await totalAwayWorth(tx, roundPlayerId, base);
         return {
           next: {
             ...current,
             heat: heatAfter,
-            awayNetWorthCents: awayWorth(base, traded, nextCargo),
+            awayNetWorthCents,
           },
           result: {
             city,
@@ -655,7 +707,7 @@ export const TravelService = {
       actionId: input.actionId,
       execute: async ({ tx, current, ruleset, now }) => {
         requireRuns(ruleset);
-        const run = await requireActiveRun(tx, roundPlayerId);
+        const run = await requireActiveRun(tx, roundPlayerId, input.runId);
         let plan;
         try {
           plan = planDriveOn(ruleset, toStopPlans(run.stops), now, { home: run.homeCity, to: input.to, routeIndex: input.route });
@@ -680,7 +732,7 @@ export const TravelService = {
       actionId: input.actionId,
       execute: async ({ tx, current, ruleset, now }) => {
         requireRuns(ruleset);
-        const run = await requireActiveRun(tx, roundPlayerId);
+        const run = await requireActiveRun(tx, roundPlayerId, input.runId);
         let stops;
         try {
           stops = planHeadHome(ruleset, toStopPlans(run.stops), now);

@@ -149,6 +149,9 @@ export function scoutReceiptLines(action: GameActionResult<ScoutResult>, me: Pro
     ...(result.turf?.taxPaidCents
       ? [{ label: `Street tax${result.turf.holder ? ` · ${result.turf.holder.displayName}` : ''}`, delta: -result.turf.taxPaidCents, money: true }]
       : []),
+    ...(result.turf?.controlledCityExempt
+      ? [{ label: 'Street tax', value: 'Alliance controls this city · no tax', muted: true }]
+      : []),
     ...(result.turf?.linked
       ? [{ label: 'Street tax', value: 'Linked crew · no tax', muted: true }]
       : []),
