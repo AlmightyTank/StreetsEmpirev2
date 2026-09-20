@@ -18,6 +18,10 @@ export const classicOgV06D = {
       beerCap: 2_000,
       productCap: 5_000,
       transferTurnCost: 2,
+      lootShare: 0.25,
+      lootCashCapCents: 5_000_000,
+      lootBeerCap: 500,
+      lootProductCap: 1_000,
     },
   },
 } as const satisfies Ruleset;
