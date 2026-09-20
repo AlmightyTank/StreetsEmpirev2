@@ -472,7 +472,9 @@ export function crackdownFeedEmbed(event: CrackdownEvent): APIEmbed {
     ? `Word is the Feds are sweeping **${escapeMarkdown(event.cityName)}** tomorrow. Turf crews have until then to pull out.`
     : event.thugsPickedUp > 0
       ? `The Feds swept **${escapeMarkdown(event.cityName)}**. ${event.thugsPickedUp} corner men were picked up across ${event.holdersAffected} crew${event.holdersAffected === 1 ? '' : 's'}.`
-      : `The Feds swept **${escapeMarkdown(event.cityName)}**, but the corners were already clear.`;
+      : event.holdersAffected > 0
+        ? `The Feds swept **${escapeMarkdown(event.cityName)}**. ${event.holdersAffected} crew${event.holdersAffected === 1 ? ' was' : 's were'} caught holding corners, but nobody was picked up.`
+        : `The Feds swept **${escapeMarkdown(event.cityName)}**, but the corners were already clear.`;
   return {
     title: warning
       ? `${escapeMarkdown(event.cityName)} · Federal sweep incoming`
