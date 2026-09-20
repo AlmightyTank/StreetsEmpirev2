@@ -86,12 +86,14 @@ export function TravelPage() {
           {/* A tail on your run or an ally's call goes first; otherwise the convoys wait below your own run. */}
           {data.runsEnabled && urgent ? <ConvoysPanel products={data.products} refreshKey={data} /> : null}
           {data.runsEnabled ? (
-            <div className="se-grid se-grid--2 se-cities">
-              {run
-                ? <RunPanel key={run.id} run={run} data={data} onDone={load} />
-                : <LaunchPanel data={data} to={selected.isHome ? '' : selected.slug} onPick={select} onDone={load} />}
-              {data.lastRun && !run ? <ReceiptPanel receipt={data.lastRun} products={data.products} /> : null}
-            </div>
+            run
+              ? <RunPanel key={run.id} run={run} data={data} onDone={load} />
+              : (
+                  <div className="se-grid se-grid--2 se-cities">
+                    <LaunchPanel data={data} to={selected.isHome ? '' : selected.slug} onPick={select} onDone={load} />
+                    {data.lastRun ? <ReceiptPanel receipt={data.lastRun} products={data.products} /> : null}
+                  </div>
+                )
           ) : null}
           {data.runsEnabled && !urgent ? <ConvoysPanel products={data.products} refreshKey={data} /> : null}
           <div className="se-grid se-grid--2 se-cities">

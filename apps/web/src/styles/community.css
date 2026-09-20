@@ -345,11 +345,13 @@
 .se-run__headline--town { color: var(--se-accent); }
 .se-run__trip { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin: 0 0 10px; padding: 0; list-style: none; font-size: 12px; }
 .se-run__node { display: inline-flex; align-items: center; }
-.se-run__node + .se-run__node::before { content: '92'; margin: 0 6px; color: var(--se-muted); }
+.se-run__node + .se-run__node::before { content: '→'; margin: 0 6px; color: var(--se-muted); }
 .se-run__node--stop { font-weight: 700; color: var(--se-text); }
 .se-run__node--pass { color: var(--se-muted); font-style: italic; }
 .se-run__node--here { color: var(--se-accent); }
 .se-run__leg { display: grid; gap: 4px; font-size: 12px; color: var(--se-text-dim); }
+.se-run__leg-head { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 10px; }
+.se-run__leg-head strong { color: var(--se-text); font-size: 12px; }
 .se-run__trades { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
 .se-run__trades li { display: flex; justify-content: space-between; gap: 10px; }
 
