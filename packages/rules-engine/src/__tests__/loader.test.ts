@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, classicOgV06C, classicOgV06D, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, classicOgV06C, classicOgV06D, classicOgV06E, type Ruleset } from '@streets/rulesets';
 import { regenerateTurns } from '../calculations/turns.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
@@ -38,7 +38,7 @@ describe('ruleset loader', () => {
   it('knows which ids it can serve', () => {
     expect(isKnownRulesetId('classic-og-v0.1')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(27);
+    expect(listRulesets()).toHaveLength(28);
   });
 });
 
@@ -152,6 +152,27 @@ describe('classic-og-v0.6-d contents', () => {
       meta: null,
       hideout: null,
       turf: { ...classicOgV06C.turf, outposts: null },
+    });
+  });
+});
+
+describe('classic-og-v0.6-e contents', () => {
+  it('adds city control without changing D outpost balance', () => {
+    const ruleset = loadRuleset('classic-og-v0.6-e', '0.6.0-E');
+    expect(ruleset).toBe(classicOgV06E);
+    expect(ruleset.meta.name).toBe('Classic OG - Territory');
+    expect(ruleset.turf?.territory).toEqual({
+      cityControlShare: 0.6,
+      controlledCityNoTax: true,
+    });
+    expect({
+      ...ruleset,
+      meta: null,
+      turf: { ...ruleset.turf!, territory: null },
+    }).toEqual({
+      ...classicOgV06D,
+      meta: null,
+      turf: { ...classicOgV06D.turf, territory: null },
     });
   });
 });
