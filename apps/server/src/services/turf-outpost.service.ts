@@ -5,7 +5,6 @@ import {
   cornerMinimumFor,
   equipCombatSquad,
   runCapacity,
-  runNetWorthCents,
   runPosition,
   type Rng,
   type Ruleset,
@@ -25,6 +24,7 @@ import {
   TurfService,
   cornerGunWorthCents,
   localsOnBlock,
+  outpostBoxWorthCents,
   turfGunData,
   type CornerGuns,
 } from './turf.service.js';
@@ -78,16 +78,6 @@ function positiveProducts(input: Record<string, number>, allowed: readonly strin
 
 function productUnits(products: Record<string, number>): number {
   return Object.values(products).reduce((sum, quantity) => sum + quantity, 0);
-}
-
-function boxWorth(ruleset: Ruleset, box: { cashCents: bigint; beer: number; products: Record<string, number> }): bigint {
-  return runNetWorthCents(ruleset, {
-    cashCents: box.cashCents,
-    lowRiders: 0,
-    escortThugs: 0,
-    beer: box.beer,
-    cargo: box.products,
-  });
 }
 
 async function activeRunInTown(tx: any, roundPlayerId: string, ruleset: Ruleset, now: Date): Promise<{ run: LoadedRun; city: string }> {
@@ -257,7 +247,7 @@ export const TurfOutpostService = {
           },
         });
 
-        const seedWorth = boxWorth(ruleset, { cashCents: BigInt(input.cashCents), beer: input.beer, products });
+        const seedWorth = outpostBoxWorthCents(ruleset, { cashCents: BigInt(input.cashCents), beer: input.beer, products });
         const postedWorth = cornerGunWorthCents(ruleset, guns);
         const newAway = awayWorth(ruleset, {
           cashCents: runCash, beer: runBeer, lowRiders: run.lowRiders, escortThugs: runEscorts,
@@ -355,8 +345,8 @@ export const TurfOutpostService = {
         }
 
         assertTurns(current.turns, outpostRules.transferTurnCost);
-        const oldWorth = boxWorth(ruleset, { cashCents: box.cashCents, beer: box.beer, products: boxProducts });
-        const newWorth = boxWorth(ruleset, { cashCents: nextBoxCash, beer: nextBoxBeer, products: nextBoxProducts });
+        const oldWorth = outpostBoxWorthCents(ruleset, { cashCents: box.cashCents, beer: box.beer, products: boxProducts });
+        const newWorth = outpostBoxWorthCents(ruleset, { cashCents: nextBoxCash, beer: nextBoxBeer, products: nextBoxProducts });
 
         await tx.turfOutpost.update({
           where: { id: box.id },
