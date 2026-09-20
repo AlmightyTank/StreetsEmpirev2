@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV05A, classicOgV05B } from '@streets/rulesets';
+import { classicOgV05A, classicOgV05B, classicOgV06D } from '@streets/rulesets';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
   RunError,
@@ -137,6 +137,26 @@ describe('0.5.0-B trading at Pip\'s in another city', () => {
     const later = settleCityShelf({ stock: 0, stockAt: now }, price, new Date(now.getTime() + price.intervalMinutes * 60_000));
     expect(later.stock).toBe(Math.min(price.shelfCap, price.perInterval));
     expect(settleCityShelf(null, cityCounter(ruleset, 'miami-beach', 'COCAINE', 'OUT')!, now).stock).toBe(0);
+  });
+});
+
+describe('0.6.0-D outpost conservation', () => {
+  it('counts beer on a run exactly as beer at home', () => {
+    const base = { cashCents: 0n, lowRiders: 0, escortThugs: 0, cargo: {} };
+    const away = runNetWorthCents(classicOgV06D, { ...base, beer: 125 });
+    const home = calculateNetWorthCents({
+      cashCents: 0, whores: 0, thugs: 0, lowRiders: 0, medicine: 0, crack: 0,
+      condoms: 0, beer: 125, pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0,
+    }, classicOgV06D);
+    expect(away).toBe(home);
+  });
+
+  it('keeps an outpost box in total net worth after it leaves the run', () => {
+    const player = {
+      cashCents: 0, whores: 0, thugs: 0, lowRiders: 0, medicine: 0, crack: 0,
+      condoms: 0, beer: 0, pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0,
+    };
+    expect(calculateNetWorthCents({ ...player, outpostNetWorthCents: 54_321n }, classicOgV06D)).toBe(54_321n);
   });
 });
 
