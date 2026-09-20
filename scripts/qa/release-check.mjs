@@ -39,6 +39,8 @@ if (withDb) {
     PRODUCT_INTEGRATION: '1',
     // 0.5.0: runs out of town, city counters and what the crew saw there, markets and risk, moving house and convoys.
     TRAVEL_INTEGRATION: '1',
+    // 0.6.0: holding, player turf wars, away outposts, territory history/control and the release crackdown.
+    TURF_INTEGRATION: '1',
   });
 }
 
