@@ -7,7 +7,7 @@ import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
-import { supplyEffects, supplySummary, WorkSupplyPanel } from '../components/WorkSupplyPanel.js';
+import { supplyEffects, supplySummary, WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
@@ -21,6 +21,7 @@ const date = (value: string) => new Date(value).toLocaleString();
 const weaponName = (key: string) => key === 'TEK9' ? 'Tek-9' : key === 'AK47' ? 'AK-47' : key.toLowerCase();
 const weaponsText = (weapons: Record<string, number>) => Object.entries(weapons).filter(([, count]) => count > 0).map(([key, count]) => `${formatNumber(count)} ${weaponName(key)}`).join(', ') || 'unarmed';
 const reportAnimationMs = 180;
+const FIGHT_SUPPLY_JOBS = [{ job: 'RAID', label: 'Raid' }, { job: 'DEFENSE', label: 'Defense' }, { job: 'CONVOY', label: 'Convoy' }];
 
 type Mode = 'RAID' | 'DRIVE_BY' | SpecialRaidKindDto;
 type CombatRulesDto = NonNullable<CombatPageDto['rules']>;
@@ -585,6 +586,13 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
         <WorkSupplyPanel title="Fight supply" jobs={[{ job: 'RAID', label: 'Squads you send' }, { job: 'DEFENSE', label: 'Your defenders' }, { job: 'CONVOY', label: 'Escorts on a run' }]} turns={1} refreshKey={report?.id} />
       </div>
       <div className="se-grid">
+        <Panel title="Supplies for raids" aside={<Link to="/game/stores/pip">Pip&rsquo;s</Link>} flush>
+          <div className="se-rows">
+            <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
+            <Row label="Beer" value={formatNumber(me.resources.beer)} />
+            <WorkSupplyStockRows jobs={FIGHT_SUPPLY_JOBS} refreshKey={report?.id} />
+          </div>
+        </Panel>
         {page.recovery ? <Panel title="Crew recovery">
           <div className="se-rows">
             <Row label="Fit thugs" value={formatNumber(page.recovery.fitThugs)} strong />

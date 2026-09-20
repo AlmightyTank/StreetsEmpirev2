@@ -9,7 +9,7 @@ import { Button } from '../components/Button.js';
 import { DistrictPicker } from '../components/DistrictPicker.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
-import { supplyReceiptLines, WorkSupplyPanel } from '../components/WorkSupplyPanel.js';
+import { supplyReceiptLines, WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
 import { HeatNotice, heatReceiptLines } from '../components/HeatPanel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -42,6 +42,7 @@ export function ScoutPage() {
 
   const available = me.turns.turns;
   const backOfficeBonusCents = action.result?.result.hideoutBonusCents ?? 0;
+  const supplyJobs = district ? [{ job: district, label: districts.find((row) => row.key === district)?.name ?? 'This district' }] : [];
   const canScout =
     !action.busy &&
     district !== '' &&
@@ -111,7 +112,7 @@ export function ScoutPage() {
           </Panel>
 
           <HeatNotice />
-          <WorkSupplyPanel jobs={district ? [{ job: district, label: districts.find((row) => row.key === district)?.name ?? 'This district' }] : []} turns={turns} refreshKey={action.result} />
+          <WorkSupplyPanel jobs={supplyJobs} turns={turns} refreshKey={action.result} />
         </div>
 
         <aside className="se-grid">
@@ -140,6 +141,7 @@ export function ScoutPage() {
               <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
               <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
               <Row label={me.products ? 'Crack' : 'Product'} value={formatNumber(me.resources.product)} />
+              <WorkSupplyStockRows jobs={supplyJobs} refreshKey={action.result} />
               <Row label="Beer" value={formatNumber(me.resources.beer)} tooltip="Thugs expect beer while they work. Missing beer lowers thug happiness." />
               <Row label="Cash" value={formatCents(me.resources.cashCents)} strong />
             </div>

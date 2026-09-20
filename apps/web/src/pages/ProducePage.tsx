@@ -9,7 +9,7 @@ import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
-import { supplyReceiptLines, WorkSupplyPanel } from '../components/WorkSupplyPanel.js';
+import { supplyReceiptLines, WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
 import { HeatNotice, heatReceiptLines } from '../components/HeatPanel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -48,6 +48,7 @@ export function ProducePage() {
   const hasFitThugs = me.resources.fitThugs > 0;
   const selectedProfile = PRODUCT_PROFILES.find((profile) => profile.key === productType) ?? PRODUCT_PROFILES[0]!;
   const producedName = action.result?.result.productName ?? selectedProfile.name;
+  const supplyJobs = [{ job: 'PRODUCE', label: "Girls' shift" }, { job: 'COOK', label: 'Cooks' }];
   const workshopBonusProduct = action.result?.result.hideoutBonusProduct ?? action.result?.result.hideoutBonusCrack ?? 0;
   const backOfficeBonusCents = action.result?.result.hideoutBonusCents ?? 0;
   const canProduce =
@@ -139,7 +140,7 @@ export function ProducePage() {
           </Panel>
 
           <HeatNotice />
-          <WorkSupplyPanel jobs={[{ job: 'PRODUCE', label: "Girls' shift" }, { job: 'COOK', label: 'Cooks' }]} turns={turns} refreshKey={action.result} />
+          <WorkSupplyPanel jobs={supplyJobs} turns={turns} refreshKey={action.result} />
         </div>
 
         {/*
@@ -172,6 +173,7 @@ export function ProducePage() {
               <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
               <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
               <Row label={me.products ? 'Crack' : 'Product'} value={formatNumber(me.resources.product)} />
+              <WorkSupplyStockRows jobs={supplyJobs} refreshKey={action.result} />
               <Row label="Beer" value={formatNumber(me.resources.beer)} />
               <Row label="Cash" value={formatCents(me.resources.cashCents)} strong />
             </div>
