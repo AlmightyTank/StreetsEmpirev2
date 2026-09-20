@@ -36,10 +36,12 @@ interface StoredPushResult {
   cornerWounds: number;
   ownerBackupWounds: number;
   allyBackup: number;
+  defenders: { corner: number; ownerBackup: number; allyCommitted: number; allyShowed: number };
   attackerPostedThugs: number;
   attackerPostedGuns: CornerGuns;
   attackerReturnedGuns: CornerGuns;
   strength: { attacker: number; defender: number } | null;
+  shieldUntil: string | null;
   recoverAt: string | null;
 }
 
@@ -263,6 +265,7 @@ export const TurfWarSettlementService = {
         });
       }
 
+      const shieldUntil = won ? new Date(at.getTime() + rules.push.shieldHours * 3_600_000) : null;
       if (won) {
         await tx.turf.update({
           where: { id: turf.id },
@@ -271,21 +274,29 @@ export const TurfWarSettlementService = {
             cornerThugs: attackerPostedThugs,
             ...turfGunData(attackerPostedGuns),
             heldSince: at,
-            shieldUntil: new Date(at.getTime() + rules.push.shieldHours * 3_600_000),
+            shieldUntil,
             upkeepAt: at,
             localsAt: at,
+            localsReclaimAt: null,
           },
         });
       }
 
       const result: StoredPushResult = {
         won, unopposed, stale, attackerWounds, defenderWounds, cornerWounds, ownerBackupWounds,
-        allyBackup: allyShown, attackerPostedThugs, attackerPostedGuns, attackerReturnedGuns,
-        strength, recoverAt: recoverAt?.toISOString() ?? null,
+        allyBackup: allyShown,
+        defenders: {
+          corner: stillDefended ? turf.cornerThugs : 0,
+          ownerBackup: ownerBackups.reduce((sum, backup) => sum + backup.thugs, 0),
+          allyCommitted: allyBackups.reduce((sum, backup) => sum + backup.thugs, 0),
+          allyShowed: allyShown,
+        },
+        attackerPostedThugs, attackerPostedGuns, attackerReturnedGuns,
+        strength, shieldUntil: shieldUntil?.toISOString() ?? null, recoverAt: recoverAt?.toISOString() ?? null,
       };
       await tx.turfPush.update({
         where: { id: loaded.id },
-        data: { status: 'LANDED', settledAt: at, result: json(result) },
+        data: { status: 'LANDED', settledAt: at, captured: won, result: json(result) },
       });
       await ActivityService.log(tx, defender.id, 'TURF_PUSH_DEFENSE', json({
         pushId: loaded.id, district: turf.district, held: !won, unopposed, stale,
