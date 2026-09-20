@@ -546,6 +546,8 @@ model RoundPlayer {
   turfPushesStarted      TurfPush[]          @relation("TurfPushAttacker")
   turfPushesDefended     TurfPush[]          @relation("TurfPushDefender")
   turfPushBackups        TurfPushBackup[]
+  /// 0.6.0-D. Supply/tax boxes for away turf.
+  turfOutposts           TurfOutpost[]
   /// 0.4.0-B. Which products each job burns, in order.
   supplyPolicies        WorkSupplyPolicy[]
   /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
@@ -1228,9 +1230,32 @@ model Turf {
   updatedAt DateTime @updatedAt
 
   pushes TurfPush[]
+  outpost TurfOutpost?
 
   @@unique([roundId, cityId, district])
   @@index([roundId, holderId])
+}
+
+/// 0.6.0-D. The box attached to one away-held block. A home block never needs one.
+/// Runs are the only intended way to move stock in or out; later D slices enforce that.
+model TurfOutpost {
+  id String @id @default(cuid())
+
+  turfId String @unique
+  turf   Turf   @relation(fields: [turfId], references: [id], onDelete: Cascade)
+
+  ownerId String
+  owner   RoundPlayer @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  cashCents BigInt @default(0)
+  beer      Int    @default(0)
+  /// Product-key -> quantity. Crack is stored here too because this is not home inventory.
+  products  Json   @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
 }
 
 /// 0.6.0-A. Turns a crew has worked on a block lately. You cannot claim a block you have
