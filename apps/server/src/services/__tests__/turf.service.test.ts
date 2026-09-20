@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { classicOgV06C, classicOgV06D, classicOgV06E } from '@streets/rulesets';
 import { localsThugs } from '@streets/rules-engine';
 import { controlFromRows, localsOnBlock, localsReclaimAt, outpostBoxWorthCents, settleOutpostSupplies } from '../turf.service.js';
+import { territoryRanks, turfHeldSeconds } from '../turf-history.service.js';
 import { recordTerritoryControlChange } from '../turf-territory.service.js';
 
 const ruleset = classicOgV06C;
@@ -138,6 +139,20 @@ describe('0.6.0-E durable territory control changes', () => {
       roundId: 'round', cityId: 'detroit', ruleset: classicOgV06E, before: kings, at,
     });
     expect(created).toHaveLength(1);
+  });
+});
+
+describe('0.6.0-E territory hold-time math', () => {
+  it('counts only the part of a hold that has actually elapsed', () => {
+    const start = new Date('2026-09-20T12:00:00.000Z');
+    const asOf = new Date('2026-09-20T15:00:00.000Z');
+    expect(turfHeldSeconds(start, null, asOf)).toBe(3 * 3600);
+    expect(turfHeldSeconds(start, new Date('2026-09-20T13:30:00.000Z'), asOf)).toBe(90 * 60);
+    expect(turfHeldSeconds(asOf, null, start)).toBe(0);
+  });
+
+  it('uses competition ranks so tied turf leaders share the Hall of Fame badge', () => {
+    expect(territoryRanks([7200, 7200, 3600, 1800, 1800])).toEqual([1, 1, 3, 4, 4]);
   });
 });
 
