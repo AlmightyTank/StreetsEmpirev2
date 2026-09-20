@@ -93,6 +93,7 @@ export function TurfActions({
               <input
                 className="se-input"
                 type="number"
+                inputMode="numeric"
                 min={1}
                 step={1}
                 value={thugs}
@@ -187,6 +188,7 @@ export function TurfActions({
         <input
           className="se-input"
           type="number"
+          inputMode="numeric"
           min={1}
           step={1}
           value={thugs}
