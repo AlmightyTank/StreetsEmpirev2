@@ -1,0 +1,8 @@
+import { useEffect,useState } from 'react';
+import type { PublicNewsArticleDto } from '@streets/shared';
+import { Link,useParams } from 'react-router-dom';
+import { PublicApiError,publicSiteApi } from '../api/public.js';
+import { PublicError,PublicLoading,PublicPageHero } from '../components/PublicPageBits.js';
+
+export function NewsArticlePage(){const{slug=''}=useParams();const[data,setData]=useState<PublicNewsArticleDto|null>(null);const[missing,setMissing]=useState(false);const[failed,setFailed]=useState(false);useEffect(()=>{let live=true;void publicSiteApi.newsArticle(slug).then(x=>live&&setData(x.article)).catch(e=>{if(!live)return;e instanceof PublicApiError&&e.status===404?setMissing(true):setFailed(true)});return()=>{live=false}},[slug]);if(missing)return <div className="site-page"><PublicPageHero eyebrow="News" title="Article not found"/></div>;
+return <div className="site-page"><PublicPageHero eyebrow={data?.isPinned?'Pinned update':'StreetsEmpire news'} title={data?.title??'News article'}>{data?<p>{new Date(data.publishedAt).toLocaleString()} {data.authorName?`· ${data.authorName}`:''}</p>:null}</PublicPageHero><section className="site-section site-section--tight"><div className="container article-wrap">{!data&&!failed?<PublicLoading/>:null}{failed?<PublicError/>:null}{data?<article className="site-panel article-body">{data.body.split(/\n{2,}/).map((p,i)=><p key={i}>{p}</p>)}<div className="archive-back"><Link className="btn btn-outline-light" to="/news">← All News</Link>{data.round?<Link className="btn btn-outline-light" to={`/games/${data.round.slug}`}>{data.round.name}</Link>:null}</div></article>:null}</div></section></div>}
