@@ -504,15 +504,13 @@ export const DiscordBotService = {
     if (ruleset.turf) await TurfService.ensureRound(prisma, round.id, ruleset);
 
     const [allTurf, recent] = await Promise.all([
-      ruleset.turf
-        ? prisma.turf.findMany({
-            where: { roundId: round.id },
-            select: {
-              city: { select: { slug: true, name: true } },
-              holder: { select: { allianceId: true, alliance: { select: { name: true, tag: true } } } },
-            },
-          })
-        : Promise.resolve([]),
+      prisma.turf.findMany({
+        where: { roundId: round.id },
+        select: {
+          city: { select: { slug: true, name: true } },
+          holder: { select: { allianceId: true, alliance: { select: { name: true, tag: true } } } },
+        },
+      }),
       prisma.turfPush.findMany({
         where: {
           roundId: round.id,
