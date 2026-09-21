@@ -18,6 +18,8 @@ import { Panel } from './Panel.js';
 
 const CATEGORIES: Array<{ key: NotificationCategory; label: string; hint: string }> = [
   { key: 'attacks', label: 'Attacks on me', hint: 'Raids, drive-bys and every other hit on your empire.' },
+  { key: 'turf', label: 'My turf', hint: 'A rival crew takes one of your blocks.' },
+  { key: 'alliance', label: 'Alliance control', hint: 'Your alliance gains or loses control of a city.' },
   { key: 'turns', label: 'Turns are full', hint: 'Once each time your turns fill up, so none go to waste.' },
   { key: 'round', label: 'Round news', hint: 'A new round opens, the last day starts, or the round ends.' },
   { key: 'rank', label: 'Rank drops', hint: 'You lose national #1 or fall out of the top 10.' },
