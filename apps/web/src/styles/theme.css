@@ -2384,3 +2384,43 @@ a.se-nav__link:hover {
 .se-admin-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .se-admin-inline { display: inline-flex; gap: 6px; align-items: center; }
 .se-admin-inline .se-input { width: 180px; max-width: 100%; }
+
+
+/* --- beta environment ---------------------------------------------------- */
+
+.se-beta-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 36px;
+  margin-bottom: 10px;
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 176, 32, 0.55);
+  border-radius: 3px;
+  background: rgba(255, 176, 32, 0.1);
+  color: var(--se-text);
+  text-align: center;
+}
+
+.se-beta-banner strong {
+  flex: none;
+  color: var(--se-warn);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.se-beta-banner span {
+  color: var(--se-text-dim);
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .se-beta-banner {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+  }
+}
