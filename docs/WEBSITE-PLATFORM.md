@@ -115,8 +115,26 @@ npm run dev
 
 The game remains at `http://localhost:5173` with its API at `http://localhost:3001`.
 
+## Phase 3 — Public website shell
+
+The public site now has its shared layout and permanent route structure. This phase is
+still data-safe: pages are structural placeholders and do not query production game data.
+
+### Phase 3 completion checklist
+
+- [x] Add a shared public-site header and footer.
+- [x] Add responsive desktop/mobile navigation.
+- [x] Add route-aware active navigation and a public 404 page.
+- [x] Build the new public homepage shell.
+- [x] Reserve top-level pages for Game, Guide, Cities, Turf, Games, Rankings, Hall of Fame, Alliances, Stats, News, Roadmap, Community, Beta, Status, Support, and About.
+- [x] Reserve detail routes for guides, cities, games, players, alliances, and news.
+- [x] Keep Play Now pointed at `play.streetsempire.dev`.
+- [x] Keep Beta pointed at `beta.streetsempire.dev`.
+- [x] Keep the forum link pointed at `forum.streetsempire.dev`.
+- [x] Preserve `apps/web` without modification.
+- [x] Do not expose live database or Recon-gated information.
+
 ## Next phase
 
-Phase 3 builds the public website shell: shared layout, responsive navigation, footer,
-real public routes, and page placeholders for the larger website without exposing any
-private game data.
+Phase 4 turns the homepage into a real public dashboard and introduces the first
+read-only public API endpoints, beginning with safe overview/current-game data.
