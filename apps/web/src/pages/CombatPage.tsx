@@ -20,6 +20,42 @@ import { loadPendingRaid, savePendingRaid, type PendingRaid } from '../utils/pen
 const date = (value: string) => new Date(value).toLocaleString();
 const weaponName = (key: string) => key === 'TEK9' ? 'Tek-9' : key === 'AK47' ? 'AK-47' : key.toLowerCase();
 const weaponsText = (weapons: Record<string, number>) => Object.entries(weapons).filter(([, count]) => count > 0).map(([key, count]) => `${formatNumber(count)} ${weaponName(key)}`).join(', ') || 'unarmed';
+
+const signedUnits = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatNumber(Math.abs(value))}`;
+const signedCents = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatCents(Math.abs(value))}`;
+
+function BattleInventoryRows({ report }: { report: BattleReportDto }) {
+  if (report.inventoryChanges?.length) {
+    return <>
+      {report.inventoryChanges.map((row) => {
+        const parts = [
+          row.gained > 0 ? `+${formatNumber(row.gained)} gained` : null,
+          row.lost > 0 ? `−${formatNumber(row.lost)} lost` : null,
+          row.used > 0 ? `−${formatNumber(row.used)} used` : null,
+        ].filter(Boolean).join(' · ');
+        return <Row
+          key={row.product}
+          label={row.name}
+          value={`${signedUnits(row.change)} / ${formatNumber(row.after)} left${parts ? ` · ${parts}` : ''}`}
+          strong={row.change !== 0}
+        />;
+      })}
+    </>;
+  }
+
+  return <>
+    {report.crackChange !== undefined && report.crackAfter !== undefined
+      ? <Row
+          label={report.productChanges ? 'Crack' : 'Product'}
+          value={`${signedUnits(report.crackChange)} / ${formatNumber(report.crackAfter)} left`}
+          strong={report.crackChange !== 0}
+        />
+      : null}
+    {(report.productChanges ?? []).map((row) => (
+      <Row key={row.product} label={row.name} value={signedUnits(row.change)} strong={row.change !== 0} />
+    ))}
+  </>;
+}
 const reportAnimationMs = 180;
 const FIGHT_SUPPLY_JOBS = [{ job: 'RAID', label: 'Raid' }, { job: 'DEFENSE', label: 'Defense' }, { job: 'CONVOY', label: 'Convoy' }];
 
@@ -192,7 +228,8 @@ function DriveByReport({ report, onClose }: { report: BattleReportDto; onClose?:
     <div className="se-rows">
       <Row label={attacking ? 'Shooters — yours / out front' : 'Out front — yours / shooters'} value={`${report.yourSquad} / ${report.opponentSquad}`} />
       <Row label="Firepower — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
-      {report.yourSupply ? <Row label="Your supply" value={`${supplySummary(report.yourSupply)} · ${supplyEffects(report.yourSupply)}`} /> : null}
+      {report.yourSupply ? <Row label="Fight supply plan" value={`${supplySummary(report.yourSupply)} · ${supplyEffects(report.yourSupply)}`} /> : null}
+      <BattleInventoryRows report={report} />
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds)} / ${formatNumber(report.opponentWounds)}`} />
       <Row label={attacking ? 'Their whores killed' : 'Your whores killed'} value={d.whoresAfter !== undefined ? `${formatNumber(d.whoresKilled)} · ${formatNumber(d.whoresAfter)} left` : formatNumber(d.whoresKilled)} strong />
       {attacking ? <Row label="Low-Riders — sent / lost / left" value={`${formatNumber(d.carsSent ?? 0)} / ${formatNumber(d.lowRidersLost ?? 0)} / ${formatNumber(d.lowRidersAfter ?? 0)}`} strong={(d.lowRidersLost ?? 0) > 0} /> : null}
@@ -222,14 +259,15 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
     <div className="se-rows">
       <Row label="Crew — yours / theirs" value={`${report.yourSquad} / ${report.opponentSquad}`} />
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
-      {report.yourSupply ? <Row label="Your supply" value={`${supplySummary(report.yourSupply)} · ${supplyEffects(report.yourSupply)}`} /> : null}
+      {report.yourSupply ? <Row label="Fight supply plan" value={`${supplySummary(report.yourSupply)} · ${supplyEffects(report.yourSupply)}`} /> : null}
+      <BattleInventoryRows report={report} />
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds ?? 0)} / ${formatNumber(report.opponentWounds ?? 0)}`} />
       {form.whoresDrugged !== undefined ? <Row label={attacking ? 'Their hoes drugged' : 'Your hoes drugged'} value={formatNumber(form.whoresDrugged)} strong={form.whoresDrugged > 0} /> : null}
       {form.whoresLured !== undefined ? <Row label={attacking ? 'Hoes joined / now' : 'Hoes lost / left'} value={form.whoresAfter !== undefined ? `${formatNumber(form.whoresLured)} / ${formatNumber(form.whoresAfter)}` : formatNumber(form.whoresLured)} strong={form.whoresLured > 0} /> : null}
       {form.thugsLured !== undefined ? <Row label={attacking ? 'Thugs joined / now' : 'Thugs lost / left'} value={form.thugsAfter !== undefined ? `${formatNumber(form.thugsLured)} / ${formatNumber(form.thugsAfter)}` : formatNumber(form.thugsLured)} strong={form.thugsLured > 0} /> : null}
-      {form.crackSpent !== undefined && attacking ? <Row label="Product spent" value={formatNumber(form.crackSpent)} /> : null}
+      {!report.inventoryChanges?.length && form.crackSpent !== undefined && attacking ? <Row label="Product spent" value={formatNumber(form.crackSpent)} /> : null}
       {form.beerSpent !== undefined && attacking ? <Row label="Beer spent" value={formatNumber(form.beerSpent)} /> : null}
-      {form.defenderCrackBurned !== undefined ? <Row label={attacking ? 'Their product burned' : 'Your product burned'} value={formatNumber(form.defenderCrackBurned)} strong={form.defenderCrackBurned > 0} /> : null}
+      {!report.inventoryChanges?.length && form.defenderCrackBurned !== undefined ? <Row label={attacking ? 'Their product burned' : 'Your product burned'} value={formatNumber(form.defenderCrackBurned)} strong={form.defenderCrackBurned > 0} /> : null}
       {form.defenderCondomsBurned !== undefined ? <Row label={attacking ? 'Their condoms burned' : 'Your condoms burned'} value={formatNumber(form.defenderCondomsBurned)} strong={form.defenderCondomsBurned > 0} /> : null}
       {form.lowRidersStolen !== undefined ? <Row label={attacking ? 'Low-Riders stolen' : 'Low-Riders lost'} value={`${formatNumber(form.lowRidersStolen)} · ${formatNumber(form.lowRidersAfter ?? 0)} left`} strong={form.lowRidersStolen > 0} /> : null}
       {attacking ? <Row label="Turns spent / remaining" value={`${report.turnsSpent} / ${report.turnsAfter}`} /> : null}
@@ -253,11 +291,10 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
     <div className="se-rows">
       <Row label="Squads — yours / theirs" value={`${report.yourSquad} / ${report.opponentSquad}`} />
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
-      {report.yourSupply ? <Row label="Your supply" value={`${supplySummary(report.yourSupply)} · ${supplyEffects(report.yourSupply)}`} /> : null}
+      {report.yourSupply ? <Row label="Fight supply plan" value={`${supplySummary(report.yourSupply)} · ${supplyEffects(report.yourSupply)}`} /> : null}
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds ?? 0)} / ${formatNumber(report.opponentWounds ?? 0)}`} />
-      <Row label="Cash change / remaining" value={`${report.cashChangeCents >= 0 ? '+' : '−'}${formatCents(Math.abs(report.cashChangeCents))} / ${formatCents(report.cashAfterCents)}`} strong />
-      {report.crackChange !== undefined && report.crackAfter !== undefined ? <Row label={report.productChanges ? 'Crack change / remaining' : 'Product change / remaining'} value={`${report.crackChange >= 0 ? '+' : '−'}${formatNumber(Math.abs(report.crackChange))} / ${formatNumber(report.crackAfter)}`} strong /> : null}
-      {(report.productChanges ?? []).map((row) => <Row key={row.product} label={`${row.name} change`} value={`${row.change >= 0 ? '+' : '−'}${formatNumber(Math.abs(row.change))}`} strong />)}
+      <Row label="Cash" value={`${signedCents(report.cashChangeCents)} / ${formatCents(report.cashAfterCents)} left`} strong={report.cashChangeCents !== 0} />
+      <BattleInventoryRows report={report} />
 
       <Row label="Turns spent / remaining" value={`${report.turnsSpent} / ${report.turnsAfter}`} />
       <Row label="National rank — before / after" value={`#${report.nationalRankBefore} / #${report.nationalRankAfter}`} />

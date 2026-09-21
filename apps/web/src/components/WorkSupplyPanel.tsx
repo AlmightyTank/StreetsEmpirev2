@@ -21,12 +21,18 @@ export function supplySummary(plan: WorkSupplyPlanDto): string {
 }
 
 /** Receipt lines for a trip's supply, shared by Scout and Produce results. */
-export function supplyReceiptLines(plan: WorkSupplyPlanDto | undefined, prefix = ''): Array<{ label: string; value: ReactNode }> {
+export function supplyReceiptLines(
+  plan: WorkSupplyPlanDto | undefined,
+  prefix = '',
+  includeInventory = true,
+): Array<{ label: string; value: ReactNode }> {
   if (!plan || plan.need === 0) return [];
   const ranDry = plan.slices.some((slice) => slice.state === 'dry');
   return [
     { label: `${prefix}Supply`, value: supplySummary(plan) },
-    ...plan.slices.filter((slice) => slice.product && slice.product !== 'CRACK').map((slice) => ({ label: `${prefix}${slice.productName} used`, value: formatNumber(slice.units) })),
+    ...(includeInventory
+      ? plan.slices.filter((slice) => slice.product && slice.product !== 'CRACK').map((slice) => ({ label: `${prefix}${slice.productName} used`, value: formatNumber(slice.units) }))
+      : []),
     ...(plan.role ? [{ label: `${prefix}Supply effects`, value: supplyEffects(plan) }] : []),
     ...(ranDry ? [{ label: `${prefix}Restock`, value: <Link className="se-golink" to="/game/stores/pip">Pip&rsquo;s</Link> }] : []),
   ];

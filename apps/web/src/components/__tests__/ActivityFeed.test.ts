@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { ActivityDto } from '@streets/shared';
 import { describeActivity } from '../ActivityFeed.js';
 
-function activity(payload: Record<string, unknown>): ActivityDto {
+function activity(payload: Record<string, unknown>, type: ActivityDto['type'] = 'WEAPON_UNLOCK'): ActivityDto {
   return {
     id: 'activity-1',
-    type: 'WEAPON_UNLOCK',
+    type,
     payload,
     createdAt: '2026-09-20T12:00:00.000Z',
   };
@@ -30,4 +30,54 @@ describe('describeActivity', () => {
       detail: 'Tommy’s locked weapon purchases are unlocked for the rest of the round. · Buying one still uses Tommy’s shelf and your cash.',
     });
   });
+
+  it('combines Scout product gains, use, and seizures into one entry per product', () => {
+    const result = describeActivity(activity({
+      district: 'Casino District',
+      turns: 10,
+      cashCents: 2500,
+      productMovements: [
+        { key: 'ECSTASY', name: 'Ecstasy', found: 3, produced: 0, used: 2, seized: 1, change: 0 },
+        { key: 'CRACK', name: 'Crack', found: 5, produced: 0, used: 1, seized: 0, change: 4 },
+      ],
+    }, 'SCOUT'), 'crack');
+
+    expect(result.detail).toContain('Ecstasy: +3 found · −2 used · −1 seized');
+    expect(result.detail).toContain('Crack: +5 found · −1 used');
+    expect(result.detail?.match(/Ecstasy/g)).toHaveLength(1);
+  });
+
+  it('combines Produce output and street finds for the same product', () => {
+    const result = describeActivity(activity({
+      turns: 10,
+      productName: 'Meth',
+      product: 12,
+      productsFound: [{ key: 'METH', name: 'Meth', quantity: 2 }],
+      productMovements: [
+        { key: 'METH', name: 'Meth', found: 2, produced: 12, used: 3, seized: 0, change: 11 },
+      ],
+    }, 'PRODUCE_CRACK'), 'crack');
+
+    expect(result.detail).toContain('Meth: +12 produced · +2 found · −3 used');
+    expect(result.detail?.match(/Meth/g)).toHaveLength(1);
+  });
+
+  it('uses grouped raid inventory instead of the legacy crack-only summary', () => {
+    const result = describeActivity(activity({
+      opponent: 'Rival',
+      won: true,
+      cashCents: 5000,
+      crack: 4,
+      turns: 10,
+      inventoryChanges: [
+        { product: 'CRACK', name: 'Crack', change: 1, after: 21, used: 3, gained: 4, lost: 0 },
+        { product: 'WEED', name: 'Weed', change: 2, after: 12, used: 0, gained: 2, lost: 0 },
+      ],
+    }, 'RAID_ATTACK'), 'crack');
+
+    expect(result.detail).toContain('Crack: +4 gained · −3 used');
+    expect(result.detail).toContain('Weed: +2 gained');
+    expect(result.detail).not.toContain('+4 product');
+  });
+
 });

@@ -5,7 +5,7 @@ import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { HeatService } from './heat.service.js';
 import { hideoutBackOfficeBonusCents, hideoutWorkshopBonusProduct } from './hideout.service.js';
-import { CRACK, ProductInventoryService, streetProductFinds } from './product-inventory.service.js';
+import { CRACK, ProductInventoryService, streetProductFinds, summarizeProductMovements } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 
 export interface ProduceInput {
@@ -233,7 +233,15 @@ export const ProductionService = {
               cashCents: Number(pimpTakeCents),
               hideoutBonusCents: Number(hideoutBonusCents),
               crackFound,
-              ...(ruleset.productEconomy ? { productsFound: productsFound.map((row) => ({ key: row.key, name: row.name, quantity: row.quantity })) } : {}),
+              ...(ruleset.productEconomy ? {
+                productsFound: productsFound.map((row) => ({ key: row.key, name: row.name, quantity: row.quantity })),
+                productMovements: summarizeProductMovements(ruleset, {
+                  found: productsFound,
+                  produced: { key: recipe.product, quantity: productProduced },
+                  consumed: [supply?.consumed, cook?.consumed],
+                  seized: trip.heat?.seized,
+                }),
+              } : {}),
               whoresLeft: outcome.departures.whores,
               thugsLeft: outcome.departures.thugs,
               infected: outcome.infections.infected,

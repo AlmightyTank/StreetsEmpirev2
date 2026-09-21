@@ -32,7 +32,10 @@ export function heatTone(heat: Pick<HeatDto, 'heat' | 'dragStartsAt' | 'bustStar
 }
 
 /** Receipt lines for what a trip did to Heat, shared by Scout and Produce. */
-export function heatReceiptLines(heat: TripHeatDto | undefined): Array<{ label: string; value: string }> {
+export function heatReceiptLines(
+  heat: TripHeatDto | undefined,
+  includeResourceChanges = true,
+): Array<{ label: string; value: string }> {
   if (!heat) return [];
   const lines = [
     { label: 'Heat', value: `${formatNumber(heat.before)} → ${formatNumber(heat.after)} (+${formatNumber(heat.added)} from product)` },
@@ -41,15 +44,19 @@ export function heatReceiptLines(heat: TripHeatDto | undefined): Array<{ label: 
 
   if (heat.arrested) {
     lines.push({ label: 'ARRESTED', value: `${percent(heat.arrestChance ?? 0)} chance landed` });
-    const seized = Object.entries(heat.seized).map(([key, units]) => `${formatNumber(units)} ${productLabel(key)}`);
-    if (seized.length) lines.push({ label: 'Seized', value: seized.join(', ') });
-    if (heat.fineCents > 0) lines.push({ label: 'Fine', value: formatCents(heat.fineCents) });
+    if (includeResourceChanges) {
+      const seized = Object.entries(heat.seized).map(([key, units]) => `${formatNumber(units)} ${productLabel(key)}`);
+      if (seized.length) lines.push({ label: 'Seized', value: seized.join(', ') });
+      if (heat.fineCents > 0) lines.push({ label: 'Fine', value: formatCents(heat.fineCents) });
+    }
     if (heat.lockedUntil) lines.push({ label: 'Locked up', value: `Until ${lockedUntilText(heat.lockedUntil)}` });
   } else if (heat.busted) {
     lines.push({ label: 'BUSTED', value: `${percent(heat.bustChance)} chance landed` });
-    const seized = Object.entries(heat.seized).map(([key, units]) => `${formatNumber(units)} ${productLabel(key)}`);
-    if (seized.length) lines.push({ label: 'Seized', value: seized.join(', ') });
-    if (heat.fineCents > 0) lines.push({ label: 'Fine', value: formatCents(heat.fineCents) });
+    if (includeResourceChanges) {
+      const seized = Object.entries(heat.seized).map(([key, units]) => `${formatNumber(units)} ${productLabel(key)}`);
+      if (seized.length) lines.push({ label: 'Seized', value: seized.join(', ') });
+      if (heat.fineCents > 0) lines.push({ label: 'Fine', value: formatCents(heat.fineCents) });
+    }
   }
   return lines;
 }

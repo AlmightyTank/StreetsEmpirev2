@@ -21,6 +21,37 @@ function productFindSummary(value: unknown): string[] {
   });
 }
 
+function productMovementSummary(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const row = entry as Record<string, unknown>;
+    const name = str(row.name, str(row.key ?? row.product, 'product').toLowerCase());
+    const produced = num(row.produced);
+    const found = num(row.found);
+    const gained = num(row.gained);
+    const lost = num(row.lost);
+    const used = num(row.used);
+    const seized = num(row.seized);
+    const parts = [
+      produced > 0 ? `+${formatNumber(produced)} produced` : null,
+      found > 0 ? `+${formatNumber(found)} found` : null,
+      gained > 0 ? `+${formatNumber(gained)} gained` : null,
+      lost > 0 ? `−${formatNumber(lost)} lost` : null,
+      used > 0 ? `−${formatNumber(used)} used` : null,
+      seized > 0 ? `−${formatNumber(seized)} seized` : null,
+    ].filter(Boolean);
+
+    if (!parts.length) {
+      const change = num(row.change);
+      if (!change) return [];
+      return [`${change > 0 ? '+' : '−'}${formatNumber(Math.abs(change))} ${name}`];
+    }
+
+    return [`${name}: ${parts.join(' · ')}`];
+  });
+}
+
 /** The opponent as the feed names them: "[WC] Iron Maya", or just the name for solo players and older entries. */
 function opponent(p: Record<string, unknown>, fallback = ''): string {
   const name = str(p.opponent, fallback);
@@ -60,9 +91,11 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     case 'RAID_DEFENSE': {
       const move = str(p.move, activity.type === 'RAID_ATTACK' ? 'Raid' : 'Raid defense');
       const attacking = activity.type === 'RAID_ATTACK';
+      const inventory = productMovementSummary(p.inventoryChanges);
       const details = [
         `${num(p.cashCents) >= 0 ? '+' : '−'}${formatCents(Math.abs(num(p.cashCents)))} · ${num(p.turns)} turns`,
-        num(p.crack) ? `${num(p.crack) >= 0 ? '+' : '−'}${formatNumber(Math.abs(num(p.crack)))} product` : null,
+        ...inventory,
+        !inventory.length && num(p.crack) ? `${num(p.crack) >= 0 ? '+' : '−'}${formatNumber(Math.abs(num(p.crack)))} product` : null,
         num(p.whoresDrugged) ? `${formatNumber(num(p.whoresDrugged))} hoes drugged` : null,
         num(p.defenderCondomsBurned) ? `${formatNumber(num(p.defenderCondomsBurned))} condoms burned` : null,
         num(p.lowRidersStolen) ? `${formatNumber(num(p.lowRidersStolen))} Low-Rider${num(p.lowRidersStolen) === 1 ? '' : 's'} stolen` : null,
@@ -117,13 +150,15 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       };
 
     case 'SCOUT': {
+      const movements = productMovementSummary(p.productMovements);
       const mixedFinds = productFindSummary(p.productsFound);
       const found = [
         num(p.cashCents) ? `+${formatCents(num(p.cashCents))}` : null,
         num(p.whores) ? `+${formatNumber(num(p.whores))} whores` : null,
         num(p.thugs) ? `+${formatNumber(num(p.thugs))} thugs` : null,
-        ...mixedFinds,
-        !mixedFinds.length && num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} ${crackWord} found` : null,
+        ...movements,
+        ...(!movements.length ? mixedFinds : []),
+        !movements.length && !mixedFinds.length && num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} ${crackWord} found` : null,
         num(p.whoresLeft) ? `${num(p.whoresLeft)} whores walked` : null,
         num(p.thugsLeft) ? `${num(p.thugsLeft)} thugs walked` : null,
         p.busted ? `BUSTED, fined ${formatCents(num(p.fineCents))}` : null,
@@ -150,9 +185,13 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     }
 
     case 'PRODUCE_CRACK': {
+      const movements = productMovementSummary(p.productMovements);
       const detail = [
-        num(p.product ?? p.crack) ? `+${formatNumber(num(p.product ?? p.crack))} ${str(p.productName, 'product')}` : null,
-        ...productFindSummary(p.productsFound),
+        ...movements,
+        ...(!movements.length && num(p.product ?? p.crack)
+          ? [`+${formatNumber(num(p.product ?? p.crack))} ${str(p.productName, 'product')}`]
+          : []),
+        ...(!movements.length ? productFindSummary(p.productsFound) : []),
         num(p.cashCents) ? `+${formatCents(num(p.cashCents))}` : null,
         num(p.ingredientCents) ? `-${formatCents(num(p.ingredientCents))} ingredients` : null,
         p.busted ? `BUSTED, fined ${formatCents(num(p.fineCents))}` : null,
