@@ -93,11 +93,7 @@ async function historicalStats(
   ] = await Promise.all([
     prisma.roundPlayer.count({ where: { roundId: round.id } }),
     prisma.alliance.count({
-      where: {
-        roundId: round.id,
-        disbandedAt: null,
-        members: { some: { account: { isActive: true } } },
-      },
+      where: { roundId: round.id, disbandedAt: null },
     }),
     prisma.roundPlayer.aggregate({
       where: { roundId: round.id },
