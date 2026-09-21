@@ -168,8 +168,44 @@ turf captures. It must not expose cash-on-hand, crew counts, supplies, weapons, 
 combat readiness, protection timers, Recon reports, convoy intelligence, or hidden
 market/player state.
 
+## Phase 5 — Completed game archive
+
+The public website now has a permanent season archive backed by frozen ended/archived
+round data.
+
+### Public archive endpoints
+
+```text
+GET /api/public/games
+GET /api/public/games/:gameId
+```
+
+The detail route accepts either the round id or its public slug.
+
+### Phase 5 completion checklist
+
+- [x] Replace the `/games` placeholder with a real current/past games page.
+- [x] Replace `/games/:gameId` with a completed-season record page.
+- [x] Show season champions and tied co-champions from frozen final ranks.
+- [x] Show full public final national standings.
+- [x] Show final alliance standings from end-of-season membership/net worth.
+- [x] Show city champions from frozen local ranks.
+- [x] Add final season totals for players, alliances, cities, economy, combat, travel, and turf.
+- [x] Preserve early-round history when travel/city rules did not yet exist.
+- [x] Batch archive summary aggregation so archive growth does not create per-season query storms.
+- [x] Cache immutable completed-game details longer than live public data.
+- [x] Keep round-local public pimp ids from linking to an ambiguous current-season profile.
+- [x] Add an archived-round integration fixture and apply the public private-field guard to archive responses.
+
+### Historical data boundary
+
+Completed-game pages may expose frozen public ranks, public display names/pimp ids,
+final public net worth, public alliance tags, public city results, and aggregate season
+statistics. They still do not expose cash-on-hand, crew/inventory/weapon state, wounds,
+Recon reports, protection clocks, convoy intelligence, or raw battle calculations.
+
 ## Next phase
 
-Phase 5 expands the public data model into real Games/season-history pages: the game
-archive, individual completed-game pages, final standings, champions, and season
-statistics.
+Phase 6 builds the public Rankings and player-history layer: guest-readable current
+rankings plus season-aware player/career pages that can link safely from both live and
+archived standings.
