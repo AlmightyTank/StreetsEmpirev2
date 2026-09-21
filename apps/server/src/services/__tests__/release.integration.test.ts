@@ -225,6 +225,10 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
     expect(archive.standings).toHaveLength(1);
     expect(archive.stats.players).toBe(1);
     expect(archive.stats.economyNetWorthCents).toBe(12_345_600);
+
+    const missingArchive = await app.inject({ method: 'GET', url: '/api/public/games/not-a-real-season' });
+    expect(missingArchive.statusCode).toBe(404);
+    expect(missingArchive.json().error.code).toBe('GAME_NOT_FOUND');
   });
 
   it('keeps the E community/read endpoints usable', async () => {
