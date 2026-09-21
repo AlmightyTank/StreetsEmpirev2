@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02D, classicOgV02E } from '@streets/rulesets';
+import { classicOgV01, classicOgV02D, classicOgV02E, classicOgV04D } from '@streets/rulesets';
 import {
   calculateExposure,
   calculateProduce,
@@ -409,6 +409,32 @@ describe('calculateStreetTake', () => {
       rng: () => 0.01, // always under the find chance
     });
     expect(lucky.crackFound).toBeGreaterThan(0);
+  });
+
+  it('finds district-flavored products once product economy is live', () => {
+    const casino = calculateStreetTake({
+      player: covered,
+      turns: 10,
+      ruleset: classicOgV04D,
+      clientCapacity: OPEN_BLOCK,
+      district: 'CASINO',
+      payoutPercent: 50,
+      rng: () => 0.01,
+    });
+    expect(casino.productsFound.COCAINE).toBeGreaterThan(0);
+    expect(casino.crackFound).toBe(0);
+
+    const slums = calculateStreetTake({
+      player: covered,
+      turns: 10,
+      ruleset: classicOgV04D,
+      clientCapacity: OPEN_BLOCK,
+      district: 'WINO_SLUMS',
+      payoutPercent: 50,
+      rng: () => 0.01,
+    });
+    expect(slums.productsFound.CRACK).toBeGreaterThan(0);
+    expect(slums.crackFound).toBe(slums.productsFound.CRACK);
   });
 
   it('keeps departure and infection safety rails action-wide across simulated turns', () => {
