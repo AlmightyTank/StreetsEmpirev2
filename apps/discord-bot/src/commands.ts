@@ -8,6 +8,7 @@ import {
 } from 'discord.js';
 import {
   alertText,
+  allianceEmbed,
   badgesEmbed,
   compareEmbed,
   hallOfFameEmbed,
@@ -23,6 +24,7 @@ import {
   reminderText,
   roundEmbed,
   statsEmbed,
+  turfCityEmbed,
   syncAllText,
   syncMemberText,
 } from './format.js';
@@ -72,6 +74,14 @@ export const commandData = [
     .setName('city')
     .setDescription('Top 10 in one city this round')
     .addStringOption((option) => option.setName('name').setDescription('City').setRequired(true).setAutocomplete(true).setMaxLength(60)),
+  new SlashCommandBuilder()
+    .setName('turf')
+    .setDescription('Show public turf holders, garrisons and city control')
+    .addStringOption((option) => option.setName('city').setDescription('City').setRequired(true).setAutocomplete(true).setMaxLength(60)),
+  new SlashCommandBuilder()
+    .setName('alliance')
+    .setDescription('Show an alliance roster, standing and turf')
+    .addStringOption((option) => option.setName('tag').setDescription('Alliance tag (default: yours)').setMaxLength(5)),
   new SlashCommandBuilder().setName('halloffame').setDescription('Podiums from recent finished rounds'),
   new SlashCommandBuilder().setName('round').setDescription('Current round status and time left'),
   new SlashCommandBuilder().setName('news').setDescription('Latest StreetsEmpire news'),
@@ -87,6 +97,8 @@ export const commandData = [
       .setRequired(true)
       .addChoices(
         { name: 'Attacks against me', value: 'attacks' },
+        { name: 'My turf is taken', value: 'turf' },
+        { name: 'Alliance gains or loses city control', value: 'alliance' },
         { name: 'Round opened or ending', value: 'round' },
         { name: 'Losing #1 or top 10', value: 'rank' },
         { name: 'Turns full', value: 'turns' },
@@ -225,6 +237,22 @@ async function run(interaction: ChatInputCommandInteraction, deps: CommandDeps):
       return { embeds: [rankingsEmbed(await api.cityRankings(city.slug), origin)] };
     }
 
+    case 'turf': {
+      const city = resolveCity(interaction.options.getString('city', true), await deps.getCities());
+      if (!city) return { content: 'No city by that name. Pick one from the list as you type.' };
+      return { embeds: [turfCityEmbed(await api.turf(city.slug), origin)] };
+    }
+
+    case 'alliance': {
+      const tag = interaction.options.getString('tag');
+      if (tag) return { embeds: [allianceEmbed(await api.alliance({ tag }), origin)] };
+      try {
+        return { embeds: [allianceEmbed(await api.alliance({ discordId: interaction.user.id }), origin)] };
+      } catch (error) {
+        throw new SelfLookupError(error);
+      }
+    }
+
     case 'halloffame':
       return { embeds: [hallOfFameEmbed(await api.hallOfFame(), origin)] };
 
@@ -344,7 +372,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, de
 
 export async function handleAutocomplete(interaction: AutocompleteInteraction, deps: Pick<CommandDeps, 'getCities'>): Promise<void> {
   try {
-    const choices = interaction.commandName === 'city'
+    const choices = interaction.commandName === 'city' || interaction.commandName === 'turf'
       ? cityChoices(String(interaction.options.getFocused()), await deps.getCities())
       : [];
     await interaction.respond(choices);
