@@ -140,6 +140,37 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
     expect(state.turns).toBe(turnsAfterScout);
   });
 
+  it('keeps the public website API guest-readable and free of private player state', async () => {
+    for (const url of ['/api/public/overview', '/api/public/current-game']) {
+      const response = await app.inject({ method: 'GET', url });
+      expect(response.statusCode, response.body).toBe(200);
+
+      const body = response.json();
+      const serialized = JSON.stringify(body);
+      for (const privateField of [
+        'cashCents',
+        'whores',
+        'thugs',
+        'woundedThugs',
+        'crack',
+        'beer',
+        'pistols',
+        'shotguns',
+        'tek9s',
+        'ak47s',
+        'raidProtectedUntil',
+        'combatIntel',
+      ]) {
+        expect(serialized).not.toContain(`"${privateField}"`);
+      }
+    }
+
+    const overview = (await app.inject({ method: 'GET', url: '/api/public/overview' })).json();
+    expect(overview.currentGame).not.toBeNull();
+    expect(overview.currentGame.stats.players).toBeGreaterThanOrEqual(1);
+    expect(overview.currentGame.topRankings.length).toBeGreaterThanOrEqual(1);
+  });
+
   it('keeps the E community/read endpoints usable', async () => {
     for (const url of [
       '/api/game/me?background=1',
