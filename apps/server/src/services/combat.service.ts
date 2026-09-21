@@ -804,7 +804,17 @@ export const CombatService = {
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
       for (const [playerId, type, report] of [[attackerId, 'RAID_ATTACK', attackerReport], [target.id, 'RAID_DEFENSE', defenderReport]] as const) {
-        await ActivityService.log(tx, playerId, type, json({ battleId: id, opponent: report.opponent.displayName, opponentTag: report.opponent.alliance?.tag ?? null, won: report.won, cashCents: report.cashChangeCents, crack: report.crackChange ?? 0, turns: report.turnsSpent, wounds: report.yourWounds }));
+        await ActivityService.log(tx, playerId, type, json({
+          battleId: id,
+          opponent: report.opponent.displayName,
+          opponentTag: report.opponent.alliance?.tag ?? null,
+          won: report.won,
+          cashCents: report.cashChangeCents,
+          crack: report.crackChange ?? 0,
+          turns: report.turnsSpent,
+          wounds: report.yourWounds,
+          inventoryChanges: report.inventoryChanges ?? [],
+        }));
       }
       // Reserve the action namespace for the lifetime of this raid, including other action types.
       await tx.processedAction.create({ data: { roundPlayerId: attackerId, actionId: input.actionId, action: 'RAID', result: json(attackerReport), expiresAt: new Date('9999-12-31T00:00:00Z') } });
@@ -1114,8 +1124,19 @@ export const CombatService = {
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
       for (const [playerId, type, report] of [[attackerId, 'RAID_ATTACK', attackerReport], [target.id, 'RAID_DEFENSE', defenderReport]] as const) {
         await ActivityService.log(tx, playerId, type, json({ battleId: id, kind: input.kind, move: rule.title, opponent: report.opponent.displayName, opponentTag: report.opponent.alliance?.tag ?? null, won: report.won,
-          cashCents: 0, crack: report.crackChange ?? 0, turns: report.turnsSpent, wounds: report.yourWounds,
-          whoresDrugged, defenderCrackBurned, defenderCondomsBurned, lowRidersStolen, whoresLured, thugsLured, beerSpent }));
+          cashCents: 0,
+          crack: report.crackChange ?? 0,
+          turns: report.turnsSpent,
+          wounds: report.yourWounds,
+          inventoryChanges: report.inventoryChanges ?? [],
+          whoresDrugged,
+          defenderCrackBurned,
+          defenderCondomsBurned,
+          lowRidersStolen,
+          whoresLured,
+          thugsLured,
+          beerSpent,
+        }));
       }
       await tx.processedAction.create({ data: { roundPlayerId: attackerId, actionId: input.actionId, action: input.kind, result: json(attackerReport), expiresAt: new Date('9999-12-31T00:00:00Z') } });
       return attackerReport;
