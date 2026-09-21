@@ -19,6 +19,7 @@ interface ProductMovement {
   found: number;
   produced: number;
   used: number;
+  seized: number;
 }
 
 function productLabel(me: ProductContext): string {
@@ -34,7 +35,7 @@ function productName(me: ProductContext, key: string, fallback?: string): string
 function movement(map: Map<string, ProductMovement>, key: string, name: string): ProductMovement {
   const existing = map.get(key);
   if (existing) return existing;
-  const next = { key, name, found: 0, produced: 0, used: 0 };
+  const next = { key, name, found: 0, produced: 0, used: 0, seized: 0 };
   map.set(key, next);
   return next;
 }
@@ -57,12 +58,13 @@ function productMovementLines(
   me: ProductContext,
 ): ResultLine[] {
   return [...map.values()]
-    .filter((row) => row.found > 0 || row.produced > 0 || row.used > 0)
+    .filter((row) => row.found > 0 || row.produced > 0 || row.used > 0 || row.seized > 0)
     .map((row) => {
       const parts = [
         row.produced > 0 ? `+${formatNumber(row.produced)} produced` : null,
         row.found > 0 ? `+${formatNumber(row.found)} found` : null,
         row.used > 0 ? `−${formatNumber(row.used)} used` : null,
+        row.seized > 0 ? `−${formatNumber(row.seized)} seized` : null,
       ].filter((part): part is string => Boolean(part));
       const remaining = me.products
         ? me.products.find((product) => product.key === row.key)?.quantity
@@ -72,7 +74,7 @@ function productMovementLines(
       return {
         label: row.name,
         detail: parts.join(' · '),
-        delta: row.produced + row.found - row.used,
+        delta: row.produced + row.found - row.used - row.seized,
         ...(remaining !== undefined ? { remaining } : {}),
       };
     });
@@ -94,6 +96,10 @@ function scoutProductLines(
 
   if (result.supply) addConsumed(map, result.supply, me);
   else if (result.crackUsed > 0) movement(map, 'CRACK', productLabel(me)).used += result.crackUsed;
+
+  for (const [key, units] of Object.entries(result.heat?.seized ?? {})) {
+    if (units > 0) movement(map, key, productName(me, key)).seized += units;
+  }
 
   return productMovementLines(map, after, me);
 }
@@ -123,6 +129,10 @@ function produceProductLines(
     addConsumed(map, result.cook, me);
   } else if (result.crackUsed > 0) {
     movement(map, 'CRACK', productLabel(me)).used += result.crackUsed;
+  }
+
+  for (const [key, units] of Object.entries(result.heat?.seized ?? {})) {
+    if (units > 0) movement(map, key, productName(me, key)).seized += units;
   }
 
   return productMovementLines(map, after, me);
@@ -220,6 +230,19 @@ function basicSupplyLines(result: {
   ];
 }
 
+function actualCashLine(
+  action: GameActionResult<unknown>,
+  parts: Array<string | null | undefined>,
+): ResultLine {
+  return {
+    label: 'Cash',
+    detail: parts.filter((part): part is string => Boolean(part)).join(' · '),
+    delta: action.after.cashCents - action.before.cashCents,
+    remaining: action.after.cashCents,
+    money: true,
+  };
+}
+
 export function scoutReceiptLines(action: GameActionResult<ScoutResult>, me: ProductContext): ResultLine[] {
   const result = action.result;
   const backOfficeBonusCents = result.hideoutBonusCents ?? 0;
@@ -236,44 +259,25 @@ export function scoutReceiptLines(action: GameActionResult<ScoutResult>, me: Pro
     result.thugsRecruited,
     result.thugsLeft,
   );
+  const cash = actualCashLine(action, [
+    result.grossEarnedCents > 0 ? `+${formatCents(result.grossEarnedCents)} gross` : null,
+    result.crewTakeCents > 0 ? `−${formatCents(result.crewTakeCents)} crew cut` : null,
+    result.turf?.holdBonusCents ? `+${formatCents(result.turf.holdBonusCents)} turf` : null,
+    result.turf?.taxPaidCents ? `−${formatCents(result.turf.taxPaidCents)} tax` : null,
+    backOfficeBonusCents > 0 ? `+${formatCents(backOfficeBonusCents)} Back Office` : null,
+    result.heat?.fineCents ? `−${formatCents(result.heat.fineCents)} fine` : null,
+  ]);
 
   return [
     { label: 'Turns used', value: formatNumber(result.turnsUsed) },
     ...supplyReceiptLines(result.supply, '', false),
-    ...heatReceiptLines(result.heat),
-    {
-      label: 'Brought in',
-      value: formatCents(result.grossEarnedCents),
-    },
-    {
-      label: `Their cut (${result.payoutPercent}%)`,
-      delta: -result.crewTakeCents,
-      money: true,
-      muted: true,
-    },
-    ...(result.turf?.holdBonusCents
-      ? [{ label: 'Home turf bonus', value: `${formatCents(result.turf.holdBonusCents)} included` }]
-      : []),
-    ...(result.turf?.taxPaidCents
-      ? [{ label: `Street tax${result.turf.holder ? ` · ${result.turf.holder.displayName}` : ''}`, delta: -result.turf.taxPaidCents, money: true }]
-      : []),
+    ...heatReceiptLines(result.heat, false),
+    cash,
     ...(result.turf?.controlledCityExempt
       ? [{ label: 'Street tax', value: 'Alliance controls this city · no tax', muted: true }]
       : []),
     ...(result.turf?.linked
       ? [{ label: 'Street tax', value: 'Linked crew · no tax', muted: true }]
-      : []),
-    {
-      label: 'Your cut',
-      delta: result.cashEarnedCents,
-      money: true,
-      remaining: action.after.cashCents,
-    },
-    ...(backOfficeBonusCents > 0
-      ? [{
-          label: 'Back Office bonus',
-          value: `${formatCents(backOfficeBonusCents)} included`,
-        }]
       : []),
     ...(whores ? [whores] : []),
     ...(thugs ? [thugs] : []),
@@ -303,11 +307,18 @@ export function produceReceiptLines(action: GameActionResult<ProduceCrackResult>
     result.lostToInfection,
   );
   const thugs = crewMovementLine('Thugs', action.after.resources.thugs, 0, result.thugsLeft);
+  const cash = actualCashLine(action, [
+    result.ingredientCents > 0 ? `−${formatCents(result.ingredientCents)} ingredients` : null,
+    result.grossEarnedCents > 0 ? `+${formatCents(result.grossEarnedCents)} gross` : null,
+    result.crewTakeCents > 0 ? `−${formatCents(result.crewTakeCents)} crew cut` : null,
+    backOfficeBonusCents > 0 ? `+${formatCents(backOfficeBonusCents)} Back Office` : null,
+    result.heat?.fineCents ? `−${formatCents(result.heat.fineCents)} fine` : null,
+  ]);
 
   return [
     ...supplyReceiptLines(result.supply, '', false),
     ...supplyReceiptLines(result.cook, 'Cooks: ', false),
-    ...heatReceiptLines(result.heat),
+    ...heatReceiptLines(result.heat, false),
     { label: 'Turns used', value: formatNumber(result.turnsUsed) },
     ...produceProductLines(result, action.after, me),
     ...(workshopBonusProduct > 0
@@ -316,36 +327,9 @@ export function produceReceiptLines(action: GameActionResult<ProduceCrackResult>
           value: `${formatNumber(workshopBonusProduct)} included in production`,
         }]
       : []),
-    {
-      label: 'Ingredients',
-      delta: -result.ingredientCents,
-      money: true,
-      remaining: action.before.cashCents - result.ingredientCents,
-    },
+    cash,
     ...(result.limitedByCash
       ? [{ label: 'Short on cash', value: 'batch cut down', muted: true }]
-      : []),
-    {
-      label: 'Brought in',
-      value: formatCents(result.grossEarnedCents),
-    },
-    {
-      label: `Their cut (${result.payoutPercent}%)`,
-      delta: -result.crewTakeCents,
-      money: true,
-      muted: true,
-    },
-    {
-      label: 'Your cut',
-      delta: result.cashEarnedCents,
-      money: true,
-      remaining: action.before.cashCents - result.ingredientCents + result.cashEarnedCents,
-    },
-    ...(backOfficeBonusCents > 0
-      ? [{
-          label: 'Back Office bonus',
-          value: `${formatCents(backOfficeBonusCents)} included`,
-        }]
       : []),
     ...(whores ? [whores] : []),
     ...(thugs ? [thugs] : []),
