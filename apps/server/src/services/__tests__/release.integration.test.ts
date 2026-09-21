@@ -12,6 +12,8 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
   let app: FastifyInstance;
   let accountId: string | undefined;
   let roundId: string | undefined;
+  let archiveRoundId: string | undefined;
+  let archiveSlug = '';
   let playerId: string;
   let publicPimpId: number;
   let cookie: string;
@@ -46,6 +48,18 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
       where: { slug: classicOgV01.round.startingCitySlug },
     });
 
+    archiveSlug = `release-archive-${randomUUID()}`;
+    const archivedRound = await app.prisma.round.create({ data: {
+      name: 'Release archive fixture',
+      slug: archiveSlug,
+      rulesetId: classicOgV01.meta.id,
+      rulesetVersion: classicOgV01.meta.version,
+      status: 'ARCHIVED',
+      startsAt: new Date('1999-01-01T00:00:00.000Z'),
+      endsAt: new Date('1999-01-08T00:00:00.000Z'),
+    } });
+    archiveRoundId = archivedRound.id;
+
     publicPimpId = 1_000_000_000 + Math.floor(Math.random() * 1_000_000_000);
     const player = await app.prisma.roundPlayer.create({
       data: {
@@ -66,11 +80,28 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
       },
     });
     playerId = player.id;
+
+    await app.prisma.roundPlayer.create({
+      data: {
+        ...classicOgV01.round.startingPlayer,
+        ...startingStock(classicOgV01),
+        accountId: accountId!,
+        roundId: archivedRound.id,
+        cityId: city.id,
+        publicPimpId: publicPimpId + 1,
+        displayName: `${name} Archive`,
+        netWorthCents: 12_345_600n,
+        cashCents: 7_500_000n,
+        nationalRank: 1,
+        localRank: 1,
+      },
+    });
   });
 
   afterAll(async () => {
     vi.restoreAllMocks();
     if (roundId) await app.prisma.round.delete({ where: { id: roundId } });
+    if (archiveRoundId) await app.prisma.round.delete({ where: { id: archiveRoundId } });
     if (accountId) await app.prisma.account.delete({ where: { id: accountId } });
     if (app) await app.close();
   });
@@ -141,7 +172,7 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
   });
 
   it('keeps the public website API guest-readable and free of private player state', async () => {
-    for (const url of ['/api/public/overview', '/api/public/current-game']) {
+    for (const url of ['/api/public/overview', '/api/public/current-game', '/api/public/games', `/api/public/games/${archiveSlug}`]) {
       const response = await app.inject({ method: 'GET', url });
       expect(response.statusCode, response.body).toBe(200);
 
@@ -182,6 +213,18 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
     expect(overview.currentGame).not.toBeNull();
     expect(overview.currentGame.stats.players).toBeGreaterThanOrEqual(1);
     expect(overview.currentGame.topRankings.length).toBeGreaterThanOrEqual(1);
+
+    const archive = (await app.inject({ method: 'GET', url: `/api/public/games/${archiveSlug}` })).json().game;
+    expect(archive.slug).toBe(archiveSlug);
+    expect(archive.champions).toHaveLength(1);
+    expect(archive.champions[0]).toMatchObject({
+      nationalRank: 1,
+      localRank: 1,
+      displayName: expect.stringContaining('Archive'),
+    });
+    expect(archive.standings).toHaveLength(1);
+    expect(archive.stats.players).toBe(1);
+    expect(archive.stats.economyNetWorthCents).toBe(12_345_600);
   });
 
   it('keeps the E community/read endpoints usable', async () => {
