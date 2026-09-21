@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
-import type { HideoutDto, HideoutRoomDto, HideoutUpgradeResult } from '@streets/shared';
+import type {
+  HideoutRoomV2Dto,
+  HideoutUpgradeResult,
+  HideoutV2Dto,
+  TravelDto,
+} from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { hideoutApi } from '../api/hideout.js';
-import { ApiError } from '../api/client.js';
+import { api, ApiError } from '../api/client.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
@@ -17,11 +22,11 @@ function RoomCard({
   blocked,
   onUpgrade,
 }: {
-  room: HideoutRoomDto;
+  room: HideoutRoomV2Dto;
   cashCents: number;
   /** Why no room can be upgraded right now, or null when they can. */
   blocked: string | null;
-  onUpgrade: (room: HideoutRoomDto) => void;
+  onUpgrade: (room: HideoutRoomV2Dto) => void;
 }) {
   const maxed = room.nextCostCents === null;
   const affordable = !maxed && cashCents >= room.nextCostCents!;
@@ -37,28 +42,53 @@ function RoomCard({
         <div><dt>Now</dt><dd>{room.currentEffect}</dd></div>
         <div><dt>Next</dt><dd className="se-effects__next">{room.nextEffect ?? 'Fully upgraded'}</dd></div>
         <div><dt>Cost</dt><dd className="se-num">{room.nextCostCents === null ? '-' : formatCents(room.nextCostCents)}</dd></div>
+        {room.nextRequirements.map((requirement) => (
+          <div key={requirement.key}>
+            <dt>{requirement.label}</dt>
+            <dd className={requirement.met ? 'se-dim' : undefined}>
+              {formatNumber(requirement.current)} / {formatNumber(requirement.required)}
+              {requirement.met ? ' ready' : ' needed'}
+            </dd>
+          </div>
+        ))}
+        {room.specialization ? (
+          <div>
+            <dt>Branches</dt>
+            <dd>
+              Level {formatNumber(room.specialization.unlockLevel)}: {room.specialization.choices.map((choice) => choice.name).join(' / ')}
+              {room.specialization.selectedKey === null ? ' · choice not active yet' : ''}
+            </dd>
+          </div>
+        ) : null}
       </dl>
       <Button
         type="button"
         className="se-btn se-btn--primary se-btn--block"
         disabledReason={blocked
-          ?? (maxed
-            ? `The ${room.name} is at level ${formatNumber(room.maxLevel)}, as far as it goes this season.`
-            : !affordable
-              ? `This costs ${formatCents(room.nextCostCents!)} and you are ${formatCents(room.nextCostCents! - cashCents)} short.`
-              : null)}
+          ?? room.lockReason
+          ?? (!maxed && !affordable
+            ? `This costs ${formatCents(room.nextCostCents!)} and you are ${formatCents(room.nextCostCents! - cashCents)} short.`
+            : null)}
         onClick={() => onUpgrade(room)}
       >
-        {maxed ? 'Fully upgraded' : affordable ? `Upgrade ${room.name}` : `Need ${formatCents(room.nextCostCents!)}`}
+        {maxed
+          ? 'Fully upgraded'
+          : !affordable
+            ? `Need ${formatCents(room.nextCostCents!)}`
+            : room.canUpgrade
+              ? `Upgrade ${room.name}`
+              : 'Requirements not met'}
       </Button>
     </Panel>
   );
 }
 
+/** Shows the current headquarters state and controls for seasonal room upgrades. */
 export function HideoutPage() {
   const me = useSession((s) => s.me);
   const action = useGameAction<HideoutUpgradeResult>();
-  const [hideout, setHideout] = useState<HideoutDto | null>(null);
+  const [hideout, setHideout] = useState<HideoutV2Dto | null>(null);
+  const [travel, setTravel] = useState<TravelDto | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
 
@@ -73,32 +103,58 @@ export function HideoutPage() {
       .catch((caught: unknown) => {
         if (active) setLoadError(caught instanceof ApiError ? caught.message : 'Could not load the hideout.');
       });
+
+    api.get<TravelDto>('/game/travel')
+      .then((data) => { if (active) setTravel(data); })
+      .catch(() => { if (active) setTravel(null); });
+
     return () => { active = false; };
   }, [me?.resources.cashCents, reload]);
 
-  async function upgrade(room: HideoutRoomDto) {
+  async function upgrade(room: HideoutRoomV2Dto) {
     await action.run((actionId) => hideoutApi.upgrade({ room: room.key, actionId }));
     setReload((n) => n + 1);
   }
 
   const receipt = action.result?.result ?? null;
   const openRooms = hideout?.rooms.filter((room) => room.nextCostCents !== null) ?? [];
-  const affordableRooms = me ? openRooms.filter((room) => me.resources.cashCents >= room.nextCostCents!) : [];
+  const readyRooms = openRooms.filter((room) => room.canUpgrade);
   const nextRoom = [...openRooms].sort((a, b) => a.nextCostCents! - b.nextCostCents!)[0] ?? null;
+
+  const productUnits = me?.products
+    ? me.products.reduce((sum, product) => sum + product.quantity, 0)
+    : me?.resources.product ?? 0;
+  const activeRuns = travel?.runs.length ?? (me?.run ? 1 : 0);
 
   return (
     <GameLayout>
       <div className="se-pagehead">
         <div>
           <h1 className="se-title">Hideout</h1>
-          <p className="se-eyebrow">Seasonal upgrades and small buffs</p>
+          <p className="se-eyebrow">Seasonal headquarters and upgrades</p>
         </div>
       </div>
 
+      {me ? (
+        <Panel title="Headquarters">
+          <div className="se-stats">
+            <Stat label="Cash" value={formatCents(me.resources.cashCents)} />
+            <Stat label="Crew" value={`${formatNumber(me.resources.whores)} hoes · ${formatNumber(me.resources.fitThugs)} fit`} />
+            <Stat label="Security" value={`${formatNumber(me.resources.armedThugs)} armed · ${formatNumber(me.resources.postedThugs)} posted`} />
+            <Stat label="Products" value={formatNumber(productUnits)} />
+            <Stat label="Wounded" value={formatNumber(me.resources.woundedThugs)} />
+            <Stat label="Turf" value={me.turf ? `${formatNumber(me.turf.blocksHeld)} blocks` : 'Not active'} />
+            <Stat label="Active runs" value={formatNumber(activeRuns)} />
+            <Stat label="Heat" value={me.heat ? `${formatNumber(me.heat.heat)} / ${formatNumber(me.heat.max)}` : 'Not active'} />
+          </div>
+        </Panel>
+      ) : null}
+
       <Panel title="Fair season build">
         <p className="se-dim">
-          Hideout upgrades are mechanical and seasonal. Spend this round's cash for capped buffs now;
-          the final build stays on the season record, and the next round starts fresh.
+          Hideout upgrades are mechanical and seasonal. Spend this round&apos;s cash and meet the listed
+          progression gates for capped buffs now; the final build stays on the season record, and the
+          next round starts fresh.
         </p>
       </Panel>
 
@@ -132,9 +188,9 @@ export function HideoutPage() {
       {hideout?.enabled && me ? (
         <>
           <div className="se-stats se-mb">
-            <Stat label="Cash" value={formatCents(me.resources.cashCents)} />
             <Stat label="Upgrades" value={`${formatNumber(hideout.totalLevel)} / ${formatNumber(hideout.totalMaxLevel)}`} />
-            <Stat label="Affordable" value={formatNumber(affordableRooms.length)} />
+            <Stat label="Ready now" value={formatNumber(readyRooms.length)} />
+            <Stat label="Framework" value={hideout.rulesVersion === 2 ? 'Hideout 2.0' : 'Classic'} />
           </div>
 
           <div className="se-grid se-grid--sidebar">
@@ -158,20 +214,30 @@ export function HideoutPage() {
                       <Row label="Room" value={nextRoom.name} strong />
                       <Row label="Cost" value={formatCents(nextRoom.nextCostCents!)} />
                       <Row label="Effect" value={nextRoom.nextEffect} />
+                      {nextRoom.nextRequirements.map((requirement) => (
+                        <Row
+                          key={requirement.key}
+                          label={requirement.label}
+                          value={`${formatNumber(requirement.current)} / ${formatNumber(requirement.required)}${requirement.met ? ' ready' : ''}`}
+                        />
+                      ))}
                     </div>
                     <Button
                       type="button"
                       className="se-btn se-btn--primary se-btn--block"
                       disabledReason={action.busy
                         ? 'Your last upgrade is still going through.'
-                        : me.resources.cashCents < nextRoom.nextCostCents!
-                          ? `This costs ${formatCents(nextRoom.nextCostCents!)} and you are ${formatCents(nextRoom.nextCostCents! - me.resources.cashCents)} short.`
-                          : null}
+                        : nextRoom.lockReason
+                          ?? (me.resources.cashCents < nextRoom.nextCostCents!
+                            ? `This costs ${formatCents(nextRoom.nextCostCents!)} and you are ${formatCents(nextRoom.nextCostCents! - me.resources.cashCents)} short.`
+                            : null)}
                       onClick={() => void upgrade(nextRoom)}
                     >
-                      {me.resources.cashCents >= nextRoom.nextCostCents!
-                        ? `Upgrade ${nextRoom.name}`
-                        : `Need ${formatCents(nextRoom.nextCostCents!)}`}
+                      {me.resources.cashCents < nextRoom.nextCostCents!
+                        ? `Need ${formatCents(nextRoom.nextCostCents!)}`
+                        : nextRoom.canUpgrade
+                          ? `Upgrade ${nextRoom.name}`
+                          : 'Upgrade locked'}
                     </Button>
                   </>
                 ) : (

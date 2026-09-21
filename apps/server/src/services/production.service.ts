@@ -4,7 +4,7 @@ import type { GameActionResult, ProduceCrackResult, ProductTypeDto } from '@stre
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { HeatService } from './heat.service.js';
-import { hideoutBackOfficeBonusCents, hideoutWorkshopBonusCrack } from './hideout.service.js';
+import { hideoutBackOfficeBonusCents, hideoutWorkshopBonusProduct } from './hideout.service.js';
 import { CRACK, ProductInventoryService, streetProductFinds } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 
@@ -126,7 +126,7 @@ export const ProductionService = {
 
         const hideoutBonusCents = hideoutBackOfficeBonusCents(outcome.pimpTakeCents, ruleset, current);
         const pimpTakeCents = outcome.pimpTakeCents + hideoutBonusCents;
-        const hideoutBonusProduct = hideoutWorkshopBonusCrack(outcome.crackProduced, ruleset, current);
+        const hideoutBonusProduct = hideoutWorkshopBonusProduct(outcome.crackProduced, ruleset, current);
         const productProduced = outcome.crackProduced + hideoutBonusProduct;
         const cookingCrack = recipe.product === CRACK;
         const crackProduced = cookingCrack ? productProduced : 0;
