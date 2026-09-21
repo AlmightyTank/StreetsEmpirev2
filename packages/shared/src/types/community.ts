@@ -1,4 +1,4 @@
-import type { AllianceTagDto } from './alliance.js';
+import type { AllianceDetailDto, AllianceTagDto } from './alliance.js';
 import type { ActivityDto, CityDto, ProfileAccent, RoundDto, SeasonHideoutDto } from './api.js';
 
 export type PublicAchievementCategory = 'rank' | 'wealth' | 'combat' | 'intel' | 'reputation' | 'hideout' | 'legacy';
@@ -318,7 +318,7 @@ export interface DiscordTurnReminderDto {
   url: string;
 }
 
-export type DiscordAlertType = 'attacks' | 'round' | 'rank' | 'turns';
+export type DiscordAlertType = 'attacks' | 'round' | 'rank' | 'turns' | 'turf' | 'alliance';
 
 /** Private /alerts state for one member. */
 export interface DiscordAlertSettingsDto {
@@ -357,6 +357,49 @@ export interface DiscordTurfEventDto {
   defenderName: string;
   defenderProfileUrl: string;
   settledAt: string;
+}
+
+export interface DiscordTurfCityDto {
+  roundName: string;
+  city: { slug: string; name: string };
+  control: {
+    alliance: AllianceTagDto;
+    blocksHeld: number;
+    blocksTotal: number;
+    share: number;
+  } | null;
+  blocks: Array<{
+    district: string;
+    districtName: string;
+    holder: {
+      publicPimpId: number;
+      displayName: string;
+      alliance: AllianceTagDto | null;
+    } | null;
+    cornerThugs: number;
+    cornerGuns: number;
+    localsThugs: number;
+    vacant: boolean;
+    heldSince: string | null;
+    shieldUntil: string | null;
+  }>;
+}
+
+export interface DiscordAllianceCardDto {
+  roundName: string;
+  alliance: AllianceDetailDto;
+  turf: {
+    blocksHeld: number;
+    citiesControlled: number;
+    cities: Array<{
+      slug: string;
+      name: string;
+      blocksHeld: number;
+      blocksTotal: number;
+      controls: boolean;
+    }>;
+    recent: DiscordTurfEventDto[];
+  };
 }
 
 /** 0.6.0-E. An alliance gained, lost or directly stole control of a city. */
@@ -425,6 +468,8 @@ export interface DiscordAlertsClaimDto {
   ranks: DiscordRankAlertDto[];
   attacks: DiscordAttackAlertDto[];
   roundAlerts: DiscordRoundAlertDto[];
+  turfAlerts: Array<DiscordTurfEventDto & { discordId: string }>;
+  allianceAlerts: Array<DiscordTerritoryEventDto & { discordId: string; allianceTag: string; change: 'gained' | 'lost' }>;
   battles: DiscordBattleEventDto[];
   turf: DiscordTurfEventDto[];
   territory: DiscordTerritoryEventDto[];
@@ -440,7 +485,9 @@ export type NotificationPayload =
   | { category: 'attacks'; battle: DiscordBattleEventDto }
   | { category: 'turns'; reminder: Omit<DiscordTurnReminderDto, 'discordId'> }
   | { category: 'rank'; alert: Omit<DiscordRankAlertDto, 'discordId'> }
-  | { category: 'round'; event: DiscordRoundEventDto; rank: number | null };
+  | { category: 'round'; event: DiscordRoundEventDto; rank: number | null }
+  | { category: 'turf'; event: DiscordTurfEventDto }
+  | { category: 'alliance'; event: DiscordTerritoryEventDto; allianceTag: string; change: 'gained' | 'lost' };
 
 export interface PushDeviceDto {
   id: string;
