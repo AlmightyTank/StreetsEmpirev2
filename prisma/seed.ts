@@ -124,12 +124,29 @@ async function seedCurrentPublicRound(now: Date) {
   });
 }
 
-async function seedNews(roundId: string, title: string, body: string) {
+type SeedNewsInput = {
+  roundId?: string | null;
+  title: string;
+  body: string;
+  isPinned?: boolean;
+  publishedAt?: Date;
+  discordPostedAt?: Date | null;
+};
+
+async function seedNews(input: SeedNewsInput) {
+  const { roundId = null, title, body, isPinned = true, publishedAt, discordPostedAt } = input;
   const existing = await prisma.gameNews.findFirst({ where: { roundId, title } });
+  const data = {
+    body,
+    isPinned,
+    ...(publishedAt ? { publishedAt } : {}),
+    ...(discordPostedAt !== undefined ? { discordPostedAt } : {}),
+  };
+
   if (existing) {
     await prisma.gameNews.update({
       where: { id: existing.id },
-      data: { body, isPinned: true },
+      data,
     });
     console.log(`  news:     updated (${title})`);
     return;
@@ -139,11 +156,47 @@ async function seedNews(roundId: string, title: string, body: string) {
     data: {
       roundId,
       title,
-      body,
-      isPinned: true,
+      ...data,
     },
   });
   console.log(`  news:     ${title}`);
+}
+
+async function seedReleaseNews(publicRoundId: string, now: Date) {
+  const hour = 60 * 60 * 1000;
+  const posts = [
+    {
+      roundId: publicRoundId,
+      title: '0.5.0-F TRAVEL RELEASE',
+      publishedAt: new Date(now.getTime() - 96 * hour),
+      body: shouldSeedRivals
+        ? `Travel is live and this local seed includes active dev crews to hunt. Runs near a city can be tailed and hit from the Travel page, so use the Convoys panel to practice spotting, chasing and defending road money.\n\nThe full 0.5.0 release opens eight cities, lets crews load cash and product from home, buy wholesale while leaving town, move house for a fee and choose routes where city prices make the trip worth the risk.\n\nSeattle and Miami casino pressure, Miami's ecstasy market, shared high-market movement, road stops, arrests, escorts, Lookouts and convoy hits are all part of the travel season balance.`
+        : `Travel is live. Eight cities are open, runs can load cash and product from home, and crews can buy wholesale while leaving town before chasing better prices across the map.\n\nThis release also tunes the city economy: Seattle and Miami casinos pay less, Miami keeps ecstasy tight, shared high markets move when crews buy, road stops and arrests matter, and convoys can now be found and hit from the Travel page.\n\nThe release gate runs travel, product and full-round simulations so mixed travel play has to beat street-only play before a travel season ships.`,
+    },
+    {
+      title: '0.6.0-F TURF RELEASE',
+      publishedAt: new Date(now.getTime() - 72 * hour),
+      body: `Turf turns every city into territory. Forty blocks can be claimed, held, taxed, reinforced and fought over. Holding a block pays, but posted crew and guns are away from home when raids come.\n\nTurf wars land after a warning window, Lookouts can spot danger, allies can answer city calls, and successful pushes become public street history. Outposts let runs supply blocks away from home, alliances can control cities, and the federal crackdown gives late-season territory a shakeup.\n\nThe full 0.6.0 release is gated by turf simulations, phone and touch layout checks, Discord and Street Wire events, and database-backed release tests.`,
+    },
+    {
+      title: '0.7.0-A HIDEOUT FOUNDATION',
+      publishedAt: new Date(now.getTime() - 48 * hour),
+      body: `The Hideout is becoming the crew's seasonal headquarters. The first 0.7.0 pass adds the new ruleset and DTO contract, level-three progress requirements, specialization metadata, a headquarters summary and product-aware Workshop naming.\n\nThis is foundation work rather than a balance spike: older rounds stay compatible, every room still upgrades correctly, and the new dashboard is built to explain cash, crew, security, products, wounds, turf, runs and Heat in one place.\n\nNext hideout updates build toward protected storage, better Lookouts, Workshop and Garage improvements, a Back Office ledger, recovery and armory views, and meaningful specializations.`,
+    },
+    {
+      title: 'PUBLIC WEBSITE REFRESH',
+      publishedAt: new Date(now.getTime() - 24 * hour),
+      body: `streetsempire.dev now works as the public season hub. Players and guests can check live status, rankings, city markets, turf control, games history, Hall of Fame, statistics, news, guides, search and community links without needing to be signed into the game client.\n\nThe old game landing page has been retired in favor of a direct sign-in flow, while the public website carries discovery and season context with the StreetsEmpire look, logo and app icons.\n\nThe next pass is about keeping this hub stocked with useful player-facing information: release notes, season notes, strategy context and current game visibility.`,
+    },
+  ];
+
+  for (const post of posts) {
+    await seedNews({
+      ...post,
+      isPinned: true,
+      discordPostedAt: post.publishedAt,
+    });
+  }
 }
 
 async function main() {
@@ -152,19 +205,13 @@ async function main() {
   const now = new Date();
   await seedCities();
   const classicRound = await seedClassicRound(now);
-  await seedNews(classicRound.id, 'GAME #001 HAS BEGUN', 'Welcome to the first Classic OG round.');
+  await seedNews({ roundId: classicRound.id, title: 'GAME #001 HAS BEGUN', body: 'Welcome to the first Classic OG round.' });
   await seedStrategyRound(now);
   const publicRound = await seedCurrentPublicRound(new Date(now.getTime() + 1_000));
 
   // A reused dev database may still have an older announcement pinned. F replaces them.
-  await prisma.gameNews.deleteMany({ where: { roundId: publicRound.id, title: { in: ['0.5.0-B ON THE ROAD', '0.5.0-C HIGH MARKET & RISK', '0.5.0-D MOVING HOUSE', '0.5.0-E CONVOYS'] } } });
-  await seedNews(
-    publicRound.id,
-    '0.5.0 TRAVEL',
-    shouldSeedRivals
-      ? 'The current 0.5.0 seed has active local dev bots enabled. Runs near a city can be tailed and hit from the Travel page.'
-      : 'Eight cities are open. Load up a Low-Rider with cash and product, buy wholesale on your own market on the way out, and drive: every city deals different, and what a town pays is where the money is. Move house for a fee if somewhere else suits you better. The road is not only the police now. Recon your area to find runs coming near, in town or leaving, then tail one: the hit lands a few minutes later if the run is still in reach. Nobody warns the owner. Only lookouts at the hideout spot a tail in its last minutes, in time to send thugs from home or call allies who live there, and near its home town half the crew at home rides out for a run. Escorts ride with the best guns from home, and a bust or an arrest takes every one. See the Convoys panel on the Travel page.',
-  );
+  await prisma.gameNews.deleteMany({ where: { roundId: publicRound.id, title: { in: ['0.5.0-B ON THE ROAD', '0.5.0-C HIGH MARKET & RISK', '0.5.0-D MOVING HOUSE', '0.5.0-E CONVOYS', '0.5.0 TRAVEL'] } } });
+  await seedReleaseNews(publicRound.id, now);
 
   if (shouldSeedRivals) {
     const seeded = await seedDevBots(prisma, publicRound, CURRENT_RULESET, new Date(now.getTime() + 1_000), DEV_TEST_RIVALS, { activeAccounts: true });

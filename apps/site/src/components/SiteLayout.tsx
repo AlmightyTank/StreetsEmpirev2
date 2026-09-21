@@ -39,7 +39,7 @@ const pageMeta = (pathname: string): { title: string; description: string; noind
     beta: { title: 'Beta', description: 'Information about the separate StreetsEmpire beta testing environment.', noindex: true },
     status: { title: 'Status', description: 'Current StreetsEmpire public API and database service health.' },
     support: { title: 'Support', description: 'How StreetsEmpire plans to support hosting and development without pay-to-win.' },
-    about: { title: 'About', description: 'About the StreetsEmpire project, its seasonal design and old-school browser-game inspiration.' },
+    about: { title: 'About', description: 'About the StreetsEmpire project, its seasonal design and competitive browser-game inspiration.' },
     search: { title: 'Search', description: 'Search public StreetsEmpire players, alliances, seasons, news and cities.', noindex: true },
   };
   return map[segment] ?? {
@@ -73,6 +73,14 @@ function SiteNavLink({ to, label }: { to: string; label: string }) {
     >
       {label}
     </NavLink>
+  );
+}
+
+function SiteLogoMark() {
+  return (
+    <span className="site-brand__mark" aria-hidden="true">
+      <img src="/icons/icon-maskable-512.png" alt="" />
+    </span>
   );
 }
 
@@ -110,7 +118,7 @@ export function SiteLayout() {
       <header className="site-header">
         <div className="container site-header__bar">
           <Link className="site-brand" to="/" aria-label="StreetsEmpire home">
-            <span className="site-brand__mark">SE</span>
+            <SiteLogoMark />
             <span>STREETSEMPIRE</span>
           </Link>
 
@@ -148,10 +156,10 @@ export function SiteLayout() {
         <div className="container site-footer__grid">
           <div className="site-footer__brand">
             <Link className="site-brand" to="/">
-              <span className="site-brand__mark">SE</span>
+              <SiteLogoMark />
               <span>STREETSEMPIRE</span>
             </Link>
-            <p>Build a crew, run the streets, control turf and compete through seasonal games.</p>
+            <p>Build a crew, control turf and compete through seasons that reset power but preserve history.</p>
           </div>
 
           <div>
@@ -180,7 +188,7 @@ export function SiteLayout() {
 
         <div className="container site-footer__bottom">
           <span>StreetsEmpire</span>
-          <span>Public website · website-platform</span>
+          <span>Public archive · live season hub</span>
         </div>
       </footer>
     </div>

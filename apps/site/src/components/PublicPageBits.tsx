@@ -20,7 +20,14 @@ export function PublicError({ title = 'This page is temporarily unavailable.', c
   return (
     <div className="site-panel public-state">
       <strong>{title}</strong>
-      {children}
+      {children ?? (
+        <>
+          <p>Live public data could not be reached. Try refreshing, or jump into the live game while the public view catches up.</p>
+          <div className="archive-back">
+            <a className="btn btn-outline-light" href="https://play.streetsempire.dev">Play Now</a>
+          </div>
+        </>
+      )}
     </div>
   );
 }

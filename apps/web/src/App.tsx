@@ -22,7 +22,6 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
 import { HallOfFamePage } from './pages/HallOfFamePage.js';
 import { HideoutPage } from './pages/HideoutPage.js';
 import { JoinPage } from './pages/JoinPage.js';
-import { LandingPage } from './pages/LandingPage.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { NewsPage } from './pages/NewsPage.js';
 import { ProducePage } from './pages/ProducePage.js';
@@ -38,7 +37,7 @@ import { VerifyEmailPage } from './pages/VerifyEmailPage.js';
 import { StorePage, StoresIndexPage } from './pages/StorePage.js';
 import { TravelPage } from './pages/TravelPage.js';
 import { TurfPage } from './pages/TurfPage.js';
-import { useSession } from './stores/session.js';
+import { landingPath, useSession } from './stores/session.js';
 
 function RequireAccount({ children }: { children: ReactNode }) {
   const account = useSession((s) => s.account);
@@ -64,6 +63,15 @@ function LiveRound({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+function GameEntry() {
+  const account = useSession((s) => s.account);
+  const me = useSession((s) => s.me);
+  const profileSettings = useSession((s) => s.profileSettings);
+
+  if (!account) return <LoginPage />;
+  return <Navigate to={landingPath(profileSettings.defaultLanding, Boolean(me))} replace />;
+}
+
 function Booting() {
   return (
     <div className="se-booting">
@@ -87,7 +95,7 @@ export function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<GameEntry />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
