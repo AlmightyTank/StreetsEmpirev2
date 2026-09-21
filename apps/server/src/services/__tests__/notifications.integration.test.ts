@@ -62,7 +62,7 @@ describe.runIf(process.env.NOTIFICATION_INTEGRATION === '1')('alert settings and
     const initial = await call(0, 'GET', '/settings');
     expect(initial.statusCode, initial.body).toBe(200);
     expect(initial.json()).toEqual({
-      categories: { attacks: false, turns: false, round: false, rank: false },
+      categories: { attacks: false, turns: false, round: false, rank: false, turf: false, alliance: false },
       channels: { discord: true, push: false },
       discordLinked: false,
       push: { available: true, vapidPublicKey: env.push.publicKey, devices: [] },
@@ -70,7 +70,7 @@ describe.runIf(process.env.NOTIFICATION_INTEGRATION === '1')('alert settings and
 
     const updated = await call(0, 'PUT', '/settings', { categories: { attacks: true, turns: true }, channels: { discord: false } });
     expect(updated.statusCode, updated.body).toBe(200);
-    expect(updated.json()).toMatchObject({ categories: { attacks: true, turns: true, round: false, rank: false }, channels: { discord: false, push: false } });
+    expect(updated.json()).toMatchObject({ categories: { attacks: true, turns: true, round: false, rank: false, turf: false, alliance: false }, channels: { discord: false, push: false } });
     expect((await call(0, 'PUT', '/settings', { categories: { weather: true } })).statusCode).toBe(400);
 
     const rejected = await call(0, 'POST', '/push/subscriptions', { endpoint: 'https://example.com/steal', keys });
