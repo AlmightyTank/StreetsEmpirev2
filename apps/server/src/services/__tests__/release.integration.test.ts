@@ -146,7 +146,20 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
       expect(response.statusCode, response.body).toBe(200);
 
       const body = response.json();
-      const serialized = JSON.stringify(body);
+      const keys = new Set<string>();
+      const visit = (value: unknown): void => {
+        if (Array.isArray(value)) {
+          value.forEach(visit);
+          return;
+        }
+        if (!value || typeof value !== 'object') return;
+        for (const [key, nested] of Object.entries(value)) {
+          keys.add(key);
+          visit(nested);
+        }
+      };
+      visit(body);
+
       for (const privateField of [
         'cashCents',
         'whores',
@@ -161,7 +174,7 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
         'raidProtectedUntil',
         'combatIntel',
       ]) {
-        expect(serialized).not.toContain(`"${privateField}"`);
+        expect(keys.has(privateField)).toBe(false);
       }
     }
 
