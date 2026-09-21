@@ -95,7 +95,7 @@ export function pushMessageFor(payload: NotificationPayload): PushMessage {
       return {
         title: 'Your turf was taken',
         body: `${payload.event.attackerName} took ${payload.event.districtName} in ${payload.event.cityName}.`,
-        url: gameUrl('/game/cities'),
+        url: gameUrl('/game/turf'),
         tag: `turf:${payload.event.id}`,
       };
     case 'alliance':
@@ -104,7 +104,7 @@ export function pushMessageFor(payload: NotificationPayload): PushMessage {
         body: payload.change === 'gained'
           ? `Your alliance took control of ${payload.event.cityName}.`
           : `Your alliance lost control of ${payload.event.cityName}.`,
-        url: gameUrl('/game/cities'),
+        url: gameUrl('/game/turf'),
         tag: `alliance:${payload.event.id}`,
       };
   }
