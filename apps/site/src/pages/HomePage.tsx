@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { formatNumber, type PublicOverviewDto } from '@streets/shared';
+import { formatCentsCompact, formatNumber, type PublicOverviewDto } from '@streets/shared';
 import { Link } from 'react-router-dom';
 import { publicSiteApi } from '../api/public.js';
 import {
@@ -21,6 +21,14 @@ const sections = [
 export function HomePage() {
   const [overview, setOverview] = useState<PublicOverviewDto | null>(null);
   const [overviewFailed, setOverviewFailed] = useState(false);
+  const currentGame = overview?.currentGame ?? null;
+  const seasonLabel = currentGame
+    ? currentGame.round.name
+    : overviewFailed
+      ? 'Live data unavailable'
+      : overview
+        ? 'Next season pending'
+        : 'Checking...';
 
   useEffect(() => {
     let active = true;
@@ -40,21 +48,36 @@ export function HomePage() {
   return (
     <>
       <section className="site-hero">
-        <div className="container">
-          <p className="site-kicker">Online crime strategy</p>
-          <h1>Build your crew. Control the streets. Build an empire.</h1>
-          <p className="site-lead">
-            StreetsEmpire is a seasonal browser strategy game about building a crew,
-            managing an operation, traveling between cities, fighting rivals and taking
-            control of the streets.
-          </p>
-          <div className="site-hero__actions">
-            <a className="btn btn-primary btn-lg" href="https://play.streetsempire.dev">
-              Play StreetsEmpire
-            </a>
-            <Link className="btn btn-outline-light btn-lg" to="/game">
-              Explore the Game
-            </Link>
+        <div className="container site-hero__layout">
+          <div>
+            <p className="site-kicker">Seasonal street strategy</p>
+            <h1>Build your crew. Control the streets. Build an empire.</h1>
+            <p className="site-lead">
+              StreetsEmpire is a competitive browser strategy game where every season
+              starts fresh, every turn matters and public history keeps the best players
+              on the record.
+            </p>
+            <div className="site-hero__actions">
+              <a className="btn btn-primary btn-lg" href="https://play.streetsempire.dev">
+                Play StreetsEmpire
+              </a>
+              <Link className="btn btn-outline-light btn-lg" to="/game">
+                Explore the Game
+              </Link>
+            </div>
+          </div>
+
+          <div className="site-hero__board" aria-label="StreetsEmpire season board preview">
+            <div className="site-panel__head">
+              <h2>Season Board</h2>
+              <span className="site-kicker">{currentGame ? currentGame.ruleset.version : overviewFailed ? 'Offline' : overview ? 'Between Games' : 'Live Data'}</span>
+            </div>
+            <div className="site-hero__board-body">
+              <div><span>Season</span><strong>{seasonLabel}</strong></div>
+              <div><span>Players</span><strong>{currentGame ? formatNumber(currentGame.stats.players) : '-'}</strong></div>
+              <div><span>Economy</span><strong>{currentGame ? formatCentsCompact(currentGame.stats.economyNetWorthCents) : '-'}</strong></div>
+              <div><span>Objective</span><strong>Own the leaderboard</strong></div>
+            </div>
           </div>
         </div>
       </section>
@@ -63,7 +86,7 @@ export function HomePage() {
         <div className="container site-strip__grid">
           <div><span>Public Hub</span><strong>streetsempire.dev</strong></div>
           <div><span>Live Game</span><strong>play.streetsempire.dev</strong></div>
-          <div><span>Test Server</span><strong>beta.streetsempire.dev</strong></div>
+          <div><span>Beta Server</span><strong>beta.streetsempire.dev</strong></div>
           <div><span>Community</span><strong>forum.streetsempire.dev</strong></div>
         </div>
       </section>
@@ -110,7 +133,7 @@ export function HomePage() {
                 <PublicGameStats game={overview.currentGame} />
                 <div className="public-game-panel__actions">
                   <Link className="btn btn-outline-light" to="/games/current">View Current Game</Link>
-                  <a className="btn btn-primary" href="https://play.streetsempire.dev">Join the Streets</a>
+                  <a className="btn btn-primary" href="https://play.streetsempire.dev">Play the Current Season</a>
                 </div>
               </div>
 
@@ -158,11 +181,11 @@ export function HomePage() {
           <div className="site-section__head">
             <div>
               <p className="site-kicker">The StreetsEmpire hub</p>
-              <h2>More than a login screen.</h2>
+              <h2>A living public record.</h2>
             </div>
             <p>
-              Follow the game, its world, its players and its history from one public
-              home without needing to be logged into the current season.
+              Scout the world before you join, follow the current leaders and dig through
+              completed seasons without needing a live account.
             </p>
           </div>
 

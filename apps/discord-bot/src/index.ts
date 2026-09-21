@@ -27,7 +27,7 @@ import { Cooldowns } from './lookup.js';
 import { managedRoles, parseForumGroupList } from './roles.js';
 import { startPoller } from './schedule.js';
 import { RoleSync } from './sync.js';
-import { startPushServer } from './push-server.js';
+import { startOptionalPushServer } from './push-server.js';
 
 const config = loadConfig();
 const api = createGameApi({ baseUrl: config.GAME_API_URL, token: config.DISCORD_BOT_API_TOKEN });
@@ -278,7 +278,7 @@ client.once(Events.ClientReady, async (ready) => {
     startPoller('Admin role resync', config.DISCORD_ALERTS_MINUTES * 60_000, runAdminResync);
 
     if (config.DISCORD_BOT_LISTEN_PORT > 0) {
-      stopPushServer = await startPushServer({
+      stopPushServer = await startOptionalPushServer({
         host: config.DISCORD_BOT_LISTEN_HOST,
         port: config.DISCORD_BOT_LISTEN_PORT,
         token: config.DISCORD_BOT_API_TOKEN,

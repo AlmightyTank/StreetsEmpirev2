@@ -9,7 +9,7 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "concurrently -n server,web -c cyan,magenta \"npm:dev:server\" \"npm:dev:web\"",
+    "dev": "concurrently -n server,web,site -c cyan,magenta,green \"npm:dev:server\" \"npm:dev:web\" \"npm:dev:site\"",
     "dev:server": "npm run dev -w @streets/server",
     "dev:web": "npm run dev -w @streets/web",
     "dev:bot": "npm run dev -w @streets/discord-bot",

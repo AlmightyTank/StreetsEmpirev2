@@ -77,15 +77,15 @@ cp .env.example .env      # already done if .env exists
 npm run db:up             # postgres 16 on localhost:5433
 npm run db:migrate        # apply migrations
 npm run db:seed           # 8 cities, pinned older rounds, current Game #018 Travel / 0.5.0-F round
-npm run dev               # api on :3001, web on :5173
+npm run dev               # api on :3001, game web on :5173, public site on :5174
 ```
 
-Open <http://localhost:5173>, register a name, and enter Game #018 - Travel. New players start in New York and can send Low-Rider runs to all eight cities. The current development round uses `classic-og-v0.5-f`, so shared high markets, moving Pip supply, price events, road stops, sale Heat, arrests, moving house, convoys and loading up on your own city's market are all active. Default seeds no bot rivals; for local solo raid testing, run `npm run db:seed:dev-bots` to add active dev bots for cash raids, drug runs, ride theft, lures and drive-bys.
+Open <http://localhost:5173> for the playable game, or <http://localhost:5174> for the public website. Register a name in the game app and enter Game #018 - Travel. New players start in New York and can send Low-Rider runs to all eight cities. The current development round uses `classic-og-v0.5-f`, so shared high markets, moving Pip supply, price events, road stops, sale Heat, arrests, moving house, convoys and loading up on your own city's market are all active. Default seeds no bot rivals; for local solo raid testing, run `npm run db:seed:dev-bots` to add active dev bots for cash raids, drug runs, ride theft, lures and drive-bys.
 
 | Script | Does |
 | --- | --- |
-| `npm run dev` | API and web together |
-| `npm run dev:server` / `npm run dev:web` | one at a time |
+| `npm run dev` | API, playable game web, and public site together |
+| `npm run dev:server` / `npm run dev:web` / `npm run dev:site` | one at a time |
 | `npm test` | ruleset and engine tests |
 | `npm run typecheck` | every workspace |
 | `npm run db:studio` | Prisma Studio |
