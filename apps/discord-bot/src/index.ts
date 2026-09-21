@@ -12,6 +12,7 @@ import {
 import { commandData, handleAutocomplete, handleCommand, type CommandDeps } from './commands.js';
 import { loadConfig } from './config.js';
 import {
+  allianceAlertEmbed,
   attackAlertEmbed,
   battleFeedEmbed,
   crackdownFeedEmbed,
@@ -19,6 +20,7 @@ import {
   rankAlertEmbed,
   roundEventEmbed,
   territoryFeedEmbed,
+  turfAlertEmbed,
   turfFeedEmbed,
   turnReminderEmbed,
 } from './format.js';
@@ -119,6 +121,22 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
       await client.users.send(alert.discordId, { embeds: [rankAlertEmbed(alert)] });
     } catch (error) {
       console.warn(`Could not DM a rank alert to ${alert.discordId}:`, error instanceof Error ? error.message : error);
+    }
+  }
+
+  for (const alert of claimed.turfAlerts) {
+    try {
+      await client.users.send(alert.discordId, { embeds: [turfAlertEmbed(alert)] });
+    } catch (error) {
+      console.warn(`Could not DM a turf alert to ${alert.discordId}:`, error instanceof Error ? error.message : error);
+    }
+  }
+
+  for (const alert of claimed.allianceAlerts) {
+    try {
+      await client.users.send(alert.discordId, { embeds: [allianceAlertEmbed(alert)] });
+    } catch (error) {
+      console.warn(`Could not DM an alliance alert to ${alert.discordId}:`, error instanceof Error ? error.message : error);
     }
   }
 
