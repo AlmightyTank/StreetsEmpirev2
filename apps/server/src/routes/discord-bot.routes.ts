@@ -13,9 +13,13 @@ const playerQuery = z.union([
   z.object({ discordId: snowflake }).strict(),
   z.object({ name: z.string().trim().min(1).max(40) }).strict(),
 ]);
+const allianceQuery = z.union([
+  z.object({ discordId: snowflake }).strict(),
+  z.object({ tag: z.string().trim().regex(/^[A-Za-z0-9]{2,5}$/) }).strict(),
+]);
 const memberQuery = z.object({ discordId: snowflake }).strict();
 const leaderboardQuery = z.object({ stat: z.enum(['raids', 'defenses', 'drive-bys', 'recon', 'rides', 'lures']) }).strict();
-const alertSchema = z.object({ discordId: snowflake, type: z.enum(['attacks', 'round', 'rank', 'turns']), enabled: z.boolean() }).strict();
+const alertSchema = z.object({ discordId: snowflake, type: z.enum(['attacks', 'round', 'rank', 'turns', 'turf', 'alliance']), enabled: z.boolean() }).strict();
 const newsSchema = z.object({
   discordId: snowflake,
   title: z.string().trim().min(1).max(120),
@@ -49,6 +53,14 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/badges', async (request) => ({
     player: await DiscordBotService.badges(fastify.prisma, parseBody(playerQuery, request.query)),
   }));
+
+  fastify.get('/turf', async (request) => {
+    const { city } = parseBody(z.object({ city: citySlug }).strict(), request.query);
+    return DiscordBotService.turfCity(fastify.prisma, city);
+  });
+
+  fastify.get('/alliance', async (request) =>
+    DiscordBotService.allianceCard(fastify.prisma, parseBody(allianceQuery, request.query)));
 
   fastify.get('/history', async (request) => DiscordBotService.history(fastify.prisma, parseBody(playerQuery, request.query)));
 
