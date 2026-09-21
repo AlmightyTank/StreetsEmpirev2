@@ -128,7 +128,8 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.4.0-E products season
     const defended = Math.ceil(30 * rules.combatSupply.productPerThugPerFight);
     expect(report.yourSupply).toMatchObject({ job: 'RAID', consumed: { ECSTASY: burn } });
     const battle = await app.prisma.raidBattle.findFirstOrThrow({ where: { attackerId: (await player(0)).id }, orderBy: { createdAt: 'desc' } });
-    expect((battle.defenderReport as unknown as BattleReportDto).yourSupply).toMatchObject({ job: 'DEFENSE', consumed: { METH: defended } });
+    const defenderReport = battle.defenderReport as unknown as BattleReportDto;
+    expect(defenderReport.yourSupply).toMatchObject({ job: 'DEFENSE', consumed: { METH: defended } });
 
     const afterA = await stock(0);
     const afterD = await stock(1);
@@ -137,7 +138,18 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.4.0-E products season
       const burnedA = key === 'ECSTASY' ? burn : 0;
       const burnedD = key === 'METH' ? defended : 0;
       expect((afterA[key]! - beforeA[key]! + burnedA) + (afterD[key]! - beforeD[key]! + burnedD)).toBe(0);
+
+      const attackerDelta = afterA[key]! - beforeA[key]!;
+      const defenderDelta = afterD[key]! - beforeD[key]!;
+      const attackerLine = report.inventoryChanges?.find((line) => line.product === key);
+      const defenderLine = defenderReport.inventoryChanges?.find((line) => line.product === key);
+      if (attackerDelta !== 0) expect(attackerLine).toMatchObject({ change: attackerDelta, after: afterA[key] });
+      else expect(attackerLine).toBeUndefined();
+      if (defenderDelta !== 0) expect(defenderLine).toMatchObject({ change: defenderDelta, after: afterD[key] });
+      else expect(defenderLine).toBeUndefined();
     }
+    expect(report.inventoryChanges?.find((line) => line.product === 'ECSTASY')?.used).toBe(burn);
+    expect(defenderReport.inventoryChanges?.find((line) => line.product === 'METH')?.used).toBe(defended);
     await worthIsExact(0);
     await worthIsExact(1);
 
