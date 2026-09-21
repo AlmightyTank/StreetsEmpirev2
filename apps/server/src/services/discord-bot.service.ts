@@ -533,7 +533,8 @@ export const DiscordBotService = {
 
     const byCity = new Map<string, { slug: string; name: string; rows: typeof allTurf }>();
     for (const row of allTurf) {
-      const entry = byCity.get(row.city.slug) ?? { slug: row.city.slug, name: row.city.name, rows: [] };
+      const entry: { slug: string; name: string; rows: typeof allTurf } =
+        byCity.get(row.city.slug) ?? { slug: row.city.slug, name: row.city.name, rows: [] };
       entry.rows.push(row);
       byCity.set(row.city.slug, entry);
     }
