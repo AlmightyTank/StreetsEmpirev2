@@ -1,0 +1,96 @@
+# StreetsEmpire public-platform Nginx reference
+#
+# Checkout:
+#   /opt/streets-empire/StreetsEmpirev2
+#
+# API:
+#   127.0.0.1:3001
+#
+# Use this as a reference for /etc/nginx/sites-available/streets-empire.
+# Let Certbot manage the listen 443/certificate directives on the VPS.
+
+# Public website: static site + deliberately public API only.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name streetsempire.dev www.streetsempire.dev;
+
+    root /opt/streets-empire/StreetsEmpirev2/apps/site/dist;
+    index index.html;
+
+    # Hashed Vite assets can be cached indefinitely.
+    location /assets/ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # The public host is intentionally NOT a gateway to authenticated game APIs.
+    location /api/public/ {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /api/ {
+        return 404;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+
+# Live game: static game client + full API.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name play.streetsempire.dev;
+
+    root /opt/streets-empire/StreetsEmpirev2/apps/web/dist;
+    index index.html;
+
+    location /assets/ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Web Push service worker must refresh instead of living in a long cache.
+    location = /sw.js {
+        try_files $uri =404;
+        add_header Cache-Control "no-cache";
+    }
+
+    location = /manifest.webmanifest {
+        try_files $uri =404;
+        default_type application/manifest+json;
+        add_header Cache-Control "no-cache";
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+
+# After DNS resolves, let Certbot add HTTPS to each hostname:
+#
+#   sudo certbot --nginx -d streetsempire.dev -d www.streetsempire.dev
+#   sudo certbot --nginx -d play.streetsempire.dev
+#
+# Always validate before reload:
+#
+#   sudo nginx -t
+#   sudo systemctl reload nginx
