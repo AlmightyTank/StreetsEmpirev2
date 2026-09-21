@@ -1342,12 +1342,15 @@ model TurfPush {
   alliesCalledAt DateTime?
   /// Public turf-feed claim, parallel to RaidBattle.discordPostedAt.
   discordPostedAt DateTime?
+  /// Private notification collection is independent from the public feed.
+  alertsCollectedAt DateTime?
   backups      TurfPushBackup[]
 
   @@unique([attackerId, actionId])
   @@index([turfId, status])
   @@index([roundId, status, landsAt])
   @@index([roundId, captured, settledAt(sort: Desc)])
+  @@index([alertsCollectedAt, settledAt])
   @@index([attackerId, turfId, startedAt(sort: Desc)])
   @@index([attackerId, captured, settledAt(sort: Desc)])
   @@index([defenderAllianceId, attackerId, captured, settledAt(sort: Desc)])
@@ -1433,11 +1436,13 @@ model TurfControlEvent {
   nextBlocksHeld     Int @default(0)
   blocksTotal        Int
 
-  happenedAt       DateTime
-  discordPostedAt  DateTime?
+  happenedAt        DateTime
+  discordPostedAt   DateTime?
+  alertsCollectedAt DateTime?
 
   @@index([roundId, happenedAt(sort: Desc)])
   @@index([discordPostedAt, happenedAt])
+  @@index([alertsCollectedAt, happenedAt])
 }
 
 /// 0.6.0-F. One seeded late-round Federal sweep. The target and clock are fixed per
