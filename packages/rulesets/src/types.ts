@@ -235,6 +235,14 @@ export interface District {
 
 export type Districts = { readonly [K in DistrictKey]: District };
 
+/** One weighted product that can turn up while a crew works a block. */
+export interface StreetFindRule {
+  readonly product: string;
+  readonly weight: number;
+  readonly min: number;
+  readonly max: number;
+}
+
 /**
  * Manual 3.1. One action: the crew works a block while you pick people up, so
  * these rules cover both the recruiting and the earning.
@@ -279,8 +287,11 @@ export interface ScoutingRules {
   readonly produceDistrict: DistrictKey;
   readonly finds: {
     readonly chancePerTurn: number;
+    /** Legacy single-product find range. Used when no district product table is present. */
     readonly crackMin: number;
     readonly crackMax: number;
+    /** Product rounds can give each district its own weighted street-find mix. */
+    readonly productsByDistrict?: Readonly<Partial<Record<DistrictKey, readonly StreetFindRule[]>>>;
   };
 }
 
