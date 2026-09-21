@@ -91,6 +91,22 @@ export function pushMessageFor(payload: NotificationPayload): PushMessage {
           : rank ? `You finished #${rank} nationally.` : 'See the final rankings.';
       return { title, body, url: event.url, tag: `round:${event.type}` };
     }
+    case 'turf':
+      return {
+        title: 'Your turf was taken',
+        body: `${payload.event.attackerName} took ${payload.event.districtName} in ${payload.event.cityName}.`,
+        url: gameUrl('/game/cities'),
+        tag: `turf:${payload.event.id}`,
+      };
+    case 'alliance':
+      return {
+        title: `[${payload.allianceTag}] ${payload.change === 'gained' ? 'took' : 'lost'} city control`,
+        body: payload.change === 'gained'
+          ? `Your alliance took control of ${payload.event.cityName}.`
+          : `Your alliance lost control of ${payload.event.cityName}.`,
+        url: gameUrl('/game/cities'),
+        tag: `alliance:${payload.event.id}`,
+      };
   }
 }
 
