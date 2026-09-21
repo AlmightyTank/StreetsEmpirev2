@@ -308,10 +308,11 @@ Recon reports, protection clocks, convoy intelligence, or raw battle calculation
 - [x] Add post-cutover public-platform smoke test.
 - [x] Add launch, verification and rollback checklist.
 - [ ] Enable GitHub branch protection/ruleset for `main` in repository settings.
-- [ ] Run the final workflow successfully and complete the VPS cutover checklist.
+- [x] Run the final workflow successfully.
+- [ ] Complete the VPS cutover checklist.
 
 ## Phase 28 release gate
 
-Application work is complete when CI is green. Production launch is complete only after
+Application work is now CI-green. Production launch is complete only after
 `docs/WEBSITE-LAUNCH-CHECKLIST.md` is performed against the VPS and
 `scripts/ops/check-public-platform.sh` passes on the real hostnames.
