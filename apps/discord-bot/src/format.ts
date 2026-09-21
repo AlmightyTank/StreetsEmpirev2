@@ -192,7 +192,7 @@ export function allianceEmbed(card: AllianceCard, origin: string): APIEmbed {
       },
       {
         name: 'Turf',
-        value: `${card.turf.blocksHeld} blocks · ${card.turf.citiesControlled} cities controlled`,
+        value: `${card.turf.blocksHeld} block${card.turf.blocksHeld === 1 ? '' : 's'} · ${card.turf.citiesControlled} ${card.turf.citiesControlled === 1 ? 'city' : 'cities'} controlled`,
         inline: true,
       },
       { name: 'Roster', value: roster.length ? truncate(roster.join('\n'), 1024) : 'No active members.' },
