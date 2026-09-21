@@ -3,7 +3,9 @@ import { SiteLayout } from './components/SiteLayout.js';
 import { HomePage } from './pages/HomePage.js';
 import {
   AllianceDetailPage,
+  CityDetailPage,
   GameDetailPage,
+  GuideDetailPage,
   NewsDetailPage,
   NotFoundPage,
   PlayerDetailPage,
@@ -122,7 +124,9 @@ export function App() {
         <Route index element={<HomePage />} />
         <Route path="game" element={<SectionPage {...sectionPages.game} />} />
         <Route path="guide" element={<SectionPage {...sectionPages.guide} />} />
+        <Route path="guide/:topic" element={<GuideDetailPage />} />
         <Route path="cities" element={<SectionPage {...sectionPages.cities} />} />
+        <Route path="cities/:citySlug" element={<CityDetailPage />} />
         <Route path="turf" element={<SectionPage {...sectionPages.turf} />} />
         <Route path="games" element={<SectionPage {...sectionPages.games} />} />
         <Route path="games/current" element={<SectionPage {...sectionPages.currentGame} />} />
