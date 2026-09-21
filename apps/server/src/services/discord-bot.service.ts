@@ -164,7 +164,7 @@ async function publicProfile(prisma: PrismaClient, query: PlayerQuery) {
   return { round, profile };
 }
 
-type AlertRow = { attacksEnabled: boolean; roundEnabled: boolean; rankEnabled: boolean; turnsEnabled: boolean };
+type AlertRow = { attacksEnabled: boolean; roundEnabled: boolean; rankEnabled: boolean; turnsEnabled: boolean; turfEnabled: boolean; allianceEnabled: boolean };
 
 function alertSettingsDto(
   row: AlertRow | null,
@@ -177,6 +177,8 @@ function alertSettingsDto(
       round: row?.roundEnabled ?? false,
       rank: row?.rankEnabled ?? false,
       turns: row?.turnsEnabled ?? false,
+      turf: row?.turfEnabled ?? false,
+      alliance: row?.allianceEnabled ?? false,
     },
     roundName: round?.name ?? null,
     current,
