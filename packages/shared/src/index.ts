@@ -9,4 +9,5 @@ export * from './types/forum.js';
 export * from './types/combat.js';
 export * from './types/alliance.js';
 export * from './types/playing-together.js';
+export * from './types/hideout-v2.js';
 export * from './money.js';
