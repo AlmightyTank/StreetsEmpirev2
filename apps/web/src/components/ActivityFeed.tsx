@@ -10,6 +10,17 @@ function str(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
 
+function productFindSummary(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((row) => {
+    if (!row || typeof row !== 'object') return [];
+    const found = row as Record<string, unknown>;
+    const quantity = num(found.quantity);
+    const name = str(found.name, str(found.key, 'product').toLowerCase());
+    return quantity > 0 ? [`+${formatNumber(quantity)} ${name} found`] : [];
+  });
+}
+
 /** The opponent as the feed names them: "[WC] Iron Maya", or just the name for solo players and older entries. */
 function opponent(p: Record<string, unknown>, fallback = ''): string {
   const name = str(p.opponent, fallback);
@@ -106,11 +117,13 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       };
 
     case 'SCOUT': {
+      const mixedFinds = productFindSummary(p.productsFound);
       const found = [
         num(p.cashCents) ? `+${formatCents(num(p.cashCents))}` : null,
         num(p.whores) ? `+${formatNumber(num(p.whores))} whores` : null,
         num(p.thugs) ? `+${formatNumber(num(p.thugs))} thugs` : null,
-        num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} ${crackWord} found` : null,
+        ...mixedFinds,
+        !mixedFinds.length && num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} ${crackWord} found` : null,
         num(p.whoresLeft) ? `${num(p.whoresLeft)} whores walked` : null,
         num(p.thugsLeft) ? `${num(p.thugsLeft)} thugs walked` : null,
         p.busted ? `BUSTED, fined ${formatCents(num(p.fineCents))}` : null,
@@ -139,6 +152,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     case 'PRODUCE_CRACK': {
       const detail = [
         num(p.product ?? p.crack) ? `+${formatNumber(num(p.product ?? p.crack))} ${str(p.productName, 'product')}` : null,
+        ...productFindSummary(p.productsFound),
         num(p.cashCents) ? `+${formatCents(num(p.cashCents))}` : null,
         num(p.ingredientCents) ? `-${formatCents(num(p.ingredientCents))} ingredients` : null,
         p.busted ? `BUSTED, fined ${formatCents(num(p.fineCents))}` : null,

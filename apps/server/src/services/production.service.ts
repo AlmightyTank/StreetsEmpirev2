@@ -5,7 +5,7 @@ import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { HeatService } from './heat.service.js';
 import { hideoutBackOfficeBonusCents, hideoutWorkshopBonusCrack } from './hideout.service.js';
-import { CRACK, ProductInventoryService } from './product-inventory.service.js';
+import { CRACK, ProductInventoryService, streetProductFinds } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 
 export interface ProduceInput {
@@ -113,6 +113,17 @@ export const ProductionService = {
           payoutPercent: current.payoutPercent,
           rng,
         });
+        const productsFound = streetProductFinds(
+          ruleset,
+          player.city.slug,
+          outcome.crackFound,
+          rng ?? Math.random,
+        );
+        const crackFound = productsFound.find((row) => row.key === CRACK)?.quantity ?? 0;
+        const otherFound = Object.fromEntries(
+          productsFound.filter((row) => row.key !== CRACK).map((row) => [row.key, row.quantity]),
+        );
+
         const hideoutBonusCents = hideoutBackOfficeBonusCents(outcome.pimpTakeCents, ruleset, current);
         const pimpTakeCents = outcome.pimpTakeCents + hideoutBonusCents;
         const hideoutBonusProduct = hideoutWorkshopBonusCrack(outcome.crackProduced, ruleset, current);
@@ -122,6 +133,9 @@ export const ProductionService = {
         const hideoutBonusCrack = cookingCrack ? hideoutBonusProduct : 0;
         if (!cookingCrack && productProduced > 0) {
           await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, { [recipe.product]: productProduced });
+        }
+        if (Object.keys(otherFound).length) {
+          await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, otherFound);
         }
 
         const worked = {
@@ -148,7 +162,7 @@ export const ProductionService = {
             crackProduced -
             outcome.consumption.crack -
             (cook?.consumed.CRACK ?? 0) +
-            outcome.crackFound,
+            crackFound,
           condoms: current.condoms - outcome.consumption.condoms,
           medicine: current.medicine - outcome.infections.medicineUsed,
           beer: current.beer - outcome.consumption.beer,
@@ -191,7 +205,8 @@ export const ProductionService = {
           hideoutBonusCents: Number(hideoutBonusCents),
           payoutPercent: current.payoutPercent,
 
-          crackFound: outcome.crackFound,
+          crackFound,
+          ...(ruleset.productEconomy ? { productsFound } : {}),
           condomsUsed: outcome.consumption.condoms,
           crackUsed: outcome.consumption.crack,
           condomsMissing: outcome.shortages.condoms,
@@ -217,7 +232,8 @@ export const ProductionService = {
               ingredientCents: Number(outcome.ingredientCents),
               cashCents: Number(pimpTakeCents),
               hideoutBonusCents: Number(hideoutBonusCents),
-              crackFound: outcome.crackFound,
+              crackFound,
+              ...(ruleset.productEconomy ? { productsFound: productsFound.map((row) => ({ key: row.key, name: row.name, quantity: row.quantity })) } : {}),
               whoresLeft: outcome.departures.whores,
               thugsLeft: outcome.departures.thugs,
               infected: outcome.infections.infected,

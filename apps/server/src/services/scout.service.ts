@@ -6,6 +6,7 @@ import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { HeatService } from './heat.service.js';
 import { hideoutBackOfficeBonusCents } from './hideout.service.js';
+import { CRACK, ProductInventoryService, streetProductFinds } from './product-inventory.service.js';
 import { TurfService } from './turf.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 
@@ -150,6 +151,19 @@ export const ScoutService = {
           payoutPercent: current.payoutPercent,
           rng,
         });
+        const productsFound = streetProductFinds(
+          ruleset,
+          player.city.slug,
+          outcome.crackFound,
+          rng ?? Math.random,
+        );
+        const crackFound = productsFound.find((row) => row.key === CRACK)?.quantity ?? 0;
+        const otherFound = Object.fromEntries(
+          productsFound.filter((row) => row.key !== CRACK).map((row) => [row.key, row.quantity]),
+        );
+        if (Object.keys(otherFound).length) {
+          await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, otherFound);
+        }
         const turf = await TurfService.scoutEconomy(tx, {
           roundPlayerId,
           accountId: player.accountId,
@@ -189,7 +203,7 @@ export const ScoutService = {
 
           condoms: current.condoms - outcome.consumption.condoms,
           medicine: current.medicine - outcome.infections.medicineUsed,
-          crack: current.crack - outcome.consumption.crack + outcome.crackFound,
+          crack: current.crack - outcome.consumption.crack + crackFound,
           beer: current.beer - outcome.consumption.beer,
         };
 
@@ -223,7 +237,8 @@ export const ScoutService = {
           hideoutBonusCents: Number(hideoutBonusCents),
           payoutPercent: current.payoutPercent,
 
-          crackFound: outcome.crackFound,
+          crackFound,
+          ...(ruleset.productEconomy ? { productsFound } : {}),
           condomsUsed: outcome.consumption.condoms,
           crackUsed: outcome.consumption.crack,
           beerUsed: outcome.consumption.beer,
@@ -261,7 +276,8 @@ export const ScoutService = {
               thugs: outcome.thugsRecruited,
               cashCents: Number(pimpTakeCents),
               hideoutBonusCents: Number(hideoutBonusCents),
-              crackFound: outcome.crackFound,
+              crackFound,
+              ...(ruleset.productEconomy ? { productsFound: productsFound.map((row) => ({ key: row.key, name: row.name, quantity: row.quantity })) } : {}),
               whoresLeft: outcome.departures.whores,
               thugsLeft: outcome.departures.thugs,
               infected: outcome.infections.infected,
