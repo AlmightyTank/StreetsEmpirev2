@@ -247,7 +247,7 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
     expect(publicPlayer.player.publicPimpId).toBe(publicPimpId);
     expect(publicPlayer.career.roundsPlayed).toBe(1);
     expect(publicPlayer.career.roundWins).toBe(1);
-    expect(publicPlayer.career.seasons[0].round.slug).toBe(archiveSlug);
+    expect(publicPlayer.career.seasons[0]?.round.slug).toBe(archiveSlug);
 
     const missingArchive = await app.inject({ method: 'GET', url: '/api/public/games/not-a-real-season' });
     expect(missingArchive.statusCode).toBe(404);
