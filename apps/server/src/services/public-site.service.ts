@@ -156,7 +156,7 @@ export const PublicSiteService = {
       stats: {
         players: playerCount,
         alliances: allianceCount,
-        cities: cityCount,
+        cities: ruleset.cities ? Object.keys(ruleset.cities).length : cityCount,
         turfBlocksHeld,
         turfBattles,
         economyNetWorthCents: Number(economy._sum.netWorthCents ?? 0n),
