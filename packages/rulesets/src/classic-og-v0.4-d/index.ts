@@ -58,6 +58,56 @@ export const classicOgV04D = {
   ...classicOgV04C,
   meta: { id: 'classic-og-v0.4-d', version: '0.4.0-D', name: 'Classic OG - Product Economy' },
   products,
+  scouting: {
+    ...classicOgV04C.scouting,
+    finds: {
+      ...classicOgV04C.scouting.finds,
+      // Finds keep roughly the old $10-ish average liquidation value. Expensive
+      // product therefore turns up in ones; cheap product can come home by the handful.
+      productsByDistrict: {
+        CASINO: [
+          { product: 'COCAINE', weight: 30, min: 1, max: 1 },
+          { product: 'ECSTASY', weight: 30, min: 1, max: 1 },
+          { product: 'WEED', weight: 15, min: 2, max: 6 },
+          { product: 'CRACK', weight: 10, min: 2, max: 6 },
+          { product: 'HEROIN', weight: 10, min: 1, max: 3 },
+          { product: 'METH', weight: 5, min: 1, max: 3 },
+        ],
+        NIGHTCLUB: [
+          { product: 'ECSTASY', weight: 35, min: 1, max: 1 },
+          { product: 'COCAINE', weight: 20, min: 1, max: 1 },
+          { product: 'WEED', weight: 15, min: 2, max: 6 },
+          { product: 'CRACK', weight: 10, min: 2, max: 6 },
+          { product: 'METH', weight: 10, min: 1, max: 3 },
+          { product: 'HEROIN', weight: 10, min: 1, max: 3 },
+        ],
+        LOW_RENT: [
+          { product: 'WEED', weight: 25, min: 2, max: 6 },
+          { product: 'CRACK', weight: 30, min: 2, max: 6 },
+          { product: 'METH', weight: 20, min: 1, max: 3 },
+          { product: 'HEROIN', weight: 10, min: 1, max: 3 },
+          { product: 'ECSTASY', weight: 10, min: 1, max: 1 },
+          { product: 'COCAINE', weight: 5, min: 1, max: 1 },
+        ],
+        URBAN_GHETTO: [
+          { product: 'CRACK', weight: 30, min: 2, max: 6 },
+          { product: 'METH', weight: 25, min: 1, max: 3 },
+          { product: 'HEROIN', weight: 20, min: 1, max: 3 },
+          { product: 'WEED', weight: 15, min: 2, max: 6 },
+          { product: 'COCAINE', weight: 5, min: 1, max: 1 },
+          { product: 'ECSTASY', weight: 5, min: 1, max: 1 },
+        ],
+        WINO_SLUMS: [
+          { product: 'CRACK', weight: 35, min: 2, max: 6 },
+          { product: 'WEED', weight: 25, min: 2, max: 6 },
+          { product: 'HEROIN', weight: 20, min: 1, max: 3 },
+          { product: 'METH', weight: 15, min: 1, max: 3 },
+          { product: 'ECSTASY', weight: 3, min: 1, max: 1 },
+          { product: 'COCAINE', weight: 2, min: 1, max: 1 },
+        ],
+      },
+    },
+  },
   productEconomy: {
     intel: { lightBelowPerWhore: 1, heavyFromPerWhore: 5 },
   },
