@@ -218,7 +218,7 @@ async function standings(db: Db | PrismaClient, roundId: string): Promise<{ alli
   return { alliances: order.map((standing) => alliances.find((alliance) => alliance.id === standing.allianceId)!), byId: sorted };
 }
 
-async function detail(db: Db | PrismaClient, alliance: Alliance, standing: Standing, rules: AllianceRules, viewer: Pick<RoundPlayer, 'id' | 'allianceId'>): Promise<AllianceDetailDto> {
+async function detail(db: Db | PrismaClient, alliance: Alliance, standing: Standing, rules: AllianceRules, viewer: Pick<RoundPlayer, 'id' | 'allianceId'> | null): Promise<AllianceDetailDto> {
   const members = await db.roundPlayer.findMany({
     where: { allianceId: alliance.id, account: { isActive: true } },
     orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
@@ -241,11 +241,11 @@ async function detail(db: Db | PrismaClient, alliance: Alliance, standing: Stand
       netWorthCents: Number(member.netWorthCents),
       nationalRank: ranks[index]! + 1,
       isLeader: member.id === alliance.leaderId,
-      isYou: member.id === viewer.id,
+      isYou: viewer ? member.id === viewer.id : false,
       joinedAt: (member.allianceJoinedAt ?? alliance.createdAt).toISOString(),
     })),
     foundedAt: alliance.createdAt.toISOString(),
-    isYours: viewer.allianceId === alliance.id,
+    isYours: viewer ? viewer.allianceId === alliance.id : false,
     forumUrl: alliance.forumDiscussionId ? forumDiscussionUrl(alliance.forumDiscussionId) : null,
   };
 }
@@ -359,13 +359,22 @@ export const AllianceService = {
     };
   },
 
-  async publicDetail(prisma: PrismaClient, player: RoundPlayer & { round: Round }, tag: string): Promise<AllianceDetailDto> {
-    const { rules } = rulesFor(player.round);
+  async publicDetailForRound(
+    prisma: PrismaClient,
+    round: Round,
+    tag: string,
+    viewer: Pick<RoundPlayer, 'id' | 'allianceId'> | null = null,
+  ): Promise<AllianceDetailDto> {
+    const { rules } = rulesFor(round);
     if (!rules) throw AppError.notFound('ALLIANCE_NOT_FOUND', 'Alliances are not part of this round.');
-    const { alliances, byId } = await standings(prisma, player.roundId);
+    const { alliances, byId } = await standings(prisma, round.id);
     const alliance = alliances.find((row) => row.tagNormalized === tag.trim().toLowerCase());
     if (!alliance) throw AppError.notFound('ALLIANCE_NOT_FOUND', 'No alliance with that tag is running in this round.');
-    return detail(prisma, alliance, byId.get(alliance.id)!, rules, player);
+    return detail(prisma, alliance, byId.get(alliance.id)!, rules, viewer);
+  },
+
+  async publicDetail(prisma: PrismaClient, player: RoundPlayer & { round: Round }, tag: string): Promise<AllianceDetailDto> {
+    return AllianceService.publicDetailForRound(prisma, player.round, tag, player);
   },
 
   async create(prisma: PrismaClient, playerId: string, rawInput: unknown): Promise<MyAllianceDto> {

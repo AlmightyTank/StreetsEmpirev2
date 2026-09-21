@@ -137,6 +137,10 @@ model NotificationSettings {
   attacksEnabled   Boolean   @default(false)
   roundEnabled     Boolean   @default(false)
   rankEnabled      Boolean   @default(false)
+  turfEnabled      Boolean   @default(false)
+  turfEnabledAt    DateTime?
+  allianceEnabled  Boolean   @default(false)
+  allianceEnabledAt DateTime?
   rankRoundId      String?
   rankLastNational Int?
   /// Discord DMs; only delivered while Discord is linked.
@@ -160,7 +164,7 @@ model NotificationOutbox {
   accountId String
   account   Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
   channel   NotificationChannel
-  /// attacks | turns | round | rank
+  /// attacks | turns | round | rank | turf | alliance
   category  String
   /// The alert itself, without any channel address (see @streets/shared NotificationPayload).
   payload   Json
@@ -1338,12 +1342,15 @@ model TurfPush {
   alliesCalledAt DateTime?
   /// Public turf-feed claim, parallel to RaidBattle.discordPostedAt.
   discordPostedAt DateTime?
+  /// Private notification collection is independent from the public feed.
+  alertsCollectedAt DateTime?
   backups      TurfPushBackup[]
 
   @@unique([attackerId, actionId])
   @@index([turfId, status])
   @@index([roundId, status, landsAt])
   @@index([roundId, captured, settledAt(sort: Desc)])
+  @@index([alertsCollectedAt, settledAt])
   @@index([attackerId, turfId, startedAt(sort: Desc)])
   @@index([attackerId, captured, settledAt(sort: Desc)])
   @@index([defenderAllianceId, attackerId, captured, settledAt(sort: Desc)])
@@ -1429,11 +1436,13 @@ model TurfControlEvent {
   nextBlocksHeld     Int @default(0)
   blocksTotal        Int
 
-  happenedAt       DateTime
-  discordPostedAt  DateTime?
+  happenedAt        DateTime
+  discordPostedAt   DateTime?
+  alertsCollectedAt DateTime?
 
   @@index([roundId, happenedAt(sort: Desc)])
   @@index([discordPostedAt, happenedAt])
+  @@index([alertsCollectedAt, happenedAt])
 }
 
 /// 0.6.0-F. One seeded late-round Federal sweep. The target and clock are fixed per

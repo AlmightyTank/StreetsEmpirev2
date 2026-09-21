@@ -83,6 +83,8 @@ const notificationToggles = z.object({
   turns: z.boolean(),
   round: z.boolean(),
   rank: z.boolean(),
+  turf: z.boolean(),
+  alliance: z.boolean(),
 }).partial().strict();
 
 export const updateNotificationSettingsSchema = z.object({

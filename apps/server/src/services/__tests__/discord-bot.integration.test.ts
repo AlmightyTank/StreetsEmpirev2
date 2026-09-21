@@ -194,7 +194,7 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
     await setAlert(outsider.discordId, 'round', true);
     await setAlert(second.discordId, 'attacks', true);
     expect((await app.inject({ url: `/api/internal/discord/alerts?discordId=${second.discordId}`, headers: auth() })).json().alerts)
-      .toEqual({ attacks: true, round: false, rank: false, turns: false });
+      .toEqual({ attacks: true, round: false, rank: false, turns: false, turf: false, alliance: false });
 
     const [firstPlayer, secondPlayer] = await Promise.all([
       app.prisma.roundPlayer.findFirstOrThrow({ where: { accountId: first.id, roundId } }),
