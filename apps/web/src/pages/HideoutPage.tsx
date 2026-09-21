@@ -83,6 +83,7 @@ function RoomCard({
   );
 }
 
+/** Shows the current headquarters state and controls for seasonal room upgrades. */
 export function HideoutPage() {
   const me = useSession((s) => s.me);
   const action = useGameAction<HideoutUpgradeResult>();

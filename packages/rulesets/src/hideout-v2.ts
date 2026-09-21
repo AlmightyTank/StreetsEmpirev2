@@ -102,11 +102,12 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v0.7-a': CLASSIC_OG_V07A_HIDEOUT_V2,
 };
 
+/** Returns the v2 extension registered for a ruleset, or null when none is registered. */
 export function hideoutV2For(ruleset: Pick<Ruleset, 'meta'>): HideoutV2Rules | null {
   return HIDEOUT_V2_BY_RULESET_ID[ruleset.meta.id] ?? null;
 }
 
-/** Static validation used by tests and later balance/simulation gates. */
+/** Returns configuration problems for an opted-in v2 extension, or an empty list when none exist. */
 export function hideoutV2Problems(ruleset: Ruleset): string[] {
   const extension = hideoutV2For(ruleset);
   if (!extension) return [];

@@ -78,6 +78,7 @@ function requirementValue(key: HideoutRequirementKey, player: PlayerState): numb
   }
 }
 
+/** Evaluates a room level's configured requirements against the player's current progress. */
 function requirementsFor(
   room: HideoutRoomKey,
   targetLevel: number,
@@ -97,6 +98,7 @@ function requirementsFor(
   });
 }
 
+/** Summarizes unmet cash and progress requirements, or returns null when the upgrade is available. */
 function roomLockReason(
   nextCostCents: number,
   player: PlayerState,
@@ -114,6 +116,7 @@ function roomLockReason(
   return missing.length ? `Need ${missing.join('; ')}.` : null;
 }
 
+/** Exposes specialization choices without selecting one before branch persistence is available. */
 function specializationFor(
   room: HideoutRoomKey,
   ruleset: Ruleset,
@@ -127,6 +130,7 @@ function specializationFor(
   };
 }
 
+/** Builds a player's room status; throws when the room or its next-level price is invalid. */
 function toRoomDto(room: HideoutRoomKey, ruleset: Ruleset, player: PlayerState): HideoutRoomV2Dto {
   const rule = ruleset.hideout!.rooms[room];
   if (!rule) throw new RangeError(`Hideout room ${room} is not enabled in this ruleset.`);
@@ -159,6 +163,7 @@ function toRoomDto(room: HideoutRoomKey, ruleset: Ruleset, player: PlayerState):
   };
 }
 
+/** Builds player-specific Hideout status, including upgrade gates and specialization metadata. */
 export function hideoutCatalog(ruleset: Ruleset, player: PlayerState): HideoutV2Dto {
   const extension = hideoutV2For(ruleset);
   if (!ruleset.hideout) {
@@ -192,6 +197,7 @@ export function hideoutDefenseBonusPercent(ruleset: Ruleset, player: Pick<Player
   return (ruleset.hideout?.buffs.lookoutsDefenseBonusPercentPerLevel ?? 0) * player.hideoutLookoutsLevel;
 }
 
+/** Returns the Workshop bonus in whole product units, rounded down. */
 export function hideoutWorkshopBonusProduct(base: number, ruleset: Ruleset, player: Pick<PlayerState, HideoutField>): number {
   const percent = (ruleset.hideout?.buffs.workshopCrackBonusPercentPerLevel ?? 0) * player.hideoutWorkshopLevel;
   return Math.floor(base * percent / 100);
@@ -212,6 +218,7 @@ export const HideoutService = {
     return hideoutCatalog(ruleset, player);
   },
 
+  /** Buys the next room level after validating availability, progress requirements, and cash. */
   upgrade(
     prisma: PrismaClient,
     roundPlayerId: string,
