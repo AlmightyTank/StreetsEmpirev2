@@ -22,6 +22,7 @@ const weaponName = (key: string) => key === 'TEK9' ? 'Tek-9' : key === 'AK47' ? 
 const weaponsText = (weapons: Record<string, number>) => Object.entries(weapons).filter(([, count]) => count > 0).map(([key, count]) => `${formatNumber(count)} ${weaponName(key)}`).join(', ') || 'unarmed';
 
 const signedUnits = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatNumber(Math.abs(value))}`;
+const signedCents = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatCents(Math.abs(value))}`;
 
 function BattleInventoryRows({ report }: { report: BattleReportDto }) {
   if (report.inventoryChanges?.length) {
@@ -292,7 +293,7 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
       {report.yourSupply ? <Row label="Fight supply plan" value={`${supplySummary(report.yourSupply)} · ${supplyEffects(report.yourSupply)}`} /> : null}
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds ?? 0)} / ${formatNumber(report.opponentWounds ?? 0)}`} />
-      <Row label="Cash" value={`${report.cashChangeCents >= 0 ? '+' : '−'}${formatCents(Math.abs(report.cashChangeCents))} / ${formatCents(report.cashAfterCents)} left`} strong={report.cashChangeCents !== 0} />
+      <Row label="Cash" value={`${signedCents(report.cashChangeCents)} / ${formatCents(report.cashAfterCents)} left`} strong={report.cashChangeCents !== 0} />
       <BattleInventoryRows report={report} />
 
       <Row label="Turns spent / remaining" value={`${report.turnsSpent} / ${report.turnsAfter}`} />
