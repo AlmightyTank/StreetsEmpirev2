@@ -25,6 +25,8 @@ the [C implementation notes](docs/COMBAT-0.2.0-C.md), the [B implementation note
 [community/SSO forum plan](docs/COMMUNITY-SSO-FORUM.md), or run `npm run qa:combat`.
 Admins run seasons, moderation and disputes from the [admin runbook](docs/ADMIN-RUNBOOK.md).
 
+Forward roadmaps: [0.6.0 Turf](docs/ROADMAP-0.6.0.md), [0.7.0 Hideout](docs/ROADMAP-0.7.0.md), [0.8.0 Stores & Economy](docs/ROADMAP-0.8.0.md), [0.9.0 Community](docs/ROADMAP-0.9.0.md), [1.0.0 Launch & Hardening](docs/ROADMAP-1.0.0.md), and the [post-1.0 future roadmap](docs/ROADMAP-FUTURE.md).
+
 | Milestone | Scope | State |
 | --- | --- | --- |
 | **0.1.0-A** | monorepo, database, Prisma, Fastify, React, auth, ruleset loader, Round, RoundPlayer | **done** |
