@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  allianceEmbed,
   badgesEmbed,
   compareEmbed,
   crackdownFeedEmbed,
@@ -19,10 +20,11 @@ import {
   syncAllText,
   syncMemberText,
   territoryFeedEmbed,
+  turfCityEmbed,
   truncate,
   turnReminderEmbed,
 } from '../format.js';
-import type { BadgeCard, ProfileCard } from '../game-api.js';
+import type { AllianceCard, BadgeCard, ProfileCard, TurfCity } from '../game-api.js';
 
 const origin = 'https://streetsempire.dev';
 
@@ -133,6 +135,60 @@ describe('city rankings', () => {
     const embed = rankingsEmbed({ round: { name: 'Game #008', status: 'ACTIVE', endsAt: '' }, city: { slug: 'detroit', name: 'Detroit' }, entries: [] }, origin);
     expect(embed.title).toBe('Game #008 · Detroit · Top 10');
     expect(embed.description).toBe('Nobody in Detroit has joined this round yet.');
+  });
+});
+
+describe('turf and alliance embeds', () => {
+  it('shows public block holders and city control without hidden turf intel', () => {
+    const turf: TurfCity = {
+      roundName: 'Game #008',
+      city: { slug: 'detroit', name: 'Detroit' },
+      control: { alliance: { name: 'Aces', tag: 'ACE' }, blocksHeld: 3, blocksTotal: 5, share: 0.6 },
+      blocks: [
+        {
+          district: 'CASINO', districtName: 'Casino Strip',
+          holder: { publicPimpId: 7, displayName: 'King_Pin', alliance: { name: 'Aces', tag: 'ACE' } },
+          cornerThugs: 12, cornerGuns: 10, localsThugs: 0, vacant: false,
+          heldSince: '2026-09-21T12:00:00.000Z', shieldUntil: null,
+        },
+        {
+          district: 'DOWNTOWN', districtName: 'Downtown',
+          holder: null, cornerThugs: 0, cornerGuns: 0, localsThugs: 18, vacant: false,
+          heldSince: null, shieldUntil: null,
+        },
+      ],
+    };
+    const embed = turfCityEmbed(turf, origin);
+    expect(embed.description).toContain('[ACE] Aces controls 3/5 blocks.');
+    expect(embed.fields![0]!.value).toContain('[ACE] King\\_Pin (#7)');
+    expect(embed.fields![0]!.value).toContain('12 thugs · 10 guns');
+    expect(embed.fields![1]!.value).toContain('Locals · 18 thugs');
+  });
+
+  it('shows alliance standing, roster and current territory', () => {
+    const alliance: AllianceCard = {
+      roundName: 'Game #008',
+      alliance: {
+        name: 'Aces', tag: 'ACE', rank: 2, combinedNetWorthCents: 1_250_000_00,
+        memberCount: 2, maxMembers: 5,
+        leader: { publicPimpId: 7, displayName: 'King_Pin' },
+        members: [
+          { publicPimpId: 7, displayName: 'King_Pin', netWorthCents: 750_000_00, nationalRank: 3, isLeader: true, isYou: false, joinedAt: '2026-09-20T00:00:00.000Z' },
+          { publicPimpId: 8, displayName: 'Ace Two', netWorthCents: 500_000_00, nationalRank: 7, isLeader: false, isYou: false, joinedAt: '2026-09-20T00:00:00.000Z' },
+        ],
+        foundedAt: '2026-09-20T00:00:00.000Z', isYours: false, forumUrl: null,
+      },
+      turf: {
+        blocksHeld: 4, citiesControlled: 1,
+        cities: [{ slug: 'detroit', name: 'Detroit', blocksHeld: 3, blocksTotal: 5, controls: true }],
+        recent: [],
+      },
+    };
+    const embed = allianceEmbed(alliance, origin);
+    expect(embed.title).toBe('[ACE] Aces');
+    expect(embed.description).toContain('Alliance #2');
+    expect(embed.fields!.find((field) => field.name === 'Turf')!.value).toBe('4 blocks · 1 cities controlled');
+    expect(embed.fields!.find((field) => field.name === 'Territory')!.value).toContain('Detroit');
   });
 });
 
@@ -358,9 +414,9 @@ describe('news posts and turn reminders', () => {
   });
 
   it('explains the reminder state', () => {
-    expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: false }, roundName: 'Game #008', current: null })).toBe('Turn alerts are off.');
-    expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: true }, roundName: 'Game #008', current: { turns: 40, cap: 144, nationalRank: 5 } })).toContain("You're at 40/144 now.");
-    expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: true }, roundName: 'Game #008', current: null })).toContain("You haven't joined Game #008 yet");
-    expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: true }, roundName: null, current: null })).toContain('No round is running');
+    expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: false, turf: false, alliance: false }, roundName: 'Game #008', current: null })).toBe('Turn alerts are off.');
+    expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: true, turf: false, alliance: false }, roundName: 'Game #008', current: { turns: 40, cap: 144, nationalRank: 5 } })).toContain("You're at 40/144 now.");
+    expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: true, turf: false, alliance: false }, roundName: 'Game #008', current: null })).toContain("You haven't joined Game #008 yet");
+    expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: true, turf: false, alliance: false }, roundName: null, current: null })).toContain('No round is running');
   });
 });
