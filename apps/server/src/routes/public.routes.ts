@@ -1,12 +1,20 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { PublicSiteService } from '../services/public-site.service.js';
 
-const publicRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/overview', async () => PublicSiteService.overview(fastify.prisma));
+const PUBLIC_CACHE = 'public, max-age=30, stale-while-revalidate=60';
 
-  fastify.get('/current-game', async () => ({
-    currentGame: await PublicSiteService.currentGame(fastify.prisma),
-  }));
+const publicRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.get('/overview', async (_request, reply) => {
+    reply.header('Cache-Control', PUBLIC_CACHE);
+    return PublicSiteService.overview(fastify.prisma);
+  });
+
+  fastify.get('/current-game', async (_request, reply) => {
+    reply.header('Cache-Control', PUBLIC_CACHE);
+    return {
+      currentGame: await PublicSiteService.currentGame(fastify.prisma),
+    };
+  });
 };
 
 export default publicRoutes;
