@@ -2,10 +2,11 @@ import { Route, Routes } from 'react-router-dom';
 import { SiteLayout } from './components/SiteLayout.js';
 import { HomePage } from './pages/HomePage.js';
 import { CurrentGamePage } from './pages/CurrentGamePage.js';
+import { GamesPage } from './pages/GamesPage.js';
+import { GameArchivePage } from './pages/GameArchivePage.js';
 import {
   AllianceDetailPage,
   CityDetailPage,
-  GameDetailPage,
   GuideDetailPage,
   NewsDetailPage,
   NotFoundPage,
@@ -129,9 +130,9 @@ export function App() {
         <Route path="cities" element={<SectionPage {...sectionPages.cities} />} />
         <Route path="cities/:citySlug" element={<CityDetailPage />} />
         <Route path="turf" element={<SectionPage {...sectionPages.turf} />} />
-        <Route path="games" element={<SectionPage {...sectionPages.games} />} />
+        <Route path="games" element={<GamesPage />} />
         <Route path="games/current" element={<CurrentGamePage />} />
-        <Route path="games/:gameId" element={<GameDetailPage />} />
+        <Route path="games/:gameId" element={<GameArchivePage />} />
         <Route path="rankings" element={<SectionPage {...sectionPages.rankings} />} />
         <Route path="hall-of-fame" element={<SectionPage {...sectionPages.hallOfFame} />} />
         <Route path="players/:playerId" element={<PlayerDetailPage />} />
