@@ -277,7 +277,7 @@ export const ScoutService = {
               cashCents: Number(pimpTakeCents),
               hideoutBonusCents: Number(hideoutBonusCents),
               crackFound,
-              ...(ruleset.productEconomy ? { productsFound } : {}),
+              ...(ruleset.productEconomy ? { productsFound: productsFound.map((row) => ({ key: row.key, name: row.name, quantity: row.quantity })) } : {}),
               whoresLeft: outcome.departures.whores,
               thugsLeft: outcome.departures.thugs,
               infected: outcome.infections.infected,
