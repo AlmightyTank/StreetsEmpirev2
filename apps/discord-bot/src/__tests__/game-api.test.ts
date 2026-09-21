@@ -73,7 +73,22 @@ describe('createGameApi', () => {
   it('builds the badges, news claim and alert requests', async () => {
     const calls: Array<{ path: string; method: string; body: unknown; contentType: string | undefined }> = [];
     const bodies: Record<string, unknown> = {
-      '/api/internal/discord/badges': { player: { roundName: 'R', displayName: 'Big', publicPimpId: 1, profileUrl: 'http://game/game/players/1', awards: [] } },
+      '/api/internal/discord/badges': { player: {
+        roundName: 'R',
+        displayName: 'Big',
+        publicPimpId: 1,
+        profileUrl: 'http://game/game/players/1',
+        awards: [{
+          key: 'first-hideout-upgrade',
+          title: 'Keys to the Place',
+          description: 'Buy your first seasonal hideout upgrade.',
+          category: 'hideout',
+          rarity: 'common',
+          unlocked: true,
+          earnedAt: '2026-09-21T12:00:00.000Z',
+          progress: { current: 1, target: 1, label: 'hideout levels' },
+        }],
+      } },
       '/api/internal/discord/news/claim': { news: [] },
       '/api/internal/discord/alerts': { alerts: { attacks: false, round: false, rank: false, turns: true }, roundName: 'R', current: { turns: 5, cap: 144, nationalRank: 7 } },
       '/api/internal/discord/alerts/claim': { turns: [], ranks: [], attacks: [], roundAlerts: [], battles: [], turf: [], territory: [], crackdowns: [], rounds: [] },
@@ -86,7 +101,9 @@ describe('createGameApi', () => {
     }) as typeof fetch;
     const api = createGameApi({ baseUrl: 'http://game', token, fetch: fetchImpl });
 
-    expect((await api.badges({ name: 'Big Daddy' })).displayName).toBe('Big');
+    const badges = await api.badges({ name: 'Big Daddy' });
+    expect(badges.displayName).toBe('Big');
+    expect(badges.awards[0]?.category).toBe('hideout');
     expect(await api.claimNews()).toEqual([]);
     expect((await api.setAlert('123456789012345678', 'turns', true)).current).toEqual({ turns: 5, cap: 144, nationalRank: 7 });
     expect(await api.claimAlerts()).toEqual({ turns: [], ranks: [], attacks: [], roundAlerts: [], battles: [], turf: [], territory: [], crackdowns: [], rounds: [] });
