@@ -9,6 +9,8 @@
 #   BOT_SERVICE  systemd unit for the Discord bot (default: streets-empire-bot)
 #   BRANCH       branch to deploy                 (default: main)
 #   API_URL      where the API listens locally     (default: http://127.0.0.1:3001)
+#   PUBLIC_SITE_URL optional public-site smoke URL  (e.g. https://streetsempire.dev)
+#   LIVE_SITE_URL   optional live-game smoke URL    (e.g. https://play.streetsempire.dev)
 #   SKIP_PULL=1  rebuild and restart the current checkout (e.g. after a rollback)
 set -euo pipefail
 
@@ -17,6 +19,8 @@ API_SERVICE="${API_SERVICE:-streets-empire}"
 BOT_SERVICE="${BOT_SERVICE:-streets-empire-bot}"
 BRANCH="${BRANCH:-main}"
 API_URL="${API_URL:-http://127.0.0.1:3001}"
+PUBLIC_SITE_URL="${PUBLIC_SITE_URL:-}"
+LIVE_SITE_URL="${LIVE_SITE_URL:-}"
 SKIP_PULL="${SKIP_PULL:-0}"
 SUDO=""
 [ "$(id -u)" -eq 0 ] || SUDO="sudo"
@@ -52,6 +56,10 @@ npx prisma generate
 step "Building"
 npm run build
 
+[ -f "$APP_DIR/apps/web/dist/index.html" ] || fail "game frontend build is missing: apps/web/dist/index.html"
+[ -f "$APP_DIR/apps/site/dist/index.html" ] || fail "public website build is missing: apps/site/dist/index.html"
+[ -f "$APP_DIR/apps/server/dist/index.js" ] || fail "API build is missing: apps/server/dist/index.js"
+
 step "Applying database migrations"
 npx prisma migrate deploy
 
@@ -81,6 +89,18 @@ if systemctl cat "$BOT_SERVICE" >/dev/null 2>&1; then
   echo "Bot is running."
 else
   step "Skipping the bot: no $BOT_SERVICE unit yet (install it once with scripts/ops/install-bot-service.sh)"
+fi
+
+if [ -n "$PUBLIC_SITE_URL" ]; then
+  step "Checking public website $PUBLIC_SITE_URL"
+  curl -fsS --max-time 10 "$PUBLIC_SITE_URL/" >/dev/null     || fail "public website did not answer at $PUBLIC_SITE_URL/"
+  curl -fsS --max-time 10 "$PUBLIC_SITE_URL/api/public/status" >/dev/null     || fail "public API did not answer through $PUBLIC_SITE_URL/api/public/status"
+fi
+
+if [ -n "$LIVE_SITE_URL" ]; then
+  step "Checking live game $LIVE_SITE_URL"
+  curl -fsS --max-time 10 "$LIVE_SITE_URL/" >/dev/null     || fail "live game did not answer at $LIVE_SITE_URL/"
+  curl -fsS --max-time 10 "$LIVE_SITE_URL/api/ready" >/dev/null     || fail "live API did not answer through $LIVE_SITE_URL/api/ready"
 fi
 
 step "Deployed $(git log -1 --format='%h %s')"
