@@ -4,6 +4,7 @@ import { Shell } from './Shell.js';
 import { ConnectionBanner } from '../components/ConnectionBanner.js';
 import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
+import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
 import { useSession } from '../stores/session.js';
 import { formatDuration } from '../utils/time.js';
 import {
@@ -322,6 +323,7 @@ function useRouteScroll(pathname: string, hash: string) {
 }
 
 export function GameLayout({ children }: { children: ReactNode }) {
+  useStaleGameReload();
   usePageFreshness();
   const round = useSession((s) => s.round);
   const sections = useSections();
