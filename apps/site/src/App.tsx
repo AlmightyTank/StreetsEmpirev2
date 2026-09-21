@@ -4,13 +4,20 @@ import { HomePage } from './pages/HomePage.js';
 import { CurrentGamePage } from './pages/CurrentGamePage.js';
 import { GamesPage } from './pages/GamesPage.js';
 import { GameArchivePage } from './pages/GameArchivePage.js';
+import { RankingsPage } from './pages/RankingsPage.js';
+import { PlayerPage } from './pages/PlayerPage.js';
+import { AlliancesPage } from './pages/AlliancesPage.js';
+import { AlliancePage } from './pages/AlliancePage.js';
+import { CitiesPage } from './pages/CitiesPage.js';
+import { CityPage } from './pages/CityPage.js';
+import { TurfPage } from './pages/TurfPage.js';
+import { HallOfFamePage } from './pages/HallOfFamePage.js';
+import { StatsPage } from './pages/StatsPage.js';
+import { NewsPage } from './pages/NewsPage.js';
+import { NewsArticlePage } from './pages/NewsArticlePage.js';
 import {
-  AllianceDetailPage,
-  CityDetailPage,
   GuideDetailPage,
-  NewsDetailPage,
   NotFoundPage,
-  PlayerDetailPage,
   SectionPage,
 } from './pages/SectionPage.js';
 
@@ -127,20 +134,20 @@ export function App() {
         <Route path="game" element={<SectionPage {...sectionPages.game} />} />
         <Route path="guide" element={<SectionPage {...sectionPages.guide} />} />
         <Route path="guide/:topic" element={<GuideDetailPage />} />
-        <Route path="cities" element={<SectionPage {...sectionPages.cities} />} />
-        <Route path="cities/:citySlug" element={<CityDetailPage />} />
-        <Route path="turf" element={<SectionPage {...sectionPages.turf} />} />
+        <Route path="cities" element={<CitiesPage />} />
+        <Route path="cities/:citySlug" element={<CityPage />} />
+        <Route path="turf" element={<TurfPage />} />
         <Route path="games" element={<GamesPage />} />
         <Route path="games/current" element={<CurrentGamePage />} />
         <Route path="games/:gameId" element={<GameArchivePage />} />
-        <Route path="rankings" element={<SectionPage {...sectionPages.rankings} />} />
-        <Route path="hall-of-fame" element={<SectionPage {...sectionPages.hallOfFame} />} />
-        <Route path="players/:playerId" element={<PlayerDetailPage />} />
-        <Route path="alliances" element={<SectionPage {...sectionPages.alliances} />} />
-        <Route path="alliances/:tag" element={<AllianceDetailPage />} />
-        <Route path="stats" element={<SectionPage {...sectionPages.stats} />} />
-        <Route path="news" element={<SectionPage {...sectionPages.news} />} />
-        <Route path="news/:slug" element={<NewsDetailPage />} />
+        <Route path="rankings" element={<RankingsPage />} />
+        <Route path="hall-of-fame" element={<HallOfFamePage />} />
+        <Route path="players/:playerId" element={<PlayerPage />} />
+        <Route path="alliances" element={<AlliancesPage />} />
+        <Route path="alliances/:tag" element={<AlliancePage />} />
+        <Route path="stats" element={<StatsPage />} />
+        <Route path="news" element={<NewsPage />} />
+        <Route path="news/:slug" element={<NewsArticlePage />} />
         <Route path="roadmap" element={<SectionPage {...sectionPages.roadmap} />} />
         <Route path="community" element={<SectionPage {...sectionPages.community} />} />
         <Route path="beta" element={<SectionPage {...sectionPages.beta} />} />
