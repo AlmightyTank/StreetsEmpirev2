@@ -21,6 +21,37 @@ The site runs on <http://localhost:5174>.
 npm run build:site
 ```
 
-Phase 2 only establishes the independent application boundary. Public routes, the
-website navigation system, public API integration, statistics, season history and
-other content are added in later website-platform phases.
+## Phase 3 routes
+
+The public shell now reserves the main website structure:
+
+```text
+/
+/game
+/guide
+/guide/:topic
+/cities
+/cities/:citySlug
+/turf
+/games
+/games/current
+/games/:gameId
+/rankings
+/hall-of-fame
+/players/:playerId
+/alliances
+/alliances/:tag
+/stats
+/news
+/news/:slug
+/roadmap
+/community
+/beta
+/status
+/support
+/about
+```
+
+These pages are public-site routes only. Phase 3 intentionally does not expose live
+database information or private game intelligence. Public API data is added in a later
+phase.
