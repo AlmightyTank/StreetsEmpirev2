@@ -421,6 +421,12 @@ export interface DistrictsDto {
   districts: DistrictDto[];
 }
 
+export interface ProductFindDto {
+  key: string;
+  name: string;
+  quantity: number;
+}
+
 /**
  * Manual 3.1. One trip: the girls work the block while you pick people up, so
  * a scout result carries both the night's take and who you found.
@@ -446,6 +452,8 @@ export interface ScoutResult {
   hideoutBonusCents?: number;
   payoutPercent: number;
 
+  /** Product-round street finds. Older clients can continue reading crackFound. */
+  productsFound?: ProductFindDto[];
   crackFound: number;
 
   condomsUsed: number;
@@ -504,6 +512,8 @@ export interface ProduceCrackResult {
   hideoutBonusCents?: number;
   payoutPercent: number;
 
+  /** Product-round street finds from the girls' unsupervised shift. */
+  productsFound?: ProductFindDto[];
   crackFound: number;
   condomsUsed: number;
   crackUsed: number;
