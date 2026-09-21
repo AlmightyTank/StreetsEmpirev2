@@ -64,15 +64,19 @@ function RoomCard({
       <Button
         type="button"
         className="se-btn se-btn--primary se-btn--block"
-        disabledReason={blocked ?? room.lockReason}
+        disabledReason={blocked
+          ?? room.lockReason
+          ?? (!maxed && !affordable
+            ? `This costs ${formatCents(room.nextCostCents!)} and you are ${formatCents(room.nextCostCents! - cashCents)} short.`
+            : null)}
         onClick={() => onUpgrade(room)}
       >
         {maxed
           ? 'Fully upgraded'
-          : room.canUpgrade
-            ? `Upgrade ${room.name}`
-            : !affordable
-              ? `Need ${formatCents(room.nextCostCents!)}`
+          : !affordable
+            ? `Need ${formatCents(room.nextCostCents!)}`
+            : room.canUpgrade
+              ? `Upgrade ${room.name}`
               : 'Requirements not met'}
       </Button>
     </Panel>
@@ -220,10 +224,19 @@ export function HideoutPage() {
                     <Button
                       type="button"
                       className="se-btn se-btn--primary se-btn--block"
-                      disabledReason={action.busy ? 'Your last upgrade is still going through.' : nextRoom.lockReason}
+                      disabledReason={action.busy
+                        ? 'Your last upgrade is still going through.'
+                        : nextRoom.lockReason
+                          ?? (me.resources.cashCents < nextRoom.nextCostCents!
+                            ? `This costs ${formatCents(nextRoom.nextCostCents!)} and you are ${formatCents(nextRoom.nextCostCents! - me.resources.cashCents)} short.`
+                            : null)}
                       onClick={() => void upgrade(nextRoom)}
                     >
-                      {nextRoom.canUpgrade ? `Upgrade ${nextRoom.name}` : 'Upgrade locked'}
+                      {me.resources.cashCents < nextRoom.nextCostCents!
+                        ? `Need ${formatCents(nextRoom.nextCostCents!)}`
+                        : nextRoom.canUpgrade
+                          ? `Upgrade ${nextRoom.name}`
+                          : 'Upgrade locked'}
                     </Button>
                   </>
                 ) : (
