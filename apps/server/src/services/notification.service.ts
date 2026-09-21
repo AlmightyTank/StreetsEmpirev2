@@ -178,10 +178,11 @@ async function collectTurfAlerts(tx: Tx, now: Date, switches: ChannelSwitches): 
     where: {
       status: 'LANDED',
       captured: true,
+      alertsCollectedAt: null,
       settledAt: { gte: since },
       defender: { account: { isActive: true, notificationSettings: { turfEnabled: true } } },
     },
-    orderBy: { settledAt: 'desc' },
+    orderBy: { settledAt: 'asc' },
     take: 200,
     include: {
       round: true,
@@ -198,6 +199,10 @@ async function collectTurfAlerts(tx: Tx, now: Date, switches: ChannelSwitches): 
     },
   });
   if (!pushes.length) return [];
+  await tx.turfPush.updateMany({
+    where: { id: { in: pushes.map((push) => push.id) }, alertsCollectedAt: null },
+    data: { alertsCollectedAt: now },
+  });
 
   const allianceIds = [...new Set(pushes.map((push) => push.attackerAllianceId).filter((id): id is string => Boolean(id)))];
   const alliances = allianceIds.length
@@ -234,14 +239,19 @@ async function collectAllianceAlerts(tx: Tx, now: Date, switches: ChannelSwitche
   const since = new Date(now.getTime() - 3 * 24 * 60 * 60_000);
   const events = await tx.turfControlEvent.findMany({
     where: {
+      alertsCollectedAt: null,
       happenedAt: { gte: since },
       OR: [{ previousAllianceId: { not: null } }, { nextAllianceId: { not: null } }],
     },
-    orderBy: { happenedAt: 'desc' },
+    orderBy: { happenedAt: 'asc' },
     take: 200,
     include: { round: { select: { name: true } }, city: { select: { slug: true, name: true } } },
   });
   if (!events.length) return [];
+  await tx.turfControlEvent.updateMany({
+    where: { id: { in: events.map((event) => event.id) }, alertsCollectedAt: null },
+    data: { alertsCollectedAt: now },
+  });
 
   const allianceIds = [...new Set(events.flatMap((event) => [event.previousAllianceId, event.nextAllianceId]).filter((id): id is string => Boolean(id)))];
   const members = allianceIds.length
