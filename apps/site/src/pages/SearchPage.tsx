@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import type { PublicSearchDto } from '@streets/shared';
 import { Link, useSearchParams } from 'react-router-dom';
 import { publicSiteApi } from '../api/public.js';
