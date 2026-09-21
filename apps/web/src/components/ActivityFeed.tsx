@@ -10,6 +10,18 @@ function str(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
 
+function productFindSummary(value: unknown, crackWord: string): string | null {
+  if (!Array.isArray(value)) return null;
+  const rows = value
+    .filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object')
+    .map((row) => ({
+      name: str(row.name, str(row.key) === 'CRACK' ? crackWord : str(row.key, 'product').toLowerCase()),
+      quantity: num(row.quantity),
+    }))
+    .filter((row) => row.quantity > 0);
+  return rows.length ? rows.map((row) => `+${formatNumber(row.quantity)} ${row.name} found`).join(', ') : null;
+}
+
 /** The opponent as the feed names them: "[WC] Iron Maya", or just the name for solo players and older entries. */
 function opponent(p: Record<string, unknown>, fallback = ''): string {
   const name = str(p.opponent, fallback);
@@ -110,7 +122,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         num(p.cashCents) ? `+${formatCents(num(p.cashCents))}` : null,
         num(p.whores) ? `+${formatNumber(num(p.whores))} whores` : null,
         num(p.thugs) ? `+${formatNumber(num(p.thugs))} thugs` : null,
-        num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} ${crackWord} found` : null,
+        productFindSummary(p.productsFound, crackWord) ?? (num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} ${crackWord} found` : null),
         num(p.whoresLeft) ? `${num(p.whoresLeft)} whores walked` : null,
         num(p.thugsLeft) ? `${num(p.thugsLeft)} thugs walked` : null,
         p.busted ? `BUSTED, fined ${formatCents(num(p.fineCents))}` : null,
@@ -125,7 +137,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     case 'WORK_STREETS': {
       const detail = [
         `+${formatCents(num(p.cashCents))}`,
-        num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} ${crackWord} found` : null,
+        productFindSummary(p.productsFound, crackWord) ?? (num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} ${crackWord} found` : null),
         num(p.whoresLeft) ? `${num(p.whoresLeft)} whores walked` : null,
         num(p.thugsLeft) ? `${num(p.thugsLeft)} thugs walked` : null,
       ].filter(Boolean);
@@ -141,6 +153,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         num(p.product ?? p.crack) ? `+${formatNumber(num(p.product ?? p.crack))} ${str(p.productName, 'product')}` : null,
         num(p.cashCents) ? `+${formatCents(num(p.cashCents))}` : null,
         num(p.ingredientCents) ? `-${formatCents(num(p.ingredientCents))} ingredients` : null,
+        productFindSummary(p.productsFound, crackWord) ?? (num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} ${crackWord} found` : null),
         p.busted ? `BUSTED, fined ${formatCents(num(p.fineCents))}` : null,
       ].filter(Boolean);
 
