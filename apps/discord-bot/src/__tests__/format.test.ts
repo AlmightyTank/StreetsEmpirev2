@@ -187,7 +187,7 @@ describe('turf and alliance embeds', () => {
     const embed = allianceEmbed(alliance, origin);
     expect(embed.title).toBe('[ACE] Aces');
     expect(embed.description).toContain('Alliance #2');
-    expect(embed.fields!.find((field) => field.name === 'Turf')!.value).toBe('4 blocks · 1 cities controlled');
+    expect(embed.fields!.find((field) => field.name === 'Turf')!.value).toBe('4 blocks · 1 city controlled');
     expect(embed.fields!.find((field) => field.name === 'Territory')!.value).toContain('Detroit');
   });
 });
