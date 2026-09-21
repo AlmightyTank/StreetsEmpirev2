@@ -50,6 +50,8 @@ the person who ran the command.
 | `/leaderboard` | Public | Top combat and intel counts this round: raids, defenses, drive-bys, recon, stolen rides and crew lured |
 | `/history` | Public | Finished round history for you, a linked member, or a current/past player name |
 | `/city` | Public | Top 10 in one city this round; city names autocomplete |
+| `/turf` | Public | Public block holders, garrisons and city control for one city; city names autocomplete |
+| `/alliance` | Public | Alliance roster, rank, combined net worth, held turf, controlled cities and recent captures; omit `tag:` to show your alliance |
 | `/halloffame` | Public | Final top 3 of the five most recently finished rounds |
 | `/round` | Public | Round status, time left, players, turn rate |
 | `/news` | Public | Latest five news posts |
@@ -78,11 +80,14 @@ channel once.
 **Alerts and feeds.** Members opt in with `/alerts`.
 - The game API nudges the bot when work is queued, and every
   `DISCORD_ALERTS_MINUTES` (default 1) the bot also checks full-turn DMs,
-  attack DMs, rank-drop DMs, round-event DMs, the raid feed and round-end posts
-  as a fallback.
+  attack DMs, turf-loss DMs, alliance city-control DMs, rank-drop DMs,
+  round-event DMs, the raid feed and round-end posts as a fallback.
 - Turn alerts send one DM per fill-up. Spending turns sets up the next one.
-- Attack alerts DM the defender when they opted in. If `DISCORD_RAID_FEED_CHANNEL_ID`
-  is set, each new raid/combat result is also posted publicly once.
+- Attack alerts DM the defender when they opted in. Turf alerts DM a player when
+  one of their blocks is captured. Alliance alerts DM current members when their
+  alliance gains or loses city control. These are opt-in just like the other alerts.
+- If `DISCORD_RAID_FEED_CHANNEL_ID` is set, each new raid/combat, turf capture,
+  city-control change and Federal crackdown result is also posted publicly once.
 - Rank alerts fire only when a member loses national #1 or falls out of the top 10.
 - Round alerts DM opted-in members when a round opens, is ending soon, or ends.
   Ended rounds also post final standings to the news channel when configured.
