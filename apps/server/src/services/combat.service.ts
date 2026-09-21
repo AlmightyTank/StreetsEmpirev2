@@ -485,7 +485,8 @@ function inventoryChanges(
     if (used <= 0 && gain <= 0 && loss <= 0) return [];
     return [{
       product,
-      name: ruleset.products?.[product]?.name ?? (product === 'CRACK' ? 'Crack' : product),
+      name: ruleset.products?.[product]?.name
+        ?? (product === 'CRACK' ? (ruleset.productEconomy ? 'Crack' : 'Product') : product),
       change: gain - loss - used,
       after: Math.max(0, after[product] ?? 0),
       used,
