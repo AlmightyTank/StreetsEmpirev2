@@ -6,6 +6,7 @@ import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { HeatService } from './heat.service.js';
 import { hideoutBackOfficeBonusCents } from './hideout.service.js';
+import { CRACK, ProductInventoryService } from './product-inventory.service.js';
 import { TurfService } from './turf.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 
@@ -150,6 +151,16 @@ export const ScoutService = {
           payoutPercent: current.payoutPercent,
           rng,
         });
+        const productsFound = Object.entries(outcome.productsFound)
+          .filter(([, quantity]) => quantity > 0)
+          .map(([key, quantity]) => ({ key, name: ruleset.products?.[key]?.name ?? (key === CRACK ? 'Crack' : key), quantity }));
+        const nonCrackFinds = Object.fromEntries(
+          productsFound.filter((row) => row.key !== CRACK).map((row) => [row.key, row.quantity]),
+        );
+        if (Object.keys(nonCrackFinds).length) {
+          await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, nonCrackFinds);
+        }
+
         const turf = await TurfService.scoutEconomy(tx, {
           roundPlayerId,
           accountId: player.accountId,
@@ -223,6 +234,7 @@ export const ScoutService = {
           hideoutBonusCents: Number(hideoutBonusCents),
           payoutPercent: current.payoutPercent,
 
+          ...(ruleset.products ? { productsFound } : {}),
           crackFound: outcome.crackFound,
           condomsUsed: outcome.consumption.condoms,
           crackUsed: outcome.consumption.crack,
@@ -262,6 +274,7 @@ export const ScoutService = {
               cashCents: Number(pimpTakeCents),
               hideoutBonusCents: Number(hideoutBonusCents),
               crackFound: outcome.crackFound,
+              ...(ruleset.products ? { productsFound } : {}),
               whoresLeft: outcome.departures.whores,
               thugsLeft: outcome.departures.thugs,
               infected: outcome.infections.infected,
