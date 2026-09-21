@@ -26,10 +26,12 @@ function productLabel(me: ProductContext): string {
   return me.products ? 'Crack' : 'Product';
 }
 
-function productName(me: ProductContext, key: string, fallback?: string): string {
+function productName(me: ProductContext, key: string, fallback?: string | null): string {
   return me.products?.find((product) => product.key === key)?.name
     ?? fallback
-    ?? (key === 'CRACK' ? productLabel(me) : key);
+    ?? (key === 'CRACK'
+      ? productLabel(me)
+      : key.charAt(0) + key.slice(1).toLowerCase());
 }
 
 function movement(map: Map<string, ProductMovement>, key: string, name: string): ProductMovement {
@@ -48,7 +50,8 @@ function addConsumed(
   if (!plan) return;
   for (const [key, units] of Object.entries(plan.consumed)) {
     if (units <= 0) continue;
-    movement(map, key, productName(me, key)).used += units;
+    const plannedName = plan.slices.find((slice) => slice.product === key)?.productName;
+    movement(map, key, productName(me, key, plannedName)).used += units;
   }
 }
 
