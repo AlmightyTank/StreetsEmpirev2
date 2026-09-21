@@ -1,12 +1,15 @@
 import { createHash } from 'node:crypto';
 import type { NotificationChannel, Prisma, PrismaClient, Round } from '@prisma/client';
 import { loadRulesetForRound, regenerateTurns } from '@streets/rules-engine';
+import type { DistrictKey } from '@streets/rulesets';
 import type {
   DiscordAlertsClaimDto,
   DiscordBattleEventDto,
   DiscordBattleKind,
   DiscordRankAlertDto,
   DiscordRoundEventDto,
+  DiscordTerritoryEventDto,
+  DiscordTurfEventDto,
   NotificationCategory,
   NotificationPayload,
   NotificationSettingsDto,
@@ -165,6 +168,136 @@ async function collectAttacks(tx: Tx, now: Date, switches: ChannelSwitches): Pro
     if (!settings?.attacksEnabled) return [];
     return rowsFor(battle.defender.accountId, channelsFor(settings, switches), `battle:${battle.id}`, { category: 'attacks', battle: battleEventDto(battle) });
   });
+}
+
+
+/** A captured block alerts its former holder when they opted into turf alerts. */
+async function collectTurfAlerts(tx: Tx, now: Date, switches: ChannelSwitches): Promise<OutboxRow[]> {
+  const since = new Date(now.getTime() - 3 * 24 * 60 * 60_000);
+  const pushes = await tx.turfPush.findMany({
+    where: {
+      status: 'LANDED',
+      captured: true,
+      settledAt: { gte: since },
+      defender: { account: { isActive: true, notificationSettings: { turfEnabled: true } } },
+    },
+    orderBy: { settledAt: 'desc' },
+    take: 200,
+    include: {
+      round: true,
+      turf: { include: { city: { select: { slug: true } } } },
+      attacker: { select: { publicPimpId: true, displayName: true } },
+      defender: {
+        select: {
+          accountId: true,
+          publicPimpId: true,
+          displayName: true,
+          account: { select: { notificationSettings: { select: { turfEnabled: true, ...recipientSelect } } } },
+        },
+      },
+    },
+  });
+  if (!pushes.length) return [];
+
+  const allianceIds = [...new Set(pushes.map((push) => push.attackerAllianceId).filter((id): id is string => Boolean(id)))];
+  const alliances = allianceIds.length
+    ? await tx.alliance.findMany({ where: { id: { in: allianceIds } }, select: { id: true, tag: true } })
+    : [];
+  const tags = new Map(alliances.map((alliance) => [alliance.id, alliance.tag]));
+
+  return pushes.flatMap((push): OutboxRow[] => {
+    const settings = push.defender.account.notificationSettings;
+    if (!settings?.turfEnabled || !push.settledAt) return [];
+    const ruleset = loadRulesetForRound(push.round);
+    const city = push.turf.city.slug;
+    const district = push.turf.district as DistrictKey;
+    const event: DiscordTurfEventDto = {
+      id: push.id,
+      roundName: push.round.name,
+      city,
+      cityName: ruleset.cities?.[city]?.name ?? city,
+      district: push.turf.district,
+      districtName: ruleset.cities?.[city]?.districts?.[district]?.name ?? ruleset.districts[district]?.name ?? push.turf.district,
+      attackerName: push.attacker.displayName,
+      attackerProfileUrl: playerUrl(push.attacker.publicPimpId),
+      attackerAllianceTag: push.attackerAllianceId ? tags.get(push.attackerAllianceId) ?? null : null,
+      defenderName: push.defender.displayName,
+      defenderProfileUrl: playerUrl(push.defender.publicPimpId),
+      settledAt: push.settledAt.toISOString(),
+    };
+    return rowsFor(push.defender.accountId, channelsFor(settings, switches), `turf:${push.id}`, { category: 'turf', event });
+  });
+}
+
+/** City-control changes alert current members of the alliance that gained or lost control. */
+async function collectAllianceAlerts(tx: Tx, now: Date, switches: ChannelSwitches): Promise<OutboxRow[]> {
+  const since = new Date(now.getTime() - 3 * 24 * 60 * 60_000);
+  const events = await tx.turfControlEvent.findMany({
+    where: {
+      happenedAt: { gte: since },
+      OR: [{ previousAllianceId: { not: null } }, { nextAllianceId: { not: null } }],
+    },
+    orderBy: { happenedAt: 'desc' },
+    take: 200,
+    include: { round: { select: { name: true } }, city: { select: { slug: true, name: true } } },
+  });
+  if (!events.length) return [];
+
+  const allianceIds = [...new Set(events.flatMap((event) => [event.previousAllianceId, event.nextAllianceId]).filter((id): id is string => Boolean(id)))];
+  const members = allianceIds.length
+    ? await tx.roundPlayer.findMany({
+        where: {
+          allianceId: { in: allianceIds },
+          account: { isActive: true, notificationSettings: { allianceEnabled: true } },
+        },
+        select: {
+          allianceId: true,
+          accountId: true,
+          account: { select: { notificationSettings: { select: { allianceEnabled: true, ...recipientSelect } } } },
+        },
+      })
+    : [];
+  const membersByAlliance = new Map<string, typeof members>();
+  for (const member of members) {
+    if (!member.allianceId) continue;
+    const list = membersByAlliance.get(member.allianceId) ?? [];
+    list.push(member);
+    membersByAlliance.set(member.allianceId, list);
+  }
+
+  const rows: OutboxRow[] = [];
+  for (const event of events) {
+    const dto: DiscordTerritoryEventDto = {
+      id: event.id,
+      roundName: event.round.name,
+      city: event.city.slug,
+      cityName: event.city.name,
+      previous: event.previousAllianceName && event.previousAllianceTag
+        ? { name: event.previousAllianceName, tag: event.previousAllianceTag, blocksHeld: event.previousBlocksHeld }
+        : null,
+      next: event.nextAllianceName && event.nextAllianceTag
+        ? { name: event.nextAllianceName, tag: event.nextAllianceTag, blocksHeld: event.nextBlocksHeld }
+        : null,
+      blocksTotal: event.blocksTotal,
+      happenedAt: event.happenedAt.toISOString(),
+    };
+    for (const allianceId of [...new Set([event.previousAllianceId, event.nextAllianceId].filter((id): id is string => Boolean(id)))]) {
+      const gained = event.nextAllianceId === allianceId;
+      const allianceTag = gained ? event.nextAllianceTag : event.previousAllianceTag;
+      if (!allianceTag) continue;
+      for (const member of membersByAlliance.get(allianceId) ?? []) {
+        const settings = member.account.notificationSettings;
+        if (!settings?.allianceEnabled) continue;
+        rows.push(...rowsFor(
+          member.accountId,
+          channelsFor(settings, switches),
+          `alliance:${event.id}:${allianceId}`,
+          { category: 'alliance', event: dto, allianceTag, change: gained ? 'gained' : 'lost' },
+        ));
+      }
+    }
+  }
+  return rows;
 }
 
 async function collectRoundEvents(tx: Tx, now: Date, switches: ChannelSwitches): Promise<OutboxRow[]> {
@@ -328,6 +461,10 @@ function categoryData(category: NotificationCategory, enabled: boolean, { round,
     case 'turns':
       // Already full when switching on: the first reminder waits until they spend and refill.
       return { turnsEnabled: enabled, turnsArmed: enabled && (current ? current.turns < current.cap : true) };
+    case 'turf':
+      return { turfEnabled: enabled };
+    case 'alliance':
+      return { allianceEnabled: enabled };
   }
 }
 
@@ -348,6 +485,8 @@ export const NotificationService = {
 
       const rows = [
         ...await collectAttacks(tx, now, switches),
+        ...await collectTurfAlerts(tx, now, switches),
+        ...await collectAllianceAlerts(tx, now, switches),
         ...await collectRoundEvents(tx, now, switches),
         ...(round?.status === 'ACTIVE' ? await collectPlayerAlerts(tx, round, now, switches) : []),
       ];
@@ -372,7 +511,9 @@ export const NotificationService = {
       return pending;
     });
 
-    const claim: Omit<DiscordAlertsClaimDto, 'battles' | 'turf' | 'territory' | 'crackdowns' | 'rounds'> = { turns: [], ranks: [], attacks: [], roundAlerts: [] };
+    const claim: Omit<DiscordAlertsClaimDto, 'battles' | 'turf' | 'territory' | 'crackdowns' | 'rounds'> = {
+      turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [],
+    };
     for (const row of rows) {
       // Unlinked since the alert was collected: nowhere to send it.
       const discordId = row.account.isActive ? row.account.discordId : null;
@@ -390,6 +531,12 @@ export const NotificationService = {
           break;
         case 'round':
           claim.roundAlerts.push({ ...payload.event, discordId, rank: payload.rank });
+          break;
+        case 'turf':
+          claim.turfAlerts.push({ ...payload.event, discordId });
+          break;
+        case 'alliance':
+          claim.allianceAlerts.push({ ...payload.event, discordId, allianceTag: payload.allianceTag, change: payload.change });
           break;
       }
     }
@@ -426,6 +573,8 @@ export const NotificationService = {
         turns: row?.turnsEnabled ?? false,
         round: row?.roundEnabled ?? false,
         rank: row?.rankEnabled ?? false,
+        turf: row?.turfEnabled ?? false,
+        alliance: row?.allianceEnabled ?? false,
       },
       channels: { discord: row?.discordEnabled ?? true, push: row?.pushEnabled ?? false },
       discordLinked: Boolean(account.discordId),
