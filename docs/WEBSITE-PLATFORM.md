@@ -13,7 +13,7 @@ This document tracks the migration from the current single-site deployment to th
 
 ## Phase 1 — Protect the existing game
 
-Phase 1 is intentionally infrastructure-neutral. It must not change the live application, DNS, Caddy, database, authentication, or deployment.
+Phase 1 is intentionally infrastructure-neutral. It must not change the live application, DNS, Nginx, database, authentication, or deployment.
 
 ### Branch policy
 
@@ -75,14 +75,14 @@ production
 - [x] Confirm current production source branch.
 - [x] Create `website-platform` from `main`.
 - [x] Leave production application code unchanged.
-- [x] Leave DNS, Caddy, auth, and databases unchanged.
+- [x] Leave DNS, Nginx, auth, and databases unchanged.
 - [x] Record the platform/domain and branching plan.
 - [ ] Enable GitHub branch protection for `main` in repository settings.
 
 ## Phase 2 — Separate public website application
 
 The public website now has its own workspace at `apps/site`. The playable game remains in
-`apps/web`; Phase 2 does not move routes, authentication, API traffic, DNS, Caddy, or
+`apps/web`; Phase 2 does not move routes, authentication, API traffic, DNS, Nginx, or
 production data.
 
 ### Phase 2 completion checklist
@@ -97,7 +97,7 @@ production data.
 - [x] Include the public site in the root production build command.
 - [x] Update `package-lock.json` with the new workspace metadata.
 - [x] Preserve `apps/web` without modification.
-- [x] Leave DNS, Caddy, authentication, databases, and deployment unchanged.
+- [x] Leave DNS, Nginx, authentication, databases, and deployment unchanged.
 
 ### Local development
 
@@ -204,8 +204,114 @@ final public net worth, public alliance tags, public city results, and aggregate
 statistics. They still do not expose cash-on-hand, crew/inventory/weapon state, wounds,
 Recon reports, protection clocks, convoy intelligence, or raw battle calculations.
 
-## Next phase
+## Phases 6–28 — Public platform completion
 
-Phase 6 builds the public Rankings and player-history layer: guest-readable current
-rankings plus season-aware player/career pages that can link safely from both live and
-archived standings.
+### Phase 6 — Rankings & player careers
+- [x] Guest-readable current national rankings.
+- [x] Current player public profiles with rank movement, city, alliance and public net worth.
+- [x] Cross-season career history linked internally by account without exposing account ids.
+- [x] Keep crew, weapons, inventory, cash and Recon state private.
+
+### Phase 7 — Alliances
+- [x] Public current alliance standings.
+- [x] Combined public net worth, roster, leader and turf presence.
+- [x] Public alliance detail routes.
+
+### Phase 8 — Cities
+- [x] Current city directory using the pinned ruleset's public city character.
+- [x] Player/economy/turf aggregates.
+- [x] City detail pages and public district controllers.
+
+### Phase 9 — Turf
+- [x] Current public turf board.
+- [x] Public district holder/alliance identity only.
+- [x] Recent completed capture feed without posted crew/weapons.
+
+### Phase 10 — Hall of Fame
+- [x] Season champion archive.
+- [x] Cross-season career leader board.
+- [x] Rankings based on frozen ended-round results.
+
+### Phase 11 — Statistics
+- [x] Current game public totals.
+- [x] All-time completed-game economy, combat, travel and turf totals.
+
+### Phase 12 — News
+- [x] Public published-news feed.
+- [x] Permanent article pages.
+- [x] Scheduled/unpublished posts remain private.
+
+### Phase 13 — Game overview
+- [x] Replace the Game shell with an explanation of the real gameplay systems.
+
+### Phase 14 — Guide hub
+- [x] Add a structured guide directory.
+
+### Phase 15 — Guide articles
+- [x] Add getting started, economy, combat/Recon, travel, turf, alliances, hideouts and seasons guides.
+- [x] Avoid publishing hidden live balance numbers.
+
+### Phase 16 — Roadmap
+- [x] Publish the 0.6 → 1.0 player-facing milestone path.
+
+### Phase 17 — Community
+- [x] Link the real forum, news and alliance resources.
+- [x] Do not invent an unconfigured Discord invite.
+
+### Phase 18 — Beta
+- [x] Add permanent beta/data-reset warning and beta-game link.
+
+### Phase 19 — Status
+- [x] Add guest API/database health status.
+- [x] Keep separate direct links for live game, forum and beta.
+
+### Phase 20 — Support
+- [x] Publish the no-pay-to-win support policy.
+- [x] Document intended cosmetic/community benefits without inventing checkout.
+
+### Phase 21 — About
+- [x] Publish project, seasonal-design and information-boundary principles.
+
+### Phase 22 — Public search
+- [x] Search current players/alliances plus games, news and cities.
+- [x] Add Search to global navigation.
+
+### Phase 23 — SEO metadata
+- [x] Route-aware titles, descriptions, Open Graph metadata and canonicals.
+- [x] Noindex search and beta utility pages.
+
+### Phase 24 — Sitemap & robots
+- [x] Add `robots.txt`.
+- [x] Add static public sitemap for permanent indexable routes.
+
+### Phase 25 — Accessibility
+- [x] Add skip navigation.
+- [x] Add visible keyboard focus.
+- [x] Respect reduced-motion preference.
+- [x] Add accessible lazy-route loading status.
+
+### Phase 26 — Performance
+- [x] Route-split the public React application.
+- [x] Use short caches for live public API data and longer caches for immutable history.
+- [x] Document immutable caching for hashed Vite assets.
+
+### Phase 27 — Nginx & deployment hardening
+- [x] Validate API/game/site build artifacts in `deploy.sh`.
+- [x] Add optional post-deploy public/live URL smoke checks.
+- [x] Add Nginx root/play split reference using the actual VPS checkout path.
+- [x] Block non-public game APIs on the root public hostname.
+- [x] Document production origin/Discord callback changes.
+
+### Phase 28 — Release readiness
+- [x] Add GitHub validation workflow for typecheck, unit tests and all builds.
+- [x] Extend guest/private-field integration regression through the new public endpoints.
+- [x] Add post-cutover public-platform smoke test.
+- [x] Add launch, verification and rollback checklist.
+- [ ] Enable GitHub branch protection/ruleset for `main` in repository settings.
+- [ ] Run the final workflow successfully and complete the VPS cutover checklist.
+
+## Phase 28 release gate
+
+Application work is complete when CI is green. Production launch is complete only after
+`docs/WEBSITE-LAUNCH-CHECKLIST.md` is performed against the VPS and
+`scripts/ops/check-public-platform.sh` passes on the real hostnames.
