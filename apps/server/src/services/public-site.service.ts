@@ -448,10 +448,16 @@ export const PublicSiteService = {
     const roundIds = rounds.map((round) => round.id);
     const playerRefs = await prisma.roundPlayer.findMany({
       where: { roundId: { in: roundIds } },
-      select: { id: true, roundId: true },
+      select: { id: true, roundId: true, cityId: true },
     });
     const playerIds = playerRefs.map((player) => player.id);
     const roundByPlayer = new Map(playerRefs.map((player) => [player.id, player.roundId]));
+    const citiesByRound = new Map<string, Set<string>>();
+    for (const player of playerRefs) {
+      const cities = citiesByRound.get(player.roundId) ?? new Set<string>();
+      cities.add(player.cityId);
+      citiesByRound.set(player.roundId, cities);
+    }
 
     const [
       playerAgg,
@@ -561,7 +567,7 @@ export const PublicSiteService = {
       const stats: PublicCompletedGameStatsDto = {
         players: player?._count._all ?? 0,
         alliances: alliancesByRound.get(round.id) ?? 0,
-        cities: ruleset.cities ? Object.keys(ruleset.cities).length : 0,
+        cities: ruleset.cities ? Object.keys(ruleset.cities).length : (citiesByRound.get(round.id)?.size ?? 0),
         economyNetWorthCents: Number(player?._sum.netWorthCents ?? 0n),
         combatBattles: combat.battles,
         driveBys: combat.driveBys,
