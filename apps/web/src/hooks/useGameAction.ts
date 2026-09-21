@@ -55,10 +55,10 @@ export function useGameAction<T>(): GameAction<T> {
       try {
         const outcome = await call(currentActionId);
         actionId.current = null;
-        setResult(outcome);
 
-        // A confirmed action response means it is safe to forget its id even
-        // if this follow-up refresh happens to fail.
+        // Refresh before publishing the receipt. Result rows use the session's
+        // multi-product balances for "remaining", so rendering first can show
+        // the pre-action stock until this request finishes.
         try {
           await useSession.getState().refreshSnapshot();
         } catch (refreshError) {
@@ -68,6 +68,10 @@ export function useGameAction<T>(): GameAction<T> {
               : 'The action completed, but the dashboard could not refresh.',
           );
         }
+
+        // Even when the follow-up refresh fails, the confirmed action receipt
+        // is still useful and must remain visible.
+        setResult(outcome);
       } catch (err) {
         if (err instanceof ApiError && !err.isUncertain) actionId.current = null;
         setError(
