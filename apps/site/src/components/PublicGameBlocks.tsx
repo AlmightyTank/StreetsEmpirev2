@@ -105,8 +105,8 @@ export function PublicRankings({ game, limit }: { game: PublicCurrentGameDto; li
   );
 }
 
-export function PublicEvents({ game, limit }: { game: PublicCurrentGameDto; limit?: number }) {
-  const rows = limit ? game.recentEvents.slice(0, limit) : game.recentEvents;
+export function PublicEventList({ events, limit }: { events: PublicCurrentGameDto['recentEvents']; limit?: number }) {
+  const rows = limit ? events.slice(0, limit) : events;
 
   return (
     <div className="public-list">
@@ -129,6 +129,10 @@ export function PublicEvents({ game, limit }: { game: PublicCurrentGameDto; limi
       ))}
     </div>
   );
+}
+
+export function PublicEvents({ game, limit }: { game: PublicCurrentGameDto; limit?: number }) {
+  return <PublicEventList events={game.recentEvents} limit={limit} />;
 }
 
 export function PublicNews({ game, limit }: { game: PublicCurrentGameDto; limit?: number }) {
