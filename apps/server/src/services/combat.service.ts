@@ -459,6 +459,42 @@ function productChanges(ruleset: Ruleset, units: ProductStock, sign: 1 | -1): Ar
     .map(([product, count]) => ({ product, name: ruleset.products?.[product]?.name ?? product, change: sign * count }));
 }
 
+/**
+ * One authoritative inventory line per product for battle receipts.
+ *
+ * The legacy productChanges field stays loot/burn-only because admin voiding
+ * depends on it. This display view also folds in fight-supply consumption and
+ * records the post-battle balance so the receipt never shows one product twice.
+ */
+function inventoryChanges(
+  ruleset: Ruleset,
+  supply: WorkSupplyPlan | undefined,
+  gained: ProductStock,
+  lost: ProductStock,
+  after: ProductStock,
+): NonNullable<BattleReportDto['inventoryChanges']> {
+  const keys = new Set([
+    ...Object.keys(supply?.consumed ?? {}),
+    ...Object.keys(gained),
+    ...Object.keys(lost),
+  ]);
+  return [...keys].flatMap((product) => {
+    const used = Math.max(0, supply?.consumed[product] ?? 0);
+    const gain = Math.max(0, gained[product] ?? 0);
+    const loss = Math.max(0, lost[product] ?? 0);
+    if (used <= 0 && gain <= 0 && loss <= 0) return [];
+    return [{
+      product,
+      name: ruleset.products?.[product]?.name ?? (product === 'CRACK' ? 'Crack' : product),
+      change: gain - loss - used,
+      after: Math.max(0, after[product] ?? 0),
+      used,
+      gained: gain,
+      lost: loss,
+    }];
+  });
+}
+
 async function consecutiveRepeatTargetHits(prisma: PrismaClient | Prisma.TransactionClient, attackerId: string, defenderId: string): Promise<number> {
   const rows = await prisma.raidBattle.findMany({
     // Drive-bys and special raid forms take no cash, so they neither count as
@@ -723,8 +759,16 @@ export const CombatService = {
         const opponent = isAttacker ? defender : attacker;
         const ownWounds = isAttacker ? result.wounds.attacker : result.wounds.defender;
         const opponentWounds = isAttacker ? result.wounds.defender : result.wounds.attacker;
+        const ownSupply = (isAttacker ? a : d).supply;
+        const inventory = inventoryChanges(
+          ruleset,
+          ownSupply,
+          isAttacker ? productLoot : {},
+          isAttacker ? {} : productLoot,
+          stashOf(isAttacker ? nextA.crack : nextD.crack, isAttacker ? productsA : productsD),
+        );
         return { id, kind: 'RAID', createdAt: now.toISOString(), modelVersion: model.version,
-          role: isAttacker ? 'ATTACKER' : 'DEFENDER', ...((isAttacker ? a : d).supply ? { yourSupply: toPlanDto((isAttacker ? a : d).supply!, ruleset) } : {}), won: isAttacker === (result.winner === 'ATTACKER'),
+          role: isAttacker ? 'ATTACKER' : 'DEFENDER', ...(ownSupply ? { yourSupply: toPlanDto(ownSupply, ruleset) } : {}), won: isAttacker === (result.winner === 'ATTACKER'),
           opponent: { publicPimpId: opponent.publicPimpId, displayName: opponent.displayName, alliance: isAttacker ? tags.defender : tags.attacker },
           yourSquad: own.committed, opponentSquad: (isAttacker ? result.defender : result.attacker).committed,
           yourEquipment: own.equipment, yourStrength: reportStrength(isAttacker ? result.effectiveStrength.attacker : result.effectiveStrength.defender),
@@ -737,6 +781,7 @@ export const CombatService = {
           crackChange: isAttacker ? crackLoot : -crackLoot,
           crackAfter: isAttacker ? nextA.crack : nextD.crack,
           ...(ruleset.productEconomy ? { productChanges: productChanges(ruleset, productLoot, isAttacker ? 1 : -1) } : {}),
+          ...(inventory.length ? { inventoryChanges: inventory } : {}),
           lootPercent: result.lootPercent,
           baseLootPercent: result.baseLootPercent,
           repeatTargetHits: result.repeatTargetHits,
@@ -842,8 +887,16 @@ export const CombatService = {
         const own = isAttacker ? result.attacker : result.defender;
         const opponent = isAttacker ? defender : attacker;
         const ownWounds = isAttacker ? result.wounds.attacker : result.wounds.defender;
+        const ownSupply = (isAttacker ? a : d).supply;
+        const inventory = inventoryChanges(
+          ruleset,
+          ownSupply,
+          {},
+          {},
+          stashOf(isAttacker ? nextA.crack : nextD.crack, isAttacker ? productsA : productsD),
+        );
         return { id, kind: 'DRIVE_BY', createdAt: now.toISOString(), modelVersion: model.version,
-          role: isAttacker ? 'ATTACKER' : 'DEFENDER', ...((isAttacker ? a : d).supply ? { yourSupply: toPlanDto((isAttacker ? a : d).supply!, ruleset) } : {}), won: isAttacker === (result.winner === 'ATTACKER'),
+          role: isAttacker ? 'ATTACKER' : 'DEFENDER', ...(ownSupply ? { yourSupply: toPlanDto(ownSupply, ruleset) } : {}), won: isAttacker === (result.winner === 'ATTACKER'),
           opponent: { publicPimpId: opponent.publicPimpId, displayName: opponent.displayName, alliance: isAttacker ? tags.defender : tags.attacker },
           yourSquad: own.committed, opponentSquad: (isAttacker ? result.defender : result.attacker).committed,
           yourEquipment: own.equipment, yourStrength: reportStrength(isAttacker ? result.effectiveStrength.attacker : result.effectiveStrength.defender),
@@ -853,6 +906,7 @@ export const CombatService = {
           nextRecoveryAt: ownWounds > 0 ? recoverAt.toISOString() : null,
           cashChangeCents: 0,
           cashAfterCents: Number(isAttacker ? nextA.cashCents : nextD.cashCents),
+          ...(inventory.length ? { inventoryChanges: inventory } : {}),
           turnsSpent: isAttacker ? rules.turnCost : 0, turnsAfter: isAttacker ? nextA.turns : nextD.turns,
           nationalRankBefore: (isAttacker ? beforeA : beforeD).nationalRank,
           nationalRankAfter: (isAttacker ? afterA : afterD).nationalRank,
@@ -1009,8 +1063,19 @@ export const CombatService = {
         const ownCrackChange = input.kind === 'DRUG_HOES'
           ? (isAttacker ? -crackSpent : -defenderCrackBurned)
           : input.kind === 'LURE_CREW' && isAttacker ? -crackSpent : 0;
+        const ownSupply = (isAttacker ? a : d).supply;
+        const directLoss = isAttacker
+          ? (crackSpent > 0 ? { CRACK: crackSpent } : {})
+          : productsBurned;
+        const inventory = inventoryChanges(
+          ruleset,
+          ownSupply,
+          {},
+          directLoss,
+          stashOf(isAttacker ? nextA.crack : nextD.crack, isAttacker ? productsA : productsD),
+        );
         return { id, kind: input.kind, createdAt: now.toISOString(), modelVersion: model.version,
-          role: isAttacker ? 'ATTACKER' : 'DEFENDER', ...((isAttacker ? a : d).supply ? { yourSupply: toPlanDto((isAttacker ? a : d).supply!, ruleset) } : {}), won: isAttacker === won,
+          role: isAttacker ? 'ATTACKER' : 'DEFENDER', ...(ownSupply ? { yourSupply: toPlanDto(ownSupply, ruleset) } : {}), won: isAttacker === won,
           opponent: { publicPimpId: opponent.publicPimpId, displayName: opponent.displayName, alliance: isAttacker ? tags.defender : tags.attacker },
           yourSquad: own.committed, opponentSquad: (isAttacker ? result.defender : result.attacker).committed,
           yourEquipment: own.equipment, yourStrength: reportStrength(isAttacker ? result.effectiveStrength.attacker : result.effectiveStrength.defender),
@@ -1023,6 +1088,7 @@ export const CombatService = {
           crackChange: ownCrackChange,
           crackAfter: isAttacker ? nextA.crack : nextD.crack,
           ...(ruleset.productEconomy && !isAttacker && input.kind === 'DRUG_HOES' ? { productChanges: productChanges(ruleset, productsBurned, -1) } : {}),
+          ...(inventory.length ? { inventoryChanges: inventory } : {}),
           turnsSpent: isAttacker ? turnCost : 0, turnsAfter: isAttacker ? nextA.turns : nextD.turns,
           nationalRankBefore: (isAttacker ? beforeA : beforeD).nationalRank,
           nationalRankAfter: (isAttacker ? afterA : afterD).nationalRank,
