@@ -437,13 +437,14 @@ export const PublicDirectoryService = {
       },
     });
     const cityRule = ruleset.cities?.[slug];
+    const districtRules = cityRule?.districts as Record<string, { name: string; blurb?: string }> | undefined;
 
     return {
       ...summary,
       districts: blocks.map((block) => ({
         key: block.district,
-        name: cityRule?.districts?.[block.district as keyof typeof cityRule.districts]?.name ?? titleCase(block.district),
-        blurb: cityRule?.districts?.[block.district as keyof typeof cityRule.districts]?.blurb ?? null,
+        name: districtRules?.[block.district]?.name ?? titleCase(block.district),
+        blurb: districtRules?.[block.district]?.blurb ?? null,
         holder: block.holder ? {
           publicPimpId: block.holder.publicPimpId,
           displayName: block.holder.displayName,
@@ -483,10 +484,11 @@ export const PublicDirectoryService = {
       enabled: Boolean(ruleset.turf),
       blocks: blocks.map((block) => {
         const cityRule = ruleset.cities?.[block.city.slug];
+        const districtRules = cityRule?.districts as Record<string, { name: string }> | undefined;
         return {
           city: block.city,
           district: block.district,
-          districtName: cityRule?.districts?.[block.district as keyof typeof cityRule.districts]?.name ?? titleCase(block.district),
+          districtName: districtRules?.[block.district]?.name ?? titleCase(block.district),
           holder: block.holder,
           heldSince: block.heldSince?.toISOString() ?? null,
         };
@@ -541,7 +543,6 @@ export const PublicDirectoryService = {
       career.set(row.accountId, item);
     }
 
-    const byRound = new Map(rounds.map((round) => [round.id, round]));
     return {
       generatedAt: new Date().toISOString(),
       champions: rounds.map((round) => ({
