@@ -6,7 +6,9 @@ import { calculateNetWorthCents, productNetWorthCents, startingStock } from '@st
 import type { BattleReportDto, GameActionResult, ProduceCrackResult, ProductsDto, ProductTradeResult } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
 import { ProductInventoryService } from '../product-inventory.service.js';
+import { ProductionService } from '../production.service.js';
 import { ReputationService } from '../reputation.service.js';
+import { ScoutService } from '../scout.service.js';
 import { RoundService } from '../round.service.js';
 
 /**
@@ -108,6 +110,26 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('product economy with Po
     expect((await stock(0)).WEED).toBe(0);
     // A round trip always loses money: no loop.
     expect((await row(0)).cashCents).toBe(before.cashCents - 240_000n + 72_000n);
+  });
+
+  it('finds district-flavored products while scouting and during the street shift behind production', async () => {
+    const scout = await ScoutService.scout(
+      app.prisma,
+      players[0]!,
+      { district: 'CASINO', turns: 1, actionId: randomUUID() },
+      () => 0.01,
+    );
+    expect(scout.result.productsFound).toEqual([{ key: 'COCAINE', name: 'Cocaine', quantity: 1 }]);
+    expect((await stock(0)).COCAINE).toBe(1);
+
+    const produced = await ProductionService.produceCrack(
+      app.prisma,
+      players[0]!,
+      { turns: 1, productType: 'METH', actionId: randomUUID() },
+      () => 0.01,
+    );
+    expect(produced.result.productsFound).toContainEqual({ key: 'WEED', name: 'Weed', quantity: expect.any(Number) });
+    expect((await stock(0)).WEED).toBeGreaterThan(0);
   });
 
   it('cooks the recipe asked for into its own stock, charges its ingredients, and adds its Heat', async () => {
