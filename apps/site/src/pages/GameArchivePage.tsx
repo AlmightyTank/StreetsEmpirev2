@@ -17,10 +17,10 @@ type State =
 
 function PlayerName({ row }: { row: PublicSeasonStandingDto }) {
   return (
-    <Link to={`/players/${row.publicPimpId}`}>
+    <span>
       {row.alliance ? <span className="archive-alliance-tag">[{row.alliance.tag}] </span> : null}
       {row.displayName} <small>#{row.publicPimpId}</small>
-    </Link>
+    </span>
   );
 }
 
