@@ -29,6 +29,9 @@ const schema = z.object({
   DISCORD_RAID_FEED_CHANNEL_ID: optionalChannel('DISCORD_RAID_FEED_CHANNEL_ID'),
   /** How often alerts (/alerts), the raid feed and round events are checked. */
   DISCORD_ALERTS_MINUTES: z.coerce.number().int().min(1).max(60).default(1),
+  /** Local HTTP listener for game-server wake-up nudges. Set port 0 to turn it off. */
+  DISCORD_BOT_LISTEN_HOST: z.string().default('127.0.0.1'),
+  DISCORD_BOT_LISTEN_PORT: z.coerce.number().int().min(0).max(65535).default(3002),
 });
 
 export type BotConfig = z.infer<typeof schema> & { frontendOrigin: string };

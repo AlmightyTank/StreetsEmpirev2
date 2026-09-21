@@ -145,7 +145,7 @@ export function AdminIntegrationsPage() {
               </div>
               <div className="se-admin-pad">
                 <p className="se-hint">
-                  The bot only pulls from the game. If an oldest item keeps getting older, the bot is not polling.
+                  The server nudges the bot, and polling is the fallback. If an oldest item keeps getting older, the bot is not clearing the queue.
                   {discord.botApiEnabled ? '' : ' Set DISCORD_BOT_API_TOKEN on the server and the bot to turn it on.'}
                 </p>
                 <Button type="button" className="se-btn se-btn--sm se-mt" onClick={() => choose('resync-everyone')}

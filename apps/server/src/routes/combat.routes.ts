@@ -4,6 +4,7 @@ import { combatReconSchema, combatTreatmentSchema, driveBySchema, raidSchema, sp
 import { CombatService } from '../services/combat.service.js';
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { RoundService } from '../services/round.service.js';
+import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 
@@ -23,17 +24,23 @@ const combatRoutes: FastifyPluginAsync = async (app) => {
     const input = parseBody(raidSchema, request.body);
     // Explicit round pins retries to the original player if the current round changes.
     const me = await player(request.auth!.account.id, input.roundId);
-    return CombatService.raid(app.prisma, me.id, input);
+    const result = await CombatService.raid(app.prisma, me.id, input);
+    wakeDiscordBot('combat');
+    return result;
   });
   app.post('/combat/drive-by', { preHandler: app.requireAuth }, async (request) => {
     const input = parseBody(driveBySchema, request.body);
     const me = await player(request.auth!.account.id, input.roundId);
-    return CombatService.driveBy(app.prisma, me.id, input);
+    const result = await CombatService.driveBy(app.prisma, me.id, input);
+    wakeDiscordBot('combat');
+    return result;
   });
   app.post('/combat/special', { preHandler: app.requireAuth }, async (request) => {
     const input = parseBody(specialRaidSchema, request.body);
     const me = await player(request.auth!.account.id, input.roundId);
-    return CombatService.specialRaid(app.prisma, me.id, input);
+    const result = await CombatService.specialRaid(app.prisma, me.id, input);
+    wakeDiscordBot('combat');
+    return result;
   });
   app.post('/combat/recon', { preHandler: app.requireAuth }, async (request) => {
     const input = parseBody(combatReconSchema, request.body);

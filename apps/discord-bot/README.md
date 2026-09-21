@@ -30,8 +30,9 @@ counts as linked once the player has signed in with Discord or linked it under
   renamed to a new tag, or belonged to a finished round. Only roles named exactly
   `Alliance [TAG]` are ever deleted, so don't give a hand-made role that name.
 - Founding, joining, leaving and kicking queue a resync for that member, so
-  alliance roles change within `DISCORD_ALERTS_MINUTES` instead of waiting for
-  the full sync. A disband or tag change queues a full sync.
+  alliance roles update as soon as the game API nudges the bot, with
+  `DISCORD_ALERTS_MINUTES` polling as a fallback. A disband or tag change
+  queues a full sync.
 - A full sync runs on startup and every `DISCORD_SYNC_MINUTES` (default 10).
   Members who join the server are synced straight away.
 - Linking or unlinking in the game shows up at the next sync.
@@ -62,9 +63,10 @@ the person who ran the command.
 | `/announce` | Private | Game admins: create a news post from Discord |
 | `/syncall` | Private | Mods: a full role sync for the whole server. Hidden from members without **Manage Roles**, and checked again when run. |
 
-**News auto-post.** When `DISCORD_NEWS_CHANNEL_ID` is set, the bot checks for
-newly published game news every `DISCORD_NEWS_MINUTES` (default 1) and posts
-each item to that channel once.
+**News auto-post.** When `DISCORD_NEWS_CHANNEL_ID` is set, the game API nudges
+the bot after news is created; the bot also checks for newly published game
+news every `DISCORD_NEWS_MINUTES` (default 1) and posts each item to that
+channel once.
 - In an Announcement channel, it also publishes the post to following servers.
 - News that already existed when auto-posting was added is never posted.
 - The bot needs **View Channel**, **Send Messages** and **Embed Links** in that
@@ -74,8 +76,10 @@ each item to that channel once.
   retried.
 
 **Alerts and feeds.** Members opt in with `/alerts`.
-- Every `DISCORD_ALERTS_MINUTES` (default 1), the bot checks full-turn DMs,
-  attack DMs, rank-drop DMs, round-event DMs, the raid feed and round-end posts.
+- The game API nudges the bot when work is queued, and every
+  `DISCORD_ALERTS_MINUTES` (default 1) the bot also checks full-turn DMs,
+  attack DMs, rank-drop DMs, round-event DMs, the raid feed and round-end posts
+  as a fallback.
 - Turn alerts send one DM per fill-up. Spending turns sets up the next one.
 - Attack alerts DM the defender when they opted in. If `DISCORD_RAID_FEED_CHANNEL_ID`
   is set, each new raid/combat result is also posted publicly once.
@@ -126,11 +130,17 @@ The bot and the game server both read the repo's root `.env`:
 # API stays off (404) while this is empty.
 DISCORD_BOT_API_TOKEN="<secret>"
 
+# Game server only: optional local wake-up nudge to the bot.
+DISCORD_BOT_PUSH_URL="http://127.0.0.1:3002/internal/wake"
+DISCORD_BOT_PUSH_TIMEOUT_MS=2000
+
 # Bot only
 DISCORD_BOT_TOKEN="<bot token>"
 DISCORD_CLIENT_ID="<application id>"
 DISCORD_GUILD_ID="<server id>"
 GAME_API_URL="http://127.0.0.1:3001"
+DISCORD_BOT_LISTEN_HOST="127.0.0.1"
+DISCORD_BOT_LISTEN_PORT=3002
 FRONTEND_ORIGIN="https://streetsempire.dev"
 DISCORD_SYNC_MINUTES=10
 DISCORD_FORUM_GROUPS="Admin,Mod"
@@ -142,6 +152,10 @@ DISCORD_ALERTS_MINUTES=1
 
 - `GAME_API_URL` is where the bot reaches the API, as an origin with no path.
   On the VPS, use the API's local address so traffic never leaves the machine.
+- `DISCORD_BOT_PUSH_URL` is where the game API nudges the bot after news,
+  combat alerts or role-resync work is queued. Keep it on localhost. The bot
+  listens on `DISCORD_BOT_LISTEN_HOST` and `DISCORD_BOT_LISTEN_PORT`; set the
+  port to `0` to disable the listener and rely on polling only.
 - `FRONTEND_ORIGIN` is only used for links in replies.
 - `DISCORD_FORUM_GROUPS` lists which forum groups get a "Forum <group>" role.
   Names match the forum's group names, ignoring case. Leave it empty for none.
@@ -196,6 +210,8 @@ renamed or new commands need no extra step.
 
 - The internal API (`/api/internal/discord/*`) accepts only the bearer token,
   compared in constant time. With no token set, it answers 404.
+- The bot's local wake endpoint (`/internal/wake`) accepts the same bearer token
+  and only tells the bot to claim pending work from the game API.
 - It is exempt from the per-IP rate limit so role sync on a large server isn't
   throttled. The 64+ character token makes guessing impractical.
 - It returns only public profile data except private `/stats`, which only shows

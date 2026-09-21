@@ -375,7 +375,7 @@ export interface AdminRoundHealthDto {
   }>;
 }
 
-/** What the Discord bot still has to pick up. The bot only pulls, so a growing oldest item means it is down. */
+/** What the Discord bot still has to pick up. Growing oldest items mean push or polling is not clearing the queue. */
 export interface AdminDiscordStatusDto {
   botApiEnabled: boolean;
   linkedAccounts: number;
