@@ -134,7 +134,42 @@ still data-safe: pages are structural placeholders and do not query production g
 - [x] Preserve `apps/web` without modification.
 - [x] Do not expose live database or Recon-gated information.
 
+## Phase 4 — Live public overview
+
+The public website now reads a deliberately narrow, read-only API contract. The first
+two endpoints power the homepage and current-game dashboard:
+
+```text
+GET /api/public/overview
+GET /api/public/current-game
+```
+
+### Phase 4 completion checklist
+
+- [x] Add shared TypeScript contracts for the public website API.
+- [x] Add a dedicated `PublicSiteService` with explicit safe-field selections.
+- [x] Register public routes under `/api/public` without authentication.
+- [x] Add current round/ruleset metadata and aggregate season statistics.
+- [x] Add top-five public net-worth rankings without private player resources.
+- [x] Add recent completed turf captures as the first public activity feed.
+- [x] Add recent published news previews.
+- [x] Add all-time completed-game and active-account counts to the overview.
+- [x] Proxy `/api` from the local public-site Vite server to the game API.
+- [x] Add loading, no-game, and API-unavailable states to the public site.
+- [x] Replace the current-game placeholder with a real public dashboard.
+- [x] Add an integration regression that verifies the endpoints work without a login.
+- [x] Add a regression guard against exposing cash, crew, inventory, weapons, wounds, or protection state.
+
+### Public-data boundary
+
+The Phase 4 API may expose public identity, public ranks/net worth, season metadata,
+published news, aggregate statistics, city names, alliance tags, and completed public
+turf captures. It must not expose cash-on-hand, crew counts, supplies, weapons, wounds,
+combat readiness, protection timers, Recon reports, convoy intelligence, or hidden
+market/player state.
+
 ## Next phase
 
-Phase 4 turns the homepage into a real public dashboard and introduces the first
-read-only public API endpoints, beginning with safe overview/current-game data.
+Phase 5 expands the public data model into real Games/season-history pages: the game
+archive, individual completed-game pages, final standings, champions, and season
+statistics.
