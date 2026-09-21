@@ -326,6 +326,7 @@ export function GameLayout({ children }: { children: ReactNode }) {
   useStaleGameReload();
   usePageFreshness();
   const round = useSession((s) => s.round);
+  const isBetaEnvironment = typeof window !== 'undefined' && window.location.hostname === 'beta.streetsempire.dev';
   const sections = useSections();
   const { pathname, hash } = useLocation();
   const badges = useNavBadges(pathname);
@@ -357,6 +358,12 @@ export function GameLayout({ children }: { children: ReactNode }) {
       </>
     }>
       <ConnectionBanner />
+      {isBetaEnvironment ? (
+        <div className="se-beta-banner" role="status">
+          <strong>BETA ENVIRONMENT</strong>
+          <span>Test server · data may be reset at any time · progress does not transfer to live.</span>
+        </div>
+      ) : null}
       {round ? (
         <div className="se-gamebar">
           <span className="se-gamebar__name">{round.name}</span>
