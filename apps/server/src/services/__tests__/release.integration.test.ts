@@ -172,7 +172,24 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
   });
 
   it('keeps the public website API guest-readable and free of private player state', async () => {
-    for (const url of ['/api/public/overview', '/api/public/current-game', '/api/public/games', `/api/public/games/${archiveSlug}`]) {
+    const publicUrls = [
+      '/api/public/overview',
+      '/api/public/current-game',
+      '/api/public/games',
+      `/api/public/games/${archiveSlug}`,
+      '/api/public/rankings',
+      `/api/public/players/${publicPimpId}`,
+      '/api/public/alliances',
+      '/api/public/cities',
+      '/api/public/turf',
+      '/api/public/hall-of-fame',
+      '/api/public/stats',
+      '/api/public/news',
+      '/api/public/status',
+      `/api/public/search?q=${encodeURIComponent('release')}`,
+    ];
+
+    for (const url of publicUrls) {
       const response = await app.inject({ method: 'GET', url });
       expect(response.statusCode, response.body).toBe(200);
 
@@ -225,6 +242,12 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.1.0-H gameplay regres
     expect(archive.standings).toHaveLength(1);
     expect(archive.stats.players).toBe(1);
     expect(archive.stats.economyNetWorthCents).toBe(12_345_600);
+
+    const publicPlayer = (await app.inject({ method: 'GET', url: `/api/public/players/${publicPimpId}` })).json().player;
+    expect(publicPlayer.player.publicPimpId).toBe(publicPimpId);
+    expect(publicPlayer.career.roundsPlayed).toBe(1);
+    expect(publicPlayer.career.roundWins).toBe(1);
+    expect(publicPlayer.career.seasons[0].round.slug).toBe(archiveSlug);
 
     const missingArchive = await app.inject({ method: 'GET', url: '/api/public/games/not-a-real-season' });
     expect(missingArchive.statusCode).toBe(404);
