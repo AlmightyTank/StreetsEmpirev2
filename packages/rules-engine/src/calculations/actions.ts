@@ -304,13 +304,53 @@ export interface StreetTake {
   crewTakeCents: bigint;
   /** Your share, which is what lands in cash. */
   pimpTakeCents: bigint;
-  /** Product turned up on the block rather than bought. */
+  /** Products that turned up on the block rather than being bought. */
+  productsFound: Record<string, number>;
+  /** Legacy convenience field for old clients and single-product rounds. */
   crackFound: number;
   consumption: Consumption;
   shortages: { condoms: number; beer: number };
   departures: Departures;
   /** Who caught something working an under-supplied shift. */
   infections: Infections;
+}
+
+function streetFind(ruleset: Ruleset, district: DistrictKey, roll: number): { product: string; quantity: number } {
+  const finds = ruleset.scouting.finds;
+  const choices = finds.productsByDistrict?.[district];
+  if (!choices?.length) {
+    const span = finds.crackMax - finds.crackMin;
+    return { product: 'CRACK', quantity: finds.crackMin + Math.floor(roll * (span + 1)) };
+  }
+
+  const valid = choices.filter((choice) =>
+    choice.weight > 0 &&
+    Number.isSafeInteger(choice.min) &&
+    Number.isSafeInteger(choice.max) &&
+    choice.min >= 0 &&
+    choice.max >= choice.min &&
+    Boolean(ruleset.products?.[choice.product]),
+  );
+  if (!valid.length) {
+    const span = finds.crackMax - finds.crackMin;
+    return { product: 'CRACK', quantity: finds.crackMin + Math.floor(roll * (span + 1)) };
+  }
+
+  const total = valid.reduce((sum, choice) => sum + choice.weight, 0);
+  const point = roll * total;
+  let floor = 0;
+  for (const choice of valid) {
+    const ceiling = floor + choice.weight;
+    if (point < ceiling) {
+      const within = choice.weight <= 0 ? 0 : (point - floor) / choice.weight;
+      const span = choice.max - choice.min;
+      return { product: choice.product, quantity: choice.min + Math.min(span, Math.floor(within * (span + 1))) };
+    }
+    floor = ceiling;
+  }
+
+  const last = valid[valid.length - 1]!;
+  return { product: last.product, quantity: last.max };
 }
 
 /**
@@ -371,7 +411,7 @@ export function calculateStreetTake(
   const shortages = { condoms: 0, beer: 0 };
   const needCarry = { condoms: 0, crack: 0, beer: 0 };
   let gross = 0;
-  let crackFound = 0;
+  const productsFound: Record<string, number> = {};
   const workedTurns = Math.max(0, turns);
 
   for (let turn = 0; turn < workedTurns; turn++) {
@@ -433,8 +473,8 @@ export function calculateStreetTake(
     shortages.beer += turnNeeded.beer - turnConsumption.beer;
 
     if (rng() < rules.finds.chancePerTurn) {
-      const span = rules.finds.crackMax - rules.finds.crackMin;
-      crackFound += rules.finds.crackMin + Math.floor(rng() * (span + 1));
+      const found = streetFind(ruleset, district, rng());
+      if (found.quantity > 0) productsFound[found.product] = (productsFound[found.product] ?? 0) + found.quantity;
     }
 
     context.onTurnWorked?.(state, turn);
@@ -486,7 +526,8 @@ export function calculateStreetTake(
     grossCents,
     crewTakeCents,
     pimpTakeCents,
-    crackFound,
+    productsFound,
+    crackFound: productsFound.CRACK ?? 0,
     consumption,
     shortages,
     departures,
