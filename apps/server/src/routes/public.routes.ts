@@ -19,7 +19,7 @@ const publicRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.get('/games', async (_request, reply) => {
-    reply.header('Cache-Control', ARCHIVE_CACHE);
+    reply.header('Cache-Control', PUBLIC_CACHE);
     return PublicSiteService.games(fastify.prisma);
   });
 
