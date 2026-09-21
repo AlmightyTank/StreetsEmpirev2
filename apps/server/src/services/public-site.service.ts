@@ -424,23 +424,175 @@ export const PublicSiteService = {
   },
 
   async games(prisma: PrismaClient): Promise<PublicGamesArchiveDto> {
-    const [current, rounds] = await Promise.all([
-      RoundService.getCurrent(prisma),
-      prisma.round.findMany({
-        where: { status: { in: ['ENDED', 'ARCHIVED'] } },
-        orderBy: [{ endsAt: 'desc' }, { startsAt: 'desc' }],
-        take: ARCHIVE_LIMIT,
-      }),
-    ]);
+    // Resolve/close the current round first so a season that just expired is
+    // immediately eligible for the archive query below.
+    const current = await RoundService.getCurrent(prisma);
+    const rounds = await prisma.round.findMany({
+      where: { status: { in: ['ENDED', 'ARCHIVED'] } },
+      orderBy: [{ endsAt: 'desc' }, { startsAt: 'desc' }],
+      take: ARCHIVE_LIMIT,
+    });
 
     const currentRound = current
       ? toRoundDto(current, await RoundService.playerCount(prisma, current.id))
       : null;
 
+    if (!rounds.length) {
+      return {
+        generatedAt: new Date().toISOString(),
+        currentRound,
+        games: [],
+      };
+    }
+
+    const roundIds = rounds.map((round) => round.id);
+    const playerRefs = await prisma.roundPlayer.findMany({
+      where: { roundId: { in: roundIds } },
+      select: { id: true, roundId: true },
+    });
+    const playerIds = playerRefs.map((player) => player.id);
+    const roundByPlayer = new Map(playerRefs.map((player) => [player.id, player.roundId]));
+
+    const [
+      playerAgg,
+      allianceAgg,
+      turfAgg,
+      heldAgg,
+      championRowsAll,
+      battleAgg,
+      runAgg,
+    ] = await Promise.all([
+      prisma.roundPlayer.groupBy({
+        by: ['roundId'],
+        where: { roundId: { in: roundIds } },
+        _count: { _all: true },
+        _sum: { netWorthCents: true },
+      }),
+      prisma.alliance.groupBy({
+        by: ['roundId'],
+        where: { roundId: { in: roundIds }, disbandedAt: null },
+        _count: { _all: true },
+      }),
+      prisma.turfPush.groupBy({
+        by: ['roundId', 'captured'],
+        where: { roundId: { in: roundIds }, status: 'LANDED' },
+        _count: { _all: true },
+      }),
+      prisma.turf.groupBy({
+        by: ['roundId'],
+        where: { roundId: { in: roundIds }, holderId: { not: null } },
+        _count: { _all: true },
+      }),
+      prisma.roundPlayer.findMany({
+        where: {
+          roundId: { in: roundIds },
+          nationalRank: 1,
+          account: { isActive: true },
+        },
+        orderBy: [{ roundId: 'asc' }, { netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
+        select: {
+          roundId: true,
+          publicPimpId: true,
+          displayName: true,
+          netWorthCents: true,
+          nationalRank: true,
+          localRank: true,
+          city: { select: { slug: true, name: true } },
+          alliance: { select: { name: true, tag: true } },
+        },
+      }),
+      playerIds.length
+        ? prisma.raidBattle.groupBy({
+            by: ['attackerId', 'kind'],
+            where: { attackerId: { in: playerIds }, voidedAt: null },
+            _count: { _all: true },
+          })
+        : Promise.resolve([]),
+      playerIds.length
+        ? prisma.run.groupBy({
+            by: ['roundPlayerId'],
+            where: { roundPlayerId: { in: playerIds }, status: 'RETURNED' },
+            _count: { _all: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const playersByRound = new Map(playerAgg.map((row) => [row.roundId, row]));
+    const alliancesByRound = new Map(allianceAgg.map((row) => [row.roundId, row._count._all]));
+    const heldByRound = new Map(heldAgg.map((row) => [row.roundId, row._count._all]));
+
+    const turfByRound = new Map<string, { battles: number; captures: number }>();
+    for (const row of turfAgg) {
+      const currentTurf = turfByRound.get(row.roundId) ?? { battles: 0, captures: 0 };
+      currentTurf.battles += row._count._all;
+      if (row.captured) currentTurf.captures += row._count._all;
+      turfByRound.set(row.roundId, currentTurf);
+    }
+
+    const combatByRound = new Map<string, { battles: number; driveBys: number }>();
+    for (const row of battleAgg) {
+      const roundId = roundByPlayer.get(row.attackerId);
+      if (!roundId) continue;
+      const currentCombat = combatByRound.get(roundId) ?? { battles: 0, driveBys: 0 };
+      currentCombat.battles += row._count._all;
+      if (row.kind === 'DRIVE_BY') currentCombat.driveBys += row._count._all;
+      combatByRound.set(roundId, currentCombat);
+    }
+
+    const runsByRound = new Map<string, number>();
+    for (const row of runAgg) {
+      const roundId = roundByPlayer.get(row.roundPlayerId);
+      if (!roundId) continue;
+      runsByRound.set(roundId, (runsByRound.get(roundId) ?? 0) + row._count._all);
+    }
+
+    const championsByRound = new Map<string, PublicSeasonStandingDto[]>();
+    for (const row of championRowsAll) {
+      const standing = historicalStanding(row);
+      if (!standing) continue;
+      championsByRound.set(row.roundId, [...(championsByRound.get(row.roundId) ?? []), standing]);
+    }
+
+    const games: PublicGameArchiveEntryDto[] = rounds.map((round) => {
+      const ruleset = loadRulesetForRound(round);
+      const player = playersByRound.get(round.id);
+      const turf = turfByRound.get(round.id) ?? { battles: 0, captures: 0 };
+      const combat = combatByRound.get(round.id) ?? { battles: 0, driveBys: 0 };
+      const stats: PublicCompletedGameStatsDto = {
+        players: player?._count._all ?? 0,
+        alliances: alliancesByRound.get(round.id) ?? 0,
+        cities: ruleset.cities ? Object.keys(ruleset.cities).length : 0,
+        economyNetWorthCents: Number(player?._sum.netWorthCents ?? 0n),
+        combatBattles: combat.battles,
+        driveBys: combat.driveBys,
+        travelRuns: runsByRound.get(round.id) ?? 0,
+        turfBattles: turf.battles,
+        turfCaptures: turf.captures,
+        turfBlocksHeldAtEnd: heldByRound.get(round.id) ?? 0,
+      };
+
+      return {
+        id: round.id,
+        slug: round.slug,
+        name: round.name,
+        status: round.status as 'ENDED' | 'ARCHIVED',
+        ruleset: {
+          id: ruleset.meta.id,
+          version: ruleset.meta.version,
+          name: ruleset.meta.name,
+        },
+        startsAt: round.startsAt.toISOString(),
+        endedAt: round.endsAt.toISOString(),
+        playerCount: stats.players,
+        champions: championsByRound.get(round.id) ?? [],
+        stats,
+      };
+    });
+
     return {
       generatedAt: new Date().toISOString(),
       currentRound,
-      games: await Promise.all(rounds.map((round) => archiveEntry(prisma, round))),
+      games,
     };
   },
 
