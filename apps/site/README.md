@@ -69,3 +69,17 @@ GET /api/public/current-game
 
 These endpoints are guest-readable by design and return only explicitly selected public
 fields. Recon-gated and private player state is not part of the public website contract.
+
+
+## Phase 5 season archive
+
+Completed seasons are now available through:
+
+```text
+GET /api/public/games
+GET /api/public/games/:gameId
+```
+
+The public site uses these endpoints for `/games` and `/games/:gameId`. Historical
+identity-linked data comes only from frozen public ranks; private game resources and
+Recon-gated state remain outside the contract.
