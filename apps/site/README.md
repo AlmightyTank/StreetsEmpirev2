@@ -55,3 +55,17 @@ The public shell now reserves the main website structure:
 These pages are public-site routes only. Phase 3 intentionally does not expose live
 database information or private game intelligence. Public API data is added in a later
 phase.
+
+
+## Phase 4 public API
+
+During local development, `apps/site` proxies `/api` to the Fastify server on port
+`3001`.
+
+```text
+GET /api/public/overview
+GET /api/public/current-game
+```
+
+These endpoints are guest-readable by design and return only explicitly selected public
+fields. Recon-gated and private player state is not part of the public website contract.
