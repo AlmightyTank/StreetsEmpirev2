@@ -17,6 +17,7 @@ import { AdminPlayerService } from '../services/admin-player.service.js';
 import { AdminRoundService } from '../services/admin-round.service.js';
 import { AdminRulesetService } from '../services/admin-ruleset.service.js';
 import { AdminSignalsService } from '../services/admin-signals.service.js';
+import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
 import { parseBody } from '../utils/validate.js';
 
@@ -207,6 +208,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { allianceId } = parseBody(allianceParams, request.params);
     const input = parseBody(renameAllianceSchema, request.body ?? {});
     await AllianceService.adminRename(fastify.prisma, request.auth!.account, allianceId, input);
+    wakeDiscordBot('resync');
     return { ok: true };
   });
 
@@ -226,6 +228,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { allianceId } = parseBody(allianceParams, request.params);
     const body = parseBody(reasonBody, request.body ?? {});
     await AllianceService.adminDisband(fastify.prisma, request.auth!.account, allianceId, body.reason);
+    wakeDiscordBot('resync');
     return { ok: true };
   });
 

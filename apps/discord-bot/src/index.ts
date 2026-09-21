@@ -27,6 +27,7 @@ import { Cooldowns } from './lookup.js';
 import { managedRoles, parseForumGroupList } from './roles.js';
 import { startPoller } from './schedule.js';
 import { RoleSync } from './sync.js';
+import { startPushServer } from './push-server.js';
 
 const config = loadConfig();
 const api = createGameApi({ baseUrl: config.GAME_API_URL, token: config.DISCORD_BOT_API_TOKEN });
@@ -39,6 +40,7 @@ const client = new Client({
 });
 
 let sync: RoleSync | null = null;
+let stopPushServer: (() => Promise<void>) | null = null;
 
 let cityCache: { cities: City[]; fetchedAt: number } | null = null;
 async function getCities(): Promise<City[]> {
@@ -190,6 +192,28 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
   }
 }
 
+function serialTask(name: string, task: () => Promise<void>): () => Promise<void> {
+  let running = false;
+  let queued = false;
+  return async () => {
+    if (running) {
+      queued = true;
+      return;
+    }
+    running = true;
+    try {
+      do {
+        queued = false;
+        await task();
+      } while (queued);
+    } catch (error) {
+      console.error(`${name} failed:`, error);
+    } finally {
+      running = false;
+    }
+  };
+}
+
 client.once(Events.ClientReady, async (ready) => {
   try {
     const application = await ready.application.fetch();
@@ -217,20 +241,19 @@ client.once(Events.ClientReady, async (ready) => {
     });
 
     const newsChannel = await findPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'News auto-post');
+    const runNews = serialTask('News auto-post', async () => {
+      if (newsChannel) await postNews(newsChannel);
+    });
     if (newsChannel) {
       console.log(`Posting new game news to #${newsChannel.name} (checking every ${config.DISCORD_NEWS_MINUTES} min).`);
-      startPoller('News auto-post', config.DISCORD_NEWS_MINUTES * 60_000, () => postNews(newsChannel));
+      startPoller('News auto-post', config.DISCORD_NEWS_MINUTES * 60_000, runNews);
     }
 
     const raidFeedChannel = await findPostChannel(guild, config.DISCORD_RAID_FEED_CHANNEL_ID, 'Raid feed');
     if (raidFeedChannel) console.log(`Posting raid feed events to #${raidFeedChannel.name}.`);
 
-    console.log(`Checking Discord alerts every ${config.DISCORD_ALERTS_MINUTES} min.`);
-    startPoller('Discord alerts', config.DISCORD_ALERTS_MINUTES * 60_000, () => sendAlerts({ news: newsChannel, raidFeed: raidFeedChannel }));
-
-    // Resyncs an admin asked for in the game panel. A full sync that is already
-    // running covers an "everyone" request, so a skipped run is not lost work.
-    startPoller('Admin role resync', config.DISCORD_ALERTS_MINUTES * 60_000, async () => {
+    const runAlerts = serialTask('Discord alerts', () => sendAlerts({ news: newsChannel, raidFeed: raidFeedChannel }));
+    const runAdminResync = serialTask('Admin role resync', async () => {
       const claim = await api.claimResync();
       if (claim.all) {
         const summary = await roleSync.syncAll();
@@ -241,6 +264,27 @@ client.once(Events.ClientReady, async (ready) => {
         console.log(`Admin resync: ${members?.size ?? 0} of ${claim.discordIds.length} requested members synced.`);
       }
     });
+    const runWake = serialTask('Discord push wake', async () => {
+      await runNews();
+      await runAlerts();
+      await runAdminResync();
+    });
+
+    console.log(`Checking Discord alerts every ${config.DISCORD_ALERTS_MINUTES} min.`);
+    startPoller('Discord alerts', config.DISCORD_ALERTS_MINUTES * 60_000, runAlerts);
+
+    // Resyncs an admin asked for in the game panel. A full sync that is already
+    // running covers an "everyone" request, so a skipped run is not lost work.
+    startPoller('Admin role resync', config.DISCORD_ALERTS_MINUTES * 60_000, runAdminResync);
+
+    if (config.DISCORD_BOT_LISTEN_PORT > 0) {
+      stopPushServer = await startPushServer({
+        host: config.DISCORD_BOT_LISTEN_HOST,
+        port: config.DISCORD_BOT_LISTEN_PORT,
+        token: config.DISCORD_BOT_API_TOKEN,
+        onWake: runWake,
+      });
+    }
   } catch (error) {
     // Exit so systemd restarts us, instead of staying online but deaf.
     console.error('Startup failed:', error);
@@ -274,7 +318,10 @@ process.on('unhandledRejection', (error) => console.error('Unhandled rejection:'
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
-    void client.destroy().finally(() => process.exit(0));
+    void Promise.resolve()
+      .then(() => stopPushServer?.())
+      .finally(() => client.destroy())
+      .finally(() => process.exit(0));
   });
 }
 

@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { allianceForumPostSchema, allianceInviteAnswerSchema, alliancePlayerSchema, allianceTagSchema, createAllianceSchema } from '@streets/shared';
 import { AllianceService } from '../services/alliance.service.js';
+import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { RoundService } from '../services/round.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
@@ -34,7 +35,9 @@ const allianceRoutes: FastifyPluginAsync = async (app) => {
   const post = (path: string, action: (playerId: string, body: unknown) => Promise<unknown>) => {
     app.post(path, { preHandler: app.requireAuth }, async (request) => {
       const player = await me(request.auth!.account.id);
-      return action(player.id, request.body ?? {});
+      const result = await action(player.id, request.body ?? {});
+      wakeDiscordBot('resync');
+      return result;
     });
   };
 

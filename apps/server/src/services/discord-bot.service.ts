@@ -43,6 +43,7 @@ import {
   roundEventDto,
 } from './notification.service.js';
 import { RoundService } from './round.service.js';
+import { wakeDiscordBot } from './discord-bot-push.service.js';
 import { competitionRanks, gameUrl, playerUrl, rankValues } from './standings.js';
 
 /** Constant-time bearer check; hashing first makes the lengths equal. */
@@ -649,6 +650,7 @@ export const DiscordBotService = {
     const news = await prisma.gameNews.create({
       data: { title: input.title, body: input.body, isPinned: input.pinned, roundId: round?.id ?? null, createdByAccountId: account.id },
     });
+    wakeDiscordBot('news');
     return { id: news.id, title: news.title, url: gameUrl('/game/news'), roundName: round?.name ?? null };
   },
 

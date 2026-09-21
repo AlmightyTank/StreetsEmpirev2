@@ -3,6 +3,7 @@ import type { AdminNewsDto, AdminNewsPostDto } from '@streets/shared';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
+import { wakeDiscordBot } from './discord-bot-push.service.js';
 import { forumDiscussionUrl, mirrorNewsToForum } from './forum-news.service.js';
 
 const newsInclude = {
@@ -93,6 +94,7 @@ export const AdminNewsService = {
       await AdminAuditService.record(tx, actor, { action: 'news.create', targetType: 'news', targetId: row.id, after: row });
       return row;
     });
+    wakeDiscordBot('news');
     if (input.mirrorToForum) await mirror(prisma, actor, created.id);
     return AdminNewsService.list(prisma);
   },

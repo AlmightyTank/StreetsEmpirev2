@@ -3,12 +3,13 @@ import type { AdminDiscordStatusDto } from '@streets/shared';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
+import { wakeDiscordBot } from './discord-bot-push.service.js';
 
 const iso = (date: Date | null | undefined) => date?.toISOString() ?? null;
 
 /**
- * What the Discord bot still has to pick up. The bot only pulls from the game
- * API, so a queue whose oldest item keeps getting older means the bot is down.
+ * What the Discord bot still has to pick up. A queue whose oldest item keeps
+ * getting older means push or polling is not clearing it.
  */
 export const AdminDiscordService = {
   async status(prisma: PrismaClient, now = new Date()): Promise<AdminDiscordStatusDto> {
@@ -69,6 +70,7 @@ export const AdminDiscordService = {
         after: { requestId: request.id, everyone: discordId === null },
       });
     });
+    wakeDiscordBot('resync');
     return AdminDiscordService.status(prisma);
   },
 };
