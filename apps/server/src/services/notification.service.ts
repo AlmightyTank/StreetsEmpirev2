@@ -192,7 +192,7 @@ async function collectTurfAlerts(tx: Tx, now: Date, switches: ChannelSwitches): 
           accountId: true,
           publicPimpId: true,
           displayName: true,
-          account: { select: { notificationSettings: { select: { turfEnabled: true, ...recipientSelect } } } },
+          account: { select: { notificationSettings: { select: { turfEnabled: true, turfEnabledAt: true, ...recipientSelect } } } },
         },
       },
     },
@@ -207,7 +207,7 @@ async function collectTurfAlerts(tx: Tx, now: Date, switches: ChannelSwitches): 
 
   return pushes.flatMap((push): OutboxRow[] => {
     const settings = push.defender.account.notificationSettings;
-    if (!settings?.turfEnabled || !push.settledAt) return [];
+    if (!settings?.turfEnabled || !settings.turfEnabledAt || !push.settledAt || push.settledAt < settings.turfEnabledAt) return [];
     const ruleset = loadRulesetForRound(push.round);
     const city = push.turf.city.slug;
     const district = push.turf.district as DistrictKey;
@@ -252,8 +252,9 @@ async function collectAllianceAlerts(tx: Tx, now: Date, switches: ChannelSwitche
         },
         select: {
           allianceId: true,
+          allianceJoinedAt: true,
           accountId: true,
-          account: { select: { notificationSettings: { select: { allianceEnabled: true, ...recipientSelect } } } },
+          account: { select: { notificationSettings: { select: { allianceEnabled: true, allianceEnabledAt: true, ...recipientSelect } } } },
         },
       })
     : [];
@@ -287,7 +288,8 @@ async function collectAllianceAlerts(tx: Tx, now: Date, switches: ChannelSwitche
       if (!allianceTag) continue;
       for (const member of membersByAlliance.get(allianceId) ?? []) {
         const settings = member.account.notificationSettings;
-        if (!settings?.allianceEnabled) continue;
+        if (!settings?.allianceEnabled || !settings.allianceEnabledAt || event.happenedAt < settings.allianceEnabledAt) continue;
+        if (member.allianceJoinedAt && member.allianceJoinedAt > event.happenedAt) continue;
         rows.push(...rowsFor(
           member.accountId,
           channelsFor(settings, switches),
@@ -462,9 +464,9 @@ function categoryData(category: NotificationCategory, enabled: boolean, { round,
       // Already full when switching on: the first reminder waits until they spend and refill.
       return { turnsEnabled: enabled, turnsArmed: enabled && (current ? current.turns < current.cap : true) };
     case 'turf':
-      return { turfEnabled: enabled };
+      return { turfEnabled: enabled, turfEnabledAt: enabled ? new Date() : null };
     case 'alliance':
-      return { allianceEnabled: enabled };
+      return { allianceEnabled: enabled, allianceEnabledAt: enabled ? new Date() : null };
   }
 }
 
