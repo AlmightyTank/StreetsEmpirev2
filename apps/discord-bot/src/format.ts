@@ -149,7 +149,7 @@ export function turfCityEmbed(turf: TurfCity, origin: string): APIEmbed {
     : 'No alliance controls this city right now.';
   return {
     title: `${escapeMarkdown(turf.roundName)} · ${escapeMarkdown(turf.city.name)} turf`,
-    url: `${origin}/game/cities`,
+    url: `${origin}/game/turf`,
     color: BRAND_COLOR,
     description: control,
     fields: turf.blocks.map((block) => {
@@ -179,7 +179,7 @@ export function allianceEmbed(card: AllianceCard, origin: string): APIEmbed {
     `${escapeMarkdown(event.cityName)} / ${escapeMarkdown(event.districtName)} · ${escapeMarkdown(event.attackerName)} took it from ${escapeMarkdown(event.defenderName)}`);
   return {
     title: `[${escapeMarkdown(alliance.tag)}] ${escapeMarkdown(alliance.name)}`,
-    url: alliance.forumUrl ?? `${origin}/game/rankings`,
+    url: `${origin}/game/alliances/${encodeURIComponent(alliance.tag)}`,
     color: BRAND_COLOR,
     description: `${escapeMarkdown(card.roundName)} · Alliance #${alliance.rank} · ${formatCents(alliance.combinedNetWorthCents)} combined`,
     fields: [
