@@ -137,6 +137,8 @@ model NotificationSettings {
   attacksEnabled   Boolean   @default(false)
   roundEnabled     Boolean   @default(false)
   rankEnabled      Boolean   @default(false)
+  turfEnabled      Boolean   @default(false)
+  allianceEnabled  Boolean   @default(false)
   rankRoundId      String?
   rankLastNational Int?
   /// Discord DMs; only delivered while Discord is linked.
@@ -160,7 +162,7 @@ model NotificationOutbox {
   accountId String
   account   Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
   channel   NotificationChannel
-  /// attacks | turns | round | rank
+  /// attacks | turns | round | rank | turf | alliance
   category  String
   /// The alert itself, without any channel address (see @streets/shared NotificationPayload).
   payload   Json
