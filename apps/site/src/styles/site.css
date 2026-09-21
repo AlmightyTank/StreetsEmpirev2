@@ -1670,3 +1670,46 @@ a {
 
   .profile-summary span { text-align: left; }
 }
+
+
+/* --- Phase 25: keyboard and accessibility -------------------------------- */
+
+.site-skip-link {
+  position: fixed;
+  top: .75rem;
+  left: .75rem;
+  z-index: 10000;
+  transform: translateY(-160%);
+  padding: .65rem .9rem;
+  border: 1px solid var(--site-accent);
+  border-radius: 7px;
+  background: #090b0d;
+  color: var(--site-text);
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform 120ms ease;
+}
+
+.site-skip-link:focus {
+  transform: translateY(0);
+}
+
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--site-accent);
+  outline-offset: 3px;
+}
+
+.site-main:focus {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
