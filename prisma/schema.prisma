@@ -138,7 +138,9 @@ model NotificationSettings {
   roundEnabled     Boolean   @default(false)
   rankEnabled      Boolean   @default(false)
   turfEnabled      Boolean   @default(false)
+  turfEnabledAt    DateTime?
   allianceEnabled  Boolean   @default(false)
+  allianceEnabledAt DateTime?
   rankRoundId      String?
   rankLastNational Int?
   /// Discord DMs; only delivered while Discord is linked.
