@@ -21,6 +21,8 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 | Back Office | Income / management | Bookkeeping | Connections |
 
 ## 0.7.0-A — Hideout Foundation 2.0
+**Status:** **in progress.** The first foundation pass is on the `hideout-0.7.0` branch: the 0.7 ruleset/DTO contract, level-3 progress gates, specialization metadata, HQ summary, product-aware Workshop naming, compatibility tests, and `qa:hideout` validation are implemented.
+
 **Goal:** Build the framework without stacking major balance changes on top.
 
 - New v0.7 hideout ruleset contract with older-round compatibility.
