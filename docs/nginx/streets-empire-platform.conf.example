@@ -85,10 +85,60 @@ server {
     }
 }
 
+
+
+# Beta game: completely separate checkout/API/database from live.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name beta.streetsempire.dev;
+
+    root /opt/streets-empire/StreetsEmpirev2-beta/apps/web/dist;
+    index index.html;
+
+    # Keep test pages out of search engines and caches outside our control.
+    add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    add_header X-StreetsEmpire-Environment "beta" always;
+
+    location /assets/ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    }
+
+    location = /sw.js {
+        try_files $uri =404;
+        add_header Cache-Control "no-cache";
+        add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    }
+
+    location = /manifest.webmanifest {
+        try_files $uri =404;
+        default_type application/manifest+json;
+        add_header Cache-Control "no-cache";
+        add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:3003;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+
 # After DNS resolves, let Certbot add HTTPS to each hostname:
 #
 #   sudo certbot --nginx -d streetsempire.dev -d www.streetsempire.dev
 #   sudo certbot --nginx -d play.streetsempire.dev
+#   sudo certbot --nginx -d beta.streetsempire.dev
 #
 # Always validate before reload:
 #
