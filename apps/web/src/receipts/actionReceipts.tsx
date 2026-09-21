@@ -70,6 +70,7 @@ function walkoutLines(result: { whoresLeft: number; thugsLeft: number }, after: 
 }
 
 function shelfLines(result: {
+  productsFound?: Array<{ key: string; name: string; quantity: number }>;
   crackFound: number;
   condomsUsed: number;
   condomsMissing: number;
@@ -78,16 +79,19 @@ function shelfLines(result: {
   beerMissing: number;
 }, after: GameActionResult<unknown>['after'], me: ProductContext): ResultLine[] {
   const label = productLabel(me);
+  const findLines: ResultLine[] = result.productsFound?.length
+    ? result.productsFound
+        .filter((row) => row.quantity > 0)
+        .map((row) => ({
+          label: `${row.name} found`,
+          delta: row.quantity,
+          ...(row.key === 'CRACK' ? { remaining: after.resources.product } : {}),
+        }))
+    : result.crackFound > 0
+      ? [{ label: `${label} found`, delta: result.crackFound, remaining: after.resources.product }]
+      : [];
   return [
-    ...(result.crackFound > 0
-      ? [
-          {
-            label: `${label} found`,
-            delta: result.crackFound,
-            remaining: after.resources.product,
-          },
-        ]
-      : []),
+    ...findLines,
     {
       label: 'Condoms used',
       delta: -result.condomsUsed,
