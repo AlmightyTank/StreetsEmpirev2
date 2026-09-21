@@ -79,6 +79,44 @@ production
 - [x] Record the platform/domain and branching plan.
 - [ ] Enable GitHub branch protection for `main` in repository settings.
 
+## Phase 2 — Separate public website application
+
+The public website now has its own workspace at `apps/site`. The playable game remains in
+`apps/web`; Phase 2 does not move routes, authentication, API traffic, DNS, Caddy, or
+production data.
+
+### Phase 2 completion checklist
+
+- [x] Add `@streets/site` as a React + TypeScript + Vite workspace.
+- [x] Reuse Bootstrap 5.3.8 and the repo's existing React/Vite dependency versions.
+- [x] Run the public site locally on port `5174`.
+- [x] Add a standalone HTML entry point and React application entry point.
+- [x] Add an independent public-site stylesheet instead of coupling it to the game theme.
+- [x] Add `npm run dev:site`.
+- [x] Add `npm run build:site`.
+- [x] Include the public site in the root production build command.
+- [x] Update `package-lock.json` with the new workspace metadata.
+- [x] Preserve `apps/web` without modification.
+- [x] Leave DNS, Caddy, authentication, databases, and deployment unchanged.
+
+### Local development
+
+```bash
+npm run dev:site
+```
+
+The public site runs at `http://localhost:5174`.
+
+The existing game development flow remains unchanged:
+
+```bash
+npm run dev
+```
+
+The game remains at `http://localhost:5173` with its API at `http://localhost:3001`.
+
 ## Next phase
 
-Phase 2 adds a separate `apps/site` React/Vite application for `streetsempire.dev` while preserving `apps/web` as the actual game application.
+Phase 3 builds the public website shell: shared layout, responsive navigation, footer,
+real public routes, and page placeholders for the larger website without exposing any
+private game data.
