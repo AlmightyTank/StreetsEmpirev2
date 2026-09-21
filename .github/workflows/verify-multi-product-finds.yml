@@ -1,0 +1,44 @@
+name: Verify multi-product finds
+
+on:
+  push:
+    branches:
+      - multi-product-street-finds
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: streets_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d streets_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/streets_test
+      SESSION_SECRET: ci-test-value-ci-test-value-ci-test-value-ci-test-value
+      PRODUCT_INTEGRATION: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npx prisma migrate deploy
+      - run: npm run typecheck
+      - run: npx vitest run packages/rules-engine/src/__tests__/actions.test.ts
+      - run: npx vitest run apps/server/src/services/__tests__/product-economy.integration.test.ts
+      - run: npm run build -w @streets/web
