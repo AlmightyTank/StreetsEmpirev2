@@ -3,6 +3,8 @@ import { formatCents, formatNumber } from '@streets/shared';
 import type {
   AlertSettings,
   AlertType,
+  AllianceAlert,
+  AllianceCard,
   BadgeCard,
   BattleEvent,
   CrackdownEvent,
@@ -20,6 +22,8 @@ import type {
   RoundStatus,
   Stats,
   TerritoryEvent,
+  TurfAlert,
+  TurfCity,
   TurfEvent,
   TurnReminder,
 } from './game-api.js';
@@ -136,6 +140,66 @@ export function leaderboardEmbed(leaderboard: Leaderboard, origin: string): APIE
     url: `${origin}/game/rankings`,
     color: BRAND_COLOR,
     description: lines.length ? truncate(lines.join('\n'), 4096) : `Nobody has posted a ${leaderboard.label.toLowerCase()} score yet.`,
+  };
+}
+
+export function turfCityEmbed(turf: TurfCity, origin: string): APIEmbed {
+  const control = turf.control
+    ? `[${escapeMarkdown(turf.control.alliance.tag)}] ${escapeMarkdown(turf.control.alliance.name)} controls ${turf.control.blocksHeld}/${turf.control.blocksTotal} blocks.`
+    : 'No alliance controls this city right now.';
+  return {
+    title: `${escapeMarkdown(turf.roundName)} · ${escapeMarkdown(turf.city.name)} turf`,
+    url: `${origin}/game/cities`,
+    color: BRAND_COLOR,
+    description: control,
+    fields: turf.blocks.map((block) => {
+      const owner = block.holder
+        ? `${block.holder.alliance ? `[${escapeMarkdown(block.holder.alliance.tag)}] ` : ''}${escapeMarkdown(block.holder.displayName)} (#${block.holder.publicPimpId})`
+        : block.vacant ? 'Vacant' : `Locals · ${formatNumber(block.localsThugs)} thugs`;
+      const garrison = block.holder
+        ? `Garrison: ${formatNumber(block.cornerThugs)} thugs · ${formatNumber(block.cornerGuns)} guns`
+        : block.vacant ? 'The locals have not reclaimed this block yet.' : 'Held by the locals.';
+      const shield = block.shieldUntil ? ` · shield until ${block.shieldUntil.slice(0, 16).replace('T', ' ')} UTC` : '';
+      return {
+        name: escapeMarkdown(block.districtName),
+        value: `${owner}\n${garrison}${shield}`,
+        inline: true,
+      };
+    }),
+  };
+}
+
+export function allianceEmbed(card: AllianceCard, origin: string): APIEmbed {
+  const alliance = card.alliance;
+  const roster = alliance.members.map((member) =>
+    `${member.isLeader ? '★ ' : ''}[${escapeMarkdown(member.displayName)}](${origin}/game/players/${member.publicPimpId}) · #${member.nationalRank} · ${formatCents(member.netWorthCents)}`);
+  const cities = card.turf.cities.map((city) =>
+    `${city.controls ? '👑 ' : ''}**${escapeMarkdown(city.name)}** · ${city.blocksHeld}/${city.blocksTotal} blocks`);
+  const recent = card.turf.recent.map((event) =>
+    `${escapeMarkdown(event.cityName)} / ${escapeMarkdown(event.districtName)} · ${escapeMarkdown(event.attackerName)} took it from ${escapeMarkdown(event.defenderName)}`);
+  return {
+    title: `[${escapeMarkdown(alliance.tag)}] ${escapeMarkdown(alliance.name)}`,
+    url: alliance.forumUrl ?? `${origin}/game/rankings`,
+    color: BRAND_COLOR,
+    description: `${escapeMarkdown(card.roundName)} · Alliance #${alliance.rank} · ${formatCents(alliance.combinedNetWorthCents)} combined`,
+    fields: [
+      {
+        name: 'Leadership',
+        value: alliance.leader
+          ? `[${escapeMarkdown(alliance.leader.displayName)}](${origin}/game/players/${alliance.leader.publicPimpId}) · ${alliance.memberCount}/${alliance.maxMembers} members`
+          : `${alliance.memberCount}/${alliance.maxMembers} members`,
+        inline: true,
+      },
+      {
+        name: 'Turf',
+        value: `${card.turf.blocksHeld} blocks · ${card.turf.citiesControlled} cities controlled`,
+        inline: true,
+      },
+      { name: 'Roster', value: roster.length ? truncate(roster.join('\n'), 1024) : 'No active members.' },
+      ...(cities.length ? [{ name: 'Territory', value: truncate(cities.join('\n'), 1024) }] : []),
+      ...(recent.length ? [{ name: 'Recent turf', value: truncate(recent.join('\n'), 1024) }] : []),
+      ...(alliance.forumUrl ? [{ name: 'Recruitment', value: `[Forum thread](${alliance.forumUrl})` }] : []),
+    ],
   };
 }
 
@@ -270,13 +334,15 @@ export const HELP_LINES: Array<[string, string]> = [
   ['/leaderboard stat', 'Top combat and intel counts this round.'],
   ['/history [user] [name]', 'Past finished rounds for a player. No option shows yours.'],
   ['/city name', 'Top 10 in one city this round.'],
+  ['/turf city', 'Public block holders, garrisons and city control.'],
+  ['/alliance [tag]', 'Alliance roster, standing and turf. No tag shows yours.'],
   ['/halloffame', 'Podiums from recent finished rounds.'],
   ['/round', 'Round status and time left.'],
   ['/news', 'Latest news posts.'],
   ['/invite', 'How to start playing and get your roles.'],
   ['/link', 'Your link status and the roles you qualify for. Only you see it.'],
   ['/stats', 'Your private cash, crew, weapons, supplies and turns. Only you see it.'],
-  ['/alerts type enabled', 'DM alerts for attacks, rounds, rank drops and full turns. Only you see it.'],
+  ['/alerts type enabled', 'DM alerts for attacks, turf, alliance control, rounds, rank drops and full turns. Only you see it.'],
   ['/remind turns', 'Shortcut for /alerts type:turns. Only you see it.'],
   ['/sync', 'Update your roles now (once a minute).'],
   ['/help', 'This list. Only you see it.'],
@@ -413,6 +479,8 @@ function alertLabel(type: AlertType): string {
     case 'round': return 'Round';
     case 'rank': return 'Rank';
     case 'turns': return 'Turn';
+    case 'turf': return 'Turf';
+    case 'alliance': return 'Alliance';
   }
 }
 
@@ -445,6 +513,22 @@ export function turfFeedEmbed(event: TurfEvent): APIEmbed {
     color: BRAND_COLOR,
     description: `[${escapeMarkdown(event.defenderName)}](${event.defenderProfileUrl}) lost the block to [${newHolder}](${event.attackerProfileUrl}) in ${escapeMarkdown(event.roundName)}.`,
     timestamp: event.settledAt,
+  };
+}
+
+export function turfAlertEmbed(event: TurfAlert): APIEmbed {
+  return {
+    ...turfFeedEmbed(event),
+    title: `Your ${escapeMarkdown(event.districtName)} turf was taken`,
+    footer: { text: 'Turn these off with /alerts type:turf enabled:Off.' },
+  };
+}
+
+export function allianceAlertEmbed(event: AllianceAlert): APIEmbed {
+  return {
+    ...territoryFeedEmbed(event),
+    title: `Alliance alert · [${escapeMarkdown(event.allianceTag)}] ${event.change === 'gained' ? 'gained' : 'lost'} control`,
+    footer: { text: 'Turn these off with /alerts type:alliance enabled:Off.' },
   };
 }
 
