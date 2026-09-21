@@ -11,6 +11,72 @@ export interface FoundProduct {
   quantity: number;
 }
 
+
+export interface ProductMovementSummary {
+  key: string;
+  name: string;
+  found: number;
+  produced: number;
+  used: number;
+  seized: number;
+  change: number;
+}
+
+/**
+ * Collapse every product movement for an action into one row per product.
+ * This is display/activity data only; inventory writes still happen through
+ * ProductInventoryService.
+ */
+export function summarizeProductMovements(
+  ruleset: Ruleset,
+  input: {
+    found?: FoundProduct[];
+    produced?: { key: string; quantity: number };
+    consumed?: Array<Record<string, number> | undefined>;
+    seized?: Record<string, number>;
+  },
+): ProductMovementSummary[] {
+  const rows = new Map<string, ProductMovementSummary>();
+
+  const rowFor = (key: string, fallbackName?: string): ProductMovementSummary => {
+    const existing = rows.get(key);
+    if (existing) return existing;
+    const next: ProductMovementSummary = {
+      key,
+      name: ruleset.products?.[key]?.name ?? fallbackName ?? (key === CRACK ? 'Product' : key),
+      found: 0,
+      produced: 0,
+      used: 0,
+      seized: 0,
+      change: 0,
+    };
+    rows.set(key, next);
+    return next;
+  };
+
+  for (const found of input.found ?? []) {
+    rowFor(found.key, found.name).found += Math.max(0, found.quantity);
+  }
+  if (input.produced && input.produced.quantity > 0) {
+    rowFor(input.produced.key).produced += input.produced.quantity;
+  }
+  for (const consumed of input.consumed ?? []) {
+    for (const [key, quantity] of Object.entries(consumed ?? {})) {
+      if (quantity > 0) rowFor(key).used += quantity;
+    }
+  }
+  for (const [key, quantity] of Object.entries(input.seized ?? {})) {
+    if (quantity > 0) rowFor(key).seized += quantity;
+  }
+
+  return [...rows.values()]
+    .map((row) => ({
+      ...row,
+      change: row.found + row.produced - row.used - row.seized,
+    }))
+    .filter((row) => row.found > 0 || row.produced > 0 || row.used > 0 || row.seized > 0);
+}
+
 const FIND_SUPPLY_WEIGHT = {
   PLENTIFUL: 6,
   NORMAL: 3,
