@@ -44,7 +44,13 @@ export type ActivityType =
   | 'CONVOY_BACKUP'
   | 'TURF_CLAIM'
   | 'TURF_POST'
-  | 'TURF_PULL';
+  | 'TURF_PULL'
+  | 'TURF_PUSH'
+  | 'TURF_PUSH_BACKUP'
+  | 'TURF_PUSH_ATTACK'
+  | 'TURF_PUSH_DEFENSE'
+  | 'TURF_OUTPOST_ESTABLISH'
+  | 'TURF_OUTPOST_TRANSFER';
 
 export interface ApiErrorBody {
   error: {
@@ -289,7 +295,7 @@ export interface SeasonHideoutDto {
   }>;
 }
 
-export type HideoutRoomKeyDto = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE';
+export type HideoutRoomKeyDto = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE' | 'GARAGE';
 
 export interface HideoutRoomDto {
   key: HideoutRoomKeyDto;
@@ -419,6 +425,12 @@ export interface DistrictsDto {
  * Manual 3.1. One trip: the girls work the block while you pick people up, so
  * a scout result carries both the night's take and who you found.
  */
+export interface FoundProductDto {
+  key: string;
+  name: string;
+  quantity: number;
+}
+
 export interface ScoutResult {
   district: DistrictDto;
   /** 0.6.0-B. Hold bonus or street tax applied to this trip. */
@@ -440,7 +452,10 @@ export interface ScoutResult {
   hideoutBonusCents?: number;
   payoutPercent: number;
 
+  /** Crack-only compatibility field. On product rounds, this is the Crack slice of productsFound. */
   crackFound: number;
+  /** 0.4.0+ product rounds: everything picked up on the street during the trip. */
+  productsFound?: FoundProductDto[];
 
   condomsUsed: number;
   crackUsed: number;
@@ -498,7 +513,10 @@ export interface ProduceCrackResult {
   hideoutBonusCents?: number;
   payoutPercent: number;
 
+  /** Crack-only compatibility field. On product rounds, this is the Crack slice of productsFound. */
   crackFound: number;
+  /** Product the girls found while the thugs were cooking. */
+  productsFound?: FoundProductDto[];
   condomsUsed: number;
   crackUsed: number;
   beerUsed: number;

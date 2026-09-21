@@ -16,6 +16,7 @@ import { RelocationService } from './relocation.service.js';
 import { RunSettleService, runSummary } from './run-settle.service.js';
 import type { RoundPlayerDto } from '@streets/shared';
 import { TurfService } from './turf.service.js';
+import { TurfWarSettlementService } from './turf-war-settle.service.js';
 
 /** 0.3.0-C: the alliance tag rides along so every screen can show it before the name. */
 export type PlayerWithCity = RoundPlayer & { city: City; alliance: { name: string; tag: string } | null };
@@ -73,8 +74,10 @@ export const PlayerStateService = {
     roundPlayerId: string,
     options: SettleOptions = {},
   ): Promise<SettledPlayer> {
+    const now = options.now ?? new Date();
+    await TurfWarSettlementService.settleDueFor(prisma, roundPlayerId, now);
     return prisma.$transaction((tx) =>
-      PlayerStateService.settleInTransaction(tx, roundPlayerId, options),
+      PlayerStateService.settleInTransaction(tx, roundPlayerId, { ...options, now }),
     );
   },
 
@@ -94,6 +97,8 @@ export const PlayerStateService = {
     await RelocationService.settleOwn(tx, roundPlayerId, now);
     // 0.5.0-E: and whatever came back from a convoy fight is back.
     await ConvoyService.credit(tx, roundPlayerId, now);
+    // 0.6.0-C: and turf-war squads/help are back or posted after the landing.
+    await TurfWarSettlementService.credit(tx, roundPlayerId, now);
 
     const player = await tx.roundPlayer.findUnique({
       where: { id: roundPlayerId },
@@ -118,6 +123,7 @@ export const PlayerStateService = {
         thugs: turfSettlement.thugs,
         postedThugs: turfSettlement.postedThugs,
         postedNetWorthCents: turfSettlement.postedNetWorthCents,
+        outpostNetWorthCents: turfSettlement.outpostNetWorthCents,
         pistols: turfSettlement.pistols,
         shotguns: turfSettlement.shotguns,
         tek9s: turfSettlement.tek9s,

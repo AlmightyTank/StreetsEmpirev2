@@ -14,9 +14,12 @@ import { loadConfig } from './config.js';
 import {
   attackAlertEmbed,
   battleFeedEmbed,
+  crackdownFeedEmbed,
   newsPostEmbed,
   rankAlertEmbed,
   roundEventEmbed,
+  territoryFeedEmbed,
+  turfFeedEmbed,
   turnReminderEmbed,
 } from './format.js';
 import { createGameApi, type City } from './game-api.js';
@@ -125,6 +128,36 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
         await channels.raidFeed.send({ embeds: [battleFeedEmbed(battle)], allowedMentions: { parse: [] } });
       } catch (error) {
         console.error(`Could not post battle ${battle.id} to #${channels.raidFeed.name}:`, error);
+      }
+    }
+  }
+
+  for (const event of claimed.turf) {
+    if (channels.raidFeed) {
+      try {
+        await channels.raidFeed.send({ embeds: [turfFeedEmbed(event)], allowedMentions: { parse: [] } });
+      } catch (error) {
+        console.error(`Could not post turf change ${event.id} to #${channels.raidFeed.name}:`, error);
+      }
+    }
+  }
+
+  for (const event of claimed.territory) {
+    if (channels.raidFeed) {
+      try {
+        await channels.raidFeed.send({ embeds: [territoryFeedEmbed(event)], allowedMentions: { parse: [] } });
+      } catch (error) {
+        console.error(`Could not post city-control change ${event.id} to #${channels.raidFeed.name}:`, error);
+      }
+    }
+  }
+
+  for (const event of claimed.crackdowns) {
+    if (channels.raidFeed) {
+      try {
+        await channels.raidFeed.send({ embeds: [crackdownFeedEmbed(event)], allowedMentions: { parse: [] } });
+      } catch (error) {
+        console.error(`Could not post turf crackdown ${event.id} (${event.phase}) to #${channels.raidFeed.name}:`, error);
       }
     }
   }

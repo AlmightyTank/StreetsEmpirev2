@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, heatBribeSchema, travelRoutesSchema, productTradeSchema, turfClaimSchema, turfPostSchema, turfPullSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, heatBribeSchema, travelRoutesSchema, productTradeSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushSchema, turfPushBackupSchema, turfPushCallSchema, runOutpostEstablishSchema, runOutpostTransferSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
 import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
@@ -13,6 +13,8 @@ import { WorkSupplyService } from '../services/work-supply.service.js';
 import { HeatService, toHeatDto } from '../services/heat.service.js';
 import { PlayerStateService } from '../services/player-state.service.js';
 import { TurfActionService } from '../services/turf-action.service.js';
+import { TurfWarService } from '../services/turf-war.service.js';
+import { TurfOutpostService } from '../services/turf-outpost.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 
@@ -54,12 +56,20 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
   app.post('/turf/pull', { preHandler: app.requireAuth }, async (request) =>
     TurfActionService.pull(app.prisma, await me(request.auth!.account.id), parseBody(turfPullSchema, request.body ?? {})));
 
+  /** 0.6.0-C: commit a squad to a delayed player-vs-player turf push. */
+  app.post('/turf/push', { preHandler: app.requireAuth }, async (request) =>
+    TurfWarService.start(app.prisma, await me(request.auth!.account.id), parseBody(turfPushSchema, request.body ?? {})));
+  app.post('/turf/push/backup', { preHandler: app.requireAuth }, async (request) =>
+    TurfWarService.backup(app.prisma, await me(request.auth!.account.id), parseBody(turfPushBackupSchema, request.body ?? {})));
+  app.post('/turf/push/call', { preHandler: app.requireAuth }, async (request) =>
+    TurfWarService.callAllies(app.prisma, await me(request.auth!.account.id), parseBody(turfPushCallSchema, request.body ?? {})));
+
   /** 0.5.0-B: runs. The map, what the crew knows and the run; the ways out; and the four moves. */
   app.get('/travel', { preHandler: app.requireAuth }, async (request) =>
     TravelService.page(app.prisma, await me(request.auth!.account.id)));
   app.get('/travel/routes', { preHandler: app.requireAuth }, async (request) => {
-    const { to } = parseBody(travelRoutesSchema, request.query);
-    return TravelService.routes(app.prisma, await me(request.auth!.account.id), to);
+    const { to, runId } = parseBody(travelRoutesSchema, request.query);
+    return TravelService.routes(app.prisma, await me(request.auth!.account.id), to, runId);
   });
   app.post('/travel/launch', { preHandler: app.requireAuth }, async (request) =>
     TravelService.launch(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
@@ -69,6 +79,12 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     TravelService.driveOn(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
   app.post('/travel/head-home', { preHandler: app.requireAuth }, async (request) =>
     TravelService.headHome(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+
+  /** 0.6.0-D: establish and service an away outpost while a run is physically in town. */
+  app.post('/travel/outpost/establish', { preHandler: app.requireAuth }, async (request) =>
+    TurfOutpostService.establish(app.prisma, await me(request.auth!.account.id), parseBody(runOutpostEstablishSchema, request.body ?? {})));
+  app.post('/travel/outpost/transfer', { preHandler: app.requireAuth }, async (request) =>
+    TurfOutpostService.transfer(app.prisma, await me(request.auth!.account.id), parseBody(runOutpostTransferSchema, request.body ?? {})));
 
   /** 0.5.0-E: runs you can hit, and the tails you are part of. */
   app.get('/convoys', { preHandler: app.requireAuth }, async (request) =>

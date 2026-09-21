@@ -1,15 +1,16 @@
 import type { PrismaClient } from '@prisma/client';
-import { cornerMinimumFor, equipCombatSquad, localsAfter, localsThugs, type Rng, type Ruleset } from '@streets/rules-engine';
+import { cornerMinimumFor, equipCombatSquad, headsUpMinutes, type Rng, type Ruleset } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
 import type { TurfClaimInput, TurfClaimResult, TurfPostInput, TurfPostResult, TurfPullInput, TurfPullResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import {
   TurfService, addCornerGuns, allocateCornerGuns, cornerGunWorthCents, gunsFromTurf,
-  releaseCornerGuns, subtractCornerGuns, turfGunData, type CornerGuns,
+  localsOnBlock, localsReclaimAt, releaseCornerGuns, subtractCornerGuns, turfGunData, type CornerGuns,
 } from './turf.service.js';
+import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
+import { endTurfHold, startTurfHold } from './turf-history.service.js';
 
-const HOUR_MS = 3_600_000;
 function localDistrictName(ruleset: Ruleset, citySlug: string, district: DistrictKey): string {
   return ruleset.cities?.[citySlug]?.districts?.[district]?.name ?? ruleset.districts[district].name;
 }
@@ -17,16 +18,26 @@ function assertHolding(ruleset: Ruleset): void {
   if (!TurfService.holdingEnabled(ruleset)) throw AppError.conflict('TURF_HOLDING_DISABLED', 'Corners cannot be claimed in this round.');
 }
 async function totalCrewThugs(tx: any, roundPlayerId: string, homeThugs: number): Promise<number> {
-  const run = await tx.run.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { escortThugs: true } });
-  return homeThugs + (run?.escortThugs ?? 0);
+  const runs = await tx.run.findMany({ where: { roundPlayerId, status: 'ACTIVE' }, select: { escortThugs: true } });
+  return homeThugs + runs.reduce((sum: number, run: { escortThugs: number }) => sum + run.escortThugs, 0);
 }
 async function lockBlock(tx: any, id: string): Promise<void> { await tx.$queryRaw`SELECT id FROM "Turf" WHERE id = ${id} FOR UPDATE`; }
 async function assertCaps(tx: any, player: any, roundId: string, cityId: string, ruleset: Ruleset): Promise<void> {
-  const home = await tx.turf.count({ where: { roundId, holderId: player.id, cityId } });
-  if (home >= ruleset.turf!.caps.blocksPerCrewHome) throw AppError.conflict('TURF_CREW_CAP', `You already hold your ${ruleset.turf!.caps.blocksPerCrewHome}-block home cap.`);
+  const [home, reserved] = await Promise.all([
+    tx.turf.count({ where: { roundId, holderId: player.id, cityId } }),
+    ruleset.turf?.wars ? tx.turfPush.count({ where: { roundId, attackerId: player.id, status: 'PENDING', turf: { cityId } } }) : 0,
+  ]);
+  if (home + reserved >= ruleset.turf!.caps.blocksPerCrewHome) {
+    throw AppError.conflict('TURF_CREW_CAP', `You already hold or are pushing for your ${ruleset.turf!.caps.blocksPerCrewHome}-block home cap.`);
+  }
   if (player.allianceId) {
-    const alliance = await tx.turf.count({ where: { roundId, cityId, holder: { allianceId: player.allianceId } } });
-    if (alliance >= ruleset.turf!.caps.blocksPerAllianceInCity) throw AppError.conflict('TURF_ALLIANCE_CAP', `Your alliance already holds ${ruleset.turf!.caps.blocksPerAllianceInCity} blocks in this city.`);
+    const [alliance, allianceReserved] = await Promise.all([
+      tx.turf.count({ where: { roundId, cityId, holder: { allianceId: player.allianceId } } }),
+      ruleset.turf?.wars ? tx.turfPush.count({ where: { roundId, status: 'PENDING', turf: { cityId }, attacker: { allianceId: player.allianceId } } }) : 0,
+    ]);
+    if (alliance + allianceReserved >= ruleset.turf!.caps.blocksPerAllianceInCity) {
+      throw AppError.conflict('TURF_ALLIANCE_CAP', `Your alliance already holds or is pushing for ${ruleset.turf!.caps.blocksPerAllianceInCity} blocks in this city.`);
+    }
   }
 }
 function engineGuns(guns: CornerGuns) { return { PISTOL: guns.pistols, SHOTGUN: guns.shotguns, TEK9: guns.tek9s, AK47: guns.ak47s }; }
@@ -80,7 +91,14 @@ export const TurfActionService = {
         if (!guns) throw AppError.conflict('TURF_NOT_ENOUGH_ARMED', `You need ${input.thugs} home guns to post that squad.`);
         assertTurns(current.turns, ruleset.turf!.corner.postTurnCost);
 
-        const locals = Math.round(localsAfter(ruleset, { citySlug: fresh.city.slug, district: key }, fresh.localsThugs, Math.max(0, (now.getTime() - fresh.localsAt.getTime()) / HOUR_MS)));
+        const locals = localsOnBlock(ruleset, {
+          holderId: fresh.holderId,
+          citySlug: fresh.city.slug,
+          district: key,
+          localsThugs: fresh.localsThugs,
+          localsAt: fresh.localsAt,
+          localsReclaimAt: fresh.localsReclaimAt,
+        }, now);
         const model = ruleset.combat;
         if (!model) throw AppError.conflict('COMBAT_DISABLED', 'There is no street fight model in this round.');
         const attacker = equipCombatSquad({ thugs: input.thugs, thugHappiness, weapons: engineGuns(guns) }, Math.min(input.thugs, model.squadCap), model);
@@ -90,13 +108,20 @@ export const TurfActionService = {
         const defenderStrength = defender.strength * ruleset.turf!.push.fight.defenseMultiplier;
         const won = attackerStrength > defenderStrength;
 
-        if (won) await tx.turf.update({
-          where: { id: fresh.id },
-          data: {
-            holderId: roundPlayerId, cornerThugs: input.thugs, ...turfGunData(guns), heldSince: now,
-            shieldUntil: null, upkeepAt: now, localsThugs: locals, localsAt: now,
-          },
-        });
+        if (won) {
+          const controlBefore = await territoryControlForCity(tx, round.id, player.cityId, ruleset);
+          await tx.turf.update({
+            where: { id: fresh.id },
+            data: {
+              holderId: roundPlayerId, cornerThugs: input.thugs, ...turfGunData(guns), heldSince: now,
+              shieldUntil: null, upkeepAt: now, localsThugs: locals, localsAt: now, localsReclaimAt: null,
+            },
+          });
+          await startTurfHold(tx, fresh.id, now);
+          await recordTerritoryControlChange(tx, {
+            roundId: round.id, cityId: player.cityId, ruleset, before: controlBefore, at: now,
+          });
+        }
 
         const moved = won ? nextWithPostedGuns(current, guns, 1, ruleset) : current;
         const next = { ...moved, turns: current.turns - ruleset.turf!.corner.postTurnCost, postedThugs: current.postedThugs + (won ? input.thugs : 0) };
@@ -124,6 +149,13 @@ export const TurfActionService = {
         await lockBlock(tx, block.id);
         const fresh = await tx.turf.findUniqueOrThrow({ where: { id: block.id } });
         if (fresh.holderId !== roundPlayerId) throw AppError.conflict('NOT_YOUR_TURF', 'You do not hold that block.');
+        if (ruleset.turf?.wars) {
+          const push = await tx.turfPush.findFirst({ where: { turfId: fresh.id, status: 'PENDING' }, select: { landsAt: true } });
+          const spotted = push && push.landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel) * 60_000);
+          if (spotted) {
+            throw AppError.conflict('TURF_UNDER_PUSH', 'Your Lookouts spotted a push here. Send fight backup instead of permanently posting more thugs.');
+          }
+        }
 
         const fit = fitThugs(current);
         if (input.thugs > fit) throw AppError.conflict('TURF_NOT_ENOUGH_FIT', `You only have ${fit} fit thugs at home.`);
@@ -169,17 +201,26 @@ export const TurfActionService = {
           if (cornerThugs < minimum) throw AppError.conflict('TURF_CORNER_MINIMUM', `Leave at least ${minimum} on the corner, or pull the whole crew.`);
         }
 
+        const controlBefore = released
+          ? await territoryControlForCity(tx, round.id, player.cityId, ruleset)
+          : null;
         const existingGuns = gunsFromTurf(fresh);
         const returned = releaseCornerGuns(existingGuns, input.thugs);
         const remainingGuns = subtractCornerGuns(existingGuns, returned);
+        if (released) await endTurfHold(tx, fresh.id, now);
         await tx.turf.update({
           where: { id: fresh.id },
           data: released ? {
             holderId: null, cornerThugs: 0, ...turfGunData({ pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 }),
             heldSince: null, shieldUntil: null, upkeepAt: now,
-            localsThugs: localsThugs(ruleset, { citySlug: fresh.city.slug, district: key }), localsAt: now,
+            localsThugs: 0, localsAt: now, localsReclaimAt: localsReclaimAt(ruleset, now),
           } : { cornerThugs, ...turfGunData(remainingGuns), upkeepAt: now },
         });
+        if (released) {
+          await recordTerritoryControlChange(tx, {
+            roundId: round.id, cityId: player.cityId, ruleset, before: controlBefore, at: now,
+          });
+        }
 
         const moved = nextWithPostedGuns(current, returned, -1, ruleset);
         return {

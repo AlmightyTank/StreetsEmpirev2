@@ -19,6 +19,8 @@ run('Production build', npm, ['run', 'build']);
 run('Product balance gates', npm, ['run', 'qa:products', '--', '--samples', '4000', '--quiet']);
 // 0.5.0: every city worth a run, no run better than the street, no same-city loops.
 run('Travel balance gates', npm, ['run', 'qa:travel', '--', '--quiet']);
+// 0.6.0: all 40 turf blocks and player-vs-player push balance must still pass on the release ruleset.
+run('Turf balance gates', npm, ['run', 'qa:turf', '--', '--quiet']);
 
 if (withDb) {
   // One file at a time: suites share the .env database, and any real current-round lookup
@@ -37,6 +39,8 @@ if (withDb) {
     PRODUCT_INTEGRATION: '1',
     // 0.5.0: runs out of town, city counters and what the crew saw there, markets and risk, moving house and convoys.
     TRAVEL_INTEGRATION: '1',
+    // 0.6.0: holding, player turf wars, away outposts, territory history/control and the release crackdown.
+    TURF_INTEGRATION: '1',
   });
 }
 

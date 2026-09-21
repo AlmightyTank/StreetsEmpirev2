@@ -1,8 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import type { GameActionResult, PlayerSnapshot, ProduceCrackResult, ScoutResult, WorkSupplyPlanDto } from '@streets/shared';
+import type {
+  GameActionResult,
+  PlayerSnapshot,
+  ProduceCrackResult,
+  ScoutResult,
+  WorkSupplyPlanDto,
+} from '@streets/shared';
 import { produceReceiptLines, scoutReceiptLines } from '../actionReceipts.js';
 
-const products = [{ key: 'CRACK', name: 'Crack', quantity: 120 }];
+const products = [
+  { key: 'CRACK', name: 'Crack', quantity: 115 },
+  { key: 'ECSTASY', name: 'Ecstasy', quantity: 40 },
+  { key: 'COCAINE', name: 'Cocaine', quantity: 30 },
+  { key: 'METH', name: 'Meth', quantity: 20 },
+];
 
 const resources = {
   cashCents: 1_000_000,
@@ -117,8 +128,14 @@ function action<T>(result: T): GameActionResult<T> {
   };
 }
 
+function byLabel<T extends { label: string }>(rows: T[], label: string): T {
+  const found = rows.find((row) => row.label === label);
+  if (!found) throw new Error(`Missing receipt row: ${label}`);
+  return found;
+}
+
 describe('action receipt lines', () => {
-  it('covers every scouting result field players need to see', () => {
+  it('groups scouting changes by the actual resource and includes heat losses', () => {
     const result: ScoutResult = {
       district: { key: 'CASINO', slug: 'casino', name: 'Casino District', protectionWhoresPerThug: 4, coveredWhores: 24, exposedFraction: 0, armedThugs: 6, unarmedThugs: 2, requiresArmedThugs: true },
       supply,
@@ -131,8 +148,12 @@ describe('action receipt lines', () => {
       hideoutBonusCents: 500,
       payoutPercent: 50,
       crackFound: 7,
+      productsFound: [
+        { key: 'CRACK', name: 'Crack', quantity: 7 },
+        { key: 'ECSTASY', name: 'Ecstasy', quantity: 1 },
+      ],
       condomsUsed: 8,
-      crackUsed: 4,
+      crackUsed: 3,
       beerUsed: 5,
       condomsMissing: 2,
       beerMissing: 3,
@@ -150,42 +171,54 @@ describe('action receipt lines', () => {
       turnsRemaining: 100,
     };
 
-    expect(scoutReceiptLines(action(result), { products }).map((line) => line.label)).toEqual([
+    const rows = scoutReceiptLines(action(result), { products });
+
+    expect(rows.map((row) => row.label)).toEqual([
       'Turns used',
       'Supply',
-      'Ecstasy used',
       'Supply effects',
       'Restock',
       'Heat',
       'Heat drag',
       'ARRESTED',
-      'Seized',
-      'Fine',
       'Locked up',
-      'Brought in',
-      'Their cut (50%)',
-      'Your cut',
-      'Back Office bonus',
-      'Whores recruited',
-      'Thugs recruited',
-      'Crack found',
-      'Condoms used',
+      'Cash',
+      'Whores',
+      'Thugs',
+      'Crack',
+      'Ecstasy',
+      'Condoms',
       'Worked without condoms',
-      'Crack used',
-      'Beer used',
+      'Beer',
       'Worked without beer',
-      'Caught something',
-      'Treated with medicine',
-      'Lost, no medicine',
+      'Infections',
       'Medicine',
-      'Whores walked out',
-      'Thugs walked out',
+      'Medicine restock',
       'Armed street cover',
       'Turns remaining',
     ]);
+
+    expect(byLabel(rows, 'Cash')).toMatchObject({
+      delta: 3_000,
+      remaining: 1_003_000,
+      money: true,
+    });
+    expect(byLabel(rows, 'Whores')).toMatchObject({ delta: 2, remaining: 12 });
+    expect(byLabel(rows, 'Thugs')).toMatchObject({ delta: 1, remaining: 9 });
+    expect(byLabel(rows, 'Crack')).toMatchObject({
+      detail: '+7 found · −3 used · −5 seized',
+      delta: -1,
+      remaining: 115,
+    });
+    expect(byLabel(rows, 'Ecstasy')).toMatchObject({
+      detail: '+1 found · −4 used · −2 seized',
+      delta: -5,
+      remaining: 40,
+    });
+    expect(rows.some((row) => row.label === 'Seized' || row.label === 'Fine')).toBe(false);
   });
 
-  it('covers every production result field players need to see', () => {
+  it('combines production, finds, both supply plans, and seizures by product', () => {
     const result: ProduceCrackResult = {
       supply,
       cook,
@@ -203,8 +236,12 @@ describe('action receipt lines', () => {
       hideoutBonusCents: 250,
       payoutPercent: 50,
       crackFound: 3,
+      productsFound: [
+        { key: 'METH', name: 'Meth', quantity: 2 },
+        { key: 'CRACK', name: 'Crack', quantity: 3 },
+      ],
       condomsUsed: 8,
-      crackUsed: 4,
+      crackUsed: 3,
       beerUsed: 5,
       condomsMissing: 2,
       beerMissing: 3,
@@ -218,42 +255,59 @@ describe('action receipt lines', () => {
       turnsRemaining: 100,
     };
 
-    expect(produceReceiptLines(action(result), { products }).map((line) => line.label)).toEqual([
+    const rows = produceReceiptLines(action(result), { products });
+
+    expect(rows.map((row) => row.label)).toEqual([
       'Supply',
-      'Ecstasy used',
       'Supply effects',
       'Restock',
       'Cooks: Supply',
-      'Cooks: Cocaine used',
       'Cooks: Supply effects',
       'Heat',
       'Heat drag',
       'ARRESTED',
-      'Seized',
-      'Fine',
       'Locked up',
       'Turns used',
-      'Meth produced',
+      'Meth',
+      'Crack',
+      'Ecstasy',
+      'Cocaine',
       'Workshop bonus',
-      'Ingredients',
+      'Cash',
       'Short on cash',
-      'Brought in',
-      'Their cut (50%)',
-      'Your cut',
-      'Back Office bonus',
-      'Crack found',
-      'Condoms used',
+      'Whores',
+      'Thugs',
+      'Condoms',
       'Worked without condoms',
-      'Crack used',
-      'Beer used',
+      'Beer',
       'Worked without beer',
-      'Caught something',
-      'Treated with medicine',
-      'Lost, no medicine',
+      'Infections',
       'Medicine',
-      'Whores walked out',
-      'Thugs walked out',
+      'Medicine restock',
       'Turns remaining',
     ]);
+
+    expect(byLabel(rows, 'Meth')).toMatchObject({
+      detail: '+12 produced · +2 found',
+      delta: 14,
+      remaining: 20,
+    });
+    expect(byLabel(rows, 'Crack')).toMatchObject({
+      detail: '+3 found · −3 used · −5 seized',
+      delta: -5,
+      remaining: 115,
+    });
+    expect(byLabel(rows, 'Ecstasy')).toMatchObject({
+      detail: '−4 used · −2 seized',
+      delta: -6,
+      remaining: 40,
+    });
+    expect(byLabel(rows, 'Cocaine')).toMatchObject({
+      detail: '−8 used',
+      delta: -8,
+      remaining: 30,
+    });
+    expect(rows.filter((row) => row.label === 'Meth')).toHaveLength(1);
+    expect(rows.some((row) => row.label.endsWith('used') || row.label.endsWith('found'))).toBe(false);
   });
 });

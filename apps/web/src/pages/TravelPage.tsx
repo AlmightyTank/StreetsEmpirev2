@@ -21,7 +21,11 @@ function StreetWire({ items }: { items: WireItemDto[] }) {
         <ul className="se-streetwire">
           {items.slice(0, WIRE_SHOWN).map((item) => {
             const live = item.endsAt !== null && new Date(item.endsAt).getTime() > Date.now();
-            const tone = item.kind === 'GLUT' || item.supply === 'PLENTIFUL' ? 'good' : item.kind === 'DROUGHT' || item.supply === 'OUT' ? 'warn' : '';
+            const tone = item.kind === 'GLUT' || item.supply === 'PLENTIFUL'
+              ? 'good'
+              : item.kind === 'DROUGHT' || item.kind === 'CRACKDOWN' || item.supply === 'OUT'
+                ? 'warn'
+                : '';
             return (
               <li key={`${item.at}-${item.city}-${item.product}-${item.kind}`} className={`se-streetwire__item${tone ? ` se-streetwire__item--${tone}` : ''}`}>
                 <span className="se-streetwire__when se-muted">{agoText(item.at)}{live ? ' · still on' : ''}</span>
@@ -31,7 +35,7 @@ function StreetWire({ items }: { items: WireItemDto[] }) {
           })}
         </ul>
       ) : <p className="se-hint">Quiet out there. Nothing worth a phone call in the last day.</p>}
-      <p className="se-hint">The street hears about every glut and drought, and some of Pip&rsquo;s shortages. Not all of them.</p>
+      <p className="se-hint">The street hears about gluts, droughts, some of Pip&rsquo;s shortages, turf changing hands and Federal sweep warnings.</p>
     </Panel>
   );
 }
@@ -57,9 +61,10 @@ export function TravelPage() {
   const home = data?.cities.find((city) => city.isHome);
   const selected = data?.cities.find((city) => city.slug === params.get('city')) ?? home ?? data?.cities[0];
   const select = (slug: string) => setParams(slug === home?.slug ? {} : { city: slug }, { replace: true });
-  const run = data?.run ?? null;
+  const runs = data?.runs ?? (data?.run ? [data.run] : []);
+  const run = runs[0] ?? null;
   const urgent = Boolean(me?.convoyAlert);
-  const runAt = run ? (run.position.road ?? { city: run.position.city }) : null;
+  const runAts = runs.map((active) => active.position.road ?? { city: active.position.city });
 
   return (
     <GameLayout>
@@ -68,8 +73,9 @@ export function TravelPage() {
           <h1 className="se-title">Travel</h1>
           <p className="se-eyebrow">
             {!home ? 'The map'
-              : run ? (run.position.phase === 'town' ? `Your run is in ${run.position.cityName}` : `Your run is on the road`)
-                : data?.runsEnabled ? `Home is ${home.name}. Load up and go.` : `Home is ${home.name}.`}
+              : runs.length > 1 ? `${runs.length} runs are out`
+                : run ? (run.position.phase === 'town' ? `Your run is in ${run.position.cityName}` : `Your run is on the road`)
+                  : data?.runsEnabled ? `Home is ${home.name}. Load up and go.` : `Home is ${home.name}.`}
           </p>
         </div>
       </div>
@@ -86,19 +92,22 @@ export function TravelPage() {
           {/* A tail on your run or an ally's call goes first; otherwise the convoys wait below your own run. */}
           {data.runsEnabled && urgent ? <ConvoysPanel products={data.products} refreshKey={data} /> : null}
           {data.runsEnabled ? (
-            run
-              ? <RunPanel key={run.id} run={run} data={data} onDone={load} />
-              : (
-                  <div className="se-grid se-grid--2 se-cities">
-                    <LaunchPanel data={data} to={selected.isHome ? '' : selected.slug} onPick={select} onDone={load} />
-                    {data.lastRun ? <ReceiptPanel receipt={data.lastRun} products={data.products} /> : null}
-                  </div>
-                )
+            <>
+              {runs.map((active) => <RunPanel key={active.id} run={active} data={data} onDone={load} />)}
+              {runs.length < data.rules.runLimit || (!runs.length && data.lastRun) ? (
+                <div className="se-grid se-grid--2 se-cities">
+                  {runs.length < data.rules.runLimit
+                    ? <LaunchPanel data={data} to={selected.isHome ? '' : selected.slug} onPick={select} onDone={load} />
+                    : null}
+                  {data.lastRun ? <ReceiptPanel receipt={data.lastRun} products={data.products} /> : null}
+                </div>
+              ) : null}
+            </>
           ) : null}
           {data.runsEnabled && !urgent ? <ConvoysPanel products={data.products} refreshKey={data} /> : null}
           <div className="se-grid se-grid--2 se-cities">
             <Panel title="The roads" flush>
-              <RoadMap data={data} selected={selected.slug} onSelect={select} runAt={runAt} />
+              <RoadMap data={data} selected={selected.slug} onSelect={select} runAts={runAts} />
               <nav className="se-citypicker" aria-label="Pick a city">
                 {data.cities.map((city) => (
                   <button key={city.slug} type="button" onClick={() => select(city.slug)}
@@ -109,7 +118,7 @@ export function TravelPage() {
                 ))}
               </nav>
             </Panel>
-            <CityDetail city={selected} products={data.products} home={home.name} onTurfChanged={load} />
+            <CityDetail city={selected} products={data.products} home={home.name} />
           </div>
           <div className="se-grid se-grid--2 se-cities">
             {data.relocation ? <MovePanel data={data} selected={selected.slug} onDone={load} /> : null}

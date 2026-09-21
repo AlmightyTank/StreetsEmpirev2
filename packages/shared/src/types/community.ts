@@ -106,6 +106,34 @@ export interface RankingEntryDto {
   alliance: AllianceTagDto | null;
 }
 
+export interface TerritoryCrewStandingDto {
+  rank: number;
+  publicPimpId: number;
+  displayName: string;
+  alliance: AllianceTagDto | null;
+  heldSeconds: number;
+  currentBlocks: number;
+  isYou: boolean;
+  hallOfFameLeader: boolean;
+}
+
+export interface TerritoryAllianceStandingDto {
+  rank: number;
+  name: string;
+  tag: string;
+  heldSeconds: number;
+  currentBlocks: number;
+  isYours: boolean;
+  hallOfFameLeader: boolean;
+}
+
+export interface TerritoryBoardDto {
+  enabled: true;
+  asOf: string;
+  crews: TerritoryCrewStandingDto[];
+  alliances: TerritoryAllianceStandingDto[];
+}
+
 export interface RankingsDto {
   national: RankingEntryDto[];
   local: RankingEntryDto[];
@@ -115,6 +143,8 @@ export interface RankingsDto {
     localRank: number;
     nationalRank: number;
   };
+  /** 0.6.0-E. Block-time board; null/absent on older rulesets or older servers. */
+  territory?: TerritoryBoardDto | null;
 }
 
 export interface PublicPlayerProfileDto {
@@ -247,6 +277,11 @@ export interface HallOfFameRoundDto {
   playerCount: number;
   podium: HallOfFamePlayerDto[];
   topTen: HallOfFamePlayerDto[];
+  /** 0.6.0-E. Final block-time leaders for this season, when Territory was enabled. */
+  territory?: {
+    crews: Array<Pick<TerritoryCrewStandingDto, 'publicPimpId' | 'displayName' | 'alliance' | 'heldSeconds'>>;
+    alliances: Array<Pick<TerritoryAllianceStandingDto, 'name' | 'tag' | 'heldSeconds'>>;
+  } | null;
 }
 
 export interface HallOfFameDto {
@@ -308,6 +343,47 @@ export interface DiscordBattleEventDto {
   createdAt: string;
 }
 
+/** A successful turf push for the public street/combat feed. */
+export interface DiscordTurfEventDto {
+  id: string;
+  roundName: string;
+  city: string;
+  cityName: string;
+  district: string;
+  districtName: string;
+  attackerName: string;
+  attackerProfileUrl: string;
+  attackerAllianceTag: string | null;
+  defenderName: string;
+  defenderProfileUrl: string;
+  settledAt: string;
+}
+
+/** 0.6.0-E. An alliance gained, lost or directly stole control of a city. */
+export interface DiscordTerritoryEventDto {
+  id: string;
+  roundName: string;
+  city: string;
+  cityName: string;
+  previous: { name: string; tag: string; blocksHeld: number } | null;
+  next: { name: string; tag: string; blocksHeld: number } | null;
+  blocksTotal: number;
+  happenedAt: string;
+}
+
+/** 0.6.0-F. Public warning/result for the one seeded late-round Federal turf sweep. */
+export interface DiscordCrackdownEventDto {
+  id: string;
+  phase: 'warning' | 'sweep';
+  roundName: string;
+  city: string;
+  cityName: string;
+  warningAt: string;
+  sweepAt: string;
+  holdersAffected: number;
+  thugsPickedUp: number;
+}
+
 export interface DiscordRankAlertDto {
   discordId: string;
   displayName: string;
@@ -350,6 +426,9 @@ export interface DiscordAlertsClaimDto {
   attacks: DiscordAttackAlertDto[];
   roundAlerts: DiscordRoundAlertDto[];
   battles: DiscordBattleEventDto[];
+  turf: DiscordTurfEventDto[];
+  territory: DiscordTerritoryEventDto[];
+  crackdowns: DiscordCrackdownEventDto[];
   rounds: DiscordRoundEventDto[];
 }
 

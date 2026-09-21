@@ -6,6 +6,7 @@ import { NotificationService } from './services/notification.service.js';
 import { ConvoyService } from './services/convoy.service.js';
 import { PushService } from './services/push.service.js';
 import { wakeDiscordBot } from './services/discord-bot-push.service.js';
+import { TurfWarSettlementService } from './services/turf-war-settle.service.js';
 import { startPoller } from './utils/poller.js';
 
 const app = await buildApp();
@@ -23,6 +24,11 @@ try {
   app.log.error(error);
   process.exit(1);
 }
+
+// Turf wars settle on their deadline even when every participant is offline.
+const stopTurfWars = startPoller('Turf wars', 60_000, async () => {
+  await TurfWarSettlementService.sweep(app.prisma, new Date());
+}, (message, error) => app.log.error(error, message));
 
 // Alerts: collect what is due, then send push. The Discord bot also collects before it claims.
 let pruneAt = 0;
@@ -45,6 +51,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, async () => {
     app.log.info(`${signal} received, shutting down`);
     stopAlerts();
+    stopTurfWars();
     await app.close();
     process.exit(0);
   });

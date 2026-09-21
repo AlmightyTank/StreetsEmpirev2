@@ -32,7 +32,8 @@ export function QuantitySteps({
   label?: string;
 }) {
   const current = typeof value === 'number' && Number.isFinite(value) ? value : 0;
-  const atMax = current >= max;
+  const atOrAboveMax = current >= max;
+  const exactlyMax = current === max;
   const blocked = disabled ? disabledReason || 'Not right now.' : disabledReason || null;
   const full = `The box is already at ${formatNumber(max)}, the most you can take.`;
 
@@ -45,7 +46,7 @@ export function QuantitySteps({
             type="button"
             key={step}
             className="se-btn se-btn--sm"
-            disabledReason={blocked ?? (atMax ? full : null)}
+            disabledReason={blocked ?? (atOrAboveMax ? full : null)}
             onClick={() => onChange(Math.min(max, current + step))}
           >
             +{formatNumber(step)}
@@ -55,7 +56,7 @@ export function QuantitySteps({
       <Button
         type="button"
         className="se-btn se-btn--sm"
-        disabledReason={blocked ?? (max < 1 ? emptyReason || 'There is nothing to fill in.' : atMax ? full : null)}
+        disabledReason={blocked ?? (max < 1 ? emptyReason || 'There is nothing to fill in.' : exactlyMax ? full : null)}
         onClick={() => onChange(max)}
       >
         {label}

@@ -37,6 +37,8 @@ export function calculateNetWorthCents(
     // 0.5.0-B: a run's cash, cars, escorts and cargo, revalued as it trades.
     BigInt(player.awayNetWorthCents ?? 0) +
     // 0.6.0-B: corner guns have left the home columns but are still owned.
-    BigInt(player.postedNetWorthCents ?? 0)
+    BigInt(player.postedNetWorthCents ?? 0) +
+    // 0.6.0-D: an away outpost box is still the player's property.
+    BigInt(player.outpostNetWorthCents ?? 0)
   );
 }

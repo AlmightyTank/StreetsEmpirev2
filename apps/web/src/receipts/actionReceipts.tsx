@@ -1,5 +1,11 @@
 import { Link } from 'react-router-dom';
-import type { GameActionResult, ProduceCrackResult, RoundPlayerDto, ScoutResult } from '@streets/shared';
+import type {
+  GameActionResult,
+  ProduceCrackResult,
+  RoundPlayerDto,
+  ScoutResult,
+  WorkSupplyPlanDto,
+} from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import type { ResultLine } from '../components/ActionResult.js';
 import { heatReceiptLines } from '../components/HeatPanel.js';
@@ -7,8 +13,153 @@ import { supplyReceiptLines } from '../components/WorkSupplyPanel.js';
 
 type ProductContext = Pick<RoundPlayerDto, 'products'>;
 
+interface ProductMovement {
+  key: string;
+  name: string;
+  found: number;
+  produced: number;
+  used: number;
+  seized: number;
+}
+
 function productLabel(me: ProductContext): string {
   return me.products ? 'Crack' : 'Product';
+}
+
+function productName(me: ProductContext, key: string, fallback?: string | null): string {
+  return me.products?.find((product) => product.key === key)?.name
+    ?? fallback
+    ?? (key === 'CRACK'
+      ? productLabel(me)
+      : key.charAt(0) + key.slice(1).toLowerCase());
+}
+
+function movement(map: Map<string, ProductMovement>, key: string, name: string): ProductMovement {
+  const existing = map.get(key);
+  if (existing) return existing;
+  const next = { key, name, found: 0, produced: 0, used: 0, seized: 0 };
+  map.set(key, next);
+  return next;
+}
+
+function addConsumed(
+  map: Map<string, ProductMovement>,
+  plan: WorkSupplyPlanDto | undefined,
+  me: ProductContext,
+): void {
+  if (!plan) return;
+  for (const [key, units] of Object.entries(plan.consumed)) {
+    if (units <= 0) continue;
+    const plannedName = plan.slices.find((slice) => slice.product === key)?.productName;
+    movement(map, key, productName(me, key, plannedName)).used += units;
+  }
+}
+
+function productMovementLines(
+  map: Map<string, ProductMovement>,
+  after: GameActionResult<unknown>['after'],
+  me: ProductContext,
+): ResultLine[] {
+  return [...map.values()]
+    .filter((row) => row.found > 0 || row.produced > 0 || row.used > 0 || row.seized > 0)
+    .map((row) => {
+      const parts = [
+        row.produced > 0 ? `+${formatNumber(row.produced)} produced` : null,
+        row.found > 0 ? `+${formatNumber(row.found)} found` : null,
+        row.used > 0 ? `−${formatNumber(row.used)} used` : null,
+        row.seized > 0 ? `−${formatNumber(row.seized)} seized` : null,
+      ].filter((part): part is string => Boolean(part));
+      const remaining = me.products
+        ? me.products.find((product) => product.key === row.key)?.quantity
+        : row.key === 'CRACK'
+          ? after.resources.product
+          : undefined;
+      return {
+        label: row.name,
+        detail: parts.join(' · '),
+        delta: row.produced + row.found - row.used - row.seized,
+        ...(remaining !== undefined ? { remaining } : {}),
+      };
+    });
+}
+
+function scoutProductLines(
+  result: ScoutResult,
+  after: GameActionResult<unknown>['after'],
+  me: ProductContext,
+): ResultLine[] {
+  const map = new Map<string, ProductMovement>();
+  if (result.productsFound) {
+    for (const found of result.productsFound) {
+      movement(map, found.key, productName(me, found.key, found.name)).found += found.quantity;
+    }
+  } else if (result.crackFound > 0) {
+    movement(map, 'CRACK', productLabel(me)).found += result.crackFound;
+  }
+
+  if (result.supply) addConsumed(map, result.supply, me);
+  else if (result.crackUsed > 0) movement(map, 'CRACK', productLabel(me)).used += result.crackUsed;
+
+  for (const [key, units] of Object.entries(result.heat?.seized ?? {})) {
+    if (units > 0) movement(map, key, productName(me, key)).seized += units;
+  }
+
+  return productMovementLines(map, after, me);
+}
+
+function produceProductLines(
+  result: ProduceCrackResult,
+  after: GameActionResult<unknown>['after'],
+  me: ProductContext,
+): ResultLine[] {
+  const map = new Map<string, ProductMovement>();
+  const producedKey = me.products ? result.productType : 'CRACK';
+  const producedName = me.products ? result.productName : productLabel(me);
+  if (result.productProduced > 0) {
+    movement(map, producedKey, productName(me, producedKey, producedName)).produced += result.productProduced;
+  }
+
+  if (result.productsFound) {
+    for (const found of result.productsFound) {
+      movement(map, found.key, productName(me, found.key, found.name)).found += found.quantity;
+    }
+  } else if (result.crackFound > 0) {
+    movement(map, 'CRACK', productLabel(me)).found += result.crackFound;
+  }
+
+  if (result.supply || result.cook) {
+    addConsumed(map, result.supply, me);
+    addConsumed(map, result.cook, me);
+  } else if (result.crackUsed > 0) {
+    movement(map, 'CRACK', productLabel(me)).used += result.crackUsed;
+  }
+
+  for (const [key, units] of Object.entries(result.heat?.seized ?? {})) {
+    if (units > 0) movement(map, key, productName(me, key)).seized += units;
+  }
+
+  return productMovementLines(map, after, me);
+}
+
+function crewMovementLine(
+  label: string,
+  remaining: number,
+  joined = 0,
+  walked = 0,
+  infectionLoss = 0,
+): ResultLine | null {
+  if (joined <= 0 && walked <= 0 && infectionLoss <= 0) return null;
+  const parts = [
+    joined > 0 ? `+${formatNumber(joined)} recruited` : null,
+    walked > 0 ? `−${formatNumber(walked)} walked` : null,
+    infectionLoss > 0 ? `−${formatNumber(infectionLoss)} infection` : null,
+  ].filter((part): part is string => Boolean(part));
+  return {
+    label,
+    detail: parts.join(' · '),
+    delta: joined - walked - infectionLoss,
+    remaining,
+  };
 }
 
 function infectionLines(result: {
@@ -20,165 +171,122 @@ function infectionLines(result: {
   if (result.infected <= 0) return [];
   return [
     {
-      label: 'Caught something',
-      delta: -result.infected,
+      label: 'Infections',
+      value: [
+        `${formatNumber(result.infected)} caught`,
+        result.treated > 0 ? `${formatNumber(result.treated)} treated` : null,
+        result.lostToInfection > 0 ? `${formatNumber(result.lostToInfection)} lost` : null,
+      ].filter(Boolean).join(' · '),
     },
-    ...(result.treated > 0
-      ? [
-          {
-            label: 'Treated with medicine',
-            delta: -result.medicineUsed,
-            remaining: after.resources.medicine,
-            muted: true,
-          },
-        ]
+    ...(result.medicineUsed > 0
+      ? [{
+          label: 'Medicine',
+          detail: 'treatment',
+          delta: -result.medicineUsed,
+          remaining: after.resources.medicine,
+          muted: true,
+        }]
       : []),
     ...(result.lostToInfection > 0
-      ? [
-          {
-            label: 'Lost, no medicine',
-            delta: -result.lostToInfection,
-            remaining: after.resources.whores,
-          },
-          { label: 'Medicine', value: <Link className="se-golink" to="/game/stores/corner">Corner Store</Link> },
-        ]
+      ? [{ label: 'Medicine restock', value: <Link className="se-golink" to="/game/stores/corner">Corner Store</Link> }]
       : []),
   ];
 }
 
-function walkoutLines(result: { whoresLeft: number; thugsLeft: number }, after: GameActionResult<unknown>['after']): ResultLine[] {
-  return [
-    ...(result.whoresLeft > 0
-      ? [
-          {
-            label: 'Whores walked out',
-            delta: -result.whoresLeft,
-            remaining: after.resources.whores,
-          },
-        ]
-      : []),
-    ...(result.thugsLeft > 0
-      ? [
-          {
-            label: 'Thugs walked out',
-            delta: -result.thugsLeft,
-            remaining: after.resources.thugs,
-          },
-        ]
-      : []),
-  ];
-}
-
-function shelfLines(result: {
-  crackFound: number;
+function basicSupplyLines(result: {
   condomsUsed: number;
   condomsMissing: number;
-  crackUsed: number;
   beerUsed: number;
   beerMissing: number;
-}, after: GameActionResult<unknown>['after'], me: ProductContext): ResultLine[] {
-  const label = productLabel(me);
+}, after: GameActionResult<unknown>['after']): ResultLine[] {
   return [
-    ...(result.crackFound > 0
-      ? [
-          {
-            label: `${label} found`,
-            delta: result.crackFound,
-            remaining: after.resources.product,
-          },
-        ]
+    ...(result.condomsUsed > 0
+      ? [{
+          label: 'Condoms',
+          detail: 'used',
+          delta: -result.condomsUsed,
+          remaining: after.resources.condoms,
+          muted: true,
+        }]
       : []),
-    {
-      label: 'Condoms used',
-      delta: -result.condomsUsed,
-      remaining: after.resources.condoms,
-      muted: true,
-    },
     ...(result.condomsMissing > 0
-      ? [
-          {
-            label: 'Worked without condoms',
-            value: <>{formatNumber(result.condomsMissing)} short · <Link className="se-golink" to="/game/stores/corner">Corner Store</Link></>,
-          },
-        ]
+      ? [{
+          label: 'Worked without condoms',
+          value: <>{formatNumber(result.condomsMissing)} short · <Link className="se-golink" to="/game/stores/corner">Corner Store</Link></>,
+        }]
       : []),
-    {
-      label: `${label} used`,
-      delta: -result.crackUsed,
-      remaining: after.resources.product,
-      muted: true,
-    },
-    {
-      label: 'Beer used',
-      delta: -result.beerUsed,
-      remaining: after.resources.beer,
-      muted: true,
-    },
+    ...(result.beerUsed > 0
+      ? [{
+          label: 'Beer',
+          detail: 'used',
+          delta: -result.beerUsed,
+          remaining: after.resources.beer,
+          muted: true,
+        }]
+      : []),
     ...(result.beerMissing > 0
-      ? [
-          {
-            label: 'Worked without beer',
-            value: <>{formatNumber(result.beerMissing)} short · <Link className="se-golink" to="/game/stores/corner">Corner Store</Link></>,
-          },
-        ]
+      ? [{
+          label: 'Worked without beer',
+          value: <>{formatNumber(result.beerMissing)} short · <Link className="se-golink" to="/game/stores/corner">Corner Store</Link></>,
+        }]
       : []),
   ];
+}
+
+function actualCashLine(
+  action: GameActionResult<unknown>,
+  parts: Array<string | null | undefined>,
+): ResultLine {
+  return {
+    label: 'Cash',
+    detail: parts.filter((part): part is string => Boolean(part)).join(' · '),
+    delta: action.after.cashCents - action.before.cashCents,
+    remaining: action.after.cashCents,
+    money: true,
+  };
 }
 
 export function scoutReceiptLines(action: GameActionResult<ScoutResult>, me: ProductContext): ResultLine[] {
   const result = action.result;
   const backOfficeBonusCents = result.hideoutBonusCents ?? 0;
+  const whores = crewMovementLine(
+    'Whores',
+    action.after.resources.whores,
+    result.whoresRecruited,
+    result.whoresLeft,
+    result.lostToInfection,
+  );
+  const thugs = crewMovementLine(
+    'Thugs',
+    action.after.resources.thugs,
+    result.thugsRecruited,
+    result.thugsLeft,
+  );
+  const cash = actualCashLine(action, [
+    result.grossEarnedCents > 0 ? `+${formatCents(result.grossEarnedCents)} gross` : null,
+    result.crewTakeCents > 0 ? `−${formatCents(result.crewTakeCents)} crew cut` : null,
+    result.turf?.holdBonusCents ? `+${formatCents(result.turf.holdBonusCents)} turf` : null,
+    result.turf?.taxPaidCents ? `−${formatCents(result.turf.taxPaidCents)} tax` : null,
+    backOfficeBonusCents > 0 ? `+${formatCents(backOfficeBonusCents)} Back Office` : null,
+    result.heat?.fineCents ? `−${formatCents(result.heat.fineCents)} fine` : null,
+  ]);
 
   return [
     { label: 'Turns used', value: formatNumber(result.turnsUsed) },
-    ...supplyReceiptLines(result.supply),
-    ...heatReceiptLines(result.heat),
-    {
-      label: 'Brought in',
-      value: formatCents(result.grossEarnedCents),
-    },
-    {
-      label: `Their cut (${result.payoutPercent}%)`,
-      delta: -result.crewTakeCents,
-      money: true,
-      muted: true,
-    },
-    ...(result.turf?.holdBonusCents
-      ? [{ label: 'Home turf bonus', value: `${formatCents(result.turf.holdBonusCents)} included` }]
-      : []),
-    ...(result.turf?.taxPaidCents
-      ? [{ label: `Street tax${result.turf.holder ? ` · ${result.turf.holder.displayName}` : ''}`, delta: -result.turf.taxPaidCents, money: true }]
+    ...supplyReceiptLines(result.supply, '', false),
+    ...heatReceiptLines(result.heat, false),
+    cash,
+    ...(result.turf?.controlledCityExempt
+      ? [{ label: 'Street tax', value: 'Alliance controls this city · no tax', muted: true }]
       : []),
     ...(result.turf?.linked
       ? [{ label: 'Street tax', value: 'Linked crew · no tax', muted: true }]
       : []),
-    {
-      label: 'Your cut',
-      delta: result.cashEarnedCents,
-      money: true,
-      remaining: action.after.cashCents,
-    },
-    ...(backOfficeBonusCents > 0
-      ? [
-          {
-            label: 'Back Office bonus',
-            value: `${formatCents(backOfficeBonusCents)} included`,
-          },
-        ]
-      : []),
-    {
-      label: 'Whores recruited',
-      delta: result.whoresRecruited,
-      remaining: action.after.resources.whores,
-    },
-    {
-      label: 'Thugs recruited',
-      delta: result.thugsRecruited,
-      remaining: action.after.resources.thugs,
-    },
-    ...shelfLines(result, action.after, me),
+    ...(whores ? [whores] : []),
+    ...(thugs ? [thugs] : []),
+    ...scoutProductLines(result, action.after, me),
+    ...basicSupplyLines(result, action.after),
     ...infectionLines(result, action.after),
-    ...walkoutLines(result, action.after),
     {
       label: 'Armed street cover',
       value: `${formatNumber(result.armedThugs)} armed / ${formatNumber(result.unarmedThugs)} unarmed`,
@@ -194,61 +302,42 @@ export function produceReceiptLines(action: GameActionResult<ProduceCrackResult>
   const result = action.result;
   const workshopBonusProduct = result.hideoutBonusProduct ?? result.hideoutBonusCrack ?? 0;
   const backOfficeBonusCents = result.hideoutBonusCents ?? 0;
+  const whores = crewMovementLine(
+    'Whores',
+    action.after.resources.whores,
+    0,
+    result.whoresLeft,
+    result.lostToInfection,
+  );
+  const thugs = crewMovementLine('Thugs', action.after.resources.thugs, 0, result.thugsLeft);
+  const cash = actualCashLine(action, [
+    result.ingredientCents > 0 ? `−${formatCents(result.ingredientCents)} ingredients` : null,
+    result.grossEarnedCents > 0 ? `+${formatCents(result.grossEarnedCents)} gross` : null,
+    result.crewTakeCents > 0 ? `−${formatCents(result.crewTakeCents)} crew cut` : null,
+    backOfficeBonusCents > 0 ? `+${formatCents(backOfficeBonusCents)} Back Office` : null,
+    result.heat?.fineCents ? `−${formatCents(result.heat.fineCents)} fine` : null,
+  ]);
 
   return [
-    ...supplyReceiptLines(result.supply),
-    ...supplyReceiptLines(result.cook, 'Cooks: '),
-    ...heatReceiptLines(result.heat),
+    ...supplyReceiptLines(result.supply, '', false),
+    ...supplyReceiptLines(result.cook, 'Cooks: ', false),
+    ...heatReceiptLines(result.heat, false),
     { label: 'Turns used', value: formatNumber(result.turnsUsed) },
-    {
-      label: `${result.productName} produced`,
-      delta: result.productProduced,
-      ...(result.productType === 'CRACK' ? { remaining: action.after.resources.product } : {}),
-    },
+    ...produceProductLines(result, action.after, me),
     ...(workshopBonusProduct > 0
-      ? [
-          {
-            label: 'Workshop bonus',
-            value: `${formatNumber(workshopBonusProduct)} included`,
-          },
-        ]
+      ? [{
+          label: 'Workshop bonus',
+          value: `${formatNumber(workshopBonusProduct)} included in production`,
+        }]
       : []),
-    {
-      label: 'Ingredients',
-      delta: -result.ingredientCents,
-      money: true,
-      remaining: action.before.cashCents - result.ingredientCents,
-    },
+    cash,
     ...(result.limitedByCash
       ? [{ label: 'Short on cash', value: 'batch cut down', muted: true }]
       : []),
-    {
-      label: 'Brought in',
-      value: formatCents(result.grossEarnedCents),
-    },
-    {
-      label: `Their cut (${result.payoutPercent}%)`,
-      delta: -result.crewTakeCents,
-      money: true,
-      muted: true,
-    },
-    {
-      label: 'Your cut',
-      delta: result.cashEarnedCents,
-      money: true,
-      remaining: action.before.cashCents - result.ingredientCents + result.cashEarnedCents,
-    },
-    ...(backOfficeBonusCents > 0
-      ? [
-          {
-            label: 'Back Office bonus',
-            value: `${formatCents(backOfficeBonusCents)} included`,
-          },
-        ]
-      : []),
-    ...shelfLines(result, action.after, me),
+    ...(whores ? [whores] : []),
+    ...(thugs ? [thugs] : []),
+    ...basicSupplyLines(result, action.after),
     ...infectionLines(result, action.after),
-    ...walkoutLines(result, action.after),
     {
       label: 'Turns remaining',
       value: formatNumber(result.turnsRemaining),

@@ -54,6 +54,20 @@ export interface BattleReportDto {
   yourSupply?: import('./playing-together.js').WorkSupplyPlanDto;
   /** 0.4.0-D. Every other product that changed hands or burned, from this side's view. */
   productChanges?: Array<{ product: string; name: string; change: number }>;
+  /**
+   * Display-oriented net inventory movement for this side. Unlike productChanges,
+   * this also includes fight-supply consumption and records the post-battle balance.
+   * Older reports omit it and the UI falls back to the legacy fields above.
+   */
+  inventoryChanges?: Array<{
+    product: string;
+    name: string;
+    change: number;
+    after: number;
+    used: number;
+    gained: number;
+    lost: number;
+  }>;
   lootPercent?: number;
   baseLootPercent?: number;
   repeatTargetHits?: number;

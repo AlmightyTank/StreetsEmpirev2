@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
-import { classicOgV06A } from '@streets/rulesets';
-import { runTurfSimulation, turfGate, turfMarkdown } from '@streets/rules-engine';
+import { classicOgV06F } from '@streets/rulesets';
+import { runTurfRoundSimulation, runTurfSimulation, turfGate, turfMarkdown, turfRoundGate, turfRoundMarkdown } from '@streets/rules-engine';
 
 const args = process.argv.slice(2);
 let output = null;
@@ -17,14 +17,15 @@ try {
     if (!args[i + 1] || args[i + 1].startsWith('--')) throw new Error(`Incomplete option: ${flag}`);
     output = args[++i];
   }
-  // The current turf ruleset: 0.5.0-F balance plus the 0.6.0-A turf block.
-  const ruleset = classicOgV06A;
+  // 0.6.0-F release gate: run all existing 40-block and push balance checks against the shipping ruleset.
+  const ruleset = classicOgV06F;
   const summaries = runTurfSimulation(ruleset);
-  const report = turfMarkdown(ruleset, summaries);
+  const round = runTurfRoundSimulation(ruleset);
+  const report = [turfMarkdown(ruleset, summaries), turfRoundMarkdown(ruleset, round)].join('\n\n');
   if (output) await writeFile(output, report, 'utf8');
   if (!quiet) console.log(report);
 
-  const problems = turfGate(ruleset, summaries);
+  const problems = [...turfGate(ruleset, summaries), ...turfRoundGate(ruleset, round)];
   if (problems.length) {
     console.error(`\nTurf gates failed:\n${problems.map((line) => `- ${line}`).join('\n')}`);
     process.exitCode = 1;

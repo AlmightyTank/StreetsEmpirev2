@@ -24,6 +24,8 @@ export interface NetWorthInput {
   awayNetWorthCents?: bigint | number;
   /** 0.6.0-B. Guns posted on held corners, already valued after leaving the home arsenal. */
   postedNetWorthCents?: bigint | number;
+  /** 0.6.0-D. Cash, beer and product stored in away outpost boxes. */
+  outpostNetWorthCents?: bigint | number;
 }
 
 export interface ThugHappinessInput {

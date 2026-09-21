@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV05F, classicOgV06A, type Ruleset } from '@streets/rulesets';
+import { classicOgV05F, classicOgV06A, classicOgV06C, type Ruleset } from '@streets/rulesets';
 import {
   canClaim,
   cornerMinimumFor,
@@ -9,10 +9,11 @@ import {
   presenceAfter,
   turfBlocks,
   turfHoldBonus,
+  turfPushCombatModel,
   turfRulesetProblems,
   turfTax,
 } from '../calculations/turf.js';
-import { runTurfSimulation, turfGate } from '../simulations/turf.js';
+import { runTurfPushSimulation, runTurfSimulation, turfGate } from '../simulations/turf.js';
 
 const ruleset: Ruleset = classicOgV06A;
 const before: Ruleset = classicOgV05F;
@@ -155,6 +156,29 @@ describe('0.6.0-A presence and the corner', () => {
     expect(day.product).toBeGreaterThan(0);
     expect(cornerUpkeep(ruleset, 8, 48).beer).toBeGreaterThan(day.beer);
     expect(cornerUpkeep(before, 8, 24)).toEqual({ beer: 0, product: 0 });
+  });
+});
+
+describe('0.6.0-C turf combat', () => {
+  it('uses the turf push edge, variance and turn cost without changing the base raid rules', () => {
+    const model = turfPushCombatModel(classicOgV06C);
+    expect(model).not.toBeNull();
+    expect(model!.turnCost).toBe(classicOgV06C.turf.push.turnCost);
+    expect(model!.strength.defenseMultiplier).toBe(classicOgV06C.turf.push.fight.defenseMultiplier);
+    expect(model!.strength.variance).toBe(classicOgV06C.turf.push.fight.variance);
+    expect(classicOgV06C.combat!.strength.defenseMultiplier).not.toBe(model!.strength.defenseMultiplier);
+    expect(turfPushCombatModel(before)).toBeNull();
+  });
+});
+
+describe('0.6.0-C push balance gate', () => {
+  it('keeps an equal push live, while a reinforcement call matters without making a corner untouchable', () => {
+    const push = runTurfPushSimulation(classicOgV06C)!;
+    expect(push.noBackupWinRate).toBeGreaterThanOrEqual(0.30);
+    expect(push.noBackupWinRate).toBeLessThanOrEqual(0.47);
+    expect(push.reinforcementWinRate).toBeGreaterThanOrEqual(0.14);
+    expect(push.reinforcementWinRate).toBeLessThanOrEqual(0.32);
+    expect(push.noBackupWinRate - push.reinforcementWinRate).toBeGreaterThanOrEqual(0.08);
   });
 });
 

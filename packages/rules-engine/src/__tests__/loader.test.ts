@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, classicOgV06C, classicOgV06D, classicOgV06E, classicOgV06F, type Ruleset } from '@streets/rulesets';
 import { regenerateTurns } from '../calculations/turns.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
@@ -38,7 +38,7 @@ describe('ruleset loader', () => {
   it('knows which ids it can serve', () => {
     expect(isKnownRulesetId('classic-og-v0.1')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(25);
+    expect(listRulesets()).toHaveLength(29);
   });
 });
 
@@ -118,6 +118,88 @@ describe('classic-og-v0.3-d contents', () => {
     expect(ruleset.alliances).toEqual({ ...classicOgV03C.alliances, sharedIntel: true });
     expect({ ...ruleset, meta: null, alliances: null }).toEqual({ ...classicOgV03C, meta: null, alliances: null });
     expect((classicOgV03C as Ruleset).alliances?.sharedIntel).toBeUndefined();
+  });
+});
+
+describe('classic-og-v0.6-d contents', () => {
+  it('pins outpost storage without changing C turf-war balance', () => {
+    const ruleset = loadRuleset('classic-og-v0.6-d', '0.6.0-D');
+    expect(ruleset).toBe(classicOgV06D);
+    expect(ruleset.turf?.outposts).toEqual({
+      cashCapCents: 25_000_000,
+      beerCap: 2_000,
+      productCap: 5_000,
+      transferTurnCost: 2,
+      lootShare: 0.25,
+      lootCashCapCents: 5_000_000,
+      lootBeerCap: 500,
+      lootProductCap: 1_000,
+    });
+    expect(ruleset.hideout?.rooms.GARAGE).toEqual({
+      name: 'Garage',
+      blurb: 'A second bay lets another crew take a Low-Rider run out while the first is still away.',
+      maxLevel: 1,
+      costsCents: [2_500_000],
+    });
+    expect(ruleset.hideout?.buffs.garageRunLimit).toBe(2);
+    expect({
+      ...ruleset,
+      meta: null,
+      hideout: null,
+      turf: { ...ruleset.turf!, outposts: null },
+    }).toEqual({
+      ...classicOgV06C,
+      meta: null,
+      hideout: null,
+      turf: { ...classicOgV06C.turf, outposts: null },
+    });
+  });
+});
+
+describe('classic-og-v0.6-e contents', () => {
+  it('adds city control without changing D outpost balance', () => {
+    const ruleset = loadRuleset('classic-og-v0.6-e', '0.6.0-E');
+    expect(ruleset).toBe(classicOgV06E);
+    expect(ruleset.meta.name).toBe('Classic OG - Territory');
+    expect(ruleset.turf?.territory).toEqual({
+      cityControlShare: 0.6,
+      controlledCityNoTax: true,
+      cornerRunSightings: true,
+    });
+    expect({
+      ...ruleset,
+      meta: null,
+      turf: { ...ruleset.turf!, territory: null },
+    }).toEqual({
+      ...classicOgV06D,
+      meta: null,
+      turf: { ...classicOgV06D.turf, territory: null },
+    });
+  });
+});
+
+describe('classic-og-v0.6-f contents', () => {
+  it('adds the Federal crackdown without changing E turf balance', () => {
+    const ruleset = loadRuleset('classic-og-v0.6-f', '0.6.0-F');
+    expect(ruleset).toBe(classicOgV06F);
+    expect(ruleset.meta.name).toBe('Classic OG - Turf Release');
+    expect(ruleset.turf?.crackdown).toEqual({
+      hoursBeforeRoundEnd: 48,
+      warningHours: 24,
+      heatPerHeldBlock: 12,
+      pickupShare: 0.2,
+      maxPickedUpPerBlock: 6,
+      minimumCornerSurvivors: 1,
+    });
+    expect({
+      ...ruleset,
+      meta: null,
+      turf: { ...ruleset.turf!, crackdown: null },
+    }).toEqual({
+      ...classicOgV06E,
+      meta: null,
+      turf: { ...classicOgV06E.turf, crackdown: null },
+    });
   });
 });
 

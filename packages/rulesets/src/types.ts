@@ -32,7 +32,8 @@ export type StoreKey = 'CORNER' | 'TOMMY' | 'CHARLIE' | 'PIP';
 
 export type WeaponKey = 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47';
 export type WeaponUnlockKey = 'SHOTGUN' | 'TEK9' | 'AK47';
-export type HideoutRoomKey = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE';
+export type BaseHideoutRoomKey = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE';
+export type HideoutRoomKey = BaseHideoutRoomKey | 'GARAGE';
 
 /**
  * What a shopkeeper wants before he will sell you the heavy stuff.
@@ -718,8 +719,60 @@ export interface TurfRules {
   readonly caps: TurfCapRules;
   /** 0.6.0-B. A owns the data/map; B turns claiming and holding on. */
   readonly holding?: boolean;
+  /** 0.6.0-C. Player-vs-player pushes and turf-war windows. */
+  readonly wars?: boolean;
+  /** 0.6.0-D. Away holdings with their own supply/tax box. */
+  readonly outposts?: TurfOutpostRules;
+  /** 0.6.0-E. Alliance territory and city-control rules. */
+  readonly territory?: TurfTerritoryRules;
+  /** 0.6.0-F. One seeded late-round Federal sweep of a city's held corners. */
+  readonly crackdown?: TurfCrackdownRules;
   /** 0.6.0-C. Taking a block. Data in A. */
   readonly push: TurfPushRules;
+}
+
+export interface TurfCrackdownRules {
+  /** The sweep lands this many hours before the scheduled round end. */
+  readonly hoursBeforeRoundEnd: number;
+  /** How many hours before the sweep the target city is made public. */
+  readonly warningHours: number;
+  /** Heat added to a holder for each corner they still hold when the sweep lands. */
+  readonly heatPerHeldBlock: number;
+  /** Share of each posted corner crew the Feds pick up. */
+  readonly pickupShare: number;
+  /** Hard cap per block so one event cannot erase a large late-round crew. */
+  readonly maxPickedUpPerBlock: number;
+  /** Always leave this many on a non-empty corner; the sweep weakens turf rather than auto-flipping it. */
+  readonly minimumCornerSurvivors: number;
+}
+
+export interface TurfTerritoryRules {
+  /** Share of the city's five blocks one alliance must hold to control it. */
+  readonly cityControlShare: number;
+  /** Controlled-city alliance members do not pay street tax there. */
+  readonly controlledCityNoTax: boolean;
+  /**
+   * A personally held corner acts as a live road lookout in that city. It sees
+   * who is passing now, but never paid-recon wallet/trunk/escort bands or lookahead.
+   */
+  readonly cornerRunSightings: boolean;
+}
+
+export interface TurfOutpostRules {
+  /** Cash the box may hold before a run has to collect it. */
+  readonly cashCapCents: number;
+  /** Beer kept at the outpost for corner upkeep. */
+  readonly beerCap: number;
+  /** Total product units kept in the box across all products. */
+  readonly productCap: number;
+  /** Turns a run spends moving stock between its trunk/wallet and an outpost. */
+  readonly transferTurnCost: number;
+  /** Share of each stored resource exposed when the outpost is captured. */
+  readonly lootShare: number;
+  /** Hard caps keep one rich box from deciding a round in a single push. */
+  readonly lootCashCapCents: number;
+  readonly lootBeerCap: number;
+  readonly lootProductCap: number;
 }
 
 export interface TurfDistrictRules {
@@ -1044,12 +1097,14 @@ export interface HeatRules {
 export type ProductCatalog = { readonly CRACK: ProductDefinition } & { readonly [key: string]: ProductDefinition };
 
 export interface HideoutRules {
-  readonly rooms: { readonly [K in HideoutRoomKey]: HideoutRoomRule };
+  readonly rooms: { readonly [K in BaseHideoutRoomKey]: HideoutRoomRule } & { readonly GARAGE?: HideoutRoomRule };
   readonly buffs: {
     readonly safeRoomProtectedCashCentsPerLevel: number;
     readonly lookoutsDefenseBonusPercentPerLevel: number;
     readonly workshopCrackBonusPercentPerLevel: number;
     readonly backOfficeTakeBonusPercentPerLevel: number;
+    /** 0.6.0-D. Active-run limit once the Garage exists. */
+    readonly garageRunLimit?: number;
   };
 }
 

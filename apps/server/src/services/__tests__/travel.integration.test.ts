@@ -119,7 +119,9 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('runs with PostgreSQL', (
     expect((await launch({ cashCents: 60_000_000 })).json().error.code).toBe('NOT_ENOUGH_CASH');
     expect((await launch({ to: 'new-york-city' })).json().error.code).toBe('ALREADY_HOME');
     expect((await launch()).statusCode).toBe(200);
-    expect((await launch()).json().error.code).toBe('RUN_OUT');
+    // 0.6.0-D introduced the Garage/run-limit layer. On a one-run ruleset the
+    // second launch is rejected by that shared limit before another car check.
+    expect((await launch()).json().error.code).toBe('RUN_LIMIT');
   });
 
   it('replays a launch by its action id instead of sending a second run', async () => {
@@ -190,7 +192,9 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('runs with PostgreSQL', (
     await launch({ to: 'miami-beach' });
     await age(96);
     const turns = (await row()).turns;
-    const preview = (await get('/travel/routes?to=atlanta')).json<TravelRoutesDto>();
+    const active = await app.prisma.run.findFirstOrThrow({ where: { roundPlayerId: players[0]!, status: 'ACTIVE' } });
+    // Drive-on routing is from the run's current town, not from the player's home.
+    const preview = (await get(`/travel/routes?to=atlanta&runId=${encodeURIComponent(active.id)}`)).json<TravelRoutesDto>();
     const moved = await post('/travel/drive-on', { to: 'atlanta', route: 0, actionId: randomUUID() });
     expect(moved.statusCode, moved.body).toBe(200);
     expect(moved.json<GameActionResult<RunMoveResult>>().result.turns).toBe(preview.routes[0]!.turns);

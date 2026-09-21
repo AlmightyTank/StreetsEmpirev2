@@ -5,6 +5,7 @@ import type {
   AlertType,
   BadgeCard,
   BattleEvent,
+  CrackdownEvent,
   HallOfFame,
   History,
   Leaderboard,
@@ -18,6 +19,8 @@ import type {
   RoundEvent,
   RoundStatus,
   Stats,
+  TerritoryEvent,
+  TurfEvent,
   TurnReminder,
 } from './game-api.js';
 import type { MemberSyncResult, SyncSummary } from './sync.js';
@@ -430,6 +433,55 @@ export function battleFeedEmbed(battle: BattleEvent): APIEmbed {
     color: battle.attackerWon ? BRAND_COLOR : MUTED_COLOR,
     description: `[${escapeMarkdown(battle.attackerName)}](${battle.attackerProfileUrl}) hit [${escapeMarkdown(battle.defenderName)}](${battle.defenderProfileUrl}) in ${escapeMarkdown(battle.roundName)}.\nWinner: ${escapeMarkdown(winner)}.`,
     timestamp: battle.createdAt,
+  };
+}
+
+export function turfFeedEmbed(event: TurfEvent): APIEmbed {
+  const newHolder = event.attackerAllianceTag
+    ? `[${escapeMarkdown(event.attackerAllianceTag)}] ${escapeMarkdown(event.attackerName)}`
+    : escapeMarkdown(event.attackerName);
+  return {
+    title: `${escapeMarkdown(event.cityName)} · ${escapeMarkdown(event.districtName)} changed hands`,
+    color: BRAND_COLOR,
+    description: `[${escapeMarkdown(event.defenderName)}](${event.defenderProfileUrl}) lost the block to [${newHolder}](${event.attackerProfileUrl}) in ${escapeMarkdown(event.roundName)}.`,
+    timestamp: event.settledAt,
+  };
+}
+
+export function territoryFeedEmbed(event: TerritoryEvent): APIEmbed {
+  const previous = event.previous ? `[${escapeMarkdown(event.previous.tag)}] ${escapeMarkdown(event.previous.name)}` : null;
+  const next = event.next ? `[${escapeMarkdown(event.next.tag)}] ${escapeMarkdown(event.next.name)}` : null;
+  const description = previous && next
+    ? `${next} took control of ${escapeMarkdown(event.cityName)} from ${previous} · ${event.next!.blocksHeld}/${event.blocksTotal} blocks.`
+    : next
+      ? `${next} took control of ${escapeMarkdown(event.cityName)} · ${event.next!.blocksHeld}/${event.blocksTotal} blocks.`
+      : previous
+        ? `${previous} lost control of ${escapeMarkdown(event.cityName)}. No alliance controls it now.`
+        : `Control of ${escapeMarkdown(event.cityName)} changed.`;
+  return {
+    title: `${escapeMarkdown(event.cityName)} · city control changed`,
+    color: event.next ? BRAND_COLOR : MUTED_COLOR,
+    description: `${description}\n${escapeMarkdown(event.roundName)}`,
+    timestamp: event.happenedAt,
+  };
+}
+
+export function crackdownFeedEmbed(event: CrackdownEvent): APIEmbed {
+  const warning = event.phase === 'warning';
+  const description = warning
+    ? `Word is the Feds are sweeping **${escapeMarkdown(event.cityName)}** tomorrow. Turf crews have until then to pull out.`
+    : event.thugsPickedUp > 0
+      ? `The Feds swept **${escapeMarkdown(event.cityName)}**. ${event.thugsPickedUp} corner men were picked up across ${event.holdersAffected} crew${event.holdersAffected === 1 ? '' : 's'}.`
+      : event.holdersAffected > 0
+        ? `The Feds swept **${escapeMarkdown(event.cityName)}**. ${event.holdersAffected} crew${event.holdersAffected === 1 ? ' was' : 's were'} caught holding corners, but nobody was picked up.`
+        : `The Feds swept **${escapeMarkdown(event.cityName)}**, but the corners were already clear.`;
+  return {
+    title: warning
+      ? `${escapeMarkdown(event.cityName)} · Federal sweep incoming`
+      : `${escapeMarkdown(event.cityName)} · Federal sweep landed`,
+    color: warning ? BRAND_COLOR : MUTED_COLOR,
+    description: `${description}\n${escapeMarkdown(event.roundName)}`,
+    timestamp: warning ? event.warningAt : event.sweepAt,
   };
 }
 

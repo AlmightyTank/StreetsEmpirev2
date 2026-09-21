@@ -1,9 +1,176 @@
 import type { PrismaClient } from '@prisma/client';
-import type { Ruleset } from '@streets/rules-engine';
+import { productEconomy, type Rng, type Ruleset } from '@streets/rules-engine';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 
 export type ProductInventory = Record<string, number>;
+
+export interface FoundProduct {
+  key: string;
+  name: string;
+  quantity: number;
+}
+
+
+export interface ProductMovementSummary {
+  key: string;
+  name: string;
+  found: number;
+  produced: number;
+  used: number;
+  seized: number;
+  change: number;
+}
+
+/**
+ * Collapse every product movement for an action into one row per product.
+ * This is display/activity data only; inventory writes still happen through
+ * ProductInventoryService.
+ */
+export function summarizeProductMovements(
+  ruleset: Ruleset,
+  input: {
+    found?: FoundProduct[];
+    produced?: { key: string; quantity: number };
+    consumed?: Array<Record<string, number> | undefined>;
+    seized?: Record<string, number>;
+  },
+): ProductMovementSummary[] {
+  const rows = new Map<string, ProductMovementSummary>();
+
+  const rowFor = (key: string, fallbackName?: string): ProductMovementSummary => {
+    const existing = rows.get(key);
+    if (existing) return existing;
+    const next: ProductMovementSummary = {
+      key,
+      name: ruleset.products?.[key]?.name ?? fallbackName ?? (key === CRACK ? 'Product' : key),
+      found: 0,
+      produced: 0,
+      used: 0,
+      seized: 0,
+      change: 0,
+    };
+    rows.set(key, next);
+    return next;
+  };
+
+  for (const found of input.found ?? []) {
+    rowFor(found.key, found.name).found += Math.max(0, found.quantity);
+  }
+  if (input.produced && input.produced.quantity > 0) {
+    rowFor(input.produced.key).produced += input.produced.quantity;
+  }
+  for (const consumed of input.consumed ?? []) {
+    for (const [key, quantity] of Object.entries(consumed ?? {})) {
+      if (quantity > 0) rowFor(key).used += quantity;
+    }
+  }
+  for (const [key, quantity] of Object.entries(input.seized ?? {})) {
+    if (quantity > 0) rowFor(key).seized += quantity;
+  }
+
+  return [...rows.values()]
+    .map((row) => ({
+      ...row,
+      change: row.found + row.produced - row.used - row.seized,
+    }))
+    .filter((row) => row.found > 0 || row.produced > 0 || row.used > 0 || row.seized > 0);
+}
+
+const FIND_SUPPLY_WEIGHT = {
+  PLENTIFUL: 6,
+  NORMAL: 3,
+  LOW: 1,
+  OUT: 0.25,
+} as const;
+
+function cityFindWeight(ruleset: Ruleset, citySlug: string, key: string): number {
+  const city = ruleset.cities?.[citySlug];
+  if (!city) return 1;
+  const supply = city.products[key]?.supply;
+  if (supply === null || supply === undefined) return 0;
+  return FIND_SUPPLY_WEIGHT[supply];
+}
+
+function findPointCost(ruleset: Ruleset, key: string): number {
+  const crackValue = Math.max(1, ruleset.economy.netWorth.perCrackCents);
+  const value = key === CRACK
+    ? crackValue
+    : productEconomy(ruleset, key)?.netWorthCents ?? crackValue;
+  return Math.max(1, Math.ceil(value / crackValue));
+}
+
+/**
+ * Turn the old crack-only street find into a city-flavoured product mix.
+ *
+ * The action engine still rolls the same find chance and 1..N "find points" it
+ * always did. One point is worth one old crack find. Higher-value products cost
+ * more points, so finding Cocaine/Ecstasy does not turn Scout into a money loop.
+ * City supply only changes which eligible product is likely to turn up.
+ *
+ * Product-economy rounds use the full catalog. Older rounds stay exactly
+ * crack-only.
+ */
+export function streetProductFinds(
+  ruleset: Ruleset,
+  citySlug: string,
+  findPoints: number,
+  rng: Rng = Math.random,
+): FoundProduct[] {
+  if (findPoints <= 0) return [];
+  if (!ruleset.productEconomy || !ruleset.products) {
+    return [{ key: CRACK, name: ruleset.products?.CRACK?.name ?? 'Product', quantity: findPoints }];
+  }
+
+  const keys = productKeys(ruleset);
+  const counts: Record<string, number> = {};
+  let points = findPoints;
+
+  while (points > 0) {
+    const eligible = keys
+      .map((key) => ({
+        key,
+        cost: findPointCost(ruleset, key),
+        weight: cityFindWeight(ruleset, citySlug, key),
+      }))
+      .filter((row) => row.cost <= points && row.weight > 0);
+
+    // A city's normal shelf can omit products entirely. If the remaining point
+    // budget cannot buy any locally weighted product, fall back to the cheapest
+    // catalog item rather than silently throwing the find away.
+    const pool = eligible.length
+      ? eligible
+      : keys
+          .map((key) => ({ key, cost: findPointCost(ruleset, key), weight: 1 }))
+          .filter((row) => row.cost <= points)
+          .sort((a, b) => a.cost - b.cost);
+
+    if (!pool.length) break;
+
+    const totalWeight = pool.reduce((sum, row) => sum + row.weight, 0);
+    let roll = rng() * totalWeight;
+    let chosen = pool[pool.length - 1]!;
+    for (const row of pool) {
+      roll -= row.weight;
+      if (roll < 0) {
+        chosen = row;
+        break;
+      }
+    }
+
+    counts[chosen.key] = (counts[chosen.key] ?? 0) + 1;
+    points -= chosen.cost;
+  }
+
+  return keys
+    .filter((key) => (counts[key] ?? 0) > 0)
+    .map((key) => ({
+      key,
+      name: ruleset.products![key]?.name ?? key,
+      quantity: counts[key]!,
+    }));
+}
+
 
 /** The column crack has always lived on. Every other product is a row. */
 export const CRACK = 'CRACK';

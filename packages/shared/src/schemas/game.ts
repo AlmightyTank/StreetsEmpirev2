@@ -64,15 +64,38 @@ const turfMoveSchema = z.object({
 export const turfClaimSchema = turfMoveSchema;
 export const turfPostSchema = turfMoveSchema;
 export const turfPullSchema = turfMoveSchema;
+
+export const turfPushSchema = z.object({
+  district: z.string().trim().min(1, 'Pick a turf block.'),
+  squad: z.number({ invalid_type_error: 'Enter how many thugs to send.' })
+    .int('Thugs must be a whole number.').positive('Send at least one thug.').safe(),
+  actionId: actionIdSchema,
+}).strict();
+
+export const turfPushBackupSchema = z.object({
+  pushId: z.string().trim().min(1).max(64),
+  thugs: z.number({ invalid_type_error: 'Enter how many thugs to send.' })
+    .int('Thugs must be a whole number.').positive('Send at least one thug.').safe(),
+  actionId: actionIdSchema,
+}).strict();
+
+export const turfPushCallSchema = z.object({
+  pushId: z.string().trim().min(1).max(64),
+  actionId: actionIdSchema,
+}).strict();
+
 export type TurfClaimInput = z.infer<typeof turfClaimSchema>;
 export type TurfPostInput = z.infer<typeof turfPostSchema>;
 export type TurfPullInput = z.infer<typeof turfPullSchema>;
+export type TurfPushInput = z.infer<typeof turfPushSchema>;
+export type TurfPushBackupInput = z.infer<typeof turfPushBackupSchema>;
+export type TurfPushCallInput = z.infer<typeof turfPushCallSchema>;
 
 export type ProduceCrackInput = z.infer<typeof produceCrackSchema>;
 export type PayoutInput = z.infer<typeof payoutSchema>;
 
 export const hideoutUpgradeSchema = z.object({
-  room: z.enum(['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE']),
+  room: z.enum(['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE', 'GARAGE']),
   actionId: actionIdSchema,
 });
 export type HideoutUpgradeInput = z.infer<typeof hideoutUpgradeSchema>;

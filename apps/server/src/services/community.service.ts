@@ -1,6 +1,6 @@
 import type { City, Prisma, PrismaClient } from '@prisma/client';
 import { RelocationService } from './relocation.service.js';
-import type { Ruleset } from '@streets/rules-engine';
+import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
 import type {
   PublicAchievementCategory,
   PublicAchievementRarity,
@@ -21,6 +21,7 @@ import { allianceTagDto } from './alliance.service.js';
 import { ForumGroupsService } from './forum-groups.service.js';
 import { forumProfileUrl } from './forum-link.service.js';
 import { selectProfileBadges } from './profile-badges.js';
+import { TurfHistoryService } from './turf-history.service.js';
 
 interface RankingRow {
   id: string;
@@ -644,7 +645,7 @@ export const CommunityService = {
     });
 
     return {
-      rounds: rounds.map((round) => {
+      rounds: await Promise.all(rounds.map(async (round) => {
         const topTen = round.players.map((player) => ({
           rank: player.nationalRank!,
           publicPimpId: player.publicPimpId,
@@ -657,6 +658,13 @@ export const CommunityService = {
           joinedAt: player.createdAt.toISOString(),
           lastActiveAt: player.lastActiveAt.toISOString(),
         }));
+        const territory = await TurfHistoryService.board(
+          prisma,
+          round.id,
+          loadRulesetForRound(round),
+          null,
+          round.endsAt,
+        );
         return {
           id: round.id,
           name: round.name,
@@ -669,23 +677,38 @@ export const CommunityService = {
           playerCount: round._count.players,
           podium: topTen.filter((player) => player.rank <= podiumSize),
           topTen,
+          territory: territory ? {
+            crews: territory.crews.filter((row) => row.rank === 1).map((row) => ({
+              publicPimpId: row.publicPimpId,
+              displayName: row.displayName,
+              alliance: row.alliance,
+              heldSeconds: row.heldSeconds,
+            })),
+            alliances: territory.alliances.filter((row) => row.rank === 1).map((row) => ({
+              name: row.name,
+              tag: row.tag,
+              heldSeconds: row.heldSeconds,
+            })),
+          } : null,
         };
-      }),
+      })),
     };
   },
 
   async rankings(
     prisma: PrismaClient,
     player: {
+      id: string;
       roundId: string;
       cityId: string;
+      allianceId: string | null;
       publicPimpId: number;
       localRank: number | null;
       nationalRank: number | null;
       city: City;
     },
     topCount: number,
-    _ruleset: Ruleset,
+    ruleset: Ruleset,
   ): Promise<RankingsDto> {
     const now = new Date();
     // 0.5.0-D: movers who have arrived rank in their new city.
@@ -714,6 +737,11 @@ export const CommunityService = {
       syncVisibleRankTenure(prisma, localRows, local, 'local', now),
     ]);
 
+    const territory = await TurfHistoryService.board(prisma, player.roundId, ruleset, {
+      id: player.id,
+      allianceId: player.allianceId,
+    }, now);
+
     return {
       national,
       local,
@@ -723,6 +751,7 @@ export const CommunityService = {
         localRank: local.find((row) => row.isYou)?.rank ?? player.localRank ?? 1,
         nationalRank: national.find((row) => row.isYou)?.rank ?? player.nationalRank ?? 1,
       },
+      territory,
     };
   },
 
