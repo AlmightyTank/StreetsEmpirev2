@@ -26,7 +26,7 @@ export function StatusPage() {
           {!data && !failed ? <PublicLoading label="Checking services…" /> : null}
           {failed ? (
             <PublicError title="The public API health check is unavailable.">
-              <p>If this page loaded, the static website itself is still being served by Nginx.</p>
+              <p>If this page loaded, the static website itself is still responding.</p>
             </PublicError>
           ) : null}
 

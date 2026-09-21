@@ -102,18 +102,24 @@ production data.
 ### Local development
 
 ```bash
-npm run dev:site
-```
-
-The public site runs at `http://localhost:5174`.
-
-The existing game development flow remains unchanged:
-
-```bash
 npm run dev
 ```
 
-The game remains at `http://localhost:5173` with its API at `http://localhost:3001`.
+This starts the API, playable game app, and public website together:
+
+```text
+API              http://localhost:3001
+Playable game    http://localhost:5173
+Public website   http://localhost:5174
+```
+
+Run a single part when needed:
+
+```bash
+npm run dev:server
+npm run dev:web
+npm run dev:site
+```
 
 ## Phase 3 — Public website shell
 

@@ -51,3 +51,16 @@ export async function startPushServer(options: PushServerOptions): Promise<() =>
     server.close((error) => (error ? reject(error) : resolve()));
   });
 }
+
+export async function startOptionalPushServer(options: PushServerOptions): Promise<(() => Promise<void>) | null> {
+  try {
+    return await startPushServer(options);
+  } catch (error) {
+    console.warn(
+      `Discord push wake listener is off: could not bind http://${options.host}:${options.port}/internal/wake. `
+      + 'The bot will continue and use polling as the fallback.',
+      error,
+    );
+    return null;
+  }
+}

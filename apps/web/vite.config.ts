@@ -6,6 +6,7 @@ export default defineConfig({
 
   server: {
     port: 5173,
+    strictPort: true,
     // Proxying keeps the API same-origin in dev, so the session cookie behaves
     // exactly as it will in production.
     proxy: {
