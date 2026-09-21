@@ -6,6 +6,8 @@ export interface ResultLine {
   label: string;
   /** Rendered as a signed delta when `delta` is set, plainly otherwise. */
   value?: ReactNode;
+  /** Optional compact breakdown, e.g. "+4 found · -2 used". */
+  detail?: ReactNode;
   delta?: number;
   /** Optional post-action balance shown as `change / remaining`. */
   remaining?: number;
@@ -132,9 +134,12 @@ export function ActionResult<T>({
       {subtitle ? <div className="se-result__subtitle">{subtitle}</div> : null}
 
       <div className="se-rows">
-        {lines.map((line) => (
-          <div className={`se-row${line.muted ? ' se-row--muted' : ''}`} key={line.label}>
-            <span className="se-row__label">{line.label}</span>
+        {lines.map((line, index) => (
+          <div className={`se-row${line.muted ? ' se-row--muted' : ''}`} key={`${index}:${line.label}`}>
+            <span className="se-row__label">
+              {line.label}
+              {line.detail ? <span className="se-muted"> · {line.detail}</span> : null}
+            </span>
             <span className="se-row__value">
               {line.delta !== undefined ? (
                 <DeltaPair
