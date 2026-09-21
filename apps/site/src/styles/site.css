@@ -1713,3 +1713,12 @@ a {
     animation-iteration-count: 1 !important;
   }
 }
+
+
+.site-route-loading {
+  min-height: 45vh;
+  display: grid;
+  place-items: center;
+  color: var(--site-muted);
+  font-weight: 800;
+}
