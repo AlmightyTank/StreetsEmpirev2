@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import { SiteLayout } from './components/SiteLayout.js';
 import { HomePage } from './pages/HomePage.js';
+import { CurrentGamePage } from './pages/CurrentGamePage.js';
 import {
   AllianceDetailPage,
   CityDetailPage,
@@ -129,7 +130,7 @@ export function App() {
         <Route path="cities/:citySlug" element={<CityDetailPage />} />
         <Route path="turf" element={<SectionPage {...sectionPages.turf} />} />
         <Route path="games" element={<SectionPage {...sectionPages.games} />} />
-        <Route path="games/current" element={<SectionPage {...sectionPages.currentGame} />} />
+        <Route path="games/current" element={<CurrentGamePage />} />
         <Route path="games/:gameId" element={<GameDetailPage />} />
         <Route path="rankings" element={<SectionPage {...sectionPages.rankings} />} />
         <Route path="hall-of-fame" element={<SectionPage {...sectionPages.hallOfFame} />} />
