@@ -37,6 +37,22 @@ export function SectionPage({ eyebrow, title, description, planned }: SectionPag
   );
 }
 
+export function CityDetailPage() {
+  const { citySlug } = useParams();
+  const title = citySlug
+    ? citySlug.split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
+    : 'City';
+  return <SectionPage eyebrow="City profile" title={title} description="A public city profile with districts, control and local game context." planned={['City overview and identity', 'District directory', 'Public turf control', 'Public market and activity context']} />;
+}
+
+export function GuideDetailPage() {
+  const { topic } = useParams();
+  const title = topic
+    ? topic.split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
+    : 'Guide';
+  return <SectionPage eyebrow="How to play" title={title} description="A focused StreetsEmpire guide for one game system." planned={['System overview', 'Core rules and terminology', 'Player-facing examples', 'Links to related systems']} />;
+}
+
 export function GameDetailPage() {
   const { gameId } = useParams();
   return <SectionPage eyebrow="Season archive" title={gameId ? 'Game #' + gameId : 'Game'} description="A permanent public record for one StreetsEmpire season." planned={['Final standings and champion', 'Alliance and city results', 'Season-wide statistics and records', 'Major public events and milestones']} />;
