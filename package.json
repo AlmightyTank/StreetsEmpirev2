@@ -13,7 +13,7 @@
     "dev:server": "npm run dev -w @streets/server",
     "dev:web": "npm run dev -w @streets/web",
     "dev:bot": "npm run dev -w @streets/discord-bot",
-    "build": "npm run build -w @streets/server && npm run build -w @streets/web && npm run build -w @streets/discord-bot",
+    "build": "npm run build -w @streets/server && npm run build -w @streets/web && npm run build -w @streets/site && npm run build -w @streets/discord-bot",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -42,7 +42,9 @@
     "db:seed:dev-bots": "tsx scripts/qa/seed-dev-bots.ts",
     "db:dev-bots:status": "tsx scripts/ops/dev-bots-status.ts",
     "db:studio": "prisma studio",
-    "db:cleanup:seed-rivals": "tsx scripts/ops/remove-seed-rivals.ts"
+    "db:cleanup:seed-rivals": "tsx scripts/ops/remove-seed-rivals.ts",
+    "dev:site": "npm run dev -w @streets/site",
+    "build:site": "npm run build -w @streets/site"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

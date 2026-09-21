@@ -1,0 +1,68 @@
+name: Public Platform
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: streets
+          POSTGRES_PASSWORD: streets
+          POSTGRES_DB: streets_empire_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U streets -d streets_empire_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://streets:streets@127.0.0.1:5432/streets_empire_ci?schema=public
+      SESSION_SECRET: ci-only-session-secret-change-me-32-characters
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Apply CI database migrations
+        run: npx prisma migrate deploy
+
+      - name: Seed CI database
+        run: npm run db:seed
+
+      - name: Typecheck workspaces
+        run: npm run typecheck
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Run public release integration
+        env:
+          RELEASE_INTEGRATION: "1"
+        run: npx vitest run apps/server/src/services/__tests__/release.integration.test.ts
+
+      - name: Build API, game, public site and bot
+        run: npm run build

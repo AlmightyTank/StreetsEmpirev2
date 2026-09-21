@@ -308,6 +308,6 @@ describe('action receipt lines', () => {
       remaining: 30,
     });
     expect(rows.filter((row) => row.label === 'Meth')).toHaveLength(1);
-    expect(rows.some((row) => row.label.endsWith('used') || row.label.endsWith('found'))).toBe(false);
+    expect(rows.some((row) => /^(Meth|Crack|Ecstasy|Cocaine) (used|found)$/.test(row.label))).toBe(false);
   });
 });

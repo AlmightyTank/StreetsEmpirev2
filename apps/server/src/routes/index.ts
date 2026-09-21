@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import adminRoutes from './admin.routes.js';
 import allianceRoutes from './alliance.routes.js';
 import playingTogetherRoutes from './playing-together.routes.js';
+import publicRoutes from './public.routes.js';
 import authRoutes from './auth.routes.js';
 import communityRoutes from './community.routes.js';
 import combatRoutes from './combat.routes.js';
@@ -16,6 +17,7 @@ import siteRoutes from './site.routes.js';
 
 const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(healthRoutes);
+  await fastify.register(publicRoutes, { prefix: '/public' });
   await fastify.register(siteRoutes, { prefix: '/site' });
   await fastify.register(authRoutes, { prefix: '/auth' });
   await fastify.register(forumRoutes, { prefix: '/forum' });

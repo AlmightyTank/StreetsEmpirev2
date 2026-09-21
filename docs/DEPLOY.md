@@ -151,3 +151,61 @@ Both services should be `active (running)`:
 ```bash
 systemctl is-enabled streets-empire streets-empire-bot && systemctl is-active streets-empire streets-empire-bot
 ```
+
+
+## Public platform split
+
+The production platform uses one Fastify API service and two static frontend builds:
+
+```text
+streetsempire.dev
+  -> apps/site/dist
+  -> /api/public/* only -> 127.0.0.1:3001
+
+play.streetsempire.dev
+  -> apps/web/dist
+  -> /api/* -> 127.0.0.1:3001
+
+forum.streetsempire.dev
+  -> Flarum / PHP-FPM
+```
+
+The public website does **not** need a systemd service. Nginx serves its Vite build directly.
+The existing `streets-empire` service continues to run `apps/server/dist/index.js` and
+serves both authenticated game APIs and the read-only public API.
+
+A final Nginx reference is checked in at
+`docs/nginx/streets-empire-platform.conf.example`. The public host intentionally
+returns 404 for non-public `/api/*` paths; only `/api/public/*` is proxied there.
+
+### Production environment after the game-domain cutover
+
+```env
+FRONTEND_ORIGIN="https://play.streetsempire.dev"
+CORS_ORIGINS="https://play.streetsempire.dev,https://streetsempire.dev"
+DISCORD_REDIRECT_URI="https://play.streetsempire.dev/api/auth/discord/callback"
+FORUM_ORIGIN="https://forum.streetsempire.dev"
+```
+
+Keep session cookies host-only. Do not set their domain to `.streetsempire.dev`.
+
+### Frontend build checks
+
+The deploy script now refuses to continue unless these exist after `npm run build`:
+
+```text
+apps/server/dist/index.js
+apps/web/dist/index.html
+apps/site/dist/index.html
+```
+
+After cutover, the deploy can also verify the public and live hostnames:
+
+```bash
+PUBLIC_SITE_URL=https://streetsempire.dev \
+LIVE_SITE_URL=https://play.streetsempire.dev \
+bash scripts/ops/deploy.sh
+```
+
+Those variables are optional so the deploy process can still be used before DNS/Nginx
+cutover or during a local rollback.
