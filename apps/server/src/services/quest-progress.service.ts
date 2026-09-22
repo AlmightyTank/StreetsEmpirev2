@@ -9,6 +9,7 @@ import {
   type QuestProgressMap,
 } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
+import { createPlayerActivity } from './in-app-notification.service.js';
 
 const ACTIVE_STATUSES = ['ACTIVE', 'READY_TO_TURN_IN'] as const;
 const OBJECTIVE_KINDS = new Set<QuestObjectiveKind>([
@@ -311,34 +312,32 @@ export const QuestProgressService = {
         ...newlyCompletedObjectives(bonusObjectives, bonusBefore, bonus.progress).map((objective) => ({ ...objective, bonus: true })),
       ];
       for (const objective of completedObjectives) {
-        await db.playerActivity.create({
-          data: {
-            roundPlayerId,
-            type: 'QUEST_OBJECTIVE_COMPLETE',
-            payload: json({
-              questKey: playerQuest.questDefinition.key,
-              title: playerQuest.questDefinition.title,
-              contactKey: playerQuest.questDefinition.contactKey,
-              objectiveId: objective.id,
-              objective: objective.description,
-              bonus: 'bonus' in objective ? true : false,
-            }),
-          },
-        });
+        await createPlayerActivity(
+          db,
+          roundPlayerId,
+          'QUEST_OBJECTIVE_COMPLETE',
+          json({
+            questKey: playerQuest.questDefinition.key,
+            title: playerQuest.questDefinition.title,
+            contactKey: playerQuest.questDefinition.contactKey,
+            objectiveId: objective.id,
+            objective: objective.description,
+            bonus: 'bonus' in objective ? true : false,
+          }),
+        );
       }
       if (becameReady) {
         result.readied += 1;
-        await db.playerActivity.create({
-          data: {
-            roundPlayerId,
-            type: 'QUEST_READY',
-            payload: json({
-              questKey: playerQuest.questDefinition.key,
-              title: playerQuest.questDefinition.title,
-              contactKey: playerQuest.questDefinition.contactKey,
-            }),
-          },
-        });
+        await createPlayerActivity(
+          db,
+          roundPlayerId,
+          'QUEST_READY',
+          json({
+            questKey: playerQuest.questDefinition.key,
+            title: playerQuest.questDefinition.title,
+            contactKey: playerQuest.questDefinition.contactKey,
+          }),
+        );
       }
       if (becameUnready) result.reopened += 1;
     }
