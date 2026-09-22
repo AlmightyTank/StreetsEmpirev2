@@ -8,6 +8,7 @@ import {
   type QuestRewardDefinition,
   type Ruleset,
 } from '@streets/rulesets';
+import { formatCentsExact } from '@streets/shared';
 import type {
   GameActionResult,
   PlayerQuestDto,
@@ -78,7 +79,7 @@ function rewardLabel(reward: QuestRewardDefinition, ruleset: Ruleset): string {
   const amount = reward.amount ?? 0;
   switch (reward.kind) {
     case 'CASH':
-      return '$' + (amount / 100).toLocaleString('en-US');
+      return formatCentsExact(amount);
     case 'TURNS':
       return `${amount.toLocaleString('en-US')} turns`;
     case 'ITEM':

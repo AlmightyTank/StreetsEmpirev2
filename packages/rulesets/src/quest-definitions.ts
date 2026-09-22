@@ -43,9 +43,14 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
         problems.push(`${catalogKey}: reward kind is required`);
         continue;
       }
-      if (['CASH', 'TURNS', 'ITEM', 'CONTACT_REP', 'FAVOR_ITEM'].includes(reward.kind)) {
+      if (['CASH', 'TURNS', 'ITEM', 'CONTACT_REP'].includes(reward.kind)) {
         if (typeof reward.amount !== 'number' || !Number.isFinite(reward.amount) || reward.amount <= 0) {
           problems.push(`${catalogKey}: ${reward.kind} reward requires a positive amount`);
+        }
+      }
+      if (reward.kind === 'FAVOR_ITEM') {
+        if (typeof reward.amount !== 'number' || !Number.isSafeInteger(reward.amount) || reward.amount <= 0) {
+          problems.push(`${catalogKey}: FAVOR_ITEM reward requires a positive whole amount`);
         }
       }
       if (['ITEM', 'CONTACT_REP', 'FAVOR_ITEM'].includes(reward.kind) && (!reward.key || !reward.key.trim())) {
