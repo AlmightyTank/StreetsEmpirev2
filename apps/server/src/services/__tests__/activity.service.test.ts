@@ -23,6 +23,7 @@ describe('ActivityService quest hook', () => {
       matched: 0,
       advanced: 0,
       readied: 0,
+      reopened: 0,
       expired: 0,
       duplicate: 0,
     });
