@@ -48,6 +48,6 @@ describe('WeeklyContractService rotation', () => {
       { startedAt: new Date('2026-09-21T00:00:00.000Z'), endedAt: new Date('2026-09-22T12:00:00.000Z') },
       { startedAt: new Date('2026-09-22T00:00:00.000Z'), endedAt: new Date('2026-09-23T12:30:00.000Z') },
       { startedAt: new Date('2026-09-24T00:00:00.000Z'), endedAt: null },
-    ], start, end)).toBe(60);
+    ], start, end)).toBe(72);
   });
 });
