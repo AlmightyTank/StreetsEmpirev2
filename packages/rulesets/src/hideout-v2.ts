@@ -352,6 +352,8 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v0.7-p': CLASSIC_OG_V07G_HIDEOUT_V2,
   // 0.7-Q adds branching Jobs only; hideout behavior remains unchanged.
   'classic-og-v0.7-q': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // 0.7-R adds dynamic city contracts only; hideout behavior remains unchanged.
+  'classic-og-v0.7-r': CLASSIC_OG_V07G_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */
