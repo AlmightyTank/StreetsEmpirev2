@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { formatCents, formatCentsCompact } from '@streets/shared';
 import { GameEventToasts } from '../components/GameEventToasts.js';
+import { NotificationBell } from '../components/NotificationBell.js';
 import { InstallBanner } from '../components/InstallBanner.js';
 import { SiteBanner } from '../components/SiteBanner.js';
 import { useSession } from '../stores/session.js';
@@ -201,6 +202,7 @@ export function Shell({ children, narrow, tabbar }: {
                 {me?.alliance ? <span className="se-alliance-tag" title={me.alliance.name}>[{me.alliance.tag}]</span> : null}
                 {account.username}
               </Link>
+              {me ? <NotificationBell /> : null}
               <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={handleLogout}>
                 Log out
               </button>

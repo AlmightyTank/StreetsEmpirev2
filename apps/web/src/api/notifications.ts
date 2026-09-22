@@ -1,7 +1,19 @@
-import type { NotificationSettingsDto, PushSubscribeInput, UpdateNotificationSettingsInput } from '@streets/shared';
+import type {
+  InAppNotificationFeedDto,
+  NotificationSettingsDto,
+  PushSubscribeInput,
+  UpdateNotificationSettingsInput,
+} from '@streets/shared';
 import { api } from './client.js';
 
 export const notificationsApi = {
+  inbox: () => api.get<InAppNotificationFeedDto>('/notifications/in-app'),
+
+  read: (id: string) =>
+    api.post<{ ok: true }>(`/notifications/in-app/${encodeURIComponent(id)}/read`),
+
+  readAll: () => api.post<{ ok: true }>('/notifications/in-app/read-all'),
+
   settings: () => api.get<NotificationSettingsDto>('/notifications/settings'),
 
   update: (input: UpdateNotificationSettingsInput) =>
