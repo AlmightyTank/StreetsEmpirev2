@@ -9,7 +9,8 @@ The key architectural change is a generic `PlayerUnlock` ledger. New permanent r
 Phase I ships as a new ruleset:
 
 - 0.7-F: 19 Jobs, no generic permanent-unlock ledger requirements
-- 0.7-G: 19 Jobs + permanent weapon/product unlock rewards
+- 0.7-G: Hideout Specializations, still no generic unlock gates
+- 0.7-H: Hideout Specializations + permanent weapon/product unlock rewards
 
 Existing 0.7-F rounds remain unchanged. New rounds may opt into `classic-og-v0.7-g`.
 
@@ -30,7 +31,7 @@ Claim retries are safe: awarding the same permanent unlock again does not create
 
 ## Weapon progression
 
-The existing story chain is migrated onto generic permanent rewards in 0.7-G:
+The existing story chain is migrated onto generic permanent rewards in 0.7-H:
 
 ### Heavy Hands
 Unlocks:
@@ -148,7 +149,7 @@ This avoids a risky all-at-once weapon-system rewrite while making future unlock
 Phase I adds coverage for:
 
 - 0.7-F remaining unchanged
-- 0.7-G registering seven permanent unlock definitions
+- 0.7-H registering seven permanent unlock definitions
 - story weapon reward migration
 - Pip product reward progression
 - every permanent reward having a backing catalog definition
