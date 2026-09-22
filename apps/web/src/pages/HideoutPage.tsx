@@ -16,6 +16,12 @@ import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 
+function securityTierLabel(tier: NonNullable<HideoutV2Dto['security']>['reconWarningTier']): string {
+  if (tier === 'SOURCE') return 'Named warnings';
+  if (tier === 'PRESENCE') return 'Anonymous warnings';
+  return 'No recon warnings';
+}
+
 function RoomCard({
   room,
   cashCents,
@@ -147,6 +153,49 @@ export function HideoutPage() {
             <Stat label="Active runs" value={formatNumber(activeRuns)} />
             <Stat label="Heat" value={me.heat ? `${formatNumber(me.heat.heat)} / ${formatNumber(me.heat.max)}` : 'Not active'} />
           </div>
+        </Panel>
+      ) : null}
+
+      {hideout?.security ? (
+        <Panel title="Lookouts & security" aside="0.7.0-C">
+          <p className="se-dim">
+            Lookouts warn you about activity around your operation without replacing paid recon.
+            Higher levels extend the warning desk and eventually identify who reconned you.
+          </p>
+          <div className="se-stats">
+            <Stat label="Home defense" value={`+${formatNumber(hideout.security.defenseBonusPercent)}%`} />
+            <Stat label="Recon warnings" value={securityTierLabel(hideout.security.reconWarningTier)} />
+            <Stat label="Security history" value={hideout.security.historyHours > 0 ? `${formatNumber(hideout.security.historyHours)}h` : 'None'} />
+            <Stat label="Threat heads-up" value={hideout.security.convoyHeadsUpMinutes > 0 ? `~${hideout.security.convoyHeadsUpMinutes.toFixed(1)} min` : 'None'} />
+            <Stat label="Run traffic near home" value={hideout.security.localTrafficCount === null ? 'Upgrade Lookouts' : formatNumber(hideout.security.localTrafficCount)} />
+            <Stat label="Active threats" value={formatNumber(hideout.security.pendingConvoyThreats + hideout.security.pendingTurfThreats)} />
+          </div>
+
+          {hideout.security.suspicious.length ? (
+            <div className="se-rows se-mt">
+              {hideout.security.suspicious.map((event, index) => (
+                <Row
+                  key={`${event.kind}:${event.at}:${index}`}
+                  label={event.title}
+                  value={`${event.detail} · ${new Date(event.at).toLocaleString()}`}
+                  strong={event.urgent}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="se-muted se-mt">
+              {hideout.security.reconWarningTier === 'NONE'
+                ? 'Build Lookouts to start hearing about suspicious activity.'
+                : 'Nothing suspicious is inside your current warning window.'}
+            </p>
+          )}
+
+          <p className="se-hint">
+            Nearby-run awareness is count-only. Names, cargo, escort strength and route details still require normal convoy recon or turf sightings.
+          </p>
+          <p className="se-hint">
+            Specialization hooks are prepared but inactive until 0.7.0-G: Street Eyes would add {formatNumber(hideout.security.specializationHooks.streetEyes.warningHoursBonus)}h of warning history; Armed Watch would add +{formatNumber(hideout.security.specializationHooks.armedWatch.defenseBonusPercent)}% defense.
+          </p>
         </Panel>
       ) : null}
 
