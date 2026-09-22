@@ -41,6 +41,39 @@ function fixture(rowOverrides: Partial<Row> = {}) {
 
   const db = {
     $queryRaw: async () => [],
+    roundPlayer: {
+      findUnique: async () => ({
+        cashCents: 100000n,
+        turns: 20,
+        payoutPercent: 50,
+        whores: 5,
+        thugs: 5,
+        woundedThugs: 0,
+        busyThugs: 0,
+        postedThugs: 0,
+        condoms: 100,
+        medicine: 20,
+        crack: 50,
+        beer: 25,
+        pistols: 5,
+        shotguns: 0,
+        tek9s: 0,
+        ak47s: 0,
+        lowRiders: 1,
+        shotgunUnlocked: false,
+        tek9Unlocked: false,
+        ak47Unlocked: false,
+        heat: 0,
+        netWorthCents: 500000n,
+        hideoutSafeRoomLevel: 0,
+        hideoutLookoutsLevel: 0,
+        hideoutWorkshopLevel: 0,
+        hideoutBackOfficeLevel: 0,
+        hideoutGarageLevel: 0,
+        allianceId: null,
+        city: { slug: 'new-york' },
+      }),
+    },
     playerQuest: {
       findMany: async () => row.status === 'ACTIVE' || row.status === 'READY_TO_TURN_IN' ? [{ id: row.id }] : [],
       findUnique: async () => row,
@@ -164,4 +197,69 @@ describe('QuestProgressService', () => {
       recruit: { current: 1, target: 1, completed: true },
     });
   });
+
+  it('tracks current-state requirements and reopens a quest if the state falls', async () => {
+    const { db, row } = fixture({
+      questDefinition: {
+        objectives: [
+          { id: 'thugs', kind: 'STATE_AT_LEAST', description: 'Own 5 thugs.', target: 5, params: { field: 'thugs' } },
+        ],
+        bonusObjectives: [],
+      },
+    });
+
+    const first = await QuestProgressService.emit(db, row.roundPlayerId, {
+      sourceKey: 'activity:state-up',
+      type: 'SCOUT',
+      payload: {},
+    });
+    expect(first.readied).toBe(1);
+    expect(row.status).toBe('READY_TO_TURN_IN');
+
+    (db.roundPlayer.findUnique as unknown as () => Promise<unknown>) = async () => ({
+      cashCents: 100000n,
+      turns: 20,
+      payoutPercent: 50,
+      whores: 5,
+      thugs: 3,
+      woundedThugs: 0,
+      busyThugs: 0,
+      postedThugs: 0,
+      condoms: 100,
+      medicine: 20,
+      crack: 50,
+      beer: 25,
+      pistols: 3,
+      shotguns: 0,
+      tek9s: 0,
+      ak47s: 0,
+      lowRiders: 1,
+      shotgunUnlocked: false,
+      tek9Unlocked: false,
+      ak47Unlocked: false,
+      heat: 0,
+      netWorthCents: 400000n,
+      hideoutSafeRoomLevel: 0,
+      hideoutLookoutsLevel: 0,
+      hideoutWorkshopLevel: 0,
+      hideoutBackOfficeLevel: 0,
+      hideoutGarageLevel: 0,
+      allianceId: null,
+      city: { slug: 'new-york' },
+    });
+
+    const second = await QuestProgressService.emit(db, row.roundPlayerId, {
+      sourceKey: 'activity:state-down',
+      type: 'RAID_DEFENSE',
+      payload: { won: false },
+    });
+
+    expect(second.reopened).toBe(1);
+    expect(row.status).toBe('ACTIVE');
+    expect(row.completedAt).toBeNull();
+    expect(row.objectiveProgress).toEqual({
+      thugs: { current: 3, target: 5, completed: false },
+    });
+  });
+
 });
