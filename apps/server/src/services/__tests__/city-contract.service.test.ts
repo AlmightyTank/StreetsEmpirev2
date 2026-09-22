@@ -36,6 +36,7 @@ describe('CityContractService', () => {
     for (const offer of first) {
       expect([250, 500, 750]).toContain(offer.target);
       expect(offer.payoutMultiplier).toBe(CITY_CONTRACT_PAYOUT_MULTIPLIER);
+      expect(offer.expectedSaleCents).toBeLessThan(offer.expectedUnitCents * offer.target);
       expect(offer.bonusCents).toBe(Math.round(offer.expectedSaleCents * 0.35));
       expect(offer.windowStart).toBe(window.startsAt.toISOString());
       expect(offer.windowEnd).toBe(window.endsAt.toISOString());
