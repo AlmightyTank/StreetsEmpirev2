@@ -271,6 +271,7 @@ export const ScoutService = {
             type: 'SCOUT',
             payload: {
               district: local.name,
+              districtKey: found.key,
               turns: input.turns,
               whores: outcome.whoresRecruited,
               thugs: outcome.thugsRecruited,

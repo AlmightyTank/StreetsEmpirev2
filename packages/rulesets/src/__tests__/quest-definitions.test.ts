@@ -12,7 +12,7 @@ const freshFaces: QuestDefinition = {
   difficulty: 'STREET_JOB',
   prerequisites: [],
   objectives: [
-    { id: 'crew_size', kind: 'OWN_CREW', description: 'Build your crew.', target: 5 },
+    { id: 'crew_size', kind: 'RECRUIT_CREW', description: 'Build your crew.', target: 5, params: { eventTypes: ['SCOUT'], crew: 'ANY' } },
   ],
   bonusObjectives: [],
   rewards: [],
@@ -32,7 +32,7 @@ const firstNightOut: QuestDefinition = {
   difficulty: 'STREET_JOB',
   prerequisites: [],
   objectives: [
-    { id: 'scout_turns', kind: 'SPEND_TURNS', description: 'Scout for 12 turns.', target: 12 },
+    { id: 'scout_turns', kind: 'SPEND_TURNS', description: 'Scout for 12 turns.', target: 12, params: { eventTypes: ['SCOUT'] } },
   ],
   bonusObjectives: [],
   rewards: [{ kind: 'CASH', amount: 250000 }],
@@ -54,7 +54,7 @@ describe('quest definition foundation', () => {
       ...firstNightOut,
       objectives: [
         ...firstNightOut.objectives,
-        { id: 'scout_turns', kind: 'RECRUIT', description: 'Recruit someone.', target: 1 },
+        { id: 'scout_turns', kind: 'RECRUIT_CREW', description: 'Recruit someone.', target: 1 },
       ],
       expiresAfterMinutes: 0,
     };
@@ -102,4 +102,21 @@ describe('quest definition foundation', () => {
       'FRESH_FACES: reward kind is required',
     ]);
   });
+
+  it('rejects malformed Phase B objective configuration', () => {
+    const broken = {
+      ...freshFaces,
+      objectives: [
+        { id: 'sum', kind: 'EVENT_SUM', description: 'Move product.', target: 10, params: { eventTypes: [] } },
+        { id: 'crew', kind: 'RECRUIT_CREW', description: 'Recruit.', target: 5, params: { crew: 'CARS' } },
+      ],
+    } as unknown as QuestDefinition;
+
+    expect(questDefinitionProblems({ FRESH_FACES: broken })).toEqual([
+      'FRESH_FACES/sum: eventTypes must be a non-empty string array',
+      'FRESH_FACES/sum: EVENT_SUM requires a field',
+      'FRESH_FACES/crew: crew must be ANY, WHORES or THUGS',
+    ]);
+  });
+
 });
