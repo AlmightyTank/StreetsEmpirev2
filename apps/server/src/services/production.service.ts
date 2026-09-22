@@ -4,7 +4,12 @@ import type { GameActionResult, ProduceCrackResult, ProductTypeDto } from '@stre
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { HeatService } from './heat.service.js';
-import { hideoutBackOfficeBonusCents, hideoutWorkshopBonusProduct } from './hideout.service.js';
+import {
+  hideoutBackOfficeBonusCents,
+  hideoutWorkshopBonusProduct,
+  hideoutWorkshopIngredientCentsPerUnit,
+  hideoutWorkshopIngredientEfficiencyPercent,
+} from './hideout.service.js';
 import { CRACK, ProductInventoryService, streetProductFinds, summarizeProductMovements } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 
@@ -64,10 +69,20 @@ export const ProductionService = {
         // 0.4.0-D: a product round cooks what was asked for, from its recipes. Older rounds
         // cook crack whatever the batch was called, as they always have.
         const recipes = productRecipes(ruleset);
-        const recipe = ruleset.productEconomy ? recipes.find((candidate) => candidate.product === requested) : recipes[0]!;
-        if (!recipe) {
+        const baseRecipe = ruleset.productEconomy ? recipes.find((candidate) => candidate.product === requested) : recipes[0]!;
+        if (!baseRecipe) {
           throw AppError.badRequest('UNKNOWN_RECIPE', 'Your crew cannot cook that.', { productType: `Pick one of: ${recipes.map((row) => row.name).join(', ')}.` });
         }
+        const ingredientEfficiencyPercent = hideoutWorkshopIngredientEfficiencyPercent(ruleset, current);
+        const effectiveIngredientCentsPerUnit = hideoutWorkshopIngredientCentsPerUnit(
+          baseRecipe.ingredientCentsPerUnit,
+          ruleset,
+          current,
+          baseRecipe.product,
+        );
+        const recipe = effectiveIngredientCentsPerUnit === baseRecipe.ingredientCentsPerUnit
+          ? baseRecipe
+          : { ...baseRecipe, ingredientCentsPerUnit: effectiveIngredientCentsPerUnit };
         const productType = ruleset.productEconomy ? recipe.product : requested;
         const productName = ruleset.productEconomy ? recipe.name : LEGACY_PRODUCT_NAMES[requested] ?? 'Product';
 
@@ -128,6 +143,8 @@ export const ProductionService = {
         const pimpTakeCents = outcome.pimpTakeCents + hideoutBonusCents;
         const hideoutBonusProduct = hideoutWorkshopBonusProduct(outcome.crackProduced, ruleset, current);
         const productProduced = outcome.crackProduced + hideoutBonusProduct;
+        const ingredientSavingsCents = outcome.crackProduced
+          * Math.max(0, baseRecipe.ingredientCentsPerUnit - recipe.ingredientCentsPerUnit);
         const cookingCrack = recipe.product === CRACK;
         const crackProduced = cookingCrack ? productProduced : 0;
         const hideoutBonusCrack = cookingCrack ? hideoutBonusProduct : 0;
@@ -188,6 +205,11 @@ export const ProductionService = {
           crackProduced,
           hideoutBonusCrack,
           ingredientCents: Number(outcome.ingredientCents),
+          ...(ingredientEfficiencyPercent > 0 ? {
+            hideoutIngredientEfficiencyPercent: ingredientEfficiencyPercent,
+            hideoutIngredientSavingsCents: ingredientSavingsCents,
+            ingredientCentsPerUnit: recipe.ingredientCentsPerUnit,
+          } : {}),
           limitedByCash: outcome.limitedByCash,
 
           beerUsed: outcome.consumption.beer,
@@ -230,6 +252,11 @@ export const ProductionService = {
               crack: crackProduced,
               hideoutBonusCrack,
               ingredientCents: Number(outcome.ingredientCents),
+              ...(ingredientEfficiencyPercent > 0 ? {
+                hideoutIngredientEfficiencyPercent: ingredientEfficiencyPercent,
+                hideoutIngredientSavingsCents: ingredientSavingsCents,
+                ingredientCentsPerUnit: recipe.ingredientCentsPerUnit,
+              } : {}),
               cashCents: Number(pimpTakeCents),
               hideoutBonusCents: Number(hideoutBonusCents),
               crackFound,
