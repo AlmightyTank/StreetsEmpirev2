@@ -208,6 +208,22 @@ export function QuestPage() {
     }
   }
 
+  async function activateFavor(key: string) {
+    setBusy('favor:' + key);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await questsApi.activateFavor(key, crypto.randomUUID());
+      setNotice(result.result.name + ' is active until ' + new Date(result.result.expiresAt).toLocaleTimeString() + '.');
+      window.dispatchEvent(new Event('streets:quests-changed'));
+      await Promise.all([load(), refreshSnapshot()]);
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : 'That favor could not be activated.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
   if (!me) return <Navigate to="/join" replace />;
 
   return (
@@ -263,23 +279,54 @@ export function QuestPage() {
               </div>
             </Panel>
 
-            <Panel title="Favor inventory">
+            <Panel title="Active favors">
               <div className="se-rows">
-                {page.favors.length ? page.favors.map((favor) => (
+                {page.activeFavors.length ? page.activeFavors.map((favor) => (
                   <Row
-                    key={favor.key}
-                    label={favor.name}
-                    value={
-                      '×' + formatNumber(favor.quantity)
-                      + ' · ' + favor.category
-                      + (favor.activationKind === 'TIMED' && favor.durationMinutes
-                        ? ' · ' + formatNumber(favor.durationMinutes) + ' min'
-                        : ' · single use')
-                    }
+                    key={favor.category}
+                    label={favor.name + ' · ' + favor.category}
+                    value={'Until ' + new Date(favor.expiresAt).toLocaleTimeString()}
+                    strong
                   />
-                )) : <Row label="Stored favors" value="None yet" />}
+                )) : <Row label="Running now" value="None" />}
               </div>
-              <p className="se-hint se-mt">Favors can be earned and stacked now. Activation arrives in the next favor phases.</p>
+              <p className="se-hint se-mt">Timers use server time and keep running while you are logged out.</p>
+            </Panel>
+
+            <Panel title="Favor inventory">
+              {page.favors.length ? page.favors.map((favor) => {
+                const active = page.activeFavors.find((item) => item.category === favor.category);
+                return (
+                  <div key={favor.key} className="se-mb">
+                    <Row
+                      label={favor.name}
+                      value={
+                        '×' + formatNumber(favor.quantity)
+                        + ' · ' + favor.category
+                        + (favor.activationKind === 'TIMED' && favor.durationMinutes
+                          ? ' · ' + formatNumber(favor.durationMinutes) + ' min'
+                          : ' · single use')
+                      }
+                    />
+                    <p className="se-hint">{favor.description}</p>
+                    {favor.activationKind === 'TIMED' ? (
+                      <Button
+                        className="se-btn se-btn--primary"
+                        disabledReason={
+                          busy
+                            ? 'Another update is still going through.'
+                            : active
+                              ? active.name + ' already occupies ' + favor.category + ' until ' + new Date(active.expiresAt).toLocaleTimeString() + '.'
+                              : null
+                        }
+                        onClick={() => void activateFavor(favor.key)}
+                      >
+                        Activate
+                      </Button>
+                    ) : <p className="se-hint">Single-use activation arrives in Phase L.</p>}
+                  </div>
+                );
+              }) : <Row label="Stored favors" value="None yet" />}
             </Panel>
           </div>
 
