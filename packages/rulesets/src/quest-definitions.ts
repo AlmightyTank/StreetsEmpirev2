@@ -11,6 +11,14 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
     if (!quest.description.trim()) problems.push(`${catalogKey}: description is required`);
     if (quest.objectives.length === 0) problems.push(`${catalogKey}: at least one objective is required`);
 
+    for (const prerequisite of quest.prerequisites) {
+      if (!prerequisite.kind.trim()) problems.push(`${catalogKey}: prerequisite kind is required`);
+    }
+
+    for (const reward of quest.rewards) {
+      if (!reward.kind.trim()) problems.push(`${catalogKey}: reward kind is required`);
+    }
+
     const seen = new Set<string>();
     for (const objective of [...quest.objectives, ...quest.bonusObjectives]) {
       if (!objective.id.trim()) problems.push(`${catalogKey}: objective id is required`);
@@ -33,6 +41,7 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
     const followUps = new Set<string>();
     for (const key of quest.followUpKeys) {
       if (key === quest.key) problems.push(`${catalogKey}: quest cannot follow up to itself`);
+      if (!(key in catalog)) problems.push(`${catalogKey}: unknown follow-up ${key}`);
       if (followUps.has(key)) problems.push(`${catalogKey}: duplicate follow-up ${key}`);
       followUps.add(key);
     }
