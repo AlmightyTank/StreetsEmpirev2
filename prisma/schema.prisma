@@ -313,6 +313,27 @@ model PlayerReputation {
 }
 
 // ---------------------------------------------------------------------------
+// Permanent per-round unlocks
+// ---------------------------------------------------------------------------
+
+model PlayerUnlock {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  /// Stable ruleset-defined key, e.g. PRODUCT_METH_ACCESS.
+  key String
+  /// Quest that granted it, when the unlock came from a job reward.
+  sourceQuestKey String?
+  awardedAt DateTime @default(now())
+
+  @@unique([roundPlayerId, key])
+  @@index([roundPlayerId, awardedAt])
+  @@index([key])
+}
+
+// ---------------------------------------------------------------------------
 // Handcrafted quests
 // ---------------------------------------------------------------------------
 
@@ -634,6 +655,7 @@ model RoundPlayer {
   processedActions      ProcessedAction[]
   reputation            PlayerReputation[]
   playerQuests          PlayerQuest[]
+  permanentUnlocks      PlayerUnlock[]
   raidsSent             RaidBattle[]       @relation("RaidAttacker")
   raidsReceived         RaidBattle[]       @relation("RaidDefender")
   combatInjuries        CombatInjury[]
