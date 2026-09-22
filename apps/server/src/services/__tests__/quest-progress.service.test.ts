@@ -39,40 +39,42 @@ function fixture(rowOverrides: Partial<Row> = {}) {
   const receipts = new Map<string, { id: string; applied: unknown }>();
   let receiptSequence = 0;
 
+  let currentPlayerState = {
+    cashCents: 100000n,
+    turns: 20,
+    payoutPercent: 50,
+    whores: 5,
+    thugs: 5,
+    woundedThugs: 0,
+    busyThugs: 0,
+    postedThugs: 0,
+    condoms: 100,
+    medicine: 20,
+    crack: 50,
+    beer: 25,
+    pistols: 5,
+    shotguns: 0,
+    tek9s: 0,
+    ak47s: 0,
+    lowRiders: 1,
+    shotgunUnlocked: false,
+    tek9Unlocked: false,
+    ak47Unlocked: false,
+    heat: 0,
+    netWorthCents: 500000n,
+    hideoutSafeRoomLevel: 0,
+    hideoutLookoutsLevel: 0,
+    hideoutWorkshopLevel: 0,
+    hideoutBackOfficeLevel: 0,
+    hideoutGarageLevel: 0,
+    allianceId: null as string | null,
+    city: { slug: 'new-york' },
+  };
+
   const db = {
     $queryRaw: async () => [],
     roundPlayer: {
-      findUnique: async () => ({
-        cashCents: 100000n,
-        turns: 20,
-        payoutPercent: 50,
-        whores: 5,
-        thugs: 5,
-        woundedThugs: 0,
-        busyThugs: 0,
-        postedThugs: 0,
-        condoms: 100,
-        medicine: 20,
-        crack: 50,
-        beer: 25,
-        pistols: 5,
-        shotguns: 0,
-        tek9s: 0,
-        ak47s: 0,
-        lowRiders: 1,
-        shotgunUnlocked: false,
-        tek9Unlocked: false,
-        ak47Unlocked: false,
-        heat: 0,
-        netWorthCents: 500000n,
-        hideoutSafeRoomLevel: 0,
-        hideoutLookoutsLevel: 0,
-        hideoutWorkshopLevel: 0,
-        hideoutBackOfficeLevel: 0,
-        hideoutGarageLevel: 0,
-        allianceId: null,
-        city: { slug: 'new-york' },
-      }),
+      findUnique: async () => currentPlayerState,
     },
     playerQuest: {
       findMany: async () => row.status === 'ACTIVE' || row.status === 'READY_TO_TURN_IN' ? [{ id: row.id }] : [],
@@ -96,7 +98,14 @@ function fixture(rowOverrides: Partial<Row> = {}) {
     },
   } as unknown as Db;
 
-  return { db, row, receipts };
+  return {
+    db,
+    row,
+    receipts,
+    setPlayerState: (overrides: Partial<typeof currentPlayerState>) => {
+      currentPlayerState = { ...currentPlayerState, ...overrides };
+    },
+  };
 }
 
 describe('QuestProgressService', () => {
@@ -199,7 +208,7 @@ describe('QuestProgressService', () => {
   });
 
   it('tracks current-state requirements and reopens a quest if the state falls', async () => {
-    const { db, row } = fixture({
+    const { db, row, setPlayerState } = fixture({
       questDefinition: {
         objectives: [
           { id: 'thugs', kind: 'STATE_AT_LEAST', description: 'Own 5 thugs.', target: 5, params: { field: 'thugs' } },
@@ -216,37 +225,7 @@ describe('QuestProgressService', () => {
     expect(first.readied).toBe(1);
     expect(row.status).toBe('READY_TO_TURN_IN');
 
-    (db.roundPlayer.findUnique as unknown as () => Promise<unknown>) = async () => ({
-      cashCents: 100000n,
-      turns: 20,
-      payoutPercent: 50,
-      whores: 5,
-      thugs: 3,
-      woundedThugs: 0,
-      busyThugs: 0,
-      postedThugs: 0,
-      condoms: 100,
-      medicine: 20,
-      crack: 50,
-      beer: 25,
-      pistols: 3,
-      shotguns: 0,
-      tek9s: 0,
-      ak47s: 0,
-      lowRiders: 1,
-      shotgunUnlocked: false,
-      tek9Unlocked: false,
-      ak47Unlocked: false,
-      heat: 0,
-      netWorthCents: 400000n,
-      hideoutSafeRoomLevel: 0,
-      hideoutLookoutsLevel: 0,
-      hideoutWorkshopLevel: 0,
-      hideoutBackOfficeLevel: 0,
-      hideoutGarageLevel: 0,
-      allianceId: null,
-      city: { slug: 'new-york' },
-    });
+    setPlayerState({ thugs: 3, pistols: 3, netWorthCents: 400000n });
 
     const second = await QuestProgressService.emit(db, row.roundPlayerId, {
       sourceKey: 'activity:state-down',
