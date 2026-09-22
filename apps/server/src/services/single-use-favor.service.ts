@@ -6,11 +6,17 @@ import { AppError } from '../utils/errors.js';
 import { ActionService } from './action.service.js';
 import { FavorInventoryService } from './favor-inventory.service.js';
 
+function isSingleUseEffect(effect: FavorDefinition['effect']): effect is SingleUseFavorEffect {
+  return effect?.kind === 'STORE_BUY_DISCOUNT'
+    || effect?.kind === 'FREE_RECON'
+    || effect?.kind === 'FREE_TREATMENT';
+}
+
 function isSingleUse(definition: FavorDefinition): definition is FavorDefinition & {
   activation: { kind: 'SINGLE_USE'; category: 'STREET' | 'UNDERWORLD' | 'MUSCLE' };
   effect: SingleUseFavorEffect;
 } {
-  return definition.activation.kind === 'SINGLE_USE' && Boolean(definition.effect);
+  return definition.activation.kind === 'SINGLE_USE' && isSingleUseEffect(definition.effect);
 }
 
 export const SingleUseFavorService = {
