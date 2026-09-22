@@ -27,6 +27,7 @@ export interface CombatReconResultDto {
   intel: CombatIntelReportDto;
   turnsSpent: number;
   turnsAfter: number;
+  favorKey?: string;
 }
 
 export type SpecialRaidKindDto = 'DRUG_HOES' | 'STEAL_RIDE' | 'LURE_CREW';
@@ -130,6 +131,7 @@ export interface CombatRecoveryDto {
   maxTreatableThugs: number;
   medicineEfficiencyPercent?: number;
   favorMedicineEfficiencyPercent?: number;
+  freeTreatmentFavorKey?: string;
 }
 
 export interface CombatTreatmentDto {
@@ -140,6 +142,7 @@ export interface CombatTreatmentDto {
   favorMedicineEfficiencyPercent?: number;
   woundedThugs: number;
   nextRecoveryAt: string | null;
+  favorKey?: string;
 }
 
 export interface CombatTargetDto {
@@ -203,7 +206,7 @@ export interface CombatPageDto {
     drugLootPercent?: number; perThugCrackLoot?: number;
     minLootPercent?: number; maxLootPercent?: number; weightedLootExponent?: number;
     repeatLootPenaltyPercent?: number; repeatLootFloorPercent?: number;
-    reconTurnCost?: number; intelExpiresMinutes?: number; retaliationHours?: number;
+    reconTurnCost?: number; reconFavorKey?: string; intelExpiresMinutes?: number; retaliationHours?: number;
   };
   targets: CombatTargetDto[];
   nextTarget: number | null;

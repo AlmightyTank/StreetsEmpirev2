@@ -102,7 +102,12 @@ function HitRulesPanel({ mode, rules, driveBy, specialRaid }: { mode: Mode; rule
     {rules.repeatLootPenaltyPercent ? <p>Keep farming the same mark and the score dries up: each repeat cuts the roll by {rules.repeatLootPenaltyPercent}%, down to {rules.repeatLootFloorPercent ?? 0}% of normal. Hit somebody else to cool it off.</p> : null}
     <p>{rules.newcomerHours > 0 ? `New crews get ${rules.newcomerHours} hours before the street opens on them. ` : 'New crews can be hit right away in this round. '}After a raid, that block gets {rules.protectionHours} hours of breathing room.</p>
     <p>Your crew needs {rules.cooldownMinutes} minutes between raids. You cannot move while your own block is protected, and crews far below your strength are off limits.</p>
-    {rules.reconTurnCost ? <p>Recon a mark for {rules.reconTurnCost} turns to see the useful dirt for {rules.intelExpiresMinutes} minutes. If somebody hits you, payback stays open for {rules.retaliationHours} hours.</p> : null}
+    {rules.reconTurnCost !== undefined ? <p>
+      {rules.reconFavorKey
+        ? <>Burner Phone armed — your next successful Recon is free and will consume it.</>
+        : <>Recon a mark for {rules.reconTurnCost} turns to see the useful dirt for {rules.intelExpiresMinutes} minutes.</>}
+      {' '}If somebody hits you, payback stays open for {rules.retaliationHours} hours.
+    </p> : null}
     <p className="se-hint">Wounded thugs sit out until they heal. Medicine gets them back on the street now.</p>
   </Panel>;
 }
@@ -511,13 +516,16 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   }
 
   async function reconTarget() {
-    if (!selected || !page?.rules?.reconTurnCost || busy || pending) return;
+    if (!selected || page?.rules?.reconTurnCost === undefined || busy || pending) return;
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
       const result = await combatApi.recon({ roundId, targetPublicPimpId: selected.publicPimpId, actionId: newActionId() });
-      setNotice(`Word on ${result.intel.displayName}: ${formatNumber(result.intel.fitThugs)} fit thugs, ${weaponsText(result.intel.weapons)}, up to ${formatCents(result.intel.estimatedMaxLootCents)} cash${result.intel.estimatedMaxCrackLoot != null ? ` and ${formatNumber(result.intel.estimatedMaxCrackLoot)} product` : ''} exposed${result.intel.productStash ? `, a ${STASH_LABELS[result.intel.productStash.level].toLowerCase()} product stash` : ''}.`);
+      setNotice(
+        `Word on ${result.intel.displayName}: ${formatNumber(result.intel.fitThugs)} fit thugs, ${weaponsText(result.intel.weapons)}, up to ${formatCents(result.intel.estimatedMaxLootCents)} cash${result.intel.estimatedMaxCrackLoot != null ? ` and ${formatNumber(result.intel.estimatedMaxCrackLoot)} product` : ''} exposed${result.intel.productStash ? `, a ${STASH_LABELS[result.intel.productStash.level].toLowerCase()} product stash` : ''}.`
+        + (result.favorKey ? ' Burner Phone consumed.' : ''),
+      );
       await refresh(true);
       await useSession.getState().refreshSnapshot();
     } catch (err) {
@@ -534,7 +542,10 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     try {
       const amount = page.recovery.maxTreatableThugs;
       const result = await combatApi.treat({ roundId, thugs: amount, actionId: newActionId() });
-      setNotice(`Treated ${formatNumber(result.treatedThugs)} thugs with ${formatNumber(result.medicineUsed)} medicine.`);
+      setNotice(
+        `Treated ${formatNumber(result.treatedThugs)} thugs with ${formatNumber(result.medicineUsed)} medicine.`
+        + (result.favorKey ? ' Doctor Favor consumed.' : ''),
+      );
       await refresh(true);
       await useSession.getState().refreshSnapshot();
     } catch (err) {
@@ -578,14 +589,14 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                 </option>)}
               </select>
               {selected ? <TargetCard target={selected} selectedBlock={selectedBlock} driving={driving} /> : null}
-              {selected && rules?.reconTurnCost ? <div className="se-intel">
+              {selected && rules?.reconTurnCost !== undefined ? <div className="se-intel">
                 <Button type="button" className="se-btn"
                   disabledReason={busy ? 'Your last hit is still going through.'
                     : pending ? 'Get the report for your unsettled hit first.'
                       : me.turns.turns < rules.reconTurnCost ? `Recon costs ${rules.reconTurnCost} turns and you have ${formatNumber(me.turns.turns)}.`
                         : null}
                   onClick={() => void reconTarget()}>
-                  Recon {selected.displayName} · {rules.reconTurnCost} turns
+                  Recon {selected.displayName} · {rules.reconFavorKey ? 'Burner Phone · free' : `${rules.reconTurnCost} turns`}
                 </Button>
                 <p className="se-hint">{selected.intel
                   ? `${selected.intel.sharedBy ? `${selected.intel.sharedBy} ran recon on this block. ` : ''}Fresh eyes on it until ${date(selected.intel.expiresAt)}.`
@@ -651,6 +662,9 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             <Row label="Wounded thugs" value={formatNumber(page.recovery.woundedThugs)} />
             <Row label="Next recovery" value={page.recovery.nextRecoveryAt ? date(page.recovery.nextRecoveryAt) : 'None'} />
             <Row label="Medicine" value={`${formatNumber(me.resources.medicine)} on hand`} />
+            {page.recovery.freeTreatmentFavorKey ? (
+              <Row label="Doctor Favor" value="Armed · next successful treatment costs 0 medicine" strong />
+            ) : null}
             {page.recovery.medicineEfficiencyPercent ? (
               <Row
                 label="Medicine efficiency"
@@ -669,7 +683,9 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               : page.recovery.maxTreatableThugs <= 0 ? `Treating a thug takes medicine, and you have ${formatNumber(me.resources.medicine)}. Buy some at the Corner Store.`
                 : null}
             onClick={() => void treatWounded()}>
-            Patch up {formatNumber(page.recovery.maxTreatableThugs)} with medicine
+            {page.recovery.freeTreatmentFavorKey
+              ? `Patch up ${formatNumber(page.recovery.maxTreatableThugs)} · Doctor Favor`
+              : `Patch up ${formatNumber(page.recovery.maxTreatableThugs)} with medicine`}
           </Button> : <p className="se-hint">Everybody is standing.</p>}
           {page.recovery.woundedThugs > 0 && page.recovery.maxTreatableThugs <= 0
             ? <p className="se-hint se-golinks"><Link className="se-golink" to="/game/stores/corner">Buy medicine at the Corner Store</Link></p> : null}

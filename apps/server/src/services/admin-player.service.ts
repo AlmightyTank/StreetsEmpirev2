@@ -96,6 +96,7 @@ export const AdminPlayerService = {
         permanentUnlocks: { orderBy: { awardedAt: 'asc' } },
         favorInventory: { orderBy: [{ updatedAt: 'desc' }, { key: 'asc' }] },
         activeFavors: { where: { expiresAt: { gt: now } }, orderBy: { expiresAt: 'asc' } },
+        armedFavors: { orderBy: [{ armedAt: 'asc' }, { category: 'asc' }] },
         combatInjuries: { where: { treatedAt: null, recoverAt: { gt: now } }, orderBy: { recoverAt: 'asc' } },
       },
     });
@@ -148,6 +149,11 @@ export const AdminPlayerService = {
         category: favor.category,
         startedAt: favor.startedAt.toISOString(),
         expiresAt: favor.expiresAt.toISOString(),
+      })),
+      armedFavors: player.armedFavors.map((favor) => ({
+        favorKey: favor.favorKey,
+        category: favor.category,
+        armedAt: favor.armedAt.toISOString(),
       })),
       happiness: { whores: player.whoreHappiness, thugs: player.thugHappiness },
       heat: loadRulesetForRound(player.round).heat ? player.heat : null,

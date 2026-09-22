@@ -25,6 +25,7 @@ import { QuestProgressService } from './quest-progress.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { FavorInventoryService } from './favor-inventory.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
+import { SingleUseFavorService } from './single-use-favor.service.js';
 
 const ACTIVE_LIMIT = 8;
 const TRACKED_LIMIT = 3;
@@ -387,7 +388,7 @@ export const HandcraftedQuestService = {
         description: entry.definition.description,
         contactKey: entry.definition.contactKey,
         activationKind: entry.definition.activation.kind,
-        activatable: entry.definition.activation.kind === 'TIMED' && Boolean(entry.definition.effect),
+        activatable: Boolean(entry.definition.effect),
         category: entry.definition.activation.category,
         durationMinutes: entry.definition.activation.kind === 'TIMED'
           ? entry.definition.activation.durationMinutes
@@ -397,6 +398,7 @@ export const HandcraftedQuestService = {
         lastSourceQuestKey: entry.lastSourceQuestKey,
       }));
       const activeFavors = await TimedFavorService.listActive(tx, roundPlayerId, ruleset, now);
+      const armedFavors = await SingleUseFavorService.listArmed(tx, roundPlayerId, ruleset);
       return {
         // Sample immediately before the response object is built so browser clock
         // skew cannot decide when an active favor expires.
@@ -412,6 +414,7 @@ export const HandcraftedQuestService = {
         contacts,
         permanentUnlocks,
         activeFavors,
+        armedFavors,
         favors,
         quests: rows.map((row) => questDto(row, ruleset)),
       };

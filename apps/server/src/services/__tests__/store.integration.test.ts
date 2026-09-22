@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { classicOgV01 } from '@streets/rulesets';
+import { classicOgV01, classicOgV07K } from '@streets/rulesets';
 
 // Opt in against the local dev database. Only this test's account is changed
 // and its cascaded player/session/activity data is removed afterwards.
@@ -261,6 +261,79 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
     expect(state.shotgunUnlocked).toBe(false);
     expect(state.tek9Unlocked).toBe(false);
     expect(state.ak47Unlocked).toBe(false);
+  });
+
+  it('keeps Tommy Voucher armed through unrelated and failed trades, then consumes it on the first successful eligible buy', async () => {
+    await app.prisma.round.update({
+      where: { id: roundId! },
+      data: { rulesetId: classicOgV07K.meta.id, rulesetVersion: classicOgV07K.meta.version },
+    });
+    try {
+      await app.prisma.playerArmedFavor.deleteMany({ where: { roundPlayerId: playerId } });
+      await app.prisma.playerFavor.upsert({
+        where: { roundPlayerId_key: { roundPlayerId: playerId, key: 'TOMMY_VOUCHER' } },
+        create: { roundPlayerId: playerId, key: 'TOMMY_VOUCHER', quantity: 0, totalGranted: 1 },
+        update: { quantity: 0, totalGranted: 1 },
+      });
+      await app.prisma.playerArmedFavor.create({
+        data: { roundPlayerId: playerId, category: 'MUSCLE', favorKey: 'TOMMY_VOUCHER' },
+      });
+      await app.prisma.roundPlayer.update({
+        where: { id: playerId },
+        data: {
+          cashCents: 100_000_000n,
+          pistolStock: classicOgV07K.weapons.PISTOL.restock!.cap,
+          pistolStockAt: new Date(),
+        },
+      });
+
+      const catalog = (await app.inject({
+        method: 'GET', url: '/api/game/stores', headers: { cookie },
+      })).json();
+      const pistol = catalog.stores
+        .find((store: { key: string }) => store.key === 'TOMMY')
+        .items.find((item: { key: string }) => item.key === 'PISTOL');
+      expect(pistol).toMatchObject({
+        baseBuyCents: classicOgV07K.stores.TOMMY.items.PISTOL!.buyCents,
+        favorDiscountPercent: 20,
+      });
+      expect(pistol.buyCents).toBe(Math.floor(classicOgV07K.stores.TOMMY.items.PISTOL!.buyCents * 0.8));
+
+      // An unrelated purchase does not spend the armed voucher.
+      expect((await trade({ store: 'CORNER', item: 'CONDOM', quantity: 1 })).statusCode).toBe(200);
+      expect(await app.prisma.playerArmedFavor.count({
+        where: { roundPlayerId: playerId, favorKey: 'TOMMY_VOUCHER' },
+      })).toBe(1);
+
+      // Nor does a failed eligible purchase.
+      const failed = await trade({
+        store: 'TOMMY',
+        item: 'PISTOL',
+        quantity: classicOgV07K.weapons.PISTOL.restock!.cap + 1,
+      });
+      expect(failed.statusCode).toBe(400);
+      expect(await app.prisma.playerArmedFavor.count({
+        where: { roundPlayerId: playerId, favorKey: 'TOMMY_VOUCHER' },
+      })).toBe(1);
+
+      const bought = await trade({ store: 'tommy', item: 'PISTOL', quantity: 1 });
+      expect(bought.statusCode, bought.body).toBe(200);
+      expect(bought.json().result).toMatchObject({
+        favorKey: 'TOMMY_VOUCHER',
+        favorDiscountPercent: 20,
+        baseUnitCents: classicOgV07K.stores.TOMMY.items.PISTOL!.buyCents,
+        unitCents: Math.floor(classicOgV07K.stores.TOMMY.items.PISTOL!.buyCents * 0.8),
+      });
+      expect(await app.prisma.playerArmedFavor.count({
+        where: { roundPlayerId: playerId, favorKey: 'TOMMY_VOUCHER' },
+      })).toBe(0);
+    } finally {
+      await app.prisma.playerArmedFavor.deleteMany({ where: { roundPlayerId: playerId } });
+      await app.prisma.round.update({
+        where: { id: roundId! },
+        data: { rulesetId: classicOgV01.meta.id, rulesetVersion: classicOgV01.meta.version },
+      });
+    }
   });
 
   it('starts a different round with fresh reputation and locked weapons', async () => {

@@ -52,6 +52,35 @@ describe('store transactions', () => {
     } catch (error) { expect(error).toMatchObject({ code }); }
   });
 
+  it('accepts a player-specific discounted store quote without changing sell prices', () => {
+    const buy = calculateStoreTrade(
+      player,
+      { store: 'TOMMY', item: 'PISTOL', direction: 'buy', quantity: 2 },
+      classicOgV01,
+      { buyUnitCents: Math.floor(classicOgV01.stores.TOMMY.items.PISTOL!.buyCents * 0.8) },
+    );
+    expect(buy.unitCents).toBe(Math.floor(classicOgV01.stores.TOMMY.items.PISTOL!.buyCents * 0.8));
+
+    const sell = calculateStoreTrade(
+      { ...player, pistols: 10 },
+      { store: 'TOMMY', item: 'PISTOL', direction: 'sell', quantity: 2 },
+      classicOgV01,
+      { buyUnitCents: 1 },
+    );
+    expect(sell.unitCents).toBe(classicOgV01.stores.TOMMY.items.PISTOL!.sellCents);
+  });
+
+  it('floors discounted store buys above buyback to prevent arbitrage', () => {
+    const item = classicOgV01.stores.TOMMY.items.PISTOL!;
+    const trade = calculateStoreTrade(
+      player,
+      { store: 'TOMMY', item: 'PISTOL', direction: 'buy', quantity: 1 },
+      classicOgV01,
+      { buyUnitCents: 1 },
+    );
+    expect(trade.unitCents).toBe(item.sellCents! + 1);
+  });
+
   it('rejects an unaffordable order without changing input state', () => {
     const broke = { ...player, cashCents: 99n };
     expect(() => calculateStoreTrade(broke, { ...order, quantity: 1 }, classicOgV01)).toThrow('afford 0');

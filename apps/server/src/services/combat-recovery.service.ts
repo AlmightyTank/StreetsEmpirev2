@@ -64,12 +64,13 @@ export const CombatRecoveryService = {
     medicineAvailable: number,
     medicinePerThug: number,
     efficiencyPercent = 0,
+    waiveMedicine = false,
   ): Promise<RecoveryTreatment> {
     if (!Number.isSafeInteger(thugs) || thugs <= 0) {
       throw AppError.badRequest('INVALID_TREATMENT', 'Choose how many wounded thugs to treat.');
     }
     if (medicinePerThug <= 0) throw AppError.conflict('RECOVERY_DISABLED', 'Treatment is not available in this round.');
-    const medicineNeeded = medicineNeededForTreatment(thugs, medicinePerThug, efficiencyPercent);
+    const medicineNeeded = waiveMedicine ? 0 : medicineNeededForTreatment(thugs, medicinePerThug, efficiencyPercent);
     if (medicineAvailable < medicineNeeded) {
       throw AppError.badRequest('NOT_ENOUGH_MEDICINE', `You need ${medicineNeeded} medicine to treat that many thugs.`);
     }

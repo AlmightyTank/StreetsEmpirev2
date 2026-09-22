@@ -146,8 +146,10 @@ export const questClaimSchema = z.object({ actionId: actionIdSchema }).strict();
 export const questTrackSchema = z.object({ tracked: z.boolean() }).strict();
 export const questAbandonSchema = z.object({}).strict();
 export const favorActivateSchema = z.object({ actionId: actionIdSchema }).strict();
+export const favorArmSchema = z.object({ actionId: actionIdSchema }).strict();
 
 export type FavorActivateInput = z.infer<typeof favorActivateSchema>;
+export type FavorArmInput = z.infer<typeof favorArmSchema>;
 export type QuestAcceptInput = z.infer<typeof questAcceptSchema>;
 export type QuestClaimInput = z.infer<typeof questClaimSchema>;
 export type QuestTrackInput = z.infer<typeof questTrackSchema>;

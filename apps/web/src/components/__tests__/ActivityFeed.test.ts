@@ -120,4 +120,25 @@ describe('describeActivity', () => {
     });
   });
 
+
+  it('renders single-use favor arm and disarm activity', () => {
+    expect(describeActivity(activity({
+      favorKey: 'TOMMY_VOUCHER',
+      name: 'Tommy Voucher',
+      category: 'MUSCLE',
+    }, 'FAVOR_ARMED'), 'crack')).toEqual({
+      text: 'Armed Tommy Voucher.',
+      detail: 'MUSCLE · waiting for the next eligible action',
+    });
+
+    expect(describeActivity(activity({
+      favorKey: 'TOMMY_VOUCHER',
+      name: 'Tommy Voucher',
+      category: 'MUSCLE',
+    }, 'FAVOR_DISARMED'), 'crack')).toEqual({
+      text: 'Put Tommy Voucher back in your pocket.',
+      detail: 'MUSCLE',
+    });
+  });
+
 });

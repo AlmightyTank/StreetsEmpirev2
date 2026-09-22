@@ -262,6 +262,11 @@ export interface AdminPlayerDto {
     startedAt: string;
     expiresAt: string;
   }>;
+  armedFavors: Array<{
+    favorKey: string;
+    category: string;
+    armedAt: string;
+  }>;
   happiness: { whores: number; thugs: number };
   /** 0.4.0-C. Stored Heat, as of the player's last settle. Null on rounds without Heat. */
   heat: number | null;

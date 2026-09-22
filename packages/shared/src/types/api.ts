@@ -37,6 +37,8 @@ export type ActivityType =
   | 'QUEST_READY'
   | 'QUEST_CLAIMED'
   | 'FAVOR_ACTIVATED'
+  | 'FAVOR_ARMED'
+  | 'FAVOR_DISARMED'
   | 'RUN_LAUNCHED'
   | 'RUN_RETURNED'
   | 'RUN_INCIDENT'
@@ -573,6 +575,9 @@ export interface StoreItemDto {
   name: string;
   field: Exclude<keyof ResourcesDto, 'cashCents' | 'fitThugs' | 'woundedThugs'>;
   buyCents: number;
+  /** Present when an armed single-use favor lowered the current buy quote. */
+  baseBuyCents?: number;
+  favorDiscountPercent?: number;
   sellCents: number | null;
   owned: number;
   maxBuy: number;
@@ -686,6 +691,22 @@ export interface QuestActiveFavorDto {
   expiresAt: string;
 }
 
+export interface QuestArmedFavorDto {
+  key: string;
+  name: string;
+  description: string;
+  category: 'STREET' | 'UNDERWORLD' | 'MUSCLE';
+  armedAt: string;
+}
+
+export interface FavorArmResult {
+  favorKey: string;
+  name: string;
+  category: 'STREET' | 'UNDERWORLD' | 'MUSCLE';
+  armed: boolean;
+  quantityRemaining: number;
+}
+
 export interface FavorActivationResult {
   favorKey: string;
   name: string;
@@ -723,6 +744,7 @@ export interface QuestPageDto {
   contacts: QuestContactDto[];
   permanentUnlocks: QuestPermanentUnlockDto[];
   activeFavors: QuestActiveFavorDto[];
+  armedFavors: QuestArmedFavorDto[];
   favors: QuestFavorDto[];
   quests: PlayerQuestDto[];
 }
@@ -773,6 +795,9 @@ export interface StoreTradeResult {
   totalCents: number;
   cashChangeCents: number;
   quantityChange: number;
+  favorKey?: string;
+  favorDiscountPercent?: number;
+  baseUnitCents?: number;
 }
 
 /** 0.4.0-A. One product the round knows about, with the player's stock. */

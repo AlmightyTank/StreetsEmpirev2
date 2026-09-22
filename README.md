@@ -42,6 +42,7 @@ Forward roadmaps: [0.6.0 Turf](docs/ROADMAP-0.6.0.md), [0.7.0 Hideout](docs/ROAD
 | **0.7.0-H** | permanent unlock ledger; job-earned weapon rack access; Pip Meth/Ecstasy/Cocaine/Heroin purchase progression | **implemented in beta** |
 | **0.7.0-I** | durable favor inventory; six Mama/Pip/Tommy favors; stackable job rewards; Quest/admin inventory views | **implemented in beta** |
 | **0.7.0-J** | timed favor activation; STREET/UNDERWORLD/MUSCLE slots; live Scout/Produce/Pip/treatment buffs | **implemented in beta** |
+| **0.7.0-K** | armed single-use favors; Tommy Voucher, Burner Phone, Doctor Favor; successful-action consumption | **implemented in beta** |
 | **0.2.0-A** | combat model, balance simulator, tests and staged design | **prototype complete; balance provisional** |
 | **0.2.0-B** | selectable cash-raid ruleset, raid API, target protection, reports and retry recovery | **implemented for new combat rounds** |
 | **0.2.0-C** | persistent wounds, fit crew, natural recovery and medicine treatment | **implemented for new recovery rounds** |
