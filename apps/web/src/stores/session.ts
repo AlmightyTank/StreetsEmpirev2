@@ -63,7 +63,7 @@ interface SessionState {
   /** Section 45/47. Pull the authoritative dashboard state. */
   refreshSnapshot: (options?: { background?: boolean }) => Promise<void>;
 
-  register: (input: RegisterInput) => Promise<void>;
+  register: (input: RegisterInput) => Promise<string | null>;
   login: (input: LoginInput) => Promise<void>;
   resetPassword: (input: ResetPasswordInput) => Promise<void>;
   verifyEmailToken: (input: VerifyEmailTokenInput) => Promise<string>;
@@ -135,10 +135,15 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   async register(input) {
-    const { account } = await authApi.register(input);
-    set({ account });
+    const response = await authApi.register(input);
+    if (response.approvalRequired) {
+      set({ account: null });
+      return response.message ?? 'Your beta account is waiting for admin approval.';
+    }
+    set({ account: response.account });
     await get().refreshProfileSettings();
     await get().refreshRound();
+    return null;
   },
 
   async login(input) {
