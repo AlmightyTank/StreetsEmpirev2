@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate, NavLink, useParams } from 'react-router-dom';
-import { formatCents, formatNumber, type ProductsDto, type StoreDto, type StoreItemDto, type StoreRestockDto, type StoresDto, type StoreTradeInput, type StoreTradeResult, type WeaponUnlockInput, type WeaponUnlockResult } from '@streets/shared';
+import { formatCents, formatNumber, type ProductsDto, type StoreDto, type StoreItemDto, type StoreRestockDto, type StoresDto, type StoreTradeInput, type StoreTradeResult } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { storesApi } from '../api/stores.js';
 import { ActionResult } from '../components/ActionResult.js';
@@ -17,9 +17,7 @@ import { formatDuration } from '../utils/time.js';
 import { browserSessionStorage, clearPendingAction, loadPendingAction, savePendingAction } from '../utils/pendingAction.js';
 
 type Order = Omit<StoreTradeInput, 'actionId'>;
-type StoreCommand =
-  | { kind: 'trade'; order: Order }
-  | { kind: 'unlock'; weapon: WeaponUnlockInput['weapon'] };
+type StoreCommand = { kind: 'trade'; order: Order };
 type PendingStoreCommand = { actionId: string; command: StoreCommand };
 
 /** "every 4 hours" - the wait, in the units it was written in. */
@@ -77,11 +75,10 @@ function RestockLine({ restock, name, keeper, onArrival }: {
   );
 }
 
-function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked, onTrade, onUnlock, onRestock }: {
+function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked, onTrade, onRestock }: {
   item: StoreItemDto; store: string; keeper: string; owned: number; cashCents: number;
   /** Why the whole shelf is off, or null when it is open for business. */
   bulkHelpers: number[]; blocked: string | null; onTrade: (order: Order) => Promise<void>;
-  onUnlock: (weapon: WeaponUnlockInput['weapon']) => Promise<void>;
   onRestock: () => void;
 }) {
   const [quantity, setQuantity] = useState<number | ''>(1);
@@ -132,32 +129,8 @@ function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked
           <div className="se-store-favor">
             <h3 className="se-store-favor__title">{favor.title}</h3>
             <p className="se-hint">{favor.description}</p>
-            <div className="se-rows">
-              <Row
-                label="Reputation"
-                value={`${formatNumber(favor.totalRep)} / ${formatNumber(favor.totalRepRequired)}`}
-                strong
-              />
-              {favor.prerequisiteName ? <Row label={`${favor.prerequisiteName} access`} value={favor.prerequisiteMet ? 'Earned' : 'Required'} /> : null}
-            </div>
             <p className="se-hint">
-              Standing with every trader in the city counts, not just this one.
-            </p>
-            <Button type="button" className="se-btn se-btn--block"
-              disabledReason={blocked ?? (favor.canComplete ? null : !favor.prerequisiteMet
-                ? `Earn ${favor.prerequisiteName} access first.`
-                : `You need ${formatNumber(favor.totalRepRequired - favor.totalRep)} more reputation across the city's traders.`)}
-              onClick={() => void onUnlock(favor.key)}>
-              Unlock {item.name}
-            </Button>
-            <p className="se-hint">
-              {!favor.prerequisiteMet
-                ? `Earn ${favor.prerequisiteName} access first. `
-                : favor.totalRep < favor.totalRepRequired
-                  ? 'Do the traders their favours and keep dealing with them. '
-                  : ''}
-              Access costs nothing but standing, lasts the round, and never lapses.
-              Weapons are purchased separately.
+              Weapon access is earned through <Link to="/game/quests">underworld jobs</Link>. It cannot be bought with passive reputation.
             </p>
           </div>
         )
@@ -254,7 +227,7 @@ function StoreTabs({ stores, slug }: { stores: StoreDto[]; slug: string }) {
 
 function StoreView({ slug }: { slug: string }) {
   const me = useSession((s) => s.me);
-  const action = useGameAction<StoreTradeResult | WeaponUnlockResult>();
+  const action = useGameAction<StoreTradeResult>();
   const [catalog, setCatalog] = useState<StoresDto | null>(() => (cachedCatalog && cachedCatalog.playerId === me?.id ? cachedCatalog.data : null));
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
@@ -289,10 +262,7 @@ function StoreView({ slug }: { slug: string }) {
   async function execute(command: StoreCommand, recoveredActionId?: string) {
     await action.run(async (actionId) => {
       try {
-        const result =
-          command.kind === 'trade'
-            ? await storesApi.trade({ ...command.order, actionId })
-            : await storesApi.unlock({ weapon: command.weapon, actionId });
+        const result = await storesApi.trade({ ...command.order, actionId });
         clearPendingAction(pendingStorage, pendingKey);
         setRetryOrder(null);
         return result;
@@ -330,8 +300,6 @@ function StoreView({ slug }: { slug: string }) {
         ? 'Prices could not be loaded, so nothing can be traded yet.'
         : null;
   const receipt = action.result && 'direction' in action.result.result ? action.result.result : null;
-  const unlockReceipt =
-    action.result && 'weaponName' in action.result.result ? action.result.result : null;
 
   return (
     <GameLayout>
@@ -364,16 +332,6 @@ function StoreView({ slug }: { slug: string }) {
         </div>
       ) : null}
 
-      {action.result && unlockReceipt ? (
-        <div className="se-store-receipt" aria-live="polite">
-          <ActionResult title={`${unlockReceipt.weaponName} unlocked`} subtitle={unlockReceipt.title}
-            result={action.result} onDismiss={action.clear} lines={[
-              { label: 'Access', value: 'Purchases unlocked for this round' },
-              { label: 'Turns used', value: '0' },
-            ]} />
-        </div>
-      ) : null}
-
       {store && catalog ? (
         <div className="se-grid se-grid--sidebar">
           <div className={`se-store-items${store.key === 'PIP' && catalog.productCounter ? ' se-store-items--pair' : ''}`}>
@@ -384,7 +342,6 @@ function StoreView({ slug }: { slug: string }) {
               owned={me.resources[item.field]} cashCents={me.resources.cashCents}
               bulkHelpers={catalog.bulkHelpers} blocked={counterBlock}
               onTrade={(order) => execute({ kind: 'trade', order })}
-              onUnlock={(weapon) => execute({ kind: 'unlock', weapon })}
               onRestock={() => setReload((n) => n + 1)} />)}
             {store.key === 'PIP' && products?.economy
               ? products.products.filter((product) => product.pip).map((product) => (
