@@ -106,6 +106,13 @@ export const hideoutWeaponPrioritySchema = z.object({
 }).strict();
 export type HideoutWeaponPriorityInput = z.infer<typeof hideoutWeaponPrioritySchema>;
 
+export const hideoutSpecializationSchema = z.object({
+  room: z.enum(['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE']),
+  specialization: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a specialization.'),
+  actionId: actionIdSchema,
+}).strict();
+export type HideoutSpecializationInput = z.infer<typeof hideoutSpecializationSchema>;
+
 export const storeTradeSchema = z.object({
   store: z.string().trim().min(1, 'Pick a store.').max(64),
   item: z.string().trim().min(1, 'Pick an item.').max(64),
