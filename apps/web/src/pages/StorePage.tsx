@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate, NavLink, useParams } from 'react-router-dom';
-import { formatCents, formatNumber, type ProductsDto, type QuestCompleteInput, type QuestCompleteResult, type StoreDto, type StoreItemDto, type StoreRestockDto, type StoresDto, type StoreTradeInput, type StoreTradeResult, type WeaponUnlockInput, type WeaponUnlockResult } from '@streets/shared';
+import { formatCents, formatNumber, type ProductsDto, type StoreDto, type StoreItemDto, type StoreRestockDto, type StoresDto, type StoreTradeInput, type StoreTradeResult, type WeaponUnlockInput, type WeaponUnlockResult } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
-import { reputationApi } from '../api/reputation.js';
 import { storesApi } from '../api/stores.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
@@ -20,8 +19,7 @@ import { browserSessionStorage, clearPendingAction, loadPendingAction, savePendi
 type Order = Omit<StoreTradeInput, 'actionId'>;
 type StoreCommand =
   | { kind: 'trade'; order: Order }
-  | { kind: 'unlock'; weapon: WeaponUnlockInput['weapon'] }
-  | { kind: 'quest'; trader: QuestCompleteInput['trader'] };
+  | { kind: 'unlock'; weapon: WeaponUnlockInput['weapon'] };
 type PendingStoreCommand = { actionId: string; command: StoreCommand };
 
 /** "every 4 hours" - the wait, in the units it was written in. */
@@ -76,53 +74,6 @@ function RestockLine({ restock, name, keeper, onArrival }: {
           ? `Out of ${name} — next delivery in ${formatDuration(msRemaining)}.`
           : `Next delivery in ${formatDuration(msRemaining)}, then ${restockDelivery(restock)}.`}
     </p>
-  );
-}
-
-/**
- * The favour this trader is asking for.
- *
- * Rendered in the same block Tommy's weapon favours have always used, and
- * offered where the trader is: you square things with Charlie at Charlie's.
- */
-function TraderFavour({ store, blocked, onComplete }: {
-  store: StoreDto;
-  /** Why nothing on this counter can be pressed, or null when it can. */
-  blocked: string | null;
-  onComplete: (trader: QuestCompleteInput['trader']) => void;
-}) {
-  const { quest } = store;
-
-  // A favour that is done is not a job any more. It leaves the counter
-  // entirely rather than sitting there as a finished to-do; where you stand
-  // with everyone is on The Street, and the shorter wait shows on the shelf.
-  if (quest.done) return null;
-
-  return (
-    <div className="se-store-favor">
-      <h3 className="se-store-favor__title">{quest.title}</h3>
-      <p className="se-hint">{quest.description}</p>
-
-      <div className="se-rows">
-        {quest.parts.length ? quest.parts.map((part) => (
-          <Row key={part.label} label={part.label} value={`${formatNumber(part.have)} / ${formatNumber(part.need)}`} strong />
-        )) : (
-          <Row label="Progress" value={`${formatNumber(quest.have)} / ${formatNumber(quest.need)}`} strong />
-        )}
-        <Row label="Worth" value={`+${formatNumber(quest.reward)} reputation`} />
-      </div>
-      {quest.blockedBy ? <p className="se-hint se-bad">{quest.blockedBy}</p> : null}
-      <Button type="button" className="se-btn se-btn--block"
-        disabledReason={blocked ?? (quest.canComplete ? null : quest.blockedBy ?? quest.stillNeeded
-          ?? `You have ${formatNumber(quest.have)} of the ${formatNumber(quest.need)} ${store.keeper} asked for.`)}
-        onClick={() => onComplete(store.key as QuestCompleteInput['trader'])}>
-        Do {store.keeper} the favour
-      </Button>
-      <p className="se-hint">
-        Standing opens the gun rack and gets you served sooner. Every trader
-        counts toward the guns, so this one is worth doing whatever you buy here.
-      </p>
-    </div>
   );
 }
 
@@ -303,7 +254,7 @@ function StoreTabs({ stores, slug }: { stores: StoreDto[]; slug: string }) {
 
 function StoreView({ slug }: { slug: string }) {
   const me = useSession((s) => s.me);
-  const action = useGameAction<StoreTradeResult | WeaponUnlockResult | QuestCompleteResult>();
+  const action = useGameAction<StoreTradeResult | WeaponUnlockResult>();
   const [catalog, setCatalog] = useState<StoresDto | null>(() => (cachedCatalog && cachedCatalog.playerId === me?.id ? cachedCatalog.data : null));
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
@@ -341,9 +292,7 @@ function StoreView({ slug }: { slug: string }) {
         const result =
           command.kind === 'trade'
             ? await storesApi.trade({ ...command.order, actionId })
-            : command.kind === 'unlock'
-              ? await storesApi.unlock({ weapon: command.weapon, actionId })
-              : await reputationApi.completeQuest({ trader: command.trader, actionId });
+            : await storesApi.unlock({ weapon: command.weapon, actionId });
         clearPendingAction(pendingStorage, pendingKey);
         setRetryOrder(null);
         return result;
@@ -383,8 +332,6 @@ function StoreView({ slug }: { slug: string }) {
   const receipt = action.result && 'direction' in action.result.result ? action.result.result : null;
   const unlockReceipt =
     action.result && 'weaponName' in action.result.result ? action.result.result : null;
-  const favourReceipt =
-    action.result && 'traderName' in action.result.result ? action.result.result : null;
 
   return (
     <GameLayout>
@@ -427,28 +374,9 @@ function StoreView({ slug }: { slug: string }) {
         </div>
       ) : null}
 
-      {favourReceipt ? (
-        <div className="se-store-receipt" aria-live="polite">
-          <ActionResult title={`${favourReceipt.traderName} owes you one`} subtitle={favourReceipt.title}
-            result={action.result!} onDismiss={action.clear} lines={[
-              { label: 'Reputation', delta: favourReceipt.reputationGained, remaining: favourReceipt.totalRep },
-              ...(favourReceipt.crackDelivered > 0
-                ? [{ label: catalog?.productCounter ? 'Crack delivered' : 'Product delivered', delta: -favourReceipt.crackDelivered, remaining: action.result!.after.resources.product }]
-                : []),
-              ...(favourReceipt.lowRidersHandedOver > 0
-                ? [{ label: 'Low-Riders handed over', delta: -favourReceipt.lowRidersHandedOver, remaining: action.result!.after.resources.lowRiders }]
-                : []),
-              ...favourReceipt.unlocked.map((weapon) => ({ label: 'Now on the menu', value: weapon })),
-            ]} />
-        </div>
-      ) : null}
-
       {store && catalog ? (
         <div className="se-grid se-grid--sidebar">
           <div className={`se-store-items${store.key === 'PIP' && catalog.productCounter ? ' se-store-items--pair' : ''}`}>
-            <TraderFavour store={store}
-              blocked={counterBlock}
-              onComplete={(trader) => execute({ kind: 'quest', trader })} />
             {store.items.map((item) => <StoreItem key={item.key}
               // 0.4.0-D: next to the other products, Pip's Product is crack by name.
               item={store.key === 'PIP' && catalog.productCounter && item.key === 'CRACK' ? { ...item, name: 'Crack' } : item}
@@ -481,6 +409,7 @@ function StoreView({ slug }: { slug: string }) {
                 : '.'}
             </p>
             <p className="se-hint">Shopping costs no turns. Prices are per item; the full total appears before you trade.</p>
+            <p className="se-hint">Jobs and favors now live on the <Link to="/game/quests">Quests page</Link>.</p>
             {store.key === 'PIP' && catalog.productCounter ? <p className="se-hint">Pip deals every product. What each one does on the street is set per district on Scout; what you can cook is on Produce.</p> : null}
             {store.key === 'CORNER' ? <p className="se-hint">Condoms and beer keep street work supplied. Restocking lifts happiness immediately.</p> : null}
             {store.key === 'TOMMY' ? <p className="se-hint">Thugs protect the crew and fight in raids or drive-bys. Keeping a gun and beer for each thug helps their happiness.</p> : null}
