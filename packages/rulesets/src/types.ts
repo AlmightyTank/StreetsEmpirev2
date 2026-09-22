@@ -252,7 +252,7 @@ export interface PermanentUnlockDefinition {
   readonly key: string;
   readonly name: string;
   readonly description: string;
-  readonly category: 'WEAPON' | 'PRODUCT' | 'CAPABILITY';
+  readonly category: 'WEAPON' | 'PRODUCT';
   readonly effect: PermanentUnlockEffect;
 }
 
