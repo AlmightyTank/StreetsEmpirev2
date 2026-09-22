@@ -63,7 +63,7 @@ function objectives(value: Prisma.JsonValue): QuestObjectiveDefinition[] {
       description: row.description,
       target: row.target,
       ...(row.params && typeof row.params === 'object' && !Array.isArray(row.params)
-        ? { params: row.params as never }
+        ? { params: row.params as QuestDataObject }
         : {}),
     }];
   });
