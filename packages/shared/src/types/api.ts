@@ -739,6 +739,11 @@ export interface QuestPageDto {
     slots: number;
     resetAt: string | null;
   };
+  weeklyContracts: {
+    enabled: boolean;
+    slots: number;
+    resetAt: string | null;
+  };
   activeLimit: number;
   trackedLimit: number;
   counts: {
