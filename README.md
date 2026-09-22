@@ -44,6 +44,7 @@ Forward roadmaps: [0.6.0 Turf](docs/ROADMAP-0.6.0.md), [0.7.0 Hideout](docs/ROAD
 | **0.7.0-J** | timed favor activation; STREET/UNDERWORLD/MUSCLE slots; live Scout/Produce/Pip/treatment buffs | **implemented in beta** |
 | **0.7.0-K** | armed single-use favors; Tommy Voucher, Burner Phone, Doctor Favor; successful-action consumption | **implemented in beta** |
 | **0.7.0-L** | Phase M contact expansion; 3 Wheels, 3 Vic and 3 Blocks side jobs; 28 handcrafted Jobs total | **implemented in beta** |
+| **0.7.0-M** | Phase N catalog completion; Pip Top Shelf and Tommy Full Rack capstones; 30 handcrafted Jobs total | **in PR for beta** |
 | **0.2.0-A** | combat model, balance simulator, tests and staged design | **prototype complete; balance provisional** |
 | **0.2.0-B** | selectable cash-raid ruleset, raid API, target protection, reports and retry recovery | **implemented for new combat rounds** |
 | **0.2.0-C** | persistent wounds, fit crew, natural recovery and medicine treatment | **implemented for new recovery rounds** |
