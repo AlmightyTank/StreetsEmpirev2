@@ -527,7 +527,7 @@ export const HandcraftedQuestService = {
           expiresAt: isWindowRepeatable(row.questDefinition.repeatability) ? row.expiresAt : null,
           objectiveProgress: {},
           bonusProgress: {},
-          rewardState: isWindowRepeatable(row.questDefinition.repeatability) ? row.rewardState : {},
+          rewardState: isWindowRepeatable(row.questDefinition.repeatability) ? inputJson(row.rewardState) : {},
         },
       });
     });
