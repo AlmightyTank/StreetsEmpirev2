@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { Prisma } from '@prisma/client';
-import { classicOgV01, classicOgV02, classicOgV02C, classicOgV02D, classicOgV02E } from '@streets/rulesets';
+import { classicOgV01, classicOgV02, classicOgV02C, classicOgV02D, classicOgV02E, classicOgV07B } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
-import type { BattleReportDto } from '@streets/shared';
+import type { BattleReportDto, CombatReconResultDto } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
 import { RankingService } from '../ranking.service.js';
 import { RoundService } from '../round.service.js';
@@ -59,6 +59,7 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     await app.prisma.raidBattle.deleteMany({ where: { attackerId: { in: players } } });
     await app.prisma.processedAction.deleteMany({ where: { roundPlayerId: { in: players } } });
     await app.prisma.playerActivity.deleteMany({ where: { roundPlayerId: { in: players } } });
+    await app.prisma.playerProduct.deleteMany({ where: { roundPlayerId: { in: players } } });
     for (let i = 0; i < players.length; i++) {
       const data = { ...rules.round.startingPlayer, ...startingStock(rules),
         thugs: i === 1 ? 20 : 40, woundedThugs: 0, pistols: i === 1 ? 20 : 40, beer: 100,
@@ -164,6 +165,64 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     expect(repeatedReport.repeatLootMultiplierPercent).toBe(75);
     expect(repeatedReport.lootPercent).toBe(Math.floor((repeatedReport.baseLootPercent ?? 0) * 0.75));
     expect(repeatedReport.lootPercent).toBeLessThanOrEqual(30);
+  });
+
+
+
+  it('keeps 0.7-B Safe Room product out of a real raid', async () => {
+    await app.prisma.round.update({
+      where: { id: roundId },
+      data: { rulesetId: classicOgV07B.meta.id, rulesetVersion: classicOgV07B.meta.version },
+    });
+
+    const defenderBefore = await state(1);
+    const products = { COCAINE: 80, WEED: 120 };
+    await app.prisma.playerProduct.createMany({
+      data: [
+        { roundPlayerId: players[1]!, productKey: 'COCAINE', quantity: products.COCAINE },
+        { roundPlayerId: players[1]!, productKey: 'WEED', quantity: products.WEED },
+      ],
+    });
+    const protectedDefender = {
+      ...defenderBefore,
+      cashCents: 4_100_000n,
+      crack: 100,
+      hideoutSafeRoomLevel: 5,
+      products,
+    };
+    await app.prisma.roundPlayer.update({
+      where: { id: players[1]! },
+      data: {
+        cashCents: protectedDefender.cashCents,
+        crack: protectedDefender.crack,
+        hideoutSafeRoomLevel: protectedDefender.hideoutSafeRoomLevel,
+        netWorthCents: NetWorthService.calculate(protectedDefender, classicOgV07B),
+      },
+    });
+
+    const reconResponse = await recon();
+    expect(reconResponse.statusCode, reconResponse.body).toBe(200);
+    const intel = reconResponse.json<CombatReconResultDto>().intel;
+    expect(intel.assetProtection).toMatchObject({
+      protectedProductCapacity: 100,
+    });
+    expect(intel.productStash?.level).toBe('heavy');
+
+    const response = await raid();
+    expect(response.statusCode, response.body).toBe(200);
+    const report = response.json<BattleReportDto>();
+    expect(report.won).toBe(true);
+    expect(report.raidProtection).toMatchObject({
+      protectedProductCapacity: 100,
+      protectedProductUnits: 100,
+      exposedProductUnitsBefore: 200,
+    });
+
+    const cocaineAfter = await app.prisma.playerProduct.findUniqueOrThrow({
+      where: { roundPlayerId_productKey: { roundPlayerId: players[1]!, productKey: 'COCAINE' } },
+    });
+    expect(cocaineAfter.quantity).toBe(80);
+    expect(report.inventoryChanges?.find((row) => row.product === 'COCAINE')?.lost ?? 0).toBe(0);
   });
 
   it('replays duplicate concurrent raids, even after cooldown or round closure', async () => {
