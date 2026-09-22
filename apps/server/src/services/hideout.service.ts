@@ -7,6 +7,7 @@ import {
 } from '@streets/rulesets';
 import type {
   GameActionResult,
+  HideoutAssetProtectionDto,
   HideoutRequirementDto,
   HideoutRoomV2Dto,
   HideoutUpgradeInput,
@@ -33,6 +34,107 @@ const ROOM_FIELDS: Record<HideoutRoomKey, HideoutField> = {
 
 const ROOM_ORDER: readonly HideoutRoomKey[] = ['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE', 'GARAGE'];
 
+export type HideoutProductStock = Record<string, number>;
+
+function productUnitValueCents(ruleset: Ruleset, key: string): number {
+  if (key === 'CRACK') return ruleset.economy.netWorth.perCrackCents;
+  return ruleset.products?.[key]?.economy?.netWorthCents ?? ruleset.economy.netWorth.perCrackCents;
+}
+
+/** Product units the Safe Room can automatically seal at the player's current level. */
+export function hideoutProtectedProductCapacity(
+  ruleset: Ruleset,
+  player: Pick<PlayerState, HideoutField>,
+): number {
+  const levels = hideoutV2For(ruleset)?.assetProtection?.protectedProductUnitsBySafeRoomLevel;
+  if (!levels) return 0;
+  return levels[player.hideoutSafeRoomLevel] ?? 0;
+}
+
+/**
+ * Computes protected/exposed product from the real inventory without creating a
+ * second stash. Highest-value units are sealed first; ties follow catalog order.
+ */
+export function hideoutProductProtection(
+  ruleset: Ruleset,
+  player: Pick<PlayerState, HideoutField | 'crack'>,
+  products: HideoutProductStock = {},
+): {
+  capacity: number;
+  protected: HideoutProductStock;
+  exposed: HideoutProductStock;
+  protectedUnits: number;
+  exposedUnits: number;
+} {
+  const capacity = hideoutProtectedProductCapacity(ruleset, player);
+  const stash: HideoutProductStock = { ...products, CRACK: Math.max(0, player.crack) };
+  const catalogOrder = new Map(
+    Object.entries(ruleset.products ?? {}).map(([key, definition]) => [key, definition.sortOrder]),
+  );
+  const protectedStock: HideoutProductStock = {};
+  const exposed: HideoutProductStock = { ...stash };
+  let remaining = capacity;
+
+  for (const [key, quantity] of Object.entries(stash)
+    .filter(([, quantity]) => quantity > 0)
+    .sort(([a], [b]) =>
+      productUnitValueCents(ruleset, b) - productUnitValueCents(ruleset, a)
+      || (catalogOrder.get(a) ?? Number.MAX_SAFE_INTEGER) - (catalogOrder.get(b) ?? Number.MAX_SAFE_INTEGER)
+      || a.localeCompare(b))) {
+    if (remaining <= 0) break;
+    const sealed = Math.min(quantity, remaining);
+    if (sealed <= 0) continue;
+    protectedStock[key] = sealed;
+    exposed[key] = quantity - sealed;
+    remaining -= sealed;
+  }
+
+  const protectedUnits = Object.values(protectedStock).reduce((sum, quantity) => sum + quantity, 0);
+  const exposedUnits = Object.values(exposed).reduce((sum, quantity) => sum + Math.max(0, quantity), 0);
+  return { capacity, protected: protectedStock, exposed, protectedUnits, exposedUnits };
+}
+
+function assetProtectionDto(
+  ruleset: Ruleset,
+  player: PlayerState,
+  products: HideoutProductStock,
+): HideoutAssetProtectionDto | undefined {
+  if (!hideoutV2For(ruleset)?.assetProtection) return undefined;
+  const product = hideoutProductProtection(ruleset, player, products);
+  const baseCashFloor = ruleset.combat?.loot.protectedCashCents ?? 0;
+  const cashFloorCents = baseCashFloor + hideoutProtectedCashBonusCents(ruleset, player);
+  const cashCents = Number(player.cashCents > BigInt(Number.MAX_SAFE_INTEGER) ? BigInt(Number.MAX_SAFE_INTEGER) : player.cashCents);
+  const protectedCashCents = Math.min(cashCents, cashFloorCents);
+  const exposedCashCents = Math.max(0, cashCents - cashFloorCents);
+  const keys = new Set([...Object.keys(product.protected), ...Object.keys(product.exposed)]);
+
+  return {
+    cashFloorCents,
+    protectedCashCents,
+    exposedCashCents,
+    protectedProductCapacity: product.capacity,
+    protectedProductUnits: product.protectedUnits,
+    exposedProductUnits: product.exposedUnits,
+    policy: 'HIGHEST_VALUE_FIRST',
+    products: [...keys]
+      .map((key) => {
+        const protectedUnits = product.protected[key] ?? 0;
+        const exposedUnits = product.exposed[key] ?? 0;
+        return {
+          key,
+          name: ruleset.products?.[key]?.name ?? (key === 'CRACK' ? 'Crack' : key),
+          total: protectedUnits + exposedUnits,
+          protected: protectedUnits,
+          exposed: exposedUnits,
+          sortOrder: ruleset.products?.[key]?.sortOrder ?? (key === 'CRACK' ? 0 : Number.MAX_SAFE_INTEGER),
+        };
+      })
+      .filter((row) => row.total > 0)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+      .map(({ sortOrder: _sortOrder, ...row }) => row),
+  };
+}
+
 function levelOf(player: Pick<PlayerState, HideoutField>, room: HideoutRoomKey): number {
   return player[ROOM_FIELDS[room]];
 }
@@ -47,7 +149,10 @@ function effect(room: HideoutRoomKey, level: number, ruleset: Ruleset): string {
 
   const buffs = hideout.buffs;
   if (room === 'SAFE_ROOM') {
-    return `${dollars(level * buffs.safeRoomProtectedCashCentsPerLevel)} extra cash protected from raids.`;
+    const productCapacity = hideoutV2For(ruleset)?.assetProtection?.protectedProductUnitsBySafeRoomLevel[level] ?? 0;
+    return productCapacity > 0
+      ? `${dollars(level * buffs.safeRoomProtectedCashCentsPerLevel)} extra cash protected from raids, plus up to ${productCapacity} highest-value product units sealed from loot.`
+      : `${dollars(level * buffs.safeRoomProtectedCashCentsPerLevel)} extra cash protected from raids.`;
   }
   if (room === 'LOOKOUTS') {
     return `+${level * buffs.lookoutsDefenseBonusPercentPerLevel}% home raid defense strength.`;
@@ -164,7 +269,7 @@ function toRoomDto(room: HideoutRoomKey, ruleset: Ruleset, player: PlayerState):
 }
 
 /** Builds player-specific Hideout status, including upgrade gates and specialization metadata. */
-export function hideoutCatalog(ruleset: Ruleset, player: PlayerState): HideoutV2Dto {
+export function hideoutCatalog(ruleset: Ruleset, player: PlayerState, products: HideoutProductStock = {}): HideoutV2Dto {
   const extension = hideoutV2For(ruleset);
   if (!ruleset.hideout) {
     return {
@@ -186,6 +291,7 @@ export function hideoutCatalog(ruleset: Ruleset, player: PlayerState): HideoutV2
     totalLevel: rooms.reduce((sum, room) => sum + room.level, 0),
     totalMaxLevel: rooms.reduce((sum, room) => sum + room.maxLevel, 0),
     rooms,
+    ...(assetProtectionDto(ruleset, player, products) ? { assetProtection: assetProtectionDto(ruleset, player, products) } : {}),
   };
 }
 
@@ -214,8 +320,8 @@ export function hideoutBackOfficeBonusCents(base: bigint, ruleset: Ruleset, play
 }
 
 export const HideoutService = {
-  catalog(ruleset: Ruleset, player: PlayerState): HideoutV2Dto {
-    return hideoutCatalog(ruleset, player);
+  catalog(ruleset: Ruleset, player: PlayerState, products: HideoutProductStock = {}): HideoutV2Dto {
+    return hideoutCatalog(ruleset, player, products);
   },
 
   /** Buys the next room level after validating availability, progress requirements, and cash. */
