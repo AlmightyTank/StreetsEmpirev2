@@ -12,7 +12,7 @@ Phase I ships as a new ruleset:
 - 0.7-G: Hideout Specializations, still no generic unlock gates
 - 0.7-H: Hideout Specializations + permanent weapon/product unlock rewards
 
-Existing 0.7-F rounds remain unchanged. New rounds may opt into `classic-og-v0.7-g`.
+Existing 0.7-F/G rounds remain unchanged. New rounds may opt into `classic-og-v0.7-h`.
 
 ## PlayerUnlock
 
