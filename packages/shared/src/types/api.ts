@@ -574,6 +574,9 @@ export interface StoreItemDto {
   name: string;
   field: Exclude<keyof ResourcesDto, 'cashCents' | 'fitThugs' | 'woundedThugs'>;
   buyCents: number;
+  /** Present when an armed single-use favor lowered the current buy quote. */
+  baseBuyCents?: number;
+  favorDiscountPercent?: number;
   sellCents: number | null;
   owned: number;
   maxBuy: number;
