@@ -132,7 +132,16 @@ export const ProductMarketService = {
           reputation: credit.credited ? [{ trader: 'PIP', points: credit.points, creditedOn: credit.creditedOn }] : undefined,
           activity: {
             type: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
-            payload: { store: ruleset.stores.PIP.name, item: trade.productName, quantity: trade.quantity, totalCents: result.totalCents },
+            payload: {
+              store: ruleset.stores.PIP.name,
+              storeKey: 'PIP',
+              item: trade.productName,
+              itemKey: trade.product,
+              product: trade.product,
+              direction: trade.direction,
+              quantity: trade.quantity,
+              totalCents: result.totalCents,
+            },
           },
         };
       },
