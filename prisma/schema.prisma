@@ -269,6 +269,23 @@ enum RoundStatus {
   ARCHIVED
 }
 
+enum QuestStatus {
+  LOCKED
+  AVAILABLE
+  ACTIVE
+  READY_TO_TURN_IN
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+enum QuestRepeatability {
+  ONCE
+  DAILY
+  WEEKLY
+  REPEATABLE
+}
+
 /// Standing with one trader, for one player. Rows rather than columns because
 /// traders are ruleset-defined: a variant with a different set of shops must
 /// not need a migration.
@@ -291,6 +308,90 @@ model PlayerReputation {
 
   @@unique([roundPlayerId, trader])
   @@index([roundPlayerId])
+}
+
+// ---------------------------------------------------------------------------
+// Handcrafted quests
+// ---------------------------------------------------------------------------
+
+/// Version-pinned quest content. Definitions are separate from PlayerQuest so
+/// one ruleset can publish a catalog once and every seasonal RoundPlayer can
+/// progress through it independently.
+model QuestDefinition {
+  id String @id @default(cuid())
+
+  /// Stable key inside one ruleset version, e.g. FIRST_NIGHT_OUT.
+  key            String
+  rulesetId      String
+  rulesetVersion String
+
+  title       String
+  description String
+  /// Future contact/NPC key. Null permits system/event quests.
+  contactKey  String?
+  /// STORY, SIDE, CONTRACT, DAILY, WEEKLY, SECRET, ALLIANCE or EVENT.
+  type        String
+  /// Free-form gameplay grouping such as STREET, COMBAT, TRAVEL or TURF.
+  category    String
+  /// STREET_JOB, CONTRACT, SERIOUS_BUSINESS, HIGH_RISK or KINGPIN_CONTRACT.
+  difficulty  String
+
+  /// JSON keeps the foundation extensible while Phase B supplies typed
+  /// objective/prerequisite/reward kinds in the ruleset package.
+  prerequisites   Json @default("[]")
+  objectives      Json
+  bonusObjectives Json @default("[]")
+  rewards         Json
+  followUpKeys    Json @default("[]")
+  availability    Json @default("{}")
+
+  repeatability       QuestRepeatability @default(ONCE)
+  expiresAfterMinutes Int?
+  isEnabled           Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  playerQuests PlayerQuest[]
+
+  @@unique([rulesetId, rulesetVersion, key])
+  @@index([rulesetId, rulesetVersion, isEnabled])
+  @@index([contactKey, isEnabled])
+}
+
+/// One player's attempt at one quest. The attempt number prevents
+/// daily/weekly/repeatable contracts from requiring a second schema later,
+/// while ONCE quests naturally stay on attempt 1.
+model PlayerQuest {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  questDefinitionId String
+  questDefinition   QuestDefinition @relation(fields: [questDefinitionId], references: [id], onDelete: Restrict)
+
+  attempt Int @default(1)
+  status  QuestStatus @default(AVAILABLE)
+
+  objectiveProgress Json @default("{}")
+  bonusProgress     Json @default("{}")
+  chosenBranch      String?
+  rewardState       Json @default("{}")
+
+  acceptedAt  DateTime?
+  completedAt DateTime?
+  claimedAt   DateTime?
+  failedAt    DateTime?
+  expiresAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, questDefinitionId, attempt])
+  @@index([roundPlayerId, status])
+  @@index([questDefinitionId, status])
+  @@index([status, expiresAt])
 }
 
 model Round {
@@ -506,6 +607,7 @@ model RoundPlayer {
   activity              PlayerActivity[]
   processedActions      ProcessedAction[]
   reputation            PlayerReputation[]
+  playerQuests          PlayerQuest[]
   raidsSent             RaidBattle[]       @relation("RaidAttacker")
   raidsReceived         RaidBattle[]       @relation("RaidDefender")
   combatInjuries        CombatInjury[]
