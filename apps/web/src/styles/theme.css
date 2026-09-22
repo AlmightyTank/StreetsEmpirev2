@@ -2919,3 +2919,32 @@ button.se-notification-empty:hover { color: var(--se-text); }
     width: min(360px, calc(100vw - 16px));
   }
 }
+
+
+/* --- destructive admin actions ------------------------------------------ */
+
+.se-danger-zone {
+  border-color: rgba(255, 84, 104, 0.55);
+  box-shadow: inset 3px 0 0 var(--se-bad);
+}
+
+.se-danger-zone .se-panel__head {
+  border-bottom-color: rgba(255, 84, 104, 0.35);
+}
+
+.se-danger-zone .se-panel__title {
+  color: #ffd7dc;
+}
+
+.se-btn--danger {
+  background: var(--se-bad);
+  border-color: var(--se-bad);
+  color: #16070a;
+  font-weight: 800;
+}
+
+.se-btn--danger:hover:not(:disabled) {
+  background: #ff7383;
+  border-color: #ff7383;
+  color: #16070a;
+}
