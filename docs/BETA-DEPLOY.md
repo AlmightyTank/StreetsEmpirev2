@@ -86,6 +86,7 @@ FORUM_LINK_SECRET=""
 FORUM_API_KEY=""
 FORUM_NEWS_TAG_ID=""
 FORUM_RECRUITMENT_TAG_ID=""
+BETA_TESTER_DISCORD_LINKED=false
 BETA_TESTER_FORUM_GROUPS=""
 
 DISCORD_BOT_API_TOKEN=""
@@ -116,7 +117,8 @@ FORUM_API_KEY="<forum api key allowed to post beta announcements/recruitment>"
 FORUM_API_USER_ID=1
 FORUM_NEWS_TAG_ID="<beta announcements tag id>"
 FORUM_RECRUITMENT_TAG_ID="<beta recruitment tag id>"
-BETA_TESTER_FORUM_GROUPS="Beta Tester"
+BETA_TESTER_DISCORD_LINKED=true
+BETA_TESTER_FORUM_GROUPS=""
 
 # Beta Discord bot. Use a separate Discord application/bot token and beta server/channels.
 DISCORD_BOT_API_TOKEN="<beta bot api token>"
@@ -129,15 +131,15 @@ GAME_API_URL="http://127.0.0.1:3003"
 DISCORD_BOT_LISTEN_HOST="127.0.0.1"
 DISCORD_BOT_LISTEN_PORT=3004
 DISCORD_ROLE_SYNC_MODE="beta-tester-only"
-DISCORD_FORUM_GROUPS="Beta Tester"
+DISCORD_FORUM_GROUPS=""
 DISCORD_NEWS_CHANNEL_ID="<beta news channel id>"
 DISCORD_RAID_FEED_CHANNEL_ID="<beta raid feed channel id>"
 ```
 
-`BETA_TESTER_FORUM_GROUPS` grants the **Beta Tester** profile title/badge inside
-the game to linked forum accounts in the visible Flarum **Beta Tester** group.
-The Discord bot mirrors that group as `Beta Tester` when `DISCORD_ROLE_SYNC_MODE`
-is `beta-tester-only`; no other game roles are managed.
+`BETA_TESTER_DISCORD_LINKED=true` grants the **Beta Tester** profile title/badge
+inside the beta game to active accounts that have linked Discord. The beta bot
+mirrors those accounts as `Beta Tester` when `DISCORD_ROLE_SYNC_MODE` is
+`beta-tester-only`; no other game roles are managed.
 
 ## 3. Create the beta PostgreSQL database
 
@@ -337,18 +339,9 @@ Configure the forum with separate secrets:
 ],
 ```
 
-Then in Flarum administration:
-
-1. Create a visible **Beta Tester** group.
-2. Grant that group access to the private beta tags/categories you want testers
-   to use.
-3. Put beta players in that group.
-4. Keep the group visible if you want the game and Discord bot to see it.
-
-On beta, players link their forum account under **Game -> Account -> Forum
-account**. If their forum account is in **Beta Tester**, the beta game unlocks a
-**Beta Tester** title/badge, and the beta Discord bot mirrors it as the only
-managed role: `Beta Tester`.
+Forum linking is optional for beta profile/forum access. The **Beta Tester**
+game title and Discord role do not require a forum group: players get them after
+they sign up on beta and link Discord.
 
 ## 10. Normal beta deployment
 

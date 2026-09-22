@@ -37,7 +37,9 @@ const envSchema = z.object({
   FORUM_NEWS_TAG_ID: z.string().regex(/^\d*$/, 'FORUM_NEWS_TAG_ID must be a numeric Flarum tag id.').default(''),
   /** 0.3.0-C. The recruitment tag alliance leaders post their threads into. */
   FORUM_RECRUITMENT_TAG_ID: z.string().regex(/^\d*$/, 'FORUM_RECRUITMENT_TAG_ID must be a numeric Flarum tag id.').default(''),
-  /** Optional cosmetic: linked forum users in any of these visible groups get the Beta Tester title/badge. */
+  /** Optional cosmetic: any account with Discord linked gets the Beta Tester title/badge. */
+  BETA_TESTER_DISCORD_LINKED: z.coerce.boolean().default(false),
+  /** Optional legacy cosmetic path: linked forum users in any of these visible groups get the Beta Tester title/badge. */
   BETA_TESTER_FORUM_GROUPS: z.string().default(''),
 
   DISCORD_BOT_API_TOKEN: z.union([z.literal(''), z.string().min(64)]).default(''),
@@ -107,8 +109,9 @@ export const env = {
     },
   },
   betaTester: {
+    discordLinked: parsed.data.BETA_TESTER_DISCORD_LINKED,
     forumGroups: betaTesterForumGroups,
-    enabled: betaTesterForumGroups.length > 0,
+    enabled: parsed.data.BETA_TESTER_DISCORD_LINKED || betaTesterForumGroups.length > 0,
   },
   discordBot: {
     apiToken: parsed.data.DISCORD_BOT_API_TOKEN,

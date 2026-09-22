@@ -64,10 +64,12 @@ export function roleKeysFor(input: {
   nationalRank: number | null;
   legacy: PublicLegacyDto;
   forumGroups: ForumGroupBadgeDto[];
+  betaTester?: boolean;
   /** 0.3.0-C. The tag of the live alliance they are in this round. */
   allianceTag?: string | null;
 }): string[] {
   const keys = ['linked'];
+  if (input.betaTester) keys.push('beta-tester');
   if (input.inRound) keys.push('player');
   if (input.inRound && input.allianceTag) keys.push(`alliance:${input.allianceTag.toUpperCase()}`);
   if (input.nationalRank === 1) keys.push('national-1');
@@ -391,6 +393,7 @@ export const DiscordBotService = {
         nationalRank: ranked ? rankByAccount.get(account.id) ?? null : null,
         legacy: legacyByAccount.get(account.id) ?? emptyLegacy(),
         forumGroups: forumGroups[index]!,
+        betaTester: env.betaTester.discordLinked,
         // Alliance roles only mean something while the round can still change.
         allianceTag: round && (round.status === 'ACTIVE' || round.status === 'REGISTRATION') ? allianceByAccount.get(account.id) ?? null : null,
       }),

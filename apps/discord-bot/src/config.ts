@@ -34,7 +34,7 @@ const schema = z.object({
   DISCORD_BOT_LISTEN_PORT: z.coerce.number().int().min(0).max(65535).default(3002),
   /**
    * full: sync every game/forum/alliance role.
-   * beta-tester-only: sync only roles from DISCORD_FORUM_GROUPS, named exactly as the group.
+   * beta-tester-only: sync only the fixed Beta Tester role.
    */
   DISCORD_ROLE_SYNC_MODE: z.enum(['full', 'beta-tester-only']).default('full'),
 });

@@ -65,9 +65,9 @@ export function managedRoles(forumGroups: string[]): ManagedRole[] {
   ];
 }
 
-/** Beta-only mode: the bot owns only the tester group role, without the "Forum " prefix. */
-export function forumGroupRoles(forumGroups: string[]): ManagedRole[] {
-  return forumGroups.map((group) => ({ key: normalizeRoleKey(`forum:${group}`), name: group, color: null }));
+/** Beta-only mode: the bot owns only this role. */
+export function betaTesterRoles(): ManagedRole[] {
+  return [{ key: 'beta-tester', name: 'Beta Tester', color: 0x60a5fa }];
 }
 
 /** Display names for role keys, in managed-role order; unmanaged keys (e.g. unlisted forum groups) are skipped. */
