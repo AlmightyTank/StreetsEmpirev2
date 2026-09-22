@@ -88,6 +88,16 @@ describe('describeActivity', () => {
     });
   });
 
+  it('explains a completed quest objective', () => {
+    expect(describeActivity(activity({
+      title: 'First Night Out',
+      objective: 'Scout for 12 turns.',
+    }, 'QUEST_OBJECTIVE_COMPLETE'), 'crack')).toEqual({
+      text: 'Objective complete: Scout for 12 turns.',
+      detail: 'Job: First Night Out',
+    });
+  });
+
   it('summarizes claimed quest rewards', () => {
     expect(describeActivity(activity({
       title: 'First Night Out',

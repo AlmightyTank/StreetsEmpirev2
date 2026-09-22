@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { formatCents, formatCentsCompact } from '@streets/shared';
+import { GameEventToasts } from '../components/GameEventToasts.js';
 import { InstallBanner } from '../components/InstallBanner.js';
 import { SiteBanner } from '../components/SiteBanner.js';
 import { useSession } from '../stores/session.js';
@@ -218,6 +219,7 @@ export function Shell({ children, narrow, tabbar }: {
       </header>
 
       <SiteBanner />
+      <GameEventToasts />
 
       <main className={narrow ? 'se-authshell' : 'se-shell'}>{children}</main>
 

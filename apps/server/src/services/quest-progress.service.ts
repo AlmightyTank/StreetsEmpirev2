@@ -85,6 +85,18 @@ function progress(value: Prisma.JsonValue): QuestProgressMap {
   return result;
 }
 
+function newlyCompletedObjectives(
+  definitions: QuestObjectiveDefinition[],
+  before: QuestProgressMap,
+  after: QuestProgressMap,
+): QuestObjectiveDefinition[] {
+  return definitions.filter((objective) => {
+    const prior = before[objective.id];
+    const next = after[objective.id];
+    return prior?.completed !== true && next?.completed === true;
+  });
+}
+
 async function playerState(db: Db, roundPlayerId: string): Promise<QuestDataObject | undefined> {
   const row = await db.roundPlayer.findUnique({
     where: { id: roundPlayerId },
@@ -246,14 +258,18 @@ export const QuestProgressService = {
         continue;
       }
 
+      const requiredObjectives = objectives(playerQuest.questDefinition.objectives);
+      const bonusObjectives = objectives(playerQuest.questDefinition.bonusObjectives);
+      const requiredBefore = progress(playerQuest.objectiveProgress);
+      const bonusBefore = progress(playerQuest.bonusProgress);
       const required = applyQuestProgress(
-        objectives(playerQuest.questDefinition.objectives),
-        progress(playerQuest.objectiveProgress),
+        requiredObjectives,
+        requiredBefore,
         event,
       );
       const bonus = applyQuestProgress(
-        objectives(playerQuest.questDefinition.bonusObjectives),
-        progress(playerQuest.bonusProgress),
+        bonusObjectives,
+        bonusBefore,
         event,
       );
 
@@ -290,6 +306,26 @@ export const QuestProgressService = {
       });
 
       result.advanced += 1;
+      const completedObjectives = [
+        ...(becameReady ? [] : newlyCompletedObjectives(requiredObjectives, requiredBefore, required.progress)),
+        ...newlyCompletedObjectives(bonusObjectives, bonusBefore, bonus.progress).map((objective) => ({ ...objective, bonus: true })),
+      ];
+      for (const objective of completedObjectives) {
+        await db.playerActivity.create({
+          data: {
+            roundPlayerId,
+            type: 'QUEST_OBJECTIVE_COMPLETE',
+            payload: json({
+              questKey: playerQuest.questDefinition.key,
+              title: playerQuest.questDefinition.title,
+              contactKey: playerQuest.questDefinition.contactKey,
+              objectiveId: objective.id,
+              objective: objective.description,
+              bonus: 'bonus' in objective ? true : false,
+            }),
+          },
+        });
+      }
       if (becameReady) {
         result.readied += 1;
         await db.playerActivity.create({

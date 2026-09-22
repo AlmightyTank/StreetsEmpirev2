@@ -33,6 +33,7 @@ export type ActivityType =
   | 'ADMIN_GRANT'
   | 'HEAT_BRIBE'
   | 'HIDEOUT_UPGRADE'
+  | 'QUEST_OBJECTIVE_COMPLETE'
   | 'QUEST_READY'
   | 'QUEST_CLAIMED'
   | 'FAVOR_ACTIVATED'

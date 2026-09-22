@@ -10,6 +10,10 @@ function str(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
 
+function sentence(value: string): string {
+  return /[.!?]$/.test(value) ? value : `${value}.`;
+}
+
 function productFindSummary(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((row) => {
@@ -218,6 +222,12 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       return {
         text: `Upgraded ${str(p.name, 'the hideout')} to level ${formatNumber(num(p.level))}.`,
         detail: `-${formatCents(num(p.costCents))}`,
+      };
+
+    case 'QUEST_OBJECTIVE_COMPLETE':
+      return {
+        text: `${p.bonus ? 'Bonus objective' : 'Objective'} complete: ${sentence(str(p.objective, 'quest progress'))}`,
+        detail: str(p.title) ? `Job: ${str(p.title)}` : undefined,
       };
 
     case 'QUEST_READY':
