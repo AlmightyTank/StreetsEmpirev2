@@ -309,7 +309,7 @@ export function QuestPage() {
                       }
                     />
                     <p className="se-hint">{favor.description}</p>
-                    {favor.activationKind === 'TIMED' ? (
+                    {favor.activationKind === 'TIMED' && favor.activatable ? (
                       <Button
                         className="se-btn se-btn--primary"
                         disabledReason={
@@ -323,7 +323,9 @@ export function QuestPage() {
                       >
                         Activate
                       </Button>
-                    ) : <p className="se-hint">Single-use activation arrives in Phase L.</p>}
+                    ) : favor.activationKind === 'SINGLE_USE'
+                      ? <p className="se-hint">Single-use activation arrives in Phase L.</p>
+                      : <p className="se-hint">This pinned round stores the favor but does not activate timed effects.</p>}
                   </div>
                 );
               }) : <Row label="Stored favors" value="None yet" />}
