@@ -13,12 +13,14 @@ import {
   hideoutSpecializationSchema,
   hideoutWeaponPrioritySchema,
   favorActivateSchema,
+  favorArmSchema,
 } from '@streets/shared';
 import { toGameSnapshotDto } from '../game/dto.js';
 import { PayoutService } from '../services/payout.service.js';
 import { ProductionService } from '../services/production.service.js';
 import { HandcraftedQuestService } from '../services/handcrafted-quest.service.js';
 import { TimedFavorService } from '../services/timed-favor.service.js';
+import { SingleUseFavorService } from '../services/single-use-favor.service.js';
 import { ScoutService } from '../services/scout.service.js';
 import { toState } from '../services/action.service.js';
 import { StoreService } from '../services/store.service.js';
@@ -182,6 +184,20 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     const key = String((request.params as { key: string }).key).trim().toUpperCase();
     return TimedFavorService.activate(fastify.prisma, player.id, key, body);
+  });
+
+  fastify.post('/favors/:key/arm', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(favorArmSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const key = String((request.params as { key: string }).key).trim().toUpperCase();
+    return SingleUseFavorService.arm(fastify.prisma, player.id, key, body);
+  });
+
+  fastify.post('/favors/:key/disarm', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(favorArmSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const key = String((request.params as { key: string }).key).trim().toUpperCase();
+    return SingleUseFavorService.disarm(fastify.prisma, player.id, key, body);
   });
 
   /** Section 26. */
