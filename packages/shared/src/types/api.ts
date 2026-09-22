@@ -455,6 +455,8 @@ export interface ScoutResult {
   /** Your share, which is what landed in cash. */
   cashEarnedCents: number;
   hideoutBonusCents?: number;
+  favorIncomePercent?: number;
+  favorRecruitmentPercent?: number;
   payoutPercent: number;
 
   /** Crack-only compatibility field. On product rounds, this is the Crack slice of productsFound. */
