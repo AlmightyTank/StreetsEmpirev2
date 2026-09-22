@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import type { FavorCategory, FavorDefinition, Ruleset } from '@streets/rulesets';
+import type { FavorCategory, FavorDefinition, Ruleset, TimedFavorEffect } from '@streets/rulesets';
 import type { FavorActivateInput, FavorActivationResult, GameActionResult, QuestActiveFavorDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
@@ -22,10 +22,19 @@ const EMPTY_BONUSES: TimedFavorBonuses = {
   treatmentMedicineEfficiencyPercent: 0,
 };
 
+function isTimedEffect(effect: FavorDefinition['effect']): effect is TimedFavorEffect {
+  return effect?.kind === 'SCOUT_BOOST'
+    || effect?.kind === 'PRODUCTION_BOOST'
+    || effect?.kind === 'PIP_BUY_DISCOUNT'
+    || effect?.kind === 'TREATMENT_EFFICIENCY';
+}
+
 function timed(definition: FavorDefinition): definition is FavorDefinition & {
   activation: { kind: 'TIMED'; category: FavorCategory; durationMinutes: number };
+  effect?: TimedFavorEffect;
 } {
-  return definition.activation.kind === 'TIMED';
+  return definition.activation.kind === 'TIMED'
+    && (!definition.effect || isTimedEffect(definition.effect));
 }
 
 export const TimedFavorService = {
@@ -65,8 +74,9 @@ export const TimedFavorService = {
     });
     const out = { ...EMPTY_BONUSES };
     for (const row of rows) {
-      const effect = ruleset.favors?.[row.favorKey]?.effect;
-      if (!effect) continue;
+      const definition = ruleset.favors?.[row.favorKey];
+      if (!definition || !timed(definition) || !definition.effect) continue;
+      const effect = definition.effect;
       switch (effect.kind) {
         case 'SCOUT_BOOST':
           out.scoutIncomePercent = Math.max(out.scoutIncomePercent, effect.incomePercent);
