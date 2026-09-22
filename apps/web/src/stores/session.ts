@@ -87,7 +87,7 @@ export const useSession = create<SessionState>((set, get) => ({
       .me()
       .then((r) => r.account)
       .catch((error: unknown) => {
-        if (error instanceof ApiError && error.isUnauthenticated) return null;
+        if (error instanceof ApiError && (error.isUnauthenticated || error.code === 'BETA_APPROVAL_REQUIRED')) return null;
         throw error;
       });
 
