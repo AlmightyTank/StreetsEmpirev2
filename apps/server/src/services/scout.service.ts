@@ -8,6 +8,7 @@ import { HeatService } from './heat.service.js';
 import { hideoutBackOfficeBonusCents } from './hideout.service.js';
 import { CRACK, ProductInventoryService, streetProductFinds, summarizeProductMovements } from './product-inventory.service.js';
 import { TurfService } from './turf.service.js';
+import { TimedFavorService } from './timed-favor.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 
 export interface Crew {
@@ -139,12 +140,35 @@ export const ScoutService = {
           : undefined;
         if (supply) await WorkSupplyService.consume(tx, roundPlayerId, ruleset, supply);
 
+        const favorBonuses = await TimedFavorService.bonuses(tx, roundPlayerId, ruleset, now);
+        const scoutRuleset: Ruleset = favorBonuses.scoutIncomePercent > 0 || favorBonuses.scoutRecruitmentPercent > 0
+          ? {
+              ...ruleset,
+              scouting: {
+                ...ruleset.scouting,
+                grossPerWhorePerTurnCents: Math.max(
+                  1,
+                  Math.round(ruleset.scouting.grossPerWhorePerTurnCents * (100 + favorBonuses.scoutIncomePercent) / 100),
+                ),
+                districts: {
+                  ...ruleset.scouting.districts,
+                  [found.key]: {
+                    ...ruleset.scouting.districts[found.key],
+                    whoresPerTurn: ruleset.scouting.districts[found.key].whoresPerTurn
+                      * (100 + favorBonuses.scoutRecruitmentPercent) / 100,
+                    thugsPerTurn: ruleset.scouting.districts[found.key].thugsPerTurn
+                      * (100 + favorBonuses.scoutRecruitmentPercent) / 100,
+                  },
+                },
+              },
+            }
+          : ruleset;
         const outcome = calculateScout({
           supply,
           heat: current.heat,
           player: { ...active, whoreHappiness, thugHappiness },
           turns: input.turns,
-          ruleset,
+          ruleset: scoutRuleset,
           city: cityModifiers(ruleset, player.city.slug),
           district: found.key,
           clientCapacity: capacities[found.key],
@@ -235,6 +259,8 @@ export const ScoutService = {
           crewTakeCents: Number(outcome.crewTakeCents),
           cashEarnedCents: Number(pimpTakeCents),
           hideoutBonusCents: Number(hideoutBonusCents),
+          ...(favorBonuses.scoutIncomePercent > 0 ? { favorIncomePercent: favorBonuses.scoutIncomePercent } : {}),
+          ...(favorBonuses.scoutRecruitmentPercent > 0 ? { favorRecruitmentPercent: favorBonuses.scoutRecruitmentPercent } : {}),
           payoutPercent: current.payoutPercent,
 
           crackFound,
@@ -277,6 +303,8 @@ export const ScoutService = {
               thugs: outcome.thugsRecruited,
               cashCents: Number(pimpTakeCents),
               hideoutBonusCents: Number(hideoutBonusCents),
+              ...(favorBonuses.scoutIncomePercent > 0 ? { favorIncomePercent: favorBonuses.scoutIncomePercent } : {}),
+              ...(favorBonuses.scoutRecruitmentPercent > 0 ? { favorRecruitmentPercent: favorBonuses.scoutRecruitmentPercent } : {}),
               crackFound,
               ...(ruleset.productEconomy ? {
                 productsFound: productsFound.map((row) => ({ key: row.key, name: row.name, quantity: row.quantity })),
