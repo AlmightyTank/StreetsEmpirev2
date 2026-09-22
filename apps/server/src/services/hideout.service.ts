@@ -426,26 +426,26 @@ async function securityDto(
   };
 }
 
-export function hideoutProtectedCashBonusCents(ruleset: Ruleset, player: Pick<PlayerState, HideoutField>): number {
+export function hideoutProtectedCashBonusCents(ruleset: Ruleset, player: Pick<PlayerState, 'hideoutSafeRoomLevel'>): number {
   return (ruleset.hideout?.buffs.safeRoomProtectedCashCentsPerLevel ?? 0) * player.hideoutSafeRoomLevel;
 }
 
-export function hideoutDefenseBonusPercent(ruleset: Ruleset, player: Pick<PlayerState, HideoutField>): number {
+export function hideoutDefenseBonusPercent(ruleset: Ruleset, player: Pick<PlayerState, 'hideoutLookoutsLevel'>): number {
   return (ruleset.hideout?.buffs.lookoutsDefenseBonusPercentPerLevel ?? 0) * player.hideoutLookoutsLevel;
 }
 
 /** Returns the Workshop bonus in whole product units, rounded down. */
-export function hideoutWorkshopBonusProduct(base: number, ruleset: Ruleset, player: Pick<PlayerState, HideoutField>): number {
+export function hideoutWorkshopBonusProduct(base: number, ruleset: Ruleset, player: Pick<PlayerState, 'hideoutWorkshopLevel'>): number {
   const percent = (ruleset.hideout?.buffs.workshopCrackBonusPercentPerLevel ?? 0) * player.hideoutWorkshopLevel;
   return Math.floor(base * percent / 100);
 }
 
 /** Compatibility name for callers pinned to the original crack-only Hideout contract. */
-export function hideoutWorkshopBonusCrack(base: number, ruleset: Ruleset, player: Pick<PlayerState, HideoutField>): number {
+export function hideoutWorkshopBonusCrack(base: number, ruleset: Ruleset, player: Pick<PlayerState, 'hideoutWorkshopLevel'>): number {
   return hideoutWorkshopBonusProduct(base, ruleset, player);
 }
 
-export function hideoutBackOfficeBonusCents(base: bigint, ruleset: Ruleset, player: Pick<PlayerState, HideoutField>): bigint {
+export function hideoutBackOfficeBonusCents(base: bigint, ruleset: Ruleset, player: Pick<PlayerState, 'hideoutBackOfficeLevel'>): bigint {
   const percent = (ruleset.hideout?.buffs.backOfficeTakeBonusPercentPerLevel ?? 0) * player.hideoutBackOfficeLevel;
   return (base * BigInt(percent)) / 100n;
 }
