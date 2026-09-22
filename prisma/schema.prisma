@@ -657,6 +657,11 @@ model RoundPlayer {
   hideoutGarageLevel    Int @default(0)
   /// 0.7.0-F. Which guns home squads and run escorts consume first.
   hideoutWeaponPriority String @default("POWER")
+  /// 0.7.0-G. Permanent for this RoundPlayer; the next season starts clean.
+  hideoutSafeRoomSpecialization   String?
+  hideoutLookoutsSpecialization   String?
+  hideoutWorkshopSpecialization   String?
+  hideoutBackOfficeSpecialization String?
 
   /// 0.3.0-C. The alliance this player is in now, and since when. Shared revenge only
   /// counts hits on the alliance from after the member joined.
