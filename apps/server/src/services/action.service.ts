@@ -30,6 +30,7 @@ import { RelocationService } from './relocation.service.js';
 import { RunSettleService } from './run-settle.service.js';
 import { TurfService } from './turf.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
+import { QuestProgressService } from './quest-progress.service.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
 
 /**
@@ -470,6 +471,26 @@ export const ActionService = {
           outcome.activity.type,
           outcome.activity.payload,
         );
+      } else {
+        // Not every resource-changing action belongs in the player's feed.
+        // Quests still need one authoritative post-action signal so state
+        // objectives and explicitly scoped action objectives never miss it.
+        const cashChangeCents = Number(next.cashCents - current.cashCents);
+        const turnsUsed = Math.max(0, current.turns - next.turns);
+        await QuestProgressService.emit(tx, roundPlayerId, {
+          sourceKey: options.actionId
+            ? `action:${options.action}:${options.actionId}`
+            : `action:${options.action}:${roundPlayerId}:${now.toISOString()}`,
+          type: options.action,
+          payload: {
+            action: options.action,
+            turns: turnsUsed,
+            turnsUsed,
+            cashCents: Math.max(0, cashChangeCents),
+            cashChangeCents,
+          },
+          at: now,
+        });
       }
 
       const before = toSnapshot(current, beforeHappiness, beforeNetWorth);
