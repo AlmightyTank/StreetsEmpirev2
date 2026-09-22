@@ -18,6 +18,7 @@ import { ActionService } from './action.service.js';
 import { PlayerStateService } from './player-state.service.js';
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
+import { TimedFavorService } from './timed-favor.service.js';
 
 /** Pip's wait for a product shelf, shortened by standing with Pip exactly like his crack shelf. */
 function shelfInterval(ruleset: Ruleset, standings: Standings, intervalMinutes: number): number {
@@ -26,6 +27,12 @@ function shelfInterval(ruleset: Ruleset, standings: Standings, intervalMinutes: 
 
 async function shelfRow(db: Db | PrismaClient, roundPlayerId: string, productKey: string) {
   return db.productShelf.findUnique({ where: { roundPlayerId_productKey: { roundPlayerId, productKey } }, select: { stock: true, stockAt: true } });
+}
+
+function discountedPipBuyCents(buyCents: number, sellCents: number, discountPercent: number): number {
+  if (discountPercent <= 0) return buyCents;
+  const discounted = Math.floor(buyCents * (100 - Math.min(90, discountPercent)) / 100);
+  return Math.max(sellCents + 1, discounted);
 }
 
 /**
@@ -45,6 +52,7 @@ export const ProductMarketService = {
     const recipes = new Map(productRecipes(ruleset).map((recipe) => [recipe.product, recipe]));
     const economyOn = Boolean(ruleset.productEconomy);
     const unlockKeys = await PermanentUnlockService.keys(prisma, roundPlayerId);
+    const favorBonuses = await TimedFavorService.bonuses(prisma, roundPlayerId, ruleset, now);
 
     return {
       enabled: true,
@@ -58,6 +66,9 @@ export const ProductMarketService = {
         const recipe = economyOn ? recipes.get(key) : undefined;
         const requiredUnlock = PermanentUnlockService.productPurchaseUnlock(ruleset, key);
         const purchaseUnlocked = !requiredUnlock || unlockKeys.has(requiredUnlock.key);
+        const effectiveBuyCents = economy?.pip
+          ? discountedPipBuyCents(economy.pip.buyCents, economy.pip.sellCents, favorBonuses.pipBuyDiscountPercent)
+          : 0;
         return {
           key,
           name: definition.name,
@@ -66,15 +77,16 @@ export const ProductMarketService = {
           ...(economyOn ? {
             netWorthCents: key === CRACK ? ruleset.economy.netWorth.perCrackCents : economy?.netWorthCents ?? 0,
             pip: economy?.pip && shelf ? {
-              buyCents: economy.pip.buyCents,
+              buyCents: effectiveBuyCents,
               sellCents: economy.pip.sellCents,
               stock: shelf.stock,
               cap: shelf.cap,
               perInterval: shelf.perInterval,
               intervalMinutes: shelf.intervalMinutes,
               nextAt: shelf.nextAt ? shelf.nextAt.toISOString() : null,
-              maxBuy: purchaseUnlocked ? maxProductBuy(player.cashCents, quantity, economy.pip.buyCents, shelf.stock) : 0,
+              maxBuy: purchaseUnlocked ? maxProductBuy(player.cashCents, quantity, effectiveBuyCents, shelf.stock) : 0,
               purchaseUnlocked,
+              ...(favorBonuses.pipBuyDiscountPercent > 0 ? { favorDiscountPercent: favorBonuses.pipBuyDiscountPercent } : {}),
               unlockName: requiredUnlock?.name ?? null,
               unlockDescription: requiredUnlock?.description ?? null,
             } : null,
@@ -113,9 +125,24 @@ export const ProductMarketService = {
         const owned = inventory[input.product] ?? 0;
         const shelf = settleProductShelf(await shelfRow(tx, roundPlayerId, input.product), economy, now, shelfInterval(ruleset, standings, economy.pip.restock.intervalMinutes))!;
 
+        const favorBonuses = await TimedFavorService.bonuses(tx, roundPlayerId, ruleset, now);
+        const buyUnitCents = discountedPipBuyCents(
+          economy.pip.buyCents,
+          economy.pip.sellCents,
+          favorBonuses.pipBuyDiscountPercent,
+        );
         let trade;
         try {
-          trade = calculateProductTrade({ ruleset, product: input.product, direction: input.direction, quantity: input.quantity, owned, cashCents: current.cashCents, shelfStock: shelf.stock });
+          trade = calculateProductTrade({
+            ruleset,
+            product: input.product,
+            direction: input.direction,
+            quantity: input.quantity,
+            owned,
+            cashCents: current.cashCents,
+            shelfStock: shelf.stock,
+            ...(input.direction === 'buy' ? { buyUnitCents } : {}),
+          });
         } catch (error) {
           if (error instanceof StoreTradeError) throw AppError.badRequest(error.code, error.message, error.field ? { [error.field]: error.message } : undefined);
           throw error;
@@ -145,6 +172,9 @@ export const ProductMarketService = {
           quantityAfter: owned + trade.quantityChange,
           stockAfter: input.direction === 'buy' ? stockAfter : null,
           reputationGained: credit.gained,
+          ...(input.direction === 'buy' && favorBonuses.pipBuyDiscountPercent > 0
+            ? { favorDiscountPercent: favorBonuses.pipBuyDiscountPercent }
+            : {}),
         };
         return {
           next: { ...current, cashCents: current.cashCents + trade.cashChangeCents },
@@ -166,6 +196,7 @@ export const ProductMarketService = {
               direction: trade.direction,
               quantity: trade.quantity,
               totalCents: result.totalCents,
+              ...(result.favorDiscountPercent ? { favorDiscountPercent: result.favorDiscountPercent } : {}),
             },
           },
         };
