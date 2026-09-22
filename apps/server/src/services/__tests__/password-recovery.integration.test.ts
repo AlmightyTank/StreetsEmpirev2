@@ -37,7 +37,10 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('account email auth with Po
   });
 
   afterAll(async () => {
-    if (accountId) await app.prisma.account.delete({ where: { id: accountId } });
+    if (accountId) {
+      await app.prisma.discordResyncRequest.deleteMany({ where: { requestedByAccountId: accountId } });
+      await app.prisma.account.delete({ where: { id: accountId } });
+    }
     await app?.close();
   });
 
@@ -182,4 +185,59 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('account email auth with Po
     expect(changed.json().account.emailVerifiedAt).not.toBeNull();
     email = nextEmail;
   });
+  it('requires the current password to unlink Discord and cleans Discord delivery state', async () => {
+    const discordId = `9${String(Date.now()).padStart(17, '0').slice(-17)}`;
+    await app.prisma.account.update({
+      where: { id: accountId },
+      data: {
+        discordId,
+        discordUsername: 'unlink-test',
+        discordAvatar: 'avatar',
+        discordLinkedAt: new Date(),
+      },
+    });
+    await app.prisma.notificationSettings.upsert({
+      where: { accountId },
+      create: { accountId, discordEnabled: true },
+      update: { discordEnabled: true },
+    });
+    await app.prisma.notificationOutbox.create({
+      data: {
+        accountId,
+        channel: 'DISCORD',
+        category: 'turns',
+        payload: { test: true },
+        dedupeKey: `discord-unlink-${randomUUID()}`,
+      },
+    });
+
+    const wrongPassword = await app.inject({
+      method: 'DELETE',
+      url: '/api/auth/discord',
+      headers: headers(),
+      payload: { currentPassword: 'definitely-not-the-password' },
+    });
+    expect(wrongPassword.statusCode).toBe(400);
+    expect(wrongPassword.json().error.code).toBe('CURRENT_PASSWORD_INVALID');
+    expect((await app.prisma.account.findUniqueOrThrow({ where: { id: accountId } })).discordId).toBe(discordId);
+
+    const unlinked = await app.inject({
+      method: 'DELETE',
+      url: '/api/auth/discord',
+      headers: headers(),
+      payload: { currentPassword },
+    });
+    expect(unlinked.statusCode, unlinked.body).toBe(200);
+    expect(unlinked.json().account).toMatchObject({ discordLinked: false, discordUsername: null });
+
+    const account = await app.prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+    expect(account.discordId).toBeNull();
+    expect(account.discordUsername).toBeNull();
+    expect(account.discordAvatar).toBeNull();
+    expect(account.discordLinkedAt).toBeNull();
+    expect((await app.prisma.notificationSettings.findUniqueOrThrow({ where: { accountId } })).discordEnabled).toBe(false);
+    expect(await app.prisma.notificationOutbox.count({ where: { accountId, channel: 'DISCORD', claimedAt: null } })).toBe(0);
+    expect(await app.prisma.discordResyncRequest.count({ where: { discordId, requestedByAccountId: accountId } })).toBe(1);
+  });
+
 });
