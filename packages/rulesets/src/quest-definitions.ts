@@ -12,11 +12,48 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
     if (quest.objectives.length === 0) problems.push(`${catalogKey}: at least one objective is required`);
 
     for (const prerequisite of quest.prerequisites) {
-      if (!prerequisite.kind.trim()) problems.push(`${catalogKey}: prerequisite kind is required`);
+      if (!prerequisite.kind.trim()) {
+        problems.push(`${catalogKey}: prerequisite kind is required`);
+        continue;
+      }
+      if (prerequisite.kind === 'QUEST_COMPLETED') {
+        const key = prerequisite.params?.questKey;
+        if (typeof key !== 'string' || !key.trim()) {
+          problems.push(`${catalogKey}: QUEST_COMPLETED requires questKey`);
+        } else if (!(key in catalog)) {
+          problems.push(`${catalogKey}: unknown prerequisite quest ${key}`);
+        } else if (key === quest.key) {
+          problems.push(`${catalogKey}: quest cannot require itself`);
+        }
+      }
+      if (prerequisite.kind === 'CONTACT_REP_AT_LEAST') {
+        const contactKey = prerequisite.params?.contactKey;
+        const points = prerequisite.params?.points;
+        if (typeof contactKey !== 'string' || !contactKey.trim()) {
+          problems.push(`${catalogKey}: CONTACT_REP_AT_LEAST requires contactKey`);
+        }
+        if (typeof points !== 'number' || !Number.isFinite(points) || points <= 0) {
+          problems.push(`${catalogKey}: CONTACT_REP_AT_LEAST requires positive points`);
+        }
+      }
     }
 
     for (const reward of quest.rewards) {
-      if (!reward.kind.trim()) problems.push(`${catalogKey}: reward kind is required`);
+      if (!reward.kind.trim()) {
+        problems.push(`${catalogKey}: reward kind is required`);
+        continue;
+      }
+      if (['CASH', 'TURNS', 'ITEM', 'CONTACT_REP'].includes(reward.kind)) {
+        if (typeof reward.amount !== 'number' || !Number.isFinite(reward.amount) || reward.amount <= 0) {
+          problems.push(`${catalogKey}: ${reward.kind} reward requires a positive amount`);
+        }
+      }
+      if ((reward.kind === 'ITEM' || reward.kind === 'CONTACT_REP') && (!reward.key || !reward.key.trim())) {
+        problems.push(`${catalogKey}: ${reward.kind} reward requires a key`);
+      }
+      if (reward.kind === 'WEAPON_ACCESS' && !['SHOTGUN', 'TEK9', 'AK47'].includes(reward.key ?? '')) {
+        problems.push(`${catalogKey}: WEAPON_ACCESS reward requires SHOTGUN, TEK9 or AK47`);
+      }
     }
 
     const seen = new Set<string>();
