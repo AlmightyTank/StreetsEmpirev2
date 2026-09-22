@@ -95,4 +95,6 @@ Phase O covers:
 - deterministic three-offer selection
 - daily reset boundary behavior
 - board rotation across reset windows
+- persisted attempt rollover when a contract returns
+- completed daily history surviving later rotations
 - Hideout inheritance through 0.7-M and 0.7-N
