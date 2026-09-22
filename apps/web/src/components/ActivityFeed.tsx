@@ -312,6 +312,16 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         text: `Activated ${str(p.name, str(p.favorKey, 'a favor'))}.`,
         detail: `${str(p.category)} · active until ${str(p.expiresAt) ? new Date(str(p.expiresAt)).toLocaleTimeString() : 'soon'}`,
       };
+    case 'FAVOR_ARMED':
+      return {
+        text: `Armed ${str(p.name, str(p.favorKey, 'a favor'))}.`,
+        detail: `${str(p.category)} · waiting for the next eligible action`,
+      };
+    case 'FAVOR_DISARMED':
+      return {
+        text: `Put ${str(p.name, str(p.favorKey, 'a favor'))} back in your pocket.`,
+        detail: str(p.category),
+      };
     default:
       return { text: String(activity.type).replace(/_/g, ' ').toLowerCase() };
   }
