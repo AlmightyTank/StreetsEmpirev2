@@ -27,7 +27,12 @@ export function RegisterPage() {
     setFields({});
 
     try {
-      await register({ username, email, password });
+      const approvalMessage = await register({ username, email, password });
+      if (approvalMessage) {
+        setMessage(approvalMessage);
+        setPassword('');
+        return;
+      }
       navigate('/join');
     } catch (error) {
       if (error instanceof ApiError) {
