@@ -15,11 +15,11 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
 
-type Tab = 'available' | 'active' | 'completed';
+type Tab = 'available' | 'daily' | 'active' | 'completed';
 
 function tabFromSearch(search: string): Tab {
   const requested = new URLSearchParams(search).get('tab');
-  return requested === 'active' || requested === 'completed' || requested === 'available'
+  return requested === 'daily' || requested === 'active' || requested === 'completed' || requested === 'available'
     ? requested
     : 'available';
 }
@@ -68,7 +68,7 @@ function QuestCard({
       id={`quest-${quest.key}`}
       className="se-quest-card"
       title={quest.title}
-      aside={<span className="se-num se-dim">{quest.contactName ?? 'StreetsEmpire'} · {quest.type === 'SIDE' ? 'Side job' : quest.type === 'STORY' ? 'Story' : quest.type} · {statusLabel(quest)}</span>}
+      aside={<span className="se-num se-dim">{quest.contactName ?? 'StreetsEmpire'} · {quest.type === 'DAILY' ? 'Daily contract' : quest.type === 'SIDE' ? 'Side job' : quest.type === 'STORY' ? 'Story' : quest.type} · {statusLabel(quest)}</span>}
     >
       <p className="se-hint se-quest-card__desc">{quest.description}</p>
       <div className="se-rows se-quest-objectives">
@@ -128,7 +128,7 @@ function QuestCard({
         ) : null}
       </div>
 
-      {quest.expiresAt ? <p className="se-hint">Expires {new Date(quest.expiresAt).toLocaleString()}.</p> : null}
+      {quest.expiresAt ? <p className="se-hint">{quest.type === 'DAILY' ? 'Daily board resets ' : 'Expires '}{new Date(quest.expiresAt).toLocaleString()}.</p> : null}
     </Panel>
   );
 }
@@ -185,6 +185,19 @@ export function QuestPage() {
   }, [location.search]);
 
   useEffect(() => {
+    const resetAt = page?.dailyContracts.resetAt;
+    if (!resetAt) return;
+    const resetAtMs = new Date(resetAt).getTime();
+    const delay = resetAtMs - serverAdjustedNowMs(Date.now(), clockOffsetMs) + 250;
+    if (delay <= 0) {
+      void load();
+      return;
+    }
+    const timer = window.setTimeout(() => void load(), delay);
+    return () => window.clearTimeout(timer);
+  }, [page?.dailyContracts.resetAt, clockOffsetMs, load]);
+
+  useEffect(() => {
     if (!page || !location.hash) return;
     const id = decodeURIComponent(location.hash.slice(1));
     const frame = window.requestAnimationFrame(() => {
@@ -196,12 +209,27 @@ export function QuestPage() {
     return () => window.cancelAnimationFrame(frame);
   }, [page, tab, location.hash]);
 
+  const dailyToday = useMemo(
+    () => page?.quests.filter((quest) =>
+      quest.type === 'DAILY'
+      && quest.expiresAt !== null
+      && new Date(quest.expiresAt).getTime() > nowMs
+    ) ?? [],
+    [page, nowMs],
+  );
+
+  const standardAvailableCount = useMemo(
+    () => page?.quests.filter((quest) => quest.status === 'AVAILABLE' && quest.type !== 'DAILY').length ?? 0,
+    [page],
+  );
+
   const shown = useMemo(() => {
     if (!page) return [];
+    if (tab === 'daily') return dailyToday;
     if (tab === 'active') return page.quests.filter((quest) => ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status));
     if (tab === 'completed') return page.quests.filter((quest) => ['COMPLETED', 'FAILED', 'EXPIRED'].includes(quest.status));
-    return page.quests.filter((quest) => quest.status === 'AVAILABLE');
-  }, [page, tab]);
+    return page.quests.filter((quest) => quest.status === 'AVAILABLE' && quest.type !== 'DAILY');
+  }, [page, tab, dailyToday]);
 
   const liveFavors = useMemo(
     () => page?.activeFavors.filter((favor) => new Date(favor.expiresAt).getTime() > nowMs) ?? [],
@@ -312,7 +340,14 @@ export function QuestPage() {
               <div className="se-grid se-quest-summary__col">
                 <Panel title="Jobs">
                   <div className="se-rows">
-                    <Row label="Available" value={formatNumber(page.counts.available)} />
+                    <Row label="Available jobs" value={formatNumber(standardAvailableCount)} />
+                    {page.dailyContracts.enabled ? (
+                      <Row
+                        label="Daily board"
+                        value={formatNumber(dailyToday.length) + ' / ' + formatNumber(page.dailyContracts.slots)}
+                        strong={dailyToday.some((quest) => quest.status === 'READY_TO_TURN_IN')}
+                      />
+                    ) : null}
                     <Row label="Active" value={formatNumber(page.counts.active) + ' / ' + formatNumber(page.activeLimit)} />
                     <Row label="Ready to collect" value={formatNumber(page.counts.ready)} strong={page.counts.ready > 0} />
                     <Row label="Completed" value={formatNumber(page.counts.completed)} />
@@ -321,6 +356,9 @@ export function QuestPage() {
                       value={formatNumber(page.quests.filter((quest) => quest.isTracked).length) + ' / ' + formatNumber(page.trackedLimit)}
                     />
                   </div>
+                  {page.dailyContracts.resetAt ? (
+                    <p className="se-hint se-mt">Daily contracts rotate {new Date(page.dailyContracts.resetAt).toLocaleString()}.</p>
+                  ) : null}
                 </Panel>
 
                 <Panel title="Permanent unlocks">
@@ -451,7 +489,8 @@ export function QuestPage() {
 
             <div className="se-storetabs se-quest-tabs" role="tablist" aria-label="Quest view">
             {([
-              ['available', 'Available (' + page.counts.available + ')'],
+              ['available', 'Available (' + standardAvailableCount + ')'],
+              ...(page.dailyContracts.enabled ? [['daily', 'Daily (' + dailyToday.length + ')'] as const] : []),
               ['active', 'Active (' + page.counts.active + ')'],
               ['completed', 'Completed (' + page.counts.completed + ')'],
             ] as const).map(([key, label]) => (
@@ -471,7 +510,7 @@ export function QuestPage() {
             <div className="se-grid se-quest-list">
             {shown.length ? shown.map((quest) => (
               <QuestCard
-                key={quest.key}
+                key={quest.key + ':' + quest.attempt}
                 quest={quest}
                 page={page}
                 busy={busy ? 'Another job update is still going through.' : null}
