@@ -131,6 +131,7 @@ export interface CombatRecoveryDto {
   maxTreatableThugs: number;
   medicineEfficiencyPercent?: number;
   favorMedicineEfficiencyPercent?: number;
+  freeTreatmentFavorKey?: string;
 }
 
 export interface CombatTreatmentDto {
@@ -205,7 +206,7 @@ export interface CombatPageDto {
     drugLootPercent?: number; perThugCrackLoot?: number;
     minLootPercent?: number; maxLootPercent?: number; weightedLootExponent?: number;
     repeatLootPenaltyPercent?: number; repeatLootFloorPercent?: number;
-    reconTurnCost?: number; intelExpiresMinutes?: number; retaliationHours?: number;
+    reconTurnCost?: number; reconFavorKey?: string; intelExpiresMinutes?: number; retaliationHours?: number;
   };
   targets: CombatTargetDto[];
   nextTarget: number | null;
