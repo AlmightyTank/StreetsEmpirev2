@@ -331,7 +331,7 @@ export function QuestPage() {
       setNotice(
         result.result.title
         + ' complete — payment collected.'
-        + (result.result.chosenBranch ? ' Choice locked: ' + result.result.chosenBranch + '.' : ''),
+        + (result.result.chosenBranch ? ' Choice locked: ' + (branchTitle ?? result.result.chosenBranch) + '.' : ''),
       );
       window.dispatchEvent(new Event('streets:quests-changed'));
       await Promise.all([load(), refreshSnapshot()]);
