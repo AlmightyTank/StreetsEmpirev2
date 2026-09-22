@@ -5,8 +5,8 @@ import { hideoutV2For, hideoutV2Problems } from '../hideout-v2.js';
 describe('quest roadmap Phase L single-use favors', () => {
   it('keeps 0.7-J pinned without live single-use effects', () => {
     expect('effect' in classicOgV07J.favors!.TOMMY_VOUCHER).toBe(false);
-    expect(classicOgV07J.favors!.BURNER_PHONE).toBeUndefined();
-    expect(classicOgV07J.favors!.DOCTOR_FAVOR).toBeUndefined();
+    expect('BURNER_PHONE' in classicOgV07J.favors!).toBe(false);
+    expect('DOCTOR_FAVOR' in classicOgV07J.favors!).toBe(false);
   });
 
   it('adds three armed single-use effects in 0.7-K', () => {
