@@ -13,6 +13,7 @@ import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
+import { serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
 
 type Tab = 'available' | 'active' | 'completed';
 
@@ -140,25 +141,43 @@ export function QuestPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [clockOffsetMs, setClockOffsetMs] = useState(0);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
+  const applyPage = useCallback((
+    next: QuestPageDto,
+    requestStartedAtMs: number,
+    responseReceivedAtMs: number,
+  ) => {
+    const offset = serverClockOffsetMs(next.serverTime, requestStartedAtMs, responseReceivedAtMs);
+    setClockOffsetMs(offset);
+    setNowMs(serverAdjustedNowMs(responseReceivedAtMs, offset));
+    setPage(next);
+  }, []);
+
   const load = useCallback(async () => {
+    const requestStartedAtMs = Date.now();
     try {
-      setPage(await questsApi.page());
+      const next = await questsApi.page();
+      const responseReceivedAtMs = Date.now();
+      applyPage(next, requestStartedAtMs, responseReceivedAtMs);
       setError(null);
     } catch {
       setError('Could not load jobs right now. Try again.');
     }
-  }, []);
+  }, [applyPage]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNowMs(Date.now()), 1_000);
+    const timer = window.setInterval(
+      () => setNowMs(serverAdjustedNowMs(Date.now(), clockOffsetMs)),
+      1_000,
+    );
     return () => window.clearInterval(timer);
-  }, []);
+  }, [clockOffsetMs]);
 
   useEffect(() => {
     setTab(tabFromSearch(location.search));
@@ -192,8 +211,11 @@ export function QuestPage() {
     setBusy(key);
     setError(null);
     setNotice(null);
+    const requestStartedAtMs = Date.now();
     try {
-      setPage(await action());
+      const next = await action();
+      const responseReceivedAtMs = Date.now();
+      applyPage(next, requestStartedAtMs, responseReceivedAtMs);
       window.dispatchEvent(new Event('streets:quests-changed'));
       if (success) setNotice(success);
     } catch (cause) {
