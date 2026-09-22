@@ -277,6 +277,7 @@ function goalProgress(
   }
 }
 
+/** @deprecated Historical favor progress. Current jobs use PlayerQuest. */
 export function questProgress(
   key: QuestKey,
   player: QuestPlayer,
@@ -313,8 +314,8 @@ export interface QuestCompletion {
 }
 
 /**
- * Completing a favour. Grants standing and takes the goods; it never grants a
- * weapon directly - the gun ladder reads the resulting total on its own.
+ * @deprecated Historical favor completion retained for pinned old rulesets and
+ * tests. Current rounds complete jobs through HandcraftedQuestService.
  */
 export function calculateQuestCompletion(
   key: string,
