@@ -36,6 +36,8 @@ export type ActivityType =
   | 'QUEST_READY'
   | 'QUEST_CLAIMED'
   | 'FAVOR_ACTIVATED'
+  | 'FAVOR_ARMED'
+  | 'FAVOR_DISARMED'
   | 'RUN_LAUNCHED'
   | 'RUN_RETURNED'
   | 'RUN_INCIDENT'
