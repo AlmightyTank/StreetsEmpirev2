@@ -31,6 +31,11 @@ import {
   dailyContractWindow,
   syncDailyContractAttempts,
 } from './daily-contract.service.js';
+import {
+  WEEKLY_CONTRACT_SLOTS,
+  syncWeeklyContractAttempts,
+  weeklyContractWindow,
+} from './weekly-contract.service.js';
 
 const ACTIVE_LIMIT = 8;
 const TRACKED_LIMIT = 3;
@@ -53,6 +58,10 @@ function inputJson(value: unknown): Prisma.InputJsonValue {
 
 function definitions(ruleset: Ruleset): QuestDefinition[] {
   return Object.values(ruleset.questDefinitions ?? {});
+}
+
+function isWindowRepeatable(repeatability: QuestDefinition['repeatability']): boolean {
+  return repeatability === 'DAILY' || repeatability === 'WEEKLY';
 }
 
 function objectives(value: Prisma.JsonValue): QuestObjectiveDefinition[] {
@@ -280,9 +289,12 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
   for (const definitionRow of questDefinitions) {
     const definition = (ruleset.questDefinitions ?? {})[definitionRow.key];
     if (!definition) continue;
-    // Daily definitions are materialized by the rotation service so each reset
-    // can create a new PlayerQuest.attempt without disturbing ONCE quests.
-    if (definition.type === 'DAILY' && definition.repeatability === 'DAILY') continue;
+    // Rotating definitions are materialized by their board services so each
+    // reset can create a new PlayerQuest.attempt without disturbing ONCE jobs.
+    if (
+      (definition.type === 'DAILY' && definition.repeatability === 'DAILY')
+      || (definition.type === 'WEEKLY' && definition.repeatability === 'WEEKLY')
+    ) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
     const available = prerequisitesMet(definition, completed, reps);
     if (!current) {
@@ -301,6 +313,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
   }
 
   await syncDailyContractAttempts(db, roundPlayerId, ruleset, now);
+  await syncWeeklyContractAttempts(db, roundPlayerId, ruleset, now);
   return newlyAvailable;
 }
 
@@ -363,6 +376,10 @@ export const HandcraftedQuestService = {
         (definition) => definition.type === 'DAILY' && definition.repeatability === 'DAILY',
       );
       const dailyWindow = dailyEnabled ? dailyContractWindow(now, ruleset) : null;
+      const weeklyEnabled = definitions(ruleset).some(
+        (definition) => definition.type === 'WEEKLY' && definition.repeatability === 'WEEKLY',
+      );
+      const weeklyWindow = weeklyEnabled ? weeklyContractWindow(now, ruleset) : null;
       const rows = await tx.playerQuest.findMany({
         where: {
           roundPlayerId,
@@ -424,6 +441,11 @@ export const HandcraftedQuestService = {
           slots: dailyEnabled ? DAILY_CONTRACT_SLOTS : 0,
           resetAt: dailyWindow?.endsAt.toISOString() ?? null,
         },
+        weeklyContracts: {
+          enabled: weeklyEnabled,
+          slots: weeklyEnabled ? WEEKLY_CONTRACT_SLOTS : 0,
+          resetAt: weeklyWindow?.endsAt.toISOString() ?? null,
+        },
         activeLimit: ACTIVE_LIMIT,
         trackedLimit: TRACKED_LIMIT,
         counts: {
@@ -455,7 +477,7 @@ export const HandcraftedQuestService = {
       const tracked = await tx.playerQuest.count({ where: { roundPlayerId, isTracked: true } });
       const acceptedAt = new Date();
       if (row.expiresAt && row.expiresAt.getTime() <= acceptedAt.getTime()) {
-        throw AppError.conflict('QUEST_EXPIRED', 'That job expired at the daily reset. Refresh the board for new work.');
+        throw AppError.conflict('QUEST_EXPIRED', 'That contract expired at reset. Refresh the board for new work.');
       }
       await tx.playerQuest.update({
         where: { id: row.id },
@@ -467,8 +489,8 @@ export const HandcraftedQuestService = {
           failedAt: null,
           objectiveProgress: {},
           bonusProgress: {},
-          rewardState: row.questDefinition.repeatability === 'DAILY' ? inputJson(row.rewardState) : {},
-          expiresAt: row.questDefinition.repeatability === 'DAILY'
+          rewardState: isWindowRepeatable(row.questDefinition.repeatability) ? inputJson(row.rewardState) : {},
+          expiresAt: isWindowRepeatable(row.questDefinition.repeatability)
             ? row.expiresAt
             : row.questDefinition.expiresAfterMinutes
               ? new Date(acceptedAt.getTime() + row.questDefinition.expiresAfterMinutes * 60_000)
@@ -501,10 +523,10 @@ export const HandcraftedQuestService = {
           isTracked: false,
           acceptedAt: null,
           completedAt: null,
-          expiresAt: row.questDefinition.repeatability === 'DAILY' ? row.expiresAt : null,
+          expiresAt: isWindowRepeatable(row.questDefinition.repeatability) ? row.expiresAt : null,
           objectiveProgress: {},
           bonusProgress: {},
-          rewardState: row.questDefinition.repeatability === 'DAILY' ? row.rewardState : {},
+          rewardState: isWindowRepeatable(row.questDefinition.repeatability) ? row.rewardState : {},
         },
       });
     });
@@ -541,7 +563,7 @@ export const HandcraftedQuestService = {
       execute: async ({ tx, current, now }) => {
         const row = await loadQuest(tx, roundPlayerId, ruleset, key);
         if (row.expiresAt && row.expiresAt.getTime() <= now.getTime()) {
-          throw AppError.conflict('QUEST_EXPIRED', 'That job expired at the daily reset. Refresh the board for new work.');
+          throw AppError.conflict('QUEST_EXPIRED', 'That contract expired at reset. Refresh the board for new work.');
         }
         if (row.status !== 'READY_TO_TURN_IN') throw AppError.conflict('QUEST_NOT_READY', 'Finish the job before collecting payment.');
 
