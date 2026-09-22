@@ -91,11 +91,11 @@ describe('quest definition foundation', () => {
   });
 
   it('rejects blank prerequisite and reward kinds', () => {
-    const broken: QuestDefinition = {
+    const broken = {
       ...freshFaces,
       prerequisites: [{ kind: '' }],
       rewards: [{ kind: '' }],
-    };
+    } as unknown as QuestDefinition;
 
     expect(questDefinitionProblems({ FRESH_FACES: broken })).toEqual([
       'FRESH_FACES: prerequisite kind is required',
