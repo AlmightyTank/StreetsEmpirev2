@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { classicOgV04C, classicOgV04D, classicOgV07D, classicOgV07E, classicOgV07F } from '@streets/rulesets';
+import { classicOgV04C, classicOgV04D, classicOgV07D, classicOgV07E, classicOgV07F, classicOgV07G } from '@streets/rulesets';
 import { calculateNetWorthCents, productNetWorthCents, startingStock } from '@streets/rules-engine';
 import type { BattleReportDto, GameActionResult, HideoutV2Dto, ProduceCrackResult, ProductsDto, ProductTradeResult } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
@@ -64,6 +64,7 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('product economy with Po
     await app.prisma.workSupplyPolicy.deleteMany({ where: { roundPlayerId: { in: players } } });
     await app.prisma.processedAction.deleteMany({ where: { roundPlayerId: { in: players } } });
     await app.prisma.economyLedgerEntry.deleteMany({ where: { roundPlayerId: { in: players } } });
+    await app.prisma.playerUnlock.deleteMany({ where: { roundPlayerId: { in: players } } });
     await app.prisma.combatIntel.deleteMany({ where: { OR: [{ observerId: { in: players } }, { targetId: { in: players } }] } });
     await app.prisma.combatInjury.deleteMany({ where: { roundPlayerId: { in: players } } });
     await app.prisma.raidBattle.deleteMany({ where: { attackerId: { in: players } } });
@@ -258,6 +259,62 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('product economy with Po
 
     const stored = await row(1);
     expect(stored.netWorthCents).toBe(calculateNetWorthCents(stored, rules) + productNetWorthCents(afterD, rules));
+  });
+
+
+  it('gates 0.7-G Pip purchases with permanent unlocks without blocking sales', async () => {
+    await app.prisma.round.update({
+      where: { id: roundId },
+      data: { rulesetId: classicOgV07G.meta.id, rulesetVersion: classicOgV07G.meta.version },
+    });
+
+    await give(0, { METH: 5 });
+
+    const lockedPage = (await get(0, '/products')).json<ProductsDto>();
+    expect(lockedPage.products.find((product) => product.key === 'WEED')!.pip)
+      .toMatchObject({ purchaseUnlocked: true });
+    expect(lockedPage.products.find((product) => product.key === 'METH')!.pip)
+      .toMatchObject({
+        purchaseUnlocked: false,
+        unlockName: 'Meth Counter Access',
+      });
+
+    const lockedBuy = await post(0, '/products/trade', {
+      product: 'METH',
+      direction: 'buy',
+      quantity: 1,
+      actionId: randomUUID(),
+    });
+    expect(lockedBuy.statusCode).toBe(409);
+    expect(lockedBuy.json().error.code).toBe('PRODUCT_PURCHASE_LOCKED');
+
+    const sale = await post(0, '/products/trade', {
+      product: 'METH',
+      direction: 'sell',
+      quantity: 1,
+      actionId: randomUUID(),
+    });
+    expect(sale.statusCode, sale.body).toBe(200);
+
+    await app.prisma.playerUnlock.create({
+      data: {
+        roundPlayerId: players[0]!,
+        key: 'PRODUCT_METH_ACCESS',
+        sourceQuestKey: 'PIP_BULK_ORDER',
+      },
+    });
+
+    const openPage = (await get(0, '/products')).json<ProductsDto>();
+    expect(openPage.products.find((product) => product.key === 'METH')!.pip)
+      .toMatchObject({ purchaseUnlocked: true });
+
+    const bought = await post(0, '/products/trade', {
+      product: 'METH',
+      direction: 'buy',
+      quantity: 1,
+      actionId: randomUUID(),
+    });
+    expect(bought.statusCode, bought.body).toBe(200);
   });
 
   it('leaves a 0.4.0-C round without a counter, recipes or product value', async () => {
