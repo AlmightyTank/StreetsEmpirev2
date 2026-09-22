@@ -54,6 +54,8 @@ interface SessionState {
   roundOver: RoundOverDto | null;
   canJoin: boolean;
   recentActivity: ActivityDto[];
+  /** Player whose activity list has completed its first authoritative snapshot load. */
+  activityHydratedForPlayerId: string | null;
 
   /** Resolve who we are and which game is running. Runs once on mount. */
   bootstrap: () => Promise<void>;
@@ -80,6 +82,7 @@ export const useSession = create<SessionState>((set, get) => ({
   roundOver: null,
   canJoin: false,
   recentActivity: [],
+  activityHydratedForPlayerId: null,
 
   async bootstrap() {
     // A 401 here is the normal signed-out case, not an error worth surfacing.
@@ -112,7 +115,17 @@ export const useSession = create<SessionState>((set, get) => ({
 
   async refreshRound() {
     const current = await roundsApi.current();
-    set({ round: current.round, me: current.me, canJoin: current.canJoin, roundOver: current.roundOver });
+    const previousPlayerId = get().me?.id ?? null;
+    const nextPlayerId = current.me?.id ?? null;
+    set({
+      round: current.round,
+      me: current.me,
+      canJoin: current.canJoin,
+      roundOver: current.roundOver,
+      ...(previousPlayerId === nextPlayerId
+        ? {}
+        : { recentActivity: [], activityHydratedForPlayerId: null }),
+    });
   },
 
   async refreshSnapshot(options = {}) {
@@ -130,6 +143,7 @@ export const useSession = create<SessionState>((set, get) => ({
       me: snapshot.player,
       roundOver: null,
       recentActivity: snapshot.recentActivity,
+      activityHydratedForPlayerId: snapshot.player.id,
       canJoin: false,
     });
   },
@@ -184,6 +198,7 @@ export const useSession = create<SessionState>((set, get) => ({
       me: null,
       roundOver: null,
       recentActivity: [],
+      activityHydratedForPlayerId: null,
       canJoin: false,
     });
     await get().refreshRound();
@@ -191,7 +206,14 @@ export const useSession = create<SessionState>((set, get) => ({
 
   async join() {
     const result = await roundsApi.join();
-    set({ round: result.round, me: result.me, canJoin: result.canJoin, roundOver: result.roundOver });
+    set({
+      round: result.round,
+      me: result.me,
+      canJoin: result.canJoin,
+      roundOver: result.roundOver,
+      recentActivity: [],
+      activityHydratedForPlayerId: null,
+    });
     if (!result.me) throw new Error('Join succeeded but returned no player.');
     return result.me;
   },

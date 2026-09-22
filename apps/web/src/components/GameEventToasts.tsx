@@ -310,6 +310,7 @@ export function GameEventToasts() {
   const player = useSession((s) => s.me ?? null);
   const round = useSession((s) => s.round ?? null);
   const activity = useSession((s) => s.recentActivity);
+  const activityHydratedForPlayerId = useSession((s) => s.activityHydratedForPlayerId);
   const crackWord = useSession((s) => s.me?.products) ? 'crack' : 'product';
   const reducedMotion = useSession((s) => s.profileSettings.reducedMotion);
   const seen = useRef<Set<string>>(new Set());
@@ -327,6 +328,11 @@ export function GameEventToasts() {
       setToasts([]);
       return;
     }
+
+    // refreshRound can identify the player before /game/me has loaded activity.
+    // Do not seed from that temporary empty list or the first real snapshot will
+    // replay historical notifications as if they happened live.
+    if (activityHydratedForPlayerId !== playerId) return;
 
     if (seededFor.current !== playerId) {
       seen.current = new Set(activity.map((entry) => entry.id));
@@ -348,7 +354,7 @@ export function GameEventToasts() {
     if (!next.length) return;
 
     setToasts((current) => [...current, ...next].slice(-MAX_VISIBLE_TOASTS));
-  }, [activity, crackWord, playerId]);
+  }, [activity, activityHydratedForPlayerId, crackWord, playerId]);
 
   useEffect(() => {
     if (!playerId) return;
