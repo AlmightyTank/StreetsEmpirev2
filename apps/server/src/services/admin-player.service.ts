@@ -94,6 +94,7 @@ export const AdminPlayerService = {
         city: { select: { name: true } },
         reputation: { orderBy: { trader: 'asc' } },
         permanentUnlocks: { orderBy: { awardedAt: 'asc' } },
+        favorInventory: { orderBy: [{ updatedAt: 'desc' }, { key: 'asc' }] },
         combatInjuries: { where: { treatedAt: null, recoverAt: { gt: now } }, orderBy: { recoverAt: 'asc' } },
       },
     });
@@ -134,6 +135,13 @@ export const AdminPlayerService = {
           awardedAt: unlock.awardedAt.toISOString(),
         })),
       },
+      favors: player.favorInventory.map((favor) => ({
+        key: favor.key,
+        quantity: favor.quantity,
+        totalGranted: favor.totalGranted,
+        lastSourceQuestKey: favor.lastSourceQuestKey,
+        updatedAt: favor.updatedAt.toISOString(),
+      })),
       happiness: { whores: player.whoreHappiness, thugs: player.thugHappiness },
       heat: loadRulesetForRound(player.round).heat ? player.heat : null,
       ranks: { national: player.nationalRank, local: player.localRank },
