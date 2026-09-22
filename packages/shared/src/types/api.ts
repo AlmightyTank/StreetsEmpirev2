@@ -507,6 +507,7 @@ export interface ProduceCrackResult {
   productName: string;
   productProduced: number;
   hideoutBonusProduct?: number;
+  favorProductionPercent?: number;
   crackProduced: number;
   hideoutBonusCrack?: number;
   ingredientCents: number;
