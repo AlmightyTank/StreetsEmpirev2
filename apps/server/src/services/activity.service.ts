@@ -1,5 +1,6 @@
 import type { ActivityType, Prisma, PrismaClient } from '@prisma/client';
 import type { Db } from '../utils/db.js';
+import { createPlayerActivity } from './in-app-notification.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 
 /**
@@ -15,9 +16,7 @@ export const ActivityService = {
     type: ActivityType,
     payload: Prisma.InputJsonValue,
   ) {
-    const activity = await db.playerActivity.create({
-      data: { roundPlayerId, type, payload },
-    });
+    const activity = await createPlayerActivity(db, roundPlayerId, type, payload);
     await QuestProgressService.recordActivity(db, activity);
     return activity;
   },
