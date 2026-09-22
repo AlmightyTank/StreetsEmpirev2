@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV06F, classicOgV07A, classicOgV07B, classicOgV07C } from '@streets/rulesets';
-import { hideoutCatalog, hideoutProductProtection, hideoutProtectedProductCapacity } from '../hideout.service.js';
+import { classicOgV06F, classicOgV07A, classicOgV07B, classicOgV07C, classicOgV07D } from '@streets/rulesets';
+import {
+  hideoutCatalog,
+  hideoutGarageRelocationDiscountPercent,
+  hideoutGarageRunLimit,
+  hideoutProductProtection,
+  hideoutProtectedProductCapacity,
+  hideoutWorkshopIngredientCentsPerUnit,
+  hideoutWorkshopIngredientEfficiencyPercent,
+  hideoutWorkshopOutputBonusPercent,
+} from '../hideout.service.js';
 import type { PlayerState } from '../action.service.js';
 
 function player(overrides: Partial<PlayerState> = {}): PlayerState {
@@ -113,6 +122,57 @@ describe('hideout v2 catalog', () => {
     expect(lookouts.currentEffect).toContain('named recon warnings for 8h');
     expect(lookouts.currentEffect).toContain('home raid defense strength');
     expect(lookouts.specialization?.selectedKey).toBeNull();
+  });
+
+  it('separates Workshop output from ingredient efficiency in 0.7-D', () => {
+    const p = player({ hideoutWorkshopLevel: 5 });
+    expect(hideoutWorkshopOutputBonusPercent(classicOgV07D, p)).toBe(15);
+    expect(hideoutWorkshopIngredientEfficiencyPercent(classicOgV07D, p)).toBe(8);
+    expect(hideoutWorkshopIngredientCentsPerUnit(1_000, classicOgV07D, p)).toBe(920);
+
+    // C retains the old output path and has no ingredient discount.
+    expect(hideoutWorkshopOutputBonusPercent(classicOgV07C, p)).toBe(15);
+    expect(hideoutWorkshopIngredientEfficiencyPercent(classicOgV07C, p)).toBe(0);
+
+    const catalog = hideoutCatalog(classicOgV07D, p);
+    expect(catalog.workshop).toMatchObject({
+      level: 5,
+      outputBonusPercent: 15,
+      ingredientEfficiencyPercent: 8,
+    });
+    expect(catalog.workshop!.recipes.length).toBeGreaterThan(1);
+    expect(catalog.workshop!.recipes.every((recipe) =>
+      recipe.effectiveIngredientCentsPerUnit <= recipe.baseIngredientCentsPerUnit)).toBe(true);
+
+    for (const recipe of catalog.workshop!.recipes) {
+      const sellFloor = recipe.key === 'CRACK'
+        ? classicOgV07D.stores.PIP.items.CRACK?.sellCents ?? 0
+        : classicOgV07D.products?.[recipe.key]?.economy?.pip?.sellCents ?? 0;
+      expect(recipe.effectiveIngredientCentsPerUnit * 100)
+        .toBeGreaterThanOrEqual(sellFloor * (100 + catalog.workshop!.outputBonusPercent));
+    }
+  });
+
+  it('ties the 0.7-D Garage to Low-Riders and keeps logistics modest', () => {
+    const locked = hideoutCatalog(classicOgV07D, player({ lowRiders: 1, hideoutGarageLevel: 0 }));
+    const garage = locked.rooms.find((room) => room.key === 'GARAGE')!;
+    expect(garage.canUpgrade).toBe(false);
+    expect(garage.lockReason).toContain('Low-Riders owned 1/2');
+
+    const readyPlayer = player({ lowRiders: 2, hideoutGarageLevel: 0 });
+    const ready = hideoutCatalog(classicOgV07D, readyPlayer);
+    expect(ready.rooms.find((room) => room.key === 'GARAGE')?.canUpgrade).toBe(true);
+    expect(hideoutGarageRunLimit(classicOgV07D, readyPlayer)).toBe(1);
+    expect(hideoutGarageRelocationDiscountPercent(classicOgV07D, readyPlayer)).toBe(0);
+
+    const built = player({ lowRiders: 2, hideoutGarageLevel: 1 });
+    expect(hideoutGarageRunLimit(classicOgV07D, built)).toBe(2);
+    expect(hideoutGarageRelocationDiscountPercent(classicOgV07D, built)).toBe(5);
+    expect(hideoutCatalog(classicOgV07D, built).garage).toEqual({
+      level: 1,
+      runLimit: 2,
+      relocationFeeDiscountPercent: 5,
+    });
   });
 
 
