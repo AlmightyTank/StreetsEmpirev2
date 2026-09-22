@@ -339,7 +339,8 @@ export const HandcraftedQuestService = {
     await syncDefinitions(prisma, ruleset);
     return prisma.$transaction(async (tx) => {
       await lockRoundPlayer(tx, roundPlayerId);
-      await refreshAvailability(tx, roundPlayerId, ruleset);
+      const now = new Date();
+      await refreshAvailability(tx, roundPlayerId, ruleset, now);
       const rows = await tx.playerQuest.findMany({
         where: {
           roundPlayerId,
@@ -390,8 +391,11 @@ export const HandcraftedQuestService = {
         totalGranted: entry.totalGranted,
         lastSourceQuestKey: entry.lastSourceQuestKey,
       }));
-      const activeFavors = await TimedFavorService.listActive(tx, roundPlayerId, ruleset);
+      const activeFavors = await TimedFavorService.listActive(tx, roundPlayerId, ruleset, now);
       return {
+        // Sample immediately before the response object is built so browser clock
+        // skew cannot decide when an active favor expires.
+        serverTime: new Date().toISOString(),
         activeLimit: ACTIVE_LIMIT,
         trackedLimit: TRACKED_LIMIT,
         counts: {
