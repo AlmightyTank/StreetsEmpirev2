@@ -26,6 +26,11 @@ import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { FavorInventoryService } from './favor-inventory.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
+import {
+  DAILY_CONTRACT_SLOTS,
+  dailyContractWindow,
+  syncDailyContractAttempts,
+} from './daily-contract.service.js';
 
 const ACTIVE_LIMIT = 8;
 const TRACKED_LIMIT = 3;
@@ -138,6 +143,7 @@ function questDto(row: QuestRow, ruleset: Ruleset): PlayerQuestDto {
   const contact = contactFor(ruleset, row.questDefinition.contactKey);
   return {
     key: row.questDefinition.key,
+    attempt: row.attempt,
     title: row.questDefinition.title,
     description: row.questDefinition.description,
     contactKey: row.questDefinition.contactKey,
@@ -253,7 +259,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
   await db.playerQuest.updateMany({
     where: {
       roundPlayerId,
-      status: { in: ['ACTIVE', 'READY_TO_TURN_IN'] },
+      status: { in: ['AVAILABLE', 'ACTIVE', 'READY_TO_TURN_IN'] },
       expiresAt: { not: null, lte: now },
     },
     data: { status: 'EXPIRED', isTracked: false },
@@ -265,6 +271,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
   const existing = await db.playerQuest.findMany({
     where: { roundPlayerId, questDefinitionId: { in: questDefinitions.map((definition) => definition.id) } },
     include: { questDefinition: true },
+    orderBy: { attempt: 'desc' },
   });
   const completed = new Set(existing.filter((row) => row.status === 'COMPLETED').map((row) => row.questDefinition.key));
   const reps = await contactPoints(db, roundPlayerId, ruleset);
@@ -273,6 +280,9 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
   for (const definitionRow of questDefinitions) {
     const definition = (ruleset.questDefinitions ?? {})[definitionRow.key];
     if (!definition) continue;
+    // Daily definitions are materialized by the rotation service so each reset
+    // can create a new PlayerQuest.attempt without disturbing ONCE quests.
+    if (definition.type === 'DAILY' && definition.repeatability === 'DAILY') continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
     const available = prerequisitesMet(definition, completed, reps);
     if (!current) {
@@ -290,6 +300,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
     }
   }
 
+  await syncDailyContractAttempts(db, roundPlayerId, ruleset, now);
   return newlyAvailable;
 }
 
@@ -347,6 +358,10 @@ export const HandcraftedQuestService = {
       await lockRoundPlayer(tx, roundPlayerId);
       const now = new Date();
       await refreshAvailability(tx, roundPlayerId, ruleset, now);
+      const dailyEnabled = definitions(ruleset).some(
+        (definition) => definition.type === 'DAILY' && definition.repeatability === 'DAILY',
+      );
+      const dailyWindow = dailyEnabled ? dailyContractWindow(now, ruleset) : null;
       const rows = await tx.playerQuest.findMany({
         where: {
           roundPlayerId,
@@ -403,6 +418,11 @@ export const HandcraftedQuestService = {
         // Sample immediately before the response object is built so browser clock
         // skew cannot decide when an active favor expires.
         serverTime: new Date().toISOString(),
+        dailyContracts: {
+          enabled: dailyEnabled,
+          slots: dailyEnabled ? DAILY_CONTRACT_SLOTS : 0,
+          resetAt: dailyWindow?.endsAt.toISOString() ?? null,
+        },
         activeLimit: ACTIVE_LIMIT,
         trackedLimit: TRACKED_LIMIT,
         counts: {
@@ -433,6 +453,9 @@ export const HandcraftedQuestService = {
       if (active >= ACTIVE_LIMIT) throw AppError.conflict('QUEST_ACTIVE_LIMIT', `You can only have ${ACTIVE_LIMIT} active jobs at once.`);
       const tracked = await tx.playerQuest.count({ where: { roundPlayerId, isTracked: true } });
       const acceptedAt = new Date();
+      if (row.expiresAt && row.expiresAt.getTime() <= acceptedAt.getTime()) {
+        throw AppError.conflict('QUEST_EXPIRED', 'That job expired at the daily reset. Refresh the board for new work.');
+      }
       await tx.playerQuest.update({
         where: { id: row.id },
         data: {
@@ -444,9 +467,11 @@ export const HandcraftedQuestService = {
           objectiveProgress: {},
           bonusProgress: {},
           rewardState: {},
-          expiresAt: row.questDefinition.expiresAfterMinutes
-            ? new Date(acceptedAt.getTime() + row.questDefinition.expiresAfterMinutes * 60_000)
-            : null,
+          expiresAt: row.questDefinition.repeatability === 'DAILY'
+            ? row.expiresAt
+            : row.questDefinition.expiresAfterMinutes
+              ? new Date(acceptedAt.getTime() + row.questDefinition.expiresAfterMinutes * 60_000)
+              : null,
           isTracked: tracked < TRACKED_LIMIT,
         },
       });
@@ -464,6 +489,7 @@ export const HandcraftedQuestService = {
     await syncDefinitions(prisma, ruleset);
     await prisma.$transaction(async (tx) => {
       await lockRoundPlayer(tx, roundPlayerId);
+      await refreshAvailability(tx, roundPlayerId, ruleset);
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (!['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)) throw AppError.conflict('QUEST_NOT_ACTIVE', 'That job is not active.');
       await tx.questProgressReceipt.deleteMany({ where: { playerQuestId: row.id } });
@@ -474,7 +500,7 @@ export const HandcraftedQuestService = {
           isTracked: false,
           acceptedAt: null,
           completedAt: null,
-          expiresAt: null,
+          expiresAt: row.questDefinition.repeatability === 'DAILY' ? row.expiresAt : null,
           objectiveProgress: {},
           bonusProgress: {},
           rewardState: {},
@@ -488,6 +514,7 @@ export const HandcraftedQuestService = {
     await syncDefinitions(prisma, ruleset);
     await prisma.$transaction(async (tx) => {
       await lockRoundPlayer(tx, roundPlayerId);
+      await refreshAvailability(tx, roundPlayerId, ruleset);
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (!['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)) throw AppError.conflict('QUEST_NOT_ACTIVE', 'Only active jobs can be tracked.');
       if (tracked && !row.isTracked) {
@@ -512,6 +539,9 @@ export const HandcraftedQuestService = {
       actionId: input.actionId,
       execute: async ({ tx, current, now }) => {
         const row = await loadQuest(tx, roundPlayerId, ruleset, key);
+        if (row.expiresAt && row.expiresAt.getTime() <= now.getTime()) {
+          throw AppError.conflict('QUEST_EXPIRED', 'That job expired at the daily reset. Refresh the board for new work.');
+        }
         if (row.status !== 'READY_TO_TURN_IN') throw AppError.conflict('QUEST_NOT_READY', 'Finish the job before collecting payment.');
 
         const next: PlayerState = { ...current };
