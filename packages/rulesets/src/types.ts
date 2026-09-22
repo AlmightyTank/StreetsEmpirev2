@@ -153,7 +153,8 @@ export type QuestObjectiveKind =
   | 'SPEND_TURNS'
   | 'EARN_CASH'
   | 'RECRUIT_CREW'
-  | 'WIN_EVENTS';
+  | 'WIN_EVENTS'
+  | 'STATE_AT_LEAST';
 
 export interface QuestObjectiveDefinition {
   /** Stable inside one quest so progress survives wording changes. */
@@ -170,6 +171,7 @@ export interface QuestObjectiveDefinition {
    * - where: object of exact top-level payload matches
    * EVENT_SUM additionally requires field.
    * RECRUIT_CREW may set crew to WHORES, THUGS or ANY.
+   * STATE_AT_LEAST requires field and reads the post-event player state.
    */
   readonly params?: QuestDataObject;
 }
@@ -179,6 +181,8 @@ export interface QuestProgressEvent {
   readonly type: string;
   /** Activity/event JSON. */
   readonly payload: QuestDataValue;
+  /** Authoritative player state after the source event, when available. */
+  readonly state?: QuestDataObject;
 }
 
 export interface QuestObjectiveProgress {
