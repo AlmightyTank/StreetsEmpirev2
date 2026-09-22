@@ -136,6 +136,7 @@ function objectiveDtos(row: QuestRow): QuestObjectiveDto[] {
       id: objective.id,
       kind: objective.kind,
       description: objective.description,
+      format: objective.params?.display === 'CURRENCY' ? 'CURRENCY' : 'NUMBER',
       current: saved?.current ?? 0,
       target: objective.target,
       completed: saved?.completed ?? false,
