@@ -67,7 +67,8 @@ export { classicOgV07C };
 export * from './classic-og-v0.1/index.js';
 export * from './types.js';
 export * from './combat-prototype.js';
-export * from './hideout-v2.js';\nexport * from './quest-definitions.js';
+export * from './hideout-v2.js';
+export * from './quest-definitions.js';
 
 /** Every ruleset the engine can load, keyed by its public id. */
 export const rulesets: Readonly<Record<string, Ruleset>> = {
