@@ -254,7 +254,7 @@ export function HideoutPage() {
           <p className="se-hint">
             {hideout.armory.choices.find((choice) => choice.key === hideout.armory!.priority)?.blurb}
           </p>
-          {armoryAction.error ? <Alert tone="danger">{armoryAction.error}</Alert> : null}
+          {armoryAction.error ? <Alert tone="error">{armoryAction.error}</Alert> : null}
         </Panel>
       ) : null}
 
