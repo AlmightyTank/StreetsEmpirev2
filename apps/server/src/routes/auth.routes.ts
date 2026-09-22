@@ -10,6 +10,7 @@ import { createSession, destroySession } from '../auth/sessions.js';
 import { env } from '../config/env.js';
 import { toAccountDto } from '../game/dto.js';
 import { AccountProfileService } from '../services/account-profile.service.js';
+import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { sendCurrentEmailVerification, sendEmailChangeVerification, sendPasswordResetEmail } from '../services/email.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
@@ -40,6 +41,10 @@ const discordCallbackSchema = z.object({
   state: z.string().optional(),
   error: z.string().optional(),
   error_description: z.string().optional(),
+});
+
+const discordUnlinkSchema = z.object({
+  currentPassword: z.string().min(1),
 });
 
 const sessionParamsSchema = z.object({
@@ -527,6 +532,59 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         ? accountRedirect('Discord linking failed. Try again.')
         : authRedirect('Discord login failed. Try again.'));
     }
+  });
+
+  fastify.delete('/discord', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(discordUnlinkSchema, request.body);
+    const account = request.auth!.account;
+
+    if (!account.discordId) {
+      return {
+        ok: true,
+        message: 'Discord is already unlinked.',
+        account: toAccountDto(account),
+      };
+    }
+
+    const ok = await verifyPassword(account.passwordHash, body.currentPassword);
+    if (!ok) {
+      throw AppError.badRequest('CURRENT_PASSWORD_INVALID', 'That current password does not match.', {
+        currentPassword: 'Enter your current password.',
+      });
+    }
+
+    const oldDiscordId = account.discordId;
+    const updated = await fastify.prisma.$transaction(async (tx) => {
+      const next = await tx.account.update({
+        where: { id: account.id },
+        data: {
+          discordId: null,
+          discordUsername: null,
+          discordAvatar: null,
+          discordLinkedAt: null,
+        },
+      });
+
+      await tx.notificationSettings.updateMany({
+        where: { accountId: account.id },
+        data: { discordEnabled: false },
+      });
+      await tx.notificationOutbox.deleteMany({
+        where: { accountId: account.id, channel: 'DISCORD', claimedAt: null },
+      });
+      await tx.discordResyncRequest.create({
+        data: {
+          discordId: oldDiscordId,
+          requestedByAccountId: account.id,
+          requestedByUsername: account.username,
+        },
+      });
+
+      return next;
+    });
+
+    wakeDiscordBot('resync');
+    return { ok: true, message: 'Discord account unlinked.', account: toAccountDto(updated) };
   });
 
 
