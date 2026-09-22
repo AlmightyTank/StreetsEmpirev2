@@ -307,6 +307,11 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         detail: [str(p.reason), changeSummary(p.granted)].filter(Boolean).join(' · '),
       };
 
+    case 'FAVOR_ACTIVATED':
+      return {
+        text: `Activated ${str(p.name, str(p.favorKey, 'a favor'))}.`,
+        detail: `${str(p.category)} · active until ${str(p.expiresAt) ? new Date(str(p.expiresAt)).toLocaleTimeString() : 'soon'}`,
+      };
     default:
       return { text: String(activity.type).replace(/_/g, ' ').toLowerCase() };
   }
