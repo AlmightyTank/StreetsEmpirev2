@@ -76,7 +76,7 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
       }
 
       const eventTypes = objective.params?.eventTypes;
-      const eventDriven = objective.kind !== 'STATE_AT_LEAST';
+      const eventDriven = !['STATE_AT_LEAST', 'TURF_HOLD_HOURS'].includes(objective.kind);
       if (eventDriven && eventTypes === undefined) {
         problems.push(`${catalogKey}/${objective.id}: ${objective.kind} requires eventTypes`);
       } else if (eventTypes !== undefined && (
@@ -87,7 +87,7 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
         problems.push(`${catalogKey}/${objective.id}: eventTypes must be a non-empty string array`);
       }
 
-      if (objective.kind === 'EVENT_SUM' || objective.kind === 'STATE_AT_LEAST') {
+      if (['EVENT_SUM', 'STATE_AT_LEAST', 'UNIQUE_VALUES'].includes(objective.kind)) {
         const field = objective.params?.field;
         if (typeof field !== 'string' || !field.trim()) {
           problems.push(`${catalogKey}/${objective.id}: ${objective.kind} requires a field`);
