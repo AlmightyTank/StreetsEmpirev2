@@ -79,12 +79,10 @@ export function NotificationBell() {
   }), [feed.notifications, crackWord]);
 
   async function markRead(id: string) {
-    let changed = false;
     setFeed((current) => ({
       unreadCount: Math.max(0, current.unreadCount - (current.notifications.some((item) => item.id === id && !item.readAt) ? 1 : 0)),
       notifications: current.notifications.map((item) => {
         if (item.id !== id || item.readAt) return item;
-        changed = true;
         return { ...item, readAt: new Date().toISOString() };
       }),
     }));
