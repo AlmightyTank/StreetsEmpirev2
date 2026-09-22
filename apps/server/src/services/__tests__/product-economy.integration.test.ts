@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { classicOgV04C, classicOgV04D, classicOgV07D, classicOgV07E, classicOgV07F, classicOgV07G, classicOgV07H } from '@streets/rulesets';
+import { classicOgV04C, classicOgV04D, classicOgV07D, classicOgV07E, classicOgV07F, classicOgV07G, classicOgV07H, classicOgV07J } from '@streets/rulesets';
 import { calculateNetWorthCents, productNetWorthCents, startingStock } from '@streets/rules-engine';
 import type { BattleReportDto, GameActionResult, HideoutV2Dto, ProduceCrackResult, ProductsDto, ProductTradeResult } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
@@ -65,6 +65,7 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('product economy with Po
     await app.prisma.processedAction.deleteMany({ where: { roundPlayerId: { in: players } } });
     await app.prisma.economyLedgerEntry.deleteMany({ where: { roundPlayerId: { in: players } } });
     await app.prisma.playerUnlock.deleteMany({ where: { roundPlayerId: { in: players } } });
+    await app.prisma.playerActiveFavor.deleteMany({ where: { roundPlayerId: { in: players } } });
     await app.prisma.combatIntel.deleteMany({ where: { OR: [{ observerId: { in: players } }, { targetId: { in: players } }] } });
     await app.prisma.combatInjury.deleteMany({ where: { roundPlayerId: { in: players } } });
     await app.prisma.raidBattle.deleteMany({ where: { attackerId: { in: players } } });
@@ -412,6 +413,58 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('product economy with Po
       actionId: randomUUID(),
     });
     expect(bought.statusCode, bought.body).toBe(200);
+  });
+
+  it("applies Pip's Connection to live product quotes and buys without changing sell prices", async () => {
+    await app.prisma.round.update({
+      where: { id: roundId },
+      data: { rulesetId: classicOgV07J.meta.id, rulesetVersion: classicOgV07J.meta.version },
+    });
+    await app.prisma.playerActiveFavor.create({
+      data: {
+        roundPlayerId: players[0]!,
+        category: 'UNDERWORLD',
+        favorKey: 'PIP_CONNECTION',
+        startedAt: new Date(Date.now() - 60_000),
+        expiresAt: new Date(Date.now() + 9 * 60_000),
+      },
+    });
+
+    const page = (await get(0, '/products')).json<ProductsDto>();
+    const weed = page.products.find((product) => product.key === 'WEED')!;
+    expect(weed.pip).toMatchObject({
+      buyCents: 720,
+      sellCents: 240,
+      favorDiscountPercent: 10,
+    });
+
+    const before = await row(0);
+    const bought = await post(0, '/products/trade', {
+      product: 'WEED',
+      direction: 'buy',
+      quantity: 10,
+      actionId: randomUUID(),
+    });
+    expect(bought.statusCode, bought.body).toBe(200);
+    expect(bought.json<GameActionResult<ProductTradeResult>>().result).toMatchObject({
+      unitCents: 720,
+      totalCents: 7_200,
+      cashChangeCents: -7_200,
+      favorDiscountPercent: 10,
+    });
+    expect((await row(0)).cashCents).toBe(before.cashCents - 7_200n);
+
+    const sold = await post(0, '/products/trade', {
+      product: 'WEED',
+      direction: 'sell',
+      quantity: 1,
+      actionId: randomUUID(),
+    });
+    expect(sold.statusCode, sold.body).toBe(200);
+    expect(sold.json<GameActionResult<ProductTradeResult>>().result).toMatchObject({
+      unitCents: 240,
+      totalCents: 240,
+    });
   });
 
   it('leaves a 0.4.0-C round without a counter, recipes or product value', async () => {
