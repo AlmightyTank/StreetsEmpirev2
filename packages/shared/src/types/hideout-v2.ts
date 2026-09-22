@@ -6,7 +6,8 @@ export type HideoutRequirementKeyDto =
   | 'RAIDS_DONE'
   | 'DRIVE_BYS_DONE'
   | 'LOW_RIDERS'
-  | 'WEAPONS_OWNED';
+  | 'WEAPONS_OWNED'
+  | 'TURF_BLOCKS_HELD';
 
 export interface HideoutRequirementDto {
   key: HideoutRequirementKeyDto;
@@ -58,10 +59,40 @@ export interface HideoutAssetProtectionDto {
   products: HideoutProtectedProductDto[];
 }
 
+export interface HideoutSecurityEventDto {
+  kind: 'RECON' | 'CONVOY_TAIL' | 'TURF_PUSH';
+  at: string;
+  title: string;
+  detail: string;
+  urgent: boolean;
+  /** Revealed only by higher Lookouts warning tiers. */
+  actor: { publicPimpId: number; displayName: string } | null;
+}
+
+export interface HideoutSecurityDto {
+  lookoutsLevel: number;
+  defenseBonusPercent: number;
+  reconWarningTier: 'NONE' | 'PRESENCE' | 'SOURCE';
+  historyHours: number;
+  convoyHeadsUpMinutes: number;
+  localTrafficVisible: boolean;
+  /** Live rival runs in home-city reach. Count only; paid convoy recon keeps identities/value/route exclusive. */
+  localTrafficCount: number | null;
+  pendingConvoyThreats: number;
+  pendingTurfThreats: number;
+  suspicious: HideoutSecurityEventDto[];
+  specializationHooks: {
+    streetEyes: { warningHoursBonus: number; active: false };
+    armedWatch: { defenseBonusPercent: number; active: false };
+  };
+}
+
 export interface HideoutV2Dto extends Omit<HideoutDto, 'rooms'> {
   /** 1 means the original cash-only contract; 2 enables 0.7 progression metadata. */
   rulesVersion: 1 | 2;
   rooms: HideoutRoomV2Dto[];
   /** Present only on rulesets with the 0.7-B asset protection model. */
   assetProtection?: HideoutAssetProtectionDto;
+  /** Present only on rulesets with the 0.7-C Lookouts/security model. */
+  security?: HideoutSecurityDto;
 }
