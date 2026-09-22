@@ -316,7 +316,7 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
         where: { roundPlayerId: playerId, favorKey: 'TOMMY_VOUCHER' },
       })).toBe(1);
 
-      const bought = await trade({ store: 'TOMMY', item: 'PISTOL', quantity: 1 });
+      const bought = await trade({ store: 'tommy', item: 'PISTOL', quantity: 1 });
       expect(bought.statusCode, bought.body).toBe(200);
       expect(bought.json().result).toMatchObject({
         favorKey: 'TOMMY_VOUCHER',
