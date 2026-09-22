@@ -428,12 +428,20 @@ export function QuestPage() {
                 <Panel title="Armed favors">
                   <div className="se-rows">
                     {page.armedFavors.length ? page.armedFavors.map((favor) => (
-                      <Row
-                        key={favor.category}
-                        label={favor.name + ' · ' + favor.category}
-                        value="Waiting for the next eligible action"
-                        strong
-                      />
+                      <div key={favor.category} className="se-mb">
+                        <Row
+                          label={favor.name + ' · ' + favor.category}
+                          value="Waiting for the next eligible action"
+                          strong
+                        />
+                        <Button
+                          className="se-btn se-btn--ghost"
+                          disabledReason={busy ? 'Another update is still going through.' : null}
+                          onClick={() => void disarmFavor(favor.key)}
+                        >
+                          Disarm
+                        </Button>
+                      </div>
                     )) : <Row label="Waiting now" value="None" />}
                   </div>
                   <p className="se-hint se-mt">Armed favors are only consumed when their matching action succeeds. Disarm one to return it to inventory.</p>
