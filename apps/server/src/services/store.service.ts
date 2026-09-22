@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import {
   calculateStoreTrade,
   creditDailyTrade,
+  findStore,
   hasWeaponAccess,
   maxStoreBuy,
   stockOnHand,
@@ -93,15 +94,19 @@ export const StoreService = {
       action: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
       actionId: input.actionId,
       execute: async ({ tx, current, ruleset, standings, now }) => {
+        const foundStore = findStore(ruleset, input.store);
         const armed = input.direction === 'buy'
           ? await SingleUseFavorService.matching(tx, roundPlayerId, ruleset, 'STORE_BUY_DISCOUNT')
           : null;
         const discount = armed?.effect.kind === 'STORE_BUY_DISCOUNT'
-          && armed.effect.storeKey === input.store
+          && foundStore
+          && armed.effect.storeKey === foundStore.key
           && armed.effect.itemKeys.includes(input.item)
           ? armed
           : null;
-        const storeItem = ruleset.stores[input.store as keyof typeof ruleset.stores]?.items[input.item];
+        const storeItem = foundStore && Object.hasOwn(foundStore.store.items, input.item)
+          ? foundStore.store.items[input.item]
+          : undefined;
         const buyUnitCents = discount && storeItem
           ? discountedBuyCents(storeItem.buyCents, storeItem.sellCents, discount.effect.discountPercent)
           : undefined;
