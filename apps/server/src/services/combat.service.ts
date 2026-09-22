@@ -38,6 +38,7 @@ import { ProductInventoryService } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 import { RankingService } from './ranking.service.js';
 import { hideoutDefenseBonusPercent, hideoutMedicineEfficiencyPercent, hideoutProductProtection, hideoutProtectedCashBonusCents, hideoutProtectedProductCapacity, hideoutWeaponPriority } from './hideout.service.js';
+import { TimedFavorService } from './timed-favor.service.js';
 
 type CombatRules = NonNullable<Ruleset['combat']>;
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value, (_, v: unknown) => typeof v === 'bigint' ? v.toString() : v));
@@ -1283,7 +1284,12 @@ export const CombatService = {
       const away = awayBlock(settled.player, now);
       if (away) throw AppError.conflict('AWAY', away);
       const medicinePerThug = 1;
-      const medicineEfficiencyPercent = hideoutMedicineEfficiencyPercent(settled.ruleset, settled.player);
+      const hideoutEfficiencyPercent = hideoutMedicineEfficiencyPercent(settled.ruleset, settled.player);
+      const favorBonuses = await TimedFavorService.bonuses(tx, playerId, settled.ruleset, now);
+      const medicineEfficiencyPercent = Math.min(
+        50,
+        hideoutEfficiencyPercent + favorBonuses.treatmentMedicineEfficiencyPercent,
+      );
       const treatment = await CombatRecoveryService.treat(
         tx,
         playerId,
@@ -1309,6 +1315,9 @@ export const CombatService = {
         treatedThugs: treatment.treatedThugs,
         medicineUsed: treatment.medicineUsed,
         ...(medicineEfficiencyPercent > 0 ? { medicineEfficiencyPercent } : {}),
+        ...(favorBonuses.treatmentMedicineEfficiencyPercent > 0
+          ? { favorMedicineEfficiencyPercent: favorBonuses.treatmentMedicineEfficiencyPercent }
+          : {}),
         woundedThugs: treatment.woundedThugs,
         nextRecoveryAt: iso(treatment.nextRecoveryAt),
       };
