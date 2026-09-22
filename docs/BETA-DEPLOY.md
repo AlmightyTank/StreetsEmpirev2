@@ -128,15 +128,16 @@ DISCORD_GUILD_ID="<beta Discord server id>"
 GAME_API_URL="http://127.0.0.1:3003"
 DISCORD_BOT_LISTEN_HOST="127.0.0.1"
 DISCORD_BOT_LISTEN_PORT=3004
-DISCORD_FORUM_GROUPS="Admin,Mod,Beta Tester"
+DISCORD_ROLE_SYNC_MODE="beta-tester-only"
+DISCORD_FORUM_GROUPS="Beta Tester"
 DISCORD_NEWS_CHANNEL_ID="<beta news channel id>"
 DISCORD_RAID_FEED_CHANNEL_ID="<beta raid feed channel id>"
 ```
 
 `BETA_TESTER_FORUM_GROUPS` grants the **Beta Tester** profile title/badge inside
 the game to linked forum accounts in the visible Flarum **Beta Tester** group.
-The Discord bot also mirrors that group as a `Forum Beta Tester` role when it is
-listed in `DISCORD_FORUM_GROUPS`.
+The Discord bot mirrors that group as `Beta Tester` when `DISCORD_ROLE_SYNC_MODE`
+is `beta-tester-only`; no other game roles are managed.
 
 ## 3. Create the beta PostgreSQL database
 
@@ -346,8 +347,8 @@ Then in Flarum administration:
 
 On beta, players link their forum account under **Game -> Account -> Forum
 account**. If their forum account is in **Beta Tester**, the beta game unlocks a
-**Beta Tester** title/badge, and the beta Discord bot can mirror it as
-`Forum Beta Tester`.
+**Beta Tester** title/badge, and the beta Discord bot mirrors it as the only
+managed role: `Beta Tester`.
 
 ## 10. Normal beta deployment
 

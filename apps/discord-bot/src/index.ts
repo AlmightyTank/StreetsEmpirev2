@@ -26,14 +26,16 @@ import {
 } from './format.js';
 import { createGameApi, type City } from './game-api.js';
 import { Cooldowns } from './lookup.js';
-import { managedRoles, parseForumGroupList } from './roles.js';
+import { forumGroupRoles, managedRoles, parseForumGroupList } from './roles.js';
 import { startPoller } from './schedule.js';
 import { RoleSync } from './sync.js';
 import { startOptionalPushServer } from './push-server.js';
 
 const config = loadConfig();
 const api = createGameApi({ baseUrl: config.GAME_API_URL, token: config.DISCORD_BOT_API_TOKEN });
-const managed = managedRoles(parseForumGroupList(config.DISCORD_FORUM_GROUPS));
+const forumGroups = parseForumGroupList(config.DISCORD_FORUM_GROUPS);
+const betaTesterOnly = config.DISCORD_ROLE_SYNC_MODE === 'beta-tester-only';
+const managed = betaTesterOnly ? forumGroupRoles(forumGroups) : managedRoles(forumGroups);
 
 // GuildMembers is a privileged intent: enable "Server Members Intent" in the developer portal.
 const client = new Client({
@@ -248,9 +250,9 @@ client.once(Events.ClientReady, async (ready) => {
     await guild.commands.set(commandData);
     void getCities();
 
-    const roleSync = new RoleSync(guild, managed, api);
+    const roleSync = new RoleSync(guild, managed, api, { allianceRoles: !betaTesterOnly });
     sync = roleSync;
-    console.log(`StreetsEmpire bot ready as ${ready.user.tag} in ${guild.name} with ${commandData.length} commands; syncing roles every ${config.DISCORD_SYNC_MINUTES} min.`);
+    console.log(`StreetsEmpire bot ready as ${ready.user.tag} in ${guild.name} with ${commandData.length} commands; syncing ${betaTesterOnly ? 'beta tester role only' : 'roles'} every ${config.DISCORD_SYNC_MINUTES} min.`);
 
     // Commands are answered while these run.
     startPoller('Role sync', config.DISCORD_SYNC_MINUTES * 60_000, async () => {

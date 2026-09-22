@@ -63,12 +63,13 @@ the private beta tags/categories. In the beta game `.env`, set:
 
 ```dotenv
 BETA_TESTER_FORUM_GROUPS="Beta Tester"
-DISCORD_FORUM_GROUPS="Admin,Mod,Beta Tester"
+DISCORD_ROLE_SYNC_MODE="beta-tester-only"
+DISCORD_FORUM_GROUPS="Beta Tester"
 ```
 
 Linked beta players in that forum group can select the **Beta Tester** profile
-title/badge in the game, and the beta Discord bot mirrors the group as
-`Forum Beta Tester`.
+title/badge in the game, and the beta Discord bot mirrors the group as the only
+managed Discord role: `Beta Tester`.
 
 ## Scope and rollback
 

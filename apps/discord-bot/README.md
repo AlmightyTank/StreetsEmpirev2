@@ -149,6 +149,7 @@ DISCORD_BOT_LISTEN_PORT=3002
 FRONTEND_ORIGIN="https://streetsempire.dev"
 DISCORD_SYNC_MINUTES=10
 DISCORD_FORUM_GROUPS="Admin,Mod"
+DISCORD_ROLE_SYNC_MODE="full"
 DISCORD_NEWS_CHANNEL_ID="<channel id, or empty for no auto-posting>"
 DISCORD_NEWS_MINUTES=1
 DISCORD_RAID_FEED_CHANNEL_ID="<channel id, or empty for no raid feed>"
@@ -165,6 +166,9 @@ DISCORD_ALERTS_MINUTES=1
 - `DISCORD_FORUM_GROUPS` lists which forum groups get a "Forum <group>" role.
   Names match the forum's group names, ignoring case. Leave it empty for none.
   Forum roles need forum linking (`FORUM_LINK_SECRET`) turned on.
+- `DISCORD_ROLE_SYNC_MODE` defaults to `full`, which manages the full game role
+  set. Set it to `beta-tester-only` on beta to manage only the exact-name forum
+  group roles from `DISCORD_FORUM_GROUPS`, for example only `Beta Tester`.
 - `DISCORD_NEWS_CHANNEL_ID` is the channel for automatic news posts. Copy it by
   right-clicking the channel → **Copy Channel ID**, with Developer Mode on.
 - `DISCORD_RAID_FEED_CHANNEL_ID` is the channel for public raid/combat results.
@@ -189,8 +193,9 @@ server and channel ids. From the beta checkout, set `GAME_API_URL` to
 `http://127.0.0.1:3003`, set `DISCORD_BOT_LISTEN_PORT=3004`, point
 `DISCORD_BOT_PUSH_URL` at `http://127.0.0.1:3004/internal/wake`, then install it
 with `scripts/ops/install-beta-bot-service.sh`. If the beta forum has a visible
-`Beta Tester` group, include it in `DISCORD_FORUM_GROUPS` to mirror it as the
-`Forum Beta Tester` Discord role.
+`Beta Tester` group, set `DISCORD_ROLE_SYNC_MODE=beta-tester-only` and
+`DISCORD_FORUM_GROUPS="Beta Tester"` so the bot manages only the `Beta Tester`
+Discord role.
 
 On startup it logs `StreetsEmpire bot ready as …`. The slash commands appear in
 your server immediately.

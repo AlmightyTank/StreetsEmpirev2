@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allianceRoles, managedRoles, normalizeRoleKey, parseForumGroupList, planRoleChanges, roleNamesForKeys, staleAllianceRoleNames } from '../roles.js';
+import { allianceRoles, forumGroupRoles, managedRoles, normalizeRoleKey, parseForumGroupList, planRoleChanges, roleNamesForKeys, staleAllianceRoleNames } from '../roles.js';
 
 describe('parseForumGroupList', () => {
   it('trims, drops blanks and case-insensitive duplicates, and caps the list', () => {
@@ -17,6 +17,14 @@ describe('managedRoles', () => {
       'Linked', 'Player', 'National #1', 'Top 10', 'Veteran', 'Top Finisher', 'Past Winner', 'Hall of Fame', 'Forum Admin',
     ]);
     expect(roles.at(-1)!.key).toBe('forum:admin');
+  });
+});
+
+describe('forumGroupRoles', () => {
+  it('owns only exact-name forum group roles for beta-only sync', () => {
+    expect(forumGroupRoles(['Beta Tester'])).toEqual([
+      { key: 'forum:beta tester', name: 'Beta Tester', color: null },
+    ]);
   });
 });
 
