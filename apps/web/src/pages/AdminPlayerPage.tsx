@@ -264,6 +264,13 @@ export function AdminPlayerPage() {
                 value={`${favor.favorKey} · until ${adminWhen(favor.expiresAt)}`}
               />
             )) : <Row label="Active favors" value="-" />}
+            {player.armedFavors.length ? player.armedFavors.map((favor) => (
+              <Row
+                key={favor.category}
+                label={`Armed favor: ${favor.category}`}
+                value={`${favor.favorKey} · armed ${adminWhen(favor.armedAt)}`}
+              />
+            )) : <Row label="Armed favors" value="-" />}
             <Row label="Hideout" value={`Safe ${player.hideout.safeRoom} · Lookouts ${player.hideout.lookouts} · Workshop ${player.hideout.workshop} · Office ${player.hideout.backOffice}`} />
             {player.reputation.length ? player.reputation.map((row) => (
               <Row key={row.trader} label={`Rep: ${row.trader}`} value={`${formatNumber(row.points)}${row.legacyFavorDone ? ' · legacy favor' : ''}`} />
