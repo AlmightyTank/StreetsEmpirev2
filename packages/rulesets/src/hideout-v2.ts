@@ -64,6 +64,20 @@ export interface HideoutSecurityRule {
   };
 }
 
+export interface HideoutWorkshopRule {
+  /** Output bonus by Workshop level, index 0..max level. */
+  readonly outputBonusPercentByWorkshopLevel: readonly number[];
+  /** Ingredient-cost reduction by Workshop level, index 0..max level. */
+  readonly ingredientEfficiencyPercentByWorkshopLevel: readonly number[];
+}
+
+export interface HideoutGarageRule {
+  /** Concurrent-run cap by Garage level, index 0..max level. */
+  readonly runLimitByGarageLevel: readonly number[];
+  /** Relocation fee reduction by Garage level, index 0..max level. */
+  readonly relocationFeeDiscountPercentByGarageLevel: readonly number[];
+}
+
 export interface HideoutV2Rules {
   readonly version: 2;
   readonly rooms: Readonly<Partial<Record<HideoutRoomKey, HideoutRoomV2Rule>>>;
@@ -71,6 +85,10 @@ export interface HideoutV2Rules {
   readonly assetProtection?: HideoutAssetProtectionRule;
   /** Optional 0.7-C Lookouts/security model. */
   readonly security?: HideoutSecurityRule;
+  /** Optional 0.7-D Workshop tuning. */
+  readonly workshop?: HideoutWorkshopRule;
+  /** Optional 0.7-D Garage/logistics tuning. */
+  readonly garage?: HideoutGarageRule;
 }
 
 export const CLASSIC_OG_V07A_HIDEOUT_V2 = {
@@ -160,10 +178,33 @@ export const CLASSIC_OG_V07C_HIDEOUT_V2 = {
   },
 } as const satisfies HideoutV2Rules;
 
+export const CLASSIC_OG_V07D_HIDEOUT_V2 = {
+  ...CLASSIC_OG_V07C_HIDEOUT_V2,
+  rooms: {
+    ...CLASSIC_OG_V07C_HIDEOUT_V2.rooms,
+    GARAGE: {
+      requirements: {
+        1: [{ key: 'LOW_RIDERS', label: 'Low-Riders owned', amount: 2 }],
+      },
+    },
+  },
+  workshop: {
+    // Keep the shipped 3%/level output path, then add a separate modest efficiency curve.
+    outputBonusPercentByWorkshopLevel: [0, 3, 6, 9, 12, 15],
+    ingredientEfficiencyPercentByWorkshopLevel: [0, 0, 2, 4, 6, 8],
+  },
+  garage: {
+    // No speed bonus: Garage improves logistics without flattening travel risk.
+    runLimitByGarageLevel: [1, 2],
+    relocationFeeDiscountPercentByGarageLevel: [0, 5],
+  },
+} as const satisfies HideoutV2Rules;
+
 const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v0.7-a': CLASSIC_OG_V07A_HIDEOUT_V2,
   'classic-og-v0.7-b': CLASSIC_OG_V07B_HIDEOUT_V2,
   'classic-og-v0.7-c': CLASSIC_OG_V07C_HIDEOUT_V2,
+  'classic-og-v0.7-d': CLASSIC_OG_V07D_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */
@@ -265,6 +306,67 @@ export function hideoutV2Problems(ruleset: Ruleset): string[] {
       if (!Number.isFinite(hours) || hours < 0) {
         problems.push('LOOKOUTS: security history hours must be non-negative.');
         break;
+      }
+    }
+  }
+
+  const workshop = extension.workshop;
+  if (workshop) {
+    const base = ruleset.hideout.rooms.WORKSHOP;
+    const expected = base.maxLevel + 1;
+    for (const [label, levels] of [
+      ['output bonus', workshop.outputBonusPercentByWorkshopLevel],
+      ['ingredient efficiency', workshop.ingredientEfficiencyPercentByWorkshopLevel],
+    ] as const) {
+      if (levels.length !== expected) {
+        problems.push(`WORKSHOP: ${label} needs ${expected} entries for levels 0..${base.maxLevel}.`);
+      }
+      if (levels[0] !== 0) problems.push(`WORKSHOP: level 0 ${label} must be 0.`);
+      let prior = -1;
+      for (const value of levels) {
+        if (!Number.isSafeInteger(value) || value < 0 || value > 100) {
+          problems.push(`WORKSHOP: ${label} must stay between 0 and 100 whole percent.`);
+          break;
+        }
+        if (value < prior) {
+          problems.push(`WORKSHOP: ${label} cannot decrease at higher levels.`);
+          break;
+        }
+        prior = value;
+      }
+    }
+  }
+
+  const garage = extension.garage;
+  if (garage) {
+    const base = ruleset.hideout.rooms.GARAGE;
+    if (!base) {
+      problems.push('GARAGE: 0.7-D logistics rules require the Garage room.');
+    } else {
+      const expected = base.maxLevel + 1;
+      if (garage.runLimitByGarageLevel.length !== expected) {
+        problems.push(`GARAGE: run limit needs ${expected} entries for levels 0..${base.maxLevel}.`);
+      }
+      if (garage.relocationFeeDiscountPercentByGarageLevel.length !== expected) {
+        problems.push(`GARAGE: relocation discount needs ${expected} entries for levels 0..${base.maxLevel}.`);
+      }
+      if (garage.runLimitByGarageLevel[0] !== 1) {
+        problems.push('GARAGE: level 0 must keep the classic one-run limit.');
+      }
+      if (garage.relocationFeeDiscountPercentByGarageLevel[0] !== 0) {
+        problems.push('GARAGE: level 0 cannot discount relocation.');
+      }
+      for (const value of garage.runLimitByGarageLevel) {
+        if (!Number.isSafeInteger(value) || value < 1) {
+          problems.push('GARAGE: run limits must be positive whole numbers.');
+          break;
+        }
+      }
+      for (const value of garage.relocationFeeDiscountPercentByGarageLevel) {
+        if (!Number.isSafeInteger(value) || value < 0 || value > 100) {
+          problems.push('GARAGE: relocation discounts must stay between 0 and 100 whole percent.');
+          break;
+        }
       }
     }
   }

@@ -1,5 +1,5 @@
 import type { PrismaClient, RoundPlayer } from '@prisma/client';
-import { headsUpMinutes, reachAt, reachWindows } from '@streets/rules-engine';
+import { headsUpMinutes, productRecipes, reachAt, reachWindows } from '@streets/rules-engine';
 import {
   hideoutV2For,
   type HideoutRequirementKey,
@@ -9,12 +9,14 @@ import {
 import type {
   GameActionResult,
   HideoutAssetProtectionDto,
+  HideoutGarageDto,
   HideoutRequirementDto,
   HideoutRoomV2Dto,
   HideoutSecurityDto,
   HideoutUpgradeInput,
   HideoutUpgradeResult,
   HideoutV2Dto,
+  HideoutWorkshopDto,
 } from '@streets/shared';
 import { ActionService, type PlayerState } from './action.service.js';
 import { AppError } from '../utils/errors.js';
@@ -149,6 +151,87 @@ function dollars(cents: number): string {
   return `$${(cents / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 
+export function hideoutWorkshopOutputBonusPercent(
+  ruleset: Ruleset,
+  player: Pick<PlayerState, 'hideoutWorkshopLevel'>,
+): number {
+  const configured = hideoutV2For(ruleset)?.workshop?.outputBonusPercentByWorkshopLevel[player.hideoutWorkshopLevel];
+  return configured ?? (ruleset.hideout?.buffs.workshopCrackBonusPercentPerLevel ?? 0) * player.hideoutWorkshopLevel;
+}
+
+export function hideoutWorkshopIngredientEfficiencyPercent(
+  ruleset: Ruleset,
+  player: Pick<PlayerState, 'hideoutWorkshopLevel'>,
+): number {
+  return hideoutV2For(ruleset)?.workshop?.ingredientEfficiencyPercentByWorkshopLevel[player.hideoutWorkshopLevel] ?? 0;
+}
+
+export function hideoutWorkshopIngredientCentsPerUnit(
+  baseCents: number,
+  ruleset: Ruleset,
+  player: Pick<PlayerState, 'hideoutWorkshopLevel'>,
+  product?: string,
+): number {
+  if (baseCents <= 0) return 0;
+  const efficiency = hideoutWorkshopIngredientEfficiencyPercent(ruleset, player);
+  const discounted = Math.max(1, Math.floor(baseCents * (100 - efficiency) / 100));
+  if (!product) return discounted;
+
+  // Never let Hideout efficiency create a cook-to-Pip cash loop, even if a
+  // later ruleset changes a recipe or buyback price.
+  const sellCents = product === 'CRACK'
+    ? ruleset.stores.PIP.items.CRACK?.sellCents ?? 0
+    : ruleset.products?.[product]?.economy?.pip?.sellCents ?? 0;
+  const outputBonusPercent = hideoutWorkshopOutputBonusPercent(ruleset, player);
+  const noResaleProfitFloor = Math.ceil(sellCents * (100 + outputBonusPercent) / 100);
+  return Math.max(discounted, noResaleProfitFloor);
+}
+
+export function hideoutGarageRunLimit(
+  ruleset: Ruleset,
+  player: Pick<PlayerState, 'hideoutGarageLevel'>,
+): number {
+  const configured = hideoutV2For(ruleset)?.garage?.runLimitByGarageLevel[player.hideoutGarageLevel];
+  if (configured !== undefined) return configured;
+  return player.hideoutGarageLevel > 0 ? Math.max(2, ruleset.hideout?.buffs.garageRunLimit ?? 2) : 1;
+}
+
+export function hideoutGarageRelocationDiscountPercent(
+  ruleset: Ruleset,
+  player: Pick<PlayerState, 'hideoutGarageLevel'>,
+): number {
+  return hideoutV2For(ruleset)?.garage?.relocationFeeDiscountPercentByGarageLevel[player.hideoutGarageLevel] ?? 0;
+}
+
+function workshopDto(ruleset: Ruleset, player: PlayerState): HideoutWorkshopDto | undefined {
+  if (!hideoutV2For(ruleset)?.workshop) return undefined;
+  return {
+    level: player.hideoutWorkshopLevel,
+    outputBonusPercent: hideoutWorkshopOutputBonusPercent(ruleset, player),
+    ingredientEfficiencyPercent: hideoutWorkshopIngredientEfficiencyPercent(ruleset, player),
+    recipes: productRecipes(ruleset).map((recipe) => ({
+      key: recipe.product,
+      name: recipe.name,
+      baseIngredientCentsPerUnit: recipe.ingredientCentsPerUnit,
+      effectiveIngredientCentsPerUnit: hideoutWorkshopIngredientCentsPerUnit(
+        recipe.ingredientCentsPerUnit,
+        ruleset,
+        player,
+        recipe.product,
+      ),
+    })),
+  };
+}
+
+function garageDto(ruleset: Ruleset, player: PlayerState): HideoutGarageDto | undefined {
+  if (!hideoutV2For(ruleset)?.garage) return undefined;
+  return {
+    level: player.hideoutGarageLevel,
+    runLimit: hideoutGarageRunLimit(ruleset, player),
+    relocationFeeDiscountPercent: hideoutGarageRelocationDiscountPercent(ruleset, player),
+  };
+}
+
 function effect(room: HideoutRoomKey, level: number, ruleset: Ruleset): string {
   const hideout = ruleset.hideout;
   if (!hideout || level <= 0) return 'No active bonus yet.';
@@ -173,10 +256,20 @@ function effect(room: HideoutRoomKey, level: number, ruleset: Ruleset): string {
     return `+${level * buffs.lookoutsDefenseBonusPercentPerLevel}% home raid defense strength · ${warning} · about ${headsUp.toFixed(1)} min convoy/turf heads-up.`;
   }
   if (room === 'WORKSHOP') {
-    return `+${level * buffs.workshopCrackBonusPercentPerLevel}% product from production.`;
+    const output = hideoutV2For(ruleset)?.workshop?.outputBonusPercentByWorkshopLevel[level]
+      ?? level * buffs.workshopCrackBonusPercentPerLevel;
+    const efficiency = hideoutV2For(ruleset)?.workshop?.ingredientEfficiencyPercentByWorkshopLevel[level] ?? 0;
+    return efficiency > 0
+      ? `+${output}% product output · ${efficiency}% less ingredient cost.`
+      : `+${output}% product from production.`;
   }
   if (room === 'GARAGE') {
-    return `Up to ${level > 0 ? (buffs.garageRunLimit ?? 2) : 1} active runs at once.`;
+    const extension = hideoutV2For(ruleset)?.garage;
+    const runLimit = extension?.runLimitByGarageLevel[level] ?? (level > 0 ? (buffs.garageRunLimit ?? 2) : 1);
+    const moveDiscount = extension?.relocationFeeDiscountPercentByGarageLevel[level] ?? 0;
+    return moveDiscount > 0
+      ? `Up to ${runLimit} active runs at once · ${moveDiscount}% off relocation fees.`
+      : `Up to ${runLimit} active runs at once.`;
   }
   return `+${level * buffs.backOfficeTakeBonusPercentPerLevel}% personal cash take from street work.`;
 }
@@ -315,6 +408,8 @@ export function hideoutCatalog(
     totalMaxLevel: rooms.reduce((sum, room) => sum + room.maxLevel, 0),
     rooms,
     ...(assetProtectionDto(ruleset, player, products) ? { assetProtection: assetProtectionDto(ruleset, player, products) } : {}),
+    ...(workshopDto(ruleset, player) ? { workshop: workshopDto(ruleset, player) } : {}),
+    ...(garageDto(ruleset, player) ? { garage: garageDto(ruleset, player) } : {}),
   };
 }
 
@@ -441,8 +536,7 @@ export function hideoutDefenseBonusPercent(ruleset: Ruleset, player: Pick<Player
 
 /** Returns the Workshop bonus in whole product units, rounded down. */
 export function hideoutWorkshopBonusProduct(base: number, ruleset: Ruleset, player: Pick<PlayerState, 'hideoutWorkshopLevel'>): number {
-  const percent = (ruleset.hideout?.buffs.workshopCrackBonusPercentPerLevel ?? 0) * player.hideoutWorkshopLevel;
-  return Math.floor(base * percent / 100);
+  return Math.floor(base * hideoutWorkshopOutputBonusPercent(ruleset, player) / 100);
 }
 
 /** Compatibility name for callers pinned to the original crack-only Hideout contract. */

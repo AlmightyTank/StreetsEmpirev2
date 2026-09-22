@@ -55,6 +55,7 @@ import { PlayerStateService } from './player-state.service.js';
 import { RelocationService } from './relocation.service.js';
 import { ActivityService } from './activity.service.js';
 import { HighMarketService } from './high-market.service.js';
+import { hideoutGarageRunLimit } from './hideout.service.js';
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
 import {
   RUN_INCLUDE,
@@ -110,10 +111,6 @@ async function requireActiveRun(tx: Db, roundPlayerId: string, runId?: string): 
   const run = await activeRun(tx, roundPlayerId, runId);
   if (!run) throw AppError.conflict('NO_RUN', 'That active run is not available.');
   return run;
-}
-
-function runLimit(ruleset: Ruleset, garageLevel: number): number {
-  return garageLevel > 0 ? Math.max(2, ruleset.hideout?.buffs.garageRunLimit ?? 2) : 1;
 }
 
 /** Replace a run's stops with a new plan. Stops are few, so they are rewritten whole. */
@@ -352,7 +349,7 @@ export const TravelService = {
     const active = await activeRuns(prisma, roundPlayerId);
     const runDtos = (await Promise.all(active.map((run) => runDto(prisma, roundPlayerId, base, player.roundId, run, now))))
       .filter((run): run is RunDto => Boolean(run));
-    const limit = runLimit(ruleset, player.hideoutGarageLevel);
+    const limit = hideoutGarageRunLimit(ruleset, player);
     const travel = ruleset.travel;
     const seed = player.roundId;
     // 0.5.0-F: with the home market open at launch, home shows its wholesale prices too.
@@ -441,7 +438,7 @@ export const TravelService = {
       execute: async ({ tx, current, ruleset, player, now }) => {
         requireRuns(ruleset);
         const activeCount = await tx.run.count({ where: { roundPlayerId, status: 'ACTIVE' } });
-        const limit = runLimit(ruleset, player.hideoutGarageLevel);
+        const limit = hideoutGarageRunLimit(ruleset, player);
         if (activeCount >= limit) {
           throw AppError.conflict('RUN_LIMIT', limit === 1
             ? 'You already have a run out. Build the Garage or wait for it to come home.'

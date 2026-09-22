@@ -604,8 +604,13 @@ export interface HeatThereDto {
 
 /** 0.5.0-D. The move screen. */
 export interface RelocationDto {
-  /** What a move costs right now. */
+  /** What a move costs right now after any Garage discount. */
   feeCents: number;
+  /** Base relocation fee before the Garage discount. */
+  baseFeeCents: number;
+  /** 0.7.0-D. Garage discount applied to this quote. */
+  garageFeeDiscountPercent: number;
+  garageSavingsCents: number;
   feeFloorCents: number;
   feeNetWorthFraction: number;
   downtimeMinutes: number;
@@ -634,6 +639,9 @@ export interface RelocationResult {
   to: string;
   toName: string;
   feeCents: number;
+  /** 0.7.0-D. Garage discount on this move. */
+  garageFeeDiscountPercent?: number;
+  garageSavingsCents?: number;
   arrivesAt: string;
   /** 0.6.0-D. What will happen to held turf on arrival. */
   turfPlan: RelocationTurfPlanDto;

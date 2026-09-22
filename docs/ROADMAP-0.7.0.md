@@ -51,7 +51,7 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** protected assets cannot be looted, exposure is visible before attacks, and wealthy players remain meaningfully raidable.
 
 ## 0.7.0-C — Lookouts & Security
-**Status:** **in progress** on `hideout-0.7.0-c`. The current pass preserves the existing defense bonus, adds tiered recon warnings and a Hideout security desk, reuses convoy/turf warning windows, adds count-only local run awareness, gates higher Lookouts with turf ownership, and prepares inactive Street Eyes / Armed Watch hooks for 0.7.0-G.
+**Status:** **complete in beta.** Lookouts now preserve the defense bonus, add tiered recon warnings and a Hideout security desk, reuse convoy/turf warning windows, provide count-only local run awareness, gate higher levels with turf ownership, and prepare inactive Street Eyes / Armed Watch hooks for 0.7.0-G.
 
 **Goal:** Connect defense, recon, turf, and convoy awareness.
 
@@ -65,6 +65,8 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** Lookouts give useful warnings without replacing deliberate recon.
 
 ## 0.7.0-D — Workshop & Garage
+**Status:** **in progress** on `hideout-0.7.0-d`. The current pass keeps Workshop output at the shipped 3% per level, adds a separate ingredient-efficiency curve up to 8%, gives every cookable product the same production path, ties Garage construction to owning two Low-Riders, centralizes the two-run cap, adds a 5% relocation-fee discount, and adds Workshop/Garage management panels without reducing travel time.
+
 **Goal:** Support the whole product economy and connect travel.
 
 - Apply Workshop bonuses to all producible products.

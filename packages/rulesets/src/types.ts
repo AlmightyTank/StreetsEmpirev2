@@ -106,6 +106,130 @@ export interface QuestRule {
     | { readonly kind: 'BUY_AND_RAID'; readonly pistols: number; readonly raids: number };
 }
 
+// --- handcrafted quest system -----------------------------------------------
+
+/**
+ * JSON-safe data carried by quest definitions. Phase B will narrow objective
+ * kinds into a discriminated union; Phase A intentionally keeps the storage
+ * contract extensible without coupling quests to individual action services.
+ */
+export type QuestDataValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly QuestDataValue[]
+  | { readonly [key: string]: QuestDataValue };
+
+export type QuestDataObject = { readonly [key: string]: QuestDataValue };
+
+export type QuestType =
+  | 'STORY'
+  | 'SIDE'
+  | 'CONTRACT'
+  | 'DAILY'
+  | 'WEEKLY'
+  | 'SECRET'
+  | 'ALLIANCE'
+  | 'EVENT';
+
+export type QuestDifficulty =
+  | 'STREET_JOB'
+  | 'CONTRACT'
+  | 'SERIOUS_BUSINESS'
+  | 'HIGH_RISK'
+  | 'KINGPIN_CONTRACT';
+
+export type QuestRepeatability = 'ONCE' | 'DAILY' | 'WEEKLY' | 'REPEATABLE';
+
+export interface QuestPrerequisiteDefinition {
+  readonly kind: string;
+  readonly params?: QuestDataObject;
+}
+
+export type QuestObjectiveKind =
+  | 'EVENT_COUNT'
+  | 'EVENT_SUM'
+  | 'SPEND_TURNS'
+  | 'EARN_CASH'
+  | 'RECRUIT_CREW'
+  | 'WIN_EVENTS'
+  | 'STATE_AT_LEAST';
+
+export interface QuestObjectiveDefinition {
+  /** Stable inside one quest so progress survives wording changes. */
+  readonly id: string;
+  readonly kind: QuestObjectiveKind;
+  readonly description: string;
+  /** Every Phase B progress objective advances toward a positive numeric target. */
+  readonly target: number;
+  /**
+   * Optional event filter/configuration.
+   *
+   * Common keys:
+   * - eventTypes: string[]
+   * - where: object of exact top-level payload matches
+   * EVENT_SUM additionally requires field.
+   * RECRUIT_CREW may set crew to WHORES, THUGS or ANY.
+   * STATE_AT_LEAST requires field and reads the post-event player state.
+   */
+  readonly params?: QuestDataObject;
+}
+
+export interface QuestProgressEvent {
+  /** Usually a PlayerActivity type such as SCOUT, RAID_ATTACK or RUN_RETURNED. */
+  readonly type: string;
+  /** Activity/event JSON. */
+  readonly payload: QuestDataValue;
+  /** Authoritative player state after the source event, when available. */
+  readonly state?: QuestDataObject;
+}
+
+export interface QuestObjectiveProgress {
+  readonly current: number;
+  readonly target: number;
+  readonly completed: boolean;
+}
+
+export type QuestProgressMap = Readonly<Record<string, QuestObjectiveProgress>>;
+
+export interface QuestObjectiveAdvance {
+  readonly matched: boolean;
+  readonly amount: number;
+  readonly progress: QuestObjectiveProgress;
+}
+
+export interface QuestRewardDefinition {
+  readonly kind: string;
+  readonly amount?: number;
+  readonly key?: string;
+  readonly params?: QuestDataObject;
+}
+
+export interface QuestDefinition {
+  /** Stable key inside a ruleset version, e.g. FIRST_NIGHT_OUT. */
+  readonly key: string;
+  readonly title: string;
+  readonly description: string;
+  /** Null for system/event quests that have no named contact. */
+  readonly contactKey: string | null;
+  readonly type: QuestType;
+  /** Gameplay grouping such as STREET, COMBAT, TRAVEL or TURF. */
+  readonly category: string;
+  readonly difficulty: QuestDifficulty;
+  readonly prerequisites: readonly QuestPrerequisiteDefinition[];
+  readonly objectives: readonly QuestObjectiveDefinition[];
+  readonly bonusObjectives: readonly QuestObjectiveDefinition[];
+  readonly rewards: readonly QuestRewardDefinition[];
+  readonly followUpKeys: readonly string[];
+  readonly repeatability: QuestRepeatability;
+  /** Null means the accepted quest has no timer. */
+  readonly expiresAfterMinutes: number | null;
+  readonly availability: QuestDataObject;
+}
+
+export type QuestDefinitionCatalog = Readonly<Record<string, QuestDefinition>>;
+
 export interface RulesetMeta {
   readonly id: string;
   readonly version: string;
@@ -1233,6 +1357,11 @@ export interface Ruleset {
   readonly weaponUnlocks: { readonly [K in WeaponUnlockKey]: WeaponUnlockRule };
   readonly reputation: ReputationRules;
   readonly quests: { readonly [K in QuestKey]: QuestRule };
+  /**
+   * New event-driven handcrafted quests. Optional keeps all historical rulesets
+   * valid; a later ruleset version opts in by publishing a catalog.
+   */
+  readonly questDefinitions?: QuestDefinitionCatalog;
   readonly rankings: RankingRules;
   /** Optional round privacy for public community surfaces. */
   readonly communityPrivacy?: CommunityPrivacyRules;

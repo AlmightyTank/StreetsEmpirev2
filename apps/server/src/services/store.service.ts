@@ -100,7 +100,7 @@ export const StoreService = {
           result,
           activity: {
             type: 'WEAPON_UNLOCK',
-            payload: { weapon: unlock.weaponName, unlock: unlock.title },
+            payload: { weapon: unlock.weaponName, weaponKey: input.weapon, unlock: unlock.title },
           },
         };
       },
@@ -156,8 +156,15 @@ export const StoreService = {
             : undefined,
           activity: {
             type: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
-            payload: { store: trade.storeName, item: trade.itemName,
-              quantity: input.quantity, totalCents: result.totalCents },
+            payload: {
+              store: trade.storeName,
+              storeKey: input.store,
+              item: trade.itemName,
+              itemKey: input.item,
+              direction: input.direction,
+              quantity: input.quantity,
+              totalCents: result.totalCents,
+            },
           },
         };
       },
