@@ -7,6 +7,7 @@ import {
   classicOgV07D,
   classicOgV07E,
   classicOgV07F,
+  classicOgV07G,
   hideoutV2For,
   hideoutV2Problems,
 } from '../index.js';
@@ -93,6 +94,27 @@ describe('classic-og-v0.7-a hideout foundation', () => {
     expect(extension?.infirmary?.medicineEfficiencyPercentByWorkshopLevel)
       .toEqual([0, 0, 0, 5, 10, 15]);
     expect(hideoutV2Problems(classicOgV07F)).toEqual([]);
+  });
+
+  it('activates capped specialization tuning only in 0.7-G', () => {
+    const extension = hideoutV2For(classicOgV07G);
+    expect(classicOgV07G.hideout).toEqual(classicOgV07F.hideout);
+    expect(hideoutV2For(classicOgV07F)?.specializationEffects).toBeUndefined();
+    expect(extension?.specializationEffects).toEqual({
+      safeRoom: {
+        vaultProtectedCashCents: 250_000,
+        vaultProtectedProductUnits: 50,
+        panicRoomDefenseBonusPercent: 5,
+      },
+      workshop: {
+        drugLabOutputBonusPercent: 5,
+        garageRelocationDiscountPercent: 5,
+      },
+    });
+    expect(extension?.rooms.SAFE_ROOM?.specialization?.unlockLevel).toBe(3);
+    expect(extension?.rooms.WORKSHOP?.specialization?.choices.find((choice) => choice.key === 'GARAGE')?.blurb)
+      .toContain('no third run');
+    expect(hideoutV2Problems(classicOgV07G)).toEqual([]);
   });
 
 

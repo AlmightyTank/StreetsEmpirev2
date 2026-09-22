@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { classicOgV04C, classicOgV04D, classicOgV07D, classicOgV07E, classicOgV07F } from '@streets/rulesets';
+import { classicOgV04C, classicOgV04D, classicOgV07D, classicOgV07E, classicOgV07F, classicOgV07G } from '@streets/rulesets';
 import { calculateNetWorthCents, productNetWorthCents, startingStock } from '@streets/rules-engine';
 import type { BattleReportDto, GameActionResult, HideoutV2Dto, ProduceCrackResult, ProductsDto, ProductTradeResult } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
@@ -72,7 +72,12 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('product economy with Po
         whores: 50, thugs: i === 0 ? 40 : 20, woundedThugs: 0, pistols: i === 0 ? 40 : 20, beer: 500, condoms: 5_000, crack: 0,
         turns: 144, cashCents: 50_000_000n, heat: 0, cityId,
         createdAt: new Date(Date.now() - 3 * 86_400_000), lastActiveAt: new Date(), lastTurnCalculationAt: new Date(),
-        raidProtectedUntil: null, raidCooldownUntil: null, lastRaidedAt: null, allianceId: null };
+        raidProtectedUntil: null, raidCooldownUntil: null, lastRaidedAt: null, allianceId: null,
+        hideoutWeaponPriority: 'POWER',
+        hideoutSafeRoomSpecialization: null,
+        hideoutLookoutsSpecialization: null,
+        hideoutWorkshopSpecialization: null,
+        hideoutBackOfficeSpecialization: null };
       await app.prisma.roundPlayer.update({ where: { id: players[i]! }, data: { ...data, netWorthCents: NetWorthService.calculate(data, rules) } });
     }
   });
@@ -153,6 +158,98 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('product economy with Po
       expect(result.ingredientCents).toBe(baseOutput * effectiveIngredient);
       expect(result.hideoutIngredientSavingsCents).toBe(baseOutput * (baseIngredient - effectiveIngredient));
     }
+  });
+
+  it('locks in 0.7-G Hideout specializations permanently for the season', async () => {
+    await app.prisma.round.update({
+      where: { id: roundId },
+      data: { rulesetId: classicOgV07G.meta.id, rulesetVersion: classicOgV07G.meta.version },
+    });
+    await app.prisma.roundPlayer.update({
+      where: { id: players[0]! },
+      data: {
+        hideoutSafeRoomLevel: 3,
+        hideoutLookoutsLevel: 3,
+        hideoutWorkshopLevel: 5,
+        hideoutBackOfficeLevel: 5,
+        hideoutGarageLevel: 1,
+        hideoutSafeRoomSpecialization: null,
+        hideoutLookoutsSpecialization: null,
+        hideoutWorkshopSpecialization: null,
+        hideoutBackOfficeSpecialization: null,
+      },
+    });
+
+    const vaultActionId = randomUUID();
+    const vault = await post(0, '/hideout/specialization', {
+      room: 'SAFE_ROOM',
+      specialization: 'VAULT',
+      actionId: vaultActionId,
+    });
+    expect(vault.statusCode, vault.body).toBe(200);
+    expect(vault.json().result).toEqual({ room: 'SAFE_ROOM', specialization: 'VAULT', name: 'Vault' });
+
+    // The normal replay guard answers the same intent without trying to choose twice.
+    const replay = await post(0, '/hideout/specialization', {
+      room: 'SAFE_ROOM',
+      specialization: 'VAULT',
+      actionId: vaultActionId,
+    });
+    expect(replay.statusCode, replay.body).toBe(200);
+    expect(replay.json().result).toEqual(vault.json().result);
+
+    const respec = await post(0, '/hideout/specialization', {
+      room: 'SAFE_ROOM',
+      specialization: 'PANIC_ROOM',
+      actionId: randomUUID(),
+    });
+    expect(respec.statusCode).toBe(409);
+    expect(respec.json().error.code).toBe('HIDEOUT_SPECIALIZATION_PERMANENT');
+
+    for (const [room, specialization] of [
+      ['LOOKOUTS', 'STREET_EYES'],
+      ['WORKSHOP', 'DRUG_LAB'],
+      ['BACK_OFFICE', 'CONNECTIONS'],
+    ] as const) {
+      const response = await post(0, '/hideout/specialization', {
+        room,
+        specialization,
+        actionId: randomUUID(),
+      });
+      expect(response.statusCode, response.body).toBe(200);
+    }
+
+    const stored = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: players[0]! } });
+    expect(stored).toMatchObject({
+      hideoutSafeRoomSpecialization: 'VAULT',
+      hideoutLookoutsSpecialization: 'STREET_EYES',
+      hideoutWorkshopSpecialization: 'DRUG_LAB',
+      hideoutBackOfficeSpecialization: 'CONNECTIONS',
+    });
+
+    const hideout = (await get(0, '/hideout')).json<HideoutV2Dto>();
+    expect(hideout.rooms.find((room) => room.key === 'SAFE_ROOM')?.specialization?.selectedKey).toBe('VAULT');
+    expect(hideout.rooms.find((room) => room.key === 'LOOKOUTS')?.specialization?.selectedKey).toBe('STREET_EYES');
+    expect(hideout.rooms.find((room) => room.key === 'WORKSHOP')?.specialization?.selectedKey).toBe('DRUG_LAB');
+    expect(hideout.rooms.find((room) => room.key === 'BACK_OFFICE')?.specialization?.selectedKey).toBe('CONNECTIONS');
+    expect(hideout.assetProtection?.protectedProductCapacity).toBe(75);
+    expect(hideout.security).toMatchObject({
+      historyHours: 20,
+      specializationHooks: {
+        streetEyes: { warningHoursBonus: 12, active: true },
+        armedWatch: { defenseBonusPercent: 5, active: false },
+      },
+    });
+    expect(hideout.workshop?.outputBonusPercent).toBe(20);
+    expect(hideout.garage?.runLimit).toBe(2);
+    expect(hideout.garage?.relocationFeeDiscountPercent).toBe(5);
+    expect(hideout.ledger).toMatchObject({
+      historyDays: 60,
+      specializationHooks: {
+        bookkeeping: { historyDaysBonus: 30, active: false },
+        connections: { takeBonusPercent: 2, active: true },
+      },
+    });
   });
 
   it('persists 0.7-F Armory priority through the Hideout API', async () => {

@@ -44,6 +44,7 @@ interface RankingRow {
   hideoutLookoutsLevel: number;
   hideoutWorkshopLevel: number;
   hideoutBackOfficeLevel: number;
+  hideoutGarageLevel?: number;
   createdAt: Date;
   /** 0.3.0-C. Loaded where the ranking or profile shows a tag. */
   alliance?: { name: string; tag: string } | null;
@@ -404,17 +405,19 @@ function achievementsFor(row: RankingRow, rank: { local: number; national: numbe
   const bestMovement = Math.max(localMovement, nationalMovement, 0);
   const localHeldAt = rankHeldSince(row, rank.local, 'local', new Date());
   const nationalHeldAt = rankHeldSince(row, rank.national, 'national', new Date());
+  const garageLevel = row.hideoutGarageLevel ?? 0;
   const hideoutLevels =
     row.hideoutSafeRoomLevel +
     row.hideoutLookoutsLevel +
     row.hideoutWorkshopLevel +
-    row.hideoutBackOfficeLevel;
+    row.hideoutBackOfficeLevel +
+    garageLevel;
   const maxedHideoutRooms = [
     row.hideoutSafeRoomLevel,
     row.hideoutLookoutsLevel,
     row.hideoutWorkshopLevel,
     row.hideoutBackOfficeLevel,
-  ].filter((level) => level >= 5).length;
+  ].filter((level) => level >= 5).length + (garageLevel >= 1 ? 1 : 0);
 
   return [
     achievement({ key: 'national-number-one', title: 'National #1', description: 'Hold the top national rank.', category: 'rank', rarity: 'legendary', current: rank.national === 1 ? 1 : 0, target: 1, progressLabel: 'rank #1', earnedAt: nationalHeldAt }),
@@ -457,7 +460,7 @@ function achievementsFor(row: RankingRow, rank: { local: number; national: numbe
     achievement({ key: 'first-hideout-upgrade', title: 'Keys to the Place', description: 'Buy your first seasonal hideout upgrade.', category: 'hideout', rarity: 'common', current: hideoutLevels, target: 1, progressLabel: 'hideout levels' }),
     achievement({ key: 'hideout-regular', title: 'House Money', description: 'Reach ten hideout upgrades in one season.', category: 'hideout', rarity: 'uncommon', current: hideoutLevels, target: 10, progressLabel: 'hideout levels' }),
     achievement({ key: 'room-maxed', title: 'Room Maxed', description: 'Fully upgrade any hideout room in one season.', category: 'hideout', rarity: 'rare', current: maxedHideoutRooms, target: 1, progressLabel: 'maxed rooms' }),
-    achievement({ key: 'fully-built-hideout', title: 'Fully Built', description: 'Max every hideout room in one season.', category: 'hideout', rarity: 'epic', current: hideoutLevels, target: 20, progressLabel: 'hideout levels' }),
+    achievement({ key: 'fully-built-hideout', title: 'Fully Built', description: 'Max every hideout room in one season.', category: 'hideout', rarity: 'epic', current: hideoutLevels, target: 21, progressLabel: 'hideout levels' }),
 
     ...legacyAchievements(context.legacy),
   ];
@@ -709,6 +712,11 @@ export const CommunityService = {
             hideoutLookoutsLevel: true,
             hideoutWorkshopLevel: true,
             hideoutBackOfficeLevel: true,
+            hideoutGarageLevel: true,
+            hideoutSafeRoomSpecialization: true,
+            hideoutLookoutsSpecialization: true,
+            hideoutWorkshopSpecialization: true,
+            hideoutBackOfficeSpecialization: true,
             createdAt: true,
             lastActiveAt: true,
             city: { select: { name: true } },

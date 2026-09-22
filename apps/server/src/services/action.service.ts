@@ -97,6 +97,10 @@ export interface PlayerState {
   hideoutBackOfficeLevel: number;
   hideoutGarageLevel: number;
   hideoutWeaponPriority: string;
+  hideoutSafeRoomSpecialization: string | null;
+  hideoutLookoutsSpecialization: string | null;
+  hideoutWorkshopSpecialization: string | null;
+  hideoutBackOfficeSpecialization: string | null;
 
   /**
    * What Tommy has on the shelf, already settled. Counters rather than
@@ -209,6 +213,10 @@ export function toState(player: RoundPlayer): PlayerState {
     hideoutBackOfficeLevel: player.hideoutBackOfficeLevel,
     hideoutGarageLevel: player.hideoutGarageLevel,
     hideoutWeaponPriority: player.hideoutWeaponPriority,
+    hideoutSafeRoomSpecialization: player.hideoutSafeRoomSpecialization,
+    hideoutLookoutsSpecialization: player.hideoutLookoutsSpecialization,
+    hideoutWorkshopSpecialization: player.hideoutWorkshopSpecialization,
+    hideoutBackOfficeSpecialization: player.hideoutBackOfficeSpecialization,
     pistolStock: player.pistolStock,
     shotgunStock: player.shotgunStock,
     tek9Stock: player.tek9Stock,

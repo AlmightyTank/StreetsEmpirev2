@@ -73,12 +73,22 @@ export const EconomyLedgerService = {
     roundPlayerId: string,
     ruleset: Ruleset,
     backOfficeLevel: number,
+    backOfficeSpecialization: string | null,
     now: Date,
   ): Promise<HideoutLedgerDto | undefined> {
     const rule = hideoutV2For(ruleset)?.ledger;
     if (!rule) return undefined;
 
-    const historyDays = rule.historyDaysByBackOfficeLevel[backOfficeLevel] ?? rule.historyDaysByBackOfficeLevel[0]!;
+    const bookkeeping = Boolean(
+      hideoutV2For(ruleset)?.specializationEffects
+      && backOfficeSpecialization === 'BOOKKEEPING'
+    );
+    const connections = Boolean(
+      hideoutV2For(ruleset)?.specializationEffects
+      && backOfficeSpecialization === 'CONNECTIONS'
+    );
+    const baseHistoryDays = rule.historyDaysByBackOfficeLevel[backOfficeLevel] ?? rule.historyDaysByBackOfficeLevel[0]!;
+    const historyDays = baseHistoryDays + (bookkeeping ? rule.specializationHooks.bookkeepingHistoryDaysBonus : 0);
     const rowLimit = rule.rowLimitByBackOfficeLevel[backOfficeLevel] ?? rule.rowLimitByBackOfficeLevel[0]!;
     const historyCutoff = new Date(now.getTime() - historyDays * 86_400_000);
 
@@ -131,11 +141,11 @@ export const EconomyLedgerService = {
       specializationHooks: {
         bookkeeping: {
           historyDaysBonus: rule.specializationHooks.bookkeepingHistoryDaysBonus,
-          active: false,
+          active: bookkeeping,
         },
         connections: {
           takeBonusPercent: rule.specializationHooks.connectionsTakeBonusPercent,
-          active: false,
+          active: connections,
         },
       },
     };
