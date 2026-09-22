@@ -8,31 +8,17 @@ import {
   stockOnHand,
   StoreTradeError,
   WeaponUnlockError,
-  questProgress,
   restockSpeedup,
   tierFor,
   weaponUnlockProgress,
   type Ruleset,
   type Standings,
 } from '@streets/rules-engine';
-import type { QuestKey, TraderKey } from '@streets/rulesets';
+import type { TraderKey } from '@streets/rulesets';
 import type { GameActionResult, StoresDto, StoreTradeInput, StoreTradeResult, WeaponUnlockInput, WeaponUnlockResult } from '@streets/shared';
 import { ActionService, type PlayerState } from './action.service.js';
 import type { StockSettlementSet } from './stock.service.js';
-import { toQuestPlayer } from './quest.service.js';
 import { AppError } from '../utils/errors.js';
-
-/** Purchases a favour counts, by the field the item fills. */
-const COUNTED_BUYS = {
-  condoms: 'condomsBought',
-  medicine: 'medicineBought',
-  beer: 'beerBought',
-  pistols: 'pistolsBought',
-} as const satisfies Partial<Record<keyof PlayerState, keyof PlayerState>>;
-
-function boughtCounter(field: string): (typeof COUNTED_BUYS)[keyof typeof COUNTED_BUYS] | null {
-  return Object.hasOwn(COUNTED_BUYS, field) ? COUNTED_BUYS[field as keyof typeof COUNTED_BUYS] : null;
-}
 
 export const StoreService = {
   /**
@@ -51,9 +37,6 @@ export const StoreService = {
         standing: tierFor(standings[key as TraderKey]?.points ?? 0, ruleset).name,
         reputation: standings[key as TraderKey]?.points ?? 0,
         restockSpeedup: Math.round(restockSpeedup(standings[key as TraderKey]?.points ?? 0, ruleset) * 100),
-        // The favour is offered where the trader is, the same way Tommy's
-        // always was, rather than on a screen of its own.
-        quest: questProgress(key as QuestKey, toQuestPlayer(player), standings, ruleset),
         items: Object.entries(store.items).map(([itemKey, item]) => {
           const onHand = stockOnHand(player, item);
           const settled = item.restock ? stock.byField[item.restock.stockField] ?? null : null;
@@ -129,12 +112,6 @@ export const StoreService = {
         const trader = input.store as TraderKey;
         const credit = creditDailyTrade(standings[trader], now, ruleset);
 
-        // Pip's favour counts rocks that reach his corners, and only his.
-        const suppliedToPip =
-          trader === 'PIP' && input.direction === 'sell' ? input.quantity : 0;
-        // The clerk's and Tommy's favours count what you bought, never what you sold back.
-        const counter = input.direction === 'buy' ? boughtCounter(trade.field) : null;
-
         const result: StoreTradeResult = {
           ...priced, direction: input.direction, quantity: input.quantity,
           totalCents: Number(trade.totalCents), cashChangeCents: Number(trade.cashChangeCents),
@@ -147,8 +124,6 @@ export const StoreService = {
             [trade.field]: current[trade.field] + trade.quantityChange,
             // Taking one off the shelf is what starts the wait for the next.
             ...(stockField ? { [stockField]: current[stockField] - stockTaken } : {}),
-            rocksSuppliedToPip: current.rocksSuppliedToPip + suppliedToPip,
-            ...(counter ? { [counter]: current[counter] + trade.quantityChange } : {}),
           },
           result,
           reputation: credit.credited
