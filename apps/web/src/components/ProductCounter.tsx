@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import type { GameActionResult, ProductStockDto, ProductTradeResult } from '@streets/shared';
 import { formatCents, formatCentsExact, formatNumber } from '@streets/shared';
 import { api } from '../api/client.js';
@@ -55,17 +56,29 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
   const [quantity, setQuantity] = useState<number | ''>(1);
   const pip = product.pip!;
   const buying = direction === 'buy';
+  const purchaseLocked = buying && !pip.purchaseUnlocked;
   const unit = buying ? pip.buyCents : pip.sellCents;
-  const max = buying ? Math.min(pip.maxBuy, Math.floor(cashCents / Math.max(1, pip.buyCents))) : product.quantity;
+  const max = buying
+    ? purchaseLocked ? 0 : Math.min(pip.maxBuy, Math.floor(cashCents / Math.max(1, pip.buyCents)))
+    : product.quantity;
   const valid = typeof quantity === 'number' && Number.isSafeInteger(quantity) && quantity >= 1 && quantity <= max;
   const emptyReason = buying
     ? pip.stock === 0 ? `Pip is out of ${product.name} until the next delivery.` : `You cannot afford a single ${product.name} at ${price(pip.buyCents)}.`
     : `You have no ${product.name} to sell.`;
-  const block = blocked ?? (trade.busy ? 'Pip is counting it out.' : max < 1 ? emptyReason : !valid ? `Enter a whole number from 1 to ${formatNumber(max)}.` : null);
+  const block = blocked
+    ?? (trade.busy
+      ? 'Pip is counting it out.'
+      : purchaseLocked
+        ? `Complete the required job to unlock ${pip.unlockName ?? product.name} purchases.`
+        : max < 1
+          ? emptyReason
+          : !valid
+            ? `Enter a whole number from 1 to ${formatNumber(max)}.`
+            : null);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (block || typeof quantity !== 'number') return;
+    if (block || purchaseLocked || typeof quantity !== 'number') return;
     await trade.run((actionId): Promise<GameActionResult<ProductTradeResult>> => api.post('/game/products/trade', { product: product.key, direction, quantity, actionId }));
     onDone();
   }
@@ -79,6 +92,15 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
         <span>Sell <strong className="se-num">{price(pip.sellCents)}</strong></span>
       </div>
       <p className="se-hint">{product.blurb}</p>
+      {!pip.purchaseUnlocked ? (
+        <div className="se-store-favor">
+          <h3 className="se-store-favor__title">Purchase access locked</h3>
+          <p className="se-hint">
+            {pip.unlockDescription ?? `Pip has not opened ${product.name} purchases to you yet.`}
+            {' '}Earn it through <Link to="/game/quests">underworld jobs</Link>. You can still sell stock you already own.
+          </p>
+        </div>
+      ) : null}
       <ShelfLine pip={pip} name={product.name} onArrival={onDone} />
       <form onSubmit={submit}>
         <div className="se-store-order">
@@ -92,16 +114,18 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
           </div>
           <div>
             <label className="se-label" htmlFor={`${id}-quantity`}>Quantity</label>
-            <input id={`${id}-quantity`} className="se-input" type="number" inputMode="numeric" min={1} max={max} step={1} value={quantity}
-              disabled={blocked !== null}
+            <input id={`${id}-quantity`} className="se-input" type="number" inputMode="numeric" min={1} max={Math.max(1, max)} step={1} value={quantity}
+              disabled={blocked !== null || purchaseLocked}
               onChange={(event) => setQuantity(event.target.value === '' ? '' : Number(event.target.value))} />
           </div>
         </div>
         <div className="se-spend__row">
           <QuantitySteps value={quantity} onChange={setQuantity} max={max} steps={bulkHelpers}
-            disabled={blocked !== null} disabledReason={blocked} emptyReason={emptyReason} />
+            disabled={blocked !== null || purchaseLocked} disabledReason={block} emptyReason={emptyReason} />
         </div>
-        <p className="se-hint">{buying ? 'Can buy' : 'Can sell'} {formatNumber(max)}.</p>
+        <p className="se-hint">
+          {purchaseLocked ? 'Purchases are locked until the required job is complete.' : `${buying ? 'Can buy' : 'Can sell'} ${formatNumber(max)}.`}
+        </p>
         <Button className="se-btn se-btn--primary se-btn--block" disabledReason={block}>
           {buying ? 'Buy' : 'Sell'} {product.name}{valid && typeof quantity === 'number' ? ` · ${price(quantity * unit)}` : ''}
         </Button>
