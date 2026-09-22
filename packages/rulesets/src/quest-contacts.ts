@@ -1,4 +1,4 @@
-import type { ContactCatalog } from '../types.js';
+import type { ContactCatalog } from './types.js';
 
 export const questContacts = {
   MAMA_KING: {
