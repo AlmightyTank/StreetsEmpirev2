@@ -80,4 +80,22 @@ describe('describeActivity', () => {
     expect(result.detail).not.toContain('+4 product');
   });
 
+
+  it('explains a ready quest and where to collect it', () => {
+    expect(describeActivity(activity({ title: 'First Night Out' }, 'QUEST_READY'), 'crack')).toEqual({
+      text: 'Job complete: First Night Out.',
+      detail: 'Return to Quests to collect payment.',
+    });
+  });
+
+  it('summarizes claimed quest rewards', () => {
+    expect(describeActivity(activity({
+      title: 'First Night Out',
+      rewards: ['$2,500', '+5 Mama King reputation'],
+    }, 'QUEST_CLAIMED'), 'crack')).toEqual({
+      text: 'Collected payment for First Night Out.',
+      detail: '$2,500 · +5 Mama King reputation',
+    });
+  });
+
 });

@@ -11,6 +11,9 @@ type Row = {
   completedAt: Date | null;
   expiresAt: Date | null;
   questDefinition: {
+    key: string;
+    title: string;
+    contactKey: string | null;
     objectives: unknown;
     bonusObjectives: unknown;
   };
@@ -26,6 +29,9 @@ function fixture(rowOverrides: Partial<Row> = {}) {
     completedAt: null,
     expiresAt: null,
     questDefinition: {
+      key: 'TEST_JOB',
+      title: 'Test Job',
+      contactKey: 'MAMA_KING',
       objectives: [
         { id: 'turns', kind: 'SPEND_TURNS', description: 'Scout 12 turns.', target: 12, params: { eventTypes: ['SCOUT'] } },
       ],
@@ -84,6 +90,9 @@ function fixture(rowOverrides: Partial<Row> = {}) {
         return row;
       },
     },
+    playerActivity: {
+      create: async ({ data }: { data: Record<string, unknown> }) => ({ id: 'activity-ready', ...data }),
+    },
     questProgressReceipt: {
       findUnique: async ({ where }: { where: { playerQuestId_sourceKey: { playerQuestId: string; sourceKey: string } } }) => {
         const key = `${where.playerQuestId_sourceKey.playerQuestId}:${where.playerQuestId_sourceKey.sourceKey}`;
@@ -135,6 +144,9 @@ describe('QuestProgressService', () => {
   it('does not apply the same source event twice', async () => {
     const { db, row } = fixture({
       questDefinition: {
+        key: 'TEST_JOB',
+        title: 'Test Job',
+        contactKey: 'MAMA_KING',
         objectives: [
           { id: 'turns', kind: 'SPEND_TURNS', description: 'Scout 12 turns.', target: 12, params: { eventTypes: ['SCOUT'] } },
         ],
@@ -210,6 +222,9 @@ describe('QuestProgressService', () => {
   it('tracks current-state requirements and reopens a quest if the state falls', async () => {
     const { db, row, setPlayerState } = fixture({
       questDefinition: {
+        key: 'TEST_JOB',
+        title: 'Test Job',
+        contactKey: 'MAMA_KING',
         objectives: [
           { id: 'thugs', kind: 'STATE_AT_LEAST', description: 'Own 5 thugs.', target: 5, params: { field: 'thugs' } },
         ],

@@ -142,8 +142,12 @@ export type QuestDifficulty =
 
 export type QuestRepeatability = 'ONCE' | 'DAILY' | 'WEEKLY' | 'REPEATABLE';
 
+export type QuestPrerequisiteKind =
+  | 'QUEST_COMPLETED'
+  | 'CONTACT_REP_AT_LEAST';
+
 export interface QuestPrerequisiteDefinition {
-  readonly kind: string;
+  readonly kind: QuestPrerequisiteKind;
   readonly params?: QuestDataObject;
 }
 
@@ -199,12 +203,37 @@ export interface QuestObjectiveAdvance {
   readonly progress: QuestObjectiveProgress;
 }
 
+export type QuestRewardKind =
+  | 'CASH'
+  | 'TURNS'
+  | 'ITEM'
+  | 'CONTACT_REP'
+  | 'WEAPON_ACCESS';
+
 export interface QuestRewardDefinition {
-  readonly kind: string;
+  readonly kind: QuestRewardKind;
   readonly amount?: number;
   readonly key?: string;
   readonly params?: QuestDataObject;
 }
+
+export type ContactKey =
+  | 'MAMA_KING'
+  | 'PIP'
+  | 'TOMMY'
+  | 'WHEELS'
+  | 'VIC'
+  | 'BLOCKS';
+
+export interface ContactDefinition {
+  readonly key: ContactKey;
+  readonly name: string;
+  readonly shortName: string;
+  readonly role: string;
+  readonly description: string;
+}
+
+export type ContactCatalog = Readonly<Record<ContactKey, ContactDefinition>>;
 
 export interface QuestDefinition {
   /** Stable key inside a ruleset version, e.g. FIRST_NIGHT_OUT. */
@@ -1362,6 +1391,8 @@ export interface Ruleset {
    * valid; a later ruleset version opts in by publishing a catalog.
    */
   readonly questDefinitions?: QuestDefinitionCatalog;
+  /** Named quest contacts and their relationship tracks. */
+  readonly contacts?: ContactCatalog;
   readonly rankings: RankingRules;
   /** Optional round privacy for public community surfaces. */
   readonly communityPrivacy?: CommunityPrivacyRules;

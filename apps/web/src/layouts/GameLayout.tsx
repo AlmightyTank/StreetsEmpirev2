@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type R
 import { Link, useLocation, useNavigationType } from 'react-router-dom';
 import { Shell } from './Shell.js';
 import { ConnectionBanner } from '../components/ConnectionBanner.js';
+import { TrackedQuests } from '../components/TrackedQuests.js';
 import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
@@ -372,6 +373,7 @@ export function GameLayout({ children }: { children: ReactNode }) {
           </span>
         </div>
       ) : null}
+      <TrackedQuests />
 
       <div className="se-gamegrid">
         <GameNav sections={sections} pathname={pathname} badges={badges} />

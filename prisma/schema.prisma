@@ -372,8 +372,9 @@ model PlayerQuest {
   questDefinition   QuestDefinition @relation(fields: [questDefinitionId], references: [id], onDelete: Restrict)
   progressReceipts QuestProgressReceipt[]
 
-  attempt Int @default(1)
-  status  QuestStatus @default(AVAILABLE)
+  attempt   Int @default(1)
+  status    QuestStatus @default(AVAILABLE)
+  isTracked Boolean @default(false)
 
   objectiveProgress Json @default("{}")
   bonusProgress     Json @default("{}")
@@ -1207,6 +1208,8 @@ enum ActivityType {
   PAYOUT_CHANGE
   AWAY_BONUS
   HIDEOUT_UPGRADE
+  QUEST_READY
+  QUEST_CLAIMED
   BATTLE_VOIDED
   ADMIN_GRANT
   HEAT_BRIBE
