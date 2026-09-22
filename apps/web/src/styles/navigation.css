@@ -69,20 +69,28 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
   background: var(--se-panel);
 }
 .se-storetabs__tab {
+  appearance: none;
+  -webkit-appearance: none;
   flex: 1 1 0;
   min-width: 0;
   padding: 8px 6px;
+  border: 1px solid transparent;
   border-radius: var(--se-radius-sm);
-  text-align: center;
+  background: transparent;
+  color: var(--se-text-dim);
+  font: inherit;
   font-size: 13px;
   font-weight: 600;
-  color: var(--se-text-dim);
+  text-align: center;
   text-decoration: none;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 .se-storetabs__tab:hover { color: #fff; background: rgba(255, 255, 255, 0.04); }
+.se-storetabs__tab:focus-visible { outline: 2px solid var(--se-accent); outline-offset: 1px; }
 .se-storetabs__tab--active,
 .se-storetabs__tab--active:hover { color: #0b0c0e; background: var(--se-accent); }
 @media (pointer: coarse) {
