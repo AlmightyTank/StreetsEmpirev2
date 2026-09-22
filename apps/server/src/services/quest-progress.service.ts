@@ -20,6 +20,8 @@ const OBJECTIVE_KINDS = new Set<QuestObjectiveKind>([
   'RECRUIT_CREW',
   'WIN_EVENTS',
   'STATE_AT_LEAST',
+  'UNIQUE_VALUES',
+  'TURF_HOLD_HOURS',
 ]);
 
 export interface QuestProgressSignal {
@@ -72,7 +74,7 @@ function objectives(value: Prisma.JsonValue): QuestObjectiveDefinition[] {
 
 function progress(value: Prisma.JsonValue): QuestProgressMap {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-  const result: Record<string, { current: number; target: number; completed: boolean }> = {};
+  const result: Record<string, { current: number; target: number; completed: boolean; values?: string[] }> = {};
   for (const [key, raw] of Object.entries(value)) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
     const row = raw as Record<string, unknown>;
@@ -81,6 +83,9 @@ function progress(value: Prisma.JsonValue): QuestProgressMap {
       current: row.current,
       target: row.target,
       completed: row.completed === true,
+      ...(Array.isArray(row.values)
+        ? { values: row.values.filter((item): item is string => typeof item === 'string') }
+        : {}),
     };
   }
   return result;
