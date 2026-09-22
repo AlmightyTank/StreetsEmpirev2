@@ -290,7 +290,20 @@ export const QuestProgressService = {
       });
 
       result.advanced += 1;
-      if (becameReady) result.readied += 1;
+      if (becameReady) {
+        result.readied += 1;
+        await db.playerActivity.create({
+          data: {
+            roundPlayerId,
+            type: 'QUEST_READY',
+            payload: json({
+              questKey: playerQuest.questDefinition.key,
+              title: playerQuest.questDefinition.title,
+              contactKey: playerQuest.questDefinition.contactKey,
+            }),
+          },
+        });
+      }
       if (becameUnready) result.reopened += 1;
     }
 
