@@ -77,11 +77,12 @@ Phase A keeps `kind` fields generic strings with JSON-safe parameters. Phase B w
 - catalog key / definition key drift
 - missing title or description
 - quests with no required objectives
+- missing prerequisite or reward kinds
 - missing or duplicate objective IDs
 - missing objective kinds/descriptions
 - non-positive objective targets
 - invalid expiry durations
-- self-looping or duplicate follow-ups
+- self-looping, duplicate, or unknown follow-ups
 
 ## Deliberately not in Phase A
 
