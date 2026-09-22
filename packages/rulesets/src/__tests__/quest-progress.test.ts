@@ -68,6 +68,48 @@ describe('quest progress reducer', () => {
     expect(advanceQuestObjective(def, { type: 'RAID_ATTACK', payload: { won: true } }).amount).toBe(1);
   });
 
+  it('counts distinct string values across scalar and array payloads', () => {
+    const def = objective({
+      kind: 'UNIQUE_VALUES',
+      target: 3,
+      params: { eventTypes: ['RUN_RETURNED'], field: 'cities' },
+    });
+
+    const first = advanceQuestObjective(def, {
+      type: 'RUN_RETURNED',
+      payload: { cities: ['Detroit', 'Chicago'] },
+    });
+    expect(first).toEqual({
+      matched: true,
+      amount: 2,
+      progress: {
+        current: 2,
+        target: 3,
+        completed: false,
+        values: ['Detroit', 'Chicago'],
+      },
+    });
+
+    const duplicate = advanceQuestObjective(def, {
+      type: 'RUN_RETURNED',
+      payload: { cities: ['Chicago'] },
+    }, first.progress);
+    expect(duplicate.amount).toBe(0);
+    expect(duplicate.progress.current).toBe(2);
+
+    const final = advanceQuestObjective(def, {
+      type: 'RUN_RETURNED',
+      payload: { cities: ['Miami', 'Seattle'] },
+    }, duplicate.progress);
+    expect(final.amount).toBe(1);
+    expect(final.progress).toEqual({
+      current: 3,
+      target: 3,
+      completed: true,
+      values: ['Detroit', 'Chicago', 'Miami', 'Seattle'],
+    });
+  });
+
   it('updates required progress as one immutable application', () => {
     const defs = [
       objective({ id: 'turns', kind: 'SPEND_TURNS', target: 12 }),
