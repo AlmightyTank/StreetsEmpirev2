@@ -118,9 +118,17 @@ function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked
     <Panel title={`${locked ? 'Locked · ' : ''}${item.name}`}>
       <div className="se-store-prices">
         <span>Own <strong className="se-num">{formatNumber(owned)}</strong></span>
-        <span>Buy <strong className="se-num">{formatCents(item.buyCents)}</strong></span>
+        <span>
+          Buy <strong className="se-num">{formatCents(item.buyCents)}</strong>
+          {item.baseBuyCents ? <span className="se-dim"> · normally {formatCents(item.baseBuyCents)}</span> : null}
+        </span>
         <span>{item.sellCents === null ? 'No buyback' : <>Sell <strong className="se-num">{formatCents(item.sellCents)}</strong></>}</span>
       </div>
+      {item.favorDiscountPercent ? (
+        <p className="se-hint se-good">
+          Tommy Voucher armed — {formatNumber(item.favorDiscountPercent)}% off this eligible purchase. It is consumed only if the buy succeeds.
+        </p>
+      ) : null}
       {item.restock ? (
         <RestockLine restock={item.restock} name={item.name} keeper={keeper} onArrival={onRestock} />
       ) : null}
