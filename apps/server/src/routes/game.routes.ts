@@ -103,6 +103,8 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
     return StoreService.catalog(
+      fastify.prisma,
+      player.id,
       settled.ruleset,
       toState(settled.player),
       settled.stock,
