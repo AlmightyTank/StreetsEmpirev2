@@ -14,7 +14,6 @@ import {
 import { toGameSnapshotDto } from '../game/dto.js';
 import { PayoutService } from '../services/payout.service.js';
 import { ProductionService } from '../services/production.service.js';
-import { QuestService } from '../services/quest.service.js';
 import { HandcraftedQuestService } from '../services/handcrafted-quest.service.js';
 import { ScoutService } from '../services/scout.service.js';
 import { toState } from '../services/action.service.js';
@@ -127,16 +126,6 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const body = parseBody(hideoutUpgradeSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
     return HideoutService.upgrade(fastify.prisma, player.id, body);
-  });
-
-  /**
-   * Section 34. Standing with each trader, the favour each is asking for, and
-   * where that leaves the gun ladder.
-   */
-  fastify.get('/reputation', { preHandler: fastify.requireAuth }, async (request) => {
-    const { player } = await requirePlayer(request.auth!.account.id);
-    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
-    return QuestService.summary(settled.ruleset, toState(settled.player), settled.standings);
   });
 
   fastify.get('/quests', { preHandler: fastify.requireAuth }, async (request) => {
