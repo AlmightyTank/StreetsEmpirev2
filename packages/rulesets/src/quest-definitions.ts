@@ -1,4 +1,4 @@
-import type { QuestDefinition, QuestDefinitionCatalog } from './types.js';
+import type { QuestDataObject, QuestDefinition, QuestDefinitionCatalog } from './types.js';
 
 export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string[] {
   const problems: string[] = [];
