@@ -211,7 +211,8 @@ export type QuestRewardKind =
   | 'ITEM'
   | 'CONTACT_REP'
   | 'WEAPON_ACCESS'
-  | 'PERMANENT_UNLOCK';
+  | 'PERMANENT_UNLOCK'
+  | 'FAVOR_ITEM';
 
 export interface QuestRewardDefinition {
   readonly kind: QuestRewardKind;
@@ -257,6 +258,29 @@ export interface PermanentUnlockDefinition {
 }
 
 export type PermanentUnlockCatalog = Readonly<Record<string, PermanentUnlockDefinition>>;
+
+export type FavorCategory = 'STREET' | 'UNDERWORLD' | 'MUSCLE';
+
+export type FavorActivation =
+  | {
+      readonly kind: 'TIMED';
+      readonly category: FavorCategory;
+      readonly durationMinutes: number;
+    }
+  | {
+      readonly kind: 'SINGLE_USE';
+      readonly category: FavorCategory;
+    };
+
+export interface FavorDefinition {
+  readonly key: string;
+  readonly name: string;
+  readonly description: string;
+  readonly contactKey: ContactKey;
+  readonly activation: FavorActivation;
+}
+
+export type FavorCatalog = Readonly<Record<string, FavorDefinition>>;
 
 export interface QuestDefinition {
   /** Stable key inside a ruleset version, e.g. FIRST_NIGHT_OUT. */
@@ -1419,6 +1443,8 @@ export interface Ruleset {
   readonly contacts?: ContactCatalog;
   /** Permanent per-round capabilities earned through Jobs. */
   readonly permanentUnlocks?: PermanentUnlockCatalog;
+  /** Consumable favors earned from contacts. Effects are activated by later roadmap phases. */
+  readonly favors?: FavorCatalog;
   readonly rankings: RankingRules;
   /** Optional round privacy for public community surfaces. */
   readonly communityPrivacy?: CommunityPrivacyRules;
