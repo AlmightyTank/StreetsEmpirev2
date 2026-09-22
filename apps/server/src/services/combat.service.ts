@@ -605,19 +605,39 @@ export function sharedIntelByTarget(
   }]));
 }
 
-async function recoveryDto(prisma: PrismaClient, playerId: string, player: RoundPlayer, model: CombatRules): Promise<CombatRecoveryDto> {
+async function recoveryDto(
+  prisma: PrismaClient,
+  playerId: string,
+  player: RoundPlayer,
+  ruleset: Ruleset,
+  model: CombatRules,
+  now: Date,
+): Promise<CombatRecoveryDto> {
   const next = await prisma.combatInjury.findFirst({
     where: { roundPlayerId: playerId },
     orderBy: [{ recoverAt: 'asc' }, { id: 'asc' }],
     select: { recoverAt: true },
   });
   const medicinePerThug = model.wounds.winnerFraction === 0 && model.wounds.loserFraction === 0 ? 0 : 1;
+  const favorBonuses = await TimedFavorService.bonuses(prisma, playerId, ruleset, now);
+  const medicineEfficiencyPercent = Math.min(
+    50,
+    hideoutMedicineEfficiencyPercent(ruleset, player) + favorBonuses.treatmentMedicineEfficiencyPercent,
+  );
+  const effectivePercent = Math.max(1, 100 - medicineEfficiencyPercent);
+  const maxByMedicine = medicinePerThug > 0
+    ? Math.floor(player.medicine * 100 / (medicinePerThug * effectivePercent))
+    : 0;
   return {
     fitThugs: fitThugs(player),
     woundedThugs: player.woundedThugs,
     nextRecoveryAt: iso(next?.recoverAt ?? null),
     medicinePerThug,
-    maxTreatableThugs: medicinePerThug > 0 ? Math.min(player.woundedThugs, Math.floor(player.medicine / medicinePerThug)) : 0,
+    maxTreatableThugs: Math.min(player.woundedThugs, maxByMedicine),
+    ...(medicineEfficiencyPercent > 0 ? { medicineEfficiencyPercent } : {}),
+    ...(favorBonuses.treatmentMedicineEfficiencyPercent > 0
+      ? { favorMedicineEfficiencyPercent: favorBonuses.treatmentMedicineEfficiencyPercent }
+      : {}),
   };
 }
 
@@ -662,7 +682,7 @@ export const CombatService = {
       ...base, enabled: true, blockedReason,
       protectedUntil: combatProtectionUntil(player, model) > now ? iso(combatProtectionUntil(player, model)) : null,
       cooldownUntil: player.raidCooldownUntil && player.raidCooldownUntil > now ? iso(player.raidCooldownUntil) : null,
-      recovery: await recoveryDto(prisma, playerId, player, model),
+      recovery: await recoveryDto(prisma, playerId, player, ruleset, model, now),
       rules: { squadCap: model.squadCap, turnCost: model.turnCost, newcomerHours: model.newcomerHours,
         protectionHours: model.protectionHours, cooldownMinutes: model.cooldownMinutes,
         protectedCashCents: model.loot.protectedCashCents, lootPercent: model.loot.exposedCashPercent, perThugLootCents: model.loot.perFitAttackerCents,
