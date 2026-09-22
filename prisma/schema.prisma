@@ -360,6 +360,24 @@ model PlayerActiveFavor {
 }
 
 // ---------------------------------------------------------------------------
+// Armed single-use favors
+// ---------------------------------------------------------------------------
+
+model PlayerArmedFavor {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  category String
+  favorKey String
+  armedAt DateTime @default(now())
+
+  @@unique([roundPlayerId, category])
+  @@index([roundPlayerId, favorKey])
+}
+
+// ---------------------------------------------------------------------------
 // Permanent per-round unlocks
 // ---------------------------------------------------------------------------
 
@@ -705,6 +723,7 @@ model RoundPlayer {
   permanentUnlocks      PlayerUnlock[]
   favorInventory         PlayerFavor[]
   activeFavors          PlayerActiveFavor[]
+  armedFavors           PlayerArmedFavor[]
   raidsSent             RaidBattle[]       @relation("RaidAttacker")
   raidsReceived         RaidBattle[]       @relation("RaidDefender")
   combatInjuries        CombatInjury[]
@@ -1291,6 +1310,8 @@ enum ActivityType {
   QUEST_READY
   QUEST_CLAIMED
   FAVOR_ACTIVATED
+  FAVOR_DISARMED
+  FAVOR_ARMED
   BATTLE_VOIDED
   ADMIN_GRANT
   HEAT_BRIBE
