@@ -61,6 +61,10 @@ const revokeSessionsSchema = z.object({ reason, sessionId: id.optional() }).stri
 const renameSchema = z.object({ reason, username: usernameSchema }).strict();
 const adminRoleSchema = z.object({ reason, isAdmin: z.boolean() }).strict();
 const betaAccessSchema = z.object({ reason, approved: z.boolean() }).strict();
+const deleteAccountSchema = z.object({
+  reason,
+  confirmation: z.string().trim().min(1).max(80),
+}).strict();
 const resyncSchema = z.object({ accountId: id.optional(), reason: reason.optional() }).strict();
 const rulesetQuery = z.object({ compare: id.optional() }).strict();
 
@@ -379,6 +383,18 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { accountId } = parseBody(accountParams, request.params);
     const body = parseBody(reasonBody, request.body ?? {});
     return AdminAccountService.unlinkForum(fastify.prisma, request.auth!.account, accountId, body.reason);
+  });
+
+  fastify.post('/accounts/:accountId/delete', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(deleteAccountSchema, request.body ?? {});
+    return AdminAccountService.deleteAccount(
+      fastify.prisma,
+      request.auth!.account,
+      accountId,
+      body.confirmation,
+      body.reason,
+    );
   });
 
   // Player inspector and corrections

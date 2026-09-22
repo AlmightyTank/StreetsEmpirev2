@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import type { AdminAccountStatusFilter, AdminAccountSummaryDto, AdminPlayerSearchDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
@@ -13,12 +13,14 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { adminWhen } from '../utils/admin.js';
 
 export function AdminAccountsPage() {
+  const [searchParams] = useSearchParams();
+  const accountMessage = searchParams.get('accountMessage');
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<AdminAccountStatusFilter>('all');
   const [accounts, setAccounts] = useState<AdminAccountSummaryDto[] | null>(null);
   const [pendingApprovals, setPendingApprovals] = useState<AdminAccountSummaryDto[] | null>(null);
   const [pendingBusyId, setPendingBusyId] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(accountMessage);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [playerQuery, setPlayerQuery] = useState('');
