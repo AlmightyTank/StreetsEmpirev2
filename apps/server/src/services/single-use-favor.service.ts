@@ -155,7 +155,7 @@ export const SingleUseFavorService = {
   },
 
   async matching(
-    db: Db,
+    db: Db | PrismaClient,
     roundPlayerId: string,
     ruleset: Ruleset,
     kind: SingleUseFavorEffect['kind'],
