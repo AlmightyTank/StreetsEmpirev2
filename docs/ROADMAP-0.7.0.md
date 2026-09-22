@@ -92,7 +92,7 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** ledger totals reconcile and Back Office does not become a compounding money printer.
 
 ## 0.7.0-F — Armory & Infirmary
-**Status:** **feature-complete in PR #41** targeting `beta`. Armory reads the real arsenal and persists Power First / Conserve Premium allocation for raids, defense, convoy squads and run escorts. Infirmary reads the existing combat injury queue and Workshop infrastructure can reduce medicine use by at most 15%, without changing natural recovery time.
+**Status:** **complete in beta via PR #41.** Armory reads the real arsenal and persists Power First / Conserve Premium allocation for raids, defense, convoy squads and run escorts. Infirmary reads the existing combat injury queue and Workshop infrastructure can reduce medicine use by at most 15%, without changing natural recovery time.
 
 **Goal:** Bring weapons and recovery into headquarters management.
 
@@ -105,7 +105,7 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** weapon and recovery state exactly matches the existing systems.
 
 ## 0.7.0-G — Specializations, Balance & Polish
-**Status:** **in progress** on `hideout-0.7.0-g`. Level-3 branches are now permanent seasonal choices with capped effects, the UI confirms the irreversible choice, G effects flow through existing combat/production/travel/ledger helpers, and the season archive records Garage plus the chosen branches.
+**Status:** **feature-complete in PR #44** targeting `beta`, pending review. Level-3 branches are permanent seasonal choices with capped effects, the UI confirms the irreversible choice, G effects flow through existing combat/production/travel/ledger helpers, and the season archive records Garage plus the chosen branches.
 
 **Goal:** Enable build identity and ship the complete experience.
 
