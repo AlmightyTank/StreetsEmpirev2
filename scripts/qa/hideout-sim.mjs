@@ -3,6 +3,7 @@ import {
   classicOgV07A,
   classicOgV07B,
   classicOgV07C,
+  classicOgV07D,
   hideoutV2For,
   hideoutV2Problems,
 } from '@streets/rulesets';
@@ -21,6 +22,7 @@ function validate(name, ruleset) {
 validate('0.7.0-A', classicOgV07A);
 validate('0.7.0-B', classicOgV07B);
 validate('0.7.0-C', classicOgV07C);
+validate('0.7.0-D', classicOgV07D);
 
 if (JSON.stringify(classicOgV07A.hideout) !== JSON.stringify(classicOgV06F.hideout)) {
   console.error('0.7.0-A changed the shipped 0.6 Hideout balance unexpectedly.');
@@ -34,11 +36,16 @@ if (JSON.stringify(classicOgV07C.hideout) !== JSON.stringify(classicOgV07B.hideo
   console.error('0.7.0-C changed room prices/base buffs instead of layering Lookouts security.');
   process.exitCode = 1;
 }
+if (JSON.stringify(classicOgV07D.hideout) !== JSON.stringify(classicOgV07C.hideout)) {
+  console.error('0.7.0-D changed room prices/base buffs instead of layering Workshop/Garage tuning.');
+  process.exitCode = 1;
+}
 
 const extensionA = hideoutV2For(classicOgV07A);
 const extensionB = hideoutV2For(classicOgV07B);
 const extensionC = hideoutV2For(classicOgV07C);
-if (!extensionA || !extensionB || !extensionC || !classicOgV07B.hideout) {
+const extensionD = hideoutV2For(classicOgV07D);
+if (!extensionA || !extensionB || !extensionC || !extensionD || !classicOgV07B.hideout) {
   console.error('0.7 rules are missing their Hideout v2 extension or base Hideout.');
   process.exitCode = 1;
 } else {
@@ -83,6 +90,33 @@ if (!extensionA || !extensionB || !extensionC || !classicOgV07B.hideout) {
     || Math.max(...security.historyHoursByLookoutsLevel) > 24
     || security.warningTierByLookoutsLevel[0] !== 'NONE') {
     console.error('0.7.0-C Lookouts reveal too much too early or keep suspicious history too long.');
+    process.exitCode = 1;
+  }
+
+  const workshop = extensionD.workshop;
+  const garage = extensionD.garage;
+  console.log('\nWorkshop & Garage:');
+  console.log(`- output bonus: ${workshop?.outputBonusPercentByWorkshopLevel.join(' / ') ?? 'missing'}%`);
+  console.log(`- ingredient efficiency: ${workshop?.ingredientEfficiencyPercentByWorkshopLevel.join(' / ') ?? 'missing'}%`);
+  console.log(`- Garage run limit: ${garage?.runLimitByGarageLevel.join(' / ') ?? 'missing'}`);
+  console.log(`- relocation discount: ${garage?.relocationFeeDiscountPercentByGarageLevel.join(' / ') ?? 'missing'}%`);
+  console.log('- travel-time reduction: none');
+
+  const garageGate = extensionD.rooms.GARAGE?.requirements?.[1]?.find((gate) => gate.key === 'LOW_RIDERS');
+  if (garageGate?.amount !== 2) {
+    console.error('0.7.0-D Garage must require two Low-Riders before construction.');
+    process.exitCode = 1;
+  }
+  if (!workshop
+    || Math.max(...workshop.outputBonusPercentByWorkshopLevel) > 15
+    || Math.max(...workshop.ingredientEfficiencyPercentByWorkshopLevel) > 8) {
+    console.error('0.7.0-D Workshop bonuses exceed the release guardrail.');
+    process.exitCode = 1;
+  }
+  if (!garage
+    || Math.max(...garage.runLimitByGarageLevel) > 2
+    || Math.max(...garage.relocationFeeDiscountPercentByGarageLevel) > 5) {
+    console.error('0.7.0-D Garage logistics exceed the release guardrail.');
     process.exitCode = 1;
   }
 }
