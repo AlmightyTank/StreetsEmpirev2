@@ -6,7 +6,8 @@ export type HideoutRequirementKey =
   | 'RAIDS_DONE'
   | 'DRIVE_BYS_DONE'
   | 'LOW_RIDERS'
-  | 'WEAPONS_OWNED';
+  | 'WEAPONS_OWNED'
+  | 'TURF_BLOCKS_HELD';
 
 export interface HideoutRequirementRule {
   readonly key: HideoutRequirementKey;
@@ -47,11 +48,29 @@ export interface HideoutAssetProtectionRule {
   readonly protectedProductUnitsBySafeRoomLevel: readonly number[];
 }
 
+export type HideoutReconWarningTier = 'NONE' | 'PRESENCE' | 'SOURCE';
+
+export interface HideoutSecurityRule {
+  /** Recon warnings by Lookouts level, index 0..max level. */
+  readonly warningTierByLookoutsLevel: readonly HideoutReconWarningTier[];
+  /** How far back the security desk shows suspicious activity at each level. */
+  readonly historyHoursByLookoutsLevel: readonly number[];
+  /** Level at which passive home-area traffic count becomes visible. */
+  readonly localTrafficMinLevel: number;
+  /** Hooks only. Branch selection remains disabled until 0.7.0-G. */
+  readonly specializationHooks: {
+    readonly streetEyesWarningHoursBonus: number;
+    readonly armedWatchDefenseBonusPercent: number;
+  };
+}
+
 export interface HideoutV2Rules {
   readonly version: 2;
   readonly rooms: Readonly<Partial<Record<HideoutRoomKey, HideoutRoomV2Rule>>>;
   /** Optional 0.7-B asset-protection model. Older 0.7 rules remain cash-only. */
   readonly assetProtection?: HideoutAssetProtectionRule;
+  /** Optional 0.7-C Lookouts/security model. */
+  readonly security?: HideoutSecurityRule;
 }
 
 export const CLASSIC_OG_V07A_HIDEOUT_V2 = {
@@ -117,9 +136,34 @@ export const CLASSIC_OG_V07B_HIDEOUT_V2 = {
   },
 } as const satisfies HideoutV2Rules;
 
+export const CLASSIC_OG_V07C_HIDEOUT_V2 = {
+  ...CLASSIC_OG_V07B_HIDEOUT_V2,
+  rooms: {
+    ...CLASSIC_OG_V07B_HIDEOUT_V2.rooms,
+    LOOKOUTS: {
+      ...CLASSIC_OG_V07B_HIDEOUT_V2.rooms.LOOKOUTS,
+      requirements: {
+        ...CLASSIC_OG_V07B_HIDEOUT_V2.rooms.LOOKOUTS.requirements,
+        4: [{ key: 'TURF_BLOCKS_HELD', label: 'Turf blocks held', amount: 1 }],
+        5: [{ key: 'TURF_BLOCKS_HELD', label: 'Turf blocks held', amount: 3 }],
+      },
+    },
+  },
+  security: {
+    warningTierByLookoutsLevel: ['NONE', 'PRESENCE', 'PRESENCE', 'SOURCE', 'SOURCE', 'SOURCE'],
+    historyHoursByLookoutsLevel: [0, 1, 4, 8, 12, 24],
+    localTrafficMinLevel: 2,
+    specializationHooks: {
+      streetEyesWarningHoursBonus: 12,
+      armedWatchDefenseBonusPercent: 5,
+    },
+  },
+} as const satisfies HideoutV2Rules;
+
 const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v0.7-a': CLASSIC_OG_V07A_HIDEOUT_V2,
   'classic-og-v0.7-b': CLASSIC_OG_V07B_HIDEOUT_V2,
+  'classic-og-v0.7-c': CLASSIC_OG_V07C_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */
@@ -196,6 +240,32 @@ export function hideoutV2Problems(ruleset: Ruleset): string[] {
         break;
       }
       prior = units;
+    }
+  }
+
+  const security = extension.security;
+  if (security) {
+    const lookouts = ruleset.hideout.rooms.LOOKOUTS;
+    const expected = lookouts.maxLevel + 1;
+    if (security.warningTierByLookoutsLevel.length !== expected) {
+      problems.push(`LOOKOUTS: warning tiers need ${expected} entries for levels 0..${lookouts.maxLevel}.`);
+    }
+    if (security.historyHoursByLookoutsLevel.length !== expected) {
+      problems.push(`LOOKOUTS: security history needs ${expected} entries for levels 0..${lookouts.maxLevel}.`);
+    }
+    if (security.warningTierByLookoutsLevel[0] !== 'NONE' || security.historyHoursByLookoutsLevel[0] !== 0) {
+      problems.push('LOOKOUTS: level 0 cannot provide security warnings or history.');
+    }
+    if (!Number.isSafeInteger(security.localTrafficMinLevel)
+      || security.localTrafficMinLevel < 1
+      || security.localTrafficMinLevel > lookouts.maxLevel) {
+      problems.push(`LOOKOUTS: local traffic level must be inside 1..${lookouts.maxLevel}.`);
+    }
+    for (const hours of security.historyHoursByLookoutsLevel) {
+      if (!Number.isFinite(hours) || hours < 0) {
+        problems.push('LOOKOUTS: security history hours must be non-negative.');
+        break;
+      }
     }
   }
 
