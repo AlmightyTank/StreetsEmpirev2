@@ -651,6 +651,18 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             <Row label="Wounded thugs" value={formatNumber(page.recovery.woundedThugs)} />
             <Row label="Next recovery" value={page.recovery.nextRecoveryAt ? date(page.recovery.nextRecoveryAt) : 'None'} />
             <Row label="Medicine" value={`${formatNumber(me.resources.medicine)} on hand`} />
+            {page.recovery.medicineEfficiencyPercent ? (
+              <Row
+                label="Medicine efficiency"
+                value={
+                  formatNumber(page.recovery.medicineEfficiencyPercent) + '%'
+                  + (page.recovery.favorMedicineEfficiencyPercent
+                    ? ' · Field Medic +' + formatNumber(page.recovery.favorMedicineEfficiencyPercent) + '%'
+                    : '')
+                }
+                strong={Boolean(page.recovery.favorMedicineEfficiencyPercent)}
+              />
+            ) : null}
           </div>
           {page.recovery.woundedThugs > 0 ? <Button type="button" className="se-btn se-btn--primary"
             disabledReason={busy ? 'Your last hit is still going through.'
