@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV06F, classicOgV07A, classicOgV07B } from '@streets/rulesets';
+import { classicOgV06F, classicOgV07A, classicOgV07B, classicOgV07C } from '@streets/rulesets';
 import { hideoutCatalog, hideoutProductProtection, hideoutProtectedProductCapacity } from '../hideout.service.js';
 import type { PlayerState } from '../action.service.js';
 
@@ -84,5 +84,36 @@ describe('hideout v2 catalog', () => {
       .toMatchObject({ total: 80, protected: 80, exposed: 0 });
     expect(catalog.assetProtection!.exposedCashCents).toBeGreaterThanOrEqual(0);
   });
+  it('gates higher Lookouts levels on live turf ownership only in 0.7-C', () => {
+    const level3 = player({ hideoutLookoutsLevel: 3 });
+    const locked4 = hideoutCatalog(classicOgV07C, level3, {}, { turfBlocksHeld: 0 });
+    const lookouts4 = locked4.rooms.find((room) => room.key === 'LOOKOUTS')!;
+    expect(lookouts4.canUpgrade).toBe(false);
+    expect(lookouts4.lockReason).toContain('Turf blocks held 0/1');
+
+    const ready4 = hideoutCatalog(classicOgV07C, level3, {}, { turfBlocksHeld: 1 });
+    expect(ready4.rooms.find((room) => room.key === 'LOOKOUTS')?.canUpgrade).toBe(true);
+
+    const level4 = player({ hideoutLookoutsLevel: 4 });
+    const locked5 = hideoutCatalog(classicOgV07C, level4, {}, { turfBlocksHeld: 2 });
+    expect(locked5.rooms.find((room) => room.key === 'LOOKOUTS')?.lockReason)
+      .toContain('Turf blocks held 2/3');
+
+    const ready5 = hideoutCatalog(classicOgV07C, level4, {}, { turfBlocksHeld: 3 });
+    expect(ready5.rooms.find((room) => room.key === 'LOOKOUTS')?.canUpgrade).toBe(true);
+
+    // B never gained the turf gate.
+    expect(hideoutCatalog(classicOgV07B, level3).rooms.find((room) => room.key === 'LOOKOUTS')?.canUpgrade)
+      .toBe(true);
+  });
+
+  it('describes the new Lookouts warning behavior without activating a specialization', () => {
+    const catalog = hideoutCatalog(classicOgV07C, player({ hideoutLookoutsLevel: 3 }), {}, { turfBlocksHeld: 1 });
+    const lookouts = catalog.rooms.find((room) => room.key === 'LOOKOUTS')!;
+    expect(lookouts.currentEffect).toContain('named recon warnings for 8h');
+    expect(lookouts.currentEffect).toContain('home raid defense strength');
+    expect(lookouts.specialization?.selectedKey).toBeNull();
+  });
+
 
 });
