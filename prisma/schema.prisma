@@ -286,19 +286,21 @@ enum QuestRepeatability {
   REPEATABLE
 }
 
-/// Standing with one trader, for one player. Rows rather than columns because
-/// traders are ruleset-defined: a variant with a different set of shops must
-/// not need a migration.
+/// Relationship standing for one player. Historically this held store-trader
+/// standing only; the unified Jobs system also stores named contact reputation
+/// here so old rounds and current contacts can coexist without copying scores.
 model PlayerReputation {
   id            String @id @default(cuid())
   roundPlayerId String
-  /// Ruleset store key: CORNER, TOMMY, CHARLIE, PIP.
+  /// Relationship key. Historical store keys include CORNER/TOMMY/CHARLIE/PIP;
+  /// current job contacts may also use MAMA_KING/WHEELS/VIC/BLOCKS.
   trader        String
 
   points      Int       @default(0)
   /// Day the regular-trade credit was last paid, so it can be paid at most
   /// once a day without keeping a history of every trade.
   creditedOn  DateTime?
+  /// Legacy one-favor completion marker. Current Jobs use PlayerQuest instead.
   questDoneAt DateTime?
 
   createdAt DateTime @default(now())
