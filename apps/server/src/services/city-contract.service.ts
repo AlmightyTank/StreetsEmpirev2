@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import {
   cityRules,
   eventAt,
@@ -344,8 +344,4 @@ export async function syncCityContractAttempts(
   }
 
   return created;
-}
-
-export async function cityContractsEnabled(ruleset: Ruleset): Promise<boolean> {
-  return Object.values(ruleset.questDefinitions ?? {}).some(isDynamicCityContractDefinition);
 }
