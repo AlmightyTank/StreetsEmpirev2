@@ -55,7 +55,7 @@ describe('secret quest activity triggers', () => {
       questDefinition: { findMany: async () => definitions },
       playerQuest: {
         findMany: async () => rows.map((row) => ({ ...row })),
-        create: async ({ data }: any) => {
+        create: async ({ data }: { data: { questDefinitionId: string; status: string } }) => {
           const row = { questDefinitionId: data.questDefinitionId, status: data.status };
           rows.push(row);
           return row;
