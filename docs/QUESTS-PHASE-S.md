@@ -89,10 +89,14 @@ This preserves the original Phase S roadmap range of **250–750 units**.
 The player still receives the actual money from selling the product through the normal market
 or Pip trade.
 
-The contract adds a cash bonus equal to **35% of the expected sale value** captured when the
-board opens:
+The contract adds a cash bonus equal to **35% of the expected bulk-sale value** captured when
+the board opens. The server prices the full generated quantity through the existing high-market
+fill curve at zero player push, so large 500/750-unit contracts include their normal market
+impact instead of pretending every unit sells for the first-unit quote:
 
-`bonus = round(expected unit sale price × target × 0.35)`
+`expected sale = fillMarket(baseline market, sell, target).total`
+
+`bonus = round(expected sale × 0.35)`
 
 Nominally:
 
@@ -146,8 +150,8 @@ That state contains:
 - market condition
 - generated title/description
 - target
-- expected unit sale value
-- expected total sale value
+- expected first-unit sale value
+- expected full bulk-sale value after normal price impact
 - fixed cash bonus
 - payout multiplier metadata
 
