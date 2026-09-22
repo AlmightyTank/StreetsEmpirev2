@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type {
   HideoutRoomV2Dto,
+  HideoutSpecializationResult,
+  HideoutSpecializationRoomDto,
   HideoutUpgradeResult,
   HideoutWeaponPriorityDto,
   HideoutWeaponPriorityResult,
@@ -28,17 +30,29 @@ function RoomCard({
   room,
   cashCents,
   blocked,
+  specializing,
   onUpgrade,
+  onSpecialize,
 }: {
   room: HideoutRoomV2Dto;
   cashCents: number;
   /** Why no room can be upgraded right now, or null when they can. */
   blocked: string | null;
+  specializing: boolean;
   onUpgrade: (room: HideoutRoomV2Dto) => void;
+  onSpecialize: (room: HideoutRoomV2Dto, key: string) => void;
 }) {
   const maxed = room.nextCostCents === null;
   const affordable = !maxed && cashCents >= room.nextCostCents!;
   const meter = room.maxLevel > 0 ? (room.level / room.maxLevel) * 100 : 0;
+  const selectedSpecialization = room.specialization?.selectedKey
+    ? room.specialization.choices.find((choice) => choice.key === room.specialization!.selectedKey) ?? null
+    : null;
+  const specializationReady = Boolean(
+    room.specialization
+    && room.level >= room.specialization.unlockLevel
+    && room.specialization.selectedKey === null
+  );
 
   return (
     <Panel title={room.name} aside={`Level ${formatNumber(room.level)} / ${formatNumber(room.maxLevel)}`}>
@@ -61,14 +75,35 @@ function RoomCard({
         ))}
         {room.specialization ? (
           <div>
-            <dt>Branches</dt>
+            <dt>Specialization</dt>
             <dd>
-              Level {formatNumber(room.specialization.unlockLevel)}: {room.specialization.choices.map((choice) => choice.name).join(' / ')}
-              {room.specialization.selectedKey === null ? ' · choice not active yet' : ''}
+              {selectedSpecialization
+                ? `${selectedSpecialization.name} · ${selectedSpecialization.blurb}`
+                : room.level < room.specialization.unlockLevel
+                  ? `Unlocks at level ${formatNumber(room.specialization.unlockLevel)} · ${room.specialization.choices.map((choice) => choice.name).join(' / ')}`
+                  : `Choose one permanent seasonal branch: ${room.specialization.choices.map((choice) => choice.name).join(' / ')}`}
             </dd>
           </div>
         ) : null}
       </dl>
+      {specializationReady && room.specialization ? (
+        <>
+          <div className="se-grid se-grid--2 se-mt">
+            {room.specialization.choices.map((choice) => (
+              <Button
+                key={choice.key}
+                type="button"
+                className="se-btn se-btn--ghost"
+                disabledReason={specializing ? 'Saving your permanent branch choice.' : null}
+                onClick={() => onSpecialize(room, choice.key)}
+              >
+                Choose {choice.name}
+              </Button>
+            ))}
+          </div>
+          <p className="se-hint">This choice is permanent until the season ends.</p>
+        </>
+      ) : null}
       <Button
         type="button"
         className="se-btn se-btn--primary se-btn--block"
@@ -96,6 +131,7 @@ export function HideoutPage() {
   const me = useSession((s) => s.me);
   const action = useGameAction<HideoutUpgradeResult>();
   const armoryAction = useGameAction<HideoutWeaponPriorityResult>();
+  const specializationAction = useGameAction<HideoutSpecializationResult>();
   const [hideout, setHideout] = useState<HideoutV2Dto | null>(null);
   const [travel, setTravel] = useState<TravelDto | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -127,6 +163,21 @@ export function HideoutPage() {
 
   async function setWeaponPriority(priority: HideoutWeaponPriorityDto) {
     await armoryAction.run((actionId) => hideoutApi.setWeaponPriority({ priority, actionId }));
+    setReload((n) => n + 1);
+  }
+
+  async function specialize(room: HideoutRoomV2Dto, specialization: string) {
+    const choice = room.specialization?.choices.find((candidate) => candidate.key === specialization);
+    if (!choice || room.key === 'GARAGE') return;
+    if (!window.confirm(
+      `Choose ${choice.name} for ${room.name}? This choice is permanent for the rest of this season.`,
+    )) return;
+
+    await specializationAction.run((actionId) => hideoutApi.specialize({
+      room: room.key as HideoutSpecializationRoomDto,
+      specialization,
+      actionId,
+    }));
     setReload((n) => n + 1);
   }
 
@@ -211,7 +262,7 @@ export function HideoutPage() {
             Nearby-run awareness is count-only. Names, cargo, escort strength and route details still require normal convoy recon or turf sightings.
           </p>
           <p className="se-hint">
-            Specialization hooks are prepared but inactive until 0.7.0-G: Street Eyes would add {formatNumber(hideout.security.specializationHooks.streetEyes.warningHoursBonus)}h of warning history; Armed Watch would add +{formatNumber(hideout.security.specializationHooks.armedWatch.defenseBonusPercent)}% defense.
+            Street Eyes {hideout.security.specializationHooks.streetEyes.active ? 'is active' : 'adds'} {formatNumber(hideout.security.specializationHooks.streetEyes.warningHoursBonus)}h of warning history; Armed Watch {hideout.security.specializationHooks.armedWatch.active ? 'is active at' : 'adds'} +{formatNumber(hideout.security.specializationHooks.armedWatch.defenseBonusPercent)}% defense.
           </p>
         </Panel>
       ) : null}
@@ -391,7 +442,7 @@ export function HideoutPage() {
             Rolling totals always show 24 hours, 7 days and 30 days. Back Office levels expand the itemized audit trail from {formatNumber(hideout.ledger.historyDays)} days at your current level.
           </p>
           <p className="se-hint">
-            Specialization hooks are prepared but inactive until 0.7.0-G: Bookkeeping adds {formatNumber(hideout.ledger.specializationHooks.bookkeeping.historyDaysBonus)} days of ledger history; Connections adds +{formatNumber(hideout.ledger.specializationHooks.connections.takeBonusPercent)}% street take.
+            Bookkeeping {hideout.ledger.specializationHooks.bookkeeping.active ? 'is active and adds' : 'adds'} {formatNumber(hideout.ledger.specializationHooks.bookkeeping.historyDaysBonus)} days of ledger history; Connections {hideout.ledger.specializationHooks.connections.active ? 'is active at' : 'adds'} +{formatNumber(hideout.ledger.specializationHooks.connections.takeBonusPercent)}% street take.
           </p>
         </Panel>
       ) : null}
@@ -429,13 +480,14 @@ export function HideoutPage() {
       <Panel title="Fair season build">
         <p className="se-dim">
           Hideout upgrades are mechanical and seasonal. Spend this round&apos;s cash and meet the listed
-          progression gates for capped buffs now; the final build stays on the season record, and the
-          next round starts fresh.
+          progression gates for capped buffs now. Level-3 specialization choices are permanent for this season;
+          the final build stays on the season record, and the next round starts fresh.
         </p>
       </Panel>
 
       {loadError ? <Alert>{loadError} <button className="se-btn se-btn--sm" onClick={() => setReload((n) => n + 1)}>Retry</button></Alert> : null}
       {action.error ? <Alert>{action.error}</Alert> : null}
+      {specializationAction.error ? <Alert>{specializationAction.error}</Alert> : null}
 
       {receipt && action.result ? (
         <div className="se-store-receipt" aria-live="polite">
@@ -477,7 +529,9 @@ export function HideoutPage() {
                   room={room}
                   cashCents={me.resources.cashCents}
                   blocked={action.busy ? 'Your last upgrade is still going through.' : loadError !== null ? 'The hideout could not be loaded, so nothing can be built yet.' : null}
+                  specializing={specializationAction.busy}
                   onUpgrade={(next) => void upgrade(next)}
+                  onSpecialize={(next, key) => void specialize(next, key)}
                 />
               ))}
             </div>
