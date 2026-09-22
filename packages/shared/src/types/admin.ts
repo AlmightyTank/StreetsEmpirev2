@@ -99,6 +99,8 @@ export type AdminAccountAction =
   | 'reset-profile'
   | 'grant-admin'
   | 'revoke-admin'
+  | 'approve-beta'
+  | 'revoke-beta'
   | 'resend-verification'
   | 'mark-email-verified'
   | 'unlink-forum'
@@ -118,6 +120,7 @@ export interface AdminAccountSummaryDto {
   emailVerified: boolean;
   isActive: boolean;
   isAdmin: boolean;
+  betaApproved: boolean;
   suspension: AdminSuspensionDto | null;
   discordUsername: string | null;
   forumUsername: string | null;

@@ -68,12 +68,19 @@ SESSION_COOKIE_NAME="se_beta_session"
 
 CORS_ORIGINS="https://beta.streetsempire.dev"
 FRONTEND_ORIGIN="https://beta.streetsempire.dev"
+BETA_INVITE_ONLY=true
 
 DISCORD_REDIRECT_URI="https://beta.streetsempire.dev/api/auth/discord/callback"
 ```
 
 The same Discord OAuth client ID/secret can be reused if the beta redirect URI is
 also registered in the Discord developer portal.
+
+With `BETA_INVITE_ONLY=true`, new accounts can register but do not receive a
+session until an admin approves them. In the admin account page, use **Approve beta**
+(or **Revoke beta**) with an audit reason. Admin accounts always retain beta access.
+The server enforces this gate on authenticated API requests, so an unapproved player
+cannot bypass it by calling the API directly or by keeping an old session open.
 
 ### Keep production integrations isolated
 

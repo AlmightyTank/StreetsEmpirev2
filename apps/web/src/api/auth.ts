@@ -15,6 +15,8 @@ import { api } from './client.js';
 
 interface AccountResponse {
   account: AccountDto;
+  approvalRequired?: boolean;
+  message?: string;
 }
 
 interface MessageResponse {
