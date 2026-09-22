@@ -104,7 +104,8 @@ export type AdminAccountAction =
   | 'resend-verification'
   | 'mark-email-verified'
   | 'unlink-forum'
-  | 'resync-discord';
+  | 'resync-discord'
+  | 'delete-account';
 
 /** A timed suspension. Null once it is lifted or has run out. */
 export interface AdminSuspensionDto {
@@ -217,6 +218,15 @@ export interface AdminAccountDetailDto {
   rounds: AdminAccountRoundDto[];
   /** Latest admin actions on this account. */
   audit: AdminAuditEntryDto[];
+}
+
+export interface AdminAccountDeleteResultDto {
+  accountId: string;
+  formerUsername: string;
+  /** Accounts with round history are anonymized; unused accounts are removed outright. */
+  mode: 'anonymized' | 'deleted';
+  roundsPreserved: number;
+  sessionsRevoked: number;
 }
 
 /** Read-only player state as stored. Turns are as of the last settlement, not regenerated. */
