@@ -1,6 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import {
-  type ContactDefinition,
   type ContactKey,
   type QuestDefinition,
   type QuestObjectiveDefinition,
@@ -40,6 +39,7 @@ const CONTACT_TIERS = [
 ] as const;
 
 type QuestRow = Prisma.PlayerQuestGetPayload<{ include: { questDefinition: true } }>;
+type ContactTier = typeof CONTACT_TIERS[number];
 
 function inputJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
@@ -64,7 +64,7 @@ function progress(value: Prisma.JsonValue): QuestProgressMap {
 }
 
 function contactTier(points: number): { name: string; next: number | null } {
-  let tier = CONTACT_TIERS[0]!;
+  let tier: ContactTier = CONTACT_TIERS[0]!;
   let next: number | null = null;
   for (let i = 0; i < CONTACT_TIERS.length; i += 1) {
     const candidate = CONTACT_TIERS[i]!;
@@ -74,6 +74,11 @@ function contactTier(points: number): { name: string; next: number | null } {
     }
   }
   return { name: tier.name, next };
+}
+
+function contactFor(ruleset: Ruleset, key: string | null | undefined) {
+  if (!key || !ruleset.contacts || !(key in ruleset.contacts)) return undefined;
+  return ruleset.contacts[key as ContactKey];
 }
 
 function rewardLabel(reward: QuestRewardDefinition, ruleset: Ruleset): string {
@@ -86,7 +91,7 @@ function rewardLabel(reward: QuestRewardDefinition, ruleset: Ruleset): string {
     case 'ITEM':
       return `${amount.toLocaleString('en-US')} ${reward.key ?? 'item'}`;
     case 'CONTACT_REP':
-      return `+${amount} ${ruleset.contacts?.[reward.key ?? '']?.shortName ?? reward.key ?? 'contact'} reputation`;
+      return `+${amount} ${contactFor(ruleset, reward.key)?.shortName ?? reward.key ?? 'contact'} reputation`;
     case 'WEAPON_ACCESS':
       return `${reward.key ?? 'weapon'} purchasing access`;
     case 'PERMANENT_UNLOCK':
@@ -129,7 +134,7 @@ function objectiveDtos(row: QuestRow): QuestObjectiveDto[] {
 }
 
 function questDto(row: QuestRow, ruleset: Ruleset): PlayerQuestDto {
-  const contact = row.questDefinition.contactKey ? ruleset.contacts?.[row.questDefinition.contactKey] : undefined;
+  const contact = contactFor(ruleset, row.questDefinition.contactKey);
   return {
     key: row.questDefinition.key,
     title: row.questDefinition.title,

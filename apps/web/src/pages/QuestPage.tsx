@@ -66,11 +66,12 @@ function QuestCard({
   return (
     <Panel
       id={`quest-${quest.key}`}
+      className="se-quest-card"
       title={quest.title}
       aside={<span className="se-num se-dim">{quest.contactName ?? 'StreetsEmpire'} · {quest.type === 'SIDE' ? 'Side job' : quest.type === 'STORY' ? 'Story' : quest.type} · {statusLabel(quest)}</span>}
     >
-      <p className="se-hint">{quest.description}</p>
-      <div className="se-rows">
+      <p className="se-hint se-quest-card__desc">{quest.description}</p>
+      <div className="se-rows se-quest-objectives">
         {quest.objectives.map((objective) => (
           <Row
             key={objective.id}
@@ -81,11 +82,11 @@ function QuestCard({
         ))}
       </div>
 
-      <div className="se-mt">
+      <div className="se-quest-reward-block">
         <p className="se-eyebrow">Rewards</p>
-        <div className="se-rows">
+        <div className="se-quest-rewards">
           {quest.rewards.map((reward, index) => (
-            <Row key={reward.kind + ':' + (reward.key ?? index)} label={reward.label} value="" />
+            <span className="se-quest-reward" key={reward.kind + ':' + (reward.key ?? index)}>{reward.label}</span>
           ))}
         </div>
       </div>
@@ -261,20 +262,21 @@ export function QuestPage() {
 
   return (
     <GameLayout>
-      <div className="se-pagehead">
-        <div>
-          <h1 className="se-title">Quests</h1>
-          <p className="se-eyebrow">Jobs, contacts and underworld progression</p>
+      <div className="se-questpage">
+        <div className="se-pagehead se-questpage__head">
+          <div>
+            <h1 className="se-title">Quests</h1>
+            <p className="se-eyebrow">Jobs, contacts and underworld progression</p>
+          </div>
+          <Link className="se-btn se-btn--ghost" to="/game/reputation">Contact standing</Link>
         </div>
-        <Link className="se-btn se-btn--ghost" to="/game/reputation">Contact standing</Link>
-      </div>
 
-      {error ? <Alert>{error}</Alert> : null}
-      {notice ? <Alert tone="info">{notice}</Alert> : null}
+        {error ? <Alert>{error}</Alert> : null}
+        {notice ? <Alert tone="info">{notice}</Alert> : null}
 
-      {page ? (
-        <>
-          <div className="se-grid se-grid--sidebar">
+        {page ? (
+          <>
+            <div className="se-grid se-grid--sidebar se-quest-summary">
             <Panel title="Jobs">
               <div className="se-rows">
                 <Row label="Available" value={formatNumber(page.counts.available)} />
@@ -363,9 +365,9 @@ export function QuestPage() {
                 );
               }) : <Row label="Stored favors" value="None yet" />}
             </Panel>
-          </div>
+            </div>
 
-          <div className="se-storetabs se-mt" role="tablist" aria-label="Quest view">
+            <div className="se-storetabs se-quest-tabs" role="tablist" aria-label="Quest view">
             {([
               ['available', 'Available (' + page.counts.available + ')'],
               ['active', 'Active (' + page.counts.active + ')'],
@@ -382,9 +384,9 @@ export function QuestPage() {
                 {label}
               </button>
             ))}
-          </div>
+            </div>
 
-          <div className="se-grid se-mt">
+            <div className="se-grid se-quest-list">
             {shown.length ? shown.map((quest) => (
               <QuestCard
                 key={quest.key}
@@ -397,9 +399,10 @@ export function QuestPage() {
                 onAbandon={(key) => void mutate(key, () => questsApi.abandon(key), 'Job abandoned.')}
               />
             )) : <p className="se-muted">No jobs in this section yet.</p>}
-          </div>
-        </>
-      ) : !error ? <p className="se-muted" role="status">Checking the street for work...</p> : null}
+            </div>
+          </>
+        ) : !error ? <p className="se-muted" role="status">Checking the street for work...</p> : null}
+      </div>
     </GameLayout>
   );
 }

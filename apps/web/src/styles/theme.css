@@ -859,6 +859,77 @@ a:hover { color: #c9ff63; }
   margin-top: 14px;
 }
 
+.se-questpage {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.se-questpage__head {
+  margin-bottom: 0;
+}
+
+.se-quest-summary {
+  gap: 12px;
+}
+
+.se-storetabs.se-quest-tabs {
+  margin: 0;
+}
+
+.se-quest-list {
+  gap: 12px;
+}
+
+.se-quest-card .se-panel__body {
+  padding: 14px;
+}
+
+.se-quest-card__desc {
+  max-width: 76ch;
+  margin: 0 0 12px;
+}
+
+.se-quest-objectives .se-row {
+  min-height: 32px;
+  padding: 6px 0;
+}
+
+.se-quest-objectives .se-row__label {
+  white-space: normal;
+}
+
+.se-quest-reward-block {
+  margin-top: 12px;
+}
+
+.se-quest-reward-block .se-eyebrow {
+  margin: 0 0 8px;
+}
+
+.se-quest-rewards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 8px;
+}
+
+.se-quest-reward {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid var(--se-line-soft);
+  border-radius: var(--se-radius-sm);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--se-text);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.se-quest-card .se-actions {
+  margin-top: 12px;
+}
+
 .se-center {
   text-align: center;
 }

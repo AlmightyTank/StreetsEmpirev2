@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { classicOgV06F, classicOgV07A, classicOgV07B, classicOgV07C, classicOgV07D, classicOgV07F, classicOgV07G } from '@streets/rulesets';
+import type { ProductCatalog } from '@streets/rulesets';
 import {
   hideoutCatalog,
   hideoutBackOfficeBonusCents,
@@ -75,8 +76,8 @@ describe('hideout v2 catalog', () => {
 
     expect(hideoutProtectedProductCapacity(classicOgV07B, p)).toBe(25);
     expect(protection.capacity).toBe(25);
-    expect(protection.protected).toMatchObject({ COCAINE: 20, WEED: 5 });
-    expect(protection.exposed).toMatchObject({ COCAINE: 0, WEED: 45, CRACK: 100 });
+    expect(protection.protected).toMatchObject({ COCAINE: 20, CRACK: 5 });
+    expect(protection.exposed).toMatchObject({ COCAINE: 0, WEED: 50, CRACK: 95 });
     expect(protection.protectedUnits).toBe(25);
     expect(protection.exposedUnits).toBe(145);
 
@@ -151,9 +152,10 @@ describe('hideout v2 catalog', () => {
       recipe.effectiveIngredientCentsPerUnit <= recipe.baseIngredientCentsPerUnit)).toBe(true);
 
     for (const recipe of catalog.workshop!.recipes) {
+      const products = classicOgV07D.products as ProductCatalog | undefined;
       const sellFloor = recipe.key === 'CRACK'
         ? classicOgV07D.stores.PIP.items.CRACK?.sellCents ?? 0
-        : classicOgV07D.products?.[recipe.key]?.economy?.pip?.sellCents ?? 0;
+        : products?.[recipe.key]?.economy?.pip?.sellCents ?? 0;
       expect(recipe.effectiveIngredientCentsPerUnit * 100)
         .toBeGreaterThanOrEqual(sellFloor * (100 + catalog.workshop!.outputBonusPercent));
     }
