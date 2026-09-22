@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import {
   cityRules,
   eventAt,
+  fillMarket,
   hashRoll,
   marketView,
   supplyAt,
@@ -225,7 +226,12 @@ export function cityContractOffers(
       const score = supplyPressure + eventPressure + demandPressure + tieBreak;
 
       const target = targetFor(supply, event, productRule.demand);
-      const expectedSaleCents = market.sellCents * target;
+      const expectedSaleCents = Number(fillMarket(
+        market,
+        ruleset.travel.market,
+        'sell',
+        target,
+      ).totalCents);
       const bonusCents = Math.max(1, Math.round(expectedSaleCents * (CITY_CONTRACT_PAYOUT_MULTIPLIER - 1)));
       const cityName = cityRule.name;
       const productName = productDefinition.name;
