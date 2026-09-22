@@ -18,7 +18,6 @@ import type {
 } from '@streets/shared';
 import { ActionService, type PlayerState } from './action.service.js';
 import { AppError } from '../utils/errors.js';
-import { toStopPlans } from './run-settle.service.js';
 
 type HideoutField =
   | 'hideoutSafeRoomLevel'
@@ -403,9 +402,17 @@ async function securityDto(
   ].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
 
   const localTrafficCount = localTrafficVisible
-    ? traffic.filter((run) =>
-        reachAt(reachWindows(ruleset, toStopPlans(run.stops)), now)
-          .some((window) => window.city === player.city.slug)).length
+    ? traffic.filter((run) => {
+        const stops = run.stops.map((stop) => ({
+          city: stop.city,
+          route: stop.route as string[],
+          departAt: stop.departAt,
+          arriveAt: stop.arriveAt,
+          leaveAt: stop.leaveAt,
+        }));
+        return reachAt(reachWindows(ruleset, stops), now)
+          .some((window) => window.city === player.city.slug);
+      }).length
     : null;
 
   return {
