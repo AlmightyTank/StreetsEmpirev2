@@ -381,6 +381,7 @@ export const HandcraftedQuestService = {
         description: entry.definition.description,
         contactKey: entry.definition.contactKey,
         activationKind: entry.definition.activation.kind,
+        activatable: entry.definition.activation.kind === 'TIMED' && Boolean(entry.definition.effect),
         category: entry.definition.activation.category,
         durationMinutes: entry.definition.activation.kind === 'TIMED'
           ? entry.definition.activation.durationMinutes
