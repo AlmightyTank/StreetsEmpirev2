@@ -39,7 +39,7 @@ Forward roadmaps: [0.6.0 Turf](docs/ROADMAP-0.6.0.md), [0.7.0 Hideout](docs/ROAD
 | **0.1.0-G** | quality-of-life, action receipts, quick resources, refresh-on-return, UI consistency | **done** |
 | **0.1.0-H** | release-candidate regression, load/exploit checks, balance and production QA | **done** |
 | **Jobs & Contacts** | unified quest engine, six contacts, contact reputation, tracking, first 10 story jobs, job-based weapon access | **implemented in beta** |
-| **0.7.0-G** | permanent unlock ledger; job-earned weapon rack access; Pip Meth/Ecstasy/Cocaine/Heroin purchase progression | **implemented in beta** |
+| **0.7.0-H** | permanent unlock ledger; job-earned weapon rack access; Pip Meth/Ecstasy/Cocaine/Heroin purchase progression | **implemented in beta** |
 | **0.2.0-A** | combat model, balance simulator, tests and staged design | **prototype complete; balance provisional** |
 | **0.2.0-B** | selectable cash-raid ruleset, raid API, target protection, reports and retry recovery | **implemented for new combat rounds** |
 | **0.2.0-C** | persistent wounds, fit crew, natural recovery and medicine treatment | **implemented for new recovery rounds** |
