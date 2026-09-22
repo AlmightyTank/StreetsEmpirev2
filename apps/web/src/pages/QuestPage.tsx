@@ -25,7 +25,7 @@ function tabFromSearch(search: string): Tab {
 }
 
 function formatObjective(objective: PlayerQuestDto['objectives'][number]): string {
-  if (objective.kind === 'EARN_CASH') {
+  if (objective.kind === 'EARN_CASH' || objective.format === 'CURRENCY') {
     return formatCents(objective.current) + ' / ' + formatCents(objective.target);
   }
   return formatNumber(objective.current) + ' / ' + formatNumber(objective.target);
