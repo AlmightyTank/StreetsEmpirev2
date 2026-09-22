@@ -968,27 +968,6 @@ a:hover { color: #c9ff63; }
   margin: 0;
 }
 
-/* Quest filters need room for their full labels on phones. */
-@media (max-width: 720px) {
-  .se-storetabs.se-quest-tabs {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
-    padding: 6px;
-  }
-
-  .se-storetabs.se-quest-tabs .se-storetabs__tab {
-    width: 100%;
-    min-width: 0;
-    overflow: visible;
-    text-overflow: clip;
-  }
-
-  .se-storetabs.se-quest-tabs .se-storetabs__tab:last-child:nth-child(odd) {
-    grid-column: 1 / -1;
-  }
-}
-
 .se-quest-list {
   gap: 12px;
 }
