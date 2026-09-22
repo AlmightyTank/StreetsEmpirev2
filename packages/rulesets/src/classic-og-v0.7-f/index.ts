@@ -15,6 +15,6 @@ const questDefinitions = defineQuestCatalog({
  */
 export const classicOgV07F = {
   ...classicOgV07E,
-  meta: { id: 'classic-og-v0.7-f', version: '0.7.0-F', name: 'Classic OG - Armory, Infirmary & Side Jobs' },
+  meta: { id: 'classic-og-v0.7-f', version: '0.7.0-F', name: 'Classic OG - Armory & Infirmary' },
   questDefinitions,
 } as const satisfies Ruleset;
