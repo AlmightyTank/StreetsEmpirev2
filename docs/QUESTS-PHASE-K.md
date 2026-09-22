@@ -38,7 +38,9 @@ Activation stores:
 
 The timer is real server time. It continues while the player is offline.
 
-The client only renders the server timestamps. It does not decide whether the favor is active.
+Every Quest-page payload includes `serverTime`. The browser estimates its offset from that timestamp and the request round trip, then advances an offset-adjusted clock for open-page expiry checks. A fast or slow client wall clock therefore cannot release or hold a favor category incorrectly.
+
+The server remains authoritative: the client only ages the server-provided `expiresAt` values against the synchronized server clock.
 
 ## Activation safety
 
@@ -196,6 +198,9 @@ Phase K adds coverage for:
 - anti-arbitrage discount floor
 - live PostgreSQL Pip Connection pricing
 - activity-feed activation rendering
+- client clocks ahead of server time
+- client clocks behind server time
+- offset-adjusted clock advancement
 
 ## Phase boundary
 
