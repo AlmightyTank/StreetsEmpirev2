@@ -257,6 +257,38 @@ export function QuestPage() {
     }
   }
 
+  async function armFavor(key: string) {
+    setBusy('favor:' + key);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await questsApi.armFavor(key, crypto.randomUUID());
+      setNotice(result.result.name + ' is armed for the next eligible action.');
+      window.dispatchEvent(new Event('streets:quests-changed'));
+      await Promise.all([load(), refreshSnapshot()]);
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : 'That favor could not be armed.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function disarmFavor(key: string) {
+    setBusy('favor:' + key);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await questsApi.disarmFavor(key, crypto.randomUUID());
+      setNotice(result.result.name + ' returned to your favor inventory.');
+      window.dispatchEvent(new Event('streets:quests-changed'));
+      await Promise.all([load(), refreshSnapshot()]);
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : 'That favor could not be disarmed.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
   if (!me) return <Navigate to="/join" replace />;
 
   return (
@@ -326,6 +358,20 @@ export function QuestPage() {
               <p className="se-hint se-mt">Timers use server time and keep running while you are logged out.</p>
             </Panel>
 
+            <Panel title="Armed favors">
+              <div className="se-rows">
+                {page.armedFavors.length ? page.armedFavors.map((favor) => (
+                  <Row
+                    key={favor.category}
+                    label={favor.name + ' · ' + favor.category}
+                    value="Waiting for the next eligible action"
+                    strong
+                  />
+                )) : <Row label="Waiting now" value="None" />}
+              </div>
+              <p className="se-hint se-mt">Armed favors are only consumed when their matching action succeeds. Disarm one to return it to inventory.</p>
+            </Panel>
+
             <Panel title="Favor inventory">
               {page.favors.length ? page.favors.map((favor) => {
                 const active = liveFavors.find((item) => item.category === favor.category);
@@ -356,9 +402,33 @@ export function QuestPage() {
                       >
                         Activate
                       </Button>
-                    ) : favor.activationKind === 'SINGLE_USE'
-                      ? <p className="se-hint">Single-use activation arrives in Phase L.</p>
-                      : <p className="se-hint">This pinned round stores the favor but does not activate timed effects.</p>}
+                    ) : favor.activationKind === 'SINGLE_USE' && favor.activatable ? (() => {
+                      const armed = page.armedFavors.find((item) => item.category === favor.category);
+                      return armed?.key === favor.key ? (
+                        <Button
+                          className="se-btn se-btn--ghost"
+                          disabledReason={busy ? 'Another update is still going through.' : null}
+                          onClick={() => void disarmFavor(favor.key)}
+                        >
+                          Disarm
+                        </Button>
+                      ) : (
+                        <Button
+                          className="se-btn se-btn--primary"
+                          disabledReason={
+                            busy
+                              ? 'Another update is still going through.'
+                              : armed
+                                ? armed.name + ' is already armed in ' + favor.category + '. Disarm it first.'
+                                : null
+                          }
+                          onClick={() => void armFavor(favor.key)}
+                        >
+                          Arm favor
+                        </Button>
+                      );
+                    })()
+                      : <p className="se-hint">This pinned round stores the favor but does not support this effect yet.</p>}
                   </div>
                 );
               }) : <Row label="Stored favors" value="None yet" />}
