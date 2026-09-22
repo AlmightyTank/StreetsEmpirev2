@@ -262,6 +262,25 @@ export function QuestPage() {
                 )) : <Row label="Earned this round" value="None yet" />}
               </div>
             </Panel>
+
+            <Panel title="Favor inventory">
+              <div className="se-rows">
+                {page.favors.length ? page.favors.map((favor) => (
+                  <Row
+                    key={favor.key}
+                    label={favor.name}
+                    value={
+                      '×' + formatNumber(favor.quantity)
+                      + ' · ' + favor.category
+                      + (favor.activationKind === 'TIMED' && favor.durationMinutes
+                        ? ' · ' + formatNumber(favor.durationMinutes) + ' min'
+                        : ' · single use')
+                    }
+                  />
+                )) : <Row label="Stored favors" value="None yet" />}
+              </div>
+              <p className="se-hint se-mt">Favors can be earned and stacked now. Activation arrives in the next favor phases.</p>
+            </Panel>
           </div>
 
           <div className="se-storetabs se-mt" role="tablist" aria-label="Quest view">
