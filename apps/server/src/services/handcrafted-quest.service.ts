@@ -354,7 +354,7 @@ export const HandcraftedQuestService = {
         trackedLimit: TRACKED_LIMIT,
         counts: {
           available: rows.filter((row) => row.status === 'AVAILABLE').length,
-          active: rows.filter((row) => row.status === 'ACTIVE').length,
+          active: rows.filter((row) => ['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)).length,
           ready: rows.filter((row) => row.status === 'READY_TO_TURN_IN').length,
           completed: rows.filter((row) => row.status === 'COMPLETED').length,
         },
