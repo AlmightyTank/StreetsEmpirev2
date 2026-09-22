@@ -23,6 +23,7 @@ import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ActionService, type PlayerState } from './action.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
+import { FavorInventoryService } from './favor-inventory.service.js';
 
 const ACTIVE_LIMIT = 8;
 const TRACKED_LIMIT = 3;
@@ -77,7 +78,7 @@ function rewardLabel(reward: QuestRewardDefinition, ruleset: Ruleset): string {
   const amount = reward.amount ?? 0;
   switch (reward.kind) {
     case 'CASH':
-      return '
+      return '$' + (amount / 100).toLocaleString('en-US');
     case 'TURNS':
       return `${amount.toLocaleString('en-US')} turns`;
     case 'ITEM':
@@ -88,6 +89,10 @@ function rewardLabel(reward: QuestRewardDefinition, ruleset: Ruleset): string {
       return `${reward.key ?? 'weapon'} purchasing access`;
     case 'PERMANENT_UNLOCK':
       return `${ruleset.permanentUnlocks?.[reward.key ?? '']?.name ?? reward.key ?? 'Permanent unlock'} unlocked`;
+    case 'FAVOR_ITEM': {
+      const name = ruleset.favors?.[reward.key ?? '']?.name ?? reward.key ?? 'Favor';
+      return `${name} ×${amount.toLocaleString('en-US')}`;
+    }
   }
 }
 
@@ -368,6 +373,20 @@ export const HandcraftedQuestService = {
           awardedAt: row.awardedAt.toISOString(),
         }];
       });
+      const favors = (await FavorInventoryService.list(tx, roundPlayerId, ruleset)).map((entry) => ({
+        key: entry.key,
+        name: entry.definition.name,
+        description: entry.definition.description,
+        contactKey: entry.definition.contactKey,
+        activationKind: entry.definition.activation.kind,
+        category: entry.definition.activation.category,
+        durationMinutes: entry.definition.activation.kind === 'TIMED'
+          ? entry.definition.activation.durationMinutes
+          : null,
+        quantity: entry.quantity,
+        totalGranted: entry.totalGranted,
+        lastSourceQuestKey: entry.lastSourceQuestKey,
+      }));
       return {
         activeLimit: ACTIVE_LIMIT,
         trackedLimit: TRACKED_LIMIT,
@@ -379,6 +398,7 @@ export const HandcraftedQuestService = {
         },
         contacts,
         permanentUnlocks,
+        favors,
         quests: rows.map((row) => questDto(row, ruleset)),
       };
     });
@@ -493,6 +513,9 @@ export const HandcraftedQuestService = {
               else if (unlock.effect.weapon === 'TEK9') next.tek9Unlocked = true;
               else if (unlock.effect.weapon === 'AK47') next.ak47Unlocked = true;
             }
+          } else if (reward.kind === 'FAVOR_ITEM') {
+            if (!reward.key) throw AppError.conflict('QUEST_REWARD_INVALID', 'That quest has an invalid favor reward.');
+            await FavorInventoryService.grant(tx, roundPlayerId, ruleset, reward.key, reward.amount ?? 0, key);
           } else {
             applyStateReward(next, reward);
           }

@@ -249,6 +249,13 @@ export interface AdminPlayerDto {
     ak47: boolean;
     permanent: Array<{ key: string; sourceQuestKey: string | null; awardedAt: string }>;
   };
+  favors: Array<{
+    key: string;
+    quantity: number;
+    totalGranted: number;
+    lastSourceQuestKey: string | null;
+    updatedAt: string;
+  }>;
   happiness: { whores: number; thugs: number };
   /** 0.4.0-C. Stored Heat, as of the player's last settle. Null on rounds without Heat. */
   heat: number | null;

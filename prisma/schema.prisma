@@ -314,6 +314,31 @@ model PlayerReputation {
 }
 
 // ---------------------------------------------------------------------------
+// Consumable favor inventory
+// ---------------------------------------------------------------------------
+
+model PlayerFavor {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  /// Stable ruleset-defined favor key.
+  key String
+  quantity Int @default(0)
+  totalGranted Int @default(0)
+  /// Most recent job that added this favor to the stack.
+  lastSourceQuestKey String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, key])
+  @@index([roundPlayerId, updatedAt])
+  @@index([key])
+}
+
+// ---------------------------------------------------------------------------
 // Permanent per-round unlocks
 // ---------------------------------------------------------------------------
 
@@ -657,6 +682,7 @@ model RoundPlayer {
   reputation            PlayerReputation[]
   playerQuests          PlayerQuest[]
   permanentUnlocks      PlayerUnlock[]
+  favorInventory         PlayerFavor[]
   raidsSent             RaidBattle[]       @relation("RaidAttacker")
   raidsReceived         RaidBattle[]       @relation("RaidDefender")
   combatInjuries        CombatInjury[]
