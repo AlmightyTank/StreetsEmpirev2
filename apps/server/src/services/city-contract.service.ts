@@ -155,7 +155,7 @@ function conditionFor(
       description: 'A live drought event has tightened supply and buyers are paying for incoming product.',
     };
   }
-  if (supply === null || supply === 'OUT') {
+  if (supply === 'OUT') {
     return {
       label: 'Shortage',
       description: 'Local counter supply is exhausted, so incoming product is in short supply.',
@@ -180,7 +180,7 @@ function conditionFor(
 }
 
 function targetFor(supply: SupplyLevel | null, event: 'GLUT' | 'DROUGHT' | undefined, demand: number): number {
-  if (event === 'DROUGHT' || supply === null || supply === 'OUT') return 750;
+  if (event === 'DROUGHT' || supply === 'OUT') return 750;
   if (supply === 'LOW' || demand >= 1.1) return 500;
   return 250;
 }
@@ -210,12 +210,15 @@ export function cityContractOffers(
       const event = eventAt(ruleset, roundSeed, city, product, sampleAt)?.kind;
       const market = marketView(ruleset, roundSeed, city, product, 0, sampleAt);
       if (!market || market.sellCents <= 0) continue;
+      // Null means this counter never carries the product in this city. That is
+      // a permanent catalog fact, not a live shortage, so it cannot drive S.
+      if (supply === null) continue;
 
       // Gluts are the opposite of a shortage contract. They stay eligible only
       // when unusually strong demand still makes the city worth supplying.
       if (event === 'GLUT' && productRule.demand < 1.1) continue;
 
-      const supplyPressure = supply === null ? 6 : SUPPLY_PRESSURE[supply];
+      const supplyPressure = SUPPLY_PRESSURE[supply];
       const eventPressure = event === 'DROUGHT' ? 4 : event === 'GLUT' ? -4 : 0;
       const demandPressure = Math.max(0, (productRule.demand - 0.6) * 5);
       const tieBreak = hashRoll(roundSeed, 'city-contract', window.startsAt.toISOString(), city, product) * 0.25;
