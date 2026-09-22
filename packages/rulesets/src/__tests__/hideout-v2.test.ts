@@ -4,6 +4,7 @@ import {
   classicOgV07A,
   classicOgV07B,
   classicOgV07C,
+  classicOgV07D,
   hideoutV2For,
   hideoutV2Problems,
 } from '../index.js';
@@ -49,6 +50,23 @@ describe('classic-og-v0.7-a hideout foundation', () => {
       armedWatchDefenseBonusPercent: 5,
     });
     expect(hideoutV2Problems(classicOgV07C)).toEqual([]);
+  });
+
+  it('adds Workshop efficiency and Garage logistics only in 0.7-D', () => {
+    const extension = hideoutV2For(classicOgV07D);
+    expect(classicOgV07D.hideout).toEqual(classicOgV07C.hideout);
+    expect(hideoutV2For(classicOgV07C)?.workshop).toBeUndefined();
+    expect(hideoutV2For(classicOgV07C)?.garage).toBeUndefined();
+
+    expect(extension?.workshop?.outputBonusPercentByWorkshopLevel)
+      .toEqual([0, 3, 6, 9, 12, 15]);
+    expect(extension?.workshop?.ingredientEfficiencyPercentByWorkshopLevel)
+      .toEqual([0, 0, 2, 4, 6, 8]);
+    expect(extension?.garage?.runLimitByGarageLevel).toEqual([1, 2]);
+    expect(extension?.garage?.relocationFeeDiscountPercentByGarageLevel).toEqual([0, 5]);
+    expect(extension?.rooms.GARAGE?.requirements?.[1])
+      .toEqual([{ key: 'LOW_RIDERS', label: 'Low-Riders owned', amount: 2 }]);
+    expect(hideoutV2Problems(classicOgV07D)).toEqual([]);
   });
 
 

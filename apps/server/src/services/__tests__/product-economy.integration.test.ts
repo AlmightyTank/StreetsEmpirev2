@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { classicOgV04C, classicOgV04D } from '@streets/rulesets';
+import { classicOgV04C, classicOgV04D, classicOgV07D } from '@streets/rulesets';
 import { calculateNetWorthCents, productNetWorthCents, startingStock } from '@streets/rules-engine';
 import type { BattleReportDto, GameActionResult, ProduceCrackResult, ProductsDto, ProductTradeResult } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
@@ -121,6 +121,37 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('product economy with Po
     expect(result.heat!.added).toBeGreaterThanOrEqual(Math.round(result.productProduced * rules.products.METH.economy.production.heatPerUnit) - 1);
 
     expect((await post(0, '/produce-crack', { turns: 1, productType: 'COCAINE', actionId: randomUUID() })).json().error.code).toBe('UNKNOWN_RECIPE');
+  });
+
+  it('applies the same 0.7-D Workshop output and ingredient-efficiency path to every cookable product', async () => {
+    await app.prisma.round.update({
+      where: { id: roundId },
+      data: { rulesetId: classicOgV07D.meta.id, rulesetVersion: classicOgV07D.meta.version },
+    });
+    await app.prisma.roundPlayer.update({
+      where: { id: players[0]! },
+      data: { hideoutWorkshopLevel: 5, heat: 0, cashCents: 50_000_000n },
+    });
+
+    for (const [productType, baseIngredient, effectiveIngredient] of [
+      ['METH', 700, 644],
+      ['ECSTASY', 1_500, 1_380],
+    ] as const) {
+      const response = await post(0, '/produce-crack', {
+        turns: 10,
+        productType,
+        actionId: randomUUID(),
+      });
+      expect(response.statusCode, response.body).toBe(200);
+      const result = response.json<GameActionResult<ProduceCrackResult>>().result;
+      expect(result.productType).toBe(productType);
+      expect(result.hideoutIngredientEfficiencyPercent).toBe(8);
+      expect(result.ingredientCentsPerUnit).toBe(effectiveIngredient);
+      expect(result.hideoutBonusProduct).toBeGreaterThanOrEqual(0);
+      const baseOutput = result.productProduced - (result.hideoutBonusProduct ?? 0);
+      expect(result.ingredientCents).toBe(baseOutput * effectiveIngredient);
+      expect(result.hideoutIngredientSavingsCents).toBe(baseOutput * (baseIngredient - effectiveIngredient));
+    }
   });
 
   it('raids take a mix of products and conserve every unit; recon reads a level, not a count', async () => {

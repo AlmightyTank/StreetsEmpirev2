@@ -326,8 +326,14 @@ export function produceReceiptLines(action: GameActionResult<ProduceCrackResult>
     ...produceProductLines(result, action.after, me),
     ...(workshopBonusProduct > 0
       ? [{
-          label: 'Workshop bonus',
-          value: `${formatNumber(workshopBonusProduct)} included in production`,
+          label: 'Workshop output',
+          value: `+${formatNumber(workshopBonusProduct)} included in production`,
+        }]
+      : []),
+    ...((result.hideoutIngredientEfficiencyPercent ?? 0) > 0
+      ? [{
+          label: 'Workshop efficiency',
+          value: `${formatNumber(result.hideoutIngredientEfficiencyPercent ?? 0)}% · saved ${formatCents(result.hideoutIngredientSavingsCents ?? 0)} on ingredients`,
         }]
       : []),
     cash,

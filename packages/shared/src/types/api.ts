@@ -503,6 +503,12 @@ export interface ProduceCrackResult {
   crackProduced: number;
   hideoutBonusCrack?: number;
   ingredientCents: number;
+  /** 0.7.0-D. Workshop ingredient-cost reduction used for this batch. */
+  hideoutIngredientEfficiencyPercent?: number;
+  /** 0.7.0-D. Ingredient cash saved compared with the base recipe for the same base output. */
+  hideoutIngredientSavingsCents?: number;
+  /** Effective ingredient price after Workshop efficiency. */
+  ingredientCentsPerUnit?: number;
   /** True when cash, not thugs, was the limit on the batch. */
   limitedByCash: boolean;
 

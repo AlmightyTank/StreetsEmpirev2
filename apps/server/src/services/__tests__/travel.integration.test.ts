@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { classicOgV05B } from '@streets/rulesets';
+import { classicOgV05B, classicOgV07D } from '@streets/rulesets';
 import { calculateNetWorthCents, cityCounter, runCapacity, startingStock } from '@streets/rules-engine';
 import type { GameActionResult, RunLaunchResult, RunMoveResult, RunTradeResult, TravelDto, TravelRoutesDto } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
@@ -55,6 +55,10 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('runs with PostgreSQL', (
   });
 
   beforeEach(async () => {
+    await app.prisma.round.update({
+      where: { id: roundId },
+      data: { rulesetId: rules.meta.id, rulesetVersion: rules.meta.version },
+    });
     await app.prisma.run.deleteMany({ where: { roundPlayerId: { in: players } } });
     await app.prisma.cityShelf.deleteMany({ where: { roundPlayerId: { in: players } } });
     await app.prisma.citySighting.deleteMany({ where: { roundPlayerId: { in: players } } });
@@ -122,6 +126,40 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('runs with PostgreSQL', (
     // 0.6.0-D introduced the Garage/run-limit layer. On a one-run ruleset the
     // second launch is rejected by that shared limit before another car check.
     expect((await launch()).json().error.code).toBe('RUN_LIMIT');
+  });
+
+  it('lets 0.7-D Garage level 1 run two convoys while level 0 still caps at one', async () => {
+    await app.prisma.round.update({
+      where: { id: roundId },
+      data: { rulesetId: classicOgV07D.meta.id, rulesetVersion: classicOgV07D.meta.version },
+    });
+
+    const first = await launch();
+    expect(first.statusCode, first.body).toBe(200);
+
+    const secondPayload = {
+      to: 'miami-beach',
+      route: 0,
+      lowRiders: 1,
+      escortThugs: 0,
+      cashCents: 0,
+      cargo: {},
+    };
+    const blocked = await launch(secondPayload);
+    expect(blocked.statusCode).toBe(409);
+    expect(blocked.json().error.code).toBe('RUN_LIMIT');
+
+    await app.prisma.roundPlayer.update({
+      where: { id: players[0]! },
+      data: { hideoutGarageLevel: 1 },
+    });
+
+    const second = await launch(secondPayload);
+    expect(second.statusCode, second.body).toBe(200);
+
+    const page = (await get('/travel')).json<TravelDto>();
+    expect(page.rules.runLimit).toBe(2);
+    expect(page.runs).toHaveLength(2);
   });
 
   it('replays a launch by its action id instead of sending a second run', async () => {
