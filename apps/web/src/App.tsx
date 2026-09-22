@@ -25,6 +25,7 @@ import { JoinPage } from './pages/JoinPage.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { NewsPage } from './pages/NewsPage.js';
 import { ProducePage } from './pages/ProducePage.js';
+import { QuestPage } from './pages/QuestPage.js';
 import { ProfilePage } from './pages/ProfilePage.js';
 import { RankingsPage } from './pages/RankingsPage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
@@ -108,6 +109,7 @@ export function App() {
       <Route path="/game" element={<Protected><DashboardPage /></Protected>} />
       <Route path="/game/combat" element={<Protected><LiveRound><CombatPage /></LiveRound></Protected>} />
       <Route path="/game/scout" element={<Protected><LiveRound><ScoutPage /></LiveRound></Protected>} />
+      <Route path="/game/quests" element={<Protected><LiveRound><QuestPage /></LiveRound></Protected>} />
       <Route path="/game/hideout" element={<Protected><LiveRound><HideoutPage /></LiveRound></Protected>} />
       {/* 0.4.0-E: products are traded at Pip's; old links land there. */}
       <Route path="/game/products" element={<Navigate to="/game/stores/pip" replace />} />
