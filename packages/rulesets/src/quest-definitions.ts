@@ -16,8 +16,11 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
       const trigger = quest.availability.secretTrigger;
       if (!trigger || typeof trigger !== 'object' || Array.isArray(trigger)) {
         problems.push(`${catalogKey}: SECRET quests require availability.secretTrigger`);
-      } else if (typeof trigger.kind !== 'string' || !trigger.kind.trim()) {
-        problems.push(`${catalogKey}: SECRET secretTrigger requires kind`);
+      } else {
+        const row = trigger as QuestDataObject;
+        if (typeof row.kind !== 'string' || !row.kind.trim()) {
+          problems.push(`${catalogKey}: SECRET secretTrigger requires kind`);
+        }
       }
     }
 
