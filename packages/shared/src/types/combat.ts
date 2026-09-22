@@ -27,6 +27,7 @@ export interface CombatReconResultDto {
   intel: CombatIntelReportDto;
   turnsSpent: number;
   turnsAfter: number;
+  favorKey?: string;
 }
 
 export type SpecialRaidKindDto = 'DRUG_HOES' | 'STEAL_RIDE' | 'LURE_CREW';
@@ -140,6 +141,7 @@ export interface CombatTreatmentDto {
   favorMedicineEfficiencyPercent?: number;
   woundedThugs: number;
   nextRecoveryAt: string | null;
+  favorKey?: string;
 }
 
 export interface CombatTargetDto {
