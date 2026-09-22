@@ -656,6 +656,7 @@ export interface QuestContactDto {
 
 export interface PlayerQuestDto {
   key: string;
+  attempt: number;
   title: string;
   description: string;
   contactKey: string | null;
@@ -733,6 +734,11 @@ export interface QuestFavorDto {
 export interface QuestPageDto {
   /** Server clock used by the client to age timed favor expiries without trusting its wall clock. */
   serverTime: string;
+  dailyContracts: {
+    enabled: boolean;
+    slots: number;
+    resetAt: string | null;
+  };
   activeLimit: number;
   trackedLimit: number;
   counts: {
