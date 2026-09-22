@@ -3,7 +3,7 @@ import { classicOgV07F, classicOgV07G } from '../index.js';
 
 describe('quest roadmap Phase I permanent unlocks', () => {
   it('keeps 0.7-F unchanged and enables the generic unlock catalog only in 0.7-G', () => {
-    expect(classicOgV07F.permanentUnlocks).toBeUndefined();
+    expect('permanentUnlocks' in classicOgV07F).toBe(false);
     expect(Object.keys(classicOgV07F.questDefinitions ?? {})).toHaveLength(19);
 
     expect(Object.keys(classicOgV07G.permanentUnlocks ?? {})).toEqual([
