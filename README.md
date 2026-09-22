@@ -46,7 +46,7 @@ Forward roadmaps: [0.6.0 Turf](docs/ROADMAP-0.6.0.md), [0.7.0 Hideout](docs/ROAD
 | **0.7.0-L** | Phase M contact expansion; 3 Wheels, 3 Vic and 3 Blocks side jobs; 28 handcrafted Jobs total | **implemented in beta** |
 | **0.7.0-M** | Phase N catalog completion; Pip Top Shelf and Tommy Full Rack capstones; 30 handcrafted Jobs total | **implemented in beta** |
 | **0.7.0-N** | Phase O daily contracts; 8-contract pool; 3 rotating offers per daily reset; repeatable attempt history | **implemented in beta** |
-| **0.7.0-O** | Phase P weekly contracts; 6-contract pool; 2 rotating offers per Monday reset; unique-city and combined turf-hour progress | **in PR for beta** |
+| **0.7.0-O** | Phase P weekly contracts; 6-contract pool; 2 rotating offers per Monday reset; unique-city and combined turf-hour progress | **implemented in beta** |
 | **0.7.0-P** | Phase Q secret Jobs; 7 hidden one-time Jobs revealed by Heat, losses, arrest, cargo, crew, turf and net-worth milestones | **in PR for beta** |
 | **0.2.0-A** | combat model, balance simulator, tests and staged design | **prototype complete; balance provisional** |
 | **0.2.0-B** | selectable cash-raid ruleset, raid API, target protection, reports and retry recovery | **implemented for new combat rounds** |
