@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   classicOgV06F,
   classicOgV07A,
+  classicOgV07B,
   hideoutV2For,
   hideoutV2Problems,
 } from '../index.js';
@@ -23,4 +24,13 @@ describe('classic-og-v0.7-a hideout foundation', () => {
   it('passes the static extension validator', () => {
     expect(hideoutV2Problems(classicOgV07A)).toEqual([]);
   });
+
+  it('adds capped Safe Room product protection only in 0.7-B', () => {
+    expect(classicOgV07B.hideout).toEqual(classicOgV07A.hideout);
+    expect(hideoutV2For(classicOgV07A)?.assetProtection).toBeUndefined();
+    expect(hideoutV2For(classicOgV07B)?.assetProtection?.protectedProductUnitsBySafeRoomLevel)
+      .toEqual([0, 0, 0, 25, 60, 100]);
+    expect(hideoutV2Problems(classicOgV07B)).toEqual([]);
+  });
+
 });
