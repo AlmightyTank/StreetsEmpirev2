@@ -366,7 +366,15 @@ export async function betaTesterAwardsForAccount(
   prisma: PrismaClient,
   accountId: string,
 ): Promise<PublicAwardDto[]> {
-  if (!env.forum.enabled || !env.betaTester.enabled) return [];
+  if (!env.betaTester.enabled) return [];
+  if (env.betaTester.discordLinked) {
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, isActive: true, discordId: { not: null } },
+      select: { id: true },
+    });
+    if (account) return [betaTesterAward()];
+  }
+  if (!env.forum.enabled || !env.betaTester.forumGroups.length) return [];
   const link = await prisma.forumLink.findFirst({
     where: { accountId, forumOrigin: env.forum.origin },
     select: { forumUserId: true },
@@ -837,16 +845,17 @@ export const CommunityService = {
     const hideCrew = Boolean(privacy?.hideOpponentCrew && !isYou);
     const hideWeapons = Boolean(privacy?.hideOpponentWeapons && !isYou);
     const weapons = player.pistols + player.shotguns + player.tek9s + player.ak47s;
-    const [contexts, linkedForumGroups, career, profileSettings] = await Promise.all([
+    const [contexts, linkedForumGroups, career, profileSettings, betaTesterAwards] = await Promise.all([
       loadPublicContexts(prisma, roundId, [player]),
       forumLink ? ForumGroupsService.groupsFor(forumLink.forumUserId) : [],
       loadCareerForAccount(prisma, player.accountId, { currentRoundId: roundId, limit: 10 }),
       prisma.accountProfile.findUnique({ where: { accountId: player.accountId } }),
+      betaTesterAwardsForAccount(prisma, player.accountId),
     ]);
     const context = contexts.get(player.id) ?? emptyContext();
     const awards = [
       ...achievementsFor(player, { local: localRank, national: nationalRank }, context),
-      ...betaTesterAwardsFromForumGroups(linkedForumGroups),
+      ...betaTesterAwards,
     ];
     const unlockedAwards = awards.filter((award) => award.unlocked);
     const featuredBadgeKeys = jsonStringArray(profileSettings?.featuredBadgeKeys)

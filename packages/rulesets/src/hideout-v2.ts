@@ -78,6 +78,18 @@ export interface HideoutGarageRule {
   readonly relocationFeeDiscountPercentByGarageLevel: readonly number[];
 }
 
+export interface HideoutLedgerRule {
+  /** Itemized ledger history unlocked by Back Office level, index 0..max level. */
+  readonly historyDaysByBackOfficeLevel: readonly number[];
+  /** Maximum itemized rows returned by Back Office level. */
+  readonly rowLimitByBackOfficeLevel: readonly number[];
+  /** Hooks only. Branch selection becomes active in 0.7.0-G. */
+  readonly specializationHooks: {
+    readonly bookkeepingHistoryDaysBonus: number;
+    readonly connectionsTakeBonusPercent: number;
+  };
+}
+
 export interface HideoutV2Rules {
   readonly version: 2;
   readonly rooms: Readonly<Partial<Record<HideoutRoomKey, HideoutRoomV2Rule>>>;
@@ -89,6 +101,8 @@ export interface HideoutV2Rules {
   readonly workshop?: HideoutWorkshopRule;
   /** Optional 0.7-D Garage/logistics tuning. */
   readonly garage?: HideoutGarageRule;
+  /** Optional 0.7-E Back Office ledger tuning. */
+  readonly ledger?: HideoutLedgerRule;
 }
 
 export const CLASSIC_OG_V07A_HIDEOUT_V2 = {
@@ -200,11 +214,25 @@ export const CLASSIC_OG_V07D_HIDEOUT_V2 = {
   },
 } as const satisfies HideoutV2Rules;
 
+export const CLASSIC_OG_V07E_HIDEOUT_V2 = {
+  ...CLASSIC_OG_V07D_HIDEOUT_V2,
+  ledger: {
+    // The summary remains useful immediately; higher Back Office levels unlock deeper itemized history.
+    historyDaysByBackOfficeLevel: [1, 3, 7, 14, 30, 60],
+    rowLimitByBackOfficeLevel: [10, 20, 35, 50, 75, 100],
+    specializationHooks: {
+      bookkeepingHistoryDaysBonus: 30,
+      connectionsTakeBonusPercent: 2,
+    },
+  },
+} as const satisfies HideoutV2Rules;
+
 const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v0.7-a': CLASSIC_OG_V07A_HIDEOUT_V2,
   'classic-og-v0.7-b': CLASSIC_OG_V07B_HIDEOUT_V2,
   'classic-og-v0.7-c': CLASSIC_OG_V07C_HIDEOUT_V2,
   'classic-og-v0.7-d': CLASSIC_OG_V07D_HIDEOUT_V2,
+  'classic-og-v0.7-e': CLASSIC_OG_V07E_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */
@@ -368,6 +396,37 @@ export function hideoutV2Problems(ruleset: Ruleset): string[] {
           break;
         }
       }
+    }
+  }
+
+
+  const ledger = extension.ledger;
+  if (ledger) {
+    const backOffice = ruleset.hideout.rooms.BACK_OFFICE;
+    const expected = backOffice.maxLevel + 1;
+    for (const [label, levels] of [
+      ['history days', ledger.historyDaysByBackOfficeLevel],
+      ['row limit', ledger.rowLimitByBackOfficeLevel],
+    ] as const) {
+      if (levels.length !== expected) {
+        problems.push(`BACK_OFFICE: ${label} needs ${expected} entries for levels 0..${backOffice.maxLevel}.`);
+      }
+      let prior = -1;
+      for (const value of levels) {
+        if (!Number.isSafeInteger(value) || value <= 0) {
+          problems.push(`BACK_OFFICE: ${label} must be positive whole numbers.`);
+          break;
+        }
+        if (value < prior) {
+          problems.push(`BACK_OFFICE: ${label} cannot decrease at higher levels.`);
+          break;
+        }
+        prior = value;
+      }
+    }
+    if (ledger.specializationHooks.bookkeepingHistoryDaysBonus < 0
+      || ledger.specializationHooks.connectionsTakeBonusPercent < 0) {
+      problems.push('BACK_OFFICE: specialization hooks cannot be negative.');
     }
   }
 

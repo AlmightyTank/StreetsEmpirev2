@@ -281,6 +281,45 @@ export function HideoutPage() {
         </Panel>
       ) : null}
 
+      {hideout?.ledger ? (
+        <Panel title="Back Office ledger" aside="0.7.0-E">
+          <p className="se-dim">
+            The Back Office tracks real cash income and expenses across street work, stores, production,
+            combat, travel, relocation and Hideout spending. Cash merely loaded into a run is not counted as spending.
+          </p>
+          <div className="se-stats">
+            {hideout.ledger.windows.map((window) => (
+              <Stat
+                key={window.days}
+                label={window.days === 1 ? '24h net' : `${window.days}d net`}
+                value={formatCents(window.netCents)}
+              />
+            ))}
+            <Stat label="Itemized history" value={`${formatNumber(hideout.ledger.historyDays)}d · ${formatNumber(hideout.ledger.rowLimit)} rows`} />
+          </div>
+          {hideout.ledger.entries.length ? (
+            <div className="se-rows se-mt">
+              {hideout.ledger.entries.map((entry) => (
+                <Row
+                  key={entry.id}
+                  label={entry.label}
+                  value={`${entry.amountCents >= 0 ? '+' : '−'}${formatCents(Math.abs(entry.amountCents))} · ${new Date(entry.createdAt).toLocaleString()}`}
+                  strong={entry.category === 'INCOME'}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="se-muted se-mt">No cash-moving activity is inside your current ledger window yet.</p>
+          )}
+          <p className="se-hint">
+            Rolling totals always show 24 hours, 7 days and 30 days. Back Office levels expand the itemized audit trail from {formatNumber(hideout.ledger.historyDays)} days at your current level.
+          </p>
+          <p className="se-hint">
+            Specialization hooks are prepared but inactive until 0.7.0-G: Bookkeeping adds {formatNumber(hideout.ledger.specializationHooks.bookkeeping.historyDaysBonus)} days of ledger history; Connections adds +{formatNumber(hideout.ledger.specializationHooks.connections.takeBonusPercent)}% street take.
+          </p>
+        </Panel>
+      ) : null}
+
       {hideout?.assetProtection ? (
         <Panel title="Safe Room protection" aside="0.7.0-B">
           <p className="se-dim">

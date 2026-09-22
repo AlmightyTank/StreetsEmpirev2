@@ -65,7 +65,7 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** Lookouts give useful warnings without replacing deliberate recon.
 
 ## 0.7.0-D — Workshop & Garage
-**Status:** **in progress** on `hideout-0.7.0-d`. The current pass keeps Workshop output at the shipped 3% per level, adds a separate ingredient-efficiency curve up to 8%, gives every cookable product the same production path, ties Garage construction to owning two Low-Riders, centralizes the two-run cap, adds a 5% relocation-fee discount, and adds Workshop/Garage management panels without reducing travel time.
+**Status:** **complete in beta.** Workshop now uses one production-bonus path for every cookable product, ingredient efficiency is capped at 8%, Garage construction requires two owned Low-Riders, Garage opens a second run and a 5% relocation discount, and the Hideout manages active-run logistics without changing road time or risk. 0.7-E also corrects the ownership gate so Low-Riders currently away on a run still count as owned.
 
 **Goal:** Support the whole product economy and connect travel.
 
@@ -79,6 +79,8 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** all products use the same Hideout bonus path and Garage improves logistics without replacing Travel.
 
 ## 0.7.0-E — Back Office & Ledger
+**Status:** **in progress** on `hideout-0.7.0-e`. A durable transactional ledger now covers ordinary action cash changes, split production income/costs, run-market economics, raid cash transfers, relocation and Hideout spending. Back Office level expands itemized history while 1/7/30-day summaries remain visible, and Bookkeeping/Connections hooks are prepared for G.
+
 **Goal:** Make Back Office the economic command center.
 
 - Add income/expense ledger.

@@ -30,6 +30,7 @@ import { RelocationService } from './relocation.service.js';
 import { RunSettleService } from './run-settle.service.js';
 import { TurfService } from './turf.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
+import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
 
 /**
  * Everything an action is allowed to move. Turn-settled before an action sees
@@ -135,6 +136,8 @@ export interface ActionOutcome<T> {
   result: T;
   /** Left out by actions too small for the feed, like one trade on a run. */
   activity?: { type: ActivityType; payload: Prisma.InputJsonValue };
+  /** Economic lines to record in the 0.7-E Back Office ledger. Omit for the action's home-cash delta fallback. */
+  ledger?: EconomyLedgerWrite[];
   /**
    * Standing to write alongside the player, in the same transaction. Actions
    * that do not touch reputation leave this out.
@@ -403,6 +406,12 @@ export const ActionService = {
 
       const next = outcome.next;
       assertPlayerState(next, ruleset, 'after');
+
+      const ledgerEntries = outcome.ledger
+        ?? EconomyLedgerService.defaultForAction(options.action, current.cashCents, next.cashCents);
+      if (ledgerEntries.length) {
+        await EconomyLedgerService.record(tx, roundPlayerId, ledgerEntries, now);
+      }
 
       if (outcome.reputation?.length) {
         await ReputationService.write(tx, roundPlayerId, outcome.reputation);

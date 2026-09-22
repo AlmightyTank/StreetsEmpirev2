@@ -56,6 +56,11 @@ describe('roleKeysFor', () => {
     expect(roleKeysFor({ inRound: true, nationalRank: 11, legacy: legacy(), forumGroups: [] })).not.toContain('top-10');
   });
 
+  it('adds beta tester when enabled for Discord-linked beta accounts', () => {
+    expect(roleKeysFor({ inRound: false, nationalRank: null, legacy: legacy(), forumGroups: [], betaTester: true }))
+      .toEqual(['linked', 'beta-tester']);
+  });
+
   it('adds the alliance role only for players in the round', () => {
     expect(roleKeysFor({ inRound: true, nationalRank: 3, legacy: legacy(), forumGroups: [], allianceTag: 'esk' })).toEqual(['linked', 'player', 'alliance:ESK', 'top-10']);
     expect(roleKeysFor({ inRound: false, nationalRank: null, legacy: legacy(), forumGroups: [], allianceTag: 'ESK' })).toEqual(['linked']);

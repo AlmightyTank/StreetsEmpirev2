@@ -26,7 +26,7 @@ import {
 } from './format.js';
 import { createGameApi, type City } from './game-api.js';
 import { Cooldowns } from './lookup.js';
-import { forumGroupRoles, managedRoles, parseForumGroupList } from './roles.js';
+import { betaTesterRoles, managedRoles, parseForumGroupList } from './roles.js';
 import { startPoller } from './schedule.js';
 import { RoleSync } from './sync.js';
 import { startOptionalPushServer } from './push-server.js';
@@ -35,7 +35,7 @@ const config = loadConfig();
 const api = createGameApi({ baseUrl: config.GAME_API_URL, token: config.DISCORD_BOT_API_TOKEN });
 const forumGroups = parseForumGroupList(config.DISCORD_FORUM_GROUPS);
 const betaTesterOnly = config.DISCORD_ROLE_SYNC_MODE === 'beta-tester-only';
-const managed = betaTesterOnly ? forumGroupRoles(forumGroups) : managedRoles(forumGroups);
+const managed = betaTesterOnly ? betaTesterRoles() : managedRoles(forumGroups);
 
 // GuildMembers is a privileged intent: enable "Server Members Intent" in the developer portal.
 const client = new Client({
