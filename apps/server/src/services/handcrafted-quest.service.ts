@@ -22,6 +22,7 @@ import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ActionService, type PlayerState } from './action.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 
 const ACTIVE_LIMIT = 8;
 const TRACKED_LIMIT = 3;
@@ -72,28 +73,30 @@ function contactTier(points: number): { name: string; next: number | null } {
   return { name: tier.name, next };
 }
 
-function rewardLabel(reward: QuestRewardDefinition, contacts: Readonly<Record<string, ContactDefinition>>): string {
+function rewardLabel(reward: QuestRewardDefinition, ruleset: Ruleset): string {
   const amount = reward.amount ?? 0;
   switch (reward.kind) {
     case 'CASH':
-      return `$${(amount / 100).toLocaleString('en-US')}`;
+      return `${(amount / 100).toLocaleString('en-US')}`;
     case 'TURNS':
       return `${amount.toLocaleString('en-US')} turns`;
     case 'ITEM':
       return `${amount.toLocaleString('en-US')} ${reward.key ?? 'item'}`;
     case 'CONTACT_REP':
-      return `+${amount} ${contacts[reward.key ?? '']?.shortName ?? reward.key ?? 'contact'} reputation`;
+      return `+${amount} ${ruleset.contacts?.[reward.key ?? '']?.shortName ?? reward.key ?? 'contact'} reputation`;
     case 'WEAPON_ACCESS':
       return `${reward.key ?? 'weapon'} purchasing access`;
+    case 'PERMANENT_UNLOCK':
+      return `${ruleset.permanentUnlocks?.[reward.key ?? '']?.name ?? reward.key ?? 'Permanent unlock'} unlocked`;
   }
 }
 
-function rewardDto(reward: QuestRewardDefinition, contacts: Readonly<Record<string, ContactDefinition>>): QuestRewardDto {
+function rewardDto(reward: QuestRewardDefinition, ruleset: Ruleset): QuestRewardDto {
   return {
     kind: reward.kind,
     key: reward.key ?? null,
     amount: reward.amount ?? null,
-    label: rewardLabel(reward, contacts),
+    label: rewardLabel(reward, ruleset),
   };
 }
 
@@ -118,8 +121,8 @@ function objectiveDtos(row: QuestRow): QuestObjectiveDto[] {
   ];
 }
 
-function questDto(row: QuestRow, contacts: Readonly<Record<string, ContactDefinition>>): PlayerQuestDto {
-  const contact = row.questDefinition.contactKey ? contacts[row.questDefinition.contactKey] : undefined;
+function questDto(row: QuestRow, ruleset: Ruleset): PlayerQuestDto {
+  const contact = row.questDefinition.contactKey ? ruleset.contacts?.[row.questDefinition.contactKey] : undefined;
   return {
     key: row.questDefinition.key,
     title: row.questDefinition.title,
@@ -132,7 +135,7 @@ function questDto(row: QuestRow, contacts: Readonly<Record<string, ContactDefini
     status: row.status,
     isTracked: row.isTracked,
     objectives: objectiveDtos(row),
-    rewards: rewards(row.questDefinition.rewards).map((reward) => rewardDto(reward, contacts)),
+    rewards: rewards(row.questDefinition.rewards).map((reward) => rewardDto(reward, ruleset)),
     acceptedAt: row.acceptedAt?.toISOString() ?? null,
     completedAt: row.completedAt?.toISOString() ?? null,
     claimedAt: row.claimedAt?.toISOString() ?? null,
@@ -359,7 +362,7 @@ export const HandcraftedQuestService = {
           completed: rows.filter((row) => row.status === 'COMPLETED').length,
         },
         contacts,
-        quests: rows.map((row) => questDto(row, ruleset.contacts ?? {})),
+        quests: rows.map((row) => questDto(row, ruleset)),
       };
     });
   },
@@ -465,6 +468,14 @@ export const HandcraftedQuestService = {
               throw AppError.conflict('QUEST_REWARD_INVALID', 'That quest has an invalid contact reward.');
             }
             await addContactRep(tx, roundPlayerId, reward.key, reward.amount ?? 0);
+          } else if (reward.kind === 'PERMANENT_UNLOCK') {
+            if (!reward.key) throw AppError.conflict('QUEST_REWARD_INVALID', 'That quest has an invalid permanent unlock reward.');
+            const unlock = await PermanentUnlockService.award(tx, roundPlayerId, ruleset, reward.key, key, now);
+            if (unlock.effect.kind === 'WEAPON_ACCESS') {
+              if (unlock.effect.weapon === 'SHOTGUN') next.shotgunUnlocked = true;
+              else if (unlock.effect.weapon === 'TEK9') next.tek9Unlocked = true;
+              else if (unlock.effect.weapon === 'AK47') next.ak47Unlocked = true;
+            }
           } else {
             applyStateReward(next, reward);
           }
@@ -475,7 +486,7 @@ export const HandcraftedQuestService = {
           data: { status: 'COMPLETED', claimedAt: now, isTracked: false },
         });
         const newlyAvailable = await refreshAvailability(tx, roundPlayerId, ruleset, now);
-        const dtoRewards = questRewards.map((reward) => rewardDto(reward, ruleset.contacts ?? {}));
+        const dtoRewards = questRewards.map((reward) => rewardDto(reward, ruleset));
 
         return {
           next,
