@@ -3,7 +3,7 @@ import type { Account, PrismaClient, Session } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { changeEmailSchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
 import { z } from 'zod';
-import { assertCanSignIn, clearExpiredSuspension } from '../auth/account-status.js';
+import { assertBetaAccess, assertCanSignIn, clearExpiredSuspension } from '../auth/account-status.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { createAccountEmailToken, emailVerificationUrl } from '../auth/email-tokens.js';
 import { createSession, destroySession } from '../auth/sessions.js';
@@ -395,6 +395,14 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       },
     });
 
+    if (env.betaAccess.inviteOnly && !account.isAdmin && !account.betaApproved) {
+      return reply.status(202).send({
+        account: toAccountDto(account),
+        approvalRequired: true,
+        message: 'Your beta account was created. An admin must approve it before you can enter the beta.',
+      });
+    }
+
     const { token } = await createSession(fastify.prisma, account.id, {
       userAgent: request.headers['user-agent'],
       ip: request.ip,
@@ -428,6 +436,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
     await clearExpiredSuspension(fastify.prisma, account);
     assertCanSignIn(account);
+    assertBetaAccess(account, env.betaAccess.inviteOnly);
 
     const updated = await fastify.prisma.account.update({
       where: { id: account.id },
@@ -501,6 +510,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const account = await accountForDiscordUser(fastify.prisma, discordUser);
+      assertBetaAccess(account, env.betaAccess.inviteOnly);
       const { token } = await createSession(fastify.prisma, account.id, {
         userAgent: request.headers['user-agent'],
         ip: request.ip,
@@ -616,6 +626,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       });
     });
 
+    assertBetaAccess(account, env.betaAccess.inviteOnly);
     const { token } = await createSession(fastify.prisma, account.id, {
       userAgent: request.headers['user-agent'],
       ip: request.ip,
