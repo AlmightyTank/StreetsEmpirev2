@@ -56,7 +56,7 @@ export interface PublicSeasonStatsDto {
   driveByAttacks: number;
   driveByWins: number;
   reconRuns: number;
-  traderFavors: number;
+  jobsCompleted: number;
 }
 
 export interface PublicSeasonResultDto {

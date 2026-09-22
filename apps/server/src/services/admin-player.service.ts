@@ -141,7 +141,7 @@ export const AdminPlayerService = {
         workshop: player.hideoutWorkshopLevel,
         backOffice: player.hideoutBackOfficeLevel,
       },
-      reputation: player.reputation.map((row) => ({ trader: row.trader, points: row.points, questDone: Boolean(row.questDoneAt) })),
+      reputation: player.reputation.map((row) => ({ trader: row.trader, points: row.points, legacyFavorDone: Boolean(row.questDoneAt) })),
       injuries: player.combatInjuries.map((injury) => ({
         id: injury.id,
         thugs: injury.thugs,

@@ -54,7 +54,7 @@ describe('quest definition foundation', () => {
       ...firstNightOut,
       objectives: [
         ...firstNightOut.objectives,
-        { id: 'scout_turns', kind: 'RECRUIT_CREW', description: 'Recruit someone.', target: 1 },
+        { id: 'scout_turns', kind: 'RECRUIT_CREW', description: 'Recruit someone.', target: 1, params: { eventTypes: ['SCOUT'] } },
       ],
       expiresAfterMinutes: 0,
     };
@@ -108,7 +108,7 @@ describe('quest definition foundation', () => {
       ...freshFaces,
       objectives: [
         { id: 'sum', kind: 'EVENT_SUM', description: 'Move product.', target: 10, params: { eventTypes: [] } },
-        { id: 'crew', kind: 'RECRUIT_CREW', description: 'Recruit.', target: 5, params: { crew: 'CARS' } },
+        { id: 'crew', kind: 'RECRUIT_CREW', description: 'Recruit.', target: 5, params: { eventTypes: ['SCOUT'], crew: 'CARS' } },
       ],
     } as unknown as QuestDefinition;
 
@@ -119,6 +119,23 @@ describe('quest definition foundation', () => {
     ]);
   });
 
+
+  it('requires explicit event scopes for event-driven objectives', () => {
+    const broken = {
+      ...freshFaces,
+      objectives: [
+        { id: 'count', kind: 'EVENT_COUNT', description: 'Do one thing.', target: 1 },
+        { id: 'turns', kind: 'SPEND_TURNS', description: 'Spend turns.', target: 5 },
+        { id: 'cash', kind: 'EARN_CASH', description: 'Earn cash.', target: 500 },
+      ],
+    } as unknown as QuestDefinition;
+
+    expect(questDefinitionProblems({ FRESH_FACES: broken })).toEqual([
+      'FRESH_FACES/count: EVENT_COUNT requires eventTypes',
+      'FRESH_FACES/turns: SPEND_TURNS requires eventTypes',
+      'FRESH_FACES/cash: EARN_CASH requires eventTypes',
+    ]);
+  });
 
   it('rejects malformed C-G prerequisites and rewards', () => {
     const broken = {

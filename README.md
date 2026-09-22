@@ -8,10 +8,11 @@ A reconstruction of the OG Pimp War economic loop.
 
 ## Where this is
 
-The economic foundation and [trader reputation](docs/REPUTATION-DESIGN.md) are built.
-Players earn standing through daily trading and four one-time favors. Total
-reputation opens shotguns at 50, Tek-9s at 150 and AK-47s at 248, in that order.
-Earned access lasts for the round. Each trader's standing also speeds up restocking.
+The economic foundation is built, and the current ruleset now uses one unified
+**Jobs & Contacts** progression system. Named contacts offer tracked quests with
+event-driven and current-state objectives; job rewards grant contact reputation,
+cash/items, and permanent-in-round access such as Shotguns, Tek-9s and AK-47s.
+The older four trader favors remain only inside pinned historical rulesets.
 
 **0.2.0-A** added an isolated combat model and repeatable balance simulator.
 **0.2.0-B** adds a selectable cash-raid ruleset for new rounds, with eligible
@@ -37,7 +38,7 @@ Forward roadmaps: [0.6.0 Turf](docs/ROADMAP-0.6.0.md), [0.7.0 Hideout](docs/ROAD
 | **0.1.0-F** | transaction tests, rate limits, mobile and reconnect testing (idempotency landed early, in C) | **done** |
 | **0.1.0-G** | quality-of-life, action receipts, quick resources, refresh-on-return, UI consistency | **done** |
 | **0.1.0-H** | release-candidate regression, load/exploit checks, balance and production QA | **done** |
-| **Reputation** | four trader quests, daily standing, restock perks, reputation weapon unlocks | **done** |
+| **Jobs & Contacts** | unified quest engine, six contacts, contact reputation, tracking, first 10 story jobs, job-based weapon access | **implemented in beta** |
 | **0.2.0-A** | combat model, balance simulator, tests and staged design | **prototype complete; balance provisional** |
 | **0.2.0-B** | selectable cash-raid ruleset, raid API, target protection, reports and retry recovery | **implemented for new combat rounds** |
 | **0.2.0-C** | persistent wounds, fit crew, natural recovery and medicine treatment | **implemented for new recovery rounds** |
@@ -273,7 +274,11 @@ POST /api/game/produce-crack
 PUT  /api/game/payout
 GET  /api/game/stores
 POST /api/game/stores/trade
-POST /api/game/stores/unlock
+GET  /api/game/quests
+POST /api/game/quests/:key/accept
+POST /api/game/quests/:key/abandon
+POST /api/game/quests/:key/track
+POST /api/game/quests/:key/claim
 GET  /api/game/combat
 POST /api/game/combat/raid
 POST /api/game/combat/drive-by
@@ -321,8 +326,7 @@ Remove-Item Env:STORE_INTEGRATION
 The integration suite creates a disposable account and removes it and its related
 data afterwards. It checks authentication, full receipts, restocking happiness,
 rollback, duplicate buys and sells, and competing orders with insufficient cash or
-stock, weapon purchase locks, favor prerequisites and costs, concurrent unlocks,
-reputation increments and round isolation. The combined suite has 207 passing tests. Browser checks cover purchases,
+stock, weapon purchase locks, quest-driven access, transaction retries, reputation increments and round isolation. The combined suite has 207 passing tests. Browser checks cover purchases,
 sell-Max, receipts, updated inventory and the store layout at phone widths, plus
 both favors, unlocked buy buttons and access surviving a reload.
 

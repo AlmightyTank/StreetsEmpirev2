@@ -681,60 +681,6 @@ export interface QuestClaimResult {
   newlyAvailable: string[];
 }
 
-/** One trader's standing, and the favour they are asking for. */
-export interface ReputationDto {
-  trader: string;
-  traderName: string;
-  keeper: string;
-  points: number;
-  max: number;
-  standing: string;
-  /** How much sooner this shop restocks for you, as a percentage. */
-  restockSpeedup: number;
-  quest: QuestDto;
-}
-
-export interface QuestDto {
-  key: string;
-  title: string;
-  description: string;
-  done: boolean;
-  have: number;
-  need: number;
-  /** Set when something other than the counted goal is in the way. */
-  blockedBy: string | null;
-  /** One line per thing asked for, when a favour asks for more than one. Empty otherwise. */
-  parts: QuestPartDto[];
-  /** What is still missing, in words, for favours with parts. */
-  stillNeeded: string | null;
-  canComplete: boolean;
-  reward: number;
-}
-
-export interface QuestPartDto {
-  label: string;
-  have: number;
-  need: number;
-}
-
-export interface ReputationSummaryDto {
-  traders: ReputationDto[];
-  totalRep: number;
-  unlocks: WeaponUnlockDto[];
-}
-
-export interface QuestCompleteResult {
-  trader: string;
-  traderName: string;
-  title: string;
-  reputationGained: number;
-  totalRep: number;
-  crackDelivered: number;
-  lowRidersHandedOver: number;
-  /** Weapons this favour just put on the menu. */
-  unlocked: string[];
-}
-
 export interface StoreDto {
   key: string;
   slug: string;
@@ -747,8 +693,6 @@ export interface StoreDto {
   reputation: number;
   /** How much sooner they restock for you at that standing, as a percentage. */
   restockSpeedup: number;
-  /** Legacy favor payload. New clients use /game/quests. */
-  quest?: QuestDto;
   items: StoreItemDto[];
 }
 

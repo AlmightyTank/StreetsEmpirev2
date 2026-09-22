@@ -127,12 +127,6 @@ export const weaponUnlockSchema = z.object({
 });
 export type WeaponUnlockInput = z.infer<typeof weaponUnlockSchema>;
 
-export const questCompleteSchema = z.object({
-  trader: z.enum(['CORNER', 'TOMMY', 'CHARLIE', 'PIP']),
-  actionId: actionIdSchema,
-});
-export type QuestCompleteInput = z.infer<typeof questCompleteSchema>;
-
 export const questKeySchema = z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,63}$/, 'Invalid quest.');
 export const questAcceptSchema = z.object({ actionId: actionIdSchema }).strict();
 export const questClaimSchema = z.object({ actionId: actionIdSchema }).strict();
