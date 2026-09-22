@@ -36,6 +36,7 @@ import {
   syncWeeklyContractAttempts,
   weeklyContractWindow,
 } from './weekly-contract.service.js';
+import { syncSecretQuestAttempts } from './secret-quest.service.js';
 
 const ACTIVE_LIMIT = 8;
 const TRACKED_LIMIT = 3;
@@ -295,6 +296,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
     if (
       (definition.type === 'DAILY' && definition.repeatability === 'DAILY')
       || (definition.type === 'WEEKLY' && definition.repeatability === 'WEEKLY')
+      || definition.type === 'SECRET'
     ) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
     const available = prerequisitesMet(definition, completed, reps);
@@ -315,6 +317,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
 
   await syncDailyContractAttempts(db, roundPlayerId, ruleset, now);
   await syncWeeklyContractAttempts(db, roundPlayerId, ruleset, now);
+  newlyAvailable.push(...await syncSecretQuestAttempts(db, roundPlayerId, ruleset));
   return newlyAvailable;
 }
 
