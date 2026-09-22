@@ -69,6 +69,11 @@ export function useGameAction<T>(): GameAction<T> {
           );
         }
 
+        // Any confirmed gameplay action can advance a quest objective. The
+        // tracked-jobs bar owns its own quest request, so tell it to refresh
+        // instead of making every action page know which objectives changed.
+        window.dispatchEvent(new Event('streets:quests-changed'));
+
         // Even when the follow-up refresh fails, the confirmed action receipt
         // is still useful and must remain visible.
         setResult(outcome);

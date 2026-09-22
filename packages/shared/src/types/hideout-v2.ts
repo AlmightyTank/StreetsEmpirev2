@@ -25,7 +25,7 @@ export interface HideoutSpecializationChoiceDto {
 
 export interface HideoutSpecializationDto {
   unlockLevel: number;
-  /** Selection is intentionally not persisted until 0.7.0-G. */
+  /** Null until the player makes the permanent seasonal choice. */
   selectedKey: string | null;
   choices: HideoutSpecializationChoiceDto[];
 }
@@ -82,8 +82,8 @@ export interface HideoutSecurityDto {
   pendingTurfThreats: number;
   suspicious: HideoutSecurityEventDto[];
   specializationHooks: {
-    streetEyes: { warningHoursBonus: number; active: false };
-    armedWatch: { defenseBonusPercent: number; active: false };
+    streetEyes: { warningHoursBonus: number; active: boolean };
+    armedWatch: { defenseBonusPercent: number; active: boolean };
   };
 }
 
@@ -142,6 +142,14 @@ export interface HideoutWeaponPriorityResult {
   priority: HideoutWeaponPriorityDto;
 }
 
+export type HideoutSpecializationRoomDto = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE';
+
+export interface HideoutSpecializationResult {
+  room: HideoutSpecializationRoomDto;
+  specialization: string;
+  name: string;
+}
+
 export interface HideoutLedgerEntryDto {
   id: string;
   category: 'INCOME' | 'EXPENSE';
@@ -165,8 +173,8 @@ export interface HideoutLedgerDto {
   windows: HideoutLedgerWindowDto[];
   entries: HideoutLedgerEntryDto[];
   specializationHooks: {
-    bookkeeping: { historyDaysBonus: number; active: false };
-    connections: { takeBonusPercent: number; active: false };
+    bookkeeping: { historyDaysBonus: number; active: boolean };
+    connections: { takeBonusPercent: number; active: boolean };
   };
 }
 

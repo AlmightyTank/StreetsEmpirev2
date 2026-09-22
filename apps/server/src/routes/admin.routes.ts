@@ -60,6 +60,7 @@ const startRoundSchema = z.object({ confirmHandoff: z.boolean().optional() }).st
 const revokeSessionsSchema = z.object({ reason, sessionId: id.optional() }).strict();
 const renameSchema = z.object({ reason, username: usernameSchema }).strict();
 const adminRoleSchema = z.object({ reason, isAdmin: z.boolean() }).strict();
+const betaAccessSchema = z.object({ reason, approved: z.boolean() }).strict();
 const resyncSchema = z.object({ accountId: id.optional(), reason: reason.optional() }).strict();
 const rulesetQuery = z.object({ compare: id.optional() }).strict();
 
@@ -105,7 +106,7 @@ const createBannerSchema = z.object({
 
 const accountSearchQuery = z.object({
   query: z.string().trim().max(80).optional(),
-  status: z.enum(['all', 'active', 'inactive', 'admin', 'suspended']).optional(),
+  status: z.enum(['all', 'active', 'inactive', 'admin', 'suspended', 'beta-pending']).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 }).strict();
 
@@ -354,6 +355,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { accountId } = parseBody(accountParams, request.params);
     const body = parseBody(adminRoleSchema, request.body ?? {});
     return AdminAccountService.setAdmin(fastify.prisma, request.auth!.account, accountId, body.isAdmin, body.reason);
+  });
+
+  fastify.post('/accounts/:accountId/beta-access', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(betaAccessSchema, request.body ?? {});
+    return AdminAccountService.setBetaApproved(fastify.prisma, request.auth!.account, accountId, body.approved, body.reason);
   });
 
   fastify.post('/accounts/:accountId/email/resend', async (request) => {

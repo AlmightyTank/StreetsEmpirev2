@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import {
   formatCents,
   formatNumber,
@@ -15,6 +15,13 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 
 type Tab = 'available' | 'active' | 'completed';
+
+function tabFromSearch(search: string): Tab {
+  const requested = new URLSearchParams(search).get('tab');
+  return requested === 'active' || requested === 'completed' || requested === 'available'
+    ? requested
+    : 'available';
+}
 
 function formatObjective(objective: PlayerQuestDto['objectives'][number]): string {
   if (objective.kind === 'EARN_CASH') {
@@ -57,6 +64,7 @@ function QuestCard({
 
   return (
     <Panel
+      id={`quest-${quest.key}`}
       title={quest.title}
       aside={<span className="se-num se-dim">{quest.contactName ?? 'StreetsEmpire'} · {quest.type === 'SIDE' ? 'Side job' : quest.type === 'STORY' ? 'Story' : quest.type} · {statusLabel(quest)}</span>}
     >
@@ -124,10 +132,11 @@ function QuestCard({
 }
 
 export function QuestPage() {
+  const location = useLocation();
   const me = useSession((state) => state.me);
   const refreshSnapshot = useSession((state) => state.refreshSnapshot);
   const [page, setPage] = useState<QuestPageDto | null>(null);
-  const [tab, setTab] = useState<Tab>('available');
+  const [tab, setTab] = useState<Tab>(() => tabFromSearch(location.search));
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -144,6 +153,22 @@ export function QuestPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    setTab(tabFromSearch(location.search));
+  }, [location.search]);
+
+  useEffect(() => {
+    if (!page || !location.hash) return;
+    const id = decodeURIComponent(location.hash.slice(1));
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(id);
+      if (!target) return;
+      target.scrollIntoView({ block: 'start' });
+      target.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [page, tab, location.hash]);
 
   const shown = useMemo(() => {
     if (!page) return [];

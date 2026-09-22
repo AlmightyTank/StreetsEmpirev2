@@ -87,6 +87,8 @@ export const adminApi = {
   resetProfile: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'reset-profile'), { reason }),
   setAdmin: (accountId: string, isAdmin: boolean, reason: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'admin'), { isAdmin, reason }),
+  setBetaApproved: (accountId: string, approved: boolean, reason: string) =>
+    api.post<AdminAccountDetailDto>(accountPath(accountId, 'beta-access'), { approved, reason }),
   resendVerification: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'email/resend'), { reason }),
   markEmailVerified: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'email/verify'), { reason }),
   unlinkForum: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'forum/unlink'), { reason }),

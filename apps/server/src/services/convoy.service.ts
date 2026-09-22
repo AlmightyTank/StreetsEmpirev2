@@ -24,6 +24,7 @@ import {
   seededRng,
   simulateRaid,
   splitWounds,
+  type CombatCrew,
   type ReachWindow,
   type Ruleset,
   type RunStopPlan,
@@ -107,6 +108,23 @@ function armedSquad(ruleset: Ruleset, player: RoundPlayer, thugs: number): Weapo
     weaponPriority: hideoutWeaponPriority(ruleset, player),
   }, Math.min(thugs, model.squadCap), model);
   return { ...NO_WEAPONS, ...squad.equipment };
+}
+
+export function convoyDefenderCrew(
+  ruleset: Ruleset,
+  owner: Pick<RoundPlayer,
+    'thugHappiness' | 'pistols' | 'shotguns' | 'tek9s' | 'ak47s' | 'hideoutWeaponPriority'
+  >,
+  defenders: number,
+  runWeapons: Weapons,
+  allyWeapons: Weapons = NO_WEAPONS,
+): CombatCrew {
+  return {
+    thugs: defenders,
+    thugHappiness: owner.thugHappiness,
+    weapons: addWeapons(addWeapons(runWeapons, weaponsOf(owner)), allyWeapons),
+    weaponPriority: hideoutWeaponPriority(ruleset, owner),
+  };
 }
 
 /**
@@ -506,8 +524,9 @@ export const ConvoyService = {
       const rng = seededRng(hashParts(tail.id, 'convoy'));
       const fight = simulateRaid({
         attacker: { thugs: tail.squad, thugHappiness: attackerCrew.thugHappiness, weapons: attackerCrew.weapons },
-        // The escorts carry their own guns; the crew riding out from home takes the best of the home arsenal.
-        defender: { thugs: defenders, thugHappiness: owner.thugHappiness, weapons: addWeapons(addWeapons(weaponsOf(run), weaponsOf(owner)), allyWeapons) },
+        // Run/backup guns are already committed; the owner's Armory policy controls
+        // how the combined defending crew fills any remaining weapon slots.
+        defender: convoyDefenderCrew(ruleset, owner, defenders, weaponsOf(run), allyWeapons),
         attackerBoost: attackerCrew.boost ?? undefined,
         defenderBoost: defenderBoost ?? undefined,
         attackingThugs: Math.min(tail.squad, model.squadCap),

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
-import { classicOgV07E } from '@streets/rulesets';
+import { classicOgV07E, classicOgV07G } from '@streets/rulesets';
 import { EconomyLedgerService } from '../economy-ledger.service.js';
 
 describe('economy ledger defaults', () => {
@@ -44,6 +44,7 @@ describe('economy ledger defaults', () => {
       'player-1',
       classicOgV07E,
       0,
+      null,
       new Date('2026-09-22T12:00:00.000Z'),
     );
 
@@ -55,6 +56,36 @@ describe('economy ledger defaults', () => {
     expect(aggregate).toHaveBeenCalledTimes(6);
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 10 }));
     expect(page?.entries).toHaveLength(1);
+  });
+
+
+  it('extends itemized history only for the G Bookkeeping branch', async () => {
+    const aggregate = vi.fn().mockResolvedValue({ _sum: { amountCents: 0n } });
+    const findMany = vi.fn().mockResolvedValue([]);
+    const prisma = { economyLedgerEntry: { aggregate, findMany } } as unknown as PrismaClient;
+
+    const bookkeeping = await EconomyLedgerService.page(
+      prisma,
+      'player-1',
+      classicOgV07G,
+      5,
+      'BOOKKEEPING',
+      new Date('2026-09-22T12:00:00.000Z'),
+    );
+    expect(bookkeeping?.historyDays).toBe(90);
+    expect(bookkeeping?.specializationHooks.bookkeeping.active).toBe(true);
+    expect(bookkeeping?.specializationHooks.connections.active).toBe(false);
+
+    const connections = await EconomyLedgerService.page(
+      prisma,
+      'player-1',
+      classicOgV07G,
+      5,
+      'CONNECTIONS',
+      new Date('2026-09-22T12:00:00.000Z'),
+    );
+    expect(connections?.historyDays).toBe(60);
+    expect(connections?.specializationHooks.connections.active).toBe(true);
   });
 
 });

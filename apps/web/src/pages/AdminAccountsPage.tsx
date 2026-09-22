@@ -16,6 +16,9 @@ export function AdminAccountsPage() {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<AdminAccountStatusFilter>('all');
   const [accounts, setAccounts] = useState<AdminAccountSummaryDto[] | null>(null);
+  const [pendingApprovals, setPendingApprovals] = useState<AdminAccountSummaryDto[] | null>(null);
+  const [pendingBusyId, setPendingBusyId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [playerQuery, setPlayerQuery] = useState('');
@@ -35,9 +38,34 @@ export function AdminAccountsPage() {
     }
   }, []);
 
+  const loadPending = useCallback(async () => {
+    try {
+      const result = await adminApi.accounts({ status: 'beta-pending', limit: 50 });
+      setPendingApprovals(result.accounts);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not load pending beta approvals.');
+    }
+  }, []);
+
   useEffect(() => {
     void search('', 'all');
-  }, [search]);
+    void loadPending();
+  }, [search, loadPending]);
+
+  async function approvePending(account: AdminAccountSummaryDto) {
+    setPendingBusyId(account.id);
+    setError(null);
+    setNotice(null);
+    try {
+      await adminApi.setBetaApproved(account.id, true, 'Approved from pending beta approvals queue.');
+      setNotice(`${account.username} now has beta access.`);
+      await Promise.all([loadPending(), search(query, status)]);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not approve that beta account.');
+    } finally {
+      setPendingBusyId(null);
+    }
+  }
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -69,6 +97,61 @@ export function AdminAccountsPage() {
       </div>
 
       {error ? <Alert>{error}</Alert> : null}
+      {notice ? <p className="se-admin-notice" role="status">{notice}</p> : null}
+
+      <Panel
+        title="Pending Beta Approvals"
+        aside={pendingApprovals ? `${formatNumber(pendingApprovals.length)} waiting` : undefined}
+        flush
+        className="se-mb"
+      >
+        {pendingApprovals === null ? (
+          <p className="se-muted se-admin-pad">Loading pending approvals...</p>
+        ) : pendingApprovals.length === 0 ? (
+          <p className="se-muted se-admin-pad">No accounts are waiting for beta approval.</p>
+        ) : (
+          <div className="se-tablewrap">
+            <table className="se-table se-table--cards">
+              <thead>
+                <tr>
+                  <th>Account</th>
+                  <th>Requested</th>
+                  <th>Discord</th>
+                  <th>Email</th>
+                  <th className="se-table__number">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingApprovals.map((account) => (
+                  <tr key={account.id}>
+                    <td className="se-td--title">
+                      <Link to={`/game/admin/accounts/${account.id}`}><strong>{account.username}</strong></Link>
+                      <br />
+                      <span className="se-tag se-tag--warn">Pending beta</span>
+                    </td>
+                    <td data-label="Requested">{adminWhen(account.createdAt)}</td>
+                    <td data-label="Discord">{account.discordUsername ?? <span className="se-muted">-</span>}</td>
+                    <td data-label="Email">{account.email}</td>
+                    <td className="se-table__number" data-label="Actions">
+                      <div className="se-admin-moderation">
+                        <Button
+                          type="button"
+                          className="se-btn se-btn--sm se-btn--primary"
+                          onClick={() => void approvePending(account)}
+                          disabledReason={pendingBusyId ? 'An approval is still being saved.' : null}
+                        >
+                          {pendingBusyId === account.id ? 'Approving...' : 'Approve'}
+                        </Button>
+                        <Link className="se-btn se-btn--sm se-btn--ghost" to={`/game/admin/accounts/${account.id}`}>Review</Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
 
       <Panel title="Search" className="se-mb">
         <form className="se-admin-filters" onSubmit={submit} noValidate>
@@ -91,6 +174,7 @@ export function AdminAccountsPage() {
               <option value="active">Active</option>
               <option value="inactive">Deactivated</option>
               <option value="suspended">Suspended</option>
+              <option value="beta-pending">Pending beta approval</option>
               <option value="admin">Admins</option>
             </select>
           </div>

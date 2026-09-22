@@ -36,6 +36,7 @@ fail() { printf '\nBeta deploy failed: %s\n' "$*" >&2; exit 1; }
 cd "$APP_DIR"
 
 [ -f .env ] || fail "missing beta .env in $APP_DIR"
+grep -Eq '^BETA_INVITE_ONLY="?true"?$' .env || fail "beta .env must set BETA_INVITE_ONLY=true. Refusing to deploy an open beta."
 systemctl cat "$BETA_SERVICE" >/dev/null 2>&1 || fail "no $BETA_SERVICE service. Run scripts/ops/install-beta-service.sh after the first build."
 
 if ! git diff --quiet || ! git diff --cached --quiet; then

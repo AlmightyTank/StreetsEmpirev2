@@ -1,7 +1,7 @@
 import type { AdminAccountSummaryDto, AdminAuditEntryDto, AdminSuspensionDto } from '@streets/shared';
 import { adminWhen, snapshotJson } from '../utils/admin.js';
 
-type TaggedAccount = Pick<AdminAccountSummaryDto, 'isActive' | 'isAdmin' | 'emailVerified'> & { suspension?: AdminSuspensionDto | null };
+type TaggedAccount = Pick<AdminAccountSummaryDto, 'isActive' | 'isAdmin' | 'emailVerified'> & { betaApproved?: boolean; suspension?: AdminSuspensionDto | null };
 
 export function AccountTags({ account }: { account: TaggedAccount }) {
   const suspension = account.suspension ?? null;
@@ -14,6 +14,7 @@ export function AccountTags({ account }: { account: TaggedAccount }) {
         </span>
       ) : null}
       {account.isAdmin ? <span className="se-tag se-tag--warn">Admin</span> : null}
+      {account.betaApproved ? <span className="se-tag se-tag--good">Beta approved</span> : null}
       {account.emailVerified ? null : <span className="se-tag">Unverified</span>}
     </span>
   );

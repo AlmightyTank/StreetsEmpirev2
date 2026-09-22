@@ -38,8 +38,9 @@ model Account {
   updatedAt   DateTime  @updatedAt
   lastLoginAt DateTime?
 
-  isActive Boolean @default(true)
-  isAdmin  Boolean @default(false)
+  isActive     Boolean @default(true)
+  isAdmin      Boolean @default(false)
+  betaApproved Boolean @default(false)
 
   /// 0.3.0-B. A timed suspension. The account signs back in on its own once this
   /// passes; the fields are cleared lazily on the next sign-in attempt.
@@ -679,6 +680,11 @@ model RoundPlayer {
   hideoutGarageLevel    Int @default(0)
   /// 0.7.0-F. Which guns home squads and run escorts consume first.
   hideoutWeaponPriority String @default("POWER")
+  /// 0.7.0-G. Permanent for this RoundPlayer; the next season starts clean.
+  hideoutSafeRoomSpecialization   String?
+  hideoutLookoutsSpecialization   String?
+  hideoutWorkshopSpecialization   String?
+  hideoutBackOfficeSpecialization String?
 
   /// 0.3.0-C. The alliance this player is in now, and since when. Shared revenge only
   /// counts hits on the alliance from after the member joined.

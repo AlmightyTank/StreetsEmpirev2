@@ -23,13 +23,15 @@ const actionText: Record<AdminAccountAction, { label: string; copy: string }> = 
   'reset-profile': { label: 'Reset profile', copy: 'Clears their profile title and featured badges and resets their accent.' },
   'grant-admin': { label: 'Make admin', copy: 'Gives full admin panel access. Everything they do there is audited.' },
   'revoke-admin': { label: 'Remove admin', copy: 'Removes admin panel access.' },
+  'approve-beta': { label: 'Approve beta', copy: 'Allows this account to log in and play when the beta server is invite-only.' },
+  'revoke-beta': { label: 'Revoke beta', copy: 'Removes this account from the invite-only beta. Existing sessions stop working on their next request.' },
   'resend-verification': { label: 'Resend verification email', copy: 'Sends a fresh verification link to their current email address.' },
   'mark-email-verified': { label: 'Mark email verified', copy: 'Marks their current email as verified without a link. Only do this once you have confirmed they own it.' },
   'unlink-forum': { label: 'Unlink forum', copy: 'Removes the connection to their forum account on both sides. They can link again from their account settings.' },
   'resync-discord': { label: 'Resync Discord roles', copy: 'Asks the Discord bot to re-check their roles on its next pass, about a minute.' },
 };
 
-const DESTRUCTIVE: AdminAccountAction[] = ['deactivate', 'suspend', 'revoke-admin', 'unlink-forum'];
+const DESTRUCTIVE: AdminAccountAction[] = ['deactivate', 'suspend', 'revoke-admin', 'revoke-beta', 'unlink-forum'];
 
 function statusTone(status: RoundStatus): string {
   if (status === 'ACTIVE') return ' se-tag--good';
@@ -95,6 +97,8 @@ export function AdminAccountPage() {
           case 'reset-profile': return adminApi.resetProfile(accountId, why);
           case 'grant-admin': return adminApi.setAdmin(accountId, true, why);
           case 'revoke-admin': return adminApi.setAdmin(accountId, false, why);
+          case 'approve-beta': return adminApi.setBetaApproved(accountId, true, why);
+          case 'revoke-beta': return adminApi.setBetaApproved(accountId, false, why);
           case 'resend-verification': return adminApi.resendVerification(accountId, why);
           case 'mark-email-verified': return adminApi.markEmailVerified(accountId, why);
           case 'unlink-forum': return adminApi.unlinkForum(accountId, why);
@@ -136,6 +140,7 @@ export function AdminAccountPage() {
     'rename',
     'reset-profile',
     ...(account.isAdmin ? ['revoke-admin' as const] : account.isActive ? ['grant-admin' as const] : []),
+    account.betaApproved ? 'revoke-beta' : 'approve-beta',
   ];
   const linkActions: AdminAccountAction[] = [
     ...(!email.verifiedAt && email.sendingEnabled ? ['resend-verification' as const] : []),
