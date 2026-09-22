@@ -467,7 +467,7 @@ export const HandcraftedQuestService = {
           failedAt: null,
           objectiveProgress: {},
           bonusProgress: {},
-          rewardState: row.questDefinition.repeatability === 'DAILY' ? row.rewardState : {},
+          rewardState: row.questDefinition.repeatability === 'DAILY' ? inputJson(row.rewardState) : {},
           expiresAt: row.questDefinition.repeatability === 'DAILY'
             ? row.expiresAt
             : row.questDefinition.expiresAfterMinutes
