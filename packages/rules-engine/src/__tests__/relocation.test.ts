@@ -20,6 +20,17 @@ describe('0.5.0-D moving house', () => {
     expect(relocationFeeCents(-5n, rules)).toBe(BigInt(rules.feeFloorCents));
   });
 
+  it('applies an optional Garage discount without changing old quotes', () => {
+    expect(relocationFeeCents(100_000_000n, rules, 5)).toBe(4_750_000n);
+    expect(relocationFeeCents(100_000_000n, rules, 0)).toBe(5_000_000n);
+
+    const short = { ...free, cashCents: 4_800_000n };
+    expect(checkMove(ruleset, short).code).toBe('NOT_ENOUGH_CASH');
+    const discounted = checkMove(ruleset, { ...short, feeDiscountPercent: 5 });
+    expect(discounted.code).toBeNull();
+    expect(discounted.feeCents).toBe(4_750_000n);
+  });
+
   it('lets a free player move, and arrives after the downtime', () => {
     const check = checkMove(ruleset, free);
     expect(check.blockedReason).toBeNull();
