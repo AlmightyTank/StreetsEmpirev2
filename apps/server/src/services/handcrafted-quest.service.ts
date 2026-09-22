@@ -352,6 +352,22 @@ export const HandcraftedQuestService = {
           nextStandingAt: tier.next,
         };
       });
+      const unlockRows = await tx.playerUnlock.findMany({
+        where: { roundPlayerId },
+        orderBy: { awardedAt: 'asc' },
+      });
+      const permanentUnlocks = unlockRows.flatMap((row) => {
+        const definition = ruleset.permanentUnlocks?.[row.key];
+        if (!definition) return [];
+        return [{
+          key: row.key,
+          name: definition.name,
+          description: definition.description,
+          category: definition.category,
+          sourceQuestKey: row.sourceQuestKey,
+          awardedAt: row.awardedAt.toISOString(),
+        }];
+      });
       return {
         activeLimit: ACTIVE_LIMIT,
         trackedLimit: TRACKED_LIMIT,
@@ -362,6 +378,7 @@ export const HandcraftedQuestService = {
           completed: rows.filter((row) => row.status === 'COMPLETED').length,
         },
         contacts,
+        permanentUnlocks,
         quests: rows.map((row) => questDto(row, ruleset)),
       };
     });
