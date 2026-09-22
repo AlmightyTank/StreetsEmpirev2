@@ -370,6 +370,7 @@ model PlayerQuest {
 
   questDefinitionId String
   questDefinition   QuestDefinition @relation(fields: [questDefinitionId], references: [id], onDelete: Restrict)
+  progressReceipts QuestProgressReceipt[]
 
   attempt Int @default(1)
   status  QuestStatus @default(AVAILABLE)
@@ -392,6 +393,27 @@ model PlayerQuest {
   @@index([roundPlayerId, status])
   @@index([questDefinitionId, status])
   @@index([status, expiresAt])
+}
+
+/// Idempotency/audit receipt for one source event applied to one quest attempt.
+/// The source key is usually activity:<PlayerActivity.id>; explicit emitters may
+/// use another stable domain key.
+model QuestProgressReceipt {
+  id String @id @default(cuid())
+
+  playerQuestId String
+  playerQuest   PlayerQuest @relation(fields: [playerQuestId], references: [id], onDelete: Cascade)
+
+  sourceKey String
+  eventType String
+  /// Objective deltas actually credited by this event.
+  applied Json @default("{}")
+
+  createdAt DateTime @default(now())
+
+  @@unique([playerQuestId, sourceKey])
+  @@index([playerQuestId, createdAt])
+  @@index([sourceKey])
 }
 
 model Round {
