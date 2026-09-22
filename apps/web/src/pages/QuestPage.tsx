@@ -58,7 +58,7 @@ function QuestCard({
   return (
     <Panel
       title={quest.title}
-      aside={<span className="se-num se-dim">{quest.contactName ?? 'StreetsEmpire'} · {statusLabel(quest)}</span>}
+      aside={<span className="se-num se-dim">{quest.contactName ?? 'StreetsEmpire'} · {quest.type === 'SIDE' ? 'Side job' : quest.type === 'STORY' ? 'Story' : quest.type} · {statusLabel(quest)}</span>}
     >
       <p className="se-hint">{quest.description}</p>
       <div className="se-rows">
