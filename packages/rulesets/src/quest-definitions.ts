@@ -1,4 +1,4 @@
-import type { QuestDefinition, QuestDefinitionCatalog } from './types.js';
+import type { QuestDataObject, QuestDefinition, QuestDefinitionCatalog } from './types.js';
 
 export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string[] {
   const problems: string[] = [];
@@ -10,6 +10,19 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
     if (!quest.title.trim()) problems.push(`${catalogKey}: title is required`);
     if (!quest.description.trim()) problems.push(`${catalogKey}: description is required`);
     if (quest.objectives.length === 0) problems.push(`${catalogKey}: at least one objective is required`);
+    if (quest.type === 'SECRET') {
+      if (quest.repeatability !== 'ONCE') problems.push(`${catalogKey}: SECRET quests must be ONCE`);
+      if (quest.availability.hidden !== true) problems.push(`${catalogKey}: SECRET quests must set availability.hidden=true`);
+      const trigger = quest.availability.secretTrigger;
+      if (!trigger || typeof trigger !== 'object' || Array.isArray(trigger)) {
+        problems.push(`${catalogKey}: SECRET quests require availability.secretTrigger`);
+      } else {
+        const row = trigger as QuestDataObject;
+        if (typeof row.kind !== 'string' || !row.kind.trim()) {
+          problems.push(`${catalogKey}: SECRET secretTrigger requires kind`);
+        }
+      }
+    }
 
     for (const prerequisite of quest.prerequisites) {
       if (!prerequisite.kind.trim()) {
