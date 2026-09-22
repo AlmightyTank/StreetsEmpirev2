@@ -873,6 +873,21 @@ a:hover { color: #c9ff63; }
   gap: 12px;
 }
 
+.se-quest-summary__col {
+  gap: 10px;
+}
+
+.se-quest-summary .se-row {
+  min-height: 34px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  line-height: 18px;
+}
+
+.se-quest-summary .se-hint.se-mt {
+  margin-top: 8px;
+}
+
 .se-storetabs.se-quest-tabs {
   margin: 0;
 }
@@ -926,8 +941,17 @@ a:hover { color: #c9ff63; }
   line-height: 18px;
 }
 
-.se-quest-card .se-actions {
+.se-quest-card .se-quest-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 12px;
+}
+
+.se-quest-actions .se-btn {
+  min-height: 36px;
+  padding: 8px 16px;
 }
 
 .se-center {

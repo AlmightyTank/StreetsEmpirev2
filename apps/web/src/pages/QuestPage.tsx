@@ -91,7 +91,7 @@ function QuestCard({
         </div>
       </div>
 
-      <div className="se-actions se-mt">
+      <div className="se-actions se-quest-actions">
         {quest.status === 'AVAILABLE' ? (
           <Button
             className="se-btn se-btn--primary"
@@ -277,94 +277,98 @@ export function QuestPage() {
         {page ? (
           <>
             <div className="se-grid se-grid--sidebar se-quest-summary">
-            <Panel title="Jobs">
-              <div className="se-rows">
-                <Row label="Available" value={formatNumber(page.counts.available)} />
-                <Row label="Active" value={formatNumber(page.counts.active) + ' / ' + formatNumber(page.activeLimit)} />
-                <Row label="Ready to collect" value={formatNumber(page.counts.ready)} strong={page.counts.ready > 0} />
-                <Row label="Completed" value={formatNumber(page.counts.completed)} />
-                <Row
-                  label="Tracked"
-                  value={formatNumber(page.quests.filter((quest) => quest.isTracked).length) + ' / ' + formatNumber(page.trackedLimit)}
-                />
-              </div>
-            </Panel>
-
-            <Panel title="Contacts">
-              <div className="se-rows">
-                {page.contacts.map((contact) => (
-                  <Row
-                    key={contact.key}
-                    label={contact.shortName + ' · ' + contact.role}
-                    value={contact.standing + ' · ' + formatNumber(contact.points) + ' rep'}
-                  />
-                ))}
-              </div>
-            </Panel>
-
-            <Panel title="Permanent unlocks">
-              <div className="se-rows">
-                {page.permanentUnlocks.length ? page.permanentUnlocks.map((unlock) => (
-                  <Row
-                    key={unlock.key}
-                    label={unlock.name}
-                    value={unlock.category + (unlock.sourceQuestKey ? ' · ' + unlock.sourceQuestKey.replaceAll('_', ' ') : '')}
-                  />
-                )) : <Row label="Earned this round" value="None yet" />}
-              </div>
-            </Panel>
-
-            <Panel title="Active favors">
-              <div className="se-rows">
-                {liveFavors.length ? liveFavors.map((favor) => (
-                  <Row
-                    key={favor.category}
-                    label={favor.name + ' · ' + favor.category}
-                    value={'Until ' + new Date(favor.expiresAt).toLocaleTimeString()}
-                    strong
-                  />
-                )) : <Row label="Running now" value="None" />}
-              </div>
-              <p className="se-hint se-mt">Timers use server time and keep running while you are logged out.</p>
-            </Panel>
-
-            <Panel title="Favor inventory">
-              {page.favors.length ? page.favors.map((favor) => {
-                const active = liveFavors.find((item) => item.category === favor.category);
-                return (
-                  <div key={favor.key} className="se-mb">
+              <div className="se-grid se-quest-summary__col">
+                <Panel title="Jobs">
+                  <div className="se-rows">
+                    <Row label="Available" value={formatNumber(page.counts.available)} />
+                    <Row label="Active" value={formatNumber(page.counts.active) + ' / ' + formatNumber(page.activeLimit)} />
+                    <Row label="Ready to collect" value={formatNumber(page.counts.ready)} strong={page.counts.ready > 0} />
+                    <Row label="Completed" value={formatNumber(page.counts.completed)} />
                     <Row
-                      label={favor.name}
-                      value={
-                        '×' + formatNumber(favor.quantity)
-                        + ' · ' + favor.category
-                        + (favor.activationKind === 'TIMED' && favor.durationMinutes
-                          ? ' · ' + formatNumber(favor.durationMinutes) + ' min'
-                          : ' · single use')
-                      }
+                      label="Tracked"
+                      value={formatNumber(page.quests.filter((quest) => quest.isTracked).length) + ' / ' + formatNumber(page.trackedLimit)}
                     />
-                    <p className="se-hint">{favor.description}</p>
-                    {favor.activationKind === 'TIMED' && favor.activatable ? (
-                      <Button
-                        className="se-btn se-btn--primary"
-                        disabledReason={
-                          busy
-                            ? 'Another update is still going through.'
-                            : active
-                              ? active.name + ' already occupies ' + favor.category + ' until ' + new Date(active.expiresAt).toLocaleTimeString() + '.'
-                              : null
-                        }
-                        onClick={() => void activateFavor(favor.key)}
-                      >
-                        Activate
-                      </Button>
-                    ) : favor.activationKind === 'SINGLE_USE'
-                      ? <p className="se-hint">Single-use activation arrives in Phase L.</p>
-                      : <p className="se-hint">This pinned round stores the favor but does not activate timed effects.</p>}
                   </div>
-                );
-              }) : <Row label="Stored favors" value="None yet" />}
-            </Panel>
+                </Panel>
+
+                <Panel title="Permanent unlocks">
+                  <div className="se-rows">
+                    {page.permanentUnlocks.length ? page.permanentUnlocks.map((unlock) => (
+                      <Row
+                        key={unlock.key}
+                        label={unlock.name}
+                        value={unlock.category + (unlock.sourceQuestKey ? ' · ' + unlock.sourceQuestKey.replaceAll('_', ' ') : '')}
+                      />
+                    )) : <Row label="Earned this round" value="None yet" />}
+                  </div>
+                </Panel>
+
+                <Panel title="Favor inventory">
+                  {page.favors.length ? page.favors.map((favor) => {
+                    const active = liveFavors.find((item) => item.category === favor.category);
+                    return (
+                      <div key={favor.key} className="se-mb">
+                        <Row
+                          label={favor.name}
+                          value={
+                            '×' + formatNumber(favor.quantity)
+                            + ' · ' + favor.category
+                            + (favor.activationKind === 'TIMED' && favor.durationMinutes
+                              ? ' · ' + formatNumber(favor.durationMinutes) + ' min'
+                              : ' · single use')
+                          }
+                        />
+                        <p className="se-hint">{favor.description}</p>
+                        {favor.activationKind === 'TIMED' && favor.activatable ? (
+                          <Button
+                            className="se-btn se-btn--primary"
+                            disabledReason={
+                              busy
+                                ? 'Another update is still going through.'
+                                : active
+                                  ? active.name + ' already occupies ' + favor.category + ' until ' + new Date(active.expiresAt).toLocaleTimeString() + '.'
+                                  : null
+                            }
+                            onClick={() => void activateFavor(favor.key)}
+                          >
+                            Activate
+                          </Button>
+                        ) : favor.activationKind === 'SINGLE_USE'
+                          ? <p className="se-hint">Single-use activation arrives in Phase L.</p>
+                          : <p className="se-hint">This pinned round stores the favor but does not activate timed effects.</p>}
+                      </div>
+                    );
+                  }) : <Row label="Stored favors" value="None yet" />}
+                </Panel>
+              </div>
+
+              <div className="se-grid se-quest-summary__col">
+                <Panel title="Contacts">
+                  <div className="se-rows">
+                    {page.contacts.map((contact) => (
+                      <Row
+                        key={contact.key}
+                        label={contact.shortName + ' · ' + contact.role}
+                        value={contact.standing + ' · ' + formatNumber(contact.points) + ' rep'}
+                      />
+                    ))}
+                  </div>
+                </Panel>
+
+                <Panel title="Active favors">
+                  <div className="se-rows">
+                    {liveFavors.length ? liveFavors.map((favor) => (
+                      <Row
+                        key={favor.category}
+                        label={favor.name + ' · ' + favor.category}
+                        value={'Until ' + new Date(favor.expiresAt).toLocaleTimeString()}
+                        strong
+                      />
+                    )) : <Row label="Running now" value="None" />}
+                  </div>
+                  <p className="se-hint se-mt">Timers use server time and keep running while you are logged out.</p>
+                </Panel>
+              </div>
             </div>
 
             <div className="se-storetabs se-quest-tabs" role="tablist" aria-label="Quest view">
