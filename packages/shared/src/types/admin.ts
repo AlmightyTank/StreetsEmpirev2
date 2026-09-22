@@ -256,6 +256,12 @@ export interface AdminPlayerDto {
     lastSourceQuestKey: string | null;
     updatedAt: string;
   }>;
+  activeFavors: Array<{
+    favorKey: string;
+    category: string;
+    startedAt: string;
+    expiresAt: string;
+  }>;
   happiness: { whores: number; thugs: number };
   /** 0.4.0-C. Stored Heat, as of the player's last settle. Null on rounds without Heat. */
   heat: number | null;
