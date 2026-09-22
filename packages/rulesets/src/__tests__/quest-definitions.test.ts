@@ -2,6 +2,26 @@ import { describe, expect, it } from 'vitest';
 import { defineQuestCatalog, questDefinitionProblems } from '../quest-definitions.js';
 import type { QuestDefinition } from '../types.js';
 
+const freshFaces: QuestDefinition = {
+  key: 'FRESH_FACES',
+  title: 'Fresh Faces',
+  description: 'Grow the crew.',
+  contactKey: 'MAMA_KING',
+  type: 'STORY',
+  category: 'STREET',
+  difficulty: 'STREET_JOB',
+  prerequisites: [],
+  objectives: [
+    { id: 'crew_size', kind: 'OWN_CREW', description: 'Build your crew.', target: 5 },
+  ],
+  bonusObjectives: [],
+  rewards: [],
+  followUpKeys: [],
+  repeatability: 'ONCE',
+  expiresAfterMinutes: null,
+  availability: {},
+};
+
 const firstNightOut: QuestDefinition = {
   key: 'FIRST_NIGHT_OUT',
   title: 'First Night Out',
@@ -24,8 +44,9 @@ const firstNightOut: QuestDefinition = {
 
 describe('quest definition foundation', () => {
   it('accepts a well-formed catalog', () => {
-    expect(() => defineQuestCatalog({ FIRST_NIGHT_OUT: firstNightOut })).not.toThrow();
-    expect(questDefinitionProblems({ FIRST_NIGHT_OUT: firstNightOut })).toEqual([]);
+    const catalog = { FIRST_NIGHT_OUT: firstNightOut, FRESH_FACES: freshFaces };
+    expect(() => defineQuestCatalog(catalog)).not.toThrow();
+    expect(questDefinitionProblems(catalog)).toEqual([]);
   });
 
   it('rejects duplicate objective ids and invalid timers', () => {
@@ -38,7 +59,7 @@ describe('quest definition foundation', () => {
       expiresAfterMinutes: 0,
     };
 
-    expect(questDefinitionProblems({ FIRST_NIGHT_OUT: broken })).toEqual([
+    expect(questDefinitionProblems({ FIRST_NIGHT_OUT: broken, FRESH_FACES: freshFaces })).toEqual([
       'FIRST_NIGHT_OUT: duplicate objective id scout_turns',
       'FIRST_NIGHT_OUT: expiresAfterMinutes must be a positive integer or null',
     ]);
@@ -54,6 +75,31 @@ describe('quest definition foundation', () => {
     expect(questDefinitionProblems({ FIRST_NIGHT_OUT: broken })).toEqual([
       'FIRST_NIGHT_OUT: definition key is WRONG_KEY',
       'FIRST_NIGHT_OUT: quest cannot follow up to itself',
+      'FIRST_NIGHT_OUT: unknown follow-up WRONG_KEY',
+    ]);
+  });
+
+  it('rejects unknown follow-ups', () => {
+    const broken: QuestDefinition = {
+      ...firstNightOut,
+      followUpKeys: ['FRESH_FACES_TYPO'],
+    };
+
+    expect(questDefinitionProblems({ FIRST_NIGHT_OUT: broken })).toEqual([
+      'FIRST_NIGHT_OUT: unknown follow-up FRESH_FACES_TYPO',
+    ]);
+  });
+
+  it('rejects blank prerequisite and reward kinds', () => {
+    const broken: QuestDefinition = {
+      ...freshFaces,
+      prerequisites: [{ kind: '' }],
+      rewards: [{ kind: '' }],
+    };
+
+    expect(questDefinitionProblems({ FRESH_FACES: broken })).toEqual([
+      'FRESH_FACES: prerequisite kind is required',
+      'FRESH_FACES: reward kind is required',
     ]);
   });
 });
