@@ -4,6 +4,7 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
 import { env } from '../config/env.js';
 import { resolveSession, touchSession } from '../auth/sessions.js';
+import { assertBetaAccess } from '../auth/account-status.js';
 import { AppError } from '../utils/errors.js';
 
 declare module 'fastify' {
@@ -58,6 +59,7 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
 
   fastify.decorate('requireAuth', async (request: FastifyRequest) => {
     if (!request.auth) throw AppError.unauthenticated();
+    assertBetaAccess(request.auth.account, env.betaAccess.inviteOnly);
   });
 
   fastify.decorate('requireAdmin', async (request: FastifyRequest) => {
