@@ -16,6 +16,9 @@ import type {
   HideoutRequirementDto,
   HideoutRoomV2Dto,
   HideoutSecurityDto,
+  HideoutSpecializationInput,
+  HideoutSpecializationResult,
+  HideoutSpecializationRoomDto,
   HideoutUpgradeInput,
   HideoutUpgradeResult,
   HideoutWeaponPriorityInput,
@@ -52,6 +55,29 @@ export interface HideoutProgressContext {
   lowRidersOwned?: number;
 }
 
+type SpecializationPlayer = Partial<Pick<PlayerState,
+  | 'hideoutSafeRoomSpecialization'
+  | 'hideoutLookoutsSpecialization'
+  | 'hideoutWorkshopSpecialization'
+  | 'hideoutBackOfficeSpecialization'
+>>;
+
+const SPECIALIZATION_FIELDS: Record<HideoutSpecializationRoomDto, keyof SpecializationPlayer> = {
+  SAFE_ROOM: 'hideoutSafeRoomSpecialization',
+  LOOKOUTS: 'hideoutLookoutsSpecialization',
+  WORKSHOP: 'hideoutWorkshopSpecialization',
+  BACK_OFFICE: 'hideoutBackOfficeSpecialization',
+};
+
+export function hideoutSpecializationKey(
+  ruleset: Ruleset,
+  player: SpecializationPlayer,
+  room: HideoutSpecializationRoomDto,
+): string | null {
+  if (!hideoutV2For(ruleset)?.specializationEffects) return null;
+  return player[SPECIALIZATION_FIELDS[room]] ?? null;
+}
+
 function productUnitValueCents(ruleset: Ruleset, key: string): number {
   if (key === 'CRACK') return ruleset.economy.netWorth.perCrackCents;
   return ruleset.products?.[key]?.economy?.netWorthCents ?? ruleset.economy.netWorth.perCrackCents;
@@ -60,11 +86,16 @@ function productUnitValueCents(ruleset: Ruleset, key: string): number {
 /** Product units the Safe Room can automatically seal at the player's current level. */
 export function hideoutProtectedProductCapacity(
   ruleset: Ruleset,
-  player: Pick<PlayerState, HideoutField>,
+  player: { hideoutSafeRoomLevel: number; hideoutSafeRoomSpecialization?: string | null },
 ): number {
-  const levels = hideoutV2For(ruleset)?.assetProtection?.protectedProductUnitsBySafeRoomLevel;
+  const extension = hideoutV2For(ruleset);
+  const levels = extension?.assetProtection?.protectedProductUnitsBySafeRoomLevel;
   if (!levels) return 0;
-  return levels[player.hideoutSafeRoomLevel] ?? 0;
+  const base = levels[player.hideoutSafeRoomLevel] ?? 0;
+  const vault = hideoutSpecializationKey(ruleset, player, 'SAFE_ROOM') === 'VAULT'
+    ? extension?.specializationEffects?.safeRoom.vaultProtectedProductUnits ?? 0
+    : 0;
+  return base + vault;
 }
 
 /**
@@ -161,10 +192,15 @@ function dollars(cents: number): string {
 
 export function hideoutWorkshopOutputBonusPercent(
   ruleset: Ruleset,
-  player: Pick<PlayerState, 'hideoutWorkshopLevel'>,
+  player: { hideoutWorkshopLevel: number; hideoutWorkshopSpecialization?: string | null },
 ): number {
-  const configured = hideoutV2For(ruleset)?.workshop?.outputBonusPercentByWorkshopLevel[player.hideoutWorkshopLevel];
-  return configured ?? (ruleset.hideout?.buffs.workshopCrackBonusPercentPerLevel ?? 0) * player.hideoutWorkshopLevel;
+  const extension = hideoutV2For(ruleset);
+  const configured = extension?.workshop?.outputBonusPercentByWorkshopLevel[player.hideoutWorkshopLevel];
+  const base = configured ?? (ruleset.hideout?.buffs.workshopCrackBonusPercentPerLevel ?? 0) * player.hideoutWorkshopLevel;
+  const branch = hideoutSpecializationKey(ruleset, player, 'WORKSHOP') === 'DRUG_LAB'
+    ? extension?.specializationEffects?.workshop.drugLabOutputBonusPercent ?? 0
+    : 0;
+  return base + branch;
 }
 
 export function hideoutWorkshopIngredientEfficiencyPercent(
@@ -206,9 +242,17 @@ export function hideoutGarageRunLimit(
 
 export function hideoutGarageRelocationDiscountPercent(
   ruleset: Ruleset,
-  player: Pick<PlayerState, 'hideoutGarageLevel'>,
+  player: {
+    hideoutGarageLevel: number;
+    hideoutWorkshopSpecialization?: string | null;
+  },
 ): number {
-  return hideoutV2For(ruleset)?.garage?.relocationFeeDiscountPercentByGarageLevel[player.hideoutGarageLevel] ?? 0;
+  const extension = hideoutV2For(ruleset);
+  const base = extension?.garage?.relocationFeeDiscountPercentByGarageLevel[player.hideoutGarageLevel] ?? 0;
+  const branch = hideoutSpecializationKey(ruleset, player, 'WORKSHOP') === 'GARAGE'
+    ? extension?.specializationEffects?.workshop.garageRelocationDiscountPercent ?? 0
+    : 0;
+  return base + branch;
 }
 
 export function hideoutWeaponPriority(
@@ -413,16 +457,20 @@ function roomLockReason(
   return missing.length ? `Need ${missing.join('; ')}.` : null;
 }
 
-/** Exposes specialization choices without selecting one before branch persistence is available. */
+/** Exposes the permanent seasonal choice on G while older pinned rulesets remain metadata-only. */
 function specializationFor(
   room: HideoutRoomKey,
   ruleset: Ruleset,
+  player: PlayerState,
 ): HideoutRoomV2Dto['specialization'] {
   const specialization = hideoutV2For(ruleset)?.rooms[room]?.specialization;
   if (!specialization) return null;
+  const selectedKey = room === 'GARAGE'
+    ? null
+    : hideoutSpecializationKey(ruleset, player, room);
   return {
     unlockLevel: specialization.unlockLevel,
-    selectedKey: null,
+    selectedKey,
     choices: specialization.choices.map((choice) => ({ ...choice })),
   };
 }
@@ -456,7 +504,7 @@ function toRoomDto(room: HideoutRoomKey, ruleset: Ruleset, player: PlayerState, 
     canUpgrade: !maxed && lockReason === null,
     lockReason,
     nextRequirements,
-    specialization: specializationFor(room, ruleset),
+    specialization: specializationFor(room, ruleset, player),
   };
 }
 
@@ -497,7 +545,9 @@ export function hideoutCatalog(
 async function securityDto(
   prisma: PrismaClient,
   ruleset: Ruleset,
-  player: Pick<RoundPlayer, 'id' | 'roundId' | 'hideoutLookoutsLevel'> & { city: { slug: string } },
+  player: Pick<RoundPlayer,
+    'id' | 'roundId' | 'hideoutLookoutsLevel' | 'hideoutLookoutsSpecialization' | 'hideoutSafeRoomSpecialization'
+  > & { city: { slug: string } },
   now: Date,
 ): Promise<HideoutSecurityDto | undefined> {
   const security = hideoutV2For(ruleset)?.security;
@@ -505,7 +555,10 @@ async function securityDto(
 
   const level = player.hideoutLookoutsLevel;
   const tier = security.warningTierByLookoutsLevel[level] ?? 'NONE';
-  const historyHours = security.historyHoursByLookoutsLevel[level] ?? 0;
+  const streetEyes = hideoutSpecializationKey(ruleset, player, 'LOOKOUTS') === 'STREET_EYES';
+  const armedWatch = hideoutSpecializationKey(ruleset, player, 'LOOKOUTS') === 'ARMED_WATCH';
+  const historyHours = (security.historyHoursByLookoutsLevel[level] ?? 0)
+    + (streetEyes ? security.specializationHooks.streetEyesWarningHoursBonus : 0);
   const headsUp = headsUpMinutes(ruleset, level);
   const seeUntil = new Date(now.getTime() + headsUp * 60_000);
   const since = new Date(now.getTime() - historyHours * 3_600_000);
@@ -601,33 +654,72 @@ async function securityDto(
     pendingTurfThreats: turfThreats.length,
     suspicious,
     specializationHooks: {
-      streetEyes: { warningHoursBonus: security.specializationHooks.streetEyesWarningHoursBonus, active: false },
-      armedWatch: { defenseBonusPercent: security.specializationHooks.armedWatchDefenseBonusPercent, active: false },
+      streetEyes: { warningHoursBonus: security.specializationHooks.streetEyesWarningHoursBonus, active: streetEyes },
+      armedWatch: { defenseBonusPercent: security.specializationHooks.armedWatchDefenseBonusPercent, active: armedWatch },
     },
   };
 }
 
-export function hideoutProtectedCashBonusCents(ruleset: Ruleset, player: Pick<PlayerState, 'hideoutSafeRoomLevel'>): number {
-  return (ruleset.hideout?.buffs.safeRoomProtectedCashCentsPerLevel ?? 0) * player.hideoutSafeRoomLevel;
+export function hideoutProtectedCashBonusCents(
+  ruleset: Ruleset,
+  player: { hideoutSafeRoomLevel: number; hideoutSafeRoomSpecialization?: string | null },
+): number {
+  const extension = hideoutV2For(ruleset);
+  const base = (ruleset.hideout?.buffs.safeRoomProtectedCashCentsPerLevel ?? 0) * player.hideoutSafeRoomLevel;
+  const vault = hideoutSpecializationKey(ruleset, player, 'SAFE_ROOM') === 'VAULT'
+    ? extension?.specializationEffects?.safeRoom.vaultProtectedCashCents ?? 0
+    : 0;
+  return base + vault;
 }
 
-export function hideoutDefenseBonusPercent(ruleset: Ruleset, player: Pick<PlayerState, 'hideoutLookoutsLevel'>): number {
-  return (ruleset.hideout?.buffs.lookoutsDefenseBonusPercentPerLevel ?? 0) * player.hideoutLookoutsLevel;
+export function hideoutDefenseBonusPercent(
+  ruleset: Ruleset,
+  player: {
+    hideoutLookoutsLevel: number;
+    hideoutLookoutsSpecialization?: string | null;
+    hideoutSafeRoomSpecialization?: string | null;
+  },
+): number {
+  const extension = hideoutV2For(ruleset);
+  const base = (ruleset.hideout?.buffs.lookoutsDefenseBonusPercentPerLevel ?? 0) * player.hideoutLookoutsLevel;
+  const panic = hideoutSpecializationKey(ruleset, player, 'SAFE_ROOM') === 'PANIC_ROOM'
+    ? extension?.specializationEffects?.safeRoom.panicRoomDefenseBonusPercent ?? 0
+    : 0;
+  const armed = hideoutSpecializationKey(ruleset, player, 'LOOKOUTS') === 'ARMED_WATCH'
+    ? extension?.security?.specializationHooks.armedWatchDefenseBonusPercent ?? 0
+    : 0;
+  return base + panic + armed;
 }
 
 /** Returns the Workshop bonus in whole product units, rounded down. */
-export function hideoutWorkshopBonusProduct(base: number, ruleset: Ruleset, player: Pick<PlayerState, 'hideoutWorkshopLevel'>): number {
+export function hideoutWorkshopBonusProduct(
+  base: number,
+  ruleset: Ruleset,
+  player: { hideoutWorkshopLevel: number; hideoutWorkshopSpecialization?: string | null },
+): number {
   return Math.floor(base * hideoutWorkshopOutputBonusPercent(ruleset, player) / 100);
 }
 
 /** Compatibility name for callers pinned to the original crack-only Hideout contract. */
-export function hideoutWorkshopBonusCrack(base: number, ruleset: Ruleset, player: Pick<PlayerState, 'hideoutWorkshopLevel'>): number {
+export function hideoutWorkshopBonusCrack(
+  base: number,
+  ruleset: Ruleset,
+  player: { hideoutWorkshopLevel: number; hideoutWorkshopSpecialization?: string | null },
+): number {
   return hideoutWorkshopBonusProduct(base, ruleset, player);
 }
 
-export function hideoutBackOfficeBonusCents(base: bigint, ruleset: Ruleset, player: Pick<PlayerState, 'hideoutBackOfficeLevel'>): bigint {
-  const percent = (ruleset.hideout?.buffs.backOfficeTakeBonusPercentPerLevel ?? 0) * player.hideoutBackOfficeLevel;
-  return (base * BigInt(percent)) / 100n;
+export function hideoutBackOfficeBonusCents(
+  base: bigint,
+  ruleset: Ruleset,
+  player: { hideoutBackOfficeLevel: number; hideoutBackOfficeSpecialization?: string | null },
+): bigint {
+  const extension = hideoutV2For(ruleset);
+  const basePercent = (ruleset.hideout?.buffs.backOfficeTakeBonusPercentPerLevel ?? 0) * player.hideoutBackOfficeLevel;
+  const connections = hideoutSpecializationKey(ruleset, player, 'BACK_OFFICE') === 'CONNECTIONS'
+    ? extension?.ledger?.specializationHooks.connectionsTakeBonusPercent ?? 0
+    : 0;
+  return (base * BigInt(basePercent + connections)) / 100n;
 }
 
 export const HideoutService = {
@@ -668,7 +760,14 @@ export const HideoutService = {
     const catalog = hideoutCatalog(ruleset, state, products, { turfBlocksHeld, lowRidersOwned });
     const [security, ledger] = await Promise.all([
       securityDto(prisma, ruleset, player, now),
-      EconomyLedgerService.page(prisma, player.id, ruleset, state.hideoutBackOfficeLevel, now),
+      EconomyLedgerService.page(
+        prisma,
+        player.id,
+        ruleset,
+        state.hideoutBackOfficeLevel,
+        state.hideoutBackOfficeSpecialization,
+        now,
+      ),
     ]);
     return {
       ...catalog,
@@ -679,6 +778,50 @@ export const HideoutService = {
         ? { infirmary: infirmaryDto(ruleset, state, nextInjury?.recoverAt ?? null) }
         : {}),
     };
+  },
+
+  setSpecialization(
+    prisma: PrismaClient,
+    roundPlayerId: string,
+    input: HideoutSpecializationInput,
+  ): Promise<GameActionResult<HideoutSpecializationResult>> {
+    return ActionService.run<HideoutSpecializationResult>(prisma, roundPlayerId, {
+      action: 'HIDEOUT_SPECIALIZATION',
+      actionId: input.actionId,
+      execute: ({ current, ruleset }) => {
+        const extension = hideoutV2For(ruleset);
+        if (!extension?.specializationEffects) {
+          throw AppError.conflict('HIDEOUT_SPECIALIZATIONS_DISABLED', 'Hideout branches are not active in this round.');
+        }
+        const room = input.room;
+        const specialization = extension.rooms[room]?.specialization;
+        if (!specialization) {
+          throw AppError.badRequest('HIDEOUT_SPECIALIZATION_DISABLED', 'That room has no specialization.');
+        }
+        const level = levelOf(current, room);
+        if (level < specialization.unlockLevel) {
+          throw AppError.badRequest(
+            'HIDEOUT_SPECIALIZATION_LOCKED',
+            `Upgrade ${ruleset.hideout!.rooms[room]!.name} to level ${specialization.unlockLevel} before choosing a branch.`,
+          );
+        }
+        const field = SPECIALIZATION_FIELDS[room];
+        if (current[field]) {
+          throw AppError.conflict(
+            'HIDEOUT_SPECIALIZATION_PERMANENT',
+            'That room already has a specialization for this season.',
+          );
+        }
+        const choice = specialization.choices.find((candidate) => candidate.key === input.specialization);
+        if (!choice) {
+          throw AppError.badRequest('INVALID_HIDEOUT_SPECIALIZATION', 'Pick one of this room’s available branches.');
+        }
+        return {
+          next: { ...current, [field]: choice.key },
+          result: { room, specialization: choice.key, name: choice.name },
+        };
+      },
+    });
   },
 
   setWeaponPriority(

@@ -6,6 +6,7 @@ import {
   classicOgV07D,
   classicOgV07E,
   classicOgV07F,
+  classicOgV07G,
   hideoutV2For,
   hideoutV2Problems,
 } from '@streets/rulesets';
@@ -27,6 +28,7 @@ validate('0.7.0-C', classicOgV07C);
 validate('0.7.0-D', classicOgV07D);
 validate('0.7.0-E', classicOgV07E);
 validate('0.7.0-F', classicOgV07F);
+validate('0.7.0-G', classicOgV07G);
 
 if (JSON.stringify(classicOgV07A.hideout) !== JSON.stringify(classicOgV06F.hideout)) {
   console.error('0.7.0-A changed the shipped 0.6 Hideout balance unexpectedly.');
@@ -52,6 +54,10 @@ if (JSON.stringify(classicOgV07F.hideout) !== JSON.stringify(classicOgV07E.hideo
   console.error('0.7.0-F changed room prices/base buffs instead of layering Armory/Infirmary support.');
   process.exitCode = 1;
 }
+if (JSON.stringify(classicOgV07G.hideout) !== JSON.stringify(classicOgV07F.hideout)) {
+  console.error('0.7.0-G changed room prices/base buffs instead of layering specializations.');
+  process.exitCode = 1;
+}
 
 const extensionA = hideoutV2For(classicOgV07A);
 const extensionB = hideoutV2For(classicOgV07B);
@@ -59,7 +65,8 @@ const extensionC = hideoutV2For(classicOgV07C);
 const extensionD = hideoutV2For(classicOgV07D);
 const extensionE = hideoutV2For(classicOgV07E);
 const extensionF = hideoutV2For(classicOgV07F);
-if (!extensionA || !extensionB || !extensionC || !extensionD || !extensionE || !extensionF || !classicOgV07B.hideout) {
+const extensionG = hideoutV2For(classicOgV07G);
+if (!extensionA || !extensionB || !extensionC || !extensionD || !extensionE || !extensionF || !extensionG || !classicOgV07B.hideout) {
   console.error('0.7 rules are missing their Hideout v2 extension or base Hideout.');
   process.exitCode = 1;
 } else {
@@ -157,6 +164,51 @@ if (!extensionA || !extensionB || !extensionC || !extensionD || !extensionE || !
     || !infirmary
     || Math.max(...infirmary.medicineEfficiencyPercentByWorkshopLevel) > 15) {
     console.error('0.7.0-F Armory/Infirmary settings exceed the release guardrail.');
+    process.exitCode = 1;
+  }
+
+  const specializations = extensionG.specializationEffects;
+  const gSecurity = extensionG.security;
+  const gLedger = extensionG.ledger;
+  const baseMaxProduct = Math.max(...(extensionG.assetProtection?.protectedProductUnitsBySafeRoomLevel ?? [0]));
+  const maxProtectedProduct = baseMaxProduct + (specializations?.safeRoom.vaultProtectedProductUnits ?? 0);
+  const maxDefensePercent =
+    5 * (classicOgV07G.hideout?.buffs.lookoutsDefenseBonusPercentPerLevel ?? 0)
+    + (specializations?.safeRoom.panicRoomDefenseBonusPercent ?? 0)
+    + (gSecurity?.specializationHooks.armedWatchDefenseBonusPercent ?? 0);
+  const maxOutputPercent =
+    Math.max(...(extensionG.workshop?.outputBonusPercentByWorkshopLevel ?? [0]))
+    + (specializations?.workshop.drugLabOutputBonusPercent ?? 0);
+  const maxRelocationDiscount =
+    Math.max(...(extensionG.garage?.relocationFeeDiscountPercentByGarageLevel ?? [0]))
+    + (specializations?.workshop.garageRelocationDiscountPercent ?? 0);
+
+  console.log('\nSpecializations & final guardrails:');
+  console.log(`- max protected product: ${maxProtectedProduct} / 500 (at least ${500 - maxProtectedProduct} remains exposed)`);
+  console.log(`- max home-defense bonus: ${maxDefensePercent}%`);
+  console.log(`- max Workshop output bonus: ${maxOutputPercent}%`);
+  console.log(`- max relocation discount: ${maxRelocationDiscount}%`);
+  console.log(`- Street Eyes history: +${gSecurity?.specializationHooks.streetEyesWarningHoursBonus ?? 0}h`);
+  console.log(`- Bookkeeping history: +${gLedger?.specializationHooks.bookkeepingHistoryDaysBonus ?? 0}d`);
+  console.log('- branch respec: none during the season');
+
+  if (!specializations
+    || specializations.safeRoom.vaultProtectedCashCents > 250_000
+    || specializations.safeRoom.vaultProtectedProductUnits > 50
+    || specializations.safeRoom.panicRoomDefenseBonusPercent > 5
+    || specializations.workshop.drugLabOutputBonusPercent > 5
+    || specializations.workshop.garageRelocationDiscountPercent > 5
+    || (gSecurity?.specializationHooks.streetEyesWarningHoursBonus ?? 0) > 12
+    || (gSecurity?.specializationHooks.armedWatchDefenseBonusPercent ?? 0) > 5
+    || (gLedger?.specializationHooks.bookkeepingHistoryDaysBonus ?? 0) > 30
+    || (gLedger?.specializationHooks.connectionsTakeBonusPercent ?? 0) > 2
+    || maxProtectedProduct > 150
+    || 500 - maxProtectedProduct < 300
+    || maxDefensePercent > 20
+    || maxOutputPercent > 20
+    || maxRelocationDiscount > 10
+    || Math.max(...(extensionG.garage?.runLimitByGarageLevel ?? [1])) > 2) {
+    console.error('0.7.0-G specialization balance exceeds the release guardrail.');
     process.exitCode = 1;
   }
 }

@@ -82,13 +82,52 @@ function movement(start: number | null, current: number | null): number | null {
 }
 
 export function toSeasonHideoutDto(player: Pick<RoundPlayer,
-  'hideoutSafeRoomLevel' | 'hideoutLookoutsLevel' | 'hideoutWorkshopLevel' | 'hideoutBackOfficeLevel'
+  | 'hideoutSafeRoomLevel'
+  | 'hideoutLookoutsLevel'
+  | 'hideoutWorkshopLevel'
+  | 'hideoutBackOfficeLevel'
+  | 'hideoutGarageLevel'
+  | 'hideoutSafeRoomSpecialization'
+  | 'hideoutLookoutsSpecialization'
+  | 'hideoutWorkshopSpecialization'
+  | 'hideoutBackOfficeSpecialization'
 >): SeasonHideoutDto {
   const rooms = [
-    { key: 'SAFE_ROOM' as const, name: 'Safe Room', level: player.hideoutSafeRoomLevel, maxLevel: 5 },
-    { key: 'LOOKOUTS' as const, name: 'Lookouts', level: player.hideoutLookoutsLevel, maxLevel: 5 },
-    { key: 'WORKSHOP' as const, name: 'Workshop', level: player.hideoutWorkshopLevel, maxLevel: 5 },
-    { key: 'BACK_OFFICE' as const, name: 'Back Office', level: player.hideoutBackOfficeLevel, maxLevel: 5 },
+    {
+      key: 'SAFE_ROOM' as const,
+      name: 'Safe Room',
+      level: player.hideoutSafeRoomLevel,
+      maxLevel: 5,
+      specialization: player.hideoutSafeRoomSpecialization,
+    },
+    {
+      key: 'LOOKOUTS' as const,
+      name: 'Lookouts',
+      level: player.hideoutLookoutsLevel,
+      maxLevel: 5,
+      specialization: player.hideoutLookoutsSpecialization,
+    },
+    {
+      key: 'WORKSHOP' as const,
+      name: 'Workshop',
+      level: player.hideoutWorkshopLevel,
+      maxLevel: 5,
+      specialization: player.hideoutWorkshopSpecialization,
+    },
+    {
+      key: 'BACK_OFFICE' as const,
+      name: 'Back Office',
+      level: player.hideoutBackOfficeLevel,
+      maxLevel: 5,
+      specialization: player.hideoutBackOfficeSpecialization,
+    },
+    {
+      key: 'GARAGE' as const,
+      name: 'Garage',
+      level: player.hideoutGarageLevel,
+      maxLevel: 1,
+      specialization: null,
+    },
   ];
 
   return {

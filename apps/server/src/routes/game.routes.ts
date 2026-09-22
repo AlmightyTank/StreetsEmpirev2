@@ -10,6 +10,7 @@ import {
   scoutSchema,
   storeTradeSchema,
   hideoutUpgradeSchema,
+  hideoutSpecializationSchema,
   hideoutWeaponPrioritySchema,
 } from '@streets/shared';
 import { toGameSnapshotDto } from '../game/dto.js';
@@ -133,6 +134,12 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const body = parseBody(hideoutWeaponPrioritySchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
     return HideoutService.setWeaponPriority(fastify.prisma, player.id, body);
+  });
+
+  fastify.post('/hideout/specialization', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(hideoutSpecializationSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return HideoutService.setSpecialization(fastify.prisma, player.id, body);
   });
 
   fastify.get('/quests', { preHandler: fastify.requireAuth }, async (request) => {

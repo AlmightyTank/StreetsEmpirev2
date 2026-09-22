@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV06F, classicOgV07A, classicOgV07B, classicOgV07C, classicOgV07D, classicOgV07F } from '@streets/rulesets';
+import { classicOgV06F, classicOgV07A, classicOgV07B, classicOgV07C, classicOgV07D, classicOgV07F, classicOgV07G } from '@streets/rulesets';
 import {
   hideoutCatalog,
+  hideoutBackOfficeBonusCents,
+  hideoutDefenseBonusPercent,
   hideoutGarageRelocationDiscountPercent,
   hideoutGarageRunLimit,
   hideoutMedicineEfficiencyPercent,
   hideoutProductProtection,
+  hideoutProtectedCashBonusCents,
   hideoutProtectedProductCapacity,
   hideoutWorkshopIngredientCentsPerUnit,
   hideoutWorkshopIngredientEfficiencyPercent,
+  hideoutSpecializationKey,
   hideoutWorkshopOutputBonusPercent,
   hideoutWeaponPriority,
 } from '../hideout.service.js';
@@ -198,6 +202,62 @@ describe('hideout v2 catalog', () => {
     // Earlier 0.7 slices do not opt into either F behavior.
     expect(hideoutWeaponPriority(classicOgV07D, conserve)).toBe('POWER');
     expect(hideoutMedicineEfficiencyPercent(classicOgV07D, conserve)).toBe(0);
+  });
+
+  it('activates bounded permanent specialization effects only in 0.7-G', () => {
+    const vault = player({
+      hideoutSafeRoomLevel: 3,
+      hideoutSafeRoomSpecialization: 'VAULT',
+    });
+    expect(hideoutSpecializationKey(classicOgV07G, vault, 'SAFE_ROOM')).toBe('VAULT');
+    expect(hideoutProtectedProductCapacity(classicOgV07G, vault)).toBe(75);
+    expect(hideoutProtectedCashBonusCents(classicOgV07G, vault)).toBe(550_000);
+
+    const defense = player({
+      hideoutSafeRoomLevel: 3,
+      hideoutLookoutsLevel: 5,
+      hideoutSafeRoomSpecialization: 'PANIC_ROOM',
+      hideoutLookoutsSpecialization: 'ARMED_WATCH',
+    });
+    expect(hideoutDefenseBonusPercent(classicOgV07G, defense)).toBe(20);
+
+    const drugLab = player({
+      hideoutWorkshopLevel: 5,
+      hideoutWorkshopSpecialization: 'DRUG_LAB',
+    });
+    expect(hideoutWorkshopOutputBonusPercent(classicOgV07G, drugLab)).toBe(20);
+
+    const garageFocus = player({
+      hideoutGarageLevel: 1,
+      hideoutWorkshopLevel: 3,
+      hideoutWorkshopSpecialization: 'GARAGE',
+    });
+    expect(hideoutGarageRelocationDiscountPercent(classicOgV07G, garageFocus)).toBe(10);
+    expect(hideoutGarageRunLimit(classicOgV07G, garageFocus)).toBe(2);
+
+    const connections = player({
+      hideoutBackOfficeLevel: 3,
+      hideoutBackOfficeSpecialization: 'CONNECTIONS',
+    });
+    expect(hideoutBackOfficeBonusCents(10_000n, classicOgV07G, connections)).toBe(800n);
+
+    // F exposes branch metadata but never activates strings from storage.
+    expect(hideoutSpecializationKey(classicOgV07F, defense, 'LOOKOUTS')).toBeNull();
+    expect(hideoutDefenseBonusPercent(classicOgV07F, defense)).toBe(10);
+    expect(hideoutWorkshopOutputBonusPercent(classicOgV07F, drugLab)).toBe(15);
+    expect(hideoutGarageRelocationDiscountPercent(classicOgV07F, garageFocus)).toBe(5);
+    expect(hideoutBackOfficeBonusCents(10_000n, classicOgV07F, connections)).toBe(600n);
+  });
+
+  it('exposes the selected G branch in the room catalog', () => {
+    const catalog = hideoutCatalog(classicOgV07G, player({
+      hideoutSafeRoomLevel: 3,
+      hideoutSafeRoomSpecialization: 'VAULT',
+    }));
+    const safeRoom = catalog.rooms.find((room) => room.key === 'SAFE_ROOM')!;
+    expect(safeRoom.specialization?.selectedKey).toBe('VAULT');
+    expect(safeRoom.specialization?.choices.find((choice) => choice.key === 'VAULT')?.blurb)
+      .toContain('$2,500');
   });
 
 

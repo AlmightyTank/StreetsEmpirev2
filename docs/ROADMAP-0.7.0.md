@@ -79,7 +79,7 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** all products use the same Hideout bonus path and Garage improves logistics without replacing Travel.
 
 ## 0.7.0-E — Back Office & Ledger
-**Status:** **feature-complete in PR #39** targeting `beta`. A durable transactional ledger covers ordinary action cash changes, split production income/costs, run-market economics, raid cash transfers, relocation and Hideout spending. Back Office level expands itemized history while 1/7/30-day summaries remain visible, and Bookkeeping/Connections hooks are prepared for G.
+**Status:** **complete in beta.** A durable transactional ledger covers ordinary action cash changes, split production income/costs, run-market economics, raid cash transfers, relocation and Hideout spending. Back Office level expands itemized history while 1/7/30-day summaries remain visible, and Bookkeeping/Connections hooks are prepared for G.
 
 **Goal:** Make Back Office the economic command center.
 
@@ -92,7 +92,7 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** ledger totals reconcile and Back Office does not become a compounding money printer.
 
 ## 0.7.0-F — Armory & Infirmary
-**Status:** **in progress** on `hideout-0.7.0-f`. Armory now reads the real arsenal and persists Power First / Conserve Premium allocation for raids, defense, convoy squads and run escorts. Infirmary reads the existing combat injury queue and Workshop infrastructure can reduce medicine use by at most 15%, without changing natural recovery time.
+**Status:** **feature-complete in PR #41** targeting `beta`. Armory reads the real arsenal and persists Power First / Conserve Premium allocation for raids, defense, convoy squads and run escorts. Infirmary reads the existing combat injury queue and Workshop infrastructure can reduce medicine use by at most 15%, without changing natural recovery time.
 
 **Goal:** Bring weapons and recovery into headquarters management.
 
@@ -105,6 +105,8 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** weapon and recovery state exactly matches the existing systems.
 
 ## 0.7.0-G — Specializations, Balance & Polish
+**Status:** **in progress** on `hideout-0.7.0-g`. Level-3 branches are now permanent seasonal choices with capped effects, the UI confirms the irreversible choice, G effects flow through existing combat/production/travel/ledger helpers, and the season archive records Garage plus the chosen branches.
+
 **Goal:** Enable build identity and ship the complete experience.
 
 - Enable Level-3 specialization choices.
@@ -112,7 +114,7 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 - Street Eyes vs Armed Watch.
 - Drug Lab vs Garage.
 - Bookkeeping vs Connections.
-- Decide whether respec is impossible or expensive.
+- Respec is impossible during the season; the next RoundPlayer starts clean.
 - Finish dashboard polish and season archive.
 - Run economy, raid, travel, product, turf, and hideout simulations together.
 - Tune from test/simulation data.

@@ -88,6 +88,18 @@ export interface HideoutInfirmaryRule {
   readonly medicineEfficiencyPercentByWorkshopLevel: readonly number[];
 }
 
+export interface HideoutSpecializationEffectsRule {
+  readonly safeRoom: {
+    readonly vaultProtectedCashCents: number;
+    readonly vaultProtectedProductUnits: number;
+    readonly panicRoomDefenseBonusPercent: number;
+  };
+  readonly workshop: {
+    readonly drugLabOutputBonusPercent: number;
+    readonly garageRelocationDiscountPercent: number;
+  };
+}
+
 export interface HideoutLedgerRule {
   /** Itemized ledger history unlocked by Back Office level, index 0..max level. */
   readonly historyDaysByBackOfficeLevel: readonly number[];
@@ -117,6 +129,8 @@ export interface HideoutV2Rules {
   readonly armory?: HideoutArmoryRule;
   /** Optional 0.7-F Infirmary behavior. */
   readonly infirmary?: HideoutInfirmaryRule;
+  /** 0.7-G opt-in: presence enables permanent seasonal branch selection and its effects. */
+  readonly specializationEffects?: HideoutSpecializationEffectsRule;
 }
 
 export const CLASSIC_OG_V07A_HIDEOUT_V2 = {
@@ -252,6 +266,64 @@ export const CLASSIC_OG_V07F_HIDEOUT_V2 = {
   },
 } as const satisfies HideoutV2Rules;
 
+export const CLASSIC_OG_V07G_HIDEOUT_V2 = {
+  ...CLASSIC_OG_V07F_HIDEOUT_V2,
+  rooms: {
+    ...CLASSIC_OG_V07F_HIDEOUT_V2.rooms,
+    SAFE_ROOM: {
+      ...CLASSIC_OG_V07F_HIDEOUT_V2.rooms.SAFE_ROOM,
+      specialization: {
+        unlockLevel: 3,
+        choices: [
+          { key: 'VAULT', name: 'Vault', blurb: '+$2,500 raid cash protection and +50 protected product units.' },
+          { key: 'PANIC_ROOM', name: 'Panic Room', blurb: '+5% home defense strength when rivals raid.' },
+        ],
+      },
+    },
+    LOOKOUTS: {
+      ...CLASSIC_OG_V07F_HIDEOUT_V2.rooms.LOOKOUTS,
+      specialization: {
+        unlockLevel: 3,
+        choices: [
+          { key: 'STREET_EYES', name: 'Street Eyes', blurb: '+12 hours of suspicious-activity history.' },
+          { key: 'ARMED_WATCH', name: 'Armed Watch', blurb: '+5% home defense strength.' },
+        ],
+      },
+    },
+    WORKSHOP: {
+      ...CLASSIC_OG_V07F_HIDEOUT_V2.rooms.WORKSHOP,
+      specialization: {
+        unlockLevel: 3,
+        choices: [
+          { key: 'DRUG_LAB', name: 'Drug Lab', blurb: '+5% product output on every cookable recipe.' },
+          { key: 'GARAGE', name: 'Garage', blurb: 'Another 5% off relocation fees; no third run and no road-time reduction.' },
+        ],
+      },
+    },
+    BACK_OFFICE: {
+      ...CLASSIC_OG_V07F_HIDEOUT_V2.rooms.BACK_OFFICE,
+      specialization: {
+        unlockLevel: 3,
+        choices: [
+          { key: 'BOOKKEEPING', name: 'Bookkeeping', blurb: '+30 days of itemized ledger history.' },
+          { key: 'CONNECTIONS', name: 'Connections', blurb: '+2% personal street-work cash take.' },
+        ],
+      },
+    },
+  },
+  specializationEffects: {
+    safeRoom: {
+      vaultProtectedCashCents: 250_000,
+      vaultProtectedProductUnits: 50,
+      panicRoomDefenseBonusPercent: 5,
+    },
+    workshop: {
+      drugLabOutputBonusPercent: 5,
+      garageRelocationDiscountPercent: 5,
+    },
+  },
+} as const satisfies HideoutV2Rules;
+
 const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v0.7-a': CLASSIC_OG_V07A_HIDEOUT_V2,
   'classic-og-v0.7-b': CLASSIC_OG_V07B_HIDEOUT_V2,
@@ -259,6 +331,7 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v0.7-d': CLASSIC_OG_V07D_HIDEOUT_V2,
   'classic-og-v0.7-e': CLASSIC_OG_V07E_HIDEOUT_V2,
   'classic-og-v0.7-f': CLASSIC_OG_V07F_HIDEOUT_V2,
+  'classic-og-v0.7-g': CLASSIC_OG_V07G_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */
@@ -484,6 +557,28 @@ export function hideoutV2Problems(ruleset: Ruleset): string[] {
         break;
       }
       prior = value;
+    }
+  }
+
+
+  const specializationEffects = extension.specializationEffects;
+  if (specializationEffects) {
+    const safe = specializationEffects.safeRoom;
+    const workshopEffects = specializationEffects.workshop;
+    if (!Number.isSafeInteger(safe.vaultProtectedCashCents) || safe.vaultProtectedCashCents < 0 || safe.vaultProtectedCashCents > 500_000) {
+      problems.push('SPECIALIZATION VAULT: extra protected cash must stay between $0 and $5,000.');
+    }
+    if (!Number.isSafeInteger(safe.vaultProtectedProductUnits) || safe.vaultProtectedProductUnits < 0 || safe.vaultProtectedProductUnits > 100) {
+      problems.push('SPECIALIZATION VAULT: extra protected product must stay between 0 and 100 units.');
+    }
+    if (!Number.isSafeInteger(safe.panicRoomDefenseBonusPercent) || safe.panicRoomDefenseBonusPercent < 0 || safe.panicRoomDefenseBonusPercent > 5) {
+      problems.push('SPECIALIZATION PANIC_ROOM: defense bonus cannot exceed 5%.');
+    }
+    if (!Number.isSafeInteger(workshopEffects.drugLabOutputBonusPercent) || workshopEffects.drugLabOutputBonusPercent < 0 || workshopEffects.drugLabOutputBonusPercent > 5) {
+      problems.push('SPECIALIZATION DRUG_LAB: output bonus cannot exceed 5%.');
+    }
+    if (!Number.isSafeInteger(workshopEffects.garageRelocationDiscountPercent) || workshopEffects.garageRelocationDiscountPercent < 0 || workshopEffects.garageRelocationDiscountPercent > 5) {
+      problems.push('SPECIALIZATION GARAGE: relocation discount cannot exceed 5%.');
     }
   }
 

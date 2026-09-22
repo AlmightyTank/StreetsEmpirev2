@@ -2,6 +2,8 @@ import type {
   GameActionResult,
   HideoutDto,
   HideoutRoomV2Dto,
+  HideoutSpecializationInput,
+  HideoutSpecializationResult,
   HideoutUpgradeInput,
   HideoutUpgradeResult,
   HideoutWeaponPriorityInput,
@@ -49,4 +51,6 @@ export const hideoutApi = {
     api.post<GameActionResult<HideoutUpgradeResult>>('/game/hideout/upgrade', input),
   setWeaponPriority: (input: HideoutWeaponPriorityInput) =>
     api.post<GameActionResult<HideoutWeaponPriorityResult>>('/game/hideout/armory/priority', input),
+  specialize: (input: HideoutSpecializationInput) =>
+    api.post<GameActionResult<HideoutSpecializationResult>>('/game/hideout/specialization', input),
 };
