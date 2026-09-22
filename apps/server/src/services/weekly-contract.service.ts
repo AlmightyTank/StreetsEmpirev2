@@ -160,7 +160,7 @@ async function syncDerivedTurfProgress(
       now.getTime(),
       attempt.expiresAt?.getTime() ?? now.getTime(),
     ));
-    if (asOf <= attempt.acceptedAt) continue;
+    if (asOf.getTime() <= attempt.acceptedAt.getTime()) continue;
 
     const segments = await db.turfHoldSegment.findMany({
       where: {
