@@ -39,10 +39,10 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
         problems.push(`${catalogKey}/${objective.id}: eventTypes must be a non-empty string array`);
       }
 
-      if (objective.kind === 'EVENT_SUM') {
+      if (objective.kind === 'EVENT_SUM' || objective.kind === 'STATE_AT_LEAST') {
         const field = objective.params?.field;
         if (typeof field !== 'string' || !field.trim()) {
-          problems.push(`${catalogKey}/${objective.id}: EVENT_SUM requires a field`);
+          problems.push(`${catalogKey}/${objective.id}: ${objective.kind} requires a field`);
         }
       }
 
