@@ -23,6 +23,8 @@ const envSchema = z.object({
 
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
   FRONTEND_ORIGIN: z.string().url().optional(),
+  /** Invite-only gate for isolated beta deployments. */
+  BETA_INVITE_ONLY: z.coerce.boolean().default(false),
 
   DISCORD_CLIENT_ID: z.string().default(''),
   DISCORD_CLIENT_SECRET: z.string().default(''),
@@ -90,6 +92,9 @@ export const env = {
   frontendOrigin: parsed.data.FRONTEND_ORIGIN ?? corsOrigins[0] ?? 'http://localhost:5173',
   sessionTtlMs: parsed.data.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
   auditRetentionDays: parsed.data.ADMIN_AUDIT_RETENTION_DAYS,
+  betaAccess: {
+    inviteOnly: parsed.data.BETA_INVITE_ONLY,
+  },
   forum: {
     origin: new URL(parsed.data.FORUM_ORIGIN).origin,
     secret: parsed.data.FORUM_LINK_SECRET,
