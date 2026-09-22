@@ -339,6 +339,27 @@ model PlayerFavor {
 }
 
 // ---------------------------------------------------------------------------
+// Active timed favors
+// ---------------------------------------------------------------------------
+
+model PlayerActiveFavor {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  /// STREET, UNDERWORLD or MUSCLE. Only one live timed favor per category.
+  category String
+  favorKey String
+  startedAt DateTime
+  expiresAt DateTime
+
+  @@unique([roundPlayerId, category])
+  @@index([roundPlayerId, expiresAt])
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
 // Permanent per-round unlocks
 // ---------------------------------------------------------------------------
 
@@ -683,6 +704,7 @@ model RoundPlayer {
   playerQuests          PlayerQuest[]
   permanentUnlocks      PlayerUnlock[]
   favorInventory         PlayerFavor[]
+  activeFavors          PlayerActiveFavor[]
   raidsSent             RaidBattle[]       @relation("RaidAttacker")
   raidsReceived         RaidBattle[]       @relation("RaidDefender")
   combatInjuries        CombatInjury[]
@@ -1268,6 +1290,7 @@ enum ActivityType {
   HIDEOUT_UPGRADE
   QUEST_READY
   QUEST_CLAIMED
+  FAVOR_ACTIVATED
   BATTLE_VOIDED
   ADMIN_GRANT
   HEAT_BRIBE
