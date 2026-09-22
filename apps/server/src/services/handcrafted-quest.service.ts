@@ -315,6 +315,7 @@ async function loadQuest(db: Db, roundPlayerId: string, ruleset: Ruleset, key: s
       },
     },
     include: { questDefinition: true },
+    orderBy: { attempt: 'desc' },
   });
   if (!row) throw AppError.notFound('QUEST_NOT_FOUND', 'That job is not available in this round.');
   return row;
@@ -466,7 +467,7 @@ export const HandcraftedQuestService = {
           failedAt: null,
           objectiveProgress: {},
           bonusProgress: {},
-          rewardState: {},
+          rewardState: row.questDefinition.repeatability === 'DAILY' ? row.rewardState : {},
           expiresAt: row.questDefinition.repeatability === 'DAILY'
             ? row.expiresAt
             : row.questDefinition.expiresAfterMinutes
@@ -503,7 +504,7 @@ export const HandcraftedQuestService = {
           expiresAt: row.questDefinition.repeatability === 'DAILY' ? row.expiresAt : null,
           objectiveProgress: {},
           bonusProgress: {},
-          rewardState: {},
+          rewardState: row.questDefinition.repeatability === 'DAILY' ? row.rewardState : {},
         },
       });
     });
