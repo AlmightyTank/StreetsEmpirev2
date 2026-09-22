@@ -209,7 +209,8 @@ function TargetCard({ target, selectedBlock, driving }: { target: CombatTargetDt
           <div><span>Max cash haul</span><strong>{formatCents(target.intel.estimatedMaxLootCents)}</strong></div>
           {target.intel.crack != null ? <div><span>Product stash</span><strong>{formatNumber(target.intel.crack)}</strong></div> : null}
           {target.intel.estimatedMaxCrackLoot != null ? <div><span>Max product haul</span><strong>{formatNumber(target.intel.estimatedMaxCrackLoot)}</strong></div> : null}
-          {target.intel.productStash ? <div><span>Product stash</span><strong>{STASH_LABELS[target.intel.productStash.level]}{target.intel.productStash.primary ? `, mostly ${target.intel.productStash.primary}` : ''}</strong></div> : null}
+          {target.intel.assetProtection ? <div><span>Safe Room</span><strong>{formatCents(target.intel.assetProtection.protectedCashFloorCents)} cash floor · up to {formatNumber(target.intel.assetProtection.protectedProductCapacity)} product sealed</strong></div> : null}
+          {target.intel.productStash ? <div><span>{target.intel.assetProtection ? 'Exposed product stash' : 'Product stash'}</span><strong>{STASH_LABELS[target.intel.productStash.level]}{target.intel.productStash.primary ? `, mostly ${target.intel.productStash.primary}` : ''}</strong></div> : null}
         </div>
       ) : (
         <p className="se-hint">Scout this mark to reveal fit thugs, wounds, weapons, cash band, product stash and the biggest haul they might expose.</p>
@@ -261,6 +262,13 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
       {report.yourSupply ? <Row label="Fight supply plan" value={`${supplySummary(report.yourSupply)} · ${supplyEffects(report.yourSupply)}`} /> : null}
       <BattleInventoryRows report={report} />
+      {report.raidProtection && report.kind === 'DRUG_HOES' ? (
+        <Row
+          label={attacking ? 'Their Safe Room' : 'Your Safe Room'}
+          value={`${formatNumber(report.raidProtection.protectedProductUnits)} / ${formatNumber(report.raidProtection.protectedProductCapacity)} product sealed`}
+          tooltip={`${formatNumber(report.raidProtection.exposedProductUnitsBefore)} product units were reachable by the drug run.`}
+        />
+      ) : null}
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds ?? 0)} / ${formatNumber(report.opponentWounds ?? 0)}`} />
       {form.whoresDrugged !== undefined ? <Row label={attacking ? 'Their hoes drugged' : 'Your hoes drugged'} value={formatNumber(form.whoresDrugged)} strong={form.whoresDrugged > 0} /> : null}
       {form.whoresLured !== undefined ? <Row label={attacking ? 'Hoes joined / now' : 'Hoes lost / left'} value={form.whoresAfter !== undefined ? `${formatNumber(form.whoresLured)} / ${formatNumber(form.whoresAfter)}` : formatNumber(form.whoresLured)} strong={form.whoresLured > 0} /> : null}
@@ -294,6 +302,13 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
       {report.yourSupply ? <Row label="Fight supply plan" value={`${supplySummary(report.yourSupply)} · ${supplyEffects(report.yourSupply)}`} /> : null}
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds ?? 0)} / ${formatNumber(report.opponentWounds ?? 0)}`} />
       <Row label="Cash" value={`${signedCents(report.cashChangeCents)} / ${formatCents(report.cashAfterCents)} left`} strong={report.cashChangeCents !== 0} />
+      {report.raidProtection ? (
+        <Row
+          label="Assets protected"
+          value={`${formatCents(report.raidProtection.protectedCashCents)} cash · ${formatNumber(report.raidProtection.protectedProductUnits)} / ${formatNumber(report.raidProtection.protectedProductCapacity)} product sealed`}
+          tooltip={`${formatNumber(report.raidProtection.exposedProductUnitsBefore)} product units were exposed before loot was rolled.`}
+        />
+      ) : null}
       <BattleInventoryRows report={report} />
 
       <Row label="Turns spent / remaining" value={`${report.turnsSpent} / ${report.turnsAfter}`} />
