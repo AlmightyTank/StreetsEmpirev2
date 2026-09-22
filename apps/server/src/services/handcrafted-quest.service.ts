@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import {
   type ContactKey,
+  type QuestBranchDefinition,
   type QuestDefinition,
   type QuestObjectiveDefinition,
   type QuestProgressMap,
@@ -12,6 +13,8 @@ import type {
   GameActionResult,
   PlayerQuestDto,
   QuestClaimInput,
+  QuestBranchChoiceDto,
+  QuestBranchReputationDto,
   QuestClaimResult,
   QuestContactDto,
   QuestObjectiveDto,
@@ -128,6 +131,61 @@ function rewardDto(reward: QuestRewardDefinition, ruleset: Ruleset): QuestReward
   };
 }
 
+function branchReputationDto(
+  contactKey: string,
+  amount: number,
+  ruleset: Ruleset,
+): QuestBranchReputationDto {
+  const name = contactFor(ruleset, contactKey)?.shortName ?? contactKey;
+  return {
+    contactKey,
+    contactName: name,
+    amount,
+    label: `${amount > 0 ? '+' : ''}${amount} ${name} reputation`,
+  };
+}
+
+function branchesFor(row: QuestRow, ruleset: Ruleset): readonly QuestBranchDefinition[] {
+  return ruleset.questDefinitions?.[row.questDefinition.key]?.branches ?? [];
+}
+
+export function resolveQuestBranchForClaim(
+  definition: QuestDefinition,
+  branchKey: string | undefined,
+  chosenBranch: string | null,
+): QuestBranchDefinition | null {
+  const options = definition.branches ?? [];
+  if (!options.length) {
+    if (branchKey) {
+      throw AppError.conflict('QUEST_BRANCH_NOT_SUPPORTED', 'That job does not have a branch choice.');
+    }
+    return null;
+  }
+  if (!branchKey) {
+    throw AppError.conflict('QUEST_BRANCH_REQUIRED', 'Choose a side before collecting payment.');
+  }
+  const selected = options.find((branch) => branch.key === branchKey);
+  if (!selected) {
+    throw AppError.conflict('QUEST_BRANCH_INVALID', 'That choice is not available for this job.');
+  }
+  if (chosenBranch && chosenBranch !== selected.key) {
+    throw AppError.conflict('QUEST_BRANCH_LOCKED', 'That job already has a different committed choice.');
+  }
+  return selected;
+}
+
+function branchChoicesDto(row: QuestRow, ruleset: Ruleset): QuestBranchChoiceDto[] {
+  return branchesFor(row, ruleset).map((branch) => ({
+    key: branch.key,
+    title: branch.title,
+    description: branch.description,
+    rewards: branch.rewards.map((reward) => rewardDto(reward, ruleset)),
+    reputationDeltas: branch.reputationDeltas.map((delta) =>
+      branchReputationDto(delta.contactKey, delta.amount, ruleset)
+    ),
+  }));
+}
+
 function objectiveDtos(row: QuestRow): QuestObjectiveDto[] {
   const requiredProgress = progress(row.objectiveProgress);
   const bonusProgress = progress(row.bonusProgress);
@@ -164,6 +222,8 @@ function questDto(row: QuestRow, ruleset: Ruleset): PlayerQuestDto {
     difficulty: row.questDefinition.difficulty,
     status: row.status,
     isTracked: row.isTracked,
+    chosenBranch: row.chosenBranch,
+    branchChoices: branchChoicesDto(row, ruleset),
     objectives: objectiveDtos(row),
     rewards: rewards(row.questDefinition.rewards).map((reward) => rewardDto(reward, ruleset)),
     acceptedAt: row.acceptedAt?.toISOString() ?? null,
@@ -197,10 +257,11 @@ async function addContactRep(db: Db, roundPlayerId: string, contact: string, amo
   return points;
 }
 
-function prerequisitesMet(
+export function questPrerequisitesMet(
   definition: QuestDefinition,
   completed: ReadonlySet<string>,
   reps: Readonly<Record<string, number>>,
+  chosenBranches: Readonly<Record<string, string>>,
 ): boolean {
   return definition.prerequisites.every((prerequisite) => {
     if (prerequisite.kind === 'QUEST_COMPLETED') {
@@ -211,6 +272,13 @@ function prerequisitesMet(
       const key = prerequisite.params?.contactKey;
       const points = prerequisite.params?.points;
       return typeof key === 'string' && typeof points === 'number' && (reps[key] ?? 0) >= points;
+    }
+    if (prerequisite.kind === 'BRANCH_CHOSEN') {
+      const questKey = prerequisite.params?.questKey;
+      const branchKey = prerequisite.params?.branchKey;
+      return typeof questKey === 'string'
+        && typeof branchKey === 'string'
+        && chosenBranches[questKey] === branchKey;
     }
     return false;
   });
@@ -284,7 +352,13 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
     include: { questDefinition: true },
     orderBy: { attempt: 'desc' },
   });
-  const completed = new Set(existing.filter((row) => row.status === 'COMPLETED').map((row) => row.questDefinition.key));
+  const completedRows = existing.filter((row) => row.status === 'COMPLETED');
+  const completed = new Set(completedRows.map((row) => row.questDefinition.key));
+  const chosenBranches = Object.fromEntries(
+    completedRows
+      .filter((row) => row.chosenBranch)
+      .map((row) => [row.questDefinition.key, row.chosenBranch!]),
+  );
   const reps = await contactPoints(db, roundPlayerId, ruleset);
   const newlyAvailable: string[] = [];
 
@@ -299,7 +373,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
       || definition.type === 'SECRET'
     ) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
-    const available = prerequisitesMet(definition, completed, reps);
+    const available = questPrerequisitesMet(definition, completed, reps, chosenBranches);
     if (!current) {
       await db.playerQuest.create({
         data: {
@@ -571,8 +645,31 @@ export const HandcraftedQuestService = {
         }
         if (row.status !== 'READY_TO_TURN_IN') throw AppError.conflict('QUEST_NOT_READY', 'Finish the job before collecting payment.');
 
+        const rulesetDefinition = ruleset.questDefinitions?.[row.questDefinition.key];
+        if (!rulesetDefinition) {
+          throw AppError.conflict('QUEST_DEFINITION_MISSING', 'That job is not available in this ruleset.');
+        }
+        const selectedBranch = resolveQuestBranchForClaim(
+          rulesetDefinition,
+          input.branchKey,
+          row.chosenBranch,
+        );
+
         const next: PlayerState = { ...current };
-        const questRewards = rewards(row.questDefinition.rewards);
+        const reputationChanges = selectedBranch?.reputationDeltas.map((delta) =>
+          branchReputationDto(delta.contactKey, delta.amount, ruleset)
+        ) ?? [];
+        for (const delta of selectedBranch?.reputationDeltas ?? []) {
+          if (!ruleset.contacts?.[delta.contactKey]) {
+            throw AppError.conflict('QUEST_BRANCH_INVALID', 'That branch has an invalid contact consequence.');
+          }
+          await addContactRep(tx, roundPlayerId, delta.contactKey, delta.amount);
+        }
+
+        const questRewards = [
+          ...rewards(row.questDefinition.rewards),
+          ...(selectedBranch?.rewards ?? []),
+        ];
         for (const reward of questRewards) {
           if (reward.kind === 'CONTACT_REP') {
             if (!reward.key || !ruleset.contacts?.[reward.key as ContactKey]) {
@@ -597,7 +694,12 @@ export const HandcraftedQuestService = {
 
         await tx.playerQuest.update({
           where: { id: row.id },
-          data: { status: 'COMPLETED', claimedAt: now, isTracked: false },
+          data: {
+            status: 'COMPLETED',
+            claimedAt: now,
+            isTracked: false,
+            chosenBranch: selectedBranch?.key ?? row.chosenBranch,
+          },
         });
         const newlyAvailable = await refreshAvailability(tx, roundPlayerId, ruleset, now);
         const dtoRewards = questRewards.map((reward) => rewardDto(reward, ruleset));
@@ -607,7 +709,9 @@ export const HandcraftedQuestService = {
           result: {
             questKey: key,
             title: row.questDefinition.title,
+            chosenBranch: selectedBranch?.key ?? row.chosenBranch,
             rewards: dtoRewards,
+            reputationChanges,
             newlyAvailable,
           },
           activity: {
@@ -616,7 +720,9 @@ export const HandcraftedQuestService = {
               questKey: key,
               title: row.questDefinition.title,
               contactKey: row.questDefinition.contactKey,
+              chosenBranch: selectedBranch?.key ?? row.chosenBranch,
               rewards: dtoRewards.map((reward) => reward.label),
+              reputationChanges: reputationChanges.map((change) => change.label),
               newlyAvailable,
             }),
           },

@@ -644,6 +644,21 @@ export interface QuestRewardDto {
   label: string;
 }
 
+export interface QuestBranchReputationDto {
+  contactKey: string;
+  contactName: string;
+  amount: number;
+  label: string;
+}
+
+export interface QuestBranchChoiceDto {
+  key: string;
+  title: string;
+  description: string;
+  rewards: QuestRewardDto[];
+  reputationDeltas: QuestBranchReputationDto[];
+}
+
 export interface QuestContactDto {
   key: string;
   name: string;
@@ -667,6 +682,8 @@ export interface PlayerQuestDto {
   difficulty: string;
   status: PlayerQuestStatusDto;
   isTracked: boolean;
+  chosenBranch: string | null;
+  branchChoices: QuestBranchChoiceDto[];
   objectives: QuestObjectiveDto[];
   rewards: QuestRewardDto[];
   acceptedAt: string | null;
@@ -764,7 +781,9 @@ export interface QuestPageDto {
 export interface QuestClaimResult {
   questKey: string;
   title: string;
+  chosenBranch: string | null;
   rewards: QuestRewardDto[];
+  reputationChanges: QuestBranchReputationDto[];
   newlyAvailable: string[];
 }
 

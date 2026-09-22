@@ -56,7 +56,7 @@ function QuestCard({
   page: QuestPageDto;
   busy: string | null;
   onAccept: (key: string) => void;
-  onClaim: (key: string) => void;
+  onClaim: (key: string, branchKey?: string, branchTitle?: string) => void;
   onTrack: (key: string, tracked: boolean) => void;
   onAbandon: (key: string) => void;
 }) {
@@ -82,14 +82,52 @@ function QuestCard({
         ))}
       </div>
 
-      <div className="se-quest-reward-block">
-        <p className="se-eyebrow">Rewards</p>
-        <div className="se-quest-rewards">
-          {quest.rewards.map((reward, index) => (
-            <span className="se-quest-reward" key={reward.kind + ':' + (reward.key ?? index)}>{reward.label}</span>
+      {quest.rewards.length ? (
+        <div className="se-quest-reward-block">
+          <p className="se-eyebrow">{quest.branchChoices.length ? 'Shared rewards' : 'Rewards'}</p>
+          <div className="se-quest-rewards">
+            {quest.rewards.map((reward, index) => (
+              <span className="se-quest-reward" key={reward.kind + ':' + (reward.key ?? index)}>{reward.label}</span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {quest.status === 'READY_TO_TURN_IN' && quest.branchChoices.length ? (
+        <div className="se-quest-reward-block">
+          <p className="se-eyebrow">Choose a side · permanent for this round</p>
+          {quest.branchChoices.map((choice) => (
+            <div key={choice.key} className="se-mb">
+              <Row label={choice.title} value={choice.description} strong />
+              <div className="se-quest-rewards">
+                {choice.rewards.map((reward, index) => (
+                  <span className="se-quest-reward" key={choice.key + ':' + reward.kind + ':' + (reward.key ?? index)}>
+                    {reward.label}
+                  </span>
+                ))}
+                {choice.reputationDeltas.map((delta) => (
+                  <span className="se-quest-reward" key={choice.key + ':rep:' + delta.contactKey}>
+                    {delta.label}
+                  </span>
+                ))}
+              </div>
+              <Button
+                className="se-btn se-btn--primary"
+                disabledReason={busy}
+                onClick={() => onClaim(quest.key, choice.key, choice.title)}
+              >
+                {choice.title}
+              </Button>
+            </div>
           ))}
         </div>
-      </div>
+      ) : null}
+
+      {quest.chosenBranch ? (
+        <p className="se-hint">
+          Choice locked: {quest.branchChoices.find((choice) => choice.key === quest.chosenBranch)?.title ?? quest.chosenBranch}.
+        </p>
+      ) : null}
 
       <div className="se-actions se-quest-actions">
         {quest.status === 'AVAILABLE' ? (
@@ -104,7 +142,7 @@ function QuestCard({
           </Button>
         ) : null}
 
-        {quest.status === 'READY_TO_TURN_IN' ? (
+        {quest.status === 'READY_TO_TURN_IN' && !quest.branchChoices.length ? (
           <Button className="se-btn se-btn--primary" disabledReason={busy} onClick={() => onClaim(quest.key)}>
             Collect payment
           </Button>
@@ -278,13 +316,23 @@ export function QuestPage() {
     }
   }
 
-  async function claim(key: string) {
+  async function claim(key: string, branchKey?: string, branchTitle?: string) {
+    if (branchKey) {
+      const confirmed = window.confirm(
+        'Choose "' + (branchTitle ?? branchKey) + '"? This choice is permanent for this round and locks the other follow-up path.',
+      );
+      if (!confirmed) return;
+    }
     setBusy(key);
     setError(null);
     setNotice(null);
     try {
-      const result = await questsApi.claim(key, crypto.randomUUID());
-      setNotice(result.result.title + ' complete — payment collected.');
+      const result = await questsApi.claim(key, crypto.randomUUID(), branchKey);
+      setNotice(
+        result.result.title
+        + ' complete — payment collected.'
+        + (result.result.chosenBranch ? ' Choice locked: ' + (branchTitle ?? result.result.chosenBranch) + '.' : ''),
+      );
       window.dispatchEvent(new Event('streets:quests-changed'));
       await Promise.all([load(), refreshSnapshot()]);
     } catch (cause) {
@@ -550,7 +598,7 @@ export function QuestPage() {
                 page={page}
                 busy={busy ? 'Another job update is still going through.' : null}
                 onAccept={(key) => void mutate(key, () => questsApi.accept(key, crypto.randomUUID()), 'Job accepted.')}
-                onClaim={(key) => void claim(key)}
+                onClaim={(key, branchKey, branchTitle) => void claim(key, branchKey, branchTitle)}
                 onTrack={(key, tracked) => void mutate(key, () => questsApi.track(key, tracked))}
                 onAbandon={(key) => void mutate(key, () => questsApi.abandon(key), 'Job abandoned.')}
               />
