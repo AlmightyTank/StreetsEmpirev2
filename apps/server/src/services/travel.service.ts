@@ -55,7 +55,7 @@ import { PlayerStateService } from './player-state.service.js';
 import { RelocationService } from './relocation.service.js';
 import { ActivityService } from './activity.service.js';
 import { HighMarketService } from './high-market.service.js';
-import { hideoutGarageRunLimit } from './hideout.service.js';
+import { hideoutGarageRunLimit, hideoutWeaponPriority } from './hideout.service.js';
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
 import {
   RUN_INCLUDE,
@@ -517,7 +517,9 @@ export const TravelService = {
         const rows = Object.fromEntries(Object.entries(fromHome).filter(([key]) => key !== CRACK).map(([key, quantity]) => [key, -quantity]));
         if (Object.keys(rows).length) await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, rows);
         // 0.5.0-E: escorts always ride armed, one gun each, the best first, out of home stock.
-        const guns = ruleset.travel?.convoys ? armEscorts(ruleset, input.escortThugs, current) : { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
+        const guns = ruleset.travel?.convoys
+          ? armEscorts(ruleset, input.escortThugs, current, hideoutWeaponPriority(ruleset, current))
+          : { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
         const run = await tx.run.create({
           data: {
             roundPlayerId,

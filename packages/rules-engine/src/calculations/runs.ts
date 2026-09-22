@@ -1,4 +1,4 @@
-import type { RestockRule, Ruleset, RunRules } from '@streets/rulesets';
+import type { RestockRule, Ruleset, RunRules, WeaponPriority } from '@streets/rulesets';
 import { cityCounter, findRoutes, type CityCounter, type TravelRoute } from './cities.js';
 import { calculateNetWorthCents } from './net-worth.js';
 import { CRACK_PRODUCT } from './product-economy.js';
@@ -243,9 +243,15 @@ export const NO_GUNS: RunGuns = { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
  * 0.5.0-E. The guns escorts take on a run: one each, the best first, out of what is at
  * home. Escorts always ride armed as far as the arsenal goes.
  */
-export function armEscorts(ruleset: Ruleset, escorts: number, home: RunGuns): RunGuns {
+export function armEscorts(
+  ruleset: Ruleset,
+  escorts: number,
+  home: RunGuns,
+  priority: WeaponPriority = 'POWER',
+): RunGuns {
+  const direction = priority === 'CONSERVE' ? -1 : 1;
   const order = (Object.keys(ruleset.combat?.weapons ?? {}) as Array<keyof typeof GUN_FIELDS>)
-    .sort((a, b) => (ruleset.combat!.weapons[b].power - ruleset.combat!.weapons[a].power) || a.localeCompare(b));
+    .sort((a, b) => direction * (ruleset.combat!.weapons[b].power - ruleset.combat!.weapons[a].power) || a.localeCompare(b));
   let left = Math.max(0, escorts);
   const taken: RunGuns = { ...NO_GUNS };
   for (const key of order) {

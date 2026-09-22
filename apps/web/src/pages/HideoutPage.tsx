@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import type {
   HideoutRoomV2Dto,
   HideoutUpgradeResult,
+  HideoutWeaponPriorityDto,
+  HideoutWeaponPriorityResult,
   HideoutV2Dto,
   TravelDto,
 } from '@streets/shared';
@@ -93,6 +95,7 @@ function RoomCard({
 export function HideoutPage() {
   const me = useSession((s) => s.me);
   const action = useGameAction<HideoutUpgradeResult>();
+  const armoryAction = useGameAction<HideoutWeaponPriorityResult>();
   const [hideout, setHideout] = useState<HideoutV2Dto | null>(null);
   const [travel, setTravel] = useState<TravelDto | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -119,6 +122,11 @@ export function HideoutPage() {
 
   async function upgrade(room: HideoutRoomV2Dto) {
     await action.run((actionId) => hideoutApi.upgrade({ room: room.key, actionId }));
+    setReload((n) => n + 1);
+  }
+
+  async function setWeaponPriority(priority: HideoutWeaponPriorityDto) {
+    await armoryAction.run((actionId) => hideoutApi.setWeaponPriority({ priority, actionId }));
     setReload((n) => n + 1);
   }
 
@@ -204,6 +212,74 @@ export function HideoutPage() {
           </p>
           <p className="se-hint">
             Specialization hooks are prepared but inactive until 0.7.0-G: Street Eyes would add {formatNumber(hideout.security.specializationHooks.streetEyes.warningHoursBonus)}h of warning history; Armed Watch would add +{formatNumber(hideout.security.specializationHooks.armedWatch.defenseBonusPercent)}% defense.
+          </p>
+        </Panel>
+      ) : null}
+
+      {hideout?.armory ? (
+        <Panel title="Armory" aside="0.7.0-F">
+          <p className="se-dim">
+            The Armory reads your real home arsenal. Its priority controls which guns home combat squads,
+            convoy squads and run escorts take first; it never creates or duplicates weapons.
+          </p>
+          <div className="se-stats">
+            <Stat label="Weapons home" value={formatNumber(hideout.armory.weapons.total)} />
+            <Stat label="Fit thugs" value={formatNumber(hideout.armory.fitThugs)} />
+            <Stat label="Armed capacity" value={formatNumber(hideout.armory.armedCapacity)} />
+            <Stat label="Unarmed fit" value={formatNumber(hideout.armory.unarmedFitThugs)} />
+          </div>
+          <div className="se-rows se-mt">
+            <Row label="Pistols" value={formatNumber(hideout.armory.weapons.pistols)} />
+            <Row label="Shotguns" value={formatNumber(hideout.armory.weapons.shotguns)} />
+            <Row label="Tek-9s" value={formatNumber(hideout.armory.weapons.tek9s)} />
+            <Row label="AK-47s" value={formatNumber(hideout.armory.weapons.ak47s)} />
+          </div>
+          <div className="se-grid se-grid--2 se-mt">
+            {hideout.armory.choices.map((choice) => (
+              <Button
+                key={choice.key}
+                type="button"
+                className={`se-btn ${hideout.armory!.priority === choice.key ? 'se-btn--primary' : 'se-btn--ghost'}`}
+                disabledReason={armoryAction.busy
+                  ? 'Saving the Armory policy.'
+                  : hideout.armory!.priority === choice.key
+                    ? 'This policy is already active.'
+                    : null}
+                onClick={() => void setWeaponPriority(choice.key)}
+              >
+                {choice.name}
+              </Button>
+            ))}
+          </div>
+          <p className="se-hint">
+            {hideout.armory.choices.find((choice) => choice.key === hideout.armory!.priority)?.blurb}
+          </p>
+          {armoryAction.error ? <Alert tone="danger">{armoryAction.error}</Alert> : null}
+        </Panel>
+      ) : null}
+
+      {hideout?.infirmary ? (
+        <Panel title="Infirmary" aside="0.7.0-F">
+          <p className="se-dim">
+            This is the same wound queue used by Combat. A developed Workshop stretches medicine slightly;
+            natural recovery timers remain unchanged.
+          </p>
+          <div className="se-stats">
+            <Stat label="Fit thugs" value={formatNumber(hideout.infirmary.fitThugs)} />
+            <Stat label="Wounded" value={formatNumber(hideout.infirmary.woundedThugs)} />
+            <Stat label="Medicine" value={formatNumber(hideout.infirmary.medicine)} />
+            <Stat label="Medicine efficiency" value={hideout.infirmary.medicineEfficiencyPercent > 0 ? `${formatNumber(hideout.infirmary.medicineEfficiencyPercent)}%` : 'Base'} />
+            <Stat label="Can treat now" value={formatNumber(hideout.infirmary.maxTreatableThugs)} />
+            <Stat
+              label="Next natural recovery"
+              value={hideout.infirmary.nextRecoveryAt
+                ? new Date(hideout.infirmary.nextRecoveryAt).toLocaleString()
+                : 'No wounds queued'}
+            />
+          </div>
+          <p className="se-hint">
+            Treating every current wound would use about {formatNumber(hideout.infirmary.medicineNeededForAll)} medicine at this efficiency.
+            Treatment stays on the Combat page so there is still one authoritative recovery action.
           </p>
         </Panel>
       ) : null}

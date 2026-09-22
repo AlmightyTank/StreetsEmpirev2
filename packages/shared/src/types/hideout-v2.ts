@@ -107,6 +107,41 @@ export interface HideoutGarageDto {
   relocationFeeDiscountPercent: number;
 }
 
+export type HideoutWeaponPriorityDto = 'POWER' | 'CONSERVE';
+
+export interface HideoutArmoryDto {
+  priority: HideoutWeaponPriorityDto;
+  choices: Array<{
+    key: HideoutWeaponPriorityDto;
+    name: string;
+    blurb: string;
+  }>;
+  weapons: {
+    pistols: number;
+    shotguns: number;
+    tek9s: number;
+    ak47s: number;
+    total: number;
+  };
+  fitThugs: number;
+  armedCapacity: number;
+  unarmedFitThugs: number;
+}
+
+export interface HideoutInfirmaryDto {
+  fitThugs: number;
+  woundedThugs: number;
+  medicine: number;
+  nextRecoveryAt: string | null;
+  medicineEfficiencyPercent: number;
+  medicineNeededForAll: number;
+  maxTreatableThugs: number;
+}
+
+export interface HideoutWeaponPriorityResult {
+  priority: HideoutWeaponPriorityDto;
+}
+
 export interface HideoutLedgerEntryDto {
   id: string;
   category: 'INCOME' | 'EXPENSE';
@@ -149,4 +184,8 @@ export interface HideoutV2Dto extends Omit<HideoutDto, 'rooms'> {
   garage?: HideoutGarageDto;
   /** Present only on rulesets with the 0.7-E Back Office ledger model. */
   ledger?: HideoutLedgerDto;
+  /** Present only on rulesets with the 0.7-F Armory model. */
+  armory?: HideoutArmoryDto;
+  /** Present only on rulesets with the 0.7-F Infirmary model. */
+  infirmary?: HideoutInfirmaryDto;
 }

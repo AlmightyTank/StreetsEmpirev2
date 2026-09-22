@@ -31,6 +31,7 @@ export type DistrictKey =
 export type StoreKey = 'CORNER' | 'TOMMY' | 'CHARLIE' | 'PIP';
 
 export type WeaponKey = 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47';
+export type WeaponPriority = 'POWER' | 'CONSERVE';
 export type WeaponUnlockKey = 'SHOTGUN' | 'TEK9' | 'AK47';
 export type BaseHideoutRoomKey = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE';
 export type HideoutRoomKey = BaseHideoutRoomKey | 'GARAGE';

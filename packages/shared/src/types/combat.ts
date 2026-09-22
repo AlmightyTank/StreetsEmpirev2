@@ -133,6 +133,8 @@ export interface CombatRecoveryDto {
 export interface CombatTreatmentDto {
   treatedThugs: number;
   medicineUsed: number;
+  /** 0.7.0-F. Zero on older rulesets. */
+  medicineEfficiencyPercent?: number;
   woundedThugs: number;
   nextRecoveryAt: string | null;
 }
