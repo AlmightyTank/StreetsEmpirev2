@@ -93,7 +93,7 @@ export const StoreService = {
     return ActionService.run<StoreTradeResult>(prisma, roundPlayerId, {
       action: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
       actionId: input.actionId,
-      execute: async ({ tx, current, ruleset, standings, now }) => {
+      execute: async ({ tx, current, player, ruleset, standings, now }) => {
         const foundStore = findStore(ruleset, input.store);
         const armed = input.direction === 'buy'
           ? await SingleUseFavorService.matching(tx, roundPlayerId, ruleset, 'STORE_BUY_DISCOUNT')
@@ -169,6 +169,8 @@ export const StoreService = {
               storeKey: input.store,
               item: trade.itemName,
               itemKey: input.item,
+              city: player.city.slug,
+              ...(input.store === 'PIP' && ruleset.products?.[input.item] ? { product: input.item } : {}),
               direction: input.direction,
               quantity: input.quantity,
               totalCents: result.totalCents,
