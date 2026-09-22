@@ -250,6 +250,13 @@ export function AdminPlayerPage() {
             {player.unlocks.permanent.length ? player.unlocks.permanent.map((unlock) => (
               <Row key={unlock.key} label={`Unlock: ${unlock.key}`} value={`${unlock.sourceQuestKey ?? 'system'} · ${adminWhen(unlock.awardedAt)}`} />
             )) : <Row label="Permanent unlocks" value="-" />}
+            {player.favors.length ? player.favors.map((favor) => (
+              <Row
+                key={favor.key}
+                label={`Favor: ${favor.key}`}
+                value={`×${formatNumber(favor.quantity)} · granted ${formatNumber(favor.totalGranted)} · ${favor.lastSourceQuestKey ?? 'system'}`}
+              />
+            )) : <Row label="Favor inventory" value="-" />}
             <Row label="Hideout" value={`Safe ${player.hideout.safeRoom} · Lookouts ${player.hideout.lookouts} · Workshop ${player.hideout.workshop} · Office ${player.hideout.backOffice}`} />
             {player.reputation.length ? player.reputation.map((row) => (
               <Row key={row.trader} label={`Rep: ${row.trader}`} value={`${formatNumber(row.points)}${row.legacyFavorDone ? ' · legacy favor' : ''}`} />
