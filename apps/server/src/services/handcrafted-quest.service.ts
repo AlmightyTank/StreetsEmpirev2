@@ -25,6 +25,7 @@ import { ActionService, type PlayerState } from './action.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { FavorInventoryService } from './favor-inventory.service.js';
+import { TimedFavorService } from './timed-favor.service.js';
 
 const ACTIVE_LIMIT = 8;
 const TRACKED_LIMIT = 3;
@@ -388,6 +389,7 @@ export const HandcraftedQuestService = {
         totalGranted: entry.totalGranted,
         lastSourceQuestKey: entry.lastSourceQuestKey,
       }));
+      const activeFavors = await TimedFavorService.listActive(tx, roundPlayerId, ruleset, now);
       return {
         activeLimit: ACTIVE_LIMIT,
         trackedLimit: TRACKED_LIMIT,
@@ -399,6 +401,7 @@ export const HandcraftedQuestService = {
         },
         contacts,
         permanentUnlocks,
+        activeFavors,
         favors,
         quests: rows.map((row) => questDto(row, ruleset)),
       };
