@@ -93,6 +93,7 @@ export const AdminPlayerService = {
         round: { select: { id: true, name: true, status: true, rulesetId: true, rulesetVersion: true } },
         city: { select: { name: true } },
         reputation: { orderBy: { trader: 'asc' } },
+        permanentUnlocks: { orderBy: { awardedAt: 'asc' } },
         combatInjuries: { where: { treatedAt: null, recoverAt: { gt: now } }, orderBy: { recoverAt: 'asc' } },
       },
     });
@@ -123,7 +124,16 @@ export const AdminPlayerService = {
       supplies: { condoms: player.condoms, medicine: player.medicine, crack: player.crack, beer: player.beer },
       products: await adminProducts(prisma, player.id, loadRulesetForRound(player.round)),
       weapons: { pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s },
-      unlocks: { shotgun: player.shotgunUnlocked, tek9: player.tek9Unlocked, ak47: player.ak47Unlocked },
+      unlocks: {
+        shotgun: player.shotgunUnlocked,
+        tek9: player.tek9Unlocked,
+        ak47: player.ak47Unlocked,
+        permanent: player.permanentUnlocks.map((unlock) => ({
+          key: unlock.key,
+          sourceQuestKey: unlock.sourceQuestKey,
+          awardedAt: unlock.awardedAt.toISOString(),
+        })),
+      },
       happiness: { whores: player.whoreHappiness, thugs: player.thugHappiness },
       heat: loadRulesetForRound(player.round).heat ? player.heat : null,
       ranks: { national: player.nationalRank, local: player.localRank },

@@ -247,6 +247,9 @@ export function AdminPlayerPage() {
         <Panel title="Progress" flush>
           <div className="se-rows">
             <Row label="Weapon unlocks" value={`Shotgun ${yesNo(player.unlocks.shotgun)} · Tek-9 ${yesNo(player.unlocks.tek9)} · AK ${yesNo(player.unlocks.ak47)}`} />
+            {player.unlocks.permanent.length ? player.unlocks.permanent.map((unlock) => (
+              <Row key={unlock.key} label={`Unlock: ${unlock.key}`} value={`${unlock.sourceQuestKey ?? 'system'} · ${adminWhen(unlock.awardedAt)}`} />
+            )) : <Row label="Permanent unlocks" value="-" />}
             <Row label="Hideout" value={`Safe ${player.hideout.safeRoom} · Lookouts ${player.hideout.lookouts} · Workshop ${player.hideout.workshop} · Office ${player.hideout.backOffice}`} />
             {player.reputation.length ? player.reputation.map((row) => (
               <Row key={row.trader} label={`Rep: ${row.trader}`} value={`${formatNumber(row.points)}${row.legacyFavorDone ? ' · legacy favor' : ''}`} />

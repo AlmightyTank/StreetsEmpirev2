@@ -210,7 +210,8 @@ export type QuestRewardKind =
   | 'TURNS'
   | 'ITEM'
   | 'CONTACT_REP'
-  | 'WEAPON_ACCESS';
+  | 'WEAPON_ACCESS'
+  | 'PERMANENT_UNLOCK';
 
 export interface QuestRewardDefinition {
   readonly kind: QuestRewardKind;
@@ -236,6 +237,26 @@ export interface ContactDefinition {
 }
 
 export type ContactCatalog = Readonly<Record<ContactKey, ContactDefinition>>;
+
+export type PermanentUnlockEffect =
+  | {
+      readonly kind: 'WEAPON_ACCESS';
+      readonly weapon: WeaponUnlockKey;
+    }
+  | {
+      readonly kind: 'PRODUCT_PURCHASE_ACCESS';
+      readonly productKey: string;
+    };
+
+export interface PermanentUnlockDefinition {
+  readonly key: string;
+  readonly name: string;
+  readonly description: string;
+  readonly category: 'WEAPON' | 'PRODUCT';
+  readonly effect: PermanentUnlockEffect;
+}
+
+export type PermanentUnlockCatalog = Readonly<Record<string, PermanentUnlockDefinition>>;
 
 export interface QuestDefinition {
   /** Stable key inside a ruleset version, e.g. FIRST_NIGHT_OUT. */
@@ -1396,6 +1417,8 @@ export interface Ruleset {
   readonly questDefinitions?: QuestDefinitionCatalog;
   /** Named quest contacts and their relationship tracks. */
   readonly contacts?: ContactCatalog;
+  /** Permanent per-round capabilities earned through Jobs. */
+  readonly permanentUnlocks?: PermanentUnlockCatalog;
   readonly rankings: RankingRules;
   /** Optional round privacy for public community surfaces. */
   readonly communityPrivacy?: CommunityPrivacyRules;

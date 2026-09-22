@@ -54,6 +54,9 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
       if (reward.kind === 'WEAPON_ACCESS' && !['SHOTGUN', 'TEK9', 'AK47'].includes(reward.key ?? '')) {
         problems.push(`${catalogKey}: WEAPON_ACCESS reward requires SHOTGUN, TEK9 or AK47`);
       }
+      if (reward.kind === 'PERMANENT_UNLOCK' && (!reward.key || !reward.key.trim())) {
+        problems.push(`${catalogKey}: PERMANENT_UNLOCK reward requires a key`);
+      }
     }
 
     const seen = new Set<string>();

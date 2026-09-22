@@ -250,6 +250,18 @@ export function QuestPage() {
                 ))}
               </div>
             </Panel>
+
+            <Panel title="Permanent unlocks">
+              <div className="se-rows">
+                {page.permanentUnlocks.length ? page.permanentUnlocks.map((unlock) => (
+                  <Row
+                    key={unlock.key}
+                    label={unlock.name}
+                    value={unlock.category + (unlock.sourceQuestKey ? ' · ' + unlock.sourceQuestKey.replaceAll('_', ' ') : '')}
+                  />
+                )) : <Row label="Earned this round" value="None yet" />}
+              </div>
+            </Panel>
           </div>
 
           <div className="se-storetabs se-mt" role="tablist" aria-label="Quest view">

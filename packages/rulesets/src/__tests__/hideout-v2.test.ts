@@ -8,6 +8,7 @@ import {
   classicOgV07E,
   classicOgV07F,
   classicOgV07G,
+  classicOgV07H,
   hideoutV2For,
   hideoutV2Problems,
 } from '../index.js';
@@ -117,5 +118,11 @@ describe('classic-og-v0.7-a hideout foundation', () => {
     expect(hideoutV2Problems(classicOgV07G)).toEqual([]);
   });
 
+
+  it('keeps the 0.7-G hideout extension active in 0.7-H', () => {
+    expect(classicOgV07H.hideout).toEqual(classicOgV07G.hideout);
+    expect(hideoutV2For(classicOgV07H)).toEqual(hideoutV2For(classicOgV07G));
+    expect(hideoutV2Problems(classicOgV07H)).toEqual([]);
+  });
 
 });

@@ -243,7 +243,12 @@ export interface AdminPlayerDto {
   /** `valueCents` since 0.4.0-E: what the holding adds to net worth, where products are valued. */
   products: Array<{ key: string; name: string; quantity: number; valueCents?: number }>;
   weapons: { pistols: number; shotguns: number; tek9s: number; ak47s: number };
-  unlocks: { shotgun: boolean; tek9: boolean; ak47: boolean };
+  unlocks: {
+    shotgun: boolean;
+    tek9: boolean;
+    ak47: boolean;
+    permanent: Array<{ key: string; sourceQuestKey: string | null; awardedAt: string }>;
+  };
   happiness: { whores: number; thugs: number };
   /** 0.4.0-C. Stored Heat, as of the player's last settle. Null on rounds without Heat. */
   heat: number | null;
