@@ -66,11 +66,12 @@ function QuestCard({
   return (
     <Panel
       id={`quest-${quest.key}`}
+      className="se-quest-card"
       title={quest.title}
       aside={<span className="se-num se-dim">{quest.contactName ?? 'StreetsEmpire'} · {quest.type === 'SIDE' ? 'Side job' : quest.type === 'STORY' ? 'Story' : quest.type} · {statusLabel(quest)}</span>}
     >
-      <p className="se-hint">{quest.description}</p>
-      <div className="se-rows">
+      <p className="se-hint se-quest-card__desc">{quest.description}</p>
+      <div className="se-rows se-quest-objectives">
         {quest.objectives.map((objective) => (
           <Row
             key={objective.id}
@@ -81,16 +82,16 @@ function QuestCard({
         ))}
       </div>
 
-      <div className="se-mt">
+      <div className="se-quest-reward-block">
         <p className="se-eyebrow">Rewards</p>
-        <div className="se-rows">
+        <div className="se-quest-rewards">
           {quest.rewards.map((reward, index) => (
-            <Row key={reward.kind + ':' + (reward.key ?? index)} label={reward.label} value="" />
+            <span className="se-quest-reward" key={reward.kind + ':' + (reward.key ?? index)}>{reward.label}</span>
           ))}
         </div>
       </div>
 
-      <div className="se-actions se-mt">
+      <div className="se-actions se-quest-actions">
         {quest.status === 'AVAILABLE' ? (
           <Button
             className="se-btn se-btn--primary"
@@ -293,149 +294,154 @@ export function QuestPage() {
 
   return (
     <GameLayout>
-      <div className="se-pagehead">
-        <div>
-          <h1 className="se-title">Quests</h1>
-          <p className="se-eyebrow">Jobs, contacts and underworld progression</p>
-        </div>
-        <Link className="se-btn se-btn--ghost" to="/game/reputation">Contact standing</Link>
-      </div>
-
-      {error ? <Alert>{error}</Alert> : null}
-      {notice ? <Alert tone="info">{notice}</Alert> : null}
-
-      {page ? (
-        <>
-          <div className="se-grid se-grid--sidebar">
-            <Panel title="Jobs">
-              <div className="se-rows">
-                <Row label="Available" value={formatNumber(page.counts.available)} />
-                <Row label="Active" value={formatNumber(page.counts.active) + ' / ' + formatNumber(page.activeLimit)} />
-                <Row label="Ready to collect" value={formatNumber(page.counts.ready)} strong={page.counts.ready > 0} />
-                <Row label="Completed" value={formatNumber(page.counts.completed)} />
-                <Row
-                  label="Tracked"
-                  value={formatNumber(page.quests.filter((quest) => quest.isTracked).length) + ' / ' + formatNumber(page.trackedLimit)}
-                />
-              </div>
-            </Panel>
-
-            <Panel title="Contacts">
-              <div className="se-rows">
-                {page.contacts.map((contact) => (
-                  <Row
-                    key={contact.key}
-                    label={contact.shortName + ' · ' + contact.role}
-                    value={contact.standing + ' · ' + formatNumber(contact.points) + ' rep'}
-                  />
-                ))}
-              </div>
-            </Panel>
-
-            <Panel title="Permanent unlocks">
-              <div className="se-rows">
-                {page.permanentUnlocks.length ? page.permanentUnlocks.map((unlock) => (
-                  <Row
-                    key={unlock.key}
-                    label={unlock.name}
-                    value={unlock.category + (unlock.sourceQuestKey ? ' · ' + unlock.sourceQuestKey.replaceAll('_', ' ') : '')}
-                  />
-                )) : <Row label="Earned this round" value="None yet" />}
-              </div>
-            </Panel>
-
-            <Panel title="Active favors">
-              <div className="se-rows">
-                {liveFavors.length ? liveFavors.map((favor) => (
-                  <Row
-                    key={favor.category}
-                    label={favor.name + ' · ' + favor.category}
-                    value={'Until ' + new Date(favor.expiresAt).toLocaleTimeString()}
-                    strong
-                  />
-                )) : <Row label="Running now" value="None" />}
-              </div>
-              <p className="se-hint se-mt">Timers use server time and keep running while you are logged out.</p>
-            </Panel>
-
-            <Panel title="Armed favors">
-              <div className="se-rows">
-                {page.armedFavors.length ? page.armedFavors.map((favor) => (
-                  <Row
-                    key={favor.category}
-                    label={favor.name + ' · ' + favor.category}
-                    value="Waiting for the next eligible action"
-                    strong
-                  />
-                )) : <Row label="Waiting now" value="None" />}
-              </div>
-              <p className="se-hint se-mt">Armed favors are only consumed when their matching action succeeds. Disarm one to return it to inventory.</p>
-            </Panel>
-
-            <Panel title="Favor inventory">
-              {page.favors.length ? page.favors.map((favor) => {
-                const active = liveFavors.find((item) => item.category === favor.category);
-                return (
-                  <div key={favor.key} className="se-mb">
-                    <Row
-                      label={favor.name}
-                      value={
-                        '×' + formatNumber(favor.quantity)
-                        + ' · ' + favor.category
-                        + (favor.activationKind === 'TIMED' && favor.durationMinutes
-                          ? ' · ' + formatNumber(favor.durationMinutes) + ' min'
-                          : ' · single use')
-                      }
-                    />
-                    <p className="se-hint">{favor.description}</p>
-                    {favor.activationKind === 'TIMED' && favor.activatable ? (
-                      <Button
-                        className="se-btn se-btn--primary"
-                        disabledReason={
-                          busy
-                            ? 'Another update is still going through.'
-                            : active
-                              ? active.name + ' already occupies ' + favor.category + ' until ' + new Date(active.expiresAt).toLocaleTimeString() + '.'
-                              : null
-                        }
-                        onClick={() => void activateFavor(favor.key)}
-                      >
-                        Activate
-                      </Button>
-                    ) : favor.activationKind === 'SINGLE_USE' && favor.activatable ? (() => {
-                      const armed = page.armedFavors.find((item) => item.category === favor.category);
-                      return armed?.key === favor.key ? (
-                        <Button
-                          className="se-btn se-btn--ghost"
-                          disabledReason={busy ? 'Another update is still going through.' : null}
-                          onClick={() => void disarmFavor(favor.key)}
-                        >
-                          Disarm
-                        </Button>
-                      ) : (
-                        <Button
-                          className="se-btn se-btn--primary"
-                          disabledReason={
-                            busy
-                              ? 'Another update is still going through.'
-                              : armed
-                                ? armed.name + ' is already armed in ' + favor.category + '. Disarm it first.'
-                                : null
-                          }
-                          onClick={() => void armFavor(favor.key)}
-                        >
-                          Arm favor
-                        </Button>
-                      );
-                    })()
-                      : <p className="se-hint">This pinned round stores the favor but does not support this effect yet.</p>}
-                  </div>
-                );
-              }) : <Row label="Stored favors" value="None yet" />}
-            </Panel>
+      <div className="se-questpage">
+        <div className="se-pagehead se-questpage__head">
+          <div>
+            <h1 className="se-title">Quests</h1>
+            <p className="se-eyebrow">Jobs, contacts and underworld progression</p>
           </div>
+          <Link className="se-btn se-btn--ghost" to="/game/reputation">Contact standing</Link>
+        </div>
 
-          <div className="se-storetabs se-mt" role="tablist" aria-label="Quest view">
+        {error ? <Alert>{error}</Alert> : null}
+        {notice ? <Alert tone="info">{notice}</Alert> : null}
+
+        {page ? (
+          <>
+            <div className="se-grid se-grid--sidebar se-quest-summary">
+              <div className="se-grid se-quest-summary__col">
+                <Panel title="Jobs">
+                  <div className="se-rows">
+                    <Row label="Available" value={formatNumber(page.counts.available)} />
+                    <Row label="Active" value={formatNumber(page.counts.active) + ' / ' + formatNumber(page.activeLimit)} />
+                    <Row label="Ready to collect" value={formatNumber(page.counts.ready)} strong={page.counts.ready > 0} />
+                    <Row label="Completed" value={formatNumber(page.counts.completed)} />
+                    <Row
+                      label="Tracked"
+                      value={formatNumber(page.quests.filter((quest) => quest.isTracked).length) + ' / ' + formatNumber(page.trackedLimit)}
+                    />
+                  </div>
+                </Panel>
+
+                <Panel title="Permanent unlocks">
+                  <div className="se-rows">
+                    {page.permanentUnlocks.length ? page.permanentUnlocks.map((unlock) => (
+                      <Row
+                        key={unlock.key}
+                        label={unlock.name}
+                        value={unlock.category + (unlock.sourceQuestKey ? ' · ' + unlock.sourceQuestKey.replaceAll('_', ' ') : '')}
+                      />
+                    )) : <Row label="Earned this round" value="None yet" />}
+                  </div>
+                </Panel>
+
+                <Panel title="Favor inventory">
+                  {page.favors.length ? page.favors.map((favor) => {
+                    const active = liveFavors.find((item) => item.category === favor.category);
+                    return (
+                      <div key={favor.key} className="se-mb">
+                        <Row
+                          label={favor.name}
+                          value={
+                            '×' + formatNumber(favor.quantity)
+                            + ' · ' + favor.category
+                            + (favor.activationKind === 'TIMED' && favor.durationMinutes
+                              ? ' · ' + formatNumber(favor.durationMinutes) + ' min'
+                              : ' · single use')
+                          }
+                        />
+                        <p className="se-hint">{favor.description}</p>
+                        {favor.activationKind === 'TIMED' && favor.activatable ? (
+                          <Button
+                            className="se-btn se-btn--primary"
+                            disabledReason={
+                              busy
+                                ? 'Another update is still going through.'
+                                : active
+                                  ? active.name + ' already occupies ' + favor.category + ' until ' + new Date(active.expiresAt).toLocaleTimeString() + '.'
+                                  : null
+                            }
+                            onClick={() => void activateFavor(favor.key)}
+                          >
+                            Activate
+                          </Button>
+                        ) : favor.activationKind === 'SINGLE_USE' && favor.activatable ? (() => {
+                          const armed = page.armedFavors.find((item) => item.category === favor.category);
+                          return armed?.key === favor.key ? (
+                            <Button
+                              className="se-btn se-btn--ghost"
+                              disabledReason={busy ? 'Another update is still going through.' : null}
+                              onClick={() => void disarmFavor(favor.key)}
+                            >
+                              Disarm
+                            </Button>
+                          ) : (
+                            <Button
+                              className="se-btn se-btn--primary"
+                              disabledReason={
+                                busy
+                                  ? 'Another update is still going through.'
+                                  : armed
+                                    ? armed.name + ' is already armed in ' + favor.category + '. Disarm it first.'
+                                    : null
+                              }
+                              onClick={() => void armFavor(favor.key)}
+                            >
+                              Arm favor
+                            </Button>
+                          );
+                        })()
+                          : <p className="se-hint">This pinned round stores the favor but does not support this effect yet.</p>}
+                      </div>
+                    );
+                  }) : <Row label="Stored favors" value="None yet" />}
+                </Panel>
+              </div>
+
+              <div className="se-grid se-quest-summary__col">
+                <Panel title="Contacts">
+                  <div className="se-rows">
+                    {page.contacts.map((contact) => (
+                      <Row
+                        key={contact.key}
+                        label={contact.shortName + ' · ' + contact.role}
+                        value={contact.standing + ' · ' + formatNumber(contact.points) + ' rep'}
+                      />
+                    ))}
+                  </div>
+                </Panel>
+
+                <Panel title="Active favors">
+                  <div className="se-rows">
+                    {liveFavors.length ? liveFavors.map((favor) => (
+                      <Row
+                        key={favor.category}
+                        label={favor.name + ' · ' + favor.category}
+                        value={'Until ' + new Date(favor.expiresAt).toLocaleTimeString()}
+                        strong
+                      />
+                    )) : <Row label="Running now" value="None" />}
+                  </div>
+                  <p className="se-hint se-mt">Timers use server time and keep running while you are logged out.</p>
+                </Panel>
+
+                <Panel title="Armed favors">
+                  <div className="se-rows">
+                    {page.armedFavors.length ? page.armedFavors.map((favor) => (
+                      <Row
+                        key={favor.category}
+                        label={favor.name + ' · ' + favor.category}
+                        value="Waiting for the next eligible action"
+                        strong
+                      />
+                    )) : <Row label="Waiting now" value="None" />}
+                  </div>
+                  <p className="se-hint se-mt">Armed favors are only consumed when their matching action succeeds. Disarm one to return it to inventory.</p>
+                </Panel>
+              </div>
+            </div>
+
+            <div className="se-storetabs se-quest-tabs" role="tablist" aria-label="Quest view">
             {([
               ['available', 'Available (' + page.counts.available + ')'],
               ['active', 'Active (' + page.counts.active + ')'],
@@ -452,9 +458,9 @@ export function QuestPage() {
                 {label}
               </button>
             ))}
-          </div>
+            </div>
 
-          <div className="se-grid se-mt">
+            <div className="se-grid se-quest-list">
             {shown.length ? shown.map((quest) => (
               <QuestCard
                 key={quest.key}
@@ -467,9 +473,10 @@ export function QuestPage() {
                 onAbandon={(key) => void mutate(key, () => questsApi.abandon(key), 'Job abandoned.')}
               />
             )) : <p className="se-muted">No jobs in this section yet.</p>}
-          </div>
-        </>
-      ) : !error ? <p className="se-muted" role="status">Checking the street for work...</p> : null}
+            </div>
+          </>
+        ) : !error ? <p className="se-muted" role="status">Checking the street for work...</p> : null}
+      </div>
     </GameLayout>
   );
 }
