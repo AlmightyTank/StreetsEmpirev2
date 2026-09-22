@@ -147,13 +147,52 @@ export interface QuestPrerequisiteDefinition {
   readonly params?: QuestDataObject;
 }
 
+export type QuestObjectiveKind =
+  | 'EVENT_COUNT'
+  | 'EVENT_SUM'
+  | 'SPEND_TURNS'
+  | 'EARN_CASH'
+  | 'RECRUIT_CREW'
+  | 'WIN_EVENTS';
+
 export interface QuestObjectiveDefinition {
   /** Stable inside one quest so progress survives wording changes. */
   readonly id: string;
-  readonly kind: string;
+  readonly kind: QuestObjectiveKind;
   readonly description: string;
-  readonly target?: number;
+  /** Every Phase B progress objective advances toward a positive numeric target. */
+  readonly target: number;
+  /**
+   * Optional event filter/configuration.
+   *
+   * Common keys:
+   * - eventTypes: string[]
+   * - where: object of exact top-level payload matches
+   * EVENT_SUM additionally requires field.
+   * RECRUIT_CREW may set crew to WHORES, THUGS or ANY.
+   */
   readonly params?: QuestDataObject;
+}
+
+export interface QuestProgressEvent {
+  /** Usually a PlayerActivity type such as SCOUT, RAID_ATTACK or RUN_RETURNED. */
+  readonly type: string;
+  /** Activity/event JSON. */
+  readonly payload: QuestDataValue;
+}
+
+export interface QuestObjectiveProgress {
+  readonly current: number;
+  readonly target: number;
+  readonly completed: boolean;
+}
+
+export type QuestProgressMap = Readonly<Record<string, QuestObjectiveProgress>>;
+
+export interface QuestObjectiveAdvance {
+  readonly matched: boolean;
+  readonly amount: number;
+  readonly progress: QuestObjectiveProgress;
 }
 
 export interface QuestRewardDefinition {
