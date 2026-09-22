@@ -2395,6 +2395,73 @@ a.se-nav__link:hover {
   font-weight: 700;
 }
 
+.se-connection-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.se-connection {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--se-line-soft);
+  border-radius: 4px;
+  background: rgba(11, 12, 14, 0.24);
+}
+
+.se-connection__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.se-connection__head h3 {
+  margin: 2px 0 0;
+  color: var(--se-text);
+  font-size: 15px;
+}
+
+.se-connection__eyebrow {
+  display: block;
+  color: var(--se-muted);
+  font-family: var(--se-mono);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.se-connection > p {
+  margin: 0 0 10px;
+  color: var(--se-text-dim);
+}
+
+.se-connection__confirm {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--se-line-soft);
+  border-left: 3px solid var(--se-warn);
+  border-radius: 3px;
+  background: rgba(255, 176, 32, 0.06);
+}
+
+.se-connection__confirm > p {
+  margin: 0 0 10px;
+}
+
+.se-connection-devices {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.se-connection--future {
+  border-style: dashed;
+  background: transparent;
+}
+
 .se-account-columns + .se-panel,
 .se-account-columns + .se-panel + .se-panel {
   margin-top: 14px;
