@@ -740,6 +740,10 @@ export interface ProductStockDto {
     intervalMinutes: number;
     nextAt: string | null;
     maxBuy: number;
+    /** Phase I. Selling stays open; this only gates buying from Pip. */
+    purchaseUnlocked: boolean;
+    unlockName: string | null;
+    unlockDescription: string | null;
   } | null;
   /** 0.4.0-D. Present where Produce can cook it. */
   recipe?: { perThugPerTurn: number; ingredientCentsPerUnit: number; heatPerUnit: number } | null;
