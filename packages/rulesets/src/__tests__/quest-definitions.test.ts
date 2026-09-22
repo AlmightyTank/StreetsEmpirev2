@@ -149,6 +149,7 @@ describe('quest definition foundation', () => {
         { kind: 'CONTACT_REP', amount: 5 },
         { kind: 'WEAPON_ACCESS', key: 'MINIGUN' },
         { kind: 'PERMANENT_UNLOCK' },
+        { kind: 'FAVOR_ITEM', amount: 0 },
       ],
     } as unknown as QuestDefinition;
 
@@ -160,6 +161,8 @@ describe('quest definition foundation', () => {
       'FRESH_FACES: CONTACT_REP reward requires a key',
       'FRESH_FACES: WEAPON_ACCESS reward requires SHOTGUN, TEK9 or AK47',
       'FRESH_FACES: PERMANENT_UNLOCK reward requires a key',
+      'FRESH_FACES: FAVOR_ITEM reward requires a positive amount',
+      'FRESH_FACES: FAVOR_ITEM reward requires a key',
     ]);
   });
 
