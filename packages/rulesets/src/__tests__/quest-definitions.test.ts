@@ -119,4 +119,29 @@ describe('quest definition foundation', () => {
     ]);
   });
 
+
+  it('rejects malformed C-G prerequisites and rewards', () => {
+    const broken = {
+      ...freshFaces,
+      prerequisites: [
+        { kind: 'QUEST_COMPLETED', params: { questKey: 'DOES_NOT_EXIST' } },
+        { kind: 'CONTACT_REP_AT_LEAST', params: { contactKey: '', points: 0 } },
+      ],
+      rewards: [
+        { kind: 'CASH', amount: 0 },
+        { kind: 'CONTACT_REP', amount: 5 },
+        { kind: 'WEAPON_ACCESS', key: 'MINIGUN' },
+      ],
+    } as unknown as QuestDefinition;
+
+    expect(questDefinitionProblems({ FRESH_FACES: broken })).toEqual([
+      'FRESH_FACES: unknown prerequisite quest DOES_NOT_EXIST',
+      'FRESH_FACES: CONTACT_REP_AT_LEAST requires contactKey',
+      'FRESH_FACES: CONTACT_REP_AT_LEAST requires positive points',
+      'FRESH_FACES: CASH reward requires a positive amount',
+      'FRESH_FACES: CONTACT_REP reward requires a key',
+      'FRESH_FACES: WEAPON_ACCESS reward requires SHOTGUN, TEK9 or AK47',
+    ]);
+  });
+
 });
