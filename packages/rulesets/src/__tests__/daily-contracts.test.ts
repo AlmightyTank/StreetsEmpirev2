@@ -3,6 +3,7 @@ import { advanceQuestObjective } from '../quest-progress.js';
 import { classicOgV07M } from '../classic-og-v0.7-m/index.js';
 import { dailyContracts } from '../classic-og-v0.7-n/daily-contracts.js';
 import { classicOgV07N } from '../classic-og-v0.7-n/index.js';
+import { hideoutV2For, hideoutV2Problems } from '../hideout-v2.js';
 
 describe('quest roadmap Phase O daily contracts', () => {
   it('keeps the first 30 handcrafted Jobs and adds an eight-contract daily pool', () => {
@@ -47,8 +48,10 @@ describe('quest roadmap Phase O daily contracts', () => {
     expect(Math.max(...cashRewards)).toBeLessThanOrEqual(1_500_000);
   });
 
-  it('inherits favor and permanent-unlock catalogs unchanged from 0.7-M', () => {
+  it('inherits favor, permanent-unlock and Hideout behavior unchanged from 0.7-M', () => {
     expect(classicOgV07N.favors).toEqual(classicOgV07M.favors);
     expect(classicOgV07N.permanentUnlocks).toEqual(classicOgV07M.permanentUnlocks);
+    expect(hideoutV2For(classicOgV07N)).toEqual(hideoutV2For(classicOgV07M));
+    expect(hideoutV2Problems(classicOgV07N)).toEqual([]);
   });
 });
