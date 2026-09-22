@@ -663,6 +663,15 @@ export interface PlayerQuestDto {
   expiresAt: string | null;
 }
 
+export interface QuestPermanentUnlockDto {
+  key: string;
+  name: string;
+  description: string;
+  category: string;
+  sourceQuestKey: string | null;
+  awardedAt: string;
+}
+
 export interface QuestPageDto {
   activeLimit: number;
   trackedLimit: number;
@@ -673,6 +682,7 @@ export interface QuestPageDto {
     completed: number;
   };
   contacts: QuestContactDto[];
+  permanentUnlocks: QuestPermanentUnlockDto[];
   quests: PlayerQuestDto[];
 }
 
