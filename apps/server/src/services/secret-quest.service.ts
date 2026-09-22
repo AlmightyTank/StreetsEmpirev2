@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { ActivityType } from '@prisma/client';
 import type { QuestDataObject, QuestDataValue, QuestDefinition, Ruleset } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 
@@ -112,7 +112,7 @@ async function triggerSatisfied(
     const eventTypes = strings(trigger.eventTypes);
     if (!eventTypes.length) return false;
     const activities = await db.playerActivity.findMany({
-      where: { roundPlayerId, type: { in: eventTypes as Prisma.ActivityType[] } },
+      where: { roundPlayerId, type: { in: eventTypes as ActivityType[] } },
       select: { type: true, payload: true },
       orderBy: { createdAt: 'asc' },
     });
