@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { Prisma } from '@prisma/client';
-import { classicOgV01, classicOgV02, classicOgV02C, classicOgV02D, classicOgV02E, classicOgV07B } from '@streets/rulesets';
+import { classicOgV01, classicOgV02, classicOgV02C, classicOgV02D, classicOgV02E, classicOgV07B, classicOgV07C } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
-import type { BattleReportDto, CombatReconResultDto } from '@streets/shared';
+import type { BattleReportDto, CombatReconResultDto, HideoutV2Dto } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
 import { RankingService } from '../ranking.service.js';
 import { RoundService } from '../round.service.js';
@@ -502,6 +502,71 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     const blocked = await recon(2, 1001);
     expect(blocked.statusCode).toBe(409);
     expect(blocked.json().error.code).toBe('STRATEGY_DISABLED');
+  });
+
+  it('uses Lookouts tiers to warn about recon without giving low levels the observer identity', async () => {
+    await app.prisma.round.update({
+      where: { id: roundId },
+      data: { rulesetId: classicOgV07C.meta.id, rulesetVersion: classicOgV07C.meta.version },
+    });
+    await app.prisma.roundPlayer.update({
+      where: { id: players[1]! },
+      data: { hideoutLookoutsLevel: 1 },
+    });
+
+    const attacker = await state(0);
+    const firstRecon = await recon(0, 1001);
+    expect(firstRecon.statusCode, firstRecon.body).toBe(200);
+
+    const lowResponse = await app.inject({
+      method: 'GET',
+      url: '/api/game/hideout',
+      headers: { cookie: cookies[1]! },
+    });
+    expect(lowResponse.statusCode, lowResponse.body).toBe(200);
+    const low = lowResponse.json<HideoutV2Dto>();
+    expect(low.security).toMatchObject({
+      lookoutsLevel: 1,
+      defenseBonusPercent: 2,
+      reconWarningTier: 'PRESENCE',
+      historyHours: 1,
+    });
+    const anonymous = low.security!.suspicious.find((event) => event.kind === 'RECON');
+    expect(anonymous).toMatchObject({
+      kind: 'RECON',
+      title: 'Recon spotted',
+      actor: null,
+      urgent: false,
+    });
+    expect(anonymous?.detail).toBe('Someone checked your block.');
+    expect(anonymous?.detail).not.toContain(attacker.displayName);
+
+    await app.prisma.roundPlayer.update({
+      where: { id: players[1]! },
+      data: { hideoutLookoutsLevel: 3 },
+    });
+    const secondRecon = await recon(0, 1001);
+    expect(secondRecon.statusCode, secondRecon.body).toBe(200);
+
+    const highResponse = await app.inject({
+      method: 'GET',
+      url: '/api/game/hideout',
+      headers: { cookie: cookies[1]! },
+    });
+    expect(highResponse.statusCode, highResponse.body).toBe(200);
+    const high = highResponse.json<HideoutV2Dto>();
+    expect(high.security).toMatchObject({
+      lookoutsLevel: 3,
+      defenseBonusPercent: 6,
+      reconWarningTier: 'SOURCE',
+      historyHours: 8,
+    });
+    const named = high.security!.suspicious.find((event) => event.kind === 'RECON');
+    expect(named?.actor).toMatchObject({
+      publicPimpId: attacker.publicPimpId,
+      displayName: attacker.displayName,
+    });
+    expect(named?.detail).toContain(attacker.displayName);
   });
 
   it('opens a 0.2.0-D revenge window through protection and minimum strength', async () => {
