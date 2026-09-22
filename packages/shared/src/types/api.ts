@@ -709,6 +709,8 @@ export interface QuestFavorDto {
 }
 
 export interface QuestPageDto {
+  /** Server clock used by the client to age timed favor expiries without trusting its wall clock. */
+  serverTime: string;
   activeLimit: number;
   trackedLimit: number;
   counts: {
