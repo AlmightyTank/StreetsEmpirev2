@@ -131,6 +131,15 @@ export function HideoutPage() {
     ? me.products.reduce((sum, product) => sum + product.quantity, 0)
     : me?.resources.product ?? 0;
   const activeRuns = travel?.runs.length ?? (me?.run ? 1 : 0);
+  const garageRuns = travel?.runs ?? (travel?.run ? [travel.run] : []);
+  const lowRidersAway = garageRuns.reduce((sum, run) => sum + run.lowRiders, 0);
+  const lowRidersHome = travel?.home.lowRiders ?? me?.resources.lowRiders ?? 0;
+  const cargoUsed = garageRuns.reduce(
+    (sum, run) => sum + run.beer + run.cargo.reduce((cargo, row) => cargo + row.quantity, 0),
+    0,
+  );
+  const cargoCapacity = garageRuns.reduce((sum, run) => sum + run.capacity, 0);
+  const escortsAway = garageRuns.reduce((sum, run) => sum + run.escortThugs, 0);
 
   return (
     <GameLayout>
@@ -195,6 +204,79 @@ export function HideoutPage() {
           </p>
           <p className="se-hint">
             Specialization hooks are prepared but inactive until 0.7.0-G: Street Eyes would add {formatNumber(hideout.security.specializationHooks.streetEyes.warningHoursBonus)}h of warning history; Armed Watch would add +{formatNumber(hideout.security.specializationHooks.armedWatch.defenseBonusPercent)}% defense.
+          </p>
+        </Panel>
+      ) : null}
+
+      {hideout?.workshop ? (
+        <Panel title="Workshop production" aside="0.7.0-D">
+          <p className="se-dim">
+            The Workshop now uses one bonus path for every cookable product. Output and ingredient efficiency are tuned separately.
+          </p>
+          <div className="se-stats">
+            <Stat label="Output bonus" value={`+${formatNumber(hideout.workshop.outputBonusPercent)}%`} />
+            <Stat label="Ingredient efficiency" value={`${formatNumber(hideout.workshop.ingredientEfficiencyPercent)}%`} />
+          </div>
+          <div className="se-rows se-mt">
+            {hideout.workshop.recipes.map((recipe) => (
+              <Row
+                key={recipe.key}
+                label={recipe.name}
+                value={recipe.baseIngredientCentsPerUnit === recipe.effectiveIngredientCentsPerUnit
+                  ? `${formatCents(recipe.baseIngredientCentsPerUnit)} ingredients / unit`
+                  : `${formatCents(recipe.effectiveIngredientCentsPerUnit)} / unit · base ${formatCents(recipe.baseIngredientCentsPerUnit)}`}
+                strong={recipe.effectiveIngredientCentsPerUnit < recipe.baseIngredientCentsPerUnit}
+              />
+            ))}
+          </div>
+          <p className="se-hint">
+            Workshop output still tops out at 15%. Ingredient efficiency tops out at 8%, so production improves without becoming free.
+          </p>
+        </Panel>
+      ) : null}
+
+      {hideout?.garage ? (
+        <Panel title="Garage & logistics" aside="0.7.0-D">
+          <p className="se-dim">
+            The Garage manages capacity, Low-Riders and moving costs. It does not make the roads faster or safer.
+          </p>
+          <div className="se-stats">
+            <Stat label="Run slots" value={`${formatNumber(activeRuns)} / ${formatNumber(hideout.garage.runLimit)}`} />
+            <Stat label="Low-Riders home" value={formatNumber(lowRidersHome)} />
+            <Stat label="Low-Riders away" value={formatNumber(lowRidersAway)} />
+            <Stat label="Escorts away" value={formatNumber(escortsAway)} />
+            <Stat label="Cargo away" value={garageRuns.length ? `${formatNumber(cargoUsed)} / ${formatNumber(cargoCapacity)}` : 'None'} />
+            <Stat label="Move discount" value={`${formatNumber(hideout.garage.relocationFeeDiscountPercent)}%`} />
+          </div>
+          {garageRuns.length ? (
+            <div className="se-rows se-mt">
+              {garageRuns.map((run, index) => {
+                const used = run.beer + run.cargo.reduce((sum, row) => sum + row.quantity, 0);
+                return (
+                  <Row
+                    key={run.id}
+                    label={`Run ${index + 1} · ${run.position.cityName}`}
+                    value={`${formatNumber(run.lowRiders)} cars · ${formatNumber(run.escortThugs)} escorts · ${formatNumber(used)} / ${formatNumber(run.capacity)} cargo`}
+                    strong
+                  />
+                );
+              })}
+            </div>
+          ) : <p className="se-muted se-mt">No runs are away right now.</p>}
+          {travel?.relocation ? (
+            <div className="se-rows se-mt">
+              <Row
+                label="Relocation"
+                value={travel.relocation.moving
+                  ? `Moving to ${travel.relocation.moving.toName}`
+                  : travel.relocation.garageFeeDiscountPercent > 0
+                    ? `${formatCents(travel.relocation.feeCents)} · save ${formatCents(travel.relocation.garageSavingsCents)}`
+                    : formatCents(travel.relocation.feeCents)}
+              />
+            </div>
+          ) : null}
+          <p className="se-hint">
+            Garage bonuses are deliberately logistical: a second concurrent run and a small relocation discount. Route time, police risk and local markets stay unchanged.
           </p>
         </Panel>
       ) : null}
