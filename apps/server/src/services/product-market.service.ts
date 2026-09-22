@@ -17,6 +17,7 @@ import { AppError } from '../utils/errors.js';
 import { ActionService } from './action.service.js';
 import { PlayerStateService } from './player-state.service.js';
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 
 /** Pip's wait for a product shelf, shortened by standing with Pip exactly like his crack shelf. */
 function shelfInterval(ruleset: Ruleset, standings: Standings, intervalMinutes: number): number {
@@ -43,6 +44,7 @@ export const ProductMarketService = {
     const shelves = await prisma.productShelf.findMany({ where: { roundPlayerId }, select: { productKey: true, stock: true, stockAt: true } });
     const recipes = new Map(productRecipes(ruleset).map((recipe) => [recipe.product, recipe]));
     const economyOn = Boolean(ruleset.productEconomy);
+    const unlockKeys = await PermanentUnlockService.keys(prisma, roundPlayerId);
 
     return {
       enabled: true,
@@ -54,6 +56,8 @@ export const ProductMarketService = {
         const row = shelves.find((shelf) => shelf.productKey === key) ?? null;
         const shelf = economy?.pip ? settleProductShelf(row, economy, now, shelfInterval(ruleset, standings, economy.pip.restock.intervalMinutes)) : null;
         const recipe = economyOn ? recipes.get(key) : undefined;
+        const requiredUnlock = PermanentUnlockService.productPurchaseUnlock(ruleset, key);
+        const purchaseUnlocked = !requiredUnlock || unlockKeys.has(requiredUnlock.key);
         return {
           key,
           name: definition.name,
@@ -69,7 +73,10 @@ export const ProductMarketService = {
               perInterval: shelf.perInterval,
               intervalMinutes: shelf.intervalMinutes,
               nextAt: shelf.nextAt ? shelf.nextAt.toISOString() : null,
-              maxBuy: maxProductBuy(player.cashCents, quantity, economy.pip.buyCents, shelf.stock),
+              maxBuy: purchaseUnlocked ? maxProductBuy(player.cashCents, quantity, economy.pip.buyCents, shelf.stock) : 0,
+              purchaseUnlocked,
+              unlockName: requiredUnlock?.name ?? null,
+              unlockDescription: requiredUnlock?.description ?? null,
             } : null,
             recipe: recipe ? { perThugPerTurn: recipe.perThugPerTurn, ingredientCentsPerUnit: recipe.ingredientCentsPerUnit, heatPerUnit: recipe.heatPerUnit } : null,
           } : {}),
@@ -88,6 +95,19 @@ export const ProductMarketService = {
         if (input.product === CRACK) throw AppError.badRequest('USE_PIP_PRODUCT', 'Buy and sell crack as Product at Pip’s.', { product: 'Crack is sold at Pip’s store.' });
         const economy = productEconomy(ruleset, input.product);
         if (!economy?.pip) throw AppError.badRequest('UNKNOWN_ITEM', 'Pip does not deal that product.', { product: 'Pick a product Pip deals.' });
+
+        if (input.direction === 'buy') {
+          const requiredUnlock = PermanentUnlockService.productPurchaseUnlock(ruleset, input.product);
+          if (requiredUnlock) {
+            const unlockKeys = await PermanentUnlockService.keys(tx, roundPlayerId);
+            if (!unlockKeys.has(requiredUnlock.key)) {
+              throw AppError.conflict(
+                'PRODUCT_PURCHASE_LOCKED',
+                `Complete the required job to unlock ${requiredUnlock.name}.`,
+              );
+            }
+          }
+        }
 
         const inventory = await ProductInventoryService.read(tx, roundPlayerId, ruleset);
         const owned = inventory[input.product] ?? 0;
