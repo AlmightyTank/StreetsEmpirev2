@@ -24,7 +24,7 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
   FRONTEND_ORIGIN: z.string().url().optional(),
   /** Invite-only gate for isolated beta deployments. */
-  BETA_INVITE_ONLY: z.coerce.boolean().default(false),
+  BETA_INVITE_ONLY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
 
   DISCORD_CLIENT_ID: z.string().default(''),
   DISCORD_CLIENT_SECRET: z.string().default(''),
