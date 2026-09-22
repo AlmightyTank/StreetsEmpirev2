@@ -249,7 +249,7 @@ export function AdminPlayerPage() {
             <Row label="Weapon unlocks" value={`Shotgun ${yesNo(player.unlocks.shotgun)} · Tek-9 ${yesNo(player.unlocks.tek9)} · AK ${yesNo(player.unlocks.ak47)}`} />
             <Row label="Hideout" value={`Safe ${player.hideout.safeRoom} · Lookouts ${player.hideout.lookouts} · Workshop ${player.hideout.workshop} · Office ${player.hideout.backOffice}`} />
             {player.reputation.length ? player.reputation.map((row) => (
-              <Row key={row.trader} label={`Rep: ${row.trader}`} value={`${formatNumber(row.points)}${row.questDone ? ' · favor done' : ''}`} />
+              <Row key={row.trader} label={`Rep: ${row.trader}`} value={`${formatNumber(row.points)}${row.legacyFavorDone ? ' · legacy favor' : ''}`} />
             )) : <Row label="Reputation" value="-" />}
           </div>
         </Panel>
