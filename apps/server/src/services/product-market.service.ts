@@ -102,7 +102,7 @@ export const ProductMarketService = {
     return ActionService.run<ProductTradeResult>(prisma, roundPlayerId, {
       action: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
       actionId: input.actionId,
-      execute: async ({ tx, current, ruleset, standings, now }) => {
+      execute: async ({ tx, current, player, ruleset, standings, now }) => {
         if (!ruleset.productEconomy) throw AppError.conflict('PRODUCT_ECONOMY_DISABLED', 'Pip only deals Product this round.');
         if (input.product === CRACK) throw AppError.badRequest('USE_PIP_PRODUCT', 'Buy and sell crack as Product at Pip’s.', { product: 'Crack is sold at Pip’s store.' });
         const economy = productEconomy(ruleset, input.product);
@@ -193,6 +193,7 @@ export const ProductMarketService = {
               item: trade.productName,
               itemKey: trade.product,
               product: trade.product,
+              city: player.city.slug,
               direction: trade.direction,
               quantity: trade.quantity,
               totalCents: result.totalCents,
