@@ -139,7 +139,7 @@ const emptySeasonStats = (): PublicSeasonStatsDto => ({
   driveByAttacks: 0,
   driveByWins: 0,
   reconRuns: 0,
-  traderFavors: 0,
+  jobsCompleted: 0,
 });
 
 function addBattleToSeasonStats(
@@ -188,7 +188,7 @@ export async function loadCareerForAccount(
   const statsByPlayer = new Map(ids.map((id) => [id, emptySeasonStats()]));
 
   if (ids.length) {
-    const [battles, reconActivities, reputationRows] = await Promise.all([
+    const [battles, reconActivities, completedJobs, legacyFavorRows] = await Promise.all([
       prisma.raidBattle.findMany({
         where: { OR: [{ attackerId: { in: ids } }, { defenderId: { in: ids } }], voidedAt: null },
         select: { attackerId: true, defenderId: true, attackerReport: true, defenderReport: true },
@@ -198,6 +198,14 @@ export async function loadCareerForAccount(
         where: { roundPlayerId: { in: ids }, type: 'COMBAT_RECON' },
         _count: { _all: true },
       }),
+      prisma.playerQuest.groupBy({
+        by: ['roundPlayerId'],
+        where: { roundPlayerId: { in: ids }, status: 'COMPLETED' },
+        _count: { _all: true },
+      }),
+      // Historical rounds before the unified Jobs system used one legacy
+      // trader-favor flag per reputation row. Keep it only as a fallback when
+      // that player has no PlayerQuest completions.
       prisma.playerReputation.groupBy({
         by: ['roundPlayerId'],
         where: { roundPlayerId: { in: ids }, questDoneAt: { not: null } },
@@ -219,9 +227,15 @@ export async function loadCareerForAccount(
       if (stats) stats.reconRuns = activity._count._all;
     }
 
-    for (const reputation of reputationRows) {
-      const stats = statsByPlayer.get(reputation.roundPlayerId);
-      if (stats) stats.traderFavors = reputation._count._all;
+    const newJobPlayers = new Set(completedJobs.map((row) => row.roundPlayerId));
+    for (const job of completedJobs) {
+      const stats = statsByPlayer.get(job.roundPlayerId);
+      if (stats) stats.jobsCompleted = job._count._all;
+    }
+    for (const legacy of legacyFavorRows) {
+      if (newJobPlayers.has(legacy.roundPlayerId)) continue;
+      const stats = statsByPlayer.get(legacy.roundPlayerId);
+      if (stats) stats.jobsCompleted = legacy._count._all;
     }
   }
 
@@ -434,11 +448,11 @@ function achievementsFor(row: RankingRow, rank: { local: number; national: numbe
     achievement({ key: 'wire-tapper', title: 'Wire Tapper', description: 'Run five recon jobs in one round.', category: 'intel', rarity: 'uncommon', current: context.reconRuns, target: 5, progressLabel: 'recon runs', earnedAt: context.firstReconAt }),
     achievement({ key: 'eyes-everywhere', title: 'Eyes Everywhere', description: 'Run fifteen recon jobs in one round.', category: 'intel', rarity: 'rare', current: context.reconRuns, target: 15, progressLabel: 'recon runs', earnedAt: context.firstReconAt }),
 
-    achievement({ key: 'favor-done', title: 'Favor Done', description: 'Complete one trader favor.', category: 'reputation', rarity: 'common', current: context.questsCompleted, target: 1, progressLabel: 'trader favors', earnedAt: context.firstQuestAt }),
-    achievement({ key: 'connected', title: 'Connected', description: 'Complete all trader favors.', category: 'reputation', rarity: 'rare', current: context.questsCompleted, target: 4, progressLabel: 'trader favors', earnedAt: context.firstQuestAt }),
-    achievement({ key: 'shotgun-trust', title: 'Shotgun Trust', description: 'Unlock shotgun purchases through trader reputation.', category: 'reputation', rarity: 'uncommon', current: row.shotgunUnlocked ? 1 : 0, target: 1, progressLabel: 'unlock' }),
-    achievement({ key: 'tek-runner', title: 'Tek Runner', description: 'Unlock Tek-9 purchases through trader reputation.', category: 'reputation', rarity: 'rare', current: row.tek9Unlocked ? 1 : 0, target: 1, progressLabel: 'unlock' }),
-    achievement({ key: 'heavy-metal', title: 'Heavy Metal', description: 'Unlock AK-47 purchases through trader reputation.', category: 'reputation', rarity: 'epic', current: row.ak47Unlocked ? 1 : 0, target: 1, progressLabel: 'unlock' }),
+    achievement({ key: 'favor-done', title: 'Job Done', description: 'Complete one underworld job.', category: 'reputation', rarity: 'common', current: context.questsCompleted, target: 1, progressLabel: 'jobs completed', earnedAt: context.firstQuestAt }),
+    achievement({ key: 'connected', title: 'Connected', description: 'Complete ten underworld jobs.', category: 'reputation', rarity: 'rare', current: context.questsCompleted, target: 10, progressLabel: 'jobs completed', earnedAt: context.firstQuestAt }),
+    achievement({ key: 'shotgun-trust', title: 'Shotgun Trust', description: 'Unlock shotgun purchases through underworld jobs.', category: 'reputation', rarity: 'uncommon', current: row.shotgunUnlocked ? 1 : 0, target: 1, progressLabel: 'unlock' }),
+    achievement({ key: 'tek-runner', title: 'Tek Runner', description: 'Unlock Tek-9 purchases through underworld jobs.', category: 'reputation', rarity: 'rare', current: row.tek9Unlocked ? 1 : 0, target: 1, progressLabel: 'unlock' }),
+    achievement({ key: 'heavy-metal', title: 'Heavy Metal', description: 'Unlock AK-47 purchases through underworld jobs.', category: 'reputation', rarity: 'epic', current: row.ak47Unlocked ? 1 : 0, target: 1, progressLabel: 'unlock' }),
 
     achievement({ key: 'first-hideout-upgrade', title: 'Keys to the Place', description: 'Buy your first seasonal hideout upgrade.', category: 'hideout', rarity: 'common', current: hideoutLevels, target: 1, progressLabel: 'hideout levels' }),
     achievement({ key: 'hideout-regular', title: 'House Money', description: 'Reach ten hideout upgrades in one season.', category: 'hideout', rarity: 'uncommon', current: hideoutLevels, target: 10, progressLabel: 'hideout levels' }),
@@ -480,7 +494,7 @@ export async function loadPublicContexts(
   for (const id of ids) contexts.set(id, emptyContext());
   if (!ids.length) return contexts;
 
-  const [pastRows, battles, reconActivities, reputationRows] = await Promise.all([
+  const [pastRows, battles, reconActivities, completedJobs, legacyFavorRows] = await Promise.all([
     prisma.roundPlayer.findMany({
       where: { accountId: { in: accountIds }, roundId: { not: currentRoundId }, round: { status: { in: ['ENDED', 'ARCHIVED'] } } },
       select: { accountId: true, localRank: true, nationalRank: true, netWorthCents: true },
@@ -493,6 +507,11 @@ export async function loadPublicContexts(
       where: { roundPlayerId: { in: ids }, type: 'COMBAT_RECON' },
       select: { roundPlayerId: true, createdAt: true },
       orderBy: { createdAt: 'asc' },
+    }),
+    prisma.playerQuest.findMany({
+      where: { roundPlayerId: { in: ids }, status: 'COMPLETED', claimedAt: { not: null } },
+      select: { roundPlayerId: true, claimedAt: true },
+      orderBy: { claimedAt: 'asc' },
     }),
     prisma.playerReputation.findMany({
       where: { roundPlayerId: { in: ids }, questDoneAt: { not: null } },
@@ -575,11 +594,19 @@ export async function loadPublicContexts(
     context.firstReconAt = context.firstReconAt ?? activity.createdAt;
   }
 
-  for (const reputation of reputationRows) {
-    const context = contexts.get(reputation.roundPlayerId);
-    if (!context || !reputation.questDoneAt) continue;
+  const newJobPlayers = new Set(completedJobs.map((row) => row.roundPlayerId));
+  for (const job of completedJobs) {
+    const context = contexts.get(job.roundPlayerId);
+    if (!context || !job.claimedAt) continue;
     context.questsCompleted += 1;
-    context.firstQuestAt = context.firstQuestAt ?? reputation.questDoneAt;
+    context.firstQuestAt = context.firstQuestAt ?? job.claimedAt;
+  }
+  for (const legacy of legacyFavorRows) {
+    if (newJobPlayers.has(legacy.roundPlayerId)) continue;
+    const context = contexts.get(legacy.roundPlayerId);
+    if (!context || !legacy.questDoneAt) continue;
+    context.questsCompleted += 1;
+    context.firstQuestAt = context.firstQuestAt ?? legacy.questDoneAt;
   }
 
   return contexts;
