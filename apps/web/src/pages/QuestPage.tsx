@@ -158,6 +158,7 @@ export function QuestPage() {
     setNotice(null);
     try {
       setPage(await action());
+      window.dispatchEvent(new Event('streets:quests-changed'));
       if (success) setNotice(success);
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'That job could not be updated.');
@@ -173,6 +174,7 @@ export function QuestPage() {
     try {
       const result = await questsApi.claim(key, crypto.randomUUID());
       setNotice(result.result.title + ' complete — payment collected.');
+      window.dispatchEvent(new Event('streets:quests-changed'));
       await Promise.all([load(), refreshSnapshot()]);
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'Payment could not be collected.');
