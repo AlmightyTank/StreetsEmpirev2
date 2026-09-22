@@ -1,9 +1,10 @@
+import type { PrismaClient } from '@prisma/client';
 import type { PermanentUnlockDefinition, Ruleset } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 
 export const PermanentUnlockService = {
-  async keys(db: Db, roundPlayerId: string): Promise<Set<string>> {
+  async keys(db: Db | PrismaClient, roundPlayerId: string): Promise<Set<string>> {
     const rows = await db.playerUnlock.findMany({
       where: { roundPlayerId },
       select: { key: true },
