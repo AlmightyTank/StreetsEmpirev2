@@ -3,6 +3,7 @@ import { classicOgV07P } from '../classic-og-v0.7-p/index.js';
 import { branchingQuests } from '../classic-og-v0.7-q/branching-quests.js';
 import { classicOgV07Q } from '../classic-og-v0.7-q/index.js';
 import { hideoutV2For, hideoutV2Problems } from '../hideout-v2.js';
+import { questDefinitionProblems } from '../quest-definitions.js';
 
 describe('quest roadmap Phase R branching Jobs', () => {
   it('preserves Q and adds one fork with two exclusive follow-ups', () => {
@@ -38,6 +39,20 @@ describe('quest roadmap Phase R branching Jobs', () => {
     ]);
     expect(pip.rewards).toContainEqual({ kind: 'PERMANENT_UNLOCK', key: 'PRODUCT_HEROIN_ACCESS' });
     expect(tommy.rewards).toContainEqual({ kind: 'PERMANENT_UNLOCK', key: 'WEAPON_TEK9_ACCESS' });
+  });
+
+  it('rejects a BRANCH_CHOSEN prerequisite that names an unknown branch', () => {
+    const broken = {
+      ...classicOgV07Q.questDefinitions!,
+      PIP_AFTER_HOURS: {
+        ...branchingQuests.PIP_AFTER_HOURS,
+        prerequisites: [{
+          kind: 'BRANCH_CHOSEN' as const,
+          params: { questKey: 'TAKING_SIDES', branchKey: 'NOPE' },
+        }],
+      },
+    };
+    expect(questDefinitionProblems(broken)).toContain('PIP_AFTER_HOURS: unknown branch TAKING_SIDES/NOPE');
   });
 
   it('inherits secret/daily/weekly/favor/unlock/Hideout behavior unchanged', () => {
