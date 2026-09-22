@@ -133,7 +133,7 @@ export const weeklyContracts = {
       kind: 'EVENT_SUM',
       description: 'Sell $250,000 of product to Pip.',
       target: 25_000_000,
-      params: { eventTypes: ['STORE_SELL'], field: 'totalCents', where: { storeKey: 'PIP' } },
+      params: { eventTypes: ['STORE_SELL'], field: 'totalCents', where: { storeKey: 'PIP' }, display: 'CURRENCY' },
     }],
     bonusObjectives: [],
     rewards: [
