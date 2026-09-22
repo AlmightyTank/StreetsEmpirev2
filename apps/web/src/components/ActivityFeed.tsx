@@ -220,6 +220,18 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         detail: `-${formatCents(num(p.costCents))}`,
       };
 
+    case 'QUEST_READY':
+      return {
+        text: `Job complete: ${str(p.title, 'a quest')}.`,
+        detail: 'Return to Quests to collect payment.',
+      };
+
+    case 'QUEST_CLAIMED':
+      return {
+        text: `Collected payment for ${str(p.title, 'a quest')}.`,
+        detail: Array.isArray(p.rewards) ? (p.rewards as unknown[]).map(String).join(' · ') : undefined,
+      };
+
     case 'STORE_BUY':
     case 'STORE_SELL':
       return {
