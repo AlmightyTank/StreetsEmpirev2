@@ -3,7 +3,10 @@ import { loadRulesetForRound } from '@streets/rules-engine';
 import {
   payoutSchema,
   produceCrackSchema,
-  questCompleteSchema,
+  questAcceptSchema,
+  questAbandonSchema,
+  questClaimSchema,
+  questTrackSchema,
   scoutSchema,
   storeTradeSchema,
   weaponUnlockSchema,
@@ -13,6 +16,7 @@ import { toGameSnapshotDto } from '../game/dto.js';
 import { PayoutService } from '../services/payout.service.js';
 import { ProductionService } from '../services/production.service.js';
 import { QuestService } from '../services/quest.service.js';
+import { HandcraftedQuestService } from '../services/handcrafted-quest.service.js';
 import { ScoutService } from '../services/scout.service.js';
 import { toState } from '../services/action.service.js';
 import { StoreService } from '../services/store.service.js';
@@ -142,10 +146,37 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     return QuestService.summary(settled.ruleset, toState(settled.player), settled.standings);
   });
 
-  fastify.post('/reputation/quest', { preHandler: fastify.requireAuth }, async (request) => {
-    const body = parseBody(questCompleteSchema, request.body);
-    const { player } = await requirePlayer(request.auth!.account.id);
-    return QuestService.complete(fastify.prisma, player.id, body);
+  fastify.get('/quests', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    return HandcraftedQuestService.page(fastify.prisma, player.id, loadRulesetForRound(round));
+  });
+
+  fastify.post('/quests/:key/accept', { preHandler: fastify.requireAuth }, async (request) => {
+    parseBody(questAcceptSchema, request.body);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const key = String((request.params as { key: string }).key).trim().toUpperCase();
+    return HandcraftedQuestService.accept(fastify.prisma, player.id, loadRulesetForRound(round), key);
+  });
+
+  fastify.post('/quests/:key/abandon', { preHandler: fastify.requireAuth }, async (request) => {
+    parseBody(questAbandonSchema, request.body ?? {});
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const key = String((request.params as { key: string }).key).trim().toUpperCase();
+    return HandcraftedQuestService.abandon(fastify.prisma, player.id, loadRulesetForRound(round), key);
+  });
+
+  fastify.post('/quests/:key/track', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(questTrackSchema, request.body);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const key = String((request.params as { key: string }).key).trim().toUpperCase();
+    return HandcraftedQuestService.track(fastify.prisma, player.id, loadRulesetForRound(round), key, body.tracked);
+  });
+
+  fastify.post('/quests/:key/claim', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(questClaimSchema, request.body);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const key = String((request.params as { key: string }).key).trim().toUpperCase();
+    return HandcraftedQuestService.claim(fastify.prisma, player.id, loadRulesetForRound(round), key, body);
   });
 
   /** Section 26. */
