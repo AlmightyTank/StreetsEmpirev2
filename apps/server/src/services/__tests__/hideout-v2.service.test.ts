@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV06F, classicOgV07A, classicOgV07B, classicOgV07C, classicOgV07D } from '@streets/rulesets';
+import { classicOgV06F, classicOgV07A, classicOgV07B, classicOgV07C, classicOgV07D, classicOgV07F } from '@streets/rulesets';
 import {
   hideoutCatalog,
   hideoutGarageRelocationDiscountPercent,
   hideoutGarageRunLimit,
+  hideoutMedicineEfficiencyPercent,
   hideoutProductProtection,
   hideoutProtectedProductCapacity,
   hideoutWorkshopIngredientCentsPerUnit,
   hideoutWorkshopIngredientEfficiencyPercent,
   hideoutWorkshopOutputBonusPercent,
+  hideoutWeaponPriority,
 } from '../hideout.service.js';
 import type { PlayerState } from '../action.service.js';
 
@@ -182,6 +184,20 @@ describe('hideout v2 catalog', () => {
       runLimit: 2,
       relocationFeeDiscountPercent: 5,
     });
+  });
+
+  it('keeps Armory POWER as the default and caps F Infirmary savings at 15%', () => {
+    const base = player({ hideoutWorkshopLevel: 5, hideoutWeaponPriority: 'POWER' });
+    expect(hideoutWeaponPriority(classicOgV07F, base)).toBe('POWER');
+    expect(hideoutMedicineEfficiencyPercent(classicOgV07F, base)).toBe(15);
+
+    const conserve = player({ hideoutWorkshopLevel: 3, hideoutWeaponPriority: 'CONSERVE' });
+    expect(hideoutWeaponPriority(classicOgV07F, conserve)).toBe('CONSERVE');
+    expect(hideoutMedicineEfficiencyPercent(classicOgV07F, conserve)).toBe(5);
+
+    // Earlier 0.7 slices do not opt into either F behavior.
+    expect(hideoutWeaponPriority(classicOgV07D, conserve)).toBe('POWER');
+    expect(hideoutMedicineEfficiencyPercent(classicOgV07D, conserve)).toBe(0);
   });
 
 

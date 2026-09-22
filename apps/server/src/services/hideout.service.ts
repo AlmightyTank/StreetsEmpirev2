@@ -5,20 +5,25 @@ import {
   type HideoutRequirementKey,
   type HideoutRoomKey,
   type Ruleset,
+  type WeaponPriority,
 } from '@streets/rulesets';
 import type {
   GameActionResult,
+  HideoutArmoryDto,
   HideoutAssetProtectionDto,
   HideoutGarageDto,
+  HideoutInfirmaryDto,
   HideoutRequirementDto,
   HideoutRoomV2Dto,
   HideoutSecurityDto,
   HideoutUpgradeInput,
   HideoutUpgradeResult,
+  HideoutWeaponPriorityInput,
+  HideoutWeaponPriorityResult,
   HideoutV2Dto,
   HideoutWorkshopDto,
 } from '@streets/shared';
-import { ActionService, type PlayerState } from './action.service.js';
+import { ActionService, fitThugs, type PlayerState } from './action.service.js';
 import { AppError } from '../utils/errors.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 
@@ -204,6 +209,79 @@ export function hideoutGarageRelocationDiscountPercent(
   player: Pick<PlayerState, 'hideoutGarageLevel'>,
 ): number {
   return hideoutV2For(ruleset)?.garage?.relocationFeeDiscountPercentByGarageLevel[player.hideoutGarageLevel] ?? 0;
+}
+
+export function hideoutWeaponPriority(
+  ruleset: Ruleset,
+  player: Pick<PlayerState, 'hideoutWeaponPriority'>,
+): WeaponPriority {
+  if (!hideoutV2For(ruleset)?.armory) return 'POWER';
+  return player.hideoutWeaponPriority === 'CONSERVE' ? 'CONSERVE' : 'POWER';
+}
+
+export function hideoutMedicineEfficiencyPercent(
+  ruleset: Ruleset,
+  player: Pick<PlayerState, 'hideoutWorkshopLevel'>,
+): number {
+  return hideoutV2For(ruleset)?.infirmary
+    ?.medicineEfficiencyPercentByWorkshopLevel[player.hideoutWorkshopLevel] ?? 0;
+}
+
+function armoryDto(ruleset: Ruleset, player: PlayerState): HideoutArmoryDto | undefined {
+  if (!hideoutV2For(ruleset)?.armory) return undefined;
+  const fit = fitThugs(player);
+  const weapons = {
+    pistols: player.pistols,
+    shotguns: player.shotguns,
+    tek9s: player.tek9s,
+    ak47s: player.ak47s,
+  };
+  const total = weapons.pistols + weapons.shotguns + weapons.tek9s + weapons.ak47s;
+  return {
+    priority: hideoutWeaponPriority(ruleset, player),
+    choices: [
+      {
+        key: 'POWER',
+        name: 'Power First',
+        blurb: 'Arm crews with the strongest guns first. This is the classic behavior.',
+      },
+      {
+        key: 'CONSERVE',
+        name: 'Conserve Premium',
+        blurb: 'Use weaker guns first so premium weapons remain in reserve when possible.',
+      },
+    ],
+    weapons: { ...weapons, total },
+    fitThugs: fit,
+    armedCapacity: Math.min(fit, total),
+    unarmedFitThugs: Math.max(0, fit - total),
+  };
+}
+
+function infirmaryDto(
+  ruleset: Ruleset,
+  player: PlayerState,
+  nextRecoveryAt: Date | null,
+): HideoutInfirmaryDto | undefined {
+  if (!hideoutV2For(ruleset)?.infirmary) return undefined;
+  const efficiency = hideoutMedicineEfficiencyPercent(ruleset, player);
+  const multiplier = Math.max(1, 100 - efficiency);
+  const maxTreatableThugs = Math.min(
+    player.woundedThugs,
+    Math.floor(player.medicine * 100 / multiplier),
+  );
+  const medicineNeededForAll = player.woundedThugs <= 0
+    ? 0
+    : Math.max(1, Math.ceil(player.woundedThugs * multiplier / 100));
+  return {
+    fitThugs: fitThugs(player),
+    woundedThugs: player.woundedThugs,
+    medicine: player.medicine,
+    nextRecoveryAt: nextRecoveryAt?.toISOString() ?? null,
+    medicineEfficiencyPercent: efficiency,
+    medicineNeededForAll,
+    maxTreatableThugs,
+  };
 }
 
 function workshopDto(ruleset: Ruleset, player: PlayerState): HideoutWorkshopDto | undefined {
@@ -570,7 +648,7 @@ export const HideoutService = {
     products: HideoutProductStock = {},
     now: Date = new Date(),
   ): Promise<HideoutV2Dto> {
-    const [turfBlocksHeld, awayCars] = await Promise.all([
+    const [turfBlocksHeld, awayCars, nextInjury] = await Promise.all([
       ruleset.turf
         ? prisma.turf.count({ where: { roundId: player.roundId, holderId: player.id } })
         : Promise.resolve(0),
@@ -578,6 +656,13 @@ export const HideoutService = {
         where: { roundPlayerId: player.id, status: 'ACTIVE' },
         _sum: { lowRiders: true },
       }),
+      hideoutV2For(ruleset)?.infirmary
+        ? prisma.combatInjury.findFirst({
+            where: { roundPlayerId: player.id },
+            orderBy: [{ recoverAt: 'asc' }, { id: 'asc' }],
+            select: { recoverAt: true },
+          })
+        : Promise.resolve(null),
     ]);
     const lowRidersOwned = state.lowRiders + (awayCars._sum.lowRiders ?? 0);
     const catalog = hideoutCatalog(ruleset, state, products, { turfBlocksHeld, lowRidersOwned });
@@ -589,7 +674,35 @@ export const HideoutService = {
       ...catalog,
       ...(security ? { security } : {}),
       ...(ledger ? { ledger } : {}),
+      ...(armoryDto(ruleset, state) ? { armory: armoryDto(ruleset, state) } : {}),
+      ...(infirmaryDto(ruleset, state, nextInjury?.recoverAt ?? null)
+        ? { infirmary: infirmaryDto(ruleset, state, nextInjury?.recoverAt ?? null) }
+        : {}),
     };
+  },
+
+  setWeaponPriority(
+    prisma: PrismaClient,
+    roundPlayerId: string,
+    input: HideoutWeaponPriorityInput,
+  ): Promise<GameActionResult<HideoutWeaponPriorityResult>> {
+    return ActionService.run<HideoutWeaponPriorityResult>(prisma, roundPlayerId, {
+      action: 'HIDEOUT_ARMORY_PRIORITY',
+      actionId: input.actionId,
+      execute: ({ current, ruleset }) => {
+        const armory = hideoutV2For(ruleset)?.armory;
+        if (!armory) {
+          throw AppError.conflict('ARMORY_DISABLED', 'Armory management is not available in this round.');
+        }
+        if (!armory.weaponPriorities.includes(input.priority)) {
+          throw AppError.badRequest('INVALID_WEAPON_PRIORITY', 'Pick an Armory weapon priority.');
+        }
+        return {
+          next: { ...current, hideoutWeaponPriority: input.priority },
+          result: { priority: input.priority },
+        };
+      },
+    });
   },
 
   /** Buys the next room level after validating availability, progress requirements, and cash. */

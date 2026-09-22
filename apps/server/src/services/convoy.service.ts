@@ -48,10 +48,12 @@ import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { ActivityService } from './activity.service.js';
+import { EconomyLedgerService } from './economy-ledger.service.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
 import { allianceTargetBlock } from './alliance.service.js';
 import { CombatRecoveryService } from './combat-recovery.service.js';
 import { PlayerStateService } from './player-state.service.js';
+import { hideoutWeaponPriority } from './hideout.service.js';
 import { CRACK, ProductInventoryService } from './product-inventory.service.js';
 import { RUN_INCLUDE, cargoOf, takeFromRun, toStopPlans, totalAwayWorth, type LoadedRun } from './run-settle.service.js';
 import { WorkSupplyService } from './work-supply.service.js';
@@ -98,7 +100,12 @@ function requireConvoys(ruleset: Ruleset): { rules: NonNullable<ReturnType<typeo
 function armedSquad(ruleset: Ruleset, player: RoundPlayer, thugs: number): Weapons {
   const model = ruleset.combat!;
   const fit = Math.max(thugs, fitThugs(player));
-  const squad = equipCombatSquad({ thugs: fit, thugHappiness: player.thugHappiness, weapons: weaponsOf(player) }, Math.min(thugs, model.squadCap), model);
+  const squad = equipCombatSquad({
+    thugs: fit,
+    thugHappiness: player.thugHappiness,
+    weapons: weaponsOf(player),
+    weaponPriority: hideoutWeaponPriority(ruleset, player),
+  }, Math.min(thugs, model.squadCap), model);
   return { ...NO_WEAPONS, ...squad.equipment };
 }
 
@@ -551,6 +558,14 @@ export const ConvoyService = {
         recoverAt: recoverAt.toISOString(),
       };
       await tx.convoyTail.update({ where: { id: tail.id }, data: { status: 'LANDED', settledAt: now, result: json(result) } });
+      if (lootCash > 0n) {
+        await EconomyLedgerService.record(tx, ownerId, [{
+          source: 'CONVOY_DEFENSE',
+          label: `Convoy loss · ${names.attacker}`,
+          amountCents: -lootCash,
+          metadata: { tailId: tail.id },
+        }], at);
+      }
       await ActivityService.log(tx, ownerId, 'CONVOY_DEFENSE', json({ tailId: tail.id, attacker: names.attacker, city: cityName(ruleset, tail.city), held: !won, cashCents: -Number(lootCash), cargo: lootCargo, lowRider }));
     }
     return run;
@@ -596,6 +611,14 @@ export const ConvoyService = {
         const rows = Object.fromEntries(Object.entries(cargo).filter(([key, units]) => key !== CRACK && units > 0));
         if (Object.keys(rows).length) await ProductInventoryService.adjust(tx, playerId, ruleset, rows);
         await tx.roundPlayer.update({ where: { id: playerId }, data: { cashCents: { increment: cash }, crack: { increment: cargo[CRACK] ?? 0 }, lowRiders: { increment: result.lowRider } } });
+      }
+      if (cash > 0n) {
+        await EconomyLedgerService.record(tx, playerId, [{
+          source: 'CONVOY_ATTACK',
+          label: `Convoy loot · ${tail.owner.displayName}`,
+          amountCents: cash,
+          metadata: { tailId: tail.id },
+        }], tail.settledAt ?? now);
       }
       await tx.convoyTail.update({ where: { id: tail.id }, data: { attackerCreditedAt: now } });
       await ActivityService.log(tx, playerId, 'CONVOY_ATTACK', json({ tailId: tail.id, owner: tail.owner.displayName, city: cityName(ruleset, tail.city), escaped: result.escaped, won: result.won, cashCents: Number(cash), cargo, lowRider: result.lowRider, wounds: result.attackerWounds }));

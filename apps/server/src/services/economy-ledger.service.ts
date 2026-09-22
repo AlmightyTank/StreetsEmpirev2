@@ -80,40 +80,46 @@ export const EconomyLedgerService = {
 
     const historyDays = rule.historyDaysByBackOfficeLevel[backOfficeLevel] ?? rule.historyDaysByBackOfficeLevel[0]!;
     const rowLimit = rule.rowLimitByBackOfficeLevel[backOfficeLevel] ?? rule.rowLimitByBackOfficeLevel[0]!;
-    const summaryDays = Math.max(30, historyDays);
-    const since = new Date(now.getTime() - summaryDays * 86_400_000);
-    const rows = await prisma.economyLedgerEntry.findMany({
-      where: { roundPlayerId, createdAt: { gte: since } },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: 1_000,
-    });
+    const historyCutoff = new Date(now.getTime() - historyDays * 86_400_000);
 
-    const windows = ([1, 7, 30] as const).map((days) => {
-      const cutoff = now.getTime() - days * 86_400_000;
-      let income = 0n;
-      let expense = 0n;
-      for (const row of rows) {
-        if (row.createdAt.getTime() < cutoff) continue;
-        if (row.amountCents > 0n) income += row.amountCents;
-        else expense += -row.amountCents;
-      }
+    // Rolling totals are true aggregates over the full window. Itemized history
+    // remains intentionally capped by Back Office level, but summaries never
+    // silently drop older rows when a busy player exceeds that cap.
+    const windows = await Promise.all(([1, 7, 30] as const).map(async (days) => {
+      const cutoff = new Date(now.getTime() - days * 86_400_000);
+      const [income, expense] = await Promise.all([
+        prisma.economyLedgerEntry.aggregate({
+          where: { roundPlayerId, createdAt: { gte: cutoff }, amountCents: { gt: 0n } },
+          _sum: { amountCents: true },
+        }),
+        prisma.economyLedgerEntry.aggregate({
+          where: { roundPlayerId, createdAt: { gte: cutoff }, amountCents: { lt: 0n } },
+          _sum: { amountCents: true },
+        }),
+      ]);
+      const incomeCents = income._sum.amountCents ?? 0n;
+      const expenseSigned = expense._sum.amountCents ?? 0n;
+      const expenseCents = -expenseSigned;
       return {
         days,
-        incomeCents: Number(income),
-        expenseCents: Number(expense),
-        netCents: Number(income - expense),
+        incomeCents: Number(incomeCents),
+        expenseCents: Number(expenseCents),
+        netCents: Number(incomeCents + expenseSigned),
       };
+    }));
+
+    const rows = await prisma.economyLedgerEntry.findMany({
+      where: { roundPlayerId, createdAt: { gte: historyCutoff } },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: rowLimit,
     });
 
-    const historyCutoff = now.getTime() - historyDays * 86_400_000;
     return {
       backOfficeLevel,
       historyDays,
       rowLimit,
       windows,
       entries: rows
-        .filter((row) => row.createdAt.getTime() >= historyCutoff)
-        .slice(0, rowLimit)
         .map((row) => ({
           id: row.id,
           category: row.amountCents > 0n ? 'INCOME' as const : 'EXPENSE' as const,

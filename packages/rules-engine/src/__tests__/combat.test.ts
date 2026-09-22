@@ -21,6 +21,23 @@ describe('experimental combat equipment', () => {
     expect(Object.values(classicOgV01.weapons).map((w) => w.power)).toEqual([1, 4, 9, 22]);
   });
 
+  it('keeps strongest-first by default and lets Armory conserve premium guns', () => {
+    const mixed: CombatCrew = {
+      thugs: 2,
+      thugHappiness: 100,
+      weapons: { PISTOL: 2, SHOTGUN: 0, TEK9: 0, AK47: 2 },
+    };
+
+    const power = equipCombatSquad(mixed, 2, model);
+    expect(power.equipment.AK47).toBe(2);
+    expect(power.equipment.PISTOL).toBe(0);
+
+    const conserve = equipCombatSquad({ ...mixed, weaponPriority: 'CONSERVE' }, 2, model);
+    expect(conserve.equipment.PISTOL).toBe(2);
+    expect(conserve.equipment.AK47).toBe(0);
+    expect(conserve.strength).toBeLessThan(power.strength);
+  });
+
   it('equips the best available weapon once per committed thug', () => {
     const squad = equipCombatSquad({ ...crew(100), weapons: { PISTOL: 100, SHOTGUN: 5, TEK9: 2, AK47: 1 } }, 5, model);
     expect(squad.equipment).toEqual({ AK47: 1, TEK9: 2, SHOTGUN: 2, PISTOL: 0 });

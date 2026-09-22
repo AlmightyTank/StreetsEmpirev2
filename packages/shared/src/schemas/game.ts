@@ -100,6 +100,12 @@ export const hideoutUpgradeSchema = z.object({
 });
 export type HideoutUpgradeInput = z.infer<typeof hideoutUpgradeSchema>;
 
+export const hideoutWeaponPrioritySchema = z.object({
+  priority: z.enum(['POWER', 'CONSERVE']),
+  actionId: actionIdSchema,
+}).strict();
+export type HideoutWeaponPriorityInput = z.infer<typeof hideoutWeaponPrioritySchema>;
+
 export const storeTradeSchema = z.object({
   store: z.string().trim().min(1, 'Pick a store.').max(64),
   item: z.string().trim().min(1, 'Pick an item.').max(64),

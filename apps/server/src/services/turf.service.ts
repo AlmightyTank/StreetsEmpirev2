@@ -19,6 +19,7 @@ import type { CityTurfDto, TurfBattleReportDto, TurfBlockDto, TurfSummaryDto, Tu
 import type { Db } from '../utils/db.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
+import { EconomyLedgerService } from './economy-ledger.service.js';
 import { turfRevengeByAttacker } from './turf-revenge.service.js';
 import { endTurfHold } from './turf-history.service.js';
 import {
@@ -374,6 +375,13 @@ export const TurfService = {
       await tx.turfTaxLedger.update({ where: { id: row.id }, data: { creditedCents: row.mintedCents } });
     }
     const cashCents = player.cashCents + taxCreditedCents;
+    if (taxCreditedCents > 0n) {
+      await EconomyLedgerService.record(tx, roundPlayerId, [{
+        source: 'TURF_TAX',
+        label: 'Turf tax income',
+        amountCents: taxCreditedCents,
+      }], now);
+    }
     const boxes = await tx.turfOutpost.findMany({
       where: { ownerId: roundPlayerId },
       select: { cashCents: true, beer: true, products: true },
@@ -484,6 +492,12 @@ export const TurfService = {
           where: { id: box.id },
           data: { cashCents: { increment: BigInt(mintCents) } },
         });
+        await EconomyLedgerService.record(tx, row.holder.id, [{
+          source: 'TURF_TAX',
+          label: 'Turf tax income · remote outpost',
+          amountCents: BigInt(mintCents),
+          metadata: { district: input.district },
+        }], now);
         // Credited moves with minted here because the money already landed in the remote
         // box. The shared ledger still enforces the daily payer/holder cap across all blocks.
         await tx.turfTaxLedger.upsert({

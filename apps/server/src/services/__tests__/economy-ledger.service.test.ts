@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { PrismaClient } from '@prisma/client';
+import { classicOgV07E } from '@streets/rulesets';
 import { EconomyLedgerService } from '../economy-ledger.service.js';
 
 describe('economy ledger defaults', () => {
@@ -19,4 +21,40 @@ describe('economy ledger defaults', () => {
   it('does not create zero-value noise', () => {
     expect(EconomyLedgerService.defaultForAction('PAYOUT_CHANGE', 10_000n, 10_000n)).toEqual([]);
   });
+
+  it('computes rolling summaries from aggregates rather than the visible row cap', async () => {
+    const aggregate = vi.fn()
+      .mockResolvedValueOnce({ _sum: { amountCents: 5_000n } })
+      .mockResolvedValueOnce({ _sum: { amountCents: -2_000n } })
+      .mockResolvedValueOnce({ _sum: { amountCents: 15_000n } })
+      .mockResolvedValueOnce({ _sum: { amountCents: -4_000n } })
+      .mockResolvedValueOnce({ _sum: { amountCents: 50_000n } })
+      .mockResolvedValueOnce({ _sum: { amountCents: -12_000n } });
+    const findMany = vi.fn().mockResolvedValue([{
+      id: 'visible-row',
+      source: 'STORE_SELL',
+      label: 'Visible sale',
+      amountCents: 1_000n,
+      createdAt: new Date('2026-09-22T12:00:00.000Z'),
+    }]);
+    const prisma = { economyLedgerEntry: { aggregate, findMany } } as unknown as PrismaClient;
+
+    const page = await EconomyLedgerService.page(
+      prisma,
+      'player-1',
+      classicOgV07E,
+      0,
+      new Date('2026-09-22T12:00:00.000Z'),
+    );
+
+    expect(page?.windows).toEqual([
+      { days: 1, incomeCents: 5_000, expenseCents: 2_000, netCents: 3_000 },
+      { days: 7, incomeCents: 15_000, expenseCents: 4_000, netCents: 11_000 },
+      { days: 30, incomeCents: 50_000, expenseCents: 12_000, netCents: 38_000 },
+    ]);
+    expect(aggregate).toHaveBeenCalledTimes(6);
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 10 }));
+    expect(page?.entries).toHaveLength(1);
+  });
+
 });

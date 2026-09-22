@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { classicOgV04C, classicOgV04D, classicOgV07D, classicOgV07E } from '@streets/rulesets';
+import { classicOgV04C, classicOgV04D, classicOgV07D, classicOgV07E, classicOgV07F } from '@streets/rulesets';
 import { calculateNetWorthCents, productNetWorthCents, startingStock } from '@streets/rules-engine';
 import type { BattleReportDto, GameActionResult, HideoutV2Dto, ProduceCrackResult, ProductsDto, ProductTradeResult } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
@@ -153,6 +153,45 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('product economy with Po
       expect(result.ingredientCents).toBe(baseOutput * effectiveIngredient);
       expect(result.hideoutIngredientSavingsCents).toBe(baseOutput * (baseIngredient - effectiveIngredient));
     }
+  });
+
+  it('persists 0.7-F Armory priority through the Hideout API', async () => {
+    await app.prisma.round.update({
+      where: { id: roundId },
+      data: { rulesetId: classicOgV07F.meta.id, rulesetVersion: classicOgV07F.meta.version },
+    });
+    await app.prisma.roundPlayer.update({
+      where: { id: players[0]! },
+      data: {
+        hideoutWeaponPriority: 'POWER',
+        pistols: 10,
+        ak47s: 10,
+        woundedThugs: 2,
+        medicine: 10,
+        hideoutWorkshopLevel: 5,
+      },
+    });
+
+    const saved = await post(0, '/hideout/armory/priority', {
+      priority: 'CONSERVE',
+      actionId: randomUUID(),
+    });
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect(saved.json().result).toEqual({ priority: 'CONSERVE' });
+
+    const stored = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: players[0]! } });
+    expect(stored.hideoutWeaponPriority).toBe('CONSERVE');
+
+    const hideout = (await get(0, '/hideout')).json<HideoutV2Dto>();
+    expect(hideout.armory).toMatchObject({
+      priority: 'CONSERVE',
+      weapons: { pistols: 10, ak47s: 10, total: 20 },
+    });
+    expect(hideout.infirmary).toMatchObject({
+      woundedThugs: 2,
+      medicine: 10,
+      medicineEfficiencyPercent: 15,
+    });
   });
 
   it('records 0.7-E store and production economics in the Back Office ledger', async () => {

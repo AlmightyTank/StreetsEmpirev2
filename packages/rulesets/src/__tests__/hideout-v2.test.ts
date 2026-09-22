@@ -6,6 +6,7 @@ import {
   classicOgV07C,
   classicOgV07D,
   classicOgV07E,
+  classicOgV07F,
   hideoutV2For,
   hideoutV2Problems,
 } from '../index.js';
@@ -81,6 +82,17 @@ describe('classic-og-v0.7-a hideout foundation', () => {
       connectionsTakeBonusPercent: 2,
     });
     expect(hideoutV2Problems(classicOgV07E)).toEqual([]);
+  });
+
+  it('adds Armory priorities and bounded Infirmary support only in 0.7-F', () => {
+    const extension = hideoutV2For(classicOgV07F);
+    expect(classicOgV07F.hideout).toEqual(classicOgV07E.hideout);
+    expect(hideoutV2For(classicOgV07E)?.armory).toBeUndefined();
+    expect(hideoutV2For(classicOgV07E)?.infirmary).toBeUndefined();
+    expect(extension?.armory?.weaponPriorities).toEqual(['POWER', 'CONSERVE']);
+    expect(extension?.infirmary?.medicineEfficiencyPercentByWorkshopLevel)
+      .toEqual([0, 0, 0, 5, 10, 15]);
+    expect(hideoutV2Problems(classicOgV07F)).toEqual([]);
   });
 
 

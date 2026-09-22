@@ -12,6 +12,7 @@ import { NetWorthService } from './net-worth.service.js';
 import { PlayerStateService } from './player-state.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
 import { RankingService } from './ranking.service.js';
+import { EconomyLedgerService } from './economy-ledger.service.js';
 
 type Counts = Record<string, number>;
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -66,6 +67,7 @@ export const AdminBattleService = {
       const beforeD = correctionSnapshot(d);
       const shortA: Counts = {};
       const shortD: Counts = {};
+      let cashCorrection = 0n;
 
       const injuries = await tx.combatInjury.findMany({ where: { battleId: battle.id } });
       const healing = (playerId: string) => injuries.filter((row) => row.roundPlayerId === playerId).reduce((sum, row) => sum + row.thugs, 0);
@@ -83,6 +85,7 @@ export const AdminBattleService = {
       if (kind === 'RAID') {
         const loot = BigInt(Math.max(0, report.cashChangeCents ?? 0));
         const back = a.cashCents < loot ? a.cashCents : loot;
+        cashCorrection = back;
         a.cashCents -= back;
         d.cashCents += back;
         if (loot > back) shortA.cashCents = Number(loot - back);
@@ -161,6 +164,21 @@ export const AdminBattleService = {
       await writeRanks(tx, ruleset, now, [[attacker.id, priorAttacker, ranksBeforeA, ranksAfterA], [defender.id, priorDefender, ranksBeforeD, ranksAfterD]]);
 
       await tx.raidBattle.update({ where: { id: battle.id }, data: { voidedAt: now, voidedByUsername: actor.username, voidReason: reason } });
+
+      if (cashCorrection > 0n) {
+        await EconomyLedgerService.record(tx, attacker.id, [{
+          source: 'BATTLE_VOIDED',
+          label: `Battle void correction · ${defender.displayName}`,
+          amountCents: -cashCorrection,
+          metadata: { battleId: battle.id },
+        }], now);
+        await EconomyLedgerService.record(tx, defender.id, [{
+          source: 'BATTLE_VOIDED',
+          label: `Battle void correction · ${attacker.displayName}`,
+          amountCents: cashCorrection,
+          metadata: { battleId: battle.id },
+        }], now);
+      }
 
       const afterA = correctionSnapshot(a);
       const afterD = correctionSnapshot(d);

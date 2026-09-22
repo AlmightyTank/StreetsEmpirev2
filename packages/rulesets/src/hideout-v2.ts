@@ -78,6 +78,16 @@ export interface HideoutGarageRule {
   readonly relocationFeeDiscountPercentByGarageLevel: readonly number[];
 }
 
+export interface HideoutArmoryRule {
+  /** Persisted choices the Armory may expose. */
+  readonly weaponPriorities: readonly ['POWER', 'CONSERVE'];
+}
+
+export interface HideoutInfirmaryRule {
+  /** Medicine savings supplied by Workshop infrastructure, index 0..Workshop max level. */
+  readonly medicineEfficiencyPercentByWorkshopLevel: readonly number[];
+}
+
 export interface HideoutLedgerRule {
   /** Itemized ledger history unlocked by Back Office level, index 0..max level. */
   readonly historyDaysByBackOfficeLevel: readonly number[];
@@ -103,6 +113,10 @@ export interface HideoutV2Rules {
   readonly garage?: HideoutGarageRule;
   /** Optional 0.7-E Back Office ledger tuning. */
   readonly ledger?: HideoutLedgerRule;
+  /** Optional 0.7-F Armory behavior. */
+  readonly armory?: HideoutArmoryRule;
+  /** Optional 0.7-F Infirmary behavior. */
+  readonly infirmary?: HideoutInfirmaryRule;
 }
 
 export const CLASSIC_OG_V07A_HIDEOUT_V2 = {
@@ -227,12 +241,24 @@ export const CLASSIC_OG_V07E_HIDEOUT_V2 = {
   },
 } as const satisfies HideoutV2Rules;
 
+export const CLASSIC_OG_V07F_HIDEOUT_V2 = {
+  ...CLASSIC_OG_V07E_HIDEOUT_V2,
+  armory: {
+    weaponPriorities: ['POWER', 'CONSERVE'],
+  },
+  infirmary: {
+    // A developed Workshop can stretch medical supplies, but never eliminates the cost of treatment.
+    medicineEfficiencyPercentByWorkshopLevel: [0, 0, 0, 5, 10, 15],
+  },
+} as const satisfies HideoutV2Rules;
+
 const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v0.7-a': CLASSIC_OG_V07A_HIDEOUT_V2,
   'classic-og-v0.7-b': CLASSIC_OG_V07B_HIDEOUT_V2,
   'classic-og-v0.7-c': CLASSIC_OG_V07C_HIDEOUT_V2,
   'classic-og-v0.7-d': CLASSIC_OG_V07D_HIDEOUT_V2,
   'classic-og-v0.7-e': CLASSIC_OG_V07E_HIDEOUT_V2,
+  'classic-og-v0.7-f': CLASSIC_OG_V07F_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */
@@ -427,6 +453,37 @@ export function hideoutV2Problems(ruleset: Ruleset): string[] {
     if (ledger.specializationHooks.bookkeepingHistoryDaysBonus < 0
       || ledger.specializationHooks.connectionsTakeBonusPercent < 0) {
       problems.push('BACK_OFFICE: specialization hooks cannot be negative.');
+    }
+  }
+
+
+  const armory = extension.armory;
+  if (armory) {
+    if (armory.weaponPriorities.length !== 2
+      || armory.weaponPriorities[0] !== 'POWER'
+      || armory.weaponPriorities[1] !== 'CONSERVE') {
+      problems.push('ARMORY: priorities must keep POWER and CONSERVE in that order.');
+    }
+  }
+
+  const infirmary = extension.infirmary;
+  if (infirmary) {
+    const workshop = ruleset.hideout.rooms.WORKSHOP;
+    const expected = workshop.maxLevel + 1;
+    if (infirmary.medicineEfficiencyPercentByWorkshopLevel.length !== expected) {
+      problems.push(`INFIRMARY: medicine efficiency needs ${expected} entries for Workshop levels 0..${workshop.maxLevel}.`);
+    }
+    let prior = -1;
+    for (const value of infirmary.medicineEfficiencyPercentByWorkshopLevel) {
+      if (!Number.isSafeInteger(value) || value < 0 || value > 50) {
+        problems.push('INFIRMARY: medicine efficiency must stay between 0 and 50 whole percent.');
+        break;
+      }
+      if (value < prior) {
+        problems.push('INFIRMARY: medicine efficiency cannot decrease at higher Workshop levels.');
+        break;
+      }
+      prior = value;
     }
   }
 
