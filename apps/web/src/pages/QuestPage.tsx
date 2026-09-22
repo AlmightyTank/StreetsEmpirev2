@@ -116,7 +116,7 @@ function QuestCard({
                 disabledReason={busy}
                 onClick={() => onClaim(quest.key, choice.key, choice.title)}
               >
-                Choose {choice.title}
+                {choice.title}
               </Button>
             </div>
           ))}
