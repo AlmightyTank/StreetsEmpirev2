@@ -1,13 +1,11 @@
 import type { PrismaClient } from '@prisma/client';
 import {
   calculateStoreTrade,
-  calculateWeaponUnlock,
   creditDailyTrade,
   hasWeaponAccess,
   maxStoreBuy,
   stockOnHand,
   StoreTradeError,
-  WeaponUnlockError,
   restockSpeedup,
   tierFor,
   weaponUnlockProgress,
@@ -15,7 +13,7 @@ import {
   type Standings,
 } from '@streets/rules-engine';
 import type { TraderKey } from '@streets/rulesets';
-import type { GameActionResult, StoresDto, StoreTradeInput, StoreTradeResult, WeaponUnlockInput, WeaponUnlockResult } from '@streets/shared';
+import type { GameActionResult, StoresDto, StoreTradeInput, StoreTradeResult } from '@streets/shared';
 import { ActionService, type PlayerState } from './action.service.js';
 import type { StockSettlementSet } from './stock.service.js';
 import { AppError } from '../utils/errors.js';
@@ -63,31 +61,6 @@ export const StoreService = {
       lowRiderThugCapacity: ruleset.lowRiderThugCapacity,
       productCounter: Boolean(ruleset.productEconomy),
     };
-  },
-
-  unlock(prisma: PrismaClient, roundPlayerId: string, input: WeaponUnlockInput): Promise<GameActionResult<WeaponUnlockResult>> {
-    return ActionService.run<WeaponUnlockResult>(prisma, roundPlayerId, {
-      action: 'WEAPON_UNLOCK', actionId: input.actionId,
-      execute: ({ current, ruleset, standings }) => {
-        let unlock;
-        try {
-          unlock = calculateWeaponUnlock(current, standings, input.weapon, ruleset);
-        } catch (error) {
-          if (error instanceof WeaponUnlockError) throw AppError.badRequest(error.code, error.message);
-          throw error;
-        }
-        // Access costs nothing but standing. Buying the gun is a normal trade.
-        const { field, ...result } = unlock;
-        return {
-          next: { ...current, [field]: true },
-          result,
-          activity: {
-            type: 'WEAPON_UNLOCK',
-            payload: { weapon: unlock.weaponName, weaponKey: input.weapon, unlock: unlock.title },
-          },
-        };
-      },
-    });
   },
 
   trade(prisma: PrismaClient, roundPlayerId: string, input: StoreTradeInput): Promise<GameActionResult<StoreTradeResult>> {
