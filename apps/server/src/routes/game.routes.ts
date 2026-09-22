@@ -9,7 +9,6 @@ import {
   questTrackSchema,
   scoutSchema,
   storeTradeSchema,
-  weaponUnlockSchema,
   hideoutUpgradeSchema,
 } from '@streets/shared';
 import { toGameSnapshotDto } from '../game/dto.js';
@@ -110,12 +109,6 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const body = parseBody(storeTradeSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
     return StoreService.trade(fastify.prisma, player.id, body);
-  });
-
-  fastify.post('/stores/unlock', { preHandler: fastify.requireAuth }, async (request) => {
-    const body = parseBody(weaponUnlockSchema, request.body);
-    const { player } = await requirePlayer(request.auth!.account.id);
-    return StoreService.unlock(fastify.prisma, player.id, body);
   });
 
   fastify.get('/hideout', { preHandler: fastify.requireAuth }, async (request) => {
