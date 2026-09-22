@@ -38,6 +38,7 @@ import { ProductInventoryService } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 import { RankingService } from './ranking.service.js';
 import { hideoutDefenseBonusPercent, hideoutMedicineEfficiencyPercent, hideoutProductProtection, hideoutProtectedCashBonusCents, hideoutProtectedProductCapacity, hideoutWeaponPriority } from './hideout.service.js';
+import { TimedFavorService } from './timed-favor.service.js';
 
 type CombatRules = NonNullable<Ruleset['combat']>;
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value, (_, v: unknown) => typeof v === 'bigint' ? v.toString() : v));
@@ -604,19 +605,39 @@ export function sharedIntelByTarget(
   }]));
 }
 
-async function recoveryDto(prisma: PrismaClient, playerId: string, player: RoundPlayer, model: CombatRules): Promise<CombatRecoveryDto> {
+async function recoveryDto(
+  prisma: PrismaClient,
+  playerId: string,
+  player: RoundPlayer,
+  ruleset: Ruleset,
+  model: CombatRules,
+  now: Date,
+): Promise<CombatRecoveryDto> {
   const next = await prisma.combatInjury.findFirst({
     where: { roundPlayerId: playerId },
     orderBy: [{ recoverAt: 'asc' }, { id: 'asc' }],
     select: { recoverAt: true },
   });
   const medicinePerThug = model.wounds.winnerFraction === 0 && model.wounds.loserFraction === 0 ? 0 : 1;
+  const favorBonuses = await TimedFavorService.bonuses(prisma, playerId, ruleset, now);
+  const medicineEfficiencyPercent = Math.min(
+    50,
+    hideoutMedicineEfficiencyPercent(ruleset, player) + favorBonuses.treatmentMedicineEfficiencyPercent,
+  );
+  const effectivePercent = Math.max(1, 100 - medicineEfficiencyPercent);
+  const maxByMedicine = medicinePerThug > 0
+    ? Math.floor(player.medicine * 100 / (medicinePerThug * effectivePercent))
+    : 0;
   return {
     fitThugs: fitThugs(player),
     woundedThugs: player.woundedThugs,
     nextRecoveryAt: iso(next?.recoverAt ?? null),
     medicinePerThug,
-    maxTreatableThugs: medicinePerThug > 0 ? Math.min(player.woundedThugs, Math.floor(player.medicine / medicinePerThug)) : 0,
+    maxTreatableThugs: Math.min(player.woundedThugs, maxByMedicine),
+    ...(medicineEfficiencyPercent > 0 ? { medicineEfficiencyPercent } : {}),
+    ...(favorBonuses.treatmentMedicineEfficiencyPercent > 0
+      ? { favorMedicineEfficiencyPercent: favorBonuses.treatmentMedicineEfficiencyPercent }
+      : {}),
   };
 }
 
@@ -661,7 +682,7 @@ export const CombatService = {
       ...base, enabled: true, blockedReason,
       protectedUntil: combatProtectionUntil(player, model) > now ? iso(combatProtectionUntil(player, model)) : null,
       cooldownUntil: player.raidCooldownUntil && player.raidCooldownUntil > now ? iso(player.raidCooldownUntil) : null,
-      recovery: await recoveryDto(prisma, playerId, player, model),
+      recovery: await recoveryDto(prisma, playerId, player, ruleset, model, now),
       rules: { squadCap: model.squadCap, turnCost: model.turnCost, newcomerHours: model.newcomerHours,
         protectionHours: model.protectionHours, cooldownMinutes: model.cooldownMinutes,
         protectedCashCents: model.loot.protectedCashCents, lootPercent: model.loot.exposedCashPercent, perThugLootCents: model.loot.perFitAttackerCents,
@@ -1283,7 +1304,12 @@ export const CombatService = {
       const away = awayBlock(settled.player, now);
       if (away) throw AppError.conflict('AWAY', away);
       const medicinePerThug = 1;
-      const medicineEfficiencyPercent = hideoutMedicineEfficiencyPercent(settled.ruleset, settled.player);
+      const hideoutEfficiencyPercent = hideoutMedicineEfficiencyPercent(settled.ruleset, settled.player);
+      const favorBonuses = await TimedFavorService.bonuses(tx, playerId, settled.ruleset, now);
+      const medicineEfficiencyPercent = Math.min(
+        50,
+        hideoutEfficiencyPercent + favorBonuses.treatmentMedicineEfficiencyPercent,
+      );
       const treatment = await CombatRecoveryService.treat(
         tx,
         playerId,
@@ -1309,6 +1335,9 @@ export const CombatService = {
         treatedThugs: treatment.treatedThugs,
         medicineUsed: treatment.medicineUsed,
         ...(medicineEfficiencyPercent > 0 ? { medicineEfficiencyPercent } : {}),
+        ...(favorBonuses.treatmentMedicineEfficiencyPercent > 0
+          ? { favorMedicineEfficiencyPercent: favorBonuses.treatmentMedicineEfficiencyPercent }
+          : {}),
         woundedThugs: treatment.woundedThugs,
         nextRecoveryAt: iso(treatment.nextRecoveryAt),
       };

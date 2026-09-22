@@ -1,4 +1,4 @@
-import type { GameActionResult, QuestClaimResult, QuestPageDto } from '@streets/shared';
+import type { FavorActivationResult, GameActionResult, QuestClaimResult, QuestPageDto } from '@streets/shared';
 import { api } from './client.js';
 
 export const questsApi = {
@@ -12,6 +12,11 @@ export const questsApi = {
   claim: (key: string, actionId: string) =>
     api.post<GameActionResult<QuestClaimResult>>(
       '/game/quests/' + encodeURIComponent(key) + '/claim',
+      { actionId },
+    ),
+  activateFavor: (key: string, actionId: string) =>
+    api.post<GameActionResult<FavorActivationResult>>(
+      '/game/favors/' + encodeURIComponent(key) + '/activate',
       { actionId },
     ),
 };

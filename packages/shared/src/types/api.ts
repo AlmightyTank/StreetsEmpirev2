@@ -35,6 +35,7 @@ export type ActivityType =
   | 'HIDEOUT_UPGRADE'
   | 'QUEST_READY'
   | 'QUEST_CLAIMED'
+  | 'FAVOR_ACTIVATED'
   | 'RUN_LAUNCHED'
   | 'RUN_RETURNED'
   | 'RUN_INCIDENT'
@@ -454,6 +455,8 @@ export interface ScoutResult {
   /** Your share, which is what landed in cash. */
   cashEarnedCents: number;
   hideoutBonusCents?: number;
+  favorIncomePercent?: number;
+  favorRecruitmentPercent?: number;
   payoutPercent: number;
 
   /** Crack-only compatibility field. On product rounds, this is the Crack slice of productsFound. */
@@ -504,6 +507,7 @@ export interface ProduceCrackResult {
   productName: string;
   productProduced: number;
   hideoutBonusProduct?: number;
+  favorProductionPercent?: number;
   crackProduced: number;
   hideoutBonusCrack?: number;
   ingredientCents: number;
@@ -672,12 +676,31 @@ export interface QuestPermanentUnlockDto {
   awardedAt: string;
 }
 
+export interface QuestActiveFavorDto {
+  key: string;
+  name: string;
+  description: string;
+  category: 'STREET' | 'UNDERWORLD' | 'MUSCLE';
+  startedAt: string;
+  expiresAt: string;
+}
+
+export interface FavorActivationResult {
+  favorKey: string;
+  name: string;
+  category: 'STREET' | 'UNDERWORLD' | 'MUSCLE';
+  startedAt: string;
+  expiresAt: string;
+  quantityRemaining: number;
+}
+
 export interface QuestFavorDto {
   key: string;
   name: string;
   description: string;
   contactKey: string;
   activationKind: 'TIMED' | 'SINGLE_USE';
+  activatable: boolean;
   category: string;
   durationMinutes: number | null;
   quantity: number;
@@ -686,6 +709,8 @@ export interface QuestFavorDto {
 }
 
 export interface QuestPageDto {
+  /** Server clock used by the client to age timed favor expiries without trusting its wall clock. */
+  serverTime: string;
   activeLimit: number;
   trackedLimit: number;
   counts: {
@@ -696,6 +721,7 @@ export interface QuestPageDto {
   };
   contacts: QuestContactDto[];
   permanentUnlocks: QuestPermanentUnlockDto[];
+  activeFavors: QuestActiveFavorDto[];
   favors: QuestFavorDto[];
   quests: PlayerQuestDto[];
 }
@@ -770,6 +796,7 @@ export interface ProductStockDto {
     purchaseUnlocked: boolean;
     unlockName: string | null;
     unlockDescription: string | null;
+    favorDiscountPercent?: number;
   } | null;
   /** 0.4.0-D. Present where Produce can cook it. */
   recipe?: { perThugPerTurn: number; ingredientCentsPerUnit: number; heatPerUnit: number } | null;
@@ -787,6 +814,7 @@ export interface ProductTradeResult {
   quantityAfter: number;
   stockAfter: number | null;
   reputationGained: number;
+  favorDiscountPercent?: number;
 }
 
 /** GET /api/game/products. Disabled on rounds where Product is still only crack. */

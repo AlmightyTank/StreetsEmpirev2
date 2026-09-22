@@ -128,6 +128,8 @@ export interface CombatRecoveryDto {
   nextRecoveryAt: string | null;
   medicinePerThug: number;
   maxTreatableThugs: number;
+  medicineEfficiencyPercent?: number;
+  favorMedicineEfficiencyPercent?: number;
 }
 
 export interface CombatTreatmentDto {
@@ -135,6 +137,7 @@ export interface CombatTreatmentDto {
   medicineUsed: number;
   /** 0.7.0-F. Zero on older rulesets. */
   medicineEfficiencyPercent?: number;
+  favorMedicineEfficiencyPercent?: number;
   woundedThugs: number;
   nextRecoveryAt: string | null;
 }

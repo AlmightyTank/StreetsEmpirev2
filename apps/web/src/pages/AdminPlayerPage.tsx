@@ -257,6 +257,13 @@ export function AdminPlayerPage() {
                 value={`×${formatNumber(favor.quantity)} · granted ${formatNumber(favor.totalGranted)} · ${favor.lastSourceQuestKey ?? 'system'}`}
               />
             )) : <Row label="Favor inventory" value="-" />}
+            {player.activeFavors.length ? player.activeFavors.map((favor) => (
+              <Row
+                key={favor.category}
+                label={`Active favor: ${favor.category}`}
+                value={`${favor.favorKey} · until ${adminWhen(favor.expiresAt)}`}
+              />
+            )) : <Row label="Active favors" value="-" />}
             <Row label="Hideout" value={`Safe ${player.hideout.safeRoom} · Lookouts ${player.hideout.lookouts} · Workshop ${player.hideout.workshop} · Office ${player.hideout.backOffice}`} />
             {player.reputation.length ? player.reputation.map((row) => (
               <Row key={row.trader} label={`Rep: ${row.trader}`} value={`${formatNumber(row.points)}${row.legacyFavorDone ? ' · legacy favor' : ''}`} />

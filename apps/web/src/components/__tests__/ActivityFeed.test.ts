@@ -98,4 +98,16 @@ describe('describeActivity', () => {
     });
   });
 
+
+  it('renders timed favor activation', () => {
+    expect(describeActivity(activity({
+      favorKey: 'MAMA_ADVICE',
+      name: "Mama's Advice",
+      category: 'STREET',
+      expiresAt: '2026-09-22T12:10:00.000Z',
+    }, 'FAVOR_ACTIVATED'), 'crack')).toMatchObject({
+      text: "Activated Mama's Advice.",
+    });
+  });
+
 });

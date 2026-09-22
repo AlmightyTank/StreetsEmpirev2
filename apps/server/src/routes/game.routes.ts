@@ -12,11 +12,13 @@ import {
   hideoutUpgradeSchema,
   hideoutSpecializationSchema,
   hideoutWeaponPrioritySchema,
+  favorActivateSchema,
 } from '@streets/shared';
 import { toGameSnapshotDto } from '../game/dto.js';
 import { PayoutService } from '../services/payout.service.js';
 import { ProductionService } from '../services/production.service.js';
 import { HandcraftedQuestService } from '../services/handcrafted-quest.service.js';
+import { TimedFavorService } from '../services/timed-favor.service.js';
 import { ScoutService } from '../services/scout.service.js';
 import { toState } from '../services/action.service.js';
 import { StoreService } from '../services/store.service.js';
@@ -173,6 +175,13 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
     const key = String((request.params as { key: string }).key).trim().toUpperCase();
     return HandcraftedQuestService.claim(fastify.prisma, player.id, loadRulesetForRound(round), key, body);
+  });
+
+  fastify.post('/favors/:key/activate', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(favorActivateSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const key = String((request.params as { key: string }).key).trim().toUpperCase();
+    return TimedFavorService.activate(fastify.prisma, player.id, key, body);
   });
 
   /** Section 26. */

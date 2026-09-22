@@ -86,6 +86,9 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
   const id = `product-${product.key}`;
   return (
     <Panel title={product.name}>
+      {pip.favorDiscountPercent ? (
+        <p className="se-hint"><strong>Pip's Connection:</strong> {formatNumber(pip.favorDiscountPercent)}% buy discount active.</p>
+      ) : null}
       <div className="se-store-prices">
         <span>Own <strong className="se-num">{formatNumber(product.quantity)}</strong></span>
         <span>Buy <strong className="se-num">{price(pip.buyCents)}</strong></span>

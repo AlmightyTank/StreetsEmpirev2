@@ -13,6 +13,7 @@ import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
+import { serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
 
 type Tab = 'available' | 'active' | 'completed';
 
@@ -140,19 +141,43 @@ export function QuestPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [clockOffsetMs, setClockOffsetMs] = useState(0);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  const applyPage = useCallback((
+    next: QuestPageDto,
+    requestStartedAtMs: number,
+    responseReceivedAtMs: number,
+  ) => {
+    const offset = serverClockOffsetMs(next.serverTime, requestStartedAtMs, responseReceivedAtMs);
+    setClockOffsetMs(offset);
+    setNowMs(serverAdjustedNowMs(responseReceivedAtMs, offset));
+    setPage(next);
+  }, []);
 
   const load = useCallback(async () => {
+    const requestStartedAtMs = Date.now();
     try {
-      setPage(await questsApi.page());
+      const next = await questsApi.page();
+      const responseReceivedAtMs = Date.now();
+      applyPage(next, requestStartedAtMs, responseReceivedAtMs);
       setError(null);
     } catch {
       setError('Could not load jobs right now. Try again.');
     }
-  }, []);
+  }, [applyPage]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const timer = window.setInterval(
+      () => setNowMs(serverAdjustedNowMs(Date.now(), clockOffsetMs)),
+      1_000,
+    );
+    return () => window.clearInterval(timer);
+  }, [clockOffsetMs]);
 
   useEffect(() => {
     setTab(tabFromSearch(location.search));
@@ -177,12 +202,20 @@ export function QuestPage() {
     return page.quests.filter((quest) => quest.status === 'AVAILABLE');
   }, [page, tab]);
 
+  const liveFavors = useMemo(
+    () => page?.activeFavors.filter((favor) => new Date(favor.expiresAt).getTime() > nowMs) ?? [],
+    [page, nowMs],
+  );
+
   async function mutate(key: string, action: () => Promise<QuestPageDto>, success?: string) {
     setBusy(key);
     setError(null);
     setNotice(null);
+    const requestStartedAtMs = Date.now();
     try {
-      setPage(await action());
+      const next = await action();
+      const responseReceivedAtMs = Date.now();
+      applyPage(next, requestStartedAtMs, responseReceivedAtMs);
       window.dispatchEvent(new Event('streets:quests-changed'));
       if (success) setNotice(success);
     } catch (cause) {
@@ -203,6 +236,22 @@ export function QuestPage() {
       await Promise.all([load(), refreshSnapshot()]);
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'Payment could not be collected.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function activateFavor(key: string) {
+    setBusy('favor:' + key);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await questsApi.activateFavor(key, crypto.randomUUID());
+      setNotice(result.result.name + ' is active until ' + new Date(result.result.expiresAt).toLocaleTimeString() + '.');
+      window.dispatchEvent(new Event('streets:quests-changed'));
+      await Promise.all([load(), refreshSnapshot()]);
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : 'That favor could not be activated.');
     } finally {
       setBusy(null);
     }
@@ -263,23 +312,56 @@ export function QuestPage() {
               </div>
             </Panel>
 
-            <Panel title="Favor inventory">
+            <Panel title="Active favors">
               <div className="se-rows">
-                {page.favors.length ? page.favors.map((favor) => (
+                {liveFavors.length ? liveFavors.map((favor) => (
                   <Row
-                    key={favor.key}
-                    label={favor.name}
-                    value={
-                      '×' + formatNumber(favor.quantity)
-                      + ' · ' + favor.category
-                      + (favor.activationKind === 'TIMED' && favor.durationMinutes
-                        ? ' · ' + formatNumber(favor.durationMinutes) + ' min'
-                        : ' · single use')
-                    }
+                    key={favor.category}
+                    label={favor.name + ' · ' + favor.category}
+                    value={'Until ' + new Date(favor.expiresAt).toLocaleTimeString()}
+                    strong
                   />
-                )) : <Row label="Stored favors" value="None yet" />}
+                )) : <Row label="Running now" value="None" />}
               </div>
-              <p className="se-hint se-mt">Favors can be earned and stacked now. Activation arrives in the next favor phases.</p>
+              <p className="se-hint se-mt">Timers use server time and keep running while you are logged out.</p>
+            </Panel>
+
+            <Panel title="Favor inventory">
+              {page.favors.length ? page.favors.map((favor) => {
+                const active = liveFavors.find((item) => item.category === favor.category);
+                return (
+                  <div key={favor.key} className="se-mb">
+                    <Row
+                      label={favor.name}
+                      value={
+                        '×' + formatNumber(favor.quantity)
+                        + ' · ' + favor.category
+                        + (favor.activationKind === 'TIMED' && favor.durationMinutes
+                          ? ' · ' + formatNumber(favor.durationMinutes) + ' min'
+                          : ' · single use')
+                      }
+                    />
+                    <p className="se-hint">{favor.description}</p>
+                    {favor.activationKind === 'TIMED' && favor.activatable ? (
+                      <Button
+                        className="se-btn se-btn--primary"
+                        disabledReason={
+                          busy
+                            ? 'Another update is still going through.'
+                            : active
+                              ? active.name + ' already occupies ' + favor.category + ' until ' + new Date(active.expiresAt).toLocaleTimeString() + '.'
+                              : null
+                        }
+                        onClick={() => void activateFavor(favor.key)}
+                      >
+                        Activate
+                      </Button>
+                    ) : favor.activationKind === 'SINGLE_USE'
+                      ? <p className="se-hint">Single-use activation arrives in Phase L.</p>
+                      : <p className="se-hint">This pinned round stores the favor but does not activate timed effects.</p>}
+                  </div>
+                );
+              }) : <Row label="Stored favors" value="None yet" />}
             </Panel>
           </div>
 

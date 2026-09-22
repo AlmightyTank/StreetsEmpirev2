@@ -272,12 +272,36 @@ export type FavorActivation =
       readonly category: FavorCategory;
     };
 
+export type TimedFavorEffect =
+  | {
+      readonly kind: 'SCOUT_BOOST';
+      readonly incomePercent: number;
+      readonly recruitmentPercent: number;
+    }
+  | {
+      readonly kind: 'PRODUCTION_BOOST';
+      readonly outputPercent: number;
+    }
+  | {
+      readonly kind: 'PIP_BUY_DISCOUNT';
+      readonly discountPercent: number;
+    }
+  | {
+      readonly kind: 'TREATMENT_EFFICIENCY';
+      readonly medicineEfficiencyPercent: number;
+    };
+
 export interface FavorDefinition {
   readonly key: string;
   readonly name: string;
   readonly description: string;
   readonly contactKey: ContactKey;
   readonly activation: FavorActivation;
+  /**
+   * Phase K effect for timed favors. Optional so 0.7-I remains an inventory-only
+   * pinned ruleset and single-use favors can wait for Phase L.
+   */
+  readonly effect?: TimedFavorEffect;
 }
 
 export type FavorCatalog = Readonly<Record<string, FavorDefinition>>;

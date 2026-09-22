@@ -25,6 +25,7 @@ import { ActionService, type PlayerState } from './action.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { FavorInventoryService } from './favor-inventory.service.js';
+import { TimedFavorService } from './timed-favor.service.js';
 
 const ACTIVE_LIMIT = 8;
 const TRACKED_LIMIT = 3;
@@ -338,7 +339,8 @@ export const HandcraftedQuestService = {
     await syncDefinitions(prisma, ruleset);
     return prisma.$transaction(async (tx) => {
       await lockRoundPlayer(tx, roundPlayerId);
-      await refreshAvailability(tx, roundPlayerId, ruleset);
+      const now = new Date();
+      await refreshAvailability(tx, roundPlayerId, ruleset, now);
       const rows = await tx.playerQuest.findMany({
         where: {
           roundPlayerId,
@@ -380,6 +382,7 @@ export const HandcraftedQuestService = {
         description: entry.definition.description,
         contactKey: entry.definition.contactKey,
         activationKind: entry.definition.activation.kind,
+        activatable: entry.definition.activation.kind === 'TIMED' && Boolean(entry.definition.effect),
         category: entry.definition.activation.category,
         durationMinutes: entry.definition.activation.kind === 'TIMED'
           ? entry.definition.activation.durationMinutes
@@ -388,7 +391,11 @@ export const HandcraftedQuestService = {
         totalGranted: entry.totalGranted,
         lastSourceQuestKey: entry.lastSourceQuestKey,
       }));
+      const activeFavors = await TimedFavorService.listActive(tx, roundPlayerId, ruleset, now);
       return {
+        // Sample immediately before the response object is built so browser clock
+        // skew cannot decide when an active favor expires.
+        serverTime: new Date().toISOString(),
         activeLimit: ACTIVE_LIMIT,
         trackedLimit: TRACKED_LIMIT,
         counts: {
@@ -399,6 +406,7 @@ export const HandcraftedQuestService = {
         },
         contacts,
         permanentUnlocks,
+        activeFavors,
         favors,
         quests: rows.map((row) => questDto(row, ruleset)),
       };
