@@ -1,4 +1,5 @@
 import type {
+  AdminAccountDeleteResultDto,
   AdminAccountDetailDto,
   AdminAccountSearchDto,
   AdminAccountStatusFilter,
@@ -92,6 +93,8 @@ export const adminApi = {
   resendVerification: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'email/resend'), { reason }),
   markEmailVerified: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'email/verify'), { reason }),
   unlinkForum: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'forum/unlink'), { reason }),
+  deleteAccount: (accountId: string, reason: string, confirmation: string) =>
+    api.post<AdminAccountDeleteResultDto>(accountPath(accountId, 'delete'), { reason, confirmation }),
 
   players: (params: { query: string; roundId?: string | undefined; limit?: number | undefined }) =>
     api.get<AdminPlayerSearchDto>(`/admin/players${queryString(params)}`),
