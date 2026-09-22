@@ -20,6 +20,7 @@ import type {
 } from '@streets/shared';
 import { ActionService, type PlayerState } from './action.service.js';
 import { AppError } from '../utils/errors.js';
+import { EconomyLedgerService } from './economy-ledger.service.js';
 
 type HideoutField =
   | 'hideoutSafeRoomLevel'
@@ -42,6 +43,8 @@ export type HideoutProductStock = Record<string, number>;
 
 export interface HideoutProgressContext {
   turfBlocksHeld?: number;
+  /** All owned cars, including Low-Riders currently assigned to active runs. */
+  lowRidersOwned?: number;
 }
 
 function productUnitValueCents(ruleset: Ruleset, key: string): number {
@@ -285,7 +288,7 @@ function requirementValue(key: HideoutRequirementKey, player: PlayerState, progr
     case 'DRIVE_BYS_DONE':
       return player.driveBysDone;
     case 'LOW_RIDERS':
-      return player.lowRiders;
+      return progress.lowRidersOwned ?? player.lowRiders;
     case 'WEAPONS_OWNED':
       return player.pistols + player.shotguns + player.tek9s + player.ak47s;
     case 'TURF_BLOCKS_HELD':
@@ -567,12 +570,26 @@ export const HideoutService = {
     products: HideoutProductStock = {},
     now: Date = new Date(),
   ): Promise<HideoutV2Dto> {
-    const turfBlocksHeld = ruleset.turf
-      ? await prisma.turf.count({ where: { roundId: player.roundId, holderId: player.id } })
-      : 0;
-    const catalog = hideoutCatalog(ruleset, state, products, { turfBlocksHeld });
-    const security = await securityDto(prisma, ruleset, player, now);
-    return security ? { ...catalog, security } : catalog;
+    const [turfBlocksHeld, awayCars] = await Promise.all([
+      ruleset.turf
+        ? prisma.turf.count({ where: { roundId: player.roundId, holderId: player.id } })
+        : Promise.resolve(0),
+      prisma.run.aggregate({
+        where: { roundPlayerId: player.id, status: 'ACTIVE' },
+        _sum: { lowRiders: true },
+      }),
+    ]);
+    const lowRidersOwned = state.lowRiders + (awayCars._sum.lowRiders ?? 0);
+    const catalog = hideoutCatalog(ruleset, state, products, { turfBlocksHeld, lowRidersOwned });
+    const [security, ledger] = await Promise.all([
+      securityDto(prisma, ruleset, player, now),
+      EconomyLedgerService.page(prisma, player.id, ruleset, state.hideoutBackOfficeLevel, now),
+    ]);
+    return {
+      ...catalog,
+      ...(security ? { security } : {}),
+      ...(ledger ? { ledger } : {}),
+    };
   },
 
   /** Buys the next room level after validating availability, progress requirements, and cash. */
@@ -605,10 +622,17 @@ export const HideoutService = {
         }
         const costCents = maybeCostCents;
         const levelAfter = levelBefore + 1;
-        const turfBlocksHeld = ruleset.turf
-          ? await tx.turf.count({ where: { roundId: player.roundId, holderId: roundPlayerId } })
-          : 0;
-        const requirements = requirementsFor(room, levelAfter, ruleset, current, { turfBlocksHeld });
+        const [turfBlocksHeld, awayCars] = await Promise.all([
+          ruleset.turf
+            ? tx.turf.count({ where: { roundId: player.roundId, holderId: roundPlayerId } })
+            : Promise.resolve(0),
+          tx.run.aggregate({
+            where: { roundPlayerId, status: 'ACTIVE' },
+            _sum: { lowRiders: true },
+          }),
+        ]);
+        const lowRidersOwned = current.lowRiders + (awayCars._sum.lowRiders ?? 0);
+        const requirements = requirementsFor(room, levelAfter, ruleset, current, { turfBlocksHeld, lowRidersOwned });
         const unmet = requirements.filter((requirement) => !requirement.met);
         if (unmet.length) {
           throw AppError.badRequest(
@@ -634,6 +658,11 @@ export const HideoutService = {
             costCents,
             effect: effect(room, levelAfter, ruleset),
           },
+          ledger: [{
+            source: 'HIDEOUT_UPGRADE',
+            label: `Hideout upgrade · ${rule.name} level ${levelAfter}`,
+            amountCents: -BigInt(costCents),
+          }],
           activity: {
             type: 'HIDEOUT_UPGRADE',
             payload: { room, name: rule.name, level: levelAfter, costCents },

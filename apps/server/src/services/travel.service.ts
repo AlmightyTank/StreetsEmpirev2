@@ -576,6 +576,11 @@ export const TravelService = {
               + awayWorth(ruleset, { cashCents, beer: input.beer, lowRiders: input.lowRiders, escortThugs: input.escortThugs, ...guns }, cargo),
           },
           result,
+          ledger: marketTrades.map((trade) => ({
+            source: 'RUN_LAUNCH',
+            label: `Home market buy · ${productName(ruleset, trade.productKey)}`,
+            amountCents: -trade.totalCents,
+          })),
           activity: { type: 'RUN_LAUNCHED', payload: { ...result, cities: [cityName(ruleset, input.to)] } },
         };
       },
@@ -730,6 +735,18 @@ export const TravelService = {
             heat: town.heat ? { before: current.heat, added, after: heatAfter } : null,
             trouble,
           },
+          ledger: [
+            {
+              source: 'RUN_TRADE',
+              label: `${cityName(base, city)} · ${input.venue === 'market' ? 'high market' : 'Pip'} ${buying ? 'buy' : 'sale'} · ${name}`,
+              amountCents: buying ? -totalCents : totalCents,
+            },
+            ...(trouble?.fineCents ? [{
+              source: 'RUN_INCIDENT',
+              label: `${cityName(base, city)} road fine`,
+              amountCents: -BigInt(trouble.fineCents),
+            }] : []),
+          ],
         };
       },
     });

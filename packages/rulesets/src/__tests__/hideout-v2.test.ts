@@ -5,6 +5,7 @@ import {
   classicOgV07B,
   classicOgV07C,
   classicOgV07D,
+  classicOgV07E,
   hideoutV2For,
   hideoutV2Problems,
 } from '../index.js';
@@ -67,6 +68,19 @@ describe('classic-og-v0.7-a hideout foundation', () => {
     expect(extension?.rooms.GARAGE?.requirements?.[1])
       .toEqual([{ key: 'LOW_RIDERS', label: 'Low-Riders owned', amount: 2 }]);
     expect(hideoutV2Problems(classicOgV07D)).toEqual([]);
+  });
+
+  it('adds Back Office ledger depth without changing the D economy balance', () => {
+    const extension = hideoutV2For(classicOgV07E);
+    expect(classicOgV07E.hideout).toEqual(classicOgV07D.hideout);
+    expect(hideoutV2For(classicOgV07D)?.ledger).toBeUndefined();
+    expect(extension?.ledger?.historyDaysByBackOfficeLevel).toEqual([1, 3, 7, 14, 30, 60]);
+    expect(extension?.ledger?.rowLimitByBackOfficeLevel).toEqual([10, 20, 35, 50, 75, 100]);
+    expect(extension?.ledger?.specializationHooks).toEqual({
+      bookkeepingHistoryDaysBonus: 30,
+      connectionsTakeBonusPercent: 2,
+    });
+    expect(hideoutV2Problems(classicOgV07E)).toEqual([]);
   });
 
 

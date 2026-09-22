@@ -405,6 +405,11 @@ export const RelocationService = {
         return {
           next: { ...current, cashCents: current.cashCents - check.feeCents, movingUntil: check.arrivesAt },
           result,
+          ledger: [{
+            source: 'RELOCATE',
+            label: `Relocation · ${cityName(base, player.city.slug)} → ${cityName(base, input.to)}`,
+            amountCents: -check.feeCents,
+          }],
           activity: { type: 'RELOCATION_STARTED', payload: result as unknown as Prisma.InputJsonValue },
         };
       },

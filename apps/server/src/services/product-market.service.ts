@@ -129,6 +129,11 @@ export const ProductMarketService = {
         return {
           next: { ...current, cashCents: current.cashCents + trade.cashChangeCents },
           result,
+          ledger: [{
+            source: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
+            label: `${ruleset.stores.PIP.name} · ${input.direction === 'buy' ? 'buy' : 'sell'} ${trade.productName}`,
+            amountCents: trade.cashChangeCents,
+          }],
           reputation: credit.credited ? [{ trader: 'PIP', points: credit.points, creditedOn: credit.creditedOn }] : undefined,
           activity: {
             type: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',

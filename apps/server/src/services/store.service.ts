@@ -151,6 +151,11 @@ export const StoreService = {
             ...(counter ? { [counter]: current[counter] + trade.quantityChange } : {}),
           },
           result,
+          ledger: [{
+            source: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
+            label: `${trade.storeName} · ${input.direction === 'buy' ? 'buy' : 'sell'} ${trade.itemName}`,
+            amountCents: trade.cashChangeCents,
+          }],
           reputation: credit.credited
             ? [{ trader, points: credit.points, creditedOn: credit.creditedOn }]
             : undefined,

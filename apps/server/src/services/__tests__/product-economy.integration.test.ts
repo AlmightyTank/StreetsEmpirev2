@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { classicOgV04C, classicOgV04D, classicOgV07D } from '@streets/rulesets';
+import { classicOgV04C, classicOgV04D, classicOgV07D, classicOgV07E } from '@streets/rulesets';
 import { calculateNetWorthCents, productNetWorthCents, startingStock } from '@streets/rules-engine';
-import type { BattleReportDto, GameActionResult, ProduceCrackResult, ProductsDto, ProductTradeResult } from '@streets/shared';
+import type { BattleReportDto, GameActionResult, HideoutV2Dto, ProduceCrackResult, ProductsDto, ProductTradeResult } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
 import { ProductInventoryService } from '../product-inventory.service.js';
 import { ReputationService } from '../reputation.service.js';
@@ -63,6 +63,7 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('product economy with Po
     await app.prisma.productShelf.deleteMany({ where: { roundPlayerId: { in: players } } });
     await app.prisma.workSupplyPolicy.deleteMany({ where: { roundPlayerId: { in: players } } });
     await app.prisma.processedAction.deleteMany({ where: { roundPlayerId: { in: players } } });
+    await app.prisma.economyLedgerEntry.deleteMany({ where: { roundPlayerId: { in: players } } });
     await app.prisma.combatIntel.deleteMany({ where: { OR: [{ observerId: { in: players } }, { targetId: { in: players } }] } });
     await app.prisma.combatInjury.deleteMany({ where: { roundPlayerId: { in: players } } });
     await app.prisma.raidBattle.deleteMany({ where: { attackerId: { in: players } } });
@@ -152,6 +153,46 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('product economy with Po
       expect(result.ingredientCents).toBe(baseOutput * effectiveIngredient);
       expect(result.hideoutIngredientSavingsCents).toBe(baseOutput * (baseIngredient - effectiveIngredient));
     }
+  });
+
+  it('records 0.7-E store and production economics in the Back Office ledger', async () => {
+    await app.prisma.round.update({
+      where: { id: roundId },
+      data: { rulesetId: classicOgV07E.meta.id, rulesetVersion: classicOgV07E.meta.version },
+    });
+    await app.prisma.roundPlayer.update({
+      where: { id: players[0]! },
+      data: { hideoutBackOfficeLevel: 2, hideoutWorkshopLevel: 5, heat: 0, cashCents: 50_000_000n },
+    });
+    await give(0, { WEED: 20 });
+
+    const sold = await post(0, '/products/trade', {
+      product: 'WEED',
+      direction: 'sell',
+      quantity: 10,
+      actionId: randomUUID(),
+    });
+    expect(sold.statusCode, sold.body).toBe(200);
+
+    const produced = await post(0, '/produce-crack', {
+      turns: 10,
+      productType: 'METH',
+      actionId: randomUUID(),
+    });
+    expect(produced.statusCode, produced.body).toBe(200);
+
+    const ledgerRows = await app.prisma.economyLedgerEntry.findMany({
+      where: { roundPlayerId: players[0]! },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(ledgerRows.some((row) => row.source === 'STORE_SELL' && row.amountCents > 0n)).toBe(true);
+    expect(ledgerRows.some((row) => row.source === 'PRODUCE_CRACK' && row.amountCents < 0n)).toBe(true);
+
+    const hideout = (await get(0, '/hideout')).json<HideoutV2Dto>();
+    expect(hideout.ledger).toMatchObject({ backOfficeLevel: 2, historyDays: 7, rowLimit: 35 });
+    expect(hideout.ledger!.windows.find((window) => window.days === 1)!.incomeCents).toBeGreaterThan(0);
+    expect(hideout.ledger!.windows.find((window) => window.days === 1)!.expenseCents).toBeGreaterThan(0);
+    expect(hideout.ledger!.entries.some((entry) => entry.source === 'STORE_SELL')).toBe(true);
   });
 
   it('raids take a mix of products and conserve every unit; recon reads a level, not a count', async () => {

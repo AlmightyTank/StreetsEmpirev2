@@ -627,6 +627,7 @@ model RoundPlayer {
   updatedAt DateTime @updatedAt
 
   activity              PlayerActivity[]
+  economyLedger         EconomyLedgerEntry[]
   processedActions      ProcessedAction[]
   reputation            PlayerReputation[]
   playerQuests          PlayerQuest[]
@@ -1322,6 +1323,26 @@ model PlayerActivity {
 
   @@index([roundPlayerId, createdAt(sort: Desc)])
 }
+
+/// 0.7.0-E. Durable economic lines for the Back Office ledger.
+/// Positive amounts are income; negative amounts are expenses. Internal transfers
+/// (for example cash loaded into a run) are intentionally not recorded here.
+model EconomyLedgerEntry {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  source      String
+  label       String
+  amountCents BigInt
+  metadata    Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([roundPlayerId, createdAt(sort: Desc)])
+}
+
 
 // ---------------------------------------------------------------------------
 // Turf (0.6.0-A)

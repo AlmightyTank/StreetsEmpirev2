@@ -107,6 +107,34 @@ export interface HideoutGarageDto {
   relocationFeeDiscountPercent: number;
 }
 
+export interface HideoutLedgerEntryDto {
+  id: string;
+  category: 'INCOME' | 'EXPENSE';
+  source: string;
+  label: string;
+  amountCents: number;
+  createdAt: string;
+}
+
+export interface HideoutLedgerWindowDto {
+  days: 1 | 7 | 30;
+  incomeCents: number;
+  expenseCents: number;
+  netCents: number;
+}
+
+export interface HideoutLedgerDto {
+  backOfficeLevel: number;
+  historyDays: number;
+  rowLimit: number;
+  windows: HideoutLedgerWindowDto[];
+  entries: HideoutLedgerEntryDto[];
+  specializationHooks: {
+    bookkeeping: { historyDaysBonus: number; active: false };
+    connections: { takeBonusPercent: number; active: false };
+  };
+}
+
 export interface HideoutV2Dto extends Omit<HideoutDto, 'rooms'> {
   /** 1 means the original cash-only contract; 2 enables 0.7 progression metadata. */
   rulesVersion: 1 | 2;
@@ -119,4 +147,6 @@ export interface HideoutV2Dto extends Omit<HideoutDto, 'rooms'> {
   workshop?: HideoutWorkshopDto;
   /** Present only on rulesets with the 0.7-D Garage/logistics model. */
   garage?: HideoutGarageDto;
+  /** Present only on rulesets with the 0.7-E Back Office ledger model. */
+  ledger?: HideoutLedgerDto;
 }
