@@ -672,6 +672,19 @@ export interface QuestPermanentUnlockDto {
   awardedAt: string;
 }
 
+export interface QuestFavorDto {
+  key: string;
+  name: string;
+  description: string;
+  contactKey: string;
+  activationKind: 'TIMED' | 'SINGLE_USE';
+  category: string;
+  durationMinutes: number | null;
+  quantity: number;
+  totalGranted: number;
+  lastSourceQuestKey: string | null;
+}
+
 export interface QuestPageDto {
   activeLimit: number;
   trackedLimit: number;
@@ -683,6 +696,7 @@ export interface QuestPageDto {
   };
   contacts: QuestContactDto[];
   permanentUnlocks: QuestPermanentUnlockDto[];
+  favors: QuestFavorDto[];
   quests: PlayerQuestDto[];
 }
 
