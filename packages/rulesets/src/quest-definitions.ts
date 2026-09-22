@@ -68,7 +68,10 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
       }
 
       const eventTypes = objective.params?.eventTypes;
-      if (eventTypes !== undefined && (
+      const eventDriven = objective.kind !== 'STATE_AT_LEAST';
+      if (eventDriven && eventTypes === undefined) {
+        problems.push(`${catalogKey}/${objective.id}: ${objective.kind} requires eventTypes`);
+      } else if (eventTypes !== undefined && (
         !Array.isArray(eventTypes)
         || eventTypes.length === 0
         || eventTypes.some((value) => typeof value !== 'string' || !value.trim())
