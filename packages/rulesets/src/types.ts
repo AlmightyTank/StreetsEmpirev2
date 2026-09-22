@@ -272,6 +272,20 @@ export type FavorActivation =
       readonly category: FavorCategory;
     };
 
+export type SingleUseFavorEffect =
+  | {
+      readonly kind: 'STORE_BUY_DISCOUNT';
+      readonly storeKey: StoreKey;
+      readonly itemKeys: readonly string[];
+      readonly discountPercent: number;
+    }
+  | {
+      readonly kind: 'FREE_RECON';
+    }
+  | {
+      readonly kind: 'FREE_TREATMENT';
+    };
+
 export type TimedFavorEffect =
   | {
       readonly kind: 'SCOUT_BOOST';
@@ -301,7 +315,7 @@ export interface FavorDefinition {
    * Phase K effect for timed favors. Optional so 0.7-I remains an inventory-only
    * pinned ruleset and single-use favors can wait for Phase L.
    */
-  readonly effect?: TimedFavorEffect;
+  readonly effect?: TimedFavorEffect | SingleUseFavorEffect;
 }
 
 export type FavorCatalog = Readonly<Record<string, FavorDefinition>>;
