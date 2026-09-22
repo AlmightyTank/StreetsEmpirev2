@@ -4,8 +4,8 @@ import { hideoutV2For, hideoutV2Problems } from '../hideout-v2.js';
 
 describe('quest roadmap Phase K timed favors', () => {
   it('keeps 0.7-I inventory-only and adds effects only in 0.7-J', () => {
-    expect(classicOgV07I.favors!.MAMA_ADVICE.effect).toBeUndefined();
-    expect(classicOgV07I.favors!.TOMMY_VOUCHER.effect).toBeUndefined();
+    expect('effect' in classicOgV07I.favors!.MAMA_ADVICE).toBe(false);
+    expect('effect' in classicOgV07I.favors!.TOMMY_VOUCHER).toBe(false);
 
     expect(classicOgV07J.favors!.MAMA_ADVICE.effect)
       .toEqual({ kind: 'SCOUT_BOOST', incomePercent: 10, recruitmentPercent: 10 });
@@ -22,7 +22,7 @@ describe('quest roadmap Phase K timed favors', () => {
   it('keeps Tommy Voucher single-use for Phase L', () => {
     expect(classicOgV07J.favors!.TOMMY_VOUCHER.activation)
       .toEqual({ kind: 'SINGLE_USE', category: 'MUSCLE' });
-    expect(classicOgV07J.favors!.TOMMY_VOUCHER.effect).toBeUndefined();
+    expect('effect' in classicOgV07J.favors!.TOMMY_VOUCHER).toBe(false);
   });
 
   it('preserves the Phase J inventory and Phase I permanent unlock catalogs', () => {
