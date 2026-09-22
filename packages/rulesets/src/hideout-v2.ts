@@ -342,6 +342,10 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v0.7-k': CLASSIC_OG_V07G_HIDEOUT_V2,
   // 0.7-L adds contact side jobs only; hideout behavior remains unchanged.
   'classic-og-v0.7-l': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // 0.7-M adds capstone jobs only; hideout behavior remains unchanged.
+  'classic-og-v0.7-m': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // 0.7-N adds rotating daily contracts only; hideout behavior remains unchanged.
+  'classic-og-v0.7-n': CLASSIC_OG_V07G_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */
