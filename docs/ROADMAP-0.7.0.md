@@ -21,7 +21,7 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 | Back Office | Income / management | Bookkeeping | Connections |
 
 ## 0.7.0-A — Hideout Foundation 2.0
-**Status:** **in progress.** The first foundation pass is on the `hideout-0.7.0` branch: the 0.7 ruleset/DTO contract, level-3 progress gates, specialization metadata, HQ summary, product-aware Workshop naming, compatibility tests, and `qa:hideout` validation are implemented.
+**Status:** **complete.** The foundation shipped through PR #25: the 0.7 ruleset/DTO contract, level-3 progress gates, specialization metadata, HQ summary, product-aware Workshop naming, compatibility tests, and `qa:hideout` validation are in place.
 
 **Goal:** Build the framework without stacking major balance changes on top.
 
@@ -37,6 +37,8 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** older rulesets still work, all original rooms upgrade correctly, the dashboard matches game state, and every lock explains what is missing.
 
 ## 0.7.0-B — Safe Room & Protected Storage
+**Status:** **in progress** on `hideout-0.7.0-b`. The first pass adds level-3+ protected product capacity, protected/exposed HQ reporting, recon-aware exposure, raid/drug-run enforcement, receipt visibility, and balance/regression coverage. Weapon reserve protection is deliberately held until combat balance data supports it.
+
 **Goal:** Make asset protection understandable and interactive.
 
 - Keep protected cash.
