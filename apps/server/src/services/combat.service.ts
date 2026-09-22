@@ -1,7 +1,7 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
 import { DEFENSE_JOB, RAID_JOB, driveByMaxShooters, equipCombatSquad, loadRulesetForRound, planWorkSupply, productStashHint, simulateDriveBy, simulateRaid, splitProductUnits, type CombatBoost, type CombatCrew, type Ruleset, type WorkSupplyPlan } from '@streets/rules-engine';
-import type { DriveByRules, DrugHoesRules, LureCrewRules, SpecialRaidKind, StealRideRules } from '@streets/rulesets';
+import { hideoutV2For, type DriveByRules, type DrugHoesRules, type LureCrewRules, type SpecialRaidKind, type StealRideRules } from '@streets/rulesets';
 import {
   combatReconSchema,
   combatTreatmentSchema,
@@ -36,7 +36,7 @@ import { PlayerStateService, type SettledPlayer } from './player-state.service.j
 import { ProductInventoryService } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 import { RankingService } from './ranking.service.js';
-import { hideoutDefenseBonusPercent, hideoutProtectedCashBonusCents } from './hideout.service.js';
+import { hideoutDefenseBonusPercent, hideoutProductProtection, hideoutProtectedCashBonusCents, hideoutProtectedProductCapacity } from './hideout.service.js';
 
 type CombatRules = NonNullable<Ruleset['combat']>;
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value, (_, v: unknown) => typeof v === 'bigint' ? v.toString() : v));
@@ -230,8 +230,10 @@ export function combatAttackerBlock(player: RoundPlayer, model: CombatRules, now
 }
 
 export function combatTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, model: CombatRules, now: Date, retaliation = false,
-  /** 0.4.0-D. Non-crack product units the defender holds, which a product round's raid can take. */
-  otherProductUnits = 0): string | null {
+  /** 0.4.0-D. Non-crack product units the defender holds. */
+  otherProductUnits = 0,
+  /** 0.7.0-B. Exact units left exposed after Safe Room protection, when known. */
+  exposedProductUnits?: number): string | null {
   if (attacker.id === defender.id || attacker.accountId === defender.accountId) return 'You cannot raid yourself.';
   if (attacker.roundId !== defender.roundId) return 'Pick a player in your round.';
   const allied = allianceTargetBlock(attacker, defender, now);
@@ -242,8 +244,9 @@ export function combatTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, 
   if (defender.lastRaidedAt && defender.lastActiveAt <= defender.lastRaidedAt) return 'This player has not returned since the last raid.';
   if (strength(defender, model) < strength(attacker, model) * model.minimumTargetStrengthRatio && !(retaliation && retaliationRules?.bypassMinimumStrength)) return 'This crew is too weak for you to raid.';
   const hasExposedCash = defender.cashCents > BigInt(model.loot.protectedCashCents);
-  const hasExposedCrack = (model.loot.exposedDrugPercent ?? 0) > 0 && (model.loot.perFitAttackerCrack ?? 0) > 0 && defender.crack + otherProductUnits > 0;
-  if (!hasExposedCash && !hasExposedCrack) return 'This player has no exposed cash or crack to raid.';
+  const lootableProductUnits = exposedProductUnits ?? defender.crack + otherProductUnits;
+  const hasExposedProduct = (model.loot.exposedDrugPercent ?? 0) > 0 && (model.loot.perFitAttackerCrack ?? 0) > 0 && lootableProductUnits > 0;
+  if (!hasExposedCash && !hasExposedProduct) return 'This player has no exposed cash or product to raid.';
   return null;
 }
 
@@ -515,8 +518,11 @@ async function consecutiveRepeatTargetHits(prisma: PrismaClient | Prisma.Transac
 }
 
 function intelReport(target: RoundPlayer, model: CombatRules, createdAt: Date, expiresAt: Date, ruleset?: Ruleset, products?: ProductStock): CombatIntelReportDto {
-  // 0.4.0-D: a product round shows how deep the stash runs, never the count.
+  // 0.7.0-B: recon describes only what a cash raid can actually reach.
   const productRound = Boolean(ruleset?.productEconomy);
+  const protection = ruleset ? hideoutProductProtection(ruleset, target, products ?? {}) : null;
+  const exposedStash = protection?.exposed ?? stashOf(target.crack, products);
+  const exposedCrack = exposedStash.CRACK ?? 0;
   return {
     targetPublicPimpId: target.publicPimpId,
     displayName: target.displayName,
@@ -528,9 +534,15 @@ function intelReport(target: RoundPlayer, model: CombatRules, createdAt: Date, e
     weapons: { PISTOL: target.pistols, SHOTGUN: target.shotguns, TEK9: target.tek9s, AK47: target.ak47s },
     cashBand: cashBand(target.cashCents, model),
     estimatedMaxLootCents: estimatedMaxLoot(target.cashCents, model),
-    crack: model.loot.exposedDrugPercent && !productRound ? target.crack : null,
-    estimatedMaxCrackLoot: productRound ? null : estimatedMaxCrackLoot(target.crack, model),
-    ...(productRound && ruleset ? { productStash: productStashHint(stashOf(target.crack, products), target.whores, ruleset) } : {}),
+    crack: model.loot.exposedDrugPercent && !productRound ? exposedCrack : null,
+    estimatedMaxCrackLoot: productRound ? null : estimatedMaxCrackLoot(exposedCrack, model),
+    ...(productRound && ruleset ? { productStash: productStashHint(exposedStash, target.whores, ruleset) } : {}),
+    ...(ruleset && hideoutV2For(ruleset)?.assetProtection ? {
+      assetProtection: {
+        protectedCashFloorCents: model.loot.protectedCashCents,
+        protectedProductCapacity: protection?.capacity ?? 0,
+      },
+    } : {}),
   };
 }
 
@@ -667,7 +679,15 @@ export const CombatService = {
         // Stored, because 0.4.0-D worth includes product rows this list does not load.
         netWorthCents: Number(target.netWorthCents),
         strength: strength(target, model) < ownStrength * (1 - model.strength.variance) ? 'Weaker' : strength(target, model) > ownStrength * (1 + model.strength.variance) ? 'Stronger' : 'Comparable',
-        blockedReason: combatTargetBlock(player, target, modelWithDefenderHideout(model, ruleset, target), now, revengeIds.has(target.id), otherProducts.get(target.id) ?? 0),
+        blockedReason: combatTargetBlock(
+          player,
+          target,
+          modelWithDefenderHideout(model, ruleset, target),
+          now,
+          revengeIds.has(target.id),
+          otherProducts.get(target.id) ?? 0,
+          Math.max(0, target.crack + (otherProducts.get(target.id) ?? 0) - hideoutProtectedProductCapacity(ruleset, target)),
+        ),
         protectedUntil: combatProtectionUntil(target, model) > now ? iso(combatProtectionUntil(target, model)) : null,
         ...(model.strategy ? { revengeAvailable: revengeIds.has(target.id), intel: intelByTarget.get(target.id) ?? null } : {}),
         ...(model.driveBy ? { driveByBlockedReason: driveByTargetBlock(player, target, model, now, revengeIds.has(target.id)) } : {}),
@@ -712,21 +732,31 @@ export const CombatService = {
       const protectedCashBonus = hideoutProtectedCashBonusCents(ruleset, defender);
       const defenseBonusPercent = hideoutDefenseBonusPercent(ruleset, defender);
       const defenderModel = modelWithDefenderHideout(model, ruleset, defender);
+      const defenderProductProtection = hideoutProductProtection(ruleset, defender, d.products ?? {});
       const retaliation = (await retaliationTargets(tx, attacker, [target.id], model, now)).has(target.id);
       const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
-      const blocked = combatAttackerBlock(attacker, model, now) ?? combatTargetBlock(attacker, defender, defenderModel, now, retaliation,
-        ruleset.productEconomy ? Object.values(d.products ?? {}).reduce((sum, units) => sum + Math.max(0, units), 0) : 0);
+      const blocked = combatAttackerBlock(attacker, model, now) ?? combatTargetBlock(
+        attacker,
+        defender,
+        defenderModel,
+        now,
+        retaliation,
+        ruleset.productEconomy ? Object.values(d.products ?? {}).reduce((sum, units) => sum + Math.max(0, units), 0) : 0,
+        defenderProductProtection.exposedUnits,
+      );
       if (blocked) throw AppError.conflict('RAID_BLOCKED', blocked);
       if (input.attackingThugs > Math.min(fitThugs(attacker), model.squadCap)) throw AppError.badRequest('INVALID_SQUAD', 'Your squad exceeds your fit crew or the raid limit.');
       const beforeA = await RankingService.ranksFor(tx, attacker);
       const beforeD = await RankingService.ranksFor(tx, defender);
       const repeatTargetHits = await consecutiveRepeatTargetHits(tx, attackerId, target.id);
-      // 0.4.0-D: on a product round the haul is drawn from the whole stash, then split across what they hold.
-      const stashD = stashOf(defender.crack, d.products);
-      const lootable = ruleset.productEconomy ? Object.values(stashD).reduce((sum, count) => sum + count, 0) : defender.crack;
+      // 0.7.0-B: only the exposed slice can be rolled or split into loot.
+      const exposedStashD = defenderProductProtection.exposed;
+      const lootable = ruleset.productEconomy
+        ? Object.values(exposedStashD).reduce((sum, count) => sum + Math.max(0, count), 0)
+        : exposedStashD.CRACK ?? 0;
       const result = simulateRaid({ attacker: crew(attacker), defender: crew(defender), attackerBoost: boostOf(a), defenderBoost: boostOf(d), attackingThugs: input.attackingThugs,
         attackerTurns: attacker.turns, defenderCashCents: defender.cashCents, defenderCrack: lootable, repeatTargetHits }, defenderModel, () => randomInt(0, 2 ** 32) / 2 ** 32);
-      const productLoot = ruleset.productEconomy ? splitProductUnits(stashD, result.lootCrack, ruleset) : { CRACK: result.lootCrack };
+      const productLoot = ruleset.productEconomy ? splitProductUnits(exposedStashD, result.lootCrack, ruleset) : { CRACK: result.lootCrack };
       const crackLoot = productLoot.CRACK ?? 0;
       const moved = await moveProducts(tx, ruleset, productLoot, { id: defender.id, products: d.products }, { id: attacker.id, products: a.products });
       const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker,
@@ -783,6 +813,18 @@ export const CombatService = {
           crackAfter: isAttacker ? nextA.crack : nextD.crack,
           ...(ruleset.productEconomy ? { productChanges: productChanges(ruleset, productLoot, isAttacker ? 1 : -1) } : {}),
           ...(inventory.length ? { inventoryChanges: inventory } : {}),
+          ...(hideoutV2For(ruleset)?.assetProtection ? {
+            raidProtection: {
+              protectedCashCents: Number(
+                defender.cashCents < BigInt(defenderModel.loot.protectedCashCents)
+                  ? defender.cashCents
+                  : BigInt(defenderModel.loot.protectedCashCents),
+              ),
+              protectedProductUnits: defenderProductProtection.protectedUnits,
+              protectedProductCapacity: defenderProductProtection.capacity,
+              exposedProductUnitsBefore: defenderProductProtection.exposedUnits,
+            },
+          } : {}),
           lootPercent: result.lootPercent,
           baseLootPercent: result.baseLootPercent,
           repeatTargetHits: result.repeatTargetHits,
@@ -979,6 +1021,7 @@ export const CombatService = {
       const attacker = a.player;
       const defender = d.player;
       const defenderModel = modelWithDefenderHideout(model, ruleset, defender);
+      const defenderProductProtection = hideoutProductProtection(ruleset, defender, d.products ?? {});
       const retaliation = (await retaliationTargets(tx, attacker, [target.id], model, now)).has(target.id);
       const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
       const blocked = specialRaidAttackerBlock(attacker, model, input.kind, now) ?? specialRaidTargetBlock(attacker, defender, model, input.kind, now, retaliation);
@@ -1009,8 +1052,8 @@ export const CombatService = {
         crackSpent = whoresDrugged * drugRule.crackPerWhore;
         // 0.4.0-D: on a product round the burn comes out of the whole stash, in proportion.
         productsBurned = ruleset.productEconomy
-          ? splitProductUnits(stashOf(defender.crack, d.products), whoresDrugged * drugRule.defenderCrackBurnPerWhore, ruleset)
-          : { CRACK: Math.min(defender.crack, whoresDrugged * drugRule.defenderCrackBurnPerWhore) };
+          ? splitProductUnits(defenderProductProtection.exposed, whoresDrugged * drugRule.defenderCrackBurnPerWhore, ruleset)
+          : { CRACK: Math.min(defenderProductProtection.exposed.CRACK ?? 0, whoresDrugged * drugRule.defenderCrackBurnPerWhore) };
         defenderCrackBurned = productsBurned.CRACK ?? 0;
         defenderCondomsBurned = Math.min(defender.condoms, whoresDrugged * drugRule.defenderCondomBurnPerWhore);
       }
@@ -1100,6 +1143,18 @@ export const CombatService = {
           crackAfter: isAttacker ? nextA.crack : nextD.crack,
           ...(ruleset.productEconomy && !isAttacker && input.kind === 'DRUG_HOES' ? { productChanges: productChanges(ruleset, productsBurned, -1) } : {}),
           ...(inventory.length ? { inventoryChanges: inventory } : {}),
+          ...(input.kind === 'DRUG_HOES' && hideoutV2For(ruleset)?.assetProtection ? {
+            raidProtection: {
+              protectedCashCents: Number(
+                defender.cashCents < BigInt(defenderModel.loot.protectedCashCents)
+                  ? defender.cashCents
+                  : BigInt(defenderModel.loot.protectedCashCents),
+              ),
+              protectedProductUnits: defenderProductProtection.protectedUnits,
+              protectedProductCapacity: defenderProductProtection.capacity,
+              exposedProductUnitsBefore: defenderProductProtection.exposedUnits,
+            },
+          } : {}),
           turnsSpent: isAttacker ? turnCost : 0, turnsAfter: isAttacker ? nextA.turns : nextD.turns,
           nationalRankBefore: (isAttacker ? beforeA : beforeD).nationalRank,
           nationalRankAfter: (isAttacker ? afterA : afterD).nationalRank,
