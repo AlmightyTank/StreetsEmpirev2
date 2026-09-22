@@ -1,4 +1,4 @@
-# Reputation — design spec
+> **Legacy design:** This document describes the pre-Jobs trader-favor system retained for pinned historical rounds. Current rounds use the unified Jobs & Contacts system documented in [QUESTS-C-G.md](QUESTS-C-G.md).\n\n# Reputation — design spec
 
 Status: **built.** The spec below is what shipped; where the build diverged
 from the plan it is noted inline.
