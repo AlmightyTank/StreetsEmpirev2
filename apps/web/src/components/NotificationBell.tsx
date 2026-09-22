@@ -92,7 +92,7 @@ export function NotificationBell() {
       await notificationsApi.read(id);
       window.dispatchEvent(new Event('streets:notifications-changed'));
     } catch {
-      if (changed) void refresh();
+      void refresh();
     }
   }
 
@@ -123,7 +123,10 @@ export function NotificationBell() {
         aria-label={feed.unreadCount ? `Notifications, ${feed.unreadCount} unread` : 'Notifications'}
         aria-haspopup="dialog"
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => setOpen((current) => {
+          if (!current) void refresh();
+          return !current;
+        })}
       >
         <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8">
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
