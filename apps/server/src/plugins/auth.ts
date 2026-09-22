@@ -54,7 +54,9 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
     if (!resolved) return;
 
     request.auth = resolved;
-    void touchSession(fastify.prisma, resolved.session.id);
+    if (!env.betaAccess.inviteOnly || resolved.account.isAdmin || resolved.account.betaApproved) {
+      void touchSession(fastify.prisma, resolved.session.id);
+    }
   });
 
   fastify.decorate('requireAuth', async (request: FastifyRequest) => {
