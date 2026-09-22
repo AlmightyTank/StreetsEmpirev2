@@ -93,6 +93,9 @@ function amountFor(objective: QuestObjectiveDefinition, event: QuestProgressEven
 
     case 'WIN_EVENTS':
       return valueAt(event.payload, 'won') === true ? 1 : 0;
+
+    case 'STATE_AT_LEAST':
+      return 0;
   }
 }
 
@@ -107,6 +110,32 @@ export function advanceQuestObjective(
   existing?: QuestObjectiveProgress,
 ): QuestObjectiveAdvance {
   const before = currentFor(objective, existing);
+
+  if (objective.kind === 'STATE_AT_LEAST') {
+    if (!matchesEvent(event, objective.params)) {
+      return {
+        matched: false,
+        amount: 0,
+        progress: { current: before, target: objective.target, completed: before >= objective.target },
+      };
+    }
+    const field = stringParam(objective.params, 'field');
+    const raw = field && event.state ? valueAt(event.state, field) : undefined;
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+      return {
+        matched: false,
+        amount: 0,
+        progress: { current: before, target: objective.target, completed: before >= objective.target },
+      };
+    }
+    const current = Math.min(objective.target, Math.max(0, raw));
+    return {
+      matched: true,
+      amount: current - before,
+      progress: { current, target: objective.target, completed: current >= objective.target },
+    };
+  }
+
   const raw = amountFor(objective, event);
   const amount = Math.min(Math.max(0, raw), Math.max(0, objective.target - before));
   const current = Math.min(objective.target, before + amount);
@@ -136,7 +165,7 @@ export function applyQuestProgress(
     const advanced = advanceQuestObjective(objective, event, existing?.[objective.id]);
     progress[objective.id] = advanced.progress;
     if (advanced.matched) matched = true;
-    if (advanced.amount > 0) {
+    if (advanced.amount !== 0) {
       changed = true;
       deltas[objective.id] = advanced.amount;
     }
