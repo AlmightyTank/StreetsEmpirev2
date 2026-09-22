@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { classicOgV07F, classicOgV07G, classicOgV07H } from '../index.js';
 
 describe('quest roadmap Phase I permanent unlocks', () => {
-  it('keeps 0.7-F unchanged and enables the generic unlock catalog only in 0.7-G', () => {
+  it('keeps 0.7-F/G unchanged and enables the generic unlock catalog only in 0.7-H', () => {
     expect('permanentUnlocks' in classicOgV07F).toBe(false);
     expect(Object.keys(classicOgV07F.questDefinitions ?? {})).toHaveLength(19);
 
