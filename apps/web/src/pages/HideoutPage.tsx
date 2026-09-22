@@ -150,6 +150,36 @@ export function HideoutPage() {
         </Panel>
       ) : null}
 
+      {hideout?.assetProtection ? (
+        <Panel title="Safe Room protection" aside="0.7.0-B">
+          <p className="se-dim">
+            Cash below the raid floor and the highest-value product units inside the Safe Room cannot be taken.
+            Product protection is calculated from your real stash; there is no second inventory to manage.
+          </p>
+          <div className="se-stats">
+            <Stat label="Cash protected" value={formatCents(hideout.assetProtection.protectedCashCents)} />
+            <Stat label="Cash exposed" value={formatCents(hideout.assetProtection.exposedCashCents)} />
+            <Stat label="Product protected" value={`${formatNumber(hideout.assetProtection.protectedProductUnits)} / ${formatNumber(hideout.assetProtection.protectedProductCapacity)}`} />
+            <Stat label="Product exposed" value={formatNumber(hideout.assetProtection.exposedProductUnits)} />
+          </div>
+          {hideout.assetProtection.products.length ? (
+            <div className="se-rows se-mt">
+              {hideout.assetProtection.products.map((product) => (
+                <Row
+                  key={product.key}
+                  label={product.name}
+                  value={`${formatNumber(product.protected)} protected · ${formatNumber(product.exposed)} exposed · ${formatNumber(product.total)} total`}
+                  strong={product.protected > 0}
+                />
+              ))}
+            </div>
+          ) : <p className="se-muted se-mt">No product is stored here right now.</p>}
+          <p className="se-hint">
+            Storage priority: highest-value product first. Product above the cap stays exposed, so large stashes remain worth raiding.
+          </p>
+        </Panel>
+      ) : null}
+
       <Panel title="Fair season build">
         <p className="se-dim">
           Hideout upgrades are mechanical and seasonal. Spend this round&apos;s cash and meet the listed
