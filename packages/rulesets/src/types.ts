@@ -52,6 +52,7 @@ export interface WeaponUnlockRule {
 // --- reputation -------------------------------------------------------------
 
 export type TraderKey = StoreKey;
+/** @deprecated Historical one-favor-per-store key. New jobs use QuestDefinition.key. */
 export type QuestKey = StoreKey;
 
 /** One rung of standing with a single trader. */
@@ -76,19 +77,19 @@ export interface ReputationRules {
    */
   readonly trade: {
     readonly pointsPerDay: number;
-    /** Cap on points from trading alone, so quests stay mandatory. */
+    /** Historical cap on passive store-visit standing. */
     readonly maxPoints: number;
   };
-  /** Paid once, for doing a trader an actual favour. */
+  /**
+   * @deprecated Historical one-time favor award. Current quest/contact
+   * reputation is granted by QuestDefinition CONTACT_REP rewards.
+   */
   readonly questPoints: number;
 }
 
 /**
- * What a trader wants doing. One per trader, once each.
- *
- * Every quest is priced in a different resource on purpose - discipline,
- * product, capital, production - so none of them can be bought through with
- * cash alone.
+ * @deprecated Historical pre-Jobs favor definition retained so pinned older
+ * rulesets remain loadable. Current gameplay uses QuestDefinitionCatalog.
  */
 export interface QuestRule {
   readonly title: string;
@@ -1385,10 +1386,11 @@ export interface Ruleset {
   readonly weapons: { readonly [K in WeaponKey]: Weapon };
   readonly weaponUnlocks: { readonly [K in WeaponUnlockKey]: WeaponUnlockRule };
   readonly reputation: ReputationRules;
+  /** @deprecated Historical store favors for pinned old rounds only. */
   readonly quests: { readonly [K in QuestKey]: QuestRule };
   /**
-   * New event-driven handcrafted quests. Optional keeps all historical rulesets
-   * valid; a later ruleset version opts in by publishing a catalog.
+   * Authoritative event-driven Jobs catalog for current progression. Optional
+   * only so historical pinned rulesets remain valid.
    */
   readonly questDefinitions?: QuestDefinitionCatalog;
   /** Named quest contacts and their relationship tracks. */
