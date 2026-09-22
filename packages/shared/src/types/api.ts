@@ -630,6 +630,7 @@ export interface QuestObjectiveDto {
   id: string;
   kind: string;
   description: string;
+  format?: 'NUMBER' | 'CURRENCY';
   current: number;
   target: number;
   completed: boolean;
