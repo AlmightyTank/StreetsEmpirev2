@@ -56,6 +56,20 @@ title follows; if the alliance disbands the thread is retitled `(disbanded)` and
 locked. Locking uses Flarum's bundled **Lock** extension, so keep it enabled. A
 forum outage never blocks the game: the leader sees the error and can retry.
 
+## Beta tester access
+
+For beta, create a visible **Beta Tester** Flarum group and grant it access to
+the private beta tags/categories. In the beta game `.env`, set:
+
+```dotenv
+BETA_TESTER_FORUM_GROUPS="Beta Tester"
+DISCORD_FORUM_GROUPS="Admin,Mod,Beta Tester"
+```
+
+Linked beta players in that forum group can select the **Beta Tester** profile
+title/badge in the game, and the beta Discord bot mirrors the group as
+`Forum Beta Tester`.
+
 ## Scope and rollback
 
 Colors come from `apps/web/src/styles/theme.css`. The stylesheet uses the CSS

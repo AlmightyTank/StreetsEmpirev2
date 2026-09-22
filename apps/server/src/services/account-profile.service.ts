@@ -13,7 +13,7 @@ import type {
   UpdateAccountProfileSettingsInput,
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
-import { CommunityService, legacyAchievements, loadAccountLegacy } from './community.service.js';
+import { betaTesterAwardsForAccount, CommunityService, legacyAchievements, loadAccountLegacy } from './community.service.js';
 import { RoundPlayerService } from './round-player.service.js';
 import { RoundService } from './round.service.js';
 
@@ -107,8 +107,14 @@ async function earnedAwards(prisma: PrismaClient, accountId: string): Promise<Pu
     );
     return profile.awards.filter((award) => award.unlocked);
   }
-  return legacyAchievements(await loadAccountLegacy(prisma, accountId, round?.id ?? null))
-    .filter((award) => award.unlocked);
+  const [legacy, betaTester] = await Promise.all([
+    loadAccountLegacy(prisma, accountId, round?.id ?? null),
+    betaTesterAwardsForAccount(prisma, accountId),
+  ]);
+  return [
+    ...legacyAchievements(legacy),
+    ...betaTester,
+  ].filter((award) => award.unlocked);
 }
 
 async function readProfile(prisma: PrismaClient, accountId: string): Promise<AccountProfile | null> {

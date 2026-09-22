@@ -184,6 +184,14 @@ Production runs the bot as a systemd service next to the API, so it starts on
 boot and restarts after a crash. Install it once with
 `scripts/ops/install-bot-service.sh`; see [docs/DEPLOY.md](../../docs/DEPLOY.md).
 
+Beta uses a separate bot process and should use a separate Discord application,
+server and channel ids. From the beta checkout, set `GAME_API_URL` to
+`http://127.0.0.1:3003`, set `DISCORD_BOT_LISTEN_PORT=3004`, point
+`DISCORD_BOT_PUSH_URL` at `http://127.0.0.1:3004/internal/wake`, then install it
+with `scripts/ops/install-beta-bot-service.sh`. If the beta forum has a visible
+`Beta Tester` group, include it in `DISCORD_FORUM_GROUPS` to mirror it as the
+`Forum Beta Tester` Discord role.
+
 On startup it logs `StreetsEmpire bot ready as …`. The slash commands appear in
 your server immediately.
 

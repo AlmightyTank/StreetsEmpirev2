@@ -75,17 +75,18 @@ DISCORD_REDIRECT_URI="https://beta.streetsempire.dev/api/auth/discord/callback"
 The same Discord OAuth client ID/secret can be reused if the beta redirect URI is
 also registered in the Discord developer portal.
 
-### Disable production side effects in beta
+### Keep production integrations isolated
 
 Until a separate beta integration is intentionally configured, blank these in the beta
-`.env` so testing cannot post into production community channels or send production
-alerts:
+`.env` so testing cannot post into production community channels, use the live forum
+link secret or send production alerts:
 
 ```env
 FORUM_LINK_SECRET=""
 FORUM_API_KEY=""
 FORUM_NEWS_TAG_ID=""
 FORUM_RECRUITMENT_TAG_ID=""
+BETA_TESTER_FORUM_GROUPS=""
 
 DISCORD_BOT_API_TOKEN=""
 DISCORD_BOT_PUSH_URL=""
@@ -102,6 +103,40 @@ VAPID_SUBJECT=""
 
 `FORUM_ORIGIN="https://forum.streetsempire.dev"` can remain because it is only the
 public forum address while the secrets/API key above are disabled.
+
+When beta is ready for its own community integration, use separate beta values:
+
+```env
+# Forum profile linking; generate a beta-only secret and add it to the forum config.
+FORUM_ORIGIN="https://forum.streetsempire.dev"
+FORUM_LINK_SECRET="<beta forum link secret>"
+
+# Optional beta forum posting. Use beta-only Flarum tag ids, not live announcement tags.
+FORUM_API_KEY="<forum api key allowed to post beta announcements/recruitment>"
+FORUM_API_USER_ID=1
+FORUM_NEWS_TAG_ID="<beta announcements tag id>"
+FORUM_RECRUITMENT_TAG_ID="<beta recruitment tag id>"
+BETA_TESTER_FORUM_GROUPS="Beta Tester"
+
+# Beta Discord bot. Use a separate Discord application/bot token and beta server/channels.
+DISCORD_BOT_API_TOKEN="<beta bot api token>"
+DISCORD_BOT_PUSH_URL="http://127.0.0.1:3004/internal/wake"
+DISCORD_BOT_TOKEN="<beta bot token>"
+DISCORD_CLIENT_ID="<beta Discord application id>"
+DISCORD_CLIENT_SECRET="<beta Discord OAuth client secret>"
+DISCORD_GUILD_ID="<beta Discord server id>"
+GAME_API_URL="http://127.0.0.1:3003"
+DISCORD_BOT_LISTEN_HOST="127.0.0.1"
+DISCORD_BOT_LISTEN_PORT=3004
+DISCORD_FORUM_GROUPS="Admin,Mod,Beta Tester"
+DISCORD_NEWS_CHANNEL_ID="<beta news channel id>"
+DISCORD_RAID_FEED_CHANNEL_ID="<beta raid feed channel id>"
+```
+
+`BETA_TESTER_FORUM_GROUPS` grants the **Beta Tester** profile title/badge inside
+the game to linked forum accounts in the visible Flarum **Beta Tester** group.
+The Discord bot also mirrors that group as a `Forum Beta Tester` role when it is
+listed in `DISCORD_FORUM_GROUPS`.
 
 ## 3. Create the beta PostgreSQL database
 
@@ -176,6 +211,29 @@ curl -fsS http://127.0.0.1:3003/api/ready
 
 Production remains on port 3001.
 
+## 5b. Install the beta Discord bot service, if enabled
+
+Build the bot and install a separate beta bot unit after the beta `.env` has its
+own Discord and bot API settings:
+
+```bash
+cd /opt/streets-empire/StreetsEmpirev2-beta
+bash scripts/ops/install-beta-bot-service.sh
+```
+
+This creates and enables:
+
+```text
+streets-empire-beta-bot.service
+```
+
+The beta bot should listen on `127.0.0.1:3004`, while production keeps
+`127.0.0.1:3002`. Follow its log with:
+
+```bash
+journalctl -u streets-empire-beta-bot -f
+```
+
 ## 6. Add DNS
 
 Create an A record for:
@@ -241,21 +299,55 @@ Test server · data may be reset at any time · progress does not transfer to li
 
 banner only on `beta.streetsempire.dev`.
 
-## 9. Discord OAuth, if beta login should support Discord
+## 9. Discord OAuth and bot setup
 
-In the existing Discord application, add this redirect URI without removing the live
-one:
+For the safest split, create a separate beta Discord application and bot. In that
+application, add this redirect URI:
 
 ```text
 https://beta.streetsempire.dev/api/auth/discord/callback
 ```
 
-Keep both:
+If you intentionally reuse the live Discord OAuth application instead, keep both
+redirects on that application:
 
 ```text
 https://play.streetsempire.dev/api/auth/discord/callback
 https://beta.streetsempire.dev/api/auth/discord/callback
 ```
+
+Invite the beta bot to the beta Discord server only. Do not invite the live bot
+to the beta server or the beta bot to the live server. Keep beta channel ids in
+the beta `.env`, and leave live channel ids only in the production `.env`.
+
+## 9b. Forum access and beta tester title
+
+The Flarum profile-link extension supports both the live and beta game origins.
+Configure the forum with separate secrets:
+
+```php
+'street_empire' => [
+    'game_origin' => 'https://play.streetsempire.dev',
+    'link_secret' => '<live forum link secret>',
+    'game_origins' => [
+        'https://play.streetsempire.dev' => '<live forum link secret>',
+        'https://beta.streetsempire.dev' => '<beta forum link secret>',
+    ],
+],
+```
+
+Then in Flarum administration:
+
+1. Create a visible **Beta Tester** group.
+2. Grant that group access to the private beta tags/categories you want testers
+   to use.
+3. Put beta players in that group.
+4. Keep the group visible if you want the game and Discord bot to see it.
+
+On beta, players link their forum account under **Game -> Account -> Forum
+account**. If their forum account is in **Beta Tester**, the beta game unlocks a
+**Beta Tester** title/badge, and the beta Discord bot can mirror it as
+`Forum Beta Tester`.
 
 ## 10. Normal beta deployment
 
@@ -274,7 +366,8 @@ The beta deploy script:
 4. Builds.
 5. Applies migrations to the beta database.
 6. Restarts only `streets-empire-beta`.
-7. Checks port 3003 and `https://beta.streetsempire.dev`.
+7. Restarts `streets-empire-beta-bot` when that service exists.
+8. Checks port 3003 and `https://beta.streetsempire.dev`.
 
 It never restarts `streets-empire` or the production Discord bot.
 

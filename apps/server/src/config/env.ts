@@ -37,6 +37,8 @@ const envSchema = z.object({
   FORUM_NEWS_TAG_ID: z.string().regex(/^\d*$/, 'FORUM_NEWS_TAG_ID must be a numeric Flarum tag id.').default(''),
   /** 0.3.0-C. The recruitment tag alliance leaders post their threads into. */
   FORUM_RECRUITMENT_TAG_ID: z.string().regex(/^\d*$/, 'FORUM_RECRUITMENT_TAG_ID must be a numeric Flarum tag id.').default(''),
+  /** Optional cosmetic: linked forum users in any of these visible groups get the Beta Tester title/badge. */
+  BETA_TESTER_FORUM_GROUPS: z.string().default(''),
 
   DISCORD_BOT_API_TOKEN: z.union([z.literal(''), z.string().min(64)]).default(''),
   DISCORD_BOT_PUSH_URL: z.union([z.literal(''), z.string().url()]).default(''),
@@ -68,6 +70,10 @@ if (!parsed.success) {
 const corsOrigins = parsed.data.CORS_ORIGINS.split(',')
   .map((o) => o.trim())
   .filter(Boolean);
+const betaTesterForumGroups = parsed.data.BETA_TESTER_FORUM_GROUPS.split(',')
+  .map((name) => name.trim())
+  .filter(Boolean)
+  .slice(0, 10);
 
 const forumUrl = new URL(parsed.data.FORUM_ORIGIN);
 if (forumUrl.username || forumUrl.password || forumUrl.pathname !== '/' || forumUrl.search || forumUrl.hash ||
@@ -99,6 +105,10 @@ export const env = {
       tagId: parsed.data.FORUM_RECRUITMENT_TAG_ID,
       enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.FORUM_API_KEY && parsed.data.FORUM_RECRUITMENT_TAG_ID),
     },
+  },
+  betaTester: {
+    forumGroups: betaTesterForumGroups,
+    enabled: betaTesterForumGroups.length > 0,
   },
   discordBot: {
     apiToken: parsed.data.DISCORD_BOT_API_TOKEN,

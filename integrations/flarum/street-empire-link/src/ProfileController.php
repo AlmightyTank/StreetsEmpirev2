@@ -15,7 +15,7 @@ class ProfileController implements RequestHandlerInterface
     private const CACHE_SECONDS = 120;
     private const MAX_BADGES = 6;
     private const RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
-    private const CATEGORIES = ['rank', 'wealth', 'combat', 'intel', 'reputation', 'legacy'];
+    private const CATEGORIES = ['rank', 'wealth', 'combat', 'intel', 'reputation', 'hideout', 'legacy'];
 
     public function __construct(private BridgeConfig $config, private Cache $cache) {}
 
@@ -24,9 +24,9 @@ class ProfileController implements RequestHandlerInterface
         $id = (string) ($request->getQueryParams()['id'] ?? '');
         if (!$this->config->enabled() || !preg_match('/^[1-9][0-9]{0,19}$/D', $id)) return $this->respond(null, []);
 
-        // Keyed by game origin so changing it never serves the old game's answer.
+        // Keyed by game origins so changing them never serves another game's answer.
         // v2: the cached value became a JSON object with badges.
-        $key = 'street-empire.profile-link.v2.'.sha1($this->config->gameOrigin).'.'.$id;
+        $key = 'street-empire.profile-link.v2.'.sha1(json_encode($this->config->gameOrigins())).'.'.$id;
         $cached = $this->cache->get($key);
         $decoded = is_string($cached) ? json_decode($cached, true) : null;
         if (is_array($decoded) && array_key_exists('profileUrl', $decoded) && is_array($decoded['badges'] ?? null)) {
@@ -34,16 +34,29 @@ class ProfileController implements RequestHandlerInterface
         }
 
         try {
-            // No cookies, secrets, or private forum data leave Flarum.
-            $response = (new Client())->get($this->config->gameOrigin.'/api/forum/users/'.$id, [
-                'timeout' => 3, 'connect_timeout' => 2, 'allow_redirects' => false,
-                'headers' => ['Accept' => 'application/json'],
-            ]);
-            $data = json_decode((string) $response->getBody(), true);
-            if ($response->getStatusCode() !== 200 || !is_array($data) || !array_key_exists('profileUrl', $data)) return $this->respond(null, []);
-            $expected = $this->config->gameOrigin.'/game/forum/'.$id;
-            $url = $data['profileUrl'] === $expected ? $expected : null;
-            $badges = $url ? $this->badges($data['badges'] ?? null) : [];
+            $client = new Client();
+            $url = null;
+            $badgesByKey = [];
+            foreach ($this->config->gameOrigins() as $origin) {
+                try {
+                    // No cookies, secrets, or private forum data leave Flarum.
+                    $response = $client->get($origin.'/api/forum/users/'.$id, [
+                        'timeout' => 3, 'connect_timeout' => 2, 'allow_redirects' => false,
+                        'headers' => ['Accept' => 'application/json'],
+                    ]);
+                    $data = json_decode((string) $response->getBody(), true);
+                    if ($response->getStatusCode() !== 200 || !is_array($data) || !array_key_exists('profileUrl', $data)) continue;
+                    $expected = $origin.'/game/forum/'.$id;
+                    if ($data['profileUrl'] !== $expected) continue;
+                    $url = $url ?? $expected;
+                    foreach ($this->badges($data['badges'] ?? null) as $badge) {
+                        $badgesByKey[$badge['key']] = $badge;
+                    }
+                } catch (Throwable) {
+                    // One game outage must not hide links from another configured game.
+                }
+            }
+            $badges = array_values($badgesByKey);
             // Cache "not linked" too; that is most forum users.
             $this->cache->put($key, json_encode(['profileUrl' => $url, 'badges' => $badges], JSON_UNESCAPED_UNICODE), self::CACHE_SECONDS);
             return $this->respond($url, $badges);

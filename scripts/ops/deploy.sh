@@ -59,6 +59,10 @@ npm run build
 [ -f "$APP_DIR/apps/web/dist/index.html" ] || fail "game frontend build is missing: apps/web/dist/index.html"
 [ -f "$APP_DIR/apps/site/dist/index.html" ] || fail "public website build is missing: apps/site/dist/index.html"
 [ -f "$APP_DIR/apps/server/dist/index.js" ] || fail "API build is missing: apps/server/dist/index.js"
+grep -q 'data-streets-app="game-client"' "$APP_DIR/apps/web/dist/index.html" \
+  || fail "game frontend build does not contain the expected game-client marker"
+grep -q 'data-streets-app="public-site"' "$APP_DIR/apps/site/dist/index.html" \
+  || fail "public website build does not contain the expected public-site marker"
 
 step "Applying database migrations"
 npx prisma migrate deploy
@@ -93,13 +97,23 @@ fi
 
 if [ -n "$PUBLIC_SITE_URL" ]; then
   step "Checking public website $PUBLIC_SITE_URL"
-  curl -fsS --max-time 10 "$PUBLIC_SITE_URL/" >/dev/null     || fail "public website did not answer at $PUBLIC_SITE_URL/"
+  public_html="$(curl -fsS --max-time 10 "$PUBLIC_SITE_URL/")" \
+    || fail "public website did not answer at $PUBLIC_SITE_URL/"
+  case "$public_html" in
+    *'data-streets-app="public-site"'*) ;;
+    *) fail "public website answered at $PUBLIC_SITE_URL/ but did not serve the public-site build. Check the Nginx root for streetsempire.dev." ;;
+  esac
   curl -fsS --max-time 10 "$PUBLIC_SITE_URL/api/public/status" >/dev/null     || fail "public API did not answer through $PUBLIC_SITE_URL/api/public/status"
 fi
 
 if [ -n "$LIVE_SITE_URL" ]; then
   step "Checking live game $LIVE_SITE_URL"
-  curl -fsS --max-time 10 "$LIVE_SITE_URL/" >/dev/null     || fail "live game did not answer at $LIVE_SITE_URL/"
+  live_html="$(curl -fsS --max-time 10 "$LIVE_SITE_URL/")" \
+    || fail "live game did not answer at $LIVE_SITE_URL/"
+  case "$live_html" in
+    *'data-streets-app="game-client"'*) ;;
+    *) fail "live game answered at $LIVE_SITE_URL/ but did not serve the game-client build. Check the Nginx root for play.streetsempire.dev." ;;
+  esac
   curl -fsS --max-time 10 "$LIVE_SITE_URL/api/ready" >/dev/null     || fail "live API did not answer through $LIVE_SITE_URL/api/ready"
 fi
 

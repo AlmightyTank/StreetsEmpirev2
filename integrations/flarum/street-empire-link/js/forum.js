@@ -9,6 +9,22 @@
   const extend = compat['common/extend'].extend;
   const storageKey = 'street-empire-link-request';
 
+  function gameOrigins() {
+    const origins = app.forum.attribute('streetEmpireGameOrigins');
+    if (Array.isArray(origins) && origins.length) return origins;
+    const origin = app.forum.attribute('streetEmpireGameOrigin');
+    return origin ? [origin] : [];
+  }
+
+  function validGameProfileUrl(value, id) {
+    try {
+      const url = new URL(value);
+      return gameOrigins().includes(url.origin) && url.pathname === '/game/forum/' + id ? url.href : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   app.initializers.add('street-empire-profile-link', function () {
     class LinkPage extends Page {
       oninit(vnode) {
@@ -41,13 +57,13 @@
         try {
           const result = await app.request({ method: 'POST', url: app.forum.attribute('apiUrl') + '/street-empire/confirm', body: { request: this.token, forumUserId: this.preview.forumUserId } });
           const destination = new URL(result.url);
-          if (destination.origin !== app.forum.attribute('streetEmpireGameOrigin') || destination.pathname !== '/account/forum-link') throw new Error('Invalid destination');
+          if (destination.origin !== this.preview.gameOrigin || destination.pathname !== '/account/forum-link') throw new Error('Invalid destination');
           try { sessionStorage.removeItem(storageKey); } catch (_) {}
           window.location.assign(destination.href);
         } catch (_) { this.error = 'Could not confirm the connection. Return to the game and start again.'; this.busy = false; m.redraw(); }
       }
       view() {
-        const game = app.forum.attribute('streetEmpireGameOrigin');
+        const game = this.preview && this.preview.gameOrigin ? this.preview.gameOrigin : app.forum.attribute('streetEmpireGameOrigin');
         return m('div.container.StreetEmpireLink', [
           m('h2', 'Link your game profile'),
           this.error ? m('p.Alert', { role: 'alert' }, this.error) : null,
@@ -73,12 +89,14 @@
       this.streetEmpireBadges = [];
       if (!app.forum.attribute('streetEmpireLinkEnabled')) return;
       const id = this.attrs.user.id();
-      const expected = app.forum.attribute('streetEmpireGameOrigin') + '/game/forum/' + id;
       if (!profileLookups.has(id)) {
         profileLookups.set(id, app.request({ method: 'GET', url: app.forum.attribute('apiUrl') + '/street-empire/users/' + encodeURIComponent(id) })
-          .then((result) => (result.profileUrl === expected
-            ? { url: expected, badges: Array.isArray(result.badges) ? result.badges.slice(0, 6) : [] }
-            : null))
+          .then((result) => {
+            const url = validGameProfileUrl(result.profileUrl, id);
+            return url
+              ? { url, badges: Array.isArray(result.badges) ? result.badges.slice(0, 6) : [] }
+              : null;
+          })
           .catch(() => { profileLookups.delete(id); return null; }));
       }
       profileLookups.get(id).then((found) => {

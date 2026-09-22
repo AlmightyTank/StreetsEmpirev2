@@ -11,6 +11,7 @@ class ForumAttributes
         return [
             'streetEmpireLinkEnabled' => $this->config->enabled(),
             'streetEmpireGameOrigin' => $this->config->enabled() ? $this->config->gameOrigin : null,
+            'streetEmpireGameOrigins' => $this->config->enabled() ? $this->config->gameOrigins() : [],
         ];
     }
 }

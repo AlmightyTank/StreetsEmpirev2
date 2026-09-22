@@ -9,19 +9,23 @@
 #
 # Settings:
 #   BETA_SERVICE   beta systemd API unit               (default: streets-empire-beta)
+#   BETA_BOT_SERVICE beta Discord bot unit             (default: streets-empire-beta-bot)
 #   BRANCH         branch deployed to beta             (default: beta)
 #   API_URL        local beta API                      (default: http://127.0.0.1:3003)
 #   BETA_SITE_URL  optional external smoke-test URL    (default: https://beta.streetsempire.dev)
 #   SEED=1         seed a fresh beta database once
+#   SKIP_BOT=1     do not restart the beta bot service
 #   SKIP_PULL=1    deploy current checkout without fetching
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BETA_SERVICE="${BETA_SERVICE:-streets-empire-beta}"
+BETA_BOT_SERVICE="${BETA_BOT_SERVICE:-streets-empire-beta-bot}"
 BRANCH="${BRANCH:-beta}"
 API_URL="${API_URL:-http://127.0.0.1:3003}"
 BETA_SITE_URL="${BETA_SITE_URL:-https://beta.streetsempire.dev}"
 SEED="${SEED:-0}"
+SKIP_BOT="${SKIP_BOT:-0}"
 SKIP_PULL="${SKIP_PULL:-0}"
 SUDO=""
 [ "$(id -u)" -eq 0 ] || SUDO="sudo"
@@ -80,6 +84,13 @@ for attempt in $(seq 1 30); do
   fi
   sleep 2
 done
+
+if [ "$SKIP_BOT" != "1" ] && systemctl cat "$BETA_BOT_SERVICE" >/dev/null 2>&1; then
+  step "Restarting $BETA_BOT_SERVICE"
+  $SUDO systemctl restart "$BETA_BOT_SERVICE"
+  sleep 3
+  systemctl --no-pager --lines=12 status "$BETA_BOT_SERVICE" || true
+fi
 
 if [ -n "$BETA_SITE_URL" ]; then
   step "Checking $BETA_SITE_URL"

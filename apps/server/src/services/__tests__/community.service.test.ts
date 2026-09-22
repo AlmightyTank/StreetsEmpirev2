@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { City } from '@prisma/client';
-import { rankRows } from '../community.service.js';
+import { betaTesterAwardsFromForumGroups, rankRows } from '../community.service.js';
 
 const city = {
   id: 'city-1',
@@ -92,5 +92,28 @@ describe('rankRows', () => {
       expect.objectContaining({ key: 'first-hideout-upgrade', category: 'hideout', unlocked: true }),
       expect.objectContaining({ key: 'room-maxed', category: 'hideout', unlocked: true }),
     ]));
+  });
+});
+
+describe('betaTesterAwardsFromForumGroups', () => {
+  it('grants the beta tester cosmetic from a configured visible forum group', () => {
+    const awards = betaTesterAwardsFromForumGroups(
+      [{ name: 'Beta Tester', color: '#60a5fa' }],
+      ['beta tester'],
+    );
+
+    expect(awards).toEqual([
+      expect.objectContaining({
+        key: 'beta-tester',
+        title: 'Beta Tester',
+        category: 'legacy',
+        rarity: 'uncommon',
+        unlocked: true,
+      }),
+    ]);
+  });
+
+  it('stays off when the deployment has no beta tester forum groups configured', () => {
+    expect(betaTesterAwardsFromForumGroups([{ name: 'Beta Tester', color: null }], [])).toEqual([]);
   });
 });
