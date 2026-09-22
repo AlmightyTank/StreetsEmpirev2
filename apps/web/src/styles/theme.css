@@ -966,6 +966,57 @@ a:hover { color: #c9ff63; }
 
 .se-storetabs.se-quest-tabs {
   margin: 0;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.se-quest-tabs .se-storetabs__tab {
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  background: var(--se-panel-hi);
+  color: var(--se-text-dim);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  overflow: visible;
+  text-overflow: clip;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.se-quest-tabs .se-storetabs__tab:hover {
+  border-color: var(--se-accent-dim);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+}
+
+.se-quest-tabs .se-storetabs__tab--active,
+.se-quest-tabs .se-storetabs__tab--active:hover {
+  border-color: rgba(182, 255, 58, 0.45);
+  background: rgba(182, 255, 58, 0.08);
+  color: var(--se-accent);
+  box-shadow: inset 0 -2px 0 var(--se-accent);
+}
+
+@media (max-width: 600px) {
+  .se-storetabs.se-quest-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .se-quest-tabs .se-storetabs__tab {
+    min-height: 44px;
+    white-space: normal;
+  }
+
+  .se-quest-tabs .se-storetabs__tab:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
 }
 
 .se-quest-list {
