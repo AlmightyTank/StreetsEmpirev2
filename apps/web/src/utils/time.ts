@@ -20,3 +20,26 @@ export function formatDate(iso: string): string {
     year: 'numeric',
   });
 }
+
+
+/**
+ * Estimate server/client wall-clock offset from one request.
+ *
+ * The response's server timestamp is compared with the midpoint of the local
+ * request interval, which compensates for ordinary round-trip latency while
+ * preventing a skewed browser wall clock from controlling server expiries.
+ */
+export function serverClockOffsetMs(
+  serverTime: string,
+  requestStartedAtMs: number,
+  responseReceivedAtMs: number,
+): number {
+  const serverMs = Date.parse(serverTime);
+  if (!Number.isFinite(serverMs)) return 0;
+  const midpoint = requestStartedAtMs + Math.max(0, responseReceivedAtMs - requestStartedAtMs) / 2;
+  return serverMs - midpoint;
+}
+
+export function serverAdjustedNowMs(clientNowMs: number, offsetMs: number): number {
+  return clientNowMs + offsetMs;
+}
