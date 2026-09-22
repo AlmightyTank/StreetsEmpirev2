@@ -12,6 +12,7 @@ import {
 } from './hideout.service.js';
 import { CRACK, ProductInventoryService, streetProductFinds, summarizeProductMovements } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
+import { TimedFavorService } from './timed-favor.service.js';
 
 export interface ProduceInput {
   turns: number;
@@ -80,9 +81,17 @@ export const ProductionService = {
           current,
           baseRecipe.product,
         );
-        const recipe = effectiveIngredientCentsPerUnit === baseRecipe.ingredientCentsPerUnit
+        const workshopRecipe = effectiveIngredientCentsPerUnit === baseRecipe.ingredientCentsPerUnit
           ? baseRecipe
           : { ...baseRecipe, ingredientCentsPerUnit: effectiveIngredientCentsPerUnit };
+        const favorBonuses = await TimedFavorService.bonuses(tx, roundPlayerId, ruleset, now);
+        const recipe = favorBonuses.productionOutputPercent > 0
+          ? {
+              ...workshopRecipe,
+              perThugPerTurn: workshopRecipe.perThugPerTurn
+                * (100 + favorBonuses.productionOutputPercent) / 100,
+            }
+          : workshopRecipe;
         const productType = ruleset.productEconomy ? recipe.product : requested;
         const productName = ruleset.productEconomy ? recipe.name : LEGACY_PRODUCT_NAMES[requested] ?? 'Product';
 
@@ -202,6 +211,7 @@ export const ProductionService = {
           productName,
           productProduced,
           hideoutBonusProduct,
+          ...(favorBonuses.productionOutputPercent > 0 ? { favorProductionPercent: favorBonuses.productionOutputPercent } : {}),
           crackProduced,
           hideoutBonusCrack,
           ingredientCents: Number(outcome.ingredientCents),
