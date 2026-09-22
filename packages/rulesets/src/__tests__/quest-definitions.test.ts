@@ -102,4 +102,21 @@ describe('quest definition foundation', () => {
       'FRESH_FACES: reward kind is required',
     ]);
   });
+
+  it('rejects malformed Phase B objective configuration', () => {
+    const broken = {
+      ...freshFaces,
+      objectives: [
+        { id: 'sum', kind: 'EVENT_SUM', description: 'Move product.', target: 10, params: { eventTypes: [] } },
+        { id: 'crew', kind: 'RECRUIT_CREW', description: 'Recruit.', target: 5, params: { crew: 'CARS' } },
+      ],
+    } as unknown as QuestDefinition;
+
+    expect(questDefinitionProblems({ FRESH_FACES: broken })).toEqual([
+      'FRESH_FACES/sum: eventTypes must be a non-empty string array',
+      'FRESH_FACES/sum: EVENT_SUM requires a field',
+      'FRESH_FACES/crew: crew must be ANY, WHORES or THUGS',
+    ]);
+  });
+
 });
