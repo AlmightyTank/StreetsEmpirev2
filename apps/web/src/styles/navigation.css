@@ -159,7 +159,7 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
   }
 
   /* The More sheet slides up over the page. */
-  .se-sheet { display: block; position: fixed; inset: 0; z-index: 50; }
+  .se-sheet { display: block; position: fixed; inset: 0; z-index: 90; }
   .se-sheet__backdrop {
     position: absolute;
     inset: 0;
