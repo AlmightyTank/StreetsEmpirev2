@@ -334,6 +334,8 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v0.7-g': CLASSIC_OG_V07G_HIDEOUT_V2,
   // 0.7-H extends G with quest permanent unlocks; hideout behavior is unchanged.
   'classic-og-v0.7-h': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // 0.7-I adds favor inventory only; hideout behavior remains the G extension.
+  'classic-og-v0.7-i': CLASSIC_OG_V07G_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */
