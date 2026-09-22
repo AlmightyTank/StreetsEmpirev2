@@ -40,6 +40,15 @@ import {
   weeklyContractWindow,
 } from './weekly-contract.service.js';
 import { syncSecretQuestAttempts } from './secret-quest.service.js';
+import {
+  CITY_CONTRACT_SLOTS,
+  cityContractObjectives,
+  cityContractRewards,
+  cityContractState,
+  cityContractWindow,
+  isDynamicCityContractDefinition,
+  syncCityContractAttempts,
+} from './city-contract.service.js';
 
 const ACTIVE_LIMIT = 8;
 const TRACKED_LIMIT = 3;
@@ -66,6 +75,11 @@ function definitions(ruleset: Ruleset): QuestDefinition[] {
 
 function isWindowRepeatable(repeatability: QuestDefinition['repeatability']): boolean {
   return repeatability === 'DAILY' || repeatability === 'WEEKLY';
+}
+
+function preservesGeneratedOffer(row: QuestRow, ruleset: Ruleset): boolean {
+  return isWindowRepeatable(row.questDefinition.repeatability)
+    || isDynamicCityContractDefinition(ruleset.questDefinitions?.[row.questDefinition.key]);
 }
 
 function objectives(value: Prisma.JsonValue): QuestObjectiveDefinition[] {
@@ -189,6 +203,8 @@ function branchChoicesDto(row: QuestRow, ruleset: Ruleset): QuestBranchChoiceDto
 function objectiveDtos(row: QuestRow): QuestObjectiveDto[] {
   const requiredProgress = progress(row.objectiveProgress);
   const bonusProgress = progress(row.bonusProgress);
+  const requiredDefinitions = cityContractObjectives(row.rewardState)
+    ?? objectives(row.questDefinition.objectives);
   const map = (objective: QuestObjectiveDefinition, bonus: boolean): QuestObjectiveDto => {
     const saved = (bonus ? bonusProgress : requiredProgress)[objective.id];
     return {
@@ -203,18 +219,21 @@ function objectiveDtos(row: QuestRow): QuestObjectiveDto[] {
     };
   };
   return [
-    ...objectives(row.questDefinition.objectives).map((objective) => map(objective, false)),
+    ...requiredDefinitions.map((objective) => map(objective, false)),
     ...objectives(row.questDefinition.bonusObjectives).map((objective) => map(objective, true)),
   ];
 }
 
 function questDto(row: QuestRow, ruleset: Ruleset): PlayerQuestDto {
   const contact = contactFor(ruleset, row.questDefinition.contactKey);
+  const cityState = cityContractState(row.rewardState);
+  const resolvedRewards = cityContractRewards(row.rewardState)
+    ?? rewards(row.questDefinition.rewards);
   return {
     key: row.questDefinition.key,
     attempt: row.attempt,
-    title: row.questDefinition.title,
-    description: row.questDefinition.description,
+    title: cityState?.title ?? row.questDefinition.title,
+    description: cityState?.description ?? row.questDefinition.description,
     contactKey: row.questDefinition.contactKey,
     contactName: contact?.shortName ?? null,
     type: row.questDefinition.type,
@@ -225,7 +244,7 @@ function questDto(row: QuestRow, ruleset: Ruleset): PlayerQuestDto {
     chosenBranch: row.chosenBranch,
     branchChoices: branchChoicesDto(row, ruleset),
     objectives: objectiveDtos(row),
-    rewards: rewards(row.questDefinition.rewards).map((reward) => rewardDto(reward, ruleset)),
+    rewards: resolvedRewards.map((reward) => rewardDto(reward, ruleset)),
     acceptedAt: row.acceptedAt?.toISOString() ?? null,
     completedAt: row.completedAt?.toISOString() ?? null,
     claimedAt: row.claimedAt?.toISOString() ?? null,
@@ -371,6 +390,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
       (definition.type === 'DAILY' && definition.repeatability === 'DAILY')
       || (definition.type === 'WEEKLY' && definition.repeatability === 'WEEKLY')
       || definition.type === 'SECRET'
+      || isDynamicCityContractDefinition(definition)
     ) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
     const available = questPrerequisitesMet(definition, completed, reps, chosenBranches);
@@ -391,6 +411,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
 
   await syncDailyContractAttempts(db, roundPlayerId, ruleset, now);
   await syncWeeklyContractAttempts(db, roundPlayerId, ruleset, now);
+  newlyAvailable.push(...await syncCityContractAttempts(db, roundPlayerId, ruleset, now));
   newlyAvailable.push(...await syncSecretQuestAttempts(db, roundPlayerId, ruleset));
   return newlyAvailable;
 }
@@ -458,6 +479,8 @@ export const HandcraftedQuestService = {
         (definition) => definition.type === 'WEEKLY' && definition.repeatability === 'WEEKLY',
       );
       const weeklyWindow = weeklyEnabled ? weeklyContractWindow(now, ruleset) : null;
+      const cityEnabled = definitions(ruleset).some(isDynamicCityContractDefinition);
+      const cityWindow = cityEnabled ? cityContractWindow(now) : null;
       const rows = await tx.playerQuest.findMany({
         where: {
           roundPlayerId,
@@ -524,6 +547,11 @@ export const HandcraftedQuestService = {
           slots: weeklyEnabled ? WEEKLY_CONTRACT_SLOTS : 0,
           resetAt: weeklyWindow?.endsAt.toISOString() ?? null,
         },
+        cityContracts: {
+          enabled: cityEnabled,
+          slots: cityEnabled ? CITY_CONTRACT_SLOTS : 0,
+          resetAt: cityWindow?.endsAt.toISOString() ?? null,
+        },
         activeLimit: ACTIVE_LIMIT,
         trackedLimit: TRACKED_LIMIT,
         counts: {
@@ -557,6 +585,7 @@ export const HandcraftedQuestService = {
       if (row.expiresAt && row.expiresAt.getTime() <= acceptedAt.getTime()) {
         throw AppError.conflict('QUEST_EXPIRED', 'That contract expired at reset. Refresh the board for new work.');
       }
+      const preserveOffer = preservesGeneratedOffer(row, ruleset);
       await tx.playerQuest.update({
         where: { id: row.id },
         data: {
@@ -567,8 +596,8 @@ export const HandcraftedQuestService = {
           failedAt: null,
           objectiveProgress: {},
           bonusProgress: {},
-          rewardState: isWindowRepeatable(row.questDefinition.repeatability) ? inputJson(row.rewardState) : {},
-          expiresAt: isWindowRepeatable(row.questDefinition.repeatability)
+          rewardState: preserveOffer ? inputJson(row.rewardState) : {},
+          expiresAt: preserveOffer
             ? row.expiresAt
             : row.questDefinition.expiresAfterMinutes
               ? new Date(acceptedAt.getTime() + row.questDefinition.expiresAfterMinutes * 60_000)
@@ -594,6 +623,7 @@ export const HandcraftedQuestService = {
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (!['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)) throw AppError.conflict('QUEST_NOT_ACTIVE', 'That job is not active.');
       await tx.questProgressReceipt.deleteMany({ where: { playerQuestId: row.id } });
+      const preserveOffer = preservesGeneratedOffer(row, ruleset);
       await tx.playerQuest.update({
         where: { id: row.id },
         data: {
@@ -601,10 +631,10 @@ export const HandcraftedQuestService = {
           isTracked: false,
           acceptedAt: null,
           completedAt: null,
-          expiresAt: isWindowRepeatable(row.questDefinition.repeatability) ? row.expiresAt : null,
+          expiresAt: preserveOffer ? row.expiresAt : null,
           objectiveProgress: {},
           bonusProgress: {},
-          rewardState: isWindowRepeatable(row.questDefinition.repeatability) ? inputJson(row.rewardState) : {},
+          rewardState: preserveOffer ? inputJson(row.rewardState) : {},
         },
       });
     });
@@ -667,7 +697,7 @@ export const HandcraftedQuestService = {
         }
 
         const questRewards = [
-          ...rewards(row.questDefinition.rewards),
+          ...(cityContractRewards(row.rewardState) ?? rewards(row.questDefinition.rewards)),
           ...(selectedBranch?.rewards ?? []),
         ];
         for (const reward of questRewards) {
@@ -708,7 +738,7 @@ export const HandcraftedQuestService = {
           next,
           result: {
             questKey: key,
-            title: row.questDefinition.title,
+            title: cityContractState(row.rewardState)?.title ?? row.questDefinition.title,
             chosenBranch: selectedBranch?.key ?? row.chosenBranch,
             rewards: dtoRewards,
             reputationChanges,
@@ -718,7 +748,7 @@ export const HandcraftedQuestService = {
             type: 'QUEST_CLAIMED',
             payload: inputJson({
               questKey: key,
-              title: row.questDefinition.title,
+              title: cityContractState(row.rewardState)?.title ?? row.questDefinition.title,
               contactKey: row.questDefinition.contactKey,
               chosenBranch: selectedBranch?.key ?? row.chosenBranch,
               rewards: dtoRewards.map((reward) => reward.label),
