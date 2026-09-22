@@ -87,7 +87,7 @@ export interface AdminAuditFilters {
   limit?: number | undefined;
 }
 
-export type AdminAccountStatusFilter = 'all' | 'active' | 'inactive' | 'admin' | 'suspended';
+export type AdminAccountStatusFilter = 'all' | 'active' | 'inactive' | 'admin' | 'suspended' | 'beta-pending';
 
 export type AdminAccountAction =
   | 'deactivate'

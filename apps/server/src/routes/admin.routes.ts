@@ -106,7 +106,7 @@ const createBannerSchema = z.object({
 
 const accountSearchQuery = z.object({
   query: z.string().trim().max(80).optional(),
-  status: z.enum(['all', 'active', 'inactive', 'admin', 'suspended']).optional(),
+  status: z.enum(['all', 'active', 'inactive', 'admin', 'suspended', 'beta-pending']).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 }).strict();
 

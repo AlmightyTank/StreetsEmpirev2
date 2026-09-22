@@ -167,7 +167,8 @@ export const AdminAccountService = {
         : input.status === 'inactive' ? { isActive: false }
           : input.status === 'admin' ? { isAdmin: true }
             : input.status === 'suspended' ? { suspendedUntil: { gt: now } }
-              : {}),
+              : input.status === 'beta-pending' ? { isActive: true, isAdmin: false, betaApproved: false }
+                : {}),
     };
 
     const rows = await prisma.account.findMany({
