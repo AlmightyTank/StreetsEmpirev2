@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { QuestRewardDefinition } from '../types.js';
 import { advanceQuestObjective } from '../quest-progress.js';
 import { classicOgV07M } from '../classic-og-v0.7-m/index.js';
 import { dailyContracts } from '../classic-og-v0.7-n/daily-contracts.js';
@@ -37,7 +38,7 @@ describe('quest roadmap Phase O daily contracts', () => {
   });
 
   it('keeps rewards modest and never grants permanent unlocks', () => {
-    const rewards = Object.values(dailyContracts).flatMap((quest) => quest.rewards);
+    const rewards: QuestRewardDefinition[] = Object.values(dailyContracts).flatMap((quest) => [...quest.rewards]);
     expect(rewards.some((reward) => reward.kind === 'PERMANENT_UNLOCK')).toBe(false);
     expect(rewards.some((reward) => reward.kind === 'WEAPON_ACCESS')).toBe(false);
     expect(rewards.filter((reward) => reward.kind === 'FAVOR_ITEM')).toHaveLength(2);
