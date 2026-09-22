@@ -391,7 +391,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         usernameNormalized,
         email: body.email,
         passwordHash: await hashPassword(body.password),
-        lastLoginAt: new Date(),
+        lastLoginAt: env.betaAccess.inviteOnly ? null : new Date(),
       },
     });
 
