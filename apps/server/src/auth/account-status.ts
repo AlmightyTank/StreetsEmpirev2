@@ -2,7 +2,7 @@ import type { Account, PrismaClient } from '@prisma/client';
 import { AppError } from '../utils/errors.js';
 
 /** The account fields a sign-in check needs. */
-export type SignInAccount = Pick<Account, 'id' | 'isActive' | 'suspendedUntil' | 'suspendedReason'>;
+export type SignInAccount = Pick<Account, 'id' | 'isActive' | 'isAdmin' | 'betaApproved' | 'suspendedUntil' | 'suspendedReason'>;
 
 /** "Sep 20, 2026, 3:00 PM UTC" - one wording for every player, wherever they are. */
 export function suspensionEnds(until: Date): string {
@@ -47,5 +47,19 @@ export function assertCanSignIn(account: SignInAccount, now = new Date()): void 
     403,
     'ACCOUNT_SUSPENDED',
     `This account is suspended until ${suspensionEnds(suspension.until)}.${suspension.reason ? ` Reason: ${suspension.reason}` : ''}`,
+  );
+}
+
+
+/** Invite-only beta access. Admins always retain access so they cannot lock themselves out. */
+export function assertBetaAccess(
+  account: Pick<Account, 'isAdmin' | 'betaApproved'>,
+  inviteOnly: boolean,
+): void {
+  if (!inviteOnly || account.isAdmin || account.betaApproved) return;
+  throw new AppError(
+    403,
+    'BETA_APPROVAL_REQUIRED',
+    'This beta is invite-only. Your account is waiting for an admin to approve beta access.',
   );
 }
