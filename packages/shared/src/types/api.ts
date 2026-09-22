@@ -35,6 +35,7 @@ export type ActivityType =
   | 'HIDEOUT_UPGRADE'
   | 'QUEST_READY'
   | 'QUEST_CLAIMED'
+  | 'FAVOR_ACTIVATED'
   | 'RUN_LAUNCHED'
   | 'RUN_RETURNED'
   | 'RUN_INCIDENT'
@@ -672,6 +673,24 @@ export interface QuestPermanentUnlockDto {
   awardedAt: string;
 }
 
+export interface QuestActiveFavorDto {
+  key: string;
+  name: string;
+  description: string;
+  category: 'STREET' | 'UNDERWORLD' | 'MUSCLE';
+  startedAt: string;
+  expiresAt: string;
+}
+
+export interface FavorActivationResult {
+  favorKey: string;
+  name: string;
+  category: 'STREET' | 'UNDERWORLD' | 'MUSCLE';
+  startedAt: string;
+  expiresAt: string;
+  quantityRemaining: number;
+}
+
 export interface QuestFavorDto {
   key: string;
   name: string;
@@ -696,6 +715,7 @@ export interface QuestPageDto {
   };
   contacts: QuestContactDto[];
   permanentUnlocks: QuestPermanentUnlockDto[];
+  activeFavors: QuestActiveFavorDto[];
   favors: QuestFavorDto[];
   quests: PlayerQuestDto[];
 }
@@ -770,6 +790,7 @@ export interface ProductStockDto {
     purchaseUnlocked: boolean;
     unlockName: string | null;
     unlockDescription: string | null;
+    favorDiscountPercent?: number;
   } | null;
   /** 0.4.0-D. Present where Produce can cook it. */
   recipe?: { perThugPerTurn: number; ingredientCentsPerUnit: number; heatPerUnit: number } | null;
@@ -787,6 +808,7 @@ export interface ProductTradeResult {
   quantityAfter: number;
   stockAfter: number | null;
   reputationGained: number;
+  favorDiscountPercent?: number;
 }
 
 /** GET /api/game/products. Disabled on rounds where Product is still only crack. */
