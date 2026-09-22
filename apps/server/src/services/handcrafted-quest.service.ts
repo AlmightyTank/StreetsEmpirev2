@@ -232,7 +232,7 @@ async function addContactRep(db: Db, roundPlayerId: string, contact: string, amo
   return points;
 }
 
-function prerequisitesMet(
+export function questPrerequisitesMet(
   definition: QuestDefinition,
   completed: ReadonlySet<string>,
   reps: Readonly<Record<string, number>>,
@@ -348,7 +348,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
       || definition.type === 'SECRET'
     ) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
-    const available = prerequisitesMet(definition, completed, reps, chosenBranches);
+    const available = questPrerequisitesMet(definition, completed, reps, chosenBranches);
     if (!current) {
       await db.playerQuest.create({
         data: {
