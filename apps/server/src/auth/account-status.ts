@@ -2,7 +2,7 @@ import type { Account, PrismaClient } from '@prisma/client';
 import { AppError } from '../utils/errors.js';
 
 /** The account fields a sign-in check needs. */
-export type SignInAccount = Pick<Account, 'id' | 'isActive' | 'isAdmin' | 'betaApproved' | 'suspendedUntil' | 'suspendedReason'>;
+export type SignInAccount = Pick<Account, 'id' | 'isActive' | 'suspendedUntil' | 'suspendedReason'>;
 
 /** "Sep 20, 2026, 3:00 PM UTC" - one wording for every player, wherever they are. */
 export function suspensionEnds(until: Date): string {
