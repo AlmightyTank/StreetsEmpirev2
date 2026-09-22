@@ -117,7 +117,13 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/hideout', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
-    return HideoutService.catalog(settled.ruleset, toState(settled.player), settled.products);
+    return HideoutService.page(
+      fastify.prisma,
+      settled.ruleset,
+      settled.player,
+      toState(settled.player),
+      settled.products,
+    );
   });
 
   fastify.post('/hideout/upgrade', { preHandler: fastify.requireAuth }, async (request) => {
