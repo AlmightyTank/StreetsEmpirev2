@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV07F, classicOgV07G } from '@streets/rulesets';
+import { classicOgV07F, classicOgV07H } from '@streets/rulesets';
 import type { Db } from '../../utils/db.js';
 import { PermanentUnlockService } from '../permanent-unlock.service.js';
 
 describe('PermanentUnlockService', () => {
   it('finds product purchase gates only on rulesets that define them', () => {
     expect(PermanentUnlockService.productPurchaseUnlock(classicOgV07F, 'METH')).toBeNull();
-    expect(PermanentUnlockService.productPurchaseUnlock(classicOgV07G, 'METH')).toMatchObject({
+    expect(PermanentUnlockService.productPurchaseUnlock(classicOgV07H, 'METH')).toMatchObject({
       key: 'PRODUCT_METH_ACCESS',
       effect: { kind: 'PRODUCT_PURCHASE_ACCESS', productKey: 'METH' },
     });
-    expect(PermanentUnlockService.productPurchaseUnlock(classicOgV07G, 'WEED')).toBeNull();
+    expect(PermanentUnlockService.productPurchaseUnlock(classicOgV07H, 'WEED')).toBeNull();
   });
 
   it('awards one idempotent per-round unlock with its source job', async () => {
@@ -35,14 +35,14 @@ describe('PermanentUnlockService', () => {
     const first = await PermanentUnlockService.award(
       db,
       'player-1',
-      classicOgV07G,
+      classicOgV07H,
       'PRODUCT_METH_ACCESS',
       'PIP_BULK_ORDER',
     );
     const second = await PermanentUnlockService.award(
       db,
       'player-1',
-      classicOgV07G,
+      classicOgV07H,
       'PRODUCT_METH_ACCESS',
       'OTHER_JOB',
     );
@@ -69,7 +69,7 @@ describe('PermanentUnlockService', () => {
     await expect(PermanentUnlockService.award(
       db,
       'player-1',
-      classicOgV07G,
+      classicOgV07H,
       'NOT_A_REAL_UNLOCK',
       'TEST_JOB',
     )).rejects.toMatchObject({ code: 'QUEST_REWARD_INVALID' });
