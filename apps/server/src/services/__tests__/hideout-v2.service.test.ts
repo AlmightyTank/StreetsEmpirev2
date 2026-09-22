@@ -162,6 +162,15 @@ describe('hideout v2 catalog', () => {
     const readyPlayer = player({ lowRiders: 2, hideoutGarageLevel: 0 });
     const ready = hideoutCatalog(classicOgV07D, readyPlayer);
     expect(ready.rooms.find((room) => room.key === 'GARAGE')?.canUpgrade).toBe(true);
+
+    // Ownership includes cars currently away on active runs; the page/service supplies this live context.
+    const oneHomeOneAway = hideoutCatalog(
+      classicOgV07D,
+      player({ lowRiders: 1, hideoutGarageLevel: 0 }),
+      {},
+      { lowRidersOwned: 2 },
+    );
+    expect(oneHomeOneAway.rooms.find((room) => room.key === 'GARAGE')?.canUpgrade).toBe(true);
     expect(hideoutGarageRunLimit(classicOgV07D, readyPlayer)).toBe(1);
     expect(hideoutGarageRelocationDiscountPercent(classicOgV07D, readyPlayer)).toBe(0);
 

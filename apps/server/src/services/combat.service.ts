@@ -27,6 +27,7 @@ import { lockRoundPlayer } from '../utils/db.js';
 import { RelocationService } from './relocation.service.js';
 import { fitThugs, toState } from './action.service.js';
 import { ActivityService } from './activity.service.js';
+import { EconomyLedgerService } from './economy-ledger.service.js';
 import { allianceTagDto, allianceTargetBlock, sharedRevengeScope } from './alliance.service.js';
 import { CombatRecoveryService } from './combat-recovery.service.js';
 import { HappinessService } from './happiness.service.js';
@@ -845,6 +846,18 @@ export const CombatService = {
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
+      if (result.lootCents > 0n) {
+        await EconomyLedgerService.record(tx, attackerId, [{
+          source: 'RAID',
+          label: `Raid loot · ${defender.displayName}`,
+          amountCents: result.lootCents,
+        }], now);
+        await EconomyLedgerService.record(tx, target.id, [{
+          source: 'RAID',
+          label: `Raid loss · ${attacker.displayName}`,
+          amountCents: -result.lootCents,
+        }], now);
+      }
       for (const [playerId, type, report] of [[attackerId, 'RAID_ATTACK', attackerReport], [target.id, 'RAID_DEFENSE', defenderReport]] as const) {
         await ActivityService.log(tx, playerId, type, json({
           battleId: id,

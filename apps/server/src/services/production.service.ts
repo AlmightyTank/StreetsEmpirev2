@@ -242,6 +242,23 @@ export const ProductionService = {
         return {
           next,
           result,
+          ledger: [
+            ...(pimpTakeCents > 0n ? [{
+              source: 'PRODUCE_CRACK',
+              label: `${productName} production street take`,
+              amountCents: pimpTakeCents,
+            }] : []),
+            ...(outcome.ingredientCents > 0n ? [{
+              source: 'PRODUCE_CRACK',
+              label: `${productName} ingredients`,
+              amountCents: -outcome.ingredientCents,
+            }] : []),
+            ...(trip.heat?.fineCents ? [{
+              source: 'PRODUCE_CRACK',
+              label: 'Production Heat fine',
+              amountCents: -BigInt(trip.heat.fineCents),
+            }] : []),
+          ],
           activity: {
             type: 'PRODUCE_CRACK',
             payload: {

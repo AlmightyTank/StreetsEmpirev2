@@ -4,6 +4,7 @@ import {
   classicOgV07B,
   classicOgV07C,
   classicOgV07D,
+  classicOgV07E,
   hideoutV2For,
   hideoutV2Problems,
 } from '@streets/rulesets';
@@ -23,6 +24,7 @@ validate('0.7.0-A', classicOgV07A);
 validate('0.7.0-B', classicOgV07B);
 validate('0.7.0-C', classicOgV07C);
 validate('0.7.0-D', classicOgV07D);
+validate('0.7.0-E', classicOgV07E);
 
 if (JSON.stringify(classicOgV07A.hideout) !== JSON.stringify(classicOgV06F.hideout)) {
   console.error('0.7.0-A changed the shipped 0.6 Hideout balance unexpectedly.');
@@ -40,12 +42,17 @@ if (JSON.stringify(classicOgV07D.hideout) !== JSON.stringify(classicOgV07C.hideo
   console.error('0.7.0-D changed room prices/base buffs instead of layering Workshop/Garage tuning.');
   process.exitCode = 1;
 }
+if (JSON.stringify(classicOgV07E.hideout) !== JSON.stringify(classicOgV07D.hideout)) {
+  console.error('0.7.0-E changed room prices/base buffs instead of layering Back Office ledger visibility.');
+  process.exitCode = 1;
+}
 
 const extensionA = hideoutV2For(classicOgV07A);
 const extensionB = hideoutV2For(classicOgV07B);
 const extensionC = hideoutV2For(classicOgV07C);
 const extensionD = hideoutV2For(classicOgV07D);
-if (!extensionA || !extensionB || !extensionC || !extensionD || !classicOgV07B.hideout) {
+const extensionE = hideoutV2For(classicOgV07E);
+if (!extensionA || !extensionB || !extensionC || !extensionD || !extensionE || !classicOgV07B.hideout) {
   console.error('0.7 rules are missing their Hideout v2 extension or base Hideout.');
   process.exitCode = 1;
 } else {
@@ -117,6 +124,19 @@ if (!extensionA || !extensionB || !extensionC || !extensionD || !classicOgV07B.h
     || Math.max(...garage.runLimitByGarageLevel) > 2
     || Math.max(...garage.relocationFeeDiscountPercentByGarageLevel) > 5) {
     console.error('0.7.0-D Garage logistics exceed the release guardrail.');
+    process.exitCode = 1;
+  }
+
+  const ledger = extensionE.ledger;
+  console.log('\nBack Office ledger:');
+  console.log(`- itemized history: ${ledger?.historyDaysByBackOfficeLevel.join(' / ') ?? 'missing'} days`);
+  console.log(`- row limits: ${ledger?.rowLimitByBackOfficeLevel.join(' / ') ?? 'missing'}`);
+  console.log('- rolling summaries: 1 / 7 / 30 days');
+  if (!ledger
+    || Math.max(...ledger.historyDaysByBackOfficeLevel) > 60
+    || Math.max(...ledger.rowLimitByBackOfficeLevel) > 100
+    || ledger.specializationHooks.connectionsTakeBonusPercent > 2) {
+    console.error('0.7.0-E Back Office ledger exceeds the release guardrail.');
     process.exitCode = 1;
   }
 }
