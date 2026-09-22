@@ -229,6 +229,9 @@ describe('action receipt lines', () => {
       hideoutBonusProduct: 2,
       crackProduced: 0,
       ingredientCents: 6_000,
+      hideoutIngredientEfficiencyPercent: 8,
+      hideoutIngredientSavingsCents: 480,
+      ingredientCentsPerUnit: 644,
       limitedByCash: true,
       grossEarnedCents: 5_000,
       crewTakeCents: 2_500,
@@ -272,7 +275,8 @@ describe('action receipt lines', () => {
       'Crack',
       'Ecstasy',
       'Cocaine',
-      'Workshop bonus',
+      'Workshop output',
+      'Workshop efficiency',
       'Cash',
       'Short on cash',
       'Whores',
@@ -306,6 +310,12 @@ describe('action receipt lines', () => {
       detail: '−8 used',
       delta: -8,
       remaining: 30,
+    });
+    expect(byLabel(rows, 'Workshop output')).toMatchObject({
+      value: '+2 included in production',
+    });
+    expect(byLabel(rows, 'Workshop efficiency')).toMatchObject({
+      value: '8% · saved $4.80 on ingredients',
     });
     expect(rows.filter((row) => row.label === 'Meth')).toHaveLength(1);
     expect(rows.some((row) => /^(Meth|Crack|Ecstasy|Cocaine) (used|found)$/.test(row.label))).toBe(false);
