@@ -700,6 +700,7 @@ export interface QuestFavorDto {
   description: string;
   contactKey: string;
   activationKind: 'TIMED' | 'SINGLE_USE';
+  activatable: boolean;
   category: string;
   durationMinutes: number | null;
   quantity: number;
