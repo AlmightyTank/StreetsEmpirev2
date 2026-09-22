@@ -149,6 +149,31 @@ function branchesFor(row: QuestRow, ruleset: Ruleset): readonly QuestBranchDefin
   return ruleset.questDefinitions?.[row.questDefinition.key]?.branches ?? [];
 }
 
+export function resolveQuestBranchForClaim(
+  definition: QuestDefinition,
+  branchKey: string | undefined,
+  chosenBranch: string | null,
+): QuestBranchDefinition | null {
+  const options = definition.branches ?? [];
+  if (!options.length) {
+    if (branchKey) {
+      throw AppError.conflict('QUEST_BRANCH_NOT_SUPPORTED', 'That job does not have a branch choice.');
+    }
+    return null;
+  }
+  if (!branchKey) {
+    throw AppError.conflict('QUEST_BRANCH_REQUIRED', 'Choose a side before collecting payment.');
+  }
+  const selected = options.find((branch) => branch.key === branchKey);
+  if (!selected) {
+    throw AppError.conflict('QUEST_BRANCH_INVALID', 'That choice is not available for this job.');
+  }
+  if (chosenBranch && chosenBranch !== selected.key) {
+    throw AppError.conflict('QUEST_BRANCH_LOCKED', 'That job already has a different committed choice.');
+  }
+  return selected;
+}
+
 function branchChoicesDto(row: QuestRow, ruleset: Ruleset): QuestBranchChoiceDto[] {
   return branchesFor(row, ruleset).map((branch) => ({
     key: branch.key,
@@ -620,22 +645,15 @@ export const HandcraftedQuestService = {
         }
         if (row.status !== 'READY_TO_TURN_IN') throw AppError.conflict('QUEST_NOT_READY', 'Finish the job before collecting payment.');
 
-        const branchOptions = branchesFor(row, ruleset);
-        let selectedBranch: QuestBranchDefinition | undefined;
-        if (branchOptions.length) {
-          if (!input.branchKey) {
-            throw AppError.conflict('QUEST_BRANCH_REQUIRED', 'Choose a side before collecting payment.');
-          }
-          selectedBranch = branchOptions.find((branch) => branch.key === input.branchKey);
-          if (!selectedBranch) {
-            throw AppError.conflict('QUEST_BRANCH_INVALID', 'That choice is not available for this job.');
-          }
-          if (row.chosenBranch && row.chosenBranch !== selectedBranch.key) {
-            throw AppError.conflict('QUEST_BRANCH_LOCKED', 'That job already has a different committed choice.');
-          }
-        } else if (input.branchKey) {
-          throw AppError.conflict('QUEST_BRANCH_NOT_SUPPORTED', 'That job does not have a branch choice.');
+        const rulesetDefinition = ruleset.questDefinitions?.[row.questDefinition.key];
+        if (!rulesetDefinition) {
+          throw AppError.conflict('QUEST_DEFINITION_MISSING', 'That job is not available in this ruleset.');
         }
+        const selectedBranch = resolveQuestBranchForClaim(
+          rulesetDefinition,
+          input.branchKey,
+          row.chosenBranch,
+        );
 
         const next: PlayerState = { ...current };
         const reputationChanges = selectedBranch?.reputationDeltas.map((delta) =>
