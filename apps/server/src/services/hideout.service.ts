@@ -350,7 +350,6 @@ async function securityDto(
           where: { ownerId: player.id, status: 'PENDING', landsAt: { gt: now, lte: seeUntil } },
           include: { attacker: { select: { publicPimpId: true, displayName: true } } },
           orderBy: { landsAt: 'asc' },
-          take: 8,
         }),
     headsUp <= 0
       ? Promise.resolve([])
@@ -361,7 +360,6 @@ async function securityDto(
             turf: { include: { city: { select: { slug: true } } } },
           },
           orderBy: { landsAt: 'asc' },
-          take: 8,
         }),
     !localTrafficVisible
       ? Promise.resolve([])
