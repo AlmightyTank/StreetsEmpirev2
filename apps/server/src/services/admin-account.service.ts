@@ -46,6 +46,7 @@ export function accountSnapshot(account: Account) {
     emailVerifiedAt: account.emailVerifiedAt,
     isActive: account.isActive,
     isAdmin: account.isAdmin,
+    betaApproved: account.betaApproved,
     discordUsername: account.discordUsername,
     suspendedUntil: account.suspendedUntil,
     suspendedReason: account.suspendedReason,
@@ -81,6 +82,7 @@ function toSummary(account: SummaryAccount, activeSessions: number, now = new Da
     emailVerified: Boolean(account.emailVerifiedAt),
     isActive: account.isActive,
     isAdmin: account.isAdmin,
+    betaApproved: account.betaApproved,
     suspension: toSuspensionDto(account, now),
     discordUsername: account.discordUsername,
     forumUsername: account.forumLink?.forumUsername ?? null,
@@ -372,6 +374,20 @@ export const AdminAccountService = {
         if (others === 0) throw AppError.conflict('LAST_ADMIN', 'The game needs at least one active admin.');
       }
       const account = await tx.account.update({ where: { id: before.id }, data: { isAdmin } });
+      return { account };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  async setBetaApproved(prisma: PrismaClient, actor: AuditActor, accountId: string, approved: boolean, reason: string): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, approved ? 'approve-beta' : 'revoke-beta', reason, async (tx, before) => {
+      if (before.betaApproved === approved) {
+        throw AppError.conflict(
+          'BETA_ACCESS_UNCHANGED',
+          approved ? `${before.username} already has beta access.` : `${before.username} does not have beta access.`,
+        );
+      }
+      const account = await tx.account.update({ where: { id: before.id }, data: { betaApproved: approved } });
       return { account };
     });
     return AdminAccountService.detail(prisma, accountId);
