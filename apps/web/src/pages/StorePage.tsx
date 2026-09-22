@@ -127,10 +127,10 @@ function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked
       {favor ? (
         favor.unlocked ? <p className="se-hint se-good">Purchasing access earned for this round.</p> : (
           <div className="se-store-favor">
-            <h3 className="se-store-favor__title">{favor.title}</h3>
-            <p className="se-hint">{favor.description}</p>
+            <h3 className="se-store-favor__title">Quest locked</h3>
             <p className="se-hint">
-              Weapon access is earned through <Link to="/game/quests">underworld jobs</Link>. It cannot be bought with passive reputation.
+              Tommy has not opened this part of the rack to you yet. Weapon access is earned through
+              {' '}<Link to="/game/quests">underworld jobs</Link>, not passive reputation.
             </p>
           </div>
         )
