@@ -336,6 +336,8 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v0.7-h': CLASSIC_OG_V07G_HIDEOUT_V2,
   // 0.7-I adds favor inventory only; hideout behavior remains the G extension.
   'classic-og-v0.7-i': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // 0.7-J adds timed favors only; hideout behavior remains unchanged.
+  'classic-og-v0.7-j': CLASSIC_OG_V07G_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */
