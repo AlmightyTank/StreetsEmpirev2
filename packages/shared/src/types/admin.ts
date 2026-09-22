@@ -254,7 +254,7 @@ export interface AdminPlayerDto {
     lastDrivenByAt: string | null;
   };
   hideout: { safeRoom: number; lookouts: number; workshop: number; backOffice: number };
-  reputation: Array<{ trader: string; points: number; questDone: boolean }>;
+  reputation: Array<{ trader: string; points: number; legacyFavorDone: boolean }>;
   injuries: Array<{ id: string; thugs: number; recoverAt: string; battleId: string | null }>;
   intel: { observing: number; observedBy: number };
   activity: ActivityDto[];
