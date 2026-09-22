@@ -160,7 +160,9 @@ export type QuestObjectiveKind =
   | 'EARN_CASH'
   | 'RECRUIT_CREW'
   | 'WIN_EVENTS'
-  | 'STATE_AT_LEAST';
+  | 'STATE_AT_LEAST'
+  | 'UNIQUE_VALUES'
+  | 'TURF_HOLD_HOURS';
 
 export interface QuestObjectiveDefinition {
   /** Stable inside one quest so progress survives wording changes. */
@@ -195,6 +197,8 @@ export interface QuestObjectiveProgress {
   readonly current: number;
   readonly target: number;
   readonly completed: boolean;
+  /** Credited distinct strings for UNIQUE_VALUES objectives. */
+  readonly values?: readonly string[];
 }
 
 export type QuestProgressMap = Readonly<Record<string, QuestObjectiveProgress>>;

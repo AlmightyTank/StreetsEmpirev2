@@ -630,6 +630,7 @@ export interface QuestObjectiveDto {
   id: string;
   kind: string;
   description: string;
+  format?: 'NUMBER' | 'CURRENCY';
   current: number;
   target: number;
   completed: boolean;
@@ -735,6 +736,11 @@ export interface QuestPageDto {
   /** Server clock used by the client to age timed favor expiries without trusting its wall clock. */
   serverTime: string;
   dailyContracts: {
+    enabled: boolean;
+    slots: number;
+    resetAt: string | null;
+  };
+  weeklyContracts: {
     enabled: boolean;
     slots: number;
     resetAt: string | null;

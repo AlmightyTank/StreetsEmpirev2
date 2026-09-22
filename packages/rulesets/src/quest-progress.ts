@@ -95,6 +95,8 @@ function amountFor(objective: QuestObjectiveDefinition, event: QuestProgressEven
       return valueAt(event.payload, 'won') === true ? 1 : 0;
 
     case 'STATE_AT_LEAST':
+    case 'UNIQUE_VALUES':
+    case 'TURF_HOLD_HOURS':
       return 0;
   }
 }
@@ -104,12 +106,60 @@ function currentFor(objective: QuestObjectiveDefinition, existing?: QuestObjecti
   return Math.min(objective.target, Math.max(0, existing.current));
 }
 
+function uniqueStrings(value: QuestDataValue | undefined): string[] {
+  if (typeof value === 'string' && value.trim()) return [value];
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+}
+
 export function advanceQuestObjective(
   objective: QuestObjectiveDefinition,
   event: QuestProgressEvent,
   existing?: QuestObjectiveProgress,
 ): QuestObjectiveAdvance {
   const before = currentFor(objective, existing);
+
+  if (objective.kind === 'UNIQUE_VALUES') {
+    if (!matchesEvent(event, objective.params)) {
+      return {
+        matched: false,
+        amount: 0,
+        progress: {
+          current: before,
+          target: objective.target,
+          completed: before >= objective.target,
+          ...(existing?.values ? { values: [...existing.values] } : {}),
+        },
+      };
+    }
+
+    const field = stringParam(objective.params, 'field');
+    const found = field ? uniqueStrings(valueAt(event.payload, field)) : [];
+    const values = [...new Set([...(existing?.values ?? []), ...found])];
+    const current = Math.min(objective.target, values.length);
+    return {
+      matched: found.length > 0,
+      amount: current - before,
+      progress: {
+        current,
+        target: objective.target,
+        completed: current >= objective.target,
+        values,
+      },
+    };
+  }
+
+  if (objective.kind === 'TURF_HOLD_HOURS') {
+    return {
+      matched: false,
+      amount: 0,
+      progress: {
+        current: before,
+        target: objective.target,
+        completed: before >= objective.target,
+      },
+    };
+  }
 
   if (objective.kind === 'STATE_AT_LEAST') {
     if (!matchesEvent(event, objective.params)) {
