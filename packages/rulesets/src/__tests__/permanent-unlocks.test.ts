@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV07F, classicOgV07G } from '../index.js';
+import { classicOgV07F, classicOgV07G, classicOgV07H } from '../index.js';
 
 describe('quest roadmap Phase I permanent unlocks', () => {
   it('keeps 0.7-F unchanged and enables the generic unlock catalog only in 0.7-G', () => {
     expect('permanentUnlocks' in classicOgV07F).toBe(false);
     expect(Object.keys(classicOgV07F.questDefinitions ?? {})).toHaveLength(19);
 
-    expect(Object.keys(classicOgV07G.permanentUnlocks ?? {})).toEqual([
+    expect('permanentUnlocks' in classicOgV07G).toBe(false);
+    expect(Object.keys(classicOgV07H.permanentUnlocks ?? {})).toEqual([
       'WEAPON_SHOTGUN_ACCESS',
       'WEAPON_TEK9_ACCESS',
       'WEAPON_AK47_ACCESS',
@@ -15,11 +16,11 @@ describe('quest roadmap Phase I permanent unlocks', () => {
       'PRODUCT_COCAINE_ACCESS',
       'PRODUCT_HEROIN_ACCESS',
     ]);
-    expect(Object.keys(classicOgV07G.questDefinitions ?? {})).toHaveLength(19);
+    expect(Object.keys(classicOgV07H.questDefinitions ?? {})).toHaveLength(19);
   });
 
   it('moves story weapon access onto generic permanent unlock rewards', () => {
-    const quests = classicOgV07G.questDefinitions!;
+    const quests = classicOgV07H.questDefinitions!;
     expect(quests.HEAVY_HANDS.rewards).toContainEqual({
       kind: 'PERMANENT_UNLOCK',
       key: 'WEAPON_SHOTGUN_ACCESS',
@@ -39,7 +40,7 @@ describe('quest roadmap Phase I permanent unlocks', () => {
   });
 
   it('turns Pip side work into permanent product-counter progression', () => {
-    const quests = classicOgV07G.questDefinitions!;
+    const quests = classicOgV07H.questDefinitions!;
     expect(quests.PIP_BULK_ORDER.rewards).toContainEqual({
       kind: 'PERMANENT_UNLOCK',
       key: 'PRODUCT_METH_ACCESS',
@@ -55,8 +56,8 @@ describe('quest roadmap Phase I permanent unlocks', () => {
   });
 
   it('keeps every permanent unlock reward backed by the ruleset catalog', () => {
-    const catalog = classicOgV07G.permanentUnlocks!;
-    for (const quest of Object.values(classicOgV07G.questDefinitions ?? {})) {
+    const catalog = classicOgV07H.permanentUnlocks!;
+    for (const quest of Object.values(classicOgV07H.questDefinitions ?? {})) {
       for (const reward of quest.rewards) {
         if (reward.kind === 'PERMANENT_UNLOCK') {
           expect(catalog[reward.key!]).toBeDefined();
@@ -66,16 +67,16 @@ describe('quest roadmap Phase I permanent unlocks', () => {
   });
 
   it('maps the weapon unlock ledger back to the existing store access flags', () => {
-    expect(classicOgV07G.permanentUnlocks!.WEAPON_SHOTGUN_ACCESS.effect)
+    expect(classicOgV07H.permanentUnlocks!.WEAPON_SHOTGUN_ACCESS.effect)
       .toEqual({ kind: 'WEAPON_ACCESS', weapon: 'SHOTGUN' });
-    expect(classicOgV07G.permanentUnlocks!.WEAPON_TEK9_ACCESS.effect)
+    expect(classicOgV07H.permanentUnlocks!.WEAPON_TEK9_ACCESS.effect)
       .toEqual({ kind: 'WEAPON_ACCESS', weapon: 'TEK9' });
-    expect(classicOgV07G.permanentUnlocks!.WEAPON_AK47_ACCESS.effect)
+    expect(classicOgV07H.permanentUnlocks!.WEAPON_AK47_ACCESS.effect)
       .toEqual({ kind: 'WEAPON_ACCESS', weapon: 'AK47' });
   });
 
   it('gates Meth, Ecstasy, Cocaine and Heroin purchases while leaving Weed open', () => {
-    const productGates = Object.values(classicOgV07G.permanentUnlocks!)
+    const productGates = Object.values(classicOgV07H.permanentUnlocks!)
       .filter((unlock) => unlock.effect.kind === 'PRODUCT_PURCHASE_ACCESS')
       .map((unlock) => unlock.effect.productKey)
       .sort();
