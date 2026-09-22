@@ -26,8 +26,31 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
       seen.add(objective.id);
       if (!objective.kind.trim()) problems.push(`${catalogKey}/${objective.id}: objective kind is required`);
       if (!objective.description.trim()) problems.push(`${catalogKey}/${objective.id}: objective description is required`);
-      if (objective.target !== undefined && (!Number.isFinite(objective.target) || objective.target <= 0)) {
+      if (!Number.isFinite(objective.target) || objective.target <= 0) {
         problems.push(`${catalogKey}/${objective.id}: target must be greater than zero`);
+      }
+
+      const eventTypes = objective.params?.eventTypes;
+      if (eventTypes !== undefined && (
+        !Array.isArray(eventTypes)
+        || eventTypes.length === 0
+        || eventTypes.some((value) => typeof value !== 'string' || !value.trim())
+      )) {
+        problems.push(`${catalogKey}/${objective.id}: eventTypes must be a non-empty string array`);
+      }
+
+      if (objective.kind === 'EVENT_SUM') {
+        const field = objective.params?.field;
+        if (typeof field !== 'string' || !field.trim()) {
+          problems.push(`${catalogKey}/${objective.id}: EVENT_SUM requires a field`);
+        }
+      }
+
+      if (objective.kind === 'RECRUIT_CREW') {
+        const crew = objective.params?.crew;
+        if (crew !== undefined && !['ANY', 'WHORES', 'THUGS'].includes(String(crew))) {
+          problems.push(`${catalogKey}/${objective.id}: crew must be ANY, WHORES or THUGS`);
+        }
       }
     }
 
