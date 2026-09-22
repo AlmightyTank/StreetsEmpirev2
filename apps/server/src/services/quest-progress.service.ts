@@ -10,6 +10,7 @@ import {
 } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import { createPlayerActivity } from './in-app-notification.service.js';
+import { cityContractObjectives } from './city-contract.service.js';
 
 const ACTIVE_STATUSES = ['ACTIVE', 'READY_TO_TURN_IN'] as const;
 const OBJECTIVE_KINDS = new Set<QuestObjectiveKind>([
@@ -264,7 +265,8 @@ export const QuestProgressService = {
         continue;
       }
 
-      const requiredObjectives = objectives(playerQuest.questDefinition.objectives);
+      const requiredObjectives = cityContractObjectives(playerQuest.rewardState)
+        ?? objectives(playerQuest.questDefinition.objectives);
       const bonusObjectives = objectives(playerQuest.questDefinition.bonusObjectives);
       const requiredBefore = progress(playerQuest.objectiveProgress);
       const bonusBefore = progress(playerQuest.bonusProgress);
