@@ -685,6 +685,22 @@ export interface QuestActiveFavorDto {
   expiresAt: string;
 }
 
+export interface QuestArmedFavorDto {
+  key: string;
+  name: string;
+  description: string;
+  category: 'STREET' | 'UNDERWORLD' | 'MUSCLE';
+  armedAt: string;
+}
+
+export interface FavorArmResult {
+  favorKey: string;
+  name: string;
+  category: 'STREET' | 'UNDERWORLD' | 'MUSCLE';
+  armed: boolean;
+  quantityRemaining: number;
+}
+
 export interface FavorActivationResult {
   favorKey: string;
   name: string;
@@ -722,6 +738,7 @@ export interface QuestPageDto {
   contacts: QuestContactDto[];
   permanentUnlocks: QuestPermanentUnlockDto[];
   activeFavors: QuestActiveFavorDto[];
+  armedFavors: QuestArmedFavorDto[];
   favors: QuestFavorDto[];
   quests: PlayerQuestDto[];
 }
@@ -772,6 +789,9 @@ export interface StoreTradeResult {
   totalCents: number;
   cashChangeCents: number;
   quantityChange: number;
+  favorKey?: string;
+  favorDiscountPercent?: number;
+  baseUnitCents?: number;
 }
 
 /** 0.4.0-A. One product the round knows about, with the player's stock. */
