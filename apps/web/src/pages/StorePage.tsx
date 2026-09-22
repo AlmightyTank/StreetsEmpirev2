@@ -101,7 +101,7 @@ function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked
   const emptyReason = buying ? noneToBuy : `You have no ${item.name} to sell.`;
   const tradeBlock = blocked
     ?? (purchaseLocked
-      ? `Do ${keeper} the favour above before buying ${item.name}.`
+      ? `Complete the required job before buying ${item.name}.`
       : max < 1
         ? emptyReason
         : !valid || total === null
@@ -160,12 +160,12 @@ function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked
             max={max}
             steps={bulkHelpers}
             disabled={blocked !== null || purchaseLocked}
-            disabledReason={blocked ?? (purchaseLocked ? `Do ${keeper} the favour above before buying ${item.name}.` : null)}
+            disabledReason={blocked ?? (purchaseLocked ? `Complete the required job before buying ${item.name}.` : null)}
             emptyReason={emptyReason}
           />
         </div>
         <p id={`${quantityId}-hint`} className="se-hint">
-          {purchaseLocked ? 'Complete the favor above to unlock purchases.' : soldOut ? (
+          {purchaseLocked ? 'Complete the required quest to unlock purchases.' : soldOut ? (
             `Sold out. ${keeper} has none to sell you right now.`
           ) : <>
             {buying ? 'Can buy' : 'Can sell'} {formatNumber(max)}.
