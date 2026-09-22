@@ -37,7 +37,7 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** older rulesets still work, all original rooms upgrade correctly, the dashboard matches game state, and every lock explains what is missing.
 
 ## 0.7.0-B — Safe Room & Protected Storage
-**Status:** **in progress** on `hideout-0.7.0-b`. The first pass adds level-3+ protected product capacity, protected/exposed HQ reporting, recon-aware exposure, raid/drug-run enforcement, receipt visibility, and balance/regression coverage. Weapon reserve protection is deliberately held until combat balance data supports it.
+**Status:** **complete in beta.** Protected product capacity, protected/exposed HQ reporting, recon-aware exposure, raid/drug-run enforcement, receipt visibility, and balance/regression coverage are in place. Weapon reserve protection remains deliberately held for the later Armory/balance work.
 
 **Goal:** Make asset protection understandable and interactive.
 
@@ -51,6 +51,8 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** protected assets cannot be looted, exposure is visible before attacks, and wealthy players remain meaningfully raidable.
 
 ## 0.7.0-C — Lookouts & Security
+**Status:** **in progress** on `hideout-0.7.0-c`. The current pass preserves the existing defense bonus, adds tiered recon warnings and a Hideout security desk, reuses convoy/turf warning windows, adds count-only local run awareness, gates higher Lookouts with turf ownership, and prepares inactive Street Eyes / Armed Watch hooks for 0.7.0-G.
+
 **Goal:** Connect defense, recon, turf, and convoy awareness.
 
 - Preserve home-defense bonus.
