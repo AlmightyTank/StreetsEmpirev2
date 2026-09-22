@@ -294,6 +294,8 @@ export interface SeasonHideoutDto {
     name: string;
     level: number;
     maxLevel: number;
+    /** 0.7.0-G permanent branch key, null for rooms without a branch or an unchosen branch. */
+    specialization?: string | null;
   }>;
 }
 
