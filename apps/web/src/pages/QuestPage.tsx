@@ -140,6 +140,7 @@ export function QuestPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const load = useCallback(async () => {
     try {
@@ -153,6 +154,11 @@ export function QuestPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     setTab(tabFromSearch(location.search));
@@ -176,6 +182,11 @@ export function QuestPage() {
     if (tab === 'completed') return page.quests.filter((quest) => ['COMPLETED', 'FAILED', 'EXPIRED'].includes(quest.status));
     return page.quests.filter((quest) => quest.status === 'AVAILABLE');
   }, [page, tab]);
+
+  const liveFavors = useMemo(
+    () => page?.activeFavors.filter((favor) => new Date(favor.expiresAt).getTime() > nowMs) ?? [],
+    [page, nowMs],
+  );
 
   async function mutate(key: string, action: () => Promise<QuestPageDto>, success?: string) {
     setBusy(key);
@@ -281,7 +292,7 @@ export function QuestPage() {
 
             <Panel title="Active favors">
               <div className="se-rows">
-                {page.activeFavors.length ? page.activeFavors.map((favor) => (
+                {liveFavors.length ? liveFavors.map((favor) => (
                   <Row
                     key={favor.category}
                     label={favor.name + ' · ' + favor.category}
@@ -295,7 +306,7 @@ export function QuestPage() {
 
             <Panel title="Favor inventory">
               {page.favors.length ? page.favors.map((favor) => {
-                const active = page.activeFavors.find((item) => item.category === favor.category);
+                const active = liveFavors.find((item) => item.category === favor.category);
                 return (
                   <div key={favor.key} className="se-mb">
                     <Row
