@@ -32,7 +32,7 @@ const firstNightOut: QuestDefinition = {
   difficulty: 'STREET_JOB',
   prerequisites: [],
   objectives: [
-    { id: 'scout_turns', kind: 'SPEND_TURNS', description: 'Scout for 12 turns.', target: 12 },
+    { id: 'scout_turns', kind: 'SPEND_TURNS', description: 'Scout for 12 turns.', target: 12, params: { eventTypes: ['SCOUT'] } },
   ],
   bonusObjectives: [],
   rewards: [{ kind: 'CASH', amount: 250000 }],
