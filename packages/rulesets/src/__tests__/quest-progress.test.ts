@@ -81,4 +81,26 @@ describe('quest progress reducer', () => {
     expect(result.changed).toBe(true);
     expect(result.deltas).toEqual({ turns: 12, recruits: 1 });
   });
+
+  it('treats STATE_AT_LEAST as current state rather than cumulative progress', () => {
+    const def = objective({ kind: 'STATE_AT_LEAST', target: 5, params: { field: 'thugs' } });
+    const ready = advanceQuestObjective(def, { type: 'SCOUT', payload: {}, state: { thugs: 5 } });
+    expect(ready).toEqual({
+      matched: true,
+      amount: 5,
+      progress: { current: 5, target: 5, completed: true },
+    });
+
+    const dropped = advanceQuestObjective(
+      def,
+      { type: 'RAID_DEFENSE', payload: { won: false }, state: { thugs: 3 } },
+      ready.progress,
+    );
+    expect(dropped).toEqual({
+      matched: true,
+      amount: -2,
+      progress: { current: 3, target: 5, completed: false },
+    });
+  });
+
 });
