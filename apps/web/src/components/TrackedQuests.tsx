@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { PlayerQuestDto } from '@streets/shared';
+import { formatCents, type PlayerQuestDto } from '@streets/shared';
 import { questsApi } from '../api/quests.js';
 
 function primaryProgress(quest: PlayerQuestDto): string {
@@ -8,6 +8,7 @@ function primaryProgress(quest: PlayerQuestDto): string {
     ?? quest.objectives.find((item) => !item.bonus);
   if (!objective) return quest.status === 'READY_TO_TURN_IN' ? 'Ready to collect' : '';
   if (objective.completed) return 'Complete';
+  if (objective.kind === 'EARN_CASH') return formatCents(objective.current) + ' / ' + formatCents(objective.target);
   return objective.current.toLocaleString('en-US') + ' / ' + objective.target.toLocaleString('en-US');
 }
 
