@@ -87,6 +87,26 @@ export interface HideoutSecurityDto {
   };
 }
 
+export interface HideoutWorkshopRecipeDto {
+  key: string;
+  name: string;
+  baseIngredientCentsPerUnit: number;
+  effectiveIngredientCentsPerUnit: number;
+}
+
+export interface HideoutWorkshopDto {
+  level: number;
+  outputBonusPercent: number;
+  ingredientEfficiencyPercent: number;
+  recipes: HideoutWorkshopRecipeDto[];
+}
+
+export interface HideoutGarageDto {
+  level: number;
+  runLimit: number;
+  relocationFeeDiscountPercent: number;
+}
+
 export interface HideoutV2Dto extends Omit<HideoutDto, 'rooms'> {
   /** 1 means the original cash-only contract; 2 enables 0.7 progression metadata. */
   rulesVersion: 1 | 2;
@@ -95,4 +115,8 @@ export interface HideoutV2Dto extends Omit<HideoutDto, 'rooms'> {
   assetProtection?: HideoutAssetProtectionDto;
   /** Present only on rulesets with the 0.7-C Lookouts/security model. */
   security?: HideoutSecurityDto;
+  /** Present only on rulesets with the 0.7-D Workshop model. */
+  workshop?: HideoutWorkshopDto;
+  /** Present only on rulesets with the 0.7-D Garage/logistics model. */
+  garage?: HideoutGarageDto;
 }
