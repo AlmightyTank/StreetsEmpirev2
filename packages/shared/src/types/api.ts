@@ -603,6 +603,82 @@ export interface WeaponUnlockResult {
   title: string;
 }
 
+export type PlayerQuestStatusDto =
+  | 'LOCKED'
+  | 'AVAILABLE'
+  | 'ACTIVE'
+  | 'READY_TO_TURN_IN'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'EXPIRED';
+
+export interface QuestObjectiveDto {
+  id: string;
+  kind: string;
+  description: string;
+  current: number;
+  target: number;
+  completed: boolean;
+  bonus: boolean;
+}
+
+export interface QuestRewardDto {
+  kind: string;
+  key: string | null;
+  amount: number | null;
+  label: string;
+}
+
+export interface QuestContactDto {
+  key: string;
+  name: string;
+  shortName: string;
+  role: string;
+  description: string;
+  points: number;
+  standing: string;
+  nextStandingAt: number | null;
+}
+
+export interface PlayerQuestDto {
+  key: string;
+  title: string;
+  description: string;
+  contactKey: string | null;
+  contactName: string | null;
+  type: string;
+  category: string;
+  difficulty: string;
+  status: PlayerQuestStatusDto;
+  isTracked: boolean;
+  objectives: QuestObjectiveDto[];
+  rewards: QuestRewardDto[];
+  acceptedAt: string | null;
+  completedAt: string | null;
+  claimedAt: string | null;
+  expiresAt: string | null;
+}
+
+export interface QuestPageDto {
+  activeLimit: number;
+  trackedLimit: number;
+  counts: {
+    available: number;
+    active: number;
+    ready: number;
+    completed: number;
+  };
+  contacts: QuestContactDto[];
+  quests: PlayerQuestDto[];
+}
+
+export interface QuestClaimResult {
+  questKey: string;
+  title: string;
+  rewards: QuestRewardDto[];
+  newlyAvailable: string[];
+}
+
 /** One trader's standing, and the favour they are asking for. */
 export interface ReputationDto {
   trader: string;
@@ -669,8 +745,8 @@ export interface StoreDto {
   reputation: number;
   /** How much sooner they restock for you at that standing, as a percentage. */
   restockSpeedup: number;
-  /** The favour this trader is asking for. Done where the trader is. */
-  quest: QuestDto;
+  /** Legacy favor payload. New clients use /game/quests. */
+  quest?: QuestDto;
   items: StoreItemDto[];
 }
 
