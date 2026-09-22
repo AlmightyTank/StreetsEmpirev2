@@ -149,7 +149,7 @@ export function QuestPage() {
     if (!page) return [];
     if (tab === 'active') return page.quests.filter((quest) => ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status));
     if (tab === 'completed') return page.quests.filter((quest) => ['COMPLETED', 'FAILED', 'EXPIRED'].includes(quest.status));
-    return page.quests.filter((quest) => ['AVAILABLE', 'LOCKED'].includes(quest.status));
+    return page.quests.filter((quest) => quest.status === 'AVAILABLE');
   }, [page, tab]);
 
   async function mutate(key: string, action: () => Promise<QuestPageDto>, success?: string) {
