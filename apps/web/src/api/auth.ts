@@ -43,6 +43,9 @@ export const authApi = {
   changePassword: (input: ChangePasswordInput) =>
     api.post<MessageResponse>('/auth/password/change', input),
 
+  unlinkDiscord: (input: { currentPassword: string }) =>
+    api.delete<AccountResponse & { ok: true; message: string }>('/auth/discord', input),
+
   requestEmailVerification: () =>
     api.post<MessageResponse>('/auth/email/verify/request'),
 
