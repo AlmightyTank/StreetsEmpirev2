@@ -1,4 +1,5 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, RoundPlayer } from '@prisma/client';
+import { headsUpMinutes, reachAt, reachWindows } from '@streets/rules-engine';
 import {
   hideoutV2For,
   type HideoutRequirementKey,
@@ -10,12 +11,14 @@ import type {
   HideoutAssetProtectionDto,
   HideoutRequirementDto,
   HideoutRoomV2Dto,
+  HideoutSecurityDto,
   HideoutUpgradeInput,
   HideoutUpgradeResult,
   HideoutV2Dto,
 } from '@streets/shared';
 import { ActionService, type PlayerState } from './action.service.js';
 import { AppError } from '../utils/errors.js';
+import { toStopPlans } from './run-settle.service.js';
 
 type HideoutField =
   | 'hideoutSafeRoomLevel'
@@ -35,6 +38,10 @@ const ROOM_FIELDS: Record<HideoutRoomKey, HideoutField> = {
 const ROOM_ORDER: readonly HideoutRoomKey[] = ['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE', 'GARAGE'];
 
 export type HideoutProductStock = Record<string, number>;
+
+export interface HideoutProgressContext {
+  turfBlocksHeld?: number;
+}
 
 function productUnitValueCents(ruleset: Ruleset, key: string): number {
   if (key === 'CRACK') return ruleset.economy.netWorth.perCrackCents;
@@ -155,7 +162,16 @@ function effect(room: HideoutRoomKey, level: number, ruleset: Ruleset): string {
       : `${dollars(level * buffs.safeRoomProtectedCashCentsPerLevel)} extra cash protected from raids.`;
   }
   if (room === 'LOOKOUTS') {
-    return `+${level * buffs.lookoutsDefenseBonusPercentPerLevel}% home raid defense strength.`;
+    const security = hideoutV2For(ruleset)?.security;
+    const tier = security?.warningTierByLookoutsLevel[level] ?? 'NONE';
+    const history = security?.historyHoursByLookoutsLevel[level] ?? 0;
+    const warning = tier === 'SOURCE'
+      ? `named recon warnings for ${history}h`
+      : tier === 'PRESENCE'
+        ? `anonymous recon warnings for ${history}h`
+        : 'no recon warnings';
+    const headsUp = headsUpMinutes(ruleset, level);
+    return `+${level * buffs.lookoutsDefenseBonusPercentPerLevel}% home raid defense strength · ${warning} · about ${headsUp.toFixed(1)} min convoy/turf heads-up.`;
   }
   if (room === 'WORKSHOP') {
     return `+${level * buffs.workshopCrackBonusPercentPerLevel}% product from production.`;
@@ -166,7 +182,7 @@ function effect(room: HideoutRoomKey, level: number, ruleset: Ruleset): string {
   return `+${level * buffs.backOfficeTakeBonusPercentPerLevel}% personal cash take from street work.`;
 }
 
-function requirementValue(key: HideoutRequirementKey, player: PlayerState): number {
+function requirementValue(key: HideoutRequirementKey, player: PlayerState, progress: HideoutProgressContext): number {
   switch (key) {
     case 'CLEAN_SHIFT_STREAK':
       return player.cleanShiftStreak;
@@ -180,6 +196,8 @@ function requirementValue(key: HideoutRequirementKey, player: PlayerState): numb
       return player.lowRiders;
     case 'WEAPONS_OWNED':
       return player.pistols + player.shotguns + player.tek9s + player.ak47s;
+    case 'TURF_BLOCKS_HELD':
+      return progress.turfBlocksHeld ?? 0;
   }
 }
 
@@ -189,10 +207,11 @@ function requirementsFor(
   targetLevel: number,
   ruleset: Ruleset,
   player: PlayerState,
+  progress: HideoutProgressContext = {},
 ): HideoutRequirementDto[] {
   const requirements = hideoutV2For(ruleset)?.rooms[room]?.requirements?.[targetLevel] ?? [];
   return requirements.map((requirement) => {
-    const current = requirementValue(requirement.key, player);
+    const current = requirementValue(requirement.key, player, progress);
     return {
       key: requirement.key,
       label: requirement.label,
@@ -236,13 +255,13 @@ function specializationFor(
 }
 
 /** Builds a player's room status; throws when the room or its next-level price is invalid. */
-function toRoomDto(room: HideoutRoomKey, ruleset: Ruleset, player: PlayerState): HideoutRoomV2Dto {
+function toRoomDto(room: HideoutRoomKey, ruleset: Ruleset, player: PlayerState, progress: HideoutProgressContext): HideoutRoomV2Dto {
   const rule = ruleset.hideout!.rooms[room];
   if (!rule) throw new RangeError(`Hideout room ${room} is not enabled in this ruleset.`);
   const level = levelOf(player, room);
   const maxed = level >= rule.maxLevel;
   const nextCostCents = maxed ? null : rule.costsCents[level] ?? null;
-  const nextRequirements = maxed ? [] : requirementsFor(room, level + 1, ruleset, player);
+  const nextRequirements = maxed ? [] : requirementsFor(room, level + 1, ruleset, player, progress);
 
   if (!maxed && (nextCostCents === null || !Number.isSafeInteger(nextCostCents) || nextCostCents <= 0)) {
     throw new RangeError(`Hideout room ${room} level ${level + 1} is missing a valid price.`);
@@ -269,7 +288,12 @@ function toRoomDto(room: HideoutRoomKey, ruleset: Ruleset, player: PlayerState):
 }
 
 /** Builds player-specific Hideout status, including upgrade gates and specialization metadata. */
-export function hideoutCatalog(ruleset: Ruleset, player: PlayerState, products: HideoutProductStock = {}): HideoutV2Dto {
+export function hideoutCatalog(
+  ruleset: Ruleset,
+  player: PlayerState,
+  products: HideoutProductStock = {},
+  progress: HideoutProgressContext = {},
+): HideoutV2Dto {
   const extension = hideoutV2For(ruleset);
   if (!ruleset.hideout) {
     return {
@@ -283,7 +307,7 @@ export function hideoutCatalog(ruleset: Ruleset, player: PlayerState, products: 
   }
 
   const rooms = ROOM_ORDER.filter((room) => Boolean(ruleset.hideout!.rooms[room]))
-    .map((room) => toRoomDto(room, ruleset, player));
+    .map((room) => toRoomDto(room, ruleset, player, progress));
   return {
     enabled: true,
     seasonScoped: true,
@@ -292,6 +316,113 @@ export function hideoutCatalog(ruleset: Ruleset, player: PlayerState, products: 
     totalMaxLevel: rooms.reduce((sum, room) => sum + room.maxLevel, 0),
     rooms,
     ...(assetProtectionDto(ruleset, player, products) ? { assetProtection: assetProtectionDto(ruleset, player, products) } : {}),
+  };
+}
+
+async function securityDto(
+  prisma: PrismaClient,
+  ruleset: Ruleset,
+  player: Pick<RoundPlayer, 'id' | 'roundId' | 'hideoutLookoutsLevel'> & { city: { slug: string } },
+  now: Date,
+): Promise<HideoutSecurityDto | undefined> {
+  const security = hideoutV2For(ruleset)?.security;
+  if (!security) return undefined;
+
+  const level = player.hideoutLookoutsLevel;
+  const tier = security.warningTierByLookoutsLevel[level] ?? 'NONE';
+  const historyHours = security.historyHoursByLookoutsLevel[level] ?? 0;
+  const headsUp = headsUpMinutes(ruleset, level);
+  const seeUntil = new Date(now.getTime() + headsUp * 60_000);
+  const since = new Date(now.getTime() - historyHours * 3_600_000);
+  const localTrafficVisible = level >= security.localTrafficMinLevel;
+
+  const [recons, convoyThreats, turfThreats, traffic] = await Promise.all([
+    tier === 'NONE' || historyHours <= 0
+      ? Promise.resolve([])
+      : prisma.combatIntel.findMany({
+          where: { targetId: player.id, updatedAt: { gte: since } },
+          include: { observer: { select: { publicPimpId: true, displayName: true } } },
+          orderBy: { updatedAt: 'desc' },
+          take: 8,
+        }),
+    headsUp <= 0
+      ? Promise.resolve([])
+      : prisma.convoyTail.findMany({
+          where: { ownerId: player.id, status: 'PENDING', landsAt: { gt: now, lte: seeUntil } },
+          include: { attacker: { select: { publicPimpId: true, displayName: true } } },
+          orderBy: { landsAt: 'asc' },
+          take: 8,
+        }),
+    headsUp <= 0
+      ? Promise.resolve([])
+      : prisma.turfPush.findMany({
+          where: { defenderId: player.id, status: 'PENDING', landsAt: { gt: now, lte: seeUntil } },
+          include: {
+            attacker: { select: { publicPimpId: true, displayName: true } },
+            turf: { include: { city: { select: { slug: true } } } },
+          },
+          orderBy: { landsAt: 'asc' },
+          take: 8,
+        }),
+    !localTrafficVisible
+      ? Promise.resolve([])
+      : prisma.run.findMany({
+          where: { status: 'ACTIVE', roundPlayerId: { not: player.id }, roundPlayer: { roundId: player.roundId } },
+          include: { stops: { orderBy: { order: 'asc' } } },
+        }),
+  ]);
+
+  const revealSource = tier === 'SOURCE';
+  const suspicious: HideoutSecurityDto['suspicious'] = [
+    ...recons.map((row) => ({
+      kind: 'RECON' as const,
+      at: row.updatedAt.toISOString(),
+      title: 'Recon spotted',
+      detail: revealSource
+        ? `${row.observer.displayName} (#${row.observer.publicPimpId}) checked your block.`
+        : 'Someone checked your block.',
+      urgent: false,
+      actor: revealSource ? row.observer : null,
+    })),
+    ...convoyThreats.map((row) => ({
+      kind: 'CONVOY_TAIL' as const,
+      at: row.startedAt.toISOString(),
+      title: 'Tail spotted',
+      detail: `A tail on your run near ${ruleset.cities?.[row.city]?.name ?? row.city} lands at ${row.landsAt.toISOString()}.`,
+      urgent: true,
+      actor: revealSource ? row.attacker : null,
+    })),
+    ...turfThreats.map((row) => ({
+      kind: 'TURF_PUSH' as const,
+      at: row.startedAt.toISOString(),
+      title: 'Turf push spotted',
+      detail: `A push on your ${ruleset.cities?.[row.turf.city.slug]?.name ?? row.turf.city.slug} turf lands at ${row.landsAt.toISOString()}.`,
+      urgent: true,
+      actor: revealSource ? row.attacker : null,
+    })),
+  ].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
+
+  const localTrafficCount = localTrafficVisible
+    ? traffic.filter((run) =>
+        reachAt(reachWindows(ruleset, toStopPlans(run.stops)), now)
+          .some((window) => window.city === player.city.slug)).length
+    : null;
+
+  return {
+    lookoutsLevel: level,
+    defenseBonusPercent: hideoutDefenseBonusPercent(ruleset, player),
+    reconWarningTier: tier,
+    historyHours,
+    convoyHeadsUpMinutes: headsUp,
+    localTrafficVisible,
+    localTrafficCount,
+    pendingConvoyThreats: convoyThreats.length,
+    pendingTurfThreats: turfThreats.length,
+    suspicious,
+    specializationHooks: {
+      streetEyes: { warningHoursBonus: security.specializationHooks.streetEyesWarningHoursBonus, active: false },
+      armedWatch: { defenseBonusPercent: security.specializationHooks.armedWatchDefenseBonusPercent, active: false },
+    },
   };
 }
 
@@ -320,8 +451,29 @@ export function hideoutBackOfficeBonusCents(base: bigint, ruleset: Ruleset, play
 }
 
 export const HideoutService = {
-  catalog(ruleset: Ruleset, player: PlayerState, products: HideoutProductStock = {}): HideoutV2Dto {
-    return hideoutCatalog(ruleset, player, products);
+  catalog(
+    ruleset: Ruleset,
+    player: PlayerState,
+    products: HideoutProductStock = {},
+    progress: HideoutProgressContext = {},
+  ): HideoutV2Dto {
+    return hideoutCatalog(ruleset, player, products, progress);
+  },
+
+  async page(
+    prisma: PrismaClient,
+    ruleset: Ruleset,
+    player: RoundPlayer & { city: { slug: string } },
+    state: PlayerState,
+    products: HideoutProductStock = {},
+    now: Date = new Date(),
+  ): Promise<HideoutV2Dto> {
+    const turfBlocksHeld = ruleset.turf
+      ? await prisma.turf.count({ where: { roundId: player.roundId, holderId: player.id } })
+      : 0;
+    const catalog = hideoutCatalog(ruleset, state, products, { turfBlocksHeld });
+    const security = await securityDto(prisma, ruleset, player, now);
+    return security ? { ...catalog, security } : catalog;
   },
 
   /** Buys the next room level after validating availability, progress requirements, and cash. */
@@ -333,7 +485,7 @@ export const HideoutService = {
     return ActionService.run<HideoutUpgradeResult>(prisma, roundPlayerId, {
       action: 'HIDEOUT_UPGRADE',
       actionId: input.actionId,
-      execute: ({ current, ruleset }) => {
+      execute: async ({ tx, current, ruleset, player }) => {
         const hideout = ruleset.hideout;
         if (!hideout) {
           throw AppError.conflict('HIDEOUT_DISABLED', 'Hideouts are not available in this round.');
@@ -354,7 +506,10 @@ export const HideoutService = {
         }
         const costCents = maybeCostCents;
         const levelAfter = levelBefore + 1;
-        const requirements = requirementsFor(room, levelAfter, ruleset, current);
+        const turfBlocksHeld = ruleset.turf
+          ? await tx.turf.count({ where: { roundId: player.roundId, holderId: roundPlayerId } })
+          : 0;
+        const requirements = requirementsFor(room, levelAfter, ruleset, current, { turfBlocksHeld });
         const unmet = requirements.filter((requirement) => !requirement.met);
         if (unmet.length) {
           throw AppError.badRequest(
