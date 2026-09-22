@@ -1,16 +1,31 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { pushSubscribeSchema, updateNotificationSettingsSchema } from '@streets/shared';
 import { z } from 'zod';
+import { InAppNotificationService } from '../services/in-app-notification.service.js';
 import { NotificationService } from '../services/notification.service.js';
 import { PushService } from '../services/push.service.js';
 import { parseBody } from '../utils/validate.js';
 
 const deviceParams = z.object({ id: z.string().min(1).max(40) });
+const notificationParams = z.object({ id: z.string().min(1).max(64) });
 const endpointBody = z.object({ endpoint: z.string().url().max(1000) }).strict();
 
-/** Alert preferences and push devices for the signed-in account. */
+/** Alert preferences, the in-game inbox and push devices for the signed-in account. */
 const notificationRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', fastify.requireAuth);
+
+  fastify.get('/in-app', async (request) =>
+    InAppNotificationService.inbox(fastify.prisma, request.auth!.account.id));
+
+  fastify.post('/in-app/read-all', async (request) =>
+    InAppNotificationService.readAll(fastify.prisma, request.auth!.account.id));
+
+  fastify.post('/in-app/:id/read', async (request) =>
+    InAppNotificationService.read(
+      fastify.prisma,
+      request.auth!.account.id,
+      parseBody(notificationParams, request.params).id,
+    ));
 
   fastify.get('/settings', async (request) => NotificationService.settings(fastify.prisma, request.auth!.account.id));
 
