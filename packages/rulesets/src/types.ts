@@ -146,7 +146,8 @@ export type QuestRepeatability = 'ONCE' | 'DAILY' | 'WEEKLY' | 'REPEATABLE';
 
 export type QuestPrerequisiteKind =
   | 'QUEST_COMPLETED'
-  | 'CONTACT_REP_AT_LEAST';
+  | 'CONTACT_REP_AT_LEAST'
+  | 'BRANCH_CHOSEN';
 
 export interface QuestPrerequisiteDefinition {
   readonly kind: QuestPrerequisiteKind;
@@ -223,6 +224,20 @@ export interface QuestRewardDefinition {
   readonly amount?: number;
   readonly key?: string;
   readonly params?: QuestDataObject;
+}
+
+export interface QuestBranchReputationDelta {
+  readonly contactKey: ContactKey;
+  readonly amount: number;
+}
+
+export interface QuestBranchDefinition {
+  readonly key: string;
+  readonly title: string;
+  readonly description: string;
+  readonly rewards: readonly QuestRewardDefinition[];
+  readonly reputationDeltas: readonly QuestBranchReputationDelta[];
+  readonly followUpKeys: readonly string[];
 }
 
 export type ContactKey =
@@ -339,6 +354,8 @@ export interface QuestDefinition {
   readonly objectives: readonly QuestObjectiveDefinition[];
   readonly bonusObjectives: readonly QuestObjectiveDefinition[];
   readonly rewards: readonly QuestRewardDefinition[];
+  /** Rare Phase R choices committed at turn-in. Omit for normal linear Jobs. */
+  readonly branches?: readonly QuestBranchDefinition[];
   readonly followUpKeys: readonly string[];
   readonly repeatability: QuestRepeatability;
   /** Null means the accepted quest has no timer. */
