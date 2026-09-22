@@ -15,11 +15,11 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
 
-type Tab = 'available' | 'daily' | 'weekly' | 'active' | 'completed';
+type Tab = 'available' | 'daily' | 'weekly' | 'city' | 'active' | 'completed';
 
 function tabFromSearch(search: string): Tab {
   const requested = new URLSearchParams(search).get('tab');
-  return requested === 'daily' || requested === 'weekly' || requested === 'active' || requested === 'completed' || requested === 'available'
+  return requested === 'daily' || requested === 'weekly' || requested === 'city' || requested === 'active' || requested === 'completed' || requested === 'available'
     ? requested
     : 'available';
 }
@@ -68,7 +68,7 @@ function QuestCard({
       id={`quest-${quest.key}`}
       className="se-quest-card"
       title={quest.title}
-      aside={<span className="se-num se-dim">{quest.contactName ?? 'StreetsEmpire'} · {quest.type === 'DAILY' ? 'Daily contract' : quest.type === 'WEEKLY' ? 'Weekly contract' : quest.type === 'SECRET' ? 'Secret job' : quest.type === 'SIDE' ? 'Side job' : quest.type === 'STORY' ? 'Story' : quest.type} · {statusLabel(quest)}</span>}
+      aside={<span className="se-num se-dim">{quest.contactName ?? 'StreetsEmpire'} · {quest.category === 'CITY_CONTRACT' ? 'City contract' : quest.type === 'DAILY' ? 'Daily contract' : quest.type === 'WEEKLY' ? 'Weekly contract' : quest.type === 'SECRET' ? 'Secret job' : quest.type === 'SIDE' ? 'Side job' : quest.type === 'STORY' ? 'Story' : quest.type} · {statusLabel(quest)}</span>}
     >
       <p className="se-hint se-quest-card__desc">{quest.description}</p>
       <div className="se-rows se-quest-objectives">
@@ -166,7 +166,7 @@ function QuestCard({
         ) : null}
       </div>
 
-      {quest.expiresAt ? <p className="se-hint">{quest.type === 'DAILY' ? 'Daily board resets ' : quest.type === 'WEEKLY' ? 'Weekly board resets ' : 'Expires '}{new Date(quest.expiresAt).toLocaleString()}.</p> : null}
+      {quest.expiresAt ? <p className="se-hint">{quest.category === 'CITY_CONTRACT' ? 'City board refreshes ' : quest.type === 'DAILY' ? 'Daily board resets ' : quest.type === 'WEEKLY' ? 'Weekly board resets ' : 'Expires '}{new Date(quest.expiresAt).toLocaleString()}.</p> : null}
     </Panel>
   );
 }
@@ -226,6 +226,7 @@ export function QuestPage() {
     const resetAt = [
       page?.dailyContracts.resetAt,
       page?.weeklyContracts.resetAt,
+      page?.cityContracts.resetAt,
     ]
       .filter((value): value is string => Boolean(value))
       .map((value) => new Date(value).getTime())
@@ -239,7 +240,7 @@ export function QuestPage() {
     }
     const timer = window.setTimeout(() => void load(), delay);
     return () => window.clearTimeout(timer);
-  }, [page?.dailyContracts.resetAt, page?.weeklyContracts.resetAt, clockOffsetMs, load]);
+  }, [page?.dailyContracts.resetAt, page?.weeklyContracts.resetAt, page?.cityContracts.resetAt, clockOffsetMs, load]);
 
   useEffect(() => {
     if (!page || !location.hash) return;
@@ -271,11 +272,21 @@ export function QuestPage() {
     [page, nowMs],
   );
 
+  const cityToday = useMemo(
+    () => page?.quests.filter((quest) =>
+      quest.category === 'CITY_CONTRACT'
+      && quest.expiresAt !== null
+      && new Date(quest.expiresAt).getTime() > nowMs
+    ) ?? [],
+    [page, nowMs],
+  );
+
   const standardAvailableCount = useMemo(
     () => page?.quests.filter((quest) =>
       quest.status === 'AVAILABLE'
       && quest.type !== 'DAILY'
       && quest.type !== 'WEEKLY'
+      && quest.category !== 'CITY_CONTRACT'
     ).length ?? 0,
     [page],
   );
@@ -284,14 +295,16 @@ export function QuestPage() {
     if (!page) return [];
     if (tab === 'daily') return dailyToday;
     if (tab === 'weekly') return weeklyToday;
+    if (tab === 'city') return cityToday;
     if (tab === 'active') return page.quests.filter((quest) => ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status));
     if (tab === 'completed') return page.quests.filter((quest) => ['COMPLETED', 'FAILED', 'EXPIRED'].includes(quest.status));
     return page.quests.filter((quest) =>
       quest.status === 'AVAILABLE'
       && quest.type !== 'DAILY'
       && quest.type !== 'WEEKLY'
+      && quest.category !== 'CITY_CONTRACT'
     );
-  }, [page, tab, dailyToday, weeklyToday]);
+  }, [page, tab, dailyToday, weeklyToday, cityToday]);
 
   const liveFavors = useMemo(
     () => page?.activeFavors.filter((favor) => new Date(favor.expiresAt).getTime() > nowMs) ?? [],
@@ -427,6 +440,13 @@ export function QuestPage() {
                         strong={weeklyToday.some((quest) => quest.status === 'READY_TO_TURN_IN')}
                       />
                     ) : null}
+                    {page.cityContracts.enabled ? (
+                      <Row
+                        label="City board"
+                        value={formatNumber(cityToday.length) + ' / ' + formatNumber(page.cityContracts.slots)}
+                        strong={cityToday.some((quest) => quest.status === 'READY_TO_TURN_IN')}
+                      />
+                    ) : null}
                     <Row label="Active" value={formatNumber(page.counts.active) + ' / ' + formatNumber(page.activeLimit)} />
                     <Row label="Ready to collect" value={formatNumber(page.counts.ready)} strong={page.counts.ready > 0} />
                     <Row label="Completed" value={formatNumber(page.counts.completed)} />
@@ -440,6 +460,9 @@ export function QuestPage() {
                   ) : null}
                   {page.weeklyContracts.resetAt ? (
                     <p className="se-hint se-mt">Weekly contracts rotate {new Date(page.weeklyContracts.resetAt).toLocaleString()}.</p>
+                  ) : null}
+                  {page.cityContracts.resetAt ? (
+                    <p className="se-hint se-mt">City contracts refresh {new Date(page.cityContracts.resetAt).toLocaleString()}.</p>
                   ) : null}
                 </Panel>
 
@@ -574,6 +597,7 @@ export function QuestPage() {
               ['available', 'Available (' + standardAvailableCount + ')'],
               ...(page.dailyContracts.enabled ? [['daily', 'Daily (' + dailyToday.length + ')'] as const] : []),
               ...(page.weeklyContracts.enabled ? [['weekly', 'Weekly (' + weeklyToday.length + ')'] as const] : []),
+              ...(page.cityContracts.enabled ? [['city', 'City (' + cityToday.length + ')'] as const] : []),
               ['active', 'Active (' + page.counts.active + ')'],
               ['completed', 'Completed (' + page.counts.completed + ')'],
             ] as const).map(([key, label]) => (
