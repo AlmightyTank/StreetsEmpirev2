@@ -1,6 +1,7 @@
 import type { ActivityType, Prisma } from '@prisma/client';
 import {
   applyQuestProgress,
+  type QuestDataObject,
   type QuestDataValue,
   type QuestObjectiveDefinition,
   type QuestObjectiveKind,
@@ -17,6 +18,7 @@ const OBJECTIVE_KINDS = new Set<QuestObjectiveKind>([
   'EARN_CASH',
   'RECRUIT_CREW',
   'WIN_EVENTS',
+  'STATE_AT_LEAST',
 ]);
 
 export interface QuestProgressSignal {
@@ -82,6 +84,81 @@ function progress(value: Prisma.JsonValue): QuestProgressMap {
   return result;
 }
 
+async function playerState(db: Db, roundPlayerId: string): Promise<QuestDataObject | undefined> {
+  const row = await db.roundPlayer.findUnique({
+    where: { id: roundPlayerId },
+    select: {
+      cashCents: true,
+      turns: true,
+      payoutPercent: true,
+      whores: true,
+      thugs: true,
+      woundedThugs: true,
+      busyThugs: true,
+      postedThugs: true,
+      condoms: true,
+      medicine: true,
+      crack: true,
+      beer: true,
+      pistols: true,
+      shotguns: true,
+      tek9s: true,
+      ak47s: true,
+      lowRiders: true,
+      shotgunUnlocked: true,
+      tek9Unlocked: true,
+      ak47Unlocked: true,
+      heat: true,
+      netWorthCents: true,
+      hideoutSafeRoomLevel: true,
+      hideoutLookoutsLevel: true,
+      hideoutWorkshopLevel: true,
+      hideoutBackOfficeLevel: true,
+      hideoutGarageLevel: true,
+      allianceId: true,
+      city: { select: { slug: true } },
+    },
+  });
+  if (!row) return undefined;
+
+  const fitThugs = Math.max(0, row.thugs - row.woundedThugs - row.busyThugs - row.postedThugs);
+  const weapons = row.pistols + row.shotguns + row.tek9s + row.ak47s;
+
+  return {
+    cashCents: Number(row.cashCents),
+    turns: row.turns,
+    payoutPercent: row.payoutPercent,
+    whores: row.whores,
+    thugs: row.thugs,
+    fitThugs,
+    woundedThugs: row.woundedThugs,
+    busyThugs: row.busyThugs,
+    postedThugs: row.postedThugs,
+    armedThugs: Math.min(fitThugs, weapons),
+    condoms: row.condoms,
+    medicine: row.medicine,
+    crack: row.crack,
+    beer: row.beer,
+    pistols: row.pistols,
+    shotguns: row.shotguns,
+    tek9s: row.tek9s,
+    ak47s: row.ak47s,
+    lowRiders: row.lowRiders,
+    shotgunUnlocked: row.shotgunUnlocked,
+    tek9Unlocked: row.tek9Unlocked,
+    ak47Unlocked: row.ak47Unlocked,
+    heat: row.heat,
+    netWorthCents: Number(row.netWorthCents),
+    hideoutSafeRoomLevel: row.hideoutSafeRoomLevel,
+    hideoutLookoutsLevel: row.hideoutLookoutsLevel,
+    hideoutWorkshopLevel: row.hideoutWorkshopLevel,
+    hideoutBackOfficeLevel: row.hideoutBackOfficeLevel,
+    hideoutGarageLevel: row.hideoutGarageLevel,
+    allianceId: row.allianceId,
+    city: row.city.slug,
+  };
+}
+
 async function lockPlayerQuest(db: Db, id: string): Promise<void> {
   await db.$queryRaw`SELECT id FROM "PlayerQuest" WHERE id = ${id} FOR UPDATE`;
 }
@@ -111,7 +188,6 @@ export const QuestProgressService = {
     signal: QuestProgressSignal,
   ): Promise<QuestProgressResult> {
     const at = signal.at ?? new Date();
-    const event: QuestProgressEvent = { type: signal.type, payload: signal.payload };
     const result: QuestProgressResult = {
       considered: 0,
       matched: 0,
@@ -126,6 +202,14 @@ export const QuestProgressService = {
       select: { id: true },
       orderBy: { id: 'asc' },
     });
+    if (candidates.length === 0) return result;
+
+    const state = await playerState(db, roundPlayerId);
+    const event: QuestProgressEvent = {
+      type: signal.type,
+      payload: signal.payload,
+      ...(state ? { state } : {}),
+    };
 
     for (const candidate of candidates) {
       await lockPlayerQuest(db, candidate.id);
