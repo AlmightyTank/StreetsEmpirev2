@@ -43,12 +43,12 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
         problems.push(`${catalogKey}: reward kind is required`);
         continue;
       }
-      if (['CASH', 'TURNS', 'ITEM', 'CONTACT_REP'].includes(reward.kind)) {
+      if (['CASH', 'TURNS', 'ITEM', 'CONTACT_REP', 'FAVOR_ITEM'].includes(reward.kind)) {
         if (typeof reward.amount !== 'number' || !Number.isFinite(reward.amount) || reward.amount <= 0) {
           problems.push(`${catalogKey}: ${reward.kind} reward requires a positive amount`);
         }
       }
-      if ((reward.kind === 'ITEM' || reward.kind === 'CONTACT_REP') && (!reward.key || !reward.key.trim())) {
+      if (['ITEM', 'CONTACT_REP', 'FAVOR_ITEM'].includes(reward.kind) && (!reward.key || !reward.key.trim())) {
         problems.push(`${catalogKey}: ${reward.kind} reward requires a key`);
       }
       if (reward.kind === 'WEAPON_ACCESS' && !['SHOTGUN', 'TEK9', 'AK47'].includes(reward.key ?? '')) {
