@@ -12,7 +12,7 @@ const freshFaces: QuestDefinition = {
   difficulty: 'STREET_JOB',
   prerequisites: [],
   objectives: [
-    { id: 'crew_size', kind: 'OWN_CREW', description: 'Build your crew.', target: 5 },
+    { id: 'crew_size', kind: 'RECRUIT_CREW', description: 'Build your crew.', target: 5, params: { eventTypes: ['SCOUT'], crew: 'ANY' } },
   ],
   bonusObjectives: [],
   rewards: [],
@@ -54,7 +54,7 @@ describe('quest definition foundation', () => {
       ...firstNightOut,
       objectives: [
         ...firstNightOut.objectives,
-        { id: 'scout_turns', kind: 'RECRUIT', description: 'Recruit someone.', target: 1 },
+        { id: 'scout_turns', kind: 'RECRUIT_CREW', description: 'Recruit someone.', target: 1 },
       ],
       expiresAfterMinutes: 0,
     };
