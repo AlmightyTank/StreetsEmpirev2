@@ -512,6 +512,18 @@ export interface NotificationSettingsDto {
   };
 }
 
+/** One durable item in the in-game notification bell. */
+export interface InAppNotificationDto {
+  id: string;
+  readAt: string | null;
+  activity: ActivityDto;
+}
+
+export interface InAppNotificationFeedDto {
+  notifications: InAppNotificationDto[];
+  unreadCount: number;
+}
+
 /** Private /stats: the member's own dashboard numbers. */
 export interface DiscordStatsDto {
   roundName: string;

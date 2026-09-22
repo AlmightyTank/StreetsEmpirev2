@@ -716,6 +716,7 @@ model RoundPlayer {
   updatedAt DateTime @updatedAt
 
   activity              PlayerActivity[]
+  inAppNotifications     InAppNotification[]
   economyLedger         EconomyLedgerEntry[]
   processedActions      ProcessedAction[]
   reputation            PlayerReputation[]
@@ -1421,6 +1422,7 @@ model PlayerActivity {
 
   roundPlayerId String
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  notification  InAppNotification?
 
   type    ActivityType
   payload Json
@@ -1428,6 +1430,24 @@ model PlayerActivity {
   createdAt DateTime @default(now())
 
   @@index([roundPlayerId, createdAt(sort: Desc)])
+}
+
+/// Durable in-game notification receipt for a toast-worthy activity.
+/// The notification id intentionally matches the activity id so a live toast can
+/// acknowledge itself without another lookup.
+model InAppNotification {
+  id String @id
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  activityId String @unique
+  activity   PlayerActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([roundPlayerId, readAt, createdAt(sort: Desc)])
 }
 
 /// 0.7.0-E. Durable economic lines for the Back Office ledger.

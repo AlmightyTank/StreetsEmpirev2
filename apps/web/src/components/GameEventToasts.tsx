@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ActivityDto, RoundDto, RoundPlayerDto } from '@streets/shared';
 import { describeActivity } from './ActivityFeed.js';
+import { notificationsApi } from '../api/notifications.js';
 import { useSession } from '../stores/session.js';
 
 type ToastTone = 'info' | 'good' | 'warn' | 'bad';
@@ -12,6 +13,8 @@ export interface GameEventToast {
   detail: string;
   tone: ToastTone;
   href?: string;
+  /** Activity-backed toasts use this to acknowledge the durable bell item. */
+  notificationId?: string;
 }
 
 type GameEventToastInput = Omit<GameEventToast, 'id'> & { id?: string };
@@ -340,7 +343,7 @@ export function GameEventToasts() {
 
     const next = fresh.flatMap((entry) => {
       const toast = gameEventToastFor(entry, crackWord);
-      return toast ? [{ ...toast, id: entry.id }] : [];
+      return toast ? [{ ...toast, id: entry.id, notificationId: entry.id }] : [];
     });
     if (!next.length) return;
 
@@ -412,6 +415,13 @@ export function GameEventToasts() {
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [reducedMotion, toasts]);
 
+  function acknowledge(toast: GameEventToast) {
+    if (!toast.notificationId) return;
+    void notificationsApi.read(toast.notificationId)
+      .then(() => window.dispatchEvent(new Event('streets:notifications-changed')))
+      .catch(() => undefined);
+  }
+
   const rendered = useMemo(() => toasts.slice().reverse(), [toasts]);
   if (!rendered.length) return null;
 
@@ -426,12 +436,15 @@ export function GameEventToasts() {
         );
         return (
           <div className={`se-eventtoast se-eventtoast--${toast.tone}`} key={toast.id}>
-            {toast.href ? <Link className="se-eventtoast__body" to={toast.href}>{body}</Link> : <span className="se-eventtoast__body">{body}</span>}
+            {toast.href ? <Link className="se-eventtoast__body" to={toast.href} onClick={() => acknowledge(toast)}>{body}</Link> : <span className="se-eventtoast__body">{body}</span>}
             <button
               type="button"
               className="se-eventtoast__close"
               aria-label="Dismiss event"
-              onClick={() => setToasts((current) => current.filter((entry) => entry.id !== toast.id))}
+              onClick={() => {
+                acknowledge(toast);
+                setToasts((current) => current.filter((entry) => entry.id !== toast.id));
+              }}
             >
               ×
             </button>
