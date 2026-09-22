@@ -42,11 +42,14 @@ export function AccountSettingsPage() {
   const [newEmail, setNewEmail] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [discordPassword, setDiscordPassword] = useState('');
+  const [discordPasswordError, setDiscordPasswordError] = useState<string | null>(null);
+  const [confirmDiscordUnlink, setConfirmDiscordUnlink] = useState(false);
   const [revokeOtherSessionsOnPasswordChange, setRevokeOtherSessionsOnPasswordChange] = useState(true);
   const [message, setMessage] = useState<string | null>(accountMessage);
   const [tone, setTone] = useState<'error' | 'info'>('info');
   const [fields, setFields] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState<'recovery' | 'verify' | 'email' | 'password' | 'sessions' | 'cosmetics' | null>(null);
+  const [busy, setBusy] = useState<'recovery' | 'verify' | 'email' | 'password' | 'discord' | 'sessions' | 'cosmetics' | null>(null);
   /** One line for every button while another request is in flight. */
   const working = 'Finishing the last thing you asked for.';
   const [sessions, setSessions] = useState<AccountSessionDto[]>([]);
@@ -182,6 +185,29 @@ export function AccountSettingsPage() {
       if (error instanceof ApiError) {
         setMessage(error.message);
         setFields(error.fields ?? {});
+      } else {
+        setMessage('Something went wrong. Try that again.');
+      }
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function unlinkDiscord() {
+    setBusy('discord');
+    setMessage(null);
+    setDiscordPasswordError(null);
+
+    try {
+      const response = await authApi.unlinkDiscord({ currentPassword: discordPassword });
+      setConfirmDiscordUnlink(false);
+      setDiscordPassword('');
+      window.location.assign(`/account?accountMessage=${encodeURIComponent(response.message)}`);
+    } catch (error) {
+      setTone('error');
+      if (error instanceof ApiError) {
+        setMessage(error.message);
+        setDiscordPasswordError(error.fields?.currentPassword ?? null);
       } else {
         setMessage('Something went wrong. Try that again.');
       }
@@ -353,12 +379,66 @@ export function AccountSettingsPage() {
         </div>
 
         <div className="se-account-column">
-          <Panel title="Discord login">
+          <Panel title="Discord account">
             <p>
-              Link Discord so you can log in without typing your password. Discord stays private and is only used for authentication.
+              Link Discord for sign-in, bot commands, roles and optional Discord alerts. You can disconnect it without deleting your StreetsEmpire account.
             </p>
             {account.discordLinked ? (
-              <p className="se-good se-account-status">Discord is linked.</p>
+              <>
+                <p className="se-good se-account-status">
+                  Linked{account.discordUsername ? <> to <strong>{account.discordUsername}</strong></> : ''}.
+                </p>
+                <Button
+                  type="button"
+                  className="se-btn se-btn--ghost se-btn--block"
+                  onClick={() => {
+                    setDiscordPasswordError(null);
+                    setConfirmDiscordUnlink(true);
+                  }}
+                  disabledReason={busy !== null ? working : null}
+                >
+                  Unlink Discord account
+                </Button>
+                {confirmDiscordUnlink ? (
+                  <div className="se-account-confirm">
+                    <p>
+                      Confirm with your current password. If you normally sign in with Discord and do not know your password, use the recovery email option first to set one.
+                    </p>
+                    <Field
+                      label="Current password"
+                      name="discordCurrentPassword"
+                      type="password"
+                      value={discordPassword}
+                      onChange={(event) => setDiscordPassword(event.target.value)}
+                      autoComplete="current-password"
+                      required
+                      error={discordPasswordError ?? undefined}
+                    />
+                    <div className="se-actions-row">
+                      <Button
+                        type="button"
+                        className="se-btn se-btn--ghost"
+                        onClick={unlinkDiscord}
+                        disabledReason={busy !== null ? working : discordPassword ? null : 'Enter your current password first.'}
+                      >
+                        {busy === 'discord' ? 'Unlinking...' : 'Yes, unlink Discord'}
+                      </Button>
+                      <Button
+                        type="button"
+                        className="se-btn se-btn--ghost"
+                        onClick={() => {
+                          setConfirmDiscordUnlink(false);
+                          setDiscordPassword('');
+                          setDiscordPasswordError(null);
+                        }}
+                        disabledReason={busy !== null ? working : null}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </>
             ) : (
               <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord?link=1">
                 Link Discord
