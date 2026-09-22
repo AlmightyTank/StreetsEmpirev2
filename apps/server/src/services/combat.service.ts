@@ -39,6 +39,7 @@ import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 import { RankingService } from './ranking.service.js';
 import { hideoutDefenseBonusPercent, hideoutMedicineEfficiencyPercent, hideoutProductProtection, hideoutProtectedCashBonusCents, hideoutProtectedProductCapacity, hideoutWeaponPriority } from './hideout.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
+import { SingleUseFavorService } from './single-use-favor.service.js';
 
 type CombatRules = NonNullable<Ruleset['combat']>;
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value, (_, v: unknown) => typeof v === 'bigint' ? v.toString() : v));
@@ -620,6 +621,7 @@ async function recoveryDto(
   });
   const medicinePerThug = model.wounds.winnerFraction === 0 && model.wounds.loserFraction === 0 ? 0 : 1;
   const favorBonuses = await TimedFavorService.bonuses(prisma, playerId, ruleset, now);
+  const doctorFavor = await SingleUseFavorService.matching(prisma, playerId, ruleset, 'FREE_TREATMENT');
   const medicineEfficiencyPercent = Math.min(
     50,
     hideoutMedicineEfficiencyPercent(ruleset, player) + favorBonuses.treatmentMedicineEfficiencyPercent,
@@ -633,11 +635,12 @@ async function recoveryDto(
     woundedThugs: player.woundedThugs,
     nextRecoveryAt: iso(next?.recoverAt ?? null),
     medicinePerThug,
-    maxTreatableThugs: Math.min(player.woundedThugs, maxByMedicine),
+    maxTreatableThugs: doctorFavor ? player.woundedThugs : Math.min(player.woundedThugs, maxByMedicine),
     ...(medicineEfficiencyPercent > 0 ? { medicineEfficiencyPercent } : {}),
     ...(favorBonuses.treatmentMedicineEfficiencyPercent > 0
       ? { favorMedicineEfficiencyPercent: favorBonuses.treatmentMedicineEfficiencyPercent }
       : {}),
+    ...(doctorFavor ? { freeTreatmentFavorKey: doctorFavor.key } : {}),
   };
 }
 
@@ -678,6 +681,9 @@ export const CombatService = {
       const sums = await prisma.playerProduct.groupBy({ by: ['roundPlayerId'], where: { roundPlayerId: { in: targets.slice(0, 25).map((target) => target.id) } }, _sum: { quantity: true } });
       for (const row of sums) otherProducts.set(row.roundPlayerId, row._sum.quantity ?? 0);
     }
+    const burnerFavor = model.strategy
+      ? await SingleUseFavorService.matching(prisma, playerId, ruleset, 'FREE_RECON')
+      : null;
     return {
       ...base, enabled: true, blockedReason,
       protectedUntil: combatProtectionUntil(player, model) > now ? iso(combatProtectionUntil(player, model)) : null,
@@ -694,7 +700,12 @@ export const CombatService = {
           repeatLootPenaltyPercent: model.loot.weightedPercent.repeatPenaltyPercent,
           repeatLootFloorPercent: model.loot.weightedPercent.repeatFloorPercent,
         } : {}),
-        ...(model.strategy ? { reconTurnCost: model.strategy.intel.turnCost, intelExpiresMinutes: model.strategy.intel.expiresMinutes, retaliationHours: model.strategy.retaliation.revengeHours } : {}),
+        ...(model.strategy ? {
+          reconTurnCost: burnerFavor ? 0 : model.strategy.intel.turnCost,
+          ...(burnerFavor ? { reconFavorKey: burnerFavor.key } : {}),
+          intelExpiresMinutes: model.strategy.intel.expiresMinutes,
+          retaliationHours: model.strategy.retaliation.revengeHours,
+        } : {}),
       },
       targets: targets.slice(0, 25).map((target) => ({
         publicPimpId: target.publicPimpId, displayName: target.displayName,
@@ -1266,13 +1277,19 @@ export const CombatService = {
       if (observer.cityId !== defender.cityId) throw AppError.conflict('RECON_BLOCKED', 'You can only recon players in your city.');
       const allied = allianceTargetBlock(observer, defender, now);
       if (allied) throw AppError.conflict('RECON_BLOCKED', allied);
-      const turnCost = model.strategy.intel.turnCost;
+      const burnerFavor = await SingleUseFavorService.matching(tx, playerId, settled.ruleset, 'FREE_RECON');
+      const turnCost = burnerFavor ? 0 : model.strategy.intel.turnCost;
       if (observer.turns < turnCost) throw AppError.conflict('NOT_ENOUGH_TURNS', `You need ${turnCost} turns to recon.`);
 
       const turnsAfter = observer.turns - turnCost;
       const expiresAt = new Date(now.getTime() + model.strategy.intel.expiresMinutes * 60_000);
       const report = intelReport(defender, modelWithDefenderHideout(model, settled.ruleset, defender), now, expiresAt, settled.ruleset, targetSettled.products);
-      const result: CombatReconResultDto = { intel: report, turnsSpent: turnCost, turnsAfter };
+      const result: CombatReconResultDto = {
+        intel: report,
+        turnsSpent: turnCost,
+        turnsAfter,
+        ...(burnerFavor ? { favorKey: burnerFavor.key } : {}),
+      };
 
       await tx.roundPlayer.update({ where: { id: playerId }, data: { turns: turnsAfter, lastActiveAt: now } });
       await tx.combatIntel.upsert({
@@ -1280,7 +1297,14 @@ export const CombatService = {
         create: { observerId: playerId, targetId: target.id, report: json(report), expiresAt },
         update: { report: json(report), expiresAt },
       });
-      await ActivityService.log(tx, playerId, 'COMBAT_RECON', json({ target: defender.displayName, targetPublicPimpId: defender.publicPimpId, turns: turnCost, expiresAt: expiresAt.toISOString() }));
+      if (burnerFavor) await SingleUseFavorService.consume(tx, burnerFavor.id);
+      await ActivityService.log(tx, playerId, 'COMBAT_RECON', json({
+        target: defender.displayName,
+        targetPublicPimpId: defender.publicPimpId,
+        turns: turnCost,
+        expiresAt: expiresAt.toISOString(),
+        ...(burnerFavor ? { favorKey: burnerFavor.key } : {}),
+      }));
       await tx.processedAction.create({ data: { roundPlayerId: playerId, actionId: input.actionId, action: 'COMBAT_RECON', result: json(result), expiresAt: new Date('9999-12-31T00:00:00Z') } });
       return result;
     }, { timeout: 15_000, maxWait: 10_000 });
@@ -1310,6 +1334,7 @@ export const CombatService = {
         50,
         hideoutEfficiencyPercent + favorBonuses.treatmentMedicineEfficiencyPercent,
       );
+      const doctorFavor = await SingleUseFavorService.matching(tx, playerId, settled.ruleset, 'FREE_TREATMENT');
       const treatment = await CombatRecoveryService.treat(
         tx,
         playerId,
@@ -1317,7 +1342,9 @@ export const CombatService = {
         settled.player.medicine,
         medicinePerThug,
         medicineEfficiencyPercent,
+        Boolean(doctorFavor),
       );
+      if (doctorFavor) await SingleUseFavorService.consume(tx, doctorFavor.id);
       const next = { ...toState(settled.player), woundedThugs: treatment.woundedThugs, medicine: settled.player.medicine - treatment.medicineUsed };
       assertPlayerState(next, settled.ruleset);
       const happiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next), products: settled.products }, settled.ruleset);
@@ -1340,6 +1367,7 @@ export const CombatService = {
           : {}),
         woundedThugs: treatment.woundedThugs,
         nextRecoveryAt: iso(treatment.nextRecoveryAt),
+        ...(doctorFavor ? { favorKey: doctorFavor.key } : {}),
       };
       await ActivityService.log(tx, playerId, 'COMBAT_TREATMENT', json(result));
       await tx.processedAction.create({ data: { roundPlayerId: playerId, actionId: input.actionId, action: 'COMBAT_TREATMENT', result: json(result), expiresAt: new Date('9999-12-31T00:00:00Z') } });
