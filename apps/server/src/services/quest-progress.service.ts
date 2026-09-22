@@ -33,6 +33,7 @@ export interface QuestProgressResult {
   matched: number;
   advanced: number;
   readied: number;
+  reopened: number;
   expired: number;
   duplicate: number;
 }
@@ -193,6 +194,7 @@ export const QuestProgressService = {
       matched: 0,
       advanced: 0,
       readied: 0,
+      reopened: 0,
       expired: 0,
       duplicate: 0,
     };
@@ -273,6 +275,7 @@ export const QuestProgressService = {
       if (!required.changed && !bonus.changed) continue;
 
       const becameReady = playerQuest.status === 'ACTIVE' && required.completed;
+      const becameUnready = playerQuest.status === 'READY_TO_TURN_IN' && !required.completed;
       await db.playerQuest.update({
         where: { id: playerQuest.id },
         data: {
@@ -280,12 +283,15 @@ export const QuestProgressService = {
           bonusProgress: json(bonus.progress),
           ...(becameReady
             ? { status: 'READY_TO_TURN_IN', completedAt: playerQuest.completedAt ?? at }
-            : {}),
+            : becameUnready
+              ? { status: 'ACTIVE', completedAt: null }
+              : {}),
         },
       });
 
       result.advanced += 1;
       if (becameReady) result.readied += 1;
+      if (becameUnready) result.reopened += 1;
     }
 
     return result;
