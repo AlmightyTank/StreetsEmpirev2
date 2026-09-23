@@ -3070,6 +3070,7 @@ a.se-nav__link:hover {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--se-swatch) 22%, transparent);
 }
 
+.se-swatch--default { --se-swatch: #b6ff3a; }
 .se-swatch--crimson { --se-swatch: #ff5468; }
 .se-swatch--gold { --se-swatch: var(--se-warn); }
 .se-swatch--green { --se-swatch: #4ade80; }
