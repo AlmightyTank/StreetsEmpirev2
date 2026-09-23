@@ -11,7 +11,11 @@ import {
 import type { Db } from '../utils/db.js';
 import { createPlayerActivity } from './in-app-notification.service.js';
 import { cityContractObjectives, cityContractState } from './city-contract.service.js';
-import { allianceContractProgressCandidateIds } from './alliance-contract.service.js';
+import {
+  advanceAllianceContractContribution,
+  allianceContractContributionSnapshot,
+  allianceContractProgressCandidateIds,
+} from './alliance-contract.service.js';
 import {
   isCommunityEventDefinition,
   refreshCommunityEventReadinessForPlayer,
@@ -300,8 +304,16 @@ export const QuestProgressService = {
         bonusBefore,
         event,
       );
+      const allianceContribution = playerQuest.questDefinition.type === 'ALLIANCE'
+        && playerQuest.roundPlayerId === roundPlayerId
+        ? advanceAllianceContractContribution(
+            playerQuest.questDefinition.availability,
+            playerQuest.rewardState,
+            event,
+          )
+        : null;
 
-      if (!required.matched && !bonus.matched) continue;
+      if (!required.matched && !bonus.matched && !allianceContribution?.matched) continue;
       result.matched += 1;
 
       await db.questProgressReceipt.create({
@@ -312,22 +324,36 @@ export const QuestProgressService = {
           applied: json({
             required: required.deltas,
             bonus: bonus.deltas,
+            ...(allianceContribution ? { alliancePersonal: allianceContribution.deltas } : {}),
           }),
         },
       });
 
-      if (!required.changed && !bonus.changed) continue;
+      if (!required.changed && !bonus.changed && !allianceContribution?.changed) continue;
 
       const communityEvent = isCommunityEventDefinition(
         communityRuleset?.questDefinitions?.[playerQuest.questDefinition.key],
       );
-      const becameReady = !communityEvent && playerQuest.status === 'ACTIVE' && required.completed;
-      const becameUnready = !communityEvent && playerQuest.status === 'READY_TO_TURN_IN' && !required.completed;
+      const allianceSnapshot = playerQuest.questDefinition.type === 'ALLIANCE'
+        ? allianceContractContributionSnapshot(
+            playerQuest.questDefinition.availability,
+            allianceContribution?.rewardState ?? playerQuest.rewardState,
+          )
+        : null;
+      const allianceEligible = allianceSnapshot?.completed ?? true;
+      const becameReady = !communityEvent
+        && playerQuest.status === 'ACTIVE'
+        && required.completed
+        && allianceEligible;
+      const becameUnready = !communityEvent
+        && playerQuest.status === 'READY_TO_TURN_IN'
+        && (!required.completed || !allianceEligible);
       await db.playerQuest.update({
         where: { id: playerQuest.id },
         data: {
           objectiveProgress: json(required.progress),
           bonusProgress: json(bonus.progress),
+          ...(allianceContribution?.changed ? { rewardState: allianceContribution.rewardState } : {}),
           ...(becameReady
             ? { status: 'READY_TO_TURN_IN', completedAt: playerQuest.completedAt ?? at }
             : becameUnready

@@ -695,6 +695,13 @@ export interface PlayerQuestDto {
     contributionFormat: 'NUMBER' | 'CURRENCY';
     sharedCompleted: boolean;
   };
+  allianceContract?: {
+    contributionCurrent: number;
+    contributionTarget: number;
+    contributionLabel: string;
+    contributionFormat: 'NUMBER' | 'CURRENCY';
+    contributionCompleted: boolean;
+  };
   acceptedAt: string | null;
   completedAt: string | null;
   claimedAt: string | null;

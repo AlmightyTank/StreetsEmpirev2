@@ -159,6 +159,12 @@ export interface RunActionOptions<T> {
   action: string;
   /** Client generated id. Section 52. */
   actionId?: string;
+  /**
+   * Optional narrower replay namespace. The public result still reports
+   * `action`; this only prevents one request id from replaying a different
+   * resource-changing sub-action that happens to share the same action label.
+   */
+  idempotencyScope?: string;
   execute: (context: ActionContext) => ActionOutcome<T> | Promise<ActionOutcome<T>>;
 }
 
@@ -322,12 +328,13 @@ export const ActionService = {
       // concurrent duplicates both look, both find nothing, and both execute.
       await lockRoundPlayer(tx, roundPlayerId);
 
+      const idempotencyAction = options.idempotencyScope ?? options.action;
       if (options.actionId) {
         const replay = await IdempotencyService.find<GameActionResult<T>>(
           tx,
           options.actionId,
           roundPlayerId,
-          options.action,
+          idempotencyAction,
         );
         // Section 52: the same action id answers with the original result
         // rather than executing a second time.
@@ -541,7 +548,7 @@ export const ActionService = {
           tx,
           options.actionId,
           roundPlayerId,
-          options.action,
+          idempotencyAction,
           result,
           now,
         );
