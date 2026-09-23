@@ -8,6 +8,7 @@ import { AdminIntegrationsPage } from './pages/AdminIntegrationsPage.js';
 import { AdminNewsPage } from './pages/AdminNewsPage.js';
 import { AdminPage } from './pages/AdminPage.js';
 import { AdminPlayerPage } from './pages/AdminPlayerPage.js';
+import { AdminQuestContentPage } from './pages/AdminQuestContentPage.js';
 import { AdminRoundPage } from './pages/AdminRoundPage.js';
 import { AdminRulesetsPage } from './pages/AdminRulesetsPage.js';
 import { AdminSignalsPage } from './pages/AdminSignalsPage.js';
@@ -143,6 +144,7 @@ export function App() {
       <Route path="/game/admin/accounts" element={admin(<AdminAccountsPage />)} />
       <Route path="/game/admin/accounts/:accountId" element={admin(<AdminAccountPage />)} />
       <Route path="/game/admin/players/:roundPlayerId" element={admin(<AdminPlayerPage />)} />
+      <Route path="/game/admin/quests" element={admin(<AdminQuestContentPage />)} />
       <Route path="/game/admin/integrations" element={admin(<AdminIntegrationsPage />)} />
       <Route path="/game/admin/rulesets" element={admin(<AdminRulesetsPage />)} />
       <Route path="/game/admin/signals" element={admin(<AdminSignalsPage />)} />
