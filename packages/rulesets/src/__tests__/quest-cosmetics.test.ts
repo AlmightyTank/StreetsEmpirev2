@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { classicOgV07W } from '../classic-og-v0.7-w/index.js';
 import { classicOgV07X } from '../classic-og-v0.7-x/index.js';
+import { questDefinitionProblems } from '../quest-definitions.js';
 
 describe('Phase Y-C quest-only cosmetics', () => {
   it('pins a new ruleset without changing the quest catalog size', () => {
@@ -49,5 +50,23 @@ describe('Phase Y-C quest-only cosmetics', () => {
 
     expect(repeatable.flatMap((definition) => definition.rewards.map((reward) => reward.kind)))
       .not.toContain('COSMETIC_UNLOCK');
+  });
+
+  it('rejects future repeatable quests that try to grant permanent cosmetics', () => {
+    const source = classicOgV07X.questDefinitions!.WHEELS_HOME_SAFE;
+    const invalid = {
+      ...classicOgV07X.questDefinitions!,
+      TEST_REPEATABLE_COSMETIC: {
+        ...source,
+        key: 'TEST_REPEATABLE_COSMETIC',
+        repeatability: 'REPEATABLE' as const,
+        rewards: [{ kind: 'COSMETIC_UNLOCK' as const, key: 'road-king' }],
+        prerequisites: [],
+        followUpKeys: [],
+      },
+    };
+
+    expect(questDefinitionProblems(invalid))
+      .toContain('TEST_REPEATABLE_COSMETIC: permanent cosmetic rewards require ONCE repeatability');
   });
 });
