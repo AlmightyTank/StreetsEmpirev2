@@ -1,5 +1,14 @@
 import type { Prisma } from '@prisma/client';
-import type { QuestDefinition, Ruleset } from '@streets/rulesets';
+import {
+  applyQuestProgress,
+  type QuestDataObject,
+  type QuestDefinition,
+  type QuestObjectiveDefinition,
+  type QuestObjectiveKind,
+  type QuestProgressEvent,
+  type QuestProgressMap,
+  type Ruleset,
+} from '@streets/rulesets';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { weeklyContractWindow } from './weekly-contract.service.js';
@@ -7,6 +16,15 @@ import { weeklyContractWindow } from './weekly-contract.service.js';
 export const ALLIANCE_CONTRACT_SLOTS = 4;
 
 const ACTIVE_STATUSES = ['ACTIVE', 'READY_TO_TURN_IN'] as const;
+const PERSONAL_CONTRIBUTION_KINDS = new Set<QuestObjectiveKind>([
+  'EVENT_COUNT',
+  'EVENT_SUM',
+  'SPEND_TURNS',
+  'EARN_CASH',
+  'RECRUIT_CREW',
+  'WIN_EVENTS',
+  'UNIQUE_VALUES',
+]);
 
 export interface AllianceContractState {
   allianceId: string;
@@ -23,6 +41,23 @@ interface AllianceContractOfferState {
   windowEnd: string;
 }
 
+export interface AllianceContractContributionSnapshot {
+  current: number;
+  target: number;
+  label: string;
+  format: 'NUMBER' | 'CURRENCY';
+  completed: boolean;
+}
+
+export interface AllianceContractContributionAdvance {
+  matched: boolean;
+  changed: boolean;
+  completed: boolean;
+  deltas: Readonly<Record<string, number>>;
+  rewardState: Prisma.InputJsonValue;
+  snapshot: AllianceContractContributionSnapshot;
+}
+
 function inputJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
@@ -36,6 +71,127 @@ function record(value: unknown): Record<string, unknown> | null {
 function strings(value: unknown): string[] | null {
   if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) return null;
   return [...new Set(value as string[])];
+}
+
+function questProgress(value: unknown): QuestProgressMap {
+  const raw = record(value);
+  if (!raw) return {};
+  const result: Record<string, { current: number; target: number; completed: boolean; values?: string[] }> = {};
+  for (const [key, candidate] of Object.entries(raw)) {
+    const row = record(candidate);
+    if (
+      !row
+      || typeof row.current !== 'number'
+      || !Number.isFinite(row.current)
+      || typeof row.target !== 'number'
+      || !Number.isFinite(row.target)
+    ) continue;
+    result[key] = {
+      current: Math.max(0, row.current),
+      target: Math.max(0, row.target),
+      completed: row.completed === true,
+      ...(Array.isArray(row.values)
+        ? { values: row.values.filter((item): item is string => typeof item === 'string') }
+        : {}),
+    };
+  }
+  return result;
+}
+
+function personalContributionConfig(availability: unknown): Record<string, unknown> | null {
+  return record(record(availability)?.personalContribution);
+}
+
+export function allianceContractContributionObjective(
+  availability: unknown,
+): QuestObjectiveDefinition | null {
+  const raw = personalContributionConfig(availability);
+  if (
+    !raw
+    || typeof raw.id !== 'string'
+    || !raw.id
+    || typeof raw.kind !== 'string'
+    || !PERSONAL_CONTRIBUTION_KINDS.has(raw.kind as QuestObjectiveKind)
+    || typeof raw.description !== 'string'
+    || !raw.description
+    || typeof raw.target !== 'number'
+    || !Number.isFinite(raw.target)
+    || raw.target <= 0
+  ) return null;
+
+  const params = record(raw.params);
+  return {
+    id: raw.id,
+    kind: raw.kind as QuestObjectiveKind,
+    description: raw.description,
+    target: raw.target,
+    ...(params ? { params: params as QuestDataObject } : {}),
+  };
+}
+
+function allianceContributionProgress(value: unknown): QuestProgressMap {
+  const outer = record(value);
+  const contribution = record(outer?.allianceContribution);
+  return questProgress(contribution?.progress);
+}
+
+export function allianceContractContributionSnapshot(
+  availability: unknown,
+  value: unknown,
+): AllianceContractContributionSnapshot | null {
+  const objective = allianceContractContributionObjective(availability);
+  if (!objective) return null;
+
+  const saved = allianceContributionProgress(value)[objective.id];
+  const current = saved && saved.target === objective.target && Number.isFinite(saved.current)
+    ? Math.min(objective.target, Math.max(0, saved.current))
+    : 0;
+  const raw = personalContributionConfig(availability);
+  return {
+    current,
+    target: objective.target,
+    label: typeof raw?.label === 'string' && raw.label.trim() ? raw.label : objective.description,
+    format: objective.params?.display === 'CURRENCY' ? 'CURRENCY' : 'NUMBER',
+    completed: current >= objective.target,
+  };
+}
+
+export function advanceAllianceContractContribution(
+  availability: unknown,
+  value: unknown,
+  event: QuestProgressEvent,
+): AllianceContractContributionAdvance | null {
+  const objective = allianceContractContributionObjective(availability);
+  if (!objective) return null;
+
+  const applied = applyQuestProgress(
+    [objective],
+    allianceContributionProgress(value),
+    event,
+  );
+  const outer = record(value) ?? {};
+  const rewardState = inputJson({
+    ...outer,
+    allianceContribution: { progress: applied.progress },
+  });
+  const saved = applied.progress[objective.id];
+  const current = saved?.current ?? 0;
+  const raw = personalContributionConfig(availability);
+
+  return {
+    matched: applied.matched,
+    changed: applied.changed,
+    completed: applied.completed,
+    deltas: applied.deltas,
+    rewardState,
+    snapshot: {
+      current,
+      target: objective.target,
+      label: typeof raw?.label === 'string' && raw.label.trim() ? raw.label : objective.description,
+      format: objective.params?.display === 'CURRENCY' ? 'CURRENCY' : 'NUMBER',
+      completed: current >= objective.target,
+    },
+  };
 }
 
 function pool(ruleset: Ruleset): QuestDefinition[] {
@@ -396,6 +552,7 @@ export async function acceptAllianceContract(
     const live = participantRows.find((row) =>
       row.expiresAt !== null && row.expiresAt.getTime() > acceptedAt.getTime()
     );
+    const personalContribution = allianceContractContributionObjective(definition.availability);
     const data = {
       status: 'ACTIVE' as const,
       acceptedAt,
@@ -404,7 +561,10 @@ export async function acceptAllianceContract(
       failedAt: null,
       objectiveProgress: inputJson({}),
       bonusProgress: inputJson({}),
-      rewardState: inputJson({ allianceContract: state }),
+      rewardState: inputJson({
+        allianceContract: state,
+        ...(personalContribution ? { allianceContribution: { progress: {} } } : {}),
+      }),
       expiresAt: window.endsAt,
       isTracked: participantId === roundPlayerId && trackActor,
     };
@@ -502,6 +662,7 @@ export async function assertAllianceContractClaim(
   db: Db,
   roundPlayerId: string,
   value: unknown,
+  availability?: unknown,
 ): Promise<void> {
   const state = allianceContractState(value);
   if (!state || !state.participantIds.includes(roundPlayerId)) {
@@ -515,6 +676,14 @@ export async function assertAllianceContractClaim(
     throw AppError.conflict(
       'ALLIANCE_CONTRACT_MEMBERSHIP',
       'You must still belong to the alliance that completed this contract to collect its reward.',
+    );
+  }
+
+  const contribution = allianceContractContributionSnapshot(availability, value);
+  if (contribution && !contribution.completed) {
+    throw AppError.conflict(
+      'ALLIANCE_CONTRIBUTION_REQUIRED',
+      `Contribute to this alliance contract before collecting the shared reward (${contribution.label}: ${contribution.current}/${contribution.target}).`,
     );
   }
 }
