@@ -130,7 +130,7 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
           problems.push(`${catalogKey}: FAVOR_ITEM reward requires a positive whole amount`);
         }
       }
-      if (['ITEM', 'CONTACT_REP', 'FAVOR_ITEM'].includes(reward.kind) && (!reward.key || !reward.key.trim())) {
+      if (['ITEM', 'CONTACT_REP', 'FAVOR_ITEM', 'COSMETIC_UNLOCK'].includes(reward.kind) && (!reward.key || !reward.key.trim())) {
         problems.push(`${catalogKey}: ${reward.kind} reward requires a key`);
       }
       if (reward.kind === 'WEAPON_ACCESS' && !['SHOTGUN', 'TEK9', 'AK47'].includes(reward.key ?? '')) {
@@ -167,7 +167,7 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
               problems.push(`${catalogKey}/${branch.key}: ${reward.kind} reward requires a positive amount`);
             }
           }
-          if (['ITEM', 'CONTACT_REP', 'FAVOR_ITEM', 'PERMANENT_UNLOCK'].includes(reward.kind) && (!reward.key || !reward.key.trim())) {
+          if (['ITEM', 'CONTACT_REP', 'FAVOR_ITEM', 'PERMANENT_UNLOCK', 'COSMETIC_UNLOCK'].includes(reward.kind) && (!reward.key || !reward.key.trim())) {
             problems.push(`${catalogKey}/${branch.key}: ${reward.kind} reward requires a key`);
           }
           if (reward.kind === 'WEAPON_ACCESS' && !['SHOTGUN', 'TEK9', 'AK47'].includes(reward.key ?? '')) {
