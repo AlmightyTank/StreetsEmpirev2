@@ -114,7 +114,7 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
     grid-template-columns: repeat(5, minmax(0, 1fr));
     padding: 0 4px env(safe-area-inset-bottom, 0px);
     background: rgba(12, 14, 17, 0.97);
-    border-top: 1px solid rgba(182, 255, 58, 0.16);
+    border-top: 1px solid rgba(var(--se-accent-rgb), 0.16);
     box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(8px);
   }
@@ -184,7 +184,7 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
     max-height: min(82vh, 640px);
     padding: 6px 14px calc(14px + env(safe-area-inset-bottom, 0px));
     background: var(--se-panel);
-    border-top: 1px solid rgba(182, 255, 58, 0.2);
+    border-top: 1px solid rgba(var(--se-accent-rgb), 0.2);
     border-radius: 14px 14px 0 0;
     box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.5);
     animation: se-sheet-up 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -234,7 +234,7 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
   }
   .se-sheet__tile:hover { color: #fff; border-color: var(--se-line); }
   .se-sheet__tile--active,
-  .se-sheet__tile--active:hover { color: var(--se-accent); border-color: rgba(182, 255, 58, 0.45); background: rgba(182, 255, 58, 0.06); }
+  .se-sheet__tile--active:hover { color: var(--se-accent); border-color: rgba(var(--se-accent-rgb), 0.45); background: rgba(var(--se-accent-rgb), 0.06); }
   .se-sheet__label {
     max-width: 100%;
     font-size: 11.5px;
@@ -279,7 +279,7 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
     cursor: pointer;
   }
   .se-sheet__slot span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .se-sheet__slot--on { border-style: solid; border-color: var(--se-accent); color: var(--se-accent); background: rgba(182, 255, 58, 0.06); }
+  .se-sheet__slot--on { border-style: solid; border-color: var(--se-accent); color: var(--se-accent); background: rgba(var(--se-accent-rgb), 0.06); }
 }
 
 @media (max-width: 360px) {
