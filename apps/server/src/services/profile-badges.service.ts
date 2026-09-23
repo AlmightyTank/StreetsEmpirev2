@@ -5,6 +5,7 @@ import { betaTesterAwardsForAccount, CommunityService, legacyAchievements, loadA
 import { selectProfileBadges } from './profile-badges.js';
 import { RoundPlayerService } from './round-player.service.js';
 import { RoundService } from './round.service.js';
+import { QuestCosmeticService } from './quest-cosmetic.service.js';
 
 export const ProfileBadgeService = {
   /**
@@ -21,10 +22,15 @@ export const ProfileBadgeService = {
       );
       return profile.badges;
     }
-    const [legacy, betaTester] = await Promise.all([
+    const [legacy, betaTester, questCosmetics] = await Promise.all([
       loadAccountLegacy(prisma, accountId, round?.id ?? null),
       betaTesterAwardsForAccount(prisma, accountId),
+      QuestCosmeticService.awardsForAccount(prisma, accountId),
     ]);
-    return selectProfileBadges([...legacyAchievements(legacy), ...betaTester]);
+    return selectProfileBadges([
+      ...legacyAchievements(legacy),
+      ...betaTester,
+      ...questCosmetics,
+    ]);
   },
 };
