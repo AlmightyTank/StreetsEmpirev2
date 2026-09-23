@@ -2455,6 +2455,7 @@ a.se-nav__link:hover {
   padding-left: 12px;
 }
 
+.se-profile-accent--default { --se-profile-accent: #b6ff3a; }
 .se-profile-accent--crimson { --se-profile-accent: #ff5468; }
 .se-profile-accent--gold { --se-profile-accent: var(--se-warn); }
 .se-profile-accent--green { --se-profile-accent: #4ade80; }
