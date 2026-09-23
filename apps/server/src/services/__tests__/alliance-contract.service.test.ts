@@ -3,9 +3,45 @@ import type { Db } from '../../utils/db.js';
 import {
   allianceContractProgressCandidateIds,
   allianceContractState,
+  lockAllianceContractActor,
 } from '../alliance-contract.service.js';
 
 describe('AllianceContractService', () => {
+  it('locks the Alliance before the RoundPlayer and rechecks membership under both locks', async () => {
+    const locks: string[] = [];
+    const db = {
+      $queryRaw: async (strings: TemplateStringsArray) => {
+        locks.push(strings[0]?.includes('"Alliance"') ? 'alliance' : 'player');
+        return [];
+      },
+      roundPlayer: {
+        findUnique: async () => ({ allianceId: 'alliance-a' }),
+      },
+      alliance: {
+        findUnique: async () => ({ disbandedAt: null }),
+      },
+    } as unknown as Db;
+
+    await lockAllianceContractActor(db, 'p1', 'alliance-a');
+
+    expect(locks).toEqual(['alliance', 'player']);
+  });
+
+  it('rejects if membership changed while waiting on the ordered locks', async () => {
+    const db = {
+      $queryRaw: async () => [],
+      roundPlayer: {
+        findUnique: async () => ({ allianceId: null }),
+      },
+      alliance: {
+        findUnique: async () => ({ disbandedAt: null }),
+      },
+    } as unknown as Db;
+
+    await expect(lockAllianceContractActor(db, 'p1', 'alliance-a'))
+      .rejects.toMatchObject({ code: 'ALLIANCE_CHANGED' });
+  });
+
   it('parses only complete snapshotted alliance state', () => {
     const state = {
       allianceContract: {
