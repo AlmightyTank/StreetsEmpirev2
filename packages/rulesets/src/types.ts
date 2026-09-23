@@ -288,6 +288,8 @@ export interface QuestCosmeticDefinition {
   readonly description: string;
   readonly kind: QuestCosmeticKind;
   readonly rarity: QuestCosmeticRarity;
+  /** Stable presentation slug. Stored with the account unlock for future ruleset compatibility. */
+  readonly styleKey?: string;
 }
 
 export type QuestCosmeticCatalog = Readonly<Record<string, QuestCosmeticDefinition>>;
