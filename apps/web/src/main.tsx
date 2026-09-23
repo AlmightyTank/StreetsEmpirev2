@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/theme.css';
-import './styles/site-themes.css';
 import './styles/community.css';
 import './styles/stability.css';
 import './styles/polish.css';
@@ -22,6 +21,7 @@ import './styles/quests.css';
 import './styles/rankings.css';
 import './styles/alliance.css';
 import './styles/contacts.css';
+import './styles/profile.css';
 import { App } from './App.js';
 // Before React mounts: Android can offer the install prompt immediately.
 import './utils/install.js';
