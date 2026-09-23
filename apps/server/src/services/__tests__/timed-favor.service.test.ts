@@ -1,9 +1,14 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { classicOgV07J } from '@streets/rulesets';
 import type { Db } from '../../utils/db.js';
 import { ActionService } from '../action.service.js';
+import { FavorContentService } from '../favor-content.service.js';
 import { TimedFavorService } from '../timed-favor.service.js';
 
+beforeEach(() => {
+  vi.spyOn(FavorContentService, 'isEnabled').mockResolvedValue(true);
+  vi.spyOn(FavorContentService, 'disabledKeys').mockResolvedValue(new Set());
+});
 afterEach(() => vi.restoreAllMocks());
 
 describe('TimedFavorService', () => {
@@ -29,6 +34,26 @@ describe('TimedFavorService', () => {
       productionOutputPercent: 0,
       pipBuyDiscountPercent: 10,
       treatmentMedicineEfficiencyPercent: 20,
+    });
+  });
+
+  it('stops applying an already-active favor while its kill switch is off', async () => {
+    vi.mocked(FavorContentService.disabledKeys).mockResolvedValue(new Set(['MAMA_ADVICE']));
+    const db = {
+      playerActiveFavor: {
+        findMany: async () => [{ favorKey: 'MAMA_ADVICE' }, { favorKey: 'PIP_CONNECTION' }],
+      },
+    } as unknown as Db;
+
+    await expect(TimedFavorService.bonuses(
+      db,
+      'player-1',
+      classicOgV07J,
+      new Date('2026-09-22T12:00:00Z'),
+    )).resolves.toMatchObject({
+      scoutIncomePercent: 0,
+      scoutRecruitmentPercent: 0,
+      pipBuyDiscountPercent: 10,
     });
   });
 
@@ -103,6 +128,26 @@ describe('TimedFavorService', () => {
     });
     expect(updates).toHaveLength(1);
     expect(upserts).toHaveLength(1);
+  });
+
+  it('refuses activation while a favor kill switch is off', async () => {
+    vi.mocked(FavorContentService.isEnabled).mockResolvedValue(false);
+    vi.spyOn(ActionService, 'run').mockImplementation(async (_prisma, _player, options) => {
+      const outcome = await options.execute({
+        tx: {} as never,
+        current: {} as never,
+        ruleset: classicOgV07J,
+        now: new Date(),
+      } as never);
+      return { action: options.action, result: outcome.result, changes: [] } as never;
+    });
+
+    await expect(TimedFavorService.activate(
+      {} as never,
+      'player-1',
+      'MAMA_ADVICE',
+      { actionId: 'disabled-1' },
+    )).rejects.toMatchObject({ code: 'FAVOR_DISABLED' });
   });
 
   it('refuses to overwrite a still-active favor in the same category', async () => {
