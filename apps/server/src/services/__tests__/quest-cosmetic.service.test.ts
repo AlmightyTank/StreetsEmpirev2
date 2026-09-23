@@ -65,7 +65,7 @@ describe('QuestCosmeticService', () => {
         key: 'road-king',
         title: 'Road King',
         description: 'Road description',
-        category: 'legacy',
+        category: 'quest',
         rarity: 'epic',
         unlocked: true,
         earnedAt: awardedAt.toISOString(),
