@@ -756,6 +756,7 @@ export interface QuestFavorDto {
   name: string;
   description: string;
   contactKey: string;
+  rarity: 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
   activationKind: 'TIMED' | 'SINGLE_USE';
   activatable: boolean;
   category: string;
