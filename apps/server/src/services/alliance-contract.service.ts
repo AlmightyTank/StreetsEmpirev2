@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import type { QuestDefinition, Ruleset } from '@streets/rulesets';
-import type { Db } from '../utils/db.js';
+import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { weeklyContractWindow } from './weekly-contract.service.js';
 
@@ -93,6 +93,38 @@ function allianceOfferState(value: unknown): AllianceContractOfferState | null {
 
 function sameWindow(state: AllianceContractState, allianceId: string, startsAt: Date): boolean {
   return state.allianceId === allianceId && state.windowStart === startsAt.toISOString();
+}
+
+/**
+ * Match the membership-service lock order for contract acceptance:
+ * Alliance first, then RoundPlayer. Re-check the actor after both locks so a
+ * leave/kick/disband that won the race is reported as a stale membership
+ * instead of creating a circular wait with withOwnAlliance.
+ */
+export async function lockAllianceContractActor(
+  db: Db,
+  roundPlayerId: string,
+  expectedAllianceId: string,
+): Promise<void> {
+  await db.$queryRaw`SELECT id FROM "Alliance" WHERE id = ${expectedAllianceId} FOR UPDATE`;
+  await lockRoundPlayer(db, roundPlayerId);
+
+  const [player, alliance] = await Promise.all([
+    db.roundPlayer.findUnique({
+      where: { id: roundPlayerId },
+      select: { allianceId: true },
+    }),
+    db.alliance.findUnique({
+      where: { id: expectedAllianceId },
+      select: { disbandedAt: true },
+    }),
+  ]);
+  if (!player || player.allianceId !== expectedAllianceId || !alliance || alliance.disbandedAt) {
+    throw AppError.conflict(
+      'ALLIANCE_CHANGED',
+      'Your alliance changed while that was on its way. Refresh and try again.',
+    );
+  }
 }
 
 /**
