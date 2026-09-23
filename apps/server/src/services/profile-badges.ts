@@ -25,8 +25,10 @@ export function selectProfileBadges(
     .map((key) => earned.find((award) => award.key === key))
     .filter((award): award is PublicAwardDto => Boolean(award));
   const featuredSet = new Set(featured.map((award) => award.key));
-  const permanent = earned.filter((award) => award.category === 'legacy' && !featuredSet.has(award.key)).sort(byRarity);
-  const thisRound = earned.filter((award) => award.category !== 'legacy' && !featuredSet.has(award.key)).sort(byRarity);
+  const permanentCategory = (award: PublicAwardDto) =>
+    award.category === 'legacy' || award.category === 'quest';
+  const permanent = earned.filter((award) => permanentCategory(award) && !featuredSet.has(award.key)).sort(byRarity);
+  const thisRound = earned.filter((award) => !permanentCategory(award) && !featuredSet.has(award.key)).sort(byRarity);
 
   return [...featured, ...permanent, ...thisRound].slice(0, limit).map((award) => ({
     key: award.key,
@@ -34,6 +36,6 @@ export function selectProfileBadges(
     description: award.description,
     category: award.category,
     rarity: award.rarity,
-    permanent: award.category === 'legacy',
+    permanent: award.category === 'legacy' || award.category === 'quest',
   }));
 }
