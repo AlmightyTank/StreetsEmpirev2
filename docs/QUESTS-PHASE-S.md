@@ -94,7 +94,7 @@ the board opens. The server prices the full generated quantity through the exist
 fill curve at zero player push, so large 500/750-unit contracts include their normal market
 impact instead of pretending every unit sells for the first-unit quote:
 
-`expected sale = fillMarket(baseline market, sell, target).total`
+`expected sale = fillMarket(baseline market, sell, target).totalCents`
 
 `bonus = round(expected sale × 0.35)`
 
