@@ -137,6 +137,36 @@ describe('quest definition foundation', () => {
     ]);
   });
 
+  it('rejects malformed alliance personal-contribution hardening', () => {
+    const broken = {
+      ...freshFaces,
+      key: 'ALLIANCE_BROKEN',
+      type: 'ALLIANCE',
+      repeatability: 'WEEKLY',
+      availability: {
+        allianceContract: true,
+        sharedProgress: true,
+        personalContribution: {
+          id: '',
+          kind: 'STATE_AT_LEAST',
+          description: '',
+          label: '',
+          target: 0,
+          params: { eventTypes: [] },
+        },
+      },
+    } as unknown as QuestDefinition;
+
+    expect(questDefinitionProblems({ ALLIANCE_BROKEN: broken })).toEqual([
+      'ALLIANCE_BROKEN: personalContribution requires id',
+      'ALLIANCE_BROKEN: personalContribution kind must be EVENT_COUNT or EVENT_SUM',
+      'ALLIANCE_BROKEN: personalContribution requires description',
+      'ALLIANCE_BROKEN: personalContribution requires label',
+      'ALLIANCE_BROKEN: personalContribution target must be greater than zero',
+      'ALLIANCE_BROKEN: personalContribution eventTypes must be a non-empty string array',
+    ]);
+  });
+
   it('rejects malformed C-G prerequisites and rewards', () => {
     const broken = {
       ...freshFaces,
