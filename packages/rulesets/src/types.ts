@@ -217,7 +217,8 @@ export type QuestRewardKind =
   | 'CONTACT_REP'
   | 'WEAPON_ACCESS'
   | 'PERMANENT_UNLOCK'
-  | 'FAVOR_ITEM';
+  | 'FAVOR_ITEM'
+  | 'COSMETIC_UNLOCK';
 
 export interface QuestRewardDefinition {
   readonly kind: QuestRewardKind;
@@ -277,6 +278,19 @@ export interface PermanentUnlockDefinition {
 }
 
 export type PermanentUnlockCatalog = Readonly<Record<string, PermanentUnlockDefinition>>;
+
+export type QuestCosmeticKind = 'TITLE_BADGE' | 'PROFILE_FRAME' | 'ACCENT' | 'HIDEOUT_DECOR';
+export type QuestCosmeticRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+export interface QuestCosmeticDefinition {
+  readonly key: string;
+  readonly name: string;
+  readonly description: string;
+  readonly kind: QuestCosmeticKind;
+  readonly rarity: QuestCosmeticRarity;
+}
+
+export type QuestCosmeticCatalog = Readonly<Record<string, QuestCosmeticDefinition>>;
 
 export type FavorRarity = 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
 
@@ -1520,6 +1534,8 @@ export interface Ruleset {
   readonly permanentUnlocks?: PermanentUnlockCatalog;
   /** Consumable favors earned from contacts. Effects are activated by later roadmap phases. */
   readonly favors?: FavorCatalog;
+  /** Permanent account cosmetics awarded by specific one-time Jobs. */
+  readonly cosmetics?: QuestCosmeticCatalog;
   readonly rankings: RankingRules;
   /** Optional round privacy for public community surfaces. */
   readonly communityPrivacy?: CommunityPrivacyRules;
