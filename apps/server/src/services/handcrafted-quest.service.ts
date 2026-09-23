@@ -99,6 +99,18 @@ function preservesGeneratedOffer(row: QuestRow, ruleset: Ruleset): boolean {
     || isDynamicCityContractDefinition(ruleset.questDefinitions?.[row.questDefinition.key]);
 }
 
+function seasonalEventActive(definition: QuestDefinition, now: Date): boolean {
+  const window = definition.availability.seasonalEvent;
+  if (!window) return true;
+  const startsAt = new Date(window.startsAt);
+  const endsAt = new Date(window.endsAt);
+  return Number.isFinite(startsAt.getTime())
+    && Number.isFinite(endsAt.getTime())
+    && startsAt < endsAt
+    && now >= startsAt
+    && now < endsAt;
+}
+
 function objectives(value: Prisma.JsonValue): QuestObjectiveDefinition[] {
   return Array.isArray(value) ? value as unknown as QuestObjectiveDefinition[] : [];
 }
@@ -441,7 +453,8 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
       || isCommunityEventDefinition(definition)
     ) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
-    const available = questPrerequisitesMet(definition, completed, reps, chosenBranches);
+    const available = seasonalEventActive(definition, now)
+      && questPrerequisitesMet(definition, completed, reps, chosenBranches);
     if (!current) {
       await db.playerQuest.create({
         data: {
