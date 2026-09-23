@@ -473,7 +473,7 @@ export function AccountSettingsPage() {
                       <option value={option.key} key={option.key}>{option.label}</option>
                     ))}
                   </select>
-                  {fields.activeTitleKey ? <p className="se-error">{fields.activeTitleKey}</p> : <p className="se-hint">Titles come from achievements and legacy badges you have unlocked.</p>}
+                  {fields.activeTitleKey ? <p className="se-error">{fields.activeTitleKey}</p> : <p className="se-hint">Titles come from achievements, legacy badges, and quest-only cosmetics you have unlocked.</p>}
                 </div>
 
                 <div className="se-field">
