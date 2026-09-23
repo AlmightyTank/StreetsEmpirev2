@@ -84,6 +84,7 @@ export const defaultLandingSchema = z.enum(['game', 'profile', 'rankings', 'news
 export const updateAccountProfileSettingsSchema = z.object({
   activeTitleKey: z.string().trim().min(1).max(80).nullable(),
   activeProfileFrameKey: z.string().trim().min(1).max(80).nullable(),
+  activeSiteThemeKey: z.string().trim().min(1).max(80).nullable(),
   featuredBadgeKeys: z.array(z.string().trim().min(1).max(80)).max(6),
   profileAccent: profileAccentSchema,
   uiDensity: uiDensitySchema,
