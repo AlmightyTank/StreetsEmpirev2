@@ -38,7 +38,7 @@ describe('Phase Y-B Legendary favor expansion', () => {
 
   it('leaves every named contact with at least one Legendary favor', () => {
     const legendary = Object.values(classicOgV07W.favors ?? {})
-      .filter((favor) => favor.rarity === 'LEGENDARY');
+      .filter((favor) => 'rarity' in favor && favor.rarity === 'LEGENDARY');
     expect(new Set(legendary.map((favor) => favor.contactKey))).toEqual(new Set([
       'MAMA_KING',
       'PIP',
