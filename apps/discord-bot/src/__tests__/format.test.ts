@@ -364,11 +364,12 @@ describe('badgesEmbed', () => {
     const embed = badgesEmbed({ ...base, awards: [
       award('First_Stack', 'common', 'wealth', true, 1, 1, 'net worth'),
       award('Past Winner', 'legendary', 'legacy', true, 1, 1, 'past round wins'),
+      award('Road King', 'epic', 'quest', true, 1, 1, 'quest cosmetic'),
       award('Warpath', 'epic', 'combat', false, 3, 25),
       award('Enforcer', 'uncommon', 'combat', false, 3, 5),
       award('Millionaire', 'epic', 'wealth', false, 50_000_000, 100_000_000, 'net worth'),
     ] });
-    expect(embed.fields![0]).toEqual({ name: 'Earned (2/5)', value: '**Legendary:** ◆ Past Winner\n**Common:** First\\_Stack' });
+    expect(embed.fields![0]).toEqual({ name: 'Earned (3/6)', value: '**Legendary:** ◆ Past Winner\n**Epic:** ◆ Road King\n**Common:** First\\_Stack' });
     expect(embed.fields![1]).toEqual({
       name: 'Closest to unlocking',
       value: 'Enforcer · 3 / 5 raid attack wins\nMillionaire · $500,000 / $1,000,000 net worth\nWarpath · 3 / 25 raid attack wins',

@@ -130,7 +130,7 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
           problems.push(`${catalogKey}: FAVOR_ITEM reward requires a positive whole amount`);
         }
       }
-      if (['ITEM', 'CONTACT_REP', 'FAVOR_ITEM'].includes(reward.kind) && (!reward.key || !reward.key.trim())) {
+      if (['ITEM', 'CONTACT_REP', 'FAVOR_ITEM', 'COSMETIC_UNLOCK'].includes(reward.kind) && (!reward.key || !reward.key.trim())) {
         problems.push(`${catalogKey}: ${reward.kind} reward requires a key`);
       }
       if (reward.kind === 'WEAPON_ACCESS' && !['SHOTGUN', 'TEK9', 'AK47'].includes(reward.key ?? '')) {
@@ -138,6 +138,9 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
       }
       if (reward.kind === 'PERMANENT_UNLOCK' && (!reward.key || !reward.key.trim())) {
         problems.push(`${catalogKey}: PERMANENT_UNLOCK reward requires a key`);
+      }
+      if (reward.kind === 'COSMETIC_UNLOCK' && quest.repeatability !== 'ONCE') {
+        problems.push(`${catalogKey}: permanent cosmetic rewards require ONCE repeatability`);
       }
     }
 
@@ -167,11 +170,14 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
               problems.push(`${catalogKey}/${branch.key}: ${reward.kind} reward requires a positive amount`);
             }
           }
-          if (['ITEM', 'CONTACT_REP', 'FAVOR_ITEM', 'PERMANENT_UNLOCK'].includes(reward.kind) && (!reward.key || !reward.key.trim())) {
+          if (['ITEM', 'CONTACT_REP', 'FAVOR_ITEM', 'PERMANENT_UNLOCK', 'COSMETIC_UNLOCK'].includes(reward.kind) && (!reward.key || !reward.key.trim())) {
             problems.push(`${catalogKey}/${branch.key}: ${reward.kind} reward requires a key`);
           }
           if (reward.kind === 'WEAPON_ACCESS' && !['SHOTGUN', 'TEK9', 'AK47'].includes(reward.key ?? '')) {
             problems.push(`${catalogKey}/${branch.key}: WEAPON_ACCESS reward requires SHOTGUN, TEK9 or AK47`);
+          }
+          if (reward.kind === 'COSMETIC_UNLOCK' && quest.repeatability !== 'ONCE') {
+            problems.push(`${catalogKey}/${branch.key}: permanent cosmetic rewards require ONCE repeatability`);
           }
         }
       }

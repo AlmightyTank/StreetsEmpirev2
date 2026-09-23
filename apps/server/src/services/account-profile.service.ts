@@ -16,6 +16,7 @@ import { AppError } from '../utils/errors.js';
 import { betaTesterAwardsForAccount, CommunityService, legacyAchievements, loadAccountLegacy } from './community.service.js';
 import { RoundPlayerService } from './round-player.service.js';
 import { RoundService } from './round.service.js';
+import { QuestCosmeticService } from './quest-cosmetic.service.js';
 
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
 
@@ -59,7 +60,7 @@ function optionFromAward(award: PublicAwardDto): BadgeCosmeticOptionDto {
     label: award.title,
     description: award.description,
     rarity: award.rarity,
-    permanent: award.category === 'legacy',
+    permanent: award.category === 'legacy' || award.category === 'quest',
   };
 }
 
@@ -107,13 +108,15 @@ async function earnedAwards(prisma: PrismaClient, accountId: string): Promise<Pu
     );
     return profile.awards.filter((award) => award.unlocked);
   }
-  const [legacy, betaTester] = await Promise.all([
+  const [legacy, betaTester, questCosmetics] = await Promise.all([
     loadAccountLegacy(prisma, accountId, round?.id ?? null),
     betaTesterAwardsForAccount(prisma, accountId),
+    QuestCosmeticService.awardsForAccount(prisma, accountId),
   ]);
   return [
     ...legacyAchievements(legacy),
     ...betaTester,
+    ...questCosmetics,
   ].filter((award) => award.unlocked);
 }
 

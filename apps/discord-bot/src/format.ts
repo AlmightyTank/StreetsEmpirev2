@@ -390,7 +390,7 @@ export function badgesEmbed(card: BadgeCard): APIEmbed {
   const earnedLines = RARITY_ORDER.map((rarity) => {
     const titles = earned
       .filter((award) => award.rarity === rarity)
-      .map((award) => `${award.category === 'legacy' ? '◆ ' : ''}${escapeMarkdown(award.title)}`);
+      .map((award) => `${award.category === 'legacy' || award.category === 'quest' ? '◆ ' : ''}${escapeMarkdown(award.title)}`);
     return titles.length ? `**${rarity.charAt(0).toUpperCase()}${rarity.slice(1)}:** ${titles.join(', ')}` : '';
   }).filter(Boolean);
 
@@ -411,7 +411,7 @@ export function badgesEmbed(card: BadgeCard): APIEmbed {
         }]
         : []),
     ],
-    footer: { text: '◆ = permanent legacy badge' },
+    footer: { text: '◆ = permanent badge' },
   };
 }
 

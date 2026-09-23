@@ -1,7 +1,7 @@
 import type { AllianceDetailDto, AllianceTagDto } from './alliance.js';
 import type { ActivityDto, CityDto, ProfileAccent, RoundDto, SeasonHideoutDto } from './api.js';
 
-export type PublicAchievementCategory = 'rank' | 'wealth' | 'combat' | 'intel' | 'reputation' | 'hideout' | 'legacy';
+export type PublicAchievementCategory = 'rank' | 'wealth' | 'combat' | 'intel' | 'reputation' | 'hideout' | 'quest' | 'legacy';
 export type PublicAchievementRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
 export interface PublicAchievementProgressDto {
@@ -28,7 +28,7 @@ export interface ProfileBadgeDto {
   description: string;
   category: PublicAchievementCategory;
   rarity: PublicAchievementRarity;
-  /** Legacy badges carry across rounds; the rest reset with the round. */
+  /** Legacy and quest-earned cosmetic badges carry across rounds. */
   permanent: boolean;
 }
 

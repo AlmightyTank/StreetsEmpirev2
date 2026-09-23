@@ -29,6 +29,7 @@ import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { FavorInventoryService } from './favor-inventory.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
+import { QuestCosmeticService } from './quest-cosmetic.service.js';
 import {
   DAILY_CONTRACT_SLOTS,
   dailyContractWindow,
@@ -150,6 +151,10 @@ function rewardLabel(reward: QuestRewardDefinition, ruleset: Ruleset): string {
       const name = favor?.name ?? reward.key ?? 'Favor';
       const prefix = favor?.rarity === 'LEGENDARY' ? '★ Legendary · ' : '';
       return `${prefix}${name} ×${amount.toLocaleString('en-US')}`;
+    }
+    case 'COSMETIC_UNLOCK': {
+      const cosmetic = ruleset.cosmetics?.[reward.key ?? ''];
+      return `Permanent cosmetic · ${cosmetic?.name ?? reward.key ?? 'Cosmetic'}`;
     }
   }
 }
@@ -765,7 +770,7 @@ export const HandcraftedQuestService = {
       action: 'QUEST_CLAIM',
       actionId: input.actionId,
       idempotencyScope: `QUEST_CLAIM:${key}`,
-      execute: async ({ tx, current, now }) => {
+      execute: async ({ tx, current, now, player }) => {
         const communityEvent = isCommunityEventDefinition(ruleset.questDefinitions?.[key]);
         if (communityEvent) {
           await syncCommunityEventAttempts(tx, roundPlayerId, ruleset, now);
@@ -830,6 +835,9 @@ export const HandcraftedQuestService = {
           } else if (reward.kind === 'FAVOR_ITEM') {
             if (!reward.key) throw AppError.conflict('QUEST_REWARD_INVALID', 'That quest has an invalid favor reward.');
             await FavorInventoryService.grant(tx, roundPlayerId, ruleset, reward.key, reward.amount ?? 0, key);
+          } else if (reward.kind === 'COSMETIC_UNLOCK') {
+            if (!reward.key) throw AppError.conflict('QUEST_REWARD_INVALID', 'That quest has an invalid cosmetic reward.');
+            await QuestCosmeticService.award(tx, player.accountId, ruleset, reward.key, key, now);
           } else {
             applyStateReward(next, reward);
           }

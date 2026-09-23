@@ -55,7 +55,7 @@ const badgesSchema = z.object({
       key: z.string(),
       title: z.string(),
       description: z.string(),
-      category: z.enum(['rank', 'wealth', 'combat', 'intel', 'reputation', 'hideout', 'legacy']),
+      category: z.enum(['rank', 'wealth', 'combat', 'intel', 'reputation', 'hideout', 'quest', 'legacy']),
       rarity: raritySchema,
       unlocked: z.boolean(),
       earnedAt: z.string().nullable(),
