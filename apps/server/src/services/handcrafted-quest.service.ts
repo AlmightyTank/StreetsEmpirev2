@@ -146,8 +146,10 @@ function rewardLabel(reward: QuestRewardDefinition, ruleset: Ruleset): string {
     case 'PERMANENT_UNLOCK':
       return `${ruleset.permanentUnlocks?.[reward.key ?? '']?.name ?? reward.key ?? 'Permanent unlock'} unlocked`;
     case 'FAVOR_ITEM': {
-      const name = ruleset.favors?.[reward.key ?? '']?.name ?? reward.key ?? 'Favor';
-      return `${name} ×${amount.toLocaleString('en-US')}`;
+      const favor = ruleset.favors?.[reward.key ?? ''];
+      const name = favor?.name ?? reward.key ?? 'Favor';
+      const prefix = favor?.rarity === 'LEGENDARY' ? '★ Legendary · ' : '';
+      return `${prefix}${name} ×${amount.toLocaleString('en-US')}`;
     }
   }
 }
@@ -572,6 +574,7 @@ export const HandcraftedQuestService = {
         name: entry.definition.name,
         description: entry.definition.description,
         contactKey: entry.definition.contactKey,
+        rarity: entry.definition.rarity ?? 'COMMON',
         activationKind: entry.definition.activation.kind,
         activatable: Boolean(entry.definition.effect),
         category: entry.definition.activation.category,

@@ -278,6 +278,8 @@ export interface PermanentUnlockDefinition {
 
 export type PermanentUnlockCatalog = Readonly<Record<string, PermanentUnlockDefinition>>;
 
+export type FavorRarity = 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
+
 export type FavorCategory = 'STREET' | 'UNDERWORLD' | 'MUSCLE';
 
 export type FavorActivation =
@@ -329,6 +331,8 @@ export interface FavorDefinition {
   readonly name: string;
   readonly description: string;
   readonly contactKey: ContactKey;
+  /** Catalog-only presentation tier. Older pinned rulesets default to COMMON. */
+  readonly rarity?: FavorRarity;
   readonly activation: FavorActivation;
   /**
    * Phase K effect for timed favors. Optional so 0.7-I remains an inventory-only

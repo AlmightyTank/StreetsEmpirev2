@@ -731,7 +731,7 @@ export function QuestPage() {
                     return (
                       <div key={favor.key} className="se-mb">
                         <Row
-                          label={favor.name}
+                          label={(favor.rarity === 'LEGENDARY' ? '★ Legendary · ' : '') + favor.name}
                           value={
                             '×' + formatNumber(favor.quantity)
                             + ' · ' + favor.category
