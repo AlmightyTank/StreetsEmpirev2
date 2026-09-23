@@ -453,8 +453,8 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
       || isCommunityEventDefinition(definition)
     ) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
-    const available = seasonalEventActive(definition, now)
-      && questPrerequisitesMet(definition, completed, reps, chosenBranches);
+    const seasonalActive = seasonalEventActive(definition, now);
+    const available = seasonalActive && questPrerequisitesMet(definition, completed, reps, chosenBranches);
     if (!current) {
       await db.playerQuest.create({
         data: {
@@ -464,6 +464,8 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
         },
       });
       if (available) newlyAvailable.push(definition.key);
+    } else if (current.status === 'AVAILABLE' && !seasonalActive) {
+      await db.playerQuest.update({ where: { id: current.id }, data: { status: 'LOCKED', isTracked: false } });
     } else if (current.status === 'LOCKED' && available) {
       await db.playerQuest.update({ where: { id: current.id }, data: { status: 'AVAILABLE' } });
       newlyAvailable.push(definition.key);
