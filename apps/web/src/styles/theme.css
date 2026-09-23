@@ -18,7 +18,7 @@
 
   --se-accent: #b6ff3a;
   --se-accent-dim: #7fb028;
-  --se-accent-hover: var(--se-accent-hover);
+  --se-accent-hover: #c9ff63;
   --se-accent-rgb: 182, 255, 58;
   --se-accent-2: #ff2d78;
 
@@ -453,7 +453,7 @@ body {
 .se-site-accent--default {
   --se-accent: #b6ff3a;
   --se-accent-dim: #7fb028;
-  --se-accent-hover: var(--se-accent-hover);
+  --se-accent-hover: #c9ff63;
   --se-accent-rgb: 182, 255, 58;
 }
 .se-site-accent--crimson {
