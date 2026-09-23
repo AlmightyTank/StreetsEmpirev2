@@ -1,0 +1,91 @@
+import { describe, expect, it } from 'vitest';
+import { classicOgV07X } from '@streets/rulesets';
+import type { Db } from '../../utils/db.js';
+import { QuestCosmeticService } from '../quest-cosmetic.service.js';
+
+describe('QuestCosmeticService', () => {
+  it('snapshots a quest cosmetic onto the permanent account row', async () => {
+    const upserts: unknown[] = [];
+    const db = {
+      accountCosmeticUnlock: {
+        upsert: async (args: unknown) => { upserts.push(args); },
+      },
+    } as unknown as Db;
+    const at = new Date('2026-09-23T03:45:00Z');
+
+    const cosmetic = await QuestCosmeticService.award(
+      db,
+      'account-1',
+      classicOgV07X,
+      'ROAD_KING',
+      'WHEELS_HOME_SAFE',
+      at,
+    );
+
+    expect(cosmetic).toMatchObject({
+      key: 'ROAD_KING',
+      name: 'Road King',
+      kind: 'TITLE_BADGE',
+      rarity: 'epic',
+    });
+    expect(upserts).toEqual([{
+      where: { accountId_key: { accountId: 'account-1', key: 'ROAD_KING' } },
+      create: {
+        accountId: 'account-1',
+        key: 'ROAD_KING',
+        kind: 'TITLE_BADGE',
+        title: 'Road King',
+        description: cosmetic.description,
+        rarity: 'epic',
+        sourceQuestKey: 'WHEELS_HOME_SAFE',
+        sourceRulesetId: 'classic-og-v0.7-x',
+        sourceRulesetVersion: '0.7.0-X',
+        awardedAt: at,
+      },
+      update: {},
+    }]);
+  });
+
+  it('maps stored title/badge cosmetics to permanent profile awards', async () => {
+    const awardedAt = new Date('2026-09-23T03:45:00Z');
+    const db = {
+      accountCosmeticUnlock: {
+        findMany: async () => [{
+          key: 'ROAD_KING',
+          title: 'Road King',
+          description: 'Road description',
+          rarity: 'epic',
+          awardedAt,
+        }],
+      },
+    } as unknown as Db;
+
+    await expect(QuestCosmeticService.awardsForAccount(db, 'account-1'))
+      .resolves.toEqual([{
+        key: 'ROAD_KING',
+        title: 'Road King',
+        description: 'Road description',
+        category: 'legacy',
+        rarity: 'epic',
+        unlocked: true,
+        earnedAt: awardedAt.toISOString(),
+        progress: { current: 1, target: 1, label: 'quest cosmetic' },
+      }]);
+  });
+
+  it('rejects cosmetic keys not present in the pinned ruleset', async () => {
+    const db = {
+      accountCosmeticUnlock: {
+        upsert: async () => { throw new Error('should not write'); },
+      },
+    } as unknown as Db;
+
+    await expect(QuestCosmeticService.award(
+      db,
+      'account-1',
+      classicOgV07X,
+      'NOT_A_COSMETIC',
+      'WHEELS_HOME_SAFE',
+    )).rejects.toMatchObject({ code: 'QUEST_COSMETIC_UNKNOWN' });
+  });
+});
