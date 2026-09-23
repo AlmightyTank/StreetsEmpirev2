@@ -181,7 +181,8 @@
 .se-dashboard-command {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
-  gap: 12px;
+  gap: 10px;
+  align-items: start;
 }
 
 .se-dashboard-command__attention,
@@ -419,8 +420,15 @@
 .se-dashboard-controlgrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
   align-items: start;
+}
+
+.se-dashboard-stack {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  align-content: start;
 }
 
 .se-dashboard-panel {
@@ -457,15 +465,15 @@
   margin-top: 10px;
 }
 
-.se-dashboard-controlgrid > .se-panel {
+.se-dashboard-controlgrid .se-panel {
   min-width: 0;
 }
 
-.se-dashboard-controlgrid > .se-panel .se-panel__body {
+.se-dashboard-controlgrid .se-panel .se-panel__body {
   min-width: 0;
 }
 
-.se-dashboard-controlgrid > .se-panel[id="heat"] {
+.se-dashboard-controlgrid .se-panel[id="heat"] {
   border-color: var(--se-line);
 }
 
@@ -505,6 +513,11 @@
   .se-dashboard-coregrid,
   .se-dashboard-controlgrid {
     grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .se-dashboard-stack {
+    gap: 8px;
   }
 }
 
