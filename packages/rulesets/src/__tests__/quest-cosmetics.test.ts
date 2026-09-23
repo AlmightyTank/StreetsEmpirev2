@@ -18,8 +18,8 @@ describe('Phase Y-C quest-only cosmetics', () => {
     expect(Object.values(classicOgV07X.cosmetics ?? {}).every(
       (cosmetic) => cosmetic.kind === 'TITLE_BADGE',
     )).toBe(true);
-    expect(classicOgV07X.cosmetics?.ghost-of-the-block.rarity).toBe('legendary');
-    expect(classicOgV07X.cosmetics?.road-king.rarity).toBe('epic');
+    expect(classicOgV07X.cosmetics?.['ghost-of-the-block']?.rarity).toBe('legendary');
+    expect(classicOgV07X.cosmetics?.['road-king']?.rarity).toBe('epic');
   });
 
   it('awards cosmetics only from one-time contact finales', () => {
