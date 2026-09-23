@@ -99,7 +99,7 @@ function preservesGeneratedOffer(row: QuestRow, ruleset: Ruleset): boolean {
     || isDynamicCityContractDefinition(ruleset.questDefinitions?.[row.questDefinition.key]);
 }
 
-function seasonalEventActive(definition: QuestDefinition, now: Date): boolean {
+export function seasonalEventActive(definition: QuestDefinition, now: Date): boolean {
   const window = definition.availability.seasonalEvent;
   if (!window) return true;
   const startsAt = new Date(window.startsAt);
