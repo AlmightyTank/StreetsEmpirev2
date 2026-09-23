@@ -11,6 +11,7 @@ import {
 import type { Db } from '../utils/db.js';
 import { createPlayerActivity } from './in-app-notification.service.js';
 import { cityContractObjectives, cityContractState } from './city-contract.service.js';
+import { allianceContractProgressCandidateIds } from './alliance-contract.service.js';
 
 const ACTIVE_STATUSES = ['ACTIVE', 'READY_TO_TURN_IN'] as const;
 const OBJECTIVE_KINDS = new Set<QuestObjectiveKind>([
@@ -218,11 +219,21 @@ export const QuestProgressService = {
       duplicate: 0,
     };
 
-    const candidates = await db.playerQuest.findMany({
-      where: { roundPlayerId, status: { in: [...ACTIVE_STATUSES] } },
+    const directCandidates = await db.playerQuest.findMany({
+      where: {
+        roundPlayerId,
+        status: { in: [...ACTIVE_STATUSES] },
+        questDefinition: { type: { not: 'ALLIANCE' } },
+      },
       select: { id: true },
       orderBy: { id: 'asc' },
     });
+    const allianceCandidateIds = await allianceContractProgressCandidateIds(db, roundPlayerId);
+    const candidateIds = [...new Set([
+      ...directCandidates.map((candidate) => candidate.id),
+      ...allianceCandidateIds,
+    ])].sort();
+    const candidates = candidateIds.map((id) => ({ id }));
     if (candidates.length === 0) return result;
 
     const state = await playerState(db, roundPlayerId);
