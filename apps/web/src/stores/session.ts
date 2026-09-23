@@ -25,6 +25,7 @@ type Phase = 'booting' | 'ready';
 export const DEFAULT_PROFILE_SETTINGS: AccountProfileSettingsDto = {
   activeTitleKey: null,
   activeProfileFrameKey: null,
+  activeSiteThemeKey: null,
   featuredBadgeKeys: [],
   profileAccent: 'default',
   uiDensity: 'comfortable',
