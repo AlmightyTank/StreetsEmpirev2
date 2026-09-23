@@ -195,6 +195,7 @@ export interface AdminAccountDetailDto {
   profile: {
     activeTitleKey: string | null;
     activeProfileFrameKey: string | null;
+    activeSiteThemeKey: string | null;
     profileAccent: string;
     featuredBadgeKeys: string[];
   };
