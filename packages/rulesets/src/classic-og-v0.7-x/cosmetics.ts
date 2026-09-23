@@ -8,7 +8,7 @@ import type { QuestCosmeticCatalog } from '../types.js';
  * decor without changing the permanent ownership table again.
  */
 export const questCosmetics = {
-  ghost-of-the-block: {
+  'ghost-of-the-block': {
     key: 'ghost-of-the-block',
     name: 'Ghost of the Block',
     description: 'Finished Mama King’s Quiet Hour and learned how to move the street without making noise.',
@@ -16,7 +16,7 @@ export const questCosmetics = {
     rarity: 'legendary',
   },
 
-  top-shelf-operator: {
+  'top-shelf-operator': {
     key: 'top-shelf-operator',
     name: 'Top Shelf Operator',
     description: 'Earned Pip’s trust at the very top of his product ladder.',
@@ -24,7 +24,7 @@ export const questCosmetics = {
     rarity: 'legendary',
   },
 
-  full-rack-enforcer: {
+  'full-rack-enforcer': {
     key: 'full-rack-enforcer',
     name: 'Full Rack Enforcer',
     description: 'Finished Tommy’s Full Rack job and earned a permanent mark as a fully armed operator.',
@@ -32,7 +32,7 @@ export const questCosmetics = {
     rarity: 'legendary',
   },
 
-  road-king: {
+  'road-king': {
     key: 'road-king',
     name: 'Road King',
     description: 'Brought enough interstate work home safe that Wheels put your name on the road map.',
@@ -40,7 +40,7 @@ export const questCosmetics = {
     rarity: 'epic',
   },
 
-  no-paper-trail: {
+  'no-paper-trail': {
     key: 'no-paper-trail',
     name: 'No Paper Trail',
     description: 'Closed Vic’s Clean Slate with nothing left for the law to hold onto.',
@@ -48,7 +48,7 @@ export const questCosmetics = {
     rarity: 'epic',
   },
 
-  corner-boss: {
+  'corner-boss': {
     key: 'corner-boss',
     name: 'Corner Boss',
     description: 'Proved to Blocks that your influence can hold turf beyond your home city.',
