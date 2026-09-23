@@ -48,7 +48,8 @@ Forward roadmaps: [0.6.0 Turf](docs/ROADMAP-0.6.0.md), [0.7.0 Hideout](docs/ROAD
 | **0.7.0-N** | Phase O daily contracts; 8-contract pool; 3 rotating offers per daily reset; repeatable attempt history | **implemented in beta** |
 | **0.7.0-O** | Phase P weekly contracts; 6-contract pool; 2 rotating offers per Monday reset; unique-city and combined turf-hour progress | **implemented in beta** |
 | **0.7.0-P** | Phase Q secret Jobs; 7 hidden one-time Jobs revealed by Heat, losses, arrest, cargo, crew, turf and net-worth milestones | **implemented in beta** |
-| **0.7.0-Q** | Phase R branching Jobs; Taking Sides Pip/Tommy choice; durable chosenBranch; mutually exclusive follow-ups | **in PR for beta** |
+| **0.7.0-Q** | Phase R branching Jobs; Taking Sides Pip/Tommy choice; durable chosenBranch; mutually exclusive follow-ups | **implemented in beta** |
+| **0.7.0-R** | Phase S dynamic city contracts; 2 live city/product offers per 12-hour board; 250/500/750-unit targets; effective 1.35× sale payout | **in PR for beta** |
 | **0.2.0-A** | combat model, balance simulator, tests and staged design | **prototype complete; balance provisional** |
 | **0.2.0-B** | selectable cash-raid ruleset, raid API, target protection, reports and retry recovery | **implemented for new combat rounds** |
 | **0.2.0-C** | persistent wounds, fit crew, natural recovery and medicine treatment | **implemented for new recovery rounds** |

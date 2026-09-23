@@ -762,6 +762,11 @@ export interface QuestPageDto {
     slots: number;
     resetAt: string | null;
   };
+  cityContracts: {
+    enabled: boolean;
+    slots: number;
+    resetAt: string | null;
+  };
   activeLimit: number;
   trackedLimit: number;
   counts: {

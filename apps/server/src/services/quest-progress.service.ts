@@ -10,6 +10,7 @@ import {
 } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import { createPlayerActivity } from './in-app-notification.service.js';
+import { cityContractObjectives, cityContractState } from './city-contract.service.js';
 
 const ACTIVE_STATUSES = ['ACTIVE', 'READY_TO_TURN_IN'] as const;
 const OBJECTIVE_KINDS = new Set<QuestObjectiveKind>([
@@ -264,7 +265,10 @@ export const QuestProgressService = {
         continue;
       }
 
-      const requiredObjectives = objectives(playerQuest.questDefinition.objectives);
+      const cityState = cityContractState(playerQuest.rewardState);
+      const questTitle = cityState?.title ?? playerQuest.questDefinition.title;
+      const requiredObjectives = cityContractObjectives(playerQuest.rewardState)
+        ?? objectives(playerQuest.questDefinition.objectives);
       const bonusObjectives = objectives(playerQuest.questDefinition.bonusObjectives);
       const requiredBefore = progress(playerQuest.objectiveProgress);
       const bonusBefore = progress(playerQuest.bonusProgress);
@@ -323,7 +327,7 @@ export const QuestProgressService = {
           'QUEST_OBJECTIVE_COMPLETE',
           json({
             questKey: playerQuest.questDefinition.key,
-            title: playerQuest.questDefinition.title,
+            title: questTitle,
             contactKey: playerQuest.questDefinition.contactKey,
             objectiveId: objective.id,
             objective: objective.description,
@@ -339,7 +343,7 @@ export const QuestProgressService = {
           'QUEST_READY',
           json({
             questKey: playerQuest.questDefinition.key,
-            title: playerQuest.questDefinition.title,
+            title: questTitle,
             contactKey: playerQuest.questDefinition.contactKey,
           }),
         );
