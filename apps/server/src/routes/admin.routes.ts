@@ -14,6 +14,7 @@ import { AdminGrantService } from '../services/admin-grant.service.js';
 import { AdminHealthService } from '../services/admin-health.service.js';
 import { AdminNewsService } from '../services/admin-news.service.js';
 import { AdminPlayerService } from '../services/admin-player.service.js';
+import { AdminQuestService } from '../services/admin-quest.service.js';
 import { AdminRoundService } from '../services/admin-round.service.js';
 import { AdminRulesetService } from '../services/admin-ruleset.service.js';
 import { AdminSignalsService } from '../services/admin-signals.service.js';
@@ -67,6 +68,17 @@ const deleteAccountSchema = z.object({
 }).strict();
 const resyncSchema = z.object({ accountId: id.optional(), reason: reason.optional() }).strict();
 const rulesetQuery = z.object({ compare: id.optional() }).strict();
+const contentKey = z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.:-]+$/);
+const questContentQuery = z.object({ roundId: id }).strict();
+const questContentParams = z.object({ key: contentKey }).strict();
+const questContentToggleSchema = z.object({ reason, enabled: z.boolean() }).strict();
+const playerQuestParams = z.object({ roundPlayerId: id, playerQuestId: id }).strict();
+const supportQuestGrantSchema = z.object({ reason, key: contentKey }).strict();
+const supportFavorSchema = z.object({
+  reason,
+  key: contentKey,
+  delta: z.number().int().min(-1000).max(1000).refine((value) => value !== 0, 'Use a non-zero adjustment.'),
+}).strict();
 
 const grantSchema = z.object({
   reason,
@@ -397,6 +409,41 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     );
   });
 
+  // Quest content controls (Phase X)
+
+  fastify.get('/quest-content', async (request) => {
+    const { roundId } = parseBody(questContentQuery, request.query);
+    return AdminQuestService.content(fastify.prisma, roundId);
+  });
+
+  fastify.post('/quest-content/quests/:key', async (request) => {
+    const { key } = parseBody(questContentParams, request.params);
+    const { roundId } = parseBody(questContentQuery, request.query);
+    const body = parseBody(questContentToggleSchema, request.body ?? {});
+    return AdminQuestService.setQuestEnabled(
+      fastify.prisma,
+      request.auth!.account,
+      roundId,
+      key,
+      body.enabled,
+      body.reason,
+    );
+  });
+
+  fastify.post('/quest-content/favors/:key', async (request) => {
+    const { key } = parseBody(questContentParams, request.params);
+    const { roundId } = parseBody(questContentQuery, request.query);
+    const body = parseBody(questContentToggleSchema, request.body ?? {});
+    return AdminQuestService.setFavorEnabled(
+      fastify.prisma,
+      request.auth!.account,
+      roundId,
+      key,
+      body.enabled,
+      body.reason,
+    );
+  });
+
   // Player inspector and corrections
 
   fastify.get('/players', async (request) => AdminPlayerService.search(fastify.prisma, parseBody(playerSearchQuery, request.query)));
@@ -416,6 +463,37 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { roundPlayerId } = parseBody(playerParams, request.params);
     const input = parseBody(grantSchema, request.body ?? {});
     return AdminGrantService.grant(fastify.prisma, request.auth!.account, roundPlayerId, input);
+  });
+
+  fastify.post('/players/:roundPlayerId/quests/grant', async (request) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    const body = parseBody(supportQuestGrantSchema, request.body ?? {});
+    return AdminQuestService.grantQuest(fastify.prisma, request.auth!.account, roundPlayerId, body.key, body.reason);
+  });
+
+  fastify.post('/players/:roundPlayerId/quests/:playerQuestId/reset', async (request) => {
+    const { roundPlayerId, playerQuestId } = parseBody(playerQuestParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminQuestService.resetQuest(fastify.prisma, request.auth!.account, roundPlayerId, playerQuestId, body.reason);
+  });
+
+  fastify.post('/players/:roundPlayerId/quests/:playerQuestId/complete', async (request) => {
+    const { roundPlayerId, playerQuestId } = parseBody(playerQuestParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminQuestService.completeQuest(fastify.prisma, request.auth!.account, roundPlayerId, playerQuestId, body.reason);
+  });
+
+  fastify.post('/players/:roundPlayerId/favors/adjust', async (request) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    const body = parseBody(supportFavorSchema, request.body ?? {});
+    return AdminQuestService.adjustFavor(
+      fastify.prisma,
+      request.auth!.account,
+      roundPlayerId,
+      body.key,
+      body.delta,
+      body.reason,
+    );
   });
 
   fastify.post('/battles/:battleId/void', async (request) => {

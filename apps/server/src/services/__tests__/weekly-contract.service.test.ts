@@ -36,6 +36,20 @@ describe('WeeklyContractService rotation', () => {
     expect(new Set(categories).size).toBe(WEEKLY_CONTRACT_SLOTS);
   });
 
+  it('fills weekly slots from enabled definitions when a selected contract is disabled', () => {
+    const now = new Date('2026-09-22T15:00:00.000Z');
+    const original = selectedWeeklyContractKeys(classicOgV07O, now);
+    const enabled = new Set(
+      Object.values(classicOgV07O.questDefinitions ?? {})
+        .filter((definition) => definition.type === 'WEEKLY' && definition.key !== original[0])
+        .map((definition) => definition.key),
+    );
+    const selected = selectedWeeklyContractKeys(classicOgV07O, now, enabled);
+    expect(selected).toHaveLength(WEEKLY_CONTRACT_SLOTS);
+    expect(selected).not.toContain(original[0]);
+    expect(selected.every((key) => enabled.has(key))).toBe(true);
+  });
+
   it('rotates after the next weekly boundary', () => {
     const before = selectedWeeklyContractKeys(classicOgV07O, new Date('2026-09-22T15:00:00.000Z'));
     const after = selectedWeeklyContractKeys(classicOgV07O, new Date('2026-09-29T15:00:00.000Z'));

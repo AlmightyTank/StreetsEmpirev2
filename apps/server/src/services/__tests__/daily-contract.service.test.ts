@@ -33,6 +33,20 @@ describe('DailyContractService rotation', () => {
     expect(second).toEqual(first);
   });
 
+  it('fills all slots from enabled definitions when a selected contract is disabled', () => {
+    const now = new Date('2026-09-22T15:00:00.000Z');
+    const original = selectedDailyContractKeys(classicOgV07N, now);
+    const enabled = new Set(
+      Object.values(classicOgV07N.questDefinitions ?? {})
+        .filter((definition) => definition.type === 'DAILY' && definition.key !== original[0])
+        .map((definition) => definition.key),
+    );
+    const selected = selectedDailyContractKeys(classicOgV07N, now, enabled);
+    expect(selected).toHaveLength(DAILY_CONTRACT_SLOTS);
+    expect(selected).not.toContain(original[0]);
+    expect(selected.every((key) => enabled.has(key))).toBe(true);
+  });
+
   it('rotates the board after the next reset', () => {
     const before = selectedDailyContractKeys(classicOgV07N, new Date('2026-09-22T15:00:00.000Z'));
     const after = selectedDailyContractKeys(classicOgV07N, new Date('2026-09-23T15:00:00.000Z'));

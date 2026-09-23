@@ -15,9 +15,13 @@ function inputJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
 
-function pool(ruleset: Ruleset): QuestDefinition[] {
+function pool(ruleset: Ruleset, enabledKeys?: ReadonlySet<string>): QuestDefinition[] {
   return Object.values(ruleset.questDefinitions ?? {})
-    .filter((definition) => definition.type === 'WEEKLY' && definition.repeatability === 'WEEKLY');
+    .filter((definition) =>
+      definition.type === 'WEEKLY'
+      && definition.repeatability === 'WEEKLY'
+      && (!enabledKeys || enabledKeys.has(definition.key))
+    );
 }
 
 function hash32(value: string): number {
@@ -59,10 +63,10 @@ export function weeklyContractWindow(now: Date, ruleset: Ruleset): { startsAt: D
  * The weekly board is shared and deterministic. Prefer different categories so
  * the two-slot board cannot become two versions of the same activity loop.
  */
-export function selectedWeeklyContractKeys(ruleset: Ruleset, now: Date): string[] {
+export function selectedWeeklyContractKeys(ruleset: Ruleset, now: Date, enabledKeys?: ReadonlySet<string>): string[] {
   const { startsAt } = weeklyContractWindow(now, ruleset);
   const seed = ruleset.meta.id + ':' + ruleset.meta.version + ':' + startsAt.toISOString();
-  const ordered = pool(ruleset)
+  const ordered = pool(ruleset, enabledKeys)
     .map((definition) => ({
       definition,
       order: hash32(seed + ':' + definition.key),
@@ -239,7 +243,6 @@ export async function syncWeeklyContractAttempts(
   const definitions = pool(ruleset);
   if (definitions.length === 0) return { keys: [], resetAt: null };
 
-  const keys = selectedWeeklyContractKeys(ruleset, now);
   const { startsAt, endsAt } = weeklyContractWindow(now, ruleset);
   const definitionRows = await db.questDefinition.findMany({
     where: {
@@ -250,6 +253,8 @@ export async function syncWeeklyContractAttempts(
     },
     select: { id: true, key: true },
   });
+  const enabledKeys = new Set(definitionRows.map((row) => row.key));
+  const keys = selectedWeeklyContractKeys(ruleset, now, enabledKeys);
   const definitionIds = definitionRows.map((row) => row.id);
 
   await db.playerQuest.updateMany({

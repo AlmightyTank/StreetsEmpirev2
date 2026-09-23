@@ -201,6 +201,9 @@ export function AdminPage() {
           <h1 className="se-title">Admin Panel</h1>
           <p className="se-eyebrow">Rounds · every action is audited</p>
         </div>
+        <div className="se-cta">
+          <Link className="se-btn se-btn--ghost" to="/game/admin/quests">Quest content</Link>
+        </div>
       </div>
 
       {error ? <Alert>{error}</Alert> : null}

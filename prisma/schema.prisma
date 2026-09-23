@@ -339,6 +339,27 @@ model PlayerFavor {
 }
 
 // ---------------------------------------------------------------------------
+// Admin favor content controls
+// ---------------------------------------------------------------------------
+
+/// Per-ruleset emergency switch for favor effects. Missing rows mean enabled,
+/// so pinned rulesets keep their original behavior until an admin intervenes.
+model FavorContentSetting {
+  id String @id @default(cuid())
+
+  rulesetId      String
+  rulesetVersion String
+  key            String
+  isEnabled      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([rulesetId, rulesetVersion, key])
+  @@index([rulesetId, rulesetVersion, isEnabled])
+}
+
+// ---------------------------------------------------------------------------
 // Active timed favors
 // ---------------------------------------------------------------------------
 

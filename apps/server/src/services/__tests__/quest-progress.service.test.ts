@@ -16,6 +16,7 @@ type Row = {
     contactKey: string | null;
     objectives: unknown;
     bonusObjectives: unknown;
+    isEnabled?: boolean;
   };
 };
 
@@ -38,6 +39,7 @@ function fixture(rowOverrides: Partial<Row> = {}) {
       bonusObjectives: [
         { id: 'recruit', kind: 'RECRUIT_CREW', description: 'Recruit someone.', target: 1, params: { eventTypes: ['SCOUT'] } },
       ],
+      isEnabled: true,
     },
     ...rowOverrides,
   };
@@ -139,6 +141,32 @@ describe('QuestProgressService', () => {
       recruit: { current: 1, target: 1, completed: true },
     });
     expect(receipts.size).toBe(1);
+  });
+
+  it('does not advance a quest while its definition is disabled', async () => {
+    const { db, row, receipts } = fixture({
+      questDefinition: {
+        key: 'TEST_JOB',
+        title: 'Test Job',
+        contactKey: 'MAMA_KING',
+        objectives: [
+          { id: 'turns', kind: 'SPEND_TURNS', description: 'Scout 12 turns.', target: 12, params: { eventTypes: ['SCOUT'] } },
+        ],
+        bonusObjectives: [],
+        isEnabled: false,
+      },
+    });
+
+    const result = await QuestProgressService.emit(db, row.roundPlayerId, {
+      sourceKey: 'activity:disabled',
+      type: 'SCOUT',
+      payload: { turns: 12 },
+    });
+
+    expect(result.considered).toBe(0);
+    expect(result.advanced).toBe(0);
+    expect(receipts.size).toBe(0);
+    expect(row.objectiveProgress).toEqual({});
   });
 
   it('does not apply the same source event twice', async () => {

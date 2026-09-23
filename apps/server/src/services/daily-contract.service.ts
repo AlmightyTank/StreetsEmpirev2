@@ -9,9 +9,13 @@ function inputJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
 
-function pool(ruleset: Ruleset): QuestDefinition[] {
+function pool(ruleset: Ruleset, enabledKeys?: ReadonlySet<string>): QuestDefinition[] {
   return Object.values(ruleset.questDefinitions ?? {})
-    .filter((definition) => definition.type === 'DAILY' && definition.repeatability === 'DAILY');
+    .filter((definition) =>
+      definition.type === 'DAILY'
+      && definition.repeatability === 'DAILY'
+      && (!enabledKeys || enabledKeys.has(definition.key))
+    );
 }
 
 function hash32(value: string): number {
@@ -35,10 +39,10 @@ export function dailyContractWindow(now: Date, ruleset: Ruleset): { startsAt: Da
  * Daily selection is server-authoritative and deterministic for the ruleset
  * window. Every player in the same ruleset sees the same board that day.
  */
-export function selectedDailyContractKeys(ruleset: Ruleset, now: Date): string[] {
+export function selectedDailyContractKeys(ruleset: Ruleset, now: Date, enabledKeys?: ReadonlySet<string>): string[] {
   const { startsAt } = dailyContractWindow(now, ruleset);
   const seed = ruleset.meta.id + ':' + ruleset.meta.version + ':' + startsAt.toISOString();
-  return pool(ruleset)
+  return pool(ruleset, enabledKeys)
     .map((definition) => ({
       key: definition.key,
       order: hash32(seed + ':' + definition.key),
@@ -62,7 +66,6 @@ export async function syncDailyContractAttempts(
   const definitions = pool(ruleset);
   if (definitions.length === 0) return { keys: [], resetAt: null };
 
-  const keys = selectedDailyContractKeys(ruleset, now);
   const { startsAt, endsAt } = dailyContractWindow(now, ruleset);
   const definitionRows = await db.questDefinition.findMany({
     where: {
@@ -73,6 +76,8 @@ export async function syncDailyContractAttempts(
     },
     select: { id: true, key: true },
   });
+  const enabledKeys = new Set(definitionRows.map((row) => row.key));
+  const keys = selectedDailyContractKeys(ruleset, now, enabledKeys);
   const definitionIds = definitionRows.map((row) => row.id);
 
   await db.playerQuest.updateMany({
