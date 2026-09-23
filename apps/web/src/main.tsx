@@ -17,6 +17,7 @@ import './styles/raids.css';
 import './styles/stores.css';
 import './styles/travel.css';
 import './styles/city-blocks.css';
+import './styles/quests.css';
 import { App } from './App.js';
 // Before React mounts: Android can offer the install prompt immediately.
 import './utils/install.js';
