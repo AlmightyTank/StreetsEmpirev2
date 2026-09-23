@@ -234,7 +234,7 @@ export const QuestProgressService = {
       where: {
         roundPlayerId,
         status: { in: [...ACTIVE_STATUSES] },
-        questDefinition: { type: { not: 'ALLIANCE' } },
+        questDefinition: { type: { not: 'ALLIANCE' }, isEnabled: true },
       },
       select: { id: true },
       orderBy: { id: 'asc' },
@@ -260,7 +260,11 @@ export const QuestProgressService = {
         where: { id: candidate.id },
         include: { questDefinition: true },
       });
-      if (!playerQuest || !ACTIVE_STATUSES.includes(playerQuest.status as typeof ACTIVE_STATUSES[number])) continue;
+      if (
+        !playerQuest
+        || !playerQuest.questDefinition.isEnabled
+        || !ACTIVE_STATUSES.includes(playerQuest.status as typeof ACTIVE_STATUSES[number])
+      ) continue;
 
       result.considered += 1;
 
