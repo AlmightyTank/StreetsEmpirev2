@@ -126,6 +126,7 @@ export interface BadgeCosmeticOptionDto extends CosmeticOptionDto {
 export interface AccountProfileSettingsDto {
   activeTitleKey: string | null;
   activeProfileFrameKey: string | null;
+  activeSiteThemeKey: string | null;
   featuredBadgeKeys: string[];
   profileAccent: ProfileAccent;
   uiDensity: UiDensity;
@@ -141,6 +142,7 @@ export interface AccountProfileSettingsResponseDto {
     badges: BadgeCosmeticOptionDto[];
     accents: CosmeticOptionDto[];
     frames: CosmeticOptionDto[];
+    themes: CosmeticOptionDto[];
     densities: CosmeticOptionDto[];
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];
