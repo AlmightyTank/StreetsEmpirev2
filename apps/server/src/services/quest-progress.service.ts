@@ -12,6 +12,10 @@ import type { Db } from '../utils/db.js';
 import { createPlayerActivity } from './in-app-notification.service.js';
 import { cityContractObjectives, cityContractState } from './city-contract.service.js';
 import { allianceContractProgressCandidateIds } from './alliance-contract.service.js';
+import {
+  refreshCommunityEventReadinessForPlayer,
+  syncCommunityEventAttemptsForPlayer,
+} from './community-event.service.js';
 
 const ACTIVE_STATUSES = ['ACTIVE', 'READY_TO_TURN_IN'] as const;
 const OBJECTIVE_KINDS = new Set<QuestObjectiveKind>([
@@ -219,6 +223,8 @@ export const QuestProgressService = {
       duplicate: 0,
     };
 
+    const communityRuleset = await syncCommunityEventAttemptsForPlayer(db, roundPlayerId, at);
+
     const directCandidates = await db.playerQuest.findMany({
       where: {
         roundPlayerId,
@@ -360,6 +366,29 @@ export const QuestProgressService = {
         );
       }
       if (becameUnready) result.reopened += 1;
+    }
+
+    if (communityRuleset) {
+      const transitions = await refreshCommunityEventReadinessForPlayer(
+        db,
+        roundPlayerId,
+        communityRuleset,
+        at,
+      );
+      result.readied += transitions.readied.length;
+      result.reopened += transitions.reopened.length;
+      for (const ready of transitions.readied) {
+        await createPlayerActivity(
+          db,
+          roundPlayerId,
+          'QUEST_READY',
+          json({
+            questKey: ready.key,
+            title: ready.title,
+            contactKey: ready.contactKey,
+          }),
+        );
+      }
     }
 
     return result;

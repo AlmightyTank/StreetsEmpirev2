@@ -56,6 +56,14 @@ import {
   lockAllianceContractActor,
   syncAllianceContractAttempts,
 } from './alliance-contract.service.js';
+import {
+  assertCommunityEventClaim,
+  communityEventSnapshot,
+  isCommunityEventDefinition,
+  refreshCommunityEventReadinessForPlayer,
+  syncCommunityEventAttempts,
+  type CommunityEventSnapshot,
+} from './community-event.service.js';
 
 const ACTIVE_LIMIT = 8;
 const TRACKED_LIMIT = 3;
@@ -207,8 +215,8 @@ function branchChoicesDto(row: QuestRow, ruleset: Ruleset): QuestBranchChoiceDto
   }));
 }
 
-function objectiveDtos(row: QuestRow): QuestObjectiveDto[] {
-  const requiredProgress = progress(row.objectiveProgress);
+function objectiveDtos(row: QuestRow, communityEvent?: CommunityEventSnapshot): QuestObjectiveDto[] {
+  const requiredProgress = communityEvent?.progress ?? progress(row.objectiveProgress);
   const bonusProgress = progress(row.bonusProgress);
   const requiredDefinitions = cityContractObjectives(row.rewardState)
     ?? objectives(row.questDefinition.objectives);
@@ -231,7 +239,7 @@ function objectiveDtos(row: QuestRow): QuestObjectiveDto[] {
   ];
 }
 
-function questDto(row: QuestRow, ruleset: Ruleset): PlayerQuestDto {
+function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEventSnapshot): PlayerQuestDto {
   const contact = contactFor(ruleset, row.questDefinition.contactKey);
   const cityState = cityContractState(row.rewardState);
   const resolvedRewards = cityContractRewards(row.rewardState)
@@ -250,8 +258,19 @@ function questDto(row: QuestRow, ruleset: Ruleset): PlayerQuestDto {
     isTracked: row.isTracked,
     chosenBranch: row.chosenBranch,
     branchChoices: branchChoicesDto(row, ruleset),
-    objectives: objectiveDtos(row),
+    objectives: objectiveDtos(row, communityEvent),
     rewards: resolvedRewards.map((reward) => rewardDto(reward, ruleset)),
+    ...(communityEvent ? {
+      communityEvent: {
+        startsAt: communityEvent.state.windowStart,
+        endsAt: communityEvent.state.windowEnd,
+        contributionCurrent: communityEvent.contributionCurrent,
+        contributionTarget: communityEvent.contributionTarget,
+        contributionLabel: communityEvent.contributionLabel,
+        contributionFormat: communityEvent.contributionFormat,
+        sharedCompleted: communityEvent.sharedCompleted,
+      },
+    } : {}),
     acceptedAt: row.acceptedAt?.toISOString() ?? null,
     completedAt: row.completedAt?.toISOString() ?? null,
     claimedAt: row.claimedAt?.toISOString() ?? null,
@@ -399,6 +418,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
       || definition.type === 'SECRET'
       || isDynamicCityContractDefinition(definition)
       || isAllianceContractDefinition(definition)
+      || isCommunityEventDefinition(definition)
     ) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
     const available = questPrerequisitesMet(definition, completed, reps, chosenBranches);
@@ -421,6 +441,8 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
   await syncWeeklyContractAttempts(db, roundPlayerId, ruleset, now);
   newlyAvailable.push(...await syncCityContractAttempts(db, roundPlayerId, ruleset, now));
   newlyAvailable.push(...await syncAllianceContractAttempts(db, roundPlayerId, ruleset, now));
+  await syncCommunityEventAttempts(db, roundPlayerId, ruleset, now);
+  await refreshCommunityEventReadinessForPlayer(db, roundPlayerId, ruleset, now);
   newlyAvailable.push(...await syncSecretQuestAttempts(db, roundPlayerId, ruleset));
   return newlyAvailable;
 }
@@ -498,6 +520,12 @@ export const HandcraftedQuestService = {
         include: { questDefinition: true },
         orderBy: [{ createdAt: 'asc' }],
       });
+      const communitySnapshots = new Map<string, CommunityEventSnapshot>();
+      for (const row of rows) {
+        if (!isCommunityEventDefinition(ruleset.questDefinitions?.[row.questDefinition.key])) continue;
+        const snapshot = await communityEventSnapshot(tx, row);
+        if (snapshot) communitySnapshots.set(row.id, snapshot);
+      }
       const reps = await contactPoints(tx, roundPlayerId, ruleset);
       const contacts = Object.values(ruleset.contacts ?? {}).map((contact): QuestContactDto => {
         const points = reps[contact.key] ?? 0;
@@ -566,7 +594,7 @@ export const HandcraftedQuestService = {
         counts: {
           available: rows.filter((row) => row.status === 'AVAILABLE').length,
           active: rows.filter((row) =>
-            row.questDefinition.type !== 'ALLIANCE'
+            !['ALLIANCE', 'EVENT'].includes(row.questDefinition.type)
             && ['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)
           ).length,
           ready: rows.filter((row) => row.status === 'READY_TO_TURN_IN').length,
@@ -577,7 +605,7 @@ export const HandcraftedQuestService = {
         activeFavors,
         armedFavors,
         favors,
-        quests: rows.map((row) => questDto(row, ruleset)),
+        quests: rows.map((row) => questDto(row, ruleset, communitySnapshots.get(row.id))),
       };
     });
   },
@@ -610,7 +638,7 @@ export const HandcraftedQuestService = {
           where: {
             roundPlayerId,
             status: { in: ['ACTIVE', 'READY_TO_TURN_IN'] },
-            questDefinition: { type: { not: 'ALLIANCE' } },
+            questDefinition: { type: { notIn: ['ALLIANCE', 'EVENT'] } },
           },
         });
         if (active >= ACTIVE_LIMIT) throw AppError.conflict('QUEST_ACTIVE_LIMIT', `You can only have ${ACTIVE_LIMIT} active jobs at once.`);
@@ -667,6 +695,12 @@ export const HandcraftedQuestService = {
           'Alliance contracts cannot be abandoned individually after the shared roster starts.',
         );
       }
+      if (isCommunityEventDefinition(ruleset.questDefinitions?.[row.questDefinition.key])) {
+        throw AppError.conflict(
+          'COMMUNITY_EVENT_AUTOMATIC',
+          'Community events run automatically and cannot be abandoned.',
+        );
+      }
       await tx.questProgressReceipt.deleteMany({ where: { playerQuestId: row.id } });
       const preserveOffer = preservesGeneratedOffer(row, ruleset);
       await tx.playerQuest.update({
@@ -714,6 +748,11 @@ export const HandcraftedQuestService = {
       action: 'QUEST_CLAIM',
       actionId: input.actionId,
       execute: async ({ tx, current, now }) => {
+        const communityEvent = isCommunityEventDefinition(ruleset.questDefinitions?.[key]);
+        if (communityEvent) {
+          await syncCommunityEventAttempts(tx, roundPlayerId, ruleset, now);
+          await refreshCommunityEventReadinessForPlayer(tx, roundPlayerId, ruleset, now);
+        }
         const row = await loadQuest(tx, roundPlayerId, ruleset, key);
         if (row.expiresAt && row.expiresAt.getTime() <= now.getTime()) {
           throw AppError.conflict('QUEST_EXPIRED', 'That contract expired at reset. Refresh the board for new work.');
@@ -726,6 +765,9 @@ export const HandcraftedQuestService = {
         }
         if (isAllianceContractDefinition(rulesetDefinition)) {
           await assertAllianceContractClaim(tx, roundPlayerId, row.rewardState);
+        }
+        if (communityEvent) {
+          await assertCommunityEventClaim(tx, row);
         }
         const selectedBranch = resolveQuestBranchForClaim(
           rulesetDefinition,

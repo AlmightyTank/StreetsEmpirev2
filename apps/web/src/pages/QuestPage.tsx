@@ -15,11 +15,11 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
 
-type Tab = 'available' | 'daily' | 'weekly' | 'city' | 'alliance' | 'active' | 'completed';
+type Tab = 'available' | 'daily' | 'weekly' | 'city' | 'alliance' | 'events' | 'active' | 'completed';
 
 function tabFromSearch(search: string): Tab {
   const requested = new URLSearchParams(search).get('tab');
-  return requested === 'daily' || requested === 'weekly' || requested === 'city' || requested === 'alliance' || requested === 'active' || requested === 'completed' || requested === 'available'
+  return requested === 'daily' || requested === 'weekly' || requested === 'city' || requested === 'alliance' || requested === 'events' || requested === 'active' || requested === 'completed' || requested === 'available'
     ? requested
     : 'available';
 }
@@ -68,9 +68,26 @@ function QuestCard({
       id={`quest-${quest.key}`}
       className="se-quest-card"
       title={quest.title}
-      aside={<span className="se-num se-dim">{quest.contactName ?? 'StreetsEmpire'} · {quest.category === 'CITY_CONTRACT' ? 'City contract' : quest.type === 'ALLIANCE' ? 'Alliance contract' : quest.type === 'DAILY' ? 'Daily contract' : quest.type === 'WEEKLY' ? 'Weekly contract' : quest.type === 'SECRET' ? 'Secret job' : quest.type === 'SIDE' ? 'Side job' : quest.type === 'STORY' ? 'Story' : quest.type} · {statusLabel(quest)}</span>}
+      aside={<span className="se-num se-dim">{quest.contactName ?? 'StreetsEmpire'} · {quest.category === 'CITY_CONTRACT' ? 'City contract' : quest.type === 'ALLIANCE' ? 'Alliance contract' : quest.type === 'EVENT' ? 'Community event' : quest.type === 'DAILY' ? 'Daily contract' : quest.type === 'WEEKLY' ? 'Weekly contract' : quest.type === 'SECRET' ? 'Secret job' : quest.type === 'SIDE' ? 'Side job' : quest.type === 'STORY' ? 'Story' : quest.type} · {statusLabel(quest)}</span>}
     >
       <p className="se-hint se-quest-card__desc">{quest.description}</p>
+      {quest.communityEvent ? (
+        <div className="se-rows se-quest-objectives">
+          <Row
+            label={'Your contribution · ' + quest.communityEvent.contributionLabel}
+            value={
+              (quest.communityEvent.contributionFormat === 'CURRENCY'
+                ? formatCents(quest.communityEvent.contributionCurrent)
+                : formatNumber(quest.communityEvent.contributionCurrent))
+              + ' / '
+              + (quest.communityEvent.contributionFormat === 'CURRENCY'
+                ? formatCents(quest.communityEvent.contributionTarget)
+                : formatNumber(quest.communityEvent.contributionTarget))
+            }
+            strong={quest.communityEvent.contributionCurrent >= quest.communityEvent.contributionTarget}
+          />
+        </div>
+      ) : null}
       <div className="se-rows se-quest-objectives">
         {quest.objectives.map((objective) => (
           <Row
@@ -133,7 +150,7 @@ function QuestCard({
         {quest.status === 'AVAILABLE' ? (
           <Button
             className="se-btn se-btn--primary"
-            disabledReason={busy ?? (quest.type !== 'ALLIANCE' && page.counts.active >= page.activeLimit
+            disabledReason={busy ?? (!['ALLIANCE', 'EVENT'].includes(quest.type) && page.counts.active >= page.activeLimit
               ? 'You already have ' + page.activeLimit + ' active jobs.'
               : null)}
             onClick={() => onAccept(quest.key)}
@@ -159,7 +176,7 @@ function QuestCard({
             >
               {quest.isTracked ? 'Stop tracking' : 'Track job'}
             </Button>
-            {quest.type !== 'ALLIANCE' ? (
+            {!['ALLIANCE', 'EVENT'].includes(quest.type) ? (
               <Button className="se-btn se-btn--ghost" disabledReason={busy} onClick={() => onAbandon(quest.key)}>
                 Abandon
               </Button>
@@ -168,7 +185,7 @@ function QuestCard({
         ) : null}
       </div>
 
-      {quest.expiresAt ? <p className="se-hint">{quest.category === 'CITY_CONTRACT' ? 'City board refreshes ' : quest.type === 'ALLIANCE' ? 'Alliance board resets ' : quest.type === 'DAILY' ? 'Daily board resets ' : quest.type === 'WEEKLY' ? 'Weekly board resets ' : 'Expires '}{new Date(quest.expiresAt).toLocaleString()}.</p> : null}
+      {quest.expiresAt ? <p className="se-hint">{quest.category === 'CITY_CONTRACT' ? 'City board refreshes ' : quest.type === 'ALLIANCE' ? 'Alliance board resets ' : quest.type === 'EVENT' ? 'Event ends ' : quest.type === 'DAILY' ? 'Daily board resets ' : quest.type === 'WEEKLY' ? 'Weekly board resets ' : 'Expires '}{new Date(quest.expiresAt).toLocaleString()}.</p> : null}
     </Panel>
   );
 }
@@ -293,12 +310,23 @@ export function QuestPage() {
     [page, nowMs],
   );
 
+  const eventToday = useMemo(
+    () => page?.quests.filter((quest) =>
+      quest.type === 'EVENT'
+      && !['EXPIRED', 'FAILED'].includes(quest.status)
+      && quest.expiresAt !== null
+      && new Date(quest.expiresAt).getTime() > nowMs
+    ) ?? [],
+    [page, nowMs],
+  );
+
   const standardAvailableCount = useMemo(
     () => page?.quests.filter((quest) =>
       quest.status === 'AVAILABLE'
       && quest.type !== 'DAILY'
       && quest.type !== 'WEEKLY'
       && quest.type !== 'ALLIANCE'
+      && quest.type !== 'EVENT'
       && quest.category !== 'CITY_CONTRACT'
     ).length ?? 0,
     [page],
@@ -315,6 +343,7 @@ export function QuestPage() {
     if (tab === 'weekly') return weeklyToday;
     if (tab === 'city') return cityToday;
     if (tab === 'alliance') return allianceToday;
+    if (tab === 'events') return eventToday;
     if (tab === 'active') return page.quests.filter((quest) => ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status));
     if (tab === 'completed') return page.quests.filter((quest) => ['COMPLETED', 'FAILED', 'EXPIRED'].includes(quest.status));
     return page.quests.filter((quest) =>
@@ -322,9 +351,10 @@ export function QuestPage() {
       && quest.type !== 'DAILY'
       && quest.type !== 'WEEKLY'
       && quest.type !== 'ALLIANCE'
+      && quest.type !== 'EVENT'
       && quest.category !== 'CITY_CONTRACT'
     );
-  }, [page, tab, dailyToday, weeklyToday, cityToday, allianceToday]);
+  }, [page, tab, dailyToday, weeklyToday, cityToday, allianceToday, eventToday]);
 
   const liveFavors = useMemo(
     () => page?.activeFavors.filter((favor) => new Date(favor.expiresAt).getTime() > nowMs) ?? [],
@@ -472,6 +502,13 @@ export function QuestPage() {
                         label="Alliance board"
                         value={formatNumber(allianceToday.length) + ' this week'}
                         strong={allianceToday.some((quest) => quest.status === 'READY_TO_TURN_IN')}
+                      />
+                    ) : null}
+                    {eventToday.length ? (
+                      <Row
+                        label="Community event"
+                        value={eventToday[0]!.title}
+                        strong={eventToday.some((quest) => quest.status === 'READY_TO_TURN_IN')}
                       />
                     ) : null}
                     <Row label="Personal active" value={formatNumber(page.counts.active) + ' / ' + formatNumber(page.activeLimit)} />
@@ -626,6 +663,7 @@ export function QuestPage() {
               ...(page.weeklyContracts.enabled ? [['weekly', 'Weekly (' + weeklyToday.length + ')'] as const] : []),
               ...(page.cityContracts.enabled ? [['city', 'City (' + cityToday.length + ')'] as const] : []),
               ...(allianceToday.length ? [['alliance', 'Alliance (' + allianceToday.length + ')'] as const] : []),
+              ...(eventToday.length ? [['events', 'Events (' + eventToday.length + ')'] as const] : []),
               ['active', 'Active (' + activeQuestCount + ')'],
               ['completed', 'Completed (' + page.counts.completed + ')'],
             ] as const).map(([key, label]) => (
