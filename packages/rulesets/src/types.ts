@@ -401,7 +401,9 @@ export interface QuestDefinition {
   readonly repeatability: QuestRepeatability;
   /** Null means the accepted quest has no timer. */
   readonly expiresAfterMinutes: number | null;
-  readonly availability: QuestDataObject;
+  readonly availability: QuestDataObject & {
+    readonly seasonalEvent?: SeasonalEventWindow;
+  };
 }
 
 export type QuestDefinitionCatalog = Readonly<Record<string, QuestDefinition>>;
