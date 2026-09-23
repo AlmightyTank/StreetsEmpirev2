@@ -5,6 +5,7 @@ import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActionService } from './action.service.js';
 import { FavorInventoryService } from './favor-inventory.service.js';
+import { FavorContentService } from './favor-content.service.js';
 
 export interface TimedFavorBonuses {
   scoutIncomePercent: number;
@@ -68,12 +69,16 @@ export const TimedFavorService = {
     ruleset: Ruleset,
     now = new Date(),
   ): Promise<TimedFavorBonuses> {
-    const rows = await db.playerActiveFavor.findMany({
-      where: { roundPlayerId, expiresAt: { gt: now } },
-      select: { favorKey: true },
-    });
+    const [rows, disabled] = await Promise.all([
+      db.playerActiveFavor.findMany({
+        where: { roundPlayerId, expiresAt: { gt: now } },
+        select: { favorKey: true },
+      }),
+      FavorContentService.disabledKeys(db, ruleset),
+    ]);
     const out = { ...EMPTY_BONUSES };
     for (const row of rows) {
+      if (disabled.has(row.favorKey)) continue;
       const definition = ruleset.favors?.[row.favorKey];
       if (!definition || !timed(definition) || !definition.effect) continue;
       const effect = definition.effect;
@@ -110,6 +115,7 @@ export const TimedFavorService = {
       actionId: input.actionId,
       execute: async ({ tx, current, ruleset, now }) => {
         const definition = FavorInventoryService.definition(ruleset, key);
+        await FavorContentService.assertEnabled(tx, ruleset, key);
         if (!timed(definition) || !definition.effect) {
           throw AppError.conflict('FAVOR_NOT_TIMED', 'That favor is not a timed favor.');
         }
