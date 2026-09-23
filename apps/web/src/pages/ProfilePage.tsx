@@ -43,16 +43,6 @@ function movementText(value: number | null): string {
   return value > 0 ? `up ${formatNumber(value)} today` : `down ${formatNumber(Math.abs(value))} today`;
 }
 
-function lastSeen(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  const minutes = Math.max(0, Math.floor(ms / 60_000));
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return formatDate(iso);
-}
-
 function progressPercent(award: PublicAwardDto): number {
   if (award.unlocked) return 100;
   if (!award.progress || award.progress.target <= 0) return 0;
@@ -366,14 +356,6 @@ export function ProfilePage() {
         </div>
       </div>
 
-          <div className="se-profile-hero__actions">
-            {player && !player.isYou ? <ContactButton publicPimpId={player.publicPimpId} /> : null}
-            {player?.forumProfileUrl ? (
-              <a className="se-btn se-btn--ghost se-btn--sm" href={player.forumProfileUrl}>Forum profile</a>
-            ) : null}
-          </div>
-        </header>
-
         {error ? <Alert>{error}</Alert> : null}
 
         {!player && !career && !error ? (
@@ -468,7 +450,6 @@ export function ProfilePage() {
             />
           </>
         ) : null}
-      </div>
     </GameLayout>
   );
 }
