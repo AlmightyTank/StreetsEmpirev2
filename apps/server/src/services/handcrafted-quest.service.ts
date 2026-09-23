@@ -695,7 +695,8 @@ export const HandcraftedQuestService = {
       if (row.expiresAt && row.expiresAt.getTime() <= acceptedAt.getTime()) {
         throw AppError.conflict('QUEST_EXPIRED', 'That contract expired at reset. Refresh the board for new work.');
       }
-      if (!seasonalEventActive((ruleset.questDefinitions ?? {})[row.questDefinition.key], acceptedAt)) {
+      const definition = (ruleset.questDefinitions ?? {})[row.questDefinition.key];
+      if (definition && !seasonalEventActive(definition, acceptedAt)) {
         throw AppError.conflict('QUEST_EVENT_CLOSED', 'That seasonal event is no longer active. Refresh the board for current event work.');
       }
       if (allianceContract) {
@@ -898,6 +899,3 @@ export const HandcraftedQuestService = {
             payload: inputJson({
               questKey: key,
               title: cityContractState(row.rewardState)?.title ?? row.questDefinition.title,
-              contactKey: row.questDefinition.contactKey,
-              chosenBranch: selectedBranch?.key ?? row.chosenBranch,
-              rewards: dtoRewards.map((reward) => reward.label),
