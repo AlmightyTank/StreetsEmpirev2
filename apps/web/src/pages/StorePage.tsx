@@ -114,8 +114,18 @@ function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked
     await onTrade({ store, item: item.key, quantity, direction });
   }
 
+  const stockLabel = item.restock
+    ? item.restock.stock === 0
+      ? 'Sold out'
+      : `${formatNumber(item.restock.stock)} / ${formatNumber(item.restock.cap)} in stock`
+    : 'Always available';
+
   return (
-    <Panel title={`${locked ? 'Locked · ' : ''}${item.name}`}>
+    <Panel
+      title={`${locked ? 'Locked · ' : ''}${item.name}`}
+      className={`se-store-shelf${locked ? ' se-store-shelf--locked' : ''}${soldOut ? ' se-store-shelf--soldout' : ''}`}
+      aside={<span className={`se-store-shelf__status${soldOut ? ' se-store-shelf__status--warn' : locked ? ' se-store-shelf__status--locked' : ''}`}>{stockLabel}</span>}
+    >
       <div className="se-store-prices">
         <span>Own <strong className="se-num">{formatNumber(owned)}</strong></span>
         <span>
@@ -192,6 +202,45 @@ function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked
 
 /** Short names for the store tabs; the page title keeps the full one. */
 const TAB_NAMES: Record<string, string> = { CORNER: 'Corner', TOMMY: 'Tommy’s', CHARLIE: 'Charlie’s', PIP: 'Pip’s' };
+
+const STORE_DETAILS: Record<string, { label: string; lane: string; note: string }> = {
+  CORNER: {
+    label: 'Neighborhood supply',
+    lane: 'Street essentials',
+    note: 'Condoms, beer, medicine, and the basics that keep everyday operations moving.',
+  },
+  TOMMY: {
+    label: 'Weapons & muscle',
+    lane: 'Armory counter',
+    note: 'Crew, pistols, and heavier hardware arrive on Tommy’s own restock schedule.',
+  },
+  CHARLIE: {
+    label: 'Cars & mobility',
+    lane: 'Garage floor',
+    note: 'Low-Riders are built one at a time and determine how many shooters a drive-by can carry.',
+  },
+  PIP: {
+    label: 'Product market',
+    lane: 'Street exchange',
+    note: 'Buy and sell product here. Some harder shelves require job-earned purchase access.',
+  },
+};
+
+function StoreMetric({ label, value, detail, tone }: {
+  label: string;
+  value: string;
+  detail?: string;
+  tone?: 'good' | 'warn' | 'accent';
+}) {
+  return (
+    <div className={`se-stores-metric${tone ? ` se-stores-metric--${tone}` : ''}`}>
+      <span className="se-stores-metric__label">{label}</span>
+      <strong className="se-stores-metric__value">{value}</strong>
+      {detail ? <span className="se-stores-metric__detail">{detail}</span> : null}
+    </div>
+  );
+}
+
 const LAST_STORE_KEY = 'streets.lastStore.v1';
 
 /**
@@ -308,83 +357,246 @@ function StoreView({ slug }: { slug: string }) {
         ? 'Prices could not be loaded, so nothing can be traded yet.'
         : null;
   const receipt = action.result && 'direction' in action.result.result ? action.result.result : null;
+  const details = store ? STORE_DETAILS[store.key] ?? {
+    label: 'Street market',
+    lane: 'Open counter',
+    note: store.blurb,
+  } : null;
+  const pipProducts = store?.key === 'PIP' && products?.economy
+    ? products.products.filter((product) => product.pip)
+    : [];
+  const totalShelves = (store?.items.length ?? 0) + pipProducts.length;
+  const soldOutShelves = (store?.items.filter((item) => item.restock?.stock === 0).length ?? 0)
+    + pipProducts.filter((product) => product.pip?.stock === 0).length;
+  const lockedShelves = (store?.items.filter((item) => item.unlock && !item.unlock.unlocked).length ?? 0)
+    + pipProducts.filter((product) => product.pip && !product.pip.purchaseUnlocked).length;
 
   return (
     <GameLayout>
-      <div className="se-pagehead">
-        <div>
-          <h1 className="se-title">{store?.name ?? 'Store'}</h1>
-          <p className="se-eyebrow">{store?.blurb ?? 'Stock up for the next shift'}</p>
-        </div>
-      </div>
-      {catalog ? <StoreTabs stores={catalog.stores} slug={slug} /> : null}
-      {loadError ? <Alert>{loadError} <Button className="se-btn se-btn--sm" disabledReason={action.busy ? 'Your last order is still going through.' : null} onClick={() => setReload((n) => n + 1)}>Retry loading</Button></Alert> : null}
-      {action.error ? <Alert>{action.error}</Alert> : null}
-      {retryOrder ? <Alert tone="info">
-        The last transaction could not be confirmed. Retry it to check the result safely.
-        {' '}<Button className="se-btn se-btn--sm" disabledReason={action.busy ? 'Checking the last transaction with the server.' : null} onClick={() => void execute(retryOrder.command, retryOrder.actionId)}>Retry transaction</Button>
-      </Alert> : null}
-      {!catalog && !loadError ? <p className="se-muted" role="status">Loading the shelves...</p> : null}
-      {catalog && !store ? <Alert>That store is not open. <Link to="/game/stores/corner">Visit the Corner Store</Link>.</Alert> : null}
-
-      {action.result && receipt ? (
-        <div className="se-store-receipt" aria-live="polite">
-          <ActionResult title={receipt.direction === 'buy' ? 'Purchase complete' : 'Sale complete'}
-            subtitle={receipt.storeName} result={action.result} onDismiss={action.clear}
-            lines={[
-              { label: receipt.itemName, delta: receipt.quantityChange, remaining: action.result.after.resources[receipt.field] },
-              { label: 'Price each', value: formatCents(receipt.unitCents) },
-              { label: receipt.direction === 'buy' ? 'Paid' : 'Received', delta: receipt.cashChangeCents, money: true },
-              { label: 'Turns used', value: '0' },
-            ]} />
-        </div>
-      ) : null}
-
-      {store && catalog ? (
-        <div className="se-grid se-grid--sidebar">
-          <div className={`se-store-items${store.key === 'PIP' && catalog.productCounter ? ' se-store-items--pair' : ''}`}>
-            {store.items.map((item) => <StoreItem key={item.key}
-              // 0.4.0-D: next to the other products, Pip's Product is crack by name.
-              item={store.key === 'PIP' && catalog.productCounter && item.key === 'CRACK' ? { ...item, name: 'Crack' } : item}
-              store={store.key} keeper={store.keeper}
-              owned={me.resources[item.field]} cashCents={me.resources.cashCents}
-              bulkHelpers={catalog.bulkHelpers} blocked={counterBlock}
-              onTrade={(order) => execute({ kind: 'trade', order })}
-              onRestock={() => setReload((n) => n + 1)} />)}
-            {store.key === 'PIP' && products?.economy
-              ? products.products.filter((product) => product.pip).map((product) => (
-                <ProductCounter key={product.key} product={product} cashCents={me.resources.cashCents}
-                  bulkHelpers={catalog.bulkHelpers} blocked={counterBlock} onDone={loadProducts} />
-              ))
-              : null}
+      <div className="se-stores">
+        <header className={`se-stores-hero se-stores-hero--${store?.key.toLowerCase() ?? 'loading'}`}>
+          <div className="se-stores-hero__copy">
+            <span className="se-eyebrow">{details?.label ?? 'Street market'} · {me.city.name}</span>
+            <h1>{store?.name ?? 'Stores'}</h1>
+            <p>{store?.blurb ?? 'Loading the shelves and today’s prices.'}</p>
           </div>
-          <aside>
-            <Panel title="On hand" flush>
-              <div className="se-rows">
-                <Row label="Cash" value={formatCents(me.resources.cashCents)} strong />
-                <Row label="Net worth" value={formatCents(me.netWorthCents)} />
-                <Row label="Whore happiness" value={`${me.happiness.whore}%`} />
-                <Row label="Thug happiness" value={`${me.happiness.thug}%`} />
+
+          <div className="se-stores-hero__side">
+            <div className="se-stores-hero__readout">
+              <span>
+                <small>Cash</small>
+                <strong>{formatCents(me.resources.cashCents)}</strong>
+              </span>
+              <span>
+                <small>Standing</small>
+                <strong>{store?.standing ?? '—'}</strong>
+              </span>
+              <span>
+                <small>Shelves</small>
+                <strong>{store ? formatNumber(totalShelves) : '—'}</strong>
+              </span>
+              <span>
+                <small>Restock boost</small>
+                <strong>{store ? `${formatNumber(store.restockSpeedup)}%` : '—'}</strong>
+              </span>
+            </div>
+          </div>
+        </header>
+
+        {catalog ? <StoreTabs stores={catalog.stores} slug={slug} /> : null}
+
+        {loadError ? (
+          <Alert>
+            {loadError}{' '}
+            <Button
+              className="se-btn se-btn--sm"
+              disabledReason={action.busy ? 'Your last order is still going through.' : null}
+              onClick={() => setReload((n) => n + 1)}
+            >
+              Retry loading
+            </Button>
+          </Alert>
+        ) : null}
+        {action.error ? <Alert>{action.error}</Alert> : null}
+        {retryOrder ? (
+          <Alert tone="info">
+            The last transaction could not be confirmed. Retry it to check the result safely.{' '}
+            <Button
+              className="se-btn se-btn--sm"
+              disabledReason={action.busy ? 'Checking the last transaction with the server.' : null}
+              onClick={() => void execute(retryOrder.command, retryOrder.actionId)}
+            >
+              Retry transaction
+            </Button>
+          </Alert>
+        ) : null}
+        {!catalog && !loadError ? <div className="se-stores-loading" role="status">Loading the shelves...</div> : null}
+        {catalog && !store ? <Alert>That store is not open. <Link to="/game/stores/corner">Visit the Corner Store</Link>.</Alert> : null}
+
+        {action.result && receipt ? (
+          <section className="se-stores-receipt" aria-live="polite">
+            <div className="se-stores-sectionhead">
+              <div>
+                <span className="se-eyebrow">Transaction complete</span>
+                <h2>{receipt.direction === 'buy' ? 'Purchase receipt' : 'Sale receipt'}</h2>
               </div>
-            </Panel>
-            <p className="se-hint">
-              {store.keeper} counts you as <b className="se-dim">{store.standing}</b>
-              {store.restockSpeedup > 0
-                ? <> &mdash; they restock for you <b className="se-num">{store.restockSpeedup}%</b> sooner.</>
-                : '.'}
-            </p>
-            <p className="se-hint">Shopping costs no turns. Prices are per item; the full total appears before you trade.</p>
-            <p className="se-hint">Jobs and favors now live on the <Link to="/game/quests">Quests page</Link>.</p>
-            {store.key === 'PIP' && catalog.productCounter ? <p className="se-hint">Pip deals every product, but the harder product shelves can require job-earned purchase access. Producing, finding and selling product still use the normal product economy.</p> : null}
-            {store.key === 'CORNER' ? <p className="se-hint">Condoms and beer keep street work supplied. Restocking lifts happiness immediately.</p> : null}
-            {store.key === 'TOMMY' ? <p className="se-hint">Thugs protect the crew and fight in raids or drive-bys. Keeping a gun and beer for each thug helps their happiness.</p> : null}
-            {store.key === 'TOMMY' ? <p className="se-hint">Everything here comes in on Tommy&rsquo;s schedule. Pistols arrive by the crate because your thugs each need one; muscle and the heavier guns come a few at a time, and the better the gun the longer the wait.</p> : null}
-            {store.key === 'TOMMY' ? <p className="se-hint">Weapon access comes from underworld jobs. Once a rack is opened for the round, losing cash, crew or reputation does not take it back.</p> : null}
-            {store.key === 'CHARLIE' ? <p className="se-hint">Each Low-Rider carries {formatNumber(catalog.lowRiderThugCapacity)} shooters for a drive-by. If everybody in a car goes down, the car is lost; if one thug makes it back, the car comes home too.</p> : null}
-            {store.key === 'CHARLIE' ? <p className="se-hint">Charlie builds them one at a time, so a fleet comes together over days rather than in one visit.</p> : null}
-          </aside>
-        </div>
-      ) : null}
+              <span className="se-stores-sectionhead__meta">{receipt.storeName}</span>
+            </div>
+            <ActionResult
+              title={receipt.direction === 'buy' ? 'Purchase complete' : 'Sale complete'}
+              subtitle={receipt.storeName}
+              result={action.result}
+              onDismiss={action.clear}
+              lines={[
+                { label: receipt.itemName, delta: receipt.quantityChange, remaining: action.result.after.resources[receipt.field] },
+                { label: 'Price each', value: formatCents(receipt.unitCents) },
+                { label: receipt.direction === 'buy' ? 'Paid' : 'Received', delta: receipt.cashChangeCents, money: true },
+                { label: 'Turns used', value: '0' },
+              ]}
+            />
+          </section>
+        ) : null}
+
+        {store && catalog ? (
+          <>
+            <section className="se-stores-overview">
+              <div className="se-stores-sectionhead">
+                <div>
+                  <span className="se-eyebrow">{details?.lane}</span>
+                  <h2>Today&rsquo;s counter</h2>
+                </div>
+                <p>{details?.note}</p>
+              </div>
+
+              <div className="se-stores-summary">
+                <StoreMetric label="Wallet" value={formatCents(me.resources.cashCents)} detail="available cash" tone="accent" />
+                <StoreMetric label="Net worth" value={formatCents(me.netWorthCents)} detail="whole operation" />
+                <StoreMetric
+                  label="Sold out"
+                  value={formatNumber(soldOutShelves)}
+                  detail={soldOutShelves === 1 ? 'shelf waiting' : 'shelves waiting'}
+                  tone={soldOutShelves > 0 ? 'warn' : 'good'}
+                />
+                <StoreMetric
+                  label="Locked"
+                  value={formatNumber(lockedShelves)}
+                  detail={lockedShelves === 1 ? 'purchase gate' : 'purchase gates'}
+                  tone={lockedShelves > 0 ? 'warn' : 'good'}
+                />
+              </div>
+            </section>
+
+            <section className="se-stores-market">
+              <div className="se-stores-market__main">
+                <div className="se-stores-sectionhead">
+                  <div>
+                    <span className="se-eyebrow">Inventory</span>
+                    <h2>Shop the shelves</h2>
+                  </div>
+                  <span className="se-stores-sectionhead__meta">{formatNumber(totalShelves)} listings</span>
+                </div>
+
+                <div className={`se-store-items se-stores-shelves${store.key === 'PIP' && catalog.productCounter ? ' se-store-items--pair' : ''}`}>
+                  {store.items.map((item) => (
+                    <StoreItem
+                      key={item.key}
+                      // 0.4.0-D: next to the other products, Pip's Product is crack by name.
+                      item={store.key === 'PIP' && catalog.productCounter && item.key === 'CRACK' ? { ...item, name: 'Crack' } : item}
+                      store={store.key}
+                      keeper={store.keeper}
+                      owned={me.resources[item.field]}
+                      cashCents={me.resources.cashCents}
+                      bulkHelpers={catalog.bulkHelpers}
+                      blocked={counterBlock}
+                      onTrade={(order) => execute({ kind: 'trade', order })}
+                      onRestock={() => setReload((n) => n + 1)}
+                    />
+                  ))}
+                  {pipProducts.map((product) => (
+                    <ProductCounter
+                      key={product.key}
+                      product={product}
+                      cashCents={me.resources.cashCents}
+                      bulkHelpers={catalog.bulkHelpers}
+                      blocked={counterBlock}
+                      onDone={loadProducts}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <aside className="se-stores-market__rail">
+                <div className="se-stores-railcard">
+                  <span className="se-eyebrow">Behind the counter</span>
+                  <h2>{store.keeper}</h2>
+                  <div className="se-stores-railstats">
+                    <div>
+                      <span>Standing</span>
+                      <strong>{store.standing}</strong>
+                    </div>
+                    <div>
+                      <span>Reputation</span>
+                      <strong>{formatNumber(store.reputation)}</strong>
+                    </div>
+                    <div>
+                      <span>Restock</span>
+                      <strong>{store.restockSpeedup > 0 ? `${formatNumber(store.restockSpeedup)}% sooner` : 'Normal pace'}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="se-stores-railcard">
+                  <span className="se-eyebrow">Counter rules</span>
+                  <div className="se-stores-rules">
+                    <div>
+                      <strong>No turns spent</strong>
+                      <span>Shopping never burns turns. The button shows the full transaction total before you trade.</span>
+                    </div>
+                    <div>
+                      <strong>Server shelf wins</strong>
+                      <span>Restock countdowns are display-only. When a delivery lands, the catalog refetches the real stock.</span>
+                    </div>
+                    <div>
+                      <strong>Jobs unlock access</strong>
+                      <span>Permanent purchase access and favors live on the <Link to="/game/quests">Quests page</Link>.</span>
+                    </div>
+                  </div>
+                </div>
+
+                {store.key === 'CORNER' ? (
+                  <div className="se-stores-railcard">
+                    <span className="se-eyebrow">Street supply</span>
+                    <p>Condoms and beer keep street work supplied. Restocking the crew can lift happiness immediately.</p>
+                  </div>
+                ) : null}
+
+                {store.key === 'TOMMY' ? (
+                  <div className="se-stores-railcard">
+                    <span className="se-eyebrow">Tommy&rsquo;s rack</span>
+                    <p>Thugs protect the crew and fight in raids or drive-bys. Guns and muscle arrive on Tommy&rsquo;s schedule; the heavier the hardware, the longer the wait.</p>
+                    <p>Weapon access comes from underworld jobs. Once a rack opens for the round, losing cash, crew, or reputation does not take it back.</p>
+                  </div>
+                ) : null}
+
+                {store.key === 'CHARLIE' ? (
+                  <div className="se-stores-railcard">
+                    <span className="se-eyebrow">Garage notes</span>
+                    <p>Each Low-Rider carries {formatNumber(catalog.lowRiderThugCapacity)} shooters for a drive-by. A car comes home if at least one shooter survives.</p>
+                    <p>Charlie builds them one at a time, so fleets grow across multiple deliveries.</p>
+                  </div>
+                ) : null}
+
+                {store.key === 'PIP' && catalog.productCounter ? (
+                  <div className="se-stores-railcard">
+                    <span className="se-eyebrow">Pip&rsquo;s market</span>
+                    <p>Pip deals every product. Harder shelves can require job-earned purchase access, but selling stock you already own remains part of the normal product economy.</p>
+                  </div>
+                ) : null}
+              </aside>
+            </section>
+          </>
+        ) : null}
+      </div>
     </GameLayout>
   );
 }
