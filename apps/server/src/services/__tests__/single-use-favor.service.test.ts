@@ -1,9 +1,14 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { classicOgV07J, classicOgV07K } from '@streets/rulesets';
 import type { Db } from '../../utils/db.js';
 import { ActionService } from '../action.service.js';
+import { FavorContentService } from '../favor-content.service.js';
 import { SingleUseFavorService } from '../single-use-favor.service.js';
 
+beforeEach(() => {
+  vi.spyOn(FavorContentService, 'isEnabled').mockResolvedValue(true);
+  vi.spyOn(FavorContentService, 'disabledKeys').mockResolvedValue(new Set());
+});
 afterEach(() => vi.restoreAllMocks());
 
 describe('SingleUseFavorService', () => {
@@ -66,6 +71,26 @@ describe('SingleUseFavorService', () => {
     });
     expect(inventoryUpdates).toHaveLength(1);
     expect(creates).toHaveLength(1);
+  });
+
+  it('refuses to arm a favor while its kill switch is off', async () => {
+    vi.mocked(FavorContentService.isEnabled).mockResolvedValue(false);
+    vi.spyOn(ActionService, 'run').mockImplementation(async (_prisma, _player, options) => {
+      const outcome = await options.execute({
+        tx: {} as never,
+        current: {} as never,
+        ruleset: classicOgV07K,
+        now: new Date(),
+      } as never);
+      return { action: options.action, result: outcome.result, changes: [] } as never;
+    });
+
+    await expect(SingleUseFavorService.arm(
+      {} as never,
+      'player-1',
+      'BURNER_PHONE',
+      { actionId: 'disabled-arm' },
+    )).rejects.toMatchObject({ code: 'FAVOR_DISABLED' });
   });
 
   it('does not spend inventory when the category is already armed', async () => {
@@ -164,6 +189,22 @@ describe('SingleUseFavorService', () => {
       'player-1',
       classicOgV07K,
       'FREE_TREATMENT',
+    )).resolves.toBeNull();
+  });
+
+  it('does not consume an armed effect while its kill switch is off', async () => {
+    vi.mocked(FavorContentService.disabledKeys).mockResolvedValue(new Set(['BURNER_PHONE']));
+    const db = {
+      playerArmedFavor: {
+        findMany: async () => [{ id: 'burner', favorKey: 'BURNER_PHONE' }],
+      },
+    } as unknown as Db;
+
+    await expect(SingleUseFavorService.matching(
+      db,
+      'player-1',
+      classicOgV07K,
+      'FREE_RECON',
     )).resolves.toBeNull();
   });
 
