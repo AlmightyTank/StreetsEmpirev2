@@ -23,6 +23,7 @@ import { ForumGroupsService } from './forum-groups.service.js';
 import { forumProfileUrl } from './forum-link.service.js';
 import { selectProfileBadges } from './profile-badges.js';
 import { TurfHistoryService } from './turf-history.service.js';
+import { QuestCosmeticService } from './quest-cosmetic.service.js';
 
 interface RankingRow {
   id: string;
@@ -880,17 +881,19 @@ export const CommunityService = {
     const hideCrew = Boolean(privacy?.hideOpponentCrew && !isYou);
     const hideWeapons = Boolean(privacy?.hideOpponentWeapons && !isYou);
     const weapons = player.pistols + player.shotguns + player.tek9s + player.ak47s;
-    const [contexts, linkedForumGroups, career, profileSettings, betaTesterAwards] = await Promise.all([
+    const [contexts, linkedForumGroups, career, profileSettings, betaTesterAwards, questCosmetics] = await Promise.all([
       loadPublicContexts(prisma, roundId, [player]),
       forumLink ? ForumGroupsService.groupsFor(forumLink.forumUserId) : [],
       loadCareerForAccount(prisma, player.accountId, { currentRoundId: roundId, limit: 10 }),
       prisma.accountProfile.findUnique({ where: { accountId: player.accountId } }),
       betaTesterAwardsForAccount(prisma, player.accountId),
+      QuestCosmeticService.awardsForAccount(prisma, player.accountId),
     ]);
     const context = contexts.get(player.id) ?? emptyContext();
     const awards = [
       ...achievementsFor(player, { local: localRank, national: nationalRank }, context),
       ...betaTesterAwards,
+      ...questCosmetics,
     ];
     const unlockedAwards = awards.filter((award) => award.unlocked);
     const featuredBadgeKeys = jsonStringArray(profileSettings?.featuredBadgeKeys)
