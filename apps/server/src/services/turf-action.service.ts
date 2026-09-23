@@ -10,6 +10,7 @@ import {
 } from './turf.service.js';
 import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
 import { endTurfHold, startTurfHold } from './turf-history.service.js';
+import { SingleUseFavorService } from './single-use-favor.service.js';
 
 function localDistrictName(ruleset: Ruleset, citySlug: string, district: DistrictKey): string {
   return ruleset.cities?.[citySlug]?.districts?.[district]?.name ?? ruleset.districts[district].name;
@@ -101,12 +102,22 @@ export const TurfActionService = {
         }, now);
         const model = ruleset.combat;
         if (!model) throw AppError.conflict('COMBAT_DISABLED', 'There is no street fight model in this round.');
+        const standDown = await SingleUseFavorService.matching(
+          tx,
+          roundPlayerId,
+          ruleset,
+          'LOCAL_TURF_STANDDOWN',
+        );
         const attacker = equipCombatSquad({ thugs: input.thugs, thugHappiness, weapons: engineGuns(guns) }, Math.min(input.thugs, model.squadCap), model);
         const defender = equipCombatSquad({ thugs: locals, thugHappiness: 100, weapons: localsGuns(ruleset, locals) }, Math.min(locals, model.squadCap), model);
         const variance = ruleset.turf!.push.fight.variance;
-        const attackerStrength = attacker.strength * (1 + (rng() * 2 - 1) * variance);
-        const defenderStrength = defender.strength * ruleset.turf!.push.fight.defenseMultiplier;
-        const won = attackerStrength > defenderStrength;
+        const attackerStrength = standDown
+          ? attacker.strength
+          : attacker.strength * (1 + (rng() * 2 - 1) * variance);
+        const defenderStrength = standDown
+          ? 0
+          : defender.strength * ruleset.turf!.push.fight.defenseMultiplier;
+        const won = standDown ? true : attackerStrength > defenderStrength;
 
         if (won) {
           const controlBefore = await territoryControlForCity(tx, round.id, player.cityId, ruleset);
@@ -121,6 +132,7 @@ export const TurfActionService = {
           await recordTerritoryControlChange(tx, {
             roundId: round.id, cityId: player.cityId, ruleset, before: controlBefore, at: now,
           });
+          if (standDown) await SingleUseFavorService.consume(tx, standDown.id);
         }
 
         const moved = won ? nextWithPostedGuns(current, guns, 1, ruleset) : current;
@@ -132,6 +144,7 @@ export const TurfActionService = {
           activity: { type: 'TURF_CLAIM', payload: {
             district: key, districtName, won, thugs: input.thugs, locals,
             attackerStrength: Math.round(attackerStrength * 10) / 10, defenderStrength: Math.round(defenderStrength * 10) / 10,
+            ...(standDown ? { favorKey: standDown.key } : {}),
           } },
         };
       },
