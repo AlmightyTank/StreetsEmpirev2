@@ -57,6 +57,7 @@ model Account {
   notificationOutbox   NotificationOutbox[]
   pushSubscriptions    PushSubscription[]
   profile              AccountProfile?
+  cosmeticUnlocks      AccountCosmeticUnlock[]
   roundPlayers         RoundPlayer[]
   authoredNews         GameNews[]            @relation("GameNewsAuthor")
   adminAuditEntries    AdminAuditLog[]       @relation("AdminAuditActor")
@@ -103,6 +104,29 @@ model AccountProfile {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Permanent quest-earned cosmetics. The display metadata is snapshotted when
+/// earned so titles/badges survive later ruleset changes and round resets.
+model AccountCosmeticUnlock {
+  id        String  @id @default(cuid())
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  key         String
+  kind        String
+  title       String
+  description String
+  rarity      String
+
+  sourceQuestKey       String
+  sourceRulesetId      String
+  sourceRulesetVersion String
+  awardedAt            DateTime @default(now())
+
+  @@unique([accountId, key])
+  @@index([accountId, awardedAt])
+  @@index([key])
 }
 
 /// Verified public profile connection; owned by the permanent account.
