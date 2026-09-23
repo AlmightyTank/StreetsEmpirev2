@@ -9,7 +9,7 @@ import { AllianceTag } from '../components/AllianceTag.js';
 import { AllianceWire } from '../components/AllianceWire.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
-import { Panel, Row, Stat } from '../components/Panel.js';
+import { Panel, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { formatDuration } from '../utils/time.js';
 
