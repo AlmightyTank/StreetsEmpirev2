@@ -24,6 +24,38 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
       }
     }
 
+    const seasonalEvent = quest.availability.seasonalEvent;
+    if (seasonalEvent !== undefined) {
+      if (quest.type !== 'EVENT') {
+        problems.push(`${catalogKey}: seasonalEvent is only supported for EVENT quests`);
+      }
+      if (!seasonalEvent || typeof seasonalEvent !== 'object' || Array.isArray(seasonalEvent)) {
+        problems.push(`${catalogKey}: seasonalEvent must be an object`);
+      } else {
+        const row = seasonalEvent as QuestDataObject;
+        const eventKey = row.eventKey;
+        const startsAt = row.startsAt;
+        const endsAt = row.endsAt;
+        if (typeof eventKey !== 'string' || !eventKey.trim()) {
+          problems.push(`${catalogKey}: seasonalEvent requires eventKey`);
+        }
+        if (typeof startsAt !== 'string' || !Number.isFinite(new Date(startsAt).getTime())) {
+          problems.push(`${catalogKey}: seasonalEvent startsAt must be a valid date`);
+        }
+        if (typeof endsAt !== 'string' || !Number.isFinite(new Date(endsAt).getTime())) {
+          problems.push(`${catalogKey}: seasonalEvent endsAt must be a valid date`);
+        }
+        if (
+          typeof startsAt === 'string'
+          && typeof endsAt === 'string'
+          && Number.isFinite(new Date(startsAt).getTime())
+          && Number.isFinite(new Date(endsAt).getTime())
+          && new Date(startsAt).getTime() >= new Date(endsAt).getTime()
+        ) {
+          problems.push(`${catalogKey}: seasonalEvent startsAt must be before endsAt`);
+        }
+      }
+    }
     const personalContribution = quest.availability.personalContribution;
     if (personalContribution !== undefined) {
       if (quest.type !== 'ALLIANCE') {
