@@ -114,8 +114,18 @@ function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked
     await onTrade({ store, item: item.key, quantity, direction });
   }
 
+  const stockLabel = item.restock
+    ? item.restock.stock === 0
+      ? 'Sold out'
+      : `${formatNumber(item.restock.stock)} / ${formatNumber(item.restock.cap)} in stock`
+    : 'Always available';
+
   return (
-    <Panel title={`${locked ? 'Locked · ' : ''}${item.name}`}>
+    <Panel
+      title={`${locked ? 'Locked · ' : ''}${item.name}`}
+      className={`se-store-shelf${locked ? ' se-store-shelf--locked' : ''}${soldOut ? ' se-store-shelf--soldout' : ''}`}
+      aside={<span className={`se-store-shelf__status${soldOut ? ' se-store-shelf__status--warn' : locked ? ' se-store-shelf__status--locked' : ''}`}>{stockLabel}</span>}
+    >
       <div className="se-store-prices">
         <span>Own <strong className="se-num">{formatNumber(owned)}</strong></span>
         <span>
@@ -192,6 +202,45 @@ function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked
 
 /** Short names for the store tabs; the page title keeps the full one. */
 const TAB_NAMES: Record<string, string> = { CORNER: 'Corner', TOMMY: 'Tommy’s', CHARLIE: 'Charlie’s', PIP: 'Pip’s' };
+
+const STORE_DETAILS: Record<string, { label: string; lane: string; note: string }> = {
+  CORNER: {
+    label: 'Neighborhood supply',
+    lane: 'Street essentials',
+    note: 'Condoms, beer, medicine, and the basics that keep everyday operations moving.',
+  },
+  TOMMY: {
+    label: 'Weapons & muscle',
+    lane: 'Armory counter',
+    note: 'Crew, pistols, and heavier hardware arrive on Tommy’s own restock schedule.',
+  },
+  CHARLIE: {
+    label: 'Cars & mobility',
+    lane: 'Garage floor',
+    note: 'Low-Riders are built one at a time and determine how many shooters a drive-by can carry.',
+  },
+  PIP: {
+    label: 'Product market',
+    lane: 'Street exchange',
+    note: 'Buy and sell product here. Some harder shelves require job-earned purchase access.',
+  },
+};
+
+function StoreMetric({ label, value, detail, tone }: {
+  label: string;
+  value: string;
+  detail?: string;
+  tone?: 'good' | 'warn' | 'accent';
+}) {
+  return (
+    <div className={`se-stores-metric${tone ? ` se-stores-metric--${tone}` : ''}`}>
+      <span className="se-stores-metric__label">{label}</span>
+      <strong className="se-stores-metric__value">{value}</strong>
+      {detail ? <span className="se-stores-metric__detail">{detail}</span> : null}
+    </div>
+  );
+}
+
 const LAST_STORE_KEY = 'streets.lastStore.v1';
 
 /**
