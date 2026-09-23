@@ -796,3 +796,16 @@ button.se-quests-metric {
     flex-direction: column;
   }
 }
+
+
+.se-quest-seasonal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 0 14px;
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--se-accent) 35%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--se-accent) 7%, transparent);
+}
