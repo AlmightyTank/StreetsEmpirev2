@@ -42,8 +42,9 @@ describe('ruleset loader', () => {
     expect(isKnownRulesetId('classic-og-v0.7-x')).toBe(true);
     expect(isKnownRulesetId('classic-og-v0.7-y')).toBe(true);
     expect(isKnownRulesetId('classic-og-v0.7-z')).toBe(true);
+    expect(isKnownRulesetId('classic-og-v0.7-aa')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(49);
+    expect(listRulesets()).toHaveLength(50);
   });
 });
 
