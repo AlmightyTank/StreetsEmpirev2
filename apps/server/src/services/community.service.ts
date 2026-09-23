@@ -472,7 +472,20 @@ function jsonStringArray(value: unknown): string[] {
 }
 
 function profileAccent(value: string | null | undefined): ProfileAccent {
-  return ['default', 'crimson', 'gold', 'green', 'blue', 'purple'].includes(value ?? '')
+  return [
+    'default',
+    'crimson',
+    'gold',
+    'green',
+    'blue',
+    'purple',
+    'ghost-violet',
+    'top-shelf-teal',
+    'enforcer-red',
+    'open-road-blue',
+    'clean-slate-ice',
+    'corner-amber',
+  ].includes(value ?? '')
     ? value as ProfileAccent
     : 'default';
 }
@@ -881,13 +894,14 @@ export const CommunityService = {
     const hideCrew = Boolean(privacy?.hideOpponentCrew && !isYou);
     const hideWeapons = Boolean(privacy?.hideOpponentWeapons && !isYou);
     const weapons = player.pistols + player.shotguns + player.tek9s + player.ak47s;
-    const [contexts, linkedForumGroups, career, profileSettings, betaTesterAwards, questCosmetics] = await Promise.all([
+    const [contexts, linkedForumGroups, career, profileSettings, betaTesterAwards, questCosmetics, frameOptions] = await Promise.all([
       loadPublicContexts(prisma, roundId, [player]),
       forumLink ? ForumGroupsService.groupsFor(forumLink.forumUserId) : [],
       loadCareerForAccount(prisma, player.accountId, { currentRoundId: roundId, limit: 10 }),
       prisma.accountProfile.findUnique({ where: { accountId: player.accountId } }),
       betaTesterAwardsForAccount(prisma, player.accountId),
       QuestCosmeticService.awardsForAccount(prisma, player.accountId),
+      QuestCosmeticService.optionsForAccount(prisma, player.accountId, 'PROFILE_FRAME'),
     ]);
     const context = contexts.get(player.id) ?? emptyContext();
     const awards = [
@@ -899,6 +913,9 @@ export const CommunityService = {
     const featuredBadgeKeys = jsonStringArray(profileSettings?.featuredBadgeKeys)
       .filter((key) => unlockedAwards.some((award) => award.key === key));
     const title = unlockedAwards.find((award) => award.key === profileSettings?.activeTitleKey)?.title ?? null;
+    const frame = frameOptions.some((option) => option.key === profileSettings?.activeProfileFrameKey)
+      ? profileSettings!.activeProfileFrameKey
+      : null;
 
     return {
       forumProfileUrl: forumLink ? forumProfileUrl(forumLink) : null,
@@ -907,6 +924,7 @@ export const CommunityService = {
       cosmetics: {
         title,
         accent: profileAccent(profileSettings?.profileAccent),
+        frame,
       },
       publicPimpId: player.publicPimpId,
       displayName: player.displayName,
