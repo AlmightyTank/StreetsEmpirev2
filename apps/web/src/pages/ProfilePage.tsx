@@ -67,6 +67,26 @@ function rankLabel(rank: number | null): string {
   return rank === null ? '-' : `#${formatNumber(rank)}`;
 }
 
+function ProfileMetric({
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+  tone?: 'accent' | 'good' | 'warn';
+}) {
+  return (
+    <div className={`se-profile-metric${tone ? ` se-profile-metric--${tone}` : ''}`}>
+      <span className="se-profile-metric__label">{label}</span>
+      <strong className="se-profile-metric__value">{value}</strong>
+      {detail ? <span className="se-profile-metric__detail">{detail}</span> : null}
+    </div>
+  );
+}
+
 function AchievementCard({ award }: { award: PublicAwardDto }) {
   const percent = progressPercent(award);
   return (
@@ -114,7 +134,7 @@ function AchievementsPanel({
   setAchievementCategoryFilter: Dispatch<SetStateAction<AchievementCategoryFilter>>;
 }) {
   return (
-    <Panel title="Achievements">
+    <Panel title="Achievements" className="se-profile-panel se-profile-achievements">
       <div className="se-ach-filters" aria-label="Achievement filters">
         <div className="se-filter-group">
           <span className="se-filter-label">Show</span>
@@ -216,9 +236,8 @@ function AchievementsPanel({
 }
 
 function SeasonHistory({ career }: { career: PublicCareerDto }) {
-  const latest = career.seasons[0];
   return (
-    <Panel title="Season history">
+    <Panel title="Career history" className="se-profile-panel se-profile-career">
       {career.seasons.length === 0 ? (
         <p className="se-muted">Finished seasons will land here. Every season starts fresh; this page keeps the receipts.</p>
       ) : (
@@ -267,11 +286,6 @@ function SeasonHistory({ career }: { career: PublicCareerDto }) {
             </table>
           </div>
 
-          {latest ? (
-            <p className="se-hint">
-              Latest finish: {latest.round.name}, national {rankLabel(latest.rank.national)}, local {rankLabel(latest.rank.local)}. Cash, crew, supplies and cooldowns stayed in that season.
-            </p>
-          ) : null}
         </div>
       )}
     </Panel>
@@ -335,111 +349,156 @@ export function ProfilePage() {
 
   return (
     <GameLayout>
-      <div className={`se-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}`}>
-        <div>
-          <h1 className="se-title">
-            {player ? <AllianceTag alliance={player.alliance} /> : null}
-            {player?.displayName ?? account?.username ?? 'Profile'}{' '}
-            {player ? <span className="se-muted se-num">(#{player.publicPimpId})</span> : null}
-          </h1>
-          {player?.cosmetics.title ? <p className="se-profile-title">{player.cosmetics.title}</p> : null}
-          <p className="se-eyebrow">
-            {player ? `${player.city.name}${player.isYou ? ' · Your profile' : ''}` : 'Permanent season record'}
-          </p>
-          {player ? <ProfileBadges badges={player.badges} forumGroups={player.forumGroups} /> : null}
-        </div>
-        <div className="se-inline-actions">
-          {player && !player.isYou ? <ContactButton publicPimpId={player.publicPimpId} /> : null}
-          {player?.forumProfileUrl ? <a className="se-btn se-btn--ghost se-btn--sm" href={player.forumProfileUrl}>Forum Profile</a> : null}
-        </div>
-      </div>
-
-      {error ? <Alert>{error}</Alert> : null}
-
-      {!player && !career && !error ? <Panel title="Profile"><p className="se-muted">Pulling the street record...</p></Panel> : null}
-
-      {!player && career ? <SeasonHistory career={career} /> : null}
-
-      {player ? (
-        <div className="se-profile-stack">
-          <div className="se-stats">
-            <Stat label="Net Worth" value={formatCents(player.netWorthCents)} tooltip="Public empire value used for rankings. It does not tell you liquid cash or defense." />
-            <Stat label="Local Rank" value={`#${formatNumber(player.rank.local)}`} tooltip={`${movementText(player.rank.localMovement)} · held ${heldFor(player.rank.localHeldSinceAt)}`} />
-            <Stat label="National Rank" value={`#${formatNumber(player.rank.national)}`} tooltip={`${movementText(player.rank.nationalMovement)} · held ${heldFor(player.rank.nationalHeldSinceAt)}`} />
-            <Stat label="Last Seen" value={lastSeen(player.lastActiveAt)} />
-          </div>
-
-          <div className="se-grid se-grid--2">
-            <Panel title="Public record" flush>
-              <div className="se-rows">
-                <Row label="Local rank held" value={`${heldFor(player.rank.localHeldSinceAt)} · ${movementText(player.rank.localMovement)}`} />
-                <Row label="National rank held" value={`${heldFor(player.rank.nationalHeldSinceAt)} · ${movementText(player.rank.nationalMovement)}`} />
-                <Row label="Past rounds" value={formatNumber(player.legacy.roundsPlayed)} />
-                <Row label="Past game winnings" value={formatCents(player.legacy.totalFinalNetWorthCents)} strong />
-                <Row label="Best past national rank" value={player.legacy.bestNationalRank ? `#${formatNumber(player.legacy.bestNationalRank)}` : 'None'} />
-                <Row label="Best past local rank" value={player.legacy.bestLocalRank ? `#${formatNumber(player.legacy.bestLocalRank)}` : 'None'} />
-                <Row label="Past top 10s" value={formatNumber(player.legacy.topTenFinishes)} />
-                <Row label="Past round wins" value={formatNumber(player.legacy.roundWins)} />
-              </div>
-            </Panel>
-
-            <Panel title="Achievement summary" flush>
-              <div className="se-rows">
-                <Row label="Unlocked" value={`${formatNumber(unlocked.length)} / ${formatNumber(player.awards.length)}`} strong />
-                <Row label="Locked" value={formatNumber(locked.length)} />
-                <Row label="Rarest earned" value={rarest ? `${rarest.title} (${rarest.rarity})` : 'None yet'} />
-                <Row label="Featured" value={unlocked.slice(0, 3).map((award) => award.title).join(', ') || 'None yet'} />
-              </div>
-            </Panel>
-          </div>
-
-          {career ? <SeasonHistory career={career} /> : null}
-
-          {player.intelRequired ? (
-            <Panel title="Recon needed">
-              <p>Public profiles show status, money, legacy and achievements. They do not show opponent crew, weapons, wounds, exposed cash or product stash in this combat round.</p>
-              <p className="se-hint">Use recon on the Raids page to reveal fit thugs, wounds, weapons, cash band, product stash and max loot for this target.</p>
-            </Panel>
-          ) : (
-            <div className="se-grid se-grid--2">
-              <Panel title="Crew" flush>
-                <div className="se-rows">
-                  <Row label="Whores" value={formatNumber(player.crew!.whores)} strong />
-                  <Row label="Thugs" value={formatNumber(player.crew!.thugs)} strong />
-                  <Row label="Low-Riders" value={formatNumber(player.lowRiders!)} />
-                </div>
-              </Panel>
-
-              <Panel title="Weapons" flush>
-                <div className="se-rows">
-                  <Row label="Pistols" value={formatNumber(player.weapons!.pistols)} />
-                  <Row label="Shotguns" value={formatNumber(player.weapons!.shotguns)} />
-                  <Row label="Tek-9s" value={formatNumber(player.weapons!.tek9s)} />
-                  <Row label="AK-47s" value={formatNumber(player.weapons!.ak47s)} />
-                  <Row label="Total" value={formatNumber(player.weapons!.total)} strong />
-                </div>
-              </Panel>
+      <div className="se-profile">
+        <header className={`se-profile-hero${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}`}>
+          <div className="se-profile-hero__identity">
+            <span className="se-eyebrow">{player ? (player.isYou ? 'Your public street record' : 'Public street record') : 'Permanent season record'}</span>
+            <h1>
+              {player ? <AllianceTag alliance={player.alliance} /> : null}
+              {player?.displayName ?? account?.username ?? 'Profile'}
+              {player ? <span className="se-profile-hero__id se-num">#{player.publicPimpId}</span> : null}
+            </h1>
+            {player?.cosmetics.title ? <p className="se-profile-title">{player.cosmetics.title}</p> : null}
+            <div className="se-profile-hero__meta">
+              {player ? <span>{player.city.name}</span> : null}
+              {player ? <span>Joined {formatDate(player.joinedAt)}</span> : null}
+              {player ? <span>Last seen {lastSeen(player.lastActiveAt)}</span> : null}
             </div>
-          )}
+            {player ? <ProfileBadges badges={player.badges} forumGroups={player.forumGroups} /> : null}
+          </div>
 
-          <p className="se-hint se-profile-footer">
-            Joined {formatDate(player.joinedAt)}. Cash, supplies, payout and crew condition are private.
-          </p>
+          <div className="se-profile-hero__actions">
+            {player && !player.isYou ? <ContactButton publicPimpId={player.publicPimpId} /> : null}
+            {player?.forumProfileUrl ? (
+              <a className="se-btn se-btn--ghost se-btn--sm" href={player.forumProfileUrl}>Forum profile</a>
+            ) : null}
+          </div>
+        </header>
 
-          <AchievementsPanel
-            unlocked={unlocked}
-            locked={locked}
-            filteredAwards={filteredAwards}
-            filtersActive={filtersActive}
-            showLockedAchievements={showLockedAchievements}
-            setShowLockedAchievements={setShowLockedAchievements}
-            achievementStatusFilter={achievementStatusFilter}
-            setAchievementStatusFilter={setAchievementStatusFilter}
-            achievementCategoryFilter={achievementCategoryFilter}
-            setAchievementCategoryFilter={setAchievementCategoryFilter}
-          />
-        </div>
-      ) : null}
+        {error ? <Alert>{error}</Alert> : null}
+
+        {!player && !career && !error ? (
+          <div className="se-profile-loading" role="status">Pulling the street record...</div>
+        ) : null}
+
+        {!player && career ? <SeasonHistory career={career} /> : null}
+
+        {player ? (
+          <>
+            <section className="se-profile-section">
+              <div className="se-profile-sectionhead">
+                <div>
+                  <span className="se-eyebrow">Current round</span>
+                  <h2>Standing right now</h2>
+                </div>
+                <p>Only public ranking information lives here. Cash on hand, supplies, payout, crew condition, and hidden combat intel stay private.</p>
+              </div>
+
+              <div className="se-profile-metrics">
+                <ProfileMetric
+                  label="Net worth"
+                  value={formatCents(player.netWorthCents)}
+                  detail="public empire value used for rankings"
+                  tone="accent"
+                />
+                <ProfileMetric
+                  label="Local rank"
+                  value={`#${formatNumber(player.rank.local)}`}
+                  detail={`${movementText(player.rank.localMovement)} · held ${heldFor(player.rank.localHeldSinceAt)}`}
+                />
+                <ProfileMetric
+                  label="National rank"
+                  value={`#${formatNumber(player.rank.national)}`}
+                  detail={`${movementText(player.rank.nationalMovement)} · held ${heldFor(player.rank.nationalHeldSinceAt)}`}
+                />
+                <ProfileMetric
+                  label="Achievements"
+                  value={`${formatNumber(unlocked.length)} / ${formatNumber(player.awards.length)}`}
+                  detail={locked.length ? `${formatNumber(locked.length)} still locked` : 'all listed achievements unlocked'}
+                  tone={unlocked.length ? 'good' : undefined}
+                />
+              </div>
+            </section>
+
+            <section className="se-profile-section">
+              <div className="se-profile-sectionhead">
+                <div>
+                  <span className="se-eyebrow">Public intel</span>
+                  <h2>{player.intelRequired ? 'Recon keeps the dangerous numbers private' : 'Visible crew & weapons'}</h2>
+                </div>
+                <span className="se-profile-sectionhead__meta">{player.intelRequired ? 'Combat intel protected' : 'Ruleset exposes exact counts'}</span>
+              </div>
+
+              {player.intelRequired ? (
+                <Panel title="Recon needed" className="se-profile-panel se-profile-intel">
+                  <p>
+                    Public profiles show identity, city, net worth, ranks, legacy, badges, and achievements. They do not expose opponent crew, weapons, wounds, cash on hand, or product stash in this combat round.
+                  </p>
+                  <p className="se-hint">Use recon on the Raids page for combat-ready intelligence on this target.</p>
+                </Panel>
+              ) : (
+                <div className="se-profile-intelgrid">
+                  <Panel title="Crew" flush className="se-profile-panel">
+                    <div className="se-rows">
+                      <Row label="Whores" value={formatNumber(player.crew!.whores)} strong />
+                      <Row label="Thugs" value={formatNumber(player.crew!.thugs)} strong />
+                      <Row label="Low-Riders" value={formatNumber(player.lowRiders!)} />
+                    </div>
+                  </Panel>
+
+                  <Panel title="Weapons" flush className="se-profile-panel">
+                    <div className="se-rows">
+                      <Row label="Pistols" value={formatNumber(player.weapons!.pistols)} />
+                      <Row label="Shotguns" value={formatNumber(player.weapons!.shotguns)} />
+                      <Row label="Tek-9s" value={formatNumber(player.weapons!.tek9s)} />
+                      <Row label="AK-47s" value={formatNumber(player.weapons!.ak47s)} />
+                      <Row label="Total" value={formatNumber(player.weapons!.total)} strong />
+                    </div>
+                  </Panel>
+                </div>
+              )}
+            </section>
+
+            {career ? (
+              <section className="se-profile-section">
+                <div className="se-profile-sectionhead">
+                  <div>
+                    <span className="se-eyebrow">Legacy</span>
+                    <h2>Career across finished rounds</h2>
+                  </div>
+                  <p>Finished seasons keep their final ranks and public performance record; competitive resources reset with each new round.</p>
+                </div>
+                <SeasonHistory career={career} />
+              </section>
+            ) : null}
+
+            <section className="se-profile-section">
+              <div className="se-profile-sectionhead">
+                <div>
+                  <span className="se-eyebrow">Trophies</span>
+                  <h2>Achievements</h2>
+                </div>
+                <span className="se-profile-sectionhead__meta">
+                  {rarest ? `Rarest earned: ${rarest.title} · ${rarest.rarity}` : 'No rare trophy earned yet'}
+                </span>
+              </div>
+
+              <AchievementsPanel
+                unlocked={unlocked}
+                locked={locked}
+                filteredAwards={filteredAwards}
+                filtersActive={filtersActive}
+                showLockedAchievements={showLockedAchievements}
+                setShowLockedAchievements={setShowLockedAchievements}
+                achievementStatusFilter={achievementStatusFilter}
+                setAchievementStatusFilter={setAchievementStatusFilter}
+                achievementCategoryFilter={achievementCategoryFilter}
+                setAchievementCategoryFilter={setAchievementCategoryFilter}
+              />
+            </section>
+          </>
+        ) : null}
+      </div>
     </GameLayout>
   );
 }
