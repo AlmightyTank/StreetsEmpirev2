@@ -193,6 +193,14 @@ function QuestCard({
       )}
     >
       <p className="se-hint se-quest-card__desc">{quest.description}</p>
+      {quest.seasonalEvent ? (
+        <div className="se-quest-seasonal">
+          <span className="se-eyebrow">{quest.seasonalEvent.label ?? 'Seasonal event'}</span>
+          <span className="se-hint">
+            {new Date(quest.seasonalEvent.startsAt).toLocaleDateString()} – {new Date(quest.seasonalEvent.endsAt).toLocaleDateString()}
+          </span>
+        </div>
+      ) : null}
       {quest.allianceContract ? (
         <div className="se-quest-objectives">
           <ProgressLine
