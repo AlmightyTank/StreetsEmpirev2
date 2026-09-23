@@ -369,7 +369,6 @@
 }
 
 @media (max-width: 640px) {
-  .se-site-theme-decor { inset-top: 48px; }
   .se-theme-lights { opacity: 0.68; }
   .se-theme-moon { width: 92px; height: 92px; right: 18px; opacity: 0.48; }
   .se-theme-witch { transform: scale(0.75) rotate(-8deg); transform-origin: center; }
