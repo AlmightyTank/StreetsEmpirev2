@@ -22,6 +22,7 @@ import './styles/rankings.css';
 import './styles/alliance.css';
 import './styles/contacts.css';
 import './styles/profile.css';
+import './styles/activity.css';
 import { App } from './App.js';
 // Before React mounts: Android can offer the install prompt immediately.
 import './utils/install.js';
