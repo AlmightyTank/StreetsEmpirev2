@@ -242,24 +242,26 @@ export function QuestPage() {
   }, [location.search]);
 
   useEffect(() => {
+    const serverNow = serverAdjustedNowMs(Date.now(), clockOffsetMs);
+    const eventTransitions = page?.quests
+      .filter((quest) => quest.type === 'EVENT' && quest.expiresAt)
+      .map((quest) => quest.expiresAt!) ?? [];
     const resetAt = [
       page?.dailyContracts.resetAt,
       page?.weeklyContracts.resetAt,
       page?.cityContracts.resetAt,
+      ...eventTransitions,
     ]
       .filter((value): value is string => Boolean(value))
       .map((value) => new Date(value).getTime())
+      .filter((value) => value > serverNow)
       .sort((left, right) => left - right)[0];
     if (!resetAt) return;
 
-    const delay = resetAt - serverAdjustedNowMs(Date.now(), clockOffsetMs) + 250;
-    if (delay <= 0) {
-      void load();
-      return;
-    }
+    const delay = resetAt - serverNow + 250;
     const timer = window.setTimeout(() => void load(), delay);
     return () => window.clearTimeout(timer);
-  }, [page?.dailyContracts.resetAt, page?.weeklyContracts.resetAt, page?.cityContracts.resetAt, clockOffsetMs, load]);
+  }, [page?.dailyContracts.resetAt, page?.weeklyContracts.resetAt, page?.cityContracts.resetAt, page?.quests, clockOffsetMs, load]);
 
   useEffect(() => {
     if (!page || !location.hash) return;
