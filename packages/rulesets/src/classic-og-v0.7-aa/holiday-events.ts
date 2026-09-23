@@ -87,7 +87,7 @@ export const holidayEvents = {
         kind: 'RECRUIT_CREW',
         description: 'Recruit 10 thugs.',
         target: 10,
-        params: { eventTypes: ['RECRUIT'], crew: 'THUGS' },
+        params: { eventTypes: ['SCOUT'], crew: 'THUGS' },
       },
     ],
     bonusObjectives: [
