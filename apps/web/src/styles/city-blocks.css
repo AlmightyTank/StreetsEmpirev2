@@ -1,0 +1,549 @@
+.se-cityblocks {
+  display: grid;
+  gap: 16px;
+}
+
+.se-cityblocks-hero {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(430px, 0.56fr);
+  gap: 28px;
+  align-items: end;
+  padding: 24px;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+  background:
+    linear-gradient(120deg, rgba(182, 255, 58, 0.055), transparent 45%),
+    linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
+}
+
+.se-cityblocks-hero::after {
+  content: "";
+  position: absolute;
+  right: -95px;
+  bottom: -145px;
+  width: 375px;
+  height: 285px;
+  border: 1px solid rgba(182, 255, 58, 0.1);
+  transform: rotate(-13deg);
+  pointer-events: none;
+}
+
+.se-cityblocks-hero__copy,
+.se-cityblocks-hero__side {
+  position: relative;
+  z-index: 1;
+}
+
+.se-cityblocks-hero h1 {
+  margin: 5px 0 8px;
+  font-size: clamp(30px, 5vw, 48px);
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+}
+
+.se-cityblocks-hero__copy p {
+  max-width: 740px;
+  margin: 0;
+  color: var(--se-text-dim);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.se-cityblocks-hero__side {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
+.se-cityblocks-hero__readout {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  border: 1px solid var(--se-line);
+  background: rgba(11, 12, 14, 0.72);
+}
+
+.se-cityblocks-hero__readout > span {
+  min-width: 0;
+  padding: 11px;
+  border-right: 1px solid var(--se-line);
+}
+
+.se-cityblocks-hero__readout > span:last-child {
+  border-right: 0;
+}
+
+.se-cityblocks-hero__readout small {
+  display: block;
+  color: var(--se-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.se-cityblocks-hero__readout strong {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  font-family: var(--se-mono);
+  font-size: 15px;
+}
+
+.se-cityblocks-loading {
+  display: grid;
+  place-items: center;
+  min-height: 130px;
+  border: 1px dashed var(--se-line);
+  color: var(--se-muted);
+  font-size: 11px;
+}
+
+.se-cityblocks-section,
+.se-cityblocks-cities {
+  display: grid;
+  gap: 10px;
+}
+
+.se-cityblocks-sectionhead {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.se-cityblocks-sectionhead h2 {
+  margin: 3px 0 0;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.se-cityblocks-sectionhead > p {
+  max-width: 590px;
+  margin: 0;
+  color: var(--se-text-dim);
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: right;
+}
+
+.se-cityblocks-sectionhead__meta {
+  color: var(--se-text-dim);
+  font-family: var(--se-mono);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.se-cityblocks-control {
+  max-width: 460px;
+  padding: 7px 10px;
+  border: 1px solid var(--se-line);
+  background: rgba(255, 255, 255, 0.012);
+  color: var(--se-text-dim);
+  font-family: var(--se-mono);
+  font-size: 10px;
+  text-align: right;
+}
+
+.se-cityblocks-control a {
+  color: var(--se-accent);
+  text-decoration: none;
+}
+
+.se-cityblocks .se-turfcitystrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+.se-cityblocks .se-turfcitystrip__city {
+  display: grid;
+  gap: 3px;
+  min-height: 74px;
+  padding: 10px 11px;
+  border-radius: 3px;
+  background: var(--se-panel);
+}
+
+.se-cityblocks .se-turfcitystrip__city strong {
+  font-size: 12px;
+}
+
+.se-cityblocks .se-turfcitystrip__city span {
+  font-size: 9px;
+  line-height: 1.3;
+}
+
+.se-cityblocks .se-turfcitystrip__city--on {
+  border-color: rgba(182, 255, 58, 0.5);
+  background: rgba(182, 255, 58, 0.05);
+  box-shadow: inset 0 -2px 0 var(--se-accent);
+}
+
+.se-cityblocks-pulse {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--se-line);
+  border-width: 1px 0 0 1px;
+}
+
+.se-cityblocks-metric {
+  min-width: 0;
+  min-height: 78px;
+  padding: 10px 11px;
+  border: 1px solid var(--se-line);
+  border-width: 0 1px 1px 0;
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.se-cityblocks-metric__label {
+  display: block;
+  color: var(--se-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.se-cityblocks-metric__value {
+  display: block;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  color: var(--se-text);
+  font-family: var(--se-mono);
+  font-size: 16px;
+}
+
+.se-cityblocks-metric__detail {
+  display: block;
+  margin-top: 4px;
+  color: var(--se-muted);
+  font-size: 9px;
+  line-height: 1.25;
+}
+
+.se-cityblocks-metric--accent .se-cityblocks-metric__value {
+  color: var(--se-accent);
+}
+
+.se-cityblocks-metric--good .se-cityblocks-metric__value {
+  color: var(--se-good);
+}
+
+.se-cityblocks-metric--warn .se-cityblocks-metric__value {
+  color: var(--se-warn);
+}
+
+.se-cityblocks-boardwrap {
+  min-width: 0;
+}
+
+.se-cityblocks .se-turfboard {
+  display: block;
+  columns: 2;
+  column-gap: 8px;
+}
+
+.se-cityblocks .se-turfboard__block {
+  display: inline-grid;
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 12px;
+  break-inside: avoid;
+  border-radius: 4px;
+  vertical-align: top;
+}
+
+.se-cityblocks .se-turfboard__block--mine {
+  border-left-color: var(--se-accent);
+  background:
+    linear-gradient(90deg, rgba(182, 255, 58, 0.045), transparent 42%),
+    rgba(255, 255, 255, 0.014);
+}
+
+.se-cityblocks .se-turfboard__block--held {
+  border-left-color: var(--se-warn);
+}
+
+.se-cityblocks .se-turfboard__block--vacant {
+  border-left-color: var(--se-muted);
+  border-left-style: dashed;
+}
+
+.se-cityblocks .se-turfboard__head {
+  gap: 12px;
+}
+
+.se-cityblocks .se-turfboard__holder {
+  font-size: 11px;
+}
+
+.se-cityblocks .se-turfboard__age {
+  font-family: var(--se-mono);
+  font-size: 9px;
+}
+
+.se-cityblocks .se-turfboard__stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid var(--se-line);
+  border-width: 1px 0 0 1px;
+}
+
+.se-cityblocks .se-turfboard__stats > span {
+  min-height: 59px;
+  padding: 8px;
+  border: 1px solid var(--se-line);
+  border-width: 0 1px 1px 0;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.se-cityblocks .se-turfboard__stats b {
+  font-size: 14px;
+}
+
+.se-cityblocks .se-turfboard__stats small {
+  margin-top: 2px;
+  font-size: 8px;
+  line-height: 1.2;
+}
+
+.se-cityblocks .se-turfboard__outpost {
+  border-radius: 3px;
+  font-size: 8px;
+}
+
+.se-cityblocks .se-turfactions {
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--se-line);
+}
+
+.se-cityblocks .se-turfactions .se-field__label {
+  font-size: 9px;
+}
+
+.se-cityblocks .se-turfactions .se-input {
+  min-height: 36px;
+}
+
+.se-cityblocks .se-turfactions .se-hint {
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.se-cityblocks-ops {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.se-cityblocks-stack {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  align-content: start;
+}
+
+.se-cityblocks-stack > .se-panel {
+  margin: 0;
+}
+
+.se-cityblocks-panel {
+  min-width: 0;
+}
+
+.se-cityblocks-outposts {
+  display: grid;
+  gap: 8px;
+}
+
+.se-cityblocks-outposts > .se-panel {
+  margin: 0;
+}
+
+.se-cityblocks .se-turfblocks {
+  gap: 6px;
+}
+
+.se-cityblocks .se-turfblocks__block {
+  padding: 8px 9px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.012);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.se-cityblocks .se-turfblocks__block .se-hint {
+  font-size: 9px;
+}
+
+.se-cityblocks-read {
+  display: grid;
+  border: 1px solid var(--se-line);
+  border-width: 1px 0 0 1px;
+}
+
+.se-cityblocks-read > div {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--se-line);
+  border-width: 0 1px 1px 0;
+}
+
+.se-cityblocks-read span {
+  display: block;
+  color: var(--se-muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.se-cityblocks-read strong {
+  display: block;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+  color: var(--se-text);
+  font-family: var(--se-mono);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.se-cityblocks-rankings {
+  display: grid;
+  gap: 8px;
+}
+
+.se-cityblocks .se-turfleaders li {
+  padding: 7px 0;
+  font-size: 10px;
+}
+
+.se-cityblocks .se-turfleaders li > span:last-child {
+  font-size: 9px;
+}
+
+.se-cityblocks .se-hint {
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+@media (max-width: 1100px) {
+  .se-cityblocks-hero {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .se-cityblocks-hero__side {
+    justify-items: start;
+  }
+}
+
+@media (max-width: 900px) {
+  .se-cityblocks-pulse {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .se-cityblocks-ops {
+    grid-template-columns: 1fr;
+  }
+
+  .se-cityblocks-sectionhead {
+    align-items: start;
+  }
+
+  .se-cityblocks-sectionhead > p {
+    max-width: 470px;
+  }
+}
+
+@media (max-width: 720px) {
+  .se-cityblocks {
+    gap: 14px;
+  }
+
+  .se-cityblocks-hero {
+    padding: 18px 15px;
+  }
+
+  .se-cityblocks-hero h1 {
+    font-size: 34px;
+  }
+
+  .se-cityblocks-hero__readout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .se-cityblocks-hero__readout > span:nth-child(2) {
+    border-right: 0;
+  }
+
+  .se-cityblocks-hero__readout > span:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--se-line);
+  }
+
+  .se-cityblocks-sectionhead {
+    display: grid;
+    gap: 5px;
+  }
+
+  .se-cityblocks-sectionhead > p,
+  .se-cityblocks-control,
+  .se-cityblocks-sectionhead__meta {
+    max-width: none;
+    text-align: left;
+  }
+
+  .se-cityblocks .se-turfcitystrip {
+    display: flex;
+    gap: 7px;
+    padding-bottom: 4px;
+    overflow-x: auto;
+  }
+
+  .se-cityblocks .se-turfcitystrip__city {
+    flex: 0 0 150px;
+  }
+
+  .se-cityblocks .se-turfboard {
+    columns: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .se-cityblocks-hero__readout,
+  .se-cityblocks-pulse {
+    grid-template-columns: 1fr;
+  }
+
+  .se-cityblocks-hero__readout > span {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--se-line);
+  }
+
+  .se-cityblocks-hero__readout > span:last-child {
+    border-bottom: 0;
+  }
+
+  .se-cityblocks-hero__readout strong {
+    margin-top: 0;
+  }
+
+  .se-cityblocks .se-turfboard__stats {
+    grid-template-columns: 1fr 1fr;
+  }
+}
