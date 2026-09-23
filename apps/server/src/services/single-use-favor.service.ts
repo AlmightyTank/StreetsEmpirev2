@@ -5,6 +5,7 @@ import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActionService } from './action.service.js';
 import { FavorInventoryService } from './favor-inventory.service.js';
+import { FavorContentService } from './favor-content.service.js';
 
 function isSingleUseEffect(effect: FavorDefinition['effect']): effect is SingleUseFavorEffect {
   return effect?.kind === 'STORE_BUY_DISCOUNT'
@@ -53,6 +54,7 @@ export const SingleUseFavorService = {
       actionId: input.actionId,
       execute: async ({ tx, current, ruleset, now }) => {
         const definition = FavorInventoryService.definition(ruleset, key);
+        await FavorContentService.assertEnabled(tx, ruleset, key);
         if (!isSingleUse(definition)) {
           throw AppError.conflict('FAVOR_NOT_SINGLE_USE', 'That favor is not a single-use favor.');
         }
@@ -171,8 +173,12 @@ export const SingleUseFavorService = {
     definition: FavorDefinition;
     effect: SingleUseFavorEffect;
   } | null> {
-    const rows = await db.playerArmedFavor.findMany({ where: { roundPlayerId } });
+    const [rows, disabled] = await Promise.all([
+      db.playerArmedFavor.findMany({ where: { roundPlayerId } }),
+      FavorContentService.disabledKeys(db, ruleset),
+    ]);
     for (const row of rows) {
+      if (disabled.has(row.favorKey)) continue;
       const definition = ruleset.favors?.[row.favorKey];
       if (!definition || !isSingleUse(definition) || definition.effect.kind !== kind) continue;
       return { id: row.id, key: row.favorKey, definition, effect: definition.effect };
