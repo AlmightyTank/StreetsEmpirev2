@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { QuestCosmeticDefinition, Ruleset } from '@streets/rulesets';
-import type { PublicAwardDto } from '@streets/shared';
+import type { CosmeticOptionDto, PublicAwardDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 
@@ -31,6 +31,7 @@ export const QuestCosmeticService = {
         title: cosmetic.name,
         description: cosmetic.description,
         rarity: cosmetic.rarity,
+        styleKey: cosmetic.styleKey ?? null,
         sourceQuestKey,
         sourceRulesetId: ruleset.meta.id,
         sourceRulesetVersion: ruleset.meta.version,
@@ -39,6 +40,23 @@ export const QuestCosmeticService = {
       update: {},
     });
     return cosmetic;
+  },
+
+  async optionsForAccount(
+    db: Db | PrismaClient,
+    accountId: string,
+    kind: 'ACCENT' | 'PROFILE_FRAME',
+  ): Promise<CosmeticOptionDto[]> {
+    const rows = await db.accountCosmeticUnlock.findMany({
+      where: { accountId, kind },
+      orderBy: [{ awardedAt: 'asc' }, { key: 'asc' }],
+    });
+
+    return rows.map((row) => ({
+      key: row.styleKey ?? row.key,
+      label: row.title,
+      description: row.description,
+    }));
   },
 
   async awardsForAccount(

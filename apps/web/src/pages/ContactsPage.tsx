@@ -27,26 +27,6 @@ function isActive(contact: ContactDto): boolean {
   return Boolean(contact.standing && Date.now() - new Date(contact.standing.lastActiveAt).getTime() <= ACTIVE_WINDOW_MS);
 }
 
-function ContactMetric({
-  label,
-  value,
-  detail,
-  tone,
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-  tone?: 'accent' | 'good' | 'warn';
-}) {
-  return (
-    <div className={`se-contacts-metric${tone ? ` se-contacts-metric--${tone}` : ''}`}>
-      <span className="se-contacts-metric__label">{label}</span>
-      <strong className="se-contacts-metric__value">{value}</strong>
-      {detail ? <span className="se-contacts-metric__detail">{detail}</span> : null}
-    </div>
-  );
-}
-
 function ContactRow({ contact, busy, onSave, onRemove }: {
   contact: ContactDto;
   busy: boolean;

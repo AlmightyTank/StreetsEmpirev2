@@ -347,23 +347,24 @@ export function ProfilePage() {
   });
   return (
     <GameLayout>
-      <div className="se-profile">
-        <header className={`se-profile-hero${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}`}>
-          <div className="se-profile-hero__identity">
-            <span className="se-eyebrow">{player ? (player.isYou ? 'Your public street record' : 'Public street record') : 'Permanent season record'}</span>
-            <h1>
-              {player ? <AllianceTag alliance={player.alliance} /> : null}
-              {player?.displayName ?? account?.username ?? 'Profile'}
-              {player ? <span className="se-profile-hero__id se-num">#{player.publicPimpId}</span> : null}
-            </h1>
-            {player?.cosmetics.title ? <p className="se-profile-title">{player.cosmetics.title}</p> : null}
-            <div className="se-profile-hero__meta">
-              {player ? <span>{player.city.name}</span> : null}
-              {player ? <span>Joined {formatDate(player.joinedAt)}</span> : null}
-              {player ? <span>Last seen {lastSeen(player.lastActiveAt)}</span> : null}
-            </div>
-            {player ? <ProfileBadges badges={player.badges} forumGroups={player.forumGroups} /> : null}
-          </div>
+      <div className={`se-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}${player?.cosmetics.frame ? ` se-profile-frame se-profile-frame--${player.cosmetics.frame}` : ''}`}>
+        <div>
+          <h1 className="se-title">
+            {player ? <AllianceTag alliance={player.alliance} /> : null}
+            {player?.displayName ?? account?.username ?? 'Profile'}{' '}
+            {player ? <span className="se-muted se-num">(#{player.publicPimpId})</span> : null}
+          </h1>
+          {player?.cosmetics.title ? <p className="se-profile-title">{player.cosmetics.title}</p> : null}
+          <p className="se-eyebrow">
+            {player ? `${player.city.name}${player.isYou ? ' · Your profile' : ''}` : 'Permanent season record'}
+          </p>
+          {player ? <ProfileBadges badges={player.badges} forumGroups={player.forumGroups} /> : null}
+        </div>
+        <div className="se-inline-actions">
+          {player && !player.isYou ? <ContactButton publicPimpId={player.publicPimpId} /> : null}
+          {player?.forumProfileUrl ? <a className="se-btn se-btn--ghost se-btn--sm" href={player.forumProfileUrl}>Forum Profile</a> : null}
+        </div>
+      </div>
 
           <div className="se-profile-hero__actions">
             {player && !player.isYou ? <ContactButton publicPimpId={player.publicPimpId} /> : null}

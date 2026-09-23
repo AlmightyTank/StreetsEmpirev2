@@ -21,12 +21,12 @@ import { QuestCosmeticService } from './quest-cosmetic.service.js';
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
 
 export const PROFILE_ACCENTS: CosmeticOptionDto[] = [
-  { key: 'default', label: 'StreetsEmpire', description: 'The classic red and neon profile accent.' },
-  { key: 'crimson', label: 'Crimson', description: 'A deep red profile accent.' },
-  { key: 'gold', label: 'Gold', description: 'A winner-style gold profile accent.' },
-  { key: 'green', label: 'Green', description: 'A money-green profile accent.' },
-  { key: 'blue', label: 'Blue', description: 'A cool blue profile accent.' },
-  { key: 'purple', label: 'Purple', description: 'A rare purple profile accent.' },
+  { key: 'default', label: 'StreetsEmpire', description: 'The classic neon-green site accent.' },
+  { key: 'crimson', label: 'Crimson', description: 'A deep red site-wide accent.' },
+  { key: 'gold', label: 'Gold', description: 'A winner-style gold site-wide accent.' },
+  { key: 'green', label: 'Green', description: 'A money-green site-wide accent.' },
+  { key: 'blue', label: 'Blue', description: 'A cool blue site-wide accent.' },
+  { key: 'purple', label: 'Purple', description: 'A rare purple site-wide accent.' },
 ];
 
 export const UI_DENSITIES: CosmeticOptionDto[] = [
@@ -64,16 +64,26 @@ function optionFromAward(award: PublicAwardDto): BadgeCosmeticOptionDto {
   };
 }
 
-function toSettingsDto(profile: AccountProfile | null, earnedKeys: Set<string>): AccountProfileSettingsDto {
+function toSettingsDto(
+  profile: AccountProfile | null,
+  earnedKeys: Set<string>,
+  accentOptions: CosmeticOptionDto[],
+  frameOptions: CosmeticOptionDto[],
+): AccountProfileSettingsDto {
   const activeTitleKey = profile?.activeTitleKey && earnedKeys.has(profile.activeTitleKey)
     ? profile.activeTitleKey
     : null;
   const featuredBadgeKeys = uniqueKeys(stringArray(profile?.featuredBadgeKeys))
     .filter((key) => earnedKeys.has(key))
     .slice(0, PROFILE_BADGE_FEATURE_LIMIT);
-  const profileAccent = PROFILE_ACCENTS.some((option) => option.key === profile?.profileAccent)
-    ? profile!.profileAccent as ProfileAccent
+  const accentKeys = new Set(accentOptions.map((option) => option.key));
+  const frameKeys = new Set(frameOptions.map((option) => option.key));
+  const profileAccent = profile?.profileAccent && accentKeys.has(profile.profileAccent)
+    ? profile.profileAccent as ProfileAccent
     : 'default';
+  const activeProfileFrameKey = profile?.activeProfileFrameKey && frameKeys.has(profile.activeProfileFrameKey)
+    ? profile.activeProfileFrameKey
+    : null;
   const uiDensity = UI_DENSITIES.some((option) => option.key === profile?.uiDensity)
     ? profile!.uiDensity as UiDensity
     : 'comfortable';
@@ -85,6 +95,7 @@ function toSettingsDto(profile: AccountProfile | null, earnedKeys: Set<string>):
     : 'game';
   return {
     activeTitleKey,
+    activeProfileFrameKey,
     featuredBadgeKeys,
     profileAccent,
     uiDensity,
@@ -124,21 +135,42 @@ async function readProfile(prisma: PrismaClient, accountId: string): Promise<Acc
   return prisma.accountProfile.findUnique({ where: { accountId } });
 }
 
+async function appearanceOptions(prisma: PrismaClient, accountId: string): Promise<{
+  accents: CosmeticOptionDto[];
+  frames: CosmeticOptionDto[];
+}> {
+  const [questAccents, frames] = await Promise.all([
+    QuestCosmeticService.optionsForAccount(prisma, accountId, 'ACCENT'),
+    QuestCosmeticService.optionsForAccount(prisma, accountId, 'PROFILE_FRAME'),
+  ]);
+  const accents = [...PROFILE_ACCENTS];
+  const known = new Set(accents.map((option) => option.key));
+  for (const option of questAccents) {
+    if (!known.has(option.key)) {
+      accents.push(option);
+      known.add(option.key);
+    }
+  }
+  return { accents, frames };
+}
+
 export const AccountProfileService = {
   async settings(prisma: PrismaClient, accountId: string): Promise<AccountProfileSettingsResponseDto> {
-    const [profile, awards] = await Promise.all([
+    const [profile, awards, appearance] = await Promise.all([
       readProfile(prisma, accountId),
       earnedAwards(prisma, accountId),
+      appearanceOptions(prisma, accountId),
     ]);
     const options = awards.map(optionFromAward);
     const earnedKeys = new Set(options.map((option) => option.key));
 
     return {
-      settings: toSettingsDto(profile, earnedKeys),
+      settings: toSettingsDto(profile, earnedKeys, appearance.accents, appearance.frames),
       options: {
         titles: options,
         badges: options,
-        accents: PROFILE_ACCENTS,
+        accents: appearance.accents,
+        frames: appearance.frames,
         densities: UI_DENSITIES,
         moneyFormats: MONEY_FORMATS,
         defaultLandings: DEFAULT_LANDINGS,
@@ -151,7 +183,10 @@ export const AccountProfileService = {
     accountId: string,
     input: UpdateAccountProfileSettingsInput,
   ): Promise<AccountProfileSettingsResponseDto> {
-    const awards = await earnedAwards(prisma, accountId);
+    const [awards, appearance] = await Promise.all([
+      earnedAwards(prisma, accountId),
+      appearanceOptions(prisma, accountId),
+    ]);
     const earnedKeys = new Set(awards.map((award) => award.key));
     const activeTitleKey = input.activeTitleKey && earnedKeys.has(input.activeTitleKey)
       ? input.activeTitleKey
@@ -159,6 +194,21 @@ export const AccountProfileService = {
     if (input.activeTitleKey && !activeTitleKey) {
       throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick a title you have already earned.', {
         activeTitleKey: 'That title is not unlocked.',
+      });
+    }
+    const frameKeys = new Set(appearance.frames.map((option) => option.key));
+    const activeProfileFrameKey = input.activeProfileFrameKey && frameKeys.has(input.activeProfileFrameKey)
+      ? input.activeProfileFrameKey
+      : null;
+    if (input.activeProfileFrameKey && !activeProfileFrameKey) {
+      throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick a profile frame you have already earned.', {
+        activeProfileFrameKey: 'That profile frame is not unlocked.',
+      });
+    }
+    const accentKeys = new Set(appearance.accents.map((option) => option.key));
+    if (!accentKeys.has(input.profileAccent)) {
+      throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick an accent you have already unlocked.', {
+        profileAccent: 'That site accent is not unlocked.',
       });
     }
     const featuredBadgeKeys = uniqueKeys(input.featuredBadgeKeys)
@@ -175,6 +225,7 @@ export const AccountProfileService = {
       create: {
         accountId,
         activeTitleKey,
+        activeProfileFrameKey,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
         uiDensity: input.uiDensity,
@@ -184,6 +235,7 @@ export const AccountProfileService = {
       },
       update: {
         activeTitleKey,
+        activeProfileFrameKey,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
         uiDensity: input.uiDensity,
@@ -201,10 +253,13 @@ export const AccountProfileService = {
     accountId: string,
     awards: PublicAwardDto[],
   ): Promise<{ settings: AccountProfileSettingsDto; title: string | null }> {
-    const profile = await readProfile(prisma, accountId);
+    const [profile, appearance] = await Promise.all([
+      readProfile(prisma, accountId),
+      appearanceOptions(prisma, accountId),
+    ]);
     const unlocked = awards.filter((award) => award.unlocked);
     const earnedKeys = new Set(unlocked.map((award) => award.key));
-    const settings = toSettingsDto(profile, earnedKeys);
+    const settings = toSettingsDto(profile, earnedKeys, appearance.accents, appearance.frames);
     const title = unlocked.find((award) => award.key === settings.activeTitleKey)?.title ?? null;
     return { settings, title };
   },

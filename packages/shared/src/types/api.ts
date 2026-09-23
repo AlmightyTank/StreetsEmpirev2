@@ -95,7 +95,19 @@ export interface AccountSessionsResponseDto {
   sessions: AccountSessionDto[];
 }
 
-export type ProfileAccent = 'default' | 'crimson' | 'gold' | 'green' | 'blue' | 'purple';
+export type ProfileAccent =
+  | 'default'
+  | 'crimson'
+  | 'gold'
+  | 'green'
+  | 'blue'
+  | 'purple'
+  | 'ghost-violet'
+  | 'top-shelf-teal'
+  | 'enforcer-red'
+  | 'open-road-blue'
+  | 'clean-slate-ice'
+  | 'corner-amber';
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
@@ -113,6 +125,7 @@ export interface BadgeCosmeticOptionDto extends CosmeticOptionDto {
 
 export interface AccountProfileSettingsDto {
   activeTitleKey: string | null;
+  activeProfileFrameKey: string | null;
   featuredBadgeKeys: string[];
   profileAccent: ProfileAccent;
   uiDensity: UiDensity;
@@ -127,6 +140,7 @@ export interface AccountProfileSettingsResponseDto {
     titles: BadgeCosmeticOptionDto[];
     badges: BadgeCosmeticOptionDto[];
     accents: CosmeticOptionDto[];
+    frames: CosmeticOptionDto[];
     densities: CosmeticOptionDto[];
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];
