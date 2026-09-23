@@ -367,7 +367,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
           <HideoutPanel hideout={me.hideout} />
 
           {me.turf ? (
-            <Panel title="Turf" aside={<Link to="/game/travel">Blocks</Link>} flush>
+            <Panel title="Turf" aside={<Link to="/game/turf">Blocks</Link>} flush>
               <div className="se-rows">
                 <Row label="Blocks held" value={formatNumber(me.turf.blocksHeld)} strong />
                 <Row label="Corner guns" value={formatNumber(me.turf.postedGuns.total)} />
@@ -375,7 +375,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                 <Row label="Payers today" value={formatNumber(me.turf.taxPayersToday)} />
                 {me.turf.taxPendingCents > 0 ? <Row label="Pending settle" value={formatCents(me.turf.taxPendingCents)} /> : null}
               </div>
-              <p className="se-hint">Street tax is house-minted, capped per payer, and zero between linked accounts.</p>
+              <p className="se-hint">Street tax comes from other crews working your blocks. It is capped per payer each day, and linked accounts do not pay it.</p>
             </Panel>
           ) : null}
 

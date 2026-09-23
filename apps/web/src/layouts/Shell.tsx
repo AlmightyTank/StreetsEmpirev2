@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { formatCents, formatCentsCompact } from '@streets/shared';
+import { rulesets } from '@streets/rulesets';
 import { GameEventToasts } from '../components/GameEventToasts.js';
 import { NotificationBell } from '../components/NotificationBell.js';
 import { InstallBanner } from '../components/InstallBanner.js';
@@ -9,6 +10,20 @@ import { useSession } from '../stores/session.js';
 
 const TURN_ACTION_PAGES = ['/game/scout', '/game/produce', '/game/combat'] as const;
 const LAST_TURN_ACTION_KEY = 'streets.lastTurnActionPage';
+const LATEST_RULESET_VERSION = Object.values(rulesets).at(-1)?.meta.version ?? '0.1.0';
+
+function Brand() {
+  const version = useSession((s) => s.round?.rulesetVersion ?? LATEST_RULESET_VERSION);
+
+  return (
+    <Link className="se-brand" to="/">
+      <span className="se-brand__mark">
+        Streets<span className="se-accent">Empire</span>
+      </span>
+      <span className="se-brand__ver">{version}</span>
+    </Link>
+  );
+}
 
 function turnActionIndex(pathname: string) {
   return TURN_ACTION_PAGES.findIndex((path) => pathname === path || pathname.startsWith(`${path}/`));
@@ -130,12 +145,7 @@ function Footer() {
     <footer className="se-footer">
       <div className="se-footer__inner">
         <div className="se-footer__brand">
-          <Link className="se-brand" to="/">
-            <span className="se-brand__mark">
-              Streets<span className="se-accent">Empire</span>
-            </span>
-            <span className="se-brand__ver">0.5.0</span>
-          </Link>
+          <Brand />
           <p>
             Free browser crime strategy with turn clocks, crew management,
             raids, rankings and fair seasonal resets.
@@ -186,12 +196,7 @@ export function Shell({ children, narrow, tabbar }: {
       <InstallBanner />
 
       <header className="se-topbar">
-        <Link className="se-brand" to="/">
-          <span className="se-brand__mark">
-            Streets<span className="se-accent">Empire</span>
-          </span>
-          <span className="se-brand__ver">0.5.0</span>
-        </Link>
+        <Brand />
 
         <StatusBar />
 
