@@ -18,18 +18,18 @@ describe('Phase Y-C quest-only cosmetics', () => {
     expect(Object.values(classicOgV07X.cosmetics ?? {}).every(
       (cosmetic) => cosmetic.kind === 'TITLE_BADGE',
     )).toBe(true);
-    expect(classicOgV07X.cosmetics?.GHOST_OF_THE_BLOCK.rarity).toBe('legendary');
-    expect(classicOgV07X.cosmetics?.ROAD_KING.rarity).toBe('epic');
+    expect(classicOgV07X.cosmetics?.ghost-of-the-block.rarity).toBe('legendary');
+    expect(classicOgV07X.cosmetics?.road-king.rarity).toBe('epic');
   });
 
   it('awards cosmetics only from one-time contact finales', () => {
     const expected: Record<string, string> = {
-      MAMA_QUIET_HOUR: 'GHOST_OF_THE_BLOCK',
-      PIP_TOP_SHELF: 'TOP_SHELF_OPERATOR',
-      TOMMY_FULL_RACK: 'FULL_RACK_ENFORCER',
-      WHEELS_HOME_SAFE: 'ROAD_KING',
-      VIC_CLEAN_SLATE: 'NO_PAPER_TRAIL',
-      BLOCKS_OUT_OF_TOWN: 'CORNER_BOSS',
+      MAMA_QUIET_HOUR: 'ghost-of-the-block',
+      PIP_TOP_SHELF: 'top-shelf-operator',
+      TOMMY_FULL_RACK: 'full-rack-enforcer',
+      WHEELS_HOME_SAFE: 'road-king',
+      VIC_CLEAN_SLATE: 'no-paper-trail',
+      BLOCKS_OUT_OF_TOWN: 'corner-boss',
     };
 
     for (const [questKey, cosmeticKey] of Object.entries(expected)) {
