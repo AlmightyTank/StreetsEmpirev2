@@ -236,6 +236,7 @@ export const AdminAccountService = {
       profile: {
         activeTitleKey: account.profile?.activeTitleKey ?? null,
         activeProfileFrameKey: account.profile?.activeProfileFrameKey ?? null,
+        activeSiteThemeKey: account.profile?.activeSiteThemeKey ?? null,
         profileAccent: account.profile?.profileAccent ?? 'default',
         featuredBadgeKeys: stringArray(account.profile?.featuredBadgeKeys),
       },
