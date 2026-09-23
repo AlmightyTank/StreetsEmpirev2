@@ -10,7 +10,10 @@ import { FavorContentService } from './favor-content.service.js';
 function isSingleUseEffect(effect: FavorDefinition['effect']): effect is SingleUseFavorEffect {
   return effect?.kind === 'STORE_BUY_DISCOUNT'
     || effect?.kind === 'FREE_RECON'
-    || effect?.kind === 'FREE_TREATMENT';
+    || effect?.kind === 'FREE_TREATMENT'
+    || effect?.kind === 'FREE_HEAT_BRIBE'
+    || effect?.kind === 'CLEAR_FIRST_ROAD_STOP'
+    || effect?.kind === 'LOCAL_TURF_STANDDOWN';
 }
 
 function isSingleUse(definition: FavorDefinition): definition is FavorDefinition & {
