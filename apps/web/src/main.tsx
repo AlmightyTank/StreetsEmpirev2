@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/theme.css';
+import './styles/site-themes.css';
 import './styles/community.css';
 import './styles/stability.css';
 import './styles/polish.css';
