@@ -49,6 +49,12 @@ import {
   isDynamicCityContractDefinition,
   syncCityContractAttempts,
 } from './city-contract.service.js';
+import {
+  acceptAllianceContract,
+  assertAllianceContractClaim,
+  isAllianceContractDefinition,
+  syncAllianceContractAttempts,
+} from './alliance-contract.service.js';
 
 const ACTIVE_LIMIT = 8;
 const TRACKED_LIMIT = 3;
@@ -391,6 +397,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
       || (definition.type === 'WEEKLY' && definition.repeatability === 'WEEKLY')
       || definition.type === 'SECRET'
       || isDynamicCityContractDefinition(definition)
+      || isAllianceContractDefinition(definition)
     ) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
     const available = questPrerequisitesMet(definition, completed, reps, chosenBranches);
@@ -412,6 +419,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
   await syncDailyContractAttempts(db, roundPlayerId, ruleset, now);
   await syncWeeklyContractAttempts(db, roundPlayerId, ruleset, now);
   newlyAvailable.push(...await syncCityContractAttempts(db, roundPlayerId, ruleset, now));
+  newlyAvailable.push(...await syncAllianceContractAttempts(db, roundPlayerId, ruleset, now));
   newlyAvailable.push(...await syncSecretQuestAttempts(db, roundPlayerId, ruleset));
   return newlyAvailable;
 }
@@ -556,7 +564,10 @@ export const HandcraftedQuestService = {
         trackedLimit: TRACKED_LIMIT,
         counts: {
           available: rows.filter((row) => row.status === 'AVAILABLE').length,
-          active: rows.filter((row) => ['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)).length,
+          active: rows.filter((row) =>
+            row.questDefinition.type !== 'ALLIANCE'
+            && ['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)
+          ).length,
           ready: rows.filter((row) => row.status === 'READY_TO_TURN_IN').length,
           completed: rows.filter((row) => row.status === 'COMPLETED').length,
         },
@@ -578,12 +589,26 @@ export const HandcraftedQuestService = {
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (row.status === 'ACTIVE' || row.status === 'READY_TO_TURN_IN') return;
       if (row.status !== 'AVAILABLE') throw AppError.conflict('QUEST_NOT_AVAILABLE', 'That job is not available yet.');
-      const active = await tx.playerQuest.count({ where: { roundPlayerId, status: { in: ['ACTIVE', 'READY_TO_TURN_IN'] } } });
-      if (active >= ACTIVE_LIMIT) throw AppError.conflict('QUEST_ACTIVE_LIMIT', `You can only have ${ACTIVE_LIMIT} active jobs at once.`);
+      const definition = ruleset.questDefinitions?.[row.questDefinition.key];
+      const allianceContract = isAllianceContractDefinition(definition);
+      if (!allianceContract) {
+        const active = await tx.playerQuest.count({
+          where: {
+            roundPlayerId,
+            status: { in: ['ACTIVE', 'READY_TO_TURN_IN'] },
+            questDefinition: { type: { not: 'ALLIANCE' } },
+          },
+        });
+        if (active >= ACTIVE_LIMIT) throw AppError.conflict('QUEST_ACTIVE_LIMIT', `You can only have ${ACTIVE_LIMIT} active jobs at once.`);
+      }
       const tracked = await tx.playerQuest.count({ where: { roundPlayerId, isTracked: true } });
       const acceptedAt = new Date();
       if (row.expiresAt && row.expiresAt.getTime() <= acceptedAt.getTime()) {
         throw AppError.conflict('QUEST_EXPIRED', 'That contract expired at reset. Refresh the board for new work.');
+      }
+      if (allianceContract) {
+        await acceptAllianceContract(tx, roundPlayerId, ruleset, key, acceptedAt, tracked < TRACKED_LIMIT);
+        return;
       }
       const preserveOffer = preservesGeneratedOffer(row, ruleset);
       await tx.playerQuest.update({
@@ -622,6 +647,12 @@ export const HandcraftedQuestService = {
       await refreshAvailability(tx, roundPlayerId, ruleset);
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (!['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)) throw AppError.conflict('QUEST_NOT_ACTIVE', 'That job is not active.');
+      if (isAllianceContractDefinition(ruleset.questDefinitions?.[row.questDefinition.key])) {
+        throw AppError.conflict(
+          'ALLIANCE_CONTRACT_SHARED',
+          'Alliance contracts cannot be abandoned individually after the shared roster starts.',
+        );
+      }
       await tx.questProgressReceipt.deleteMany({ where: { playerQuestId: row.id } });
       const preserveOffer = preservesGeneratedOffer(row, ruleset);
       await tx.playerQuest.update({
@@ -678,6 +709,9 @@ export const HandcraftedQuestService = {
         const rulesetDefinition = ruleset.questDefinitions?.[row.questDefinition.key];
         if (!rulesetDefinition) {
           throw AppError.conflict('QUEST_DEFINITION_MISSING', 'That job is not available in this ruleset.');
+        }
+        if (isAllianceContractDefinition(rulesetDefinition)) {
+          await assertAllianceContractClaim(tx, roundPlayerId, row.rewardState);
         }
         const selectedBranch = resolveQuestBranchForClaim(
           rulesetDefinition,
