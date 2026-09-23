@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV07X, classicOgV07Y } from '@streets/rulesets';
+import { classicOgV07X, classicOgV07Y, classicOgV07Z } from '@streets/rulesets';
 import type { Db } from '../../utils/db.js';
 import { QuestCosmeticService } from '../quest-cosmetic.service.js';
 
@@ -91,6 +91,44 @@ describe('QuestCosmeticService', () => {
         key: 'open-road-frame',
         label: 'Open Road Frame',
         description: 'Road frame',
+      }]);
+  });
+
+  it('snapshots and exposes Y-E site-theme style keys', async () => {
+    const upserts: Array<{ create: Record<string, unknown> }> = [];
+    const db = {
+      accountCosmeticUnlock: {
+        upsert: async (args: { create: Record<string, unknown> }) => { upserts.push(args); },
+        findMany: async () => [{
+          key: 'winter-christmas-2026',
+          title: 'Winter Lights',
+          description: 'Winter theme',
+          styleKey: 'winter-lights',
+          awardedAt: new Date('2026-09-23T15:05:00Z'),
+        }],
+      },
+    } as unknown as Db;
+
+    await QuestCosmeticService.award(
+      db,
+      'account-1',
+      classicOgV07Z,
+      'winter-christmas-2026',
+      'HOLIDAY_TEST',
+      new Date('2026-09-23T15:05:00Z'),
+    );
+
+    expect(upserts[0]?.create).toMatchObject({
+      kind: 'SITE_THEME',
+      styleKey: 'winter-lights',
+      sourceRulesetId: 'classic-og-v0.7-z',
+      sourceRulesetVersion: '0.7.0-Z',
+    });
+    await expect(QuestCosmeticService.optionsForAccount(db, 'account-1', 'SITE_THEME'))
+      .resolves.toEqual([{
+        key: 'winter-lights',
+        label: 'Winter Lights',
+        description: 'Winter theme',
       }]);
   });
 
