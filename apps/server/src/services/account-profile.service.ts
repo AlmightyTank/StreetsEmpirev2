@@ -69,6 +69,7 @@ function toSettingsDto(
   earnedKeys: Set<string>,
   accentOptions: CosmeticOptionDto[],
   frameOptions: CosmeticOptionDto[],
+  themeOptions: CosmeticOptionDto[],
 ): AccountProfileSettingsDto {
   const activeTitleKey = profile?.activeTitleKey && earnedKeys.has(profile.activeTitleKey)
     ? profile.activeTitleKey
@@ -78,11 +79,15 @@ function toSettingsDto(
     .slice(0, PROFILE_BADGE_FEATURE_LIMIT);
   const accentKeys = new Set(accentOptions.map((option) => option.key));
   const frameKeys = new Set(frameOptions.map((option) => option.key));
+  const themeKeys = new Set(themeOptions.map((option) => option.key));
   const profileAccent = profile?.profileAccent && accentKeys.has(profile.profileAccent)
     ? profile.profileAccent as ProfileAccent
     : 'default';
   const activeProfileFrameKey = profile?.activeProfileFrameKey && frameKeys.has(profile.activeProfileFrameKey)
     ? profile.activeProfileFrameKey
+    : null;
+  const activeSiteThemeKey = profile?.activeSiteThemeKey && themeKeys.has(profile.activeSiteThemeKey)
+    ? profile.activeSiteThemeKey
     : null;
   const uiDensity = UI_DENSITIES.some((option) => option.key === profile?.uiDensity)
     ? profile!.uiDensity as UiDensity
@@ -96,6 +101,7 @@ function toSettingsDto(
   return {
     activeTitleKey,
     activeProfileFrameKey,
+    activeSiteThemeKey,
     featuredBadgeKeys,
     profileAccent,
     uiDensity,
@@ -138,10 +144,12 @@ async function readProfile(prisma: PrismaClient, accountId: string): Promise<Acc
 async function appearanceOptions(prisma: PrismaClient, accountId: string): Promise<{
   accents: CosmeticOptionDto[];
   frames: CosmeticOptionDto[];
+  themes: CosmeticOptionDto[];
 }> {
-  const [questAccents, frames] = await Promise.all([
+  const [questAccents, frames, themes] = await Promise.all([
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'ACCENT'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'PROFILE_FRAME'),
+    QuestCosmeticService.optionsForAccount(prisma, accountId, 'SITE_THEME'),
   ]);
   const accents = [...PROFILE_ACCENTS];
   const known = new Set(accents.map((option) => option.key));
@@ -151,7 +159,7 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
       known.add(option.key);
     }
   }
-  return { accents, frames };
+  return { accents, frames, themes };
 }
 
 export const AccountProfileService = {
@@ -165,12 +173,13 @@ export const AccountProfileService = {
     const earnedKeys = new Set(options.map((option) => option.key));
 
     return {
-      settings: toSettingsDto(profile, earnedKeys, appearance.accents, appearance.frames),
+      settings: toSettingsDto(profile, earnedKeys, appearance.accents, appearance.frames, appearance.themes),
       options: {
         titles: options,
         badges: options,
         accents: appearance.accents,
         frames: appearance.frames,
+        themes: appearance.themes,
         densities: UI_DENSITIES,
         moneyFormats: MONEY_FORMATS,
         defaultLandings: DEFAULT_LANDINGS,
@@ -205,6 +214,15 @@ export const AccountProfileService = {
         activeProfileFrameKey: 'That profile frame is not unlocked.',
       });
     }
+    const themeKeys = new Set(appearance.themes.map((option) => option.key));
+    const activeSiteThemeKey = input.activeSiteThemeKey && themeKeys.has(input.activeSiteThemeKey)
+      ? input.activeSiteThemeKey
+      : null;
+    if (input.activeSiteThemeKey && !activeSiteThemeKey) {
+      throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick a site theme you have already earned.', {
+        activeSiteThemeKey: 'That site theme is not unlocked.',
+      });
+    }
     const accentKeys = new Set(appearance.accents.map((option) => option.key));
     if (!accentKeys.has(input.profileAccent)) {
       throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick an accent you have already unlocked.', {
@@ -226,6 +244,7 @@ export const AccountProfileService = {
         accountId,
         activeTitleKey,
         activeProfileFrameKey,
+        activeSiteThemeKey,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
         uiDensity: input.uiDensity,
@@ -236,6 +255,7 @@ export const AccountProfileService = {
       update: {
         activeTitleKey,
         activeProfileFrameKey,
+        activeSiteThemeKey,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
         uiDensity: input.uiDensity,
@@ -259,7 +279,7 @@ export const AccountProfileService = {
     ]);
     const unlocked = awards.filter((award) => award.unlocked);
     const earnedKeys = new Set(unlocked.map((award) => award.key));
-    const settings = toSettingsDto(profile, earnedKeys, appearance.accents, appearance.frames);
+    const settings = toSettingsDto(profile, earnedKeys, appearance.accents, appearance.frames, appearance.themes);
     const title = unlocked.find((award) => award.key === settings.activeTitleKey)?.title ?? null;
     return { settings, title };
   },

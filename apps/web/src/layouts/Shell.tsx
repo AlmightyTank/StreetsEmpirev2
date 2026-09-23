@@ -6,6 +6,7 @@ import { GameEventToasts } from '../components/GameEventToasts.js';
 import { NotificationBell } from '../components/NotificationBell.js';
 import { InstallBanner } from '../components/InstallBanner.js';
 import { SiteBanner } from '../components/SiteBanner.js';
+import { SiteThemeDecor } from '../components/SiteThemeDecor.js';
 import { useSession } from '../stores/session.js';
 
 const TURN_ACTION_PAGES = ['/game/scout', '/game/produce', '/game/combat'] as const;
@@ -192,8 +193,9 @@ export function Shell({ children, narrow, tabbar }: {
   }
 
   return (
-    <div className={`se-app se-site-accent--${settings.profileAccent} se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}`}>
+    <div className={`se-app se-site-accent--${settings.profileAccent} se-site-theme--${settings.activeSiteThemeKey ?? 'none'} se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}`}>
       <InstallBanner />
+      <SiteThemeDecor themeKey={settings.activeSiteThemeKey} />
 
       <header className="se-topbar">
         <Brand />

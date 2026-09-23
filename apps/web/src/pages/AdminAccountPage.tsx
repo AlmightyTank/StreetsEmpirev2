@@ -20,7 +20,7 @@ const actionText: Record<AdminAccountAction, { label: string; copy: string }> = 
   'lift-suspension': { label: 'Lift suspension', copy: 'Ends the suspension now. They can log straight back in.' },
   'revoke-sessions': { label: 'Sign out everywhere', copy: 'Ends every active session. They can log straight back in.' },
   rename: { label: 'Rename', copy: 'Changes their pimp name and the name on every round they played, archived results included.' },
-  'reset-profile': { label: 'Reset profile', copy: 'Clears their profile title and featured badges and resets their accent.' },
+  'reset-profile': { label: 'Reset profile', copy: 'Clears their profile title, frame, site theme and featured badges, and resets their accent.' },
   'grant-admin': { label: 'Make admin', copy: 'Gives full admin panel access. Everything they do there is audited.' },
   'revoke-admin': { label: 'Remove admin', copy: 'Removes admin panel access.' },
   'approve-beta': { label: 'Approve beta', copy: 'Allows this account to log in and play when the beta server is invite-only.' },
@@ -289,6 +289,7 @@ export function AdminAccountPage() {
             />
             <Row label="Profile title" value={detail.profile.activeTitleKey ?? '-'} />
             <Row label="Profile frame" value={detail.profile.activeProfileFrameKey ?? '-'} />
+            <Row label="Site theme" value={detail.profile.activeSiteThemeKey ?? '-'} />
             <Row label="Accent" value={detail.profile.profileAccent} />
             <Row label="Featured badges" value={formatNumber(detail.profile.featuredBadgeKeys.length)} />
             <Row label="Account id" value={account.id} />

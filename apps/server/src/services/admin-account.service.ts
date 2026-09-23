@@ -236,6 +236,7 @@ export const AdminAccountService = {
       profile: {
         activeTitleKey: account.profile?.activeTitleKey ?? null,
         activeProfileFrameKey: account.profile?.activeProfileFrameKey ?? null,
+        activeSiteThemeKey: account.profile?.activeSiteThemeKey ?? null,
         profileAccent: account.profile?.profileAccent ?? 'default',
         featuredBadgeKeys: stringArray(account.profile?.featuredBadgeKeys),
       },
@@ -511,14 +512,14 @@ export const AdminAccountService = {
       if (profile) {
         await tx.accountProfile.update({
           where: { accountId: before.id },
-          data: { activeTitleKey: null, activeProfileFrameKey: null, featuredBadgeKeys: [], profileAccent: 'default' },
+          data: { activeTitleKey: null, activeProfileFrameKey: null, activeSiteThemeKey: null, featuredBadgeKeys: [], profileAccent: 'default' },
         });
       }
       return {
         account: before,
         detail: {
           previousProfile: profile
-            ? { activeTitleKey: profile.activeTitleKey, activeProfileFrameKey: profile.activeProfileFrameKey, featuredBadgeKeys: stringArray(profile.featuredBadgeKeys), profileAccent: profile.profileAccent }
+            ? { activeTitleKey: profile.activeTitleKey, activeProfileFrameKey: profile.activeProfileFrameKey, activeSiteThemeKey: profile.activeSiteThemeKey, featuredBadgeKeys: stringArray(profile.featuredBadgeKeys), profileAccent: profile.profileAccent }
             : null,
         },
       };

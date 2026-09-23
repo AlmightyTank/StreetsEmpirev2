@@ -279,7 +279,7 @@ export interface PermanentUnlockDefinition {
 
 export type PermanentUnlockCatalog = Readonly<Record<string, PermanentUnlockDefinition>>;
 
-export type QuestCosmeticKind = 'TITLE_BADGE' | 'PROFILE_FRAME' | 'ACCENT' | 'HIDEOUT_DECOR';
+export type QuestCosmeticKind = 'TITLE_BADGE' | 'PROFILE_FRAME' | 'ACCENT' | 'SITE_THEME' | 'HIDEOUT_DECOR';
 export type QuestCosmeticRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
 export interface QuestCosmeticDefinition {
