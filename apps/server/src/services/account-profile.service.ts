@@ -60,7 +60,7 @@ function optionFromAward(award: PublicAwardDto): BadgeCosmeticOptionDto {
     label: award.title,
     description: award.description,
     rarity: award.rarity,
-    permanent: award.category === 'legacy',
+    permanent: award.category === 'legacy' || award.category === 'quest',
   };
 }
 
