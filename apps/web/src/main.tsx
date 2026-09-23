@@ -14,6 +14,7 @@ import './styles/dashboard.css';
 import './styles/scout.css';
 import './styles/produce.css';
 import './styles/raids.css';
+import './styles/stores.css';
 import { App } from './App.js';
 // Before React mounts: Android can offer the install prompt immediately.
 import './utils/install.js';
