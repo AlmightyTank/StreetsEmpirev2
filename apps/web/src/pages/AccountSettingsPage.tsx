@@ -71,6 +71,7 @@ export function AccountSettingsPage() {
               badges: [],
               accents: [{ key: 'default', label: 'StreetsEmpire', description: null }],
               frames: [],
+              themes: [],
               densities: [
                 { key: 'comfortable', label: 'Comfortable', description: null },
                 { key: 'compact', label: 'Compact', description: null },
@@ -516,6 +517,27 @@ export function AccountSettingsPage() {
                   {fields.activeProfileFrameKey
                     ? <p className="se-error">{fields.activeProfileFrameKey}</p>
                     : <p className="se-hint">{profileSettings.options.frames.length ? 'Frames are permanent quest-earned profile cosmetics.' : 'Complete qualifying Contact finales to unlock profile frames.'}</p>}
+                </div>
+
+                <div className="se-field">
+                  <label className="se-label" htmlFor="site-theme">Site theme</label>
+                  <select
+                    id="site-theme"
+                    className="se-input"
+                    value={cosmetics.activeSiteThemeKey ?? ''}
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      activeSiteThemeKey: event.target.value || null,
+                    }))}
+                  >
+                    <option value="">No site theme</option>
+                    {profileSettings.options.themes.map((option) => (
+                      <option value={option.key} key={option.key}>{option.label}</option>
+                    ))}
+                  </select>
+                  {fields.activeSiteThemeKey
+                    ? <p className="se-error">{fields.activeSiteThemeKey}</p>
+                    : <p className="se-hint">{profileSettings.options.themes.length ? 'Themes decorate the entire player-facing game and stay independent from your accent.' : 'Seasonal and event themes will appear here after you unlock them.'}</p>}
                 </div>
               </div>
 
