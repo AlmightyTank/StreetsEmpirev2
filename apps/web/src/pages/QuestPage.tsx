@@ -164,6 +164,17 @@ function QuestCard({
       )}
     >
       <p className="se-hint se-quest-card__desc">{quest.description}</p>
+      {quest.allianceContract ? (
+        <div className="se-quest-objectives">
+          <ProgressLine
+            label={'Your contribution · ' + quest.allianceContract.contributionLabel}
+            current={quest.allianceContract.contributionCurrent}
+            target={quest.allianceContract.contributionTarget}
+            format={quest.allianceContract.contributionFormat}
+            completed={quest.allianceContract.contributionCompleted}
+          />
+        </div>
+      ) : null}
       {quest.communityEvent ? (
         <div className="se-quest-objectives">
           <ProgressLine
