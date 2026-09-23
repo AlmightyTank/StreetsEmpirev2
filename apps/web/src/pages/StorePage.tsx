@@ -6,7 +6,7 @@ import { storesApi } from '../api/stores.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
-import { Panel, Row } from '../components/Panel.js';
+import { Panel } from '../components/Panel.js';
 import { ProductCounter } from '../components/ProductCounter.js';
 import { QuantitySteps } from '../components/QuantitySteps.js';
 import { useCountdown } from '../hooks/useCountdown.js';
