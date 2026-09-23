@@ -262,7 +262,7 @@ export const QuestProgressService = {
       });
       if (
         !playerQuest
-        || !playerQuest.questDefinition.isEnabled
+        || playerQuest.questDefinition.isEnabled === false
         || !ACTIVE_STATUSES.includes(playerQuest.status as typeof ACTIVE_STATUSES[number])
       ) continue;
 
