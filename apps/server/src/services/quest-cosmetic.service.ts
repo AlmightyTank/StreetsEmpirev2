@@ -54,7 +54,7 @@ export const QuestCosmeticService = {
       key: row.key,
       title: row.title,
       description: row.description,
-      category: 'legacy',
+      category: 'quest',
       rarity: row.rarity as PublicAwardDto['rarity'],
       unlocked: true,
       earnedAt: row.awardedAt.toISOString(),
