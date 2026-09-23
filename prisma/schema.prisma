@@ -96,6 +96,7 @@ model AccountProfile {
 
   activeTitleKey        String?
   activeProfileFrameKey String?
+  activeSiteThemeKey    String?
   featuredBadgeKeys     Json    @default("[]")
   profileAccent         String  @default("default")
   uiDensity         String  @default("comfortable")
