@@ -702,6 +702,12 @@ export interface PlayerQuestDto {
   branchChoices: QuestBranchChoiceDto[];
   objectives: QuestObjectiveDto[];
   rewards: QuestRewardDto[];
+  seasonalEvent?: {
+    eventKey: string;
+    label: string | null;
+    startsAt: string;
+    endsAt: string;
+  };
   communityEvent?: {
     startsAt: string;
     endsAt: string;
