@@ -15,7 +15,7 @@ class ProfileController implements RequestHandlerInterface
     private const CACHE_SECONDS = 120;
     private const MAX_BADGES = 6;
     private const RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
-    private const CATEGORIES = ['rank', 'wealth', 'combat', 'intel', 'reputation', 'hideout', 'legacy'];
+    private const CATEGORIES = ['rank', 'wealth', 'combat', 'intel', 'reputation', 'hideout', 'quest', 'legacy'];
 
     public function __construct(private BridgeConfig $config, private Cache $cache) {}
 
