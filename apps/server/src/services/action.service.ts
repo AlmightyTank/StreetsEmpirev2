@@ -13,6 +13,7 @@ import type {
   RankChanges,
   ResourceChange,
 } from '@streets/shared';
+import type { QuestDataValue } from '@streets/rulesets';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
@@ -142,6 +143,8 @@ export interface ActionOutcome<T> {
   result: T;
   /** Left out by actions too small for the feed, like one trade on a run. */
   activity?: { type: ActivityType; payload: Prisma.InputJsonValue };
+  /** Optional richer quest-only signal for actions intentionally omitted from the activity feed. */
+  questProgress?: { type: string; payload: QuestDataValue };
   /** Economic lines to record in the 0.7-E Back Office ledger. Omit for the action's home-cash delta fallback. */
   ledger?: EconomyLedgerWrite[];
   /**
@@ -481,7 +484,17 @@ export const ActionService = {
           outcome.activity.type,
           outcome.activity.payload,
         );
-      } else {
+      }
+      if (outcome.questProgress) {
+        await QuestProgressService.emit(tx, roundPlayerId, {
+          sourceKey: options.actionId
+            ? `action:${options.action}:${options.actionId}`
+            : `action:${options.action}:${roundPlayerId}:${now.toISOString()}`,
+          type: outcome.questProgress.type,
+          payload: outcome.questProgress.payload,
+          at: now,
+        });
+      } else if (!outcome.activity) {
         // Not every resource-changing action belongs in the player's feed.
         // Quests still need one authoritative post-action signal so state
         // objectives and explicitly scoped action objectives never miss it.

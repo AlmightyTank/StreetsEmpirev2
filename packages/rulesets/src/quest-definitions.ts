@@ -1,4 +1,4 @@
-import type { QuestDefinition, QuestDefinitionCatalog } from './types.js';
+import type { QuestDataObject, QuestDefinition, QuestDefinitionCatalog } from './types.js';
 
 export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string[] {
   const problems: string[] = [];
@@ -10,6 +10,19 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
     if (!quest.title.trim()) problems.push(`${catalogKey}: title is required`);
     if (!quest.description.trim()) problems.push(`${catalogKey}: description is required`);
     if (quest.objectives.length === 0) problems.push(`${catalogKey}: at least one objective is required`);
+    if (quest.type === 'SECRET') {
+      if (quest.repeatability !== 'ONCE') problems.push(`${catalogKey}: SECRET quests must be ONCE`);
+      if (quest.availability.hidden !== true) problems.push(`${catalogKey}: SECRET quests must set availability.hidden=true`);
+      const trigger = quest.availability.secretTrigger;
+      if (!trigger || typeof trigger !== 'object' || Array.isArray(trigger)) {
+        problems.push(`${catalogKey}: SECRET quests require availability.secretTrigger`);
+      } else {
+        const row = trigger as QuestDataObject;
+        if (typeof row.kind !== 'string' || !row.kind.trim()) {
+          problems.push(`${catalogKey}: SECRET secretTrigger requires kind`);
+        }
+      }
+    }
 
     for (const prerequisite of quest.prerequisites) {
       if (!prerequisite.kind.trim()) {
@@ -34,6 +47,25 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
         }
         if (typeof points !== 'number' || !Number.isFinite(points) || points <= 0) {
           problems.push(`${catalogKey}: CONTACT_REP_AT_LEAST requires positive points`);
+        }
+      }
+      if (prerequisite.kind === 'BRANCH_CHOSEN') {
+        const questKey = prerequisite.params?.questKey;
+        const branchKey = prerequisite.params?.branchKey;
+        if (typeof questKey !== 'string' || !questKey.trim()) {
+          problems.push(`${catalogKey}: BRANCH_CHOSEN requires questKey`);
+        } else if (!(questKey in catalog)) {
+          problems.push(`${catalogKey}: unknown branch source quest ${questKey}`);
+        } else if (questKey === quest.key) {
+          problems.push(`${catalogKey}: quest cannot branch-require itself`);
+        }
+        if (typeof branchKey !== 'string' || !branchKey.trim()) {
+          problems.push(`${catalogKey}: BRANCH_CHOSEN requires branchKey`);
+        } else if (typeof questKey === 'string' && questKey in catalog) {
+          const source = catalog[questKey];
+          if (!source?.branches?.some((branch) => branch.key === branchKey)) {
+            problems.push(`${catalogKey}: unknown branch ${questKey}/${branchKey}`);
+          }
         }
       }
     }
@@ -61,6 +93,42 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
       }
       if (reward.kind === 'PERMANENT_UNLOCK' && (!reward.key || !reward.key.trim())) {
         problems.push(`${catalogKey}: PERMANENT_UNLOCK reward requires a key`);
+      }
+    }
+
+    if (quest.branches?.length) {
+      if (quest.repeatability !== 'ONCE') {
+        problems.push(`${catalogKey}: branching quests must be ONCE`);
+      }
+      const branchKeys = new Set<string>();
+      for (const branch of quest.branches) {
+        if (!branch.key.trim()) problems.push(`${catalogKey}: branch key is required`);
+        if (branchKeys.has(branch.key)) problems.push(`${catalogKey}: duplicate branch ${branch.key}`);
+        branchKeys.add(branch.key);
+        if (!branch.title.trim()) problems.push(`${catalogKey}/${branch.key}: branch title is required`);
+        if (!branch.description.trim()) problems.push(`${catalogKey}/${branch.key}: branch description is required`);
+        for (const delta of branch.reputationDeltas) {
+          if (!Number.isSafeInteger(delta.amount) || delta.amount === 0) {
+            problems.push(`${catalogKey}/${branch.key}: reputation delta must be a non-zero whole number`);
+          }
+        }
+        for (const key of branch.followUpKeys) {
+          if (!(key in catalog)) problems.push(`${catalogKey}/${branch.key}: unknown branch follow-up ${key}`);
+          if (!quest.followUpKeys.includes(key)) problems.push(`${catalogKey}/${branch.key}: branch follow-up ${key} must be listed on the quest`);
+        }
+        for (const reward of branch.rewards) {
+          if (['CASH', 'TURNS', 'ITEM', 'CONTACT_REP', 'FAVOR_ITEM'].includes(reward.kind)) {
+            if (typeof reward.amount !== 'number' || !Number.isFinite(reward.amount) || reward.amount <= 0) {
+              problems.push(`${catalogKey}/${branch.key}: ${reward.kind} reward requires a positive amount`);
+            }
+          }
+          if (['ITEM', 'CONTACT_REP', 'FAVOR_ITEM', 'PERMANENT_UNLOCK'].includes(reward.kind) && (!reward.key || !reward.key.trim())) {
+            problems.push(`${catalogKey}/${branch.key}: ${reward.kind} reward requires a key`);
+          }
+          if (reward.kind === 'WEAPON_ACCESS' && !['SHOTGUN', 'TEK9', 'AK47'].includes(reward.key ?? '')) {
+            problems.push(`${catalogKey}/${branch.key}: WEAPON_ACCESS reward requires SHOTGUN, TEK9 or AK47`);
+          }
+        }
       }
     }
 

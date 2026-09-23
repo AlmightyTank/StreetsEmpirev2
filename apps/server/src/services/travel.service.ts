@@ -749,6 +749,17 @@ export const TravelService = {
               amountCents: -BigInt(trouble.fineCents),
             }] : []),
           ],
+          questProgress: {
+            type: 'RUN_TRADE',
+            payload: {
+              city,
+              product: input.product,
+              direction: input.direction,
+              venue: input.venue,
+              quantity: input.quantity,
+              totalCents: Number(totalCents),
+            },
+          },
         };
       },
     });

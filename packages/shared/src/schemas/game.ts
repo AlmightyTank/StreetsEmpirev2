@@ -142,7 +142,10 @@ export type WeaponUnlockInput = z.infer<typeof weaponUnlockSchema>;
 
 export const questKeySchema = z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,63}$/, 'Invalid quest.');
 export const questAcceptSchema = z.object({ actionId: actionIdSchema }).strict();
-export const questClaimSchema = z.object({ actionId: actionIdSchema }).strict();
+export const questClaimSchema = z.object({
+  actionId: actionIdSchema,
+  branchKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,63}$/, 'Invalid branch.').optional(),
+}).strict();
 export const questTrackSchema = z.object({ tracked: z.boolean() }).strict();
 export const questAbandonSchema = z.object({}).strict();
 export const favorActivateSchema = z.object({ actionId: actionIdSchema }).strict();

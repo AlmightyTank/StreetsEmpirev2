@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import {
   type ContactKey,
+  type QuestBranchDefinition,
   type QuestDefinition,
   type QuestObjectiveDefinition,
   type QuestProgressMap,
@@ -12,6 +13,8 @@ import type {
   GameActionResult,
   PlayerQuestDto,
   QuestClaimInput,
+  QuestBranchChoiceDto,
+  QuestBranchReputationDto,
   QuestClaimResult,
   QuestContactDto,
   QuestObjectiveDto,
@@ -36,6 +39,23 @@ import {
   syncWeeklyContractAttempts,
   weeklyContractWindow,
 } from './weekly-contract.service.js';
+import { syncSecretQuestAttempts } from './secret-quest.service.js';
+import {
+  CITY_CONTRACT_SLOTS,
+  cityContractObjectives,
+  cityContractRewards,
+  cityContractState,
+  cityContractWindow,
+  isDynamicCityContractDefinition,
+  syncCityContractAttempts,
+} from './city-contract.service.js';
+import {
+  acceptAllianceContract,
+  assertAllianceContractClaim,
+  isAllianceContractDefinition,
+  lockAllianceContractActor,
+  syncAllianceContractAttempts,
+} from './alliance-contract.service.js';
 
 const ACTIVE_LIMIT = 8;
 const TRACKED_LIMIT = 3;
@@ -62,6 +82,11 @@ function definitions(ruleset: Ruleset): QuestDefinition[] {
 
 function isWindowRepeatable(repeatability: QuestDefinition['repeatability']): boolean {
   return repeatability === 'DAILY' || repeatability === 'WEEKLY';
+}
+
+function preservesGeneratedOffer(row: QuestRow, ruleset: Ruleset): boolean {
+  return isWindowRepeatable(row.questDefinition.repeatability)
+    || isDynamicCityContractDefinition(ruleset.questDefinitions?.[row.questDefinition.key]);
 }
 
 function objectives(value: Prisma.JsonValue): QuestObjectiveDefinition[] {
@@ -127,9 +152,66 @@ function rewardDto(reward: QuestRewardDefinition, ruleset: Ruleset): QuestReward
   };
 }
 
+function branchReputationDto(
+  contactKey: string,
+  amount: number,
+  ruleset: Ruleset,
+): QuestBranchReputationDto {
+  const name = contactFor(ruleset, contactKey)?.shortName ?? contactKey;
+  return {
+    contactKey,
+    contactName: name,
+    amount,
+    label: `${amount > 0 ? '+' : ''}${amount} ${name} reputation`,
+  };
+}
+
+function branchesFor(row: QuestRow, ruleset: Ruleset): readonly QuestBranchDefinition[] {
+  return ruleset.questDefinitions?.[row.questDefinition.key]?.branches ?? [];
+}
+
+export function resolveQuestBranchForClaim(
+  definition: QuestDefinition,
+  branchKey: string | undefined,
+  chosenBranch: string | null,
+): QuestBranchDefinition | null {
+  const options = definition.branches ?? [];
+  if (!options.length) {
+    if (branchKey) {
+      throw AppError.conflict('QUEST_BRANCH_NOT_SUPPORTED', 'That job does not have a branch choice.');
+    }
+    return null;
+  }
+  if (!branchKey) {
+    throw AppError.conflict('QUEST_BRANCH_REQUIRED', 'Choose a side before collecting payment.');
+  }
+  const selected = options.find((branch) => branch.key === branchKey);
+  if (!selected) {
+    throw AppError.conflict('QUEST_BRANCH_INVALID', 'That choice is not available for this job.');
+  }
+  if (chosenBranch && chosenBranch !== selected.key) {
+    throw AppError.conflict('QUEST_BRANCH_LOCKED', 'That job already has a different committed choice.');
+  }
+  return selected;
+}
+
+function branchChoicesDto(row: QuestRow, ruleset: Ruleset): QuestBranchChoiceDto[] {
+  return branchesFor(row, ruleset).map((branch) => ({
+    key: branch.key,
+    title: branch.title,
+    description: branch.description,
+    rewards: branch.rewards.map((reward) => rewardDto(reward, ruleset)),
+    reputationDeltas: branch.reputationDeltas.map((delta) =>
+      branchReputationDto(delta.contactKey, delta.amount, ruleset)
+    ),
+  }));
+}
+
 function objectiveDtos(row: QuestRow): QuestObjectiveDto[] {
   const requiredProgress = progress(row.objectiveProgress);
   const bonusProgress = progress(row.bonusProgress);
+  const requiredDefinitions = cityContractObjectives(row.rewardState)
+    ?? objectives(row.questDefinition.objectives);
   const map = (objective: QuestObjectiveDefinition, bonus: boolean): QuestObjectiveDto => {
     const saved = (bonus ? bonusProgress : requiredProgress)[objective.id];
     return {
@@ -144,18 +226,21 @@ function objectiveDtos(row: QuestRow): QuestObjectiveDto[] {
     };
   };
   return [
-    ...objectives(row.questDefinition.objectives).map((objective) => map(objective, false)),
+    ...requiredDefinitions.map((objective) => map(objective, false)),
     ...objectives(row.questDefinition.bonusObjectives).map((objective) => map(objective, true)),
   ];
 }
 
 function questDto(row: QuestRow, ruleset: Ruleset): PlayerQuestDto {
   const contact = contactFor(ruleset, row.questDefinition.contactKey);
+  const cityState = cityContractState(row.rewardState);
+  const resolvedRewards = cityContractRewards(row.rewardState)
+    ?? rewards(row.questDefinition.rewards);
   return {
     key: row.questDefinition.key,
     attempt: row.attempt,
-    title: row.questDefinition.title,
-    description: row.questDefinition.description,
+    title: cityState?.title ?? row.questDefinition.title,
+    description: cityState?.description ?? row.questDefinition.description,
     contactKey: row.questDefinition.contactKey,
     contactName: contact?.shortName ?? null,
     type: row.questDefinition.type,
@@ -163,8 +248,10 @@ function questDto(row: QuestRow, ruleset: Ruleset): PlayerQuestDto {
     difficulty: row.questDefinition.difficulty,
     status: row.status,
     isTracked: row.isTracked,
+    chosenBranch: row.chosenBranch,
+    branchChoices: branchChoicesDto(row, ruleset),
     objectives: objectiveDtos(row),
-    rewards: rewards(row.questDefinition.rewards).map((reward) => rewardDto(reward, ruleset)),
+    rewards: resolvedRewards.map((reward) => rewardDto(reward, ruleset)),
     acceptedAt: row.acceptedAt?.toISOString() ?? null,
     completedAt: row.completedAt?.toISOString() ?? null,
     claimedAt: row.claimedAt?.toISOString() ?? null,
@@ -196,10 +283,11 @@ async function addContactRep(db: Db, roundPlayerId: string, contact: string, amo
   return points;
 }
 
-function prerequisitesMet(
+export function questPrerequisitesMet(
   definition: QuestDefinition,
   completed: ReadonlySet<string>,
   reps: Readonly<Record<string, number>>,
+  chosenBranches: Readonly<Record<string, string>>,
 ): boolean {
   return definition.prerequisites.every((prerequisite) => {
     if (prerequisite.kind === 'QUEST_COMPLETED') {
@@ -210,6 +298,13 @@ function prerequisitesMet(
       const key = prerequisite.params?.contactKey;
       const points = prerequisite.params?.points;
       return typeof key === 'string' && typeof points === 'number' && (reps[key] ?? 0) >= points;
+    }
+    if (prerequisite.kind === 'BRANCH_CHOSEN') {
+      const questKey = prerequisite.params?.questKey;
+      const branchKey = prerequisite.params?.branchKey;
+      return typeof questKey === 'string'
+        && typeof branchKey === 'string'
+        && chosenBranches[questKey] === branchKey;
     }
     return false;
   });
@@ -283,7 +378,13 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
     include: { questDefinition: true },
     orderBy: { attempt: 'desc' },
   });
-  const completed = new Set(existing.filter((row) => row.status === 'COMPLETED').map((row) => row.questDefinition.key));
+  const completedRows = existing.filter((row) => row.status === 'COMPLETED');
+  const completed = new Set(completedRows.map((row) => row.questDefinition.key));
+  const chosenBranches = Object.fromEntries(
+    completedRows
+      .filter((row) => row.chosenBranch)
+      .map((row) => [row.questDefinition.key, row.chosenBranch!]),
+  );
   const reps = await contactPoints(db, roundPlayerId, ruleset);
   const newlyAvailable: string[] = [];
 
@@ -295,9 +396,12 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
     if (
       (definition.type === 'DAILY' && definition.repeatability === 'DAILY')
       || (definition.type === 'WEEKLY' && definition.repeatability === 'WEEKLY')
+      || definition.type === 'SECRET'
+      || isDynamicCityContractDefinition(definition)
+      || isAllianceContractDefinition(definition)
     ) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
-    const available = prerequisitesMet(definition, completed, reps);
+    const available = questPrerequisitesMet(definition, completed, reps, chosenBranches);
     if (!current) {
       await db.playerQuest.create({
         data: {
@@ -315,6 +419,9 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
 
   await syncDailyContractAttempts(db, roundPlayerId, ruleset, now);
   await syncWeeklyContractAttempts(db, roundPlayerId, ruleset, now);
+  newlyAvailable.push(...await syncCityContractAttempts(db, roundPlayerId, ruleset, now));
+  newlyAvailable.push(...await syncAllianceContractAttempts(db, roundPlayerId, ruleset, now));
+  newlyAvailable.push(...await syncSecretQuestAttempts(db, roundPlayerId, ruleset));
   return newlyAvailable;
 }
 
@@ -381,6 +488,8 @@ export const HandcraftedQuestService = {
         (definition) => definition.type === 'WEEKLY' && definition.repeatability === 'WEEKLY',
       );
       const weeklyWindow = weeklyEnabled ? weeklyContractWindow(now, ruleset) : null;
+      const cityEnabled = definitions(ruleset).some(isDynamicCityContractDefinition);
+      const cityWindow = cityEnabled ? cityContractWindow(now) : null;
       const rows = await tx.playerQuest.findMany({
         where: {
           roundPlayerId,
@@ -447,11 +556,19 @@ export const HandcraftedQuestService = {
           slots: weeklyEnabled ? WEEKLY_CONTRACT_SLOTS : 0,
           resetAt: weeklyWindow?.endsAt.toISOString() ?? null,
         },
+        cityContracts: {
+          enabled: cityEnabled,
+          slots: cityEnabled ? CITY_CONTRACT_SLOTS : 0,
+          resetAt: cityWindow?.endsAt.toISOString() ?? null,
+        },
         activeLimit: ACTIVE_LIMIT,
         trackedLimit: TRACKED_LIMIT,
         counts: {
           available: rows.filter((row) => row.status === 'AVAILABLE').length,
-          active: rows.filter((row) => ['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)).length,
+          active: rows.filter((row) =>
+            row.questDefinition.type !== 'ALLIANCE'
+            && ['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)
+          ).length,
           ready: rows.filter((row) => row.status === 'READY_TO_TURN_IN').length,
           completed: rows.filter((row) => row.status === 'COMPLETED').length,
         },
@@ -467,19 +584,47 @@ export const HandcraftedQuestService = {
 
   async accept(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, key: string): Promise<QuestPageDto> {
     await syncDefinitions(prisma, ruleset);
+    const allianceContract = isAllianceContractDefinition(ruleset.questDefinitions?.[key]);
+    const expectedAllianceId = allianceContract
+      ? (await prisma.roundPlayer.findUnique({
+          where: { id: roundPlayerId },
+          select: { allianceId: true },
+        }))?.allianceId ?? null
+      : null;
+    if (allianceContract && !expectedAllianceId) {
+      throw AppError.conflict('ALLIANCE_REQUIRED', 'Join an alliance before starting an alliance contract.');
+    }
+
     await prisma.$transaction(async (tx) => {
-      await lockRoundPlayer(tx, roundPlayerId);
+      if (allianceContract) {
+        await lockAllianceContractActor(tx, roundPlayerId, expectedAllianceId!);
+      } else {
+        await lockRoundPlayer(tx, roundPlayerId);
+      }
       await refreshAvailability(tx, roundPlayerId, ruleset);
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (row.status === 'ACTIVE' || row.status === 'READY_TO_TURN_IN') return;
       if (row.status !== 'AVAILABLE') throw AppError.conflict('QUEST_NOT_AVAILABLE', 'That job is not available yet.');
-      const active = await tx.playerQuest.count({ where: { roundPlayerId, status: { in: ['ACTIVE', 'READY_TO_TURN_IN'] } } });
-      if (active >= ACTIVE_LIMIT) throw AppError.conflict('QUEST_ACTIVE_LIMIT', `You can only have ${ACTIVE_LIMIT} active jobs at once.`);
+      if (!allianceContract) {
+        const active = await tx.playerQuest.count({
+          where: {
+            roundPlayerId,
+            status: { in: ['ACTIVE', 'READY_TO_TURN_IN'] },
+            questDefinition: { type: { not: 'ALLIANCE' } },
+          },
+        });
+        if (active >= ACTIVE_LIMIT) throw AppError.conflict('QUEST_ACTIVE_LIMIT', `You can only have ${ACTIVE_LIMIT} active jobs at once.`);
+      }
       const tracked = await tx.playerQuest.count({ where: { roundPlayerId, isTracked: true } });
       const acceptedAt = new Date();
       if (row.expiresAt && row.expiresAt.getTime() <= acceptedAt.getTime()) {
         throw AppError.conflict('QUEST_EXPIRED', 'That contract expired at reset. Refresh the board for new work.');
       }
+      if (allianceContract) {
+        await acceptAllianceContract(tx, roundPlayerId, ruleset, key, acceptedAt, tracked < TRACKED_LIMIT);
+        return;
+      }
+      const preserveOffer = preservesGeneratedOffer(row, ruleset);
       await tx.playerQuest.update({
         where: { id: row.id },
         data: {
@@ -490,8 +635,8 @@ export const HandcraftedQuestService = {
           failedAt: null,
           objectiveProgress: {},
           bonusProgress: {},
-          rewardState: isWindowRepeatable(row.questDefinition.repeatability) ? inputJson(row.rewardState) : {},
-          expiresAt: isWindowRepeatable(row.questDefinition.repeatability)
+          rewardState: preserveOffer ? inputJson(row.rewardState) : {},
+          expiresAt: preserveOffer
             ? row.expiresAt
             : row.questDefinition.expiresAfterMinutes
               ? new Date(acceptedAt.getTime() + row.questDefinition.expiresAfterMinutes * 60_000)
@@ -516,7 +661,14 @@ export const HandcraftedQuestService = {
       await refreshAvailability(tx, roundPlayerId, ruleset);
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (!['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)) throw AppError.conflict('QUEST_NOT_ACTIVE', 'That job is not active.');
+      if (isAllianceContractDefinition(ruleset.questDefinitions?.[row.questDefinition.key])) {
+        throw AppError.conflict(
+          'ALLIANCE_CONTRACT_SHARED',
+          'Alliance contracts cannot be abandoned individually after the shared roster starts.',
+        );
+      }
       await tx.questProgressReceipt.deleteMany({ where: { playerQuestId: row.id } });
+      const preserveOffer = preservesGeneratedOffer(row, ruleset);
       await tx.playerQuest.update({
         where: { id: row.id },
         data: {
@@ -524,10 +676,10 @@ export const HandcraftedQuestService = {
           isTracked: false,
           acceptedAt: null,
           completedAt: null,
-          expiresAt: isWindowRepeatable(row.questDefinition.repeatability) ? row.expiresAt : null,
+          expiresAt: preserveOffer ? row.expiresAt : null,
           objectiveProgress: {},
           bonusProgress: {},
-          rewardState: isWindowRepeatable(row.questDefinition.repeatability) ? inputJson(row.rewardState) : {},
+          rewardState: preserveOffer ? inputJson(row.rewardState) : {},
         },
       });
     });
@@ -568,8 +720,34 @@ export const HandcraftedQuestService = {
         }
         if (row.status !== 'READY_TO_TURN_IN') throw AppError.conflict('QUEST_NOT_READY', 'Finish the job before collecting payment.');
 
+        const rulesetDefinition = ruleset.questDefinitions?.[row.questDefinition.key];
+        if (!rulesetDefinition) {
+          throw AppError.conflict('QUEST_DEFINITION_MISSING', 'That job is not available in this ruleset.');
+        }
+        if (isAllianceContractDefinition(rulesetDefinition)) {
+          await assertAllianceContractClaim(tx, roundPlayerId, row.rewardState);
+        }
+        const selectedBranch = resolveQuestBranchForClaim(
+          rulesetDefinition,
+          input.branchKey,
+          row.chosenBranch,
+        );
+
         const next: PlayerState = { ...current };
-        const questRewards = rewards(row.questDefinition.rewards);
+        const reputationChanges = selectedBranch?.reputationDeltas.map((delta) =>
+          branchReputationDto(delta.contactKey, delta.amount, ruleset)
+        ) ?? [];
+        for (const delta of selectedBranch?.reputationDeltas ?? []) {
+          if (!ruleset.contacts?.[delta.contactKey]) {
+            throw AppError.conflict('QUEST_BRANCH_INVALID', 'That branch has an invalid contact consequence.');
+          }
+          await addContactRep(tx, roundPlayerId, delta.contactKey, delta.amount);
+        }
+
+        const questRewards = [
+          ...(cityContractRewards(row.rewardState) ?? rewards(row.questDefinition.rewards)),
+          ...(selectedBranch?.rewards ?? []),
+        ];
         for (const reward of questRewards) {
           if (reward.kind === 'CONTACT_REP') {
             if (!reward.key || !ruleset.contacts?.[reward.key as ContactKey]) {
@@ -594,7 +772,12 @@ export const HandcraftedQuestService = {
 
         await tx.playerQuest.update({
           where: { id: row.id },
-          data: { status: 'COMPLETED', claimedAt: now, isTracked: false },
+          data: {
+            status: 'COMPLETED',
+            claimedAt: now,
+            isTracked: false,
+            chosenBranch: selectedBranch?.key ?? row.chosenBranch,
+          },
         });
         const newlyAvailable = await refreshAvailability(tx, roundPlayerId, ruleset, now);
         const dtoRewards = questRewards.map((reward) => rewardDto(reward, ruleset));
@@ -603,17 +786,21 @@ export const HandcraftedQuestService = {
           next,
           result: {
             questKey: key,
-            title: row.questDefinition.title,
+            title: cityContractState(row.rewardState)?.title ?? row.questDefinition.title,
+            chosenBranch: selectedBranch?.key ?? row.chosenBranch,
             rewards: dtoRewards,
+            reputationChanges,
             newlyAvailable,
           },
           activity: {
             type: 'QUEST_CLAIMED',
             payload: inputJson({
               questKey: key,
-              title: row.questDefinition.title,
+              title: cityContractState(row.rewardState)?.title ?? row.questDefinition.title,
               contactKey: row.questDefinition.contactKey,
+              chosenBranch: selectedBranch?.key ?? row.chosenBranch,
               rewards: dtoRewards.map((reward) => reward.label),
+              reputationChanges: reputationChanges.map((change) => change.label),
               newlyAvailable,
             }),
           },

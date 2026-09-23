@@ -9,10 +9,10 @@ export const questsApi = {
     api.post<QuestPageDto>('/game/quests/' + encodeURIComponent(key) + '/abandon', {}),
   track: (key: string, tracked: boolean) =>
     api.post<QuestPageDto>('/game/quests/' + encodeURIComponent(key) + '/track', { tracked }),
-  claim: (key: string, actionId: string) =>
+  claim: (key: string, actionId: string, branchKey?: string) =>
     api.post<GameActionResult<QuestClaimResult>>(
       '/game/quests/' + encodeURIComponent(key) + '/claim',
-      { actionId },
+      { actionId, ...(branchKey ? { branchKey } : {}) },
     ),
   activateFavor: (key: string, actionId: string) =>
     api.post<GameActionResult<FavorActivationResult>>(
