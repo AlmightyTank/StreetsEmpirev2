@@ -37,8 +37,9 @@ describe('ruleset loader', () => {
 
   it('knows which ids it can serve', () => {
     expect(isKnownRulesetId('classic-og-v0.1')).toBe(true);
+    expect(isKnownRulesetId('classic-og-v0.7-v')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(44);
+    expect(listRulesets()).toHaveLength(45);
   });
 });
 
