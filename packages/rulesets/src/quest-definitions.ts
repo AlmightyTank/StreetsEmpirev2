@@ -24,6 +24,51 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
       }
     }
 
+    const personalContribution = quest.availability.personalContribution;
+    if (personalContribution !== undefined) {
+      if (quest.type !== 'ALLIANCE') {
+        problems.push(`${catalogKey}: personalContribution is only supported for ALLIANCE quests`);
+      }
+      if (!personalContribution || typeof personalContribution !== 'object' || Array.isArray(personalContribution)) {
+        problems.push(`${catalogKey}: personalContribution must be an object`);
+      } else {
+        const row = personalContribution as QuestDataObject;
+        const kind = row.kind;
+        if (typeof row.id !== 'string' || !row.id.trim()) {
+          problems.push(`${catalogKey}: personalContribution requires id`);
+        }
+        if (kind !== 'EVENT_COUNT' && kind !== 'EVENT_SUM') {
+          problems.push(`${catalogKey}: personalContribution kind must be EVENT_COUNT or EVENT_SUM`);
+        }
+        if (typeof row.description !== 'string' || !row.description.trim()) {
+          problems.push(`${catalogKey}: personalContribution requires description`);
+        }
+        if (typeof row.label !== 'string' || !row.label.trim()) {
+          problems.push(`${catalogKey}: personalContribution requires label`);
+        }
+        if (typeof row.target !== 'number' || !Number.isFinite(row.target) || row.target <= 0) {
+          problems.push(`${catalogKey}: personalContribution target must be greater than zero`);
+        }
+        const params = row.params;
+        if (!params || typeof params !== 'object' || Array.isArray(params)) {
+          problems.push(`${catalogKey}: personalContribution requires params`);
+        } else {
+          const config = params as QuestDataObject;
+          const eventTypes = config.eventTypes;
+          if (
+            !Array.isArray(eventTypes)
+            || eventTypes.length === 0
+            || eventTypes.some((value) => typeof value !== 'string' || !value.trim())
+          ) {
+            problems.push(`${catalogKey}: personalContribution eventTypes must be a non-empty string array`);
+          }
+          if (kind === 'EVENT_SUM' && (typeof config.field !== 'string' || !config.field.trim())) {
+            problems.push(`${catalogKey}: EVENT_SUM personalContribution requires a field`);
+          }
+        }
+      }
+    }
+
     for (const prerequisite of quest.prerequisites) {
       if (!prerequisite.kind.trim()) {
         problems.push(`${catalogKey}: prerequisite kind is required`);
