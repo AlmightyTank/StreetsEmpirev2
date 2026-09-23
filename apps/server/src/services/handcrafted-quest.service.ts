@@ -284,6 +284,16 @@ function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEve
     branchChoices: branchChoicesDto(row, ruleset),
     objectives: objectiveDtos(row, communityEvent),
     rewards: resolvedRewards.map((reward) => rewardDto(reward, ruleset)),
+    ...(row.questDefinition.availability.seasonalEvent ? {
+      seasonalEvent: {
+        eventKey: row.questDefinition.availability.seasonalEvent.eventKey,
+        label: typeof row.questDefinition.availability.eventLabel === 'string'
+          ? row.questDefinition.availability.eventLabel
+          : null,
+        startsAt: row.questDefinition.availability.seasonalEvent.startsAt,
+        endsAt: row.questDefinition.availability.seasonalEvent.endsAt,
+      },
+    } : {}),
     ...(communityEvent ? {
       communityEvent: {
         startsAt: communityEvent.state.windowStart,
