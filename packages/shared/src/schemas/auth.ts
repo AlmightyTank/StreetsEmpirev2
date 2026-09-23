@@ -63,13 +63,27 @@ export const verifyEmailTokenSchema = z.object({
   token: z.string().trim().min(32, 'Open the full email verification link.'),
 });
 
-export const profileAccentSchema = z.enum(['default', 'crimson', 'gold', 'green', 'blue', 'purple']);
+export const profileAccentSchema = z.enum([
+  'default',
+  'crimson',
+  'gold',
+  'green',
+  'blue',
+  'purple',
+  'ghost-violet',
+  'top-shelf-teal',
+  'enforcer-red',
+  'open-road-blue',
+  'clean-slate-ice',
+  'corner-amber',
+]);
 export const uiDensitySchema = z.enum(['comfortable', 'compact']);
 export const moneyFormatSchema = z.enum(['full', 'compact']);
 export const defaultLandingSchema = z.enum(['game', 'profile', 'rankings', 'news']);
 
 export const updateAccountProfileSettingsSchema = z.object({
   activeTitleKey: z.string().trim().min(1).max(80).nullable(),
+  activeProfileFrameKey: z.string().trim().min(1).max(80).nullable(),
   featuredBadgeKeys: z.array(z.string().trim().min(1).max(80)).max(6),
   profileAccent: profileAccentSchema,
   uiDensity: uiDensitySchema,

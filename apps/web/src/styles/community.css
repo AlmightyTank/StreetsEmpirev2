@@ -34,7 +34,7 @@
 .se-table__number { text-align: right !important; }
 
 .se-rank-you td {
-  background: rgba(182, 255, 58, 0.055);
+  background: rgba(var(--se-accent-rgb), 0.055);
 }
 
 .se-rank-you td:first-child {
@@ -236,7 +236,7 @@
 .se-citymap { display: block; width: 100%; height: auto; max-height: 340px; padding: 8px 4px 0; }
 .se-citymap__road { stroke: var(--se-line); stroke-width: 2.5; stroke-linecap: round; }
 .se-citymap__road--police { stroke-dasharray: 6 4; }
-.se-citymap__road--on { stroke: rgba(182, 255, 58, 0.55); }
+.se-citymap__road--on { stroke: rgba(var(--se-accent-rgb), 0.55); }
 .se-citymap__city { cursor: pointer; outline: none; }
 .se-citymap__hit { fill: transparent; }
 .se-citymap__dot { fill: var(--se-text-dim); stroke: var(--se-panel); stroke-width: 2; }
@@ -316,7 +316,7 @@
 .se-turfmap__block--urban-ghetto { grid-area: urban-ghetto; }
 .se-turfmap__block--wino-slums { grid-area: wino-slums; }
 .se-turfmap__block--held { border-top-color: var(--se-warn); background: rgba(255, 188, 68, 0.035); }
-.se-turfmap__block--mine { border-top-color: var(--se-accent); background: rgba(182, 255, 58, 0.055); }
+.se-turfmap__block--mine { border-top-color: var(--se-accent); background: rgba(var(--se-accent-rgb), 0.055); }
 .se-turfmap__district {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -352,7 +352,7 @@
   border-radius: 6px;
   font-size: 13px;
 }
-.se-turfblocks__block--held { border-left-color: var(--se-accent); background: rgba(182, 255, 58, 0.035); }
+.se-turfblocks__block--held { border-left-color: var(--se-accent); background: rgba(var(--se-accent-rgb), 0.035); }
 .se-turfblocks__block > span { min-width: 0; overflow-wrap: anywhere; }
 .se-turfblocks__block .se-hint { grid-column: 1 / -1; margin: 0; }
 @media (max-width: 520px) {
@@ -375,7 +375,7 @@
 
 /* --- 0.5.0-B Travel ------------------------------------------------------------ */
 
-.se-citymap__run-glow { fill: rgba(182, 255, 58, 0.25); }
+.se-citymap__run-glow { fill: rgba(var(--se-accent-rgb), 0.25); }
 .se-citymap__run-dot { fill: var(--se-accent); stroke: #0b0c0e; stroke-width: 1.5; }
 .se-city__seen { color: var(--se-text-dim); letter-spacing: 0.04em; text-transform: none; font-weight: 600; }
 
@@ -391,7 +391,7 @@
   cursor: pointer;
 }
 .se-routes__route input { grid-row: span 2; accent-color: var(--se-accent); }
-.se-routes__route--on { border-color: rgba(182, 255, 58, 0.5); background: rgba(182, 255, 58, 0.05); }
+.se-routes__route--on { border-color: rgba(var(--se-accent-rgb), 0.5); background: rgba(var(--se-accent-rgb), 0.05); }
 .se-routes__way { font-weight: 600; font-size: 13px; }
 .se-routes__meta { font-size: 12px; color: var(--se-text-dim); }
 
@@ -421,7 +421,7 @@
 
 .se-towncounter__row { width: 100%; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .se-towncounter__row:disabled { cursor: default; opacity: 0.6; }
-.se-towncounter__row--on { background: rgba(182, 255, 58, 0.06); box-shadow: inset 2px 0 0 var(--se-accent); }
+.se-towncounter__row--on { background: rgba(var(--se-accent-rgb), 0.06); box-shadow: inset 2px 0 0 var(--se-accent); }
 .se-towncounter__form { display: grid; gap: 8px; margin-top: 10px; }
 .se-towncounter__form .se-seg { margin-bottom: 0; justify-self: start; }
 .se-moveon { margin-top: 6px; }
@@ -521,7 +521,7 @@
   background: rgba(255, 255, 255, 0.016);
 }
 .se-turfboard__block--held { border-left-color: var(--se-warn); }
-.se-turfboard__block--mine { border-left-color: var(--se-accent); background: rgba(182, 255, 58, 0.04); }
+.se-turfboard__block--mine { border-left-color: var(--se-accent); background: rgba(var(--se-accent-rgb), 0.04); }
 .se-turfboard__block--vacant { border-left-style: dashed; }
 .se-turfboard__head {
   display: flex;

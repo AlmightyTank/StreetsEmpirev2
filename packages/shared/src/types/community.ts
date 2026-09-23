@@ -154,6 +154,7 @@ export interface PublicPlayerProfileDto {
   cosmetics: {
     title: string | null;
     accent: ProfileAccent;
+    frame: string | null;
   };
   publicPimpId: number;
   displayName: string;

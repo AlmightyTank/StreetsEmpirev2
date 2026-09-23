@@ -94,9 +94,10 @@ model AccountProfile {
   accountId String  @id
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  activeTitleKey    String?
-  featuredBadgeKeys Json    @default("[]")
-  profileAccent     String  @default("default")
+  activeTitleKey        String?
+  activeProfileFrameKey String?
+  featuredBadgeKeys     Json    @default("[]")
+  profileAccent         String  @default("default")
   uiDensity         String  @default("comfortable")
   reducedMotion     Boolean @default(false)
   moneyFormat       String  @default("full")
@@ -118,6 +119,7 @@ model AccountCosmeticUnlock {
   title       String
   description String
   rarity      String
+  styleKey    String?
 
   sourceQuestKey       String
   sourceRulesetId      String

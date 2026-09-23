@@ -335,7 +335,7 @@ export function ProfilePage() {
 
   return (
     <GameLayout>
-      <div className={`se-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}`}>
+      <div className={`se-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}${player?.cosmetics.frame ? ` se-profile-frame se-profile-frame--${player.cosmetics.frame}` : ''}`}>
         <div>
           <h1 className="se-title">
             {player ? <AllianceTag alliance={player.alliance} /> : null}

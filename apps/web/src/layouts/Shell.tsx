@@ -192,7 +192,7 @@ export function Shell({ children, narrow, tabbar }: {
   }
 
   return (
-    <div className={`se-app se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}`}>
+    <div className={`se-app se-site-accent--${settings.profileAccent} se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}`}>
       <InstallBanner />
 
       <header className="se-topbar">
