@@ -229,6 +229,66 @@ export interface AdminAccountDeleteResultDto {
   sessionsRevoked: number;
 }
 
+export type AdminQuestStatus = 'LOCKED' | 'AVAILABLE' | 'ACTIVE' | 'READY_TO_TURN_IN' | 'COMPLETED' | 'FAILED' | 'EXPIRED';
+
+export interface AdminPlayerQuestDto {
+  id: string;
+  key: string;
+  title: string;
+  type: string;
+  category: string;
+  attempt: number;
+  status: AdminQuestStatus;
+  isTracked: boolean;
+  isEnabled: boolean;
+  objectiveProgress: unknown;
+  bonusProgress: unknown;
+  chosenBranch: string | null;
+  rewardState: unknown;
+  acceptedAt: string | null;
+  completedAt: string | null;
+  claimedAt: string | null;
+  failedAt: string | null;
+  expiresAt: string | null;
+  updatedAt: string;
+}
+
+export interface AdminQuestCatalogRowDto {
+  key: string;
+  title: string;
+  description: string;
+  type: string;
+  category: string;
+  difficulty: string;
+  repeatability: string;
+  isEnabled: boolean;
+  attempts: number;
+  openAttempts: number;
+}
+
+export interface AdminFavorCatalogRowDto {
+  key: string;
+  name: string;
+  description: string;
+  contactKey: string;
+  activationKind: 'TIMED' | 'SINGLE_USE';
+  category: string;
+  durationMinutes: number | null;
+  effectKind: string | null;
+  isEnabled: boolean;
+}
+
+export interface AdminQuestContentDto {
+  now: string;
+  round: { id: string; name: string; status: RoundStatus; rulesetVersion: string };
+  rotations: {
+    daily: { keys: string[]; resetAt: string | null; slots: number };
+    weekly: { keys: string[]; resetAt: string | null; slots: number };
+  };
+  quests: AdminQuestCatalogRowDto[];
+  favors: AdminFavorCatalogRowDto[];
+}
+
 /** Read-only player state as stored. Turns are as of the last settlement, not regenerated. */
 export interface AdminPlayerDto {
   roundPlayerId: string;
@@ -277,6 +337,8 @@ export interface AdminPlayerDto {
     category: string;
     armedAt: string;
   }>;
+  /** Latest-first support view of every quest attempt for this player. */
+  quests: AdminPlayerQuestDto[];
   happiness: { whores: number; thugs: number };
   /** 0.4.0-C. Stored Heat, as of the player's last settle. Null on rounds without Heat. */
   heat: number | null;
