@@ -19,11 +19,6 @@ const ACTIVE_STATUSES = ['ACTIVE', 'READY_TO_TURN_IN'] as const;
 const PERSONAL_CONTRIBUTION_KINDS = new Set<QuestObjectiveKind>([
   'EVENT_COUNT',
   'EVENT_SUM',
-  'SPEND_TURNS',
-  'EARN_CASH',
-  'RECRUIT_CREW',
-  'WIN_EVENTS',
-  'UNIQUE_VALUES',
 ]);
 
 export interface AllianceContractState {
