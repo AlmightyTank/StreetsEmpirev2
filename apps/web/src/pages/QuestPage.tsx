@@ -33,13 +33,6 @@ function tabFromSearch(search: string): Tab {
     : 'available';
 }
 
-function formatObjective(objective: PlayerQuestDto['objectives'][number]): string {
-  if (objective.kind === 'EARN_CASH' || objective.format === 'CURRENCY') {
-    return formatCents(objective.current) + ' / ' + formatCents(objective.target);
-  }
-  return formatNumber(objective.current) + ' / ' + formatNumber(objective.target);
-}
-
 function statusLabel(quest: PlayerQuestDto): string {
   switch (quest.status) {
     case 'READY_TO_TURN_IN': return 'Ready to collect';
