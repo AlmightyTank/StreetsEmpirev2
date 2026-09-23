@@ -23,8 +23,11 @@ describe('Phase Y-D global accents and profile frames', () => {
   it('gives every appearance cosmetic a stable style key', () => {
     const appearance = Object.values(classicOgV07Y.cosmetics ?? {})
       .filter((cosmetic) => cosmetic.kind === 'ACCENT' || cosmetic.kind === 'PROFILE_FRAME');
-    expect(appearance.every((cosmetic) => 'styleKey' in cosmetic && Boolean(cosmetic.styleKey))).toBe(true);
-    expect(new Set(appearance.map((cosmetic) => cosmetic.styleKey)).size).toBe(12);
+    const styleKeys = appearance.map((cosmetic) =>
+      'styleKey' in cosmetic ? cosmetic.styleKey : undefined,
+    );
+    expect(styleKeys.every(Boolean)).toBe(true);
+    expect(new Set(styleKeys).size).toBe(12);
   });
 
   it('awards matching accent and frame pairs from each one-time Contact finale', () => {
