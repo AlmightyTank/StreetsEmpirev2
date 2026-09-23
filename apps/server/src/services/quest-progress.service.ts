@@ -13,6 +13,7 @@ import { createPlayerActivity } from './in-app-notification.service.js';
 import { cityContractObjectives, cityContractState } from './city-contract.service.js';
 import { allianceContractProgressCandidateIds } from './alliance-contract.service.js';
 import {
+  isCommunityEventDefinition,
   refreshCommunityEventReadinessForPlayer,
   syncCommunityEventAttemptsForPlayer,
 } from './community-event.service.js';
@@ -317,8 +318,11 @@ export const QuestProgressService = {
 
       if (!required.changed && !bonus.changed) continue;
 
-      const becameReady = playerQuest.status === 'ACTIVE' && required.completed;
-      const becameUnready = playerQuest.status === 'READY_TO_TURN_IN' && !required.completed;
+      const communityEvent = isCommunityEventDefinition(
+        communityRuleset?.questDefinitions?.[playerQuest.questDefinition.key],
+      );
+      const becameReady = !communityEvent && playerQuest.status === 'ACTIVE' && required.completed;
+      const becameUnready = !communityEvent && playerQuest.status === 'READY_TO_TURN_IN' && !required.completed;
       await db.playerQuest.update({
         where: { id: playerQuest.id },
         data: {
