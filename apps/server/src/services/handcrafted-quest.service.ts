@@ -343,7 +343,7 @@ export function questPrerequisitesMet(
   });
 }
 
-async function syncDefinitions(db: Db | PrismaClient, ruleset: Ruleset): Promise<void> {
+export async function syncDefinitions(db: Db | PrismaClient, ruleset: Ruleset): Promise<void> {
   for (const definition of definitions(ruleset)) {
     await db.questDefinition.upsert({
       where: {
@@ -387,7 +387,6 @@ async function syncDefinitions(db: Db | PrismaClient, ruleset: Ruleset): Promise
         availability: inputJson(definition.availability),
         repeatability: definition.repeatability,
         expiresAfterMinutes: definition.expiresAfterMinutes,
-        isEnabled: true,
       },
     });
   }
@@ -469,6 +468,7 @@ async function loadQuest(db: Db, roundPlayerId: string, ruleset: Ruleset, key: s
         rulesetId: ruleset.meta.id,
         rulesetVersion: ruleset.meta.version,
         key,
+        isEnabled: true,
       },
     },
     include: { questDefinition: true },
