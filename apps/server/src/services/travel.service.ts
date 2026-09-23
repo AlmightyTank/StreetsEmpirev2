@@ -57,6 +57,7 @@ import { ActivityService } from './activity.service.js';
 import { HighMarketService } from './high-market.service.js';
 import { hideoutGarageRunLimit, hideoutWeaponPriority } from './hideout.service.js';
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
+import { SingleUseFavorService } from './single-use-favor.service.js';
 import {
   RUN_INCLUDE,
   awayWorth,
@@ -513,6 +514,13 @@ export const TravelService = {
           throw AppError.badRequest('TRUNK_FULL', `${input.lowRiders} Low-Rider${input.lowRiders === 1 ? '' : 's'} carry ${capacity} units including beer.`, { cargo: `At most ${capacity} total units.` });
         }
 
+        const openRoad = await SingleUseFavorService.matching(
+          tx,
+          roundPlayerId,
+          ruleset,
+          'CLEAR_FIRST_ROAD_STOP',
+        );
+
         // Crack leaves on the column with everything else in `next`; other products are rows.
         const rows = Object.fromEntries(Object.entries(fromHome).filter(([key]) => key !== CRACK).map(([key, quantity]) => [key, -quantity]));
         if (Object.keys(rows).length) await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, rows);
@@ -533,6 +541,8 @@ export const TravelService = {
             startBeer: input.beer,
             turnsSpent: plan.turns,
             launchedAt: now,
+            // Wheels' Open Road treats the outbound stop as already checked.
+            roadChecks: openRoad ? 1 : 0,
             cargo: { create: productKeys(ruleset).filter((key) => (cargo[key] ?? 0) > 0).map((key) => ({ productKey: key, quantity: cargo[key]!, startQuantity: cargo[key]! })) },
           },
         });
@@ -542,6 +552,7 @@ export const TravelService = {
             data: { runId: run.id, city: player.city.slug, productKey: trade.productKey, direction: 'buy', venue: 'market', quantity: trade.quantity, unitCents: trade.unitCents, totalCents: trade.totalCents, createdAt: now },
           });
         }
+        if (openRoad) await SingleUseFavorService.consume(tx, openRoad.id);
 
         const [out, home] = plan.stops;
         const result: RunLaunchResult = {
@@ -583,7 +594,14 @@ export const TravelService = {
             label: `Home market buy · ${productName(ruleset, trade.productKey)}`,
             amountCents: -trade.totalCents,
           })),
-          activity: { type: 'RUN_LAUNCHED', payload: { ...result, cities: [cityName(ruleset, input.to)] } },
+          activity: {
+            type: 'RUN_LAUNCHED',
+            payload: {
+              ...result,
+              cities: [cityName(ruleset, input.to)],
+              ...(openRoad ? { favorKey: openRoad.key } : {}),
+            },
+          },
         };
       },
     });
