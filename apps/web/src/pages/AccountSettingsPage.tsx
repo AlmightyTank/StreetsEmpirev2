@@ -70,6 +70,7 @@ export function AccountSettingsPage() {
               titles: [],
               badges: [],
               accents: [{ key: 'default', label: 'StreetsEmpire', description: null }],
+              frames: [],
               densities: [
                 { key: 'comfortable', label: 'Comfortable', description: null },
                 { key: 'compact', label: 'Compact', description: null },
@@ -477,8 +478,8 @@ export function AccountSettingsPage() {
                 </div>
 
                 <div className="se-field">
-                  <span className="se-label">Profile accent</span>
-                  <div className="se-swatch-row" role="group" aria-label="Profile accent">
+                  <span className="se-label">Site accent</span>
+                  <div className="se-swatch-row" role="group" aria-label="Site accent">
                     {profileSettings.options.accents.map((option) => (
                       <button
                         type="button"
@@ -493,6 +494,28 @@ export function AccountSettingsPage() {
                       </button>
                     ))}
                   </div>
+                  {fields.profileAccent ? <p className="se-error">{fields.profileAccent}</p> : <p className="se-hint">Changes the main highlight color across the entire player-facing game.</p>}
+                </div>
+
+                <div className="se-field">
+                  <label className="se-label" htmlFor="profile-frame">Profile frame</label>
+                  <select
+                    id="profile-frame"
+                    className="se-input"
+                    value={cosmetics.activeProfileFrameKey ?? ''}
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      activeProfileFrameKey: event.target.value || null,
+                    }))}
+                  >
+                    <option value="">No frame</option>
+                    {profileSettings.options.frames.map((option) => (
+                      <option value={option.key} key={option.key}>{option.label}</option>
+                    ))}
+                  </select>
+                  {fields.activeProfileFrameKey
+                    ? <p className="se-error">{fields.activeProfileFrameKey}</p>
+                    : <p className="se-hint">{profileSettings.options.frames.length ? 'Frames are permanent quest-earned profile cosmetics.' : 'Complete qualifying Contact finales to unlock profile frames.'}</p>}
                 </div>
               </div>
 
