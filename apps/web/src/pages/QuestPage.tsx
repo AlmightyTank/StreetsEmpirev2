@@ -88,6 +88,35 @@ function timeRemaining(expiresAt: string, nowMs: number): string {
   return days + 'd ' + leftoverHours + 'h left';
 }
 
+function QuestMetric({
+  label,
+  value,
+  detail,
+  tone,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+  tone?: 'good' | 'warn' | 'accent';
+  onClick?: () => void;
+}) {
+  const className = `se-quests-metric${tone ? ` se-quests-metric--${tone}` : ''}${onClick ? ' se-quests-metric--button' : ''}`;
+  const body = (
+    <>
+      <span className="se-quests-metric__label">{label}</span>
+      <strong className="se-quests-metric__value">{value}</strong>
+      {detail ? <span className="se-quests-metric__detail">{detail}</span> : null}
+    </>
+  );
+
+  return onClick ? (
+    <button type="button" className={className} onClick={onClick}>{body}</button>
+  ) : (
+    <div className={className}>{body}</div>
+  );
+}
+
 function ProgressLine({
   label,
   current,
@@ -613,275 +642,379 @@ export function QuestPage() {
 
   return (
     <GameLayout>
-      <div className="se-questpage">
-        <div className="se-pagehead se-questpage__head">
-          <div>
-            <h1 className="se-title">Quests</h1>
-            <p className="se-eyebrow">Jobs, contacts and underworld progression</p>
+      <div className="se-quests">
+        <header className="se-quests-hero">
+          <div className="se-quests-hero__copy">
+            <span className="se-eyebrow">Underworld contract desk</span>
+            <h1>Quests</h1>
+            <p>Pick work, track live objectives, collect finished jobs, and manage the favors and permanent access your contacts have paid out this round.</p>
           </div>
-          <div className="se-actions se-questpage__head-actions">
-            <Button className="se-btn se-btn--ghost" disabledReason={busy ? 'Another job update is still going through.' : null} onClick={() => void load()}>
-              Refresh jobs
-            </Button>
-            <Link className="se-btn se-btn--ghost" to="/game/reputation">Contact standing</Link>
+
+          <div className="se-quests-hero__side">
+            <div className="se-quests-hero__actions">
+              <Button
+                className="se-btn se-btn--ghost se-btn--sm"
+                disabledReason={busy ? 'Another job update is still going through.' : null}
+                onClick={() => void load()}
+              >
+                Refresh jobs
+              </Button>
+              <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/reputation">Contact standing</Link>
+            </div>
+            <div className="se-quests-hero__readout">
+              <span>
+                <small>Ready</small>
+                <strong>{page ? formatNumber(page.counts.ready) : '—'}</strong>
+              </span>
+              <span>
+                <small>Active</small>
+                <strong>{page ? `${formatNumber(page.counts.active)} / ${formatNumber(page.activeLimit)}` : '—'}</strong>
+              </span>
+              <span>
+                <small>Tracked</small>
+                <strong>{page ? `${formatNumber(trackedToday.length)} / ${formatNumber(page.trackedLimit)}` : '—'}</strong>
+              </span>
+              <span>
+                <small>Completed</small>
+                <strong>{page ? formatNumber(page.counts.completed) : '—'}</strong>
+              </span>
+            </div>
           </div>
-        </div>
+        </header>
 
         {error ? <Alert>{error}</Alert> : null}
         {notice ? <Alert tone="info">{notice}</Alert> : null}
 
         {page ? (
           <>
-            <div className="se-quest-glance" aria-label="Quest status at a glance">
-              <button
-                type="button"
-                className={'se-quest-glance__item' + (page.counts.ready > 0 ? ' se-quest-glance__item--ready' : '')}
-                onClick={() => selectTab('ready')}
-              >
-                <span className="se-quest-glance__label">Ready to collect</span>
-                <strong>{formatNumber(page.counts.ready)}</strong>
-                <span>Claim completed jobs</span>
-              </button>
-              <button type="button" className="se-quest-glance__item" onClick={() => selectTab('tracked')}>
-                <span className="se-quest-glance__label">Tracked</span>
-                <strong>{formatNumber(trackedToday.length)} / {formatNumber(page.trackedLimit)}</strong>
-                <span>Your pinned jobs</span>
-              </button>
-              <button type="button" className="se-quest-glance__item" onClick={() => selectTab('active')}>
-                <span className="se-quest-glance__label">Personal active</span>
-                <strong>{formatNumber(page.counts.active)} / {formatNumber(page.activeLimit)}</strong>
-                <span>Alliance/events do not use slots</span>
-              </button>
-            </div>
+            <section className="se-quests-boardnav">
+              <div className="se-quests-sectionhead">
+                <div>
+                  <span className="se-eyebrow">Contract board</span>
+                  <h2>Choose your work</h2>
+                </div>
+                <p>Ready jobs stay visible from their own queue, while rotating boards keep their server-authoritative reset clocks.</p>
+              </div>
 
-            <div className="se-grid se-grid--sidebar se-quest-summary">
-              <div className="se-grid se-quest-summary__col">
-                <Panel title="Jobs">
-                  <div className="se-rows">
-                    <Row label="Available jobs" value={formatNumber(standardAvailableCount)} />
+              <div className="se-quests-quick">
+                <QuestMetric
+                  label="Ready to collect"
+                  value={formatNumber(page.counts.ready)}
+                  detail="finished jobs waiting on payment"
+                  tone={page.counts.ready > 0 ? 'accent' : undefined}
+                  onClick={() => selectTab('ready')}
+                />
+                <QuestMetric
+                  label="Personal active"
+                  value={`${formatNumber(page.counts.active)} / ${formatNumber(page.activeLimit)}`}
+                  detail="alliance and events do not use slots"
+                  tone={page.counts.active >= page.activeLimit ? 'warn' : undefined}
+                  onClick={() => selectTab('active')}
+                />
+                <QuestMetric
+                  label="Tracked"
+                  value={`${formatNumber(trackedToday.length)} / ${formatNumber(page.trackedLimit)}`}
+                  detail="pinned into your game HUD"
+                  onClick={() => selectTab('tracked')}
+                />
+                <QuestMetric
+                  label="Stored favors"
+                  value={formatNumber(page.favors.reduce((sum, favor) => sum + favor.quantity, 0))}
+                  detail={liveFavors.length || page.armedFavors.length ? `${liveFavors.length} active · ${page.armedFavors.length} armed` : 'none active or armed'}
+                  tone={liveFavors.length || page.armedFavors.length ? 'good' : undefined}
+                />
+              </div>
+
+              <div className="se-quests-tabs" role="tablist" aria-label="Quest view">
+                {([
+                  ['available', 'Available', standardAvailableCount],
+                  ['active', 'Active', activeQuestCount],
+                  ['ready', 'Ready', readyToday.length],
+                  ['tracked', 'Tracked', trackedToday.length],
+                  ...(page.dailyContracts.enabled ? [['daily', 'Daily', dailyToday.length] as const] : []),
+                  ...(page.weeklyContracts.enabled ? [['weekly', 'Weekly', weeklyToday.length] as const] : []),
+                  ...(page.cityContracts.enabled ? [['city', 'City', cityToday.length] as const] : []),
+                  ...(allianceToday.length ? [['alliance', 'Alliance', allianceToday.length] as const] : []),
+                  ...(eventToday.length ? [['events', 'Events', eventToday.length] as const] : []),
+                  ['completed', 'Completed', page.counts.completed],
+                ] as const).map(([key, label, count]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === key}
+                    className={`se-quests-tabs__tab${tab === key ? ' se-quests-tabs__tab--active' : ''}${key === 'ready' && readyToday.length ? ' se-quests-tabs__tab--ready' : ''}`}
+                    onClick={() => selectTab(key)}
+                  >
+                    <span>{label}</span>
+                    <strong>{formatNumber(count)}</strong>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="se-quests-work">
+              <div className="se-quests-work__main">
+                <div className="se-quests-sectionhead">
+                  <div>
+                    <span className="se-eyebrow">Selected board</span>
+                    <h2>{
+                      tab === 'available' ? 'Available jobs'
+                        : tab === 'active' ? 'Active jobs'
+                          : tab === 'ready' ? 'Ready to collect'
+                            : tab === 'tracked' ? 'Tracked jobs'
+                              : tab === 'daily' ? 'Daily contracts'
+                                : tab === 'weekly' ? 'Weekly contracts'
+                                  : tab === 'city' ? 'City contracts'
+                                    : tab === 'alliance' ? 'Alliance contracts'
+                                      : tab === 'events' ? 'Community events'
+                                        : 'Completed jobs'
+                    }</h2>
+                  </div>
+                  <span className="se-quests-sectionhead__meta">{formatNumber(sortedShown.length)} shown</span>
+                </div>
+
+                {(tab === 'daily' && page.dailyContracts.resetAt)
+                  || (tab === 'weekly' && page.weeklyContracts.resetAt)
+                  || (tab === 'city' && page.cityContracts.resetAt)
+                  ? (
+                    <div className="se-quests-boardclock">
+                      <span>{
+                        tab === 'daily' ? 'Daily board resets'
+                          : tab === 'weekly' ? 'Weekly board resets'
+                            : 'City board refreshes'
+                      }</span>
+                      <strong>{
+                        timeRemaining(
+                          tab === 'daily'
+                            ? page.dailyContracts.resetAt!
+                            : tab === 'weekly'
+                              ? page.weeklyContracts.resetAt!
+                              : page.cityContracts.resetAt!,
+                          nowMs,
+                        )
+                      }</strong>
+                    </div>
+                  ) : null}
+
+                <div className="se-quest-list se-quests-list">
+                  {sortedShown.length ? sortedShown.map((quest) => (
+                    <QuestCard
+                      key={quest.key + ':' + quest.attempt}
+                      quest={quest}
+                      page={page}
+                      busy={busy ? 'Another job update is still going through.' : null}
+                      nowMs={nowMs}
+                      onAccept={(key) => void mutate(key, () => questsApi.accept(key, crypto.randomUUID()), 'Job accepted.')}
+                      onClaim={(key, branchKey, branchTitle) => void claim(key, branchKey, branchTitle)}
+                      onTrack={(key, tracked) => void mutate(key, () => questsApi.track(key, tracked))}
+                      onAbandon={(key) => void mutate(key, () => questsApi.abandon(key), 'Job abandoned.')}
+                    />
+                  )) : (
+                    <div className="se-quests-empty">
+                      <strong>No jobs in this section.</strong>
+                      <span>Pick another board above or check back after its next rotation.</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <aside className="se-quests-work__rail">
+                <Panel title="Board status" className="se-quests-panel">
+                  <div className="se-quests-boardstatus">
+                    <div>
+                      <span>Available</span>
+                      <strong>{formatNumber(standardAvailableCount)}</strong>
+                    </div>
                     {page.dailyContracts.enabled ? (
-                      <Row
-                        label="Daily board"
-                        value={formatNumber(dailyToday.length) + ' / ' + formatNumber(page.dailyContracts.slots)}
-                        strong={dailyToday.some((quest) => quest.status === 'READY_TO_TURN_IN')}
-                      />
+                      <button type="button" onClick={() => selectTab('daily')}>
+                        <span>Daily board</span>
+                        <strong>{formatNumber(dailyToday.length)} / {formatNumber(page.dailyContracts.slots)}</strong>
+                        {page.dailyContracts.resetAt ? <small>{timeRemaining(page.dailyContracts.resetAt, nowMs)}</small> : null}
+                      </button>
                     ) : null}
                     {page.weeklyContracts.enabled ? (
-                      <Row
-                        label="Weekly board"
-                        value={formatNumber(weeklyToday.length) + ' / ' + formatNumber(page.weeklyContracts.slots)}
-                        strong={weeklyToday.some((quest) => quest.status === 'READY_TO_TURN_IN')}
-                      />
+                      <button type="button" onClick={() => selectTab('weekly')}>
+                        <span>Weekly board</span>
+                        <strong>{formatNumber(weeklyToday.length)} / {formatNumber(page.weeklyContracts.slots)}</strong>
+                        {page.weeklyContracts.resetAt ? <small>{timeRemaining(page.weeklyContracts.resetAt, nowMs)}</small> : null}
+                      </button>
                     ) : null}
                     {page.cityContracts.enabled ? (
-                      <Row
-                        label="City board"
-                        value={formatNumber(cityToday.length) + ' / ' + formatNumber(page.cityContracts.slots)}
-                        strong={cityToday.some((quest) => quest.status === 'READY_TO_TURN_IN')}
-                      />
+                      <button type="button" onClick={() => selectTab('city')}>
+                        <span>City board</span>
+                        <strong>{formatNumber(cityToday.length)} / {formatNumber(page.cityContracts.slots)}</strong>
+                        {page.cityContracts.resetAt ? <small>{timeRemaining(page.cityContracts.resetAt, nowMs)}</small> : null}
+                      </button>
                     ) : null}
                     {allianceToday.length ? (
-                      <Row
-                        label="Alliance board"
-                        value={formatNumber(allianceToday.length) + ' this week'}
-                        strong={allianceToday.some((quest) => quest.status === 'READY_TO_TURN_IN')}
-                      />
+                      <button type="button" onClick={() => selectTab('alliance')}>
+                        <span>Alliance</span>
+                        <strong>{formatNumber(allianceToday.length)}</strong>
+                        <small>shared contracts</small>
+                      </button>
                     ) : null}
                     {eventToday.length ? (
-                      <Row
-                        label="Community event"
-                        value={eventToday[0]!.title}
-                        strong={eventToday.some((quest) => quest.status === 'READY_TO_TURN_IN')}
-                      />
+                      <button type="button" onClick={() => selectTab('events')}>
+                        <span>Events</span>
+                        <strong>{formatNumber(eventToday.length)}</strong>
+                        <small>community work</small>
+                      </button>
                     ) : null}
-                    <Row label="Personal active" value={formatNumber(page.counts.active) + ' / ' + formatNumber(page.activeLimit)} />
-                    <Row label="Ready to collect" value={formatNumber(page.counts.ready)} strong={page.counts.ready > 0} />
-                    <Row label="Completed" value={formatNumber(page.counts.completed)} />
-                    <Row
-                      label="Tracked"
-                      value={formatNumber(page.quests.filter((quest) => quest.isTracked).length) + ' / ' + formatNumber(page.trackedLimit)}
-                    />
-                  </div>
-                  {page.dailyContracts.resetAt ? (
-                    <p className="se-hint se-mt">Daily contracts rotate {new Date(page.dailyContracts.resetAt).toLocaleString()}.</p>
-                  ) : null}
-                  {page.weeklyContracts.resetAt ? (
-                    <p className="se-hint se-mt">Weekly contracts rotate {new Date(page.weeklyContracts.resetAt).toLocaleString()}.</p>
-                  ) : null}
-                  {page.cityContracts.resetAt ? (
-                    <p className="se-hint se-mt">City contracts refresh {new Date(page.cityContracts.resetAt).toLocaleString()}.</p>
-                  ) : null}
-                </Panel>
-
-                <Panel title="Permanent unlocks">
-                  <div className="se-rows">
-                    {page.permanentUnlocks.length ? page.permanentUnlocks.map((unlock) => (
-                      <Row
-                        key={unlock.key}
-                        label={unlock.name}
-                        value={unlock.category + (unlock.sourceQuestKey ? ' · ' + unlock.sourceQuestKey.replaceAll('_', ' ') : '')}
-                      />
-                    )) : <Row label="Earned this round" value="None yet" />}
                   </div>
                 </Panel>
 
-                <Panel title="Favor inventory">
-                  {page.favors.length ? page.favors.map((favor) => {
-                    const active = liveFavors.find((item) => item.category === favor.category);
-                    return (
-                      <div key={favor.key} className="se-mb">
-                        <Row
-                          label={(favor.rarity === 'LEGENDARY' ? '★ Legendary · ' : '') + favor.name}
-                          value={
-                            '×' + formatNumber(favor.quantity)
-                            + ' · ' + favor.category
-                            + (favor.activationKind === 'TIMED' && favor.durationMinutes
-                              ? ' · ' + formatNumber(favor.durationMinutes) + ' min'
-                              : ' · single use')
-                          }
-                        />
-                        <p className="se-hint">{favor.description}</p>
-                        {favor.activationKind === 'TIMED' && favor.activatable ? (
-                          <Button
-                            className="se-btn se-btn--primary"
-                            disabledReason={
-                              busy
-                                ? 'Another update is still going through.'
-                                : active
-                                  ? active.name + ' already occupies ' + favor.category + ' until ' + new Date(active.expiresAt).toLocaleTimeString() + '.'
-                                  : null
-                            }
-                            onClick={() => void activateFavor(favor.key)}
-                          >
-                            Activate
-                          </Button>
-                        ) : favor.activationKind === 'SINGLE_USE' && favor.activatable ? (() => {
+                <Panel title="Contacts" className="se-quests-panel">
+                  <div className="se-quests-contacts">
+                    {page.contacts.map((contact) => (
+                      <div key={contact.key}>
+                        <span>{contact.shortName}</span>
+                        <strong>{contact.standing}</strong>
+                        <small>{contact.role} · {formatNumber(contact.points)} rep</small>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+              </aside>
+            </section>
+
+            <section className="se-quests-progression">
+              <div className="se-quests-sectionhead">
+                <div>
+                  <span className="se-eyebrow">Progression desk</span>
+                  <h2>Favors & permanent access</h2>
+                </div>
+                <p>Manage temporary advantages separately from the contract board so favor actions never get buried between job cards.</p>
+              </div>
+
+              <div className="se-quests-progression__grid">
+                <div className="se-quests-stack">
+                  <Panel title="Favor inventory" aside={page.favors.length ? `${formatNumber(page.favors.length)} types` : 'Empty'} className="se-quests-panel">
+                    {page.favors.length ? (
+                      <div className="se-quests-favors">
+                        {page.favors.map((favor) => {
+                          const active = liveFavors.find((item) => item.category === favor.category);
                           const armed = page.armedFavors.find((item) => item.category === favor.category);
-                          return armed?.key === favor.key ? (
+                          return (
+                            <article key={favor.key} className={`se-quests-favor${favor.rarity === 'LEGENDARY' ? ' se-quests-favor--legendary' : ''}`}>
+                              <div className="se-quests-favor__head">
+                                <div>
+                                  <span className="se-eyebrow">{favor.rarity === 'LEGENDARY' ? '★ Legendary favor' : favor.category}</span>
+                                  <h3>{favor.name}</h3>
+                                </div>
+                                <strong className="se-num">×{formatNumber(favor.quantity)}</strong>
+                              </div>
+                              <p>{favor.description}</p>
+                              <div className="se-quests-favor__meta">
+                                <span>{favor.category}</span>
+                                <span>{favor.activationKind === 'TIMED' && favor.durationMinutes ? `${formatNumber(favor.durationMinutes)} min` : 'Single use'}</span>
+                              </div>
+                              {favor.activationKind === 'TIMED' && favor.activatable ? (
+                                <Button
+                                  className="se-btn se-btn--primary se-btn--sm"
+                                  disabledReason={
+                                    busy
+                                      ? 'Another update is still going through.'
+                                      : active
+                                        ? active.name + ' already occupies ' + favor.category + ' until ' + new Date(active.expiresAt).toLocaleTimeString() + '.'
+                                        : null
+                                  }
+                                  onClick={() => void activateFavor(favor.key)}
+                                >
+                                  Activate
+                                </Button>
+                              ) : favor.activationKind === 'SINGLE_USE' && favor.activatable ? (
+                                armed?.key === favor.key ? (
+                                  <Button
+                                    className="se-btn se-btn--ghost se-btn--sm"
+                                    disabledReason={busy ? 'Another update is still going through.' : null}
+                                    onClick={() => void disarmFavor(favor.key)}
+                                  >
+                                    Disarm
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    className="se-btn se-btn--primary se-btn--sm"
+                                    disabledReason={
+                                      busy
+                                        ? 'Another update is still going through.'
+                                        : armed
+                                          ? armed.name + ' is already armed in ' + favor.category + '. Disarm it first.'
+                                          : null
+                                    }
+                                    onClick={() => void armFavor(favor.key)}
+                                  >
+                                    Arm favor
+                                  </Button>
+                                )
+                              ) : (
+                                <span className="se-hint">Stored for this round; this effect is not activatable here.</span>
+                              )}
+                            </article>
+                          );
+                        })}
+                      </div>
+                    ) : <p className="se-muted">No favors stored yet.</p>}
+                  </Panel>
+
+                  <Panel title="Permanent unlocks" aside="This round" className="se-quests-panel">
+                    <div className="se-rows">
+                      {page.permanentUnlocks.length ? page.permanentUnlocks.map((unlock) => (
+                        <Row
+                          key={unlock.key}
+                          label={unlock.name}
+                          value={unlock.category + (unlock.sourceQuestKey ? ' · ' + unlock.sourceQuestKey.replaceAll('_', ' ') : '')}
+                        />
+                      )) : <Row label="Earned this round" value="None yet" />}
+                    </div>
+                  </Panel>
+                </div>
+
+                <div className="se-quests-stack">
+                  <Panel title="Active favors" aside={liveFavors.length ? `${formatNumber(liveFavors.length)} running` : 'None'} className="se-quests-panel">
+                    {liveFavors.length ? (
+                      <div className="se-quests-livefavors">
+                        {liveFavors.map((favor) => (
+                          <div key={favor.category}>
+                            <span>{favor.name}</span>
+                            <strong>{favor.category}</strong>
+                            <small>{timeRemaining(favor.expiresAt, nowMs)}</small>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <p className="se-muted">No timed favor is active.</p>}
+                    <p className="se-hint se-mt">Timers use server time and continue while you are logged out.</p>
+                  </Panel>
+
+                  <Panel title="Armed favors" aside={page.armedFavors.length ? `${formatNumber(page.armedFavors.length)} waiting` : 'None'} className="se-quests-panel">
+                    {page.armedFavors.length ? (
+                      <div className="se-quests-armed">
+                        {page.armedFavors.map((favor) => (
+                          <div key={favor.category}>
+                            <div>
+                              <span>{favor.name}</span>
+                              <small>{favor.category} · next eligible action</small>
+                            </div>
                             <Button
-                              className="se-btn se-btn--ghost"
+                              className="se-btn se-btn--ghost se-btn--sm"
                               disabledReason={busy ? 'Another update is still going through.' : null}
                               onClick={() => void disarmFavor(favor.key)}
                             >
                               Disarm
                             </Button>
-                          ) : (
-                            <Button
-                              className="se-btn se-btn--primary"
-                              disabledReason={
-                                busy
-                                  ? 'Another update is still going through.'
-                                  : armed
-                                    ? armed.name + ' is already armed in ' + favor.category + '. Disarm it first.'
-                                    : null
-                              }
-                              onClick={() => void armFavor(favor.key)}
-                            >
-                              Arm favor
-                            </Button>
-                          );
-                        })()
-                          : <p className="se-hint">This pinned round stores the favor but does not support this effect yet.</p>}
+                          </div>
+                        ))}
                       </div>
-                    );
-                  }) : <Row label="Stored favors" value="None yet" />}
-                </Panel>
+                    ) : <p className="se-muted">No single-use favor is armed.</p>}
+                    <p className="se-hint se-mt">An armed favor is only consumed when its matching action succeeds.</p>
+                  </Panel>
+                </div>
               </div>
-
-              <div className="se-grid se-quest-summary__col">
-                <Panel title="Contacts">
-                  <div className="se-rows">
-                    {page.contacts.map((contact) => (
-                      <Row
-                        key={contact.key}
-                        label={contact.shortName + ' · ' + contact.role}
-                        value={contact.standing + ' · ' + formatNumber(contact.points) + ' rep'}
-                      />
-                    ))}
-                  </div>
-                </Panel>
-
-                <Panel title="Active favors">
-                  <div className="se-rows">
-                    {liveFavors.length ? liveFavors.map((favor) => (
-                      <Row
-                        key={favor.category}
-                        label={favor.name + ' · ' + favor.category}
-                        value={'Until ' + new Date(favor.expiresAt).toLocaleTimeString()}
-                        strong
-                      />
-                    )) : <Row label="Running now" value="None" />}
-                  </div>
-                  <p className="se-hint se-mt">Timers use server time and keep running while you are logged out.</p>
-                </Panel>
-
-                <Panel title="Armed favors">
-                  <div className="se-rows">
-                    {page.armedFavors.length ? page.armedFavors.map((favor) => (
-                      <div key={favor.category} className="se-mb">
-                        <Row
-                          label={favor.name + ' · ' + favor.category}
-                          value="Waiting for the next eligible action"
-                          strong
-                        />
-                        <Button
-                          className="se-btn se-btn--ghost"
-                          disabledReason={busy ? 'Another update is still going through.' : null}
-                          onClick={() => void disarmFavor(favor.key)}
-                        >
-                          Disarm
-                        </Button>
-                      </div>
-                    )) : <Row label="Waiting now" value="None" />}
-                  </div>
-                  <p className="se-hint se-mt">Armed favors are only consumed when their matching action succeeds. Disarm one to return it to inventory.</p>
-                </Panel>
-              </div>
-            </div>
-
-            <div className="se-storetabs se-quest-tabs" role="tablist" aria-label="Quest view">
-            {([
-              ['available', 'Available (' + standardAvailableCount + ')'],
-              ['active', 'Active (' + activeQuestCount + ')'],
-              ['ready', 'Ready (' + readyToday.length + ')'],
-              ['tracked', 'Tracked (' + trackedToday.length + ')'],
-              ...(page.dailyContracts.enabled ? [['daily', 'Daily (' + dailyToday.length + ')'] as const] : []),
-              ...(page.weeklyContracts.enabled ? [['weekly', 'Weekly (' + weeklyToday.length + ')'] as const] : []),
-              ...(page.cityContracts.enabled ? [['city', 'City (' + cityToday.length + ')'] as const] : []),
-              ...(allianceToday.length ? [['alliance', 'Alliance (' + allianceToday.length + ')'] as const] : []),
-              ...(eventToday.length ? [['events', 'Events (' + eventToday.length + ')'] as const] : []),
-              ['completed', 'Completed (' + page.counts.completed + ')'],
-            ] as const).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                role="tab"
-                aria-selected={tab === key}
-                className={'se-storetabs__tab' + (tab === key ? ' se-storetabs__tab--active' : '')}
-                onClick={() => selectTab(key)}
-              >
-                {label}
-              </button>
-            ))}
-            </div>
-
-            <div className="se-grid se-quest-list">
-            {sortedShown.length ? sortedShown.map((quest) => (
-              <QuestCard
-                key={quest.key + ':' + quest.attempt}
-                quest={quest}
-                page={page}
-                busy={busy ? 'Another job update is still going through.' : null}
-                nowMs={nowMs}
-                onAccept={(key) => void mutate(key, () => questsApi.accept(key, crypto.randomUUID()), 'Job accepted.')}
-                onClaim={(key, branchKey, branchTitle) => void claim(key, branchKey, branchTitle)}
-                onTrack={(key, tracked) => void mutate(key, () => questsApi.track(key, tracked))}
-                onAbandon={(key) => void mutate(key, () => questsApi.abandon(key), 'Job abandoned.')}
-              />
-            )) : <p className="se-muted">No jobs in this section yet.</p>}
-            </div>
+            </section>
           </>
-        ) : !error ? <p className="se-muted" role="status">Checking the street for work...</p> : null}
+        ) : !error ? (
+          <div className="se-quests-loading" role="status">Checking the street for work...</div>
+        ) : null}
       </div>
     </GameLayout>
   );
