@@ -17,22 +17,22 @@ describe('QuestCosmeticService', () => {
       db,
       'account-1',
       classicOgV07X,
-      'ROAD_KING',
+      'road-king',
       'WHEELS_HOME_SAFE',
       at,
     );
 
     expect(cosmetic).toMatchObject({
-      key: 'ROAD_KING',
+      key: 'road-king',
       name: 'Road King',
       kind: 'TITLE_BADGE',
       rarity: 'epic',
     });
     expect(upserts).toEqual([{
-      where: { accountId_key: { accountId: 'account-1', key: 'ROAD_KING' } },
+      where: { accountId_key: { accountId: 'account-1', key: 'road-king' } },
       create: {
         accountId: 'account-1',
-        key: 'ROAD_KING',
+        key: 'road-king',
         kind: 'TITLE_BADGE',
         title: 'Road King',
         description: cosmetic.description,
@@ -51,7 +51,7 @@ describe('QuestCosmeticService', () => {
     const db = {
       accountCosmeticUnlock: {
         findMany: async () => [{
-          key: 'ROAD_KING',
+          key: 'road-king',
           title: 'Road King',
           description: 'Road description',
           rarity: 'epic',
@@ -62,7 +62,7 @@ describe('QuestCosmeticService', () => {
 
     await expect(QuestCosmeticService.awardsForAccount(db, 'account-1'))
       .resolves.toEqual([{
-        key: 'ROAD_KING',
+        key: 'road-king',
         title: 'Road King',
         description: 'Road description',
         category: 'legacy',
