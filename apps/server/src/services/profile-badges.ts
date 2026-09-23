@@ -11,8 +11,8 @@ const rarityOrder: Record<PublicAchievementRarity, number> = {
 };
 
 /**
- * The badges a profile shows: earned legacy achievements first (they survive
- * round resets), then this round's earned achievements, rarest first.
+ * The badges a profile shows: permanent legacy/quest awards first, then this
+ * round's earned achievements, rarest first.
  */
 export function selectProfileBadges(
   awards: PublicAwardDto[],
