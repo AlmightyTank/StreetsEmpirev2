@@ -140,6 +140,7 @@ export interface AccountProfileSettingsResponseDto {
     titles: BadgeCosmeticOptionDto[];
     badges: BadgeCosmeticOptionDto[];
     accents: CosmeticOptionDto[];
+    frames: CosmeticOptionDto[];
     densities: CosmeticOptionDto[];
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];
