@@ -430,3 +430,6 @@ With H complete, 0.1.0 is the frozen core foundation. New gameplay systems belon
   (`deepmerge-ts`, a stack-exhaustion DoS in config merging). It affects the dev tool,
   not `@prisma/client` at runtime. The fix is Prisma 7, which is a breaking upgrade
   worth doing on its own.
+
+
+- **0.7.0-AA / Phase Y-F:** Holiday/event quests for Halloween 2026 and Christmas 2026, awarding permanent player-facing seasonal site themes.
