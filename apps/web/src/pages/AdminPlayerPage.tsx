@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ADMIN_GRANT_CAPS, ADMIN_PRODUCT_GRANT_CAP, type AdminGrantItem, type AdminPlayerDto, type AdminVoidBattleResultDto, type BattleReportDto } from '@streets/shared';
+import { ADMIN_GRANT_CAPS, ADMIN_PRODUCT_GRANT_CAP, type AdminGrantItem, type AdminPlayerDto, type AdminQuestContentDto, type AdminVoidBattleResultDto, type BattleReportDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
@@ -53,10 +53,23 @@ export function AdminPlayerPage() {
   const [grantReason, setGrantReason] = useState('');
   const [grantFields, setGrantFields] = useState<Record<string, string>>({});
 
+  const [questContent, setQuestContent] = useState<AdminQuestContentDto | null>(null);
+  const [supportReason, setSupportReason] = useState('');
+  const [supportQuestKey, setSupportQuestKey] = useState('');
+  const [supportFavorKey, setSupportFavorKey] = useState('');
+  const [supportFavorDelta, setSupportFavorDelta] = useState('');
+
   const load = useCallback(async () => {
     try {
-      const [inspected, battles] = await Promise.all([adminApi.player(roundPlayerId), adminApi.playerBattles(roundPlayerId)]);
+      const inspected = await adminApi.player(roundPlayerId);
+      const [battles, content] = await Promise.all([
+        adminApi.playerBattles(roundPlayerId),
+        adminApi.questContent(inspected.round.id),
+      ]);
       setPlayer(inspected);
+      setQuestContent(content);
+      setSupportQuestKey((current) => current || content.quests.find((quest) => quest.isEnabled)?.key || '');
+      setSupportFavorKey((current) => current || content.favors.find((favor) => favor.isEnabled)?.key || '');
       setReports(battles.reports);
       setNextBefore(battles.nextBefore);
     } catch (caught) {
@@ -137,6 +150,73 @@ export function AdminPlayerPage() {
     }
   }
 
+  async function refreshSupport(updated: AdminPlayerDto, message: string) {
+    setPlayer(updated);
+    setNotice(message);
+    try {
+      setQuestContent(await adminApi.questContent(updated.round.id));
+    } catch {
+      // The player correction succeeded; a catalog refresh failure should not
+      // turn that successful write into a misleading error.
+    }
+  }
+
+  async function grantQuestSupport() {
+    if (!supportQuestKey) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const updated = await adminApi.grantQuest(roundPlayerId, supportQuestKey, supportReason.trim());
+      await refreshSupport(updated, 'Quest granted. The change is in the admin audit log.');
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'That quest grant did not go through.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function changeQuestSupport(playerQuestId: string, action: 'reset' | 'complete') {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const updated = action === 'reset'
+        ? await adminApi.resetQuest(roundPlayerId, playerQuestId, supportReason.trim())
+        : await adminApi.completeQuest(roundPlayerId, playerQuestId, supportReason.trim());
+      await refreshSupport(
+        updated,
+        action === 'reset'
+          ? 'Quest reset to available. Progress receipts were cleared and the change was audited.'
+          : 'Quest marked ready to turn in. The player still claims it through the normal reward path.',
+      );
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'That quest support action did not go through.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function adjustFavorSupport() {
+    const delta = Number(supportFavorDelta);
+    if (!Number.isInteger(delta) || delta === 0 || !supportFavorKey) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const updated = await adminApi.adjustFavor(roundPlayerId, supportFavorKey, delta, supportReason.trim());
+      setSupportFavorDelta('');
+      await refreshSupport(
+        updated,
+        delta > 0 ? 'Favor inventory granted and audited.' : 'Favor inventory removed and audited.',
+      );
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'That favor adjustment did not go through.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!player) {
     return (
       <GameLayout>
@@ -147,6 +227,9 @@ export function AdminPlayerPage() {
 
   const timers = player.timers;
   const grantEmpty = !Object.values(grant).some((value) => value.trim() && Number(value) > 0);
+  const supportReasonReady = supportReason.trim().length >= 5;
+  const supportDelta = Number(supportFavorDelta);
+  const supportDeltaReady = Number.isInteger(supportDelta) && supportDelta !== 0 && Math.abs(supportDelta) <= 1000;
 
   return (
     <GameLayout>
@@ -278,6 +361,157 @@ export function AdminPlayerPage() {
           </div>
         </Panel>
       </div>
+
+      <Panel
+        title="Quest and favor support"
+        aside={<Link to="/game/admin/quests">Content controls</Link>}
+        className="se-mb"
+      >
+        {!player.live ? (
+          <p className="se-hint">This round has finished, so quest and favor corrections are frozen.</p>
+        ) : (
+          <>
+            <div className="se-field">
+              <label className="se-label" htmlFor="admin-support-reason">Support reason</label>
+              <textarea
+                id="admin-support-reason"
+                className="se-input se-admin-reason"
+                rows={3}
+                maxLength={500}
+                value={supportReason}
+                onChange={(event) => setSupportReason(event.target.value)}
+              />
+              <p className="se-hint">Required for every action below and saved to the admin audit log. At least 5 characters.</p>
+            </div>
+
+            <div className="se-grid se-grid--2 se-mb">
+              <div>
+                <label className="se-label" htmlFor="admin-support-quest">Grant quest</label>
+                <select
+                  id="admin-support-quest"
+                  className="se-input"
+                  value={supportQuestKey}
+                  onChange={(event) => setSupportQuestKey(event.target.value)}
+                >
+                  <option value="">Choose a quest</option>
+                  {(questContent?.quests ?? []).filter((quest) => quest.isEnabled).map((quest) => (
+                    <option key={quest.key} value={quest.key}>{quest.title} · {quest.key}</option>
+                  ))}
+                </select>
+                <p className="se-hint">Shared alliance/event and generated city contracts stay on their authoritative boards.</p>
+                <Button
+                  type="button"
+                  className="se-btn se-btn--primary se-mt"
+                  onClick={() => void grantQuestSupport()}
+                  disabledReason={busy ? working : !supportReasonReady ? 'Write a support reason of at least 5 characters.' : !supportQuestKey ? 'Choose a quest.' : null}
+                >
+                  Grant quest
+                </Button>
+              </div>
+
+              <div>
+                <label className="se-label" htmlFor="admin-support-favor">Adjust favor inventory</label>
+                <select
+                  id="admin-support-favor"
+                  className="se-input"
+                  value={supportFavorKey}
+                  onChange={(event) => setSupportFavorKey(event.target.value)}
+                >
+                  <option value="">Choose a favor</option>
+                  {(questContent?.favors ?? []).map((favor) => (
+                    <option key={favor.key} value={favor.key}>
+                      {favor.name} · {favor.key}{favor.isEnabled ? '' : ' · disabled'}
+                    </option>
+                  ))}
+                </select>
+                <Field
+                  id="admin-support-favor-delta"
+                  label="Inventory change"
+                  type="number"
+                  min={-1000}
+                  max={1000}
+                  step={1}
+                  value={supportFavorDelta}
+                  onChange={(event) => setSupportFavorDelta(event.target.value)}
+                  hint="Positive grants; negative removes. Active and armed favors are not altered."
+                />
+                <Button
+                  type="button"
+                  className="se-btn se-btn--primary"
+                  onClick={() => void adjustFavorSupport()}
+                  disabledReason={busy ? working : !supportReasonReady ? 'Write a support reason of at least 5 characters.' : !supportFavorKey ? 'Choose a favor.' : !supportDeltaReady ? 'Use a whole number from -1000 to 1000, excluding zero.' : null}
+                >
+                  Apply favor change
+                </Button>
+              </div>
+            </div>
+
+            <div className="se-tablewrap">
+              <table className="se-table se-table--cards">
+                <thead>
+                  <tr>
+                    <th>Quest attempt</th>
+                    <th>Status</th>
+                    <th>Progress</th>
+                    <th>Updated</th>
+                    <th className="se-table__number">Support actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {player.quests.length ? player.quests.map((quest) => {
+                    const progressRows = Object.values(
+                      quest.objectiveProgress && typeof quest.objectiveProgress === 'object' && !Array.isArray(quest.objectiveProgress)
+                        ? quest.objectiveProgress as Record<string, { completed?: boolean }>
+                        : {},
+                    );
+                    const completedObjectives = progressRows.filter((row) => row?.completed === true).length;
+                    return (
+                      <tr key={quest.id}>
+                        <td className="se-td--title">
+                          <strong>{quest.title}</strong>
+                          <br />
+                          <span className="se-muted">{quest.key} · attempt {quest.attempt}</span>
+                        </td>
+                        <td data-label="Status">
+                          <span className={`se-tag ${quest.status === 'COMPLETED' ? 'se-tag--good' : quest.status === 'FAILED' || quest.status === 'EXPIRED' || !quest.isEnabled ? 'se-tag--bad' : 'se-tag--warn'}`}>
+                            {quest.isEnabled ? quest.status : `DISABLED · ${quest.status}`}
+                          </span>
+                        </td>
+                        <td data-label="Progress">{progressRows.length ? `${completedObjectives}/${progressRows.length} objectives` : '-'}</td>
+                        <td data-label="Updated">{adminWhen(quest.updatedAt)}</td>
+                        <td className="se-table__number" data-label="Support actions">
+                          <div className="se-admin-actions">
+                            <Button
+                              type="button"
+                              className="se-btn se-btn--sm se-btn--ghost"
+                              onClick={() => void changeQuestSupport(quest.id, 'reset')}
+                              disabledReason={busy ? working : !supportReasonReady ? 'Write a support reason first.' : quest.status === 'COMPLETED' ? 'Completed quests cannot be reset because their rewards already paid.' : !quest.isEnabled ? 'Enable this quest in Content controls first.' : null}
+                            >
+                              Reset
+                            </Button>
+                            <Button
+                              type="button"
+                              className="se-btn se-btn--sm"
+                              onClick={() => void changeQuestSupport(quest.id, 'complete')}
+                              disabledReason={busy ? working : !supportReasonReady ? 'Write a support reason first.' : quest.status === 'COMPLETED' ? 'This quest already paid out.' : !quest.isEnabled ? 'Enable this quest in Content controls first.' : quest.type === 'ALLIANCE' || quest.type === 'EVENT' ? 'Shared quest completion stays server-authoritative.' : null}
+                            >
+                              Mark ready
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }) : (
+                    <tr>
+                      <td colSpan={5} className="se-muted">No quest attempts have been materialized for this player yet.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </Panel>
 
       <Panel title="Compensation grant" aside={player.live ? `Turns up to ${formatNumber(player.turnCap)}` : 'Round finished'} className="se-mb">
         {!player.live ? (
