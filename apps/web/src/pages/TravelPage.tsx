@@ -82,7 +82,6 @@ export function TravelPage() {
   const selected = data?.cities.find((city) => city.slug === params.get('city')) ?? home ?? data?.cities[0];
   const select = (slug: string) => setParams(slug === home?.slug ? {} : { city: slug }, { replace: true });
   const runs = data?.runs ?? (data?.run ? [data.run] : []);
-  const run = runs[0] ?? null;
   const urgent = Boolean(me.convoyAlert);
   const runAts = runs.map((active) => active.position.road ?? { city: active.position.city });
   const runLimit = data?.rules.runLimit ?? 0;
