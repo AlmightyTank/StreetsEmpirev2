@@ -424,14 +424,12 @@ function dayKey(iso: string): string {
 }
 
 function dayLabel(iso: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const value = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-  const deltaDays = Math.round((today - value) / 86_400_000);
-  if (deltaDays === 0) return 'Today';
-  if (deltaDays === 1) return 'Yesterday';
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric' });
+  return new Date(iso).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 export function ActivityFeed({ activity, detailed = false }: { activity: ActivityDto[]; detailed?: boolean }) {
