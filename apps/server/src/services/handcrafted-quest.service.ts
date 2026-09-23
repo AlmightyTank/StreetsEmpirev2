@@ -51,6 +51,7 @@ import {
 } from './city-contract.service.js';
 import {
   acceptAllianceContract,
+  allianceContractContributionSnapshot,
   assertAllianceContractClaim,
   isAllianceContractDefinition,
   lockAllianceContractActor,
@@ -242,6 +243,10 @@ function objectiveDtos(row: QuestRow, communityEvent?: CommunityEventSnapshot): 
 function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEventSnapshot): PlayerQuestDto {
   const contact = contactFor(ruleset, row.questDefinition.contactKey);
   const cityState = cityContractState(row.rewardState);
+  const allianceContribution = allianceContractContributionSnapshot(
+    row.questDefinition.availability,
+    row.rewardState,
+  );
   const resolvedRewards = cityContractRewards(row.rewardState)
     ?? rewards(row.questDefinition.rewards);
   return {
@@ -269,6 +274,15 @@ function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEve
         contributionLabel: communityEvent.contributionLabel,
         contributionFormat: communityEvent.contributionFormat,
         sharedCompleted: communityEvent.sharedCompleted,
+      },
+    } : {}),
+    ...(allianceContribution ? {
+      allianceContract: {
+        contributionCurrent: allianceContribution.current,
+        contributionTarget: allianceContribution.target,
+        contributionLabel: allianceContribution.label,
+        contributionFormat: allianceContribution.format,
+        contributionCompleted: allianceContribution.completed,
       },
     } : {}),
     acceptedAt: row.acceptedAt?.toISOString() ?? null,
@@ -747,6 +761,7 @@ export const HandcraftedQuestService = {
     return ActionService.run<QuestClaimResult>(prisma, roundPlayerId, {
       action: 'QUEST_CLAIM',
       actionId: input.actionId,
+      idempotencyScope: `QUEST_CLAIM:${key}`,
       execute: async ({ tx, current, now }) => {
         const communityEvent = isCommunityEventDefinition(ruleset.questDefinitions?.[key]);
         if (communityEvent) {
@@ -764,7 +779,12 @@ export const HandcraftedQuestService = {
           throw AppError.conflict('QUEST_DEFINITION_MISSING', 'That job is not available in this ruleset.');
         }
         if (isAllianceContractDefinition(rulesetDefinition)) {
-          await assertAllianceContractClaim(tx, roundPlayerId, row.rewardState);
+          await assertAllianceContractClaim(
+            tx,
+            roundPlayerId,
+            row.rewardState,
+            rulesetDefinition.availability,
+          );
         }
         if (communityEvent) {
           await assertCommunityEventClaim(tx, row);
