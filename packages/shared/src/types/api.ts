@@ -686,6 +686,15 @@ export interface PlayerQuestDto {
   branchChoices: QuestBranchChoiceDto[];
   objectives: QuestObjectiveDto[];
   rewards: QuestRewardDto[];
+  communityEvent?: {
+    startsAt: string;
+    endsAt: string;
+    contributionCurrent: number;
+    contributionTarget: number;
+    contributionLabel: string;
+    contributionFormat: 'NUMBER' | 'CURRENCY';
+    sharedCompleted: boolean;
+  };
   acceptedAt: string | null;
   completedAt: string | null;
   claimedAt: string | null;
