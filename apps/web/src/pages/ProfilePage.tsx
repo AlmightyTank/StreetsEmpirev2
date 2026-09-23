@@ -345,8 +345,6 @@ export function ProfilePage() {
     const matchesCategory = achievementCategoryFilter === 'all' || award.category === achievementCategoryFilter;
     return matchesStatus && matchesCategory;
   });
-  const rarest = unlocked.find((award) => ['legendary', 'epic', 'rare'].includes(award.rarity));
-
   return (
     <GameLayout>
       <div className="se-profile">
@@ -411,12 +409,6 @@ export function ProfilePage() {
                   value={`#${formatNumber(player.rank.national)}`}
                   detail={`${movementText(player.rank.nationalMovement)} · held ${heldFor(player.rank.nationalHeldSinceAt)}`}
                 />
-                <ProfileMetric
-                  label="Achievements"
-                  value={`${formatNumber(unlocked.length)} / ${formatNumber(player.awards.length)}`}
-                  detail={locked.length ? `${formatNumber(locked.length)} still locked` : 'all listed achievements unlocked'}
-                  tone={unlocked.length ? 'good' : undefined}
-                />
               </div>
             </section>
 
@@ -459,43 +451,20 @@ export function ProfilePage() {
               )}
             </section>
 
-            {career ? (
-              <section className="se-profile-section">
-                <div className="se-profile-sectionhead">
-                  <div>
-                    <span className="se-eyebrow">Legacy</span>
-                    <h2>Career across finished rounds</h2>
-                  </div>
-                  <p>Finished seasons keep their final ranks and public performance record; competitive resources reset with each new round.</p>
-                </div>
-                <SeasonHistory career={career} />
-              </section>
-            ) : null}
+            {career ? <SeasonHistory career={career} /> : null}
 
-            <section className="se-profile-section">
-              <div className="se-profile-sectionhead">
-                <div>
-                  <span className="se-eyebrow">Trophies</span>
-                  <h2>Achievements</h2>
-                </div>
-                <span className="se-profile-sectionhead__meta">
-                  {rarest ? `Rarest earned: ${rarest.title} · ${rarest.rarity}` : 'No rare trophy earned yet'}
-                </span>
-              </div>
-
-              <AchievementsPanel
-                unlocked={unlocked}
-                locked={locked}
-                filteredAwards={filteredAwards}
-                filtersActive={filtersActive}
-                showLockedAchievements={showLockedAchievements}
-                setShowLockedAchievements={setShowLockedAchievements}
-                achievementStatusFilter={achievementStatusFilter}
-                setAchievementStatusFilter={setAchievementStatusFilter}
-                achievementCategoryFilter={achievementCategoryFilter}
-                setAchievementCategoryFilter={setAchievementCategoryFilter}
-              />
-            </section>
+            <AchievementsPanel
+              unlocked={unlocked}
+              locked={locked}
+              filteredAwards={filteredAwards}
+              filtersActive={filtersActive}
+              showLockedAchievements={showLockedAchievements}
+              setShowLockedAchievements={setShowLockedAchievements}
+              achievementStatusFilter={achievementStatusFilter}
+              setAchievementStatusFilter={setAchievementStatusFilter}
+              achievementCategoryFilter={achievementCategoryFilter}
+              setAchievementCategoryFilter={setAchievementCategoryFilter}
+            />
           </>
         ) : null}
       </div>
