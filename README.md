@@ -45,6 +45,8 @@ Forward roadmaps: [0.6.0 Turf](docs/ROADMAP-0.6.0.md), [0.7.0 Hideout](docs/ROAD
 | **0.7.0-K** | armed single-use favors; Tommy Voucher, Burner Phone, Doctor Favor; successful-action consumption | **implemented in beta** |
 | **0.7.0-L** | Phase M contact expansion; 3 Wheels, 3 Vic and 3 Blocks side jobs; 28 handcrafted Jobs total | **implemented in beta** |
 | **0.7.0-M** | Phase N catalog completion; Pip Top Shelf and Tommy Full Rack capstones; 30 handcrafted Jobs total | **implemented in beta** |
+| **0.7.0-V** | Phase Y-A Legendary favors; rarity metadata; Ghost Network, Pip's Black Book and Tommy's War Chest | **implemented in beta** |
+| **0.7.0-W** | Phase Y-B Legendary expansion; Open Road, Clean Slate and Stand Down action-shaped favors | **in PR for beta** |
 | **0.7.0-N** | Phase O daily contracts; 8-contract pool; 3 rotating offers per daily reset; repeatable attempt history | **implemented in beta** |
 | **0.7.0-O** | Phase P weekly contracts; 6-contract pool; 2 rotating offers per Monday reset; unique-city and combined turf-hour progress | **implemented in beta** |
 | **0.7.0-P** | Phase Q secret Jobs; 7 hidden one-time Jobs revealed by Heat, losses, arrest, cargo, crew, turf and net-worth milestones | **implemented in beta** |

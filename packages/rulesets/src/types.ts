@@ -305,6 +305,18 @@ export type SingleUseFavorEffect =
     }
   | {
       readonly kind: 'FREE_TREATMENT';
+    }
+  | {
+      /** Next successful Heat bribe costs no cash. */
+      readonly kind: 'FREE_HEAT_BRIBE';
+    }
+  | {
+      /** Next successful run launch skips the outbound road-stop roll. */
+      readonly kind: 'CLEAR_FIRST_ROAD_STOP';
+    }
+  | {
+      /** Locals stand down on the next otherwise-valid unheld turf claim. */
+      readonly kind: 'LOCAL_TURF_STANDDOWN';
     };
 
 export type TimedFavorEffect =

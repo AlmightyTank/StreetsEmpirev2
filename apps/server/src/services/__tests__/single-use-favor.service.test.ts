@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { classicOgV07J, classicOgV07K } from '@streets/rulesets';
+import { classicOgV07J, classicOgV07K, classicOgV07W } from '@streets/rulesets';
 import type { Db } from '../../utils/db.js';
 import { ActionService } from '../action.service.js';
 import { FavorContentService } from '../favor-content.service.js';
@@ -190,6 +190,39 @@ describe('SingleUseFavorService', () => {
       classicOgV07K,
       'FREE_TREATMENT',
     )).resolves.toBeNull();
+  });
+
+  it('matches the Phase Y-B action-shaped Legendary effects', async () => {
+    const db = {
+      playerArmedFavor: {
+        findMany: async () => [
+          { id: 'road', favorKey: 'WHEELS_OPEN_ROAD' },
+          { id: 'vic', favorKey: 'VIC_CLEAN_SLATE_FAVOR' },
+          { id: 'blocks', favorKey: 'BLOCKS_STAND_DOWN' },
+        ],
+      },
+    } as unknown as Db;
+
+    await expect(SingleUseFavorService.matching(
+      db,
+      'player-1',
+      classicOgV07W,
+      'CLEAR_FIRST_ROAD_STOP',
+    )).resolves.toMatchObject({ id: 'road', key: 'WHEELS_OPEN_ROAD' });
+
+    await expect(SingleUseFavorService.matching(
+      db,
+      'player-1',
+      classicOgV07W,
+      'FREE_HEAT_BRIBE',
+    )).resolves.toMatchObject({ id: 'vic', key: 'VIC_CLEAN_SLATE_FAVOR' });
+
+    await expect(SingleUseFavorService.matching(
+      db,
+      'player-1',
+      classicOgV07W,
+      'LOCAL_TURF_STANDDOWN',
+    )).resolves.toMatchObject({ id: 'blocks', key: 'BLOCKS_STAND_DOWN' });
   });
 
   it('does not consume an armed effect while its kill switch is off', async () => {
