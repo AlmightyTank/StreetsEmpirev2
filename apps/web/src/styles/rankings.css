@@ -6,10 +6,7 @@
 .se-rankings-hero {
   position: relative;
   overflow: hidden;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(430px, 0.56fr);
-  gap: 28px;
-  align-items: end;
+  display: block;
   padding: 24px;
   border: 1px solid var(--se-line);
   border-radius: 4px;
@@ -30,8 +27,7 @@
   pointer-events: none;
 }
 
-.se-rankings-hero__copy,
-.se-rankings-hero__readout {
+.se-rankings-hero__copy {
   position: relative;
   z-index: 1;
 }
@@ -50,40 +46,6 @@
   color: var(--se-text-dim);
   font-size: 13px;
   line-height: 1.5;
-}
-
-.se-rankings-hero__readout {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--se-line);
-  background: rgba(11, 12, 14, 0.72);
-}
-
-.se-rankings-hero__readout > span {
-  min-width: 0;
-  padding: 11px;
-  border-right: 1px solid var(--se-line);
-}
-
-.se-rankings-hero__readout > span:last-child {
-  border-right: 0;
-}
-
-.se-rankings-hero__readout small {
-  display: block;
-  color: var(--se-muted);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.se-rankings-hero__readout strong {
-  display: block;
-  margin-top: 4px;
-  overflow-wrap: anywhere;
-  font-family: var(--se-mono);
-  font-size: 14px;
 }
 
 .se-rankings-summary,
@@ -116,7 +78,7 @@
 
 .se-rankings-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   border: 1px solid var(--se-line);
   border-width: 1px 0 0 1px;
 }
@@ -223,68 +185,6 @@
   color: var(--se-accent);
 }
 
-.se-rankings-podium {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.se-rankings-podium__card {
-  position: relative;
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-  min-height: 106px;
-  padding: 12px;
-  border: 1px solid var(--se-line);
-  border-left: 3px solid var(--se-text-dim);
-  background: rgba(255, 255, 255, 0.012);
-}
-
-.se-rankings-podium__card--1 {
-  border-left-color: var(--se-accent);
-  background:
-    linear-gradient(90deg, rgba(182, 255, 58, 0.045), transparent 56%),
-    rgba(255, 255, 255, 0.012);
-}
-
-.se-rankings-podium__card--2,
-.se-rankings-podium__card--3 {
-  border-left-color: var(--se-line-soft);
-}
-
-.se-rankings-podium__card--you {
-  box-shadow: inset 0 0 0 1px rgba(182, 255, 58, 0.24);
-}
-
-.se-rankings-podium__rank {
-  color: var(--se-accent);
-  font-family: var(--se-mono);
-  font-size: 10px;
-  font-weight: 800;
-}
-
-.se-rankings-podium__name {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.se-rankings-podium__card > strong {
-  overflow-wrap: anywhere;
-  font-family: var(--se-mono);
-  font-size: 14px;
-}
-
-.se-rankings-podium__card > span {
-  color: var(--se-muted);
-  font-size: 9px;
-}
-
 .se-rankings-surface {
   min-width: 0;
 }
@@ -377,11 +277,6 @@
 }
 
 @media (max-width: 1120px) {
-  .se-rankings-hero {
-    grid-template-columns: 1fr;
-    gap: 18px;
-  }
-
   .se-rankings-tabs {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -389,7 +284,7 @@
 
 @media (max-width: 900px) {
   .se-rankings-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .se-rankings-sectionhead {
@@ -414,18 +309,6 @@
     font-size: 34px;
   }
 
-  .se-rankings-hero__readout {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .se-rankings-hero__readout > span:nth-child(2) {
-    border-right: 0;
-  }
-
-  .se-rankings-hero__readout > span:nth-child(-n + 2) {
-    border-bottom: 1px solid var(--se-line);
-  }
-
   .se-rankings-sectionhead {
     display: grid;
     gap: 5px;
@@ -436,8 +319,8 @@
     text-align: left;
   }
 
-  .se-rankings-podium {
-    grid-template-columns: 1fr;
+  .se-rankings-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .se-rankings-tabs {
@@ -451,26 +334,8 @@
 }
 
 @media (max-width: 480px) {
-  .se-rankings-hero__readout,
   .se-rankings-metrics {
     grid-template-columns: 1fr;
-  }
-
-  .se-rankings-hero__readout > span {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    border-right: 0;
-    border-bottom: 1px solid var(--se-line);
-  }
-
-  .se-rankings-hero__readout > span:last-child {
-    border-bottom: 0;
-  }
-
-  .se-rankings-hero__readout strong {
-    margin-top: 0;
   }
 
   .se-rankings-tabs {
