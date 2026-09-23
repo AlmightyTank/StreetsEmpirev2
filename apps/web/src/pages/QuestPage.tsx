@@ -286,6 +286,7 @@ export function QuestPage() {
   const allianceToday = useMemo(
     () => page?.quests.filter((quest) =>
       quest.type === 'ALLIANCE'
+      && !['EXPIRED', 'FAILED'].includes(quest.status)
       && quest.expiresAt !== null
       && new Date(quest.expiresAt).getTime() > nowMs
     ) ?? [],

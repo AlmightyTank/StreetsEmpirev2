@@ -334,7 +334,7 @@ export const QuestProgressService = {
       for (const objective of completedObjectives) {
         await createPlayerActivity(
           db,
-          roundPlayerId,
+          playerQuest.roundPlayerId,
           'QUEST_OBJECTIVE_COMPLETE',
           json({
             questKey: playerQuest.questDefinition.key,
@@ -350,7 +350,7 @@ export const QuestProgressService = {
         result.readied += 1;
         await createPlayerActivity(
           db,
-          roundPlayerId,
+          playerQuest.roundPlayerId,
           'QUEST_READY',
           json({
             questKey: playerQuest.questDefinition.key,

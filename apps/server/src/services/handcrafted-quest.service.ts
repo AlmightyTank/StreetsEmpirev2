@@ -51,7 +51,6 @@ import {
 } from './city-contract.service.js';
 import {
   acceptAllianceContract,
-  allianceContractState,
   assertAllianceContractClaim,
   isAllianceContractDefinition,
   syncAllianceContractAttempts,
