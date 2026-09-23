@@ -39,7 +39,7 @@ describe('Phase Y-C quest-only cosmetics', () => {
         kind: 'COSMETIC_UNLOCK',
         key: cosmeticKey,
       });
-      expect(classicOgV07X.cosmetics?.[cosmeticKey]).toBeDefined();
+      expect(classicOgV07X.cosmetics?.[cosmeticKey as keyof typeof classicOgV07X.cosmetics]).toBeDefined();
     }
   });
 
