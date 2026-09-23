@@ -268,11 +268,11 @@ export function RankingsPage() {
             </span>
             <span>
               <small>Net worth</small>
-              <strong>{nationalMe ? formatCents(nationalMe.netWorthCents) : '—'}</strong>
+              <strong>{formatCents(me.netWorthCents)}</strong>
             </span>
             <span>
               <small>National move</small>
-              <strong>{nationalMe ? movementText(nationalMe.rankMovement) : '—'}</strong>
+              <strong>{nationalMe ? movementText(nationalMe.rankMovement) : 'off board'}</strong>
             </span>
           </div>
         </header>
