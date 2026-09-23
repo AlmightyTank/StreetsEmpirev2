@@ -139,6 +139,9 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
       if (reward.kind === 'PERMANENT_UNLOCK' && (!reward.key || !reward.key.trim())) {
         problems.push(`${catalogKey}: PERMANENT_UNLOCK reward requires a key`);
       }
+      if (reward.kind === 'COSMETIC_UNLOCK' && quest.repeatability !== 'ONCE') {
+        problems.push(`${catalogKey}: permanent cosmetic rewards require ONCE repeatability`);
+      }
     }
 
     if (quest.branches?.length) {
@@ -172,6 +175,9 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
           }
           if (reward.kind === 'WEAPON_ACCESS' && !['SHOTGUN', 'TEK9', 'AK47'].includes(reward.key ?? '')) {
             problems.push(`${catalogKey}/${branch.key}: WEAPON_ACCESS reward requires SHOTGUN, TEK9 or AK47`);
+          }
+          if (reward.kind === 'COSMETIC_UNLOCK' && quest.repeatability !== 'ONCE') {
+            problems.push(`${catalogKey}/${branch.key}: permanent cosmetic rewards require ONCE repeatability`);
           }
         }
       }
