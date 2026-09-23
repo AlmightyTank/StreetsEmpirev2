@@ -30,8 +30,9 @@ and hideout decor, but Phase Y-C does not grant those yet.
 | Clean Slate | Vic | No Paper Trail | Epic |
 | Out-of-Town Box | Blocks | Corner Boss | Legendary |
 
-All six source Jobs are `ONCE`. Daily, weekly, city, alliance and community
-repeatable contracts do not grant permanent cosmetics.
+All six source Jobs are `ONCE`. The quest catalog validator rejects permanent
+cosmetic rewards on Daily, Weekly or Repeatable Jobs, so city/alliance/event
+content cannot accidentally make them farmable.
 
 ## Persistence
 
@@ -52,8 +53,8 @@ safe.
 
 ## Profile integration
 
-Quest `TITLE_BADGE` unlocks are exposed as permanent legacy-style awards to
-reuse the current profile system. They appear in:
+Quest `TITLE_BADGE` unlocks are exposed as permanent `quest` awards to reuse
+the current profile system. They appear in:
 
 - account settings title picker;
 - account settings featured badge picker;
