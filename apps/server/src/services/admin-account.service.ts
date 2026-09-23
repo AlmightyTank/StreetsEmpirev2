@@ -510,7 +510,7 @@ export const AdminAccountService = {
       if (profile) {
         await tx.accountProfile.update({
           where: { accountId: before.id },
-          data: { activeTitleKey: null, featuredBadgeKeys: [], profileAccent: 'default' },
+          data: { activeTitleKey: null, activeProfileFrameKey: null, featuredBadgeKeys: [], profileAccent: 'default' },
         });
       }
       return {
