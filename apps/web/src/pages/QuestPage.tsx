@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, useLocation } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   formatCents,
   formatNumber,
@@ -15,11 +15,20 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
 
-type Tab = 'available' | 'daily' | 'weekly' | 'city' | 'alliance' | 'events' | 'active' | 'completed';
+type Tab = 'available' | 'active' | 'ready' | 'tracked' | 'daily' | 'weekly' | 'city' | 'alliance' | 'events' | 'completed';
 
 function tabFromSearch(search: string): Tab {
   const requested = new URLSearchParams(search).get('tab');
-  return requested === 'daily' || requested === 'weekly' || requested === 'city' || requested === 'alliance' || requested === 'events' || requested === 'active' || requested === 'completed' || requested === 'available'
+  return requested === 'daily'
+    || requested === 'weekly'
+    || requested === 'city'
+    || requested === 'alliance'
+    || requested === 'events'
+    || requested === 'active'
+    || requested === 'ready'
+    || requested === 'tracked'
+    || requested === 'completed'
+    || requested === 'available'
     ? requested
     : 'available';
 }
@@ -43,6 +52,87 @@ function statusLabel(quest: PlayerQuestDto): string {
   }
 }
 
+function questKindLabel(quest: PlayerQuestDto): string {
+  if (quest.category === 'CITY_CONTRACT') return 'City contract';
+  if (quest.type === 'ALLIANCE') return 'Alliance contract';
+  if (quest.type === 'EVENT') return 'Community event';
+  if (quest.type === 'DAILY') return 'Daily contract';
+  if (quest.type === 'WEEKLY') return 'Weekly contract';
+  if (quest.type === 'SECRET') return 'Secret job';
+  if (quest.type === 'SIDE') return 'Side job';
+  if (quest.type === 'STORY') return 'Story';
+  return quest.type;
+}
+
+function statusTone(status: PlayerQuestDto['status']): string {
+  switch (status) {
+    case 'READY_TO_TURN_IN': return 'ready';
+    case 'ACTIVE': return 'active';
+    case 'AVAILABLE': return 'available';
+    case 'COMPLETED': return 'completed';
+    case 'FAILED': return 'failed';
+    case 'EXPIRED': return 'expired';
+    case 'LOCKED': return 'locked';
+  }
+}
+
+function formatProgress(current: number, target: number, format: 'NUMBER' | 'CURRENCY'): string {
+  return format === 'CURRENCY'
+    ? formatCents(current) + ' / ' + formatCents(target)
+    : formatNumber(current) + ' / ' + formatNumber(target);
+}
+
+function timeRemaining(expiresAt: string, nowMs: number): string {
+  const remainingMs = Math.max(0, new Date(expiresAt).getTime() - nowMs);
+  const minutes = Math.ceil(remainingMs / 60_000);
+  if (minutes <= 1) return 'less than a minute left';
+  if (minutes < 60) return minutes + ' min left';
+  const hours = Math.floor(minutes / 60);
+  const leftoverMinutes = minutes % 60;
+  if (hours < 24) return hours + 'h ' + leftoverMinutes + 'm left';
+  const days = Math.floor(hours / 24);
+  const leftoverHours = hours % 24;
+  return days + 'd ' + leftoverHours + 'h left';
+}
+
+function ProgressLine({
+  label,
+  current,
+  target,
+  format = 'NUMBER',
+  completed = false,
+  bonus = false,
+}: {
+  label: string;
+  current: number;
+  target: number;
+  format?: 'NUMBER' | 'CURRENCY';
+  completed?: boolean;
+  bonus?: boolean;
+}) {
+  const percent = target > 0 ? Math.max(0, Math.min(100, (current / target) * 100)) : 0;
+  return (
+    <div className={'se-quest-progress' + (completed ? ' se-quest-progress--complete' : '')}>
+      <div className="se-quest-progress__head">
+        <span className="se-quest-progress__label">{bonus ? 'Bonus · ' : ''}{label}</span>
+        <span className="se-quest-progress__value">
+          {completed ? 'Complete · ' : ''}{formatProgress(current, target, format)}
+        </span>
+      </div>
+      <div
+        className="se-quest-progress__meter"
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={target}
+        aria-valuenow={Math.min(current, target)}
+      >
+        <span style={{ width: percent + '%' }} />
+      </div>
+    </div>
+  );
+}
+
 function QuestCard({
   quest,
   page,
@@ -51,10 +141,12 @@ function QuestCard({
   onClaim,
   onTrack,
   onAbandon,
+  nowMs,
 }: {
   quest: PlayerQuestDto;
   page: QuestPageDto;
   busy: string | null;
+  nowMs: number;
   onAccept: (key: string) => void;
   onClaim: (key: string, branchKey?: string, branchTitle?: string) => void;
   onTrack: (key: string, tracked: boolean) => void;
@@ -66,35 +158,40 @@ function QuestCard({
   return (
     <Panel
       id={`quest-${quest.key}`}
-      className="se-quest-card"
+      className={'se-quest-card'
+        + (quest.status === 'READY_TO_TURN_IN' ? ' se-quest-card--ready' : '')
+        + (quest.isTracked ? ' se-quest-card--tracked' : '')}
       title={quest.title}
-      aside={<span className="se-num se-dim">{quest.contactName ?? 'StreetsEmpire'} · {quest.category === 'CITY_CONTRACT' ? 'City contract' : quest.type === 'ALLIANCE' ? 'Alliance contract' : quest.type === 'EVENT' ? 'Community event' : quest.type === 'DAILY' ? 'Daily contract' : quest.type === 'WEEKLY' ? 'Weekly contract' : quest.type === 'SECRET' ? 'Secret job' : quest.type === 'SIDE' ? 'Side job' : quest.type === 'STORY' ? 'Story' : quest.type} · {statusLabel(quest)}</span>}
+      aside={(
+        <div className="se-quest-card__meta">
+          <span className="se-quest-kind">{quest.contactName ?? 'StreetsEmpire'} · {questKindLabel(quest)}</span>
+          {quest.isTracked ? <span className="se-quest-status se-quest-status--tracked">Tracked</span> : null}
+          <span className={'se-quest-status se-quest-status--' + statusTone(quest.status)}>{statusLabel(quest)}</span>
+        </div>
+      )}
     >
       <p className="se-hint se-quest-card__desc">{quest.description}</p>
       {quest.communityEvent ? (
-        <div className="se-rows se-quest-objectives">
-          <Row
+        <div className="se-quest-objectives">
+          <ProgressLine
             label={'Your contribution · ' + quest.communityEvent.contributionLabel}
-            value={
-              (quest.communityEvent.contributionFormat === 'CURRENCY'
-                ? formatCents(quest.communityEvent.contributionCurrent)
-                : formatNumber(quest.communityEvent.contributionCurrent))
-              + ' / '
-              + (quest.communityEvent.contributionFormat === 'CURRENCY'
-                ? formatCents(quest.communityEvent.contributionTarget)
-                : formatNumber(quest.communityEvent.contributionTarget))
-            }
-            strong={quest.communityEvent.contributionCurrent >= quest.communityEvent.contributionTarget}
+            current={quest.communityEvent.contributionCurrent}
+            target={quest.communityEvent.contributionTarget}
+            format={quest.communityEvent.contributionFormat}
+            completed={quest.communityEvent.contributionCurrent >= quest.communityEvent.contributionTarget}
           />
         </div>
       ) : null}
-      <div className="se-rows se-quest-objectives">
+      <div className="se-quest-objectives">
         {quest.objectives.map((objective) => (
-          <Row
+          <ProgressLine
             key={objective.id}
-            label={(objective.bonus ? 'Bonus · ' : '') + objective.description}
-            value={objective.completed ? 'Complete' : formatObjective(objective)}
-            strong={objective.completed}
+            label={objective.description}
+            current={objective.current}
+            target={objective.target}
+            format={objective.kind === 'EARN_CASH' || objective.format === 'CURRENCY' ? 'CURRENCY' : 'NUMBER'}
+            completed={objective.completed}
+            bonus={objective.bonus}
           />
         ))}
       </div>
@@ -185,13 +282,19 @@ function QuestCard({
         ) : null}
       </div>
 
-      {quest.expiresAt ? <p className="se-hint">{quest.category === 'CITY_CONTRACT' ? 'City board refreshes ' : quest.type === 'ALLIANCE' ? 'Alliance board resets ' : quest.type === 'EVENT' ? 'Event ends ' : quest.type === 'DAILY' ? 'Daily board resets ' : quest.type === 'WEEKLY' ? 'Weekly board resets ' : 'Expires '}{new Date(quest.expiresAt).toLocaleString()}.</p> : null}
+      {quest.expiresAt ? (
+        <p className="se-hint se-quest-expiry">
+          {quest.category === 'CITY_CONTRACT' ? 'City board refreshes ' : quest.type === 'ALLIANCE' ? 'Alliance board resets ' : quest.type === 'EVENT' ? 'Event ends ' : quest.type === 'DAILY' ? 'Daily board resets ' : quest.type === 'WEEKLY' ? 'Weekly board resets ' : 'Expires '}
+          {new Date(quest.expiresAt).toLocaleString()} · {timeRemaining(quest.expiresAt, nowMs)}.
+        </p>
+      ) : null}
     </Panel>
   );
 }
 
 export function QuestPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const me = useSession((state) => state.me);
   const refreshSnapshot = useSession((state) => state.refreshSnapshot);
   const [page, setPage] = useState<QuestPageDto | null>(null);
@@ -227,6 +330,18 @@ export function QuestPage() {
 
   useEffect(() => {
     void load();
+  }, [load]);
+
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void load();
+    };
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, [load]);
 
   useEffect(() => {
@@ -339,6 +454,16 @@ export function QuestPage() {
     [page],
   );
 
+  const readyToday = useMemo(
+    () => page?.quests.filter((quest) => quest.status === 'READY_TO_TURN_IN') ?? [],
+    [page],
+  );
+
+  const trackedToday = useMemo(
+    () => page?.quests.filter((quest) => quest.isTracked && ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status)) ?? [],
+    [page],
+  );
+
   const shown = useMemo(() => {
     if (!page) return [];
     if (tab === 'daily') return dailyToday;
@@ -347,6 +472,8 @@ export function QuestPage() {
     if (tab === 'alliance') return allianceToday;
     if (tab === 'events') return eventToday;
     if (tab === 'active') return page.quests.filter((quest) => ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status));
+    if (tab === 'ready') return readyToday;
+    if (tab === 'tracked') return trackedToday;
     if (tab === 'completed') return page.quests.filter((quest) => ['COMPLETED', 'FAILED', 'EXPIRED'].includes(quest.status));
     return page.quests.filter((quest) =>
       quest.status === 'AVAILABLE'
@@ -356,12 +483,35 @@ export function QuestPage() {
       && quest.type !== 'EVENT'
       && quest.category !== 'CITY_CONTRACT'
     );
-  }, [page, tab, dailyToday, weeklyToday, cityToday, allianceToday, eventToday]);
+  }, [page, tab, dailyToday, weeklyToday, cityToday, allianceToday, eventToday, readyToday, trackedToday]);
+
+  const sortedShown = useMemo(
+    () => [...shown].sort((left, right) => {
+      const weight = (quest: PlayerQuestDto) =>
+        quest.status === 'READY_TO_TURN_IN' ? 0
+          : quest.isTracked ? 1
+            : quest.status === 'ACTIVE' ? 2
+              : quest.status === 'AVAILABLE' ? 3
+                : 4;
+      return weight(left) - weight(right) || left.title.localeCompare(right.title);
+    }),
+    [shown],
+  );
 
   const liveFavors = useMemo(
     () => page?.activeFavors.filter((favor) => new Date(favor.expiresAt).getTime() > nowMs) ?? [],
     [page, nowMs],
   );
+
+  function selectTab(next: Tab) {
+    setTab(next);
+    const params = new URLSearchParams(location.search);
+    params.set('tab', next);
+    navigate({
+      pathname: location.pathname,
+      search: '?' + params.toString(),
+    }, { replace: true });
+  }
 
   async function mutate(key: string, action: () => Promise<QuestPageDto>, success?: string) {
     setBusy(key);
@@ -465,7 +615,12 @@ export function QuestPage() {
             <h1 className="se-title">Quests</h1>
             <p className="se-eyebrow">Jobs, contacts and underworld progression</p>
           </div>
-          <Link className="se-btn se-btn--ghost" to="/game/reputation">Contact standing</Link>
+          <div className="se-actions se-questpage__head-actions">
+            <Button className="se-btn se-btn--ghost" disabledReason={busy ? 'Another job update is still going through.' : null} onClick={() => void load()}>
+              Refresh jobs
+            </Button>
+            <Link className="se-btn se-btn--ghost" to="/game/reputation">Contact standing</Link>
+          </div>
         </div>
 
         {error ? <Alert>{error}</Alert> : null}
@@ -473,6 +628,28 @@ export function QuestPage() {
 
         {page ? (
           <>
+            <div className="se-quest-glance" aria-label="Quest status at a glance">
+              <button
+                type="button"
+                className={'se-quest-glance__item' + (page.counts.ready > 0 ? ' se-quest-glance__item--ready' : '')}
+                onClick={() => selectTab('ready')}
+              >
+                <span className="se-quest-glance__label">Ready to collect</span>
+                <strong>{formatNumber(page.counts.ready)}</strong>
+                <span>Claim completed jobs</span>
+              </button>
+              <button type="button" className="se-quest-glance__item" onClick={() => selectTab('tracked')}>
+                <span className="se-quest-glance__label">Tracked</span>
+                <strong>{formatNumber(trackedToday.length)} / {formatNumber(page.trackedLimit)}</strong>
+                <span>Your pinned jobs</span>
+              </button>
+              <button type="button" className="se-quest-glance__item" onClick={() => selectTab('active')}>
+                <span className="se-quest-glance__label">Personal active</span>
+                <strong>{formatNumber(page.counts.active)} / {formatNumber(page.activeLimit)}</strong>
+                <span>Alliance/events do not use slots</span>
+              </button>
+            </div>
+
             <div className="se-grid se-grid--sidebar se-quest-summary">
               <div className="se-grid se-quest-summary__col">
                 <Panel title="Jobs">
@@ -661,12 +838,14 @@ export function QuestPage() {
             <div className="se-storetabs se-quest-tabs" role="tablist" aria-label="Quest view">
             {([
               ['available', 'Available (' + standardAvailableCount + ')'],
+              ['active', 'Active (' + activeQuestCount + ')'],
+              ['ready', 'Ready (' + readyToday.length + ')'],
+              ['tracked', 'Tracked (' + trackedToday.length + ')'],
               ...(page.dailyContracts.enabled ? [['daily', 'Daily (' + dailyToday.length + ')'] as const] : []),
               ...(page.weeklyContracts.enabled ? [['weekly', 'Weekly (' + weeklyToday.length + ')'] as const] : []),
               ...(page.cityContracts.enabled ? [['city', 'City (' + cityToday.length + ')'] as const] : []),
               ...(allianceToday.length ? [['alliance', 'Alliance (' + allianceToday.length + ')'] as const] : []),
               ...(eventToday.length ? [['events', 'Events (' + eventToday.length + ')'] as const] : []),
-              ['active', 'Active (' + activeQuestCount + ')'],
               ['completed', 'Completed (' + page.counts.completed + ')'],
             ] as const).map(([key, label]) => (
               <button
@@ -675,7 +854,7 @@ export function QuestPage() {
                 role="tab"
                 aria-selected={tab === key}
                 className={'se-storetabs__tab' + (tab === key ? ' se-storetabs__tab--active' : '')}
-                onClick={() => setTab(key)}
+                onClick={() => selectTab(key)}
               >
                 {label}
               </button>
@@ -683,12 +862,13 @@ export function QuestPage() {
             </div>
 
             <div className="se-grid se-quest-list">
-            {shown.length ? shown.map((quest) => (
+            {sortedShown.length ? sortedShown.map((quest) => (
               <QuestCard
                 key={quest.key + ':' + quest.attempt}
                 quest={quest}
                 page={page}
                 busy={busy ? 'Another job update is still going through.' : null}
+                nowMs={nowMs}
                 onAccept={(key) => void mutate(key, () => questsApi.accept(key, crypto.randomUUID()), 'Job accepted.')}
                 onClaim={(key, branchKey, branchTitle) => void claim(key, branchKey, branchTitle)}
                 onTrack={(key, tracked) => void mutate(key, () => questsApi.track(key, tracked))}
