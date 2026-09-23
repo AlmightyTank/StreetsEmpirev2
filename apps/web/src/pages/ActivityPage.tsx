@@ -18,13 +18,12 @@ const GROUPS: ActivityGroup[] = ['combat', 'street', 'market', 'progress', 'trav
 function newestLabel(activity: ActivityDto[]): string {
   const newest = activity[0];
   if (!newest) return 'No entries yet';
-
-  const minutes = Math.max(0, Math.floor((Date.now() - new Date(newest.createdAt).getTime()) / 60_000));
-  if (minutes < 1) return 'Updated just now';
-  if (minutes < 60) return `Newest entry ${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `Newest entry ${hours}h ago`;
-  return `Newest entry ${new Date(newest.createdAt).toLocaleDateString()}`;
+  return `Newest ${new Date(newest.createdAt).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })}`;
 }
 
 export function ActivityPage() {
