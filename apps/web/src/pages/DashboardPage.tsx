@@ -590,75 +590,79 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
           </div>
 
           <div className="se-dashboard-coregrid">
-            <Panel title="Crew readiness" flush className="se-dashboard-panel">
-              <div className="se-dashboard-stockgrid">
-                <DashboardMetric label="Whores" value={formatNumber(me.resources.whores)} detail="Street crew" />
-                <DashboardMetric label="Thugs" value={formatNumber(me.resources.thugs)} detail={`${formatNumber(me.resources.fitThugs)} fit`} />
-                <DashboardMetric
-                  label="Wounded"
-                  value={formatNumber(me.resources.woundedThugs)}
-                  tone={me.resources.woundedThugs > 0 ? 'warn' : 'good'}
-                />
-                <DashboardMetric
-                  label="Unarmed"
-                  value={formatNumber(me.resources.unarmedThugs)}
-                  tone={me.resources.unarmedThugs > 0 ? 'warn' : 'good'}
-                />
-                <DashboardMetric label="On corners" value={formatNumber(me.resources.postedThugs)} />
-                <DashboardMetric label="Low-Riders" value={formatNumber(me.resources.lowRiders)} />
-              </div>
-              <div className="se-rows">
-                <Row label="Armed / unarmed" value={`${formatNumber(me.resources.armedThugs)} / ${formatNumber(me.resources.unarmedThugs)}`} />
-                <Row label="Crew payout" value={`${me.payoutPercent}% to the crew · ${100 - me.payoutPercent}% to you`} />
-                {me.run ? (
-                  <Row
-                    label="Crew on run"
-                    value={<Link to="/game/travel">{me.run.phase === 'town' ? `In ${me.run.cityName}` : `Road to ${me.run.cityName}`}</Link>}
-                  />
-                ) : null}
-              </div>
-            </Panel>
-
-            <Panel title="Crew happiness" className="se-dashboard-panel">
-              <div className="se-dashboard-happiness">
-                <div>
-                  <HappinessRow label="Whore happiness" value={me.happiness.whore} />
-                  <HappinessDrags terms={me.happiness.whoreTerms} />
-                </div>
-                <div>
-                  <HappinessRow label="Thug happiness" value={me.happiness.thug} />
-                  <HappinessDrags terms={me.happiness.thugTerms} />
-                </div>
-              </div>
-              {me.happiness.whore === 100 && me.happiness.thug === 100 ? (
-                <p className="se-hint se-good">Everybody is stocked, armed, and content.</p>
-              ) : (
-                <p className="se-hint">The penalty rows show exactly what is dragging each crew group down.</p>
-              )}
-            </Panel>
-
-            {suppliesPanel}
-
-            {me.products ? (
-              <Panel title="Products" aside={<Link to="/game/stores/pip">Trade at Pip&rsquo;s</Link>} flush className="se-dashboard-panel">
+            <div className="se-dashboard-stack">
+              <Panel title="Crew readiness" flush className="se-dashboard-panel">
                 <div className="se-dashboard-stockgrid">
-                  {me.products.map((product) => (
-                    <DashboardMetric key={product.key} label={product.name} value={formatNumber(product.quantity)} />
-                  ))}
+                  <DashboardMetric label="Whores" value={formatNumber(me.resources.whores)} detail="Street crew" />
+                  <DashboardMetric label="Thugs" value={formatNumber(me.resources.thugs)} detail={`${formatNumber(me.resources.fitThugs)} fit`} />
+                  <DashboardMetric
+                    label="Wounded"
+                    value={formatNumber(me.resources.woundedThugs)}
+                    tone={me.resources.woundedThugs > 0 ? 'warn' : 'good'}
+                  />
+                  <DashboardMetric
+                    label="Unarmed"
+                    value={formatNumber(me.resources.unarmedThugs)}
+                    tone={me.resources.unarmedThugs > 0 ? 'warn' : 'good'}
+                  />
+                  <DashboardMetric label="On corners" value={formatNumber(me.resources.postedThugs)} />
+                  <DashboardMetric label="Low-Riders" value={formatNumber(me.resources.lowRiders)} />
+                </div>
+                <div className="se-rows">
+                  <Row label="Armed / unarmed" value={`${formatNumber(me.resources.armedThugs)} / ${formatNumber(me.resources.unarmedThugs)}`} />
+                  <Row label="Crew payout" value={`${me.payoutPercent}% to the crew · ${100 - me.payoutPercent}% to you`} />
+                  {me.run ? (
+                    <Row
+                      label="Crew on run"
+                      value={<Link to="/game/travel">{me.run.phase === 'town' ? `In ${me.run.cityName}` : `Road to ${me.run.cityName}`}</Link>}
+                    />
+                  ) : null}
                 </div>
               </Panel>
-            ) : null}
 
-            <Panel title="Arsenal" aside={<Link to="/game/stores/tommy">Tommy&rsquo;s</Link>} flush className="se-dashboard-panel">
-              <div className="se-dashboard-stockgrid">
-                <DashboardMetric label="Pistols" value={formatNumber(me.resources.pistols)} />
-                <DashboardMetric label="Shotguns" value={formatNumber(me.resources.shotguns)} />
-                <DashboardMetric label="Tek-9s" value={formatNumber(me.resources.tek9s)} />
-                <DashboardMetric label="AK-47s" value={formatNumber(me.resources.ak47s)} />
-                <DashboardMetric label="At home" value={formatNumber(homeWeapons)} tone="accent" />
-                <DashboardMetric label="Total owned" value={formatNumber(weapons)} detail={postedWeapons > 0 ? `${formatNumber(postedWeapons)} on corners` : undefined} />
-              </div>
-            </Panel>
+              {suppliesPanel}
+
+              <Panel title="Arsenal" aside={<Link to="/game/stores/tommy">Tommy&rsquo;s</Link>} flush className="se-dashboard-panel">
+                <div className="se-dashboard-stockgrid">
+                  <DashboardMetric label="Pistols" value={formatNumber(me.resources.pistols)} />
+                  <DashboardMetric label="Shotguns" value={formatNumber(me.resources.shotguns)} />
+                  <DashboardMetric label="Tek-9s" value={formatNumber(me.resources.tek9s)} />
+                  <DashboardMetric label="AK-47s" value={formatNumber(me.resources.ak47s)} />
+                  <DashboardMetric label="At home" value={formatNumber(homeWeapons)} tone="accent" />
+                  <DashboardMetric label="Total owned" value={formatNumber(weapons)} detail={postedWeapons > 0 ? `${formatNumber(postedWeapons)} on corners` : undefined} />
+                </div>
+              </Panel>
+            </div>
+
+            <div className="se-dashboard-stack">
+              <Panel title="Crew happiness" className="se-dashboard-panel">
+                <div className="se-dashboard-happiness">
+                  <div>
+                    <HappinessRow label="Whore happiness" value={me.happiness.whore} />
+                    <HappinessDrags terms={me.happiness.whoreTerms} />
+                  </div>
+                  <div>
+                    <HappinessRow label="Thug happiness" value={me.happiness.thug} />
+                    <HappinessDrags terms={me.happiness.thugTerms} />
+                  </div>
+                </div>
+                {me.happiness.whore === 100 && me.happiness.thug === 100 ? (
+                  <p className="se-hint se-good">Everybody is stocked, armed, and content.</p>
+                ) : (
+                  <p className="se-hint">The penalty rows show exactly what is dragging each crew group down.</p>
+                )}
+              </Panel>
+
+              {me.products ? (
+                <Panel title="Products" aside={<Link to="/game/stores/pip">Trade at Pip&rsquo;s</Link>} flush className="se-dashboard-panel">
+                  <div className="se-dashboard-stockgrid">
+                    {me.products.map((product) => (
+                      <DashboardMetric key={product.key} label={product.name} value={formatNumber(product.quantity)} />
+                    ))}
+                  </div>
+                </Panel>
+              ) : null}
+            </div>
           </div>
         </section>
 
@@ -672,25 +676,30 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
           </div>
 
           <div className="se-dashboard-controlgrid">
-            <HeatPanel />
-            <PayoutControl />
-            <HideoutPanel hideout={me.hideout} />
+            <div className="se-dashboard-stack">
+              <HeatPanel />
+              <HideoutPanel hideout={me.hideout} />
+            </div>
 
-            {me.turf ? (
-              <Panel title="City Blocks" aside={<Link to="/game/turf">Manage turf</Link>} flush className="se-dashboard-panel">
-                <div className="se-dashboard-stockgrid">
-                  <DashboardMetric label="Blocks held" value={formatNumber(me.turf.blocksHeld)} tone="accent" />
-                  <DashboardMetric label="Corner guns" value={formatNumber(me.turf.postedGuns.total)} />
-                  <DashboardMetric label="Tax today" value={formatCents(me.turf.taxEarnedTodayCents)} tone="good" />
-                  <DashboardMetric label="Payers today" value={formatNumber(me.turf.taxPayersToday)} />
-                </div>
-                {me.turf.taxPendingCents > 0 ? (
-                  <div className="se-rows">
-                    <Row label="Pending settle" value={formatCents(me.turf.taxPendingCents)} strong />
+            <div className="se-dashboard-stack">
+              <PayoutControl />
+
+              {me.turf ? (
+                <Panel title="City Blocks" aside={<Link to="/game/turf">Manage turf</Link>} flush className="se-dashboard-panel">
+                  <div className="se-dashboard-stockgrid">
+                    <DashboardMetric label="Blocks held" value={formatNumber(me.turf.blocksHeld)} tone="accent" />
+                    <DashboardMetric label="Corner guns" value={formatNumber(me.turf.postedGuns.total)} />
+                    <DashboardMetric label="Tax today" value={formatCents(me.turf.taxEarnedTodayCents)} tone="good" />
+                    <DashboardMetric label="Payers today" value={formatNumber(me.turf.taxPayersToday)} />
                   </div>
-                ) : null}
-              </Panel>
-            ) : null}
+                  {me.turf.taxPendingCents > 0 ? (
+                    <div className="se-rows">
+                      <Row label="Pending settle" value={formatCents(me.turf.taxPendingCents)} strong />
+                    </div>
+                  ) : null}
+                </Panel>
+              ) : null}
+            </div>
           </div>
         </section>
 
