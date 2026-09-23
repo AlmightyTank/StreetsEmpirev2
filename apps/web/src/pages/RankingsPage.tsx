@@ -60,28 +60,6 @@ function RankingMetric({
   );
 }
 
-function Podium({ rows }: { rows: RankingEntryDto[] }) {
-  const top = rows.slice(0, 3);
-  if (!top.length) return null;
-
-  return (
-    <div className="se-rankings-podium" aria-label="Top ranked players">
-      {top.map((row) => (
-        <article key={row.publicPimpId} className={`se-rankings-podium__card se-rankings-podium__card--${row.rank}${row.isYou ? ' se-rankings-podium__card--you' : ''}`}>
-          <div className="se-rankings-podium__rank">#{formatNumber(row.rank)}</div>
-          <div className="se-rankings-podium__name">
-            <AllianceTag alliance={row.alliance} />
-            <Link to={`/game/players/${row.publicPimpId}`} className="se-playerlink">{row.displayName}</Link>
-            {row.isYou ? <span className="se-you">YOU</span> : null}
-          </div>
-          <strong>{formatCents(row.netWorthCents)}</strong>
-          <span>{row.city.name} · {movementText(row.rankMovement)}</span>
-        </article>
-      ))}
-    </div>
-  );
-}
-
 function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: boolean }) {
   if (rows.length === 0) {
     return <div className="se-panel__body"><p className="se-muted">Nobody is ranked yet.</p></div>;
@@ -256,25 +234,6 @@ export function RankingsPage() {
             <h1>Rankings</h1>
             <p>See where your crew stands, who is moving, and who has held the street long enough to own the current board.</p>
           </div>
-
-          <div className="se-rankings-hero__readout">
-            <span>
-              <small>National</small>
-              <strong>{data ? `#${formatNumber(data.me.nationalRank)}` : '—'}</strong>
-            </span>
-            <span>
-              <small>{data?.localCity.name ?? 'Local'}</small>
-              <strong>{data ? `#${formatNumber(data.me.localRank)}` : '—'}</strong>
-            </span>
-            <span>
-              <small>Net worth</small>
-              <strong>{formatCents(me.netWorthCents)}</strong>
-            </span>
-            <span>
-              <small>National move</small>
-              <strong>{nationalMe ? movementText(nationalMe.rankMovement) : 'off board'}</strong>
-            </span>
-          </div>
         </header>
 
         {error ? <Alert>{error}</Alert> : null}
@@ -301,6 +260,11 @@ export function RankingsPage() {
                   label={`${data.localCity.name} rank`}
                   value={`#${formatNumber(data.me.localRank)}`}
                   detail={localMe ? `${movementText(localMe.rankMovement)} · held ${heldFor(localMe.rankHeldSinceAt)}` : 'current city'}
+                />
+                <RankingMetric
+                  label="Net worth"
+                  value={formatCents(me.netWorthCents)}
+                  detail="value used by net-worth leaderboards"
                 />
                 <RankingMetric
                   label="Alliance rank"
@@ -383,10 +347,6 @@ export function RankingsPage() {
                   </>
                 ) : null}
               </div>
-
-              {(view === 'national' || view === 'local') ? (
-                <Podium rows={view === 'national' ? data.national : data.local} />
-              ) : null}
 
               <div className="se-rankings-surface">
                 {view === 'national' ? (
