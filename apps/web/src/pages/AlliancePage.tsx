@@ -169,24 +169,6 @@ export function AlliancePage() {
 
           <div className="se-alliance-hero__side">
             <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/alliances">Alliance rankings</Link>
-            <div className="se-alliance-hero__readout">
-              <span>
-                <small>Rank</small>
-                <strong>{alliance ? `#${formatNumber(alliance.rank)}` : '—'}</strong>
-              </span>
-              <span>
-                <small>Members</small>
-                <strong>{alliance ? `${formatNumber(alliance.memberCount)} / ${formatNumber(alliance.maxMembers)}` : '—'}</strong>
-              </span>
-              <span>
-                <small>Your role</small>
-                <strong>{alliance ? (data?.isLeader ? 'Leader' : 'Member') : 'Free agent'}</strong>
-              </span>
-              <span>
-                <small>Status</small>
-                <strong>{data ? (data.roundOpen ? 'Open' : 'Round closed') : '—'}</strong>
-              </span>
-            </div>
           </div>
         </header>
 
