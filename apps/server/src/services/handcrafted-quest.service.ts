@@ -53,6 +53,7 @@ import {
   acceptAllianceContract,
   assertAllianceContractClaim,
   isAllianceContractDefinition,
+  lockAllianceContractActor,
   syncAllianceContractAttempts,
 } from './alliance-contract.service.js';
 
@@ -583,14 +584,27 @@ export const HandcraftedQuestService = {
 
   async accept(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, key: string): Promise<QuestPageDto> {
     await syncDefinitions(prisma, ruleset);
+    const allianceContract = isAllianceContractDefinition(ruleset.questDefinitions?.[key]);
+    const expectedAllianceId = allianceContract
+      ? (await prisma.roundPlayer.findUnique({
+          where: { id: roundPlayerId },
+          select: { allianceId: true },
+        }))?.allianceId ?? null
+      : null;
+    if (allianceContract && !expectedAllianceId) {
+      throw AppError.conflict('ALLIANCE_REQUIRED', 'Join an alliance before starting an alliance contract.');
+    }
+
     await prisma.$transaction(async (tx) => {
-      await lockRoundPlayer(tx, roundPlayerId);
+      if (allianceContract) {
+        await lockAllianceContractActor(tx, roundPlayerId, expectedAllianceId!);
+      } else {
+        await lockRoundPlayer(tx, roundPlayerId);
+      }
       await refreshAvailability(tx, roundPlayerId, ruleset);
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (row.status === 'ACTIVE' || row.status === 'READY_TO_TURN_IN') return;
       if (row.status !== 'AVAILABLE') throw AppError.conflict('QUEST_NOT_AVAILABLE', 'That job is not available yet.');
-      const definition = ruleset.questDefinitions?.[row.questDefinition.key];
-      const allianceContract = isAllianceContractDefinition(definition);
       if (!allianceContract) {
         const active = await tx.playerQuest.count({
           where: {
