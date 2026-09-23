@@ -1,0 +1,456 @@
+.se-profile {
+  display: grid;
+  gap: 16px;
+}
+
+.se-profile-hero {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: end;
+  padding: 24px;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 6%, transparent), transparent 46%),
+    linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
+}
+
+.se-profile-hero.se-profile-accent {
+  padding-left: 24px;
+  border-left: 3px solid var(--se-profile-accent);
+}
+
+.se-profile-hero::after {
+  content: "";
+  position: absolute;
+  right: -95px;
+  bottom: -145px;
+  width: 365px;
+  height: 280px;
+  border: 1px solid color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 14%, transparent);
+  transform: rotate(-14deg);
+  pointer-events: none;
+}
+
+.se-profile-hero__identity,
+.se-profile-hero__actions {
+  position: relative;
+  z-index: 1;
+}
+
+.se-profile-hero h1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: 5px 0 0;
+  font-size: clamp(30px, 5vw, 46px);
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+}
+
+.se-profile-hero h1 .se-alliance-tag {
+  font-size: 0.45em;
+  letter-spacing: 0;
+}
+
+.se-profile-hero__id {
+  color: var(--se-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.se-profile-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  margin-top: 9px;
+  color: var(--se-text-dim);
+  font-family: var(--se-mono);
+  font-size: 9px;
+}
+
+.se-profile-hero__meta span + span::before {
+  content: "·";
+  margin-right: 12px;
+  color: var(--se-line-soft);
+}
+
+.se-profile-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.se-profile-loading {
+  display: grid;
+  place-items: center;
+  min-height: 140px;
+  border: 1px dashed var(--se-line);
+  color: var(--se-muted);
+  font-size: 10px;
+}
+
+.se-profile-section {
+  display: grid;
+  gap: 10px;
+}
+
+.se-profile-sectionhead {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.se-profile-sectionhead h2 {
+  margin: 3px 0 0;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.se-profile-sectionhead > p {
+  max-width: 620px;
+  margin: 0;
+  color: var(--se-text-dim);
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: right;
+}
+
+.se-profile-sectionhead__meta {
+  max-width: 520px;
+  color: var(--se-text-dim);
+  font-family: var(--se-mono);
+  font-size: 9px;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.se-profile-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--se-line);
+  border-width: 1px 0 0 1px;
+}
+
+.se-profile-metric {
+  min-width: 0;
+  min-height: 82px;
+  padding: 10px 11px;
+  border: 1px solid var(--se-line);
+  border-width: 0 1px 1px 0;
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.se-profile-metric__label {
+  display: block;
+  color: var(--se-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.se-profile-metric__value {
+  display: block;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  color: var(--se-text);
+  font-family: var(--se-mono);
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.se-profile-metric__detail {
+  display: block;
+  margin-top: 5px;
+  color: var(--se-muted);
+  font-size: 9px;
+  line-height: 1.3;
+}
+
+.se-profile-metric--accent .se-profile-metric__value,
+.se-profile-metric--good .se-profile-metric__value {
+  color: var(--se-profile-accent, var(--se-accent));
+}
+
+.se-profile-metric--warn .se-profile-metric__value {
+  color: var(--se-warn);
+}
+
+.se-profile-panel {
+  min-width: 0;
+  margin: 0;
+}
+
+.se-profile-intel {
+  border-left: 3px solid var(--se-line-soft);
+}
+
+.se-profile-intel p {
+  margin: 0;
+  color: var(--se-text-dim);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.se-profile-intel p + p {
+  margin-top: 8px;
+}
+
+.se-profile-intelgrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-items: start;
+}
+
+.se-profile-intelgrid .se-row {
+  min-height: 34px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  font-size: 10px;
+}
+
+.se-profile-career .se-panel__head,
+.se-profile-achievements .se-panel__head {
+  padding: 10px 12px;
+}
+
+.se-profile-career .se-panel__title,
+.se-profile-achievements .se-panel__title {
+  font-size: 13px;
+}
+
+.se-profile-career > .se-panel__body {
+  padding: 12px;
+}
+
+.se-profile-career .se-grid {
+  gap: 10px;
+}
+
+.se-profile-career .se-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid var(--se-line);
+  border-width: 1px 0 0 1px;
+}
+
+.se-profile-career .se-stat {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--se-line);
+  border-width: 0 1px 1px 0;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.se-profile-career .se-stat__label {
+  font-size: 8px;
+}
+
+.se-profile-career .se-stat__value {
+  font-size: 14px;
+}
+
+.se-profile-career .se-table {
+  font-size: 9px;
+}
+
+.se-profile-career .se-table th {
+  padding-top: 7px;
+  padding-bottom: 7px;
+  color: var(--se-muted);
+  font-size: 8px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.se-profile-career .se-table td {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.se-profile-achievements > .se-panel__body {
+  padding: 12px;
+}
+
+.se-profile-achievements .se-ach-filters {
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+}
+
+.se-profile-achievements .se-filter-label {
+  font-size: 9px;
+}
+
+.se-profile-achievements .se-ach-filters .se-seg__btn {
+  min-height: 30px;
+  padding: 4px 9px;
+  border-radius: 3px;
+  font-size: 9px;
+}
+
+.se-profile-achievements .se-ach-grid {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 7px;
+}
+
+.se-profile-achievements .se-ach {
+  min-height: 145px;
+  gap: 5px;
+  padding: 9px;
+  border-radius: 3px;
+}
+
+.se-profile-achievements .se-ach__cat,
+.se-profile-achievements .se-ach__rarity {
+  font-size: 8px;
+}
+
+.se-profile-achievements .se-ach__title {
+  font-size: 13px;
+}
+
+.se-profile-achievements .se-ach__desc {
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.se-profile-achievements .se-ach__progress-text,
+.se-profile-achievements .se-ach__status {
+  font-size: 9px;
+}
+
+.se-profile-achievements .se-ach-section + .se-ach-section {
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.se-profile-achievements .se-ach-section__head {
+  margin-bottom: 8px;
+}
+
+.se-profile-achievements .se-ach-section__head h3 {
+  font-size: 10px;
+}
+
+.se-profile .se-badges {
+  margin-top: 9px;
+}
+
+.se-profile .se-badge {
+  min-height: 21px;
+  padding: 2px 8px;
+  font-size: 9px;
+}
+
+.se-profile .se-profile-title {
+  margin-top: 6px;
+  font-size: 10px;
+}
+
+@media (max-width: 980px) {
+  .se-profile-hero {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .se-profile-hero__actions {
+    justify-content: flex-start;
+  }
+
+  .se-profile-career .se-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .se-profile {
+    gap: 14px;
+  }
+
+  .se-profile-hero,
+  .se-profile-hero.se-profile-accent {
+    padding: 18px 15px;
+  }
+
+  .se-profile-hero h1 {
+    font-size: 34px;
+  }
+
+  .se-profile-hero__meta span + span::before {
+    content: "";
+    margin-right: 0;
+  }
+
+  .se-profile-sectionhead {
+    display: grid;
+    gap: 5px;
+  }
+
+  .se-profile-sectionhead > p,
+  .se-profile-sectionhead__meta {
+    max-width: none;
+    text-align: left;
+  }
+
+  .se-profile-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .se-profile-intelgrid {
+    grid-template-columns: 1fr;
+  }
+
+  .se-profile-achievements .se-filter-group {
+    display: grid;
+    gap: 5px;
+  }
+
+  .se-profile-achievements .se-ach-filters .se-seg {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .se-profile-achievements .se-ach-filters .se-filter-group:last-child .se-seg {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .se-profile-achievements .se-ach-filters .se-seg__btn {
+    border-radius: 3px;
+  }
+}
+
+@media (max-width: 520px) {
+  .se-profile-hero__actions {
+    width: 100%;
+  }
+
+  .se-profile-hero__actions > * {
+    flex: 1 1 auto;
+  }
+
+  .se-profile-career .se-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .se-profile-achievements .se-ach-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .se-profile-achievements .se-ach-filters .se-seg,
+  .se-profile-achievements .se-ach-filters .se-filter-group:last-child .se-seg {
+    grid-template-columns: 1fr 1fr;
+  }
+}
