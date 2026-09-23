@@ -321,6 +321,7 @@ export function QuestPage() {
       quest.status === 'AVAILABLE'
       && quest.type !== 'DAILY'
       && quest.type !== 'WEEKLY'
+      && quest.type !== 'ALLIANCE'
       && quest.category !== 'CITY_CONTRACT'
     );
   }, [page, tab, dailyToday, weeklyToday, cityToday, allianceToday]);
