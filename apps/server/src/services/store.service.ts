@@ -95,17 +95,19 @@ export const StoreService = {
       actionId: input.actionId,
       execute: async ({ tx, current, player, ruleset, standings, now }) => {
         const foundStore = findStore(ruleset, input.store);
+        const normalizedItem = input.item.trim().toUpperCase();
+        const normalizedInput = { ...input, store: foundStore?.key ?? input.store.trim().toUpperCase(), item: normalizedItem };
         const armed = input.direction === 'buy'
           ? await SingleUseFavorService.matching(tx, roundPlayerId, ruleset, 'STORE_BUY_DISCOUNT')
           : null;
         const discount = armed?.effect.kind === 'STORE_BUY_DISCOUNT'
           && foundStore
           && armed.effect.storeKey === foundStore.key
-          && armed.effect.itemKeys.includes(input.item)
+          && armed.effect.itemKeys.includes(normalizedItem)
           ? armed
           : null;
-        const storeItem = foundStore && Object.hasOwn(foundStore.store.items, input.item)
-          ? foundStore.store.items[input.item]
+        const storeItem = foundStore && Object.hasOwn(foundStore.store.items, normalizedItem)
+          ? foundStore.store.items[normalizedItem]
           : undefined;
         const buyUnitCents = discount && storeItem
           ? discountedBuyCents(storeItem.buyCents, storeItem.sellCents, discount.effect.discountPercent)
@@ -115,7 +117,7 @@ export const StoreService = {
         try {
           trade = calculateStoreTrade(
             current,
-            input,
+            normalizedInput,
             ruleset,
             buyUnitCents === undefined ? undefined : { buyUnitCents },
           );
@@ -130,7 +132,7 @@ export const StoreService = {
 
         // Being a regular. Paid once a day per trader however much you buy,
         // so standing tracks showing up rather than spending.
-        const trader = input.store as TraderKey;
+        const trader = normalizedInput.store as TraderKey;
         const credit = creditDailyTrade(standings[trader], now, ruleset);
 
         if (discount) await SingleUseFavorService.consume(tx, discount.id);
@@ -166,11 +168,11 @@ export const StoreService = {
             type: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
             payload: {
               store: trade.storeName,
-              storeKey: input.store,
+              storeKey: normalizedInput.store,
               item: trade.itemName,
-              itemKey: input.item,
+              itemKey: normalizedInput.item,
               city: player.city.slug,
-              ...(input.store === 'PIP' && ruleset.products?.[input.item] ? { product: input.item } : {}),
+              ...(normalizedInput.store === 'PIP' && ruleset.products?.[normalizedInput.item] ? { product: normalizedInput.item } : {}),
               direction: input.direction,
               quantity: input.quantity,
               totalCents: result.totalCents,

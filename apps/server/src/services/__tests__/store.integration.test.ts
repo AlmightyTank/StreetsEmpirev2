@@ -284,6 +284,9 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
           cashCents: 100_000_000n,
           pistolStock: classicOgV07K.weapons.PISTOL.restock!.cap,
           pistolStockAt: new Date(),
+          shotgunUnlocked: true,
+          shotgunStock: classicOgV07K.weapons.SHOTGUN.restock!.cap,
+          shotgunStockAt: new Date(),
         },
       });
 
@@ -316,13 +319,15 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
         where: { roundPlayerId: playerId, favorKey: 'TOMMY_VOUCHER' },
       })).toBe(1);
 
-      const bought = await trade({ store: 'tommy', item: 'PISTOL', quantity: 1 });
+      // Weapon keys coming from the UI should be normalized before voucher matching.
+      // This specifically protects shotgun purchases from consuming the voucher at full price.
+      const bought = await trade({ store: 'tommy', item: 'shotgun', quantity: 1 });
       expect(bought.statusCode, bought.body).toBe(200);
       expect(bought.json().result).toMatchObject({
         favorKey: 'TOMMY_VOUCHER',
         favorDiscountPercent: 20,
-        baseUnitCents: classicOgV07K.stores.TOMMY.items.PISTOL!.buyCents,
-        unitCents: Math.floor(classicOgV07K.stores.TOMMY.items.PISTOL!.buyCents * 0.8),
+        baseUnitCents: classicOgV07K.stores.TOMMY.items.SHOTGUN!.buyCents,
+        unitCents: Math.floor(classicOgV07K.stores.TOMMY.items.SHOTGUN!.buyCents * 0.8),
       });
       expect(await app.prisma.playerArmedFavor.count({
         where: { roundPlayerId: playerId, favorKey: 'TOMMY_VOUCHER' },
