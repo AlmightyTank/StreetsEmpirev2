@@ -117,7 +117,7 @@ export function AdminAuditPage() {
 
   return (
     <GameLayout>
-      <div className="se-pagehead">
+      <div className="se-pagehead se-admin-pagehead">
         <div>
           <h1 className="se-title">Audit Log</h1>
           <p className="se-eyebrow">Admin · every admin action, who, when and why</p>
