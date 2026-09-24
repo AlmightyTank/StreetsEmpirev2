@@ -53,6 +53,7 @@ import { classicOgV07W } from './classic-og-v0.7-w/index.js';
 import { classicOgV07X } from './classic-og-v0.7-x/index.js';
 import { classicOgV07Y } from './classic-og-v0.7-y/index.js';
 import { classicOgV07Z } from './classic-og-v0.7-z/index.js';
+import { classicOgV07AA } from './classic-og-v0.7-aa/index.js';
 import type { Ruleset } from './types.js';
 
 export { classicOgV01 };
@@ -110,6 +111,7 @@ export { classicOgV07W };
 export { classicOgV07X };
 export { classicOgV07Y };
 export { classicOgV07Z };
+export { classicOgV07AA };
 export * from './classic-og-v0.1/index.js';
 export * from './types.js';
 export * from './combat-prototype.js';
@@ -175,6 +177,7 @@ export const rulesets: Readonly<Record<string, Ruleset>> = {
   [classicOgV07X.meta.id]: classicOgV07X,
   [classicOgV07Y.meta.id]: classicOgV07Y,
   [classicOgV07Z.meta.id]: classicOgV07Z,
+  [classicOgV07AA.meta.id]: classicOgV07AA,
 };
 
 export const DEFAULT_RULESET_ID = classicOgV01.meta.id;

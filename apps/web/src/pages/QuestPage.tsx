@@ -193,6 +193,14 @@ function QuestCard({
       )}
     >
       <p className="se-hint se-quest-card__desc">{quest.description}</p>
+      {quest.seasonalEvent ? (
+        <div className="se-quest-seasonal">
+          <span className="se-eyebrow">{quest.seasonalEvent.label ?? 'Seasonal event'}</span>
+          <span className="se-hint">
+            {new Date(quest.seasonalEvent.startsAt).toLocaleDateString(undefined, { timeZone: 'UTC' })} – {new Date(new Date(quest.seasonalEvent.endsAt).getTime() - 86_400_000).toLocaleDateString(undefined, { timeZone: 'UTC' })}
+          </span>
+        </div>
+      ) : null}
       {quest.allianceContract ? (
         <div className="se-quest-objectives">
           <ProgressLine
@@ -317,7 +325,7 @@ function QuestCard({
 
       {quest.expiresAt ? (
         <p className="se-hint se-quest-expiry">
-          {quest.category === 'CITY_CONTRACT' ? 'City board refreshes ' : quest.type === 'ALLIANCE' ? 'Alliance board resets ' : quest.type === 'EVENT' ? 'Event ends ' : quest.type === 'DAILY' ? 'Daily board resets ' : quest.type === 'WEEKLY' ? 'Weekly board resets ' : 'Expires '}
+          {quest.category === 'CITY_CONTRACT' ? 'City board refreshes ' : quest.type === 'ALLIANCE' ? 'Alliance board resets ' : quest.type === 'EVENT' ? (quest.seasonalEvent ? 'Job expires ' : 'Event ends ') : quest.type === 'DAILY' ? 'Daily board resets ' : quest.type === 'WEEKLY' ? 'Weekly board resets ' : 'Expires '}
           {new Date(quest.expiresAt).toLocaleString()} · {timeRemaining(quest.expiresAt, nowMs)}.
         </p>
       ) : null}
@@ -464,8 +472,10 @@ export function QuestPage() {
     () => page?.quests.filter((quest) =>
       quest.type === 'EVENT'
       && !['EXPIRED', 'FAILED'].includes(quest.status)
-      && quest.expiresAt !== null
-      && new Date(quest.expiresAt).getTime() > nowMs
+      && (
+        (quest.seasonalEvent && quest.status === 'AVAILABLE')
+        || (quest.expiresAt !== null && new Date(quest.expiresAt).getTime() > nowMs)
+      )
     ) ?? [],
     [page, nowMs],
   );

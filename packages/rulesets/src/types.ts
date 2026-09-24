@@ -144,6 +144,15 @@ export type QuestDifficulty =
 
 export type QuestRepeatability = 'ONCE' | 'DAILY' | 'WEEKLY' | 'REPEATABLE';
 
+export interface SeasonalEventWindow {
+  /** Inclusive UTC start; seasonal jobs cannot be newly accepted before this instant. */
+  readonly startsAt: string;
+  /** Exclusive UTC end; seasonal jobs cannot be newly accepted at or after this instant. */
+  readonly endsAt: string;
+  /** Stable event key used by admin/event tooling and UI copy. */
+  readonly eventKey: string;
+}
+
 export type QuestPrerequisiteKind =
   | 'QUEST_COMPLETED'
   | 'CONTACT_REP_AT_LEAST'
@@ -392,7 +401,9 @@ export interface QuestDefinition {
   readonly repeatability: QuestRepeatability;
   /** Null means the accepted quest has no timer. */
   readonly expiresAfterMinutes: number | null;
-  readonly availability: QuestDataObject;
+  readonly availability: QuestDataObject & {
+    readonly seasonalEvent?: SeasonalEventWindow;
+  };
 }
 
 export type QuestDefinitionCatalog = Readonly<Record<string, QuestDefinition>>;

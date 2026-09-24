@@ -21,6 +21,7 @@ import type {
   QuestPageDto,
   QuestRewardDto,
 } from '@streets/shared';
+import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ActionService, type PlayerState } from './action.service.js';
@@ -97,6 +98,32 @@ function isWindowRepeatable(repeatability: QuestDefinition['repeatability']): bo
 function preservesGeneratedOffer(row: QuestRow, ruleset: Ruleset): boolean {
   return isWindowRepeatable(row.questDefinition.repeatability)
     || isDynamicCityContractDefinition(ruleset.questDefinitions?.[row.questDefinition.key]);
+}
+
+export function seasonalEventActive(definition: QuestDefinition, now: Date): boolean {
+  const window = definition.availability.seasonalEvent;
+  if (!window) return true;
+  const startsAt = new Date(window.startsAt);
+  const endsAt = new Date(window.endsAt);
+  return Number.isFinite(startsAt.getTime())
+    && Number.isFinite(endsAt.getTime())
+    && startsAt < endsAt
+    && now >= startsAt
+    && now < endsAt;
+}
+
+async function seasonalEventAdminTestModeForPlayer(db: Db, roundPlayerId: string): Promise<boolean> {
+  if (!env.seasonalEvents.adminTestMode) return false;
+  const player = await db.roundPlayer.findUnique({
+    where: { id: roundPlayerId },
+    select: { account: { select: { isAdmin: true } } },
+  });
+  return player?.account.isAdmin === true;
+}
+
+function seasonalEventAvailable(definition: QuestDefinition, now: Date, adminTestMode: boolean): boolean {
+  return seasonalEventActive(definition, now)
+    || (adminTestMode && Boolean(definition.availability.seasonalEvent));
 }
 
 function objectives(value: Prisma.JsonValue): QuestObjectiveDefinition[] {
@@ -272,6 +299,16 @@ function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEve
     branchChoices: branchChoicesDto(row, ruleset),
     objectives: objectiveDtos(row, communityEvent),
     rewards: resolvedRewards.map((reward) => rewardDto(reward, ruleset)),
+    ...(row.questDefinition.availability.seasonalEvent ? {
+      seasonalEvent: {
+        eventKey: row.questDefinition.availability.seasonalEvent.eventKey,
+        label: typeof row.questDefinition.availability.eventLabel === 'string'
+          ? row.questDefinition.availability.eventLabel
+          : null,
+        startsAt: row.questDefinition.availability.seasonalEvent.startsAt,
+        endsAt: row.questDefinition.availability.seasonalEvent.endsAt,
+      },
+    } : {}),
     ...(communityEvent ? {
       communityEvent: {
         startsAt: communityEvent.state.windowStart,
@@ -425,6 +462,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
       .map((row) => [row.questDefinition.key, row.chosenBranch!]),
   );
   const reps = await contactPoints(db, roundPlayerId, ruleset);
+  const adminTestMode = await seasonalEventAdminTestModeForPlayer(db, roundPlayerId);
   const newlyAvailable: string[] = [];
 
   for (const definitionRow of questDefinitions) {
@@ -441,7 +479,8 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
       || isCommunityEventDefinition(definition)
     ) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
-    const available = questPrerequisitesMet(definition, completed, reps, chosenBranches);
+    const seasonalAvailable = seasonalEventAvailable(definition, now, adminTestMode);
+    const available = seasonalAvailable && questPrerequisitesMet(definition, completed, reps, chosenBranches);
     if (!current) {
       await db.playerQuest.create({
         data: {
@@ -451,6 +490,8 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
         },
       });
       if (available) newlyAvailable.push(definition.key);
+    } else if (current.status === 'AVAILABLE' && !seasonalAvailable) {
+      await db.playerQuest.update({ where: { id: current.id }, data: { status: 'LOCKED', isTracked: false } });
     } else if (current.status === 'LOCKED' && available) {
       await db.playerQuest.update({ where: { id: current.id }, data: { status: 'AVAILABLE' } });
       newlyAvailable.push(definition.key);
@@ -670,6 +711,11 @@ export const HandcraftedQuestService = {
       if (row.expiresAt && row.expiresAt.getTime() <= acceptedAt.getTime()) {
         throw AppError.conflict('QUEST_EXPIRED', 'That contract expired at reset. Refresh the board for new work.');
       }
+      const definition = (ruleset.questDefinitions ?? {})[row.questDefinition.key];
+      const adminTestMode = await seasonalEventAdminTestModeForPlayer(tx, roundPlayerId);
+      if (definition && !seasonalEventAvailable(definition, acceptedAt, adminTestMode)) {
+        throw AppError.conflict('QUEST_EVENT_CLOSED', 'That seasonal event is no longer active. Refresh the board for current event work.');
+      }
       if (allianceContract) {
         await acceptAllianceContract(tx, roundPlayerId, ruleset, key, acceptedAt, tracked < TRACKED_LIMIT);
         return;
@@ -870,15 +916,3 @@ export const HandcraftedQuestService = {
             payload: inputJson({
               questKey: key,
               title: cityContractState(row.rewardState)?.title ?? row.questDefinition.title,
-              contactKey: row.questDefinition.contactKey,
-              chosenBranch: selectedBranch?.key ?? row.chosenBranch,
-              rewards: dtoRewards.map((reward) => reward.label),
-              reputationChanges: reputationChanges.map((change) => change.label),
-              newlyAvailable,
-            }),
-          },
-        };
-      },
-    });
-  },
-};

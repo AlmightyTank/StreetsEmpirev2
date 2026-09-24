@@ -25,6 +25,8 @@ const envSchema = z.object({
   FRONTEND_ORIGIN: z.string().url().optional(),
   /** Invite-only gate for isolated beta deployments. */
   BETA_INVITE_ONLY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  /** Non-production admin QA mode: expose seasonal event quests outside their real-world window. */
+  SEASONAL_EVENT_ADMIN_TEST_MODE: z.enum(['true', 'false']).optional(),
 
   DISCORD_CLIENT_ID: z.string().default(''),
   DISCORD_CLIENT_SECRET: z.string().default(''),
@@ -85,6 +87,10 @@ if (forumUrl.username || forumUrl.password || forumUrl.pathname !== '/' || forum
   throw new Error('FORUM_ORIGIN must be an HTTPS origin without a path (HTTP localhost is allowed in development).');
 }
 
+const seasonalEventAdminTestMode = parsed.data.SEASONAL_EVENT_ADMIN_TEST_MODE
+  ? parsed.data.SEASONAL_EVENT_ADMIN_TEST_MODE === 'true'
+  : parsed.data.NODE_ENV !== 'production';
+
 export const env = {
   ...parsed.data,
   isProduction: parsed.data.NODE_ENV === 'production',
@@ -94,6 +100,9 @@ export const env = {
   auditRetentionDays: parsed.data.ADMIN_AUDIT_RETENTION_DAYS,
   betaAccess: {
     inviteOnly: parsed.data.BETA_INVITE_ONLY,
+  },
+  seasonalEvents: {
+    adminTestMode: seasonalEventAdminTestMode,
   },
   forum: {
     origin: new URL(parsed.data.FORUM_ORIGIN).origin,
