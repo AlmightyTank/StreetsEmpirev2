@@ -53,10 +53,6 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
         ) {
           problems.push(`${catalogKey}: seasonalEvent endsAt must be a valid date with an explicit timezone`);
         }
-      }
-        if (typeof endsAt !== 'string' || !Number.isFinite(new Date(endsAt).getTime())) {
-          problems.push(`${catalogKey}: seasonalEvent endsAt must be a valid date`);
-        }
         if (
           typeof startsAt === 'string'
           && typeof endsAt === 'string'
