@@ -284,6 +284,9 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
           cashCents: 100_000_000n,
           pistolStock: classicOgV07K.weapons.PISTOL.restock!.cap,
           pistolStockAt: new Date(),
+          shotgunUnlocked: true,
+          shotgunStock: classicOgV07K.weapons.SHOTGUN.restock!.cap,
+          shotgunStockAt: new Date(),
         },
       });
 
