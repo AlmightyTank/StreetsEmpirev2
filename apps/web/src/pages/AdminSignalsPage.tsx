@@ -59,7 +59,7 @@ export function AdminSignalsPage() {
 
   return (
     <GameLayout>
-      <div className="se-pagehead">
+      <div className="se-pagehead se-admin-pagehead">
         <div>
           <h1 className="se-title">Signals</h1>
           <p className="se-eyebrow">Admin · possible multi-accounts, matches only</p>
