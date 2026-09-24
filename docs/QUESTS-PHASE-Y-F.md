@@ -44,6 +44,12 @@ Holiday jobs use a server-authoritative UTC window.
 - Acceptance calls the availability refresh inside the transaction, preventing a stale client from accepting a job after the event closes.
 - The cosmetic reward is permanent account ownership and can be equipped independently from the site accent.
 
+## Admin QA mode
+
+On non-production servers, admins automatically receive the seasonal quests as **AVAILABLE** even when the real-world event window is closed. This lets beta/admin accounts test acceptance, progress, completion, and the cosmetic rewards immediately.
+
+Set `SEASONAL_EVENT_ADMIN_TEST_MODE=false` in the server environment to turn the behavior off. The default is enabled outside production and disabled in production. Only accounts with the admin role receive the bypass; normal players always use the real UTC event windows.
+
 ## Design goal
 
 These are deliberately **event-shaped objectives**, not stronger versions of normal Contact jobs and not temporary gameplay buffs. The holiday itself is the reason to play them, while the permanent site theme is the trophy.
