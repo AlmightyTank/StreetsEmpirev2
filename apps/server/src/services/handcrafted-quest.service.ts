@@ -915,7 +915,8 @@ export const HandcraftedQuestService = {
             type: 'QUEST_CLAIMED',
             payload: inputJson({
               questKey: key,
-              title: cityContractState(row.rewardState)?.title ?? row.questDefinition.title,              contactKey: row.questDefinition.contactKey,
+              title: cityContractState(row.rewardState)?.title ?? row.questDefinition.title,
+              contactKey: row.questDefinition.contactKey,
               chosenBranch: selectedBranch?.key ?? row.chosenBranch,
               rewards: dtoRewards.map((reward) => reward.label),
               reputationChanges: reputationChanges.map((change) => change.label),
