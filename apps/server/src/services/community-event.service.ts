@@ -99,7 +99,9 @@ function config(definition: QuestDefinition): CommunityEventConfig | null {
   return { startFraction, endFraction, contributionTarget, contributionLabel };
 }
 
-export function isCommunityEventDefinition(definition: QuestDefinition | undefined): boolean {
+export function isCommunityEventDefinition(
+  definition: QuestDefinition | undefined,
+): definition is QuestDefinition & { availability: QuestDefinition['availability'] & { communityEvent: true } } {
   return Boolean(
     definition?.type === 'EVENT'
     && definition.repeatability === 'ONCE'

@@ -310,8 +310,8 @@ function HideoutPanel({ hideout }: { hideout: RoundPlayerDto['hideout'] }) {
           <Row label="Rooms" value="None yet" />
         )}
       </div>
-      <div className="se-actions-row se-mt">
-        <Link className="se-btn se-btn--sm" to="/game/hideout">Upgrade hideout</Link>
+      <div className="se-actions-row se-dashboard-panel__actions">
+        <Link className="se-btn se-btn--primary" to="/game/hideout">Upgrade hideout</Link>
       </div>
     </Panel>
   );

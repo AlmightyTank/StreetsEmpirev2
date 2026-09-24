@@ -26,6 +26,7 @@ import './styles/profile.css';
 import './styles/activity.css';
 import './styles/admin.css';
 import './styles/public-info.css';
+import './styles/page-identities.css';
 import { App } from './App.js';
 // Before React mounts: Android can offer the install prompt immediately.
 import './utils/install.js';

@@ -9,6 +9,7 @@ import {
   cityContractRewards,
   cityContractState,
   cityContractWindow,
+  isDynamicCityContractDefinition,
   syncCityContractAttempts,
 } from '../city-contract.service.js';
 
@@ -90,8 +91,12 @@ describe('CityContractService', () => {
 
   it('materializes two slots and rolls each template to a new attempt after reset', async () => {
     const templates = Object.values(classicOgV07R.questDefinitions ?? {})
-      .filter((definition) => definition.availability.dynamicCityContract === true)
-      .sort((left, right) => Number(left.availability.slot ?? 0) - Number(right.availability.slot ?? 0));
+      .filter(isDynamicCityContractDefinition)
+      .sort((left, right) => {
+        const leftSlot = 'slot' in left.availability ? Number(left.availability.slot ?? 0) : 0;
+        const rightSlot = 'slot' in right.availability ? Number(right.availability.slot ?? 0) : 0;
+        return leftSlot - rightSlot;
+      });
     const definitions = templates.map((definition, index) => ({
       id: 'city-definition-' + index,
       key: definition.key,

@@ -12,13 +12,29 @@ function primaryProgress(quest: PlayerQuestDto): string {
   return objective.current.toLocaleString('en-US') + ' / ' + objective.target.toLocaleString('en-US');
 }
 
+let cachedQuests: PlayerQuestDto[] = [];
+let pendingLoad: Promise<PlayerQuestDto[]> | null = null;
+
+function loadTrackedQuests(): Promise<PlayerQuestDto[]> {
+  if (!pendingLoad) {
+    pendingLoad = questsApi.page()
+      .then((page) => {
+        cachedQuests = page.quests.filter((quest) => quest.isTracked && ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status));
+        return cachedQuests;
+      })
+      .catch(() => cachedQuests)
+      .finally(() => {
+        pendingLoad = null;
+      });
+  }
+  return pendingLoad;
+}
+
 export function TrackedQuests() {
-  const [quests, setQuests] = useState<PlayerQuestDto[]>([]);
+  const [quests, setQuests] = useState<PlayerQuestDto[]>(cachedQuests);
 
   const load = useCallback(() => {
-    questsApi.page()
-      .then((page) => setQuests(page.quests.filter((quest) => quest.isTracked && ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status))))
-      .catch(() => setQuests([]));
+    void loadTrackedQuests().then(setQuests);
   }, []);
 
   useEffect(() => {

@@ -56,8 +56,8 @@ describe('quest roadmap Phase T alliance contracts', () => {
   });
 
   it('inherits all Phase S quest and Hideout behavior unchanged', () => {
-    for (const key of Object.keys(classicOgV07R.questDefinitions ?? {})) {
-      expect(classicOgV07S.questDefinitions?.[key]).toEqual(classicOgV07R.questDefinitions?.[key]);
+    for (const definition of Object.values(classicOgV07R.questDefinitions ?? {})) {
+      expect(classicOgV07S.questDefinitions?.[definition.key]).toEqual(definition);
     }
     expect(classicOgV07S.favors).toEqual(classicOgV07R.favors);
     expect(classicOgV07S.permanentUnlocks).toEqual(classicOgV07R.permanentUnlocks);

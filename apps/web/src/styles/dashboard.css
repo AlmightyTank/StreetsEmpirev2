@@ -439,6 +439,13 @@
   min-width: 0;
 }
 
+.se-dashboard-panel__actions {
+  margin-top: 14px;
+  padding: 12px;
+  border-top: 1px solid var(--se-line);
+  background: rgba(11, 12, 14, 0.2);
+}
+
 .se-dashboard-stockgrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

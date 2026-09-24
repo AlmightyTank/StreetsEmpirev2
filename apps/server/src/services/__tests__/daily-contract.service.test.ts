@@ -36,7 +36,7 @@ describe('DailyContractService rotation', () => {
   it('fills all slots from enabled definitions when a selected contract is disabled', () => {
     const now = new Date('2026-09-22T15:00:00.000Z');
     const original = selectedDailyContractKeys(classicOgV07N, now);
-    const enabled = new Set(
+    const enabled: ReadonlySet<string> = new Set(
       Object.values(classicOgV07N.questDefinitions ?? {})
         .filter((definition) => definition.type === 'DAILY' && definition.key !== original[0])
         .map((definition) => definition.key),

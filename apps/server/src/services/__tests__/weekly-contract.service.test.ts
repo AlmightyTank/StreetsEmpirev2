@@ -32,14 +32,16 @@ describe('WeeklyContractService rotation', () => {
     expect(first).toHaveLength(WEEKLY_CONTRACT_SLOTS);
     expect(second).toEqual(first);
 
-    const categories = first.map((key) => classicOgV07O.questDefinitions?.[key]?.category);
+    const categories = first.map((key) =>
+      Object.values(classicOgV07O.questDefinitions ?? {}).find((definition) => definition.key === key)?.category
+    );
     expect(new Set(categories).size).toBe(WEEKLY_CONTRACT_SLOTS);
   });
 
   it('fills weekly slots from enabled definitions when a selected contract is disabled', () => {
     const now = new Date('2026-09-22T15:00:00.000Z');
     const original = selectedWeeklyContractKeys(classicOgV07O, now);
-    const enabled = new Set(
+    const enabled: ReadonlySet<string> = new Set(
       Object.values(classicOgV07O.questDefinitions ?? {})
         .filter((definition) => definition.type === 'WEEKLY' && definition.key !== original[0])
         .map((definition) => definition.key),

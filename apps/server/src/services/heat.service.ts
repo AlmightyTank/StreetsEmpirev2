@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import {
   addHeat,
   arrestChance,
@@ -26,6 +26,10 @@ export interface HeatBribeResult {
   heatBefore: number;
   heatAfter: number;
   favorKey?: string;
+}
+
+function inputJson(value: unknown): Prisma.InputJsonValue {
+  return value as Prisma.InputJsonValue;
 }
 
 /** The Heat block the player sees, or null on rounds without Heat. The ruleset is the player's own city's. */
@@ -159,7 +163,7 @@ export const HeatService = {
           heatAfter: next.heat,
           ...(freeBribe ? { favorKey: freeBribe.key } : {}),
         };
-        return { next, result, activity: { type: 'HEAT_BRIBE', payload: result } };
+        return { next, result, activity: { type: 'HEAT_BRIBE', payload: inputJson(result) } };
       },
     });
   },

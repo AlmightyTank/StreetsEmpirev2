@@ -22,7 +22,7 @@ export interface NavSection {
 export type IconName =
   | 'dashboard' | 'hideout' | 'scout' | 'produce' | 'raids' | 'stores' | 'cities'
   | 'rankings' | 'alliance' | 'contacts' | 'profile' | 'activity'
-  | 'status' | 'rules' | 'news' | 'fame' | 'admin';
+  | 'status' | 'rules' | 'news' | 'fame' | 'account' | 'admin';
 
 export const SECTIONS: NavSection[] = [
   {
@@ -59,6 +59,7 @@ export const SECTIONS: NavSection[] = [
       { key: 'rules', label: 'Rules', to: '/game/rules', icon: 'rules' },
       { key: 'news', label: 'News', to: '/game/news', icon: 'news' },
       { key: 'fame', label: 'Hall of Fame', short: 'Fame', to: '/game/hall-of-fame', icon: 'fame' },
+      { key: 'account', label: 'Account', to: '/account', icon: 'account' },
     ],
   },
 ];

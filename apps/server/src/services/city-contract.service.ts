@@ -71,7 +71,9 @@ export function cityContractWindow(now = new Date()): CityContractWindow {
   };
 }
 
-export function isDynamicCityContractDefinition(definition: QuestDefinition | undefined): boolean {
+export function isDynamicCityContractDefinition(
+  definition: QuestDefinition | undefined,
+): definition is QuestDefinition & { availability: QuestDefinition['availability'] & { dynamicCityContract: true; slot?: number } } {
   return Boolean(definition?.availability.dynamicCityContract === true);
 }
 

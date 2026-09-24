@@ -72,8 +72,8 @@ describe('quest roadmap Phase U community events', () => {
   });
 
   it('inherits all Phase T behavior unchanged', () => {
-    for (const key of Object.keys(classicOgV07S.questDefinitions ?? {})) {
-      expect(classicOgV07T.questDefinitions?.[key]).toEqual(classicOgV07S.questDefinitions?.[key]);
+    for (const definition of Object.values(classicOgV07S.questDefinitions ?? {})) {
+      expect(classicOgV07T.questDefinitions?.[definition.key]).toEqual(definition);
     }
     expect(classicOgV07T.favors).toEqual(classicOgV07S.favors);
     expect(classicOgV07T.permanentUnlocks).toEqual(classicOgV07S.permanentUnlocks);

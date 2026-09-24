@@ -31,16 +31,17 @@ describe('Phase Y-D global accents and profile frames', () => {
   });
 
   it('awards matching accent and frame pairs from each one-time Contact finale', () => {
-    const expected: Record<string, [string, string]> = {
+    const expected = {
       MAMA_QUIET_HOUR: ['mama-ghost-violet', 'mama-ghost-frame'],
       PIP_TOP_SHELF: ['pip-top-shelf-teal', 'pip-top-shelf-frame'],
       TOMMY_FULL_RACK: ['tommy-enforcer-red', 'tommy-full-rack-frame'],
       WHEELS_HOME_SAFE: ['wheels-open-road-blue', 'wheels-open-road-frame'],
       VIC_CLEAN_SLATE: ['vic-clean-slate-ice', 'vic-clean-slate-frame'],
       BLOCKS_OUT_OF_TOWN: ['blocks-corner-amber', 'blocks-corner-boss-frame'],
-    };
+    } as const;
 
-    for (const [questKey, keys] of Object.entries(expected)) {
+    for (const questKey of Object.keys(expected) as Array<keyof typeof expected>) {
+      const keys = expected[questKey];
       const quest = classicOgV07Y.questDefinitions?.[questKey];
       expect(quest?.repeatability).toBe('ONCE');
       for (const key of keys) {

@@ -193,7 +193,9 @@ function pool(ruleset: Ruleset): QuestDefinition[] {
   return Object.values(ruleset.questDefinitions ?? {}).filter(isAllianceContractDefinition);
 }
 
-export function isAllianceContractDefinition(definition: QuestDefinition | undefined): boolean {
+export function isAllianceContractDefinition(
+  definition: QuestDefinition | undefined,
+): definition is QuestDefinition & { availability: QuestDefinition['availability'] & { allianceContract: true } } {
   return Boolean(
     definition?.type === 'ALLIANCE'
     && definition.repeatability === 'WEEKLY'

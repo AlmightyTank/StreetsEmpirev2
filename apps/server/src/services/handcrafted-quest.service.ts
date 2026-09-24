@@ -87,6 +87,12 @@ function inputJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
 
+function availabilityJson(value: Prisma.JsonValue): QuestDefinition['availability'] {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as QuestDefinition['availability']
+    : {};
+}
+
 function definitions(ruleset: Ruleset): QuestDefinition[] {
   return Object.values(ruleset.questDefinitions ?? {});
 }
@@ -283,6 +289,7 @@ function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEve
   );
   const resolvedRewards = cityContractRewards(row.rewardState)
     ?? rewards(row.questDefinition.rewards);
+  const availability = availabilityJson(row.questDefinition.availability);
   return {
     key: row.questDefinition.key,
     attempt: row.attempt,
@@ -299,14 +306,14 @@ function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEve
     branchChoices: branchChoicesDto(row, ruleset),
     objectives: objectiveDtos(row, communityEvent),
     rewards: resolvedRewards.map((reward) => rewardDto(reward, ruleset)),
-    ...(row.questDefinition.availability.seasonalEvent ? {
+    ...(availability.seasonalEvent ? {
       seasonalEvent: {
-        eventKey: row.questDefinition.availability.seasonalEvent.eventKey,
-        label: typeof row.questDefinition.availability.eventLabel === 'string'
-          ? row.questDefinition.availability.eventLabel
+        eventKey: availability.seasonalEvent.eventKey,
+        label: typeof availability.eventLabel === 'string'
+          ? availability.eventLabel
           : null,
-        startsAt: row.questDefinition.availability.seasonalEvent.startsAt,
-        endsAt: row.questDefinition.availability.seasonalEvent.endsAt,
+        startsAt: availability.seasonalEvent.startsAt,
+        endsAt: availability.seasonalEvent.endsAt,
       },
     } : {}),
     ...(communityEvent ? {

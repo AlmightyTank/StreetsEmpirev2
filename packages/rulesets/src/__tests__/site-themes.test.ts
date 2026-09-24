@@ -28,8 +28,7 @@ describe('Phase Y-E player-facing site themes', () => {
   it('keeps Y-E acquisition-neutral for the holiday-event phase', () => {
     const rewardKeys = Object.values(classicOgV07Z.questDefinitions ?? {})
       .flatMap((quest) => quest.rewards)
-      .filter((reward) => reward.kind === 'COSMETIC_UNLOCK')
-      .map((reward) => reward.key);
+      .flatMap((reward) => reward.kind === 'COSMETIC_UNLOCK' ? [reward.key] : []);
 
     expect(rewardKeys).not.toContain('winter-christmas-2026');
     expect(rewardKeys).not.toContain('halloween-moon-2026');

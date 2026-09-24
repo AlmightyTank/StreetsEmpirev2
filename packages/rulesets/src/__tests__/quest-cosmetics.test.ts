@@ -24,16 +24,17 @@ describe('Phase Y-C quest-only cosmetics', () => {
   });
 
   it('awards cosmetics only from one-time contact finales', () => {
-    const expected: Record<string, string> = {
+    const expected = {
       MAMA_QUIET_HOUR: 'ghost-of-the-block',
       PIP_TOP_SHELF: 'top-shelf-operator',
       TOMMY_FULL_RACK: 'full-rack-enforcer',
       WHEELS_HOME_SAFE: 'road-king',
       VIC_CLEAN_SLATE: 'no-paper-trail',
       BLOCKS_OUT_OF_TOWN: 'corner-boss',
-    };
+    } as const;
 
-    for (const [questKey, cosmeticKey] of Object.entries(expected)) {
+    for (const questKey of Object.keys(expected) as Array<keyof typeof expected>) {
+      const cosmeticKey = expected[questKey];
       const quest = classicOgV07X.questDefinitions?.[questKey];
       expect(quest?.repeatability).toBe('ONCE');
       expect(quest?.rewards).toContainEqual({

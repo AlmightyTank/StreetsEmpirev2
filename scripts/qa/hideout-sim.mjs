@@ -7,6 +7,7 @@ import {
   classicOgV07E,
   classicOgV07F,
   classicOgV07G,
+  classicOgV07AA,
   hideoutV2For,
   hideoutV2Problems,
 } from '@streets/rulesets';
@@ -29,6 +30,7 @@ validate('0.7.0-D', classicOgV07D);
 validate('0.7.0-E', classicOgV07E);
 validate('0.7.0-F', classicOgV07F);
 validate('0.7.0-G', classicOgV07G);
+validate('0.7.0-AA', classicOgV07AA);
 
 if (JSON.stringify(classicOgV07A.hideout) !== JSON.stringify(classicOgV06F.hideout)) {
   console.error('0.7.0-A changed the shipped 0.6 Hideout balance unexpectedly.');
@@ -56,6 +58,10 @@ if (JSON.stringify(classicOgV07F.hideout) !== JSON.stringify(classicOgV07E.hideo
 }
 if (JSON.stringify(classicOgV07G.hideout) !== JSON.stringify(classicOgV07F.hideout)) {
   console.error('0.7.0-G changed room prices/base buffs instead of layering specializations.');
+  process.exitCode = 1;
+}
+if (JSON.stringify(classicOgV07AA.hideout) !== JSON.stringify(classicOgV07G.hideout)) {
+  console.error('0.7.0-AA changed Hideout room prices/base buffs after the 0.7-G release guardrails.');
   process.exitCode = 1;
 }
 

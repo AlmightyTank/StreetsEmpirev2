@@ -56,7 +56,7 @@ describe('quest roadmap Phase J favor inventory', () => {
         if (reward.kind !== 'FAVOR_ITEM') continue;
         expect(reward.key).toBeTruthy();
         expect(reward.amount).toBeGreaterThan(0);
-        expect(catalog[reward.key!]).toBeDefined();
+        expect(catalog[reward.key as keyof typeof catalog]).toBeDefined();
       }
     }
   });

@@ -13,7 +13,7 @@ import {
   type Ruleset,
   type Standings,
 } from '@streets/rules-engine';
-import type { TraderKey } from '@streets/rulesets';
+import type { SingleUseFavorEffect, TraderKey } from '@streets/rulesets';
 import type { GameActionResult, StoresDto, StoreTradeInput, StoreTradeResult } from '@streets/shared';
 import { ActionService, type PlayerState } from './action.service.js';
 import type { StockSettlementSet } from './stock.service.js';
@@ -24,6 +24,8 @@ function discountedBuyCents(buyCents: number, sellCents: number | null, discount
   const discounted = Math.floor(buyCents * (100 - Math.min(90, Math.max(0, discountPercent))) / 100);
   return sellCents === null ? Math.max(1, discounted) : Math.max(sellCents + 1, discounted);
 }
+
+type StoreBuyDiscountEffect = Extract<SingleUseFavorEffect, { kind: 'STORE_BUY_DISCOUNT' }>;
 
 export const StoreService = {
   /**
@@ -100,11 +102,11 @@ export const StoreService = {
         const armed = input.direction === 'buy'
           ? await SingleUseFavorService.matching(tx, roundPlayerId, ruleset, 'STORE_BUY_DISCOUNT')
           : null;
-        const discount = armed?.effect.kind === 'STORE_BUY_DISCOUNT'
+        const discount: { id: string; key: string; effect: StoreBuyDiscountEffect } | null = armed?.effect.kind === 'STORE_BUY_DISCOUNT'
           && foundStore
           && armed.effect.storeKey === foundStore.key
           && armed.effect.itemKeys.includes(normalizedItem)
-          ? armed
+          ? { id: armed.id, key: armed.key, effect: armed.effect }
           : null;
         const storeItem = foundStore && Object.hasOwn(foundStore.store.items, normalizedItem)
           ? foundStore.store.items[normalizedItem]

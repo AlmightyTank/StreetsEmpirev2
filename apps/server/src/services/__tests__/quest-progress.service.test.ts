@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { classicOgV07A } from '@streets/rulesets';
 import type { Db } from '../../utils/db.js';
 import { QuestProgressService } from '../quest-progress.service.js';
 
@@ -77,6 +78,13 @@ function fixture(rowOverrides: Partial<Row> = {}) {
     hideoutGarageLevel: 0,
     allianceId: null as string | null,
     city: { slug: 'new-york' },
+    round: {
+      id: 'round-1',
+      startsAt: new Date('2026-09-01T00:00:00.000Z'),
+      endsAt: new Date('2026-09-29T00:00:00.000Z'),
+      rulesetId: classicOgV07A.meta.id,
+      rulesetVersion: classicOgV07A.meta.version,
+    },
   };
 
   const db = {
@@ -94,6 +102,9 @@ function fixture(rowOverrides: Partial<Row> = {}) {
     },
     playerActivity: {
       create: async ({ data }: { data: Record<string, unknown> }) => ({ id: 'activity-ready', ...data }),
+    },
+    inAppNotification: {
+      create: async ({ data }: { data: Record<string, unknown> }) => ({ id: 'notification-ready', ...data }),
     },
     questProgressReceipt: {
       findUnique: async ({ where }: { where: { playerQuestId_sourceKey: { playerQuestId: string; sourceKey: string } } }) => {

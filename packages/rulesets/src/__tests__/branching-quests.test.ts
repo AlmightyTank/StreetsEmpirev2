@@ -56,8 +56,8 @@ describe('quest roadmap Phase R branching Jobs', () => {
   });
 
   it('inherits secret/daily/weekly/favor/unlock/Hideout behavior unchanged', () => {
-    for (const key of Object.keys(classicOgV07P.questDefinitions ?? {})) {
-      expect(classicOgV07Q.questDefinitions?.[key]).toEqual(classicOgV07P.questDefinitions?.[key]);
+    for (const definition of Object.values(classicOgV07P.questDefinitions ?? {})) {
+      expect(classicOgV07Q.questDefinitions?.[definition.key]).toEqual(definition);
     }
     expect(classicOgV07Q.favors).toEqual(classicOgV07P.favors);
     expect(classicOgV07Q.permanentUnlocks).toEqual(classicOgV07P.permanentUnlocks);

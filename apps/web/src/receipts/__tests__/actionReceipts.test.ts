@@ -315,7 +315,7 @@ describe('action receipt lines', () => {
       value: '+2 included in production',
     });
     expect(byLabel(rows, 'Workshop efficiency')).toMatchObject({
-      value: '8% · saved $4.80 on ingredients',
+      value: '8% · saved $4 on ingredients',
     });
     expect(rows.filter((row) => row.label === 'Meth')).toHaveLength(1);
     expect(rows.some((row) => /^(Meth|Crack|Ecstasy|Cocaine) (used|found)$/.test(row.label))).toBe(false);

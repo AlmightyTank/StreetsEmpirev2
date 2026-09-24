@@ -1,6 +1,7 @@
 .se-raids {
   display: grid;
   gap: 16px;
+  container-type: inline-size;
 }
 
 .se-raids-hero {
@@ -21,7 +22,7 @@
 .se-raids-hero::after {
   content: "";
   position: absolute;
-  right: -85px;
+  right: 30px;
   bottom: -135px;
   width: 350px;
   height: 255px;
@@ -592,6 +593,20 @@
 
   .se-raids-plan__intel {
     position: static;
+  }
+}
+
+/* The game sidebar reduces the content column before the viewport reaches
+   the old media-query breakpoint. Use the component's real width so the hero
+   never asks a narrow content column to hold a desktop two-column treatment. */
+@container (max-width: 980px) {
+  .se-raids-hero {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .se-raids-hero__side {
+    justify-items: start;
   }
 }
 

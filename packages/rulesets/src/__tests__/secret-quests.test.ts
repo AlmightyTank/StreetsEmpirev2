@@ -35,8 +35,8 @@ describe('quest roadmap Phase Q secret Jobs', () => {
   });
 
   it('inherits daily, weekly, favors, unlocks and Hideout behavior unchanged', () => {
-    for (const key of Object.keys(classicOgV07O.questDefinitions ?? {})) {
-      expect(classicOgV07P.questDefinitions?.[key]).toEqual(classicOgV07O.questDefinitions?.[key]);
+    for (const definition of Object.values(classicOgV07O.questDefinitions ?? {})) {
+      expect(classicOgV07P.questDefinitions?.[definition.key]).toEqual(definition);
     }
     expect(classicOgV07P.favors).toEqual(classicOgV07O.favors);
     expect(classicOgV07P.permanentUnlocks).toEqual(classicOgV07O.permanentUnlocks);

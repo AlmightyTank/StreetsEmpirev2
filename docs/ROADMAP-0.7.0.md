@@ -105,7 +105,7 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** weapon and recovery state exactly matches the existing systems.
 
 ## 0.7.0-G — Specializations, Balance & Polish
-**Status:** **feature-complete in PR #44** targeting `beta`, pending review. Level-3 branches are permanent seasonal choices with capped effects, the UI confirms the irreversible choice, G effects flow through existing combat/production/travel/ledger helpers, and the season archive records Garage plus the chosen branches.
+**Status:** **complete in beta.** Level-3 branches are permanent seasonal choices with capped effects, the UI confirms the irreversible choice, G effects flow through existing combat/production/travel/ledger helpers, and the season archive records Garage plus the chosen branches.
 
 **Goal:** Enable build identity and ship the complete experience.
 
@@ -147,3 +147,7 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 - Older pinned rulesets retain their behavior.
 - Resource-changing actions remain idempotent.
 - Mobile and desktop remain usable without dense micromanagement.
+
+0.7.0 is wrapped by `0.7.0-AA`, which keeps the completed G Hideout balance and layers the
+full Jobs & Contacts release, player-facing cosmetics and 2026 holiday event Jobs on top.
+The final release note is [0.7.0-AA](RELEASE-0.7.0-AA.md).

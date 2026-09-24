@@ -56,8 +56,8 @@ describe('quest roadmap Phase P weekly contracts', () => {
   });
 
   it('inherits daily contracts, favors, unlocks and Hideout behavior unchanged', () => {
-    for (const key of Object.keys(classicOgV07N.questDefinitions ?? {})) {
-      expect(classicOgV07O.questDefinitions?.[key]).toEqual(classicOgV07N.questDefinitions?.[key]);
+    for (const definition of Object.values(classicOgV07N.questDefinitions ?? {})) {
+      expect(classicOgV07O.questDefinitions?.[definition.key]).toEqual(definition);
     }
     expect(classicOgV07O.favors).toEqual(classicOgV07N.favors);
     expect(classicOgV07O.permanentUnlocks).toEqual(classicOgV07N.permanentUnlocks);

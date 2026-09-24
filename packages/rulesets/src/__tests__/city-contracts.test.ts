@@ -20,8 +20,8 @@ describe('quest roadmap Phase S dynamic city contracts', () => {
   });
 
   it('inherits branching, secret, rotating-board, favor, unlock and Hideout behavior unchanged', () => {
-    for (const key of Object.keys(classicOgV07Q.questDefinitions ?? {})) {
-      expect(classicOgV07R.questDefinitions?.[key]).toEqual(classicOgV07Q.questDefinitions?.[key]);
+    for (const definition of Object.values(classicOgV07Q.questDefinitions ?? {})) {
+      expect(classicOgV07R.questDefinitions?.[definition.key]).toEqual(definition);
     }
     expect(classicOgV07R.favors).toEqual(classicOgV07Q.favors);
     expect(classicOgV07R.permanentUnlocks).toEqual(classicOgV07Q.permanentUnlocks);

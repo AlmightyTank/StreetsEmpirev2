@@ -354,6 +354,16 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v0.7-q': CLASSIC_OG_V07G_HIDEOUT_V2,
   // 0.7-R adds dynamic city contracts only; hideout behavior remains unchanged.
   'classic-og-v0.7-r': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // 0.7-S through AA layer Jobs, events and cosmetics only; hideout behavior remains unchanged.
+  'classic-og-v0.7-s': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.7-t': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.7-u': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.7-v': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.7-w': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.7-x': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.7-y': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.7-z': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.7-aa': CLASSIC_OG_V07G_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */

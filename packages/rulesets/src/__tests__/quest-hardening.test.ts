@@ -11,9 +11,9 @@ describe('quest roadmap Phase W balance and anti-abuse', () => {
     expect(Object.keys(classicOgV07T.questDefinitions ?? {})).toHaveLength(64);
     expect(Object.keys(classicOgV07U.questDefinitions ?? {})).toHaveLength(64);
 
-    for (const [key, definition] of Object.entries(classicOgV07T.questDefinitions ?? {})) {
-      if (key.startsWith('ALLIANCE_')) continue;
-      expect(classicOgV07U.questDefinitions?.[key]).toEqual(definition);
+    for (const definition of Object.values(classicOgV07T.questDefinitions ?? {})) {
+      if (definition.key.startsWith('ALLIANCE_')) continue;
+      expect(classicOgV07U.questDefinitions?.[definition.key]).toEqual(definition);
     }
   });
 

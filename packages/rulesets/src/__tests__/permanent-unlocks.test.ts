@@ -60,7 +60,7 @@ describe('quest roadmap Phase I permanent unlocks', () => {
     for (const quest of Object.values(classicOgV07H.questDefinitions ?? {})) {
       for (const reward of quest.rewards) {
         if (reward.kind === 'PERMANENT_UNLOCK') {
-          expect(catalog[reward.key!]).toBeDefined();
+          expect(catalog[reward.key as keyof typeof catalog]).toBeDefined();
         }
       }
     }
@@ -77,8 +77,7 @@ describe('quest roadmap Phase I permanent unlocks', () => {
 
   it('gates Meth, Ecstasy, Cocaine and Heroin purchases while leaving Weed open', () => {
     const productGates = Object.values(classicOgV07H.permanentUnlocks!)
-      .filter((unlock) => unlock.effect.kind === 'PRODUCT_PURCHASE_ACCESS')
-      .map((unlock) => unlock.effect.productKey)
+      .flatMap((unlock) => unlock.effect.kind === 'PRODUCT_PURCHASE_ACCESS' ? [unlock.effect.productKey] : [])
       .sort();
 
     expect(productGates).toEqual(['COCAINE', 'ECSTASY', 'HEROIN', 'METH']);
