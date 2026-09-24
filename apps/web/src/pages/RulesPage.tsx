@@ -24,16 +24,17 @@ export function RulesPage() {
 
   return (
     <InfoLayout>
-      <div className="se-pagehead">
-        <div>
-          <h1 className="se-title">Rules</h1>
-          <p className="se-eyebrow">{status?.ruleset?.name ?? 'Classic OG'} · the short version</p>
-        </div>
-      </div>
+      <section className="se-info-hero">
+        <span className="se-info-hero__kicker">Street handbook</span>
+        <h1 className="se-info-hero__title">Rules</h1>
+        <p className="se-info-hero__body">How StreetsEmpire works without turning the handbook into a second balance sheet. Live numbers stay on the pages where they matter.</p>
+        <div className="se-info-hero__metrics"><span className="se-info-chip"><strong>{status?.ruleset?.name ?? 'Classic OG'}</strong> ruleset</span><span className="se-info-chip">Mechanics, not promises</span></div>
+      </section>
 
-      <div className="se-grid se-grid--2">
-        <div className="se-grid">
-          <Panel title="Fair seasons">
+      <div className="se-rules__layout">
+        <aside className="se-panel se-rules__rail"><div className="se-panel__head"><h2 className="se-panel__title">On this page</h2></div><div className="se-panel__body se-rules__rail-list"><a href="#fair-seasons">Fair seasons</a><a href="#turns">Turns</a><a href="#crew">Crew</a><a href="#shops">Shops</a><a href="#combat">Raids</a><a href="#travel">The road</a><a href="#turf">Turf</a><a href="#rank">Money & rank</a></div></aside>
+        <div className="se-rules__content">
+          <section id="fair-seasons" className="se-rules__panel"><Panel title="Fair seasons">
             <ul className="se-list">
               <li>Each season is mechanically fresh. New rounds reset cash, crew, supplies, weapons, turns, intel, cooldowns and rankings.</li>
               <li>Hideout upgrades are season mechanics too. Their buffs reset with the next round, while the finished build remains on your season archive.</li>
@@ -41,9 +42,9 @@ export function RulesPage() {
               <li>Permanent cosmetics never change action math, starting resources, combat odds, store access or rank calculations.</li>
               <li>Hall of Fame and public profiles keep the receipts, but the next leaderboard starts on equal footing.</li>
             </ul>
-          </Panel>
+          </Panel></section>
 
-          <Panel title="Turns">
+          <section id="turns" className="se-rules__panel"><Panel title="Turns">
             <ul className="se-list">
               <li>Actions spend turns. Shopping, favours and changing the payout do not.</li>
               <li>
@@ -55,9 +56,9 @@ export function RulesPage() {
                 Being away can earn a bonus; leaving a tab open does not fake activity.
               </li>
             </ul>
-          </Panel>
+          </Panel></section>
 
-          <Panel title="Your crew">
+          <section id="crew" className="se-rules__panel"><Panel title="Your crew">
             <ul className="se-list">
               <li>
                 Recruiting slows as your empire grows, so the early days add people faster
@@ -74,9 +75,9 @@ export function RulesPage() {
               </li>
               <li>Thug happiness wants a beer and a weapon each. Any weapon counts.</li>
             </ul>
-          </Panel>
+          </Panel></section>
 
-          <Panel title="Shops">
+          <section id="shops" className="se-rules__panel"><Panel title="Shops">
             <ul className="se-list">
               <li>Store orders are all-or-nothing. You never get a silent partial order.</li>
               <li>
@@ -92,7 +93,7 @@ export function RulesPage() {
                 is what production is for.
               </li>
             </ul>
-          </Panel>
+          </Panel></section>
 
           <Panel title="Hideout">
             <ul className="se-list">
@@ -103,7 +104,7 @@ export function RulesPage() {
             </ul>
           </Panel>
 
-          <Panel title="Raids">
+          <section id="combat" className="se-rules__panel"><Panel title="Raids">
             <ul className="se-list">
               <li>
                 Combat rounds add a Raids page. If that page says raids are unavailable,
@@ -142,7 +143,7 @@ export function RulesPage() {
                 rank streaks, past placements and achievements. Profiles show earned badges and locked achievement progress, while recon reveals private raid intel.
               </li>
             </ul>
-          </Panel>
+          </Panel></section>
         </div>
 
         <div className="se-grid">
@@ -231,7 +232,7 @@ export function RulesPage() {
             </ul>
           </Panel>
 
-          <Panel title="The road">
+          <section id="travel" className="se-rules__panel"><Panel title="The road">
             <ul className="se-list">
               <li>
                 Rounds with travel open every city. Each one deals differently: what is
@@ -267,9 +268,9 @@ export function RulesPage() {
                 and feeds follow.
               </li>
             </ul>
-          </Panel>
+          </Panel></section>
 
-          <Panel title="Turf and territory">
+          <section id="turf" className="se-rules__panel"><Panel title="Turf and territory">
             <ul className="se-list">
               <li>
                 Turf rounds turn each city district into a block somebody can hold. Scout work builds
@@ -294,9 +295,9 @@ export function RulesPage() {
                 block-time for crews and alliances, but final season placement is still decided by net worth.
               </li>
             </ul>
-          </Panel>
+          </Panel></section>
 
-          <Panel title="Money and rank">
+          <section id="rank" className="se-rules__panel"><Panel title="Money and rank">
             <ul className="se-list">
               <li>Net worth decides local and national rank, and it is not just cash.</li>
               <li>Public net worth is visible because rank is meant to be argued over. It still does not tell you liquid cash or defense.</li>
@@ -313,7 +314,7 @@ export function RulesPage() {
                 Daily movement compares you against the first snapshot after the reset.
               </li>
             </ul>
-          </Panel>
+          </Panel></section>
         </div>
       </div>
     </InfoLayout>
