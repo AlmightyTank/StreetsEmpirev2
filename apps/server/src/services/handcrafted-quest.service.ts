@@ -21,6 +21,7 @@ import type {
   QuestPageDto,
   QuestRewardDto,
 } from '@streets/shared';
+import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ActionService, type PlayerState } from './action.service.js';
@@ -109,6 +110,20 @@ export function seasonalEventActive(definition: QuestDefinition, now: Date): boo
     && startsAt < endsAt
     && now >= startsAt
     && now < endsAt;
+}
+
+async function seasonalEventAdminTestModeForPlayer(db: Db, roundPlayerId: string): Promise<boolean> {
+  if (!env.seasonalEvents.adminTestMode) return false;
+  const player = await db.roundPlayer.findUnique({
+    where: { id: roundPlayerId },
+    select: { account: { select: { isAdmin: true } } },
+  });
+  return player?.account.isAdmin === true;
+}
+
+function seasonalEventAvailable(definition: QuestDefinition, now: Date, adminTestMode: boolean): boolean {
+  return seasonalEventActive(definition, now)
+    || (adminTestMode && Boolean(definition.availability.seasonalEvent));
 }
 
 function objectives(value: Prisma.JsonValue): QuestObjectiveDefinition[] {
@@ -447,6 +462,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
       .map((row) => [row.questDefinition.key, row.chosenBranch!]),
   );
   const reps = await contactPoints(db, roundPlayerId, ruleset);
+  const adminTestMode = await seasonalEventAdminTestModeForPlayer(db, roundPlayerId);
   const newlyAvailable: string[] = [];
 
   for (const definitionRow of questDefinitions) {
@@ -463,8 +479,8 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
       || isCommunityEventDefinition(definition)
     ) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
-    const seasonalActive = seasonalEventActive(definition, now);
-    const available = seasonalActive && questPrerequisitesMet(definition, completed, reps, chosenBranches);
+    const seasonalAvailable = seasonalEventAvailable(definition, now, adminTestMode);
+    const available = seasonalAvailable && questPrerequisitesMet(definition, completed, reps, chosenBranches);
     if (!current) {
       await db.playerQuest.create({
         data: {
@@ -474,7 +490,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
         },
       });
       if (available) newlyAvailable.push(definition.key);
-    } else if (current.status === 'AVAILABLE' && !seasonalActive) {
+    } else if (current.status === 'AVAILABLE' && !seasonalAvailable) {
       await db.playerQuest.update({ where: { id: current.id }, data: { status: 'LOCKED', isTracked: false } });
     } else if (current.status === 'LOCKED' && available) {
       await db.playerQuest.update({ where: { id: current.id }, data: { status: 'AVAILABLE' } });
@@ -696,7 +712,8 @@ export const HandcraftedQuestService = {
         throw AppError.conflict('QUEST_EXPIRED', 'That contract expired at reset. Refresh the board for new work.');
       }
       const definition = (ruleset.questDefinitions ?? {})[row.questDefinition.key];
-      if (definition && !seasonalEventActive(definition, acceptedAt)) {
+      const adminTestMode = await seasonalEventAdminTestModeForPlayer(tx, roundPlayerId);
+      if (definition && !seasonalEventAvailable(definition, acceptedAt, adminTestMode)) {
         throw AppError.conflict('QUEST_EVENT_CLOSED', 'That seasonal event is no longer active. Refresh the board for current event work.');
       }
       if (allianceContract) {
