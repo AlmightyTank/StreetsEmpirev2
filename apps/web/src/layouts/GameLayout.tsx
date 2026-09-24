@@ -300,7 +300,11 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, isDefault, onE
  */
 function useRouteScroll(pathname: string, hash: string) {
   const navigationType = useNavigationType();
+  const lastTarget = useRef<{ pathname: string; hash: string } | null>(null);
   useEffect(() => {
+    const previous = lastTarget.current;
+    lastTarget.current = { pathname, hash };
+    if (previous && previous.pathname === pathname && previous.hash === hash) return;
     if (navigationType === 'POP') return;
     if (!hash) {
       window.scrollTo(0, 0);
