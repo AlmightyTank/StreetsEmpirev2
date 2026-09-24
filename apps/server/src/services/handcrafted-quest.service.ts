@@ -479,8 +479,8 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
       || isCommunityEventDefinition(definition)
     ) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
-    const seasonalAvailable = seasonalEventAvailable(definition, now, adminTestMode);
-    const available = seasonalAvailable && questPrerequisitesMet(definition, completed, reps, chosenBranches);
+    const seasonalActive = seasonalEventActive(definition, now);
+    const available = seasonalActive && questPrerequisitesMet(definition, completed, reps, chosenBranches);
     if (!current) {
       await db.playerQuest.create({
         data: {
