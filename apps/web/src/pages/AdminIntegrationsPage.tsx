@@ -96,7 +96,7 @@ export function AdminIntegrationsPage() {
 
   return (
     <GameLayout>
-      <div className="se-pagehead">
+      <div className="se-pagehead se-admin-pagehead">
         <div>
           <h1 className="se-title">Integrations</h1>
           <p className="se-eyebrow">Admin · Discord bot and local dev bots</p>

@@ -58,7 +58,7 @@ export function AdminRulesetsPage() {
 
   return (
     <GameLayout>
-      <div className="se-pagehead">
+      <div className="se-pagehead se-admin-pagehead">
         <div>
           <h1 className="se-title">Rulesets</h1>
           <p className="se-eyebrow">Admin · the numbers each round runs on</p>

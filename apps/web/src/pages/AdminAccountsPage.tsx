@@ -91,7 +91,7 @@ export function AdminAccountsPage() {
 
   return (
     <GameLayout>
-      <div className="se-pagehead">
+      <div className="se-pagehead se-admin-pagehead">
         <div>
           <h1 className="se-title">Accounts</h1>
           <p className="se-eyebrow">Admin · search, moderate, inspect</p>

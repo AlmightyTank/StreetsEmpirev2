@@ -1,0 +1,16 @@
+/* Shared admin command-center treatment. Mechanics and forms stay untouched. */
+.se-admin-pagehead{position:relative;overflow:hidden;margin-bottom:16px;padding:16px 18px;border:1px solid var(--se-line);background:linear-gradient(135deg,color-mix(in srgb,var(--se-accent) 8%,var(--se-panel)),var(--se-panel-hi));}
+.se-admin-pagehead::after{content:'ADMIN';position:absolute;right:14px;bottom:-12px;color:color-mix(in srgb,var(--se-accent) 8%,transparent);font-size:4.5rem;font-weight:900;letter-spacing:.08em;pointer-events:none;}
+.se-admin-pagehead .se-title{margin-bottom:3px}.se-admin-pagehead .se-eyebrow{color:var(--se-accent)}
+.se-admin-notice{margin:0 0 12px;padding:10px 12px;border-left:3px solid var(--se-accent);background:color-mix(in srgb,var(--se-accent) 7%,var(--se-panel));color:var(--se-text)}
+.se-admin-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:end}
+.se-admin-filters > .se-field:last-child{grid-column:1/-1}
+.se-admin-checklist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.se-admin-check{padding:11px 12px;border:1px solid var(--se-line);background:var(--se-bg)}
+.se-admin-check__head{display:flex;justify-content:space-between;align-items:center;gap:10px}.se-admin-check p{margin:6px 0 0;color:var(--se-text-dim);line-height:1.45}
+.se-admin-tags{display:flex;flex-wrap:wrap;gap:5px;align-items:center}.se-admin-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px}
+.se-admin-list{display:grid;gap:6px;margin:10px 0 0;padding:0;list-style:none}.se-admin-list>li{padding:9px 10px;border:1px solid var(--se-line);background:var(--se-bg)}
+.se-admin-inline{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}.se-admin-inline .se-input{width:min(280px,100%)}
+.se-admin-pad{padding:14px}.se-admin-reason{min-height:84px;resize:vertical}.se-admin-row--changed td{background:color-mix(in srgb,var(--se-accent) 5%,transparent)}
+.se-admin-ruleset-value{font-family:var(--se-font-mono,monospace);font-size:.78rem}.se-admin-ruleset-value:first-child{color:var(--se-text-dim)}
+@media(max-width:760px){.se-admin-filters,.se-admin-checklist{grid-template-columns:1fr}.se-admin-filters>.se-field:last-child{grid-column:auto}.se-admin-actions{justify-content:flex-start}.se-admin-pagehead::after{font-size:3rem}}
