@@ -69,12 +69,12 @@ export function StatusPage() {
 
   return (
     <GameLayout>
-      <div className="se-pagehead">
-        <div>
-          <h1 className="se-title">Game Status</h1>
-          <p className="se-eyebrow">Round clock and ruleset</p>
-        </div>
-      </div>
+      <section className="se-info-hero">
+        <span className="se-info-hero__kicker">Street control room</span>
+        <h1 className="se-info-hero__title">Game Status</h1>
+        <p className="se-info-hero__body">The live round clock, player count, ruleset and turn economy in one place. Use this page to understand the state of the season before you spend a turn.</p>
+        {round ? <div className="se-info-hero__metrics"><span className="se-info-chip"><strong>{round.status}</strong> round</span><span className="se-info-chip"><strong>{formatNumber(round.playerCount)}</strong> players</span><span className="se-info-chip"><strong>{formatDuration(round.msRemaining)}</strong> remaining</span></div> : null}
+      </section>
 
       {error ? <Alert>{error}</Alert> : null}
       {!status ? <p className="se-muted">Checking the round...</p> : null}
@@ -88,9 +88,9 @@ export function StatusPage() {
             <Stat label="Time Left" value={formatDuration(round.msRemaining)} />
           </div>
 
-          <div className="se-grid se-grid--2">
+          <div className="se-status__grid">
             {copy ? (
-              <Panel title="What this means">
+              <Panel title="Round signal">
                 <p>{copy.body}</p>
                 <p className="se-hint">{copy.action}</p>
                 <div className="se-cta se-mt">
@@ -100,7 +100,7 @@ export function StatusPage() {
               </Panel>
             ) : null}
 
-            <Panel title="Schedule" flush>
+            <div className="se-status__stack"><Panel title="Schedule" flush>
               <div className="se-rows">
                 <Row label="Started" value={formatDate(round.startsAt)} />
                 <Row label="Ends" value={formatDate(round.endsAt)} />
@@ -129,6 +129,7 @@ export function StatusPage() {
                 <p className="se-hint">The seed refuses to add bots to production or a non-local database unless you set the explicit override.</p>
               </Panel>
             ) : null}
+            </div>
           </div>
 
           {account?.isAdmin ? (
