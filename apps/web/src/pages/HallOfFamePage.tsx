@@ -40,12 +40,12 @@ export function HallOfFamePage() {
 
   return (
     <GameLayout>
-      <div className="se-pagehead">
-        <div>
-          <h1 className="se-title">Hall of Fame</h1>
-          <p className="se-eyebrow">Season archive</p>
-        </div>
-      </div>
+      <section className="se-info-hero">
+        <span className="se-info-hero__kicker">Permanent record</span>
+        <h1 className="se-info-hero__title">Hall of Fame</h1>
+        <p className="se-info-hero__body">Finished seasons, podiums and territory records. Round resources reset; the receipts stay.</p>
+        {data ? <div className="se-info-hero__metrics"><span className="se-info-chip"><strong>{data.rounds.length}</strong> archived seasons</span></div> : null}
+      </section>
 
       <Panel title="Fair competitive seasons">
         <p className="se-dim">
@@ -61,9 +61,9 @@ export function HallOfFamePage() {
       ) : data.rounds.length === 0 ? (
         <Panel title="No finished seasons"><p className="se-muted">The first finished round will land here.</p></Panel>
       ) : (
-        <div className="se-grid se-archive-list">
+        <div className="se-fame__archive">
           {data.rounds.map((round) => (
-            <Panel key={round.id} title={round.name} aside={formatDate(round.endedAt)}>
+            <section className="se-panel se-fame__season" key={round.id}><div className="se-fame__season-head"><div><h2 className="se-panel__title">{round.name}</h2><div className="se-fame__season-meta"><span className="se-info-chip">{formatDate(round.startsAt)} → {formatDate(round.endedAt)}</span><span className="se-info-chip">{round.rulesetVersion}</span></div></div><span className="se-news-card__date">{formatNumber(round.playerCount)} players</span></div>
               <div className="se-stats se-archive-stats">
                 <Stat label="Players" value={formatNumber(round.playerCount)} />
                 <Stat label="Ruleset" value={round.rulesetVersion} />
@@ -73,17 +73,17 @@ export function HallOfFamePage() {
               {round.territory && (round.territory.crews.length || round.territory.alliances.length) ? (
                 <div className="se-mt">
                   <h3 className="se-city__heading">Turf Hall of Fame</h3>
-                  <div className="se-rows">
+                  <div className="se-fame__territory">
                     {round.territory.crews.map((crew) => (
-                      <div className="se-row" key={`crew-${crew.publicPimpId}`}>
-                        <span className="se-row__label">Crew leader</span>
-                        <span className="se-row__value"><AllianceTag alliance={crew.alliance} link={false} />{crew.displayName} · <span className="se-num">{turfTime(crew.heldSeconds)}</span></span>
+                      <div className="se-fame__territory-row" key={`crew-${crew.publicPimpId}`}>
+                        <span className="se-fame__territory-label">Crew leader</span>
+                        <span className="se-fame__territory-value"><AllianceTag alliance={crew.alliance} link={false} />{crew.displayName} · <span className="se-num">{turfTime(crew.heldSeconds)}</span></span>
                       </div>
                     ))}
                     {round.territory.alliances.map((alliance) => (
-                      <div className="se-row" key={`alliance-${alliance.tag}`}>
-                        <span className="se-row__label">Alliance leader</span>
-                        <span className="se-row__value">[{alliance.tag}] {alliance.name} · <span className="se-num">{turfTime(alliance.heldSeconds)}</span></span>
+                      <div className="se-fame__territory-row" key={`alliance-${alliance.tag}`}>
+                        <span className="se-fame__territory-label">Alliance leader</span>
+                        <span className="se-fame__territory-value">[{alliance.tag}] {alliance.name} · <span className="se-num">{turfTime(alliance.heldSeconds)}</span></span>
                       </div>
                     ))}
                   </div>
@@ -92,10 +92,10 @@ export function HallOfFamePage() {
 
               {round.podium.length ? (
                 <>
-                  <div className="se-podium">
+                  <div className="se-fame__podium">
                     {round.podium.map((player) => (
-                      <article className={`se-podium-card se-podium-card--${player.rank}`} key={`${round.id}-${player.rank}-${player.publicPimpId}`}>
-                        <span className="se-podium-card__rank">{medal(player.rank)}</span>
+                      <article className={`se-fame__podium-card se-fame__podium-card--${player.rank}`} key={`${round.id}-${player.rank}-${player.publicPimpId}`}>
+                        <span className="se-fame__podium-card__rank">{medal(player.rank)}</span>
                         <strong><AllianceTag alliance={player.alliance} link={false} />{player.displayName}</strong>
                         <span>{player.city}</span>
                         <span className="se-num">{formatCents(player.netWorthCents)}</span>
@@ -131,11 +131,9 @@ export function HallOfFamePage() {
                   </div>
                 </>
               ) : (
-                <div>
-                  <p className="se-muted">No final standings recorded.</p>
-                </div>
+                <div className="se-fame__empty">No final standings recorded.</div>
               )}
-            </Panel>
+            </section>
           ))}
         </div>
       )}
