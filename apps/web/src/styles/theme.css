@@ -3403,9 +3403,57 @@ button.se-notification-empty { cursor: pointer; }
 button.se-notification-empty:hover { color: var(--se-text); }
 
 @media (max-width: 600px) {
+  /*
+   * The bell sits immediately before Log out on phones. The old -54px offset
+   * left a visible strip of page to the right of the panel and could clip
+   * notification text. Keep the panel inside the viewport instead.
+   */
+  .se-notification-bell {
+    width: 44px;
+    height: 44px;
+  }
+
   .se-notification-menu {
-    right: -54px;
+    right: -96px;
     width: min(360px, calc(100vw - 16px));
+    max-width: calc(100vw - 16px);
+    max-height: min(70dvh, 580px);
+  }
+
+  .se-notification-menu__head {
+    min-height: 52px;
+    padding: 10px 12px;
+  }
+
+  .se-notification-menu__readall {
+    min-height: 44px;
+    padding: 8px 4px;
+    white-space: nowrap;
+  }
+
+  .se-notification-menu__list {
+    max-height: min(60dvh, 510px);
+    overflow-x: hidden;
+  }
+
+  .se-notification-item {
+    min-height: 72px;
+    padding: 12px 12px 12px 14px;
+    overflow: hidden;
+  }
+
+  .se-notification-item__top,
+  .se-notification-item__detail,
+  .se-notification-item__time {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .se-notification-item__top strong,
+  .se-notification-item__detail,
+  .se-notification-item__time {
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 }
 
