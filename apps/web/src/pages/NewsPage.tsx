@@ -47,6 +47,7 @@ export function NewsPage() {
           </article>
         ))}
       </div>
+      </div>
     </InfoLayout>
   );
 }
