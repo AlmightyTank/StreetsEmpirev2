@@ -42,14 +42,14 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
         if (
           typeof startsAt !== 'string'
           || !Number.isFinite(new Date(startsAt).getTime())
-          || !/(Z|[+-]\\d{2}:\\d{2})$/.test(startsAt)
+          || !/(Z|[+-]\d{2}:\d{2})$/.test(startsAt)
         ) {
           problems.push(`${catalogKey}: seasonalEvent startsAt must be a valid date with an explicit timezone`);
         }
         if (
           typeof endsAt !== 'string'
           || !Number.isFinite(new Date(endsAt).getTime())
-          || !/(Z|[+-]\\d{2}:\\d{2})$/.test(endsAt)
+          || !/(Z|[+-]\d{2}:\d{2})$/.test(endsAt)
         ) {
           problems.push(`${catalogKey}: seasonalEvent endsAt must be a valid date with an explicit timezone`);
         }
