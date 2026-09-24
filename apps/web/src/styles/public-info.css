@@ -60,7 +60,7 @@
 .se-fame__territory-value { min-width:0; }
 .se-fame__empty { padding:16px; border:1px dashed var(--se-line); color:var(--se-text-dim); }
 
-.se-rules__layout { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(230px,.3fr); gap:12px; align-items:start; }
+.se-rules__layout { display:grid; grid-template-columns:minmax(230px,.3fr) minmax(0,1.7fr); gap:12px; align-items:start; }
 .se-rules__content { display:grid; gap:10px; }
 .se-rules__rail { position:sticky; top:12px; }
 .se-rules__rail-list { display:grid; gap:4px; }
