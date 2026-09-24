@@ -196,7 +196,7 @@ export function AdminPage() {
 
   return (
     <GameLayout>
-      <div className="se-pagehead">
+      <div className="se-pagehead se-admin-pagehead">
         <div>
           <h1 className="se-title">Admin Panel</h1>
           <p className="se-eyebrow">Rounds · every action is audited</p>
