@@ -32,10 +32,9 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
       if (!seasonalEvent || typeof seasonalEvent !== 'object' || Array.isArray(seasonalEvent)) {
         problems.push(`${catalogKey}: seasonalEvent must be an object`);
       } else {
-        const row = seasonalEvent as QuestDataObject;
-        const eventKey = row.eventKey;
-        const startsAt = row.startsAt;
-        const endsAt = row.endsAt;
+        const eventKey = seasonalEvent.eventKey;
+        const startsAt = seasonalEvent.startsAt;
+        const endsAt = seasonalEvent.endsAt;
         if (typeof eventKey !== 'string' || !eventKey.trim()) {
           problems.push(`${catalogKey}: seasonalEvent requires eventKey`);
         }
