@@ -21,27 +21,28 @@ export function NewsPage() {
 
   return (
     <InfoLayout>
-      <div className="se-pagehead">
-        <div>
-          <h1 className="se-title">News</h1>
-          <p className="se-eyebrow">Word from the street</p>
-        </div>
-      </div>
+      <div className="se-news-page">
+      <section className="se-info-hero">
+        <span className="se-info-hero__kicker">The street wire</span>
+        <h1 className="se-info-hero__title">News</h1>
+        <p className="se-info-hero__body">Round announcements, changes and notices. Pinned posts stay at the top of the wire.</p>
+        {news.length ? <div className="se-info-hero__metrics"><span className="se-info-chip"><strong>{news.length}</strong> posts loaded</span></div> : null}
+      </section>
 
       {error ? <Alert>{error}</Alert> : null}
       {loading ? <p className="se-muted">Checking the wire...</p> : null}
       {!loading && news.length === 0 ? <p className="se-muted">No round news has been posted yet.</p> : null}
 
-      <div className="se-news-list">
+      <div className="se-news-page__list">
         {news.map((post) => (
           <article className={`se-panel se-news${post.isPinned ? ' se-news--pinned' : ''}`} key={post.id}>
             <div className="se-panel__head">
               <h2 className="se-panel__title">{post.isPinned ? 'Pinned · ' : ''}{post.title}</h2>
-              <span className="se-news__date se-num">{formatDate(post.publishedAt)}</span>
+              <span className="se-news-card__date se-num">{formatDate(post.publishedAt)}</span>
             </div>
             <div className="se-panel__body">
-              <p className="se-news__body">{post.body}</p>
-              <p className="se-hint se-news__byline">{post.authorName ? `Posted by ${post.authorName}` : 'StreetsEmpire wire'}</p>
+              <p className="se-news-card__body">{post.body}</p>
+              <p className="se-hint se-news-card__byline">{post.authorName ? `Posted by ${post.authorName}` : 'StreetsEmpire wire'}</p>
             </div>
           </article>
         ))}
