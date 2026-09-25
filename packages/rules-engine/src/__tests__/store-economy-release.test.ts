@@ -54,7 +54,7 @@ describe('0.8.0-H store economy release checks', () => {
         );
 
         expect(buy.unitCents).toBeGreaterThan(sell.unitCents);
-        expect(buy.totalCents + sell.cashChangeCents).toBeGreaterThan(0n);
+        expect(buy.totalCents - sell.cashChangeCents).toBeGreaterThan(0n);
       }
     }
   });
@@ -94,7 +94,7 @@ describe('0.8.0-H store economy release checks', () => {
 
       expect(definition.name).toBeTruthy();
       expect(buy.unitCents).toBeGreaterThan(sell.unitCents);
-      expect(buy.totalCents + sell.cashChangeCents).toBeGreaterThan(0n);
+      expect(buy.totalCents - sell.cashChangeCents).toBeGreaterThan(0n);
     }
   });
 
