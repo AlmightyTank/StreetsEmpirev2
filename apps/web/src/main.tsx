@@ -20,6 +20,7 @@ import './styles/travel.css';
 import './styles/city-blocks.css';
 import './styles/quests.css';
 import './styles/rankings.css';
+import './styles/players.css';
 import './styles/alliance.css';
 import './styles/contacts.css';
 import './styles/profile.css';

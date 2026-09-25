@@ -1,10 +1,18 @@
-import type { AdminWireDto, AllianceWireDto, ContactLookupDto, ContactsDto } from '@streets/shared';
+import type { AdminWireDto, AllianceWireDto, ContactLookupDto, ContactsDto, PlayerDirectoryDto, PlayerDirectoryView } from '@streets/shared';
 import { api } from './client.js';
 
 export const wireApi = {
   list: (before?: string) => api.get<AllianceWireDto>(`/game/alliance/wire${before ? `?before=${encodeURIComponent(before)}` : ''}`),
   post: (body: string) => api.post<AllianceWireDto>('/game/alliance/wire', { body }),
   remove: (postId: string) => api.post<AllianceWireDto>(`/game/alliance/wire/${encodeURIComponent(postId)}/remove`, {}),
+};
+
+export const playersApi = {
+  list: (view: PlayerDirectoryView = 'all', query = '') => {
+    const params = new URLSearchParams({ view });
+    if (query.trim()) params.set('q', query.trim());
+    return api.get<PlayerDirectoryDto>(`/game/players?${params.toString()}`);
+  },
 };
 
 export const contactsApi = {
