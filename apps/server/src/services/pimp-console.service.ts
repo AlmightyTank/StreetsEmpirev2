@@ -4,6 +4,7 @@ import {
   type ArchiveDirectMessageInput,
   type BlockedPlayerDto,
   type ConsoleBlocksDto,
+  type ConsoleCountsDto,
   type ConsoleFolder,
   type DirectMessageDto,
   type PimpConsoleDto,
@@ -285,6 +286,37 @@ export const PimpConsoleService = {
     };
   },
 
+  async summary(
+    prisma: PrismaClient,
+    accountId: string,
+  ): Promise<ConsoleCountsDto> {
+    const owner = await currentPlayer(prisma, accountId);
+    const [inbox, unread, sent, archived, blocked] = await Promise.all([
+      prisma.directMessage.count({
+        where: { recipientId: owner.id, recipientArchivedAt: null },
+      }),
+      prisma.directMessage.count({
+        where: { recipientId: owner.id, recipientArchivedAt: null, readAt: null },
+      }),
+      prisma.directMessage.count({
+        where: { senderId: owner.id, senderArchivedAt: null },
+      }),
+      prisma.directMessage.count({
+        where: folderWhere('archived', owner.id),
+      }),
+      prisma.playerBlock.count({
+        where: {
+          blockerAccountId: owner.accountId,
+          blocked: {
+            isActive: true,
+            roundPlayers: { some: { roundId: owner.roundId } },
+          },
+        },
+      }),
+    ]);
+    return { inbox, unread, sent, archived, blocked };
+  },
+
   async send(
     prisma: PrismaClient,
     accountId: string,
@@ -490,11 +522,9 @@ export const PimpConsoleService = {
         reporterAccountId: owner.accountId,
         reason: input.reason,
       },
+      // Updating the player's explanation must not erase an admin resolution.
       update: {
         reason: input.reason,
-        resolvedAt: null,
-        resolvedByUsername: null,
-        resolution: null,
       },
     });
     return { ok: true };
