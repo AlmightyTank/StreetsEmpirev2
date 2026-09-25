@@ -71,7 +71,7 @@ export function JoinPage() {
       {message ? <Alert>{message}</Alert> : null}
 
       {roundOver ? (
-        <Panel title="Fresh season handoff">
+        <Panel title="Fresh season handoff" className="se-mb">
           <div className="se-season-callouts">
             <div className="se-season-callout se-season-callout--saved">
               <strong>{roundOver.round.name} is saved</strong>
