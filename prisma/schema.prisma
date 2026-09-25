@@ -1283,9 +1283,9 @@ model DirectMessage {
   reports PlayerMessageReport[]
 
   @@unique([senderId, actionId])
-  @@index([recipientId, recipientArchivedAt, readAt, createdAt(sort: Desc)])
-  @@index([senderId, senderArchivedAt, createdAt(sort: Desc)])
-  @@index([roundId, createdAt(sort: Desc)])
+  @@index([recipientId, recipientArchivedAt, readAt, createdAt(sort: Desc)], map: "DirectMessage_recipient_inbox_idx")
+  @@index([senderId, senderArchivedAt, createdAt(sort: Desc)], map: "DirectMessage_sender_sent_idx")
+  @@index([roundId, createdAt(sort: Desc)], map: "DirectMessage_round_created_idx")
 }
 
 /// Account-level communication block. It survives seasonal RoundPlayer resets.
@@ -1301,7 +1301,7 @@ model PlayerBlock {
   createdAt DateTime @default(now())
 
   @@unique([blockerAccountId, blockedAccountId])
-  @@index([blockedAccountId, createdAt(sort: Desc)])
+  @@index([blockedAccountId, createdAt(sort: Desc)], map: "PlayerBlock_blocked_created_idx")
 }
 
 /// Purpose-driven report record. Admin moderation tooling can resolve these later
@@ -1323,8 +1323,8 @@ model PlayerMessageReport {
   resolution         String?
 
   @@unique([messageId, reporterAccountId])
-  @@index([resolvedAt, createdAt(sort: Desc)])
-  @@index([reporterAccountId, createdAt(sort: Desc)])
+  @@index([resolvedAt, createdAt(sort: Desc)], map: "PlayerMessageReport_resolution_idx")
+  @@index([reporterAccountId, createdAt(sort: Desc)], map: "PlayerMessageReport_reporter_idx")
 }
 
 /// The alliance's own history: founded, joined, left, kicked, handed over, renamed, disbanded.
