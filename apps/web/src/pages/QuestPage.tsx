@@ -596,9 +596,14 @@ export function QuestPage() {
     setTab(next);
     const params = new URLSearchParams(location.search);
     params.set('tab', next);
+    // A notification deep-link can leave ?focus=<quest> behind. Once the
+    // player deliberately chooses another board, that focus must stop
+    // overriding their tab selection.
+    params.delete('focus');
     navigate({
       pathname: location.pathname,
       search: '?' + params.toString(),
+      hash: '',
     }, { replace: true });
   }
 
