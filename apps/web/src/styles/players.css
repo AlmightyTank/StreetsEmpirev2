@@ -144,7 +144,7 @@
 
 .se-players-tabs {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 5px;
 }
 
@@ -263,6 +263,21 @@
   font-size: 10px;
 }
 
+.se-players-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-height: 38px;
+}
+
+.se-players-pagination > span {
+  min-width: 110px;
+  color: var(--se-muted);
+  font-size: 9px;
+  text-align: center;
+}
+
 .se-players-footnote {
   display: flex;
   flex-wrap: wrap;
@@ -338,6 +353,10 @@
 
   .se-players-actions {
     justify-content: flex-start;
+  }
+
+  .se-players-pagination {
+    justify-content: space-between;
   }
 
   .se-players-footnote span + span::before {
