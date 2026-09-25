@@ -28,7 +28,7 @@ const message = {
   subject: 'Street business',
   body: 'Meet me by the corner.',
   createdAt: new Date('2026-09-25T03:00:00Z'),
-  readAt: null,
+  readAt: new Date('2026-09-25T03:00:03Z'),
   senderArchivedAt: null,
   recipientArchivedAt: null,
   sender: {
@@ -88,6 +88,7 @@ describe('PimpConsoleService.send', () => {
     expect(result.replayed).toBe(true);
     expect(result.message.id).toBe(message.id);
     expect(result.message.counterpart.publicPimpId).toBe(target.publicPimpId);
+    expect(result.message.readAt).toBeNull();
     expect(transaction).not.toHaveBeenCalled();
   });
 
@@ -132,8 +133,8 @@ describe('PimpConsoleService.send', () => {
       input,
       new Date('2026-09-25T03:00:05Z'),
     )).rejects.toMatchObject({
-      statusCode: 403,
-      code: 'FORBIDDEN',
+      statusCode: 404,
+      code: 'PLAYER_NOT_FOUND',
     });
 
     expect(create).not.toHaveBeenCalled();
