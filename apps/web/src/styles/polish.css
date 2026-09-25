@@ -222,7 +222,7 @@ body {
 }
 
 .se-btn--primary:hover:not(:disabled) {
-  background: linear-gradient(180deg, #dcff91, #bfff4e);
+  background: linear-gradient(180deg, var(--se-accent-hover), var(--se-accent));
   color: #050607;
 }
 
@@ -423,7 +423,7 @@ a.se-nav__link:hover {
   margin: 8px 0 0;
   padding: 7px 9px;
   border-left: 2px solid var(--se-good);
-  background: rgba(74, 222, 128, 0.05);
+  background: rgba(var(--se-good-rgb), 0.05);
   color: var(--se-good);
   font-size: 11px;
 }
