@@ -210,7 +210,7 @@ export function PlayersPage() {
                             <Link className="se-btn se-btn--ghost se-btn--sm" to={`/game/players/${player.publicPimpId}`}>
                               Profile
                             </Link>
-                            {!player.isYou && !player.isContact ? (
+                            {!player.isYou ? (
                               <Link className="se-btn se-btn--ghost se-btn--sm" to={`/game/console?to=${player.publicPimpId}`}>
                                 Message
                               </Link>
