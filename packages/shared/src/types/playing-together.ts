@@ -54,7 +54,7 @@ export interface ContactLookupDto {
 
 /** 0.9.0-A. Coarse by design: directory browsing never receives exact activity timestamps. */
 export type PlayerActivityBand = 'online' | 'recent' | 'away' | 'offline';
-export type PlayerDirectoryView = 'all' | 'city' | 'alliance' | 'near' | 'active';
+export type PlayerDirectoryView = 'all' | 'city' | 'alliance' | 'near' | 'encountered' | 'active';
 
 export interface PlayerDirectoryEntryDto {
   publicPimpId: number;
@@ -72,11 +72,18 @@ export interface PlayerDirectoryDto {
   generatedAt: string;
   view: PlayerDirectoryView;
   query: string;
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
   counts: {
     all: number;
     city: number;
     alliance: number;
     near: number;
+    encountered: number;
     active: number;
   };
   contactSlots: {
