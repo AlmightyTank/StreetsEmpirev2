@@ -12,6 +12,8 @@ import type {
   UiDensity,
   UpdateAccountProfileSettingsInput,
 } from '@streets/shared';
+import type { QuestCosmeticDefinition, Ruleset } from '@streets/rulesets';
+import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { betaTesterAwardsForAccount, CommunityService, legacyAchievements, loadAccountLegacy } from './community.service.js';
 import { RoundPlayerService } from './round-player.service.js';
@@ -73,6 +75,20 @@ function titleOptionFromAward(award: PublicAwardDto): BadgeCosmeticOptionDto {
     rarity: award.rarity,
     permanent: award.category === 'legacy' || award.category === 'quest',
   };
+}
+
+function optionFromCosmetic(cosmetic: QuestCosmeticDefinition): CosmeticOptionDto {
+  return {
+    key: cosmetic.styleKey ?? cosmetic.key,
+    label: cosmetic.name,
+    description: cosmetic.description,
+  };
+}
+
+function adminSiteThemeOptions(ruleset: Ruleset): CosmeticOptionDto[] {
+  return Object.values(ruleset.cosmetics ?? {})
+    .filter((cosmetic) => cosmetic.kind === 'SITE_THEME')
+    .map(optionFromCosmetic);
 }
 
 function toSettingsDto(
@@ -157,10 +173,12 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
   frames: CosmeticOptionDto[];
   themes: CosmeticOptionDto[];
 }> {
-  const [questAccents, frames, themes] = await Promise.all([
+  const [questAccents, frames, themes, account, round] = await Promise.all([
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'ACCENT'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'PROFILE_FRAME'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'SITE_THEME'),
+    prisma.account.findUnique({ where: { id: accountId }, select: { isAdmin: true } }),
+    RoundService.getCurrent(prisma),
   ]);
   const accents = [...PROFILE_ACCENTS];
   const known = new Set(accents.map((option) => option.key));
@@ -170,7 +188,17 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
       known.add(option.key);
     }
   }
-  return { accents, frames, themes };
+  const themeOptions = [...themes];
+  const knownThemes = new Set(themeOptions.map((option) => option.key));
+  if (account?.isAdmin && env.seasonalEvents.adminTestMode && round) {
+    for (const option of adminSiteThemeOptions(loadRulesetForRound(round))) {
+      if (!knownThemes.has(option.key)) {
+        themeOptions.push(option);
+        knownThemes.add(option.key);
+      }
+    }
+  }
+  return { accents, frames, themes: themeOptions };
 }
 
 export const AccountProfileService = {
