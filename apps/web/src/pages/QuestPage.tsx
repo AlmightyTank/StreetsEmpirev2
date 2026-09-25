@@ -33,6 +33,30 @@ function tabFromSearch(search: string): Tab {
     : 'available';
 }
 
+
+function focusedQuestKey(search: string, hash: string): string | null {
+  const fromSearch = new URLSearchParams(search).get('focus');
+  if (fromSearch) return fromSearch;
+  if (!hash.startsWith('#quest-')) return null;
+  try {
+    return decodeURIComponent(hash.slice('#quest-'.length));
+  } catch {
+    return hash.slice('#quest-'.length);
+  }
+}
+
+function tabForQuest(quest: PlayerQuestDto): Tab {
+  if (quest.status === 'READY_TO_TURN_IN') return 'ready';
+  if (quest.status === 'ACTIVE') return 'active';
+  if (quest.status === 'COMPLETED' || quest.status === 'FAILED' || quest.status === 'EXPIRED') return 'completed';
+  if (quest.type === 'DAILY') return 'daily';
+  if (quest.type === 'WEEKLY') return 'weekly';
+  if (quest.category === 'CITY_CONTRACT') return 'city';
+  if (quest.type === 'ALLIANCE') return 'alliance';
+  if (quest.type === 'EVENT') return 'events';
+  return 'available';
+}
+
 function statusLabel(quest: PlayerQuestDto): string {
   switch (quest.status) {
     case 'READY_TO_TURN_IN': return 'Ready to collect';
@@ -394,8 +418,27 @@ export function QuestPage() {
   }, [clockOffsetMs]);
 
   useEffect(() => {
-    setTab(tabFromSearch(location.search));
-  }, [location.search]);
+    const focusKey = focusedQuestKey(location.search, location.hash);
+    const focused = focusKey && page
+      ? page.quests.find((quest) => quest.key === focusKey)
+      : null;
+    const nextTab = focused ? tabForQuest(focused) : tabFromSearch(location.search);
+    setTab(nextTab);
+
+    // Notification links may only know a quest key. Once the page is loaded,
+    // resolve that quest to the board it actually belongs on and keep the URL
+    // honest so a refresh lands in the same place.
+    if (focused && tabFromSearch(location.search) !== nextTab) {
+      const params = new URLSearchParams(location.search);
+      params.set('tab', nextTab);
+      params.set('focus', focused.key);
+      navigate({
+        pathname: location.pathname,
+        search: '?' + params.toString(),
+        hash: '#quest-' + encodeURIComponent(focused.key),
+      }, { replace: true });
+    }
+  }, [location.hash, location.pathname, location.search, navigate, page]);
 
   useEffect(() => {
     const serverNow = serverAdjustedNowMs(Date.now(), clockOffsetMs);
@@ -422,6 +465,9 @@ export function QuestPage() {
   useEffect(() => {
     if (!page || !location.hash) return;
     const id = decodeURIComponent(location.hash.slice(1));
+    // The selected board can change in the same render as a notification
+    // deep-link. Wait one frame for the quest card to exist, then land on the
+    // card itself. CSS scroll-margin keeps it clear of the sticky phone header.
     const frame = window.requestAnimationFrame(() => {
       const target = document.getElementById(id);
       if (!target) return;
