@@ -50,10 +50,6 @@ function questKeys(value: unknown): string[] {
     : [];
 }
 
-function questCount(value: unknown): number {
-  return questKeys(value).length;
-}
-
 function validTone(value: unknown): ToastTone {
   return value === 'good' || value === 'warn' || value === 'bad' || value === 'info' ? value : 'info';
 }
