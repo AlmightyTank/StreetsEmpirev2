@@ -244,7 +244,7 @@
 
 .se-alliance-roster .se-rank-you {
   background:
-    linear-gradient(90deg, rgba(182, 255, 58, 0.05), transparent 38%),
+    linear-gradient(90deg, rgba(var(--se-accent-rgb), 0.05), transparent 38%),
     rgba(255, 255, 255, 0.01);
   box-shadow: inset 3px 0 0 var(--se-accent);
 }

@@ -23,6 +23,7 @@
   --se-accent-2: #ff2d78;
 
   --se-good: #4ade80;
+  --se-good-rgb: 74, 222, 128;
   --se-bad: #ff5468;
   --se-warn: #ffb020;
 
@@ -436,7 +437,7 @@ body {
 .se-alert--info {
   border-left-color: var(--se-accent);
   background: rgba(var(--se-accent-rgb), 0.06);
-  color: #e8f6d2;
+  color: color-mix(in srgb, var(--se-accent) 35%, #fff);
 }
 
 /* --- shell --------------------------------------------------------------- */
@@ -521,6 +522,16 @@ body {
   --se-accent-dim: #ad7008;
   --se-accent-hover: #fbbf24;
   --se-accent-rgb: 245, 158, 11;
+}
+
+/*
+ * Green was historically used as both the default accent and the generic
+ * positive-state color. Keep positive UI in the player's selected accent so
+ * alternate color themes do not leak the default green.
+ */
+.se-app {
+  --se-good: var(--se-accent);
+  --se-good-rgb: var(--se-accent-rgb);
 }
 
 .se-density--compact .se-shell {
@@ -1333,7 +1344,7 @@ a:hover { color: var(--se-accent-hover); }
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--se-accent), #e6ff8a);
+  background: linear-gradient(90deg, var(--se-accent), var(--se-accent-hover));
   box-shadow: 0 0 12px rgba(var(--se-accent-rgb), 0.22);
   transition: width 0.35s ease;
 }
@@ -1987,7 +1998,7 @@ a.se-nav__link:hover {
   text-transform: uppercase;
 }
 .se-tag--good {
-  border-color: rgba(74, 222, 128, 0.42);
+  border-color: rgba(var(--se-good-rgb), 0.42);
   color: var(--se-good);
 }
 .se-tag--bad {
@@ -2051,7 +2062,7 @@ a.se-nav__link:hover {
 .se-admin-notice {
   margin: 0 0 14px;
   padding: 10px 12px;
-  border: 1px solid rgba(74, 222, 128, 0.42);
+  border: 1px solid rgba(var(--se-good-rgb), 0.42);
   border-radius: 6px;
   color: var(--se-good);
 }

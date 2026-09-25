@@ -14,7 +14,7 @@
   border: 1px solid var(--se-line);
   border-radius: 4px;
   background:
-    linear-gradient(120deg, rgba(182, 255, 58, 0.055), transparent 44%),
+    linear-gradient(120deg, rgba(var(--se-accent-rgb), 0.055), transparent 44%),
     linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
 }
 
@@ -25,7 +25,7 @@
   top: -145px;
   width: 360px;
   height: 270px;
-  border: 1px solid rgba(182, 255, 58, 0.09);
+  border: 1px solid rgba(var(--se-accent-rgb), 0.09);
   transform: rotate(17deg);
   pointer-events: none;
 }
@@ -132,8 +132,8 @@
 
 .se-stores .se-storetabs__tab--active,
 .se-stores .se-storetabs__tab--active:hover {
-  border-color: rgba(182, 255, 58, 0.45);
-  background: rgba(182, 255, 58, 0.06);
+  border-color: rgba(var(--se-accent-rgb), 0.45);
+  background: rgba(var(--se-accent-rgb), 0.06);
   color: var(--se-accent);
   box-shadow: inset 0 -2px 0 var(--se-accent);
 }
@@ -156,9 +156,9 @@
 
 .se-stores-receipt {
   padding: 14px;
-  border: 1px solid rgba(182, 255, 58, 0.18);
+  border: 1px solid rgba(var(--se-accent-rgb), 0.18);
   border-radius: 4px;
-  background: rgba(182, 255, 58, 0.018);
+  background: rgba(var(--se-accent-rgb), 0.018);
 }
 
 .se-stores-receipt .se-store-receipt {
@@ -378,7 +378,7 @@
 .se-market-badge--cheap,
 .se-market-badge--below-normal,
 .se-market-badge--stock-plentiful {
-  border-color: rgba(69, 214, 138, 0.32);
+  border-color: rgba(var(--se-good-rgb), 0.32);
   color: var(--se-good);
 }
 
@@ -459,7 +459,7 @@
 }
 
 .se-store-shipment__line--large {
-  border-color: rgba(69, 214, 138, 0.32);
+  border-color: rgba(var(--se-good-rgb), 0.32);
   color: var(--se-good);
 }
 
@@ -519,9 +519,9 @@
 }
 
 .se-store-basket {
-  border-color: rgba(182, 255, 58, 0.22);
+  border-color: rgba(var(--se-accent-rgb), 0.22);
   background:
-    linear-gradient(180deg, rgba(182, 255, 58, 0.035), transparent 90px),
+    linear-gradient(180deg, rgba(var(--se-accent-rgb), 0.035), transparent 90px),
     var(--se-panel);
 }
 
@@ -652,8 +652,8 @@
 
 .se-stores-perks > div {
   padding: 9px;
-  border: 1px solid rgba(182, 255, 58, 0.18);
-  background: rgba(182, 255, 58, 0.018);
+  border: 1px solid rgba(var(--se-accent-rgb), 0.18);
+  background: rgba(var(--se-accent-rgb), 0.018);
 }
 
 .se-stores-perks span,
