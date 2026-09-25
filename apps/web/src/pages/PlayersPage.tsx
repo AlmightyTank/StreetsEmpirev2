@@ -74,11 +74,8 @@ export function PlayersPage() {
     }
   }
 
-  const countFor = (key: PlayerDirectoryView): number | null => {
-    if (!data) return null;
-    if (key === 'near') return data.players.length;
-    return data.counts[key];
-  };
+  const countFor = (key: PlayerDirectoryView): number | null =>
+    data ? data.counts[key] : null;
 
   return (
     <GameLayout>
