@@ -511,10 +511,8 @@ export const PimpConsoleService = {
         reporterAccountId: owner.accountId,
         reason: input.reason,
       },
-      // Updating the player's explanation must not erase an admin resolution.
-      update: {
-        reason: input.reason,
-      },
+      // A submitted report is immutable evidence. Retrying is a no-op.
+      update: {},
     });
     return { ok: true };
   },
