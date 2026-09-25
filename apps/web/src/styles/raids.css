@@ -231,7 +231,7 @@
 
 .se-raids-status--ready,
 .se-raids-target-strength--weaker {
-  border-color: rgba(74, 222, 128, 0.3);
+  border-color: rgba(var(--se-good-rgb), 0.3);
   color: var(--se-good);
 }
 
@@ -276,15 +276,15 @@
 
 .se-raids-modes .se-seg__btn:hover:not(:disabled) {
   border-color: var(--se-accent-dim);
-  background: rgba(182, 255, 58, 0.025);
+  background: rgba(var(--se-accent-rgb), 0.025);
   color: var(--se-text);
   transform: translateY(-1px);
 }
 
 .se-raids-modes .se-seg__btn--on,
 .se-raids-modes .se-seg__btn--on:hover:not(:disabled) {
-  border-color: rgba(182, 255, 58, 0.48);
-  background: rgba(182, 255, 58, 0.075);
+  border-color: rgba(var(--se-accent-rgb), 0.48);
+  background: rgba(var(--se-accent-rgb), 0.075);
   color: var(--se-accent);
   box-shadow: inset 0 -2px 0 var(--se-accent);
 }
@@ -455,8 +455,8 @@
   display: grid;
   gap: 10px;
   padding: 11px;
-  border: 1px solid rgba(182, 255, 58, 0.18);
-  background: rgba(182, 255, 58, 0.02);
+  border: 1px solid rgba(var(--se-accent-rgb), 0.18);
+  background: rgba(var(--se-accent-rgb), 0.02);
 }
 
 .se-raids-recon > div {
@@ -560,7 +560,7 @@
 
 .se-raids-panel--reports .se-raid-report-link--active {
   border-color: var(--se-accent-dim);
-  background: rgba(182, 255, 58, 0.025);
+  background: rgba(var(--se-accent-rgb), 0.025);
 }
 
 .se-raids-panel--reports .se-raid-report-link__meta {
