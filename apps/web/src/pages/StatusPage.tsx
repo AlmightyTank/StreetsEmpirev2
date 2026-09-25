@@ -69,6 +69,7 @@ export function StatusPage() {
 
   return (
     <GameLayout>
+      <div className="se-status">
       <section className="se-info-hero">
         <span className="se-info-hero__kicker">Street control room</span>
         <h1 className="se-info-hero__title">Game Status</h1>
@@ -81,7 +82,7 @@ export function StatusPage() {
 
       {round ? (
         <>
-          <div className="se-stats se-mb">
+          <div className="se-stats">
             <Stat label="Round" value={round.name} />
             <Stat label="Status" value={round.status} />
             <Stat label="Players" value={formatNumber(round.playerCount)} />
@@ -162,6 +163,7 @@ export function StatusPage() {
           ) : null}
         </>
       ) : status ? <Alert>No active game is running.</Alert> : null}
+      </div>
     </GameLayout>
   );
 }
