@@ -1,5 +1,22 @@
 # StreetsEmpire 0.8.0-H — Store Economy Release
 
+> **0.8.0 implementation closeout — September 24, 2026**
+>
+> Feature development for 0.8.0 is closed on `beta` after the H economy hardening
+> and the final post-H polish fixes. Those follow-up fixes covered the Tommy shotgun
+> voucher, a basket that persists across trader tabs, quest notification deep links,
+> the mobile notification inbox, sticky page rails, the completed-quest tab focus
+> lock, the Hall of Fame / Status / Rules / News presentation pass, and matching the
+> public-site favicon to the game client.
+>
+> **Promotion is still an operator gate, not a checked box in Git history.** Before
+> calling the deployed build released, run the automated QA commands below (including
+> the PostgreSQL pass) and complete the phone/desktop browser checklist. Do not infer
+> those results from merged PRs.
+>
+> The rotating Black Market catalog and short-lived reserved-stock system remain
+> intentionally deferred follow-up scope. They are not 0.8.0 release blockers.
+
 0.8.0-H closes the Store Improvements & Street Economy milestone. It keeps the
 0.8.0-G integration surface and tunes the release ruleset around predictable
 scarcity, safe sourcing, and modest cross-system bonuses.
