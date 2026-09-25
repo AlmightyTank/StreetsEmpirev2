@@ -15,6 +15,7 @@ const VIEWS: Array<{ key: PlayerDirectoryView; label: string }> = [
   { key: 'city', label: 'My city' },
   { key: 'alliance', label: 'Alliance' },
   { key: 'near', label: 'Near rank' },
+  { key: 'encountered', label: 'Encountered' },
   { key: 'active', label: 'Active' },
 ];
 
@@ -38,20 +39,22 @@ export function PlayersPage() {
   const [submittedQuery, setSubmittedQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busyPlayer, setBusyPlayer] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     let live = true;
     setError(null);
-    playersApi.list(view, submittedQuery).then((next) => {
+    playersApi.list(view, submittedQuery, page).then((next) => {
       if (live) setData(next);
     }).catch((caught: unknown) => {
       if (live) setError(caught instanceof ApiError ? caught.message : 'Could not load the player directory.');
     });
     return () => { live = false; };
-  }, [view, submittedQuery]);
+  }, [view, submittedQuery, page]);
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    setPage(1);
     setSubmittedQuery(query.trim());
   }
 
@@ -126,7 +129,7 @@ export function PlayersPage() {
                   <button
                     className="se-btn se-btn--ghost"
                     type="button"
-                    onClick={() => { setQuery(''); setSubmittedQuery(''); }}
+                    onClick={() => { setQuery(''); setPage(1); setSubmittedQuery(''); }}
                   >
                     Clear
                   </button>
@@ -142,7 +145,7 @@ export function PlayersPage() {
                   role="tab"
                   aria-selected={view === key}
                   className={`se-players-tabs__tab${view === key ? ' se-players-tabs__tab--active' : ''}`}
-                  onClick={() => setView(key)}
+                  onClick={() => { setPage(1); setView(key); }}
                 >
                   <span>{label}</span>
                   {countFor(key) !== null ? <strong>{formatNumber(countFor(key)!)}</strong> : null}
@@ -153,7 +156,7 @@ export function PlayersPage() {
 
           <Panel
             title="Current round"
-            aside={data ? `${formatNumber(data.players.length)} shown` : 'Loading'}
+            aside={data ? `${formatNumber(data.players.length)} of ${formatNumber(data.pagination.total)}` : 'Loading'}
             flush
             className="se-players-panel"
           >
@@ -235,6 +238,30 @@ export function PlayersPage() {
               </div>
             ) : null}
           </Panel>
+
+          {data && data.pagination.totalPages > 1 ? (
+            <nav className="se-players-pagination" aria-label="Player directory pages">
+              <button
+                type="button"
+                className="se-btn se-btn--ghost se-btn--sm"
+                disabled={data.pagination.page <= 1}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+              >
+                Previous
+              </button>
+              <span className="se-num">
+                Page {formatNumber(data.pagination.page)} of {formatNumber(data.pagination.totalPages)}
+              </span>
+              <button
+                type="button"
+                className="se-btn se-btn--ghost se-btn--sm"
+                disabled={data.pagination.page >= data.pagination.totalPages}
+                onClick={() => setPage((current) => Math.min(data.pagination.totalPages, current + 1))}
+              >
+                Next
+              </button>
+            </nav>
+          ) : null}
 
           <div className="se-players-footnote">
             <span>Search uses public round identity only.</span>
