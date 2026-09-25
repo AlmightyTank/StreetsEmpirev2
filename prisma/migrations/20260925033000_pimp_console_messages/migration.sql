@@ -40,23 +40,23 @@ CREATE TABLE "PlayerMessageReport" (
 
 CREATE UNIQUE INDEX "DirectMessage_senderId_actionId_key"
   ON "DirectMessage"("senderId", "actionId");
-CREATE INDEX "DirectMessage_recipientId_recipientArchivedAt_readAt_createdAt_idx"
+CREATE INDEX "DirectMessage_recipient_inbox_idx"
   ON "DirectMessage"("recipientId", "recipientArchivedAt", "readAt", "createdAt" DESC);
-CREATE INDEX "DirectMessage_senderId_senderArchivedAt_createdAt_idx"
+CREATE INDEX "DirectMessage_sender_sent_idx"
   ON "DirectMessage"("senderId", "senderArchivedAt", "createdAt" DESC);
-CREATE INDEX "DirectMessage_roundId_createdAt_idx"
+CREATE INDEX "DirectMessage_round_created_idx"
   ON "DirectMessage"("roundId", "createdAt" DESC);
 
 CREATE UNIQUE INDEX "PlayerBlock_blockerAccountId_blockedAccountId_key"
   ON "PlayerBlock"("blockerAccountId", "blockedAccountId");
-CREATE INDEX "PlayerBlock_blockedAccountId_createdAt_idx"
+CREATE INDEX "PlayerBlock_blocked_created_idx"
   ON "PlayerBlock"("blockedAccountId", "createdAt" DESC);
 
 CREATE UNIQUE INDEX "PlayerMessageReport_messageId_reporterAccountId_key"
   ON "PlayerMessageReport"("messageId", "reporterAccountId");
-CREATE INDEX "PlayerMessageReport_resolvedAt_createdAt_idx"
+CREATE INDEX "PlayerMessageReport_resolution_idx"
   ON "PlayerMessageReport"("resolvedAt", "createdAt" DESC);
-CREATE INDEX "PlayerMessageReport_reporterAccountId_createdAt_idx"
+CREATE INDEX "PlayerMessageReport_reporter_idx"
   ON "PlayerMessageReport"("reporterAccountId", "createdAt" DESC);
 
 ALTER TABLE "DirectMessage"
