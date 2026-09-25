@@ -172,7 +172,9 @@
 
 .se-travel-routeboard__intel {
   position: sticky;
-  top: 12px;
+  /* Keep the city intel below the 48px sticky game bar instead of letting it
+     slide underneath it before the sticky constraint takes effect. */
+  top: 60px;
   display: grid;
   min-width: 0;
   gap: 8px;
