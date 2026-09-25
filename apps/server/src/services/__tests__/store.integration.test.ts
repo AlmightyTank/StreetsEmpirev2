@@ -62,6 +62,15 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
     } });
   }
 
+  function checkout(payload: Record<string, unknown>) {
+    return app.inject({
+      method: 'POST',
+      url: '/api/game/stores/checkout',
+      headers: { cookie },
+      payload,
+    });
+  }
+
   it('requires authentication and returns all four catalogs', async () => {
     expect((await app.inject({ method: 'GET', url: '/api/game/stores' })).statusCode).toBe(401);
     const response = await app.inject({ method: 'GET', url: '/api/game/stores', headers: { cookie } });
@@ -121,6 +130,55 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
     expect(state.cashCents).toBe(300n);
     expect(state.crack).toBe(0);
     expect(await app.prisma.playerActivity.count({ where: { roundPlayerId: playerId, type: 'STORE_SELL' } })).toBe(2);
+  });
+
+  it('replays a concurrent multi-line checkout exactly once', async () => {
+    await app.prisma.roundPlayer.update({
+      where: { id: playerId },
+      data: { cashCents: 10_000n, condoms: 0, beer: 0 },
+    });
+    const actionId = randomUUID();
+    const payload = {
+      actionId,
+      lines: [
+        { store: 'CORNER', item: 'CONDOM', direction: 'buy', quantity: 10 },
+        { store: 'CORNER', item: 'BEER', direction: 'buy', quantity: 2 },
+      ],
+    };
+
+    const results = await Promise.all([checkout(payload), checkout(payload)]);
+    expect(results.map((result) => result.statusCode)).toEqual([200, 200]);
+    expect(results[0]!.json()).toEqual(results[1]!.json());
+
+    const state = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
+    expect(state.condoms).toBe(10);
+    expect(state.beer).toBe(2);
+    expect(Number(state.cashCents)).toBe(10_000 - (10 * 100) - (2 * 200));
+  });
+
+  it('cannot oversell one remaining shelf item through concurrent checkouts', async () => {
+    const item = classicOgV01.stores.TOMMY.items.SHOTGUN!;
+    await app.prisma.roundPlayer.update({
+      where: { id: playerId },
+      data: {
+        cashCents: 100_000_000n,
+        shotguns: 0,
+        shotgunUnlocked: true,
+        shotgunStock: 1,
+        shotgunStockAt: new Date(),
+      },
+    });
+
+    const results = await Promise.all([1, 2].map(() => checkout({
+      actionId: randomUUID(),
+      lines: [{ store: 'TOMMY', item: 'SHOTGUN', direction: 'buy', quantity: 1 }],
+    })));
+    expect(results.map((result) => result.statusCode).sort()).toEqual([200, 400]);
+
+    const state = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
+    expect(state.shotgunStock).toBe(0);
+    expect(state.shotguns).toBe(1);
+    expect(Number(state.cashCents)).toBe(100_000_000 - item.buyCents);
   });
 
   it('enforces weapon locks until current progression grants the access flag', async () => {
