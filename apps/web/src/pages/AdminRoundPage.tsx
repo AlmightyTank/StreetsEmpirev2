@@ -232,6 +232,58 @@ export function AdminRoundPage() {
         </Panel>
       </div>
 
+      {health.storeEconomy ? (
+        <Panel title="Store economy" aside="0.8.0-H operator view" flush className="se-mt">
+          <div className="se-stats se-admin-pad">
+            <Stat label="Pressure cap" value={`${health.storeEconomy.pressureLimitPercent}%`} />
+            <Stat label="Empty store shelves" value={formatNumber(health.storeEconomy.shelves.emptyStandard)} />
+            <Stat label="Empty product shelves" value={formatNumber(health.storeEconomy.shelves.emptyProduct)} />
+            <Stat label="Special orders · 24h" value={formatNumber(health.storeEconomy.specialOrders.last24h)} />
+            <Stat label="Pending sourced stock" value={formatNumber(health.storeEconomy.specialOrders.pendingByReceipt)} tooltip="Special-order receipts whose promised arrival is still in the future." />
+          </div>
+          <div className="se-admin-pad">
+            <p className="se-hint">
+              Shipments: {health.storeEconomy.shipments.enabled ? 'enabled' : 'disabled'} ·
+              {' '}{health.storeEconomy.shipments.delayChancePercent}% delayed ·
+              {' '}{health.storeEconomy.shipments.partialChancePercent}% partial ·
+              {' '}{health.storeEconomy.shipments.largeChancePercent}% large.
+            </p>
+            <p className="se-hint">
+              Reserved stock: {health.storeEconomy.reservationsEnabled ? 'enabled' : 'not in the 0.8 release'} ·
+              {' '}Rotating Black Market: {health.storeEconomy.blackMarketEnabled ? 'enabled' : 'deferred'}.
+            </p>
+          </div>
+          {health.storeEconomy.markets.length === 0 ? (
+            <p className="se-muted se-admin-pad">No local market pressure has been recorded yet.</p>
+          ) : (
+            <div className="se-tablewrap">
+              <table className="se-table se-table--cards">
+                <thead>
+                  <tr>
+                    <th>City</th>
+                    <th>Product</th>
+                    <th className="se-table__number">Current pressure</th>
+                    <th>Last push</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {health.storeEconomy.markets.map((market) => (
+                    <tr key={`${market.city}:${market.productKey}`}>
+                      <td className="se-td--title" data-label="City">{market.city}</td>
+                      <td data-label="Product">{market.productKey}</td>
+                      <td className="se-table__number se-num" data-label="Current pressure">
+                        {market.pushPercent > 0 ? '+' : ''}{market.pushPercent.toFixed(1)}%
+                      </td>
+                      <td data-label="Last push">{adminWhen(market.updatedAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      ) : null}
+
       <AdminAlliancesPanel roundId={round.id} finished={finished} />
       <AdminAllianceBalancePanel roundId={round.id} />
     </GameLayout>
