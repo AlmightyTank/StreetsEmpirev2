@@ -18,6 +18,7 @@ import { ActivityService } from './activity.service.js';
 import { CombatRecoveryService } from './combat-recovery.service.js';
 import { ConvoyService } from './convoy.service.js';
 import { HighMarketService } from './high-market.service.js';
+import { EconomyLedgerService } from './economy-ledger.service.js';
 import { CRACK, productKeys } from './product-inventory.service.js';
 
 export const RUN_INCLUDE = {
@@ -184,6 +185,13 @@ async function rollRoadStops(tx: Db, roundPlayerId: string, ruleset: Ruleset, ru
     const incident = await tx.runIncident.create({
       data: { runId: run.id, kind: 'STOP', city: stop.city, road: stopped.road?.name ?? null, seized: stopped.seized, fineCents: stopped.fineCents, at: stop.arriveAt },
     });
+    if (incident.fineCents > 0n) {
+      await EconomyLedgerService.record(tx, roundPlayerId, [{
+        source: 'RUN_INCIDENT',
+        label: `Road-stop fine · ${incident.road ?? cityName(ruleset, incident.city)}`,
+        amountCents: -incident.fineCents,
+      }], incident.at);
+    }
     await ActivityService.log(tx, roundPlayerId, 'RUN_INCIDENT', { runId: run.id, ...toIncidentDto(ruleset, incident) } as unknown as Prisma.InputJsonValue);
   }
   if (checks !== run.roadChecks) await tx.run.update({ where: { id: run.id }, data: { roadChecks: checks } });

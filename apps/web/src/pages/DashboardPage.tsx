@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import type { HappinessTermDto, RoundDto, RoundOverDto, RoundPlayerDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
@@ -9,7 +10,7 @@ import { useCountdown } from '../hooks/useCountdown.js';
 import { useLiveDashboard } from '../hooks/useLiveDashboard.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
-import { HeatPanel } from '../components/HeatPanel.js';
+import { HeatPanel, heatTone } from '../components/HeatPanel.js';
 import { formatDate, formatDuration } from '../utils/time.js';
 
 function RankMovement({ movement }: { movement: number | null }) {
@@ -80,7 +81,85 @@ function HappinessRow({ label, value }: { label: string; value: number }) {
   );
 }
 
-/** Section 14. Turns, and when the next ones land. */
+function DashboardMetric({
+  label,
+  value,
+  detail,
+  tone,
+  meter,
+}: {
+  label: string;
+  value: ReactNode;
+  detail?: ReactNode;
+  tone?: 'good' | 'warn' | 'bad' | 'accent';
+  meter?: { value: number; max: number };
+}) {
+  const percent = meter && meter.max > 0 ? Math.max(0, Math.min(100, (meter.value / meter.max) * 100)) : null;
+  return (
+    <div className={`se-dashboard-metric${tone ? ` se-dashboard-metric--${tone}` : ''}`}>
+      <span className="se-dashboard-metric__label">{label}</span>
+      <strong className="se-dashboard-metric__value">{value}</strong>
+      {detail ? <span className="se-dashboard-metric__detail">{detail}</span> : null}
+      {percent !== null ? (
+        <span className="se-dashboard-metric__meter" aria-hidden="true">
+          <span style={{ width: `${percent}%` }} />
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function DashboardAction({
+  to,
+  title,
+  detail,
+  meta,
+  tone,
+}: {
+  to: string;
+  title: string;
+  detail: string;
+  meta: string;
+  tone?: 'warn' | 'bad' | 'good';
+}) {
+  return (
+    <Link className={`se-dashboard-action${tone ? ` se-dashboard-action--${tone}` : ''}`} to={to}>
+      <span className="se-dashboard-action__body">
+        <strong>{title}</strong>
+        <span>{detail}</span>
+      </span>
+      <span className="se-dashboard-action__meta">{meta}</span>
+      <span className="se-dashboard-action__arrow" aria-hidden="true">→</span>
+    </Link>
+  );
+}
+
+function DashboardNotice({
+  title,
+  detail,
+  to,
+  action,
+  tone = 'warn',
+}: {
+  title: string;
+  detail: string;
+  to: string;
+  action: string;
+  tone?: 'warn' | 'bad' | 'good' | 'info';
+}) {
+  return (
+    <Link className={`se-dashboard-notice se-dashboard-notice--${tone}`} to={to}>
+      <span className="se-dashboard-notice__pulse" aria-hidden="true" />
+      <span className="se-dashboard-notice__body">
+        <strong>{title}</strong>
+        <span>{detail}</span>
+      </span>
+      <span className="se-dashboard-notice__action">{action}</span>
+    </Link>
+  );
+}
+
+/** Turns and the next regeneration tick, kept live without changing dashboard APIs. */
 function TurnsTile({
   turns,
   onTick,
@@ -92,10 +171,11 @@ function TurnsTile({
   const { label } = useCountdown(atCap ? null : turns.nextTurnAt, onTick);
 
   return (
-    <Stat
+    <DashboardMetric
       label="Turns"
       value={`${formatNumber(turns.turns)} / ${formatNumber(turns.turnCap)}`}
-      sub={atCap ? 'At the cap' : `Next +${turns.turnsGeneratedNextTick} in ${label}`}
+      detail={atCap ? 'At the cap · spend them' : `Next +${turns.turnsGeneratedNextTick} in ${label}`}
+      tone={atCap ? 'warn' : 'accent'}
       meter={{ value: turns.turns, max: turns.turnCap }}
     />
   );
@@ -215,7 +295,7 @@ function HideoutPanel({ hideout }: { hideout: RoundPlayerDto['hideout'] }) {
   const builtRooms = hideout.rooms.filter((room) => room.level > 0);
 
   return (
-    <Panel title="Hideout" flush>
+    <Panel title="Hideout" flush className="se-dashboard-panel">
       <div className="se-rows">
         <Row label="Built" value={`${formatNumber(hideout.totalLevel)} / ${formatNumber(hideout.totalMaxLevel)}`} strong />
         {builtRooms.length ? (
@@ -230,8 +310,8 @@ function HideoutPanel({ hideout }: { hideout: RoundPlayerDto['hideout'] }) {
           <Row label="Rooms" value="None yet" />
         )}
       </div>
-      <div className="se-actions-row se-mt">
-        <Link className="se-btn se-btn--sm" to="/game/hideout">Upgrade hideout</Link>
+      <div className="se-actions-row se-dashboard-panel__actions">
+        <Link className="se-btn se-btn--primary" to="/game/hideout">Upgrade hideout</Link>
       </div>
     </Panel>
   );
@@ -245,144 +325,396 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
     me.resources.pistols + me.resources.shotguns + me.resources.tek9s + me.resources.ak47s;
   const postedWeapons = me.turf?.postedGuns.total ?? 0;
   const weapons = homeWeapons + postedWeapons;
+  const productUnits = me.products
+    ? me.products.reduce((sum, product) => sum + product.quantity, 0)
+    : me.resources.product;
+  const heatState = me.heat ? heatTone(me.heat) : 'good';
+  const heatLocked = Boolean(me.heat?.lockedUntil);
+  const runWaiting = me.run?.phase === 'town';
+  const lowWhoreHappiness = me.happiness.whore < 66;
+  const lowThugHappiness = me.happiness.thug < 66;
+  const atTurnCap = me.turns.turns >= me.turns.turnCap;
+  const attentionCount = [
+    heatState !== 'good',
+    me.convoyAlert !== null && me.convoyAlert !== undefined,
+    runWaiting,
+    Boolean(me.moving),
+    me.resources.woundedThugs > 0,
+    me.resources.unarmedThugs > 0,
+    lowWhoreHappiness,
+    lowThugHappiness,
+    atTurnCap,
+  ].filter(Boolean).length;
 
   const suppliesPanel = (
-    <Panel title="Supplies" aside={<Link to="/game/stores/corner">Corner Store</Link>} flush>
-                  <div className="se-rows">
-                    <Row label="Condoms" value={formatNumber(me.resources.condoms)} />
-                    {me.products ? null : <Row label="Product" value={formatNumber(me.resources.product)} />}
-                    <Row label="Beer" value={formatNumber(me.resources.beer)} />
-                    <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
-                  </div>
-                </Panel>
+    <Panel title="Supplies" aside={<Link to="/game/stores/corner">Restock</Link>} flush className="se-dashboard-panel">
+      <div className="se-dashboard-stockgrid">
+        <DashboardMetric label="Condoms" value={formatNumber(me.resources.condoms)} />
+        {me.products ? null : <DashboardMetric label="Product" value={formatNumber(me.resources.product)} />}
+        <DashboardMetric label="Beer" value={formatNumber(me.resources.beer)} />
+        <DashboardMetric label="Medicine" value={formatNumber(me.resources.medicine)} />
+      </div>
+    </Panel>
   );
 
   return (
     <GameLayout>
-      <div className="se-pagehead">
-        <div>
-          <h1 className="se-title">
-            {me.displayName} <span className="se-muted se-num">(#{me.publicPimpId})</span>
-          </h1>
-          <p className="se-eyebrow">{me.city.name}</p>
-        </div>
-        <div className="se-pagehead__right">
-          <span className={`se-sync${refreshing ? ' se-sync--busy' : ''}`} aria-hidden />
-          <span className="se-eyebrow">{refreshing ? 'Syncing' : 'Live'}</span>
-        </div>
-      </div>
+      <div className="se-dashboard">
+        <header className="se-dashboard-hero">
+          <div className="se-dashboard-hero__identity">
+            <span className="se-eyebrow">Command center · {me.city.name}</span>
+            <h1>
+              {me.displayName}
+              <span className="se-dashboard-hero__id">#{me.publicPimpId}</span>
+            </h1>
+            <p>
+              Run the crew, watch the pressure, and jump straight to the move that matters.
+            </p>
+          </div>
+          <div className="se-dashboard-hero__status">
+            <div className="se-dashboard-live">
+              <span className={`se-sync${refreshing ? ' se-sync--busy' : ''}`} aria-hidden />
+              <span>{refreshing ? 'Syncing operation' : 'Operation live'}</span>
+            </div>
+            <div className="se-dashboard-hero__mini">
+              <span><small>Crew</small><strong>{formatNumber(me.resources.whores + me.resources.thugs)}</strong></span>
+              <span><small>Weapons</small><strong>{formatNumber(weapons)}</strong></span>
+              <span><small>Product</small><strong>{formatNumber(productUnits)}</strong></span>
+            </div>
+          </div>
+        </header>
 
-      {error ? <Alert>{error}</Alert> : null}
+        {error ? <Alert>{error}</Alert> : null}
 
-      <div className="se-stats se-mb">
-        <Stat label="Net Worth" value={formatCents(me.netWorthCents)} tooltip="Cash and owned goods converted through the round ruleset. Rankings use this value." />
-        <Stat label="Cash" value={formatCents(me.resources.cashCents)} tooltip="Spendable money. Raids can only take cash above the protected cash floor." />
-        <TurnsTile turns={me.turns} onTick={() => void refresh(true)} />
-        <Stat
-          label="Local Rank"
-          value={me.rank.local === null ? '-' : `#${formatNumber(me.rank.local)}`}
-          sub={<RankMovement movement={me.rank.localMovement} />}
-        />
-        <Stat
-          label="National Rank"
-          value={me.rank.national === null ? '-' : `#${formatNumber(me.rank.national)}`}
-          sub={<RankMovement movement={me.rank.nationalMovement} />}
-        />
-      </div>
+        <section className="se-dashboard-metrics" aria-label="Empire snapshot">
+          <DashboardMetric
+            label="Net worth"
+            value={formatCents(me.netWorthCents)}
+            detail="Ranking value"
+            tone="accent"
+          />
+          <DashboardMetric
+            label="Cash"
+            value={formatCents(me.resources.cashCents)}
+            detail="Spendable now"
+          />
+          <TurnsTile turns={me.turns} onTick={() => void refresh(true)} />
+          <DashboardMetric
+            label="Local rank"
+            value={me.rank.local === null ? '—' : `#${formatNumber(me.rank.local)}`}
+            detail={<RankMovement movement={me.rank.localMovement} />}
+          />
+          <DashboardMetric
+            label="National rank"
+            value={me.rank.national === null ? '—' : `#${formatNumber(me.rank.national)}`}
+            detail={<RankMovement movement={me.rank.nationalMovement} />}
+          />
+        </section>
 
-      <div className="se-grid se-grid--sidebar">
-        <div className="se-grid se-grid--2">
-          <div className="se-grid">
-            <Panel title="Crew" flush>
-              <div className="se-rows">
-                <Row label="Whores" value={formatNumber(me.resources.whores)} strong tooltip="The crew earning on the street. They need condoms, product, payout and protection." />
-                <Row label="Thugs" value={formatNumber(me.resources.thugs)} strong tooltip="Only fit thugs can work, defend or raid, and only armed fit thugs protect the street." />
-                {me.resources.woundedThugs > 0 ? <Row label="Fit / wounded" value={`${formatNumber(me.resources.fitThugs)} / ${formatNumber(me.resources.woundedThugs)}`} tooltip="Wounded thugs remain yours, but they do not count for actions until they recover or get treated." /> : null}
-                {me.resources.postedThugs > 0 ? <Row label="On corners" value={formatNumber(me.resources.postedThugs)} tooltip="Posted thugs are yours, but they are off the house defending turf." /> : null}
-                <Row label="Armed / unarmed" value={`${formatNumber(me.resources.armedThugs)} / ${formatNumber(me.resources.unarmedThugs)}`} tooltip="Every fit thug wants a weapon. Unarmed thugs lower thug happiness and do not count as street cover." />
-                <Row label="Low-Riders" value={formatNumber(me.resources.lowRiders)} />
-                {me.run ? (
-                  <Row label="On a run" tooltip="Low-Riders and escorts on a run are not home: they don't defend, cover the street or cook until it is back."
-                    value={<Link to="/game/travel">{me.run.phase === 'town' ? `In ${me.run.cityName}` : `On the road to ${me.run.cityName}`}</Link>} />
-                ) : null}
-                {me.convoyAlert ? (
-                  <Row label={me.convoyAlert.kind === 'tailed' ? 'Run tailed' : 'Backup called'} tooltip="Send help from the Travel page before it hits."
-                    value={<Link to="/game/travel" className="se-bad">{`Near ${me.convoyAlert.cityName}, hits ${new Date(me.convoyAlert.landsAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`}</Link>} />
-                ) : null}
-                {me.moving ? (
-                  <Row label="Moving house" tooltip="Nothing moves until the truck arrives, and you are still a target where you live now."
-                    value={<Link to="/game/travel">{`To ${me.moving.toName}, there ${new Date(me.moving.arrivesAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`}</Link>} />
-                ) : null}
-                <Row label="Payout" value={`${me.payoutPercent}%`} tooltip="The crew cut from street work. Lower cuts can drag whore happiness down." />
+        <section className="se-dashboard-command">
+          <div className="se-dashboard-command__attention">
+            <div className="se-dashboard-sectionhead">
+              <div>
+                <span className="se-eyebrow">Right now</span>
+                <h2>Needs attention</h2>
               </div>
-            </Panel>
+              <span className={`se-dashboard-count${attentionCount ? ' se-dashboard-count--hot' : ''}`}>
+                {attentionCount ? formatNumber(attentionCount) : 'Clear'}
+              </span>
+            </div>
 
-            {/* With products the middle column fills up, so supplies sit under the crew to even the columns. */}
-            {me.products ? suppliesPanel : null}
-
-            <Panel title="Happiness">
-              <HappinessRow label="Whore happiness" value={me.happiness.whore} />
-              <p className="se-hint">Hover the penalty rows to see what each drag means.</p>
-              <HappinessDrags terms={me.happiness.whoreTerms} />
-
-              <hr className="se-hr" />
-
-              <HappinessRow label="Thug happiness" value={me.happiness.thug} />
-              <HappinessDrags terms={me.happiness.thugTerms} />
-              {me.happiness.whore === 100 && me.happiness.thug === 100 ? (
-                <p className="se-hint">Everybody is stocked, armed and rested.</p>
+            <div className="se-dashboard-notices">
+              {heatLocked && me.heat?.lockedUntil ? (
+                <DashboardNotice
+                  tone="bad"
+                  title="You are locked up"
+                  detail={`Game actions are blocked until ${new Date(me.heat.lockedUntil).toLocaleString()}.`}
+                  to="/game#heat"
+                  action="View Heat"
+                />
+              ) : heatState !== 'good' && me.heat ? (
+                <DashboardNotice
+                  tone={heatState === 'bad' ? 'bad' : 'warn'}
+                  title={heatState === 'bad' ? 'Heat is dangerous' : 'Heat is cutting the take'}
+                  detail={`Heat ${formatNumber(me.heat.heat)} / ${formatNumber(me.heat.max)} · cool it before the next run.`}
+                  to="/game#heat"
+                  action="Cool Heat"
+                />
               ) : null}
-            </Panel>
+
+              {me.convoyAlert ? (
+                <DashboardNotice
+                  tone={me.convoyAlert.kind === 'tailed' ? 'bad' : 'warn'}
+                  title={me.convoyAlert.kind === 'tailed' ? 'Your run is being tailed' : 'An ally called for backup'}
+                  detail={`Near ${me.convoyAlert.cityName} · lands ${new Date(me.convoyAlert.landsAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}.`}
+                  to="/game/travel"
+                  action="Open Travel"
+                />
+              ) : null}
+
+              {runWaiting && me.run ? (
+                <DashboardNotice
+                  title="Your run is waiting in town"
+                  detail={`The crew is in ${me.run.cityName}; trading only happens while you are there.`}
+                  to="/game/travel"
+                  action="Manage run"
+                />
+              ) : null}
+
+              {me.moving ? (
+                <DashboardNotice
+                  tone="info"
+                  title="Your operation is moving"
+                  detail={`Relocating to ${me.moving.toName} · arrives ${new Date(me.moving.arrivesAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}.`}
+                  to="/game/travel"
+                  action="View move"
+                />
+              ) : null}
+
+              {me.resources.woundedThugs > 0 ? (
+                <DashboardNotice
+                  title={`${formatNumber(me.resources.woundedThugs)} thugs are wounded`}
+                  detail="Wounded thugs cannot work, defend, raid, or cover the street."
+                  to="/game/combat"
+                  action="Treat crew"
+                />
+              ) : null}
+
+              {me.resources.unarmedThugs > 0 ? (
+                <DashboardNotice
+                  title={`${formatNumber(me.resources.unarmedThugs)} fit thugs are unarmed`}
+                  detail="Unarmed crew lower thug happiness and do not count as street cover."
+                  to="/game/stores/tommy"
+                  action="Buy weapons"
+                />
+              ) : null}
+
+              {lowWhoreHappiness ? (
+                <DashboardNotice
+                  title={`Whore happiness is ${me.happiness.whore}%`}
+                  detail="Fix the biggest supply, protection, or payout drag before working a long shift."
+                  to="#crew-health"
+                  action="See causes"
+                />
+              ) : null}
+
+              {lowThugHappiness ? (
+                <DashboardNotice
+                  title={`Thug happiness is ${me.happiness.thug}%`}
+                  detail="Beer and weapons are the first things to check."
+                  to="#crew-health"
+                  action="See causes"
+                />
+              ) : null}
+
+              {atTurnCap ? (
+                <DashboardNotice
+                  tone="info"
+                  title="Turns are at the cap"
+                  detail="New turn generation is paused until you spend some."
+                  to="/game/scout"
+                  action="Spend turns"
+                />
+              ) : null}
+
+              {attentionCount === 0 ? (
+                <div className="se-dashboard-clear">
+                  <span className="se-dashboard-clear__mark">✓</span>
+                  <div>
+                    <strong>The operation is steady.</strong>
+                    <span>No urgent Heat, crew, travel, or turn-cap problems right now.</span>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
 
-          <div className="se-grid">
-            {me.products ? null : suppliesPanel}
+          <div className="se-dashboard-command__actions">
+            <div className="se-dashboard-sectionhead">
+              <div>
+                <span className="se-eyebrow">Make a move</span>
+                <h2>Quick actions</h2>
+              </div>
+            </div>
+            <div className="se-dashboard-actions">
+              <DashboardAction
+                to="/game/scout"
+                title="Scout"
+                detail="Work a district and find cash, crew, and product."
+                meta={`${formatNumber(me.turns.turns)} turns`}
+                tone={atTurnCap ? 'warn' : undefined}
+              />
+              <DashboardAction
+                to="/game/produce"
+                title="Produce"
+                detail="Turn cash and crew time into product."
+                meta={`${formatCents(me.resources.cashCents)} cash`}
+              />
+              <DashboardAction
+                to="/game/combat"
+                title="Raids"
+                detail="Recon targets, attack, or treat wounded thugs."
+                meta={`${formatNumber(me.resources.fitThugs)} fit`}
+                tone={me.resources.woundedThugs > 0 ? 'warn' : undefined}
+              />
+              <DashboardAction
+                to="/game/stores"
+                title="Stores"
+                detail="Restock supplies, weapons, vehicles, and product."
+                meta={`${formatCents(me.resources.cashCents)}`}
+              />
+              <DashboardAction
+                to="/game/travel"
+                title="Travel"
+                detail={me.run ? 'Manage the run already on the road.' : 'Load a run, trade cities, or relocate.'}
+                meta={me.run ? me.run.cityName : `${formatNumber(me.resources.lowRiders)} Low-Riders`}
+                tone={me.convoyAlert ? 'bad' : runWaiting ? 'warn' : undefined}
+              />
+              <DashboardAction
+                to="/game/quests"
+                title="Quests"
+                detail="Check jobs, contracts, favors, and rewards."
+                meta="Contracts"
+              />
+            </div>
+          </div>
+        </section>
 
-            {/* 0.4.0: every product held, now that there is no Products page. Trade them at Pip's. */}
-            {me.products ? (
-              <Panel title="Products" aside={<Link to="/game/stores/pip">Pip&rsquo;s</Link>} flush>
+        <section id="crew-health" className="se-dashboard-section">
+          <div className="se-dashboard-sectiontitle">
+            <div>
+              <span className="se-eyebrow">Crew & inventory</span>
+              <h2>Operation health</h2>
+            </div>
+            <p>Who is ready to work, what they need, and what is sitting on the shelf.</p>
+          </div>
+
+          <div className="se-dashboard-coregrid">
+            <div className="se-dashboard-stack">
+              <Panel title="Crew readiness" flush className="se-dashboard-panel">
+                <div className="se-dashboard-stockgrid">
+                  <DashboardMetric label="Whores" value={formatNumber(me.resources.whores)} detail="Street crew" />
+                  <DashboardMetric label="Thugs" value={formatNumber(me.resources.thugs)} detail={`${formatNumber(me.resources.fitThugs)} fit`} />
+                  <DashboardMetric
+                    label="Wounded"
+                    value={formatNumber(me.resources.woundedThugs)}
+                    tone={me.resources.woundedThugs > 0 ? 'warn' : 'good'}
+                  />
+                  <DashboardMetric
+                    label="Unarmed"
+                    value={formatNumber(me.resources.unarmedThugs)}
+                    tone={me.resources.unarmedThugs > 0 ? 'warn' : 'good'}
+                  />
+                  <DashboardMetric label="On corners" value={formatNumber(me.resources.postedThugs)} />
+                  <DashboardMetric label="Low-Riders" value={formatNumber(me.resources.lowRiders)} />
+                </div>
                 <div className="se-rows">
-                  {me.products.map((product) => <Row key={product.key} label={product.name} value={formatNumber(product.quantity)} />)}
+                  <Row label="Armed / unarmed" value={`${formatNumber(me.resources.armedThugs)} / ${formatNumber(me.resources.unarmedThugs)}`} />
+                  <Row label="Crew payout" value={`${me.payoutPercent}% to the crew · ${100 - me.payoutPercent}% to you`} />
+                  {me.run ? (
+                    <Row
+                      label="Crew on run"
+                      value={<Link to="/game/travel">{me.run.phase === 'town' ? `In ${me.run.cityName}` : `Road to ${me.run.cityName}`}</Link>}
+                    />
+                  ) : null}
                 </div>
               </Panel>
-            ) : null}
 
-            <Panel title="Weapons" aside={<Link to="/game/stores/tommy">Tommy&rsquo;s</Link>} flush>
-              <div className="se-rows">
-                <Row label="Pistols" value={formatNumber(me.resources.pistols)} tooltip="Any weapon arms one thug for happiness and street coverage; stronger guns also improve combat strength." />
-                <Row label="Shotguns" value={formatNumber(me.resources.shotguns)} />
-                <Row label="Tek-9s" value={formatNumber(me.resources.tek9s)} />
-                <Row label="AK-47s" value={formatNumber(me.resources.ak47s)} />
-                {postedWeapons > 0 ? <Row label="On corners" value={formatNumber(postedWeapons)} tooltip="These guns are still yours and still count in net worth, but are not available at home." /> : null}
-                <Row label="Total owned" value={formatNumber(weapons)} strong tooltip="Home arsenal plus guns posted on your corners." />
-              </div>
-            </Panel>
+              {suppliesPanel}
+
+              <Panel title="Arsenal" aside={<Link to="/game/stores/tommy">Tommy&rsquo;s</Link>} flush className="se-dashboard-panel">
+                <div className="se-dashboard-stockgrid">
+                  <DashboardMetric label="Pistols" value={formatNumber(me.resources.pistols)} />
+                  <DashboardMetric label="Shotguns" value={formatNumber(me.resources.shotguns)} />
+                  <DashboardMetric label="Tek-9s" value={formatNumber(me.resources.tek9s)} />
+                  <DashboardMetric label="AK-47s" value={formatNumber(me.resources.ak47s)} />
+                  <DashboardMetric label="At home" value={formatNumber(homeWeapons)} tone="accent" />
+                  <DashboardMetric label="Total owned" value={formatNumber(weapons)} detail={postedWeapons > 0 ? `${formatNumber(postedWeapons)} on corners` : undefined} />
+                </div>
+              </Panel>
+            </div>
+
+            <div className="se-dashboard-stack">
+              <Panel title="Crew happiness" className="se-dashboard-panel">
+                <div className="se-dashboard-happiness">
+                  <div>
+                    <HappinessRow label="Whore happiness" value={me.happiness.whore} />
+                    <HappinessDrags terms={me.happiness.whoreTerms} />
+                  </div>
+                  <div>
+                    <HappinessRow label="Thug happiness" value={me.happiness.thug} />
+                    <HappinessDrags terms={me.happiness.thugTerms} />
+                  </div>
+                </div>
+                {me.happiness.whore === 100 && me.happiness.thug === 100 ? (
+                  <p className="se-hint se-good">Everybody is stocked, armed, and content.</p>
+                ) : (
+                  <p className="se-hint">The penalty rows show exactly what is dragging each crew group down.</p>
+                )}
+              </Panel>
+
+              {me.products ? (
+                <Panel title="Products" aside={<Link to="/game/stores/pip">Trade at Pip&rsquo;s</Link>} flush className="se-dashboard-panel">
+                  <div className="se-dashboard-stockgrid">
+                    {me.products.map((product) => (
+                      <DashboardMetric key={product.key} label={product.name} value={formatNumber(product.quantity)} />
+                    ))}
+                  </div>
+                </Panel>
+              ) : null}
+            </div>
           </div>
-        </div>
+        </section>
 
-        <aside className="se-grid">
-          <HeatPanel />
-          <PayoutControl />
+        <section className="se-dashboard-section">
+          <div className="se-dashboard-sectiontitle">
+            <div>
+              <span className="se-eyebrow">Control</span>
+              <h2>Pressure & progression</h2>
+            </div>
+            <p>Manage risk, payout, territory, and the upgrades that shape this season.</p>
+          </div>
 
-          <HideoutPanel hideout={me.hideout} />
+          <div className="se-dashboard-controlgrid">
+            <div className="se-dashboard-stack">
+              <HeatPanel />
+              <HideoutPanel hideout={me.hideout} />
+            </div>
 
-          {me.turf ? (
-            <Panel title="Turf" aside={<Link to="/game/travel">Blocks</Link>} flush>
-              <div className="se-rows">
-                <Row label="Blocks held" value={formatNumber(me.turf.blocksHeld)} strong />
-                <Row label="Corner guns" value={formatNumber(me.turf.postedGuns.total)} />
-                <Row label="Tax earned today" value={formatCents(me.turf.taxEarnedTodayCents)} />
-                <Row label="Payers today" value={formatNumber(me.turf.taxPayersToday)} />
-                {me.turf.taxPendingCents > 0 ? <Row label="Pending settle" value={formatCents(me.turf.taxPendingCents)} /> : null}
-              </div>
-              <p className="se-hint">Street tax is house-minted, capped per payer, and zero between linked accounts.</p>
-            </Panel>
-          ) : null}
+            <div className="se-dashboard-stack">
+              <PayoutControl />
 
-          <Panel title="Activity" flush>
+              {me.turf ? (
+                <Panel title="City Blocks" aside={<Link to="/game/turf">Manage turf</Link>} flush className="se-dashboard-panel">
+                  <div className="se-dashboard-stockgrid">
+                    <DashboardMetric label="Blocks held" value={formatNumber(me.turf.blocksHeld)} tone="accent" />
+                    <DashboardMetric label="Corner guns" value={formatNumber(me.turf.postedGuns.total)} />
+                    <DashboardMetric label="Tax today" value={formatCents(me.turf.taxEarnedTodayCents)} tone="good" />
+                    <DashboardMetric label="Payers today" value={formatNumber(me.turf.taxPayersToday)} />
+                  </div>
+                  {me.turf.taxPendingCents > 0 ? (
+                    <div className="se-rows">
+                      <Row label="Pending settle" value={formatCents(me.turf.taxPendingCents)} strong />
+                    </div>
+                  ) : null}
+                </Panel>
+              ) : null}
+            </div>
+          </div>
+        </section>
+
+        <section className="se-dashboard-section">
+          <div className="se-dashboard-sectiontitle se-dashboard-sectiontitle--activity">
+            <div>
+              <span className="se-eyebrow">Recent moves</span>
+              <h2>Activity</h2>
+            </div>
+            <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/activity">Full activity log</Link>
+          </div>
+          <Panel title="Latest activity" flush className="se-dashboard-panel se-dashboard-panel--activity">
             <ActivityFeed activity={activity} />
           </Panel>
-        </aside>
+        </section>
       </div>
     </GameLayout>
   );

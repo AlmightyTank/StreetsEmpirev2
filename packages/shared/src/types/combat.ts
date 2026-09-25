@@ -12,8 +12,13 @@ export interface CombatIntelReportDto {
   estimatedMaxLootCents: number;
   crack: number | null;
   estimatedMaxCrackLoot: number | null;
-  /** 0.4.0-D. How deep the stash runs and what they hold most of, never counts. Replaces `crack` on product rounds. */
+  /** 0.4.0-D. How deep the exposed stash runs and what it mostly contains, never exact counts. */
   productStash?: { level: 'none' | 'light' | 'stocked' | 'heavy'; primary: string | null };
+  /** 0.7.0-B. Recon-visible raid floors/caps; product counts remain hidden. */
+  assetProtection?: {
+    protectedCashFloorCents: number;
+    protectedProductCapacity: number;
+  };
   /** 0.3.0-D. The ally who gathered it, when it is shared alliance intel rather than your own. */
   sharedBy?: string | null;
 }
@@ -22,6 +27,7 @@ export interface CombatReconResultDto {
   intel: CombatIntelReportDto;
   turnsSpent: number;
   turnsAfter: number;
+  favorKey?: string;
 }
 
 export type SpecialRaidKindDto = 'DRUG_HOES' | 'STEAL_RIDE' | 'LURE_CREW';
@@ -68,6 +74,13 @@ export interface BattleReportDto {
     gained: number;
     lost: number;
   }>;
+  /** 0.7.0-B. Defender assets that the Safe Room kept out of this raid. */
+  raidProtection?: {
+    protectedCashCents: number;
+    protectedProductUnits: number;
+    protectedProductCapacity: number;
+    exposedProductUnitsBefore: number;
+  };
   lootPercent?: number;
   baseLootPercent?: number;
   repeatTargetHits?: number;
@@ -116,13 +129,20 @@ export interface CombatRecoveryDto {
   nextRecoveryAt: string | null;
   medicinePerThug: number;
   maxTreatableThugs: number;
+  medicineEfficiencyPercent?: number;
+  favorMedicineEfficiencyPercent?: number;
+  freeTreatmentFavorKey?: string;
 }
 
 export interface CombatTreatmentDto {
   treatedThugs: number;
   medicineUsed: number;
+  /** 0.7.0-F. Zero on older rulesets. */
+  medicineEfficiencyPercent?: number;
+  favorMedicineEfficiencyPercent?: number;
   woundedThugs: number;
   nextRecoveryAt: string | null;
+  favorKey?: string;
 }
 
 export interface CombatTargetDto {
@@ -186,7 +206,7 @@ export interface CombatPageDto {
     drugLootPercent?: number; perThugCrackLoot?: number;
     minLootPercent?: number; maxLootPercent?: number; weightedLootExponent?: number;
     repeatLootPenaltyPercent?: number; repeatLootFloorPercent?: number;
-    reconTurnCost?: number; intelExpiresMinutes?: number; retaliationHours?: number;
+    reconTurnCost?: number; reconFavorKey?: string; intelExpiresMinutes?: number; retaliationHours?: number;
   };
   targets: CombatTargetDto[];
   nextTarget: number | null;

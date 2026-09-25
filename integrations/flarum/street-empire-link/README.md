@@ -91,6 +91,28 @@ If the secret is shorter than 64 characters, or either origin is invalid, the
 extension stays installed but disabled. The link page then says
 "Forum linking is not available yet."
 
+### Live and beta games
+
+The forum can trust more than one game deployment at the same time. Keep the
+legacy `game_origin`/`link_secret` pair as the primary forum profile link, then
+add every trusted game origin to `game_origins` with its own secret:
+
+```php
+'street_empire' => [
+    'game_origin' => 'https://play.streetsempire.dev',
+    'link_secret' => '<live secret>',
+    'game_origins' => [
+        'https://play.streetsempire.dev' => '<live secret>',
+        'https://beta.streetsempire.dev' => '<beta secret>',
+    ],
+],
+```
+
+Set the matching `<beta secret>` as `FORUM_LINK_SECRET` only in the beta game
+`.env`. A beta link request returns to beta; a live link request returns to live.
+Forum user cards check each configured game and use the first linked profile they
+find, while merging valid badge strips by badge key.
+
 ## 4. Install the extension
 
 Copy this directory to the forum server, for example into
@@ -194,7 +216,7 @@ Existing links are unaffected.
 | Symptom | Check |
 | --- | --- |
 | Game says "Forum account linking is coming soon." | `FORUM_LINK_SECRET` is empty or the API wasn't restarted. |
-| Forum says "Forum linking is not available yet." | `config.php` secret is under 64 characters, or `game_origin`/`url` has a path, trailing slash or non-HTTPS scheme. |
+| Forum says "Forum linking is not available yet." | Every configured secret is under 64 characters, or `game_origin`/`url` has a path, trailing slash or non-HTTPS scheme. |
 | "This linking request expired or is invalid" | Secrets differ, origins don't match exactly, more than 10 minutes passed, or the player started a newer request. |
 | Finish linking returns "no longer valid" | The game session changed (signed out or signed in elsewhere) after starting. Start again. |
 | "That game or forum account is already linked" | Each account links to one account on the other side. Unlink the existing one first. |

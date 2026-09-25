@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import {
   addHeat,
   arrestChance,
@@ -18,12 +18,18 @@ import { AppError } from '../utils/errors.js';
 import { ActionService, type PlayerState } from './action.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { CRACK, ProductInventoryService } from './product-inventory.service.js';
+import { SingleUseFavorService } from './single-use-favor.service.js';
 
 export interface HeatBribeResult {
   points: number;
   costCents: number;
   heatBefore: number;
   heatAfter: number;
+  favorKey?: string;
+}
+
+function inputJson(value: unknown): Prisma.InputJsonValue {
+  return value as Prisma.InputJsonValue;
 }
 
 /** The Heat block the player sees, or null on rounds without Heat. The ruleset is the player's own city's. */
@@ -130,14 +136,34 @@ export const HeatService = {
         if (input.points > current.heat) {
           throw AppError.badRequest('TOO_MANY_POINTS', `You only have ${current.heat} Heat to pay off.`, { points: `At most ${current.heat}.` });
         }
-        const products = await ProductInventoryService.read(tx, player.id, ruleset);
-        const costCents = bribeCentsPerPoint(NetWorthService.calculate({ ...current, products }, ruleset), rules) * BigInt(input.points);
+        const freeBribe = await SingleUseFavorService.matching(
+          tx,
+          roundPlayerId,
+          ruleset,
+          'FREE_HEAT_BRIBE',
+        );
+        const products = freeBribe
+          ? null
+          : await ProductInventoryService.read(tx, player.id, ruleset);
+        const costCents = freeBribe
+          ? 0n
+          : bribeCentsPerPoint(
+              NetWorthService.calculate({ ...current, products: products! }, ruleset),
+              rules,
+            ) * BigInt(input.points);
         if (costCents > current.cashCents) {
           throw AppError.badRequest('NOT_ENOUGH_CASH', 'You cannot cover that bribe.', { points: 'Not enough cash.' });
         }
         const next = { ...current, cashCents: current.cashCents - costCents, heat: current.heat - input.points };
-        const result = { points: input.points, costCents: Number(costCents), heatBefore: current.heat, heatAfter: next.heat };
-        return { next, result, activity: { type: 'HEAT_BRIBE', payload: result } };
+        if (freeBribe) await SingleUseFavorService.consume(tx, freeBribe.id);
+        const result: HeatBribeResult = {
+          points: input.points,
+          costCents: Number(costCents),
+          heatBefore: current.heat,
+          heatAfter: next.heat,
+          ...(freeBribe ? { favorKey: freeBribe.key } : {}),
+        };
+        return { next, result, activity: { type: 'HEAT_BRIBE', payload: inputJson(result) } };
       },
     });
   },

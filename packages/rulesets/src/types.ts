@@ -31,6 +31,7 @@ export type DistrictKey =
 export type StoreKey = 'CORNER' | 'TOMMY' | 'CHARLIE' | 'PIP';
 
 export type WeaponKey = 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47';
+export type WeaponPriority = 'POWER' | 'CONSERVE';
 export type WeaponUnlockKey = 'SHOTGUN' | 'TEK9' | 'AK47';
 export type BaseHideoutRoomKey = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE';
 export type HideoutRoomKey = BaseHideoutRoomKey | 'GARAGE';
@@ -52,6 +53,7 @@ export interface WeaponUnlockRule {
 // --- reputation -------------------------------------------------------------
 
 export type TraderKey = StoreKey;
+/** @deprecated Historical one-favor-per-store key. New jobs use QuestDefinition.key. */
 export type QuestKey = StoreKey;
 
 /** One rung of standing with a single trader. */
@@ -76,19 +78,19 @@ export interface ReputationRules {
    */
   readonly trade: {
     readonly pointsPerDay: number;
-    /** Cap on points from trading alone, so quests stay mandatory. */
+    /** Historical cap on passive store-visit standing. */
     readonly maxPoints: number;
   };
-  /** Paid once, for doing a trader an actual favour. */
+  /**
+   * @deprecated Historical one-time favor award. Current quest/contact
+   * reputation is granted by QuestDefinition CONTACT_REP rewards.
+   */
   readonly questPoints: number;
 }
 
 /**
- * What a trader wants doing. One per trader, once each.
- *
- * Every quest is priced in a different resource on purpose - discipline,
- * product, capital, production - so none of them can be bought through with
- * cash alone.
+ * @deprecated Historical pre-Jobs favor definition retained so pinned older
+ * rulesets remain loadable. Current gameplay uses QuestDefinitionCatalog.
  */
 export interface QuestRule {
   readonly title: string;
@@ -105,6 +107,306 @@ export interface QuestRule {
     /** Guns bought this round, and raids carried out with them, won or lost. */
     | { readonly kind: 'BUY_AND_RAID'; readonly pistols: number; readonly raids: number };
 }
+
+// --- handcrafted quest system -----------------------------------------------
+
+/**
+ * JSON-safe data carried by quest definitions. Phase B will narrow objective
+ * kinds into a discriminated union; Phase A intentionally keeps the storage
+ * contract extensible without coupling quests to individual action services.
+ */
+export type QuestDataValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly QuestDataValue[]
+  | { readonly [key: string]: QuestDataValue };
+
+export type QuestDataObject = { readonly [key: string]: QuestDataValue };
+
+export type QuestType =
+  | 'STORY'
+  | 'SIDE'
+  | 'CONTRACT'
+  | 'DAILY'
+  | 'WEEKLY'
+  | 'SECRET'
+  | 'ALLIANCE'
+  | 'EVENT';
+
+export type QuestDifficulty =
+  | 'STREET_JOB'
+  | 'CONTRACT'
+  | 'SERIOUS_BUSINESS'
+  | 'HIGH_RISK'
+  | 'KINGPIN_CONTRACT';
+
+export type QuestRepeatability = 'ONCE' | 'DAILY' | 'WEEKLY' | 'REPEATABLE';
+
+export interface SeasonalEventWindow {
+  /** Inclusive UTC start; seasonal jobs cannot be newly accepted before this instant. */
+  readonly startsAt: string;
+  /** Exclusive UTC end; seasonal jobs cannot be newly accepted at or after this instant. */
+  readonly endsAt: string;
+  /** Stable event key used by admin/event tooling and UI copy. */
+  readonly eventKey: string;
+}
+
+export type QuestPrerequisiteKind =
+  | 'QUEST_COMPLETED'
+  | 'CONTACT_REP_AT_LEAST'
+  | 'BRANCH_CHOSEN';
+
+export interface QuestPrerequisiteDefinition {
+  readonly kind: QuestPrerequisiteKind;
+  readonly params?: QuestDataObject;
+}
+
+export type QuestObjectiveKind =
+  | 'EVENT_COUNT'
+  | 'EVENT_SUM'
+  | 'SPEND_TURNS'
+  | 'EARN_CASH'
+  | 'RECRUIT_CREW'
+  | 'WIN_EVENTS'
+  | 'STATE_AT_LEAST'
+  | 'UNIQUE_VALUES'
+  | 'TURF_HOLD_HOURS';
+
+export interface QuestObjectiveDefinition {
+  /** Stable inside one quest so progress survives wording changes. */
+  readonly id: string;
+  readonly kind: QuestObjectiveKind;
+  readonly description: string;
+  /** Every Phase B progress objective advances toward a positive numeric target. */
+  readonly target: number;
+  /**
+   * Optional event filter/configuration.
+   *
+   * Common keys:
+   * - eventTypes: string[]
+   * - where: object of exact top-level payload matches
+   * EVENT_SUM additionally requires field.
+   * RECRUIT_CREW may set crew to WHORES, THUGS or ANY.
+   * STATE_AT_LEAST requires field and reads the post-event player state.
+   */
+  readonly params?: QuestDataObject;
+}
+
+export interface QuestProgressEvent {
+  /** Usually a PlayerActivity type such as SCOUT, RAID_ATTACK or RUN_RETURNED. */
+  readonly type: string;
+  /** Activity/event JSON. */
+  readonly payload: QuestDataValue;
+  /** Authoritative player state after the source event, when available. */
+  readonly state?: QuestDataObject;
+}
+
+export interface QuestObjectiveProgress {
+  readonly current: number;
+  readonly target: number;
+  readonly completed: boolean;
+  /** Credited distinct strings for UNIQUE_VALUES objectives. */
+  readonly values?: readonly string[];
+}
+
+export type QuestProgressMap = Readonly<Record<string, QuestObjectiveProgress>>;
+
+export interface QuestObjectiveAdvance {
+  readonly matched: boolean;
+  readonly amount: number;
+  readonly progress: QuestObjectiveProgress;
+}
+
+export type QuestRewardKind =
+  | 'CASH'
+  | 'TURNS'
+  | 'ITEM'
+  | 'CONTACT_REP'
+  | 'WEAPON_ACCESS'
+  | 'PERMANENT_UNLOCK'
+  | 'FAVOR_ITEM'
+  | 'COSMETIC_UNLOCK';
+
+export interface QuestRewardDefinition {
+  readonly kind: QuestRewardKind;
+  readonly amount?: number;
+  readonly key?: string;
+  readonly params?: QuestDataObject;
+}
+
+export interface QuestBranchReputationDelta {
+  readonly contactKey: ContactKey;
+  readonly amount: number;
+}
+
+export interface QuestBranchDefinition {
+  readonly key: string;
+  readonly title: string;
+  readonly description: string;
+  readonly rewards: readonly QuestRewardDefinition[];
+  readonly reputationDeltas: readonly QuestBranchReputationDelta[];
+  readonly followUpKeys: readonly string[];
+}
+
+export type ContactKey =
+  | 'MAMA_KING'
+  | 'PIP'
+  | 'TOMMY'
+  | 'WHEELS'
+  | 'VIC'
+  | 'BLOCKS';
+
+export interface ContactDefinition {
+  readonly key: ContactKey;
+  readonly name: string;
+  readonly shortName: string;
+  readonly role: string;
+  readonly description: string;
+}
+
+export type ContactCatalog = Readonly<Record<ContactKey, ContactDefinition>>;
+
+export type PermanentUnlockEffect =
+  | {
+      readonly kind: 'WEAPON_ACCESS';
+      readonly weapon: WeaponUnlockKey;
+    }
+  | {
+      readonly kind: 'PRODUCT_PURCHASE_ACCESS';
+      readonly productKey: string;
+    };
+
+export interface PermanentUnlockDefinition {
+  readonly key: string;
+  readonly name: string;
+  readonly description: string;
+  readonly category: 'WEAPON' | 'PRODUCT';
+  readonly effect: PermanentUnlockEffect;
+}
+
+export type PermanentUnlockCatalog = Readonly<Record<string, PermanentUnlockDefinition>>;
+
+export type QuestCosmeticKind = 'TITLE_BADGE' | 'PROFILE_FRAME' | 'ACCENT' | 'SITE_THEME' | 'HIDEOUT_DECOR';
+export type QuestCosmeticRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+export interface QuestCosmeticDefinition {
+  readonly key: string;
+  readonly name: string;
+  readonly description: string;
+  readonly kind: QuestCosmeticKind;
+  readonly rarity: QuestCosmeticRarity;
+  /** Stable presentation slug. Stored with the account unlock for future ruleset compatibility. */
+  readonly styleKey?: string;
+}
+
+export type QuestCosmeticCatalog = Readonly<Record<string, QuestCosmeticDefinition>>;
+
+export type FavorRarity = 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
+
+export type FavorCategory = 'STREET' | 'UNDERWORLD' | 'MUSCLE';
+
+export type FavorActivation =
+  | {
+      readonly kind: 'TIMED';
+      readonly category: FavorCategory;
+      readonly durationMinutes: number;
+    }
+  | {
+      readonly kind: 'SINGLE_USE';
+      readonly category: FavorCategory;
+    };
+
+export type SingleUseFavorEffect =
+  | {
+      readonly kind: 'STORE_BUY_DISCOUNT';
+      readonly storeKey: StoreKey;
+      readonly itemKeys: readonly string[];
+      readonly discountPercent: number;
+    }
+  | {
+      readonly kind: 'FREE_RECON';
+    }
+  | {
+      readonly kind: 'FREE_TREATMENT';
+    }
+  | {
+      /** Next successful Heat bribe costs no cash. */
+      readonly kind: 'FREE_HEAT_BRIBE';
+    }
+  | {
+      /** Next successful run launch skips the outbound road-stop roll. */
+      readonly kind: 'CLEAR_FIRST_ROAD_STOP';
+    }
+  | {
+      /** Locals stand down on the next otherwise-valid unheld turf claim. */
+      readonly kind: 'LOCAL_TURF_STANDDOWN';
+    };
+
+export type TimedFavorEffect =
+  | {
+      readonly kind: 'SCOUT_BOOST';
+      readonly incomePercent: number;
+      readonly recruitmentPercent: number;
+    }
+  | {
+      readonly kind: 'PRODUCTION_BOOST';
+      readonly outputPercent: number;
+    }
+  | {
+      readonly kind: 'PIP_BUY_DISCOUNT';
+      readonly discountPercent: number;
+    }
+  | {
+      readonly kind: 'TREATMENT_EFFICIENCY';
+      readonly medicineEfficiencyPercent: number;
+    };
+
+export interface FavorDefinition {
+  readonly key: string;
+  readonly name: string;
+  readonly description: string;
+  readonly contactKey: ContactKey;
+  /** Catalog-only presentation tier. Older pinned rulesets default to COMMON. */
+  readonly rarity?: FavorRarity;
+  readonly activation: FavorActivation;
+  /**
+   * Phase K effect for timed favors. Optional so 0.7-I remains an inventory-only
+   * pinned ruleset and single-use favors can wait for Phase L.
+   */
+  readonly effect?: TimedFavorEffect | SingleUseFavorEffect;
+}
+
+export type FavorCatalog = Readonly<Record<string, FavorDefinition>>;
+
+export interface QuestDefinition {
+  /** Stable key inside a ruleset version, e.g. FIRST_NIGHT_OUT. */
+  readonly key: string;
+  readonly title: string;
+  readonly description: string;
+  /** Null for system/event quests that have no named contact. */
+  readonly contactKey: string | null;
+  readonly type: QuestType;
+  /** Gameplay grouping such as STREET, COMBAT, TRAVEL or TURF. */
+  readonly category: string;
+  readonly difficulty: QuestDifficulty;
+  readonly prerequisites: readonly QuestPrerequisiteDefinition[];
+  readonly objectives: readonly QuestObjectiveDefinition[];
+  readonly bonusObjectives: readonly QuestObjectiveDefinition[];
+  readonly rewards: readonly QuestRewardDefinition[];
+  /** Rare Phase R choices committed at turn-in. Omit for normal linear Jobs. */
+  readonly branches?: readonly QuestBranchDefinition[];
+  readonly followUpKeys: readonly string[];
+  readonly repeatability: QuestRepeatability;
+  /** Null means the accepted quest has no timer. */
+  readonly expiresAfterMinutes: number | null;
+  readonly availability: QuestDataObject & {
+    readonly seasonalEvent?: SeasonalEventWindow;
+  };
+}
+
+export type QuestDefinitionCatalog = Readonly<Record<string, QuestDefinition>>;
 
 export interface RulesetMeta {
   readonly id: string;
@@ -1039,6 +1341,62 @@ export interface ProductEconomyRules {
   readonly intel: { readonly lightBelowPerWhore: number; readonly heavyFromPerWhore: number };
 }
 
+export interface StoreRelationshipPerk {
+  readonly at: number;
+  readonly label: string;
+  readonly description: string;
+  readonly buyDiscountPercent?: number;
+  readonly sellBonusPercent?: number;
+}
+
+export interface StoreShipmentRules {
+  readonly enabled: boolean;
+  readonly seed: string;
+  readonly delayChancePercent: number;
+  readonly delayMinutes: number;
+  readonly partialChancePercent: number;
+  readonly partialMultiplier: number;
+  readonly largeChancePercent: number;
+  readonly largeMultiplier: number;
+}
+
+export interface StoreSpecialOrderRules {
+  readonly enabled: boolean;
+  readonly markupPercent: number;
+  readonly minWaitMinutes: number;
+  readonly waitMultiplier: number;
+  readonly standingMarkupDiscountPercentPerTier: number;
+  readonly standingWaitDiscountPercentPerTier: number;
+}
+
+export interface StoreIntegrationRules {
+  readonly enabled: boolean;
+  readonly turfSpecialOrderDiscountPercentPerBlock: number;
+  readonly maxTurfSpecialOrderDiscountPercent: number;
+  readonly travelOpportunityMinProfitPercent: number;
+}
+
+export interface StoreEconomyRules {
+  /**
+   * 0.8.0-C. Home Pip product trades nudge the same local pressure used by
+   * the high market: buying lifts the next quote, selling cools it, and the
+   * pressure slowly normalizes through the high-market recovery clock.
+   */
+  readonly pipProductPressure?: {
+    readonly enabled: boolean;
+    /** Maximum share up or down that Pip's product quotes can move from their city baseline. */
+    readonly maxPricePressure: number;
+  };
+  /** 0.8.0-D. Best reached trader relationship perk, keyed by store. */
+  readonly traderPerks?: Partial<Record<StoreKey, readonly StoreRelationshipPerk[]>>;
+  /** 0.8.0-E. Lazy-settled incoming shipments for restocked store shelves. */
+  readonly shipments?: StoreShipmentRules;
+  /** 0.8.0-F. Paid sourcing for sold-out eligible restocked shelves. */
+  readonly specialOrders?: StoreSpecialOrderRules;
+  /** 0.8.0-G. Cross-system store hooks and modest bonuses. */
+  readonly integrations?: StoreIntegrationRules;
+}
+
 /**
  * 0.4.0-C. Heat: how much attention the crew's product draws. It rises with risky
  * product, decays on the turn clock, drags the take when high and risks a bust
@@ -1232,7 +1590,21 @@ export interface Ruleset {
   readonly weapons: { readonly [K in WeaponKey]: Weapon };
   readonly weaponUnlocks: { readonly [K in WeaponUnlockKey]: WeaponUnlockRule };
   readonly reputation: ReputationRules;
+  /** @deprecated Historical store favors for pinned old rounds only. */
   readonly quests: { readonly [K in QuestKey]: QuestRule };
+  /**
+   * Authoritative event-driven Jobs catalog for current progression. Optional
+   * only so historical pinned rulesets remain valid.
+   */
+  readonly questDefinitions?: QuestDefinitionCatalog;
+  /** Named quest contacts and their relationship tracks. */
+  readonly contacts?: ContactCatalog;
+  /** Permanent per-round capabilities earned through Jobs. */
+  readonly permanentUnlocks?: PermanentUnlockCatalog;
+  /** Consumable favors earned from contacts. Effects are activated by later roadmap phases. */
+  readonly favors?: FavorCatalog;
+  /** Permanent account cosmetics awarded by specific one-time Jobs. */
+  readonly cosmetics?: QuestCosmeticCatalog;
   readonly rankings: RankingRules;
   /** Optional round privacy for public community surfaces. */
   readonly communityPrivacy?: CommunityPrivacyRules;
@@ -1251,6 +1623,8 @@ export interface Ruleset {
    * Raids and drug runs then take a mix of products rather than crack alone.
    */
   readonly productEconomy?: ProductEconomyRules;
+  /** 0.8.0-C. Store-side dynamic economy knobs. */
+  readonly storeEconomy?: StoreEconomyRules;
   /** 0.4.0-E. Absent where thugs burn no product in fights. */
   readonly combatSupply?: CombatSupplyRules;
   /** 0.5.0-A. Absent where cities are all alike and nobody travels. Keyed by City slug. */

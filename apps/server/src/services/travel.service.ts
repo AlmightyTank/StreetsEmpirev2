@@ -55,7 +55,9 @@ import { PlayerStateService } from './player-state.service.js';
 import { RelocationService } from './relocation.service.js';
 import { ActivityService } from './activity.service.js';
 import { HighMarketService } from './high-market.service.js';
+import { hideoutGarageRunLimit, hideoutWeaponPriority } from './hideout.service.js';
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
+import { SingleUseFavorService } from './single-use-favor.service.js';
 import {
   RUN_INCLUDE,
   awayWorth,
@@ -110,10 +112,6 @@ async function requireActiveRun(tx: Db, roundPlayerId: string, runId?: string): 
   const run = await activeRun(tx, roundPlayerId, runId);
   if (!run) throw AppError.conflict('NO_RUN', 'That active run is not available.');
   return run;
-}
-
-function runLimit(ruleset: Ruleset, garageLevel: number): number {
-  return garageLevel > 0 ? Math.max(2, ruleset.hideout?.buffs.garageRunLimit ?? 2) : 1;
 }
 
 /** Replace a run's stops with a new plan. Stops are few, so they are rewritten whole. */
@@ -352,7 +350,7 @@ export const TravelService = {
     const active = await activeRuns(prisma, roundPlayerId);
     const runDtos = (await Promise.all(active.map((run) => runDto(prisma, roundPlayerId, base, player.roundId, run, now))))
       .filter((run): run is RunDto => Boolean(run));
-    const limit = runLimit(ruleset, player.hideoutGarageLevel);
+    const limit = hideoutGarageRunLimit(ruleset, player);
     const travel = ruleset.travel;
     const seed = player.roundId;
     // 0.5.0-F: with the home market open at launch, home shows its wholesale prices too.
@@ -441,7 +439,7 @@ export const TravelService = {
       execute: async ({ tx, current, ruleset, player, now }) => {
         requireRuns(ruleset);
         const activeCount = await tx.run.count({ where: { roundPlayerId, status: 'ACTIVE' } });
-        const limit = runLimit(ruleset, player.hideoutGarageLevel);
+        const limit = hideoutGarageRunLimit(ruleset, player);
         if (activeCount >= limit) {
           throw AppError.conflict('RUN_LIMIT', limit === 1
             ? 'You already have a run out. Build the Garage or wait for it to come home.'
@@ -516,11 +514,20 @@ export const TravelService = {
           throw AppError.badRequest('TRUNK_FULL', `${input.lowRiders} Low-Rider${input.lowRiders === 1 ? '' : 's'} carry ${capacity} units including beer.`, { cargo: `At most ${capacity} total units.` });
         }
 
+        const openRoad = await SingleUseFavorService.matching(
+          tx,
+          roundPlayerId,
+          ruleset,
+          'CLEAR_FIRST_ROAD_STOP',
+        );
+
         // Crack leaves on the column with everything else in `next`; other products are rows.
         const rows = Object.fromEntries(Object.entries(fromHome).filter(([key]) => key !== CRACK).map(([key, quantity]) => [key, -quantity]));
         if (Object.keys(rows).length) await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, rows);
         // 0.5.0-E: escorts always ride armed, one gun each, the best first, out of home stock.
-        const guns = ruleset.travel?.convoys ? armEscorts(ruleset, input.escortThugs, current) : { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
+        const guns = ruleset.travel?.convoys
+          ? armEscorts(ruleset, input.escortThugs, current, hideoutWeaponPriority(ruleset, current))
+          : { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
         const run = await tx.run.create({
           data: {
             roundPlayerId,
@@ -534,6 +541,8 @@ export const TravelService = {
             startBeer: input.beer,
             turnsSpent: plan.turns,
             launchedAt: now,
+            // Wheels' Open Road treats the outbound stop as already checked.
+            roadChecks: openRoad ? 1 : 0,
             cargo: { create: productKeys(ruleset).filter((key) => (cargo[key] ?? 0) > 0).map((key) => ({ productKey: key, quantity: cargo[key]!, startQuantity: cargo[key]! })) },
           },
         });
@@ -543,6 +552,7 @@ export const TravelService = {
             data: { runId: run.id, city: player.city.slug, productKey: trade.productKey, direction: 'buy', venue: 'market', quantity: trade.quantity, unitCents: trade.unitCents, totalCents: trade.totalCents, createdAt: now },
           });
         }
+        if (openRoad) await SingleUseFavorService.consume(tx, openRoad.id);
 
         const [out, home] = plan.stops;
         const result: RunLaunchResult = {
@@ -579,7 +589,19 @@ export const TravelService = {
               + awayWorth(ruleset, { cashCents, beer: input.beer, lowRiders: input.lowRiders, escortThugs: input.escortThugs, ...guns }, cargo),
           },
           result,
-          activity: { type: 'RUN_LAUNCHED', payload: { ...result, cities: [cityName(ruleset, input.to)] } },
+          ledger: marketTrades.map((trade) => ({
+            source: 'RUN_LAUNCH',
+            label: `Home market buy · ${productName(ruleset, trade.productKey)}`,
+            amountCents: -trade.totalCents,
+          })),
+          activity: {
+            type: 'RUN_LAUNCHED',
+            payload: {
+              ...result,
+              cities: [cityName(ruleset, input.to)],
+              ...(openRoad ? { favorKey: openRoad.key } : {}),
+            },
+          },
         };
       },
     });
@@ -732,6 +754,29 @@ export const TravelService = {
             shelfStock,
             heat: town.heat ? { before: current.heat, added, after: heatAfter } : null,
             trouble,
+          },
+          ledger: [
+            {
+              source: 'RUN_TRADE',
+              label: `${cityName(base, city)} · ${input.venue === 'market' ? 'high market' : 'Pip'} ${buying ? 'buy' : 'sale'} · ${name}`,
+              amountCents: buying ? -totalCents : totalCents,
+            },
+            ...(trouble?.fineCents ? [{
+              source: 'RUN_INCIDENT',
+              label: `${cityName(base, city)} road fine`,
+              amountCents: -BigInt(trouble.fineCents),
+            }] : []),
+          ],
+          questProgress: {
+            type: 'RUN_TRADE',
+            payload: {
+              city,
+              product: input.product,
+              direction: input.direction,
+              venue: input.venue,
+              quantity: input.quantity,
+              totalCents: Number(totalCents),
+            },
           },
         };
       },

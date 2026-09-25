@@ -32,6 +32,11 @@ const schema = z.object({
   /** Local HTTP listener for game-server wake-up nudges. Set port 0 to turn it off. */
   DISCORD_BOT_LISTEN_HOST: z.string().default('127.0.0.1'),
   DISCORD_BOT_LISTEN_PORT: z.coerce.number().int().min(0).max(65535).default(3002),
+  /**
+   * full: sync every game/forum/alliance role.
+   * beta-tester-only: sync only the fixed Beta Tester role.
+   */
+  DISCORD_ROLE_SYNC_MODE: z.enum(['full', 'beta-tester-only']).default('full'),
 });
 
 export type BotConfig = z.infer<typeof schema> & { frontendOrigin: string };

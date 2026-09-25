@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV05A, classicOgV05B, classicOgV06D } from '@streets/rulesets';
+import { classicOgV05A, classicOgV05B, classicOgV06D, classicOgV06F } from '@streets/rulesets';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
+  armEscorts,
   RunError,
   calculateCityTrade,
   cargoUnits,
@@ -22,6 +23,12 @@ const now = new Date('2026-09-18T12:00:00Z');
 const minutes = (value: number) => new Date(now.getTime() + value * 60_000);
 
 describe('0.5.0-B planning a run', () => {
+
+  it('lets the Armory conserve premium guns on run escorts without changing the default', () => {
+    const home = { pistols: 3, shotguns: 0, tek9s: 0, ak47s: 3 };
+    expect(armEscorts(classicOgV06F, 2, home)).toEqual({ pistols: 0, shotguns: 0, tek9s: 0, ak47s: 2 });
+    expect(armEscorts(classicOgV06F, 2, home, 'CONSERVE')).toEqual({ pistols: 2, shotguns: 0, tek9s: 0, ak47s: 0 });
+  });
   it('drives out, trades for the window, and comes home, paying for both legs up front', () => {
     const plan = planLaunch(ruleset, { home: NYC, to: 'miami-beach', routeIndex: 0, now });
     expect(plan.route.cities).toEqual([NYC, 'miami-beach']);

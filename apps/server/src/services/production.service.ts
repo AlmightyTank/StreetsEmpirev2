@@ -4,9 +4,15 @@ import type { GameActionResult, ProduceCrackResult, ProductTypeDto } from '@stre
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { HeatService } from './heat.service.js';
-import { hideoutBackOfficeBonusCents, hideoutWorkshopBonusProduct } from './hideout.service.js';
+import {
+  hideoutBackOfficeBonusCents,
+  hideoutWorkshopBonusProduct,
+  hideoutWorkshopIngredientCentsPerUnit,
+  hideoutWorkshopIngredientEfficiencyPercent,
+} from './hideout.service.js';
 import { CRACK, ProductInventoryService, streetProductFinds, summarizeProductMovements } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
+import { TimedFavorService } from './timed-favor.service.js';
 
 export interface ProduceInput {
   turns: number;
@@ -64,10 +70,28 @@ export const ProductionService = {
         // 0.4.0-D: a product round cooks what was asked for, from its recipes. Older rounds
         // cook crack whatever the batch was called, as they always have.
         const recipes = productRecipes(ruleset);
-        const recipe = ruleset.productEconomy ? recipes.find((candidate) => candidate.product === requested) : recipes[0]!;
-        if (!recipe) {
+        const baseRecipe = ruleset.productEconomy ? recipes.find((candidate) => candidate.product === requested) : recipes[0]!;
+        if (!baseRecipe) {
           throw AppError.badRequest('UNKNOWN_RECIPE', 'Your crew cannot cook that.', { productType: `Pick one of: ${recipes.map((row) => row.name).join(', ')}.` });
         }
+        const ingredientEfficiencyPercent = hideoutWorkshopIngredientEfficiencyPercent(ruleset, current);
+        const effectiveIngredientCentsPerUnit = hideoutWorkshopIngredientCentsPerUnit(
+          baseRecipe.ingredientCentsPerUnit,
+          ruleset,
+          current,
+          baseRecipe.product,
+        );
+        const workshopRecipe = effectiveIngredientCentsPerUnit === baseRecipe.ingredientCentsPerUnit
+          ? baseRecipe
+          : { ...baseRecipe, ingredientCentsPerUnit: effectiveIngredientCentsPerUnit };
+        const favorBonuses = await TimedFavorService.bonuses(tx, roundPlayerId, ruleset, now);
+        const recipe = favorBonuses.productionOutputPercent > 0
+          ? {
+              ...workshopRecipe,
+              perThugPerTurn: workshopRecipe.perThugPerTurn
+                * (100 + favorBonuses.productionOutputPercent) / 100,
+            }
+          : workshopRecipe;
         const productType = ruleset.productEconomy ? recipe.product : requested;
         const productName = ruleset.productEconomy ? recipe.name : LEGACY_PRODUCT_NAMES[requested] ?? 'Product';
 
@@ -128,6 +152,8 @@ export const ProductionService = {
         const pimpTakeCents = outcome.pimpTakeCents + hideoutBonusCents;
         const hideoutBonusProduct = hideoutWorkshopBonusProduct(outcome.crackProduced, ruleset, current);
         const productProduced = outcome.crackProduced + hideoutBonusProduct;
+        const ingredientSavingsCents = outcome.crackProduced
+          * Math.max(0, baseRecipe.ingredientCentsPerUnit - recipe.ingredientCentsPerUnit);
         const cookingCrack = recipe.product === CRACK;
         const crackProduced = cookingCrack ? productProduced : 0;
         const hideoutBonusCrack = cookingCrack ? hideoutBonusProduct : 0;
@@ -185,9 +211,15 @@ export const ProductionService = {
           productName,
           productProduced,
           hideoutBonusProduct,
+          ...(favorBonuses.productionOutputPercent > 0 ? { favorProductionPercent: favorBonuses.productionOutputPercent } : {}),
           crackProduced,
           hideoutBonusCrack,
           ingredientCents: Number(outcome.ingredientCents),
+          ...(ingredientEfficiencyPercent > 0 ? {
+            hideoutIngredientEfficiencyPercent: ingredientEfficiencyPercent,
+            hideoutIngredientSavingsCents: ingredientSavingsCents,
+            ingredientCentsPerUnit: recipe.ingredientCentsPerUnit,
+          } : {}),
           limitedByCash: outcome.limitedByCash,
 
           beerUsed: outcome.consumption.beer,
@@ -220,6 +252,23 @@ export const ProductionService = {
         return {
           next,
           result,
+          ledger: [
+            ...(pimpTakeCents > 0n ? [{
+              source: 'PRODUCE_CRACK',
+              label: `${productName} production street take`,
+              amountCents: pimpTakeCents,
+            }] : []),
+            ...(outcome.ingredientCents > 0n ? [{
+              source: 'PRODUCE_CRACK',
+              label: `${productName} ingredients`,
+              amountCents: -outcome.ingredientCents,
+            }] : []),
+            ...(trip.heat?.fineCents ? [{
+              source: 'PRODUCE_CRACK',
+              label: 'Production Heat fine',
+              amountCents: -BigInt(trip.heat.fineCents),
+            }] : []),
+          ],
           activity: {
             type: 'PRODUCE_CRACK',
             payload: {
@@ -230,6 +279,11 @@ export const ProductionService = {
               crack: crackProduced,
               hideoutBonusCrack,
               ingredientCents: Number(outcome.ingredientCents),
+              ...(ingredientEfficiencyPercent > 0 ? {
+                hideoutIngredientEfficiencyPercent: ingredientEfficiencyPercent,
+                hideoutIngredientSavingsCents: ingredientSavingsCents,
+                ingredientCentsPerUnit: recipe.ingredientCentsPerUnit,
+              } : {}),
               cashCents: Number(pimpTakeCents),
               hideoutBonusCents: Number(hideoutBonusCents),
               crackFound,

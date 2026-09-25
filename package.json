@@ -25,6 +25,7 @@
     "qa:travel": "node --import tsx scripts/qa/travel-sim.mjs",
     "qa:turf": "node --import tsx scripts/qa/turf-sim.mjs",
     "qa:hideout": "node --import tsx scripts/qa/hideout-sim.mjs",
+    "qa:store-economy": "node --import tsx scripts/qa/store-economy.mjs",
     "qa:alliance-balance": "tsx scripts/qa/alliance-balance.ts",
     "db:seed:combat": "node --import tsx scripts/qa/seed-combat.mjs",
     "db:seed:combat:recovery": "node --import tsx scripts/qa/seed-combat-recovery.mjs",

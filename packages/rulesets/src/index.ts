@@ -28,6 +28,38 @@ import { classicOgV06D } from './classic-og-v0.6-d/index.js';
 import { classicOgV06E } from './classic-og-v0.6-e/index.js';
 import { classicOgV06F } from './classic-og-v0.6-f/index.js';
 import { classicOgV07A } from './classic-og-v0.7-a/index.js';
+import { classicOgV07B } from './classic-og-v0.7-b/index.js';
+import { classicOgV07C } from './classic-og-v0.7-c/index.js';
+import { classicOgV07D } from './classic-og-v0.7-d/index.js';
+import { classicOgV07E } from './classic-og-v0.7-e/index.js';
+import { classicOgV07F } from './classic-og-v0.7-f/index.js';
+import { classicOgV07G } from './classic-og-v0.7-g/index.js';
+import { classicOgV07H } from './classic-og-v0.7-h/index.js';
+import { classicOgV07I } from './classic-og-v0.7-i/index.js';
+import { classicOgV07J } from './classic-og-v0.7-j/index.js';
+import { classicOgV07K } from './classic-og-v0.7-k/index.js';
+import { classicOgV07L } from './classic-og-v0.7-l/index.js';
+import { classicOgV07M } from './classic-og-v0.7-m/index.js';
+import { classicOgV07N } from './classic-og-v0.7-n/index.js';
+import { classicOgV07O } from './classic-og-v0.7-o/index.js';
+import { classicOgV07P } from './classic-og-v0.7-p/index.js';
+import { classicOgV07Q } from './classic-og-v0.7-q/index.js';
+import { classicOgV07R } from './classic-og-v0.7-r/index.js';
+import { classicOgV07S } from './classic-og-v0.7-s/index.js';
+import { classicOgV07T } from './classic-og-v0.7-t/index.js';
+import { classicOgV07U } from './classic-og-v0.7-u/index.js';
+import { classicOgV07V } from './classic-og-v0.7-v/index.js';
+import { classicOgV07W } from './classic-og-v0.7-w/index.js';
+import { classicOgV07X } from './classic-og-v0.7-x/index.js';
+import { classicOgV07Y } from './classic-og-v0.7-y/index.js';
+import { classicOgV07Z } from './classic-og-v0.7-z/index.js';
+import { classicOgV07AA } from './classic-og-v0.7-aa/index.js';
+import { classicOgV08C } from './classic-og-v0.8-c/index.js';
+import { classicOgV08D } from './classic-og-v0.8-d/index.js';
+import { classicOgV08E } from './classic-og-v0.8-e/index.js';
+import { classicOgV08F } from './classic-og-v0.8-f/index.js';
+import { classicOgV08G } from './classic-og-v0.8-g/index.js';
+import { classicOgV08H } from './classic-og-v0.8-h/index.js';
 import type { Ruleset } from './types.js';
 
 export { classicOgV01 };
@@ -60,10 +92,45 @@ export { classicOgV06D };
 export { classicOgV06E };
 export { classicOgV06F };
 export { classicOgV07A };
+export { classicOgV07B };
+export { classicOgV07C };
+export { classicOgV07D };
+export { classicOgV07E };
+export { classicOgV07F };
+export { classicOgV07G };
+export { classicOgV07H };
+export { classicOgV07I };
+export { classicOgV07J };
+export { classicOgV07K };
+export { classicOgV07L };
+export { classicOgV07M };
+export { classicOgV07N };
+export { classicOgV07O };
+export { classicOgV07P };
+export { classicOgV07Q };
+export { classicOgV07R };
+export { classicOgV07S };
+export { classicOgV07T };
+export { classicOgV07U };
+export { classicOgV07V };
+export { classicOgV07W };
+export { classicOgV07X };
+export { classicOgV07Y };
+export { classicOgV07Z };
+export { classicOgV07AA };
+export { classicOgV08C };
+export { classicOgV08D };
+export { classicOgV08E };
+export { classicOgV08F };
+export { classicOgV08G };
+export { classicOgV08H };
 export * from './classic-og-v0.1/index.js';
 export * from './types.js';
 export * from './combat-prototype.js';
 export * from './hideout-v2.js';
+export * from './quest-definitions.js';
+export * from './quest-progress.js';
+export * from './quest-contacts.js';
 
 /** Every ruleset the engine can load, keyed by its public id. */
 export const rulesets: Readonly<Record<string, Ruleset>> = {
@@ -97,6 +164,38 @@ export const rulesets: Readonly<Record<string, Ruleset>> = {
   [classicOgV06E.meta.id]: classicOgV06E,
   [classicOgV06F.meta.id]: classicOgV06F,
   [classicOgV07A.meta.id]: classicOgV07A,
+  [classicOgV07B.meta.id]: classicOgV07B,
+  [classicOgV07C.meta.id]: classicOgV07C,
+  [classicOgV07D.meta.id]: classicOgV07D,
+  [classicOgV07E.meta.id]: classicOgV07E,
+  [classicOgV07F.meta.id]: classicOgV07F,
+  [classicOgV07G.meta.id]: classicOgV07G,
+  [classicOgV07H.meta.id]: classicOgV07H,
+  [classicOgV07I.meta.id]: classicOgV07I,
+  [classicOgV07J.meta.id]: classicOgV07J,
+  [classicOgV07K.meta.id]: classicOgV07K,
+  [classicOgV07L.meta.id]: classicOgV07L,
+  [classicOgV07M.meta.id]: classicOgV07M,
+  [classicOgV07N.meta.id]: classicOgV07N,
+  [classicOgV07O.meta.id]: classicOgV07O,
+  [classicOgV07P.meta.id]: classicOgV07P,
+  [classicOgV07Q.meta.id]: classicOgV07Q,
+  [classicOgV07R.meta.id]: classicOgV07R,
+  [classicOgV07S.meta.id]: classicOgV07S,
+  [classicOgV07T.meta.id]: classicOgV07T,
+  [classicOgV07U.meta.id]: classicOgV07U,
+  [classicOgV07V.meta.id]: classicOgV07V,
+  [classicOgV07W.meta.id]: classicOgV07W,
+  [classicOgV07X.meta.id]: classicOgV07X,
+  [classicOgV07Y.meta.id]: classicOgV07Y,
+  [classicOgV07Z.meta.id]: classicOgV07Z,
+  [classicOgV07AA.meta.id]: classicOgV07AA,
+  [classicOgV08C.meta.id]: classicOgV08C,
+  [classicOgV08D.meta.id]: classicOgV08D,
+  [classicOgV08E.meta.id]: classicOgV08E,
+  [classicOgV08F.meta.id]: classicOgV08F,
+  [classicOgV08G.meta.id]: classicOgV08G,
+  [classicOgV08H.meta.id]: classicOgV08H,
 };
 
 export const DEFAULT_RULESET_ID = classicOgV01.meta.id;

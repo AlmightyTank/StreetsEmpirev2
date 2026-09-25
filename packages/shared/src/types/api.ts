@@ -33,6 +33,12 @@ export type ActivityType =
   | 'ADMIN_GRANT'
   | 'HEAT_BRIBE'
   | 'HIDEOUT_UPGRADE'
+  | 'QUEST_OBJECTIVE_COMPLETE'
+  | 'QUEST_READY'
+  | 'QUEST_CLAIMED'
+  | 'FAVOR_ACTIVATED'
+  | 'FAVOR_ARMED'
+  | 'FAVOR_DISARMED'
   | 'RUN_LAUNCHED'
   | 'RUN_RETURNED'
   | 'RUN_INCIDENT'
@@ -89,7 +95,19 @@ export interface AccountSessionsResponseDto {
   sessions: AccountSessionDto[];
 }
 
-export type ProfileAccent = 'default' | 'crimson' | 'gold' | 'green' | 'blue' | 'purple';
+export type ProfileAccent =
+  | 'default'
+  | 'crimson'
+  | 'gold'
+  | 'green'
+  | 'blue'
+  | 'purple'
+  | 'ghost-violet'
+  | 'top-shelf-teal'
+  | 'enforcer-red'
+  | 'open-road-blue'
+  | 'clean-slate-ice'
+  | 'corner-amber';
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
@@ -107,6 +125,8 @@ export interface BadgeCosmeticOptionDto extends CosmeticOptionDto {
 
 export interface AccountProfileSettingsDto {
   activeTitleKey: string | null;
+  activeProfileFrameKey: string | null;
+  activeSiteThemeKey: string | null;
   featuredBadgeKeys: string[];
   profileAccent: ProfileAccent;
   uiDensity: UiDensity;
@@ -121,6 +141,8 @@ export interface AccountProfileSettingsResponseDto {
     titles: BadgeCosmeticOptionDto[];
     badges: BadgeCosmeticOptionDto[];
     accents: CosmeticOptionDto[];
+    frames: CosmeticOptionDto[];
+    themes: CosmeticOptionDto[];
     densities: CosmeticOptionDto[];
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];
@@ -292,6 +314,8 @@ export interface SeasonHideoutDto {
     name: string;
     level: number;
     maxLevel: number;
+    /** 0.7.0-G permanent branch key, null for rooms without a branch or an unchosen branch. */
+    specialization?: string | null;
   }>;
 }
 
@@ -450,6 +474,8 @@ export interface ScoutResult {
   /** Your share, which is what landed in cash. */
   cashEarnedCents: number;
   hideoutBonusCents?: number;
+  favorIncomePercent?: number;
+  favorRecruitmentPercent?: number;
   payoutPercent: number;
 
   /** Crack-only compatibility field. On product rounds, this is the Crack slice of productsFound. */
@@ -500,9 +526,16 @@ export interface ProduceCrackResult {
   productName: string;
   productProduced: number;
   hideoutBonusProduct?: number;
+  favorProductionPercent?: number;
   crackProduced: number;
   hideoutBonusCrack?: number;
   ingredientCents: number;
+  /** 0.7.0-D. Workshop ingredient-cost reduction used for this batch. */
+  hideoutIngredientEfficiencyPercent?: number;
+  /** 0.7.0-D. Ingredient cash saved compared with the base recipe for the same base output. */
+  hideoutIngredientSavingsCents?: number;
+  /** Effective ingredient price after Workshop efficiency. */
+  ingredientCentsPerUnit?: number;
   /** True when cash, not thugs, was the limit on the batch. */
   limitedByCash: boolean;
 
@@ -558,11 +591,83 @@ export interface StoreItemDto {
   name: string;
   field: Exclude<keyof ResourcesDto, 'cashCents' | 'fitThugs' | 'woundedThugs'>;
   buyCents: number;
+  /** Present when an armed single-use favor lowered the current buy quote. */
+  baseBuyCents?: number;
+  favorDiscountPercent?: number;
+  relationshipBuyDiscountPercent?: number;
+  relationshipSellBonusPercent?: number;
   sellCents: number | null;
   owned: number;
   maxBuy: number;
+  /** 0.8.0-B. Player-facing context for the current quote versus its normal price. */
+  market: StoreMarketContextDto;
   /** Null when the store can sell as many as you can pay for. */
   restock: StoreRestockDto | null;
+}
+
+export interface StoreRelationshipPerkDto {
+  label: string;
+  description: string;
+  buyDiscountPercent?: number;
+  sellBonusPercent?: number;
+}
+
+export interface StoreRelationshipNextPerkDto extends StoreRelationshipPerkDto {
+  at: number;
+  pointsRemaining: number;
+}
+
+export interface StoreRelationshipDto {
+  current: StoreRelationshipPerkDto | null;
+  next: StoreRelationshipNextPerkDto | null;
+}
+
+export type PriceContextLabelDto = 'Cheap' | 'Below Normal' | 'Normal' | 'Above Normal' | 'Expensive';
+export type MarketTrendDto = 'Rising' | 'Stable' | 'Falling';
+export type StockContextLabelDto = 'Always Available' | 'Plentiful' | 'Normal' | 'Low' | 'Scarce' | 'Sold Out';
+
+export interface StorePriceContextDto {
+  label: PriceContextLabelDto;
+  trend: MarketTrendDto;
+  baseCents: number;
+  currentCents: number;
+  deltaPercent: number;
+}
+
+export interface StoreStockContextDto {
+  label: StockContextLabelDto;
+  stock: number | null;
+  cap: number | null;
+  percent: number | null;
+}
+
+export interface StoreMarketContextDto {
+  buy: StorePriceContextDto;
+  sell: StorePriceContextDto | null;
+  stock: StoreStockContextDto;
+}
+
+export type StoreShipmentStatusDto = 'ON_TIME' | 'DELAYED' | 'PARTIAL' | 'LARGE';
+
+export interface StoreShipmentDto {
+  quantity: number;
+  scheduledAt: string;
+  arrivesAt: string;
+  status: StoreShipmentStatusDto;
+  delayMinutes: number;
+  destinationTrader: string;
+  itemName: string;
+  news: string;
+}
+
+export interface StoreSpecialOrderDto {
+  feeCents: number;
+  baseFeeCents: number;
+  markupPercent: number;
+  arrivesAt: string;
+  waitMinutes: number;
+  quantity: number;
+  label: string;
 }
 
 /** What the store has on the shelf, and when the next one lands. */
@@ -574,6 +679,10 @@ export interface StoreRestockDto {
   perInterval: number;
   /** ISO timestamp, or null when the shelf is already full. */
   nextAt: string | null;
+  /** 0.8.0-E. Incoming physical shipment details when enabled for this round. */
+  shipment?: StoreShipmentDto | null;
+  /** 0.8.0-F. Paid sourcing option when the shelf is sold out. */
+  specialOrder?: StoreSpecialOrderDto | null;
 }
 
 export interface WeaponUnlockDto {
@@ -597,58 +706,202 @@ export interface WeaponUnlockResult {
   title: string;
 }
 
-/** One trader's standing, and the favour they are asking for. */
-export interface ReputationDto {
-  trader: string;
-  traderName: string;
-  keeper: string;
-  points: number;
-  max: number;
-  standing: string;
-  /** How much sooner this shop restocks for you, as a percentage. */
-  restockSpeedup: number;
-  quest: QuestDto;
+export type PlayerQuestStatusDto =
+  | 'LOCKED'
+  | 'AVAILABLE'
+  | 'ACTIVE'
+  | 'READY_TO_TURN_IN'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'EXPIRED';
+
+export interface QuestObjectiveDto {
+  id: string;
+  kind: string;
+  description: string;
+  format?: 'NUMBER' | 'CURRENCY';
+  current: number;
+  target: number;
+  completed: boolean;
+  bonus: boolean;
 }
 
-export interface QuestDto {
+export interface QuestRewardDto {
+  kind: string;
+  key: string | null;
+  amount: number | null;
+  label: string;
+}
+
+export interface QuestBranchReputationDto {
+  contactKey: string;
+  contactName: string;
+  amount: number;
+  label: string;
+}
+
+export interface QuestBranchChoiceDto {
   key: string;
   title: string;
   description: string;
-  done: boolean;
-  have: number;
-  need: number;
-  /** Set when something other than the counted goal is in the way. */
-  blockedBy: string | null;
-  /** One line per thing asked for, when a favour asks for more than one. Empty otherwise. */
-  parts: QuestPartDto[];
-  /** What is still missing, in words, for favours with parts. */
-  stillNeeded: string | null;
-  canComplete: boolean;
-  reward: number;
+  rewards: QuestRewardDto[];
+  reputationDeltas: QuestBranchReputationDto[];
 }
 
-export interface QuestPartDto {
-  label: string;
-  have: number;
-  need: number;
+export interface QuestContactDto {
+  key: string;
+  name: string;
+  shortName: string;
+  role: string;
+  description: string;
+  points: number;
+  standing: string;
+  nextStandingAt: number | null;
 }
 
-export interface ReputationSummaryDto {
-  traders: ReputationDto[];
-  totalRep: number;
-  unlocks: WeaponUnlockDto[];
-}
-
-export interface QuestCompleteResult {
-  trader: string;
-  traderName: string;
+export interface PlayerQuestDto {
+  key: string;
+  attempt: number;
   title: string;
-  reputationGained: number;
-  totalRep: number;
-  crackDelivered: number;
-  lowRidersHandedOver: number;
-  /** Weapons this favour just put on the menu. */
-  unlocked: string[];
+  description: string;
+  contactKey: string | null;
+  contactName: string | null;
+  type: string;
+  category: string;
+  difficulty: string;
+  status: PlayerQuestStatusDto;
+  isTracked: boolean;
+  chosenBranch: string | null;
+  branchChoices: QuestBranchChoiceDto[];
+  objectives: QuestObjectiveDto[];
+  rewards: QuestRewardDto[];
+  seasonalEvent?: {
+    eventKey: string;
+    label: string | null;
+    startsAt: string;
+    endsAt: string;
+  };
+  communityEvent?: {
+    startsAt: string;
+    endsAt: string;
+    contributionCurrent: number;
+    contributionTarget: number;
+    contributionLabel: string;
+    contributionFormat: 'NUMBER' | 'CURRENCY';
+    sharedCompleted: boolean;
+  };
+  allianceContract?: {
+    contributionCurrent: number;
+    contributionTarget: number;
+    contributionLabel: string;
+    contributionFormat: 'NUMBER' | 'CURRENCY';
+    contributionCompleted: boolean;
+  };
+  acceptedAt: string | null;
+  completedAt: string | null;
+  claimedAt: string | null;
+  expiresAt: string | null;
+}
+
+export interface QuestPermanentUnlockDto {
+  key: string;
+  name: string;
+  description: string;
+  category: string;
+  sourceQuestKey: string | null;
+  awardedAt: string;
+}
+
+export interface QuestActiveFavorDto {
+  key: string;
+  name: string;
+  description: string;
+  category: 'STREET' | 'UNDERWORLD' | 'MUSCLE';
+  startedAt: string;
+  expiresAt: string;
+}
+
+export interface QuestArmedFavorDto {
+  key: string;
+  name: string;
+  description: string;
+  category: 'STREET' | 'UNDERWORLD' | 'MUSCLE';
+  armedAt: string;
+}
+
+export interface FavorArmResult {
+  favorKey: string;
+  name: string;
+  category: 'STREET' | 'UNDERWORLD' | 'MUSCLE';
+  armed: boolean;
+  quantityRemaining: number;
+}
+
+export interface FavorActivationResult {
+  favorKey: string;
+  name: string;
+  category: 'STREET' | 'UNDERWORLD' | 'MUSCLE';
+  startedAt: string;
+  expiresAt: string;
+  quantityRemaining: number;
+}
+
+export interface QuestFavorDto {
+  key: string;
+  name: string;
+  description: string;
+  contactKey: string;
+  rarity: 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
+  activationKind: 'TIMED' | 'SINGLE_USE';
+  activatable: boolean;
+  category: string;
+  durationMinutes: number | null;
+  quantity: number;
+  totalGranted: number;
+  lastSourceQuestKey: string | null;
+}
+
+export interface QuestPageDto {
+  /** Server clock used by the client to age timed favor expiries without trusting its wall clock. */
+  serverTime: string;
+  dailyContracts: {
+    enabled: boolean;
+    slots: number;
+    resetAt: string | null;
+  };
+  weeklyContracts: {
+    enabled: boolean;
+    slots: number;
+    resetAt: string | null;
+  };
+  cityContracts: {
+    enabled: boolean;
+    slots: number;
+    resetAt: string | null;
+  };
+  activeLimit: number;
+  trackedLimit: number;
+  counts: {
+    available: number;
+    active: number;
+    ready: number;
+    completed: number;
+  };
+  contacts: QuestContactDto[];
+  permanentUnlocks: QuestPermanentUnlockDto[];
+  activeFavors: QuestActiveFavorDto[];
+  armedFavors: QuestArmedFavorDto[];
+  favors: QuestFavorDto[];
+  quests: PlayerQuestDto[];
+}
+
+export interface QuestClaimResult {
+  questKey: string;
+  title: string;
+  chosenBranch: string | null;
+  rewards: QuestRewardDto[];
+  reputationChanges: QuestBranchReputationDto[];
+  newlyAvailable: string[];
 }
 
 export interface StoreDto {
@@ -663,9 +916,39 @@ export interface StoreDto {
   reputation: number;
   /** How much sooner they restock for you at that standing, as a percentage. */
   restockSpeedup: number;
-  /** The favour this trader is asking for. Done where the trader is. */
-  quest: QuestDto;
+  /** 0.8.0-D. Current and next ruleset-defined relationship benefit. */
+  relationship?: StoreRelationshipDto;
+  /** 0.8.0-E. Trader-facing headlines about fresh stock and shortages. */
+  news?: string[];
   items: StoreItemDto[];
+}
+
+export interface StoreIntegrationDto {
+  hideout: {
+    nextUpgradeName: string | null;
+    nextUpgradeCostCents: number | null;
+    cashShortCents: number;
+    ready: boolean;
+  } | null;
+  turf: {
+    blocksHeld: number;
+    specialOrderDiscountPercent: number;
+    label: string;
+  } | null;
+  travel: {
+    product: string;
+    productName: string;
+    city: string;
+    cityName: string;
+    localSellCents: number;
+    remoteSellCents: number;
+    deltaPercent: number;
+  } | null;
+  convoy: {
+    activeRuns: number;
+    incomingShipments: number;
+    label: string;
+  } | null;
 }
 
 export interface StoresDto {
@@ -674,6 +957,8 @@ export interface StoresDto {
   lowRiderThugCapacity: number;
   /** 0.4.0-D. Pip deals every product at his counter. */
   productCounter?: boolean;
+  /** 0.8.0-G. Cross-system store context from Hideout, Turf, Travel, and Convoys. */
+  integrations?: StoreIntegrationDto;
 }
 
 export interface StoreTradeResult {
@@ -692,6 +977,34 @@ export interface StoreTradeResult {
   totalCents: number;
   cashChangeCents: number;
   quantityChange: number;
+  favorKey?: string;
+  favorDiscountPercent?: number;
+  baseUnitCents?: number;
+}
+
+export type StoreCheckoutLineResult = StoreTradeResult;
+
+export interface StoreCheckoutResult {
+  lines: StoreCheckoutLineResult[];
+  totalCents: number;
+  cashChangeCents: number;
+  lineCount: number;
+  itemCount: number;
+  reputation: Array<{
+    trader: string;
+    points: number;
+  }>;
+}
+
+export interface StoreSpecialOrderResult {
+  storeKey: string;
+  storeName: string;
+  itemKey: string;
+  itemName: string;
+  feeCents: number;
+  cashChangeCents: number;
+  stockArrivesAt: string;
+  waitMinutes: number;
 }
 
 /** 0.4.0-A. One product the round knows about, with the player's stock. */
@@ -706,12 +1019,21 @@ export interface ProductStockDto {
   pip?: {
     buyCents: number;
     sellCents: number;
+    /** 0.8.0-B. Price and stock context for Pip's current product counter quote. */
+    market: StoreMarketContextDto;
     stock: number;
     cap: number;
     perInterval: number;
     intervalMinutes: number;
     nextAt: string | null;
     maxBuy: number;
+    /** Phase I. Selling stays open; this only gates buying from Pip. */
+    purchaseUnlocked: boolean;
+    unlockName: string | null;
+    unlockDescription: string | null;
+    favorDiscountPercent?: number;
+    relationshipBuyDiscountPercent?: number;
+    relationshipSellBonusPercent?: number;
   } | null;
   /** 0.4.0-D. Present where Produce can cook it. */
   recipe?: { perThugPerTurn: number; ingredientCentsPerUnit: number; heatPerUnit: number } | null;
@@ -729,6 +1051,7 @@ export interface ProductTradeResult {
   quantityAfter: number;
   stockAfter: number | null;
   reputationGained: number;
+  favorDiscountPercent?: number;
 }
 
 /** GET /api/game/products. Disabled on rounds where Product is still only crack. */

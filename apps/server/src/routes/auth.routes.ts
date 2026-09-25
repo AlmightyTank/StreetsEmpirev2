@@ -3,13 +3,14 @@ import type { Account, PrismaClient, Session } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { changeEmailSchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
 import { z } from 'zod';
-import { assertCanSignIn, clearExpiredSuspension } from '../auth/account-status.js';
+import { assertBetaAccess, assertCanSignIn, clearExpiredSuspension } from '../auth/account-status.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { createAccountEmailToken, emailVerificationUrl } from '../auth/email-tokens.js';
 import { createSession, destroySession } from '../auth/sessions.js';
 import { env } from '../config/env.js';
 import { toAccountDto } from '../game/dto.js';
 import { AccountProfileService } from '../services/account-profile.service.js';
+import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { sendCurrentEmailVerification, sendEmailChangeVerification, sendPasswordResetEmail } from '../services/email.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
@@ -40,6 +41,10 @@ const discordCallbackSchema = z.object({
   state: z.string().optional(),
   error: z.string().optional(),
   error_description: z.string().optional(),
+});
+
+const discordUnlinkSchema = z.object({
+  currentPassword: z.string().min(1),
 });
 
 const sessionParamsSchema = z.object({
@@ -391,9 +396,17 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         usernameNormalized,
         email: body.email,
         passwordHash: await hashPassword(body.password),
-        lastLoginAt: new Date(),
+        lastLoginAt: env.betaAccess.inviteOnly ? null : new Date(),
       },
     });
+
+    if (env.betaAccess.inviteOnly && !account.isAdmin && !account.betaApproved) {
+      return reply.status(202).send({
+        account: toAccountDto(account),
+        approvalRequired: true,
+        message: 'Your beta account was created. An admin must approve it before you can enter the beta.',
+      });
+    }
 
     const { token } = await createSession(fastify.prisma, account.id, {
       userAgent: request.headers['user-agent'],
@@ -428,6 +441,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
     await clearExpiredSuspension(fastify.prisma, account);
     assertCanSignIn(account);
+    assertBetaAccess(account, env.betaAccess.inviteOnly);
 
     const updated = await fastify.prisma.account.update({
       where: { id: account.id },
@@ -501,6 +515,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const account = await accountForDiscordUser(fastify.prisma, discordUser);
+      assertBetaAccess(account, env.betaAccess.inviteOnly);
       const { token } = await createSession(fastify.prisma, account.id, {
         userAgent: request.headers['user-agent'],
         ip: request.ip,
@@ -517,6 +532,59 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         ? accountRedirect('Discord linking failed. Try again.')
         : authRedirect('Discord login failed. Try again.'));
     }
+  });
+
+  fastify.delete('/discord', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(discordUnlinkSchema, request.body);
+    const account = request.auth!.account;
+
+    if (!account.discordId) {
+      return {
+        ok: true,
+        message: 'Discord is already unlinked.',
+        account: toAccountDto(account),
+      };
+    }
+
+    const ok = await verifyPassword(account.passwordHash, body.currentPassword);
+    if (!ok) {
+      throw AppError.badRequest('CURRENT_PASSWORD_INVALID', 'That current password does not match.', {
+        currentPassword: 'Enter your current password.',
+      });
+    }
+
+    const oldDiscordId = account.discordId;
+    const updated = await fastify.prisma.$transaction(async (tx) => {
+      const next = await tx.account.update({
+        where: { id: account.id },
+        data: {
+          discordId: null,
+          discordUsername: null,
+          discordAvatar: null,
+          discordLinkedAt: null,
+        },
+      });
+
+      await tx.notificationSettings.updateMany({
+        where: { accountId: account.id },
+        data: { discordEnabled: false },
+      });
+      await tx.notificationOutbox.deleteMany({
+        where: { accountId: account.id, channel: 'DISCORD', claimedAt: null },
+      });
+      await tx.discordResyncRequest.create({
+        data: {
+          discordId: oldDiscordId,
+          requestedByAccountId: account.id,
+          requestedByUsername: account.username,
+        },
+      });
+
+      return next;
+    });
+
+    wakeDiscordBot('resync');
+    return { ok: true, message: 'Discord account unlinked.', account: toAccountDto(updated) };
   });
 
 
@@ -616,6 +684,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       });
     });
 
+    assertBetaAccess(account, env.betaAccess.inviteOnly);
     const { token } = await createSession(fastify.prisma, account.id, {
       userAgent: request.headers['user-agent'],
       ip: request.ip,

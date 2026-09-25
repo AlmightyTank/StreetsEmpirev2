@@ -12,6 +12,7 @@ import {
 import { commandData, handleAutocomplete, handleCommand, type CommandDeps } from './commands.js';
 import { loadConfig } from './config.js';
 import {
+  allianceAlertEmbed,
   attackAlertEmbed,
   battleFeedEmbed,
   crackdownFeedEmbed,
@@ -19,19 +20,22 @@ import {
   rankAlertEmbed,
   roundEventEmbed,
   territoryFeedEmbed,
+  turfAlertEmbed,
   turfFeedEmbed,
   turnReminderEmbed,
 } from './format.js';
 import { createGameApi, type City } from './game-api.js';
 import { Cooldowns } from './lookup.js';
-import { managedRoles, parseForumGroupList } from './roles.js';
+import { betaTesterRoles, managedRoles, parseForumGroupList } from './roles.js';
 import { startPoller } from './schedule.js';
 import { RoleSync } from './sync.js';
 import { startOptionalPushServer } from './push-server.js';
 
 const config = loadConfig();
 const api = createGameApi({ baseUrl: config.GAME_API_URL, token: config.DISCORD_BOT_API_TOKEN });
-const managed = managedRoles(parseForumGroupList(config.DISCORD_FORUM_GROUPS));
+const forumGroups = parseForumGroupList(config.DISCORD_FORUM_GROUPS);
+const betaTesterOnly = config.DISCORD_ROLE_SYNC_MODE === 'beta-tester-only';
+const managed = betaTesterOnly ? betaTesterRoles() : managedRoles(forumGroups);
 
 // GuildMembers is a privileged intent: enable "Server Members Intent" in the developer portal.
 const client = new Client({
@@ -119,6 +123,22 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
       await client.users.send(alert.discordId, { embeds: [rankAlertEmbed(alert)] });
     } catch (error) {
       console.warn(`Could not DM a rank alert to ${alert.discordId}:`, error instanceof Error ? error.message : error);
+    }
+  }
+
+  for (const alert of claimed.turfAlerts) {
+    try {
+      await client.users.send(alert.discordId, { embeds: [turfAlertEmbed(alert)] });
+    } catch (error) {
+      console.warn(`Could not DM a turf alert to ${alert.discordId}:`, error instanceof Error ? error.message : error);
+    }
+  }
+
+  for (const alert of claimed.allianceAlerts) {
+    try {
+      await client.users.send(alert.discordId, { embeds: [allianceAlertEmbed(alert)] });
+    } catch (error) {
+      console.warn(`Could not DM an alliance alert to ${alert.discordId}:`, error instanceof Error ? error.message : error);
     }
   }
 
@@ -230,9 +250,9 @@ client.once(Events.ClientReady, async (ready) => {
     await guild.commands.set(commandData);
     void getCities();
 
-    const roleSync = new RoleSync(guild, managed, api);
+    const roleSync = new RoleSync(guild, managed, api, { allianceRoles: !betaTesterOnly });
     sync = roleSync;
-    console.log(`StreetsEmpire bot ready as ${ready.user.tag} in ${guild.name} with ${commandData.length} commands; syncing roles every ${config.DISCORD_SYNC_MINUTES} min.`);
+    console.log(`StreetsEmpire bot ready as ${ready.user.tag} in ${guild.name} with ${commandData.length} commands; syncing ${betaTesterOnly ? 'beta tester role only' : 'roles'} every ${config.DISCORD_SYNC_MINUTES} min.`);
 
     // Commands are answered while these run.
     startPoller('Role sync', config.DISCORD_SYNC_MINUTES * 60_000, async () => {

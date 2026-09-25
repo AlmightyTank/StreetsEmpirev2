@@ -87,7 +87,7 @@ export interface AdminAuditFilters {
   limit?: number | undefined;
 }
 
-export type AdminAccountStatusFilter = 'all' | 'active' | 'inactive' | 'admin' | 'suspended';
+export type AdminAccountStatusFilter = 'all' | 'active' | 'inactive' | 'admin' | 'suspended' | 'beta-pending';
 
 export type AdminAccountAction =
   | 'deactivate'
@@ -99,10 +99,13 @@ export type AdminAccountAction =
   | 'reset-profile'
   | 'grant-admin'
   | 'revoke-admin'
+  | 'approve-beta'
+  | 'revoke-beta'
   | 'resend-verification'
   | 'mark-email-verified'
   | 'unlink-forum'
-  | 'resync-discord';
+  | 'resync-discord'
+  | 'delete-account';
 
 /** A timed suspension. Null once it is lifted or has run out. */
 export interface AdminSuspensionDto {
@@ -118,6 +121,7 @@ export interface AdminAccountSummaryDto {
   emailVerified: boolean;
   isActive: boolean;
   isAdmin: boolean;
+  betaApproved: boolean;
   suspension: AdminSuspensionDto | null;
   discordUsername: string | null;
   forumUsername: string | null;
@@ -190,6 +194,8 @@ export interface AdminAccountDetailDto {
   account: AdminAccountSummaryDto;
   profile: {
     activeTitleKey: string | null;
+    activeProfileFrameKey: string | null;
+    activeSiteThemeKey: string | null;
     profileAccent: string;
     featuredBadgeKeys: string[];
   };
@@ -216,6 +222,75 @@ export interface AdminAccountDetailDto {
   audit: AdminAuditEntryDto[];
 }
 
+export interface AdminAccountDeleteResultDto {
+  accountId: string;
+  formerUsername: string;
+  /** Accounts with round history are anonymized; unused accounts are removed outright. */
+  mode: 'anonymized' | 'deleted';
+  roundsPreserved: number;
+  sessionsRevoked: number;
+}
+
+export type AdminQuestStatus = 'LOCKED' | 'AVAILABLE' | 'ACTIVE' | 'READY_TO_TURN_IN' | 'COMPLETED' | 'FAILED' | 'EXPIRED';
+
+export interface AdminPlayerQuestDto {
+  id: string;
+  key: string;
+  title: string;
+  type: string;
+  category: string;
+  attempt: number;
+  status: AdminQuestStatus;
+  isTracked: boolean;
+  isEnabled: boolean;
+  objectiveProgress: unknown;
+  bonusProgress: unknown;
+  chosenBranch: string | null;
+  rewardState: unknown;
+  acceptedAt: string | null;
+  completedAt: string | null;
+  claimedAt: string | null;
+  failedAt: string | null;
+  expiresAt: string | null;
+  updatedAt: string;
+}
+
+export interface AdminQuestCatalogRowDto {
+  key: string;
+  title: string;
+  description: string;
+  type: string;
+  category: string;
+  difficulty: string;
+  repeatability: string;
+  isEnabled: boolean;
+  attempts: number;
+  openAttempts: number;
+}
+
+export interface AdminFavorCatalogRowDto {
+  key: string;
+  name: string;
+  description: string;
+  contactKey: string;
+  activationKind: 'TIMED' | 'SINGLE_USE';
+  category: string;
+  durationMinutes: number | null;
+  effectKind: string | null;
+  isEnabled: boolean;
+}
+
+export interface AdminQuestContentDto {
+  now: string;
+  round: { id: string; name: string; status: RoundStatus; rulesetVersion: string };
+  rotations: {
+    daily: { keys: string[]; resetAt: string | null; slots: number };
+    weekly: { keys: string[]; resetAt: string | null; slots: number };
+  };
+  quests: AdminQuestCatalogRowDto[];
+  favors: AdminFavorCatalogRowDto[];
+}
+
 /** Read-only player state as stored. Turns are as of the last settlement, not regenerated. */
 export interface AdminPlayerDto {
   roundPlayerId: string;
@@ -240,7 +315,32 @@ export interface AdminPlayerDto {
   /** `valueCents` since 0.4.0-E: what the holding adds to net worth, where products are valued. */
   products: Array<{ key: string; name: string; quantity: number; valueCents?: number }>;
   weapons: { pistols: number; shotguns: number; tek9s: number; ak47s: number };
-  unlocks: { shotgun: boolean; tek9: boolean; ak47: boolean };
+  unlocks: {
+    shotgun: boolean;
+    tek9: boolean;
+    ak47: boolean;
+    permanent: Array<{ key: string; sourceQuestKey: string | null; awardedAt: string }>;
+  };
+  favors: Array<{
+    key: string;
+    quantity: number;
+    totalGranted: number;
+    lastSourceQuestKey: string | null;
+    updatedAt: string;
+  }>;
+  activeFavors: Array<{
+    favorKey: string;
+    category: string;
+    startedAt: string;
+    expiresAt: string;
+  }>;
+  armedFavors: Array<{
+    favorKey: string;
+    category: string;
+    armedAt: string;
+  }>;
+  /** Latest-first support view of every quest attempt for this player. */
+  quests: AdminPlayerQuestDto[];
   happiness: { whores: number; thugs: number };
   /** 0.4.0-C. Stored Heat, as of the player's last settle. Null on rounds without Heat. */
   heat: number | null;
@@ -254,7 +354,7 @@ export interface AdminPlayerDto {
     lastDrivenByAt: string | null;
   };
   hideout: { safeRoom: number; lookouts: number; workshop: number; backOffice: number };
-  reputation: Array<{ trader: string; points: number; questDone: boolean }>;
+  reputation: Array<{ trader: string; points: number; legacyFavorDone: boolean }>;
   injuries: Array<{ id: string; thugs: number; recoverAt: string; battleId: string | null }>;
   intel: { observing: number; observedBy: number };
   activity: ActivityDto[];
@@ -373,6 +473,32 @@ export interface AdminRoundHealthDto {
     nationalRank: number | null;
     lastActiveAt: string;
   }>;
+  /** 0.8.0-H. Read-only operator view of the pinned Store economy. */
+  storeEconomy: null | {
+    pressureLimitPercent: number;
+    markets: Array<{
+      city: string;
+      productKey: string;
+      pushPercent: number;
+      updatedAt: string;
+    }>;
+    shelves: {
+      emptyStandard: number;
+      emptyProduct: number;
+    };
+    shipments: {
+      enabled: boolean;
+      delayChancePercent: number;
+      partialChancePercent: number;
+      largeChancePercent: number;
+    };
+    specialOrders: {
+      last24h: number;
+      pendingByReceipt: number;
+    };
+    reservationsEnabled: boolean;
+    blackMarketEnabled: boolean;
+  };
 }
 
 /** What the Discord bot still has to pick up. Growing oldest items mean push or polling is not clearing the queue. */

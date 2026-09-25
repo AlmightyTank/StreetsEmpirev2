@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { classicOgV01 } from '@streets/rulesets';
+import { classicOgV01, classicOgV07K } from '@streets/rulesets';
 
 // Opt in against the local dev database. Only this test's account is changed
 // and its cascaded player/session/activity data is removed afterwards.
@@ -60,6 +60,15 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
       store: 'CORNER', item: 'CONDOM', direction: 'buy', quantity: 10,
       actionId: randomUUID(), ...payload,
     } });
+  }
+
+  function checkout(payload: Record<string, unknown>) {
+    return app.inject({
+      method: 'POST',
+      url: '/api/game/stores/checkout',
+      headers: { cookie },
+      payload,
+    });
   }
 
   it('requires authentication and returns all four catalogs', async () => {
@@ -123,29 +132,74 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
     expect(await app.prisma.playerActivity.count({ where: { roundPlayerId: playerId, type: 'STORE_SELL' } })).toBe(2);
   });
 
-  /** Puts the player at a given total standing, spread across the traders. */
-  async function setReputation(total: number) {
-    const traders = ['CORNER', 'TOMMY', 'CHARLIE', 'PIP'];
-    const each = Math.floor(total / traders.length);
-    let remainder = total - each * traders.length;
+  it('replays a concurrent multi-line checkout exactly once', async () => {
+    await app.prisma.roundPlayer.update({
+      where: { id: playerId },
+      data: { cashCents: 10_000n, condoms: 0, beer: 0 },
+    });
+    const actionId = randomUUID();
+    const payload = {
+      actionId,
+      lines: [
+        { store: 'CORNER', item: 'CONDOM', direction: 'buy', quantity: 10 },
+        { store: 'CORNER', item: 'BEER', direction: 'buy', quantity: 2 },
+      ],
+    };
 
-    for (const trader of traders) {
-      const points = each + (remainder-- > 0 ? 1 : 0);
-      await app.prisma.playerReputation.upsert({
-        where: { roundPlayerId_trader: { roundPlayerId: playerId!, trader } },
-        create: { roundPlayerId: playerId!, trader, points },
-        update: { points },
-      });
-    }
-  }
+    const results = await Promise.all([checkout(payload), checkout(payload)]);
+    expect(results.map((result) => result.statusCode)).toEqual([200, 200]);
+    expect(results[0]!.json()).toEqual(results[1]!.json());
 
-  function unlock(weapon: string, actionId = randomUUID()) {
-    return app.inject({ method: 'POST', url: '/api/game/stores/unlock', headers: { cookie }, payload: { weapon, actionId } });
-  }
+    const state = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
+    const condomCents = classicOgV01.stores.CORNER.items.CONDOM!.buyCents;
+    const beerCents = classicOgV01.stores.CORNER.items.BEER!.buyCents;
+    expect(state.condoms).toBe(10);
+    expect(state.beer).toBe(2);
+    expect(Number(state.cashCents)).toBe(10_000 - (10 * condomCents) - (2 * beerCents));
+  });
 
-  it('enforces weapon locks on direct purchases and reports standing', async () => {
-    await app.prisma.roundPlayer.update({ where: { id: playerId }, data: { cashCents: 10_000_000n, thugs: 25 } });
-    await setReputation(classicOgV01.weaponUnlocks.TEK9.totalRep);
+  it('cannot oversell one remaining shelf item through concurrent checkouts', async () => {
+    const item = classicOgV01.stores.TOMMY.items.SHOTGUN!;
+    await app.prisma.roundPlayer.update({
+      where: { id: playerId },
+      data: {
+        cashCents: 100_000_000n,
+        shotguns: 0,
+        shotgunUnlocked: true,
+        shotgunStock: 1,
+        shotgunStockAt: new Date(),
+      },
+    });
+
+    const results = await Promise.all([1, 2].map(() => checkout({
+      actionId: randomUUID(),
+      lines: [{ store: 'TOMMY', item: 'SHOTGUN', direction: 'buy', quantity: 1 }],
+    })));
+    expect(results.map((result) => result.statusCode).sort()).toEqual([200, 400]);
+
+    const state = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
+    expect(state.shotgunStock).toBe(0);
+    expect(state.shotguns).toBe(1);
+    expect(Number(state.cashCents)).toBe(100_000_000 - item.buyCents);
+  });
+
+  it('enforces weapon locks until current progression grants the access flag', async () => {
+    await app.prisma.roundPlayer.update({
+      where: { id: playerId },
+      data: {
+        cashCents: 10_000_000n,
+        thugs: 25,
+        shotgunUnlocked: false,
+        tek9Unlocked: false,
+        ak47Unlocked: false,
+        shotgunStock: classicOgV01.weapons.SHOTGUN.restock!.cap,
+        shotgunStockAt: new Date(),
+        tek9Stock: classicOgV01.weapons.TEK9.restock!.cap,
+        tek9StockAt: new Date(),
+        ak47Stock: classicOgV01.weapons.AK47.restock!.cap,
+        ak47StockAt: new Date(),
+      },
+    });
 
     for (const item of ['SHOTGUN', 'TEK9', 'AK47']) {
       const response = await trade({ store: 'TOMMY', item, quantity: 1 });
@@ -153,74 +207,18 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
       expect(response.json().error.code).toBe('WEAPON_LOCKED');
     }
 
-    const catalog = (await app.inject({ method: 'GET', url: '/api/game/stores', headers: { cookie } })).json();
-    const tommy = catalog.stores.find((store: { key: string }) => store.key === 'TOMMY');
-    expect(tommy.items.find((item: { key: string }) => item.key === 'SHOTGUN')).toMatchObject({
-      maxBuy: 0,
-      unlock: { totalRep: classicOgV01.weaponUnlocks.TEK9.totalRep, canComplete: true, unlocked: false },
+    await app.prisma.roundPlayer.update({
+      where: { id: playerId },
+      data: { shotgunUnlocked: true },
     });
-    // The ladder is ordered, so nothing opens out of turn however high standing is.
-    expect(tommy.items.find((item: { key: string }) => item.key === 'TEK9').unlock.canComplete).toBe(false);
-    expect((await unlock('AK47')).json().error.code).toBe('UNLOCK_PREREQUISITE');
-  });
-
-  it('refuses access the city does not rate you for', async () => {
-    const auth = await app.inject({ method: 'POST', url: '/api/game/stores/unlock', payload: { weapon: 'SHOTGUN', actionId: randomUUID() } });
-    expect(auth.statusCode).toBe(401);
-    expect((await unlock('__proto__')).statusCode).toBe(400);
-
-    await setReputation(classicOgV01.weaponUnlocks.SHOTGUN.totalRep - 1);
-    expect((await unlock('SHOTGUN')).json().error.code).toBe('REPUTATION_TOO_LOW');
-
-    const state = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
-    expect(state.shotgunUnlocked).toBe(false);
-  });
-
-  it('grants access once for duplicate submits, and charges nothing for it', async () => {
-    await setReputation(classicOgV01.weaponUnlocks.SHOTGUN.totalRep);
-    const before = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
-
-    const actionId = randomUUID();
-    const results = await Promise.all([unlock('SHOTGUN', actionId), unlock('SHOTGUN', actionId)]);
-    expect(results.map((result) => result.statusCode)).toEqual([200, 200]);
-    expect(results[0]!.json()).toEqual(results[1]!.json());
-
-    const body = results[0]!.json();
-    expect(body.result).toMatchObject({ key: 'SHOTGUN' });
-    expect(body.after.turns).toBe(body.before.turns);
-
-    const state = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
-    expect(state.shotgunUnlocked).toBe(true);
-    // Standing is the whole price: no cash, no crack, and no free gun.
-    expect(state.cashCents).toBe(before.cashCents);
-    expect(state.crack).toBe(before.crack);
-    expect(state.shotguns).toBe(0);
-  });
-
-  it('climbs the ladder in order and keeps access after crew losses', async () => {
-    await setReputation(classicOgV01.weaponUnlocks.AK47.totalRep);
-    await app.prisma.roundPlayer.update({ where: { id: playerId }, data: { cashCents: 100_000_000n } });
-
-    expect((await unlock('TEK9')).statusCode).toBe(200);
-
-    const concurrent = await Promise.all([unlock('AK47'), unlock('AK47')]);
-    expect(concurrent.map((result) => result.statusCode).sort()).toEqual([200, 400]);
-
-    const state = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
-    expect(state.ak47Unlocked).toBe(true);
-    expect(state.ak47s).toBe(0);
-
-    // Earned access never lapses, whatever happens to the crew afterwards.
-    await app.prisma.roundPlayer.update({ where: { id: playerId }, data: { thugs: 0 } });
-    expect((await trade({ store: 'TOMMY', item: 'AK47', quantity: 1 })).statusCode).toBe(200);
-    expect((await trade({ store: 'TOMMY', item: 'TEK9', quantity: 1 })).statusCode).toBe(200);
+    expect((await trade({ store: 'TOMMY', item: 'SHOTGUN', quantity: 1 })).statusCode).toBe(200);
   });
 
   it('sells only what Tommy has on the shelf, and starts his clock on the buy', async () => {
     const cap = classicOgV01.weapons.SHOTGUN.restock!.cap;
     await app.prisma.roundPlayer.update({
       where: { id: playerId },
-      data: { cashCents: 100_000_000n, shotgunStock: cap, shotgunStockAt: new Date() },
+      data: { cashCents: 100_000_000n, shotgunUnlocked: true, shotgunStock: cap, shotgunStockAt: new Date() },
     });
 
     // Cash is not the limit here; supply is.
@@ -306,14 +304,12 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
     expect(tommy.points).toBe(0);
   });
 
-  it('caps trade credit below the top gun, so favours stay mandatory', async () => {
+  it('caps passive trade standing without granting weapon access', async () => {
     const cap = classicOgV01.reputation.trade.maxPoints;
     await app.prisma.playerReputation.updateMany({
       where: { roundPlayerId: playerId! },
       data: { points: cap, creditedOn: null },
     });
-    // Earlier tests in this file leave the ladder climbed, and access never
-    // lapses - so it has to be wound back to read the gates here.
     await app.prisma.roundPlayer.update({
       where: { id: playerId },
       data: {
@@ -324,14 +320,91 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
       },
     });
 
-    // At the trade cap another day of dealing adds nothing.
     const response = await trade({ store: 'CORNER', item: 'CONDOM', quantity: 1 });
     expect(response.json().result.reputationGained).toBe(0);
 
-    expect(cap * 4).toBeLessThan(classicOgV01.weaponUnlocks.AK47.totalRep);
-    expect((await unlock('SHOTGUN')).statusCode).toBe(200);
-    expect((await unlock('TEK9')).statusCode).toBe(200);
-    expect((await unlock('AK47')).json().error.code).toBe('REPUTATION_TOO_LOW');
+    const state = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
+    expect(state.shotgunUnlocked).toBe(false);
+    expect(state.tek9Unlocked).toBe(false);
+    expect(state.ak47Unlocked).toBe(false);
+  });
+
+  it('keeps Tommy Voucher armed through unrelated and failed trades, then consumes it on the first successful eligible buy', async () => {
+    await app.prisma.round.update({
+      where: { id: roundId! },
+      data: { rulesetId: classicOgV07K.meta.id, rulesetVersion: classicOgV07K.meta.version },
+    });
+    try {
+      await app.prisma.playerArmedFavor.deleteMany({ where: { roundPlayerId: playerId } });
+      await app.prisma.playerFavor.upsert({
+        where: { roundPlayerId_key: { roundPlayerId: playerId, key: 'TOMMY_VOUCHER' } },
+        create: { roundPlayerId: playerId, key: 'TOMMY_VOUCHER', quantity: 0, totalGranted: 1 },
+        update: { quantity: 0, totalGranted: 1 },
+      });
+      await app.prisma.playerArmedFavor.create({
+        data: { roundPlayerId: playerId, category: 'MUSCLE', favorKey: 'TOMMY_VOUCHER' },
+      });
+      await app.prisma.roundPlayer.update({
+        where: { id: playerId },
+        data: {
+          cashCents: 100_000_000n,
+          pistolStock: classicOgV07K.weapons.PISTOL.restock!.cap,
+          pistolStockAt: new Date(),
+          shotgunUnlocked: true,
+          shotgunStock: classicOgV07K.weapons.SHOTGUN.restock!.cap,
+          shotgunStockAt: new Date(),
+        },
+      });
+
+      const catalog = (await app.inject({
+        method: 'GET', url: '/api/game/stores', headers: { cookie },
+      })).json();
+      const pistol = catalog.stores
+        .find((store: { key: string }) => store.key === 'TOMMY')
+        .items.find((item: { key: string }) => item.key === 'PISTOL');
+      expect(pistol).toMatchObject({
+        baseBuyCents: classicOgV07K.stores.TOMMY.items.PISTOL!.buyCents,
+        favorDiscountPercent: 20,
+      });
+      expect(pistol.buyCents).toBe(Math.floor(classicOgV07K.stores.TOMMY.items.PISTOL!.buyCents * 0.8));
+
+      // An unrelated purchase does not spend the armed voucher.
+      expect((await trade({ store: 'CORNER', item: 'CONDOM', quantity: 1 })).statusCode).toBe(200);
+      expect(await app.prisma.playerArmedFavor.count({
+        where: { roundPlayerId: playerId, favorKey: 'TOMMY_VOUCHER' },
+      })).toBe(1);
+
+      // Nor does a failed eligible purchase.
+      const failed = await trade({
+        store: 'TOMMY',
+        item: 'PISTOL',
+        quantity: classicOgV07K.weapons.PISTOL.restock!.cap + 1,
+      });
+      expect(failed.statusCode).toBe(400);
+      expect(await app.prisma.playerArmedFavor.count({
+        where: { roundPlayerId: playerId, favorKey: 'TOMMY_VOUCHER' },
+      })).toBe(1);
+
+      // Weapon keys coming from the UI should be normalized before voucher matching.
+      // This specifically protects shotgun purchases from consuming the voucher at full price.
+      const bought = await trade({ store: 'tommy', item: 'shotgun', quantity: 1 });
+      expect(bought.statusCode, bought.body).toBe(200);
+      expect(bought.json().result).toMatchObject({
+        favorKey: 'TOMMY_VOUCHER',
+        favorDiscountPercent: 20,
+        baseUnitCents: classicOgV07K.stores.TOMMY.items.SHOTGUN!.buyCents,
+        unitCents: Math.floor(classicOgV07K.stores.TOMMY.items.SHOTGUN!.buyCents * 0.8),
+      });
+      expect(await app.prisma.playerArmedFavor.count({
+        where: { roundPlayerId: playerId, favorKey: 'TOMMY_VOUCHER' },
+      })).toBe(0);
+    } finally {
+      await app.prisma.playerArmedFavor.deleteMany({ where: { roundPlayerId: playerId } });
+      await app.prisma.round.update({
+        where: { id: roundId! },
+        data: { rulesetId: classicOgV01.meta.id, rulesetVersion: classicOgV01.meta.version },
+      });
+    }
   });
 
   it('starts a different round with fresh reputation and locked weapons', async () => {

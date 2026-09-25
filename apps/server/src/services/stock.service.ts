@@ -59,6 +59,9 @@ export const StockService = {
         rule,
         now,
         restockIntervalFor(rule.intervalMinutes, points, ruleset),
+        ruleset.storeEconomy?.shipments?.enabled
+          ? { rules: ruleset.storeEconomy.shipments, context: `${ruleset.meta.id}:${field}` }
+          : undefined,
       );
       counts[field] = settled.stock;
       clocks[rule.stockAtField] = settled.stockAt;

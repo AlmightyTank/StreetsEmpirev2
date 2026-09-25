@@ -28,6 +28,9 @@ systemctl cat "$PROD_SERVICE" >/dev/null 2>&1 || fail "no production service nam
 if ! grep -Eq '^PORT="?'"$BETA_PORT"'"?$' "$APP_DIR/.env"; then
   fail "$APP_DIR/.env must set PORT=$BETA_PORT before installing the beta service."
 fi
+if ! grep -Eq '^BETA_INVITE_ONLY="?true"?$' "$APP_DIR/.env"; then
+  fail "$APP_DIR/.env must set BETA_INVITE_ONLY=true before installing the beta service."
+fi
 if ! grep -Eq '^FRONTEND_ORIGIN="?https://beta\.streetsempire\.dev/?"?$' "$APP_DIR/.env"; then
   echo "Warning: FRONTEND_ORIGIN in beta .env does not appear to be https://beta.streetsempire.dev" >&2
 fi

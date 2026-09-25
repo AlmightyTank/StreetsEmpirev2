@@ -13,7 +13,7 @@ import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
-import { ForumLinkPanel } from '../components/ForumLinkPanel.js';
+import { ConnectedAccountsPanel } from '../components/ConnectedAccountsPanel.js';
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
 import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
@@ -43,6 +43,7 @@ export function AccountSettingsPage() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [revokeOtherSessionsOnPasswordChange, setRevokeOtherSessionsOnPasswordChange] = useState(true);
+  const [connectionsVersion, setConnectionsVersion] = useState(0);
   const [message, setMessage] = useState<string | null>(accountMessage);
   const [tone, setTone] = useState<'error' | 'info'>('info');
   const [fields, setFields] = useState<Record<string, string>>({});
@@ -69,6 +70,8 @@ export function AccountSettingsPage() {
               titles: [],
               badges: [],
               accents: [{ key: 'default', label: 'StreetsEmpire', description: null }],
+              frames: [],
+              themes: [],
               densities: [
                 { key: 'comfortable', label: 'Comfortable', description: null },
                 { key: 'compact', label: 'Compact', description: null },
@@ -353,22 +356,12 @@ export function AccountSettingsPage() {
         </div>
 
         <div className="se-account-column">
-          <Panel title="Discord login">
-            <p>
-              Link Discord so you can log in without typing your password. Discord stays private and is only used for authentication.
-            </p>
-            {account.discordLinked ? (
-              <p className="se-good se-account-status">Discord is linked.</p>
-            ) : (
-              <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord?link=1">
-                Link Discord
-              </a>
-            )}
-          </Panel>
+          <ConnectedAccountsPanel
+            account={account}
+            onConnectionsChanged={() => setConnectionsVersion((current) => current + 1)}
+          />
 
-          <NotificationsPanel />
-
-          <ForumLinkPanel />
+          <NotificationsPanel refreshKey={connectionsVersion} />
 
           <Panel title="Current email verification">
             <p>
@@ -482,12 +475,12 @@ export function AccountSettingsPage() {
                       <option value={option.key} key={option.key}>{option.label}</option>
                     ))}
                   </select>
-                  {fields.activeTitleKey ? <p className="se-error">{fields.activeTitleKey}</p> : <p className="se-hint">Titles come from achievements and legacy badges you have unlocked.</p>}
+                  {fields.activeTitleKey ? <p className="se-error">{fields.activeTitleKey}</p> : <p className="se-hint">Titles come from achievements, legacy badges, and quest-only cosmetics you have unlocked.</p>}
                 </div>
 
                 <div className="se-field">
-                  <span className="se-label">Profile accent</span>
-                  <div className="se-swatch-row" role="group" aria-label="Profile accent">
+                  <span className="se-label">Site accent</span>
+                  <div className="se-swatch-row" role="group" aria-label="Site accent">
                     {profileSettings.options.accents.map((option) => (
                       <button
                         type="button"
@@ -502,6 +495,49 @@ export function AccountSettingsPage() {
                       </button>
                     ))}
                   </div>
+                  {fields.profileAccent ? <p className="se-error">{fields.profileAccent}</p> : <p className="se-hint">Changes the main highlight color across the entire player-facing game.</p>}
+                </div>
+
+                <div className="se-field">
+                  <label className="se-label" htmlFor="profile-frame">Profile frame</label>
+                  <select
+                    id="profile-frame"
+                    className="se-input"
+                    value={cosmetics.activeProfileFrameKey ?? ''}
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      activeProfileFrameKey: event.target.value || null,
+                    }))}
+                  >
+                    <option value="">No frame</option>
+                    {profileSettings.options.frames.map((option) => (
+                      <option value={option.key} key={option.key}>{option.label}</option>
+                    ))}
+                  </select>
+                  {fields.activeProfileFrameKey
+                    ? <p className="se-error">{fields.activeProfileFrameKey}</p>
+                    : <p className="se-hint">{profileSettings.options.frames.length ? 'Frames are permanent quest-earned profile cosmetics.' : 'Complete qualifying Contact finales to unlock profile frames.'}</p>}
+                </div>
+
+                <div className="se-field">
+                  <label className="se-label" htmlFor="site-theme">Site theme</label>
+                  <select
+                    id="site-theme"
+                    className="se-input"
+                    value={cosmetics.activeSiteThemeKey ?? ''}
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      activeSiteThemeKey: event.target.value || null,
+                    }))}
+                  >
+                    <option value="">No site theme</option>
+                    {profileSettings.options.themes.map((option) => (
+                      <option value={option.key} key={option.key}>{option.label}</option>
+                    ))}
+                  </select>
+                  {fields.activeSiteThemeKey
+                    ? <p className="se-error">{fields.activeSiteThemeKey}</p>
+                    : <p className="se-hint">{profileSettings.options.themes.length ? 'Themes decorate the entire player-facing game and stay independent from your accent.' : 'Seasonal and event themes will appear here after you unlock them.'}</p>}
                 </div>
               </div>
 

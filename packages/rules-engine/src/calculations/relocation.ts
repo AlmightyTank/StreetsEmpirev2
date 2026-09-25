@@ -14,10 +14,16 @@ export function relocationRules(ruleset: Ruleset): RelocationRules | undefined {
 }
 
 /** A share of net worth, never under the floor. */
-export function relocationFeeCents(netWorthCents: bigint, rules: RelocationRules): bigint {
+export function relocationFeeCents(
+  netWorthCents: bigint,
+  rules: RelocationRules,
+  discountPercent = 0,
+): bigint {
   const share = BigInt(Math.floor(Number(netWorthCents > 0n ? netWorthCents : 0n) * rules.feeNetWorthFraction));
   const floor = BigInt(rules.feeFloorCents);
-  return share > floor ? share : floor;
+  const base = share > floor ? share : floor;
+  const discount = Math.max(0, Math.min(100, Math.trunc(discountPercent)));
+  return (base * BigInt(100 - discount)) / 100n;
 }
 
 export interface MoveCheck {
@@ -52,13 +58,15 @@ export function checkMove(ruleset: Ruleset, input: {
   runOut: boolean;
   /** When the last revenge window someone holds on this player closes, if one is open. */
   revengeOpenUntil: Date | null;
+  /** Hideout Garage discount. Defaults to 0 so older rulesets stay exact. */
+  feeDiscountPercent?: number;
 }): MoveCheck {
   const rules = relocationRules(ruleset);
   const now = input.now.getTime();
   const cutoffAt = new Date(input.roundEndsAt.getTime() - (rules?.cutoffHours ?? 0) * 3_600_000);
   const cooldownEnds = input.lastMoveAt && rules ? new Date(input.lastMoveAt.getTime() + rules.cooldownHours * 3_600_000) : null;
   const cooldownUntil = cooldownEnds && cooldownEnds.getTime() > now ? cooldownEnds : null;
-  const feeCents = rules ? relocationFeeCents(input.netWorthCents, rules) : 0n;
+  const feeCents = rules ? relocationFeeCents(input.netWorthCents, rules, input.feeDiscountPercent ?? 0) : 0n;
   const arrivesAt = new Date(now + (rules?.downtimeMinutes ?? 0) * 60_000);
   const result = (code: string | null, blockedReason: string | null, blockedUntil: Date | null = null): MoveCheck => ({ code, blockedReason, blockedUntil, feeCents, arrivesAt, cooldownUntil, cutoffAt });
   const name = (slug: string) => ruleset.cities?.[slug]?.name ?? slug;

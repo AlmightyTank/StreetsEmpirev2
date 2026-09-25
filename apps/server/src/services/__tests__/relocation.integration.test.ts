@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { RoundPlayer } from '@prisma/client';
-import { classicOgV05D } from '@streets/rulesets';
+import { classicOgV05D, classicOgV07D } from '@streets/rulesets';
 import { calculateNetWorthCents, cityHeatRules, relocationFeeCents, startingStock } from '@streets/rules-engine';
 import type { CombatPageDto, GameActionResult, RelocationResult, TravelDto } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
@@ -60,7 +60,14 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('relocation with PostgreS
   });
 
   beforeEach(async () => {
-    await app.prisma.round.update({ where: { id: roundId }, data: { endsAt: new Date(Date.now() + 10 * 86_400_000) } });
+    await app.prisma.round.update({
+      where: { id: roundId },
+      data: {
+        rulesetId: rules.meta.id,
+        rulesetVersion: rules.meta.version,
+        endsAt: new Date(Date.now() + 10 * 86_400_000),
+      },
+    });
     await app.prisma.relocation.deleteMany({ where: { roundPlayerId: { in: players } } });
     await app.prisma.raidBattle.deleteMany({ where: { attackerId: { in: players } } });
     await app.prisma.run.deleteMany({ where: { roundPlayerId: { in: players } } });
@@ -166,6 +173,39 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('relocation with PostgreS
     expect((await moveTo(0, 'atlanta')).json().error.code).toBe('RUN_OUT');
     await app.prisma.round.update({ where: { id: roundId }, data: { endsAt: new Date(Date.now() + (move.cutoffHours - 1) * 3_600_000) } });
     expect((await moveTo(1, 'atlanta')).json().error.code).toBe('MOVES_CLOSED');
+  });
+
+  it('quotes and charges the 0.7-D Garage relocation discount through the Travel API', async () => {
+    await app.prisma.round.update({
+      where: { id: roundId },
+      data: { rulesetId: classicOgV07D.meta.id, rulesetVersion: classicOgV07D.meta.version },
+    });
+    await app.prisma.roundPlayer.update({
+      where: { id: players[0]! },
+      data: { hideoutGarageLevel: 1 },
+    });
+
+    const before = await row(0);
+    const baseFee = relocationFeeCents(before.netWorthCents, move);
+    const discountedFee = relocationFeeCents(before.netWorthCents, move, 5);
+
+    const page = (await get(0, '/travel')).json<TravelDto>();
+    expect(page.relocation).toMatchObject({
+      baseFeeCents: Number(baseFee),
+      feeCents: Number(discountedFee),
+      garageFeeDiscountPercent: 5,
+      garageSavingsCents: Number(baseFee - discountedFee),
+    });
+
+    const sent = await moveTo(0, 'atlanta');
+    expect(sent.statusCode, sent.body).toBe(200);
+    const result = sent.json<GameActionResult<RelocationResult>>().result;
+    expect(result).toMatchObject({
+      feeCents: Number(discountedFee),
+      garageFeeDiscountPercent: 5,
+      garageSavingsCents: Number(baseFee - discountedFee),
+    });
+    expect((await row(0)).cashCents).toBe(before.cashCents - discountedFee);
   });
 
   it('shows what Heat would mean in every city before paying', async () => {

@@ -50,6 +50,8 @@ the person who ran the command.
 | `/leaderboard` | Public | Top combat and intel counts this round: raids, defenses, drive-bys, recon, stolen rides and crew lured |
 | `/history` | Public | Finished round history for you, a linked member, or a current/past player name |
 | `/city` | Public | Top 10 in one city this round; city names autocomplete |
+| `/turf` | Public | Public block holders, garrisons and city control for one city; city names autocomplete |
+| `/alliance` | Public | Alliance roster, rank, combined net worth, held turf, controlled cities and recent captures; omit `tag:` to show your alliance |
 | `/halloffame` | Public | Final top 3 of the five most recently finished rounds |
 | `/round` | Public | Round status, time left, players, turn rate |
 | `/news` | Public | Latest five news posts |
@@ -78,11 +80,14 @@ channel once.
 **Alerts and feeds.** Members opt in with `/alerts`.
 - The game API nudges the bot when work is queued, and every
   `DISCORD_ALERTS_MINUTES` (default 1) the bot also checks full-turn DMs,
-  attack DMs, rank-drop DMs, round-event DMs, the raid feed and round-end posts
-  as a fallback.
+  attack DMs, turf-loss DMs, alliance city-control DMs, rank-drop DMs,
+  round-event DMs, the raid feed and round-end posts as a fallback.
 - Turn alerts send one DM per fill-up. Spending turns sets up the next one.
-- Attack alerts DM the defender when they opted in. If `DISCORD_RAID_FEED_CHANNEL_ID`
-  is set, each new raid/combat result is also posted publicly once.
+- Attack alerts DM the defender when they opted in. Turf alerts DM a player when
+  one of their blocks is captured. Alliance alerts DM current members when their
+  alliance gains or loses city control. These are opt-in just like the other alerts.
+- If `DISCORD_RAID_FEED_CHANNEL_ID` is set, each new raid/combat, turf capture,
+  city-control change and Federal crackdown result is also posted publicly once.
 - Rank alerts fire only when a member loses national #1 or falls out of the top 10.
 - Round alerts DM opted-in members when a round opens, is ending soon, or ends.
   Ended rounds also post final standings to the news channel when configured.
@@ -144,6 +149,7 @@ DISCORD_BOT_LISTEN_PORT=3002
 FRONTEND_ORIGIN="https://streetsempire.dev"
 DISCORD_SYNC_MINUTES=10
 DISCORD_FORUM_GROUPS="Admin,Mod"
+DISCORD_ROLE_SYNC_MODE="full"
 DISCORD_NEWS_CHANNEL_ID="<channel id, or empty for no auto-posting>"
 DISCORD_NEWS_MINUTES=1
 DISCORD_RAID_FEED_CHANNEL_ID="<channel id, or empty for no raid feed>"
@@ -160,6 +166,9 @@ DISCORD_ALERTS_MINUTES=1
 - `DISCORD_FORUM_GROUPS` lists which forum groups get a "Forum <group>" role.
   Names match the forum's group names, ignoring case. Leave it empty for none.
   Forum roles need forum linking (`FORUM_LINK_SECRET`) turned on.
+- `DISCORD_ROLE_SYNC_MODE` defaults to `full`, which manages the full game role
+  set. Set it to `beta-tester-only` on beta to manage only the `Beta Tester`
+  role; the game API grants that key to active beta accounts with Discord linked.
 - `DISCORD_NEWS_CHANNEL_ID` is the channel for automatic news posts. Copy it by
   right-clicking the channel → **Copy Channel ID**, with Developer Mode on.
 - `DISCORD_RAID_FEED_CHANNEL_ID` is the channel for public raid/combat results.
@@ -178,6 +187,14 @@ npm run dev:bot
 Production runs the bot as a systemd service next to the API, so it starts on
 boot and restarts after a crash. Install it once with
 `scripts/ops/install-bot-service.sh`; see [docs/DEPLOY.md](../../docs/DEPLOY.md).
+
+Beta uses a separate bot process and should use a separate Discord application,
+server and channel ids. From the beta checkout, set `GAME_API_URL` to
+`http://127.0.0.1:3003`, set `DISCORD_BOT_LISTEN_PORT=3004`, point
+`DISCORD_BOT_PUSH_URL` at `http://127.0.0.1:3004/internal/wake`, then install it
+with `scripts/ops/install-beta-bot-service.sh`. Set
+`DISCORD_ROLE_SYNC_MODE=beta-tester-only` so the bot manages only the
+`Beta Tester` Discord role for beta accounts that linked Discord in the game.
 
 On startup it logs `StreetsEmpire bot ready as …`. The slash commands appear in
 your server immediately.

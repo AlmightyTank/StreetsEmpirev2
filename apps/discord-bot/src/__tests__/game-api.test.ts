@@ -50,6 +50,23 @@ describe('createGameApi', () => {
       '/api/internal/discord/hall-of-fame': { rounds: [] },
       '/api/internal/discord/member': { linked: false, username: null, forumUsername: null, roundName: null, player: null, roles: [] },
       '/api/internal/discord/cities': { cities: [{ slug: 'detroit', name: 'Detroit' }] },
+      '/api/internal/discord/turf': {
+        roundName: 'R',
+        city: { slug: 'detroit', name: 'Detroit' },
+        control: null,
+        blocks: [],
+      },
+      '/api/internal/discord/alliance': {
+        roundName: 'R',
+        alliance: {
+          name: 'Aces', tag: 'ACE', rank: 1, combinedNetWorthCents: 100000,
+          memberCount: 1, maxMembers: 5,
+          leader: { publicPimpId: 1, displayName: 'Big' },
+          members: [{ publicPimpId: 1, displayName: 'Big', netWorthCents: 100000, nationalRank: 1, isLeader: true, isYou: false, joinedAt: '2026-09-21T12:00:00.000Z' }],
+          foundedAt: '2026-09-21T12:00:00.000Z', isYours: false, forumUrl: null,
+        },
+        turf: { blocksHeld: 0, citiesControlled: 0, cities: [], recent: [] },
+      },
     };
     const fetchImpl = (async (url: URL | string, init: RequestInit = {}) => {
       const parsed = new URL(String(url));
@@ -62,11 +79,15 @@ describe('createGameApi', () => {
     expect(await api.hallOfFame()).toEqual({ rounds: [] });
     expect((await api.member('123456789012345678')).linked).toBe(false);
     expect(await api.cities()).toEqual([{ slug: 'detroit', name: 'Detroit' }]);
+    expect((await api.turf('detroit')).city.name).toBe('Detroit');
+    expect((await api.alliance({ tag: 'ACE' })).alliance.tag).toBe('ACE');
     expect(calls).toEqual([
       '/api/internal/discord/city-rankings?city=new-orleans auth',
       '/api/internal/discord/hall-of-fame auth',
       '/api/internal/discord/member?discordId=123456789012345678 auth',
       '/api/internal/discord/cities auth',
+      '/api/internal/discord/turf?city=detroit auth',
+      '/api/internal/discord/alliance?tag=ACE auth',
     ]);
   });
 
@@ -90,8 +111,8 @@ describe('createGameApi', () => {
         }],
       } },
       '/api/internal/discord/news/claim': { news: [] },
-      '/api/internal/discord/alerts': { alerts: { attacks: false, round: false, rank: false, turns: true }, roundName: 'R', current: { turns: 5, cap: 144, nationalRank: 7 } },
-      '/api/internal/discord/alerts/claim': { turns: [], ranks: [], attacks: [], roundAlerts: [], battles: [], turf: [], territory: [], crackdowns: [], rounds: [] },
+      '/api/internal/discord/alerts': { alerts: { attacks: false, round: false, rank: false, turns: true, turf: false, alliance: false }, roundName: 'R', current: { turns: 5, cap: 144, nationalRank: 7 } },
+      '/api/internal/discord/alerts/claim': { turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [], battles: [], turf: [], territory: [], crackdowns: [], rounds: [] },
     };
     const fetchImpl = (async (url: URL | string, init: RequestInit = {}) => {
       const parsed = new URL(String(url));
@@ -106,7 +127,7 @@ describe('createGameApi', () => {
     expect(badges.awards[0]?.category).toBe('hideout');
     expect(await api.claimNews()).toEqual([]);
     expect((await api.setAlert('123456789012345678', 'turns', true)).current).toEqual({ turns: 5, cap: 144, nationalRank: 7 });
-    expect(await api.claimAlerts()).toEqual({ turns: [], ranks: [], attacks: [], roundAlerts: [], battles: [], turf: [], territory: [], crackdowns: [], rounds: [] });
+    expect(await api.claimAlerts()).toEqual({ turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [], battles: [], turf: [], territory: [], crackdowns: [], rounds: [] });
     expect(calls).toEqual([
       { path: '/api/internal/discord/badges?name=Big+Daddy', method: 'GET', body: undefined, contentType: undefined },
       // No body, so no JSON content type for Fastify to reject as empty.

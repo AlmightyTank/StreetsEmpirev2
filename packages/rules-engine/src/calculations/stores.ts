@@ -66,6 +66,7 @@ export function calculateStoreTrade(
     StockHolder,
   input: StoreTradeInput,
   ruleset: Ruleset,
+  options?: { buyUnitCents?: number; sellUnitCents?: number | null },
 ) {
   const found = findStore(ruleset, input.store);
   if (!found) throw new StoreTradeError('UNKNOWN_STORE', 'That store is not open.', 'store');
@@ -82,7 +83,16 @@ export function calculateStoreTrade(
   if (buying && item.unlockKey && !hasWeaponAccess(player, item.unlockKey)) {
     throw new StoreTradeError('WEAPON_LOCKED', `Complete Tommy’s favor to unlock ${item.name} purchases.`, 'item');
   }
-  const unitCents = buying ? item.buyCents : item.sellCents;
+  if (options?.buyUnitCents !== undefined && (!Number.isSafeInteger(options.buyUnitCents) || options.buyUnitCents <= 0)) {
+    throw new StoreTradeError('INVALID_TRADE', 'The quoted store price is invalid.', 'item');
+  }
+  if (options?.sellUnitCents !== undefined && options.sellUnitCents !== null && (!Number.isSafeInteger(options.sellUnitCents) || options.sellUnitCents < 0)) {
+    throw new StoreTradeError('INVALID_TRADE', 'The quoted store price is invalid.', 'item');
+  }
+  const effectiveBuyCents = options?.buyUnitCents ?? item.buyCents;
+  const effectiveSellCents = options?.sellUnitCents ?? item.sellCents;
+  const safeBuyCents = effectiveSellCents === null ? effectiveBuyCents : Math.max(effectiveSellCents + 1, effectiveBuyCents);
+  const unitCents = buying ? safeBuyCents : effectiveSellCents;
   if (unitCents === null) throw new StoreTradeError('SELL_NOT_ALLOWED', 'This store does not buy that item back.', 'item');
   const totalCents = BigInt(unitCents) * BigInt(input.quantity);
   const owned = player[item.field];
@@ -107,7 +117,7 @@ export function calculateStoreTrade(
   }
 
   if (buying && totalCents > player.cashCents) {
-    throw new StoreTradeError('NOT_ENOUGH_CASH', `You can afford ${maxStoreBuy(player.cashCents, owned, item, stock).toLocaleString('en-US')} of this item.`, 'quantity');
+    throw new StoreTradeError('NOT_ENOUGH_CASH', `You can afford ${maxStoreBuy(player.cashCents, owned, { ...item, buyCents: safeBuyCents }, stock).toLocaleString('en-US')} of this item.`, 'quantity');
   }
   if (buying && input.quantity > MAX_INVENTORY - owned) {
     throw new StoreTradeError('INVENTORY_LIMIT', 'That purchase would exceed your inventory limit.', 'quantity');

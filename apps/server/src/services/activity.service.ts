@@ -1,5 +1,7 @@
 import type { ActivityType, Prisma, PrismaClient } from '@prisma/client';
 import type { Db } from '../utils/db.js';
+import { createPlayerActivity } from './in-app-notification.service.js';
+import { QuestProgressService } from './quest-progress.service.js';
 
 /**
  * Section 42. The player's own feed of what they did.
@@ -8,15 +10,15 @@ import type { Db } from '../utils/db.js';
  * action that produced it committed.
  */
 export const ActivityService = {
-  log(
+  async log(
     db: Db,
     roundPlayerId: string,
     type: ActivityType,
     payload: Prisma.InputJsonValue,
   ) {
-    return db.playerActivity.create({
-      data: { roundPlayerId, type, payload },
-    });
+    const activity = await createPlayerActivity(db, roundPlayerId, type, payload);
+    await QuestProgressService.recordActivity(db, activity);
+    return activity;
   },
 
   recent(prisma: PrismaClient, roundPlayerId: string, limit = 10) {

@@ -1,12 +1,65 @@
 import { useEffect, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { formatCents, formatCentsCompact } from '@streets/shared';
+import { rulesets } from '@streets/rulesets';
+import { GameEventToasts } from '../components/GameEventToasts.js';
+import { NotificationBell } from '../components/NotificationBell.js';
 import { InstallBanner } from '../components/InstallBanner.js';
 import { SiteBanner } from '../components/SiteBanner.js';
+import { SiteThemeDecor } from '../components/SiteThemeDecor.js';
 import { useSession } from '../stores/session.js';
+
+function routeIdentity(pathname: string): string {
+  const path = pathname.split('?')[0] ?? pathname;
+
+  if (path === '/') return 'landing';
+  if (path === '/login') return 'auth-login';
+  if (path === '/register') return 'auth-register';
+  if (path === '/forgot-password' || path === '/reset-password' || path === '/verify-email') return 'auth-recovery';
+  if (path === '/join') return 'join';
+  if (path.startsWith('/account')) return 'account';
+  if (path.startsWith('/game/admin')) return 'admin';
+  if (path === '/game') return 'dashboard';
+  if (path === '/game/combat') return 'combat';
+  if (path === '/game/scout') return 'scout';
+  if (path === '/game/quests') return 'quests';
+  if (path === '/game/hideout') return 'hideout';
+  if (path === '/game/produce') return 'produce';
+  if (path.startsWith('/game/stores/')) return 'store-detail';
+  if (path === '/game/stores') return 'stores';
+  if (path === '/game/travel') return 'travel';
+  if (path === '/game/turf') return 'turf';
+  if (path === '/game/rankings') return 'rankings';
+  if (path === '/game/alliance') return 'alliance';
+  if (path === '/game/alliances') return 'alliances';
+  if (path.startsWith('/game/alliances/')) return 'alliance-detail';
+  if (path === '/game/contacts') return 'contacts';
+  if (path === '/game/profile' || path.startsWith('/game/forum/') || path.startsWith('/game/players/')) return 'profile';
+  if (path === '/game/activity') return 'activity';
+  if (path === '/game/reputation') return 'reputation';
+  if (path === '/game/news') return 'news';
+  if (path === '/game/rules') return 'rules';
+  if (path === '/game/hall-of-fame') return 'hall-of-fame';
+  if (path === '/game/status') return 'status';
+  return 'game';
+}
 
 const TURN_ACTION_PAGES = ['/game/scout', '/game/produce', '/game/combat'] as const;
 const LAST_TURN_ACTION_KEY = 'streets.lastTurnActionPage';
+const LATEST_RULESET_VERSION = Object.values(rulesets).at(-1)?.meta.version ?? '0.1.0';
+
+function Brand() {
+  const version = useSession((s) => s.round?.rulesetVersion ?? LATEST_RULESET_VERSION);
+
+  return (
+    <Link className="se-brand" to="/">
+      <span className="se-brand__mark">
+        Streets<span className="se-accent">Empire</span>
+      </span>
+      <span className="se-brand__ver">{version}</span>
+    </Link>
+  );
+}
 
 function turnActionIndex(pathname: string) {
   return TURN_ACTION_PAGES.findIndex((path) => pathname === path || pathname.startsWith(`${path}/`));
@@ -128,12 +181,7 @@ function Footer() {
     <footer className="se-footer">
       <div className="se-footer__inner">
         <div className="se-footer__brand">
-          <Link className="se-brand" to="/">
-            <span className="se-brand__mark">
-              Streets<span className="se-accent">Empire</span>
-            </span>
-            <span className="se-brand__ver">0.5.0</span>
-          </Link>
+          <Brand />
           <p>
             Free browser crime strategy with turn clocks, crew management,
             raids, rankings and fair seasonal resets.
@@ -173,6 +221,8 @@ export function Shell({ children, narrow, tabbar }: {
   const settings = useSession((s) => s.profileSettings);
   const logout = useSession((s) => s.logout);
   const navigate = useNavigate();
+  const location = useLocation();
+  const identity = routeIdentity(location.pathname);
 
   async function handleLogout() {
     await logout();
@@ -180,16 +230,12 @@ export function Shell({ children, narrow, tabbar }: {
   }
 
   return (
-    <div className={`se-app se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}`}>
+    <div className={`se-app se-route--${identity} se-site-accent--${settings.profileAccent} se-site-theme--${settings.activeSiteThemeKey ?? 'none'} se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}`}>
       <InstallBanner />
+      <SiteThemeDecor themeKey={settings.activeSiteThemeKey} />
 
       <header className="se-topbar">
-        <Link className="se-brand" to="/">
-          <span className="se-brand__mark">
-            Streets<span className="se-accent">Empire</span>
-          </span>
-          <span className="se-brand__ver">0.5.0</span>
-        </Link>
+        <Brand />
 
         <StatusBar />
 
@@ -200,6 +246,7 @@ export function Shell({ children, narrow, tabbar }: {
                 {me?.alliance ? <span className="se-alliance-tag" title={me.alliance.name}>[{me.alliance.tag}]</span> : null}
                 {account.username}
               </Link>
+              {me ? <NotificationBell /> : null}
               <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={handleLogout}>
                 Log out
               </button>
@@ -218,6 +265,7 @@ export function Shell({ children, narrow, tabbar }: {
       </header>
 
       <SiteBanner />
+      <GameEventToasts />
 
       <main className={narrow ? 'se-authshell' : 'se-shell'}>{children}</main>
 

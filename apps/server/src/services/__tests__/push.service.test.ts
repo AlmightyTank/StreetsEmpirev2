@@ -54,6 +54,44 @@ describe('pushMessageFor', () => {
     expect(pushMessageFor({ category: 'rank', alert: { ...rank, kind: 'out-of-top-10', rank: 11 } }).title).toBe('You fell out of the top 10');
   });
 
+  it('words turf loss and alliance control alerts', () => {
+    const turf = {
+      id: 't1',
+      roundName: 'Game #008',
+      city: 'detroit',
+      cityName: 'Detroit',
+      district: 'CASINO',
+      districtName: 'Casino Strip',
+      attackerName: 'Rival',
+      attackerProfileUrl: 'https://example.invalid/game/players/2',
+      attackerAllianceTag: 'KNG',
+      defenderName: 'A',
+      defenderProfileUrl: 'https://example.invalid/game/players/1',
+      settledAt: '2026-09-21T12:00:00.000Z',
+    };
+    expect(pushMessageFor({ category: 'turf', event: turf })).toMatchObject({
+      title: 'Your turf was taken',
+      body: 'Rival took Casino Strip in Detroit.',
+      tag: 'turf:t1',
+    });
+
+    const territory = {
+      id: 'c1',
+      roundName: 'Game #008',
+      city: 'detroit',
+      cityName: 'Detroit',
+      previous: null,
+      next: { name: 'Aces', tag: 'ACE', blocksHeld: 3 },
+      blocksTotal: 5,
+      happenedAt: '2026-09-21T12:00:00.000Z',
+    };
+    expect(pushMessageFor({ category: 'alliance', event: territory, allianceTag: 'ACE', change: 'gained' })).toMatchObject({
+      title: '[ACE] took city control',
+      body: 'Your alliance took control of Detroit.',
+      tag: 'alliance:c1',
+    });
+  });
+
   it('words each round event, with the player rank when they played', () => {
     const event = { roundName: 'Game #009', status: 'ACTIVE', startsAt: '', endsAt: '', url: 'https://example.invalid/join', standings: [] };
     expect(pushMessageFor({ category: 'round', event: { ...event, type: 'opened' }, rank: null }).title).toBe('Game #009 is open');

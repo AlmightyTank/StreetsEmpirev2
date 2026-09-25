@@ -15,10 +15,12 @@ describe('selectProfileBadges', () => {
       award('millionaire', 'epic', 'wealth'),
       award('national-number-one', 'legendary', 'rank', false),
       award('past-winner', 'legendary', 'legacy'),
+      award('road-king', 'epic', 'quest'),
       award('enforcer', 'uncommon', 'combat'),
     ]);
     expect(badges.map((badge) => [badge.key, badge.permanent])).toEqual([
       ['past-winner', true],
+      ['road-king', true],
       ['veteran', true],
       ['millionaire', false],
       ['enforcer', false],

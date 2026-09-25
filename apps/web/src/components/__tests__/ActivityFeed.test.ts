@@ -80,4 +80,65 @@ describe('describeActivity', () => {
     expect(result.detail).not.toContain('+4 product');
   });
 
+
+  it('explains a ready quest and where to collect it', () => {
+    expect(describeActivity(activity({ title: 'First Night Out' }, 'QUEST_READY'), 'crack')).toEqual({
+      text: 'Job complete: First Night Out.',
+      detail: 'Return to Quests to collect payment.',
+    });
+  });
+
+  it('explains a completed quest objective', () => {
+    expect(describeActivity(activity({
+      title: 'First Night Out',
+      objective: 'Scout for 12 turns.',
+    }, 'QUEST_OBJECTIVE_COMPLETE'), 'crack')).toEqual({
+      text: 'Objective complete: Scout for 12 turns.',
+      detail: 'Job: First Night Out',
+    });
+  });
+
+  it('summarizes claimed quest rewards', () => {
+    expect(describeActivity(activity({
+      title: 'First Night Out',
+      rewards: ['$2,500', '+5 Mama King reputation'],
+    }, 'QUEST_CLAIMED'), 'crack')).toEqual({
+      text: 'Collected payment for First Night Out.',
+      detail: '$2,500 · +5 Mama King reputation',
+    });
+  });
+
+
+  it('renders timed favor activation', () => {
+    expect(describeActivity(activity({
+      favorKey: 'MAMA_ADVICE',
+      name: "Mama's Advice",
+      category: 'STREET',
+      expiresAt: '2026-09-22T12:10:00.000Z',
+    }, 'FAVOR_ACTIVATED'), 'crack')).toMatchObject({
+      text: "Activated Mama's Advice.",
+    });
+  });
+
+
+  it('renders single-use favor arm and disarm activity', () => {
+    expect(describeActivity(activity({
+      favorKey: 'TOMMY_VOUCHER',
+      name: 'Tommy Voucher',
+      category: 'MUSCLE',
+    }, 'FAVOR_ARMED'), 'crack')).toEqual({
+      text: 'Armed Tommy Voucher.',
+      detail: 'MUSCLE · waiting for the next eligible action',
+    });
+
+    expect(describeActivity(activity({
+      favorKey: 'TOMMY_VOUCHER',
+      name: 'Tommy Voucher',
+      category: 'MUSCLE',
+    }, 'FAVOR_DISARMED'), 'crack')).toEqual({
+      text: 'Put Tommy Voucher back in your pocket.',
+      detail: 'MUSCLE',
+    });
+  });
+
 });

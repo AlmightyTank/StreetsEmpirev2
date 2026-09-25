@@ -2,23 +2,24 @@
 
 A reconstruction of the OG Pimp War economic loop.
 
-**Live version:** `0.4.0-E` &middot; **Development:** `0.5.0-F` Travel &middot; **Dev ruleset:** `classic-og-v0.5-f`
+**Live version:** `0.4.0-E` &middot; **Development:** `0.7.0-AA` Hideout & Jobs &middot; **Dev ruleset:** `classic-og-v0.7-aa`
 
 ---
 
 ## Where this is
 
-The economic foundation and [trader reputation](docs/REPUTATION-DESIGN.md) are built.
-Players earn standing through daily trading and four one-time favors. Total
-reputation opens shotguns at 50, Tek-9s at 150 and AK-47s at 248, in that order.
-Earned access lasts for the round. Each trader's standing also speeds up restocking.
+The economic foundation is built, and the current ruleset now uses one unified
+**Jobs & Contacts** progression system. Named contacts offer tracked quests with
+event-driven and current-state objectives; job rewards grant contact reputation,
+cash/items, and permanent-in-round access such as Shotguns, Tek-9s and AK-47s.
+The older four trader favors remain only inside pinned historical rulesets.
 
 **0.2.0-A** added an isolated combat model and repeatable balance simulator.
 **0.2.0-B** adds a selectable cash-raid ruleset for new rounds, with eligible
 targets, automatic defense, target protection, durable retry receipts and battle
 reports. **0.2.0-C** adds persistent temporary wounds, natural recovery, and
 medicine treatment in its own pinned ruleset. **0.2.0-D** adds recon intel and
-24-hour revenge windows in a new strategy ruleset. **0.2.0-E** adds a self-contained onboarding round with seeded local rivals, tooltips, harsher unarmed-thug happiness penalties, armed-thug scouting coverage, public legacy rankings, weighted raid loot, repeat-target diminishing returns, drive-bys and a full achievement gallery. **0.2.0-F** turns that ruleset into the first public raid round: production rankings and combat targets only show active player accounts, while local development can opt into seeded rivals for solo testing, and old-school raid forms now include drug runs, ride theft and luring unhappy crew. **0.2.0-G** keeps F balance and starts the street-polish pass: clearer special raid reports, scouted-target cues, public onboarding copy and a free Flarum community direction. **0.2.0-H** keeps G balance and starts raid trophies for drive-bys, drug runs, ride theft and lure runs. **0.3.0-A** keeps H balance and makes rounds real seasons: expired rounds close once, standings freeze, players see a round-over screen, and past podiums land in the Hall of Fame. **0.3.0-B** keeps A balance and starts the admin panel: admins can schedule, open, start, end early and archive rounds without re-running the seed, and every admin action writes an audit record. **0.3.0-C** keeps B balance and adds alliances of up to five: allies cannot raid, drive-by, run any special raid form on or recon each other, a hit on one member opens revenge for all of them, and anyone who leaves or is kicked waits 24 hours before joining another alliance or trading blows with their old crew. **0.3.0-D** keeps C balance and lets alliances play together: fresh recon is shared with current allies, alliances talk on a members-only wire, and every player keeps a private contacts rolodex. Older rounds stay pinned to their original rulesets, while the default development seed now makes Game #018 the current `classic-og-v0.5-c` Travel round. **0.4.0** turns Product into a management system; see the [0.4.0 roadmap](docs/ROADMAP-0.4.0.md). **0.5.0** adds cities, runs, shared high markets and road risk; see the [0.5.0 roadmap](docs/ROADMAP-0.5.0.md). Read the [H implementation notes](docs/COMBAT-0.2.0-H.md), the [G implementation notes](docs/COMBAT-0.2.0-G.md), the [F implementation notes](docs/COMBAT-0.2.0-F.md), the [E implementation notes](docs/COMBAT-0.2.0-E.md), the [D implementation notes](docs/COMBAT-0.2.0-D.md),
+24-hour revenge windows in a new strategy ruleset. **0.2.0-E** adds a self-contained onboarding round with seeded local rivals, tooltips, harsher unarmed-thug happiness penalties, armed-thug scouting coverage, public legacy rankings, weighted raid loot, repeat-target diminishing returns, drive-bys and a full achievement gallery. **0.2.0-F** turns that ruleset into the first public raid round: production rankings and combat targets only show active player accounts, while local development can opt into seeded rivals for solo testing, and old-school raid forms now include drug runs, ride theft and luring unhappy crew. **0.2.0-G** keeps F balance and starts the street-polish pass: clearer special raid reports, scouted-target cues, public onboarding copy and a free Flarum community direction. **0.2.0-H** keeps G balance and starts raid trophies for drive-bys, drug runs, ride theft and lure runs. **0.3.0-A** keeps H balance and makes rounds real seasons: expired rounds close once, standings freeze, players see a round-over screen, and past podiums land in the Hall of Fame. **0.3.0-B** keeps A balance and starts the admin panel: admins can schedule, open, start, end early and archive rounds without re-running the seed, and every admin action writes an audit record. **0.3.0-C** keeps B balance and adds alliances of up to five: allies cannot raid, drive-by, run any special raid form on or recon each other, a hit on one member opens revenge for all of them, and anyone who leaves or is kicked waits 24 hours before joining another alliance or trading blows with their old crew. **0.3.0-D** keeps C balance and lets alliances play together: fresh recon is shared with current allies, alliances talk on a members-only wire, and every player keeps a private contacts rolodex. Older rounds stay pinned to their original rulesets, while the default development seed now makes Game #020 the current `classic-og-v0.7-aa` Hideout & Jobs round. **0.4.0** turns Product into a management system; see the [0.4.0 roadmap](docs/ROADMAP-0.4.0.md). **0.5.0** adds cities, runs, shared high markets and road risk; see the [0.5.0 roadmap](docs/ROADMAP-0.5.0.md). **0.7.0-AA** closes the Hideout & Jobs release; see [docs/RELEASE-0.7.0-AA.md](docs/RELEASE-0.7.0-AA.md). Read the [H implementation notes](docs/COMBAT-0.2.0-H.md), the [G implementation notes](docs/COMBAT-0.2.0-G.md), the [F implementation notes](docs/COMBAT-0.2.0-F.md), the [E implementation notes](docs/COMBAT-0.2.0-E.md), the [D implementation notes](docs/COMBAT-0.2.0-D.md),
 the [C implementation notes](docs/COMBAT-0.2.0-C.md), the [B implementation notes](docs/COMBAT-0.2.0-B.md), the
 [staged combat design](docs/COMBAT-DESIGN-0.2.0.md), the
 [simulation findings](docs/COMBAT-SIMULATION-0.2.0-A.md) and the
@@ -37,7 +38,24 @@ Forward roadmaps: [0.6.0 Turf](docs/ROADMAP-0.6.0.md), [0.7.0 Hideout](docs/ROAD
 | **0.1.0-F** | transaction tests, rate limits, mobile and reconnect testing (idempotency landed early, in C) | **done** |
 | **0.1.0-G** | quality-of-life, action receipts, quick resources, refresh-on-return, UI consistency | **done** |
 | **0.1.0-H** | release-candidate regression, load/exploit checks, balance and production QA | **done** |
-| **Reputation** | four trader quests, daily standing, restock perks, reputation weapon unlocks | **done** |
+| **Jobs & Contacts** | unified quest engine, six contacts, contact reputation, tracking, first 10 story jobs, job-based weapon access | **implemented in beta** |
+| **0.7.0-H** | permanent unlock ledger; job-earned weapon rack access; Pip Meth/Ecstasy/Cocaine/Heroin purchase progression | **implemented in beta** |
+| **0.7.0-I** | durable favor inventory; six Mama/Pip/Tommy favors; stackable job rewards; Quest/admin inventory views | **implemented in beta** |
+| **0.7.0-J** | timed favor activation; STREET/UNDERWORLD/MUSCLE slots; live Scout/Produce/Pip/treatment buffs | **implemented in beta** |
+| **0.7.0-K** | armed single-use favors; Tommy Voucher, Burner Phone, Doctor Favor; successful-action consumption | **implemented in beta** |
+| **0.7.0-L** | Phase M contact expansion; 3 Wheels, 3 Vic and 3 Blocks side jobs; 28 handcrafted Jobs total | **implemented in beta** |
+| **0.7.0-M** | Phase N catalog completion; Pip Top Shelf and Tommy Full Rack capstones; 30 handcrafted Jobs total | **implemented in beta** |
+| **0.7.0-V** | Phase Y-A Legendary favors; rarity metadata; Ghost Network, Pip's Black Book and Tommy's War Chest | **implemented in beta** |
+| **0.7.0-W** | Phase Y-B Legendary expansion; Open Road, Clean Slate and Stand Down action-shaped favors | **implemented in beta** |
+| **0.7.0-X** | Phase Y-C quest-only cosmetics; permanent account titles/badges from six Contact finales | **implemented in beta** |
+| **0.7.0-Y** | Phase Y-D global site accents + quest-earned profile frames from six Contact finales | **implemented in beta** |
+| **0.7.0-Z** | Phase Y-E player-facing site themes; Winter Lights and Halloween Moon render across the global game shell | **implemented in beta** |
+| **0.7.0-AA** | Phase Y-F Halloween and Christmas 2026 event Jobs; permanent seasonal site theme rewards | **implemented in beta** |
+| **0.7.0-N** | Phase O daily contracts; 8-contract pool; 3 rotating offers per daily reset; repeatable attempt history | **implemented in beta** |
+| **0.7.0-O** | Phase P weekly contracts; 6-contract pool; 2 rotating offers per Monday reset; unique-city and combined turf-hour progress | **implemented in beta** |
+| **0.7.0-P** | Phase Q secret Jobs; 7 hidden one-time Jobs revealed by Heat, losses, arrest, cargo, crew, turf and net-worth milestones | **implemented in beta** |
+| **0.7.0-Q** | Phase R branching Jobs; Taking Sides Pip/Tommy choice; durable chosenBranch; mutually exclusive follow-ups | **implemented in beta** |
+| **0.7.0-R** | Phase S dynamic city contracts; 2 live city/product offers per 12-hour board; 250/500/750-unit targets; effective 1.35× sale payout | **implemented in beta** |
 | **0.2.0-A** | combat model, balance simulator, tests and staged design | **prototype complete; balance provisional** |
 | **0.2.0-B** | selectable cash-raid ruleset, raid API, target protection, reports and retry recovery | **implemented for new combat rounds** |
 | **0.2.0-C** | persistent wounds, fit crew, natural recovery and medicine treatment | **implemented for new recovery rounds** |
@@ -76,11 +94,11 @@ npm install
 cp .env.example .env      # already done if .env exists
 npm run db:up             # postgres 16 on localhost:5433
 npm run db:migrate        # apply migrations
-npm run db:seed           # 8 cities, pinned older rounds, current Game #018 Travel / 0.5.0-F round
+npm run db:seed           # 8 cities, pinned older rounds, current Game #020 Hideout / 0.7.0-AA round
 npm run dev               # api on :3001, game web on :5173, public site on :5174
 ```
 
-Open <http://localhost:5173> for the playable game, or <http://localhost:5174> for the public website. Register a name in the game app and enter Game #018 - Travel. New players start in New York and can send Low-Rider runs to all eight cities. The current development round uses `classic-og-v0.5-f`, so shared high markets, moving Pip supply, price events, road stops, sale Heat, arrests, moving house, convoys and loading up on your own city's market are all active. Default seeds no bot rivals; for local solo raid testing, run `npm run db:seed:dev-bots` to add active dev bots for cash raids, drug runs, ride theft, lures and drive-bys.
+Open <http://localhost:5173> for the playable game, or <http://localhost:5174> for the public website. Register a name in the game app and enter Game #020 - Hideout. New players start in New York and can send Low-Rider runs to all eight cities. The current development round uses `classic-og-v0.7-aa`, so Hideout headquarters, Jobs & Contacts, favors, contracts, community events, quest cosmetics, player-facing site themes and the 2026 holiday event Jobs are active. Default seeds no bot rivals; for local solo raid testing, run `npm run db:seed:dev-bots` to add active dev bots for cash raids, drug runs, ride theft, lures and drive-bys.
 
 | Script | Does |
 | --- | --- |
@@ -273,7 +291,11 @@ POST /api/game/produce-crack
 PUT  /api/game/payout
 GET  /api/game/stores
 POST /api/game/stores/trade
-POST /api/game/stores/unlock
+GET  /api/game/quests
+POST /api/game/quests/:key/accept
+POST /api/game/quests/:key/abandon
+POST /api/game/quests/:key/track
+POST /api/game/quests/:key/claim
 GET  /api/game/combat
 POST /api/game/combat/raid
 POST /api/game/combat/drive-by
@@ -321,8 +343,7 @@ Remove-Item Env:STORE_INTEGRATION
 The integration suite creates a disposable account and removes it and its related
 data afterwards. It checks authentication, full receipts, restocking happiness,
 rollback, duplicate buys and sells, and competing orders with insufficient cash or
-stock, weapon purchase locks, favor prerequisites and costs, concurrent unlocks,
-reputation increments and round isolation. The combined suite has 207 passing tests. Browser checks cover purchases,
+stock, weapon purchase locks, quest-driven access, transaction retries, reputation increments and round isolation. The combined suite has 207 passing tests. Browser checks cover purchases,
 sell-Max, receipts, updated inventory and the store layout at phone widths, plus
 both favors, unlocked buy buttons and access surviving a reload.
 

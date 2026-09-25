@@ -24,6 +24,8 @@ type Phase = 'booting' | 'ready';
 
 export const DEFAULT_PROFILE_SETTINGS: AccountProfileSettingsDto = {
   activeTitleKey: null,
+  activeProfileFrameKey: null,
+  activeSiteThemeKey: null,
   featuredBadgeKeys: [],
   profileAccent: 'default',
   uiDensity: 'comfortable',
@@ -54,6 +56,8 @@ interface SessionState {
   roundOver: RoundOverDto | null;
   canJoin: boolean;
   recentActivity: ActivityDto[];
+  /** Player whose activity list has completed its first authoritative snapshot load. */
+  activityHydratedForPlayerId: string | null;
 
   /** Resolve who we are and which game is running. Runs once on mount. */
   bootstrap: () => Promise<void>;
@@ -63,7 +67,7 @@ interface SessionState {
   /** Section 45/47. Pull the authoritative dashboard state. */
   refreshSnapshot: (options?: { background?: boolean }) => Promise<void>;
 
-  register: (input: RegisterInput) => Promise<void>;
+  register: (input: RegisterInput) => Promise<string | null>;
   login: (input: LoginInput) => Promise<void>;
   resetPassword: (input: ResetPasswordInput) => Promise<void>;
   verifyEmailToken: (input: VerifyEmailTokenInput) => Promise<string>;
@@ -80,6 +84,7 @@ export const useSession = create<SessionState>((set, get) => ({
   roundOver: null,
   canJoin: false,
   recentActivity: [],
+  activityHydratedForPlayerId: null,
 
   async bootstrap() {
     // A 401 here is the normal signed-out case, not an error worth surfacing.
@@ -87,7 +92,7 @@ export const useSession = create<SessionState>((set, get) => ({
       .me()
       .then((r) => r.account)
       .catch((error: unknown) => {
-        if (error instanceof ApiError && error.isUnauthenticated) return null;
+        if (error instanceof ApiError && (error.isUnauthenticated || error.code === 'BETA_APPROVAL_REQUIRED')) return null;
         throw error;
       });
 
@@ -112,7 +117,17 @@ export const useSession = create<SessionState>((set, get) => ({
 
   async refreshRound() {
     const current = await roundsApi.current();
-    set({ round: current.round, me: current.me, canJoin: current.canJoin, roundOver: current.roundOver });
+    const previousPlayerId = get().me?.id ?? null;
+    const nextPlayerId = current.me?.id ?? null;
+    set({
+      round: current.round,
+      me: current.me,
+      canJoin: current.canJoin,
+      roundOver: current.roundOver,
+      ...(previousPlayerId === nextPlayerId
+        ? {}
+        : { recentActivity: [], activityHydratedForPlayerId: null }),
+    });
   },
 
   async refreshSnapshot(options = {}) {
@@ -130,15 +145,21 @@ export const useSession = create<SessionState>((set, get) => ({
       me: snapshot.player,
       roundOver: null,
       recentActivity: snapshot.recentActivity,
+      activityHydratedForPlayerId: snapshot.player.id,
       canJoin: false,
     });
   },
 
   async register(input) {
-    const { account } = await authApi.register(input);
-    set({ account });
+    const response = await authApi.register(input);
+    if (response.approvalRequired) {
+      set({ account: null });
+      return response.message ?? 'Your beta account is waiting for admin approval.';
+    }
+    set({ account: response.account });
     await get().refreshProfileSettings();
     await get().refreshRound();
+    return null;
   },
 
   async login(input) {
@@ -179,6 +200,7 @@ export const useSession = create<SessionState>((set, get) => ({
       me: null,
       roundOver: null,
       recentActivity: [],
+      activityHydratedForPlayerId: null,
       canJoin: false,
     });
     await get().refreshRound();
@@ -186,7 +208,14 @@ export const useSession = create<SessionState>((set, get) => ({
 
   async join() {
     const result = await roundsApi.join();
-    set({ round: result.round, me: result.me, canJoin: result.canJoin, roundOver: result.roundOver });
+    set({
+      round: result.round,
+      me: result.me,
+      canJoin: result.canJoin,
+      roundOver: result.roundOver,
+      recentActivity: [],
+      activityHydratedForPlayerId: null,
+    });
     if (!result.me) throw new Error('Join succeeded but returned no player.');
     return result.me;
   },

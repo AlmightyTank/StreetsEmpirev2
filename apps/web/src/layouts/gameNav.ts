@@ -22,7 +22,7 @@ export interface NavSection {
 export type IconName =
   | 'dashboard' | 'hideout' | 'scout' | 'produce' | 'raids' | 'stores' | 'cities'
   | 'rankings' | 'alliance' | 'contacts' | 'profile' | 'activity'
-  | 'status' | 'rules' | 'news' | 'fame' | 'admin';
+  | 'status' | 'rules' | 'news' | 'fame' | 'account' | 'admin';
 
 export const SECTIONS: NavSection[] = [
   {
@@ -30,6 +30,7 @@ export const SECTIONS: NavSection[] = [
     title: 'Actions',
     pages: [
       { key: 'dashboard', label: 'Dashboard', short: 'Home', to: '/game', icon: 'dashboard' },
+      { key: 'quests', label: 'Quests', to: '/game/quests', icon: 'activity' },
       { key: 'scout', label: 'Scout', to: '/game/scout', icon: 'scout' },
       { key: 'produce', label: 'Produce', to: '/game/produce', icon: 'produce' },
       { key: 'raids', label: 'Raids', to: '/game/combat', icon: 'raids' },
@@ -58,6 +59,7 @@ export const SECTIONS: NavSection[] = [
       { key: 'rules', label: 'Rules', to: '/game/rules', icon: 'rules' },
       { key: 'news', label: 'News', to: '/game/news', icon: 'news' },
       { key: 'fame', label: 'Hall of Fame', short: 'Fame', to: '/game/hall-of-fame', icon: 'fame' },
+      { key: 'account', label: 'Account', to: '/account', icon: 'account' },
     ],
   },
 ];

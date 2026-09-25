@@ -49,3 +49,17 @@ export function assertCanSignIn(account: SignInAccount, now = new Date()): void 
     `This account is suspended until ${suspensionEnds(suspension.until)}.${suspension.reason ? ` Reason: ${suspension.reason}` : ''}`,
   );
 }
+
+
+/** Invite-only beta access. Admins always retain access so they cannot lock themselves out. */
+export function assertBetaAccess(
+  account: Pick<Account, 'isAdmin' | 'betaApproved'>,
+  inviteOnly: boolean,
+): void {
+  if (!inviteOnly || account.isAdmin || account.betaApproved) return;
+  throw new AppError(
+    403,
+    'BETA_APPROVAL_REQUIRED',
+    'This beta is invite-only. Your account is waiting for an admin to approve beta access.',
+  );
+}

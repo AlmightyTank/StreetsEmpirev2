@@ -107,7 +107,8 @@ export function rateLimitPolicyFor(method: string, path: string): RateLimitPolic
         // Each test is a real push to every device.
         path === '/api/notifications/push/test')) ||
     (method === 'GET' &&
-      (path === '/api/auth/discord' || path === '/api/auth/discord/callback'))
+      (path === '/api/auth/discord' || path === '/api/auth/discord/callback')) ||
+    (method === 'DELETE' && path === '/api/auth/discord')
   ) {
     return RATE_LIMIT_POLICIES.auth;
   }

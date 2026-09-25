@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { AdminAccountAction, AdminAccountDetailDto, AdminSuspensionLength, RoundStatus } from '@streets/shared';
 import { ADMIN_SUSPENSION_LENGTHS, formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
@@ -20,16 +20,19 @@ const actionText: Record<AdminAccountAction, { label: string; copy: string }> = 
   'lift-suspension': { label: 'Lift suspension', copy: 'Ends the suspension now. They can log straight back in.' },
   'revoke-sessions': { label: 'Sign out everywhere', copy: 'Ends every active session. They can log straight back in.' },
   rename: { label: 'Rename', copy: 'Changes their pimp name and the name on every round they played, archived results included.' },
-  'reset-profile': { label: 'Reset profile', copy: 'Clears their profile title and featured badges and resets their accent.' },
+  'reset-profile': { label: 'Reset profile', copy: 'Clears their profile title, frame, site theme and featured badges, and resets their accent.' },
   'grant-admin': { label: 'Make admin', copy: 'Gives full admin panel access. Everything they do there is audited.' },
   'revoke-admin': { label: 'Remove admin', copy: 'Removes admin panel access.' },
+  'approve-beta': { label: 'Approve beta', copy: 'Allows this account to log in and play when the beta server is invite-only.' },
+  'revoke-beta': { label: 'Revoke beta', copy: 'Removes this account from the invite-only beta. Existing sessions stop working on their next request.' },
   'resend-verification': { label: 'Resend verification email', copy: 'Sends a fresh verification link to their current email address.' },
   'mark-email-verified': { label: 'Mark email verified', copy: 'Marks their current email as verified without a link. Only do this once you have confirmed they own it.' },
   'unlink-forum': { label: 'Unlink forum', copy: 'Removes the connection to their forum account on both sides. They can link again from their account settings.' },
   'resync-discord': { label: 'Resync Discord roles', copy: 'Asks the Discord bot to re-check their roles on its next pass, about a minute.' },
+  'delete-account': { label: 'Delete account', copy: 'Permanent. Unused accounts are removed outright. Accounts with round history are anonymized so rankings, battles and archived seasons remain intact.' },
 };
 
-const DESTRUCTIVE: AdminAccountAction[] = ['deactivate', 'suspend', 'revoke-admin', 'unlink-forum'];
+const DESTRUCTIVE: AdminAccountAction[] = ['deactivate', 'suspend', 'revoke-admin', 'revoke-beta', 'unlink-forum', 'delete-account'];
 
 function statusTone(status: RoundStatus): string {
   if (status === 'ACTIVE') return ' se-tag--good';
@@ -44,6 +47,7 @@ interface Pending {
 
 export function AdminAccountPage() {
   const { accountId = '' } = useParams();
+  const navigate = useNavigate();
   const myAccountId = useSession((s) => s.account?.id);
   const [detail, setDetail] = useState<AdminAccountDetailDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +55,7 @@ export function AdminAccountPage() {
   const [pending, setPending] = useState<Pending | null>(null);
   const [reason, setReason] = useState('');
   const [newName, setNewName] = useState('');
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [length, setLength] = useState<AdminSuspensionLength>('7d');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -71,6 +76,7 @@ export function AdminAccountPage() {
     setPending(sessionId ? { action, sessionId } : { action });
     setReason('');
     setNewName(action === 'rename' ? detail?.account.username ?? '' : '');
+    setDeleteConfirmation('');
     setFields({});
     setError(null);
     setNotice(null);
@@ -84,26 +90,36 @@ export function AdminAccountPage() {
     setFields({});
     const why = reason.trim();
     try {
-      const run = async (): Promise<AdminAccountDetailDto> => {
-        switch (pending.action) {
-          case 'deactivate': return adminApi.deactivateAccount(accountId, why);
-          case 'reactivate': return adminApi.reactivateAccount(accountId, why);
-          case 'suspend': return adminApi.suspendAccount(accountId, length, why);
-          case 'lift-suspension': return adminApi.liftSuspension(accountId, why);
-          case 'revoke-sessions': return adminApi.revokeSessions(accountId, why, pending.sessionId);
-          case 'rename': return adminApi.renameAccount(accountId, newName.trim(), why);
-          case 'reset-profile': return adminApi.resetProfile(accountId, why);
-          case 'grant-admin': return adminApi.setAdmin(accountId, true, why);
-          case 'revoke-admin': return adminApi.setAdmin(accountId, false, why);
-          case 'resend-verification': return adminApi.resendVerification(accountId, why);
-          case 'mark-email-verified': return adminApi.markEmailVerified(accountId, why);
-          case 'unlink-forum': return adminApi.unlinkForum(accountId, why);
-          case 'resync-discord':
-            await adminApi.requestDiscordResync({ accountId, reason: why });
-            return adminApi.account(accountId);
-        }
-      };
-      const updated = await run();
+      if (pending.action === 'delete-account') {
+        const result = await adminApi.deleteAccount(accountId, why, deleteConfirmation);
+        const message = result.mode === 'deleted'
+          ? `${result.formerUsername} was permanently deleted.`
+          : `${result.formerUsername} was permanently anonymized. ${result.roundsPreserved} round${result.roundsPreserved === 1 ? '' : 's'} preserved.`;
+        navigate(`/game/admin/accounts?accountMessage=${encodeURIComponent(message)}`, { replace: true });
+        return;
+      }
+
+      let updated: AdminAccountDetailDto;
+      switch (pending.action) {
+        case 'deactivate': updated = await adminApi.deactivateAccount(accountId, why); break;
+        case 'reactivate': updated = await adminApi.reactivateAccount(accountId, why); break;
+        case 'suspend': updated = await adminApi.suspendAccount(accountId, length, why); break;
+        case 'lift-suspension': updated = await adminApi.liftSuspension(accountId, why); break;
+        case 'revoke-sessions': updated = await adminApi.revokeSessions(accountId, why, pending.sessionId); break;
+        case 'rename': updated = await adminApi.renameAccount(accountId, newName.trim(), why); break;
+        case 'reset-profile': updated = await adminApi.resetProfile(accountId, why); break;
+        case 'grant-admin': updated = await adminApi.setAdmin(accountId, true, why); break;
+        case 'revoke-admin': updated = await adminApi.setAdmin(accountId, false, why); break;
+        case 'approve-beta': updated = await adminApi.setBetaApproved(accountId, true, why); break;
+        case 'revoke-beta': updated = await adminApi.setBetaApproved(accountId, false, why); break;
+        case 'resend-verification': updated = await adminApi.resendVerification(accountId, why); break;
+        case 'mark-email-verified': updated = await adminApi.markEmailVerified(accountId, why); break;
+        case 'unlink-forum': updated = await adminApi.unlinkForum(accountId, why); break;
+        case 'resync-discord':
+          await adminApi.requestDiscordResync({ accountId, reason: why });
+          updated = await adminApi.account(accountId);
+          break;
+      }
       setDetail(updated);
       setNotice(`${pending.sessionId ? 'Sign out this session' : actionText[pending.action].label}: done for ${updated.account.username}.`);
       setPending(null);
@@ -136,6 +152,7 @@ export function AdminAccountPage() {
     'rename',
     'reset-profile',
     ...(account.isAdmin ? ['revoke-admin' as const] : account.isActive ? ['grant-admin' as const] : []),
+    account.betaApproved ? 'revoke-beta' : 'approve-beta',
   ];
   const linkActions: AdminAccountAction[] = [
     ...(!email.verifiedAt && email.sendingEnabled ? ['resend-verification' as const] : []),
@@ -202,6 +219,24 @@ export function AdminAccountPage() {
                 hint="3 to 20 letters, numbers, underscores or hyphens."
               />
             ) : null}
+            {pending.action === 'delete-account' ? (
+              <>
+                <div className="se-alert">
+                  This cannot be undone. {account.roundsPlayed > 0
+                    ? `This account has played ${account.roundsPlayed} round${account.roundsPlayed === 1 ? '' : 's'}, so its login identity will be erased and historical player names will become Deleted Player.`
+                    : 'This account has never joined a round, so the account record will be permanently removed.'}
+                </div>
+                <Field
+                  id="admin-delete-confirmation"
+                  label={`Type ${account.username} to confirm`}
+                  value={deleteConfirmation}
+                  onChange={(event) => setDeleteConfirmation(event.target.value)}
+                  autoComplete="off"
+                  error={fields.confirmation}
+                  hint="The username must match exactly."
+                />
+              </>
+            ) : null}
             <div className="se-field">
               <label className="se-label" htmlFor="admin-account-reason">Reason</label>
               <textarea
@@ -220,12 +255,13 @@ export function AdminAccountPage() {
               )}
             </div>
             <div className="se-cta se-mt">
-              <Button className="se-btn se-btn--primary"
+              <Button className={`se-btn ${pending.action === 'delete-account' ? 'se-btn--danger' : 'se-btn--primary'}`}
                 disabledReason={busy ? working
                   : reasonTooShort ? 'The audit log needs a reason of at least 5 characters.'
                     : pending.action === 'rename' && newName.trim().length < 3 ? 'A new name needs at least 3 characters.'
-                      : null}>
-                {busy ? 'Working...' : 'Confirm'}
+                      : pending.action === 'delete-account' && deleteConfirmation !== account.username ? `Type ${account.username} exactly to continue.`
+                        : null}>
+                {busy ? 'Working...' : pending.action === 'delete-account' ? 'Permanently delete account' : 'Confirm'}
               </Button>
               <Button type="button" className="se-btn se-btn--ghost" onClick={() => setPending(null)} disabledReason={busy ? working : null}>Cancel</Button>
             </div>
@@ -252,6 +288,8 @@ export function AdminAccountPage() {
               value={forumLink ? <a href={forumLink.profileUrl} target="_blank" rel="noreferrer">{forumLink.forumUsername}</a> : '-'}
             />
             <Row label="Profile title" value={detail.profile.activeTitleKey ?? '-'} />
+            <Row label="Profile frame" value={detail.profile.activeProfileFrameKey ?? '-'} />
+            <Row label="Site theme" value={detail.profile.activeSiteThemeKey ?? '-'} />
             <Row label="Accent" value={detail.profile.profileAccent} />
             <Row label="Featured badges" value={formatNumber(detail.profile.featuredBadgeKeys.length)} />
             <Row label="Account id" value={account.id} />
@@ -281,6 +319,32 @@ export function AdminAccountPage() {
           </p>
         </Panel>
       </div>
+
+      <Panel title="Danger Zone" className="se-mb se-danger-zone">
+        <p>
+          <strong>Delete account permanently.</strong> This removes login identity, email, Discord/forum links,
+          sessions, notification devices and private account settings.
+        </p>
+        <p className="se-hint">
+          {account.roundsPlayed > 0
+            ? `Because this account has round history, ${formatNumber(account.roundsPlayed)} round${account.roundsPlayed === 1 ? '' : 's'} will be preserved anonymously as Deleted Player.`
+            : 'Because this account has never joined a round, the account record itself will be removed.'}
+        </p>
+        {isSelf ? (
+          <p className="se-hint">You cannot delete your own admin account. Another admin must perform this action.</p>
+        ) : account.isAdmin ? (
+          <p className="se-hint">Remove this account's admin role before it can be deleted.</p>
+        ) : (
+          <Button
+            type="button"
+            className="se-btn se-btn--danger"
+            onClick={() => choose('delete-account')}
+            disabledReason={busy ? working : null}
+          >
+            Delete account
+          </Button>
+        )}
+      </Panel>
 
       <Panel title="Sessions" aside="Device only, no IP addresses" flush className="se-mb">
         {detail.sessions.length === 0 ? (

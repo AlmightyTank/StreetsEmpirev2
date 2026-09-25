@@ -116,6 +116,12 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin corrections and sig
       },
     });
     await app.prisma.combatInjury.create({ data: { roundPlayerId: defender.id, battleId: battle.id, thugs: 3, recoverAt: new Date(Date.now() + 3_600_000) } });
+    await app.prisma.economyLedgerEntry.createMany({
+      data: [
+        { roundPlayerId: attacker.id, source: 'RAID', label: 'Raid loot', amountCents: 50_000n },
+        { roundPlayerId: defender.id, source: 'RAID', label: 'Raid loss', amountCents: -50_000n },
+      ],
+    });
 
     expect((await post(`/api/admin/battles/${battle.id}/void`, {})).statusCode).toBe(400);
     const voided = await post(`/api/admin/battles/${battle.id}/void`, { reason: 'Loot bug in the raid model' });
@@ -139,6 +145,16 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin corrections and sig
     expect(await app.prisma.combatInjury.count({ where: { battleId: battle.id } })).toBe(0);
     expect(await app.prisma.playerActivity.count({ where: { roundPlayerId: { in: [attacker.id, defender.id] }, type: 'BATTLE_VOIDED' } })).toBe(2);
     expect(await app.prisma.adminAuditLog.count({ where: { targetId: battle.id, action: 'battle.void' } })).toBe(1);
+
+    const ledger = await app.prisma.economyLedgerEntry.groupBy({
+      by: ['roundPlayerId'],
+      where: { roundPlayerId: { in: [attacker.id, defender.id] } },
+      _sum: { amountCents: true },
+    });
+    expect(Object.fromEntries(ledger.map((row) => [row.roundPlayerId, row._sum.amountCents]))).toEqual({
+      [attacker.id]: 0n,
+      [defender.id]: 0n,
+    });
 
     const reports = await get(`/api/admin/players/${defender.id}/battles`);
     expect(reports.json().reports[0].voided).toMatchObject({ reason: 'Loot bug in the raid model', byUsername: admin.username });

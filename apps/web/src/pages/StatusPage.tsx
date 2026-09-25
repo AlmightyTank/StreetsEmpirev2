@@ -69,38 +69,58 @@ export function StatusPage() {
 
   return (
     <GameLayout>
-      <div className="se-pagehead">
-        <div>
-          <h1 className="se-title">Game Status</h1>
-          <p className="se-eyebrow">Round clock and ruleset</p>
-        </div>
-      </div>
+      <div className="se-status">
+        <section className="se-info-hero se-info-hero--status">
+          <div className="se-info-hero__copy">
+            <span className="se-info-hero__kicker">Street control room</span>
+            <h1 className="se-info-hero__title">Game Status</h1>
+            <p className="se-info-hero__body">The live season clock, ruleset and turn economy in one place. Check the board before you commit turns, cash or crew.</p>
+          </div>
+          <div className="se-info-hero__readout" aria-label="Current round summary">
+            <span><small>Phase</small><strong>{round?.status ?? 'Checking'}</strong></span>
+            <span><small>Players</small><strong>{round ? formatNumber(round.playerCount) : '—'}</strong></span>
+            <span><small>Time left</small><strong>{round ? formatDuration(round.msRemaining) : '—'}</strong></span>
+            <span><small>Ruleset</small><strong>{status?.ruleset?.version ?? round?.rulesetVersion ?? '—'}</strong></span>
+          </div>
+        </section>
 
       {error ? <Alert>{error}</Alert> : null}
       {!status ? <p className="se-muted">Checking the round...</p> : null}
 
       {round ? (
         <>
-          <div className="se-stats se-mb">
-            <Stat label="Round" value={round.name} />
-            <Stat label="Status" value={round.status} />
-            <Stat label="Players" value={formatNumber(round.playerCount)} />
-            <Stat label="Time Left" value={formatDuration(round.msRemaining)} />
-          </div>
+          <section className="se-info-section">
+            <div className="se-info-sectionhead">
+              <div>
+                <span className="se-eyebrow">Season operations</span>
+                <h2>{round.name}</h2>
+              </div>
+              <p>{status.ruleset?.name ?? round.rulesetId} · version {status.ruleset?.version ?? round.rulesetVersion}</p>
+            </div>
 
-          <div className="se-grid se-grid--2">
-            {copy ? (
-              <Panel title="What this means">
-                <p>{copy.body}</p>
-                <p className="se-hint">{copy.action}</p>
-                <div className="se-cta se-mt">
-                  <Link className="se-btn se-btn--primary" to="/game/combat">Raid page</Link>
-                  <Link className="se-btn" to="/game/news">Latest changes</Link>
-                </div>
-              </Panel>
-            ) : null}
+            <div className="se-status__grid">
+              {copy ? (
+                <section className="se-status__signal-card">
+                  <div className="se-status__signal">
+                    <span className={`se-status__dot${round.status === 'ACTIVE' ? '' : ' se-status__dot--quiet'}`} />
+                    <div>
+                      <span className="se-eyebrow">Round signal</span>
+                      <h3 className="se-status__headline">{copy.title}</h3>
+                    </div>
+                  </div>
+                  <p className="se-status__copy">{copy.body}</p>
+                  <div className="se-status__action-note">
+                    <span>Next move</span>
+                    <strong>{copy.action}</strong>
+                  </div>
+                  <div className="se-cta se-status__actions">
+                    <Link className="se-btn se-btn--primary" to="/game/combat">Open raids</Link>
+                    <Link className="se-btn" to="/game/news">Read the wire</Link>
+                  </div>
+                </section>
+              ) : null}
 
-            <Panel title="Schedule" flush>
+              <div className="se-status__stack"><Panel title="Schedule" flush>
               <div className="se-rows">
                 <Row label="Started" value={formatDate(round.startsAt)} />
                 <Row label="Ends" value={formatDate(round.endsAt)} />
@@ -129,7 +149,9 @@ export function StatusPage() {
                 <p className="se-hint">The seed refuses to add bots to production or a non-local database unless you set the explicit override.</p>
               </Panel>
             ) : null}
-          </div>
+              </div>
+            </div>
+          </section>
 
           {account?.isAdmin ? (
             <Panel title="Admin season checklist" aside={<Link to="/game/admin">Admin panel</Link>}>
@@ -161,6 +183,7 @@ export function StatusPage() {
           ) : null}
         </>
       ) : status ? <Alert>No active game is running.</Alert> : null}
+      </div>
     </GameLayout>
   );
 }

@@ -10,6 +10,10 @@ function str(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
 
+function sentence(value: string): string {
+  return /[.!?]$/.test(value) ? value : `${value}.`;
+}
+
 function productFindSummary(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((row) => {
@@ -220,6 +224,24 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         detail: `-${formatCents(num(p.costCents))}`,
       };
 
+    case 'QUEST_OBJECTIVE_COMPLETE':
+      return {
+        text: `${p.bonus ? 'Bonus objective' : 'Objective'} complete: ${sentence(str(p.objective, 'quest progress'))}`,
+        detail: str(p.title) ? `Job: ${str(p.title)}` : undefined,
+      };
+
+    case 'QUEST_READY':
+      return {
+        text: `Job complete: ${str(p.title, 'a quest')}.`,
+        detail: 'Return to Quests to collect payment.',
+      };
+
+    case 'QUEST_CLAIMED':
+      return {
+        text: `Collected payment for ${str(p.title, 'a quest')}.`,
+        detail: Array.isArray(p.rewards) ? (p.rewards as unknown[]).map(String).join(' · ') : undefined,
+      };
+
     case 'STORE_BUY':
     case 'STORE_SELL':
       return {
@@ -295,6 +317,21 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         detail: [str(p.reason), changeSummary(p.granted)].filter(Boolean).join(' · '),
       };
 
+    case 'FAVOR_ACTIVATED':
+      return {
+        text: `Activated ${str(p.name, str(p.favorKey, 'a favor'))}.`,
+        detail: `${str(p.category)} · active until ${str(p.expiresAt) ? new Date(str(p.expiresAt)).toLocaleTimeString() : 'soon'}`,
+      };
+    case 'FAVOR_ARMED':
+      return {
+        text: `Armed ${str(p.name, str(p.favorKey, 'a favor'))}.`,
+        detail: `${str(p.category)} · waiting for the next eligible action`,
+      };
+    case 'FAVOR_DISARMED':
+      return {
+        text: `Put ${str(p.name, str(p.favorKey, 'a favor'))} back in your pocket.`,
+        detail: str(p.category),
+      };
     default:
       return { text: String(activity.type).replace(/_/g, ' ').toLowerCase() };
   }
@@ -308,7 +345,94 @@ function time(iso: string): string {
   });
 }
 
-export function ActivityFeed({ activity }: { activity: ActivityDto[] }) {
+export type ActivityGroup = 'combat' | 'street' | 'market' | 'progress' | 'travel' | 'turf' | 'system';
+
+export function activityGroup(type: ActivityDto['type']): ActivityGroup {
+  if (type.startsWith('RAID_') || type.startsWith('DRIVE_BY_') || type.startsWith('COMBAT_') || type === 'BATTLE_VOIDED') return 'combat';
+  if (type.startsWith('STORE_')) return 'market';
+  if (type.startsWith('QUEST_') || type.startsWith('FAVOR_') || type === 'HIDEOUT_UPGRADE' || type === 'WEAPON_UNLOCK') return 'progress';
+  if (type.startsWith('RUN_') || type.startsWith('RELOCATION_') || type === 'RELOCATED' || type.startsWith('CONVOY_')) return 'travel';
+  if (type.startsWith('TURF_')) return 'turf';
+  if (type === 'SCOUT' || type === 'WORK_STREETS' || type === 'PRODUCE_CRACK' || type === 'HEAT_BRIBE' || type === 'PAYOUT_CHANGE') return 'street';
+  return 'system';
+}
+
+export function activityGroupLabel(group: ActivityGroup): string {
+  switch (group) {
+    case 'combat': return 'Combat';
+    case 'street': return 'Street';
+    case 'market': return 'Market';
+    case 'progress': return 'Progress';
+    case 'travel': return 'Travel';
+    case 'turf': return 'Turf';
+    case 'system': return 'System';
+  }
+}
+
+function activityTypeLabel(type: ActivityDto['type']): string {
+  const aliases: Partial<Record<ActivityDto['type'], string>> = {
+    RAID_ATTACK: 'Raid',
+    RAID_DEFENSE: 'Raid defense',
+    DRIVE_BY_ATTACK: 'Drive-by',
+    DRIVE_BY_DEFENSE: 'Drive-by defense',
+    COMBAT_TREATMENT: 'Treatment',
+    COMBAT_RECON: 'Recon',
+    ROUND_JOINED: 'Round joined',
+    SCOUT: 'Scout',
+    WORK_STREETS: 'Work streets',
+    PRODUCE_CRACK: 'Produce',
+    STORE_BUY: 'Store buy',
+    STORE_SELL: 'Store sell',
+    WEAPON_UNLOCK: 'Weapon unlock',
+    PAYOUT_CHANGE: 'Payout',
+    AWAY_BONUS: 'Away bonus',
+    BATTLE_VOIDED: 'Battle voided',
+    ADMIN_GRANT: 'Admin grant',
+    HEAT_BRIBE: 'Heat bribe',
+    HIDEOUT_UPGRADE: 'Hideout',
+    QUEST_OBJECTIVE_COMPLETE: 'Quest objective',
+    QUEST_READY: 'Quest ready',
+    QUEST_CLAIMED: 'Quest claimed',
+    FAVOR_ACTIVATED: 'Favor activated',
+    FAVOR_ARMED: 'Favor armed',
+    FAVOR_DISARMED: 'Favor disarmed',
+    RUN_LAUNCHED: 'Run launched',
+    RUN_RETURNED: 'Run returned',
+    RUN_INCIDENT: 'Run incident',
+    RELOCATION_STARTED: 'Relocation',
+    RELOCATED: 'Relocated',
+    CONVOY_TAIL: 'Convoy tail',
+    CONVOY_ATTACK: 'Convoy attack',
+    CONVOY_DEFENSE: 'Convoy defense',
+    CONVOY_BACKUP: 'Convoy backup',
+    TURF_CLAIM: 'Turf claim',
+    TURF_POST: 'Turf post',
+    TURF_PULL: 'Turf pull',
+    TURF_PUSH: 'Turf push',
+    TURF_PUSH_BACKUP: 'Turf backup',
+    TURF_PUSH_ATTACK: 'Turf attack',
+    TURF_PUSH_DEFENSE: 'Turf defense',
+    TURF_OUTPOST_ESTABLISH: 'Outpost established',
+    TURF_OUTPOST_TRANSFER: 'Outpost transfer',
+  };
+  return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();
+}
+
+function dayKey(iso: string): string {
+  const date = new Date(iso);
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function dayLabel(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+export function ActivityFeed({ activity, detailed = false }: { activity: ActivityDto[]; detailed?: boolean }) {
   // Crack is "product" on rounds with only one, and crack by name once there are others.
   const crackWord = useSession((s) => s.me?.products) ? 'crack' : 'product';
   if (activity.length === 0) {
@@ -320,18 +444,33 @@ export function ActivityFeed({ activity }: { activity: ActivityDto[] }) {
   }
 
   return (
-    <ul className="se-feed">
-      {activity.map((entry) => {
+    <ul className={`se-feed${detailed ? ' se-feed--detailed' : ''}`}>
+      {activity.flatMap((entry, index) => {
         const { text, detail } = describeActivity(entry, crackWord);
-        return (
-          <li className="se-feed__item" key={entry.id}>
+        const group = activityGroup(entry.type);
+        const startsDay = detailed && (index === 0 || dayKey(activity[index - 1]!.createdAt) !== dayKey(entry.createdAt));
+        const item = (
+          <li className={`se-feed__item${detailed ? ` se-feed__item--detailed se-feed__item--${group}` : ''}`} key={entry.id}>
             <span className="se-feed__time se-num">{time(entry.createdAt)}</span>
             <span className="se-feed__body">
+              {detailed ? (
+                <span className="se-feed__meta">
+                  <span className={`se-feed__kind se-feed__kind--${group}`}>{activityTypeLabel(entry.type)}</span>
+                  <span className="se-feed__group">{activityGroupLabel(group)}</span>
+                </span>
+              ) : null}
               <span className="se-feed__text">{text}</span>
               {detail ? <span className="se-feed__detail">{detail}</span> : null}
             </span>
           </li>
         );
+
+        return startsDay
+          ? [
+              <li className="se-feed__day" key={`day-${dayKey(entry.createdAt)}`}>{dayLabel(entry.createdAt)}</li>,
+              item,
+            ]
+          : [item];
       })}
     </ul>
   );

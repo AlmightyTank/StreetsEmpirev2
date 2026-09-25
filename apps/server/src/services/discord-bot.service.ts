@@ -4,6 +4,7 @@ import type { PrismaClient, Round } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
 import type {
+  DiscordAllianceCardDto,
   DiscordAlertSettingsDto,
   DiscordAlertType,
   DiscordAlertsClaimDto,
@@ -24,6 +25,7 @@ import type {
   DiscordRoundEventDto,
   DiscordStatsDto,
   DiscordTerritoryEventDto,
+  DiscordTurfCityDto,
   DiscordTurfEventDto,
   ForumGroupBadgeDto,
   PublicLegacyDto,
@@ -32,6 +34,7 @@ import { env } from '../config/env.js';
 import { toRoundPlayerDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
 import { CommunityService, legacyAchievements, loadLegacyByAccount, loadPublicContexts } from './community.service.js';
+import { AllianceService } from './alliance.service.js';
 import { ForumGroupsService } from './forum-groups.service.js';
 import { PlayerStateService } from './player-state.service.js';
 import {
@@ -43,6 +46,8 @@ import {
   roundEventDto,
 } from './notification.service.js';
 import { RoundService } from './round.service.js';
+import { localsOnBlock, TurfService } from './turf.service.js';
+import { controlFromRows } from './turf-territory.service.js';
 import { wakeDiscordBot } from './discord-bot-push.service.js';
 import { competitionRanks, gameUrl, playerUrl, rankValues } from './standings.js';
 
@@ -59,10 +64,12 @@ export function roleKeysFor(input: {
   nationalRank: number | null;
   legacy: PublicLegacyDto;
   forumGroups: ForumGroupBadgeDto[];
+  betaTester?: boolean;
   /** 0.3.0-C. The tag of the live alliance they are in this round. */
   allianceTag?: string | null;
 }): string[] {
   const keys = ['linked'];
+  if (input.betaTester) keys.push('beta-tester');
   if (input.inRound) keys.push('player');
   if (input.inRound && input.allianceTag) keys.push(`alliance:${input.allianceTag.toUpperCase()}`);
   if (input.nationalRank === 1) keys.push('national-1');
@@ -159,7 +166,7 @@ async function publicProfile(prisma: PrismaClient, query: PlayerQuery) {
   return { round, profile };
 }
 
-type AlertRow = { attacksEnabled: boolean; roundEnabled: boolean; rankEnabled: boolean; turnsEnabled: boolean };
+type AlertRow = { attacksEnabled: boolean; roundEnabled: boolean; rankEnabled: boolean; turnsEnabled: boolean; turfEnabled: boolean; allianceEnabled: boolean };
 
 function alertSettingsDto(
   row: AlertRow | null,
@@ -172,6 +179,8 @@ function alertSettingsDto(
       round: row?.roundEnabled ?? false,
       rank: row?.rankEnabled ?? false,
       turns: row?.turnsEnabled ?? false,
+      turf: row?.turfEnabled ?? false,
+      alliance: row?.allianceEnabled ?? false,
     },
     roundName: round?.name ?? null,
     current,
@@ -384,6 +393,7 @@ export const DiscordBotService = {
         nationalRank: ranked ? rankByAccount.get(account.id) ?? null : null,
         legacy: legacyByAccount.get(account.id) ?? emptyLegacy(),
         forumGroups: forumGroups[index]!,
+        betaTester: env.betaTester.discordLinked,
         // Alliance roles only mean something while the round can still change.
         allianceTag: round && (round.status === 'ACTIVE' || round.status === 'REGISTRATION') ? allianceByAccount.get(account.id) ?? null : null,
       }),
@@ -395,6 +405,188 @@ export const DiscordBotService = {
     const round = await RoundService.getCurrent(prisma);
     if (!round || (round.status !== 'ACTIVE' && round.status !== 'REGISTRATION')) return [];
     return prisma.alliance.findMany({ where: { roundId: round.id, disbandedAt: null }, select: { tag: true, name: true }, orderBy: { createdAt: 'asc' } });
+  },
+
+
+  /** Public-safe turf state for Discord: no presence, hidden pushes, revenge or outpost inventory. */
+  async turfCity(prisma: PrismaClient, citySlug: string): Promise<DiscordTurfCityDto> {
+    const round = await RoundService.requireCurrent(prisma);
+    const ruleset = loadRulesetForRound(round);
+    if (!ruleset.turf) throw AppError.notFound('TURF_NOT_ENABLED', 'Turf is not enabled in this round.');
+
+    const city = await prisma.city.findFirst({
+      where: { slug: citySlug, isEnabled: true },
+      select: { id: true, slug: true, name: true },
+    });
+    if (!city) throw AppError.notFound('CITY_NOT_FOUND', 'No city by that name.');
+
+    await TurfService.ensureRound(prisma, round.id, ruleset);
+    const now = new Date();
+    const rows = await prisma.turf.findMany({
+      where: { roundId: round.id, cityId: city.id },
+      include: {
+        holder: {
+          select: {
+            publicPimpId: true,
+            displayName: true,
+            allianceId: true,
+            alliance: { select: { name: true, tag: true } },
+          },
+        },
+      },
+      orderBy: { district: 'asc' },
+    });
+    const control = controlFromRows(ruleset, rows);
+    return {
+      roundName: round.name,
+      city: { slug: city.slug, name: city.name },
+      control: control ? {
+        alliance: control.alliance,
+        blocksHeld: control.blocksHeld,
+        blocksTotal: control.blocksTotal,
+        share: control.share,
+      } : null,
+      blocks: rows.map((row) => {
+        const district = row.district as DistrictKey;
+        const vacant = !row.holderId && Boolean(row.localsReclaimAt && row.localsReclaimAt > now);
+        return {
+          district: row.district,
+          districtName: ruleset.cities?.[city.slug]?.districts?.[district]?.name ?? ruleset.districts[district]?.name ?? row.district,
+          holder: row.holder ? {
+            publicPimpId: row.holder.publicPimpId,
+            displayName: row.holder.displayName,
+            alliance: row.holder.alliance ? { name: row.holder.alliance.name, tag: row.holder.alliance.tag } : null,
+          } : null,
+          cornerThugs: row.cornerThugs,
+          cornerGuns: row.cornerPistols + row.cornerShotguns + row.cornerTek9s + row.cornerAk47s,
+          localsThugs: vacant ? 0 : localsOnBlock(ruleset, {
+            holderId: row.holderId,
+            citySlug: city.slug,
+            district,
+            localsThugs: row.localsThugs,
+            localsAt: row.localsAt,
+            localsReclaimAt: row.localsReclaimAt,
+          }, now),
+          vacant,
+          heldSince: row.heldSince?.toISOString() ?? null,
+          shieldUntil: row.shieldUntil?.toISOString() ?? null,
+        };
+      }),
+    };
+  },
+
+  /** Public alliance card plus the turf it currently holds and recent captured-block activity. */
+  async allianceCard(
+    prisma: PrismaClient,
+    query: { tag: string } | { discordId: string },
+  ): Promise<DiscordAllianceCardDto> {
+    const round = await RoundService.requireCurrent(prisma);
+    let tag: string;
+    let viewer: { id: string; allianceId: string | null } | null = null;
+
+    if ('discordId' in query) {
+      const account = await findLinkedAccount(prisma, query.discordId);
+      const player = await prisma.roundPlayer.findFirst({
+        where: { roundId: round.id, accountId: account.id },
+        select: { id: true, allianceId: true, alliance: { select: { tag: true } } },
+      });
+      if (!player) throw AppError.notFound('PLAYER_NOT_IN_ROUND', `That player has not joined ${round.name} yet.`);
+      if (!player.alliance?.tag) throw AppError.notFound('NOT_IN_ALLIANCE', 'You are not in an alliance this round.');
+      tag = player.alliance.tag;
+      viewer = { id: player.id, allianceId: player.allianceId };
+    } else {
+      tag = query.tag;
+    }
+
+    const detail = await AllianceService.publicDetailForRound(prisma, round, tag, viewer);
+    const alliance = await prisma.alliance.findFirstOrThrow({
+      where: { roundId: round.id, tagNormalized: detail.tag.toLowerCase(), disbandedAt: null },
+      select: { id: true },
+    });
+    const ruleset = loadRulesetForRound(round);
+    if (ruleset.turf) await TurfService.ensureRound(prisma, round.id, ruleset);
+
+    const [allTurf, recent] = await Promise.all([
+      prisma.turf.findMany({
+        where: { roundId: round.id },
+        select: {
+          city: { select: { slug: true, name: true } },
+          holder: { select: { allianceId: true, alliance: { select: { name: true, tag: true } } } },
+        },
+      }),
+      prisma.turfPush.findMany({
+        where: {
+          roundId: round.id,
+          status: 'LANDED',
+          captured: true,
+          OR: [{ attackerAllianceId: alliance.id }, { defenderAllianceId: alliance.id }],
+        },
+        include: {
+          round: true,
+          turf: { include: { city: { select: { slug: true } } } },
+          attacker: { select: { publicPimpId: true, displayName: true } },
+          defender: { select: { publicPimpId: true, displayName: true } },
+        },
+        orderBy: { settledAt: 'desc' },
+        take: 5,
+      }),
+    ]);
+
+    const byCity = new Map<string, { slug: string; name: string; rows: typeof allTurf }>();
+    for (const row of allTurf) {
+      const entry: { slug: string; name: string; rows: typeof allTurf } =
+        byCity.get(row.city.slug) ?? { slug: row.city.slug, name: row.city.name, rows: [] };
+      entry.rows.push(row);
+      byCity.set(row.city.slug, entry);
+    }
+    const cities = [...byCity.values()].map((entry) => {
+      const held = entry.rows.filter((row) => row.holder?.allianceId === alliance.id).length;
+      const control = ruleset.turf ? controlFromRows(ruleset, entry.rows) : null;
+      return {
+        slug: entry.slug,
+        name: entry.name,
+        blocksHeld: held,
+        blocksTotal: entry.rows.length,
+        controls: control?.allianceId === alliance.id,
+      };
+    }).filter((city) => city.blocksHeld > 0 || city.controls)
+      .sort((a, b) => Number(b.controls) - Number(a.controls) || b.blocksHeld - a.blocksHeld || a.name.localeCompare(b.name));
+
+    const allianceIds = [...new Set(recent.map((push) => push.attackerAllianceId).filter((id): id is string => Boolean(id)))];
+    const allianceRows = allianceIds.length
+      ? await prisma.alliance.findMany({ where: { id: { in: allianceIds } }, select: { id: true, tag: true } })
+      : [];
+    const tags = new Map(allianceRows.map((row) => [row.id, row.tag]));
+    const recentEvents: DiscordTurfEventDto[] = recent.flatMap((push) => {
+      if (!push.settledAt) return [];
+      const city = push.turf.city.slug;
+      const district = push.turf.district as DistrictKey;
+      return [{
+        id: push.id,
+        roundName: push.round.name,
+        city,
+        cityName: ruleset.cities?.[city]?.name ?? city,
+        district: push.turf.district,
+        districtName: ruleset.cities?.[city]?.districts?.[district]?.name ?? ruleset.districts[district]?.name ?? push.turf.district,
+        attackerName: push.attacker.displayName,
+        attackerProfileUrl: playerUrl(push.attacker.publicPimpId),
+        attackerAllianceTag: push.attackerAllianceId ? tags.get(push.attackerAllianceId) ?? null : null,
+        defenderName: push.defender.displayName,
+        defenderProfileUrl: playerUrl(push.defender.publicPimpId),
+        settledAt: push.settledAt.toISOString(),
+      }];
+    });
+
+    return {
+      roundName: round.name,
+      alliance: detail,
+      turf: {
+        blocksHeld: cities.reduce((sum, city) => sum + city.blocksHeld, 0),
+        citiesControlled: cities.filter((city) => city.controls).length,
+        cities,
+        recent: recentEvents,
+      },
+    };
   },
 
   async profileCard(prisma: PrismaClient, query: PlayerQuery): Promise<DiscordProfileCardDto> {

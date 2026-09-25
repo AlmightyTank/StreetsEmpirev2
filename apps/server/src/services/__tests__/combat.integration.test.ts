@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { Prisma } from '@prisma/client';
-import { classicOgV01, classicOgV02, classicOgV02C, classicOgV02D, classicOgV02E } from '@streets/rulesets';
+import { classicOgV01, classicOgV02, classicOgV02C, classicOgV02D, classicOgV02E, classicOgV07B, classicOgV07C, classicOgV07K } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
-import type { BattleReportDto } from '@streets/shared';
+import type { BattleReportDto, CombatReconResultDto, HideoutV2Dto } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
 import { RankingService } from '../ranking.service.js';
 import { RoundService } from '../round.service.js';
@@ -59,6 +59,8 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     await app.prisma.raidBattle.deleteMany({ where: { attackerId: { in: players } } });
     await app.prisma.processedAction.deleteMany({ where: { roundPlayerId: { in: players } } });
     await app.prisma.playerActivity.deleteMany({ where: { roundPlayerId: { in: players } } });
+    await app.prisma.playerArmedFavor.deleteMany({ where: { roundPlayerId: { in: players } } });
+    await app.prisma.playerProduct.deleteMany({ where: { roundPlayerId: { in: players } } });
     for (let i = 0; i < players.length; i++) {
       const data = { ...rules.round.startingPlayer, ...startingStock(rules),
         thugs: i === 1 ? 20 : 40, woundedThugs: 0, pistols: i === 1 ? 20 : 40, beer: 100,
@@ -164,6 +166,64 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     expect(repeatedReport.repeatLootMultiplierPercent).toBe(75);
     expect(repeatedReport.lootPercent).toBe(Math.floor((repeatedReport.baseLootPercent ?? 0) * 0.75));
     expect(repeatedReport.lootPercent).toBeLessThanOrEqual(30);
+  });
+
+
+
+  it('keeps 0.7-B Safe Room product out of a real raid', async () => {
+    await app.prisma.round.update({
+      where: { id: roundId },
+      data: { rulesetId: classicOgV07B.meta.id, rulesetVersion: classicOgV07B.meta.version },
+    });
+
+    const defenderBefore = await state(1);
+    const products = { COCAINE: 80, WEED: 120 };
+    await app.prisma.playerProduct.createMany({
+      data: [
+        { roundPlayerId: players[1]!, productKey: 'COCAINE', quantity: products.COCAINE },
+        { roundPlayerId: players[1]!, productKey: 'WEED', quantity: products.WEED },
+      ],
+    });
+    const protectedDefender = {
+      ...defenderBefore,
+      cashCents: 4_100_000n,
+      crack: 100,
+      hideoutSafeRoomLevel: 5,
+      products,
+    };
+    await app.prisma.roundPlayer.update({
+      where: { id: players[1]! },
+      data: {
+        cashCents: protectedDefender.cashCents,
+        crack: protectedDefender.crack,
+        hideoutSafeRoomLevel: protectedDefender.hideoutSafeRoomLevel,
+        netWorthCents: NetWorthService.calculate(protectedDefender, classicOgV07B),
+      },
+    });
+
+    const reconResponse = await recon();
+    expect(reconResponse.statusCode, reconResponse.body).toBe(200);
+    const intel = reconResponse.json<CombatReconResultDto>().intel;
+    expect(intel.assetProtection).toMatchObject({
+      protectedProductCapacity: 100,
+    });
+    expect(intel.productStash?.level).toBe('heavy');
+
+    const response = await raid();
+    expect(response.statusCode, response.body).toBe(200);
+    const report = response.json<BattleReportDto>();
+    expect(report.won).toBe(true);
+    expect(report.raidProtection).toMatchObject({
+      protectedProductCapacity: 100,
+      protectedProductUnits: 100,
+      exposedProductUnitsBefore: 200,
+    });
+
+    const cocaineAfter = await app.prisma.playerProduct.findUniqueOrThrow({
+      where: { roundPlayerId_productKey: { roundPlayerId: players[1]!, productKey: 'COCAINE' } },
+    });
+    expect(cocaineAfter.quantity).toBe(80);
+    expect(report.inventoryChanges?.find((row) => row.product === 'COCAINE')?.lost ?? 0).toBe(0);
   });
 
   it('replays duplicate concurrent raids, even after cooldown or round closure', async () => {
@@ -443,6 +503,166 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('cash raids with PostgreS
     const blocked = await recon(2, 1001);
     expect(blocked.statusCode).toBe(409);
     expect(blocked.json().error.code).toBe('STRATEGY_DISABLED');
+  });
+
+  it('keeps one-shot combat favors armed on failure and consumes them exactly once on success', async () => {
+    await app.prisma.round.update({
+      where: { id: roundId },
+      data: { rulesetId: classicOgV07K.meta.id, rulesetVersion: classicOgV07K.meta.version },
+    });
+
+    // Burner Phone survives an invalid Recon and makes the next valid Recon free.
+    await app.prisma.playerArmedFavor.create({
+      data: { roundPlayerId: players[0]!, category: 'UNDERWORLD', favorKey: 'BURNER_PHONE' },
+    });
+    await app.prisma.roundPlayer.update({ where: { id: players[0]! }, data: { turns: 0 } });
+
+    const invalidRecon = await recon(0, 1000);
+    expect(invalidRecon.statusCode).toBe(400);
+    expect(await app.prisma.playerArmedFavor.count({
+      where: { roundPlayerId: players[0]!, favorKey: 'BURNER_PHONE' },
+    })).toBe(1);
+
+    const reconId = randomUUID();
+    const freeRecon = await recon(0, 1001, reconId);
+    expect(freeRecon.statusCode, freeRecon.body).toBe(200);
+    expect(freeRecon.json<CombatReconResultDto>()).toMatchObject({
+      turnsSpent: 0,
+      turnsAfter: 0,
+      favorKey: 'BURNER_PHONE',
+    });
+    expect(await app.prisma.playerArmedFavor.count({
+      where: { roundPlayerId: players[0]!, favorKey: 'BURNER_PHONE' },
+    })).toBe(0);
+
+    const replayRecon = await recon(0, 1001, reconId);
+    expect(replayRecon.statusCode).toBe(200);
+    expect(replayRecon.json()).toEqual(freeRecon.json());
+
+    // Doctor Favor survives a failed treatment, then pays the full medicine cost.
+    await app.prisma.playerArmedFavor.create({
+      data: { roundPlayerId: players[0]!, category: 'MUSCLE', favorKey: 'DOCTOR_FAVOR' },
+    });
+    const noWounds = await app.inject({
+      method: 'POST',
+      url: '/api/game/combat/treat',
+      headers: { cookie: cookies[0]! },
+      payload: { roundId, thugs: 1, actionId: randomUUID() },
+    });
+    expect(noWounds.statusCode).toBe(409);
+    expect(await app.prisma.playerArmedFavor.count({
+      where: { roundPlayerId: players[0]!, favorKey: 'DOCTOR_FAVOR' },
+    })).toBe(1);
+
+    const recoverAt = new Date(Date.now() + 3_600_000);
+    await app.prisma.roundPlayer.update({
+      where: { id: players[0]! },
+      data: { thugs: 10, woundedThugs: 3, medicine: 0 },
+    });
+    await app.prisma.combatInjury.create({
+      data: { roundPlayerId: players[0]!, thugs: 3, recoverAt },
+    });
+
+    const page = await app.inject({
+      method: 'GET', url: '/api/game/combat', headers: { cookie: cookies[0]! },
+    });
+    expect(page.statusCode).toBe(200);
+    expect(page.json().recovery).toMatchObject({
+      maxTreatableThugs: 3,
+      freeTreatmentFavorKey: 'DOCTOR_FAVOR',
+    });
+
+    const treatmentId = randomUUID();
+    const treated = await app.inject({
+      method: 'POST',
+      url: '/api/game/combat/treat',
+      headers: { cookie: cookies[0]! },
+      payload: { roundId, thugs: 3, actionId: treatmentId },
+    });
+    expect(treated.statusCode, treated.body).toBe(200);
+    expect(treated.json()).toMatchObject({
+      treatedThugs: 3,
+      medicineUsed: 0,
+      favorKey: 'DOCTOR_FAVOR',
+    });
+    expect((await state(0)).medicine).toBe(0);
+    expect(await app.prisma.playerArmedFavor.count({
+      where: { roundPlayerId: players[0]!, favorKey: 'DOCTOR_FAVOR' },
+    })).toBe(0);
+
+    const replayTreatment = await app.inject({
+      method: 'POST',
+      url: '/api/game/combat/treat',
+      headers: { cookie: cookies[0]! },
+      payload: { roundId, thugs: 3, actionId: treatmentId },
+    });
+    expect(replayTreatment.statusCode).toBe(200);
+    expect(replayTreatment.json()).toEqual(treated.json());
+  });
+
+  it('uses Lookouts tiers to warn about recon without giving low levels the observer identity', async () => {
+    await app.prisma.round.update({
+      where: { id: roundId },
+      data: { rulesetId: classicOgV07C.meta.id, rulesetVersion: classicOgV07C.meta.version },
+    });
+    await app.prisma.roundPlayer.update({
+      where: { id: players[1]! },
+      data: { hideoutLookoutsLevel: 1 },
+    });
+
+    const attacker = await state(0);
+    const firstRecon = await recon(0, 1001);
+    expect(firstRecon.statusCode, firstRecon.body).toBe(200);
+
+    const lowResponse = await app.inject({
+      method: 'GET',
+      url: '/api/game/hideout',
+      headers: { cookie: cookies[1]! },
+    });
+    expect(lowResponse.statusCode, lowResponse.body).toBe(200);
+    const low = lowResponse.json<HideoutV2Dto>();
+    expect(low.security).toMatchObject({
+      lookoutsLevel: 1,
+      defenseBonusPercent: 2,
+      reconWarningTier: 'PRESENCE',
+      historyHours: 1,
+    });
+    const anonymous = low.security!.suspicious.find((event) => event.kind === 'RECON');
+    expect(anonymous).toMatchObject({
+      kind: 'RECON',
+      title: 'Recon spotted',
+      actor: null,
+      urgent: false,
+    });
+    expect(anonymous?.detail).toBe('Someone checked your block.');
+    expect(anonymous?.detail).not.toContain(attacker.displayName);
+
+    await app.prisma.roundPlayer.update({
+      where: { id: players[1]! },
+      data: { hideoutLookoutsLevel: 3 },
+    });
+    const secondRecon = await recon(0, 1001);
+    expect(secondRecon.statusCode, secondRecon.body).toBe(200);
+
+    const highResponse = await app.inject({
+      method: 'GET',
+      url: '/api/game/hideout',
+      headers: { cookie: cookies[1]! },
+    });
+    expect(highResponse.statusCode, highResponse.body).toBe(200);
+    const high = highResponse.json<HideoutV2Dto>();
+    expect(high.security).toMatchObject({
+      lookoutsLevel: 3,
+      defenseBonusPercent: 6,
+      reconWarningTier: 'SOURCE',
+      historyHours: 8,
+    });
+    const named = high.security!.suspicious.find((event) => event.kind === 'RECON');
+    expect(named?.actor).toMatchObject({
+      publicPimpId: attacker.publicPimpId,
+      displayName: attacker.displayName,
+    });
+    expect(named?.detail).toContain(attacker.displayName);
   });
 
   it('opens a 0.2.0-D revenge window through protection and minimum strength', async () => {

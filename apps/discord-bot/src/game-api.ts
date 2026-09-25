@@ -55,7 +55,7 @@ const badgesSchema = z.object({
       key: z.string(),
       title: z.string(),
       description: z.string(),
-      category: z.enum(['rank', 'wealth', 'combat', 'intel', 'reputation', 'hideout', 'legacy']),
+      category: z.enum(['rank', 'wealth', 'combat', 'intel', 'reputation', 'hideout', 'quest', 'legacy']),
       rarity: raritySchema,
       unlocked: z.boolean(),
       earnedAt: z.string().nullable(),
@@ -162,10 +162,10 @@ const newsClaimSchema = z.object({
 
 const newsCreatedSchema = z.object({ id: z.string(), title: z.string(), url: z.string().url(), roundName: z.string().nullable() });
 
-export const ALERT_TYPES = ['attacks', 'round', 'rank', 'turns'] as const;
+export const ALERT_TYPES = ['attacks', 'round', 'rank', 'turns', 'turf', 'alliance'] as const;
 
 const alertSettingsSchema = z.object({
-  alerts: z.object({ attacks: z.boolean(), round: z.boolean(), rank: z.boolean(), turns: z.boolean() }),
+  alerts: z.object({ attacks: z.boolean(), round: z.boolean(), rank: z.boolean(), turns: z.boolean(), turf: z.boolean(), alliance: z.boolean() }),
   roundName: z.string().nullable(),
   current: z.object({ turns: z.number(), cap: z.number(), nationalRank: z.number() }).nullable(),
 });
@@ -206,6 +206,69 @@ const territoryEventSchema = z.object({
   next: z.object({ name: z.string(), tag: z.string(), blocksHeld: z.number() }).nullable(),
   blocksTotal: z.number(),
   happenedAt: z.string(),
+});
+
+const turfCitySchema = z.object({
+  roundName: z.string(),
+  city: citySchema,
+  control: z.object({
+    alliance: z.object({ name: z.string(), tag: z.string() }),
+    blocksHeld: z.number(),
+    blocksTotal: z.number(),
+    share: z.number(),
+  }).nullable(),
+  blocks: z.array(z.object({
+    district: z.string(),
+    districtName: z.string(),
+    holder: z.object({
+      publicPimpId: z.number(),
+      displayName: z.string(),
+      alliance: z.object({ name: z.string(), tag: z.string() }).nullable(),
+    }).nullable(),
+    cornerThugs: z.number(),
+    cornerGuns: z.number(),
+    localsThugs: z.number(),
+    vacant: z.boolean(),
+    heldSince: z.string().nullable(),
+    shieldUntil: z.string().nullable(),
+  })),
+});
+
+const allianceCardSchema = z.object({
+  roundName: z.string(),
+  alliance: z.object({
+    name: z.string(),
+    tag: z.string(),
+    rank: z.number(),
+    combinedNetWorthCents: z.number(),
+    memberCount: z.number(),
+    maxMembers: z.number(),
+    leader: z.object({ publicPimpId: z.number(), displayName: z.string() }).nullable(),
+    members: z.array(z.object({
+      publicPimpId: z.number(),
+      displayName: z.string(),
+      netWorthCents: z.number(),
+      nationalRank: z.number(),
+      isLeader: z.boolean(),
+      isYou: z.boolean(),
+      joinedAt: z.string(),
+    })),
+    foundedAt: z.string(),
+    isYours: z.boolean(),
+    forumUrl: z.string().url().nullable(),
+  }),
+  turf: z.object({
+    blocksHeld: z.number(),
+    citiesControlled: z.number(),
+    cities: z.array(z.object({
+      slug: z.string(),
+      name: z.string(),
+      blocksHeld: z.number(),
+      blocksTotal: z.number(),
+      controls: z.boolean(),
+    })),
+    recent: z.array(turfEventSchema),
+  }),
 });
 
 const crackdownEventSchema = z.object({
@@ -250,6 +313,12 @@ const alertsClaimSchema = z.object({
   })),
   attacks: z.array(battleEventSchema.extend({ discordId: z.string() })),
   roundAlerts: z.array(roundEventSchema.extend({ discordId: z.string(), rank: z.number().nullable() })),
+  turfAlerts: z.array(turfEventSchema.extend({ discordId: z.string() })),
+  allianceAlerts: z.array(territoryEventSchema.extend({
+    discordId: z.string(),
+    allianceTag: z.string(),
+    change: z.enum(['gained', 'lost']),
+  })),
   battles: z.array(battleEventSchema),
   turf: z.array(turfEventSchema),
   territory: z.array(territoryEventSchema),
@@ -277,6 +346,8 @@ export type ProfileCard = z.infer<typeof profileSchema>['player'];
 export type BadgeCard = z.infer<typeof badgesSchema>['player'];
 export type City = z.infer<typeof citySchema>;
 export type Rankings = z.infer<typeof rankingsSchema>;
+export type TurfCity = z.infer<typeof turfCitySchema>;
+export type AllianceCard = z.infer<typeof allianceCardSchema>;
 export type LeaderboardStat = (typeof leaderboardStats)[number];
 export type Leaderboard = z.infer<typeof leaderboardSchema>;
 export type HallOfFame = z.infer<typeof hallOfFameSchema>;
@@ -294,6 +365,8 @@ export type BattleEvent = AlertsClaim['battles'][number];
 export type TurfEvent = AlertsClaim['turf'][number];
 export type TerritoryEvent = AlertsClaim['territory'][number];
 export type CrackdownEvent = AlertsClaim['crackdowns'][number];
+export type TurfAlert = AlertsClaim['turfAlerts'][number];
+export type AllianceAlert = AlertsClaim['allianceAlerts'][number];
 export type RoundEvent = AlertsClaim['rounds'][number];
 export type RoundStatus = z.infer<typeof statusSchema>;
 export type NewsFeed = z.infer<typeof newsSchema>;
@@ -349,6 +422,9 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
       (await call(profileSchema, `/api/internal/discord/profile?${query(player)}`)).player,
     badges: async (player: { discordId: string } | { name: string }) =>
       (await call(badgesSchema, `/api/internal/discord/badges?${query(player)}`)).player,
+    turf: (city: string) => call(turfCitySchema, `/api/internal/discord/turf?${query({ city })}`),
+    alliance: (alliance: { discordId: string } | { tag: string }) =>
+      call(allianceCardSchema, `/api/internal/discord/alliance?${query(alliance)}`),
     history: (player: { discordId: string } | { name: string }) =>
       call(historySchema, `/api/internal/discord/history?${query(player)}`),
     rankings: () => call(rankingsSchema, '/api/internal/discord/rankings'),

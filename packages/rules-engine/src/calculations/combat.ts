@@ -1,4 +1,4 @@
-import type { CombatModel, DriveByRules, WeaponKey, WeightedPercentRange } from '@streets/rulesets';
+import type { CombatModel, DriveByRules, WeaponKey, WeaponPriority, WeightedPercentRange } from '@streets/rulesets';
 import { roundStochastic, type Rng } from '../rng.js';
 
 /** Fit thugs only. An eventual service must exclude thugs still recovering. */
@@ -6,6 +6,8 @@ export interface CombatCrew {
   readonly thugs: number;
   readonly thugHappiness: number;
   readonly weapons: Readonly<Record<WeaponKey, number>>;
+  /** Strongest first by default; F can preserve premium guns by choosing CONSERVE. */
+  readonly weaponPriority?: WeaponPriority;
 }
 
 export interface CombatSquad {
@@ -159,8 +161,10 @@ function equip(crew: CombatCrew, committed: number, model: CombatModel): CombatS
   const equipment = {} as Record<WeaponKey, number>;
   let remaining = committed;
   let weaponStrength = 0;
-  // Sort on the supplied powers, not on the names of the classic guns.
-  const ordered = weaponKeys(model).sort((a, b) => model.weapons[b].power - model.weapons[a].power || a.localeCompare(b));
+  // Sort on supplied powers, not classic gun names. Older crews default to strongest first.
+  const direction = crew.weaponPriority === 'CONSERVE' ? -1 : 1;
+  const ordered = weaponKeys(model).sort((a, b) =>
+    direction * (model.weapons[b].power - model.weapons[a].power) || a.localeCompare(b));
   for (const key of ordered) {
     const assigned = Math.min(crew.weapons[key], remaining);
     equipment[key] = assigned;

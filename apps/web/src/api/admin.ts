@@ -1,4 +1,5 @@
 import type {
+  AdminAccountDeleteResultDto,
   AdminAccountDetailDto,
   AdminAccountSearchDto,
   AdminAccountStatusFilter,
@@ -16,6 +17,7 @@ import type {
   AdminPlayerBattlesDto,
   AdminPlayerDto,
   AdminPlayerSearchDto,
+  AdminQuestContentDto,
   AdminRoundHealthDto,
   AdminRoundResultDto,
   AdminRoundsDto,
@@ -54,6 +56,19 @@ export const adminApi = {
   roundHealth: (roundId: string) => api.get<AdminRoundHealthDto>(roundPath(roundId, 'health')),
   closeExpiredRounds: () => api.post<AdminCloseExpiredResultDto>('/admin/rounds/close-expired'),
 
+  questContent: (roundId: string) =>
+    api.get<AdminQuestContentDto>(`/admin/quest-content${queryString({ roundId })}`),
+  setQuestEnabled: (roundId: string, key: string, enabled: boolean, reason: string) =>
+    api.post<AdminQuestContentDto>(
+      `/admin/quest-content/quests/${enc(key)}${queryString({ roundId })}`,
+      { enabled, reason },
+    ),
+  setFavorEnabled: (roundId: string, key: string, enabled: boolean, reason: string) =>
+    api.post<AdminQuestContentDto>(
+      `/admin/quest-content/favors/${enc(key)}${queryString({ roundId })}`,
+      { enabled, reason },
+    ),
+
   news: () => api.get<AdminNewsDto>('/admin/news'),
   createNews: (input: AdminCreateNewsInput) => api.post<AdminNewsDto>('/admin/news', input),
   updateNews: (newsId: string, input: AdminUpdateNewsInput) => api.post<AdminNewsDto>(`/admin/news/${enc(newsId)}/update`, input),
@@ -87,14 +102,26 @@ export const adminApi = {
   resetProfile: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'reset-profile'), { reason }),
   setAdmin: (accountId: string, isAdmin: boolean, reason: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'admin'), { isAdmin, reason }),
+  setBetaApproved: (accountId: string, approved: boolean, reason: string) =>
+    api.post<AdminAccountDetailDto>(accountPath(accountId, 'beta-access'), { approved, reason }),
   resendVerification: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'email/resend'), { reason }),
   markEmailVerified: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'email/verify'), { reason }),
   unlinkForum: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'forum/unlink'), { reason }),
+  deleteAccount: (accountId: string, reason: string, confirmation: string) =>
+    api.post<AdminAccountDeleteResultDto>(accountPath(accountId, 'delete'), { reason, confirmation }),
 
   players: (params: { query: string; roundId?: string | undefined; limit?: number | undefined }) =>
     api.get<AdminPlayerSearchDto>(`/admin/players${queryString(params)}`),
   player: (roundPlayerId: string) => api.get<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}`),
   grantToPlayer: (roundPlayerId: string, input: AdminGrantInput) => api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/grant`, input),
+  grantQuest: (roundPlayerId: string, key: string, reason: string) =>
+    api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/quests/grant`, { key, reason }),
+  resetQuest: (roundPlayerId: string, playerQuestId: string, reason: string) =>
+    api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/quests/${enc(playerQuestId)}/reset`, { reason }),
+  completeQuest: (roundPlayerId: string, playerQuestId: string, reason: string) =>
+    api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/quests/${enc(playerQuestId)}/complete`, { reason }),
+  adjustFavor: (roundPlayerId: string, key: string, delta: number, reason: string) =>
+    api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/favors/adjust`, { key, delta, reason }),
   voidBattle: (battleId: string, reason: string) => api.post<AdminVoidBattleResultDto>(`/admin/battles/${enc(battleId)}/void`, { reason }),
   signals: () => api.get<AdminSignalsDto>('/admin/signals'),
   /** 0.5.0-E. */

@@ -99,7 +99,7 @@ describe('combat eligibility helpers', () => {
     const attacker = player({ id: 'attacker', accountId: 'attacker-account' });
     expect(combatTargetBlock(attacker, player({ id: 'defender', accountId: 'defender-account', roundId: 'other' }), model, now)).toContain('round');
     expect(combatTargetBlock(attacker, player({ id: 'defender', accountId: 'defender-account', cityId: 'other' }), model, now)).toContain('city');
-    expect(combatTargetBlock(attacker, player({ id: 'defender', accountId: 'defender-account', cashCents: 500_000n, crack: 0 }), model, now)).toContain('exposed cash or crack');
+    expect(combatTargetBlock(attacker, player({ id: 'defender', accountId: 'defender-account', cashCents: 500_000n, crack: 0 }), model, now)).toContain('exposed cash or product');
     expect(combatTargetBlock(attacker, player({
       id: 'defender',
       accountId: 'defender-account',

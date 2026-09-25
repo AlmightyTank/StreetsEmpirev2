@@ -21,6 +21,10 @@ run('Product balance gates', npm, ['run', 'qa:products', '--', '--samples', '400
 run('Travel balance gates', npm, ['run', 'qa:travel', '--', '--quiet']);
 // 0.6.0: all 40 turf blocks and player-vs-player push balance must still pass on the release ruleset.
 run('Turf balance gates', npm, ['run', 'qa:turf', '--', '--quiet']);
+// 0.7.0: Hideout headquarters, protection, logistics, ledger, armory/infirmary and specialization guardrails.
+run('Hideout balance gates', npm, ['run', 'qa:hideout']);
+// 0.8.0: Store pressure, relationship pricing, shipments, sourcing and integration guardrails.
+run('Store economy gates', npm, ['run', 'qa:store-economy']);
 
 if (withDb) {
   // One file at a time: suites share the .env database, and any real current-round lookup

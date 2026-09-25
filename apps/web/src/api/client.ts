@@ -121,5 +121,9 @@ export const api = {
       method: 'PUT',
       body: payload === undefined ? undefined : JSON.stringify(payload),
     }),
-  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  delete: <T>(path: string, payload?: unknown) =>
+    request<T>(path, {
+      method: 'DELETE',
+      body: payload === undefined ? undefined : JSON.stringify(payload),
+    }),
 };

@@ -1,6 +1,8 @@
+import { randomBytes } from 'node:crypto';
 import { Prisma, type Account, type PrismaClient } from '@prisma/client';
 import type { FastifyBaseLogger } from 'fastify';
 import type {
+  AdminAccountDeleteResultDto,
   AdminAccountDetailDto,
   AdminAccountSearchDto,
   AdminAccountStatusFilter,
@@ -9,6 +11,7 @@ import type {
 } from '@streets/shared';
 import { ADMIN_SUSPENSION_LENGTHS, type AdminSuspensionLength } from '@streets/shared';
 import { createAccountEmailToken, emailVerificationUrl } from '../auth/email-tokens.js';
+import { hashPassword } from '../auth/password.js';
 import { env } from '../config/env.js';
 import { lockAccount, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
@@ -46,9 +49,33 @@ export function accountSnapshot(account: Account) {
     emailVerifiedAt: account.emailVerifiedAt,
     isActive: account.isActive,
     isAdmin: account.isAdmin,
+    betaApproved: account.betaApproved,
     discordUsername: account.discordUsername,
     suspendedUntil: account.suspendedUntil,
     suspendedReason: account.suspendedReason,
+  };
+}
+
+/**
+ * Delete audit entries deliberately omit email, Discord identity, password data
+ * and integration identifiers. The moderation record keeps enough context to
+ * explain what happened without becoming a second store of deleted PII.
+ */
+export function deletionAuditSnapshot(account: Account, roundsPlayed: number) {
+  return {
+    id: account.id,
+    username: account.username,
+    isActive: account.isActive,
+    isAdmin: account.isAdmin,
+    betaApproved: account.betaApproved,
+    roundsPlayed,
+  };
+}
+
+export function deletedAccountIdentity(accountId: string) {
+  return {
+    username: `deleted_${accountId}`,
+    email: `deleted+${accountId}@deleted.streetsempire.invalid`,
   };
 }
 
@@ -81,6 +108,7 @@ function toSummary(account: SummaryAccount, activeSessions: number, now = new Da
     emailVerified: Boolean(account.emailVerifiedAt),
     isActive: account.isActive,
     isAdmin: account.isAdmin,
+    betaApproved: account.betaApproved,
     suspension: toSuspensionDto(account, now),
     discordUsername: account.discordUsername,
     forumUsername: account.forumLink?.forumUsername ?? null,
@@ -165,7 +193,8 @@ export const AdminAccountService = {
         : input.status === 'inactive' ? { isActive: false }
           : input.status === 'admin' ? { isAdmin: true }
             : input.status === 'suspended' ? { suspendedUntil: { gt: now } }
-              : {}),
+              : input.status === 'beta-pending' ? { isActive: true, isAdmin: false, betaApproved: false }
+                : {}),
     };
 
     const rows = await prisma.account.findMany({
@@ -206,6 +235,8 @@ export const AdminAccountService = {
       account: toSummary(account, account.sessions.length, now),
       profile: {
         activeTitleKey: account.profile?.activeTitleKey ?? null,
+        activeProfileFrameKey: account.profile?.activeProfileFrameKey ?? null,
+        activeSiteThemeKey: account.profile?.activeSiteThemeKey ?? null,
         profileAccent: account.profile?.profileAccent ?? 'default',
         featuredBadgeKeys: stringArray(account.profile?.featuredBadgeKeys),
       },
@@ -247,6 +278,143 @@ export const AdminAccountService = {
       })),
       audit: audit.map(toAuditEntryDto),
     };
+  },
+
+  /**
+   * Permanent admin removal. Accounts that never entered a round can be deleted
+   * outright. Once a player has round history, the Account row is retained as a
+   * tombstone so foreign keys, standings, battles, alliances and archived round
+   * history stay intact while personal/login data is erased.
+   */
+  async deleteAccount(
+    prisma: PrismaClient,
+    actor: AuditActor,
+    accountId: string,
+    confirmation: string,
+    reason: string,
+  ): Promise<AdminAccountDeleteResultDto> {
+    if (actor.id === accountId) {
+      throw AppError.conflict('ADMIN_SELF_ACTION', 'Admins cannot delete their own account. Ask another admin.');
+    }
+
+    // Generate the replacement credential before taking the database lock.
+    const replacementPasswordHash = await hashPassword(randomBytes(32).toString('base64url'));
+
+    return prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(3003)`;
+      const me = await tx.account.findUnique({
+        where: { id: actor.id },
+        select: { isAdmin: true, isActive: true },
+      });
+      if (!me?.isAdmin || !me.isActive) throw AppError.forbidden('Only game admins can do that.');
+
+      await lockAccount(tx, accountId);
+      const before = await tx.account.findUnique({ where: { id: accountId } });
+      if (!before) throw AppError.notFound('ACCOUNT_NOT_FOUND', 'That account does not exist.');
+      if (before.isAdmin) {
+        throw AppError.conflict(
+          'ADMIN_DELETE_ADMIN',
+          `Remove ${before.username}'s admin role before deleting the account.`,
+        );
+      }
+      if (confirmation !== before.username) {
+        throw AppError.badRequest(
+          'DELETE_CONFIRMATION_MISMATCH',
+          `Type ${before.username} exactly to confirm permanent deletion.`,
+          { confirmation: `Type ${before.username} exactly.` },
+        );
+      }
+
+      const roundsPlayed = await tx.roundPlayer.count({ where: { accountId: before.id } });
+      const sessionsRevoked = await tx.session.count({ where: { accountId: before.id } });
+      const beforeAudit = deletionAuditSnapshot(before, roundsPlayed);
+
+      if (roundsPlayed === 0) {
+        await AdminAuditService.record(tx, actor, {
+          action: 'account.delete',
+          targetType: 'account',
+          targetId: before.id,
+          reason,
+          before: beforeAudit,
+          after: {
+            id: before.id,
+            mode: 'deleted',
+            roundsPreserved: 0,
+            sessionsRevoked,
+          },
+        });
+        await tx.account.delete({ where: { id: before.id } });
+
+        return {
+          accountId: before.id,
+          formerUsername: before.username,
+          mode: 'deleted',
+          roundsPreserved: 0,
+          sessionsRevoked,
+        };
+      }
+
+      // Remove private/authentication-owned rows even though most also cascade.
+      await tx.session.deleteMany({ where: { accountId: before.id } });
+      await tx.passwordResetToken.deleteMany({ where: { accountId: before.id } });
+      await tx.accountEmailToken.deleteMany({ where: { accountId: before.id } });
+      await tx.forumLinkRequest.deleteMany({ where: { accountId: before.id } });
+      await tx.forumLink.deleteMany({ where: { accountId: before.id } });
+      await tx.notificationOutbox.deleteMany({ where: { accountId: before.id } });
+      await tx.notificationSettings.deleteMany({ where: { accountId: before.id } });
+      await tx.pushSubscription.deleteMany({ where: { accountId: before.id } });
+      await tx.accountProfile.deleteMany({ where: { accountId: before.id } });
+
+      const tombstone = deletedAccountIdentity(before.id);
+      const account = await tx.account.update({
+        where: { id: before.id },
+        data: {
+          username: tombstone.username,
+          usernameNormalized: tombstone.username.toLowerCase(),
+          email: tombstone.email,
+          emailVerifiedAt: null,
+          passwordHash: replacementPasswordHash,
+          discordId: null,
+          discordUsername: null,
+          discordAvatar: null,
+          discordLinkedAt: null,
+          lastLoginAt: null,
+          isActive: false,
+          isAdmin: false,
+          betaApproved: false,
+          suspendedUntil: null,
+          suspendedReason: null,
+          suspendedByUsername: null,
+        },
+      });
+      await tx.roundPlayer.updateMany({
+        where: { accountId: before.id },
+        data: { displayName: 'Deleted Player' },
+      });
+
+      await AdminAuditService.record(tx, actor, {
+        action: 'account.delete',
+        targetType: 'account',
+        targetId: before.id,
+        reason,
+        before: beforeAudit,
+        after: {
+          id: account.id,
+          username: account.username,
+          mode: 'anonymized',
+          roundsPreserved: roundsPlayed,
+          sessionsRevoked,
+        },
+      });
+
+      return {
+        accountId: before.id,
+        formerUsername: before.username,
+        mode: 'anonymized',
+        roundsPreserved: roundsPlayed,
+        sessionsRevoked,
+      };
+    });
   },
 
   /** Deactivating signs the account out everywhere; resolveSession already refuses inactive accounts. */
@@ -344,14 +512,14 @@ export const AdminAccountService = {
       if (profile) {
         await tx.accountProfile.update({
           where: { accountId: before.id },
-          data: { activeTitleKey: null, featuredBadgeKeys: [], profileAccent: 'default' },
+          data: { activeTitleKey: null, activeProfileFrameKey: null, activeSiteThemeKey: null, featuredBadgeKeys: [], profileAccent: 'default' },
         });
       }
       return {
         account: before,
         detail: {
           previousProfile: profile
-            ? { activeTitleKey: profile.activeTitleKey, featuredBadgeKeys: stringArray(profile.featuredBadgeKeys), profileAccent: profile.profileAccent }
+            ? { activeTitleKey: profile.activeTitleKey, activeProfileFrameKey: profile.activeProfileFrameKey, activeSiteThemeKey: profile.activeSiteThemeKey, featuredBadgeKeys: stringArray(profile.featuredBadgeKeys), profileAccent: profile.profileAccent }
             : null,
         },
       };
@@ -372,6 +540,20 @@ export const AdminAccountService = {
         if (others === 0) throw AppError.conflict('LAST_ADMIN', 'The game needs at least one active admin.');
       }
       const account = await tx.account.update({ where: { id: before.id }, data: { isAdmin } });
+      return { account };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  async setBetaApproved(prisma: PrismaClient, actor: AuditActor, accountId: string, approved: boolean, reason: string): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, approved ? 'approve-beta' : 'revoke-beta', reason, async (tx, before) => {
+      if (before.betaApproved === approved) {
+        throw AppError.conflict(
+          'BETA_ACCESS_UNCHANGED',
+          approved ? `${before.username} already has beta access.` : `${before.username} does not have beta access.`,
+        );
+      }
+      const account = await tx.account.update({ where: { id: before.id }, data: { betaApproved: approved } });
       return { account };
     });
     return AdminAccountService.detail(prisma, accountId);

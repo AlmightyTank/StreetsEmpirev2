@@ -12,6 +12,7 @@ import type { WeaponKey } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import { lockRoundPlayer } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
+import { EconomyLedgerService } from './economy-ledger.service.js';
 import { CombatRecoveryService } from './combat-recovery.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
 import {
@@ -327,6 +328,14 @@ export const TurfWarSettlementService = {
       if (capturedOutpost) {
         // The local winner keeps only the capped exposed share. The rest of an
         // unsecured remote box is lost with the outpost; it is never wired home.
+        if (capturedOutpost.cashCents > 0n) {
+          await EconomyLedgerService.record(tx, defender.id, [{
+            source: 'TURF_PUSH_DEFENSE',
+            label: 'Outpost cash lost · turf push',
+            amountCents: -capturedOutpost.cashCents,
+            metadata: { pushId: loaded.id, turfId: turf.id },
+          }], at);
+        }
         await tx.turfOutpost.delete({ where: { id: capturedOutpost.id } });
       }
       if (won) {
@@ -493,6 +502,14 @@ export const TurfWarSettlementService = {
         beer += result.outpostLoot.beer;
         for (const [key, quantity] of Object.entries(result.outpostLoot.products)) {
           productLoot[key] = (productLoot[key] ?? 0) + quantity;
+        }
+        if (result.outpostLoot.cashCents > 0) {
+          await EconomyLedgerService.record(tx, playerId, [{
+            source: 'TURF_PUSH_ATTACK',
+            label: 'Outpost cash loot · turf push',
+            amountCents: BigInt(result.outpostLoot.cashCents),
+            metadata: { pushId: push.id },
+          }], push.settledAt ?? now);
         }
       }
       await tx.turfPush.update({ where: { id: push.id }, data: { attackerCreditedAt: now } });

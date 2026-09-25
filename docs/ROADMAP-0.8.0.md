@@ -4,6 +4,20 @@
 
 *Target base: turf-0.6.0 \| Planned after Hideout Improvements (0.7.0)*
 
+# 0.8.0 Closeout
+
+**Feature status:** closed on `beta` as of September 24, 2026. The H economy
+hardening plus the final post-H UI/notification/store fixes are merged. New feature
+work now belongs in 0.9.0 or a later maintenance release.
+
+**Promotion status:** not asserted by this document. The release operator still needs
+to run `npm run qa:store-economy`, `npm run qa:release`,
+`npm run qa:release -- --with-db`, and the phone/desktop Store browser pass from
+`docs/RELEASE-0.8.0-H.md`.
+
+The full rotating Black Market and short-lived reserved-stock features remain
+deferred by design; Special Orders are the 0.8.0 alternate-sourcing path.
+
 # Release Vision
 
 **Goal:** turn Stores from static buy/sell menus into a connected city
@@ -360,6 +374,10 @@ so the economy feels like one game system.
 
 # 0.8.0-H - Balance, QA & Polish
 
+**Status:** implementation complete. The dedicated Store Economy gate, H regression coverage,
+admin economy visibility, release notes, and player help are built. Promotion still requires
+running the full QA/DB gate and the final browser pass at phone and desktop widths.
+
 **Objective:** Stabilize the economy, close exploits, and make the
 release feel finished across desktop and mobile.
 
@@ -458,16 +476,18 @@ it.
 
 ☐ Hideout/Turf/Travel/Convoy integrations explain their modifiers in UI.
 
-☐ Admin/debug views can inspect economy state.
+☑ Admin/debug views can inspect Store pressure, empty shelves, shipment rules,
+and special-order activity.
 
-☐ Automated tests cover concurrency, retries, stale carts, and
-settlement.
+☑ Automated tests cover retry-safe multi-line checkout, concurrent shelf
+purchases, existing retries, and settlement guardrails.
 
-☐ QA simulations pass agreed economy targets.
+☐ QA simulations pass agreed economy targets. Run `npm run qa:release` and
+`npm run qa:release -- --with-db` before promotion.
 
 ☐ Mobile Store workflow passes final UI review.
 
-☐ Player-facing release notes and help text are written.
+☑ Player-facing release notes and help text are written.
 
 # Suggested Branch / Build Sequence
 

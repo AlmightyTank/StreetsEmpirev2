@@ -1,0 +1,253 @@
+/* Route identities: shared components, different rooms. */
+
+.se-app[class*='se-route--'] {
+  --se-page-accent: var(--se-accent);
+  --se-page-rgb: var(--se-accent-rgb);
+}
+
+.se-route--landing { --se-page-accent: #f59e0b; --se-page-rgb: 245, 158, 11; }
+.se-route--auth-login,
+.se-route--auth-register,
+.se-route--auth-recovery { --se-page-accent: #f472b6; --se-page-rgb: 244, 114, 182; }
+.se-route--join { --se-page-accent: #4ade80; --se-page-rgb: 74, 222, 128; }
+.se-route--account { --se-page-accent: #a78bfa; --se-page-rgb: 167, 139, 250; }
+.se-route--dashboard { --se-page-accent: #b6ff3a; --se-page-rgb: 182, 255, 58; }
+.se-route--combat { --se-page-accent: #ff5468; --se-page-rgb: 255, 84, 104; }
+.se-route--scout { --se-page-accent: #60a5fa; --se-page-rgb: 96, 165, 250; }
+.se-route--quests { --se-page-accent: #c084fc; --se-page-rgb: 192, 132, 252; }
+.se-route--hideout { --se-page-accent: #8b5cf6; --se-page-rgb: 139, 92, 246; }
+.se-route--produce { --se-page-accent: #f59e0b; --se-page-rgb: 245, 158, 11; }
+.se-route--stores,
+.se-route--store-detail { --se-page-accent: #2dd4bf; --se-page-rgb: 45, 212, 191; }
+.se-route--travel { --se-page-accent: #38bdf8; --se-page-rgb: 56, 189, 248; }
+.se-route--turf { --se-page-accent: #fb7185; --se-page-rgb: 251, 113, 133; }
+.se-route--rankings { --se-page-accent: #ffb020; --se-page-rgb: 255, 176, 32; }
+.se-route--alliance,
+.se-route--alliance-detail,
+.se-route--alliances { --se-page-accent: #818cf8; --se-page-rgb: 129, 140, 248; }
+.se-route--contacts { --se-page-accent: #f472b6; --se-page-rgb: 244, 114, 182; }
+.se-route--profile { --se-page-accent: #fbbf24; --se-page-rgb: 251, 191, 36; }
+.se-route--activity { --se-page-accent: #67e8f9; --se-page-rgb: 103, 232, 249; }
+.se-route--reputation { --se-page-accent: #4ade80; --se-page-rgb: 74, 222, 128; }
+.se-route--news { --se-page-accent: #fb923c; --se-page-rgb: 251, 146, 60; }
+.se-route--rules { --se-page-accent: #60a5fa; --se-page-rgb: 96, 165, 250; }
+.se-route--hall-of-fame { --se-page-accent: #facc15; --se-page-rgb: 250, 204, 21; }
+.se-route--status { --se-page-accent: #2dd4bf; --se-page-rgb: 45, 212, 191; }
+.se-route--admin { --se-page-accent: #fb7185; --se-page-rgb: 251, 113, 133; }
+
+.se-app[class*='se-route--'] {
+  background-image:
+    linear-gradient(180deg, rgba(var(--se-page-rgb), 0.055), transparent 260px),
+    radial-gradient(900px 420px at 100% 0%, rgba(var(--se-page-rgb), 0.04), transparent 62%);
+}
+
+.se-app[class*='se-route--'] .se-panel,
+.se-app[class*='se-route--'] .se-stats,
+.se-app[class*='se-route--'] .se-tablewrap {
+  border-color: color-mix(in srgb, var(--se-page-accent) 17%, var(--se-line));
+}
+
+.se-app[class*='se-route--'] .se-panel::before {
+  background: linear-gradient(90deg, rgba(var(--se-page-rgb), 0.6), transparent 54%);
+}
+
+.se-app[class*='se-route--'] .se-panel__head {
+  background:
+    linear-gradient(90deg, rgba(var(--se-page-rgb), 0.075), transparent 70%),
+    linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
+}
+
+.se-app[class*='se-route--'] .se-pagehead,
+.se-app[class*='se-route--'] .se-info-hero,
+.se-app[class*='se-route--'] .se-authpage > .se-title,
+.se-app[class*='se-route--'] .se-authpage > .se-eyebrow {
+  border-left-color: var(--se-page-accent);
+}
+
+.se-app[class*='se-route--'] .se-pagehead {
+  border-left: 3px solid var(--se-page-accent);
+  padding-left: 13px;
+}
+
+.se-app[class*='se-route--'] .se-info-hero {
+  border-left: 3px solid var(--se-page-accent);
+  background:
+    linear-gradient(90deg, rgba(var(--se-page-rgb), 0.13), transparent 48%),
+    linear-gradient(135deg, var(--se-panel-hi), var(--se-panel));
+}
+
+.se-gamemain {
+  position: relative;
+}
+
+.se-gamemain::before {
+  display: none;
+}
+
+.se-gamemain > * {
+  position: relative;
+}
+
+/* Each operation gets a different visual shorthand: grid, warning tape, radar,
+   blueprint, road lines, or an editorial rule. */
+.se-route--dashboard .se-gamemain::before,
+.se-route--hideout .se-gamemain::before,
+.se-route--rules .se-gamemain::before {
+  background: linear-gradient(rgba(var(--se-page-rgb), 0.38) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--se-page-rgb), 0.38) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.se-route--combat .se-gamemain::before,
+.se-route--admin .se-gamemain::before {
+  background: repeating-linear-gradient(135deg, rgba(var(--se-page-rgb), 0.75) 0 3px, transparent 3px 14px);
+}
+
+.se-route--scout .se-gamemain::before,
+.se-route--travel .se-gamemain::before {
+  background: repeating-linear-gradient(90deg, rgba(var(--se-page-rgb), 0.62) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(0deg, rgba(var(--se-page-rgb), 0.3) 0 1px, transparent 1px 24px);
+}
+
+.se-route--stores .se-gamemain::before,
+.se-route--store-detail .se-gamemain::before {
+  background: repeating-linear-gradient(90deg, rgba(var(--se-page-rgb), 0.7) 0 10px, transparent 10px 24px);
+}
+
+.se-route--turf .se-gamemain::before,
+.se-route--rankings .se-gamemain::before,
+.se-route--hall-of-fame .se-gamemain::before {
+  background: repeating-linear-gradient(0deg, rgba(var(--se-page-rgb), 0.6) 0 1px, transparent 1px 12px),
+    linear-gradient(90deg, transparent 49%, rgba(var(--se-page-rgb), 0.45) 50%, transparent 51%);
+}
+
+.se-route--activity .se-gamemain::before,
+.se-route--news .se-gamemain::before,
+.se-route--status .se-gamemain::before {
+  background: repeating-linear-gradient(0deg, rgba(var(--se-page-rgb), 0.58) 0 1px, transparent 1px 7px);
+}
+
+.se-route--dashboard .se-dashboard-hero,
+.se-route--combat .se-raids-hero,
+.se-route--scout .se-scout-hero,
+.se-route--quests .se-quests-hero,
+.se-route--hideout .se-hideout-hero,
+.se-route--produce .se-produce-hero,
+.se-route--stores .se-stores-hero,
+.se-route--store-detail .se-stores-hero,
+.se-route--travel .se-travel-hero,
+.se-route--turf .se-cityblocks-hero,
+.se-route--rankings .se-rankings-hero,
+.se-route--alliance .se-alliance-hero,
+.se-route--alliance-detail .se-alliance-hero,
+.se-route--contacts .se-contacts-hero,
+.se-route--activity .se-activity-hero {
+  border-color: color-mix(in srgb, var(--se-page-accent) 48%, var(--se-line));
+  box-shadow: inset 4px 0 0 var(--se-page-accent), 0 18px 42px rgba(0, 0, 0, 0.2);
+}
+
+.se-route--dashboard .se-dashboard-hero {
+  background-image: linear-gradient(120deg, rgba(var(--se-page-rgb), 0.13), transparent 48%), linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
+}
+
+.se-route--combat .se-raids-hero {
+  background-image: repeating-linear-gradient(135deg, rgba(var(--se-page-rgb), 0.055) 0 2px, transparent 2px 18px), linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
+}
+
+.se-route--scout .se-scout-hero,
+.se-route--travel .se-travel-hero {
+  background-image: linear-gradient(90deg, rgba(var(--se-page-rgb), 0.08) 1px, transparent 1px), linear-gradient(180deg, rgba(var(--se-page-rgb), 0.08) 1px, transparent 1px), linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
+  background-size: 28px 28px, 28px 28px, auto;
+}
+
+.se-route--produce .se-produce-hero,
+.se-route--admin .se-pagehead {
+  background-image: repeating-linear-gradient(135deg, rgba(var(--se-page-rgb), 0.07) 0 3px, transparent 3px 15px), linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
+}
+
+.se-route--dashboard .se-dashboard-hero::after,
+.se-route--combat .se-raids-hero::after,
+.se-route--scout .se-scout-hero::after,
+.se-route--quests .se-quests-hero::after,
+.se-route--hideout .se-hideout-hero::after,
+.se-route--produce .se-produce-hero::after,
+.se-route--stores .se-stores-hero::after,
+.se-route--store-detail .se-stores-hero::after,
+.se-route--travel .se-travel-hero::after,
+.se-route--turf .se-cityblocks-hero::after,
+.se-route--rankings .se-rankings-hero::after,
+.se-route--alliance .se-alliance-hero::after,
+.se-route--alliance-detail .se-alliance-hero::after,
+.se-route--contacts .se-contacts-hero::after,
+.se-route--activity .se-activity-hero::after {
+  display: none;
+}
+
+.se-route--stores .se-stores-hero,
+.se-route--store-detail .se-stores-hero {
+  background-image: repeating-linear-gradient(90deg, rgba(var(--se-page-rgb), 0.08) 0 16px, transparent 16px 32px), linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
+}
+
+.se-route--news .se-info-hero,
+.se-route--rules .se-info-hero,
+.se-route--hall-of-fame .se-info-hero,
+.se-route--status .se-info-hero {
+  box-shadow: inset 0 -3px 0 var(--se-page-accent), 0 18px 40px rgba(0, 0, 0, 0.18);
+}
+
+.se-route--news .se-news-page__list .se-panel:first-child,
+.se-route--hall-of-fame .se-fame__season:first-child {
+  border-top: 3px solid var(--se-page-accent);
+}
+
+.se-route--auth-login .se-authpage,
+.se-route--auth-register .se-authpage,
+.se-route--auth-recovery .se-authpage,
+.se-route--join .se-shell > .se-grid {
+  position: relative;
+}
+
+.se-route--auth-login .se-authpage::before,
+.se-route--auth-register .se-authpage::before,
+.se-route--auth-recovery .se-authpage::before,
+.se-route--join .se-shell::before {
+  content: '';
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  right: max(16px, calc((100vw - 1120px) / 2));
+  top: 76px;
+  border: 1px solid rgba(var(--se-page-rgb), 0.28);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.se-route--join .se-shell {
+  position: relative;
+}
+
+.se-route--auth-login .se-authgrid .se-panel:first-child,
+.se-route--auth-register .se-authgrid .se-panel:first-child {
+  border-top: 3px solid var(--se-page-accent);
+}
+
+.se-route--account .se-pagehead,
+.se-route--admin .se-pagehead {
+  box-shadow: inset 0 -1px 0 rgba(var(--se-page-rgb), 0.28);
+}
+
+.se-route--admin .se-panel.se-danger-zone {
+  border-color: rgba(255, 84, 104, 0.62);
+}
+
+@media (max-width: 899px) {
+  .se-gamemain::before { width: 70%; height: 180px; opacity: 0.12; }
+  .se-route--auth-login .se-authpage::before,
+  .se-route--auth-register .se-authpage::before,
+  .se-route--auth-recovery .se-authpage::before,
+  .se-route--join .se-shell::before { right: -72px; top: 58px; opacity: 0.65; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-gamemain::before { opacity: 0.08; }
+}

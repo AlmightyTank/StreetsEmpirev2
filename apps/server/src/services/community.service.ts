@@ -6,6 +6,7 @@ import type {
   PublicAchievementRarity,
   PublicAwardDto,
   PublicCareerDto,
+  ForumGroupBadgeDto,
   HallOfFameDto,
   PublicLegacyDto,
   PublicPlayerProfileDto,
@@ -22,6 +23,7 @@ import { ForumGroupsService } from './forum-groups.service.js';
 import { forumProfileUrl } from './forum-link.service.js';
 import { selectProfileBadges } from './profile-badges.js';
 import { TurfHistoryService } from './turf-history.service.js';
+import { QuestCosmeticService } from './quest-cosmetic.service.js';
 
 interface RankingRow {
   id: string;
@@ -43,6 +45,7 @@ interface RankingRow {
   hideoutLookoutsLevel: number;
   hideoutWorkshopLevel: number;
   hideoutBackOfficeLevel: number;
+  hideoutGarageLevel?: number;
   createdAt: Date;
   /** 0.3.0-C. Loaded where the ranking or profile shows a tag. */
   alliance?: { name: string; tag: string } | null;
@@ -138,7 +141,7 @@ const emptySeasonStats = (): PublicSeasonStatsDto => ({
   driveByAttacks: 0,
   driveByWins: 0,
   reconRuns: 0,
-  traderFavors: 0,
+  jobsCompleted: 0,
 });
 
 function addBattleToSeasonStats(
@@ -187,7 +190,7 @@ export async function loadCareerForAccount(
   const statsByPlayer = new Map(ids.map((id) => [id, emptySeasonStats()]));
 
   if (ids.length) {
-    const [battles, reconActivities, reputationRows] = await Promise.all([
+    const [battles, reconActivities, completedJobs, legacyFavorRows] = await Promise.all([
       prisma.raidBattle.findMany({
         where: { OR: [{ attackerId: { in: ids } }, { defenderId: { in: ids } }], voidedAt: null },
         select: { attackerId: true, defenderId: true, attackerReport: true, defenderReport: true },
@@ -197,6 +200,14 @@ export async function loadCareerForAccount(
         where: { roundPlayerId: { in: ids }, type: 'COMBAT_RECON' },
         _count: { _all: true },
       }),
+      prisma.playerQuest.groupBy({
+        by: ['roundPlayerId'],
+        where: { roundPlayerId: { in: ids }, status: 'COMPLETED' },
+        _count: { _all: true },
+      }),
+      // Historical rounds before the unified Jobs system used one legacy
+      // trader-favor flag per reputation row. Keep it only as a fallback when
+      // that player has no PlayerQuest completions.
       prisma.playerReputation.groupBy({
         by: ['roundPlayerId'],
         where: { roundPlayerId: { in: ids }, questDoneAt: { not: null } },
@@ -218,9 +229,15 @@ export async function loadCareerForAccount(
       if (stats) stats.reconRuns = activity._count._all;
     }
 
-    for (const reputation of reputationRows) {
-      const stats = statsByPlayer.get(reputation.roundPlayerId);
-      if (stats) stats.traderFavors = reputation._count._all;
+    const newJobPlayers = new Set(completedJobs.map((row) => row.roundPlayerId));
+    for (const job of completedJobs) {
+      const stats = statsByPlayer.get(job.roundPlayerId);
+      if (stats) stats.jobsCompleted = job._count._all;
+    }
+    for (const legacy of legacyFavorRows) {
+      if (newJobPlayers.has(legacy.roundPlayerId)) continue;
+      const stats = statsByPlayer.get(legacy.roundPlayerId);
+      if (stats) stats.jobsCompleted = legacy._count._all;
     }
   }
 
@@ -337,6 +354,51 @@ function achievement(input: {
   };
 }
 
+const betaTesterAward = (): PublicAwardDto => ({
+  key: 'beta-tester',
+  title: 'Beta Tester',
+  description: 'Helped test StreetsEmpire before release.',
+  category: 'legacy',
+  rarity: 'uncommon',
+  unlocked: true,
+  earnedAt: null,
+  progress: progress(1, 1, 'beta access'),
+});
+
+function normalizedGroup(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+export function betaTesterAwardsFromForumGroups(
+  groups: ForumGroupBadgeDto[],
+  configuredGroups = env.betaTester.forumGroups,
+): PublicAwardDto[] {
+  if (!configuredGroups.length) return [];
+  const betaGroups = new Set(configuredGroups.map(normalizedGroup));
+  return groups.some((group) => betaGroups.has(normalizedGroup(group.name))) ? [betaTesterAward()] : [];
+}
+
+export async function betaTesterAwardsForAccount(
+  prisma: PrismaClient,
+  accountId: string,
+): Promise<PublicAwardDto[]> {
+  if (!env.betaTester.enabled) return [];
+  if (env.betaTester.discordLinked) {
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, isActive: true, discordId: { not: null } },
+      select: { id: true },
+    });
+    if (account) return [betaTesterAward()];
+  }
+  if (!env.forum.enabled || !env.betaTester.forumGroups.length) return [];
+  const link = await prisma.forumLink.findFirst({
+    where: { accountId, forumOrigin: env.forum.origin },
+    select: { forumUserId: true },
+  });
+  if (!link) return [];
+  return betaTesterAwardsFromForumGroups(await ForumGroupsService.groupsFor(link.forumUserId));
+}
+
 function achievementsFor(row: RankingRow, rank: { local: number; national: number }, context: PublicContext): PublicAwardDto[] {
   const netWorth = Number(row.netWorthCents);
   const localMovement = movement(row.dailyStartingLocalRank, rank.local) ?? 0;
@@ -344,17 +406,19 @@ function achievementsFor(row: RankingRow, rank: { local: number; national: numbe
   const bestMovement = Math.max(localMovement, nationalMovement, 0);
   const localHeldAt = rankHeldSince(row, rank.local, 'local', new Date());
   const nationalHeldAt = rankHeldSince(row, rank.national, 'national', new Date());
+  const garageLevel = row.hideoutGarageLevel ?? 0;
   const hideoutLevels =
     row.hideoutSafeRoomLevel +
     row.hideoutLookoutsLevel +
     row.hideoutWorkshopLevel +
-    row.hideoutBackOfficeLevel;
+    row.hideoutBackOfficeLevel +
+    garageLevel;
   const maxedHideoutRooms = [
     row.hideoutSafeRoomLevel,
     row.hideoutLookoutsLevel,
     row.hideoutWorkshopLevel,
     row.hideoutBackOfficeLevel,
-  ].filter((level) => level >= 5).length;
+  ].filter((level) => level >= 5).length + (garageLevel >= 1 ? 1 : 0);
 
   return [
     achievement({ key: 'national-number-one', title: 'National #1', description: 'Hold the top national rank.', category: 'rank', rarity: 'legendary', current: rank.national === 1 ? 1 : 0, target: 1, progressLabel: 'rank #1', earnedAt: nationalHeldAt }),
@@ -388,16 +452,16 @@ function achievementsFor(row: RankingRow, rank: { local: number; national: numbe
     achievement({ key: 'wire-tapper', title: 'Wire Tapper', description: 'Run five recon jobs in one round.', category: 'intel', rarity: 'uncommon', current: context.reconRuns, target: 5, progressLabel: 'recon runs', earnedAt: context.firstReconAt }),
     achievement({ key: 'eyes-everywhere', title: 'Eyes Everywhere', description: 'Run fifteen recon jobs in one round.', category: 'intel', rarity: 'rare', current: context.reconRuns, target: 15, progressLabel: 'recon runs', earnedAt: context.firstReconAt }),
 
-    achievement({ key: 'favor-done', title: 'Favor Done', description: 'Complete one trader favor.', category: 'reputation', rarity: 'common', current: context.questsCompleted, target: 1, progressLabel: 'trader favors', earnedAt: context.firstQuestAt }),
-    achievement({ key: 'connected', title: 'Connected', description: 'Complete all trader favors.', category: 'reputation', rarity: 'rare', current: context.questsCompleted, target: 4, progressLabel: 'trader favors', earnedAt: context.firstQuestAt }),
-    achievement({ key: 'shotgun-trust', title: 'Shotgun Trust', description: 'Unlock shotgun purchases through trader reputation.', category: 'reputation', rarity: 'uncommon', current: row.shotgunUnlocked ? 1 : 0, target: 1, progressLabel: 'unlock' }),
-    achievement({ key: 'tek-runner', title: 'Tek Runner', description: 'Unlock Tek-9 purchases through trader reputation.', category: 'reputation', rarity: 'rare', current: row.tek9Unlocked ? 1 : 0, target: 1, progressLabel: 'unlock' }),
-    achievement({ key: 'heavy-metal', title: 'Heavy Metal', description: 'Unlock AK-47 purchases through trader reputation.', category: 'reputation', rarity: 'epic', current: row.ak47Unlocked ? 1 : 0, target: 1, progressLabel: 'unlock' }),
+    achievement({ key: 'favor-done', title: 'Job Done', description: 'Complete one underworld job.', category: 'reputation', rarity: 'common', current: context.questsCompleted, target: 1, progressLabel: 'jobs completed', earnedAt: context.firstQuestAt }),
+    achievement({ key: 'connected', title: 'Connected', description: 'Complete ten underworld jobs.', category: 'reputation', rarity: 'rare', current: context.questsCompleted, target: 10, progressLabel: 'jobs completed', earnedAt: context.firstQuestAt }),
+    achievement({ key: 'shotgun-trust', title: 'Shotgun Trust', description: 'Unlock shotgun purchases through underworld jobs.', category: 'reputation', rarity: 'uncommon', current: row.shotgunUnlocked ? 1 : 0, target: 1, progressLabel: 'unlock' }),
+    achievement({ key: 'tek-runner', title: 'Tek Runner', description: 'Unlock Tek-9 purchases through underworld jobs.', category: 'reputation', rarity: 'rare', current: row.tek9Unlocked ? 1 : 0, target: 1, progressLabel: 'unlock' }),
+    achievement({ key: 'heavy-metal', title: 'Heavy Metal', description: 'Unlock AK-47 purchases through underworld jobs.', category: 'reputation', rarity: 'epic', current: row.ak47Unlocked ? 1 : 0, target: 1, progressLabel: 'unlock' }),
 
     achievement({ key: 'first-hideout-upgrade', title: 'Keys to the Place', description: 'Buy your first seasonal hideout upgrade.', category: 'hideout', rarity: 'common', current: hideoutLevels, target: 1, progressLabel: 'hideout levels' }),
     achievement({ key: 'hideout-regular', title: 'House Money', description: 'Reach ten hideout upgrades in one season.', category: 'hideout', rarity: 'uncommon', current: hideoutLevels, target: 10, progressLabel: 'hideout levels' }),
     achievement({ key: 'room-maxed', title: 'Room Maxed', description: 'Fully upgrade any hideout room in one season.', category: 'hideout', rarity: 'rare', current: maxedHideoutRooms, target: 1, progressLabel: 'maxed rooms' }),
-    achievement({ key: 'fully-built-hideout', title: 'Fully Built', description: 'Max every hideout room in one season.', category: 'hideout', rarity: 'epic', current: hideoutLevels, target: 20, progressLabel: 'hideout levels' }),
+    achievement({ key: 'fully-built-hideout', title: 'Fully Built', description: 'Max every hideout room in one season.', category: 'hideout', rarity: 'epic', current: hideoutLevels, target: 21, progressLabel: 'hideout levels' }),
 
     ...legacyAchievements(context.legacy),
   ];
@@ -408,7 +472,20 @@ function jsonStringArray(value: unknown): string[] {
 }
 
 function profileAccent(value: string | null | undefined): ProfileAccent {
-  return ['default', 'crimson', 'gold', 'green', 'blue', 'purple'].includes(value ?? '')
+  return [
+    'default',
+    'crimson',
+    'gold',
+    'green',
+    'blue',
+    'purple',
+    'ghost-violet',
+    'top-shelf-teal',
+    'enforcer-red',
+    'open-road-blue',
+    'clean-slate-ice',
+    'corner-amber',
+  ].includes(value ?? '')
     ? value as ProfileAccent
     : 'default';
 }
@@ -434,7 +511,7 @@ export async function loadPublicContexts(
   for (const id of ids) contexts.set(id, emptyContext());
   if (!ids.length) return contexts;
 
-  const [pastRows, battles, reconActivities, reputationRows] = await Promise.all([
+  const [pastRows, battles, reconActivities, completedJobs, legacyFavorRows] = await Promise.all([
     prisma.roundPlayer.findMany({
       where: { accountId: { in: accountIds }, roundId: { not: currentRoundId }, round: { status: { in: ['ENDED', 'ARCHIVED'] } } },
       select: { accountId: true, localRank: true, nationalRank: true, netWorthCents: true },
@@ -447,6 +524,11 @@ export async function loadPublicContexts(
       where: { roundPlayerId: { in: ids }, type: 'COMBAT_RECON' },
       select: { roundPlayerId: true, createdAt: true },
       orderBy: { createdAt: 'asc' },
+    }),
+    prisma.playerQuest.findMany({
+      where: { roundPlayerId: { in: ids }, status: 'COMPLETED', claimedAt: { not: null } },
+      select: { roundPlayerId: true, claimedAt: true },
+      orderBy: { claimedAt: 'asc' },
     }),
     prisma.playerReputation.findMany({
       where: { roundPlayerId: { in: ids }, questDoneAt: { not: null } },
@@ -529,11 +611,19 @@ export async function loadPublicContexts(
     context.firstReconAt = context.firstReconAt ?? activity.createdAt;
   }
 
-  for (const reputation of reputationRows) {
-    const context = contexts.get(reputation.roundPlayerId);
-    if (!context || !reputation.questDoneAt) continue;
+  const newJobPlayers = new Set(completedJobs.map((row) => row.roundPlayerId));
+  for (const job of completedJobs) {
+    const context = contexts.get(job.roundPlayerId);
+    if (!context || !job.claimedAt) continue;
     context.questsCompleted += 1;
-    context.firstQuestAt = context.firstQuestAt ?? reputation.questDoneAt;
+    context.firstQuestAt = context.firstQuestAt ?? job.claimedAt;
+  }
+  for (const legacy of legacyFavorRows) {
+    if (newJobPlayers.has(legacy.roundPlayerId)) continue;
+    const context = contexts.get(legacy.roundPlayerId);
+    if (!context || !legacy.questDoneAt) continue;
+    context.questsCompleted += 1;
+    context.firstQuestAt = context.firstQuestAt ?? legacy.questDoneAt;
   }
 
   return contexts;
@@ -636,6 +726,11 @@ export const CommunityService = {
             hideoutLookoutsLevel: true,
             hideoutWorkshopLevel: true,
             hideoutBackOfficeLevel: true,
+            hideoutGarageLevel: true,
+            hideoutSafeRoomSpecialization: true,
+            hideoutLookoutsSpecialization: true,
+            hideoutWorkshopSpecialization: true,
+            hideoutBackOfficeSpecialization: true,
             createdAt: true,
             lastActiveAt: true,
             city: { select: { name: true } },
@@ -799,26 +894,37 @@ export const CommunityService = {
     const hideCrew = Boolean(privacy?.hideOpponentCrew && !isYou);
     const hideWeapons = Boolean(privacy?.hideOpponentWeapons && !isYou);
     const weapons = player.pistols + player.shotguns + player.tek9s + player.ak47s;
-    const [contexts, forumGroups, career, profileSettings] = await Promise.all([
+    const [contexts, linkedForumGroups, career, profileSettings, betaTesterAwards, questCosmetics, frameOptions] = await Promise.all([
       loadPublicContexts(prisma, roundId, [player]),
-      forumLink && options.forumGroups !== false ? ForumGroupsService.groupsFor(forumLink.forumUserId) : [],
+      forumLink ? ForumGroupsService.groupsFor(forumLink.forumUserId) : [],
       loadCareerForAccount(prisma, player.accountId, { currentRoundId: roundId, limit: 10 }),
       prisma.accountProfile.findUnique({ where: { accountId: player.accountId } }),
+      betaTesterAwardsForAccount(prisma, player.accountId),
+      QuestCosmeticService.awardsForAccount(prisma, player.accountId),
+      QuestCosmeticService.optionsForAccount(prisma, player.accountId, 'PROFILE_FRAME'),
     ]);
     const context = contexts.get(player.id) ?? emptyContext();
-    const awards = achievementsFor(player, { local: localRank, national: nationalRank }, context);
+    const awards = [
+      ...achievementsFor(player, { local: localRank, national: nationalRank }, context),
+      ...betaTesterAwards,
+      ...questCosmetics,
+    ];
     const unlockedAwards = awards.filter((award) => award.unlocked);
     const featuredBadgeKeys = jsonStringArray(profileSettings?.featuredBadgeKeys)
       .filter((key) => unlockedAwards.some((award) => award.key === key));
     const title = unlockedAwards.find((award) => award.key === profileSettings?.activeTitleKey)?.title ?? null;
+    const frame = frameOptions.some((option) => option.key === profileSettings?.activeProfileFrameKey)
+      ? profileSettings!.activeProfileFrameKey
+      : null;
 
     return {
       forumProfileUrl: forumLink ? forumProfileUrl(forumLink) : null,
       badges: selectProfileBadges(awards, undefined, featuredBadgeKeys),
-      forumGroups,
+      forumGroups: options.forumGroups !== false ? linkedForumGroups : [],
       cosmetics: {
         title,
         accent: profileAccent(profileSettings?.profileAccent),
+        frame,
       },
       publicPimpId: player.publicPimpId,
       displayName: player.displayName,

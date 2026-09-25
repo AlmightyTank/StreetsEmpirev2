@@ -1,7 +1,7 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
 import { DEFENSE_JOB, RAID_JOB, driveByMaxShooters, equipCombatSquad, loadRulesetForRound, planWorkSupply, productStashHint, simulateDriveBy, simulateRaid, splitProductUnits, type CombatBoost, type CombatCrew, type Ruleset, type WorkSupplyPlan } from '@streets/rules-engine';
-import type { DriveByRules, DrugHoesRules, LureCrewRules, SpecialRaidKind, StealRideRules } from '@streets/rulesets';
+import { hideoutV2For, type DriveByRules, type DrugHoesRules, type LureCrewRules, type SpecialRaidKind, type StealRideRules } from '@streets/rulesets';
 import {
   combatReconSchema,
   combatTreatmentSchema,
@@ -27,6 +27,7 @@ import { lockRoundPlayer } from '../utils/db.js';
 import { RelocationService } from './relocation.service.js';
 import { fitThugs, toState } from './action.service.js';
 import { ActivityService } from './activity.service.js';
+import { EconomyLedgerService } from './economy-ledger.service.js';
 import { allianceTagDto, allianceTargetBlock, sharedRevengeScope } from './alliance.service.js';
 import { CombatRecoveryService } from './combat-recovery.service.js';
 import { HappinessService } from './happiness.service.js';
@@ -36,7 +37,9 @@ import { PlayerStateService, type SettledPlayer } from './player-state.service.j
 import { ProductInventoryService } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 import { RankingService } from './ranking.service.js';
-import { hideoutDefenseBonusPercent, hideoutProtectedCashBonusCents } from './hideout.service.js';
+import { hideoutDefenseBonusPercent, hideoutMedicineEfficiencyPercent, hideoutProductProtection, hideoutProtectedCashBonusCents, hideoutProtectedProductCapacity, hideoutWeaponPriority } from './hideout.service.js';
+import { TimedFavorService } from './timed-favor.service.js';
+import { SingleUseFavorService } from './single-use-favor.service.js';
 
 type CombatRules = NonNullable<Ruleset['combat']>;
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value, (_, v: unknown) => typeof v === 'bigint' ? v.toString() : v));
@@ -191,11 +194,12 @@ function playable(round: Round, now: Date): void {
   }
 }
 
-function crew(player: RoundPlayer): CombatCrew {
+function crew(player: RoundPlayer, ruleset?: Ruleset): CombatCrew {
   return {
     thugs: fitThugs(player),
     thugHappiness: player.thugHappiness,
     weapons: { PISTOL: player.pistols, SHOTGUN: player.shotguns, TEK9: player.tek9s, AK47: player.ak47s },
+    ...(ruleset ? { weaponPriority: hideoutWeaponPriority(ruleset, player) } : {}),
   };
 }
 
@@ -230,8 +234,10 @@ export function combatAttackerBlock(player: RoundPlayer, model: CombatRules, now
 }
 
 export function combatTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, model: CombatRules, now: Date, retaliation = false,
-  /** 0.4.0-D. Non-crack product units the defender holds, which a product round's raid can take. */
-  otherProductUnits = 0): string | null {
+  /** 0.4.0-D. Non-crack product units the defender holds. */
+  otherProductUnits = 0,
+  /** 0.7.0-B. Exact units left exposed after Safe Room protection, when known. */
+  exposedProductUnits?: number): string | null {
   if (attacker.id === defender.id || attacker.accountId === defender.accountId) return 'You cannot raid yourself.';
   if (attacker.roundId !== defender.roundId) return 'Pick a player in your round.';
   const allied = allianceTargetBlock(attacker, defender, now);
@@ -242,8 +248,9 @@ export function combatTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, 
   if (defender.lastRaidedAt && defender.lastActiveAt <= defender.lastRaidedAt) return 'This player has not returned since the last raid.';
   if (strength(defender, model) < strength(attacker, model) * model.minimumTargetStrengthRatio && !(retaliation && retaliationRules?.bypassMinimumStrength)) return 'This crew is too weak for you to raid.';
   const hasExposedCash = defender.cashCents > BigInt(model.loot.protectedCashCents);
-  const hasExposedCrack = (model.loot.exposedDrugPercent ?? 0) > 0 && (model.loot.perFitAttackerCrack ?? 0) > 0 && defender.crack + otherProductUnits > 0;
-  if (!hasExposedCash && !hasExposedCrack) return 'This player has no exposed cash or crack to raid.';
+  const lootableProductUnits = exposedProductUnits ?? defender.crack + otherProductUnits;
+  const hasExposedProduct = (model.loot.exposedDrugPercent ?? 0) > 0 && (model.loot.perFitAttackerCrack ?? 0) > 0 && lootableProductUnits > 0;
+  if (!hasExposedCash && !hasExposedProduct) return 'This player has no exposed cash or product to raid.';
   return null;
 }
 
@@ -515,8 +522,11 @@ async function consecutiveRepeatTargetHits(prisma: PrismaClient | Prisma.Transac
 }
 
 function intelReport(target: RoundPlayer, model: CombatRules, createdAt: Date, expiresAt: Date, ruleset?: Ruleset, products?: ProductStock): CombatIntelReportDto {
-  // 0.4.0-D: a product round shows how deep the stash runs, never the count.
+  // 0.7.0-B: recon describes only what a cash raid can actually reach.
   const productRound = Boolean(ruleset?.productEconomy);
+  const protection = ruleset ? hideoutProductProtection(ruleset, target, products ?? {}) : null;
+  const exposedStash = protection?.exposed ?? stashOf(target.crack, products);
+  const exposedCrack = exposedStash.CRACK ?? 0;
   return {
     targetPublicPimpId: target.publicPimpId,
     displayName: target.displayName,
@@ -528,9 +538,15 @@ function intelReport(target: RoundPlayer, model: CombatRules, createdAt: Date, e
     weapons: { PISTOL: target.pistols, SHOTGUN: target.shotguns, TEK9: target.tek9s, AK47: target.ak47s },
     cashBand: cashBand(target.cashCents, model),
     estimatedMaxLootCents: estimatedMaxLoot(target.cashCents, model),
-    crack: model.loot.exposedDrugPercent && !productRound ? target.crack : null,
-    estimatedMaxCrackLoot: productRound ? null : estimatedMaxCrackLoot(target.crack, model),
-    ...(productRound && ruleset ? { productStash: productStashHint(stashOf(target.crack, products), target.whores, ruleset) } : {}),
+    crack: model.loot.exposedDrugPercent && !productRound ? exposedCrack : null,
+    estimatedMaxCrackLoot: productRound ? null : estimatedMaxCrackLoot(exposedCrack, model),
+    ...(productRound && ruleset ? { productStash: productStashHint(exposedStash, target.whores, ruleset) } : {}),
+    ...(ruleset && hideoutV2For(ruleset)?.assetProtection ? {
+      assetProtection: {
+        protectedCashFloorCents: model.loot.protectedCashCents,
+        protectedProductCapacity: protection?.capacity ?? 0,
+      },
+    } : {}),
   };
 }
 
@@ -590,19 +606,41 @@ export function sharedIntelByTarget(
   }]));
 }
 
-async function recoveryDto(prisma: PrismaClient, playerId: string, player: RoundPlayer, model: CombatRules): Promise<CombatRecoveryDto> {
+async function recoveryDto(
+  prisma: PrismaClient,
+  playerId: string,
+  player: RoundPlayer,
+  ruleset: Ruleset,
+  model: CombatRules,
+  now: Date,
+): Promise<CombatRecoveryDto> {
   const next = await prisma.combatInjury.findFirst({
     where: { roundPlayerId: playerId },
     orderBy: [{ recoverAt: 'asc' }, { id: 'asc' }],
     select: { recoverAt: true },
   });
   const medicinePerThug = model.wounds.winnerFraction === 0 && model.wounds.loserFraction === 0 ? 0 : 1;
+  const favorBonuses = await TimedFavorService.bonuses(prisma, playerId, ruleset, now);
+  const doctorFavor = await SingleUseFavorService.matching(prisma, playerId, ruleset, 'FREE_TREATMENT');
+  const medicineEfficiencyPercent = Math.min(
+    50,
+    hideoutMedicineEfficiencyPercent(ruleset, player) + favorBonuses.treatmentMedicineEfficiencyPercent,
+  );
+  const effectivePercent = Math.max(1, 100 - medicineEfficiencyPercent);
+  const maxByMedicine = medicinePerThug > 0
+    ? Math.floor(player.medicine * 100 / (medicinePerThug * effectivePercent))
+    : 0;
   return {
     fitThugs: fitThugs(player),
     woundedThugs: player.woundedThugs,
     nextRecoveryAt: iso(next?.recoverAt ?? null),
     medicinePerThug,
-    maxTreatableThugs: medicinePerThug > 0 ? Math.min(player.woundedThugs, Math.floor(player.medicine / medicinePerThug)) : 0,
+    maxTreatableThugs: doctorFavor ? player.woundedThugs : Math.min(player.woundedThugs, maxByMedicine),
+    ...(medicineEfficiencyPercent > 0 ? { medicineEfficiencyPercent } : {}),
+    ...(favorBonuses.treatmentMedicineEfficiencyPercent > 0
+      ? { favorMedicineEfficiencyPercent: favorBonuses.treatmentMedicineEfficiencyPercent }
+      : {}),
+    ...(doctorFavor ? { freeTreatmentFavorKey: doctorFavor.key } : {}),
   };
 }
 
@@ -643,11 +681,14 @@ export const CombatService = {
       const sums = await prisma.playerProduct.groupBy({ by: ['roundPlayerId'], where: { roundPlayerId: { in: targets.slice(0, 25).map((target) => target.id) } }, _sum: { quantity: true } });
       for (const row of sums) otherProducts.set(row.roundPlayerId, row._sum.quantity ?? 0);
     }
+    const burnerFavor = model.strategy
+      ? await SingleUseFavorService.matching(prisma, playerId, ruleset, 'FREE_RECON')
+      : null;
     return {
       ...base, enabled: true, blockedReason,
       protectedUntil: combatProtectionUntil(player, model) > now ? iso(combatProtectionUntil(player, model)) : null,
       cooldownUntil: player.raidCooldownUntil && player.raidCooldownUntil > now ? iso(player.raidCooldownUntil) : null,
-      recovery: await recoveryDto(prisma, playerId, player, model),
+      recovery: await recoveryDto(prisma, playerId, player, ruleset, model, now),
       rules: { squadCap: model.squadCap, turnCost: model.turnCost, newcomerHours: model.newcomerHours,
         protectionHours: model.protectionHours, cooldownMinutes: model.cooldownMinutes,
         protectedCashCents: model.loot.protectedCashCents, lootPercent: model.loot.exposedCashPercent, perThugLootCents: model.loot.perFitAttackerCents,
@@ -659,7 +700,12 @@ export const CombatService = {
           repeatLootPenaltyPercent: model.loot.weightedPercent.repeatPenaltyPercent,
           repeatLootFloorPercent: model.loot.weightedPercent.repeatFloorPercent,
         } : {}),
-        ...(model.strategy ? { reconTurnCost: model.strategy.intel.turnCost, intelExpiresMinutes: model.strategy.intel.expiresMinutes, retaliationHours: model.strategy.retaliation.revengeHours } : {}),
+        ...(model.strategy ? {
+          reconTurnCost: burnerFavor ? 0 : model.strategy.intel.turnCost,
+          ...(burnerFavor ? { reconFavorKey: burnerFavor.key } : {}),
+          intelExpiresMinutes: model.strategy.intel.expiresMinutes,
+          retaliationHours: model.strategy.retaliation.revengeHours,
+        } : {}),
       },
       targets: targets.slice(0, 25).map((target) => ({
         publicPimpId: target.publicPimpId, displayName: target.displayName,
@@ -667,7 +713,15 @@ export const CombatService = {
         // Stored, because 0.4.0-D worth includes product rows this list does not load.
         netWorthCents: Number(target.netWorthCents),
         strength: strength(target, model) < ownStrength * (1 - model.strength.variance) ? 'Weaker' : strength(target, model) > ownStrength * (1 + model.strength.variance) ? 'Stronger' : 'Comparable',
-        blockedReason: combatTargetBlock(player, target, modelWithDefenderHideout(model, ruleset, target), now, revengeIds.has(target.id), otherProducts.get(target.id) ?? 0),
+        blockedReason: combatTargetBlock(
+          player,
+          target,
+          modelWithDefenderHideout(model, ruleset, target),
+          now,
+          revengeIds.has(target.id),
+          otherProducts.get(target.id) ?? 0,
+          Math.max(0, target.crack + (otherProducts.get(target.id) ?? 0) - hideoutProtectedProductCapacity(ruleset, target)),
+        ),
         protectedUntil: combatProtectionUntil(target, model) > now ? iso(combatProtectionUntil(target, model)) : null,
         ...(model.strategy ? { revengeAvailable: revengeIds.has(target.id), intel: intelByTarget.get(target.id) ?? null } : {}),
         ...(model.driveBy ? { driveByBlockedReason: driveByTargetBlock(player, target, model, now, revengeIds.has(target.id)) } : {}),
@@ -712,21 +766,31 @@ export const CombatService = {
       const protectedCashBonus = hideoutProtectedCashBonusCents(ruleset, defender);
       const defenseBonusPercent = hideoutDefenseBonusPercent(ruleset, defender);
       const defenderModel = modelWithDefenderHideout(model, ruleset, defender);
+      const defenderProductProtection = hideoutProductProtection(ruleset, defender, d.products ?? {});
       const retaliation = (await retaliationTargets(tx, attacker, [target.id], model, now)).has(target.id);
       const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
-      const blocked = combatAttackerBlock(attacker, model, now) ?? combatTargetBlock(attacker, defender, defenderModel, now, retaliation,
-        ruleset.productEconomy ? Object.values(d.products ?? {}).reduce((sum, units) => sum + Math.max(0, units), 0) : 0);
+      const blocked = combatAttackerBlock(attacker, model, now) ?? combatTargetBlock(
+        attacker,
+        defender,
+        defenderModel,
+        now,
+        retaliation,
+        ruleset.productEconomy ? Object.values(d.products ?? {}).reduce((sum, units) => sum + Math.max(0, units), 0) : 0,
+        defenderProductProtection.exposedUnits,
+      );
       if (blocked) throw AppError.conflict('RAID_BLOCKED', blocked);
       if (input.attackingThugs > Math.min(fitThugs(attacker), model.squadCap)) throw AppError.badRequest('INVALID_SQUAD', 'Your squad exceeds your fit crew or the raid limit.');
       const beforeA = await RankingService.ranksFor(tx, attacker);
       const beforeD = await RankingService.ranksFor(tx, defender);
       const repeatTargetHits = await consecutiveRepeatTargetHits(tx, attackerId, target.id);
-      // 0.4.0-D: on a product round the haul is drawn from the whole stash, then split across what they hold.
-      const stashD = stashOf(defender.crack, d.products);
-      const lootable = ruleset.productEconomy ? Object.values(stashD).reduce((sum, count) => sum + count, 0) : defender.crack;
-      const result = simulateRaid({ attacker: crew(attacker), defender: crew(defender), attackerBoost: boostOf(a), defenderBoost: boostOf(d), attackingThugs: input.attackingThugs,
+      // 0.7.0-B: only the exposed slice can be rolled or split into loot.
+      const exposedStashD = defenderProductProtection.exposed;
+      const lootable = ruleset.productEconomy
+        ? Object.values(exposedStashD).reduce((sum, count) => sum + Math.max(0, count), 0)
+        : exposedStashD.CRACK ?? 0;
+      const result = simulateRaid({ attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), attackerBoost: boostOf(a), defenderBoost: boostOf(d), attackingThugs: input.attackingThugs,
         attackerTurns: attacker.turns, defenderCashCents: defender.cashCents, defenderCrack: lootable, repeatTargetHits }, defenderModel, () => randomInt(0, 2 ** 32) / 2 ** 32);
-      const productLoot = ruleset.productEconomy ? splitProductUnits(stashD, result.lootCrack, ruleset) : { CRACK: result.lootCrack };
+      const productLoot = ruleset.productEconomy ? splitProductUnits(exposedStashD, result.lootCrack, ruleset) : { CRACK: result.lootCrack };
       const crackLoot = productLoot.CRACK ?? 0;
       const moved = await moveProducts(tx, ruleset, productLoot, { id: defender.id, products: d.products }, { id: attacker.id, products: a.products });
       const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker,
@@ -783,6 +847,18 @@ export const CombatService = {
           crackAfter: isAttacker ? nextA.crack : nextD.crack,
           ...(ruleset.productEconomy ? { productChanges: productChanges(ruleset, productLoot, isAttacker ? 1 : -1) } : {}),
           ...(inventory.length ? { inventoryChanges: inventory } : {}),
+          ...(hideoutV2For(ruleset)?.assetProtection ? {
+            raidProtection: {
+              protectedCashCents: Number(
+                defender.cashCents < BigInt(defenderModel.loot.protectedCashCents)
+                  ? defender.cashCents
+                  : BigInt(defenderModel.loot.protectedCashCents),
+              ),
+              protectedProductUnits: defenderProductProtection.protectedUnits,
+              protectedProductCapacity: defenderProductProtection.capacity,
+              exposedProductUnitsBefore: defenderProductProtection.exposedUnits,
+            },
+          } : {}),
           lootPercent: result.lootPercent,
           baseLootPercent: result.baseLootPercent,
           repeatTargetHits: result.repeatTargetHits,
@@ -799,10 +875,22 @@ export const CombatService = {
       const defenderReport = makeReport(false);
       await tx.raidBattle.create({ data: { id, attackerId, defenderId: target.id, defenderAllianceId: defender.allianceId, attackerAllianceId: attacker.allianceId, attackerIntel, actionId: input.actionId,
         attackingThugs: input.attackingThugs, modelVersion: model.version,
-        calculation: json({ result, input: { attacker: crew(attacker), defender: crew(defender), defenderCashCents: defender.cashCents, defenderCrack: defender.crack }, defenderHideout: { protectedCashBonus, defenseBonusPercent }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
+        calculation: json({ result, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), defenderCashCents: defender.cashCents, defenderCrack: defender.crack }, defenderHideout: { protectedCashBonus, defenseBonusPercent }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
+      if (result.lootCents > 0n) {
+        await EconomyLedgerService.record(tx, attackerId, [{
+          source: 'RAID',
+          label: `Raid loot · ${defender.displayName}`,
+          amountCents: result.lootCents,
+        }], now);
+        await EconomyLedgerService.record(tx, target.id, [{
+          source: 'RAID',
+          label: `Raid loss · ${attacker.displayName}`,
+          amountCents: -result.lootCents,
+        }], now);
+      }
       for (const [playerId, type, report] of [[attackerId, 'RAID_ATTACK', attackerReport], [target.id, 'RAID_DEFENSE', defenderReport]] as const) {
         await ActivityService.log(tx, playerId, type, json({
           battleId: id,
@@ -866,7 +954,7 @@ export const CombatService = {
 
       const beforeA = await RankingService.ranksFor(tx, attacker);
       const beforeD = await RankingService.ranksFor(tx, defender);
-      const result = simulateDriveBy({ attacker: crew(attacker), defender: crew(defender), attackerBoost: boostOf(a), defenderBoost: boostOf(d), shooters: input.attackingThugs,
+      const result = simulateDriveBy({ attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), attackerBoost: boostOf(a), defenderBoost: boostOf(d), shooters: input.attackingThugs,
         lowRiders: attacker.lowRiders, attackerTurns: attacker.turns, defenderWhores: defender.whores }, model, rules, () => randomInt(0, 2 ** 32) / 2 ** 32);
       const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker, turns: result.attackerTurnsAfter,
         lowRiders: result.lowRidersAfter, driveBysDone: attacker.driveBysDone + 1 };
@@ -934,7 +1022,7 @@ export const CombatService = {
       const defenderReport = makeReport(false);
       await tx.raidBattle.create({ data: { id, kind: 'DRIVE_BY', attackerId, defenderId: target.id, defenderAllianceId: defender.allianceId, attackerAllianceId: attacker.allianceId, attackerIntel, actionId: input.actionId,
         attackingThugs: input.attackingThugs, modelVersion: model.version,
-        calculation: json({ result, input: { attacker: crew(attacker), defender: crew(defender), lowRiders: attacker.lowRiders, defenderWhores: defender.whores }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
+        calculation: json({ result, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), lowRiders: attacker.lowRiders, defenderWhores: defender.whores }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
@@ -979,6 +1067,7 @@ export const CombatService = {
       const attacker = a.player;
       const defender = d.player;
       const defenderModel = modelWithDefenderHideout(model, ruleset, defender);
+      const defenderProductProtection = hideoutProductProtection(ruleset, defender, d.products ?? {});
       const retaliation = (await retaliationTargets(tx, attacker, [target.id], model, now)).has(target.id);
       const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
       const blocked = specialRaidAttackerBlock(attacker, model, input.kind, now) ?? specialRaidTargetBlock(attacker, defender, model, input.kind, now, retaliation);
@@ -987,7 +1076,7 @@ export const CombatService = {
 
       const beforeA = await RankingService.ranksFor(tx, attacker);
       const beforeD = await RankingService.ranksFor(tx, defender);
-      const result = simulateRaid({ attacker: crew(attacker), defender: crew(defender), attackerBoost: boostOf(a), defenderBoost: boostOf(d), attackingThugs: input.attackingThugs,
+      const result = simulateRaid({ attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), attackerBoost: boostOf(a), defenderBoost: boostOf(d), attackingThugs: input.attackingThugs,
         attackerTurns: attacker.turns, defenderCashCents: defender.cashCents, defenderCrack: defender.crack, repeatTargetHits: 0 }, defenderModel, () => randomInt(0, 2 ** 32) / 2 ** 32);
       const won = result.winner === 'ATTACKER';
       const survivors = Math.max(0, input.attackingThugs - result.wounds.attacker);
@@ -1009,8 +1098,8 @@ export const CombatService = {
         crackSpent = whoresDrugged * drugRule.crackPerWhore;
         // 0.4.0-D: on a product round the burn comes out of the whole stash, in proportion.
         productsBurned = ruleset.productEconomy
-          ? splitProductUnits(stashOf(defender.crack, d.products), whoresDrugged * drugRule.defenderCrackBurnPerWhore, ruleset)
-          : { CRACK: Math.min(defender.crack, whoresDrugged * drugRule.defenderCrackBurnPerWhore) };
+          ? splitProductUnits(defenderProductProtection.exposed, whoresDrugged * drugRule.defenderCrackBurnPerWhore, ruleset)
+          : { CRACK: Math.min(defenderProductProtection.exposed.CRACK ?? 0, whoresDrugged * drugRule.defenderCrackBurnPerWhore) };
         defenderCrackBurned = productsBurned.CRACK ?? 0;
         defenderCondomsBurned = Math.min(defender.condoms, whoresDrugged * drugRule.defenderCondomBurnPerWhore);
       }
@@ -1100,6 +1189,18 @@ export const CombatService = {
           crackAfter: isAttacker ? nextA.crack : nextD.crack,
           ...(ruleset.productEconomy && !isAttacker && input.kind === 'DRUG_HOES' ? { productChanges: productChanges(ruleset, productsBurned, -1) } : {}),
           ...(inventory.length ? { inventoryChanges: inventory } : {}),
+          ...(input.kind === 'DRUG_HOES' && hideoutV2For(ruleset)?.assetProtection ? {
+            raidProtection: {
+              protectedCashCents: Number(
+                defender.cashCents < BigInt(defenderModel.loot.protectedCashCents)
+                  ? defender.cashCents
+                  : BigInt(defenderModel.loot.protectedCashCents),
+              ),
+              protectedProductUnits: defenderProductProtection.protectedUnits,
+              protectedProductCapacity: defenderProductProtection.capacity,
+              exposedProductUnitsBefore: defenderProductProtection.exposedUnits,
+            },
+          } : {}),
           turnsSpent: isAttacker ? turnCost : 0, turnsAfter: isAttacker ? nextA.turns : nextD.turns,
           nationalRankBefore: (isAttacker ? beforeA : beforeD).nationalRank,
           nationalRankAfter: (isAttacker ? afterA : afterD).nationalRank,
@@ -1118,7 +1219,7 @@ export const CombatService = {
       const defenderReport = makeReport(false);
       await tx.raidBattle.create({ data: { id, attackerId, defenderId: target.id, defenderAllianceId: defender.allianceId, attackerAllianceId: attacker.allianceId, attackerIntel, actionId: input.actionId,
         attackingThugs: input.attackingThugs, modelVersion: model.version,
-        calculation: json({ kind: input.kind, result, effects: { crackSpent, beerSpent, whoresDrugged, defenderCrackBurned, defenderCondomsBurned, lowRidersStolen, whoresLured, thugsLured }, input: { attacker: crew(attacker), defender: crew(defender) }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
+        calculation: json({ kind: input.kind, result, effects: { crackSpent, beerSpent, whoresDrugged, defenderCrackBurned, defenderCondomsBurned, lowRidersStolen, whoresLured, thugsLured }, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset) }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
@@ -1176,13 +1277,19 @@ export const CombatService = {
       if (observer.cityId !== defender.cityId) throw AppError.conflict('RECON_BLOCKED', 'You can only recon players in your city.');
       const allied = allianceTargetBlock(observer, defender, now);
       if (allied) throw AppError.conflict('RECON_BLOCKED', allied);
-      const turnCost = model.strategy.intel.turnCost;
+      const burnerFavor = await SingleUseFavorService.matching(tx, playerId, settled.ruleset, 'FREE_RECON');
+      const turnCost = burnerFavor ? 0 : model.strategy.intel.turnCost;
       if (observer.turns < turnCost) throw AppError.conflict('NOT_ENOUGH_TURNS', `You need ${turnCost} turns to recon.`);
 
       const turnsAfter = observer.turns - turnCost;
       const expiresAt = new Date(now.getTime() + model.strategy.intel.expiresMinutes * 60_000);
       const report = intelReport(defender, modelWithDefenderHideout(model, settled.ruleset, defender), now, expiresAt, settled.ruleset, targetSettled.products);
-      const result: CombatReconResultDto = { intel: report, turnsSpent: turnCost, turnsAfter };
+      const result: CombatReconResultDto = {
+        intel: report,
+        turnsSpent: turnCost,
+        turnsAfter,
+        ...(burnerFavor ? { favorKey: burnerFavor.key } : {}),
+      };
 
       await tx.roundPlayer.update({ where: { id: playerId }, data: { turns: turnsAfter, lastActiveAt: now } });
       await tx.combatIntel.upsert({
@@ -1190,7 +1297,14 @@ export const CombatService = {
         create: { observerId: playerId, targetId: target.id, report: json(report), expiresAt },
         update: { report: json(report), expiresAt },
       });
-      await ActivityService.log(tx, playerId, 'COMBAT_RECON', json({ target: defender.displayName, targetPublicPimpId: defender.publicPimpId, turns: turnCost, expiresAt: expiresAt.toISOString() }));
+      if (burnerFavor) await SingleUseFavorService.consume(tx, burnerFavor.id);
+      await ActivityService.log(tx, playerId, 'COMBAT_RECON', json({
+        target: defender.displayName,
+        targetPublicPimpId: defender.publicPimpId,
+        turns: turnCost,
+        expiresAt: expiresAt.toISOString(),
+        ...(burnerFavor ? { favorKey: burnerFavor.key } : {}),
+      }));
       await tx.processedAction.create({ data: { roundPlayerId: playerId, actionId: input.actionId, action: 'COMBAT_RECON', result: json(result), expiresAt: new Date('9999-12-31T00:00:00Z') } });
       return result;
     }, { timeout: 15_000, maxWait: 10_000 });
@@ -1214,7 +1328,23 @@ export const CombatService = {
       const away = awayBlock(settled.player, now);
       if (away) throw AppError.conflict('AWAY', away);
       const medicinePerThug = 1;
-      const treatment = await CombatRecoveryService.treat(tx, playerId, input.thugs, settled.player.medicine, medicinePerThug);
+      const hideoutEfficiencyPercent = hideoutMedicineEfficiencyPercent(settled.ruleset, settled.player);
+      const favorBonuses = await TimedFavorService.bonuses(tx, playerId, settled.ruleset, now);
+      const medicineEfficiencyPercent = Math.min(
+        50,
+        hideoutEfficiencyPercent + favorBonuses.treatmentMedicineEfficiencyPercent,
+      );
+      const doctorFavor = await SingleUseFavorService.matching(tx, playerId, settled.ruleset, 'FREE_TREATMENT');
+      const treatment = await CombatRecoveryService.treat(
+        tx,
+        playerId,
+        input.thugs,
+        settled.player.medicine,
+        medicinePerThug,
+        medicineEfficiencyPercent,
+        Boolean(doctorFavor),
+      );
+      if (doctorFavor) await SingleUseFavorService.consume(tx, doctorFavor.id);
       const next = { ...toState(settled.player), woundedThugs: treatment.woundedThugs, medicine: settled.player.medicine - treatment.medicineUsed };
       assertPlayerState(next, settled.ruleset);
       const happiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next), products: settled.products }, settled.ruleset);
@@ -1231,8 +1361,13 @@ export const CombatService = {
       const result: CombatTreatmentDto = {
         treatedThugs: treatment.treatedThugs,
         medicineUsed: treatment.medicineUsed,
+        ...(medicineEfficiencyPercent > 0 ? { medicineEfficiencyPercent } : {}),
+        ...(favorBonuses.treatmentMedicineEfficiencyPercent > 0
+          ? { favorMedicineEfficiencyPercent: favorBonuses.treatmentMedicineEfficiencyPercent }
+          : {}),
         woundedThugs: treatment.woundedThugs,
         nextRecoveryAt: iso(treatment.nextRecoveryAt),
+        ...(doctorFavor ? { favorKey: doctorFavor.key } : {}),
       };
       await ActivityService.log(tx, playerId, 'COMBAT_TREATMENT', json(result));
       await tx.processedAction.create({ data: { roundPlayerId: playerId, actionId: input.actionId, action: 'COMBAT_TREATMENT', result: json(result), expiresAt: new Date('9999-12-31T00:00:00Z') } });

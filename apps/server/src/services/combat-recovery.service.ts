@@ -16,6 +16,16 @@ export interface RecoveryTreatment {
 
 type InjuryRow = { id: string; thugs: number; recoverAt: Date };
 
+export function medicineNeededForTreatment(
+  thugs: number,
+  medicinePerThug: number,
+  efficiencyPercent = 0,
+): number {
+  if (thugs <= 0) return 0;
+  const efficiency = Math.max(0, Math.min(50, Math.trunc(efficiencyPercent)));
+  return Math.max(1, Math.ceil(thugs * medicinePerThug * (100 - efficiency) / 100));
+}
+
 function summarize(rows: readonly InjuryRow[]): Pick<RecoverySettlement, 'woundedThugs' | 'nextRecoveryAt'> {
   return {
     woundedThugs: rows.reduce((sum, row) => sum + row.thugs, 0),
@@ -47,12 +57,20 @@ export const CombatRecoveryService = {
     await tx.combatInjury.create({ data: { roundPlayerId, battleId, thugs, recoverAt } });
   },
 
-  async treat(tx: Db, roundPlayerId: string, thugs: number, medicineAvailable: number, medicinePerThug: number): Promise<RecoveryTreatment> {
+  async treat(
+    tx: Db,
+    roundPlayerId: string,
+    thugs: number,
+    medicineAvailable: number,
+    medicinePerThug: number,
+    efficiencyPercent = 0,
+    waiveMedicine = false,
+  ): Promise<RecoveryTreatment> {
     if (!Number.isSafeInteger(thugs) || thugs <= 0) {
       throw AppError.badRequest('INVALID_TREATMENT', 'Choose how many wounded thugs to treat.');
     }
     if (medicinePerThug <= 0) throw AppError.conflict('RECOVERY_DISABLED', 'Treatment is not available in this round.');
-    const medicineNeeded = thugs * medicinePerThug;
+    const medicineNeeded = waiveMedicine ? 0 : medicineNeededForTreatment(thugs, medicinePerThug, efficiencyPercent);
     if (medicineAvailable < medicineNeeded) {
       throw AppError.badRequest('NOT_ENOUGH_MEDICINE', `You need ${medicineNeeded} medicine to treat that many thugs.`);
     }

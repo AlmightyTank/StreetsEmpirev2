@@ -21,7 +21,7 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 | Back Office | Income / management | Bookkeeping | Connections |
 
 ## 0.7.0-A — Hideout Foundation 2.0
-**Status:** **in progress.** The first foundation pass is on the `hideout-0.7.0` branch: the 0.7 ruleset/DTO contract, level-3 progress gates, specialization metadata, HQ summary, product-aware Workshop naming, compatibility tests, and `qa:hideout` validation are implemented.
+**Status:** **complete.** The foundation shipped through PR #25: the 0.7 ruleset/DTO contract, level-3 progress gates, specialization metadata, HQ summary, product-aware Workshop naming, compatibility tests, and `qa:hideout` validation are in place.
 
 **Goal:** Build the framework without stacking major balance changes on top.
 
@@ -37,6 +37,8 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** older rulesets still work, all original rooms upgrade correctly, the dashboard matches game state, and every lock explains what is missing.
 
 ## 0.7.0-B — Safe Room & Protected Storage
+**Status:** **complete in beta.** Protected product capacity, protected/exposed HQ reporting, recon-aware exposure, raid/drug-run enforcement, receipt visibility, and balance/regression coverage are in place. Weapon reserve protection remains deliberately held for the later Armory/balance work.
+
 **Goal:** Make asset protection understandable and interactive.
 
 - Keep protected cash.
@@ -49,6 +51,8 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** protected assets cannot be looted, exposure is visible before attacks, and wealthy players remain meaningfully raidable.
 
 ## 0.7.0-C — Lookouts & Security
+**Status:** **complete in beta.** Lookouts now preserve the defense bonus, add tiered recon warnings and a Hideout security desk, reuse convoy/turf warning windows, provide count-only local run awareness, gate higher levels with turf ownership, and prepare inactive Street Eyes / Armed Watch hooks for 0.7.0-G.
+
 **Goal:** Connect defense, recon, turf, and convoy awareness.
 
 - Preserve home-defense bonus.
@@ -61,6 +65,8 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** Lookouts give useful warnings without replacing deliberate recon.
 
 ## 0.7.0-D — Workshop & Garage
+**Status:** **complete in beta.** Workshop now uses one production-bonus path for every cookable product, ingredient efficiency is capped at 8%, Garage construction requires two owned Low-Riders, Garage opens a second run and a 5% relocation discount, and the Hideout manages active-run logistics without changing road time or risk. 0.7-E also corrects the ownership gate so Low-Riders currently away on a run still count as owned.
+
 **Goal:** Support the whole product economy and connect travel.
 
 - Apply Workshop bonuses to all producible products.
@@ -73,6 +79,8 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** all products use the same Hideout bonus path and Garage improves logistics without replacing Travel.
 
 ## 0.7.0-E — Back Office & Ledger
+**Status:** **complete in beta.** A durable transactional ledger covers ordinary action cash changes, split production income/costs, run-market economics, raid cash transfers, relocation and Hideout spending. Back Office level expands itemized history while 1/7/30-day summaries remain visible, and Bookkeeping/Connections hooks are prepared for G.
+
 **Goal:** Make Back Office the economic command center.
 
 - Add income/expense ledger.
@@ -84,6 +92,8 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** ledger totals reconcile and Back Office does not become a compounding money printer.
 
 ## 0.7.0-F — Armory & Infirmary
+**Status:** **complete in beta via PR #41.** Armory reads the real arsenal and persists Power First / Conserve Premium allocation for raids, defense, convoy squads and run escorts. Infirmary reads the existing combat injury queue and Workshop infrastructure can reduce medicine use by at most 15%, without changing natural recovery time.
+
 **Goal:** Bring weapons and recovery into headquarters management.
 
 - Armory: weapons, armed capacity, unarmed fit thugs.
@@ -95,6 +105,8 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 **Done when:** weapon and recovery state exactly matches the existing systems.
 
 ## 0.7.0-G — Specializations, Balance & Polish
+**Status:** **complete in beta.** Level-3 branches are permanent seasonal choices with capped effects, the UI confirms the irreversible choice, G effects flow through existing combat/production/travel/ledger helpers, and the season archive records Garage plus the chosen branches.
+
 **Goal:** Enable build identity and ship the complete experience.
 
 - Enable Level-3 specialization choices.
@@ -102,7 +114,7 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 - Street Eyes vs Armed Watch.
 - Drug Lab vs Garage.
 - Bookkeeping vs Connections.
-- Decide whether respec is impossible or expensive.
+- Respec is impossible during the season; the next RoundPlayer starts clean.
 - Finish dashboard polish and season archive.
 - Run economy, raid, travel, product, turf, and hideout simulations together.
 - Tune from test/simulation data.
@@ -135,3 +147,7 @@ The release builds on the existing Safe Room, Lookouts, Workshop, and Back Offic
 - Older pinned rulesets retain their behavior.
 - Resource-changing actions remain idempotent.
 - Mobile and desktop remain usable without dense micromanagement.
+
+0.7.0 is wrapped by `0.7.0-AA`, which keeps the completed G Hideout balance and layers the
+full Jobs & Contacts release, player-facing cosmetics and 2026 holiday event Jobs on top.
+The final release note is [0.7.0-AA](RELEASE-0.7.0-AA.md).

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type R
 import { Link, useLocation, useNavigationType } from 'react-router-dom';
 import { Shell } from './Shell.js';
 import { ConnectionBanner } from '../components/ConnectionBanner.js';
+import { TrackedQuests } from '../components/TrackedQuests.js';
 import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
@@ -299,7 +300,11 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, isDefault, onE
  */
 function useRouteScroll(pathname: string, hash: string) {
   const navigationType = useNavigationType();
+  const lastTarget = useRef<{ pathname: string; hash: string } | null>(null);
   useEffect(() => {
+    const previous = lastTarget.current;
+    lastTarget.current = { pathname, hash };
+    if (previous && previous.pathname === pathname && previous.hash === hash) return;
     if (navigationType === 'POP') return;
     if (!hash) {
       window.scrollTo(0, 0);
@@ -372,6 +377,7 @@ export function GameLayout({ children }: { children: ReactNode }) {
           </span>
         </div>
       ) : null}
+      <TrackedQuests />
 
       <div className="se-gamegrid">
         <GameNav sections={sections} pathname={pathname} badges={badges} />

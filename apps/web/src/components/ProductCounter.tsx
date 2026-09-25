@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import type { GameActionResult, ProductStockDto, ProductTradeResult } from '@streets/shared';
+import { Link } from 'react-router-dom';
+import type { GameActionResult, ProductStockDto, ProductTradeResult, StoreMarketContextDto } from '@streets/shared';
 import { formatCents, formatCentsExact, formatNumber } from '@streets/shared';
 import { api } from '../api/client.js';
 import { useCountdown } from '../hooks/useCountdown.js';
@@ -19,6 +20,41 @@ function waitText(minutes: number): string {
 
 /** $10 like every other shelf, $2.40 only where the cents matter. */
 const price = (cents: number) => (cents % 100 === 0 ? formatCents(cents) : formatCentsExact(cents));
+
+function trendDetail(context: StoreMarketContextDto): string {
+  const delta = context.buy.deltaPercent;
+  if (delta === 0) return context.buy.trend;
+  return `${context.buy.trend} · ${delta > 0 ? '+' : ''}${formatNumber(delta)}%`;
+}
+
+function MarketBadges({ market }: { market: StoreMarketContextDto }) {
+  return (
+    <div className="se-market-badges" aria-label="Market context">
+      <span className={`se-market-badge se-market-badge--${market.buy.label.toLowerCase().replaceAll(' ', '-')}`}>
+        {market.buy.label}
+      </span>
+      <span className="se-market-badge">{trendDetail(market)}</span>
+      <span className={`se-market-badge se-market-badge--stock-${market.stock.label.toLowerCase().replaceAll(' ', '-')}`}>
+        {market.stock.label}
+      </span>
+    </div>
+  );
+}
+
+function relationshipSummary(input: {
+  buyDiscountPercent?: number;
+  sellBonusPercent?: number;
+  relationshipBuyDiscountPercent?: number;
+  relationshipSellBonusPercent?: number;
+}): string {
+  const buyDiscountPercent = input.buyDiscountPercent ?? input.relationshipBuyDiscountPercent;
+  const sellBonusPercent = input.sellBonusPercent ?? input.relationshipSellBonusPercent;
+  const parts = [
+    buyDiscountPercent ? `${formatNumber(buyDiscountPercent)}% buy discount` : null,
+    sellBonusPercent ? `${formatNumber(sellBonusPercent)}% better buyback` : null,
+  ].filter(Boolean);
+  return parts.join(' · ');
+}
 
 function ShelfLine({ pip, name, onArrival }: { pip: NonNullable<ProductStockDto['pip']>; name: string; onArrival: () => void }) {
   const { msRemaining } = useCountdown(pip.nextAt, onArrival);
@@ -55,17 +91,29 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
   const [quantity, setQuantity] = useState<number | ''>(1);
   const pip = product.pip!;
   const buying = direction === 'buy';
+  const purchaseLocked = buying && !pip.purchaseUnlocked;
   const unit = buying ? pip.buyCents : pip.sellCents;
-  const max = buying ? Math.min(pip.maxBuy, Math.floor(cashCents / Math.max(1, pip.buyCents))) : product.quantity;
+  const max = buying
+    ? purchaseLocked ? 0 : Math.min(pip.maxBuy, Math.floor(cashCents / Math.max(1, pip.buyCents)))
+    : product.quantity;
   const valid = typeof quantity === 'number' && Number.isSafeInteger(quantity) && quantity >= 1 && quantity <= max;
   const emptyReason = buying
     ? pip.stock === 0 ? `Pip is out of ${product.name} until the next delivery.` : `You cannot afford a single ${product.name} at ${price(pip.buyCents)}.`
     : `You have no ${product.name} to sell.`;
-  const block = blocked ?? (trade.busy ? 'Pip is counting it out.' : max < 1 ? emptyReason : !valid ? `Enter a whole number from 1 to ${formatNumber(max)}.` : null);
+  const block = blocked
+    ?? (trade.busy
+      ? 'Pip is counting it out.'
+      : purchaseLocked
+        ? `Complete the required job to unlock ${pip.unlockName ?? product.name} purchases.`
+        : max < 1
+          ? emptyReason
+          : !valid
+            ? `Enter a whole number from 1 to ${formatNumber(max)}.`
+            : null);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (block || typeof quantity !== 'number') return;
+    if (block || purchaseLocked || typeof quantity !== 'number') return;
     await trade.run((actionId): Promise<GameActionResult<ProductTradeResult>> => api.post('/game/products/trade', { product: product.key, direction, quantity, actionId }));
     onDone();
   }
@@ -73,12 +121,30 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
   const id = `product-${product.key}`;
   return (
     <Panel title={product.name}>
+      {pip.favorDiscountPercent ? (
+        <p className="se-hint"><strong>Pip's Connection:</strong> {formatNumber(pip.favorDiscountPercent)}% buy discount active.</p>
+      ) : null}
+      {pip.relationshipBuyDiscountPercent || pip.relationshipSellBonusPercent ? (
+        <p className="se-hint se-good">
+          Relationship perk — {relationshipSummary(pip)}.
+        </p>
+      ) : null}
       <div className="se-store-prices">
         <span>Own <strong className="se-num">{formatNumber(product.quantity)}</strong></span>
         <span>Buy <strong className="se-num">{price(pip.buyCents)}</strong></span>
         <span>Sell <strong className="se-num">{price(pip.sellCents)}</strong></span>
       </div>
+      <MarketBadges market={pip.market} />
       <p className="se-hint">{product.blurb}</p>
+      {!pip.purchaseUnlocked ? (
+        <div className="se-store-favor">
+          <h3 className="se-store-favor__title">Purchase access locked</h3>
+          <p className="se-hint">
+            {pip.unlockDescription ?? `Pip has not opened ${product.name} purchases to you yet.`}
+            {' '}Earn it through <Link to="/game/quests">underworld jobs</Link>. You can still sell stock you already own.
+          </p>
+        </div>
+      ) : null}
       <ShelfLine pip={pip} name={product.name} onArrival={onDone} />
       <form onSubmit={submit}>
         <div className="se-store-order">
@@ -92,16 +158,18 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
           </div>
           <div>
             <label className="se-label" htmlFor={`${id}-quantity`}>Quantity</label>
-            <input id={`${id}-quantity`} className="se-input" type="number" inputMode="numeric" min={1} max={max} step={1} value={quantity}
-              disabled={blocked !== null}
+            <input id={`${id}-quantity`} className="se-input" type="number" inputMode="numeric" min={1} max={Math.max(1, max)} step={1} value={quantity}
+              disabled={blocked !== null || purchaseLocked}
               onChange={(event) => setQuantity(event.target.value === '' ? '' : Number(event.target.value))} />
           </div>
         </div>
         <div className="se-spend__row">
           <QuantitySteps value={quantity} onChange={setQuantity} max={max} steps={bulkHelpers}
-            disabled={blocked !== null} disabledReason={blocked} emptyReason={emptyReason} />
+            disabled={blocked !== null || purchaseLocked} disabledReason={block} emptyReason={emptyReason} />
         </div>
-        <p className="se-hint">{buying ? 'Can buy' : 'Can sell'} {formatNumber(max)}.</p>
+        <p className="se-hint">
+          {purchaseLocked ? 'Purchases are locked until the required job is complete.' : `${buying ? 'Can buy' : 'Can sell'} ${formatNumber(max)}.`}
+        </p>
         <Button className="se-btn se-btn--primary se-btn--block" disabledReason={block}>
           {buying ? 'Buy' : 'Sell'} {product.name}{valid && typeof quantity === 'number' ? ` · ${price(quantity * unit)}` : ''}
         </Button>

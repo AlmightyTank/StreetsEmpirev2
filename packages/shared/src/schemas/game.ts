@@ -100,6 +100,19 @@ export const hideoutUpgradeSchema = z.object({
 });
 export type HideoutUpgradeInput = z.infer<typeof hideoutUpgradeSchema>;
 
+export const hideoutWeaponPrioritySchema = z.object({
+  priority: z.enum(['POWER', 'CONSERVE']),
+  actionId: actionIdSchema,
+}).strict();
+export type HideoutWeaponPriorityInput = z.infer<typeof hideoutWeaponPrioritySchema>;
+
+export const hideoutSpecializationSchema = z.object({
+  room: z.enum(['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE']),
+  specialization: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a specialization.'),
+  actionId: actionIdSchema,
+}).strict();
+export type HideoutSpecializationInput = z.infer<typeof hideoutSpecializationSchema>;
+
 export const storeTradeSchema = z.object({
   store: z.string().trim().min(1, 'Pick a store.').max(64),
   item: z.string().trim().min(1, 'Pick an item.').max(64),
@@ -110,6 +123,26 @@ export const storeTradeSchema = z.object({
 });
 
 export type StoreTradeInput = z.infer<typeof storeTradeSchema>;
+
+export const storeCheckoutLineSchema = storeTradeSchema.omit({ actionId: true });
+
+export const storeCheckoutSchema = z.object({
+  lines: z.array(storeCheckoutLineSchema)
+    .min(1, 'Add something to the basket.')
+    .max(20, 'Check out up to 20 lines at a time.'),
+  actionId: actionIdSchema,
+});
+
+export type StoreCheckoutLineInput = z.infer<typeof storeCheckoutLineSchema>;
+export type StoreCheckoutInput = z.infer<typeof storeCheckoutSchema>;
+
+export const storeSpecialOrderSchema = z.object({
+  store: z.string().trim().min(1, 'Pick a store.').max(64),
+  item: z.string().trim().min(1, 'Pick an item.').max(64),
+  actionId: actionIdSchema,
+});
+
+export type StoreSpecialOrderInput = z.infer<typeof storeSpecialOrderSchema>;
 
 /** 0.4.0-D. Pip's counter for a non-crack product. */
 export const productTradeSchema = z.object({
@@ -127,11 +160,23 @@ export const weaponUnlockSchema = z.object({
 });
 export type WeaponUnlockInput = z.infer<typeof weaponUnlockSchema>;
 
-export const questCompleteSchema = z.object({
-  trader: z.enum(['CORNER', 'TOMMY', 'CHARLIE', 'PIP']),
+export const questKeySchema = z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,63}$/, 'Invalid quest.');
+export const questAcceptSchema = z.object({ actionId: actionIdSchema }).strict();
+export const questClaimSchema = z.object({
   actionId: actionIdSchema,
-});
-export type QuestCompleteInput = z.infer<typeof questCompleteSchema>;
+  branchKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,63}$/, 'Invalid branch.').optional(),
+}).strict();
+export const questTrackSchema = z.object({ tracked: z.boolean() }).strict();
+export const questAbandonSchema = z.object({}).strict();
+export const favorActivateSchema = z.object({ actionId: actionIdSchema }).strict();
+export const favorArmSchema = z.object({ actionId: actionIdSchema }).strict();
+
+export type FavorActivateInput = z.infer<typeof favorActivateSchema>;
+export type FavorArmInput = z.infer<typeof favorArmSchema>;
+export type QuestAcceptInput = z.infer<typeof questAcceptSchema>;
+export type QuestClaimInput = z.infer<typeof questClaimSchema>;
+export type QuestTrackInput = z.infer<typeof questTrackSchema>;
+export type QuestAbandonInput = z.infer<typeof questAbandonSchema>;
 
 export const raidSchema = z.object({
   roundId: z.string().min(1).max(64),

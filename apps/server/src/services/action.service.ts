@@ -13,6 +13,7 @@ import type {
   RankChanges,
   ResourceChange,
 } from '@streets/shared';
+import type { QuestDataValue } from '@streets/rulesets';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
@@ -30,6 +31,8 @@ import { RelocationService } from './relocation.service.js';
 import { RunSettleService } from './run-settle.service.js';
 import { TurfService } from './turf.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
+import { QuestProgressService } from './quest-progress.service.js';
+import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
 
 /**
  * Everything an action is allowed to move. Turn-settled before an action sees
@@ -94,6 +97,11 @@ export interface PlayerState {
   hideoutWorkshopLevel: number;
   hideoutBackOfficeLevel: number;
   hideoutGarageLevel: number;
+  hideoutWeaponPriority: string;
+  hideoutSafeRoomSpecialization: string | null;
+  hideoutLookoutsSpecialization: string | null;
+  hideoutWorkshopSpecialization: string | null;
+  hideoutBackOfficeSpecialization: string | null;
 
   /**
    * What Tommy has on the shelf, already settled. Counters rather than
@@ -135,6 +143,10 @@ export interface ActionOutcome<T> {
   result: T;
   /** Left out by actions too small for the feed, like one trade on a run. */
   activity?: { type: ActivityType; payload: Prisma.InputJsonValue };
+  /** Optional richer quest-only signal for actions intentionally omitted from the activity feed. */
+  questProgress?: { type: string; payload: QuestDataValue };
+  /** Economic lines to record in the 0.7-E Back Office ledger. Omit for the action's home-cash delta fallback. */
+  ledger?: EconomyLedgerWrite[];
   /**
    * Standing to write alongside the player, in the same transaction. Actions
    * that do not touch reputation leave this out.
@@ -147,6 +159,12 @@ export interface RunActionOptions<T> {
   action: string;
   /** Client generated id. Section 52. */
   actionId?: string;
+  /**
+   * Optional narrower replay namespace. The public result still reports
+   * `action`; this only prevents one request id from replaying a different
+   * resource-changing sub-action that happens to share the same action label.
+   */
+  idempotencyScope?: string;
   execute: (context: ActionContext) => ActionOutcome<T> | Promise<ActionOutcome<T>>;
 }
 
@@ -203,6 +221,11 @@ export function toState(player: RoundPlayer): PlayerState {
     hideoutWorkshopLevel: player.hideoutWorkshopLevel,
     hideoutBackOfficeLevel: player.hideoutBackOfficeLevel,
     hideoutGarageLevel: player.hideoutGarageLevel,
+    hideoutWeaponPriority: player.hideoutWeaponPriority,
+    hideoutSafeRoomSpecialization: player.hideoutSafeRoomSpecialization,
+    hideoutLookoutsSpecialization: player.hideoutLookoutsSpecialization,
+    hideoutWorkshopSpecialization: player.hideoutWorkshopSpecialization,
+    hideoutBackOfficeSpecialization: player.hideoutBackOfficeSpecialization,
     pistolStock: player.pistolStock,
     shotgunStock: player.shotgunStock,
     tek9Stock: player.tek9Stock,
@@ -305,12 +328,13 @@ export const ActionService = {
       // concurrent duplicates both look, both find nothing, and both execute.
       await lockRoundPlayer(tx, roundPlayerId);
 
+      const idempotencyAction = options.idempotencyScope ?? options.action;
       if (options.actionId) {
         const replay = await IdempotencyService.find<GameActionResult<T>>(
           tx,
           options.actionId,
           roundPlayerId,
-          options.action,
+          idempotencyAction,
         );
         // Section 52: the same action id answers with the original result
         // rather than executing a second time.
@@ -404,6 +428,12 @@ export const ActionService = {
       const next = outcome.next;
       assertPlayerState(next, ruleset, 'after');
 
+      const ledgerEntries = outcome.ledger
+        ?? EconomyLedgerService.defaultForAction(options.action, current.cashCents, next.cashCents);
+      if (ledgerEntries.length) {
+        await EconomyLedgerService.record(tx, roundPlayerId, ledgerEntries, now);
+      }
+
       if (outcome.reputation?.length) {
         await ReputationService.write(tx, roundPlayerId, outcome.reputation);
       }
@@ -462,6 +492,36 @@ export const ActionService = {
           outcome.activity.payload,
         );
       }
+      if (outcome.questProgress) {
+        await QuestProgressService.emit(tx, roundPlayerId, {
+          sourceKey: options.actionId
+            ? `action:${options.action}:${options.actionId}`
+            : `action:${options.action}:${roundPlayerId}:${now.toISOString()}`,
+          type: outcome.questProgress.type,
+          payload: outcome.questProgress.payload,
+          at: now,
+        });
+      } else if (!outcome.activity) {
+        // Not every resource-changing action belongs in the player's feed.
+        // Quests still need one authoritative post-action signal so state
+        // objectives and explicitly scoped action objectives never miss it.
+        const cashChangeCents = Number(next.cashCents - current.cashCents);
+        const turnsUsed = Math.max(0, current.turns - next.turns);
+        await QuestProgressService.emit(tx, roundPlayerId, {
+          sourceKey: options.actionId
+            ? `action:${options.action}:${options.actionId}`
+            : `action:${options.action}:${roundPlayerId}:${now.toISOString()}`,
+          type: options.action,
+          payload: {
+            action: options.action,
+            turns: turnsUsed,
+            turnsUsed,
+            cashCents: Math.max(0, cashChangeCents),
+            cashChangeCents,
+          },
+          at: now,
+        });
+      }
 
       const before = toSnapshot(current, beforeHappiness, beforeNetWorth);
       const after = toSnapshot(next, afterHappiness, afterNetWorth);
@@ -488,7 +548,7 @@ export const ActionService = {
           tx,
           options.actionId,
           roundPlayerId,
-          options.action,
+          idempotencyAction,
           result,
           now,
         );

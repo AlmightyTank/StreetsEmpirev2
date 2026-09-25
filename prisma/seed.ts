@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import { PrismaClient, type Round } from '@prisma/client';
-import { classicOgV01, classicOgV02D, classicOgV05F, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02D, classicOgV07AA, type Ruleset } from '@streets/rulesets';
 // The panel and the seed create the same bots from one definition. Changing the
 // roster in the service changes it here too.
 import { DEV_TEST_RIVALS, seedDevBots } from '../apps/server/src/services/dev-bots.service.js';
 
 const prisma = new PrismaClient();
-const CURRENT_RULESET = classicOgV05F;
+const CURRENT_RULESET = classicOgV07AA;
 const shouldSeedRivals = process.env.SEED_DEV_BOTS === '1' || process.env.SEED_RIVALS === '1';
 const allowUnsafeDevBots = process.env.ALLOW_DEV_BOTS === 'I_UNDERSTAND';
 
@@ -116,8 +116,8 @@ async function seedStrategyRound(now: Date) {
 
 async function seedCurrentPublicRound(now: Date) {
   return upsertRound({
-    name: 'Game #018 - Travel',
-    slug: 'game-018-travel',
+    name: 'Game #020 - Hideout',
+    slug: 'game-020-hideout',
     ruleset: CURRENT_RULESET,
     startsAt: now,
     refreshCurrent: true,
@@ -188,6 +188,12 @@ async function seedReleaseNews(publicRoundId: string, now: Date) {
       publishedAt: new Date(now.getTime() - 24 * hour),
       body: `streetsempire.dev now works as the public season hub. Players and guests can check live status, rankings, city markets, turf control, games history, Hall of Fame, statistics, news, guides, search and community links without needing to be signed into the game client.\n\nThe old game landing page has been retired in favor of a direct sign-in flow, while the public website carries discovery and season context with the StreetsEmpire look, logo and app icons.\n\nThe next pass is about keeping this hub stocked with useful player-facing information: release notes, season notes, strategy context and current game visibility.`,
     },
+    {
+      roundId: publicRoundId,
+      title: '0.7.0-AA HIDEOUT & JOBS RELEASE',
+      publishedAt: new Date(now.getTime() - 1 * hour),
+      body: `The full 0.7.0 season is live on the AA ruleset. Hideouts now work as headquarters with protected storage, Lookouts intel, Garage logistics, a Back Office ledger, Armory priorities, Infirmary support and permanent specialization choices.\n\nJobs and Contacts now drive progression across Mama, Pip, Tommy, Wheels, Vic and Blocks. Story jobs, daily and weekly contracts, city opportunities, alliance work, community events, legendary favors, account cosmetics, site themes and the Halloween and Christmas 2026 event jobs all run through the same tracked quest system.\n\nThe release gate now includes Hideout validation alongside product, travel and turf balance checks so older pinned rounds stay stable while the AA season carries the complete 0.7.0 feature set.`,
+    },
   ];
 
   for (const post of posts) {
@@ -209,7 +215,7 @@ async function main() {
   await seedStrategyRound(now);
   const publicRound = await seedCurrentPublicRound(new Date(now.getTime() + 1_000));
 
-  // A reused dev database may still have an older announcement pinned. F replaces them.
+  // A reused dev database may still have older current-round announcements pinned.
   await prisma.gameNews.deleteMany({ where: { roundId: publicRound.id, title: { in: ['0.5.0-B ON THE ROAD', '0.5.0-C HIGH MARKET & RISK', '0.5.0-D MOVING HOUSE', '0.5.0-E CONVOYS', '0.5.0 TRAVEL'] } } });
   await seedReleaseNews(publicRound.id, now);
 

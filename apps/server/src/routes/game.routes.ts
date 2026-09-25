@@ -3,16 +3,26 @@ import { loadRulesetForRound } from '@streets/rules-engine';
 import {
   payoutSchema,
   produceCrackSchema,
-  questCompleteSchema,
+  questAcceptSchema,
+  questAbandonSchema,
+  questClaimSchema,
+  questTrackSchema,
   scoutSchema,
   storeTradeSchema,
-  weaponUnlockSchema,
+  storeCheckoutSchema,
+  storeSpecialOrderSchema,
   hideoutUpgradeSchema,
+  hideoutSpecializationSchema,
+  hideoutWeaponPrioritySchema,
+  favorActivateSchema,
+  favorArmSchema,
 } from '@streets/shared';
 import { toGameSnapshotDto } from '../game/dto.js';
 import { PayoutService } from '../services/payout.service.js';
 import { ProductionService } from '../services/production.service.js';
-import { QuestService } from '../services/quest.service.js';
+import { HandcraftedQuestService } from '../services/handcrafted-quest.service.js';
+import { TimedFavorService } from '../services/timed-favor.service.js';
+import { SingleUseFavorService } from '../services/single-use-favor.service.js';
 import { ScoutService } from '../services/scout.service.js';
 import { toState } from '../services/action.service.js';
 import { StoreService } from '../services/store.service.js';
@@ -95,10 +105,18 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
     return StoreService.catalog(
+      fastify.prisma,
+      player.id,
       settled.ruleset,
       toState(settled.player),
       settled.stock,
       settled.standings,
+      {
+        now: new Date(),
+        round: settled.round,
+        playerRow: settled.player,
+        turfBlocksHeld: settled.turf?.blocksHeld ?? 0,
+      },
     );
   });
 
@@ -108,16 +126,28 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     return StoreService.trade(fastify.prisma, player.id, body);
   });
 
-  fastify.post('/stores/unlock', { preHandler: fastify.requireAuth }, async (request) => {
-    const body = parseBody(weaponUnlockSchema, request.body);
+  fastify.post('/stores/checkout', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(storeCheckoutSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
-    return StoreService.unlock(fastify.prisma, player.id, body);
+    return StoreService.checkout(fastify.prisma, player.id, body);
+  });
+
+  fastify.post('/stores/special-order', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(storeSpecialOrderSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return StoreService.specialOrder(fastify.prisma, player.id, body);
   });
 
   fastify.get('/hideout', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
-    return HideoutService.catalog(settled.ruleset, toState(settled.player));
+    return HideoutService.page(
+      fastify.prisma,
+      settled.ruleset,
+      settled.player,
+      toState(settled.player),
+      settled.products,
+    );
   });
 
   fastify.post('/hideout/upgrade', { preHandler: fastify.requireAuth }, async (request) => {
@@ -126,20 +156,70 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     return HideoutService.upgrade(fastify.prisma, player.id, body);
   });
 
-  /**
-   * Section 34. Standing with each trader, the favour each is asking for, and
-   * where that leaves the gun ladder.
-   */
-  fastify.get('/reputation', { preHandler: fastify.requireAuth }, async (request) => {
+  fastify.post('/hideout/armory/priority', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(hideoutWeaponPrioritySchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
-    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
-    return QuestService.summary(settled.ruleset, toState(settled.player), settled.standings);
+    return HideoutService.setWeaponPriority(fastify.prisma, player.id, body);
   });
 
-  fastify.post('/reputation/quest', { preHandler: fastify.requireAuth }, async (request) => {
-    const body = parseBody(questCompleteSchema, request.body);
+  fastify.post('/hideout/specialization', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(hideoutSpecializationSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
-    return QuestService.complete(fastify.prisma, player.id, body);
+    return HideoutService.setSpecialization(fastify.prisma, player.id, body);
+  });
+
+  fastify.get('/quests', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    return HandcraftedQuestService.page(fastify.prisma, player.id, loadRulesetForRound(round));
+  });
+
+  fastify.post('/quests/:key/accept', { preHandler: fastify.requireAuth }, async (request) => {
+    parseBody(questAcceptSchema, request.body);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const key = String((request.params as { key: string }).key).trim().toUpperCase();
+    return HandcraftedQuestService.accept(fastify.prisma, player.id, loadRulesetForRound(round), key);
+  });
+
+  fastify.post('/quests/:key/abandon', { preHandler: fastify.requireAuth }, async (request) => {
+    parseBody(questAbandonSchema, request.body ?? {});
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const key = String((request.params as { key: string }).key).trim().toUpperCase();
+    return HandcraftedQuestService.abandon(fastify.prisma, player.id, loadRulesetForRound(round), key);
+  });
+
+  fastify.post('/quests/:key/track', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(questTrackSchema, request.body);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const key = String((request.params as { key: string }).key).trim().toUpperCase();
+    return HandcraftedQuestService.track(fastify.prisma, player.id, loadRulesetForRound(round), key, body.tracked);
+  });
+
+  fastify.post('/quests/:key/claim', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(questClaimSchema, request.body);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const key = String((request.params as { key: string }).key).trim().toUpperCase();
+    return HandcraftedQuestService.claim(fastify.prisma, player.id, loadRulesetForRound(round), key, body);
+  });
+
+  fastify.post('/favors/:key/activate', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(favorActivateSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const key = String((request.params as { key: string }).key).trim().toUpperCase();
+    return TimedFavorService.activate(fastify.prisma, player.id, key, body);
+  });
+
+  fastify.post('/favors/:key/arm', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(favorArmSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const key = String((request.params as { key: string }).key).trim().toUpperCase();
+    return SingleUseFavorService.arm(fastify.prisma, player.id, key, body);
+  });
+
+  fastify.post('/favors/:key/disarm', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(favorArmSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const key = String((request.params as { key: string }).key).trim().toUpperCase();
+    return SingleUseFavorService.disarm(fastify.prisma, player.id, key, body);
   });
 
   /** Section 26. */

@@ -23,6 +23,10 @@ const envSchema = z.object({
 
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
   FRONTEND_ORIGIN: z.string().url().optional(),
+  /** Invite-only gate for isolated beta deployments. */
+  BETA_INVITE_ONLY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  /** Non-production admin QA mode: expose seasonal event quests outside their real-world window. */
+  SEASONAL_EVENT_ADMIN_TEST_MODE: z.enum(['true', 'false']).optional(),
 
   DISCORD_CLIENT_ID: z.string().default(''),
   DISCORD_CLIENT_SECRET: z.string().default(''),
@@ -37,6 +41,10 @@ const envSchema = z.object({
   FORUM_NEWS_TAG_ID: z.string().regex(/^\d*$/, 'FORUM_NEWS_TAG_ID must be a numeric Flarum tag id.').default(''),
   /** 0.3.0-C. The recruitment tag alliance leaders post their threads into. */
   FORUM_RECRUITMENT_TAG_ID: z.string().regex(/^\d*$/, 'FORUM_RECRUITMENT_TAG_ID must be a numeric Flarum tag id.').default(''),
+  /** Optional cosmetic: any account with Discord linked gets the Beta Tester title/badge. */
+  BETA_TESTER_DISCORD_LINKED: z.coerce.boolean().default(false),
+  /** Optional legacy cosmetic path: linked forum users in any of these visible groups get the Beta Tester title/badge. */
+  BETA_TESTER_FORUM_GROUPS: z.string().default(''),
 
   DISCORD_BOT_API_TOKEN: z.union([z.literal(''), z.string().min(64)]).default(''),
   DISCORD_BOT_PUSH_URL: z.union([z.literal(''), z.string().url()]).default(''),
@@ -68,12 +76,20 @@ if (!parsed.success) {
 const corsOrigins = parsed.data.CORS_ORIGINS.split(',')
   .map((o) => o.trim())
   .filter(Boolean);
+const betaTesterForumGroups = parsed.data.BETA_TESTER_FORUM_GROUPS.split(',')
+  .map((name) => name.trim())
+  .filter(Boolean)
+  .slice(0, 10);
 
 const forumUrl = new URL(parsed.data.FORUM_ORIGIN);
 if (forumUrl.username || forumUrl.password || forumUrl.pathname !== '/' || forumUrl.search || forumUrl.hash ||
     (forumUrl.protocol !== 'https:' && !(parsed.data.NODE_ENV !== 'production' && forumUrl.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(forumUrl.hostname)))) {
   throw new Error('FORUM_ORIGIN must be an HTTPS origin without a path (HTTP localhost is allowed in development).');
 }
+
+const seasonalEventAdminTestMode = parsed.data.SEASONAL_EVENT_ADMIN_TEST_MODE
+  ? parsed.data.SEASONAL_EVENT_ADMIN_TEST_MODE === 'true'
+  : parsed.data.NODE_ENV !== 'production';
 
 export const env = {
   ...parsed.data,
@@ -82,6 +98,12 @@ export const env = {
   frontendOrigin: parsed.data.FRONTEND_ORIGIN ?? corsOrigins[0] ?? 'http://localhost:5173',
   sessionTtlMs: parsed.data.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
   auditRetentionDays: parsed.data.ADMIN_AUDIT_RETENTION_DAYS,
+  betaAccess: {
+    inviteOnly: parsed.data.BETA_INVITE_ONLY,
+  },
+  seasonalEvents: {
+    adminTestMode: seasonalEventAdminTestMode,
+  },
   forum: {
     origin: new URL(parsed.data.FORUM_ORIGIN).origin,
     secret: parsed.data.FORUM_LINK_SECRET,
@@ -99,6 +121,11 @@ export const env = {
       tagId: parsed.data.FORUM_RECRUITMENT_TAG_ID,
       enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.FORUM_API_KEY && parsed.data.FORUM_RECRUITMENT_TAG_ID),
     },
+  },
+  betaTester: {
+    discordLinked: parsed.data.BETA_TESTER_DISCORD_LINKED,
+    forumGroups: betaTesterForumGroups,
+    enabled: parsed.data.BETA_TESTER_DISCORD_LINKED || betaTesterForumGroups.length > 0,
   },
   discordBot: {
     apiToken: parsed.data.DISCORD_BOT_API_TOKEN,

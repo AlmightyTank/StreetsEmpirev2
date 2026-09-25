@@ -3,7 +3,7 @@ import { classicOgV01, type Ruleset } from '@streets/rulesets';
 import { fullShelves } from '../calculations/restock.js';
 import { calculateStoreTrade, MAX_INVENTORY, maxStoreBuy, type StoreTradeInput } from '../calculations/stores.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
-import { storeTradeSchema } from '@streets/shared';
+import { storeCheckoutSchema, storeSpecialOrderSchema, storeTradeSchema } from '@streets/shared';
 
 const player = { ...classicOgV01.round.startingPlayer, cashCents: 10_000_000n,
   shotgunUnlocked: true, tek9Unlocked: true, ak47Unlocked: true,
@@ -50,6 +50,54 @@ describe('store transactions', () => {
       calculateStoreTrade(player, { ...order, ...input }, classicOgV01);
       expect.unreachable();
     } catch (error) { expect(error).toMatchObject({ code }); }
+  });
+
+  it('accepts a player-specific discounted store quote without changing sell prices', () => {
+    const buy = calculateStoreTrade(
+      player,
+      { store: 'TOMMY', item: 'PISTOL', direction: 'buy', quantity: 2 },
+      classicOgV01,
+      { buyUnitCents: Math.floor(classicOgV01.stores.TOMMY.items.PISTOL!.buyCents * 0.8) },
+    );
+    expect(buy.unitCents).toBe(Math.floor(classicOgV01.stores.TOMMY.items.PISTOL!.buyCents * 0.8));
+
+    const sell = calculateStoreTrade(
+      { ...player, pistols: 10 },
+      { store: 'TOMMY', item: 'PISTOL', direction: 'sell', quantity: 2 },
+      classicOgV01,
+      { buyUnitCents: 1 },
+    );
+    expect(sell.unitCents).toBe(classicOgV01.stores.TOMMY.items.PISTOL!.sellCents);
+  });
+
+  it('floors discounted store buys above buyback to prevent arbitrage', () => {
+    const item = classicOgV01.stores.TOMMY.items.PISTOL!;
+    const trade = calculateStoreTrade(
+      player,
+      { store: 'TOMMY', item: 'PISTOL', direction: 'buy', quantity: 1 },
+      classicOgV01,
+      { buyUnitCents: 1 },
+    );
+    expect(trade.unitCents).toBe(item.sellCents! + 1);
+  });
+
+  it('accepts player-specific store buyback quotes and keeps buys above them', () => {
+    const item = classicOgV01.stores.PIP.items.CRACK!;
+    const sell = calculateStoreTrade(
+      { ...player, crack: 10 },
+      { store: 'PIP', item: 'CRACK', direction: 'sell', quantity: 2 },
+      classicOgV01,
+      { sellUnitCents: item.sellCents! + 25 },
+    );
+    expect(sell.unitCents).toBe(item.sellCents! + 25);
+
+    const buy = calculateStoreTrade(
+      player,
+      { store: 'PIP', item: 'CRACK', direction: 'buy', quantity: 1 },
+      classicOgV01,
+      { buyUnitCents: 1, sellUnitCents: item.sellCents! + 25 },
+    );
+    expect(buy.unitCents).toBe(item.sellCents! + 26);
   });
 
   it('rejects an unaffordable order without changing input state', () => {
@@ -99,5 +147,22 @@ describe('store transactions', () => {
     for (const quantity of ['100', 0, -1, 0.5, Infinity]) {
       expect(storeTradeSchema.safeParse({ ...order, quantity, actionId: 'store-test-0001' }).success).toBe(false);
     }
+  });
+
+  it('accepts retry-safe multi-line checkout requests', () => {
+    expect(storeCheckoutSchema.safeParse({
+      lines: [
+        order,
+        { store: 'CORNER', item: 'BEER', direction: 'buy', quantity: 25 },
+      ],
+      actionId: 'store-checkout-0001',
+    }).success).toBe(true);
+    expect(storeCheckoutSchema.safeParse({ lines: [], actionId: 'store-checkout-0001' }).success).toBe(false);
+    expect(storeCheckoutSchema.safeParse({ lines: [order] }).success).toBe(false);
+  });
+
+  it('accepts retry-safe special order requests', () => {
+    expect(storeSpecialOrderSchema.safeParse({ store: 'TOMMY', item: 'AK47', actionId: 'special-order-0001' }).success).toBe(true);
+    expect(storeSpecialOrderSchema.safeParse({ store: 'TOMMY', item: 'AK47' }).success).toBe(false);
   });
 });

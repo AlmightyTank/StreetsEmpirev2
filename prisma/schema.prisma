@@ -38,8 +38,9 @@ model Account {
   updatedAt   DateTime  @updatedAt
   lastLoginAt DateTime?
 
-  isActive Boolean @default(true)
-  isAdmin  Boolean @default(false)
+  isActive     Boolean @default(true)
+  isAdmin      Boolean @default(false)
+  betaApproved Boolean @default(false)
 
   /// 0.3.0-B. A timed suspension. The account signs back in on its own once this
   /// passes; the fields are cleared lazily on the next sign-in attempt.
@@ -56,6 +57,7 @@ model Account {
   notificationOutbox   NotificationOutbox[]
   pushSubscriptions    PushSubscription[]
   profile              AccountProfile?
+  cosmeticUnlocks      AccountCosmeticUnlock[]
   roundPlayers         RoundPlayer[]
   authoredNews         GameNews[]            @relation("GameNewsAuthor")
   adminAuditEntries    AdminAuditLog[]       @relation("AdminAuditActor")
@@ -92,9 +94,11 @@ model AccountProfile {
   accountId String  @id
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  activeTitleKey    String?
-  featuredBadgeKeys Json    @default("[]")
-  profileAccent     String  @default("default")
+  activeTitleKey        String?
+  activeProfileFrameKey String?
+  activeSiteThemeKey    String?
+  featuredBadgeKeys     Json    @default("[]")
+  profileAccent         String  @default("default")
   uiDensity         String  @default("comfortable")
   reducedMotion     Boolean @default(false)
   moneyFormat       String  @default("full")
@@ -102,6 +106,30 @@ model AccountProfile {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Permanent quest-earned cosmetics. The display metadata is snapshotted when
+/// earned so titles/badges survive later ruleset changes and round resets.
+model AccountCosmeticUnlock {
+  id        String  @id @default(cuid())
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  key         String
+  kind        String
+  title       String
+  description String
+  rarity      String
+  styleKey    String?
+
+  sourceQuestKey       String
+  sourceRulesetId      String
+  sourceRulesetVersion String
+  awardedAt            DateTime @default(now())
+
+  @@unique([accountId, key])
+  @@index([accountId, awardedAt])
+  @@index([key])
 }
 
 /// Verified public profile connection; owned by the permanent account.
@@ -137,6 +165,10 @@ model NotificationSettings {
   attacksEnabled   Boolean   @default(false)
   roundEnabled     Boolean   @default(false)
   rankEnabled      Boolean   @default(false)
+  turfEnabled      Boolean   @default(false)
+  turfEnabledAt    DateTime?
+  allianceEnabled  Boolean   @default(false)
+  allianceEnabledAt DateTime?
   rankRoundId      String?
   rankLastNational Int?
   /// Discord DMs; only delivered while Discord is linked.
@@ -160,7 +192,7 @@ model NotificationOutbox {
   accountId String
   account   Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
   channel   NotificationChannel
-  /// attacks | turns | round | rank
+  /// attacks | turns | round | rank | turf | alliance
   category  String
   /// The alert itself, without any channel address (see @streets/shared NotificationPayload).
   payload   Json
@@ -265,19 +297,38 @@ enum RoundStatus {
   ARCHIVED
 }
 
-/// Standing with one trader, for one player. Rows rather than columns because
-/// traders are ruleset-defined: a variant with a different set of shops must
-/// not need a migration.
+enum QuestStatus {
+  LOCKED
+  AVAILABLE
+  ACTIVE
+  READY_TO_TURN_IN
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+enum QuestRepeatability {
+  ONCE
+  DAILY
+  WEEKLY
+  REPEATABLE
+}
+
+/// Relationship standing for one player. Historically this held store-trader
+/// standing only; the unified Jobs system also stores named contact reputation
+/// here so old rounds and current contacts can coexist without copying scores.
 model PlayerReputation {
   id            String @id @default(cuid())
   roundPlayerId String
-  /// Ruleset store key: CORNER, TOMMY, CHARLIE, PIP.
+  /// Relationship key. Historical store keys include CORNER/TOMMY/CHARLIE/PIP;
+  /// current job contacts may also use MAMA_KING/WHEELS/VIC/BLOCKS.
   trader        String
 
   points      Int       @default(0)
   /// Day the regular-trade credit was last paid, so it can be paid at most
   /// once a day without keeping a history of every trade.
   creditedOn  DateTime?
+  /// Legacy one-favor completion marker. Current Jobs use PlayerQuest instead.
   questDoneAt DateTime?
 
   createdAt DateTime @default(now())
@@ -287,6 +338,219 @@ model PlayerReputation {
 
   @@unique([roundPlayerId, trader])
   @@index([roundPlayerId])
+}
+
+// ---------------------------------------------------------------------------
+// Consumable favor inventory
+// ---------------------------------------------------------------------------
+
+model PlayerFavor {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  /// Stable ruleset-defined favor key.
+  key String
+  quantity Int @default(0)
+  totalGranted Int @default(0)
+  /// Most recent job that added this favor to the stack.
+  lastSourceQuestKey String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, key])
+  @@index([roundPlayerId, updatedAt])
+  @@index([key])
+}
+
+// ---------------------------------------------------------------------------
+// Admin favor content controls
+// ---------------------------------------------------------------------------
+
+/// Per-ruleset emergency switch for favor effects. Missing rows mean enabled,
+/// so pinned rulesets keep their original behavior until an admin intervenes.
+model FavorContentSetting {
+  id String @id @default(cuid())
+
+  rulesetId      String
+  rulesetVersion String
+  key            String
+  isEnabled      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([rulesetId, rulesetVersion, key])
+  @@index([rulesetId, rulesetVersion, isEnabled])
+}
+
+// ---------------------------------------------------------------------------
+// Active timed favors
+// ---------------------------------------------------------------------------
+
+model PlayerActiveFavor {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  /// STREET, UNDERWORLD or MUSCLE. Only one live timed favor per category.
+  category String
+  favorKey String
+  startedAt DateTime
+  expiresAt DateTime
+
+  @@unique([roundPlayerId, category])
+  @@index([roundPlayerId, expiresAt])
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Armed single-use favors
+// ---------------------------------------------------------------------------
+
+model PlayerArmedFavor {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  category String
+  favorKey String
+  armedAt DateTime @default(now())
+
+  @@unique([roundPlayerId, category])
+  @@index([roundPlayerId, favorKey])
+}
+
+// ---------------------------------------------------------------------------
+// Permanent per-round unlocks
+// ---------------------------------------------------------------------------
+
+model PlayerUnlock {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  /// Stable ruleset-defined key, e.g. PRODUCT_METH_ACCESS.
+  key String
+  /// Quest that granted it, when the unlock came from a job reward.
+  sourceQuestKey String?
+  awardedAt DateTime @default(now())
+
+  @@unique([roundPlayerId, key])
+  @@index([roundPlayerId, awardedAt])
+  @@index([key])
+}
+
+// ---------------------------------------------------------------------------
+// Handcrafted quests
+// ---------------------------------------------------------------------------
+
+/// Version-pinned quest content. Definitions are separate from PlayerQuest so
+/// one ruleset can publish a catalog once and every seasonal RoundPlayer can
+/// progress through it independently.
+model QuestDefinition {
+  id String @id @default(cuid())
+
+  /// Stable key inside one ruleset version, e.g. FIRST_NIGHT_OUT.
+  key            String
+  rulesetId      String
+  rulesetVersion String
+
+  title       String
+  description String
+  /// Future contact/NPC key. Null permits system/event quests.
+  contactKey  String?
+  /// STORY, SIDE, CONTRACT, DAILY, WEEKLY, SECRET, ALLIANCE or EVENT.
+  type        String
+  /// Free-form gameplay grouping such as STREET, COMBAT, TRAVEL or TURF.
+  category    String
+  /// STREET_JOB, CONTRACT, SERIOUS_BUSINESS, HIGH_RISK or KINGPIN_CONTRACT.
+  difficulty  String
+
+  /// JSON keeps the foundation extensible while Phase B supplies typed
+  /// objective/prerequisite/reward kinds in the ruleset package.
+  prerequisites   Json @default("[]")
+  objectives      Json
+  bonusObjectives Json @default("[]")
+  rewards         Json
+  followUpKeys    Json @default("[]")
+  availability    Json @default("{}")
+
+  repeatability       QuestRepeatability @default(ONCE)
+  expiresAfterMinutes Int?
+  isEnabled           Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  playerQuests PlayerQuest[]
+
+  @@unique([rulesetId, rulesetVersion, key])
+  @@index([rulesetId, rulesetVersion, isEnabled])
+  @@index([contactKey, isEnabled])
+}
+
+/// One player's attempt at one quest. The attempt number prevents
+/// daily/weekly/repeatable contracts from requiring a second schema later,
+/// while ONCE quests naturally stay on attempt 1.
+model PlayerQuest {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  questDefinitionId String
+  questDefinition   QuestDefinition @relation(fields: [questDefinitionId], references: [id], onDelete: Restrict)
+  progressReceipts QuestProgressReceipt[]
+
+  attempt   Int @default(1)
+  status    QuestStatus @default(AVAILABLE)
+  isTracked Boolean @default(false)
+
+  objectiveProgress Json @default("{}")
+  bonusProgress     Json @default("{}")
+  chosenBranch      String?
+  rewardState       Json @default("{}")
+
+  acceptedAt  DateTime?
+  completedAt DateTime?
+  claimedAt   DateTime?
+  failedAt    DateTime?
+  expiresAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, questDefinitionId, attempt])
+  @@index([roundPlayerId, status])
+  @@index([questDefinitionId, status])
+  @@index([status, expiresAt])
+}
+
+/// Idempotency/audit receipt for one source event applied to one quest attempt.
+/// The source key is usually activity:<PlayerActivity.id>; explicit emitters may
+/// use another stable domain key.
+model QuestProgressReceipt {
+  id String @id @default(cuid())
+
+  playerQuestId String
+  playerQuest   PlayerQuest @relation(fields: [playerQuestId], references: [id], onDelete: Cascade)
+
+  sourceKey String
+  eventType String
+  /// Objective deltas actually credited by this event.
+  applied Json @default("{}")
+
+  createdAt DateTime @default(now())
+
+  @@unique([playerQuestId, sourceKey])
+  @@index([playerQuestId, createdAt])
+  @@index([sourceKey])
 }
 
 model Round {
@@ -500,8 +764,15 @@ model RoundPlayer {
   updatedAt DateTime @updatedAt
 
   activity              PlayerActivity[]
+  inAppNotifications     InAppNotification[]
+  economyLedger         EconomyLedgerEntry[]
   processedActions      ProcessedAction[]
   reputation            PlayerReputation[]
+  playerQuests          PlayerQuest[]
+  permanentUnlocks      PlayerUnlock[]
+  favorInventory         PlayerFavor[]
+  activeFavors          PlayerActiveFavor[]
+  armedFavors           PlayerArmedFavor[]
   raidsSent             RaidBattle[]       @relation("RaidAttacker")
   raidsReceived         RaidBattle[]       @relation("RaidDefender")
   combatInjuries        CombatInjury[]
@@ -523,6 +794,13 @@ model RoundPlayer {
   hideoutBackOfficeLevel Int @default(0)
   /// 0.6.0-D. One level opens a second concurrent travel run.
   hideoutGarageLevel    Int @default(0)
+  /// 0.7.0-F. Which guns home squads and run escorts consume first.
+  hideoutWeaponPriority String @default("POWER")
+  /// 0.7.0-G. Permanent for this RoundPlayer; the next season starts clean.
+  hideoutSafeRoomSpecialization   String?
+  hideoutLookoutsSpecialization   String?
+  hideoutWorkshopSpecialization   String?
+  hideoutBackOfficeSpecialization String?
 
   /// 0.3.0-C. The alliance this player is in now, and since when. Shared revenge only
   /// counts hits on the alliance from after the member joined.
@@ -1078,6 +1356,12 @@ enum ActivityType {
   PAYOUT_CHANGE
   AWAY_BONUS
   HIDEOUT_UPGRADE
+  QUEST_OBJECTIVE_COMPLETE
+  QUEST_READY
+  QUEST_CLAIMED
+  FAVOR_ACTIVATED
+  FAVOR_DISARMED
+  FAVOR_ARMED
   BATTLE_VOIDED
   ADMIN_GRANT
   HEAT_BRIBE
@@ -1186,6 +1470,7 @@ model PlayerActivity {
 
   roundPlayerId String
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  notification  InAppNotification?
 
   type    ActivityType
   payload Json
@@ -1194,6 +1479,44 @@ model PlayerActivity {
 
   @@index([roundPlayerId, createdAt(sort: Desc)])
 }
+
+/// Durable in-game notification receipt for a toast-worthy activity.
+/// The notification id intentionally matches the activity id so a live toast can
+/// acknowledge itself without another lookup.
+model InAppNotification {
+  id String @id
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  activityId String @unique
+  activity   PlayerActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([roundPlayerId, readAt, createdAt(sort: Desc)])
+}
+
+/// 0.7.0-E. Durable economic lines for the Back Office ledger.
+/// Positive amounts are income; negative amounts are expenses. Internal transfers
+/// (for example cash loaded into a run) are intentionally not recorded here.
+model EconomyLedgerEntry {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  source      String
+  label       String
+  amountCents BigInt
+  metadata    Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([roundPlayerId, createdAt(sort: Desc)])
+}
+
 
 // ---------------------------------------------------------------------------
 // Turf (0.6.0-A)
@@ -1338,12 +1661,15 @@ model TurfPush {
   alliesCalledAt DateTime?
   /// Public turf-feed claim, parallel to RaidBattle.discordPostedAt.
   discordPostedAt DateTime?
+  /// Private notification collection is independent from the public feed.
+  alertsCollectedAt DateTime?
   backups      TurfPushBackup[]
 
   @@unique([attackerId, actionId])
   @@index([turfId, status])
   @@index([roundId, status, landsAt])
   @@index([roundId, captured, settledAt(sort: Desc)])
+  @@index([alertsCollectedAt, settledAt])
   @@index([attackerId, turfId, startedAt(sort: Desc)])
   @@index([attackerId, captured, settledAt(sort: Desc)])
   @@index([defenderAllianceId, attackerId, captured, settledAt(sort: Desc)])
@@ -1429,11 +1755,13 @@ model TurfControlEvent {
   nextBlocksHeld     Int @default(0)
   blocksTotal        Int
 
-  happenedAt       DateTime
-  discordPostedAt  DateTime?
+  happenedAt        DateTime
+  discordPostedAt   DateTime?
+  alertsCollectedAt DateTime?
 
   @@index([roundId, happenedAt(sort: Desc)])
   @@index([discordPostedAt, happenedAt])
+  @@index([alertsCollectedAt, happenedAt])
 }
 
 /// 0.6.0-F. One seeded late-round Federal sweep. The target and clock are fixed per

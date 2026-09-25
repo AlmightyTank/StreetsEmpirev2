@@ -8,6 +8,7 @@ import { AdminIntegrationsPage } from './pages/AdminIntegrationsPage.js';
 import { AdminNewsPage } from './pages/AdminNewsPage.js';
 import { AdminPage } from './pages/AdminPage.js';
 import { AdminPlayerPage } from './pages/AdminPlayerPage.js';
+import { AdminQuestContentPage } from './pages/AdminQuestContentPage.js';
 import { AdminRoundPage } from './pages/AdminRoundPage.js';
 import { AdminRulesetsPage } from './pages/AdminRulesetsPage.js';
 import { AdminSignalsPage } from './pages/AdminSignalsPage.js';
@@ -25,6 +26,7 @@ import { JoinPage } from './pages/JoinPage.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { NewsPage } from './pages/NewsPage.js';
 import { ProducePage } from './pages/ProducePage.js';
+import { QuestPage } from './pages/QuestPage.js';
 import { ProfilePage } from './pages/ProfilePage.js';
 import { RankingsPage } from './pages/RankingsPage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
@@ -108,6 +110,7 @@ export function App() {
       <Route path="/game" element={<Protected><DashboardPage /></Protected>} />
       <Route path="/game/combat" element={<Protected><LiveRound><CombatPage /></LiveRound></Protected>} />
       <Route path="/game/scout" element={<Protected><LiveRound><ScoutPage /></LiveRound></Protected>} />
+      <Route path="/game/quests" element={<Protected><LiveRound><QuestPage /></LiveRound></Protected>} />
       <Route path="/game/hideout" element={<Protected><LiveRound><HideoutPage /></LiveRound></Protected>} />
       {/* 0.4.0-E: products are traded at Pip's; old links land there. */}
       <Route path="/game/products" element={<Navigate to="/game/stores/pip" replace />} />
@@ -141,6 +144,7 @@ export function App() {
       <Route path="/game/admin/accounts" element={admin(<AdminAccountsPage />)} />
       <Route path="/game/admin/accounts/:accountId" element={admin(<AdminAccountPage />)} />
       <Route path="/game/admin/players/:roundPlayerId" element={admin(<AdminPlayerPage />)} />
+      <Route path="/game/admin/quests" element={admin(<AdminQuestContentPage />)} />
       <Route path="/game/admin/integrations" element={admin(<AdminIntegrationsPage />)} />
       <Route path="/game/admin/rulesets" element={admin(<AdminRulesetsPage />)} />
       <Route path="/game/admin/signals" element={admin(<AdminSignalsPage />)} />

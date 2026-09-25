@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { classicOgV01 } from '@streets/rulesets';
-import type { RestockRule, StockField } from '@streets/rulesets';
+import type { RestockRule, StockAtField, StockField } from '@streets/rulesets';
 import { calculateStoreTrade } from '../calculations/stores.js';
 import { fullShelves, restockedItems, settleStock, startingStock } from '../calculations/restock.js';
 
@@ -216,6 +216,68 @@ describe('shop restocking', () => {
 
     expect(settled.stock).toBe(0);
     expect(settled.gained).toBe(0);
+  });
+
+  it('keeps a delayed shipment off the shelf until its delayed arrival', () => {
+    const rule = ruleFor('ak47Stock');
+    const options = {
+      rules: {
+        enabled: true,
+        seed: 'delay-test',
+        delayChancePercent: 100,
+        delayMinutes: 60,
+        partialChancePercent: 0,
+        partialMultiplier: 0.5,
+        largeChancePercent: 0,
+        largeMultiplier: 2,
+      },
+      context: 'ak47Stock',
+    };
+    const state = shelf('ak47Stock', 0, rule.intervalMinutes, now);
+    const due = settleStock(state, rule, now, rule.intervalMinutes, options);
+
+    expect(due.stock).toBe(0);
+    expect(due.shipment).toMatchObject({ status: 'DELAYED', quantity: rule.perInterval, delayMinutes: 60 });
+    expect(due.nextAt).toEqual(new Date(now.getTime() + 60 * 60_000));
+
+    const arrived = settleStock(state, rule, due.nextAt!, rule.intervalMinutes, options);
+    expect(arrived.stock).toBe(rule.cap);
+    expect(arrived.gained).toBe(rule.cap);
+    expect(arrived.nextAt).toBeNull();
+  });
+
+  it('can settle a partial shipment without filling the shelf', () => {
+    const rule: RestockRule = {
+      cap: 10,
+      perInterval: 4,
+      intervalMinutes: 60,
+      stockField: 'condomStock' as StockField,
+      stockAtField: 'condomStockAt' as StockAtField,
+    };
+    const settled = settleStock(
+      { condomStock: 0, condomStockAt: new Date(now.getTime() - 60 * 60_000) },
+      rule,
+      now,
+      rule.intervalMinutes,
+      {
+        rules: {
+          enabled: true,
+          seed: 'partial-test',
+          delayChancePercent: 0,
+          delayMinutes: 60,
+          partialChancePercent: 100,
+          partialMultiplier: 0.5,
+          largeChancePercent: 0,
+          largeMultiplier: 2,
+        },
+        context: 'condomStock',
+      },
+    );
+
+    expect(settled.stock).toBe(2);
+    expect(settled.gained).toBe(2);
+    expect(settled.shipment).toMatchObject({ status: 'PARTIAL', quantity: 2 });
+    expect(settled.nextAt).toEqual(new Date(now.getTime() + 60 * 60_000));
   });
 
   it('keeps the part-served wait rather than restarting it', () => {

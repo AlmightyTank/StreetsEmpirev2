@@ -55,6 +55,26 @@ function pulse(city: CityCharacterDto) {
   };
 }
 
+function CityBlocksMetric({
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+  tone?: 'good' | 'warn' | 'accent';
+}) {
+  return (
+    <div className={`se-cityblocks-metric${tone ? ` se-cityblocks-metric--${tone}` : ''}`}>
+      <span className="se-cityblocks-metric__label">{label}</span>
+      <strong className="se-cityblocks-metric__value">{value}</strong>
+      {detail ? <span className="se-cityblocks-metric__detail">{detail}</span> : null}
+    </div>
+  );
+}
+
 function holder(block: TurfBlockDto) {
   if (!block.holder) {
     return block.localsReclaimAt
@@ -217,126 +237,237 @@ export function TurfPage() {
 
   return (
     <GameLayout>
-      <div className="se-pagehead">
-        <div>
-          <h1 className="se-title">City Blocks</h1>
-          <p className="se-eyebrow">Control, defend and work every corner from one place</p>
-        </div>
-        {selected ? <Link className="se-btn se-btn--ghost se-btn--sm" to={`/game/travel?city=${encodeURIComponent(selected.slug)}`}>Travel / roads</Link> : null}
-      </div>
-
-      {error ? <Alert>{error}</Alert> : null}
-      {!cities && !error ? <p className="se-muted" role="status">Checking the blocks...</p> : null}
-      {cities && !turfCities.length ? (
-        <Panel title="No Turf this round">
-          <p className="se-dim">City Blocks comes alive on Turf rulesets. This round does not have holdable districts.</p>
-        </Panel>
-      ) : null}
-
-      {turfCities.length ? (
-        <>
-          <div className="se-turfcitystrip" role="tablist" aria-label="Cities">
-            {turfCities.map((city) => {
-              const stats = pulse(city);
-              const active = city.slug === selected?.slug;
-              return (
-                <button
-                  key={city.slug}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  className={`se-turfcitystrip__city${active ? ' se-turfcitystrip__city--on' : ''}`}
-                  onClick={() => setParams({ city: city.slug }, { replace: true })}
-                >
-                  <strong>{city.name}</strong>
-                  <span>{city.turf?.control ? `[${city.turf.control.alliance.tag}] controls` : 'No city controller'}</span>
-                  <span className="se-num">{stats.held}/5 player-held</span>
-                </button>
-              );
-            })}
+      <div className="se-cityblocks">
+        <header className="se-cityblocks-hero">
+          <div className="se-cityblocks-hero__copy">
+            <span className="se-eyebrow">Territory command · {selected?.name ?? me.city.name}</span>
+            <h1>City Blocks</h1>
+            <p>Read who owns the street, where pressure is building, and where your crew can claim, reinforce, defend, or push next.</p>
           </div>
 
-          {selected && selectedPulse ? (
-            <div className="se-grid">
-              <Panel
-                title={selected.name}
-                aside={selected.turf?.control
-                  ? <Link to={`/game/alliances/${encodeURIComponent(selected.turf.control.alliance.tag)}`}>[{selected.turf.control.alliance.tag}] controls {selected.turf.control.blocksHeld}/5</Link>
-                  : 'No alliance controls the city'}
-              >
-                <div className="se-turfpulse">
-                  <div><span>Player-held</span><strong className="se-num">{selectedPulse.held}/5</strong></div>
-                  <div><span>Your blocks</span><strong className="se-num">{selectedPulse.mine}</strong></div>
-                  <div><span>Locals</span><strong className="se-num">{selectedPulse.locals}</strong></div>
-                  <div><span>Vacant</span><strong className="se-num">{selectedPulse.vacant}</strong></div>
-                  <div><span>Posted crew</span><strong className="se-num">{formatNumber(selectedPulse.postedThugs)}</strong></div>
-                  <div><span>Posted guns</span><strong className="se-num">{formatNumber(selectedPulse.guns)}</strong></div>
-                  <div><span>Avg. current hold</span><strong className="se-num">{selectedPulse.averageHold ? durationFrom(new Date(Date.now() - selectedPulse.averageHold).toISOString()) : '—'}</strong></div>
-                  <div><span>Pressure you can see</span><strong className="se-num">{selectedPulse.visiblePushes}</strong></div>
-                </div>
-                <p className="se-hint">The city pulse is a current snapshot. Cumulative Turf performance below uses block-time across the whole round.</p>
-              </Panel>
-
-              <Panel title="District control & corner work" aside="5 blocks">
-                <CityBlockBoard city={selected} onChanged={load} />
-              </Panel>
-
-              {!selected.isHome && travel?.rules.outposts ? (
-                <Panel title="Away corners & outposts" aside={runsHere.length ? `${runsHere.length} run${runsHere.length === 1 ? '' : 's'} in town` : 'Run required'}>
-                  {runsHere.length ? (
-                    <div className="se-grid">
-                      {runsHere.map((run) => <OutpostStopPanel key={run.id} run={run} data={travel} onDone={load} />)}
-                    </div>
-                  ) : (
-                    <p className="se-hint">
-                      Establishing or servicing an away corner requires one of your runs to be physically in {selected.name}.{' '}
-                      <Link to={`/game/travel?city=${encodeURIComponent(selected.slug)}`}>Send or move a run from Travel.</Link>
-                    </p>
-                  )}
-                </Panel>
-              ) : null}
-
-              <Panel title="Recent Turf fights" aside={selected.name}>
-                <TurfReports city={selected} />
-              </Panel>
-
-              {rankings?.territory ? (
-                <div className="se-grid se-grid--2">
-                  <Panel title="Top crews · round" aside="block-time">
-                    {rankings.territory.crews.length ? (
-                      <ol className="se-turfleaders">
-                        {rankings.territory.crews.slice(0, 5).map((row) => (
-                          <li key={row.publicPimpId} className={row.isYou ? 'se-turfleaders__you' : undefined}>
-                            <span>
-                              <b className="se-num">#{row.rank}</b>{' '}
-                              <AllianceTag alliance={row.alliance} />
-                              <Link className="se-playerlink" to={`/game/players/${row.publicPimpId}`}>{row.displayName}</Link>
-                            </span>
-                            <span className="se-num">{turfTime(row.heldSeconds)} · {row.currentBlocks} now</span>
-                          </li>
-                        ))}
-                      </ol>
-                    ) : <p className="se-muted">No crew has banked block-time yet.</p>}
-                  </Panel>
-
-                  <Panel title="Top alliances · round" aside="block-time">
-                    {rankings.territory.alliances.length ? (
-                      <ol className="se-turfleaders">
-                        {rankings.territory.alliances.slice(0, 5).map((row) => (
-                          <li key={row.tag} className={row.isYours ? 'se-turfleaders__you' : undefined}>
-                            <span><b className="se-num">#{row.rank}</b>{' '}<Link className="se-playerlink" to={`/game/alliances/${encodeURIComponent(row.tag)}`}>[{row.tag}] {row.name}</Link></span>
-                            <span className="se-num">{turfTime(row.heldSeconds)} · {row.currentBlocks} now</span>
-                          </li>
-                        ))}
-                      </ol>
-                    ) : <p className="se-muted">No alliance has banked block-time yet.</p>}
-                  </Panel>
-                </div>
-              ) : null}
+          <div className="se-cityblocks-hero__side">
+            {selected ? (
+              <Link className="se-btn se-btn--ghost se-btn--sm" to={`/game/travel?city=${encodeURIComponent(selected.slug)}`}>
+                Travel / roads
+              </Link>
+            ) : null}
+            <div className="se-cityblocks-hero__readout">
+              <span>
+                <small>Your blocks</small>
+                <strong>{selectedPulse ? formatNumber(selectedPulse.mine) : '—'}</strong>
+              </span>
+              <span>
+                <small>Player-held</small>
+                <strong>{selectedPulse ? `${formatNumber(selectedPulse.held)} / 5` : '—'}</strong>
+              </span>
+              <span>
+                <small>Visible pushes</small>
+                <strong>{selectedPulse ? formatNumber(selectedPulse.visiblePushes) : '—'}</strong>
+              </span>
+              <span>
+                <small>Posted crew</small>
+                <strong>{selectedPulse ? formatNumber(selectedPulse.postedThugs) : '—'}</strong>
+              </span>
             </div>
-          ) : null}
-        </>
-      ) : null}
+          </div>
+        </header>
+
+        {error ? <Alert>{error}</Alert> : null}
+        {!cities && !error ? <div className="se-cityblocks-loading" role="status">Checking the blocks...</div> : null}
+
+        {cities && !turfCities.length ? (
+          <Panel title="No Turf this round" className="se-cityblocks-panel">
+            <p className="se-dim">City Blocks comes alive on Turf rulesets. This round does not have holdable districts.</p>
+          </Panel>
+        ) : null}
+
+        {turfCities.length ? (
+          <>
+            <section className="se-cityblocks-cities">
+              <div className="se-cityblocks-sectionhead">
+                <div>
+                  <span className="se-eyebrow">City selector</span>
+                  <h2>Choose the battlefield</h2>
+                </div>
+                <p>Control is city-specific. Switch cities without leaving the territory board.</p>
+              </div>
+
+              <div className="se-turfcitystrip" role="tablist" aria-label="Cities">
+                {turfCities.map((city) => {
+                  const stats = pulse(city);
+                  const active = city.slug === selected?.slug;
+                  return (
+                    <button
+                      key={city.slug}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      className={`se-turfcitystrip__city${active ? ' se-turfcitystrip__city--on' : ''}`}
+                      onClick={() => setParams({ city: city.slug }, { replace: true })}
+                    >
+                      <strong>{city.name}</strong>
+                      <span>{city.turf?.control ? `[${city.turf.control.alliance.tag}] controls` : 'No city controller'}</span>
+                      <span className="se-num">{stats.held}/5 player-held · {stats.mine} yours</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            {selected && selectedPulse ? (
+              <>
+                <section className="se-cityblocks-section">
+                  <div className="se-cityblocks-sectionhead">
+                    <div>
+                      <span className="se-eyebrow">City pulse</span>
+                      <h2>{selected.name}</h2>
+                    </div>
+                    <div className="se-cityblocks-control">
+                      {selected.turf?.control ? (
+                        <Link to={`/game/alliances/${encodeURIComponent(selected.turf.control.alliance.tag)}`}>
+                          [{selected.turf.control.alliance.tag}] controls {selected.turf.control.blocksHeld}/5
+                        </Link>
+                      ) : (
+                        <span>No alliance controls the city</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="se-cityblocks-pulse">
+                    <CityBlocksMetric label="Player-held" value={`${formatNumber(selectedPulse.held)} / 5`} detail="blocks with player crews" />
+                    <CityBlocksMetric label="Your blocks" value={formatNumber(selectedPulse.mine)} detail="currently under your control" tone={selectedPulse.mine > 0 ? 'accent' : undefined} />
+                    <CityBlocksMetric label="Locals" value={formatNumber(selectedPulse.locals)} detail="fully local-controlled" />
+                    <CityBlocksMetric label="Vacant" value={formatNumber(selectedPulse.vacant)} detail="locals rebuilding" tone={selectedPulse.vacant > 0 ? 'warn' : undefined} />
+                    <CityBlocksMetric label="Posted crew" value={formatNumber(selectedPulse.postedThugs)} detail="all player-held blocks" />
+                    <CityBlocksMetric label="Posted guns" value={formatNumber(selectedPulse.guns)} detail="all player-held blocks" />
+                    <CityBlocksMetric
+                      label="Avg. current hold"
+                      value={selectedPulse.averageHold ? durationFrom(new Date(Date.now() - selectedPulse.averageHold).toISOString()) : '—'}
+                      detail="age of current holders"
+                    />
+                    <CityBlocksMetric
+                      label="Visible pressure"
+                      value={formatNumber(selectedPulse.visiblePushes)}
+                      detail={selectedPulse.visiblePushes ? 'pushes currently visible' : 'no visible pushes'}
+                      tone={selectedPulse.visiblePushes > 0 ? 'warn' : 'good'}
+                    />
+                  </div>
+                  <p className="se-hint">The pulse is a current snapshot. Round performance still uses cumulative block-time in the standings below.</p>
+                </section>
+
+                <section className="se-cityblocks-section">
+                  <div className="se-cityblocks-sectionhead">
+                    <div>
+                      <span className="se-eyebrow">District board</span>
+                      <h2>Control & corner work</h2>
+                    </div>
+                    <span className="se-cityblocks-sectionhead__meta">5 districts</span>
+                  </div>
+
+                  <div className="se-cityblocks-boardwrap">
+                    <CityBlockBoard city={selected} onChanged={load} />
+                  </div>
+                </section>
+
+                <section className="se-cityblocks-ops">
+                  <div className="se-cityblocks-stack">
+                    {!selected.isHome && travel?.rules.outposts ? (
+                      <Panel
+                        title="Away corners & outposts"
+                        aside={runsHere.length ? `${runsHere.length} run${runsHere.length === 1 ? '' : 's'} in town` : 'Run required'}
+                        className="se-cityblocks-panel"
+                      >
+                        {runsHere.length ? (
+                          <div className="se-cityblocks-outposts">
+                            {runsHere.map((run) => <OutpostStopPanel key={run.id} run={run} data={travel} onDone={load} />)}
+                          </div>
+                        ) : (
+                          <p className="se-hint">
+                            Establishing or servicing an away corner requires one of your runs to be physically in {selected.name}.{' '}
+                            <Link to={`/game/travel?city=${encodeURIComponent(selected.slug)}`}>Send or move a run from Travel.</Link>
+                          </p>
+                        )}
+                      </Panel>
+                    ) : null}
+
+                    <Panel title="Recent Turf fights" aside={selected.name} className="se-cityblocks-panel">
+                      <TurfReports city={selected} />
+                    </Panel>
+
+                    {rankings?.territory ? (
+                      <div className="se-cityblocks-rankings">
+                        <Panel title="Top crews · round" aside="block-time" className="se-cityblocks-panel">
+                          {rankings.territory.crews.length ? (
+                            <ol className="se-turfleaders">
+                              {rankings.territory.crews.slice(0, 5).map((row) => (
+                                <li key={row.publicPimpId} className={row.isYou ? 'se-turfleaders__you' : undefined}>
+                                  <span>
+                                    <b className="se-num">#{row.rank}</b>{' '}
+                                    <AllianceTag alliance={row.alliance} />
+                                    <Link className="se-playerlink" to={`/game/players/${row.publicPimpId}`}>{row.displayName}</Link>
+                                  </span>
+                                  <span className="se-num">{turfTime(row.heldSeconds)} · {row.currentBlocks} now</span>
+                                </li>
+                              ))}
+                            </ol>
+                          ) : <p className="se-muted">No crew has banked block-time yet.</p>}
+                        </Panel>
+
+                        <Panel title="Top alliances · round" aside="block-time" className="se-cityblocks-panel">
+                          {rankings.territory.alliances.length ? (
+                            <ol className="se-turfleaders">
+                              {rankings.territory.alliances.slice(0, 5).map((row) => (
+                                <li key={row.tag} className={row.isYours ? 'se-turfleaders__you' : undefined}>
+                                  <span>
+                                    <b className="se-num">#{row.rank}</b>{' '}
+                                    <Link className="se-playerlink" to={`/game/alliances/${encodeURIComponent(row.tag)}`}>[{row.tag}] {row.name}</Link>
+                                  </span>
+                                  <span className="se-num">{turfTime(row.heldSeconds)} · {row.currentBlocks} now</span>
+                                </li>
+                              ))}
+                            </ol>
+                          ) : <p className="se-muted">No alliance has banked block-time yet.</p>}
+                        </Panel>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="se-cityblocks-stack">
+                    <Panel title="Territory read" aside="Current city" className="se-cityblocks-panel">
+                      <div className="se-cityblocks-read">
+                        <div>
+                          <span>City controller</span>
+                          <strong>
+                            {selected.turf?.control
+                              ? `[${selected.turf.control.alliance.tag}] ${selected.turf.control.alliance.name}`
+                              : 'No controller'}
+                          </strong>
+                        </div>
+                        <div>
+                          <span>Your footprint</span>
+                          <strong>{selectedPulse.mine ? `${selectedPulse.mine} of 5 blocks` : 'No blocks held'}</strong>
+                        </div>
+                        <div>
+                          <span>Open opportunity</span>
+                          <strong>{selectedPulse.locals + selectedPulse.vacant} blocks outside player control</strong>
+                        </div>
+                        <div>
+                          <span>Visible conflict</span>
+                          <strong>{selectedPulse.visiblePushes ? `${selectedPulse.visiblePushes} active push${selectedPulse.visiblePushes === 1 ? '' : 'es'}` : 'None visible'}</strong>
+                        </div>
+                      </div>
+                      <p className="se-hint">
+                        Corner claiming, reinforcement, pulls, pushes, revenge windows, and alliance calls stay on the district cards above.
+                      </p>
+                    </Panel>
+
+                  </div>
+                </section>
+              </>
+            ) : null}
+          </>
+        ) : null}
+      </div>
     </GameLayout>
   );
 }

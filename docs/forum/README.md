@@ -56,6 +56,20 @@ title follows; if the alliance disbands the thread is retitled `(disbanded)` and
 locked. Locking uses Flarum's bundled **Lock** extension, so keep it enabled. A
 forum outage never blocks the game: the leader sees the error and can retry.
 
+## Beta access
+
+Forum groups are optional for private beta categories, but the game title and
+Discord role do not come from a forum group. In the beta game `.env`, set:
+
+```dotenv
+BETA_TESTER_DISCORD_LINKED=true
+DISCORD_ROLE_SYNC_MODE="beta-tester-only"
+```
+
+Beta players who sign up and link Discord can select the **Beta Tester** profile
+title/badge in the game, and the beta Discord bot mirrors them as the only
+managed Discord role: `Beta Tester`.
+
 ## Scope and rollback
 
 Colors come from `apps/web/src/styles/theme.css`. The stylesheet uses the CSS

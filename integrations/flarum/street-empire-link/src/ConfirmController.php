@@ -23,13 +23,15 @@ class ConfirmController implements RequestHandlerInterface
         try {
             $token = $body['request'] ?? '';
             if (!is_string($token)) throw new InvalidArgumentException('Invalid linking request.');
-            $data = Proof::request($token, $this->config->secret, $this->config->gameOrigin, $this->config->forumOrigin);
+            $verified = $this->config->verifyRequest($token);
+            $data = $verified['data'];
+            $gameOrigin = $verified['origin'];
             $proof = Proof::encode([
-                'v' => 1, 'purpose' => 'forum-link-response', 'iss' => $this->config->forumOrigin, 'aud' => $this->config->gameOrigin,
+                'v' => 1, 'purpose' => 'forum-link-response', 'iss' => $this->config->forumOrigin, 'aud' => $gameOrigin,
                 'nonce' => $data['nonce'], 'userId' => (string) $actor->id, 'username' => $actor->username,
                 'iat' => time(), 'exp' => $data['exp'],
-            ], $this->config->secret);
-            return new JsonResponse(['url' => $this->config->gameOrigin.'/account/forum-link#proof='.$proof], 200, ['Cache-Control' => 'no-store']);
+            ], $verified['secret']);
+            return new JsonResponse(['url' => $gameOrigin.'/account/forum-link#proof='.$proof], 200, ['Cache-Control' => 'no-store']);
         } catch (InvalidArgumentException $error) {
             return new JsonResponse(['message' => $error->getMessage()], 400);
         }

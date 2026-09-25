@@ -28,6 +28,7 @@ describe('rateLimitPolicyFor', () => {
     expect(rateLimitPolicyFor('POST', '/api/auth/email/verify')).toBe(RATE_LIMIT_POLICIES.auth);
     expect(rateLimitPolicyFor('GET', '/api/auth/discord')).toBe(RATE_LIMIT_POLICIES.auth);
     expect(rateLimitPolicyFor('GET', '/api/auth/discord/callback')).toBe(RATE_LIMIT_POLICIES.auth);
+    expect(rateLimitPolicyFor('DELETE', '/api/auth/discord')).toBe(RATE_LIMIT_POLICIES.auth);
   });
 
   it('separates normal reads and writes', () => {

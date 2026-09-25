@@ -4,6 +4,7 @@ import {
   findRoutes,
   heatThere,
   loadRulesetForRound,
+  relocationFeeCents,
   relocationRules,
   rulesetForCity,
   type MoveCheck,
@@ -15,6 +16,7 @@ import { AppError } from '../utils/errors.js';
 import { ActionService } from './action.service.js';
 import { ActivityService } from './activity.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
+import { hideoutGarageRelocationDiscountPercent } from './hideout.service.js';
 import {
   TurfService,
   addCornerGuns,
@@ -307,7 +309,18 @@ export const RelocationService = {
       turfMoveBlock(db, ruleset, player.id),
       db.relocation.findFirst({ where: { roundPlayerId: player.id, arrivedAt: null }, orderBy: { startedAt: 'desc' } }),
     ]);
-    const base = { from: home, now, netWorthCents: player.netWorthCents, cashCents: player.cashCents, roundEndsAt, movingUntil: player.movingUntil, lockedUntil: player.lockedUntil, ...inputs };
+    const garageFeeDiscountPercent = hideoutGarageRelocationDiscountPercent(ruleset, player);
+    const base = {
+      from: home,
+      now,
+      netWorthCents: player.netWorthCents,
+      cashCents: player.cashCents,
+      roundEndsAt,
+      movingUntil: player.movingUntil,
+      lockedUntil: player.lockedUntil,
+      feeDiscountPercent: garageFeeDiscountPercent,
+      ...inputs,
+    };
     const held = await heldTurf(db, player.id);
     const turfPlans = Object.fromEntries(
       Object.keys(ruleset.cities ?? {}).filter((slug) => slug !== home)
@@ -316,8 +329,12 @@ export const RelocationService = {
     const here = heatThere(ruleset, heat, home);
     // Any city but home shows the same general reason; the per-city ones (no road) are rare.
     const general = checkMove(ruleset, { ...base, to: Object.keys(ruleset.cities ?? {}).find((slug) => slug !== home) ?? home });
+    const baseFeeCents = relocationFeeCents(player.netWorthCents, rules);
     return {
       feeCents: Number(general.feeCents),
+      baseFeeCents: Number(baseFeeCents),
+      garageFeeDiscountPercent,
+      garageSavingsCents: Number(baseFeeCents - general.feeCents),
       feeFloorCents: rules.feeFloorCents,
       feeNetWorthFraction: rules.feeNetWorthFraction,
       downtimeMinutes: rules.downtimeMinutes,
@@ -358,9 +375,12 @@ export const RelocationService = {
           heldTurf(tx, roundPlayerId),
         ]);
         if (turfBlock) throw AppError.conflict(turfBlock.code, turfBlock.reason);
+        const garageFeeDiscountPercent = hideoutGarageRelocationDiscountPercent(base, player);
         const check = checkMove(base, {
           from: player.city.slug, to: input.to, now, netWorthCents: player.netWorthCents, cashCents: current.cashCents,
-          roundEndsAt: round.endsAt, movingUntil: player.movingUntil, lockedUntil: player.lockedUntil, ...inputs,
+          roundEndsAt: round.endsAt, movingUntil: player.movingUntil, lockedUntil: player.lockedUntil,
+          feeDiscountPercent: garageFeeDiscountPercent,
+          ...inputs,
         });
         if (check.blockedReason) throw refusal(check);
         const to = await tx.city.findUnique({ where: { slug: input.to }, select: { isEnabled: true } });
@@ -375,12 +395,21 @@ export const RelocationService = {
           to: input.to,
           toName: cityName(base, input.to),
           feeCents: Number(check.feeCents),
+          ...(garageFeeDiscountPercent > 0 ? {
+            garageFeeDiscountPercent,
+            garageSavingsCents: Number(relocationFeeCents(player.netWorthCents, relocationRules(base)!) - check.feeCents),
+          } : {}),
           arrivesAt: check.arrivesAt.toISOString(),
           turfPlan: turfPlan(held, base, player.city.slug, input.to),
         };
         return {
           next: { ...current, cashCents: current.cashCents - check.feeCents, movingUntil: check.arrivesAt },
           result,
+          ledger: [{
+            source: 'RELOCATE',
+            label: `Relocation · ${cityName(base, player.city.slug)} → ${cityName(base, input.to)}`,
+            amountCents: -check.feeCents,
+          }],
           activity: { type: 'RELOCATION_STARTED', payload: result as unknown as Prisma.InputJsonValue },
         };
       },

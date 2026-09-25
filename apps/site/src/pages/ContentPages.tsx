@@ -27,7 +27,9 @@ const guideCopy: Record<string, { title: string; intro: string; sections: Array<
     intro: 'The economy is more than cash: products, supplies, store access, city conditions and trader standing all affect what your next turn is worth.',
     sections: [
       { title: 'Scout and work', body: 'Districts have different identities and requirements. Scouting works the streets while also finding people and product, making it one of the main ways an operation grows.' },
-      { title: 'Produce and trade', body: 'Production converts crew time, supplies and cash into product. Stores provide equipment and consumables while reputation/favors open better access over the season.' },
+      { title: 'Produce and trade', body: 'Production converts crew time, supplies and cash into product. Stores provide equipment and consumables while reputation and favors can improve your terms or access over the season.' },
+      { title: 'Read the Store before you buy', body: 'Store cards show price context, stock pressure, trader standing and incoming shipments. A sold-out eligible shelf can sometimes be special-ordered for an extra sourcing fee instead of waiting for the normal delivery.' },
+      { title: 'Use the basket for supply runs', body: 'Add several Store lines to one basket, review the total, then check out once. The server reprices and validates the whole order together, so stale stock or an invalid line cannot silently create a partial purchase.' },
       { title: 'Cities change the decision', body: 'Travel-era rules give cities different traits, product conditions, police pressure and local district flavor. The public site describes that character without publishing hidden live market numbers.' },
     ],
   },

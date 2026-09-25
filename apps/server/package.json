@@ -6,6 +6,7 @@
   "main": "./src/index.ts",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "prisma:generate": "prisma generate --schema ../../prisma/schema.prisma",
     "start": "node dist/index.js",
     "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/index.js --external:fastify --external:@fastify/* --external:@prisma/client --external:.prisma/* --external:@node-rs/argon2 --external:zod --external:dotenv --external:fastify-plugin --external:pino-pretty --external:web-push",
     "typecheck": "tsc -p tsconfig.json"

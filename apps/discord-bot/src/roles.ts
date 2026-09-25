@@ -65,6 +65,11 @@ export function managedRoles(forumGroups: string[]): ManagedRole[] {
   ];
 }
 
+/** Beta-only mode: the bot owns only this role. */
+export function betaTesterRoles(): ManagedRole[] {
+  return [{ key: 'beta-tester', name: 'Beta Tester', color: 0x60a5fa }];
+}
+
 /** Display names for role keys, in managed-role order; unmanaged keys (e.g. unlisted forum groups) are skipped. */
 export function roleNamesForKeys(keys: string[], managed: ManagedRole[]): string[] {
   const wanted = new Set(keys.map(normalizeRoleKey));

@@ -21,8 +21,14 @@ class PreviewController implements RequestHandlerInterface
         try {
             $token = $request->getParsedBody()['request'] ?? '';
             if (!is_string($token)) throw new InvalidArgumentException('Invalid linking request.');
-            $data = Proof::request($token, $this->config->secret, $this->config->gameOrigin, $this->config->forumOrigin);
-            return new JsonResponse(['gameUsername' => $data['username'], 'forumUsername' => $actor->username, 'forumUserId' => (string) $actor->id], 200, ['Cache-Control' => 'no-store']);
+            $verified = $this->config->verifyRequest($token);
+            $data = $verified['data'];
+            return new JsonResponse([
+                'gameOrigin' => $verified['origin'],
+                'gameUsername' => $data['username'],
+                'forumUsername' => $actor->username,
+                'forumUserId' => (string) $actor->id,
+            ], 200, ['Cache-Control' => 'no-store']);
         } catch (InvalidArgumentException $error) {
             return new JsonResponse(['message' => $error->getMessage()], 400);
         }

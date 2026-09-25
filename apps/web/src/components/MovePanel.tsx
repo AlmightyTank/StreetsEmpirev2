@@ -80,7 +80,16 @@ export function MovePanel({ data, selected, onDone }: { data: TravelDto; selecte
       </div>
       <div className="se-rows se-mt">
         <Row label="Cost" value={formatCents(relocation.feeCents)} strong
-          tooltip={`${percent(relocation.feeNetWorthFraction)} of your net worth, never under ${formatCents(relocation.feeFloorCents)}.`} />
+          tooltip={relocation.garageFeeDiscountPercent > 0
+            ? `Base move fee ${formatCents(relocation.baseFeeCents)}; Garage takes ${relocation.garageFeeDiscountPercent}% off.`
+            : `${percent(relocation.feeNetWorthFraction)} of your net worth, never under ${formatCents(relocation.feeFloorCents)}.`} />
+        {relocation.garageFeeDiscountPercent > 0 ? (
+          <Row
+            label="Garage savings"
+            value={`−${formatCents(relocation.garageSavingsCents)}`}
+            tooltip={`${relocation.garageFeeDiscountPercent}% off the normal relocation fee. Travel time and route risk are unchanged.`}
+          />
+        ) : null}
         <Row label="On the road" value={`${minutesText(relocation.downtimeMinutes)}, there around ${when(arrives)}`}
           tooltip="You cannot act while the truck is on the road, and you stay a target where you live now until it arrives." />
         <Row label="Next move" value={`${relocation.cooldownHours} hours after this one`} />

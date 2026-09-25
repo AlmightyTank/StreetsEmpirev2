@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, classicOgV06C, classicOgV06D, classicOgV06E, classicOgV06F, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, classicOgV06C, classicOgV06D, classicOgV06E, classicOgV06F, classicOgV08H, type Ruleset } from '@streets/rulesets';
 import { regenerateTurns } from '../calculations/turns.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
@@ -37,8 +37,44 @@ describe('ruleset loader', () => {
 
   it('knows which ids it can serve', () => {
     expect(isKnownRulesetId('classic-og-v0.1')).toBe(true);
+    expect(isKnownRulesetId('classic-og-v0.7-v')).toBe(true);
+    expect(isKnownRulesetId('classic-og-v0.7-w')).toBe(true);
+    expect(isKnownRulesetId('classic-og-v0.7-x')).toBe(true);
+    expect(isKnownRulesetId('classic-og-v0.7-y')).toBe(true);
+    expect(isKnownRulesetId('classic-og-v0.7-z')).toBe(true);
+    expect(isKnownRulesetId('classic-og-v0.7-aa')).toBe(true);
+    expect(isKnownRulesetId('classic-og-v0.8-c')).toBe(true);
+    expect(isKnownRulesetId('classic-og-v0.8-d')).toBe(true);
+    expect(isKnownRulesetId('classic-og-v0.8-e')).toBe(true);
+    expect(isKnownRulesetId('classic-og-v0.8-f')).toBe(true);
+    expect(isKnownRulesetId('classic-og-v0.8-g')).toBe(true);
+    expect(isKnownRulesetId('classic-og-v0.8-h')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(30);
+    expect(listRulesets()).toHaveLength(62);
+  });
+});
+
+describe('classic-og-v0.8-h contents', () => {
+  it('loads the store economy release ruleset with capped integration tuning', () => {
+    expect(loadRuleset('classic-og-v0.8-h', '0.8.0-H')).toBe(classicOgV08H);
+    expect(classicOgV08H.meta.name).toBe('Classic OG - Store Economy Release');
+    expect(classicOgV08H.storeEconomy?.shipments).toMatchObject({
+      enabled: true,
+      delayChancePercent: 10,
+      partialChancePercent: 12,
+      largeChancePercent: 6,
+    });
+    expect(classicOgV08H.storeEconomy?.specialOrders).toMatchObject({
+      enabled: true,
+      markupPercent: 40,
+      minWaitMinutes: 45,
+      waitMultiplier: 0.6,
+    });
+    expect(classicOgV08H.storeEconomy?.integrations).toMatchObject({
+      enabled: true,
+      maxTurfSpecialOrderDiscountPercent: 8,
+      travelOpportunityMinProfitPercent: 12,
+    });
   });
 });
 
