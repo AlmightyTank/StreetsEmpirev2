@@ -25,16 +25,61 @@ export function RulesPage() {
   return (
     <InfoLayout>
       <div className="se-rules">
-      <section className="se-info-hero">
-        <span className="se-info-hero__kicker">Street handbook</span>
-        <h1 className="se-info-hero__title">Rules</h1>
-        <p className="se-info-hero__body">How StreetsEmpire works without turning the handbook into a second balance sheet. Live numbers stay on the pages where they matter.</p>
-        <div className="se-info-hero__metrics"><span className="se-info-chip"><strong>{status?.ruleset?.name ?? 'Classic OG'}</strong> ruleset</span><span className="se-info-chip">Mechanics, not promises</span></div>
-      </section>
+        <section className="se-info-hero se-info-hero--rules">
+          <div className="se-info-hero__copy">
+            <span className="se-info-hero__kicker">Street handbook</span>
+            <h1 className="se-info-hero__title">Rules</h1>
+            <p className="se-info-hero__body">The mechanics that stay true even when balance numbers move. Live prices, limits and timers stay on the pages where you actually use them.</p>
+          </div>
+          <div className="se-info-hero__readout" aria-label="Current ruleset summary">
+            <span><small>Ruleset</small><strong>{status?.ruleset?.name ?? 'Classic OG'}</strong></span>
+            <span><small>Version</small><strong>{status?.ruleset?.version ?? 'Current'}</strong></span>
+            <span><small>Turn clock</small><strong>{status?.turns ? `+${status.turns.amountPerInterval} / ${status.turns.intervalMinutes}m` : 'Live round'}</strong></span>
+            <span><small>Turn cap</small><strong>{status?.turns?.cap ?? 'Live value'}</strong></span>
+          </div>
+        </section>
 
-      <div className="se-rules__layout">
-        <aside className="se-panel se-rules__rail"><div className="se-panel__head"><h2 className="se-panel__title">On this page</h2></div><div className="se-panel__body se-rules__rail-list"><a href="#fair-seasons">Fair seasons</a><a href="#turns">Turns</a><a href="#crew">Crew</a><a href="#shops">Shops</a><a href="#combat">Raids</a><a href="#travel">The road</a><a href="#turf">Turf</a><a href="#rank">Money & rank</a></div></aside>
-        <div className="se-rules__content">
+        <section className="se-info-section">
+          <div className="se-info-sectionhead">
+            <div>
+              <span className="se-eyebrow">The contract</span>
+              <h2>What the game promises every season</h2>
+            </div>
+            <p>The handbook explains systems. The live game owns the balance numbers.</p>
+          </div>
+          <div className="se-info-principles">
+            <article><span>01</span><strong>Fresh competition</strong><p>Season power resets so the next leaderboard starts on equal footing.</p></article>
+            <article><span>02</span><strong>Live numbers stay live</strong><p>Prices, caps, timers and requirements are shown where you act on them.</p></article>
+            <article><span>03</span><strong>Intel has boundaries</strong><p>Public bragging rights stay public; dangerous combat information still needs recon.</p></article>
+          </div>
+        </section>
+
+        <section className="se-info-section">
+          <div className="se-info-sectionhead">
+            <div>
+              <span className="se-eyebrow">Street handbook</span>
+              <h2>Mechanics by system</h2>
+            </div>
+            <span className="se-info-sectionhead__meta">Jump in from the rail · read only what you need</span>
+          </div>
+
+          <div className="se-rules__layout">
+            <aside className="se-panel se-rules__rail">
+              <div className="se-panel__head"><h2 className="se-panel__title">On this page</h2></div>
+              <div className="se-panel__body se-rules__rail-list">
+                <a href="#fair-seasons"><span>01</span> Fair seasons</a>
+                <a href="#turns"><span>02</span> Turns</a>
+                <a href="#crew"><span>03</span> Crew</a>
+                <a href="#shops"><span>04</span> Shops</a>
+                <a href="#work"><span>05</span> Working blocks</a>
+                <a href="#products"><span>06</span> Products & Heat</a>
+                <a href="#combat"><span>07</span> Raids</a>
+                <a href="#travel"><span>08</span> The road</a>
+                <a href="#turf"><span>09</span> Turf</a>
+                <a href="#rank"><span>10</span> Money & rank</a>
+              </div>
+            </aside>
+            <div className="se-rules__content">
           <section id="fair-seasons" className="se-rules__panel"><Panel title="Fair seasons">
             <ul className="se-list">
               <li>Each season is mechanically fresh. New rounds reset cash, crew, supplies, weapons, turns, intel, cooldowns and rankings.</li>
@@ -96,14 +141,14 @@ export function RulesPage() {
             </ul>
           </Panel></section>
 
-          <Panel title="Hideout">
+          <section id="hideout" className="se-rules__panel"><Panel title="Hideout">
             <ul className="se-list">
               <li>The hideout is a seasonal money sink for small capped buffs, not permanent power.</li>
               <li>Safe Room protects more cash from raids. Lookouts add a small home-defense bonus.</li>
               <li>Workshop adds a little production efficiency, and Back Office adds a little more personal cash take from street work.</li>
               <li>Every room has a cap. Maxing it is a season achievement, not an account advantage next season.</li>
             </ul>
-          </Panel>
+          </Panel></section>
 
           <section id="combat" className="se-rules__panel"><Panel title="Raids">
             <ul className="se-list">
@@ -145,10 +190,9 @@ export function RulesPage() {
               </li>
             </ul>
           </Panel></section>
-        </div>
 
-        <div className="se-grid">
-          <Panel title="Working a block">
+          <div className="se-rules__chapter-grid">
+          <section id="work" className="se-rules__panel"><Panel title="Working a block">
             <ul className="se-list">
               <li>
                 Scout is one trip doing both jobs: the girls work the block while you work
@@ -167,9 +211,9 @@ export function RulesPage() {
                 You find the rest out by going.
               </li>
             </ul>
-          </Panel>
+          </Panel></section>
 
-          <Panel title="Products and Heat">
+          <section id="products" className="se-rules__panel"><Panel title="Products and Heat">
             <ul className="se-list">
               <li>
                 Rounds with more than one product give each its own character: some pay best
@@ -193,9 +237,9 @@ export function RulesPage() {
                 bribe on the dashboard takes it down faster.
               </li>
             </ul>
-          </Panel>
+          </Panel></section>
 
-          <Panel title="Condoms and medicine">
+          <section className="se-rules__panel"><Panel title="Condoms and medicine">
             <ul className="se-list">
               <li>
                 Any shift that puts the girls out burns condoms. Come up short and somebody
@@ -210,9 +254,9 @@ export function RulesPage() {
                 neglecting both is by far the most expensive option.
               </li>
             </ul>
-          </Panel>
+          </Panel></section>
 
-          <Panel title="Reputation and guns">
+          <section className="se-rules__panel"><Panel title="Reputation and guns">
             <ul className="se-list">
               <li>
                 Every trader keeps their own opinion of you, and each is asking for one
@@ -231,9 +275,9 @@ export function RulesPage() {
                 round even if your cash or crew later falls away.
               </li>
             </ul>
-          </Panel>
+          </Panel></section>
 
-          <section id="travel" className="se-rules__panel"><Panel title="The road">
+          <section id="travel" className="se-rules__panel se-rules__panel--wide"><Panel title="The road">
             <ul className="se-list">
               <li>
                 Rounds with travel open every city. Each one deals differently: what is
@@ -271,7 +315,7 @@ export function RulesPage() {
             </ul>
           </Panel></section>
 
-          <section id="turf" className="se-rules__panel"><Panel title="Turf and territory">
+          <section id="turf" className="se-rules__panel se-rules__panel--wide"><Panel title="Turf and territory">
             <ul className="se-list">
               <li>
                 Turf rounds turn each city district into a block somebody can hold. Scout work builds
@@ -298,7 +342,7 @@ export function RulesPage() {
             </ul>
           </Panel></section>
 
-          <section id="rank" className="se-rules__panel"><Panel title="Money and rank">
+          <section id="rank" className="se-rules__panel se-rules__panel--wide"><Panel title="Money and rank">
             <ul className="se-list">
               <li>Net worth decides local and national rank, and it is not just cash.</li>
               <li>Public net worth is visible because rank is meant to be argued over. It still does not tell you liquid cash or defense.</li>
@@ -316,8 +360,10 @@ export function RulesPage() {
               </li>
             </ul>
           </Panel></section>
+          </div>
         </div>
       </div>
+        </section>
       </div>
     </InfoLayout>
   );
