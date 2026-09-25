@@ -14,7 +14,7 @@
   border: 1px solid var(--se-line);
   border-radius: 4px;
   background:
-    linear-gradient(120deg, rgba(182, 255, 58, 0.075), transparent 44%),
+    linear-gradient(120deg, rgba(var(--se-accent-rgb), 0.075), transparent 44%),
     linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
 }
 
@@ -25,7 +25,7 @@
   bottom: -130px;
   width: 330px;
   height: 250px;
-  border: 1px solid rgba(182, 255, 58, 0.1);
+  border: 1px solid rgba(var(--se-accent-rgb), 0.1);
   transform: rotate(-13deg);
   pointer-events: none;
 }
@@ -168,8 +168,8 @@
 }
 
 .se-scout-plan .se-choice--on {
-  border-color: rgba(182, 255, 58, 0.55);
-  background: rgba(182, 255, 58, 0.04);
+  border-color: rgba(var(--se-accent-rgb), 0.55);
+  background: rgba(var(--se-accent-rgb), 0.04);
   box-shadow: inset 3px 0 0 var(--se-accent);
 }
 
@@ -218,8 +218,8 @@
   gap: 14px;
   align-items: center;
   padding: 12px;
-  border: 1px solid rgba(182, 255, 58, 0.18);
-  background: rgba(182, 255, 58, 0.025);
+  border: 1px solid rgba(var(--se-accent-rgb), 0.18);
+  background: rgba(var(--se-accent-rgb), 0.025);
 }
 
 .se-scout-launch__summary {
@@ -264,7 +264,7 @@
 }
 
 .se-scout-risk--good {
-  border-color: rgba(74, 222, 128, 0.3);
+  border-color: rgba(var(--se-good-rgb), 0.3);
   color: var(--se-good);
 }
 
@@ -302,7 +302,7 @@
   display: block;
   height: 100%;
   background: var(--se-accent);
-  box-shadow: 0 0 15px rgba(182, 255, 58, 0.15);
+  box-shadow: 0 0 15px rgba(var(--se-accent-rgb), 0.15);
 }
 
 .se-scout-intel__coverage-labels {
@@ -421,9 +421,9 @@
 
 .se-scout-result {
   padding: 14px;
-  border: 1px solid rgba(182, 255, 58, 0.18);
+  border: 1px solid rgba(var(--se-accent-rgb), 0.18);
   border-radius: 4px;
-  background: rgba(182, 255, 58, 0.018);
+  background: rgba(var(--se-accent-rgb), 0.018);
 }
 
 .se-scout-result .se-result,
