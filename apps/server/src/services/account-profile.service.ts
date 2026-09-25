@@ -17,6 +17,7 @@ import { betaTesterAwardsForAccount, CommunityService, legacyAchievements, loadA
 import { RoundPlayerService } from './round-player.service.js';
 import { RoundService } from './round.service.js';
 import { QuestCosmeticService } from './quest-cosmetic.service.js';
+import { profileTitleForAward } from './profile-titles.js';
 
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
 
@@ -59,6 +60,16 @@ function optionFromAward(award: PublicAwardDto): BadgeCosmeticOptionDto {
     key: award.key,
     label: award.title,
     description: award.description,
+    rarity: award.rarity,
+    permanent: award.category === 'legacy' || award.category === 'quest',
+  };
+}
+
+function titleOptionFromAward(award: PublicAwardDto): BadgeCosmeticOptionDto {
+  return {
+    key: award.key,
+    label: profileTitleForAward(award),
+    description: `Earned from ${award.title}: ${award.description}`,
     rarity: award.rarity,
     permanent: award.category === 'legacy' || award.category === 'quest',
   };
@@ -169,14 +180,15 @@ export const AccountProfileService = {
       earnedAwards(prisma, accountId),
       appearanceOptions(prisma, accountId),
     ]);
-    const options = awards.map(optionFromAward);
-    const earnedKeys = new Set(options.map((option) => option.key));
+    const titleOptions = awards.map(titleOptionFromAward);
+    const badgeOptions = awards.map(optionFromAward);
+    const earnedKeys = new Set(badgeOptions.map((option) => option.key));
 
     return {
       settings: toSettingsDto(profile, earnedKeys, appearance.accents, appearance.frames, appearance.themes),
       options: {
-        titles: options,
-        badges: options,
+        titles: titleOptions,
+        badges: badgeOptions,
         accents: appearance.accents,
         frames: appearance.frames,
         themes: appearance.themes,
@@ -280,7 +292,8 @@ export const AccountProfileService = {
     const unlocked = awards.filter((award) => award.unlocked);
     const earnedKeys = new Set(unlocked.map((award) => award.key));
     const settings = toSettingsDto(profile, earnedKeys, appearance.accents, appearance.frames, appearance.themes);
-    const title = unlocked.find((award) => award.key === settings.activeTitleKey)?.title ?? null;
+    const titleAward = unlocked.find((award) => award.key === settings.activeTitleKey);
+    const title = titleAward ? profileTitleForAward(titleAward) : null;
     return { settings, title };
   },
 };

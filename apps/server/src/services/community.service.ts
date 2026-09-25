@@ -22,6 +22,7 @@ import { allianceTagDto } from './alliance.service.js';
 import { ForumGroupsService } from './forum-groups.service.js';
 import { forumProfileUrl } from './forum-link.service.js';
 import { selectProfileBadges } from './profile-badges.js';
+import { profileTitleForAward } from './profile-titles.js';
 import { TurfHistoryService } from './turf-history.service.js';
 import { QuestCosmeticService } from './quest-cosmetic.service.js';
 
@@ -912,7 +913,8 @@ export const CommunityService = {
     const unlockedAwards = awards.filter((award) => award.unlocked);
     const featuredBadgeKeys = jsonStringArray(profileSettings?.featuredBadgeKeys)
       .filter((key) => unlockedAwards.some((award) => award.key === key));
-    const title = unlockedAwards.find((award) => award.key === profileSettings?.activeTitleKey)?.title ?? null;
+    const titleAward = unlockedAwards.find((award) => award.key === profileSettings?.activeTitleKey);
+    const title = titleAward ? profileTitleForAward(titleAward) : null;
     const frame = frameOptions.some((option) => option.key === profileSettings?.activeProfileFrameKey)
       ? profileSettings!.activeProfileFrameKey
       : null;

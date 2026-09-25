@@ -22,6 +22,7 @@ import type {
 import { toRoundDto } from '../game/dto.js';
 import { RoundService } from './round.service.js';
 import { PublicSiteService } from './public-site.service.js';
+import { profileTitleForKey } from './profile-titles.js';
 
 const rankingRows = <T extends { netWorthCents: bigint; publicPimpId: number }>(rows: T[]) => {
   let previousWorth: bigint | null = null;
@@ -220,7 +221,9 @@ export const PublicDirectoryService = {
           localMovement: player.dailyStartingLocalRank === null ? null : player.dailyStartingLocalRank - local,
         },
         cosmetics: {
-          title: player.account.profile?.activeTitleKey ?? null,
+          title: player.account.profile?.activeTitleKey
+            ? profileTitleForKey(player.account.profile.activeTitleKey)
+            : null,
           accent: player.account.profile?.profileAccent ?? 'default',
         },
         joinedAt: player.createdAt.toISOString(),
