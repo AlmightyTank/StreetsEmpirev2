@@ -192,6 +192,12 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
         shotgunUnlocked: false,
         tek9Unlocked: false,
         ak47Unlocked: false,
+        shotgunStock: classicOgV01.weapons.SHOTGUN.restock!.cap,
+        shotgunStockAt: new Date(),
+        tek9Stock: classicOgV01.weapons.TEK9.restock!.cap,
+        tek9StockAt: new Date(),
+        ak47Stock: classicOgV01.weapons.AK47.restock!.cap,
+        ak47StockAt: new Date(),
       },
     });
 
