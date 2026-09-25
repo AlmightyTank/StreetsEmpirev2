@@ -7,6 +7,14 @@ import type {
 } from '@streets/shared';
 import { api } from './client.js';
 
+export const CONSOLE_UPDATED_EVENT = 'streets:console-updated';
+
+export function announceConsoleUpdated(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(CONSOLE_UPDATED_EVENT));
+  }
+}
+
 export const consoleApi = {
   summary: () => api.get<ConsoleCountsDto>('/game/console/summary'),
 
