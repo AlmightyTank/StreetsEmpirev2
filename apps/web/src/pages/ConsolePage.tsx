@@ -11,7 +11,7 @@ import {
   MESSAGE_REPORT_REASON_MAX,
   MESSAGE_SUBJECT_MAX,
 } from '@streets/shared';
-import { consoleApi } from '../api/console.js';
+import { announceConsoleUpdated, consoleApi } from '../api/console.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Panel } from '../components/Panel.js';
@@ -109,6 +109,7 @@ export function ConsolePage() {
     if (message.direction === 'in' && !message.readAt) {
       try {
         await consoleApi.read(message.id);
+        announceConsoleUpdated();
         setData((current) => current ? {
           ...current,
           counts: {
