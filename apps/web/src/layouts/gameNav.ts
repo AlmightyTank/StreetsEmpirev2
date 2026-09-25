@@ -45,6 +45,7 @@ export const SECTIONS: NavSection[] = [
     title: 'Players',
     pages: [
       { key: 'players', label: 'Players', to: '/game/players', icon: 'contacts', prefix: '/game/players/' },
+      { key: 'console', label: 'Console', to: '/game/console', icon: 'activity' },
       { key: 'rankings', label: 'Rankings', short: 'Ranks', to: '/game/rankings', icon: 'rankings' },
       { key: 'alliance', label: 'Alliance', to: '/game/alliance', icon: 'alliance', prefix: '/game/alliances' },
       { key: 'contacts', label: 'Contacts', to: '/game/contacts', icon: 'contacts' },
