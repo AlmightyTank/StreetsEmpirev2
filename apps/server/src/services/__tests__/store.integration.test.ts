@@ -151,9 +151,11 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
     expect(results[0]!.json()).toEqual(results[1]!.json());
 
     const state = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
+    const condomCents = classicOgV01.stores.CORNER.items.CONDOM!.buyCents;
+    const beerCents = classicOgV01.stores.CORNER.items.BEER!.buyCents;
     expect(state.condoms).toBe(10);
     expect(state.beer).toBe(2);
-    expect(Number(state.cashCents)).toBe(10_000 - (10 * 100) - (2 * 200));
+    expect(Number(state.cashCents)).toBe(10_000 - (10 * condomCents) - (2 * beerCents));
   });
 
   it('cannot oversell one remaining shelf item through concurrent checkouts', async () => {
