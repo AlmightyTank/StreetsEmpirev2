@@ -196,6 +196,23 @@ Possible breakdown:
 - 1 attack report
 - 1 turf notification
 
+### 0.9.0-B1 — Durable private messaging foundation
+
+The first Console slice builds the private-message core before folding the existing Alliance, Attacks, and Notifications surfaces into the Console:
+
+- current-round Inbox, Sent, and Archived folders with 30-row pagination;
+- subject/body limits and a compose flow that can be pre-addressed from the Player Directory;
+- retry-safe sends backed by a unique sender/action id, not only client-side double-click prevention;
+- read/unread state plus a lightweight Console summary endpoint for the main-nav unread badge;
+- independent sender/recipient archiving so one player cannot erase the other player's copy;
+- account-level blocking that survives round resets and prevents private messages in both directions;
+- incoming blocks remain private: the other player only receives a neutral unavailable response;
+- sender serialization plus a five-second send floor, 20-message/10-minute limit, and 60-second exact-duplicate suppression;
+- durable message reports with resolution fields reserved for the admin moderation queue;
+- mobile-first list/detail/compose layouts.
+
+B1 intentionally does **not** duplicate Alliance Wire, attack history, or the existing notification bell. Those become Console integrations in later B/C slices. Per-side delete/hide beyond archive and the admin moderation queue are also follow-up work; report data is persisted now so moderation does not need a schema redesign.
+
 ### Done when
 
 - Messages cannot be duplicated by retries.
