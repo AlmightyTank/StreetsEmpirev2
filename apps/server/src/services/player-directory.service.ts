@@ -90,6 +90,8 @@ export const PlayerDirectoryService = {
     });
 
     const ownerIndex = ranked.findIndex((row) => row.id === owner.id);
+    const nearStart = ownerIndex < 0 ? 0 : Math.max(0, ownerIndex - 15);
+    const nearEnd = ownerIndex < 0 ? 0 : Math.min(ranked.length, ownerIndex + 16);
     const activeCutoff = now.getTime() - AWAY_MS;
 
     let visible = ranked;
@@ -100,9 +102,7 @@ export const PlayerDirectoryService = {
         ? ranked.filter((row) => row.allianceId === owner.allianceId)
         : [];
     } else if (input.view === 'near') {
-      visible = ownerIndex < 0
-        ? []
-        : ranked.slice(Math.max(0, ownerIndex - 15), ownerIndex + 16);
+      visible = ownerIndex < 0 ? [] : ranked.slice(nearStart, nearEnd);
     } else if (input.view === 'active') {
       visible = ranked
         .filter((row) => row.lastActiveAt.getTime() >= activeCutoff)
@@ -120,6 +120,7 @@ export const PlayerDirectoryService = {
         all: ranked.length,
         city: ranked.filter((row) => row.cityId === owner.cityId).length,
         alliance: owner.allianceId ? ranked.filter((row) => row.allianceId === owner.allianceId).length : 0,
+        near: nearEnd - nearStart,
         active: ranked.filter((row) => row.lastActiveAt.getTime() >= activeCutoff).length,
       },
       contactSlots: {
