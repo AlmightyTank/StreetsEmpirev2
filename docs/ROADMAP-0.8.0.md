@@ -4,6 +4,20 @@
 
 *Target base: turf-0.6.0 \| Planned after Hideout Improvements (0.7.0)*
 
+# 0.8.0 Closeout
+
+**Feature status:** closed on `beta` as of September 24, 2026. The H economy
+hardening plus the final post-H UI/notification/store fixes are merged. New feature
+work now belongs in 0.9.0 or a later maintenance release.
+
+**Promotion status:** not asserted by this document. The release operator still needs
+to run `npm run qa:store-economy`, `npm run qa:release`,
+`npm run qa:release -- --with-db`, and the phone/desktop Store browser pass from
+`docs/RELEASE-0.8.0-H.md`.
+
+The full rotating Black Market and short-lived reserved-stock features remain
+deferred by design; Special Orders are the 0.8.0 alternate-sourcing path.
+
 # Release Vision
 
 **Goal:** turn Stores from static buy/sell menus into a connected city
