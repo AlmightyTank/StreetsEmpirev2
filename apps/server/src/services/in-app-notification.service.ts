@@ -78,11 +78,38 @@ function activityDto(activity: {
   };
 }
 
+async function currentRoundPlayerId(prisma: PrismaClient, accountId: string, now = new Date()): Promise<string | null> {
+  const active = await prisma.roundPlayer.findFirst({
+    where: {
+      accountId,
+      round: { status: 'ACTIVE', endsAt: { gt: now } },
+    },
+    orderBy: { round: { startsAt: 'desc' } },
+    select: { id: true },
+  });
+  if (active) return active.id;
+
+  const registration = await prisma.roundPlayer.findFirst({
+    where: {
+      accountId,
+      round: { status: 'REGISTRATION', endsAt: { gt: now } },
+    },
+    orderBy: { round: { startsAt: 'asc' } },
+    select: { id: true },
+  });
+  return registration?.id ?? null;
+}
+
 export const InAppNotificationService = {
   async inbox(prisma: PrismaClient, accountId: string, limit = 40): Promise<InAppNotificationFeedDto> {
+    const roundPlayerId = await currentRoundPlayerId(prisma, accountId);
+    if (!roundPlayerId) {
+      return { unreadCount: 0, notifications: [] };
+    }
+
     const [rows, unreadCount] = await Promise.all([
       prisma.inAppNotification.findMany({
-        where: { roundPlayer: { accountId } },
+        where: { roundPlayerId },
         orderBy: { createdAt: 'desc' },
         take: limit,
         select: {
@@ -92,7 +119,7 @@ export const InAppNotificationService = {
         },
       }),
       prisma.inAppNotification.count({
-        where: { roundPlayer: { accountId }, readAt: null },
+        where: { roundPlayerId, readAt: null },
       }),
     ]);
 
@@ -107,16 +134,22 @@ export const InAppNotificationService = {
   },
 
   async read(prisma: PrismaClient, accountId: string, id: string, now = new Date()) {
+    const roundPlayerId = await currentRoundPlayerId(prisma, accountId, now);
+    if (!roundPlayerId) return { ok: true as const };
+
     await prisma.inAppNotification.updateMany({
-      where: { id, roundPlayer: { accountId }, readAt: null },
+      where: { id, roundPlayerId, readAt: null },
       data: { readAt: now },
     });
     return { ok: true as const };
   },
 
   async readAll(prisma: PrismaClient, accountId: string, now = new Date()) {
+    const roundPlayerId = await currentRoundPlayerId(prisma, accountId, now);
+    if (!roundPlayerId) return { ok: true as const };
+
     await prisma.inAppNotification.updateMany({
-      where: { roundPlayer: { accountId }, readAt: null },
+      where: { roundPlayerId, readAt: null },
       data: { readAt: now },
     });
     return { ok: true as const };
