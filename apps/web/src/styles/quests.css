@@ -282,7 +282,7 @@ button.se-quests-metric {
 
 .se-quests-work__rail {
   position: sticky;
-  top: 12px;
+  top: 62px;
   display: grid;
   min-width: 0;
   gap: 8px;

@@ -393,36 +393,6 @@ export function TurfPage() {
                     <Panel title="Recent Turf fights" aside={selected.name} className="se-cityblocks-panel">
                       <TurfReports city={selected} />
                     </Panel>
-                  </div>
-
-                  <div className="se-cityblocks-stack">
-                    <Panel title="Territory read" aside="Current city" className="se-cityblocks-panel">
-                      <div className="se-cityblocks-read">
-                        <div>
-                          <span>City controller</span>
-                          <strong>
-                            {selected.turf?.control
-                              ? `[${selected.turf.control.alliance.tag}] ${selected.turf.control.alliance.name}`
-                              : 'No controller'}
-                          </strong>
-                        </div>
-                        <div>
-                          <span>Your footprint</span>
-                          <strong>{selectedPulse.mine ? `${selectedPulse.mine} of 5 blocks` : 'No blocks held'}</strong>
-                        </div>
-                        <div>
-                          <span>Open opportunity</span>
-                          <strong>{selectedPulse.locals + selectedPulse.vacant} blocks outside player control</strong>
-                        </div>
-                        <div>
-                          <span>Visible conflict</span>
-                          <strong>{selectedPulse.visiblePushes ? `${selectedPulse.visiblePushes} active push${selectedPulse.visiblePushes === 1 ? '' : 'es'}` : 'None visible'}</strong>
-                        </div>
-                      </div>
-                      <p className="se-hint">
-                        Corner claiming, reinforcement, pulls, pushes, revenge windows, and alliance calls stay on the district cards above.
-                      </p>
-                    </Panel>
 
                     {rankings?.territory ? (
                       <div className="se-cityblocks-rankings">
@@ -460,6 +430,37 @@ export function TurfPage() {
                         </Panel>
                       </div>
                     ) : null}
+                  </div>
+
+                  <div className="se-cityblocks-stack">
+                    <Panel title="Territory read" aside="Current city" className="se-cityblocks-panel">
+                      <div className="se-cityblocks-read">
+                        <div>
+                          <span>City controller</span>
+                          <strong>
+                            {selected.turf?.control
+                              ? `[${selected.turf.control.alliance.tag}] ${selected.turf.control.alliance.name}`
+                              : 'No controller'}
+                          </strong>
+                        </div>
+                        <div>
+                          <span>Your footprint</span>
+                          <strong>{selectedPulse.mine ? `${selectedPulse.mine} of 5 blocks` : 'No blocks held'}</strong>
+                        </div>
+                        <div>
+                          <span>Open opportunity</span>
+                          <strong>{selectedPulse.locals + selectedPulse.vacant} blocks outside player control</strong>
+                        </div>
+                        <div>
+                          <span>Visible conflict</span>
+                          <strong>{selectedPulse.visiblePushes ? `${selectedPulse.visiblePushes} active push${selectedPulse.visiblePushes === 1 ? '' : 'es'}` : 'None visible'}</strong>
+                        </div>
+                      </div>
+                      <p className="se-hint">
+                        Corner claiming, reinforcement, pulls, pushes, revenge windows, and alliance calls stay on the district cards above.
+                      </p>
+                    </Panel>
+
                   </div>
                 </section>
               </>
