@@ -14,6 +14,7 @@ function displayTime(value: string): string {
 
 export function NotificationBell() {
   const accountId = useSession((s) => s.account?.id ?? null);
+  const roundPlayerId = useSession((s) => s.me?.id ?? null);
   const activityHead = useSession((s) => s.recentActivity[0]?.id ?? null);
   const crackWord = useSession((s) => s.me?.products) ? 'crack' : 'product';
   const [feed, setFeed] = useState<InAppNotificationFeedDto>(EMPTY_FEED);
@@ -36,7 +37,13 @@ export function NotificationBell() {
     } finally {
       setLoading(false);
     }
-  }, [accountId]);
+  }, [accountId, roundPlayerId]);
+
+  useEffect(() => {
+    setFeed(EMPTY_FEED);
+    setError(false);
+    setOpen(false);
+  }, [roundPlayerId]);
 
   useEffect(() => {
     if (!accountId) return;
