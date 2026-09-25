@@ -5,7 +5,6 @@ import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { HideoutRoomChips } from '../components/HideoutRoomChips.js';
-import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { formatDate } from '../utils/time.js';
 import { AllianceTag } from '../components/AllianceTag.js';
