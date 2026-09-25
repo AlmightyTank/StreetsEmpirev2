@@ -12,7 +12,7 @@ import type {
   UiDensity,
   UpdateAccountProfileSettingsInput,
 } from '@streets/shared';
-import type { QuestCosmeticDefinition, Ruleset } from '@streets/rulesets';
+import { rulesets, type QuestCosmeticDefinition, type Ruleset } from '@streets/rulesets';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { betaTesterAwardsForAccount, CommunityService, legacyAchievements, loadAccountLegacy } from './community.service.js';
@@ -89,6 +89,20 @@ function adminSiteThemeOptions(ruleset: Ruleset): CosmeticOptionDto[] {
   return Object.values(ruleset.cosmetics ?? {})
     .filter((cosmetic) => cosmetic.kind === 'SITE_THEME')
     .map(optionFromCosmetic);
+}
+
+function adminCatalogSiteThemeOptions(): CosmeticOptionDto[] {
+  const options: CosmeticOptionDto[] = [];
+  const known = new Set<string>();
+  for (const ruleset of Object.values(rulesets)) {
+    for (const option of adminSiteThemeOptions(ruleset)) {
+      if (!known.has(option.key)) {
+        options.push(option);
+        known.add(option.key);
+      }
+    }
+  }
+  return options;
 }
 
 function toSettingsDto(
@@ -173,12 +187,11 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
   frames: CosmeticOptionDto[];
   themes: CosmeticOptionDto[];
 }> {
-  const [questAccents, frames, themes, account, round] = await Promise.all([
+  const [questAccents, frames, themes, account] = await Promise.all([
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'ACCENT'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'PROFILE_FRAME'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'SITE_THEME'),
     prisma.account.findUnique({ where: { id: accountId }, select: { isAdmin: true } }),
-    RoundService.getCurrent(prisma),
   ]);
   const accents = [...PROFILE_ACCENTS];
   const known = new Set(accents.map((option) => option.key));
@@ -190,8 +203,8 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
   }
   const themeOptions = [...themes];
   const knownThemes = new Set(themeOptions.map((option) => option.key));
-  if (account?.isAdmin && env.seasonalEvents.adminTestMode && round) {
-    for (const option of adminSiteThemeOptions(loadRulesetForRound(round))) {
+  if (account?.isAdmin && env.seasonalEvents.adminTestMode) {
+    for (const option of adminCatalogSiteThemeOptions()) {
       if (!knownThemes.has(option.key)) {
         themeOptions.push(option);
         knownThemes.add(option.key);

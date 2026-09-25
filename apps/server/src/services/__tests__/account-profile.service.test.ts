@@ -56,10 +56,10 @@ const updateInput: UpdateAccountProfileSettingsInput = {
 
 describe('AccountProfileService admin site theme QA', () => {
   beforeEach(() => {
-    vi.mocked(RoundService.getCurrent).mockResolvedValue(currentRound() as Awaited<ReturnType<typeof RoundService.getCurrent>>);
+    vi.mocked(RoundService.getCurrent).mockResolvedValue(null);
   });
 
-  it('shows current-ruleset site themes to admins without unlock rows', async () => {
+  it('shows catalog site themes to admins without unlock rows or a current round', async () => {
     const response = await AccountProfileService.settings(prismaFor(true), 'account-1');
 
     expect(response.options.themes.map((option) => option.key)).toEqual(expect.arrayContaining([
@@ -84,5 +84,13 @@ describe('AccountProfileService admin site theme QA', () => {
     const response = await AccountProfileService.update(prismaFor(true), 'account-1', updateInput);
 
     expect(response.settings.activeSiteThemeKey).toBe('neon-vice');
+  });
+
+  it('also supports the current-round path when one exists', async () => {
+    vi.mocked(RoundService.getCurrent).mockResolvedValue(currentRound() as Awaited<ReturnType<typeof RoundService.getCurrent>>);
+
+    const response = await AccountProfileService.settings(prismaFor(true), 'account-1');
+
+    expect(response.options.themes.map((option) => option.key)).toContain('neon-vice');
   });
 });
