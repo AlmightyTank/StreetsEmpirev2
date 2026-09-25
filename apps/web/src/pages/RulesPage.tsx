@@ -24,6 +24,7 @@ export function RulesPage() {
 
   return (
     <InfoLayout>
+      <div className="se-rules">
       <section className="se-info-hero">
         <span className="se-info-hero__kicker">Street handbook</span>
         <h1 className="se-info-hero__title">Rules</h1>
@@ -316,6 +317,7 @@ export function RulesPage() {
             </ul>
           </Panel></section>
         </div>
+      </div>
       </div>
     </InfoLayout>
   );

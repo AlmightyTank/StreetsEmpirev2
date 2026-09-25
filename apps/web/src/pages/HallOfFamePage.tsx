@@ -40,6 +40,7 @@ export function HallOfFamePage() {
 
   return (
     <GameLayout>
+      <div className="se-fame">
       <section className="se-info-hero">
         <span className="se-info-hero__kicker">Permanent record</span>
         <h1 className="se-info-hero__title">Hall of Fame</h1>
@@ -137,6 +138,7 @@ export function HallOfFamePage() {
           ))}
         </div>
       )}
+      </div>
     </GameLayout>
   );
 }
