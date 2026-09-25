@@ -121,7 +121,10 @@ function TabBar({ slots, pathname, badges, moreOpen, onMore, onEditSlot, moreBut
   const fired = useRef(false);
   const onBar = new Set(slots.map((page) => page.key));
   const elsewhere = !slots.some((page) => isCurrent(page, pathname));
-  const moreBadge = worstBadge(Object.entries(badges).filter(([key]) => !onBar.has(key)).map(([, badge]) => badge));
+  const hiddenBadges = Object.entries(badges).filter(([key]) => !onBar.has(key));
+  const moreBadge = worstBadge(hiddenBadges.map(([, badge]) => badge))
+    ?? hiddenBadges.find(([key]) => key === 'console')?.[1]
+    ?? null;
 
   function cancel() {
     if (timer.current !== null) window.clearTimeout(timer.current);
