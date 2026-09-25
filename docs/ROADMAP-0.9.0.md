@@ -67,6 +67,19 @@ The first Player Directory slice adds an authenticated `/game/players` surface w
 
 The existing data model does **not** currently have a separate crew-name field, so crew-name search is deferred until that identity concept exists rather than inventing a duplicate field solely for this page. Exact last-active timestamps and recon-only information are intentionally excluded from the directory.
 
+### 0.9.0-A completion slice
+
+The follow-up directory slice finishes the discovery work before Pimp Console development begins:
+
+- ordinary directory views use server-side filtering and 40-row pagination instead of loading the whole round into memory;
+- **Encountered** is built from interactions the player legitimately knows about: direct raids, turf pushes, convoy tails and recon they personally performed;
+- encounter history is capped and deduplicated so it remains cheap as a round grows;
+- national ranks are calculated authoritatively only for the rows actually displayed;
+- Near Rank uses the indexed round/net-worth ordering and stays intentionally small;
+- encounter ordering is not exposed as an activity timestamp, and being secretly reconned never reveals the observer.
+
+Communication-specific blocking remains part of the Pimp Console/moderation work because no private-message surface exists in A. The directory does not create a new communication channel by itself.
+
 ## Milestone Overview
 
 | Version | Theme | Outcome |
