@@ -18,6 +18,7 @@ import { AlliancePage } from './pages/AlliancePage.js';
 import { AllianceDetailPage, AlliancesPage } from './pages/AlliancesPage.js';
 import { ContactsPage } from './pages/ContactsPage.js';
 import { CombatPage } from './pages/CombatPage.js';
+import { ConsolePage } from './pages/ConsolePage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
 import { HallOfFamePage } from './pages/HallOfFamePage.js';
@@ -130,6 +131,7 @@ export function App() {
         <Route path="alliance" element={<Protected><LiveRound><AlliancePage /></LiveRound></Protected>} />
         <Route path="alliances" element={<Protected><LiveRound><AlliancesPage /></LiveRound></Protected>} />
         <Route path="contacts" element={<Protected><LiveRound><ContactsPage /></LiveRound></Protected>} />
+        <Route path="console" element={<Protected><LiveRound><ConsolePage /></LiveRound></Protected>} />
         <Route path="players" element={<Protected><LiveRound><PlayersPage /></LiveRound></Protected>} />
         <Route path="alliances/:tag" element={<Protected><LiveRound><AllianceDetailPage /></LiveRound></Protected>} />
         <Route path="hall-of-fame" element={<HallOfFamePage />} />

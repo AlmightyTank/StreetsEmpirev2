@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '../stores/session.js';
+import { CONSOLE_UPDATED_EVENT, consoleApi } from '../api/console.js';
 
 /** One page in the game menu. `key` is what the phone tab bar stores. */
 export interface NavPage {
@@ -45,6 +46,7 @@ export const SECTIONS: NavSection[] = [
     title: 'Players',
     pages: [
       { key: 'players', label: 'Players', to: '/game/players', icon: 'contacts', prefix: '/game/players/' },
+      { key: 'console', label: 'Console', to: '/game/console', icon: 'activity' },
       { key: 'rankings', label: 'Rankings', short: 'Ranks', to: '/game/rankings', icon: 'rankings' },
       { key: 'alliance', label: 'Alliance', to: '/game/alliance', icon: 'alliance', prefix: '/game/alliances' },
       { key: 'contacts', label: 'Contacts', to: '/game/contacts', icon: 'contacts' },
@@ -196,6 +198,38 @@ function badgeCount(value: number): string {
   return `${Math.floor(value / 100) / 10}k`.replace('.0k', 'k');
 }
 
+function useConsoleUnread(playerId: string | null): number {
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    if (!playerId) {
+      setUnread(0);
+      return;
+    }
+
+    let live = true;
+    const refresh = () => {
+      void consoleApi.summary()
+        .then((counts) => { if (live) setUnread(counts.unread); })
+        .catch(() => { /* Navigation should keep working if the summary is temporarily unavailable. */ });
+    };
+
+    refresh();
+    window.addEventListener(CONSOLE_UPDATED_EVENT, refresh);
+    window.addEventListener('focus', refresh);
+    const interval = window.setInterval(refresh, 60_000);
+
+    return () => {
+      live = false;
+      window.removeEventListener(CONSOLE_UPDATED_EVENT, refresh);
+      window.removeEventListener('focus', refresh);
+      window.clearInterval(interval);
+    };
+  }, [playerId]);
+
+  return unread;
+}
+
 /**
  * What each page wants you to know before you open it:
  * - Scout carries your turns, amber once they sit at the cap.
@@ -210,6 +244,7 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
   const me = useSession((s) => s.me);
   const activity = useSession((s) => s.recentActivity);
   const playerId = me?.id ?? null;
+  const consoleUnread = useConsoleUnread(playerId);
   const latestHit = activity
     .filter((entry) => DEFENSE_TYPES.has(entry.type))
     .reduce<string | null>((latest, entry) => (latest === null || entry.createdAt > latest ? entry.createdAt : latest), null);
@@ -246,6 +281,14 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
 
   if (latestHit && seen !== null && latestHit > seen && !looking) {
     badges.raids = { tone: 'bad', label: 'You were hit since you last looked' };
+  }
+
+  if (consoleUnread > 0) {
+    badges.console = {
+      tone: 'info',
+      text: badgeCount(consoleUnread),
+      label: `${consoleUnread} unread private message${consoleUnread === 1 ? '' : 's'}`,
+    };
   }
 
   if (me.convoyAlert?.kind === 'tailed') {
