@@ -137,7 +137,8 @@ function messageDto(
     subject: row.subject,
     body: row.body,
     createdAt: row.createdAt.toISOString(),
-    readAt: row.readAt?.toISOString() ?? null,
+    // Read state is private to the recipient; do not expose recipient activity timing to senders.
+    readAt: incoming ? row.readAt?.toISOString() ?? null : null,
     archived: incoming ? row.recipientArchivedAt !== null : row.senderArchivedAt !== null,
     reported,
     blocked,
@@ -362,7 +363,7 @@ export const PimpConsoleService = {
       }
 
       if (await isCommunicationBlocked(tx, owner.accountId, target.accountId)) {
-        throw AppError.forbidden('That player is not available for private messages.');
+        throw AppError.notFound('PLAYER_NOT_FOUND', 'That player is not available.');
       }
 
       const windowStart = new Date(now.getTime() - SEND_WINDOW_MS);
