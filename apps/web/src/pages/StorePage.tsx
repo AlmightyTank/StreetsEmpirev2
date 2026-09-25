@@ -384,14 +384,25 @@ function StoreTabs({ stores, slug }: { stores: StoreDto[]; slug: string }) {
   );
 }
 
-function StoreView({ slug }: { slug: string }) {
+function StoreView({
+  slug,
+  basket,
+  onAddToBasket,
+  onRemoveFromBasket,
+  onClearBasket,
+}: {
+  slug: string;
+  basket: BasketLine[];
+  onAddToBasket: (line: BasketLine) => void;
+  onRemoveFromBasket: (key: string) => void;
+  onClearBasket: () => void;
+}) {
   const me = useSession((s) => s.me);
   const action = useGameAction<StoreTradeResult | StoreCheckoutResult | StoreSpecialOrderResult>();
   const [catalog, setCatalog] = useState<StoresDto | null>(() => (cachedCatalog && cachedCatalog.playerId === me?.id ? cachedCatalog.data : null));
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const [retryOrder, setRetryOrder] = useState<PendingStoreCommand | null>(null);
-  const [basket, setBasket] = useState<BasketLine[]>([]);
   // 0.4.0-D: Pip deals every product. Other stores never ask.
   const [products, setProducts] = useState<ProductsDto | null>(null);
   const loadProducts = useCallback(() => {
@@ -419,20 +430,6 @@ function StoreView({ slug }: { slug: string }) {
     return () => { active = false; };
   }, [me?.resources, reload]);
 
-  function addToBasket(line: BasketLine) {
-    setBasket((current) => {
-      const existing = current.find((entry) => entry.key === line.key);
-      if (!existing) return [...current, line];
-      return current.map((entry) => entry.key === line.key
-        ? { ...entry, quantity: entry.quantity + line.quantity }
-        : entry);
-    });
-  }
-
-  function removeFromBasket(key: string) {
-    setBasket((current) => current.filter((line) => line.key !== key));
-  }
-
   async function execute(command: StoreCommand, recoveredActionId?: string) {
     await action.run(async (actionId) => {
       try {
@@ -443,7 +440,7 @@ function StoreView({ slug }: { slug: string }) {
             : await storesApi.trade({ ...command.order, actionId });
         clearPendingAction(pendingStorage, pendingKey);
         setRetryOrder(null);
-        if (command.kind === 'checkout') setBasket([]);
+        if (command.kind === 'checkout') onClearBasket();
         return result;
       } catch (error) {
         // Network/5xx failures are ambiguous: the server may have committed
@@ -692,7 +689,7 @@ function StoreView({ slug }: { slug: string }) {
                       blocked={counterBlock}
                       onTrade={(order) => execute({ kind: 'trade', order })}
                       onSpecialOrder={(sourceStore, sourceItem) => execute({ kind: 'specialOrder', store: sourceStore, item: sourceItem })}
-                      onAddToBasket={addToBasket}
+                      onAddToBasket={onAddToBasket}
                       onRestock={() => setReload((n) => n + 1)}
                     />
                   ))}
@@ -721,14 +718,14 @@ function StoreView({ slug }: { slug: string }) {
                         type="button"
                         className="se-btn se-btn--ghost se-btn--sm"
                         disabledReason={action.busy ? 'Your last order is still going through.' : null}
-                        onClick={() => setBasket([])}
+                        onClick={onClearBasket}
                       >
                         Clear
                       </Button>
                     ) : null}
                   </div>
                   {basket.length === 0 ? (
-                    <p>Add items from the shelves to review one checkout total here.</p>
+                    <p>Add items from any store to build one checkout here.</p>
                   ) : (
                     <>
                       <div className="se-store-basket__lines">
@@ -743,7 +740,7 @@ function StoreView({ slug }: { slug: string }) {
                               type="button"
                               className="se-store-basket__remove"
                               title={`Remove ${line.itemName}`}
-                              onClick={() => removeFromBasket(line.key)}
+                              onClick={() => onRemoveFromBasket(line.key)}
                             >
                               &times;
                             </button>
@@ -918,5 +915,33 @@ function StoreView({ slug }: { slug: string }) {
 
 export function StorePage() {
   const { slug = 'corner' } = useParams();
-  return <StoreView key={slug} slug={slug} />;
+  // The store counter itself remounts on each tab so its per-shelf form state
+  // starts clean. The basket lives one level higher so it follows the player
+  // between Corner, Tommy, Charlie, and Pip until checkout or an explicit clear.
+  const [basket, setBasket] = useState<BasketLine[]>([]);
+
+  function addToBasket(line: BasketLine) {
+    setBasket((current) => {
+      const existing = current.find((entry) => entry.key === line.key);
+      if (!existing) return [...current, line];
+      return current.map((entry) => entry.key === line.key
+        ? { ...entry, quantity: entry.quantity + line.quantity }
+        : entry);
+    });
+  }
+
+  function removeFromBasket(key: string) {
+    setBasket((current) => current.filter((line) => line.key !== key));
+  }
+
+  return (
+    <StoreView
+      key={slug}
+      slug={slug}
+      basket={basket}
+      onAddToBasket={addToBasket}
+      onRemoveFromBasket={removeFromBasket}
+      onClearBasket={() => setBasket([])}
+    />
+  );
 }
