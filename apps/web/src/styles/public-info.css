@@ -641,6 +641,32 @@
 
 /* --- rules -------------------------------------------------------------- */
 
+/* Rules are reference copy, not compact dashboard data. Keep the handbook
+ * comfortably readable on desktop and mobile without changing the denser
+ * typography used by the other information pages. */
+.se-rules .se-info-hero__body {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.se-rules .se-info-sectionhead > p {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.se-rules .se-info-sectionhead__meta {
+  font-size: 11px;
+}
+
+.se-rules .se-info-principles strong {
+  font-size: 14px;
+}
+
+.se-rules .se-info-principles p {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 .se-rules__layout {
   display: grid;
   grid-template-columns: minmax(220px, 0.28fr) minmax(0, 1.72fr);
@@ -679,19 +705,20 @@
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
-  min-height: 32px;
-  padding: 6px 7px;
+  min-height: 34px;
+  padding: 7px 8px;
   border-left: 2px solid transparent;
   color: var(--se-text-dim);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 750;
+  line-height: 1.35;
   text-decoration: none;
 }
 
 .se-rules__rail a span {
   color: var(--se-muted);
   font-family: var(--se-mono);
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .se-rules__rail a:hover {
@@ -720,27 +747,27 @@
 }
 
 .se-rules__panel > .se-panel .se-panel__title {
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .se-rules__panel > .se-panel .se-panel__body {
-  padding: 10px 12px;
+  padding: 12px 14px;
 }
 
 .se-rules__panel .se-list {
   margin: 0;
-  padding-left: 18px;
+  padding-left: 20px;
 }
 
 .se-rules__panel .se-list li {
-  padding-left: 3px;
+  padding-left: 4px;
   color: var(--se-text-dim);
-  font-size: 10px;
-  line-height: 1.48;
+  font-size: 13px;
+  line-height: 1.62;
 }
 
 .se-rules__panel .se-list li + li {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .se-rules__chapter-grid {
