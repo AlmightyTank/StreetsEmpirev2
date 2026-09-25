@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
-import { Link, useLocation, useNavigationType } from 'react-router-dom';
+import { createContext, useContext, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Shell } from './Shell.js';
 import { ConnectionBanner } from '../components/ConnectionBanner.js';
 import { TrackedQuests } from '../components/TrackedQuests.js';
@@ -327,7 +327,9 @@ function useRouteScroll(pathname: string, hash: string) {
   }, [pathname, hash, navigationType]);
 }
 
-export function GameLayout({ children }: { children: ReactNode }) {
+const GameLayoutMountedContext = createContext(false);
+
+function GameLayoutFrame({ children }: { children: ReactNode }) {
   useStaleGameReload();
   usePageFreshness();
   const round = useSession((s) => s.round);
@@ -347,7 +349,8 @@ export function GameLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <Shell tabbar={
+    <GameLayoutMountedContext.Provider value>
+      <Shell tabbar={
       <>
         <TabBar slots={tabs.slots} pathname={pathname} badges={badges} moreOpen={sheet !== null} moreButton={moreButton}
           onMore={() => setSheet((open) => (open ? null : { editSlot: null }))}
@@ -383,6 +386,26 @@ export function GameLayout({ children }: { children: ReactNode }) {
         <GameNav sections={sections} pathname={pathname} badges={badges} />
         <div className="se-gamemain">{children}</div>
       </div>
-    </Shell>
+      </Shell>
+    </GameLayoutMountedContext.Provider>
   );
+}
+
+/**
+ * Backward-compatible wrapper for pages that still own a GameLayout.
+ * Inside the persistent /game route shell it becomes a fragment, so those
+ * pages can migrate gradually without nesting a second sidebar/top bar.
+ */
+export function GameLayout({ children }: { children: ReactNode }) {
+  const alreadyMounted = useContext(GameLayoutMountedContext);
+  return alreadyMounted ? <>{children}</> : <GameLayoutFrame>{children}</GameLayoutFrame>;
+}
+
+/**
+ * Persistent shell for /game/* routes. Signed-out visitors to public game-info
+ * routes stay transparent so InfoLayout can continue to render its public Shell.
+ */
+export function GameRouteLayout() {
+  const me = useSession((state) => state.me);
+  return me ? <GameLayoutFrame><Outlet /></GameLayoutFrame> : <Outlet />;
 }
