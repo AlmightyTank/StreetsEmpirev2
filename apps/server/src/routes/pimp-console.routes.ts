@@ -24,6 +24,9 @@ const playerParams = z.object({
 
 /** 0.9.0-B1. Durable private messaging, archive/report controls, and account blocks. */
 const pimpConsoleRoutes: FastifyPluginAsync = async (app) => {
+  app.get('/console/summary', { preHandler: app.requireAuth }, async (request) =>
+    PimpConsoleService.summary(app.prisma, request.auth!.account.id));
+
   app.get('/console', { preHandler: app.requireAuth }, async (request) => {
     const query = parseBody(consoleQuery, request.query);
     return PimpConsoleService.page(
