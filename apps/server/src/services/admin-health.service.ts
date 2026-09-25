@@ -1,8 +1,19 @@
 import type { PrismaClient } from '@prisma/client';
 import type { AdminRoundHealthDayDto, AdminRoundHealthDto } from '@streets/shared';
-import { loadRulesetForRound } from '@streets/rules-engine';
+import {
+  emptyStandings,
+  loadRulesetForRound,
+  productEconomy,
+  restockIntervalFor,
+  rulesetForCity,
+  settleProductShelf,
+  type Ruleset,
+  type Standings,
+} from '@streets/rules-engine';
+import type { TraderKey } from '@streets/rulesets';
 import { AppError } from '../utils/errors.js';
 import { adminRound } from './admin-round.service.js';
+import { StockService } from './stock.service.js';
 
 const DAY_MS = 86_400_000;
 const HEALTH_DAYS = 14;
@@ -15,6 +26,28 @@ const HEALTH_DAYS = 14;
 const PASSIVE_TYPES = ['ROUND_JOINED', 'RAID_DEFENSE', 'DRIVE_BY_DEFENSE', 'AWAY_BONUS'];
 
 const dayKey = (date: Date) => date.toISOString().slice(0, 10);
+
+
+type StandingRow = {
+  trader: string;
+  points: number;
+  creditedOn: Date | null;
+  questDoneAt: Date | null;
+};
+
+function standingsFromRows(ruleset: Ruleset, rows: StandingRow[]): Standings {
+  const standings = emptyStandings(ruleset);
+  for (const row of rows) {
+    const trader = row.trader as TraderKey;
+    if (!(trader in standings)) continue;
+    standings[trader] = {
+      points: row.points,
+      creditedOn: row.creditedOn,
+      questDone: row.questDoneAt !== null,
+    };
+  }
+  return standings;
+}
 
 /**
  * Per-round health for admins, aggregated in the database so a busy round
@@ -110,29 +143,23 @@ export const AdminHealthService = {
     const ruleset = loadRulesetForRound(round);
     let storeEconomy: AdminRoundHealthDto['storeEconomy'] = null;
     if (ruleset.storeEconomy) {
-      const [marketRows, standardShelves, productShelves, specialOrders] = await Promise.all([
+      const [marketRows, shelfPlayers, reputationRows, productShelves, specialOrders] = await Promise.all([
         prisma.highMarket.findMany({
           where: { roundId },
           orderBy: [{ city: 'asc' }, { productKey: 'asc' }],
           select: { city: true, productKey: true, push: true, pushAt: true },
         }),
-        prisma.$queryRaw<Array<{ empty: number }>>`
-          SELECT COALESCE(SUM(
-            ("pistolStock" = 0)::int +
-            ("shotgunStock" = 0)::int +
-            ("tek9Stock" = 0)::int +
-            ("ak47Stock" = 0)::int +
-            ("lowRiderStock" = 0)::int +
-            ("condomStock" = 0)::int +
-            ("medicineStock" = 0)::int +
-            ("beerStock" = 0)::int +
-            ("crackStock" = 0)::int +
-            ("thugStock" = 0)::int
-          ), 0)::int AS empty
-          FROM "RoundPlayer"
-          WHERE "roundId" = ${roundId}`,
-        prisma.productShelf.count({
-          where: { roundPlayer: { roundId }, stock: 0 },
+        prisma.roundPlayer.findMany({
+          where: { roundId },
+          include: { city: { select: { slug: true } } },
+        }),
+        prisma.playerReputation.findMany({
+          where: { roundPlayer: { roundId } },
+          select: { roundPlayerId: true, trader: true, points: true, creditedOn: true, questDoneAt: true },
+        }),
+        prisma.productShelf.findMany({
+          where: { roundPlayer: { roundId } },
+          select: { roundPlayerId: true, productKey: true, stock: true, stockAt: true },
         }),
         prisma.$queryRaw<Array<{ last24h: number; pending: number }>>`
           SELECT
@@ -150,6 +177,53 @@ export const AdminHealthService = {
             AND jsonb_typeof(a.payload->'specialOrder') = 'boolean'
             AND (a.payload->>'specialOrder')::boolean = true`,
       ]);
+
+      const reputationByPlayer = new Map<string, StandingRow[]>();
+      for (const row of reputationRows) {
+        const rows = reputationByPlayer.get(row.roundPlayerId) ?? [];
+        rows.push(row);
+        reputationByPlayer.set(row.roundPlayerId, rows);
+      }
+
+      const productShelvesByPlayer = new Map<string, typeof productShelves>();
+      for (const row of productShelves) {
+        const rows = productShelvesByPlayer.get(row.roundPlayerId) ?? [];
+        rows.push(row);
+        productShelvesByPlayer.set(row.roundPlayerId, rows);
+      }
+
+      let emptyStandard = 0;
+      let emptyProduct = 0;
+      for (const player of shelfPlayers) {
+        const playerRuleset = rulesetForCity(ruleset, player.city.slug);
+        const standings = standingsFromRows(
+          playerRuleset,
+          reputationByPlayer.get(player.id) ?? [],
+        );
+
+        const standard = StockService.settle(
+          player as unknown as Record<string, unknown>,
+          now,
+          playerRuleset,
+          standings,
+        );
+        emptyStandard += Object.values(standard.byField)
+          .filter((settled) => settled?.stock === 0)
+          .length;
+
+        const pipPoints = standings.PIP?.points ?? 0;
+        for (const shelf of productShelvesByPlayer.get(player.id) ?? []) {
+          const economy = productEconomy(playerRuleset, shelf.productKey);
+          if (!economy?.pip) continue;
+          const settled = settleProductShelf(
+            { stock: shelf.stock, stockAt: shelf.stockAt },
+            economy,
+            now,
+            restockIntervalFor(economy.pip.restock.intervalMinutes, pipPoints, playerRuleset),
+          );
+          if (settled?.stock === 0) emptyProduct += 1;
+        }
+      }
       const halfLife = ruleset.travel?.market?.recoveryHalfLifeMinutes ?? null;
       const pressureLimit = ruleset.storeEconomy.pipProductPressure?.maxPricePressure ?? 0;
       const shipments = ruleset.storeEconomy.shipments;
@@ -166,8 +240,8 @@ export const AdminHealthService = {
           };
         }),
         shelves: {
-          emptyStandard: standardShelves[0]?.empty ?? 0,
-          emptyProduct: productShelves,
+          emptyStandard,
+          emptyProduct,
         },
         shipments: {
           enabled: shipments?.enabled ?? false,
