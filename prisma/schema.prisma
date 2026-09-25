@@ -61,6 +61,9 @@ model Account {
   roundPlayers         RoundPlayer[]
   authoredNews         GameNews[]            @relation("GameNewsAuthor")
   adminAuditEntries    AdminAuditLog[]       @relation("AdminAuditActor")
+  messageBlocksMade    PlayerBlock[]         @relation("PlayerBlocker")
+  messageBlocksReceived PlayerBlock[]        @relation("PlayerBlocked")
+  messageReports       PlayerMessageReport[]
 }
 
 /// 0.3.0-B. One row per admin action: who, what, when, and the target before
@@ -593,6 +596,7 @@ model Round {
   turfControlEvents TurfControlEvent[]
   turfHoldSegments TurfHoldSegment[]
   turfCrackdown TurfCrackdown?
+  directMessages DirectMessage[]
 
   @@index([status])
 }
@@ -842,6 +846,8 @@ model RoundPlayer {
   wirePosts             AllianceWirePost[] @relation("WireAuthor")
   contacts              PlayerContact[]    @relation("ContactOwner")
   contactOf             PlayerContact[]    @relation("ContactTarget")
+  messagesSent          DirectMessage[]     @relation("DirectMessageSender")
+  messagesReceived      DirectMessage[]     @relation("DirectMessageRecipient")
 
   @@unique([roundId, accountId])
   @@unique([roundId, publicPimpId])
@@ -1246,6 +1252,79 @@ model PlayerContact {
 
   @@unique([ownerId, targetId])
   @@index([ownerId, updatedAt(sort: Desc)])
+}
+
+
+/// 0.9.0-B. One private message between current-round player identities.
+/// Each side archives independently; rows remain for the other side and moderation.
+model DirectMessage {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  senderId String
+  sender   RoundPlayer @relation("DirectMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  recipientId String
+  recipient   RoundPlayer @relation("DirectMessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  /// Client-generated retry key. Unique per sender so a retried send is replay-safe.
+  actionId String
+  subject  String
+  body     String
+
+  createdAt DateTime  @default(now())
+  readAt   DateTime?
+
+  senderArchivedAt    DateTime?
+  recipientArchivedAt DateTime?
+
+  reports PlayerMessageReport[]
+
+  @@unique([senderId, actionId])
+  @@index([recipientId, recipientArchivedAt, readAt, createdAt(sort: Desc)])
+  @@index([senderId, senderArchivedAt, createdAt(sort: Desc)])
+  @@index([roundId, createdAt(sort: Desc)])
+}
+
+/// Account-level communication block. It survives seasonal RoundPlayer resets.
+model PlayerBlock {
+  id String @id @default(cuid())
+
+  blockerAccountId String
+  blocker          Account @relation("PlayerBlocker", fields: [blockerAccountId], references: [id], onDelete: Cascade)
+
+  blockedAccountId String
+  blocked          Account @relation("PlayerBlocked", fields: [blockedAccountId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([blockerAccountId, blockedAccountId])
+  @@index([blockedAccountId, createdAt(sort: Desc)])
+}
+
+/// Purpose-driven report record. Admin moderation tooling can resolve these later
+/// without granting a casual private-message browser.
+model PlayerMessageReport {
+  id String @id @default(cuid())
+
+  messageId String
+  message   DirectMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  reporterAccountId String
+  reporter          Account @relation(fields: [reporterAccountId], references: [id], onDelete: Cascade)
+
+  reason String
+
+  createdAt          DateTime @default(now())
+  resolvedAt         DateTime?
+  resolvedByUsername String?
+  resolution         String?
+
+  @@unique([messageId, reporterAccountId])
+  @@index([resolvedAt, createdAt(sort: Desc)])
+  @@index([reporterAccountId, createdAt(sort: Desc)])
 }
 
 /// The alliance's own history: founded, joined, left, kicked, handed over, renamed, disbanded.
