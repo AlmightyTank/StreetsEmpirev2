@@ -87,7 +87,7 @@
 .se-rules__rail-list { display:grid; gap:4px; }
 .se-rules__rail a { display:block; padding:7px 8px; color:var(--se-text-dim); text-decoration:none; border-left:2px solid transparent; }
 .se-rules__rail a:hover { color:var(--se-text); border-left-color:var(--se-accent); background:var(--se-bg); }
-.se-rules__panel { scroll-margin-top:14px; }
+.se-rules__panel { scroll-margin-top:64px; }
 .se-rules__list { margin:0; }
 .se-rules__intro { margin:0; color:var(--se-text-dim); line-height:1.55; }
 
@@ -127,10 +127,12 @@
   .se-fame__archive,
   .se-news-page__list { gap:10px; }
 
-  .se-fame__season {
-    padding:12px;
+  .se-fame__season,
+  .se-rules__panel {
     scroll-margin-top:126px;
   }
+
+  .se-fame__season { padding:12px; }
 
   .se-fame__podium { grid-template-columns:1fr; }
   .se-fame__territory-row { grid-template-columns:1fr; gap:4px; }
