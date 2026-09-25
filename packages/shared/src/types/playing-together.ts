@@ -76,6 +76,7 @@ export interface PlayerDirectoryDto {
     all: number;
     city: number;
     alliance: number;
+    near: number;
     active: number;
   };
   contactSlots: {
