@@ -473,6 +473,32 @@ export interface AdminRoundHealthDto {
     nationalRank: number | null;
     lastActiveAt: string;
   }>;
+  /** 0.8.0-H. Read-only operator view of the pinned Store economy. */
+  storeEconomy: null | {
+    pressureLimitPercent: number;
+    markets: Array<{
+      city: string;
+      productKey: string;
+      pushPercent: number;
+      updatedAt: string;
+    }>;
+    shelves: {
+      emptyStandard: number;
+      emptyProduct: number;
+    };
+    shipments: {
+      enabled: boolean;
+      delayChancePercent: number;
+      partialChancePercent: number;
+      largeChancePercent: number;
+    };
+    specialOrders: {
+      last24h: number;
+      pendingByReceipt: number;
+    };
+    reservationsEnabled: boolean;
+    blackMarketEnabled: boolean;
+  };
 }
 
 /** What the Discord bot still has to pick up. Growing oldest items mean push or polling is not clearing the queue. */
