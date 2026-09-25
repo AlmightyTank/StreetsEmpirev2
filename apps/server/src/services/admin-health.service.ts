@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { AdminRoundHealthDayDto, AdminRoundHealthDto } from '@streets/shared';
+import { loadRulesetForRound } from '@streets/rules-engine';
 import { AppError } from '../utils/errors.js';
 import { adminRound } from './admin-round.service.js';
 
@@ -106,10 +107,88 @@ export const AdminHealthService = {
     }
 
     const [total, active24h, active7d] = counts;
+    const ruleset = loadRulesetForRound(round);
+    let storeEconomy: AdminRoundHealthDto['storeEconomy'] = null;
+    if (ruleset.storeEconomy) {
+      const [marketRows, standardShelves, productShelves, specialOrders] = await Promise.all([
+        prisma.highMarket.findMany({
+          where: { roundId },
+          orderBy: [{ city: 'asc' }, { productKey: 'asc' }],
+          select: { city: true, productKey: true, push: true, pushAt: true },
+        }),
+        prisma.$queryRaw<Array<{ empty: number }>>`
+          SELECT COALESCE(SUM(
+            ("pistolStock" = 0)::int +
+            ("shotgunStock" = 0)::int +
+            ("tek9Stock" = 0)::int +
+            ("ak47Stock" = 0)::int +
+            ("lowRiderStock" = 0)::int +
+            ("condomStock" = 0)::int +
+            ("medicineStock" = 0)::int +
+            ("beerStock" = 0)::int +
+            ("crackStock" = 0)::int +
+            ("thugStock" = 0)::int
+          ), 0)::int AS empty
+          FROM "RoundPlayer"
+          WHERE "roundId" = ${roundId}`,
+        prisma.productShelf.count({
+          where: { roundPlayer: { roundId }, stock: 0 },
+        }),
+        prisma.$queryRaw<Array<{ last24h: number; pending: number }>>`
+          SELECT
+            COUNT(*) FILTER (WHERE a."createdAt" >= ${new Date(now.getTime() - DAY_MS)})::int AS "last24h",
+            COUNT(*) FILTER (
+              WHERE jsonb_typeof(a.payload->'specialOrder') = 'boolean'
+                AND (a.payload->>'specialOrder')::boolean = true
+                AND a.payload ? 'stockArrivesAt'
+                AND (a.payload->>'stockArrivesAt')::timestamptz > ${now}
+            )::int AS pending
+          FROM "PlayerActivity" a
+          JOIN "RoundPlayer" p ON p.id = a."roundPlayerId"
+          WHERE p."roundId" = ${roundId}
+            AND a.type::text = 'STORE_BUY'
+            AND jsonb_typeof(a.payload->'specialOrder') = 'boolean'
+            AND (a.payload->>'specialOrder')::boolean = true`,
+      ]);
+      const halfLife = ruleset.travel?.market?.recoveryHalfLifeMinutes ?? null;
+      const pressureLimit = ruleset.storeEconomy.pipProductPressure?.maxPricePressure ?? 0;
+      const shipments = ruleset.storeEconomy.shipments;
+      storeEconomy = {
+        pressureLimitPercent: Math.round(pressureLimit * 100),
+        markets: marketRows.map((row) => {
+          const elapsedMinutes = Math.max(0, (now.getTime() - row.pushAt.getTime()) / 60_000);
+          const push = halfLife && halfLife > 0 ? row.push * 0.5 ** (elapsedMinutes / halfLife) : row.push;
+          return {
+            city: row.city,
+            productKey: row.productKey,
+            pushPercent: Math.round(push * 1000) / 10,
+            updatedAt: row.pushAt.toISOString(),
+          };
+        }),
+        shelves: {
+          emptyStandard: standardShelves[0]?.empty ?? 0,
+          emptyProduct: productShelves,
+        },
+        shipments: {
+          enabled: shipments?.enabled ?? false,
+          delayChancePercent: shipments?.delayChancePercent ?? 0,
+          partialChancePercent: shipments?.partialChancePercent ?? 0,
+          largeChancePercent: shipments?.largeChancePercent ?? 0,
+        },
+        specialOrders: {
+          last24h: specialOrders[0]?.last24h ?? 0,
+          pendingByReceipt: specialOrders[0]?.pending ?? 0,
+        },
+        // Reserved stock and the rotating Black Market were deliberately left as post-0.8 scope.
+        reservationsEnabled: false,
+        blackMarketEnabled: false,
+      };
+    }
     return {
       round: await adminRound(prisma, round),
       players: { total, active24h, active7d, neverActed },
       days: [...days.values()],
+      storeEconomy,
       topPlayers: topPlayers.map((player) => ({
         roundPlayerId: player.id,
         displayName: player.displayName,
