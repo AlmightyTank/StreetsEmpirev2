@@ -475,14 +475,17 @@ export function ConsolePage() {
                         Block sender
                       </button>
                     ) : null}
-                    {selected.direction === 'in' ? (
+                    {selected.direction === 'in' && !selected.reported ? (
                       <button
                         type="button"
                         className="se-btn se-btn--ghost se-btn--sm"
                         onClick={() => setReporting((current) => !current)}
                       >
-                        {selected.reported ? 'Update report' : 'Report'}
+                        Report
                       </button>
+                    ) : null}
+                    {selected.direction === 'in' && selected.reported ? (
+                      <span className="se-tag se-tag--dim">Reported</span>
                     ) : null}
                     <Link className="se-btn se-btn--ghost se-btn--sm" to={`/game/players/${selected.counterpart.publicPimpId}`}>
                       Profile
