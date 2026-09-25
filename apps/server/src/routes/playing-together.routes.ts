@@ -24,7 +24,8 @@ const pimpParams = z.object({ publicPimpId: z.coerce.number().int().min(1).max(2
 const wireQuery = z.object({ before: z.string().min(1).max(64).optional() }).strict();
 const playerDirectoryQuery = z.object({
   q: z.string().trim().max(80).optional(),
-  view: z.enum(['all', 'city', 'alliance', 'near', 'active']).default('all'),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  view: z.enum(['all', 'city', 'alliance', 'near', 'encountered', 'active']).default('all'),
 }).strict();
 
 /** 0.3.0-D: the alliance wire and the private contacts rolodex. */
