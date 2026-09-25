@@ -1,5 +1,6 @@
 import type {
   ConsoleBlocksDto,
+  ConsoleCountsDto,
   ConsoleFolder,
   PimpConsoleDto,
   SendMessageResultDto,
@@ -7,6 +8,8 @@ import type {
 import { api } from './client.js';
 
 export const consoleApi = {
+  summary: () => api.get<ConsoleCountsDto>('/game/console/summary'),
+
   page: (folder: ConsoleFolder = 'inbox', page = 1) =>
     api.get<PimpConsoleDto>(`/game/console?folder=${encodeURIComponent(folder)}&page=${page}`),
 
