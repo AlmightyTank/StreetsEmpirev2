@@ -378,7 +378,7 @@
 .se-market-badge--cheap,
 .se-market-badge--below-normal,
 .se-market-badge--stock-plentiful {
-  border-color: rgba(69, 214, 138, 0.32);
+  border-color: rgba(var(--se-good-rgb), 0.32);
   color: var(--se-good);
 }
 
@@ -459,7 +459,7 @@
 }
 
 .se-store-shipment__line--large {
-  border-color: rgba(69, 214, 138, 0.32);
+  border-color: rgba(var(--se-good-rgb), 0.32);
   color: var(--se-good);
 }
 
