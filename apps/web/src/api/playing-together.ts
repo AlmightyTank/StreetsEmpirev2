@@ -8,8 +8,8 @@ export const wireApi = {
 };
 
 export const playersApi = {
-  list: (view: PlayerDirectoryView = 'all', query = '') => {
-    const params = new URLSearchParams({ view });
+  list: (view: PlayerDirectoryView = 'all', query = '', page = 1) => {
+    const params = new URLSearchParams({ view, page: String(page) });
     if (query.trim()) params.set('q', query.trim());
     return api.get<PlayerDirectoryDto>(`/game/players?${params.toString()}`);
   },
