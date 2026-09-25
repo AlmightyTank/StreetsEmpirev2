@@ -9,6 +9,8 @@ import {
   questTrackSchema,
   scoutSchema,
   storeTradeSchema,
+  storeCheckoutSchema,
+  storeSpecialOrderSchema,
   hideoutUpgradeSchema,
   hideoutSpecializationSchema,
   hideoutWeaponPrioritySchema,
@@ -109,6 +111,12 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       toState(settled.player),
       settled.stock,
       settled.standings,
+      {
+        now: new Date(),
+        round: settled.round,
+        playerRow: settled.player,
+        turfBlocksHeld: settled.turf?.blocksHeld ?? 0,
+      },
     );
   });
 
@@ -116,6 +124,18 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const body = parseBody(storeTradeSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
     return StoreService.trade(fastify.prisma, player.id, body);
+  });
+
+  fastify.post('/stores/checkout', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(storeCheckoutSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return StoreService.checkout(fastify.prisma, player.id, body);
+  });
+
+  fastify.post('/stores/special-order', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(storeSpecialOrderSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return StoreService.specialOrder(fastify.prisma, player.id, body);
   });
 
   fastify.get('/hideout', { preHandler: fastify.requireAuth }, async (request) => {

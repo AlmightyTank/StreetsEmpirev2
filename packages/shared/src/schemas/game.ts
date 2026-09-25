@@ -124,6 +124,26 @@ export const storeTradeSchema = z.object({
 
 export type StoreTradeInput = z.infer<typeof storeTradeSchema>;
 
+export const storeCheckoutLineSchema = storeTradeSchema.omit({ actionId: true });
+
+export const storeCheckoutSchema = z.object({
+  lines: z.array(storeCheckoutLineSchema)
+    .min(1, 'Add something to the basket.')
+    .max(20, 'Check out up to 20 lines at a time.'),
+  actionId: actionIdSchema,
+});
+
+export type StoreCheckoutLineInput = z.infer<typeof storeCheckoutLineSchema>;
+export type StoreCheckoutInput = z.infer<typeof storeCheckoutSchema>;
+
+export const storeSpecialOrderSchema = z.object({
+  store: z.string().trim().min(1, 'Pick a store.').max(64),
+  item: z.string().trim().min(1, 'Pick an item.').max(64),
+  actionId: actionIdSchema,
+});
+
+export type StoreSpecialOrderInput = z.infer<typeof storeSpecialOrderSchema>;
+
 /** 0.4.0-D. Pip's counter for a non-crack product. */
 export const productTradeSchema = z.object({
   product: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.'),

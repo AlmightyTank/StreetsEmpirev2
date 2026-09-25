@@ -66,6 +66,13 @@ describe("Pip's product counter", () => {
       .toMatchObject({ unitCents: 240, totalCents: 2_400n, cashChangeCents: 2_400n });
   });
 
+  it('accepts market-adjusted buy and sell quotes', () => {
+    expect(calculateProductTrade({ ...base, direction: 'buy', quantity: 10, buyUnitCents: 880, sellUnitCents: 260 }))
+      .toMatchObject({ unitCents: 880, totalCents: 8_800n, cashChangeCents: -8_800n });
+    expect(calculateProductTrade({ ...base, owned: 10, direction: 'sell', quantity: 10, sellUnitCents: 220 }))
+      .toMatchObject({ unitCents: 220, totalCents: 2_200n, cashChangeCents: 2_200n });
+  });
+
   it('never lets a discounted buy quote fall to or below Pip\'s buyback', () => {
     expect(calculateProductTrade({ ...base, direction: 'buy', quantity: 1, buyUnitCents: 1 }).unitCents)
       .toBe(weed.pip.sellCents + 1);

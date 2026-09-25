@@ -66,7 +66,7 @@ export function calculateStoreTrade(
     StockHolder,
   input: StoreTradeInput,
   ruleset: Ruleset,
-  options?: { buyUnitCents?: number },
+  options?: { buyUnitCents?: number; sellUnitCents?: number | null },
 ) {
   const found = findStore(ruleset, input.store);
   if (!found) throw new StoreTradeError('UNKNOWN_STORE', 'That store is not open.', 'store');
@@ -86,9 +86,13 @@ export function calculateStoreTrade(
   if (options?.buyUnitCents !== undefined && (!Number.isSafeInteger(options.buyUnitCents) || options.buyUnitCents <= 0)) {
     throw new StoreTradeError('INVALID_TRADE', 'The quoted store price is invalid.', 'item');
   }
+  if (options?.sellUnitCents !== undefined && options.sellUnitCents !== null && (!Number.isSafeInteger(options.sellUnitCents) || options.sellUnitCents < 0)) {
+    throw new StoreTradeError('INVALID_TRADE', 'The quoted store price is invalid.', 'item');
+  }
   const effectiveBuyCents = options?.buyUnitCents ?? item.buyCents;
-  const safeBuyCents = item.sellCents === null ? effectiveBuyCents : Math.max(item.sellCents + 1, effectiveBuyCents);
-  const unitCents = buying ? safeBuyCents : item.sellCents;
+  const effectiveSellCents = options?.sellUnitCents ?? item.sellCents;
+  const safeBuyCents = effectiveSellCents === null ? effectiveBuyCents : Math.max(effectiveSellCents + 1, effectiveBuyCents);
+  const unitCents = buying ? safeBuyCents : effectiveSellCents;
   if (unitCents === null) throw new StoreTradeError('SELL_NOT_ALLOWED', 'This store does not buy that item back.', 'item');
   const totalCents = BigInt(unitCents) * BigInt(input.quantity);
   const owned = player[item.field];

@@ -325,6 +325,7 @@ button.se-quests-metric {
 .se-quests .se-quest-card {
   margin: 0;
   border-radius: 4px;
+  scroll-margin-top: 96px;
 }
 
 .se-quests .se-quest-card .se-panel__head {
@@ -744,6 +745,10 @@ button.se-quests-metric {
 
   .se-quests .se-quest-card .se-panel__head {
     display: grid;
+  }
+
+  .se-quests .se-quest-card {
+    scroll-margin-top: 126px;
   }
 
   .se-quests .se-quest-card__meta {

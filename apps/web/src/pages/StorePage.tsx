@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate, NavLink, useParams } from 'react-router-dom';
-import { formatCents, formatNumber, type ProductsDto, type StoreDto, type StoreItemDto, type StoreRestockDto, type StoresDto, type StoreTradeInput, type StoreTradeResult } from '@streets/shared';
+import { formatCents, formatNumber, type ProductsDto, type StoreCheckoutLineInput, type StoreCheckoutResult, type StoreDto, type StoreItemDto, type StoreMarketContextDto, type StoreRestockDto, type StoresDto, type StoreSpecialOrderResult, type StoreTradeInput, type StoreTradeResult } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { storesApi } from '../api/stores.js';
 import { ActionResult } from '../components/ActionResult.js';
@@ -17,7 +17,8 @@ import { formatDuration } from '../utils/time.js';
 import { browserSessionStorage, clearPendingAction, loadPendingAction, savePendingAction } from '../utils/pendingAction.js';
 
 type Order = Omit<StoreTradeInput, 'actionId'>;
-type StoreCommand = { kind: 'trade'; order: Order };
+type BasketLine = StoreCheckoutLineInput & { key: string; storeName: string; itemName: string; unitCents: number; stockLabel: string };
+type StoreCommand = { kind: 'trade'; order: Order } | { kind: 'checkout'; lines: StoreCheckoutLineInput[] } | { kind: 'specialOrder'; store: string; item: string };
 type PendingStoreCommand = { actionId: string; command: StoreCommand };
 
 /** "every 4 hours" - the wait, in the units it was written in. */
@@ -49,6 +50,13 @@ function restockDelivery(restock: StoreRestockDto): string {
     : `another ${formatNumber(restock.perInterval)} every ${cadence}`;
 }
 
+function shipmentStatus(status: NonNullable<StoreRestockDto['shipment']>['status']): string {
+  if (status === 'DELAYED') return 'Delayed';
+  if (status === 'PARTIAL') return 'Short shipment';
+  if (status === 'LARGE') return 'Oversized shipment';
+  return 'On schedule';
+}
+
 /**
  * What Tommy has, and when the next one lands.
  *
@@ -61,24 +69,70 @@ function RestockLine({ restock, name, keeper, onArrival }: {
 }) {
   const { msRemaining } = useCountdown(restock.nextAt, onArrival);
   const full = restock.stock >= restock.cap;
+  const shipment = restock.shipment;
 
   return (
-    <p className={`se-hint${restock.stock === 0 ? ' se-warn' : ''}`}>
-      {keeper} has <strong className="se-num">{formatNumber(restock.stock)}</strong> of{' '}
-      <strong className="se-num">{formatNumber(restock.cap)}</strong>.{' '}
-      {full
-        ? `Fully stocked — ${restockDelivery(restock)}.`
-        : restock.stock === 0
-          ? `Out of ${name} — next delivery in ${formatDuration(msRemaining)}.`
-          : `Next delivery in ${formatDuration(msRemaining)}, then ${restockDelivery(restock)}.`}
-    </p>
+    <div className="se-store-shipment">
+      <p className={`se-hint${restock.stock === 0 ? ' se-warn' : ''}`}>
+        {keeper} has <strong className="se-num">{formatNumber(restock.stock)}</strong> of{' '}
+        <strong className="se-num">{formatNumber(restock.cap)}</strong>.{' '}
+        {full
+          ? `Fully stocked — ${restockDelivery(restock)}.`
+          : restock.stock === 0
+            ? `Out of ${name} — next delivery in ${formatDuration(msRemaining)}.`
+            : `Next delivery in ${formatDuration(msRemaining)}, then ${restockDelivery(restock)}.`}
+      </p>
+      {shipment ? (
+        <p className={`se-store-shipment__line se-store-shipment__line--${shipment.status.toLowerCase().replaceAll('_', '-')}`}>
+          <strong>{shipmentStatus(shipment.status)}</strong>
+          <span>{formatNumber(shipment.quantity)} incoming</span>
+        </p>
+      ) : null}
+    </div>
   );
 }
 
-function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked, onTrade, onRestock }: {
-  item: StoreItemDto; store: string; keeper: string; owned: number; cashCents: number;
+function trendDetail(context: StoreMarketContextDto): string {
+  const delta = context.buy.deltaPercent;
+  if (delta === 0) return context.buy.trend;
+  return `${context.buy.trend} · ${delta > 0 ? '+' : ''}${formatNumber(delta)}%`;
+}
+
+function MarketBadges({ market }: { market: StoreMarketContextDto }) {
+  return (
+    <div className="se-market-badges" aria-label="Market context">
+      <span className={`se-market-badge se-market-badge--${market.buy.label.toLowerCase().replaceAll(' ', '-')}`}>
+        {market.buy.label}
+      </span>
+      <span className="se-market-badge">{trendDetail(market)}</span>
+      <span className={`se-market-badge se-market-badge--stock-${market.stock.label.toLowerCase().replaceAll(' ', '-')}`}>
+        {market.stock.label}
+      </span>
+    </div>
+  );
+}
+
+function relationshipSummary(input: {
+  buyDiscountPercent?: number;
+  sellBonusPercent?: number;
+  relationshipBuyDiscountPercent?: number;
+  relationshipSellBonusPercent?: number;
+}): string {
+  const buyDiscountPercent = input.buyDiscountPercent ?? input.relationshipBuyDiscountPercent;
+  const sellBonusPercent = input.sellBonusPercent ?? input.relationshipSellBonusPercent;
+  const parts = [
+    buyDiscountPercent ? `${formatNumber(buyDiscountPercent)}% buy discount` : null,
+    sellBonusPercent ? `${formatNumber(sellBonusPercent)}% better buyback` : null,
+  ].filter(Boolean);
+  return parts.join(' · ');
+}
+
+function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpers, blocked, onTrade, onSpecialOrder, onAddToBasket, onRestock }: {
+  item: StoreItemDto; store: string; storeName: string; keeper: string; owned: number; cashCents: number;
   /** Why the whole shelf is off, or null when it is open for business. */
   bulkHelpers: number[]; blocked: string | null; onTrade: (order: Order) => Promise<void>;
+  onSpecialOrder: (store: string, item: string) => Promise<void>;
+  onAddToBasket: (line: BasketLine) => void;
   onRestock: () => void;
 }) {
   const [quantity, setQuantity] = useState<number | ''>(1);
@@ -92,6 +146,7 @@ function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked
     ? Math.min(item.maxBuy, item.buyCents > 0 ? Math.floor(cashCents / item.buyCents) : item.maxBuy)
     : owned;
   const soldOut = buying && item.restock !== null && item.restock.stock === 0;
+  const specialOrder = item.restock?.specialOrder ?? null;
   const valid = typeof quantity === 'number' && Number.isSafeInteger(quantity) && quantity > 0 && quantity <= max;
   const total = valid && unitCents !== null ? quantity * unitCents : null;
   const quantityId = `quantity-${item.key}`;
@@ -114,6 +169,21 @@ function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked
     await onTrade({ store, item: item.key, quantity, direction });
   }
 
+  function addToBasket() {
+    if (blocked || purchaseLocked || !valid || typeof quantity !== 'number' || unitCents === null) return;
+    onAddToBasket({
+      key: `${store}:${item.key}:${direction}`,
+      store,
+      item: item.key,
+      direction,
+      quantity,
+      storeName,
+      itemName: item.name,
+      unitCents,
+      stockLabel,
+    });
+  }
+
   const stockLabel = item.restock
     ? item.restock.stock === 0
       ? 'Sold out'
@@ -134,13 +204,35 @@ function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked
         </span>
         <span>{item.sellCents === null ? 'No buyback' : <>Sell <strong className="se-num">{formatCents(item.sellCents)}</strong></>}</span>
       </div>
+      <MarketBadges market={item.market} />
       {item.favorDiscountPercent ? (
         <p className="se-hint se-good">
           Tommy Voucher armed — {formatNumber(item.favorDiscountPercent)}% off this eligible purchase. It is consumed only if the buy succeeds.
         </p>
       ) : null}
+      {item.relationshipBuyDiscountPercent || item.relationshipSellBonusPercent ? (
+        <p className="se-hint se-good">
+          Relationship perk — {relationshipSummary(item)}.
+        </p>
+      ) : null}
       {item.restock ? (
         <RestockLine restock={item.restock} name={item.name} keeper={keeper} onArrival={onRestock} />
+      ) : null}
+      {specialOrder ? (
+        <div className="se-store-special-order">
+          <div>
+            <strong>{specialOrder.label}</strong>
+            <span>{formatCents(specialOrder.feeCents)} sourcing fee · about {formatNumber(specialOrder.waitMinutes)} minutes</span>
+          </div>
+          <Button
+            type="button"
+            className="se-btn se-btn--sm"
+            disabledReason={blocked ?? (cashCents < specialOrder.feeCents ? `You need ${formatCents(specialOrder.feeCents)} to source this.` : null)}
+            onClick={() => void onSpecialOrder(store, item.key)}
+          >
+            Special order
+          </Button>
+        </div>
       ) : null}
       {favor ? (
         favor.unlocked ? <p className="se-hint se-good">Purchasing access earned for this round.</p> : (
@@ -192,9 +284,19 @@ function StoreItem({ item, store, keeper, owned, cashCents, bulkHelpers, blocked
             {quantity !== '' && !valid ? ' Enter a whole quantity within that limit.' : ''}
           </>}
         </p>
-        <Button className="se-btn se-btn--primary se-btn--block" disabledReason={tradeBlock}>
-          {purchaseLocked ? `Unlock ${item.name} above to buy` : `${buying ? 'Buy' : 'Sell'} ${item.name}${total !== null ? ` · ${formatCents(total)}` : ''}`}
-        </Button>
+        <div className="se-store-actions">
+          <Button className="se-btn se-btn--primary se-btn--block" disabledReason={tradeBlock}>
+            {purchaseLocked ? `Unlock ${item.name} above to buy` : `${buying ? 'Buy' : 'Sell'} ${item.name}${total !== null ? ` · ${formatCents(total)}` : ''}`}
+          </Button>
+          <Button
+            type="button"
+            className="se-btn se-btn--block"
+            disabledReason={tradeBlock ?? (unitCents === null ? 'This item cannot be added to the basket.' : null)}
+            onClick={addToBasket}
+          >
+            Add to basket
+          </Button>
+        </div>
       </form> : null}
     </Panel>
   );
@@ -284,11 +386,12 @@ function StoreTabs({ stores, slug }: { stores: StoreDto[]; slug: string }) {
 
 function StoreView({ slug }: { slug: string }) {
   const me = useSession((s) => s.me);
-  const action = useGameAction<StoreTradeResult>();
+  const action = useGameAction<StoreTradeResult | StoreCheckoutResult | StoreSpecialOrderResult>();
   const [catalog, setCatalog] = useState<StoresDto | null>(() => (cachedCatalog && cachedCatalog.playerId === me?.id ? cachedCatalog.data : null));
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const [retryOrder, setRetryOrder] = useState<PendingStoreCommand | null>(null);
+  const [basket, setBasket] = useState<BasketLine[]>([]);
   // 0.4.0-D: Pip deals every product. Other stores never ask.
   const [products, setProducts] = useState<ProductsDto | null>(null);
   const loadProducts = useCallback(() => {
@@ -316,12 +419,31 @@ function StoreView({ slug }: { slug: string }) {
     return () => { active = false; };
   }, [me?.resources, reload]);
 
+  function addToBasket(line: BasketLine) {
+    setBasket((current) => {
+      const existing = current.find((entry) => entry.key === line.key);
+      if (!existing) return [...current, line];
+      return current.map((entry) => entry.key === line.key
+        ? { ...entry, quantity: entry.quantity + line.quantity }
+        : entry);
+    });
+  }
+
+  function removeFromBasket(key: string) {
+    setBasket((current) => current.filter((line) => line.key !== key));
+  }
+
   async function execute(command: StoreCommand, recoveredActionId?: string) {
     await action.run(async (actionId) => {
       try {
-        const result = await storesApi.trade({ ...command.order, actionId });
+        const result = command.kind === 'checkout'
+          ? await storesApi.checkout({ lines: command.lines, actionId })
+          : command.kind === 'specialOrder'
+            ? await storesApi.specialOrder({ store: command.store, item: command.item, actionId })
+            : await storesApi.trade({ ...command.order, actionId });
         clearPendingAction(pendingStorage, pendingKey);
         setRetryOrder(null);
+        if (command.kind === 'checkout') setBasket([]);
         return result;
       } catch (error) {
         // Network/5xx failures are ambiguous: the server may have committed
@@ -357,6 +479,8 @@ function StoreView({ slug }: { slug: string }) {
         ? 'Prices could not be loaded, so nothing can be traded yet.'
         : null;
   const receipt = action.result && 'direction' in action.result.result ? action.result.result : null;
+  const checkoutReceipt = action.result && 'lines' in action.result.result ? action.result.result : null;
+  const specialOrderReceipt = action.result && 'stockArrivesAt' in action.result.result ? action.result.result : null;
   const details = store ? STORE_DETAILS[store.key] ?? {
     label: 'Street market',
     lane: 'Open counter',
@@ -370,6 +494,12 @@ function StoreView({ slug }: { slug: string }) {
     + pipProducts.filter((product) => product.pip?.stock === 0).length;
   const lockedShelves = (store?.items.filter((item) => item.unlock && !item.unlock.unlocked).length ?? 0)
     + pipProducts.filter((product) => product.pip && !product.pip.purchaseUnlocked).length;
+  const basketTotalCents = basket.reduce((sum, line) => {
+    const signed = line.direction === 'buy' ? -1 : 1;
+    return sum + signed * line.unitCents * line.quantity;
+  }, 0);
+  const basketDisabled = counterBlock
+    ?? (basket.length === 0 ? 'Add at least one item to the basket.' : null);
 
   return (
     <GameLayout>
@@ -457,6 +587,57 @@ function StoreView({ slug }: { slug: string }) {
           </section>
         ) : null}
 
+        {action.result && checkoutReceipt ? (
+          <section className="se-stores-receipt" aria-live="polite">
+            <div className="se-stores-sectionhead">
+              <div>
+                <span className="se-eyebrow">Checkout complete</span>
+                <h2>Basket receipt</h2>
+              </div>
+              <span className="se-stores-sectionhead__meta">{formatNumber(checkoutReceipt.lineCount)} lines</span>
+            </div>
+            <ActionResult
+              title="Checkout complete"
+              subtitle={`${formatNumber(checkoutReceipt.itemCount)} items across ${formatNumber(checkoutReceipt.lineCount)} lines`}
+              result={action.result}
+              onDismiss={action.clear}
+              lines={[
+                ...checkoutReceipt.lines.map((line) => ({
+                  label: `${line.direction === 'buy' ? 'Bought' : 'Sold'} ${line.itemName}`,
+                  detail: line.storeName,
+                  delta: line.quantityChange,
+                  remaining: action.result!.after.resources[line.field],
+                })),
+                { label: checkoutReceipt.cashChangeCents < 0 ? 'Paid' : 'Received', delta: checkoutReceipt.cashChangeCents, money: true },
+                { label: 'Turns used', value: '0' },
+              ]}
+            />
+          </section>
+        ) : null}
+
+        {action.result && specialOrderReceipt ? (
+          <section className="se-stores-receipt" aria-live="polite">
+            <div className="se-stores-sectionhead">
+              <div>
+                <span className="se-eyebrow">Special order placed</span>
+                <h2>{specialOrderReceipt.itemName} sourced</h2>
+              </div>
+              <span className="se-stores-sectionhead__meta">{specialOrderReceipt.storeName}</span>
+            </div>
+            <ActionResult
+              title="Special order placed"
+              subtitle={`Delivery due in about ${formatNumber(specialOrderReceipt.waitMinutes)} minutes`}
+              result={action.result}
+              onDismiss={action.clear}
+              lines={[
+                { label: 'Sourcing fee', delta: specialOrderReceipt.cashChangeCents, money: true },
+                { label: 'Incoming stock', value: new Date(specialOrderReceipt.stockArrivesAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) },
+                { label: 'Turns used', value: '0' },
+              ]}
+            />
+          </section>
+        ) : null}
+
         {store && catalog ? (
           <>
             <section className="se-stores-overview">
@@ -503,12 +684,15 @@ function StoreView({ slug }: { slug: string }) {
                       // 0.4.0-D: next to the other products, Pip's Product is crack by name.
                       item={store.key === 'PIP' && catalog.productCounter && item.key === 'CRACK' ? { ...item, name: 'Crack' } : item}
                       store={store.key}
+                      storeName={store.name}
                       keeper={store.keeper}
                       owned={me.resources[item.field]}
                       cashCents={me.resources.cashCents}
                       bulkHelpers={catalog.bulkHelpers}
                       blocked={counterBlock}
                       onTrade={(order) => execute({ kind: 'trade', order })}
+                      onSpecialOrder={(sourceStore, sourceItem) => execute({ kind: 'specialOrder', store: sourceStore, item: sourceItem })}
+                      onAddToBasket={addToBasket}
                       onRestock={() => setReload((n) => n + 1)}
                     />
                   ))}
@@ -526,6 +710,65 @@ function StoreView({ slug }: { slug: string }) {
               </div>
 
               <aside className="se-stores-market__rail">
+                <div className="se-stores-railcard se-store-basket">
+                  <div className="se-store-basket__head">
+                    <div>
+                      <span className="se-eyebrow">Order basket</span>
+                      <h2>Checkout</h2>
+                    </div>
+                    {basket.length > 0 ? (
+                      <Button
+                        type="button"
+                        className="se-btn se-btn--ghost se-btn--sm"
+                        disabledReason={action.busy ? 'Your last order is still going through.' : null}
+                        onClick={() => setBasket([])}
+                      >
+                        Clear
+                      </Button>
+                    ) : null}
+                  </div>
+                  {basket.length === 0 ? (
+                    <p>Add items from the shelves to review one checkout total here.</p>
+                  ) : (
+                    <>
+                      <div className="se-store-basket__lines">
+                        {basket.map((line) => (
+                          <div className="se-store-basket__line" key={line.key}>
+                            <div>
+                              <strong>{line.direction === 'buy' ? 'Buy' : 'Sell'} {line.itemName}</strong>
+                              <span>{line.storeName} · {formatNumber(line.quantity)} @ {formatCents(line.unitCents)}</span>
+                              <small>{line.stockLabel}</small>
+                            </div>
+                            <button
+                              type="button"
+                              className="se-store-basket__remove"
+                              title={`Remove ${line.itemName}`}
+                              onClick={() => removeFromBasket(line.key)}
+                            >
+                              &times;
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="se-store-basket__total">
+                        <span>{basketTotalCents < 0 ? 'Estimated due' : 'Estimated payout'}</span>
+                        <strong>{formatCents(Math.abs(basketTotalCents))}</strong>
+                      </div>
+                      <Button
+                        type="button"
+                        className="se-btn se-btn--primary se-btn--block"
+                        disabledReason={basketDisabled}
+                        onClick={() => void execute({
+                          kind: 'checkout',
+                          lines: basket.map(({ store, item, direction, quantity }) => ({ store, item, direction, quantity })),
+                        })}
+                      >
+                        Checkout basket
+                      </Button>
+                    </>
+                  )}
+                </div>
+
                 <div className="se-stores-railcard">
                   <span className="se-eyebrow">Behind the counter</span>
                   <h2>{store.keeper}</h2>
@@ -543,7 +786,79 @@ function StoreView({ slug }: { slug: string }) {
                       <strong>{store.restockSpeedup > 0 ? `${formatNumber(store.restockSpeedup)}% sooner` : 'Normal pace'}</strong>
                     </div>
                   </div>
+                  {store.relationship ? (
+                    <div className="se-stores-perks">
+                      {store.relationship.current ? (
+                        <div>
+                          <span>Current perk</span>
+                          <strong>{store.relationship.current.label}</strong>
+                          <p>{store.relationship.current.description}</p>
+                          <small>{relationshipSummary(store.relationship.current)}</small>
+                        </div>
+                      ) : null}
+                      {store.relationship.next ? (
+                        <div>
+                          <span>Next perk</span>
+                          <strong>{store.relationship.next.label}</strong>
+                          <p>{store.relationship.next.description}</p>
+                          <small>{formatNumber(store.relationship.next.pointsRemaining)} rep away · {relationshipSummary(store.relationship.next)}</small>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {store.news?.length ? (
+                    <div className="se-stores-news">
+                      {store.news.map((line) => <p key={line}>{line}</p>)}
+                    </div>
+                  ) : null}
                 </div>
+
+                {catalog.integrations ? (
+                  <div className="se-stores-railcard">
+                    <span className="se-eyebrow">Connected systems</span>
+                    <div className="se-stores-integrations">
+                      {catalog.integrations.hideout ? (
+                        <div>
+                          <strong>Hideout</strong>
+                          <span>
+                            {catalog.integrations.hideout.nextUpgradeName
+                              ? catalog.integrations.hideout.ready
+                                ? `${catalog.integrations.hideout.nextUpgradeName} is funded.`
+                                : `${catalog.integrations.hideout.nextUpgradeName}: ${formatCents(catalog.integrations.hideout.cashShortCents)} short.`
+                              : 'All current rooms are capped.'}
+                          </span>
+                        </div>
+                      ) : null}
+                      {catalog.integrations.turf ? (
+                        <div>
+                          <strong>Turf</strong>
+                          <span>
+                            {formatNumber(catalog.integrations.turf.blocksHeld)} blocks held
+                            {catalog.integrations.turf.specialOrderDiscountPercent > 0
+                              ? ` · ${formatNumber(catalog.integrations.turf.specialOrderDiscountPercent)}% source fee cut`
+                              : ''}
+                          </span>
+                        </div>
+                      ) : null}
+                      {catalog.integrations.travel ? (
+                        <div>
+                          <strong>Travel</strong>
+                          <span>
+                            {catalog.integrations.travel.productName} sells {formatNumber(catalog.integrations.travel.deltaPercent)}% higher in {catalog.integrations.travel.cityName}.
+                          </span>
+                        </div>
+                      ) : null}
+                      {catalog.integrations.convoy ? (
+                        <div>
+                          <strong>Convoys</strong>
+                          <span>
+                            {formatNumber(catalog.integrations.convoy.incomingShipments)} shipments · {formatNumber(catalog.integrations.convoy.activeRuns)} active runs
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="se-stores-railcard">
                   <span className="se-eyebrow">Counter rules</span>

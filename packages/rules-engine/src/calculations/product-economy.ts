@@ -82,6 +82,8 @@ export function calculateProductTrade(input: {
   shelfStock: number | null;
   /** Optional player-specific buy price, e.g. a timed favor discount. */
   buyUnitCents?: number;
+  /** Optional market-adjusted sell price. */
+  sellUnitCents?: number;
 }): ProductTrade {
   const { ruleset, product, direction, quantity, owned, cashCents, shelfStock } = input;
   const economy = productEconomy(ruleset, product);
@@ -95,8 +97,12 @@ export function calculateProductTrade(input: {
   if (input.buyUnitCents !== undefined && (!Number.isSafeInteger(input.buyUnitCents) || input.buyUnitCents <= 0)) {
     throw new StoreTradeError('INVALID_TRADE', 'The quoted product price is invalid.', 'product');
   }
+  if (input.sellUnitCents !== undefined && (!Number.isSafeInteger(input.sellUnitCents) || input.sellUnitCents < 0)) {
+    throw new StoreTradeError('INVALID_TRADE', 'The quoted product price is invalid.', 'product');
+  }
   const effectiveBuyCents = input.buyUnitCents ?? economy.pip.buyCents;
-  const unitCents = buying ? Math.max(economy.pip.sellCents + 1, effectiveBuyCents) : economy.pip.sellCents;
+  const effectiveSellCents = input.sellUnitCents ?? economy.pip.sellCents;
+  const unitCents = buying ? Math.max(effectiveSellCents + 1, effectiveBuyCents) : effectiveSellCents;
   const totalCents = BigInt(unitCents) * BigInt(quantity);
 
   if (buying) {

@@ -594,11 +594,80 @@ export interface StoreItemDto {
   /** Present when an armed single-use favor lowered the current buy quote. */
   baseBuyCents?: number;
   favorDiscountPercent?: number;
+  relationshipBuyDiscountPercent?: number;
+  relationshipSellBonusPercent?: number;
   sellCents: number | null;
   owned: number;
   maxBuy: number;
+  /** 0.8.0-B. Player-facing context for the current quote versus its normal price. */
+  market: StoreMarketContextDto;
   /** Null when the store can sell as many as you can pay for. */
   restock: StoreRestockDto | null;
+}
+
+export interface StoreRelationshipPerkDto {
+  label: string;
+  description: string;
+  buyDiscountPercent?: number;
+  sellBonusPercent?: number;
+}
+
+export interface StoreRelationshipNextPerkDto extends StoreRelationshipPerkDto {
+  at: number;
+  pointsRemaining: number;
+}
+
+export interface StoreRelationshipDto {
+  current: StoreRelationshipPerkDto | null;
+  next: StoreRelationshipNextPerkDto | null;
+}
+
+export type PriceContextLabelDto = 'Cheap' | 'Below Normal' | 'Normal' | 'Above Normal' | 'Expensive';
+export type MarketTrendDto = 'Rising' | 'Stable' | 'Falling';
+export type StockContextLabelDto = 'Always Available' | 'Plentiful' | 'Normal' | 'Low' | 'Scarce' | 'Sold Out';
+
+export interface StorePriceContextDto {
+  label: PriceContextLabelDto;
+  trend: MarketTrendDto;
+  baseCents: number;
+  currentCents: number;
+  deltaPercent: number;
+}
+
+export interface StoreStockContextDto {
+  label: StockContextLabelDto;
+  stock: number | null;
+  cap: number | null;
+  percent: number | null;
+}
+
+export interface StoreMarketContextDto {
+  buy: StorePriceContextDto;
+  sell: StorePriceContextDto | null;
+  stock: StoreStockContextDto;
+}
+
+export type StoreShipmentStatusDto = 'ON_TIME' | 'DELAYED' | 'PARTIAL' | 'LARGE';
+
+export interface StoreShipmentDto {
+  quantity: number;
+  scheduledAt: string;
+  arrivesAt: string;
+  status: StoreShipmentStatusDto;
+  delayMinutes: number;
+  destinationTrader: string;
+  itemName: string;
+  news: string;
+}
+
+export interface StoreSpecialOrderDto {
+  feeCents: number;
+  baseFeeCents: number;
+  markupPercent: number;
+  arrivesAt: string;
+  waitMinutes: number;
+  quantity: number;
+  label: string;
 }
 
 /** What the store has on the shelf, and when the next one lands. */
@@ -610,6 +679,10 @@ export interface StoreRestockDto {
   perInterval: number;
   /** ISO timestamp, or null when the shelf is already full. */
   nextAt: string | null;
+  /** 0.8.0-E. Incoming physical shipment details when enabled for this round. */
+  shipment?: StoreShipmentDto | null;
+  /** 0.8.0-F. Paid sourcing option when the shelf is sold out. */
+  specialOrder?: StoreSpecialOrderDto | null;
 }
 
 export interface WeaponUnlockDto {
@@ -843,7 +916,39 @@ export interface StoreDto {
   reputation: number;
   /** How much sooner they restock for you at that standing, as a percentage. */
   restockSpeedup: number;
+  /** 0.8.0-D. Current and next ruleset-defined relationship benefit. */
+  relationship?: StoreRelationshipDto;
+  /** 0.8.0-E. Trader-facing headlines about fresh stock and shortages. */
+  news?: string[];
   items: StoreItemDto[];
+}
+
+export interface StoreIntegrationDto {
+  hideout: {
+    nextUpgradeName: string | null;
+    nextUpgradeCostCents: number | null;
+    cashShortCents: number;
+    ready: boolean;
+  } | null;
+  turf: {
+    blocksHeld: number;
+    specialOrderDiscountPercent: number;
+    label: string;
+  } | null;
+  travel: {
+    product: string;
+    productName: string;
+    city: string;
+    cityName: string;
+    localSellCents: number;
+    remoteSellCents: number;
+    deltaPercent: number;
+  } | null;
+  convoy: {
+    activeRuns: number;
+    incomingShipments: number;
+    label: string;
+  } | null;
 }
 
 export interface StoresDto {
@@ -852,6 +957,8 @@ export interface StoresDto {
   lowRiderThugCapacity: number;
   /** 0.4.0-D. Pip deals every product at his counter. */
   productCounter?: boolean;
+  /** 0.8.0-G. Cross-system store context from Hideout, Turf, Travel, and Convoys. */
+  integrations?: StoreIntegrationDto;
 }
 
 export interface StoreTradeResult {
@@ -875,6 +982,31 @@ export interface StoreTradeResult {
   baseUnitCents?: number;
 }
 
+export type StoreCheckoutLineResult = StoreTradeResult;
+
+export interface StoreCheckoutResult {
+  lines: StoreCheckoutLineResult[];
+  totalCents: number;
+  cashChangeCents: number;
+  lineCount: number;
+  itemCount: number;
+  reputation: Array<{
+    trader: string;
+    points: number;
+  }>;
+}
+
+export interface StoreSpecialOrderResult {
+  storeKey: string;
+  storeName: string;
+  itemKey: string;
+  itemName: string;
+  feeCents: number;
+  cashChangeCents: number;
+  stockArrivesAt: string;
+  waitMinutes: number;
+}
+
 /** 0.4.0-A. One product the round knows about, with the player's stock. */
 export interface ProductStockDto {
   key: string;
@@ -887,6 +1019,8 @@ export interface ProductStockDto {
   pip?: {
     buyCents: number;
     sellCents: number;
+    /** 0.8.0-B. Price and stock context for Pip's current product counter quote. */
+    market: StoreMarketContextDto;
     stock: number;
     cap: number;
     perInterval: number;
@@ -898,6 +1032,8 @@ export interface ProductStockDto {
     unlockName: string | null;
     unlockDescription: string | null;
     favorDiscountPercent?: number;
+    relationshipBuyDiscountPercent?: number;
+    relationshipSellBonusPercent?: number;
   } | null;
   /** 0.4.0-D. Present where Produce can cook it. */
   recipe?: { perThugPerTurn: number; ingredientCentsPerUnit: number; heatPerUnit: number } | null;

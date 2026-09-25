@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import type { GameActionResult, ProductStockDto, ProductTradeResult } from '@streets/shared';
+import type { GameActionResult, ProductStockDto, ProductTradeResult, StoreMarketContextDto } from '@streets/shared';
 import { formatCents, formatCentsExact, formatNumber } from '@streets/shared';
 import { api } from '../api/client.js';
 import { useCountdown } from '../hooks/useCountdown.js';
@@ -20,6 +20,41 @@ function waitText(minutes: number): string {
 
 /** $10 like every other shelf, $2.40 only where the cents matter. */
 const price = (cents: number) => (cents % 100 === 0 ? formatCents(cents) : formatCentsExact(cents));
+
+function trendDetail(context: StoreMarketContextDto): string {
+  const delta = context.buy.deltaPercent;
+  if (delta === 0) return context.buy.trend;
+  return `${context.buy.trend} · ${delta > 0 ? '+' : ''}${formatNumber(delta)}%`;
+}
+
+function MarketBadges({ market }: { market: StoreMarketContextDto }) {
+  return (
+    <div className="se-market-badges" aria-label="Market context">
+      <span className={`se-market-badge se-market-badge--${market.buy.label.toLowerCase().replaceAll(' ', '-')}`}>
+        {market.buy.label}
+      </span>
+      <span className="se-market-badge">{trendDetail(market)}</span>
+      <span className={`se-market-badge se-market-badge--stock-${market.stock.label.toLowerCase().replaceAll(' ', '-')}`}>
+        {market.stock.label}
+      </span>
+    </div>
+  );
+}
+
+function relationshipSummary(input: {
+  buyDiscountPercent?: number;
+  sellBonusPercent?: number;
+  relationshipBuyDiscountPercent?: number;
+  relationshipSellBonusPercent?: number;
+}): string {
+  const buyDiscountPercent = input.buyDiscountPercent ?? input.relationshipBuyDiscountPercent;
+  const sellBonusPercent = input.sellBonusPercent ?? input.relationshipSellBonusPercent;
+  const parts = [
+    buyDiscountPercent ? `${formatNumber(buyDiscountPercent)}% buy discount` : null,
+    sellBonusPercent ? `${formatNumber(sellBonusPercent)}% better buyback` : null,
+  ].filter(Boolean);
+  return parts.join(' · ');
+}
 
 function ShelfLine({ pip, name, onArrival }: { pip: NonNullable<ProductStockDto['pip']>; name: string; onArrival: () => void }) {
   const { msRemaining } = useCountdown(pip.nextAt, onArrival);
@@ -89,11 +124,17 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
       {pip.favorDiscountPercent ? (
         <p className="se-hint"><strong>Pip's Connection:</strong> {formatNumber(pip.favorDiscountPercent)}% buy discount active.</p>
       ) : null}
+      {pip.relationshipBuyDiscountPercent || pip.relationshipSellBonusPercent ? (
+        <p className="se-hint se-good">
+          Relationship perk — {relationshipSummary(pip)}.
+        </p>
+      ) : null}
       <div className="se-store-prices">
         <span>Own <strong className="se-num">{formatNumber(product.quantity)}</strong></span>
         <span>Buy <strong className="se-num">{price(pip.buyCents)}</strong></span>
         <span>Sell <strong className="se-num">{price(pip.sellCents)}</strong></span>
       </div>
+      <MarketBadges market={pip.market} />
       <p className="se-hint">{product.blurb}</p>
       {!pip.purchaseUnlocked ? (
         <div className="se-store-favor">

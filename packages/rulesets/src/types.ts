@@ -1341,6 +1341,62 @@ export interface ProductEconomyRules {
   readonly intel: { readonly lightBelowPerWhore: number; readonly heavyFromPerWhore: number };
 }
 
+export interface StoreRelationshipPerk {
+  readonly at: number;
+  readonly label: string;
+  readonly description: string;
+  readonly buyDiscountPercent?: number;
+  readonly sellBonusPercent?: number;
+}
+
+export interface StoreShipmentRules {
+  readonly enabled: boolean;
+  readonly seed: string;
+  readonly delayChancePercent: number;
+  readonly delayMinutes: number;
+  readonly partialChancePercent: number;
+  readonly partialMultiplier: number;
+  readonly largeChancePercent: number;
+  readonly largeMultiplier: number;
+}
+
+export interface StoreSpecialOrderRules {
+  readonly enabled: boolean;
+  readonly markupPercent: number;
+  readonly minWaitMinutes: number;
+  readonly waitMultiplier: number;
+  readonly standingMarkupDiscountPercentPerTier: number;
+  readonly standingWaitDiscountPercentPerTier: number;
+}
+
+export interface StoreIntegrationRules {
+  readonly enabled: boolean;
+  readonly turfSpecialOrderDiscountPercentPerBlock: number;
+  readonly maxTurfSpecialOrderDiscountPercent: number;
+  readonly travelOpportunityMinProfitPercent: number;
+}
+
+export interface StoreEconomyRules {
+  /**
+   * 0.8.0-C. Home Pip product trades nudge the same local pressure used by
+   * the high market: buying lifts the next quote, selling cools it, and the
+   * pressure slowly normalizes through the high-market recovery clock.
+   */
+  readonly pipProductPressure?: {
+    readonly enabled: boolean;
+    /** Maximum share up or down that Pip's product quotes can move from their city baseline. */
+    readonly maxPricePressure: number;
+  };
+  /** 0.8.0-D. Best reached trader relationship perk, keyed by store. */
+  readonly traderPerks?: Partial<Record<StoreKey, readonly StoreRelationshipPerk[]>>;
+  /** 0.8.0-E. Lazy-settled incoming shipments for restocked store shelves. */
+  readonly shipments?: StoreShipmentRules;
+  /** 0.8.0-F. Paid sourcing for sold-out eligible restocked shelves. */
+  readonly specialOrders?: StoreSpecialOrderRules;
+  /** 0.8.0-G. Cross-system store hooks and modest bonuses. */
+  readonly integrations?: StoreIntegrationRules;
+}
+
 /**
  * 0.4.0-C. Heat: how much attention the crew's product draws. It rises with risky
  * product, decays on the turn clock, drags the take when high and risks a bust
@@ -1567,6 +1623,8 @@ export interface Ruleset {
    * Raids and drug runs then take a mix of products rather than crack alone.
    */
   readonly productEconomy?: ProductEconomyRules;
+  /** 0.8.0-C. Store-side dynamic economy knobs. */
+  readonly storeEconomy?: StoreEconomyRules;
   /** 0.4.0-E. Absent where thugs burn no product in fights. */
   readonly combatSupply?: CombatSupplyRules;
   /** 0.5.0-A. Absent where cities are all alike and nobody travels. Keyed by City slug. */

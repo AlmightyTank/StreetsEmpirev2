@@ -14,7 +14,7 @@
  * not a week of stock. That is the entire point of the cap.
  */
 
-import type { RestockRule, Ruleset, StockField, StoreItem } from '@streets/rulesets';
+import type { RestockRule, Ruleset, StockField, StoreItem, StoreShipmentRules } from '@streets/rulesets';
 
 /** Anything carrying the shelf columns - a RoundPlayer row or player state. */
 export type StockState = Record<string, unknown>;
@@ -32,8 +32,25 @@ export interface RestockSettlement {
   perInterval: number;
   /** Null when the shelf is full and the clock is therefore parked. */
   nextAt: Date | null;
+  /** 0.8.0-E. The next incoming physical shipment, when shipment rules are enabled. */
+  shipment?: IncomingShipment | null;
   /** True when either column needs writing back. */
   changed: boolean;
+}
+
+export type IncomingShipmentStatus = 'ON_TIME' | 'DELAYED' | 'PARTIAL' | 'LARGE';
+
+export interface IncomingShipment {
+  quantity: number;
+  scheduledAt: Date;
+  arrivesAt: Date;
+  status: IncomingShipmentStatus;
+  delayMinutes: number;
+}
+
+export interface ShipmentSettlementOptions {
+  rules: StoreShipmentRules;
+  context: string;
 }
 
 /** Deliveries are one at a time unless the rule says otherwise. */
@@ -48,6 +65,63 @@ function readStock(state: StockState, rule: RestockRule): { stock: number; stock
     stock: typeof stock === 'number' ? stock : 0,
     stockAt: stockAt instanceof Date ? stockAt : new Date(0),
   };
+}
+
+function shipmentHash(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function shipmentRoll(options: ShipmentSettlementOptions, scheduledAt: Date): number {
+  return shipmentHash(`${options.rules.seed}:${options.context}:${scheduledAt.toISOString()}`) % 100;
+}
+
+function plannedShipment(
+  rule: RestockRule,
+  stockAt: Date,
+  intervalMs: number,
+  options: ShipmentSettlementOptions,
+): IncomingShipment {
+  const scheduledAt = new Date(stockAt.getTime() + intervalMs);
+  const roll = shipmentRoll(options, scheduledAt);
+  const rules = options.rules;
+  const baseQuantity = perInterval(rule);
+  const delayedLimit = rules.delayChancePercent;
+  const partialLimit = delayedLimit + rules.partialChancePercent;
+  const largeLimit = partialLimit + rules.largeChancePercent;
+
+  if (roll < delayedLimit) {
+    return {
+      quantity: baseQuantity,
+      scheduledAt,
+      arrivesAt: new Date(scheduledAt.getTime() + rules.delayMinutes * 60 * 1000),
+      status: 'DELAYED',
+      delayMinutes: rules.delayMinutes,
+    };
+  }
+  if (roll < partialLimit) {
+    return {
+      quantity: Math.max(1, Math.floor(baseQuantity * rules.partialMultiplier)),
+      scheduledAt,
+      arrivesAt: scheduledAt,
+      status: 'PARTIAL',
+      delayMinutes: 0,
+    };
+  }
+  if (roll < largeLimit) {
+    return {
+      quantity: Math.max(1, Math.floor(baseQuantity * rules.largeMultiplier)),
+      scheduledAt,
+      arrivesAt: scheduledAt,
+      status: 'LARGE',
+      delayMinutes: 0,
+    };
+  }
+  return { quantity: baseQuantity, scheduledAt, arrivesAt: scheduledAt, status: 'ON_TIME', delayMinutes: 0 };
 }
 
 /**
@@ -67,6 +141,7 @@ export function settleStock(
    * anti-hoarding brake.
    */
   intervalMinutes: number = rule.intervalMinutes,
+  shipmentOptions?: ShipmentSettlementOptions,
 ): RestockSettlement {
   const current = readStock(state, rule);
   const intervalMs = intervalMinutes * 60 * 1000;
@@ -75,29 +150,46 @@ export function settleStock(
 
   let stock = held;
   let stockAt = current.stockAt;
+  let gained = 0;
+  let shipment: IncomingShipment | null = null;
 
   if (held >= rule.cap) {
     // Full. Park the clock so the wait starts fresh after the next purchase.
     stockAt = now;
+  } else if (shipmentOptions?.rules.enabled) {
+    while (stock < rule.cap) {
+      const incoming = plannedShipment(rule, stockAt, intervalMs, shipmentOptions);
+      shipment = incoming;
+      if (incoming.arrivesAt.getTime() > now.getTime()) break;
+      const delivered = Math.min(incoming.quantity, rule.cap - stock);
+      stock += delivered;
+      gained += delivered;
+      stockAt = stock >= rule.cap ? now : incoming.arrivesAt;
+    }
   } else {
     const elapsedMs = now.getTime() - current.stockAt.getTime();
     const intervals = elapsedMs > 0 ? Math.floor(elapsedMs / intervalMs) : 0;
     if (intervals > 0) {
-      const gained = Math.min(intervals * perInterval(rule), rule.cap - held);
+      gained = Math.min(intervals * perInterval(rule), rule.cap - held);
       stock = held + gained;
       stockAt =
         stock >= rule.cap ? now : new Date(current.stockAt.getTime() + intervals * intervalMs);
     }
   }
 
+  if (shipmentOptions?.rules.enabled) {
+    shipment = stock >= rule.cap ? null : plannedShipment(rule, stockAt, intervalMs, shipmentOptions);
+  }
+
   return {
     stock,
     stockAt,
-    gained: stock - held,
+    gained,
     cap: rule.cap,
     intervalMinutes,
     perInterval: perInterval(rule),
-    nextAt: stock >= rule.cap ? null : new Date(stockAt.getTime() + intervalMs),
+    nextAt: shipment?.arrivesAt ?? (stock >= rule.cap ? null : new Date(stockAt.getTime() + intervalMs)),
+    shipment,
     changed: stock !== current.stock || stockAt.getTime() !== current.stockAt.getTime(),
   };
 }
