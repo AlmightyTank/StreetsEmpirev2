@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, type PrismaClient } from '@prisma/client';
 import {
   CONTACTS_MAX,
   type PlayerActivityBand,
@@ -142,21 +142,25 @@ async function ranksForRows(
   roundId: string,
   rows: DirectoryRow[],
 ): Promise<Map<string, number>> {
-  const worths = new Map<string, bigint>();
-  for (const row of rows) worths.set(row.netWorthCents.toString(), row.netWorthCents);
+  if (!rows.length) return new Map();
 
-  const ranks = await Promise.all([...worths.entries()].map(async ([key, worth]) => {
-    const ahead = await prisma.roundPlayer.count({
-      where: {
-        roundId,
-        account: { isActive: true },
-        netWorthCents: { gt: worth },
-      },
-    });
-    return [key, ahead + 1] as const;
-  }));
+  // Rank only the requested rows, but calculate the window over every active player
+  // in the round so search/city/encounter views still receive national rank.
+  const ranked = await prisma.$queryRaw<Array<{ id: string; nationalRank: number }>>(Prisma.sql`
+    SELECT ranked.id, ranked."nationalRank"
+    FROM (
+      SELECT
+        rp.id,
+        RANK() OVER (ORDER BY rp."netWorthCents" DESC)::int AS "nationalRank"
+      FROM "RoundPlayer" rp
+      INNER JOIN "Account" account ON account.id = rp."accountId"
+      WHERE rp."roundId" = ${roundId}
+        AND account."isActive" = true
+    ) ranked
+    WHERE ranked.id IN (${Prisma.join(rows.map((row) => row.id))})
+  `);
 
-  return new Map(ranks);
+  return new Map(ranked.map((row) => [row.id, row.nationalRank] as const));
 }
 
 function pagination(page: number, total: number) {
@@ -330,7 +334,7 @@ export const PlayerDirectoryService = {
         alliance: allianceTagDto(row.alliance),
         city: row.city,
         netWorthCents: Number(row.netWorthCents),
-        nationalRank: rankByWorth.get(row.netWorthCents.toString()) ?? 1,
+        nationalRank: rankByWorth.get(row.id) ?? 1,
         activity: activityBand(row.lastActiveAt, now),
         isYou: row.id === owner.id,
         isContact: contactIds.has(row.id),
