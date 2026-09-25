@@ -165,20 +165,13 @@ async function decorateMessages(
     }),
     counterpartAccountIds.length
       ? prisma.playerBlock.findMany({
+          // Only expose blocks the viewer created. An incoming block is enforced
+          // by send(), but never revealed as another player's private setting.
           where: {
-            OR: [
-              {
-                blockerAccountId: owner.accountId,
-                blockedAccountId: { in: counterpartAccountIds },
-              },
-              {
-                blockedAccountId: owner.accountId,
-                blockerAccountId: { in: counterpartAccountIds },
-              },
-            ],
+            blockerAccountId: owner.accountId,
+            blockedAccountId: { in: counterpartAccountIds },
           },
           select: {
-            blockerAccountId: true,
             blockedAccountId: true,
           },
         })
@@ -188,11 +181,7 @@ async function decorateMessages(
   const reported = new Set(reports.map((row) => row.messageId));
   const blockedAccounts = new Set<string>();
   for (const block of blocks) {
-    blockedAccounts.add(
-      block.blockerAccountId === owner.accountId
-        ? block.blockedAccountId
-        : block.blockerAccountId,
-    );
+    blockedAccounts.add(block.blockedAccountId);
   }
 
   return rows.map((row) => {
@@ -373,7 +362,7 @@ export const PimpConsoleService = {
       }
 
       if (await isCommunicationBlocked(tx, owner.accountId, target.accountId)) {
-        throw AppError.forbidden('Messages are blocked between these accounts.');
+        throw AppError.forbidden('That player is not available for private messages.');
       }
 
       const windowStart = new Date(now.getTime() - SEND_WINDOW_MS);
