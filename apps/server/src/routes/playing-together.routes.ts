@@ -12,6 +12,7 @@ import { WireService } from '../services/wire.service.js';
 import { WorkSupplyService } from '../services/work-supply.service.js';
 import { HeatService, toHeatDto } from '../services/heat.service.js';
 import { PlayerStateService } from '../services/player-state.service.js';
+import { PlayerDirectoryService } from '../services/player-directory.service.js';
 import { TurfActionService } from '../services/turf-action.service.js';
 import { TurfWarService } from '../services/turf-war.service.js';
 import { TurfOutpostService } from '../services/turf-outpost.service.js';
@@ -21,6 +22,10 @@ import { parseBody } from '../utils/validate.js';
 const postParams = z.object({ postId: z.string().min(1).max(64) }).strict();
 const pimpParams = z.object({ publicPimpId: z.coerce.number().int().min(1).max(2_147_483_647) }).strict();
 const wireQuery = z.object({ before: z.string().min(1).max(64).optional() }).strict();
+const playerDirectoryQuery = z.object({
+  q: z.string().trim().max(80).optional(),
+  view: z.enum(['all', 'city', 'alliance', 'near', 'active']).default('all'),
+}).strict();
 
 /** 0.3.0-D: the alliance wire and the private contacts rolodex. */
 const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
@@ -140,6 +145,14 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/heat/bribe', { preHandler: app.requireAuth }, async (request) =>
     HeatService.bribe(app.prisma, await me(request.auth!.account.id), parseBody(heatBribeSchema, request.body ?? {})));
+
+  /** 0.9.0-A: discover current-round players without exposing recon or precise activity timestamps. */
+  app.get('/players', { preHandler: app.requireAuth }, async (request) =>
+    PlayerDirectoryService.list(
+      app.prisma,
+      await me(request.auth!.account.id),
+      parseBody(playerDirectoryQuery, request.query),
+    ));
 
   app.get('/contacts', { preHandler: app.requireAuth }, async (request) =>
     ContactsService.list(app.prisma, await me(request.auth!.account.id)));
