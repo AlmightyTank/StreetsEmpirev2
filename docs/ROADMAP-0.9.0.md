@@ -74,7 +74,7 @@ The follow-up directory slice finishes the discovery work before Pimp Console de
 - ordinary directory views use server-side filtering and 40-row pagination instead of loading the whole round into memory;
 - **Encountered** is built from interactions the player legitimately knows about: direct raids, turf pushes, convoy tails and recon they personally performed;
 - encounter history is capped and deduplicated so it remains cheap as a round grows;
-- national ranks are calculated authoritatively only for the rows actually displayed;
+- national ranks are calculated authoritatively with one window-rank query and returned only for the rows actually displayed;
 - Near Rank uses the indexed round/net-worth ordering and stays intentionally small;
 - encounter ordering is not exposed as an activity timestamp, and being secretly reconned never reveals the observer.
 
