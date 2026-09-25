@@ -42,6 +42,31 @@ What remains is making all of those systems feel like they are happening in a wo
 
 ---
 
+## Existing Foundation Carried Forward
+
+0.9.0 starts from the systems already shipped before this roadmap is implemented. It should extend them rather than rebuild them:
+
+- **Activity** already provides a chronological player ledger.
+- **Contacts** already provides a private round-only rolodex with notes.
+- **Profiles** already provide public identity, cosmetics, awards and historical context.
+- **Notifications** already provide the in-game bell/inbox plus mobile-friendly handling and browser push infrastructure.
+- **Alliance Wire** already provides lightweight alliance communication.
+
+Those foundations reduce duplication in C, D, E, F and G. Each milestone should focus on the missing 0.9.0 behavior and integration.
+
+### 0.9.0-A implementation start
+
+The first Player Directory slice adds an authenticated `/game/players` surface with:
+
+- display-name and public pimp-number search;
+- alliance-name/tag search;
+- All, My City, Alliance, Near Rank and Active views;
+- public profile links and one-click Contact adds;
+- authoritative current-round rank/net-worth/city standing;
+- coarse activity bands only: Online, Recently Active, Away and Offline.
+
+The existing data model does **not** currently have a separate crew-name field, so crew-name search is deferred until that identity concept exists rather than inventing a duplicate field solely for this page. Exact last-active timestamps and recon-only information are intentionally excluded from the directory.
+
 ## Milestone Overview
 
 | Version | Theme | Outcome |

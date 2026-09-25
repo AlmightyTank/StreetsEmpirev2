@@ -52,6 +52,40 @@ export interface ContactLookupDto {
   full: boolean;
 }
 
+/** 0.9.0-A. Coarse by design: directory browsing never receives exact activity timestamps. */
+export type PlayerActivityBand = 'online' | 'recent' | 'away' | 'offline';
+export type PlayerDirectoryView = 'all' | 'city' | 'alliance' | 'near' | 'active';
+
+export interface PlayerDirectoryEntryDto {
+  publicPimpId: number;
+  displayName: string;
+  alliance: AllianceTagDto | null;
+  city: { slug: string; name: string };
+  netWorthCents: number;
+  nationalRank: number;
+  activity: PlayerActivityBand;
+  isYou: boolean;
+  isContact: boolean;
+}
+
+export interface PlayerDirectoryDto {
+  generatedAt: string;
+  view: PlayerDirectoryView;
+  query: string;
+  counts: {
+    all: number;
+    city: number;
+    alliance: number;
+    near: number;
+    active: number;
+  };
+  contactSlots: {
+    used: number;
+    max: number;
+  };
+  players: PlayerDirectoryEntryDto[];
+}
+
 export interface AdminWirePostDto {
   id: string;
   author: { publicPimpId: number; displayName: string; roundPlayerId: string };
