@@ -39,11 +39,15 @@ function num(value: unknown): number {
 
 function questHref(payload: Record<string, unknown>, tab: 'available' | 'active' | 'completed' = 'active'): string {
   const key = str(payload.questKey);
-  return `/game/quests?tab=${tab}${key ? `#quest-${encodeURIComponent(key)}` : ''}`;
+  if (!key) return `/game/quests?tab=${tab}`;
+  const encoded = encodeURIComponent(key);
+  return `/game/quests?tab=${tab}&focus=${encoded}#quest-${encoded}`;
 }
 
-function questCount(value: unknown): number {
-  return Array.isArray(value) ? value.length : 0;
+function questKeys(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
+    : [];
 }
 
 function validTone(value: unknown): ToastTone {
@@ -137,7 +141,7 @@ function testPopupForKey(key: string): Omit<GameEventToast, 'id'> | null {
         title: 'Quest ready to turn in',
         detail: 'First Night Out is complete. Return to Quests to collect payment.',
         tone: 'good',
-        href: '/game/quests?tab=active#quest-FIRST_NIGHT_OUT',
+        href: '/game/quests?tab=active&focus=FIRST_NIGHT_OUT#quest-FIRST_NIGHT_OUT',
       };
     default:
       return null;
@@ -167,13 +171,16 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
       };
 
     case 'QUEST_CLAIMED': {
-      const count = questCount(p.newlyAvailable);
+      const keys = questKeys(p.newlyAvailable);
+      const count = keys.length;
       if (count <= 0) return null;
+      const first = keys[0]!;
+      const encoded = encodeURIComponent(first);
       return {
         title: count === 1 ? 'New quest available' : `${count} new quests available`,
         detail: str(p.title) ? `After ${str(p.title)}, new work opened up.` : 'New work opened up.',
         tone: 'info',
-        href: '/game/quests?tab=available',
+        href: `/game/quests?tab=available&focus=${encoded}#quest-${encoded}`,
       };
     }
 

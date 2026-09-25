@@ -3286,10 +3286,16 @@ a.se-nav__link:hover {
   border-bottom: 1px solid var(--se-line);
 }
 
-.se-notification-menu__head > div {
+.se-notification-menu__head > div:first-child {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.se-notification-menu__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .se-notification-menu__head strong {
@@ -3313,6 +3319,32 @@ a.se-nav__link:hover {
 }
 
 .se-notification-menu__readall:hover { text-decoration: underline; }
+
+.se-notification-menu__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--se-radius-sm);
+  background: transparent;
+  color: var(--se-text-dim);
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.se-notification-menu__close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.se-notification-menu__backdrop {
+  display: none;
+}
 
 .se-notification-menu__list {
   max-height: min(60vh, 510px);
@@ -3403,42 +3435,73 @@ button.se-notification-empty { cursor: pointer; }
 button.se-notification-empty:hover { color: var(--se-text); }
 
 @media (max-width: 600px) {
-  /*
-   * The bell sits immediately before Log out on phones. The old -54px offset
-   * left a visible strip of page to the right of the panel and could clip
-   * notification text. Keep the panel inside the viewport instead.
-   */
   .se-notification-bell {
     width: 44px;
     height: 44px;
   }
 
+  /* Phone notifications behave like a real bottom sheet instead of a
+     desktop popover trying to hang off the bell inside a wrapped header. */
+  .se-notification-menu__backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 98;
+    display: block;
+    padding: 0;
+    border: 0;
+    background: rgba(0, 0, 0, 0.58);
+  }
+
   .se-notification-menu {
-    right: -96px;
-    width: min(360px, calc(100vw - 16px));
-    max-width: calc(100vw - 16px);
-    max-height: min(70dvh, 580px);
+    position: fixed;
+    top: auto;
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    left: 8px;
+    z-index: 99;
+    width: auto;
+    max-width: none;
+    max-height: min(76dvh, 640px);
+    border-radius: 14px;
+    box-shadow: 0 -18px 44px rgba(0, 0, 0, 0.56);
   }
 
   .se-notification-menu__head {
-    min-height: 52px;
-    padding: 10px 12px;
+    min-height: 58px;
+    padding: 10px 12px 10px 14px;
+  }
+
+  .se-notification-menu__head > div:first-child {
+    min-width: 0;
+  }
+
+  .se-notification-menu__actions {
+    flex: none;
   }
 
   .se-notification-menu__readall {
     min-height: 44px;
-    padding: 8px 4px;
+    padding: 8px 6px;
     white-space: nowrap;
   }
 
+  .se-notification-menu__close {
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+  }
+
   .se-notification-menu__list {
-    max-height: min(60dvh, 510px);
+    max-height: calc(min(76dvh, 640px) - 59px);
     overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   .se-notification-item {
-    min-height: 72px;
-    padding: 12px 12px 12px 14px;
+    min-height: 76px;
+    padding: 13px 14px 13px 16px;
     overflow: hidden;
   }
 
@@ -3454,6 +3517,28 @@ button.se-notification-empty:hover { color: var(--se-text); }
   .se-notification-item__time {
     overflow-wrap: anywhere;
     word-break: break-word;
+  }
+
+  /* Live toast notifications sit above the phone tab bar instead of under the
+     two-row sticky header, where they were easy to miss or partially cover. */
+  .se-eventtoasts {
+    top: auto;
+    right: 8px;
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+    left: 8px;
+    width: auto;
+    max-height: min(52dvh, 440px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .se-eventtoast__body {
+    padding: 12px 13px;
+  }
+
+  .se-eventtoast__close {
+    width: 44px;
+    height: 44px;
   }
 }
 

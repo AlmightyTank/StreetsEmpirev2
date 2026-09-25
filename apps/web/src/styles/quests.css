@@ -328,6 +328,13 @@ button.se-quests-metric {
   scroll-margin-top: 96px;
 }
 
+.se-quests .se-quest-card:target {
+  border-color: rgba(var(--se-accent-rgb), 0.72);
+  box-shadow:
+    0 0 0 1px rgba(var(--se-accent-rgb), 0.16),
+    inset 3px 0 0 var(--se-accent);
+}
+
 .se-quests .se-quest-card .se-panel__head {
   align-items: flex-start;
   gap: 12px;

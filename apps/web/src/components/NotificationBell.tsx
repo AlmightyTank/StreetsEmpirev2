@@ -73,6 +73,16 @@ export function NotificationBell() {
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!open || !window.matchMedia('(max-width: 600px)').matches) return;
+    const rootElement = document.documentElement;
+    const before = rootElement.style.overflow;
+    rootElement.style.overflow = 'hidden';
+    return () => {
+      rootElement.style.overflow = before;
+    };
+  }, [open]);
+
   const rendered = useMemo(() => feed.notifications.flatMap((notification) => {
     const toast = gameEventToastFor(notification.activity, crackWord);
     return toast ? [{ notification, toast }] : [];
@@ -134,18 +144,35 @@ export function NotificationBell() {
       </button>
 
       {open ? (
-        <div className="se-notification-menu" role="dialog" aria-label="Recent notifications">
-          <div className="se-notification-menu__head">
-            <div>
-              <strong>Notifications</strong>
-              <span>{feed.unreadCount ? `${feed.unreadCount} unread` : 'Caught up'}</span>
+        <>
+          <button
+            type="button"
+            className="se-notification-menu__backdrop"
+            aria-label="Close notifications"
+            onClick={() => setOpen(false)}
+          />
+          <div className="se-notification-menu" role="dialog" aria-modal="true" aria-label="Recent notifications">
+            <div className="se-notification-menu__head">
+              <div>
+                <strong>Notifications</strong>
+                <span>{feed.unreadCount ? `${feed.unreadCount} unread` : 'Caught up'}</span>
+              </div>
+              <div className="se-notification-menu__actions">
+                {feed.unreadCount ? (
+                  <button type="button" className="se-notification-menu__readall" onClick={() => void markAllRead()}>
+                    Mark all read
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="se-notification-menu__close"
+                  aria-label="Close notifications"
+                  onClick={() => setOpen(false)}
+                >
+                  ×
+                </button>
+              </div>
             </div>
-            {feed.unreadCount ? (
-              <button type="button" className="se-notification-menu__readall" onClick={() => void markAllRead()}>
-                Mark all read
-              </button>
-            ) : null}
-          </div>
 
           <div className="se-notification-menu__list">
             {error ? (
@@ -193,8 +220,9 @@ export function NotificationBell() {
                 </button>
               );
             })}
+            </div>
           </div>
-        </div>
+        </>
       ) : null}
     </div>
   );
