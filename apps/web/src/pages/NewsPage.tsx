@@ -20,7 +20,10 @@ export function NewsPage() {
   }, []);
 
   const pinnedCount = news.filter((post) => post.isPinned).length;
-  const latest = news[0] ?? null;
+  const latest = news.reduce<GameNewsDto | null>((current, post) => {
+    if (!current) return post;
+    return new Date(post.publishedAt).getTime() > new Date(current.publishedAt).getTime() ? post : current;
+  }, null);
 
   return (
     <InfoLayout>
@@ -56,15 +59,15 @@ export function NewsPage() {
             <div className="se-info-empty"><strong>The wire is quiet.</strong><span>No round news has been posted yet.</span></div>
           ) : (
             <div className="se-news-page__list">
-              {news.map((post, index) => (
-                <article className={`se-panel se-news-card${post.isPinned ? ' se-news-card--pinned' : ''}${index === 0 ? ' se-news-card--latest' : ''}`} key={post.id}>
+              {news.map((post) => (
+                <article className={`se-panel se-news-card${post.isPinned ? ' se-news-card--pinned' : ''}${latest?.id === post.id ? ' se-news-card--latest' : ''}`} key={post.id}>
                   <div className="se-news-card__head">
                     <div>
                       <div className="se-news-card__meta">
                         <span className={`se-news-card__tag${post.isPinned ? ' se-news-card__tag--pinned' : ''}`}>
                           {post.isPinned ? 'Pinned' : 'Dispatch'}
                         </span>
-                        {index === 0 ? <span className="se-news-card__tag">Latest</span> : null}
+                        {latest?.id === post.id ? <span className="se-news-card__tag">Latest</span> : null}
                       </div>
                       <h2 className="se-news-card__title">{post.title}</h2>
                     </div>
