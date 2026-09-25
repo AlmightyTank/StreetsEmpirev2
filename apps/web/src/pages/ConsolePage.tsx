@@ -274,7 +274,7 @@ export function ConsolePage() {
         </header>
 
         {error ? <Alert>{error}</Alert> : null}
-        {notice ? <Alert>{notice}</Alert> : null}
+        {notice ? <Alert tone="info">{notice}</Alert> : null}
 
         <section className="se-console-bar">
           <div className="se-console-tabs" role="tablist" aria-label="Console folders">
