@@ -14,7 +14,7 @@
   border: 1px solid var(--se-line);
   border-radius: 4px;
   background:
-    linear-gradient(120deg, rgba(182, 255, 58, 0.075), transparent 42%),
+    linear-gradient(120deg, rgba(var(--se-accent-rgb), 0.075), transparent 42%),
     linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
 }
 
@@ -24,7 +24,7 @@
   inset: -120px -70px auto auto;
   width: 330px;
   height: 250px;
-  border: 1px solid rgba(182, 255, 58, 0.1);
+  border: 1px solid rgba(var(--se-accent-rgb), 0.1);
   transform: rotate(18deg);
   pointer-events: none;
 }
@@ -215,7 +215,7 @@
 .se-dashboard-count {
   flex: none;
   padding: 4px 8px;
-  border: 1px solid rgba(74, 222, 128, 0.28);
+  border: 1px solid rgba(var(--se-good-rgb), 0.28);
   border-radius: 999px;
   color: var(--se-good);
   font-family: var(--se-mono);
@@ -270,12 +270,12 @@
 
 .se-dashboard-notice--good .se-dashboard-notice__pulse {
   background: var(--se-good);
-  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.08);
+  box-shadow: 0 0 0 3px rgba(var(--se-good-rgb), 0.08);
 }
 
 .se-dashboard-notice--info .se-dashboard-notice__pulse {
   background: var(--se-accent);
-  box-shadow: 0 0 0 3px rgba(182, 255, 58, 0.08);
+  box-shadow: 0 0 0 3px rgba(var(--se-accent-rgb), 0.08);
 }
 
 .se-dashboard-notice__body {
@@ -308,8 +308,8 @@
   align-items: center;
   min-height: 72px;
   padding: 12px;
-  border: 1px solid rgba(74, 222, 128, 0.22);
-  background: rgba(74, 222, 128, 0.035);
+  border: 1px solid rgba(var(--se-good-rgb), 0.22);
+  background: rgba(var(--se-good-rgb), 0.035);
 }
 
 .se-dashboard-clear__mark {
@@ -318,7 +318,7 @@
   flex: none;
   width: 28px;
   height: 28px;
-  border: 1px solid rgba(74, 222, 128, 0.35);
+  border: 1px solid rgba(var(--se-good-rgb), 0.35);
   border-radius: 50%;
   color: var(--se-good);
   font-family: var(--se-mono);
@@ -351,7 +351,7 @@
 .se-dashboard-action:hover,
 .se-dashboard-action:focus-visible {
   border-color: var(--se-accent-dim);
-  background: rgba(182, 255, 58, 0.025);
+  background: rgba(var(--se-accent-rgb), 0.025);
   color: inherit;
 }
 
@@ -364,7 +364,7 @@
 }
 
 .se-dashboard-action--good {
-  border-color: rgba(74, 222, 128, 0.25);
+  border-color: rgba(var(--se-good-rgb), 0.25);
 }
 
 .se-dashboard-action__body {
