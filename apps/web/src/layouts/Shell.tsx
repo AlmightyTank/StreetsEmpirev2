@@ -1,10 +1,11 @@
 import { useEffect, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { formatCents, formatCentsCompact } from '@streets/shared';
+import { APP_VERSION, formatCents, formatCentsCompact } from '@streets/shared';
 import { rulesets } from '@streets/rulesets';
 import { GameEventToasts } from '../components/GameEventToasts.js';
 import { NotificationBell } from '../components/NotificationBell.js';
 import { InstallBanner } from '../components/InstallBanner.js';
+import { EnvironmentRibbon, environmentLabel } from '../components/EnvironmentRibbon.js';
 import { SiteBanner } from '../components/SiteBanner.js';
 import { SiteThemeDecor } from '../components/SiteThemeDecor.js';
 import { useSession } from '../stores/session.js';
@@ -48,15 +49,29 @@ const TURN_ACTION_PAGES = ['/game/scout', '/game/produce', '/game/combat'] as co
 const LAST_TURN_ACTION_KEY = 'streets.lastTurnActionPage';
 const LATEST_RULESET_VERSION = Object.values(rulesets).at(-1)?.meta.version ?? '0.1.0';
 
+/** 1.0.0-A. App version, ruleset, environment and season in one line. */
+function buildLine(platform: ReturnType<typeof useSession.getState>['platform'], rulesetVersion: string): string {
+  const app = platform?.app.version ?? APP_VERSION;
+  const commit = platform?.app.commit ? ` (${platform.app.commit})` : '';
+  const ruleset = platform ? `${platform.ruleset.id} ${platform.ruleset.version}` : rulesetVersion;
+  const environment = platform ? platform.environment[0]!.toUpperCase() + platform.environment.slice(1) : null;
+  return [`StreetsEmpire ${app}${commit}`, `ruleset ${ruleset}`, environment, platform?.season?.name ?? null]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 function Brand() {
-  const version = useSession((s) => s.round?.rulesetVersion ?? LATEST_RULESET_VERSION);
+  const rulesetVersion = useSession((s) => s.round?.rulesetVersion ?? LATEST_RULESET_VERSION);
+  const platform = useSession((s) => s.platform);
+  const label = environmentLabel(platform?.environment);
 
   return (
-    <Link className="se-brand" to="/">
+    <Link className="se-brand" to="/" title={buildLine(platform, rulesetVersion)}>
       <span className="se-brand__mark">
         Streets<span className="se-accent">Empire</span>
       </span>
-      <span className="se-brand__ver">{version}</span>
+      <span className="se-brand__ver">v{platform?.app.version ?? APP_VERSION}</span>
+      {label ? <span className={`se-env-badge se-env-badge--${platform!.environment}`}>{label}</span> : null}
     </Link>
   );
 }
@@ -176,6 +191,8 @@ function StatusBar() {
 function Footer() {
   const account = useSession((s) => s.account);
   const me = useSession((s) => s.me);
+  const platform = useSession((s) => s.platform);
+  const rulesetVersion = useSession((s) => s.round?.rulesetVersion ?? LATEST_RULESET_VERSION);
 
   return (
     <footer className="se-footer">
@@ -189,6 +206,7 @@ function Footer() {
         </div>
 
         <nav className="se-footer__links" aria-label="Footer">
+          <Link to="/game/status">Status</Link>
           <Link to="/game/rules">Rules</Link>
           <Link to="/game/news">News</Link>
           <Link to="/game/hall-of-fame">Hall of Fame</Link>
@@ -206,6 +224,7 @@ function Footer() {
           )}
         </nav>
       </div>
+      <p className="se-footer__build">{buildLine(platform, rulesetVersion)}</p>
     </footer>
   );
 }
@@ -231,6 +250,7 @@ export function Shell({ children, narrow, tabbar }: {
 
   return (
     <div className={`se-app se-route--${identity} se-site-accent--${settings.profileAccent} se-site-theme--${settings.activeSiteThemeKey ?? 'none'} se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}`}>
+      <EnvironmentRibbon />
       <InstallBanner />
       <SiteThemeDecor themeKey={settings.activeSiteThemeKey} />
 

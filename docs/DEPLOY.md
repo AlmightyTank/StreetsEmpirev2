@@ -94,6 +94,40 @@ without push keys or a bot. It brings runs home on time and writes the clock
 events (spotted pushes and tails, backup calls, revenge reminders, special
 orders) into each player's in-game bell. With no keys it only fills the bell.
 
+### 1.0.0-A: environment identity
+
+Each server knows whether it is production or beta, and shows it.
+
+- **`/api/meta`** (public, uncached) reports the environment, the app version
+  and commit, the ruleset and the current season. `/api/health`, `/api/ready`
+  and the public site's status page include the same identity. Beta and
+  development pages show a ribbon and a `[BETA]`/`[DEV]` tab title; production
+  shows only the version, plus a full build line in the footer.
+- **`APP_ENV`** is optional. Without it, a `NODE_ENV=production` server is beta
+  only when it is invite-only *and* uses its own session cookie (the documented
+  beta setup). Anything else is production, so existing servers need no change.
+- **Refusing to start.** A production server refuses a beta session cookie name,
+  and a beta server refuses the production cookie or open registration.
+- **The database claim.** The first production or beta boot records its
+  environment in the `DeploymentIdentity` table. After that, a server of the
+  other environment refuses to start against that database. Development servers
+  never claim, and also refuse a claimed database unless
+  `ALLOW_DATABASE_ENVIRONMENT=<that environment>` is set, for deliberate work on
+  a restored copy.
+- **Deploy checks.** `deploy.sh` and `deploy-beta.sh` run
+  `scripts/ops/check-environment.mjs`. It checks that the `.env` matches the
+  script before building, and after the restart that the API reports the right
+  environment and this checkout's commit, locally and through the public hostname.
+  This also catches a proxy that points `play.` at the beta API.
+
+If a database was claimed by the wrong environment (say someone booted beta
+against the production database), stop that server, fix its `DATABASE_URL`, and
+correct the claim by hand:
+
+```sql
+UPDATE "DeploymentIdentity" SET "environment" = 'production' WHERE "id" = 'singleton';
+```
+
 ## Every update
 
 After pushing to `main`:

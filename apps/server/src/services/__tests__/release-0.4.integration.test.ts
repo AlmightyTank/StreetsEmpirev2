@@ -1,3 +1,4 @@
+import { APP_VERSION } from '@streets/shared';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
@@ -75,8 +76,9 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.4.0-E products season
     await app?.close();
   });
 
-  it('serves liveness, readiness and the 0.4.0-E milestone', async () => {
-    expect((await app.inject({ method: 'GET', url: '/api/health' })).json()).toMatchObject({ ok: true, milestone: '0.4.0-E' });
+  it('serves liveness, readiness and the running version', async () => {
+    // 1.0.0-A: /health reports the real application version instead of a frozen 0.4.0-E label.
+    expect((await app.inject({ method: 'GET', url: '/api/health' })).json()).toMatchObject({ ok: true, version: APP_VERSION, environment: 'test' });
     expect((await app.inject({ method: 'GET', url: '/api/ready' })).statusCode).toBe(200);
   });
 

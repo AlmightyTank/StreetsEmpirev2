@@ -42,6 +42,7 @@ function checklistTone(status: AdminSeasonChecklistItemDto['status']): string {
 export function StatusPage() {
   const account = useSession((s) => s.account);
   const me = useSession((s) => s.me);
+  const platform = useSession((s) => s.platform);
   const [status, setStatus] = useState<GameStatusDto | null>(null);
   const [checklist, setChecklist] = useState<AdminSeasonChecklistDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -129,6 +130,17 @@ export function StatusPage() {
                 <Row label="Version" value={status.ruleset?.version ?? round.rulesetVersion} />
               </div>
             </Panel>
+
+            {platform ? (
+              <Panel title="Build" flush>
+                <div className="se-rows">
+                  <Row label="Environment" value={platform.environment} strong />
+                  <Row label="App version" value={platform.app.version} />
+                  <Row label="Commit" value={platform.app.commit ?? '-'} />
+                  <Row label="Ruleset" value={`${platform.ruleset.id} ${platform.ruleset.version}`} />
+                </div>
+              </Panel>
+            ) : null}
 
             <Panel title="Turns" flush>
               <div className="se-rows">

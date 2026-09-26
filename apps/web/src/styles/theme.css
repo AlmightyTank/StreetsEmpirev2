@@ -3675,3 +3675,59 @@ button.se-notification-empty:hover { color: var(--se-text); }
   border-color: #ff7383;
   color: #16070a;
 }
+
+/* 1.0.0-A: environment identity. Production shows none of this. */
+.se-env-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-family: var(--se-mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.se-env-badge--beta { color: var(--se-warn); }
+.se-env-badge--development,
+.se-env-badge--test { color: var(--se-info, #60a5fa); }
+
+.se-env-ribbon {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+  justify-content: center;
+  padding: 5px 16px;
+  font-size: 12px;
+  text-align: center;
+  color: #111;
+}
+
+.se-env-ribbon strong {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.se-env-ribbon a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.se-env-ribbon--beta { background: var(--se-warn); }
+.se-env-ribbon--development,
+.se-env-ribbon--test { background: var(--se-info, #60a5fa); }
+
+.se-footer__build {
+  max-width: 1120px;
+  margin: 12px auto 0;
+  padding: 0 16px;
+  color: var(--se-muted);
+  font-family: var(--se-mono);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}

@@ -95,6 +95,17 @@ model AccountModerationNote {
 
 /// 0.3.0-B. One row per admin action: who, what, when, and the target before
 /// and after. The app only ever inserts these.
+/// 1.0.0-A. Which environment owns this database. A production server refuses a
+/// database claimed by beta and the reverse, so a wrong DATABASE_URL fails loudly
+/// at boot instead of mixing live and test data. One row, id "singleton".
+model DeploymentIdentity {
+  id              String   @id @default("singleton")
+  environment     String
+  claimedAt       DateTime @default(now())
+  lastBootAt      DateTime @default(now())
+  lastBootVersion String
+}
+
 model AdminAuditLog {
   id String @id @default(cuid())
 

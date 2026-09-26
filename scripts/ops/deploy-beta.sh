@@ -37,6 +37,9 @@ cd "$APP_DIR"
 
 [ -f .env ] || fail "missing beta .env in $APP_DIR"
 grep -Eq '^BETA_INVITE_ONLY="?true"?$' .env || fail "beta .env must set BETA_INVITE_ONLY=true. Refusing to deploy an open beta."
+# 1.0.0-A: never build a production checkout as beta, or share its session cookie.
+node scripts/ops/check-environment.mjs --expect beta \
+  || fail "this checkout's .env is not a beta configuration. Is this the production checkout?"
 systemctl cat "$BETA_SERVICE" >/dev/null 2>&1 || fail "no $BETA_SERVICE service. Run scripts/ops/install-beta-service.sh after the first build."
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
@@ -85,6 +88,8 @@ for attempt in $(seq 1 30); do
   fi
   sleep 2
 done
+node scripts/ops/check-environment.mjs --expect beta --url "$API_URL" --commit "$(git rev-parse --short=12 HEAD)" \
+  || fail "the restarted API is not the beta build of this checkout."
 
 if [ "$SKIP_BOT" != "1" ] && systemctl cat "$BETA_BOT_SERVICE" >/dev/null 2>&1; then
   step "Restarting $BETA_BOT_SERVICE"
@@ -97,6 +102,8 @@ if [ -n "$BETA_SITE_URL" ]; then
   step "Checking $BETA_SITE_URL"
   curl -fsS --max-time 10 "$BETA_SITE_URL/" >/dev/null || fail "beta web app did not answer."
   curl -fsS --max-time 10 "$BETA_SITE_URL/api/ready" >/dev/null || fail "beta API did not answer through Nginx."
+  node scripts/ops/check-environment.mjs --expect beta --url "$BETA_SITE_URL" \
+    || fail "$BETA_SITE_URL does not reach the beta API. Check the Nginx upstream for beta.streetsempire.dev."
 fi
 
 step "Beta deployed: $(git log -1 --format='%h %s')"

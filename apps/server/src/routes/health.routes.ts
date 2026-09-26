@@ -1,14 +1,26 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { loadRulesetForRound } from '@streets/rules-engine';
+import { APP_VERSION } from '@streets/shared';
+import { env } from '../config/env.js';
+import { PlatformService } from '../services/platform.service.js';
 import { RoundService } from '../services/round.service.js';
 
 const healthRoutes: FastifyPluginAsync = async (fastify) => {
   /** Liveness: process is up. Deliberately has no database dependency. */
   fastify.get('/health', async () => ({
     ok: true,
-    version: '0.4.0',
-    milestone: '0.4.0-E',
+    version: APP_VERSION,
+    environment: env.appEnvironment,
   }));
+
+  /**
+   * 1.0.0-A. Public: which build, environment, ruleset and season answered.
+   * The game shell, the public site and deploy checks all read this.
+   */
+  fastify.get('/meta', async (_request, reply) => {
+    reply.header('cache-control', 'no-store');
+    return PlatformService.meta(fastify.prisma);
+  });
 
   /**
    * Readiness: database answers and any current round can load its pinned
@@ -22,6 +34,8 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
 
       return {
         ok: true,
+        environment: env.appEnvironment,
+        version: APP_VERSION,
         database: 'ready',
         round: round
           ? { id: round.id, slug: round.slug, status: round.status, rulesetId: round.rulesetId, rulesetVersion: round.rulesetVersion }

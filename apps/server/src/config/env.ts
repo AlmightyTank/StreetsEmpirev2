@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { z } from 'zod';
+import { environmentConflicts, inferAppEnvironment } from '@streets/shared';
 
 // apps/server/src/config -> repo root
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -9,6 +10,13 @@ dotenv.config({ path: path.resolve(here, '../../../../.env') });
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  /**
+   * 1.0.0-A. production | beta | development | test. Optional: without it an
+   * invite-only production-mode server is beta and any other is production.
+   */
+  APP_ENV: z.string().optional(),
+  /** 1.0.0-A. Short commit of the build, when deploys pass it; otherwise read from git. */
+  BUILD_COMMIT: z.string().regex(/^[0-9a-f]{7,40}$/i, 'BUILD_COMMIT must be a git commit hash.').optional(),
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required.'),
 
@@ -87,6 +95,22 @@ if (forumUrl.username || forumUrl.password || forumUrl.pathname !== '/' || forum
   throw new Error('FORUM_ORIGIN must be an HTTPS origin without a path (HTTP localhost is allowed in development).');
 }
 
+const appEnvironment = inferAppEnvironment({
+  appEnv: parsed.data.APP_ENV,
+  nodeEnv: parsed.data.NODE_ENV,
+  betaInviteOnly: parsed.data.BETA_INVITE_ONLY,
+  sessionCookieName: parsed.data.SESSION_COOKIE_NAME,
+});
+const conflicts = environmentConflicts({
+  environment: appEnvironment,
+  nodeEnv: parsed.data.NODE_ENV,
+  sessionCookieName: parsed.data.SESSION_COOKIE_NAME,
+  betaInviteOnly: parsed.data.BETA_INVITE_ONLY,
+});
+if (conflicts.length) {
+  throw new Error(`Refusing to start as ${appEnvironment}:\n${conflicts.map((problem) => `  ${problem}`).join('\n')}`);
+}
+
 const seasonalEventAdminTestMode = parsed.data.SEASONAL_EVENT_ADMIN_TEST_MODE
   ? parsed.data.SEASONAL_EVENT_ADMIN_TEST_MODE === 'true'
   : parsed.data.NODE_ENV !== 'production';
@@ -94,6 +118,9 @@ const seasonalEventAdminTestMode = parsed.data.SEASONAL_EVENT_ADMIN_TEST_MODE
 export const env = {
   ...parsed.data,
   isProduction: parsed.data.NODE_ENV === 'production',
+  /** 1.0.0-A. production | beta | development | test. */
+  appEnvironment,
+  buildCommit: parsed.data.BUILD_COMMIT?.slice(0, 12) ?? null,
   corsOrigins,
   frontendOrigin: parsed.data.FRONTEND_ORIGIN ?? corsOrigins[0] ?? 'http://localhost:5173',
   sessionTtlMs: parsed.data.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,

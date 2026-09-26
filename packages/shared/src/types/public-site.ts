@@ -1,3 +1,4 @@
+import type { PlatformMetaDto } from '../platform.js';
 import type { RoundDto } from './api.js';
 
 export interface PublicRankingEntryDto {
@@ -347,6 +348,8 @@ export interface PublicStatusDto {
   generatedAt: string;
   api: 'operational';
   database: 'operational';
+  /** 1.0.0-A. Which build and environment answered. Absent on older servers. */
+  platform?: PlatformMetaDto;
   currentRound: {
     name: string;
     status: string;

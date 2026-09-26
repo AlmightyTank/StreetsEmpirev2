@@ -128,6 +128,18 @@ Every environment should clearly display:
 
 Nobody can accidentally mistake beta for production or deploy beta data into the live game.
 
+### 1.0.0-A implementation complete
+
+The hosting split (public site, `play.`, `beta.`, separate databases, services and secrets) was already in place before 1.0.0-A; see [WEBSITE-PLATFORM.md](WEBSITE-PLATFORM.md) and [BETA-DEPLOY.md](BETA-DEPLOY.md). A adds the code-side guarantees on top:
+
+- **One version.** `APP_VERSION` (`@streets/shared`) is the application release, separate from any round's ruleset version. The running commit is read from `BUILD_COMMIT` or git.
+- **Version visibility.** Public `/api/meta` returns the environment, app version and commit, ruleset and season. The game shows `v1.0.0-A` next to the logo, an environment badge, and a full build line in the footer and on Status. The public site's status page shows the live build. Beta and dev show a ribbon and a `[BETA]`/`[DEV]` tab title. `/api/health` now reports the real version instead of a frozen `0.4.0`.
+- **Environment identity.** Each server is `production`, `beta`, `development` or `test` (`APP_ENV`, or inferred without breaking existing servers). It refuses to start with settings that could pass beta off as production: a shared session cookie name, or an open beta.
+- **Separate data.** Production and beta each claim their database on first boot and refuse the other's. Two servers racing to claim a fresh database cannot both win.
+- **Deploy guards.** Both deploy scripts refuse the other environment's `.env`, and after restarting they confirm the environment and commit, locally and through the public hostname.
+
+`PLATFORM_INTEGRATION=1` covers `/api/meta`, health/readiness/status identity and the database claim against PostgreSQL. `platform.test.ts` holds the plain-Node deploy check to exactly the server's rule.
+
 ---
 
 ## 1.0.0-B — Onboarding & Player Education

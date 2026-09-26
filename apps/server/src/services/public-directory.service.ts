@@ -23,6 +23,7 @@ import { toRoundDto } from '../game/dto.js';
 import { RoundService } from './round.service.js';
 import { PublicSiteService } from './public-site.service.js';
 import { profileTitleForKey } from './profile-titles.js';
+import { PlatformService } from './platform.service.js';
 
 const rankingRows = <T extends { netWorthCents: bigint; publicPimpId: number }>(rows: T[]) => {
   let previousWorth: bigint | null = null;
@@ -734,6 +735,7 @@ export const PublicDirectoryService = {
       api: 'operational',
       database: 'operational',
       currentRound: round ? { name: round.name, status: round.status } : null,
+      platform: await PlatformService.meta(prisma),
     };
   },
 };

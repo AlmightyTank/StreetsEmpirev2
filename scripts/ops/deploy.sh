@@ -36,6 +36,10 @@ systemctl cat "$API_SERVICE" >/dev/null 2>&1 \
 if ! git diff --quiet || ! git diff --cached --quiet; then
   fail "tracked files have local changes; commit or discard them first (git status)."
 fi
+[ -f .env ] || fail "missing .env in $APP_DIR"
+# 1.0.0-A: never build a beta checkout into production, or the reverse.
+node scripts/ops/check-environment.mjs --expect production \
+  || fail "this checkout's .env is not a production configuration. Is this the beta checkout?"
 
 if [ "$SKIP_PULL" = "1" ]; then
   step "Skipping pull; deploying the current checkout $(git rev-parse --short HEAD)"
@@ -80,6 +84,8 @@ for attempt in $(seq 1 30); do
   fi
   sleep 2
 done
+node scripts/ops/check-environment.mjs --expect production --url "$API_URL" --commit "$(git rev-parse --short=12 HEAD)" \
+  || fail "the restarted API is not the production build of this checkout."
 
 if systemctl cat "$BOT_SERVICE" >/dev/null 2>&1; then
   step "Restarting $BOT_SERVICE"
@@ -115,6 +121,8 @@ if [ -n "$LIVE_SITE_URL" ]; then
     *) fail "live game answered at $LIVE_SITE_URL/ but did not serve the game-client build. Check the Nginx root for play.streetsempire.dev." ;;
   esac
   curl -fsS --max-time 10 "$LIVE_SITE_URL/api/ready" >/dev/null     || fail "live API did not answer through $LIVE_SITE_URL/api/ready"
+  node scripts/ops/check-environment.mjs --expect production --url "$LIVE_SITE_URL" \
+    || fail "$LIVE_SITE_URL does not reach the production API. Check the Nginx upstream for play.streetsempire.dev."
 fi
 
 step "Deployed $(git log -1 --format='%h %s')"

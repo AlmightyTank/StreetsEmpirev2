@@ -8,11 +8,20 @@ import { ConvoyService } from './services/convoy.service.js';
 import { PushService } from './services/push.service.js';
 import { wakeDiscordBot } from './services/discord-bot-push.service.js';
 import { TurfWarSettlementService } from './services/turf-war-settle.service.js';
+import { PlatformService, buildCommit } from './services/platform.service.js';
+import { APP_VERSION } from '@streets/shared';
 import { startPoller } from './utils/poller.js';
 
 const app = await buildApp();
 
 try {
+  // 1.0.0-A: never serve players from another environment's database.
+  const binding = await PlatformService.bindDatabase(app.prisma);
+  app.log.info(
+    `StreetsEmpire ${APP_VERSION}${buildCommit() ? ` (${buildCommit()})` : ''} running as ${env.appEnvironment}; `
+    + `database ${binding.claimed ? 'claimed for' : 'belongs to'} ${binding.environment}`,
+  );
+
   const [purgedSessions, purgedActions] = await Promise.all([
     purgeExpiredSessions(app.prisma),
     IdempotencyService.purgeExpired(app.prisma),

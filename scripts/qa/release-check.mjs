@@ -49,6 +49,8 @@ if (withDb) {
     PROFILE_INTEGRATION: '1',
     GAME_ALERTS_INTEGRATION: '1',
     MODERATION_INTEGRATION: '1',
+    // 1.0.0-A: version visibility and the production/beta database claim.
+    PLATFORM_INTEGRATION: '1',
   });
 }
 

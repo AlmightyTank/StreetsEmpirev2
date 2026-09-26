@@ -1,4 +1,5 @@
-import type { NotificationCategory } from '@streets/shared';
+import type { NotificationCategory, PlatformMetaDto } from '@streets/shared';
+import { platformApi } from '../api/platform.js';
 import type {
   AccountDto,
   AccountProfileSettingsDto,
@@ -63,6 +64,8 @@ interface SessionState {
   /** 0.9.0-G. Categories muted in the bell; their live toasts are skipped too. */
   bellMuted: NotificationCategory[];
   setBellMuted: (muted: NotificationCategory[]) => void;
+  /** 1.0.0-A. Build, environment, ruleset and season of this game host. */
+  platform: PlatformMetaDto | null;
 
   /** Resolve who we are and which game is running. Runs once on mount. */
   bootstrap: () => Promise<void>;
@@ -91,12 +94,15 @@ export const useSession = create<SessionState>((set, get) => ({
   recentActivity: [],
   activityHydratedForPlayerId: null,
   bellMuted: [],
+  platform: null,
 
   setBellMuted(muted) {
     set({ bellMuted: muted });
   },
 
   async bootstrap() {
+    // Never blocks sign-in: an older server simply has no /meta.
+    void platformApi.meta().then((platform) => set({ platform })).catch(() => undefined);
     // A 401 here is the normal signed-out case, not an error worth surfacing.
     const account = await authApi
       .me()
