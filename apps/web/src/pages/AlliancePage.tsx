@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import type { AllianceDetailDto, AllianceEventDto, MyAllianceDto } from '@streets/shared';
-import { ALLIANCE_NAME_MAX, ALLIANCE_PITCH_MAX, ALLIANCE_TAG_MAX, formatCents, formatNumber } from '@streets/shared';
+import type { AllianceDetailDto, AllianceEventDto, AllianceRecruitmentStatusDto, MyAllianceDto } from '@streets/shared';
+import { ALLIANCE_DESCRIPTION_MAX, ALLIANCE_NAME_MAX, ALLIANCE_PITCH_MAX, ALLIANCE_TAG_MAX, formatCents, formatNumber } from '@streets/shared';
 import { allianceApi } from '../api/alliances.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
@@ -110,12 +110,20 @@ export function AlliancePage() {
   const [invitee, setInvitee] = useState('');
   const [confirming, setConfirming] = useState<string | null>(null);
   const [pitch, setPitch] = useState('');
+  const [description, setDescription] = useState('');
+  const [recruitmentStatus, setRecruitmentStatus] = useState<AllianceRecruitmentStatusDto>('CLOSED');
 
   useEffect(() => {
     allianceApi.mine().then(setData).catch((caught: unknown) => {
       setError(caught instanceof ApiError ? caught.message : 'Could not load your alliance.');
     });
   }, []);
+
+  useEffect(() => {
+    if (!data?.alliance) return;
+    setDescription(data.alliance.description);
+    setRecruitmentStatus(data.alliance.recruitmentStatus);
+  }, [data?.alliance?.description, data?.alliance?.recruitmentStatus]);
 
   async function run(action: () => Promise<MyAllianceDto>) {
     setBusy(true);
@@ -145,6 +153,11 @@ export function AlliancePage() {
       return;
     }
     if (await run(() => allianceApi.invite(id))) setInvitee('');
+  }
+
+  async function saveSettings(event: FormEvent) {
+    event.preventDefault();
+    await run(() => allianceApi.settings({ description, recruitmentStatus }));
   }
 
   const waiting = busy ? 'Your last change is still going through.' : null;
@@ -319,6 +332,12 @@ export function AlliancePage() {
                   value={formatNumber(data.outgoingInvites.length)}
                   detail={data.isLeader ? `expire after ${formatNumber(rules.inviteExpiresHours)}h` : 'leader-managed'}
                 />
+                <AllianceMetric
+                  label="Recruitment"
+                  value={alliance.recruitmentStatus === 'OPEN' ? 'Open' : alliance.recruitmentStatus === 'INVITE_ONLY' ? 'Invite only' : 'Closed'}
+                  detail={alliance.description ? alliance.description : 'no public pitch set'}
+                  tone={alliance.recruitmentStatus === 'OPEN' ? 'good' : undefined}
+                />
               </div>
             </section>
 
@@ -401,6 +420,44 @@ export function AlliancePage() {
               </div>
 
               <aside className="se-alliance-stack">
+                <Panel title="Alliance profile" aside={data.isLeader ? 'Leader controls' : undefined} className="se-alliance-panel">
+                  {data.isLeader ? (
+                    <form onSubmit={(event) => void saveSettings(event)} className="se-alliance-form">
+                      <div className="se-field">
+                        <label className="se-label" htmlFor="alliance-description">Description</label>
+                        <textarea
+                          id="alliance-description"
+                          className="se-input se-admin-textarea"
+                          maxLength={ALLIANCE_DESCRIPTION_MAX}
+                          value={description}
+                          onChange={(event) => setDescription(event.target.value)}
+                        />
+                        <p className="se-hint">{description.length}/{ALLIANCE_DESCRIPTION_MAX} · shown on alliance pages and recruitment cards.</p>
+                      </div>
+                      <label className="se-field">
+                        <span className="se-label">Recruitment status</span>
+                        <select className="se-input" value={recruitmentStatus} onChange={(event) => setRecruitmentStatus(event.target.value as AllianceRecruitmentStatusDto)}>
+                          <option value="CLOSED">Closed</option>
+                          <option value="INVITE_ONLY">Invite only</option>
+                          <option value="OPEN">Open</option>
+                        </select>
+                      </label>
+                      <Button
+                        type="submit"
+                        className="se-btn se-btn--primary se-btn--block"
+                        disabledReason={waiting ?? closed}
+                      >
+                        Save profile
+                      </Button>
+                    </form>
+                  ) : (
+                    <div className="se-alliance-profile-read">
+                      <strong>{alliance.recruitmentStatus === 'OPEN' ? 'Open recruitment' : alliance.recruitmentStatus === 'INVITE_ONLY' ? 'Invite-only recruitment' : 'Recruitment closed'}</strong>
+                      <p className="se-dim">{alliance.description || 'Leadership has not posted a crew description yet.'}</p>
+                    </div>
+                  )}
+                </Panel>
+
                 {data.isLeader ? (
                   <Panel title="Recruiting desk" aside={availableSeats ? `${formatNumber(availableSeats)} seats open` : 'Full'} className="se-alliance-panel">
                     <form onSubmit={(event) => void invite(event)} className="se-alliance-form">

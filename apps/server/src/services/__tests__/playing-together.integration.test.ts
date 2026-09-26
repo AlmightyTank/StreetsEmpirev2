@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { FastifyInstance } from 'fastify';
 import { classicOgV03D } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
-import { CONTACTS_MAX, WIRE_COOLDOWN_SECONDS, type AllianceWireDto, type CombatPageDto, type ContactsDto } from '@streets/shared';
+import { CONTACTS_MAX, WIRE_COOLDOWN_SECONDS, type AllianceWireDto, type CombatPageDto, type ContactsDto, type MyAllianceDto } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
 import { ReputationService } from '../reputation.service.js';
 import { RoundService } from '../round.service.js';
@@ -129,6 +129,7 @@ describe.runIf(process.env.ALLIANCE_INTEGRATION === '1')('playing together with 
     const leaderView = (await get(0, '/alliance/wire')).json<AllianceWireDto>();
     expect(leaderView.posts).toHaveLength(1);
     expect(leaderView.posts[0]).toMatchObject({ body: 'Hitting #5004 at 9pm, bring beer.', canRemove: true, isYours: false });
+    expect(leaderView.canPostAnnouncement).toBe(true);
 
     await post(0, '/alliance/wire', { body: 'Leader here.' });
     const memberView = (await get(1, '/alliance/wire')).json<AllianceWireDto>();
@@ -144,6 +145,29 @@ describe.runIf(process.env.ALLIANCE_INTEGRATION === '1')('playing together with 
     await post(1, '/alliance/leave');
     expect((await get(1, '/alliance/wire')).statusCode).toBe(409);
     expect(WIRE_COOLDOWN_SECONDS).toBeGreaterThan(0);
+  });
+
+  it('lets leaders pin one announcement and set the alliance profile', async () => {
+    await crew(0, 'OPS', [1]);
+    const outsiderSettings = await post(1, '/alliance/settings', { description: 'Daily ops at reset.', recruitmentStatus: 'OPEN' });
+    expect(outsiderSettings.statusCode).toBe(403);
+    const settings = await post(0, '/alliance/settings', { description: 'Daily ops at reset.', recruitmentStatus: 'OPEN' });
+    expect(settings.statusCode, settings.body).toBe(200);
+    expect(settings.json<MyAllianceDto>().alliance).toMatchObject({ description: 'Daily ops at reset.', recruitmentStatus: 'OPEN' });
+
+    const memberAnnouncement = await post(1, '/alliance/wire', { body: 'I declare myself important.', kind: 'ANNOUNCEMENT' });
+    expect(memberAnnouncement.statusCode).toBe(403);
+    const first = await post(0, '/alliance/wire', { body: 'Defend Detroit first.', kind: 'ANNOUNCEMENT', pinned: true });
+    expect(first.statusCode, first.body).toBe(200);
+    expect(first.json<AllianceWireDto>().pinnedAnnouncement).toMatchObject({ body: 'Defend Detroit first.', kind: 'ANNOUNCEMENT', pinned: true });
+
+    await app.prisma.allianceWirePost.updateMany({ where: { authorId: players[0]! }, data: { createdAt: new Date(Date.now() - WIRE_COOLDOWN_SECONDS * 2_000) } });
+    const second = await post(0, '/alliance/wire', { body: 'Recruitment wave tonight.', kind: 'ANNOUNCEMENT', pinned: true });
+    expect(second.statusCode, second.body).toBe(200);
+    const wire = second.json<AllianceWireDto>();
+    expect(wire.pinnedAnnouncement).toMatchObject({ body: 'Recruitment wave tonight.', pinned: true });
+    expect(wire.posts.filter((row) => row.pinned)).toHaveLength(1);
+    expect(wire.cards.some((card) => card.kind === 'RECRUITMENT')).toBe(true);
   });
 
   it('lets an admin remove a wire post with an audit record', async () => {

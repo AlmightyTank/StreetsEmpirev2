@@ -140,3 +140,104 @@ describe('PimpConsoleService.send', () => {
     expect(create).not.toHaveBeenCalled();
   });
 });
+
+describe('PimpConsoleService.summary', () => {
+  it('counts messages, alerts, activity and attacks for the current player', async () => {
+    vi.spyOn(RoundService, 'requireCurrent').mockResolvedValue({
+      id: 'round-1',
+      name: 'Test Round',
+    } as never);
+
+    const directMessageCount = vi.fn()
+      .mockResolvedValueOnce(4)
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(3)
+      .mockResolvedValueOnce(1);
+    const playerActivityCount = vi.fn()
+      .mockResolvedValueOnce(9)
+      .mockResolvedValueOnce(5);
+    const prisma = {
+      roundPlayer: {
+        findUnique: vi.fn().mockResolvedValue(owner),
+      },
+      directMessage: {
+        count: directMessageCount,
+      },
+      playerBlock: {
+        count: vi.fn().mockResolvedValue(6),
+      },
+      inAppNotification: {
+        count: vi.fn().mockResolvedValue(7),
+      },
+      playerActivity: {
+        count: playerActivityCount,
+      },
+    } as unknown as PrismaClient;
+
+    await expect(PimpConsoleService.summary(prisma, owner.accountId)).resolves.toEqual({
+      inbox: 4,
+      unread: 2,
+      sent: 3,
+      archived: 1,
+      blocked: 6,
+      notifications: 7,
+      activity: 9,
+      attacks: 5,
+    });
+    expect(prisma.inAppNotification.count).toHaveBeenCalledWith({
+      where: { roundPlayerId: owner.id, readAt: null },
+    });
+  });
+});
+
+describe('PimpConsoleService.activity', () => {
+  it('groups current-round events and links them to authoritative pages', async () => {
+    vi.spyOn(RoundService, 'requireCurrent').mockResolvedValue({
+      id: 'round-1',
+      name: 'Test Round',
+    } as never);
+
+    const events = [
+      {
+        id: 'activity-raid',
+        roundPlayerId: owner.id,
+        type: 'RAID_DEFENSE',
+        payload: { battleId: 'battle-1', opponent: 'Target', won: false },
+        createdAt: new Date('2026-09-25T03:00:00Z'),
+      },
+      {
+        id: 'activity-run',
+        roundPlayerId: owner.id,
+        type: 'RUN_RETURNED',
+        payload: { runId: 'run-1', cities: ['Detroit'], cashCents: 150_000 },
+        createdAt: new Date('2026-09-25T02:00:00Z'),
+      },
+    ];
+
+    const prisma = {
+      roundPlayer: {
+        findUnique: vi.fn().mockResolvedValue(owner),
+      },
+      playerActivity: {
+        count: vi.fn().mockResolvedValue(1),
+        groupBy: vi.fn().mockResolvedValue([
+          { type: 'RAID_DEFENSE', _count: { _all: 1 } },
+          { type: 'RUN_RETURNED', _count: { _all: 1 } },
+        ]),
+        findMany: vi.fn().mockResolvedValue([events[0]]),
+      },
+    } as unknown as PrismaClient;
+
+    const result = await PimpConsoleService.activity(prisma, owner.accountId, 'combat');
+
+    expect(result.counts).toMatchObject({ all: 2, combat: 1, travel: 1 });
+    expect(result.events).toEqual([expect.objectContaining({
+      group: 'combat',
+      href: '/game/combat',
+      activity: expect.objectContaining({ id: 'activity-raid', type: 'RAID_DEFENSE' }),
+    })]);
+    expect(prisma.playerActivity.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { roundPlayerId: owner.id, type: { in: expect.arrayContaining(['RAID_DEFENSE']) } },
+    }));
+  });
+});

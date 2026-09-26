@@ -210,18 +210,20 @@ function useConsoleUnread(playerId: string | null): number {
     let live = true;
     const refresh = () => {
       void consoleApi.summary()
-        .then((counts) => { if (live) setUnread(counts.unread); })
+        .then((counts) => { if (live) setUnread(counts.unread + counts.notifications); })
         .catch(() => { /* Navigation should keep working if the summary is temporarily unavailable. */ });
     };
 
     refresh();
     window.addEventListener(CONSOLE_UPDATED_EVENT, refresh);
+    window.addEventListener('streets:notifications-changed', refresh);
     window.addEventListener('focus', refresh);
     const interval = window.setInterval(refresh, 60_000);
 
     return () => {
       live = false;
       window.removeEventListener(CONSOLE_UPDATED_EVENT, refresh);
+      window.removeEventListener('streets:notifications-changed', refresh);
       window.removeEventListener('focus', refresh);
       window.clearInterval(interval);
     };
@@ -287,7 +289,7 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
     badges.console = {
       tone: 'info',
       text: badgeCount(consoleUnread),
-      label: `${consoleUnread} unread private message${consoleUnread === 1 ? '' : 's'}`,
+      label: `${consoleUnread} unread Console item${consoleUnread === 1 ? '' : 's'}`,
     };
   }
 

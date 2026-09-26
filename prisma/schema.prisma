@@ -872,6 +872,9 @@ model Alliance {
   /// Shown in brackets beside member names, e.g. [NYC].
   tag            String
   tagNormalized  String
+  /// 0.9.0-E alliance profile shown to members and public rankings/detail pages.
+  description       String @default("")
+  recruitmentStatus String @default("CLOSED")
 
   /// A RoundPlayer id. No foreign key: leadership moves inside the same locked
   /// transaction as membership, and a disbanded alliance keeps its last leader.
@@ -924,6 +927,9 @@ model AllianceWirePost {
   authorId   String
   author     RoundPlayer @relation("WireAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   body       String
+  /// MESSAGE or ANNOUNCEMENT. Text keeps old rows/migrations simple.
+  kind       String      @default("MESSAGE")
+  pinned     Boolean     @default(false)
   createdAt  DateTime    @default(now())
 
   /// Set when the author, the alliance leader or an admin removed it.
@@ -934,6 +940,7 @@ model AllianceWirePost {
   removedReason String?
 
   @@index([allianceId, createdAt(sort: Desc)])
+  @@index([allianceId, kind, pinned, createdAt(sort: Desc)])
   @@index([authorId, createdAt(sort: Desc)])
 }
 
@@ -1246,12 +1253,15 @@ model PlayerContact {
   owner     RoundPlayer @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   targetId  String
   target    RoundPlayer @relation("ContactTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  /// 0.9.0-D. Player-chosen rolodex lane. Derived lanes such as alliance and blocked are not stored here.
+  kind      String      @default("CONTACT")
   note      String      @default("")
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
   @@unique([ownerId, targetId])
   @@index([ownerId, updatedAt(sort: Desc)])
+  @@index([ownerId, kind, updatedAt(sort: Desc)])
 }
 
 

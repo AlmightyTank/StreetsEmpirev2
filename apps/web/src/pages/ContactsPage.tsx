@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import type { ContactDto, ContactsDto } from '@streets/shared';
+import type { BlockedRolodexDto, ContactDto, ContactKindDto, ContactsDto } from '@streets/shared';
 import { CONTACT_NOTE_MAX, formatCents, formatNumber } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { contactsApi } from '../api/playing-together.js';
@@ -11,7 +11,7 @@ import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 
-type ContactView = 'all' | 'active' | 'noted' | 'gone';
+type ContactView = 'all' | 'contacts' | 'enemies' | 'alliance' | 'blocked';
 
 const ACTIVE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -27,10 +27,44 @@ function isActive(contact: ContactDto): boolean {
   return Boolean(contact.standing && Date.now() - new Date(contact.standing.lastActiveAt).getTime() <= ACTIVE_WINDOW_MS);
 }
 
-function ContactRow({ contact, busy, onSave, onRemove }: {
+function until(iso: string): string {
+  const minutes = Math.ceil((new Date(iso).getTime() - Date.now()) / 60_000);
+  if (minutes <= 0) return 'expired';
+  if (minutes < 60) return `${minutes}m left`;
+  const hours = Math.ceil(minutes / 60);
+  return hours < 48 ? `${hours}h left` : `${Math.ceil(hours / 24)}d left`;
+}
+
+function battleKindLabel(kind: string): string {
+  return kind.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function intelLines(contact: ContactDto): string[] {
+  const lines: string[] = [];
+  if (contact.intel.payback.available) {
+    lines.push(`Payback open${contact.intel.payback.until ? ` · ${until(contact.intel.payback.until)}` : ''}${contact.intel.payback.source === 'alliance' ? ' · alliance hit' : ''}`);
+  }
+  if (contact.intel.sharedAlliance) {
+    lines.push('Current alliance member');
+  }
+  if (contact.intel.lastBattle) {
+    const battle = contact.intel.lastBattle;
+    lines.push(`${battleKindLabel(battle.kind)} ${battle.role === 'ATTACKER' ? 'sent' : 'received'} · ${battle.won ? 'won' : 'lost'} · ${ago(battle.at)}`);
+  }
+  if (contact.intel.lastRecon) {
+    lines.push(`Recon ${ago(contact.intel.lastRecon.at)} · ${contact.intel.lastRecon.cashBand} cash · ${contact.intel.lastRecon.strengthBand} strength`);
+  }
+  if (contact.intel.turf.blocksWon || contact.intel.turf.blocksLost) {
+    lines.push(`Turf ${formatNumber(contact.intel.turf.blocksWon)} won / ${formatNumber(contact.intel.turf.blocksLost)} lost`);
+  }
+  return lines;
+}
+
+function ContactRow({ contact, busy, onSave, onKind, onRemove }: {
   contact: ContactDto;
   busy: boolean;
   onSave: (note: string) => void;
+  onKind: (kind: ContactKindDto) => void;
   onRemove: () => void;
 }) {
   const [note, setNote] = useState(contact.note);
@@ -39,6 +73,8 @@ function ContactRow({ contact, busy, onSave, onRemove }: {
   useEffect(() => setNote(contact.note), [contact.note]);
 
   const active = isActive(contact);
+  const lines = intelLines(contact);
+  const nextKind: ContactKindDto = contact.kind === 'CONTACT' ? 'ENEMY' : 'CONTACT';
 
   return (
     <tr className={contact.standing ? undefined : 'se-contacts-row--gone'}>
@@ -52,6 +88,9 @@ function ContactRow({ contact, busy, onSave, onRemove }: {
             <span className="se-muted se-num">#{contact.publicPimpId}</span>
           </div>
           <div className="se-contacts-person__status">
+            <span className={`se-tag ${contact.kind === 'ENEMY' ? 'se-tag--bad' : 'se-tag--dim'}`}>
+              {contact.kind === 'ENEMY' ? 'Enemy' : 'Contact'}
+            </span>
             {!contact.standing ? (
               <span className="se-tag se-tag--dim">Gone</span>
             ) : active ? (
@@ -59,6 +98,7 @@ function ContactRow({ contact, busy, onSave, onRemove }: {
             ) : (
               <span className="se-tag se-tag--dim">Quiet</span>
             )}
+            {contact.blocked ? <span className="se-tag se-tag--bad">Blocked</span> : null}
             {contact.standing?.city ? <span>{contact.standing.city}</span> : null}
           </div>
         </div>
@@ -82,6 +122,15 @@ function ContactRow({ contact, busy, onSave, onRemove }: {
           onChange={(event) => setNote(event.target.value)}
         />
       </td>
+      <td data-label="Intel" className="se-contact__intel">
+        {lines.length ? (
+          <ul>
+            {lines.map((line) => <li key={line}>{line}</li>)}
+          </ul>
+        ) : (
+          <span className="se-muted">No earned history yet</span>
+        )}
+      </td>
       <td data-label="Actions">
         <span className="se-inline-actions se-contacts-actions">
           <Button
@@ -92,6 +141,25 @@ function ContactRow({ contact, busy, onSave, onRemove }: {
           >
             Save
           </Button>
+          <Button
+            type="button"
+            className="se-btn se-btn--ghost se-btn--sm"
+            disabledReason={busy ? 'Still saving.' : null}
+            onClick={() => onKind(nextKind)}
+          >
+            {nextKind === 'ENEMY' ? 'Mark enemy' : 'Mark contact'}
+          </Button>
+          <Link className="se-btn se-btn--ghost se-btn--sm" to={`/game/console?to=${contact.publicPimpId}`}>
+            Message
+          </Link>
+          <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/combat">
+            Recon / Raid
+          </Link>
+          {contact.blocked ? (
+            <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/console">
+              Manage block
+            </Link>
+          ) : null}
           {confirming ? (
             <Button
               type="button"
@@ -112,12 +180,41 @@ function ContactRow({ contact, busy, onSave, onRemove }: {
   );
 }
 
+function BlockedRow({ player }: { player: BlockedRolodexDto }) {
+  return (
+    <tr>
+      <td className="se-td--title">
+        <div className="se-contacts-person">
+          <div className="se-contacts-person__name">
+            <AllianceTag alliance={player.alliance} />
+            <Link to={`/game/players/${player.publicPimpId}`} className="se-playerlink">
+              {player.displayName}
+            </Link>
+            <span className="se-muted se-num">#{player.publicPimpId}</span>
+          </div>
+          <div className="se-contacts-person__status">
+            <span className="se-tag se-tag--bad">Blocked</span>
+            {player.isContact ? <span className="se-tag se-tag--dim">In rolodex</span> : null}
+          </div>
+        </div>
+      </td>
+      <td data-label="Blocked">{ago(player.blockedAt)}</td>
+      <td data-label="Actions">
+        <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/console">
+          Manage block
+        </Link>
+      </td>
+    </tr>
+  );
+}
+
 /** 0.3.0-D. The OG rolodex: players you track, their public standing, and notes nobody else sees. */
 export function ContactsPage() {
   const [data, setData] = useState<ContactsDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pimp, setPimp] = useState('');
+  const [kind, setKind] = useState<ContactKindDto>('CONTACT');
   const [note, setNote] = useState('');
   const [query, setQuery] = useState('');
   const [view, setView] = useState<ContactView>('all');
@@ -149,25 +246,25 @@ export function ContactsPage() {
       setError('Enter a pimp number, e.g. 1042.');
       return;
     }
-    if (await run(() => contactsApi.add(id, note.trim() || undefined))) {
+    if (await run(() => contactsApi.add(id, note.trim() || undefined, kind))) {
       setPimp('');
+      setKind('CONTACT');
       setNote('');
     }
   }
 
   const contacts = data?.contacts ?? [];
-  const activeCount = contacts.filter(isActive).length;
-  const notedCount = contacts.filter((contact) => contact.note.trim().length > 0).length;
-  const goneCount = contacts.filter((contact) => !contact.standing).length;
+  const blocked = data?.blocked ?? [];
   const slotsLeft = data ? Math.max(0, data.max - contacts.length) : 0;
 
   const visibleContacts = useMemo(() => {
     const needle = query.trim().toLowerCase();
 
     return contacts.filter((contact) => {
-      if (view === 'active' && !isActive(contact)) return false;
-      if (view === 'noted' && contact.note.trim().length === 0) return false;
-      if (view === 'gone' && contact.standing) return false;
+      if (view === 'contacts' && contact.kind !== 'CONTACT') return false;
+      if (view === 'enemies' && contact.kind !== 'ENEMY') return false;
+      if (view === 'alliance' && !contact.categories.includes('ALLIANCE')) return false;
+      if (view === 'blocked') return false;
       if (!needle) return true;
 
       const searchText = [
@@ -182,6 +279,20 @@ export function ContactsPage() {
       return searchText.includes(needle);
     });
   }, [contacts, query, view]);
+
+  const visibleBlocked = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return blocked.filter((player) => {
+      if (view !== 'blocked') return false;
+      if (!needle) return true;
+      return [
+        player.displayName,
+        String(player.publicPimpId),
+        player.alliance?.name ?? '',
+        player.alliance?.tag ?? '',
+      ].join(' ').toLowerCase().includes(needle);
+    });
+  }, [blocked, query, view]);
 
   return (
     <GameLayout>
@@ -199,16 +310,16 @@ export function ContactsPage() {
               <strong>{data ? `${formatNumber(contacts.length)} / ${formatNumber(data.max)}` : '—'}</strong>
             </span>
             <span>
-              <small>Active 24h</small>
-              <strong>{data ? formatNumber(activeCount) : '—'}</strong>
+              <small>Enemies</small>
+              <strong>{data ? formatNumber(data.counts.ENEMY) : '—'}</strong>
             </span>
             <span>
-              <small>With notes</small>
-              <strong>{data ? formatNumber(notedCount) : '—'}</strong>
+              <small>Alliance</small>
+              <strong>{data ? formatNumber(data.counts.ALLIANCE) : '—'}</strong>
             </span>
             <span>
-              <small>Gone</small>
-              <strong>{data ? formatNumber(goneCount) : '—'}</strong>
+              <small>Blocked</small>
+              <strong>{data ? formatNumber(data.counts.BLOCKED) : '—'}</strong>
             </span>
           </div>
         </header>
@@ -241,10 +352,11 @@ export function ContactsPage() {
 
               <div className="se-contacts-tabs" role="tablist" aria-label="Contact view">
                 {([
-                  ['all', 'All', contacts.length],
-                  ['active', 'Active', activeCount],
-                  ['noted', 'Noted', notedCount],
-                  ['gone', 'Gone', goneCount],
+                  ['all', 'All', data?.counts.ALL ?? contacts.length],
+                  ['contacts', 'Contacts', data?.counts.CONTACT ?? 0],
+                  ['enemies', 'Enemies', data?.counts.ENEMY ?? 0],
+                  ['alliance', 'Alliance', data?.counts.ALLIANCE ?? 0],
+                  ['blocked', 'Blocked', data?.counts.BLOCKED ?? blocked.length],
                 ] as const).map(([key, label, count]) => (
                   <button
                     key={key}
@@ -261,21 +373,43 @@ export function ContactsPage() {
               </div>
             </div>
 
-            <Panel title="Street book" aside={data ? `${formatNumber(visibleContacts.length)} shown` : 'Loading'} flush className="se-contacts-panel">
+            <Panel title={view === 'blocked' ? 'Blocked players' : 'Street book'} aside={data ? `${formatNumber(view === 'blocked' ? visibleBlocked.length : visibleContacts.length)} shown` : 'Loading'} flush className="se-contacts-panel">
               {!data ? <p className="se-muted se-admin-pad">Flipping through the cards...</p> : null}
-              {data && contacts.length === 0 ? (
+              {data && view !== 'blocked' && contacts.length === 0 ? (
                 <div className="se-contacts-empty">
                   <strong>Your street book is empty.</strong>
                   <span>Add players by pimp number here, or from their public profile.</span>
                 </div>
               ) : null}
-              {data && contacts.length > 0 && visibleContacts.length === 0 ? (
+              {data && view !== 'blocked' && contacts.length > 0 && visibleContacts.length === 0 ? (
                 <div className="se-contacts-empty">
                   <strong>No contacts match this view.</strong>
                   <span>Clear the search or switch filters to see the rest of your rolodex.</span>
                 </div>
               ) : null}
-              {visibleContacts.length ? (
+              {data && view === 'blocked' && visibleBlocked.length === 0 ? (
+                <div className="se-contacts-empty">
+                  <strong>No blocked players match this view.</strong>
+                  <span>Blocks are account-wide and managed from the Console.</span>
+                </div>
+              ) : null}
+              {view === 'blocked' && visibleBlocked.length ? (
+                <div className="se-tablewrap">
+                  <table className="se-table se-table--cards se-contacts-table">
+                    <thead>
+                      <tr>
+                        <th>Player</th>
+                        <th>Blocked</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleBlocked.map((player) => <BlockedRow key={player.publicPimpId} player={player} />)}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+              {view !== 'blocked' && visibleContacts.length ? (
                 <div className="se-tablewrap">
                   <table className="se-table se-table--cards se-contacts-table">
                     <thead>
@@ -285,6 +419,7 @@ export function ContactsPage() {
                         <th className="se-table__number">Net Worth</th>
                         <th>Seen</th>
                         <th>Private note</th>
+                        <th>Earned intel</th>
                         <th />
                       </tr>
                     </thead>
@@ -295,6 +430,7 @@ export function ContactsPage() {
                           contact={contact}
                           busy={busy}
                           onSave={(next) => void run(() => contactsApi.note(contact.publicPimpId, next))}
+                          onKind={(next) => void run(() => contactsApi.kind(contact.publicPimpId, next))}
                           onRemove={() => void run(() => contactsApi.remove(contact.publicPimpId))}
                         />
                       ))}
@@ -315,6 +451,13 @@ export function ContactsPage() {
                   onChange={(event) => setPimp(event.target.value)}
                   hint="Use the public number shown on a player's profile."
                 />
+                <label className="se-contacts-kind">
+                  <span>Lane</span>
+                  <select className="se-input" value={kind} onChange={(event) => setKind(event.target.value as ContactKindDto)}>
+                    <option value="CONTACT">Contact</option>
+                    <option value="ENEMY">Enemy</option>
+                  </select>
+                </label>
                 <Field
                   label="Private note (optional)"
                   maxLength={CONTACT_NOTE_MAX}
@@ -356,11 +499,11 @@ export function ContactsPage() {
                 </div>
                 <div>
                   <span>Recon intel</span>
-                  <strong>Never stored here</strong>
+                  <strong>Earned only</strong>
                 </div>
               </div>
               <p className="se-hint">
-                Contacts are a personal round-only rolodex. For private combat intelligence, use recon from the Raids tab instead.
+                Contacts are a personal round-only rolodex. Battle, turf and recon context appears only after your crew legitimately learned it.
               </p>
             </Panel>
 

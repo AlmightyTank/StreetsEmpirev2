@@ -1,9 +1,10 @@
-import type { AdminWireDto, AllianceWireDto, ContactLookupDto, ContactsDto, PlayerDirectoryDto, PlayerDirectoryView } from '@streets/shared';
+import type { AdminWireDto, AllianceWireDto, ContactKindDto, ContactLookupDto, ContactsDto, PlayerDirectoryDto, PlayerDirectoryView, WirePostKindDto } from '@streets/shared';
 import { api } from './client.js';
 
 export const wireApi = {
   list: (before?: string) => api.get<AllianceWireDto>(`/game/alliance/wire${before ? `?before=${encodeURIComponent(before)}` : ''}`),
-  post: (body: string) => api.post<AllianceWireDto>('/game/alliance/wire', { body }),
+  post: (body: string, kind: WirePostKindDto = 'MESSAGE', pinned = false) => api.post<AllianceWireDto>('/game/alliance/wire', { body, kind, pinned }),
+  pin: (postId: string, pinned: boolean) => api.post<AllianceWireDto>(`/game/alliance/wire/${encodeURIComponent(postId)}/pin`, { pinned }),
   remove: (postId: string) => api.post<AllianceWireDto>(`/game/alliance/wire/${encodeURIComponent(postId)}/remove`, {}),
 };
 
@@ -18,8 +19,9 @@ export const playersApi = {
 export const contactsApi = {
   list: () => api.get<ContactsDto>('/game/contacts'),
   lookup: (publicPimpId: number) => api.get<ContactLookupDto>(`/game/contacts/${publicPimpId}`),
-  add: (targetPublicPimpId: number, note?: string) => api.post<ContactsDto>('/game/contacts', note === undefined ? { targetPublicPimpId } : { targetPublicPimpId, note }),
+  add: (targetPublicPimpId: number, note?: string, kind: ContactKindDto = 'CONTACT') => api.post<ContactsDto>('/game/contacts', note === undefined ? { targetPublicPimpId, kind } : { targetPublicPimpId, kind, note }),
   note: (publicPimpId: number, note: string) => api.post<ContactsDto>(`/game/contacts/${publicPimpId}/note`, { note }),
+  kind: (publicPimpId: number, kind: ContactKindDto) => api.post<ContactsDto>(`/game/contacts/${publicPimpId}/kind`, { kind }),
   remove: (publicPimpId: number) => api.post<ContactsDto>(`/game/contacts/${publicPimpId}/remove`, {}),
 };
 

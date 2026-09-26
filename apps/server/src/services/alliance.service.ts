@@ -4,6 +4,7 @@ import {
   allianceInviteAnswerSchema,
   alliancePlayerSchema,
   allianceForumPostSchema,
+  allianceSettingsSchema,
   createAllianceSchema,
   type AdminAlliancesDto,
   type AllianceDetailDto,
@@ -247,6 +248,8 @@ async function detail(db: Db | PrismaClient, alliance: Alliance, standing: Stand
     foundedAt: alliance.createdAt.toISOString(),
     isYours: viewer ? viewer.allianceId === alliance.id : false,
     forumUrl: alliance.forumDiscussionId ? forumDiscussionUrl(alliance.forumDiscussionId) : null,
+    description: alliance.description,
+    recruitmentStatus: alliance.recruitmentStatus as AllianceDetailDto['recruitmentStatus'],
   };
 }
 
@@ -574,6 +577,21 @@ export const AllianceService = {
       await tx.alliance.update({ where: { id: alliance.id }, data: { leaderId: current.id } });
       await event(tx, alliance.id, 'LEADER', me.displayName, current.displayName);
     }, [target.id]);
+    return AllianceService.mine(prisma, playerId);
+  },
+
+  async updateSettings(prisma: PrismaClient, playerId: string, rawInput: unknown): Promise<MyAllianceDto> {
+    const input = allianceSettingsSchema.parse(rawInput);
+    await withOwnAlliance(prisma, playerId, async ({ tx, alliance, me }) => {
+      requireLeader(alliance, me, 'update alliance settings');
+      await tx.alliance.update({
+        where: { id: alliance.id },
+        data: {
+          description: input.description,
+          recruitmentStatus: input.recruitmentStatus,
+        },
+      });
+    });
     return AllianceService.mine(prisma, playerId);
   },
 

@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import type {
+  ConsoleActivityDto,
+  ConsoleActivityEntryDto,
+  ConsoleActivityFilter,
   ConsoleBlocksDto,
+  ConsoleCountsDto,
   ConsoleFolder,
   DirectMessageDto,
+  InAppNotificationDto,
+  InAppNotificationFeedDto,
   PimpConsoleDto,
 } from '@streets/shared';
 import {
@@ -12,20 +18,42 @@ import {
   MESSAGE_SUBJECT_MAX,
 } from '@streets/shared';
 import { announceConsoleUpdated, consoleApi } from '../api/console.js';
+import { notificationsApi } from '../api/notifications.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { activityGroup, activityGroupLabel, describeActivity } from '../components/ActivityFeed.js';
+import { AllianceWire } from '../components/AllianceWire.js';
+import { gameEventToastFor } from '../components/GameEventToasts.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
 
-type ConsoleView = ConsoleFolder | 'blocked';
+type ConsoleView = ConsoleFolder | 'alliance' | 'attacks' | 'notifications' | 'activity' | 'blocked';
 type ConsoleMode = 'detail' | 'compose';
 
 const VIEWS: Array<{ key: ConsoleView; label: string }> = [
   { key: 'inbox', label: 'Inbox' },
   { key: 'sent', label: 'Sent' },
+  { key: 'alliance', label: 'Alliance' },
+  { key: 'attacks', label: 'Attacks' },
+  { key: 'notifications', label: 'Alerts' },
+  { key: 'activity', label: 'Activity' },
   { key: 'archived', label: 'Archived' },
   { key: 'blocked', label: 'Blocked' },
+];
+
+const EMPTY_NOTIFICATION_FEED: InAppNotificationFeedDto = { notifications: [], unreadCount: 0 };
+
+const ACTIVITY_FILTERS: Array<{ key: ConsoleActivityFilter; label: string }> = [
+  { key: 'all', label: 'All' },
+  { key: 'combat', label: 'Attacks' },
+  { key: 'turf', label: 'Turf' },
+  { key: 'travel', label: 'Travel' },
+  { key: 'market', label: 'Market' },
+  { key: 'progress', label: 'Progress' },
+  { key: 'street', label: 'Street' },
+  { key: 'system', label: 'System' },
 ];
 
 function messageTime(value: string): string {
@@ -38,11 +66,18 @@ function subjectForReply(subject: string): string {
 
 export function ConsolePage() {
   const [searchParams] = useSearchParams();
+  const crackWord = useSession((s) => s.me?.products) ? 'crack' : 'product';
   const [view, setView] = useState<ConsoleView>('inbox');
+  const [activityFilter, setActivityFilter] = useState<ConsoleActivityFilter>('all');
   const [page, setPage] = useState(1);
+  const [counts, setCounts] = useState<ConsoleCountsDto | null>(null);
   const [data, setData] = useState<PimpConsoleDto | null>(null);
+  const [activityData, setActivityData] = useState<ConsoleActivityDto | null>(null);
   const [blocks, setBlocks] = useState<ConsoleBlocksDto | null>(null);
+  const [notifications, setNotifications] = useState<InAppNotificationFeedDto | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [selectedNotificationId, setSelectedNotificationId] = useState<string | null>(null);
   const [mode, setMode] = useState<ConsoleMode>('detail');
   const [recipient, setRecipient] = useState('');
   const [subject, setSubject] = useState('');
@@ -55,7 +90,11 @@ export function ConsolePage() {
   const actionId = useRef(newActionId());
 
   const selected = data?.messages.find((message) => message.id === selectedId) ?? null;
-  const counts = data?.counts ?? null;
+  const selectedEvent = activityData?.events.find((event) => event.activity.id === selectedEventId) ?? activityData?.events[0] ?? null;
+  const selectedNotification =
+    notifications?.notifications.find((notification) => notification.id === selectedNotificationId)
+    ?? notifications?.notifications[0]
+    ?? null;
 
   useEffect(() => {
     const to = searchParams.get('to');
@@ -68,24 +107,76 @@ export function ConsolePage() {
     let live = true;
     setError(null);
     setSelectedId(null);
+    setSelectedEventId(null);
     setReporting(false);
+    setData(null);
+    setActivityData(null);
+    setNotifications(null);
 
     if (view === 'blocked') {
-      consoleApi.blocks()
-        .then((next) => { if (live) setBlocks(next); })
+      Promise.all([consoleApi.blocks(), consoleApi.summary()])
+        .then(([nextBlocks, nextCounts]) => {
+          if (!live) return;
+          setBlocks(nextBlocks);
+          setCounts(nextCounts);
+        })
         .catch((caught: unknown) => {
           if (live) setError(caught instanceof ApiError ? caught.message : 'Could not load blocked players.');
         });
       return () => { live = false; };
     }
 
+    if (view === 'alliance') {
+      consoleApi.summary()
+        .then((nextCounts) => {
+          if (live) setCounts(nextCounts);
+        })
+        .catch((caught: unknown) => {
+          if (live) setError(caught instanceof ApiError ? caught.message : 'Could not load the Console.');
+        });
+      return () => { live = false; };
+    }
+
+    if (view === 'activity' || view === 'attacks') {
+      const filter = view === 'attacks' ? 'combat' : activityFilter;
+      Promise.all([consoleApi.activity(filter, page), consoleApi.summary()])
+        .then(([nextActivity, nextCounts]) => {
+          if (!live) return;
+          setActivityData(nextActivity);
+          setCounts(nextCounts);
+          setSelectedEventId(nextActivity.events[0]?.activity.id ?? null);
+        })
+        .catch((caught: unknown) => {
+          if (live) setError(caught instanceof ApiError ? caught.message : 'Could not load the activity console.');
+        });
+      return () => { live = false; };
+    }
+
+    if (view === 'notifications') {
+      Promise.all([notificationsApi.inbox(), consoleApi.summary()])
+        .then(([nextNotifications, nextCounts]) => {
+          if (!live) return;
+          setNotifications(nextNotifications);
+          setCounts(nextCounts);
+          setSelectedNotificationId(nextNotifications.notifications[0]?.id ?? null);
+        })
+        .catch((caught: unknown) => {
+          if (live) setError(caught instanceof ApiError ? caught.message : 'Could not load notifications.');
+        });
+      return () => { live = false; };
+    }
+
     consoleApi.page(view, page)
-      .then((next) => { if (live) setData(next); })
+      .then((next) => {
+        if (!live) return;
+        setData(next);
+        setCounts(next.counts);
+      })
       .catch((caught: unknown) => {
         if (live) setError(caught instanceof ApiError ? caught.message : 'Could not load the Console.');
       });
     return () => { live = false; };
-  }, [view, page]);
+  }, [view, activityFilter, page]);
 
   function changeComposeField(setter: (value: string) => void, value: string) {
     setter(value);
@@ -94,10 +185,36 @@ export function ConsolePage() {
 
   async function refreshCurrent() {
     if (view === 'blocked') {
-      setBlocks(await consoleApi.blocks());
+      const [nextBlocks, nextCounts] = await Promise.all([consoleApi.blocks(), consoleApi.summary()]);
+      setBlocks(nextBlocks);
+      setCounts(nextCounts);
       return;
     }
-    setData(await consoleApi.page(view, page));
+    if (view === 'activity') {
+      const [nextActivity, nextCounts] = await Promise.all([consoleApi.activity(activityFilter, page), consoleApi.summary()]);
+      setActivityData(nextActivity);
+      setCounts(nextCounts);
+      return;
+    }
+    if (view === 'attacks') {
+      const [nextActivity, nextCounts] = await Promise.all([consoleApi.activity('combat', page), consoleApi.summary()]);
+      setActivityData(nextActivity);
+      setCounts(nextCounts);
+      return;
+    }
+    if (view === 'alliance') {
+      setCounts(await consoleApi.summary());
+      return;
+    }
+    if (view === 'notifications') {
+      const [nextNotifications, nextCounts] = await Promise.all([notificationsApi.inbox(), consoleApi.summary()]);
+      setNotifications(nextNotifications);
+      setCounts(nextCounts);
+      return;
+    }
+    const next = await consoleApi.page(view, page);
+    setData(next);
+    setCounts(next.counts);
   }
 
   async function openMessage(message: DirectMessageDto) {
@@ -110,6 +227,10 @@ export function ConsolePage() {
       try {
         await consoleApi.read(message.id);
         announceConsoleUpdated();
+        setCounts((current) => current ? {
+          ...current,
+          unread: Math.max(0, current.unread - 1),
+        } : current);
         setData((current) => current ? {
           ...current,
           counts: {
@@ -151,7 +272,9 @@ export function ConsolePage() {
       setMode('detail');
       setView('sent');
       setPage(1);
-      setData(await consoleApi.page('sent', 1));
+      const next = await consoleApi.page('sent', 1);
+      setData(next);
+      setCounts(next.counts);
       setSelectedId(result.message.id);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'The message did not go through.');
@@ -214,6 +337,7 @@ export function ConsolePage() {
     try {
       const next = await consoleApi.block(message.counterpart.publicPimpId);
       setBlocks(next);
+      setCounts((current) => current ? { ...current, blocked: next.blocked.length } : current);
       setData((current) => current ? {
         ...current,
         counts: { ...current.counts, blocked: next.blocked.length },
@@ -236,6 +360,7 @@ export function ConsolePage() {
     try {
       const next = await consoleApi.unblock(publicPimpId);
       setBlocks(next);
+      setCounts((current) => current ? { ...current, blocked: next.blocked.length } : current);
       setData((current) => current ? {
         ...current,
         counts: { ...current.counts, blocked: next.blocked.length },
@@ -248,12 +373,80 @@ export function ConsolePage() {
     }
   }
 
+  async function markNotificationRead(notification: InAppNotificationDto) {
+    if (notification.readAt) return;
+    const readAt = new Date().toISOString();
+    setNotifications((current) => current ? {
+      unreadCount: Math.max(0, current.unreadCount - 1),
+      notifications: current.notifications.map((item) => item.id === notification.id ? { ...item, readAt } : item),
+    } : current);
+    setCounts((current) => current ? {
+      ...current,
+      notifications: Math.max(0, current.notifications - 1),
+    } : current);
+    try {
+      await notificationsApi.read(notification.id);
+      window.dispatchEvent(new Event('streets:notifications-changed'));
+      announceConsoleUpdated();
+    } catch {
+      await refreshCurrent();
+    }
+  }
+
+  async function markAllNotificationsRead() {
+    const current = notifications ?? EMPTY_NOTIFICATION_FEED;
+    if (!current.unreadCount) return;
+    const readAt = new Date().toISOString();
+    setNotifications({
+      unreadCount: 0,
+      notifications: current.notifications.map((notification) =>
+        notification.readAt ? notification : { ...notification, readAt }),
+    });
+    setCounts((existing) => existing ? { ...existing, notifications: 0 } : existing);
+    try {
+      await notificationsApi.readAll();
+      window.dispatchEvent(new Event('streets:notifications-changed'));
+      announceConsoleUpdated();
+    } catch {
+      await refreshCurrent();
+    }
+  }
+
   function countFor(key: ConsoleView): number {
     if (!counts) return key === 'blocked' ? blocks?.blocked.length ?? 0 : 0;
     if (key === 'inbox') return counts.inbox;
     if (key === 'sent') return counts.sent;
     if (key === 'archived') return counts.archived;
+    if (key === 'alliance') return 0;
+    if (key === 'attacks') return counts.attacks;
+    if (key === 'notifications') return counts.notifications;
+    if (key === 'activity') return counts.activity;
     return counts.blocked;
+  }
+
+  function selectActivityFilter(next: ConsoleActivityFilter) {
+    setActivityFilter(next);
+    setPage(1);
+    setSelectedEventId(null);
+  }
+
+  function activityTitle(filter: ConsoleActivityFilter): string {
+    return filter === 'all' ? 'All activity' : activityGroupLabel(filter);
+  }
+
+  function eventSummary(event: ConsoleActivityEntryDto) {
+    return describeActivity(event.activity, crackWord);
+  }
+
+  function notificationSummary(notification: InAppNotificationDto) {
+    const toast = gameEventToastFor(notification.activity, crackWord);
+    const fallback = describeActivity(notification.activity, crackWord);
+    return {
+      title: toast?.title ?? activityGroupLabel(activityGroup(notification.activity.type)),
+      detail: toast?.detail ?? [fallback.text, fallback.detail].filter(Boolean).join(' '),
+      href: toast?.href ?? '/game/activity',
+      group: activityGroup(notification.activity.type),
+    };
   }
 
   return (
@@ -263,13 +456,15 @@ export function ConsolePage() {
           <div>
             <span className="se-eyebrow">0.9.0 · Pimp Console</span>
             <h1>Console</h1>
-            <p>Private street mail, kept asynchronous and round-scoped. Blocking is account-wide and survives the season.</p>
+            <p>Street mail and important operation history, collected in one place without replacing the reports that already own the facts.</p>
           </div>
           <div className="se-console-hero__stats">
             <span><small>Unread</small><strong>{counts?.unread ?? 0}</strong></span>
+            <span><small>Alerts</small><strong>{counts?.notifications ?? notifications?.unreadCount ?? 0}</strong></span>
             <span><small>Inbox</small><strong>{counts?.inbox ?? 0}</strong></span>
             <span><small>Sent</small><strong>{counts?.sent ?? 0}</strong></span>
-            <span><small>Blocked</small><strong>{counts?.blocked ?? blocks?.blocked.length ?? 0}</strong></span>
+            <span><small>Attacks</small><strong>{counts?.attacks ?? 0}</strong></span>
+            <span><small>Activity</small><strong>{counts?.activity ?? 0}</strong></span>
           </div>
         </header>
 
@@ -289,6 +484,7 @@ export function ConsolePage() {
                   setView(key);
                   setPage(1);
                   setMode('detail');
+                  setSelectedEventId(null);
                 }}
               >
                 <span>{label}</span>
@@ -296,15 +492,220 @@ export function ConsolePage() {
                 {key === 'inbox' && (counts?.unread ?? 0) > 0
                   ? <em>{counts!.unread} unread</em>
                   : null}
+                {key === 'notifications' && (counts?.notifications ?? notifications?.unreadCount ?? 0) > 0
+                  ? <em>{counts?.notifications ?? notifications!.unreadCount} unread</em>
+                  : null}
               </button>
             ))}
           </div>
-          <button type="button" className="se-btn se-btn--primary" onClick={() => setMode('compose')}>
+          <button
+            type="button"
+            className="se-btn se-btn--primary"
+            onClick={() => {
+              setView('inbox');
+              setPage(1);
+              setMode('compose');
+            }}
+          >
             Compose
           </button>
         </section>
 
-        {view === 'blocked' ? (
+        {view === 'activity' || view === 'attacks' ? (
+          <section className="se-console-work se-console-work--activity">
+            <Panel
+              title={view === 'attacks' ? 'Attacks' : activityTitle(activityFilter)}
+              aside={activityData ? `${activityData.events.length} of ${activityData.total}` : 'Loading'}
+              flush
+              className="se-console-listpanel"
+            >
+              {view === 'activity' ? (
+                <div className="se-console-filterbar" role="tablist" aria-label="Activity category">
+                  {ACTIVITY_FILTERS.map((filter) => (
+                    <button
+                      key={filter.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={activityFilter === filter.key}
+                      className={`se-console-filter${activityFilter === filter.key ? ' se-console-filter--active' : ''}`}
+                      onClick={() => selectActivityFilter(filter.key)}
+                    >
+                      <span>{filter.label}</span>
+                      <strong>{activityData?.counts[filter.key] ?? (filter.key === 'all' ? counts?.activity : 0) ?? 0}</strong>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {!activityData ? <p className="se-muted se-console-pad">Reading the street log...</p> : null}
+              {activityData && activityData.events.length === 0 ? (
+                <div className="se-console-empty">
+                  <strong>{view === 'attacks' ? 'No attacks recorded.' : 'No activity in this lane.'}</strong>
+                  <span>{view === 'attacks' ? 'Combat reports will collect here when they happen.' : 'Switch categories to scan a different part of your operation.'}</span>
+                </div>
+              ) : null}
+              <div className="se-console-list">
+                {activityData?.events.map((event) => {
+                  const summary = eventSummary(event);
+                  return (
+                    <button
+                      key={event.activity.id}
+                      type="button"
+                      className={`se-console-message se-console-event se-console-event--${event.group}${selectedEventId === event.activity.id ? ' se-console-message--selected' : ''}`}
+                      onClick={() => setSelectedEventId(event.activity.id)}
+                    >
+                      <span className="se-console-message__top">
+                        <strong>{activityGroupLabel(event.group)}</strong>
+                        <time>{messageTime(event.activity.createdAt)}</time>
+                      </span>
+                      <span className="se-console-message__subject">{summary.text}</span>
+                      {summary.detail ? <span className="se-console-message__meta">{summary.detail}</span> : null}
+                    </button>
+                  );
+                })}
+              </div>
+              {activityData && activityData.totalPages > 1 ? (
+                <div className="se-console-pagination">
+                  <button
+                    type="button"
+                    className="se-btn se-btn--ghost se-btn--sm"
+                    disabled={activityData.page <= 1}
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  >
+                    Previous
+                  </button>
+                  <span className="se-num">Page {activityData.page} / {activityData.totalPages}</span>
+                  <button
+                    type="button"
+                    className="se-btn se-btn--ghost se-btn--sm"
+                    disabled={activityData.page >= activityData.totalPages}
+                    onClick={() => setPage((current) => Math.min(activityData.totalPages, current + 1))}
+                  >
+                    Next
+                  </button>
+                </div>
+              ) : null}
+            </Panel>
+
+            <div className="se-console-detail">
+              {selectedEvent ? (() => {
+                const summary = eventSummary(selectedEvent);
+                return (
+                  <Panel
+                    title={activityGroupLabel(selectedEvent.group)}
+                    aside={new Date(selectedEvent.activity.createdAt).toLocaleString()}
+                    className="se-console-panel"
+                  >
+                    <article className="se-console-eventdetail">
+                      <strong>{summary.text}</strong>
+                      {summary.detail ? <p>{summary.detail}</p> : null}
+                      <div className="se-console-actions">
+                        <Link className="se-btn se-btn--primary se-btn--sm" to={selectedEvent.href}>
+                          Open report
+                        </Link>
+                        <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/activity">
+                          Full log
+                        </Link>
+                      </div>
+                    </article>
+                  </Panel>
+                );
+              })() : (
+                <Panel title="Activity console" className="se-console-panel">
+                  <div className="se-console-placeholder">
+                    <strong>Select an event to inspect.</strong>
+                    <p>Each event points back to the authoritative page for the report, action, or system that created it.</p>
+                  </div>
+                </Panel>
+              )}
+            </div>
+          </section>
+        ) : view === 'alliance' ? (
+          <section className="se-console-single">
+            <AllianceWire />
+          </section>
+        ) : view === 'notifications' ? (
+          <section className="se-console-work se-console-work--activity">
+            <Panel
+              title="Notifications"
+              aside={notifications ? `${notifications.unreadCount} unread` : 'Loading'}
+              flush
+              className="se-console-listpanel"
+            >
+              {notifications && notifications.unreadCount > 0 ? (
+                <div className="se-console-readall">
+                  <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => void markAllNotificationsRead()}>
+                    Mark all read
+                  </button>
+                </div>
+              ) : null}
+              {!notifications ? <p className="se-muted se-console-pad">Checking notifications...</p> : null}
+              {notifications && notifications.notifications.length === 0 ? (
+                <div className="se-console-empty">
+                  <strong>No recent notifications.</strong>
+                  <span>Important alerts will collect here and in the bell.</span>
+                </div>
+              ) : null}
+              <div className="se-console-list">
+                {notifications?.notifications.map((notification) => {
+                  const summary = notificationSummary(notification);
+                  return (
+                    <button
+                      key={notification.id}
+                      type="button"
+                      className={`se-console-message se-console-event se-console-event--${summary.group}${selectedNotificationId === notification.id ? ' se-console-message--selected' : ''}${notification.readAt ? '' : ' se-console-message--unread'}`}
+                      onClick={() => {
+                        setSelectedNotificationId(notification.id);
+                        void markNotificationRead(notification);
+                      }}
+                    >
+                      <span className="se-console-message__top">
+                        <strong>{summary.title}</strong>
+                        <time>{messageTime(notification.activity.createdAt)}</time>
+                      </span>
+                      <span className="se-console-message__subject">{summary.detail}</span>
+                      <span className="se-console-message__meta">{activityGroupLabel(summary.group)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Panel>
+
+            <div className="se-console-detail">
+              {selectedNotification ? (() => {
+                const summary = notificationSummary(selectedNotification);
+                return (
+                  <Panel
+                    title={summary.title}
+                    aside={selectedNotification.readAt ? 'Read' : 'Unread'}
+                    className="se-console-panel"
+                  >
+                    <article className="se-console-eventdetail">
+                      <strong>{summary.detail}</strong>
+                      <p>{new Date(selectedNotification.activity.createdAt).toLocaleString()}</p>
+                      <div className="se-console-actions">
+                        <Link className="se-btn se-btn--primary se-btn--sm" to={summary.href}>
+                          Open report
+                        </Link>
+                        {!selectedNotification.readAt ? (
+                          <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => void markNotificationRead(selectedNotification)}>
+                            Mark read
+                          </button>
+                        ) : null}
+                      </div>
+                    </article>
+                  </Panel>
+                );
+              })() : (
+                <Panel title="Notification center" className="se-console-panel">
+                  <div className="se-console-placeholder">
+                    <strong>Select an alert to inspect.</strong>
+                    <p>Console alerts use the same durable in-game notifications as the bell.</p>
+                  </div>
+                </Panel>
+              )}
+            </div>
+          </section>
+        ) : view === 'blocked' ? (
           <Panel title="Blocked players" aside={blocks ? `${blocks.blocked.length} current-round` : 'Loading'} className="se-console-panel">
             {!blocks ? <p className="se-muted">Loading blocks...</p> : null}
             {blocks?.blocked.length === 0 ? <p className="se-muted">Nobody in this round is on your block list.</p> : null}

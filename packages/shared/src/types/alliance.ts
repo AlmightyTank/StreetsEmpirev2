@@ -12,6 +12,8 @@ export interface AllianceRulesDto {
   maxPendingInvites: number;
 }
 
+export type AllianceRecruitmentStatusDto = 'CLOSED' | 'INVITE_ONLY' | 'OPEN';
+
 export interface AllianceMemberDto {
   publicPimpId: number;
   displayName: string;
@@ -51,6 +53,9 @@ export interface AllianceDetailDto extends AllianceTagDto {
   isYours: boolean;
   /** 0.3.0-C recruitment thread on the forum, once the leader has posted one. */
   forumUrl: string | null;
+  /** 0.9.0-E leader-managed alliance profile. */
+  description: string;
+  recruitmentStatus: AllianceRecruitmentStatusDto;
 }
 
 export interface AllianceIncomingInviteDto extends AllianceTagDto {

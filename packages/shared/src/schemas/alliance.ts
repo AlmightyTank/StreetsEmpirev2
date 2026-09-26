@@ -4,6 +4,7 @@ export const ALLIANCE_NAME_MIN = 3;
 export const ALLIANCE_NAME_MAX = 32;
 export const ALLIANCE_TAG_MIN = 2;
 export const ALLIANCE_TAG_MAX = 5;
+export const ALLIANCE_DESCRIPTION_MAX = 500;
 
 export const allianceNameSchema = z
   .string({ invalid_type_error: 'Give your alliance a name.' })
@@ -25,6 +26,11 @@ const publicPimpId = z.number({ invalid_type_error: 'Pick a player by pimp numbe
 export const createAllianceSchema = z.object({ name: allianceNameSchema, tag: allianceTagSchema }).strict();
 export const alliancePlayerSchema = z.object({ targetPublicPimpId: publicPimpId }).strict();
 export const allianceInviteAnswerSchema = z.object({ tag: allianceTagSchema }).strict();
+export const allianceRecruitmentStatusSchema = z.enum(['CLOSED', 'INVITE_ONLY', 'OPEN']);
+export const allianceSettingsSchema = z.object({
+  description: z.string().trim().max(ALLIANCE_DESCRIPTION_MAX, `Keep the description under ${ALLIANCE_DESCRIPTION_MAX} characters.`).default(''),
+  recruitmentStatus: allianceRecruitmentStatusSchema.default('CLOSED'),
+}).strict();
 
 export const ALLIANCE_PITCH_MAX = 500;
 export const allianceForumPostSchema = z.object({
@@ -35,3 +41,4 @@ export type AllianceForumPostInputDto = z.infer<typeof allianceForumPostSchema>;
 export type CreateAllianceInputDto = z.infer<typeof createAllianceSchema>;
 export type AlliancePlayerInputDto = z.infer<typeof alliancePlayerSchema>;
 export type AllianceInviteAnswerInputDto = z.infer<typeof allianceInviteAnswerSchema>;
+export type AllianceSettingsInputDto = z.infer<typeof allianceSettingsSchema>;

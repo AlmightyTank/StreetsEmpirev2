@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import type { PlayerActivityBand, PlayerDirectoryDto, PlayerDirectoryView } from '@streets/shared';
+import type { ContactKindDto, PlayerActivityBand, PlayerDirectoryDto, PlayerDirectoryView } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { contactsApi, playersApi } from '../api/playing-together.js';
@@ -58,11 +58,11 @@ export function PlayersPage() {
     setSubmittedQuery(query.trim());
   }
 
-  async function addContact(publicPimpId: number) {
+  async function addContact(publicPimpId: number, kind: ContactKindDto = 'CONTACT') {
     setBusyPlayer(publicPimpId);
     setError(null);
     try {
-      await contactsApi.add(publicPimpId);
+      await contactsApi.add(publicPimpId, undefined, kind);
       setData((current) => current ? {
         ...current,
         contactSlots: { ...current.contactSlots, used: Math.min(current.contactSlots.max, current.contactSlots.used + 1) },
@@ -71,7 +71,7 @@ export function PlayersPage() {
           : player),
       } : current);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not add that player to your contacts.');
+      setError(caught instanceof ApiError ? caught.message : `Could not add that player as ${kind === 'ENEMY' ? 'an enemy' : 'a contact'}.`);
     } finally {
       setBusyPlayer(null);
     }
@@ -232,6 +232,22 @@ export function PlayersPage() {
                                 onClick={() => void addContact(player.publicPimpId)}
                               >
                                 Add contact
+                              </Button>
+                            ) : null}
+                            {!player.isYou && !player.isContact ? (
+                              <Button
+                                type="button"
+                                className="se-btn se-btn--ghost se-btn--sm"
+                                disabledReason={
+                                  busyPlayer === player.publicPimpId
+                                    ? 'Adding...'
+                                    : data.contactSlots.used >= data.contactSlots.max
+                                      ? 'Your contacts are full.'
+                                      : null
+                                }
+                                onClick={() => void addContact(player.publicPimpId, 'ENEMY')}
+                              >
+                                Add enemy
                               </Button>
                             ) : null}
                           </span>

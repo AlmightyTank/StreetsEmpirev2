@@ -1,8 +1,12 @@
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { ActivityType, PlayerActivity, Prisma, PrismaClient } from '@prisma/client';
 import {
+  CONSOLE_ACTIVITY_PAGE_SIZE,
   MESSAGE_PAGE_SIZE,
   type ArchiveDirectMessageInput,
   type BlockedPlayerDto,
+  type ConsoleActivityDto,
+  type ConsoleActivityEntryDto,
+  type ConsoleActivityFilter,
   type ConsoleBlocksDto,
   type ConsoleCountsDto,
   type ConsoleFolder,
@@ -14,6 +18,7 @@ import {
 } from '@streets/shared';
 import { lockAccount } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import { toActivityDto } from '../game/dto.js';
 import { RoundService } from './round.service.js';
 
 const SEND_MIN_INTERVAL_MS = 5_000;
@@ -50,6 +55,31 @@ const messageSelect = {
 } satisfies Prisma.DirectMessageSelect;
 
 type MessageRow = Prisma.DirectMessageGetPayload<{ select: typeof messageSelect }>;
+type ConsoleActivityGroup = Exclude<ConsoleActivityFilter, 'all'>;
+
+const ACTIVITY_GROUPS: ConsoleActivityGroup[] = [
+  'combat',
+  'turf',
+  'travel',
+  'market',
+  'progress',
+  'street',
+  'system',
+];
+
+const ACTIVITY_GROUP_TYPES: Record<ConsoleActivityGroup, ActivityType[]> = {
+  combat: ['RAID_ATTACK', 'RAID_DEFENSE', 'DRIVE_BY_ATTACK', 'DRIVE_BY_DEFENSE', 'COMBAT_TREATMENT', 'COMBAT_RECON', 'BATTLE_VOIDED'],
+  turf: ['TURF_CLAIM', 'TURF_POST', 'TURF_PULL', 'TURF_PUSH', 'TURF_PUSH_BACKUP', 'TURF_PUSH_ATTACK', 'TURF_PUSH_DEFENSE', 'TURF_OUTPOST_ESTABLISH', 'TURF_OUTPOST_TRANSFER'],
+  travel: ['RUN_LAUNCHED', 'RUN_RETURNED', 'RUN_INCIDENT', 'RELOCATION_STARTED', 'RELOCATED', 'CONVOY_TAIL', 'CONVOY_ATTACK', 'CONVOY_DEFENSE', 'CONVOY_BACKUP'],
+  market: ['STORE_BUY', 'STORE_SELL'],
+  progress: ['QUEST_OBJECTIVE_COMPLETE', 'QUEST_READY', 'QUEST_CLAIMED', 'FAVOR_ACTIVATED', 'FAVOR_ARMED', 'FAVOR_DISARMED', 'HIDEOUT_UPGRADE', 'WEAPON_UNLOCK'],
+  street: ['SCOUT', 'WORK_STREETS', 'PRODUCE_CRACK', 'HEAT_BRIBE', 'PAYOUT_CHANGE'],
+  system: ['ROUND_JOINED', 'AWAY_BONUS', 'ADMIN_GRANT'],
+};
+
+const ACTIVITY_GROUP_BY_TYPE = new Map<ActivityType, ConsoleActivityGroup>(
+  ACTIVITY_GROUPS.flatMap((group) => ACTIVITY_GROUP_TYPES[group].map((type) => [type, group] as const)),
+);
 
 async function currentPlayer(prisma: PrismaClient, accountId: string) {
   const round = await RoundService.requireCurrent(prisma);
@@ -145,6 +175,89 @@ function messageDto(
   };
 }
 
+function activityGroup(type: ActivityType): ConsoleActivityGroup {
+  return ACTIVITY_GROUP_BY_TYPE.get(type) ?? 'system';
+}
+
+function activityHref(row: { type: ActivityType; payload: Prisma.JsonValue }): string {
+  const group = activityGroup(row.type);
+  const payload = row.payload && typeof row.payload === 'object' && !Array.isArray(row.payload)
+    ? row.payload as Record<string, unknown>
+    : {};
+
+  if (row.type === 'COMBAT_TREATMENT') return '/game/combat#recovery';
+  if (row.type === 'COMBAT_RECON') return '/game/combat#intel';
+  if (row.type === 'HIDEOUT_UPGRADE') return '/game/hideout';
+  if (row.type === 'WEAPON_UNLOCK') return '/game/stores/tommy';
+  if (row.type.startsWith('QUEST_') || row.type.startsWith('FAVOR_')) return '/game/quests';
+  if (row.type.startsWith('STORE_')) {
+    const store = typeof payload.storeKey === 'string' ? payload.storeKey : null;
+    return store ? `/game/stores/${encodeURIComponent(store)}` : '/game/stores';
+  }
+  if (group === 'combat') return '/game/combat';
+  if (group === 'turf') {
+    const city = typeof payload.city === 'string' ? payload.city : null;
+    return city ? `/game/turf?city=${encodeURIComponent(city)}` : '/game/turf';
+  }
+  if (group === 'travel') return '/game/travel';
+  if (group === 'market') return '/game/stores';
+  if (group === 'progress') return '/game/quests';
+  if (group === 'street') {
+    if (row.type === 'PRODUCE_CRACK') return '/game/produce';
+    if (row.type === 'HEAT_BRIBE') return '/game#heat';
+    return '/game/scout';
+  }
+  return '/game/activity';
+}
+
+function activityEntry(row: PlayerActivity): ConsoleActivityEntryDto {
+  return {
+    activity: toActivityDto(row),
+    group: activityGroup(row.type),
+    href: activityHref(row),
+  };
+}
+
+async function consoleCounts(
+  prisma: PrismaClient,
+  owner: Awaited<ReturnType<typeof currentPlayer>>,
+): Promise<ConsoleCountsDto> {
+  const [inbox, unread, sent, archived, blocked, notifications, activity, attacks] = await Promise.all([
+    prisma.directMessage.count({
+      where: { recipientId: owner.id, recipientArchivedAt: null },
+    }),
+    prisma.directMessage.count({
+      where: { recipientId: owner.id, recipientArchivedAt: null, readAt: null },
+    }),
+    prisma.directMessage.count({
+      where: { senderId: owner.id, senderArchivedAt: null },
+    }),
+    prisma.directMessage.count({
+      where: folderWhere('archived', owner.id),
+    }),
+    prisma.playerBlock.count({
+      where: {
+        blockerAccountId: owner.accountId,
+        blocked: {
+          isActive: true,
+          roundPlayers: { some: { roundId: owner.roundId } },
+        },
+      },
+    }),
+    prisma.inAppNotification.count({
+      where: { roundPlayerId: owner.id, readAt: null },
+    }),
+    prisma.playerActivity.count({
+      where: { roundPlayerId: owner.id },
+    }),
+    prisma.playerActivity.count({
+      where: { roundPlayerId: owner.id, type: { in: ACTIVITY_GROUP_TYPES.combat } },
+    }),
+  ]);
+
+  return { inbox, unread, sent, archived, blocked, notifications, activity, attacks };
+}
+
 async function decorateMessages(
   prisma: PrismaClient,
   owner: Awaited<ReturnType<typeof currentPlayer>>,
@@ -229,29 +342,10 @@ export const PimpConsoleService = {
     requestedPage = 1,
   ): Promise<PimpConsoleDto> {
     const owner = await currentPlayer(prisma, accountId);
-    const archivedWhere = folderWhere('archived', owner.id);
     const currentWhere = folderWhere(folder, owner.id);
 
-    const [inbox, unread, sent, archived, blocked, total] = await Promise.all([
-      prisma.directMessage.count({
-        where: { recipientId: owner.id, recipientArchivedAt: null },
-      }),
-      prisma.directMessage.count({
-        where: { recipientId: owner.id, recipientArchivedAt: null, readAt: null },
-      }),
-      prisma.directMessage.count({
-        where: { senderId: owner.id, senderArchivedAt: null },
-      }),
-      prisma.directMessage.count({ where: archivedWhere }),
-      prisma.playerBlock.count({
-        where: {
-          blockerAccountId: owner.accountId,
-          blocked: {
-            isActive: true,
-            roundPlayers: { some: { roundId: owner.roundId } },
-          },
-        },
-      }),
+    const [counts, total] = await Promise.all([
+      consoleCounts(prisma, owner),
       prisma.directMessage.count({ where: currentWhere }),
     ]);
 
@@ -267,7 +361,7 @@ export const PimpConsoleService = {
 
     return {
       folder,
-      counts: { inbox, unread, sent, archived, blocked },
+      counts,
       page,
       pageSize: MESSAGE_PAGE_SIZE,
       total,
@@ -281,30 +375,59 @@ export const PimpConsoleService = {
     accountId: string,
   ): Promise<ConsoleCountsDto> {
     const owner = await currentPlayer(prisma, accountId);
-    const [inbox, unread, sent, archived, blocked] = await Promise.all([
-      prisma.directMessage.count({
-        where: { recipientId: owner.id, recipientArchivedAt: null },
-      }),
-      prisma.directMessage.count({
-        where: { recipientId: owner.id, recipientArchivedAt: null, readAt: null },
-      }),
-      prisma.directMessage.count({
-        where: { senderId: owner.id, senderArchivedAt: null },
-      }),
-      prisma.directMessage.count({
-        where: folderWhere('archived', owner.id),
-      }),
-      prisma.playerBlock.count({
-        where: {
-          blockerAccountId: owner.accountId,
-          blocked: {
-            isActive: true,
-            roundPlayers: { some: { roundId: owner.roundId } },
-          },
-        },
+    return consoleCounts(prisma, owner);
+  },
+
+  async activity(
+    prisma: PrismaClient,
+    accountId: string,
+    filter: ConsoleActivityFilter,
+    requestedPage = 1,
+  ): Promise<ConsoleActivityDto> {
+    const owner = await currentPlayer(prisma, accountId);
+    const typeFilter = filter === 'all' ? undefined : ACTIVITY_GROUP_TYPES[filter];
+    const where: Prisma.PlayerActivityWhereInput = {
+      roundPlayerId: owner.id,
+      ...(typeFilter ? { type: { in: typeFilter } } : {}),
+    };
+
+    const [total, grouped] = await Promise.all([
+      prisma.playerActivity.count({ where }),
+      prisma.playerActivity.groupBy({
+        by: ['type'],
+        where: { roundPlayerId: owner.id },
+        _count: { _all: true },
       }),
     ]);
-    return { inbox, unread, sent, archived, blocked };
+
+    const counts = Object.fromEntries([
+      ['all', 0],
+      ...ACTIVITY_GROUPS.map((group) => [group, 0]),
+    ]) as Record<ConsoleActivityFilter, number>;
+    for (const row of grouped) {
+      const size = row._count._all;
+      counts.all += size;
+      counts[activityGroup(row.type)] += size;
+    }
+
+    const totalPages = Math.max(1, Math.ceil(total / CONSOLE_ACTIVITY_PAGE_SIZE));
+    const page = Math.min(Math.max(1, requestedPage), totalPages);
+    const rows = await prisma.playerActivity.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      skip: (page - 1) * CONSOLE_ACTIVITY_PAGE_SIZE,
+      take: CONSOLE_ACTIVITY_PAGE_SIZE,
+    });
+
+    return {
+      filter,
+      counts,
+      page,
+      pageSize: CONSOLE_ACTIVITY_PAGE_SIZE,
+      total,
+      totalPages,
+      events: rows.map(activityEntry),
+    };
   },
 
   async send(

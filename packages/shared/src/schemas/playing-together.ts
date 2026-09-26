@@ -9,6 +9,12 @@ export const wirePostSchema = z.object({
     .trim()
     .min(1, 'Write something first.')
     .max(WIRE_POST_MAX, `Keep wire posts under ${WIRE_POST_MAX} characters.`),
+  kind: z.enum(['MESSAGE', 'ANNOUNCEMENT']).default('MESSAGE'),
+  pinned: z.boolean().default(false),
+}).strict();
+
+export const wirePinSchema = z.object({
+  pinned: z.boolean().default(true),
 }).strict();
 
 export const wireRemoveSchema = z.object({
@@ -16,16 +22,21 @@ export const wireRemoveSchema = z.object({
 }).strict();
 
 export const contactNoteSchema = z.string().trim().max(CONTACT_NOTE_MAX, `Keep notes under ${CONTACT_NOTE_MAX} characters.`);
+export const contactKindSchema = z.enum(['CONTACT', 'ENEMY']);
 
 export const addContactSchema = z.object({
   targetPublicPimpId: publicPimpId,
+  kind: contactKindSchema.default('CONTACT'),
   note: contactNoteSchema.optional(),
 }).strict();
 
 export const updateContactSchema = z.object({ note: contactNoteSchema }).strict();
+export const updateContactKindSchema = z.object({ kind: contactKindSchema }).strict();
 
 export type WirePostInputDto = z.infer<typeof wirePostSchema>;
+export type WirePinInputDto = z.infer<typeof wirePinSchema>;
 export type AddContactInputDto = z.infer<typeof addContactSchema>;
+export type UpdateContactKindInputDto = z.infer<typeof updateContactKindSchema>;
 
 const productKey = z.string().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.');
 

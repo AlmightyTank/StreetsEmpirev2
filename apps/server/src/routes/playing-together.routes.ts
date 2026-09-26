@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, heatBribeSchema, travelRoutesSchema, productTradeSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushSchema, turfPushBackupSchema, turfPushCallSchema, runOutpostEstablishSchema, runOutpostTransferSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, heatBribeSchema, travelRoutesSchema, productTradeSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushSchema, turfPushBackupSchema, turfPushCallSchema, runOutpostEstablishSchema, runOutpostTransferSchema, workSupplyClearSchema, updateContactKindSchema, updateContactSchema, wirePinSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
 import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
@@ -48,6 +48,11 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
   app.post('/alliance/wire/:postId/remove', { preHandler: app.requireAuth }, async (request) => {
     const { postId } = parseBody(postParams, request.params);
     return WireService.remove(app.prisma, await me(request.auth!.account.id), postId);
+  });
+
+  app.post('/alliance/wire/:postId/pin', { preHandler: app.requireAuth }, async (request) => {
+    const { postId } = parseBody(postParams, request.params);
+    return WireService.pin(app.prisma, await me(request.auth!.account.id), postId, parseBody(wirePinSchema, request.body ?? {}));
   });
 
   /** 0.5.0-A: every city's character, Pip's usual supply there and the roads, from home. */
@@ -169,6 +174,11 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
   app.post('/contacts/:publicPimpId/note', { preHandler: app.requireAuth }, async (request) => {
     const { publicPimpId } = parseBody(pimpParams, request.params);
     return ContactsService.updateNote(app.prisma, await me(request.auth!.account.id), publicPimpId, parseBody(updateContactSchema, request.body ?? {}));
+  });
+
+  app.post('/contacts/:publicPimpId/kind', { preHandler: app.requireAuth }, async (request) => {
+    const { publicPimpId } = parseBody(pimpParams, request.params);
+    return ContactsService.updateKind(app.prisma, await me(request.auth!.account.id), publicPimpId, parseBody(updateContactKindSchema, request.body ?? {}));
   });
 
   app.post('/contacts/:publicPimpId/remove', { preHandler: app.requireAuth }, async (request) => {

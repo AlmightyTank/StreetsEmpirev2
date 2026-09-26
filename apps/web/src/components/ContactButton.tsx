@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { ContactLookupDto } from '@streets/shared';
+import type { ContactKindDto, ContactLookupDto } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { contactsApi } from '../api/playing-together.js';
 import { Button } from './Button.js';
@@ -19,11 +19,11 @@ export function ContactButton({ publicPimpId }: { publicPimpId: number }) {
   if (!state || state.isYou) return null;
   if (state.contact) return <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/contacts">In your contacts</Link>;
 
-  async function add() {
+  async function add(kind: ContactKindDto) {
     setBusy(true);
     setError(null);
     try {
-      await contactsApi.add(publicPimpId);
+      await contactsApi.add(publicPimpId, undefined, kind);
       setState(await contactsApi.lookup(publicPimpId));
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not add them.');
@@ -36,8 +36,13 @@ export function ContactButton({ publicPimpId }: { publicPimpId: number }) {
     <span className="se-inline-actions" title={error ?? undefined}>
       <Button type="button" className="se-btn se-btn--ghost se-btn--sm"
         disabledReason={busy ? 'Adding...' : state.full ? 'Your contacts are full.' : null}
-        onClick={() => void add()}>
+        onClick={() => void add('CONTACT')}>
         Add to contacts
+      </Button>
+      <Button type="button" className="se-btn se-btn--ghost se-btn--sm"
+        disabledReason={busy ? 'Adding...' : state.full ? 'Your contacts are full.' : null}
+        onClick={() => void add('ENEMY')}>
+        Add enemy
       </Button>
       {error ? <span className="se-error">{error}</span> : null}
     </span>

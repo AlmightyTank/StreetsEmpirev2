@@ -7,22 +7,82 @@ export const WIRE_PAGE_SIZE = 50;
 export const CONTACTS_MAX = 100;
 export const CONTACT_NOTE_MAX = 280;
 
+export type ContactKindDto = 'CONTACT' | 'ENEMY';
+export type ContactCategoryDto = ContactKindDto | 'ALLIANCE' | 'BLOCKED';
+export type WirePostKindDto = 'MESSAGE' | 'ANNOUNCEMENT';
+
+export type AllianceCoordinationCardKindDto =
+  | 'SHARED_RECON'
+  | 'TURF_ACTIVITY'
+  | 'REINFORCEMENT_REQUEST'
+  | 'CONVOY_SIGHTING'
+  | 'CITY_CONTROL'
+  | 'RECRUITMENT';
+
+export interface AllianceCoordinationCardDto {
+  id: string;
+  kind: AllianceCoordinationCardKindDto;
+  title: string;
+  detail: string;
+  at: string;
+  actionLabel: string;
+  href: string;
+  tone: 'info' | 'warn' | 'good';
+}
+
+export interface ContactIntelDto {
+  payback: {
+    available: boolean;
+    until: string | null;
+    source: 'direct' | 'alliance' | null;
+  };
+  sharedAlliance: boolean;
+  lastBattle: {
+    kind: string;
+    at: string;
+    role: 'ATTACKER' | 'DEFENDER';
+    won: boolean;
+    cashChangeCents: number;
+    yourWounds: number;
+    opponentWounds: number;
+  } | null;
+  lastRecon: {
+    at: string;
+    expiresAt: string;
+    strengthBand: 'Weaker' | 'Comparable' | 'Stronger' | 'Unknown';
+    strength: number;
+    cashBand: string;
+  } | null;
+  turf: {
+    lastAt: string | null;
+    blocksWon: number;
+    blocksLost: number;
+  };
+}
+
 export interface WirePostDto {
   id: string;
   author: { publicPimpId: number; displayName: string };
   body: string;
+  kind: WirePostKindDto;
+  pinned: boolean;
   createdAt: string;
   /** You wrote it, or you lead the alliance. */
   canRemove: boolean;
+  /** Only leaders can pin announcements. */
+  canPin: boolean;
   isYours: boolean;
 }
 
 /** GET /api/game/alliance/wire - only for current members. */
 export interface AllianceWireDto {
+  pinnedAnnouncement: WirePostDto | null;
+  cards: AllianceCoordinationCardDto[];
   posts: WirePostDto[];
   nextBefore: string | null;
   /** Set while your last post is still cooling down. */
   cooldownUntil: string | null;
+  canPostAnnouncement: boolean;
   roundOpen: boolean;
 }
 
@@ -30,8 +90,12 @@ export interface ContactDto {
   publicPimpId: number;
   displayName: string;
   alliance: AllianceTagDto | null;
+  kind: ContactKindDto;
+  categories: ContactCategoryDto[];
+  blocked: boolean;
   note: string;
   addedAt: string;
+  intel: ContactIntelDto;
   /** Their public standing right now. Null once the account is no longer active. */
   standing: {
     netWorthCents: number;
@@ -41,8 +105,18 @@ export interface ContactDto {
   } | null;
 }
 
+export interface BlockedRolodexDto {
+  publicPimpId: number;
+  displayName: string;
+  alliance: AllianceTagDto | null;
+  blockedAt: string;
+  isContact: boolean;
+}
+
 export interface ContactsDto {
   contacts: ContactDto[];
+  blocked: BlockedRolodexDto[];
+  counts: Record<ContactCategoryDto | 'ALL', number>;
   max: number;
 }
 
@@ -97,6 +171,8 @@ export interface AdminWirePostDto {
   id: string;
   author: { publicPimpId: number; displayName: string; roundPlayerId: string };
   body: string;
+  kind: WirePostKindDto;
+  pinned: boolean;
   createdAt: string;
   removedAt: string | null;
   removedByName: string | null;

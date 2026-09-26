@@ -213,6 +213,16 @@ The first Console slice builds the private-message core before folding the exist
 
 B1 intentionally does **not** duplicate Alliance Wire, attack history, or the existing notification bell. Those become Console integrations in later B/C slices. Per-side delete/hide beyond archive and the admin moderation queue are also follow-up work; report data is persisted now so moderation does not need a schema redesign.
 
+### 0.9.0-B/C acceptance closure
+
+Before continuing deeper into 0.9.0-D, the Console was brought back to the B/C acceptance shape:
+
+- the top-level Console now includes Inbox, Sent, Alliance, Attacks, Notifications, Activity, Archived and Blocked lanes;
+- Alliance reuses the existing member-only Alliance Wire instead of creating a parallel communication channel;
+- Attacks is a dedicated combat-filtered activity lane, while Activity remains the broader grouped event history;
+- Notifications reuses the durable in-game notification inbox, supports read and mark-all-read actions, and opens the same authoritative destinations as the notification bell;
+- Console summary counts and the main navigation badge now include unread notification items as well as unread private mail.
+
 ### Done when
 
 - Messages cannot be duplicated by retries.
@@ -273,6 +283,16 @@ Combine important events from the existing game into one chronological history.
 
 Clicking an event should open the authoritative report or relevant page rather than duplicating all information.
 
+### 0.9.0-C implementation start
+
+The first Activity & Attack Console slice folds the existing private activity ledger into the Pimp Console:
+
+- current-round activity is available from a paginated Console activity endpoint;
+- events are grouped into Combat, Turf, Travel, Market, Progress, Street and System lanes;
+- Console summary counts now include activity and attack/combat totals for the top-level Console view;
+- the Console UI has a dedicated Activity tab with lane filters, event summaries and links back to the authoritative report or owning feature page;
+- this slice intentionally does not create new event storage or duplicate full combat/turf/travel reports.
+
 ### Done when
 
 A player can understand what happened to their operation while they were away without checking six different pages.
@@ -317,6 +337,19 @@ Where legitimately known, show:
 - Last known strength band
 
 Never expose live information simply because someone is in the Rolodex.
+
+### 0.9.0-D implementation complete
+
+The Rolodex & Street Intelligence slice expands the existing contacts system without creating a parallel intel store:
+
+- rolodex entries now have an explicit player-chosen lane: Contact or Enemy;
+- Alliance and Blocked lanes are derived from current alliance membership and account-level blocks;
+- the Contacts page exposes category filters for All, Contacts, Enemies, Alliance and Blocked players;
+- contact cards show private notes plus earned relationship context from battles, active recon, payback windows, current shared-alliance context and settled turf pushes the player participated in;
+- recon is summarized as a strength band in the Rolodex instead of turning saved contacts into live free recon;
+- blocked players in the current round are visible from the Rolodex, with block management remaining in the Console;
+- player directory and profile actions can add either Contacts or Enemies, while Rolodex rows link back to Profile, Console messaging and Combat for authoritative actions;
+- this slice intentionally does not store recon snapshots in contacts or reveal live hidden state merely because someone is tracked.
 
 ### Done when
 
@@ -369,6 +402,13 @@ The existing combat/turf system remains authoritative.
 ### Done when
 
 Alliance members can coordinate routine gameplay without requiring Discord.
+
+### 0.9.0-E implementation complete
+
+- Alliance profile now has leader-managed description and recruitment status.
+- Alliance Wire is promoted to an in-game Alliance Console with leader announcements, one pinned announcement, message moderation, and admin visibility for announcement/pin state.
+- Console payload now includes actionable coordination cards for shared recon, turf pushes/reinforcement calls, convoy calls, city-control changes, and recruitment notices while keeping combat/turf/convoy systems authoritative.
+- Alliance page and public alliance detail surface recruitment posture and crew description.
 
 ---
 

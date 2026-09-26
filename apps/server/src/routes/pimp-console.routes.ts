@@ -14,6 +14,11 @@ const consoleQuery = z.object({
   page: z.coerce.number().int().min(1).max(10_000).default(1),
 }).strict();
 
+const consoleActivityQuery = z.object({
+  filter: z.enum(['all', 'combat', 'turf', 'travel', 'market', 'progress', 'street', 'system']).default('all'),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+}).strict();
+
 const messageParams = z.object({
   messageId: z.string().trim().min(1).max(64),
 }).strict();
@@ -33,6 +38,16 @@ const pimpConsoleRoutes: FastifyPluginAsync = async (app) => {
       app.prisma,
       request.auth!.account.id,
       query.folder,
+      query.page,
+    );
+  });
+
+  app.get('/console/activity', { preHandler: app.requireAuth }, async (request) => {
+    const query = parseBody(consoleActivityQuery, request.query);
+    return PimpConsoleService.activity(
+      app.prisma,
+      request.auth!.account.id,
+      query.filter,
       query.page,
     );
   });

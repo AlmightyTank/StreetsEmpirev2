@@ -1,4 +1,6 @@
 import type {
+  ConsoleActivityDto,
+  ConsoleActivityFilter,
   ConsoleBlocksDto,
   ConsoleCountsDto,
   ConsoleFolder,
@@ -20,6 +22,9 @@ export const consoleApi = {
 
   page: (folder: ConsoleFolder = 'inbox', page = 1) =>
     api.get<PimpConsoleDto>(`/game/console?folder=${encodeURIComponent(folder)}&page=${page}`),
+
+  activity: (filter: ConsoleActivityFilter = 'all', page = 1) =>
+    api.get<ConsoleActivityDto>(`/game/console/activity?filter=${encodeURIComponent(filter)}&page=${page}`),
 
   send: (input: {
     recipientPublicPimpId: number;
