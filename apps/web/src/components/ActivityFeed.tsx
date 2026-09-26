@@ -2,6 +2,12 @@ import type { ActivityDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { useSession } from '../stores/session.js';
 
+/** 0.9.0-G. When a pending push, tail or window happens, in the player's own clock. */
+function atTime(iso: string): string {
+  const at = new Date(iso);
+  return Number.isNaN(at.getTime()) ? 'soon' : `at ${at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+}
+
 function num(value: unknown, fallback = 0): number {
   return typeof value === 'number' ? value : fallback;
 }
@@ -271,6 +277,42 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         ].filter(Boolean).join(' · '),
       };
 
+    // 0.9.0-G clock events. None of them names who is pushing or tailing: the game never says.
+    case 'TURF_PUSH_INCOMING':
+      return {
+        text: `Your Lookouts spotted a push on your ${str(p.cityName, 'city')} ${str(p.districtName, 'block')} block.`,
+        detail: p.landsAt ? `It lands ${atTime(str(p.landsAt))}. Hold it or call your alliance.` : '',
+      };
+
+    case 'ALLIANCE_CALL':
+      return p.kind === 'convoy'
+        ? {
+          text: `${str(p.ally, 'An ally')} called for backup: their run is being tailed near ${str(p.cityName, 'town')}.`,
+          detail: p.landsAt ? `The hit lands ${atTime(str(p.landsAt))}.` : '',
+        }
+        : {
+          text: `${str(p.ally, 'An ally')} called for backup on their ${str(p.cityName, 'city')} ${str(p.districtName, 'block')} block.`,
+          detail: p.landsAt ? `The push lands ${atTime(str(p.landsAt))}.` : '',
+        };
+
+    case 'CONVOY_TAILED':
+      return {
+        text: `Your Lookouts spotted a tail on your run near ${str(p.cityName, 'town')}.`,
+        detail: p.landsAt ? `The hit lands ${atTime(str(p.landsAt))}.` : '',
+      };
+
+    case 'REVENGE_EXPIRING':
+      return {
+        text: `Your revenge against ${str(p.attacker, 'your attacker')} expires soon.`,
+        detail: p.expiresAt ? `The window closes ${atTime(str(p.expiresAt))}.` : '',
+      };
+
+    case 'SPECIAL_ORDER_READY':
+      return {
+        text: `Your special order of ${str(p.item, 'stock')} arrived at ${str(p.store, 'the store')}.`,
+        detail: 'It is on the shelf now.',
+      };
+
     case 'RUN_LAUNCHED':
       return { text: `Sent a run to ${str(p.cityName, 'another city')}.`, detail: `${formatNumber(num(p.turns))} turns` };
 
@@ -414,6 +456,11 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     TURF_PUSH_DEFENSE: 'Turf defense',
     TURF_OUTPOST_ESTABLISH: 'Outpost established',
     TURF_OUTPOST_TRANSFER: 'Outpost transfer',
+    TURF_PUSH_INCOMING: 'Push spotted',
+    ALLIANCE_CALL: 'Backup call',
+    CONVOY_TAILED: 'Tail spotted',
+    REVENGE_EXPIRING: 'Revenge expiring',
+    SPECIAL_ORDER_READY: 'Special order',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();
 }

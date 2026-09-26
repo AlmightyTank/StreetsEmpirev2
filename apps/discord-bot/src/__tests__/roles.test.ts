@@ -14,7 +14,7 @@ describe('managedRoles', () => {
   it('owns the fixed roles plus one "Forum <group>" role per configured group', () => {
     const roles = managedRoles(['Admin']);
     expect(roles.map((role) => role.name)).toEqual([
-      'Linked', 'Player', 'National #1', 'Top 10', 'Veteran', 'Top Finisher', 'Past Winner', 'Hall of Fame', 'Forum Admin',
+      'Linked', 'Player', 'National #1', 'Top 10', 'Veteran', 'Top Finisher', 'Past Winner', 'Hall of Fame', 'Kingpin', 'Forum Admin',
     ]);
     expect(roles.at(-1)!.key).toBe('forum:admin');
   });

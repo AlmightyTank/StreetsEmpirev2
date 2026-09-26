@@ -577,6 +577,35 @@ Allow:
 
 A player can safely leave the game and receive useful alerts without receiving spam.
 
+### 0.9.0-G implementation complete
+
+G builds on the alert pipeline that already existed (collector → outbox → Discord DMs and Web Push, plus the in-game bell) instead of adding a second one.
+
+**Categories.** There are fourteen, and each has its own outside-alert switch. They default to off, like the originals.
+
+| Category | When | Bell | Rule that keeps it honest |
+|---|---|---|---|
+| Attacks on me | a raid or drive-by hits you | yes | unchanged |
+| Block being pushed | your Lookouts spot a push on your block | yes | the turf page's own `headsUpMinutes(lookouts)` rule; never names the attacker, because the game doesn't; no Lookouts means no early warning |
+| My turf | a block is taken | yes | unchanged |
+| Backup calls | an ally in your city calls for help on turf or a run | yes | only after they call, only members in that city (the same people who can see and answer the call); no attacker names |
+| Alliance control | your alliance gains or loses a city | — | unchanged |
+| Convoy danger | your Lookouts spot a tail on your run | yes | ConvoyService's heads-up rule; never names the tailer |
+| Runs home | a run makes it home | yes | runs are now settled on time by the alerts pass, exactly as the owner's next page load would |
+| Revenge expiring | 2 hours before a revenge window closes | yes | skipped if they hit you again (the window moved) or you already hit back |
+| Special orders | a trader order lands on the shelf | yes | scheduled inside the order's own transaction |
+| Alliance announcements | a leader posts an announcement | — | current members who had joined by then, not the author |
+| Private messages | someone messages you | — | sender name only; subject and body never go to a lock screen; skipped if already read |
+| Turns full, rank drops, round news | as before | — | unchanged |
+
+- **Clock events.** Pushes, tails, runs, revenge and orders happen by the clock, not by a write, so the alerts poller now runs on every server, with or without push keys or a Discord bot. Each source row carries its own "alerted" marker (`defenderAlertedAt`, `alliesAlertedAt`, `ownerAlertedAt`, `homeAlertedAt`, `revengeAlertedAt`, `alertsCollectedAt`, and `ScheduledAlert.firedAt`). A pass is therefore idempotent, and the outbox dedupe key is a second guard. The migration marks history as already alerted so deploying does not flood anyone. New activity types (`TURF_PUSH_INCOMING`, `ALLIANCE_CALL`, `REVENGE_EXPIRING`, `SPECIAL_ORDER_READY`, and the previously unused `CONVOY_TAILED`) put these events in the bell, Activity and the Console lanes.
+- **Bell controls.** Every category with bell items can be muted there. Muting hides those items from the bell, the unread count, the Console badge and live toasts; the events stay in Activity. System events (quests, away bonus, admin grants) always show.
+- **Quiet controls.** A master switch pauses every outside alert without losing category choices. Quiet hours take a start, an end and an IANA time zone, and may wrap past midnight. Nothing goes to phone or Discord inside the window, while the bell keeps recording. The existing push and Discord channel switches remain the push toggle.
+- **Discord.** The six original `/alerts` types are unchanged. The new categories reach linked Discord accounts as already-worded `notices` in the alerts claim. An older bot ignores them, and the updated bot DMs them as simple embeds.
+- **Settings.** Account → Alerts shows the categories grouped by Combat & turf, Alliance & messages, Travel & economy, and Round, each with a Bell column and a Phone & Discord column, plus the master switch and quiet hours.
+
+`GAME_ALERTS_INTEGRATION=1` runs the PostgreSQL coverage: the Lookouts timing for pushes and tails, no attacker names, allies by city, revenge used or extended, special orders, messages without content, announcements, runs home, once-only delivery, pause, quiet hours and bell mutes.
+
 ---
 
 ## 0.9.0-H — Moderation, Abuse Prevention & Release

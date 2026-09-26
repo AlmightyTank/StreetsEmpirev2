@@ -1,5 +1,11 @@
 import type { ActivityType, Prisma, PrismaClient } from '@prisma/client';
-import type { ActivityDto, InAppNotificationFeedDto } from '@streets/shared';
+import {
+  BELL_CATEGORIES,
+  bellMutedActivityTypes,
+  type ActivityDto,
+  type InAppNotificationFeedDto,
+  type NotificationCategory,
+} from '@streets/shared';
 import type { Db } from '../utils/db.js';
 
 const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
@@ -18,6 +24,12 @@ const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
   'TURF_CLAIM',
   'TURF_PUSH_ATTACK',
   'TURF_PUSH_BACKUP',
+  // 0.9.0-G clock events from the alert collector.
+  'CONVOY_TAILED',
+  'TURF_PUSH_INCOMING',
+  'ALLIANCE_CALL',
+  'REVENGE_EXPIRING',
+  'SPECIAL_ORDER_READY',
 ]);
 
 function objectPayload(payload: Prisma.InputJsonValue): Record<string, unknown> {
@@ -100,6 +112,27 @@ async function currentRoundPlayerId(prisma: PrismaClient, accountId: string, now
   return registration?.id ?? null;
 }
 
+/**
+ * 0.9.0-G. The bell rows an account wants to see: categories they muted drop out of
+ * the bell and its unread count, while the events stay in their Activity history.
+ */
+async function mutedCategories(prisma: PrismaClient, accountId: string): Promise<NotificationCategory[]> {
+  const settings = await prisma.notificationSettings.findUnique({ where: { accountId }, select: { bellMuted: true } });
+  const muted = Array.isArray(settings?.bellMuted) ? settings.bellMuted : [];
+  return BELL_CATEGORIES.filter((category) => muted.includes(category));
+}
+
+function whereFor(roundPlayerId: string, muted: readonly string[]): Prisma.InAppNotificationWhereInput {
+  const hidden = bellMutedActivityTypes(muted);
+  return hidden.length
+    ? { roundPlayerId, activity: { type: { notIn: hidden as ActivityType[] } } }
+    : { roundPlayerId };
+}
+
+export async function bellWhere(prisma: PrismaClient, accountId: string, roundPlayerId: string): Promise<Prisma.InAppNotificationWhereInput> {
+  return whereFor(roundPlayerId, await mutedCategories(prisma, accountId));
+}
+
 export const InAppNotificationService = {
   async inbox(prisma: PrismaClient, accountId: string, limit = 40): Promise<InAppNotificationFeedDto> {
     const roundPlayerId = await currentRoundPlayerId(prisma, accountId);
@@ -107,9 +140,11 @@ export const InAppNotificationService = {
       return { unreadCount: 0, notifications: [] };
     }
 
+    const bellMuted = await mutedCategories(prisma, accountId);
+    const where = whereFor(roundPlayerId, bellMuted);
     const [rows, unreadCount] = await Promise.all([
       prisma.inAppNotification.findMany({
-        where: { roundPlayerId },
+        where,
         orderBy: { createdAt: 'desc' },
         take: limit,
         select: {
@@ -119,11 +154,12 @@ export const InAppNotificationService = {
         },
       }),
       prisma.inAppNotification.count({
-        where: { roundPlayerId, readAt: null },
+        where: { ...where, readAt: null },
       }),
     ]);
 
     return {
+      bellMuted,
       unreadCount,
       notifications: rows.map((row) => ({
         id: row.id,

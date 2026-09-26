@@ -56,7 +56,13 @@ export type ActivityType =
   | 'TURF_PUSH_ATTACK'
   | 'TURF_PUSH_DEFENSE'
   | 'TURF_OUTPOST_ESTABLISH'
-  | 'TURF_OUTPOST_TRANSFER';
+  | 'TURF_OUTPOST_TRANSFER'
+  // 0.9.0-G clock events written by the alert collector.
+  | 'CONVOY_TAILED'
+  | 'TURF_PUSH_INCOMING'
+  | 'ALLIANCE_CALL'
+  | 'REVENGE_EXPIRING'
+  | 'SPECIAL_ORDER_READY';
 
 export interface ApiErrorBody {
   error: {

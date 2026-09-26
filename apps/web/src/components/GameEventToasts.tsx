@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { ActivityDto, RoundDto, RoundPlayerDto } from '@streets/shared';
+import { BELL_CATEGORY_BY_ACTIVITY, type ActivityDto, type RoundDto, type RoundPlayerDto } from '@streets/shared';
 import { describeActivity } from './ActivityFeed.js';
 import { notificationsApi } from '../api/notifications.js';
 import { useSession } from '../stores/session.js';
@@ -249,6 +249,31 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
         href: '/game/activity',
       };
 
+    case 'TURF_PUSH_INCOMING':
+      return { title: 'Your block is being pushed', detail, tone: 'bad', href: p.city ? `/game/turf?city=${encodeURIComponent(String(p.city))}` : '/game/turf' };
+
+    case 'ALLIANCE_CALL':
+      return {
+        title: 'Ally needs backup',
+        detail,
+        tone: 'warn',
+        href: p.kind === 'convoy' ? '/game/travel' : p.city ? `/game/turf?city=${encodeURIComponent(String(p.city))}` : '/game/turf',
+      };
+
+    case 'CONVOY_TAILED':
+      return { title: 'Your run is being tailed', detail, tone: 'bad', href: '/game/travel' };
+
+    case 'REVENGE_EXPIRING':
+      return { title: 'Revenge expires soon', detail, tone: 'warn', href: '/game/combat' };
+
+    case 'SPECIAL_ORDER_READY':
+      return {
+        title: 'Special order arrived',
+        detail,
+        tone: 'good',
+        href: p.storeKey ? `/game/stores/${encodeURIComponent(String(p.storeKey))}` : '/game/stores',
+      };
+
     case 'RUN_RETURNED':
       return {
         title: 'Run returned',
@@ -320,6 +345,7 @@ export function GameEventToasts() {
   const activityHydratedForPlayerId = useSession((s) => s.activityHydratedForPlayerId);
   const crackWord = useSession((s) => s.me?.products) ? 'crack' : 'product';
   const reducedMotion = useSession((s) => s.profileSettings.reducedMotion);
+  const bellMuted = useSession((s) => s.bellMuted);
   const seen = useRef<Set<string>>(new Set());
   const seededFor = useRef<string | null>(null);
   const snapshotSeen = useRef<Set<string>>(new Set());
@@ -354,14 +380,18 @@ export function GameEventToasts() {
       .filter((entry) => !seen.current.has(entry.id));
     for (const entry of fresh) seen.current.add(entry.id);
 
+    const muted = new Set<string>(bellMuted);
     const next = fresh.flatMap((entry) => {
+      // 0.9.0-G: a category muted in the bell does not pop a toast either.
+      const category = BELL_CATEGORY_BY_ACTIVITY[entry.type];
+      if (category && muted.has(category)) return [];
       const toast = gameEventToastFor(entry, crackWord);
       return toast ? [{ ...toast, id: entry.id, notificationId: entry.id }] : [];
     });
     if (!next.length) return;
 
     setToasts((current) => [...current, ...next].slice(-MAX_VISIBLE_TOASTS));
-  }, [activity, activityHydratedForPlayerId, crackWord, playerId]);
+  }, [activity, activityHydratedForPlayerId, bellMuted, crackWord, playerId]);
 
   useEffect(() => {
     if (!playerId) return;

@@ -1,4 +1,5 @@
 import type { AllianceDetailDto, AllianceTagDto } from './alliance.js';
+import type { NoticeCategory, NotificationCategory } from '../notifications.js';
 import type { ActivityDto, CityDto, ProfileAccent, RoundDto, SeasonHideoutDto } from './api.js';
 
 export type PublicAchievementCategory =
@@ -560,6 +561,8 @@ export interface DiscordAlertsClaimDto {
   roundAlerts: DiscordRoundAlertDto[];
   turfAlerts: Array<DiscordTurfEventDto & { discordId: string }>;
   allianceAlerts: Array<DiscordTerritoryEventDto & { discordId: string; allianceTag: string; change: 'gained' | 'lost' }>;
+  /** 0.9.0-G categories, already worded; older bots ignore the field. */
+  notices: Array<GameNoticeDto & { discordId: string; category: NoticeCategory }>;
   battles: DiscordBattleEventDto[];
   turf: DiscordTurfEventDto[];
   territory: DiscordTerritoryEventDto[];
@@ -567,8 +570,19 @@ export interface DiscordAlertsClaimDto {
   rounds: DiscordRoundEventDto[];
 }
 
-/** Alert categories a player can switch on, delivered by any channel. */
-export type NotificationCategory = DiscordAlertType;
+/**
+ * 0.9.0-G. One alert, already worded, safe for a lock screen: names and places the
+ * player is already entitled to see in game, never amounts, crew or weapons.
+ */
+export interface GameNoticeDto {
+  title: string;
+  body: string;
+  url: string;
+  /** Notices sharing a tag replace each other on a device instead of stacking. */
+  tag: string;
+}
+
+export type { NotificationCategory } from '../notifications.js';
 
 /** One alert as the server stores it, before a channel adds its own address. */
 export type NotificationPayload =
@@ -577,7 +591,8 @@ export type NotificationPayload =
   | { category: 'rank'; alert: Omit<DiscordRankAlertDto, 'discordId'> }
   | { category: 'round'; event: DiscordRoundEventDto; rank: number | null }
   | { category: 'turf'; event: DiscordTurfEventDto }
-  | { category: 'alliance'; event: DiscordTerritoryEventDto; allianceTag: string; change: 'gained' | 'lost' };
+  | { category: 'alliance'; event: DiscordTerritoryEventDto; allianceTag: string; change: 'gained' | 'lost' }
+  | { category: NoticeCategory; notice: GameNoticeDto };
 
 export interface PushDeviceDto {
   id: string;
@@ -593,6 +608,12 @@ export interface PushDeviceDto {
 export interface NotificationSettingsDto {
   categories: Record<NotificationCategory, boolean>;
   channels: { discord: boolean; push: boolean };
+  /** 0.9.0-G master switch: true pauses every outside alert. */
+  paused: boolean;
+  /** 0.9.0-G. Outside alerts are not sent inside this local window; the bell keeps everything. */
+  quietHours: { start: number; end: number; timeZone: string } | null;
+  /** 0.9.0-G. Categories hidden from the in-game bell. */
+  bellMuted: NotificationCategory[];
   discordLinked: boolean;
   push: {
     /** False until the server has VAPID keys. */
@@ -612,6 +633,8 @@ export interface InAppNotificationDto {
 export interface InAppNotificationFeedDto {
   notifications: InAppNotificationDto[];
   unreadCount: number;
+  /** 0.9.0-G. Categories this account muted in the bell, so live toasts can skip them too. */
+  bellMuted?: NotificationCategory[];
 }
 
 /** Private /stats: the member's own dashboard numbers. */

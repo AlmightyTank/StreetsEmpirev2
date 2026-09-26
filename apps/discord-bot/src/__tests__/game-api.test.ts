@@ -127,7 +127,8 @@ describe('createGameApi', () => {
     expect(badges.awards[0]?.category).toBe('hideout');
     expect(await api.claimNews()).toEqual([]);
     expect((await api.setAlert('123456789012345678', 'turns', true)).current).toEqual({ turns: 5, cap: 144, nationalRank: 7 });
-    expect(await api.claimAlerts()).toEqual({ turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [], battles: [], turf: [], territory: [], crackdowns: [], rounds: [] });
+    // A server from before 0.9.0-G sends no notices; the bot treats that as none.
+    expect(await api.claimAlerts()).toEqual({ turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [], notices: [], battles: [], turf: [], territory: [], crackdowns: [], rounds: [] });
     expect(calls).toEqual([
       { path: '/api/internal/discord/badges?name=Big+Daddy', method: 'GET', body: undefined, contentType: undefined },
       // No body, so no JSON content type for Fastify to reject as empty.

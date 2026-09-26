@@ -653,6 +653,15 @@ export const StoreService = {
           stockArrivesAt: quote.arrivesAt,
           waitMinutes: quote.waitMinutes,
         };
+        // 0.9.0-G: "your special order arrived" fires from the alert collector when it lands.
+        await tx.scheduledAlert.create({
+          data: {
+            roundPlayerId,
+            kind: 'SPECIAL_ORDER',
+            dueAt: arrivesAt,
+            payload: { store: foundStore.store.name, storeKey: foundStore.key, item: item.name, itemKey },
+          },
+        });
 
         return {
           next: { ...current, cashCents: current.cashCents - BigInt(quote.feeCents) },

@@ -14,3 +14,4 @@ export * from './types/console.js';
 export * from './types/public-site.js';
 export * from './types/hideout-v2.js';
 export * from './money.js';
+export * from './notifications.js';

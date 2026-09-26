@@ -1,3 +1,4 @@
+import type { NotificationCategory } from '@streets/shared';
 import type {
   AccountDto,
   AccountProfileSettingsDto,
@@ -59,6 +60,9 @@ interface SessionState {
   recentActivity: ActivityDto[];
   /** Player whose activity list has completed its first authoritative snapshot load. */
   activityHydratedForPlayerId: string | null;
+  /** 0.9.0-G. Categories muted in the bell; their live toasts are skipped too. */
+  bellMuted: NotificationCategory[];
+  setBellMuted: (muted: NotificationCategory[]) => void;
 
   /** Resolve who we are and which game is running. Runs once on mount. */
   bootstrap: () => Promise<void>;
@@ -86,6 +90,11 @@ export const useSession = create<SessionState>((set, get) => ({
   canJoin: false,
   recentActivity: [],
   activityHydratedForPlayerId: null,
+  bellMuted: [],
+
+  setBellMuted(muted) {
+    set({ bellMuted: muted });
+  },
 
   async bootstrap() {
     // A 401 here is the normal signed-out case, not an error worth surfacing.

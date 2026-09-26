@@ -319,6 +319,15 @@ const alertsClaimSchema = z.object({
     allianceTag: z.string(),
     change: z.enum(['gained', 'lost']),
   })),
+  // 0.9.0-G categories, already worded by the server. Older servers do not send it.
+  notices: z.array(z.object({
+    discordId: z.string(),
+    category: z.string(),
+    title: z.string(),
+    body: z.string(),
+    url: z.string().url(),
+    tag: z.string(),
+  })).default([]),
   battles: z.array(battleEventSchema),
   turf: z.array(turfEventSchema),
   territory: z.array(territoryEventSchema),
@@ -367,6 +376,7 @@ export type TerritoryEvent = AlertsClaim['territory'][number];
 export type CrackdownEvent = AlertsClaim['crackdowns'][number];
 export type TurfAlert = AlertsClaim['turfAlerts'][number];
 export type AllianceAlert = AlertsClaim['allianceAlerts'][number];
+export type GameNotice = AlertsClaim['notices'][number];
 export type RoundEvent = AlertsClaim['rounds'][number];
 export type RoundStatus = z.infer<typeof statusSchema>;
 export type NewsFeed = z.infer<typeof newsSchema>;

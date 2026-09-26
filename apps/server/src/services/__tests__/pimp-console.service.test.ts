@@ -169,6 +169,9 @@ describe('PimpConsoleService.summary', () => {
       inAppNotification: {
         count: vi.fn().mockResolvedValue(7),
       },
+      notificationSettings: {
+        findUnique: vi.fn().mockResolvedValue(null),
+      },
       playerActivity: {
         count: playerActivityCount,
       },

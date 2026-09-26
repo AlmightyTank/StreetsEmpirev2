@@ -3001,6 +3001,100 @@ a.se-nav__link:hover {
   color: var(--se-muted);
 }
 
+/* 0.9.0-G: per-category Bell / Phone & Discord grid, master switch and quiet hours. */
+.se-alerts-master {
+  padding: 8px 10px;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+}
+
+.se-alerts-group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.se-alerts-group legend {
+  padding: 0;
+  margin-bottom: 4px;
+  color: var(--se-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.se-alerts-grid {
+  display: grid;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+}
+
+.se-alerts-grid__head,
+.se-alerts-grid__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px 96px;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 10px;
+}
+
+.se-alerts-grid__head {
+  color: var(--se-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.se-alerts-grid__head span + span,
+.se-alerts-grid__row > span + span {
+  text-align: center;
+}
+
+.se-alerts-grid__row {
+  border-top: 1px solid var(--se-line);
+}
+
+.se-alerts-grid__label {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.se-alerts-grid__label small {
+  color: var(--se-muted);
+}
+
+.se-alerts-quiet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+}
+
+.se-alerts-quiet .se-field {
+  margin: 0;
+}
+
+.se-alerts-quiet select.se-input {
+  max-width: 220px;
+}
+
+@media (max-width: 520px) {
+  .se-alerts-grid__head,
+  .se-alerts-grid__row {
+    grid-template-columns: minmax(0, 1fr) 44px 64px;
+    gap: 6px;
+  }
+
+  .se-alerts-quiet .se-field,
+  .se-alerts-quiet select.se-input {
+    width: 100%;
+    max-width: none;
+  }
+}
+
 .se-alerts-steps ol {
   margin: 6px 0 0;
   padding-left: 1.25rem;

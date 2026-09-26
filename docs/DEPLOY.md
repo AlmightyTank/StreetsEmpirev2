@@ -89,6 +89,11 @@ key pair on the server and nothing else: no app store, no third-party account.
 The API sends alerts itself about once a minute. The Discord bot is not needed
 for push.
 
+Since 0.9.0-G that once-a-minute alerts pass runs on every server, with or
+without push keys or a bot. It brings runs home on time and writes the clock
+events (spotted pushes and tails, backup calls, revenge reminders, special
+orders) into each player's in-game bell. With no keys it only fills the bell.
+
 ## Every update
 
 After pushing to `main`:

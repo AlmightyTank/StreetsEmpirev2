@@ -20,6 +20,7 @@ import { lockAccount } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { toActivityDto } from '../game/dto.js';
 import { RoundService } from './round.service.js';
+import { bellWhere } from './in-app-notification.service.js';
 
 const SEND_MIN_INTERVAL_MS = 5_000;
 const SEND_WINDOW_MS = 10 * 60_000;
@@ -68,10 +69,10 @@ const ACTIVITY_GROUPS: ConsoleActivityGroup[] = [
 ];
 
 const ACTIVITY_GROUP_TYPES: Record<ConsoleActivityGroup, ActivityType[]> = {
-  combat: ['RAID_ATTACK', 'RAID_DEFENSE', 'DRIVE_BY_ATTACK', 'DRIVE_BY_DEFENSE', 'COMBAT_TREATMENT', 'COMBAT_RECON', 'BATTLE_VOIDED'],
-  turf: ['TURF_CLAIM', 'TURF_POST', 'TURF_PULL', 'TURF_PUSH', 'TURF_PUSH_BACKUP', 'TURF_PUSH_ATTACK', 'TURF_PUSH_DEFENSE', 'TURF_OUTPOST_ESTABLISH', 'TURF_OUTPOST_TRANSFER'],
-  travel: ['RUN_LAUNCHED', 'RUN_RETURNED', 'RUN_INCIDENT', 'RELOCATION_STARTED', 'RELOCATED', 'CONVOY_TAIL', 'CONVOY_ATTACK', 'CONVOY_DEFENSE', 'CONVOY_BACKUP'],
-  market: ['STORE_BUY', 'STORE_SELL'],
+  combat: ['RAID_ATTACK', 'RAID_DEFENSE', 'DRIVE_BY_ATTACK', 'DRIVE_BY_DEFENSE', 'COMBAT_TREATMENT', 'COMBAT_RECON', 'BATTLE_VOIDED', 'REVENGE_EXPIRING'],
+  turf: ['TURF_CLAIM', 'TURF_POST', 'TURF_PULL', 'TURF_PUSH', 'TURF_PUSH_BACKUP', 'TURF_PUSH_ATTACK', 'TURF_PUSH_DEFENSE', 'TURF_OUTPOST_ESTABLISH', 'TURF_OUTPOST_TRANSFER', 'TURF_PUSH_INCOMING', 'ALLIANCE_CALL'],
+  travel: ['RUN_LAUNCHED', 'RUN_RETURNED', 'RUN_INCIDENT', 'RELOCATION_STARTED', 'RELOCATED', 'CONVOY_TAIL', 'CONVOY_ATTACK', 'CONVOY_DEFENSE', 'CONVOY_BACKUP', 'CONVOY_TAILED'],
+  market: ['STORE_BUY', 'STORE_SELL', 'SPECIAL_ORDER_READY'],
   progress: ['QUEST_OBJECTIVE_COMPLETE', 'QUEST_READY', 'QUEST_CLAIMED', 'FAVOR_ACTIVATED', 'FAVOR_ARMED', 'FAVOR_DISARMED', 'HIDEOUT_UPGRADE', 'WEAPON_UNLOCK'],
   street: ['SCOUT', 'WORK_STREETS', 'PRODUCE_CRACK', 'HEAT_BRIBE', 'PAYOUT_CHANGE'],
   system: ['ROUND_JOINED', 'AWAY_BONUS', 'ADMIN_GRANT'],
@@ -189,6 +190,11 @@ function activityHref(row: { type: ActivityType; payload: Prisma.JsonValue }): s
   if (row.type === 'COMBAT_RECON') return '/game/combat#intel';
   if (row.type === 'HIDEOUT_UPGRADE') return '/game/hideout';
   if (row.type === 'WEAPON_UNLOCK') return '/game/stores/tommy';
+  if (row.type === 'ALLIANCE_CALL' && payload.kind === 'convoy') return '/game/travel';
+  if (row.type === 'SPECIAL_ORDER_READY') {
+    const store = typeof payload.storeKey === 'string' ? payload.storeKey : null;
+    return store ? `/game/stores/${encodeURIComponent(store)}` : '/game/stores';
+  }
   if (row.type.startsWith('QUEST_') || row.type.startsWith('FAVOR_')) return '/game/quests';
   if (row.type.startsWith('STORE_')) {
     const store = typeof payload.storeKey === 'string' ? payload.storeKey : null;
@@ -244,9 +250,10 @@ async function consoleCounts(
         },
       },
     }),
-    prisma.inAppNotification.count({
-      where: { roundPlayerId: owner.id, readAt: null },
-    }),
+    // 0.9.0-G: categories muted in the bell do not badge the Console either.
+    bellWhere(prisma, owner.accountId, owner.id).then((where) => prisma.inAppNotification.count({
+      where: { ...where, readAt: null },
+    })),
     prisma.playerActivity.count({
       where: { roundPlayerId: owner.id },
     }),

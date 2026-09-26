@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidTimeZone, NOTIFICATION_CATEGORIES } from '../notifications.js';
 
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;
@@ -115,18 +116,24 @@ export const updateAccountProfileSettingsSchema = z.object({
   defaultLanding: defaultLandingSchema,
 });
 
-const notificationToggles = z.object({
-  attacks: z.boolean(),
-  turns: z.boolean(),
-  round: z.boolean(),
-  rank: z.boolean(),
-  turf: z.boolean(),
-  alliance: z.boolean(),
-}).partial().strict();
+const notificationCategorySchema = z.enum(NOTIFICATION_CATEGORIES);
+const notificationToggles = z.record(notificationCategorySchema, z.boolean());
+
+const minuteOfDay = z.number().int().min(0).max(24 * 60 - 1);
+
+/** 0.9.0-G. Quiet hours in the player's own time zone; null switches them off. */
+export const quietHoursSchema = z.object({
+  start: minuteOfDay,
+  end: minuteOfDay,
+  timeZone: z.string().trim().min(1).max(64).refine(isValidTimeZone, 'Pick a real time zone.'),
+}).strict().refine((value) => value.start !== value.end, { message: 'Quiet hours need different start and end times.', path: ['end'] });
 
 export const updateNotificationSettingsSchema = z.object({
   categories: notificationToggles.optional(),
   channels: z.object({ discord: z.boolean(), push: z.boolean() }).partial().strict().optional(),
+  paused: z.boolean().optional(),
+  quietHours: quietHoursSchema.nullable().optional(),
+  bellMuted: z.array(notificationCategorySchema).max(NOTIFICATION_CATEGORIES.length).optional(),
 }).strict();
 
 export const pushSubscribeSchema = z.object({

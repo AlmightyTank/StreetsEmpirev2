@@ -107,6 +107,9 @@ export function pushMessageFor(payload: NotificationPayload): PushMessage {
         url: gameUrl('/game/turf'),
         tag: `alliance:${payload.event.id}`,
       };
+    // 0.9.0-G categories arrive already worded for a lock screen.
+    default:
+      return { ...payload.notice };
   }
 }
 

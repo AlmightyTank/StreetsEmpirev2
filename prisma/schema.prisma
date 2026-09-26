@@ -180,6 +180,25 @@ model NotificationSettings {
   discordEnabled   Boolean   @default(true)
   /// Web Push to every registered device.
   pushEnabled      Boolean   @default(false)
+  /// 0.9.0-G categories. Like the ones above they switch outside alerts (Discord, push);
+  /// the in-game bell is controlled separately by `bellMuted`.
+  turfPushEnabled       Boolean @default(false)
+  reinforcementsEnabled Boolean @default(false)
+  convoyEnabled         Boolean @default(false)
+  runsEnabled           Boolean @default(false)
+  revengeEnabled        Boolean @default(false)
+  ordersEnabled         Boolean @default(false)
+  announcementsEnabled  Boolean @default(false)
+  messagesEnabled       Boolean @default(false)
+  /// 0.9.0-G master switch: pauses every outside alert without losing category choices.
+  alertsPaused          Boolean @default(false)
+  /// 0.9.0-G quiet hours, minutes after local midnight in `timeZone`. Both set or neither;
+  /// a window may wrap past midnight. The bell still records everything.
+  quietStartMinute      Int?
+  quietEndMinute        Int?
+  timeZone              String?
+  /// 0.9.0-G categories hidden from the in-game bell (their events stay in Activity).
+  bellMuted             Json    @default("[]")
   updatedAt        DateTime  @updatedAt
 
   @@index([turnsEnabled])
@@ -775,6 +794,7 @@ model RoundPlayer {
 
   activity              PlayerActivity[]
   inAppNotifications     InAppNotification[]
+  scheduledAlerts        ScheduledAlert[]
   economyLedger         EconomyLedgerEntry[]
   processedActions      ProcessedAction[]
   reputation            PlayerReputation[]
@@ -944,8 +964,11 @@ model AllianceWirePost {
   /// author, leader or admin.
   removedByRole String?
   removedReason String?
+  /// 0.9.0-G. When announcement alerts for this post were collected.
+  alertsCollectedAt DateTime?
 
   @@index([allianceId, createdAt(sort: Desc)])
+  @@index([alertsCollectedAt, createdAt])
   @@index([allianceId, kind, pinned, createdAt(sort: Desc)])
   @@index([authorId, createdAt(sort: Desc)])
 }
@@ -1004,6 +1027,8 @@ model Run {
   /// 0.5.0-E. Escorts wounded in a convoy fight: not fit to fight again on this run, and
   /// still healing when they get home if their wounds have not run out.
   woundedEscorts Int         @default(0)
+  /// 0.9.0-G. When the "run made it home" alert was collected.
+  homeAlertedAt  DateTime?
   /// 0.5.0-E. When the run was last hit, for the re-hit cooldown.
   lastHitAt      DateTime?
   /// 0.5.0-E. The guns the escorts carry, out of home stock, best first. A bust or an
@@ -1018,6 +1043,7 @@ model Run {
   trades         RunTrade[]
   incidents      RunIncident[]
 
+  @@index([homeAlertedAt, returnedAt])
   @@index([roundPlayerId, status])
 }
 
@@ -1127,6 +1153,10 @@ model ConvoyTail {
   attackerCreditedAt DateTime?
   alliesCalledAt     DateTime?
   voidedAt           DateTime?
+  /// 0.9.0-G. When the run's owner was told (once their Lookouts saw the tail), and when
+  /// their alliance was told about the call.
+  ownerAlertedAt     DateTime?
+  alliesAlertedAt    DateTime?
   backups            ConvoyBackup[]
 
   @@unique([attackerId, actionId])
@@ -1292,6 +1322,8 @@ model DirectMessage {
 
   createdAt DateTime  @default(now())
   readAt   DateTime?
+  /// 0.9.0-G. When the recipient's outside alert for this message was collected.
+  alertsCollectedAt DateTime?
 
   senderArchivedAt    DateTime?
   recipientArchivedAt DateTime?
@@ -1302,6 +1334,7 @@ model DirectMessage {
   @@index([recipientId, recipientArchivedAt, readAt, createdAt(sort: Desc)], map: "DirectMessage_recipient_inbox_idx")
   @@index([senderId, senderArchivedAt, createdAt(sort: Desc)], map: "DirectMessage_sender_sent_idx")
   @@index([roundId, createdAt(sort: Desc)], map: "DirectMessage_round_created_idx")
+  @@index([alertsCollectedAt, createdAt])
 }
 
 /// Account-level communication block. It survives seasonal RoundPlayer resets.
@@ -1480,6 +1513,11 @@ enum ActivityType {
   TURF_PUSH_DEFENSE
   TURF_OUTPOST_ESTABLISH
   TURF_OUTPOST_TRANSFER
+  /// 0.9.0-G clock events, written by the alert collector.
+  TURF_PUSH_INCOMING
+  ALLIANCE_CALL
+  REVENGE_EXPIRING
+  SPECIAL_ORDER_READY
 }
 
 enum BattleKind {
@@ -1521,11 +1559,14 @@ model RaidBattle {
   /// (own, ally or none), so alliance rounds can be balanced from real battles.
   attackerAllianceId String?
   attackerIntel      String?
+  /// 0.9.0-G. When the defender's "revenge expiring" check ran for this hit.
+  revengeAlertedAt   DateTime?
 
   @@unique([attackerId, actionId])
   @@index([attackerId, createdAt(sort: Desc), id])
   @@index([defenderId, createdAt(sort: Desc), id])
   @@index([defenderAllianceId, attackerId, createdAt])
+  @@index([revengeAlertedAt, createdAt])
 }
 
 model CombatInjury {
@@ -1578,6 +1619,26 @@ model PlayerActivity {
 /// Durable in-game notification receipt for a toast-worthy activity.
 /// The notification id intentionally matches the activity id so a live toast can
 /// acknowledge itself without another lookup.
+/// 0.9.0-G. Something that happens by the clock rather than by a write, e.g. a special
+/// order arriving. The alert collector fires it once when due.
+model ScheduledAlert {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  /// SPECIAL_ORDER
+  kind    String
+  dueAt   DateTime
+  payload Json
+  firedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([firedAt, dueAt])
+  @@index([roundPlayerId])
+}
+
 model InAppNotification {
   id String @id
 
@@ -1756,6 +1817,10 @@ model TurfPush {
   alliesCalledAt DateTime?
   /// Public turf-feed claim, parallel to RaidBattle.discordPostedAt.
   discordPostedAt DateTime?
+  /// 0.9.0-G. When the holder was told their block is being pushed (once their Lookouts saw it),
+  /// and when their alliance was told about the call for help.
+  defenderAlertedAt DateTime?
+  alliesAlertedAt   DateTime?
   /// Private notification collection is independent from the public feed.
   alertsCollectedAt DateTime?
   backups      TurfPushBackup[]

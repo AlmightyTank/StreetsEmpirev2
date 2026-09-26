@@ -16,6 +16,7 @@ import {
   attackAlertEmbed,
   battleFeedEmbed,
   crackdownFeedEmbed,
+  gameNoticeEmbed,
   newsPostEmbed,
   rankAlertEmbed,
   roundEventEmbed,
@@ -139,6 +140,14 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
       await client.users.send(alert.discordId, { embeds: [allianceAlertEmbed(alert)] });
     } catch (error) {
       console.warn(`Could not DM an alliance alert to ${alert.discordId}:`, error instanceof Error ? error.message : error);
+    }
+  }
+
+  for (const notice of claimed.notices) {
+    try {
+      await client.users.send(notice.discordId, { embeds: [gameNoticeEmbed(notice)] });
+    } catch (error) {
+      console.warn(`Could not DM a ${notice.category} alert to ${notice.discordId}:`, error instanceof Error ? error.message : error);
     }
   }
 

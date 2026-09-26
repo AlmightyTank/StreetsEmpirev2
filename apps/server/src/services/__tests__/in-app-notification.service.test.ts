@@ -45,6 +45,7 @@ describe('shouldCreateInAppNotification', () => {
         findFirst: vi.fn().mockResolvedValueOnce({ id: 'current-player' }),
       },
       inAppNotification: { findMany, count },
+      notificationSettings: { findUnique: vi.fn().mockResolvedValue(null) },
     } as unknown as PrismaClient;
 
     const feed = await InAppNotificationService.inbox(prisma, 'account-1');
@@ -57,6 +58,28 @@ describe('shouldCreateInAppNotification', () => {
     });
     expect(feed.notifications.map((notification) => notification.id)).toEqual(['notification-current']);
     expect(feed.unreadCount).toBe(1);
+  });
+
+  it('0.9.0-G: leaves muted categories out of the bell and its unread count', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const count = vi.fn().mockResolvedValue(0);
+    const prisma = {
+      roundPlayer: { findFirst: vi.fn().mockResolvedValueOnce({ id: 'current-player' }) },
+      inAppNotification: { findMany, count },
+      notificationSettings: { findUnique: vi.fn().mockResolvedValue({ bellMuted: ['runs', 'revenge', 'not-a-category'] }) },
+    } as unknown as PrismaClient;
+
+    await InAppNotificationService.inbox(prisma, 'account-1');
+
+    const where = { roundPlayerId: 'current-player', activity: { type: { notIn: ['RUN_RETURNED', 'RUN_INCIDENT', 'REVENGE_EXPIRING'] } } };
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where }));
+    expect(count).toHaveBeenCalledWith({ where: { ...where, readAt: null } });
+  });
+
+  it('marks the 0.9.0-G clock events as bell items', () => {
+    for (const type of ['CONVOY_TAILED', 'TURF_PUSH_INCOMING', 'ALLIANCE_CALL', 'REVENGE_EXPIRING', 'SPECIAL_ORDER_READY'] as const) {
+      expect(shouldCreateInAppNotification(type, {})).toBe(true);
+    }
   });
 
   it('returns an empty bell before the account has joined the current round', async () => {

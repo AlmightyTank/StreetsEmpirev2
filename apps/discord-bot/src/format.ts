@@ -8,6 +8,7 @@ import type {
   BadgeCard,
   BattleEvent,
   CrackdownEvent,
+  GameNotice,
   HallOfFame,
   History,
   Leaderboard,
@@ -451,6 +452,17 @@ export function turnReminderEmbed(reminder: TurnReminder): APIEmbed {
     color: BRAND_COLOR,
     description: `${escapeMarkdown(reminder.displayName)} is at ${reminder.turns}/${reminder.cap} turns in ${escapeMarkdown(reminder.roundName)}. Spend some before new ones go to waste.`,
     footer: { text: 'Turn these off with /alerts type:turns enabled:Off in the StreetsEmpire server.' },
+  };
+}
+
+/** 0.9.0-G notices: spotted pushes, calls for help, tails, runs, revenge, orders, announcements, messages. */
+export function gameNoticeEmbed(notice: GameNotice): APIEmbed {
+  return {
+    title: escapeMarkdown(notice.title),
+    url: notice.url,
+    color: BRAND_COLOR,
+    description: escapeMarkdown(notice.body),
+    footer: { text: 'Choose these alerts, quiet hours and pauses under Account → Alerts on StreetsEmpire.' },
   };
 }
 
