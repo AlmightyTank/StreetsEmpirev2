@@ -12,26 +12,6 @@ const bats = [
   ['67%', '13%', '-8s', '16s'], ['84%', '23%', '-4s', '12s'],
 ] as const;
 
-const lightThemes = new Set([
-  'neon-vice',
-  'motor-city-iron',
-  'rain-city-wire',
-  'open-road',
-  'blue-heat',
-  'back-office',
-]);
-
-function AmbientTheme({ themeKey }: { themeKey: string }) {
-  return (
-    <div className={`se-site-theme-decor se-site-theme-decor--ambient se-site-theme-decor--${themeKey}`} aria-hidden="true">
-      <i className="se-theme-ambient__line se-theme-ambient__line--1" />
-      <i className="se-theme-ambient__line se-theme-ambient__line--2" />
-      <i className="se-theme-ambient__mark se-theme-ambient__mark--1" />
-      <i className="se-theme-ambient__mark se-theme-ambient__mark--2" />
-    </div>
-  );
-}
-
 function WinterLights() {
   return (
     <div className="se-site-theme-decor se-site-theme-decor--winter" aria-hidden="true">
@@ -96,6 +76,5 @@ function HalloweenMoon() {
 export function SiteThemeDecor({ themeKey }: { themeKey: string | null }) {
   if (themeKey === 'winter-lights') return <WinterLights />;
   if (themeKey === 'halloween-moon') return <HalloweenMoon />;
-  if (themeKey && lightThemes.has(themeKey)) return <AmbientTheme themeKey={themeKey} />;
   return null;
 }

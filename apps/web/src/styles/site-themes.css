@@ -1,8 +1,9 @@
 /*
  * Phase Y-E player-facing site themes.
  *
- * Decorative only: never changes controls, layout dimensions or gameplay
- * state. Everything is pointer-events:none and reduced-motion safe.
+ * Visual only: reskins the player-facing shell, controls, panels and
+ * atmosphere without changing layout dimensions or gameplay state. Ambient
+ * decorations are pointer-events:none and reduced-motion safe.
  */
 
 .se-app {
@@ -10,59 +11,539 @@
 }
 
 .se-site-theme--winter-lights {
+  --se-bg: #07111a;
+  --se-panel: #111b24;
+  --se-panel-hi: #172737;
+  --se-line: rgba(186, 230, 253, 0.28);
+  --se-line-soft: rgba(186, 230, 253, 0.16);
+  --se-text: #e8f3fb;
+  --se-text-dim: #a8c3d3;
+  --se-muted: #7793a5;
+  --se-accent: #7dd3fc;
+  --se-accent-dim: #3b82a6;
+  --se-accent-hover: #bae6fd;
+  --se-accent-rgb: 125, 211, 252;
+  --se-accent-2: #f87171;
   background-image:
-    radial-gradient(900px 560px at 15% -10%, rgba(var(--se-accent-rgb), 0.045), transparent 60%),
-    radial-gradient(820px 520px at 100% 0%, rgba(170, 220, 255, 0.075), transparent 58%),
-    linear-gradient(180deg, rgba(22, 42, 62, 0.12), transparent 38%);
+    linear-gradient(180deg, rgba(186, 230, 253, 0.08), transparent 32%),
+    radial-gradient(900px 560px at 15% -10%, rgba(125, 211, 252, 0.13), transparent 60%),
+    radial-gradient(820px 520px at 100% 0%, rgba(248, 113, 113, 0.08), transparent 58%),
+    linear-gradient(180deg, rgba(22, 42, 62, 0.34), transparent 48%);
 }
 
 .se-site-theme--halloween-moon {
+  --se-bg: #120916;
+  --se-panel: #1b1022;
+  --se-panel-hi: #26162f;
+  --se-line: rgba(251, 146, 60, 0.26);
+  --se-line-soft: rgba(168, 85, 247, 0.16);
+  --se-text: #f6edf8;
+  --se-text-dim: #c2a8ca;
+  --se-muted: #8d7199;
+  --se-accent: #fb923c;
+  --se-accent-dim: #b85d1c;
+  --se-accent-hover: #fdba74;
+  --se-accent-rgb: 251, 146, 60;
+  --se-accent-2: #a855f7;
   background-image:
-    radial-gradient(760px 520px at 92% 4%, rgba(255, 166, 64, 0.08), transparent 56%),
-    radial-gradient(900px 560px at 12% -10%, rgba(118, 74, 168, 0.07), transparent 62%),
-    linear-gradient(180deg, rgba(31, 17, 42, 0.16), transparent 42%);
+    radial-gradient(760px 520px at 92% 4%, rgba(255, 166, 64, 0.2), transparent 56%),
+    radial-gradient(900px 560px at 12% -10%, rgba(118, 74, 168, 0.16), transparent 62%),
+    linear-gradient(180deg, rgba(31, 17, 42, 0.42), transparent 52%);
 }
 
 .se-site-theme--neon-vice {
+  --se-bg: #090611;
+  --se-panel: #15101f;
+  --se-panel-hi: #20142d;
+  --se-line: rgba(34, 211, 238, 0.32);
+  --se-line-soft: rgba(244, 63, 172, 0.18);
+  --se-text: #f8f0ff;
+  --se-text-dim: #beaed0;
+  --se-muted: #897594;
+  --se-accent: #22d3ee;
+  --se-accent-dim: #128ca0;
+  --se-accent-hover: #67e8f9;
+  --se-accent-rgb: 34, 211, 238;
+  --se-accent-2: #f43f9c;
   background-image:
-    radial-gradient(860px 520px at 94% 2%, rgba(20, 184, 166, 0.09), transparent 58%),
-    radial-gradient(760px 480px at 9% -8%, rgba(244, 63, 172, 0.1), transparent 60%),
-    linear-gradient(180deg, rgba(19, 9, 28, 0.16), transparent 44%);
+    linear-gradient(90deg, rgba(244, 63, 172, 0.05) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px),
+    radial-gradient(860px 520px at 94% 2%, rgba(34, 211, 238, 0.2), transparent 58%),
+    radial-gradient(760px 480px at 9% -8%, rgba(244, 63, 172, 0.22), transparent 60%),
+    linear-gradient(180deg, rgba(19, 9, 28, 0.52), transparent 54%);
+  background-size: 44px 44px, 44px 44px, auto, auto, auto;
 }
 
 .se-site-theme--motor-city-iron {
+  --se-bg: #0c0c0b;
+  --se-panel: #171716;
+  --se-panel-hi: #23211e;
+  --se-line: rgba(148, 163, 184, 0.26);
+  --se-line-soft: rgba(180, 83, 9, 0.18);
+  --se-text: #ece8df;
+  --se-text-dim: #b3aaa0;
+  --se-muted: #82786e;
+  --se-accent: #d97706;
+  --se-accent-dim: #92400e;
+  --se-accent-hover: #f59e0b;
+  --se-accent-rgb: 217, 119, 6;
+  --se-accent-2: #94a3b8;
   background-image:
-    radial-gradient(880px 520px at 90% 0%, rgba(148, 163, 184, 0.08), transparent 60%),
-    radial-gradient(760px 500px at 12% -8%, rgba(180, 83, 9, 0.08), transparent 58%),
-    linear-gradient(180deg, rgba(34, 38, 42, 0.16), transparent 42%);
+    repeating-linear-gradient(90deg, rgba(148, 163, 184, 0.035) 0 1px, transparent 1px 32px),
+    radial-gradient(880px 520px at 90% 0%, rgba(148, 163, 184, 0.16), transparent 60%),
+    radial-gradient(760px 500px at 12% -8%, rgba(180, 83, 9, 0.18), transparent 58%),
+    linear-gradient(180deg, rgba(34, 38, 42, 0.46), transparent 52%);
 }
 
 .se-site-theme--rain-city-wire {
+  --se-bg: #061012;
+  --se-panel: #0f1a1d;
+  --se-panel-hi: #14262a;
+  --se-line: rgba(45, 212, 191, 0.25);
+  --se-line-soft: rgba(74, 222, 128, 0.14);
+  --se-text: #e7fbf5;
+  --se-text-dim: #9bc8be;
+  --se-muted: #6b9189;
+  --se-accent: #2dd4bf;
+  --se-accent-dim: #168276;
+  --se-accent-hover: #5eead4;
+  --se-accent-rgb: 45, 212, 191;
+  --se-accent-2: #4ade80;
   background-image:
-    radial-gradient(820px 520px at 92% 5%, rgba(45, 212, 191, 0.08), transparent 58%),
-    radial-gradient(720px 460px at 8% -6%, rgba(74, 222, 128, 0.075), transparent 56%),
-    linear-gradient(180deg, rgba(6, 25, 30, 0.17), transparent 43%);
+    repeating-linear-gradient(110deg, rgba(165, 243, 252, 0.045) 0 1px, transparent 1px 12px),
+    radial-gradient(820px 520px at 92% 5%, rgba(45, 212, 191, 0.18), transparent 58%),
+    radial-gradient(720px 460px at 8% -6%, rgba(74, 222, 128, 0.16), transparent 56%),
+    linear-gradient(180deg, rgba(6, 25, 30, 0.5), transparent 53%);
 }
 
 .se-site-theme--open-road {
+  --se-bg: #0b1018;
+  --se-panel: #121923;
+  --se-panel-hi: #1a2533;
+  --se-line: rgba(250, 204, 21, 0.24);
+  --se-line-soft: rgba(56, 189, 248, 0.14);
+  --se-text: #f4f1e7;
+  --se-text-dim: #beb9a4;
+  --se-muted: #8b866f;
+  --se-accent: #facc15;
+  --se-accent-dim: #a7770c;
+  --se-accent-hover: #fde047;
+  --se-accent-rgb: 250, 204, 21;
+  --se-accent-2: #38bdf8;
   background-image:
-    radial-gradient(880px 520px at 88% 0%, rgba(250, 204, 21, 0.075), transparent 59%),
-    radial-gradient(780px 500px at 8% -8%, rgba(56, 189, 248, 0.07), transparent 58%),
-    linear-gradient(180deg, rgba(21, 30, 39, 0.15), transparent 42%);
+    linear-gradient(115deg, transparent 0 48%, rgba(250, 204, 21, 0.08) 48% 49%, transparent 49% 100%),
+    radial-gradient(880px 520px at 88% 0%, rgba(250, 204, 21, 0.17), transparent 59%),
+    radial-gradient(780px 500px at 8% -8%, rgba(56, 189, 248, 0.14), transparent 58%),
+    linear-gradient(180deg, rgba(21, 30, 39, 0.46), transparent 52%);
 }
 
 .se-site-theme--blue-heat {
+  --se-bg: #070b13;
+  --se-panel: #101827;
+  --se-panel-hi: #152238;
+  --se-line: rgba(96, 165, 250, 0.32);
+  --se-line-soft: rgba(248, 113, 113, 0.16);
+  --se-text: #edf5ff;
+  --se-text-dim: #aabdcd;
+  --se-muted: #74889c;
+  --se-accent: #60a5fa;
+  --se-accent-dim: #2f6fb4;
+  --se-accent-hover: #93c5fd;
+  --se-accent-rgb: 96, 165, 250;
+  --se-accent-2: #ef4444;
   background-image:
-    radial-gradient(840px 520px at 90% 0%, rgba(59, 130, 246, 0.11), transparent 58%),
-    radial-gradient(740px 480px at 9% -6%, rgba(248, 113, 113, 0.065), transparent 56%),
-    linear-gradient(180deg, rgba(10, 20, 38, 0.18), transparent 42%);
+    linear-gradient(90deg, rgba(239, 68, 68, 0.05), transparent 20%, rgba(59, 130, 246, 0.07) 80%, transparent),
+    radial-gradient(840px 520px at 90% 0%, rgba(59, 130, 246, 0.22), transparent 58%),
+    radial-gradient(740px 480px at 9% -6%, rgba(248, 113, 113, 0.12), transparent 56%),
+    linear-gradient(180deg, rgba(10, 20, 38, 0.52), transparent 52%);
 }
 
 .se-site-theme--back-office {
+  --se-bg: #100c07;
+  --se-panel: #1b150e;
+  --se-panel-hi: #271e12;
+  --se-line: rgba(245, 158, 11, 0.25);
+  --se-line-soft: rgba(34, 197, 94, 0.13);
+  --se-text: #f7efe2;
+  --se-text-dim: #c6b596;
+  --se-muted: #907f61;
+  --se-accent: #f59e0b;
+  --se-accent-dim: #a16207;
+  --se-accent-hover: #fbbf24;
+  --se-accent-rgb: 245, 158, 11;
+  --se-accent-2: #22c55e;
   background-image:
-    radial-gradient(820px 520px at 88% 2%, rgba(245, 158, 11, 0.09), transparent 58%),
-    radial-gradient(760px 460px at 8% -6%, rgba(34, 197, 94, 0.055), transparent 56%),
-    linear-gradient(180deg, rgba(35, 28, 18, 0.16), transparent 42%);
+    repeating-linear-gradient(0deg, rgba(245, 158, 11, 0.035) 0 1px, transparent 1px 30px),
+    radial-gradient(820px 520px at 88% 2%, rgba(245, 158, 11, 0.18), transparent 58%),
+    radial-gradient(760px 460px at 8% -6%, rgba(34, 197, 94, 0.12), transparent 56%),
+    linear-gradient(180deg, rgba(35, 28, 18, 0.5), transparent 52%);
+}
+
+.se-site-theme--winter-lights,
+.se-site-theme--halloween-moon,
+.se-site-theme--neon-vice,
+.se-site-theme--motor-city-iron,
+.se-site-theme--rain-city-wire,
+.se-site-theme--open-road,
+.se-site-theme--blue-heat,
+.se-site-theme--back-office {
+  --se-theme-panel-glow: rgba(var(--se-accent-rgb), 0.12);
+  --se-theme-topbar-bg: color-mix(in srgb, var(--se-bg) 86%, #000);
+  --se-theme-panel-fill:
+    linear-gradient(180deg, color-mix(in srgb, var(--se-panel-hi) 66%, transparent), color-mix(in srgb, var(--se-panel) 92%, transparent));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, color-mix(in srgb, var(--se-panel-hi) 58%, transparent), color-mix(in srgb, var(--se-panel) 88%, transparent));
+  --se-theme-button-fill: color-mix(in srgb, var(--se-panel-hi) 72%, #000);
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(var(--se-accent-rgb), 0.1), transparent 62%),
+    linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(var(--se-accent-rgb), 0.08), transparent 32%, color-mix(in srgb, var(--se-accent-2) 12%, transparent));
+  --se-theme-border-style: solid;
+  color-scheme: dark;
+}
+
+.se-site-theme--winter-lights .se-topbar,
+.se-site-theme--halloween-moon .se-topbar,
+.se-site-theme--neon-vice .se-topbar,
+.se-site-theme--motor-city-iron .se-topbar,
+.se-site-theme--rain-city-wire .se-topbar,
+.se-site-theme--open-road .se-topbar,
+.se-site-theme--blue-heat .se-topbar,
+.se-site-theme--back-office .se-topbar {
+  background:
+    var(--se-theme-topbar-layer),
+    color-mix(in srgb, var(--se-theme-topbar-bg) 92%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--se-accent) 48%, var(--se-line));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.42), 0 0 26px var(--se-theme-panel-glow);
+}
+
+.se-site-theme--winter-lights .se-panel,
+.se-site-theme--halloween-moon .se-panel,
+.se-site-theme--neon-vice .se-panel,
+.se-site-theme--motor-city-iron .se-panel,
+.se-site-theme--rain-city-wire .se-panel,
+.se-site-theme--open-road .se-panel,
+.se-site-theme--blue-heat .se-panel,
+.se-site-theme--back-office .se-panel,
+.se-site-theme--winter-lights .se-stats,
+.se-site-theme--halloween-moon .se-stats,
+.se-site-theme--neon-vice .se-stats,
+.se-site-theme--motor-city-iron .se-stats,
+.se-site-theme--rain-city-wire .se-stats,
+.se-site-theme--open-road .se-stats,
+.se-site-theme--blue-heat .se-stats,
+.se-site-theme--back-office .se-stats,
+.se-site-theme--winter-lights .se-stat,
+.se-site-theme--halloween-moon .se-stat,
+.se-site-theme--neon-vice .se-stat,
+.se-site-theme--motor-city-iron .se-stat,
+.se-site-theme--rain-city-wire .se-stat,
+.se-site-theme--open-road .se-stat,
+.se-site-theme--blue-heat .se-stat,
+.se-site-theme--back-office .se-stat {
+  background: var(--se-theme-panel-fill);
+  border-style: var(--se-theme-border-style);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 0 18px var(--se-theme-panel-glow);
+}
+
+.se-site-theme--winter-lights .se-stats,
+.se-site-theme--halloween-moon .se-stats,
+.se-site-theme--neon-vice .se-stats,
+.se-site-theme--motor-city-iron .se-stats,
+.se-site-theme--rain-city-wire .se-stats,
+.se-site-theme--open-road .se-stats,
+.se-site-theme--blue-heat .se-stats,
+.se-site-theme--back-office .se-stats,
+.se-site-theme--winter-lights .se-stat,
+.se-site-theme--halloween-moon .se-stat,
+.se-site-theme--neon-vice .se-stat,
+.se-site-theme--motor-city-iron .se-stat,
+.se-site-theme--rain-city-wire .se-stat,
+.se-site-theme--open-road .se-stat,
+.se-site-theme--blue-heat .se-stat,
+.se-site-theme--back-office .se-stat {
+  background: var(--se-theme-stat-fill);
+}
+
+.se-site-theme--winter-lights .se-panel__head,
+.se-site-theme--halloween-moon .se-panel__head,
+.se-site-theme--neon-vice .se-panel__head,
+.se-site-theme--motor-city-iron .se-panel__head,
+.se-site-theme--rain-city-wire .se-panel__head,
+.se-site-theme--open-road .se-panel__head,
+.se-site-theme--blue-heat .se-panel__head,
+.se-site-theme--back-office .se-panel__head {
+  background: var(--se-theme-head-fill);
+}
+
+.se-site-theme--winter-lights .se-btn,
+.se-site-theme--halloween-moon .se-btn,
+.se-site-theme--neon-vice .se-btn,
+.se-site-theme--motor-city-iron .se-btn,
+.se-site-theme--rain-city-wire .se-btn,
+.se-site-theme--open-road .se-btn,
+.se-site-theme--blue-heat .se-btn,
+.se-site-theme--back-office .se-btn,
+.se-site-theme--winter-lights .se-input,
+.se-site-theme--halloween-moon .se-input,
+.se-site-theme--neon-vice .se-input,
+.se-site-theme--motor-city-iron .se-input,
+.se-site-theme--rain-city-wire .se-input,
+.se-site-theme--open-road .se-input,
+.se-site-theme--blue-heat .se-input,
+.se-site-theme--back-office .se-input {
+  background: var(--se-theme-button-fill);
+  border-color: color-mix(in srgb, var(--se-accent) 34%, var(--se-line));
+  color: var(--se-text);
+}
+
+.se-site-theme--winter-lights select.se-input,
+.se-site-theme--halloween-moon select.se-input,
+.se-site-theme--neon-vice select.se-input,
+.se-site-theme--motor-city-iron select.se-input,
+.se-site-theme--rain-city-wire select.se-input,
+.se-site-theme--open-road select.se-input,
+.se-site-theme--blue-heat select.se-input,
+.se-site-theme--back-office select.se-input {
+  color-scheme: dark;
+  background-color: color-mix(in srgb, var(--se-panel-hi) 82%, #000);
+}
+
+.se-site-theme--winter-lights select.se-input option,
+.se-site-theme--halloween-moon select.se-input option,
+.se-site-theme--neon-vice select.se-input option,
+.se-site-theme--motor-city-iron select.se-input option,
+.se-site-theme--rain-city-wire select.se-input option,
+.se-site-theme--open-road select.se-input option,
+.se-site-theme--blue-heat select.se-input option,
+.se-site-theme--back-office select.se-input option {
+  background: color-mix(in srgb, var(--se-panel-hi) 88%, #000);
+  color: var(--se-text);
+}
+
+.se-site-theme--winter-lights select.se-input option:checked,
+.se-site-theme--halloween-moon select.se-input option:checked,
+.se-site-theme--neon-vice select.se-input option:checked,
+.se-site-theme--motor-city-iron select.se-input option:checked,
+.se-site-theme--rain-city-wire select.se-input option:checked,
+.se-site-theme--open-road select.se-input option:checked,
+.se-site-theme--blue-heat select.se-input option:checked,
+.se-site-theme--back-office select.se-input option:checked {
+  background: color-mix(in srgb, var(--se-accent) 36%, #000);
+  color: #fff;
+}
+
+.se-site-theme--winter-lights .se-btn--primary,
+.se-site-theme--halloween-moon .se-btn--primary,
+.se-site-theme--neon-vice .se-btn--primary,
+.se-site-theme--motor-city-iron .se-btn--primary,
+.se-site-theme--rain-city-wire .se-btn--primary,
+.se-site-theme--open-road .se-btn--primary,
+.se-site-theme--blue-heat .se-btn--primary,
+.se-site-theme--back-office .se-btn--primary {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--se-accent) 34%, var(--se-panel-hi)), color-mix(in srgb, var(--se-accent-dim) 34%, #000));
+  border-color: color-mix(in srgb, var(--se-accent) 72%, var(--se-line));
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.72);
+}
+
+.se-site-theme--winter-lights .se-btn--primary:hover:not(:disabled),
+.se-site-theme--halloween-moon .se-btn--primary:hover:not(:disabled),
+.se-site-theme--neon-vice .se-btn--primary:hover:not(:disabled),
+.se-site-theme--motor-city-iron .se-btn--primary:hover:not(:disabled),
+.se-site-theme--rain-city-wire .se-btn--primary:hover:not(:disabled),
+.se-site-theme--open-road .se-btn--primary:hover:not(:disabled),
+.se-site-theme--blue-heat .se-btn--primary:hover:not(:disabled),
+.se-site-theme--back-office .se-btn--primary:hover:not(:disabled) {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--se-accent-hover) 42%, var(--se-panel-hi)), color-mix(in srgb, var(--se-accent-dim) 42%, #000));
+  border-color: color-mix(in srgb, var(--se-accent-hover) 82%, var(--se-line));
+  color: #fff;
+}
+
+.se-site-theme--winter-lights .se-btn:disabled,
+.se-site-theme--halloween-moon .se-btn:disabled,
+.se-site-theme--neon-vice .se-btn:disabled,
+.se-site-theme--motor-city-iron .se-btn:disabled,
+.se-site-theme--rain-city-wire .se-btn:disabled,
+.se-site-theme--open-road .se-btn:disabled,
+.se-site-theme--blue-heat .se-btn:disabled,
+.se-site-theme--back-office .se-btn:disabled {
+  color: color-mix(in srgb, var(--se-text) 82%, #fff);
+  opacity: 0.58;
+}
+
+.se-site-theme--winter-lights .se-footer,
+.se-site-theme--halloween-moon .se-footer,
+.se-site-theme--neon-vice .se-footer,
+.se-site-theme--motor-city-iron .se-footer,
+.se-site-theme--rain-city-wire .se-footer,
+.se-site-theme--open-road .se-footer,
+.se-site-theme--blue-heat .se-footer,
+.se-site-theme--back-office .se-footer {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--se-bg) 74%, transparent), var(--se-bg)),
+    color-mix(in srgb, var(--se-panel) 84%, #000);
+  border-top-color: color-mix(in srgb, var(--se-accent) 36%, var(--se-line));
+}
+
+.se-site-theme--neon-vice {
+  --se-theme-panel-fill:
+    linear-gradient(135deg, rgba(244, 63, 156, 0.09), transparent 42%),
+    linear-gradient(180deg, rgba(32, 20, 45, 0.94), rgba(11, 7, 20, 0.94));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(34, 211, 238, 0.08), rgba(244, 63, 156, 0.055)),
+    rgba(13, 8, 23, 0.95);
+  --se-theme-button-fill: linear-gradient(90deg, rgba(34, 211, 238, 0.1), rgba(244, 63, 156, 0.08));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(34, 211, 238, 0.18), rgba(244, 63, 156, 0.09) 55%, transparent);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(34, 211, 238, 0.14), transparent 25%, rgba(244, 63, 156, 0.18));
+}
+
+.se-site-theme--neon-vice .se-panel,
+.se-site-theme--neon-vice .se-stats,
+.se-site-theme--neon-vice .se-stat {
+  border-color: rgba(34, 211, 238, 0.42);
+  box-shadow:
+    inset 3px 0 0 rgba(34, 211, 238, 0.72),
+    inset 0 1px 0 rgba(244, 63, 156, 0.24),
+    0 0 22px rgba(34, 211, 238, 0.13);
+}
+
+.se-site-theme--motor-city-iron {
+  --se-theme-border-style: double;
+  --se-theme-panel-fill:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 18px),
+    linear-gradient(180deg, rgba(35, 33, 30, 0.96), rgba(14, 14, 13, 0.98));
+  --se-theme-stat-fill:
+    linear-gradient(90deg, rgba(217, 119, 6, 0.12), transparent 30%),
+    repeating-linear-gradient(0deg, rgba(148, 163, 184, 0.045) 0 1px, transparent 1px 16px),
+    rgba(16, 16, 15, 0.96);
+  --se-theme-button-fill:
+    repeating-linear-gradient(135deg, rgba(217, 119, 6, 0.18) 0 8px, rgba(17, 17, 17, 0.18) 8px 16px),
+    color-mix(in srgb, var(--se-panel-hi) 68%, #000);
+  --se-theme-head-fill:
+    repeating-linear-gradient(135deg, rgba(217, 119, 6, 0.16) 0 10px, transparent 10px 20px),
+    linear-gradient(180deg, #27231d, #151413);
+  --se-theme-topbar-layer:
+    repeating-linear-gradient(135deg, rgba(217, 119, 6, 0.18) 0 9px, transparent 9px 18px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.1), transparent 38%);
+}
+
+.se-site-theme--motor-city-iron .se-panel,
+.se-site-theme--motor-city-iron .se-stats,
+.se-site-theme--motor-city-iron .se-stat {
+  border-color: rgba(148, 163, 184, 0.34);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.45),
+    inset 0 12px 24px rgba(255, 255, 255, 0.025),
+    0 10px 0 rgba(0, 0, 0, 0.18);
+}
+
+.se-site-theme--rain-city-wire {
+  --se-theme-border-style: dashed;
+  --se-theme-panel-fill:
+    linear-gradient(180deg, rgba(20, 38, 42, 0.88), rgba(5, 13, 15, 0.94)),
+    repeating-linear-gradient(115deg, rgba(94, 234, 212, 0.05) 0 1px, transparent 1px 12px);
+  --se-theme-stat-fill:
+    radial-gradient(circle at 18% 0%, rgba(45, 212, 191, 0.12), transparent 30%),
+    linear-gradient(180deg, rgba(11, 30, 32, 0.95), rgba(4, 12, 13, 0.96));
+  --se-theme-button-fill:
+    linear-gradient(180deg, rgba(45, 212, 191, 0.08), rgba(5, 14, 16, 0.92));
+  --se-theme-head-fill:
+    repeating-linear-gradient(90deg, rgba(94, 234, 212, 0.18) 0 4px, transparent 4px 18px),
+    linear-gradient(90deg, rgba(45, 212, 191, 0.12), transparent);
+  --se-theme-topbar-layer:
+    repeating-linear-gradient(90deg, rgba(94, 234, 212, 0.12) 0 1px, transparent 1px 22px),
+    linear-gradient(180deg, rgba(45, 212, 191, 0.1), transparent);
+}
+
+.se-site-theme--rain-city-wire .se-panel,
+.se-site-theme--rain-city-wire .se-stats,
+.se-site-theme--rain-city-wire .se-stat {
+  backdrop-filter: blur(1px);
+  box-shadow:
+    inset 0 -1px 0 rgba(94, 234, 212, 0.15),
+    0 18px 34px rgba(0, 0, 0, 0.32);
+}
+
+.se-site-theme--open-road {
+  --se-theme-panel-fill:
+    linear-gradient(90deg, rgba(250, 204, 21, 0.08), transparent 3% 97%, rgba(250, 204, 21, 0.08)),
+    linear-gradient(180deg, rgba(26, 37, 51, 0.96), rgba(9, 13, 19, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(115deg, transparent 0 45%, rgba(250, 204, 21, 0.12) 45% 47%, transparent 47%),
+    rgba(13, 19, 28, 0.96);
+  --se-theme-button-fill:
+    linear-gradient(90deg, rgba(250, 204, 21, 0.09), rgba(56, 189, 248, 0.06));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(250, 204, 21, 0.18) 0 2px, transparent 2px 100%),
+    linear-gradient(90deg, rgba(250, 204, 21, 0.11), rgba(56, 189, 248, 0.06), transparent);
+  --se-theme-topbar-layer:
+    linear-gradient(115deg, transparent 0 42%, rgba(250, 204, 21, 0.18) 42% 43%, transparent 43%),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.08), transparent);
+}
+
+.se-site-theme--open-road .se-panel,
+.se-site-theme--open-road .se-stats,
+.se-site-theme--open-road .se-stat {
+  border-radius: 2px;
+  border-color: rgba(250, 204, 21, 0.32);
+}
+
+.se-site-theme--blue-heat {
+  --se-theme-panel-fill:
+    linear-gradient(90deg, rgba(239, 68, 68, 0.09), transparent 20% 80%, rgba(96, 165, 250, 0.13)),
+    linear-gradient(180deg, rgba(21, 34, 56, 0.96), rgba(6, 10, 18, 0.98));
+  --se-theme-stat-fill:
+    linear-gradient(90deg, rgba(239, 68, 68, 0.12), transparent 48%, rgba(96, 165, 250, 0.16)),
+    rgba(8, 13, 23, 0.96);
+  --se-theme-button-fill:
+    linear-gradient(90deg, rgba(239, 68, 68, 0.1), rgba(96, 165, 250, 0.12));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(239, 68, 68, 0.16), transparent 45%, rgba(96, 165, 250, 0.18));
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(239, 68, 68, 0.2), transparent 42%, rgba(96, 165, 250, 0.22));
+}
+
+.se-site-theme--blue-heat .se-panel,
+.se-site-theme--blue-heat .se-stats,
+.se-site-theme--blue-heat .se-stat {
+  border-color: rgba(96, 165, 250, 0.38);
+  box-shadow:
+    inset 2px 0 0 rgba(239, 68, 68, 0.36),
+    inset -2px 0 0 rgba(96, 165, 250, 0.4),
+    0 0 26px rgba(96, 165, 250, 0.12);
+}
+
+.se-site-theme--back-office {
+  --se-theme-panel-fill:
+    repeating-linear-gradient(0deg, rgba(245, 158, 11, 0.05) 0 1px, transparent 1px 24px),
+    linear-gradient(180deg, rgba(39, 30, 18, 0.96), rgba(13, 10, 6, 0.97));
+  --se-theme-stat-fill:
+    linear-gradient(90deg, rgba(34, 197, 94, 0.07), transparent 40%),
+    repeating-linear-gradient(90deg, rgba(245, 158, 11, 0.045) 0 1px, transparent 1px 72px),
+    rgba(18, 13, 8, 0.96);
+  --se-theme-button-fill:
+    linear-gradient(180deg, rgba(245, 158, 11, 0.09), rgba(34, 197, 94, 0.04));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(245, 158, 11, 0.14), transparent 58%, rgba(34, 197, 94, 0.08)),
+    repeating-linear-gradient(0deg, rgba(245, 158, 11, 0.05) 0 1px, transparent 1px 12px);
+  --se-theme-topbar-layer:
+    repeating-linear-gradient(90deg, rgba(245, 158, 11, 0.08) 0 1px, transparent 1px 72px),
+    linear-gradient(90deg, rgba(34, 197, 94, 0.08), transparent 34%, rgba(245, 158, 11, 0.12));
+}
+
+.se-site-theme--back-office .se-panel,
+.se-site-theme--back-office .se-stats,
+.se-site-theme--back-office .se-stat {
+  border-color: rgba(245, 158, 11, 0.32);
+  box-shadow:
+    inset 0 0 0 1px rgba(34, 197, 94, 0.08),
+    0 13px 26px rgba(0, 0, 0, 0.36);
 }
 
 .se-site-theme-decor {
@@ -72,88 +553,6 @@
   overflow: hidden;
   pointer-events: none;
   user-select: none;
-}
-
-/* --- permanent identity themes ------------------------------------------ */
-
-.se-site-theme-decor--ambient {
-  opacity: 0.42;
-}
-
-.se-theme-ambient__line,
-.se-theme-ambient__mark {
-  position: absolute;
-  display: block;
-}
-
-.se-theme-ambient__line {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--se-theme-line, rgba(var(--se-accent-rgb), 0.28)), transparent);
-  box-shadow: 0 0 18px var(--se-theme-glow, rgba(var(--se-accent-rgb), 0.12));
-}
-
-.se-theme-ambient__line--1 {
-  top: 26px;
-  left: 7%;
-  width: 28%;
-  transform: rotate(-2deg);
-}
-
-.se-theme-ambient__line--2 {
-  right: 6%;
-  bottom: 92px;
-  width: 24%;
-  transform: rotate(3deg);
-}
-
-.se-theme-ambient__mark {
-  border: 1px solid var(--se-theme-line, rgba(var(--se-accent-rgb), 0.2));
-  box-shadow: 0 0 24px var(--se-theme-glow, rgba(var(--se-accent-rgb), 0.1));
-}
-
-.se-theme-ambient__mark--1 {
-  top: 64px;
-  right: clamp(24px, 8vw, 118px);
-  width: 88px;
-  height: 42px;
-}
-
-.se-theme-ambient__mark--2 {
-  left: clamp(18px, 6vw, 90px);
-  bottom: 46px;
-  width: 62px;
-  height: 62px;
-  transform: rotate(45deg);
-}
-
-.se-site-theme-decor--neon-vice {
-  --se-theme-line: rgba(34, 211, 238, 0.38);
-  --se-theme-glow: rgba(236, 72, 153, 0.16);
-}
-
-.se-site-theme-decor--motor-city-iron {
-  --se-theme-line: rgba(203, 213, 225, 0.24);
-  --se-theme-glow: rgba(217, 119, 6, 0.13);
-}
-
-.se-site-theme-decor--rain-city-wire {
-  --se-theme-line: rgba(45, 212, 191, 0.28);
-  --se-theme-glow: rgba(74, 222, 128, 0.12);
-}
-
-.se-site-theme-decor--open-road {
-  --se-theme-line: rgba(250, 204, 21, 0.28);
-  --se-theme-glow: rgba(56, 189, 248, 0.13);
-}
-
-.se-site-theme-decor--blue-heat {
-  --se-theme-line: rgba(96, 165, 250, 0.32);
-  --se-theme-glow: rgba(248, 113, 113, 0.12);
-}
-
-.se-site-theme-decor--back-office {
-  --se-theme-line: rgba(245, 158, 11, 0.3);
-  --se-theme-glow: rgba(34, 197, 94, 0.1);
 }
 
 /* --- winter / Christmas ------------------------------------------------- */

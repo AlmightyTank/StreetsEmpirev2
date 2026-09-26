@@ -537,7 +537,7 @@ export function AccountSettingsPage() {
                   </select>
                   {fields.activeSiteThemeKey
                     ? <p className="se-error">{fields.activeSiteThemeKey}</p>
-                    : <p className="se-hint">{profileSettings.options.themes.length ? 'Themes decorate the entire player-facing game and stay independent from your accent.' : 'Seasonal and event themes will appear here after you unlock them.'}</p>}
+                    : <p className="se-hint">{profileSettings.options.themes.length ? 'Themes reskin the player-facing game shell, panels, controls and background atmosphere.' : 'Seasonal and event themes will appear here after you unlock them.'}</p>}
                 </div>
               </div>
 
