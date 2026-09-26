@@ -3,6 +3,9 @@ import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Shell } from './Shell.js';
 import { ConnectionBanner } from '../components/ConnectionBanner.js';
 import { TrackedQuests } from '../components/TrackedQuests.js';
+import { IntroDialog } from '../components/onboarding/IntroDialog.js';
+import { PageGuide } from '../components/onboarding/PageGuide.js';
+import { useOnboarding } from '../stores/onboarding.js';
 import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
@@ -345,6 +348,13 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   const [sheet, setSheet] = useState<{ editSlot: number | null } | null>(null);
   const moreButton = useRef<HTMLButtonElement>(null);
   useRouteScroll(pathname, hash);
+  // 1.0.0-B: tutorial progress, refreshed as the player acts so the goals tick off.
+  const playerId = useSession((s) => s.me?.id ?? null);
+  const activityHead = useSession((s) => s.recentActivity[0]?.id ?? null);
+  const loadOnboarding = useOnboarding((s) => s.load);
+  useEffect(() => {
+    if (playerId) void loadOnboarding();
+  }, [playerId, activityHead, loadOnboarding]);
 
   function closeSheet() {
     setSheet(null);
@@ -384,10 +394,14 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
         </div>
       ) : null}
       <TrackedQuests />
+      <IntroDialog />
 
       <div className="se-gamegrid">
         <GameNav sections={sections} pathname={pathname} badges={badges} />
-        <div className="se-gamemain">{children}</div>
+        <div className="se-gamemain">
+          <PageGuide />
+          {children}
+        </div>
       </div>
       </Shell>
     </GameLayoutMountedContext.Provider>

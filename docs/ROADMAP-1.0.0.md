@@ -203,6 +203,15 @@ Tutorials must be:
 
 A fresh account can reach normal gameplay without outside assistance.
 
+### 1.0.0-B implementation complete
+
+- **First login.** A three-card intro (Turns, Scout, Crew) opens once for accounts that have never finished a season, ending on "Go scout". Supplies are introduced on the Crew card; Stores, Products, Combat, Travel, Turf, Hideout and Alliance each get a one-time "New here" card the first time their page is opened, so nothing is dumped up front.
+- **Getting started.** The dashboard shows five instructional goals (scout, recruit a thug, restock condoms and beer, produce, buy a weapon). They tick from this season's own ledger and crew (growth beyond the starting crew and guns, including checkout lines), never grant anything and never block an action. Hiding the list lasts for the current season.
+- **Help on every major page.** "How this page works" explains what the page does, its terms and its key risks, and links to the matching section of the Rules page. All copy lives in `apps/web/src/help/catalog.ts`.
+- **Returning players.** Everything is skippable (Skip or Escape), replayable (Rules page and Account settings reset the intro, page cards and guide) and non-blocking. Progress is stored per account (`AccountProfile.onboarding`), so it follows the player across devices and seasons; veterans are never interrupted.
+
+`ONBOARDING_INTEGRATION=1` covers intro due-ness, veteran detection, goal progress from real activity and the replay/skip/dismiss actions against PostgreSQL. `catalog.test.ts` keeps every onboarding page, route and rules link covered.
+
 ---
 
 ## 1.0.0-C — Security & Exploit Hardening

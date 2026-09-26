@@ -12,6 +12,7 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { HeatPanel, heatTone } from '../components/HeatPanel.js';
 import { formatDate, formatDuration } from '../utils/time.js';
+import { GettingStarted } from '../components/onboarding/GettingStarted.js';
 
 function RankMovement({ movement }: { movement: number | null }) {
   if (movement === null || movement === 0) {
@@ -385,6 +386,8 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
         </header>
 
         {error ? <Alert>{error}</Alert> : null}
+
+        <GettingStarted />
 
         <section className="se-dashboard-metrics" aria-label="Empire snapshot">
           <DashboardMetric

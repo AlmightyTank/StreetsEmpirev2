@@ -19,6 +19,7 @@ import { NotificationsPanel } from '../components/NotificationsPanel.js';
 import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { DEFAULT_PROFILE_SETTINGS, useSession } from '../stores/session.js';
+import { ReplayTutorial } from '../components/onboarding/ReplayTutorial.js';
 
 function formatDate(value: string | null): string {
   return value ? new Date(value).toLocaleString() : 'Never';
@@ -451,6 +452,11 @@ export function AccountSettingsPage() {
         ) : (
           <p className="se-muted">Session details are not available right now.</p>
         )}
+      </Panel>
+
+      <Panel title="Tutorial">
+        <p>Replay the first-login intro, see every page intro again and bring back the getting-started goals. Every page also has a "How this page works" panel.</p>
+        <ReplayTutorial className="se-btn se-btn--ghost" />
       </Panel>
 
       <Panel title="Cosmetics & interface">

@@ -3,6 +3,7 @@ import type { GameStatusDto } from '@streets/shared';
 import { roundsApi } from '../api/rounds.js';
 import { Panel } from '../components/Panel.js';
 import { InfoLayout } from '../layouts/InfoLayout.js';
+import { ReplayTutorial } from '../components/onboarding/ReplayTutorial.js';
 
 /**
  * How the game works, not what the numbers are.
@@ -30,6 +31,7 @@ export function RulesPage() {
             <span className="se-info-hero__kicker">Street handbook</span>
             <h1 className="se-info-hero__title">Rules</h1>
             <p className="se-info-hero__body">The mechanics that stay true even when balance numbers move. Live prices, limits and timers stay on the pages where you actually use them.</p>
+            <p><ReplayTutorial /></p>
           </div>
           <div className="se-info-hero__readout" aria-label="Current ruleset summary">
             <span><small>Ruleset</small><strong>{status?.ruleset?.name ?? 'Classic OG'}</strong></span>

@@ -51,6 +51,8 @@ if (withDb) {
     MODERATION_INTEGRATION: '1',
     // 1.0.0-A: version visibility and the production/beta database claim.
     PLATFORM_INTEGRATION: '1',
+    // 1.0.0-B: tutorial progress and the early getting-started goals.
+    ONBOARDING_INTEGRATION: '1',
   });
 }
 

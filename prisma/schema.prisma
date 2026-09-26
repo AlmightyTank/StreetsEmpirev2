@@ -146,6 +146,9 @@ model AccountProfile {
   reducedMotion     Boolean @default(false)
   moneyFormat       String  @default("full")
   defaultLanding    String  @default("game")
+  /// 1.0.0-B. Tutorial progress: intro completed/skipped, page intros seen, guide
+  /// dismissed for a season. Never gameplay state; see OnboardingService.
+  onboarding        Json    @default("{}")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
