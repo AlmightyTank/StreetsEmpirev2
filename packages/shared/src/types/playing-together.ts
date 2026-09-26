@@ -133,6 +133,8 @@ export type PlayerDirectoryView = 'all' | 'city' | 'alliance' | 'near' | 'encoun
 export interface PlayerDirectoryEntryDto {
   publicPimpId: number;
   displayName: string;
+  /** 0.9.0-F. Optional account-level crew name. */
+  crewName: string | null;
   alliance: AllianceTagDto | null;
   city: { slug: string; name: string };
   netWorthCents: number;

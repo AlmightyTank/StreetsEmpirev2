@@ -47,6 +47,16 @@ const profileTitleLabels: Record<string, string> = {
   'past-winner': 'Former Crown',
   'hall-of-fame': 'Hall Made',
   'top-finisher': 'Top-Ten Alumni',
+  // 0.9.0-F season feats and the podium title use their street names as-is.
+  kingpin: 'Kingpin',
+  'street-grinder': 'Street Grinder',
+  'stick-up-king': 'Stick-Up King',
+  'most-wanted': 'Most Wanted',
+  'block-boss': 'Block Boss',
+  'turf-veteran': 'Turf Veteran',
+  'road-warrior': 'Road Warrior',
+  'street-pharmacist': 'Street Pharmacist',
+  'high-roller': 'High Roller',
   'beta-tester': 'Beta Original',
 
   'ghost-of-the-block': 'The Quiet Ghost',

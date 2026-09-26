@@ -98,6 +98,8 @@ model AccountProfile {
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   activeTitleKey        String?
+  /// 0.9.0-F. Optional public crew name, account-level so it carries across seasons.
+  crewName              String?
   activeProfileFrameKey String?
   activeSiteThemeKey    String?
   featuredBadgeKeys     Json    @default("[]")
@@ -701,6 +703,10 @@ model RoundPlayer {
   thugStockAt     DateTime @default(now())
 
   lowRiders Int @default(0)
+
+  /// 0.9.0-F. Largest whores + thugs this crew has had this round. Profile history
+  /// only; raised on every action and settle, never lowered.
+  peakCrew Int @default(0)
 
   /// Weapon access, earned with reputation and never revoked once granted.
   shotgunUnlocked Boolean @default(false)

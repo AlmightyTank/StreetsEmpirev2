@@ -494,6 +494,27 @@ Titles provide **no mechanical bonus**.
 
 Profiles celebrate how somebody played without creating permanent gameplay advantages.
 
+### 0.9.0-F implementation complete
+
+F extends the existing profile, career, achievement and title system rather than adding a parallel one:
+
+- **Crew name.** An optional, account-level crew name (3–32 characters, same shape as an alliance name) set in Account Settings. It shows on the profile and in the Player Directory, and directory search matches it, which closes the crew-name gap left open in A. An admin **Reset profile** clears it, and the previous value is kept in the audit log.
+- **Seasonal statistics.** Every stat is read back from history the game already keeps: the activity feed, battle receipts, turf pushes, hold segments and control events, runs, stops, cargo and trades, and reputation. Seasons that finished before F get full stat sheets too, and nothing on the action path keeps a second set of books. The only new counter is `RoundPlayer.peakCrew`. It is raised on every action and settle, and the migration backfills it with each existing player's current crew. Voided battles never count.
+
+  | Section | Stats |
+  |---|---|
+  | Street | turns worked, street earnings, recruits found, peak crew |
+  | Combat | raids won/lost, defenses held/lost, drive-bys landed, thugs defeated, cash stolen (raids + convoy hits), biggest raid |
+  | Turf | blocks captured (pushes + claims), blocks lost, block-hours held, cities controlled (alliance took the city while you held a block there) |
+  | Travel | runs completed, distance in real interstate drive hours, cargo moved (loaded + bought on the road), convoy hits won |
+  | Economy | product produced, product sold (Pip, checkout, market and run sales), largest transaction, trader reputation |
+
+- **Sealed live numbers.** Stats are history, not free intel. While a season is live, other players see `Sealed` for street earnings, recruits, peak crew, cash stolen, biggest raid, cargo moved, product produced/sold and largest transaction. Feat progress built on those numbers is hidden the same way. The owner always sees everything, and finished seasons show everything.
+- **Titles.** Season feats unlock cosmetic titles: **Street Grinder**, **Stick-Up King**, **Most Wanted**, **Block Boss**, **Turf Veteran**, **Road Warrior**, **Street Pharmacist** and **High Roller**. A new legacy award, **Kingpin**, unlocks for a finished season on the national podium. Feats are earned in one season and kept for good. They are re-derived from each season's history (the oldest qualifying season gets the credit), so they survive round resets, show as permanent badges and stay selectable as titles in the off-season. Titles give no mechanical bonus. Feat targets are balance approximations for a 28-day round and should be revisited with real 0.9.0 season data.
+- **Profile.** The profile adds a **Showcase** (the player's featured achievements in their chosen order), **This season** (the rarest achievements earned in the live season), a **Season stats** sheet with a picker for the live season and each finished season, and **Hall of Fame appearances** (every finished top-ten season, with podiums highlighted) above the career table.
+
+`PROFILE_INTEGRATION=1` runs the PostgreSQL coverage for the stat aggregation, sealing, permanent titles, Hall of Fame appearances and crew names.
+
 ---
 
 ## 0.9.0-G — Notifications & Phone Alerts

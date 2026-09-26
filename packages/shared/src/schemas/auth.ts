@@ -77,12 +77,34 @@ export const profileAccentSchema = z.enum([
   'clean-slate-ice',
   'corner-amber',
 ]);
+export const CREW_NAME_MIN = 3;
+export const CREW_NAME_MAX = 32;
+
+/**
+ * 0.9.0-F. Public crew name: same shape as an alliance name. Blank clears it.
+ * Admins can clear it with a profile reset.
+ */
+export const crewNameSchema = z
+  .string()
+  .trim()
+  .transform((value) => value.replace(/\s+/g, ' '))
+  .pipe(z.union([
+    z.literal(''),
+    z.string()
+      .min(CREW_NAME_MIN, `Crew names need at least ${CREW_NAME_MIN} characters.`)
+      .max(CREW_NAME_MAX, `Crew names can be at most ${CREW_NAME_MAX} characters.`)
+      .regex(/^[A-Za-z0-9][A-Za-z0-9 '._-]*[A-Za-z0-9.]$/, 'Use letters, numbers, spaces and simple punctuation.'),
+  ]))
+  .transform((value) => value || null);
+
 export const uiDensitySchema = z.enum(['comfortable', 'compact']);
 export const moneyFormatSchema = z.enum(['full', 'compact']);
 export const defaultLandingSchema = z.enum(['game', 'profile', 'rankings', 'news']);
 
 export const updateAccountProfileSettingsSchema = z.object({
   activeTitleKey: z.string().trim().min(1).max(80).nullable(),
+  /** Omitted keeps the current crew name; null or blank clears it. */
+  crewName: crewNameSchema.nullable().optional(),
   activeProfileFrameKey: z.string().trim().min(1).max(80).nullable(),
   activeSiteThemeKey: z.string().trim().min(1).max(80).nullable().default(null),
   featuredBadgeKeys: z.array(z.string().trim().min(1).max(80)).max(6),

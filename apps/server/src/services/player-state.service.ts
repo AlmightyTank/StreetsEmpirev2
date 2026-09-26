@@ -186,6 +186,10 @@ export const PlayerStateService = {
     if (netWorthCents !== rest.netWorthCents) {
       data.netWorthCents = netWorthCents;
     }
+    // 0.9.0-F. Raids, lures and grants change crew outside ActionService.
+    if (rest.whores + rest.thugs > rest.peakCrew) {
+      data.peakCrew = rest.whores + rest.thugs;
+    }
     if (ranks.localRank !== rest.localRank) {
       data.localRank = ranks.localRank;
       data.localRankSinceAt = now;

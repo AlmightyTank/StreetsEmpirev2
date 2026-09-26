@@ -1,13 +1,27 @@
 import type { AllianceDetailDto, AllianceTagDto } from './alliance.js';
 import type { ActivityDto, CityDto, ProfileAccent, RoundDto, SeasonHideoutDto } from './api.js';
 
-export type PublicAchievementCategory = 'rank' | 'wealth' | 'combat' | 'intel' | 'reputation' | 'hideout' | 'quest' | 'legacy';
+export type PublicAchievementCategory =
+  | 'rank'
+  | 'wealth'
+  | 'street'
+  | 'combat'
+  | 'intel'
+  | 'turf'
+  | 'travel'
+  | 'economy'
+  | 'reputation'
+  | 'hideout'
+  | 'quest'
+  | 'legacy';
 export type PublicAchievementRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
 export interface PublicAchievementProgressDto {
   current: number;
   target: number;
   label: string;
+  /** 0.9.0-F. Money progress, in cents. Absent for plain counts. */
+  unit?: 'cents';
 }
 
 export interface PublicAwardDto {
@@ -18,7 +32,13 @@ export interface PublicAwardDto {
   rarity: PublicAchievementRarity;
   unlocked: boolean;
   earnedAt: string | null;
+  /** 0.9.0-F. Null when a sealed live-season stat would be revealed by it. */
   progress: PublicAchievementProgressDto | null;
+  /**
+   * 0.9.0-F. Season feats are earned in one season and kept for good: the
+   * season that earned it (the current one when it did), absent for other awards.
+   */
+  earnedSeason?: string | null;
 }
 
 /** A compact profile badge: an earned achievement, shown on game and forum profiles. */
@@ -43,6 +63,8 @@ export interface PublicLegacyDto {
   roundsPlayed: number;
   roundWins: number;
   topTenFinishes: number;
+  /** 0.9.0-F. Finished seasons on the national podium (top three). */
+  podiumFinishes: number;
   bestNationalRank: number | null;
   bestLocalRank: number | null;
   totalFinalNetWorthCents: number;
@@ -57,6 +79,61 @@ export interface PublicSeasonStatsDto {
   driveByWins: number;
   reconRuns: number;
   jobsCompleted: number;
+}
+
+/**
+ * 0.9.0-F. One season's public stat sheet, built from the durable history of
+ * that season. While a season is live, numbers that would work as free intel on
+ * cash, crew or product flow are null for everyone but the player themselves;
+ * finished seasons show everything.
+ */
+export interface PublicStatSheetDto {
+  /** True when at least one number below is withheld from this viewer. */
+  sealed: boolean;
+  street: {
+    turnsWorked: number;
+    streetEarningsCents: number | null;
+    recruitsFound: number | null;
+    peakCrew: number | null;
+  };
+  combat: {
+    raidsWon: number;
+    raidsLost: number;
+    defensesHeld: number;
+    defensesLost: number;
+    driveBysLanded: number;
+    thugsDefeated: number;
+    cashStolenCents: number | null;
+    biggestRaidCents: number | null;
+  };
+  turf: {
+    blocksCaptured: number;
+    blocksLost: number;
+    /** Held block time, in hours with one decimal. */
+    blockHours: number;
+    /** Cities the player's alliance took control of while they held blocks there. */
+    citiesControlled: number;
+  };
+  travel: {
+    runsCompleted: number;
+    /** Real interstate drive hours of every leg already driven. */
+    driveHours: number;
+    cargoMoved: number | null;
+    convoyAttacksWon: number;
+  };
+  economy: {
+    productProduced: number | null;
+    productSold: number | null;
+    largestTransactionCents: number | null;
+    traderReputation: number;
+  };
+}
+
+/** 0.9.0-F. A finished season where the player made the Hall of Fame top ten. */
+export interface PublicHallOfFameAppearanceDto {
+  round: { name: string; slug: string; endedAt: string };
+  nationalRank: number;
+  podium: boolean;
 }
 
 export interface PublicSeasonResultDto {
@@ -80,6 +157,8 @@ export interface PublicSeasonResultDto {
     national: number | null;
   };
   stats: PublicSeasonStatsDto;
+  /** 0.9.0-F. Full stat sheet; finished seasons are never sealed. */
+  statSheet: PublicStatSheetDto;
   hideout: SeasonHideoutDto;
   joinedAt: string;
   lastActiveAt: string;
@@ -88,6 +167,8 @@ export interface PublicSeasonResultDto {
 export interface PublicCareerDto {
   legacy: PublicLegacyDto;
   seasons: PublicSeasonResultDto[];
+  /** 0.9.0-F. Every finished top-ten season, newest first. */
+  hallOfFame: PublicHallOfFameAppearanceDto[];
 }
 
 export interface RankingEntryDto {
@@ -158,6 +239,10 @@ export interface PublicPlayerProfileDto {
   };
   publicPimpId: number;
   displayName: string;
+  /** 0.9.0-F. Optional account-level crew name. */
+  crewName: string | null;
+  /** 0.9.0-F. The live season this profile belongs to. */
+  seasonName: string;
   /** 0.3.0-C. Null for solo players and on rounds without alliances. */
   alliance: AllianceTagDto | null;
   city: CityDto;
@@ -173,6 +258,10 @@ export interface PublicPlayerProfileDto {
   legacy: PublicLegacyDto;
   career: PublicCareerDto;
   awards: PublicAwardDto[];
+  /** 0.9.0-F. The player's featured achievements, in their chosen order. */
+  showcase: PublicAwardDto[];
+  /** 0.9.0-F. This season's stat sheet, sealed where it would be free intel. */
+  statSheet: PublicStatSheetDto;
   crew: {
     whores: number;
     thugs: number;

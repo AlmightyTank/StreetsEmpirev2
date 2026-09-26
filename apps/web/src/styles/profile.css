@@ -454,3 +454,113 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* 0.9.0-F: crew name, season stat sheet, Hall of Fame appearances. */
+.se-profile .se-profile-crew {
+  margin: 4px 0 0;
+  color: var(--se-text-dim);
+  font-size: 10px;
+}
+
+.se-profile-crew strong {
+  color: var(--se-text);
+  overflow-wrap: anywhere;
+}
+
+.se-profile-stats > .se-panel__body {
+  padding: 12px;
+}
+
+.se-profile-stats__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 10px;
+}
+
+.se-profile-stats__head .se-hint {
+  max-width: 520px;
+  margin: 0;
+}
+
+.se-profile-stats__picker {
+  min-width: 220px;
+  margin: 0;
+}
+
+.se-profile-statgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+  align-items: start;
+}
+
+.se-profile-statgroup {
+  min-width: 0;
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.se-profile-statgroup h3 {
+  margin: 0;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--se-line);
+  color: var(--se-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.se-profile-statgroup .se-row {
+  min-height: 30px;
+  padding: 6px 10px;
+  font-size: 10px;
+}
+
+.se-profile-hof {
+  display: grid;
+  gap: 6px;
+}
+
+.se-profile-hof__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.se-profile-hof__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  font-size: 10px;
+}
+
+.se-profile-hof__item--podium {
+  border-color: color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 45%, var(--se-line));
+}
+
+.se-profile-hof__item--podium strong {
+  color: var(--se-profile-accent, var(--se-accent));
+}
+
+@media (max-width: 520px) {
+  .se-profile-stats__picker {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .se-profile-statgrid {
+    grid-template-columns: 1fr;
+  }
+}

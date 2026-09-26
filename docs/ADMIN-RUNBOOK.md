@@ -68,8 +68,9 @@ All of this is on **Accounts**, then the account.
 - **Deactivate** is the permanent one: signs them out, blocks login, and hides
   them from rankings and raid lists until an admin reactivates them.
 - **Rename** changes their pimp name everywhere, archived rounds included.
-- **Reset profile** clears a title, featured badges and accent that broke the
-  rules, without touching anything they earned.
+- **Reset profile** clears a crew name, title, featured badges and accent that
+  broke the rules, without touching anything they earned. The previous crew
+  name is kept in the audit detail.
 
 Every one of these needs a reason of at least five characters. Suspension
 reasons are shown to the player; the rest are for the audit log.

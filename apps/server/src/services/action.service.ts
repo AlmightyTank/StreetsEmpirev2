@@ -455,6 +455,7 @@ export const ActionService = {
         data: {
           ...next,
           ...stock.clocks,
+          peakCrew: Math.max(player.peakCrew, next.whores + next.thugs),
           lastTurnCalculationAt: turns.lastTurnCalculationAt,
           lastActiveAt: now,
           ...(turns.awayBonus.awarded ? { lastAwayBonusAt: now } : {}),

@@ -121,7 +121,7 @@ export function PlayersPage() {
                   type="search"
                   value={query}
                   maxLength={80}
-                  placeholder="Display name, #1042, or alliance"
+                  placeholder="Name, crew, #1042, or alliance"
                   onChange={(event) => setQuery(event.target.value)}
                 />
                 <button className="se-btn se-btn--primary" type="submit">Search</button>
@@ -193,6 +193,7 @@ export function PlayersPage() {
                               <span className="se-muted se-num">#{player.publicPimpId}</span>
                               {player.isYou ? <span className="se-tag se-tag--good">You</span> : null}
                             </div>
+                            {player.crewName ? <span className="se-players-person__crew se-muted">{player.crewName}</span> : null}
                           </div>
                         </td>
                         <td className="se-table__number se-num" data-label="National">

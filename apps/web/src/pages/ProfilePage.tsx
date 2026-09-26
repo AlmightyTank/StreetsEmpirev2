@@ -1,6 +1,12 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
-import type { PublicAwardDto, PublicCareerDto, PublicPlayerProfileDto, PublicSeasonResultDto } from '@streets/shared';
+import type {
+  PublicAwardDto,
+  PublicCareerDto,
+  PublicPlayerProfileDto,
+  PublicSeasonResultDto,
+  PublicStatSheetDto,
+} from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
@@ -17,8 +23,12 @@ import { formatDate } from '../utils/time.js';
 const categoryName: Record<PublicAwardDto['category'], string> = {
   rank: 'Rank',
   wealth: 'Wealth',
+  street: 'Street',
   combat: 'Combat',
   intel: 'Intel',
+  turf: 'Turf',
+  travel: 'Travel',
+  economy: 'Economy',
   reputation: 'Reputation',
   hideout: 'Hideout',
   quest: 'Quest',
@@ -50,7 +60,121 @@ function progressPercent(award: PublicAwardDto): number {
 }
 
 function progressValue(award: PublicAwardDto, value: number): string {
-  return award.progress?.label === 'net worth' ? formatCents(value) : formatNumber(value);
+  return award.progress?.unit === 'cents' || award.progress?.label === 'net worth' ? formatCents(value) : formatNumber(value);
+}
+
+const rarityRank: Record<PublicAwardDto['rarity'], number> = { legendary: 5, epic: 4, rare: 3, uncommon: 2, common: 1 };
+
+function earnedText(award: PublicAwardDto): string {
+  if (!award.unlocked) return 'Locked';
+  if (award.earnedSeason) return `Earned in ${award.earnedSeason}`;
+  return award.earnedAt ? `Earned ${formatDate(award.earnedAt)}` : 'Earned';
+}
+
+type StatFormat = 'number' | 'cents' | 'hours';
+type StatLine = { label: string; value: number | null; format?: StatFormat };
+
+function statValue(value: number | null, format: StatFormat = 'number'): string {
+  if (value === null) return 'Sealed';
+  if (format === 'cents') return formatCents(value);
+  if (format === 'hours') return `${formatNumber(value)}h`;
+  return formatNumber(value);
+}
+
+function statGroups(sheet: PublicStatSheetDto): Array<{ key: string; title: string; lines: StatLine[] }> {
+  return [
+    { key: 'street', title: 'Street', lines: [
+      { label: 'Turns worked', value: sheet.street.turnsWorked },
+      { label: 'Street earnings', value: sheet.street.streetEarningsCents, format: 'cents' },
+      { label: 'Recruits found', value: sheet.street.recruitsFound },
+      { label: 'Peak crew size', value: sheet.street.peakCrew },
+    ] },
+    { key: 'combat', title: 'Combat', lines: [
+      { label: 'Raids won', value: sheet.combat.raidsWon },
+      { label: 'Raids lost', value: sheet.combat.raidsLost },
+      { label: 'Defenses held', value: sheet.combat.defensesHeld },
+      { label: 'Defenses lost', value: sheet.combat.defensesLost },
+      { label: 'Drive-bys landed', value: sheet.combat.driveBysLanded },
+      { label: 'Thugs defeated', value: sheet.combat.thugsDefeated },
+      { label: 'Cash stolen', value: sheet.combat.cashStolenCents, format: 'cents' },
+      { label: 'Biggest raid', value: sheet.combat.biggestRaidCents, format: 'cents' },
+    ] },
+    { key: 'turf', title: 'Turf', lines: [
+      { label: 'Blocks captured', value: sheet.turf.blocksCaptured },
+      { label: 'Blocks lost', value: sheet.turf.blocksLost },
+      { label: 'Block-hours held', value: sheet.turf.blockHours, format: 'hours' },
+      { label: 'Cities controlled', value: sheet.turf.citiesControlled },
+    ] },
+    { key: 'travel', title: 'Travel', lines: [
+      { label: 'Runs completed', value: sheet.travel.runsCompleted },
+      { label: 'Distance driven', value: sheet.travel.driveHours, format: 'hours' },
+      { label: 'Cargo moved', value: sheet.travel.cargoMoved },
+      { label: 'Convoy hits won', value: sheet.travel.convoyAttacksWon },
+    ] },
+    { key: 'economy', title: 'Economy', lines: [
+      { label: 'Product produced', value: sheet.economy.productProduced },
+      { label: 'Product sold', value: sheet.economy.productSold },
+      { label: 'Largest transaction', value: sheet.economy.largestTransactionCents, format: 'cents' },
+      { label: 'Trader reputation', value: sheet.economy.traderReputation },
+    ] },
+  ];
+}
+
+interface SheetChoice {
+  key: string;
+  label: string;
+  sheet: PublicStatSheetDto;
+}
+
+function StatSheetPanel({ choices }: { choices: SheetChoice[] }) {
+  const [selected, setSelected] = useState(choices[0]?.key ?? '');
+  const choice = choices.find((item) => item.key === selected) ?? choices[0];
+  if (!choice) return null;
+  return (
+    <Panel title="Season stats" className="se-profile-panel se-profile-stats">
+      <div className="se-profile-stats__head">
+        {choices.length > 1 ? (
+          <div className="se-field se-profile-stats__picker">
+            <label className="se-label" htmlFor="stat-season">Season</label>
+            <select id="stat-season" className="se-input" value={choice.key} onChange={(event) => setSelected(event.target.value)}>
+              {choices.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+            </select>
+          </div>
+        ) : <p className="se-eyebrow">{choice.label}</p>}
+        <p className="se-hint">
+          {choice.sheet.sealed
+            ? 'Cash, crew and product numbers stay sealed until this season ends. Stats are history, not power.'
+            : 'Built from the season record. Stats and titles are history, not power.'}
+        </p>
+      </div>
+      <div className="se-profile-statgrid">
+        {statGroups(choice.sheet).map((group) => (
+          <section className="se-profile-statgroup" key={group.key} aria-label={`${group.title} stats`}>
+            <h3>{group.title}</h3>
+            <div className="se-rows">
+              {group.lines.map((line) => (
+                <Row
+                  key={line.label}
+                  label={line.label}
+                  value={<span className={line.value === null ? 'se-muted' : 'se-num'}>{statValue(line.value, line.format)}</span>}
+                />
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function AwardStrip({ title, awards, empty, className }: { title: string; awards: PublicAwardDto[]; empty: string; className?: string }) {
+  return (
+    <Panel title={title} className={`se-profile-panel se-profile-achievements${className ? ` ${className}` : ''}`}>
+      {awards.length
+        ? <ul className="se-ach-grid">{awards.map((award) => <AchievementCard award={award} key={award.key} />)}</ul>
+        : <p className="se-muted">{empty}</p>}
+    </Panel>
+  );
 }
 
 function rankLabel(rank: number | null): string {
@@ -95,7 +219,7 @@ function AchievementCard({ award }: { award: PublicAwardDto }) {
           </p>
         </div>
       ) : null}
-      <p className="se-ach__status">{award.unlocked ? (award.earnedAt ? `Earned ${formatDate(award.earnedAt)}` : 'Earned') : 'Locked'}</p>
+      <p className="se-ach__status">{earnedText(award)}</p>
     </li>
   );
 }
@@ -239,6 +363,21 @@ function SeasonHistory({ career }: { career: PublicCareerDto }) {
             <Stat label="Season Wins" value={formatNumber(career.legacy.roundWins)} />
           </div>
 
+          {career.hallOfFame.length ? (
+            <div className="se-profile-hof">
+              <span className="se-eyebrow">Hall of Fame appearances</span>
+              <ul className="se-profile-hof__list">
+                {career.hallOfFame.map((entry) => (
+                  <li key={entry.round.slug} className={`se-profile-hof__item${entry.podium ? ' se-profile-hof__item--podium' : ''}`}>
+                    <strong className="se-num">#{formatNumber(entry.nationalRank)}</strong>
+                    <span>{entry.round.name}</span>
+                    <span className="se-muted">{formatDate(entry.round.endedAt)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           <div className="se-tablewrap">
             <table className="se-table se-table--cards">
               <thead>
@@ -327,6 +466,16 @@ export function ProfilePage() {
   if (!me && (params.publicPimpId || params.forumUserId)) return <Navigate to="/game" replace />;
 
   const unlocked = player?.awards.filter((award) => award.unlocked) ?? [];
+  // This season: achievements earned in the live season, not the permanent carry-overs.
+  const thisSeason = unlocked
+    .filter((award) => award.category !== 'legacy' && award.category !== 'quest'
+      && (!award.earnedSeason || award.earnedSeason === player?.seasonName))
+    .sort((a, b) => rarityRank[b.rarity] - rarityRank[a.rarity])
+    .slice(0, 6);
+  const sheetChoices: SheetChoice[] = [
+    ...(player ? [{ key: 'current', label: `${player.seasonName} (live)`, sheet: player.statSheet }] : []),
+    ...(career?.seasons ?? []).map((season) => ({ key: season.round.id, label: season.round.name, sheet: season.statSheet })),
+  ];
   const locked = player?.awards.filter((award) => !award.unlocked) ?? [];
   const filtersActive = achievementStatusFilter !== 'all' || achievementCategoryFilter !== 'all';
   const filteredAwards = (player?.awards ?? []).filter((award) => {
@@ -346,6 +495,7 @@ export function ProfilePage() {
             {player ? <span className="se-muted se-num">(#{player.publicPimpId})</span> : null}
           </h1>
           {player?.cosmetics.title ? <p className="se-profile-title">{player.cosmetics.title}</p> : null}
+          {player?.crewName ? <p className="se-profile-crew">Crew · <strong>{player.crewName}</strong></p> : null}
           <p className="se-eyebrow">
             {player ? `${player.city.name}${player.isYou ? ' · Your profile' : ''}` : 'Permanent season record'}
           </p>
@@ -364,6 +514,7 @@ export function ProfilePage() {
         ) : null}
 
         {!player && career ? <SeasonHistory career={career} /> : null}
+        {!player && sheetChoices.length ? <StatSheetPanel key="career" choices={sheetChoices} /> : null}
 
         {player ? (
           <>
@@ -434,6 +585,18 @@ export function ProfilePage() {
                 </div>
               )}
             </section>
+
+            {player.showcase.length ? (
+              <AwardStrip title="Showcase" awards={player.showcase} empty="" className="se-profile-showcase" />
+            ) : null}
+
+            <AwardStrip
+              title={`This season · ${player.seasonName}`}
+              awards={thisSeason}
+              empty="Nothing earned this season yet. The streets are watching."
+            />
+
+            <StatSheetPanel key={player.publicPimpId} choices={sheetChoices} />
 
             {career ? <SeasonHistory career={career} /> : null}
 

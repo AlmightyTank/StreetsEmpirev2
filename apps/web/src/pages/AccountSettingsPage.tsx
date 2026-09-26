@@ -8,6 +8,7 @@ import type {
   ProfileAccent,
   UiDensity,
 } from '@streets/shared';
+import { CREW_NAME_MAX } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
@@ -460,6 +461,23 @@ export function AccountSettingsPage() {
             <div className="se-account-cosmetics">
               <div>
                 <div className="se-field">
+                  <label className="se-label" htmlFor="crew-name">Crew name</label>
+                  <input
+                    id="crew-name"
+                    className="se-input"
+                    value={cosmetics.crewName ?? ''}
+                    maxLength={CREW_NAME_MAX}
+                    placeholder="No crew name"
+                    autoComplete="off"
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      crewName: event.target.value,
+                    }))}
+                  />
+                  {fields.crewName ? <p className="se-error">{fields.crewName}</p> : <p className="se-hint">Shown on your profile and searchable in the Players directory. It carries across seasons; leave it blank for none.</p>}
+                </div>
+
+                <div className="se-field">
                   <label className="se-label" htmlFor="active-title">Profile title</label>
                   <select
                     id="active-title"
@@ -475,7 +493,7 @@ export function AccountSettingsPage() {
                       <option value={option.key} key={option.key}>{option.label}</option>
                     ))}
                   </select>
-                  {fields.activeTitleKey ? <p className="se-error">{fields.activeTitleKey}</p> : <p className="se-hint">Titles come from achievements, legacy badges, and quest-only cosmetics you have unlocked.</p>}
+                  {fields.activeTitleKey ? <p className="se-error">{fields.activeTitleKey}</p> : <p className="se-hint">Titles come from achievements, season feats, legacy badges, and quest-only cosmetics. They are cosmetic only.</p>}
                 </div>
 
                 <div className="se-field">

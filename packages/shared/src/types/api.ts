@@ -125,6 +125,8 @@ export interface BadgeCosmeticOptionDto extends CosmeticOptionDto {
 
 export interface AccountProfileSettingsDto {
   activeTitleKey: string | null;
+  /** 0.9.0-F. Optional public crew name. */
+  crewName: string | null;
   activeProfileFrameKey: string | null;
   activeSiteThemeKey: string | null;
   featuredBadgeKeys: string[];
