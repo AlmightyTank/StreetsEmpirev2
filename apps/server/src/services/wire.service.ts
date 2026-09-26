@@ -14,6 +14,7 @@ import type { DistrictKey } from '@streets/rulesets';
 import { lockRoundPlayer } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
+import { assertCanCommunicate } from './communication-guard.js';
 
 type Author = Pick<RoundPlayer, 'id' | 'publicPimpId' | 'displayName'>;
 
@@ -243,6 +244,8 @@ export const WireService = {
       const me = await tx.roundPlayer.findUniqueOrThrow({ where: { id: playerId }, include: { alliance: true } });
       if (!me.alliance || me.alliance.disbandedAt) throw AppError.conflict('NOT_IN_ALLIANCE', 'Join an alliance to post on its wire.');
       const now = new Date();
+      // 0.9.0-H: a moderator's communication mute covers the wire too.
+      await assertCanCommunicate(tx, me.accountId, now);
       const last = await tx.allianceWirePost.findFirst({ where: { authorId: me.id }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } });
       if (last && now.getTime() - last.createdAt.getTime() < WIRE_COOLDOWN_SECONDS * 1000) {
         throw AppError.conflict('WIRE_COOLDOWN', `Give it ${WIRE_COOLDOWN_SECONDS} seconds between posts.`);

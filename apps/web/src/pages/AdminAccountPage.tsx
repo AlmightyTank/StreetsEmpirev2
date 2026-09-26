@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import type { AdminAccountAction, AdminAccountDetailDto, AdminSuspensionLength, RoundStatus } from '@streets/shared';
-import { ADMIN_SUSPENSION_LENGTHS, formatCents, formatNumber } from '@streets/shared';
+import type { AdminAccountAction, AdminAccountDetailDto, AdminCommsMuteLength, AdminSuspensionLength, RoundStatus } from '@streets/shared';
+import { ADMIN_COMMS_MUTE_LENGTHS, ADMIN_SUSPENSION_LENGTHS, formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { AccountTags, AuditEntryList } from '../components/AdminParts.js';
@@ -29,10 +29,13 @@ const actionText: Record<AdminAccountAction, { label: string; copy: string }> = 
   'mark-email-verified': { label: 'Mark email verified', copy: 'Marks their current email as verified without a link. Only do this once you have confirmed they own it.' },
   'unlink-forum': { label: 'Unlink forum', copy: 'Removes the connection to their forum account on both sides. They can link again from their account settings.' },
   'resync-discord': { label: 'Resync Discord roles', copy: 'Asks the Discord bot to re-check their roles on its next pass, about a minute.' },
+  'comms-mute': { label: 'Mute messaging', copy: 'Stops private messages, Alliance Wire posts and forum recruitment threads. They keep playing and see a notice in the Console. Timed mutes lift themselves.' },
+  'comms-unmute': { label: 'Lift messaging mute', copy: 'Lets them send private messages and wire posts again now.' },
+  'add-note': { label: 'Add note', copy: 'A private moderation note. The player never sees it; other admins do, and it is audited.' },
   'delete-account': { label: 'Delete account', copy: 'Permanent. Unused accounts are removed outright. Accounts with round history are anonymized so rankings, battles and archived seasons remain intact.' },
 };
 
-const DESTRUCTIVE: AdminAccountAction[] = ['deactivate', 'suspend', 'revoke-admin', 'revoke-beta', 'unlink-forum', 'delete-account'];
+const DESTRUCTIVE: AdminAccountAction[] = ['deactivate', 'suspend', 'comms-mute', 'revoke-admin', 'revoke-beta', 'unlink-forum', 'delete-account'];
 
 function statusTone(status: RoundStatus): string {
   if (status === 'ACTIVE') return ' se-tag--good';
@@ -57,6 +60,7 @@ export function AdminAccountPage() {
   const [newName, setNewName] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [length, setLength] = useState<AdminSuspensionLength>('7d');
+  const [muteLength, setMuteLength] = useState<AdminCommsMuteLength>('1d');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
@@ -105,6 +109,9 @@ export function AdminAccountPage() {
         case 'reactivate': updated = await adminApi.reactivateAccount(accountId, why); break;
         case 'suspend': updated = await adminApi.suspendAccount(accountId, length, why); break;
         case 'lift-suspension': updated = await adminApi.liftSuspension(accountId, why); break;
+        case 'comms-mute': updated = await adminApi.muteComms(accountId, muteLength, why); break;
+        case 'comms-unmute': updated = await adminApi.unmuteComms(accountId, why); break;
+        case 'add-note': updated = await adminApi.addNote(accountId, why); break;
         case 'revoke-sessions': updated = await adminApi.revokeSessions(accountId, why, pending.sessionId); break;
         case 'rename': updated = await adminApi.renameAccount(accountId, newName.trim(), why); break;
         case 'reset-profile': updated = await adminApi.resetProfile(accountId, why); break;
@@ -148,6 +155,8 @@ export function AdminAccountPage() {
   const accountActions: AdminAccountAction[] = [
     account.isActive ? 'deactivate' : 'reactivate',
     ...(account.suspension ? ['lift-suspension' as const] : account.isActive && !account.isAdmin ? ['suspend' as const] : []),
+    ...(detail.comms ? ['comms-unmute' as const] : !account.isAdmin ? ['comms-mute' as const] : []),
+    'add-note',
     'revoke-sessions',
     'rename',
     'reset-profile',
@@ -208,6 +217,14 @@ export function AdminAccountPage() {
                 <p className="se-hint">Ends {new Date(Date.now() + (ADMIN_SUSPENSION_LENGTHS.find((option) => option.key === length)?.hours ?? 0) * 3_600_000).toLocaleString()}.</p>
               </div>
             ) : null}
+            {pending.action === 'comms-mute' ? (
+              <div className="se-field">
+                <label className="se-label" htmlFor="admin-comms-length">How long</label>
+                <select id="admin-comms-length" className="se-input" value={muteLength} onChange={(event) => setMuteLength(event.target.value as AdminCommsMuteLength)}>
+                  {ADMIN_COMMS_MUTE_LENGTHS.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
+                </select>
+              </div>
+            ) : null}
             {pending.action === 'rename' ? (
               <Field
                 id="admin-rename"
@@ -238,16 +255,16 @@ export function AdminAccountPage() {
               </>
             ) : null}
             <div className="se-field">
-              <label className="se-label" htmlFor="admin-account-reason">Reason</label>
+              <label className="se-label" htmlFor="admin-account-reason">{pending.action === 'add-note' ? 'Note' : 'Reason'}</label>
               <textarea
                 id="admin-account-reason"
                 className="se-input se-admin-reason"
-                rows={3}
-                maxLength={500}
+                rows={pending.action === 'add-note' ? 5 : 3}
+                maxLength={pending.action === 'add-note' ? 2000 : 500}
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
               />
-              {fields.reason ? <p className="se-error">{fields.reason}</p> : (
+              {fields.reason || fields.body ? <p className="se-error">{fields.reason ?? fields.body}</p> : (
                 <p className="se-hint">
                   Saved to the audit log. At least 5 characters.
                   {pending.action === 'suspend' ? ' The player is shown this reason when they try to log in.' : ''}
@@ -281,6 +298,20 @@ export function AdminAccountPage() {
               />
             ) : null}
             {account.suspension?.reason ? <Row label="Suspension reason" value={account.suspension.reason} /> : null}
+            {detail.comms ? (
+              <Row
+                label="Messaging muted"
+                value={`${detail.comms.permanent ? 'Permanently' : `Until ${adminWhen(detail.comms.until)}`}${detail.comms.byUsername ? ` by ${detail.comms.byUsername}` : ''}`}
+                strong
+              />
+            ) : null}
+            {detail.comms?.reason ? <Row label="Mute reason" value={detail.comms.reason} /> : null}
+            <Row
+              label="Message reports"
+              value={detail.reportsAgainst.total
+                ? <Link to="/game/admin/reports">{formatNumber(detail.reportsAgainst.open)} open of {formatNumber(detail.reportsAgainst.total)}</Link>
+                : 'None'}
+            />
             <Row label="Email verified" value={email.verifiedAt ? adminWhen(email.verifiedAt) : 'No'} />
             <Row label="Discord" value={discord.username ?? (discord.linked ? 'Linked' : '-')} />
             <Row
@@ -420,6 +451,19 @@ export function AdminAccountPage() {
             </table>
           </div>
         )}
+      </Panel>
+
+      <Panel title="Moderation notes" aside="Private to admins" className="se-mb">
+        {detail.notes.length ? (
+          <ul className="se-admin-notes">
+            {detail.notes.map((note) => (
+              <li key={note.id}>
+                <p>{note.body}</p>
+                <p className="se-hint">{note.authorUsername} · {adminWhen(note.createdAt)}</p>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="se-muted">No notes yet.</p>}
       </Panel>
 
       <Panel title="Admin history" aside="Latest 25" flush>

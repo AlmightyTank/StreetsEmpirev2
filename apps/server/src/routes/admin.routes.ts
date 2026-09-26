@@ -1,8 +1,18 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { ADMIN_GRANT_CAPS, ADMIN_PRODUCT_GRANT_CAP, ADMIN_SUSPENSION_LENGTHS, usernameSchema, type AdminSuspensionLength } from '@streets/shared';
+import {
+  ADMIN_COMMS_MUTE_LENGTHS,
+  ADMIN_GRANT_CAPS,
+  ADMIN_NOTE_MAX,
+  ADMIN_PRODUCT_GRANT_CAP,
+  ADMIN_SUSPENSION_LENGTHS,
+  usernameSchema,
+  type AdminCommsMuteLength,
+  type AdminSuspensionLength,
+} from '@streets/shared';
 import { z } from 'zod';
 import { AdminAccountService } from '../services/admin-account.service.js';
 import { AdminAuditService } from '../services/admin-audit.service.js';
+import { AdminModerationService } from '../services/admin-moderation.service.js';
 import { AllianceBalanceService } from '../services/alliance-balance.service.js';
 import { AllianceService } from '../services/alliance.service.js';
 import { WireService } from '../services/wire.service.js';
@@ -57,6 +67,18 @@ const bannerParams = z.object({ bannerId: id }).strict();
 const rulesetParams = z.object({ rulesetId: id }).strict();
 const emptyBody = z.object({}).strict();
 const reasonBody = z.object({ reason }).strict();
+// 0.9.0-H moderation.
+const commsMuteSchema = z.object({
+  length: z.enum(ADMIN_COMMS_MUTE_LENGTHS.map((option) => option.key) as [AdminCommsMuteLength, ...AdminCommsMuteLength[]]),
+  reason,
+}).strict();
+const noteSchema = z.object({ body: z.string().trim().min(3, 'Write a note of at least 3 characters.').max(ADMIN_NOTE_MAX) }).strict();
+const reportParams = z.object({ reportId: z.string().min(1).max(64) });
+const reportQuery = z.object({
+  status: z.enum(['open', 'resolved']).default('open'),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+});
+const resolveReportSchema = z.object({ resolution: z.enum(['DISMISSED', 'ACTIONED']), note: reason }).strict();
 const startRoundSchema = z.object({ confirmHandoff: z.boolean().optional() }).strict();
 const revokeSessionsSchema = z.object({ reason, sessionId: id.optional() }).strict();
 const renameSchema = z.object({ reason, username: usernameSchema }).strict();
@@ -341,6 +363,42 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { accountId } = parseBody(accountParams, request.params);
     const body = parseBody(suspendSchema, request.body ?? {});
     return AdminAccountService.suspend(fastify.prisma, request.auth!.account, accountId, body.length as AdminSuspensionLength, body.reason);
+  });
+
+  fastify.post('/accounts/:accountId/comms-mute', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(commsMuteSchema, request.body ?? {});
+    return AdminAccountService.muteComms(fastify.prisma, request.auth!.account, accountId, body.length, body.reason);
+  });
+
+  fastify.post('/accounts/:accountId/comms-mute/lift', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminAccountService.unmuteComms(fastify.prisma, request.auth!.account, accountId, body.reason);
+  });
+
+  fastify.post('/accounts/:accountId/notes', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(noteSchema, request.body ?? {});
+    return AdminAccountService.addNote(fastify.prisma, request.auth!.account, accountId, body.body);
+  });
+
+  /** 0.9.0-H: the queue carries no message text. */
+  fastify.get('/reports', async (request) => {
+    const query = parseBody(reportQuery, request.query ?? {});
+    return AdminModerationService.queue(fastify.prisma, query.status, query.page);
+  });
+
+  /** Opening a report reveals message text, so it is a POST and it is audited. */
+  fastify.post('/reports/:reportId/open', async (request) => {
+    const { reportId } = parseBody(reportParams, request.params);
+    return AdminModerationService.open(fastify.prisma, request.auth!.account, reportId);
+  });
+
+  fastify.post('/reports/:reportId/resolve', async (request) => {
+    const { reportId } = parseBody(reportParams, request.params);
+    const body = parseBody(resolveReportSchema, request.body ?? {});
+    return AdminModerationService.resolve(fastify.prisma, request.auth!.account, reportId, body.resolution, body.note);
   });
 
   fastify.post('/accounts/:accountId/suspend/lift', async (request) => {

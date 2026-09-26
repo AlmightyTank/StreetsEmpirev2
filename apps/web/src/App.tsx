@@ -4,6 +4,7 @@ import { AccountSettingsPage } from './pages/AccountSettingsPage.js';
 import { AdminAccountPage } from './pages/AdminAccountPage.js';
 import { AdminAccountsPage } from './pages/AdminAccountsPage.js';
 import { AdminAuditPage } from './pages/AdminAuditPage.js';
+import { AdminReportsPage } from './pages/AdminReportsPage.js';
 import { AdminIntegrationsPage } from './pages/AdminIntegrationsPage.js';
 import { AdminNewsPage } from './pages/AdminNewsPage.js';
 import { AdminPage } from './pages/AdminPage.js';
@@ -155,6 +156,7 @@ export function App() {
         <Route path="admin/rulesets" element={admin(<AdminRulesetsPage />)} />
         <Route path="admin/signals" element={admin(<AdminSignalsPage />)} />
         <Route path="admin/audit" element={admin(<AdminAuditPage />)} />
+        <Route path="admin/reports" element={admin(<AdminReportsPage />)} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

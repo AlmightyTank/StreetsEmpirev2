@@ -25,6 +25,11 @@ import type {
   AdminScheduleRoundInput,
   AdminSignalsDto,
   AdminSuspensionLength,
+  AdminCommsMuteLength,
+  AdminReportDetailDto,
+  AdminReportQueueDto,
+  AdminReportResolution,
+  AdminReportStatus,
   AdminSiteBannersDto,
   AdminUpdateNewsInput,
   AdminUpdateRoundInput,
@@ -95,6 +100,15 @@ export const adminApi = {
   suspendAccount: (accountId: string, length: AdminSuspensionLength, reason: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'suspend'), { length, reason }),
   liftSuspension: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'suspend/lift'), { reason }),
+  // 0.9.0-H moderation.
+  muteComms: (accountId: string, length: AdminCommsMuteLength, reason: string) =>
+    api.post<AdminAccountDetailDto>(accountPath(accountId, 'comms-mute'), { length, reason }),
+  unmuteComms: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'comms-mute/lift'), { reason }),
+  addNote: (accountId: string, body: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'notes'), { body }),
+  reports: (status: AdminReportStatus, page = 1) => api.get<AdminReportQueueDto>(`/admin/reports${queryString({ status, page })}`),
+  openReport: (reportId: string) => api.post<AdminReportDetailDto>(`/admin/reports/${encodeURIComponent(reportId)}/open`, {}),
+  resolveReport: (reportId: string, resolution: AdminReportResolution, note: string) =>
+    api.post<AdminReportQueueDto>(`/admin/reports/${encodeURIComponent(reportId)}/resolve`, { resolution, note }),
   revokeSessions: (accountId: string, reason: string, sessionId?: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'sessions/revoke'), { reason, ...(sessionId ? { sessionId } : {}) }),
   renameAccount: (accountId: string, username: string, reason: string) =>

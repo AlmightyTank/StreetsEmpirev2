@@ -25,6 +25,14 @@ export interface DirectMessageDto {
   archived: boolean;
   reported: boolean;
   blocked: boolean;
+  /** 0.9.0-H. The viewer muted this counterpart; never told to the other side. */
+  muted: boolean;
+}
+
+/** 0.9.0-H. A moderator's messaging restriction on the viewer, if any. */
+export interface CommsRestrictionDto {
+  permanent: boolean;
+  until: string | null;
 }
 
 export interface ConsoleCountsDto {
@@ -33,6 +41,8 @@ export interface ConsoleCountsDto {
   sent: number;
   archived: number;
   blocked: number;
+  /** 0.9.0-H. Players this account muted. Optional for older servers. */
+  muted?: number;
   notifications: number;
   activity: number;
   attacks: number;
@@ -46,6 +56,8 @@ export interface PimpConsoleDto {
   total: number;
   totalPages: number;
   messages: DirectMessageDto[];
+  /** 0.9.0-H. Present while a moderator has paused the viewer's messaging. */
+  restriction?: CommsRestrictionDto | null;
 }
 
 export interface ConsoleActivityEntryDto {
@@ -70,8 +82,16 @@ export interface BlockedPlayerDto {
   blockedAt: string;
 }
 
+export interface MutedPlayerDto {
+  publicPimpId: number;
+  displayName: string;
+  mutedAt: string;
+}
+
 export interface ConsoleBlocksDto {
   blocked: BlockedPlayerDto[];
+  /** 0.9.0-H. Players whose messages go straight to Archived without alerts. */
+  muted: MutedPlayerDto[];
 }
 
 export interface SendMessageResultDto {

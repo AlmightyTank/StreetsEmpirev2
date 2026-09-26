@@ -75,6 +75,9 @@ describe('PimpConsoleService.send', () => {
       playerBlock: {
         findMany: vi.fn().mockResolvedValue([]),
       },
+      playerMute: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
       $transaction: transaction,
     } as unknown as PrismaClient;
 
@@ -107,6 +110,8 @@ describe('PimpConsoleService.send', () => {
       },
       account: {
         findUnique: vi.fn().mockResolvedValue({ isActive: true }),
+        // 0.9.0-H: the sender's own communication mute is checked first.
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ createdAt: new Date('2026-01-01'), commsMutedUntil: null, commsMutedPermanent: false }),
       },
       playerBlock: {
         findFirst: vi.fn().mockResolvedValue({ id: 'block-1' }),
@@ -166,6 +171,9 @@ describe('PimpConsoleService.summary', () => {
       playerBlock: {
         count: vi.fn().mockResolvedValue(6),
       },
+      playerMute: {
+        count: vi.fn().mockResolvedValue(2),
+      },
       inAppNotification: {
         count: vi.fn().mockResolvedValue(7),
       },
@@ -183,6 +191,7 @@ describe('PimpConsoleService.summary', () => {
       sent: 3,
       archived: 1,
       blocked: 6,
+      muted: 2,
       notifications: 7,
       activity: 9,
       attacks: 5,

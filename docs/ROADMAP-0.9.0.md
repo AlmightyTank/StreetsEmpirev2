@@ -668,6 +668,17 @@ Test:
 - Mobile layouts
 - Large inboxes
 
+### 0.9.0-H implementation complete
+
+H closes 0.9.0. See [RELEASE-0.9.0-H.md](RELEASE-0.9.0-H.md) for the full release notes and QA matrix.
+
+- **Player controls.** Adds **mute** (the muted player's mail arrives quietly in Archived, with no unread count or alerts, and they are never told) and **delete conversation** (per side, permanent; report evidence is kept) to block, report and archive.
+- **Anti-spam.** Accounts under 48 hours old get tighter limits and cannot send links. Cold outreach is capped per hour (3 for new accounts, 10 otherwise), and replies are never throttled. Outside links and copy-paste blasts open automated flags.
+- **Communication mutes.** Admin mutes (1 hour to 30 days, or permanent) block DMs, Alliance Wire posts and forum recruitment threads. They are audited and shown to the player beside Compose.
+- **Reports queue.** The queue is purpose-driven: no message text until an admin opens a report on purpose. Opening shows only that thread (5 messages before, 2 after) and is audited. Resolutions carry a note and keep a history. Resolving closes every report on the same message, and punishment stays a separate, audited account action.
+- **Account moderation notes**, private and audited.
+- **QA.** `MODERATION_INTEGRATION=1` covers concurrency, retries, blocks, mutes, deleted conversations, new-account limits, throttling, links, flags, communication mutes, the queue, notes, large inboxes and account deletion. `npm run qa:release -- --with-db` now includes every 0.9.0 suite.
+
 ---
 
 ## Design Guardrails

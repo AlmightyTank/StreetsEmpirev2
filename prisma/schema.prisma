@@ -48,6 +48,13 @@ model Account {
   suspendedReason     String?
   suspendedByUsername String?
 
+  /// 0.9.0-H. Communication restriction: no private messages or wire posts while it
+  /// runs. The account still plays. Permanent wins over a date; both cleared by unmute.
+  commsMutedUntil       DateTime?
+  commsMutedPermanent   Boolean   @default(false)
+  commsMuteReason       String?
+  commsMutedByUsername  String?
+
   sessions             Session[]
   passwordResetTokens  PasswordResetToken[]
   accountEmailTokens   AccountEmailToken[]
@@ -64,6 +71,26 @@ model Account {
   messageBlocksMade    PlayerBlock[]         @relation("PlayerBlocker")
   messageBlocksReceived PlayerBlock[]        @relation("PlayerBlocked")
   messageReports       PlayerMessageReport[]
+  /// 0.9.0-H.
+  mutesMade            PlayerMute[]          @relation("PlayerMuter")
+  mutesReceived        PlayerMute[]          @relation("PlayerMuted")
+  moderationNotes      AccountModerationNote[]
+}
+
+/// 0.9.0-H. Private admin notes on an account. Never shown to the player.
+model AccountModerationNote {
+  id String @id @default(cuid())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  authorAccountId String?
+  authorUsername  String
+  body            String
+
+  createdAt DateTime @default(now())
+
+  @@index([accountId, createdAt(sort: Desc)])
 }
 
 /// 0.3.0-B. One row per admin action: who, what, when, and the target before
@@ -1327,6 +1354,10 @@ model DirectMessage {
 
   senderArchivedAt    DateTime?
   recipientArchivedAt DateTime?
+  /// 0.9.0-H. "Delete conversation": gone from that side's folders for good. The row
+  /// stays for the other side and as report evidence.
+  senderHiddenAt      DateTime?
+  recipientHiddenAt   DateTime?
 
   reports PlayerMessageReport[]
 
@@ -1361,19 +1392,40 @@ model PlayerMessageReport {
   messageId String
   message   DirectMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
-  reporterAccountId String
-  reporter          Account @relation(fields: [reporterAccountId], references: [id], onDelete: Cascade)
+  /// Null for an automated spam flag (0.9.0-H).
+  reporterAccountId String?
+  reporter          Account? @relation(fields: [reporterAccountId], references: [id], onDelete: Cascade)
 
+  /// 0.9.0-H. PLAYER or AUTO.
+  source String @default("PLAYER")
   reason String
 
   createdAt          DateTime @default(now())
   resolvedAt         DateTime?
   resolvedByUsername String?
+  /// 0.9.0-H. DISMISSED or ACTIONED.
   resolution         String?
+  resolutionNote     String?
 
   @@unique([messageId, reporterAccountId])
   @@index([resolvedAt, createdAt(sort: Desc)], map: "PlayerMessageReport_resolution_idx")
   @@index([reporterAccountId, createdAt(sort: Desc)], map: "PlayerMessageReport_reporter_idx")
+}
+
+/// 0.9.0-H. A player-side mute: messages from the muted account arrive already
+/// archived, unread-free and alert-free. The sender is never told.
+model PlayerMute {
+  id String @id @default(cuid())
+
+  muterAccountId String
+  muter          Account @relation("PlayerMuter", fields: [muterAccountId], references: [id], onDelete: Cascade)
+
+  mutedAccountId String
+  muted          Account @relation("PlayerMuted", fields: [mutedAccountId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([muterAccountId, mutedAccountId])
 }
 
 /// The alliance's own history: founded, joined, left, kicked, handed over, renamed, disbanded.

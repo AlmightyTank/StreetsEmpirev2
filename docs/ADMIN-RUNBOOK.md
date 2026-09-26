@@ -75,6 +75,38 @@ All of this is on **Accounts**, then the account.
 Every one of these needs a reason of at least five characters. Suspension
 reasons are shown to the player; the rest are for the audit log.
 
+### Messaging moderation (0.9.0-H)
+
+- **Mute messaging** stops private messages, Alliance Wire posts and forum
+  recruitment threads, for 1 hour up to 30 days or permanently. The player keeps
+  playing and sees a notice beside Compose. Timed mutes lift themselves;
+  **Lift messaging mute** ends one early. Admins cannot be muted.
+- **Add note** keeps a private note on the account for other admins. Players
+  never see notes. Each one is audited.
+- The account page shows the open and total reports against that player's
+  messages.
+
+### Reports queue
+
+**Reports** lists player reports and automated spam flags, oldest open first.
+The queue never shows message text. **Open** reveals the reported message and at
+most five messages before it and two after it, from that one conversation, and
+records a `report.view` audit entry every time. There is deliberately no way to
+browse a conversation nobody reported.
+
+Resolve with **Action taken** or **Dismiss** plus a note. That closes every open
+report and flag on the same message and keeps the decision in **Resolved**.
+Punishment is a separate step on the sender's account (mute, suspend,
+deactivate), so resolving never quietly punishes anyone.
+
+Automated flags come from messages with outside links, and from the same text
+sent to three or more players within an hour. They are hints, not verdicts: most
+links are harmless, so dismiss freely.
+
+Players also have their own tools: block (both ways, never revealed), mute (the
+muted player's mail arrives quietly in Archived) and delete conversation (their
+side only; reports keep the evidence).
+
 ---
 
 ## Handling a dispute

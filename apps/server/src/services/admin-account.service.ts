@@ -8,8 +8,15 @@ import type {
   AdminAccountStatusFilter,
   AdminAccountSummaryDto,
   AdminSuspensionDto,
+  AdminCommsMuteDto,
 } from '@streets/shared';
-import { ADMIN_SUSPENSION_LENGTHS, type AdminSuspensionLength } from '@streets/shared';
+import {
+  ADMIN_COMMS_MUTE_LENGTHS,
+  ADMIN_SUSPENSION_LENGTHS,
+  type AdminCommsMuteLength,
+  type AdminSuspensionLength,
+} from '@streets/shared';
+import { commsMuted } from './communication-guard.js';
 import { createAccountEmailToken, emailVerificationUrl } from '../auth/email-tokens.js';
 import { hashPassword } from '../auth/password.js';
 import { env } from '../config/env.js';
@@ -53,6 +60,20 @@ export function accountSnapshot(account: Account) {
     discordUsername: account.discordUsername,
     suspendedUntil: account.suspendedUntil,
     suspendedReason: account.suspendedReason,
+    commsMutedUntil: account.commsMutedUntil,
+    commsMutedPermanent: account.commsMutedPermanent,
+    commsMuteReason: account.commsMuteReason,
+  };
+}
+
+/** 0.9.0-H. A communication mute still in force, in the shape the panel shows. */
+export function toCommsMuteDto(account: Account, now = new Date()): AdminCommsMuteDto | null {
+  if (!commsMuted(account, now)) return null;
+  return {
+    permanent: account.commsMutedPermanent,
+    until: account.commsMutedPermanent ? null : account.commsMutedUntil?.toISOString() ?? null,
+    reason: account.commsMuteReason ?? '',
+    byUsername: account.commsMutedByUsername,
   };
 }
 
@@ -225,11 +246,20 @@ export const AdminAccountService = {
     });
     if (!account) throw AppError.notFound('ACCOUNT_NOT_FOUND', 'That account does not exist.');
 
-    const audit = await prisma.adminAuditLog.findMany({
-      where: { targetType: 'account', targetId: account.id },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: 25,
-    });
+    const [audit, notes, openAgainst, totalAgainst] = await Promise.all([
+      prisma.adminAuditLog.findMany({
+        where: { targetType: 'account', targetId: account.id },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 25,
+      }),
+      prisma.accountModerationNote.findMany({
+        where: { accountId: account.id },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 50,
+      }),
+      prisma.playerMessageReport.count({ where: { resolvedAt: null, message: { sender: { accountId: account.id } } } }),
+      prisma.playerMessageReport.count({ where: { message: { sender: { accountId: account.id } } } }),
+    ]);
 
     return {
       account: toSummary(account, account.sessions.length, now),
@@ -277,7 +307,65 @@ export const AdminAccountService = {
         joinedAt: player.createdAt.toISOString(),
       })),
       audit: audit.map(toAuditEntryDto),
+      comms: toCommsMuteDto(account, now),
+      notes: notes.map((note) => ({
+        id: note.id,
+        authorUsername: note.authorUsername,
+        body: note.body,
+        createdAt: note.createdAt.toISOString(),
+      })),
+      reportsAgainst: { open: openAgainst, total: totalAgainst },
     };
+  },
+
+  /**
+   * 0.9.0-H. Stop an account's private messages, wire posts and forum recruitment
+   * threads for a while or for good. Unlike a suspension they keep playing.
+   */
+  async muteComms(
+    prisma: PrismaClient,
+    actor: AuditActor,
+    accountId: string,
+    length: AdminCommsMuteLength,
+    reason: string,
+    now = new Date(),
+  ): Promise<AdminAccountDetailDto> {
+    const chosen = ADMIN_COMMS_MUTE_LENGTHS.find((option) => option.key === length);
+    if (!chosen) throw AppError.badRequest('COMMS_MUTE_LENGTH_UNKNOWN', 'Pick one of the offered mute lengths.');
+    const permanent = chosen.hours === null;
+    const until = permanent ? null : new Date(now.getTime() + chosen.hours! * 60 * 60_000);
+    await moderate(prisma, actor, accountId, 'comms-mute', reason, async (tx, before) => {
+      if (before.isAdmin) throw AppError.conflict('ADMIN_COMMS_MUTE', `Remove ${before.username}'s admin role before muting them.`);
+      const account = await tx.account.update({
+        where: { id: before.id },
+        data: { commsMutedUntil: until, commsMutedPermanent: permanent, commsMuteReason: reason, commsMutedByUsername: actor.username },
+      });
+      return { account, detail: { length: chosen.label } };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  async unmuteComms(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string, now = new Date()): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, 'comms-unmute', reason, async (tx, before) => {
+      if (!commsMuted(before, now)) throw AppError.conflict('NOT_COMMS_MUTED', `${before.username} is not muted.`);
+      const account = await tx.account.update({
+        where: { id: before.id },
+        data: { commsMutedUntil: null, commsMutedPermanent: false, commsMuteReason: null, commsMutedByUsername: null },
+      });
+      return { account };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  /** 0.9.0-H. A private moderation note. The note itself is the audit reason. */
+  async addNote(prisma: PrismaClient, actor: AuditActor, accountId: string, body: string): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, 'add-note', body.slice(0, 500), async (tx, before) => {
+      const note = await tx.accountModerationNote.create({
+        data: { accountId: before.id, authorAccountId: actor.id, authorUsername: actor.username, body },
+      });
+      return { account: before, detail: { noteId: note.id } };
+    });
+    return AdminAccountService.detail(prisma, accountId);
   },
 
   /**

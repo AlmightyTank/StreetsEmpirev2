@@ -49,4 +49,14 @@ export const consoleApi = {
 
   unblock: (publicPimpId: number) =>
     api.post<ConsoleBlocksDto>(`/game/console/blocks/${publicPimpId}/remove`, {}),
+
+  // 0.9.0-H player controls.
+  mute: (targetPublicPimpId: number) =>
+    api.post<ConsoleBlocksDto>('/game/console/mutes', { targetPublicPimpId }),
+
+  unmute: (publicPimpId: number) =>
+    api.post<ConsoleBlocksDto>(`/game/console/mutes/${publicPimpId}/remove`, {}),
+
+  hideConversation: (publicPimpId: number) =>
+    api.post<{ hidden: number }>(`/game/console/conversations/${publicPimpId}/hide`, {}),
 };

@@ -26,6 +26,7 @@ import {
   type CityControl,
 } from './turf-territory.service.js';
 import { endPlayerTurfHolds, startPlayerTurfHolds } from './turf-history.service.js';
+import { assertCanCommunicate } from './communication-guard.js';
 
 type AllianceRules = NonNullable<Ruleset['alliances']>;
 
@@ -605,6 +606,8 @@ export const AllianceService = {
     if (!env.forum.recruitment.enabled) throw AppError.conflict('FORUM_RECRUITMENT_DISABLED', 'Forum recruitment is not set up on this server.');
     const claim = await withOwnAlliance(prisma, playerId, async ({ tx, alliance, me, rules, now, round }) => {
       requireLeader(alliance, me, 'post a recruitment thread');
+      // 0.9.0-H: a public forum thread is communication too.
+      await assertCanCommunicate(tx, me.accountId, now);
       if (alliance.forumDiscussionId) throw AppError.conflict('FORUM_THREAD_EXISTS', `${alliance.name} already has a recruitment thread.`);
       if (alliance.forumPostStartedAt && now.getTime() - alliance.forumPostStartedAt.getTime() < 60_000) {
         throw AppError.conflict('FORUM_THREAD_POSTING', 'Your recruitment thread is already on its way.');

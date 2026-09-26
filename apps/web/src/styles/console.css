@@ -622,3 +622,8 @@
     flex: 1 1 calc(50% - 6px);
   }
 }
+
+/* 0.9.0-H: a moderator's messaging restriction, next to Compose where it matters. */
+.se-console-restriction {
+  margin: 8px 0 0;
+}

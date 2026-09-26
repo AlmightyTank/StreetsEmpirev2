@@ -14,3 +14,64 @@
 .se-admin-pad{padding:14px}.se-admin-reason{min-height:84px;resize:vertical}.se-admin-row--changed td{background:color-mix(in srgb,var(--se-accent) 5%,transparent)}
 .se-admin-ruleset-value{font-family:var(--se-font-mono,monospace);font-size:.78rem}.se-admin-ruleset-value:first-child{color:var(--se-text-dim)}
 @media(max-width:760px){.se-admin-filters,.se-admin-checklist{grid-template-columns:1fr}.se-admin-filters>.se-field:last-child{grid-column:auto}.se-admin-actions{justify-content:flex-start}.se-admin-pagehead::after{font-size:3rem}}
+
+/* 0.9.0-H: reports queue, opened thread and moderation notes. */
+.se-admin-report__parties {
+  overflow-wrap: anywhere;
+}
+
+.se-admin-thread {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.se-admin-thread__msg {
+  padding: 8px 10px;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+}
+
+.se-admin-thread__msg--sender {
+  border-left: 3px solid var(--se-line-soft);
+}
+
+.se-admin-thread__msg--reported {
+  border-color: var(--se-warn);
+  border-left-color: var(--se-warn);
+}
+
+.se-admin-thread__msg p {
+  margin: 0;
+}
+
+.se-admin-thread__body {
+  margin-top: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.se-admin-notes {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.se-admin-notes li {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--se-line);
+}
+
+.se-admin-notes li p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.se-admin-report__muted {
+  margin-left: 6px;
+}

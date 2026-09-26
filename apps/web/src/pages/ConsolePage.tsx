@@ -40,7 +40,7 @@ const VIEWS: Array<{ key: ConsoleView; label: string }> = [
   { key: 'notifications', label: 'Alerts' },
   { key: 'activity', label: 'Activity' },
   { key: 'archived', label: 'Archived' },
-  { key: 'blocked', label: 'Blocked' },
+  { key: 'blocked', label: 'Blocked & muted' },
 ];
 
 const EMPTY_NOTIFICATION_FEED: InAppNotificationFeedDto = { notifications: [], unreadCount: 0 };
@@ -354,6 +354,51 @@ export function ConsolePage() {
     }
   }
 
+  /** 0.9.0-H: private and one-sided. Their mail still arrives, straight into Archived. */
+  async function setMuted(publicPimpId: number, displayName: string, muted: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      const next = muted ? await consoleApi.mute(publicPimpId) : await consoleApi.unmute(publicPimpId);
+      setBlocks(next);
+      setCounts((current) => current ? { ...current, muted: next.muted.length } : current);
+      setData((current) => current ? {
+        ...current,
+        counts: { ...current.counts, muted: next.muted.length },
+        messages: current.messages.map((row) =>
+          row.counterpart.publicPimpId === publicPimpId ? { ...row, muted } : row),
+      } : current);
+      setNotice(muted
+        ? `${displayName} is muted. Their new messages go straight to Archived with no alerts. They are not told.`
+        : `${displayName} is unmuted.`);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not change that mute.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** 0.9.0-H: remove the whole conversation from your side. Their copy is untouched. */
+  async function hideConversation(message: DirectMessageDto) {
+    if (!window.confirm(`Delete your whole conversation with ${message.counterpart.displayName}? This cannot be undone on your side. Their copy stays, and reports keep their evidence.`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { hidden } = await consoleApi.hideConversation(message.counterpart.publicPimpId);
+      setSelectedId(null);
+      setData((current) => current ? {
+        ...current,
+        messages: current.messages.filter((row) => row.counterpart.publicPimpId !== message.counterpart.publicPimpId),
+      } : current);
+      setNotice(`Deleted ${hidden} message${hidden === 1 ? '' : 's'} with ${message.counterpart.displayName} from your Console.`);
+      setCounts(await consoleApi.summary());
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not delete that conversation.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function unblock(publicPimpId: number) {
     setBusy(true);
     setError(null);
@@ -413,7 +458,7 @@ export function ConsolePage() {
   }
 
   function countFor(key: ConsoleView): number {
-    if (!counts) return key === 'blocked' ? blocks?.blocked.length ?? 0 : 0;
+    if (!counts) return key === 'blocked' ? (blocks?.blocked.length ?? 0) + (blocks?.muted.length ?? 0) : 0;
     if (key === 'inbox') return counts.inbox;
     if (key === 'sent') return counts.sent;
     if (key === 'archived') return counts.archived;
@@ -421,7 +466,7 @@ export function ConsolePage() {
     if (key === 'attacks') return counts.attacks;
     if (key === 'notifications') return counts.notifications;
     if (key === 'activity') return counts.activity;
-    return counts.blocked;
+    return counts.blocked + (counts.muted ?? 0);
   }
 
   function selectActivityFilter(next: ConsoleActivityFilter) {
@@ -509,6 +554,13 @@ export function ConsolePage() {
           >
             Compose
           </button>
+          {data?.restriction ? (
+            <p className="se-alert se-console-restriction" role="status">
+              {data.restriction.permanent
+                ? 'A moderator has switched off your messaging. You can still read your mail.'
+                : `A moderator has paused your messaging until ${new Date(data.restriction.until!).toLocaleString()}. You can still read your mail.`}
+            </p>
+          ) : null}
         </section>
 
         {view === 'activity' || view === 'attacks' ? (
@@ -727,6 +779,27 @@ export function ConsolePage() {
                 </div>
               ))}
             </div>
+            <h3 className="se-subhead">Muted players</h3>
+            <p className="se-hint">Their messages still arrive, straight into Archived, with no unread count or alerts. They are never told.</p>
+            {blocks?.muted.length === 0 ? <p className="se-muted">Nobody is muted.</p> : null}
+            <div className="se-console-blocks">
+              {blocks?.muted.map((player) => (
+                <div key={player.publicPimpId} className="se-console-block">
+                  <div>
+                    <strong>{player.displayName}</strong>
+                    <span className="se-muted se-num">#{player.publicPimpId}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="se-btn se-btn--ghost se-btn--sm"
+                    disabled={busy}
+                    onClick={() => void setMuted(player.publicPimpId, player.displayName, false)}
+                  >
+                    Unmute
+                  </button>
+                </div>
+              ))}
+            </div>
           </Panel>
         ) : (
           <section className="se-console-work">
@@ -876,6 +949,22 @@ export function ConsolePage() {
                         Block sender
                       </button>
                     ) : null}
+                    <button
+                      type="button"
+                      className="se-btn se-btn--ghost se-btn--sm"
+                      disabled={busy}
+                      onClick={() => void setMuted(selected.counterpart.publicPimpId, selected.counterpart.displayName, !selected.muted)}
+                    >
+                      {selected.muted ? 'Unmute' : 'Mute'}
+                    </button>
+                    <button
+                      type="button"
+                      className="se-btn se-btn--ghost se-btn--sm"
+                      disabled={busy}
+                      onClick={() => void hideConversation(selected)}
+                    >
+                      Delete conversation
+                    </button>
                     {selected.direction === 'in' && !selected.reported ? (
                       <button
                         type="button"

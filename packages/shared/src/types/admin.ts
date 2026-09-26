@@ -105,7 +105,10 @@ export type AdminAccountAction =
   | 'mark-email-verified'
   | 'unlink-forum'
   | 'resync-discord'
-  | 'delete-account';
+  | 'delete-account'
+  | 'comms-mute'
+  | 'comms-unmute'
+  | 'add-note';
 
 /** A timed suspension. Null once it is lifted or has run out. */
 export interface AdminSuspensionDto {
@@ -146,6 +149,102 @@ export const ADMIN_SUSPENSION_LENGTHS = [
 ] as const;
 
 export type AdminSuspensionLength = (typeof ADMIN_SUSPENSION_LENGTHS)[number]['key'];
+
+/**
+ * 0.9.0-H. Communication mute lengths: no private messages, wire posts or forum
+ * recruitment threads. The player keeps playing. `permanent` lasts until lifted.
+ */
+export const ADMIN_COMMS_MUTE_LENGTHS = [
+  { key: '1h', label: '1 hour', hours: 1 },
+  { key: '1d', label: '1 day', hours: 24 },
+  { key: '3d', label: '3 days', hours: 24 * 3 },
+  { key: '7d', label: '7 days', hours: 24 * 7 },
+  { key: '30d', label: '30 days', hours: 24 * 30 },
+  { key: 'permanent', label: 'Permanent', hours: null },
+] as const;
+
+export type AdminCommsMuteLength = (typeof ADMIN_COMMS_MUTE_LENGTHS)[number]['key'];
+
+/** 0.9.0-H. A communication mute in force. */
+export interface AdminCommsMuteDto {
+  permanent: boolean;
+  until: string | null;
+  reason: string;
+  byUsername: string | null;
+}
+
+/** 0.9.0-H. A private admin note on an account. */
+export interface AdminModerationNoteDto {
+  id: string;
+  authorUsername: string;
+  body: string;
+  createdAt: string;
+}
+
+export const ADMIN_NOTE_MAX = 2_000;
+
+export type AdminReportStatus = 'open' | 'resolved';
+export type AdminReportResolution = 'DISMISSED' | 'ACTIONED';
+
+export interface AdminReportPartyDto {
+  accountId: string;
+  username: string;
+  displayName: string;
+  publicPimpId: number;
+}
+
+/**
+ * 0.9.0-H. One report in the queue. The queue never carries message text: an
+ * admin opens a report on purpose, and that view is audited.
+ */
+export interface AdminReportSummaryDto {
+  id: string;
+  source: 'PLAYER' | 'AUTO';
+  reason: string;
+  createdAt: string;
+  reporterUsername: string | null;
+  roundName: string;
+  messageId: string;
+  messageAt: string;
+  sender: AdminReportPartyDto;
+  recipient: AdminReportPartyDto;
+  /** Every report on this message, the automated flag included. */
+  reportsOnMessage: number;
+  /** Open reports or flags against this sender's messages. */
+  openAgainstSender: number;
+  senderRestricted: boolean;
+  resolvedAt: string | null;
+  resolvedByUsername: string | null;
+  resolution: AdminReportResolution | null;
+  resolutionNote: string | null;
+}
+
+export interface AdminReportQueueDto {
+  status: AdminReportStatus;
+  page: number;
+  totalPages: number;
+  total: number;
+  counts: { open: number; resolved: number };
+  reports: AdminReportSummaryDto[];
+}
+
+export interface AdminReportMessageDto {
+  id: string;
+  fromSender: boolean;
+  subject: string;
+  body: string;
+  createdAt: string;
+  reported: boolean;
+}
+
+/** 0.9.0-H. An opened report: the reported message plus a few around it in the same thread. */
+export interface AdminReportDetailDto {
+  report: AdminReportSummaryDto;
+  thread: AdminReportMessageDto[];
+  /** How many messages of the thread were left out on each side of what is shown. */
+  omitted: { before: number; after: number };
+  senderComms: AdminCommsMuteDto | null;
+}
 
 /** One player in one round, found by name or public id rather than by account. */
 export interface AdminPlayerSearchRowDto {
@@ -220,6 +319,12 @@ export interface AdminAccountDetailDto {
   rounds: AdminAccountRoundDto[];
   /** Latest admin actions on this account. */
   audit: AdminAuditEntryDto[];
+  /** 0.9.0-H. Communication mute in force, if any. */
+  comms: AdminCommsMuteDto | null;
+  /** 0.9.0-H. Private moderation notes, newest first. */
+  notes: AdminModerationNoteDto[];
+  /** 0.9.0-H. Reports and flags against messages this account sent. */
+  reportsAgainst: { open: number; total: number };
 }
 
 export interface AdminAccountDeleteResultDto {

@@ -77,6 +77,7 @@ export const ADMIN_SECTION: NavSection = {
     { key: 'admin-accounts', label: 'Accounts', to: '/game/admin/accounts', icon: 'admin', prefix: '/game/admin/accounts/' },
     { key: 'admin-integrations', label: 'Integrations', short: 'Integr.', to: '/game/admin/integrations', icon: 'admin' },
     { key: 'admin-rulesets', label: 'Rulesets', to: '/game/admin/rulesets', icon: 'admin' },
+    { key: 'admin-reports', label: 'Reports', to: '/game/admin/reports', icon: 'admin' },
     { key: 'admin-signals', label: 'Signals', to: '/game/admin/signals', icon: 'admin' },
     { key: 'admin-audit', label: 'Audit log', short: 'Audit', to: '/game/admin/audit', icon: 'admin' },
   ],

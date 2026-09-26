@@ -265,7 +265,7 @@ describe.runIf(process.env.GAME_ALERTS_INTEGRATION === '1')('0.9.0-G notificatio
   });
 
   it('pauses and quiets outside alerts while the bell keeps everything, and mutes the bell by category', async () => {
-    const put = (cookie: string, payload: unknown) => app.inject({ method: 'PUT', url: '/api/notifications/settings', headers: { cookie }, payload });
+    const put = (cookie: string, payload: Record<string, unknown>) => app.inject({ method: 'PUT', url: '/api/notifications/settings', headers: { cookie }, payload });
 
     const paused = await put(players.attacker.cookie, { paused: true, bellMuted: ['revenge', 'runs'] });
     expect(paused.statusCode, paused.body).toBe(200);

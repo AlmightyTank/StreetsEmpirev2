@@ -4,6 +4,8 @@ import {
   MESSAGE_PAGE_SIZE,
   type ArchiveDirectMessageInput,
   type BlockedPlayerDto,
+  type CommsRestrictionDto,
+  type MutedPlayerDto,
   type ConsoleActivityDto,
   type ConsoleActivityEntryDto,
   type ConsoleActivityFilter,
@@ -21,6 +23,7 @@ import { AppError } from '../utils/errors.js';
 import { toActivityDto } from '../game/dto.js';
 import { RoundService } from './round.service.js';
 import { bellWhere } from './in-app-notification.service.js';
+import { assertCanCommunicate, checkDirectMessage, commsMuted, flagMessage } from './communication-guard.js';
 
 const SEND_MIN_INTERVAL_MS = 5_000;
 const SEND_WINDOW_MS = 10 * 60_000;
@@ -136,18 +139,19 @@ async function lockAccountPair(
 }
 
 function folderWhere(folder: ConsoleFolder, playerId: string): Prisma.DirectMessageWhereInput {
+  // 0.9.0-H: a conversation deleted on this side is gone from every folder.
   if (folder === 'sent') {
-    return { senderId: playerId, senderArchivedAt: null };
+    return { senderId: playerId, senderArchivedAt: null, senderHiddenAt: null };
   }
   if (folder === 'archived') {
     return {
       OR: [
-        { senderId: playerId, senderArchivedAt: { not: null } },
-        { recipientId: playerId, recipientArchivedAt: { not: null } },
+        { senderId: playerId, senderArchivedAt: { not: null }, senderHiddenAt: null },
+        { recipientId: playerId, recipientArchivedAt: { not: null }, recipientHiddenAt: null },
       ],
     };
   }
-  return { recipientId: playerId, recipientArchivedAt: null };
+  return { recipientId: playerId, recipientArchivedAt: null, recipientHiddenAt: null };
 }
 
 function messageDto(
@@ -155,6 +159,7 @@ function messageDto(
   ownerId: string,
   reported: boolean,
   blocked: boolean,
+  muted: boolean,
 ): DirectMessageDto {
   const incoming = row.recipientId === ownerId;
   const counterpart = incoming ? row.sender : row.recipient;
@@ -173,6 +178,7 @@ function messageDto(
     archived: incoming ? row.recipientArchivedAt !== null : row.senderArchivedAt !== null,
     reported,
     blocked,
+    muted,
   };
 }
 
@@ -228,15 +234,15 @@ async function consoleCounts(
   prisma: PrismaClient,
   owner: Awaited<ReturnType<typeof currentPlayer>>,
 ): Promise<ConsoleCountsDto> {
-  const [inbox, unread, sent, archived, blocked, notifications, activity, attacks] = await Promise.all([
+  const [inbox, unread, sent, archived, blocked, notifications, activity, attacks, muted] = await Promise.all([
     prisma.directMessage.count({
-      where: { recipientId: owner.id, recipientArchivedAt: null },
+      where: folderWhere('inbox', owner.id),
     }),
     prisma.directMessage.count({
-      where: { recipientId: owner.id, recipientArchivedAt: null, readAt: null },
+      where: { ...folderWhere('inbox', owner.id), readAt: null },
     }),
     prisma.directMessage.count({
-      where: { senderId: owner.id, senderArchivedAt: null },
+      where: folderWhere('sent', owner.id),
     }),
     prisma.directMessage.count({
       where: folderWhere('archived', owner.id),
@@ -260,9 +266,12 @@ async function consoleCounts(
     prisma.playerActivity.count({
       where: { roundPlayerId: owner.id, type: { in: ACTIVITY_GROUP_TYPES.combat } },
     }),
+    prisma.playerMute.count({
+      where: { muterAccountId: owner.accountId, muted: { isActive: true, roundPlayers: { some: { roundId: owner.roundId } } } },
+    }),
   ]);
 
-  return { inbox, unread, sent, archived, blocked, notifications, activity, attacks };
+  return { inbox, unread, sent, archived, blocked, muted, notifications, activity, attacks };
 }
 
 async function decorateMessages(
@@ -276,7 +285,7 @@ async function decorateMessages(
   const counterpartAccountIds = [...new Set(rows.map((row) =>
     row.recipientId === owner.id ? row.sender.accountId : row.recipient.accountId))];
 
-  const [reports, blocks] = await Promise.all([
+  const [reports, blocks, mutes] = await Promise.all([
     prisma.playerMessageReport.findMany({
       where: {
         reporterAccountId: owner.accountId,
@@ -297,7 +306,14 @@ async function decorateMessages(
           },
         })
       : Promise.resolve([]),
+    counterpartAccountIds.length
+      ? prisma.playerMute.findMany({
+          where: { muterAccountId: owner.accountId, mutedAccountId: { in: counterpartAccountIds } },
+          select: { mutedAccountId: true },
+        })
+      : Promise.resolve([]),
   ]);
+  const mutedAccounts = new Set(mutes.map((row) => row.mutedAccountId));
 
   const reported = new Set(reports.map((row) => row.messageId));
   const blockedAccounts = new Set<string>();
@@ -313,6 +329,7 @@ async function decorateMessages(
       owner.id,
       reported.has(row.id),
       blockedAccounts.has(counterpartAccountId),
+      mutedAccounts.has(counterpartAccountId),
     );
   });
 }
@@ -323,6 +340,18 @@ async function oneMessageDto(
   row: MessageRow,
 ): Promise<DirectMessageDto> {
   return (await decorateMessages(prisma, owner, [row]))[0]!;
+}
+
+async function restrictionFor(prisma: PrismaClient, accountId: string, now = new Date()): Promise<CommsRestrictionDto | null> {
+  const account = await prisma.account.findUnique({
+    where: { id: accountId },
+    select: { commsMutedUntil: true, commsMutedPermanent: true },
+  });
+  if (!account || !commsMuted(account, now)) return null;
+  return {
+    permanent: account.commsMutedPermanent,
+    until: account.commsMutedPermanent ? null : account.commsMutedUntil?.toISOString() ?? null,
+  };
 }
 
 async function isCommunicationBlocked(
@@ -374,6 +403,7 @@ export const PimpConsoleService = {
       total,
       totalPages,
       messages: await decorateMessages(prisma, owner, rows),
+      restriction: await restrictionFor(prisma, owner.accountId),
     };
   },
 
@@ -492,6 +522,9 @@ export const PimpConsoleService = {
         throw AppError.notFound('PLAYER_NOT_FOUND', 'That player is not available.');
       }
 
+      // 0.9.0-H: a moderator's restriction comes first, and says so plainly.
+      const sender = await assertCanCommunicate(tx, owner.accountId, now);
+
       if (await isCommunicationBlocked(tx, owner.accountId, target.accountId)) {
         throw AppError.notFound('PLAYER_NOT_FOUND', 'That player is not available.');
       }
@@ -538,6 +571,21 @@ export const PimpConsoleService = {
         );
       }
 
+      const flags = await checkDirectMessage(tx, {
+        senderPlayerId: owner.id,
+        recipientPlayerId: target.id,
+        senderCreatedAt: sender.createdAt,
+        subject: input.subject,
+        body: input.body,
+        recentCount,
+      }, now);
+      // A recipient's mute is private: the message is delivered straight to their
+      // Archived folder, with no unread count and no alert, and the sender is not told.
+      const mutedByRecipient = await tx.playerMute.findUnique({
+        where: { muterAccountId_mutedAccountId: { muterAccountId: target.accountId, mutedAccountId: owner.accountId } },
+        select: { id: true },
+      });
+
       const created = await tx.directMessage.create({
         data: {
           roundId: owner.roundId,
@@ -547,9 +595,11 @@ export const PimpConsoleService = {
           subject: input.subject,
           body: input.body,
           createdAt: now,
+          ...(mutedByRecipient ? { recipientArchivedAt: now } : {}),
         },
         select: messageSelect,
       });
+      await flagMessage(tx, created.id, flags, now);
       return { row: created, replayed: false as const };
     });
 
@@ -567,7 +617,7 @@ export const PimpConsoleService = {
   ): Promise<{ ok: true }> {
     const owner = await currentPlayer(prisma, accountId);
     const message = await prisma.directMessage.findFirst({
-      where: { id: messageId, roundId: owner.roundId },
+      where: { id: messageId, roundId: owner.roundId, recipientHiddenAt: null },
       select: { recipientId: true },
     });
     if (!message || message.recipientId !== owner.id) {
@@ -593,7 +643,7 @@ export const PimpConsoleService = {
       where: {
         id: messageId,
         roundId: owner.roundId,
-        OR: [{ senderId: owner.id }, { recipientId: owner.id }],
+        OR: [{ senderId: owner.id, senderHiddenAt: null }, { recipientId: owner.id, recipientHiddenAt: null }],
       },
       select: { senderId: true, recipientId: true },
     });
@@ -623,7 +673,7 @@ export const PimpConsoleService = {
   ): Promise<{ ok: true }> {
     const owner = await currentPlayer(prisma, accountId);
     const message = await prisma.directMessage.findFirst({
-      where: { id: messageId, roundId: owner.roundId },
+      where: { id: messageId, roundId: owner.roundId, recipientHiddenAt: null },
       select: { recipientId: true },
     });
     if (!message || message.recipientId !== owner.id) {
@@ -687,7 +737,19 @@ export const PimpConsoleService = {
         blockedAt: row.createdAt.toISOString(),
       }] : [];
     });
-    return { blocked };
+    const muteRows = await prisma.playerMute.findMany({
+      where: { muterAccountId: owner.accountId, muted: { isActive: true, roundPlayers: { some: { roundId: owner.roundId } } } },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        createdAt: true,
+        muted: { select: { roundPlayers: { where: { roundId: owner.roundId }, take: 1, select: { publicPimpId: true, displayName: true } } } },
+      },
+    });
+    const muted: MutedPlayerDto[] = muteRows.flatMap((row) => {
+      const player = row.muted.roundPlayers[0];
+      return player ? [{ publicPimpId: player.publicPimpId, displayName: player.displayName, mutedAt: row.createdAt.toISOString() }] : [];
+    });
+    return { blocked, muted };
   },
 
   async block(
@@ -740,5 +802,57 @@ export const PimpConsoleService = {
     });
 
     return PimpConsoleService.blocks(prisma, accountId);
+  },
+
+  /** 0.9.0-H. Quietly archive this player's future messages. Already-delivered mail is untouched. */
+  async mute(prisma: PrismaClient, accountId: string, targetPublicPimpId: number): Promise<ConsoleBlocksDto> {
+    const owner = await currentPlayer(prisma, accountId);
+    const target = await currentTarget(prisma, owner.roundId, targetPublicPimpId);
+    if (target.id === owner.id) throw AppError.badRequest('MUTE_SELF', 'You cannot mute yourself.');
+    await prisma.playerMute.upsert({
+      where: { muterAccountId_mutedAccountId: { muterAccountId: owner.accountId, mutedAccountId: target.accountId } },
+      create: { muterAccountId: owner.accountId, mutedAccountId: target.accountId },
+      update: {},
+    });
+    return PimpConsoleService.blocks(prisma, accountId);
+  },
+
+  async unmute(prisma: PrismaClient, accountId: string, targetPublicPimpId: number): Promise<ConsoleBlocksDto> {
+    const owner = await currentPlayer(prisma, accountId);
+    const target = await currentTarget(prisma, owner.roundId, targetPublicPimpId);
+    await prisma.playerMute.deleteMany({ where: { muterAccountId: owner.accountId, mutedAccountId: target.accountId } });
+    return PimpConsoleService.blocks(prisma, accountId);
+  },
+
+  /**
+   * 0.9.0-H. "Delete conversation": every message between the two players this
+   * round disappears from the viewer's folders for good. The other side keeps
+   * their copy, and reports keep their evidence.
+   */
+  async hideConversation(
+    prisma: PrismaClient,
+    accountId: string,
+    counterpartPublicPimpId: number,
+    now = new Date(),
+  ): Promise<{ hidden: number }> {
+    const owner = await currentPlayer(prisma, accountId);
+    const counterpart = await prisma.roundPlayer.findFirst({
+      where: { roundId: owner.roundId, publicPimpId: counterpartPublicPimpId },
+      select: { id: true },
+    });
+    if (!counterpart || counterpart.id === owner.id) {
+      throw AppError.notFound('PLAYER_NOT_FOUND', 'That conversation does not exist.');
+    }
+    const [sent, received] = await prisma.$transaction([
+      prisma.directMessage.updateMany({
+        where: { senderId: owner.id, recipientId: counterpart.id, senderHiddenAt: null },
+        data: { senderHiddenAt: now },
+      }),
+      prisma.directMessage.updateMany({
+        where: { recipientId: owner.id, senderId: counterpart.id, recipientHiddenAt: null },
+        data: { recipientHiddenAt: now },
+      }),
+    ]);
+    return { hidden: sent.count + received.count };
   },
 };

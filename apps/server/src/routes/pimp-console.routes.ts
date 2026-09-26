@@ -104,6 +104,23 @@ const pimpConsoleRoutes: FastifyPluginAsync = async (app) => {
       publicPimpId,
     );
   });
+
+  /** 0.9.0-H: mute is private and one-sided; the muted player can still write, quietly archived. */
+  app.post('/console/mutes', { preHandler: app.requireAuth }, async (request) => {
+    const { targetPublicPimpId } = parseBody(blockPlayerSchema, request.body ?? {});
+    return PimpConsoleService.mute(app.prisma, request.auth!.account.id, targetPublicPimpId);
+  });
+
+  app.post('/console/mutes/:publicPimpId/remove', { preHandler: app.requireAuth }, async (request) => {
+    const { publicPimpId } = parseBody(playerParams, request.params);
+    return PimpConsoleService.unmute(app.prisma, request.auth!.account.id, publicPimpId);
+  });
+
+  /** 0.9.0-H: delete a whole conversation from your own side. */
+  app.post('/console/conversations/:publicPimpId/hide', { preHandler: app.requireAuth }, async (request) => {
+    const { publicPimpId } = parseBody(playerParams, request.params);
+    return PimpConsoleService.hideConversation(app.prisma, request.auth!.account.id, publicPimpId);
+  });
 };
 
 export default pimpConsoleRoutes;

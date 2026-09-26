@@ -45,6 +45,10 @@ if (withDb) {
     TRAVEL_INTEGRATION: '1',
     // 0.6.0: holding, player turf wars, away outposts, territory history/control and the release crackdown.
     TURF_INTEGRATION: '1',
+    // 0.9.0: profile stats and titles, notifications and phone alerts, moderation and messaging QA.
+    PROFILE_INTEGRATION: '1',
+    GAME_ALERTS_INTEGRATION: '1',
+    MODERATION_INTEGRATION: '1',
   });
 }
 
