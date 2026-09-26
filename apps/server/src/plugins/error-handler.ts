@@ -9,6 +9,23 @@ import {
 import { AppError } from '../utils/errors.js';
 
 /**
+ * 1.0.0-C. Database refusals that mean "the state moved under this request".
+ * A CHECK violation is a guard the services should have caught first, so it is
+ * logged as an error; a lock conflict or deadlock is ordinary contention.
+ */
+export function databaseRefusal(error: unknown): { kind: 'check'; constraint: string | null } | { kind: 'contention' } | null {
+  const text = error instanceof Error ? error.message : '';
+  const meta = (error as { meta?: { code?: unknown } } | null)?.meta;
+  const code = typeof meta?.code === 'string' ? meta.code : null;
+  if (code === '23514' || /violates check constraint|code: "23514"/.test(text)) {
+    return { kind: 'check', constraint: /check constraint \\?"([A-Za-z0-9_]+)\\?"/.exec(text)?.[1] ?? null };
+  }
+  const prismaCode = (error as { code?: unknown } | null)?.code;
+  if (prismaCode === 'P2034' || code === '40001' || code === '40P01' || /code: "(40001|40P01)"/.test(text)) return { kind: 'contention' };
+  return null;
+}
+
+/**
  * Section 50. Everything that reaches a player is explicit and readable.
  * Anything unexpected is logged in full and answered with one honest line.
  */
@@ -56,6 +73,20 @@ const errorHandlerPlugin: FastifyPluginAsync = async (fastify) => {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       return reply.status(409).send({
         error: { code: 'CONFLICT', message: 'That is already taken.' },
+      });
+    }
+
+    const refusal = databaseRefusal(error);
+    if (refusal?.kind === 'check') {
+      request.log.error({ err: error, constraint: refusal.constraint }, 'database guard refused a write');
+      return reply.status(409).send({
+        error: { code: 'STATE_CHANGED', message: 'That no longer adds up. Refresh and try again.' },
+      });
+    }
+    if (refusal?.kind === 'contention') {
+      request.log.warn({ err: error }, 'transaction contention');
+      return reply.status(409).send({
+        error: { code: 'TRY_AGAIN', message: 'Too much happening at once. Try that again.' },
       });
     }
 

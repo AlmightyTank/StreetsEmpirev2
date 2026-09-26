@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { actionIdSchema } from './game.js';
+import { actionIdSchema, MAX_ORDER_QUANTITY } from './game.js';
 import { CONTACT_NOTE_MAX, WIRE_POST_MAX } from '../types/playing-together.js';
 
 const publicPimpId = z.number({ invalid_type_error: 'Pick a player by pimp number.' }).int().min(1).max(2_147_483_647);
@@ -74,6 +74,8 @@ export const workSupplyPreviewSchema = z.object({
 const citySlug = z.string().trim().regex(/^[a-z][a-z-]{1,40}$/, 'Pick a city.');
 const runProduct = z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.');
 const wholeCount = (what: string) => z.number({ invalid_type_error: `Enter ${what}.` }).int(`${what} must be a whole number.`).min(0).safe();
+/** 1.0.0-C. Goods and crew, as opposed to cash: capped like any other order. */
+const unitCount = (what: string) => wholeCount(what).max(MAX_ORDER_QUANTITY, 'That order is too large.');
 
 const runId = z.string().trim().min(1).max(64);
 export const travelRoutesSchema = z.object({ to: citySlug, runId: runId.optional() }).strict();
@@ -82,13 +84,13 @@ export const runLaunchSchema = z.object({
   to: citySlug,
   route: z.number().int().min(0).max(9),
   lowRiders: z.number({ invalid_type_error: 'Say how many Low-Riders go.' }).int().min(1, 'A run needs at least one Low-Rider.').safe(),
-  escortThugs: wholeCount('escorts'),
+  escortThugs: unitCount('escorts'),
   cashCents: wholeCount('cash'),
   /** 0.6.0-D. Beer rides as real cargo so a run can supply an outpost. */
-  beer: wholeCount('beer').default(0),
-  cargo: z.record(runProduct, wholeCount('a quantity')).default({}),
+  beer: unitCount('beer').default(0),
+  cargo: z.record(runProduct, unitCount('a quantity')).default({}),
   /** 0.5.0-F. Bought on the home high market as it leaves, straight into the trunk. */
-  market: z.record(runProduct, wholeCount('a quantity')).default({}),
+  market: z.record(runProduct, unitCount('a quantity')).default({}),
   /** The next-unit prices the player saw on the home market; the launch is refused if one has moved too far. */
   marketQuotes: z.record(runProduct, z.number().int().positive().safe()).optional(),
   actionId: actionIdSchema,
@@ -103,7 +105,7 @@ export const runTradeSchema = z.object({
   venue: z.enum(['pip', 'market']).default('pip'),
   /** 0.5.0-C. The next-unit price the player saw on the high market; the trade is refused if it has moved too far. */
   quoteCents: z.number().int().positive().safe().optional(),
-  quantity: z.number({ invalid_type_error: 'Enter a quantity.' }).int('Quantity must be a whole number.').positive('Enter at least one.').safe(),
+  quantity: z.number({ invalid_type_error: 'Enter a quantity.' }).int('Quantity must be a whole number.').positive('Enter at least one.').max(MAX_ORDER_QUANTITY, 'That order is too large.'),
   actionId: actionIdSchema,
 }).strict();
 export type RunTradeInput = z.infer<typeof runTradeSchema>;
@@ -121,14 +123,14 @@ export const runHeadHomeSchema = z.object({ runId: runId.optional(), actionId: a
 // --- 0.6.0-D outposts --------------------------------------------------------------
 
 const outpostDistrict = z.enum(['CASINO', 'NIGHTCLUB', 'LOW_RENT', 'URBAN_GHETTO', 'WINO_SLUMS']);
-const outpostProducts = z.record(runProduct, wholeCount('a quantity')).default({});
+const outpostProducts = z.record(runProduct, unitCount('a quantity')).default({});
 
 export const runOutpostEstablishSchema = z.object({
   runId: runId.optional(),
   district: outpostDistrict,
   thugs: z.number({ invalid_type_error: 'Say how many escorts stay.' }).int('Send whole thugs.').positive('Leave at least one thug.').safe(),
   cashCents: wholeCount('cash'),
-  beer: wholeCount('beer'),
+  beer: unitCount('beer'),
   products: outpostProducts,
   actionId: actionIdSchema,
 }).strict();
@@ -139,7 +141,7 @@ export const runOutpostTransferSchema = z.object({
   district: outpostDistrict,
   direction: z.enum(['deposit', 'withdraw']),
   cashCents: wholeCount('cash'),
-  beer: wholeCount('beer'),
+  beer: unitCount('beer'),
   products: outpostProducts,
   actionId: actionIdSchema,
 }).strict().superRefine((input, ctx) => {

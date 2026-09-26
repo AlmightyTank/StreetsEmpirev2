@@ -23,7 +23,7 @@ import {
   type SpecialRaidInputDto,
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
-import { lockRoundPlayer } from '../utils/db.js';
+import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { RelocationService } from './relocation.service.js';
 import { fitThugs, toState } from './action.service.js';
 import { ActivityService } from './activity.service.js';
@@ -40,6 +40,7 @@ import { RankingService } from './ranking.service.js';
 import { hideoutDefenseBonusPercent, hideoutMedicineEfficiencyPercent, hideoutProductProtection, hideoutProtectedCashBonusCents, hideoutProtectedProductCapacity, hideoutWeaponPriority } from './hideout.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
+import { accountsShareNetwork } from './admin-signals.service.js';
 
 type CombatRules = NonNullable<Ruleset['combat']>;
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value, (_, v: unknown) => typeof v === 'bigint' ? v.toString() : v));
@@ -550,6 +551,16 @@ function intelReport(target: RoundPlayer, model: CombatRules, createdAt: Date, e
   };
 }
 
+/**
+ * 1.0.0-C. Two accounts seen on the same real network cannot hit each other: a raid
+ * between them is a way to move cash, product and crew from an alt to a main.
+ */
+async function assertNotLinked(tx: Db, attacker: RoundPlayer, defender: RoundPlayer, now: Date): Promise<void> {
+  if (await accountsShareNetwork(tx, attacker.accountId, defender.accountId, now)) {
+    throw AppError.conflict('LINKED_ACCOUNTS', 'You have played from the same network as this crew, so you cannot hit them.');
+  }
+}
+
 /** Both sides' alliance tags as they stood when the battle landed, for reports and the feed. */
 async function battleTags(tx: Prisma.TransactionClient, attacker: RoundPlayer, defender: RoundPlayer) {
   const ids = [attacker.allianceId, defender.allianceId].filter((id): id is string => Boolean(id));
@@ -779,6 +790,7 @@ export const CombatService = {
         defenderProductProtection.exposedUnits,
       );
       if (blocked) throw AppError.conflict('RAID_BLOCKED', blocked);
+      await assertNotLinked(tx, attacker, defender, now);
       if (input.attackingThugs > Math.min(fitThugs(attacker), model.squadCap)) throw AppError.badRequest('INVALID_SQUAD', 'Your squad exceeds your fit crew or the raid limit.');
       const beforeA = await RankingService.ranksFor(tx, attacker);
       const beforeD = await RankingService.ranksFor(tx, defender);
@@ -949,6 +961,7 @@ export const CombatService = {
       const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
       const blocked = driveByAttackerBlock(attacker, model, rules, now) ?? driveByTargetBlock(attacker, defender, model, now, retaliation);
       if (blocked) throw AppError.conflict('DRIVE_BY_BLOCKED', blocked);
+      await assertNotLinked(tx, attacker, defender, now);
       const seats = driveByMaxShooters(fitThugs(attacker), attacker.lowRiders, model, rules);
       if (input.attackingThugs > seats) throw AppError.badRequest('INVALID_SQUAD', `Your cars and fit crew can take ${seats} shooters.`);
 
@@ -1072,6 +1085,7 @@ export const CombatService = {
       const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
       const blocked = specialRaidAttackerBlock(attacker, model, input.kind, now) ?? specialRaidTargetBlock(attacker, defender, model, input.kind, now, retaliation);
       if (blocked) throw AppError.conflict('SPECIAL_RAID_BLOCKED', blocked);
+      await assertNotLinked(tx, attacker, defender, now);
       if (input.attackingThugs > Math.min(fitThugs(attacker), model.squadCap)) throw AppError.badRequest('INVALID_SQUAD', 'Your squad exceeds your fit crew or the raid limit.');
 
       const beforeA = await RankingService.ranksFor(tx, attacker);

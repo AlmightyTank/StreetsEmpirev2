@@ -284,6 +284,29 @@ Continue strengthening detection around:
 
 No known supported request pattern creates money, inventory or competitive advantage from nothing.
 
+### 1.0.0-C implementation complete
+
+The game already locked each player row before an action, replayed action ids and checked player-state invariants before commit. 1.0.0-C attacked those guarantees deliberately and closed what got through.
+
+**Fixed**
+
+- **Lost update on turf work.** Scouting a rival's block settled the rival's corner upkeep inside the scout's transaction without the rival's lock, writing their cash and stock back whole. A holder buying something at that moment could have the purchase erased: goods for free. The worker now settles the holder only under the holder's lock (`SKIP LOCKED`: a busy holder is being settled by their own action), so it can neither overwrite nor deadlock.
+- **Raids between linked accounts.** Turf pushes, turf tax and convoy hits already refused accounts seen on the same network; raids, drive-bys and special moves did not, so an alt could feed its main. All three now refuse with `LINKED_ACCOUNTS`.
+- **Special-order duplication.** A second order for a shelf already being sourced charged again to pull the same delivery closer. One open special order per shelf; the store hides the offer while one is on its way.
+- **Oversized numbers.** Order quantities are capped at 100,000,000 (`MAX_ORDER_QUANTITY`) and turns per action at 100,000, so no input can overflow a 32-bit inventory column or make price × quantity inexact. Scout turns had no upper bound at all.
+
+**Defense in depth**
+
+- The database refuses negative cash, supplies, weapons, crew, shelves, favors, outpost boxes and corner counts (`CHECK ... NOT VALID`: enforced for every new write; old rows are reported, never block a deploy). One pending push per block is a unique index.
+- A refused write answers `409 STATE_CHANGED` (and is logged as an error, since a service should have caught it first); lock contention answers `409 TRY_AGAIN` instead of a 500.
+- `npm run ops:exploit-audit` reports historical rows the new guards would refuse and settlement health; `-- --validate` validates each clean constraint.
+
+**Account abuse**
+
+Admin Signals now shows, per linked-account match, every way value moved between the accounts (raids, drive-bys, special moves, turf pushes, turf tax, convoy hits) and **paired market trades** (one sells a product on a city's high market and another buys it there within the hour), plus alliances holding two or more of them (**self-feeding alliances**). A new **Rate-limit refusals** panel lists accounts and networks that keep hitting the API limits (scripts, bots, stuck clients), without ever showing an address.
+
+**Covered by `EXPLOIT_INTEGRATION=1`** (all through the real HTTP routes, each asserting what was actually credited and that nothing answers 500): double spend, concurrent replays, action-id reuse across actions, overflow and malformed numbers, special-order races, concurrent sales of goods and products, the database guard, turn overdraw, refresh turn minting, invalid combat targets (self, linked, other city, other round), raid replays and two rivals racing for one victim, two crews racing for one block, a rival's work overwriting a purchase, linked-account tax farming, one pending push per block, duplicate run launches, duplicate run arrival, the abuse signals and the rate-limit record. Existing suites already cover concurrent checkouts and shelves, combat replays and serialization, product-row spending and convoy settlement.
+
 ---
 
 ## 1.0.0-D — Whole-Game Balance

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import type { Prisma } from '@prisma/client';
 import { classicOgV08H } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
 import { RoundService } from '../round.service.js';
@@ -77,7 +78,7 @@ describe.runIf(process.env.ONBOARDING_INTEGRATION === '1')('1.0.0-B onboarding w
   });
 
   it('ticks the early goals off from real play, including checkout lines', async () => {
-    const log = (type: string, payload: Record<string, unknown>) => app.prisma.playerActivity.create({ data: { roundPlayerId: fresh.playerId, type: type as never, payload } });
+    const log = (type: string, payload: Prisma.InputJsonObject) => app.prisma.playerActivity.create({ data: { roundPlayerId: fresh.playerId, type: type as never, payload } });
     await log('SCOUT', { turns: 5, thugs: 0, whores: 1 });
     let steps = Object.fromEntries((await get(fresh.cookie)).json().guide.steps.map((step: { key: string; done: boolean }) => [step.key, step.done]));
     expect(steps).toEqual({ scout: true, recruit: false, restock: false, produce: false, weapon: false });

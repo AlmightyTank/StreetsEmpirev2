@@ -697,7 +697,24 @@ export interface AdminVoidBattleResultDto {
   defender: AdminVoidSideDto;
 }
 
-export type AdminSignal = 'shared-network' | 'same-device' | 'created-together';
+export type AdminSignal = 'shared-network' | 'same-device' | 'created-together'
+  /** 1.0.0-C. Value moved between them: raids, turf pushes, convoy hits or turf tax. */
+  | 'value-between'
+  /** 1.0.0-C. Two or more of them in one alliance this season. */
+  | 'same-alliance'
+  /** 1.0.0-C. Opposite trades of one product on one high market within an hour. */
+  | 'market-pairing';
+
+/** 1.0.0-C. A way value moved between two accounts in a match. */
+export interface AdminSignalTransferDto {
+  kind: 'RAID' | 'DRIVE_BY' | 'SPECIAL' | 'TURF_PUSH' | 'TURF_TAX' | 'MARKET_PAIR';
+  from: string;
+  to: string;
+  at: string;
+  /** Cash that moved, where the record says. */
+  cashCents: number | null;
+  voided: boolean;
+}
 
 export interface AdminSignalAccountDto {
   id: string;
@@ -717,15 +734,33 @@ export interface AdminSignalClusterDto {
   signals: AdminSignal[];
   /** 0.5.0-E. Convoy hits that landed between accounts in this cluster: a way goods could move between them. */
   convoyHits?: Array<{ tailId: string; attacker: string; owner: string; at: string; voided: boolean }>;
+  /** 1.0.0-C. Every other way value moved between them in the window, newest first. */
+  transfers?: AdminSignalTransferDto[];
+  /** 1.0.0-C. Alliances holding two or more of them this season. */
+  alliances?: Array<{ tag: string; name: string; members: string[] }>;
   firstSeenAt: string;
   lastSeenAt: string;
   accounts: AdminSignalAccountDto[];
+}
+
+/** 1.0.0-C. Someone repeatedly hitting the API rate limits: scripts, bots or a stuck client. */
+export interface AdminApiAbuseDto {
+  /** An account when signed in; otherwise an opaque network key, never the address. */
+  account: { id: string; username: string } | null;
+  networkKey: string | null;
+  /** Requests refused in the last 24 hours on this server process. */
+  refused: number;
+  buckets: string[];
+  firstAt: string;
+  lastAt: string;
 }
 
 export interface AdminSignalsDto {
   windowDays: number;
   generatedAt: string;
   clusters: AdminSignalClusterDto[];
+  /** 1.0.0-C. Since this server process started, at most the last 24 hours. */
+  apiAbuse: AdminApiAbuseDto[];
 }
 
 /** 0.3.0-E. One matchup in the alliance balance report. */

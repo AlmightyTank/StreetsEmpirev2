@@ -76,7 +76,7 @@ export async function guideProgress(
     WHERE a."roundPlayerId" = ${player.id}
   `);
   // Every crew starts with some thugs and guns; only growth beyond that counts.
-  const start = ruleset.round.startingPlayer as Partial<Record<string, number>>;
+  const start = ruleset.round.startingPlayer as unknown as Partial<Record<string, number>>;
   const startingWeapons = weaponFields.reduce((sum, field) => sum + (start[field] ?? 0), 0);
   const weapons = weaponFields.reduce((sum, field) => sum + player[field], 0);
   return {

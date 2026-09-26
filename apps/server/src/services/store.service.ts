@@ -177,6 +177,22 @@ export function specialOrderQuote(input: {
   };
 }
 
+/**
+ * 1.0.0-C. Shelves with a special order already on its way. One order per shelf:
+ * a second one (a double click, a second tab) would charge again to pull the same
+ * delivery a little closer, so it is refused until the first one lands.
+ */
+async function openSpecialOrders(db: Pick<PrismaClient, 'scheduledAlert'>, roundPlayerId: string, now: Date): Promise<Set<string>> {
+  const rows = await db.scheduledAlert.findMany({
+    where: { roundPlayerId, kind: 'SPECIAL_ORDER', dueAt: { gt: now } },
+    select: { payload: true },
+  });
+  return new Set(rows.map((row) => {
+    const payload = row.payload as { storeKey?: unknown; itemKey?: unknown } | null;
+    return `${String(payload?.storeKey ?? '')}:${String(payload?.itemKey ?? '')}`;
+  }));
+}
+
 function turfSpecialOrderDiscountPercent(ruleset: Ruleset, blocksHeld: number): number {
   const rule = ruleset.storeEconomy?.integrations;
   if (!rule?.enabled || blocksHeld <= 0) return 0;
@@ -399,6 +415,7 @@ export const StoreService = {
     const armed = await SingleUseFavorService.matching(prisma, roundPlayerId, ruleset, 'STORE_BUY_DISCOUNT');
     const discount = armed?.effect.kind === 'STORE_BUY_DISCOUNT' ? armed.effect : null;
     let incomingShipments = 0;
+    const ordered = await openSpecialOrders(prisma, roundPlayerId, now);
     const stores = Object.entries(ruleset.stores).map(([key, store]) => {
         const news: string[] = [];
         const items = Object.entries(store.items).map(([itemKey, item]) => {
@@ -406,7 +423,7 @@ export const StoreService = {
           const settled = item.restock ? stock.byField[item.restock.stockField] ?? null : null;
           const shipment = settled ? shipmentDto({ settlement: settled, trader: key, keeper: store.keeper, itemName: item.name }) : null;
           if (shipment) incomingShipments += 1;
-          const specialOrder = settled && item.restock && (!item.unlockKey || hasWeaponAccess(player, item.unlockKey))
+          const specialOrder = settled && item.restock && !ordered.has(`${key}:${itemKey}`) && (!item.unlockKey || hasWeaponAccess(player, item.unlockKey))
             ? specialOrderQuote({
                 ruleset,
                 points: standings[key as TraderKey]?.points ?? 0,
@@ -622,6 +639,9 @@ export const StoreService = {
         const settled = stock.byField[item.restock.stockField];
         if (!settled) throw AppError.conflict('SPECIAL_ORDER_UNAVAILABLE', 'That shelf is not available right now.');
         if (settled.stock > 0) throw AppError.conflict('SPECIAL_ORDER_IN_STOCK', `${foundStore.store.keeper} has ${item.name} on the shelf right now.`);
+        if ((await openSpecialOrders(tx, roundPlayerId, now)).has(`${foundStore.key}:${itemKey}`)) {
+          throw AppError.conflict('SPECIAL_ORDER_PENDING', `Your special order of ${item.name} is already on its way.`);
+        }
 
         const trader = foundStore.key as TraderKey;
         const turf = await TurfService.summary(tx, roundPlayerId, ruleset, now);

@@ -53,6 +53,8 @@ if (withDb) {
     PLATFORM_INTEGRATION: '1',
     // 1.0.0-B: tutorial progress and the early getting-started goals.
     ONBOARDING_INTEGRATION: '1',
+    // 1.0.0-C: deliberate exploit attempts across money, goods, turns, combat, turf, travel and abuse signals.
+    EXPLOIT_INTEGRATION: '1',
   });
 }
 

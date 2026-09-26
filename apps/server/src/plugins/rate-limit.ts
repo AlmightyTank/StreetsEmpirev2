@@ -4,6 +4,7 @@ import {
   FixedWindowRateLimiter,
   rateLimitPolicyFor,
 } from '../services/rate-limit.service.js';
+import { apiAbuse } from '../services/api-abuse.service.js';
 
 /**
  * 0.1.0-F. Per-process abuse protection.
@@ -31,6 +32,8 @@ const rateLimitPlugin: FastifyPluginAsync = async (fastify) => {
     if (decision.allowed) return;
 
     reply.header('Retry-After', String(decision.retryAfterSeconds));
+    // 1.0.0-C: remembered for Admin Signals, so repeated refusals show up as a pattern.
+    apiAbuse.record({ accountId: request.auth?.account.id ?? null, ip: request.ip }, policy.name);
     request.log.warn(
       { bucket: policy.name, accountId: request.auth?.account.id ?? null },
       'rate limit exceeded',

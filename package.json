@@ -42,6 +42,7 @@
     "admin": "tsx scripts/ops/set-admin.ts",
     "db:seed:dev-bots": "tsx scripts/qa/seed-dev-bots.ts",
     "db:dev-bots:status": "tsx scripts/ops/dev-bots-status.ts",
+    "ops:exploit-audit": "tsx scripts/ops/exploit-audit.ts",
     "db:studio": "prisma studio",
     "db:cleanup:seed-rivals": "tsx scripts/ops/remove-seed-rivals.ts",
     "dev:site": "npm run dev -w @streets/site",
