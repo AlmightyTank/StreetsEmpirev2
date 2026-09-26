@@ -25,6 +25,8 @@ run('Turf balance gates', npm, ['run', 'qa:turf', '--', '--quiet']);
 run('Hideout balance gates', npm, ['run', 'qa:hideout']);
 // 0.8.0: Store pressure, relationship pricing, shipments, sourcing and integration guardrails.
 run('Store economy gates', npm, ['run', 'qa:store-economy']);
+// 1.0.0-D: whole seasons with every strategy at once, against the balance bands.
+run('Whole-season balance bands', npm, ['run', 'qa:season', '--', '--quiet']);
 
 if (withDb) {
   // One file at a time: suites share the .env database, and any real current-round lookup

@@ -24,6 +24,7 @@
     "qa:products": "node --import tsx scripts/qa/product-sim.mjs",
     "qa:travel": "node --import tsx scripts/qa/travel-sim.mjs",
     "qa:turf": "node --import tsx scripts/qa/turf-sim.mjs",
+    "qa:season": "node --import tsx scripts/qa/season-sim.mjs",
     "qa:hideout": "node --import tsx scripts/qa/hideout-sim.mjs",
     "qa:store-economy": "node --import tsx scripts/qa/store-economy.mjs",
     "qa:alliance-balance": "tsx scripts/qa/alliance-balance.ts",

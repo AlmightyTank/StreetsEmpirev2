@@ -357,6 +357,38 @@ Mixed skilled play should generally outperform blind single-system grinding.
 
 At least one complete simulated season passes agreed balance bands.
 
+### 1.0.0-D implementation complete
+
+`npm run qa:season` runs whole seasons with every strategy in one city at once (`packages/rules-engine/src/simulations/season.ts`), and judges them against balance bands, one per question (`season-bands.ts`). The full report is [BALANCE-1.0.0-D.md](BALANCE-1.0.0-D.md). The shipping ruleset, `classic-og-v0.8-h`, **passes all 11 bands** across five seeds, so no ruleset change was needed.
+
+**The simulation.** 30 crews play 28 days on an hourly clock: each of the 11 strategies twice (four sessions a day and two), two alliances with their wings, a raider with no economy at all, and fresh crews joining on days 7, 14 and 21. Every action goes through the engine's own formulas, the ones the server calls: the street is `calculateScout` with a work-supply plan and the hour's hidden client capacities, the stove `calculateProduce`, fights `simulateRaid` (turf through `turfPushCombatModel`, hijacks through `convoyCombatModel` and `convoyLoot`), Heat `tripHeat`/`decayHeat`/`resolveBust`, runs the 0.5.0-F planner priced through the road-risk model, and net worth `calculateNetWorthCents`. Crews run into each other: raids hit real neighbours under the real target rules (protection, cooldown, minimum strength, revenge), blocks are claimed from locals and pushed, holders top up corners and answer pushes when online, allies back each other up, runs get tailed, and turf tax is minted to whoever holds the block. How people play (sessions, targets, thresholds, when a gun unlock is earned) lives in `SEASON_WORLD`, so real round data can replace it.
+
+**The answers** (medians of five seasons):
+
+| Question | Answer |
+| --- | --- |
+| Does any single system dominate? | No. Mixed play finishes top; nothing exceeds it. |
+| Can you ignore combat? | Yes. The best crew that never fights (a traveler) reaches 0.79× the best crew. |
+| Can you ignore the economy? | No. A crew that only raids never grows strong enough to hit anyone: ~$24k. |
+| Does turf snowball? | No. Contested blocks change hands ~5 times a week; no group holds more than one at the end. |
+| Can veterans lock new players out? | No. Crews joining on days 7, 14 and 21 make 0.73×+ of an opening crew's first week. |
+| Are runs worth the risk? | Yes, for a crew with an economy: the traveler ends 1.23× the street grinder; hijackers take ~12% of run income. |
+| Is the Hideout worth it? | Yes: the investor ends 1.11× the street grinder. |
+| Can store arbitrage beat everything? | No. Counters sell far below what they charge; there is nothing to loop. |
+| Are alliances walls? | No. 92% of pushes on allied blocks land; a specialist ends at 0.85× solo mixed play. |
+| Does mixed beat blind grinding? | Yes: 1.41× the street grinder, in the worse play style. |
+
+**The bands have teeth.** `season.test.ts` breaks the ruleset on purpose and checks the right bands fail: raids with no protection and unlimited loot fail dominance and combat-optional; hideout rooms at 20× cost fail hideout-pays; turf with a 3× hold bonus and uncapped tax locks late joiners out.
+
+**Worth watching** (inside the bands, but closer to an edge, or a design question rather than a balance failure):
+
+- **Turf is liquid.** A block is held for about a day on average before it changes hands. Holding pays mostly through the tax others' work mints, not the hold bonus. If holding should feel more durable, the push shield or corner defence is the lever.
+- **Production as a focus is a trap.** The producer ends at 0.83× the street grinder: every recipe sells to Pip below its ingredient cost, so the stove only pays as supply security when Pip's shelf runs short, which is how mixed play uses it.
+- **Trading needs an economy under it.** A pure runner ends at 0.27× the street grinder. Runs pay on top of a crew, not instead of one.
+- **Only two strategies ever win a scenario** (turf holder and mixed player), the band's minimum. Different circumstances favour different strategies, but narrowly.
+- **Being a target costs.** A street grinder is raided ~68 times in a season and loses ~8% of its street income to raids and ~12% to turf tax. Nothing locks it out, but it pays for staying still.
+- **Casual play earns ~45% of engaged play** with half the sessions, so the turn cap is not punishing casual players beyond their time.
+
 ---
 
 ## 1.0.0-E — Administration & Moderation
