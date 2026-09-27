@@ -38,6 +38,7 @@ Signing in with only a password still works for playing, but the admin pages sho
     1. run `npm run admin -- <name> --off`;
     2. the player links Discord or sets up an authenticator in Account settings;
     3. run `npm run admin -- <name>` again.
+    `--off` also approves the account for an invite-only beta, so it can still sign in there. To let any account into the beta from the console, use `npm run admin -- <name> --approve-beta`.
 - **Unlinking Discord.** An admin can unlink Discord only when an authenticator is set up, and only from a sign-in that used its code.
 - **Lost phone (admin).** Another admin uses **Accounts → the account → Turn off two-step sign-in**. If there is no other admin, run `npm run admin -- <name> --reset-2fa --reason "why"` on the server. The admin then signs in with Discord or sets the authenticator up again.
 - **Checking.**

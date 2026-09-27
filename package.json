@@ -15,7 +15,7 @@
     "dev:bot": "npm run dev -w @streets/discord-bot",
     "build": "npm run build -w @streets/server && npm run build -w @streets/web && npm run build -w @streets/site && npm run build -w @streets/discord-bot",
     "typecheck": "npm run typecheck --workspaces --if-present && npm run typecheck:ops",
-    "typecheck:ops": "tsc --noEmit --module nodenext --moduleResolution nodenext --target es2022 --strict --skipLibCheck --types node scripts/ops/backup.ts scripts/ops/exploit-audit.ts scripts/ops/launch-check.ts",
+    "typecheck:ops": "tsc --noEmit --module nodenext --moduleResolution nodenext --target es2022 --strict --skipLibCheck --types node scripts/ops/backup.ts scripts/ops/exploit-audit.ts scripts/ops/launch-check.ts scripts/ops/set-admin.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "qa:release": "node scripts/qa/release-check.mjs",

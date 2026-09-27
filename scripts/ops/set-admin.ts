@@ -9,6 +9,7 @@ const USAGE = `Grant or remove the admin flag from the console.
   npm run admin -- <username or email> [--off] [--reason "why"]
   npm run admin -- --list
   npm run admin -- <username or email> --reset-2fa [--reason "why"]
+  npm run admin -- <username or email> --approve-beta [--reason "why"]
 
 Examples:
   npm run admin -- AMightyTank
@@ -16,6 +17,9 @@ Examples:
 
 --reset-2fa turns off authenticator two-step sign-in (a lost phone, when no other
 admin can do it from the panel).
+
+--approve-beta lets an account into an invite-only beta. --off keeps (grants) beta
+access too, so taking the admin role away never locks someone out of the beta.
 
 The change is written to the admin audit log as a console action.`;
 
@@ -25,16 +29,18 @@ interface Args {
   reason: string;
   list: boolean;
   resetTwoFactor: boolean;
+  approveBeta: boolean;
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { who: null, isAdmin: true, reason: '', list: false, resetTwoFactor: false };
+  const args: Args = { who: null, isAdmin: true, reason: '', list: false, resetTwoFactor: false, approveBeta: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]!;
     if (arg === '--off' || arg === '--revoke') args.isAdmin = false;
     else if (arg === '--on' || arg === '--grant') args.isAdmin = true;
     else if (arg === '--list') args.list = true;
     else if (arg === '--reset-2fa') args.resetTwoFactor = true;
+    else if (arg === '--approve-beta') args.approveBeta = true;
     else if (arg === '--reason') args.reason = argv[++i] ?? '';
     else if (arg.startsWith('--reason=')) args.reason = arg.slice('--reason='.length);
     else if (arg.startsWith('--')) throw new Error(`Unknown option ${arg}`);
@@ -77,7 +83,7 @@ async function main(): Promise<void> {
   const needle = args.who.trim().toLowerCase();
   const account = await prisma.account.findFirst({
     where: { OR: [{ usernameNormalized: needle }, { email: needle }] },
-    select: { id: true, username: true, email: true, isActive: true, isAdmin: true, discordId: true, twoFactorEnabledAt: true },
+    select: { id: true, username: true, email: true, isActive: true, isAdmin: true, betaApproved: true, discordId: true, twoFactorEnabledAt: true },
   });
 
   if (!account) {
@@ -95,7 +101,9 @@ async function main(): Promise<void> {
       });
       await tx.twoFactorRecoveryCode.deleteMany({ where: { accountId: account.id } });
       await tx.loginChallenge.deleteMany({ where: { accountId: account.id } });
+      await tx.trustedDevice.deleteMany({ where: { accountId: account.id } });
       await tx.session.updateMany({ where: { accountId: account.id }, data: { twoFactor: false } });
+      await tx.session.updateMany({ where: { accountId: account.id, method: { not: 'DISCORD' } }, data: { secondFactorAt: null } });
       await tx.adminAuditLog.create({
         data: {
           actorAccountId: null, actorUsername: actor, action: 'account.reset-2fa', targetType: 'account', targetId: account.id,
@@ -104,6 +112,25 @@ async function main(): Promise<void> {
       });
     });
     console.log(`Two-step sign-in is off for ${account.username}. They can sign in with their password (or Discord) and set it up again.`);
+    return;
+  }
+
+  if (args.approveBeta) {
+    if (account.betaApproved) {
+      console.log(`${account.username} is already approved for the beta. Nothing to do.`);
+      return;
+    }
+    await prisma.$transaction(async (tx) => {
+      await tx.account.update({ where: { id: account.id }, data: { betaApproved: true } });
+      await tx.adminAuditLog.create({
+        data: {
+          actorAccountId: null, actorUsername: `console:${os.userInfo().username}`, action: 'account.approve-beta',
+          targetType: 'account', targetId: account.id, reason: args.reason || 'Console command.',
+          before: { betaApproved: false }, after: { betaApproved: true },
+        },
+      });
+    });
+    console.log(`${account.username} can now sign in to the invite-only beta.`);
     return;
   }
 
@@ -126,7 +153,8 @@ async function main(): Promise<void> {
 
   const actorUsername = `console:${os.userInfo().username}`;
   await prisma.$transaction(async (tx) => {
-    await tx.account.update({ where: { id: account.id }, data: { isAdmin: args.isAdmin } });
+    // Taking the role away keeps them in an invite-only beta (admins never needed approval).
+    await tx.account.update({ where: { id: account.id }, data: args.isAdmin ? { isAdmin: true } : { isAdmin: false, betaApproved: true } });
     await tx.adminAuditLog.create({
       data: {
         actorAccountId: null,
@@ -136,12 +164,13 @@ async function main(): Promise<void> {
         targetId: account.id,
         reason: args.reason || 'Console command.',
         before: { username: account.username, isAdmin: account.isAdmin },
-        after: { username: account.username, isAdmin: args.isAdmin },
+        after: { username: account.username, isAdmin: args.isAdmin, ...(args.isAdmin ? {} : { betaApproved: true }) },
       },
     });
   });
 
   console.log(`${account.username} <${account.email}> is now ${args.isAdmin ? 'an admin' : 'a normal player'}.`);
+  if (!args.isAdmin && !account.betaApproved) console.log('Beta access kept: they are approved for the invite-only beta, so they can still sign in.');
   console.log(`Logged as ${actorUsername} in the admin audit log.`);
   if (args.isAdmin) {
     console.log('They may need to sign out and back in for the admin menu to appear.');
