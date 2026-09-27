@@ -94,6 +94,13 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('account data and safety (r
     expect(noCheck.json().error.code).toBe('CAPTCHA_REQUIRED');
     const withCheck = await app.inject({ remoteAddress: ip, method: 'POST', url: '/api/auth/password/forgot', payload: { email: human.email, captchaToken: 'good-token' } });
     expect(withCheck.statusCode, withCheck.body).toBe(200);
+    // Account settings: a signed-in player asking for a link to their own address needs no check...
+    const own = await as(human.cookie, 'POST', '/api/auth/password/forgot', { email: human.email });
+    expect(own.statusCode, own.body).toBe(200);
+    // ...but asking about someone else's address from a signed-in session still does.
+    const other = await register();
+    const someoneElse = await as(human.cookie, 'POST', '/api/auth/password/forgot', { email: other.email });
+    expect(someoneElse.json().error.code).toBe('CAPTCHA_REQUIRED');
   });
 
   it('records the 13+ confirmation, and the rules ask every player too', async () => {

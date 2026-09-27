@@ -758,7 +758,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/password/forgot', async (request) => {
     const body = parseBody(forgotPasswordSchema, request.body);
-    await assertHuman(body.captchaToken, request.ip, request.log);
+    // The bot check guards the public form. A signed-in player asking for a link to their
+    // own address (Account settings) has already proved more than a captcha would.
+    const ownAddress = request.auth?.account.email === body.email;
+    if (!ownAddress) await assertHuman(body.captchaToken, request.ip, request.log);
     const account = await fastify.prisma.account.findUnique({
       where: { email: body.email },
     });

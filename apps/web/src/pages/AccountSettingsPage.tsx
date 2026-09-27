@@ -306,16 +306,16 @@ export function AccountSettingsPage() {
             </div>
           </Panel>
 
-          <Panel title="Recovery">
+          <Panel title="Set a password by email">
             <p>
-              Password recovery sends a one-hour reset link to your private account email.
-              The address is used for login and recovery only.
+              Signed up with Discord, or forgot your current password? We will email a link to{' '}
+              <strong>{account.email}</strong> to set a new one.
             </p>
-            <Button type="button" className="se-btn se-btn--primary se-btn--block" onClick={sendRecovery} disabledReason={busy !== null ? working : null}>
-              {busy === 'recovery' ? 'Sending...' : 'Send recovery email'}
+            <Button type="button" className="se-btn se-btn--ghost se-btn--block" onClick={sendRecovery} disabledReason={busy !== null ? working : null}>
+              {busy === 'recovery' ? 'Sending...' : 'Email me a link'}
             </Button>
             <p className="se-hint">
-              Check your inbox after sending. Recovery links expire after one hour.
+              Know your password? Use Change password instead. The link works for one hour.
             </p>
           </Panel>
 
