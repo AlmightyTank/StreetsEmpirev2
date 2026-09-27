@@ -14,6 +14,7 @@ import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
+import { CloseAccountPanel } from '../components/CloseAccountPanel.js';
 import { ConnectedAccountsPanel } from '../components/ConnectedAccountsPanel.js';
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
 import { Panel, Row } from '../components/Panel.js';
@@ -672,6 +673,8 @@ export function AccountSettingsPage() {
           </form>
         )}
       </Panel>
+
+      <CloseAccountPanel />
     </Shell>
   );
 }

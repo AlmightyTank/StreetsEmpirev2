@@ -819,7 +819,7 @@ export interface AllianceBalanceDto {
 
 // --- 1.0.0-E administration ----------------------------------------------------------
 
-export type ExploitFlagKind = 'STATE_GUARD' | 'INVARIANT' | 'LINKED_ATTACK' | 'ACTION_REPLAY' | 'API_ABUSE';
+export type ExploitFlagKind = 'STATE_GUARD' | 'INVARIANT' | 'LINKED_ATTACK' | 'ACTION_REPLAY' | 'API_ABUSE' | 'SIGNUP_ABUSE';
 export type ExploitFlagResolution = 'dismissed' | 'actioned';
 
 export interface AdminExploitFlagDto {

@@ -198,6 +198,7 @@ function Footer() {
   const me = useSession((s) => s.me);
   const platform = useSession((s) => s.platform);
   const rulesetVersion = useSession((s) => s.round?.rulesetVersion ?? LATEST_RULESET_VERSION);
+  const location = useLocation();
 
   return (
     <footer className="se-footer">
@@ -222,6 +223,7 @@ function Footer() {
             <>
               <Link to={me ? '/game' : '/join'}>{me ? 'Dashboard' : 'Join a season'}</Link>
               <Link to="/account">Account</Link>
+              <Link to={`/game/report-bug?from=${encodeURIComponent(location.pathname)}`}>Report a bug</Link>
             </>
           ) : (
             <>

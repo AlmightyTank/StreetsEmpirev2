@@ -42,7 +42,7 @@ export function PrivacyPage() {
           body: (
             <>
               <p>Your <strong>username</strong> (public), your <strong>email address</strong> (private: sign-in, password recovery and verification only) and your <strong>password</strong>, which is stored only as a one-way hash and never readable, even by staff.</p>
-              <p>Each signed-in session keeps the <strong>IP address and browser</strong> it signed in from and when it was last used, so you can see and end your sessions and so staff can spot account sharing and abuse. A session expires 30 days after you sign in.</p>
+              <p>Each signed-in session keeps the <strong>IP address and browser</strong> it signed in from and when it was last used, so you can see and end your sessions and so staff can spot account sharing and abuse. A session expires 30 days after you sign in. The account also keeps the IP address it was created from, so one network cannot flood the game with new accounts.</p>
             </>
           ),
         },
@@ -61,6 +61,7 @@ export function PrivacyPage() {
             <ul>
               <li><strong>Discord</strong>: if you link or sign in with Discord, your Discord id, name and avatar.</li>
               <li><strong>The forum</strong>: if you link your forum account, which forum account it is.</li>
+              <li><strong>Bug reports</strong>: what you write, the page you were on, your browser and the game version. Staff read them to fix the game.</li>
               <li><strong>Phone and browser alerts</strong>: if you turn them on, your browser's push address for this site, which your browser maker's push service delivers through.</li>
             </ul>
           ),
@@ -86,7 +87,7 @@ export function PrivacyPage() {
         {
           heading: 'Your choices',
           body: (
-            <p>You can change your email and password, unlink Discord and the forum, end sessions and turn alerts off in your account settings. To have your account closed, ask staff on {CONTACT}; a closed account can no longer sign in, and your finished seasons stay in the public history under your name.</p>
+            <p>You can change your email and password, unlink Discord and the forum, end sessions and turn alerts off in your account settings. You can close your account yourself at the bottom of your account settings; a closed account can no longer sign in, and your finished seasons stay in the public history under your name. To have it reopened, or to ask for anything else about your data, ask staff on {CONTACT}.</p>
           ),
         },
       ]}
@@ -107,7 +108,7 @@ export function TermsPage() {
         },
         {
           heading: 'No cheating',
-          body: <p>No bots or scripts playing for you, no automated requests, and no using bugs to get ahead. If you find a bug that gives you something you should not have, report it rather than using it; reporting a real one is welcome. See the <Link to="/guide">guides</Link> and the in-game rules for how the game is meant to work.</p>,
+          body: <p>No bots or scripts playing for you, no automated requests, and no using bugs to get ahead. If you find a bug that gives you something you should not have, report it (Report a bug, in the game) rather than using it; reporting a real one is welcome. See the <Link to="/guide">guides</Link> and the in-game rules for how the game is meant to work.</p>,
         },
         {
           heading: 'Be decent',

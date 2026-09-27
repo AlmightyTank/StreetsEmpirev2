@@ -64,6 +64,7 @@ export const SECTIONS: NavSection[] = [
       { key: 'news', label: 'News', to: '/game/news', icon: 'news' },
       { key: 'fame', label: 'Hall of Fame', short: 'Fame', to: '/game/hall-of-fame', icon: 'fame' },
       { key: 'account', label: 'Account', to: '/account', icon: 'account' },
+      { key: 'report-bug', label: 'Report a bug', short: 'Bug', to: '/game/report-bug', icon: 'status' },
     ],
   },
 ];
@@ -80,6 +81,7 @@ export const ADMIN_SECTION: NavSection = {
     { key: 'admin-integrations', label: 'Integrations', short: 'Integr.', to: '/game/admin/integrations', icon: 'admin' },
     { key: 'admin-rulesets', label: 'Rulesets', to: '/game/admin/rulesets', icon: 'admin' },
     { key: 'admin-reports', label: 'Reports', to: '/game/admin/reports', icon: 'admin' },
+    { key: 'admin-bugs', label: 'Bug reports', short: 'Bugs', to: '/game/admin/bugs', icon: 'admin' },
     { key: 'admin-economy', label: 'Economy', to: '/game/admin/economy', icon: 'admin' },
     { key: 'admin-combat', label: 'Combat & exploits', short: 'Combat', to: '/game/admin/combat', icon: 'admin' },
     { key: 'admin-turf', label: 'Turf', to: '/game/admin/turf', icon: 'admin' },

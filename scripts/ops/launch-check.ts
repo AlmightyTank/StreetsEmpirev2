@@ -86,6 +86,11 @@ async function main(): Promise<void> {
       : mailReady ? `Players verify their email before playing (sent with Resend)${discordReady ? ', or sign in with Discord' : ''}.`
         : `Players must verify their email, but RESEND_API_KEY / EMAIL_FROM are not set, so the link never arrives${discordReady ? ' (only Discord sign-in would work)' : ''}.`);
 
+  // rc.2: sign-up flood cap (default 5 a day per network on production and beta).
+  const signupCap = Number(env.get('SIGNUP_DAILY_LIMIT_PER_IP') ?? (environment === 'production' || environment === 'beta' ? 5 : 0));
+  report('Sign-up flood cap', signupCap > 0 ? 'PASS' : 'WARN',
+    signupCap > 0 ? `At most ${signupCap} new accounts per network a day; more is refused and flagged.` : 'SIGNUP_DAILY_LIMIT_PER_IP=0: one network can make unlimited accounts.');
+
   // Backups and restore.
   const statusFile = env.get('BACKUP_STATUS_FILE');
   if (!statusFile || !existsSync(statusFile)) {
@@ -104,9 +109,16 @@ async function main(): Promise<void> {
   // Database: admins and release notes.
   const prisma = new PrismaClient({ datasourceUrl: env.get('DATABASE_URL') });
   try {
-    const admins = await prisma.account.findMany({ where: { isAdmin: true, isActive: true }, select: { username: true } });
+    const admins = await prisma.account.findMany({ where: { isAdmin: true, isActive: true }, select: { username: true, discordId: true } });
     report('Admin accounts configured', admins.length === 0 ? 'FAIL' : admins.length === 1 ? 'WARN' : 'PASS',
       admins.length ? `${admins.map((a) => a.username).join(', ')}${admins.length === 1 ? ' (one admin: add a second so the game is never without one).' : '.'}` : 'No admin. npm run admin -- <username>.');
+    // rc.2: admin tools answer only a Discord sign-in, so every admin needs Discord linked.
+    const adminDiscord = (env.get('REQUIRE_ADMIN_DISCORD') ?? (environment === 'production' || environment === 'beta' ? 'true' : 'false')) === 'true';
+    const noDiscord = admins.filter((a) => !a.discordId).map((a) => a.username);
+    report('Admin sign-in protected', !adminDiscord ? 'WARN' : noDiscord.length === admins.length && admins.length ? 'FAIL' : noDiscord.length ? 'WARN' : 'PASS',
+      !adminDiscord ? 'REQUIRE_ADMIN_DISCORD=false: an admin password alone opens the admin tools.'
+        : noDiscord.length ? `No Discord linked for ${noDiscord.join(', ')}: they cannot use admin tools until they sign in with Discord (docs/ADMIN-RUNBOOK.md#admin-sign-in).`
+          : 'Admin tools need a Discord sign-in, and every admin has Discord linked. Make sure each has Discord two-factor on.');
     if (verifyRequired) {
       const unverified = await prisma.account.count({ where: { isActive: true, isAdmin: false, emailVerifiedAt: null, discordId: null, verificationGrandfatheredAt: null } });
       report('Accounts waiting to verify', unverified ? 'WARN' : 'PASS', unverified

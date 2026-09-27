@@ -1,15 +1,19 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Account, PrismaClient, Session } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { RULES_VERSION, changeEmailSchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
+import { RULES_VERSION, changeEmailSchema, closeAccountSchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
 import { z } from 'zod';
 import { assertBetaAccess, assertCanSignIn, clearExpiredSuspension } from '../auth/account-status.js';
+import { adminNeedsDiscordSession } from '../auth/play-access.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { createAccountEmailToken, emailVerificationUrl } from '../auth/email-tokens.js';
 import { createSession, destroySession } from '../auth/sessions.js';
 import { env } from '../config/env.js';
 import { toAccountDto } from '../game/dto.js';
 import { AccountProfileService } from '../services/account-profile.service.js';
+import { AccountClosureService } from '../services/support.service.js';
+import { matchKey } from '../services/admin-signals.service.js';
+import { ExploitFlagService } from '../services/exploit-flag.service.js';
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { sendCurrentEmailVerification, sendEmailChangeVerification, sendPasswordResetEmail } from '../services/email.service.js';
 import { AppError } from '../utils/errors.js';
@@ -198,6 +202,7 @@ function toSessionDto(session: Session, currentSessionId: string): AccountSessio
     expiresAt: session.expiresAt.toISOString(),
     userAgent: session.userAgent,
     ip: session.ip,
+    method: session.method,
   };
 }
 
@@ -429,8 +434,28 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       );
     }
 
+    // rc.2: one address may only make so many accounts a day (a household or a school
+    // can share one, so the cap is generous). Going over is refused and flagged.
+    const dailyLimit = env.accounts.signupDailyLimitPerIp;
+    if (dailyLimit > 0) {
+      const madeToday = await fastify.prisma.account.count({
+        where: { registeredIp: request.ip, createdAt: { gt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+      });
+      if (madeToday >= dailyLimit) {
+        void ExploitFlagService.record(fastify.prisma, {
+          kind: 'SIGNUP_ABUSE', severity: 'warning', accountId: null,
+          // An opaque key for the network, never the address itself.
+          route: `register · network ${matchKey('network', request.ip)}`,
+          message: `More than ${dailyLimit} accounts attempted from one network within a day.`,
+          detail: { limit: dailyLimit, existing: madeToday },
+        });
+        throw AppError.tooManyRequests('SIGNUP_LIMIT', 'Too many accounts have been made from this network today. Try again tomorrow, or sign in with Discord.');
+      }
+    }
+
     const account = await fastify.prisma.account.create({
       data: {
+        registeredIp: request.ip,
         username: body.username,
         usernameNormalized,
         email: body.email,
@@ -552,6 +577,13 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (linkMode) {
         if (!request.auth) return reply.redirect(authRedirect('Log in before linking Discord.'));
+        // rc.2: someone with only an admin's password must not be able to attach their own
+        // Discord and so reach the admin tools. An admin signs in with Discord instead (a
+        // Discord account on the same verified email links itself), or the operator
+        // removes the role, the player links, and the role goes back.
+        if (adminNeedsDiscordSession(request.auth.account, request.auth.session.method)) {
+          return reply.redirect(accountRedirect('Admins cannot link Discord from a password sign-in. Log out and use "Sign in with Discord" with a Discord account on this email.'));
+        }
         await linkDiscordToAccount(fastify.prisma, request.auth.account, discordUser);
         return reply.redirect(accountRedirect('Discord is linked.'));
       }
@@ -561,6 +593,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       const { token } = await createSession(fastify.prisma, account.id, {
         userAgent: request.headers['user-agent'],
         ip: request.ip,
+        method: 'DISCORD',
       });
       fastify.setSessionCookie(reply, token);
 
@@ -584,8 +617,11 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       return {
         ok: true,
         message: 'Discord is already unlinked.',
-        account: toAccountDto(account),
+        account: toAccountDto(account, request.auth!.session),
       };
+    }
+    if (adminNeedsDiscordSession(account, 'PASSWORD')) {
+      throw AppError.conflict('ADMIN_DISCORD_LOCKED', 'An admin account keeps its Discord link. The server operator removes the admin role first (npm run admin -- <name> --off).');
     }
 
     const ok = await verifyPassword(account.passwordHash, body.currentPassword);
@@ -626,7 +662,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     });
 
     wakeDiscordBot('resync');
-    return { ok: true, message: 'Discord account unlinked.', account: toAccountDto(updated) };
+    return { ok: true, message: 'Discord account unlinked.', account: toAccountDto(updated, request.auth!.session) };
   });
 
 
@@ -736,6 +772,14 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     return { account: toAccountDto(account) };
   });
 
+  /** rc.2. The player closes their own account: signed out everywhere, kept in the season history. */
+  fastify.post('/account/close', { preHandler: fastify.requireAuth }, async (request, reply) => {
+    const body = parseBody(closeAccountSchema, request.body ?? {});
+    await AccountClosureService.close(fastify.prisma, request.auth!.account, request.auth!.session, body.currentPassword);
+    fastify.clearSessionCookie(reply);
+    return { ok: true, message: 'Your account is closed. Your finished seasons stay in the history.' };
+  });
+
   fastify.post('/password/change', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(changePasswordSchema, request.body);
     const account = request.auth!.account;
@@ -795,7 +839,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       where: { id: request.auth!.account.id },
       data: { rulesAcceptedAt: new Date(), rulesAcceptedVersion: RULES_VERSION },
     });
-    return { account: toAccountDto(account) };
+    return { account: toAccountDto(account, request.auth!.session) };
   });
 
   fastify.post('/email/change/request', { preHandler: fastify.requireAuth }, async (request) => {
@@ -825,7 +869,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         return tx.account.update({ where: { id: account.id }, data: { email: body.email } });
       });
       await sendVerificationEmail(fastify.prisma, updated, request);
-      return { ok: true, message: `Your email is now ${body.email}. We sent a verification link there.`, account: toAccountDto(updated) };
+      return { ok: true, message: `Your email is now ${body.email}. We sent a verification link there.`, account: toAccountDto(updated, request.auth!.session) };
     }
 
     const { token, expiresAt } = await createAccountEmailToken({
@@ -923,7 +967,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       message: emailToken.purpose === 'CHANGE_EMAIL'
         ? 'Your account email was changed and verified.'
         : 'Your account email is verified.',
-      account: request.auth?.account.id === updated.id ? toAccountDto(updated) : undefined,
+      account: request.auth?.account.id === updated.id ? toAccountDto(updated, request.auth.session) : undefined,
     };
   });
 
@@ -986,7 +1030,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.get('/me', { preHandler: fastify.requireAuth }, async (request) => {
-    return { account: toAccountDto(request.auth!.account) };
+    return { account: toAccountDto(request.auth!.account, request.auth!.session) };
   });
 };
 

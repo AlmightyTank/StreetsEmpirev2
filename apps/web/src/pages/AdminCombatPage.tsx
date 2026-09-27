@@ -17,6 +17,7 @@ const kindText: Record<AdminExploitFlagDto['kind'], string> = {
   LINKED_ATTACK: 'Linked-account hit',
   ACTION_REPLAY: 'Replayed request',
   API_ABUSE: 'Rate-limit abuse',
+  SIGNUP_ABUSE: 'Sign-up flood',
 };
 
 const severityTone: Record<AdminExploitFlagDto['severity'], string> = { info: '', warning: ' se-tag--warn', critical: ' se-tag--bad' };

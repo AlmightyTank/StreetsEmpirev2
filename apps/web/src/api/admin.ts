@@ -1,4 +1,7 @@
 import type {
+  AdminBugReportQueueDto,
+  AdminBugReportStatus,
+  BugReportResolution,
   MonitoringSnapshotDto,
   AdminExploitFlagDto,
   AdminExploitFlagsDto,
@@ -125,6 +128,10 @@ export const adminApi = {
   openReport: (reportId: string) => api.post<AdminReportDetailDto>(`/admin/reports/${encodeURIComponent(reportId)}/open`, {}),
   resolveReport: (reportId: string, resolution: AdminReportResolution, note: string) =>
     api.post<AdminReportQueueDto>(`/admin/reports/${encodeURIComponent(reportId)}/resolve`, { resolution, note }),
+  // rc.2: bugs players reported from the game.
+  bugReports: (status: AdminBugReportStatus, page = 1) => api.get<AdminBugReportQueueDto>(`/admin/bug-reports${queryString({ status, page })}`),
+  resolveBugReport: (reportId: string, resolution: BugReportResolution, note: string) =>
+    api.post<AdminBugReportQueueDto>(`/admin/bug-reports/${encodeURIComponent(reportId)}/resolve`, { resolution, note }),
   revokeSessions: (accountId: string, reason: string, sessionId?: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'sessions/revoke'), { reason, ...(sessionId ? { sessionId } : {}) }),
   renameAccount: (accountId: string, username: string, reason: string) =>

@@ -90,6 +90,11 @@ export interface AccountDto {
   verificationRequired: boolean;
   /** True until the player accepts the current game rules (RULES_VERSION). */
   rulesAcceptanceRequired: boolean;
+  /**
+   * rc.2. An admin signed in with a password while admin tools require a Discord
+   * sign-in: the admin pages are closed until they sign in with Discord.
+   */
+  adminSignInRequired: boolean;
 }
 
 export interface AccountSessionDto {
@@ -100,6 +105,8 @@ export interface AccountSessionDto {
   expiresAt: string;
   userAgent: string | null;
   ip: string | null;
+  /** rc.2. PASSWORD or DISCORD. */
+  method: string;
 }
 
 export interface AccountSessionsResponseDto {

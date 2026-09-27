@@ -4,7 +4,7 @@
  * APP_VERSION is the application release, independent of any round's pinned
  * ruleset version. Bump it with each milestone.
  */
-export const APP_VERSION = '1.0.0-rc.1';
+export const APP_VERSION = '1.0.0-rc.2';
 
 export const APP_ENVIRONMENTS = ['production', 'beta', 'development', 'test'] as const;
 export type AppEnvironment = (typeof APP_ENVIRONMENTS)[number];

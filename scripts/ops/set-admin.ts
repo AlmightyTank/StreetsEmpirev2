@@ -41,7 +41,7 @@ function parseArgs(argv: string[]): Args {
 async function listAdmins(): Promise<void> {
   const admins = await prisma.account.findMany({
     where: { isAdmin: true },
-    select: { username: true, email: true, isActive: true, lastLoginAt: true },
+    select: { username: true, email: true, isActive: true, lastLoginAt: true, discordId: true },
     orderBy: { username: 'asc' },
   });
   if (!admins.length) {
@@ -51,7 +51,7 @@ async function listAdmins(): Promise<void> {
   console.log(`Admins (${admins.length}):`);
   for (const admin of admins) {
     const seen = admin.lastLoginAt ? admin.lastLoginAt.toISOString().slice(0, 16).replace('T', ' ') : 'never';
-    console.log(`- ${admin.username} <${admin.email}> ${admin.isActive ? 'active' : 'INACTIVE'}, last login ${seen}`);
+    console.log(`- ${admin.username} <${admin.email}> ${admin.isActive ? 'active' : 'INACTIVE'}, ${admin.discordId ? 'Discord linked' : 'NO DISCORD'}, last login ${seen}`);
   }
 }
 
@@ -71,7 +71,7 @@ async function main(): Promise<void> {
   const needle = args.who.trim().toLowerCase();
   const account = await prisma.account.findFirst({
     where: { OR: [{ usernameNormalized: needle }, { email: needle }] },
-    select: { id: true, username: true, email: true, isActive: true, isAdmin: true },
+    select: { id: true, username: true, email: true, isActive: true, isAdmin: true, discordId: true },
   });
 
   if (!account) {
@@ -116,7 +116,16 @@ async function main(): Promise<void> {
 
   console.log(`${account.username} <${account.email}> is now ${args.isAdmin ? 'an admin' : 'a normal player'}.`);
   console.log(`Logged as ${actorUsername} in the admin audit log.`);
-  if (args.isAdmin) console.log('They may need to sign out and back in for the admin menu to appear.');
+  if (args.isAdmin) {
+    console.log('They may need to sign out and back in for the admin menu to appear.');
+    // rc.2: with REQUIRE_ADMIN_DISCORD on (the default in production and beta), admin
+    // tools answer only a Discord sign-in, and an admin cannot link Discord from a password sign-in.
+    if (!account.discordId) {
+      console.warn('No Discord is linked. Admin tools need a Discord sign-in: they should use "Sign in with Discord"');
+      console.warn('with a Discord account on the same verified email, which links it. If their Discord email differs,');
+      console.warn('run this with --off, have them link Discord in Account settings, then grant admin again.');
+    }
+  }
 }
 
 main()

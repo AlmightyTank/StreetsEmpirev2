@@ -23,6 +23,20 @@ After that, admins make other admins from **Accounts → the account →
 Make admin**. An admin cannot change their own role, and the last active admin
 cannot be removed from the panel — the console command is the way back.
 
+### Admin sign-in
+
+From rc.2, admin tools only open for a session that **signed in with Discord**. Signing in with a password still works for playing, but the admin pages show "Admin tools need a Discord sign-in". This means a leaked admin password alone cannot reach the panel. Turn on two-factor authentication in Discord for every admin account.
+
+- **Linking Discord to an admin.** The simplest way: log out and choose **Sign in with Discord** using a Discord account whose verified email is the same as the game account's. It links itself. An admin cannot link Discord from a password sign-in, since that would let someone who has only the password attach their own Discord.
+- **If the Discord email is different:**
+  1. run `npm run admin -- <name> --off`;
+  2. the player links Discord in Account settings;
+  3. run `npm run admin -- <name>` again.
+- **Unlinking.** An admin cannot unlink Discord in the app. Remove the role first.
+- **Checking.** `npm run admin -- --list` shows which admins have Discord linked. `npm run ops:launch-check` fails if no admin has it and warns for each admin without it.
+- **Setting.** `REQUIRE_ADMIN_DISCORD` is on by default in production and beta, and off in development and test.
+- **Lost Discord access.** If an admin loses their Discord account, the console command is still the way back. Remove and re-grant the role, and have them link their new Discord in between.
+
 ---
 
 ## Running a season
@@ -99,6 +113,12 @@ report and flag on the same message and keeps the decision in **Resolved**.
 Punishment is a separate step on the sender's account (mute, suspend,
 deactivate), so resolving never quietly punishes anyone.
 
+### Bug reports (rc.2)
+
+Players send bugs from **Report a bug**, which is in the game menu and the footer. Each report lists the kind of problem, a summary, what happened, and the page they came from. The pimp name, browser and game version go with it automatically. A player can send five an hour.
+
+**Bug reports** in the admin menu lists open reports, oldest first. Resolve each one as **Fixed**, **Not a bug / won't fix** or **Duplicate**, with a note. The decision is kept under **Resolved** and in the audit log (`bug-report.resolve`). A report from a player who says someone else is cheating belongs on their account or in **Reports**, not here.
+
 Automated flags come from messages with outside links, and from the same text
 sent to three or more players within an hour. They are hints, not verdicts: most
 links are harmless, so dismiss freely.
@@ -130,6 +150,27 @@ Two steps stand between a new account and the game. Admins are never stopped by 
 1. Check `RESEND_API_KEY` and `EMAIL_FROM` are set, and look for `email verification message failed` in the API log.
 2. Ask them to check spam, fix the address, or use Discord.
 3. If you are satisfied the address is theirs, **Accounts → the account → Mark email verified** lets them in.
+
+**Email that arrives (do this before launch).** Verification and recovery links come from Resend. Many inboxes send unauthenticated mail straight to spam, so verify your sending domain in Resend before launch:
+
+1. In the Resend dashboard, go to **Domains → Add domain**. Use the domain in `EMAIL_FROM` (for example `streetsempire.dev`).
+2. Add the DNS records Resend lists at your DNS host: the **SPF** TXT record, the **DKIM** records and the MX record for the bounce subdomain.
+3. Add a **DMARC** record if you have none. `v=DMARC1; p=none; rua=mailto:<you>` is a safe start.
+4. Wait for Resend to show the domain as **Verified**.
+5. Send yourself a sign-up link, and check that Gmail's "Show original" says SPF, DKIM and DMARC **PASS**.
+
+`EMAIL_FROM` must use that verified domain, and `RESEND_API_KEY` must be a key for the same Resend account.
+
+**Sign-up flood cap.** One network (IP address) may create `SIGNUP_DAILY_LIMIT_PER_IP` accounts a day. The default is 5 on production and beta, and 0 (off) elsewhere.
+- Past the cap, sign-up is refused with "Too many accounts have been made from this network today", and a **Sign-up flood** exploit flag appears under **Combat & exploits**. The flag names the network by an opaque key, never the address.
+- Signing in with Discord is not capped.
+- Raise the cap if a school or event shares one address.
+
+**Closing accounts.** Players close their own account at the bottom of Account settings. They confirm it with their password (a Discord sign-in needs none) and by typing CLOSE.
+- Closing signs them out everywhere, and sign-in then says "You closed this account".
+- It is recorded in the audit log as `account.self-close`.
+- To reopen, use **Accounts → the account → Reactivate**. This also clears the closure.
+- Admin accounts cannot be closed this way.
 
 **Settings.** `REQUIRE_VERIFIED_EMAIL` and `REQUIRE_RULES_ACCEPTANCE` switch each step. Both are on by default in production and beta, and off in development and test. `npm run ops:launch-check` counts accounts still waiting to verify.
 

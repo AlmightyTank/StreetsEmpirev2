@@ -1,4 +1,5 @@
 import type {
+  BugReportInput,
   AccountDto,
   AccountSessionsResponseDto,
   AccountProfileSettingsResponseDto,
@@ -42,6 +43,13 @@ export const authApi = {
 
   changePassword: (input: ChangePasswordInput) =>
     api.post<MessageResponse>('/auth/password/change', input),
+
+  /** rc.2. Closes the account and signs it out everywhere. */
+  closeAccount: (input: { currentPassword?: string; confirm: 'CLOSE' }) =>
+    api.post<MessageResponse>('/auth/account/close', input),
+
+  /** rc.2. Report a bug from the game. */
+  reportBug: (input: BugReportInput) => api.post<{ ok: true; id: string; message: string }>('/support/bug-reports', input),
 
   unlinkDiscord: (input: { currentPassword: string }) =>
     api.delete<AccountResponse & { ok: true; message: string }>('/auth/discord', input),

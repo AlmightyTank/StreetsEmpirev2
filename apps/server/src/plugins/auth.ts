@@ -5,6 +5,7 @@ import fp from 'fastify-plugin';
 import { env } from '../config/env.js';
 import { resolveSession, touchSession } from '../auth/sessions.js';
 import { assertBetaAccess } from '../auth/account-status.js';
+import { adminNeedsDiscordSession } from '../auth/play-access.js';
 import { AppError } from '../utils/errors.js';
 import { annotateLogContext } from '../utils/request-context.js';
 
@@ -72,6 +73,10 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.decorate('requireAdmin', async (request: FastifyRequest) => {
     if (!request.auth) throw AppError.unauthenticated();
     if (!request.auth.account.isAdmin) throw AppError.forbidden('Only game admins can do that.');
+    // rc.2: a password alone does not open admin tools; Discord's two-factor sign-in does.
+    if (adminNeedsDiscordSession(request.auth.account, request.auth.session.method)) {
+      throw new AppError(403, 'ADMIN_DISCORD_REQUIRED', 'Admin tools need a Discord sign-in. Log out, then use "Sign in with Discord".');
+    }
   });
 };
 

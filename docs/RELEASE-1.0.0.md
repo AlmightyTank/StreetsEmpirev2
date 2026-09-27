@@ -49,6 +49,10 @@ StreetsEmpire is a free browser game about running a crew in a city that does no
   - Install it to your home screen like an app, and turn on phone alerts.
   - It tells you when a new version is out.
 - **It stays up.** Monitoring, daily backups that are restored and checked every week, and a tested recovery plan.
+- **Your account, your call.**
+  - Confirm your email (or sign in with Discord) and accept the rules once, and you are in.
+  - Found a bug? **Report a bug** is in the menu and goes straight to staff.
+  - You can close your account yourself from Account settings.
 
 ## The rules, briefly
 

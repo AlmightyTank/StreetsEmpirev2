@@ -5,6 +5,7 @@ import {
   ADMIN_NOTE_MAX,
   ADMIN_PRODUCT_GRANT_CAP,
   ADMIN_SUSPENSION_LENGTHS,
+  BUG_REPORT_RESOLUTIONS,
   usernameSchema,
   type AdminCommsMuteLength,
   type AdminSuspensionLength,
@@ -32,6 +33,7 @@ import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
 import { AdminEconomyService } from '../services/admin-economy.service.js';
 import { AdminTurfService } from '../services/admin-turf.service.js';
+import { BugReportService } from '../services/support.service.js';
 import { ExploitFlagService } from '../services/exploit-flag.service.js';
 import { MonitoringService } from '../services/monitoring.service.js';
 import { parseBody } from '../utils/validate.js';
@@ -85,6 +87,7 @@ const reportQuery = z.object({
   page: z.coerce.number().int().min(1).max(10_000).default(1),
 });
 const resolveReportSchema = z.object({ resolution: z.enum(['DISMISSED', 'ACTIONED']), note: reason }).strict();
+const resolveBugReportSchema = z.object({ resolution: z.enum(BUG_REPORT_RESOLUTIONS), note: reason }).strict();
 const startRoundSchema = z.object({ confirmHandoff: z.boolean().optional() }).strict();
 const revokeSessionsSchema = z.object({ reason, sessionId: id.optional() }).strict();
 const renameSchema = z.object({ reason, username: usernameSchema }).strict();
@@ -436,6 +439,18 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { reportId } = parseBody(reportParams, request.params);
     const body = parseBody(resolveReportSchema, request.body ?? {});
     return AdminModerationService.resolve(fastify.prisma, request.auth!.account, reportId, body.resolution, body.note);
+  });
+
+  /** rc.2: bugs players reported from the game. */
+  fastify.get('/bug-reports', async (request) => {
+    const query = parseBody(reportQuery, request.query ?? {});
+    return BugReportService.queue(fastify.prisma, query.status, query.page);
+  });
+
+  fastify.post('/bug-reports/:reportId/resolve', async (request) => {
+    const { reportId } = parseBody(reportParams, request.params);
+    const body = parseBody(resolveBugReportSchema, request.body ?? {});
+    return BugReportService.resolve(fastify.prisma, request.auth!.account, reportId, body.resolution, body.note);
   });
 
   fastify.post('/accounts/:accountId/suspend/lift', async (request) => {

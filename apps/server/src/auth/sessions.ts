@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { Account, PrismaClient, Session } from '@prisma/client';
 import { env } from '../config/env.js';
 import { activeSuspension, clearExpiredSuspension } from './account-status.js';
+import type { SessionMethod } from './play-access.js';
 
 /**
  * The cookie carries a 256-bit random token. Only its SHA-256 hash is stored,
@@ -19,7 +20,7 @@ export interface CreatedSession {
 export async function createSession(
   prisma: PrismaClient,
   accountId: string,
-  meta: { userAgent?: string | null; ip?: string | null } = {},
+  meta: { userAgent?: string | null; ip?: string | null; method?: SessionMethod } = {},
 ): Promise<CreatedSession> {
   const token = randomBytes(32).toString('base64url');
 
@@ -30,6 +31,7 @@ export async function createSession(
       expiresAt: new Date(Date.now() + env.sessionTtlMs),
       userAgent: meta.userAgent?.slice(0, 255) ?? null,
       ip: meta.ip ?? null,
+      method: meta.method ?? 'PASSWORD',
     },
   });
 

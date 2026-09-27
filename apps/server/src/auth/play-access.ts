@@ -24,6 +24,21 @@ export function needsRulesAcceptance(
 }
 
 /** Paths that are "playing": the game itself and joining a season. */
+/** rc.2. How a session signed in. */
+export type SessionMethod = 'PASSWORD' | 'DISCORD';
+
+/**
+ * rc.2. An admin whose session did not sign in with Discord cannot use admin tools
+ * while REQUIRE_ADMIN_DISCORD is on: a stolen password alone must not open the panel.
+ */
+export function adminNeedsDiscordSession(
+  account: Pick<Account, 'isAdmin'>,
+  method: string | null | undefined,
+  required = env.accounts.requireAdminDiscord,
+): boolean {
+  return required && account.isAdmin && method !== 'DISCORD';
+}
+
 export function isPlayPath(path: string): boolean {
   return path.startsWith('/api/game/') || path === '/api/rounds/current/join';
 }

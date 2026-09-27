@@ -22,7 +22,7 @@ import { explainThugHappiness, explainWhoreHappiness, totalWeapons } from '@stre
 import { fitThugs } from '../services/action.service.js';
 import type { TurnSettlement } from '../services/turn.service.js';
 import { toHeatDto } from '../services/heat.service.js';
-import { canPlay, needsRulesAcceptance } from '../auth/play-access.js';
+import { adminNeedsDiscordSession, canPlay, needsRulesAcceptance } from '../auth/play-access.js';
 
 /**
  * Money leaves the server as integer cents in a *Cents field and is never
@@ -33,7 +33,8 @@ function centsToNumber(value: bigint): number {
   return Number(value);
 }
 
-export function toAccountDto(account: Account): AccountDto {
+/** `session` is the session asking, when there is one; admin tools depend on how it signed in. */
+export function toAccountDto(account: Account, session?: { method: string } | null): AccountDto {
   return {
     id: account.id,
     username: account.username,
@@ -46,6 +47,7 @@ export function toAccountDto(account: Account): AccountDto {
     lastLoginAt: account.lastLoginAt?.toISOString() ?? null,
     verificationRequired: !canPlay(account),
     rulesAcceptanceRequired: needsRulesAcceptance(account),
+    adminSignInRequired: adminNeedsDiscordSession(account, session?.method),
   };
 }
 

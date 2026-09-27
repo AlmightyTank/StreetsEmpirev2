@@ -517,7 +517,8 @@ export const AdminAccountService = {
       if (before.isActive === isActive) {
         throw AppError.conflict('ACCOUNT_STATUS_UNCHANGED', isActive ? `${before.username} is already active.` : `${before.username} is already deactivated.`);
       }
-      const account = await tx.account.update({ where: { id: before.id }, data: { isActive } });
+      // Reopening a player-closed account clears the closure too.
+      const account = await tx.account.update({ where: { id: before.id }, data: isActive ? { isActive, closedAt: null } : { isActive } });
       if (isActive) return { account };
       const { count } = await tx.session.deleteMany({ where: { accountId: before.id } });
       return { account, detail: { sessionsRevoked: count } };

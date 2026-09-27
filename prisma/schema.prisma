@@ -33,6 +33,10 @@ model Account {
   /// When the player accepted the game rules, and which version of them.
   rulesAcceptedAt      DateTime?
   rulesAcceptedVersion String?
+  /// rc.2. When the player closed their own account (isActive false). Null for staff deactivations.
+  closedAt             DateTime?
+  /// rc.2. The address the account signed up from, for the per-address daily sign-up cap.
+  registeredIp         String?
   passwordHash       String
 
   discordId       String?   @unique
@@ -66,6 +70,7 @@ model Account {
   commsMutedByUsername  String?
 
   sessions             Session[]
+  bugReports           BugReport[]
   passwordResetTokens  PasswordResetToken[]
   accountEmailTokens   AccountEmailToken[]
   forumLink            ForumLink?
@@ -85,6 +90,8 @@ model Account {
   mutesMade            PlayerMute[]          @relation("PlayerMuter")
   mutesReceived        PlayerMute[]          @relation("PlayerMuted")
   moderationNotes      AccountModerationNote[]
+
+  @@index([registeredIp, createdAt])
 }
 
 /// 0.9.0-H. Private admin notes on an account. Never shown to the player.
@@ -355,9 +362,39 @@ model Session {
 
   userAgent String?
   ip        String?
+  /// rc.2. How the session signed in: PASSWORD or DISCORD. Admin tools can require DISCORD.
+  method    String  @default("PASSWORD")
 
   @@index([accountId])
   @@index([expiresAt])
+}
+
+/// rc.2. A bug a player reported from the game. Staff read and resolve these in Admin → Bug reports.
+model BugReport {
+  id String @id @default(cuid())
+
+  accountId String?
+  account   Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  /// Kept so the report still says who sent it after the account is gone.
+  username  String
+
+  /// GAMEPLAY, DISPLAY, ACCOUNT, PERFORMANCE or OTHER.
+  category   String
+  summary    String
+  details    String
+  pagePath   String?
+  userAgent  String?
+  appVersion String?
+
+  createdAt          DateTime  @default(now())
+  resolvedAt         DateTime?
+  resolvedByUsername String?
+  /// FIXED, WONT_FIX or DUPLICATE.
+  resolution         String?
+  resolutionNote     String?
+
+  @@index([resolvedAt, createdAt(sort: Desc)])
+  @@index([accountId, createdAt(sort: Desc)])
 }
 
 // ---------------------------------------------------------------------------
