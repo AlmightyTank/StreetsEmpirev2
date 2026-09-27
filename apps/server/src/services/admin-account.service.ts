@@ -60,6 +60,8 @@ export function accountSnapshot(account: Account) {
     discordUsername: account.discordUsername,
     suspendedUntil: account.suspendedUntil,
     suspendedReason: account.suspendedReason,
+    bannedAt: account.bannedAt,
+    bannedReason: account.bannedReason,
     commsMutedUntil: account.commsMutedUntil,
     commsMutedPermanent: account.commsMutedPermanent,
     commsMuteReason: account.commsMuteReason,
@@ -131,6 +133,7 @@ function toSummary(account: SummaryAccount, activeSessions: number, now = new Da
     isAdmin: account.isAdmin,
     betaApproved: account.betaApproved,
     suspension: toSuspensionDto(account, now),
+    ban: account.bannedAt ? { at: account.bannedAt.toISOString(), reason: account.bannedReason ?? '', byUsername: account.bannedByUsername } : null,
     discordUsername: account.discordUsername,
     forumUsername: account.forumLink?.forumUsername ?? null,
     createdAt: account.createdAt.toISOString(),
@@ -508,6 +511,9 @@ export const AdminAccountService = {
   /** Deactivating signs the account out everywhere; resolveSession already refuses inactive accounts. */
   async setActive(prisma: PrismaClient, actor: AuditActor, accountId: string, isActive: boolean, reason: string): Promise<AdminAccountDetailDto> {
     await moderate(prisma, actor, accountId, isActive ? 'reactivate' : 'deactivate', reason, async (tx, before) => {
+      if (isActive && before.bannedAt) {
+        throw AppError.conflict('ACCOUNT_BANNED', `${before.username} is banned. Lift the ban instead, so the record shows why.`);
+      }
       if (before.isActive === isActive) {
         throw AppError.conflict('ACCOUNT_STATUS_UNCHANGED', isActive ? `${before.username} is already active.` : `${before.username} is already deactivated.`);
       }
@@ -515,6 +521,37 @@ export const AdminAccountService = {
       if (isActive) return { account };
       const { count } = await tx.session.deleteMany({ where: { accountId: before.id } });
       return { account, detail: { sessionsRevoked: count } };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  /**
+   * 1.0.0-E. A ban: the account is shut down and every session ends, with the
+   * reason recorded on the account and shown at sign-in. Unlike a suspension it
+   * never runs out; only an unban lifts it.
+   */
+  async ban(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string, now = new Date()): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, 'ban', reason, async (tx, before) => {
+      if (before.bannedAt) throw AppError.conflict('ACCOUNT_ALREADY_BANNED', `${before.username} is already banned.`);
+      if (before.isAdmin) throw AppError.conflict('ADMIN_BAN', `Remove ${before.username}'s admin role before banning them.`);
+      const account = await tx.account.update({
+        where: { id: before.id },
+        data: { isActive: false, bannedAt: now, bannedReason: reason, bannedByUsername: actor.username, suspendedUntil: null, suspendedReason: null, suspendedByUsername: null },
+      });
+      const { count } = await tx.session.deleteMany({ where: { accountId: before.id } });
+      return { account, detail: { sessionsRevoked: count } };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  async unban(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, 'unban', reason, async (tx, before) => {
+      if (!before.bannedAt) throw AppError.conflict('ACCOUNT_NOT_BANNED', `${before.username} is not banned.`);
+      const account = await tx.account.update({
+        where: { id: before.id },
+        data: { isActive: true, bannedAt: null, bannedReason: null, bannedByUsername: null },
+      });
+      return { account };
     });
     return AdminAccountService.detail(prisma, accountId);
   },

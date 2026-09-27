@@ -228,6 +228,10 @@ export function AdminRoundPage() {
           )}
           <p className="se-hint se-mt">
             <Link to={`/game/admin/audit?targetType=round&targetId=${round.id}`}>Audit history for this round</Link>
+            {' · '}<Link to={`/game/admin/economy?round=${round.id}`}>Economy</Link>
+            {' · '}<Link to={`/game/admin/combat?round=${round.id}`}>Combat</Link>
+            {' · '}<Link to={`/game/admin/turf?round=${round.id}`}>Turf</Link>
+            {' · '}<Link to={`/game/admin/rulesets`}>Ruleset</Link>
           </p>
         </Panel>
       </div>

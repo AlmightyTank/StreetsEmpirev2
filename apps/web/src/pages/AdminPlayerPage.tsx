@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ADMIN_GRANT_CAPS, ADMIN_PRODUCT_GRANT_CAP, type AdminGrantItem, type AdminPlayerDto, type AdminQuestContentDto, type AdminVoidBattleResultDto, type BattleReportDto } from '@streets/shared';
+import { ADMIN_GRANT_CAPS, ADMIN_PRODUCT_GRANT_CAP, type AdminGrantItem, type AdminPlayerDto, type AdminPlayerStoresDto, type AdminQuestContentDto, type AdminVoidBattleResultDto, type BattleReportDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
@@ -37,6 +37,11 @@ function describeChanges(changes: Record<string, number>): string {
 export function AdminPlayerPage() {
   const { roundPlayerId = '' } = useParams();
   const [player, setPlayer] = useState<AdminPlayerDto | null>(null);
+  const [stores, setStores] = useState<AdminPlayerStoresDto | null>(null);
+  useEffect(() => {
+    if (!roundPlayerId) return;
+    adminApi.playerStores(roundPlayerId).then(setStores).catch(() => setStores(null));
+  }, [roundPlayerId]);
   const [reports, setReports] = useState<BattleReportDto[]>([]);
   const [nextBefore, setNextBefore] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -512,6 +517,32 @@ export function AdminPlayerPage() {
           </>
         )}
       </Panel>
+
+      {stores ? (
+        <Panel title="Shelves and shipments" aside="1.0.0-E · settled as the store shows them now" flush className="se-mb">
+          <div className="se-tablewrap">
+            <table className="se-table se-table--cards">
+              <thead><tr><th>Shelf</th><th className="se-table__number">Stock</th><th className="se-table__number">Cap</th><th>Next delivery</th><th>Shipment</th></tr></thead>
+              <tbody>
+                {stores.shelves.map((row) => (
+                  <tr key={row.field}>
+                    <td className="se-td--title">{row.field.replace(/Stock$/, '')}</td>
+                    <td className="se-table__number se-num" data-label="Stock">{formatNumber(row.stock)}</td>
+                    <td className="se-table__number se-num" data-label="Cap">{formatNumber(row.cap)}</td>
+                    <td data-label="Next">{row.nextAt ? `${formatNumber(row.perInterval)} ${new Date(row.nextAt).toLocaleString()}` : 'full'}</td>
+                    <td data-label="Shipment">{row.shipment ?? '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="se-hint se-admin-pad">
+            {stores.productShelves.length ? `Pip: ${stores.productShelves.map((row) => `${row.product} ${formatNumber(row.stock)}`).join(', ')}. ` : ''}
+            {stores.cityShelves.length ? `On the road: ${stores.cityShelves.length} city shelves. ` : ''}
+            {stores.specialOrders.length ? `Special orders on their way: ${stores.specialOrders.map((row) => `${row.store} ${row.item} ${new Date(row.dueAt).toLocaleString()}`).join('; ')}.` : 'No special orders on their way.'}
+          </p>
+        </Panel>
+      ) : null}
 
       <Panel title="Compensation grant" aside={player.live ? `Turns up to ${formatNumber(player.turnCap)}` : 'Round finished'} className="se-mb">
         {!player.live ? (

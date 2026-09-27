@@ -57,6 +57,8 @@ if (withDb) {
     ONBOARDING_INTEGRATION: '1',
     // 1.0.0-C: deliberate exploit attempts across money, goods, turns, combat, turf, travel and abuse signals.
     EXPLOIT_INTEGRATION: '1',
+    // 1.0.0-E: season pause, bans, exploit flags, economy/combat/turf tools, announcements and maintenance.
+    ADMIN_OPS_INTEGRATION: '1',
   });
 }
 

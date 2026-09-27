@@ -2,7 +2,7 @@ import type { ActivityDto, RoundDto, RoundStatus } from './api.js';
 import type { BattleReportDto } from './combat.js';
 
 /** 0.3.0-B. Lifecycle moves an admin can make on a round in its current status. */
-export type AdminRoundAction = 'open-registration' | 'start' | 'end-early' | 'archive';
+export type AdminRoundAction = 'open-registration' | 'start' | 'pause' | 'resume' | 'end-early' | 'archive';
 
 export interface AdminRoundDto extends RoundDto {
   createdAt: string;
@@ -90,6 +90,8 @@ export interface AdminAuditFilters {
 export type AdminAccountStatusFilter = 'all' | 'active' | 'inactive' | 'admin' | 'suspended' | 'beta-pending';
 
 export type AdminAccountAction =
+  | 'ban'
+  | 'unban'
   | 'deactivate'
   | 'reactivate'
   | 'suspend'
@@ -126,6 +128,8 @@ export interface AdminAccountSummaryDto {
   isAdmin: boolean;
   betaApproved: boolean;
   suspension: AdminSuspensionDto | null;
+  /** 1.0.0-E. Set while the account is banned. */
+  ban: { at: string; reason: string; byUsername: string | null } | null;
   discordUsername: string | null;
   forumUsername: string | null;
   createdAt: string;
@@ -480,6 +484,9 @@ export interface SiteBannerDto {
   startsAt: string;
   endsAt: string;
   createdByUsername: string;
+  /** 1.0.0-E. A maintenance notice carries the outage window it announces. */
+  kind: 'notice' | 'maintenance';
+  maintenance: { startsAt: string; endsAt: string } | null;
 }
 
 export interface SiteBannerResponseDto {
@@ -497,6 +504,11 @@ export interface AdminCreateBannerInput {
   tone: SiteBannerTone;
   startsAt?: string;
   endsAt: string;
+  /** 1.0.0-E. A maintenance notice: the window it announces, and whether to tell every player now. */
+  kind?: 'notice' | 'maintenance';
+  maintenanceStartsAt?: string;
+  maintenanceEndsAt?: string;
+  announce?: boolean;
 }
 
 export interface AdminNewsPostDto {
@@ -515,6 +527,9 @@ export interface AdminNewsPostDto {
   forumPostedAt: string | null;
   forumError: string | null;
   updatedAt: string;
+  /** 1.0.0-E. Sent to every player's bell and alert channels once published. */
+  broadcast: boolean;
+  broadcastAt: string | null;
 }
 
 export interface AdminNewsDto {
@@ -532,6 +547,8 @@ export interface AdminCreateNewsInput {
   /** Defaults to now. A future time schedules the post. */
   publishedAt?: string;
   mirrorToForum: boolean;
+  /** 1.0.0-E. Also send it to every player of the season. */
+  broadcast?: boolean;
 }
 
 export interface AdminUpdateNewsInput {
@@ -799,3 +816,133 @@ export interface AllianceBalanceDto {
     byKind: Array<AllianceBalanceCellDto & { kind: string }>;
   };
 }
+
+// --- 1.0.0-E administration ----------------------------------------------------------
+
+export type ExploitFlagKind = 'STATE_GUARD' | 'INVARIANT' | 'LINKED_ATTACK' | 'ACTION_REPLAY' | 'API_ABUSE';
+export type ExploitFlagResolution = 'dismissed' | 'actioned';
+
+export interface AdminExploitFlagDto {
+  id: string;
+  kind: ExploitFlagKind;
+  severity: 'info' | 'warning' | 'critical';
+  account: { id: string; username: string } | null;
+  roundPlayerId: string | null;
+  roundId: string | null;
+  route: string | null;
+  message: string;
+  detail: unknown;
+  occurrences: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  review: { at: string; byUsername: string | null; resolution: ExploitFlagResolution; note: string | null } | null;
+}
+
+export interface AdminExploitFlagsDto {
+  open: number;
+  openCritical: number;
+  flags: AdminExploitFlagDto[];
+}
+
+export interface AdminPlayerRefDto {
+  id: string;
+  displayName: string;
+  publicPimpId: number;
+  accountId: string;
+}
+
+/** 1.0.0-E. Every high market and Pip counter in a round, priced the way players see them now. */
+export interface AdminMarketsDto {
+  roundId: string;
+  generatedAt: string;
+  cities: Array<{
+    city: string;
+    name: string;
+    products: Array<{
+      product: string;
+      supply: string | null;
+      event: string | null;
+      baselineCents: number | null;
+      buyCents: number | null;
+      sellCents: number | null;
+      pushPercent: number;
+      pip: { buyCents: number; sellCents: number } | null;
+    }>;
+  }>;
+}
+
+/** 1.0.0-E. Money worth a second look in a window. */
+export interface AdminSuspiciousDto {
+  roundId: string;
+  windowHours: number;
+  /** The largest single ledger lines, either way. */
+  largest: Array<{ id: string; player: AdminPlayerRefDto; source: string; label: string; amountCents: number; at: string }>;
+  /** Players whose net cash flow in the window is a large share of their net worth. */
+  surges: Array<{ player: AdminPlayerRefDto; netCents: number; netWorthCents: number; sharePercent: number }>;
+  /** Admin grants in the window: compensation should be visible next to everything else. */
+  grants: Array<{ id: string; actorUsername: string; targetId: string | null; reason: string | null; at: string }>;
+  openFlags: number;
+}
+
+/** 1.0.0-E. Stock on its way: special orders and the shelves waiting on them. */
+export interface AdminShipmentsDto {
+  roundId: string;
+  pending: Array<{ player: AdminPlayerRefDto; store: string; item: string; dueAt: string; orderedAt: string }>;
+  delivered: Array<{ player: AdminPlayerRefDto; store: string; item: string; dueAt: string; deliveredAt: string | null }>;
+}
+
+/** 1.0.0-E. One player's shelves, settled as the store would show them now. */
+export interface AdminPlayerStoresDto {
+  player: AdminPlayerRefDto;
+  shelves: Array<{ field: string; stock: number; cap: number; perInterval: number; intervalMinutes: number; nextAt: string | null; shipment: string | null }>;
+  productShelves: Array<{ product: string; stock: number; at: string }>;
+  cityShelves: Array<{ city: string; product: string; stock: number; at: string }>;
+  specialOrders: Array<{ store: string; item: string; dueAt: string }>;
+}
+
+/** 1.0.0-E. Recent fights across a round. */
+export interface AdminRoundBattlesDto {
+  roundId: string;
+  battles: Array<{
+    id: string;
+    kind: string;
+    attacker: AdminPlayerRefDto;
+    defender: AdminPlayerRefDto;
+    winner: 'ATTACKER' | 'DEFENDER' | null;
+    lootCents: number;
+    at: string;
+    voided: { at: string; byUsername: string | null; reason: string | null } | null;
+  }>;
+  tails: Array<{ id: string; attacker: string; owner: string; status: string; startedAt: string; voided: boolean }>;
+}
+
+/** 1.0.0-E. Turf in a round: every block, what stands on it, and what is in flight. */
+export interface AdminTurfDto {
+  roundId: string;
+  blocks: Array<{
+    id: string;
+    city: string;
+    district: string;
+    holder: AdminPlayerRefDto | null;
+    cornerThugs: number;
+    guns: { pistols: number; shotguns: number; tek9s: number; ak47s: number };
+    localsThugs: number;
+    heldSince: string | null;
+    shieldUntil: string | null;
+    upkeepAt: string;
+    outpost: { cashCents: number; beer: number; products: Record<string, number> } | null;
+    pendingPushes: Array<{ id: string; attacker: string; squad: number; landsAt: string; overdue: boolean }>;
+  }>;
+  /** Holders whose posted thugs do not match what stands on their corners. */
+  drift: Array<{ player: AdminPlayerRefDto; postedThugs: number; onCorners: number }>;
+}
+
+export interface AdminTurfHistoryDto {
+  turfId: string;
+  city: string;
+  district: string;
+  segments: Array<{ holderName: string; holderPublicPimpId: number; allianceTag: string | null; startedAt: string; endedAt: string | null }>;
+  pushes: Array<{ id: string; attacker: string; defender: string; squad: number; status: string; captured: boolean; startedAt: string; settledAt: string | null }>;
+}
+
+export type AdminTurfRepair = 'release-block' | 'sync-posted' | 'settle-push';

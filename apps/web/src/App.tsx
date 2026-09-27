@@ -5,6 +5,9 @@ import { AdminAccountPage } from './pages/AdminAccountPage.js';
 import { AdminAccountsPage } from './pages/AdminAccountsPage.js';
 import { AdminAuditPage } from './pages/AdminAuditPage.js';
 import { AdminReportsPage } from './pages/AdminReportsPage.js';
+import { AdminEconomyPage } from './pages/AdminEconomyPage.js';
+import { AdminCombatPage } from './pages/AdminCombatPage.js';
+import { AdminTurfPage } from './pages/AdminTurfPage.js';
 import { AdminIntegrationsPage } from './pages/AdminIntegrationsPage.js';
 import { AdminNewsPage } from './pages/AdminNewsPage.js';
 import { AdminPage } from './pages/AdminPage.js';
@@ -157,6 +160,9 @@ export function App() {
         <Route path="admin/signals" element={admin(<AdminSignalsPage />)} />
         <Route path="admin/audit" element={admin(<AdminAuditPage />)} />
         <Route path="admin/reports" element={admin(<AdminReportsPage />)} />
+        <Route path="admin/economy" element={admin(<AdminEconomyPage />)} />
+        <Route path="admin/combat" element={admin(<AdminCombatPage />)} />
+        <Route path="admin/turf" element={admin(<AdminTurfPage />)} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

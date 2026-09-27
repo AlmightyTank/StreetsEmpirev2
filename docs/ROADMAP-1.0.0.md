@@ -458,6 +458,23 @@ Every destructive admin action records:
 
 Normal public administration can be performed from supported tools rather than direct DB edits.
 
+### 1.0.0-E implementation complete
+
+Much of this list already existed from earlier milestones (scheduling, starting, ending and archiving seasons; account search, suspensions, comms mutes, notes and reports; battle and convoy voids; news and banners; the audit log). 1.0.0-E fills the gaps so no routine operation needs SQL:
+
+| Area | Now supported |
+| --- | --- |
+| Seasons | **Pause / resume** on the Rounds page. A paused season refuses every player action with the admin's reason (`ROUND_PAUSED`), shows a banner in the game and on the public status page, and lets runs, pushes and tails already in motion land on their own clocks. Resuming moves the end back by the paused time unless the admin opts out. Links from each round to its ruleset, economy, combat and turf views. |
+| Accounts | **Ban / lift ban**: permanent until lifted, signs the player out everywhere, and shows the reason at sign-in (`ACCOUNT_BANNED`). Reactivation cannot slip around a ban. Moderation history stays on the account page (notes, admin history, full audit link). |
+| Economy | **Economy** page: every city's high market and Pip counter priced as players see them now; money worth a second look (largest ledger lines, players whose net cash in a window is half their net worth or more, admin grants); special orders on their way and delivered. Each player's page gains **Shelves and shipments**, settled as the store would show them. |
+| Combat | **Combat & exploits** page: every recent fight and tail in a season, with voids shown (voiding stays on the audited per-player action), and the **exploit flag** queue. The server now records a flag whenever the database refuses a write, a player-state invariant fails, a crew tries to hit a linked account, a request id is replayed, or an account or network crosses 30 rate-limit refusals in a day. One account doing the same thing on one route in one day folds into one flag with a count. Admins close flags as dismissed or actioned, with a note. |
+| Turf | **Turf** page: every block with holder, corner, guns, locals, shield, outpost box and pushes in flight; ownership history per block; holders whose posted thugs do not match their corners. Three repairs: **release a block** (the corner, its guns and the outpost box's contents go home; the locals take it back), **re-sync posted thugs** (recomputed from the corners and boxes actually held), and **settle a stuck push** (only once past its landing time, exactly as the defender's next visit would). |
+| Notifications | News posts can **broadcast**: when published, every player of the season gets it in the bell, and on their phone and Discord if they take announcements, exactly once. Banners gain a **maintenance** kind with its outage window: players see it counting down, then "in progress"; it can announce itself to every player as pinned broadcast news; the public status page shows it. |
+
+**Audit.** Every new destructive action writes the admin, action, target, time, reason and the state before (and after): `round.pause`, `round.resume`, `account.ban`, `account.unban`, `exploit-flag.dismissed|actioned`, `turf.release-block`, `turf.sync-posted`, `turf.settle-push`, `maintenance.schedule`, `news.create`.
+
+`ADMIN_OPS_INTEGRATION=1` covers all of it against PostgreSQL through the admin routes, including each audit row.
+
 ---
 
 ## 1.0.0-F — Reliability, Monitoring & Recovery

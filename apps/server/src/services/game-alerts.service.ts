@@ -423,6 +423,45 @@ async function announcements(tx: Tx, now: Date, switches: ChannelSwitches): Prom
   return rows;
 }
 
+/**
+ * 1.0.0-E. Game-wide announcements: news posts an admin marked "broadcast". Once
+ * published, each goes to every player of the season it belongs to (or every live
+ * season, for global news) as a bell item, and to their phone and Discord where
+ * they take announcements. Claimed once, like every other source here.
+ */
+async function newsBroadcasts(tx: Tx, now: Date, switches: ChannelSwitches): Promise<OutboxRow[]> {
+  const posts = await tx.gameNews.findMany({
+    where: { broadcast: true, broadcastAt: null, publishedAt: { lte: now } },
+    orderBy: { publishedAt: 'asc' },
+    take: 5,
+  });
+  if (!posts.length) return [];
+  await tx.gameNews.updateMany({ where: { id: { in: posts.map((post) => post.id) }, broadcastAt: null }, data: { broadcastAt: now } });
+  const rows: OutboxRow[] = [];
+  for (const post of posts) {
+    const players = await tx.roundPlayer.findMany({
+      where: post.roundId ? { roundId: post.roundId } : { round: { status: { in: ['ACTIVE', 'REGISTRATION'] }, endsAt: { gt: now } } },
+      select: { id: true, accountId: true, account: accountSettings },
+    });
+    const excerpt = post.body.length > 160 ? `${post.body.slice(0, 157).trimEnd()}...` : post.body;
+    for (const player of players) {
+      await createPlayerActivity(tx, player.id, 'GAME_ANNOUNCEMENT', { newsId: post.id, title: post.title, excerpt });
+    }
+    const seen = new Set<string>();
+    for (const player of players) {
+      if (seen.has(player.accountId)) continue;
+      seen.add(player.accountId);
+      rows.push(...notice(player.accountId, player.account.notificationSettings, 'announcements', `news:${post.id}`, {
+        title: post.title,
+        body: excerpt,
+        url: gameUrl('/game/news'),
+        tag: `news:${post.id}`,
+      }, switches, now));
+    }
+  }
+  return rows;
+}
+
 export const GameAlertService = {
   /**
    * Settle runs that are due home, so "made it home" alerts go out while everyone
@@ -452,6 +491,7 @@ export const GameAlertService = {
       ...await scheduled(tx, now, switches),
       ...await messages(tx, now, switches),
       ...await announcements(tx, now, switches),
+      ...await newsBroadcasts(tx, now, switches),
     ];
   },
 };

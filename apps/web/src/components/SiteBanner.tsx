@@ -47,9 +47,16 @@ export function SiteBanner() {
     }
   }
 
+  // 1.0.0-E: maintenance says when, in the player's own time, and says so again while it runs.
+  const window_ = banner.maintenance;
+  const running = window_ ? Date.parse(window_.startsAt) <= Date.now() : false;
+  const when = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' });
   return (
-    <div className={`se-site-banner se-site-banner--${banner.tone}`} role={banner.tone === 'critical' ? 'alert' : 'status'}>
-      <span>{banner.message}</span>
+    <div className={`se-site-banner se-site-banner--${running ? 'critical' : banner.tone}`} role={banner.tone === 'critical' || running ? 'alert' : 'status'}>
+      <span>
+        {window_ ? <strong>{running ? `Maintenance in progress until about ${when(window_.endsAt)}. ` : `Scheduled maintenance ${when(window_.startsAt)} – ${when(window_.endsAt)}. `}</strong> : null}
+        {banner.message}
+      </span>
       <button type="button" onClick={dismiss} aria-label="Dismiss notice">×</button>
     </div>
   );

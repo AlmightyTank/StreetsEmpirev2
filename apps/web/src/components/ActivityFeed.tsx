@@ -353,6 +353,9 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     case 'CONVOY_BACKUP':
       return { text: `Sent ${formatNumber(num(p.thugs))} to back up ${str(p.owner, 'a')}'s run near ${str(p.city, 'town')}.` };
 
+    case 'GAME_ANNOUNCEMENT':
+      return { text: str(p.title, 'Announcement from the admins'), detail: str(p.excerpt) };
+
     case 'ADMIN_GRANT':
       return {
         text: 'An admin sent you compensation.',
@@ -430,6 +433,7 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     AWAY_BONUS: 'Away bonus',
     BATTLE_VOIDED: 'Battle voided',
     ADMIN_GRANT: 'Admin grant',
+    GAME_ANNOUNCEMENT: 'Announcement',
     HEAT_BRIBE: 'Heat bribe',
     HIDEOUT_UPGRADE: 'Hideout',
     QUEST_OBJECTIVE_COMPLETE: 'Quest objective',

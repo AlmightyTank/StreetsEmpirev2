@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import type { FastifyError, FastifyPluginAsync } from 'fastify';
+import type { FastifyError, FastifyPluginAsync, FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
 import { ZodError } from 'zod';
 import {
@@ -7,6 +7,7 @@ import {
   RulesetVersionMismatchError,
 } from '@streets/rules-engine';
 import { AppError } from '../utils/errors.js';
+import { ExploitFlagService, type ExploitFlagInput } from '../services/exploit-flag.service.js';
 
 /**
  * 1.0.0-C. Database refusals that mean "the state moved under this request".
@@ -36,8 +37,22 @@ const errorHandlerPlugin: FastifyPluginAsync = async (fastify) => {
     });
   });
 
+  // 1.0.0-E: refusals that look like an exploit or a bug are kept for admins to review.
+  const flag = (request: FastifyRequest, input: Omit<ExploitFlagInput, 'accountId' | 'route'>) => {
+    void ExploitFlagService.record(fastify.prisma, {
+      ...input,
+      accountId: request.auth?.account.id ?? null,
+      route: `${request.method} ${request.routeOptions?.url ?? request.url.split('?')[0]}`,
+    });
+  };
+
   fastify.setErrorHandler<FastifyError>((error, request, reply) => {
     if (error instanceof AppError) {
+      if (error.code === 'LINKED_ACCOUNTS') {
+        flag(request, { kind: 'LINKED_ATTACK', severity: 'warning', message: error.message });
+      } else if (error.code === 'ACTION_ID_REUSED') {
+        flag(request, { kind: 'ACTION_REPLAY', severity: 'info', message: error.message });
+      }
       return reply.status(error.statusCode).send({
         error: { code: error.code, message: error.message, fields: error.fields },
       });
@@ -79,6 +94,7 @@ const errorHandlerPlugin: FastifyPluginAsync = async (fastify) => {
     const refusal = databaseRefusal(error);
     if (refusal?.kind === 'check') {
       request.log.error({ err: error, constraint: refusal.constraint }, 'database guard refused a write');
+      flag(request, { kind: 'STATE_GUARD', severity: 'critical', message: `The database refused a write${refusal.constraint ? ` (${refusal.constraint})` : ''}.`, detail: { constraint: refusal.constraint } });
       return reply.status(409).send({
         error: { code: 'STATE_CHANGED', message: 'That no longer adds up. Refresh and try again.' },
       });
@@ -103,6 +119,9 @@ const errorHandlerPlugin: FastifyPluginAsync = async (fastify) => {
     }
 
     request.log.error({ err: error }, 'unhandled error');
+    if (error instanceof RangeError && error.message.startsWith('Player-state invariant failed')) {
+      flag(request, { kind: 'INVARIANT', severity: 'critical', message: error.message });
+    }
     return reply.status(500).send({
       error: {
         code: 'INTERNAL_ERROR',

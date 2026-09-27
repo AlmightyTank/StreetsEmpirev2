@@ -68,6 +68,7 @@ export function toRoundDto(round: Round, playerCount: number): RoundDto {
     registrationOpensAt: round.registrationOpensAt?.toISOString() ?? null,
     msRemaining: Math.max(0, round.endsAt.getTime() - Date.now()),
     playerCount,
+    paused: round.pausedAt ? { since: round.pausedAt.toISOString(), reason: round.pauseReason } : null,
   };
 }
 

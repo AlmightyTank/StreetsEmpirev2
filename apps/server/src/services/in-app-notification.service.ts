@@ -9,6 +9,8 @@ import {
 import type { Db } from '../utils/db.js';
 
 const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
+  // 1.0.0-E: an admin's game-wide announcement.
+  'GAME_ANNOUNCEMENT',
   'QUEST_OBJECTIVE_COMPLETE',
   'QUEST_READY',
   'AWAY_BONUS',

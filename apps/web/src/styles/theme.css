@@ -3967,3 +3967,56 @@ button.se-notification-empty:hover { color: var(--se-text); }
 .se-getting-started__steps li.is-done .se-getting-started__check {
   border-color: var(--se-accent);
 }
+
+/* 1.0.0-E admin operations */
+.se-admin-roundpicker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+}
+
+.se-admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.se-linkbtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--se-accent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.se-linkbtn:hover,
+.se-linkbtn:focus-visible {
+  text-decoration: underline;
+}
+
+.se-subtitle {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.se-text-bad {
+  color: var(--se-bad);
+}
+
+.se-input--sm {
+  width: auto;
+  min-height: 30px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .se-admin-roundpicker {
+    min-width: 0;
+    width: 100%;
+  }
+}

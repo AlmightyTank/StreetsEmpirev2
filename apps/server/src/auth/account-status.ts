@@ -2,7 +2,7 @@ import type { Account, PrismaClient } from '@prisma/client';
 import { AppError } from '../utils/errors.js';
 
 /** The account fields a sign-in check needs. */
-export type SignInAccount = Pick<Account, 'id' | 'isActive' | 'suspendedUntil' | 'suspendedReason'>;
+export type SignInAccount = Pick<Account, 'id' | 'isActive' | 'suspendedUntil' | 'suspendedReason'> & Partial<Pick<Account, 'bannedAt' | 'bannedReason'>>;
 
 /** "Sep 20, 2026, 3:00 PM UTC" - one wording for every player, wherever they are. */
 export function suspensionEnds(until: Date): string {
@@ -40,6 +40,10 @@ export async function clearExpiredSuspension(prisma: PrismaClient, account: Sign
  * ticket.
  */
 export function assertCanSignIn(account: SignInAccount, now = new Date()): void {
+  // 1.0.0-E: a ban says so, and why, rather than a bare "shut down".
+  if (account.bannedAt) {
+    throw new AppError(403, 'ACCOUNT_BANNED', `This account is banned.${account.bannedReason ? ` Reason: ${account.bannedReason}` : ''}`);
+  }
   if (!account.isActive) throw AppError.forbidden('This account has been shut down.');
   const suspension = activeSuspension(account, now);
   if (!suspension) return;

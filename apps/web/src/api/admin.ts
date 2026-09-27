@@ -1,4 +1,15 @@
 import type {
+  AdminExploitFlagDto,
+  AdminExploitFlagsDto,
+  AdminMarketsDto,
+  AdminPlayerStoresDto,
+  AdminRoundBattlesDto,
+  AdminShipmentsDto,
+  AdminSuspiciousDto,
+  AdminTurfDto,
+  AdminTurfHistoryDto,
+  AdminTurfRepair,
+  ExploitFlagResolution,
   AdminAccountDeleteResultDto,
   AdminAccountDetailDto,
   AdminAccountSearchDto,
@@ -57,6 +68,8 @@ export const adminApi = {
   startRound: (roundId: string, confirmHandoff: boolean) => api.post<AdminRoundResultDto>(roundPath(roundId, 'start'), { confirmHandoff }),
   endRoundEarly: (roundId: string, reason: string) => api.post<AdminRoundResultDto>(roundPath(roundId, 'end-early'), { reason }),
   archiveRound: (roundId: string) => api.post<AdminRoundResultDto>(roundPath(roundId, 'archive')),
+  pauseRound: (roundId: string, reason: string) => api.post<AdminRoundResultDto>(roundPath(roundId, 'pause'), { reason }),
+  resumeRound: (roundId: string, extend: boolean) => api.post<AdminRoundResultDto>(roundPath(roundId, 'resume'), { extend }),
   updateRound: (roundId: string, input: AdminUpdateRoundInput) => api.post<AdminRoundResultDto>(roundPath(roundId, 'update'), input),
   roundHealth: (roundId: string) => api.get<AdminRoundHealthDto>(roundPath(roundId, 'health')),
   closeExpiredRounds: () => api.post<AdminCloseExpiredResultDto>('/admin/rounds/close-expired'),
@@ -95,6 +108,8 @@ export const adminApi = {
   accounts: (params: { query?: string | undefined; status?: AdminAccountStatusFilter | undefined; limit?: number | undefined } = {}) =>
     api.get<AdminAccountSearchDto>(`/admin/accounts${queryString(params)}`),
   account: (accountId: string) => api.get<AdminAccountDetailDto>(accountPath(accountId)),
+  banAccount: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'ban'), { reason }),
+  unbanAccount: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'unban'), { reason }),
   deactivateAccount: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'deactivate'), { reason }),
   reactivateAccount: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'reactivate'), { reason }),
   suspendAccount: (accountId: string, length: AdminSuspensionLength, reason: string) =>
@@ -148,4 +163,17 @@ export const adminApi = {
   purgeAudit: (reason: string) => api.post<AdminAuditPurgeResultDto>('/admin/audit/purge', { reason }),
   /** A plain link: the browser downloads it with the session cookie it already has. */
   auditExportUrl: (filters: AdminAuditFilters = {}) => `/api/admin/audit/export${queryString({ ...filters, before: undefined })}`,
+  // 1.0.0-E: economy, fights, exploit flags and turf.
+  markets: (roundId: string) => api.get<AdminMarketsDto>(roundPath(roundId, 'markets')),
+  suspicious: (roundId: string, hours = 24) => api.get<AdminSuspiciousDto>(`${roundPath(roundId, 'suspicious')}?hours=${hours}`),
+  shipments: (roundId: string) => api.get<AdminShipmentsDto>(roundPath(roundId, 'shipments')),
+  playerStores: (roundPlayerId: string) => api.get<AdminPlayerStoresDto>(`/admin/players/${encodeURIComponent(roundPlayerId)}/stores`),
+  roundBattles: (roundId: string, playerId?: string) => api.get<AdminRoundBattlesDto>(`${roundPath(roundId, 'battles')}${playerId ? `?playerId=${encodeURIComponent(playerId)}` : ''}`),
+  exploitFlags: (status: 'open' | 'reviewed' | 'all' = 'open') => api.get<AdminExploitFlagsDto>(`/admin/exploit-flags?status=${status}`),
+  reviewFlag: (flagId: string, resolution: ExploitFlagResolution, note: string) =>
+    api.post<{ flag: AdminExploitFlagDto }>(`/admin/exploit-flags/${encodeURIComponent(flagId)}/review`, { resolution, note }),
+  turf: (roundId: string) => api.get<AdminTurfDto>(roundPath(roundId, 'turf')),
+  turfHistory: (turfId: string) => api.get<AdminTurfHistoryDto>(`/admin/turf/${encodeURIComponent(turfId)}/history`),
+  turfRepair: (input: { action: AdminTurfRepair; turfId?: string; roundPlayerId?: string; pushId?: string; reason: string }) =>
+    api.post<{ done: string }>('/admin/turf/repair', input),
 };

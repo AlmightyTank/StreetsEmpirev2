@@ -389,8 +389,14 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
         <div className="se-gamebar">
           <span className="se-gamebar__name">{round.name}</span>
           <span className="se-gamebar__time se-num">
-            {formatDuration(round.msRemaining)} left
+            {round.paused ? 'Paused' : `${formatDuration(round.msRemaining)} left`}
           </span>
+        </div>
+      ) : null}
+      {round?.paused ? (
+        <div className="se-beta-banner se-paused-banner" role="status">
+          <strong>Season paused</strong>
+          <span>{round.paused.reason ? `${round.paused.reason} ` : ''}Your crew and anything on the road are safe. Actions open again when the pause lifts.</span>
         </div>
       ) : null}
       <TrackedQuests />

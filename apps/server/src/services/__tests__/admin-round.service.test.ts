@@ -7,7 +7,9 @@ describe('availableRoundActions', () => {
   it('only offers moves the round lifecycle allows', () => {
     expect(availableRoundActions({ status: 'SCHEDULED' })).toEqual(['open-registration', 'start']);
     expect(availableRoundActions({ status: 'REGISTRATION' })).toEqual(['start', 'end-early']);
-    expect(availableRoundActions({ status: 'ACTIVE' })).toEqual(['end-early']);
+    expect(availableRoundActions({ status: 'ACTIVE' })).toEqual(['pause', 'end-early']);
+    // 1.0.0-E: a paused season resumes instead.
+    expect(availableRoundActions({ status: 'ACTIVE', pausedAt: new Date() })).toEqual(['resume', 'end-early']);
     expect(availableRoundActions({ status: 'ENDED' })).toEqual(['archive']);
     expect(availableRoundActions({ status: 'ARCHIVED' })).toEqual([]);
   });

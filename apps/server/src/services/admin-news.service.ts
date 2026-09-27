@@ -29,6 +29,8 @@ function toAdminNewsPostDto(row: NewsRow): AdminNewsPostDto {
     forumPostedAt: row.forumPostedAt?.toISOString() ?? null,
     forumError: row.forumError,
     updatedAt: row.updatedAt.toISOString(),
+    broadcast: row.broadcast,
+    broadcastAt: row.broadcastAt?.toISOString() ?? null,
   };
 }
 
@@ -72,7 +74,7 @@ export const AdminNewsService = {
   async create(
     prisma: PrismaClient,
     actor: AuditActor,
-    input: { title: string; body: string; pinned: boolean; roundId: string | null; publishedAt?: Date | undefined; mirrorToForum: boolean },
+    input: { title: string; body: string; pinned: boolean; roundId: string | null; publishedAt?: Date | undefined; mirrorToForum: boolean; broadcast?: boolean | undefined },
   ): Promise<AdminNewsDto> {
     if (input.mirrorToForum && !env.forum.news.enabled) {
       throw AppError.badRequest('FORUM_MIRROR_DISABLED', 'Forum mirroring is not configured on this server.', { mirrorToForum: 'Not configured.' });
@@ -88,6 +90,7 @@ export const AdminNewsService = {
           isPinned: input.pinned,
           roundId: input.roundId,
           createdByAccountId: actor.id,
+          broadcast: input.broadcast ?? false,
           ...(input.publishedAt ? { publishedAt: input.publishedAt } : {}),
         },
       });

@@ -353,5 +353,9 @@ export interface PublicStatusDto {
   currentRound: {
     name: string;
     status: string;
+    /** 1.0.0-E. Set while admins have paused the season. */
+    paused?: boolean;
   } | null;
+  /** 1.0.0-E. Scheduled or running maintenance, when there is any. */
+  maintenance?: { message: string; startsAt: string; endsAt: string; running: boolean } | null;
 }

@@ -36,7 +36,8 @@ export class ApiAbuseRegistry {
     private readonly maxPerSubject = 500,
   ) {}
 
-  record(subject: ApiAbuseSubject, bucket: string): void {
+  /** Returns how many refusals this subject has in the window, this one included. */
+  record(subject: ApiAbuseSubject, bucket: string): number {
     const key = subject.accountId ? `account:${subject.accountId}` : `ip:${subject.ip ?? 'unknown'}`;
     const now = this.now();
     let entry = this.entries.get(key);
@@ -52,6 +53,7 @@ export class ApiAbuseRegistry {
     entry.refusals.push(now);
     if (entry.refusals.length > this.maxPerSubject) entry.refusals.splice(0, entry.refusals.length - this.maxPerSubject);
     entry.buckets.add(bucket);
+    return entry.refusals.length;
   }
 
   /** Subjects refused in the last day, most refused first. */

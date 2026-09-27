@@ -14,6 +14,8 @@ import { useSession } from '../stores/session.js';
 import { adminWhen } from '../utils/admin.js';
 
 const actionText: Record<AdminAccountAction, { label: string; copy: string }> = {
+  ban: { label: 'Ban', copy: 'Permanent until lifted. Signs them out everywhere, blocks login, and shows them this reason when they try. Use it for cheating, abuse or ban evasion; use a suspension for a cooling-off period.' },
+  unban: { label: 'Lift ban', copy: 'Reactivates the account and clears the ban. They can log straight back in.' },
   deactivate: { label: 'Deactivate', copy: 'Signs them out everywhere, hides them from rankings and raid targets, and blocks login until an admin reactivates them.' },
   reactivate: { label: 'Reactivate', copy: 'Lets them log in again and puts them back in rankings.' },
   suspend: { label: 'Suspend', copy: 'A cool-off with an end date. Signs them out now, refuses login until it passes, and shows them the reason and the date. It lifts itself - no admin has to remember.' },
@@ -35,7 +37,7 @@ const actionText: Record<AdminAccountAction, { label: string; copy: string }> = 
   'delete-account': { label: 'Delete account', copy: 'Permanent. Unused accounts are removed outright. Accounts with round history are anonymized so rankings, battles and archived seasons remain intact.' },
 };
 
-const DESTRUCTIVE: AdminAccountAction[] = ['deactivate', 'suspend', 'comms-mute', 'revoke-admin', 'revoke-beta', 'unlink-forum', 'delete-account'];
+const DESTRUCTIVE: AdminAccountAction[] = ['ban', 'deactivate', 'suspend', 'comms-mute', 'revoke-admin', 'revoke-beta', 'unlink-forum', 'delete-account'];
 
 function statusTone(status: RoundStatus): string {
   if (status === 'ACTIVE') return ' se-tag--good';
@@ -105,6 +107,8 @@ export function AdminAccountPage() {
 
       let updated: AdminAccountDetailDto;
       switch (pending.action) {
+        case 'ban': updated = await adminApi.banAccount(accountId, why); break;
+        case 'unban': updated = await adminApi.unbanAccount(accountId, why); break;
         case 'deactivate': updated = await adminApi.deactivateAccount(accountId, why); break;
         case 'reactivate': updated = await adminApi.reactivateAccount(accountId, why); break;
         case 'suspend': updated = await adminApi.suspendAccount(accountId, length, why); break;
@@ -153,7 +157,8 @@ export function AdminAccountPage() {
   const { account, email, forumLink, discord } = detail;
   const isSelf = account.id === myAccountId;
   const accountActions: AdminAccountAction[] = [
-    account.isActive ? 'deactivate' : 'reactivate',
+    ...(account.ban ? ['unban' as const] : !account.isAdmin ? ['ban' as const] : []),
+    ...(account.ban ? [] : [account.isActive ? 'deactivate' as const : 'reactivate' as const]),
     ...(account.suspension ? ['lift-suspension' as const] : account.isActive && !account.isAdmin ? ['suspend' as const] : []),
     ...(detail.comms ? ['comms-unmute' as const] : !account.isAdmin ? ['comms-mute' as const] : []),
     'add-note',

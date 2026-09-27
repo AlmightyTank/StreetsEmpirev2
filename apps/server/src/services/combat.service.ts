@@ -25,7 +25,7 @@ import {
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { RelocationService } from './relocation.service.js';
-import { fitThugs, toState } from './action.service.js';
+import { assertNotPaused, fitThugs, toState } from './action.service.js';
 import { ActivityService } from './activity.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { allianceTagDto, allianceTargetBlock, sharedRevengeScope } from './alliance.service.js';
@@ -193,6 +193,7 @@ function playable(round: Round, now: Date): void {
   if (round.status !== 'ACTIVE' || round.startsAt > now || round.endsAt <= now) {
     throw AppError.conflict('ROUND_NOT_PLAYABLE', 'This round is not currently open for raids.');
   }
+  assertNotPaused(round);
 }
 
 function crew(player: RoundPlayer, ruleset?: Ruleset): CombatCrew {
@@ -664,7 +665,8 @@ export const CombatService = {
     if (!ruleset.combat) return { ...base, enabled: false, rules: null, blockedReason: 'Raids are not available in this older economy round. Join the current 0.2.0-D strategy round to use raids, recon and revenge.', protectedUntil: null, cooldownUntil: null, recovery: null };
     const model = ruleset.combat;
     let blockedReason = combatAttackerBlock(player, model, now);
-    if (round.status !== 'ACTIVE' || round.startsAt > now || round.endsAt <= now) blockedReason = 'This round is not currently open for raids.';
+    if (round.pausedAt) blockedReason = 'The season is paused.';
+    else if (round.status !== 'ACTIVE' || round.startsAt > now || round.endsAt <= now) blockedReason = 'This round is not currently open for raids.';
     // 0.5.0-D: movers who have arrived are in their new city's list, not this one.
     await RelocationService.settleDue(prisma, round.id, now);
     const targets = await prisma.roundPlayer.findMany({

@@ -31,6 +31,7 @@ export type ActivityType =
   | 'AWAY_BONUS'
   | 'BATTLE_VOIDED'
   | 'ADMIN_GRANT'
+  | 'GAME_ANNOUNCEMENT'
   | 'HEAT_BRIBE'
   | 'HIDEOUT_UPGRADE'
   | 'QUEST_OBJECTIVE_COMPLETE'
@@ -185,6 +186,8 @@ export interface RoundDto {
   /** Milliseconds remaining, or 0 once the round is over. */
   msRemaining: number;
   playerCount: number;
+  /** 1.0.0-E. Set while admins have paused the season: player actions wait until it lifts. */
+  paused: { since: string; reason: string | null } | null;
 }
 
 export interface TurnsDto {

@@ -564,6 +564,14 @@ function assertRoundPlayable(round: Round, now: Date): void {
   if (round.status !== 'ACTIVE' || round.endsAt.getTime() <= now.getTime()) {
     throw AppError.conflict('ROUND_ENDED', `${round.name} has ended.`);
   }
+  assertNotPaused(round);
+}
+
+/** 1.0.0-E. A paused season refuses actions with its reason; nothing is lost while it waits. */
+export function assertNotPaused(round: Pick<Round, 'name' | 'pausedAt' | 'pauseReason'>): void {
+  if (round.pausedAt) {
+    throw AppError.conflict('ROUND_PAUSED', `${round.name} is paused${round.pauseReason ? `: ${round.pauseReason}` : ''}. Your crew and everything on the road are safe; play resumes when the pause lifts.`);
+  }
 }
 
 export type ActionDb = Db;

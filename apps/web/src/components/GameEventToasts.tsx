@@ -192,6 +192,14 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
         href: '/game/activity',
       };
 
+    case 'GAME_ANNOUNCEMENT':
+      return {
+        title: typeof p.title === 'string' ? p.title : 'Announcement',
+        detail: typeof p.excerpt === 'string' ? p.excerpt : '',
+        tone: 'info',
+        href: '/game/news',
+      };
+
     case 'ADMIN_GRANT':
       return {
         title: 'Admin compensation received',

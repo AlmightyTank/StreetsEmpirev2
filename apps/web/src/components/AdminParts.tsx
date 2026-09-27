@@ -1,13 +1,18 @@
 import type { AdminAccountSummaryDto, AdminAuditEntryDto, AdminSuspensionDto } from '@streets/shared';
 import { adminWhen, snapshotJson } from '../utils/admin.js';
 
-type TaggedAccount = Pick<AdminAccountSummaryDto, 'isActive' | 'isAdmin' | 'emailVerified'> & { betaApproved?: boolean; suspension?: AdminSuspensionDto | null };
+type TaggedAccount = Pick<AdminAccountSummaryDto, 'isActive' | 'isAdmin' | 'emailVerified'> & { betaApproved?: boolean; suspension?: AdminSuspensionDto | null; ban?: AdminAccountSummaryDto['ban'] };
 
 export function AccountTags({ account }: { account: TaggedAccount }) {
   const suspension = account.suspension ?? null;
+  const ban = account.ban ?? null;
   return (
     <span className="se-admin-tags">
-      <span className={`se-tag ${account.isActive ? 'se-tag--good' : 'se-tag--bad'}`}>{account.isActive ? 'Active' : 'Deactivated'}</span>
+      {ban ? (
+        <span className="se-tag se-tag--bad" title={`${ban.reason}${ban.byUsername ? ` (${ban.byUsername})` : ''}`}>Banned {adminWhen(ban.at)}</span>
+      ) : (
+        <span className={`se-tag ${account.isActive ? 'se-tag--good' : 'se-tag--bad'}`}>{account.isActive ? 'Active' : 'Deactivated'}</span>
+      )}
       {suspension ? (
         <span className="se-tag se-tag--bad" title={`${suspension.reason}${suspension.byUsername ? ` (${suspension.byUsername})` : ''}`}>
           Suspended to {adminWhen(suspension.until)}
