@@ -160,7 +160,7 @@ function layout(input: Layout, context: EmailContext): RenderedEmail {
                 <td style="padding-right:12px;vertical-align:middle;">
                   <a href="${escapeHtml(context.gameUrl)}" style="text-decoration:none;">
                     <img src="${escapeHtml(logoUrl)}" width="48" height="48" alt="StreetsEmpire"
-                         style="display:block;width:48px;height:48px;border:0;outline:none;text-decoration:none;border-radius:10px;color:${COLORS.accent};font-size:12px;" />
+                         style="display:block;width:48px;height:48px;border:0;outline:none;text-decoration:none;color:${COLORS.accent};font-size:12px;" />
                   </a>
                 </td>
                 <td style="vertical-align:middle;">
