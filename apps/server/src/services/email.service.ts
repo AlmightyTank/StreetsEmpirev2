@@ -54,10 +54,13 @@ function tokenHtml(input: TokenEmailInput, action: string): string {
 
 async function sendMail(message: MailMessage, log: FastifyBaseLogger): Promise<void> {
   if (!env.email.enabled) {
+    // Name what is missing, so the log says how to fix it.
+    const missing = [!env.email.resendApiKey && 'RESEND_API_KEY', !env.email.from && 'EMAIL_FROM'].filter(Boolean).join(' and ');
+    const why = missing ? `missing ${missing} in .env` : 'disabled in tests';
     if (env.isProduction) {
-      log.error({ to: message.to }, 'Resend is not configured; email was not sent');
+      log.error({ to: message.to, missing }, `Resend is not configured (${why}); email was not sent`);
     } else {
-      log.warn({ to: message.to, text: message.text }, 'Resend is not configured; email was not sent');
+      log.warn({ to: message.to, missing, text: message.text }, `Resend is not configured (${why}); email was not sent`);
     }
     return;
   }
