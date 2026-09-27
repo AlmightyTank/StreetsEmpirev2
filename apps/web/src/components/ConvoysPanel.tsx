@@ -4,13 +4,13 @@ import { formatCents, formatNumber } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { useCountdown } from '../hooks/useCountdown.js';
 import { useGameAction } from '../hooks/useGameAction.js';
-import { formatDuration } from '../utils/time.js';
+import { formatClockTime, formatDuration } from '../utils/time.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
 
 type Products = TravelDto['products'];
-const clock = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+const clock = (iso: string) => formatClockTime(iso);
 const nameOf = (products: Products, key: string) => products.find((product) => product.key === key)?.name ?? key;
 
 const KIND_WORDS: Record<ConvoyTargetDto['kinds'][number], string> = { arriving: 'coming in', town: 'in town', passing: 'driving through', leaving: 'leaving' };

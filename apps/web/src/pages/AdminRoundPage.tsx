@@ -218,7 +218,7 @@ export function AdminRoundPage() {
               <div className="se-field">
                 <label className="se-label" htmlFor="admin-round-edit-reason">Reason</label>
                 <textarea id="admin-round-edit-reason" className="se-input se-admin-reason" maxLength={500} value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} />
-                {fields.reason ? <p className="se-error">{fields.reason}</p> : <p className="se-hint">Saved to the audit log. At least 5 characters.</p>}
+                {fields.reason ? <p className="se-error" role="alert">{fields.reason}</p> : <p className="se-hint">Saved to the audit log. At least 5 characters.</p>}
               </div>
               <Button className="se-btn se-btn--primary se-btn--block"
                 disabledReason={busy ? 'The last admin action is still going through.' : form.reason.trim().length < 5 ? 'The audit log needs a reason of at least 5 characters.' : null}>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { formatCountdown } from '../utils/time.js';
 
 /**
  * Section 14. A display-only countdown.
@@ -36,18 +37,10 @@ export function useCountdown(
     return () => window.clearInterval(timer);
   }, [targetIso]);
 
-  return { msRemaining, label: formatClock(msRemaining) };
+  return { msRemaining, label: formatCountdown(msRemaining) };
 }
 
 function remaining(targetIso: string | null): number {
   if (!targetIso) return 0;
   return Math.max(0, new Date(targetIso).getTime() - Date.now());
-}
-
-/** 04:18 */
-function formatClock(ms: number): string {
-  const total = Math.ceil(ms / 1000);
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }

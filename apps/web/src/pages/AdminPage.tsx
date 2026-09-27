@@ -408,7 +408,7 @@ export function AdminPage() {
                   <option value={ruleset.id} key={ruleset.id}>{ruleset.version} · {ruleset.name}</option>
                 ))}
               </select>
-              {fields.rulesetId ? <p className="se-error">{fields.rulesetId}</p> : <p className="se-hint">A round keeps its ruleset for the whole season.</p>}
+              {fields.rulesetId ? <p className="se-error" role="alert">{fields.rulesetId}</p> : <p className="se-hint">A round keeps its ruleset for the whole season.</p>}
             </div>
             <Field
               id="admin-round-starts"

@@ -243,7 +243,7 @@ export function AdminNewsPage() {
             <div className="se-field">
               <label className="se-label" htmlFor="admin-news-body">Body</label>
               <textarea id="admin-news-body" className="se-input se-admin-textarea" maxLength={4000} value={post.body} onChange={(event) => setPost({ ...post, body: event.target.value })} />
-              {postFields.body ? <p className="se-error">{postFields.body}</p> : null}
+              {postFields.body ? <p className="se-error" role="alert">{postFields.body}</p> : null}
             </div>
             <div className="se-field">
               <label className="se-label" htmlFor="admin-news-round">Shown in</label>
@@ -305,7 +305,7 @@ export function AdminNewsPage() {
             <div className="se-field">
               <label className="se-label" htmlFor="admin-banner-message">Message</label>
               <textarea id="admin-banner-message" className="se-input se-admin-reason" maxLength={280} value={banner.message} onChange={(event) => setBanner({ ...banner, message: event.target.value })} />
-              {bannerFields.message ? <p className="se-error">{bannerFields.message}</p> : <p className="se-hint">Shown above every page, logged in or not. Up to 280 characters.</p>}
+              {bannerFields.message ? <p className="se-error" role="alert">{bannerFields.message}</p> : <p className="se-hint">Shown above every page, logged in or not. Up to 280 characters.</p>}
             </div>
             <div className="se-field">
               <label className="se-label" htmlFor="admin-banner-tone">Tone</label>

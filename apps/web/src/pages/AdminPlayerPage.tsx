@@ -10,6 +10,7 @@ import { Field } from '../components/Field.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { adminWhen } from '../utils/admin.js';
+import { formatWhen } from '../utils/time.js';
 
 const yesNo = (value: boolean) => (value ? 'Yes' : 'No');
 
@@ -529,7 +530,7 @@ export function AdminPlayerPage() {
                     <td className="se-td--title">{row.field.replace(/Stock$/, '')}</td>
                     <td className="se-table__number se-num" data-label="Stock">{formatNumber(row.stock)}</td>
                     <td className="se-table__number se-num" data-label="Cap">{formatNumber(row.cap)}</td>
-                    <td data-label="Next">{row.nextAt ? `${formatNumber(row.perInterval)} ${new Date(row.nextAt).toLocaleString()}` : 'full'}</td>
+                    <td data-label="Next">{row.nextAt ? `${formatNumber(row.perInterval)} ${formatWhen(row.nextAt)}` : 'full'}</td>
                     <td data-label="Shipment">{row.shipment ?? '-'}</td>
                   </tr>
                 ))}
@@ -539,7 +540,7 @@ export function AdminPlayerPage() {
           <p className="se-hint se-admin-pad">
             {stores.productShelves.length ? `Pip: ${stores.productShelves.map((row) => `${row.product} ${formatNumber(row.stock)}`).join(', ')}. ` : ''}
             {stores.cityShelves.length ? `On the road: ${stores.cityShelves.length} city shelves. ` : ''}
-            {stores.specialOrders.length ? `Special orders on their way: ${stores.specialOrders.map((row) => `${row.store} ${row.item} ${new Date(row.dueAt).toLocaleString()}`).join('; ')}.` : 'No special orders on their way.'}
+            {stores.specialOrders.length ? `Special orders on their way: ${stores.specialOrders.map((row) => `${row.store} ${row.item} ${formatWhen(row.dueAt)}`).join('; ')}.` : 'No special orders on their way.'}
           </p>
         </Panel>
       ) : null}
@@ -596,7 +597,7 @@ export function AdminPlayerPage() {
             <div className="se-field">
               <label className="se-label" htmlFor="admin-grant-reason">Reason</label>
               <textarea id="admin-grant-reason" className="se-input se-admin-reason" maxLength={500} value={grantReason} onChange={(event) => setGrantReason(event.target.value)} />
-              {grantFields.reason ? <p className="se-error">{grantFields.reason}</p> : <p className="se-hint">Shown in the player's activity feed and saved to the audit log. Weapons they have not unlocked are refused.</p>}
+              {grantFields.reason ? <p className="se-error" role="alert">{grantFields.reason}</p> : <p className="se-hint">Shown in the player's activity feed and saved to the audit log. Weapons they have not unlocked are refused.</p>}
             </div>
             <Button className="se-btn se-btn--primary"
               disabledReason={busy ? working

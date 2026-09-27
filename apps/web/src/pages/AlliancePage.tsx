@@ -11,7 +11,7 @@ import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
-import { formatDuration } from '../utils/time.js';
+import { formatDate, formatDuration, formatWhen } from '../utils/time.js';
 
 function until(iso: string): string {
   return formatDuration(Math.max(0, new Date(iso).getTime() - Date.now()));
@@ -82,7 +82,7 @@ export function AllianceMembers({ alliance, actions }: {
               <td className="se-table__number se-num" data-label="National">#{formatNumber(member.nationalRank)}</td>
               {actions
                 ? <td data-label="">{actions(member)}</td>
-                : <td data-label="Joined">{new Date(member.joinedAt).toLocaleDateString()}</td>}
+                : <td data-label="Joined">{formatDate(member.joinedAt)}</td>}
             </tr>
           ))}
         </tbody>
@@ -315,7 +315,7 @@ export function AlliancePage() {
                   <span className="se-eyebrow">Crew position</span>
                   <h2>Alliance overview</h2>
                 </div>
-                <p>Founded {new Date(alliance.foundedAt).toLocaleDateString()} · membership and combined worth are live from the current round.</p>
+                <p>Founded {formatDate(alliance.foundedAt)} · membership and combined worth are live from the current round.</p>
               </div>
 
               <div className="se-alliance-metrics">
@@ -411,7 +411,7 @@ export function AlliancePage() {
                       {data.events.map((event, index) => (
                         <div key={`${event.createdAt}-${index}`} className="se-alliance-history__item">
                           <span>{eventText(event)}</span>
-                          <time dateTime={event.createdAt}>{new Date(event.createdAt).toLocaleString()}</time>
+                          <time dateTime={event.createdAt}>{formatWhen(event.createdAt)}</time>
                         </div>
                       ))}
                     </div>
@@ -529,7 +529,7 @@ export function AlliancePage() {
                             onChange={(event) => setPitch(event.target.value)}
                           />
                           {data.forum.error
-                            ? <p className="se-error">Last try failed: {data.forum.error}</p>
+                            ? <p className="se-error" role="alert">Last try failed: {data.forum.error}</p>
                             : <p className="se-hint">What you want and who you are looking for.</p>}
                         </div>
                         <Button

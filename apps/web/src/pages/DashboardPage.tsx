@@ -11,7 +11,7 @@ import { useLiveDashboard } from '../hooks/useLiveDashboard.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { HeatPanel, heatTone } from '../components/HeatPanel.js';
-import { formatDate, formatDuration } from '../utils/time.js';
+import { formatClockTime, formatDate, formatDuration, formatWhen } from '../utils/time.js';
 import { GettingStarted } from '../components/onboarding/GettingStarted.js';
 
 function RankMovement({ movement }: { movement: number | null }) {
@@ -431,7 +431,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                 <DashboardNotice
                   tone="bad"
                   title="You are locked up"
-                  detail={`Game actions are blocked until ${new Date(me.heat.lockedUntil).toLocaleString()}.`}
+                  detail={`Game actions are blocked until ${formatWhen(me.heat.lockedUntil)}.`}
                   to="/game#heat"
                   action="View Heat"
                 />
@@ -449,7 +449,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                 <DashboardNotice
                   tone={me.convoyAlert.kind === 'tailed' ? 'bad' : 'warn'}
                   title={me.convoyAlert.kind === 'tailed' ? 'Your run is being tailed' : 'An ally called for backup'}
-                  detail={`Near ${me.convoyAlert.cityName} · lands ${new Date(me.convoyAlert.landsAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}.`}
+                  detail={`Near ${me.convoyAlert.cityName} · lands ${formatClockTime(me.convoyAlert.landsAt)}.`}
                   to="/game/travel"
                   action="Open Travel"
                 />
@@ -468,7 +468,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                 <DashboardNotice
                   tone="info"
                   title="Your operation is moving"
-                  detail={`Relocating to ${me.moving.toName} · arrives ${new Date(me.moving.arrivesAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}.`}
+                  detail={`Relocating to ${me.moving.toName} · arrives ${formatClockTime(me.moving.arrivesAt)}.`}
                   to="/game/travel"
                   action="View move"
                 />

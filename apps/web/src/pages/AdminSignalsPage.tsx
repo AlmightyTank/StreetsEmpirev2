@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { AdminSignal, AdminSignalClusterDto, AdminSignalsDto, AdminSignalTransferDto } from '@streets/shared';
+import { formatCents } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { AccountTags } from '../components/AdminParts.js';
@@ -27,7 +28,7 @@ const transferText: Record<AdminSignalTransferDto['kind'], string> = {
   MARKET_PAIR: 'sold on the market, bought back by',
 };
 
-const money = (cents: number) => `$${(cents / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+const money = (cents: number) => formatCents(cents);
 
 /** 1.0.0-C. How value moved inside a match, in one line each. */
 function transferLine(row: AdminSignalTransferDto): string {

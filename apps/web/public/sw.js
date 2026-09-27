@@ -1,8 +1,55 @@
-// StreetsEmpire service worker: shows alerts pushed by the game server.
-// Deliberately no fetch handler and no caching, so it can never serve a stale build.
+// StreetsEmpire service worker: phone alerts, and an honest offline page.
+//
+// 1.0.0-G. It caches exactly one thing: the offline page (and the icon it shows).
+// Page loads go to the network as always; only when the network is unreachable does
+// the player get "you're offline" instead of the browser's error. The game build,
+// its scripts and every API answer are never cached, so this can never serve a
+// stale build or pretend the game works offline.
 
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+const OFFLINE_CACHE = 'se-offline-v1';
+const OFFLINE_URL = '/offline.html';
+const OFFLINE_ASSETS = [OFFLINE_URL, '/icons/icon-192.png'];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(OFFLINE_CACHE);
+    // `reload` skips the HTTP cache, so the offline page is the current one.
+    await cache.addAll(OFFLINE_ASSETS.map((url) => new Request(url, { cache: 'reload' })));
+    await self.skipWaiting();
+  })());
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    for (const name of await caches.keys()) if (name !== OFFLINE_CACHE) await caches.delete(name);
+    // Faster navigations where supported; the fetch below still decides.
+    if (self.registration.navigationPreload) await self.registration.navigationPreload.enable();
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin || request.method !== 'GET') return;
+  // The offline page's own icon, so it shows while offline.
+  if (request.mode !== 'navigate' && url.pathname !== OFFLINE_URL && OFFLINE_ASSETS.includes(url.pathname)) {
+    event.respondWith(fetch(request).catch(async () => (await caches.match(url.pathname)) || Response.error()));
+    return;
+  }
+  // Otherwise only page loads of this site. Everything else goes straight to the network untouched.
+  if (request.mode !== 'navigate' || url.pathname.startsWith('/api/')) return;
+  event.respondWith((async () => {
+    try {
+      const preloaded = await event.preloadResponse;
+      if (preloaded) return preloaded;
+      return await fetch(request);
+    } catch {
+      const offline = await caches.match(OFFLINE_URL);
+      return offline || new Response('StreetsEmpire is offline.', { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+    }
+  })());
+});
 
 self.addEventListener('push', (event) => {
   let data = {};

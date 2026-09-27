@@ -5,12 +5,13 @@ import type { InAppNotificationFeedDto } from '@streets/shared';
 import { notificationsApi } from '../api/notifications.js';
 import { useSession } from '../stores/session.js';
 import { gameEventToastFor } from './GameEventToasts.js';
+import { formatWhen } from '../utils/time.js';
 
 const EMPTY_FEED: InAppNotificationFeedDto = { notifications: [], unreadCount: 0 };
 
 function displayTime(value: string): string {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
+  return formatWhen(date);
 }
 
 export function NotificationBell() {

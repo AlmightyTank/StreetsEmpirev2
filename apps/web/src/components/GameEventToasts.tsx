@@ -4,6 +4,7 @@ import { BELL_CATEGORY_BY_ACTIVITY, type ActivityDto, type RoundDto, type RoundP
 import { describeActivity } from './ActivityFeed.js';
 import { notificationsApi } from '../api/notifications.js';
 import { useSession } from '../stores/session.js';
+import { formatClockTime } from '../utils/time.js';
 
 type ToastTone = 'info' | 'good' | 'warn' | 'bad';
 
@@ -88,7 +89,7 @@ function snapshotEventSignals(round: RoundDto | null, player: RoundPlayerDto | n
         toast: {
           title: band === 'locked' ? 'Crew locked up' : 'Heat is dangerous',
           detail: band === 'locked'
-            ? `Police have you locked down until ${new Date(heat.lockedUntil ?? '').toLocaleTimeString()}.`
+            ? `Police have you locked down until ${formatClockTime(heat.lockedUntil ?? '')}.`
             : `Heat is ${heat.heat} / ${heat.max}. Bribe, wait, or keep the next job small.`,
           tone: band === 'drag' ? 'warn' : 'bad',
           href: '/game/status',

@@ -10,18 +10,13 @@ import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { formatAgo } from '../utils/time.js';
 
 type ContactView = 'all' | 'contacts' | 'enemies' | 'alliance' | 'blocked';
 
 const ACTIVE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-function ago(iso: string): string {
-  const minutes = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000));
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  return hours < 48 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
-}
+const ago = (iso: string) => formatAgo(iso);
 
 function isActive(contact: ContactDto): boolean {
   return Boolean(contact.standing && Date.now() - new Date(contact.standing.lastActiveAt).getTime() <= ACTIVE_WINDOW_MS);

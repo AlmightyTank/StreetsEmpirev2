@@ -12,6 +12,7 @@ import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { adminWhen } from '../utils/admin.js';
+import { formatWhen } from '../utils/time.js';
 
 const actionText: Record<AdminAccountAction, { label: string; copy: string }> = {
   ban: { label: 'Ban', copy: 'Permanent until lifted. Signs them out everywhere, blocks login, and shows them this reason when they try. Use it for cheating, abuse or ban evasion; use a suspension for a cooling-off period.' },
@@ -219,7 +220,7 @@ export function AdminAccountPage() {
                 <select id="admin-suspend-length" className="se-input" value={length} onChange={(event) => setLength(event.target.value as AdminSuspensionLength)}>
                   {ADMIN_SUSPENSION_LENGTHS.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
                 </select>
-                <p className="se-hint">Ends {new Date(Date.now() + (ADMIN_SUSPENSION_LENGTHS.find((option) => option.key === length)?.hours ?? 0) * 3_600_000).toLocaleString()}.</p>
+                <p className="se-hint">Ends {formatWhen(Date.now() + (ADMIN_SUSPENSION_LENGTHS.find((option) => option.key === length)?.hours ?? 0) * 3_600_000)}.</p>
               </div>
             ) : null}
             {pending.action === 'comms-mute' ? (
@@ -269,7 +270,7 @@ export function AdminAccountPage() {
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
               />
-              {fields.reason || fields.body ? <p className="se-error">{fields.reason ?? fields.body}</p> : (
+              {fields.reason || fields.body ? <p className="se-error" role="alert">{fields.reason ?? fields.body}</p> : (
                 <p className="se-hint">
                   Saved to the audit log. At least 5 characters.
                   {pending.action === 'suspend' ? ' The player is shown this reason when they try to log in.' : ''}
@@ -351,7 +352,7 @@ export function AdminAccountPage() {
             </>
           )}
           <p className="se-hint se-mt">
-            <Link to={`/game/admin/audit?targetType=account&targetId=${account.id}`}>Full audit history for this account</Link>
+            <Link className="se-standalone-link" to={`/game/admin/audit?targetType=account&targetId=${account.id}`}>Full audit history for this account</Link>
           </p>
         </Panel>
       </div>

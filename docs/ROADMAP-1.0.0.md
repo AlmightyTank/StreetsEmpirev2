@@ -616,6 +616,34 @@ Standardize:
 
 Important gameplay does not require desktop mode or precision tapping.
 
+### 1.0.0-G implementation complete
+
+Much of this list was already in place from earlier milestones: the phone tab bar and "More" menu, compact status bar, responsive card tables, the install banner (Android prompt and iPhone steps), Web Push, the offline banner, `QuantitySteps`, `Button` with a stated reason whenever it is off, and `ActionResult` receipts. 1.0.0-G measured what was left and closed it.
+
+**Audit.** `npm run qa:ui` (scripts/qa/ui-audit.mjs, with `playwright-core` and `axe-core`) opens every major page in a real browser: 4 public pages, 28 player pages and 15 admin pages, each at 360 px, 390 px and desktop width. It records:
+
+- sideways scrolling;
+- tap targets under 24 px, which fail WCAG 2.2 2.5.8 (text links inside a sentence are exempt), and targets under 44 px, which are noted;
+- whether the first Tab stop is a skip link, and whether every stop shows visible focus;
+- axe-core's WCAG 2.2 A/AA rules;
+- script errors.
+
+`qa:release -- --with-ui` runs it with `--strict`.
+
+| | Before | After |
+| --- | --- | --- |
+| Pages that scroll sideways on a phone | 4 (sign-in, register) | 0 |
+| Tap targets under 24 px | 528 | 0 |
+| axe WCAG 2.2 AA findings | 128 in 5 rules (contrast, unfocusable scrolling tables, invalid ARIA, target size, autocomplete) | 0 |
+| Skip link | none | first Tab stop on every page |
+
+| Area | Now in place |
+| --- | --- |
+| Mobile | **Decorative shapes.** The sign-in, register and join pages no longer overflow on phones. **Touch sizes.** Everything a thumb must hit is at least 24 px. Buttons and segmented tabs are 40 px, and the brand, status-bar numbers, footer links, checkboxes and page-guide toggles are enlarged on touch screens. **Help tips.** The "?" used to rely on a hover `title`, which phones never show. It is now a button that opens its text on tap, stays on-screen near edges, and closes on Escape or a tap elsewhere. **Number pad.** Number fields open the phone's number pad unless they take negatives. |
+| PWA | **Offline page.** The service worker is registered for everyone (browsers need one before offering "Install app") and serves an offline page when a page load cannot reach the server. That page says plainly that nothing can be played offline and reloads itself when the connection returns. The only thing it caches is that page and its icon. **Update notice.** An open tab or installed app checks whether the build being served has changed (on focus, when back online, and every 10 minutes) and offers "Reload". Push and install were already in place. |
+| Accessibility | **Contrast.** Muted text now meets 4.5:1 on every panel (`--se-muted` #768291 → #8a96a5), and so does every cosmetic site theme; dimmed tags no longer use 50% opacity. **Keyboard.** "Skip to content" and a focusable `main`, and any table wide enough to scroll sideways becomes a named, focusable region. **Screen readers.** Progress bars and meters are exposed properly, the login autocomplete is fixed, inline action errors (`se-error`) are announced, and `Alert` announces problems (error, warning) at once and news (info, success) politely, with a text label so tone is never colour alone. |
+| UX consistency | **Confirmations.** `confirmAction()` and one `ConfirmDialog` replace every `window.confirm`: a named action button, Cancel focused first for anything destructive, big stacked buttons on phones, Escape to cancel, and Tab kept inside the dialog. **Dates and times.** They all go through `formatWhen`, `formatWeekdayTime`, `formatClockTime`, `formatDate`, `formatElapsed` and `formatAgo` (about 50 call sites), in the player's own locale and never with seconds. **Countdowns.** They show hours once there are hours (`1:04:18`, not `64:18`). **Money.** Currency goes through the shared formatters everywhere. **Alerts.** `Alert` gains warning and success tones. |
+
 ---
 
 ## 1.0.0-H — Release Candidate & Season One

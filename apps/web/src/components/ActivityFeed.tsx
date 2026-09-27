@@ -1,6 +1,7 @@
 import type { ActivityDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { useSession } from '../stores/session.js';
+import { formatClockTime, formatWhen } from '../utils/time.js';
 
 /** 0.9.0-G. When a pending push, tail or window happens, in the player's own clock. */
 function atTime(iso: string): string {
@@ -145,7 +146,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     case 'COMBAT_RECON':
       return {
         text: `Recon on ${str(p.target)}.`,
-        detail: `${formatNumber(num(p.turns))} turns · intel expires ${str(p.expiresAt) ? new Date(str(p.expiresAt)).toLocaleString() : 'soon'}`,
+        detail: `${formatNumber(num(p.turns))} turns · intel expires ${str(p.expiresAt) ? formatWhen(str(p.expiresAt)) : 'soon'}`,
       };
     case 'ROUND_JOINED':
       return {
@@ -365,7 +366,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     case 'FAVOR_ACTIVATED':
       return {
         text: `Activated ${str(p.name, str(p.favorKey, 'a favor'))}.`,
-        detail: `${str(p.category)} · active until ${str(p.expiresAt) ? new Date(str(p.expiresAt)).toLocaleTimeString() : 'soon'}`,
+        detail: `${str(p.category)} · active until ${str(p.expiresAt) ? formatClockTime(str(p.expiresAt)) : 'soon'}`,
       };
     case 'FAVOR_ARMED':
       return {

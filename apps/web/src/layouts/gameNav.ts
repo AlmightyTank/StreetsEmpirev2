@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '../stores/session.js';
 import { CONSOLE_UPDATED_EVENT, consoleApi } from '../api/console.js';
+import { formatWhen } from '../utils/time.js';
 
 /** One page in the game menu. `key` is what the phone tab bar stores. */
 export interface NavPage {
@@ -311,7 +312,7 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
   if (me.heat?.lockedUntil) {
     badges.dashboard = {
       tone: 'bad',
-      label: `Locked up until ${new Date(me.heat.lockedUntil).toLocaleString()}`,
+      label: `Locked up until ${formatWhen(me.heat.lockedUntil)}`,
     };
   } else if (me.heat && me.heat.heat >= me.heat.dragStartsAt) {
     const arresting = Boolean(me.heat.arrest && me.heat.heat >= me.heat.arrest.startsAt);

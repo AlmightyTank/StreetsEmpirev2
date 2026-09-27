@@ -67,7 +67,7 @@ export function AdminEconomyPage() {
               <Stat label="Admin grants" value={formatNumber(suspicious.grants.length)} />
               <Stat label="Open exploit flags" value={formatNumber(suspicious.openFlags)} />
             </div>
-            {suspicious.openFlags > 0 ? <p className="se-admin-pad se-hint"><Link to="/game/admin/combat">Review exploit flags</Link></p> : null}
+            {suspicious.openFlags > 0 ? <p className="se-admin-pad se-hint"><Link className="se-standalone-link" to="/game/admin/combat">Review exploit flags</Link></p> : null}
             {suspicious.surges.length ? (
               <div className="se-tablewrap">
                 <table className="se-table se-table--cards">

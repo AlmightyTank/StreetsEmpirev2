@@ -18,7 +18,7 @@ import { ProfileBadges } from '../components/ProfileBadges.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
-import { formatDate } from '../utils/time.js';
+import { formatDate, formatElapsed } from '../utils/time.js';
 
 const categoryName: Record<PublicAwardDto['category'], string> = {
   rank: 'Rank',
@@ -39,14 +39,7 @@ const achievementCategories = Object.keys(categoryName) as PublicAwardDto['categ
 type AchievementStatusFilter = 'all' | 'earned' | 'locked';
 type AchievementCategoryFilter = 'all' | PublicAwardDto['category'];
 
-function heldFor(iso: string): string {
-  const minutes = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000));
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 48) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
-}
+const heldFor = (iso: string) => formatElapsed(iso);
 
 function movementText(value: number | null): string {
   if (value === null || value === 0) return 'even today';

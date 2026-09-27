@@ -7,6 +7,7 @@ import { wireApi } from '../api/playing-together.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
+import { formatWhen } from '../utils/time.js';
 
 const REFRESH_MS = 30_000;
 
@@ -19,7 +20,7 @@ function PostRow({ post, busy, run }: {
     <li className={`se-wire__post${post.isYours ? ' se-wire__post--yours' : ''}${post.kind === 'ANNOUNCEMENT' ? ' se-wire__post--announcement' : ''}`}>
       <div className="se-wire__meta">
         <Link to={`/game/players/${post.author.publicPimpId}`} className="se-playerlink">{post.author.displayName}</Link>
-        <span className="se-muted">{new Date(post.createdAt).toLocaleString()}</span>
+        <span className="se-muted">{formatWhen(post.createdAt)}</span>
         {post.kind === 'ANNOUNCEMENT' ? <span className="se-tag se-tag--warn">Announcement</span> : null}
         {post.pinned ? <span className="se-tag se-tag--good">Pinned</span> : null}
         <span className="se-wire__tools">
@@ -103,7 +104,7 @@ export function AllianceWire() {
         <div className="se-wire__pinned">
           <span className="se-eyebrow">Pinned announcement</span>
           <p>{wire.pinnedAnnouncement.body}</p>
-          <small>{wire.pinnedAnnouncement.author.displayName} · {new Date(wire.pinnedAnnouncement.createdAt).toLocaleString()}</small>
+          <small>{wire.pinnedAnnouncement.author.displayName} · {formatWhen(wire.pinnedAnnouncement.createdAt)}</small>
         </div>
       ) : null}
       {wire?.cards.length ? (
@@ -114,7 +115,7 @@ export function AllianceWire() {
                 <span className="se-eyebrow">{card.kind.replace(/_/g, ' ').toLowerCase()}</span>
                 <strong>{card.title}</strong>
                 <p>{card.detail}</p>
-                <time dateTime={card.at}>{new Date(card.at).toLocaleString()}</time>
+                <time dateTime={card.at}>{formatWhen(card.at)}</time>
               </div>
               <Link className="se-btn se-btn--ghost se-btn--sm" to={card.href}>{card.actionLabel}</Link>
             </article>

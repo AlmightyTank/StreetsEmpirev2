@@ -44,7 +44,7 @@ export function ContactButton({ publicPimpId }: { publicPimpId: number }) {
         onClick={() => void add('ENEMY')}>
         Add enemy
       </Button>
-      {error ? <span className="se-error">{error}</span> : null}
+      {error ? <span className="se-error" role="alert">{error}</span> : null}
     </span>
   );
 }

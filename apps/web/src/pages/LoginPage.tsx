@@ -59,7 +59,7 @@ export function LoginPage() {
                 name="identifier"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                autoComplete="username email"
+                autoComplete="username"
                 autoFocus
                 required
                 error={fields.identifier}

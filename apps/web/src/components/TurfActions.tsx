@@ -14,6 +14,7 @@ import { api } from '../api/client.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { useSession } from '../stores/session.js';
 import { Button } from './Button.js';
+import { formatClockTime } from '../utils/time.js';
 
 type TurfResult =
   | TurfClaimResult
@@ -95,7 +96,7 @@ export function TurfActions({
     return (
       <div className="se-turfactions">
         <span className="se-hint">
-          {label} · {formatNumber(block.push.squad)} attacking · lands {new Date(block.push.landsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+          {label} · {formatNumber(block.push.squad)} attacking · lands {formatClockTime(block.push.landsAt)}
         </span>
         {block.push.role !== 'attacker' ? (
           <>
@@ -144,7 +145,7 @@ export function TurfActions({
             </div>
             {block.push.role === 'ally' ? <span className="se-hint">Alliance help has a chance to arrive when the push lands.</span> : null}
             {block.push.alliesCalled && block.push.role === 'defender' ? <span className="se-hint">Alliance call is out.</span> : null}
-            {action.error ? <span className="se-error">{action.error}</span> : null}
+            {action.error ? <span className="se-error" role="alert">{action.error}</span> : null}
           </>
         ) : null}
       </div>
@@ -223,11 +224,11 @@ export function TurfActions({
       <div className="se-actions-row">{controls}</div>
       {block.claimBlockedReason && !block.isMine ? <span className="se-hint">{block.claimBlockedReason}</span> : null}
       {block.pushBlockedReason && block.holder && !block.isMine ? <span className="se-hint">{block.pushBlockedReason}</span> : null}
-      {action.error ? <span className="se-error">{action.error}</span> : null}
+      {action.error ? <span className="se-error" role="alert">{action.error}</span> : null}
       {action.result && 'won' in action.result.result && 'localsThugs' in action.result.result ? (
         action.result.result.won
           ? <span className="se-action-confirm">You took {action.result.result.districtName} with {formatNumber(action.result.result.squad)} thugs.</span>
-          : <span className="se-error">The locals held {action.result.result.districtName}. Your {formatNumber(action.result.result.squad)}-thug squad lost to {formatNumber(action.result.result.localsThugs)} locals.</span>
+          : <span className="se-error" role="alert">The locals held {action.result.result.districtName}. Your {formatNumber(action.result.result.squad)}-thug squad lost to {formatNumber(action.result.result.localsThugs)} locals.</span>
       ) : action.result ? <span className="se-action-confirm">Corner updated.</span> : null}
     </div>
   );

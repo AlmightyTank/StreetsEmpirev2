@@ -8,6 +8,7 @@ import { Alert } from '../components/Alert.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { AllianceMembers, AllianceSummary } from './AlliancePage.js';
+import { formatDate } from '../utils/time.js';
 
 /** Alliances ranked by the combined net worth of their active members. Shared with the Rankings page. */
 export function AllianceRankingTable({ rows }: { rows: AllianceRankingEntryDto[] }) {
@@ -95,7 +96,7 @@ export function AllianceDetailPage() {
         <div>
           <h1 className="se-title">{alliance ? <>[{alliance.tag}] {alliance.name}</> : 'Alliance'}</h1>
           <p className="se-eyebrow">
-            {alliance ? `${alliance.leader ? `Led by ${alliance.leader.displayName} · ` : ''}Founded ${new Date(alliance.foundedAt).toLocaleDateString()}` : 'Alliance'}
+            {alliance ? `${alliance.leader ? `Led by ${alliance.leader.displayName} · ` : ''}Founded ${formatDate(alliance.foundedAt)}` : 'Alliance'}
           </p>
         </div>
         <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/alliances">Alliance rankings</Link>

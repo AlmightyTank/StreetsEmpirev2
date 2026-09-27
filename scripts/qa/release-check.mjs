@@ -5,6 +5,8 @@ import { join } from 'node:path';
 
 const withDb = process.argv.includes('--with-db');
 const production = process.argv.includes('--production');
+// 1.0.0-G: needs the web client and API running (npm run dev) and UI_AUDIT_PLAYER set.
+const withUi = process.argv.includes('--with-ui');
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 function run(label, command, args, env = process.env) {
@@ -73,6 +75,10 @@ if (withDb) {
   } finally {
     rmSync(backupDir, { recursive: true, force: true });
   }
+}
+
+if (withUi) {
+  run('Mobile and accessibility audit', npm, ['run', 'qa:ui', '--', '--strict', ...(process.env.UI_AUDIT_BASE ? ['--base', process.env.UI_AUDIT_BASE] : [])]);
 }
 
 if (production) {

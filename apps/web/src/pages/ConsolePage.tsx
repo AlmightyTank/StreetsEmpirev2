@@ -28,6 +28,8 @@ import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
+import { confirmAction } from '../stores/confirm.js';
+import { formatWhen } from '../utils/time.js';
 
 type ConsoleView = ConsoleFolder | 'alliance' | 'attacks' | 'notifications' | 'activity' | 'blocked';
 type ConsoleMode = 'detail' | 'compose';
@@ -57,7 +59,7 @@ const ACTIVITY_FILTERS: Array<{ key: ConsoleActivityFilter; label: string }> = [
 ];
 
 function messageTime(value: string): string {
-  return new Date(value).toLocaleString();
+  return formatWhen(value);
 }
 
 function subjectForReply(subject: string): string {
@@ -380,7 +382,12 @@ export function ConsolePage() {
 
   /** 0.9.0-H: remove the whole conversation from your side. Their copy is untouched. */
   async function hideConversation(message: DirectMessageDto) {
-    if (!window.confirm(`Delete your whole conversation with ${message.counterpart.displayName}? This cannot be undone on your side. Their copy stays, and reports keep their evidence.`)) return;
+    if (!(await confirmAction({
+      title: `Delete your conversation with ${message.counterpart.displayName}?`,
+      body: 'This cannot be undone on your side. Their copy stays, and reports keep their evidence.',
+      confirmLabel: 'Delete conversation',
+      tone: 'danger',
+    }))) return;
     setBusy(true);
     setError(null);
     try {
@@ -558,7 +565,7 @@ export function ConsolePage() {
             <p className="se-alert se-console-restriction" role="status">
               {data.restriction.permanent
                 ? 'A moderator has switched off your messaging. You can still read your mail.'
-                : `A moderator has paused your messaging until ${new Date(data.restriction.until!).toLocaleString()}. You can still read your mail.`}
+                : `A moderator has paused your messaging until ${formatWhen(data.restriction.until!)}. You can still read your mail.`}
             </p>
           ) : null}
         </section>
@@ -644,7 +651,7 @@ export function ConsolePage() {
                 return (
                   <Panel
                     title={activityGroupLabel(selectedEvent.group)}
-                    aside={new Date(selectedEvent.activity.createdAt).toLocaleString()}
+                    aside={formatWhen(selectedEvent.activity.createdAt)}
                     className="se-console-panel"
                   >
                     <article className="se-console-eventdetail">
@@ -733,7 +740,7 @@ export function ConsolePage() {
                   >
                     <article className="se-console-eventdetail">
                       <strong>{summary.detail}</strong>
-                      <p>{new Date(selectedNotification.activity.createdAt).toLocaleString()}</p>
+                      <p>{formatWhen(selectedNotification.activity.createdAt)}</p>
                       <div className="se-console-actions">
                         <Link className="se-btn se-btn--primary se-btn--sm" to={summary.href}>
                           Open report

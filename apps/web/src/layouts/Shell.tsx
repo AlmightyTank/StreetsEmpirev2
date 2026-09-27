@@ -8,8 +8,12 @@ import { InstallBanner } from '../components/InstallBanner.js';
 import { EnvironmentRibbon, environmentLabel } from '../components/EnvironmentRibbon.js';
 import { SiteBanner } from '../components/SiteBanner.js';
 import { MaintenanceBanner } from '../components/MaintenanceBanner.js';
+import { UpdateBanner } from '../components/UpdateBanner.js';
+import { ConfirmDialog } from '../components/ConfirmDialog.js';
+import { useScrollableRegions } from '../hooks/useScrollableRegions.js';
 import { SiteThemeDecor } from '../components/SiteThemeDecor.js';
 import { useSession } from '../stores/session.js';
+import { formatWhen } from '../utils/time.js';
 
 function routeIdentity(pathname: string): string {
   const path = pathname.split('?')[0] ?? pathname;
@@ -144,7 +148,7 @@ function StatusBar() {
         `take drag from ${heat.dragStartsAt}`,
         `busts from ${heat.bustStartsAt}`,
         heat.arrest ? `arrests from ${heat.arrest.startsAt}` : null,
-        heat.lockedUntil ? `locked up until ${new Date(heat.lockedUntil).toLocaleString()}` : null,
+        heat.lockedUntil ? `locked up until ${formatWhen(heat.lockedUntil)}` : null,
       ].filter(Boolean).join(' · ')
     : '';
 
@@ -236,6 +240,7 @@ export function Shell({ children, narrow, tabbar }: {
   /** Phone game navigation, fixed to the bottom of the screen. */
   tabbar?: ReactNode;
 }) {
+  useScrollableRegions();
   const account = useSession((s) => s.account);
   const me = useSession((s) => s.me);
   const settings = useSession((s) => s.profileSettings);
@@ -251,6 +256,19 @@ export function Shell({ children, narrow, tabbar }: {
 
   return (
     <div className={`se-app se-route--${identity} se-site-accent--${settings.profileAccent} se-site-theme--${settings.activeSiteThemeKey ?? 'none'} se-density--${settings.uiDensity}${settings.reducedMotion ? ' se-reduced-motion' : ''}${tabbar ? ' se-app--tabbar' : ''}`}>
+      {/* 1.0.0-G: the first Tab stop jumps past the header and navigation. */}
+      <a
+        className="se-skiplink"
+        href="#main-content"
+        onClick={(event) => {
+          event.preventDefault();
+          const main = document.getElementById('main-content');
+          main?.focus();
+          main?.scrollIntoView();
+        }}
+      >
+        Skip to content
+      </a>
       <EnvironmentRibbon />
       <InstallBanner />
       <SiteThemeDecor themeKey={settings.activeSiteThemeKey} />
@@ -287,11 +305,13 @@ export function Shell({ children, narrow, tabbar }: {
 
       <SiteBanner />
       <MaintenanceBanner />
+      <UpdateBanner />
       <GameEventToasts />
 
-      <main className={narrow ? 'se-authshell' : 'se-shell'}>{children}</main>
+      <main id="main-content" tabIndex={-1} className={narrow ? 'se-authshell' : 'se-shell'}>{children}</main>
 
       <Footer />
+      <ConfirmDialog />
       {tabbar}
     </div>
   );

@@ -1,0 +1,139 @@
+/* 1.0.0-G: mobile, accessibility and UX consistency. Loaded last. */
+
+/* New-version notice. */
+.se-update {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--se-line);
+  background: color-mix(in srgb, var(--se-accent) 12%, var(--se-panel));
+  color: var(--se-text);
+  font-size: 13px;
+}
+.se-update strong { color: var(--se-accent); }
+.se-update__actions { display: inline-flex; gap: 8px; }
+
+/* Decorative diamonds on the sign-in, register and join pages sit past the right
+   edge on phones; clip them instead of letting the page scroll sideways. */
+.se-route--auth-login .se-authpage,
+.se-route--auth-register .se-authpage,
+.se-route--auth-recovery .se-authpage,
+.se-route--join .se-shell {
+  overflow-x: clip;
+}
+
+/* Help tips: a real button with a tap-to-open explanation. */
+.se-tipwrap {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+}
+button.se-tip {
+  padding: 0;
+  background: none;
+  cursor: pointer;
+}
+button.se-tip[aria-expanded='true'] {
+  border-color: var(--se-accent);
+  background: rgba(var(--se-accent-rgb), 0.12);
+}
+.se-tip__pop {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 50%;
+  width: max-content;
+  max-width: min(280px, 80vw);
+  transform: translateX(-50%);
+  padding: 8px 10px;
+  border: 1px solid var(--se-line);
+  border-radius: var(--se-radius-sm);
+  background: var(--se-panel-hi);
+  box-shadow: var(--se-shadow-soft);
+  color: var(--se-text);
+  font: 400 12px/1.45 var(--se-sans);
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: normal;
+  text-align: left;
+}
+.se-tip__pop[hidden] { display: none; }
+
+/* Touch screens: nothing a thumb must hit is smaller than 24 px (WCAG 2.2), and the
+   controls used every visit get close to 44 px. Mouse users keep the compact layout. */
+@media (pointer: coarse), (max-width: 899px) {
+  .se-brand { align-items: center; min-height: 44px; }
+  a.se-statusbar__item { align-items: center; min-height: 36px; padding: 6px 6px; margin: -6px -6px; }
+  button.se-tip { width: 24px; height: 24px; margin-left: 4px; font-size: 12px; }
+  .se-pageguide__toggle { min-height: 40px; }
+  .se-linkbtn { min-height: 32px; }
+  .se-auth-help a { display: inline-block; padding: 10px 0; }
+  .se-footer__links { gap: 4px 8px; }
+  .se-footer__links a { display: inline-flex; align-items: center; min-height: 36px; padding: 0 6px; font-size: 11px; }
+  input[type='checkbox'], input[type='radio'] { width: 24px; height: 24px; accent-color: var(--se-accent); }
+}
+
+/* Skip link: off-screen until focused. */
+.se-skiplink {
+  position: absolute;
+  z-index: 1000;
+  top: 8px;
+  left: 8px;
+  padding: 12px 16px;
+  border-radius: var(--se-radius-sm);
+  background: var(--se-accent);
+  color: #0b0c0e;
+  font-weight: 800;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+.se-skiplink:focus { transform: none; outline: 3px solid #fff; outline-offset: 2px; }
+#main-content:focus { outline: none; }
+
+/* A dimmed tag used to be 50% opacity, which took its text below readable contrast. */
+.se-tag--dim {
+  opacity: 1;
+  border-color: var(--se-line);
+  color: var(--se-muted);
+}
+
+@media (pointer: coarse), (max-width: 899px) {
+  /* A link on a line of its own is a control, not part of a sentence. */
+  .se-standalone-link { display: inline-block; padding: 10px 0; }
+  .se-getting-started__steps a { display: inline-flex; align-items: center; min-height: 40px; }
+}
+
+/* Confirmation dialog: same frame as the intro, big buttons, stacked on phones. */
+.se-confirm-backdrop { z-index: 80; }
+.se-confirm h2 { margin: 0 0 10px; font-size: 20px; }
+.se-confirm p { margin: 0 0 16px; color: var(--se-text-dim); }
+.se-confirm__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.se-confirm__actions .se-btn { min-height: 44px; }
+@media (max-width: 520px) {
+  .se-confirm__actions { flex-direction: column-reverse; }
+  .se-confirm__actions .se-btn { width: 100%; }
+}
+
+/* Alert tones beyond error and info. */
+.se-alert--warning {
+  border-left-color: var(--se-warn);
+  background: rgba(255, 176, 32, 0.08);
+  color: color-mix(in srgb, var(--se-warn) 30%, #fff);
+}
+.se-alert--success {
+  border-left-color: var(--se-good);
+  background: rgba(var(--se-good-rgb), 0.08);
+  color: color-mix(in srgb, var(--se-good) 30%, #fff);
+}
+
+@media (pointer: coarse), (max-width: 899px) {
+  /* Buttons and segmented tabs used in play: comfortably thumb-sized. */
+  .se-btn { min-height: 40px; }
+  .se-btn.se-btn--sm { min-height: 36px; }
+  .se-seg__btn { min-height: 40px; }
+  .se-golink { display: inline-flex; align-items: center; min-height: 40px; }
+  .se-topbar__right .se-btn { min-height: 40px; }
+}

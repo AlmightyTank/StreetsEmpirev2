@@ -20,9 +20,10 @@ import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { DEFAULT_PROFILE_SETTINGS, useSession } from '../stores/session.js';
 import { ReplayTutorial } from '../components/onboarding/ReplayTutorial.js';
+import { formatWhen } from '../utils/time.js';
 
 function formatDate(value: string | null): string {
-  return value ? new Date(value).toLocaleString() : 'Never';
+  return value ? formatWhen(value) : 'Never';
 }
 
 function sessionDevice(session: AccountSessionDto): string {
@@ -480,7 +481,7 @@ export function AccountSettingsPage() {
                       crewName: event.target.value,
                     }))}
                   />
-                  {fields.crewName ? <p className="se-error">{fields.crewName}</p> : <p className="se-hint">Shown on your profile and searchable in the Players directory. It carries across seasons; leave it blank for none.</p>}
+                  {fields.crewName ? <p className="se-error" role="alert">{fields.crewName}</p> : <p className="se-hint">Shown on your profile and searchable in the Players directory. It carries across seasons; leave it blank for none.</p>}
                 </div>
 
                 <div className="se-field">
@@ -499,7 +500,7 @@ export function AccountSettingsPage() {
                       <option value={option.key} key={option.key}>{option.label}</option>
                     ))}
                   </select>
-                  {fields.activeTitleKey ? <p className="se-error">{fields.activeTitleKey}</p> : <p className="se-hint">Titles come from achievements, season feats, legacy badges, and quest-only cosmetics. They are cosmetic only.</p>}
+                  {fields.activeTitleKey ? <p className="se-error" role="alert">{fields.activeTitleKey}</p> : <p className="se-hint">Titles come from achievements, season feats, legacy badges, and quest-only cosmetics. They are cosmetic only.</p>}
                 </div>
 
                 <div className="se-field">
@@ -519,7 +520,7 @@ export function AccountSettingsPage() {
                       </button>
                     ))}
                   </div>
-                  {fields.profileAccent ? <p className="se-error">{fields.profileAccent}</p> : <p className="se-hint">Changes the main highlight color across the entire player-facing game.</p>}
+                  {fields.profileAccent ? <p className="se-error" role="alert">{fields.profileAccent}</p> : <p className="se-hint">Changes the main highlight color across the entire player-facing game.</p>}
                 </div>
 
                 <div className="se-field">
@@ -539,7 +540,7 @@ export function AccountSettingsPage() {
                     ))}
                   </select>
                   {fields.activeProfileFrameKey
-                    ? <p className="se-error">{fields.activeProfileFrameKey}</p>
+                    ? <p className="se-error" role="alert">{fields.activeProfileFrameKey}</p>
                     : <p className="se-hint">{profileSettings.options.frames.length ? 'Frames are permanent quest-earned profile cosmetics.' : 'Complete qualifying Contact finales to unlock profile frames.'}</p>}
                 </div>
 
@@ -560,7 +561,7 @@ export function AccountSettingsPage() {
                     ))}
                   </select>
                   {fields.activeSiteThemeKey
-                    ? <p className="se-error">{fields.activeSiteThemeKey}</p>
+                    ? <p className="se-error" role="alert">{fields.activeSiteThemeKey}</p>
                     : <p className="se-hint">{profileSettings.options.themes.length ? 'Themes reskin the player-facing game shell, panels, controls and background atmosphere.' : 'Seasonal and event themes will appear here after you unlock them.'}</p>}
                 </div>
               </div>
@@ -591,7 +592,7 @@ export function AccountSettingsPage() {
                 ) : (
                   <p className="se-muted">Unlock achievements or finish a season to feature badges here.</p>
                 )}
-                {fields.featuredBadgeKeys ? <p className="se-error">{fields.featuredBadgeKeys}</p> : <p className="se-hint">Pick up to six. They appear first on your public profile.</p>}
+                {fields.featuredBadgeKeys ? <p className="se-error" role="alert">{fields.featuredBadgeKeys}</p> : <p className="se-hint">Pick up to six. They appear first on your public profile.</p>}
               </div>
             </div>
 

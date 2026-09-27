@@ -8,7 +8,7 @@
   --se-line-soft: #202630;
   --se-text: #e4e9f1;
   --se-text-dim: #a9b3c0;
-  --se-muted: #768291;
+  --se-muted: #8a96a5; /* 1.0.0-G: 4.5:1 on every panel tint (was #768291) */
   --se-radius-sm: 4px;
   --se-radius: 6px;
   --se-shadow: 0 18px 38px rgba(0, 0, 0, 0.36);

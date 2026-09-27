@@ -13,7 +13,7 @@ import { useCountdown } from '../hooks/useCountdown.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
-import { formatDuration } from '../utils/time.js';
+import { formatClockTime, formatDuration } from '../utils/time.js';
 import { browserSessionStorage, clearPendingAction, loadPendingAction, savePendingAction } from '../utils/pendingAction.js';
 
 type Order = Omit<StoreTradeInput, 'actionId'>;
@@ -628,7 +628,7 @@ function StoreView({
               onDismiss={action.clear}
               lines={[
                 { label: 'Sourcing fee', delta: specialOrderReceipt.cashChangeCents, money: true },
-                { label: 'Incoming stock', value: new Date(specialOrderReceipt.stockArrivesAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) },
+                { label: 'Incoming stock', value: formatClockTime(specialOrderReceipt.stockArrivesAt) },
                 { label: 'Turns used', value: '0' },
               ]}
             />
