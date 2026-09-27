@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { classicOgV01 } from '@streets/rulesets';
+import { RULES_VERSION } from '@streets/shared';
 
 /**
  * Players verify their email before they play, or sign in with Discord instead.
@@ -18,6 +19,7 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('email verification before 
   const accountIds: string[] = [];
   let roundId = '';
   const previous = process.env.REQUIRE_VERIFIED_EMAIL;
+  const previousRules = process.env.REQUIRE_RULES_ACCEPTANCE;
 
   const register = async () => {
     const name = `verify${randomUUID().slice(0, 8)}`;
@@ -33,9 +35,15 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('email verification before 
   };
   const as = (cookie: string, method: 'GET' | 'POST', url: string, payload?: object) =>
     app.inject({ method, url, headers: { cookie }, ...(payload ? { payload } : {}) });
+  const acceptRules = async (cookie: string) => {
+    const accepted = await as(cookie, 'POST', '/api/auth/rules/accept', { version: RULES_VERSION });
+    expect(accepted.statusCode, accepted.body).toBe(200);
+    expect(accepted.json().account.rulesAcceptanceRequired).toBe(false);
+  };
 
   beforeAll(async () => {
     process.env.REQUIRE_VERIFIED_EMAIL = 'true';
+    process.env.REQUIRE_RULES_ACCEPTANCE = 'true';
     vi.resetModules();
     app = await (await import('../../app.js')).buildApp();
     const { RoundService } = await import('../round.service.js');
@@ -55,6 +63,8 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('email verification before 
     await app?.close();
     if (previous === undefined) delete process.env.REQUIRE_VERIFIED_EMAIL;
     else process.env.REQUIRE_VERIFIED_EMAIL = previous;
+    if (previousRules === undefined) delete process.env.REQUIRE_RULES_ACCEPTANCE;
+    else process.env.REQUIRE_RULES_ACCEPTANCE = previousRules;
     vi.restoreAllMocks();
   });
 
@@ -81,6 +91,14 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('email verification before 
     const verified = await as(player.cookie, 'POST', '/api/auth/email/verify', { token });
     expect(verified.statusCode, verified.body).toBe(200);
     expect(verified.json().account.verificationRequired).toBe(false);
+    // Verified, but the rules come first.
+    expect(verified.json().account.rulesAcceptanceRequired).toBe(true);
+    const beforeRules = await as(player.cookie, 'POST', '/api/rounds/current/join', {});
+    expect(beforeRules.statusCode).toBe(403);
+    expect(beforeRules.json().error.code).toBe('RULES_NOT_ACCEPTED');
+    const stale = await as(player.cookie, 'POST', '/api/auth/rules/accept', { version: '1999-01-01' });
+    expect(stale.json().error.code).toBe('RULES_CHANGED');
+    await acceptRules(player.cookie);
     const joined = await as(player.cookie, 'POST', '/api/rounds/current/join', {});
     expect(joined.statusCode, joined.body).toBe(201);
     expect((await as(player.cookie, 'GET', '/api/game/me')).statusCode).toBe(200);
@@ -93,6 +111,19 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('email verification before 
     await app.prisma.account.update({ where: { id: player.id }, data: { discordId: `discord-${randomUUID()}`, discordLinkedAt: new Date() } });
     const me = await as(player.cookie, 'GET', '/api/auth/me');
     expect(me.json().account.verificationRequired).toBe(false);
+    await acceptRules(player.cookie);
+    expect((await as(player.cookie, 'POST', '/api/rounds/current/join', {})).statusCode).toBe(201);
+  });
+
+  it('grandfathers accounts that existed before verification was required', async () => {
+    const player = await register();
+    expect(player.account.verificationRequired).toBe(true);
+    // What the migration did for every account that already existed.
+    await app.prisma.account.update({ where: { id: player.id }, data: { verificationGrandfatheredAt: new Date('2026-09-01') } });
+    const me = await as(player.cookie, 'GET', '/api/auth/me');
+    expect(me.json().account).toMatchObject({ verificationRequired: false, emailVerifiedAt: null, rulesAcceptanceRequired: true });
+    expect((await as(player.cookie, 'POST', '/api/rounds/current/join', {})).json().error.code).toBe('RULES_NOT_ACCEPTED');
+    await acceptRules(player.cookie);
     expect((await as(player.cookie, 'POST', '/api/rounds/current/join', {})).statusCode).toBe(201);
   });
 

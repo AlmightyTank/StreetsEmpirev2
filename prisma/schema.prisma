@@ -27,6 +27,12 @@ model Account {
   /// Lowercased email. Private account recovery and login address.
   email              String    @unique
   emailVerifiedAt    DateTime?
+  /// Set for every account that existed before email verification was required: they may
+  /// keep playing without verifying. Accounts created later are never grandfathered.
+  verificationGrandfatheredAt DateTime?
+  /// When the player accepted the game rules, and which version of them.
+  rulesAcceptedAt      DateTime?
+  rulesAcceptedVersion String?
   passwordHash       String
 
   discordId       String?   @unique

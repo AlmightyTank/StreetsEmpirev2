@@ -111,18 +111,27 @@ side only; reports keep the evidence).
 
 ## Getting players in
 
-New players **verify their email before they can play**, or sign in with Discord instead: Discord only hands over accounts with a verified email.
+Two steps stand between a new account and the game. Admins are never stopped by either.
 
-- Until then they can sign in and use account settings, but the game and joining a season show a "Verify your email to play" screen. It has three options:
-  - resend the link (at most once a minute);
-  - fix a mistyped address (it changes at once, and old links stop working);
-  - continue with Discord.
-- **"I never got the email."**
-  1. Check `RESEND_API_KEY` and `EMAIL_FROM` are set, and look for `email verification message failed` in the API log.
-  2. Ask them to check spam, fix the address, or use Discord.
-  3. If you are satisfied the address is theirs, **Accounts → the account → Mark email verified** lets them in.
-- **Controlling the rule.** `REQUIRE_VERIFIED_EMAIL` (default on in production and beta) switches it. Admins are never stopped.
-- **Existing accounts.** Accounts that were already playing with an unverified email meet the same screen on their next visit. `npm run ops:launch-check` counts them, so post a news item before turning it on mid-season.
+1. **Verify the email, or use Discord.**
+   - New players verify the email they signed up with. Signing in with Discord (or linking it) counts too, since Discord only hands over verified emails.
+   - **Grandfathered accounts.** Every account that existed when this rule shipped was grandfathered by the migration (`verificationGrandfatheredAt`), so existing players never see this step.
+   - **While unverified**, players can still sign in and use account settings. The game shows a "Verify your email to play" screen, which lets them:
+     - resend the link (at most once a minute);
+     - fix a mistyped address (it changes at once, and old links stop working);
+     - continue with Discord.
+2. **Accept the rules.**
+   - On their first visit, every player (existing ones included) gets a rules dialog. It cannot be closed; they either accept or sign out.
+   - The text lives in `packages/shared/src/rules-agreement.ts`. Change it and bump `RULES_VERSION`, and everyone is asked to accept again.
+   - Acceptance is stored on the account (`rulesAcceptedAt`, `rulesAcceptedVersion`).
+
+**"I never got the email."**
+
+1. Check `RESEND_API_KEY` and `EMAIL_FROM` are set, and look for `email verification message failed` in the API log.
+2. Ask them to check spam, fix the address, or use Discord.
+3. If you are satisfied the address is theirs, **Accounts → the account → Mark email verified** lets them in.
+
+**Settings.** `REQUIRE_VERIFIED_EMAIL` and `REQUIRE_RULES_ACCEPTANCE` switch each step. Both are on by default in production and beta, and off in development and test. `npm run ops:launch-check` counts accounts still waiting to verify.
 
 ## Moderation process (1.0)
 

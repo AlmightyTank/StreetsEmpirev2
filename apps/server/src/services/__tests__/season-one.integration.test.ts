@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { rulesets } from '@streets/rulesets';
+import { RULES_VERSION } from '@streets/shared';
 
 /**
  * 1.0.0-H. Season One, end to end, through the same HTTP API the game and the admin
@@ -96,7 +97,7 @@ describe.runIf(enabled)('1.0.0-H Season One on a scratch database', () => {
     expect(current.round).toMatchObject({ id: seasonId, rulesetId: latest.meta.id });
   });
 
-  it('players register, verify their email, learn the game and join', async () => {
+  it('players register, verify their email, accept the rules, learn the game and join', async () => {
     for (const who of ['ann', 'ben', 'cal']) {
       const account = await register(who);
       // Sign-up with email: the game stays shut until the emailed link is opened.
@@ -104,6 +105,9 @@ describe.runIf(enabled)('1.0.0-H Season One on a scratch database', () => {
       expect(early.statusCode).toBe(403);
       expect(early.json().error.code).toBe('EMAIL_NOT_VERIFIED');
       await verifyEmail(who, account.email);
+      // Then the rules dialog: nothing is playable until they accept.
+      expect((await call(who, 'POST', '/rounds/current/join', {})).json().error.code).toBe('RULES_NOT_ACCEPTED');
+      await ok(who, 'POST', '/auth/rules/accept', { version: RULES_VERSION });
       await ok(who, 'POST', '/rounds/current/join', {});
       const snapshot = await me(who);
       players.set(who, { accountId: account.id, publicPimpId: snapshot.player.publicPimpId, roundPlayerId: snapshot.player.id });

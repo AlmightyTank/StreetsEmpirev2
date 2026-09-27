@@ -90,6 +90,8 @@ const envSchema = z.object({
    * On by default in production and beta; off in development and test unless set.
    */
   REQUIRE_VERIFIED_EMAIL: z.enum(['true', 'false']).optional(),
+  /** Players accept the game rules before they play. Same defaults as REQUIRE_VERIFIED_EMAIL. */
+  REQUIRE_RULES_ACCEPTANCE: z.enum(['true', 'false']).optional(),
   TRUST_PROXY: z.enum(['true', 'false']).optional(),
   /** 1.0.0-H. Optional log level override (fatal, error, warn, info, debug, trace). */
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).optional(),
@@ -148,6 +150,9 @@ export const env = {
   accounts: {
     requireVerifiedEmail: parsed.data.REQUIRE_VERIFIED_EMAIL
       ? parsed.data.REQUIRE_VERIFIED_EMAIL === 'true'
+      : appEnvironment === 'production' || appEnvironment === 'beta',
+    requireRulesAcceptance: parsed.data.REQUIRE_RULES_ACCEPTANCE
+      ? parsed.data.REQUIRE_RULES_ACCEPTANCE === 'true'
       : appEnvironment === 'production' || appEnvironment === 'beta',
   },
   trustProxy: parsed.data.TRUST_PROXY ? parsed.data.TRUST_PROXY === 'true' : parsed.data.NODE_ENV === 'production',

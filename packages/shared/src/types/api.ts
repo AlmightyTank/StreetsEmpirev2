@@ -88,6 +88,8 @@ export interface AccountDto {
   lastLoginAt: string | null;
   /** True until this account may play: verify the email, or sign in with Discord. */
   verificationRequired: boolean;
+  /** True until the player accepts the current game rules (RULES_VERSION). */
+  rulesAcceptanceRequired: boolean;
 }
 
 export interface AccountSessionDto {

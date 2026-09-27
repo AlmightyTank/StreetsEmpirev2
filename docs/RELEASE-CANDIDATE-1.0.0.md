@@ -118,7 +118,7 @@ Run `npm run ops:launch-check -- --game https://play.streetsempire.dev --site ht
 | Status/maintenance mechanism | `/api/public/status` answers; `maintenance.sh` present | [RECOVERY.md → Maintenance mode](RECOVERY.md#maintenance-mode) |
 | Beta environment separated | Beta `.env` has its own database, its own cookie and no shared secrets | `docs/BETA-DEPLOY.md` |
 | Production secrets rotated | No placeholder or `.env.example` values; `SECRETS_ROTATED_AT` recorded | Rotate, then set `SECRETS_ROTATED_AT=YYYY-MM-DD` |
-| Sign-up verification | Players must verify their email or use Discord; email delivery (`RESEND_API_KEY`, `EMAIL_FROM`) is configured. It also counts existing accounts that will be asked to verify | `.env` ([ADMIN-RUNBOOK.md](ADMIN-RUNBOOK.md#getting-players-in)) |
+| Sign-up verification | New players must verify their email or use Discord (existing accounts are grandfathered), and every player accepts the rules once; email delivery (`RESEND_API_KEY`, `EMAIL_FROM`) is configured. It also counts existing accounts that will be asked to verify | `.env` ([ADMIN-RUNBOOK.md](ADMIN-RUNBOOK.md#getting-players-in)) |
 | Release notes published | A published news post with "1.0" in its title | Text in [RELEASE-1.0.0.md](RELEASE-1.0.0.md) |
 
 ## Go / no-go

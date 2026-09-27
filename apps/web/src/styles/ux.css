@@ -141,3 +141,18 @@ button.se-tip[aria-expanded='true'] {
 /* Verify-your-email gate. */
 .se-verify-gate__actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 10px; }
 @media (max-width: 520px) { .se-verify-gate__actions .se-btn { flex: 1 1 100%; } }
+
+/* Rules dialog on first sign-in. */
+.se-rules-backdrop { z-index: 70; overflow-y: auto; align-items: start; padding-top: max(16px, 6vh); }
+.se-rules { width: min(560px, 100%); }
+.se-rules__list { margin: 12px 0; padding-left: 20px; display: grid; gap: 8px; }
+.se-rules__list li { color: var(--se-text-dim); line-height: 1.5; }
+.se-rules__list strong { color: var(--se-text); }
+.se-rules__agree { display: flex; align-items: center; gap: 10px; margin: 14px 0; cursor: pointer; }
+.se-rules__agree input { width: 22px; height: 22px; flex: none; accent-color: var(--se-accent); }
+.se-rules__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.se-rules__actions .se-btn { min-height: 44px; }
+@media (max-width: 520px) {
+  .se-rules__actions { flex-direction: column-reverse; }
+  .se-rules__actions .se-btn { width: 100%; }
+}

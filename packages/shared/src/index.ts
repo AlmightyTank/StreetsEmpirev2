@@ -16,5 +16,6 @@ export * from './types/hideout-v2.js';
 export * from './money.js';
 export * from './notifications.js';
 export * from './platform.js';
+export * from './rules-agreement.js';
 export * from './onboarding.js';
 export * from './monitoring.js';

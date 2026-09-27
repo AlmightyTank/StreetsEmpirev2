@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Account, PrismaClient, Session } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { changeEmailSchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
+import { RULES_VERSION, changeEmailSchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
 import { z } from 'zod';
 import { assertBetaAccess, assertCanSignIn, clearExpiredSuspension } from '../auth/account-status.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
@@ -783,6 +783,19 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       throw new AppError(429, 'VERIFY_EMAIL_COOLDOWN', `We just sent one. Give it a minute; you can ask again in ${result.retryInSeconds} seconds.`);
     }
     return { ok: true, message: `We sent a new link to ${account.email}. It can take a minute to arrive; check spam too.` };
+  });
+
+  /** Accept the game rules shown in the rules dialog. The version must be the current one. */
+  fastify.post('/rules/accept', { preHandler: fastify.requireAuth }, async (request) => {
+    const { version } = parseBody(z.object({ version: z.string().min(1).max(40) }).strict(), request.body ?? {});
+    if (version !== RULES_VERSION) {
+      throw AppError.conflict('RULES_CHANGED', 'The rules were just updated. Read the new version and accept that.');
+    }
+    const account = await fastify.prisma.account.update({
+      where: { id: request.auth!.account.id },
+      data: { rulesAcceptedAt: new Date(), rulesAcceptedVersion: RULES_VERSION },
+    });
+    return { account: toAccountDto(account) };
   });
 
   fastify.post('/email/change/request', { preHandler: fastify.requireAuth }, async (request) => {

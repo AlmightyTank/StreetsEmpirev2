@@ -108,10 +108,10 @@ async function main(): Promise<void> {
     report('Admin accounts configured', admins.length === 0 ? 'FAIL' : admins.length === 1 ? 'WARN' : 'PASS',
       admins.length ? `${admins.map((a) => a.username).join(', ')}${admins.length === 1 ? ' (one admin: add a second so the game is never without one).' : '.'}` : 'No admin. npm run admin -- <username>.');
     if (verifyRequired) {
-      const unverified = await prisma.account.count({ where: { isActive: true, isAdmin: false, emailVerifiedAt: null, discordId: null } });
-      report('Existing unverified accounts', unverified ? 'WARN' : 'PASS', unverified
-        ? `${unverified} account(s) have neither a verified email nor Discord; they will be asked to verify on their next visit (the game stays shut until they do). Consider a news post before deploying.`
-        : 'Every active account has a verified email or Discord.');
+      const unverified = await prisma.account.count({ where: { isActive: true, isAdmin: false, emailVerifiedAt: null, discordId: null, verificationGrandfatheredAt: null } });
+      report('Accounts waiting to verify', unverified ? 'WARN' : 'PASS', unverified
+        ? `${unverified} account(s) signed up after verification became required and have neither a verified email nor Discord yet; they see the verify screen until they do.`
+        : 'Every active account has a verified email, Discord, or was grandfathered in.');
     }
     const notes = await prisma.gameNews.findFirst({ where: { title: { contains: '1.0', mode: 'insensitive' }, publishedAt: { lte: new Date() } }, orderBy: { publishedAt: 'desc' }, select: { title: true } });
     report('Release notes published', notes ? 'PASS' : 'WARN', notes ? `News: "${notes.title}".` : 'Publish the 1.0 release notes as news (docs/RELEASE-1.0.0.md is the text).');

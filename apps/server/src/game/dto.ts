@@ -22,7 +22,7 @@ import { explainThugHappiness, explainWhoreHappiness, totalWeapons } from '@stre
 import { fitThugs } from '../services/action.service.js';
 import type { TurnSettlement } from '../services/turn.service.js';
 import { toHeatDto } from '../services/heat.service.js';
-import { canPlay } from '../auth/play-access.js';
+import { canPlay, needsRulesAcceptance } from '../auth/play-access.js';
 
 /**
  * Money leaves the server as integer cents in a *Cents field and is never
@@ -45,6 +45,7 @@ export function toAccountDto(account: Account): AccountDto {
     createdAt: account.createdAt.toISOString(),
     lastLoginAt: account.lastLoginAt?.toISOString() ?? null,
     verificationRequired: !canPlay(account),
+    rulesAcceptanceRequired: needsRulesAcceptance(account),
   };
 }
 

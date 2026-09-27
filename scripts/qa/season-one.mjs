@@ -23,6 +23,7 @@ try {
       SEASON_ONE_INTEGRATION: '1',
       // As on production: players verify their email (or use Discord) before they play.
       REQUIRE_VERIFIED_EMAIL: 'true',
+      REQUIRE_RULES_ACCEPTANCE: 'true',
       SESSION_SECRET: process.env.SESSION_SECRET || 'season-one-scratch-session-secret-32chars',
       NODE_ENV: 'test',
     },
