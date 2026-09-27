@@ -109,7 +109,35 @@ side only; reports keep the evidence).
 
 ---
 
-## Handling a dispute
+## Moderation process (1.0)
+
+The ladder, from lightest to heaviest. Use the lightest step that stops the problem. Every step records a reason in the audit log.
+
+| Situation | Step | Where |
+| --- | --- | --- |
+| A first, minor breach (rude message, borderline name) | Warn them by direct message; **Reset profile** or **Rename** if a name or profile breaks the rules | Accounts → the account |
+| Harassment or spam in messages or on a wire | **Mute** their messaging for a set time; remove the wire post | Accounts → the account → Mute messaging; Alliances → Wire |
+| Repeated breaches, or an exploit used on purpose | **Suspend** for a set time (they see the reason and the end date); **void** the fights or **correct** what the exploit produced | Accounts → the account → Suspend; the player page → Void / corrections |
+| Cheating that continues, several accounts one person uses together, serious abuse | **Ban** (permanent until lifted; they see the reason at sign-in) | Accounts → the account → Ban |
+| The player asks for their account to be closed (Privacy page) | **Deactivate** with the reason "closed at the player's request" | Accounts → the account → Deactivate |
+
+- **Reports queue.**
+  - Look at **Reports** at least once a day during a season.
+  - Open a report before you act on it, so other admins can see it is being handled.
+  - Resolve it with what you did. The reporter's evidence stays with the report.
+- **Exploit flags.**
+  - Check **Combat & exploits → Exploit flags** daily. The server raises a flag when it refuses a write, a player-state invariant fails, someone attacks a linked account, an action id is replayed, or rate limits are hit 30 times in a day.
+  - Close each flag as **dismissed** (noise) or **actioned** (you did something), with a note.
+  - A critical flag (a state guard or an invariant) is a bug report as well: tell the developer.
+- **When the game itself is wrong.**
+  - If a bug is actively handing out value, **pause the season** (Rounds → Pause). Nobody loses time.
+  - Fix the bug or correct the affected players, then resume. Resuming moves the end back by the pause.
+  - If players must be kept out entirely, use maintenance mode instead ([RECOVERY.md](RECOVERY.md#maintenance-mode)).
+- **Consistency.**
+  - Two admins should agree before a ban, unless the case is plain cheating with evidence in the flags or signals.
+  - Post a short public news item when an action affects a season's standings (voids, corrections, disqualifications).
+
+
 
 1. **Find the player.** Accounts → **Find a player** takes a pimp name or a
    public id (`#1042`) and opens the inspector. You do not need the account.

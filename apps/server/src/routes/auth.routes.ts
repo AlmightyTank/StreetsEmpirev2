@@ -33,7 +33,8 @@ const DISCORD_TOKEN_URL = 'https://discord.com/api/oauth2/token';
 const DISCORD_ME_URL = 'https://discord.com/api/users/@me';
 
 const discordStartSchema = z.object({
-  link: z.coerce.boolean().optional(),
+  // `?link=1` / `?link=true`; anything else (including "false" and "0") is not a link.
+  link: z.string().optional().transform((value) => value === '1' || value === 'true'),
 });
 
 const discordCallbackSchema = z.object({

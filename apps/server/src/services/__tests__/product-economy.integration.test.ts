@@ -124,7 +124,9 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('product economy with Po
     const result = cooked.json<GameActionResult<ProduceCrackResult>>().result;
     expect(result).toMatchObject({ productType: 'METH', productName: 'Meth', crackProduced: 0 });
     expect(result.productProduced).toBeGreaterThan(0);
-    expect((await stock(0)).METH).toBe(result.productProduced);
+    // The girls' shift can turn up a little product on the street while the cook runs.
+    const methFound = result.productsFound?.find((row) => row.key === 'METH')?.quantity ?? 0;
+    expect((await stock(0)).METH).toBe(result.productProduced + methFound);
     expect(result.ingredientCents).toBe((result.productProduced - (result.hideoutBonusProduct ?? 0)) * rules.products.METH.economy.production.ingredientCentsPerUnit);
     expect(result.heat!.added).toBeGreaterThanOrEqual(Math.round(result.productProduced * rules.products.METH.economy.production.heatPerUnit) - 1);
 
@@ -270,6 +272,8 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('product economy with Po
         hideoutWorkshopLevel: 5,
       },
     });
+    // Wounded thugs are the sum of their injuries; a bare count is healed away on the next settle.
+    await app.prisma.combatInjury.create({ data: { roundPlayerId: players[0]!, battleId: null, thugs: 2, recoverAt: new Date(Date.now() + 3_600_000) } });
 
     const saved = await post(0, '/hideout/armory/priority', {
       priority: 'CONSERVE',

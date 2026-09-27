@@ -39,6 +39,8 @@ const pageMeta = (pathname: string): { title: string; description: string; noind
     beta: { title: 'Beta', description: 'Information about the separate StreetsEmpire beta testing environment.', noindex: true },
     status: { title: 'Status', description: 'Current StreetsEmpire public API and database service health.' },
     support: { title: 'Support', description: 'How StreetsEmpire plans to support hosting and development without pay-to-win.' },
+    privacy: { title: 'Privacy', description: 'What StreetsEmpire keeps about players, who handles it, and for how long.' },
+    terms: { title: 'Terms', description: 'The rules every StreetsEmpire player agrees to: one account, no cheating, be decent.' },
     about: { title: 'About', description: 'About the StreetsEmpire project, its seasonal design and competitive browser-game inspiration.' },
     search: { title: 'Search', description: 'Search public StreetsEmpire players, alliances, seasons, news and cities.', noindex: true },
   };
@@ -63,6 +65,8 @@ const projectLinks = [
   { to: '/beta', label: 'Beta' },
   { to: '/status', label: 'Status' },
   { to: '/support', label: 'Support' },
+  { to: '/privacy', label: 'Privacy' },
+  { to: '/terms', label: 'Terms' },
 ] as const;
 
 function SiteNavLink({ to, label }: { to: string; label: string }) {

@@ -719,6 +719,18 @@ Before release:
 - Production secrets rotated
 - Release notes published
 
+### 1.0.0-H implementation complete
+
+The candidate is **1.0.0-rc.1**. [RELEASE-CANDIDATE-1.0.0.md](RELEASE-CANDIDATE-1.0.0.md) has the build, the freeze, every gate, the regression matrix, the launch checklist and the rc.1 results. `npm run release:rc` runs every gate.
+
+| Area | Now in place |
+| --- | --- |
+| Release candidate | `APP_VERSION` `1.0.0-rc.1`. From rc.1 on, only release blockers change, each with a regression test and a new rc number after the whole gate passes again. **Result:** every gate passes on rc.1. **Blocker caught:** the beta-tester cosmetic was switched on by `BETA_TESTER_DISCORD_LINKED=false`, because a coerced boolean reads "false" as true; it is fixed, with a regression test. |
+| Full regression | Every area in the list maps to suites, in the matrix in the RC document. **Suites no gate ran:** eleven existing suites never ran in the release gate (admin, password recovery, bot API, forum links, phone alerts); they now do, the last three with throwaway secrets generated for the run. **Stale tests:** six tests failing across several milestones were all stale tests, not game bugs, and are fixed; the regression has no known failures. |
+| Season lifecycle | `npm run qa:season-one` runs Create → Join → Play → End → Freeze standings → Hall of Fame → Archive → Create next season on a scratch database, through the HTTP API only (plus making the first admin, as `npm run admin` does). Inside "Play" is the 1.0 release definition: register, learn, build a crew, trade, fight (recon and a raid the defender sees), travel (a run), control turf (presence, then a claim), build a Hideout, form an alliance, message another player, finish the season, and appear in the Hall of Fame and the player's career. |
+| Load test | `npm run qa:load-test`: 300 players on a scratch server, each with its own address. It covers the login spike, sustained play (3× the game's real polling, plus an action every 15 s each), both bursts, the notification burst and a mass season end. **Bursts:** they failed with 500s when the connection pool ran dry; transactions now wait up to 10 s and anything still starved gets a retryable `503 SERVER_BUSY`. **Season close:** its timeout grows with the season, where a fixed 30 s would have stopped a season of about 640 or more players from ever closing. All scenarios now pass with zero errors ([LOAD-1.0.0-H.md](LOAD-1.0.0-H.md)). |
+| Launch checklist | `npm run ops:launch-check` checks every item it can on the production server: backups, restore test, admins, beta separation, secrets (no placeholders, rotation date), live API, status and maintenance, rules, privacy and terms pages, moderation process and release notes. **Privacy and terms:** new pages, written from what the code actually stores, linked from the site footer, the game footer and registration. **Moderation:** a "Moderation process (1.0)" ladder in the admin runbook. **Release notes:** [RELEASE-1.0.0.md](RELEASE-1.0.0.md). |
+
 ---
 
 ## 1.0 Release Definition

@@ -20,7 +20,7 @@ describe('gameEventToastFor', () => {
     }), 'crack')).toMatchObject({
       title: 'Quest objective complete',
       tone: 'good',
-      href: '/game/quests?tab=active#quest-FIRST_NIGHT_OUT',
+      href: '/game/quests?tab=active&focus=FIRST_NIGHT_OUT#quest-FIRST_NIGHT_OUT',
     });
   });
 
@@ -40,7 +40,7 @@ describe('gameEventToastFor', () => {
       newlyAvailable: ['FRESH_FACES'],
     }), 'crack')).toMatchObject({
       title: 'New quest available',
-      href: '/game/quests?tab=available',
+      href: '/game/quests?tab=available&focus=FRESH_FACES#quest-FRESH_FACES',
     });
   });
 

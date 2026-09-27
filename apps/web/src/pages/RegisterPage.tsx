@@ -93,6 +93,7 @@ export function RegisterPage() {
                 hint={`At least ${PASSWORD_MIN} characters.`}
               />
 
+              <p className="se-hint">By registering you agree to the <a href="https://streetsempire.dev/terms">terms</a> and the <a href="https://streetsempire.dev/privacy">privacy policy</a>.</p>
               <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy ? 'Setting up your account now.' : null}>
                 {busy ? 'Working...' : 'Create account'}
               </Button>

@@ -24,6 +24,8 @@ function prismaFor(isAdmin: boolean): PrismaClient {
   return {
     account: {
       findUnique: async () => ({ isAdmin }),
+      // Beta-tester awards look the account up when BETA_TESTER_DISCORD_LINKED is on in .env.
+      findFirst: async () => null,
     },
     accountProfile: {
       findUnique: async () => profile,

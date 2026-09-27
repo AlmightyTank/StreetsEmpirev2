@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -7,6 +8,8 @@ const withDb = process.argv.includes('--with-db');
 const production = process.argv.includes('--production');
 // 1.0.0-G: needs the web client and API running (npm run dev) and UI_AUDIT_PLAYER set.
 const withUi = process.argv.includes('--with-ui');
+// 1.0.0-H: a few minutes; builds its own scratch database and API process.
+const withLoad = process.argv.includes('--with-load');
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 function run(label, command, args, env = process.env) {
@@ -64,7 +67,30 @@ if (withDb) {
     EXPLOIT_INTEGRATION: '1',
     // 1.0.0-E: season pause, bans, exploit flags, economy/combat/turf tools, announcements and maintenance.
     ADMIN_OPS_INTEGRATION: '1',
+    // 1.0.0-H: suites that existed but no release gate ran. Admin accounts, audit retention,
+    // corrections, integrations, suspensions and round operations; password recovery.
+    ADMIN_INTEGRATION: '1',
+    AUTH_INTEGRATION: '1',
   });
+  // 1.0.0-H: the Discord bot API, verified forum links and phone alerts only exist with their
+  // secrets set, so they run on their own with throwaway ones generated here.
+  const { default: webPush } = await import('web-push');
+  const vapid = webPush.generateVAPIDKeys();
+  const secret = () => randomBytes(40).toString('hex');
+  run('PostgreSQL integration: bot, forum link and push', npm, ['test', '--', '--no-file-parallelism', 'discord-bot.integration', 'forum-link.integration', 'notifications.integration'], {
+    ...process.env,
+    DISCORD_BOT_INTEGRATION: '1',
+    FORUM_LINK_INTEGRATION: '1',
+    NOTIFICATION_INTEGRATION: '1',
+    DISCORD_BOT_API_TOKEN: secret(),
+    FORUM_LINK_SECRET: secret(),
+    VAPID_PUBLIC_KEY: vapid.publicKey,
+    VAPID_PRIVATE_KEY: vapid.privateKey,
+    VAPID_SUBJECT: 'mailto:release-check@example.invalid',
+  });
+  // 1.0.0-H: create → join → play → end → freeze → Hall of Fame → archive → next season,
+  // with the whole 1.0 player journey inside, on its own scratch database.
+  run('Season One (scratch database)', npm, ['run', 'qa:season-one']);
   // 1.0.0-F: a backup nobody has restored is not a backup. Back up the test database, then
   // restore it into a scratch database and check every table (needs CREATEDB, or RESTORE_TEST_DATABASE_URL).
   const backupDir = mkdtempSync(join(tmpdir(), 'se-release-backup-'));
@@ -75,6 +101,10 @@ if (withDb) {
   } finally {
     rmSync(backupDir, { recursive: true, force: true });
   }
+}
+
+if (withLoad) {
+  run('Load test (300 players, scratch server)', npm, ['run', 'qa:load-test']);
 }
 
 if (withUi) {

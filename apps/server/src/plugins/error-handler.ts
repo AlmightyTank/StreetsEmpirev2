@@ -16,7 +16,7 @@ import { annotateLogContext } from '../utils/request-context.js';
  * A CHECK violation is a guard the services should have caught first, so it is
  * logged as an error; a lock conflict or deadlock is ordinary contention.
  */
-export function databaseRefusal(error: unknown): { kind: 'check'; constraint: string | null } | { kind: 'contention' } | null {
+export function databaseRefusal(error: unknown): { kind: 'check'; constraint: string | null } | { kind: 'contention' } | { kind: 'busy' } | null {
   const text = error instanceof Error ? error.message : '';
   const meta = (error as { meta?: { code?: unknown } } | null)?.meta;
   const code = typeof meta?.code === 'string' ? meta.code : null;
@@ -25,6 +25,8 @@ export function databaseRefusal(error: unknown): { kind: 'check'; constraint: st
   }
   const prismaCode = (error as { code?: unknown } | null)?.code;
   if (prismaCode === 'P2034' || code === '40001' || code === '40P01' || /code: "(40001|40P01)"/.test(text)) return { kind: 'contention' };
+  // 1.0.0-H. No connection or transaction slot within the wait: the server is overloaded, not broken.
+  if (prismaCode === 'P2024' || prismaCode === 'P2028' || /Unable to start a transaction in the given time|Timed out fetching a new connection/.test(text)) return { kind: 'busy' };
   return null;
 }
 
@@ -51,6 +53,7 @@ export function classifyError(error: unknown): ErrorOutcome {
   const refusal = databaseRefusal(error);
   if (refusal?.kind === 'check') return { statusCode: 409, code: 'STATE_CHANGED', category: 'state_guard' };
   if (refusal?.kind === 'contention') return { statusCode: 409, code: 'TRY_AGAIN', category: 'contention' };
+  if (refusal?.kind === 'busy') return { statusCode: 503, code: 'SERVER_BUSY', category: 'contention' };
   const statusCode = (error as { statusCode?: unknown } | null)?.statusCode;
   if (typeof statusCode === 'number' && statusCode < 500) return { statusCode, code: String((error as { code?: unknown }).code ?? 'BAD_REQUEST'), category: statusCode === 429 ? 'rate_limit' : 'client' };
   if (error instanceof RangeError && error.message.startsWith('Player-state invariant failed')) return { statusCode: 500, code: 'INTERNAL_ERROR', category: 'invariant' };
@@ -135,6 +138,13 @@ const errorHandlerPlugin: FastifyPluginAsync = async (fastify) => {
       flag(request, { kind: 'STATE_GUARD', severity: 'critical', message: `The database refused a write${refusal.constraint ? ` (${refusal.constraint})` : ''}.`, detail: { constraint: refusal.constraint } });
       return reply.status(409).send({
         error: { code: 'STATE_CHANGED', message: 'That no longer adds up. Refresh and try again.' },
+      });
+    }
+    if (refusal?.kind === 'busy') {
+      request.log.warn({ err: error }, 'database busy: no connection in time');
+      reply.header('retry-after', '2');
+      return reply.status(503).send({
+        error: { code: 'SERVER_BUSY', message: 'The game is very busy right now. Nothing happened; try that again in a moment.' },
       });
     }
     if (refusal?.kind === 'contention') {

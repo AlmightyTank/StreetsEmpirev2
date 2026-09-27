@@ -15,7 +15,7 @@ import { acceptRequestId, LOG_REDACT_PATHS, logContextFields, withLogContext } f
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
-      level: env.isProduction ? 'info' : 'debug',
+      level: env.logLevel,
       transport: env.isProduction
         ? undefined
         : { target: 'pino-pretty', options: { translateTime: 'HH:MM:ss', ignore: 'pid,hostname' } },
@@ -24,7 +24,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       // ...and never a secret, wherever one turns up.
       redact: { paths: [...LOG_REDACT_PATHS], censor: '[redacted]' },
     },
-    trustProxy: env.isProduction,
+    trustProxy: env.trustProxy,
     // A request id from the proxy is kept when it looks like one; otherwise we make our own.
     genReqId: (request) => acceptRequestId(request.headers['x-request-id']) ?? randomUUID(),
   });

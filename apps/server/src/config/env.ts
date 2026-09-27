@@ -50,7 +50,9 @@ const envSchema = z.object({
   /** 0.3.0-C. The recruitment tag alliance leaders post their threads into. */
   FORUM_RECRUITMENT_TAG_ID: z.string().regex(/^\d*$/, 'FORUM_RECRUITMENT_TAG_ID must be a numeric Flarum tag id.').default(''),
   /** Optional cosmetic: any account with Discord linked gets the Beta Tester title/badge. */
-  BETA_TESTER_DISCORD_LINKED: z.coerce.boolean().default(false),
+  // 1.0.0-H: not z.coerce.boolean(), which reads the string "false" as true and turned the
+  // beta-tester cosmetic on for every Discord-linked player wherever the example value was copied.
+  BETA_TESTER_DISCORD_LINKED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   /** Optional legacy cosmetic path: linked forum users in any of these visible groups get the Beta Tester title/badge. */
   BETA_TESTER_FORUM_GROUPS: z.string().default(''),
 
@@ -78,6 +80,14 @@ const envSchema = z.object({
   RESTORE_TEST_MAX_AGE_DAYS: z.coerce.number().int().positive().default(8),
   /** 1.0.0-F. Maintenance mode: every player request is answered 503 with this message; admins and health checks still work. */
   MAINTENANCE_MODE: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  /**
+   * 1.0.0-H. Believe X-Forwarded-For (the client address behind a reverse proxy).
+   * Defaults to on in production, where nginx is in front; the load test turns it on
+   * so each simulated player has its own address, as real players do.
+   */
+  TRUST_PROXY: z.enum(['true', 'false']).optional(),
+  /** 1.0.0-H. Optional log level override (fatal, error, warn, info, debug, trace). */
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).optional(),
   MAINTENANCE_MESSAGE: z.string().max(280).default('StreetsEmpire is down for maintenance. Everything you own is safe; check back shortly.'),
   EMAIL_VERIFICATION_TTL_MINUTES: z.coerce.number().int().positive().default(60),
 });
@@ -130,6 +140,8 @@ export const env = {
   isProduction: parsed.data.NODE_ENV === 'production',
   /** 1.0.0-A. production | beta | development | test. */
   appEnvironment,
+  trustProxy: parsed.data.TRUST_PROXY ? parsed.data.TRUST_PROXY === 'true' : parsed.data.NODE_ENV === 'production',
+  logLevel: parsed.data.LOG_LEVEL ?? (parsed.data.NODE_ENV === 'production' ? 'info' : 'debug'),
   buildCommit: parsed.data.BUILD_COMMIT?.slice(0, 12) ?? null,
   corsOrigins,
   frontendOrigin: parsed.data.FRONTEND_ORIGIN ?? corsOrigins[0] ?? 'http://localhost:5173',

@@ -5,7 +5,7 @@ import { toRoundDto } from '../game/dto.js';
 import { lockRound, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
-import { RoundService } from './round.service.js';
+import { RoundService, seasonCloseTransaction } from './round.service.js';
 import { TurfService } from './turf.service.js';
 
 const DAY_MS = 86_400_000;
@@ -188,6 +188,9 @@ export const AdminRoundService = {
     options: { confirmHandoff: boolean },
     now = new Date(),
   ): Promise<AdminRoundDto> {
+    // A handoff closes the running season inside this transaction; size it for that season.
+    const running = await prisma.round.findMany({ where: { status: 'ACTIVE', endsAt: { gt: now }, id: { not: roundId } }, select: { id: true } });
+    const handoff = await seasonCloseTransaction(prisma, running.map((row) => row.id));
     const round = await prisma.$transaction(async (tx) => {
       // One round start at a time, so two admins cannot open two seasons at once.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(3002)`;
@@ -227,12 +230,13 @@ export const AdminRoundService = {
       if (ruleset) await TurfService.ensureRound(tx, started.id, ruleset);
       await AdminAuditService.record(tx, actor, { action: 'round.start', targetType: 'round', targetId: before.id, before, after: started });
       return started;
-    }, LIFECYCLE_TRANSACTION);
+    }, handoff);
     return adminRound(prisma, round);
   },
 
   /** Early ends settle and freeze like a normal finish, so final awards still apply. */
   async endEarly(prisma: PrismaClient, actor: AuditActor, roundId: string, reason: string, now = new Date()): Promise<AdminRoundDto> {
+    const closing = await seasonCloseTransaction(prisma, [roundId]);
     const round = await prisma.$transaction(async (tx) => {
       await lockedRound(tx, roundId, 'end-early');
       const result = await RoundService.closeRoundInTransaction(tx, roundId, now, { endsAt: now });
@@ -246,7 +250,7 @@ export const AdminRoundService = {
         after: result.round,
       });
       return result.round;
-    }, LIFECYCLE_TRANSACTION);
+    }, closing);
     return adminRound(prisma, round);
   },
 

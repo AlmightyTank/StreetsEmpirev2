@@ -216,6 +216,8 @@ function Footer() {
           <Link to="/game/news">News</Link>
           <Link to="/game/hall-of-fame">Hall of Fame</Link>
           <a href="https://forum.streetsempire.dev">Forum</a>
+          <a href="https://streetsempire.dev/privacy">Privacy</a>
+          <a href="https://streetsempire.dev/terms">Terms</a>
           {account ? (
             <>
               <Link to={me ? '/game' : '/join'}>{me ? 'Dashboard' : 'Join a season'}</Link>
