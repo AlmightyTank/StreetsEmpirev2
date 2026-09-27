@@ -80,7 +80,7 @@ function RequireAdmin({ children }: { children: ReactNode }) {
   const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
   const needsDiscord = useSession((s) => s.account?.adminSignInRequired ?? false);
   if (!isAdmin) return <Navigate to="/game" replace />;
-  // rc.2: admin tools answer only a Discord sign-in (REQUIRE_ADMIN_DISCORD).
+  // rc.2/rc.3: admin tools answer only a sign-in with a second factor (REQUIRE_ADMIN_2FA).
   if (needsDiscord) return <AdminDiscordGate />;
   return <>{children}</>;
 }

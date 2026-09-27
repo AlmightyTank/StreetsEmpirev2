@@ -495,6 +495,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return AdminAccountService.resendVerification(fastify.prisma, request.auth!.account, accountId, body.reason, fastify.log);
   });
 
+  fastify.post('/accounts/:accountId/2fa/reset', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminAccountService.resetTwoFactor(fastify.prisma, request.auth!.account, accountId, body.reason, fastify.log);
+  });
+
   fastify.post('/accounts/:accountId/email/verify', async (request) => {
     const { accountId } = parseBody(accountParams, request.params);
     const body = parseBody(reasonBody, request.body ?? {});

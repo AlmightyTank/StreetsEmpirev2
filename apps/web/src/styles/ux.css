@@ -156,3 +156,25 @@ button.se-tip[aria-expanded='true'] {
   .se-rules__actions { flex-direction: column-reverse; }
   .se-rules__actions .se-btn { width: 100%; }
 }
+
+/* rc.3: two-step sign-in */
+.se-2fa__steps { margin: 0 0 12px; padding-left: 1.25rem; }
+.se-2fa__steps li { margin-bottom: 4px; }
+.se-2fa__qr {
+  display: block;
+  width: 200px;
+  height: 200px;
+  margin: 8px 0 12px;
+  background: #fff; /* a QR code needs a light quiet zone in either theme */
+  border-radius: 8px;
+}
+.se-2fa__secret { word-break: break-all; letter-spacing: 0.05em; }
+.se-2fa__codelist {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 6px 16px;
+  margin: 8px 0 12px;
+  padding-left: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+.se-2fa__codelist code { font-size: 1rem; letter-spacing: 0.04em; }

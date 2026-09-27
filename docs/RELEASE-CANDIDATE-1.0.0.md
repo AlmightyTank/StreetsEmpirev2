@@ -1,10 +1,10 @@
-# StreetsEmpire 1.0.0 release candidate (1.0.0-rc.2)
+# StreetsEmpire 1.0.0 release candidate (1.0.0-rc.3)
 
 The build that has to prove the finished game works before it is called 1.0.
 
 ## The candidate
 
-- **Version:** `APP_VERSION` is `1.0.0-rc.2`, in `packages/shared/src/platform.ts`. The footer and `/api/meta` show it, with the commit.
+- **Version:** `APP_VERSION` is `1.0.0-rc.3`, in `packages/shared/src/platform.ts`. The footer and `/api/meta` show it, with the commit.
 - **Branch:** `beta`. Deploy it to beta first (`bash scripts/ops/deploy-beta.sh`), then to production once the launch checklist is clear.
 - **One command runs every gate:** `npm run release:rc`, which is `qa:release --with-db --with-load`. Add `--with-ui` to include the browser audit when a web client is running.
 
@@ -41,8 +41,8 @@ Every area the roadmap names, and the suites that exercise it through the API ag
 
 | Area | Suites |
 | --- | --- |
-| Registration | Season One, release, onboarding, platform, password-recovery, email-verification, account-safety (`AUTH`) |
-| Login | Season One, admin-suspensions, password-recovery, forum-link, account-safety (admin Discord sign-in, closed accounts) |
+| Registration | Season One, release, onboarding, platform, password-recovery, email-verification, account-safety, two-factor (`AUTH`) |
+| Login | Season One, admin-suspensions, password-recovery, forum-link, account-safety (admin second factor, closed accounts), two-factor (authenticator sign-in, recovery codes, reset) |
 | Turns | transaction, release, exploit, onboarding |
 | Scout | Season One, release, release-0.3/0.4, work-supply, street-finds, heat |
 | Produce | Season One, release-0.4, product-economy, work-supply |
@@ -112,7 +112,8 @@ Run `npm run ops:launch-check -- --game https://play.streetsempire.dev --site ht
 | Production backups verified | Last backup under 26 h old and OK; off-server copy OK | `scripts/ops/install-backup-timer.sh`, `BACKUP_OFFSITE` ([RECOVERY.md](RECOVERY.md)) |
 | Restore verified | Restore test OK within 8 days | `npm run ops:restore-test` (weekly timer) |
 | Admin accounts configured | At least one active admin; a warning below two | `npm run admin -- <username>` |
-| Admin sign-in protected | `REQUIRE_ADMIN_DISCORD` on, and every admin has Discord linked (fails if none has) | [ADMIN-RUNBOOK.md → Admin sign-in](ADMIN-RUNBOOK.md#admin-sign-in) |
+| Admin sign-in protected | `REQUIRE_ADMIN_2FA` on, and every admin has Discord or an authenticator (fails if none has) | [ADMIN-RUNBOOK.md → Admin sign-in](ADMIN-RUNBOOK.md#admin-sign-in) |
+| Two-step sign-in key | `TWO_FACTOR_KEY` set (fails if accounts are enrolled without it) | [ADMIN-RUNBOOK.md → Two-step sign-in](ADMIN-RUNBOOK.md#two-step-sign-in-for-players-rc3) |
 | Sign-up flood cap | `SIGNUP_DAILY_LIMIT_PER_IP` above 0 | `.env` |
 | Moderation process documented | [ADMIN-RUNBOOK.md → Moderation process (1.0)](ADMIN-RUNBOOK.md) | — |
 | Privacy/terms pages prepared | `/privacy` and `/terms` answer on the site. The operator reads them (**manual**) | `apps/site/src/pages/LegalPages.tsx` |
@@ -207,6 +208,55 @@ These need the real beta or production servers, so they have not been done here:
 
 1. **Deploy rc.2 to beta and test Discord for real.** Check that signing in with Discord works, that linking works for a player, and that an admin reaches the admin tools after a Discord sign-in. (It was tested here with the sessions the callback creates, since this environment cannot reach Discord.)
 2. **Link Discord on each admin account.** Do this before `REQUIRE_ADMIN_DISCORD` takes effect on production; see [ADMIN-RUNBOOK.md → Admin sign-in](ADMIN-RUNBOOK.md#admin-sign-in). Admins can still play with a password in the meantime.
-3. **Verify the sending domain in Resend** (SPF, DKIM, DMARC). Then send yourself a sign-up link.
+3. ~~**Verify the sending domain in Resend** (SPF, DKIM, DMARC).~~ Done: the owner reports Resend is set up for sending and receiving (27 September 2026). Still send yourself a sign-up link from beta once rc.3 is deployed.
 4. **Run `npm run qa:ui -- --strict` against beta.**
 5. **Run `npm run ops:launch-check` on production.**
+
+## rc.3
+
+rc.3 adds **two-step sign-in with an authenticator app**, which the owner asked for, for players and admins. Everything else is as in rc.2.
+
+### What changed
+
+- **Players.** Two-step sign-in lives in **Account settings → Two-step sign-in**.
+  - Setup: scan a QR code (or type the key) into any authenticator app, confirm one code, and save ten one-use recovery codes. They can be copied or downloaded.
+  - After that, every sign-in asks for the code: password, Discord and password-reset links alike.
+  - Recovery codes also work, one use each. The login page sends a player with 3 or fewer left to make new ones.
+- **Admins.** Admin tools accept an authenticator sign-in as their second factor, as well as Discord (`REQUIRE_ADMIN_2FA`; the rc.2 name `REQUIRE_ADMIN_DISCORD` is still read).
+  - A password-only admin session cannot add a Discord link or an authenticator. Someone who has only the password therefore cannot give themselves admin access.
+  - An admin can unlink Discord only once an authenticator replaces it.
+- **Safety.**
+  - Secrets are stored encrypted (AES-256-GCM, keyed by `TWO_FACTOR_KEY`).
+  - Recovery codes are stored only as hashes.
+  - A code is never accepted twice. Clocks may drift one step (30 seconds) either way.
+  - Five wrong codes end a sign-in attempt.
+  - Every change emails the player.
+- **Lost phones.** Staff use **Accounts → Turn off two-step sign-in** (audited, and the player is emailed). The console has `npm run admin -- <name> --reset-2fa` for when no other admin is available.
+- **Launch check.** It gains **Two-step sign-in key**, and **Admin sign-in protected** now counts Discord or an authenticator.
+- **Privacy page.** It says what two-step sign-in stores.
+
+Migration: `20260928010000_two_factor` (account two-step fields, recovery codes, sign-in challenges, and the session's two-step mark). No new data is required from anyone. The feature is off for every account until its owner turns it on.
+
+### Results for rc.3
+
+`npm run release:rc` on the rc.3 commit, 27 September 2026: **all gates passed.**
+
+| Gate | Result |
+| --- | --- |
+| Typecheck | pass |
+| Unit tests | 128 files, 1,091 tests pass, including the RFC 6238 reference codes |
+| Production build | pass |
+| Balance | all within their bands |
+| Full PostgreSQL regression | 170 files, 1,360 tests pass, including the new two-factor suite: setup, sign-in, replay, recovery codes, guess limit, reset link, turning it off, admin tools and staff reset |
+| Bot, forum link and push | 3 files, 22 tests pass |
+| Season One | 9 of 9 steps pass |
+| Backup and restore test | restored 75 tables and 849 rows, and every count matches |
+| Load test (300 players) | every scenario passes with zero errors; login spike p95 1.07 s |
+| Browser check | setup with the QR code, the recovery codes, and signing in with a code all work at phone width, with no page errors |
+
+### Before rc.3 goes to production
+
+1. **Set `TWO_FACTOR_KEY`** in production's `.env`, and a different one in beta's, before anyone turns two-step on (`openssl rand -base64 48`). Never change it afterwards.
+2. On beta, **set up an authenticator on a real phone**. Sign out and back in with a code, then try a recovery code.
+3. **Give every admin a second factor**: Discord or an authenticator ([ADMIN-RUNBOOK.md → Admin sign-in](ADMIN-RUNBOOK.md#admin-sign-in)).
+4. The rc.2 items still stand: test Discord on beta, `qa:ui` on beta, and `ops:launch-check` on production.

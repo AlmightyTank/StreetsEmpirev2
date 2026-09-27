@@ -15,6 +15,7 @@ import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { CloseAccountPanel } from '../components/CloseAccountPanel.js';
+import { TwoFactorPanel } from '../components/TwoFactorPanel.js';
 import { ConnectedAccountsPanel } from '../components/ConnectedAccountsPanel.js';
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
 import { Panel, Row } from '../components/Panel.js';
@@ -411,6 +412,8 @@ export function AccountSettingsPage() {
           </Panel>
         </div>
       </div>
+
+      <TwoFactorPanel focusCodes={searchParams.get('twoFactor') === 'codes'} />
 
       <Panel title="Login sessions">
         <div className="se-session-head">

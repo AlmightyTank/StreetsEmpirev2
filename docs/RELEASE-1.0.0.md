@@ -53,6 +53,7 @@ StreetsEmpire is a free browser game about running a crew in a city that does no
   - Confirm your email (or sign in with Discord) and accept the rules once, and you are in.
   - Found a bug? **Report a bug** is in the menu and goes straight to staff.
   - You can close your account yourself from Account settings.
+  - Turn on two-step sign-in with any authenticator app, so a stolen password is not enough.
 
 ## The rules, briefly
 

@@ -9,6 +9,9 @@ import type {
   LoginInput,
   RegisterInput,
   ResetPasswordInput,
+  TwoFactorRequiredDto,
+  TwoFactorSetupDto,
+  TwoFactorStatusDto,
   UpdateAccountProfileSettingsInput,
   VerifyEmailTokenInput,
 } from '@streets/shared';
@@ -33,13 +36,22 @@ export const authApi = {
   register: (input: RegisterInput) =>
     api.post<AccountResponse>('/auth/register', input),
 
-  login: (input: LoginInput) => api.post<AccountResponse>('/auth/login', input),
+  /** rc.3: with two-step sign-in on, the answer asks for a code instead of signing in. */
+  login: (input: LoginInput) => api.post<AccountResponse | TwoFactorRequiredDto>('/auth/login', input),
+
+  /** rc.3. The authenticator (or recovery) code for a sign-in that is waiting for one. */
+  verifyTwoFactor: (code: string) => api.post<AccountResponse & { recoveryCodesLeft?: number }>('/auth/2fa/verify', { code }),
+  twoFactorStatus: () => api.get<TwoFactorStatusDto>('/auth/2fa'),
+  setupTwoFactor: (currentPassword?: string) => api.post<TwoFactorSetupDto>('/auth/2fa/setup', currentPassword ? { currentPassword } : {}),
+  enableTwoFactor: (code: string) => api.post<{ recoveryCodes: string[]; account: AccountDto }>('/auth/2fa/enable', { code }),
+  disableTwoFactor: (code: string) => api.post<MessageResponse & { account: AccountDto }>('/auth/2fa/disable', { code }),
+  regenerateRecoveryCodes: (code: string) => api.post<{ recoveryCodes: string[] }>('/auth/2fa/recovery-codes', { code }),
 
   forgotPassword: (input: ForgotPasswordInput) =>
     api.post<MessageResponse>('/auth/password/forgot', input),
 
   resetPassword: (input: ResetPasswordInput) =>
-    api.post<AccountResponse>('/auth/password/reset', input),
+    api.post<AccountResponse | TwoFactorRequiredDto>('/auth/password/reset', input),
 
   changePassword: (input: ChangePasswordInput) =>
     api.post<MessageResponse>('/auth/password/change', input),

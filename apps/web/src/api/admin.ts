@@ -142,6 +142,7 @@ export const adminApi = {
   setBetaApproved: (accountId: string, approved: boolean, reason: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'beta-access'), { approved, reason }),
   resendVerification: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'email/resend'), { reason }),
+  resetTwoFactor: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, '2fa/reset'), { reason }),
   markEmailVerified: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'email/verify'), { reason }),
   unlinkForum: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'forum/unlink'), { reason }),
   deleteAccount: (accountId: string, reason: string, confirmation: string) =>

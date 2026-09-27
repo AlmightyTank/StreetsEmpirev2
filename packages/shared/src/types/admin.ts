@@ -105,6 +105,7 @@ export type AdminAccountAction =
   | 'revoke-beta'
   | 'resend-verification'
   | 'mark-email-verified'
+  | 'reset-2fa'
   | 'unlink-forum'
   | 'resync-discord'
   | 'delete-account'
@@ -124,6 +125,8 @@ export interface AdminAccountSummaryDto {
   username: string;
   email: string;
   emailVerified: boolean;
+  /** rc.3. Signs in with an authenticator code. */
+  twoFactorEnabled: boolean;
   isActive: boolean;
   isAdmin: boolean;
   betaApproved: boolean;

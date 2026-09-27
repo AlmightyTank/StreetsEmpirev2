@@ -23,7 +23,8 @@ import { env } from '../config/env.js';
 import { lockAccount, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, toAuditEntryDto, type AuditActor } from './admin-audit.service.js';
-import { sendCurrentEmailVerification } from './email.service.js';
+import { sendCurrentEmailVerification, sendTwoFactorNotice } from './email.service.js';
+import { TwoFactorService } from './two-factor.service.js';
 
 /**
  * A coarse label such as "Chrome on Windows". Admins never see the IP address
@@ -129,6 +130,7 @@ function toSummary(account: SummaryAccount, activeSessions: number, now = new Da
     username: account.username,
     email: account.email,
     emailVerified: Boolean(account.emailVerifiedAt),
+    twoFactorEnabled: Boolean(account.twoFactorEnabledAt),
     isActive: account.isActive,
     isAdmin: account.isAdmin,
     betaApproved: account.betaApproved,
@@ -728,6 +730,27 @@ export const AdminAccountService = {
       const account = await tx.account.update({ where: { id: before.id }, data: { emailVerifiedAt: new Date() } });
       return { account };
     });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  /**
+   * rc.3. Turns off two-step sign-in for a player who lost their phone and their recovery
+   * codes. Only after staff are sure it is them; the player is emailed either way.
+   */
+  async resetTwoFactor(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string, log: FastifyBaseLogger): Promise<AdminAccountDetailDto> {
+    let notify: { to: string; username: string } | null = null;
+    await moderate(prisma, actor, accountId, 'reset-2fa', reason, async (tx, before) => {
+      if (!before.twoFactorEnabledAt && !before.twoFactorPendingSecret) {
+        throw AppError.conflict('TWO_FACTOR_DISABLED', `${before.username} does not have two-step sign-in on.`);
+      }
+      await TwoFactorService.clear(tx, before.id);
+      notify = { to: before.email, username: before.username };
+      return { account: await tx.account.findUniqueOrThrow({ where: { id: before.id } }) };
+    });
+    if (notify) {
+      await sendTwoFactorNotice({ ...(notify as { to: string; username: string }), change: 'reset' }, log)
+        .catch((error: unknown) => log.warn({ err: error }, 'two-factor notice failed'));
+    }
     return AdminAccountService.detail(prisma, accountId);
   },
 

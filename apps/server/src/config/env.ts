@@ -93,10 +93,18 @@ const envSchema = z.object({
   /** Players accept the game rules before they play. Same defaults as REQUIRE_VERIFIED_EMAIL. */
   REQUIRE_RULES_ACCEPTANCE: z.enum(['true', 'false']).optional(),
   /**
-   * rc.2. Admin tools only answer a session that signed in with Discord, so an admin
-   * account is covered by Discord's two-factor sign-in. Same defaults as above.
+   * rc.3. Admin tools only answer a session with a second factor: signed in with Discord
+   * (Discord's own two-factor sign-in) or with an authenticator code. Same defaults as above.
    */
+  REQUIRE_ADMIN_2FA: z.enum(['true', 'false']).optional(),
+  /** rc.2 name for REQUIRE_ADMIN_2FA, still read when that is unset. */
   REQUIRE_ADMIN_DISCORD: z.enum(['true', 'false']).optional(),
+  /**
+   * rc.3. Key that encrypts authenticator secrets in the database. Set it on production and
+   * never change it: changing it breaks every enrolled authenticator. Unset, a key derived
+   * from SESSION_SECRET is used (fine for development).
+   */
+  TWO_FACTOR_KEY: z.string().min(32).optional(),
   /** rc.2. New accounts one address may create per 24 hours (0 turns the cap off). */
   SIGNUP_DAILY_LIMIT_PER_IP: z.coerce.number().int().min(0).optional(),
   TRUST_PROXY: z.enum(['true', 'false']).optional(),
@@ -161,8 +169,8 @@ export const env = {
     requireRulesAcceptance: parsed.data.REQUIRE_RULES_ACCEPTANCE
       ? parsed.data.REQUIRE_RULES_ACCEPTANCE === 'true'
       : appEnvironment === 'production' || appEnvironment === 'beta',
-    requireAdminDiscord: parsed.data.REQUIRE_ADMIN_DISCORD
-      ? parsed.data.REQUIRE_ADMIN_DISCORD === 'true'
+    requireAdminSecondFactor: (parsed.data.REQUIRE_ADMIN_2FA ?? parsed.data.REQUIRE_ADMIN_DISCORD)
+      ? (parsed.data.REQUIRE_ADMIN_2FA ?? parsed.data.REQUIRE_ADMIN_DISCORD) === 'true'
       : appEnvironment === 'production' || appEnvironment === 'beta',
     // Default 5 in production and beta; off elsewhere, where tests sign up many accounts from one address.
     signupDailyLimitPerIp: parsed.data.SIGNUP_DAILY_LIMIT_PER_IP

@@ -61,6 +61,7 @@ export function PrivacyPage() {
             <ul>
               <li><strong>Discord</strong>: if you link or sign in with Discord, your Discord id, name and avatar.</li>
               <li><strong>The forum</strong>: if you link your forum account, which forum account it is.</li>
+              <li><strong>Two-step sign-in</strong>: if you turn it on, your authenticator app's secret key (stored encrypted) and your recovery codes (stored only as one-way hashes).</li>
               <li><strong>Bug reports</strong>: what you write, the page you were on, your browser and the game version. Staff read them to fix the game.</li>
               <li><strong>Phone and browser alerts</strong>: if you turn them on, your browser's push address for this site, which your browser maker's push service delivers through.</li>
             </ul>
@@ -87,7 +88,7 @@ export function PrivacyPage() {
         {
           heading: 'Your choices',
           body: (
-            <p>You can change your email and password, unlink Discord and the forum, end sessions and turn alerts off in your account settings. You can close your account yourself at the bottom of your account settings; a closed account can no longer sign in, and your finished seasons stay in the public history under your name. To have it reopened, or to ask for anything else about your data, ask staff on {CONTACT}.</p>
+            <p>You can change your email and password, turn two-step sign-in on or off, unlink Discord and the forum, end sessions and turn alerts off in your account settings. You can close your account yourself at the bottom of your account settings; a closed account can no longer sign in, and your finished seasons stay in the public history under your name. To have it reopened, or to ask for anything else about your data, ask staff on {CONTACT}.</p>
           ),
         },
       ]}

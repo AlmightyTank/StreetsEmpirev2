@@ -1,10 +1,10 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Account, PrismaClient, Session } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { RULES_VERSION, changeEmailSchema, closeAccountSchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
+import { RULES_VERSION, changeEmailSchema, closeAccountSchema, twoFactorCodeBodySchema, twoFactorSetupSchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
 import { z } from 'zod';
 import { assertBetaAccess, assertCanSignIn, clearExpiredSuspension } from '../auth/account-status.js';
-import { adminNeedsDiscordSession } from '../auth/play-access.js';
+import { adminNeedsSecondFactor } from '../auth/play-access.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { createAccountEmailToken, emailVerificationUrl } from '../auth/email-tokens.js';
 import { createSession, destroySession } from '../auth/sessions.js';
@@ -12,10 +12,11 @@ import { env } from '../config/env.js';
 import { toAccountDto } from '../game/dto.js';
 import { AccountProfileService } from '../services/account-profile.service.js';
 import { AccountClosureService } from '../services/support.service.js';
+import { TwoFactorService } from '../services/two-factor.service.js';
 import { matchKey } from '../services/admin-signals.service.js';
 import { ExploitFlagService } from '../services/exploit-flag.service.js';
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
-import { sendCurrentEmailVerification, sendEmailChangeVerification, sendPasswordResetEmail } from '../services/email.service.js';
+import { sendCurrentEmailVerification, sendEmailChangeVerification, sendPasswordResetEmail, sendTwoFactorNotice } from '../services/email.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 
@@ -32,6 +33,8 @@ async function getDecoyHash(): Promise<string> {
 
 const DISCORD_STATE_COOKIE = 'se_discord_oauth_state';
 const DISCORD_LINK_COOKIE = 'se_discord_oauth_link';
+/** rc.3. A sign-in waiting for its authenticator code. */
+const TWO_FACTOR_COOKIE = 'se_2fa_challenge';
 const DISCORD_AUTHORIZE_URL = 'https://discord.com/oauth2/authorize';
 const DISCORD_TOKEN_URL = 'https://discord.com/api/oauth2/token';
 const DISCORD_ME_URL = 'https://discord.com/api/users/@me';
@@ -88,6 +91,13 @@ function postLoginRedirect(): string {
   return new URL('/join', env.frontendOrigin).toString();
 }
 
+/** rc.3. Where the Discord callback sends a sign-in that still needs its authenticator code. */
+function twoFactorRedirect(): string {
+  const url = new URL('/login', env.frontendOrigin);
+  url.searchParams.set('twoFactor', '1');
+  return url.toString();
+}
+
 function passwordResetUrl(token: string): string {
   const url = new URL('/reset-password', env.frontendOrigin);
   url.searchParams.set('token', token);
@@ -140,6 +150,28 @@ function setDiscordLinkCookie(reply: FastifyReply): void {
 
 function clearDiscordLinkCookie(reply: FastifyReply): void {
   reply.clearCookie(DISCORD_LINK_COOKIE, { path: '/api/auth' });
+}
+
+function setTwoFactorCookie(reply: FastifyReply, token: string): void {
+  reply.setCookie(TWO_FACTOR_COOKIE, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: env.isProduction,
+    signed: true,
+    path: '/api/auth',
+    maxAge: 10 * 60,
+  });
+}
+
+function clearTwoFactorCookie(reply: FastifyReply): void {
+  reply.clearCookie(TWO_FACTOR_COOKIE, { path: '/api/auth' });
+}
+
+function readTwoFactorCookie(request: FastifyRequest): string | null {
+  const raw = request.cookies[TWO_FACTOR_COOKIE];
+  if (!raw) return null;
+  const unsigned = request.unsignCookie(raw);
+  return unsigned.valid && unsigned.value ? unsigned.value : null;
 }
 
 function readDiscordLinkCookie(request: FastifyRequest): boolean {
@@ -203,6 +235,7 @@ function toSessionDto(session: Session, currentSessionId: string): AccountSessio
     userAgent: session.userAgent,
     ip: session.ip,
     method: session.method,
+    twoFactor: session.twoFactor,
   };
 }
 
@@ -510,6 +543,12 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     assertCanSignIn(account);
     assertBetaAccess(account, env.betaAccess.inviteOnly);
 
+    // rc.3: the password was right; with two-step on, the session waits for the code.
+    if (account.twoFactorEnabledAt) {
+      setTwoFactorCookie(reply, await TwoFactorService.beginChallenge(fastify.prisma, account.id, 'PASSWORD'));
+      return { twoFactorRequired: true };
+    }
+
     const updated = await fastify.prisma.account.update({
       where: { id: account.id },
       data: { lastLoginAt: new Date() },
@@ -581,8 +620,8 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         // Discord and so reach the admin tools. An admin signs in with Discord instead (a
         // Discord account on the same verified email links itself), or the operator
         // removes the role, the player links, and the role goes back.
-        if (adminNeedsDiscordSession(request.auth.account, request.auth.session.method)) {
-          return reply.redirect(accountRedirect('Admins cannot link Discord from a password sign-in. Log out and use "Sign in with Discord" with a Discord account on this email.'));
+        if (adminNeedsSecondFactor(request.auth.account, request.auth.session)) {
+          return reply.redirect(accountRedirect('Admins cannot link Discord from a password-only sign-in. Sign in with your authenticator code, or use "Sign in with Discord" with a Discord account on this email.'));
         }
         await linkDiscordToAccount(fastify.prisma, request.auth.account, discordUser);
         return reply.redirect(accountRedirect('Discord is linked.'));
@@ -590,6 +629,11 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
       const account = await accountForDiscordUser(fastify.prisma, discordUser);
       assertBetaAccess(account, env.betaAccess.inviteOnly);
+      // rc.3: two-step sign-in applies to Discord sign-ins too.
+      if (account.twoFactorEnabledAt) {
+        setTwoFactorCookie(reply, await TwoFactorService.beginChallenge(fastify.prisma, account.id, 'DISCORD'));
+        return reply.redirect(twoFactorRedirect());
+      }
       const { token } = await createSession(fastify.prisma, account.id, {
         userAgent: request.headers['user-agent'],
         ip: request.ip,
@@ -620,8 +664,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         account: toAccountDto(account, request.auth!.session),
       };
     }
-    if (adminNeedsDiscordSession(account, 'PASSWORD')) {
-      throw AppError.conflict('ADMIN_DISCORD_LOCKED', 'An admin account keeps its Discord link. The server operator removes the admin role first (npm run admin -- <name> --off).');
+    // An admin keeps a second factor: Discord goes only when an authenticator replaces it,
+    // and only from a session that already passed a second factor.
+    if (env.accounts.requireAdminSecondFactor && account.isAdmin && (!account.twoFactorEnabledAt || !request.auth!.session.twoFactor)) {
+      throw AppError.conflict('ADMIN_DISCORD_LOCKED', 'An admin keeps Discord linked until an authenticator is set up. Turn on two-step sign-in first, then sign in with its code to unlink.');
     }
 
     const ok = await verifyPassword(account.passwordHash, body.currentPassword);
@@ -763,6 +809,11 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     });
 
     assertBetaAccess(account, env.betaAccess.inviteOnly);
+    // rc.3: a recovery link proves the inbox, not the authenticator: the code is still asked for.
+    if (account.twoFactorEnabledAt) {
+      setTwoFactorCookie(reply, await TwoFactorService.beginChallenge(fastify.prisma, account.id, 'PASSWORD'));
+      return { twoFactorRequired: true };
+    }
     const { token } = await createSession(fastify.prisma, account.id, {
       userAgent: request.headers['user-agent'],
       ip: request.ip,
@@ -770,6 +821,82 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.setSessionCookie(reply, token);
 
     return { account: toAccountDto(account) };
+  });
+
+  /* ---------- rc.3: two-step sign-in ---------- */
+
+  /** The code for a sign-in that is waiting for one (after the password, Discord or a recovery link). */
+  fastify.post('/2fa/verify', async (request, reply) => {
+    const body = parseBody(twoFactorCodeBodySchema, request.body ?? {});
+    const token = readTwoFactorCookie(request);
+    if (!token) throw AppError.unauthenticated('Your sign-in timed out. Sign in again.');
+    const { account, method, usedRecoveryCode } = await TwoFactorService.completeChallenge(fastify.prisma, token, body.code);
+    clearTwoFactorCookie(reply);
+    await clearExpiredSuspension(fastify.prisma, account);
+    assertCanSignIn(account);
+    assertBetaAccess(account, env.betaAccess.inviteOnly);
+    const updated = await fastify.prisma.account.update({ where: { id: account.id }, data: { lastLoginAt: new Date() } });
+    const { token: sessionToken, session } = await createSession(fastify.prisma, account.id, {
+      userAgent: request.headers['user-agent'],
+      ip: request.ip,
+      method,
+      twoFactor: true,
+    });
+    fastify.setSessionCookie(reply, sessionToken);
+    if (usedRecoveryCode) {
+      const left = await fastify.prisma.twoFactorRecoveryCode.count({ where: { accountId: account.id, usedAt: null } });
+      return { account: toAccountDto(updated, session), recoveryCodesLeft: left };
+    }
+    return { account: toAccountDto(updated, session) };
+  });
+
+  fastify.get('/2fa', { preHandler: fastify.requireAuth }, async (request) => {
+    return TwoFactorService.status(fastify.prisma, request.auth!.account);
+  });
+
+  fastify.post('/2fa/setup', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(twoFactorSetupSchema, request.body ?? {});
+    const { account, session } = request.auth!;
+    // Someone with only an admin's password must not enrol their own authenticator.
+    if (adminNeedsSecondFactor(account, session)) {
+      throw AppError.conflict('ADMIN_2FA_LOCKED', 'An admin sets up an authenticator from a Discord sign-in. Log out and sign in with Discord first, or ask the server operator.');
+    }
+    // A Discord sign-in is its own proof; a Discord-made account never chose a password.
+    if (session.method !== 'DISCORD' || body.currentPassword) {
+      if (!body.currentPassword || !(await verifyPassword(account.passwordHash, body.currentPassword))) {
+        throw AppError.badRequest('CURRENT_PASSWORD_INVALID', 'That password does not match.', { currentPassword: 'Enter your password.' });
+      }
+    }
+    return TwoFactorService.setup(fastify.prisma, account);
+  });
+
+  fastify.post('/2fa/enable', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(twoFactorCodeBodySchema, request.body ?? {});
+    const { account, session } = request.auth!;
+    const recoveryCodes = await TwoFactorService.enable(fastify.prisma, account, session.id, body.code);
+    await sendTwoFactorNotice({ to: account.email, username: account.username, change: 'enabled' }, request.log)
+      .catch((error: unknown) => request.log.warn({ err: error }, 'two-factor notice failed'));
+    const updated = await fastify.prisma.account.findUniqueOrThrow({ where: { id: account.id } });
+    return { recoveryCodes, account: toAccountDto(updated, { ...session, twoFactor: true }) };
+  });
+
+  fastify.post('/2fa/disable', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(twoFactorCodeBodySchema, request.body ?? {});
+    const { account, session } = request.auth!;
+    await TwoFactorService.disable(fastify.prisma, account, body.code);
+    await sendTwoFactorNotice({ to: account.email, username: account.username, change: 'disabled' }, request.log)
+      .catch((error: unknown) => request.log.warn({ err: error }, 'two-factor notice failed'));
+    const updated = await fastify.prisma.account.findUniqueOrThrow({ where: { id: account.id } });
+    return { ok: true, message: 'Two-step sign-in is off.', account: toAccountDto(updated, { ...session, twoFactor: false }) };
+  });
+
+  fastify.post('/2fa/recovery-codes', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(twoFactorCodeBodySchema, request.body ?? {});
+    const { account } = request.auth!;
+    const recoveryCodes = await TwoFactorService.regenerateRecoveryCodes(fastify.prisma, account, body.code);
+    await sendTwoFactorNotice({ to: account.email, username: account.username, change: 'codes' }, request.log)
+      .catch((error: unknown) => request.log.warn({ err: error }, 'two-factor notice failed'));
+    return { recoveryCodes };
   });
 
   /** rc.2. The player closes their own account: signed out everywhere, kept in the season history. */

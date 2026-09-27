@@ -27,16 +27,24 @@ export function needsRulesAcceptance(
 /** rc.2. How a session signed in. */
 export type SessionMethod = 'PASSWORD' | 'DISCORD';
 
+/** rc.3. What a session proved when it signed in. */
+export type SessionStrength = { method: string; twoFactor: boolean };
+
+/** A second factor: Discord's own sign-in, or an authenticator (or recovery) code. */
+export function sessionHasSecondFactor(session: SessionStrength | null | undefined): boolean {
+  return Boolean(session && (session.method === 'DISCORD' || session.twoFactor));
+}
+
 /**
- * rc.2. An admin whose session did not sign in with Discord cannot use admin tools
- * while REQUIRE_ADMIN_DISCORD is on: a stolen password alone must not open the panel.
+ * rc.2/rc.3. While REQUIRE_ADMIN_2FA is on, admin tools need a session with a second
+ * factor: a stolen password alone must not open the panel.
  */
-export function adminNeedsDiscordSession(
+export function adminNeedsSecondFactor(
   account: Pick<Account, 'isAdmin'>,
-  method: string | null | undefined,
-  required = env.accounts.requireAdminDiscord,
+  session: SessionStrength | null | undefined,
+  required = env.accounts.requireAdminSecondFactor,
 ): boolean {
-  return required && account.isAdmin && method !== 'DISCORD';
+  return required && account.isAdmin && !sessionHasSecondFactor(session);
 }
 
 export function isPlayPath(path: string): boolean {

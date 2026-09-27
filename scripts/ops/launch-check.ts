@@ -109,16 +109,22 @@ async function main(): Promise<void> {
   // Database: admins and release notes.
   const prisma = new PrismaClient({ datasourceUrl: env.get('DATABASE_URL') });
   try {
-    const admins = await prisma.account.findMany({ where: { isAdmin: true, isActive: true }, select: { username: true, discordId: true } });
+    const admins = await prisma.account.findMany({ where: { isAdmin: true, isActive: true }, select: { username: true, discordId: true, twoFactorEnabledAt: true } });
     report('Admin accounts configured', admins.length === 0 ? 'FAIL' : admins.length === 1 ? 'WARN' : 'PASS',
       admins.length ? `${admins.map((a) => a.username).join(', ')}${admins.length === 1 ? ' (one admin: add a second so the game is never without one).' : '.'}` : 'No admin. npm run admin -- <username>.');
-    // rc.2: admin tools answer only a Discord sign-in, so every admin needs Discord linked.
-    const adminDiscord = (env.get('REQUIRE_ADMIN_DISCORD') ?? (environment === 'production' || environment === 'beta' ? 'true' : 'false')) === 'true';
-    const noDiscord = admins.filter((a) => !a.discordId).map((a) => a.username);
-    report('Admin sign-in protected', !adminDiscord ? 'WARN' : noDiscord.length === admins.length && admins.length ? 'FAIL' : noDiscord.length ? 'WARN' : 'PASS',
-      !adminDiscord ? 'REQUIRE_ADMIN_DISCORD=false: an admin password alone opens the admin tools.'
-        : noDiscord.length ? `No Discord linked for ${noDiscord.join(', ')}: they cannot use admin tools until they sign in with Discord (docs/ADMIN-RUNBOOK.md#admin-sign-in).`
-          : 'Admin tools need a Discord sign-in, and every admin has Discord linked. Make sure each has Discord two-factor on.');
+    // rc.2/rc.3: admin tools answer only a session with a second factor (Discord or an authenticator).
+    const adminSecondFactor = (env.get('REQUIRE_ADMIN_2FA') ?? env.get('REQUIRE_ADMIN_DISCORD') ?? (environment === 'production' || environment === 'beta' ? 'true' : 'false')) === 'true';
+    const unprotected = admins.filter((a) => !a.discordId && !a.twoFactorEnabledAt).map((a) => a.username);
+    report('Admin sign-in protected', !adminSecondFactor ? 'WARN' : unprotected.length === admins.length && admins.length ? 'FAIL' : unprotected.length ? 'WARN' : 'PASS',
+      !adminSecondFactor ? 'REQUIRE_ADMIN_2FA=false: an admin password alone opens the admin tools.'
+        : unprotected.length ? `No Discord or authenticator for ${unprotected.join(', ')}: they cannot use admin tools until they have one (docs/ADMIN-RUNBOOK.md#admin-sign-in).`
+          : 'Admin tools need a second factor, and every admin has Discord or an authenticator. Discord-only admins should turn on Discord two-factor.');
+    // rc.3: authenticator secrets need a key of their own, one that never rotates with SESSION_SECRET.
+    const enrolled = await prisma.account.count({ where: { twoFactorEnabledAt: { not: null } } });
+    report('Two-step sign-in key', env.get('TWO_FACTOR_KEY') ? 'PASS' : enrolled ? 'FAIL' : 'WARN',
+      env.get('TWO_FACTOR_KEY') ? 'TWO_FACTOR_KEY is set. Never change it: every enrolled authenticator depends on it.'
+        : enrolled ? `TWO_FACTOR_KEY is not set and ${enrolled} account(s) use an authenticator: their secrets are keyed from SESSION_SECRET, so rotating that would lock them out. See docs/ADMIN-RUNBOOK.md#admin-sign-in.`
+          : 'Set TWO_FACTOR_KEY (openssl rand -base64 48) before anyone turns on two-step sign-in, so rotating SESSION_SECRET never breaks it.');
     if (verifyRequired) {
       const unverified = await prisma.account.count({ where: { isActive: true, isAdmin: false, emailVerifiedAt: null, discordId: null, verificationGrandfatheredAt: null } });
       report('Accounts waiting to verify', unverified ? 'WARN' : 'PASS', unverified

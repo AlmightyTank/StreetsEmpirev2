@@ -25,17 +25,44 @@ cannot be removed from the panel — the console command is the way back.
 
 ### Admin sign-in
 
-From rc.2, admin tools only open for a session that **signed in with Discord**. Signing in with a password still works for playing, but the admin pages show "Admin tools need a Discord sign-in". This means a leaked admin password alone cannot reach the panel. Turn on two-factor authentication in Discord for every admin account.
+Admin tools only open for a sign-in with a **second factor**:
 
-- **Linking Discord to an admin.** The simplest way: log out and choose **Sign in with Discord** using a Discord account whose verified email is the same as the game account's. It links itself. An admin cannot link Discord from a password sign-in, since that would let someone who has only the password attach their own Discord.
-- **If the Discord email is different:**
-  1. run `npm run admin -- <name> --off`;
-  2. the player links Discord in Account settings;
-  3. run `npm run admin -- <name>` again.
-- **Unlinking.** An admin cannot unlink Discord in the app. Remove the role first.
-- **Checking.** `npm run admin -- --list` shows which admins have Discord linked. `npm run ops:launch-check` fails if no admin has it and warns for each admin without it.
-- **Setting.** `REQUIRE_ADMIN_DISCORD` is on by default in production and beta, and off in development and test.
-- **Lost Discord access.** If an admin loses their Discord account, the console command is still the way back. Remove and re-grant the role, and have them link their new Discord in between.
+- **Sign in with Discord.** Discord's own sign-in covers this, so turn on two-factor in Discord.
+- **An authenticator code (rc.3).** The admin sets up an authenticator app in **Account settings → Two-step sign-in**, then signs in with a password and the app's code.
+
+Signing in with only a password still works for playing, but the admin pages show "Admin tools need a second factor". This means a leaked admin password alone cannot reach the panel.
+
+- **Adding a second factor to an admin.** A password-only admin session cannot add one. Otherwise someone with only the password could attach their own Discord or authenticator.
+  - Easiest: log out and choose **Sign in with Discord**, using a Discord account whose verified email matches the game account. It links itself. From that Discord sign-in, the admin can also set up an authenticator.
+  - Otherwise:
+    1. run `npm run admin -- <name> --off`;
+    2. the player links Discord or sets up an authenticator in Account settings;
+    3. run `npm run admin -- <name>` again.
+- **Unlinking Discord.** An admin can unlink Discord only when an authenticator is set up, and only from a sign-in that used its code.
+- **Lost phone (admin).** Another admin uses **Accounts → the account → Turn off two-step sign-in**. If there is no other admin, run `npm run admin -- <name> --reset-2fa --reason "why"` on the server. The admin then signs in with Discord or sets the authenticator up again.
+- **Checking.**
+  - `npm run admin -- --list` shows each admin's Discord and authenticator.
+  - `npm run ops:launch-check` fails if no admin has a second factor, and warns for each admin without one.
+- **Setting.** `REQUIRE_ADMIN_2FA` controls this. It is on by default in production and beta, and off in development and test. The rc.2 name, `REQUIRE_ADMIN_DISCORD`, is still read when `REQUIRE_ADMIN_2FA` is unset.
+
+### Two-step sign-in for players (rc.3)
+
+Any player can turn on two-step sign-in in **Account settings → Two-step sign-in**:
+
+1. The player scans a QR code with an authenticator app (Google Authenticator, Authy, 1Password, Microsoft Authenticator...).
+2. They confirm one code.
+3. They save ten one-use recovery codes.
+
+From then on, every sign-in asks for a code: password, Discord and password-reset links alike.
+
+- **Emails.** The player is emailed whenever two-step is turned on or off, reset, or given new recovery codes.
+- **Guessing.** Five wrong codes end a sign-in attempt. A code can never be used twice.
+- **Lost phone and codes.** Once you are sure it is them (for example, the Discord account they play with, or the email on the account), use **Accounts → the account → Turn off two-step sign-in** with a reason. The reset is audited and the player is emailed. They can then sign in with their password and set it up again.
+- **`TWO_FACTOR_KEY` (set it before launch).** Authenticator secrets are stored encrypted with `TWO_FACTOR_KEY`.
+  - Generate it once with `openssl rand -base64 48`, and put it in production's `.env` before anyone enrols. Beta needs its own key.
+  - **Never change it.** A new key makes every enrolled authenticator stop working, and each player would need a reset.
+  - Without it, the key is derived from `SESSION_SECRET`, so rotating that would break authenticators.
+  - `ops:launch-check` fails if accounts are enrolled and no key is set.
 
 ---
 

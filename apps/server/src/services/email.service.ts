@@ -124,3 +124,29 @@ export async function sendEmailChangeVerification(
     html,
   }, log);
 }
+
+/** rc.3. A heads-up whenever two-step sign-in changes, so a hijack does not go unnoticed. */
+export async function sendTwoFactorNotice(
+  input: { to: string; username: string; change: 'enabled' | 'disabled' | 'reset' | 'codes' },
+  log: FastifyBaseLogger,
+): Promise<void> {
+  const what = {
+    enabled: 'Two-step sign-in with an authenticator app was turned on',
+    disabled: 'Two-step sign-in was turned off',
+    reset: 'Staff turned off two-step sign-in, as you asked',
+    codes: 'New recovery codes were made; the old ones no longer work',
+  }[input.change];
+  const text = [
+    `StreetsEmpire account ${input.username}`,
+    '',
+    `${what}.`,
+    '',
+    'If this was not you, change your password now and tell staff on Discord.',
+  ].join('\n');
+  const html = `
+    <p>StreetsEmpire account <strong>${escapeHtml(input.username)}</strong></p>
+    <p>${escapeHtml(what)}.</p>
+    <p>If this was not you, change your password now and tell staff on Discord.</p>
+  `;
+  await sendMail({ to: input.to, subject: 'StreetsEmpire sign-in security changed', text, html }, log);
+}

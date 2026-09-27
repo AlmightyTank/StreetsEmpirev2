@@ -30,6 +30,7 @@ const actionText: Record<AdminAccountAction, { label: string; copy: string }> = 
   'revoke-beta': { label: 'Revoke beta', copy: 'Removes this account from the invite-only beta. Existing sessions stop working on their next request.' },
   'resend-verification': { label: 'Resend verification email', copy: 'Sends a fresh verification link to their current email address.' },
   'mark-email-verified': { label: 'Mark email verified', copy: 'Marks their current email as verified without a link. Only do this once you have confirmed they own it.' },
+  'reset-2fa': { label: 'Turn off two-step sign-in', copy: 'For a player who lost their phone and their recovery codes. Only once you are sure it is them. They are emailed, and can set it up again.' },
   'unlink-forum': { label: 'Unlink forum', copy: 'Removes the connection to their forum account on both sides. They can link again from their account settings.' },
   'resync-discord': { label: 'Resync Discord roles', copy: 'Asks the Discord bot to re-check their roles on its next pass, about a minute.' },
   'comms-mute': { label: 'Mute messaging', copy: 'Stops private messages, Alliance Wire posts and forum recruitment threads. They keep playing and see a notice in the Console. Timed mutes lift themselves.' },
@@ -126,6 +127,7 @@ export function AdminAccountPage() {
         case 'revoke-beta': updated = await adminApi.setBetaApproved(accountId, false, why); break;
         case 'resend-verification': updated = await adminApi.resendVerification(accountId, why); break;
         case 'mark-email-verified': updated = await adminApi.markEmailVerified(accountId, why); break;
+        case 'reset-2fa': updated = await adminApi.resetTwoFactor(accountId, why); break;
         case 'unlink-forum': updated = await adminApi.unlinkForum(accountId, why); break;
         case 'resync-discord':
           await adminApi.requestDiscordResync({ accountId, reason: why });
@@ -172,6 +174,7 @@ export function AdminAccountPage() {
   const linkActions: AdminAccountAction[] = [
     ...(!email.verifiedAt && email.sendingEnabled ? ['resend-verification' as const] : []),
     ...(!email.verifiedAt ? ['mark-email-verified' as const] : []),
+    ...(account.twoFactorEnabled && !isSelf ? ['reset-2fa' as const] : []),
     ...(forumLink ? ['unlink-forum' as const] : []),
     ...(discord.linked && discord.botApiEnabled ? ['resync-discord' as const] : []),
   ];
@@ -319,6 +322,7 @@ export function AdminAccountPage() {
                 : 'None'}
             />
             <Row label="Email verified" value={email.verifiedAt ? adminWhen(email.verifiedAt) : 'No'} />
+            <Row label="Two-step sign-in" value={account.twoFactorEnabled ? 'On (authenticator app)' : 'Off'} />
             <Row label="Discord" value={discord.username ?? (discord.linked ? 'Linked' : '-')} />
             <Row
               label="Forum"

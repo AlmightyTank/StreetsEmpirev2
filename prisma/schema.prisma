@@ -37,6 +37,13 @@ model Account {
   closedAt             DateTime?
   /// rc.2. The address the account signed up from, for the per-address daily sign-up cap.
   registeredIp         String?
+  /// rc.3. Authenticator-app two-step sign-in. Secrets are AES-GCM sealed (auth/totp.ts).
+  twoFactorSecret        String?
+  /// Set while the player is scanning the QR code, before they confirm a first code.
+  twoFactorPendingSecret String?
+  twoFactorEnabledAt     DateTime?
+  /// The last code step used, so a code cannot be used twice.
+  twoFactorLastStep      Int?
   passwordHash       String
 
   discordId       String?   @unique
@@ -71,6 +78,8 @@ model Account {
 
   sessions             Session[]
   bugReports           BugReport[]
+  twoFactorRecoveryCodes TwoFactorRecoveryCode[]
+  loginChallenges      LoginChallenge[]
   passwordResetTokens  PasswordResetToken[]
   accountEmailTokens   AccountEmailToken[]
   forumLink            ForumLink?
@@ -364,6 +373,40 @@ model Session {
   ip        String?
   /// rc.2. How the session signed in: PASSWORD or DISCORD. Admin tools can require DISCORD.
   method    String  @default("PASSWORD")
+  /// rc.3. True when this sign-in passed an authenticator (or recovery) code.
+  twoFactor Boolean @default(false)
+
+  @@index([accountId])
+  @@index([expiresAt])
+}
+
+/// rc.3. One-use codes for signing in when the authenticator phone is lost. Only hashes are kept.
+model TwoFactorRecoveryCode {
+  id String @id @default(cuid())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  codeHash  String    @unique
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([accountId])
+}
+
+/// rc.3. A sign-in that passed the password (or Discord) and now waits for the authenticator code.
+model LoginChallenge {
+  id        String @id @default(cuid())
+  tokenHash String @unique
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  /// PASSWORD or DISCORD: what the session will record once the code is right.
+  method    String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
   @@index([accountId])
   @@index([expiresAt])

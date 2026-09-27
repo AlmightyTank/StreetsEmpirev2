@@ -20,7 +20,7 @@ export interface CreatedSession {
 export async function createSession(
   prisma: PrismaClient,
   accountId: string,
-  meta: { userAgent?: string | null; ip?: string | null; method?: SessionMethod } = {},
+  meta: { userAgent?: string | null; ip?: string | null; method?: SessionMethod; twoFactor?: boolean } = {},
 ): Promise<CreatedSession> {
   const token = randomBytes(32).toString('base64url');
 
@@ -32,6 +32,7 @@ export async function createSession(
       userAgent: meta.userAgent?.slice(0, 255) ?? null,
       ip: meta.ip ?? null,
       method: meta.method ?? 'PASSWORD',
+      twoFactor: meta.twoFactor ?? false,
     },
   });
 

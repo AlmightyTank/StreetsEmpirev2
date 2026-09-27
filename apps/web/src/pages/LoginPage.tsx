@@ -5,14 +5,18 @@ import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
+import { TwoFactorStep } from '../components/TwoFactorStep.js';
 import { Shell } from '../layouts/Shell.js';
 import { landingPath, useSession } from '../stores/session.js';
 
 export function LoginPage() {
   const login = useSession((s) => s.login);
+  const completeTwoFactor = useSession((s) => s.completeTwoFactor);
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const authError = searchParams.get('authError');
+  // rc.3: Discord and recovery links land here with ?twoFactor=1 when a code is still needed.
+  const [needsCode, setNeedsCode] = useState(searchParams.get('twoFactor') === '1');
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -27,7 +31,11 @@ export function LoginPage() {
     setFields({});
 
     try {
-      await login({ identifier, password });
+      const { twoFactorRequired } = await login({ identifier, password });
+      if (twoFactorRequired) {
+        setNeedsCode(true);
+        return;
+      }
       const session = useSession.getState();
       navigate(landingPath(session.profileSettings.defaultLanding, Boolean(session.me)));
     } catch (error) {
@@ -40,6 +48,36 @@ export function LoginPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function submitCode(code: string) {
+    const { recoveryCodesLeft } = await completeTwoFactor(code);
+    const session = useSession.getState();
+    // Running low on recovery codes: send them where new ones are made.
+    if (recoveryCodesLeft !== null && recoveryCodesLeft <= 3) {
+      navigate('/account?twoFactor=codes');
+      return;
+    }
+    navigate(landingPath(session.profileSettings.defaultLanding, Boolean(session.me)));
+  }
+
+  if (needsCode) {
+    return (
+      <Shell>
+        <div className="se-authpage">
+          <p className="se-eyebrow">One more step</p>
+          <h1 className="se-title se-mb">Log in</h1>
+          <TwoFactorStep
+            onSubmit={submitCode}
+            onCancel={() => {
+              setNeedsCode(false);
+              setPassword('');
+              setSearchParams({}, { replace: true });
+            }}
+          />
+        </div>
+      </Shell>
+    );
   }
 
   return (

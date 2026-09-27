@@ -17,7 +17,7 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('account safety (rc.2), wit
   const accountIds: string[] = [];
   const networkTag = randomUUID().slice(0, 6);
   const saved = {
-    REQUIRE_ADMIN_DISCORD: process.env.REQUIRE_ADMIN_DISCORD,
+    REQUIRE_ADMIN_2FA: process.env.REQUIRE_ADMIN_2FA,
     SIGNUP_DAILY_LIMIT_PER_IP: process.env.SIGNUP_DAILY_LIMIT_PER_IP,
   };
   // Every registration gets its own documentation-range address unless a test picks one.
@@ -56,7 +56,7 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('account safety (rc.2), wit
   };
 
   beforeAll(async () => {
-    process.env.REQUIRE_ADMIN_DISCORD = 'true';
+    process.env.REQUIRE_ADMIN_2FA = 'true';
     process.env.SIGNUP_DAILY_LIMIT_PER_IP = '2';
     vi.resetModules();
     app = await (await import('../../app.js')).buildApp();
@@ -87,7 +87,7 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('account safety (rc.2), wit
     expect(me.json().account).toMatchObject({ isAdmin: true, adminSignInRequired: true });
     const refused = await as(admin.cookie, 'GET', '/api/admin/bug-reports');
     expect(refused.statusCode).toBe(403);
-    expect(refused.json().error.code).toBe('ADMIN_DISCORD_REQUIRED');
+    expect(refused.json().error.code).toBe('ADMIN_2FA_REQUIRED');
     const login = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { identifier: admin.name, password: admin.password } });
     expect(login.json().account.adminSignInRequired).toBe(true);
 

@@ -95,6 +95,8 @@ export interface AccountDto {
    * sign-in: the admin pages are closed until they sign in with Discord.
    */
   adminSignInRequired: boolean;
+  /** rc.3. Sign-in asks for an authenticator code. */
+  twoFactorEnabled: boolean;
 }
 
 export interface AccountSessionDto {
@@ -107,6 +109,8 @@ export interface AccountSessionDto {
   ip: string | null;
   /** rc.2. PASSWORD or DISCORD. */
   method: string;
+  /** rc.3. The sign-in passed an authenticator code. */
+  twoFactor: boolean;
 }
 
 export interface AccountSessionsResponseDto {
