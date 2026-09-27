@@ -6,6 +6,7 @@ import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
+import { Turnstile, useTurnstileSiteKey } from '../components/Turnstile.js';
 import { Shell } from '../layouts/Shell.js';
 
 export function ForgotPasswordPage() {
@@ -14,6 +15,9 @@ export function ForgotPasswordPage() {
   const [tone, setTone] = useState<'error' | 'info'>('info');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
+  const captchaOn = Boolean(useTurnstileSiteKey());
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -22,7 +26,7 @@ export function ForgotPasswordPage() {
     setMessage(null);
 
     try {
-      const response = await authApi.forgotPassword({ email });
+      const response = await authApi.forgotPassword({ email, ...(captchaToken ? { captchaToken } : {}) });
       setTone('info');
       setMessage(response.message);
     } catch (error) {
@@ -35,6 +39,8 @@ export function ForgotPasswordPage() {
       }
     } finally {
       setBusy(false);
+      setCaptchaToken(null);
+      setCaptchaKey((value) => value + 1);
     }
   }
 
@@ -60,7 +66,9 @@ export function ForgotPasswordPage() {
             hint="We will send a one-hour password reset link if the email is on an account."
           />
 
-          <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy ? 'Sending that email now.' : null}>
+          <Turnstile key={captchaKey} onToken={setCaptchaToken} />
+
+          <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy ? 'Sending that email now.' : captchaOn && !captchaToken ? 'Finish the "are you human" check.' : null}>
             {busy ? 'Sending...' : 'Send recovery email'}
           </Button>
         </form>

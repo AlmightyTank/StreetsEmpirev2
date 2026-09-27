@@ -65,3 +65,9 @@ export const closeAccountSchema = z.object({
   confirm: z.literal('CLOSE', { errorMap: () => ({ message: 'Type CLOSE to confirm.' }) }),
 }).strict();
 export type CloseAccountInput = z.infer<typeof closeAccountSchema>;
+
+/** rc.5. Deleting your own account: the password (or a Discord sign-in) and the word DELETE. */
+export const deleteAccountSchema = z.object({
+  currentPassword: z.string().max(200).optional(),
+  confirm: z.literal('DELETE', { errorMap: () => ({ message: 'Type DELETE to confirm.' }) }),
+}).strict();

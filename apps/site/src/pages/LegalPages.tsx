@@ -70,13 +70,13 @@ export function PrivacyPage() {
         {
           heading: 'Who else handles it',
           body: (
-            <p>Emails (password recovery, verification) are sent through an email delivery service. Push alerts go through your browser maker's push service. Discord and the forum see what you do there. There are no advertising or analytics trackers, and nothing is sold.</p>
+            <p>Emails (verification, password recovery, and security notices such as a changed password or a sign-in from a new browser) are sent through an email delivery service. The "are you human" check at sign-up and password recovery is Cloudflare Turnstile, which looks at your browser to tell people from bots. Push alerts go through your browser maker's push service. Discord and the forum see what you do there. There are no advertising or analytics trackers, and nothing is sold.</p>
           ),
         },
         {
           heading: 'Cookies and storage',
           body: (
-            <p>One cookie: your sign-in session. The game also remembers a few display choices in your browser's local storage (open menus, the last store you used, dismissed notices). Nothing tracks you across other sites.</p>
+            <p>Sign-in cookies only: your session; a random browser id, so we can email you when your account is used from a browser it has not used before; and, if you choose "Trust this browser", a cookie that lets that browser skip the two-step code. The game also remembers a few display choices in your browser's local storage (open menus, the last store you used, dismissed notices). Nothing tracks you across other sites.</p>
           ),
         },
         {
@@ -88,7 +88,18 @@ export function PrivacyPage() {
         {
           heading: 'Your choices',
           body: (
-            <p>You can change your email and password, turn two-step sign-in on or off, unlink Discord and the forum, end sessions and turn alerts off in your account settings. You can close your account yourself at the bottom of your account settings; a closed account can no longer sign in, and your finished seasons stay in the public history under your name. To have it reopened, or to ask for anything else about your data, ask staff on {CONTACT}.</p>
+            <>
+              <p>You can change your email and password, turn two-step sign-in on or off, unlink Discord and the forum, end sessions and turn alerts off in your account settings.</p>
+              <p><strong>Download your data</strong> from account settings: a file with everything we keep about your account, including your seasons and messages.</p>
+              <p><strong>Delete your account</strong> from account settings. Your email, sign-in details, profile and settings are erased. If you played a season, your results stay in the history as "Deleted Player"; otherwise the account is removed entirely. Copies in backups are gone within about two months.</p>
+              <p>Or <strong>close</strong> it instead: a closed account can no longer sign in, and your finished seasons stay in the public history under your name. To have it reopened, or to ask for anything else about your data, ask staff on {CONTACT}.</p>
+            </>
+          ),
+        },
+        {
+          heading: 'Children',
+          body: (
+            <p>StreetsEmpire is for players aged 13 and over. We do not knowingly keep data about anyone younger; if we learn an account belongs to someone under 13, we delete it. A parent or guardian who thinks that has happened can tell staff on {CONTACT}.</p>
           ),
         },
       ]}
@@ -103,6 +114,10 @@ export function TermsPage() {
       title="The rules of the house"
       intro="StreetsEmpire is a free game run for fun. Play fair, be decent, and these are the terms you agree to by making an account."
       sections={[
+        {
+          heading: 'Age',
+          body: <p>You must be 13 or older to play. StreetsEmpire is a crime strategy game about drugs, raids and turf. If you are under the age of majority where you live, make sure a parent or guardian is fine with you playing. Accounts of players under 13 are deleted.</p>,
+        },
         {
           heading: 'One player, one account',
           body: <p>Play with one account. Accounts that are shared, or several accounts one person uses to help themselves (feeding cash, goods or turf from one to another, or attacking your own accounts), are against the rules, and staff can see the patterns.</p>,

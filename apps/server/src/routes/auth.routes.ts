@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Account, PrismaClient, Session } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { RULES_VERSION, changeEmailSchema, closeAccountSchema, twoFactorCodeBodySchema, twoFactorSetupSchema, twoFactorVerifySchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
+import { RULES_VERSION, changeEmailSchema, closeAccountSchema, deleteAccountSchema, twoFactorCodeBodySchema, twoFactorSetupSchema, twoFactorVerifySchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
 import { z } from 'zod';
 import { assertBetaAccess, assertCanSignIn, clearExpiredSuspension } from '../auth/account-status.js';
 import { adminNeedsSecondFactor } from '../auth/play-access.js';
@@ -12,6 +12,9 @@ import { env } from '../config/env.js';
 import { toAccountDto } from '../game/dto.js';
 import { AccountProfileService } from '../services/account-profile.service.js';
 import { AccountClosureService } from '../services/support.service.js';
+import { AccountDataService } from '../services/account-data.service.js';
+import { noteSignIn, notePasswordChanged } from '../services/sign-in-notice.service.js';
+import { assertHuman } from '../auth/turnstile.js';
 import { TwoFactorService } from '../services/two-factor.service.js';
 import { matchKey } from '../services/admin-signals.service.js';
 import { ExploitFlagService } from '../services/exploit-flag.service.js';
@@ -469,6 +472,8 @@ async function linkDiscordToAccount(
 const authRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/register', async (request, reply) => {
     const body = parseBody(registerSchema, request.body);
+    // rc.5: the bot check comes first, before anything touches the database.
+    await assertHuman(body.captchaToken, request.ip, request.log);
     const usernameNormalized = body.username.toLowerCase();
 
     const clash = await fastify.prisma.account.findFirst({
@@ -515,6 +520,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const account = await fastify.prisma.account.create({
       data: {
         registeredIp: request.ip,
+        ageConfirmedAt: body.ageConfirmed ? new Date() : null,
         username: body.username,
         usernameNormalized,
         email: body.email,
@@ -539,6 +545,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       ip: request.ip,
     });
     fastify.setSessionCookie(reply, token);
+    await noteSignIn(fastify.prisma, request, reply, account);
 
     return reply.status(201).send({ account: toAccountDto(account) });
   });
@@ -588,6 +595,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       remember,
     });
     fastify.setSessionCookie(reply, token, remember);
+    await noteSignIn(fastify.prisma, request, reply, updated);
 
     return { account: toAccountDto(updated) };
   });
@@ -675,6 +683,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         remember,
       });
       fastify.setSessionCookie(reply, token, remember);
+      await noteSignIn(fastify.prisma, request, reply, account);
 
       return reply.redirect(postLoginRedirect());
     } catch (error) {
@@ -749,6 +758,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/password/forgot', async (request) => {
     const body = parseBody(forgotPasswordSchema, request.body);
+    await assertHuman(body.captchaToken, request.ip, request.log);
     const account = await fastify.prisma.account.findUnique({
       where: { email: body.email },
     });
@@ -846,6 +856,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     });
 
     assertBetaAccess(account, env.betaAccess.inviteOnly);
+    await notePasswordChanged(request, account);
     // rc.3: a recovery link proves the inbox, not the authenticator: the code is still asked for.
     if (account.twoFactorEnabledAt) {
       setTwoFactorCookie(reply, await TwoFactorService.beginChallenge(fastify.prisma, account.id, 'PASSWORD'));
@@ -856,6 +867,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       ip: request.ip,
     });
     fastify.setSessionCookie(reply, token);
+    await noteSignIn(fastify.prisma, request, reply, account);
 
     return { account: toAccountDto(account) };
   });
@@ -881,6 +893,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       remember,
     });
     fastify.setSessionCookie(reply, sessionToken, remember);
+    await noteSignIn(fastify.prisma, request, reply, updated);
     // rc.4: "Trust this browser" skips the code here for TRUSTED_DEVICE_DAYS.
     if (body.trustDevice && env.sessions.trustedDeviceMs > 0) {
       setTrustedDeviceCookie(reply, await TwoFactorService.trustDevice(fastify.prisma, account.id, { userAgent: request.headers['user-agent'], ip: request.ip }));
@@ -971,6 +984,29 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     return { ok: true, message: 'Your account is closed. Your finished seasons stay in the history.' };
   });
 
+  /** rc.5. "Download my data": everything kept about the account, as a JSON file. */
+  fastify.get('/account/export', { preHandler: fastify.requireAuth }, async (request, reply) => {
+    const data = await AccountDataService.export(fastify.prisma, request.auth!.account.id);
+    const stamp = new Date().toISOString().slice(0, 10);
+    reply.header('cache-control', 'no-store');
+    reply.header('content-disposition', `attachment; filename="streetsempire-${request.auth!.account.username}-${stamp}.json"`);
+    return reply.type('application/json; charset=utf-8').send(JSON.stringify(data, null, 2));
+  });
+
+  /** rc.5. The player deletes their own account (anonymized if they played a season). */
+  fastify.post('/account/delete', { preHandler: fastify.requireAuth }, async (request, reply) => {
+    const body = parseBody(deleteAccountSchema, request.body ?? {});
+    const result = await AccountDataService.deleteSelf(fastify.prisma, request.auth!.account, request.auth!.session, body.currentPassword);
+    fastify.clearSessionCookie(reply);
+    return {
+      ok: true,
+      mode: result.mode,
+      message: result.mode === 'deleted'
+        ? 'Your account is deleted.'
+        : 'Your account is deleted. Your finished seasons now show "Deleted Player" instead of your name.',
+    };
+  });
+
   fastify.post('/password/change', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(changePasswordSchema, request.body);
     const account = request.auth!.account;
@@ -1001,6 +1037,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       }
     });
 
+    await notePasswordChanged(request, account);
     return {
       ok: true,
       message: body.revokeOtherSessions

@@ -1,10 +1,10 @@
-# StreetsEmpire 1.0.0 release candidate (1.0.0-rc.4)
+# StreetsEmpire 1.0.0 release candidate (1.0.0-rc.5)
 
 The build that has to prove the finished game works before it is called 1.0.
 
 ## The candidate
 
-- **Version:** `APP_VERSION` is `1.0.0-rc.4`, in `packages/shared/src/platform.ts`. The footer and `/api/meta` show it, with the commit.
+- **Version:** `APP_VERSION` is `1.0.0-rc.5`, in `packages/shared/src/platform.ts`. The footer and `/api/meta` show it, with the commit.
 - **Branch:** `beta`. Deploy it to beta first (`bash scripts/ops/deploy-beta.sh`), then to production once the launch checklist is clear.
 - **One command runs every gate:** `npm run release:rc`, which is `qa:release --with-db --with-load`. Add `--with-ui` to include the browser audit when a web client is running.
 
@@ -113,6 +113,7 @@ Run `npm run ops:launch-check -- --game https://play.streetsempire.dev --site ht
 | Restore verified | Restore test OK within 8 days | `npm run ops:restore-test` (weekly timer) |
 | Admin accounts configured | At least one active admin; a warning below two | `npm run admin -- <username>` |
 | Admin sign-in protected | `REQUIRE_ADMIN_2FA` on, and every admin has Discord or an authenticator (fails if none has) | [ADMIN-RUNBOOK.md → Admin sign-in](ADMIN-RUNBOOK.md#admin-sign-in) |
+| Sign-up bot check | `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` set (a warning while off) | [ADMIN-RUNBOOK.md → Bot check](ADMIN-RUNBOOK.md#bot-check-rc5) |
 | Two-step sign-in key | `TWO_FACTOR_KEY` set (fails if accounts are enrolled without it) | [ADMIN-RUNBOOK.md → Two-step sign-in](ADMIN-RUNBOOK.md#two-step-sign-in-for-players-rc3) |
 | Sign-up flood cap | `SIGNUP_DAILY_LIMIT_PER_IP` above 0 | `.env` |
 | Moderation process documented | [ADMIN-RUNBOOK.md → Moderation process (1.0)](ADMIN-RUNBOOK.md) | — |
@@ -300,3 +301,48 @@ Migration: `20260928020000_sessions_trusted_devices` (session lifetime fields, s
 | Browser check | "Keep me signed in", the code screen with "Trust this browser", signing in again on a trusted browser with no code, and the trusted-browser and sessions lists all work at phone width, with no page errors |
 
 The rc.3 steps before production still apply: set `TWO_FACTOR_KEY`, try it with a real phone on beta, and give every admin a second factor.
+
+## rc.5
+
+rc.5 closes the last gaps before 1.0 that the owner chose.
+
+### What changed
+
+- **Age 13+.**
+  - Sign-up has an "I am 13 or older" checkbox, recorded on the account.
+  - The rules agreement now starts with the age rule. Its version changed, so every existing player (Discord sign-ups included) accepts it once more.
+  - The terms have an Age section, and the privacy page a Children section.
+- **Security emails.** Players are emailed when their password is changed or reset, and when their account signs in from a browser it has not used before.
+  - Browsers are recognised by a random per-browser cookie.
+  - The first browser an account is seen on is recorded without an email, so rc.5 does not email every existing player.
+- **Download my data.** Account settings gives a JSON file of everything kept about the account: seasons, messages, sessions, reports and settings. It never includes the password hash, two-step secrets or staff notes.
+- **Delete my account.** Available in Account settings, confirmed with the password (or a Discord sign-in) and by typing DELETE.
+  - An account that never played is removed entirely.
+  - One that played is anonymized as "Deleted Player", so season history stays whole.
+  - Staff deletion now uses the same code, which also clears the newer rc.2–rc.4 data: two-step secrets, trusted browsers and the sign-up address.
+- **Cloudflare Turnstile** on sign-up and password recovery. It is off until `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` are set, and `ops:launch-check` warns while it is off. Discord sign-in is not affected.
+- **Privacy page.** It describes the new cookies, the security emails, Turnstile and the data rights.
+
+Migration: `20260928030000_age_devices` (the account's age confirmation, and the browsers each account has signed in from).
+
+### Results for rc.5
+
+`npm run release:rc` on the rc.5 commit, 27 September 2026:
+
+| Gate | Result |
+| --- | --- |
+| Typecheck, build, balance | pass |
+| Unit tests | 128 files, 1,091 tests pass |
+| Full PostgreSQL regression | 171 files, 1,368 tests pass, including the new account-data suite: bot check, age, security emails, export and self-delete. The admin delete suite passes on the shared erase code |
+| Bot, forum link and push | 3 files, 22 tests pass |
+| Season One | 9 of 9 steps pass (with the new rules version) |
+| Backup and restore test | restored 77 tables and 912 rows, and every count matches |
+| Load test (300 players) | First run: every scenario passed except the notification burst, at p95 761 ms against its 750 ms budget. Nothing in rc.5 touches that path, and rc.3 and rc.4 measured 690 and 649 ms. On its own re-run, every scenario passed with zero errors (notification burst p95 670 ms). The login spike p95 rose from about 1.1 s to 1.3–1.4 s because each sign-in now checks for a new browser; that is well inside its 3 s budget |
+| Browser check | the age checkbox blocks sign-up until ticked; existing players see the rules again with the age rule first; Download my data returns the file; the Your data panel renders at phone width; no page errors |
+
+### Before rc.5 goes to production
+
+1. **Turnstile:** add a widget in Cloudflare for the game's hostnames, and set both keys on production and beta ([ADMIN-RUNBOOK.md → Bot check](ADMIN-RUNBOOK.md#bot-check-rc5)). Try a sign-up on beta.
+2. **Emails on beta:** check that the new-browser and password-changed emails arrive.
+3. The rc.3 and rc.4 steps still stand: set `TWO_FACTOR_KEY`, test two-step with a real phone, and give every admin a second factor.
+4. **Then stop adding features.** Soak rc.5 on beta for a few days, run `qa:ui -- --strict` against beta and `ops:launch-check` on production, and go.

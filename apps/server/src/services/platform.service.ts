@@ -87,6 +87,7 @@ export const PlatformService = {
       season: round
         ? { name: round.name, slug: round.slug, status: round.status, endsAt: round.endsAt.toISOString() }
         : null,
+      turnstileSiteKey: env.turnstile.enabled ? env.turnstile.siteKey : null,
     };
   },
 };

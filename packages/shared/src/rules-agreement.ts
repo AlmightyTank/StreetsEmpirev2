@@ -2,9 +2,13 @@
  * The rules every player accepts before they play. Changing what they agree to means
  * bumping RULES_VERSION: everyone is asked to accept again on their next visit.
  */
-export const RULES_VERSION = '2026-09-27';
+export const RULES_VERSION = '2026-09-27b';
+
+/** rc.5. Players must be at least this old. */
+export const MINIMUM_AGE = 13;
 
 export const RULES_AGREEMENT: ReadonlyArray<{ title: string; body: string }> = [
+  { title: `You are ${MINIMUM_AGE} or older`, body: `StreetsEmpire is for players aged ${MINIMUM_AGE} and over: it is a crime strategy game about drugs, raids and turf. Accounts of younger players are closed and their data deleted.` },
   { title: 'One player, one account', body: 'Play with one account. Accounts that are shared, or several accounts one person uses to help themselves (feeding cash, goods or turf between them, or attacking your own accounts), are not allowed.' },
   { title: 'No cheating', body: 'No bots, scripts or automated requests playing for you, and no using bugs to get ahead. Found a bug that gives you something you should not have? Report it instead of using it.' },
   { title: 'Be decent', body: 'Rivalry is the game; harassment is not. No threats, hate, sexual content involving minors, doxxing or spam in messages, alliance wires, names or profiles.' },

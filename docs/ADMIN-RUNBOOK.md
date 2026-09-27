@@ -211,6 +211,36 @@ Two steps stand between a new account and the game. Admins are never stopped by 
 
 `EMAIL_FROM` must use that verified domain, and `RESEND_API_KEY` must be a key for the same Resend account.
 
+**Age (rc.5).** Players must be 13 or older.
+- Sign-up has an "I am 13 or older" checkbox, recorded as `ageConfirmedAt`.
+- The rules agreement's first item says the same. Changing the agreement asked every existing player (Discord sign-ups included) to accept it again.
+- If you learn a player is under 13, delete the account (**Accounts → the account → Delete account**) and note why. The terms and privacy page say so.
+
+**Security emails (rc.5).** Players are emailed when their password is changed or reset, and when their account signs in from a browser it has not used before.
+- **Recognising browsers:** each browser gets a random `se_device` id cookie.
+- **When there is no email:** the first browser an account is seen on (at sign-up, or the first sign-in after rc.5) is recorded without one.
+- **No new setup:** these go out through Resend like the other emails.
+
+**Data requests (rc.5).**
+- **Download my data** in Account settings is a JSON file with the account, sessions, seasons, messages, contacts, reports and bug reports. It never includes the password hash, two-step secrets or staff notes.
+- **Delete my account** in Account settings:
+  - it erases the email, sign-in details, profile and settings;
+  - an account that played a season is anonymized to "Deleted Player", so the history stays whole;
+  - one that never played is removed entirely;
+  - it is logged as `account.self-delete`.
+- Staff deletion (**Accounts → Delete account**) does the same.
+- If someone asks for their staff notes, those are in the account page.
+
+### Bot check (rc.5)
+
+Cloudflare Turnstile guards sign-up and password recovery. It is off until both keys are set.
+
+1. In the Cloudflare dashboard, open **Turnstile → Add widget**. Add the game's hostname (for example `play.streetsempire.dev`), plus beta's hostname in a separate widget or the same one. Choose **Managed** mode.
+2. Put the keys in `.env`: `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`. Restart the API.
+3. Open the sign-up page and check that the widget shows and that registering works.
+
+If Cloudflare cannot be reached, sign-up and recovery are refused with a "try again in a minute" message rather than let through unchecked. Discord sign-in is not affected. `ops:launch-check` warns while it is off.
+
 **Sign-up flood cap.** One network (IP address) may create `SIGNUP_DAILY_LIMIT_PER_IP` accounts a day. The default is 5 on production and beta, and 0 (off) elsewhere.
 - Past the cap, sign-up is refused with "Too many accounts have been made from this network today", and a **Sign-up flood** exploit flag appears under **Combat & exploits**. The flag names the network by an opaque key, never the address.
 - Signing in with Discord is not capped.

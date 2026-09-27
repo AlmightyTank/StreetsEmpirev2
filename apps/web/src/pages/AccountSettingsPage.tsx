@@ -15,6 +15,7 @@ import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { CloseAccountPanel } from '../components/CloseAccountPanel.js';
+import { YourDataPanel } from '../components/YourDataPanel.js';
 import { TwoFactorPanel } from '../components/TwoFactorPanel.js';
 import { ConnectedAccountsPanel } from '../components/ConnectedAccountsPanel.js';
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
@@ -683,6 +684,8 @@ export function AccountSettingsPage() {
           </form>
         )}
       </Panel>
+
+      <YourDataPanel />
 
       <CloseAccountPanel />
     </Shell>

@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PASSWORD_MIN, USERNAME_MAX, USERNAME_MIN } from '@streets/shared';
+import { MINIMUM_AGE, PASSWORD_MIN, USERNAME_MAX, USERNAME_MIN } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
+import { Turnstile, useTurnstileSiteKey } from '../components/Turnstile.js';
 import { Shell } from '../layouts/Shell.js';
 import { useSession } from '../stores/session.js';
 
@@ -19,6 +20,11 @@ export function RegisterPage() {
   const [fields, setFields] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // rc.5: 13+ only, and a bot check when the server has one switched on.
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
+  const captchaOn = Boolean(useTurnstileSiteKey());
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -27,7 +33,7 @@ export function RegisterPage() {
     setFields({});
 
     try {
-      const approvalMessage = await register({ username, email, password });
+      const approvalMessage = await register({ username, email, password, ageConfirmed, ...(captchaToken ? { captchaToken } : {}) });
       if (approvalMessage) {
         setMessage(approvalMessage);
         setPassword('');
@@ -43,6 +49,9 @@ export function RegisterPage() {
       }
     } finally {
       setBusy(false);
+      // A bot-check token works once: fetch a fresh one for another try.
+      setCaptchaToken(null);
+      setCaptchaKey((value) => value + 1);
     }
   }
 
@@ -93,9 +102,24 @@ export function RegisterPage() {
                 hint={`At least ${PASSWORD_MIN} characters.`}
               />
 
+              <label className="se-checkrow se-checkrow--inline">
+                <input type="checkbox" checked={ageConfirmed} onChange={(event) => setAgeConfirmed(event.target.checked)} required />
+                <span>
+                  <strong>I am {MINIMUM_AGE} or older</strong>
+                  <small>StreetsEmpire is a crime strategy game for players aged {MINIMUM_AGE} and over.</small>
+                </span>
+              </label>
+
+              <Turnstile key={captchaKey} onToken={setCaptchaToken} />
+
               <p className="se-hint">We will email you a link. Confirm your address and you can start playing.</p>
               <p className="se-hint">By registering you agree to the <a href="https://streetsempire.dev/terms">terms</a> and the <a href="https://streetsempire.dev/privacy">privacy policy</a>.</p>
-              <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy ? 'Setting up your account now.' : null}>
+              <Button
+                className="se-btn se-btn--primary se-btn--block"
+                disabledReason={busy ? 'Setting up your account now.'
+                  : !ageConfirmed ? `Confirm you are ${MINIMUM_AGE} or older.`
+                    : captchaOn && !captchaToken ? 'Finish the "are you human" check.' : null}
+              >
                 {busy ? 'Working...' : 'Create account'}
               </Button>
             </form>
@@ -110,6 +134,7 @@ export function RegisterPage() {
             </a>
             <p className="se-hint">
               You can still add password recovery and change email from account settings after your account exists.
+              You must be {MINIMUM_AGE} or older to play.
             </p>
           </Panel>
         </div>

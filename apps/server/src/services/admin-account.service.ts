@@ -25,6 +25,9 @@ import { AppError } from '../utils/errors.js';
 import { AdminAuditService, toAuditEntryDto, type AuditActor } from './admin-audit.service.js';
 import { sendCurrentEmailVerification, sendTwoFactorNotice } from './email.service.js';
 import { TwoFactorService } from './two-factor.service.js';
+import { deletedAccountIdentity, eraseAccount } from './account-data.service.js';
+
+export { deletedAccountIdentity };
 
 /**
  * A coarse label such as "Chrome on Windows". Admins never see the IP address
@@ -96,12 +99,6 @@ export function deletionAuditSnapshot(account: Account, roundsPlayed: number) {
   };
 }
 
-export function deletedAccountIdentity(accountId: string) {
-  return {
-    username: `deleted_${accountId}`,
-    email: `deleted+${accountId}@deleted.streetsempire.invalid`,
-  };
-}
 
 /** A suspension still running, in the shape the panel shows. */
 export function toSuspensionDto(account: Account, now = new Date()): AdminSuspensionDto | null {
@@ -419,93 +416,29 @@ export const AdminAccountService = {
       }
 
       const roundsPlayed = await tx.roundPlayer.count({ where: { accountId: before.id } });
-      const sessionsRevoked = await tx.session.count({ where: { accountId: before.id } });
       const beforeAudit = deletionAuditSnapshot(before, roundsPlayed);
-
-      if (roundsPlayed === 0) {
-        await AdminAuditService.record(tx, actor, {
-          action: 'account.delete',
-          targetType: 'account',
-          targetId: before.id,
-          reason,
-          before: beforeAudit,
-          after: {
-            id: before.id,
-            mode: 'deleted',
-            roundsPreserved: 0,
-            sessionsRevoked,
-          },
-        });
-        await tx.account.delete({ where: { id: before.id } });
-
-        return {
-          accountId: before.id,
-          formerUsername: before.username,
-          mode: 'deleted',
-          roundsPreserved: 0,
-          sessionsRevoked,
-        };
-      }
-
-      // Remove private/authentication-owned rows even though most also cascade.
-      await tx.session.deleteMany({ where: { accountId: before.id } });
-      await tx.passwordResetToken.deleteMany({ where: { accountId: before.id } });
-      await tx.accountEmailToken.deleteMany({ where: { accountId: before.id } });
-      await tx.forumLinkRequest.deleteMany({ where: { accountId: before.id } });
-      await tx.forumLink.deleteMany({ where: { accountId: before.id } });
-      await tx.notificationOutbox.deleteMany({ where: { accountId: before.id } });
-      await tx.notificationSettings.deleteMany({ where: { accountId: before.id } });
-      await tx.pushSubscription.deleteMany({ where: { accountId: before.id } });
-      await tx.accountProfile.deleteMany({ where: { accountId: before.id } });
-
-      const tombstone = deletedAccountIdentity(before.id);
-      const account = await tx.account.update({
-        where: { id: before.id },
-        data: {
-          username: tombstone.username,
-          usernameNormalized: tombstone.username.toLowerCase(),
-          email: tombstone.email,
-          emailVerifiedAt: null,
-          passwordHash: replacementPasswordHash,
-          discordId: null,
-          discordUsername: null,
-          discordAvatar: null,
-          discordLinkedAt: null,
-          lastLoginAt: null,
-          isActive: false,
-          isAdmin: false,
-          betaApproved: false,
-          suspendedUntil: null,
-          suspendedReason: null,
-          suspendedByUsername: null,
-        },
-      });
-      await tx.roundPlayer.updateMany({
-        where: { accountId: before.id },
-        data: { displayName: 'Deleted Player' },
-      });
-
-      await AdminAuditService.record(tx, actor, {
+      // Audit first: a fully deleted account cannot be written about afterwards.
+      const audit = await AdminAuditService.record(tx, actor, {
         action: 'account.delete',
         targetType: 'account',
         targetId: before.id,
         reason,
         before: beforeAudit,
-        after: {
-          id: account.id,
-          username: account.username,
-          mode: 'anonymized',
-          roundsPreserved: roundsPlayed,
-          sessionsRevoked,
+      });
+      const result = await eraseAccount(tx, before, replacementPasswordHash);
+      await tx.adminAuditLog.update({
+        where: { id: audit.id },
+        data: {
+          after: result.mode === 'deleted'
+            ? { id: before.id, mode: 'deleted', roundsPreserved: 0, sessionsRevoked: result.sessionsRevoked }
+            : { id: before.id, username: deletedAccountIdentity(before.id).username, mode: 'anonymized', roundsPreserved: result.roundsPreserved, sessionsRevoked: result.sessionsRevoked },
         },
       });
 
       return {
         accountId: before.id,
         formerUsername: before.username,
-        mode: 'anonymized',
-        roundsPreserved: roundsPlayed,
-        sessionsRevoked,
+        ...result,
       };
     });
   },

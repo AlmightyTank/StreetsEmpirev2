@@ -63,6 +63,10 @@ export const authApi = {
   changePassword: (input: ChangePasswordInput) =>
     api.post<MessageResponse>('/auth/password/change', input),
 
+  /** rc.5. Deletes the account (anonymized in season history if it played). */
+  deleteAccount: (input: { currentPassword?: string; confirm: 'DELETE' }) =>
+    api.post<MessageResponse & { mode: 'deleted' | 'anonymized' }>('/auth/account/delete', input),
+
   /** rc.2. Closes the account and signs it out everywhere. */
   closeAccount: (input: { currentPassword?: string; confirm: 'CLOSE' }) =>
     api.post<MessageResponse>('/auth/account/close', input),

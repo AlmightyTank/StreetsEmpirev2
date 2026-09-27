@@ -37,6 +37,9 @@ model Account {
   closedAt             DateTime?
   /// rc.2. The address the account signed up from, for the per-address daily sign-up cap.
   registeredIp         String?
+  /// rc.5. When the player confirmed at sign-up that they are 13 or older. The rules
+  /// agreement asks every player too (Discord sign-ups included).
+  ageConfirmedAt       DateTime?
   /// rc.3. Authenticator-app two-step sign-in. Secrets are AES-GCM sealed (auth/totp.ts).
   twoFactorSecret        String?
   /// Set while the player is scanning the QR code, before they confirm a first code.
@@ -80,6 +83,7 @@ model Account {
   bugReports           BugReport[]
   twoFactorRecoveryCodes TwoFactorRecoveryCode[]
   trustedDevices       TrustedDevice[]
+  knownDevices         AccountDevice[]
   loginChallenges      LoginChallenge[]
   passwordResetTokens  PasswordResetToken[]
   accountEmailTokens   AccountEmailToken[]
@@ -424,6 +428,21 @@ model TrustedDevice {
 
   @@index([accountId])
   @@index([expiresAt])
+}
+
+/// rc.5. Browsers this account has signed in from, so a sign-in from a new one can be
+/// emailed about. Keyed by a hash of a long-lived per-browser cookie.
+model AccountDevice {
+  id         String @id @default(cuid())
+
+  accountId  String
+  account    Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  deviceHash  String
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  @@unique([accountId, deviceHash])
 }
 
 /// rc.3. A sign-in that passed the password (or Discord) and now waits for the authenticator code.

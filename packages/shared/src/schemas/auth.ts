@@ -33,6 +33,10 @@ export const registerSchema = z.object({
   username: usernameSchema,
   email: emailSchema,
   password: passwordSchema,
+  /** rc.5. "I am 13 or older" (the rules agreement asks every player again before play). */
+  ageConfirmed: z.boolean().optional(),
+  /** rc.5. Cloudflare Turnstile token, when bot checks are switched on. */
+  captchaToken: z.string().max(4096).optional(),
 });
 
 /** Login accepts either the pimp name or the email on the account. */
@@ -45,6 +49,8 @@ export const loginSchema = z.object({
 
 export const forgotPasswordSchema = z.object({
   email: emailSchema,
+  /** rc.5. Cloudflare Turnstile token, when bot checks are switched on. */
+  captchaToken: z.string().max(4096).optional(),
 });
 
 export const resetPasswordSchema = z.object({

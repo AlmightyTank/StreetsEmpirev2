@@ -114,6 +114,12 @@ const envSchema = z.object({
    * from SESSION_SECRET is used (fine for development).
    */
   TWO_FACTOR_KEY: z.string().min(32).optional(),
+  /**
+   * rc.5. Cloudflare Turnstile bot check on sign-up and password reset. Both keys set turns
+   * it on; either unset leaves it off (development, tests).
+   */
+  TURNSTILE_SITE_KEY: z.string().optional(),
+  TURNSTILE_SECRET_KEY: z.string().optional(),
   /** rc.2. New accounts one address may create per 24 hours (0 turns the cap off). */
   SIGNUP_DAILY_LIMIT_PER_IP: z.coerce.number().int().min(0).optional(),
   TRUST_PROXY: z.enum(['true', 'false']).optional(),
@@ -191,6 +197,11 @@ export const env = {
   corsOrigins,
   frontendOrigin: parsed.data.FRONTEND_ORIGIN ?? corsOrigins[0] ?? 'http://localhost:5173',
   sessionTtlMs: parsed.data.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
+  turnstile: {
+    enabled: Boolean(parsed.data.TURNSTILE_SITE_KEY && parsed.data.TURNSTILE_SECRET_KEY),
+    siteKey: parsed.data.TURNSTILE_SITE_KEY ?? '',
+    secretKey: parsed.data.TURNSTILE_SECRET_KEY ?? '',
+  },
   sessions: {
     rememberedIdleMs: parsed.data.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
     maxAgeMs: Math.max(parsed.data.SESSION_MAX_DAYS, parsed.data.SESSION_TTL_DAYS) * 24 * 60 * 60 * 1000,

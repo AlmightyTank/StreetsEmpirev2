@@ -150,3 +150,43 @@ export async function sendTwoFactorNotice(
   `;
   await sendMail({ to: input.to, subject: 'StreetsEmpire sign-in security changed', text, html }, log);
 }
+
+/** rc.5. Security notices: a changed password, and a sign-in from a browser this account had not used. */
+export async function sendSecurityNotice(
+  input: {
+    to: string;
+    username: string;
+    kind: 'password-changed' | 'new-sign-in';
+    when: Date;
+    browser: string | null;
+    ip: string | null;
+    accountUrl: string;
+  },
+  log: FastifyBaseLogger,
+): Promise<void> {
+  const what = input.kind === 'password-changed'
+    ? 'Your password was changed'
+    : 'Someone signed in to your account from a browser it has not used before';
+  const details = [
+    `When: ${input.when.toUTCString()}`,
+    ...(input.browser ? [`Browser: ${input.browser}`] : []),
+    ...(input.ip ? [`Address: ${input.ip}`] : []),
+  ];
+  const advice = input.kind === 'password-changed'
+    ? 'If this was not you, reset your password now from the log-in page and tell staff on Discord.'
+    : 'If this was you, there is nothing to do. If not, change your password and sign that session out in your account settings.';
+  const text = [`StreetsEmpire account ${input.username}`, '', `${what}.`, '', ...details, '', advice, input.accountUrl].join('\n');
+  const html = `
+    <p>StreetsEmpire account <strong>${escapeHtml(input.username)}</strong></p>
+    <p>${escapeHtml(what)}.</p>
+    <p>${details.map(escapeHtml).join('<br />')}</p>
+    <p>${escapeHtml(advice)}</p>
+    <p><a href="${escapeHtml(input.accountUrl)}">Your account settings</a></p>
+  `;
+  await sendMail({
+    to: input.to,
+    subject: input.kind === 'password-changed' ? 'Your StreetsEmpire password was changed' : 'New sign-in to your StreetsEmpire account',
+    text,
+    html,
+  }, log);
+}
