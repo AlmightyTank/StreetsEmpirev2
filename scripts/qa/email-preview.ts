@@ -5,7 +5,7 @@
  *   npm run email:preview                 # into ./email-previews
  *   npm run email:preview -- /tmp/emails --beta
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import {
   renderEmailChange,
@@ -21,7 +21,8 @@ const args = process.argv.slice(2);
 const dir = resolve(args.find((arg) => !arg.startsWith('--')) ?? 'email-previews');
 const environment: EmailContext['environment'] = args.includes('--beta') ? 'beta' : 'production';
 const now = new Date();
-const context: EmailContext = { gameUrl: environment === 'beta' ? 'https://beta.streetsempire.dev' : 'https://play.streetsempire.dev', environment, now };
+// The logo sits next to the previews, so they show it without a server.
+const context: EmailContext = { gameUrl: environment === 'beta' ? 'https://beta.streetsempire.dev' : 'https://play.streetsempire.dev', environment, now, logoUrl: 'logo.png' };
 const inAnHour = new Date(now.getTime() + 60 * 60_000);
 const link = (path: string) => `${context.gameUrl}${path}?token=Zx3fQ9sample0token0for0preview0only`;
 const accountUrl = `${context.gameUrl}/account`;
@@ -40,6 +41,7 @@ const emails: Record<string, RenderedEmail> = {
 };
 
 mkdirSync(dir, { recursive: true });
+copyFileSync(resolve('apps/web/public/email/logo.png'), join(dir, 'logo.png'));
 for (const [name, email] of Object.entries(emails)) {
   writeFileSync(join(dir, `${name}.html`), email.html);
   writeFileSync(join(dir, `${name}.txt`), `Subject: ${email.subject}\n\n${email.text}\n`);

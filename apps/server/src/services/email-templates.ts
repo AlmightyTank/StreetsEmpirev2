@@ -17,6 +17,11 @@ export interface EmailContext {
   /** The game, e.g. https://play.streetsempire.dev */
   gameUrl: string;
   environment: 'production' | 'beta' | 'development' | 'test';
+  /**
+   * The logo image. Defaults to the game's own copy (apps/web/public/email/logo.png,
+   * served at /email/logo.png). Email clients need a hosted PNG: no SVG, no data URIs.
+   */
+  logoUrl?: string;
   now?: Date;
 }
 
@@ -91,6 +96,7 @@ function layout(input: Layout, context: EmailContext): RenderedEmail {
   const subject = tag ? `[${tag}] ${input.subject}` : input.subject;
   const stripe = input.tone === 'alert' ? COLORS.alert : COLORS.accent;
   const accountUrl = new URL('/account', context.gameUrl).toString();
+  const logoUrl = context.logoUrl ?? new URL('/email/logo.png', context.gameUrl).toString();
 
   const paragraphs = input.paragraphs
     .map((text) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${COLORS.text};">${escapeHtml(text)}</p>`)
@@ -147,10 +153,24 @@ function layout(input: Layout, context: EmailContext): RenderedEmail {
       <table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:560px;">
         <tr>
           <td style="padding:0 4px 18px;">
-            <a href="${escapeHtml(context.gameUrl)}" style="text-decoration:none;font-family:${FONT};font-size:20px;font-weight:800;letter-spacing:0.02em;">
-              <span style="color:#ffffff;">STREETS</span><span style="color:${COLORS.accent};">EMPIRE</span>
-            </a>${tag ? `
-            <span style="display:inline-block;margin-left:8px;padding:2px 8px;border:1px solid ${COLORS.beta};border-radius:4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:${COLORS.beta};vertical-align:3px;">${tag}</span>` : ''}
+            <!-- Logo and wordmark side by side. Outlook hides images until the reader allows
+                 them, so the wordmark is text: the header still reads as StreetsEmpire. -->
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+              <tr>
+                <td style="padding-right:12px;vertical-align:middle;">
+                  <a href="${escapeHtml(context.gameUrl)}" style="text-decoration:none;">
+                    <img src="${escapeHtml(logoUrl)}" width="48" height="48" alt="StreetsEmpire"
+                         style="display:block;width:48px;height:48px;border:0;outline:none;text-decoration:none;border-radius:10px;color:${COLORS.accent};font-size:12px;" />
+                  </a>
+                </td>
+                <td style="vertical-align:middle;">
+                  <a href="${escapeHtml(context.gameUrl)}" style="text-decoration:none;font-family:${FONT};font-size:20px;font-weight:800;letter-spacing:0.02em;">
+                    <span style="color:#ffffff;">STREETS</span><span style="color:${COLORS.accent};">EMPIRE</span>
+                  </a>${tag ? `
+                  <span style="display:inline-block;margin-left:8px;padding:2px 8px;border:1px solid ${COLORS.beta};border-radius:4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:${COLORS.beta};vertical-align:3px;">${tag}</span>` : ''}
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
         <tr>

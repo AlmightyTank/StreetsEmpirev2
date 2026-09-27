@@ -34,7 +34,7 @@ describe('branded emails', () => {
       renderSecurityNotice({ username: nasty, kind: 'new-sign-in', when: now, browser: nasty, ip: '1.2.3.4', accountUrl: url }, production).html,
       renderTwoFactorNotice({ username: nasty, change: 'enabled', accountUrl: url }, production).html,
     ].join('');
-    expect(html).not.toContain('<img');
+    expect(html).not.toContain('<img src=x');
     expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;&quot;Tony&quot;');
   });
 
@@ -54,6 +54,14 @@ describe('branded emails', () => {
     expect(email.text).toContain('Browser: Chrome on Windows');
     expect(email.html).toContain('border-top:3px solid #ff5468');
     expect(renderTwoFactorNotice({ username: 'Tony', change: 'enabled', accountUrl: url }, production).html).toContain('border-top:3px solid #b6ff3a');
+  });
+
+  it('shows the hosted logo, with the wordmark as text for when images are blocked', () => {
+    const email = renderVerifyEmail({ username: 'Tony', url, expiresAt: inAnHour }, production);
+    expect(email.html).toContain('<img src="https://play.streetsempire.dev/email/logo.png" width="48" height="48" alt="StreetsEmpire"');
+    expect(email.html).toContain('<span style="color:#ffffff;">STREETS</span>');
+    expect(renderVerifyEmail({ username: 'Tony', url, expiresAt: inAnHour }, beta).html).toContain('https://beta.streetsempire.dev/email/logo.png');
+    expect(renderVerifyEmail({ username: 'Tony', url, expiresAt: inAnHour }, { ...production, logoUrl: 'https://cdn.example/l.png' }).html).toContain('src="https://cdn.example/l.png"');
   });
 
   it('says how long a link lasts in words', () => {
