@@ -91,6 +91,8 @@ if (withDb) {
   // 1.0.0-H: create → join → play → end → freeze → Hall of Fame → archive → next season,
   // with the whole 1.0 player journey inside, on its own scratch database.
   run('Season One (scratch database)', npm, ['run', 'qa:season-one']);
+  // rc.5 fix: the servers run the bundled build, not the source the tests run.
+  run('Built API starts (scratch database)', process.execPath, ['scripts/qa/built-api-smoke.mjs']);
   // 1.0.0-F: a backup nobody has restored is not a backup. Back up the test database, then
   // restore it into a scratch database and check every table (needs CREATEDB, or RESTORE_TEST_DATABASE_URL).
   const backupDir = mkdtempSync(join(tmpdir(), 'se-release-backup-'));

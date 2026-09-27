@@ -346,3 +346,13 @@ Migration: `20260928030000_age_devices` (the account's age confirmation, and the
 2. **Emails on beta:** check that the new-browser and password-changed emails arrive.
 3. The rc.3 and rc.4 steps still stand: set `TWO_FACTOR_KEY`, test two-step with a real phone, and give every admin a second factor.
 4. **Then stop adding features.** Soak rc.5 on beta for a few days, run `qa:ui -- --strict` against beta and `ops:launch-check` on production, and go.
+
+### Found on the beta deploy (fixed)
+
+- **The built API crashed on start:** `Dynamic require of "fs" is not supported`.
+  - **Cause:** rc.3 added the `qrcode` library, and the server build bundled it into its single ESM file. `qrcode` is CommonJS and loads Node modules at run time, which a bundled ESM file cannot do.
+  - **Fix:** `qrcode` is now left out of the bundle (`--external:qrcode`), like the other runtime dependencies.
+- **Why the gate missed it:** every test and the load test run the source through tsx; only the servers run the bundle. The gate now has **Built API starts**, which runs after the build.
+  - It starts `apps/server/dist/index.js` on a scratch database, signs up, signs in and sets up two-step (which loads the QR library).
+  - Checked both ways: without the fix it fails with the same error as beta; with it, it passes.
+- The beta database was never at risk: the deploy took its backup and applied the migrations, and only the API process failed to start.
