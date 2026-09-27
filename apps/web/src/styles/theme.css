@@ -2966,8 +2966,8 @@ a.se-nav__link:hover {
   background: transparent;
 }
 
-.se-account-columns + .se-panel,
-.se-account-columns + .se-panel + .se-panel {
+/* Every full-width panel below the two account columns, however many there are. */
+.se-account-columns ~ .se-panel {
   margin-top: 14px;
 }
 

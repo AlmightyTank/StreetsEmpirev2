@@ -25,6 +25,9 @@ import { DEFAULT_PROFILE_SETTINGS, useSession } from '../stores/session.js';
 import { ReplayTutorial } from '../components/onboarding/ReplayTutorial.js';
 import { formatWhen } from '../utils/time.js';
 
+/** Sessions listed before "Show all": this one first, then the most recently used. */
+const SESSIONS_SHOWN = 5;
+
 function formatDate(value: string | null): string {
   return value ? formatWhen(value) : 'Never';
 }
@@ -57,6 +60,8 @@ export function AccountSettingsPage() {
   /** One line for every button while another request is in flight. */
   const working = 'Finishing the last thing you asked for.';
   const [sessions, setSessions] = useState<AccountSessionDto[]>([]);
+  // The list grows with every sign-in; show the latest few until asked for all.
+  const [showAllSessions, setShowAllSessions] = useState(false);
   const [profileSettings, setProfileSettings] = useState<AccountProfileSettingsResponseDto | null>(null);
   const [cosmetics, setCosmetics] = useState(DEFAULT_PROFILE_SETTINGS);
 
@@ -431,7 +436,10 @@ export function AccountSettingsPage() {
 
         {sessions.length ? (
           <div className="se-session-list">
-            {sessions.map((session) => (
+            {(() => {
+              const ordered = [...sessions].sort((a, b) => Number(b.current) - Number(a.current));
+              return showAllSessions ? ordered : ordered.slice(0, SESSIONS_SHOWN);
+            })().map((session) => (
               <div className="se-session-row" key={session.id}>
                 <div>
                   <strong>
@@ -463,6 +471,11 @@ export function AccountSettingsPage() {
                 )}
               </div>
             ))}
+            {sessions.length > SESSIONS_SHOWN ? (
+              <button type="button" className="se-btn se-btn--ghost se-btn--sm se-session-more" onClick={() => setShowAllSessions((value) => !value)}>
+                {showAllSessions ? 'Show fewer' : `Show all ${sessions.length} sessions`}
+              </button>
+            ) : null}
           </div>
         ) : (
           <p className="se-muted">Session details are not available right now.</p>

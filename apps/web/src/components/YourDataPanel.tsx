@@ -45,45 +45,47 @@ export function YourDataPanel() {
       <p>Download a copy of everything StreetsEmpire keeps about your account: settings, sign-ins, seasons, messages and reports.</p>
       <a className="se-btn se-btn--ghost" href="/api/auth/account/export" download>Download my data</a>
 
-      <h3 className="se-label se-mt">Delete account</h3>
-      <p className="se-muted">
-        Deleting is permanent. Your email, sign-in details, profile and settings are erased. If you played a season,
-        your results stay in the history as "Deleted Player"; if you never played, the account is removed entirely.
-        To stop playing but keep the account, use Close account below instead.
-      </p>
-      {isAdmin ? (
-        <p className="se-hint">Admin accounts cannot be deleted here. Have the admin role removed first.</p>
-      ) : !open ? (
-        <button type="button" className="se-btn se-btn--ghost" onClick={() => setOpen(true)}>Delete my account...</button>
-      ) : (
-        <form onSubmit={remove} noValidate>
-          <Field
-            label="Password"
-            name="deletePassword"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete="current-password"
-            error={fields.currentPassword}
-            hint="Signed in with Discord this time? You can leave this empty."
-          />
-          <Field
-            label="Type DELETE to confirm"
-            name="deleteConfirm"
-            value={confirm}
-            onChange={(event) => setConfirm(event.target.value)}
-            autoComplete="off"
-            error={fields.confirm}
-          />
-          {error ? <Alert>{error}</Alert> : null}
-          <div className="se-cta">
-            <button type="button" className="se-btn se-btn--ghost" onClick={() => { setOpen(false); setConfirm(''); setPassword(''); }}>Keep my account</button>
-            <Button className="se-btn se-btn--danger" disabledReason={busy ? 'Deleting...' : confirm !== 'DELETE' ? 'Type DELETE first.' : null}>
-              {busy ? 'Deleting...' : 'Delete my account'}
-            </Button>
-          </div>
-        </form>
-      )}
+      <div className="se-panel-section">
+        <h3 className="se-label">Delete account</h3>
+        <p className="se-muted">
+          Deleting is permanent. Your email, sign-in details, profile and settings are erased. If you played a season,
+          your results stay in the history as "Deleted Player"; if you never played, the account is removed entirely.
+          To stop playing but keep the account, use Close account below instead.
+        </p>
+        {isAdmin ? (
+          <p className="se-hint">Admin accounts cannot be deleted here. Have the admin role removed first.</p>
+        ) : !open ? (
+          <button type="button" className="se-btn se-btn--ghost" onClick={() => setOpen(true)}>Delete my account...</button>
+        ) : (
+          <form onSubmit={remove} noValidate>
+            <Field
+              label="Password"
+              name="deletePassword"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+              error={fields.currentPassword}
+              hint="Signed in with Discord this time? You can leave this empty."
+            />
+            <Field
+              label="Type DELETE to confirm"
+              name="deleteConfirm"
+              value={confirm}
+              onChange={(event) => setConfirm(event.target.value)}
+              autoComplete="off"
+              error={fields.confirm}
+            />
+            {error ? <Alert>{error}</Alert> : null}
+            <div className="se-cta">
+              <button type="button" className="se-btn se-btn--ghost" onClick={() => { setOpen(false); setConfirm(''); setPassword(''); }}>Keep my account</button>
+              <Button className="se-btn se-btn--danger" disabledReason={busy ? 'Deleting...' : confirm !== 'DELETE' ? 'Type DELETE first.' : null}>
+                {busy ? 'Deleting...' : 'Delete my account'}
+              </Button>
+            </div>
+          </form>
+        )}
+      </div>
     </Panel>
   );
 }

@@ -68,7 +68,7 @@ function TrustedBrowsers() {
 
   if (!devices) return null;
   return (
-    <div className="se-2fa__trusted">
+    <div className="se-2fa__trusted se-panel-section">
       <h3 className="se-label">Trusted browsers</h3>
       {devices.length === 0 ? (
         <p className="se-hint">None. Tick "Trust this browser" when you enter a code to skip it there for 30 days.</p>
