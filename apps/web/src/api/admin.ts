@@ -1,4 +1,5 @@
 import type {
+  MonitoringSnapshotDto,
   AdminExploitFlagDto,
   AdminExploitFlagsDto,
   AdminMarketsDto,
@@ -176,4 +177,6 @@ export const adminApi = {
   turfHistory: (turfId: string) => api.get<AdminTurfHistoryDto>(`/admin/turf/${encodeURIComponent(turfId)}/history`),
   turfRepair: (input: { action: AdminTurfRepair; turfId?: string; roundPlayerId?: string; pushId?: string; reason: string }) =>
     api.post<{ done: string }>('/admin/turf/repair', input),
+  // 1.0.0-F.
+  monitoring: () => api.get<MonitoringSnapshotDto>('/admin/monitoring'),
 };

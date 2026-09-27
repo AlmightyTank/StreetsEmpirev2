@@ -33,6 +33,7 @@ import { SiteBannerService } from '../services/site-banner.service.js';
 import { AdminEconomyService } from '../services/admin-economy.service.js';
 import { AdminTurfService } from '../services/admin-turf.service.js';
 import { ExploitFlagService } from '../services/exploit-flag.service.js';
+import { MonitoringService } from '../services/monitoring.service.js';
 import { parseBody } from '../utils/validate.js';
 
 const isoDate = z.coerce.date();
@@ -604,6 +605,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.get('/signals', async () => AdminSignalsService.clusters(fastify.prisma));
+
+  // 1.0.0-F: is the game all right, and are its backups.
+  fastify.get('/monitoring', async (_request, reply) => {
+    reply.header('cache-control', 'no-store');
+    return MonitoringService.snapshot(fastify.prisma);
+  });
 
   // 1.0.0-E: economy, fights, exploit flags and turf. Reads are read-only; repairs are audited.
   fastify.get('/rounds/:roundId/markets', async (request) => {

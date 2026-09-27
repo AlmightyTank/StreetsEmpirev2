@@ -12,6 +12,7 @@
 #   PUBLIC_SITE_URL optional public-site smoke URL  (e.g. https://streetsempire.dev)
 #   LIVE_SITE_URL   optional live-game smoke URL    (e.g. https://play.streetsempire.dev)
 #   SKIP_PULL=1  rebuild and restart the current checkout (e.g. after a rollback)
+#   SKIP_BACKUP=1  do not take the pre-deploy database backup (not recommended)
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -22,6 +23,7 @@ API_URL="${API_URL:-http://127.0.0.1:3001}"
 PUBLIC_SITE_URL="${PUBLIC_SITE_URL:-}"
 LIVE_SITE_URL="${LIVE_SITE_URL:-}"
 SKIP_PULL="${SKIP_PULL:-0}"
+SKIP_BACKUP="${SKIP_BACKUP:-0}"
 SUDO=""
 [ "$(id -u)" -eq 0 ] || SUDO="sudo"
 
@@ -67,6 +69,17 @@ grep -q 'data-streets-app="game-client"' "$APP_DIR/apps/web/dist/index.html" \
   || fail "game frontend build does not contain the expected game-client marker"
 grep -q 'data-streets-app="public-site"' "$APP_DIR/apps/site/dist/index.html" \
   || fail "public website build does not contain the expected public-site marker"
+
+step "Backing up the database before migrating"
+# 1.0.0-F: the way back from a migration that goes wrong. Exit 2 = saved here, off-server copy failed.
+if [ "$SKIP_BACKUP" = "1" ]; then
+  echo "Skipped (SKIP_BACKUP=1)."
+else
+  backup_rc=0
+  npx tsx scripts/ops/backup.ts backup --label predeploy || backup_rc=$?
+  [ "$backup_rc" -eq 0 ] || [ "$backup_rc" -eq 2 ] \
+    || fail "the pre-deploy backup failed, so nothing was migrated. Fix it (see docs/RECOVERY.md) or rerun with SKIP_BACKUP=1 to deploy without one."
+fi
 
 step "Applying database migrations"
 npx prisma migrate deploy
@@ -124,5 +137,9 @@ if [ -n "$LIVE_SITE_URL" ]; then
   node scripts/ops/check-environment.mjs --expect production --url "$LIVE_SITE_URL" \
     || fail "$LIVE_SITE_URL does not reach the production API. Check the Nginx upstream for play.streetsempire.dev."
 fi
+
+# 1.0.0-F: remember what was running and healthy, for scripts/ops/rollback.sh.
+mkdir -p "$APP_DIR/.deploy"
+printf '%s %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(git rev-parse HEAD)" "$(git log -1 --format=%s | tr -d '\n' | cut -c1-80)" >> "$APP_DIR/.deploy/history"
 
 step "Deployed $(git log -1 --format='%h %s')"

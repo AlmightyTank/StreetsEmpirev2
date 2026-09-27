@@ -17,3 +17,4 @@ export * from './money.js';
 export * from './notifications.js';
 export * from './platform.js';
 export * from './onboarding.js';
+export * from './monitoring.js';

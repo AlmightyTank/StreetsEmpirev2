@@ -8,6 +8,8 @@ import {
 } from '@streets/rules-engine';
 import { AppError } from '../utils/errors.js';
 import { ExploitFlagService, type ExploitFlagInput } from '../services/exploit-flag.service.js';
+import { areaOf, metrics } from '../services/metrics.service.js';
+import { annotateLogContext } from '../utils/request-context.js';
 
 /**
  * 1.0.0-C. Database refusals that mean "the state moved under this request".
@@ -24,6 +26,35 @@ export function databaseRefusal(error: unknown): { kind: 'check'; constraint: st
   const prismaCode = (error as { code?: unknown } | null)?.code;
   if (prismaCode === 'P2034' || code === '40001' || code === '40P01' || /code: "(40001|40P01)"/.test(text)) return { kind: 'contention' };
   return null;
+}
+
+export interface ErrorOutcome {
+  statusCode: number;
+  code: string;
+  /** validation | auth | not_found | conflict | rate_limit | state_guard | contention | ruleset | invariant | internal | client */
+  category: string;
+}
+
+/** The answer an error gets, decided the same way the handler below answers it. */
+export function classifyError(error: unknown): ErrorOutcome {
+  if (error instanceof AppError) {
+    const category = error.statusCode === 401 || error.statusCode === 403 ? 'auth'
+      : error.statusCode === 404 ? 'not_found'
+        : error.statusCode === 429 ? 'rate_limit'
+          : error.statusCode === 400 ? 'validation'
+            : error.statusCode >= 500 ? 'internal' : 'conflict';
+    return { statusCode: error.statusCode, code: error.code, category };
+  }
+  if (error instanceof ZodError) return { statusCode: 400, code: 'VALIDATION_FAILED', category: 'validation' };
+  if (error instanceof RulesetNotFoundError || error instanceof RulesetVersionMismatchError) return { statusCode: 500, code: 'RULESET_UNAVAILABLE', category: 'ruleset' };
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return { statusCode: 409, code: 'CONFLICT', category: 'conflict' };
+  const refusal = databaseRefusal(error);
+  if (refusal?.kind === 'check') return { statusCode: 409, code: 'STATE_CHANGED', category: 'state_guard' };
+  if (refusal?.kind === 'contention') return { statusCode: 409, code: 'TRY_AGAIN', category: 'contention' };
+  const statusCode = (error as { statusCode?: unknown } | null)?.statusCode;
+  if (typeof statusCode === 'number' && statusCode < 500) return { statusCode, code: String((error as { code?: unknown }).code ?? 'BAD_REQUEST'), category: statusCode === 429 ? 'rate_limit' : 'client' };
+  if (error instanceof RangeError && error.message.startsWith('Player-state invariant failed')) return { statusCode: 500, code: 'INTERNAL_ERROR', category: 'invariant' };
+  return { statusCode: 500, code: 'INTERNAL_ERROR', category: 'internal' };
 }
 
 /**
@@ -47,6 +78,13 @@ const errorHandlerPlugin: FastifyPluginAsync = async (fastify) => {
   };
 
   fastify.setErrorHandler<FastifyError>((error, request, reply) => {
+    // 1.0.0-F: every failure is categorized once, on its log line and in the metrics.
+    const outcome = classifyError(error);
+    annotateLogContext({ errorCategory: outcome.category });
+    metrics.recordFailure({ url: request.url, method: request.method, statusCode: outcome.statusCode, code: outcome.code, category: outcome.category });
+    if (outcome.statusCode < 500 && (outcome.category === 'auth' || areaOf(request.url) === 'game') && request.method !== 'GET') {
+      request.log.info({ code: outcome.code, statusCode: outcome.statusCode }, 'request refused');
+    }
     if (error instanceof AppError) {
       if (error.code === 'LINKED_ACCOUNTS') {
         flag(request, { kind: 'LINKED_ATTACK', severity: 'warning', message: error.message });

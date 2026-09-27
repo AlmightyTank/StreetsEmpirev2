@@ -24,6 +24,7 @@ import {
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
+import { annotateLogContext } from '../utils/request-context.js';
 import { RelocationService } from './relocation.service.js';
 import { assertNotPaused, fitThugs, toState } from './action.service.js';
 import { ActivityService } from './activity.service.js';
@@ -756,6 +757,7 @@ export const CombatService = {
     return prisma.$transaction(async (tx) => {
       // Canonical lock order prevents reciprocal raids from deadlocking.
       for (const id of [attackerId, target.id].sort()) await lockRoundPlayer(tx, id);
+      annotateLogContext({ roundPlayerId: attackerId, roundId: input.roundId, actionId: input.actionId, action: 'RAID' });
       const prior = await tx.raidBattle.findUnique({ where: { attackerId_actionId: { attackerId, actionId: input.actionId } } });
       if (prior) {
         if (storedBattleKind(prior) !== 'RAID' || prior.defenderId !== target.id || prior.attackingThugs !== input.attackingThugs) throw AppError.conflict('ACTION_ID_REUSED', 'That raid id belongs to a different target or squad.');
@@ -937,6 +939,7 @@ export const CombatService = {
 
     return prisma.$transaction(async (tx) => {
       for (const id of [attackerId, target.id].sort()) await lockRoundPlayer(tx, id);
+      annotateLogContext({ roundPlayerId: attackerId, roundId: input.roundId, actionId: input.actionId, action: 'DRIVE_BY' });
       const prior = await tx.raidBattle.findUnique({ where: { attackerId_actionId: { attackerId, actionId: input.actionId } } });
       if (prior) {
         if (storedBattleKind(prior) !== 'DRIVE_BY' || prior.defenderId !== target.id || prior.attackingThugs !== input.attackingThugs) throw AppError.conflict('ACTION_ID_REUSED', 'That drive-by id belongs to a different target or squad.');
@@ -1060,6 +1063,7 @@ export const CombatService = {
 
     return prisma.$transaction(async (tx) => {
       for (const id of [attackerId, target.id].sort()) await lockRoundPlayer(tx, id);
+      annotateLogContext({ roundPlayerId: attackerId, roundId: input.roundId, actionId: input.actionId, action: input.kind });
       const prior = await tx.raidBattle.findUnique({ where: { attackerId_actionId: { attackerId, actionId: input.actionId } } });
       if (prior) {
         if (storedBattleKind(prior) !== input.kind || prior.defenderId !== target.id || prior.attackingThugs !== input.attackingThugs) throw AppError.conflict('ACTION_ID_REUSED', 'That move id belongs to a different target or squad.');

@@ -537,6 +537,20 @@ Document:
 
 A server failure is an operational incident rather than a potential permanent loss of the game.
 
+### 1.0.0-F implementation complete
+
+The runbook is [RECOVERY.md](RECOVERY.md).
+
+| Area | Now in place |
+| --- | --- |
+| Monitoring | **Admin → Monitoring** shows the status (`ok` / `degraded` / `critical`) with the alerts that make it up. It covers: database health and latency; requests, server errors, error rate and p50/p95/p99 latency over 5 minutes and an hour; refused game actions and failed sign-ins by code; errors by category; each background job's runs, failures in a row, last success and last error; the alert backlog and push failures; and the last backup, off-server copy and restore test. The alert thresholds are in `MONITORING_LINES`. `/api/ready` works for uptime checks. `GET /api/metrics` gives Prometheus text behind `METRICS_TOKEN` and does not exist without the token. |
+| Structured logging | Every log line in a request carries `requestId` (also returned as `x-request-id`; a safe incoming id is kept), `accountId`, `roundPlayerId`, `roundId`, `actionId`, `action`, `ruleset` and, on failure, `errorCategory`. Background jobs carry `job`. Cookies, authorization headers, passwords, tokens, secrets, API keys and push keys are redacted. |
+| Backups | `npm run ops:backup` takes a `pg_dump` custom-format file and a manifest: the checksum, and the exact row count of every table taken in the dump's own snapshot. It then verifies the dump, copies it off-server (`BACKUP_OFFSITE`: rclone, rsync or S3), applies retention (14 daily, 8 weekly, 5 labelled; the newest is never deleted) and writes the status monitoring reads. `install-backup-timer.sh` schedules it daily. Every deploy takes a `predeploy` backup before migrating and stops if that backup fails. |
+| Restore test | `npm run ops:restore-test` runs weekly on a timer. It restores the newest backup into a scratch database, compares every table's count against the manifest, applies the current migrations on top, and drops the scratch database. Done for real in development: every count matched. A second restore into a fresh database served the API, with sessions intact. A damaged dump was refused. |
+| Recovery | `ops:restore` restores into another database, or, with `--confirm <name>`, over the live one. It takes a `prerestore` safety backup first and replaces the schema in one transaction. `rollback.sh` returns to the previous recorded good deploy. `maintenance.sh on/off` turns maintenance mode on or off: players get a 503 with a message and a maintenance screen, while admins, sign-in, health checks and the status page stay open. RECOVERY.md covers failed deploys step by step, forward-only additive migrations with the pre-deploy backup as the way back, what to do when a migration broke data, and losing the database or the whole server. |
+
+New settings are all optional: `METRICS_TOKEN`, `MAINTENANCE_MODE`, `MAINTENANCE_MESSAGE`, `BACKUP_DIR`, `BACKUP_STATUS_FILE`, `BACKUP_OFFSITE`, `BACKUP_KEEP_*`, `BACKUP_MAX_AGE_HOURS`, `RESTORE_TEST_MAX_AGE_DAYS` and `RESTORE_TEST_DATABASE_URL`. See `.env.example`.
+
 ---
 
 ## 1.0.0-G — Mobile, PWA, Accessibility & UX

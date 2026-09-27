@@ -16,6 +16,7 @@
 #   SEED=1         seed a fresh beta database once
 #   SKIP_BOT=1     do not restart the beta bot service
 #   SKIP_PULL=1    deploy current checkout without fetching
+#   SKIP_BACKUP=1  do not take the pre-deploy database backup (not recommended)
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -27,6 +28,7 @@ BETA_SITE_URL="${BETA_SITE_URL:-https://beta.streetsempire.dev}"
 SEED="${SEED:-0}"
 SKIP_BOT="${SKIP_BOT:-0}"
 SKIP_PULL="${SKIP_PULL:-0}"
+SKIP_BACKUP="${SKIP_BACKUP:-0}"
 SUDO=""
 [ "$(id -u)" -eq 0 ] || SUDO="sudo"
 
@@ -65,6 +67,17 @@ npm run build
 
 [ -f "$APP_DIR/apps/server/dist/index.js" ] || fail "beta API build missing"
 [ -f "$APP_DIR/apps/web/dist/index.html" ] || fail "beta game build missing"
+
+step "Backing up the database before migrating"
+# 1.0.0-F: the way back from a migration that goes wrong. Exit 2 = saved here, off-server copy failed.
+if [ "$SKIP_BACKUP" = "1" ]; then
+  echo "Skipped (SKIP_BACKUP=1)."
+else
+  backup_rc=0
+  npx tsx scripts/ops/backup.ts backup --label predeploy || backup_rc=$?
+  [ "$backup_rc" -eq 0 ] || [ "$backup_rc" -eq 2 ] \
+    || fail "the pre-deploy backup failed, so nothing was migrated. Fix it (see docs/RECOVERY.md) or rerun with SKIP_BACKUP=1 to deploy without one."
+fi
 
 step "Applying beta database migrations"
 npx prisma migrate deploy
@@ -105,5 +118,9 @@ if [ -n "$BETA_SITE_URL" ]; then
   node scripts/ops/check-environment.mjs --expect beta --url "$BETA_SITE_URL" \
     || fail "$BETA_SITE_URL does not reach the beta API. Check the Nginx upstream for beta.streetsempire.dev."
 fi
+
+# 1.0.0-F: remember what was running and healthy, for scripts/ops/rollback.sh.
+mkdir -p "$APP_DIR/.deploy"
+printf '%s %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(git rev-parse HEAD)" "$(git log -1 --format=%s | tr -d '\n' | cut -c1-80)" >> "$APP_DIR/.deploy/history"
 
 step "Beta deployed: $(git log -1 --format='%h %s')"

@@ -941,6 +941,17 @@ a:hover { color: var(--se-accent-hover); }
   min-height: 60vh;
 }
 
+.se-booting p {
+  max-width: 36rem;
+  margin: 0;
+  padding: 0 16px;
+  text-align: center;
+}
+
+.se-booting .se-btn {
+  margin-top: 10px;
+}
+
 .se-eventtoasts {
   position: fixed;
   top: 62px;

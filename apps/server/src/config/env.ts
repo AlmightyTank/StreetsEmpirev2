@@ -69,6 +69,16 @@ const envSchema = z.object({
   /** How long admin audit entries are kept. 0 keeps them forever. */
   ADMIN_AUDIT_RETENTION_DAYS: z.coerce.number().int().min(0).max(3650).default(365),
   PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().positive().default(60),
+  /** 1.0.0-F. Bearer token for /api/metrics (Prometheus text). Empty: the endpoint does not exist. */
+  METRICS_TOKEN: z.union([z.literal(''), z.string().min(24, 'METRICS_TOKEN must be at least 24 characters.')]).default(''),
+  /** 1.0.0-F. The JSON file scripts/ops/backup-db.sh and restore-test.sh write, so monitoring can see backups. */
+  BACKUP_STATUS_FILE: z.string().default(''),
+  /** 1.0.0-F. Hours after which a backup counts as missing, and days after which a restore test is stale. */
+  BACKUP_MAX_AGE_HOURS: z.coerce.number().int().positive().default(26),
+  RESTORE_TEST_MAX_AGE_DAYS: z.coerce.number().int().positive().default(8),
+  /** 1.0.0-F. Maintenance mode: every player request is answered 503 with this message; admins and health checks still work. */
+  MAINTENANCE_MODE: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  MAINTENANCE_MESSAGE: z.string().max(280).default('StreetsEmpire is down for maintenance. Everything you own is safe; check back shortly.'),
   EMAIL_VERIFICATION_TTL_MINUTES: z.coerce.number().int().positive().default(60),
 });
 
@@ -125,6 +135,16 @@ export const env = {
   frontendOrigin: parsed.data.FRONTEND_ORIGIN ?? corsOrigins[0] ?? 'http://localhost:5173',
   sessionTtlMs: parsed.data.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
   auditRetentionDays: parsed.data.ADMIN_AUDIT_RETENTION_DAYS,
+  monitoring: {
+    metricsToken: parsed.data.METRICS_TOKEN,
+    backupStatusFile: parsed.data.BACKUP_STATUS_FILE,
+    backupMaxAgeHours: parsed.data.BACKUP_MAX_AGE_HOURS,
+    restoreTestMaxAgeDays: parsed.data.RESTORE_TEST_MAX_AGE_DAYS,
+  },
+  maintenance: {
+    enabled: parsed.data.MAINTENANCE_MODE,
+    message: parsed.data.MAINTENANCE_MESSAGE,
+  },
   betaAccess: {
     inviteOnly: parsed.data.BETA_INVITE_ONLY,
   },

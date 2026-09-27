@@ -11,6 +11,7 @@ import { TurfWarSettlementService } from './services/turf-war-settle.service.js'
 import { PlatformService, buildCommit } from './services/platform.service.js';
 import { APP_VERSION } from '@streets/shared';
 import { startPoller } from './utils/poller.js';
+import { metrics } from './services/metrics.service.js';
 
 const app = await buildApp();
 
@@ -52,7 +53,7 @@ const stopAlerts = startPoller('Alerts', 60_000, async () => {
     await GameAlertService.sweepRuns(app.prisma, now);
     const collected = await NotificationService.collect(app.prisma, now);
     if (collected > 0) wakeDiscordBot('alerts');
-    if (env.push.enabled) await PushService.deliverPending(app.prisma);
+    if (env.push.enabled) metrics.recordNotifications(await PushService.deliverPending(app.prisma));
     if (now.getTime() >= pruneAt) {
       await NotificationService.prune(app.prisma, now);
       pruneAt = now.getTime() + 60 * 60_000;

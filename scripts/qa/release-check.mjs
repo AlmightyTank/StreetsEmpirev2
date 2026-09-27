@@ -1,4 +1,7 @@
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const withDb = process.argv.includes('--with-db');
 const production = process.argv.includes('--production');
@@ -60,6 +63,16 @@ if (withDb) {
     // 1.0.0-E: season pause, bans, exploit flags, economy/combat/turf tools, announcements and maintenance.
     ADMIN_OPS_INTEGRATION: '1',
   });
+  // 1.0.0-F: a backup nobody has restored is not a backup. Back up the test database, then
+  // restore it into a scratch database and check every table (needs CREATEDB, or RESTORE_TEST_DATABASE_URL).
+  const backupDir = mkdtempSync(join(tmpdir(), 'se-release-backup-'));
+  const backupEnv = { ...process.env, BACKUP_DIR: backupDir, BACKUP_STATUS_FILE: join(backupDir, 'status.json'), BACKUP_OFFSITE: '' };
+  try {
+    run('Database backup', npm, ['run', 'ops:backup'], backupEnv);
+    run('Restore test', npm, ['run', 'ops:restore-test'], backupEnv);
+  } finally {
+    rmSync(backupDir, { recursive: true, force: true });
+  }
 }
 
 if (production) {

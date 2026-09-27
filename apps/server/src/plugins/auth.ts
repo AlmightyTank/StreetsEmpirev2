@@ -6,6 +6,7 @@ import { env } from '../config/env.js';
 import { resolveSession, touchSession } from '../auth/sessions.js';
 import { assertBetaAccess } from '../auth/account-status.js';
 import { AppError } from '../utils/errors.js';
+import { annotateLogContext } from '../utils/request-context.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -58,6 +59,8 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
     }
 
     request.auth = resolved;
+    // 1.0.0-F: who is asking, for every log line from here on.
+    if (resolved) annotateLogContext({ accountId: resolved.account.id });
     void touchSession(fastify.prisma, resolved.session.id);
   });
 

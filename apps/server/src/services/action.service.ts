@@ -16,6 +16,7 @@ import type {
 import type { QuestDataValue } from '@streets/rulesets';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
+import { annotateLogContext } from '../utils/request-context.js';
 import { ActivityService } from './activity.service.js';
 import { HappinessService } from './happiness.service.js';
 import { IdempotencyService } from './idempotency.service.js';
@@ -359,6 +360,8 @@ export const ActionService = {
       }
 
       const { round, ...loadedPlayer } = loaded;
+      // 1.0.0-F: the action's identity, on every log line it produces.
+      annotateLogContext({ roundPlayerId, roundId: round.id, actionId: options.actionId, action: options.action, ruleset: `${round.rulesetId}@${round.rulesetVersion}` });
       let player = loadedPlayer;
       assertRoundPlayable(round, now);
       // 0.5.0-C: nobody acts from a cell. A run still out comes home on its own.

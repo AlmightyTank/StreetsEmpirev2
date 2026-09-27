@@ -7,6 +7,7 @@ import { NotificationBell } from '../components/NotificationBell.js';
 import { InstallBanner } from '../components/InstallBanner.js';
 import { EnvironmentRibbon, environmentLabel } from '../components/EnvironmentRibbon.js';
 import { SiteBanner } from '../components/SiteBanner.js';
+import { MaintenanceBanner } from '../components/MaintenanceBanner.js';
 import { SiteThemeDecor } from '../components/SiteThemeDecor.js';
 import { useSession } from '../stores/session.js';
 
@@ -285,6 +286,7 @@ export function Shell({ children, narrow, tabbar }: {
       </header>
 
       <SiteBanner />
+      <MaintenanceBanner />
       <GameEventToasts />
 
       <main className={narrow ? 'se-authshell' : 'se-shell'}>{children}</main>
