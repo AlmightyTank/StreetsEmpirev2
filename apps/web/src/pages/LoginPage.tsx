@@ -20,6 +20,8 @@ export function LoginPage() {
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  // rc.4: "Keep me signed in" (on by default, as on most games). Off: ends with the browser.
+  const [remember, setRemember] = useState(true);
   const [fields, setFields] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -31,7 +33,7 @@ export function LoginPage() {
     setFields({});
 
     try {
-      const { twoFactorRequired } = await login({ identifier, password });
+      const { twoFactorRequired } = await login({ identifier, password, remember });
       if (twoFactorRequired) {
         setNeedsCode(true);
         return;
@@ -50,8 +52,8 @@ export function LoginPage() {
     }
   }
 
-  async function submitCode(code: string) {
-    const { recoveryCodesLeft } = await completeTwoFactor(code);
+  async function submitCode(code: string, trustDevice: boolean) {
+    const { recoveryCodesLeft } = await completeTwoFactor(code, trustDevice);
     const session = useSession.getState();
     // Running low on recovery codes: send them where new ones are made.
     if (recoveryCodesLeft !== null && recoveryCodesLeft <= 3) {
@@ -114,6 +116,14 @@ export function LoginPage() {
                 error={fields.password}
               />
 
+              <label className="se-checkrow se-checkrow--inline">
+                <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
+                <span>
+                  <strong>Keep me signed in</strong>
+                  <small>Stay signed in on this device for up to 30 days between visits. Untick on a shared computer.</small>
+                </span>
+              </label>
+
               <p className="se-auth-help">
                 <Link to="/forgot-password">Forgot your password?</Link>
               </p>
@@ -128,7 +138,7 @@ export function LoginPage() {
             <p>
               Use Discord to get back in without typing your password. Discord uses your verified email to find or create your StreetsEmpire account.
             </p>
-            <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord">
+            <a className="se-btn se-btn--discord se-btn--block" href={remember ? '/api/auth/discord' : '/api/auth/discord?remember=0'}>
               Log in with Discord
             </a>
             <p className="se-hint">

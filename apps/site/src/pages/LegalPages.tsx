@@ -42,7 +42,7 @@ export function PrivacyPage() {
           body: (
             <>
               <p>Your <strong>username</strong> (public), your <strong>email address</strong> (private: sign-in, password recovery and verification only) and your <strong>password</strong>, which is stored only as a one-way hash and never readable, even by staff.</p>
-              <p>Each signed-in session keeps the <strong>IP address and browser</strong> it signed in from and when it was last used, so you can see and end your sessions and so staff can spot account sharing and abuse. A session expires 30 days after you sign in. The account also keeps the IP address it was created from, so one network cannot flood the game with new accounts.</p>
+              <p>Each signed-in session keeps the <strong>IP address and browser</strong> it signed in from and when it was last used, so you can see and end your sessions and so staff can spot account sharing and abuse. With "Keep me signed in" a session lasts while you keep visiting, ends after 30 days away, and always ends 90 days after you signed in; without it, it ends when you close the browser or after 12 hours idle. If you use two-step sign-in and choose "Trust this browser", that browser keeps a cookie for 30 days so it can skip the code (you can forget it in account settings). The account also keeps the IP address it was created from, so one network cannot flood the game with new accounts.</p>
             </>
           ),
         },

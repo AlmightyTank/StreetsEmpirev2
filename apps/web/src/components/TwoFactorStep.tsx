@@ -13,11 +13,13 @@ export function TwoFactorStep({
   onSubmit,
   onCancel,
 }: {
-  onSubmit: (code: string) => Promise<void>;
+  onSubmit: (code: string, trustDevice: boolean) => Promise<void>;
   onCancel: () => void;
 }) {
   const [code, setCode] = useState('');
   const [recovery, setRecovery] = useState(false);
+  // rc.4: most players sign in from their own phone or computer.
+  const [trustDevice, setTrustDevice] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | undefined>();
@@ -28,7 +30,7 @@ export function TwoFactorStep({
     setMessage(null);
     setFieldError(undefined);
     try {
-      await onSubmit(code.trim());
+      await onSubmit(code.trim(), trustDevice);
     } catch (error) {
       if (error instanceof ApiError) {
         setMessage(error.message);
@@ -61,6 +63,13 @@ export function TwoFactorStep({
           required
           error={fieldError}
         />
+        <label className="se-checkrow se-checkrow--inline">
+          <input type="checkbox" checked={trustDevice} onChange={(event) => setTrustDevice(event.target.checked)} />
+          <span>
+            <strong>Trust this browser for 30 days</strong>
+            <small>Skip the code here next time; you still need your password. Leave this off on a shared computer.</small>
+          </span>
+        </label>
         <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy ? 'Checking the code.' : code.trim().length < 6 ? 'Enter the code first.' : null}>
           {busy ? 'Checking...' : 'Sign in'}
         </Button>

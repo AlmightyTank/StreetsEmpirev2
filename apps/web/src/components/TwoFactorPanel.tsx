@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { TwoFactorSetupDto, TwoFactorStatusDto } from '@streets/shared';
+import type { TrustedDeviceDto, TwoFactorSetupDto, TwoFactorStatusDto } from '@streets/shared';
 import { authApi } from '../api/auth.js';
 import { ApiError } from '../api/client.js';
 import { useSession } from '../stores/session.js';
@@ -34,6 +34,62 @@ function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void 
         <a className="se-btn se-btn--ghost se-btn--sm" href={download} download="streetsempire-recovery-codes.txt">Download</a>
         <button type="button" className="se-btn se-btn--primary se-btn--sm" onClick={onDone}>I have saved them</button>
       </div>
+    </div>
+  );
+}
+
+/** rc.4. Browsers that skip the code at sign-in ("Trust this browser"), each can be forgotten. */
+function TrustedBrowsers() {
+  const [devices, setDevices] = useState<TrustedDeviceDto[] | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    try {
+      setDevices((await authApi.trustedDevices()).devices);
+    } catch {
+      setDevices([]);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function forget(deviceId?: string) {
+    setBusy(true);
+    try {
+      if (deviceId) await authApi.forgetTrustedDevice(deviceId);
+      else await authApi.forgetTrustedDevices();
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!devices) return null;
+  return (
+    <div className="se-2fa__trusted">
+      <h3 className="se-label">Trusted browsers</h3>
+      {devices.length === 0 ? (
+        <p className="se-hint">None. Tick "Trust this browser" when you enter a code to skip it there for 30 days.</p>
+      ) : (
+        <>
+          <ul className="se-2fa__devices">
+            {devices.map((device) => (
+              <li key={device.id}>
+                <span>
+                  <strong>{device.current ? 'This browser' : device.userAgent?.slice(0, 60) ?? 'Unknown browser'}</strong>
+                  <small className="se-hint"> · used {new Date(device.lastUsedAt).toLocaleDateString()} · until {new Date(device.expiresAt).toLocaleDateString()}</small>
+                </span>
+                <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={busy} onClick={() => void forget(device.id)}>Forget</button>
+              </li>
+            ))}
+          </ul>
+          {devices.length > 1 ? (
+            <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={busy} onClick={() => void forget()}>Forget all</button>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }
@@ -175,6 +231,7 @@ export function TwoFactorPanel({ focusCodes = false }: { focusCodes?: boolean })
               <button type="button" className="se-btn se-btn--ghost" onClick={() => reset('disable')}>Turn off</button>
             </div>
           )}
+          <TrustedBrowsers />
         </>
       ) : mode === 'scan' && setup ? (
         <form onSubmit={confirm} noValidate>

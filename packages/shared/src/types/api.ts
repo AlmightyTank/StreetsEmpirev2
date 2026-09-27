@@ -111,6 +111,10 @@ export interface AccountSessionDto {
   method: string;
   /** rc.3. The sign-in passed an authenticator code. */
   twoFactor: boolean;
+  /** rc.4. "Keep me signed in": renews while used. False: ends with the browser or after a short idle time. */
+  remember: boolean;
+  /** rc.4. The latest this session can last, however active: the password is asked again then. */
+  endsBy: string;
 }
 
 export interface AccountSessionsResponseDto {

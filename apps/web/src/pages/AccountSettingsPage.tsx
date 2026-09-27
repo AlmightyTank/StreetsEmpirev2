@@ -441,7 +441,14 @@ export function AccountSettingsPage() {
                     Last seen {formatDate(session.lastSeenAt)}
                     {session.ip ? ` · ${session.ip}` : ''}
                   </small>
-                  <small>Created {formatDate(session.createdAt)} · Expires {formatDate(session.expiresAt)}</small>
+                  <small>
+                    {session.method === 'DISCORD' ? 'Discord' : 'Password'}{session.twoFactor ? ' + code' : ''}
+                    {' · '}{session.remember ? 'Kept signed in' : 'Until the browser closes'}
+                  </small>
+                  <small>
+                    Signed in {formatDate(session.createdAt)} · Ends {formatDate(session.expiresAt)} if unused
+                    {session.remember ? ` · by ${formatDate(session.endsBy)} at the latest` : ''}
+                  </small>
                 </div>
                 {session.current ? null : (
                   <Button

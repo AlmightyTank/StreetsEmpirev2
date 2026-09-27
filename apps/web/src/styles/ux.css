@@ -178,3 +178,7 @@ button.se-tip[aria-expanded='true'] {
   font-variant-numeric: tabular-nums;
 }
 .se-2fa__codelist code { font-size: 1rem; letter-spacing: 0.04em; }
+/* rc.4: trusted browsers */
+.se-2fa__trusted { margin-top: 16px; }
+.se-2fa__devices { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 8px; }
+.se-2fa__devices li { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }

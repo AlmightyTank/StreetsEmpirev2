@@ -79,6 +79,7 @@ model Account {
   sessions             Session[]
   bugReports           BugReport[]
   twoFactorRecoveryCodes TwoFactorRecoveryCode[]
+  trustedDevices       TrustedDevice[]
   loginChallenges      LoginChallenge[]
   passwordResetTokens  PasswordResetToken[]
   accountEmailTokens   AccountEmailToken[]
@@ -375,6 +376,17 @@ model Session {
   method    String  @default("PASSWORD")
   /// rc.3. True when this sign-in passed an authenticator (or recovery) code.
   twoFactor Boolean @default(false)
+  /// rc.4. "Keep me signed in": a long session that renews while used. False: ends with the
+  /// browser, or after a short idle time.
+  remember          Boolean   @default(true)
+  /// rc.4. Hard end, however active the session is. Null on sessions from before rc.4
+  /// (then createdAt plus the maximum).
+  absoluteExpiresAt DateTime?
+  /// rc.4. When this session last proved a second factor (Discord sign-in or a code).
+  /// Admin tools need it to be recent.
+  secondFactorAt    DateTime?
+  /// rc.4. Wrong codes entered while signed in; too many signs the session out.
+  codeFailures      Int       @default(0)
 
   @@index([accountId])
   @@index([expiresAt])
@@ -394,6 +406,26 @@ model TwoFactorRecoveryCode {
   @@index([accountId])
 }
 
+/// rc.4. A browser that passed two-step sign-in with "Trust this browser" ticked: sign-ins
+/// from it skip the code until it expires or is forgotten. The cookie holds the token;
+/// only its hash is stored.
+model TrustedDevice {
+  id        String @id @default(cuid())
+  tokenHash String @unique
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  userAgent  String?
+  ip         String?
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+  expiresAt  DateTime
+
+  @@index([accountId])
+  @@index([expiresAt])
+}
+
 /// rc.3. A sign-in that passed the password (or Discord) and now waits for the authenticator code.
 model LoginChallenge {
   id        String @id @default(cuid())
@@ -404,6 +436,8 @@ model LoginChallenge {
 
   /// PASSWORD or DISCORD: what the session will record once the code is right.
   method    String
+  /// rc.4. The "Keep me signed in" choice, carried to the session the code makes.
+  remember  Boolean  @default(true)
   attempts  Int      @default(0)
   expiresAt DateTime
   createdAt DateTime @default(now())

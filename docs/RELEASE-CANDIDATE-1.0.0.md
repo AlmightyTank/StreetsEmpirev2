@@ -1,10 +1,10 @@
-# StreetsEmpire 1.0.0 release candidate (1.0.0-rc.3)
+# StreetsEmpire 1.0.0 release candidate (1.0.0-rc.4)
 
 The build that has to prove the finished game works before it is called 1.0.
 
 ## The candidate
 
-- **Version:** `APP_VERSION` is `1.0.0-rc.3`, in `packages/shared/src/platform.ts`. The footer and `/api/meta` show it, with the commit.
+- **Version:** `APP_VERSION` is `1.0.0-rc.4`, in `packages/shared/src/platform.ts`. The footer and `/api/meta` show it, with the commit.
 - **Branch:** `beta`. Deploy it to beta first (`bash scripts/ops/deploy-beta.sh`), then to production once the launch checklist is clear.
 - **One command runs every gate:** `npm run release:rc`, which is `qa:release --with-db --with-load`. Add `--with-ui` to include the browser audit when a web client is running.
 
@@ -260,3 +260,43 @@ Migration: `20260928010000_two_factor` (account two-step fields, recovery codes,
 2. On beta, **set up an authenticator on a real phone**. Sign out and back in with a code, then try a recovery code.
 3. **Give every admin a second factor**: Discord or an authenticator ([ADMIN-RUNBOOK.md → Admin sign-in](ADMIN-RUNBOOK.md#admin-sign-in)).
 4. The rc.2 items still stand: test Discord on beta, `qa:ui` on beta, and `ops:launch-check` on production.
+
+## rc.4
+
+rc.4 sets up sign-in, sessions and two-step sign-in the way most online games and big sites do, as the owner asked.
+
+### What changed
+
+- **"Keep me signed in"** on the login page and for Discord sign-in. It is on by default.
+  - **Kept:** the session renews while used and ends after 30 days without a visit.
+  - **Not kept (shared computers):** it ends when the browser closes, or after 12 hours idle.
+  - **Either way:** every session ends 90 days after sign-in, so the password (and code) is asked for at least that often. Sessions from before rc.4 keep working under the same limits.
+- **"Trust this browser for 30 days"** on the two-step code screen. It is ticked by default. On a trusted browser, sign-in still needs the password but skips the code.
+  - Changing or resetting the password, turning two-step off, or a staff reset forgets every trusted browser.
+  - Account settings lists trusted browsers and can forget them.
+- **Admins re-confirm.** Admin tools need a second factor from the last 12 hours, and a trusted browser does not count.
+  - An admin with an authenticator enters a code on the admin page itself, without signing out.
+  - Otherwise, they sign in with Discord again.
+- **Guessing is capped while signed in.** Five wrong codes (turning two-step off, new recovery codes, admin re-confirm) sign that session out.
+- **The sessions list** shows how each session signed in, whether it is kept, and when it ends.
+- **Settings** (all optional): `SESSION_TTL_DAYS`, `SESSION_MAX_DAYS`, `SESSION_SHORT_HOURS`, `TRUSTED_DEVICE_DAYS`, `ADMIN_2FA_MAX_AGE_HOURS`.
+- **Privacy page.** It describes the session and trusted-browser cookies.
+
+Migration: `20260928020000_sessions_trusted_devices` (session lifetime fields, second-factor time, wrong-code count, and trusted browsers). Existing Discord and code sessions keep their second factor from when they signed in.
+
+### Results for rc.4
+
+`npm run release:rc` on the rc.4 commit, 27 September 2026: **all gates passed.**
+
+| Gate | Result |
+| --- | --- |
+| Typecheck, build, balance | pass |
+| Unit tests | 128 files, 1,091 tests pass |
+| Full PostgreSQL regression | 170 files, 1,363 tests pass, including the new session, trusted-browser and admin re-confirm tests |
+| Bot, forum link and push | 3 files, 22 tests pass |
+| Season One | 9 of 9 steps pass |
+| Backup and restore test | restored 76 tables and 877 rows, and every count matches |
+| Load test (300 players) | every scenario passes with zero errors; login spike p95 1.1 s |
+| Browser check | "Keep me signed in", the code screen with "Trust this browser", signing in again on a trusted browser with no code, and the trusted-browser and sessions lists all work at phone width, with no page errors |
+
+The rc.3 steps before production still apply: set `TWO_FACTOR_KEY`, try it with a real phone on beta, and give every admin a second factor.

@@ -39,6 +39,8 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   identifier: z.string().trim().min(1, 'Enter your pimp name or email.'),
   password: z.string().min(1, 'Enter your password.'),
+  /** rc.4. "Keep me signed in". Defaults to true. */
+  remember: z.boolean().optional(),
 });
 
 export const forgotPasswordSchema = z.object({

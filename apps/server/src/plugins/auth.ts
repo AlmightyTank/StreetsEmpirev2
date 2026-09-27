@@ -19,7 +19,8 @@ declare module 'fastify' {
     requireAuth: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
     /** 401s guests and 403s anyone who is not a game admin. */
     requireAdmin: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
-    setSessionCookie: (reply: FastifyReply, token: string) => void;
+    /** rc.4: `remember` false makes a browser-session cookie (no expiry date). */
+    setSessionCookie: (reply: FastifyReply, token: string, remember?: boolean) => void;
     clearSessionCookie: (reply: FastifyReply) => void;
   }
 }
@@ -29,14 +30,15 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
 
   fastify.decorateRequest('auth', null);
 
-  fastify.decorate('setSessionCookie', (reply: FastifyReply, token: string) => {
+  fastify.decorate('setSessionCookie', (reply: FastifyReply, token: string, remember = true) => {
     reply.setCookie(env.SESSION_COOKIE_NAME, token, {
       httpOnly: true,
       sameSite: 'lax',
       secure: env.isProduction,
       signed: true,
       path: '/',
-      maxAge: Math.floor(env.sessionTtlMs / 1000),
+      // The server enforces idle and hard limits; the cookie only needs to outlive them.
+      ...(remember ? { maxAge: Math.floor(env.sessions.maxAgeMs / 1000) } : {}),
     });
   });
 
@@ -62,7 +64,7 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
     request.auth = resolved;
     // 1.0.0-F: who is asking, for every log line from here on.
     if (resolved) annotateLogContext({ accountId: resolved.account.id });
-    void touchSession(fastify.prisma, resolved.session.id);
+    void touchSession(fastify.prisma, resolved.session);
   });
 
   fastify.decorate('requireAuth', async (request: FastifyRequest) => {

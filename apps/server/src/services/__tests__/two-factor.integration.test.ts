@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { totpCode, totpStep } from '../../auth/totp.js';
 
@@ -21,21 +21,26 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('two-step sign-in (rc.3), w
   let cookieName = '';
   const accountIds: string[] = [];
   const saved = process.env.REQUIRE_ADMIN_2FA;
+  // Each test signs in from its own address, as players do, so the per-address sign-in
+  // rate limit (20 per 5 minutes) is not shared across the whole suite.
+  let ip = '192.0.2.1';
+  let testNumber = 0;
+  beforeEach(() => { testNumber += 1; ip = `192.0.2.${testNumber + 10}`; });
 
   const cookiesOf = (response: { cookies: Array<{ name: string; value: string }> }) =>
     response.cookies.filter((c) => c.value).map((c) => `${c.name}=${c.value}`).join('; ');
   const register = async () => {
     const name = `twostep${randomUUID().slice(0, 8)}`;
     const password = randomUUID();
-    const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password } });
+    const response = await app.inject({ remoteAddress: ip, method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password } });
     expect(response.statusCode, response.body).toBe(201);
     accountIds.push(response.json().account.id);
     return { id: response.json().account.id as string, name, email: `${name}@example.invalid`, password, cookie: cookiesOf(response) };
   };
   const as = (cookie: string, method: 'GET' | 'POST', url: string, payload?: object) =>
-    app.inject({ method, url, headers: { cookie }, ...(payload ? { payload } : {}) });
+    app.inject({ remoteAddress: ip, method, url, headers: { cookie }, ...(payload ? { payload } : {}) });
   const login = (identifier: string, password: string) =>
-    app.inject({ method: 'POST', url: '/api/auth/login', payload: { identifier, password } });
+    app.inject({ remoteAddress: ip, method: 'POST', url: '/api/auth/login', payload: { identifier, password } });
   const discordSession = async (accountId: string) => {
     const { createSession } = await import('../../auth/sessions.js');
     const { token } = await createSession(app.prisma, accountId, { method: 'DISCORD' });
@@ -144,11 +149,11 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('two-step sign-in (rc.3), w
   it('still asks for the code after a password reset, and can be turned off', async () => {
     const player = await register();
     const { secret, step, recoveryCodes } = await enrol(player);
-    await app.inject({ method: 'POST', url: '/api/auth/password/forgot', payload: { email: player.email } });
+    await app.inject({ remoteAddress: ip, method: 'POST', url: '/api/auth/password/forgot', payload: { email: player.email } });
     const link = mail.filter((row) => row.kind === 'reset' && row.to === player.email).at(-1);
     const token = new URL(link!.url!).searchParams.get('token')!;
     const newPassword = randomUUID();
-    const reset = await app.inject({ method: 'POST', url: '/api/auth/password/reset', payload: { token, password: newPassword } });
+    const reset = await app.inject({ remoteAddress: ip, method: 'POST', url: '/api/auth/password/reset', payload: { token, password: newPassword } });
     expect(reset.statusCode, reset.body).toBe(200);
     expect(reset.json()).toEqual({ twoFactorRequired: true });
     expect(reset.cookies.some((c) => c.name === cookieName && c.value)).toBe(false);
@@ -194,5 +199,112 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('two-step sign-in (rc.3), w
     expect(await app.prisma.adminAuditLog.count({ where: { action: 'account.reset-2fa', targetId: player.id } })).toBe(1);
     expect(mail).toContainEqual({ kind: '2fa', to: player.email, change: 'reset' });
     expect((await login(player.name, player.password)).json().account.username).toBe(player.name);
+  });
+
+  /* ---------- rc.4: sessions, trusted browsers, admin re-confirm ---------- */
+
+  const sessionCookie = (response: { cookies: Array<{ name: string; value: string; maxAge?: number; expires?: Date }> }) =>
+    response.cookies.find((c) => c.name === cookieName && c.value);
+  const currentSession = async (cookie: string) => {
+    const rows = (await as(cookie, 'GET', '/api/auth/sessions')).json().sessions as Array<{ id: string; current: boolean; remember: boolean; expiresAt: string; endsBy: string }>;
+    return rows.find((row) => row.current)!;
+  };
+
+  it('keeps a remembered sign-in for 30 idle days, and a shared-computer one only for the browser', async () => {
+    const player = await register();
+    const HOUR = 3_600_000;
+    const kept = await app.inject({ remoteAddress: ip, method: 'POST', url: '/api/auth/login', payload: { identifier: player.name, password: player.password } });
+    expect(sessionCookie(kept)?.maxAge).toBe(90 * 24 * 3600);
+    const keptRow = await currentSession(cookiesOf(kept));
+    expect(keptRow.remember).toBe(true);
+    expect(Date.parse(keptRow.expiresAt) - Date.now()).toBeGreaterThan(29 * 24 * HOUR);
+    expect(Date.parse(keptRow.endsBy) - Date.now()).toBeGreaterThan(89 * 24 * HOUR);
+
+    const shared = await app.inject({ remoteAddress: ip, method: 'POST', url: '/api/auth/login', payload: { identifier: player.name, password: player.password, remember: false } });
+    const cookie = sessionCookie(shared)!;
+    expect(cookie.maxAge).toBeUndefined();
+    expect(cookie.expires).toBeUndefined();
+    const sharedRow = await currentSession(cookiesOf(shared));
+    expect(sharedRow.remember).toBe(false);
+    expect(Date.parse(sharedRow.expiresAt) - Date.now()).toBeLessThan(12 * HOUR + 60_000);
+
+    // Using a session slides its idle expiry forward...
+    await app.prisma.session.update({ where: { id: sharedRow.id }, data: { expiresAt: new Date(Date.now() + HOUR) } });
+    await as(cookiesOf(shared), 'GET', '/api/auth/me');
+    await vi.waitFor(async () => {
+      const row = await app.prisma.session.findUniqueOrThrow({ where: { id: sharedRow.id } });
+      expect(row.expiresAt.getTime() - Date.now()).toBeGreaterThan(11 * HOUR);
+    });
+    // ...never past its hard end, and past the hard end it is over however active.
+    await app.prisma.session.update({ where: { id: keptRow.id }, data: { absoluteExpiresAt: new Date(Date.now() - 1000) } });
+    expect((await as(cookiesOf(kept), 'GET', '/api/auth/me')).statusCode).toBe(401);
+    // Idle past its expiry: over too.
+    await app.prisma.session.update({ where: { id: sharedRow.id }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    expect((await as(cookiesOf(shared), 'GET', '/api/auth/me')).statusCode).toBe(401);
+  });
+
+  it('skips the code on a trusted browser until the password changes', async () => {
+    const player = await register();
+    const { secret, step } = await enrol(player);
+    const challenge = cookiesOf(await login(player.name, player.password));
+    const verified = await as(challenge, 'POST', '/api/auth/2fa/verify', { code: totpCode(secret, step + 1), trustDevice: true });
+    expect(verified.statusCode, verified.body).toBe(200);
+    const trusted = verified.cookies.find((c) => c.name === 'se_trusted_device')!;
+    expect(trusted.maxAge).toBe(30 * 24 * 3600);
+    const trustCookie = `se_trusted_device=${trusted.value}`;
+    const session = cookiesOf(verified);
+    const devices = (await as(`${session}; ${trustCookie}`, 'GET', '/api/auth/2fa/trusted-devices')).json().devices;
+    expect(devices).toHaveLength(1);
+    expect(devices[0].current).toBe(true);
+
+    // Password again on this browser: no code.
+    const again = await app.inject({ remoteAddress: ip, method: 'POST', url: '/api/auth/login', headers: { cookie: trustCookie }, payload: { identifier: player.name, password: player.password } });
+    expect(again.json().account?.username, again.body).toBe(player.name);
+    // Another browser still needs it.
+    expect((await login(player.name, player.password)).json()).toEqual({ twoFactorRequired: true });
+
+    // A new password forgets every trusted browser.
+    const newPassword = randomUUID();
+    const changed = await as(session, 'POST', '/api/auth/password/change', { currentPassword: player.password, password: newPassword, revokeOtherSessions: false });
+    expect(changed.statusCode, changed.body).toBe(200);
+    const afterChange = await app.inject({ remoteAddress: ip, method: 'POST', url: '/api/auth/login', headers: { cookie: trustCookie }, payload: { identifier: player.name, password: newPassword } });
+    expect(afterChange.json()).toEqual({ twoFactorRequired: true });
+  });
+
+  it('asks an admin to re-confirm every 12 hours and on trusted browsers, in place', async () => {
+    const admin = await register();
+    const discord = await discordSession(admin.id);
+    await app.prisma.account.update({ where: { id: admin.id }, data: { isAdmin: true } });
+    const setup = await as(discord, 'POST', '/api/auth/2fa/setup', {});
+    const step = totpStep();
+    const enabled = await as(discord, 'POST', '/api/auth/2fa/enable', { code: totpCode(setup.json().secret, step) });
+    const recoveryCodes = enabled.json().recoveryCodes as string[];
+    expect((await as(discord, 'GET', '/api/admin/bug-reports')).statusCode).toBe(200);
+
+    // Twelve hours on, the same session must re-confirm.
+    const discordRow = await currentSession(discord);
+    await app.prisma.session.update({ where: { id: discordRow.id }, data: { secondFactorAt: new Date(Date.now() - 13 * 3_600_000) } });
+    expect((await as(discord, 'GET', '/api/admin/bug-reports')).json().error.code).toBe('ADMIN_2FA_REQUIRED');
+    expect((await as(discord, 'GET', '/api/auth/me')).json().account.adminSignInRequired).toBe(true);
+    const confirmed = await as(discord, 'POST', '/api/auth/2fa/step-up', { code: recoveryCodes[0]! });
+    expect(confirmed.statusCode, confirmed.body).toBe(200);
+    expect(confirmed.json().account.adminSignInRequired).toBe(false);
+    expect((await as(discord, 'GET', '/api/admin/bug-reports')).statusCode).toBe(200);
+
+    // A trusted browser skips the code at sign-in, but not for admin tools.
+    const challenge = cookiesOf(await login(admin.name, admin.password));
+    const verified = await as(challenge, 'POST', '/api/auth/2fa/verify', { code: totpCode(setup.json().secret, step + 1), trustDevice: true });
+    const trustCookie = `se_trusted_device=${verified.cookies.find((c) => c.name === 'se_trusted_device')!.value}`;
+    const skipped = await app.inject({ remoteAddress: ip, method: 'POST', url: '/api/auth/login', headers: { cookie: trustCookie }, payload: { identifier: admin.name, password: admin.password } });
+    const skippedSession = cookiesOf(skipped);
+    expect((await as(skippedSession, 'GET', '/api/admin/bug-reports')).json().error.code).toBe('ADMIN_2FA_REQUIRED');
+
+    // Guessing is capped: five wrong codes sign the session out.
+    for (let i = 0; i < 4; i += 1) {
+      expect((await as(skippedSession, 'POST', '/api/auth/2fa/step-up', { code: '000000' })).json().error.code).toBe('TWO_FACTOR_INVALID');
+    }
+    const out = await as(skippedSession, 'POST', '/api/auth/2fa/step-up', { code: '000000' });
+    expect(out.statusCode).toBe(401);
+    expect((await as(skippedSession, 'GET', '/api/auth/me')).statusCode).toBe(401);
   });
 });

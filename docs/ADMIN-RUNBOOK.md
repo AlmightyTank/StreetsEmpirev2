@@ -45,6 +45,29 @@ Signing in with only a password still works for playing, but the admin pages sho
   - `npm run ops:launch-check` fails if no admin has a second factor, and warns for each admin without one.
 - **Setting.** `REQUIRE_ADMIN_2FA` controls this. It is on by default in production and beta, and off in development and test. The rc.2 name, `REQUIRE_ADMIN_DISCORD`, is still read when `REQUIRE_ADMIN_2FA` is unset.
 
+### Sign-in and sessions (rc.4)
+
+These follow what most online games and big sites do.
+
+| | Kept signed in (default) | Not kept (shared computer) |
+| --- | --- | --- |
+| Cookie | Stays for up to 90 days | Ends when the browser closes |
+| Idle timeout | 30 days without a visit (`SESSION_TTL_DAYS`) | 12 hours (`SESSION_SHORT_HOURS`) |
+| Renews while used | Yes | Yes |
+| Hard end, however active | 90 days after sign-in (`SESSION_MAX_DAYS`) | 90 days after sign-in |
+
+- **Two-step code.** Players with two-step on are asked for the code at every new sign-in. On the code screen, **Trust this browser for 30 days** (`TRUSTED_DEVICE_DAYS`, ticked by default) skips the code on that browser; the password is still needed.
+  - Forgetting trusted browsers: changing or resetting the password, turning two-step off, or a staff reset forgets them all. Players can also forget any of them in Account settings.
+  - A trusted browser never counts for admin tools.
+- **Admins.** Admin tools need a second factor proved in the last 12 hours (`ADMIN_2FA_MAX_AGE_HOURS`): a Discord sign-in or an authenticator code.
+  - After that, the admin page asks for the code in place, without signing out. With no authenticator, the admin signs in with Discord again.
+- **Guessing.** Codes entered while signed in (turning two-step off, new recovery codes, admin re-confirm) are limited too: five wrong codes sign that session out.
+- **Sensitive changes** still ask for proof on the spot:
+  - changing the password and closing the account: the password;
+  - turning two-step off and making new recovery codes: a code;
+  - unlinking Discord: the password.
+- **Sessions list.** Account settings lists every session: how it signed in, whether it is kept, and when it ends. Players can sign any of them out.
+
 ### Two-step sign-in for players (rc.3)
 
 Any player can turn on two-step sign-in in **Account settings → Two-step sign-in**:

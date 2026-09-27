@@ -9,6 +9,7 @@ import type {
   LoginInput,
   RegisterInput,
   ResetPasswordInput,
+  TrustedDeviceDto,
   TwoFactorRequiredDto,
   TwoFactorSetupDto,
   TwoFactorStatusDto,
@@ -40,7 +41,13 @@ export const authApi = {
   login: (input: LoginInput) => api.post<AccountResponse | TwoFactorRequiredDto>('/auth/login', input),
 
   /** rc.3. The authenticator (or recovery) code for a sign-in that is waiting for one. */
-  verifyTwoFactor: (code: string) => api.post<AccountResponse & { recoveryCodesLeft?: number }>('/auth/2fa/verify', { code }),
+  verifyTwoFactor: (code: string, trustDevice = false) =>
+    api.post<AccountResponse & { recoveryCodesLeft?: number }>('/auth/2fa/verify', { code, trustDevice }),
+  /** rc.4. Re-confirm with a code without signing out (admin tools). */
+  stepUpTwoFactor: (code: string) => api.post<AccountResponse>('/auth/2fa/step-up', { code }),
+  trustedDevices: () => api.get<{ devices: TrustedDeviceDto[] }>('/auth/2fa/trusted-devices'),
+  forgetTrustedDevice: (deviceId: string) => api.delete<{ ok: true; forgotten: number }>(`/auth/2fa/trusted-devices/${encodeURIComponent(deviceId)}`),
+  forgetTrustedDevices: () => api.delete<{ ok: true; forgotten: number }>('/auth/2fa/trusted-devices'),
   twoFactorStatus: () => api.get<TwoFactorStatusDto>('/auth/2fa'),
   setupTwoFactor: (currentPassword?: string) => api.post<TwoFactorSetupDto>('/auth/2fa/setup', currentPassword ? { currentPassword } : {}),
   enableTwoFactor: (code: string) => api.post<{ recoveryCodes: string[]; account: AccountDto }>('/auth/2fa/enable', { code }),

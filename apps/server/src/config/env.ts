@@ -27,7 +27,16 @@ const envSchema = z.object({
     .string()
     .min(32, 'SESSION_SECRET must be at least 32 characters.'),
   SESSION_COOKIE_NAME: z.string().default('se_session'),
+  /** "Keep me signed in": the session ends after this many days without a visit. */
   SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  /** rc.4. However active, a session ends this many days after sign-in (password and code again). */
+  SESSION_MAX_DAYS: z.coerce.number().int().positive().default(90),
+  /** rc.4. Without "Keep me signed in": ends with the browser, or after this many idle hours. */
+  SESSION_SHORT_HOURS: z.coerce.number().int().positive().default(12),
+  /** rc.4. "Trust this browser": how long two-step sign-in skips the code on it. */
+  TRUSTED_DEVICE_DAYS: z.coerce.number().int().min(0).default(30),
+  /** rc.4. Admin tools need a second factor proved within this many hours. */
+  ADMIN_2FA_MAX_AGE_HOURS: z.coerce.number().int().positive().default(12),
 
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
   FRONTEND_ORIGIN: z.string().url().optional(),
@@ -182,6 +191,13 @@ export const env = {
   corsOrigins,
   frontendOrigin: parsed.data.FRONTEND_ORIGIN ?? corsOrigins[0] ?? 'http://localhost:5173',
   sessionTtlMs: parsed.data.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
+  sessions: {
+    rememberedIdleMs: parsed.data.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
+    maxAgeMs: Math.max(parsed.data.SESSION_MAX_DAYS, parsed.data.SESSION_TTL_DAYS) * 24 * 60 * 60 * 1000,
+    shortIdleMs: parsed.data.SESSION_SHORT_HOURS * 60 * 60 * 1000,
+    trustedDeviceMs: parsed.data.TRUSTED_DEVICE_DAYS * 24 * 60 * 60 * 1000,
+    adminSecondFactorMs: parsed.data.ADMIN_2FA_MAX_AGE_HOURS * 60 * 60 * 1000,
+  },
   auditRetentionDays: parsed.data.ADMIN_AUDIT_RETENTION_DAYS,
   monitoring: {
     metricsToken: parsed.data.METRICS_TOKEN,

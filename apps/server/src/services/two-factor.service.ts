@@ -1,7 +1,8 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Account, PrismaClient } from '@prisma/client';
 import QRCode from 'qrcode';
-import type { TwoFactorSetupDto, TwoFactorStatusDto } from '@streets/shared';
+import type { TrustedDeviceDto, TwoFactorSetupDto, TwoFactorStatusDto } from '@streets/shared';
+import { env } from '../config/env.js';
 import {
   generateRecoveryCodes,
   generateTotpSecret,
@@ -20,9 +21,35 @@ import type { Db } from '../utils/db.js';
 export const LOGIN_CHALLENGE_TTL_MS = 10 * 60 * 1000;
 /** Wrong codes allowed on one sign-in before it has to start again. */
 export const LOGIN_CHALLENGE_ATTEMPTS = 5;
+/** rc.4. Wrong codes a signed-in session may enter (turning off, new codes, re-confirming) before it is signed out. */
+export const SESSION_CODE_ATTEMPTS = 5;
 
 function hashToken(token: string): string {
   return createHash('sha256').update(`challenge:${token}`).digest('hex');
+}
+
+function hashDeviceToken(token: string): string {
+  return createHash('sha256').update(`trusted-device:${token}`).digest('hex');
+}
+
+/**
+ * rc.4. A code entered by a signed-in session. Wrong codes count against the session and,
+ * past SESSION_CODE_ATTEMPTS, sign it out, so a stolen session cannot guess its way to
+ * turning two-step off or to the admin tools.
+ */
+async function sessionCode<T>(prisma: PrismaClient, account: Account, sessionId: string, code: string, onSpent: (tx: Db) => Promise<T>): Promise<T> {
+  const result = await prisma.$transaction(async (tx) => {
+    if (!(await spendCode(tx, account, code))) return { ok: false as const };
+    await tx.session.update({ where: { id: sessionId }, data: { codeFailures: 0 } });
+    return { ok: true as const, value: await onSpent(tx) };
+  });
+  if (result.ok) return result.value;
+  const session = await prisma.session.update({ where: { id: sessionId }, data: { codeFailures: { increment: 1 } } });
+  if (session.codeFailures >= SESSION_CODE_ATTEMPTS) {
+    await prisma.session.delete({ where: { id: sessionId } }).catch(() => undefined);
+    throw AppError.unauthenticated('Too many wrong codes. You have been signed out; sign in again.');
+  }
+  throw invalidCode();
 }
 
 function invalidCode(): AppError {
@@ -97,16 +124,21 @@ export const TwoFactorService = {
       });
       if (enabled.count !== 1) throw AppError.conflict('TWO_FACTOR_NOT_STARTED', 'Setup changed in another tab. Start again.');
       // This sign-in just produced a valid code, so it counts as a two-step session.
-      await tx.session.update({ where: { id: sessionId }, data: { twoFactor: true } });
+      await tx.session.update({ where: { id: sessionId }, data: { twoFactor: true, secondFactorAt: now } });
       return freshRecoveryCodes(tx, account.id);
     });
   },
 
-  async disable(prisma: PrismaClient, account: Account, code: string): Promise<void> {
+  async disable(prisma: PrismaClient, account: Account, sessionId: string, code: string): Promise<void> {
     if (!account.twoFactorEnabledAt) throw AppError.conflict('TWO_FACTOR_DISABLED', 'Two-step sign-in is already off.');
-    await prisma.$transaction(async (tx) => {
-      if (!(await spendCode(tx, account, code))) throw invalidCode();
-      await TwoFactorService.clear(tx, account.id);
+    await sessionCode(prisma, account, sessionId, code, (tx) => TwoFactorService.clear(tx, account.id));
+  },
+
+  /** rc.4. Re-confirm with a code without signing out: refreshes the session's second factor (admin tools). */
+  async stepUp(prisma: PrismaClient, account: Account, sessionId: string, code: string, now = new Date()): Promise<void> {
+    if (!account.twoFactorEnabledAt) throw AppError.conflict('TWO_FACTOR_DISABLED', 'Two-step sign-in is off. Sign in with Discord instead.');
+    await sessionCode(prisma, account, sessionId, code, async (tx) => {
+      await tx.session.update({ where: { id: sessionId }, data: { twoFactor: true, secondFactorAt: now } });
     });
   },
 
@@ -118,30 +150,75 @@ export const TwoFactorService = {
     });
     await db.twoFactorRecoveryCode.deleteMany({ where: { accountId } });
     await db.loginChallenge.deleteMany({ where: { accountId } });
-    // No session keeps a two-step mark the account no longer has.
+    await db.trustedDevice.deleteMany({ where: { accountId } });
+    // No session keeps a two-step mark the account no longer has (a Discord sign-in keeps its own).
     await db.session.updateMany({ where: { accountId }, data: { twoFactor: false } });
+    await db.session.updateMany({ where: { accountId, method: { not: 'DISCORD' } }, data: { secondFactorAt: null } });
   },
 
-  async regenerateRecoveryCodes(prisma: PrismaClient, account: Account, code: string): Promise<string[]> {
+  async regenerateRecoveryCodes(prisma: PrismaClient, account: Account, sessionId: string, code: string): Promise<string[]> {
     if (!account.twoFactorEnabledAt) throw AppError.conflict('TWO_FACTOR_DISABLED', 'Two-step sign-in is off.');
-    return prisma.$transaction(async (tx) => {
-      if (!(await spendCode(tx, account, code))) throw invalidCode();
-      return freshRecoveryCodes(tx, account.id);
+    return sessionCode(prisma, account, sessionId, code, (tx) => freshRecoveryCodes(tx, account.id));
+  },
+
+  /* ---------- rc.4: trusted browsers ---------- */
+
+  /** "Trust this browser": sign-ins from it skip the code for TRUSTED_DEVICE_DAYS. Returns the cookie token. */
+  async trustDevice(prisma: PrismaClient, accountId: string, meta: { userAgent?: string | undefined; ip?: string | undefined }, now = new Date()): Promise<string> {
+    const token = randomBytes(32).toString('base64url');
+    await prisma.trustedDevice.deleteMany({ where: { accountId, expiresAt: { lt: now } } });
+    await prisma.trustedDevice.create({
+      data: {
+        tokenHash: hashDeviceToken(token), accountId,
+        userAgent: meta.userAgent?.slice(0, 255) ?? null, ip: meta.ip ?? null,
+        expiresAt: new Date(now.getTime() + env.sessions.trustedDeviceMs),
+      },
     });
+    return token;
+  },
+
+  /** True when this browser's trusted-device token is live for this account. */
+  async isTrustedDevice(prisma: PrismaClient, accountId: string, token: string | null, now = new Date()): Promise<boolean> {
+    if (!token || env.sessions.trustedDeviceMs <= 0) return false;
+    const touched = await prisma.trustedDevice.updateMany({
+      where: { tokenHash: hashDeviceToken(token), accountId, expiresAt: { gt: now } },
+      data: { lastUsedAt: now },
+    });
+    return touched.count === 1;
+  },
+
+  async listTrustedDevices(prisma: PrismaClient, accountId: string, currentToken: string | null, now = new Date()): Promise<TrustedDeviceDto[]> {
+    const currentHash = currentToken ? hashDeviceToken(currentToken) : null;
+    const rows = await prisma.trustedDevice.findMany({ where: { accountId, expiresAt: { gt: now } }, orderBy: { lastUsedAt: 'desc' } });
+    return rows.map((row) => ({
+      id: row.id,
+      current: row.tokenHash === currentHash,
+      userAgent: row.userAgent,
+      ip: row.ip,
+      createdAt: row.createdAt.toISOString(),
+      lastUsedAt: row.lastUsedAt.toISOString(),
+      expiresAt: row.expiresAt.toISOString(),
+    }));
+  },
+
+  /** Forgets one trusted browser, or all of them. */
+  async forgetTrustedDevices(db: Db, accountId: string, deviceId?: string): Promise<number> {
+    const { count } = await db.trustedDevice.deleteMany({ where: { accountId, ...(deviceId ? { id: deviceId } : {}) } });
+    return count;
   },
 
   /** After the password (or Discord), a sign-in with two-step on waits here for its code. */
-  async beginChallenge(prisma: PrismaClient, accountId: string, method: SessionMethod, now = new Date()): Promise<string> {
+  async beginChallenge(prisma: PrismaClient, accountId: string, method: SessionMethod, remember = true, now = new Date()): Promise<string> {
     const token = randomBytes(32).toString('base64url');
     await prisma.loginChallenge.deleteMany({ where: { OR: [{ accountId }, { expiresAt: { lt: now } }] } });
     await prisma.loginChallenge.create({
-      data: { tokenHash: hashToken(token), accountId, method, expiresAt: new Date(now.getTime() + LOGIN_CHALLENGE_TTL_MS) },
+      data: { tokenHash: hashToken(token), accountId, method, remember, expiresAt: new Date(now.getTime() + LOGIN_CHALLENGE_TTL_MS) },
     });
     return token;
   },
 
   /** The code for a waiting sign-in. On success the challenge is gone and the caller makes the session. */
-  async completeChallenge(prisma: PrismaClient, token: string, code: string, now = new Date()): Promise<{ account: Account; method: SessionMethod; usedRecoveryCode: boolean }> {
+  async completeChallenge(prisma: PrismaClient, token: string, code: string, now = new Date()): Promise<{ account: Account; method: SessionMethod; remember: boolean; usedRecoveryCode: boolean }> {
     const expired = () => AppError.unauthenticated('Your sign-in timed out. Sign in again.');
     const challenge = await prisma.loginChallenge.findUnique({ where: { tokenHash: hashToken(token) }, include: { account: true } });
     if (!challenge || challenge.expiresAt <= now) throw expired();
@@ -159,6 +236,6 @@ export const TwoFactorService = {
       await prisma.loginChallenge.updateMany({ where: { id: challenge.id }, data: { attempts: { increment: 1 } } });
       throw invalidCode();
     }
-    return { account: challenge.account, method: challenge.method === 'DISCORD' ? 'DISCORD' : 'PASSWORD', usedRecoveryCode: result === 'recovery' };
+    return { account: challenge.account, method: challenge.method === 'DISCORD' ? 'DISCORD' : 'PASSWORD', remember: challenge.remember, usedRecoveryCode: result === 'recovery' };
   },
 };

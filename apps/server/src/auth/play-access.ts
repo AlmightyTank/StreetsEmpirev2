@@ -27,24 +27,32 @@ export function needsRulesAcceptance(
 /** rc.2. How a session signed in. */
 export type SessionMethod = 'PASSWORD' | 'DISCORD';
 
-/** rc.3. What a session proved when it signed in. */
-export type SessionStrength = { method: string; twoFactor: boolean };
+/** rc.3/rc.4. What a session proved, and when it last proved a second factor. */
+export type SessionStrength = { method: string; twoFactor: boolean; secondFactorAt: Date | null };
 
-/** A second factor: Discord's own sign-in, or an authenticator (or recovery) code. */
-export function sessionHasSecondFactor(session: SessionStrength | null | undefined): boolean {
-  return Boolean(session && (session.method === 'DISCORD' || session.twoFactor));
+/**
+ * A second factor (Discord's own sign-in, or an authenticator or recovery code) proved
+ * within `maxAgeMs`. A trusted browser that skipped the code does not count.
+ */
+export function sessionHasFreshSecondFactor(
+  session: SessionStrength | null | undefined,
+  maxAgeMs = env.sessions.adminSecondFactorMs,
+  now = Date.now(),
+): boolean {
+  return Boolean(session?.secondFactorAt && now - session.secondFactorAt.getTime() < maxAgeMs);
 }
 
 /**
- * rc.2/rc.3. While REQUIRE_ADMIN_2FA is on, admin tools need a session with a second
- * factor: a stolen password alone must not open the panel.
+ * rc.2-rc.4. While REQUIRE_ADMIN_2FA is on, admin tools need a second factor proved in the
+ * last ADMIN_2FA_MAX_AGE_HOURS: a stolen password (or a stolen, long-lived session) alone
+ * must not open the panel. An admin with an authenticator re-confirms in place.
  */
 export function adminNeedsSecondFactor(
   account: Pick<Account, 'isAdmin'>,
   session: SessionStrength | null | undefined,
   required = env.accounts.requireAdminSecondFactor,
 ): boolean {
-  return required && account.isAdmin && !sessionHasSecondFactor(session);
+  return required && account.isAdmin && !sessionHasFreshSecondFactor(session);
 }
 
 export function isPlayPath(path: string): boolean {

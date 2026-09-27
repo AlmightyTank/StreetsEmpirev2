@@ -1,13 +1,13 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Account, PrismaClient, Session } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { RULES_VERSION, changeEmailSchema, closeAccountSchema, twoFactorCodeBodySchema, twoFactorSetupSchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
+import { RULES_VERSION, changeEmailSchema, closeAccountSchema, twoFactorCodeBodySchema, twoFactorSetupSchema, twoFactorVerifySchema, changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
 import { z } from 'zod';
 import { assertBetaAccess, assertCanSignIn, clearExpiredSuspension } from '../auth/account-status.js';
 import { adminNeedsSecondFactor } from '../auth/play-access.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { createAccountEmailToken, emailVerificationUrl } from '../auth/email-tokens.js';
-import { createSession, destroySession } from '../auth/sessions.js';
+import { createSession, destroySession, sessionHardEnd } from '../auth/sessions.js';
 import { env } from '../config/env.js';
 import { toAccountDto } from '../game/dto.js';
 import { AccountProfileService } from '../services/account-profile.service.js';
@@ -35,6 +35,10 @@ const DISCORD_STATE_COOKIE = 'se_discord_oauth_state';
 const DISCORD_LINK_COOKIE = 'se_discord_oauth_link';
 /** rc.3. A sign-in waiting for its authenticator code. */
 const TWO_FACTOR_COOKIE = 'se_2fa_challenge';
+/** rc.4. "Trust this browser": sign-ins from it skip the code. */
+const TRUSTED_DEVICE_COOKIE = 'se_trusted_device';
+/** rc.4. Carries "Keep me signed in" through the Discord round trip. */
+const DISCORD_REMEMBER_COOKIE = 'se_discord_remember';
 const DISCORD_AUTHORIZE_URL = 'https://discord.com/oauth2/authorize';
 const DISCORD_TOKEN_URL = 'https://discord.com/api/oauth2/token';
 const DISCORD_ME_URL = 'https://discord.com/api/users/@me';
@@ -42,6 +46,8 @@ const DISCORD_ME_URL = 'https://discord.com/api/users/@me';
 const discordStartSchema = z.object({
   // `?link=1` / `?link=true`; anything else (including "false" and "0") is not a link.
   link: z.string().optional().transform((value) => value === '1' || value === 'true'),
+  // rc.4: `?remember=0` for a sign-in that ends with the browser. Anything else keeps it.
+  remember: z.string().optional().transform((value) => value !== '0' && value !== 'false'),
 });
 
 const discordCallbackSchema = z.object({
@@ -167,6 +173,24 @@ function clearTwoFactorCookie(reply: FastifyReply): void {
   reply.clearCookie(TWO_FACTOR_COOKIE, { path: '/api/auth' });
 }
 
+function readSignedCookie(request: FastifyRequest, name: string): string | null {
+  const raw = request.cookies[name];
+  if (!raw) return null;
+  const unsigned = request.unsignCookie(raw);
+  return unsigned.valid && unsigned.value ? unsigned.value : null;
+}
+
+function setTrustedDeviceCookie(reply: FastifyReply, token: string): void {
+  reply.setCookie(TRUSTED_DEVICE_COOKIE, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: env.isProduction,
+    signed: true,
+    path: '/api/auth',
+    maxAge: Math.floor(env.sessions.trustedDeviceMs / 1000),
+  });
+}
+
 function readTwoFactorCookie(request: FastifyRequest): string | null {
   const raw = request.cookies[TWO_FACTOR_COOKIE];
   if (!raw) return null;
@@ -236,6 +260,8 @@ function toSessionDto(session: Session, currentSessionId: string): AccountSessio
     ip: session.ip,
     method: session.method,
     twoFactor: session.twoFactor,
+    remember: session.remember,
+    endsBy: sessionHardEnd(session).toISOString(),
   };
 }
 
@@ -543,9 +569,11 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     assertCanSignIn(account);
     assertBetaAccess(account, env.betaAccess.inviteOnly);
 
-    // rc.3: the password was right; with two-step on, the session waits for the code.
-    if (account.twoFactorEnabledAt) {
-      setTwoFactorCookie(reply, await TwoFactorService.beginChallenge(fastify.prisma, account.id, 'PASSWORD'));
+    const remember = body.remember ?? true;
+    // rc.3: the password was right; with two-step on, the session waits for the code,
+    // unless (rc.4) this browser was trusted at an earlier sign-in.
+    if (account.twoFactorEnabledAt && !(await TwoFactorService.isTrustedDevice(fastify.prisma, account.id, readSignedCookie(request, TRUSTED_DEVICE_COOKIE)))) {
+      setTwoFactorCookie(reply, await TwoFactorService.beginChallenge(fastify.prisma, account.id, 'PASSWORD', remember));
       return { twoFactorRequired: true };
     }
 
@@ -557,8 +585,9 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const { token } = await createSession(fastify.prisma, account.id, {
       userAgent: request.headers['user-agent'],
       ip: request.ip,
+      remember,
     });
-    fastify.setSessionCookie(reply, token);
+    fastify.setSessionCookie(reply, token, remember);
 
     return { account: toAccountDto(updated) };
   });
@@ -588,6 +617,9 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
     setDiscordStateCookie(reply, state);
     if (linkMode) setDiscordLinkCookie(reply);
+    reply.setCookie(DISCORD_REMEMBER_COOKIE, query.remember ? '1' : '0', {
+      httpOnly: true, sameSite: 'lax', secure: env.isProduction, signed: true, path: '/api/auth', maxAge: 10 * 60,
+    });
     return reply.redirect(authorize.toString());
   });
 
@@ -629,17 +661,20 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
       const account = await accountForDiscordUser(fastify.prisma, discordUser);
       assertBetaAccess(account, env.betaAccess.inviteOnly);
-      // rc.3: two-step sign-in applies to Discord sign-ins too.
-      if (account.twoFactorEnabledAt) {
-        setTwoFactorCookie(reply, await TwoFactorService.beginChallenge(fastify.prisma, account.id, 'DISCORD'));
+      const remember = readSignedCookie(request, DISCORD_REMEMBER_COOKIE) !== '0';
+      reply.clearCookie(DISCORD_REMEMBER_COOKIE, { path: '/api/auth' });
+      // rc.3: two-step sign-in applies to Discord sign-ins too (unless this browser is trusted, rc.4).
+      if (account.twoFactorEnabledAt && !(await TwoFactorService.isTrustedDevice(fastify.prisma, account.id, readSignedCookie(request, TRUSTED_DEVICE_COOKIE)))) {
+        setTwoFactorCookie(reply, await TwoFactorService.beginChallenge(fastify.prisma, account.id, 'DISCORD', remember));
         return reply.redirect(twoFactorRedirect());
       }
       const { token } = await createSession(fastify.prisma, account.id, {
         userAgent: request.headers['user-agent'],
         ip: request.ip,
         method: 'DISCORD',
+        remember,
       });
-      fastify.setSessionCookie(reply, token);
+      fastify.setSessionCookie(reply, token, remember);
 
       return reply.redirect(postLoginRedirect());
     } catch (error) {
@@ -797,6 +832,8 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       await tx.session.deleteMany({ where: { accountId: resetToken.accountId } });
+      // rc.4: a new password means no browser stays trusted.
+      await tx.trustedDevice.deleteMany({ where: { accountId: resetToken.accountId } });
 
       return tx.account.update({
         where: { id: resetToken.accountId },
@@ -827,10 +864,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
   /** The code for a sign-in that is waiting for one (after the password, Discord or a recovery link). */
   fastify.post('/2fa/verify', async (request, reply) => {
-    const body = parseBody(twoFactorCodeBodySchema, request.body ?? {});
+    const body = parseBody(twoFactorVerifySchema, request.body ?? {});
     const token = readTwoFactorCookie(request);
     if (!token) throw AppError.unauthenticated('Your sign-in timed out. Sign in again.');
-    const { account, method, usedRecoveryCode } = await TwoFactorService.completeChallenge(fastify.prisma, token, body.code);
+    const { account, method, remember, usedRecoveryCode } = await TwoFactorService.completeChallenge(fastify.prisma, token, body.code);
     clearTwoFactorCookie(reply);
     await clearExpiredSuspension(fastify.prisma, account);
     assertCanSignIn(account);
@@ -841,8 +878,13 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       ip: request.ip,
       method,
       twoFactor: true,
+      remember,
     });
-    fastify.setSessionCookie(reply, sessionToken);
+    fastify.setSessionCookie(reply, sessionToken, remember);
+    // rc.4: "Trust this browser" skips the code here for TRUSTED_DEVICE_DAYS.
+    if (body.trustDevice && env.sessions.trustedDeviceMs > 0) {
+      setTrustedDeviceCookie(reply, await TwoFactorService.trustDevice(fastify.prisma, account.id, { userAgent: request.headers['user-agent'], ip: request.ip }));
+    }
     if (usedRecoveryCode) {
       const left = await fastify.prisma.twoFactorRecoveryCode.count({ where: { accountId: account.id, usedAt: null } });
       return { account: toAccountDto(updated, session), recoveryCodesLeft: left };
@@ -852,6 +894,28 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/2fa', { preHandler: fastify.requireAuth }, async (request) => {
     return TwoFactorService.status(fastify.prisma, request.auth!.account);
+  });
+
+  /** rc.4. Re-confirm with a code without signing out (admin tools ask every ADMIN_2FA_MAX_AGE_HOURS). */
+  fastify.post('/2fa/step-up', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(twoFactorCodeBodySchema, request.body ?? {});
+    const { account, session } = request.auth!;
+    await TwoFactorService.stepUp(fastify.prisma, account, session.id, body.code);
+    return { account: toAccountDto(account, { ...session, twoFactor: true, secondFactorAt: new Date() }) };
+  });
+
+  /** rc.4. Browsers that skip the code at sign-in. */
+  fastify.get('/2fa/trusted-devices', { preHandler: fastify.requireAuth }, async (request) => ({
+    devices: await TwoFactorService.listTrustedDevices(fastify.prisma, request.auth!.account.id, readSignedCookie(request, TRUSTED_DEVICE_COOKIE)),
+  }));
+
+  fastify.delete('/2fa/trusted-devices', { preHandler: fastify.requireAuth }, async (request) => ({
+    ok: true, forgotten: await TwoFactorService.forgetTrustedDevices(fastify.prisma, request.auth!.account.id),
+  }));
+
+  fastify.delete('/2fa/trusted-devices/:deviceId', { preHandler: fastify.requireAuth }, async (request) => {
+    const { deviceId } = parseBody(z.object({ deviceId: z.string().min(1).max(64) }), request.params);
+    return { ok: true, forgotten: await TwoFactorService.forgetTrustedDevices(fastify.prisma, request.auth!.account.id, deviceId) };
   });
 
   fastify.post('/2fa/setup', { preHandler: fastify.requireAuth }, async (request) => {
@@ -877,23 +941,23 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     await sendTwoFactorNotice({ to: account.email, username: account.username, change: 'enabled' }, request.log)
       .catch((error: unknown) => request.log.warn({ err: error }, 'two-factor notice failed'));
     const updated = await fastify.prisma.account.findUniqueOrThrow({ where: { id: account.id } });
-    return { recoveryCodes, account: toAccountDto(updated, { ...session, twoFactor: true }) };
+    return { recoveryCodes, account: toAccountDto(updated, { ...session, twoFactor: true, secondFactorAt: new Date() }) };
   });
 
   fastify.post('/2fa/disable', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(twoFactorCodeBodySchema, request.body ?? {});
     const { account, session } = request.auth!;
-    await TwoFactorService.disable(fastify.prisma, account, body.code);
+    await TwoFactorService.disable(fastify.prisma, account, session.id, body.code);
     await sendTwoFactorNotice({ to: account.email, username: account.username, change: 'disabled' }, request.log)
       .catch((error: unknown) => request.log.warn({ err: error }, 'two-factor notice failed'));
     const updated = await fastify.prisma.account.findUniqueOrThrow({ where: { id: account.id } });
-    return { ok: true, message: 'Two-step sign-in is off.', account: toAccountDto(updated, { ...session, twoFactor: false }) };
+    return { ok: true, message: 'Two-step sign-in is off.', account: toAccountDto(updated, { ...session, twoFactor: false, secondFactorAt: null }) };
   });
 
   fastify.post('/2fa/recovery-codes', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(twoFactorCodeBodySchema, request.body ?? {});
-    const { account } = request.auth!;
-    const recoveryCodes = await TwoFactorService.regenerateRecoveryCodes(fastify.prisma, account, body.code);
+    const { account, session } = request.auth!;
+    const recoveryCodes = await TwoFactorService.regenerateRecoveryCodes(fastify.prisma, account, session.id, body.code);
     await sendTwoFactorNotice({ to: account.email, username: account.username, change: 'codes' }, request.log)
       .catch((error: unknown) => request.log.warn({ err: error }, 'two-factor notice failed'));
     return { recoveryCodes };
@@ -924,6 +988,8 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         where: { id: account.id },
         data: { passwordHash },
       });
+      // rc.4: a new password means no browser stays trusted to skip the code.
+      await tx.trustedDevice.deleteMany({ where: { accountId: account.id } });
 
       if (body.revokeOtherSessions) {
         await tx.session.deleteMany({

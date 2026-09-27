@@ -82,7 +82,7 @@ interface SessionState {
   login: (input: LoginInput) => Promise<{ twoFactorRequired: boolean }>;
   resetPassword: (input: ResetPasswordInput) => Promise<{ twoFactorRequired: boolean }>;
   /** rc.3. Finishes a sign-in that waits for its code. Returns how many recovery codes are left when one was used. */
-  completeTwoFactor: (code: string) => Promise<{ recoveryCodesLeft: number | null }>;
+  completeTwoFactor: (code: string, trustDevice?: boolean) => Promise<{ recoveryCodesLeft: number | null }>;
   verifyEmailToken: (input: VerifyEmailTokenInput) => Promise<string>;
   logout: () => Promise<void>;
   join: () => Promise<RoundPlayerDto>;
@@ -210,8 +210,8 @@ export const useSession = create<SessionState>((set, get) => ({
     return { twoFactorRequired: false };
   },
 
-  async completeTwoFactor(code) {
-    const response = await authApi.verifyTwoFactor(code);
+  async completeTwoFactor(code, trustDevice = false) {
+    const response = await authApi.verifyTwoFactor(code, trustDevice);
     set({ account: response.account });
     await get().refreshProfileSettings();
     await get().refreshRound();
