@@ -85,6 +85,11 @@ const envSchema = z.object({
    * Defaults to on in production, where nginx is in front; the load test turns it on
    * so each simulated player has its own address, as real players do.
    */
+  /**
+   * Players must verify their email (or sign in with Discord) before they can play.
+   * On by default in production and beta; off in development and test unless set.
+   */
+  REQUIRE_VERIFIED_EMAIL: z.enum(['true', 'false']).optional(),
   TRUST_PROXY: z.enum(['true', 'false']).optional(),
   /** 1.0.0-H. Optional log level override (fatal, error, warn, info, debug, trace). */
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).optional(),
@@ -140,6 +145,11 @@ export const env = {
   isProduction: parsed.data.NODE_ENV === 'production',
   /** 1.0.0-A. production | beta | development | test. */
   appEnvironment,
+  accounts: {
+    requireVerifiedEmail: parsed.data.REQUIRE_VERIFIED_EMAIL
+      ? parsed.data.REQUIRE_VERIFIED_EMAIL === 'true'
+      : appEnvironment === 'production' || appEnvironment === 'beta',
+  },
   trustProxy: parsed.data.TRUST_PROXY ? parsed.data.TRUST_PROXY === 'true' : parsed.data.NODE_ENV === 'production',
   logLevel: parsed.data.LOG_LEVEL ?? (parsed.data.NODE_ENV === 'production' ? 'info' : 'debug'),
   buildCommit: parsed.data.BUILD_COMMIT?.slice(0, 12) ?? null,

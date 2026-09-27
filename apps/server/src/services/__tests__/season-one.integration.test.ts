@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { rulesets } from '@streets/rulesets';
 
@@ -17,6 +17,13 @@ import { rulesets } from '@streets/rulesets';
  * It starts and ends real seasons, so it only runs against a scratch database:
  * `npm run qa:season-one` makes one, runs this, and drops it.
  */
+// Sign-up emails a verification link; the test reads it here instead of an inbox.
+const mailbox = new Map<string, string>();
+vi.mock('../email.service.js', async (original) => ({
+  ...(await original<typeof import('../email.service.js')>()),
+  sendCurrentEmailVerification: vi.fn(async (message: { to: string; url: string }) => { mailbox.set(message.to, message.url); }),
+}));
+
 const SCRATCH = /\/streets_scratch_[a-z0-9_]+(\?|$)/;
 const enabled = process.env.SEASON_ONE_INTEGRATION === '1';
 
@@ -47,7 +54,14 @@ describe.runIf(enabled)('1.0.0-H Season One on a scratch database', () => {
     const response = await call(null, 'POST', '/auth/register', { username: name, email: `${name}@example.invalid`, password: `password-${name}` });
     expect(response.statusCode, response.body).toBe(201);
     cookies.set(who, response.cookies.map((c) => `${c.name}=${c.value}`).join('; '));
-    return { id: response.json().account.id as string, username: name };
+    return { id: response.json().account.id as string, username: name, email: `${name}@example.invalid` };
+  };
+  /** Open the link from the sign-up email, as the player would. */
+  const verifyEmail = async (who: string, email: string) => {
+    const url = mailbox.get(email);
+    expect(url, `no verification email for ${email}`).toBeTruthy();
+    const verified = await ok<{ account: { verificationRequired: boolean } }>(who, 'POST', '/auth/email/verify', { token: new URL(url!).searchParams.get('token') });
+    expect(verified.account.verificationRequired).toBe(false);
   };
   const me = (who: string) => ok<{ player: { id: string; publicPimpId: number; resources: Record<string, number>; turns: { turns: number }; cashCents: number; netWorthCents: number } }>(who, 'GET', '/game/me');
 
@@ -82,9 +96,14 @@ describe.runIf(enabled)('1.0.0-H Season One on a scratch database', () => {
     expect(current.round).toMatchObject({ id: seasonId, rulesetId: latest.meta.id });
   });
 
-  it('players register, learn the game and join', async () => {
+  it('players register, verify their email, learn the game and join', async () => {
     for (const who of ['ann', 'ben', 'cal']) {
       const account = await register(who);
+      // Sign-up with email: the game stays shut until the emailed link is opened.
+      const early = await call(who, 'POST', '/rounds/current/join', {});
+      expect(early.statusCode).toBe(403);
+      expect(early.json().error.code).toBe('EMAIL_NOT_VERIFIED');
+      await verifyEmail(who, account.email);
       await ok(who, 'POST', '/rounds/current/join', {});
       const snapshot = await me(who);
       players.set(who, { accountId: account.id, publicPimpId: snapshot.player.publicPimpId, roundPlayerId: snapshot.player.id });

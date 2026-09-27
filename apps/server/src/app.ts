@@ -7,6 +7,7 @@ import errorHandlerPlugin from './plugins/error-handler.js';
 import prismaPlugin from './plugins/prisma.js';
 import rateLimitPlugin from './plugins/rate-limit.js';
 import maintenancePlugin, { maintenanceRefusals } from './plugins/maintenance.js';
+import playAccessPlugin from './plugins/play-access.js';
 import securityPlugin from './plugins/security.js';
 import routes from './routes/index.js';
 import { metrics } from './services/metrics.service.js';
@@ -53,6 +54,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(authPlugin);
   await app.register(rateLimitPlugin);
   await app.register(maintenancePlugin);
+  await app.register(playAccessPlugin);
 
   await app.register(routes, { prefix: '/api' });
 

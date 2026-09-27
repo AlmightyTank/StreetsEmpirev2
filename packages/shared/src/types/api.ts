@@ -86,6 +86,8 @@ export interface AccountDto {
   isAdmin: boolean;
   createdAt: string;
   lastLoginAt: string | null;
+  /** True until this account may play: verify the email, or sign in with Discord. */
+  verificationRequired: boolean;
 }
 
 export interface AccountSessionDto {

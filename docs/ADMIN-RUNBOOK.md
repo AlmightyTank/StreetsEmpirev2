@@ -109,6 +109,21 @@ side only; reports keep the evidence).
 
 ---
 
+## Getting players in
+
+New players **verify their email before they can play**, or sign in with Discord instead: Discord only hands over accounts with a verified email.
+
+- Until then they can sign in and use account settings, but the game and joining a season show a "Verify your email to play" screen. It has three options:
+  - resend the link (at most once a minute);
+  - fix a mistyped address (it changes at once, and old links stop working);
+  - continue with Discord.
+- **"I never got the email."**
+  1. Check `RESEND_API_KEY` and `EMAIL_FROM` are set, and look for `email verification message failed` in the API log.
+  2. Ask them to check spam, fix the address, or use Discord.
+  3. If you are satisfied the address is theirs, **Accounts → the account → Mark email verified** lets them in.
+- **Controlling the rule.** `REQUIRE_VERIFIED_EMAIL` (default on in production and beta) switches it. Admins are never stopped.
+- **Existing accounts.** Accounts that were already playing with an unverified email meet the same screen on their next visit. `npm run ops:launch-check` counts them, so post a news item before turning it on mid-season.
+
 ## Moderation process (1.0)
 
 The ladder, from lightest to heaviest. Use the lightest step that stops the problem. Every step records a reason in the audit log.

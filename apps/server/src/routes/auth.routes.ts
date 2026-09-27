@@ -223,6 +223,44 @@ async function uniqueUsername(prisma: PrismaClient, base: string): Promise<strin
   return `discord_${randomBytes(5).toString('hex')}`.slice(0, 20);
 }
 
+/** Seconds between verification emails to one account, so the button cannot be used to spam an inbox. */
+const VERIFY_EMAIL_COOLDOWN_SECONDS = 60;
+
+/**
+ * Email a fresh verification link to the account's current address. A mail failure is
+ * logged, never thrown: the player can press "send it again" from the game.
+ */
+async function sendVerificationEmail(
+  prisma: PrismaClient,
+  account: Account,
+  request: FastifyRequest,
+): Promise<{ sent: boolean; retryInSeconds: number }> {
+  const recent = await prisma.accountEmailToken.findFirst({
+    where: { accountId: account.id, purpose: 'VERIFY_EMAIL', createdAt: { gt: new Date(Date.now() - VERIFY_EMAIL_COOLDOWN_SECONDS * 1000) } },
+    orderBy: { createdAt: 'desc' },
+    select: { createdAt: true },
+  });
+  if (recent) {
+    return { sent: false, retryInSeconds: Math.max(1, VERIFY_EMAIL_COOLDOWN_SECONDS - Math.floor((Date.now() - recent.createdAt.getTime()) / 1000)) };
+  }
+  const { token, expiresAt } = await createAccountEmailToken({
+    prisma,
+    accountId: account.id,
+    purpose: 'VERIFY_EMAIL',
+    userAgent: request.headers['user-agent'],
+    ip: request.ip,
+  });
+  try {
+    await sendCurrentEmailVerification(
+      { to: account.email, username: account.username, url: emailVerificationUrl(token), expiresAt },
+      request.log,
+    );
+  } catch (error) {
+    request.log.error({ err: error, accountId: account.id }, 'email verification message failed');
+  }
+  return { sent: true, retryInSeconds: VERIFY_EMAIL_COOLDOWN_SECONDS };
+}
+
 async function accountForDiscordUser(
   prisma: PrismaClient,
   user: DiscordUser,
@@ -400,6 +438,9 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         lastLoginAt: env.betaAccess.inviteOnly ? null : new Date(),
       },
     });
+
+    // Players confirm their email before they can play (or sign in with Discord instead).
+    if (!account.emailVerifiedAt) await sendVerificationEmail(fastify.prisma, account, request);
 
     if (env.betaAccess.inviteOnly && !account.isAdmin && !account.betaApproved) {
       return reply.status(202).send({
@@ -737,42 +778,16 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     if (account.emailVerifiedAt) {
       return { ok: true, message: 'Your current email is already verified.' };
     }
-
-    const { token, expiresAt } = await createAccountEmailToken({
-      prisma: fastify.prisma,
-      accountId: account.id,
-      purpose: 'VERIFY_EMAIL',
-      userAgent: request.headers['user-agent'],
-      ip: request.ip,
-    });
-
-    try {
-      await sendCurrentEmailVerification(
-        {
-          to: account.email,
-          username: account.username,
-          url: emailVerificationUrl(token),
-          expiresAt,
-        },
-        fastify.log,
-      );
-    } catch (error) {
-      fastify.log.error({ err: error, accountId: account.id }, 'email verification message failed');
+    const result = await sendVerificationEmail(fastify.prisma, account, request);
+    if (!result.sent) {
+      throw new AppError(429, 'VERIFY_EMAIL_COOLDOWN', `We just sent one. Give it a minute; you can ask again in ${result.retryInSeconds} seconds.`);
     }
-
-    return { ok: true, message: 'Verification instructions were sent to your current email.' };
+    return { ok: true, message: `We sent a new link to ${account.email}. It can take a minute to arrive; check spam too.` };
   });
 
   fastify.post('/email/change/request', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(changeEmailSchema, request.body);
     const account = request.auth!.account;
-
-    if (!account.emailVerifiedAt) {
-      throw AppError.badRequest(
-        'CURRENT_EMAIL_UNVERIFIED',
-        'Verify your current email before changing it.',
-      );
-    }
 
     if (body.email === account.email) {
       return { ok: true, message: 'That is already your account email.' };
@@ -786,6 +801,18 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       throw AppError.conflict('EMAIL_TAKEN', 'There is already an account using that email address.', {
         email: 'That email is already registered.',
       });
+    }
+
+    // A mistyped sign-up address has never been confirmed, so there is nothing to protect:
+    // fix it straight away and send the link to the new one. Links already sent to the old
+    // address are cancelled first, or one of them could confirm the new address.
+    if (!account.emailVerifiedAt) {
+      const updated = await fastify.prisma.$transaction(async (tx) => {
+        await tx.accountEmailToken.deleteMany({ where: { accountId: account.id, purpose: 'VERIFY_EMAIL', usedAt: null } });
+        return tx.account.update({ where: { id: account.id }, data: { email: body.email } });
+      });
+      await sendVerificationEmail(fastify.prisma, updated, request);
+      return { ok: true, message: `Your email is now ${body.email}. We sent a verification link there.`, account: toAccountDto(updated) };
     }
 
     const { token, expiresAt } = await createAccountEmailToken({

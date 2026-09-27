@@ -69,6 +69,8 @@ interface SessionState {
 
   /** Resolve who we are and which game is running. Runs once on mount. */
   bootstrap: () => Promise<void>;
+  /** Re-read the signed-in account (after verifying an email in another tab, say). */
+  refreshAccount: () => Promise<void>;
   refreshProfileSettings: () => Promise<AccountProfileSettingsDto>;
   setProfileSettings: (settings: AccountProfileSettingsDto) => void;
   refreshRound: () => Promise<void>;
@@ -116,6 +118,15 @@ export const useSession = create<SessionState>((set, get) => ({
     if (account) await get().refreshProfileSettings();
     await get().refreshRound();
     set({ phase: 'ready' });
+  },
+
+  async refreshAccount() {
+    const account = await authApi.me().then((r) => r.account).catch(() => null);
+    if (!account) return;
+    const wasBlocked = get().account?.verificationRequired ?? false;
+    set({ account });
+    // Just cleared to play: pick up the season they may already be in.
+    if (wasBlocked && !account.verificationRequired) await get().refreshRound();
   },
 
   async refreshProfileSettings() {

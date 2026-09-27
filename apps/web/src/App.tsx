@@ -48,6 +48,7 @@ import { TravelPage } from './pages/TravelPage.js';
 import { TurfPage } from './pages/TurfPage.js';
 import { GameRouteLayout } from './layouts/GameLayout.js';
 import { useMaintenanceMessage } from './components/MaintenanceBanner.js';
+import { VerifyEmailGate } from './components/VerifyEmailGate.js';
 import { landingPath, useSession } from './stores/session.js';
 
 function RequireAccount({ children }: { children: ReactNode }) {
@@ -57,7 +58,14 @@ function RequireAccount({ children }: { children: ReactNode }) {
 }
 
 function Protected({ children }: { children: ReactNode }) {
-  return <RequireAccount>{children}</RequireAccount>;
+  return <RequireAccount><RequirePlayable>{children}</RequirePlayable></RequireAccount>;
+}
+
+/** Playing needs a verified email or Discord; until then the account sees how to get there. */
+function RequirePlayable({ children }: { children: ReactNode }) {
+  const blocked = useSession((s) => s.account?.verificationRequired ?? false);
+  if (blocked) return <VerifyEmailGate />;
+  return <>{children}</>;
 }
 
 /** Hides admin pages from players. The server checks isAdmin on every admin route regardless. */

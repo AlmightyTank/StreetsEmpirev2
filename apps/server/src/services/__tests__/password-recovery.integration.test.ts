@@ -111,28 +111,30 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('account email auth with Po
     expect(replay.json().error.code).toBe('PASSWORD_RESET_INVALID');
   });
 
-  it('requires current email verification before changing email, then confirms the new address', async () => {
+  it('lets an unverified account fix its email at once, then confirms a verified change by link', async () => {
     await app.prisma.account.update({
       where: { id: accountId },
       data: { emailVerifiedAt: null },
     });
+    // A link already sent to the mistyped address must not be able to confirm the new one.
+    const staleToken = randomUUID() + randomUUID();
+    await app.prisma.accountEmailToken.create({
+      data: { accountId, purpose: 'VERIFY_EMAIL', tokenHash: hashAuthToken(staleToken), expiresAt: new Date(Date.now() + 60_000) },
+    });
 
-    const blocked = await app.inject({
+    const fixedEmail = `fixed_${email}`;
+    const corrected = await app.inject({
       method: 'POST',
       url: '/api/auth/email/change/request',
       headers: headers(),
-      payload: { email: `new_${email}` },
+      payload: { email: fixedEmail },
     });
-    expect(blocked.statusCode).toBe(400);
-    expect(blocked.json().error.code).toBe('CURRENT_EMAIL_UNVERIFIED');
-
-    const requested = await app.inject({
-      method: 'POST',
-      url: '/api/auth/email/verify/request',
-      headers: headers(),
-    });
-    expect(requested.statusCode, requested.body).toBe(200);
-    expect(await app.prisma.accountEmailToken.count({ where: { accountId, purpose: 'VERIFY_EMAIL' } })).toBe(1);
+    expect(corrected.statusCode, corrected.body).toBe(200);
+    expect(corrected.json().account).toMatchObject({ email: fixedEmail, emailVerifiedAt: null });
+    expect(await app.prisma.accountEmailToken.count({ where: { accountId, purpose: 'VERIFY_EMAIL', usedAt: null } })).toBe(1);
+    const stale = await app.inject({ method: 'POST', url: '/api/auth/email/verify', headers: headers(), payload: { token: staleToken } });
+    expect(stale.statusCode).toBe(400);
+    email = fixedEmail;
 
     const verifyToken = randomUUID() + randomUUID();
     await app.prisma.accountEmailToken.create({

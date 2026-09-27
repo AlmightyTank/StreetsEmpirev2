@@ -137,3 +137,7 @@ button.se-tip[aria-expanded='true'] {
   .se-golink { display: inline-flex; align-items: center; min-height: 40px; }
   .se-topbar__right .se-btn { min-height: 40px; }
 }
+
+/* Verify-your-email gate. */
+.se-verify-gate__actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 10px; }
+@media (max-width: 520px) { .se-verify-gate__actions .se-btn { flex: 1 1 100%; } }

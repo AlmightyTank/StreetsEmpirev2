@@ -77,6 +77,15 @@ async function main(): Promise<void> {
     !rotated ? 'Rotate SESSION_SECRET (everyone signs in again), DISCORD_BOT_API_TOKEN and FORUM_LINK_SECRET (update the bot and forum too) before launch, then set SECRETS_ROTATED_AT=YYYY-MM-DD in .env.'
       : `Rotated ${rotated} (${Math.round(rotatedDays)} days ago).`);
 
+  // Sign-up verification: email players need their link to arrive, or they can only play via Discord.
+  const verifyRequired = (env.get('REQUIRE_VERIFIED_EMAIL') ?? (environment === 'production' || environment === 'beta' ? 'true' : 'false')) === 'true';
+  const mailReady = Boolean(env.get('RESEND_API_KEY') && env.get('EMAIL_FROM'));
+  const discordReady = Boolean(env.get('DISCORD_CLIENT_ID') && env.get('DISCORD_CLIENT_SECRET'));
+  report('Sign-up verification', !verifyRequired ? 'WARN' : mailReady ? 'PASS' : 'FAIL',
+    !verifyRequired ? 'REQUIRE_VERIFIED_EMAIL=false: new players can play without confirming their email.'
+      : mailReady ? `Players verify their email before playing (sent with Resend)${discordReady ? ', or sign in with Discord' : ''}.`
+        : `Players must verify their email, but RESEND_API_KEY / EMAIL_FROM are not set, so the link never arrives${discordReady ? ' (only Discord sign-in would work)' : ''}.`);
+
   // Backups and restore.
   const statusFile = env.get('BACKUP_STATUS_FILE');
   if (!statusFile || !existsSync(statusFile)) {
@@ -98,6 +107,12 @@ async function main(): Promise<void> {
     const admins = await prisma.account.findMany({ where: { isAdmin: true, isActive: true }, select: { username: true } });
     report('Admin accounts configured', admins.length === 0 ? 'FAIL' : admins.length === 1 ? 'WARN' : 'PASS',
       admins.length ? `${admins.map((a) => a.username).join(', ')}${admins.length === 1 ? ' (one admin: add a second so the game is never without one).' : '.'}` : 'No admin. npm run admin -- <username>.');
+    if (verifyRequired) {
+      const unverified = await prisma.account.count({ where: { isActive: true, isAdmin: false, emailVerifiedAt: null, discordId: null } });
+      report('Existing unverified accounts', unverified ? 'WARN' : 'PASS', unverified
+        ? `${unverified} account(s) have neither a verified email nor Discord; they will be asked to verify on their next visit (the game stays shut until they do). Consider a news post before deploying.`
+        : 'Every active account has a verified email or Discord.');
+    }
     const notes = await prisma.gameNews.findFirst({ where: { title: { contains: '1.0', mode: 'insensitive' }, publishedAt: { lte: new Date() } }, orderBy: { publishedAt: 'desc' }, select: { title: true } });
     report('Release notes published', notes ? 'PASS' : 'WARN', notes ? `News: "${notes.title}".` : 'Publish the 1.0 release notes as news (docs/RELEASE-1.0.0.md is the text).');
   } finally {

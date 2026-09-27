@@ -93,6 +93,7 @@ export function RegisterPage() {
                 hint={`At least ${PASSWORD_MIN} characters.`}
               />
 
+              <p className="se-hint">We will email you a link. Confirm your address and you can start playing.</p>
               <p className="se-hint">By registering you agree to the <a href="https://streetsempire.dev/terms">terms</a> and the <a href="https://streetsempire.dev/privacy">privacy policy</a>.</p>
               <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy ? 'Setting up your account now.' : null}>
                 {busy ? 'Working...' : 'Create account'}
@@ -102,7 +103,7 @@ export function RegisterPage() {
 
           <Panel title="Register with Discord">
             <p>
-              Discord creates your account from your verified email, then sends you straight to join the round.
+              Discord creates your account from the email Discord has already verified, so there is no email link to wait for: you go straight to join the round.
             </p>
             <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord">
               Continue with Discord

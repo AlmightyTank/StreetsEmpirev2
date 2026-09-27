@@ -50,7 +50,7 @@ export const authApi = {
     api.post<MessageResponse>('/auth/email/verify/request'),
 
   requestEmailChange: (input: ChangeEmailInput) =>
-    api.post<MessageResponse>('/auth/email/change/request', input),
+    api.post<OptionalAccountResponse>('/auth/email/change/request', input),
 
   verifyEmailToken: (input: VerifyEmailTokenInput) =>
     api.post<OptionalAccountResponse>('/auth/email/verify', input),

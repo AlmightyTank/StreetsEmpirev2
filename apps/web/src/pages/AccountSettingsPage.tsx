@@ -150,6 +150,8 @@ export function AccountSettingsPage() {
 
     try {
       const response = await authApi.requestEmailChange({ email: newEmail });
+      // An unverified address is corrected at once; the account comes back with it.
+      if (response.account) useSession.setState({ account: response.account });
       setTone('info');
       setMessage(response.message);
       setNewEmail('');
@@ -391,7 +393,7 @@ export function AccountSettingsPage() {
                 autoComplete="email"
                 required
                 error={fields.email}
-                hint="A confirmation link will be sent to the new email address."
+                hint={account.emailVerifiedAt ? "A confirmation link will be sent to the new email address." : "Fixes a mistyped address now, and sends the verification link there."}
               />
               <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy !== null ? working : null}>
                 {busy === 'email' ? 'Sending...' : 'Send change confirmation'}

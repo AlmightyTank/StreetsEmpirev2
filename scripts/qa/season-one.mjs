@@ -21,6 +21,8 @@ try {
       ...process.env,
       DATABASE_URL: scratch.url,
       SEASON_ONE_INTEGRATION: '1',
+      // As on production: players verify their email (or use Discord) before they play.
+      REQUIRE_VERIFIED_EMAIL: 'true',
       SESSION_SECRET: process.env.SESSION_SECRET || 'season-one-scratch-session-secret-32chars',
       NODE_ENV: 'test',
     },
