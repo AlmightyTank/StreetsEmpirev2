@@ -28,6 +28,7 @@ import { StockService, type StockSettlementSet } from './stock.service.js';
 import { CombatRecoveryService, type RecoverySettlement } from './combat-recovery.service.js';
 import { ConvoyService } from './convoy.service.js';
 import { RelocationService } from './relocation.service.js';
+import { BossTripSettleService } from './boss-trip-settle.service.js';
 import { RunSettleService } from './run-settle.service.js';
 import { TurfService } from './turf.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
@@ -345,6 +346,8 @@ export const ActionService = {
       await RunSettleService.settle(tx, roundPlayerId, now);
       // 0.5.0-D: and a move that has arrived has arrived.
       await RelocationService.settleOwn(tx, roundPlayerId, now);
+      // Trips A: and a boss whose flight home has landed is home.
+      await BossTripSettleService.settle(tx, roundPlayerId, now);
       // 0.5.0-E: and whatever came back from a convoy fight is back.
       await ConvoyService.credit(tx, roundPlayerId, now);
       // 0.6.0-C: turf squads and allied backup return before another action reads them.

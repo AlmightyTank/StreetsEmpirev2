@@ -824,6 +824,8 @@ model RoundPlayer {
   cityShelves           CityShelf[]
   citySightings         CitySighting[]
   relocations           Relocation[]
+  /// Trips A. The boss away from home and back.
+  bossTrips             BossTrip[]
   convoyTailsOwned      ConvoyTail[]   @relation("ConvoyTailOwner")
   convoyTailsStarted    ConvoyTail[]   @relation("ConvoyTailAttacker")
   convoyBackups         ConvoyBackup[]
@@ -1171,6 +1173,48 @@ model Relocation {
   @@index([arrivedAt, arrivesAt])
 }
 
+/// Trips A. The boss away from home. Stage A flies only; DRIVE is the entourage's way (B).
+enum BossTripMode {
+  FLY
+  DRIVE
+}
+
+enum BossTripStatus {
+  ACTIVE
+  RETURNED
+}
+
+/// Trips A. The boss leaves home for a stay in another city and comes back. Home keeps
+/// working, run by a lieutenant. Where the boss is follows from the four timestamps, so
+/// the trip settles lazily, like a run: it is home once `returnsAt` has passed.
+model BossTrip {
+  id                 String         @id @default(cuid())
+  roundPlayerId      String
+  roundPlayer        RoundPlayer    @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  status             BossTripStatus @default(ACTIVE)
+  mode               BossTripMode   @default(FLY)
+  /// City slug the boss left from and comes back to.
+  homeCity           String
+  /// City slug the boss is visiting.
+  city               String
+  /// The trip's wallet, integer cents. Never below zero. All the boss has in town.
+  bankrollCents      BigInt
+  startBankrollCents BigInt
+  /// What the ticket cost, from home cash at launch.
+  ticketCents        BigInt
+  /// Everything paid to the hotel: the stay at launch, extensions out of the bankroll.
+  hotelCents         BigInt
+  turnsSpent         Int
+  departedAt         DateTime
+  arrivesAt          DateTime
+  stayUntil          DateTime
+  returnsAt          DateTime
+  returnedAt         DateTime?
+
+  @@index([roundPlayerId, status])
+  @@index([city, status, arrivesAt])
+}
+
 /// 0.5.0-C. What went wrong on a run: a police stop on a road, or a bust or arrest in a town.
 enum RunIncidentKind {
   STOP
@@ -1464,6 +1508,8 @@ enum ActivityType {
   TURF_PUSH_DEFENSE
   TURF_OUTPOST_ESTABLISH
   TURF_OUTPOST_TRANSFER
+  TRIP_STARTED
+  TRIP_RETURNED
 }
 
 enum BattleKind {

@@ -53,6 +53,7 @@ import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { CitiesService } from './cities.service.js';
 import { PlayerStateService } from './player-state.service.js';
 import { RelocationService } from './relocation.service.js';
+import { BossTripService } from './boss-trip.service.js';
 import { ActivityService } from './activity.service.js';
 import { HighMarketService } from './high-market.service.js';
 import { hideoutGarageRunLimit, hideoutWeaponPriority } from './hideout.service.js';
@@ -388,6 +389,7 @@ export const TravelService = {
       lastRun: await lastRunDto(prisma, roundPlayerId, base),
       wire: await wireDto(prisma, player.roundId, base, seed, now),
       relocation: await RelocationService.page(prisma, player, base, settled.round.endsAt, player.heat, now),
+      trips: await BossTripService.page(prisma, player, base, settled.round.endsAt, now),
     };
   },
 

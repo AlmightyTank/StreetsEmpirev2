@@ -1,9 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, heatBribeSchema, travelRoutesSchema, productTradeSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushSchema, turfPushBackupSchema, turfPushCallSchema, runOutpostEstablishSchema, runOutpostTransferSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, heatBribeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, productTradeSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushSchema, turfPushBackupSchema, turfPushCallSchema, runOutpostEstablishSchema, runOutpostTransferSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
 import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
+import { BossTripService } from '../services/boss-trip.service.js';
 import { TravelService } from '../services/travel.service.js';
 import { ContactsService } from '../services/contacts.service.js';
 import { ProductMarketService } from '../services/product-market.service.js';
@@ -111,6 +112,14 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
   /** 0.5.0-D: move the whole operation to another city. */
   app.post('/travel/move', { preHandler: app.requireAuth }, async (request) =>
     RelocationService.move(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+
+  /** Trips A: the boss flies out for a stay, stays on, or checks out and flies home. */
+  app.post('/travel/trip', { preHandler: app.requireAuth }, async (request) =>
+    BossTripService.launch(app.prisma, await me(request.auth!.account.id), parseBody(tripLaunchSchema, request.body ?? {})));
+  app.post('/travel/trip/extend', { preHandler: app.requireAuth }, async (request) =>
+    BossTripService.extend(app.prisma, await me(request.auth!.account.id), parseBody(tripExtendSchema, request.body ?? {})));
+  app.post('/travel/trip/home', { preHandler: app.requireAuth }, async (request) =>
+    BossTripService.headHome(app.prisma, await me(request.auth!.account.id), parseBody(tripHeadHomeSchema, request.body ?? {})));
 
   /** 0.4.0-A: the round's product catalog with the player's stock; 0.4.0-D adds Pip's counter and recipes. */
   app.get('/products', { preHandler: app.requireAuth }, async (request) =>

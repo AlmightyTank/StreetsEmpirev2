@@ -4,6 +4,7 @@ import type { District, DistrictKey, Ruleset } from '@streets/rulesets';
 import type { DistrictDto, DistrictsDto, GameActionResult, ScoutResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
+import { BossTripSettleService } from './boss-trip-settle.service.js';
 import { HeatService } from './heat.service.js';
 import { hideoutBackOfficeBonusCents } from './hideout.service.js';
 import { CRACK, ProductInventoryService, streetProductFinds, summarizeProductMovements } from './product-inventory.service.js';
@@ -200,7 +201,9 @@ export const ScoutService = {
         });
         const turfTakeCents = outcome.pimpTakeCents + BigInt(turf.holdBonusCents - turf.taxPaidCents);
         const hideoutBonusCents = hideoutBackOfficeBonusCents(turfTakeCents, ruleset, current);
-        const pimpTakeCents = turfTakeCents + hideoutBonusCents;
+        // Trips A: with the boss away, the lieutenant skims the take before it lands.
+        const lieutenantCutCents = await BossTripSettleService.lieutenantCut(tx, roundPlayerId, ruleset, turfTakeCents + hideoutBonusCents);
+        const pimpTakeCents = turfTakeCents + hideoutBonusCents - lieutenantCutCents;
 
         const worked = {
           ...current,
@@ -259,6 +262,7 @@ export const ScoutService = {
           crewTakeCents: Number(outcome.crewTakeCents),
           cashEarnedCents: Number(pimpTakeCents),
           hideoutBonusCents: Number(hideoutBonusCents),
+          ...(lieutenantCutCents > 0n ? { lieutenantCutCents: Number(lieutenantCutCents) } : {}),
           ...(favorBonuses.scoutIncomePercent > 0 ? { favorIncomePercent: favorBonuses.scoutIncomePercent } : {}),
           ...(favorBonuses.scoutRecruitmentPercent > 0 ? { favorRecruitmentPercent: favorBonuses.scoutRecruitmentPercent } : {}),
           payoutPercent: current.payoutPercent,
@@ -303,6 +307,7 @@ export const ScoutService = {
               thugs: outcome.thugsRecruited,
               cashCents: Number(pimpTakeCents),
               hideoutBonusCents: Number(hideoutBonusCents),
+              ...(lieutenantCutCents > 0n ? { lieutenantCutCents: Number(lieutenantCutCents) } : {}),
               ...(favorBonuses.scoutIncomePercent > 0 ? { favorIncomePercent: favorBonuses.scoutIncomePercent } : {}),
               ...(favorBonuses.scoutRecruitmentPercent > 0 ? { favorRecruitmentPercent: favorBonuses.scoutRecruitmentPercent } : {}),
               crackFound,

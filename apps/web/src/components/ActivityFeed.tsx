@@ -158,6 +158,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       const mixedFinds = productFindSummary(p.productsFound);
       const found = [
         num(p.cashCents) ? `+${formatCents(num(p.cashCents))}` : null,
+        num(p.lieutenantCutCents) ? `lieutenant kept ${formatCents(num(p.lieutenantCutCents))}` : null,
         num(p.whores) ? `+${formatNumber(num(p.whores))} whores` : null,
         num(p.thugs) ? `+${formatNumber(num(p.thugs))} thugs` : null,
         ...movements,
@@ -197,6 +198,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
           : []),
         ...(!movements.length ? productFindSummary(p.productsFound) : []),
         num(p.cashCents) ? `+${formatCents(num(p.cashCents))}` : null,
+        num(p.lieutenantCutCents) ? `lieutenant kept ${formatCents(num(p.lieutenantCutCents))}` : null,
         num(p.ingredientCents) ? `-${formatCents(num(p.ingredientCents))} ingredients` : null,
         p.busted ? `BUSTED, fined ${formatCents(num(p.fineCents))}` : null,
       ].filter(Boolean);
@@ -293,6 +295,18 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     case 'RELOCATED':
       return { text: 'Moved in. The new city\u2019s rules apply now.' };
 
+    case 'TRIP_STARTED':
+      return {
+        text: `The boss flew to ${str(p.cityName, 'another city')}.`,
+        detail: `-${formatCents(num(p.ticketCents) + num(p.hotelCents))} flight and hotel · ${formatCents(num(p.bankrollCents))} bankroll`,
+      };
+
+    case 'TRIP_RETURNED':
+      return {
+        text: `The boss is back from ${str(p.cityName, 'the trip')}.`,
+        detail: `${formatCents(num(p.bankrollCents))} bankroll home`,
+      };
+
     case 'CONVOY_TAIL':
       return { text: `Put ${formatNumber(num(p.squad))} on ${str(p.owner, 'a')}'s run near ${str(p.cityName, 'town')}.`, detail: `${formatNumber(num(p.turns))} turns` };
 
@@ -351,7 +365,7 @@ export function activityGroup(type: ActivityDto['type']): ActivityGroup {
   if (type.startsWith('RAID_') || type.startsWith('DRIVE_BY_') || type.startsWith('COMBAT_') || type === 'BATTLE_VOIDED') return 'combat';
   if (type.startsWith('STORE_')) return 'market';
   if (type.startsWith('QUEST_') || type.startsWith('FAVOR_') || type === 'HIDEOUT_UPGRADE' || type === 'WEAPON_UNLOCK') return 'progress';
-  if (type.startsWith('RUN_') || type.startsWith('RELOCATION_') || type === 'RELOCATED' || type.startsWith('CONVOY_')) return 'travel';
+  if (type.startsWith('RUN_') || type.startsWith('RELOCATION_') || type === 'RELOCATED' || type.startsWith('CONVOY_') || type.startsWith('TRIP_')) return 'travel';
   if (type.startsWith('TURF_')) return 'turf';
   if (type === 'SCOUT' || type === 'WORK_STREETS' || type === 'PRODUCE_CRACK' || type === 'HEAT_BRIBE' || type === 'PAYOUT_CHANGE') return 'street';
   return 'system';

@@ -1,6 +1,6 @@
 # Brainstorm - Trips: the boss travels
 
-Status: **brainstorm, three calls decided.** It is a starting point for a roadmap that
+Status: **Stage A built; the rest is still a brainstorm.** It is a starting point for a roadmap that
 sits between the built 0.5.0/0.6.0 travel and the 1.2 Casino expansion
 ([ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)).
 
@@ -244,6 +244,36 @@ Grounded in what 0.5.0/0.6.0 already built:
 | **C - Hunted** | Visitor recon, tails and hits on a boss in town; ally call-in; loss sends the boss home laid up; trip arrests. | Hit win rate in band for each tier; a solo boss is hard to find but easy to beat; a hit always settles when its window closes. |
 | **D - Hooks** | Presence objectives in Jobs; local gun connect; outpost inspection; sit-downs between bosses. These are the reasons to travel before casinos exist; the 1.2 Casino update builds on this stage. | A presence job cannot be completed without being there; renting guns is never cheaper than bringing them. |
 | **E - Release** | Full-round simulation with travelers vs homebodies; phone pass; Rules page Trips panel; regression. | Traveling is a choice, not a requirement: a crew that never takes a trip is not locked out of the top ranks, and the 0.5.0-F and 0.6.0-F gates still pass. |
+
+## Stage A - built
+
+Ruleset `classic-og-trips-a` (0.8.0-H balance plus `travel.trips`; the version label is a
+placeholder until trips get a release number).
+
+- **Solo, by air.** 45 minutes each way between any two cities; a $2,500 round-trip ticket;
+  stays of 2, 6 or 12 hours, extendable in 2-hour blocks up to 24; a hotel rate of $500 an
+  hour with a lean per city (Detroit and Las Vegas 0.6, Beverly Hills 2.0); 5 turns to get
+  out the door; carry-on bankroll up to $250,000; no new trips in the round's last 12 hours,
+  and no stay that runs past the round's end.
+- **Money.** The ticket, the hotel for the whole stay and the bankroll leave home cash at
+  launch. The bankroll counts in net worth as cash (inside `awayNetWorthCents`) and comes
+  home whole, less any extensions, which it pays for. Checking out early refunds nothing.
+- **The lieutenant.** While a trip is out, Scout and Produce takes lose 10% before they
+  land. Receipts and the activity feed show the cut. The defense modifier and happiness
+  drift from option B are left for the stages where hits on an away boss exist (C).
+- **Home stays home.** `cityId` never changes: the boss still ranks, is targeted and works
+  at home. No move house while a trip is out (`TRIP_OUT`), and no second trip.
+- **Where the boss is** comes from the `BossTrip` row's four timestamps (`departedAt`,
+  `arrivesAt`, `stayUntil`, `returnsAt`), not a `presenceCity` column, so it cannot lag.
+  A city-wide "who is visiting" list can query `BossTrip` by city directly.
+- **Lazy return.** Every action and every settle brings a trip home once `returnsAt`
+  has passed, idempotently, like runs.
+- **Dropped:** the revenge-window rule. Home stays a target while the boss is away, so a trip
+  is no escape from a fight.
+- **Code:** `packages/rules-engine/src/calculations/trips.ts`,
+  `apps/server/src/services/boss-trip*.service.ts`, `POST /api/game/travel/trip`,
+  `/trip/extend`, `/trip/home`, the trip panel on Travel (`TripPanel.tsx`), and the
+  `TRAVEL_INTEGRATION` suite `boss-trip.integration.test.ts`.
 
 ## Open questions
 

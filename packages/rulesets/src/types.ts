@@ -1003,6 +1003,39 @@ export interface TravelRules {
   readonly relocation?: RelocationRules;
   /** 0.5.0-E. Runs near a city can be tailed and hit. Absent: runs only meet the police. */
   readonly convoys?: ConvoyRules;
+  /** Trips A. The boss visits another city and comes home. Absent: the boss never leaves. */
+  readonly trips?: TripRules;
+}
+
+/**
+ * Trips A. The boss leaves home for a stay in another city and comes back. Home keeps
+ * working while they are gone, run by a lieutenant who skims the take. Stage A flies the
+ * boss alone: a ticket from home cash, a hotel stay paid up front, and a bankroll that
+ * is all the boss has in town.
+ */
+export interface TripRules {
+  /** Real minutes in the air, airport included, between any two cities. Each way. */
+  readonly flightMinutes: number;
+  /** A round-trip ticket for the boss, paid from home cash. */
+  readonly ticketCents: number;
+  /** The most bankroll one boss can carry onto a plane. */
+  readonly carryOnCapCents: number;
+  /** Stay lengths offered at launch, in real minutes. */
+  readonly stayMinutes: readonly number[];
+  /** The longest a stay can run, extensions included. */
+  readonly maxStayMinutes: number;
+  /** Extensions are sold in blocks of this many minutes. */
+  readonly extendMinutes: number;
+  /** The hotel's rate per real hour, before the city's lean. */
+  readonly hotelCentsPerHour: number;
+  /** Each city's lean on the hotel rate. Missing is 1. */
+  readonly hotelPrice?: { readonly [citySlug: string]: number };
+  /** Turns it takes to get out the door. */
+  readonly launchTurns: number;
+  /** The lieutenant's share of Scout and Produce takes while the boss is away, 0 to 1. */
+  readonly lieutenantCut: number;
+  /** No new trips in the round's last hours. */
+  readonly cutoffHours: number;
 }
 
 /**

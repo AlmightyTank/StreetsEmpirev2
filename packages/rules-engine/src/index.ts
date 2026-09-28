@@ -1,6 +1,7 @@
 export * from './loader.js';
 export * from './types.js';
 export * from './calculations/net-worth.js';
+export * from './calculations/trips.js';
 export * from './calculations/happiness.js';
 export * from './calculations/turns.js';
 export * from './calculations/payout.js';

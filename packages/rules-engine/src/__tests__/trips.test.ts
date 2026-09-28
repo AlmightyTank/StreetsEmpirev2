@@ -1,0 +1,113 @@
+import { describe, expect, it } from 'vitest';
+import { classicOgTripsA, classicOgV08H, type Ruleset } from '@streets/rulesets';
+import { checkMove } from '../calculations/relocation.js';
+import {
+  checkExtend,
+  checkTrip,
+  hotelCents,
+  lieutenantCutCents,
+  planTripHeadHome,
+  tripPosition,
+  tripRules,
+} from '../calculations/trips.js';
+
+const ruleset: Ruleset = classicOgTripsA;
+const rules = classicOgTripsA.travel.trips;
+const now = new Date('2026-09-28T12:00:00Z');
+const minutes = (value: number) => new Date(now.getTime() + value * 60_000);
+const free = {
+  from: 'new-york-city', to: 'las-vegas', now, stayMinutes: 120, bankrollCents: 1_000_000n,
+  cashCents: 50_000_000n, turns: 100, roundEndsAt: minutes(60 * 24 * 10),
+  tripOut: false, movingUntil: null, lockedUntil: null,
+};
+
+describe('Trips A: the boss travels', () => {
+  it('is off on every older ruleset', () => {
+    expect(tripRules(classicOgV08H)).toBeUndefined();
+    expect(checkTrip(classicOgV08H, free).code).toBe('TRIPS_DISABLED');
+  });
+
+  it('prices the hotel by the started hour and the city', () => {
+    expect(hotelCents(rules, 'las-vegas', 120)).toBe(BigInt(Math.round(rules.hotelCentsPerHour * 0.6)) * 2n);
+    expect(hotelCents(rules, 'las-vegas', 61)).toBe(hotelCents(rules, 'las-vegas', 120));
+    expect(hotelCents(rules, 'beverly-hills', 60)).toBeGreaterThan(hotelCents(rules, 'detroit', 60));
+    expect(hotelCents(rules, 'nowhere', 60)).toBe(BigInt(rules.hotelCentsPerHour));
+  });
+
+  it('flies out, stays and flies home on four timestamps', () => {
+    const check = checkTrip(ruleset, free);
+    expect(check.blockedReason).toBeNull();
+    const flight = rules.flightMinutes;
+    expect(check.times.arrivesAt).toEqual(minutes(flight));
+    expect(check.times.stayUntil).toEqual(minutes(flight + 120));
+    expect(check.times.returnsAt).toEqual(minutes(flight * 2 + 120));
+    expect(check.totalCents).toBe(check.ticketCents + check.hotelCents + free.bankrollCents);
+
+    expect(tripPosition(check.times, now).phase).toBe('outbound');
+    expect(tripPosition(check.times, minutes(flight)).phase).toBe('town');
+    expect(tripPosition(check.times, minutes(flight + 120)).phase).toBe('inbound');
+    expect(tripPosition(check.times, minutes(flight * 2 + 120))).toEqual({ phase: 'home', until: check.times.returnsAt });
+  });
+
+  it('refuses a trip for the reason that matters most', () => {
+    expect(checkTrip(ruleset, { ...free, to: 'nowhere' }).code).toBe('UNKNOWN_CITY');
+    expect(checkTrip(ruleset, { ...free, to: 'new-york-city' }).code).toBe('ALREADY_HOME');
+    expect(checkTrip(ruleset, { ...free, tripOut: true }).code).toBe('TRIP_OUT');
+    expect(checkTrip(ruleset, { ...free, movingUntil: minutes(30) }).code).toBe('ON_THE_ROAD');
+    expect(checkTrip(ruleset, { ...free, lockedUntil: minutes(30) }).code).toBe('LOCKED_UP');
+    expect(checkTrip(ruleset, { ...free, roundEndsAt: minutes(rules.cutoffHours * 60 - 1) }).code).toBe('TRIPS_CLOSED');
+    expect(checkTrip(ruleset, { ...free, stayMinutes: 720, roundEndsAt: minutes(rules.cutoffHours * 60 + 60) }).code).toBe('TRIP_TOO_LONG');
+    expect(checkTrip(ruleset, { ...free, stayMinutes: 90 }).code).toBe('BAD_STAY');
+    expect(checkTrip(ruleset, { ...free, bankrollCents: -1n }).code).toBe('BAD_BANKROLL');
+    expect(checkTrip(ruleset, { ...free, bankrollCents: BigInt(rules.carryOnCapCents) + 1n }).code).toBe('OVER_CARRY_ON');
+    expect(checkTrip(ruleset, { ...free, turns: rules.launchTurns - 1 }).code).toBe('NOT_ENOUGH_TURNS');
+    const exact = checkTrip(ruleset, free).totalCents;
+    expect(checkTrip(ruleset, { ...free, cashCents: exact - 1n }).code).toBe('NOT_ENOUGH_CASH');
+    expect(checkTrip(ruleset, { ...free, cashCents: exact }).code).toBeNull();
+    expect(checkTrip(ruleset, { ...free, bankrollCents: 0n }).code).toBeNull();
+  });
+
+  it('extends a stay only in town, out of the bankroll, up to the longest stay', () => {
+    const times = checkTrip(ruleset, free).times;
+    const trip = { ...times, city: 'las-vegas', bankrollCents: 1_000_000n };
+    const inTown = minutes(rules.flightMinutes + 10);
+    const roundEndsAt = free.roundEndsAt;
+    expect(checkExtend(ruleset, { trip, blocks: 1, now, roundEndsAt }).code).toBe('NOT_IN_TOWN');
+    expect(checkExtend(ruleset, { trip, blocks: 0, now: inTown, roundEndsAt }).code).toBe('BAD_EXTENSION');
+    const one = checkExtend(ruleset, { trip, blocks: 1, now: inTown, roundEndsAt });
+    expect(one.code).toBeNull();
+    expect(one.stayUntil.getTime() - times.stayUntil.getTime()).toBe(rules.extendMinutes * 60_000);
+    expect(one.returnsAt.getTime() - times.returnsAt.getTime()).toBe(rules.extendMinutes * 60_000);
+    expect(one.hotelCents).toBe(hotelCents(rules, 'las-vegas', rules.extendMinutes));
+    const tooMany = Math.ceil(rules.maxStayMinutes / rules.extendMinutes);
+    expect(checkExtend(ruleset, { trip, blocks: tooMany, now: inTown, roundEndsAt }).code).toBe('STAY_TOO_LONG');
+    expect(checkExtend(ruleset, { trip: { ...trip, bankrollCents: 0n }, blocks: 1, now: inTown, roundEndsAt }).code).toBe('NOT_ENOUGH_BANKROLL');
+    expect(checkExtend(ruleset, { trip, blocks: 1, now: inTown, roundEndsAt: times.returnsAt }).code).toBe('TRIP_TOO_LONG');
+  });
+
+  it('heads home only from town, and the flight leaves now', () => {
+    const times = checkTrip(ruleset, free).times;
+    expect(planTripHeadHome(times, now)).toBeNull();
+    const inTown = minutes(rules.flightMinutes + 10);
+    expect(planTripHeadHome(times, inTown)).toEqual({ stayUntil: inTown, returnsAt: minutes(rules.flightMinutes * 2 + 10) });
+    expect(planTripHeadHome(times, times.stayUntil)).toBeNull();
+  });
+
+  it('skims the lieutenant cut off a positive take and never more', () => {
+    expect(lieutenantCutCents(rules, 100_000n)).toBe(10_000n);
+    expect(lieutenantCutCents(rules, 99n)).toBe(9n);
+    expect(lieutenantCutCents(rules, 0n)).toBe(0n);
+    expect(lieutenantCutCents(rules, -500n)).toBe(0n);
+    expect(lieutenantCutCents(undefined, 100_000n)).toBe(0n);
+    expect(lieutenantCutCents({ ...rules, lieutenantCut: 2 }, 100n)).toBe(100n);
+  });
+
+  it('keeps the operation home while the boss is away', () => {
+    const move = {
+      from: 'new-york-city', to: 'atlanta', now, netWorthCents: 100_000_000n, cashCents: 50_000_000n,
+      roundEndsAt: minutes(60 * 24 * 10), lastMoveAt: null, movingUntil: null, lockedUntil: null, runOut: false, revengeOpenUntil: null,
+    };
+    expect(checkMove(ruleset, move).code).toBeNull();
+    expect(checkMove(ruleset, { ...move, tripOut: true }).code).toBe('TRIP_OUT');
+  });
+});

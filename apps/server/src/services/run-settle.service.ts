@@ -8,6 +8,7 @@ import {
   runPosition,
   seededRng,
   settleLiveShelf,
+  tripNetWorthCents,
   type RunGuns,
   type Ruleset,
   type RunStopPlan,
@@ -70,10 +71,17 @@ export async function activeRuns(db: Db, roundPlayerId: string): Promise<LoadedR
   });
 }
 
-/** 0.6.0-D Garage: away value is the sum of every active run, never whichever one moved last. */
+/**
+ * 0.6.0-D Garage: away value is the sum of every active run, never whichever one moved last.
+ * Trips A: plus the bankroll the boss carries on a trip.
+ */
 export async function totalAwayWorth(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<bigint> {
-  const runs = await activeRuns(tx, roundPlayerId);
-  return runs.reduce((sum, run) => sum + awayWorth(ruleset, run, cargoOf(run)), 0n);
+  const [runs, trips] = await Promise.all([
+    activeRuns(tx, roundPlayerId),
+    tx.bossTrip.findMany({ where: { roundPlayerId, status: 'ACTIVE' }, select: { bankrollCents: true } }),
+  ]);
+  return runs.reduce((sum, run) => sum + awayWorth(ruleset, run, cargoOf(run)), 0n)
+    + trips.reduce((sum, trip) => sum + tripNetWorthCents(ruleset, trip.bankrollCents), 0n);
 }
 
 export async function refreshAwayWorth(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<bigint> {

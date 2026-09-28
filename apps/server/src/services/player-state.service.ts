@@ -13,6 +13,7 @@ import { CombatRecoveryService, type RecoverySettlement } from './combat-recover
 import { fitThugs } from './action.service.js';
 import { ConvoyService } from './convoy.service.js';
 import { RelocationService } from './relocation.service.js';
+import { BossTripSettleService } from './boss-trip-settle.service.js';
 import { RunSettleService, runSummary } from './run-settle.service.js';
 import type { RoundPlayerDto } from '@streets/shared';
 import { TurfService } from './turf.service.js';
@@ -95,6 +96,8 @@ export const PlayerStateService = {
     await RunSettleService.settle(tx, roundPlayerId, now);
     // 0.5.0-D: and a move that has arrived has arrived.
     await RelocationService.settleOwn(tx, roundPlayerId, now);
+    // Trips A: and a boss whose flight home has landed is home.
+    await BossTripSettleService.settle(tx, roundPlayerId, now);
     // 0.5.0-E: and whatever came back from a convoy fight is back.
     await ConvoyService.credit(tx, roundPlayerId, now);
     // 0.6.0-C: and turf-war squads/help are back or posted after the landing.

@@ -144,6 +144,25 @@ export type RunOutpostTransferInput = z.infer<typeof runOutpostTransferSchema>;
 export const relocationSchema = z.object({ to: citySlug, actionId: actionIdSchema }).strict();
 export type RelocationInput = z.infer<typeof relocationSchema>;
 
+// --- Trips A: the boss travels -----------------------------------------------------
+
+export const tripLaunchSchema = z.object({
+  to: citySlug,
+  stayMinutes: z.number({ invalid_type_error: 'Pick a stay.' }).int('Pick a stay.').positive('Pick a stay.').safe(),
+  bankrollCents: wholeCount('a bankroll'),
+  actionId: actionIdSchema,
+}).strict();
+export type TripLaunchInput = z.infer<typeof tripLaunchSchema>;
+
+export const tripExtendSchema = z.object({
+  blocks: z.number({ invalid_type_error: 'Say how long to stay on.' }).int('Extend by whole blocks.').min(1, 'Extend by at least one block.').max(24).safe(),
+  actionId: actionIdSchema,
+}).strict();
+export type TripExtendInput = z.infer<typeof tripExtendSchema>;
+
+export const tripHeadHomeSchema = z.object({ actionId: actionIdSchema }).strict();
+export type TripHeadHomeInput = z.infer<typeof tripHeadHomeSchema>;
+
 // --- 0.5.0-E convoys ----------------------------------------------------------------
 
 const convoyId = z.string().trim().min(1).max(64);

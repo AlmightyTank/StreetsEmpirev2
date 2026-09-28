@@ -621,6 +621,102 @@ export interface TravelDto extends CitiesDto {
   wire: WireItemDto[];
   /** 0.5.0-D. Moving house. Null before 0.5.0-D. */
   relocation: RelocationDto | null;
+  /** Trips A. The boss travels. Null on rounds without trips. */
+  trips: TripPanelDto | null;
+}
+
+/** Trips A. Where the boss is along a trip. */
+export type TripPhaseDto = 'outbound' | 'town' | 'inbound';
+
+/** Trips A. A trip that is out. */
+export interface TripDto {
+  id: string;
+  mode: 'FLY' | 'DRIVE';
+  homeCity: string;
+  city: string;
+  cityName: string;
+  phase: TripPhaseDto;
+  /** When the current phase ends. */
+  until: string;
+  bankrollCents: number;
+  startBankrollCents: number;
+  ticketCents: number;
+  hotelCents: number;
+  departedAt: string;
+  arrivesAt: string;
+  stayUntil: string;
+  returnsAt: string;
+  /** What another extension block would cost right now, and why it cannot be bought if it cannot. */
+  extend: { minutes: number; hotelCents: number; blockedReason: string | null };
+  canHeadHome: boolean;
+}
+
+/** Trips A. The last trip home, as a receipt. */
+export interface TripReceiptDto {
+  id: string;
+  city: string;
+  cityName: string;
+  startBankrollCents: number;
+  bankrollCents: number;
+  ticketCents: number;
+  hotelCents: number;
+  departedAt: string;
+  returnedAt: string;
+}
+
+/** Trips A. The trip panel on Travel. */
+export interface TripPanelDto {
+  rules: {
+    flightMinutes: number;
+    ticketCents: number;
+    carryOnCapCents: number;
+    stayMinutes: number[];
+    maxStayMinutes: number;
+    extendMinutes: number;
+    launchTurns: number;
+    /** The lieutenant's share of Scout and Produce takes while the boss is away, 0..1. */
+    lieutenantCut: number;
+  };
+  /** When flights close for the round. */
+  cutoffAt: string;
+  /** What stops any trip right now, in words; null when the boss can go. */
+  blockedReason: string | null;
+  blockedCode: string | null;
+  blockedUntil: string | null;
+  destinations: Array<{ slug: string; name: string; hotelCentsPerHour: number }>;
+  trip: TripDto | null;
+  lastTrip: TripReceiptDto | null;
+}
+
+/** Trips A. POST /api/game/travel/trip. */
+export interface TripLaunchResult {
+  tripId: string;
+  city: string;
+  cityName: string;
+  ticketCents: number;
+  hotelCents: number;
+  bankrollCents: number;
+  stayMinutes: number;
+  turns: number;
+  arrivesAt: string;
+  stayUntil: string;
+  returnsAt: string;
+}
+
+/** Trips A. POST /api/game/travel/trip/extend. */
+export interface TripExtendResult {
+  tripId: string;
+  minutes: number;
+  hotelCents: number;
+  bankrollCents: number;
+  stayUntil: string;
+  returnsAt: string;
+}
+
+/** Trips A. POST /api/game/travel/trip/home. */
+export interface TripHeadHomeResult {
+  tripId: string;
+  returnsAt: string;
 }
 
 export interface RelocationTurfPlanDto {
