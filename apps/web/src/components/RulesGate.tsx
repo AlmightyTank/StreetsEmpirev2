@@ -39,7 +39,7 @@ export function RulesGate() {
   return (
     <Shell narrow>
       <div className="se-intro-backdrop se-rules-backdrop">
-        <div ref={dialog} className="se-intro se-rules" role="dialog" aria-modal="true" aria-labelledby="se-rules-title" tabIndex={-1}>
+        <div ref={dialog} className="se-intro se-rules-dialog" role="dialog" aria-modal="true" aria-labelledby="se-rules-title" tabIndex={-1}>
           <p className="se-eyebrow">Before you play</p>
           <h2 id="se-rules-title">The rules of the street</h2>
           <p className="se-muted">Short version below. Everyone plays by these, and staff enforce them.</p>
