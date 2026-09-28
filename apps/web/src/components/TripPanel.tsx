@@ -102,6 +102,9 @@ function Away({ trip, rules, gunConnect, onDone }: { trip: TripDto; rules: TripP
         <Row label="Bankroll" value={formatCents(trip.bankrollCents)} strong
           tooltip="All the boss has in town. Nothing is wired from home; it all comes back when the boss does." />
         <Row label="Hotel paid" value={formatCents(trip.hotelCents)} />
+        {trip.airportSeizedCents > 0 || trip.airportDelayMinutes > 0 ? (
+          <Row label="Airport" value={`pulled aside · ${formatCents(trip.airportSeizedCents)} taken · ${trip.airportDelayMinutes} min late`} />
+        ) : null}
         {trip.bodyguards > 0 ? (
           <Row label="Bodyguards" value={`${trip.bodyguards}${trip.woundedBodyguards ? ` (${trip.woundedBodyguards} wounded)` : ''} · ${gunsText(trip.rentedGuns) || 'unarmed'}`}
             tooltip="They fight anyone who comes for the boss. Rented guns go back to Tommy's people at check-out." />
@@ -181,6 +184,10 @@ export function TripPanel({ data, selected, onDone }: { data: TravelDto; selecte
   const flight = trips.rules.flightMinutes;
   const blocked = trips.blockedReason
     ? `${trips.blockedReason}${trips.blockedUntil ? ` You can fly from ${when(trips.blockedUntil)}.` : ''}`
+    : null;
+  // Trips D2: what the airport means at the boss's Heat right now.
+  const airportNote = trips.airport && trips.airport.checkChance > 0
+    ? `With ${trips.airport.heat} Heat, security pulls you aside ${Math.round(trips.airport.checkChance * 100)}% of the time: ${trips.airport.seizePercent}% of the bankroll and ${trips.airport.delayMinutes} minutes.`
     : null;
   const laidUpNote = trips.laidUpUntil
     ? `The boss is laid up until ${when(trips.laidUpUntil)}. Home defends a little weaker and the lieutenant keeps skimming until then.`
@@ -265,6 +272,7 @@ export function TripPanel({ data, selected, onDone }: { data: TravelDto; selecte
       ) : null}
       {launch.error ? <Alert>{launch.error}</Alert> : null}
       {laidUpNote ? <p className="se-hint se-warn">{laidUpNote}</p> : null}
+      {airportNote ? <p className="se-hint se-warn">{airportNote}</p> : null}
       {trips.lastTrip ? <Receipt receipt={trips.lastTrip} /> : null}
     </Panel>
   );

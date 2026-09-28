@@ -1046,6 +1046,53 @@ export interface TripRules {
   readonly hunted?: HuntedRules;
   /** Trips D. The boss can fly with bodyguards and rent guns in town. Absent: the boss flies alone. */
   readonly bodyguards?: BodyguardRules;
+  /** Trips D2. Airport security reads Heat. Absent: nobody looks twice. */
+  readonly airport?: AirportRules;
+  /** Trips D2. The boss can visit an outpost in person. Absent: outposts never see the boss. */
+  readonly outpostVisits?: OutpostVisitRules;
+  /** Trips D2. Two bosses in one city can sit down and agree a truce. Absent: no sit-downs. */
+  readonly sitDowns?: SitDownRules;
+  /** Trips D2. Allies who live where a boss is hit can send backup. Absent: a boss stands alone. */
+  readonly allyBackup?: boolean;
+}
+
+/**
+ * Trips D2. A hot boss gets pulled aside at the airport on the way out: part of the carried
+ * bankroll is taken and the flight lands late. Past `noFlyHeat`, nobody lets them board.
+ */
+export interface AirportRules {
+  /** Heat from which security starts looking twice. */
+  readonly checkFromHeat: number;
+  /** Chance of being pulled aside for each point of Heat past `checkFromHeat`. */
+  readonly chancePerHeat: number;
+  readonly maxChance: number;
+  /** Share of the carried bankroll taken when pulled aside. */
+  readonly seizePercent: number;
+  /** Real minutes lost in the back room: the whole trip runs this much later. */
+  readonly delayMinutes: number;
+  /** At this Heat or above, no flight. */
+  readonly noFlyHeat: number;
+}
+
+/**
+ * Trips D2. A boss in town where they hold an outpost can walk the corner: for a while the
+ * crew there does not walk out when supplies run short, and a boss on a flight trip can
+ * carry the box's cash in their bankroll, up to the carry-on cap.
+ */
+export interface OutpostVisitRules {
+  /** Hours after a visit in which the corner crew stays put whatever the box holds. */
+  readonly moraleHours: number;
+}
+
+/**
+ * Trips D2. A boss in town proposes a sit-down to a boss who is also in that city (living
+ * there or visiting). If the other agrees while both are still there, neither crew can hit
+ * the other for `truceHours`: no raids, drive-bys, special raids, convoy tails or boss hits.
+ */
+export interface SitDownRules {
+  /** Minutes an invitation stays open. */
+  readonly inviteMinutes: number;
+  readonly truceHours: number;
 }
 
 /**

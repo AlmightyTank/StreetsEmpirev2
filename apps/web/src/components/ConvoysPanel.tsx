@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { BossHitDto, BossHitResult, BossTargetDto, ConvoyBackupResult, ConvoyReconResult, ConvoyReportDto, ConvoyTailDto, ConvoyTailResult, ConvoyTargetDto, ConvoysDto, GameActionResult, TravelDto } from '@streets/shared';
+import type { BossHitBackupResult, BossHitDto, BossHitResult, BossTargetDto, ConvoyBackupResult, ConvoyReconResult, ConvoyReportDto, ConvoyTailDto, ConvoyTailResult, ConvoyTargetDto, ConvoysDto, GameActionResult, TravelDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { useCountdown } from '../hooks/useCountdown.js';
@@ -216,17 +216,75 @@ function BossRow({ target, onDone }: { target: BossTargetDto; onDone: () => void
   );
 }
 
+/** Trips D2. The boss calls allies in town; an ally who was called sends thugs. */
+function BossHitHelp({ hit, onDone }: { hit: BossHitDto; onDone: () => void }) {
+  const send = useGameAction<BossHitBackupResult>();
+  const [thugs, setThugs] = useState<number | ''>('');
+  const [calling, setCalling] = useState(false);
+  const [callError, setCallError] = useState<string | null>(null);
+  const count = typeof thugs === 'number' ? thugs : 0;
+  const answer = hit.answer;
+  const block = send.busy ? 'Rounding them up.' : answer?.reason ?? (count < 1 || count > (answer?.max ?? 0) ? `Send 1 to ${formatNumber(answer?.max ?? 0)}.` : null);
+  return (
+    <div className="se-convoys__help">
+      {hit.role === 'owner' ? (
+        hit.alliesCalled
+          ? <p className="se-hint">Your allies in {hit.cityName} have been called.{hit.backup ? ` ${formatNumber(hit.backup)} on the way.` : ''}</p>
+          : hit.canCallAllies
+            ? <Button type="button" className="se-btn se-btn--ghost se-btn--sm" disabledReason={calling ? 'Calling...' : null}
+                onClick={async () => {
+                  setCalling(true);
+                  setCallError(null);
+                  try {
+                    await api.post('/game/convoys/boss-hit/call', { hitId: hit.id });
+                    onDone();
+                  } catch (caught) {
+                    setCallError(caught instanceof ApiError ? caught.message : 'Could not reach your allies.');
+                  } finally {
+                    setCalling(false);
+                  }
+                }}>Call allies in {hit.cityName}</Button>
+            : null
+      ) : null}
+      {answer ? (
+        <div className="se-launch__with-all">
+          <input className="se-input" type="number" inputMode="numeric" min={1} max={answer.max} value={thugs} placeholder="Thugs" aria-label="Thugs to send"
+            disabled={Boolean(answer.reason)} onChange={(event) => setThugs(whole(event.target.value))} />
+          <Button type="button" className="se-btn se-btn--primary se-btn--sm" disabledReason={block}
+            onClick={async () => {
+              await send.run((actionId): Promise<GameActionResult<BossHitBackupResult>> => api.post('/game/convoys/boss-hit/backup', { hitId: hit.id, thugs: count, actionId }));
+              setThugs('');
+              onDone();
+            }}>
+            Send
+          </Button>
+        </div>
+      ) : null}
+      {answer?.reason ? <p className="se-hint">{answer.reason}</p> : null}
+      {send.error ? <Alert>{send.error}</Alert> : null}
+      {callError ? <Alert>{callError}</Alert> : null}
+    </div>
+  );
+}
+
 /** Trips C. A hit on a boss, from your side. */
 function BossHitRow({ hit, onDone }: { hit: BossHitDto; onDone: () => void }) {
   const mine = hit.role === 'attacker';
   if (hit.status === 'PENDING') {
+    const headline = mine
+      ? `Your squad of ${formatNumber(hit.squad)} is on ${hit.owner.displayName}'s boss in ${hit.cityName}`
+      : hit.role === 'owner'
+        ? `${hit.attacker.displayName} has people on you in ${hit.cityName}`
+        : `${hit.owner.displayName} needs backup in ${hit.cityName}: ${hit.attacker.displayName} is coming for their boss`;
     return (
       <li className={`se-convoys__tail${mine ? '' : ' se-convoys__tail--alert'}`}>
         <p className="se-convoys__line">
-          <span>{mine ? `Your squad of ${formatNumber(hit.squad)} is on ${hit.owner.displayName}'s boss in ${hit.cityName}` : `${hit.attacker.displayName} has people on you in ${hit.cityName}`}</span>
+          <span>{headline}</span>
           <Countdown until={hit.landsAt} onDone={onDone} prefix="hits in" />
         </p>
-        {mine ? <p className="se-hint">It lands at {clock(hit.landsAt)} if the boss is still in town.</p> : <p className="se-hint">Check out and fly home before it lands, or take the beating.</p>}
+        {mine ? <p className="se-hint">It lands at {clock(hit.landsAt)} if the boss is still in town.</p>
+          : hit.role === 'owner' ? <p className="se-hint">Check out and fly home before it lands, call your allies, or take the beating.</p> : null}
+        {!mine ? <BossHitHelp hit={hit} onDone={onDone} /> : null}
       </li>
     );
   }

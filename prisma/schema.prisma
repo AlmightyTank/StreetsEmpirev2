@@ -832,6 +832,10 @@ model RoundPlayer {
   /// Trips C. Hits on a visiting boss: started and taken.
   bossHitsStarted       BossHit[]      @relation("BossHitAttacker")
   bossHitsTaken         BossHit[]      @relation("BossHitOwner")
+  /// Trips D2. Backup sent to allies' bosses, and sit-downs proposed and received.
+  bossHitBackups        BossHitBackup[]
+  sitDownsProposed      SitDown[]      @relation("SitDownProposer")
+  sitDownsInvited       SitDown[]      @relation("SitDownInvitee")
   convoyTailsOwned      ConvoyTail[]   @relation("ConvoyTailOwner")
   convoyTailsStarted    ConvoyTail[]   @relation("ConvoyTailAttacker")
   convoyBackups         ConvoyBackup[]
@@ -1173,6 +1177,53 @@ model ConvoyBackup {
   @@index([playerId, creditedAt])
 }
 
+/// Trips D2. Thugs an ally who lives where a boss is hit sends to the fight. They come home
+/// after it, win or lose, with any wounds, at the ally's next settle.
+model BossHitBackup {
+  id         String      @id @default(cuid())
+  hitId      String
+  hit        BossHit     @relation(fields: [hitId], references: [id], onDelete: Cascade)
+  playerId   String
+  player     RoundPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  thugs      Int
+  /// Weapons and morale as they rode out.
+  crew       Json
+  sentAt     DateTime
+  wounded    Int         @default(0)
+  creditedAt DateTime?
+
+  @@unique([hitId, playerId])
+  @@index([playerId, creditedAt])
+}
+
+enum SitDownStatus {
+  PENDING
+  AGREED
+  DECLINED
+  EXPIRED
+}
+
+/// Trips D2. Two bosses in one city sit down. Agreed, neither crew can hit the other
+/// until `truceUntil`.
+model SitDown {
+  id          String        @id @default(cuid())
+  roundId     String
+  city        String
+  proposerId  String
+  proposer    RoundPlayer   @relation("SitDownProposer", fields: [proposerId], references: [id], onDelete: Cascade)
+  inviteeId   String
+  invitee     RoundPlayer   @relation("SitDownInvitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+  status      SitDownStatus @default(PENDING)
+  proposedAt  DateTime
+  expiresAt   DateTime
+  answeredAt  DateTime?
+  truceUntil  DateTime?
+
+  @@index([proposerId, status])
+  @@index([inviteeId, status])
+  @@index([roundId, truceUntil])
+}
+
 /// 0.5.0-D. A move of the whole operation to another city. Pending until `arrivedAt`.
 model Relocation {
   id            String      @id @default(cuid())
@@ -1236,6 +1287,9 @@ model BossTrip {
   /// check-out, never owned. And everything the rent has cost.
   rentedGuns         Json             @default("{}")
   gunRentCents       BigInt           @default(0)
+  /// Trips D2. What airport security took from the bankroll, and the minutes it cost.
+  airportSeizedCents BigInt           @default(0)
+  airportDelayMinutes Int             @default(0)
   hits               BossHit[]
 
   @@index([roundPlayerId, status])
@@ -1267,6 +1321,9 @@ model BossHit {
   /// What moved, for both sides' reports.
   result             Json?
   attackerCreditedAt DateTime?
+  /// Trips D2. When the boss called allies who live in the city, and who answered.
+  alliesCalledAt     DateTime?
+  backups            BossHitBackup[]
 
   @@unique([attackerId, actionId])
   @@index([tripId, status])
@@ -1572,6 +1629,10 @@ enum ActivityType {
   BOSS_HIT
   BOSS_HIT_ATTACK
   BOSS_HIT_DEFENSE
+  BOSS_HIT_BACKUP
+  OUTPOST_VISIT
+  SIT_DOWN
+  SIT_DOWN_AGREED
 }
 
 enum BattleKind {
@@ -1777,6 +1838,10 @@ model TurfOutpost {
   beer      Int    @default(0)
   /// Product-key -> quantity. Crack is stored here too because this is not home inventory.
   products  Json   @default("{}")
+
+  /// Trips D2. The boss walked this corner: its crew stays put until `moraleUntil`.
+  visitedAt   DateTime?
+  moraleUntil DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

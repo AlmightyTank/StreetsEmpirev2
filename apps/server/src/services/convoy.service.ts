@@ -58,8 +58,9 @@ import { CombatRecoveryService } from './combat-recovery.service.js';
 import { PlayerStateService } from './player-state.service.js';
 import { hideoutWeaponPriority } from './hideout.service.js';
 import { CRACK, ProductInventoryService } from './product-inventory.service.js';
-import { RUN_INCLUDE, cargoOf, takeFromRun, toStopPlans, totalAwayWorth, writeRunStops, type LoadedRun } from './run-settle.service.js';
+import { RUN_INCLUDE, cargoOf, refundHotelAfter, takeFromRun, toStopPlans, totalAwayWorth, writeRunStops, type LoadedRun } from './run-settle.service.js';
 import { BossHitService, scanBosses, type BossReconTarget } from './boss-hit.service.js';
+import { truceBlock } from './boss-presence.service.js';
 import { WorkSupplyService } from './work-supply.service.js';
 
 type Weapons = Record<WeaponKey, number>;
@@ -332,6 +333,8 @@ export const ConvoyService = {
         if (await accountsShareNetwork(tx, player.accountId, owner.accountId, at)) {
           throw AppError.conflict('LINKED_ACCOUNTS', 'You have played from the same network as this crew, so you cannot hit their runs.');
         }
+        const truce = await truceBlock(tx, attackerId, owner.id, at);
+        if (truce) throw AppError.conflict('TRUCE', truce);
         const blocked = squadBlock(base, player, current.turns, at);
         if (blocked) throw AppError.conflict('TAIL_BLOCKED', blocked);
         // Paid recon spots ahead; 0.6.0-E corners can spot only traffic that is live now.
@@ -569,7 +572,10 @@ export const ConvoyService = {
         bossLaidUpUntil = owner.laidUpUntil && owner.laidUpUntil > until ? owner.laidUpUntil : until;
         await tx.roundPlayer.update({ where: { id: ownerId }, data: { laidUpUntil: bossLaidUpUntil } });
         const current = toStopPlans(await tx.runStop.findMany({ where: { runId: run.id }, orderBy: { order: 'asc' } }));
-        if (runPosition(ruleset, current, at).phase === 'town') {
+        const where = runPosition(ruleset, current, at);
+        if (where.phase === 'town') {
+          // Trips D2: hours the hotel billed after the hit go back into the car.
+          run = await refundHotelAfter(tx, ownerId, ruleset, run, current[where.stopIndex]!, at);
           await writeRunStops(tx, run.id, planHeadHome(ruleset, current, at));
           run = { ...run, stops: await tx.runStop.findMany({ where: { runId: run.id }, orderBy: { order: 'asc' } }) };
         }

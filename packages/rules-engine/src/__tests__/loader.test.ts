@@ -53,8 +53,9 @@ describe('ruleset loader', () => {
     expect(isKnownRulesetId('classic-og-trips-b')).toBe(true);
     expect(isKnownRulesetId('classic-og-trips-c')).toBe(true);
     expect(isKnownRulesetId('classic-og-trips-d')).toBe(true);
+    expect(isKnownRulesetId('classic-og-trips-d2')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(66);
+    expect(listRulesets()).toHaveLength(67);
   });
 });
 

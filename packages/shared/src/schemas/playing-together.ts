@@ -170,6 +170,18 @@ export const tripRentGunsSchema = z.object({
 }).strict();
 export type TripRentGunsInput = z.infer<typeof tripRentGunsSchema>;
 
+/** Trips D2. Walk an outpost in the city the boss is in; a boss who flew in can carry its cash. */
+export const tripOutpostVisitSchema = z.object({
+  outpostId: z.string().trim().min(1).max(64),
+  collectCents: wholeCount('cash to collect').default(0),
+  actionId: actionIdSchema,
+}).strict();
+export type TripOutpostVisitInput = z.infer<typeof tripOutpostVisitSchema>;
+
+/** Trips D2. Propose a sit-down to another boss in the same city, or answer one. */
+export const sitDownProposeSchema = z.object({ targetPublicPimpId: z.number().int().positive().safe() }).strict();
+export const sitDownAnswerSchema = z.object({ sitDownId: z.string().trim().min(1).max(64), accept: z.boolean() }).strict();
+
 export const tripExtendSchema = z.object({
   blocks: z.number({ invalid_type_error: 'Say how long to stay on.' }).int('Extend by whole blocks.').min(1, 'Extend by at least one block.').max(24).safe(),
   actionId: actionIdSchema,
@@ -201,3 +213,12 @@ export const bossHitSchema = z.object({
   actionId: actionIdSchema,
 }).strict();
 export type BossHitInput = z.infer<typeof bossHitSchema>;
+/** Trips D2. The boss calls allies who live where the hit is coming. */
+export const bossHitCallSchema = z.object({ hitId: convoyId }).strict();
+/** Trips D2. An ally sends thugs to a boss's fight. */
+export const bossHitBackupSchema = z.object({
+  hitId: convoyId,
+  thugs: z.number({ invalid_type_error: 'Say how many ride.' }).int('Send whole thugs.').positive('Send at least one thug.').safe(),
+  actionId: actionIdSchema,
+}).strict();
+export type BossHitBackupInput = z.infer<typeof bossHitBackupSchema>;

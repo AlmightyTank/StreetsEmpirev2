@@ -278,6 +278,27 @@ async function billHotel(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
 }
 
 /**
+ * Trips D2. A stay cut short at `at` (a convoy hit sending the boss's run home) keeps only
+ * the hours started by then: any hour billed after it goes back into the run's cash. The
+ * bill can only run ahead of a hit when nobody read the run between the hit landing and
+ * its settle. Returns the run as it stands after.
+ */
+export async function refundHotelAfter(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: LoadedRun, stop: RunStopPlan, at: Date): Promise<LoadedRun> {
+  const rules = tripRules(ruleset);
+  if (!run.bossAboard || !rules?.rideAlong || !run.hotelStayAt || run.hotelStayAt.getTime() !== stop.arriveAt.getTime()) return run;
+  const due = Math.max(1, Math.ceil((at.getTime() - stop.arriveAt.getTime()) / 3_600_000));
+  const extra = run.hotelHours - due;
+  if (extra <= 0) return run;
+  const refund = rideAlongHourCents(rules, stop.city, run.escortThugs) * BigInt(extra);
+  const cashCents = run.cashCents + refund;
+  const hotelCents = run.hotelCents > refund ? run.hotelCents - refund : 0n;
+  await tx.run.update({ where: { id: run.id }, data: { cashCents, hotelCents, hotelHours: due } });
+  await EconomyLedgerService.record(tx, roundPlayerId, [{ source: 'RUN_HOTEL', label: `Hotel refund · ${cityName(ruleset, stop.city)}`, amountCents: refund }], at);
+  await refreshAwayWorth(tx, roundPlayerId, ruleset);
+  return { ...run, cashCents, hotelCents, hotelHours: due };
+}
+
+/**
  * Bring a run home: its wallet, cars, escorts and cargo go back into home stock, and
  * the run becomes a receipt. Net worth does not move, because the run was already
  * counted at the same values while it was away.

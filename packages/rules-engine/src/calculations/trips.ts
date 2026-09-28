@@ -1,4 +1,4 @@
-import type { BodyguardRules, HuntedRules, Ruleset, TripRules, WeaponKey } from '@streets/rulesets';
+import type { AirportRules, BodyguardRules, HuntedRules, Ruleset, TripRules, WeaponKey } from '@streets/rulesets';
 import type { Rng } from '../rng.js';
 import { cityRules } from './cities.js';
 
@@ -155,6 +155,8 @@ export function checkTrip(ruleset: Ruleset, input: {
   /** Trips D. Bodyguards flying with the boss, and the fit thugs home has for it. */
   bodyguards?: number;
   fitThugs?: number;
+  /** Trips D2. The boss's Heat, for the airport. */
+  heat?: number;
 }): TripCheck {
   const rules = tripRules(ruleset);
   const now = input.now.getTime();
@@ -185,6 +187,7 @@ export function checkTrip(ruleset: Ruleset, input: {
   if (input.movingUntil && input.movingUntil.getTime() > now) return result('ON_THE_ROAD', 'You are moving house.', input.movingUntil);
   if (input.lockedUntil && input.lockedUntil.getTime() > now) return result('LOCKED_UP', 'You are locked up.', input.lockedUntil);
   if (input.laidUpUntil && input.laidUpUntil.getTime() > now) return result('LAID_UP', 'The boss is laid up after a beating. No travel until they heal.', input.laidUpUntil);
+  if (rules?.airport && (input.heat ?? 0) >= rules.airport.noFlyHeat) return result('NO_FLY', `Nobody lets a boss with ${input.heat} Heat on a plane. Cool off or drive.`);
   if (now >= cutoffAt.getTime()) return result('TRIPS_CLOSED', 'Flights are closed as the round ends.');
   if (times.returnsAt.getTime() > input.roundEndsAt.getTime()) return result('TRIP_TOO_LONG', 'That stay would run past the end of the round.');
   if (!rules.stayMinutes.includes(input.stayMinutes)) return result('BAD_STAY', 'Pick one of the stays on offer.');
@@ -283,4 +286,21 @@ export function bossHitLootCents(ruleset: Ruleset, input: { bankrollCents: bigin
 export function bossAwayDefenseMultiplier(ruleset: Ruleset, away: boolean): number {
   const rules = huntedRules(ruleset);
   return rules && away ? rules.awayDefenseMultiplier : 1;
+}
+
+// --- Trips D2: the airport ----------------------------------------------------------
+
+/** Trips D2. The chance a boss with this Heat is pulled aside on the way out. */
+export function airportCheckChance(rules: AirportRules | undefined, heat: number): number {
+  if (!rules) return 0;
+  const over = Math.max(0, heat - rules.checkFromHeat);
+  return Math.min(rules.maxChance, over * rules.chancePerHeat);
+}
+
+/** Trips D2. One roll at the airport: whether the boss is pulled aside, and what it costs. */
+export function rollAirport(rules: AirportRules | undefined, input: { heat: number; bankrollCents: bigint; rng: Rng }): { pulled: boolean; seizedCents: bigint; delayMinutes: number } {
+  const chance = airportCheckChance(rules, input.heat);
+  if (!rules || chance <= 0 || input.rng() >= chance) return { pulled: false, seizedCents: 0n, delayMinutes: 0 };
+  const bankroll = input.bankrollCents > 0n ? input.bankrollCents : 0n;
+  return { pulled: true, seizedCents: (bankroll * BigInt(rules.seizePercent)) / 100n, delayMinutes: rules.delayMinutes };
 }

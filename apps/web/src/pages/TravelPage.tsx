@@ -8,6 +8,7 @@ import { Panel } from '../components/Panel.js';
 import { ConvoysPanel } from '../components/ConvoysPanel.js';
 import { MovePanel } from '../components/MovePanel.js';
 import { TripPanel } from '../components/TripPanel.js';
+import { BossPresencePanel } from '../components/BossPresencePanel.js';
 import { LaunchPanel, ReceiptPanel, RunPanel } from '../components/RunPanels.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -180,6 +181,7 @@ export function TravelPage() {
                   <p>The boss travels in person. Home stays home and keeps working while the lieutenant runs it.</p>
                 </div>
                 <TripPanel data={data} selected={selected.slug} onDone={load} />
+                <BossPresencePanel data={data} onDone={load} />
               </section>
             ) : null}
 

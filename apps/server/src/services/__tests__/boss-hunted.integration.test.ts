@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { classicOgTripsC } from '@streets/rulesets';
-import { startingStock } from '@streets/rules-engine';
+import { rideAlongHourCents, startingStock } from '@streets/rules-engine';
 import type { BattleReportDto, ConvoysDto, GameActionResult, ScoutResult, TravelDto } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
 import { ReputationService } from '../reputation.service.js';
@@ -242,6 +242,37 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('hunted bosses with Postg
     expect(owner.laidUpUntil!.getTime()).toBe(landed.landsAt.getTime() + hunted.layUpMinutes * minute);
     const after = await app.prisma.run.findFirstOrThrow({ where: { id: run.id }, include: { stops: { orderBy: { order: 'asc' } } } });
     expect(after.stops[0]!.leaveAt).toEqual(landed.landsAt);
+  });
+
+  it('refunds hotel hours billed after the hit that sent the boss home', async () => {
+    const launched = await post(0, '/travel/launch', { to: 'las-vegas', route: 0, lowRiders: 1, escortThugs: 0, cashCents: 1_000_000, cargo: {}, rideAlong: true, actionId: randomUUID() });
+    expect(launched.statusCode, launched.body).toBe(200);
+    const run = await app.prisma.run.findFirstOrThrow({ where: { roundPlayerId: players[0]! }, include: { stops: { orderBy: { order: 'asc' } } } });
+    const shiftStops = async (minutesInTown: number) => {
+      const current = await app.prisma.runStop.findMany({ where: { runId: run.id }, orderBy: { order: 'asc' } });
+      const shift = current[0]!.arriveAt.getTime() - (Date.now() - minutesInTown * minute);
+      for (const stop of current) {
+        await app.prisma.runStop.update({ where: { id: stop.id }, data: {
+          departAt: new Date(stop.departAt.getTime() - shift), arriveAt: new Date(stop.arriveAt.getTime() - shift),
+          leaveAt: stop.leaveAt ? new Date(stop.leaveAt.getTime() - shift) : null,
+        } });
+      }
+      return new Date(Date.now() - minutesInTown * minute);
+    };
+    await app.prisma.run.update({ where: { id: run.id }, data: { roadChecks: 99 } });
+    await shiftStops(5);
+    expect((await post(1, '/convoys/recon', { actionId: randomUUID() })).statusCode).toBe(200);
+    expect((await post(1, '/convoys/tail', { runId: run.id, squad: 20, actionId: randomUUID() })).statusCode).toBe(200);
+    // Nobody reads the run for two and a half hours; the hit landed ten minutes into the stay.
+    const arrived = await shiftStops(150);
+    await app.prisma.convoyTail.updateMany({ where: { runId: run.id, status: 'PENDING' }, data: {
+      startedAt: new Date(arrived.getTime() + 2 * minute), landsAt: new Date(arrived.getTime() + 10 * minute),
+    } });
+    await get(0, '/travel');
+    const after = await app.prisma.run.findUniqueOrThrow({ where: { id: run.id } });
+    const hour = rideAlongHourCents(rules.travel.trips, 'las-vegas', 0);
+    expect(after.hotelHours).toBe(1);
+    expect(after.hotelCents).toBe(hour);
   });
 
   it('defends home weaker while the boss is away', async () => {

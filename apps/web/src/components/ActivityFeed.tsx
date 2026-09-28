@@ -310,6 +310,21 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     case 'BOSS_HIT':
       return { text: `Sent ${formatNumber(num(p.squad))} after ${str(p.owner, 'a visiting boss')} in ${str(p.cityName, 'town')}.`, detail: `${formatNumber(num(p.turns))} turns` };
 
+    case 'BOSS_HIT_BACKUP':
+      return { text: `Sent ${formatNumber(num(p.thugs))} to stand with ${str(p.owner, 'an ally')}'s boss in ${str(p.cityName, 'town')}.` };
+
+    case 'OUTPOST_VISIT':
+      return {
+        text: `The boss walked ${str(p.districtName, 'an outpost')} in ${str(p.cityName, 'town')}.`,
+        detail: num(p.collectedCents) ? `${formatCents(num(p.collectedCents))} into the bankroll` : '',
+      };
+
+    case 'SIT_DOWN':
+      return { text: `Asked ${str(p.with, 'another boss')} to sit down in ${str(p.cityName, 'town')}.` };
+
+    case 'SIT_DOWN_AGREED':
+      return { text: `Sat down with ${str(p.with, 'another boss')} in ${str(p.cityName, 'town')}. A truce holds for now.` };
+
     case 'BOSS_HIT_ATTACK':
       return p.escaped
         ? { text: `${str(p.owner, 'The boss')} was gone before your squad got there.` }
@@ -388,7 +403,7 @@ export function activityGroup(type: ActivityDto['type']): ActivityGroup {
   if (type.startsWith('RAID_') || type.startsWith('DRIVE_BY_') || type.startsWith('COMBAT_') || type === 'BATTLE_VOIDED') return 'combat';
   if (type.startsWith('STORE_')) return 'market';
   if (type.startsWith('QUEST_') || type.startsWith('FAVOR_') || type === 'HIDEOUT_UPGRADE' || type === 'WEAPON_UNLOCK') return 'progress';
-  if (type.startsWith('RUN_') || type.startsWith('RELOCATION_') || type === 'RELOCATED' || type.startsWith('CONVOY_') || type.startsWith('TRIP_') || type.startsWith('BOSS_')) return 'travel';
+  if (type.startsWith('RUN_') || type.startsWith('RELOCATION_') || type === 'RELOCATED' || type.startsWith('CONVOY_') || type.startsWith('TRIP_') || type.startsWith('BOSS_') || type.startsWith('SIT_DOWN') || type === 'OUTPOST_VISIT') return 'travel';
   if (type.startsWith('TURF_')) return 'turf';
   if (type === 'SCOUT' || type === 'WORK_STREETS' || type === 'PRODUCE_CRACK' || type === 'HEAT_BRIBE' || type === 'PAYOUT_CHANGE') return 'street';
   return 'system';

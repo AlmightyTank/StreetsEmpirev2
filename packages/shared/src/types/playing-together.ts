@@ -672,6 +672,9 @@ export interface TripDto {
   gunRentCents: number;
   /** Trips D. Why guns cannot be rented right now, or null when they can. */
   rentBlockedReason: string | null;
+  /** Trips D2. What airport security took, and the minutes it cost. */
+  airportSeizedCents: number;
+  airportDelayMinutes: number;
 }
 
 /** Trips A. The last trip home, as a receipt. */
@@ -713,6 +716,20 @@ export interface TripPanelDto {
   gunConnect: { unlocked: boolean; weapons: Array<'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47'> } | null;
   /** Trips D. Fit thugs at home who could fly as bodyguards. */
   fitThugs: number;
+  /** Trips D2. Where the boss is in person right now, away from home. */
+  presence: { city: string; cityName: string; via: 'trip' | 'run' } | null;
+  /** Trips D2. Outposts the boss can walk where they are. */
+  outpostsHere: Array<{ id: string; district: string; districtName: string; cashCents: number; moraleUntil: string | null; canCollect: boolean }>;
+  /** Trips D2. Sit-downs: who the boss could sit down with here, invitations and truces. Null before D2. */
+  sitDowns: {
+    truceHours: number;
+    candidates: Array<{ publicPimpId: number; displayName: string; allianceTag: string | null; how: 'lives here' | 'visiting' }>;
+    incoming: Array<{ id: string; from: { publicPimpId: number; displayName: string }; cityName: string; expiresAt: string }>;
+    outgoing: Array<{ id: string; to: { publicPimpId: number; displayName: string }; cityName: string; expiresAt: string }>;
+    truces: Array<{ with: { publicPimpId: number; displayName: string }; until: string }>;
+  } | null;
+  /** Trips D2. What the airport means at the boss's Heat right now. Null before D2. */
+  airport: { heat: number; checkChance: number; seizePercent: number; delayMinutes: number; noFlyHeat: number } | null;
   /** Trips B. The run the boss is riding with, if any. */
   bossRun: { runId: string; cityName: string } | null;
   /** Trips C. A beaten boss heals until then. */
@@ -743,6 +760,17 @@ export interface TripLaunchResult {
   returnsAt: string;
   /** Trips D. Bodyguards flying with the boss. */
   bodyguards: number;
+  /** Trips D2. Pulled aside at the airport: what was taken and the minutes lost. */
+  airport?: { seizedCents: number; delayMinutes: number };
+}
+
+/** Trips D2. POST /api/game/travel/trip/outpost. */
+export interface TripOutpostVisitResult {
+  outpostId: string;
+  districtName: string;
+  cityName: string;
+  moraleUntil: string;
+  collectedCents: number;
 }
 
 /** Trips D. POST /api/game/travel/trip/guns. */
@@ -1040,7 +1068,7 @@ export interface BossTargetDto {
 /** Trips C. A hit on a boss, from either side. */
 export interface BossHitDto {
   id: string;
-  role: 'attacker' | 'owner';
+  role: 'attacker' | 'owner' | 'ally';
   status: 'PENDING' | 'LANDED' | 'ESCAPED';
   cityName: string;
   startedAt: string;
@@ -1048,6 +1076,13 @@ export interface BossHitDto {
   squad: number;
   attacker: { publicPimpId: number; displayName: string };
   owner: { publicPimpId: number; displayName: string };
+  /** Trips D2. Allies called, thugs sent so far, and what you can do about it. */
+  alliesCalled: boolean;
+  backup: number;
+  /** The boss can call allies who live there. */
+  canCallAllies: boolean;
+  /** An ally who was called: how many they can send, or why not. */
+  answer: { max: number; reason: string | null } | null;
   /** Once it has landed: whether the boss got away, and the cash that moved (+ for you, − against you). */
   report: {
     escaped: boolean;
@@ -1061,6 +1096,13 @@ export interface BossHitDto {
 }
 
 /** Trips C. POST /api/game/convoys/boss-hit. */
+/** Trips D2. POST /api/game/convoys/boss-hit/backup. */
+export interface BossHitBackupResult {
+  hitId: string;
+  thugs: number;
+  landsAt: string;
+}
+
 export interface BossHitResult {
   hitId: string;
   landsAt: string;

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgTripsA, classicOgTripsB, classicOgTripsC, classicOgTripsD, classicOgV08H, type Ruleset } from '@streets/rulesets';
+import { classicOgTripsA, classicOgTripsB, classicOgTripsC, classicOgTripsD, classicOgTripsD2, classicOgV08H, type Ruleset } from '@streets/rulesets';
 import { checkMove } from '../calculations/relocation.js';
 import { planLaunch } from '../calculations/runs.js';
 import {
+  airportCheckChance,
+  rollAirport,
   gunRentCents,
   lodgingCents,
   tripNetWorthCents,
@@ -212,6 +214,23 @@ describe('Trips A: the boss travels', () => {
     const perThug = BigInt(classicOgTripsD.economy.netWorth.perThugCents);
     expect(tripNetWorthCents(classicOgTripsD, 0n, 5)).toBe(5n * perThug);
     expect(tripNetWorthCents(classicOgTripsD, 1_000n, 0)).toBe(tripNetWorthCents(classicOgTripsD, 1_000n));
+  });
+
+  it('looks twice at a hot boss at the airport, and grounds a very hot one', () => {
+    const d2: Ruleset = classicOgTripsD2;
+    const airport = classicOgTripsD2.travel.trips.airport;
+    expect(airportCheckChance(airport, airport.checkFromHeat)).toBe(0);
+    expect(airportCheckChance(airport, airport.checkFromHeat + 10)).toBeCloseTo(10 * airport.chancePerHeat);
+    expect(airportCheckChance(airport, 1_000)).toBe(airport.maxChance);
+    expect(airportCheckChance(undefined, 1_000)).toBe(0);
+    expect(rollAirport(airport, { heat: 10, bankrollCents: 1_000_000n, rng: () => 0 })).toEqual({ pulled: false, seizedCents: 0n, delayMinutes: 0 });
+    expect(rollAirport(airport, { heat: 80, bankrollCents: 1_000_000n, rng: () => 0 })).toEqual({
+      pulled: true, seizedCents: 1_000_000n * BigInt(airport.seizePercent) / 100n, delayMinutes: airport.delayMinutes,
+    });
+    expect(rollAirport(airport, { heat: 80, bankrollCents: 1_000_000n, rng: () => 0.99 }).pulled).toBe(false);
+    expect(checkTrip(d2, { ...free, heat: airport.noFlyHeat }).code).toBe('NO_FLY');
+    expect(checkTrip(d2, { ...free, heat: airport.noFlyHeat - 1 }).code).toBeNull();
+    expect(checkTrip(classicOgTripsD, { ...free, heat: 100 }).code).toBeNull();
   });
 
   it('keeps the operation home while the boss is away', () => {

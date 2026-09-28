@@ -35,6 +35,7 @@ import { assertPlayerState } from './invariant.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { PlayerStateService, type SettledPlayer } from './player-state.service.js';
 import { bossAway } from './boss-trip-settle.service.js';
+import { truceBlock } from './boss-presence.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 import { RankingService } from './ranking.service.js';
@@ -786,6 +787,9 @@ export const CombatService = {
         defenderProductProtection.exposedUnits,
       );
       if (blocked) throw AppError.conflict('RAID_BLOCKED', blocked);
+      // Trips D2: a sit-down's truce holds both ways.
+      const truce = await truceBlock(tx, attacker.id, defender.id, now);
+      if (truce) throw AppError.conflict('TRUCE', truce);
       if (input.attackingThugs > Math.min(fitThugs(attacker), model.squadCap)) throw AppError.badRequest('INVALID_SQUAD', 'Your squad exceeds your fit crew or the raid limit.');
       const beforeA = await RankingService.ranksFor(tx, attacker);
       const beforeD = await RankingService.ranksFor(tx, defender);
@@ -956,6 +960,9 @@ export const CombatService = {
       const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
       const blocked = driveByAttackerBlock(attacker, model, rules, now) ?? driveByTargetBlock(attacker, defender, model, now, retaliation);
       if (blocked) throw AppError.conflict('DRIVE_BY_BLOCKED', blocked);
+      // Trips D2: a sit-down's truce holds both ways.
+      const truce = await truceBlock(tx, attacker.id, defender.id, now);
+      if (truce) throw AppError.conflict('TRUCE', truce);
       const seats = driveByMaxShooters(fitThugs(attacker), attacker.lowRiders, model, rules);
       if (input.attackingThugs > seats) throw AppError.badRequest('INVALID_SQUAD', `Your cars and fit crew can take ${seats} shooters.`);
 
@@ -1081,6 +1088,9 @@ export const CombatService = {
       const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
       const blocked = specialRaidAttackerBlock(attacker, model, input.kind, now) ?? specialRaidTargetBlock(attacker, defender, model, input.kind, now, retaliation);
       if (blocked) throw AppError.conflict('SPECIAL_RAID_BLOCKED', blocked);
+      // Trips D2: a sit-down's truce holds both ways.
+      const truce = await truceBlock(tx, attacker.id, defender.id, now);
+      if (truce) throw AppError.conflict('TRUCE', truce);
       if (input.attackingThugs > Math.min(fitThugs(attacker), model.squadCap)) throw AppError.badRequest('INVALID_SQUAD', 'Your squad exceeds your fit crew or the raid limit.');
 
       const beforeA = await RankingService.ranksFor(tx, attacker);

@@ -3,7 +3,11 @@ import {
   checkExtend,
   checkTrip,
   gunRentCents,
+  hashParts,
   hotelCents,
+  airportCheckChance,
+  rollAirport,
+  seededRng,
   loadRulesetForRound,
   planTripHeadHome,
   tripPosition,
@@ -32,6 +36,7 @@ import { ActionService, fitThugs } from './action.service.js';
 import { activeTrip, bossRun, rentedGunsOf } from './boss-trip-settle.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { BossHitService } from './boss-hit.service.js';
+import { BossPresenceService } from './boss-presence.service.js';
 import { totalAwayWorth } from './run-settle.service.js';
 
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
@@ -47,7 +52,7 @@ function refusal(check: { code: string | null; blockedReason: string | null }): 
   const message = check.blockedReason ?? 'You cannot travel right now.';
   const bad = [
     'UNKNOWN_CITY', 'ALREADY_HOME', 'BAD_STAY', 'BAD_BANKROLL', 'OVER_CARRY_ON', 'NOT_ENOUGH_CASH', 'NOT_ENOUGH_TURNS', 'BAD_EXTENSION', 'NOT_ENOUGH_BANKROLL',
-    'BAD_BODYGUARDS', 'TOO_MANY_BODYGUARDS', 'NOT_ENOUGH_THUGS', 'BAD_GUNS', 'TOO_MANY_GUNS', 'NO_WEAPON_ACCESS',
+    'BAD_BODYGUARDS', 'TOO_MANY_BODYGUARDS', 'NOT_ENOUGH_THUGS', 'BAD_GUNS', 'TOO_MANY_GUNS', 'NO_WEAPON_ACCESS', 'BAD_COLLECT',
   ];
   return bad.includes(code) ? AppError.badRequest(code, message, { trip: message }) : AppError.conflict(code, message);
 }
@@ -108,6 +113,8 @@ function tripDto(ruleset: Ruleset, trip: BossTrip, roundEndsAt: Date, now: Date,
     rentedGuns: rentedGunsOf(trip),
     gunRentCents: Number(trip.gunRentCents),
     rentBlockedReason,
+    airportSeizedCents: Number(trip.airportSeizedCents),
+    airportDelayMinutes: trip.airportDelayMinutes,
   };
 }
 
@@ -167,6 +174,7 @@ export const BossTripService = {
       movingUntil: player.movingUntil,
       lockedUntil: player.lockedUntil,
       laidUpUntil: player.laidUpUntil,
+      heat: player.heat,
     });
     // Cash is checked per quote in the panel: the general reason stays about the boss, not the wallet.
     const blocked = riding && !trip
@@ -189,6 +197,10 @@ export const BossTripService = {
       },
       gunConnect: rules.bodyguards ? { unlocked: connect, weapons: rentableWeapons(player) } : null,
       fitThugs: fitThugs(player),
+      ...(await BossPresenceService.panel(db, ruleset, player, now)),
+      airport: rules.airport
+        ? { heat: player.heat, checkChance: airportCheckChance(rules.airport, player.heat), seizePercent: rules.airport.seizePercent, delayMinutes: rules.airport.delayMinutes, noFlyHeat: rules.airport.noFlyHeat }
+        : null,
       bossRun: riding ? { runId: riding.id, cityName: cityName(ruleset, ridingTo!) } : null,
       laidUpUntil: player.laidUpUntil && player.laidUpUntil > now ? player.laidUpUntil.toISOString() : null,
       cutoffAt: general.cutoffAt.toISOString(),
@@ -228,25 +240,33 @@ export const BossTripService = {
           laidUpUntil: player.laidUpUntil,
           bodyguards: input.bodyguards,
           fitThugs: fitThugs(current),
+          heat: current.heat,
         });
         if (check.blockedReason) throw refusal(check);
         const to = await tx.city.findUnique({ where: { slug: input.to }, select: { isEnabled: true } });
         if (!to?.isEnabled) throw AppError.badRequest('UNKNOWN_CITY', 'That city is not on the map.', { to: 'Pick a city.' });
 
         const rules = requireTrips(base);
+        // Trips D2: a hot boss can be pulled aside on the way out. Rolled once, from the action.
+        const airport = rollAirport(rules.airport, { heat: current.heat, bankrollCents, rng: seededRng(hashParts(input.actionId, 'airport')) });
+        const delay = airport.delayMinutes * 60_000;
+        const later = (at: Date) => new Date(at.getTime() + delay);
+        const times = { departedAt: check.times.departedAt, arrivesAt: later(check.times.arrivesAt), stayUntil: later(check.times.stayUntil), returnsAt: later(check.times.returnsAt) };
         const trip = await tx.bossTrip.create({
           data: {
             roundPlayerId,
             mode: 'FLY',
             homeCity: player.city.slug,
             city: input.to,
-            bankrollCents,
+            bankrollCents: bankrollCents - airport.seizedCents,
             startBankrollCents: bankrollCents,
             ticketCents: check.ticketCents,
             hotelCents: check.hotelCents,
             turnsSpent: rules.launchTurns,
             bodyguards: input.bodyguards,
-            ...check.times,
+            airportSeizedCents: airport.seizedCents,
+            airportDelayMinutes: airport.delayMinutes,
+            ...times,
           },
         });
         const result: TripLaunchResult = {
@@ -258,10 +278,11 @@ export const BossTripService = {
           bankrollCents: input.bankrollCents,
           stayMinutes: input.stayMinutes,
           turns: rules.launchTurns,
-          arrivesAt: check.times.arrivesAt.toISOString(),
-          stayUntil: check.times.stayUntil.toISOString(),
-          returnsAt: check.times.returnsAt.toISOString(),
+          arrivesAt: times.arrivesAt.toISOString(),
+          stayUntil: times.stayUntil.toISOString(),
+          returnsAt: times.returnsAt.toISOString(),
           bodyguards: input.bodyguards,
+          ...(airport.pulled ? { airport: { seizedCents: Number(airport.seizedCents), delayMinutes: airport.delayMinutes } } : {}),
         };
         const where = cityName(base, input.to);
         return {
@@ -278,6 +299,7 @@ export const BossTripService = {
           ledger: [
             { source: 'TRIP_LAUNCH', label: `Flight · ${where}`, amountCents: -check.ticketCents },
             ...(check.hotelCents > 0n ? [{ source: 'TRIP_LAUNCH', label: `Hotel · ${where}`, amountCents: -check.hotelCents }] : []),
+            ...(airport.seizedCents > 0n ? [{ source: 'TRIP_AIRPORT', label: 'Taken at airport security', amountCents: -airport.seizedCents }] : []),
           ],
           activity: { type: 'TRIP_STARTED', payload: { ...result } },
         };

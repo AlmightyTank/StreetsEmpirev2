@@ -1,11 +1,12 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, bossHitSchema, heatBribeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripRentGunsSchema, productTradeSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushSchema, turfPushBackupSchema, turfPushCallSchema, runOutpostEstablishSchema, runOutpostTransferSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, bossHitBackupSchema, bossHitCallSchema, bossHitSchema, heatBribeSchema, travelRoutesSchema, sitDownAnswerSchema, sitDownProposeSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripOutpostVisitSchema, tripRentGunsSchema, productTradeSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushSchema, turfPushBackupSchema, turfPushCallSchema, runOutpostEstablishSchema, runOutpostTransferSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
 import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
 import { BossTripService } from '../services/boss-trip.service.js';
 import { BossHitService } from '../services/boss-hit.service.js';
+import { BossPresenceService } from '../services/boss-presence.service.js';
 import { TravelService } from '../services/travel.service.js';
 import { ContactsService } from '../services/contacts.service.js';
 import { ProductMarketService } from '../services/product-market.service.js';
@@ -113,6 +114,11 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
   /** Trips C: hit a boss visiting where you live, once a recon has spotted them. */
   app.post('/convoys/boss-hit', { preHandler: app.requireAuth }, async (request) =>
     BossHitService.hit(app.prisma, await me(request.auth!.account.id), parseBody(bossHitSchema, request.body ?? {})));
+  /** Trips D2: the boss calls allies in town; an ally sends thugs to the fight. */
+  app.post('/convoys/boss-hit/call', { preHandler: app.requireAuth }, async (request) =>
+    BossHitService.callAllies(app.prisma, await me(request.auth!.account.id), parseBody(bossHitCallSchema, request.body ?? {})));
+  app.post('/convoys/boss-hit/backup', { preHandler: app.requireAuth }, async (request) =>
+    BossHitService.backup(app.prisma, await me(request.auth!.account.id), parseBody(bossHitBackupSchema, request.body ?? {})));
 
   /** 0.5.0-D: move the whole operation to another city. */
   app.post('/travel/move', { preHandler: app.requireAuth }, async (request) =>
@@ -127,6 +133,15 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     BossTripService.headHome(app.prisma, await me(request.auth!.account.id), parseBody(tripHeadHomeSchema, request.body ?? {})));
   app.post('/travel/trip/guns', { preHandler: app.requireAuth }, async (request) =>
     BossTripService.rentGuns(app.prisma, await me(request.auth!.account.id), parseBody(tripRentGunsSchema, request.body ?? {})));
+  /** Trips D2: walk an outpost in person, and sit down with another boss in the same city. */
+  app.post('/travel/trip/outpost', { preHandler: app.requireAuth }, async (request) =>
+    BossPresenceService.visitOutpost(app.prisma, await me(request.auth!.account.id), parseBody(tripOutpostVisitSchema, request.body ?? {})));
+  app.post('/travel/sit-down', { preHandler: app.requireAuth }, async (request) =>
+    BossPresenceService.propose(app.prisma, await me(request.auth!.account.id), parseBody(sitDownProposeSchema, request.body ?? {}).targetPublicPimpId));
+  app.post('/travel/sit-down/answer', { preHandler: app.requireAuth }, async (request) => {
+    const body = parseBody(sitDownAnswerSchema, request.body ?? {});
+    return BossPresenceService.answer(app.prisma, await me(request.auth!.account.id), body.sitDownId, body.accept);
+  });
 
   /** 0.4.0-A: the round's product catalog with the player's stock; 0.4.0-D adds Pip's counter and recipes. */
   app.get('/products', { preHandler: app.requireAuth }, async (request) =>

@@ -374,8 +374,37 @@ truce between two bosses).
   - **Riding Shotgun** (Wheels): bring 2 runs home with the boss aboard. $20,000 and a
     Low-Rider.
 
-Still to come (D2): outpost visits, sit-downs between bosses, calling allies to a boss in
-town, and airport Heat checks.
+## Stage D2 - built: help and handshakes
+
+Ruleset `classic-og-trips-d2` (Trips D plus `airport`, `outpostVisits`, `sitDowns` and
+`allyBackup` under `travel.trips`).
+
+- **Airport Heat checks.** From 40 Heat, security can pull a boss aside on the way out: one
+  point of chance per Heat past 40, at most 50%. Pulled aside, 30% of the carried bankroll
+  is taken and the whole trip runs 30 minutes late. At 90 Heat or more, no flight at all
+  (`NO_FLY`: cool off, or ride along with a run instead). The roll is seeded from the
+  action, so a retried launch cannot re-roll it. Only the departure is checked.
+- **Allies defend a boss in town.** Once the boss's lookouts spot a hit coming, the boss can
+  call allies who live in that city. Each can send thugs from home with the best of their
+  arsenal; they stand with the bodyguards in the fight, take their share of the wounds, and
+  come home at their next read, win or lose. Same shape as convoy backup.
+- **Outpost visits.** A boss in town (on a flight, or with their run) can walk an outpost
+  they hold there. For the next 24 hours its corner crew does not walk out however short the
+  box runs (supplies are still used; hours outside the window count as before). A boss on a
+  flight can also carry the box's cash in the bankroll, up to the carry-on cap, where it is
+  exposed to a hit like any bankroll. A run moves box cash with its existing transfer.
+- **Sit-downs.** A boss can ask another boss in the same city to sit down, as long as at
+  least one of them is visiting and they are not allies. If the other agrees while both are
+  still there (invitations last 30 minutes), neither crew can raid, drive-by, special-raid,
+  tail or hit the other for 24 hours (`TRUCE`).
+- **Hotel billing fix (every trips ruleset).** When a convoy hit sends a ride-along run home,
+  any hotel hours billed after the hit go back into the run's cash.
+
+Not built yet:
+- **Happiness drift while away** (option B), for Stage E with the balance pass.
+- **Airport checks on the flight home**, and airport checks for bodyguards.
+- **Truce in target lists.** The combat and convoy pages still list a truced crew; the
+  action is refused with `TRUCE`.
 
 ## Open questions
 
