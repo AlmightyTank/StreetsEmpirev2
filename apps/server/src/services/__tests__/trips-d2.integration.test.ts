@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { classicOgTripsD2 } from '@streets/rulesets';
+import { classicOgTripsD2, classicOgTripsE } from '@streets/rulesets';
 import { hashParts, rollAirport, seededRng, startingStock } from '@streets/rules-engine';
 import type { CombatPageDto, ConvoysDto, GameActionResult, TravelDto, TripLaunchResult, TripOutpostVisitResult } from '@streets/shared';
+import { fitThugs } from '../action.service.js';
+import { HappinessService } from '../happiness.service.js';
 import { NetWorthService } from '../net-worth.service.js';
 import { ReputationService } from '../reputation.service.js';
 import { RoundService } from '../round.service.js';
@@ -284,6 +286,30 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('trips D2 with PostgreSQL
     const listed = (await get(1, '/convoys')).json<ConvoysDto>().bosses.find((target) => target.tripId === tripId)!;
     expect(listed.blockedReason).toMatch(/sat down/);
     expect((await post(1, '/convoys/boss-hit', { tripId, squad: 3, actionId: randomUUID() })).json().error.code).toBe('TRUCE');
+  });
+
+  it('lets the girls notice a boss away (Trips E): happiness sits an hour\'s worth lower per hour gone', async () => {
+    const e = classicOgTripsE;
+    await app.prisma.round.update({ where: { id: roundId }, data: { rulesetId: e.meta.id, rulesetVersion: e.meta.version } });
+    try {
+      expect((await fly()).statusCode).toBe(200);
+      const out = await trip();
+      // Five hours gone, still in town.
+      const shift = 5 * 60 * minute;
+      await app.prisma.bossTrip.update({ where: { id: out.id }, data: {
+        departedAt: new Date(out.departedAt.getTime() - shift), arrivesAt: new Date(out.arrivesAt.getTime() - shift),
+      } });
+      expect((await post(0, '/scout', { district: 'WINO_SLUMS', turns: 1, actionId: randomUUID() })).statusCode).toBe(200);
+      const away = await row(0);
+      const products = await HappinessService.otherProducts(app.prisma, players[0]!, e);
+      const state = { ...away, thugs: fitThugs(away), products };
+      const atHome = HappinessService.recalculate(state, e).whoreHappiness;
+      const drift = Math.min(e.travel.trips.awayHappiness.maxPoints, 5 * e.travel.trips.awayHappiness.pointsPerHour);
+      expect(away.whoreHappiness).toBe(Math.max(e.happiness.min, atHome - drift));
+      expect(away.thugHappiness).toBe(HappinessService.recalculate(state, e).thugHappiness);
+    } finally {
+      await app.prisma.round.update({ where: { id: roundId }, data: { rulesetId: rules.meta.id, rulesetVersion: rules.meta.version } });
+    }
   });
 
   it('shows a truced crew as blocked on the combat page', async () => {

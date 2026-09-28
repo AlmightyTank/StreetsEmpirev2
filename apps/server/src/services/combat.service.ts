@@ -814,8 +814,8 @@ export const CombatService = {
       assertPlayerState(nextD, ruleset);
       const productsA = moved.to;
       const productsD = moved.from;
-      const happinessA = HappinessService.recalculate({ ...nextA, thugs: fitThugs(nextA), products: productsA }, ruleset);
-      const happinessD = HappinessService.recalculate({ ...nextD, thugs: fitThugs(nextD), products: productsD }, ruleset);
+      const happinessA = HappinessService.recalculate({ ...nextA, thugs: fitThugs(nextA), products: productsA }, ruleset, await HappinessService.awayPenalty(tx, ruleset, attacker.id, now));
+      const happinessD = HappinessService.recalculate({ ...nextD, thugs: fitThugs(nextD), products: productsD }, ruleset, await HappinessService.awayPenalty(tx, ruleset, defender.id, now));
       const shield = new Date(now.getTime() + model.protectionHours * 3_600_000);
       const cooldown = new Date(now.getTime() + model.cooldownMinutes * 60_000);
       const recoverAt = new Date(now.getTime() + model.wounds.recoveryMinutes * 60_000);
@@ -979,8 +979,8 @@ export const CombatService = {
       assertPlayerState(nextD, ruleset);
       const productsA = a.products;
       const productsD = d.products;
-      const happinessA = HappinessService.recalculate({ ...nextA, thugs: fitThugs(nextA), products: productsA }, ruleset);
-      const happinessD = HappinessService.recalculate({ ...nextD, thugs: fitThugs(nextD), products: productsD }, ruleset);
+      const happinessA = HappinessService.recalculate({ ...nextA, thugs: fitThugs(nextA), products: productsA }, ruleset, await HappinessService.awayPenalty(tx, ruleset, attacker.id, now));
+      const happinessD = HappinessService.recalculate({ ...nextD, thugs: fitThugs(nextD), products: productsD }, ruleset, await HappinessService.awayPenalty(tx, ruleset, defender.id, now));
       const shield = new Date(now.getTime() + rules.protectionHours * 3_600_000);
       const cooldown = new Date(now.getTime() + rules.cooldownMinutes * 60_000);
       const recoverAt = new Date(now.getTime() + model.wounds.recoveryMinutes * 60_000);
@@ -1151,8 +1151,8 @@ export const CombatService = {
       assertPlayerState(nextD, ruleset);
       const productsA = a.products;
       const productsD = (await moveProducts(tx, ruleset, productsBurned, { id: defender.id, products: d.products }, null)).from;
-      const happinessA = HappinessService.recalculate({ ...nextA, thugs: fitThugs(nextA), products: productsA }, ruleset);
-      const happinessD = HappinessService.recalculate({ ...nextD, thugs: fitThugs(nextD), products: productsD }, ruleset);
+      const happinessA = HappinessService.recalculate({ ...nextA, thugs: fitThugs(nextA), products: productsA }, ruleset, await HappinessService.awayPenalty(tx, ruleset, attacker.id, now));
+      const happinessD = HappinessService.recalculate({ ...nextD, thugs: fitThugs(nextD), products: productsD }, ruleset, await HappinessService.awayPenalty(tx, ruleset, defender.id, now));
       const shield = new Date(now.getTime() + model.protectionHours * 3_600_000);
       const cooldown = new Date(now.getTime() + model.cooldownMinutes * 60_000);
       const recoverAt = new Date(now.getTime() + model.wounds.recoveryMinutes * 60_000);
@@ -1368,7 +1368,7 @@ export const CombatService = {
       if (doctorFavor) await SingleUseFavorService.consume(tx, doctorFavor.id);
       const next = { ...toState(settled.player), woundedThugs: treatment.woundedThugs, medicine: settled.player.medicine - treatment.medicineUsed };
       assertPlayerState(next, settled.ruleset);
-      const happiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next), products: settled.products }, settled.ruleset);
+      const happiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next), products: settled.products }, settled.ruleset, await HappinessService.awayPenalty(tx, settled.ruleset, playerId, now));
       await tx.roundPlayer.update({
         where: { id: playerId },
         data: {

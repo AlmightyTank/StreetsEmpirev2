@@ -308,3 +308,16 @@ export function rollAirport(rules: AirportRules | undefined, input: { heat: numb
   const bankroll = input.bankrollCents > 0n ? input.bankrollCents : 0n;
   return { pulled: true, seizedCents: (bankroll * BigInt(rules.seizePercent)) / 100n, delayMinutes: rules.delayMinutes };
 }
+
+// --- Trips E: the girls notice ------------------------------------------------------
+
+/**
+ * Trips E. Points off whore happiness for a boss away since `awaySince`: a whole number of
+ * points per hour gone, never more than the cap, and nothing at home.
+ */
+export function awayHappinessPenalty(rules: TripRules | undefined, awaySince: Date | null, now: Date): number {
+  const drift = rules?.awayHappiness;
+  if (!drift || !awaySince) return 0;
+  const hours = Math.max(0, now.getTime() - awaySince.getTime()) / 3_600_000;
+  return Math.min(drift.maxPoints, Math.floor(hours * drift.pointsPerHour));
+}

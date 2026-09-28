@@ -21,10 +21,13 @@ function OutpostRow({ outpost, onDone }: { outpost: Trips['outpostsHere'][number
         <span className="se-muted">{outpost.moraleUntil ? `crew steady until ${when(outpost.moraleUntil)}` : 'not visited'}</span>
       </p>
       {outpost.canCollect ? (
-        <label className="se-hint">
-          <input type="checkbox" checked={collect} onChange={(event) => setCollect(event.target.checked)} /> Carry the box&rsquo;s cash in the bankroll
-        </label>
+        <p className="se-hint">
+          <label>
+            <input type="checkbox" checked={collect} onChange={(event) => setCollect(event.target.checked)} /> Carry the box&rsquo;s cash in the bankroll
+          </label>
+        </p>
       ) : null}
+      <div className="se-actions-row">
       <Button type="button" className="se-btn se-btn--primary se-btn--sm" disabledReason={visit.busy ? 'On the corner.' : null}
         onClick={async () => {
           await visit.run((actionId): Promise<GameActionResult<TripOutpostVisitResult>> =>
@@ -33,6 +36,7 @@ function OutpostRow({ outpost, onDone }: { outpost: Trips['outpostsHere'][number
         }}>
         Walk the corner
       </Button>
+      </div>
       {visit.error ? <Alert>{visit.error}</Alert> : null}
     </li>
   );

@@ -283,7 +283,7 @@ function BossHitRow({ hit, onDone }: { hit: BossHitDto; onDone: () => void }) {
           <Countdown until={hit.landsAt} onDone={onDone} prefix="hits in" />
         </p>
         {mine ? <p className="se-hint">It lands at {clock(hit.landsAt)} if the boss is still in town.</p>
-          : hit.role === 'owner' ? <p className="se-hint">Check out and fly home before it lands, call your allies, or take the beating.</p> : null}
+          : hit.role === 'owner' ? <p className="se-hint">Check out and fly home before it lands{hit.canCallAllies || hit.alliesCalled ? ', call your allies,' : ''} or take the beating.</p> : null}
         {!mine ? <BossHitHelp hit={hit} onDone={onDone} /> : null}
       </li>
     );

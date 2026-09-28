@@ -1054,6 +1054,12 @@ export interface TripRules {
   readonly sitDowns?: SitDownRules;
   /** Trips D2. Allies who live where a boss is hit can send backup. Absent: a boss stands alone. */
   readonly allyBackup?: boolean;
+  /**
+   * Trips E. The girls notice the boss is gone: whore happiness sits lower the longer the
+   * boss is away (on a flight trip or riding along), up to a cap, and recovers the moment
+   * the boss is home. Absent: nobody notices.
+   */
+  readonly awayHappiness?: { readonly pointsPerHour: number; readonly maxPoints: number };
 }
 
 /**

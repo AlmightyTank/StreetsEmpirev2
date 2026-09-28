@@ -408,8 +408,51 @@ Ruleset `classic-og-trips-d2` (Trips D plus `airport`, `outpostVisits`, `sitDown
   truce as the reason, on the combat page (raids, drive-bys, special raids), the convoy list
   and the visiting-boss list, as well as being refused.
 
-Not built yet:
-- **Happiness drift while away** (option B), for Stage E with the balance pass.
+Happiness drift while away was left for Stage E.
+
+## Stage E - built: release
+
+Ruleset `classic-og-trips-e` (Trips D2 plus `awayHappiness` under `travel.trips`). This is
+the release ruleset for trips.
+
+- **The girls miss the boss.** While the boss is away, on a flight or riding along with a
+  run, the girls' happiness is one point lower for every hour gone, at most 10 points. The
+  clock starts at the earlier of the trip's departure and the ride-along run's launch. It
+  comes off the recalculated value, never below the ruleset's minimum, and is worked out
+  fresh before and after every action and fight. It is not stored, so the moment the boss is
+  home it is gone. Thugs' happiness does not move.
+- **Travelers against homebodies** (`npm run qa:trips`, now a release-check step). The
+  0.5.0-F round simulation's street-only crew in New York is the baseline. A traveler plays
+  the same street and pays for every trip: tickets, hotel and lodging, the turns out the
+  door, the lieutenant's cut and the girls' happiness while away, airport security both ways,
+  and a hit in town (assumed on 20% of solo trips, 30% of those getting past bodyguards).
+  Each plan collects the travel jobs' cash once.
+  - **Gates:** no plan may finish more than 2% ahead of staying home, and the job trips may
+    not finish more than 1% behind.
+  - **Result:** no plan beats staying home. The three job flights come out 0.06-0.22%
+    behind, a weekly Vegas weekend with six bodyguards about 1.4-1.6% behind, and a daily
+    flyer about 5-7% behind.
+  - Until the casino gives a reason to go, a trip is a choice and never a requirement. The
+    0.5.0-F travel and 0.6.0-F turf gates still pass.
+- **Rules page.** A "Boss trips" section (flying, the stay and the lieutenant, riding along,
+  being hunted, bodyguards and rented guns, airport security, outposts and sit-downs, the
+  girls' happiness). It is in the rail between Travel and Turf.
+- **Phone pass.**
+  - The outpost "carry the cash" checkbox sits on its own line.
+  - The walk button has its own row.
+  - The rented-gun label reads cleanly at narrow widths.
+  - A boss whose hit can't be answered by allies is no longer told to call them.
+- **Regression.** The trips suites are integration tests (under `TRAVEL_INTEGRATION=1`),
+  and they pass. Across the full suite with every flag on, the only failures are ones
+  that also fail on `beta`:
+  - relocation Garage fee
+  - drive-by
+  - account-profile
+  - GameEventToasts
+  - the Armory priority test and the Heat test in product economy
+  - the 0.4.0-E products loop
+
+  `travel-risk` failed once in the combined run but passes on its own.
 
 ## Open questions
 

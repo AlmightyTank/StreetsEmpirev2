@@ -407,7 +407,9 @@ export const ActionService = {
       };
       assertPlayerState(current, ruleset, 'before');
       const beforeProducts = await HappinessService.otherProducts(tx, roundPlayerId, ruleset);
-      const beforeHappiness = HappinessService.recalculate({ ...current, thugs: fitThugs(current), products: beforeProducts }, ruleset);
+      // Trips E: the girls notice the boss is gone, before and after the action alike.
+      const awayPenalty = await HappinessService.awayPenalty(tx, ruleset, roundPlayerId, now);
+      const beforeHappiness = HappinessService.recalculate({ ...current, thugs: fitThugs(current), products: beforeProducts }, ruleset, awayPenalty);
       const beforeNetWorth = NetWorthService.calculate({ ...current, products: beforeProducts }, ruleset);
       const beforeRanks = await RankingService.ranksFor(tx, {
         id: roundPlayerId,
@@ -444,7 +446,8 @@ export const ActionService = {
       }
       // The action may have moved product rows, so they are read again.
       const afterProducts = beforeProducts && (await HappinessService.otherProducts(tx, roundPlayerId, ruleset));
-      const afterHappiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next), products: afterProducts }, ruleset);
+      // Re-read: the action may have sent the boss away (or brought them home).
+      const afterHappiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next), products: afterProducts }, ruleset, await HappinessService.awayPenalty(tx, ruleset, roundPlayerId, now));
       const afterNetWorth = NetWorthService.calculate({ ...next, products: afterProducts }, ruleset);
       const afterRanks = await RankingService.ranksFor(tx, {
         id: roundPlayerId,

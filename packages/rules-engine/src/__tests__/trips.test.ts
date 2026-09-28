@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgTripsA, classicOgTripsB, classicOgTripsC, classicOgTripsD, classicOgTripsD2, classicOgV08H, type Ruleset } from '@streets/rulesets';
+import { classicOgTripsA, classicOgTripsB, classicOgTripsC, classicOgTripsD, classicOgTripsD2, classicOgTripsE, classicOgV08H, type Ruleset } from '@streets/rulesets';
 import { checkMove } from '../calculations/relocation.js';
 import { planLaunch } from '../calculations/runs.js';
+import { runTripsRoundSimulation, tripsRoundGate } from '../simulations/trips-round.js';
 import {
+  awayHappinessPenalty,
   airportCheckChance,
   rollAirport,
   gunRentCents,
@@ -236,6 +238,25 @@ describe('Trips A: the boss travels', () => {
     expect(airportCheckChance(airport, airport.checkFromHeat, 5)).toBeCloseTo(5 * guardHeat * airport.chancePerHeat);
     expect(rollAirport(airport, { heat: airport.checkFromHeat, bodyguards: 5, bankrollCents: 100n, rng: () => 0 }).pulled).toBe(true);
     expect(checkTrip(d2, { ...free, heat: airport.noFlyHeat - 1, bodyguards: 12, fitThugs: 12 }).code).toBeNull();
+  });
+
+  it('lets the girls notice a boss away, an hour at a time, up to a cap', () => {
+    const e = classicOgTripsE.travel.trips;
+    const drift = e.awayHappiness;
+    expect(awayHappinessPenalty(e, null, now)).toBe(0);
+    expect(awayHappinessPenalty(classicOgTripsD2.travel.trips, minutes(-600), now)).toBe(0);
+    expect(awayHappinessPenalty(e, minutes(-59), now)).toBe(0);
+    expect(awayHappinessPenalty(e, minutes(-60), now)).toBe(drift.pointsPerHour);
+    expect(awayHappinessPenalty(e, minutes(-150), now)).toBe(2 * drift.pointsPerHour);
+    expect(awayHappinessPenalty(e, minutes(-60 * 100), now)).toBe(drift.maxPoints);
+    expect(awayHappinessPenalty(e, minutes(10), now)).toBe(0);
+  });
+
+  it('keeps travel a choice, not a requirement, and the job trips no trap (the Trips E gate)', () => {
+    const rows = runTripsRoundSimulation(classicOgTripsE);
+    expect(tripsRoundGate(rows)).toEqual([]);
+    // Every trip costs something: nobody gets ahead of staying home by flying.
+    for (const row of rows.filter((entry) => entry.plan !== 'home')) expect(row.costCents).toBeGreaterThan(0);
   });
 
   it('keeps the operation home while the boss is away', () => {

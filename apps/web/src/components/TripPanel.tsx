@@ -54,7 +54,7 @@ function RentGuns({ trip, rules, weapons, onDone }: { trip: TripDto; rules: Trip
     ?? (qty < 1 || qty > room ? `Rent 1 to ${room}.` : price * qty > trip.bankrollCents ? 'Your bankroll cannot cover it.' : null);
   return (
     <div className="se-field se-mt">
-      <span className="se-label">Rent guns from Tommy&rsquo;s people <span className="se-muted">{room} unarmed</span></span>
+      <span className="se-label">Rent guns from Tommy&rsquo;s people <span className="se-muted">· {room} unarmed</span></span>
       <div className="se-launch__with-all">
         <select className="se-input" value={weapon} aria-label="Weapon" onChange={(event) => setWeapon(event.target.value as keyof TripDto['rentedGuns'])}>
           {weapons.map((key) => <option key={key} value={key}>{GUN_NAMES[key]} · {formatCents(rules.bodyguards?.gunRentCents[key] ?? 0)}</option>)}
