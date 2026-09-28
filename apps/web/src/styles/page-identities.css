@@ -29,9 +29,9 @@
 .se-route--profile { --se-page-accent: #fbd460; --se-page-rgb: 251, 212, 96; }
 .se-route--activity { --se-page-accent: #67e8f9; --se-page-rgb: 103, 232, 249; }
 .se-route--reputation { --se-page-accent: var(--se-accent); --se-page-rgb: var(--se-accent-rgb); }
-.se-route--news { --se-page-accent: #fb923c; --se-page-rgb: 251, 146, 60; }
+.se-route--news { --se-page-accent: #4ade80; --se-page-rgb: 74, 222, 128; }
 .se-route--rules { --se-page-accent: #6899f3; --se-page-rgb: 104, 153, 243; }
-.se-route--hall-of-fame { --se-page-accent: #facc15; --se-page-rgb: 250, 204, 21; }
+.se-route--hall-of-fame { --se-page-accent: #d8dee9; --se-page-rgb: 216, 222, 233; }
 .se-route--status { --se-page-accent: #2dd4bf; --se-page-rgb: 45, 212, 191; }
 .se-route--admin { --se-page-accent: #fb7566; --se-page-rgb: 251, 117, 102; }
 
