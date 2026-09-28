@@ -1,10 +1,10 @@
-# StreetsEmpire 1.0.0 release candidate (1.0.0-rc.5)
+# StreetsEmpire 1.0.0 release candidate (1.0.0-rc.6)
 
 The build that has to prove the finished game works before it is called 1.0.
 
 ## The candidate
 
-- **Version:** `APP_VERSION` is `1.0.0-rc.5`, in `packages/shared/src/platform.ts`. The footer and `/api/meta` show it, with the commit.
+- **Version:** `APP_VERSION` is `1.0.0-rc.6`, in `packages/shared/src/platform.ts`. The footer and `/api/meta` show it, with the commit.
 - **Branch:** `beta`. Deploy it to beta first (`bash scripts/ops/deploy-beta.sh`), then to production once the launch checklist is clear.
 - **One command runs every gate:** `npm run release:rc`, which is `qa:release --with-db --with-load`. Add `--with-ui` to include the browser audit when a web client is running.
 
@@ -356,3 +356,52 @@ Migration: `20260928030000_age_devices` (the account's age confirmation, and the
   - It starts `apps/server/dist/index.js` on a scratch database, signs up, signs in and sets up two-step (which loads the QR library).
   - Checked both ways: without the fix it fails with the same error as beta; with it, it passes.
 - The beta database was never at risk: the deploy took its backup and applied the migrations, and only the API process failed to start.
+
+## rc.6
+
+rc.6 gathers the fixes found while putting rc.5 on beta. It adds no features.
+
+### What changed
+
+- **The built API crashed on start:** a bundling bug with the QR-code library. It is fixed, and the gate now has **Built API starts**, which runs the built server itself.
+- **Account settings:**
+  - even 14 px spacing between every panel;
+  - the sessions list shows five, then "Show all";
+  - "Set a password by email" works with Turnstile on (a signed-in player asking about their own address skips the check) and explains who it is for.
+- **Emails:**
+  - one branded dark layout, with the favicon's emblem as the logo, a big button with a fallback link, a details table and "[Beta]" on beta;
+  - `npm run email:preview` renders them without sending;
+  - the log names the missing setting when email is not configured.
+- **Console:** `npm run admin -- <name> --approve-beta`. `--off` keeps invite-only beta access, and `--reset-2fa` also forgets trusted browsers.
+- **Sessions:** "last seen" is written at most once a minute per session instead of on every request. That removes a database write from nearly every request during play, and the idle expiry still slides.
+
+### Results for rc.6
+
+`npm run release:rc` on the rc.6 commit, 28 September 2026: **all gates passed.**
+
+| Gate | Result |
+| --- | --- |
+| Typecheck, build, balance | pass |
+| Unit tests | 130 files, 1,099 tests pass |
+| Full PostgreSQL regression | 173 files, 1,376 tests pass |
+| Bot, forum link and push | 3 files, 22 tests pass |
+| Season One | 9 of 9 steps pass |
+| Built API starts | the bundled server starts; sign-up, sign-in and two-step setup work through it |
+| Backup and restore test | restored 77 tables and 988 rows, and every count matches |
+| Load test (300 players) | every scenario passes with zero errors. Sustained play p95 156 ms (budget 500 ms); login spike p95 1.4 s (3 s); bursts drain in at most 10.6 s (12 s); season end 14.5 s (60 s) |
+
+**Notification burst, watched.** This is 300 players opening the bell in the same instant, with a 750 ms p95 budget. Its results so far:
+
+| Run | p95 |
+| --- | --- |
+| rc.3 | 690 ms |
+| rc.4 | 649 ms |
+| rc.5, first run | 761 ms |
+| rc.5, re-run | 670 ms |
+| rc.6, before the last-seen change | 766 ms |
+| rc.6 | 738 ms |
+
+- Within a run every request in the wave takes about the same time, so the number mostly tracks this shared machine's speed. Every scenario ran 5–10% slower on 28 September.
+- Nothing since rc.4 adds work to that request.
+- This is a stress case, well above what players do; the everyday polling budget has three times its headroom.
+- If it misses on the production hardware's own test, look first at the bell query and the per-request session lookup.

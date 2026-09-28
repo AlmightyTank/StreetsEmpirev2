@@ -229,7 +229,8 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('two-step sign-in (rc.3), w
     expect(Date.parse(sharedRow.expiresAt) - Date.now()).toBeLessThan(12 * HOUR + 60_000);
 
     // Using a session slides its idle expiry forward...
-    await app.prisma.session.update({ where: { id: sharedRow.id }, data: { expiresAt: new Date(Date.now() + HOUR) } });
+    // (last seen long enough ago that this visit is recorded: visits are written at most once a minute)
+    await app.prisma.session.update({ where: { id: sharedRow.id }, data: { expiresAt: new Date(Date.now() + HOUR), lastSeenAt: new Date(Date.now() - 5 * 60_000) } });
     await as(cookiesOf(shared), 'GET', '/api/auth/me');
     await vi.waitFor(async () => {
       const row = await app.prisma.session.findUniqueOrThrow({ where: { id: sharedRow.id } });

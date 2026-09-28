@@ -105,12 +105,23 @@ export async function resolveSession(
   return { session: rest, account };
 }
 
-/** Records the visit and slides the idle expiry forward (never past the hard end). */
+/**
+ * "Last seen" is shown to the minute and only needs to be that fresh; writing it on
+ * every request added a database write to every read during play.
+ */
+export const SESSION_TOUCH_INTERVAL_MS = 60_000;
+
+/**
+ * Records the visit and slides the idle expiry forward (never past the hard end), at most
+ * once a minute per session. The expiry can lag by that minute, which the 12-hour and
+ * 30-day idle limits do not notice.
+ */
 export async function touchSession(
   prisma: PrismaClient,
-  session: Pick<Session, 'id' | 'absoluteExpiresAt' | 'createdAt' | 'remember'>,
+  session: Pick<Session, 'id' | 'absoluteExpiresAt' | 'createdAt' | 'remember' | 'lastSeenAt'>,
 ): Promise<void> {
   const now = Date.now();
+  if (now - session.lastSeenAt.getTime() < SESSION_TOUCH_INTERVAL_MS) return;
   await prisma.session
     .update({ where: { id: session.id }, data: { lastSeenAt: new Date(now), expiresAt: renewedExpiry(session, now) } })
     .catch(() => undefined);
