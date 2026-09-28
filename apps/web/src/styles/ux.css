@@ -120,7 +120,7 @@ button.se-tip[aria-expanded='true'] {
 /* Alert tones beyond error and info. */
 .se-alert--warning {
   border-left-color: var(--se-warn);
-  background: rgba(255, 176, 32, 0.08);
+  background: rgba(255, 121, 26, 0.08);
   color: color-mix(in srgb, var(--se-warn) 30%, #fff);
 }
 .se-alert--success {

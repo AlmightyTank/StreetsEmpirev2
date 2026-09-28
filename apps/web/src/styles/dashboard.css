@@ -225,7 +225,7 @@
 }
 
 .se-dashboard-count--hot {
-  border-color: rgba(255, 176, 32, 0.32);
+  border-color: rgba(255, 121, 26, 0.32);
   color: var(--se-warn);
 }
 
@@ -260,12 +260,12 @@
   height: 8px;
   border-radius: 50%;
   background: var(--se-warn);
-  box-shadow: 0 0 0 3px rgba(255, 176, 32, 0.08);
+  box-shadow: 0 0 0 3px rgba(255, 121, 26, 0.08);
 }
 
 .se-dashboard-notice--bad .se-dashboard-notice__pulse {
   background: var(--se-bad);
-  box-shadow: 0 0 0 3px rgba(255, 84, 104, 0.08);
+  box-shadow: 0 0 0 3px rgba(243, 63, 99, 0.08);
 }
 
 .se-dashboard-notice--good .se-dashboard-notice__pulse {
@@ -356,11 +356,11 @@
 }
 
 .se-dashboard-action--warn {
-  border-color: rgba(255, 176, 32, 0.25);
+  border-color: rgba(255, 121, 26, 0.25);
 }
 
 .se-dashboard-action--bad {
-  border-color: rgba(255, 84, 104, 0.3);
+  border-color: rgba(243, 63, 99, 0.3);
 }
 
 .se-dashboard-action--good {

@@ -24,8 +24,8 @@
 
   --se-good: #4ade80;
   --se-good-rgb: 74, 222, 128;
-  --se-bad: #ff5468;
-  --se-warn: #ffb020;
+  --se-bad: #f33f63;
+  --se-warn: #ff791a;
 
   --se-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", "Cascadia Mono",
     Menlo, Consolas, monospace;
@@ -426,7 +426,7 @@ body {
 .se-alert {
   border: 1px solid var(--se-line);
   border-left: 3px solid var(--se-bad);
-  background: rgba(255, 84, 104, 0.07);
+  background: rgba(243, 63, 99, 0.07);
   color: #ffd7dc;
   padding: 9px 12px;
   border-radius: 3px;
@@ -1294,7 +1294,7 @@ a:hover { color: var(--se-accent-hover); }
 
 .se-quest-status--failed,
 .se-quest-status--expired {
-  border-color: rgba(255, 84, 104, 0.35);
+  border-color: rgba(243, 63, 99, 0.35);
   color: #ff9daa;
 }
 
@@ -1971,7 +1971,7 @@ a.se-nav__link:hover {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015));
 }
 .se-target-card--blocked {
-  border-color: rgba(255, 84, 104, 0.38);
+  border-color: rgba(243, 63, 99, 0.38);
 }
 .se-target-card__head {
   display: flex;
@@ -2013,11 +2013,11 @@ a.se-nav__link:hover {
   color: var(--se-good);
 }
 .se-tag--bad {
-  border-color: rgba(255, 84, 104, 0.42);
+  border-color: rgba(243, 63, 99, 0.42);
   color: var(--se-bad);
 }
 .se-tag--warn {
-  border-color: rgba(255, 176, 32, 0.45);
+  border-color: rgba(255, 121, 26, 0.45);
   color: var(--se-warn);
 }
 .se-tag--dim {
@@ -2948,7 +2948,7 @@ a.se-nav__link:hover {
   border: 1px solid var(--se-line-soft);
   border-left: 3px solid var(--se-warn);
   border-radius: 3px;
-  background: rgba(255, 176, 32, 0.06);
+  background: rgba(255, 121, 26, 0.06);
 }
 
 .se-connection__confirm > p {
@@ -3294,9 +3294,9 @@ a.se-nav__link:hover {
   min-height: 36px;
   margin-bottom: 10px;
   padding: 7px 12px;
-  border: 1px solid rgba(255, 176, 32, 0.55);
+  border: 1px solid rgba(255, 121, 26, 0.55);
   border-radius: 3px;
-  background: rgba(255, 176, 32, 0.1);
+  background: rgba(255, 121, 26, 0.1);
   color: var(--se-text);
   text-align: center;
 }
@@ -3662,12 +3662,12 @@ button.se-notification-empty:hover { color: var(--se-text); }
 /* --- destructive admin actions ------------------------------------------ */
 
 .se-danger-zone {
-  border-color: rgba(255, 84, 104, 0.55);
+  border-color: rgba(243, 63, 99, 0.55);
   box-shadow: inset 3px 0 0 var(--se-bad);
 }
 
 .se-danger-zone .se-panel__head {
-  border-bottom-color: rgba(255, 84, 104, 0.35);
+  border-bottom-color: rgba(243, 63, 99, 0.35);
 }
 
 .se-danger-zone .se-panel__title {

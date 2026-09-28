@@ -269,12 +269,12 @@
 }
 
 .se-scout-risk--warn {
-  border-color: rgba(255, 176, 32, 0.32);
+  border-color: rgba(255, 121, 26, 0.32);
   color: var(--se-warn);
 }
 
 .se-scout-risk--bad {
-  border-color: rgba(255, 84, 104, 0.32);
+  border-color: rgba(243, 63, 99, 0.32);
   color: var(--se-bad);
 }
 
@@ -295,7 +295,7 @@
   height: 7px;
   overflow: hidden;
   border-radius: 2px;
-  background: rgba(255, 84, 104, 0.18);
+  background: rgba(243, 63, 99, 0.18);
 }
 
 .se-scout-intel__bar > span {

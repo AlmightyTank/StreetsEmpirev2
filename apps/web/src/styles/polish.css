@@ -246,7 +246,7 @@ textarea.se-input {
 
 .se-alert {
   border-radius: var(--se-radius-sm);
-  background: linear-gradient(90deg, rgba(255, 84, 104, 0.12), rgba(255, 84, 104, 0.045));
+  background: linear-gradient(90deg, rgba(243, 63, 99, 0.12), rgba(243, 63, 99, 0.045));
 }
 
 .se-alert--info {
@@ -335,7 +335,7 @@ a.se-nav__link:hover {
 }
 
 .se-store-favor {
-  background: linear-gradient(90deg, rgba(255, 176, 32, 0.1), rgba(255, 176, 32, 0.025));
+  background: linear-gradient(90deg, rgba(255, 121, 26, 0.1), rgba(255, 121, 26, 0.025));
 }
 
 .se-tag,
@@ -387,7 +387,7 @@ a.se-nav__link:hover {
 
 .se-offline,
 .se-site-banner {
-  border-color: rgba(255, 176, 32, 0.34);
+  border-color: rgba(255, 121, 26, 0.34);
   box-shadow: var(--se-shadow-soft);
 }
 
