@@ -94,6 +94,24 @@ function statusTone(status: PlayerQuestDto['status']): string {
   }
 }
 
+function storyLineForStatus(quest: PlayerQuestDto): string | null {
+  if (!quest.story) return null;
+  switch (quest.status) {
+    case 'READY_TO_TURN_IN':
+      return quest.story.ready;
+    case 'COMPLETED':
+      return quest.story.completed;
+    case 'ACTIVE':
+      return quest.story.inProgress;
+    case 'AVAILABLE':
+    case 'LOCKED':
+      return quest.story.intro;
+    case 'FAILED':
+    case 'EXPIRED':
+      return quest.story.inProgress;
+  }
+}
+
 function formatProgress(current: number, target: number, format: 'NUMBER' | 'CURRENCY'): string {
   return format === 'CURRENCY'
     ? formatCents(current) + ' / ' + formatCents(target)
@@ -218,6 +236,24 @@ function QuestCard({
       )}
     >
       <p className="se-hint se-quest-card__desc">{quest.description}</p>
+      {quest.story ? (
+        <div className="se-quest-story">
+          <div className="se-quest-story__quote">
+            <span className="se-eyebrow">{quest.story.chapter} · {quest.story.speaker}</span>
+            <p>{storyLineForStatus(quest)}</p>
+          </div>
+          <div className="se-quest-story__lesson">
+            <div>
+              <span>Lesson</span>
+              <strong>{quest.story.lesson}</strong>
+            </div>
+            <div>
+              <span>Next move</span>
+              <strong>{quest.story.actionHint}</strong>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {quest.seasonalEvent ? (
         <div className="se-quest-seasonal">
           <span className="se-eyebrow">{quest.seasonalEvent.label ?? 'Seasonal event'}</span>

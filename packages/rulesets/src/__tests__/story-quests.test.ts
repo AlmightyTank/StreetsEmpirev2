@@ -67,6 +67,26 @@ describe('0.7-D handcrafted quest launch', () => {
     });
   });
 
+  it('adds voiced tutorial story beats to the opening arc', () => {
+    for (const quest of Object.values(storyQuests)) {
+      expect(quest.story).toBeDefined();
+      expect(quest.story?.chapter).toMatch(/^Lesson \d+:/);
+      expect(quest.story?.intro.length).toBeGreaterThan(20);
+      expect(quest.story?.inProgress.length).toBeGreaterThan(20);
+      expect(quest.story?.ready.length).toBeGreaterThan(20);
+      expect(quest.story?.completed.length).toBeGreaterThan(20);
+      expect(quest.story?.lesson.length).toBeGreaterThan(20);
+      expect(quest.story?.actionHint.length).toBeGreaterThan(10);
+    }
+
+    expect(storyQuests.FIRST_NIGHT_OUT.story).toMatchObject({
+      chapter: 'Lesson 1: Work the block',
+      actionHint: 'Open Scout, choose any district, and spend 12 turns.',
+    });
+    expect(storyQuests.COOKHOUSE.story?.intro).toContain('Pip');
+    expect(storyQuests.PLANT_THE_FLAG.story?.lesson).toContain('Turf');
+  });
+
   it('moves weapon purchasing access into story quest rewards', () => {
     expect(storyQuests.HEAVY_HANDS.rewards).toContainEqual({ kind: 'WEAPON_ACCESS', key: 'SHOTGUN' });
     expect(storyQuests.COLLECTION_DAY.rewards).toContainEqual({ kind: 'WEAPON_ACCESS', key: 'TEK9' });

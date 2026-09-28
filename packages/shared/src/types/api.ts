@@ -778,6 +778,17 @@ export interface QuestBranchChoiceDto {
   reputationDeltas: QuestBranchReputationDto[];
 }
 
+export interface QuestStoryDto {
+  chapter: string;
+  speaker: string;
+  intro: string;
+  inProgress: string;
+  ready: string;
+  completed: string;
+  lesson: string;
+  actionHint: string;
+}
+
 export interface QuestContactDto {
   key: string;
   name: string;
@@ -803,6 +814,7 @@ export interface PlayerQuestDto {
   isTracked: boolean;
   chosenBranch: string | null;
   branchChoices: QuestBranchChoiceDto[];
+  story?: QuestStoryDto;
   objectives: QuestObjectiveDto[];
   rewards: QuestRewardDto[];
   seasonalEvent?: {
