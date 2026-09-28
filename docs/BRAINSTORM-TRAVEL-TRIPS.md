@@ -342,6 +342,41 @@ Not built yet:
   landing and its settle, the hotel can bill the hours in that gap. The alerts poller lands
   hits every minute, so the gap is at most one started hour.
 
+## Stage D - built: bodyguards, the gun connect and in-person jobs
+
+Ruleset `classic-og-trips-d` (Trips C plus `travel.trips.bodyguards`, the Out-of-Town Iron
+unlock and four new Jobs). Outpost visits and sit-downs were split out to a later stage:
+each needs its own system (presence overlapping outpost upkeep hours; invitations and a
+truce between two bosses).
+
+- **Bodyguards fly with the boss.** Up to 12 fit thugs from home, each on a $1,000 round-trip
+  ticket and $20 an hour of lodging, paid with the boss's ticket and hotel. They leave home
+  like run escorts (so they don't defend, cover or cook there), count in net worth as thugs,
+  and come home with the boss. Extensions pay their lodging too.
+- **Nothing goes through the airport.** Bodyguards land unarmed.
+- **Tommy's out-of-town connect** rents guns in town, one per bodyguard, from the bankroll,
+  for the rest of the stay: 40% of Tommy's price (pistol $20, shotgun $180, Tek-9 $500,
+  AK-47 $1,400), only for weapons Tommy would sell the player at home. Rented guns go back at
+  check-out: never owned, never in net worth, never brought home.
+- **Bodyguards fight.** A hit on a boss with standing bodyguards is a fight on the convoy
+  model: the squad with the guns it took from home, the bodyguards with whatever they rented.
+  If the bodyguards hold, nothing is taken, the boss stays and is not laid up; the squad
+  goes home with its wounds. If they fall, the boss is robbed and laid up as in C. Wounded
+  bodyguards come home still healing. The recon shows a guard band (none, a few, a serious
+  detail).
+- **In-person Jobs** (they listen only to `TRIP_RETURNED` and to `RUN_RETURNED` with the boss
+  aboard, so nothing done at home counts):
+  - **Face to Face** (Vic): take a trip anywhere and come home. $15,000.
+  - **Out-of-Town Iron** (Tommy, after Face to Face): fly to Detroit and back. Unlocks the
+    gun connect.
+  - **Scope the Strip** (Vic, after Face to Face): fly to Las Vegas and back. $30,000. This
+    sets up the Casino update.
+  - **Riding Shotgun** (Wheels): bring 2 runs home with the boss aboard. $20,000 and a
+    Low-Rider.
+
+Still to come (D2): outpost visits, sit-downs between bosses, calling allies to a boss in
+town, and airport Heat checks.
+
 ## Open questions
 
 1. **Tuning the lieutenant.** What percent is the boss-away cut, and should it grow the

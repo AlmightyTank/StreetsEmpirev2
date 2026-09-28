@@ -1228,6 +1228,14 @@ model BossTrip {
   returnedAt         DateTime?
   /// Trips C. When the boss was last hit, for the re-hit cooldown.
   lastHitAt          DateTime?
+  /// Trips D. Fit thugs flying with the boss, out of home until the trip is back, and how
+  /// many of them were wounded protecting the boss.
+  bodyguards         Int              @default(0)
+  woundedBodyguards  Int              @default(0)
+  /// Trips D. Guns rented in town from Tommy's connect, by weapon key: handed back at
+  /// check-out, never owned. And everything the rent has cost.
+  rentedGuns         Json             @default("{}")
+  gunRentCents       BigInt           @default(0)
   hits               BossHit[]
 
   @@index([roundPlayerId, status])
@@ -1248,6 +1256,8 @@ model BossHit {
   /// The city the hit lands in: the trip's city, where the attacker lives.
   city               String
   squad              Int
+  /// Trips D. The squad as it set out: morale and the guns it carries.
+  attackerCrew       Json?
   turnsSpent         Int
   actionId           String
   startedAt          DateTime

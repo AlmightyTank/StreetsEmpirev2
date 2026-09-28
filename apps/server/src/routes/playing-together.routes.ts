@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, bossHitSchema, heatBribeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, productTradeSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushSchema, turfPushBackupSchema, turfPushCallSchema, runOutpostEstablishSchema, runOutpostTransferSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, bossHitSchema, heatBribeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripRentGunsSchema, productTradeSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushSchema, turfPushBackupSchema, turfPushCallSchema, runOutpostEstablishSchema, runOutpostTransferSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
 import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
@@ -125,6 +125,8 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     BossTripService.extend(app.prisma, await me(request.auth!.account.id), parseBody(tripExtendSchema, request.body ?? {})));
   app.post('/travel/trip/home', { preHandler: app.requireAuth }, async (request) =>
     BossTripService.headHome(app.prisma, await me(request.auth!.account.id), parseBody(tripHeadHomeSchema, request.body ?? {})));
+  app.post('/travel/trip/guns', { preHandler: app.requireAuth }, async (request) =>
+    BossTripService.rentGuns(app.prisma, await me(request.auth!.account.id), parseBody(tripRentGunsSchema, request.body ?? {})));
 
   /** 0.4.0-A: the round's product catalog with the player's stock; 0.4.0-D adds Pip's counter and recipes. */
   app.get('/products', { preHandler: app.requireAuth }, async (request) =>

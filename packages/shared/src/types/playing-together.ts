@@ -665,6 +665,13 @@ export interface TripDto {
   canHeadHome: boolean;
   /** Trips C. A hit your lookouts have spotted coming, and when it lands. */
   hitLandsAt: string | null;
+  /** Trips D. Bodyguards with the boss, how many are wounded, and the guns rented for them. */
+  bodyguards: number;
+  woundedBodyguards: number;
+  rentedGuns: { PISTOL: number; SHOTGUN: number; TEK9: number; AK47: number };
+  gunRentCents: number;
+  /** Trips D. Why guns cannot be rented right now, or null when they can. */
+  rentBlockedReason: string | null;
 }
 
 /** Trips A. The last trip home, as a receipt. */
@@ -694,7 +701,18 @@ export interface TripPanelDto {
     lieutenantCut: number;
     /** Trips B. The boss can ride along with a run. Null before B. */
     rideAlong: { maxStayMinutes: number; crewCentsPerThugHour: number } | null;
+    /** Trips D. Bodyguards on flights and gun rental in town. Null before D. */
+    bodyguards: {
+      max: number;
+      ticketCents: number;
+      lodgingCentsPerThugHour: number;
+      gunRentCents: { PISTOL: number; SHOTGUN: number; TEK9: number; AK47: number };
+    } | null;
   };
+  /** Trips D. Whether this player has Tommy's out-of-town connect, and which guns they may rent. */
+  gunConnect: { unlocked: boolean; weapons: Array<'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47'> } | null;
+  /** Trips D. Fit thugs at home who could fly as bodyguards. */
+  fitThugs: number;
   /** Trips B. The run the boss is riding with, if any. */
   bossRun: { runId: string; cityName: string } | null;
   /** Trips C. A beaten boss heals until then. */
@@ -723,6 +741,16 @@ export interface TripLaunchResult {
   arrivesAt: string;
   stayUntil: string;
   returnsAt: string;
+  /** Trips D. Bodyguards flying with the boss. */
+  bodyguards: number;
+}
+
+/** Trips D. POST /api/game/travel/trip/guns. */
+export interface TripRentGunsResult {
+  tripId: string;
+  guns: { PISTOL: number; SHOTGUN: number; TEK9: number; AK47: number };
+  rentCents: number;
+  bankrollCents: number;
 }
 
 /** Trips A. POST /api/game/travel/trip/extend. */
@@ -1001,8 +1029,10 @@ export interface BossTargetDto {
   inTownNow: boolean;
   /** The bankroll in a band: light, loaded or heavy. */
   bankroll: 'light' | 'loaded' | 'heavy';
-  /** Always true in C: a boss who flew in has nobody with them. */
+  /** A boss who flew in alone has nobody with them. */
   alone: boolean;
+  /** Trips D. Their bodyguards in a band. */
+  guards: 'none' | 'light' | 'armed';
   maxSquad: number;
   blockedReason: string | null;
 }
@@ -1019,7 +1049,15 @@ export interface BossHitDto {
   attacker: { publicPimpId: number; displayName: string };
   owner: { publicPimpId: number; displayName: string };
   /** Once it has landed: whether the boss got away, and the cash that moved (+ for you, − against you). */
-  report: { escaped: boolean; cashCents: number; laidUpUntil: string | null } | null;
+  report: {
+    escaped: boolean;
+    /** Trips D. The boss's bodyguards held the hit off. */
+    held: boolean;
+    cashCents: number;
+    laidUpUntil: string | null;
+    yourWounds: number;
+    opponentWounds: number;
+  } | null;
 }
 
 /** Trips C. POST /api/game/convoys/boss-hit. */

@@ -1,4 +1,4 @@
-import type { HuntedRules, Ruleset, TripRules } from '@streets/rulesets';
+import type { BodyguardRules, HuntedRules, Ruleset, TripRules, WeaponKey } from '@streets/rulesets';
 import type { Rng } from '../rng.js';
 import { cityRules } from './cities.js';
 
@@ -21,6 +21,18 @@ export function hotelCents(rules: TripRules, city: string, minutes: number): big
   const hours = Math.ceil(Math.max(0, minutes) / 60);
   const lean = rules.hotelPrice?.[city] ?? 1;
   return BigInt(Math.round(rules.hotelCentsPerHour * lean)) * BigInt(hours);
+}
+
+/** Trips D. Lodging for `bodyguards` over `minutes`, rounded up to whole hours like the hotel. */
+export function lodgingCents(rules: TripRules, bodyguards: number, minutes: number): bigint {
+  const rate = rules.bodyguards?.lodgingCentsPerThugHour ?? 0;
+  return BigInt(rate) * BigInt(Math.max(0, bodyguards)) * BigInt(Math.ceil(Math.max(0, minutes) / 60));
+}
+
+/** Trips D. What renting these guns costs for the rest of a stay. */
+export function gunRentCents(rules: BodyguardRules, guns: Readonly<Partial<Record<WeaponKey, number>>>): bigint {
+  return (Object.keys(rules.gunRentCents) as WeaponKey[])
+    .reduce((sum, key) => sum + BigInt(rules.gunRentCents[key]) * BigInt(Math.max(0, guns[key] ?? 0)), 0n);
 }
 
 /**
@@ -140,6 +152,9 @@ export function checkTrip(ruleset: Ruleset, input: {
   lockedUntil: Date | null;
   /** Trips C. A beaten boss heals before travelling again. */
   laidUpUntil?: Date | null;
+  /** Trips D. Bodyguards flying with the boss, and the fit thugs home has for it. */
+  bodyguards?: number;
+  fitThugs?: number;
 }): TripCheck {
   const rules = tripRules(ruleset);
   const now = input.now.getTime();
@@ -152,8 +167,9 @@ export function checkTrip(ruleset: Ruleset, input: {
     returnsAt: new Date(now + flight + stay + flight),
   };
   const cutoffAt = new Date(input.roundEndsAt.getTime() - (rules?.cutoffHours ?? 0) * 3_600_000);
-  const ticketCents = BigInt(rules?.ticketCents ?? 0);
-  const hotel = rules ? hotelCents(rules, input.to, input.stayMinutes) : 0n;
+  const guards = Math.max(0, Math.trunc(input.bodyguards ?? 0));
+  const ticketCents = BigInt(rules?.ticketCents ?? 0) + BigInt(rules?.bodyguards?.ticketCents ?? 0) * BigInt(guards);
+  const hotel = rules ? hotelCents(rules, input.to, input.stayMinutes) + lodgingCents(rules, guards, input.stayMinutes) : 0n;
   const bankroll = input.bankrollCents > 0n ? input.bankrollCents : 0n;
   const totalCents = ticketCents + hotel + bankroll;
   const result = (code: string | null, blockedReason: string | null, blockedUntil: Date | null = null): TripCheck => ({
@@ -174,8 +190,12 @@ export function checkTrip(ruleset: Ruleset, input: {
   if (!rules.stayMinutes.includes(input.stayMinutes)) return result('BAD_STAY', 'Pick one of the stays on offer.');
   if (input.bankrollCents < 0n) return result('BAD_BANKROLL', 'A bankroll cannot be negative.');
   if (bankroll > BigInt(rules.carryOnCapCents)) return result('OVER_CARRY_ON', `You can carry at most ${dollars(rules.carryOnCapCents)} onto a plane.`);
+  if ((input.bodyguards ?? 0) !== guards || guards < 0) return result('BAD_BODYGUARDS', 'Bring whole bodyguards.');
+  if (guards > 0 && !rules.bodyguards) return result('NO_BODYGUARDS', 'The boss flies alone this round.');
+  if (guards > (rules.bodyguards?.max ?? 0)) return result('TOO_MANY_BODYGUARDS', `At most ${rules.bodyguards?.max ?? 0} bodyguards fly with the boss.`);
+  if (guards > (input.fitThugs ?? 0)) return result('NOT_ENOUGH_THUGS', `You have ${input.fitThugs ?? 0} fit thugs at home.`);
   if (input.turns < rules.launchTurns) return result('NOT_ENOUGH_TURNS', `Getting out the door takes ${rules.launchTurns} turns.`);
-  if (totalCents > input.cashCents) return result('NOT_ENOUGH_CASH', `The ticket, the hotel and the bankroll come to ${dollars(totalCents)}.`);
+  if (totalCents > input.cashCents) return result('NOT_ENOUGH_CASH', `The tickets, the hotel and the bankroll come to ${dollars(totalCents)}.`);
   return result(null, null);
 }
 
@@ -189,7 +209,7 @@ export interface ExtendCheck {
 
 /** Stay on for `blocks` more extension blocks, paid out of the bankroll. Only in town. */
 export function checkExtend(ruleset: Ruleset, input: {
-  trip: TripTimes & { city: string; bankrollCents: bigint };
+  trip: TripTimes & { city: string; bankrollCents: bigint; bodyguards?: number };
   blocks: number;
   now: Date;
   roundEndsAt: Date;
@@ -199,7 +219,7 @@ export function checkExtend(ruleset: Ruleset, input: {
   const added = minutes * 60_000;
   const stayUntil = new Date(input.trip.stayUntil.getTime() + added);
   const returnsAt = new Date(input.trip.returnsAt.getTime() + added);
-  const hotel = rules ? hotelCents(rules, input.trip.city, minutes) : 0n;
+  const hotel = rules ? hotelCents(rules, input.trip.city, minutes) + lodgingCents(rules, input.trip.bodyguards ?? 0, minutes) : 0n;
   const result = (code: string | null, blockedReason: string | null): ExtendCheck => ({ code, blockedReason, hotelCents: hotel, stayUntil, returnsAt });
 
   if (!rules) return result('TRIPS_DISABLED', 'The boss stays home this round.');
@@ -222,10 +242,14 @@ export function planTripHeadHome(trip: TripTimes, now: Date): { stayUntil: Date;
   return { stayUntil: now, returnsAt: new Date(now.getTime() + flight) };
 }
 
-/** A trip's bankroll in net worth: cash on the boss, weighted like cash at home. */
-export function tripNetWorthCents(ruleset: Ruleset, bankrollCents: bigint): bigint {
+/**
+ * A trip in net worth: the bankroll, weighted like cash at home, and (Trips D) the
+ * bodyguards, valued like thugs at home. Rented guns are Tommy's, not yours.
+ */
+export function tripNetWorthCents(ruleset: Ruleset, bankrollCents: bigint, bodyguards = 0): bigint {
   const weight = BigInt(ruleset.economy.netWorth.cashWeightPercent);
-  return ((bankrollCents > 0n ? bankrollCents : 0n) * weight) / 100n;
+  return ((bankrollCents > 0n ? bankrollCents : 0n) * weight) / 100n
+    + BigInt(Math.max(0, bodyguards)) * BigInt(ruleset.economy.netWorth.perThugCents);
 }
 
 // --- Trips C: the boss is hunted ---------------------------------------------------

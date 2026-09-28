@@ -196,7 +196,7 @@ function BossRow({ target, onDone }: { target: BossTargetDto; onDone: () => void
           ? <Countdown until={target.inTownUntil} onDone={onDone} prefix="in town for" />
           : <span className="se-muted se-num">{new Date(target.inTownFrom).getTime() > Date.now() ? `lands ${clock(target.inTownFrom)}` : `left ${clock(target.inTownUntil)}`}</span>}
       </p>
-      <p className="se-hint">{CASH_WORDS[target.bankroll]} · nobody with them</p>
+      <p className="se-hint">{CASH_WORDS[target.bankroll]} · {target.alone ? 'nobody with them' : target.guards === 'armed' ? 'a serious detail with them' : 'a few bodyguards with them'}</p>
       {target.inTownNow && max > 0 ? (
         <div className="se-launch__with-all">
           <input className="se-input" type="number" inputMode="numeric" min={1} max={max} value={squad} aria-label="Squad"
@@ -232,13 +232,16 @@ function BossHitRow({ hit, onDone }: { hit: BossHitDto; onDone: () => void }) {
   }
   const report = hit.report;
   if (!report) return null;
+  const good = report.held ? !mine : mine;
   const cash = formatCents(Math.abs(report.cashCents));
   const text = report.escaped
     ? (mine ? `${hit.owner.displayName}'s boss was gone before the hit. Your squad came home.` : `You were gone before ${hit.attacker.displayName}'s people got to you.`)
+    : report.held
+      ? (mine ? `${hit.owner.displayName}'s bodyguards held your squad off in ${hit.cityName}. ${report.yourWounds} of yours wounded.` : `Your bodyguards held off ${hit.attacker.displayName}'s people in ${hit.cityName}. ${report.yourWounds} of them wounded.`)
     : (mine ? `Your squad robbed ${hit.owner.displayName}'s boss in ${hit.cityName} for ${cash}.` : `${hit.attacker.displayName}'s people beat you in ${hit.cityName} and took ${cash}. Laid up until ${report.laidUpUntil ? clock(report.laidUpUntil) : 'later'}.`);
   return (
     <li className="se-convoys__tail">
-      <p className={`se-convoys__line ${report.escaped ? '' : mine ? 'se-good' : 'se-bad'}`}>
+      <p className={`se-convoys__line ${report.escaped ? '' : good ? 'se-good' : 'se-bad'}`}>
         <span>{text}</span>
         <span className="se-muted se-num">{clock(hit.landsAt)}</span>
       </p>

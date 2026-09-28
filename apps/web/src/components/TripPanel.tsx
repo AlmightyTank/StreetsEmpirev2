@@ -7,6 +7,7 @@ import type {
   TripHeadHomeResult,
   TripLaunchResult,
   TripReceiptDto,
+  TripRentGunsResult,
 } from '@streets/shared';
 import { formatCents } from '@streets/shared';
 import { api } from '../api/client.js';
@@ -34,7 +35,48 @@ const PHASE_HEADLINE: Record<TripDto['phase'], (trip: TripDto) => string> = {
 };
 
 /** Trips A. The boss is away: where, until when, and the two things they can do about it. */
-function Away({ trip, rules, onDone }: { trip: TripDto; rules: TripPanelData['rules']; onDone: () => void }) {
+const GUN_NAMES: Record<keyof TripDto['rentedGuns'], string> = { PISTOL: 'Pistol', SHOTGUN: 'Shotgun', TEK9: 'Tek-9', AK47: 'AK-47' };
+
+function gunsText(guns: TripDto['rentedGuns']): string {
+  return (Object.keys(guns) as Array<keyof TripDto['rentedGuns']>).filter((key) => guns[key] > 0).map((key) => `${guns[key]} ${GUN_NAMES[key]}`).join(', ');
+}
+
+/** Trips D. Rent guns for the bodyguards from Tommy's people in town, out of the bankroll. */
+function RentGuns({ trip, rules, weapons, onDone }: { trip: TripDto; rules: TripPanelData['rules']; weapons: Array<keyof TripDto['rentedGuns']>; onDone: () => void }) {
+  const rent = useGameAction<TripRentGunsResult>();
+  const [weapon, setWeapon] = useState<keyof TripDto['rentedGuns']>(weapons[weapons.length - 1] ?? 'PISTOL');
+  const carrying = Object.values(trip.rentedGuns).reduce((sum, count) => sum + count, 0);
+  const room = Math.max(0, trip.bodyguards - carrying);
+  const [count, setCount] = useState<number | ''>(room);
+  const qty = typeof count === 'number' ? count : 0;
+  const price = rules.bodyguards?.gunRentCents[weapon] ?? 0;
+  const block = rent.busy ? 'Making the call.' : trip.rentBlockedReason
+    ?? (qty < 1 || qty > room ? `Rent 1 to ${room}.` : price * qty > trip.bankrollCents ? 'Your bankroll cannot cover it.' : null);
+  return (
+    <div className="se-field se-mt">
+      <span className="se-label">Rent guns from Tommy&rsquo;s people <span className="se-muted">{room} unarmed</span></span>
+      <div className="se-launch__with-all">
+        <select className="se-input" value={weapon} aria-label="Weapon" onChange={(event) => setWeapon(event.target.value as keyof TripDto['rentedGuns'])}>
+          {weapons.map((key) => <option key={key} value={key}>{GUN_NAMES[key]} · {formatCents(rules.bodyguards?.gunRentCents[key] ?? 0)}</option>)}
+        </select>
+        <input className="se-input" type="number" inputMode="numeric" min={1} max={room} value={count} aria-label="How many"
+          onChange={(event) => setCount(wholeDollars(event.target.value))} />
+        <Button type="button" className="se-btn se-btn--primary se-btn--sm" disabledReason={block}
+          onClick={async () => {
+            await rent.run((actionId): Promise<GameActionResult<TripRentGunsResult>> =>
+              api.post('/game/travel/trip/guns', { guns: { [weapon]: qty }, actionId }));
+            onDone();
+          }}>
+          Rent · {formatCents(price * qty)}
+        </Button>
+      </div>
+      <p className="se-hint">For the rest of the stay, out of the bankroll. They go back at check-out and are never yours.</p>
+      {rent.error ? <Alert>{rent.error}</Alert> : null}
+    </div>
+  );
+}
+
+function Away({ trip, rules, gunConnect, onDone }: { trip: TripDto; rules: TripPanelData['rules']; gunConnect: TripPanelData['gunConnect']; onDone: () => void }) {
   const { msRemaining } = useCountdown(trip.until, onDone);
   const extend = useGameAction<TripExtendResult>();
   const home = useGameAction<TripHeadHomeResult>();
@@ -60,6 +102,10 @@ function Away({ trip, rules, onDone }: { trip: TripDto; rules: TripPanelData['ru
         <Row label="Bankroll" value={formatCents(trip.bankrollCents)} strong
           tooltip="All the boss has in town. Nothing is wired from home; it all comes back when the boss does." />
         <Row label="Hotel paid" value={formatCents(trip.hotelCents)} />
+        {trip.bodyguards > 0 ? (
+          <Row label="Bodyguards" value={`${trip.bodyguards}${trip.woundedBodyguards ? ` (${trip.woundedBodyguards} wounded)` : ''} · ${gunsText(trip.rentedGuns) || 'unarmed'}`}
+            tooltip="They fight anyone who comes for the boss. Rented guns go back to Tommy's people at check-out." />
+        ) : null}
         <Row label="Checks out" value={when(trip.stayUntil)} />
         <Row label="Home by" value={when(trip.returnsAt)} />
         <Row label="Lieutenant's cut" value={percent(rules.lieutenantCut)}
@@ -76,6 +122,7 @@ function Away({ trip, rules, onDone }: { trip: TripDto; rules: TripPanelData['ru
         </div>
       ) : null}
       {trip.phase === 'town' ? <p className="se-hint">Extra nights come out of the bankroll. Checking out early refunds nothing.</p> : null}
+      {trip.phase === 'town' && trip.bodyguards > 0 && gunConnect ? <RentGuns trip={trip} rules={rules} weapons={gunConnect.weapons} onDone={onDone} /> : null}
       {extend.error ? <Alert>{extend.error}</Alert> : null}
       {home.error ? <Alert>{home.error}</Alert> : null}
     </Panel>
@@ -104,12 +151,13 @@ export function TripPanel({ data, selected, onDone }: { data: TravelDto; selecte
   const [to, setTo] = useState(selected !== home.slug ? selected : '');
   const [stay, setStay] = useState(trips.rules.stayMinutes[0] ?? 0);
   const [bankroll, setBankroll] = useState<number | ''>(0);
+  const [guards, setGuards] = useState<number | ''>(0);
   const [confirming, setConfirming] = useState(false);
   const launch = useGameAction<TripLaunchResult>();
   useEffect(() => { if (selected !== home.slug) setTo(selected); }, [selected, home.slug]);
-  useEffect(() => { setConfirming(false); }, [to, stay, bankroll]);
+  useEffect(() => { setConfirming(false); }, [to, stay, bankroll, guards]);
 
-  if (trips.trip) return <Away trip={trips.trip} rules={trips.rules} onDone={onDone} />;
+  if (trips.trip) return <Away trip={trips.trip} rules={trips.rules} gunConnect={trips.gunConnect?.unlocked ? trips.gunConnect : null} onDone={onDone} />;
   if (trips.bossRun) {
     return (
       <Panel title="The boss is on the road" aside={trips.bossRun.cityName}>
@@ -124,8 +172,12 @@ export function TripPanel({ data, selected, onDone }: { data: TravelDto; selecte
 
   const destination = trips.destinations.find((city) => city.slug === to) ?? null;
   const bankrollCents = (typeof bankroll === 'number' ? bankroll : 0) * 100;
-  const hotelCents = destination ? destination.hotelCentsPerHour * Math.ceil(stay / 60) : 0;
-  const totalCents = trips.rules.ticketCents + hotelCents + bankrollCents;
+  // Trips D: bodyguards fly on their own tickets and are lodged by the hour.
+  const bg = trips.rules.bodyguards;
+  const guardCount = bg && typeof guards === 'number' ? guards : 0;
+  const ticketCents = trips.rules.ticketCents + (bg ? bg.ticketCents * guardCount : 0);
+  const hotelCents = destination ? (destination.hotelCentsPerHour + (bg ? bg.lodgingCentsPerThugHour * guardCount : 0)) * Math.ceil(stay / 60) : 0;
+  const totalCents = ticketCents + hotelCents + bankrollCents;
   const flight = trips.rules.flightMinutes;
   const blocked = trips.blockedReason
     ? `${trips.blockedReason}${trips.blockedUntil ? ` You can fly from ${when(trips.blockedUntil)}.` : ''}`
@@ -137,6 +189,7 @@ export function TripPanel({ data, selected, onDone }: { data: TravelDto; selecte
     : blocked
       ?? (!destination ? 'Pick a city.'
         : bankrollCents > trips.rules.carryOnCapCents ? `You can carry at most ${formatCents(trips.rules.carryOnCapCents)} onto a plane.`
+          : bg && guardCount > Math.min(bg.max, trips.fitThugs) ? `Bring at most ${Math.min(bg.max, trips.fitThugs)} bodyguards: ${trips.fitThugs} fit thugs at home.`
           : data.home.turns < trips.rules.launchTurns ? `Getting out the door takes ${trips.rules.launchTurns} turns.`
             : totalCents > data.home.cashCents ? `That comes to ${formatCents(totalCents)}; you have ${formatCents(data.home.cashCents)} at home.`
               : null);
@@ -145,7 +198,7 @@ export function TripPanel({ data, selected, onDone }: { data: TravelDto; selecte
     if (block) return;
     if (!confirming) { setConfirming(true); return; }
     await launch.run((actionId): Promise<GameActionResult<TripLaunchResult>> =>
-      api.post('/game/travel/trip', { to, stayMinutes: stay, bankrollCents, actionId }));
+      api.post('/game/travel/trip', { to, stayMinutes: stay, bankrollCents, ...(guardCount > 0 ? { bodyguards: guardCount } : {}), actionId }));
     setConfirming(false);
     onDone();
   }
@@ -153,7 +206,7 @@ export function TripPanel({ data, selected, onDone }: { data: TravelDto; selecte
   return (
     <Panel title="Take a trip" aside={`${formatCents(trips.rules.ticketCents)} a ticket`}>
       <p className="se-dim">
-        The boss flies alone. Home stays home: you still live in {home.name}, rank there and can be hit there, and the operation keeps
+        {bg ? 'The boss flies alone or with bodyguards, who land unarmed: nothing gets through the airport.' : 'The boss flies alone.'} Home stays home: you still live in {home.name}, rank there and can be hit there, and the operation keeps
         working. While you are gone the lieutenant skims {percent(trips.rules.lieutenantCut)} of every Scout and Produce take.
       </p>
       <div className="se-field se-mt">
@@ -179,8 +232,19 @@ export function TripPanel({ data, selected, onDone }: { data: TravelDto; selecte
         <input id="trip-bankroll" className="se-input" type="number" inputMode="numeric" min={0} step={1} value={bankroll}
           onChange={(event) => setBankroll(wholeDollars(event.target.value))} />
       </div>
+      {bg ? (
+        <div className="se-field se-mt">
+          <label className="se-label" htmlFor="trip-guards">Bodyguards <span className="se-muted">up to {Math.min(bg.max, trips.fitThugs)}</span></label>
+          <input id="trip-guards" className="se-input" type="number" inputMode="numeric" min={0} max={Math.min(bg.max, trips.fitThugs)} step={1} value={guards}
+            onChange={(event) => setGuards(wholeDollars(event.target.value))} />
+          <p className="se-hint">
+            {formatCents(bg.ticketCents)} a ticket and {formatCents(bg.lodgingCentsPerThugHour)} an hour each. They fight anyone who comes for the boss
+            {trips.gunConnect?.unlocked ? ', and Tommy\u2019s people can rent them guns in town.' : ', bare-handed unless Tommy\u2019s people in town will rent to you.'}
+          </p>
+        </div>
+      ) : null}
       <div className="se-rows se-mt">
-        <Row label="Ticket" value={formatCents(trips.rules.ticketCents)} />
+        <Row label={guardCount > 0 ? 'Tickets' : 'Ticket'} value={formatCents(ticketCents)} />
         <Row label="Hotel" value={destination ? formatCents(hotelCents) : '-'} tooltip="Paid up front for the whole stay." />
         <Row label="Bankroll" value={formatCents(bankrollCents)} tooltip="Comes home with you, less anything spent in town." />
         <Row label="Out of home cash" value={formatCents(totalCents)} strong />

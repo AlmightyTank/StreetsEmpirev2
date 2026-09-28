@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgTripsA, classicOgTripsB, classicOgTripsC, classicOgV08H, type Ruleset } from '@streets/rulesets';
+import { classicOgTripsA, classicOgTripsB, classicOgTripsC, classicOgTripsD, classicOgV08H, type Ruleset } from '@streets/rulesets';
 import { checkMove } from '../calculations/relocation.js';
 import { planLaunch } from '../calculations/runs.js';
 import {
+  gunRentCents,
+  lodgingCents,
+  tripNetWorthCents,
   bossAwayDefenseMultiplier,
   bossHitLootCents,
   huntedRules,
@@ -174,6 +177,41 @@ describe('Trips A: the boss travels', () => {
     expect(bossAwayDefenseMultiplier(classicOgTripsC, true)).toBe(classicOgTripsC.travel.trips.hunted.awayDefenseMultiplier);
     expect(bossAwayDefenseMultiplier(classicOgTripsC, false)).toBe(1);
     expect(bossAwayDefenseMultiplier(classicOgTripsB, true)).toBe(1);
+  });
+
+  it('flies bodyguards on their own tickets and lodging, from fit thugs at home', () => {
+    const d: Ruleset = classicOgTripsD;
+    const trip = classicOgTripsD.travel.trips;
+    const guards = trip.bodyguards;
+    const withGuards = { ...free, bodyguards: 4, fitThugs: 10 };
+    const alone = checkTrip(d, free);
+    const crew = checkTrip(d, withGuards);
+    expect(crew.code).toBeNull();
+    expect(crew.ticketCents).toBe(alone.ticketCents + 4n * BigInt(guards.ticketCents));
+    expect(crew.hotelCents).toBe(alone.hotelCents + lodgingCents(trip, 4, 120));
+    expect(lodgingCents(trip, 4, 61)).toBe(4n * 2n * BigInt(guards.lodgingCentsPerThugHour));
+    expect(checkTrip(ruleset, { ...withGuards }).code).toBe('NO_BODYGUARDS');
+    expect(checkTrip(d, { ...withGuards, bodyguards: guards.max + 1, fitThugs: 100 }).code).toBe('TOO_MANY_BODYGUARDS');
+    expect(checkTrip(d, { ...withGuards, fitThugs: 3 }).code).toBe('NOT_ENOUGH_THUGS');
+    expect(checkTrip(d, { ...withGuards, bodyguards: 1.5 }).code).toBe('BAD_BODYGUARDS');
+    expect(checkTrip(d, { ...withGuards, cashCents: crew.totalCents - 1n }).code).toBe('NOT_ENOUGH_CASH');
+  });
+
+  it('rents guns for a stay at a real price, never the price of owning them', () => {
+    const guards = classicOgTripsD.travel.trips.bodyguards;
+    expect(gunRentCents(guards, { PISTOL: 3, AK47: 1 })).toBe(3n * BigInt(guards.gunRentCents.PISTOL) + BigInt(guards.gunRentCents.AK47));
+    expect(gunRentCents(guards, {})).toBe(0n);
+    for (const [key, weapon] of Object.entries(classicOgTripsD.combat.weapons)) {
+      const rent = guards.gunRentCents[key as keyof typeof guards.gunRentCents];
+      expect(rent).toBeGreaterThan(0);
+      expect(rent).toBeLessThan(weapon.buyCents);
+    }
+  });
+
+  it('counts bodyguards as thugs in a trip\'s net worth', () => {
+    const perThug = BigInt(classicOgTripsD.economy.netWorth.perThugCents);
+    expect(tripNetWorthCents(classicOgTripsD, 0n, 5)).toBe(5n * perThug);
+    expect(tripNetWorthCents(classicOgTripsD, 1_000n, 0)).toBe(tripNetWorthCents(classicOgTripsD, 1_000n));
   });
 
   it('keeps the operation home while the boss is away', () => {

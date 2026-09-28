@@ -82,10 +82,10 @@ export async function activeRuns(db: Db, roundPlayerId: string): Promise<LoadedR
 export async function totalAwayWorth(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<bigint> {
   const [runs, trips] = await Promise.all([
     activeRuns(tx, roundPlayerId),
-    tx.bossTrip.findMany({ where: { roundPlayerId, status: 'ACTIVE' }, select: { bankrollCents: true } }),
+    tx.bossTrip.findMany({ where: { roundPlayerId, status: 'ACTIVE' }, select: { bankrollCents: true, bodyguards: true } }),
   ]);
   return runs.reduce((sum, run) => sum + awayWorth(ruleset, run, cargoOf(run)), 0n)
-    + trips.reduce((sum, trip) => sum + tripNetWorthCents(ruleset, trip.bankrollCents), 0n);
+    + trips.reduce((sum, trip) => sum + tripNetWorthCents(ruleset, trip.bankrollCents, trip.bodyguards), 0n);
 }
 
 export async function refreshAwayWorth(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<bigint> {

@@ -1,6 +1,7 @@
 import type { PrismaClient, RoundPlayer } from '@prisma/client';
 import {
   convoyRules,
+  equipCombatSquad,
   hashParts,
   headsUpMinutes,
   huntedRules,
@@ -15,14 +16,20 @@ import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
 import { allianceTargetBlock } from './alliance.service.js';
-import type { BossHitOutcome } from './boss-trip-settle.service.js';
+import type { BossHitCrew, BossHitOutcome } from './boss-trip-settle.service.js';
+import { hideoutWeaponPriority } from './hideout.service.js';
 import { PlayerStateService } from './player-state.service.js';
 
 const RECENT_MS = 24 * 60 * 60_000;
+const NO_GUNS = { PISTOL: 0, SHOTGUN: 0, TEK9: 0, AK47: 0 };
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
 
 /** What an area recon keeps about a visiting boss it spotted. */
 export type BossReconTarget = Omit<BossTargetDto, 'blockedReason' | 'maxSquad' | 'inTownNow'>;
+
+function guardBand(standing: number): BossTargetDto['guards'] {
+  return standing <= 0 ? 'none' : standing < 6 ? 'light' : 'armed';
+}
 
 function bankrollBand(cents: bigint): BossTargetDto['bankroll'] {
   const dollars = Number(cents) / 100;
@@ -59,7 +66,8 @@ export async function scanBosses(db: Db | PrismaClient, ruleset: Ruleset, player
       inTownFrom: trip.arrivesAt.toISOString(),
       inTownUntil: trip.stayUntil.toISOString(),
       bankroll: bankrollBand(trip.bankrollCents),
-      alone: true,
+      alone: trip.bodyguards - trip.woundedBodyguards <= 0,
+      guards: guardBand(trip.bodyguards - trip.woundedBodyguards),
     }));
 }
 
@@ -89,7 +97,14 @@ function toHitDto(ruleset: Ruleset, playerId: string, hit: {
     squad: hit.squad,
     attacker: { publicPimpId: hit.attacker.publicPimpId, displayName: hit.attacker.displayName },
     owner: { publicPimpId: hit.owner.publicPimpId, displayName: hit.owner.displayName },
-    report: outcome ? { escaped: outcome.escaped, cashCents: (role === 'attacker' ? 1 : -1) * Number(outcome.cashCents), laidUpUntil: outcome.laidUpUntil } : null,
+    report: outcome ? {
+      escaped: outcome.escaped,
+      held: outcome.held ?? false,
+      cashCents: (role === 'attacker' ? 1 : -1) * Number(outcome.cashCents),
+      laidUpUntil: outcome.laidUpUntil,
+      yourWounds: role === 'attacker' ? outcome.attackerWounds ?? 0 : outcome.defenderWounds ?? 0,
+      opponentWounds: role === 'attacker' ? outcome.defenderWounds ?? 0 : outcome.attackerWounds ?? 0,
+    } : null,
   };
 }
 
@@ -135,9 +150,18 @@ export const BossHitService = {
         if (input.squad > maxSquad) throw AppError.badRequest('SQUAD_TOO_BIG', `Send at most ${maxSquad}.`, { squad: `At most ${maxSquad}.` });
 
         const landsAt = new Date(at.getTime() + rules.warningMinutes * 60_000);
+        // Trips D: the squad takes the best of the home arsenal, in case there are bodyguards.
+        const squad = equipCombatSquad({
+          thugs: Math.max(input.squad, fitThugs(current)),
+          thugHappiness: player.thugHappiness,
+          weapons: { PISTOL: current.pistols, SHOTGUN: current.shotguns, TEK9: current.tek9s, AK47: current.ak47s },
+          weaponPriority: hideoutWeaponPriority(base, player),
+        }, Math.min(input.squad, model.squadCap), model);
+        const attackerCrew: BossHitCrew = { thugHappiness: player.thugHappiness, weapons: { ...NO_GUNS, ...squad.equipment } };
         const hit = await tx.bossHit.create({
           data: {
             tripId: trip.id, ownerId: owner.id, attackerId, city: trip.city, squad: input.squad,
+            attackerCrew: JSON.parse(JSON.stringify(attackerCrew)),
             turnsSpent: rules.turnCost, actionId: input.actionId, startedAt: at, landsAt,
           },
         });

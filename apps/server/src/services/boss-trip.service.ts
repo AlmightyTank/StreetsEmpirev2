@@ -2,6 +2,7 @@ import type { BossTrip, PrismaClient, RoundPlayer } from '@prisma/client';
 import {
   checkExtend,
   checkTrip,
+  gunRentCents,
   hotelCents,
   loadRulesetForRound,
   planTripHeadHome,
@@ -21,11 +22,15 @@ import type {
   TripLaunchResult,
   TripPanelDto,
   TripReceiptDto,
+  TripRentGunsInput,
+  TripRentGunsResult,
 } from '@streets/shared';
+import type { WeaponKey } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
-import { ActionService } from './action.service.js';
-import { activeTrip, bossRun } from './boss-trip-settle.service.js';
+import { ActionService, fitThugs } from './action.service.js';
+import { activeTrip, bossRun, rentedGunsOf } from './boss-trip-settle.service.js';
+import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { BossHitService } from './boss-hit.service.js';
 import { totalAwayWorth } from './run-settle.service.js';
 
@@ -40,11 +45,41 @@ function requireTrips(ruleset: Ruleset) {
 function refusal(check: { code: string | null; blockedReason: string | null }): AppError {
   const code = check.code ?? 'TRIP_BLOCKED';
   const message = check.blockedReason ?? 'You cannot travel right now.';
-  const bad = ['UNKNOWN_CITY', 'ALREADY_HOME', 'BAD_STAY', 'BAD_BANKROLL', 'OVER_CARRY_ON', 'NOT_ENOUGH_CASH', 'NOT_ENOUGH_TURNS', 'BAD_EXTENSION', 'NOT_ENOUGH_BANKROLL'];
+  const bad = [
+    'UNKNOWN_CITY', 'ALREADY_HOME', 'BAD_STAY', 'BAD_BANKROLL', 'OVER_CARRY_ON', 'NOT_ENOUGH_CASH', 'NOT_ENOUGH_TURNS', 'BAD_EXTENSION', 'NOT_ENOUGH_BANKROLL',
+    'BAD_BODYGUARDS', 'TOO_MANY_BODYGUARDS', 'NOT_ENOUGH_THUGS', 'BAD_GUNS', 'TOO_MANY_GUNS', 'NO_WEAPON_ACCESS',
+  ];
   return bad.includes(code) ? AppError.badRequest(code, message, { trip: message }) : AppError.conflict(code, message);
 }
 
-function tripDto(ruleset: Ruleset, trip: BossTrip, roundEndsAt: Date, now: Date, hitLandsAt: Date | null = null): TripDto | null {
+/** Trips D. The weapons this player may rent: whatever Tommy would sell them at home. */
+function rentableWeapons(player: Pick<RoundPlayer, 'shotgunUnlocked' | 'tek9Unlocked' | 'ak47Unlocked'>): WeaponKey[] {
+  return [
+    'PISTOL',
+    ...(player.shotgunUnlocked ? ['SHOTGUN' as const] : []),
+    ...(player.tek9Unlocked ? ['TEK9' as const] : []),
+    ...(player.ak47Unlocked ? ['AK47' as const] : []),
+  ];
+}
+
+/** Trips D. Why no guns can be rented on this trip right now, or null when they can. */
+function rentBlock(ruleset: Ruleset, trip: BossTrip, unlocked: boolean, now: Date): string | null {
+  const rules = tripRules(ruleset)?.bodyguards;
+  if (!rules) return 'Nobody rents guns out of town this round.';
+  if (!unlocked) return 'Tommy has nobody out of town for you yet.';
+  if (trip.bodyguards <= 0) return 'The boss flew alone: nobody to arm.';
+  if (tripPosition(trip, now).phase !== 'town') return 'Guns change hands in town, not at the airport.';
+  const carrying = Object.values(rentedGunsOf(trip)).reduce((sum, count) => sum + count, 0);
+  if (carrying >= trip.bodyguards) return 'Every bodyguard is already carrying.';
+  return null;
+}
+
+async function hasGunConnect(db: Db | PrismaClient, ruleset: Ruleset, roundPlayerId: string): Promise<boolean> {
+  const key = tripRules(ruleset)?.bodyguards?.gunConnectUnlockKey;
+  return Boolean(key && (await PermanentUnlockService.keys(db, roundPlayerId)).has(key));
+}
+
+function tripDto(ruleset: Ruleset, trip: BossTrip, roundEndsAt: Date, now: Date, hitLandsAt: Date | null = null, rentBlockedReason: string | null = null): TripDto | null {
   const position = tripPosition(trip, now);
   if (position.phase === 'home') return null;
   const rules = tripRules(ruleset);
@@ -68,6 +103,11 @@ function tripDto(ruleset: Ruleset, trip: BossTrip, roundEndsAt: Date, now: Date,
     extend: { minutes: rules?.extendMinutes ?? 0, hotelCents: Number(extend.hotelCents), blockedReason: extend.blockedReason },
     canHeadHome: planTripHeadHome(trip, now) !== null,
     hitLandsAt: hitLandsAt?.toISOString() ?? null,
+    bodyguards: trip.bodyguards,
+    woundedBodyguards: trip.woundedBodyguards,
+    rentedGuns: rentedGunsOf(trip),
+    gunRentCents: Number(trip.gunRentCents),
+    rentBlockedReason,
   };
 }
 
@@ -111,6 +151,7 @@ export const BossTripService = {
     ]);
     // Trips B: the town the boss's run is headed for or sitting in, the last before home.
     const ridingTo = riding ? riding.stops[Math.max(0, riding.stops.length - 2)]?.city ?? home : null;
+    const connect = await hasGunConnect(db, ruleset, player.id);
     const destinations = Object.keys(ruleset.cities ?? {}).filter((slug) => slug !== home);
     // Any city but home gives the same general reason, at the cheapest stay and no bankroll.
     const general: TripCheck = checkTrip(ruleset, {
@@ -142,7 +183,12 @@ export const BossTripService = {
         launchTurns: rules.launchTurns,
         lieutenantCut: rules.lieutenantCut,
         rideAlong: rules.rideAlong ? { ...rules.rideAlong } : null,
+        bodyguards: rules.bodyguards
+          ? { max: rules.bodyguards.max, ticketCents: rules.bodyguards.ticketCents, lodgingCentsPerThugHour: rules.bodyguards.lodgingCentsPerThugHour, gunRentCents: { ...rules.bodyguards.gunRentCents } }
+          : null,
       },
+      gunConnect: rules.bodyguards ? { unlocked: connect, weapons: rentableWeapons(player) } : null,
+      fitThugs: fitThugs(player),
       bossRun: riding ? { runId: riding.id, cityName: cityName(ruleset, ridingTo!) } : null,
       laidUpUntil: player.laidUpUntil && player.laidUpUntil > now ? player.laidUpUntil.toISOString() : null,
       cutoffAt: general.cutoffAt.toISOString(),
@@ -150,7 +196,7 @@ export const BossTripService = {
       blockedCode: blocked?.code ?? null,
       blockedUntil: blocked?.blockedUntil?.toISOString() ?? null,
       destinations: destinations.map((slug) => ({ slug, name: cityName(ruleset, slug), hotelCentsPerHour: Number(hotelCents(rules, slug, 60)) })),
-      trip: trip ? tripDto(ruleset, trip, roundEndsAt, now, await BossHitService.seenComing(db, ruleset, player, trip.id, now)) : null,
+      trip: trip ? tripDto(ruleset, trip, roundEndsAt, now, await BossHitService.seenComing(db, ruleset, player, trip.id, now), rentBlock(ruleset, trip, connect, now)) : null,
       lastTrip: last ? receiptDto(ruleset, last) : null,
     };
   },
@@ -180,6 +226,8 @@ export const BossTripService = {
           movingUntil: player.movingUntil,
           lockedUntil: player.lockedUntil,
           laidUpUntil: player.laidUpUntil,
+          bodyguards: input.bodyguards,
+          fitThugs: fitThugs(current),
         });
         if (check.blockedReason) throw refusal(check);
         const to = await tx.city.findUnique({ where: { slug: input.to }, select: { isEnabled: true } });
@@ -197,6 +245,7 @@ export const BossTripService = {
             ticketCents: check.ticketCents,
             hotelCents: check.hotelCents,
             turnsSpent: rules.launchTurns,
+            bodyguards: input.bodyguards,
             ...check.times,
           },
         });
@@ -212,12 +261,15 @@ export const BossTripService = {
           arrivesAt: check.times.arrivesAt.toISOString(),
           stayUntil: check.times.stayUntil.toISOString(),
           returnsAt: check.times.returnsAt.toISOString(),
+          bodyguards: input.bodyguards,
         };
         const where = cityName(base, input.to);
         return {
           next: {
             ...current,
             turns: current.turns - rules.launchTurns,
+            // Trips D: the bodyguards leave home with the boss, unarmed.
+            thugs: current.thugs - input.bodyguards,
             cashCents: current.cashCents - check.totalCents,
             awayNetWorthCents: await totalAwayWorth(tx, roundPlayerId, base),
           },
@@ -266,6 +318,47 @@ export const BossTripService = {
           ledger: check.hotelCents > 0n
             ? [{ source: 'TRIP_EXTEND', label: `Hotel extension · ${cityName(base, trip.city)}`, amountCents: -check.hotelCents }]
             : [],
+        };
+      },
+    });
+  },
+
+  /**
+   * Trips D. Rent guns in town from Tommy's out-of-town connect: one per bodyguard at most,
+   * only what Tommy would sell at home, paid out of the bankroll for the rest of the stay.
+   * They are handed back at check-out and never count as yours.
+   */
+  rentGuns(prisma: PrismaClient, roundPlayerId: string, input: TripRentGunsInput): Promise<GameActionResult<TripRentGunsResult>> {
+    return ActionService.run<TripRentGunsResult>(prisma, roundPlayerId, {
+      action: 'TRIP_RENT_GUNS',
+      actionId: input.actionId,
+      execute: async ({ tx, current, round, now }) => {
+        const base = loadRulesetForRound(round);
+        const rules = requireTrips(base).bodyguards;
+        if (!rules) throw AppError.conflict('NO_GUN_CONNECT', 'Nobody rents guns out of town this round.');
+        const trip = await requireActiveTrip(tx, roundPlayerId);
+        const blocked = rentBlock(base, trip, await hasGunConnect(tx, base, roundPlayerId), now);
+        if (blocked) throw AppError.conflict('RENT_BLOCKED', blocked);
+        const wanted = input.guns;
+        const total = Object.values(wanted).reduce((sum, count) => sum + count, 0);
+        if (total < 1) throw refusal({ code: 'BAD_GUNS', blockedReason: 'Rent at least one gun.' });
+        const held = rentedGunsOf(trip);
+        const carrying = Object.values(held).reduce((sum, count) => sum + count, 0);
+        if (carrying + total > trip.bodyguards) throw refusal({ code: 'TOO_MANY_GUNS', blockedReason: `One gun each: ${trip.bodyguards - carrying} bodyguard${trip.bodyguards - carrying === 1 ? '' : 's'} still unarmed.` });
+        const allowed = new Set(rentableWeapons(current));
+        const locked = (Object.keys(wanted) as WeaponKey[]).find((key) => wanted[key] > 0 && !allowed.has(key));
+        if (locked) throw refusal({ code: 'NO_WEAPON_ACCESS', blockedReason: 'Tommy only rents what he would sell you at home.' });
+        const rentCents = gunRentCents(rules, wanted);
+        if (rentCents > trip.bankrollCents) throw refusal({ code: 'NOT_ENOUGH_BANKROLL', blockedReason: 'Your bankroll cannot cover the rent. Nothing is wired from home.' });
+        const rentedGuns = { PISTOL: held.PISTOL + wanted.PISTOL, SHOTGUN: held.SHOTGUN + wanted.SHOTGUN, TEK9: held.TEK9 + wanted.TEK9, AK47: held.AK47 + wanted.AK47 };
+        const updated = await tx.bossTrip.update({
+          where: { id: trip.id },
+          data: { bankrollCents: trip.bankrollCents - rentCents, gunRentCents: trip.gunRentCents + rentCents, rentedGuns },
+        });
+        return {
+          next: { ...current, awayNetWorthCents: await totalAwayWorth(tx, roundPlayerId, base) },
+          result: { tripId: trip.id, guns: rentedGuns, rentCents: Number(rentCents), bankrollCents: Number(updated.bankrollCents) },
+          ledger: rentCents > 0n ? [{ source: 'TRIP_RENT_GUNS', label: `Gun rent · ${cityName(base, trip.city)}`, amountCents: -rentCents }] : [],
         };
       },
     });

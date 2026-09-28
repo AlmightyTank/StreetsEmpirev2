@@ -152,9 +152,23 @@ export const tripLaunchSchema = z.object({
   to: citySlug,
   stayMinutes: z.number({ invalid_type_error: 'Pick a stay.' }).int('Pick a stay.').positive('Pick a stay.').safe(),
   bankrollCents: wholeCount('a bankroll'),
+  /** Trips D. Fit thugs flying with the boss. */
+  bodyguards: wholeCount('bodyguards').default(0),
   actionId: actionIdSchema,
 }).strict();
 export type TripLaunchInput = z.infer<typeof tripLaunchSchema>;
+
+/** Trips D. Rent guns in town for the boss's bodyguards, one each at most. */
+export const tripRentGunsSchema = z.object({
+  guns: z.object({
+    PISTOL: wholeCount('pistols').default(0),
+    SHOTGUN: wholeCount('shotguns').default(0),
+    TEK9: wholeCount('Tek-9s').default(0),
+    AK47: wholeCount('AK-47s').default(0),
+  }).strict(),
+  actionId: actionIdSchema,
+}).strict();
+export type TripRentGunsInput = z.infer<typeof tripRentGunsSchema>;
 
 export const tripExtendSchema = z.object({
   blocks: z.number({ invalid_type_error: 'Say how long to stay on.' }).int('Extend by whole blocks.').min(1, 'Extend by at least one block.').max(24).safe(),

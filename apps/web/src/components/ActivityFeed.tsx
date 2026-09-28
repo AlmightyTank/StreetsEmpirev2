@@ -313,11 +313,15 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     case 'BOSS_HIT_ATTACK':
       return p.escaped
         ? { text: `${str(p.owner, 'The boss')} was gone before your squad got there.` }
+        : p.held
+          ? { text: `${str(p.owner, 'The boss')}'s bodyguards held your squad off in ${str(p.cityName, 'town')}.`, detail: `${formatNumber(num(p.wounds))} wounded` }
         : { text: `Your squad robbed ${str(p.owner, 'a visiting boss')} in ${str(p.cityName, 'town')}.`, detail: `+${formatCents(num(p.cashCents))}` };
 
     case 'BOSS_HIT_DEFENSE':
       return p.escaped
         ? { text: `You got out of ${str(p.cityName, 'town')} before ${str(p.attacker, 'their people')} moved.` }
+        : p.held
+          ? { text: `Your bodyguards held off ${str(p.attacker, 'the locals')} in ${str(p.cityName, 'town')}.`, detail: `${formatNumber(num(p.wounds))} wounded` }
         : { text: `${str(p.attacker, 'Locals')} beat you in ${str(p.cityName, 'town')}. Laid up and on the next flight home.`, detail: `-${formatCents(Math.abs(num(p.cashCents)))}` };
 
     case 'TRIP_RETURNED':

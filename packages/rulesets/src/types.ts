@@ -274,6 +274,10 @@ export type PermanentUnlockEffect =
       readonly weapon: WeaponUnlockKey;
     }
   | {
+      /** Trips D. Tommy's people in other cities rent guns to a boss's bodyguards. */
+      readonly kind: 'GUN_CONNECT';
+    }
+  | {
       readonly kind: 'PRODUCT_PURCHASE_ACCESS';
       readonly productKey: string;
     };
@@ -282,7 +286,7 @@ export interface PermanentUnlockDefinition {
   readonly key: string;
   readonly name: string;
   readonly description: string;
-  readonly category: 'WEAPON' | 'PRODUCT';
+  readonly category: 'WEAPON' | 'PRODUCT' | 'TRAVEL';
   readonly effect: PermanentUnlockEffect;
 }
 
@@ -1040,6 +1044,27 @@ export interface TripRules {
   readonly rideAlong?: RideAlongRules;
   /** Trips C. A boss away from home can be found and hit. Absent: nobody hunts a boss. */
   readonly hunted?: HuntedRules;
+  /** Trips D. The boss can fly with bodyguards and rent guns in town. Absent: the boss flies alone. */
+  readonly bodyguards?: BodyguardRules;
+}
+
+/**
+ * Trips D. Bodyguards fly with the boss: fit thugs out of home, each on their own ticket
+ * and lodged by the hour, and unarmed, because nothing goes through the airport. In town,
+ * a boss with Tommy's out-of-town connect can rent guns for them, one each, paid out of the
+ * bankroll and handed back at check-out. Bodyguards fight a hit on the boss.
+ */
+export interface BodyguardRules {
+  /** The most bodyguards on one trip. */
+  readonly max: number;
+  /** A round-trip ticket for each bodyguard, from home cash. */
+  readonly ticketCents: number;
+  /** Lodging for each bodyguard, per real hour, paid with the boss's hotel. */
+  readonly lodgingCentsPerThugHour: number;
+  /** Rent for one gun for the rest of a stay, by weapon. Never below zero; never the price of the gun. */
+  readonly gunRentCents: { readonly [K in WeaponKey]: number };
+  /** The permanent unlock that opens Tommy's out-of-town connect. */
+  readonly gunConnectUnlockKey: string;
 }
 
 /**
