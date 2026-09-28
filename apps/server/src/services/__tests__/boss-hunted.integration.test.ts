@@ -273,6 +273,14 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('hunted bosses with Postg
     const hour = rideAlongHourCents(rules.travel.trips, 'las-vegas', 0);
     expect(after.hotelHours).toBe(1);
     expect(after.hotelCents).toBe(hour);
+    // The tail looted the wallet as it stood when it landed, one hotel hour in, not the three
+    // billed by the time anyone read the run.
+    const tail = await app.prisma.convoyTail.findFirstOrThrow({ where: { runId: run.id } });
+    const loot = BigInt((tail.result as { loot: { cashCents: string } }).loot.cashCents);
+    const { min, max } = rules.travel.convoys.loot.cashPercent;
+    const shares = (wallet: bigint) => Array.from({ length: max - min + 1 }, (_, index) => wallet * BigInt(min + index) / 100n);
+    expect(loot).toBeGreaterThan(0n);
+    expect(shares(1_000_000n - hour)).toContain(loot);
   });
 
   it('defends home weaker while the boss is away', async () => {

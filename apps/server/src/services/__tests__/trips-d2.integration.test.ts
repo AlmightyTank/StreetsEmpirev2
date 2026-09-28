@@ -187,6 +187,49 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('trips D2 with PostgreSQL
     expect((await trip()).returnsAt).toEqual(checked.returnsAt);
   });
 
+  it('checks the flight home at the Heat the boss has cooled to by check-out', async () => {
+    const heat = trips.airport.noFlyHeat - 1;
+    // A trip whose home roll would pull the boss aside at the Heat they left with.
+    let pulled = false;
+    for (let attempt = 0; attempt < 20 && !pulled; attempt++) {
+      await app.prisma.bossTrip.deleteMany({ where: { roundPlayerId: players[0]! } });
+      await app.prisma.roundPlayer.update({ where: { id: players[0]! }, data: { heat: 0, cashCents: 80_000_000n, turns: 144, awayNetWorthCents: 0n } });
+      expect((await fly()).statusCode).toBe(200);
+      const out = await trip();
+      pulled = rollAirport(trips.airport, { heat, bankrollCents: out.bankrollCents, rng: seededRng(hashParts(out.id, 'airport-home')) }).pulled;
+    }
+    expect(pulled).toBe(true);
+    const out = await trip();
+    // Hot when they left and never read since, but in town long enough to cool below the line.
+    const intervals = Math.ceil((heat - trips.airport.checkFromHeat) / rules.heat.decayPerInterval) + 5;
+    const cooled = intervals * rules.turns.intervalMinutes * minute;
+    const checkedOut = new Date(Date.now() - minute);
+    const flight = out.arrivesAt.getTime() - out.departedAt.getTime();
+    const left = new Date(checkedOut.getTime() - cooled);
+    await app.prisma.roundPlayer.update({ where: { id: players[0]! }, data: { heat, lastTurnCalculationAt: left } });
+    await app.prisma.bossTrip.update({ where: { id: out.id }, data: {
+      departedAt: left, arrivesAt: new Date(left.getTime() + flight), stayUntil: checkedOut, returnsAt: new Date(checkedOut.getTime() + flight),
+    } });
+    await get(0, '/travel');
+    const checked = await trip();
+    expect(checked.airportHomeCheckedAt).toEqual(checkedOut);
+    expect(checked.bankrollCents).toBe(out.bankrollCents);
+    expect(checked.airportSeizedCents).toBe(0n);
+  });
+
+  it('does not sit down with a boss on the road to a new home', async () => {
+    expect((await fly()).statusCode).toBe(200);
+    await land();
+    await app.prisma.roundPlayer.update({ where: { id: players[1]! }, data: { movingUntil: new Date(Date.now() + 60 * minute) } });
+    try {
+      const candidates = (await get(0, '/travel')).json<TravelDto>().trips?.sitDowns?.candidates ?? [];
+      expect(candidates.map((entry) => entry.publicPimpId)).not.toContain(pimps[1]);
+      expect((await post(0, '/travel/sit-down', { targetPublicPimpId: pimps[1] })).json().error.code).toBe('CANNOT_SIT_DOWN');
+    } finally {
+      await app.prisma.roundPlayer.update({ where: { id: players[1]! }, data: { movingUntil: null } });
+    }
+  });
+
   it('lets allies who live there answer the boss\'s call and hold off the hit', async () => {
     expect((await fly()).statusCode).toBe(200);
     await land();
@@ -307,6 +350,9 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('trips D2 with PostgreSQL
       const drift = Math.min(e.travel.trips.awayHappiness.maxPoints, 5 * e.travel.trips.awayHappiness.pointsPerHour);
       expect(away.whoreHappiness).toBe(Math.max(e.happiness.min, atHome - drift));
       expect(away.thugHappiness).toBe(HappinessService.recalculate(state, e).thugHappiness);
+      // A plain read keeps it: the girls still miss the boss between actions.
+      await get(0, '/travel');
+      expect((await row(0)).whoreHappiness).toBe(away.whoreHappiness);
     } finally {
       await app.prisma.round.update({ where: { id: roundId }, data: { rulesetId: rules.meta.id, rulesetVersion: rules.meta.version } });
     }

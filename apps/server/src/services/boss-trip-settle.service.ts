@@ -2,6 +2,9 @@ import type { BossTrip, Prisma, PrismaClient } from '@prisma/client';
 import {
   bossHitLootCents,
   convoyCombatModel,
+  decayHeat,
+  regenerateTurns,
+  rulesetForCity,
   splitWounds,
   hashParts,
   huntedRules,
@@ -174,8 +177,12 @@ async function landHits(tx: Db, ownerId: string, ruleset: Ruleset, loaded: BossT
 async function checkFlightHome(tx: Db, ownerId: string, ruleset: Ruleset, trip: BossTrip, now: Date): Promise<BossTrip> {
   const airport = tripRules(ruleset)?.airport;
   if (!airport?.checkHome || trip.airportHomeCheckedAt || now.getTime() < trip.stayUntil.getTime()) return trip;
-  const owner = await tx.roundPlayer.findUniqueOrThrow({ where: { id: ownerId }, select: { heat: true } });
-  const roll = rollAirport(airport, { heat: owner.heat, bodyguards: trip.bodyguards, bankrollCents: trip.bankrollCents, rng: seededRng(hashParts(trip.id, 'airport-home')) });
+  const owner = await tx.roundPlayer.findUniqueOrThrow({ where: { id: ownerId }, select: { heat: true, turns: true, lastTurnCalculationAt: true, city: { select: { slug: true } } } });
+  // The Heat the boss carries at check-out: what is stored has only cooled to the last read.
+  const home = rulesetForCity(ruleset, owner.city.slug);
+  const cooled = regenerateTurns({ turns: owner.turns, lastTurnCalculationAt: owner.lastTurnCalculationAt }, trip.stayUntil, home).intervalsProcessed;
+  const heat = home.heat ? decayHeat(owner.heat, cooled, home.heat) : owner.heat;
+  const roll = rollAirport(airport, { heat, bodyguards: trip.bodyguards, bankrollCents: trip.bankrollCents, rng: seededRng(hashParts(trip.id, 'airport-home')) });
   const updated = await tx.bossTrip.update({
     where: { id: trip.id },
     data: {

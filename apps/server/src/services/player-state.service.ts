@@ -148,6 +148,8 @@ export const PlayerStateService = {
     const happiness = HappinessService.recalculate(
       { ...recovered, thugs: fitThugs(recovered), products },
       ruleset,
+      // Trips E: the girls notice the boss is gone on every read, not just on actions.
+      await HappinessService.awayPenalty(tx, ruleset, roundPlayerId, now),
     );
 
     // 3. Net worth.

@@ -382,16 +382,24 @@ export const RunSettleService = {
       // Road stops on the way in come first; then (Trips B) the hotel, which can send
       // the run home early; then any leg that re-timing has already driven.
       const arrived = await rollRoadStops(tx, roundPlayerId, ruleset, active, planned, now);
-      const billed = await billHotel(tx, roundPlayerId, ruleset, arrived, planned, now);
+      // The hotel bills only up to the first tail due, so the tail loots the wallet as it
+      // stood when it landed; the hours after are billed once the tails are in.
+      const firstTail = active.bossAboard
+        ? await tx.convoyTail.findFirst({ where: { runId: active.id, status: 'PENDING', landsAt: { lte: now } }, orderBy: { landsAt: 'asc' }, select: { landsAt: true } })
+        : null;
+      const billed = await billHotel(tx, roundPlayerId, ruleset, arrived, planned, firstTail?.landsAt ?? now);
       const stops = billed.stops;
       const driven = await rollRoadStops(tx, roundPlayerId, ruleset, billed.run, stops, now);
       // 0.5.0-E: then tails whose window has closed land, before this run can come home.
       const landed = await ConvoyService.landTails(tx, roundPlayerId, ruleset, driven, stops, now);
       // Trips C: a hit that beat the boss's run sends it home, so its stops may have changed.
       const after = landed.stops === driven.stops ? stops : toStopPlans(landed.stops);
-      const run = after === stops ? landed : await rollRoadStops(tx, roundPlayerId, ruleset, landed, after, now);
-      await recordStops(tx, roundPlayerId, ruleset, round.id, after, now);
-      if (runPosition(ruleset, after, now).phase === 'home') await bringHome(tx, roundPlayerId, ruleset, run, after);
+      const moved = after === stops ? landed : await rollRoadStops(tx, roundPlayerId, ruleset, landed, after, now);
+      const rest = firstTail ? await billHotel(tx, roundPlayerId, ruleset, moved, after, now) : { run: moved, stops: after };
+      // A bill that ran the wallet dry sends the run home: roll the road for that leg too.
+      const run = firstTail ? await rollRoadStops(tx, roundPlayerId, ruleset, rest.run, rest.stops, now) : rest.run;
+      await recordStops(tx, roundPlayerId, ruleset, round.id, rest.stops, now);
+      if (runPosition(ruleset, rest.stops, now).phase === 'home') await bringHome(tx, roundPlayerId, ruleset, run, rest.stops);
     }
   },
 };
