@@ -290,16 +290,20 @@ export function bossAwayDefenseMultiplier(ruleset: Ruleset, away: boolean): numb
 
 // --- Trips D2: the airport ----------------------------------------------------------
 
-/** Trips D2. The chance a boss with this Heat is pulled aside on the way out. */
-export function airportCheckChance(rules: AirportRules | undefined, heat: number): number {
+/**
+ * Trips D2. The chance a boss with this Heat, and these bodyguards, is pulled aside at the
+ * airport. Bodyguards add Heat for the check only; the no-fly line reads the boss's own.
+ */
+export function airportCheckChance(rules: AirportRules | undefined, heat: number, bodyguards = 0): number {
   if (!rules) return 0;
-  const over = Math.max(0, heat - rules.checkFromHeat);
+  const seen = heat + Math.max(0, bodyguards) * (rules.bodyguardHeat ?? 0);
+  const over = Math.max(0, seen - rules.checkFromHeat);
   return Math.min(rules.maxChance, over * rules.chancePerHeat);
 }
 
 /** Trips D2. One roll at the airport: whether the boss is pulled aside, and what it costs. */
-export function rollAirport(rules: AirportRules | undefined, input: { heat: number; bankrollCents: bigint; rng: Rng }): { pulled: boolean; seizedCents: bigint; delayMinutes: number } {
-  const chance = airportCheckChance(rules, input.heat);
+export function rollAirport(rules: AirportRules | undefined, input: { heat: number; bankrollCents: bigint; rng: Rng; bodyguards?: number }): { pulled: boolean; seizedCents: bigint; delayMinutes: number } {
+  const chance = airportCheckChance(rules, input.heat, input.bodyguards ?? 0);
   if (!rules || chance <= 0 || input.rng() >= chance) return { pulled: false, seizedCents: 0n, delayMinutes: 0 };
   const bankroll = input.bankrollCents > 0n ? input.bankrollCents : 0n;
   return { pulled: true, seizedCents: (bankroll * BigInt(rules.seizePercent)) / 100n, delayMinutes: rules.delayMinutes };

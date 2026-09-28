@@ -199,7 +199,12 @@ export const BossTripService = {
       fitThugs: fitThugs(player),
       ...(await BossPresenceService.panel(db, ruleset, player, now)),
       airport: rules.airport
-        ? { heat: player.heat, checkChance: airportCheckChance(rules.airport, player.heat), seizePercent: rules.airport.seizePercent, delayMinutes: rules.airport.delayMinutes, noFlyHeat: rules.airport.noFlyHeat }
+        ? {
+            heat: player.heat, checkChance: airportCheckChance(rules.airport, player.heat), seizePercent: rules.airport.seizePercent,
+            delayMinutes: rules.airport.delayMinutes, noFlyHeat: rules.airport.noFlyHeat, bodyguardHeat: rules.airport.bodyguardHeat ?? 0,
+            checkChancePerBodyguard: airportCheckChance(rules.airport, player.heat, 1) - airportCheckChance(rules.airport, player.heat),
+            checkHome: Boolean(rules.airport.checkHome),
+          }
         : null,
       bossRun: riding ? { runId: riding.id, cityName: cityName(ruleset, ridingTo!) } : null,
       laidUpUntil: player.laidUpUntil && player.laidUpUntil > now ? player.laidUpUntil.toISOString() : null,
@@ -248,7 +253,7 @@ export const BossTripService = {
 
         const rules = requireTrips(base);
         // Trips D2: a hot boss can be pulled aside on the way out. Rolled once, from the action.
-        const airport = rollAirport(rules.airport, { heat: current.heat, bankrollCents, rng: seededRng(hashParts(input.actionId, 'airport')) });
+        const airport = rollAirport(rules.airport, { heat: current.heat, bodyguards: input.bodyguards, bankrollCents, rng: seededRng(hashParts(input.actionId, 'airport')) });
         const delay = airport.delayMinutes * 60_000;
         const later = (at: Date) => new Date(at.getTime() + delay);
         const times = { departedAt: check.times.departedAt, arrivesAt: later(check.times.arrivesAt), stayUntil: later(check.times.stayUntil), returnsAt: later(check.times.returnsAt) };

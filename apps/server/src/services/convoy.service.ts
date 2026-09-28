@@ -60,7 +60,7 @@ import { hideoutWeaponPriority } from './hideout.service.js';
 import { CRACK, ProductInventoryService } from './product-inventory.service.js';
 import { RUN_INCLUDE, cargoOf, refundHotelAfter, takeFromRun, toStopPlans, totalAwayWorth, writeRunStops, type LoadedRun } from './run-settle.service.js';
 import { BossHitService, scanBosses, type BossReconTarget } from './boss-hit.service.js';
-import { truceBlock } from './boss-presence.service.js';
+import { truceBlock, trucesFor } from './boss-presence.service.js';
 import { WorkSupplyService } from './work-supply.service.js';
 
 type Weapons = Record<WeaponKey, number>;
@@ -786,6 +786,7 @@ export const ConvoyService = {
       select: { id: true, status: true, lastHitAt: true, roundPlayer: true, tails: { where: { status: 'PENDING' }, select: { id: true } } },
     }) : [];
     const linked = new Map<string, boolean>();
+    const truces = await trucesFor(prisma, playerId, now);
     const targets: ConvoyTargetDto[] = [];
     for (const target of seen) {
       const run = live.find((entry) => entry.id === target.runId);
@@ -810,6 +811,7 @@ export const ConvoyService = {
         inReachNow,
         tailed: run.tails.length > 0,
         blockedReason: allianceTargetBlock(player, owner, now)
+          ?? truces.get(owner.id)
           ?? (linked.get(owner.accountId) ? 'You have played from the same network as this crew.' : null)
           ?? (run.tails.length ? 'Someone is already on it.' : null)
           ?? (run.lastHitAt && run.lastHitAt.getTime() + rules.rehitMinutes * 60_000 > now.getTime() ? 'It was hit a moment ago.' : null)

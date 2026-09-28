@@ -1072,6 +1072,10 @@ export interface AirportRules {
   readonly delayMinutes: number;
   /** At this Heat or above, no flight. */
   readonly noFlyHeat: number;
+  /** Heat each bodyguard adds for the check only: a crew draws eyes. Missing is 0. */
+  readonly bodyguardHeat?: number;
+  /** Security checks the flight home too, as the boss leaves town. Missing is off. */
+  readonly checkHome?: boolean;
 }
 
 /**

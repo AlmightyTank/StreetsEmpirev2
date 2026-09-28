@@ -186,9 +186,13 @@ export function TripPanel({ data, selected, onDone }: { data: TravelDto; selecte
     ? `${trips.blockedReason}${trips.blockedUntil ? ` You can fly from ${when(trips.blockedUntil)}.` : ''}`
     : null;
   // Trips D2: what the airport means at the boss's Heat right now.
-  const airportNote = trips.airport && trips.airport.checkChance > 0
-    ? `With ${trips.airport.heat} Heat, security pulls you aside ${Math.round(trips.airport.checkChance * 100)}% of the time: ${trips.airport.seizePercent}% of the bankroll and ${trips.airport.delayMinutes} minutes.`
-    : null;
+  const airport = trips.airport;
+  const airportChance = airport ? Math.min(0.5, airport.checkChance + airport.checkChancePerBodyguard * guardCount) : 0;
+  const airportNote = airport && airportChance > 0
+    ? `With ${airport.heat} Heat${guardCount > 0 ? ` and ${guardCount} bodyguard${guardCount === 1 ? '' : 's'}` : ''}, security pulls you aside about ${Math.round(airportChance * 100)}% of the time${airport.checkHome ? ', each way' : ''}: ${airport.seizePercent}% of the bankroll and ${airport.delayMinutes} minutes.`
+    : airport && airport.bodyguardHeat > 0 && bg
+      ? `Each bodyguard counts as ${airport.bodyguardHeat} more Heat at airport security${airport.checkHome ? ', going and coming back' : ''}.`
+      : null;
   const laidUpNote = trips.laidUpUntil
     ? `The boss is laid up until ${when(trips.laidUpUntil)}. Home defends a little weaker and the lieutenant keeps skimming until then.`
     : null;

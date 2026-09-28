@@ -379,7 +379,7 @@ truce between two bosses).
 Ruleset `classic-og-trips-d2` (Trips D plus `airport`, `outpostVisits`, `sitDowns` and
 `allyBackup` under `travel.trips`).
 
-- **Airport Heat checks.** From 40 Heat, security can pull a boss aside on the way out: one
+- **Airport Heat checks.** From 40 Heat, security can pull a boss aside: one
   point of chance per Heat past 40, at most 50%. Pulled aside, 30% of the carried bankroll
   is taken and the whole trip runs 30 minutes late. At 90 Heat or more, no flight at all
   (`NO_FLY`: cool off, or ride along with a run instead). The roll is seeded from the
@@ -400,11 +400,16 @@ Ruleset `classic-og-trips-d2` (Trips D plus `airport`, `outpostVisits`, `sitDown
 - **Hotel billing fix (every trips ruleset).** When a convoy hit sends a ride-along run home,
   any hotel hours billed after the hit go back into the run's cash.
 
+- **The flight home is checked too**, once, as the boss leaves town (seeded from the trip, at
+  the Heat the boss carries then), with the same costs: part of the bankroll and a late landing.
+- **Bodyguards draw eyes.** Each one counts as 2 more Heat at security, going and coming back.
+  They never ground the boss by themselves: the no-fly line reads the boss's own Heat.
+- **Truces show in target lists.** A crew you sat down with is listed as blocked, with the
+  truce as the reason, on the combat page (raids, drive-bys, special raids), the convoy list
+  and the visiting-boss list, as well as being refused.
+
 Not built yet:
 - **Happiness drift while away** (option B), for Stage E with the balance pass.
-- **Airport checks on the flight home**, and airport checks for bodyguards.
-- **Truce in target lists.** The combat and convoy pages still list a truced crew; the
-  action is refused with `TRUCE`.
 
 ## Open questions
 

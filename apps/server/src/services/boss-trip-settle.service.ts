@@ -7,6 +7,7 @@ import {
   huntedRules,
   lieutenantCutCents,
   loadRulesetForRound,
+  rollAirport,
   seededRng,
   simulateRaid,
   tripPosition,
@@ -166,6 +167,35 @@ async function landHits(tx: Db, ownerId: string, ruleset: Ruleset, loaded: BossT
 }
 
 /**
+ * Trips D2. Once the boss has left town, airport security rolls on the flight home, from the
+ * trip and the Heat the boss carries: part of the bankroll can go, and the flight lands late.
+ * Recorded at check-out time and never rolled twice.
+ */
+async function checkFlightHome(tx: Db, ownerId: string, ruleset: Ruleset, trip: BossTrip, now: Date): Promise<BossTrip> {
+  const airport = tripRules(ruleset)?.airport;
+  if (!airport?.checkHome || trip.airportHomeCheckedAt || now.getTime() < trip.stayUntil.getTime()) return trip;
+  const owner = await tx.roundPlayer.findUniqueOrThrow({ where: { id: ownerId }, select: { heat: true } });
+  const roll = rollAirport(airport, { heat: owner.heat, bodyguards: trip.bodyguards, bankrollCents: trip.bankrollCents, rng: seededRng(hashParts(trip.id, 'airport-home')) });
+  const updated = await tx.bossTrip.update({
+    where: { id: trip.id },
+    data: {
+      airportHomeCheckedAt: trip.stayUntil,
+      ...(roll.pulled ? {
+        bankrollCents: trip.bankrollCents - roll.seizedCents,
+        airportSeizedCents: trip.airportSeizedCents + roll.seizedCents,
+        airportDelayMinutes: trip.airportDelayMinutes + roll.delayMinutes,
+        returnsAt: new Date(trip.returnsAt.getTime() + roll.delayMinutes * 60_000),
+      } : {}),
+    },
+  });
+  if (roll.seizedCents > 0n) {
+    await EconomyLedgerService.record(tx, ownerId, [{ source: 'TRIP_AIRPORT', label: `Taken at airport security · ${cityName(ruleset, trip.city)}`, amountCents: -roll.seizedCents }], trip.stayUntil);
+    await tx.roundPlayer.update({ where: { id: ownerId }, data: { awayNetWorthCents: await totalAwayWorth(tx, ownerId, ruleset) } });
+  }
+  return updated;
+}
+
+/**
  * Trips A. Settle a player's trip. Called under the player's lock, before anything reads
  * the player, like a run's settle: hits whose window has closed land first (Trips C), then
  * a trip whose flight home has landed is home, and its bankroll is back in home cash. Net
@@ -181,7 +211,9 @@ export const BossTripSettleService = {
       select: { round: { select: { rulesetId: true, rulesetVersion: true } } },
     });
     const ruleset = loadRulesetForRound(round);
-    const trip = await landHits(tx, roundPlayerId, ruleset, active, now);
+    let trip = await landHits(tx, roundPlayerId, ruleset, active, now);
+    // Trips D2: security looks at the flight home once, as the boss leaves town.
+    trip = await checkFlightHome(tx, roundPlayerId, ruleset, trip, now);
     if (trip.returnsAt.getTime() > now.getTime()) return;
     await tx.bossTrip.update({ where: { id: trip.id }, data: { status: 'RETURNED', returnedAt: trip.returnsAt } });
     const awayNetWorthCents = await totalAwayWorth(tx, roundPlayerId, ruleset);

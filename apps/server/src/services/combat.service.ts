@@ -35,7 +35,7 @@ import { assertPlayerState } from './invariant.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { PlayerStateService, type SettledPlayer } from './player-state.service.js';
 import { bossAway } from './boss-trip-settle.service.js';
-import { truceBlock } from './boss-presence.service.js';
+import { truceBlock, trucesFor } from './boss-presence.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 import { RankingService } from './ranking.service.js';
@@ -668,6 +668,8 @@ export const CombatService = {
       orderBy: { publicPimpId: 'asc' }, take: 26,
     });
     const targetIds = targets.slice(0, 25).map((target) => target.id);
+    // Trips D2: a truce from a sit-down blocks every way of hitting that crew.
+    const truces = await trucesFor(prisma, player.id, now);
     const [revengeIds, intelRows] = await Promise.all([
       retaliationTargets(prisma, player, targetIds, model, now),
       model.strategy ? prisma.combatIntel.findMany({
@@ -719,7 +721,7 @@ export const CombatService = {
         // Stored, because 0.4.0-D worth includes product rows this list does not load.
         netWorthCents: Number(target.netWorthCents),
         strength: strength(target, model) < ownStrength * (1 - model.strength.variance) ? 'Weaker' : strength(target, model) > ownStrength * (1 + model.strength.variance) ? 'Stronger' : 'Comparable',
-        blockedReason: combatTargetBlock(
+        blockedReason: truces.get(target.id) ?? combatTargetBlock(
           player,
           target,
           modelWithDefenderHideout(model, ruleset, target),
@@ -730,8 +732,8 @@ export const CombatService = {
         ),
         protectedUntil: combatProtectionUntil(target, model) > now ? iso(combatProtectionUntil(target, model)) : null,
         ...(model.strategy ? { revengeAvailable: revengeIds.has(target.id), intel: intelByTarget.get(target.id) ?? null } : {}),
-        ...(model.driveBy ? { driveByBlockedReason: driveByTargetBlock(player, target, model, now, revengeIds.has(target.id)) } : {}),
-        ...(model.specialRaids ? { specialRaidBlockedReasons: Object.fromEntries((Object.keys(model.specialRaids) as SpecialRaidKind[]).map((kind) => [kind, specialRaidTargetBlock(player, target, model, kind, now, revengeIds.has(target.id))])) } : {}),
+        ...(model.driveBy ? { driveByBlockedReason: truces.get(target.id) ?? driveByTargetBlock(player, target, model, now, revengeIds.has(target.id)) } : {}),
+        ...(model.specialRaids ? { specialRaidBlockedReasons: Object.fromEntries((Object.keys(model.specialRaids) as SpecialRaidKind[]).map((kind) => [kind, truces.get(target.id) ?? specialRaidTargetBlock(player, target, model, kind, now, revengeIds.has(target.id))])) } : {}),
       })),
       nextTarget: targets.length > 25 ? targets[24]!.publicPimpId : null,
       ...(model.specialRaids ? { specialRaids: specialRaidDtos(player, model, now) } : {}),

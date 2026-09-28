@@ -729,7 +729,19 @@ export interface TripPanelDto {
     truces: Array<{ with: { publicPimpId: number; displayName: string }; until: string }>;
   } | null;
   /** Trips D2. What the airport means at the boss's Heat right now. Null before D2. */
-  airport: { heat: number; checkChance: number; seizePercent: number; delayMinutes: number; noFlyHeat: number } | null;
+  airport: {
+    heat: number;
+    /** With no bodyguards. */
+    checkChance: number;
+    seizePercent: number;
+    delayMinutes: number;
+    noFlyHeat: number;
+    /** Heat each bodyguard adds for the check, and roughly what one more does to the chance now. */
+    bodyguardHeat: number;
+    checkChancePerBodyguard: number;
+    /** The flight home is checked too. */
+    checkHome: boolean;
+  } | null;
   /** Trips B. The run the boss is riding with, if any. */
   bossRun: { runId: string; cityName: string } | null;
   /** Trips C. A beaten boss heals until then. */

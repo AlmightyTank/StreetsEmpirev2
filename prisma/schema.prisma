@@ -1290,6 +1290,8 @@ model BossTrip {
   /// Trips D2. What airport security took from the bankroll, and the minutes it cost.
   airportSeizedCents BigInt           @default(0)
   airportDelayMinutes Int             @default(0)
+  /// Trips D2. When security checked the flight home (the boss leaving town), once.
+  airportHomeCheckedAt DateTime?
   hits               BossHit[]
 
   @@index([roundPlayerId, status])

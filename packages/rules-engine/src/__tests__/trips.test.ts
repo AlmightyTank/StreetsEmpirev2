@@ -231,6 +231,11 @@ describe('Trips A: the boss travels', () => {
     expect(checkTrip(d2, { ...free, heat: airport.noFlyHeat }).code).toBe('NO_FLY');
     expect(checkTrip(d2, { ...free, heat: airport.noFlyHeat - 1 }).code).toBeNull();
     expect(checkTrip(classicOgTripsD, { ...free, heat: 100 }).code).toBeNull();
+    // Bodyguards draw eyes at the check, but never ground the boss by themselves.
+    const guardHeat = airport.bodyguardHeat;
+    expect(airportCheckChance(airport, airport.checkFromHeat, 5)).toBeCloseTo(5 * guardHeat * airport.chancePerHeat);
+    expect(rollAirport(airport, { heat: airport.checkFromHeat, bodyguards: 5, bankrollCents: 100n, rng: () => 0 }).pulled).toBe(true);
+    expect(checkTrip(d2, { ...free, heat: airport.noFlyHeat - 1, bodyguards: 12, fitThugs: 12 }).code).toBeNull();
   });
 
   it('keeps the operation home while the boss is away', () => {

@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { FastifyInstance } from 'fastify';
 import { classicOgTripsD2 } from '@streets/rulesets';
 import { hashParts, rollAirport, seededRng, startingStock } from '@streets/rules-engine';
-import type { ConvoysDto, GameActionResult, TravelDto, TripLaunchResult, TripOutpostVisitResult } from '@streets/shared';
+import type { CombatPageDto, ConvoysDto, GameActionResult, TravelDto, TripLaunchResult, TripOutpostVisitResult } from '@streets/shared';
 import { NetWorthService } from '../net-worth.service.js';
 import { ReputationService } from '../reputation.service.js';
 import { RoundService } from '../round.service.js';
@@ -137,6 +137,54 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('trips D2 with PostgreSQL
     expect((await get(0, '/travel')).json<TravelDto>().trips?.trip).toMatchObject({ airportSeizedCents: result.airport!.seizedCents, airportDelayMinutes: trips.airport.delayMinutes });
   });
 
+  it('counts bodyguards at security: a crew gets a boss pulled aside when the boss alone would not be', async () => {
+    const heat = trips.airport.checkFromHeat;
+    await app.prisma.roundPlayer.update({ where: { id: players[0]! }, data: { heat } });
+    // Alone at this Heat the chance is nothing; five bodyguards make it real.
+    let actionId = '';
+    while (!actionId) {
+      const candidate = randomUUID();
+      const rng = () => seededRng(hashParts(candidate, 'airport'));
+      if (rollAirport(trips.airport, { heat, bodyguards: 5, bankrollCents: 5_000_000n, rng: rng() }).pulled) actionId = candidate;
+    }
+    expect(rollAirport(trips.airport, { heat, bankrollCents: 5_000_000n, rng: seededRng(hashParts(actionId, 'airport')) }).pulled).toBe(false);
+    const sent = await fly({ actionId, bodyguards: 5 });
+    expect(sent.statusCode, sent.body).toBe(200);
+    expect(sent.json<GameActionResult<TripLaunchResult>>().result.airport).toBeDefined();
+  });
+
+  it('checks the flight home once, as the boss leaves town', async () => {
+    const heat = trips.airport.noFlyHeat - 1;
+    // Keep flying until security pulls the boss aside on the way home, the way the server rolls it.
+    let expected = { pulled: false, seizedCents: 0n, delayMinutes: 0 };
+    for (let attempt = 0; attempt < 20 && !expected.pulled; attempt++) {
+      await app.prisma.bossTrip.deleteMany({ where: { roundPlayerId: players[0]! } });
+      await app.prisma.roundPlayer.update({ where: { id: players[0]! }, data: { heat: 0, cashCents: 80_000_000n, turns: 144, awayNetWorthCents: 0n } });
+      expect((await fly()).statusCode).toBe(200);
+      await app.prisma.roundPlayer.update({ where: { id: players[0]! }, data: { heat } });
+      const out = await trip();
+      expected = rollAirport(trips.airport, { heat, bankrollCents: out.bankrollCents, rng: seededRng(hashParts(out.id, 'airport-home')) });
+    }
+    expect(expected.pulled).toBe(true);
+    const out = await trip();
+    // Checked out a minute ago; the flight home would have landed long since.
+    const checkedOut = new Date(Date.now() - minute);
+    const flight = out.arrivesAt.getTime() - out.departedAt.getTime();
+    await app.prisma.bossTrip.update({ where: { id: out.id }, data: {
+      departedAt: new Date(checkedOut.getTime() - 60 * minute - flight), arrivesAt: new Date(checkedOut.getTime() - 60 * minute),
+      stayUntil: checkedOut, returnsAt: new Date(checkedOut.getTime() + trips.flightMinutes * minute),
+    } });
+    await get(0, '/travel');
+    const checked = await trip();
+    expect(checked.airportHomeCheckedAt).toEqual(checkedOut);
+    expect(checked.bankrollCents).toBe(out.bankrollCents - expected.seizedCents);
+    expect(checked.returnsAt.getTime()).toBe(checkedOut.getTime() + (trips.flightMinutes + trips.airport.delayMinutes) * minute);
+    // Reading again does not roll again.
+    await get(0, '/travel');
+    expect((await trip()).bankrollCents).toBe(checked.bankrollCents);
+    expect((await trip()).returnsAt).toEqual(checked.returnsAt);
+  });
+
   it('lets allies who live there answer the boss\'s call and hold off the hit', async () => {
     expect((await fly()).statusCode).toBe(200);
     await land();
@@ -232,6 +280,21 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('trips D2 with PostgreSQL
     expect(agreed.json().status).toBe('AGREED');
 
     const tripId = await spot();
+    // The visiting boss shows as blocked in the hunter's list, and the hit is refused.
+    const listed = (await get(1, '/convoys')).json<ConvoysDto>().bosses.find((target) => target.tripId === tripId)!;
+    expect(listed.blockedReason).toMatch(/sat down/);
     expect((await post(1, '/convoys/boss-hit', { tripId, squad: 3, actionId: randomUUID() })).json().error.code).toBe('TRUCE');
+  });
+
+  it('shows a truced crew as blocked on the combat page', async () => {
+    const now = new Date();
+    await app.prisma.sitDown.create({ data: {
+      roundId, city: 'las-vegas', proposerId: players[1]!, inviteeId: players[2]!, status: 'AGREED',
+      proposedAt: now, expiresAt: now, answeredAt: now, truceUntil: new Date(now.getTime() + 60 * minute),
+    } });
+    const page = (await get(1, '/combat')).json<CombatPageDto>();
+    const ally = page.targets.find((target) => target.publicPimpId === pimps[2]);
+    expect(ally?.blockedReason).toMatch(/sat down/);
+    expect((await post(1, '/combat/raid', { roundId, targetPublicPimpId: pimps[2], attackingThugs: 5, actionId: randomUUID() })).json().error.code).toBe('TRUCE');
   });
 });

@@ -18,7 +18,7 @@ import { accountsShareNetwork } from './admin-signals.service.js';
 import { allianceTargetBlock } from './alliance.service.js';
 import type { BossHitCrew, BossHitOutcome } from './boss-trip-settle.service.js';
 import { hideoutWeaponPriority } from './hideout.service.js';
-import { truceBlock } from './boss-presence.service.js';
+import { truceBlock, trucesFor } from './boss-presence.service.js';
 import { PlayerStateService } from './player-state.service.js';
 
 const RECENT_MS = 24 * 60 * 60_000;
@@ -238,6 +238,7 @@ export const BossHitService = {
       include: { roundPlayer: true, hits: { where: { status: 'PENDING' }, select: { id: true } } },
     });
     const block = squadBlock(ruleset, player, player.turns, now);
+    const truces = await trucesFor(prisma, player.id, now);
     const out: BossTargetDto[] = [];
     for (const target of seen) {
       const trip = live.find((entry) => entry.id === target.tripId);
@@ -253,6 +254,7 @@ export const BossHitService = {
         inTownNow,
         maxSquad: fit,
         blockedReason: allianceTargetBlock(player, trip.roundPlayer, now)
+          ?? truces.get(trip.roundPlayerId)
           ?? (linked ? 'You have played from the same network as this crew.' : null)
           ?? (trip.hits.length ? 'Someone is already on them.' : null)
           ?? (trip.lastHitAt && trip.lastHitAt.getTime() + rules.rehitMinutes * 60_000 > now.getTime() ? 'They were hit a moment ago.' : null)

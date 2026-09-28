@@ -54,6 +54,20 @@ export async function truceBlock(db: Db | PrismaClient, a: string, b: string, no
   return `You sat down with them. The truce holds until ${truce.truceUntil.toISOString().slice(11, 16)} UTC.`;
 }
 
+/** Trips D2. Every crew this player has a truce with right now, and the reason to show against them. */
+export async function trucesFor(db: Db | PrismaClient, playerId: string, now: Date): Promise<Map<string, string>> {
+  const rows = await db.sitDown.findMany({
+    where: { status: 'AGREED', truceUntil: { gt: now }, OR: [{ proposerId: playerId }, { inviteeId: playerId }] },
+    select: { proposerId: true, inviteeId: true, truceUntil: true },
+  });
+  const map = new Map<string, string>();
+  for (const row of rows) {
+    const other = row.proposerId === playerId ? row.inviteeId : row.proposerId;
+    map.set(other, `You sat down with them. The truce holds until ${row.truceUntil!.toISOString().slice(11, 16)} UTC.`);
+  }
+  return map;
+}
+
 /**
  * Trips D2. The boss in person: walking an outpost, and sitting down with other bosses.
  * Both need the boss to be somewhere in person, so both read `bossPresence`.
