@@ -31,6 +31,7 @@ export type ActivityType =
   | 'AWAY_BONUS'
   | 'BATTLE_VOIDED'
   | 'ADMIN_GRANT'
+  | 'GAME_ANNOUNCEMENT'
   | 'HEAT_BRIBE'
   | 'HIDEOUT_UPGRADE'
   | 'QUEST_OBJECTIVE_COMPLETE'
@@ -65,7 +66,13 @@ export type ActivityType =
   | 'TURF_PUSH_ATTACK'
   | 'TURF_PUSH_DEFENSE'
   | 'TURF_OUTPOST_ESTABLISH'
-  | 'TURF_OUTPOST_TRANSFER';
+  | 'TURF_OUTPOST_TRANSFER'
+  // 0.9.0-G clock events written by the alert collector.
+  | 'CONVOY_TAILED'
+  | 'TURF_PUSH_INCOMING'
+  | 'ALLIANCE_CALL'
+  | 'REVENGE_EXPIRING'
+  | 'SPECIAL_ORDER_READY';
 
 export interface ApiErrorBody {
   error: {
@@ -88,6 +95,17 @@ export interface AccountDto {
   isAdmin: boolean;
   createdAt: string;
   lastLoginAt: string | null;
+  /** True until this account may play: verify the email, or sign in with Discord. */
+  verificationRequired: boolean;
+  /** True until the player accepts the current game rules (RULES_VERSION). */
+  rulesAcceptanceRequired: boolean;
+  /**
+   * rc.2. An admin signed in with a password while admin tools require a Discord
+   * sign-in: the admin pages are closed until they sign in with Discord.
+   */
+  adminSignInRequired: boolean;
+  /** rc.3. Sign-in asks for an authenticator code. */
+  twoFactorEnabled: boolean;
 }
 
 export interface AccountSessionDto {
@@ -98,6 +116,14 @@ export interface AccountSessionDto {
   expiresAt: string;
   userAgent: string | null;
   ip: string | null;
+  /** rc.2. PASSWORD or DISCORD. */
+  method: string;
+  /** rc.3. The sign-in passed an authenticator code. */
+  twoFactor: boolean;
+  /** rc.4. "Keep me signed in": renews while used. False: ends with the browser or after a short idle time. */
+  remember: boolean;
+  /** rc.4. The latest this session can last, however active: the password is asked again then. */
+  endsBy: string;
 }
 
 export interface AccountSessionsResponseDto {
@@ -134,6 +160,8 @@ export interface BadgeCosmeticOptionDto extends CosmeticOptionDto {
 
 export interface AccountProfileSettingsDto {
   activeTitleKey: string | null;
+  /** 0.9.0-F. Optional public crew name. */
+  crewName: string | null;
   activeProfileFrameKey: string | null;
   activeSiteThemeKey: string | null;
   featuredBadgeKeys: string[];
@@ -186,6 +214,8 @@ export interface RoundDto {
   /** Milliseconds remaining, or 0 once the round is over. */
   msRemaining: number;
   playerCount: number;
+  /** 1.0.0-E. Set while admins have paused the season: player actions wait until it lifts. */
+  paused: { since: string; reason: string | null } | null;
 }
 
 export interface TurnsDto {
@@ -761,6 +791,17 @@ export interface QuestBranchChoiceDto {
   reputationDeltas: QuestBranchReputationDto[];
 }
 
+export interface QuestStoryDto {
+  chapter: string;
+  speaker: string;
+  intro: string;
+  inProgress: string;
+  ready: string;
+  completed: string;
+  lesson: string;
+  actionHint: string;
+}
+
 export interface QuestContactDto {
   key: string;
   name: string;
@@ -786,6 +827,7 @@ export interface PlayerQuestDto {
   isTracked: boolean;
   chosenBranch: string | null;
   branchChoices: QuestBranchChoiceDto[];
+  story?: QuestStoryDto;
   objectives: QuestObjectiveDto[];
   rewards: QuestRewardDto[];
   seasonalEvent?: {

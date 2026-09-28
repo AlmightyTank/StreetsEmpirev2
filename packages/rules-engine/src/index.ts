@@ -37,3 +37,5 @@ export * from './simulations/travel-round.js';
 export * from './simulations/trips-round.js';
 export * from './simulations/turf.js';
 export * from './simulations/turf-round.js';
+export * from './simulations/season.js';
+export * from './simulations/season-bands.js';

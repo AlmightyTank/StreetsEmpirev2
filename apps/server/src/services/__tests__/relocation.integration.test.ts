@@ -185,11 +185,12 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('relocation with PostgreS
       data: { hideoutGarageLevel: 1 },
     });
 
+    // The Travel page settles the player first, so the fee is on the net worth it settled to.
+    const page = (await get(0, '/travel')).json<TravelDto>();
     const before = await row(0);
     const baseFee = relocationFeeCents(before.netWorthCents, move);
     const discountedFee = relocationFeeCents(before.netWorthCents, move, 5);
 
-    const page = (await get(0, '/travel')).json<TravelDto>();
     expect(page.relocation).toMatchObject({
       baseFeeCents: Number(baseFee),
       feeCents: Number(discountedFee),

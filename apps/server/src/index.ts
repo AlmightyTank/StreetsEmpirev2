@@ -2,17 +2,28 @@ import { purgeExpiredSessions } from './auth/sessions.js';
 import { buildApp } from './app.js';
 import { env } from './config/env.js';
 import { IdempotencyService } from './services/idempotency.service.js';
+import { GameAlertService } from './services/game-alerts.service.js';
 import { NotificationService } from './services/notification.service.js';
 import { ConvoyService } from './services/convoy.service.js';
 import { BossHitService } from './services/boss-hit.service.js';
 import { PushService } from './services/push.service.js';
 import { wakeDiscordBot } from './services/discord-bot-push.service.js';
 import { TurfWarSettlementService } from './services/turf-war-settle.service.js';
+import { PlatformService, buildCommit } from './services/platform.service.js';
+import { APP_VERSION } from '@streets/shared';
 import { startPoller } from './utils/poller.js';
+import { metrics } from './services/metrics.service.js';
 
 const app = await buildApp();
 
 try {
+  // 1.0.0-A: never serve players from another environment's database.
+  const binding = await PlatformService.bindDatabase(app.prisma);
+  app.log.info(
+    `StreetsEmpire ${APP_VERSION}${buildCommit() ? ` (${buildCommit()})` : ''} running as ${env.appEnvironment}; `
+    + `database ${binding.claimed ? 'claimed for' : 'belongs to'} ${binding.environment}`,
+  );
+
   const [purgedSessions, purgedActions] = await Promise.all([
     purgeExpiredSessions(app.prisma),
     IdempotencyService.purgeExpired(app.prisma),
@@ -32,23 +43,25 @@ const stopTurfWars = startPoller('Turf wars', 60_000, async () => {
 }, (message, error) => app.log.error(error, message));
 
 // Alerts: collect what is due, then send push. The Discord bot also collects before it claims.
+// 0.9.0-G: always on, because clock events (spotted pushes, tails, revenge, special orders)
+// reach the in-game bell even on a server with no Discord bot or push keys.
 let pruneAt = 0;
-const stopAlerts = env.discordBot.enabled || env.push.enabled
-  ? startPoller('Alerts', 60_000, async () => {
+const stopAlerts = startPoller('Alerts', 60_000, async () => {
     const now = new Date();
     // 0.5.0-E: land tails whose window has closed, so a landing is pushed even if nobody is on.
     await ConvoyService.sweep(app.prisma, now);
     // Trips C: and hits on visiting bosses.
     await BossHitService.sweep(app.prisma, now);
+    // 0.9.0-G: bring runs home on time, so "made it home" goes out while their owner is away.
+    await GameAlertService.sweepRuns(app.prisma, now);
     const collected = await NotificationService.collect(app.prisma, now);
     if (collected > 0) wakeDiscordBot('alerts');
-    if (env.push.enabled) await PushService.deliverPending(app.prisma);
+    if (env.push.enabled) metrics.recordNotifications(await PushService.deliverPending(app.prisma));
     if (now.getTime() >= pruneAt) {
       await NotificationService.prune(app.prisma, now);
       pruneAt = now.getTime() + 60 * 60_000;
     }
-  }, (message, error) => app.log.error(error, message))
-  : () => {};
+  }, (message, error) => app.log.error(error, message));
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, async () => {

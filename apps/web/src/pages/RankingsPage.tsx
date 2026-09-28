@@ -11,17 +11,11 @@ import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { AllianceRankingTable } from './AlliancesPage.js';
+import { formatElapsed, formatWhen } from '../utils/time.js';
 
 type RankingView = 'national' | 'local' | 'alliances' | 'turf-crews' | 'turf-alliances';
 
-function heldFor(iso: string): string {
-  const minutes = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000));
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 48) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
-}
+const heldFor = (iso: string) => formatElapsed(iso);
 
 function movementText(value: number | null): string {
   if (value === null || value === 0) return 'even';
@@ -94,7 +88,7 @@ function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: b
               </td>
               {showCity ? <td data-label="City">{row.city.name}</td> : null}
               <td className="se-table__number se-num" data-label="Net worth">{formatCents(row.netWorthCents)}</td>
-              <td className="se-num" data-label="Held" title={`Held since ${new Date(row.rankHeldSinceAt).toLocaleString()}`}>{heldFor(row.rankHeldSinceAt)}</td>
+              <td className="se-num" data-label="Held" title={`Held since ${formatWhen(row.rankHeldSinceAt)}`}>{heldFor(row.rankHeldSinceAt)}</td>
               <td className={`se-num se-rankings-move se-rankings-move--${movementTone(row.rankMovement)}`} data-label="Move">
                 {movementText(row.rankMovement)}
               </td>

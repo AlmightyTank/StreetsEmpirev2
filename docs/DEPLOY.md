@@ -89,6 +89,45 @@ key pair on the server and nothing else: no app store, no third-party account.
 The API sends alerts itself about once a minute. The Discord bot is not needed
 for push.
 
+Since 0.9.0-G that once-a-minute alerts pass runs on every server, with or
+without push keys or a bot. It brings runs home on time and writes the clock
+events (spotted pushes and tails, backup calls, revenge reminders, special
+orders) into each player's in-game bell. With no keys it only fills the bell.
+
+### 1.0.0-A: environment identity
+
+Each server knows whether it is production or beta, and shows it.
+
+- **`/api/meta`** (public, uncached) reports the environment, the app version
+  and commit, the ruleset and the current season. `/api/health`, `/api/ready`
+  and the public site's status page include the same identity. Beta and
+  development pages show a ribbon and a `[BETA]`/`[DEV]` tab title; production
+  shows only the version, plus a full build line in the footer.
+- **`APP_ENV`** is optional. Without it, a `NODE_ENV=production` server is beta
+  only when it is invite-only *and* uses its own session cookie (the documented
+  beta setup). Anything else is production, so existing servers need no change.
+- **Refusing to start.** A production server refuses a beta session cookie name,
+  and a beta server refuses the production cookie or open registration.
+- **The database claim.** The first production or beta boot records its
+  environment in the `DeploymentIdentity` table. After that, a server of the
+  other environment refuses to start against that database. Development servers
+  never claim, and also refuse a claimed database unless
+  `ALLOW_DATABASE_ENVIRONMENT=<that environment>` is set, for deliberate work on
+  a restored copy.
+- **Deploy checks.** `deploy.sh` and `deploy-beta.sh` run
+  `scripts/ops/check-environment.mjs`. It checks that the `.env` matches the
+  script before building, and after the restart that the API reports the right
+  environment and this checkout's commit, locally and through the public hostname.
+  This also catches a proxy that points `play.` at the beta API.
+
+If a database was claimed by the wrong environment (say someone booted beta
+against the production database), stop that server, fix its `DATABASE_URL`, and
+correct the claim by hand:
+
+```sql
+UPDATE "DeploymentIdentity" SET "environment" = 'production' WHERE "id" = 'singleton';
+```
+
 ## Every update
 
 After pushing to `main`:
@@ -102,9 +141,15 @@ It stops at the first failure and prints why. In order, it:
 1. Refuses to run if tracked files have local changes.
 2. Fast-forwards to `origin/main`.
 3. Runs `npm ci`, `prisma generate` and `npm run build`. That builds the API, web app and bot.
-4. Applies database migrations with `prisma migrate deploy`.
-5. Restarts the API and waits up to 60 seconds for `/api/ready`.
-6. Restarts the bot and checks that it stays running. It skips this if the bot service isn't installed.
+4. Takes a `predeploy` database backup (1.0.0-F). If the backup fails, the deploy stops before migrating.
+5. Applies database migrations with `prisma migrate deploy`.
+6. Restarts the API and waits up to 60 seconds for `/api/ready`.
+7. Restarts the bot and checks that it stays running. It skips this if the bot service isn't installed.
+8. Records the commit in `.deploy/history`, which `scripts/ops/rollback.sh` uses.
+
+Backups, restore tests, rollback, failed deploys and maintenance mode are covered in
+[RECOVERY.md](RECOVERY.md). Run `bash scripts/ops/install-backup-timer.sh` once per
+server.
 
 On failure, it prints the last 40 log lines of whichever service didn't come back.
 
@@ -127,22 +172,13 @@ journalctl -u streets-empire --since "1 hour ago"
 
 ## Rolling back
 
-Find the last good commit with `git log --oneline`. Check it out, then redeploy
-that checkout without pulling:
-
 ```bash
-git checkout <good-commit> && SKIP_PULL=1 bash scripts/ops/deploy.sh
+bash scripts/ops/rollback.sh
 ```
 
-Migrations only move forward. If the bad version added a migration, the older
-code runs against the newer schema. Additive changes like new tables or columns
-are fine, but check before rolling back past a migration that removed anything.
-
-To return to normal updates afterwards:
-
-```bash
-git checkout main && bash scripts/ops/deploy.sh
-```
+This goes back to the previous good deploy. See
+[RECOVERY.md → Rolling back](RECOVERY.md#rolling-back) for the migration strategy
+and for what to do when a migration broke data.
 
 ## After a reboot
 

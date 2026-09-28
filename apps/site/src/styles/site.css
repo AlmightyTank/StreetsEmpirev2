@@ -1782,6 +1782,12 @@ a {
   box-shadow: 0 0 0 4px rgba(182,255,58,.08);
 }
 
+/* 1.0.0-E: a paused season or maintenance. */
+.status-dot--warn {
+  background: #ffb020;
+  box-shadow: 0 0 0 4px rgba(255,176,32,.12);
+}
+
 @media (max-width: 900px) {
   .district-grid,
   .turf-grid,

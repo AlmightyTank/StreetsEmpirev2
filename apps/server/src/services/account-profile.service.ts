@@ -15,10 +15,11 @@ import type {
 import { rulesets, type QuestCosmeticDefinition, type Ruleset } from '@streets/rulesets';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
-import { betaTesterAwardsForAccount, CommunityService, legacyAchievements, loadAccountLegacy } from './community.service.js';
+import { CommunityService, permanentAwardsForAccount } from './community.service.js';
 import { RoundPlayerService } from './round-player.service.js';
 import { RoundService } from './round.service.js';
 import { QuestCosmeticService } from './quest-cosmetic.service.js';
+import { isPermanentAward } from './profile-badges.js';
 import { profileTitleForAward } from './profile-titles.js';
 
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
@@ -26,10 +27,10 @@ export const PROFILE_BADGE_FEATURE_LIMIT = 6;
 export const PROFILE_ACCENTS: CosmeticOptionDto[] = [
   { key: 'default', label: 'StreetsEmpire', description: 'The classic neon-green site accent.' },
   { key: 'crimson', label: 'Crimson', description: 'A deep red site-wide accent.' },
-  { key: 'gold', label: 'Gold', description: 'A winner-style gold site-wide accent.' },
-  { key: 'green', label: 'Green', description: 'A money-green site-wide accent.' },
-  { key: 'blue', label: 'Blue', description: 'A cool blue site-wide accent.' },
-  { key: 'purple', label: 'Purple', description: 'A rare purple site-wide accent.' },
+  { key: 'gold', label: 'Goldenrod', description: 'A bright goldenrod site-wide accent.' },
+  { key: 'green', label: 'Emerald', description: 'A rich emerald-green site-wide accent.' },
+  { key: 'blue', label: 'Cornflower', description: 'A soft cornflower-blue site-wide accent.' },
+  { key: 'purple', label: 'Orchid', description: 'A vivid orchid-purple site-wide accent.' },
 ];
 
 export const UI_DENSITIES: CosmeticOptionDto[] = [
@@ -63,7 +64,7 @@ function optionFromAward(award: PublicAwardDto): BadgeCosmeticOptionDto {
     label: award.title,
     description: award.description,
     rarity: award.rarity,
-    permanent: award.category === 'legacy' || award.category === 'quest',
+    permanent: isPermanentAward(award),
   };
 }
 
@@ -73,7 +74,7 @@ function titleOptionFromAward(award: PublicAwardDto): BadgeCosmeticOptionDto {
     label: profileTitleForAward(award),
     description: `Earned from ${award.title}: ${award.description}`,
     rarity: award.rarity,
-    permanent: award.category === 'legacy' || award.category === 'quest',
+    permanent: isPermanentAward(award),
   };
 }
 
@@ -141,6 +142,7 @@ function toSettingsDto(
     : 'game';
   return {
     activeTitleKey,
+    crewName: profile?.crewName ?? null,
     activeProfileFrameKey,
     activeSiteThemeKey,
     featuredBadgeKeys,
@@ -166,16 +168,8 @@ async function earnedAwards(prisma: PrismaClient, accountId: string): Promise<Pu
     );
     return profile.awards.filter((award) => award.unlocked);
   }
-  const [legacy, betaTester, questCosmetics] = await Promise.all([
-    loadAccountLegacy(prisma, accountId, round?.id ?? null),
-    betaTesterAwardsForAccount(prisma, accountId),
-    QuestCosmeticService.awardsForAccount(prisma, accountId),
-  ]);
-  return [
-    ...legacyAchievements(legacy),
-    ...betaTester,
-    ...questCosmetics,
-  ].filter((award) => award.unlocked);
+  return (await permanentAwardsForAccount(prisma, accountId, round?.id ?? null))
+    .filter((award) => award.unlocked);
 }
 
 async function readProfile(prisma: PrismaClient, accountId: string): Promise<AccountProfile | null> {
@@ -291,11 +285,14 @@ export const AccountProfileService = {
       });
     }
 
+    const crewName = input.crewName === undefined ? undefined : input.crewName;
+
     await prisma.accountProfile.upsert({
       where: { accountId },
       create: {
         accountId,
         activeTitleKey,
+        crewName: crewName ?? null,
         activeProfileFrameKey,
         activeSiteThemeKey,
         featuredBadgeKeys,
@@ -307,6 +304,7 @@ export const AccountProfileService = {
       },
       update: {
         activeTitleKey,
+        ...(crewName !== undefined ? { crewName } : {}),
         activeProfileFrameKey,
         activeSiteThemeKey,
         featuredBadgeKeys,

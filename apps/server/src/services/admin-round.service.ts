@@ -5,7 +5,7 @@ import { toRoundDto } from '../game/dto.js';
 import { lockRound, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
-import { RoundService } from './round.service.js';
+import { RoundService, seasonCloseTransaction } from './round.service.js';
 import { TurfService } from './turf.service.js';
 
 const DAY_MS = 86_400_000;
@@ -14,6 +14,8 @@ const LIFECYCLE_TRANSACTION = { maxWait: 10_000, timeout: 60_000 };
 const actionVerb: Record<AdminRoundAction, string> = {
   'open-registration': 'open registration',
   start: 'start',
+  pause: 'be paused',
+  resume: 'resume',
   'end-early': 'end early',
   archive: 'be archived',
 };
@@ -28,11 +30,12 @@ export interface ScheduleRoundInput {
 }
 
 /** The lifecycle: SCHEDULED -> REGISTRATION -> ACTIVE -> ENDED -> ARCHIVED. */
-export function availableRoundActions(round: Pick<Round, 'status'>): AdminRoundAction[] {
+export function availableRoundActions(round: Pick<Round, 'status'> & Partial<Pick<Round, 'pausedAt'>>): AdminRoundAction[] {
   switch (round.status) {
     case 'SCHEDULED': return ['open-registration', 'start'];
     case 'REGISTRATION': return ['start', 'end-early'];
-    case 'ACTIVE': return ['end-early'];
+    // 1.0.0-E: a running season can be paused, and a paused one resumed.
+    case 'ACTIVE': return [round.pausedAt ? 'resume' : 'pause', 'end-early'];
     case 'ENDED': return ['archive'];
     default: return [];
   }
@@ -185,6 +188,9 @@ export const AdminRoundService = {
     options: { confirmHandoff: boolean },
     now = new Date(),
   ): Promise<AdminRoundDto> {
+    // A handoff closes the running season inside this transaction; size it for that season.
+    const running = await prisma.round.findMany({ where: { status: 'ACTIVE', endsAt: { gt: now }, id: { not: roundId } }, select: { id: true } });
+    const handoff = await seasonCloseTransaction(prisma, running.map((row) => row.id));
     const round = await prisma.$transaction(async (tx) => {
       // One round start at a time, so two admins cannot open two seasons at once.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(3002)`;
@@ -224,12 +230,13 @@ export const AdminRoundService = {
       if (ruleset) await TurfService.ensureRound(tx, started.id, ruleset);
       await AdminAuditService.record(tx, actor, { action: 'round.start', targetType: 'round', targetId: before.id, before, after: started });
       return started;
-    }, LIFECYCLE_TRANSACTION);
+    }, handoff);
     return adminRound(prisma, round);
   },
 
   /** Early ends settle and freeze like a normal finish, so final awards still apply. */
   async endEarly(prisma: PrismaClient, actor: AuditActor, roundId: string, reason: string, now = new Date()): Promise<AdminRoundDto> {
+    const closing = await seasonCloseTransaction(prisma, [roundId]);
     const round = await prisma.$transaction(async (tx) => {
       await lockedRound(tx, roundId, 'end-early');
       const result = await RoundService.closeRoundInTransaction(tx, roundId, now, { endsAt: now });
@@ -243,6 +250,54 @@ export const AdminRoundService = {
         after: result.round,
       });
       return result.round;
+    }, closing);
+    return adminRound(prisma, round);
+  },
+
+  /**
+   * 1.0.0-E. Stop play without ending the season: every player action is refused
+   * with the reason, while what is already in motion (runs on the road, pushes and
+   * tails in flight, shelves restocking) carries on and lands on its own clock.
+   */
+  async pause(prisma: PrismaClient, actor: AuditActor, roundId: string, reason: string, now = new Date()): Promise<AdminRoundDto> {
+    const round = await prisma.$transaction(async (tx) => {
+      const before = await lockedRound(tx, roundId, 'pause');
+      if (before.endsAt.getTime() <= now.getTime()) throw AppError.conflict('ROUND_ALREADY_OVER', `${before.name} is already past its end date.`);
+      const paused = await tx.round.update({
+        where: { id: before.id },
+        data: { pausedAt: now, pauseReason: reason, pausedByUsername: actor.username },
+      });
+      await AdminAuditService.record(tx, actor, { action: 'round.pause', targetType: 'round', targetId: before.id, reason, before, after: paused });
+      return paused;
+    }, LIFECYCLE_TRANSACTION);
+    return adminRound(prisma, round);
+  },
+
+  /**
+   * Lift a pause. By default the season's end moves back by the time it was paused,
+   * so nobody loses days to it; turns kept regenerating (to the cap) meanwhile.
+   */
+  async resume(prisma: PrismaClient, actor: AuditActor, roundId: string, input: { extend: boolean; reason?: string | undefined }, now = new Date()): Promise<AdminRoundDto> {
+    const round = await prisma.$transaction(async (tx) => {
+      const before = await lockedRound(tx, roundId, 'resume');
+      const minutes = Math.max(0, Math.ceil((now.getTime() - before.pausedAt!.getTime()) / 60_000));
+      const endsAt = input.extend ? new Date(before.endsAt.getTime() + minutes * 60_000) : before.endsAt;
+      const resumed = await tx.round.update({
+        where: { id: before.id },
+        data: {
+          pausedAt: null, pauseReason: null, pausedByUsername: null,
+          pausedMinutesTotal: before.pausedMinutesTotal + minutes,
+          endsAt,
+          // A moved end re-arms the "ending soon" notice, as an edited end date does.
+          ...(input.extend && minutes > 0 && before.alertsEndingSoonAt && endsAt.getTime() > now.getTime() + DAY_MS ? { alertsEndingSoonAt: null } : {}),
+        },
+      });
+      await AdminAuditService.record(tx, actor, {
+        action: 'round.resume', targetType: 'round', targetId: before.id,
+        reason: input.reason ?? (input.extend ? `Paused ${minutes} minutes; end moved back to match.` : `Paused ${minutes} minutes; end unchanged.`),
+        before, after: resumed,
+      });
+      return resumed;
     }, LIFECYCLE_TRANSACTION);
     return adminRound(prisma, round);
   },

@@ -1,8 +1,6 @@
 import type { ReactNode } from 'react';
+import { HelpTip } from './HelpTip.js';
 
-function HelpTip({ text }: { text: string }) {
-  return <span className="se-tip" tabIndex={0} title={text} aria-label={text}>?</span>;
-}
 
 interface PanelProps {
   title: string;

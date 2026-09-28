@@ -257,7 +257,7 @@ function SupplyRow({ overview, row, jobLabel, turns, refreshKey, onOverview }: {
           </div>
         </div>
       ) : null}
-      {error ? <p className="se-error">{error}</p> : null}
+      {error ? <p className="se-error" role="alert">{error}</p> : null}
     </div>
   );
 }

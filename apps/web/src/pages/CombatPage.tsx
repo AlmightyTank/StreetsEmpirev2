@@ -16,8 +16,9 @@ import { browserSessionStorage } from '../utils/pendingAction.js';
 /** 0.4.0-D. Recon reads a stash's depth, never its count. */
 const STASH_LABELS = { none: 'Empty', light: 'Light', stocked: 'Stocked', heavy: 'Heavy' } as const;
 import { loadPendingRaid, savePendingRaid, type PendingRaid } from '../utils/pendingRaid.js';
+import { formatWhen } from '../utils/time.js';
 
-const date = (value: string) => new Date(value).toLocaleString();
+const date = (value: string) => formatWhen(value);
 const weaponName = (key: string) => key === 'TEK9' ? 'Tek-9' : key === 'AK47' ? 'AK-47' : key.toLowerCase();
 const weaponsText = (weapons: Record<string, number>) => Object.entries(weapons).filter(([, count]) => count > 0).map(([key, count]) => `${formatNumber(count)} ${weaponName(key)}`).join(', ') || 'unarmed';
 

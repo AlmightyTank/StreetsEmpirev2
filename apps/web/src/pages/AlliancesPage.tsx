@@ -8,6 +8,7 @@ import { Alert } from '../components/Alert.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { AllianceMembers, AllianceSummary } from './AlliancePage.js';
+import { formatDate } from '../utils/time.js';
 
 /** Alliances ranked by the combined net worth of their active members. Shared with the Rankings page. */
 export function AllianceRankingTable({ rows }: { rows: AllianceRankingEntryDto[] }) {
@@ -95,7 +96,7 @@ export function AllianceDetailPage() {
         <div>
           <h1 className="se-title">{alliance ? <>[{alliance.tag}] {alliance.name}</> : 'Alliance'}</h1>
           <p className="se-eyebrow">
-            {alliance ? `${alliance.leader ? `Led by ${alliance.leader.displayName} · ` : ''}Founded ${new Date(alliance.foundedAt).toLocaleDateString()}` : 'Alliance'}
+            {alliance ? `${alliance.leader ? `Led by ${alliance.leader.displayName} · ` : ''}Founded ${formatDate(alliance.foundedAt)}` : 'Alliance'}
           </p>
         </div>
         <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/alliances">Alliance rankings</Link>
@@ -105,6 +106,12 @@ export function AllianceDetailPage() {
       {alliance ? (
         <>
           {alliance.isYours ? <Alert tone="info">This is your alliance. <Link to="/game/alliance">Manage it here.</Link></Alert> : null}
+          <Panel
+            title="Recruitment"
+            aside={alliance.recruitmentStatus === 'OPEN' ? 'Open' : alliance.recruitmentStatus === 'INVITE_ONLY' ? 'Invite only' : 'Closed'}
+          >
+            <p className="se-muted">{alliance.description || 'Leadership has not posted a crew description yet.'}</p>
+          </Panel>
           {alliance.forumUrl ? <p className="se-mb"><a className="se-btn se-btn--ghost se-btn--sm" href={alliance.forumUrl} target="_blank" rel="noreferrer">Recruitment thread on the forum</a></p> : null}
           <AllianceSummary alliance={alliance} />
           <Panel title="Members" flush>

@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
-import type { NotificationChannel, Prisma, PrismaClient, Round } from '@prisma/client';
+import type { Prisma, PrismaClient, Round } from '@prisma/client';
 import { loadRulesetForRound, regenerateTurns } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
+import { BELL_CATEGORIES, NOTIFICATION_CATEGORIES } from '@streets/shared';
 import type {
   DiscordAlertsClaimDto,
   DiscordBattleEventDto,
@@ -18,6 +19,18 @@ import type {
 } from '@streets/shared';
 import { env } from '../config/env.js';
 import { RoundService } from './round.service.js';
+import { GameAlertService } from './game-alerts.service.js';
+import {
+  CATEGORY_COLUMN,
+  channelsFor,
+  defaultChannels,
+  recipientSelect,
+  rowsFor,
+  type ChannelSwitches,
+  type OutboxRow,
+} from './notification-channels.js';
+
+export { channelsFor, type ChannelSwitches } from './notification-channels.js';
 import { gameUrl, playerUrl, roundStandings } from './standings.js';
 
 type Tx = Prisma.TransactionClient;
@@ -37,47 +50,6 @@ export function rankAlertFor(previous: number | null, current: number): DiscordR
   if (previous === 1 && current > 1) return 'lost-first';
   if (previous <= 10 && current > 10) return 'out-of-top-10';
   return null;
-}
-
-/** Which channels collection writes rows for. Defaults follow what this server has configured. */
-export interface ChannelSwitches {
-  discord: boolean;
-  push: boolean;
-}
-
-const defaultChannels = (): ChannelSwitches => ({ discord: env.discordBot.enabled, push: env.push.configured });
-
-type Recipient = {
-  discordEnabled: boolean;
-  pushEnabled: boolean;
-  account: { isActive: boolean; discordId: string | null; _count: { pushSubscriptions: number } };
-};
-
-const recipientSelect = {
-  discordEnabled: true,
-  pushEnabled: true,
-  account: { select: { isActive: true, discordId: true, _count: { select: { pushSubscriptions: true } } } },
-} as const;
-
-/** The channels that can reach this account right now. */
-export function channelsFor(recipient: Recipient, switches: ChannelSwitches): NotificationChannel[] {
-  if (!recipient.account.isActive) return [];
-  const channels: NotificationChannel[] = [];
-  if (switches.discord && recipient.discordEnabled && recipient.account.discordId) channels.push('DISCORD');
-  if (switches.push && recipient.pushEnabled && recipient.account._count.pushSubscriptions > 0) channels.push('PUSH');
-  return channels;
-}
-
-type OutboxRow = Prisma.NotificationOutboxCreateManyInput;
-
-function rowsFor(accountId: string, channels: NotificationChannel[], key: string, payload: NotificationPayload): OutboxRow[] {
-  return channels.map((channel) => ({
-    accountId,
-    channel,
-    category: payload.category,
-    payload: payload as unknown as Prisma.InputJsonValue,
-    dedupeKey: `${key}:${accountId}:${channel}`,
-  }));
 }
 
 export const BATTLE_KINDS: readonly DiscordBattleKind[] = ['RAID', 'DRIVE_BY', 'DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW'];
@@ -166,7 +138,7 @@ async function collectAttacks(tx: Tx, now: Date, switches: ChannelSwitches): Pro
   return battles.flatMap((battle) => {
     const settings = battle.defender.account.notificationSettings;
     if (!settings?.attacksEnabled) return [];
-    return rowsFor(battle.defender.accountId, channelsFor(settings, switches), `battle:${battle.id}`, { category: 'attacks', battle: battleEventDto(battle) });
+    return rowsFor(battle.defender.accountId, channelsFor(settings, switches, now), `battle:${battle.id}`, { category: 'attacks', battle: battleEventDto(battle) });
   });
 }
 
@@ -230,7 +202,7 @@ async function collectTurfAlerts(tx: Tx, now: Date, switches: ChannelSwitches): 
       defenderProfileUrl: playerUrl(push.defender.publicPimpId),
       settledAt: push.settledAt.toISOString(),
     };
-    return rowsFor(push.defender.accountId, channelsFor(settings, switches), `turf:${push.id}`, { category: 'turf', event });
+    return rowsFor(push.defender.accountId, channelsFor(settings, switches, now), `turf:${push.id}`, { category: 'turf', event });
   });
 }
 
@@ -302,7 +274,7 @@ async function collectAllianceAlerts(tx: Tx, now: Date, switches: ChannelSwitche
         if (member.allianceJoinedAt && member.allianceJoinedAt > event.happenedAt) continue;
         rows.push(...rowsFor(
           member.accountId,
-          channelsFor(settings, switches),
+          channelsFor(settings, switches, now),
           `alliance:${event.id}:${allianceId}`,
           { category: 'alliance', event: dto, allianceTag, change: gained ? 'gained' : 'lost' },
         ));
@@ -333,7 +305,7 @@ async function collectRoundEvents(tx: Tx, now: Date, switches: ChannelSwitches):
   const subscribers = (await tx.notificationSettings.findMany({
     where: { roundEnabled: true, account: { isActive: true } },
     select: { accountId: true, ...recipientSelect },
-  })).map((row) => ({ accountId: row.accountId, channels: channelsFor(row, switches) })).filter((row) => row.channels.length);
+  })).map((row) => ({ accountId: row.accountId, channels: channelsFor(row, switches, now) })).filter((row) => row.channels.length);
   if (!subscribers.length) return [];
 
   const rows: OutboxRow[] = [];
@@ -395,7 +367,7 @@ async function collectPlayerAlerts(tx: Tx, round: Round, now: Date, switches: Ch
   for (const setting of settings) {
     const player = playerByAccount.get(setting.accountId);
     if (!player) continue;
-    const channels = channelsFor(setting, switches);
+    const channels = channelsFor(setting, switches, now);
 
     if (setting.turnsEnabled) {
       const current = regenerateTurns(player, now, ruleset).turns;
@@ -477,7 +449,14 @@ function categoryData(category: NotificationCategory, enabled: boolean, { round,
       return { turfEnabled: enabled, turfEnabledAt: enabled ? new Date() : null };
     case 'alliance':
       return { allianceEnabled: enabled, allianceEnabledAt: enabled ? new Date() : null };
+    // 0.9.0-G categories alert from per-source markers, so switching on never replays the past.
+    default:
+      return { [CATEGORY_COLUMN[category]]: enabled };
   }
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
 
 // Any fixed number works; it only has to be the same for every server process.
@@ -501,6 +480,8 @@ export const NotificationService = {
         ...await collectAllianceAlerts(tx, now, switches),
         ...await collectRoundEvents(tx, now, switches),
         ...(round?.status === 'ACTIVE' ? await collectPlayerAlerts(tx, round, now, switches) : []),
+        // 0.9.0-G: pushes spotted, calls for help, tails, runs home, revenge, orders, announcements, messages.
+        ...await GameAlertService.collect(tx, now, switches),
       ];
       if (!rows.length) return 0;
       const { count } = await tx.notificationOutbox.createMany({ data: rows, skipDuplicates: true });
@@ -524,7 +505,7 @@ export const NotificationService = {
     });
 
     const claim: Omit<DiscordAlertsClaimDto, 'battles' | 'turf' | 'territory' | 'crackdowns' | 'rounds'> = {
-      turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [],
+      turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [], notices: [],
     };
     for (const row of rows) {
       // Unlinked since the alert was collected: nowhere to send it.
@@ -550,6 +531,8 @@ export const NotificationService = {
         case 'alliance':
           claim.allianceAlerts.push({ ...payload.event, discordId, allianceTag: payload.allianceTag, change: payload.change });
           break;
+        default:
+          claim.notices.push({ ...payload.notice, discordId, category: payload.category });
       }
     }
     return claim;
@@ -579,16 +562,15 @@ export const NotificationService = {
       prisma.notificationSettings.findUnique({ where: { accountId } }),
       prisma.pushSubscription.findMany({ where: { accountId }, orderBy: { createdAt: 'asc' } }),
     ]);
+    const bellMuted = new Set(stringArray(row?.bellMuted));
     return {
-      categories: {
-        attacks: row?.attacksEnabled ?? false,
-        turns: row?.turnsEnabled ?? false,
-        round: row?.roundEnabled ?? false,
-        rank: row?.rankEnabled ?? false,
-        turf: row?.turfEnabled ?? false,
-        alliance: row?.allianceEnabled ?? false,
-      },
+      categories: Object.fromEntries(NOTIFICATION_CATEGORIES.map((category) => [category, Boolean(row?.[CATEGORY_COLUMN[category]])])) as NotificationSettingsDto['categories'],
       channels: { discord: row?.discordEnabled ?? true, push: row?.pushEnabled ?? false },
+      paused: row?.alertsPaused ?? false,
+      quietHours: row && row.quietStartMinute !== null && row.quietEndMinute !== null && row.timeZone
+        ? { start: row.quietStartMinute, end: row.quietEndMinute, timeZone: row.timeZone }
+        : null,
+      bellMuted: BELL_CATEGORIES.filter((category) => bellMuted.has(category)),
       discordLinked: Boolean(account.discordId),
       push: {
         available: env.push.configured,
@@ -612,9 +594,23 @@ export const NotificationService = {
       for (const [category, enabled] of changes) await NotificationService.setCategory(prisma, accountId, category, enabled, standing);
     }
     const channels = input.channels ?? {};
-    if (channels.discord !== undefined || channels.push !== undefined) {
-      const data = { discordEnabled: channels.discord, pushEnabled: channels.push };
-      await prisma.notificationSettings.upsert({ where: { accountId }, create: { accountId, ...data }, update: data });
+    const data: Prisma.NotificationSettingsUncheckedUpdateInput = {};
+    if (channels.discord !== undefined) data.discordEnabled = channels.discord;
+    if (channels.push !== undefined) data.pushEnabled = channels.push;
+    if (input.paused !== undefined) data.alertsPaused = input.paused;
+    if (input.quietHours !== undefined) {
+      data.quietStartMinute = input.quietHours?.start ?? null;
+      data.quietEndMinute = input.quietHours?.end ?? null;
+      data.timeZone = input.quietHours?.timeZone ?? null;
+    }
+    // Only categories that have bell items can be muted there.
+    if (input.bellMuted !== undefined) data.bellMuted = BELL_CATEGORIES.filter((category) => input.bellMuted!.includes(category));
+    if (Object.keys(data).length) {
+      await prisma.notificationSettings.upsert({
+        where: { accountId },
+        create: { accountId, ...(data as Omit<Prisma.NotificationSettingsUncheckedCreateInput, 'accountId'>) },
+        update: data,
+      });
     }
     return NotificationService.settings(prisma, accountId);
   },

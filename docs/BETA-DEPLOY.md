@@ -71,7 +71,20 @@ FRONTEND_ORIGIN="https://beta.streetsempire.dev"
 BETA_INVITE_ONLY=true
 
 DISCORD_REDIRECT_URI="https://beta.streetsempire.dev/api/auth/discord/callback"
+
+# 1.0.0-A: optional, but makes the intent explicit.
+APP_ENV=beta
 ```
+
+**1.0.0-A environment guards.** The beta server refuses to start if it would
+look like production: it must use its own `SESSION_COOKIE_NAME` and stay
+invite-only. On its first boot it claims its database for beta, and from then on
+a production server pointed at that database refuses to start (and so does this
+server pointed at the production database). `deploy-beta.sh` checks the `.env`
+before building, then checks that the restarted API reports `beta` on the
+checkout's commit, both locally and through `beta.streetsempire.dev`. Every beta
+page shows a **Beta server** ribbon and a `[BETA]` tab title, with a link to the
+live game.
 
 The same Discord OAuth client ID/secret can be reused if the beta redirect URI is
 also registered in the Discord developer portal.

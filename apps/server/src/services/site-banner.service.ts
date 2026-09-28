@@ -14,7 +14,16 @@ export function toSiteBannerDto(row: SiteBanner): SiteBannerDto {
     startsAt: row.startsAt.toISOString(),
     endsAt: row.endsAt.toISOString(),
     createdByUsername: row.createdByUsername,
+    kind: row.kind === 'maintenance' ? 'maintenance' : 'notice',
+    maintenance: row.kind === 'maintenance' && row.maintenanceStartsAt && row.maintenanceEndsAt
+      ? { startsAt: row.maintenanceStartsAt.toISOString(), endsAt: row.maintenanceEndsAt.toISOString() }
+      : null,
   };
+}
+
+/** "Sat, Sep 27, 21:00 UTC": one wording for every player, wherever they are. */
+function utc(at: Date): string {
+  return `${new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }).format(at)} UTC`;
 }
 
 export const SiteBannerService = {
@@ -38,10 +47,27 @@ export const SiteBannerService = {
   async create(
     prisma: PrismaClient,
     actor: AuditActor,
-    input: { message: string; tone: SiteBannerTone; startsAt?: Date | undefined; endsAt: Date },
+    input: {
+      message: string; tone: SiteBannerTone; startsAt?: Date | undefined; endsAt: Date;
+      kind?: 'notice' | 'maintenance' | undefined; maintenanceStartsAt?: Date | undefined; maintenanceEndsAt?: Date | undefined; announce?: boolean | undefined;
+    },
     now = new Date(),
   ): Promise<AdminSiteBannersDto> {
     const startsAt = input.startsAt ?? now;
+    const maintenance = input.kind === 'maintenance';
+    if (maintenance) {
+      // 1.0.0-E: the notice shows from startsAt (the warning) until the outage is over.
+      if (!input.maintenanceStartsAt || !input.maintenanceEndsAt) {
+        throw AppError.badRequest('INVALID_MAINTENANCE_WINDOW', 'Give the maintenance window: when it starts and ends.', { maintenanceStartsAt: 'Required for maintenance.' });
+      }
+      if (input.maintenanceEndsAt.getTime() <= input.maintenanceStartsAt.getTime() || input.maintenanceEndsAt.getTime() <= now.getTime()) {
+        throw AppError.badRequest('INVALID_MAINTENANCE_WINDOW', 'Maintenance has to end after it starts, in the future.', { maintenanceEndsAt: 'Must be after the start and in the future.' });
+      }
+      if (input.maintenanceStartsAt.getTime() < startsAt.getTime()) {
+        throw AppError.badRequest('INVALID_MAINTENANCE_WINDOW', 'Show the notice before maintenance starts, not after.', { startsAt: 'Must be before the maintenance starts.' });
+      }
+      input = { ...input, endsAt: input.maintenanceEndsAt };
+    }
     if (input.endsAt.getTime() <= startsAt.getTime() || input.endsAt.getTime() <= now.getTime()) {
       throw AppError.badRequest('INVALID_BANNER_WINDOW', 'The banner has to end in the future, after it starts.', { endsAt: 'Must be after the start and in the future.' });
     }
@@ -55,11 +81,25 @@ export const SiteBannerService = {
           tone: input.tone,
           startsAt,
           endsAt: input.endsAt,
+          kind: maintenance ? 'maintenance' : 'notice',
+          maintenanceStartsAt: maintenance ? input.maintenanceStartsAt! : null,
+          maintenanceEndsAt: maintenance ? input.maintenanceEndsAt! : null,
           createdByAccountId: actor.id,
           createdByUsername: actor.username,
         },
       });
-      await AdminAuditService.record(tx, actor, { action: 'banner.create', targetType: 'banner', targetId: banner.id, after: banner });
+      await AdminAuditService.record(tx, actor, { action: maintenance ? 'maintenance.schedule' : 'banner.create', targetType: 'banner', targetId: banner.id, after: banner });
+      if (maintenance && input.announce) {
+        // Players hear about it on their phones too, not only when they next open the game.
+        const news = await tx.gameNews.create({
+          data: {
+            title: `Scheduled maintenance: ${utc(input.maintenanceStartsAt!)}`,
+            body: `${input.message}\n\nThe game will be unavailable from ${utc(input.maintenanceStartsAt!)} until about ${utc(input.maintenanceEndsAt!)}. Anything on the road or in flight lands on its own clock.`,
+            isPinned: true, broadcast: true, publishedAt: startsAt, createdByAccountId: actor.id,
+          },
+        });
+        await AdminAuditService.record(tx, actor, { action: 'news.create', targetType: 'news', targetId: news.id, reason: 'Maintenance announcement', after: news });
+      }
     });
     return SiteBannerService.adminList(prisma, now);
   },

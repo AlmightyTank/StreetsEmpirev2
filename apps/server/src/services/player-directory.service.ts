@@ -26,6 +26,7 @@ const directorySelect = {
   lastActiveAt: true,
   city: { select: { slug: true, name: true } },
   alliance: { select: { name: true, tag: true } },
+  account: { select: { profile: { select: { crewName: true } } } },
 } satisfies Prisma.RoundPlayerSelect;
 
 type DirectoryRow = Prisma.RoundPlayerGetPayload<{ select: typeof directorySelect }>;
@@ -39,7 +40,7 @@ function activityBand(lastActiveAt: Date, now: Date): PlayerActivityBand {
 }
 
 function queryMatches(
-  row: Pick<DirectoryRow, 'publicPimpId' | 'displayName' | 'alliance'>,
+  row: Pick<DirectoryRow, 'publicPimpId' | 'displayName' | 'alliance' | 'account'>,
   rawQuery: string,
 ): boolean {
   const query = rawQuery.trim().toLowerCase();
@@ -49,6 +50,7 @@ function queryMatches(
   if (numeric?.[1] && row.publicPimpId === Number(numeric[1])) return true;
 
   return row.displayName.toLowerCase().includes(query)
+    || row.account.profile?.crewName?.toLowerCase().includes(query) === true
     || row.alliance?.name.toLowerCase().includes(query) === true
     || row.alliance?.tag.toLowerCase().includes(query) === true;
 }
@@ -63,6 +65,8 @@ function searchWhere(query: string): Prisma.RoundPlayerWhereInput | null {
   return {
     OR: [
       { displayName: { contains: cleaned, mode: 'insensitive' } },
+      // 0.9.0-F. Crew names are account-level identity, searchable once set.
+      { account: { profile: { crewName: { contains: cleaned, mode: 'insensitive' } } } },
       { alliance: { name: { contains: cleaned, mode: 'insensitive' } } },
       { alliance: { tag: { contains: cleaned, mode: 'insensitive' } } },
       ...(publicPimpId !== null ? [{ publicPimpId }] : []),
@@ -331,6 +335,7 @@ export const PlayerDirectoryService = {
       players: rows.map((row) => ({
         publicPimpId: row.publicPimpId,
         displayName: row.displayName,
+        crewName: row.account.profile?.crewName ?? null,
         alliance: allianceTagDto(row.alliance),
         city: row.city,
         netWorthCents: Number(row.netWorthCents),

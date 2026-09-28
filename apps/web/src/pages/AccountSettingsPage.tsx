@@ -8,19 +8,28 @@ import type {
   ProfileAccent,
   UiDensity,
 } from '@streets/shared';
+import { CREW_NAME_MAX } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
+import { CloseAccountPanel } from '../components/CloseAccountPanel.js';
+import { YourDataPanel } from '../components/YourDataPanel.js';
+import { TwoFactorPanel } from '../components/TwoFactorPanel.js';
 import { ConnectedAccountsPanel } from '../components/ConnectedAccountsPanel.js';
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
 import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { DEFAULT_PROFILE_SETTINGS, useSession } from '../stores/session.js';
+import { ReplayTutorial } from '../components/onboarding/ReplayTutorial.js';
+import { formatWhen } from '../utils/time.js';
+
+/** Sessions listed before "Show all": this one first, then the most recently used. */
+const SESSIONS_SHOWN = 5;
 
 function formatDate(value: string | null): string {
-  return value ? new Date(value).toLocaleString() : 'Never';
+  return value ? formatWhen(value) : 'Never';
 }
 
 function sessionDevice(session: AccountSessionDto): string {
@@ -51,6 +60,8 @@ export function AccountSettingsPage() {
   /** One line for every button while another request is in flight. */
   const working = 'Finishing the last thing you asked for.';
   const [sessions, setSessions] = useState<AccountSessionDto[]>([]);
+  // The list grows with every sign-in; show the latest few until asked for all.
+  const [showAllSessions, setShowAllSessions] = useState(false);
   const [profileSettings, setProfileSettings] = useState<AccountProfileSettingsResponseDto | null>(null);
   const [cosmetics, setCosmetics] = useState(DEFAULT_PROFILE_SETTINGS);
 
@@ -147,6 +158,8 @@ export function AccountSettingsPage() {
 
     try {
       const response = await authApi.requestEmailChange({ email: newEmail });
+      // An unverified address is corrected at once; the account comes back with it.
+      if (response.account) useSession.setState({ account: response.account });
       setTone('info');
       setMessage(response.message);
       setNewEmail('');
@@ -293,16 +306,16 @@ export function AccountSettingsPage() {
             </div>
           </Panel>
 
-          <Panel title="Recovery">
+          <Panel title="Set a password by email">
             <p>
-              Password recovery sends a one-hour reset link to your private account email.
-              The address is used for login and recovery only.
+              Signed up with Discord, or forgot your current password? We will email a link to{' '}
+              <strong>{account.email}</strong> to set a new one.
             </p>
-            <Button type="button" className="se-btn se-btn--primary se-btn--block" onClick={sendRecovery} disabledReason={busy !== null ? working : null}>
-              {busy === 'recovery' ? 'Sending...' : 'Send recovery email'}
+            <Button type="button" className="se-btn se-btn--ghost se-btn--block" onClick={sendRecovery} disabledReason={busy !== null ? working : null}>
+              {busy === 'recovery' ? 'Sending...' : 'Email me a link'}
             </Button>
             <p className="se-hint">
-              Check your inbox after sending. Recovery links expire after one hour.
+              Know your password? Use Change password instead. The link works for one hour.
             </p>
           </Panel>
 
@@ -388,7 +401,7 @@ export function AccountSettingsPage() {
                 autoComplete="email"
                 required
                 error={fields.email}
-                hint="A confirmation link will be sent to the new email address."
+                hint={account.emailVerifiedAt ? "A confirmation link will be sent to the new email address." : "Fixes a mistyped address now, and sends the verification link there."}
               />
               <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy !== null ? working : null}>
                 {busy === 'email' ? 'Sending...' : 'Send change confirmation'}
@@ -406,6 +419,8 @@ export function AccountSettingsPage() {
         </div>
       </div>
 
+      <TwoFactorPanel focusCodes={searchParams.get('twoFactor') === 'codes'} />
+
       <Panel title="Login sessions">
         <div className="se-session-head">
           <p className="se-hint">These are active browser sessions for this account.</p>
@@ -421,7 +436,10 @@ export function AccountSettingsPage() {
 
         {sessions.length ? (
           <div className="se-session-list">
-            {sessions.map((session) => (
+            {(() => {
+              const ordered = [...sessions].sort((a, b) => Number(b.current) - Number(a.current));
+              return showAllSessions ? ordered : ordered.slice(0, SESSIONS_SHOWN);
+            })().map((session) => (
               <div className="se-session-row" key={session.id}>
                 <div>
                   <strong>
@@ -432,7 +450,14 @@ export function AccountSettingsPage() {
                     Last seen {formatDate(session.lastSeenAt)}
                     {session.ip ? ` · ${session.ip}` : ''}
                   </small>
-                  <small>Created {formatDate(session.createdAt)} · Expires {formatDate(session.expiresAt)}</small>
+                  <small>
+                    {session.method === 'DISCORD' ? 'Discord' : 'Password'}{session.twoFactor ? ' + code' : ''}
+                    {' · '}{session.remember ? 'Kept signed in' : 'Until the browser closes'}
+                  </small>
+                  <small>
+                    Signed in {formatDate(session.createdAt)} · Ends {formatDate(session.expiresAt)} if unused
+                    {session.remember ? ` · by ${formatDate(session.endsBy)} at the latest` : ''}
+                  </small>
                 </div>
                 {session.current ? null : (
                   <Button
@@ -446,10 +471,20 @@ export function AccountSettingsPage() {
                 )}
               </div>
             ))}
+            {sessions.length > SESSIONS_SHOWN ? (
+              <button type="button" className="se-btn se-btn--ghost se-btn--sm se-session-more" onClick={() => setShowAllSessions((value) => !value)}>
+                {showAllSessions ? 'Show fewer' : `Show all ${sessions.length} sessions`}
+              </button>
+            ) : null}
           </div>
         ) : (
           <p className="se-muted">Session details are not available right now.</p>
         )}
+      </Panel>
+
+      <Panel title="Tutorial">
+        <p>Replay the first-login intro, see every page intro again and bring back the getting-started goals. Every page also has a "How this page works" panel.</p>
+        <ReplayTutorial className="se-btn se-btn--ghost" />
       </Panel>
 
       <Panel title="Cosmetics & interface">
@@ -459,6 +494,23 @@ export function AccountSettingsPage() {
           <form onSubmit={saveCosmetics} noValidate>
             <div className="se-account-cosmetics">
               <div>
+                <div className="se-field">
+                  <label className="se-label" htmlFor="crew-name">Crew name</label>
+                  <input
+                    id="crew-name"
+                    className="se-input"
+                    value={cosmetics.crewName ?? ''}
+                    maxLength={CREW_NAME_MAX}
+                    placeholder="No crew name"
+                    autoComplete="off"
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      crewName: event.target.value,
+                    }))}
+                  />
+                  {fields.crewName ? <p className="se-error" role="alert">{fields.crewName}</p> : <p className="se-hint">Shown on your profile and searchable in the Players directory. It carries across seasons; leave it blank for none.</p>}
+                </div>
+
                 <div className="se-field">
                   <label className="se-label" htmlFor="active-title">Profile title</label>
                   <select
@@ -475,7 +527,7 @@ export function AccountSettingsPage() {
                       <option value={option.key} key={option.key}>{option.label}</option>
                     ))}
                   </select>
-                  {fields.activeTitleKey ? <p className="se-error">{fields.activeTitleKey}</p> : <p className="se-hint">Titles come from achievements, legacy badges, and quest-only cosmetics you have unlocked.</p>}
+                  {fields.activeTitleKey ? <p className="se-error" role="alert">{fields.activeTitleKey}</p> : <p className="se-hint">Titles come from achievements, season feats, legacy badges, and quest-only cosmetics. They are cosmetic only.</p>}
                 </div>
 
                 <div className="se-field">
@@ -495,7 +547,7 @@ export function AccountSettingsPage() {
                       </button>
                     ))}
                   </div>
-                  {fields.profileAccent ? <p className="se-error">{fields.profileAccent}</p> : <p className="se-hint">Changes the main highlight color across the entire player-facing game.</p>}
+                  {fields.profileAccent ? <p className="se-error" role="alert">{fields.profileAccent}</p> : <p className="se-hint">Changes the main highlight color across the entire player-facing game.</p>}
                 </div>
 
                 <div className="se-field">
@@ -515,7 +567,7 @@ export function AccountSettingsPage() {
                     ))}
                   </select>
                   {fields.activeProfileFrameKey
-                    ? <p className="se-error">{fields.activeProfileFrameKey}</p>
+                    ? <p className="se-error" role="alert">{fields.activeProfileFrameKey}</p>
                     : <p className="se-hint">{profileSettings.options.frames.length ? 'Frames are permanent quest-earned profile cosmetics.' : 'Complete qualifying Contact finales to unlock profile frames.'}</p>}
                 </div>
 
@@ -536,7 +588,7 @@ export function AccountSettingsPage() {
                     ))}
                   </select>
                   {fields.activeSiteThemeKey
-                    ? <p className="se-error">{fields.activeSiteThemeKey}</p>
+                    ? <p className="se-error" role="alert">{fields.activeSiteThemeKey}</p>
                     : <p className="se-hint">{profileSettings.options.themes.length ? 'Themes reskin the player-facing game shell, panels, controls and background atmosphere.' : 'Seasonal and event themes will appear here after you unlock them.'}</p>}
                 </div>
               </div>
@@ -567,7 +619,7 @@ export function AccountSettingsPage() {
                 ) : (
                   <p className="se-muted">Unlock achievements or finish a season to feature badges here.</p>
                 )}
-                {fields.featuredBadgeKeys ? <p className="se-error">{fields.featuredBadgeKeys}</p> : <p className="se-hint">Pick up to six. They appear first on your public profile.</p>}
+                {fields.featuredBadgeKeys ? <p className="se-error" role="alert">{fields.featuredBadgeKeys}</p> : <p className="se-hint">Pick up to six. They appear first on your public profile.</p>}
               </div>
             </div>
 
@@ -645,6 +697,10 @@ export function AccountSettingsPage() {
           </form>
         )}
       </Panel>
+
+      <YourDataPanel />
+
+      <CloseAccountPanel />
     </Shell>
   );
 }

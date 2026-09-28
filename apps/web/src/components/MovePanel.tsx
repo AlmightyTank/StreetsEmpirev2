@@ -4,14 +4,14 @@ import { formatCents } from '@streets/shared';
 import { api } from '../api/client.js';
 import { useCountdown } from '../hooks/useCountdown.js';
 import { useGameAction } from '../hooks/useGameAction.js';
-import { formatDuration } from '../utils/time.js';
+import { formatDuration, formatWeekdayTime } from '../utils/time.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { minutesText } from './CityMap.js';
 import { Panel, Row } from './Panel.js';
 
 const percent = (value: number) => `${Math.round(value * 100)}%`;
-const when = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+const when = (iso: string) => formatWeekdayTime(iso);
 
 /** What a Heat number costs in a city, in one line. */
 function heatWords(heat: number, there: HeatThereDto): string {

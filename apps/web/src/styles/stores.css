@@ -31,7 +31,7 @@
 }
 
 .se-stores-hero--tommy::after {
-  border-color: rgba(255, 176, 32, 0.12);
+  border-color: rgba(255, 121, 26, 0.12);
 }
 
 .se-stores-hero--charlie::after {
@@ -295,11 +295,11 @@
 }
 
 .se-store-shelf--locked {
-  border-color: rgba(255, 176, 32, 0.26);
+  border-color: rgba(255, 121, 26, 0.26);
 }
 
 .se-store-shelf--soldout {
-  border-color: rgba(255, 84, 104, 0.22);
+  border-color: rgba(243, 63, 99, 0.22);
 }
 
 .se-store-shelf__status {
@@ -385,13 +385,13 @@
 .se-market-badge--above-normal,
 .se-market-badge--stock-low,
 .se-market-badge--stock-scarce {
-  border-color: rgba(255, 176, 32, 0.34);
+  border-color: rgba(255, 121, 26, 0.34);
   color: var(--se-warn);
 }
 
 .se-market-badge--expensive,
 .se-market-badge--stock-sold-out {
-  border-color: rgba(255, 84, 104, 0.34);
+  border-color: rgba(243, 63, 99, 0.34);
   color: var(--se-bad);
 }
 
@@ -415,7 +415,7 @@
   margin: 10px 0;
   padding: 9px 10px;
   border-left-width: 3px;
-  background: rgba(255, 176, 32, 0.025);
+  background: rgba(255, 121, 26, 0.025);
 }
 
 .se-stores .se-store-favor__title {
@@ -454,7 +454,7 @@
 
 .se-store-shipment__line--delayed,
 .se-store-shipment__line--partial {
-  border-color: rgba(255, 176, 32, 0.34);
+  border-color: rgba(255, 121, 26, 0.34);
   color: var(--se-warn);
 }
 
@@ -470,8 +470,8 @@
   align-items: center;
   margin: 9px 0;
   padding: 9px;
-  border: 1px solid rgba(255, 176, 32, 0.3);
-  background: rgba(255, 176, 32, 0.025);
+  border: 1px solid rgba(255, 121, 26, 0.3);
+  background: rgba(255, 121, 26, 0.025);
 }
 
 .se-store-special-order strong,
@@ -586,7 +586,7 @@
 }
 
 .se-store-basket__remove:hover {
-  border-color: rgba(255, 84, 104, 0.45);
+  border-color: rgba(243, 63, 99, 0.45);
   color: var(--se-bad);
 }
 
@@ -690,8 +690,8 @@
 
 .se-stores-news p {
   padding: 8px;
-  border-left: 3px solid rgba(255, 176, 32, 0.45);
-  background: rgba(255, 176, 32, 0.025);
+  border-left: 3px solid rgba(255, 121, 26, 0.45);
+  background: rgba(255, 121, 26, 0.025);
   color: var(--se-text-dim);
 }
 

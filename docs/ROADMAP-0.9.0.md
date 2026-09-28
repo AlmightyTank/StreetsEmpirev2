@@ -213,6 +213,16 @@ The first Console slice builds the private-message core before folding the exist
 
 B1 intentionally does **not** duplicate Alliance Wire, attack history, or the existing notification bell. Those become Console integrations in later B/C slices. Per-side delete/hide beyond archive and the admin moderation queue are also follow-up work; report data is persisted now so moderation does not need a schema redesign.
 
+### 0.9.0-B/C acceptance closure
+
+Before continuing deeper into 0.9.0-D, the Console was brought back to the B/C acceptance shape:
+
+- the top-level Console now includes Inbox, Sent, Alliance, Attacks, Notifications, Activity, Archived and Blocked lanes;
+- Alliance reuses the existing member-only Alliance Wire instead of creating a parallel communication channel;
+- Attacks is a dedicated combat-filtered activity lane, while Activity remains the broader grouped event history;
+- Notifications reuses the durable in-game notification inbox, supports read and mark-all-read actions, and opens the same authoritative destinations as the notification bell;
+- Console summary counts and the main navigation badge now include unread notification items as well as unread private mail.
+
 ### Done when
 
 - Messages cannot be duplicated by retries.
@@ -273,6 +283,16 @@ Combine important events from the existing game into one chronological history.
 
 Clicking an event should open the authoritative report or relevant page rather than duplicating all information.
 
+### 0.9.0-C implementation start
+
+The first Activity & Attack Console slice folds the existing private activity ledger into the Pimp Console:
+
+- current-round activity is available from a paginated Console activity endpoint;
+- events are grouped into Combat, Turf, Travel, Market, Progress, Street and System lanes;
+- Console summary counts now include activity and attack/combat totals for the top-level Console view;
+- the Console UI has a dedicated Activity tab with lane filters, event summaries and links back to the authoritative report or owning feature page;
+- this slice intentionally does not create new event storage or duplicate full combat/turf/travel reports.
+
 ### Done when
 
 A player can understand what happened to their operation while they were away without checking six different pages.
@@ -317,6 +337,19 @@ Where legitimately known, show:
 - Last known strength band
 
 Never expose live information simply because someone is in the Rolodex.
+
+### 0.9.0-D implementation complete
+
+The Rolodex & Street Intelligence slice expands the existing contacts system without creating a parallel intel store:
+
+- rolodex entries now have an explicit player-chosen lane: Contact or Enemy;
+- Alliance and Blocked lanes are derived from current alliance membership and account-level blocks;
+- the Contacts page exposes category filters for All, Contacts, Enemies, Alliance and Blocked players;
+- contact cards show private notes plus earned relationship context from battles, active recon, payback windows, current shared-alliance context and settled turf pushes the player participated in;
+- recon is summarized as a strength band in the Rolodex instead of turning saved contacts into live free recon;
+- blocked players in the current round are visible from the Rolodex, with block management remaining in the Console;
+- player directory and profile actions can add either Contacts or Enemies, while Rolodex rows link back to Profile, Console messaging and Combat for authoritative actions;
+- this slice intentionally does not store recon snapshots in contacts or reveal live hidden state merely because someone is tracked.
 
 ### Done when
 
@@ -369,6 +402,13 @@ The existing combat/turf system remains authoritative.
 ### Done when
 
 Alliance members can coordinate routine gameplay without requiring Discord.
+
+### 0.9.0-E implementation complete
+
+- Alliance profile now has leader-managed description and recruitment status.
+- Alliance Wire is promoted to an in-game Alliance Console with leader announcements, one pinned announcement, message moderation, and admin visibility for announcement/pin state.
+- Console payload now includes actionable coordination cards for shared recon, turf pushes/reinforcement calls, convoy calls, city-control changes, and recruitment notices while keeping combat/turf/convoy systems authoritative.
+- Alliance page and public alliance detail surface recruitment posture and crew description.
 
 ---
 
@@ -454,6 +494,27 @@ Titles provide **no mechanical bonus**.
 
 Profiles celebrate how somebody played without creating permanent gameplay advantages.
 
+### 0.9.0-F implementation complete
+
+F extends the existing profile, career, achievement and title system rather than adding a parallel one:
+
+- **Crew name.** An optional, account-level crew name (3–32 characters, same shape as an alliance name) set in Account Settings. It shows on the profile and in the Player Directory, and directory search matches it, which closes the crew-name gap left open in A. An admin **Reset profile** clears it, and the previous value is kept in the audit log.
+- **Seasonal statistics.** Every stat is read back from history the game already keeps: the activity feed, battle receipts, turf pushes, hold segments and control events, runs, stops, cargo and trades, and reputation. Seasons that finished before F get full stat sheets too, and nothing on the action path keeps a second set of books. The only new counter is `RoundPlayer.peakCrew`. It is raised on every action and settle, and the migration backfills it with each existing player's current crew. Voided battles never count.
+
+  | Section | Stats |
+  |---|---|
+  | Street | turns worked, street earnings, recruits found, peak crew |
+  | Combat | raids won/lost, defenses held/lost, drive-bys landed, thugs defeated, cash stolen (raids + convoy hits), biggest raid |
+  | Turf | blocks captured (pushes + claims), blocks lost, block-hours held, cities controlled (alliance took the city while you held a block there) |
+  | Travel | runs completed, distance in real interstate drive hours, cargo moved (loaded + bought on the road), convoy hits won |
+  | Economy | product produced, product sold (Pip, checkout, market and run sales), largest transaction, trader reputation |
+
+- **Sealed live numbers.** Stats are history, not free intel. While a season is live, other players see `Sealed` for street earnings, recruits, peak crew, cash stolen, biggest raid, cargo moved, product produced/sold and largest transaction. Feat progress built on those numbers is hidden the same way. The owner always sees everything, and finished seasons show everything.
+- **Titles.** Season feats unlock cosmetic titles: **Street Grinder**, **Stick-Up King**, **Most Wanted**, **Block Boss**, **Turf Veteran**, **Road Warrior**, **Street Pharmacist** and **High Roller**. A new legacy award, **Kingpin**, unlocks for a finished season on the national podium. Feats are earned in one season and kept for good. They are re-derived from each season's history (the oldest qualifying season gets the credit), so they survive round resets, show as permanent badges and stay selectable as titles in the off-season. Titles give no mechanical bonus. Feat targets are balance approximations for a 28-day round and should be revisited with real 0.9.0 season data.
+- **Profile.** The profile adds a **Showcase** (the player's featured achievements in their chosen order), **This season** (the rarest achievements earned in the live season), a **Season stats** sheet with a picker for the live season and each finished season, and **Hall of Fame appearances** (every finished top-ten season, with podiums highlighted) above the career table.
+
+`PROFILE_INTEGRATION=1` runs the PostgreSQL coverage for the stat aggregation, sealing, permanent titles, Hall of Fame appearances and crew names.
+
 ---
 
 ## 0.9.0-G — Notifications & Phone Alerts
@@ -516,6 +577,35 @@ Allow:
 
 A player can safely leave the game and receive useful alerts without receiving spam.
 
+### 0.9.0-G implementation complete
+
+G builds on the alert pipeline that already existed (collector → outbox → Discord DMs and Web Push, plus the in-game bell) instead of adding a second one.
+
+**Categories.** There are fourteen, and each has its own outside-alert switch. They default to off, like the originals.
+
+| Category | When | Bell | Rule that keeps it honest |
+|---|---|---|---|
+| Attacks on me | a raid or drive-by hits you | yes | unchanged |
+| Block being pushed | your Lookouts spot a push on your block | yes | the turf page's own `headsUpMinutes(lookouts)` rule; never names the attacker, because the game doesn't; no Lookouts means no early warning |
+| My turf | a block is taken | yes | unchanged |
+| Backup calls | an ally in your city calls for help on turf or a run | yes | only after they call, only members in that city (the same people who can see and answer the call); no attacker names |
+| Alliance control | your alliance gains or loses a city | — | unchanged |
+| Convoy danger | your Lookouts spot a tail on your run | yes | ConvoyService's heads-up rule; never names the tailer |
+| Runs home | a run makes it home | yes | runs are now settled on time by the alerts pass, exactly as the owner's next page load would |
+| Revenge expiring | 2 hours before a revenge window closes | yes | skipped if they hit you again (the window moved) or you already hit back |
+| Special orders | a trader order lands on the shelf | yes | scheduled inside the order's own transaction |
+| Alliance announcements | a leader posts an announcement | — | current members who had joined by then, not the author |
+| Private messages | someone messages you | — | sender name only; subject and body never go to a lock screen; skipped if already read |
+| Turns full, rank drops, round news | as before | — | unchanged |
+
+- **Clock events.** Pushes, tails, runs, revenge and orders happen by the clock, not by a write, so the alerts poller now runs on every server, with or without push keys or a Discord bot. Each source row carries its own "alerted" marker (`defenderAlertedAt`, `alliesAlertedAt`, `ownerAlertedAt`, `homeAlertedAt`, `revengeAlertedAt`, `alertsCollectedAt`, and `ScheduledAlert.firedAt`). A pass is therefore idempotent, and the outbox dedupe key is a second guard. The migration marks history as already alerted so deploying does not flood anyone. New activity types (`TURF_PUSH_INCOMING`, `ALLIANCE_CALL`, `REVENGE_EXPIRING`, `SPECIAL_ORDER_READY`, and the previously unused `CONVOY_TAILED`) put these events in the bell, Activity and the Console lanes.
+- **Bell controls.** Every category with bell items can be muted there. Muting hides those items from the bell, the unread count, the Console badge and live toasts; the events stay in Activity. System events (quests, away bonus, admin grants) always show.
+- **Quiet controls.** A master switch pauses every outside alert without losing category choices. Quiet hours take a start, an end and an IANA time zone, and may wrap past midnight. Nothing goes to phone or Discord inside the window, while the bell keeps recording. The existing push and Discord channel switches remain the push toggle.
+- **Discord.** The six original `/alerts` types are unchanged. The new categories reach linked Discord accounts as already-worded `notices` in the alerts claim. An older bot ignores them, and the updated bot DMs them as simple embeds.
+- **Settings.** Account → Alerts shows the categories grouped by Combat & turf, Alliance & messages, Travel & economy, and Round, each with a Bell column and a Phone & Discord column, plus the master switch and quiet hours.
+
+`GAME_ALERTS_INTEGRATION=1` runs the PostgreSQL coverage: the Lookouts timing for pushes and tails, no attacker names, allies by city, revenge used or extended, special orders, messages without content, announcements, runs home, once-only delivery, pause, quiet hours and bell mutes.
+
 ---
 
 ## 0.9.0-H — Moderation, Abuse Prevention & Release
@@ -577,6 +667,17 @@ Test:
 - Push notification retries
 - Mobile layouts
 - Large inboxes
+
+### 0.9.0-H implementation complete
+
+H closes 0.9.0. See [RELEASE-0.9.0-H.md](RELEASE-0.9.0-H.md) for the full release notes and QA matrix.
+
+- **Player controls.** Adds **mute** (the muted player's mail arrives quietly in Archived, with no unread count or alerts, and they are never told) and **delete conversation** (per side, permanent; report evidence is kept) to block, report and archive.
+- **Anti-spam.** Accounts under 48 hours old get tighter limits and cannot send links. Cold outreach is capped per hour (3 for new accounts, 10 otherwise), and replies are never throttled. Outside links and copy-paste blasts open automated flags.
+- **Communication mutes.** Admin mutes (1 hour to 30 days, or permanent) block DMs, Alliance Wire posts and forum recruitment threads. They are audited and shown to the player beside Compose.
+- **Reports queue.** The queue is purpose-driven: no message text until an admin opens a report on purpose. Opening shows only that thread (5 messages before, 2 after) and is audited. Resolutions carry a note and keep a history. Resolving closes every report on the same message, and punishment stays a separate, audited account action.
+- **Account moderation notes**, private and audited.
+- **QA.** `MODERATION_INTEGRATION=1` covers concurrency, retries, blocks, mutes, deleted conversations, new-account limits, throttling, links, flags, communication mutes, the queue, notes, large inboxes and account deletion. `npm run qa:release -- --with-db` now includes every 0.9.0 suite.
 
 ---
 

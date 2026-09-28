@@ -5,17 +5,19 @@ import type { InAppNotificationFeedDto } from '@streets/shared';
 import { notificationsApi } from '../api/notifications.js';
 import { useSession } from '../stores/session.js';
 import { gameEventToastFor } from './GameEventToasts.js';
+import { formatWhen } from '../utils/time.js';
 
 const EMPTY_FEED: InAppNotificationFeedDto = { notifications: [], unreadCount: 0 };
 
 function displayTime(value: string): string {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
+  return formatWhen(date);
 }
 
 export function NotificationBell() {
   const accountId = useSession((s) => s.account?.id ?? null);
   const roundPlayerId = useSession((s) => s.me?.id ?? null);
+  const setBellMuted = useSession((s) => s.setBellMuted);
   const activityHead = useSession((s) => s.recentActivity[0]?.id ?? null);
   const crackWord = useSession((s) => s.me?.products) ? 'crack' : 'product';
   const [feed, setFeed] = useState<InAppNotificationFeedDto>(EMPTY_FEED);
@@ -35,14 +37,16 @@ export function NotificationBell() {
     }
     setLoading(true);
     try {
-      setFeed(await notificationsApi.inbox());
+      const next = await notificationsApi.inbox();
+      setFeed(next);
+      setBellMuted(next.bellMuted ?? []);
       setError(false);
     } catch {
       setError(true);
     } finally {
       setLoading(false);
     }
-  }, [accountId, roundPlayerId]);
+  }, [accountId, roundPlayerId, setBellMuted]);
 
   useEffect(() => {
     setFeed(EMPTY_FEED);

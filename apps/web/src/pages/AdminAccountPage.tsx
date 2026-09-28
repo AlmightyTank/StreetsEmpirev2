@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import type { AdminAccountAction, AdminAccountDetailDto, AdminSuspensionLength, RoundStatus } from '@streets/shared';
-import { ADMIN_SUSPENSION_LENGTHS, formatCents, formatNumber } from '@streets/shared';
+import type { AdminAccountAction, AdminAccountDetailDto, AdminCommsMuteLength, AdminSuspensionLength, RoundStatus } from '@streets/shared';
+import { ADMIN_COMMS_MUTE_LENGTHS, ADMIN_SUSPENSION_LENGTHS, formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { AccountTags, AuditEntryList } from '../components/AdminParts.js';
@@ -12,8 +12,11 @@ import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { adminWhen } from '../utils/admin.js';
+import { formatWhen } from '../utils/time.js';
 
 const actionText: Record<AdminAccountAction, { label: string; copy: string }> = {
+  ban: { label: 'Ban', copy: 'Permanent until lifted. Signs them out everywhere, blocks login, and shows them this reason when they try. Use it for cheating, abuse or ban evasion; use a suspension for a cooling-off period.' },
+  unban: { label: 'Lift ban', copy: 'Reactivates the account and clears the ban. They can log straight back in.' },
   deactivate: { label: 'Deactivate', copy: 'Signs them out everywhere, hides them from rankings and raid targets, and blocks login until an admin reactivates them.' },
   reactivate: { label: 'Reactivate', copy: 'Lets them log in again and puts them back in rankings.' },
   suspend: { label: 'Suspend', copy: 'A cool-off with an end date. Signs them out now, refuses login until it passes, and shows them the reason and the date. It lifts itself - no admin has to remember.' },
@@ -27,12 +30,16 @@ const actionText: Record<AdminAccountAction, { label: string; copy: string }> = 
   'revoke-beta': { label: 'Revoke beta', copy: 'Removes this account from the invite-only beta. Existing sessions stop working on their next request.' },
   'resend-verification': { label: 'Resend verification email', copy: 'Sends a fresh verification link to their current email address.' },
   'mark-email-verified': { label: 'Mark email verified', copy: 'Marks their current email as verified without a link. Only do this once you have confirmed they own it.' },
+  'reset-2fa': { label: 'Turn off two-step sign-in', copy: 'For a player who lost their phone and their recovery codes. Only once you are sure it is them. They are emailed, and can set it up again.' },
   'unlink-forum': { label: 'Unlink forum', copy: 'Removes the connection to their forum account on both sides. They can link again from their account settings.' },
   'resync-discord': { label: 'Resync Discord roles', copy: 'Asks the Discord bot to re-check their roles on its next pass, about a minute.' },
+  'comms-mute': { label: 'Mute messaging', copy: 'Stops private messages, Alliance Wire posts and forum recruitment threads. They keep playing and see a notice in the Console. Timed mutes lift themselves.' },
+  'comms-unmute': { label: 'Lift messaging mute', copy: 'Lets them send private messages and wire posts again now.' },
+  'add-note': { label: 'Add note', copy: 'A private moderation note. The player never sees it; other admins do, and it is audited.' },
   'delete-account': { label: 'Delete account', copy: 'Permanent. Unused accounts are removed outright. Accounts with round history are anonymized so rankings, battles and archived seasons remain intact.' },
 };
 
-const DESTRUCTIVE: AdminAccountAction[] = ['deactivate', 'suspend', 'revoke-admin', 'revoke-beta', 'unlink-forum', 'delete-account'];
+const DESTRUCTIVE: AdminAccountAction[] = ['ban', 'deactivate', 'suspend', 'comms-mute', 'revoke-admin', 'revoke-beta', 'unlink-forum', 'delete-account'];
 
 function statusTone(status: RoundStatus): string {
   if (status === 'ACTIVE') return ' se-tag--good';
@@ -57,6 +64,7 @@ export function AdminAccountPage() {
   const [newName, setNewName] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [length, setLength] = useState<AdminSuspensionLength>('7d');
+  const [muteLength, setMuteLength] = useState<AdminCommsMuteLength>('1d');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
@@ -101,10 +109,15 @@ export function AdminAccountPage() {
 
       let updated: AdminAccountDetailDto;
       switch (pending.action) {
+        case 'ban': updated = await adminApi.banAccount(accountId, why); break;
+        case 'unban': updated = await adminApi.unbanAccount(accountId, why); break;
         case 'deactivate': updated = await adminApi.deactivateAccount(accountId, why); break;
         case 'reactivate': updated = await adminApi.reactivateAccount(accountId, why); break;
         case 'suspend': updated = await adminApi.suspendAccount(accountId, length, why); break;
         case 'lift-suspension': updated = await adminApi.liftSuspension(accountId, why); break;
+        case 'comms-mute': updated = await adminApi.muteComms(accountId, muteLength, why); break;
+        case 'comms-unmute': updated = await adminApi.unmuteComms(accountId, why); break;
+        case 'add-note': updated = await adminApi.addNote(accountId, why); break;
         case 'revoke-sessions': updated = await adminApi.revokeSessions(accountId, why, pending.sessionId); break;
         case 'rename': updated = await adminApi.renameAccount(accountId, newName.trim(), why); break;
         case 'reset-profile': updated = await adminApi.resetProfile(accountId, why); break;
@@ -114,6 +127,7 @@ export function AdminAccountPage() {
         case 'revoke-beta': updated = await adminApi.setBetaApproved(accountId, false, why); break;
         case 'resend-verification': updated = await adminApi.resendVerification(accountId, why); break;
         case 'mark-email-verified': updated = await adminApi.markEmailVerified(accountId, why); break;
+        case 'reset-2fa': updated = await adminApi.resetTwoFactor(accountId, why); break;
         case 'unlink-forum': updated = await adminApi.unlinkForum(accountId, why); break;
         case 'resync-discord':
           await adminApi.requestDiscordResync({ accountId, reason: why });
@@ -146,8 +160,11 @@ export function AdminAccountPage() {
   const { account, email, forumLink, discord } = detail;
   const isSelf = account.id === myAccountId;
   const accountActions: AdminAccountAction[] = [
-    account.isActive ? 'deactivate' : 'reactivate',
+    ...(account.ban ? ['unban' as const] : !account.isAdmin ? ['ban' as const] : []),
+    ...(account.ban ? [] : [account.isActive ? 'deactivate' as const : 'reactivate' as const]),
     ...(account.suspension ? ['lift-suspension' as const] : account.isActive && !account.isAdmin ? ['suspend' as const] : []),
+    ...(detail.comms ? ['comms-unmute' as const] : !account.isAdmin ? ['comms-mute' as const] : []),
+    'add-note',
     'revoke-sessions',
     'rename',
     'reset-profile',
@@ -157,6 +174,7 @@ export function AdminAccountPage() {
   const linkActions: AdminAccountAction[] = [
     ...(!email.verifiedAt && email.sendingEnabled ? ['resend-verification' as const] : []),
     ...(!email.verifiedAt ? ['mark-email-verified' as const] : []),
+    ...(account.twoFactorEnabled && !isSelf ? ['reset-2fa' as const] : []),
     ...(forumLink ? ['unlink-forum' as const] : []),
     ...(discord.linked && discord.botApiEnabled ? ['resync-discord' as const] : []),
   ];
@@ -205,7 +223,15 @@ export function AdminAccountPage() {
                 <select id="admin-suspend-length" className="se-input" value={length} onChange={(event) => setLength(event.target.value as AdminSuspensionLength)}>
                   {ADMIN_SUSPENSION_LENGTHS.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
                 </select>
-                <p className="se-hint">Ends {new Date(Date.now() + (ADMIN_SUSPENSION_LENGTHS.find((option) => option.key === length)?.hours ?? 0) * 3_600_000).toLocaleString()}.</p>
+                <p className="se-hint">Ends {formatWhen(Date.now() + (ADMIN_SUSPENSION_LENGTHS.find((option) => option.key === length)?.hours ?? 0) * 3_600_000)}.</p>
+              </div>
+            ) : null}
+            {pending.action === 'comms-mute' ? (
+              <div className="se-field">
+                <label className="se-label" htmlFor="admin-comms-length">How long</label>
+                <select id="admin-comms-length" className="se-input" value={muteLength} onChange={(event) => setMuteLength(event.target.value as AdminCommsMuteLength)}>
+                  {ADMIN_COMMS_MUTE_LENGTHS.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
+                </select>
               </div>
             ) : null}
             {pending.action === 'rename' ? (
@@ -238,16 +264,16 @@ export function AdminAccountPage() {
               </>
             ) : null}
             <div className="se-field">
-              <label className="se-label" htmlFor="admin-account-reason">Reason</label>
+              <label className="se-label" htmlFor="admin-account-reason">{pending.action === 'add-note' ? 'Note' : 'Reason'}</label>
               <textarea
                 id="admin-account-reason"
                 className="se-input se-admin-reason"
-                rows={3}
-                maxLength={500}
+                rows={pending.action === 'add-note' ? 5 : 3}
+                maxLength={pending.action === 'add-note' ? 2000 : 500}
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
               />
-              {fields.reason ? <p className="se-error">{fields.reason}</p> : (
+              {fields.reason || fields.body ? <p className="se-error" role="alert">{fields.reason ?? fields.body}</p> : (
                 <p className="se-hint">
                   Saved to the audit log. At least 5 characters.
                   {pending.action === 'suspend' ? ' The player is shown this reason when they try to log in.' : ''}
@@ -281,7 +307,22 @@ export function AdminAccountPage() {
               />
             ) : null}
             {account.suspension?.reason ? <Row label="Suspension reason" value={account.suspension.reason} /> : null}
+            {detail.comms ? (
+              <Row
+                label="Messaging muted"
+                value={`${detail.comms.permanent ? 'Permanently' : `Until ${adminWhen(detail.comms.until)}`}${detail.comms.byUsername ? ` by ${detail.comms.byUsername}` : ''}`}
+                strong
+              />
+            ) : null}
+            {detail.comms?.reason ? <Row label="Mute reason" value={detail.comms.reason} /> : null}
+            <Row
+              label="Message reports"
+              value={detail.reportsAgainst.total
+                ? <Link to="/game/admin/reports">{formatNumber(detail.reportsAgainst.open)} open of {formatNumber(detail.reportsAgainst.total)}</Link>
+                : 'None'}
+            />
             <Row label="Email verified" value={email.verifiedAt ? adminWhen(email.verifiedAt) : 'No'} />
+            <Row label="Two-step sign-in" value={account.twoFactorEnabled ? 'On (authenticator app)' : 'Off'} />
             <Row label="Discord" value={discord.username ?? (discord.linked ? 'Linked' : '-')} />
             <Row
               label="Forum"
@@ -315,7 +356,7 @@ export function AdminAccountPage() {
             </>
           )}
           <p className="se-hint se-mt">
-            <Link to={`/game/admin/audit?targetType=account&targetId=${account.id}`}>Full audit history for this account</Link>
+            <Link className="se-standalone-link" to={`/game/admin/audit?targetType=account&targetId=${account.id}`}>Full audit history for this account</Link>
           </p>
         </Panel>
       </div>
@@ -420,6 +461,19 @@ export function AdminAccountPage() {
             </table>
           </div>
         )}
+      </Panel>
+
+      <Panel title="Moderation notes" aside="Private to admins" className="se-mb">
+        {detail.notes.length ? (
+          <ul className="se-admin-notes">
+            {detail.notes.map((note) => (
+              <li key={note.id}>
+                <p>{note.body}</p>
+                <p className="se-hint">{note.authorUsername} · {adminWhen(note.createdAt)}</p>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="se-muted">No notes yet.</p>}
       </Panel>
 
       <Panel title="Admin history" aside="Latest 25" flush>

@@ -16,7 +16,7 @@ import {
 } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
 import type { CityTurfDto, TurfBattleReportDto, TurfBlockDto, TurfSummaryDto, TurfTripDto } from '@streets/shared';
-import type { Db } from '../utils/db.js';
+import { tryLockRoundPlayer, type Db } from '../utils/db.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
@@ -447,7 +447,10 @@ export const TurfService = {
     // A rival's persisted corner may be hours out of date. Settle its upkeep
     // before deciding whether this worker owes tax, then reread the block in
     // case the corner walked out while the holder was offline.
-    if (row?.holder && row.holder.id !== input.roundPlayerId) {
+    // 1.0.0-C: only under the holder's own lock. Settling writes their cash and
+    // stock back whole, so doing it unlocked could overwrite a purchase they are
+    // making at this moment. A holder who is busy is being settled by that action.
+    if (row?.holder && row.holder.id !== input.roundPlayerId && await tryLockRoundPlayer(tx, row.holder.id)) {
       await TurfService.settlePlayer(tx, row.holder.id, input.ruleset, now);
       row = await tx.turf.findUnique({
         where: { roundId_cityId_district: { roundId: input.roundId, cityId: input.cityId, district: input.district } },

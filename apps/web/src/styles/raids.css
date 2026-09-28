@@ -15,7 +15,7 @@
   border: 1px solid var(--se-line);
   border-radius: 4px;
   background:
-    linear-gradient(120deg, rgba(255, 84, 104, 0.06), transparent 42%),
+    linear-gradient(120deg, rgba(243, 63, 99, 0.06), transparent 42%),
     linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
 }
 
@@ -26,7 +26,7 @@
   bottom: -135px;
   width: 350px;
   height: 255px;
-  border: 1px solid rgba(255, 84, 104, 0.11);
+  border: 1px solid rgba(243, 63, 99, 0.11);
   transform: rotate(-15deg);
   pointer-events: none;
 }
@@ -107,8 +107,8 @@
   justify-content: space-between;
   gap: 18px;
   padding: 14px 16px;
-  border-color: rgba(255, 176, 32, 0.28);
-  background: rgba(255, 176, 32, 0.025);
+  border-color: rgba(255, 121, 26, 0.28);
+  background: rgba(255, 121, 26, 0.025);
 }
 
 .se-raids-pending h2 {
@@ -237,12 +237,12 @@
 
 .se-raids-status--blocked,
 .se-raids-target-strength--stronger {
-  border-color: rgba(255, 84, 104, 0.32);
+  border-color: rgba(243, 63, 99, 0.32);
   color: var(--se-bad);
 }
 
 .se-raids-target-strength--comparable {
-  border-color: rgba(255, 176, 32, 0.32);
+  border-color: rgba(255, 121, 26, 0.32);
   color: var(--se-warn);
 }
 
@@ -330,7 +330,7 @@
 .se-raids-block {
   padding: 10px;
   border-left: 3px solid var(--se-bad);
-  background: rgba(255, 84, 104, 0.035);
+  background: rgba(243, 63, 99, 0.035);
   color: var(--se-text-dim);
   font-size: 11px;
 }
@@ -377,8 +377,8 @@
   gap: 14px;
   align-items: center;
   padding: 12px;
-  border: 1px solid rgba(255, 84, 104, 0.16);
-  background: rgba(255, 84, 104, 0.018);
+  border: 1px solid rgba(243, 63, 99, 0.16);
+  background: rgba(243, 63, 99, 0.018);
 }
 
 .se-raids-launch > div {

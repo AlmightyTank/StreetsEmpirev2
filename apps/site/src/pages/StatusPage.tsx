@@ -35,7 +35,33 @@ export function StatusPage() {
               <div className="status-grid">
                 <article className="status-card"><span className="status-dot status-dot--ok" /><div><strong>Public API</strong><small>{data.api}</small></div></article>
                 <article className="status-card"><span className="status-dot status-dot--ok" /><div><strong>Database</strong><small>{data.database}</small></div></article>
-                <article className="status-card"><span className="status-dot status-dot--ok" /><div><strong>Current game</strong><small>{data.currentRound ? data.currentRound.name + ' · ' + data.currentRound.status : 'No open round'}</small></div></article>
+                <article className="status-card"><span className={`status-dot ${data.currentRound?.paused ? 'status-dot--warn' : 'status-dot--ok'}`} /><div><strong>Current game</strong><small>{data.currentRound ? data.currentRound.name + ' · ' + (data.currentRound.paused ? 'PAUSED' : data.currentRound.status) : 'No open round'}</small></div></article>
+                {data.maintenance ? (
+                  <article className="status-card">
+                    <span className={`status-dot ${data.maintenance.running ? 'status-dot--warn' : 'status-dot--ok'}`} />
+                    <div>
+                      <strong>{data.maintenance.running ? 'Maintenance in progress' : 'Scheduled maintenance'}</strong>
+                      <small>
+                        {new Date(data.maintenance.startsAt).toLocaleString()} – {new Date(data.maintenance.endsAt).toLocaleString()}
+                        {' · '}{data.maintenance.message}
+                      </small>
+                    </div>
+                  </article>
+                ) : null}
+                {data.platform ? (
+                  <article className="status-card">
+                    <span className="status-dot status-dot--ok" />
+                    <div>
+                      <strong>Game build</strong>
+                      <small>
+                        {data.platform.app.version}
+                        {data.platform.app.commit ? ` (${data.platform.app.commit})` : ''}
+                        {' · ruleset '}{data.platform.ruleset.version}
+                        {data.platform.environment !== 'production' ? ` · ${data.platform.environment}` : ''}
+                      </small>
+                    </div>
+                  </article>
+                ) : null}
               </div>
 
               <div className="site-panel">

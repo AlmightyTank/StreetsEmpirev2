@@ -29,9 +29,14 @@ import './styles/activity.css';
 import './styles/admin.css';
 import './styles/public-info.css';
 import './styles/page-identities.css';
+import './styles/ux.css';
 import { App } from './App.js';
 // Before React mounts: Android can offer the install prompt immediately.
 import './utils/install.js';
+import { registerAppServiceWorker } from './utils/app-update.js';
+
+// 1.0.0-G: installable app and offline page; never caches the game (see public/sw.js).
+registerAppServiceWorker();
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Missing #root element.');

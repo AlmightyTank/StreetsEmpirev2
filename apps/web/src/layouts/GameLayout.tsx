@@ -3,6 +3,9 @@ import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Shell } from './Shell.js';
 import { ConnectionBanner } from '../components/ConnectionBanner.js';
 import { TrackedQuests } from '../components/TrackedQuests.js';
+import { IntroDialog } from '../components/onboarding/IntroDialog.js';
+import { PageGuide } from '../components/onboarding/PageGuide.js';
+import { useOnboarding } from '../stores/onboarding.js';
 import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
@@ -345,6 +348,13 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   const [sheet, setSheet] = useState<{ editSlot: number | null } | null>(null);
   const moreButton = useRef<HTMLButtonElement>(null);
   useRouteScroll(pathname, hash);
+  // 1.0.0-B: tutorial progress, refreshed as the player acts so the goals tick off.
+  const playerId = useSession((s) => s.me?.id ?? null);
+  const activityHead = useSession((s) => s.recentActivity[0]?.id ?? null);
+  const loadOnboarding = useOnboarding((s) => s.load);
+  useEffect(() => {
+    if (playerId) void loadOnboarding();
+  }, [playerId, activityHead, loadOnboarding]);
 
   function closeSheet() {
     setSheet(null);
@@ -379,15 +389,25 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
         <div className="se-gamebar">
           <span className="se-gamebar__name">{round.name}</span>
           <span className="se-gamebar__time se-num">
-            {formatDuration(round.msRemaining)} left
+            {round.paused ? 'Paused' : `${formatDuration(round.msRemaining)} left`}
           </span>
         </div>
       ) : null}
+      {round?.paused ? (
+        <div className="se-beta-banner se-paused-banner" role="status">
+          <strong>Season paused</strong>
+          <span>{round.paused.reason ? `${round.paused.reason} ` : ''}Your crew and anything on the road are safe. Actions open again when the pause lifts.</span>
+        </div>
+      ) : null}
       <TrackedQuests />
+      <IntroDialog />
 
       <div className="se-gamegrid">
         <GameNav sections={sections} pathname={pathname} badges={badges} />
-        <div className="se-gamemain">{children}</div>
+        <div className="se-gamemain">
+          <PageGuide />
+          {children}
+        </div>
       </div>
       </Shell>
     </GameLayoutMountedContext.Provider>
@@ -410,5 +430,7 @@ export function GameLayout({ children }: { children: ReactNode }) {
  */
 export function GameRouteLayout() {
   const me = useSession((state) => state.me);
-  return me ? <GameLayoutFrame><Outlet /></GameLayoutFrame> : <Outlet />;
+  // An account that may not play yet gets no game frame (and none of its polling).
+  const blocked = useSession((state) => Boolean(state.account?.verificationRequired || state.account?.rulesAcceptanceRequired));
+  return me && !blocked ? <GameLayoutFrame><Outlet /></GameLayoutFrame> : <Outlet />;
 }

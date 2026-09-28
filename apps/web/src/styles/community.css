@@ -167,14 +167,34 @@
 .se-wire__form { margin-bottom: 12px; }
 .se-wire__input { resize: vertical; min-height: 56px; }
 .se-wire__actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.se-wire__options { display: flex; align-items: end; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.se-wire__options .se-field { margin: 0; min-width: 160px; }
+.se-wire__pinned { display: grid; gap: 3px; margin-bottom: 10px; padding: 9px 10px; border: 1px solid rgba(var(--se-accent-rgb), 0.36); border-left: 3px solid var(--se-accent); border-radius: 6px; background: rgba(var(--se-accent-rgb), 0.045); }
+.se-wire__pinned p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.se-wire__pinned small { color: var(--se-muted); font-size: 10px; }
+.se-wire-cards { display: grid; gap: 7px; margin-bottom: 12px; }
+.se-wire-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 10px; border: 1px solid var(--se-line); border-left: 3px solid var(--se-accent-dim); border-radius: 7px; background: rgba(255, 255, 255, 0.018); }
+.se-wire-card--warn { border-left-color: var(--se-warn); }
+.se-wire-card--good { border-left-color: var(--se-good); }
+.se-wire-card strong { display: block; min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
+.se-wire-card p { margin: 3px 0; color: var(--se-text-dim); font-size: 11px; line-height: 1.35; overflow-wrap: anywhere; }
+.se-wire-card time { color: var(--se-muted); font-family: var(--se-mono); font-size: 9px; }
 .se-wire { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .se-wire__post { border: 1px solid var(--se-line); border-radius: 8px; padding: 8px 10px; }
+.se-wire__post--announcement { border-color: rgba(255, 188, 68, 0.36); background: rgba(255, 188, 68, 0.025); }
 .se-wire__post--yours { border-color: color-mix(in srgb, var(--se-accent) 35%, var(--se-line)); }
 .se-wire__post--removed { opacity: 0.6; }
 .se-wire__meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
 .se-wire__meta .se-btn { margin-left: auto; }
+.se-wire__tools { display: inline-flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+.se-wire__tools .se-btn { margin-left: 0; }
 .se-wire__body { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .se-contact__note { min-width: 180px; }
+
+@media (max-width: 560px) {
+  .se-wire-card { grid-template-columns: 1fr; align-items: stretch; }
+  .se-wire-card .se-btn { width: 100%; }
+}
 
 /* 0.4.0-B product supply */
 .se-supply__policy { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }

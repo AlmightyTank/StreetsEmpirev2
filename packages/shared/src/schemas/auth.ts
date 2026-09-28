@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidTimeZone, NOTIFICATION_CATEGORIES } from '../notifications.js';
 
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;
@@ -32,16 +33,26 @@ export const registerSchema = z.object({
   username: usernameSchema,
   email: emailSchema,
   password: passwordSchema,
+  /** rc.5. "I am 13 or older" (the rules agreement asks every player again before play). */
+  ageConfirmed: z.boolean().optional(),
+  /** rc.5. Cloudflare Turnstile token, when bot checks are switched on. */
+  captchaToken: z.string().max(4096).optional(),
 });
 
 /** Login accepts either the pimp name or the email on the account. */
 export const loginSchema = z.object({
   identifier: z.string().trim().min(1, 'Enter your pimp name or email.'),
   password: z.string().min(1, 'Enter your password.'),
+  /** rc.4. "Keep me signed in". Defaults to true. */
+  remember: z.boolean().optional(),
+  /** rc.6. Cloudflare Turnstile token, when bot checks are switched on. */
+  captchaToken: z.string().max(4096).optional(),
 });
 
 export const forgotPasswordSchema = z.object({
   email: emailSchema,
+  /** rc.5. Cloudflare Turnstile token, when bot checks are switched on. */
+  captchaToken: z.string().max(4096).optional(),
 });
 
 export const resetPasswordSchema = z.object({
@@ -77,12 +88,34 @@ export const profileAccentSchema = z.enum([
   'clean-slate-ice',
   'corner-amber',
 ]);
+export const CREW_NAME_MIN = 3;
+export const CREW_NAME_MAX = 32;
+
+/**
+ * 0.9.0-F. Public crew name: same shape as an alliance name. Blank clears it.
+ * Admins can clear it with a profile reset.
+ */
+export const crewNameSchema = z
+  .string()
+  .trim()
+  .transform((value) => value.replace(/\s+/g, ' '))
+  .pipe(z.union([
+    z.literal(''),
+    z.string()
+      .min(CREW_NAME_MIN, `Crew names need at least ${CREW_NAME_MIN} characters.`)
+      .max(CREW_NAME_MAX, `Crew names can be at most ${CREW_NAME_MAX} characters.`)
+      .regex(/^[A-Za-z0-9][A-Za-z0-9 '._-]*[A-Za-z0-9.]$/, 'Use letters, numbers, spaces and simple punctuation.'),
+  ]))
+  .transform((value) => value || null);
+
 export const uiDensitySchema = z.enum(['comfortable', 'compact']);
 export const moneyFormatSchema = z.enum(['full', 'compact']);
 export const defaultLandingSchema = z.enum(['game', 'profile', 'rankings', 'news']);
 
 export const updateAccountProfileSettingsSchema = z.object({
   activeTitleKey: z.string().trim().min(1).max(80).nullable(),
+  /** Omitted keeps the current crew name; null or blank clears it. */
+  crewName: crewNameSchema.nullable().optional(),
   activeProfileFrameKey: z.string().trim().min(1).max(80).nullable(),
   activeSiteThemeKey: z.string().trim().min(1).max(80).nullable().default(null),
   featuredBadgeKeys: z.array(z.string().trim().min(1).max(80)).max(6),
@@ -93,18 +126,24 @@ export const updateAccountProfileSettingsSchema = z.object({
   defaultLanding: defaultLandingSchema,
 });
 
-const notificationToggles = z.object({
-  attacks: z.boolean(),
-  turns: z.boolean(),
-  round: z.boolean(),
-  rank: z.boolean(),
-  turf: z.boolean(),
-  alliance: z.boolean(),
-}).partial().strict();
+const notificationCategorySchema = z.enum(NOTIFICATION_CATEGORIES);
+const notificationToggles = z.record(notificationCategorySchema, z.boolean());
+
+const minuteOfDay = z.number().int().min(0).max(24 * 60 - 1);
+
+/** 0.9.0-G. Quiet hours in the player's own time zone; null switches them off. */
+export const quietHoursSchema = z.object({
+  start: minuteOfDay,
+  end: minuteOfDay,
+  timeZone: z.string().trim().min(1).max(64).refine(isValidTimeZone, 'Pick a real time zone.'),
+}).strict().refine((value) => value.start !== value.end, { message: 'Quiet hours need different start and end times.', path: ['end'] });
 
 export const updateNotificationSettingsSchema = z.object({
   categories: notificationToggles.optional(),
   channels: z.object({ discord: z.boolean(), push: z.boolean() }).partial().strict().optional(),
+  paused: z.boolean().optional(),
+  quietHours: quietHoursSchema.nullable().optional(),
+  bellMuted: z.array(notificationCategorySchema).max(NOTIFICATION_CATEGORIES.length).optional(),
 }).strict();
 
 export const pushSubscribeSchema = z.object({

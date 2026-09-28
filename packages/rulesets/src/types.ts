@@ -250,6 +250,23 @@ export interface QuestBranchDefinition {
   readonly followUpKeys: readonly string[];
 }
 
+export interface QuestStoryDefinition {
+  /** Optional chapter label for story/tutorial ordering, e.g. "Lesson 1". */
+  readonly chapter: string;
+  /** Contact-flavored setup shown before or while the job is available. */
+  readonly intro: string;
+  /** Contact-flavored reminder while the job is active. */
+  readonly inProgress: string;
+  /** Contact-flavored payoff once objectives are ready to collect. */
+  readonly ready: string;
+  /** Contact-flavored closing line after payment is collected. */
+  readonly completed: string;
+  /** Plain-language system lesson this job is teaching. */
+  readonly lesson: string;
+  /** Short actionable nudge toward the screen/action that advances the job. */
+  readonly actionHint: string;
+}
+
 export type ContactKey =
   | 'MAMA_KING'
   | 'PIP'
@@ -401,6 +418,8 @@ export interface QuestDefinition {
   readonly rewards: readonly QuestRewardDefinition[];
   /** Rare Phase R choices committed at turn-in. Omit for normal linear Jobs. */
   readonly branches?: readonly QuestBranchDefinition[];
+  /** Optional story/tutorial copy presented by the client without changing mechanics. */
+  readonly story?: QuestStoryDefinition;
   readonly followUpKeys: readonly string[];
   readonly repeatability: QuestRepeatability;
   /** Null means the accepted quest has no timer. */

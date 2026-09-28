@@ -162,15 +162,13 @@ describe.runIf(process.env.COMBAT_INTEGRATION === '1')('drive-bys with PostgreSQ
     expect(again.json().error.code).toBe('DRIVE_BY_BLOCKED');
   });
 
-  it('is what Charlie wants now, and he lets you keep the car', async () => {
-    const favour = () => post('/reputation/quest', { trader: 'CHARLIE', actionId: randomUUID() });
-    expect((await favour()).json().error.code).toBe('QUEST_INCOMPLETE');
-
-    expect((await driveBy()).statusCode).toBe(200);
-    const lowRiders = (await state(0)).lowRiders;
-    const done = await favour();
-    expect(done.statusCode, done.body).toBe(200);
-    expect(done.json().result).toMatchObject({ trader: 'CHARLIE', lowRidersHandedOver: 0, reputationGained: rules.reputation.questPoints });
-    expect((await state(0)).lowRiders).toBe(lowRiders);
+  // 1.0.0-H: trader favours moved into the quest system and the old favour route was
+  // retired; a drive-by now counts as a won event toward quest objectives instead.
+  it('logs drive-bys for quest progress, and the old Charlie favour route is gone', async () => {
+    expect((await post('/reputation/quest', { trader: 'CHARLIE', actionId: randomUUID() })).statusCode).toBe(404);
+    const sent = await driveBy();
+    expect(sent.statusCode, sent.body).toBe(200);
+    const logged = await app.prisma.playerActivity.findMany({ where: { roundPlayerId: players[0]!, type: 'DRIVE_BY_ATTACK' } });
+    expect(logged.map((row) => (row.payload as { battleId?: unknown }).battleId)).toContain(sent.json().id);
   });
 });

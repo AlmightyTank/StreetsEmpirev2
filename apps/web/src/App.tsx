@@ -4,6 +4,13 @@ import { AccountSettingsPage } from './pages/AccountSettingsPage.js';
 import { AdminAccountPage } from './pages/AdminAccountPage.js';
 import { AdminAccountsPage } from './pages/AdminAccountsPage.js';
 import { AdminAuditPage } from './pages/AdminAuditPage.js';
+import { AdminReportsPage } from './pages/AdminReportsPage.js';
+import { AdminBugReportsPage } from './pages/AdminBugReportsPage.js';
+import { ReportBugPage } from './pages/ReportBugPage.js';
+import { AdminEconomyPage } from './pages/AdminEconomyPage.js';
+import { AdminCombatPage } from './pages/AdminCombatPage.js';
+import { AdminTurfPage } from './pages/AdminTurfPage.js';
+import { AdminMonitoringPage } from './pages/AdminMonitoringPage.js';
 import { AdminIntegrationsPage } from './pages/AdminIntegrationsPage.js';
 import { AdminNewsPage } from './pages/AdminNewsPage.js';
 import { AdminPage } from './pages/AdminPage.js';
@@ -42,6 +49,10 @@ import { StorePage, StoresIndexPage } from './pages/StorePage.js';
 import { TravelPage } from './pages/TravelPage.js';
 import { TurfPage } from './pages/TurfPage.js';
 import { GameRouteLayout } from './layouts/GameLayout.js';
+import { useMaintenanceMessage } from './components/MaintenanceBanner.js';
+import { VerifyEmailGate } from './components/VerifyEmailGate.js';
+import { RulesGate } from './components/RulesGate.js';
+import { AdminDiscordGate } from './components/AdminDiscordGate.js';
 import { landingPath, useSession } from './stores/session.js';
 
 function RequireAccount({ children }: { children: ReactNode }) {
@@ -51,13 +62,26 @@ function RequireAccount({ children }: { children: ReactNode }) {
 }
 
 function Protected({ children }: { children: ReactNode }) {
-  return <RequireAccount>{children}</RequireAccount>;
+  return <RequireAccount><RequirePlayable>{children}</RequirePlayable></RequireAccount>;
+}
+
+/** Playing needs a verified email or Discord, then the rules accepted; until then the account sees how to get there. */
+function RequirePlayable({ children }: { children: ReactNode }) {
+  const unverified = useSession((s) => s.account?.verificationRequired ?? false);
+  const rulesPending = useSession((s) => s.account?.rulesAcceptanceRequired ?? false);
+  if (unverified) return <VerifyEmailGate />;
+  // First sign-in (or the rules changed): accept them before anything else.
+  if (rulesPending) return <RulesGate />;
+  return <>{children}</>;
 }
 
 /** Hides admin pages from players. The server checks isAdmin on every admin route regardless. */
 function RequireAdmin({ children }: { children: ReactNode }) {
   const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
+  const needsDiscord = useSession((s) => s.account?.adminSignInRequired ?? false);
   if (!isAdmin) return <Navigate to="/game" replace />;
+  // rc.2/rc.3: admin tools answer only a sign-in with a second factor (REQUIRE_ADMIN_2FA).
+  if (needsDiscord) return <AdminDiscordGate />;
   return <>{children}</>;
 }
 
@@ -78,10 +102,18 @@ function GameEntry() {
 }
 
 function Booting() {
+  // 1.0.0-F: in maintenance mode the first requests are turned away; say why instead of waiting forever.
+  const maintenance = useMaintenanceMessage();
   return (
     <div className="se-booting">
       <span className="se-eyebrow">StreetsEmpire</span>
-      <p className="se-muted">Checking the streets...</p>
+      {maintenance ? (
+        <>
+          <p><strong>Down for maintenance.</strong></p>
+          <p className="se-muted">{maintenance}</p>
+          <button type="button" className="se-btn" onClick={() => window.location.reload()}>Check again</button>
+        </>
+      ) : <p className="se-muted">Checking the streets...</p>}
     </div>
   );
 }
@@ -142,6 +174,7 @@ export function App() {
         <Route path="news" element={<NewsPage />} />
         <Route path="status" element={<Protected><StatusPage /></Protected>} />
         <Route path="rules" element={<RulesPage />} />
+        <Route path="report-bug" element={<RequireAccount><ReportBugPage /></RequireAccount>} />
         <Route path="reputation" element={<Protected><LiveRound><ReputationPage /></LiveRound></Protected>} />
 
         <Route path="admin" element={admin(<AdminPage />)} />
@@ -155,6 +188,12 @@ export function App() {
         <Route path="admin/rulesets" element={admin(<AdminRulesetsPage />)} />
         <Route path="admin/signals" element={admin(<AdminSignalsPage />)} />
         <Route path="admin/audit" element={admin(<AdminAuditPage />)} />
+        <Route path="admin/reports" element={admin(<AdminReportsPage />)} />
+        <Route path="admin/bugs" element={admin(<AdminBugReportsPage />)} />
+        <Route path="admin/economy" element={admin(<AdminEconomyPage />)} />
+        <Route path="admin/combat" element={admin(<AdminCombatPage />)} />
+        <Route path="admin/turf" element={admin(<AdminTurfPage />)} />
+        <Route path="admin/monitoring" element={admin(<AdminMonitoringPage />)} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

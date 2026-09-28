@@ -234,7 +234,7 @@ export function ScoutPage() {
             {selectedDistrict ? (
               <>
                 <div className="se-scout-intel__coverage">
-                  <div className="se-scout-intel__bar" aria-label={`${coveredPercent}% of the street crew covered`}>
+                  <div className="se-scout-intel__bar" role="img" aria-label={`${coveredPercent}% of the street crew covered`}>
                     <span style={{ width: `${coveredPercent}%` }} />
                   </div>
                   <div className="se-scout-intel__coverage-labels">

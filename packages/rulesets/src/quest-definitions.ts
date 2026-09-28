@@ -10,6 +10,13 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
     if (!quest.title.trim()) problems.push(`${catalogKey}: title is required`);
     if (!quest.description.trim()) problems.push(`${catalogKey}: description is required`);
     if (quest.objectives.length === 0) problems.push(`${catalogKey}: at least one objective is required`);
+    if (quest.story) {
+      for (const [field, value] of Object.entries(quest.story)) {
+        if (typeof value !== 'string' || !value.trim()) {
+          problems.push(`${catalogKey}: story.${field} is required`);
+        }
+      }
+    }
     if (quest.type === 'SECRET') {
       if (quest.repeatability !== 'ONCE') problems.push(`${catalogKey}: SECRET quests must be ONCE`);
       if (quest.availability.hidden !== true) problems.push(`${catalogKey}: SECRET quests must set availability.hidden=true`);

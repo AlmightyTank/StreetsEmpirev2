@@ -2,6 +2,7 @@ import type { City, Prisma, PrismaClient } from '@prisma/client';
 import { RelocationService } from './relocation.service.js';
 import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
 import type {
+  PublicHallOfFameAppearanceDto,
   PublicAchievementCategory,
   PublicAchievementRarity,
   PublicAwardDto,
@@ -25,6 +26,8 @@ import { selectProfileBadges } from './profile-badges.js';
 import { profileTitleForAward } from './profile-titles.js';
 import { TurfHistoryService } from './turf-history.service.js';
 import { QuestCosmeticService } from './quest-cosmetic.service.js';
+import { seasonFeatAwards, type FeatSeason } from './season-feats.js';
+import { emptySeasonTotals, SeasonStatsService, toStatSheet, type SeasonTotals } from './season-stats.service.js';
 
 interface RankingRow {
   id: string;
@@ -85,6 +88,7 @@ const emptyLegacy = (): PublicLegacyDto => ({
   roundsPlayed: 0,
   roundWins: 0,
   topTenFinishes: 0,
+  podiumFinishes: 0,
   bestNationalRank: null,
   bestLocalRank: null,
   totalFinalNetWorthCents: 0,
@@ -96,6 +100,7 @@ function addPastRound(legacy: PublicLegacyDto, row: { localRank: number | null; 
   if (row.nationalRank !== null) {
     legacy.bestNationalRank = legacy.bestNationalRank === null ? row.nationalRank : Math.min(legacy.bestNationalRank, row.nationalRank);
     if (row.nationalRank === 1) legacy.roundWins += 1;
+    if (row.nationalRank <= 3) legacy.podiumFinishes += 1;
     if (row.nationalRank <= 10) legacy.topTenFinishes += 1;
   }
   if (row.localRank !== null) {
@@ -170,10 +175,74 @@ function addBattleToSeasonStats(
   }
 }
 
+/**
+ * 0.9.0-F. Every finished season of an account with its stat totals, for
+ * season feats (kept for good once earned) and the career stat sheets.
+ */
+export async function loadSeasonHistory(
+  prisma: PrismaClient,
+  accountId: string,
+  currentRoundId: string | null,
+  now: Date = new Date(),
+): Promise<{ totals: Map<string, SeasonTotals>; past: Array<FeatSeason & { endedAt: Date }> }> {
+  const rows = await prisma.roundPlayer.findMany({
+    where: {
+      accountId,
+      ...(currentRoundId ? { roundId: { not: currentRoundId } } : {}),
+      round: { status: { in: ['ENDED', 'ARCHIVED'] } },
+    },
+    select: {
+      id: true,
+      whores: true,
+      thugs: true,
+      peakCrew: true,
+      round: { select: { name: true, endsAt: true, rulesetId: true, rulesetVersion: true } },
+    },
+  });
+  const totals = await SeasonStatsService.totals(prisma, rows, now);
+  return {
+    totals,
+    past: rows.map((row) => ({
+      name: row.round.name,
+      endedAt: row.round.endsAt,
+      totals: totals.get(row.id) ?? emptySeasonTotals(),
+    })),
+  };
+}
+
+/**
+ * Awards an account keeps between rounds: legacy finishes, beta access, quest
+ * cosmetics and season feats. What forum badges and title pickers fall back to
+ * when the account is not in the current round.
+ */
+export async function permanentAwardsForAccount(
+  prisma: PrismaClient,
+  accountId: string,
+  currentRoundId: string | null,
+): Promise<PublicAwardDto[]> {
+  const [legacy, betaTester, questCosmetics, history] = await Promise.all([
+    loadAccountLegacy(prisma, accountId, currentRoundId),
+    betaTesterAwardsForAccount(prisma, accountId),
+    QuestCosmeticService.awardsForAccount(prisma, accountId),
+    loadSeasonHistory(prisma, accountId, currentRoundId),
+  ]);
+  return [
+    ...legacyAchievements(legacy),
+    ...seasonFeatAwards(null, history.past),
+    ...betaTester,
+    ...questCosmetics,
+  ];
+}
+
 export async function loadCareerForAccount(
   prisma: PrismaClient,
   accountId: string,
-  options: { limit?: number; currentRoundId?: string | null } = {},
+  options: {
+    limit?: number;
+    currentRoundId?: string | null;
+    /** Totals already loaded by `loadSeasonHistory`, keyed by RoundPlayer id. */
+    totals?: Map<string, SeasonTotals>;
+  } = {},
 ): Promise<PublicCareerDto> {
   const where: Prisma.RoundPlayerWhereInput = {
     accountId,
@@ -188,6 +257,7 @@ export async function loadCareerForAccount(
   });
 
   const ids = players.map((player) => player.id);
+  const totals = options.totals ?? await SeasonStatsService.totals(prisma, players);
   const statsByPlayer = new Map(ids.map((id) => [id, emptySeasonStats()]));
 
   if (ids.length) {
@@ -246,15 +316,30 @@ export async function loadCareerForAccount(
     ? players
     : await prisma.roundPlayer.findMany({
       where,
-      select: { localRank: true, nationalRank: true, netWorthCents: true },
+      select: {
+        localRank: true,
+        nationalRank: true,
+        netWorthCents: true,
+        round: { select: { name: true, slug: true, endsAt: true } },
+      },
     });
   const legacy = legacyRows.reduce(
     (carry, player) => addPastRound(carry, player),
     emptyLegacy(),
   );
+  // The Hall of Fame lists each finished season's national top ten.
+  const hallOfFame: PublicHallOfFameAppearanceDto[] = legacyRows
+    .filter((row) => row.nationalRank !== null && row.nationalRank <= 10)
+    .sort((a, b) => b.round.endsAt.getTime() - a.round.endsAt.getTime())
+    .map((row) => ({
+      round: { name: row.round.name, slug: row.round.slug, endedAt: row.round.endsAt.toISOString() },
+      nationalRank: row.nationalRank!,
+      podium: row.nationalRank! <= 3,
+    }));
 
   return {
     legacy,
+    hallOfFame,
     seasons: players.map((player) => ({
       round: {
         id: player.round.id,
@@ -276,6 +361,8 @@ export async function loadCareerForAccount(
         national: player.nationalRank,
       },
       stats: statsByPlayer.get(player.id) ?? emptySeasonStats(),
+      // Finished seasons are history: nothing on them is sealed.
+      statSheet: toStatSheet(totals.get(player.id) ?? emptySeasonTotals(), false),
       hideout: toSeasonHideoutDto(player),
       joinedAt: player.createdAt.toISOString(),
       lastActiveAt: player.lastActiveAt.toISOString(),
@@ -327,7 +414,7 @@ function rankHeldSince(row: RankingRow, rank: number, scope: 'local' | 'national
   return storedRank === rank ? storedSince : now;
 }
 
-function progress(current: number, target: number, label: string): PublicAwardDto['progress'] {
+function progress(current: number, target: number, label: string): NonNullable<PublicAwardDto['progress']> {
   return { current: Math.max(0, current), target, label };
 }
 
@@ -351,7 +438,10 @@ function achievement(input: {
     rarity: input.rarity,
     unlocked,
     earnedAt: unlocked && input.earnedAt ? input.earnedAt.toISOString() : null,
-    progress: progress(input.current, input.target, input.progressLabel),
+    progress: {
+      ...progress(input.current, input.target, input.progressLabel),
+      ...(input.progressLabel === 'net worth' ? { unit: 'cents' as const } : {}),
+    },
   };
 }
 
@@ -498,6 +588,8 @@ export function legacyAchievements(legacy: PublicLegacyDto): PublicAwardDto[] {
     achievement({ key: 'past-winner', title: 'Past Winner', description: 'Finish a previous round at national #1.', category: 'legacy', rarity: 'legendary', current: legacy.roundWins, target: 1, progressLabel: 'past round wins' }),
     achievement({ key: 'hall-of-fame', title: 'Hall of Fame', description: 'Win three previous rounds.', category: 'legacy', rarity: 'legendary', current: legacy.roundWins, target: 3, progressLabel: 'past round wins' }),
     achievement({ key: 'top-finisher', title: 'Top Finisher', description: 'Finish a previous round in the national top ten.', category: 'legacy', rarity: 'rare', current: legacy.topTenFinishes, target: 1, progressLabel: 'top-ten finish' }),
+    // 0.9.0-F. A Hall of Fame podium: the Kingpin title.
+    achievement({ key: 'kingpin', title: 'Kingpin', description: 'Finish a previous round on the national podium.', category: 'legacy', rarity: 'epic', current: legacy.podiumFinishes, target: 1, progressLabel: 'podium finish' }),
   ];
 }
 
@@ -862,7 +954,11 @@ export const CommunityService = {
   ): Promise<PublicPlayerProfileDto> {
     const player = await prisma.roundPlayer.findFirst({
       where: { roundId, publicPimpId, account: { isActive: true } },
-      include: { city: true, alliance: { select: { name: true, tag: true } } },
+      include: {
+        city: true,
+        alliance: { select: { name: true, tag: true } },
+        round: { select: { name: true, endsAt: true, rulesetId: true, rulesetVersion: true } },
+      },
     });
 
     if (!player) {
@@ -895,18 +991,28 @@ export const CommunityService = {
     const hideCrew = Boolean(privacy?.hideOpponentCrew && !isYou);
     const hideWeapons = Boolean(privacy?.hideOpponentWeapons && !isYou);
     const weapons = player.pistols + player.shotguns + player.tek9s + player.ak47s;
-    const [contexts, linkedForumGroups, career, profileSettings, betaTesterAwards, questCosmetics, frameOptions] = await Promise.all([
+    // 0.9.0-F. A live season's cash, crew and product flow stay sealed from everyone else.
+    const sealed = !isYou && now.getTime() < player.round.endsAt.getTime();
+    const [contexts, linkedForumGroups, history, currentTotals, profileSettings, betaTesterAwards, questCosmetics, frameOptions] = await Promise.all([
       loadPublicContexts(prisma, roundId, [player]),
       forumLink ? ForumGroupsService.groupsFor(forumLink.forumUserId) : [],
-      loadCareerForAccount(prisma, player.accountId, { currentRoundId: roundId, limit: 10 }),
+      loadSeasonHistory(prisma, player.accountId, roundId, now),
+      SeasonStatsService.totals(prisma, [player], now),
       prisma.accountProfile.findUnique({ where: { accountId: player.accountId } }),
       betaTesterAwardsForAccount(prisma, player.accountId),
       QuestCosmeticService.awardsForAccount(prisma, player.accountId),
       QuestCosmeticService.optionsForAccount(prisma, player.accountId, 'PROFILE_FRAME'),
     ]);
+    const career = await loadCareerForAccount(prisma, player.accountId, {
+      currentRoundId: roundId,
+      limit: 10,
+      totals: history.totals,
+    });
     const context = contexts.get(player.id) ?? emptyContext();
+    const seasonTotals = currentTotals.get(player.id) ?? emptySeasonTotals();
     const awards = [
       ...achievementsFor(player, { local: localRank, national: nationalRank }, context),
+      ...seasonFeatAwards({ name: player.round.name, totals: seasonTotals }, history.past, sealed),
       ...betaTesterAwards,
       ...questCosmetics,
     ];
@@ -930,6 +1036,8 @@ export const CommunityService = {
       },
       publicPimpId: player.publicPimpId,
       displayName: player.displayName,
+      crewName: profileSettings?.crewName ?? null,
+      seasonName: player.round.name,
       alliance: allianceTagDto(player.alliance),
       city: toCityDto(player.city),
       netWorthCents: Number(player.netWorthCents),
@@ -944,6 +1052,10 @@ export const CommunityService = {
       legacy: context.legacy,
       career,
       awards,
+      showcase: featuredBadgeKeys
+        .map((key) => unlockedAwards.find((award) => award.key === key))
+        .filter((award): award is PublicAwardDto => Boolean(award)),
+      statSheet: toStatSheet(seasonTotals, sealed),
       crew: hideCrew ? null : {
         whores: player.whores,
         thugs: player.thugs,

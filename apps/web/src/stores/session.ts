@@ -1,3 +1,5 @@
+import type { NotificationCategory, PlatformMetaDto } from '@streets/shared';
+import { platformApi } from '../api/platform.js';
 import type {
   AccountDto,
   AccountProfileSettingsDto,
@@ -24,6 +26,7 @@ type Phase = 'booting' | 'ready';
 
 export const DEFAULT_PROFILE_SETTINGS: AccountProfileSettingsDto = {
   activeTitleKey: null,
+  crewName: null,
   activeProfileFrameKey: null,
   activeSiteThemeKey: null,
   featuredBadgeKeys: [],
@@ -58,9 +61,16 @@ interface SessionState {
   recentActivity: ActivityDto[];
   /** Player whose activity list has completed its first authoritative snapshot load. */
   activityHydratedForPlayerId: string | null;
+  /** 0.9.0-G. Categories muted in the bell; their live toasts are skipped too. */
+  bellMuted: NotificationCategory[];
+  setBellMuted: (muted: NotificationCategory[]) => void;
+  /** 1.0.0-A. Build, environment, ruleset and season of this game host. */
+  platform: PlatformMetaDto | null;
 
   /** Resolve who we are and which game is running. Runs once on mount. */
   bootstrap: () => Promise<void>;
+  /** Re-read the signed-in account (after verifying an email in another tab, say). */
+  refreshAccount: () => Promise<void>;
   refreshProfileSettings: () => Promise<AccountProfileSettingsDto>;
   setProfileSettings: (settings: AccountProfileSettingsDto) => void;
   refreshRound: () => Promise<void>;
@@ -68,8 +78,11 @@ interface SessionState {
   refreshSnapshot: (options?: { background?: boolean }) => Promise<void>;
 
   register: (input: RegisterInput) => Promise<string | null>;
-  login: (input: LoginInput) => Promise<void>;
-  resetPassword: (input: ResetPasswordInput) => Promise<void>;
+  /** rc.3: resolves `twoFactorRequired` when the sign-in waits for an authenticator code. */
+  login: (input: LoginInput) => Promise<{ twoFactorRequired: boolean }>;
+  resetPassword: (input: ResetPasswordInput) => Promise<{ twoFactorRequired: boolean }>;
+  /** rc.3. Finishes a sign-in that waits for its code. Returns how many recovery codes are left when one was used. */
+  completeTwoFactor: (code: string, trustDevice?: boolean) => Promise<{ recoveryCodesLeft: number | null }>;
   verifyEmailToken: (input: VerifyEmailTokenInput) => Promise<string>;
   logout: () => Promise<void>;
   join: () => Promise<RoundPlayerDto>;
@@ -85,8 +98,16 @@ export const useSession = create<SessionState>((set, get) => ({
   canJoin: false,
   recentActivity: [],
   activityHydratedForPlayerId: null,
+  bellMuted: [],
+  platform: null,
+
+  setBellMuted(muted) {
+    set({ bellMuted: muted });
+  },
 
   async bootstrap() {
+    // Never blocks sign-in: an older server simply has no /meta.
+    void platformApi.meta().then((platform) => set({ platform })).catch(() => undefined);
     // A 401 here is the normal signed-out case, not an error worth surfacing.
     const account = await authApi
       .me()
@@ -100,6 +121,15 @@ export const useSession = create<SessionState>((set, get) => ({
     if (account) await get().refreshProfileSettings();
     await get().refreshRound();
     set({ phase: 'ready' });
+  },
+
+  async refreshAccount() {
+    const account = await authApi.me().then((r) => r.account).catch(() => null);
+    if (!account) return;
+    const wasBlocked = get().account?.verificationRequired ?? false;
+    set({ account });
+    // Just cleared to play: pick up the season they may already be in.
+    if (wasBlocked && !account.verificationRequired) await get().refreshRound();
   },
 
   async refreshProfileSettings() {
@@ -163,17 +193,29 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   async login(input) {
-    const { account } = await authApi.login(input);
-    set({ account });
+    const response = await authApi.login(input);
+    if ('twoFactorRequired' in response) return { twoFactorRequired: true };
+    set({ account: response.account });
     await get().refreshProfileSettings();
     await get().refreshRound();
+    return { twoFactorRequired: false };
   },
 
   async resetPassword(input) {
-    const { account } = await authApi.resetPassword(input);
-    set({ account });
+    const response = await authApi.resetPassword(input);
+    if ('twoFactorRequired' in response) return { twoFactorRequired: true };
+    set({ account: response.account });
     await get().refreshProfileSettings();
     await get().refreshRound();
+    return { twoFactorRequired: false };
+  },
+
+  async completeTwoFactor(code, trustDevice = false) {
+    const response = await authApi.verifyTwoFactor(code, trustDevice);
+    set({ account: response.account });
+    await get().refreshProfileSettings();
+    await get().refreshRound();
+    return { recoveryCodesLeft: response.recoveryCodesLeft ?? null };
   },
 
   async verifyEmailToken(input) {

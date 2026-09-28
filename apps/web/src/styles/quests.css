@@ -370,6 +370,59 @@ button.se-quests-metric {
   line-height: 1.45;
 }
 
+.se-quest-story {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(220px, 0.95fr);
+  gap: 10px;
+  margin: 10px 0 12px;
+  padding: 10px;
+  border: 1px solid rgba(var(--se-accent-rgb), 0.18);
+  border-left: 3px solid var(--se-accent);
+  background: rgba(var(--se-accent-rgb), 0.035);
+}
+
+.se-quest-story__quote,
+.se-quest-story__lesson {
+  min-width: 0;
+}
+
+.se-quest-story__quote p {
+  margin: 5px 0 0;
+  color: var(--se-text);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.se-quest-story__lesson {
+  display: grid;
+  gap: 6px;
+}
+
+.se-quest-story__lesson > div {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--se-line);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.se-quest-story__lesson span {
+  display: block;
+  color: var(--se-muted);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.se-quest-story__lesson strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--se-text-dim);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
 .se-quests .se-quest-progress {
   padding: 7px 0;
 }
@@ -752,6 +805,10 @@ button.se-quests-metric {
 
   .se-quests .se-quest-card .se-panel__head {
     display: grid;
+  }
+
+  .se-quest-story {
+    grid-template-columns: 1fr;
   }
 
   .se-quests .se-quest-card {

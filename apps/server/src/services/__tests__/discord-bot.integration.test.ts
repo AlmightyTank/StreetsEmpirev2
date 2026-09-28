@@ -297,6 +297,7 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
           roundsPlayed: 1,
           roundWins: 0,
           topTenFinishes: 1,
+          podiumFinishes: 1,
           bestNationalRank: 3,
           bestLocalRank: null,
           totalFinalNetWorthCents: 1_234_500,
@@ -399,7 +400,7 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
       expect(round.podium).toEqual([{ rank: 1, displayName: 'Old Champ', netWorthCents: 500_000, city: 'Bot Test City' }]);
 
       const roles = await app.inject({ method: 'POST', url: '/api/internal/discord/roles', headers: auth(), payload: { discordIds: [accounts[1]!.discordId] } });
-      expect(roles.json().members[accounts[1]!.discordId]).toEqual(['linked', 'player', 'top-10', 'veteran', 'past-winner', 'top-finisher']);
+      expect(roles.json().members[accounts[1]!.discordId]).toEqual(['linked', 'player', 'top-10', 'veteran', 'past-winner', 'top-finisher', 'kingpin']);
     } finally {
       await app.prisma.round.delete({ where: { id: ended.id } });
     }

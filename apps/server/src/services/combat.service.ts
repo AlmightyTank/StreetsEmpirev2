@@ -23,9 +23,10 @@ import {
   type SpecialRaidInputDto,
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
-import { lockRoundPlayer } from '../utils/db.js';
+import { lockRoundPlayer, type Db } from '../utils/db.js';
+import { annotateLogContext } from '../utils/request-context.js';
 import { RelocationService } from './relocation.service.js';
-import { fitThugs, toState } from './action.service.js';
+import { assertNotPaused, fitThugs, toState } from './action.service.js';
 import { ActivityService } from './activity.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { allianceTagDto, allianceTargetBlock, sharedRevengeScope } from './alliance.service.js';
@@ -42,6 +43,7 @@ import { RankingService } from './ranking.service.js';
 import { hideoutDefenseBonusPercent, hideoutMedicineEfficiencyPercent, hideoutProductProtection, hideoutProtectedCashBonusCents, hideoutProtectedProductCapacity, hideoutWeaponPriority } from './hideout.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
+import { accountsShareNetwork } from './admin-signals.service.js';
 
 type CombatRules = NonNullable<Ruleset['combat']>;
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value, (_, v: unknown) => typeof v === 'bigint' ? v.toString() : v));
@@ -198,6 +200,7 @@ function playable(round: Round, now: Date): void {
   if (round.status !== 'ACTIVE' || round.startsAt > now || round.endsAt <= now) {
     throw AppError.conflict('ROUND_NOT_PLAYABLE', 'This round is not currently open for raids.');
   }
+  assertNotPaused(round);
 }
 
 function crew(player: RoundPlayer, ruleset?: Ruleset): CombatCrew {
@@ -556,6 +559,16 @@ function intelReport(target: RoundPlayer, model: CombatRules, createdAt: Date, e
   };
 }
 
+/**
+ * 1.0.0-C. Two accounts seen on the same real network cannot hit each other: a raid
+ * between them is a way to move cash, product and crew from an alt to a main.
+ */
+async function assertNotLinked(tx: Db, attacker: RoundPlayer, defender: RoundPlayer, now: Date): Promise<void> {
+  if (await accountsShareNetwork(tx, attacker.accountId, defender.accountId, now)) {
+    throw AppError.conflict('LINKED_ACCOUNTS', 'You have played from the same network as this crew, so you cannot hit them.');
+  }
+}
+
 /** Both sides' alliance tags as they stood when the battle landed, for reports and the feed. */
 async function battleTags(tx: Prisma.TransactionClient, attacker: RoundPlayer, defender: RoundPlayer) {
   const ids = [attacker.allianceId, defender.allianceId].filter((id): id is string => Boolean(id));
@@ -659,7 +672,8 @@ export const CombatService = {
     if (!ruleset.combat) return { ...base, enabled: false, rules: null, blockedReason: 'Raids are not available in this older economy round. Join the current 0.2.0-D strategy round to use raids, recon and revenge.', protectedUntil: null, cooldownUntil: null, recovery: null };
     const model = ruleset.combat;
     let blockedReason = combatAttackerBlock(player, model, now);
-    if (round.status !== 'ACTIVE' || round.startsAt > now || round.endsAt <= now) blockedReason = 'This round is not currently open for raids.';
+    if (round.pausedAt) blockedReason = 'The season is paused.';
+    else if (round.status !== 'ACTIVE' || round.startsAt > now || round.endsAt <= now) blockedReason = 'This round is not currently open for raids.';
     // 0.5.0-D: movers who have arrived are in their new city's list, not this one.
     await RelocationService.settleDue(prisma, round.id, now);
     const targets = await prisma.roundPlayer.findMany({
@@ -751,6 +765,7 @@ export const CombatService = {
     return prisma.$transaction(async (tx) => {
       // Canonical lock order prevents reciprocal raids from deadlocking.
       for (const id of [attackerId, target.id].sort()) await lockRoundPlayer(tx, id);
+      annotateLogContext({ roundPlayerId: attackerId, roundId: input.roundId, actionId: input.actionId, action: 'RAID' });
       const prior = await tx.raidBattle.findUnique({ where: { attackerId_actionId: { attackerId, actionId: input.actionId } } });
       if (prior) {
         if (storedBattleKind(prior) !== 'RAID' || prior.defenderId !== target.id || prior.attackingThugs !== input.attackingThugs) throw AppError.conflict('ACTION_ID_REUSED', 'That raid id belongs to a different target or squad.');
@@ -792,6 +807,7 @@ export const CombatService = {
       // Trips D2: a sit-down's truce holds both ways.
       const truce = await truceBlock(tx, attacker.id, defender.id, now);
       if (truce) throw AppError.conflict('TRUCE', truce);
+      await assertNotLinked(tx, attacker, defender, now);
       if (input.attackingThugs > Math.min(fitThugs(attacker), model.squadCap)) throw AppError.badRequest('INVALID_SQUAD', 'Your squad exceeds your fit crew or the raid limit.');
       const beforeA = await RankingService.ranksFor(tx, attacker);
       const beforeD = await RankingService.ranksFor(tx, defender);
@@ -936,6 +952,7 @@ export const CombatService = {
 
     return prisma.$transaction(async (tx) => {
       for (const id of [attackerId, target.id].sort()) await lockRoundPlayer(tx, id);
+      annotateLogContext({ roundPlayerId: attackerId, roundId: input.roundId, actionId: input.actionId, action: 'DRIVE_BY' });
       const prior = await tx.raidBattle.findUnique({ where: { attackerId_actionId: { attackerId, actionId: input.actionId } } });
       if (prior) {
         if (storedBattleKind(prior) !== 'DRIVE_BY' || prior.defenderId !== target.id || prior.attackingThugs !== input.attackingThugs) throw AppError.conflict('ACTION_ID_REUSED', 'That drive-by id belongs to a different target or squad.');
@@ -965,6 +982,7 @@ export const CombatService = {
       // Trips D2: a sit-down's truce holds both ways.
       const truce = await truceBlock(tx, attacker.id, defender.id, now);
       if (truce) throw AppError.conflict('TRUCE', truce);
+      await assertNotLinked(tx, attacker, defender, now);
       const seats = driveByMaxShooters(fitThugs(attacker), attacker.lowRiders, model, rules);
       if (input.attackingThugs > seats) throw AppError.badRequest('INVALID_SQUAD', `Your cars and fit crew can take ${seats} shooters.`);
 
@@ -1061,6 +1079,7 @@ export const CombatService = {
 
     return prisma.$transaction(async (tx) => {
       for (const id of [attackerId, target.id].sort()) await lockRoundPlayer(tx, id);
+      annotateLogContext({ roundPlayerId: attackerId, roundId: input.roundId, actionId: input.actionId, action: input.kind });
       const prior = await tx.raidBattle.findUnique({ where: { attackerId_actionId: { attackerId, actionId: input.actionId } } });
       if (prior) {
         if (storedBattleKind(prior) !== input.kind || prior.defenderId !== target.id || prior.attackingThugs !== input.attackingThugs) throw AppError.conflict('ACTION_ID_REUSED', 'That move id belongs to a different target or squad.');
@@ -1093,6 +1112,7 @@ export const CombatService = {
       // Trips D2: a sit-down's truce holds both ways.
       const truce = await truceBlock(tx, attacker.id, defender.id, now);
       if (truce) throw AppError.conflict('TRUCE', truce);
+      await assertNotLinked(tx, attacker, defender, now);
       if (input.attackingThugs > Math.min(fitThugs(attacker), model.squadCap)) throw AppError.badRequest('INVALID_SQUAD', 'Your squad exceeds your fit crew or the raid limit.');
 
       const beforeA = await RankingService.ranksFor(tx, attacker);

@@ -425,7 +425,7 @@
 }
 
 .se-hideout-status--cash {
-  border-color: rgba(255, 176, 32, 0.28);
+  border-color: rgba(255, 121, 26, 0.28);
   color: var(--se-warn);
 }
 

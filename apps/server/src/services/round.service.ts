@@ -118,6 +118,22 @@ async function freezeFinalStandings(tx: Db, roundId: string, now: Date): Promise
   }
 }
 
+/**
+ * 1.0.0-H. Closing a season settles and ranks every player inside one transaction:
+ * about 50 ms a player on a small server (measured by the load test). A fixed timeout
+ * would make a big season fail to close, and fail again every minute after, so the
+ * budget grows with the season: five times the measured cost, at least a minute,
+ * at most half an hour.
+ */
+export const SEASON_CLOSE_MS_PER_PLAYER = 250;
+export async function seasonCloseTransaction(
+  prisma: Pick<PrismaClient, 'roundPlayer'>,
+  roundIds: string[],
+): Promise<{ maxWait: number; timeout: number }> {
+  const players = roundIds.length ? await prisma.roundPlayer.count({ where: { roundId: { in: roundIds } } }) : 0;
+  return { maxWait: 10_000, timeout: Math.min(30 * 60_000, Math.max(60_000, players * SEASON_CLOSE_MS_PER_PLAYER)) };
+}
+
 export const RoundService = {
   async closeExpired(prisma: PrismaClient, now = new Date()): Promise<Round[]> {
     const expired = await prisma.round.findMany({
@@ -185,7 +201,7 @@ export const RoundService = {
   async closeRoundAt(prisma: PrismaClient, roundId: string, finalAt: Date): Promise<{ closed: boolean; round: Round }> {
     const { closed, round } = await prisma.$transaction(
       (tx) => RoundService.closeRoundInTransaction(tx, roundId, finalAt),
-      { maxWait: 10_000, timeout: 30_000 },
+      await seasonCloseTransaction(prisma, [roundId]),
     );
     return { closed, round };
   },

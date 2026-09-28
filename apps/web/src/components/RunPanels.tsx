@@ -5,7 +5,7 @@ import { formatCents, formatNumber } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { useCountdown } from '../hooks/useCountdown.js';
 import { useGameAction } from '../hooks/useGameAction.js';
-import { formatDuration } from '../utils/time.js';
+import { formatClockTime, formatDuration, formatWeekdayTime } from '../utils/time.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel, Row } from './Panel.js';
@@ -13,7 +13,7 @@ import { SUPPLY_WORD, minutesText, unitPrice } from './CityMap.js';
 
 type Products = TravelDto['products'];
 const nameOf = (products: Products, key: string) => products.find((product) => product.key === key)?.name ?? key;
-const clock = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+const clock = (iso: string) => formatClockTime(iso);
 
 /** Whole numbers only; an empty box is null so the field can be cleared while typing. */
 function whole(value: string): number | '' {
@@ -784,7 +784,7 @@ export function ReceiptPanel({ receipt, products }: { receipt: RunReceiptDto; pr
   const cashChange = receipt.cashCents - receipt.startCashCents;
   const moved = receipt.cargo.filter((entry) => entry.quantity !== entry.startQuantity || entry.quantity > 0);
   return (
-    <Panel title="Last run" aside={`Back ${new Date(receipt.returnedAt).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}`}>
+    <Panel title="Last run" aside={`Back ${formatWeekdayTime(receipt.returnedAt)}`}>
       <div className="se-rows">
         <Row label="Went to" value={receipt.cities.map((city) => city.name).join(', ') || 'Nowhere'} />
         <Row label="Cash" value={<span className="se-num">{formatCents(receipt.startCashCents)} → {formatCents(receipt.cashCents)} <span className={cashChange >= 0 ? 'se-good' : 'se-bad'}>({cashChange >= 0 ? '+' : ''}{formatCents(cashChange)})</span></span>} strong />

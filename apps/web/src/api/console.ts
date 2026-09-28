@@ -1,4 +1,6 @@
 import type {
+  ConsoleActivityDto,
+  ConsoleActivityFilter,
   ConsoleBlocksDto,
   ConsoleCountsDto,
   ConsoleFolder,
@@ -20,6 +22,9 @@ export const consoleApi = {
 
   page: (folder: ConsoleFolder = 'inbox', page = 1) =>
     api.get<PimpConsoleDto>(`/game/console?folder=${encodeURIComponent(folder)}&page=${page}`),
+
+  activity: (filter: ConsoleActivityFilter = 'all', page = 1) =>
+    api.get<ConsoleActivityDto>(`/game/console/activity?filter=${encodeURIComponent(filter)}&page=${page}`),
 
   send: (input: {
     recipientPublicPimpId: number;
@@ -44,4 +49,14 @@ export const consoleApi = {
 
   unblock: (publicPimpId: number) =>
     api.post<ConsoleBlocksDto>(`/game/console/blocks/${publicPimpId}/remove`, {}),
+
+  // 0.9.0-H player controls.
+  mute: (targetPublicPimpId: number) =>
+    api.post<ConsoleBlocksDto>('/game/console/mutes', { targetPublicPimpId }),
+
+  unmute: (publicPimpId: number) =>
+    api.post<ConsoleBlocksDto>(`/game/console/mutes/${publicPimpId}/remove`, {}),
+
+  hideConversation: (publicPimpId: number) =>
+    api.post<{ hidden: number }>(`/game/console/conversations/${publicPimpId}/hide`, {}),
 };

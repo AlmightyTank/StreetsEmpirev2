@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { SiteLayout } from './components/SiteLayout.js';
+import { PrivacyPage, TermsPage } from './pages/LegalPages.js';
 
 const HomePage = lazy(() => import('./pages/HomePage.js').then((module) => ({ default: module.HomePage })));
 const CurrentGamePage = lazy(() => import('./pages/CurrentGamePage.js').then((module) => ({ default: module.CurrentGamePage })));
@@ -76,6 +77,8 @@ export function App() {
           <Route path="status" element={<StatusPage />} />
           <Route path="support" element={<ContentPages.SupportPage />} />
           <Route path="about" element={<ContentPages.AboutPage />} />
+          <Route path="privacy" element={<PrivacyPage />} />
+          <Route path="terms" element={<TermsPage />} />
           <Route path="search" element={<SearchPage />} />
 
           <Route path="*" element={<NotFoundPage />} />

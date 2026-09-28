@@ -14,6 +14,11 @@ const consoleQuery = z.object({
   page: z.coerce.number().int().min(1).max(10_000).default(1),
 }).strict();
 
+const consoleActivityQuery = z.object({
+  filter: z.enum(['all', 'combat', 'turf', 'travel', 'market', 'progress', 'street', 'system']).default('all'),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+}).strict();
+
 const messageParams = z.object({
   messageId: z.string().trim().min(1).max(64),
 }).strict();
@@ -33,6 +38,16 @@ const pimpConsoleRoutes: FastifyPluginAsync = async (app) => {
       app.prisma,
       request.auth!.account.id,
       query.folder,
+      query.page,
+    );
+  });
+
+  app.get('/console/activity', { preHandler: app.requireAuth }, async (request) => {
+    const query = parseBody(consoleActivityQuery, request.query);
+    return PimpConsoleService.activity(
+      app.prisma,
+      request.auth!.account.id,
+      query.filter,
       query.page,
     );
   });
@@ -88,6 +103,23 @@ const pimpConsoleRoutes: FastifyPluginAsync = async (app) => {
       request.auth!.account.id,
       publicPimpId,
     );
+  });
+
+  /** 0.9.0-H: mute is private and one-sided; the muted player can still write, quietly archived. */
+  app.post('/console/mutes', { preHandler: app.requireAuth }, async (request) => {
+    const { targetPublicPimpId } = parseBody(blockPlayerSchema, request.body ?? {});
+    return PimpConsoleService.mute(app.prisma, request.auth!.account.id, targetPublicPimpId);
+  });
+
+  app.post('/console/mutes/:publicPimpId/remove', { preHandler: app.requireAuth }, async (request) => {
+    const { publicPimpId } = parseBody(playerParams, request.params);
+    return PimpConsoleService.unmute(app.prisma, request.auth!.account.id, publicPimpId);
+  });
+
+  /** 0.9.0-H: delete a whole conversation from your own side. */
+  app.post('/console/conversations/:publicPimpId/hide', { preHandler: app.requireAuth }, async (request) => {
+    const { publicPimpId } = parseBody(playerParams, request.params);
+    return PimpConsoleService.hideConversation(app.prisma, request.auth!.account.id, publicPimpId);
   });
 };
 
