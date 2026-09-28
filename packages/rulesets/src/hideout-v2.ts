@@ -364,6 +364,15 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v0.7-y': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v0.7-z': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v0.7-aa': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // The 0.8 rulesets copy 0.7-AA under new ids. They were never added here, so from
+  // 0.8-C on the Hideout lost security, asset protection, the ledger and specialization
+  // effects (rooms fell back to their basic buffs). Same Hideout as 0.7-AA.
+  'classic-og-v0.8-c': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.8-d': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.8-e': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.8-f': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.8-g': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.8-h': CLASSIC_OG_V07G_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */
