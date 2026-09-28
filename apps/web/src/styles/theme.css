@@ -2737,9 +2737,9 @@ a.se-nav__link:hover {
   border-left-color: var(--se-line);
 }
 
-.se-ach--rare { border-left-color: #60a5fa; }
-.se-ach--epic { border-left-color: #c084fc; }
-.se-ach--legendary { border-left-color: var(--se-warn); }
+.se-ach--rare { border-left-color: #6899f3; }
+.se-ach--epic { border-left-color: #e576e1; }
+.se-ach--legendary { border-left-color: #f1b622; }
 .se-ach--locked.se-ach--rare,
 .se-ach--locked.se-ach--epic,
 .se-ach--locked.se-ach--legendary { border-left-color: var(--se-line); }
@@ -2764,9 +2764,9 @@ a.se-nav__link:hover {
   color: var(--se-accent-dim);
 }
 
-.se-ach--rare .se-ach__rarity { color: #60a5fa; }
-.se-ach--epic .se-ach__rarity { color: #c084fc; }
-.se-ach--legendary .se-ach__rarity { color: var(--se-warn); }
+.se-ach--rare .se-ach__rarity { color: #6899f3; }
+.se-ach--epic .se-ach__rarity { color: #e576e1; }
+.se-ach--legendary .se-ach__rarity { color: #f1b622; }
 .se-ach--locked .se-ach__rarity { color: var(--se-muted); }
 
 .se-ach__title {
@@ -2837,9 +2837,9 @@ a.se-nav__link:hover {
   cursor: default;
 }
 .se-badge--uncommon { --se-badge-color: var(--se-accent-dim); }
-.se-badge--rare { --se-badge-color: #60a5fa; }
-.se-badge--epic { --se-badge-color: #c084fc; }
-.se-badge--legendary { --se-badge-color: var(--se-warn); }
+.se-badge--rare { --se-badge-color: #6899f3; }
+.se-badge--epic { --se-badge-color: #e576e1; }
+.se-badge--legendary { --se-badge-color: #f1b622; }
 .se-badge--permanent { background: color-mix(in srgb, var(--se-badge-color) 12%, transparent); }
 .se-badge--permanent::before { content: '◆'; margin-right: 5px; font-size: 8px; }
 .se-badge--group {

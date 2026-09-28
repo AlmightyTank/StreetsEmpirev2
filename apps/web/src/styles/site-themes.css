@@ -23,11 +23,11 @@
   --se-accent-dim: #3b82a6;
   --se-accent-hover: #bae6fd;
   --se-accent-rgb: 125, 211, 252;
-  --se-accent-2: #f87171;
+  --se-accent-2: #f0637f;
   background-image:
     linear-gradient(180deg, rgba(186, 230, 253, 0.08), transparent 32%),
     radial-gradient(900px 560px at 15% -10%, rgba(125, 211, 252, 0.13), transparent 60%),
-    radial-gradient(820px 520px at 100% 0%, rgba(248, 113, 113, 0.08), transparent 58%),
+    radial-gradient(820px 520px at 100% 0%, rgba(240, 99, 127, 0.08), transparent 58%),
     linear-gradient(180deg, rgba(22, 42, 62, 0.34), transparent 48%);
 }
 
@@ -85,7 +85,7 @@
   --se-muted: #958b81;
   --se-accent: #d97706;
   --se-accent-dim: #92400e;
-  --se-accent-hover: #f59e0b;
+  --se-accent-hover: #f58514;
   --se-accent-rgb: 217, 119, 6;
   --se-accent-2: #94a3b8;
   background-image:
@@ -141,20 +141,20 @@
   --se-bg: #070b13;
   --se-panel: #101827;
   --se-panel-hi: #152238;
-  --se-line: rgba(96, 165, 250, 0.32);
-  --se-line-soft: rgba(248, 113, 113, 0.16);
+  --se-line: rgba(104, 153, 243, 0.32);
+  --se-line-soft: rgba(240, 99, 127, 0.16);
   --se-text: #edf5ff;
   --se-text-dim: #aabdcd;
   --se-muted: #7d90a2;
-  --se-accent: #60a5fa;
-  --se-accent-dim: #2f6fb4;
-  --se-accent-hover: #93c5fd;
-  --se-accent-rgb: 96, 165, 250;
-  --se-accent-2: #ef4444;
+  --se-accent: #6899f3;
+  --se-accent-dim: #4c70b1;
+  --se-accent-hover: #95b8f7;
+  --se-accent-rgb: 104, 153, 243;
+  --se-accent-2: #e92048;
   background-image:
-    linear-gradient(90deg, rgba(239, 68, 68, 0.05), transparent 20%, rgba(59, 130, 246, 0.07) 80%, transparent),
-    radial-gradient(840px 520px at 90% 0%, rgba(59, 130, 246, 0.22), transparent 58%),
-    radial-gradient(740px 480px at 9% -6%, rgba(248, 113, 113, 0.12), transparent 56%),
+    linear-gradient(90deg, rgba(233, 32, 72, 0.05), transparent 20%, rgba(104, 153, 243, 0.07) 80%, transparent),
+    radial-gradient(840px 520px at 90% 0%, rgba(104, 153, 243, 0.22), transparent 58%),
+    radial-gradient(740px 480px at 9% -6%, rgba(240, 99, 127, 0.12), transparent 56%),
     linear-gradient(180deg, rgba(10, 20, 38, 0.52), transparent 52%);
 }
 
@@ -162,19 +162,19 @@
   --se-bg: #100c07;
   --se-panel: #1b150e;
   --se-panel-hi: #271e12;
-  --se-line: rgba(245, 158, 11, 0.25);
+  --se-line: rgba(241, 182, 34, 0.25);
   --se-line-soft: rgba(34, 197, 94, 0.13);
   --se-text: #f7efe2;
   --se-text-dim: #c6b596;
   --se-muted: #9b896a;
-  --se-accent: #f59e0b;
-  --se-accent-dim: #a16207;
-  --se-accent-hover: #fbbf24;
-  --se-accent-rgb: 245, 158, 11;
+  --se-accent: #f1b622;
+  --se-accent-dim: #bf911d;
+  --se-accent-hover: #fbd460;
+  --se-accent-rgb: 241, 182, 34;
   --se-accent-2: #22c55e;
   background-image:
-    repeating-linear-gradient(0deg, rgba(245, 158, 11, 0.035) 0 1px, transparent 1px 30px),
-    radial-gradient(820px 520px at 88% 2%, rgba(245, 158, 11, 0.18), transparent 58%),
+    repeating-linear-gradient(0deg, rgba(241, 182, 34, 0.035) 0 1px, transparent 1px 30px),
+    radial-gradient(820px 520px at 88% 2%, rgba(241, 182, 34, 0.18), transparent 58%),
     radial-gradient(760px 460px at 8% -6%, rgba(34, 197, 94, 0.12), transparent 56%),
     linear-gradient(180deg, rgba(35, 28, 18, 0.5), transparent 52%);
 }
@@ -496,51 +496,51 @@
 
 .se-site-theme--blue-heat {
   --se-theme-panel-fill:
-    linear-gradient(90deg, rgba(239, 68, 68, 0.09), transparent 20% 80%, rgba(96, 165, 250, 0.13)),
+    linear-gradient(90deg, rgba(233, 32, 72, 0.09), transparent 20% 80%, rgba(104, 153, 243, 0.13)),
     linear-gradient(180deg, rgba(21, 34, 56, 0.96), rgba(6, 10, 18, 0.98));
   --se-theme-stat-fill:
-    linear-gradient(90deg, rgba(239, 68, 68, 0.12), transparent 48%, rgba(96, 165, 250, 0.16)),
+    linear-gradient(90deg, rgba(233, 32, 72, 0.12), transparent 48%, rgba(104, 153, 243, 0.16)),
     rgba(8, 13, 23, 0.96);
   --se-theme-button-fill:
-    linear-gradient(90deg, rgba(239, 68, 68, 0.1), rgba(96, 165, 250, 0.12));
+    linear-gradient(90deg, rgba(233, 32, 72, 0.1), rgba(104, 153, 243, 0.12));
   --se-theme-head-fill:
-    linear-gradient(90deg, rgba(239, 68, 68, 0.16), transparent 45%, rgba(96, 165, 250, 0.18));
+    linear-gradient(90deg, rgba(233, 32, 72, 0.16), transparent 45%, rgba(104, 153, 243, 0.18));
   --se-theme-topbar-layer:
-    linear-gradient(90deg, rgba(239, 68, 68, 0.2), transparent 42%, rgba(96, 165, 250, 0.22));
+    linear-gradient(90deg, rgba(233, 32, 72, 0.2), transparent 42%, rgba(104, 153, 243, 0.22));
 }
 
 .se-site-theme--blue-heat .se-panel,
 .se-site-theme--blue-heat .se-stats,
 .se-site-theme--blue-heat .se-stat {
-  border-color: rgba(96, 165, 250, 0.38);
+  border-color: rgba(104, 153, 243, 0.38);
   box-shadow:
-    inset 2px 0 0 rgba(239, 68, 68, 0.36),
-    inset -2px 0 0 rgba(96, 165, 250, 0.4),
-    0 0 26px rgba(96, 165, 250, 0.12);
+    inset 2px 0 0 rgba(233, 32, 72, 0.36),
+    inset -2px 0 0 rgba(104, 153, 243, 0.4),
+    0 0 26px rgba(104, 153, 243, 0.12);
 }
 
 .se-site-theme--back-office {
   --se-theme-panel-fill:
-    repeating-linear-gradient(0deg, rgba(245, 158, 11, 0.05) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(0deg, rgba(241, 182, 34, 0.05) 0 1px, transparent 1px 24px),
     linear-gradient(180deg, rgba(39, 30, 18, 0.96), rgba(13, 10, 6, 0.97));
   --se-theme-stat-fill:
     linear-gradient(90deg, rgba(34, 197, 94, 0.07), transparent 40%),
-    repeating-linear-gradient(90deg, rgba(245, 158, 11, 0.045) 0 1px, transparent 1px 72px),
+    repeating-linear-gradient(90deg, rgba(241, 182, 34, 0.045) 0 1px, transparent 1px 72px),
     rgba(18, 13, 8, 0.96);
   --se-theme-button-fill:
-    linear-gradient(180deg, rgba(245, 158, 11, 0.09), rgba(34, 197, 94, 0.04));
+    linear-gradient(180deg, rgba(241, 182, 34, 0.09), rgba(34, 197, 94, 0.04));
   --se-theme-head-fill:
-    linear-gradient(90deg, rgba(245, 158, 11, 0.14), transparent 58%, rgba(34, 197, 94, 0.08)),
-    repeating-linear-gradient(0deg, rgba(245, 158, 11, 0.05) 0 1px, transparent 1px 12px);
+    linear-gradient(90deg, rgba(241, 182, 34, 0.14), transparent 58%, rgba(34, 197, 94, 0.08)),
+    repeating-linear-gradient(0deg, rgba(241, 182, 34, 0.05) 0 1px, transparent 1px 12px);
   --se-theme-topbar-layer:
-    repeating-linear-gradient(90deg, rgba(245, 158, 11, 0.08) 0 1px, transparent 1px 72px),
-    linear-gradient(90deg, rgba(34, 197, 94, 0.08), transparent 34%, rgba(245, 158, 11, 0.12));
+    repeating-linear-gradient(90deg, rgba(241, 182, 34, 0.08) 0 1px, transparent 1px 72px),
+    linear-gradient(90deg, rgba(34, 197, 94, 0.08), transparent 34%, rgba(241, 182, 34, 0.12));
 }
 
 .se-site-theme--back-office .se-panel,
 .se-site-theme--back-office .se-stats,
 .se-site-theme--back-office .se-stat {
-  border-color: rgba(245, 158, 11, 0.32);
+  border-color: rgba(241, 182, 34, 0.32);
   box-shadow:
     inset 0 0 0 1px rgba(34, 197, 94, 0.08),
     0 13px 26px rgba(0, 0, 0, 0.36);
@@ -590,10 +590,10 @@
   background: rgba(180, 190, 196, 0.7);
 }
 
-.se-theme-light--0 { color: #ff5468; background: #ff5468; }
+.se-theme-light--0 { color: #e92048; background: #e92048; }
 .se-theme-light--1 { color: #4ade80; background: #4ade80; }
-.se-theme-light--2 { color: #60a5fa; background: #60a5fa; }
-.se-theme-light--3 { color: #ffcf56; background: #ffcf56; }
+.se-theme-light--2 { color: #6899f3; background: #6899f3; }
+.se-theme-light--3 { color: #fbd460; background: #fbd460; }
 
 .se-theme-snow {
   position: absolute;
