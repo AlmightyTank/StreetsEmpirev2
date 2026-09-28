@@ -977,7 +977,7 @@ a:hover { color: var(--se-accent-hover); }
 }
 
 .se-eventtoast--good { border-left-color: var(--se-accent); }
-.se-eventtoast--info { border-left-color: #60a5fa; }
+.se-eventtoast--info { border-left-color: #6899f3; }
 .se-eventtoast--warn { border-left-color: var(--se-warn); }
 .se-eventtoast--bad { border-left-color: var(--se-bad); }
 
@@ -3477,7 +3477,7 @@ a.se-nav__link:hover {
   padding: 10px 12px 10px 14px;
   border: 0;
   border-bottom: 1px solid var(--se-line-soft);
-  border-left: 3px solid #60a5fa;
+  border-left: 3px solid #6899f3;
   background: rgba(255, 255, 255, 0.025);
   color: inherit;
   font: inherit;
@@ -3704,7 +3704,7 @@ button.se-notification-empty:hover { color: var(--se-text); }
 
 .se-env-badge--beta { color: var(--se-warn); }
 .se-env-badge--development,
-.se-env-badge--test { color: var(--se-info, #60a5fa); }
+.se-env-badge--test { color: var(--se-info, #6899f3); }
 
 .se-env-ribbon {
   display: flex;
@@ -3731,7 +3731,7 @@ button.se-notification-empty:hover { color: var(--se-text); }
 
 .se-env-ribbon--beta { background: var(--se-warn); }
 .se-env-ribbon--development,
-.se-env-ribbon--test { background: var(--se-info, #60a5fa); }
+.se-env-ribbon--test { background: var(--se-info, #6899f3); }
 
 .se-footer__build {
   max-width: 1120px;
