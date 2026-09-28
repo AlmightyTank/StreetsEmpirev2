@@ -28,9 +28,9 @@ export const PROFILE_ACCENTS: CosmeticOptionDto[] = [
   { key: 'default', label: 'StreetsEmpire', description: 'The classic neon-green site accent.' },
   { key: 'crimson', label: 'Crimson', description: 'A deep red site-wide accent.' },
   { key: 'gold', label: 'Goldenrod', description: 'A bright goldenrod site-wide accent.' },
-  { key: 'green', label: 'Green', description: 'A money-green site-wide accent.' },
-  { key: 'blue', label: 'Blue', description: 'A cool blue site-wide accent.' },
-  { key: 'purple', label: 'Purple', description: 'A rare purple site-wide accent.' },
+  { key: 'green', label: 'Emerald', description: 'A rich emerald-green site-wide accent.' },
+  { key: 'blue', label: 'Cornflower', description: 'A soft cornflower-blue site-wide accent.' },
+  { key: 'purple', label: 'Orchid', description: 'A vivid orchid-purple site-wide accent.' },
 ];
 
 export const UI_DENSITIES: CosmeticOptionDto[] = [
