@@ -27,7 +27,7 @@ export const PROFILE_BADGE_FEATURE_LIMIT = 6;
 export const PROFILE_ACCENTS: CosmeticOptionDto[] = [
   { key: 'default', label: 'StreetsEmpire', description: 'The classic neon-green site accent.' },
   { key: 'crimson', label: 'Crimson', description: 'A deep red site-wide accent.' },
-  { key: 'gold', label: 'Gold', description: 'A winner-style gold site-wide accent.' },
+  { key: 'gold', label: 'Goldenrod', description: 'A bright goldenrod site-wide accent.' },
   { key: 'green', label: 'Green', description: 'A money-green site-wide accent.' },
   { key: 'blue', label: 'Blue', description: 'A cool blue site-wide accent.' },
   { key: 'purple', label: 'Purple', description: 'A rare purple site-wide accent.' },

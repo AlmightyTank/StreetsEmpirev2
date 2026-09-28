@@ -464,10 +464,10 @@ body {
   --se-accent-rgb: 255, 84, 104;
 }
 .se-site-accent--gold {
-  --se-accent: #ffb020;
-  --se-accent-dim: #b97c16;
-  --se-accent-hover: #ffc75a;
-  --se-accent-rgb: 255, 176, 32;
+  --se-accent: #f1b622;
+  --se-accent-dim: #bf911d;
+  --se-accent-hover: #fbd460;
+  --se-accent-rgb: 241, 182, 34;
 }
 .se-site-accent--green {
   --se-accent: #4ade80;
@@ -2479,7 +2479,7 @@ a.se-nav__link:hover {
 
 .se-profile-accent--default { --se-profile-accent: #b6ff3a; }
 .se-profile-accent--crimson { --se-profile-accent: #ff5468; }
-.se-profile-accent--gold { --se-profile-accent: var(--se-warn); }
+.se-profile-accent--gold { --se-profile-accent: #f1b622; }
 .se-profile-accent--green { --se-profile-accent: #4ade80; }
 .se-profile-accent--blue { --se-profile-accent: #60a5fa; }
 .se-profile-accent--purple { --se-profile-accent: #c084fc; }
@@ -3188,7 +3188,7 @@ a.se-nav__link:hover {
 
 .se-swatch--default { --se-swatch: #b6ff3a; }
 .se-swatch--crimson { --se-swatch: #ff5468; }
-.se-swatch--gold { --se-swatch: var(--se-warn); }
+.se-swatch--gold { --se-swatch: #f1b622; }
 .se-swatch--green { --se-swatch: #4ade80; }
 .se-swatch--blue { --se-swatch: #60a5fa; }
 .se-swatch--purple { --se-swatch: #c084fc; }
