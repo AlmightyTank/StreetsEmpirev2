@@ -91,10 +91,10 @@ async function main(): Promise<void> {
   report('Sign-up flood cap', signupCap > 0 ? 'PASS' : 'WARN',
     signupCap > 0 ? `At most ${signupCap} new accounts per network a day; more is refused and flagged.` : 'SIGNUP_DAILY_LIMIT_PER_IP=0: one network can make unlimited accounts.');
 
-  // rc.5: bot check on sign-up and password recovery.
+  // rc.5/rc.6: bot check on password sign-in, sign-up and password recovery.
   const turnstile = Boolean(env.get('TURNSTILE_SITE_KEY') && env.get('TURNSTILE_SECRET_KEY'));
   report('Sign-up bot check', turnstile ? 'PASS' : 'WARN',
-    turnstile ? 'Cloudflare Turnstile guards sign-up and password recovery.' : 'TURNSTILE_SITE_KEY / TURNSTILE_SECRET_KEY are not set: sign-up relies on the per-network cap alone (docs/ADMIN-RUNBOOK.md#bot-check-rc5).');
+    turnstile ? 'Cloudflare Turnstile guards password sign-in, sign-up and password recovery.' : 'TURNSTILE_SITE_KEY / TURNSTILE_SECRET_KEY are not set: sign-up relies on the per-network cap alone (docs/ADMIN-RUNBOOK.md#bot-check-rc5).');
 
   // Backups and restore.
   const statusFile = env.get('BACKUP_STATUS_FILE');

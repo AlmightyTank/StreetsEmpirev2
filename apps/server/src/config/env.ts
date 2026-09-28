@@ -115,7 +115,7 @@ const envSchema = z.object({
    */
   TWO_FACTOR_KEY: z.string().min(32).optional(),
   /**
-   * rc.5. Cloudflare Turnstile bot check on sign-up and password reset. Both keys set turns
+   * rc.5/rc.6. Cloudflare Turnstile bot check on password sign-in, sign-up and password reset. Both keys set turns
    * it on; either unset leaves it off (development, tests).
    */
   TURNSTILE_SITE_KEY: z.string().optional(),

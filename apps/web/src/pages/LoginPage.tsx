@@ -6,6 +6,7 @@ import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
 import { TwoFactorStep } from '../components/TwoFactorStep.js';
+import { Turnstile, useTurnstileSiteKey } from '../components/Turnstile.js';
 import { Shell } from '../layouts/Shell.js';
 import { landingPath, useSession } from '../stores/session.js';
 
@@ -22,6 +23,10 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   // rc.4: "Keep me signed in" (on by default, as on most games). Off: ends with the browser.
   const [remember, setRemember] = useState(true);
+  // rc.6: the bot check, when the server has it on. Tokens work once.
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
+  const captchaOn = Boolean(useTurnstileSiteKey());
   const [fields, setFields] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -33,7 +38,7 @@ export function LoginPage() {
     setFields({});
 
     try {
-      const { twoFactorRequired } = await login({ identifier, password, remember });
+      const { twoFactorRequired } = await login({ identifier, password, remember, ...(captchaToken ? { captchaToken } : {}) });
       if (twoFactorRequired) {
         setNeedsCode(true);
         return;
@@ -49,6 +54,9 @@ export function LoginPage() {
       }
     } finally {
       setBusy(false);
+      // A used (or failed) token cannot be sent again: fetch a fresh one for the next try.
+      setCaptchaToken(null);
+      setCaptchaKey((value) => value + 1);
     }
   }
 
@@ -128,7 +136,12 @@ export function LoginPage() {
                 <Link to="/forgot-password">Forgot your password?</Link>
               </p>
 
-              <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy ? 'Checking those details with the server.' : null}>
+              <Turnstile key={captchaKey} onToken={setCaptchaToken} />
+
+              <Button
+                className="se-btn se-btn--primary se-btn--block"
+                disabledReason={busy ? 'Checking those details with the server.' : captchaOn && !captchaToken ? 'Finish the "are you human" check.' : null}
+              >
                 {busy ? 'Working...' : 'Log in'}
               </Button>
             </form>

@@ -234,13 +234,13 @@ Two steps stand between a new account and the game. Admins are never stopped by 
 
 ### Bot check (rc.5)
 
-Cloudflare Turnstile guards sign-up and password recovery. It is off until both keys are set.
+Cloudflare Turnstile guards the password sign-in form (from rc.6), sign-up and password recovery. It is off until both keys are set. "Log in with Discord" goes through Discord's own checks instead, and the two-step code screen follows a sign-in that already passed.
 
 1. In the Cloudflare dashboard, open **Turnstile → Add widget**. Add the game's hostname (for example `play.streetsempire.dev`), plus beta's hostname in a separate widget or the same one. Choose **Managed** mode.
 2. Put the keys in `.env`: `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`. Restart the API.
 3. Open the sign-up page and check that the widget shows and that registering works.
 
-If Cloudflare cannot be reached, sign-up and recovery are refused with a "try again in a minute" message rather than let through unchecked. Discord sign-in is not affected. `ops:launch-check` warns while it is off.
+If Cloudflare cannot be reached, password sign-in, sign-up and recovery are refused with a "try again in a minute" message rather than let through unchecked. Discord sign-in is not affected. `ops:launch-check` warns while it is off.
 
 **Sign-up flood cap.** One network (IP address) may create `SIGNUP_DAILY_LIMIT_PER_IP` accounts a day. The default is 5 on production and beta, and 0 (off) elsewhere.
 - Past the cap, sign-up is refused with "Too many accounts have been made from this network today", and a **Sign-up flood** exploit flag appears under **Combat & exploits**. The flag names the network by an opaque key, never the address.

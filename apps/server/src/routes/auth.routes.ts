@@ -552,6 +552,9 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/login', async (request, reply) => {
     const body = parseBody(loginSchema, request.body);
+    // rc.6: the bot check comes before the password is even looked at, so scripted
+    // password guessing is stopped at the door.
+    await assertHuman(body.captchaToken, request.ip, request.log);
     const identifier = body.identifier.toLowerCase();
 
     const account = await fastify.prisma.account.findFirst({

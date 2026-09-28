@@ -5,9 +5,10 @@ import { AppError } from '../utils/errors.js';
 const SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 
 /**
- * rc.5. Cloudflare Turnstile on sign-up and password reset: stops scripted floods that
- * rotate addresses past the per-network cap. Off unless both keys are set. When it is on
- * and Cloudflare cannot be reached, the request is refused rather than let through.
+ * rc.5/rc.6. Cloudflare Turnstile on password sign-in, sign-up and password reset: stops
+ * scripted password guessing, and sign-up floods that rotate addresses past the
+ * per-network cap. Off unless both keys are set. When it is on and Cloudflare cannot be
+ * reached, the request is refused rather than let through.
  */
 export async function assertHuman(token: string | undefined, ip: string, log: FastifyBaseLogger): Promise<void> {
   if (!env.turnstile.enabled) return;

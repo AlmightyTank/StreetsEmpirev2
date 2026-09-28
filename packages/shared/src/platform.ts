@@ -80,6 +80,6 @@ export interface PlatformMetaDto {
     status: string;
     endsAt: string;
   } | null;
-  /** rc.5. Cloudflare Turnstile site key for sign-up and password reset; null when bot checks are off. */
+  /** rc.5/rc.6. Cloudflare Turnstile site key for sign-in, sign-up and password reset; null when bot checks are off. */
   turnstileSiteKey: string | null;
 }

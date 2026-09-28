@@ -41,7 +41,7 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('account data and safety (r
   const as = (cookie: string, method: 'GET' | 'POST', url: string, payload?: object) =>
     app.inject({ remoteAddress: ip, method, url, headers: { cookie }, ...(payload ? { payload } : {}) });
   const login = (identifier: string, password: string, cookie = '') =>
-    app.inject({ remoteAddress: ip, method: 'POST', url: '/api/auth/login', headers: cookie ? { cookie } : {}, payload: { identifier, password } });
+    app.inject({ remoteAddress: ip, method: 'POST', url: '/api/auth/login', headers: cookie ? { cookie } : {}, payload: { identifier, password, captchaToken: 'good-token' } });
 
   beforeAll(async () => {
     process.env.TURNSTILE_SITE_KEY = 'test-site-key';
@@ -81,6 +81,19 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('account data and safety (r
       else process.env[key] = value;
     }
     vi.restoreAllMocks();
+  });
+
+  it('checks for bots at sign-in too, before the password is looked at', async () => {
+    const player = await register();
+    const signIn = (payload: Record<string, unknown>) =>
+      app.inject({ remoteAddress: ip, method: 'POST', url: '/api/auth/login', payload: { identifier: player.name, password: player.password, ...payload } });
+    expect((await signIn({})).json().error.code).toBe('CAPTCHA_REQUIRED');
+    expect((await signIn({ captchaToken: 'bot-token' })).json().error.code).toBe('CAPTCHA_FAILED');
+    // A wrong password with no check says nothing about the password.
+    expect((await signIn({ password: 'wrong' })).json().error.code).toBe('CAPTCHA_REQUIRED');
+    const ok = await signIn({ captchaToken: 'good-token' });
+    expect(ok.statusCode, ok.body).toBe(200);
+    expect(ok.json().account.username).toBe(player.name);
   });
 
   it('checks for bots at sign-up and password recovery when Turnstile is on', async () => {

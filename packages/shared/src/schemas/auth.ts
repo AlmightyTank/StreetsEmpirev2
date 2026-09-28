@@ -45,6 +45,8 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Enter your password.'),
   /** rc.4. "Keep me signed in". Defaults to true. */
   remember: z.boolean().optional(),
+  /** rc.6. Cloudflare Turnstile token, when bot checks are switched on. */
+  captchaToken: z.string().max(4096).optional(),
 });
 
 export const forgotPasswordSchema = z.object({

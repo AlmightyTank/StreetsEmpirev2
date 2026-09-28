@@ -70,7 +70,7 @@ export function PrivacyPage() {
         {
           heading: 'Who else handles it',
           body: (
-            <p>Emails (verification, password recovery, and security notices such as a changed password or a sign-in from a new browser) are sent through an email delivery service. The "are you human" check at sign-up and password recovery is Cloudflare Turnstile, which looks at your browser to tell people from bots. Push alerts go through your browser maker's push service. Discord and the forum see what you do there. There are no advertising or analytics trackers, and nothing is sold.</p>
+            <p>Emails (verification, password recovery, and security notices such as a changed password or a sign-in from a new browser) are sent through an email delivery service. The "are you human" check at sign-in, sign-up and password recovery is Cloudflare Turnstile, which looks at your browser to tell people from bots. Push alerts go through your browser maker's push service. Discord and the forum see what you do there. There are no advertising or analytics trackers, and nothing is sold.</p>
           ),
         },
         {
