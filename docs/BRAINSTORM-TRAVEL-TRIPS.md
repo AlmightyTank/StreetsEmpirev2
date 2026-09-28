@@ -1,8 +1,20 @@
 # Brainstorm - Trips: the boss travels
 
-Status: **brainstorm.** Nothing here is decided. It is a starting point for a roadmap that
+Status: **brainstorm, three calls decided.** It is a starting point for a roadmap that
 sits between the built 0.5.0/0.6.0 travel and the 1.2 Casino expansion
 ([ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)).
+
+## Decided
+
+- **Home while away: the lieutenant runs it** (option B in section 6). Home actions keep
+  working, at a boss-away cut, a small home-defense penalty and slow happiness drift.
+- **Flying stays in.** A trip can fly (fast, no guns, carry-on cash cap, airport Heat check)
+  or drive (road graph, guns ride along, can be hit like a convoy).
+- **Trips ship before the Casino update.** Trips A-D stand on their own, with in-person
+  Jobs, sit-downs, the local gun connect and outpost visits as their first uses. 1.2 Casino
+  then plugs into presence instead of inventing its own way to get to Vegas.
+
+Everything else below is still a proposal.
 
 ## The gap
 
@@ -52,7 +64,7 @@ is**. Everything city-scoped today keeps reading home unless a feature explicitl
 
 A trip never carries product. That keeps it from becoming a better run.
 
-### 2. Getting there: fly or drive
+### 2. Getting there: fly or drive (decided: both)
 
 This is the interesting choice, and it maps straight onto "just myself" vs "with my thugs".
 
@@ -109,13 +121,13 @@ The cap matters: anything bigger than an entourage is a run with escorts or a re
   trading window).
 - Settled lazily from timestamps, like runs and relocation. No background worker.
 
-### 6. Home while the boss is away
+### 6. Home while the boss is away (decided: B)
 
 This is the balance heart of the feature. Options, cheapest to harshest:
 
 - **A. Phone it in.** Every home action still works from away. The only cost is the
   entourage and bankroll not being home. Simple, but then there is no reason not to travel.
-- **B. The lieutenant runs it (recommended).** Home actions still work, but:
+- **B. The lieutenant runs it (chosen).** Home actions still work, but:
   - Scout and Produce pay a **boss-away cut** (e.g. 10%), the lieutenant skimming.
   - Home defense loses the boss's presence bonus (a small defense modifier, e.g. -5%), on
     top of missing the entourage.
@@ -125,7 +137,8 @@ This is the balance heart of the feature. Options, cheapest to harshest:
   for a feature whose point is fun.
 
 Option B keeps the game playable on a phone during a trip, while making a trip a real
-decision.
+decision. The numbers (cut, defense modifier, happiness drift) are set by the stage E
+simulation; the ones above are placeholders.
 
 ### 7. Where the boss is, the boss can be hit
 
@@ -229,16 +242,15 @@ Grounded in what 0.5.0/0.6.0 already built:
 | **A - Presence** | `Trip` and `presenceCity`; solo trips by air; bankroll; hotel stay and head home; boss-away cut; Travel page trip panel. | Bankroll conserved in integer cents; a trip settles the same however often it is read; a round where nobody travels plays unchanged. |
 | **B - Entourage** | Crew and Entourage tiers; driving trips on the road graph; guns ride along; flying lands unarmed; airport Heat checks and carry-on cap; road stops. | Thugs and guns conserved; no trip can carry product; flying is never strictly better than driving. |
 | **C - Hunted** | Visitor recon, tails and hits on a boss in town; ally call-in; loss sends the boss home laid up; trip arrests. | Hit win rate in band for each tier; a solo boss is hard to find but easy to beat; a hit always settles when its window closes. |
-| **D - Hooks** | Presence objectives in Jobs; local gun connect; outpost inspection. The 1.2 Casino update builds on this stage. | A presence job cannot be completed without being there; renting guns is never cheaper than bringing them. |
+| **D - Hooks** | Presence objectives in Jobs; local gun connect; outpost inspection; sit-downs between bosses. These are the reasons to travel before casinos exist; the 1.2 Casino update builds on this stage. | A presence job cannot be completed without being there; renting guns is never cheaper than bringing them. |
 | **E - Release** | Full-round simulation with travelers vs homebodies; phone pass; Rules page Trips panel; regression. | Traveling is a choice, not a requirement: a crew that never takes a trip is not locked out of the top ranks, and the 0.5.0-F and 0.6.0-F gates still pass. |
 
 ## Open questions
 
-1. **How much does home suffer while away?** Option B (lieutenant cut) is the proposal.
-   What percent, and should it scale with how long you are gone?
-2. **Flying at all?** It is the cleanest answer to "just me, quickly", but it is the first
-   non-road travel in the game. Alternative: solo trips drive too, just faster (one car, no
-   cargo).
+1. **Tuning the lieutenant.** What percent is the boss-away cut, and should it grow the
+   longer you are gone?
+2. **Flight time and ticket price.** Flat between any two cities, or scaled by distance?
+   Does the airport check use the departure city's Heat lines, the arrival city's, or both?
 3. **Entourage cap.** Flat number, share of thugs, or bought by a hideout room (a "security
    detail")?
 4. **Should a trip cost turns?** Runs do. A small launch cost in turns keeps trips from
@@ -247,7 +259,4 @@ Grounded in what 0.5.0/0.6.0 already built:
    once checked in?
 6. **Whale visibility.** Should a big bankroll make you show up on everyone's recon in that
    city, or only paid recon?
-7. **Casino before trips, or trips before casino?** Trips A-C can ship on their own (sit-downs
-   and presence jobs give them a use), then 1.2 plugs in. Or casino tables could first open to
-   anyone living in Vegas and trips come later.
-8. **Kidnapping / ransom** of a solo boss: fun, or too punishing? Parked for now.
+7. **Kidnapping / ransom** of a solo boss: fun, or too punishing? Parked for now.
