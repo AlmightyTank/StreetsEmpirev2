@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgTripsA, classicOgV08H, type Ruleset } from '@streets/rulesets';
+import { classicOgTripsA, classicOgTripsB, classicOgV08H, type Ruleset } from '@streets/rulesets';
 import { checkMove } from '../calculations/relocation.js';
+import { planLaunch } from '../calculations/runs.js';
 import {
   checkExtend,
   checkTrip,
   hotelCents,
   lieutenantCutCents,
+  rideAlongHourCents,
+  settleHotelBill,
   planTripHeadHome,
   tripPosition,
   tripRules,
@@ -100,6 +103,45 @@ describe('Trips A: the boss travels', () => {
     expect(lieutenantCutCents(rules, -500n)).toBe(0n);
     expect(lieutenantCutCents(undefined, 100_000n)).toBe(0n);
     expect(lieutenantCutCents({ ...rules, lieutenantCut: 2 }, 100n)).toBe(100n);
+  });
+
+  it('prices a ride-along hour as the boss\'s room plus lodging for each escort', () => {
+    const b = classicOgTripsB.travel.trips;
+    expect(rideAlongHourCents(rules, 'las-vegas', 10)).toBe(0n);
+    expect(rideAlongHourCents(b, 'las-vegas', 0)).toBe(hotelCents(b, 'las-vegas', 60));
+    expect(rideAlongHourCents(b, 'las-vegas', 10)).toBe(hotelCents(b, 'las-vegas', 60) + 10n * BigInt(b.rideAlong.crewCentsPerThugHour));
+    expect(rideAlongHourCents(b, 'las-vegas', -3)).toBe(hotelCents(b, 'las-vegas', 60));
+  });
+
+  it('bills a stay by the started hour, and checks the boss out when the wallet runs dry', () => {
+    const arriveAt = now;
+    const leaveAt = minutes(24 * 60);
+    const bill = (at: Date, hoursPaid: number, walletCents: bigint) =>
+      settleHotelBill({ arriveAt, leaveAt, now: at, hoursPaid, walletCents, hourCents: 1_000n });
+    expect(bill(minutes(-1), 0, 5_000n)).toEqual({ hoursPaid: 0, chargeCents: 0n, checkoutAt: null });
+    expect(bill(now, 0, 5_000n)).toEqual({ hoursPaid: 1, chargeCents: 1_000n, checkoutAt: null });
+    expect(bill(minutes(60), 1, 4_000n)).toEqual({ hoursPaid: 1, chargeCents: 0n, checkoutAt: null });
+    expect(bill(minutes(61), 1, 4_000n)).toEqual({ hoursPaid: 2, chargeCents: 1_000n, checkoutAt: null });
+    expect(bill(minutes(179), 0, 10_000n)).toEqual({ hoursPaid: 3, chargeCents: 3_000n, checkoutAt: null });
+    // Two hours affordable of five started: out at the start of the third.
+    expect(bill(minutes(299), 0, 2_500n)).toEqual({ hoursPaid: 2, chargeCents: 2_000n, checkoutAt: minutes(120) });
+    // Broke on arrival: out the moment it gets there.
+    expect(bill(minutes(10), 0, 999n)).toEqual({ hoursPaid: 0, chargeCents: 0n, checkoutAt: now });
+    // Never past the planned end of the stay.
+    expect(bill(minutes(48 * 60), 0, 1_000_000n).hoursPaid).toBe(24);
+    // Idempotent: settling the settled bill again charges nothing.
+    const once = bill(minutes(299), 0, 10_000n);
+    expect(bill(minutes(299), once.hoursPaid, 10_000n - once.chargeCents)).toEqual({ hoursPaid: once.hoursPaid, chargeCents: 0n, checkoutAt: null });
+  });
+
+  it('holds a ride-along run in town for the longer window', () => {
+    const b: Ruleset = classicOgTripsB;
+    const crew = planLaunch(b, { home: 'new-york-city', to: 'detroit', routeIndex: 0, now });
+    const boss = planLaunch(b, { home: 'new-york-city', to: 'detroit', routeIndex: 0, now, windowMinutes: classicOgTripsB.travel.trips.rideAlong.maxStayMinutes });
+    const window = (plan: typeof crew) => plan.stops[0]!.leaveAt!.getTime() - plan.stops[0]!.arriveAt.getTime();
+    expect(window(crew)).toBe(classicOgTripsB.travel.runs.townWindowMinutes * 60_000);
+    expect(window(boss)).toBe(classicOgTripsB.travel.trips.rideAlong.maxStayMinutes * 60_000);
+    expect(boss.turns).toBe(crew.turns);
   });
 
   it('keeps the operation home while the boss is away', () => {

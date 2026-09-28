@@ -511,6 +511,17 @@ export interface RunDto {
   cargo: Array<{ key: string; quantity: number; startQuantity: number }>;
   /** 0.5.0-E. The guns the escorts carry. A bust or an arrest takes them all. */
   guns: { PISTOL: number; SHOTGUN: number; TEK9: number; AK47: number };
+  /** Trips B. The boss rides with this run. */
+  bossAboard: boolean;
+  /** Trips B. The hotel, with the boss aboard. Null on crew-only runs. */
+  hotel: {
+    /** What the next started hour costs where the run is (or will be). */
+    hourCents: number;
+    /** Everything the hotel has taken from the run's cash. */
+    paidCents: number;
+    /** Hours of the current stay paid so far. */
+    hoursPaid: number;
+  } | null;
   turnsSpent: number;
   stops: RunStopDto[];
   position: {
@@ -579,6 +590,9 @@ export interface RunReceiptDto {
   beer: number;
   cargo: Array<{ key: string; startQuantity: number; quantity: number }>;
   turnsSpent: number;
+  /** Trips B. The boss rode along, and what the hotel took. */
+  bossAboard: boolean;
+  hotelCents: number;
   trades: RunTradeDto[];
   incidents: RunIncidentDto[];
 }
@@ -676,7 +690,11 @@ export interface TripPanelDto {
     launchTurns: number;
     /** The lieutenant's share of Scout and Produce takes while the boss is away, 0..1. */
     lieutenantCut: number;
+    /** Trips B. The boss can ride along with a run. Null before B. */
+    rideAlong: { maxStayMinutes: number; crewCentsPerThugHour: number } | null;
   };
+  /** Trips B. The run the boss is riding with, if any. */
+  bossRun: { runId: string; cityName: string } | null;
   /** When flights close for the round. */
   cutoffAt: string;
   /** What stops any trip right now, in words; null when the boss can go. */
@@ -802,6 +820,8 @@ export interface RunLaunchResult {
   /** 0.5.0-F. What it bought on the home market on the way out, and what that cost. */
   market: Record<string, number>;
   marketCents: number;
+  /** Trips B. The boss rides with it. */
+  bossAboard: boolean;
 }
 
 export interface RunOutpostEstablishResult {

@@ -22,6 +22,58 @@ export function hotelCents(rules: TripRules, city: string, minutes: number): big
   return BigInt(Math.round(rules.hotelCentsPerHour * lean)) * BigInt(hours);
 }
 
+/**
+ * Trips B. What a run with the boss aboard pays the hotel for one started hour in a city:
+ * the boss's room at the city's rate, plus lodging for every escort.
+ */
+export function rideAlongHourCents(rules: TripRules, city: string, escorts: number): bigint {
+  const ride = rules.rideAlong;
+  if (!ride) return 0n;
+  return hotelCents(rules, city, 60) + BigInt(ride.crewCentsPerThugHour) * BigInt(Math.max(0, escorts));
+}
+
+export interface HotelBill {
+  /** Hours of this stay paid for once the bill is settled. */
+  hoursPaid: number;
+  /** What this settlement takes from the wallet. */
+  chargeCents: bigint;
+  /** When the boss had to check out because the wallet could not cover the next hour. */
+  checkoutAt: Date | null;
+}
+
+/**
+ * Trips B. Settle a stay's hotel bill up to `now`. Every hour is paid when it starts, out
+ * of the wallet as it stands; the first hour starts on arrival. The first hour the
+ * wallet cannot cover is the moment the boss checks out. Pure and idempotent: settling
+ * again with the returned `hoursPaid` and the charged wallet changes nothing.
+ */
+export function settleHotelBill(input: {
+  arriveAt: Date;
+  /** When the stay ends as planned (the town window closing, or a check-out). */
+  leaveAt: Date;
+  now: Date;
+  hoursPaid: number;
+  walletCents: bigint;
+  hourCents: bigint;
+}): HotelBill {
+  const hour = 3_600_000;
+  const start = input.arriveAt.getTime();
+  const end = Math.min(input.now.getTime(), input.leaveAt.getTime());
+  const due = input.now.getTime() < start ? 0 : Math.max(1, Math.ceil((end - start) / hour));
+  let paid = Math.max(0, input.hoursPaid);
+  let wallet = input.walletCents;
+  let charge = 0n;
+  while (paid < due) {
+    if (wallet < input.hourCents) {
+      return { hoursPaid: paid, chargeCents: charge, checkoutAt: new Date(start + paid * hour) };
+    }
+    wallet -= input.hourCents;
+    charge += input.hourCents;
+    paid++;
+  }
+  return { hoursPaid: paid, chargeCents: charge, checkoutAt: null };
+}
+
 /** The lieutenant's skim off a positive take while the boss is away. Never more than the take. */
 export function lieutenantCutCents(rules: TripRules | undefined, takeCents: bigint): bigint {
   if (!rules || takeCents <= 0n || rules.lieutenantCut <= 0) return 0n;

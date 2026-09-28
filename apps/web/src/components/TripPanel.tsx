@@ -107,6 +107,17 @@ export function TripPanel({ data, selected, onDone }: { data: TravelDto; selecte
   useEffect(() => { setConfirming(false); }, [to, stay, bankroll]);
 
   if (trips.trip) return <Away trip={trips.trip} rules={trips.rules} onDone={onDone} />;
+  if (trips.bossRun) {
+    return (
+      <Panel title="The boss is on the road" aside={trips.bossRun.cityName}>
+        <p className="se-run__headline">Riding with your run to {trips.bossRun.cityName}</p>
+        <p className="se-hint">
+          Drive on or head home from the run above. Until it is back, the lieutenant runs home and skims {percent(trips.rules.lieutenantCut)} of
+          every Scout and Produce take.
+        </p>
+      </Panel>
+    );
+  }
 
   const destination = trips.destinations.find((city) => city.slug === to) ?? null;
   const bankrollCents = (typeof bankroll === 'number' ? bankroll : 0) * 100;

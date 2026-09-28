@@ -1,4 +1,4 @@
-import type { BossTrip } from '@prisma/client';
+import type { BossTrip, PrismaClient } from '@prisma/client';
 import { lieutenantCutCents, loadRulesetForRound, tripRules, type Ruleset } from '@streets/rules-engine';
 import type { Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
@@ -51,7 +51,20 @@ export const BossTripSettleService = {
   async lieutenantCut(tx: Db, roundPlayerId: string, ruleset: Ruleset, takeCents: bigint): Promise<bigint> {
     const rules = tripRules(ruleset);
     if (!rules || takeCents <= 0n) return 0n;
-    const away = await tx.bossTrip.count({ where: { roundPlayerId, status: 'ACTIVE' } });
-    return away > 0 ? lieutenantCutCents(rules, takeCents) : 0n;
+    return (await bossAway(tx, roundPlayerId)) ? lieutenantCutCents(rules, takeCents) : 0n;
   },
 };
+
+/** Trips B. The run the boss is riding with, if one is out. */
+export async function bossRun(db: Db | PrismaClient, roundPlayerId: string) {
+  return db.run.findFirst({ where: { roundPlayerId, status: 'ACTIVE', bossAboard: true }, select: { id: true, stops: { orderBy: { order: 'asc' }, select: { city: true } } } });
+}
+
+/** Trips A/B. The boss is away: on a flight trip, or riding with a run. */
+export async function bossAway(db: Db, roundPlayerId: string): Promise<boolean> {
+  const [trips, runs] = await Promise.all([
+    db.bossTrip.count({ where: { roundPlayerId, status: 'ACTIVE' } }),
+    db.run.count({ where: { roundPlayerId, status: 'ACTIVE', bossAboard: true } }),
+  ]);
+  return trips + runs > 0;
+}

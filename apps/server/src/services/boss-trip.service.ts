@@ -25,7 +25,7 @@ import type {
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActionService } from './action.service.js';
-import { activeTrip } from './boss-trip-settle.service.js';
+import { activeTrip, bossRun } from './boss-trip-settle.service.js';
 import { totalAwayWorth } from './run-settle.service.js';
 
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
@@ -102,10 +102,13 @@ export const BossTripService = {
     const rules = tripRules(ruleset);
     if (!rules) return null;
     const home = player.city.slug;
-    const [trip, last] = await Promise.all([
+    const [trip, last, riding] = await Promise.all([
       db.bossTrip.findFirst({ where: { roundPlayerId: player.id, status: 'ACTIVE' } }),
       db.bossTrip.findFirst({ where: { roundPlayerId: player.id, status: 'RETURNED' }, orderBy: { returnedAt: 'desc' } }),
+      bossRun(db, player.id),
     ]);
+    // Trips B: the town the boss's run is headed for or sitting in, the last before home.
+    const ridingTo = riding ? riding.stops[Math.max(0, riding.stops.length - 2)]?.city ?? home : null;
     const destinations = Object.keys(ruleset.cities ?? {}).filter((slug) => slug !== home);
     // Any city but home gives the same general reason, at the cheapest stay and no bankroll.
     const general: TripCheck = checkTrip(ruleset, {
@@ -122,7 +125,9 @@ export const BossTripService = {
       lockedUntil: player.lockedUntil,
     });
     // Cash is checked per quote in the panel: the general reason stays about the boss, not the wallet.
-    const blocked = general.code === 'NOT_ENOUGH_CASH' ? null : general;
+    const blocked = riding && !trip
+      ? { code: 'BOSS_ON_RUN', blockedReason: `The boss is riding with your run to ${cityName(ruleset, ridingTo!)}.`, blockedUntil: null }
+      : general.code === 'NOT_ENOUGH_CASH' ? null : general;
     return {
       rules: {
         flightMinutes: rules.flightMinutes,
@@ -133,7 +138,9 @@ export const BossTripService = {
         extendMinutes: rules.extendMinutes,
         launchTurns: rules.launchTurns,
         lieutenantCut: rules.lieutenantCut,
+        rideAlong: rules.rideAlong ? { ...rules.rideAlong } : null,
       },
+      bossRun: riding ? { runId: riding.id, cityName: cityName(ruleset, ridingTo!) } : null,
       cutoffAt: general.cutoffAt.toISOString(),
       blockedReason: blocked?.blockedReason ?? null,
       blockedCode: blocked?.code ?? null,
@@ -154,6 +161,8 @@ export const BossTripService = {
         const base = loadRulesetForRound(round);
         requireTrips(base);
         const bankrollCents = BigInt(input.bankrollCents);
+        // Trips B: one boss. A boss riding with a run cannot also be on a plane.
+        if (await bossRun(tx, roundPlayerId)) throw AppError.conflict('BOSS_ON_RUN', 'The boss is riding with your run. Bring it home first.');
         const check = checkTrip(base, {
           from: player.city.slug,
           to: input.to,

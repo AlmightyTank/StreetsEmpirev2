@@ -80,6 +80,8 @@ export const runLaunchSchema = z.object({
   market: z.record(runProduct, wholeCount('a quantity')).default({}),
   /** The next-unit prices the player saw on the home market; the launch is refused if one has moved too far. */
   marketQuotes: z.record(runProduct, z.number().int().positive().safe()).optional(),
+  /** Trips B. The boss rides along. */
+  rideAlong: z.boolean().default(false),
   actionId: actionIdSchema,
 }).strict();
 export type RunLaunchInput = z.infer<typeof runLaunchSchema>;

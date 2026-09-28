@@ -275,6 +275,37 @@ placeholder until trips get a release number).
   `/trip/extend`, `/trip/home`, the trip panel on Travel (`TripPanel.tsx`), and the
   `TRAVEL_INTEGRATION` suite `boss-trip.integration.test.ts`.
 
+## Stage B - built: the boss rides along
+
+Decided after Stage A: rather than a separate driving trip, **a run can take the boss
+with it**, and solo flights stay. Runs themselves are unchanged for crew-only use.
+
+Ruleset `classic-og-trips-b` (Trips A plus `travel.trips.rideAlong`).
+
+- **"The boss rides along"** is a checkbox on the run launch. The escorts are the
+  entourage, with the guns they already carry; the Low-Riders are the seats.
+- **Stay until you leave.** With the boss aboard, every town the run stops in holds it
+  until the player drives on or heads home, up to 24 hours (crew-only runs keep the
+  2-hour window). If nobody touches it, it heads home when the 24 hours are up.
+- **The hotel bills the run's cash by the started hour:** the boss's room at the city's
+  rate plus $20 an hour for each escort. The first hour is charged on arrival. When the
+  cash in the car cannot cover the next hour, the boss checks out at that hour and the run
+  heads home with whatever is left. Heading home or driving on stops the bill.
+- **Lazy and idempotent** like everything else on a run: the bill settles in the run's
+  settle (road stops on the way in, then the hotel, then any re-timed leg), and
+  `Run.hotelStayAt` / `hotelHours` record what is paid, so a read never bills an hour twice.
+- **One boss.** A boss on a plane cannot ride along (`BOSS_AWAY`), a boss riding along
+  cannot fly (`BOSS_ON_RUN`), and at most one active run carries the boss (a partial
+  unique index backs that up).
+- **The lieutenant** skims Scout and Produce while the boss is riding, exactly as on a
+  flight, and stops the moment the run is home.
+- **Screens:** the launch checkbox with the hourly price, the boss and hotel lines on the
+  active run, the hotel on the run receipt, the trip panel showing "riding with your run",
+  and activity lines for a boss run leaving and coming home.
+
+Still to come: hits on a boss in town (C), and the defense penalty and happiness drift from
+the lieutenant option with it; airport Heat checks on flights.
+
 ## Open questions
 
 1. **Tuning the lieutenant.** What percent is the boss-away cut, and should it grow the

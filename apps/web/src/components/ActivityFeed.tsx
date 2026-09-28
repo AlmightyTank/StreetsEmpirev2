@@ -274,12 +274,18 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       };
 
     case 'RUN_LAUNCHED':
-      return { text: `Sent a run to ${str(p.cityName, 'another city')}.`, detail: `${formatNumber(num(p.turns))} turns` };
+      return {
+        text: p.bossAboard ? `The boss rode out with a run to ${str(p.cityName, 'another city')}.` : `Sent a run to ${str(p.cityName, 'another city')}.`,
+        detail: `${formatNumber(num(p.turns))} turns`,
+      };
 
     case 'RUN_RETURNED':
       return {
-        text: `Your run came home from ${Array.isArray(p.cities) ? (p.cities as unknown[]).map(String).join(', ') : 'the road'}.`,
-        detail: `${formatCents(num(p.startCashCents))} → ${formatCents(num(p.cashCents))}`,
+        text: `${p.bossAboard ? 'The boss and your run came' : 'Your run came'} home from ${Array.isArray(p.cities) ? (p.cities as unknown[]).map(String).join(', ') : 'the road'}.`,
+        detail: [
+          `${formatCents(num(p.startCashCents))} → ${formatCents(num(p.cashCents))}`,
+          p.bossAboard && num(p.hotelCents) ? `${formatCents(num(p.hotelCents))} hotel` : null,
+        ].filter(Boolean).join(' · '),
       };
 
     case 'RUN_INCIDENT':

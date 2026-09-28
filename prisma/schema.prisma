@@ -1001,6 +1001,14 @@ model Run {
   shotguns       Int         @default(0)
   tek9s          Int         @default(0)
   ak47s          Int         @default(0)
+  /// Trips B. The boss rides with this run: its towns hold it until the player leaves,
+  /// the hotel bills its cash by the hour, and the lieutenant runs home until it is back.
+  bossAboard     Boolean     @default(false)
+  /// Trips B. Everything the hotel has taken from the run's cash.
+  hotelCents     BigInt      @default(0)
+  /// Trips B. The arrival of the stay being billed, and the hours of it paid so far.
+  hotelStayAt    DateTime?
+  hotelHours     Int         @default(0)
   tails          ConvoyTail[]
   stops          RunStop[]
   cargo          RunCargo[]

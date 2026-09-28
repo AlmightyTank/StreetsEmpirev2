@@ -1036,6 +1036,21 @@ export interface TripRules {
   readonly lieutenantCut: number;
   /** No new trips in the round's last hours. */
   readonly cutoffHours: number;
+  /** Trips B. The boss can ride along with a run. Absent: runs are crew only. */
+  readonly rideAlong?: RideAlongRules;
+}
+
+/**
+ * Trips B. The boss rides with a run. Every town the run stops in holds it for as long as
+ * the boss likes, up to `maxStayMinutes`, and the hotel bills by the started hour out of
+ * the run's own cash. When the cash cannot cover the next hour, the boss checks out and
+ * the run heads home.
+ */
+export interface RideAlongRules {
+  /** The longest the run stays in one town with the boss aboard. */
+  readonly maxStayMinutes: number;
+  /** Lodging for each escort, per real hour, on top of the boss's hotel. */
+  readonly crewCentsPerThugHour: number;
 }
 
 /**
