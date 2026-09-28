@@ -307,6 +307,19 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         detail: `-${formatCents(num(p.ticketCents) + num(p.hotelCents))} flight and hotel · ${formatCents(num(p.bankrollCents))} bankroll`,
       };
 
+    case 'BOSS_HIT':
+      return { text: `Sent ${formatNumber(num(p.squad))} after ${str(p.owner, 'a visiting boss')} in ${str(p.cityName, 'town')}.`, detail: `${formatNumber(num(p.turns))} turns` };
+
+    case 'BOSS_HIT_ATTACK':
+      return p.escaped
+        ? { text: `${str(p.owner, 'The boss')} was gone before your squad got there.` }
+        : { text: `Your squad robbed ${str(p.owner, 'a visiting boss')} in ${str(p.cityName, 'town')}.`, detail: `+${formatCents(num(p.cashCents))}` };
+
+    case 'BOSS_HIT_DEFENSE':
+      return p.escaped
+        ? { text: `You got out of ${str(p.cityName, 'town')} before ${str(p.attacker, 'their people')} moved.` }
+        : { text: `${str(p.attacker, 'Locals')} beat you in ${str(p.cityName, 'town')}. Laid up and on the next flight home.`, detail: `-${formatCents(Math.abs(num(p.cashCents)))}` };
+
     case 'TRIP_RETURNED':
       return {
         text: `The boss is back from ${str(p.cityName, 'the trip')}.`,
@@ -371,7 +384,7 @@ export function activityGroup(type: ActivityDto['type']): ActivityGroup {
   if (type.startsWith('RAID_') || type.startsWith('DRIVE_BY_') || type.startsWith('COMBAT_') || type === 'BATTLE_VOIDED') return 'combat';
   if (type.startsWith('STORE_')) return 'market';
   if (type.startsWith('QUEST_') || type.startsWith('FAVOR_') || type === 'HIDEOUT_UPGRADE' || type === 'WEAPON_UNLOCK') return 'progress';
-  if (type.startsWith('RUN_') || type.startsWith('RELOCATION_') || type === 'RELOCATED' || type.startsWith('CONVOY_') || type.startsWith('TRIP_')) return 'travel';
+  if (type.startsWith('RUN_') || type.startsWith('RELOCATION_') || type === 'RELOCATED' || type.startsWith('CONVOY_') || type.startsWith('TRIP_') || type.startsWith('BOSS_')) return 'travel';
   if (type.startsWith('TURF_')) return 'turf';
   if (type === 'SCOUT' || type === 'WORK_STREETS' || type === 'PRODUCE_CRACK' || type === 'HEAT_BRIBE' || type === 'PAYOUT_CHANGE') return 'street';
   return 'system';

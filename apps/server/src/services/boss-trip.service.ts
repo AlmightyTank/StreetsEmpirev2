@@ -26,6 +26,7 @@ import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActionService } from './action.service.js';
 import { activeTrip, bossRun } from './boss-trip-settle.service.js';
+import { BossHitService } from './boss-hit.service.js';
 import { totalAwayWorth } from './run-settle.service.js';
 
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
@@ -43,7 +44,7 @@ function refusal(check: { code: string | null; blockedReason: string | null }): 
   return bad.includes(code) ? AppError.badRequest(code, message, { trip: message }) : AppError.conflict(code, message);
 }
 
-function tripDto(ruleset: Ruleset, trip: BossTrip, roundEndsAt: Date, now: Date): TripDto | null {
+function tripDto(ruleset: Ruleset, trip: BossTrip, roundEndsAt: Date, now: Date, hitLandsAt: Date | null = null): TripDto | null {
   const position = tripPosition(trip, now);
   if (position.phase === 'home') return null;
   const rules = tripRules(ruleset);
@@ -66,6 +67,7 @@ function tripDto(ruleset: Ruleset, trip: BossTrip, roundEndsAt: Date, now: Date)
     returnsAt: trip.returnsAt.toISOString(),
     extend: { minutes: rules?.extendMinutes ?? 0, hotelCents: Number(extend.hotelCents), blockedReason: extend.blockedReason },
     canHeadHome: planTripHeadHome(trip, now) !== null,
+    hitLandsAt: hitLandsAt?.toISOString() ?? null,
   };
 }
 
@@ -123,6 +125,7 @@ export const BossTripService = {
       tripOut: Boolean(trip),
       movingUntil: player.movingUntil,
       lockedUntil: player.lockedUntil,
+      laidUpUntil: player.laidUpUntil,
     });
     // Cash is checked per quote in the panel: the general reason stays about the boss, not the wallet.
     const blocked = riding && !trip
@@ -141,12 +144,13 @@ export const BossTripService = {
         rideAlong: rules.rideAlong ? { ...rules.rideAlong } : null,
       },
       bossRun: riding ? { runId: riding.id, cityName: cityName(ruleset, ridingTo!) } : null,
+      laidUpUntil: player.laidUpUntil && player.laidUpUntil > now ? player.laidUpUntil.toISOString() : null,
       cutoffAt: general.cutoffAt.toISOString(),
       blockedReason: blocked?.blockedReason ?? null,
       blockedCode: blocked?.code ?? null,
       blockedUntil: blocked?.blockedUntil?.toISOString() ?? null,
       destinations: destinations.map((slug) => ({ slug, name: cityName(ruleset, slug), hotelCentsPerHour: Number(hotelCents(rules, slug, 60)) })),
-      trip: trip ? tripDto(ruleset, trip, roundEndsAt, now) : null,
+      trip: trip ? tripDto(ruleset, trip, roundEndsAt, now, await BossHitService.seenComing(db, ruleset, player, trip.id, now)) : null,
       lastTrip: last ? receiptDto(ruleset, last) : null,
     };
   },
@@ -175,6 +179,7 @@ export const BossTripService = {
           tripOut: Boolean(await activeTrip(tx, roundPlayerId)),
           movingUntil: player.movingUntil,
           lockedUntil: player.lockedUntil,
+          laidUpUntil: player.laidUpUntil,
         });
         if (check.blockedReason) throw refusal(check);
         const to = await tx.city.findUnique({ where: { slug: input.to }, select: { isEnabled: true } });

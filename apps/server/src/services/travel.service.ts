@@ -465,6 +465,7 @@ export const TravelService = {
         if (input.rideAlong) {
           if (!rideAlong) throw AppError.conflict('RIDE_ALONG_DISABLED', 'The boss stays home this round; runs are crew only.');
           if (await bossAway(tx, roundPlayerId)) throw AppError.conflict('BOSS_AWAY', 'The boss is already away. Only one of you.');
+          if (player.laidUpUntil && player.laidUpUntil > now) throw AppError.conflict('LAID_UP', 'The boss is laid up after a beating. No travel until they heal.');
         }
         let plan;
         try {

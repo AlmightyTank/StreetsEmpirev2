@@ -663,6 +663,8 @@ export interface TripDto {
   /** What another extension block would cost right now, and why it cannot be bought if it cannot. */
   extend: { minutes: number; hotelCents: number; blockedReason: string | null };
   canHeadHome: boolean;
+  /** Trips C. A hit your lookouts have spotted coming, and when it lands. */
+  hitLandsAt: string | null;
 }
 
 /** Trips A. The last trip home, as a receipt. */
@@ -695,6 +697,8 @@ export interface TripPanelDto {
   };
   /** Trips B. The run the boss is riding with, if any. */
   bossRun: { runId: string; cityName: string } | null;
+  /** Trips C. A beaten boss heals until then. */
+  laidUpUntil: string | null;
   /** When flights close for the round. */
   cutoffAt: string;
   /** What stops any trip right now, in words; null when the boss can go. */
@@ -980,6 +984,52 @@ export interface ConvoysDto {
   run: { escorts: number; cityName: string } | null;
   targets: ConvoyTargetDto[];
   tails: ConvoyTailDto[];
+  /** Trips C. Bosses visiting where you live that your recon spotted. Empty before C. */
+  bosses: BossTargetDto[];
+  /** Trips C. Hits on a boss you started or took, recent first. */
+  bossHits: BossHitDto[];
+}
+
+/** Trips C. A boss visiting where you live, as your recon saw them. */
+export interface BossTargetDto {
+  tripId: string;
+  owner: { publicPimpId: number; displayName: string; allianceTag: string | null };
+  city: string;
+  cityName: string;
+  inTownFrom: string;
+  inTownUntil: string;
+  inTownNow: boolean;
+  /** The bankroll in a band: light, loaded or heavy. */
+  bankroll: 'light' | 'loaded' | 'heavy';
+  /** Always true in C: a boss who flew in has nobody with them. */
+  alone: boolean;
+  maxSquad: number;
+  blockedReason: string | null;
+}
+
+/** Trips C. A hit on a boss, from either side. */
+export interface BossHitDto {
+  id: string;
+  role: 'attacker' | 'owner';
+  status: 'PENDING' | 'LANDED' | 'ESCAPED';
+  cityName: string;
+  startedAt: string;
+  landsAt: string;
+  squad: number;
+  attacker: { publicPimpId: number; displayName: string };
+  owner: { publicPimpId: number; displayName: string };
+  /** Once it has landed: whether the boss got away, and the cash that moved (+ for you, − against you). */
+  report: { escaped: boolean; cashCents: number; laidUpUntil: string | null } | null;
+}
+
+/** Trips C. POST /api/game/convoys/boss-hit. */
+export interface BossHitResult {
+  hitId: string;
+  landsAt: string;
+  city: string;
+  cityName: string;
+  squad: number;
+  turns: number;
 }
 
 export interface ConvoyTailResult {
@@ -993,6 +1043,8 @@ export interface ConvoyTailResult {
 
 export interface ConvoyReconResult {
   found: number;
+  /** Trips C. Visiting bosses spotted. */
+  bosses?: number;
   lookaheadMinutes: number;
   expiresAt: string;
   turns: number;

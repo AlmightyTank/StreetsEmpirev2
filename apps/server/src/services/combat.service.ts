@@ -1,6 +1,6 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
-import { DEFENSE_JOB, RAID_JOB, driveByMaxShooters, equipCombatSquad, loadRulesetForRound, planWorkSupply, productStashHint, simulateDriveBy, simulateRaid, splitProductUnits, type CombatBoost, type CombatCrew, type Ruleset, type WorkSupplyPlan } from '@streets/rules-engine';
+import { DEFENSE_JOB, RAID_JOB, bossAwayDefenseMultiplier, driveByMaxShooters, equipCombatSquad, loadRulesetForRound, planWorkSupply, productStashHint, simulateDriveBy, simulateRaid, splitProductUnits, type CombatBoost, type CombatCrew, type Ruleset, type WorkSupplyPlan } from '@streets/rules-engine';
 import { hideoutV2For, type DriveByRules, type DrugHoesRules, type LureCrewRules, type SpecialRaidKind, type StealRideRules } from '@streets/rulesets';
 import {
   combatReconSchema,
@@ -34,6 +34,7 @@ import { HappinessService } from './happiness.service.js';
 import { assertPlayerState } from './invariant.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { PlayerStateService, type SettledPlayer } from './player-state.service.js';
+import { bossAway } from './boss-trip-settle.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 import { RankingService } from './ranking.service.js';
@@ -170,16 +171,20 @@ function modelFor(round: Round): { ruleset: Ruleset; model: CombatRules } {
   return { ruleset, model: ruleset.combat };
 }
 
-function modelWithDefenderHideout(model: CombatRules, ruleset: Ruleset, defender: RoundPlayer): CombatRules {
+/**
+ * The defender's model: their hideout's cash protection and defense bonus, and (Trips C)
+ * `awayMultiplier`, the share of its strength home defends with while the boss is away.
+ */
+function modelWithDefenderHideout(model: CombatRules, ruleset: Ruleset, defender: RoundPlayer, awayMultiplier = 1): CombatRules {
   const protectedCashBonus = hideoutProtectedCashBonusCents(ruleset, defender);
   const defenseBonusPercent = hideoutDefenseBonusPercent(ruleset, defender);
-  if (protectedCashBonus <= 0 && defenseBonusPercent <= 0) return model;
+  if (protectedCashBonus <= 0 && defenseBonusPercent <= 0 && awayMultiplier === 1) return model;
 
   return {
     ...model,
     strength: {
       ...model.strength,
-      defenseMultiplier: model.strength.defenseMultiplier * (1 + defenseBonusPercent / 100),
+      defenseMultiplier: model.strength.defenseMultiplier * (1 + defenseBonusPercent / 100) * awayMultiplier,
     },
     loot: {
       ...model.loot,
@@ -765,7 +770,9 @@ export const CombatService = {
       const defender = d.player;
       const protectedCashBonus = hideoutProtectedCashBonusCents(ruleset, defender);
       const defenseBonusPercent = hideoutDefenseBonusPercent(ruleset, defender);
-      const defenderModel = modelWithDefenderHideout(model, ruleset, defender);
+      // Trips C: home defends at less while its boss is away or laid up.
+      const bossAwayMultiplier = bossAwayDefenseMultiplier(ruleset, await bossAway(tx, defender.id, now));
+      const defenderModel = modelWithDefenderHideout(model, ruleset, defender, bossAwayMultiplier);
       const defenderProductProtection = hideoutProductProtection(ruleset, defender, d.products ?? {});
       const retaliation = (await retaliationTargets(tx, attacker, [target.id], model, now)).has(target.id);
       const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
@@ -875,7 +882,7 @@ export const CombatService = {
       const defenderReport = makeReport(false);
       await tx.raidBattle.create({ data: { id, attackerId, defenderId: target.id, defenderAllianceId: defender.allianceId, attackerAllianceId: attacker.allianceId, attackerIntel, actionId: input.actionId,
         attackingThugs: input.attackingThugs, modelVersion: model.version,
-        calculation: json({ result, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), defenderCashCents: defender.cashCents, defenderCrack: defender.crack }, defenderHideout: { protectedCashBonus, defenseBonusPercent }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
+        calculation: json({ result, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), defenderCashCents: defender.cashCents, defenderCrack: defender.crack }, defenderHideout: { protectedCashBonus, defenseBonusPercent }, ...(bossAwayMultiplier !== 1 ? { bossAwayMultiplier } : {}), retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
@@ -1066,7 +1073,9 @@ export const CombatService = {
       const d = await fightSupply(tx, ruleset, settledD, DEFENSE_JOB, Math.min(fitThugs(settledD.player), model.squadCap));
       const attacker = a.player;
       const defender = d.player;
-      const defenderModel = modelWithDefenderHideout(model, ruleset, defender);
+      // Trips C: home defends at less while its boss is away or laid up.
+      const bossAwayMultiplier = bossAwayDefenseMultiplier(ruleset, await bossAway(tx, defender.id, now));
+      const defenderModel = modelWithDefenderHideout(model, ruleset, defender, bossAwayMultiplier);
       const defenderProductProtection = hideoutProductProtection(ruleset, defender, d.products ?? {});
       const retaliation = (await retaliationTargets(tx, attacker, [target.id], model, now)).has(target.id);
       const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
@@ -1219,7 +1228,7 @@ export const CombatService = {
       const defenderReport = makeReport(false);
       await tx.raidBattle.create({ data: { id, attackerId, defenderId: target.id, defenderAllianceId: defender.allianceId, attackerAllianceId: attacker.allianceId, attackerIntel, actionId: input.actionId,
         attackingThugs: input.attackingThugs, modelVersion: model.version,
-        calculation: json({ kind: input.kind, result, effects: { crackSpent, beerSpent, whoresDrugged, defenderCrackBurned, defenderCondomsBurned, lowRidersStolen, whoresLured, thugsLured }, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset) }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
+        calculation: json({ kind: input.kind, result, ...(bossAwayMultiplier !== 1 ? { bossAwayMultiplier } : {}), effects: { crackSpent, beerSpent, whoresDrugged, defenderCrackBurned, defenderCondomsBurned, lowRidersStolen, whoresLured, thugsLured }, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset) }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);

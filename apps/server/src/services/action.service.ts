@@ -348,6 +348,8 @@ export const ActionService = {
       await RelocationService.settleOwn(tx, roundPlayerId, now);
       // Trips A: and a boss whose flight home has landed is home.
       await BossTripSettleService.settle(tx, roundPlayerId, now);
+      // Trips C: and whatever a hit on a visiting boss brought back is back.
+      await BossTripSettleService.credit(tx, roundPlayerId, now);
       // 0.5.0-E: and whatever came back from a convoy fight is back.
       await ConvoyService.credit(tx, roundPlayerId, now);
       // 0.6.0-C: turf squads and allied backup return before another action reads them.

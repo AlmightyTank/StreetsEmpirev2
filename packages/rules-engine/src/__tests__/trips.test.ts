@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgTripsA, classicOgTripsB, classicOgV08H, type Ruleset } from '@streets/rulesets';
+import { classicOgTripsA, classicOgTripsB, classicOgTripsC, classicOgV08H, type Ruleset } from '@streets/rulesets';
 import { checkMove } from '../calculations/relocation.js';
 import { planLaunch } from '../calculations/runs.js';
 import {
+  bossAwayDefenseMultiplier,
+  bossHitLootCents,
+  huntedRules,
+  laidUp,
   checkExtend,
   checkTrip,
   hotelCents,
@@ -142,6 +146,34 @@ describe('Trips A: the boss travels', () => {
     expect(window(crew)).toBe(classicOgTripsB.travel.runs.townWindowMinutes * 60_000);
     expect(window(boss)).toBe(classicOgTripsB.travel.trips.rideAlong.maxStayMinutes * 60_000);
     expect(boss.turns).toBe(crew.turns);
+  });
+
+  it('keeps a laid-up boss home', () => {
+    expect(checkTrip(ruleset, { ...free, laidUpUntil: minutes(30) }).code).toBe('LAID_UP');
+    expect(checkTrip(ruleset, { ...free, laidUpUntil: minutes(-1) }).code).toBeNull();
+    expect(laidUp(minutes(1), now)).toBe(true);
+    expect(laidUp(now, now)).toBe(false);
+    expect(laidUp(null, now)).toBe(false);
+  });
+
+  it('rolls a hit on a boss as a share of the bankroll, capped by what the squad carries', () => {
+    const c: Ruleset = classicOgTripsC;
+    const hunted = classicOgTripsC.travel.trips.hunted;
+    const carry = BigInt(classicOgTripsC.travel.convoys.loot.cashPerAttackerCents);
+    expect(huntedRules(classicOgTripsB)).toBeUndefined();
+    expect(bossHitLootCents(classicOgTripsB, { bankrollCents: 1_000_000n, fitAttackers: 10, rng: () => 0 })).toEqual({ percent: 0, cashCents: 0n });
+    const low = bossHitLootCents(c, { bankrollCents: 1_000_000n, fitAttackers: 100, rng: () => 0 });
+    expect(low).toEqual({ percent: hunted.bankrollPercent.min, cashCents: 1_000_000n * BigInt(hunted.bankrollPercent.min) / 100n });
+    const high = bossHitLootCents(c, { bankrollCents: 1_000_000n, fitAttackers: 100, rng: () => 0.999999 });
+    expect(high.percent).toBe(hunted.bankrollPercent.max);
+    expect(bossHitLootCents(c, { bankrollCents: 100_000_000n, fitAttackers: 2, rng: () => 0 }).cashCents).toBe(2n * carry);
+    expect(bossHitLootCents(c, { bankrollCents: 0n, fitAttackers: 5, rng: () => 0.5 }).cashCents).toBe(0n);
+  });
+
+  it('weakens home defense only while the boss is away, and only where the boss is hunted', () => {
+    expect(bossAwayDefenseMultiplier(classicOgTripsC, true)).toBe(classicOgTripsC.travel.trips.hunted.awayDefenseMultiplier);
+    expect(bossAwayDefenseMultiplier(classicOgTripsC, false)).toBe(1);
+    expect(bossAwayDefenseMultiplier(classicOgTripsB, true)).toBe(1);
   });
 
   it('keeps the operation home while the boss is away', () => {

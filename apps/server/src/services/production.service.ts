@@ -151,7 +151,7 @@ export const ProductionService = {
 
         const hideoutBonusCents = hideoutBackOfficeBonusCents(outcome.pimpTakeCents, ruleset, current);
         // Trips A: with the boss away, the lieutenant skims the take before it lands.
-        const lieutenantCutCents = await BossTripSettleService.lieutenantCut(tx, roundPlayerId, ruleset, outcome.pimpTakeCents + hideoutBonusCents);
+        const lieutenantCutCents = await BossTripSettleService.lieutenantCut(tx, roundPlayerId, ruleset, outcome.pimpTakeCents + hideoutBonusCents, now);
         const pimpTakeCents = outcome.pimpTakeCents + hideoutBonusCents - lieutenantCutCents;
         const hideoutBonusProduct = hideoutWorkshopBonusProduct(outcome.crackProduced, ruleset, current);
         const productProduced = outcome.crackProduced + hideoutBonusProduct;

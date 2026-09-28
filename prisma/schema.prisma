@@ -719,6 +719,9 @@ model RoundPlayer {
   /// 0.5.0-D. On the road to a new home until then: no actions, and still a target in
   /// the old city (cityId changes on arrival). The move itself is a Relocation row.
   movingUntil        DateTime?
+  /// Trips C. A beaten boss heals until then: no trips, no riding along, and the
+  /// lieutenant keeps running home.
+  laidUpUntil        DateTime?
   /// 0.5.0-E. Thugs out on a tail or riding backup for a convoy: still the player's, still
   /// in net worth, but not fit for anything else until the fight is settled.
   busyThugs          Int @default(0)
@@ -826,6 +829,9 @@ model RoundPlayer {
   relocations           Relocation[]
   /// Trips A. The boss away from home and back.
   bossTrips             BossTrip[]
+  /// Trips C. Hits on a visiting boss: started and taken.
+  bossHitsStarted       BossHit[]      @relation("BossHitAttacker")
+  bossHitsTaken         BossHit[]      @relation("BossHitOwner")
   convoyTailsOwned      ConvoyTail[]   @relation("ConvoyTailOwner")
   convoyTailsStarted    ConvoyTail[]   @relation("ConvoyTailAttacker")
   convoyBackups         ConvoyBackup[]
@@ -1142,6 +1148,8 @@ model ConvoyRecon {
   expiresAt     DateTime
   /// The targets as seen, for the page and for checking a tail.
   targets       Json
+  /// Trips C. Bosses visiting the area that the recon spotted.
+  bossTargets   Json        @default("[]")
 }
 
 /// 0.5.0-E. Thugs sent to a convoy's fight by its owner or an ally. They come home after
@@ -1218,9 +1226,42 @@ model BossTrip {
   stayUntil          DateTime
   returnsAt          DateTime
   returnedAt         DateTime?
+  /// Trips C. When the boss was last hit, for the re-hit cooldown.
+  lastHitAt          DateTime?
+  hits               BossHit[]
 
   @@index([roundPlayerId, status])
   @@index([city, status, arrivesAt])
+}
+
+/// Trips C. Locals hitting a boss who is visiting their city. The squad is committed when
+/// it starts; the hit lands when the window closes, in the owner's trip settle, if the boss
+/// is still in town. The attacker's side reaches them at their next settle, like a convoy.
+model BossHit {
+  id                 String           @id @default(cuid())
+  tripId             String
+  trip               BossTrip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  ownerId            String
+  owner              RoundPlayer      @relation("BossHitOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  attackerId         String
+  attacker           RoundPlayer      @relation("BossHitAttacker", fields: [attackerId], references: [id], onDelete: Cascade)
+  /// The city the hit lands in: the trip's city, where the attacker lives.
+  city               String
+  squad              Int
+  turnsSpent         Int
+  actionId           String
+  startedAt          DateTime
+  landsAt            DateTime
+  status             ConvoyTailStatus @default(PENDING)
+  settledAt          DateTime?
+  /// What moved, for both sides' reports.
+  result             Json?
+  attackerCreditedAt DateTime?
+
+  @@unique([attackerId, actionId])
+  @@index([tripId, status])
+  @@index([status, landsAt])
+  @@index([attackerId, attackerCreditedAt])
 }
 
 /// 0.5.0-C. What went wrong on a run: a police stop on a road, or a bust or arrest in a town.
@@ -1518,6 +1559,9 @@ enum ActivityType {
   TURF_OUTPOST_TRANSFER
   TRIP_STARTED
   TRIP_RETURNED
+  BOSS_HIT
+  BOSS_HIT_ATTACK
+  BOSS_HIT_DEFENSE
 }
 
 enum BattleKind {

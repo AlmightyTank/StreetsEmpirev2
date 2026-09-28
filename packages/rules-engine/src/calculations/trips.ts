@@ -1,4 +1,5 @@
-import type { Ruleset, TripRules } from '@streets/rulesets';
+import type { HuntedRules, Ruleset, TripRules } from '@streets/rulesets';
+import type { Rng } from '../rng.js';
 import { cityRules } from './cities.js';
 
 /**
@@ -137,6 +138,8 @@ export function checkTrip(ruleset: Ruleset, input: {
   tripOut: boolean;
   movingUntil: Date | null;
   lockedUntil: Date | null;
+  /** Trips C. A beaten boss heals before travelling again. */
+  laidUpUntil?: Date | null;
 }): TripCheck {
   const rules = tripRules(ruleset);
   const now = input.now.getTime();
@@ -165,6 +168,7 @@ export function checkTrip(ruleset: Ruleset, input: {
   if (input.tripOut) return result('TRIP_OUT', 'You are already away. Come home before you fly again.');
   if (input.movingUntil && input.movingUntil.getTime() > now) return result('ON_THE_ROAD', 'You are moving house.', input.movingUntil);
   if (input.lockedUntil && input.lockedUntil.getTime() > now) return result('LOCKED_UP', 'You are locked up.', input.lockedUntil);
+  if (input.laidUpUntil && input.laidUpUntil.getTime() > now) return result('LAID_UP', 'The boss is laid up after a beating. No travel until they heal.', input.laidUpUntil);
   if (now >= cutoffAt.getTime()) return result('TRIPS_CLOSED', 'Flights are closed as the round ends.');
   if (times.returnsAt.getTime() > input.roundEndsAt.getTime()) return result('TRIP_TOO_LONG', 'That stay would run past the end of the round.');
   if (!rules.stayMinutes.includes(input.stayMinutes)) return result('BAD_STAY', 'Pick one of the stays on offer.');
@@ -222,4 +226,37 @@ export function planTripHeadHome(trip: TripTimes, now: Date): { stayUntil: Date;
 export function tripNetWorthCents(ruleset: Ruleset, bankrollCents: bigint): bigint {
   const weight = BigInt(ruleset.economy.netWorth.cashWeightPercent);
   return ((bankrollCents > 0n ? bankrollCents : 0n) * weight) / 100n;
+}
+
+// --- Trips C: the boss is hunted ---------------------------------------------------
+
+export function huntedRules(ruleset: Ruleset): HuntedRules | undefined {
+  return ruleset.travel?.trips?.hunted;
+}
+
+/** Trips C. The boss is laid up at `now`. */
+export function laidUp(laidUpUntil: Date | null | undefined, now: Date): boolean {
+  return Boolean(laidUpUntil && laidUpUntil.getTime() > now.getTime());
+}
+
+/**
+ * Trips C. What a hit on a boss takes from the bankroll: a rolled share of it, capped by
+ * what the fit attackers can carry (the convoy carry rate). One roll.
+ */
+export function bossHitLootCents(ruleset: Ruleset, input: { bankrollCents: bigint; fitAttackers: number; rng: Rng }): { percent: number; cashCents: bigint } {
+  const rules = huntedRules(ruleset);
+  const carry = ruleset.travel?.convoys?.loot.cashPerAttackerCents ?? 0;
+  if (!rules) return { percent: 0, cashCents: 0n };
+  const { min, max } = rules.bankrollPercent;
+  const percent = min + Math.floor(input.rng() * (max - min + 1));
+  const bankroll = input.bankrollCents > 0n ? input.bankrollCents : 0n;
+  const share = (bankroll * BigInt(percent)) / 100n;
+  const cap = BigInt(Math.max(0, input.fitAttackers)) * BigInt(carry);
+  return { percent, cashCents: share < cap ? share : cap };
+}
+
+/** Trips C. The share of its strength home defends with: less while the boss is away or laid up. */
+export function bossAwayDefenseMultiplier(ruleset: Ruleset, away: boolean): number {
+  const rules = huntedRules(ruleset);
+  return rules && away ? rules.awayDefenseMultiplier : 1;
 }

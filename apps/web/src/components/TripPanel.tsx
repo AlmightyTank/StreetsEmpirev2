@@ -53,6 +53,9 @@ function Away({ trip, rules, onDone }: { trip: TripDto; rules: TripPanelData['ru
   return (
     <Panel title="The boss is away" aside={trip.cityName}>
       <p className="se-run__headline">{PHASE_HEADLINE[trip.phase](trip)}: {next} in {formatDuration(msRemaining)}</p>
+      {trip.hitLandsAt ? (
+        <Alert>Your lookouts spotted people on you in {trip.cityName}. They move at {when(trip.hitLandsAt)}: check out now or take the beating.</Alert>
+      ) : null}
       <div className="se-rows se-mt">
         <Row label="Bankroll" value={formatCents(trip.bankrollCents)} strong
           tooltip="All the boss has in town. Nothing is wired from home; it all comes back when the boss does." />
@@ -127,6 +130,9 @@ export function TripPanel({ data, selected, onDone }: { data: TravelDto; selecte
   const blocked = trips.blockedReason
     ? `${trips.blockedReason}${trips.blockedUntil ? ` You can fly from ${when(trips.blockedUntil)}.` : ''}`
     : null;
+  const laidUpNote = trips.laidUpUntil
+    ? `The boss is laid up until ${when(trips.laidUpUntil)}. Home defends a little weaker and the lieutenant keeps skimming until then.`
+    : null;
   const block = launch.busy ? 'Heading to the airport.'
     : blocked
       ?? (!destination ? 'Pick a city.'
@@ -194,6 +200,7 @@ export function TripPanel({ data, selected, onDone }: { data: TravelDto; selecte
         </p>
       ) : null}
       {launch.error ? <Alert>{launch.error}</Alert> : null}
+      {laidUpNote ? <p className="se-hint se-warn">{laidUpNote}</p> : null}
       {trips.lastTrip ? <Receipt receipt={trips.lastTrip} /> : null}
     </Panel>
   );

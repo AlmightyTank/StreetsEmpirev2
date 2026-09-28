@@ -13,7 +13,9 @@ import {
   headsUpMinutes,
   homeBackupThugs,
   hoursFromHome,
+  huntedRules,
   loadRulesetForRound,
+  planHeadHome,
   planWorkSupply,
   reachAt,
   reachSpans,
@@ -56,7 +58,8 @@ import { CombatRecoveryService } from './combat-recovery.service.js';
 import { PlayerStateService } from './player-state.service.js';
 import { hideoutWeaponPriority } from './hideout.service.js';
 import { CRACK, ProductInventoryService } from './product-inventory.service.js';
-import { RUN_INCLUDE, cargoOf, takeFromRun, toStopPlans, totalAwayWorth, type LoadedRun } from './run-settle.service.js';
+import { RUN_INCLUDE, cargoOf, takeFromRun, toStopPlans, totalAwayWorth, writeRunStops, type LoadedRun } from './run-settle.service.js';
+import { BossHitService, scanBosses, type BossReconTarget } from './boss-hit.service.js';
 import { WorkSupplyService } from './work-supply.service.js';
 
 type Weapons = Record<WeaponKey, number>;
@@ -344,6 +347,7 @@ export const ConvoyService = {
         if (run.lastHitAt && run.lastHitAt.getTime() + rules.rehitMinutes * 60_000 > at.getTime()) throw AppError.conflict('RECENTLY_HIT', 'That run was hit a moment ago. Nobody gets it again for a while.');
         if (await tx.convoyTail.findFirst({ where: { runId: run.id, status: 'PENDING' } })) throw AppError.conflict('ALREADY_TAILED', 'Someone is already on that run.');
         if (await tx.convoyTail.findFirst({ where: { attackerId, status: 'PENDING' } })) throw AppError.conflict('SQUAD_OUT', 'Your squad is already on a tail.');
+        if (await tx.bossHit.findFirst({ where: { attackerId, status: 'PENDING' } })) throw AppError.conflict('SQUAD_OUT', 'Your squad is already out on a hit.');
 
         // Where it can be reached from: home first, then the attacker's own run where it is.
         const stops = toStopPlans(run.stops);
@@ -557,6 +561,19 @@ export const ConvoyService = {
       const escortWounds = Math.min(escorts, wounds.escorts ?? 0);
       run = { ...run, woundedEscorts: run.woundedEscorts + escortWounds, lastHitAt: at };
       await tx.run.update({ where: { id: run.id }, data: { woundedEscorts: run.woundedEscorts, lastHitAt: at } });
+      // Trips C: a beaten run with the boss aboard lays the boss up, and a run in town heads home.
+      const hunted = huntedRules(ruleset);
+      let bossLaidUpUntil: Date | null = null;
+      if (won && run.bossAboard && hunted) {
+        const until = new Date(at.getTime() + hunted.layUpMinutes * 60_000);
+        bossLaidUpUntil = owner.laidUpUntil && owner.laidUpUntil > until ? owner.laidUpUntil : until;
+        await tx.roundPlayer.update({ where: { id: ownerId }, data: { laidUpUntil: bossLaidUpUntil } });
+        const current = toStopPlans(await tx.runStop.findMany({ where: { runId: run.id }, orderBy: { order: 'asc' } }));
+        if (runPosition(ruleset, current, at).phase === 'town') {
+          await writeRunStops(tx, run.id, planHeadHome(ruleset, current, at));
+          run = { ...run, stops: await tx.runStop.findMany({ where: { runId: run.id }, orderBy: { order: 'asc' } }) };
+        }
+      }
       // The crew from home comes back with its wounds now; the owner's own backup with it.
       await CombatRecoveryService.add(tx, ownerId, null, wounds.home ?? 0, recoverAt);
       await creditOwnerBackups(tx, owner, ownerBackups, wounds.owner ?? 0, recoverAt, now);
@@ -585,7 +602,10 @@ export const ConvoyService = {
           metadata: { tailId: tail.id },
         }], at);
       }
-      await ActivityService.log(tx, ownerId, 'CONVOY_DEFENSE', json({ tailId: tail.id, attacker: names.attacker, city: cityName(ruleset, tail.city), held: !won, cashCents: -Number(lootCash), cargo: lootCargo, lowRider }));
+      await ActivityService.log(tx, ownerId, 'CONVOY_DEFENSE', json({
+        tailId: tail.id, attacker: names.attacker, city: cityName(ruleset, tail.city), held: !won, cashCents: -Number(lootCash), cargo: lootCargo, lowRider,
+        ...(bossLaidUpUntil ? { bossLaidUpUntil: bossLaidUpUntil.toISOString() } : {}),
+      }));
     }
     return run;
   },
@@ -705,15 +725,21 @@ export const ConvoyService = {
         assertTurns(current.turns, rules.recon.turnCost);
         const lookahead = reconLookaheadMinutes(base, player.hideoutLookoutsLevel);
         const targets = await scanTargets(tx, base, player, round.id, at, lookahead * 60_000);
+        // Trips C: and any boss visiting town that keeps too low a profile to always be seen.
+        const bosses = await scanBosses(tx, base, player, round.id, at, lookahead * 60_000);
         const expiresAt = new Date(at.getTime() + rules.recon.freshMinutes * 60_000);
         await tx.convoyRecon.upsert({
           where: { roundPlayerId: playerId },
-          create: { roundPlayerId: playerId, seenAt: at, expiresAt, targets: json(targets) },
-          update: { seenAt: at, expiresAt, targets: json(targets) },
+          create: { roundPlayerId: playerId, seenAt: at, expiresAt, targets: json(targets), bossTargets: json(bosses) },
+          update: { seenAt: at, expiresAt, targets: json(targets), bossTargets: json(bosses) },
         });
         return {
           next: { ...current, turns: current.turns - rules.recon.turnCost },
-          result: { found: targets.length, lookaheadMinutes: lookahead, expiresAt: expiresAt.toISOString(), turns: rules.recon.turnCost },
+          result: {
+            found: targets.length,
+            ...(huntedRules(base) ? { bosses: bosses.length } : {}),
+            lookaheadMinutes: lookahead, expiresAt: expiresAt.toISOString(), turns: rules.recon.turnCost,
+          },
         };
       },
     }, now);
@@ -722,6 +748,7 @@ export const ConvoyService = {
   /** Everything the convoys panel shows: your last recon of the area, and the tails you are part of. */
   async page(prisma: PrismaClient, playerId: string, now: Date = new Date()): Promise<ConvoysDto> {
     await ConvoyService.settleDueFor(prisma, playerId, now);
+    await BossHitService.settleDueFor(prisma, playerId, now);
     const settled = await PlayerStateService.settle(prisma, playerId, { markActive: false, now });
     const { player, round } = settled;
     const base = loadRulesetForRound(round);
@@ -729,7 +756,7 @@ export const ConvoyService = {
     const model = convoyCombatModel(base);
     const myCity = player.city.slug;
     const squad = { fit: model ? Math.min(fitThugs(player), model.squadCap) : 0, turns: player.turns, city: myCity, cityName: cityName(base, myCity), blockedReason: squadBlock(base, player, player.turns, now) };
-    if (!rules || !model) return { enabled: false, rules: null, recon: null, squad, run: null, targets: [], tails: [] };
+    if (!rules || !model) return { enabled: false, rules: null, recon: null, squad, run: null, targets: [], tails: [], bosses: [], bossHits: [] };
 
     const mineRuns = await prisma.run.findMany({
       where: { roundPlayerId: playerId, status: 'ACTIVE' },
@@ -847,6 +874,8 @@ export const ConvoyService = {
       run: mine && myRunPosition && myRunPosition.phase !== 'home' ? { escorts: Math.max(0, mine.escortThugs - mine.woundedEscorts), cityName: cityName(base, myRunPosition.city) } : null,
       targets,
       tails: tailDtos,
+      bosses: await BossHitService.targets(prisma, base, player, (fresh?.bossTargets as unknown as BossReconTarget[] | undefined) ?? [], squad.fit, now),
+      bossHits: await BossHitService.hits(prisma, base, player, now),
     };
   },
 };

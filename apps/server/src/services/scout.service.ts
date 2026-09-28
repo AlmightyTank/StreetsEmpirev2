@@ -202,7 +202,7 @@ export const ScoutService = {
         const turfTakeCents = outcome.pimpTakeCents + BigInt(turf.holdBonusCents - turf.taxPaidCents);
         const hideoutBonusCents = hideoutBackOfficeBonusCents(turfTakeCents, ruleset, current);
         // Trips A: with the boss away, the lieutenant skims the take before it lands.
-        const lieutenantCutCents = await BossTripSettleService.lieutenantCut(tx, roundPlayerId, ruleset, turfTakeCents + hideoutBonusCents);
+        const lieutenantCutCents = await BossTripSettleService.lieutenantCut(tx, roundPlayerId, ruleset, turfTakeCents + hideoutBonusCents, now);
         const pimpTakeCents = turfTakeCents + hideoutBonusCents - lieutenantCutCents;
 
         const worked = {

@@ -1,10 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, heatBribeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, productTradeSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushSchema, turfPushBackupSchema, turfPushCallSchema, runOutpostEstablishSchema, runOutpostTransferSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, bossHitSchema, heatBribeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, productTradeSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushSchema, turfPushBackupSchema, turfPushCallSchema, runOutpostEstablishSchema, runOutpostTransferSchema, workSupplyClearSchema, updateContactSchema, wirePostSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
 import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
 import { BossTripService } from '../services/boss-trip.service.js';
+import { BossHitService } from '../services/boss-hit.service.js';
 import { TravelService } from '../services/travel.service.js';
 import { ContactsService } from '../services/contacts.service.js';
 import { ProductMarketService } from '../services/product-market.service.js';
@@ -108,6 +109,10 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/convoys/call', { preHandler: app.requireAuth }, async (request) =>
     ConvoyService.callAllies(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
+
+  /** Trips C: hit a boss visiting where you live, once a recon has spotted them. */
+  app.post('/convoys/boss-hit', { preHandler: app.requireAuth }, async (request) =>
+    BossHitService.hit(app.prisma, await me(request.auth!.account.id), parseBody(bossHitSchema, request.body ?? {})));
 
   /** 0.5.0-D: move the whole operation to another city. */
   app.post('/travel/move', { preHandler: app.requireAuth }, async (request) =>

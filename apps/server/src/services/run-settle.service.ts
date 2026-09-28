@@ -365,9 +365,12 @@ export const RunSettleService = {
       const stops = billed.stops;
       const driven = await rollRoadStops(tx, roundPlayerId, ruleset, billed.run, stops, now);
       // 0.5.0-E: then tails whose window has closed land, before this run can come home.
-      const run = await ConvoyService.landTails(tx, roundPlayerId, ruleset, driven, stops, now);
-      await recordStops(tx, roundPlayerId, ruleset, round.id, stops, now);
-      if (runPosition(ruleset, stops, now).phase === 'home') await bringHome(tx, roundPlayerId, ruleset, run, stops);
+      const landed = await ConvoyService.landTails(tx, roundPlayerId, ruleset, driven, stops, now);
+      // Trips C: a hit that beat the boss's run sends it home, so its stops may have changed.
+      const after = landed.stops === driven.stops ? stops : toStopPlans(landed.stops);
+      const run = after === stops ? landed : await rollRoadStops(tx, roundPlayerId, ruleset, landed, after, now);
+      await recordStops(tx, roundPlayerId, ruleset, round.id, after, now);
+      if (runPosition(ruleset, after, now).phase === 'home') await bringHome(tx, roundPlayerId, ruleset, run, after);
     }
   },
 };

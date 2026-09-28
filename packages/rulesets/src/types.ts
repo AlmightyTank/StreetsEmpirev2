@@ -1038,6 +1038,27 @@ export interface TripRules {
   readonly cutoffHours: number;
   /** Trips B. The boss can ride along with a run. Absent: runs are crew only. */
   readonly rideAlong?: RideAlongRules;
+  /** Trips C. A boss away from home can be found and hit. Absent: nobody hunts a boss. */
+  readonly hunted?: HuntedRules;
+}
+
+/**
+ * Trips C. The boss away from home is a target. Locals find a visiting boss with an area
+ * recon (a solo boss keeps a low profile, so only sometimes), tail them on the convoy
+ * clock, and the hit lands if the boss is still in town. A solo boss has nobody to fight
+ * back. A beaten boss loses part of the bankroll, flies home and is laid up: no travel
+ * until they heal, while the lieutenant keeps running home. The convoy rules set the
+ * warning window, the turn cost and the re-hit cooldown.
+ */
+export interface HuntedRules {
+  /** Chance an area recon spots a solo boss in town or on the way in, rolled per recon. */
+  readonly soloSightChance: number;
+  /** Share of the bankroll a successful hit takes, rolled in this range. */
+  readonly bankrollPercent: { readonly min: number; readonly max: number };
+  /** Real minutes a beaten boss is laid up: no trips, no riding along. */
+  readonly layUpMinutes: number;
+  /** Home defends raids at this share of its strength while the boss is away or laid up. */
+  readonly awayDefenseMultiplier: number;
 }
 
 /**

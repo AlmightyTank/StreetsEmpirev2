@@ -303,8 +303,44 @@ Ruleset `classic-og-trips-b` (Trips A plus `travel.trips.rideAlong`).
   active run, the hotel on the run receipt, the trip panel showing "riding with your run",
   and activity lines for a boss run leaving and coming home.
 
-Still to come: hits on a boss in town (C), and the defense penalty and happiness drift from
-the lieutenant option with it; airport Heat checks on flights.
+## Stage C - built: the boss is hunted
+
+Ruleset `classic-og-trips-c` (Trips B plus `travel.trips.hunted`). It runs on the convoy
+clock and rules: the 8-minute window, 8 turns a hit, the re-hit cooldown and the carry cap.
+
+- **Finding a visiting boss.** The area recon on the Convoys panel now also lists bosses on a
+  flight trip in the player's city, in town or landing within the recon's lookahead. A solo
+  boss keeps a low profile: each recon spots them only half the time, rolled per boss and
+  per recon, so another look can find them.
+- **The hit.** Only players who live in that city can hit a visiting boss, with a squad from
+  home, and only once their recon has spotted them. The squad is committed (busy) for the
+  window. One hit on a boss at a time, one squad out per attacker across convoy tails and boss
+  hits, no allies or linked accounts, and not your own boss.
+- **Landing.** The hit lands in the boss's own trip settle when the window closes, whoever
+  reads first (the attacker's pages and the alerts poller both push it). A boss still in town
+  has nobody with them, so the hit succeeds. It takes 25-60% of the bankroll, capped at $250
+  per attacker, ends the stay, puts the boss on the next flight home and **lays them up for
+  four hours**. A boss who checked out first gets away, and the squad comes home with nothing.
+- **Heads-up.** The boss's lookouts spot the hit in its last minutes, on the same clock as a
+  convoy tail. The trip panel then warns them to check out.
+- **Riding along.** A convoy hit that beats a run with the boss aboard also lays the boss up,
+  and a run in town heads home from the moment of the hit.
+- **Laid up** means no flights and no riding along until healed. The lieutenant keeps
+  skimming and home keeps its weaker defense until then. Home still works (option B).
+- **Home defends weaker** while the boss is away or laid up: raids and special raids against
+  them fight at 95% of home's defense. The battle's stored calculation records it.
+- **Screens:** visiting bosses and hits on bosses on the Convoys panel, the lookout warning
+  and the laid-up note on the trip panel, and activity lines for all three sides.
+
+Not built yet:
+- **Calling allies to a boss in town.** A solo boss is meant to be defenseless; an entourage
+  that flies in (to be armed by a local gun connect) belongs with the Stage D hooks.
+- **Happiness drift while away** (option B). It needs time-based happiness state that does not
+  exist yet, and is left for the balance pass (E).
+- **Airport Heat checks** on flights.
+- **Hotel billing after a convoy hit.** If nobody reads a ride-along run between a hit
+  landing and its settle, the hotel can bill the hours in that gap. The alerts poller lands
+  hits every minute, so the gap is at most one started hour.
 
 ## Open questions
 

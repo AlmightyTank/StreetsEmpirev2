@@ -180,3 +180,10 @@ export const convoyBackupSchema = z.object({
 }).strict();
 export const convoyCallSchema = z.object({ tailId: convoyId }).strict();
 export const convoyReconSchema = z.object({ actionId: actionIdSchema }).strict();
+/** Trips C. Hit a boss visiting where you live. */
+export const bossHitSchema = z.object({
+  tripId: convoyId,
+  squad: z.number({ invalid_type_error: 'Say how many ride.' }).int('Send whole thugs.').positive('Send at least one thug.').safe(),
+  actionId: actionIdSchema,
+}).strict();
+export type BossHitInput = z.infer<typeof bossHitSchema>;
