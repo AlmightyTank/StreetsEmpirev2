@@ -41,7 +41,7 @@ seed.
   gives the 40-block map new reasons to fight.
 - **Blocks can't be read before a fight.** With fixed lots, anyone can look at the city map
   and see what a block could become and what is already built there. That's what makes a
-  push worth planning.
+  war worth planning.
 
 ### Why not pre-built
 
@@ -130,9 +130,10 @@ same Nightclub is worth more in some cities than others:
 
 ### Protect
 
-- Businesses sit on the block, so **the block's corner crew is their defense**. No new
-  combat system: a push on the block is a push on its businesses.
-- Lookouts (0.7.0-C) give warning of a push, the same as today.
+- Businesses sit on the block, so **the block's corner crew is their defense**. Taking a
+  player's block is a **block war** (see below), built from the existing push fight rather
+  than a new combat engine.
+- Lookouts (0.7.0-C) give warning when a war is declared, the same as a push today.
 
 ### Profit
 
@@ -154,7 +155,7 @@ a per-action toggle.
 | **Strip Club** | Girls' earnings boost | **VIP room:** high cash, high Heat | **Pillow talk:** intel on raids aimed at you |
 | **Chop Shop** | Vehicle parts | **Stolen Low-Riders:** cheaper Low-Riders | **Vehicle recovery:** chance to recover a vehicle lost on a run |
 | **Pawn Shop** | Buys junk | **Fencing:** better sell prices for guns and gear | **Loan sharking:** cash, Heat, needs collecting |
-| **Auto Garage** | Repairs | **Run mods:** better escort/road stats on runs | **Getaway cars:** better odds a losing push squad makes it home |
+| **Auto Garage** | Repairs | **Run mods:** better escort/road stats on runs | **Getaway cars:** better odds a beaten siege squad makes it home |
 | **Convenience Store** | Low, very steady | **Beer supply:** cheaper beer for upkeep | **Counter sales:** small product retail without street turns |
 | **Warehouse** | Storage fee | **Product storage:** extra protected product (on top of Safe Room) | **Shipment capacity:** bigger loads on runs out of this city |
 | **Casino Front** | House take | **The house always wins:** big cash, big Heat | **Laundering:** convert cash with lower Heat |
@@ -169,57 +170,116 @@ a per-action toggle.
 
 ---
 
-## Capture, war fatigue, raze and sabotage
+## Taking blocks: locals vs. block wars (EU-style)
 
-### Capture keeps the businesses
+Grand strategy games like Europa Universalis split *occupying* a place from *owning* it.
+You win battles, besiege it and hold it, but ownership only changes when the war ends.
+Conquered land comes with its buildings, but it's devastated and has low control, so it
+takes time to pay off. That maps well onto blocks with businesses on them.
 
-When a push takes a block (0.6.0-C), every business on it **changes hands with its level
-intact**. The new holder has to staff and supply it; the old staff go home wounded with the
-corner crew.
+### Two kinds of fight *(proposed)*
 
-### War fatigue
+| Held by | How you take it | Why |
+|---|---|---|
+| **The locals** | **Send troops.** The 0.6.0-B claim stays a single fight: presence plus a squad that beats the locals' corner. | The locals don't log in, don't build and have nothing to lose. A quick claim keeps the early game moving. |
+| **A player** | **Block war.** A contest over hours with several fights and a siege, replacing the single 0.6.0-C push in 1.1 rulesets. | A player has invested in the businesses and deserves time to respond, whatever time zone they're in. |
+
+Older pinned rulesets keep the single push unchanged.
+
+### How a block war runs
+
+1. **Declare.** The attacker needs presence on the block (0.6.0-B), spends turns and picks a
+   **war goal**: **Take** or **Sack** (see below). The holder sees the declaration through
+   Lookouts on the same warning clock as a push today. The Street Wire announces it.
+2. **Open with a fight.** The first battle lands when the warning window closes, the
+   0.6.0-C push fight: attacker squad vs. corner crew, with backup from home and the
+   chance that allies show up.
+3. **Siege.** If the attacker wins, their squad **occupies the block**. The holder still
+   owns it, but:
+   - a **Control** meter ticks from 0 toward 100 each hour, faster when the squad outnumbers
+     whatever the holder has left nearby;
+   - the holder's registers **stop filling**. Nobody spends money on a block under siege;
+   - **devastation** (war fatigue) builds every hour the siege lasts.
+4. **Break the siege.** The holder (and allies in that city) can hit the occupying squad
+   at any time. A win lifts the siege, knocks Control back, and sends the attacker's squad
+   home wounded. The attacker can try again after a cooldown, within the war's time limit.
+5. **End.** The war ends when one of these happens:
+   - **Control hits 100:** the attacker wins and gets their war goal.
+   - **Time runs out** (e.g. 48h) or the attacker withdraws: the holder wins and the
+     attacker gets a long cooldown on that block.
+   - **The holder concedes:** the attacker gets their goal right away, with less
+     devastation than a finished siege. That's the EU "peace deal". It saves the
+     businesses from a long siege.
+6. **Truce.** Afterwards the block gets a truce (the 0.6.0-C hold shield) so it can't be
+   hit again right away.
+
+### War goals: answering "raze and walk away?"
+
+**Yes, but only as a war goal, never from a single hit.** An attacker can't win one
+fight, smash the businesses and leave. They have to win the whole war.
+
+| War goal | Needs a free block slot? | Winner gets | Holder keeps |
+|---|---|---|---|
+| **Take** | Yes | The block and every business at its current level, with devastation from the war | Nothing on that block. Surviving corner crew and staff go home wounded. |
+| **Sack** | No | Capped loot from the registers (0.6.0-D outpost-loot shape) and Heat. Every business loses 1 level. | The block, heavily devastated, with a long truce to rebuild. |
+
+- **Sack** is the denial option for crews at their block cap, or who just want to hurt a
+  rival. It costs a full war and Heat, and the victim keeps the block.
+- **Take** is conquest. The businesses don't lose levels, but devastation means they pay
+  poorly for days.
+
+### Block tiers (EU settlement rank) *(proposed)*
+
+A block's **tier** grows while it's held without interruption and while its businesses
+are levelled. The tier decides how many lots are open:
+
+| Tier | Lots open | Reached by |
+|---|---|---|
+| **Foothold** | 1 | Claiming the block |
+| **Established** | 2 | Holding it about a day, with business levels invested |
+| **Stronghold** | 3 | Holding it several days, with high total business levels |
+
+- A **Take drops the block one tier.** Businesses on closed lots keep their levels but go
+  dark until the new holder raises the tier again. Conquest gives you the buildings, but
+  not the whole operation right away.
+- A **Sack** doesn't change the tier. The holder keeps the structure and loses levels.
+- This makes it expensive to snowball by grabbing the richest blocks: long, quiet holding
+  is how a block reaches its full value.
+
+### Control by distance (EU proximity) *(proposed)*
+
+Away blocks (0.6.0-D outposts) are harder to run: their businesses top out at a lower
+share of output (e.g. **75%**) than the same business at home. Holding an empire across
+cities is possible, but home turf pays best.
+
+### War fatigue (devastation)
 
 War fatigue is a **per-block** meter, not per-player, because it's the neighborhood that
 got shot up.
 
-- **On capture:** the block's fatigue jumps high. Businesses there run at a reduced
-  multiplier, e.g. **40% output**, recovering steadily to 100% over about **2–3 days**.
-- **Every push adds some,** win or lose. A defended push still scares customers off, so
-  the holder feels it too.
-- **It stacks.** A block that changes hands again before recovering starts from a worse
+- **It builds during the war.** Every fight adds some, and every hour of siege adds more.
+  A war the holder won still leaves the block shaken.
+- **After a Take:** businesses restart at a low multiplier, e.g. **40% output**, recovering
+  to 100% over about **2–3 days**. A quick concession means a higher starting point.
+- **It stacks.** A block that's fought over again before it recovers starts from a worse
   floor. Contested blocks pay badly for everyone. Stable blocks pay best.
-- **Upgrades still allowed,** but maybe at a markup while fatigue is high, so crews can
-  rebuild but capturing isn't a shortcut to cheap levels.
+- **Upgrades still allowed,** maybe at a markup while fatigue is high, so crews can rebuild
+  but capturing isn't a shortcut to cheap levels.
 - **Shown on the map:** "Miami Nightclub — fatigue 60%, recovering (full in ~31h)".
-
-### Raze (attacker's choice)
-
-A winning attacker picks one:
-
-1. **Take it** (default): the block and businesses at their fatigued rate.
-2. **Shake it down:** take the register cash (capped, the same shape as 0.6.0-D outpost
-   loot), which pushes fatigue even higher.
-3. **Raze it:** drop one or more businesses **1–2 levels** (never below level 0).
-   For crews at their block cap, or who only want to deny a rival. Costs the attacker Heat.
-   Razing gives the attacker no cash. It only takes value away.
-
-Should a raze let the attacker skip holding the block? That's open. A raze-and-walk option
-would make razing very strong, so the proposal is that the attacker must still take the
-block.
 
 ### Self-sabotage (holder's choice)
 
-A holder who sees a push coming (Lookouts) can **torch** a business during the warning
-window:
+During a block war, a holder who expects to lose can **torch** a business:
 
 - It drops 1–2 levels (or to level 0).
 - The holder gets a **small salvage** (e.g. 20% of the lost level's build cost), paid now.
 - It costs turns and adds Heat to the holder.
-- It must **start before the window closes.** A last-second torch doesn't count.
-- A torched block still carries its fatigue for the attacker.
+- It takes time and must **finish before Control hits 100**. A last-second torch doesn't
+  count.
+- A torched block still carries its devastation for the attacker.
 
-That gives a losing holder a real choice: **fight, torch, or pull out and hope to take it
-back**.
+That gives a losing holder real choices: **fight, break the siege, concede early to limit
+the damage, or torch it**.
 
 ### When a block goes back to the locals
 
@@ -233,7 +293,7 @@ back**.
 
 - **Linked accounts:** capturing from a linked account resets the businesses to level 0.
   An alt can't build for a main.
-- **Allies:** allies can't push each other's blocks. A block passed between allies has to
+- **Allies:** allies can't declare block wars on each other. A block passed between allies has to
   go through the locals, and the businesses decay while it sits there.
 - **Crackdown (0.6.0-F):** a seeded Fed sweep should hit businesses running rackets harder
   than front-only businesses, so rackets carry a late-season risk.
@@ -256,7 +316,7 @@ not an instant jump on the leaderboard.
 | **1.1.0-A — Lots** | `business` block in the ruleset (lots per district, city signatures, levels, costs, staff, supply, register caps, fatigue curve); `Business` row per round/block/lot; city map shows lots; `qa:business` simulation. | A 1.1.0-A round plays exactly like 1.0. Every business is worth building for some crew; none pays more than its staff would earn at home. |
 | **1.1.0-B — Build & operate** | Build/upgrade, staffing, BUSINESS supply job, register and collection, front income, receipts and ledger lines. | Cash, staff and supply are conserved; staff never work, defend or cook; registers never exceed their cap. |
 | **1.1.0-C — Rackets** | One racket per business, switching cooldown, Heat, system hooks (recon, runs, stores, product). | No racket beats the system it hooks; laundering stays under its caps. |
-| **1.1.0-D — Capture & fatigue** | Businesses transfer on push, war fatigue meter, take / shake down / raze, torch during the warning window, dormancy under locals. | Captured income stays below a stable holder's; a block can't be farmed by repeated hand-offs; linked-account captures reset. |
+| **1.1.0-D — Block wars** | Locals claim stays a single fight; block wars against players (declare, siege, Control, break the siege, concede, truce); Take / Sack war goals; block tiers; devastation; torching; dormancy under locals; Street Wire / Discord war lines. | A war always settles by its time limit, whoever is online; a defender who responds wins at a healthy rate; captured income stays below a stable holder's; a block can't be farmed by repeated hand-offs; linked-account captures reset. |
 | **1.1.0-E — Outposts & convoys** | Away businesses empty into the outpost box; collection runs; convoy loot shape. | Everything a run collects is conserved; convoy loot stays in 0.6.0-D caps. |
 | **1.1.0-F — Release** | Full-round simulation (business-heavy, turf-raider, runner, mixed), crackdown interaction, Rules page Business panel, phone pass, release regression. | Mixed play beats pure business play; 0.6.0-F and later release gates still pass. |
 
@@ -267,14 +327,19 @@ not an instant jump on the leaderboard.
 1. **Three lots per block, or two?** Three gives more choice. Two keeps nine businesses
    max down to six and is easier to balance.
 2. **Fatigue numbers.** Starting multiplier (40%?), recovery time (48–72h?), how much a
-   failed push adds, and how stacking works.
-3. **Raze without holding.** Can an attacker raze and leave, or must they take the block?
-4. **Salvage on torch.** Is any salvage fine, or does it turn torching into a cash-out
+   failed siege adds, and how stacking works.
+3. **Block war timings.** Warning window, siege tick rate, war time limit (48h?), cooldown
+   after a failed siege, and truce length.
+4. **Can the attacker's allies join the siege,** or only the holder's allies (the 0.6.0-C
+   shape)? Letting both sides call allies makes wars alliance-sized.
+5. **Block tiers.** Hold times per tier, and whether a Take should drop one tier or reset
+   to Foothold.
+6. **Salvage on torch.** Is any salvage fine, or does it turn torching into a cash-out
    exploit near the end of the round?
-5. **Dormant decay rate** and how much stronger locals get per business level.
-6. **Staff type.** Thugs everywhere, or girls for Strip Club / Nightclub / Bar?
-7. **Net worth.** Confirm business levels stay out of net worth.
-8. **1.3 hook.** How much of racket Heat should wait for the Law Enforcement expansion?
+7. **Dormant decay rate** and how much stronger locals get per business level.
+8. **Staff type.** Thugs everywhere, or girls for Strip Club / Nightclub / Bar?
+9. **Net worth.** Confirm business levels stay out of net worth.
+10. **1.3 hook.** How much of racket Heat should wait for the Law Enforcement expansion?
 
 ## Not in 1.1.0
 
@@ -283,3 +348,4 @@ not an instant jump on the leaderboard.
 - Businesses outside the 40 turf blocks (e.g. at the Hideout).
 - Player-to-player sale or transfer of businesses.
 - Casino games (1.2).
+- Block wars against locals. The locals are always a single claim fight.
