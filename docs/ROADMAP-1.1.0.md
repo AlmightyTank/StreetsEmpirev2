@@ -207,7 +207,7 @@ Older pinned rulesets keep the single push unchanged.
    home wounded. The attacker can try again after a cooldown, within the war's time limit.
 5. **End.** The war ends when one of these happens:
    - **Control hits 100:** the attacker wins and gets their war goal.
-   - **Time runs out** (e.g. 48h) or the attacker withdraws: the holder wins and the
+   - **Time runs out** (48 hours) or the attacker withdraws: the holder wins and the
      attacker gets a long cooldown on that block.
    - **The holder concedes:** the attacker gets their goal right away, with less
      devastation than a finished siege. That's the EU "peace deal". It saves the
@@ -294,8 +294,9 @@ got shot up.
 
 - **It builds during the war.** Every fight adds some, and every hour of siege adds more.
   A war the holder won still leaves the block shaken.
-- **After a Take:** businesses restart at a low multiplier, e.g. **40% output**, recovering
-  to 100% over about **2–3 days**. A quick concession means a higher starting point.
+- **After a Take:** businesses restart at a low multiplier, about **36% output** after a
+  full siege, recovering to 100% in about **2 days**. A quick concession means a higher
+  starting point. See *First-pass numbers*.
 - **It stacks.** A block that's fought over again before it recovers starts from a worse
   floor. Contested blocks pay badly for everyone. Stable blocks pay best.
 - **Upgrades still allowed,** maybe at a markup while fatigue is high, so crews can rebuild
@@ -337,6 +338,118 @@ the damage, or torch it**.
 
 ---
 
+## First-pass numbers *(proposed)*
+
+These are starting values for the `business` ruleset block. They're built around the 0.6.0
+turf numbers already shipping (`classic-og-v0.6-a`): a 28-day round, an 8-minute push
+warning, a 6-hour hold shield, a 4-hour attacker cooldown, locals reclaiming a vacant corner
+after 6 hours and regrowing 0.5 thugs an hour. The 1.1.0-A `qa:business` simulation checks
+them; it doesn't pick them from scratch.
+
+### Block war timings
+
+| Setting | Value | Why |
+|---|---|---|
+| Declare cost | **12 turns** | A 0.6.0 push is 8. A war is a bigger commitment. |
+| Wars per crew | **1 active at a time** | Stops one crew declaring on every block in a city. |
+| Warning before the opening fight | **30 minutes** | A push is 8 minutes. 30 gives allies a chance to answer the call, while the siege gives the real response time. |
+| Siege length (0 → 100 Control) | **12 hours** base, down to **8 hours** with full allied help | A holder who sleeps 8 hours wakes up to a siege that isn't finished (about 67 Control) and can still break it. |
+| Siege speed-up from allies | Control rate × (1 + 0.5 × allied share), allied share capped at 1× | Ties into the 1× ally cap: full help makes the siege 1.5× faster. |
+| Breaking the siege | **−40 Control**, attacker squad home wounded | Hurts, but doesn't reset the war. |
+| Re-siege cooldown | **4 hours** | Reuses the 0.6.0 attacker cooldown. |
+| War time limit | **48 hours** from declaration | Room for one full siege plus a couple of retries, across two nights for both sides. |
+| Truce after a Take or a won defense | **24 hours** | Replaces the 6-hour push shield for wars. |
+| Truce after a Sack | **72 hours** | The victim gets time to rebuild. |
+| Attacker cooldown on that block after losing | **72 hours** | Losing a war should cost more than losing a push. |
+
+**What the timings allow:** 48 hours of war plus a 24-hour truce means one block can be
+fought over at most about twice a week. The 0.6.0-F simulation already assumes a visible
+holder draws about 2 serious pushes a week, so this doesn't add to the pressure on holders.
+
+### War fatigue (devastation)
+
+Fatigue is a 0–100 meter per block. **Business output = 100% − fatigue**, and fatigue is
+capped at **80**, so a business always makes at least 20%.
+
+| Event | Fatigue |
+|---|---|
+| Any fight on the block (win or lose) | **+10** |
+| Each hour of siege | **+2** |
+| War ends in a Take | **+30** |
+| War ends in a concession | **+15** instead of +30 |
+| War ends in a Sack | **+40** |
+| Recovery while no war is active | **−1.25 per hour** |
+| Recovery if the block changed hands twice in 7 days | **−0.75 per hour** (scarred) |
+| Upgrades while fatigue is above 40 | **+25% cost** |
+
+Worked examples:
+
+| Outcome | Fatigue | Output right after | Back to 100% in |
+|---|---|---|---|
+| Full siege, then Take | 64 | 36% | ~51 hours |
+| Holder concedes 6 hours into the siege | 37 | 63% | ~30 hours |
+| Holder breaks the siege 6 hours in and wins | 32 | 68% | ~26 hours |
+| Full siege, then Sack | 74 | 26% | ~59 hours |
+| Block fought over again a day after a Take | 80 (cap) | 20% | ~64 hours, longer if scarred |
+
+**Flipping doesn't pay:** the 0.6.0-F simulation assumes a turf raider keeps a won block
+for about 1.5 days. Over those 36 hours a captured block averages about **58% output**, and
+it has one lot fewer because of the tier drop. So a flipped block earns well under half of
+what a stable holder's does.
+
+### Tier thresholds
+
+The hold clock runs while you hold the block, pauses while it's under siege, and restarts
+after a Take.
+
+| Tier | Lots open | Hold time | Business levels needed |
+|---|---|---|---|
+| **Foothold** | 1 | On claim | — |
+| **Established** | 2 | **24 hours** | Business on lot 1 at level **2+** |
+| **Stronghold** | 3 | **96 hours** (4 days) | Total levels on lots 1–2 of **6+** (e.g. 3 + 3) |
+
+- **After a Take (one tier down):** the new holder's clock starts from the lower tier's
+  threshold. A Stronghold taken becomes Established, and it needs another **72 hours**
+  (96 − 24) of holding to be a Stronghold again. That lines up with fatigue recovery: a
+  conquered block is back to full value after about 3 days of quiet.
+- **Pace:** a crew that claims a block on day 1 can have a Stronghold by day 5–6 of a
+  28-day round, if it keeps investing. That makes Strongholds a mid-season goal.
+
+### Decay under the locals
+
+| Setting | Value | Why |
+|---|---|---|
+| Vacant window before the locals take over | **6 hours** | Unchanged from 0.6.0-C. |
+| Grace period after the locals take over | **24 hours**, no level loss | Covers a crew that lost its corner overnight. |
+| Tier on takeover | **drops one tier** right away, and falls to **Foothold** after 72 hours | Same as a Take, so abandoning a block is never better than losing it. |
+| Level loss after the grace period | **−1 level on every business every 48 hours** | A level-5 business is gone in about 9 days, a third of a round. |
+| Extra locals strength | **+1 local thug per business level** on the block, capped at **+50%** of the district's base locals | A built-up block is harder to take from the locals, but still much easier than a full block war. |
+| Locals regrow | **0.5 thugs per hour** toward the new maximum | Unchanged from 0.6.0-A. |
+| Fatigue on a claim from the locals | **+10** (one fight) | Claiming is a single fight, not a war. |
+
+Examples of the extra locals strength, before the city multiplier:
+- Casino block, base 30 locals, 15 total levels → **+15 (capped)**, so 45.
+- Wino Slums block, base 8 locals, 6 total levels → **+4 (capped)**, so 12.
+
+**Abuse guard:** during the 24-hour grace period, if the last holder was linked to the
+crew claiming the block, the businesses reset to level 0. A crew can't drop a block to the
+locals for an alt to pick up.
+
+### What `qa:business` must confirm
+
+- **War outcomes:** attacker win rate stays in band for solo vs. solo, alliance vs. solo
+  and alliance vs. alliance.
+  - The 1× ally cap is **four times** 0.6.0's current help cap (25% of the defender, at
+    most 2 helpers). The simulation should check that this still keeps swing on both
+    sides, since 0.3.0-D found that big, reliable help makes fights one-sided.
+- **Offline defenders:** a holder who responds within 8 hours of a declaration wins a
+  healthy share of wars.
+- **Flipping:** a captured block over 7 days earns less than the same block held stably.
+- **Pace:** Stronghold timing lands mid-season, and decay under the locals clears an
+  abandoned Stronghold before the round's last week.
+
+---
+
 ## Net worth
 
 **Decided:** business levels **do not count** toward net worth. They're a cash sink, like
@@ -361,16 +474,10 @@ not an instant jump on the leaderboard.
 
 ## Open questions
 
-The first four are numbers for the 1.1.0-A `qa:business` simulation to set. The last is
-a design call that can wait for the 1.3 plan.
+1. **1.3 hook.** How much of racket Heat should wait for the Law Enforcement expansion?
 
-1. **Fatigue numbers.** Starting multiplier (40%?), recovery time (48–72h?), how much a
-   failed siege adds, and how stacking works.
-2. **Block war timings.** Warning window, siege tick rate, war time limit (48h?), cooldown
-   after a failed siege, and truce length.
-3. **Block tiers.** Hold times and business-level thresholds for each tier.
-4. **Dormant decay rate** and how much stronger locals get per business level.
-5. **1.3 hook.** How much of racket Heat should wait for the Law Enforcement expansion?
+The fatigue, war timing, tier and decay numbers now have first-pass values (above). They
+stay *(proposed)* until `qa:business` confirms them.
 
 ## Not in 1.1.0
 
