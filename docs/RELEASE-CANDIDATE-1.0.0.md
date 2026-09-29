@@ -1,4 +1,4 @@
-# StreetsEmpire 1.0.0 release candidate (1.0.0-rc.6)
+# StreetsEmpire 1.0.0 release candidate (1.0.0-rc.6, released as 1.0.0)
 
 The build that has to prove the finished game works before it is called 1.0.
 
@@ -405,3 +405,49 @@ rc.6 gathers the fixes found while putting rc.5 on beta. It adds no features.
 - Nothing since rc.4 adds work to that request.
 - This is a stress case, well above what players do; the everyday polling budget has three times its headroom.
 - If it misses on the production hardware's own test, look first at the bell query and the per-request session lookup.
+
+## 1.0.0
+
+`APP_VERSION` is `1.0.0`. Since rc.6, beta also has boss trips (Stages A–E; a season only has
+them on a `classic-og-trips-*` ruleset), quest story content, Hideout v2 on the 0.8 rulesets,
+the Rules page desktop fix, and the log-in page fix (the "are you human" check always shows
+when the server wants it; nginx sends `Cache-Control: no-cache` on the page).
+
+### Results for 1.0.0
+
+`npm run release:rc` on beta, 29 September 2026.
+
+| Gate | Result |
+| --- | --- |
+| Typecheck, build, balance (with the new trips gate) | pass |
+| Unit tests | 132 files, 1,123 tests pass |
+| Full PostgreSQL regression | pass, after one fix (below) |
+| Bot, forum link and push | pass |
+| Season One | pass |
+| Built API starts | pass |
+| Backup and restore test | restored 81 tables; every count matches |
+| Load test (300 players) | see below |
+
+- **Fixed: a test that expired.** The turf-cap alliance test built a season that ended at
+  2026-09-29T00:00Z, and accepting an invite reads the real clock, so from that day it was
+  refused as "round not playable". The test now keeps its own season running.
+- **Fixed: trips work on every request.** Each read and action ran three queries to settle a
+  boss trip and credit boss hits, even on seasons without trips. One `EXISTS` query now
+  answers whether anything is due.
+- **Load test.** This machine was slower than rc.6's (login spike p95 about 2.0 s against
+  1.2 s). The code from before trips and 1.0.0 were run alternately, twice each, on the same
+  machine:
+
+  | p95 | before trips | 1.0.0 |
+  | --- | --- | --- |
+  | Sustained play: dashboard + bell | 272, 359 ms | 377, 239 ms |
+  | Sustained play: actions | 428, 565 ms | 640, 383 ms |
+  | Burst: scouts + produces (max, budget 12 s) | 12.1, 13.6 s | 14.9, 13.8 s |
+  | Notification burst (budget 750 ms) | 719, 693 ms | 800, 855 ms |
+
+  - The scouts and produces burst misses its budget before trips too, so it tracks the
+    machine.
+  - The notification burst request runs no trips code (the in-app inbox is unchanged). It
+    was already the watched, borderline scenario at rc.6.
+  - **Run `npm run qa:load-test` on the production hardware after the deploy.** Its numbers
+    are the ones that count.
