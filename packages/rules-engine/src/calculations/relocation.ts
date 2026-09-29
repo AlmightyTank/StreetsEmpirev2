@@ -56,6 +56,8 @@ export function checkMove(ruleset: Ruleset, input: {
   movingUntil: Date | null;
   lockedUntil: Date | null;
   runOut: boolean;
+  /** Trips A. The boss is away on a trip; the whole operation cannot move without them. */
+  tripOut?: boolean;
   /** When the last revenge window someone holds on this player closes, if one is open. */
   revengeOpenUntil: Date | null;
   /** Hideout Garage discount. Defaults to 0 so older rulesets stay exact. */
@@ -79,6 +81,7 @@ export function checkMove(ruleset: Ruleset, input: {
   if (findRoutes(ruleset, input.from, input.to).length === 0) return result('NO_ROAD', `There is no road from ${name(input.from)} to ${name(input.to)}.`);
   if (now >= cutoffAt.getTime()) return result('MOVES_CLOSED', 'Moves are closed as the round ends, so nobody reshuffles local ranks.');
   if (input.runOut) return result('RUN_OUT', 'Your run is still out. Bring it home before you move.');
+  if (input.tripOut) return result('TRIP_OUT', 'You are away on a trip. Come home before you move house.');
   if (input.revengeOpenUntil && input.revengeOpenUntil.getTime() > now) {
     return result('IN_A_FIGHT', 'You hit someone who can still hit back. Moving now would be running.', input.revengeOpenUntil);
   }

@@ -1,6 +1,6 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
-import { DEFENSE_JOB, RAID_JOB, driveByMaxShooters, equipCombatSquad, loadRulesetForRound, planWorkSupply, productStashHint, simulateDriveBy, simulateRaid, splitProductUnits, type CombatBoost, type CombatCrew, type Ruleset, type WorkSupplyPlan } from '@streets/rules-engine';
+import { DEFENSE_JOB, RAID_JOB, bossAwayDefenseMultiplier, driveByMaxShooters, equipCombatSquad, loadRulesetForRound, planWorkSupply, productStashHint, simulateDriveBy, simulateRaid, splitProductUnits, type CombatBoost, type CombatCrew, type Ruleset, type WorkSupplyPlan } from '@streets/rules-engine';
 import { hideoutV2For, type DriveByRules, type DrugHoesRules, type LureCrewRules, type SpecialRaidKind, type StealRideRules } from '@streets/rulesets';
 import {
   combatReconSchema,
@@ -35,6 +35,8 @@ import { HappinessService } from './happiness.service.js';
 import { assertPlayerState } from './invariant.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { PlayerStateService, type SettledPlayer } from './player-state.service.js';
+import { bossAway } from './boss-trip-settle.service.js';
+import { truceBlock, trucesFor } from './boss-presence.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
 import { toPlanDto, WorkSupplyService } from './work-supply.service.js';
 import { RankingService } from './ranking.service.js';
@@ -172,16 +174,20 @@ function modelFor(round: Round): { ruleset: Ruleset; model: CombatRules } {
   return { ruleset, model: ruleset.combat };
 }
 
-function modelWithDefenderHideout(model: CombatRules, ruleset: Ruleset, defender: RoundPlayer): CombatRules {
+/**
+ * The defender's model: their hideout's cash protection and defense bonus, and (Trips C)
+ * `awayMultiplier`, the share of its strength home defends with while the boss is away.
+ */
+function modelWithDefenderHideout(model: CombatRules, ruleset: Ruleset, defender: RoundPlayer, awayMultiplier = 1): CombatRules {
   const protectedCashBonus = hideoutProtectedCashBonusCents(ruleset, defender);
   const defenseBonusPercent = hideoutDefenseBonusPercent(ruleset, defender);
-  if (protectedCashBonus <= 0 && defenseBonusPercent <= 0) return model;
+  if (protectedCashBonus <= 0 && defenseBonusPercent <= 0 && awayMultiplier === 1) return model;
 
   return {
     ...model,
     strength: {
       ...model.strength,
-      defenseMultiplier: model.strength.defenseMultiplier * (1 + defenseBonusPercent / 100),
+      defenseMultiplier: model.strength.defenseMultiplier * (1 + defenseBonusPercent / 100) * awayMultiplier,
     },
     loot: {
       ...model.loot,
@@ -676,6 +682,8 @@ export const CombatService = {
       orderBy: { publicPimpId: 'asc' }, take: 26,
     });
     const targetIds = targets.slice(0, 25).map((target) => target.id);
+    // Trips D2: a truce from a sit-down blocks every way of hitting that crew.
+    const truces = await trucesFor(prisma, player.id, now);
     const [revengeIds, intelRows] = await Promise.all([
       retaliationTargets(prisma, player, targetIds, model, now),
       model.strategy ? prisma.combatIntel.findMany({
@@ -727,7 +735,7 @@ export const CombatService = {
         // Stored, because 0.4.0-D worth includes product rows this list does not load.
         netWorthCents: Number(target.netWorthCents),
         strength: strength(target, model) < ownStrength * (1 - model.strength.variance) ? 'Weaker' : strength(target, model) > ownStrength * (1 + model.strength.variance) ? 'Stronger' : 'Comparable',
-        blockedReason: combatTargetBlock(
+        blockedReason: truces.get(target.id) ?? combatTargetBlock(
           player,
           target,
           modelWithDefenderHideout(model, ruleset, target),
@@ -738,8 +746,8 @@ export const CombatService = {
         ),
         protectedUntil: combatProtectionUntil(target, model) > now ? iso(combatProtectionUntil(target, model)) : null,
         ...(model.strategy ? { revengeAvailable: revengeIds.has(target.id), intel: intelByTarget.get(target.id) ?? null } : {}),
-        ...(model.driveBy ? { driveByBlockedReason: driveByTargetBlock(player, target, model, now, revengeIds.has(target.id)) } : {}),
-        ...(model.specialRaids ? { specialRaidBlockedReasons: Object.fromEntries((Object.keys(model.specialRaids) as SpecialRaidKind[]).map((kind) => [kind, specialRaidTargetBlock(player, target, model, kind, now, revengeIds.has(target.id))])) } : {}),
+        ...(model.driveBy ? { driveByBlockedReason: truces.get(target.id) ?? driveByTargetBlock(player, target, model, now, revengeIds.has(target.id)) } : {}),
+        ...(model.specialRaids ? { specialRaidBlockedReasons: Object.fromEntries((Object.keys(model.specialRaids) as SpecialRaidKind[]).map((kind) => [kind, truces.get(target.id) ?? specialRaidTargetBlock(player, target, model, kind, now, revengeIds.has(target.id))])) } : {}),
       })),
       nextTarget: targets.length > 25 ? targets[24]!.publicPimpId : null,
       ...(model.specialRaids ? { specialRaids: specialRaidDtos(player, model, now) } : {}),
@@ -780,7 +788,9 @@ export const CombatService = {
       const defender = d.player;
       const protectedCashBonus = hideoutProtectedCashBonusCents(ruleset, defender);
       const defenseBonusPercent = hideoutDefenseBonusPercent(ruleset, defender);
-      const defenderModel = modelWithDefenderHideout(model, ruleset, defender);
+      // Trips C: home defends at less while its boss is away or laid up.
+      const bossAwayMultiplier = bossAwayDefenseMultiplier(ruleset, await bossAway(tx, defender.id, now));
+      const defenderModel = modelWithDefenderHideout(model, ruleset, defender, bossAwayMultiplier);
       const defenderProductProtection = hideoutProductProtection(ruleset, defender, d.products ?? {});
       const retaliation = (await retaliationTargets(tx, attacker, [target.id], model, now)).has(target.id);
       const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
@@ -794,6 +804,9 @@ export const CombatService = {
         defenderProductProtection.exposedUnits,
       );
       if (blocked) throw AppError.conflict('RAID_BLOCKED', blocked);
+      // Trips D2: a sit-down's truce holds both ways.
+      const truce = await truceBlock(tx, attacker.id, defender.id, now);
+      if (truce) throw AppError.conflict('TRUCE', truce);
       await assertNotLinked(tx, attacker, defender, now);
       if (input.attackingThugs > Math.min(fitThugs(attacker), model.squadCap)) throw AppError.badRequest('INVALID_SQUAD', 'Your squad exceeds your fit crew or the raid limit.');
       const beforeA = await RankingService.ranksFor(tx, attacker);
@@ -817,8 +830,8 @@ export const CombatService = {
       assertPlayerState(nextD, ruleset);
       const productsA = moved.to;
       const productsD = moved.from;
-      const happinessA = HappinessService.recalculate({ ...nextA, thugs: fitThugs(nextA), products: productsA }, ruleset);
-      const happinessD = HappinessService.recalculate({ ...nextD, thugs: fitThugs(nextD), products: productsD }, ruleset);
+      const happinessA = HappinessService.recalculate({ ...nextA, thugs: fitThugs(nextA), products: productsA }, ruleset, await HappinessService.awayPenalty(tx, ruleset, attacker.id, now));
+      const happinessD = HappinessService.recalculate({ ...nextD, thugs: fitThugs(nextD), products: productsD }, ruleset, await HappinessService.awayPenalty(tx, ruleset, defender.id, now));
       const shield = new Date(now.getTime() + model.protectionHours * 3_600_000);
       const cooldown = new Date(now.getTime() + model.cooldownMinutes * 60_000);
       const recoverAt = new Date(now.getTime() + model.wounds.recoveryMinutes * 60_000);
@@ -891,7 +904,7 @@ export const CombatService = {
       const defenderReport = makeReport(false);
       await tx.raidBattle.create({ data: { id, attackerId, defenderId: target.id, defenderAllianceId: defender.allianceId, attackerAllianceId: attacker.allianceId, attackerIntel, actionId: input.actionId,
         attackingThugs: input.attackingThugs, modelVersion: model.version,
-        calculation: json({ result, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), defenderCashCents: defender.cashCents, defenderCrack: defender.crack }, defenderHideout: { protectedCashBonus, defenseBonusPercent }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
+        calculation: json({ result, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), defenderCashCents: defender.cashCents, defenderCrack: defender.crack }, defenderHideout: { protectedCashBonus, defenseBonusPercent }, ...(bossAwayMultiplier !== 1 ? { bossAwayMultiplier } : {}), retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
@@ -966,6 +979,9 @@ export const CombatService = {
       const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
       const blocked = driveByAttackerBlock(attacker, model, rules, now) ?? driveByTargetBlock(attacker, defender, model, now, retaliation);
       if (blocked) throw AppError.conflict('DRIVE_BY_BLOCKED', blocked);
+      // Trips D2: a sit-down's truce holds both ways.
+      const truce = await truceBlock(tx, attacker.id, defender.id, now);
+      if (truce) throw AppError.conflict('TRUCE', truce);
       await assertNotLinked(tx, attacker, defender, now);
       const seats = driveByMaxShooters(fitThugs(attacker), attacker.lowRiders, model, rules);
       if (input.attackingThugs > seats) throw AppError.badRequest('INVALID_SQUAD', `Your cars and fit crew can take ${seats} shooters.`);
@@ -981,8 +997,8 @@ export const CombatService = {
       assertPlayerState(nextD, ruleset);
       const productsA = a.products;
       const productsD = d.products;
-      const happinessA = HappinessService.recalculate({ ...nextA, thugs: fitThugs(nextA), products: productsA }, ruleset);
-      const happinessD = HappinessService.recalculate({ ...nextD, thugs: fitThugs(nextD), products: productsD }, ruleset);
+      const happinessA = HappinessService.recalculate({ ...nextA, thugs: fitThugs(nextA), products: productsA }, ruleset, await HappinessService.awayPenalty(tx, ruleset, attacker.id, now));
+      const happinessD = HappinessService.recalculate({ ...nextD, thugs: fitThugs(nextD), products: productsD }, ruleset, await HappinessService.awayPenalty(tx, ruleset, defender.id, now));
       const shield = new Date(now.getTime() + rules.protectionHours * 3_600_000);
       const cooldown = new Date(now.getTime() + rules.cooldownMinutes * 60_000);
       const recoverAt = new Date(now.getTime() + model.wounds.recoveryMinutes * 60_000);
@@ -1085,12 +1101,17 @@ export const CombatService = {
       const d = await fightSupply(tx, ruleset, settledD, DEFENSE_JOB, Math.min(fitThugs(settledD.player), model.squadCap));
       const attacker = a.player;
       const defender = d.player;
-      const defenderModel = modelWithDefenderHideout(model, ruleset, defender);
+      // Trips C: home defends at less while its boss is away or laid up.
+      const bossAwayMultiplier = bossAwayDefenseMultiplier(ruleset, await bossAway(tx, defender.id, now));
+      const defenderModel = modelWithDefenderHideout(model, ruleset, defender, bossAwayMultiplier);
       const defenderProductProtection = hideoutProductProtection(ruleset, defender, d.products ?? {});
       const retaliation = (await retaliationTargets(tx, attacker, [target.id], model, now)).has(target.id);
       const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
       const blocked = specialRaidAttackerBlock(attacker, model, input.kind, now) ?? specialRaidTargetBlock(attacker, defender, model, input.kind, now, retaliation);
       if (blocked) throw AppError.conflict('SPECIAL_RAID_BLOCKED', blocked);
+      // Trips D2: a sit-down's truce holds both ways.
+      const truce = await truceBlock(tx, attacker.id, defender.id, now);
+      if (truce) throw AppError.conflict('TRUCE', truce);
       await assertNotLinked(tx, attacker, defender, now);
       if (input.attackingThugs > Math.min(fitThugs(attacker), model.squadCap)) throw AppError.badRequest('INVALID_SQUAD', 'Your squad exceeds your fit crew or the raid limit.');
 
@@ -1150,8 +1171,8 @@ export const CombatService = {
       assertPlayerState(nextD, ruleset);
       const productsA = a.products;
       const productsD = (await moveProducts(tx, ruleset, productsBurned, { id: defender.id, products: d.products }, null)).from;
-      const happinessA = HappinessService.recalculate({ ...nextA, thugs: fitThugs(nextA), products: productsA }, ruleset);
-      const happinessD = HappinessService.recalculate({ ...nextD, thugs: fitThugs(nextD), products: productsD }, ruleset);
+      const happinessA = HappinessService.recalculate({ ...nextA, thugs: fitThugs(nextA), products: productsA }, ruleset, await HappinessService.awayPenalty(tx, ruleset, attacker.id, now));
+      const happinessD = HappinessService.recalculate({ ...nextD, thugs: fitThugs(nextD), products: productsD }, ruleset, await HappinessService.awayPenalty(tx, ruleset, defender.id, now));
       const shield = new Date(now.getTime() + model.protectionHours * 3_600_000);
       const cooldown = new Date(now.getTime() + model.cooldownMinutes * 60_000);
       const recoverAt = new Date(now.getTime() + model.wounds.recoveryMinutes * 60_000);
@@ -1239,7 +1260,7 @@ export const CombatService = {
       const defenderReport = makeReport(false);
       await tx.raidBattle.create({ data: { id, attackerId, defenderId: target.id, defenderAllianceId: defender.allianceId, attackerAllianceId: attacker.allianceId, attackerIntel, actionId: input.actionId,
         attackingThugs: input.attackingThugs, modelVersion: model.version,
-        calculation: json({ kind: input.kind, result, effects: { crackSpent, beerSpent, whoresDrugged, defenderCrackBurned, defenderCondomsBurned, lowRidersStolen, whoresLured, thugsLured }, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset) }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
+        calculation: json({ kind: input.kind, result, ...(bossAwayMultiplier !== 1 ? { bossAwayMultiplier } : {}), effects: { crackSpent, beerSpent, whoresDrugged, defenderCrackBurned, defenderCondomsBurned, lowRidersStolen, whoresLured, thugsLured }, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset) }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
@@ -1367,7 +1388,7 @@ export const CombatService = {
       if (doctorFavor) await SingleUseFavorService.consume(tx, doctorFavor.id);
       const next = { ...toState(settled.player), woundedThugs: treatment.woundedThugs, medicine: settled.player.medicine - treatment.medicineUsed };
       assertPlayerState(next, settled.ruleset);
-      const happiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next), products: settled.products }, settled.ruleset);
+      const happiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next), products: settled.products }, settled.ruleset, await HappinessService.awayPenalty(tx, settled.ruleset, playerId, now));
       await tx.roundPlayer.update({
         where: { id: playerId },
         data: {

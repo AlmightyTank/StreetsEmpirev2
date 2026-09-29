@@ -155,11 +155,25 @@ export function settleOutpostSupplies(
   return { beer: input.beer - beerUsed, products, beerUsed, productUsed, leaving };
 }
 
+/**
+ * Trips D2. The walkouts left after a boss's visit: none for the hours the visit covers,
+ * the rest in proportion, rounded in the holder's favour.
+ */
+export function keptByVisit(leaving: number, box: { visitedAt: Date | null; moraleUntil: Date | null }, from: Date, to: Date, wholeHours: number): number {
+  if (leaving <= 0 || !box.visitedAt || !box.moraleUntil || wholeHours <= 0) return leaving;
+  const start = Math.max(from.getTime(), box.visitedAt.getTime());
+  const end = Math.min(to.getTime(), box.moraleUntil.getTime());
+  const covered = Math.max(0, end - start) / HOUR_MS;
+  if (covered <= 0) return leaving;
+  return Math.floor(leaving * Math.max(0, wholeHours - covered) / wholeHours);
+}
+
 async function lockOutpost(tx: Db, id: string): Promise<void> {
   await tx.$queryRaw`SELECT id FROM "TurfOutpost" WHERE id = ${id} FOR UPDATE`;
 }
 
 export { controlFromRows } from './turf-territory.service.js';
+export { lockOutpost };
 
 interface StoredTurfFight {
   won: boolean;
@@ -277,15 +291,18 @@ export const TurfService = {
           order,
         });
         const advanceTo = new Date(row.upkeepAt.getTime() + wholeHours * HOUR_MS);
+        // Trips D2: hours after the boss walked this corner, nobody walks out, however short
+        // the box ran. Supplies are still used.
+        const leaving = keptByVisit(settled.leaving, box, row.upkeepAt, advanceTo, wholeHours);
         const gunsBefore = gunsFromTurf(row);
-        const desertedGuns = settled.leaving > 0 ? releaseCornerGuns(gunsBefore, settled.leaving) : { ...EMPTY_GUNS };
+        const desertedGuns = leaving > 0 ? releaseCornerGuns(gunsBefore, leaving) : { ...EMPTY_GUNS };
         const gunsAfter = subtractCornerGuns(gunsBefore, desertedGuns);
-        const cornerAfter = row.cornerThugs - settled.leaving;
+        const cornerAfter = row.cornerThugs - leaving;
 
-        if (settled.leaving > 0) {
-          walkouts += settled.leaving;
-          thugs = Math.max(0, thugs - settled.leaving);
-          postedThugs = Math.max(0, postedThugs - settled.leaving);
+        if (leaving > 0) {
+          walkouts += leaving;
+          thugs = Math.max(0, thugs - leaving);
+          postedThugs = Math.max(0, postedThugs - leaving);
           postedNetWorthCents -= cornerGunWorthCents(ruleset, desertedGuns);
           if (postedNetWorthCents < 0n) throw new RangeError('Posted turf net worth fell below zero.');
         }

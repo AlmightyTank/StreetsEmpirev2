@@ -27,6 +27,8 @@ run('Production build', npm, ['run', 'build']);
 run('Product balance gates', npm, ['run', 'qa:products', '--', '--samples', '4000', '--quiet']);
 // 0.5.0: every city worth a run, no run better than the street, no same-city loops.
 run('Travel balance gates', npm, ['run', 'qa:travel', '--', '--quiet']);
+// Trips: flying, riding along, being hunted, bodyguards and the airport; travel stays a choice, not a requirement.
+run('Trips balance gates', npm, ['run', 'qa:trips', '--', '--quiet']);
 // 0.6.0: all 40 turf blocks and player-vs-player push balance must still pass on the release ruleset.
 run('Turf balance gates', npm, ['run', 'qa:turf', '--', '--quiet']);
 // 0.7.0: Hideout headquarters, protection, logistics, ledger, armory/infirmary and specialization guardrails.

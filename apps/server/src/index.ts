@@ -5,6 +5,7 @@ import { IdempotencyService } from './services/idempotency.service.js';
 import { GameAlertService } from './services/game-alerts.service.js';
 import { NotificationService } from './services/notification.service.js';
 import { ConvoyService } from './services/convoy.service.js';
+import { BossHitService } from './services/boss-hit.service.js';
 import { PushService } from './services/push.service.js';
 import { wakeDiscordBot } from './services/discord-bot-push.service.js';
 import { TurfWarSettlementService } from './services/turf-war-settle.service.js';
@@ -49,6 +50,8 @@ const stopAlerts = startPoller('Alerts', 60_000, async () => {
     const now = new Date();
     // 0.5.0-E: land tails whose window has closed, so a landing is pushed even if nobody is on.
     await ConvoyService.sweep(app.prisma, now);
+    // Trips C: and hits on visiting bosses.
+    await BossHitService.sweep(app.prisma, now);
     // 0.9.0-G: bring runs home on time, so "made it home" goes out while their owner is away.
     await GameAlertService.sweepRuns(app.prisma, now);
     const collected = await NotificationService.collect(app.prisma, now);

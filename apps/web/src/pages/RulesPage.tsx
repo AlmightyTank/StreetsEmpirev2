@@ -77,8 +77,9 @@ export function RulesPage() {
                 <a href="#products"><span>06</span> Products & Heat</a>
                 <a href="#combat"><span>07</span> Raids</a>
                 <a href="#travel"><span>08</span> The road</a>
-                <a href="#turf"><span>09</span> Turf</a>
-                <a href="#rank"><span>10</span> Money & rank</a>
+                <a href="#trips"><span>09</span> Boss trips</a>
+                <a href="#turf"><span>10</span> Turf</a>
+                <a href="#rank"><span>11</span> Money & rank</a>
               </div>
             </aside>
             <div className="se-rules__content">
@@ -313,6 +314,42 @@ export function RulesPage() {
                 You can move the whole operation to another city for a fee and a stretch on
                 the road. Everything goes with you, Heat included, and your rank, targets
                 and feeds follow.
+              </li>
+            </ul>
+          </Panel></section>
+
+          <section id="trips" className="se-rules__panel se-rules__panel--wide"><Panel title="Boss trips">
+            <ul className="se-list">
+              <li>
+                In rounds with trips, the boss can go somewhere in person: fly to any city for a hotel stay,
+                or ride along with one of your runs and stay in each town until you move on. Home stays
+                home. You still live, rank and can be hit where you live, and the operation keeps working.
+              </li>
+              <li>
+                While the boss is away a lieutenant runs home and skims a share of every Scout and Produce
+                take, the girls notice the longer you are gone, and home defends raids a little weaker.
+                It all recovers the moment the boss is back.
+              </li>
+              <li>
+                A flight costs a ticket and the hotel up front, and the bankroll you carry is all you have
+                in town. Nothing is wired from home. Bodyguards can fly with you on their own tickets, but
+                land unarmed; Tommy&rsquo;s people out of town will rent them guns once you have earned
+                the connection. With the boss riding along, the hotel bills the run&rsquo;s cash by the
+                hour, and when the cash runs dry the boss checks out.
+              </li>
+              <li>
+                Airport security reads Heat, going and coming back, and a crew draws more eyes than a boss
+                alone. Too hot, and nobody lets you on a plane at all.
+              </li>
+              <li>
+                The locals can find a visiting boss with a recon and come for them. A boss alone has nobody
+                to fight back; bodyguards and allies who live there can. A beaten boss loses part of the
+                bankroll, flies home and is laid up for a while before travelling again.
+              </li>
+              <li>
+                Some jobs only happen in person, a boss in town can walk an outpost they hold there, and
+                two bosses in the same city can sit down and agree a truce: for a day neither crew can hit
+                the other.
               </li>
             </ul>
           </Panel></section>

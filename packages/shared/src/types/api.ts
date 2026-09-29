@@ -45,6 +45,15 @@ export type ActivityType =
   | 'RUN_INCIDENT'
   | 'RELOCATION_STARTED'
   | 'RELOCATED'
+  | 'TRIP_STARTED'
+  | 'TRIP_RETURNED'
+  | 'BOSS_HIT'
+  | 'BOSS_HIT_ATTACK'
+  | 'BOSS_HIT_DEFENSE'
+  | 'BOSS_HIT_BACKUP'
+  | 'OUTPOST_VISIT'
+  | 'SIT_DOWN'
+  | 'SIT_DOWN_AGREED'
   | 'CONVOY_TAIL'
   | 'CONVOY_ATTACK'
   | 'CONVOY_DEFENSE'
@@ -504,6 +513,8 @@ export interface ScoutResult {
   /** Your share, which is what landed in cash. */
   cashEarnedCents: number;
   hideoutBonusCents?: number;
+  /** Trips A. What the lieutenant skimmed while the boss was away. Already out of `cashEarnedCents`. */
+  lieutenantCutCents?: number;
   favorIncomePercent?: number;
   favorRecruitmentPercent?: number;
   payoutPercent: number;
@@ -574,6 +585,8 @@ export interface ProduceCrackResult {
   crewTakeCents: number;
   cashEarnedCents: number;
   hideoutBonusCents?: number;
+  /** Trips A. What the lieutenant skimmed while the boss was away. Already out of `cashEarnedCents`. */
+  lieutenantCutCents?: number;
   payoutPercent: number;
 
   /** Crack-only compatibility field. On product rounds, this is the Crack slice of productsFound. */

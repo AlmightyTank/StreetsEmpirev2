@@ -3,6 +3,7 @@ import { COOK_JOB, PRODUCE_JOB, calculateProduce, cityModifiers, districtCapacit
 import type { GameActionResult, ProduceCrackResult, ProductTypeDto } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs } from './action.service.js';
+import { BossTripSettleService } from './boss-trip-settle.service.js';
 import { HeatService } from './heat.service.js';
 import {
   hideoutBackOfficeBonusCents,
@@ -149,7 +150,9 @@ export const ProductionService = {
         );
 
         const hideoutBonusCents = hideoutBackOfficeBonusCents(outcome.pimpTakeCents, ruleset, current);
-        const pimpTakeCents = outcome.pimpTakeCents + hideoutBonusCents;
+        // Trips A: with the boss away, the lieutenant skims the take before it lands.
+        const lieutenantCutCents = await BossTripSettleService.lieutenantCut(tx, roundPlayerId, ruleset, outcome.pimpTakeCents + hideoutBonusCents, now);
+        const pimpTakeCents = outcome.pimpTakeCents + hideoutBonusCents - lieutenantCutCents;
         const hideoutBonusProduct = hideoutWorkshopBonusProduct(outcome.crackProduced, ruleset, current);
         const productProduced = outcome.crackProduced + hideoutBonusProduct;
         const ingredientSavingsCents = outcome.crackProduced
@@ -235,6 +238,7 @@ export const ProductionService = {
           crewTakeCents: Number(outcome.crewTakeCents),
           cashEarnedCents: Number(pimpTakeCents),
           hideoutBonusCents: Number(hideoutBonusCents),
+          ...(lieutenantCutCents > 0n ? { lieutenantCutCents: Number(lieutenantCutCents) } : {}),
           payoutPercent: current.payoutPercent,
 
           crackFound,
@@ -286,6 +290,7 @@ export const ProductionService = {
               } : {}),
               cashCents: Number(pimpTakeCents),
               hideoutBonusCents: Number(hideoutBonusCents),
+              ...(lieutenantCutCents > 0n ? { lieutenantCutCents: Number(lieutenantCutCents) } : {}),
               crackFound,
               ...(ruleset.productEconomy ? {
                 productsFound: productsFound.map((row) => ({ key: row.key, name: row.name, quantity: row.quantity })),

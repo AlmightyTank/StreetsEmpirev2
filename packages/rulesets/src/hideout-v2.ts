@@ -373,6 +373,13 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v0.8-f': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v0.8-g': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v0.8-h': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // Boss trips build on 0.8-H; same Hideout.
+  'classic-og-trips-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-trips-b': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-trips-c': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-trips-d': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-trips-d2': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-trips-e': CLASSIC_OG_V07G_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */

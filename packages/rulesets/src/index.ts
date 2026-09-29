@@ -60,6 +60,12 @@ import { classicOgV08E } from './classic-og-v0.8-e/index.js';
 import { classicOgV08F } from './classic-og-v0.8-f/index.js';
 import { classicOgV08G } from './classic-og-v0.8-g/index.js';
 import { classicOgV08H } from './classic-og-v0.8-h/index.js';
+import { classicOgTripsA } from './classic-og-trips-a/index.js';
+import { classicOgTripsB } from './classic-og-trips-b/index.js';
+import { classicOgTripsC } from './classic-og-trips-c/index.js';
+import { classicOgTripsD } from './classic-og-trips-d/index.js';
+import { classicOgTripsD2 } from './classic-og-trips-d2/index.js';
+import { classicOgTripsE } from './classic-og-trips-e/index.js';
 import type { Ruleset } from './types.js';
 
 export { classicOgV01 };
@@ -124,6 +130,12 @@ export { classicOgV08E };
 export { classicOgV08F };
 export { classicOgV08G };
 export { classicOgV08H };
+export { classicOgTripsA };
+export { classicOgTripsB };
+export { classicOgTripsC };
+export { classicOgTripsD };
+export { classicOgTripsD2 };
+export { classicOgTripsE };
 export * from './classic-og-v0.1/index.js';
 export * from './types.js';
 export * from './combat-prototype.js';
@@ -196,6 +208,12 @@ export const rulesets: Readonly<Record<string, Ruleset>> = {
   [classicOgV08F.meta.id]: classicOgV08F,
   [classicOgV08G.meta.id]: classicOgV08G,
   [classicOgV08H.meta.id]: classicOgV08H,
+  [classicOgTripsA.meta.id]: classicOgTripsA,
+  [classicOgTripsB.meta.id]: classicOgTripsB,
+  [classicOgTripsC.meta.id]: classicOgTripsC,
+  [classicOgTripsD.meta.id]: classicOgTripsD,
+  [classicOgTripsD2.meta.id]: classicOgTripsD2,
+  [classicOgTripsE.meta.id]: classicOgTripsE,
 };
 
 export const DEFAULT_RULESET_ID = classicOgV01.meta.id;
