@@ -226,7 +226,7 @@ alliance-sized, which gives alliances a shared objective (a gap noted in 0.6.0).
   at the **same odds on both sides**. Help is large but uncertain, which keeps swing.
 - **Outpost allies show up less (decided).** Allies who live in the city use the base
   show-up chance (0.6.0-C's configured 50%). Allies who only hold an outpost there use a
-  lower chance, e.g. **half the base (25%)** *(number proposed)*. Their help comes from
+  lower chance: **half the base (25%)**. Their help comes from
   their outpost's corner crew, not from home, so answering a call leaves their outpost
   weaker.
 - **Committed like a squad:** ally thugs leave their own home while they fight or sit in
@@ -241,6 +241,9 @@ alliance-sized, which gives alliances a shared objective (a gap noted in 0.6.0).
   caller's own committed thugs, so allies can at most double a side's strength. The bigger
   alliance doesn't win just by having more members, and a crew still has to commit its
   own thugs to get help.
+- **Residents count first (decided).** When the allies who show up bring more than the
+  1× cap, help from allies who live in the city fills the cap first. Outpost allies only
+  fill what's left, and their extra thugs stay at their outposts.
 
 ### War goals: answering "raze and walk away?"
 
@@ -360,16 +363,13 @@ not an instant jump on the leaderboard.
    failed siege adds, and how stacking works.
 3. **Block war timings.** Warning window, siege tick rate, war time limit (48h?), cooldown
    after a failed siege, and truce length.
-4. **Outpost ally odds.** Is half the base show-up chance (25%) right for outpost-only
-   allies? And when help from residents and outpost allies together goes over the 1× cap,
-   which gets counted first?
-5. **Block tiers.** Hold times and business-level thresholds for each tier.
-6. **Salvage on torch.** Is any salvage fine, or does it turn torching into a cash-out
+4. **Block tiers.** Hold times and business-level thresholds for each tier.
+5. **Salvage on torch.** Is any salvage fine, or does it turn torching into a cash-out
    exploit near the end of the round?
-7. **Dormant decay rate** and how much stronger locals get per business level.
-8. **Staff type.** Thugs everywhere, or girls for Strip Club / Nightclub / Bar?
-9. **Net worth.** Confirm business levels stay out of net worth.
-10. **1.3 hook.** How much of racket Heat should wait for the Law Enforcement expansion?
+6. **Dormant decay rate** and how much stronger locals get per business level.
+7. **Staff type.** Thugs everywhere, or girls for Strip Club / Nightclub / Bar?
+8. **Net worth.** Confirm business levels stay out of net worth.
+9. **1.3 hook.** How much of racket Heat should wait for the Law Enforcement expansion?
 
 ## Not in 1.1.0
 
