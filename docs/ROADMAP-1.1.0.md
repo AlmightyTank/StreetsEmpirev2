@@ -2,8 +2,9 @@
 
 ## Brainstorm
 
-**Status:** brainstorm only. Nothing here is decided or built. Everything is *(proposed)*
-until a simulation pass backs it, the same way 0.6.0 Turf started.
+**Status:** brainstorm. Nothing is built. Design choices marked **(decided)** are agreed;
+everything else is *(proposed)*, and all numbers wait on a simulation pass, the same way
+0.6.0 Turf started.
 
 **Target base:** StreetsEmpire v1.0.0  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** move from controlling street corners
@@ -110,8 +111,9 @@ same Nightclub is worth more in some cities than others:
 
 ### Operate (the anti-passive rule)
 
-- **Staff.** Each business needs staff taken from home, like corner crews: thugs for
-  most, girls for the Strip Club. Staffed workers don't work the street, defend or cook.
+- **Staff (decided).** Each business needs staff taken from home, like corner crews:
+  **girls for the Strip Club only, thugs for every other business**. Girls keep their own
+  job everywhere else. Staffed workers don't work the street, defend or cook.
   That is the opportunity cost, the same shape as 0.6.0 corners.
 - **Supply.** Businesses burn beer and/or product under a new **BUSINESS** supply job (next
   to the 0.4.0 supply jobs and 0.6.0's CORNER). If supply runs short, output stops.
@@ -305,11 +307,13 @@ got shot up.
 During a block war, a holder who expects to lose can **torch** a business:
 
 - It drops 1–2 levels (or to level 0).
-- The holder gets a **small salvage** (e.g. 20% of the lost level's build cost), paid now.
+- The holder gets a **salvage of 20%** of the lost levels' build cost, paid now (decided).
 - It costs turns and adds Heat to the holder.
 - It takes time and must **finish before Control hits 100**. A last-second torch doesn't
   count.
 - A torched block still carries its devastation for the attacker.
+- **No torching in the round's final 48 hours** (decided). That's from the seeded Fed
+  sweep (0.6.0-F) to round close, so torching can't be used as an end-of-season cash-out.
 
 That gives a losing holder real choices: **fight, break the siege, concede early to limit
 the damage, or torch it**.
@@ -335,7 +339,7 @@ the damage, or torch it**.
 
 ## Net worth
 
-**Proposal:** business levels **do not count** toward net worth. They're a cash sink, like
+**Decided:** business levels **do not count** toward net worth. They're a cash sink, like
 the Hideout. Only the income they produce counts. That keeps the 0.6.0 rule that "net
 worth still wins the round" honest. Capturing a built block gives you an income stream,
 not an instant jump on the leaderboard.
@@ -357,17 +361,16 @@ not an instant jump on the leaderboard.
 
 ## Open questions
 
+The first four are numbers for the 1.1.0-A `qa:business` simulation to set. The last is
+a design call that can wait for the 1.3 plan.
+
 1. **Fatigue numbers.** Starting multiplier (40%?), recovery time (48–72h?), how much a
    failed siege adds, and how stacking works.
 2. **Block war timings.** Warning window, siege tick rate, war time limit (48h?), cooldown
    after a failed siege, and truce length.
 3. **Block tiers.** Hold times and business-level thresholds for each tier.
-4. **Salvage on torch.** Is any salvage fine, or does it turn torching into a cash-out
-   exploit near the end of the round?
-5. **Dormant decay rate** and how much stronger locals get per business level.
-6. **Staff type.** Thugs everywhere, or girls for Strip Club / Nightclub / Bar?
-7. **Net worth.** Confirm business levels stay out of net worth.
-8. **1.3 hook.** How much of racket Heat should wait for the Law Enforcement expansion?
+4. **Dormant decay rate** and how much stronger locals get per business level.
+5. **1.3 hook.** How much of racket Heat should wait for the Law Enforcement expansion?
 
 ## Not in 1.1.0
 
