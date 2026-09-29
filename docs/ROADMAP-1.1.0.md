@@ -192,15 +192,15 @@ Older pinned rulesets keep the single push unchanged.
    **war goal**: **Take** or **Sack** (see below). The holder sees the declaration through
    Lookouts on the same warning clock as a push today. The Street Wire announces it.
 2. **Open with a fight.** The first battle lands when the warning window closes, the
-   0.6.0-C push fight: attacker squad vs. corner crew, with backup from home and the
-   chance that allies show up.
+   0.6.0-C push fight: attacker squad vs. corner crew, with backup from home and allies
+   from **both sides** (see *Calling allies*).
 3. **Siege.** If the attacker wins, their squad **occupies the block**. The holder still
    owns it, but:
    - a **Control** meter ticks from 0 toward 100 each hour, faster when the squad outnumbers
      whatever the holder has left nearby;
    - the holder's registers **stop filling**. Nobody spends money on a block under siege;
    - **devastation** (war fatigue) builds every hour the siege lasts.
-4. **Break the siege.** The holder (and allies in that city) can hit the occupying squad
+4. **Break the siege.** The holder and their allies can hit the occupying squad
    at any time. A win lifts the siege, knocks Control back, and sends the attacker's squad
    home wounded. The attacker can try again after a cooldown, within the war's time limit.
 5. **End.** The war ends when one of these happens:
@@ -212,6 +212,29 @@ Older pinned rulesets keep the single push unchanged.
      businesses from a long siege.
 6. **Truce.** Afterwards the block gets a truce (the 0.6.0-C hold shield) so it can't be
    hit again right away.
+
+### Calling allies (decided: both sides)
+
+Both the attacker and the holder can call their alliance into a block war. Wars become
+alliance-sized, which gives alliances a shared objective (a gap noted in 0.6.0).
+
+- **Who can answer:** alliance members who live in that city or hold an outpost there.
+  Linked accounts can't answer each other's calls.
+- **When:** at the opening fight, to join or relieve a siege, and in any fight to break
+  one.
+- **Will they show?** Every ally's help uses the 0.3.0-D / 0.6.0-C **chance to show up**,
+  at the **same odds on both sides**. Help is large but uncertain, which keeps swing.
+- **Committed like a squad:** ally thugs leave their own home while they fight or sit in
+  the siege, so their homes are weaker to raids. On a loss they go home wounded, the same
+  as the caller's squad.
+- **On the attacker's side,** allies in the siege make Control tick faster. **On the
+  holder's side,** allies count toward breaking the siege.
+- **Spoils go to the declarer only.** A Take gives the block to the crew that declared, and
+  Sack loot is capped and paid once, not per ally. Allies get Territory block-time and
+  city control (0.6.0-E), not cash.
+- **Cap on help** *(proposed)*: each side's allied thugs are capped at some multiple of the
+  caller's own committed thugs (e.g. 1×), so the bigger alliance doesn't win just by
+  having more members.
 
 ### War goals: answering "raze and walk away?"
 
@@ -239,7 +262,8 @@ are levelled. The tier decides how many lots are open:
 | **Established** | 2 | Holding it about a day, with business levels invested |
 | **Stronghold** | 3 | Holding it several days, with high total business levels |
 
-- A **Take drops the block one tier.** Businesses on closed lots keep their levels but go
+- A **Take drops the block one tier** (decided). A Stronghold becomes Established, an
+  Established becomes a Foothold, and a Foothold stays a Foothold. Businesses on closed lots keep their levels but go
   dark until the new holder raises the tier again. Conquest gives you the buildings, but
   not the whole operation right away.
 - A **Sack** doesn't change the tier. The holder keeps the structure and loses levels.
@@ -316,7 +340,7 @@ not an instant jump on the leaderboard.
 | **1.1.0-A — Lots** | `business` block in the ruleset (lots per district, city signatures, levels, costs, staff, supply, register caps, fatigue curve); `Business` row per round/block/lot; city map shows lots; `qa:business` simulation. | A 1.1.0-A round plays exactly like 1.0. Every business is worth building for some crew; none pays more than its staff would earn at home. |
 | **1.1.0-B — Build & operate** | Build/upgrade, staffing, BUSINESS supply job, register and collection, front income, receipts and ledger lines. | Cash, staff and supply are conserved; staff never work, defend or cook; registers never exceed their cap. |
 | **1.1.0-C — Rackets** | One racket per business, switching cooldown, Heat, system hooks (recon, runs, stores, product). | No racket beats the system it hooks; laundering stays under its caps. |
-| **1.1.0-D — Block wars** | Locals claim stays a single fight; block wars against players (declare, siege, Control, break the siege, concede, truce); Take / Sack war goals; block tiers; devastation; torching; dormancy under locals; Street Wire / Discord war lines. | A war always settles by its time limit, whoever is online; a defender who responds wins at a healthy rate; captured income stays below a stable holder's; a block can't be farmed by repeated hand-offs; linked-account captures reset. |
+| **1.1.0-D — Block wars** | Locals claim stays a single fight; block wars against players (declare, siege, Control, break the siege, concede, truce); Take / Sack war goals; block tiers; devastation; torching; dormancy under locals; Street Wire / Discord war lines. | A war always settles by its time limit, whoever is online; a defender who responds wins at a healthy rate; attacker win rate stays in band for solo vs. solo, alliance vs. solo and alliance vs. alliance; allied help never pays spoils to anyone but the declarer; captured income stays below a stable holder's; a block can't be farmed by repeated hand-offs; linked-account captures reset. |
 | **1.1.0-E — Outposts & convoys** | Away businesses empty into the outpost box; collection runs; convoy loot shape. | Everything a run collects is conserved; convoy loot stays in 0.6.0-D caps. |
 | **1.1.0-F — Release** | Full-round simulation (business-heavy, turf-raider, runner, mixed), crackdown interaction, Rules page Business panel, phone pass, release regression. | Mixed play beats pure business play; 0.6.0-F and later release gates still pass. |
 
@@ -330,10 +354,10 @@ not an instant jump on the leaderboard.
    failed siege adds, and how stacking works.
 3. **Block war timings.** Warning window, siege tick rate, war time limit (48h?), cooldown
    after a failed siege, and truce length.
-4. **Can the attacker's allies join the siege,** or only the holder's allies (the 0.6.0-C
-   shape)? Letting both sides call allies makes wars alliance-sized.
-5. **Block tiers.** Hold times per tier, and whether a Take should drop one tier or reset
-   to Foothold.
+4. **Ally help cap.** How much allied help each side can bring, as a multiple of the
+   caller's own squad (1×?), and whether the show-up odds should drop for allies who live
+   farther away (outpost holders vs. residents).
+5. **Block tiers.** Hold times and business-level thresholds for each tier.
 6. **Salvage on torch.** Is any salvage fine, or does it turn torching into a cash-out
    exploit near the end of the round?
 7. **Dormant decay rate** and how much stronger locals get per business level.
