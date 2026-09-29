@@ -224,6 +224,11 @@ alliance-sized, which gives alliances a shared objective (a gap noted in 0.6.0).
   one.
 - **Will they show?** Every ally's help uses the 0.3.0-D / 0.6.0-C **chance to show up**,
   at the **same odds on both sides**. Help is large but uncertain, which keeps swing.
+- **Outpost allies show up less (decided).** Allies who live in the city use the base
+  show-up chance (0.6.0-C's configured 50%). Allies who only hold an outpost there use a
+  lower chance, e.g. **half the base (25%)** *(number proposed)*. Their help comes from
+  their outpost's corner crew, not from home, so answering a call leaves their outpost
+  weaker.
 - **Committed like a squad:** ally thugs leave their own home while they fight or sit in
   the siege, so their homes are weaker to raids. On a loss they go home wounded, the same
   as the caller's squad.
@@ -232,9 +237,10 @@ alliance-sized, which gives alliances a shared objective (a gap noted in 0.6.0).
 - **Spoils go to the declarer only.** A Take gives the block to the crew that declared, and
   Sack loot is capped and paid once, not per ally. Allies get Territory block-time and
   city control (0.6.0-E), not cash.
-- **Cap on help** *(proposed)*: each side's allied thugs are capped at some multiple of the
-  caller's own committed thugs (e.g. 1×), so the bigger alliance doesn't win just by
-  having more members.
+- **Cap on help (decided: 1×).** Each side's allied thugs are capped at **1×** the
+  caller's own committed thugs, so allies can at most double a side's strength. The bigger
+  alliance doesn't win just by having more members, and a crew still has to commit its
+  own thugs to get help.
 
 ### War goals: answering "raze and walk away?"
 
@@ -354,9 +360,9 @@ not an instant jump on the leaderboard.
    failed siege adds, and how stacking works.
 3. **Block war timings.** Warning window, siege tick rate, war time limit (48h?), cooldown
    after a failed siege, and truce length.
-4. **Ally help cap.** How much allied help each side can bring, as a multiple of the
-   caller's own squad (1×?), and whether the show-up odds should drop for allies who live
-   farther away (outpost holders vs. residents).
+4. **Outpost ally odds.** Is half the base show-up chance (25%) right for outpost-only
+   allies? And when help from residents and outpost allies together goes over the 1× cap,
+   which gets counted first?
 5. **Block tiers.** Hold times and business-level thresholds for each tier.
 6. **Salvage on torch.** Is any salvage fine, or does it turn torching into a cash-out
    exploit near the end of the round?
