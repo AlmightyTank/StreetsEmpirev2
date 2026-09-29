@@ -64,7 +64,7 @@ seed.
 
 ## Lots
 
-### Three lots per block *(proposed)*
+### Three lots per block (decided)
 
 Every block has three lots, set by its district. All ten businesses appear somewhere, and
 most appear in two districts, so no business is locked to a single block per city.
@@ -357,19 +357,17 @@ not an instant jump on the leaderboard.
 
 ## Open questions
 
-1. **Three lots per block, or two?** Three gives more choice. Two keeps nine businesses
-   max down to six and is easier to balance.
-2. **Fatigue numbers.** Starting multiplier (40%?), recovery time (48–72h?), how much a
+1. **Fatigue numbers.** Starting multiplier (40%?), recovery time (48–72h?), how much a
    failed siege adds, and how stacking works.
-3. **Block war timings.** Warning window, siege tick rate, war time limit (48h?), cooldown
+2. **Block war timings.** Warning window, siege tick rate, war time limit (48h?), cooldown
    after a failed siege, and truce length.
-4. **Block tiers.** Hold times and business-level thresholds for each tier.
-5. **Salvage on torch.** Is any salvage fine, or does it turn torching into a cash-out
+3. **Block tiers.** Hold times and business-level thresholds for each tier.
+4. **Salvage on torch.** Is any salvage fine, or does it turn torching into a cash-out
    exploit near the end of the round?
-6. **Dormant decay rate** and how much stronger locals get per business level.
-7. **Staff type.** Thugs everywhere, or girls for Strip Club / Nightclub / Bar?
-8. **Net worth.** Confirm business levels stay out of net worth.
-9. **1.3 hook.** How much of racket Heat should wait for the Law Enforcement expansion?
+5. **Dormant decay rate** and how much stronger locals get per business level.
+6. **Staff type.** Thugs everywhere, or girls for Strip Club / Nightclub / Bar?
+7. **Net worth.** Confirm business levels stay out of net worth.
+8. **1.3 hook.** How much of racket Heat should wait for the Law Enforcement expansion?
 
 ## Not in 1.1.0
 
