@@ -49,6 +49,9 @@ export function landingPath(setting: DefaultLanding, hasPlayer: boolean): string
   return LANDING_PATHS[setting];
 }
 
+/** The /meta read in flight, so the shell and a form mounting together share one. */
+let platformLoad: Promise<void> | null = null;
+
 interface SessionState {
   phase: Phase;
 
@@ -69,6 +72,8 @@ interface SessionState {
 
   /** Resolve who we are and which game is running. Runs once on mount. */
   bootstrap: () => Promise<void>;
+  /** Read (or re-read) the server's public settings: build, season, the bot-check site key. */
+  loadPlatform: () => Promise<void>;
   /** Re-read the signed-in account (after verifying an email in another tab, say). */
   refreshAccount: () => Promise<void>;
   refreshProfileSettings: () => Promise<AccountProfileSettingsDto>;
@@ -105,9 +110,17 @@ export const useSession = create<SessionState>((set, get) => ({
     set({ bellMuted: muted });
   },
 
+  loadPlatform() {
+    platformLoad ??= platformApi.meta()
+      .then((platform) => set({ platform }))
+      .catch(() => undefined)
+      .finally(() => { platformLoad = null; });
+    return platformLoad;
+  },
+
   async bootstrap() {
     // Never blocks sign-in: an older server simply has no /meta.
-    void platformApi.meta().then((platform) => set({ platform })).catch(() => undefined);
+    void get().loadPlatform();
     // A 401 here is the normal signed-out case, not an error worth surfacing.
     const account = await authApi
       .me()

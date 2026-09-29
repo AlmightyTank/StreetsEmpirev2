@@ -54,6 +54,9 @@ ok "non-public API is blocked on streetsempire.dev"
 printf '\nLive game\n'
 assert_serves_app "$LIVE_SITE_URL/" 'data-streets-app="game-client"' "$LIVE_SITE_URL"
 get "$LIVE_SITE_URL/api/ready"
+curl -fsSI --max-time 12 "$LIVE_SITE_URL/game" | grep -qi '^cache-control:.*no-cache' \
+  || fail "$LIVE_SITE_URL/game is served without Cache-Control: no-cache, so phones can keep an old build. See docs/nginx/streets-empire-platform.conf.example."
+ok "the game page is re-checked on every load"
 
 printf '\nForum\n'
 get "$FORUM_URL/"

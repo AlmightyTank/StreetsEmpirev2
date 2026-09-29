@@ -42,9 +42,17 @@ export function useTurnstileSiteKey(): string | null {
  */
 export function Turnstile({ onToken }: { onToken: (token: string | null) => void }) {
   const siteKey = useTurnstileSiteKey();
+  const loadPlatform = useSession((s) => s.loadPlatform);
   const box = useRef<HTMLDivElement>(null);
   const callback = useRef(onToken);
   callback.current = onToken;
+
+  // No key yet: the startup read may have failed, or the check was switched on since. Ask
+  // again whenever the widget mounts (forms remount it after every try), so a server that
+  // wants the check always gets a widget to go with it.
+  useEffect(() => {
+    if (!siteKey) void loadPlatform();
+  }, [siteKey, loadPlatform]);
 
   useEffect(() => {
     if (!siteKey || !box.current) return;

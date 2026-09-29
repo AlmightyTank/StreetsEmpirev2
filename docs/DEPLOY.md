@@ -83,6 +83,10 @@ key pair on the server and nothing else: no app store, no third-party account.
    - HTTPS. Push only works on a secure origin.
    - `/sw.js` served from the site root with `Cache-Control: no-cache`, so a new
      service worker reaches players on their next visit.
+   - The page itself (`location /`, which serves `index.html`) with
+     `Cache-Control: no-cache`. It names the build's hashed scripts, which are cached
+     for a year; without it a phone can keep running an old build against a new API,
+     such as a log-in page with no "are you human" check on a server that requires one.
    - `/manifest.webmanifest` served as `application/manifest+json`. iPhones only
      offer push to a site added to the Home Screen, which needs the manifest.
 

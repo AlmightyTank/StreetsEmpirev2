@@ -117,6 +117,9 @@ if [ -n "$BETA_SITE_URL" ]; then
   curl -fsS --max-time 10 "$BETA_SITE_URL/api/ready" >/dev/null || fail "beta API did not answer through Nginx."
   node scripts/ops/check-environment.mjs --expect beta --url "$BETA_SITE_URL" \
     || fail "$BETA_SITE_URL does not reach the beta API. Check the Nginx upstream for beta.streetsempire.dev."
+  # The page must be re-checked on every load, or phones keep an old build (old log-in page).
+  curl -fsSI --max-time 10 "$$BETA_SITE_URL/game" | grep -qi '^cache-control:.*no-cache' \
+    || echo "WARNING: $$BETA_SITE_URL/game is served without Cache-Control: no-cache. Add it to the Nginx 'location /' for beta.streetsempire.dev (docs/nginx/streets-empire-platform.conf.example)." >&2
 fi
 
 # 1.0.0-F: remember what was running and healthy, for scripts/ops/rollback.sh.

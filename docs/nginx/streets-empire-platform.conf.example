@@ -39,8 +39,10 @@ server {
         return 404;
     }
 
+    # index.html is checked on every load, so a new build is seen at once.
     location / {
         try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache";
     }
 }
 
@@ -80,8 +82,12 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # index.html names this build's hashed scripts, which are cached for a year. It must
+    # be checked on every load, or a phone can keep running an old build against a new
+    # API (an old log-in page with no "are you human" check, say).
     location / {
         try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache";
     }
 }
 
@@ -129,8 +135,13 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # index.html is checked on every load (see the live game). add_header here replaces the
+    # server-level headers, so they are repeated.
     location / {
         try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache";
+        add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+        add_header X-StreetsEmpire-Environment "beta" always;
     }
 }
 
