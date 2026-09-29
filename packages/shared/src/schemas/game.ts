@@ -6,6 +6,15 @@ import { z } from 'zod';
  * double click, a retry or a flaky connection cannot execute it twice.
  * Section 52.
  */
+/**
+ * 1.0.0-C. The most units one order may name. Inventory columns are 32-bit, and
+ * price x quantity has to stay exact in a JavaScript number, so anything above
+ * this is refused as input instead of overflowing somewhere downstream.
+ */
+export const MAX_ORDER_QUANTITY = 100_000_000;
+/** More turns than any ruleset can hold; a request above it is not a real request. */
+export const MAX_TURNS_PER_ACTION = 100_000;
+
 export const actionIdSchema = z
   .string()
   .trim()
@@ -24,7 +33,8 @@ export const joinRoundSchema = z.object({
 export const turnsToSpendSchema = z
   .number({ invalid_type_error: 'Enter how many turns to spend.' })
   .int('Turns must be a whole number.')
-  .positive('Spend at least one turn.');
+  .positive('Spend at least one turn.')
+  .max(MAX_TURNS_PER_ACTION, 'That is more turns than you can hold.');
 
 /**
  * The district key is validated against the round's own ruleset rather than a
@@ -118,7 +128,7 @@ export const storeTradeSchema = z.object({
   item: z.string().trim().min(1, 'Pick an item.').max(64),
   direction: z.enum(['buy', 'sell']),
   quantity: z.number({ invalid_type_error: 'Enter a quantity.' })
-    .int('Quantity must be a whole number.').positive('Enter at least one.').safe(),
+    .int('Quantity must be a whole number.').positive('Enter at least one.').max(MAX_ORDER_QUANTITY, 'That order is too large.'),
   actionId: actionIdSchema,
 });
 
@@ -149,7 +159,7 @@ export const productTradeSchema = z.object({
   product: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.'),
   direction: z.enum(['buy', 'sell']),
   quantity: z.number({ invalid_type_error: 'Enter a quantity.' })
-    .int('Quantity must be a whole number.').positive('Enter at least one.').safe(),
+    .int('Quantity must be a whole number.').positive('Enter at least one.').max(MAX_ORDER_QUANTITY, 'That order is too large.'),
   actionId: actionIdSchema,
 });
 export type ProductTradeInput = z.infer<typeof productTradeSchema>;

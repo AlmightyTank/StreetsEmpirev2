@@ -103,14 +103,14 @@
 
 .se-travel-alerts {
   padding: 13px;
-  border: 1px solid rgba(255, 84, 104, 0.24);
+  border: 1px solid rgba(243, 63, 99, 0.24);
   border-radius: 4px;
-  background: rgba(255, 84, 104, 0.02);
+  background: rgba(243, 63, 99, 0.02);
 }
 
 .se-travel-alerts > .se-panel {
   margin: 0;
-  border-color: rgba(255, 84, 104, 0.2);
+  border-color: rgba(243, 63, 99, 0.2);
 }
 
 .se-travel-sectionhead {

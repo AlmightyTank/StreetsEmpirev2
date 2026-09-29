@@ -20,6 +20,7 @@ import type {
   QuestObjectiveDto,
   QuestPageDto,
   QuestRewardDto,
+  QuestStoryDto,
 } from '@streets/shared';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
@@ -256,6 +257,15 @@ function branchChoicesDto(row: QuestRow, ruleset: Ruleset): QuestBranchChoiceDto
   }));
 }
 
+function storyDto(row: QuestRow, ruleset: Ruleset): QuestStoryDto | undefined {
+  const definition = ruleset.questDefinitions?.[row.questDefinition.key];
+  if (!definition?.story) return undefined;
+  return {
+    ...definition.story,
+    speaker: contactFor(ruleset, definition.contactKey)?.shortName ?? 'StreetsEmpire',
+  };
+}
+
 function objectiveDtos(row: QuestRow, communityEvent?: CommunityEventSnapshot): QuestObjectiveDto[] {
   const requiredProgress = communityEvent?.progress ?? progress(row.objectiveProgress);
   const bonusProgress = progress(row.bonusProgress);
@@ -290,6 +300,7 @@ function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEve
   const resolvedRewards = cityContractRewards(row.rewardState)
     ?? rewards(row.questDefinition.rewards);
   const availability = availabilityJson(row.questDefinition.availability);
+  const story = storyDto(row, ruleset);
   return {
     key: row.questDefinition.key,
     attempt: row.attempt,
@@ -304,6 +315,7 @@ function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEve
     isTracked: row.isTracked,
     chosenBranch: row.chosenBranch,
     branchChoices: branchChoicesDto(row, ruleset),
+    ...(story ? { story } : {}),
     objectives: objectiveDtos(row, communityEvent),
     rewards: resolvedRewards.map((reward) => rewardDto(reward, ruleset)),
     ...(availability.seasonalEvent ? {

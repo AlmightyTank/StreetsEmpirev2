@@ -7,22 +7,82 @@ export const WIRE_PAGE_SIZE = 50;
 export const CONTACTS_MAX = 100;
 export const CONTACT_NOTE_MAX = 280;
 
+export type ContactKindDto = 'CONTACT' | 'ENEMY';
+export type ContactCategoryDto = ContactKindDto | 'ALLIANCE' | 'BLOCKED';
+export type WirePostKindDto = 'MESSAGE' | 'ANNOUNCEMENT';
+
+export type AllianceCoordinationCardKindDto =
+  | 'SHARED_RECON'
+  | 'TURF_ACTIVITY'
+  | 'REINFORCEMENT_REQUEST'
+  | 'CONVOY_SIGHTING'
+  | 'CITY_CONTROL'
+  | 'RECRUITMENT';
+
+export interface AllianceCoordinationCardDto {
+  id: string;
+  kind: AllianceCoordinationCardKindDto;
+  title: string;
+  detail: string;
+  at: string;
+  actionLabel: string;
+  href: string;
+  tone: 'info' | 'warn' | 'good';
+}
+
+export interface ContactIntelDto {
+  payback: {
+    available: boolean;
+    until: string | null;
+    source: 'direct' | 'alliance' | null;
+  };
+  sharedAlliance: boolean;
+  lastBattle: {
+    kind: string;
+    at: string;
+    role: 'ATTACKER' | 'DEFENDER';
+    won: boolean;
+    cashChangeCents: number;
+    yourWounds: number;
+    opponentWounds: number;
+  } | null;
+  lastRecon: {
+    at: string;
+    expiresAt: string;
+    strengthBand: 'Weaker' | 'Comparable' | 'Stronger' | 'Unknown';
+    strength: number;
+    cashBand: string;
+  } | null;
+  turf: {
+    lastAt: string | null;
+    blocksWon: number;
+    blocksLost: number;
+  };
+}
+
 export interface WirePostDto {
   id: string;
   author: { publicPimpId: number; displayName: string };
   body: string;
+  kind: WirePostKindDto;
+  pinned: boolean;
   createdAt: string;
   /** You wrote it, or you lead the alliance. */
   canRemove: boolean;
+  /** Only leaders can pin announcements. */
+  canPin: boolean;
   isYours: boolean;
 }
 
 /** GET /api/game/alliance/wire - only for current members. */
 export interface AllianceWireDto {
+  pinnedAnnouncement: WirePostDto | null;
+  cards: AllianceCoordinationCardDto[];
   posts: WirePostDto[];
   nextBefore: string | null;
   /** Set while your last post is still cooling down. */
   cooldownUntil: string | null;
+  canPostAnnouncement: boolean;
   roundOpen: boolean;
 }
 
@@ -30,8 +90,12 @@ export interface ContactDto {
   publicPimpId: number;
   displayName: string;
   alliance: AllianceTagDto | null;
+  kind: ContactKindDto;
+  categories: ContactCategoryDto[];
+  blocked: boolean;
   note: string;
   addedAt: string;
+  intel: ContactIntelDto;
   /** Their public standing right now. Null once the account is no longer active. */
   standing: {
     netWorthCents: number;
@@ -41,8 +105,18 @@ export interface ContactDto {
   } | null;
 }
 
+export interface BlockedRolodexDto {
+  publicPimpId: number;
+  displayName: string;
+  alliance: AllianceTagDto | null;
+  blockedAt: string;
+  isContact: boolean;
+}
+
 export interface ContactsDto {
   contacts: ContactDto[];
+  blocked: BlockedRolodexDto[];
+  counts: Record<ContactCategoryDto | 'ALL', number>;
   max: number;
 }
 
@@ -52,10 +126,55 @@ export interface ContactLookupDto {
   full: boolean;
 }
 
+/** 0.9.0-A. Coarse by design: directory browsing never receives exact activity timestamps. */
+export type PlayerActivityBand = 'online' | 'recent' | 'away' | 'offline';
+export type PlayerDirectoryView = 'all' | 'city' | 'alliance' | 'near' | 'encountered' | 'active';
+
+export interface PlayerDirectoryEntryDto {
+  publicPimpId: number;
+  displayName: string;
+  /** 0.9.0-F. Optional account-level crew name. */
+  crewName: string | null;
+  alliance: AllianceTagDto | null;
+  city: { slug: string; name: string };
+  netWorthCents: number;
+  nationalRank: number;
+  activity: PlayerActivityBand;
+  isYou: boolean;
+  isContact: boolean;
+}
+
+export interface PlayerDirectoryDto {
+  generatedAt: string;
+  view: PlayerDirectoryView;
+  query: string;
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+  counts: {
+    all: number;
+    city: number;
+    alliance: number;
+    near: number;
+    encountered: number;
+    active: number;
+  };
+  contactSlots: {
+    used: number;
+    max: number;
+  };
+  players: PlayerDirectoryEntryDto[];
+}
+
 export interface AdminWirePostDto {
   id: string;
   author: { publicPimpId: number; displayName: string; roundPlayerId: string };
   body: string;
+  kind: WirePostKindDto;
+  pinned: boolean;
   createdAt: string;
   removedAt: string | null;
   removedByName: string | null;
@@ -470,6 +589,17 @@ export interface RunDto {
   cargo: Array<{ key: string; quantity: number; startQuantity: number }>;
   /** 0.5.0-E. The guns the escorts carry. A bust or an arrest takes them all. */
   guns: { PISTOL: number; SHOTGUN: number; TEK9: number; AK47: number };
+  /** Trips B. The boss rides with this run. */
+  bossAboard: boolean;
+  /** Trips B. The hotel, with the boss aboard. Null on crew-only runs. */
+  hotel: {
+    /** What the next started hour costs where the run is (or will be). */
+    hourCents: number;
+    /** Everything the hotel has taken from the run's cash. */
+    paidCents: number;
+    /** Hours of the current stay paid so far. */
+    hoursPaid: number;
+  } | null;
   turnsSpent: number;
   stops: RunStopDto[];
   position: {
@@ -538,6 +668,9 @@ export interface RunReceiptDto {
   beer: number;
   cargo: Array<{ key: string; startQuantity: number; quantity: number }>;
   turnsSpent: number;
+  /** Trips B. The boss rode along, and what the hotel took. */
+  bossAboard: boolean;
+  hotelCents: number;
   trades: RunTradeDto[];
   incidents: RunIncidentDto[];
 }
@@ -580,6 +713,178 @@ export interface TravelDto extends CitiesDto {
   wire: WireItemDto[];
   /** 0.5.0-D. Moving house. Null before 0.5.0-D. */
   relocation: RelocationDto | null;
+  /** Trips A. The boss travels. Null on rounds without trips. */
+  trips: TripPanelDto | null;
+}
+
+/** Trips A. Where the boss is along a trip. */
+export type TripPhaseDto = 'outbound' | 'town' | 'inbound';
+
+/** Trips A. A trip that is out. */
+export interface TripDto {
+  id: string;
+  mode: 'FLY' | 'DRIVE';
+  homeCity: string;
+  city: string;
+  cityName: string;
+  phase: TripPhaseDto;
+  /** When the current phase ends. */
+  until: string;
+  bankrollCents: number;
+  startBankrollCents: number;
+  ticketCents: number;
+  hotelCents: number;
+  departedAt: string;
+  arrivesAt: string;
+  stayUntil: string;
+  returnsAt: string;
+  /** What another extension block would cost right now, and why it cannot be bought if it cannot. */
+  extend: { minutes: number; hotelCents: number; blockedReason: string | null };
+  canHeadHome: boolean;
+  /** Trips C. A hit your lookouts have spotted coming, and when it lands. */
+  hitLandsAt: string | null;
+  /** Trips D. Bodyguards with the boss, how many are wounded, and the guns rented for them. */
+  bodyguards: number;
+  woundedBodyguards: number;
+  rentedGuns: { PISTOL: number; SHOTGUN: number; TEK9: number; AK47: number };
+  gunRentCents: number;
+  /** Trips D. Why guns cannot be rented right now, or null when they can. */
+  rentBlockedReason: string | null;
+  /** Trips D2. What airport security took, and the minutes it cost. */
+  airportSeizedCents: number;
+  airportDelayMinutes: number;
+}
+
+/** Trips A. The last trip home, as a receipt. */
+export interface TripReceiptDto {
+  id: string;
+  city: string;
+  cityName: string;
+  startBankrollCents: number;
+  bankrollCents: number;
+  ticketCents: number;
+  hotelCents: number;
+  departedAt: string;
+  returnedAt: string;
+}
+
+/** Trips A. The trip panel on Travel. */
+export interface TripPanelDto {
+  rules: {
+    flightMinutes: number;
+    ticketCents: number;
+    carryOnCapCents: number;
+    stayMinutes: number[];
+    maxStayMinutes: number;
+    extendMinutes: number;
+    launchTurns: number;
+    /** The lieutenant's share of Scout and Produce takes while the boss is away, 0..1. */
+    lieutenantCut: number;
+    /** Trips B. The boss can ride along with a run. Null before B. */
+    rideAlong: { maxStayMinutes: number; crewCentsPerThugHour: number } | null;
+    /** Trips D. Bodyguards on flights and gun rental in town. Null before D. */
+    bodyguards: {
+      max: number;
+      ticketCents: number;
+      lodgingCentsPerThugHour: number;
+      gunRentCents: { PISTOL: number; SHOTGUN: number; TEK9: number; AK47: number };
+    } | null;
+  };
+  /** Trips D. Whether this player has Tommy's out-of-town connect, and which guns they may rent. */
+  gunConnect: { unlocked: boolean; weapons: Array<'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47'> } | null;
+  /** Trips D. Fit thugs at home who could fly as bodyguards. */
+  fitThugs: number;
+  /** Trips D2. Where the boss is in person right now, away from home. */
+  presence: { city: string; cityName: string; via: 'trip' | 'run' } | null;
+  /** Trips D2. Outposts the boss can walk where they are. */
+  outpostsHere: Array<{ id: string; district: string; districtName: string; cashCents: number; moraleUntil: string | null; canCollect: boolean }>;
+  /** Trips D2. Sit-downs: who the boss could sit down with here, invitations and truces. Null before D2. */
+  sitDowns: {
+    truceHours: number;
+    candidates: Array<{ publicPimpId: number; displayName: string; allianceTag: string | null; how: 'lives here' | 'visiting' }>;
+    incoming: Array<{ id: string; from: { publicPimpId: number; displayName: string }; cityName: string; expiresAt: string }>;
+    outgoing: Array<{ id: string; to: { publicPimpId: number; displayName: string }; cityName: string; expiresAt: string }>;
+    truces: Array<{ with: { publicPimpId: number; displayName: string }; until: string }>;
+  } | null;
+  /** Trips D2. What the airport means at the boss's Heat right now. Null before D2. */
+  airport: {
+    heat: number;
+    /** With no bodyguards. */
+    checkChance: number;
+    seizePercent: number;
+    delayMinutes: number;
+    noFlyHeat: number;
+    /** Heat each bodyguard adds for the check, and roughly what one more does to the chance now. */
+    bodyguardHeat: number;
+    checkChancePerBodyguard: number;
+    /** The flight home is checked too. */
+    checkHome: boolean;
+  } | null;
+  /** Trips B. The run the boss is riding with, if any. */
+  bossRun: { runId: string; cityName: string } | null;
+  /** Trips C. A beaten boss heals until then. */
+  laidUpUntil: string | null;
+  /** When flights close for the round. */
+  cutoffAt: string;
+  /** What stops any trip right now, in words; null when the boss can go. */
+  blockedReason: string | null;
+  blockedCode: string | null;
+  blockedUntil: string | null;
+  destinations: Array<{ slug: string; name: string; hotelCentsPerHour: number }>;
+  trip: TripDto | null;
+  lastTrip: TripReceiptDto | null;
+}
+
+/** Trips A. POST /api/game/travel/trip. */
+export interface TripLaunchResult {
+  tripId: string;
+  city: string;
+  cityName: string;
+  ticketCents: number;
+  hotelCents: number;
+  bankrollCents: number;
+  stayMinutes: number;
+  turns: number;
+  arrivesAt: string;
+  stayUntil: string;
+  returnsAt: string;
+  /** Trips D. Bodyguards flying with the boss. */
+  bodyguards: number;
+  /** Trips D2. Pulled aside at the airport: what was taken and the minutes lost. */
+  airport?: { seizedCents: number; delayMinutes: number };
+}
+
+/** Trips D2. POST /api/game/travel/trip/outpost. */
+export interface TripOutpostVisitResult {
+  outpostId: string;
+  districtName: string;
+  cityName: string;
+  moraleUntil: string;
+  collectedCents: number;
+}
+
+/** Trips D. POST /api/game/travel/trip/guns. */
+export interface TripRentGunsResult {
+  tripId: string;
+  guns: { PISTOL: number; SHOTGUN: number; TEK9: number; AK47: number };
+  rentCents: number;
+  bankrollCents: number;
+}
+
+/** Trips A. POST /api/game/travel/trip/extend. */
+export interface TripExtendResult {
+  tripId: string;
+  minutes: number;
+  hotelCents: number;
+  bankrollCents: number;
+  stayUntil: string;
+  returnsAt: string;
+}
+
+/** Trips A. POST /api/game/travel/trip/home. */
+export interface TripHeadHomeResult {
+  tripId: string;
+  returnsAt: string;
 }
 
 export interface RelocationTurfPlanDto {
@@ -665,6 +970,8 @@ export interface RunLaunchResult {
   /** 0.5.0-F. What it bought on the home market on the way out, and what that cost. */
   market: Record<string, number>;
   marketCents: number;
+  /** Trips B. The boss rides with it. */
+  bossAboard: boolean;
 }
 
 export interface RunOutpostEstablishResult {
@@ -823,6 +1130,76 @@ export interface ConvoysDto {
   run: { escorts: number; cityName: string } | null;
   targets: ConvoyTargetDto[];
   tails: ConvoyTailDto[];
+  /** Trips C. Bosses visiting where you live that your recon spotted. Empty before C. */
+  bosses: BossTargetDto[];
+  /** Trips C. Hits on a boss you started or took, recent first. */
+  bossHits: BossHitDto[];
+}
+
+/** Trips C. A boss visiting where you live, as your recon saw them. */
+export interface BossTargetDto {
+  tripId: string;
+  owner: { publicPimpId: number; displayName: string; allianceTag: string | null };
+  city: string;
+  cityName: string;
+  inTownFrom: string;
+  inTownUntil: string;
+  inTownNow: boolean;
+  /** The bankroll in a band: light, loaded or heavy. */
+  bankroll: 'light' | 'loaded' | 'heavy';
+  /** A boss who flew in alone has nobody with them. */
+  alone: boolean;
+  /** Trips D. Their bodyguards in a band. */
+  guards: 'none' | 'light' | 'armed';
+  maxSquad: number;
+  blockedReason: string | null;
+}
+
+/** Trips C. A hit on a boss, from either side. */
+export interface BossHitDto {
+  id: string;
+  role: 'attacker' | 'owner' | 'ally';
+  status: 'PENDING' | 'LANDED' | 'ESCAPED';
+  cityName: string;
+  startedAt: string;
+  landsAt: string;
+  squad: number;
+  attacker: { publicPimpId: number; displayName: string };
+  owner: { publicPimpId: number; displayName: string };
+  /** Trips D2. Allies called, thugs sent so far, and what you can do about it. */
+  alliesCalled: boolean;
+  backup: number;
+  /** The boss can call allies who live there. */
+  canCallAllies: boolean;
+  /** An ally who was called: how many they can send, or why not. */
+  answer: { max: number; reason: string | null } | null;
+  /** Once it has landed: whether the boss got away, and the cash that moved (+ for you, − against you). */
+  report: {
+    escaped: boolean;
+    /** Trips D. The boss's bodyguards held the hit off. */
+    held: boolean;
+    cashCents: number;
+    laidUpUntil: string | null;
+    yourWounds: number;
+    opponentWounds: number;
+  } | null;
+}
+
+/** Trips C. POST /api/game/convoys/boss-hit. */
+/** Trips D2. POST /api/game/convoys/boss-hit/backup. */
+export interface BossHitBackupResult {
+  hitId: string;
+  thugs: number;
+  landsAt: string;
+}
+
+export interface BossHitResult {
+  hitId: string;
+  landsAt: string;
+  city: string;
+  cityName: string;
+  squad: number;
+  turns: number;
 }
 
 export interface ConvoyTailResult {
@@ -836,6 +1213,8 @@ export interface ConvoyTailResult {
 
 export interface ConvoyReconResult {
   found: number;
+  /** Trips C. Visiting bosses spotted. */
+  bosses?: number;
   lookaheadMinutes: number;
   expiresAt: string;
   turns: number;

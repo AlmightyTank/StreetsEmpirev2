@@ -1,26 +1,34 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import type { InAppNotificationFeedDto } from '@streets/shared';
 import { notificationsApi } from '../api/notifications.js';
 import { useSession } from '../stores/session.js';
 import { gameEventToastFor } from './GameEventToasts.js';
+import { formatWhen } from '../utils/time.js';
 
 const EMPTY_FEED: InAppNotificationFeedDto = { notifications: [], unreadCount: 0 };
 
 function displayTime(value: string): string {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
+  return formatWhen(date);
 }
 
 export function NotificationBell() {
   const accountId = useSession((s) => s.account?.id ?? null);
+  const roundPlayerId = useSession((s) => s.me?.id ?? null);
+  const setBellMuted = useSession((s) => s.setBellMuted);
   const activityHead = useSession((s) => s.recentActivity[0]?.id ?? null);
   const crackWord = useSession((s) => s.me?.products) ? 'crack' : 'product';
   const [feed, setFeed] = useState<InAppNotificationFeedDto>(EMPTY_FEED);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [mobileSheet, setMobileSheet] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 600px)').matches,
+  );
   const root = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async () => {
     if (!accountId) {
@@ -29,14 +37,22 @@ export function NotificationBell() {
     }
     setLoading(true);
     try {
-      setFeed(await notificationsApi.inbox());
+      const next = await notificationsApi.inbox();
+      setFeed(next);
+      setBellMuted(next.bellMuted ?? []);
       setError(false);
     } catch {
       setError(true);
     } finally {
       setLoading(false);
     }
-  }, [accountId]);
+  }, [accountId, roundPlayerId, setBellMuted]);
+
+  useEffect(() => {
+    setFeed(EMPTY_FEED);
+    setError(false);
+    setOpen(false);
+  }, [roundPlayerId]);
 
   useEffect(() => {
     if (!accountId) return;
@@ -58,9 +74,18 @@ export function NotificationBell() {
   }, [accountId, activityHead, refresh]);
 
   useEffect(() => {
+    const media = window.matchMedia('(max-width: 600px)');
+    const onChange = () => setMobileSheet(media.matches);
+    onChange();
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (!root.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
@@ -74,14 +99,18 @@ export function NotificationBell() {
   }, [open]);
 
   useEffect(() => {
-    if (!open || !window.matchMedia('(max-width: 600px)').matches) return;
+    if (!open || !mobileSheet) return;
     const rootElement = document.documentElement;
-    const before = rootElement.style.overflow;
+    const body = document.body;
+    const rootBefore = rootElement.style.overflow;
+    const bodyBefore = body.style.overflow;
     rootElement.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
     return () => {
-      rootElement.style.overflow = before;
+      rootElement.style.overflow = rootBefore;
+      body.style.overflow = bodyBefore;
     };
-  }, [open]);
+  }, [mobileSheet, open]);
 
   const rendered = useMemo(() => feed.notifications.flatMap((notification) => {
     const toast = gameEventToastFor(notification.activity, crackWord);
@@ -123,35 +152,15 @@ export function NotificationBell() {
 
   const badge = feed.unreadCount > 99 ? '99+' : String(feed.unreadCount);
 
-  return (
-    <div className="se-notification-center" ref={root}>
+  const notificationPanel = open ? (
+    <>
       <button
-        type="button"
-        className={`se-notification-bell${open ? ' se-notification-bell--open' : ''}`}
-        aria-label={feed.unreadCount ? `Notifications, ${feed.unreadCount} unread` : 'Notifications'}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        onClick={() => setOpen((current) => {
-          if (!current) void refresh();
-          return !current;
-        })}
-      >
-        <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8">
-          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
-          <path d="M10 21h4" />
-        </svg>
-        {feed.unreadCount > 0 ? <span className="se-notification-badge">{badge}</span> : null}
-      </button>
-
-      {open ? (
-        <>
-          <button
             type="button"
             className="se-notification-menu__backdrop"
             aria-label="Close notifications"
             onClick={() => setOpen(false)}
           />
-          <div className="se-notification-menu" role="dialog" aria-modal="true" aria-label="Recent notifications">
+          <div ref={menuRef} className="se-notification-menu" role="dialog" aria-modal="true" aria-label="Recent notifications">
             <div className="se-notification-menu__head">
               <div>
                 <strong>Notifications</strong>
@@ -223,7 +232,31 @@ export function NotificationBell() {
             </div>
           </div>
         </>
-      ) : null}
+      ) : null;
+
+  return (
+    <div className="se-notification-center" ref={root}>
+      <button
+        type="button"
+        className={`se-notification-bell${open ? ' se-notification-bell--open' : ''}`}
+        aria-label={feed.unreadCount ? `Notifications, ${feed.unreadCount} unread` : 'Notifications'}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => {
+          if (!current) void refresh();
+          return !current;
+        })}
+      >
+        <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+          <path d="M10 21h4" />
+        </svg>
+        {feed.unreadCount > 0 ? <span className="se-notification-badge">{badge}</span> : null}
+      </button>
+
+      {mobileSheet && notificationPanel
+        ? createPortal(notificationPanel, document.body)
+        : notificationPanel}
     </div>
   );
 }

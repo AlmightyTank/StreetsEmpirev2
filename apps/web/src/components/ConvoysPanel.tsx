@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { ConvoyBackupResult, ConvoyReconResult, ConvoyReportDto, ConvoyTailDto, ConvoyTailResult, ConvoyTargetDto, ConvoysDto, GameActionResult, TravelDto } from '@streets/shared';
+import type { BossHitBackupResult, BossHitDto, BossHitResult, BossTargetDto, ConvoyBackupResult, ConvoyReconResult, ConvoyReportDto, ConvoyTailDto, ConvoyTailResult, ConvoyTargetDto, ConvoysDto, GameActionResult, TravelDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { useCountdown } from '../hooks/useCountdown.js';
 import { useGameAction } from '../hooks/useGameAction.js';
-import { formatDuration } from '../utils/time.js';
+import { formatClockTime, formatDuration } from '../utils/time.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
 
 type Products = TravelDto['products'];
-const clock = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+const clock = (iso: string) => formatClockTime(iso);
 const nameOf = (products: Products, key: string) => products.find((product) => product.key === key)?.name ?? key;
 
 const KIND_WORDS: Record<ConvoyTargetDto['kinds'][number], string> = { arriving: 'coming in', town: 'in town', passing: 'driving through', leaving: 'leaving' };
@@ -181,6 +181,132 @@ function TargetRow({ target, onDone }: { target: ConvoyTargetDto; onDone: () => 
   );
 }
 
+/** Trips C. A boss visiting where you live that your recon spotted. */
+function BossRow({ target, onDone }: { target: BossTargetDto; onDone: () => void }) {
+  const hit = useGameAction<BossHitResult>();
+  const max = target.maxSquad;
+  const [squad, setSquad] = useState<number | ''>(max > 0 ? Math.min(max, 5) : '');
+  const count = typeof squad === 'number' ? squad : 0;
+  const block = hit.busy ? 'Getting on it.' : target.blockedReason ?? (count < 1 || count > max ? `Send 1 to ${formatNumber(max)}.` : null);
+  return (
+    <li className="se-convoys__target">
+      <p className="se-convoys__line">
+        <span><strong>{target.owner.displayName}</strong>{target.owner.allianceTag ? ` [${target.owner.allianceTag}]` : ''}: the boss, {target.alone ? 'alone ' : ''}in {target.cityName}</span>
+        {target.inTownNow
+          ? <Countdown until={target.inTownUntil} onDone={onDone} prefix="in town for" />
+          : <span className="se-muted se-num">{new Date(target.inTownFrom).getTime() > Date.now() ? `lands ${clock(target.inTownFrom)}` : `left ${clock(target.inTownUntil)}`}</span>}
+      </p>
+      <p className="se-hint">{CASH_WORDS[target.bankroll]} · {target.alone ? 'nobody with them' : target.guards === 'armed' ? 'a serious detail with them' : 'a few bodyguards with them'}</p>
+      {target.inTownNow && max > 0 ? (
+        <div className="se-launch__with-all">
+          <input className="se-input" type="number" inputMode="numeric" min={1} max={max} value={squad} aria-label="Squad"
+            onChange={(event) => setSquad(whole(event.target.value))} />
+          <Button type="button" className="se-btn se-btn--primary se-btn--sm" disabledReason={block}
+            onClick={async () => {
+              await hit.run((actionId): Promise<GameActionResult<BossHitResult>> => api.post('/game/convoys/boss-hit', { tripId: target.tripId, squad: count, actionId }));
+              onDone();
+            }}>
+            Hit the boss
+          </Button>
+        </div>
+      ) : null}
+      {block && !hit.busy ? <p className="se-hint">{block}</p> : null}
+      {hit.error ? <Alert>{hit.error}</Alert> : null}
+    </li>
+  );
+}
+
+/** Trips D2. The boss calls allies in town; an ally who was called sends thugs. */
+function BossHitHelp({ hit, onDone }: { hit: BossHitDto; onDone: () => void }) {
+  const send = useGameAction<BossHitBackupResult>();
+  const [thugs, setThugs] = useState<number | ''>('');
+  const [calling, setCalling] = useState(false);
+  const [callError, setCallError] = useState<string | null>(null);
+  const count = typeof thugs === 'number' ? thugs : 0;
+  const answer = hit.answer;
+  const block = send.busy ? 'Rounding them up.' : answer?.reason ?? (count < 1 || count > (answer?.max ?? 0) ? `Send 1 to ${formatNumber(answer?.max ?? 0)}.` : null);
+  return (
+    <div className="se-convoys__help">
+      {hit.role === 'owner' ? (
+        hit.alliesCalled
+          ? <p className="se-hint">Your allies in {hit.cityName} have been called.{hit.backup ? ` ${formatNumber(hit.backup)} on the way.` : ''}</p>
+          : hit.canCallAllies
+            ? <Button type="button" className="se-btn se-btn--ghost se-btn--sm" disabledReason={calling ? 'Calling...' : null}
+                onClick={async () => {
+                  setCalling(true);
+                  setCallError(null);
+                  try {
+                    await api.post('/game/convoys/boss-hit/call', { hitId: hit.id });
+                    onDone();
+                  } catch (caught) {
+                    setCallError(caught instanceof ApiError ? caught.message : 'Could not reach your allies.');
+                  } finally {
+                    setCalling(false);
+                  }
+                }}>Call allies in {hit.cityName}</Button>
+            : null
+      ) : null}
+      {answer ? (
+        <div className="se-launch__with-all">
+          <input className="se-input" type="number" inputMode="numeric" min={1} max={answer.max} value={thugs} placeholder="Thugs" aria-label="Thugs to send"
+            disabled={Boolean(answer.reason)} onChange={(event) => setThugs(whole(event.target.value))} />
+          <Button type="button" className="se-btn se-btn--primary se-btn--sm" disabledReason={block}
+            onClick={async () => {
+              await send.run((actionId): Promise<GameActionResult<BossHitBackupResult>> => api.post('/game/convoys/boss-hit/backup', { hitId: hit.id, thugs: count, actionId }));
+              setThugs('');
+              onDone();
+            }}>
+            Send
+          </Button>
+        </div>
+      ) : null}
+      {answer?.reason ? <p className="se-hint">{answer.reason}</p> : null}
+      {send.error ? <Alert>{send.error}</Alert> : null}
+      {callError ? <Alert>{callError}</Alert> : null}
+    </div>
+  );
+}
+
+/** Trips C. A hit on a boss, from your side. */
+function BossHitRow({ hit, onDone }: { hit: BossHitDto; onDone: () => void }) {
+  const mine = hit.role === 'attacker';
+  if (hit.status === 'PENDING') {
+    const headline = mine
+      ? `Your squad of ${formatNumber(hit.squad)} is on ${hit.owner.displayName}'s boss in ${hit.cityName}`
+      : hit.role === 'owner'
+        ? `${hit.attacker.displayName} has people on you in ${hit.cityName}`
+        : `${hit.owner.displayName} needs backup in ${hit.cityName}: ${hit.attacker.displayName} is coming for their boss`;
+    return (
+      <li className={`se-convoys__tail${mine ? '' : ' se-convoys__tail--alert'}`}>
+        <p className="se-convoys__line">
+          <span>{headline}</span>
+          <Countdown until={hit.landsAt} onDone={onDone} prefix="hits in" />
+        </p>
+        {mine ? <p className="se-hint">It lands at {clock(hit.landsAt)} if the boss is still in town.</p>
+          : hit.role === 'owner' ? <p className="se-hint">Check out and fly home before it lands{hit.canCallAllies || hit.alliesCalled ? ', call your allies,' : ''} or take the beating.</p> : null}
+        {!mine ? <BossHitHelp hit={hit} onDone={onDone} /> : null}
+      </li>
+    );
+  }
+  const report = hit.report;
+  if (!report) return null;
+  const good = report.held ? !mine : mine;
+  const cash = formatCents(Math.abs(report.cashCents));
+  const text = report.escaped
+    ? (mine ? `${hit.owner.displayName}'s boss was gone before the hit. Your squad came home.` : `You were gone before ${hit.attacker.displayName}'s people got to you.`)
+    : report.held
+      ? (mine ? `${hit.owner.displayName}'s bodyguards held your squad off in ${hit.cityName}. ${report.yourWounds} of yours wounded.` : `Your bodyguards held off ${hit.attacker.displayName}'s people in ${hit.cityName}. ${report.yourWounds} of them wounded.`)
+    : (mine ? `Your squad robbed ${hit.owner.displayName}'s boss in ${hit.cityName} for ${cash}.` : `${hit.attacker.displayName}'s people beat you in ${hit.cityName} and took ${cash}. Laid up until ${report.laidUpUntil ? clock(report.laidUpUntil) : 'later'}.`);
+  return (
+    <li className="se-convoys__tail">
+      <p className={`se-convoys__line ${report.escaped ? '' : good ? 'se-good' : 'se-bad'}`}>
+        <span>{text}</span>
+        <span className="se-muted se-num">{clock(hit.landsAt)}</span>
+      </p>
+    </li>
+  );
+}
+
 /** Recon the area for turns: a snapshot of runs coming near, in town or leaving. */
 function ReconButton({ data, onDone }: { data: ConvoysDto; onDone: () => void }) {
   const recon = useGameAction<ConvoyReconResult>();
@@ -236,6 +362,12 @@ export function ConvoysPanel({ products, refreshKey }: { products: Products; ref
         <ReconButton data={data} onDone={load} />
         {data.recon ? <span className="se-hint">Last recon {clock(data.recon.seenAt)}, good until {clock(data.recon.expiresAt)}.</span> : null}
       </div>
+      {data.bosses.length ? (
+        <>
+          <h3 className="se-city__heading">Visiting bosses</h3>
+          <ul className="se-convoys__list">{data.bosses.map((target) => <BossRow key={target.tripId} target={target} onDone={load} />)}</ul>
+        </>
+      ) : null}
       {data.targets.length
         ? <ul className="se-convoys__list">{data.targets.map((target) => <TargetRow key={target.runId} target={target} onDone={load} />)}</ul>
         : data.recon
@@ -246,6 +378,12 @@ export function ConvoysPanel({ products, refreshKey }: { products: Products; ref
           ? `Your lookouts spot a tail on your own run about ${formatDuration(data.rules.headsUpMinutes * 60_000)} before it hits.`
           : 'Without lookouts at your hideout, you only find out a run was hit when it lands.'}
       </p>
+      {data.bossHits.length ? (
+        <>
+          <h3 className="se-city__heading">Hits on bosses</h3>
+          <ul className="se-convoys__list">{data.bossHits.map((hit) => <BossHitRow key={hit.id} hit={hit} onDone={load} />)}</ul>
+        </>
+      ) : null}
       {others.length ? (
         <>
           <h3 className="se-city__heading">Tails</h3>

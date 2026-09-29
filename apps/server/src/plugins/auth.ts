@@ -5,7 +5,9 @@ import fp from 'fastify-plugin';
 import { env } from '../config/env.js';
 import { resolveSession, touchSession } from '../auth/sessions.js';
 import { assertBetaAccess } from '../auth/account-status.js';
+import { adminNeedsSecondFactor } from '../auth/play-access.js';
 import { AppError } from '../utils/errors.js';
+import { annotateLogContext } from '../utils/request-context.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -17,7 +19,8 @@ declare module 'fastify' {
     requireAuth: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
     /** 401s guests and 403s anyone who is not a game admin. */
     requireAdmin: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
-    setSessionCookie: (reply: FastifyReply, token: string) => void;
+    /** rc.4: `remember` false makes a browser-session cookie (no expiry date). */
+    setSessionCookie: (reply: FastifyReply, token: string, remember?: boolean) => void;
     clearSessionCookie: (reply: FastifyReply) => void;
   }
 }
@@ -27,14 +30,15 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
 
   fastify.decorateRequest('auth', null);
 
-  fastify.decorate('setSessionCookie', (reply: FastifyReply, token: string) => {
+  fastify.decorate('setSessionCookie', (reply: FastifyReply, token: string, remember = true) => {
     reply.setCookie(env.SESSION_COOKIE_NAME, token, {
       httpOnly: true,
       sameSite: 'lax',
       secure: env.isProduction,
       signed: true,
       path: '/',
-      maxAge: Math.floor(env.sessionTtlMs / 1000),
+      // The server enforces idle and hard limits; the cookie only needs to outlive them.
+      ...(remember ? { maxAge: Math.floor(env.sessions.maxAgeMs / 1000) } : {}),
     });
   });
 
@@ -58,7 +62,9 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
     }
 
     request.auth = resolved;
-    void touchSession(fastify.prisma, resolved.session.id);
+    // 1.0.0-F: who is asking, for every log line from here on.
+    if (resolved) annotateLogContext({ accountId: resolved.account.id });
+    void touchSession(fastify.prisma, resolved.session);
   });
 
   fastify.decorate('requireAuth', async (request: FastifyRequest) => {
@@ -69,6 +75,10 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.decorate('requireAdmin', async (request: FastifyRequest) => {
     if (!request.auth) throw AppError.unauthenticated();
     if (!request.auth.account.isAdmin) throw AppError.forbidden('Only game admins can do that.');
+    // rc.2/rc.3: a password alone does not open admin tools; a second factor does.
+    if (adminNeedsSecondFactor(request.auth.account, request.auth.session)) {
+      throw new AppError(403, 'ADMIN_2FA_REQUIRED', 'Admin tools need a second factor. Log out, then sign in with Discord or with your authenticator code.');
+    }
   });
 };
 

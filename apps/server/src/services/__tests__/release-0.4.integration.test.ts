@@ -1,3 +1,4 @@
+import { APP_VERSION } from '@streets/shared';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
@@ -75,8 +76,9 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.4.0-E products season
     await app?.close();
   });
 
-  it('serves liveness, readiness and the 0.4.0-E milestone', async () => {
-    expect((await app.inject({ method: 'GET', url: '/api/health' })).json()).toMatchObject({ ok: true, milestone: '0.4.0-E' });
+  it('serves liveness, readiness and the running version', async () => {
+    // 1.0.0-A: /health reports the real application version instead of a frozen 0.4.0-E label.
+    expect((await app.inject({ method: 'GET', url: '/api/health' })).json()).toMatchObject({ ok: true, version: APP_VERSION, environment: 'test' });
     expect((await app.inject({ method: 'GET', url: '/api/ready' })).statusCode).toBe(200);
   });
 
@@ -99,15 +101,19 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.4.0-E products season
     const trip = scouted.json<GameActionResult<ScoutResult>>().result;
     expect(trip.supply).toEqual({ ...preview, status: undefined });
     expect(trip.heat!.after).toBe(trip.heat!.added);
-    expect(await stock(0)).toMatchObject({ COCAINE: 0, ECSTASY: 110 });
+    // Street finds on the trip land in stock too, and the result says how many.
+    const found = (key: string) => trip.productsFound?.find((row) => row.key === key)?.quantity ?? 0;
+    expect(await stock(0)).toMatchObject({ COCAINE: found('COCAINE'), ECSTASY: 110 + found('ECSTASY') });
 
     expect((await post(0, '/game/work-supply/policy', { job: 'COOK', primary: 'WEED' })).statusCode).toBe(200);
     const cooks = (await player(0)).thugs; // the Scout trip may have recruited some
+    // 1.0.0-H: street finds (reported in each result) add to stock; count them rather than assume none.
+    const methBefore = (await stock(0)).METH ?? 0;
     const cooked = await post(0, '/game/produce-crack', { turns: 10, productType: 'METH', actionId: randomUUID() });
     expect(cooked.statusCode, cooked.body).toBe(200);
     const batch = cooked.json<GameActionResult<ProduceCrackResult>>().result;
     expect(batch.cook!.consumed).toEqual({ WEED: Math.ceil(cooks * rules.workSupply.productPerThugPerTurn * 10 - 1e-9) });
-    expect((await stock(0)).METH).toBe(batch.productProduced);
+    expect((await stock(0)).METH).toBe(methBefore + batch.productProduced + (batch.productsFound?.find((row) => row.key === 'METH')?.quantity ?? 0));
     await worthIsExact(0);
   });
 

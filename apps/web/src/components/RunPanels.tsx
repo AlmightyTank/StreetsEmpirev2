@@ -5,7 +5,7 @@ import { formatCents, formatNumber } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { useCountdown } from '../hooks/useCountdown.js';
 import { useGameAction } from '../hooks/useGameAction.js';
-import { formatDuration } from '../utils/time.js';
+import { formatClockTime, formatDuration, formatWeekdayTime } from '../utils/time.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel, Row } from './Panel.js';
@@ -13,7 +13,7 @@ import { SUPPLY_WORD, minutesText, unitPrice } from './CityMap.js';
 
 type Products = TravelDto['products'];
 const nameOf = (products: Products, key: string) => products.find((product) => product.key === key)?.name ?? key;
-const clock = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+const clock = (iso: string) => formatClockTime(iso);
 
 /** Whole numbers only; an empty box is null so the field can be cleared while typing. */
 function whole(value: string): number | '' {
@@ -81,6 +81,10 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
   const [beer, setBeer] = useState<number | ''>(0);
   const [cargo, setCargo] = useState<Record<string, number | ''>>({});
   const [buy, setBuy] = useState<Record<string, number | ''>>({});
+  // Trips B: the boss can ride along when the round allows it and they are at home.
+  const [rideAlong, setRideAlong] = useState(false);
+  const ride = data.trips?.rules.rideAlong ?? null;
+  const bossHome = Boolean(data.trips && !data.trips.trip && !data.trips.bossRun);
   const destination = data.cities.find((city) => city.slug === to && !city.isHome) ?? null;
   const { routes, error: routeError } = useRoutes(destination ? to : '', data.home.turns);
   useEffect(() => { setRoute(0); }, [to]);
@@ -111,6 +115,10 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
   const marketCents = wholesale.reduce((sum, entry) => sum + marketEstimate(entry.market, true, bought[entry.key] ?? 0), 0);
   const beerUnits = typeof beer === 'number' ? beer : 0;
   const loaded = units(cargo) + units(buy) + beerUnits;
+  const riding = Boolean(ride && bossHome && rideAlong);
+  const escortCount = typeof escorts === 'number' ? escorts : 0;
+  const roomCents = data.trips?.destinations.find((city) => city.slug === to)?.hotelCentsPerHour ?? 0;
+  const hotelHourCents = ride ? roomCents + escortCount * ride.crewCentsPerThugHour : 0;
 
   const block = launch.busy ? 'The crew is loading up.'
     : !destination ? 'Pick a city on the map or in the list.'
@@ -130,8 +138,10 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
     const load = Object.fromEntries(Object.entries(cargo).filter(([, count]) => typeof count === 'number' && count > 0)) as Record<string, number>;
     const quotes = Object.fromEntries(wholesale.filter((entry) => bought[entry.key]).map((entry) => [entry.key, entry.market.buyCents]));
     await launch.run((actionId): Promise<GameActionResult<RunLaunchResult>> => api.post('/game/travel/launch', {
-      to, route, lowRiders: cars, escortThugs: typeof escorts === 'number' ? escorts : 0, cashCents, beer: beerUnits, cargo: load, market: bought, marketQuotes: quotes, actionId,
+      to, route, lowRiders: cars, escortThugs: typeof escorts === 'number' ? escorts : 0, cashCents, beer: beerUnits, cargo: load, market: bought, marketQuotes: quotes,
+      ...(riding ? { rideAlong: true } : {}), actionId,
     }));
+    setRideAlong(false);
     onDone();
   }
 
@@ -178,6 +188,21 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
         </div>
         <p className="se-hint">The run spends only the cash it carries. Beer takes trunk space too, so an outpost has to be supplied by a real load. Escorts ride armed with the best guns from home, one each, and are away while it is out: they don&rsquo;t defend, cover the street or cook. A bust or an arrest takes their guns.</p>
 
+        {ride && data.trips ? (
+          <div className="se-field se-mt">
+            <label className="se-label" htmlFor="run-ride-along">
+              <input id="run-ride-along" type="checkbox" checked={riding} disabled={!bossHome}
+                onChange={(event) => setRideAlong(event.target.checked)} />{' '}
+              The boss rides along
+            </label>
+            <p className="se-hint">
+              {!bossHome
+                ? 'The boss is already away.'
+                : `Every town holds the run until you drive on or head home, up to ${minutesText(ride.maxStayMinutes)}. The hotel bills the run's cash each hour it starts${destination && riding ? `: ${formatCents(hotelHourCents)} an hour in ${destination.name} with ${formatNumber(escortCount)} escort${escortCount === 1 ? '' : 's'}` : ''}, and when the cash runs dry the boss checks out and the run heads home. The lieutenant runs home and skims ${Math.round(data.trips.rules.lieutenantCut * 100)}% of every Scout and Produce take until the run is back.`}
+            </p>
+          </div>
+        ) : null}
+
         <h3 className="se-city__heading">In the trunk <span className="se-num">{formatNumber(loaded)} / {formatNumber(capacity)}</span></h3>
         <div className="se-meter se-launch__meter" aria-hidden="true">
           <div className={`se-meter__fill${loaded > capacity ? ' se-meter__fill--bad' : ''}`} style={{ width: `${capacity ? Math.min(100, (loaded / capacity) * 100) : 0}%` }} />
@@ -219,7 +244,9 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
         </Button>
         {destination && chosen ? (
           <p className="se-hint">
-            Gets there around {clock(chosen.arriveAt)}. It trades for {minutesText(rules.townWindowMinutes)} in town, then heads home on its own unless you move it on.
+            {riding
+              ? `Gets there around ${clock(chosen.arriveAt)}. With the boss aboard it stays until you move it on or head home, up to ${minutesText(ride!.maxStayMinutes)}.`
+              : `Gets there around ${clock(chosen.arriveAt)}. It trades for ${minutesText(rules.townWindowMinutes)} in town, then heads home on its own unless you move it on.`}
           </p>
         ) : null}
       </form>
@@ -682,6 +709,14 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
 
       <div className="se-rows se-mt">
         <Row label="Cash in the car" value={formatCents(run.cashCents)} strong tooltip="What the run can spend. Home cash never reaches it." />
+        {run.bossAboard && run.hotel ? (
+          <>
+            <Row label="The boss" value="Riding along"
+              tooltip="Every town holds the run until you drive on or head home. The lieutenant runs home and skims the take until the run is back." />
+            <Row label="Hotel" value={`${formatCents(run.hotel.hourCents)} an hour · ${formatCents(run.hotel.paidCents)} paid`}
+              tooltip="Billed from the cash in the car as each hour starts. When the cash cannot cover the next hour, the boss checks out and the run heads home." />
+          </>
+        ) : null}
         <Row label="Trunk" value={`${formatNumber(trunk + run.beer)} / ${formatNumber(run.capacity)}`} />
         {run.beer > 0 ? <Row label="Beer" value={formatNumber(run.beer)} /> : null}
         {run.escortThugs > 0 ? (
@@ -749,7 +784,7 @@ export function ReceiptPanel({ receipt, products }: { receipt: RunReceiptDto; pr
   const cashChange = receipt.cashCents - receipt.startCashCents;
   const moved = receipt.cargo.filter((entry) => entry.quantity !== entry.startQuantity || entry.quantity > 0);
   return (
-    <Panel title="Last run" aside={`Back ${new Date(receipt.returnedAt).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}`}>
+    <Panel title="Last run" aside={`Back ${formatWeekdayTime(receipt.returnedAt)}`}>
       <div className="se-rows">
         <Row label="Went to" value={receipt.cities.map((city) => city.name).join(', ') || 'Nowhere'} />
         <Row label="Cash" value={<span className="se-num">{formatCents(receipt.startCashCents)} → {formatCents(receipt.cashCents)} <span className={cashChange >= 0 ? 'se-good' : 'se-bad'}>({cashChange >= 0 ? '+' : ''}{formatCents(cashChange)})</span></span>} strong />
@@ -757,6 +792,7 @@ export function ReceiptPanel({ receipt, products }: { receipt: RunReceiptDto; pr
         {moved.map((entry) => (
           <Row key={entry.key} label={nameOf(products, entry.key)} value={<span className="se-num">{formatNumber(entry.startQuantity)} → {formatNumber(entry.quantity)}</span>} />
         ))}
+        {receipt.bossAboard ? <Row label="Boss's hotel" value={formatCents(receipt.hotelCents)} tooltip="The boss rode along; this came out of the cash in the car." /> : null}
         <Row label="Turns" value={formatNumber(receipt.turnsSpent)} />
       </div>
       <IncidentList incidents={receipt.incidents} products={products} />

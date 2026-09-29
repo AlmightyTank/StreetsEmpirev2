@@ -5,17 +5,28 @@ import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
+import { TwoFactorStep } from '../components/TwoFactorStep.js';
+import { Turnstile, useTurnstileSiteKey } from '../components/Turnstile.js';
 import { Shell } from '../layouts/Shell.js';
 import { landingPath, useSession } from '../stores/session.js';
 
 export function LoginPage() {
   const login = useSession((s) => s.login);
+  const completeTwoFactor = useSession((s) => s.completeTwoFactor);
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const authError = searchParams.get('authError');
+  // rc.3: Discord and recovery links land here with ?twoFactor=1 when a code is still needed.
+  const [needsCode, setNeedsCode] = useState(searchParams.get('twoFactor') === '1');
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  // rc.4: "Keep me signed in" (on by default, as on most games). Off: ends with the browser.
+  const [remember, setRemember] = useState(true);
+  // rc.6: the bot check, when the server has it on. Tokens work once.
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
+  const captchaOn = Boolean(useTurnstileSiteKey());
   const [fields, setFields] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -27,7 +38,11 @@ export function LoginPage() {
     setFields({});
 
     try {
-      await login({ identifier, password });
+      const { twoFactorRequired } = await login({ identifier, password, remember, ...(captchaToken ? { captchaToken } : {}) });
+      if (twoFactorRequired) {
+        setNeedsCode(true);
+        return;
+      }
       const session = useSession.getState();
       navigate(landingPath(session.profileSettings.defaultLanding, Boolean(session.me)));
     } catch (error) {
@@ -39,7 +54,40 @@ export function LoginPage() {
       }
     } finally {
       setBusy(false);
+      // A used (or failed) token cannot be sent again: fetch a fresh one for the next try.
+      setCaptchaToken(null);
+      setCaptchaKey((value) => value + 1);
     }
+  }
+
+  async function submitCode(code: string, trustDevice: boolean) {
+    const { recoveryCodesLeft } = await completeTwoFactor(code, trustDevice);
+    const session = useSession.getState();
+    // Running low on recovery codes: send them where new ones are made.
+    if (recoveryCodesLeft !== null && recoveryCodesLeft <= 3) {
+      navigate('/account?twoFactor=codes');
+      return;
+    }
+    navigate(landingPath(session.profileSettings.defaultLanding, Boolean(session.me)));
+  }
+
+  if (needsCode) {
+    return (
+      <Shell>
+        <div className="se-authpage">
+          <p className="se-eyebrow">One more step</p>
+          <h1 className="se-title se-mb">Log in</h1>
+          <TwoFactorStep
+            onSubmit={submitCode}
+            onCancel={() => {
+              setNeedsCode(false);
+              setPassword('');
+              setSearchParams({}, { replace: true });
+            }}
+          />
+        </div>
+      </Shell>
+    );
   }
 
   return (
@@ -59,7 +107,7 @@ export function LoginPage() {
                 name="identifier"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                autoComplete="username email"
+                autoComplete="username"
                 autoFocus
                 required
                 error={fields.identifier}
@@ -76,11 +124,24 @@ export function LoginPage() {
                 error={fields.password}
               />
 
+              <label className="se-checkrow se-checkrow--inline">
+                <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
+                <span>
+                  <strong>Keep me signed in</strong>
+                  <small>Stay signed in on this device for up to 30 days between visits. Untick on a shared computer.</small>
+                </span>
+              </label>
+
               <p className="se-auth-help">
                 <Link to="/forgot-password">Forgot your password?</Link>
               </p>
 
-              <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy ? 'Checking those details with the server.' : null}>
+              <Turnstile key={captchaKey} onToken={setCaptchaToken} />
+
+              <Button
+                className="se-btn se-btn--primary se-btn--block"
+                disabledReason={busy ? 'Checking those details with the server.' : captchaOn && !captchaToken ? 'Finish the "are you human" check.' : null}
+              >
                 {busy ? 'Working...' : 'Log in'}
               </Button>
             </form>
@@ -90,7 +151,7 @@ export function LoginPage() {
             <p>
               Use Discord to get back in without typing your password. Discord uses your verified email to find or create your StreetsEmpire account.
             </p>
-            <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord">
+            <a className="se-btn se-btn--discord se-btn--block" href={remember ? '/api/auth/discord' : '/api/auth/discord?remember=0'}>
               Log in with Discord
             </a>
             <p className="se-hint">

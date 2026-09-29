@@ -1,3 +1,4 @@
+import { NOTIFICATION_CATEGORIES } from '@streets/shared';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
@@ -62,8 +63,12 @@ describe.runIf(process.env.NOTIFICATION_INTEGRATION === '1')('alert settings and
     const initial = await call(0, 'GET', '/settings');
     expect(initial.statusCode, initial.body).toBe(200);
     expect(initial.json()).toEqual({
-      categories: { attacks: false, turns: false, round: false, rank: false, turf: false, alliance: false },
+      // 0.9.0-G: every category starts off, nothing paused, quiet or muted.
+      categories: Object.fromEntries(NOTIFICATION_CATEGORIES.map((category) => [category, false])),
       channels: { discord: true, push: false },
+      paused: false,
+      quietHours: null,
+      bellMuted: [],
       discordLinked: false,
       push: { available: true, vapidPublicKey: env.push.publicKey, devices: [] },
     });

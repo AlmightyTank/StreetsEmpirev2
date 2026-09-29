@@ -145,8 +145,8 @@ export const AdminBattleService = {
       const ranksBeforeD = await RankingService.ranksFor(tx, defender);
       const worthA = NetWorthService.calculate({ ...a, products: productsA }, ruleset);
       const worthD = NetWorthService.calculate({ ...d, products: productsD }, ruleset);
-      const happyA = HappinessService.recalculate({ ...a, thugs: fitThugs(a), products: productsA }, ruleset);
-      const happyD = HappinessService.recalculate({ ...d, thugs: fitThugs(d), products: productsD }, ruleset);
+      const happyA = HappinessService.recalculate({ ...a, thugs: fitThugs(a), products: productsA }, ruleset, await HappinessService.awayPenalty(tx, ruleset, attacker.id, now));
+      const happyD = HappinessService.recalculate({ ...d, thugs: fitThugs(d), products: productsD }, ruleset, await HappinessService.awayPenalty(tx, ruleset, defender.id, now));
       await tx.roundPlayer.update({
         where: { id: attacker.id },
         data: { cashCents: a.cashCents, turns: a.turns, whores: a.whores, thugs: a.thugs, woundedThugs: a.woundedThugs,

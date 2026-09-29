@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
-import { Link, useLocation, useNavigationType } from 'react-router-dom';
+import { createContext, useContext, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Shell } from './Shell.js';
 import { ConnectionBanner } from '../components/ConnectionBanner.js';
 import { TrackedQuests } from '../components/TrackedQuests.js';
+import { IntroDialog } from '../components/onboarding/IntroDialog.js';
+import { PageGuide } from '../components/onboarding/PageGuide.js';
+import { useOnboarding } from '../stores/onboarding.js';
 import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
@@ -121,7 +124,10 @@ function TabBar({ slots, pathname, badges, moreOpen, onMore, onEditSlot, moreBut
   const fired = useRef(false);
   const onBar = new Set(slots.map((page) => page.key));
   const elsewhere = !slots.some((page) => isCurrent(page, pathname));
-  const moreBadge = worstBadge(Object.entries(badges).filter(([key]) => !onBar.has(key)).map(([, badge]) => badge));
+  const hiddenBadges = Object.entries(badges).filter(([key]) => !onBar.has(key));
+  const moreBadge = worstBadge(hiddenBadges.map(([, badge]) => badge))
+    ?? hiddenBadges.find(([key]) => key === 'console')?.[1]
+    ?? null;
 
   function cancel() {
     if (timer.current !== null) window.clearTimeout(timer.current);
@@ -327,7 +333,9 @@ function useRouteScroll(pathname: string, hash: string) {
   }, [pathname, hash, navigationType]);
 }
 
-export function GameLayout({ children }: { children: ReactNode }) {
+const GameLayoutMountedContext = createContext(false);
+
+function GameLayoutFrame({ children }: { children: ReactNode }) {
   useStaleGameReload();
   usePageFreshness();
   const round = useSession((s) => s.round);
@@ -340,6 +348,13 @@ export function GameLayout({ children }: { children: ReactNode }) {
   const [sheet, setSheet] = useState<{ editSlot: number | null } | null>(null);
   const moreButton = useRef<HTMLButtonElement>(null);
   useRouteScroll(pathname, hash);
+  // 1.0.0-B: tutorial progress, refreshed as the player acts so the goals tick off.
+  const playerId = useSession((s) => s.me?.id ?? null);
+  const activityHead = useSession((s) => s.recentActivity[0]?.id ?? null);
+  const loadOnboarding = useOnboarding((s) => s.load);
+  useEffect(() => {
+    if (playerId) void loadOnboarding();
+  }, [playerId, activityHead, loadOnboarding]);
 
   function closeSheet() {
     setSheet(null);
@@ -347,7 +362,8 @@ export function GameLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <Shell tabbar={
+    <GameLayoutMountedContext.Provider value>
+      <Shell tabbar={
       <>
         <TabBar slots={tabs.slots} pathname={pathname} badges={badges} moreOpen={sheet !== null} moreButton={moreButton}
           onMore={() => setSheet((open) => (open ? null : { editSlot: null }))}
@@ -373,16 +389,48 @@ export function GameLayout({ children }: { children: ReactNode }) {
         <div className="se-gamebar">
           <span className="se-gamebar__name">{round.name}</span>
           <span className="se-gamebar__time se-num">
-            {formatDuration(round.msRemaining)} left
+            {round.paused ? 'Paused' : `${formatDuration(round.msRemaining)} left`}
           </span>
         </div>
       ) : null}
+      {round?.paused ? (
+        <div className="se-beta-banner se-paused-banner" role="status">
+          <strong>Season paused</strong>
+          <span>{round.paused.reason ? `${round.paused.reason} ` : ''}Your crew and anything on the road are safe. Actions open again when the pause lifts.</span>
+        </div>
+      ) : null}
       <TrackedQuests />
+      <IntroDialog />
 
       <div className="se-gamegrid">
         <GameNav sections={sections} pathname={pathname} badges={badges} />
-        <div className="se-gamemain">{children}</div>
+        <div className="se-gamemain">
+          <PageGuide />
+          {children}
+        </div>
       </div>
-    </Shell>
+      </Shell>
+    </GameLayoutMountedContext.Provider>
   );
+}
+
+/**
+ * Backward-compatible wrapper for pages that still own a GameLayout.
+ * Inside the persistent /game route shell it becomes a fragment, so those
+ * pages can migrate gradually without nesting a second sidebar/top bar.
+ */
+export function GameLayout({ children }: { children: ReactNode }) {
+  const alreadyMounted = useContext(GameLayoutMountedContext);
+  return alreadyMounted ? <>{children}</> : <GameLayoutFrame>{children}</GameLayoutFrame>;
+}
+
+/**
+ * Persistent shell for /game/* routes. Signed-out visitors to public game-info
+ * routes stay transparent so InfoLayout can continue to render its public Shell.
+ */
+export function GameRouteLayout() {
+  const me = useSession((state) => state.me);
+  // An account that may not play yet gets no game frame (and none of its polling).
+  const blocked = useSession((state) => Boolean(state.account?.verificationRequired || state.account?.rulesAcceptanceRequired));
+  return me && !blocked ? <GameLayoutFrame><Outlet /></GameLayoutFrame> : <Outlet />;
 }

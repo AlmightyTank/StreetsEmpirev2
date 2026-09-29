@@ -18,6 +18,7 @@ import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Field } from './Field.js';
 import { Panel } from './Panel.js';
+import { formatWhen } from '../utils/time.js';
 
 interface ConnectedAccountsPanelProps {
   account: AccountDto;
@@ -25,7 +26,7 @@ interface ConnectedAccountsPanelProps {
 }
 
 function formatDate(value: string | null): string {
-  return value ? new Date(value).toLocaleString() : 'Never';
+  return value ? formatWhen(value) : 'Never';
 }
 
 export function ConnectedAccountsPanel({ account, onConnectionsChanged }: ConnectedAccountsPanelProps) {

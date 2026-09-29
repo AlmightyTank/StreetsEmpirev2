@@ -133,3 +133,19 @@ describe('classic-og-v0.7-a hideout foundation', () => {
   });
 
 });
+
+describe('every ruleset from 0.7-A on keeps the Hideout v2 extension', () => {
+  // The 0.8 rulesets copied 0.7-AA under new ids and silently lost it; a new ruleset must
+  // be registered in HIDEOUT_V2_BY_RULESET_ID too.
+  it('has an extension, with no configuration problems, for 0.7-A and every later ruleset', async () => {
+    const { rulesets } = await import('../index.js');
+    const ids = Object.keys(rulesets);
+    const from = ids.indexOf('classic-og-v0.7-a');
+    expect(from).toBeGreaterThan(-1);
+    const missing = ids.slice(from).filter((id) => rulesets[id]!.hideout && !hideoutV2For(rulesets[id]!));
+    expect(missing).toEqual([]);
+    for (const id of ids.slice(from)) expect(hideoutV2Problems(rulesets[id]!), id).toEqual([]);
+    // The newest ruleset, which new seasons use, in particular.
+    expect(hideoutV2For(rulesets[ids.at(-1)!]!)).not.toBeNull();
+  });
+});

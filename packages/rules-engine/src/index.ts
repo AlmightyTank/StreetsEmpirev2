@@ -1,6 +1,7 @@
 export * from './loader.js';
 export * from './types.js';
 export * from './calculations/net-worth.js';
+export * from './calculations/trips.js';
 export * from './calculations/happiness.js';
 export * from './calculations/turns.js';
 export * from './calculations/payout.js';
@@ -33,5 +34,8 @@ export * from './simulations/travel.js';
 export * from './simulations/travel-risk.js';
 export * from './simulations/convoys.js';
 export * from './simulations/travel-round.js';
+export * from './simulations/trips-round.js';
 export * from './simulations/turf.js';
 export * from './simulations/turf-round.js';
+export * from './simulations/season.js';
+export * from './simulations/season-bands.js';

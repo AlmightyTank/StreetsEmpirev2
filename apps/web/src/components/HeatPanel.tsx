@@ -8,6 +8,7 @@ import { useSession } from '../stores/session.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
+import { formatWhen } from '../utils/time.js';
 
 const percent = (value: number) => `${Math.round(value * 100)}%`;
 
@@ -24,7 +25,7 @@ function productLabel(key: string): string {
 }
 
 function lockedUntilText(lockedUntil: string): string {
-  return new Date(lockedUntil).toLocaleString();
+  return formatWhen(lockedUntil);
 }
 
 export function heatTone(heat: Pick<HeatDto, 'heat' | 'dragStartsAt' | 'bustStartsAt'>): 'good' | 'warn' | 'bad' {
@@ -157,6 +158,7 @@ export function HeatPanel() {
             <input
               id="heat-bribe-points"
               className="se-input"
+              inputMode="numeric"
               type="number"
               min={1}
               max={heat.heat}

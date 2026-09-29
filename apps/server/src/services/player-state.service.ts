@@ -13,6 +13,7 @@ import { CombatRecoveryService, type RecoverySettlement } from './combat-recover
 import { fitThugs } from './action.service.js';
 import { ConvoyService } from './convoy.service.js';
 import { RelocationService } from './relocation.service.js';
+import { BossTripSettleService } from './boss-trip-settle.service.js';
 import { RunSettleService, runSummary } from './run-settle.service.js';
 import type { RoundPlayerDto } from '@streets/shared';
 import { TurfService } from './turf.service.js';
@@ -95,6 +96,10 @@ export const PlayerStateService = {
     await RunSettleService.settle(tx, roundPlayerId, now);
     // 0.5.0-D: and a move that has arrived has arrived.
     await RelocationService.settleOwn(tx, roundPlayerId, now);
+    // Trips A: and a boss whose flight home has landed is home.
+    await BossTripSettleService.settle(tx, roundPlayerId, now);
+    // Trips C: and whatever a hit on a visiting boss brought back is back.
+    await BossTripSettleService.credit(tx, roundPlayerId, now);
     // 0.5.0-E: and whatever came back from a convoy fight is back.
     await ConvoyService.credit(tx, roundPlayerId, now);
     // 0.6.0-C: and turf-war squads/help are back or posted after the landing.
@@ -143,6 +148,8 @@ export const PlayerStateService = {
     const happiness = HappinessService.recalculate(
       { ...recovered, thugs: fitThugs(recovered), products },
       ruleset,
+      // Trips E: the girls notice the boss is gone on every read, not just on actions.
+      await HappinessService.awayPenalty(tx, ruleset, roundPlayerId, now),
     );
 
     // 3. Net worth.
@@ -185,6 +192,10 @@ export const PlayerStateService = {
     }
     if (netWorthCents !== rest.netWorthCents) {
       data.netWorthCents = netWorthCents;
+    }
+    // 0.9.0-F. Raids, lures and grants change crew outside ActionService.
+    if (rest.whores + rest.thugs > rest.peakCrew) {
+      data.peakCrew = rest.whores + rest.thugs;
     }
     if (ranks.localRank !== rest.localRank) {
       data.localRank = ranks.localRank;

@@ -4,6 +4,7 @@ import {
   allianceInviteAnswerSchema,
   alliancePlayerSchema,
   allianceForumPostSchema,
+  allianceSettingsSchema,
   createAllianceSchema,
   type AdminAlliancesDto,
   type AllianceDetailDto,
@@ -25,6 +26,7 @@ import {
   type CityControl,
 } from './turf-territory.service.js';
 import { endPlayerTurfHolds, startPlayerTurfHolds } from './turf-history.service.js';
+import { assertCanCommunicate } from './communication-guard.js';
 
 type AllianceRules = NonNullable<Ruleset['alliances']>;
 
@@ -247,6 +249,8 @@ async function detail(db: Db | PrismaClient, alliance: Alliance, standing: Stand
     foundedAt: alliance.createdAt.toISOString(),
     isYours: viewer ? viewer.allianceId === alliance.id : false,
     forumUrl: alliance.forumDiscussionId ? forumDiscussionUrl(alliance.forumDiscussionId) : null,
+    description: alliance.description,
+    recruitmentStatus: alliance.recruitmentStatus as AllianceDetailDto['recruitmentStatus'],
   };
 }
 
@@ -577,6 +581,21 @@ export const AllianceService = {
     return AllianceService.mine(prisma, playerId);
   },
 
+  async updateSettings(prisma: PrismaClient, playerId: string, rawInput: unknown): Promise<MyAllianceDto> {
+    const input = allianceSettingsSchema.parse(rawInput);
+    await withOwnAlliance(prisma, playerId, async ({ tx, alliance, me }) => {
+      requireLeader(alliance, me, 'update alliance settings');
+      await tx.alliance.update({
+        where: { id: alliance.id },
+        data: {
+          description: input.description,
+          recruitmentStatus: input.recruitmentStatus,
+        },
+      });
+    });
+    return AllianceService.mine(prisma, playerId);
+  },
+
   /**
    * One recruitment thread per alliance, posted by the leader into the forum's
    * recruitment tag. The alliance row is claimed under its lock before the forum
@@ -587,6 +606,8 @@ export const AllianceService = {
     if (!env.forum.recruitment.enabled) throw AppError.conflict('FORUM_RECRUITMENT_DISABLED', 'Forum recruitment is not set up on this server.');
     const claim = await withOwnAlliance(prisma, playerId, async ({ tx, alliance, me, rules, now, round }) => {
       requireLeader(alliance, me, 'post a recruitment thread');
+      // 0.9.0-H: a public forum thread is communication too.
+      await assertCanCommunicate(tx, me.accountId, now);
       if (alliance.forumDiscussionId) throw AppError.conflict('FORUM_THREAD_EXISTS', `${alliance.name} already has a recruitment thread.`);
       if (alliance.forumPostStartedAt && now.getTime() - alliance.forumPostStartedAt.getTime() < 60_000) {
         throw AppError.conflict('FORUM_THREAD_POSTING', 'Your recruitment thread is already on its way.');

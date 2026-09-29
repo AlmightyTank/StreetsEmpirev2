@@ -2,6 +2,7 @@ import type {
   AllianceDetailDto,
   AllianceRankingsDto,
   AdminAlliancesDto,
+  AllianceSettingsInputDto,
   CreateAllianceInputDto,
   MyAllianceDto,
 } from '@streets/shared';
@@ -20,6 +21,7 @@ export const allianceApi = {
   decline: (tag: string) => api.post<MyAllianceDto>('/game/alliance/decline', { tag }),
   kick: (publicPimpId: number) => api.post<MyAllianceDto>('/game/alliance/kick', player(publicPimpId)),
   transfer: (publicPimpId: number) => api.post<MyAllianceDto>('/game/alliance/transfer', player(publicPimpId)),
+  settings: (input: AllianceSettingsInputDto) => api.post<MyAllianceDto>('/game/alliance/settings', input),
   leave: () => api.post<MyAllianceDto>('/game/alliance/leave', {}),
   postForumThread: (pitch: string) => api.post<MyAllianceDto>('/game/alliance/forum-thread', pitch.trim() ? { pitch } : {}),
 };

@@ -12,21 +12,25 @@ import type {
   UiDensity,
   UpdateAccountProfileSettingsInput,
 } from '@streets/shared';
+import { rulesets, type QuestCosmeticDefinition, type Ruleset } from '@streets/rulesets';
+import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
-import { betaTesterAwardsForAccount, CommunityService, legacyAchievements, loadAccountLegacy } from './community.service.js';
+import { CommunityService, permanentAwardsForAccount } from './community.service.js';
 import { RoundPlayerService } from './round-player.service.js';
 import { RoundService } from './round.service.js';
 import { QuestCosmeticService } from './quest-cosmetic.service.js';
+import { isPermanentAward } from './profile-badges.js';
+import { profileTitleForAward } from './profile-titles.js';
 
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
 
 export const PROFILE_ACCENTS: CosmeticOptionDto[] = [
   { key: 'default', label: 'StreetsEmpire', description: 'The classic neon-green site accent.' },
   { key: 'crimson', label: 'Crimson', description: 'A deep red site-wide accent.' },
-  { key: 'gold', label: 'Gold', description: 'A winner-style gold site-wide accent.' },
-  { key: 'green', label: 'Green', description: 'A money-green site-wide accent.' },
-  { key: 'blue', label: 'Blue', description: 'A cool blue site-wide accent.' },
-  { key: 'purple', label: 'Purple', description: 'A rare purple site-wide accent.' },
+  { key: 'gold', label: 'Goldenrod', description: 'A bright goldenrod site-wide accent.' },
+  { key: 'green', label: 'Emerald', description: 'A rich emerald-green site-wide accent.' },
+  { key: 'blue', label: 'Cornflower', description: 'A soft cornflower-blue site-wide accent.' },
+  { key: 'purple', label: 'Orchid', description: 'A vivid orchid-purple site-wide accent.' },
 ];
 
 export const UI_DENSITIES: CosmeticOptionDto[] = [
@@ -60,8 +64,46 @@ function optionFromAward(award: PublicAwardDto): BadgeCosmeticOptionDto {
     label: award.title,
     description: award.description,
     rarity: award.rarity,
-    permanent: award.category === 'legacy' || award.category === 'quest',
+    permanent: isPermanentAward(award),
   };
+}
+
+function titleOptionFromAward(award: PublicAwardDto): BadgeCosmeticOptionDto {
+  return {
+    key: award.key,
+    label: profileTitleForAward(award),
+    description: `Earned from ${award.title}: ${award.description}`,
+    rarity: award.rarity,
+    permanent: isPermanentAward(award),
+  };
+}
+
+function optionFromCosmetic(cosmetic: QuestCosmeticDefinition): CosmeticOptionDto {
+  return {
+    key: cosmetic.styleKey ?? cosmetic.key,
+    label: cosmetic.name,
+    description: cosmetic.description,
+  };
+}
+
+function adminSiteThemeOptions(ruleset: Ruleset): CosmeticOptionDto[] {
+  return Object.values(ruleset.cosmetics ?? {})
+    .filter((cosmetic) => cosmetic.kind === 'SITE_THEME')
+    .map(optionFromCosmetic);
+}
+
+function adminCatalogSiteThemeOptions(): CosmeticOptionDto[] {
+  const options: CosmeticOptionDto[] = [];
+  const known = new Set<string>();
+  for (const ruleset of Object.values(rulesets)) {
+    for (const option of adminSiteThemeOptions(ruleset)) {
+      if (!known.has(option.key)) {
+        options.push(option);
+        known.add(option.key);
+      }
+    }
+  }
+  return options;
 }
 
 function toSettingsDto(
@@ -100,6 +142,7 @@ function toSettingsDto(
     : 'game';
   return {
     activeTitleKey,
+    crewName: profile?.crewName ?? null,
     activeProfileFrameKey,
     activeSiteThemeKey,
     featuredBadgeKeys,
@@ -125,16 +168,8 @@ async function earnedAwards(prisma: PrismaClient, accountId: string): Promise<Pu
     );
     return profile.awards.filter((award) => award.unlocked);
   }
-  const [legacy, betaTester, questCosmetics] = await Promise.all([
-    loadAccountLegacy(prisma, accountId, round?.id ?? null),
-    betaTesterAwardsForAccount(prisma, accountId),
-    QuestCosmeticService.awardsForAccount(prisma, accountId),
-  ]);
-  return [
-    ...legacyAchievements(legacy),
-    ...betaTester,
-    ...questCosmetics,
-  ].filter((award) => award.unlocked);
+  return (await permanentAwardsForAccount(prisma, accountId, round?.id ?? null))
+    .filter((award) => award.unlocked);
 }
 
 async function readProfile(prisma: PrismaClient, accountId: string): Promise<AccountProfile | null> {
@@ -146,10 +181,11 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
   frames: CosmeticOptionDto[];
   themes: CosmeticOptionDto[];
 }> {
-  const [questAccents, frames, themes] = await Promise.all([
+  const [questAccents, frames, themes, account] = await Promise.all([
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'ACCENT'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'PROFILE_FRAME'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'SITE_THEME'),
+    prisma.account.findUnique({ where: { id: accountId }, select: { isAdmin: true } }),
   ]);
   const accents = [...PROFILE_ACCENTS];
   const known = new Set(accents.map((option) => option.key));
@@ -159,7 +195,17 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
       known.add(option.key);
     }
   }
-  return { accents, frames, themes };
+  const themeOptions = [...themes];
+  const knownThemes = new Set(themeOptions.map((option) => option.key));
+  if (account?.isAdmin && env.seasonalEvents.adminTestMode) {
+    for (const option of adminCatalogSiteThemeOptions()) {
+      if (!knownThemes.has(option.key)) {
+        themeOptions.push(option);
+        knownThemes.add(option.key);
+      }
+    }
+  }
+  return { accents, frames, themes: themeOptions };
 }
 
 export const AccountProfileService = {
@@ -169,14 +215,15 @@ export const AccountProfileService = {
       earnedAwards(prisma, accountId),
       appearanceOptions(prisma, accountId),
     ]);
-    const options = awards.map(optionFromAward);
-    const earnedKeys = new Set(options.map((option) => option.key));
+    const titleOptions = awards.map(titleOptionFromAward);
+    const badgeOptions = awards.map(optionFromAward);
+    const earnedKeys = new Set(badgeOptions.map((option) => option.key));
 
     return {
       settings: toSettingsDto(profile, earnedKeys, appearance.accents, appearance.frames, appearance.themes),
       options: {
-        titles: options,
-        badges: options,
+        titles: titleOptions,
+        badges: badgeOptions,
         accents: appearance.accents,
         frames: appearance.frames,
         themes: appearance.themes,
@@ -238,11 +285,14 @@ export const AccountProfileService = {
       });
     }
 
+    const crewName = input.crewName === undefined ? undefined : input.crewName;
+
     await prisma.accountProfile.upsert({
       where: { accountId },
       create: {
         accountId,
         activeTitleKey,
+        crewName: crewName ?? null,
         activeProfileFrameKey,
         activeSiteThemeKey,
         featuredBadgeKeys,
@@ -254,6 +304,7 @@ export const AccountProfileService = {
       },
       update: {
         activeTitleKey,
+        ...(crewName !== undefined ? { crewName } : {}),
         activeProfileFrameKey,
         activeSiteThemeKey,
         featuredBadgeKeys,
@@ -280,7 +331,8 @@ export const AccountProfileService = {
     const unlocked = awards.filter((award) => award.unlocked);
     const earnedKeys = new Set(unlocked.map((award) => award.key));
     const settings = toSettingsDto(profile, earnedKeys, appearance.accents, appearance.frames, appearance.themes);
-    const title = unlocked.find((award) => award.key === settings.activeTitleKey)?.title ?? null;
+    const titleAward = unlocked.find((award) => award.key === settings.activeTitleKey);
+    const title = titleAward ? profileTitleForAward(titleAward) : null;
     return { settings, title };
   },
 };

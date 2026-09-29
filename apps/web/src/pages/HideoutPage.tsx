@@ -19,6 +19,8 @@ import { Panel, Row } from '../components/Panel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
+import { confirmAction } from '../stores/confirm.js';
+import { formatWhen } from '../utils/time.js';
 
 function securityTierLabel(tier: NonNullable<HideoutV2Dto['security']>['reconWarningTier']): string {
   if (tier === 'SOURCE') return 'Named warnings';
@@ -122,7 +124,7 @@ function RoomCard({
 
       <p className="se-hideout-room__blurb">{room.blurb}</p>
 
-      <div className="se-hideout-room__levels" aria-label={`${room.level} of ${room.maxLevel} levels complete`}>
+      <div className="se-hideout-room__levels" role="img" aria-label={`${room.level} of ${room.maxLevel} levels complete`}>
         {Array.from({ length: room.maxLevel }, (_, index) => (
           <span
             key={index}
@@ -269,9 +271,11 @@ export function HideoutPage() {
   async function specialize(room: HideoutRoomV2Dto, specialization: string) {
     const choice = room.specialization?.choices.find((candidate) => candidate.key === specialization);
     if (!choice || room.key === 'GARAGE') return;
-    if (!window.confirm(
-      `Choose ${choice.name} for ${room.name}? This choice is permanent for the rest of this season.`,
-    )) return;
+    if (!(await confirmAction({
+      title: `Choose ${choice.name} for ${room.name}?`,
+      body: 'This choice is permanent for the rest of this season.',
+      confirmLabel: `Choose ${choice.name}`,
+    }))) return;
 
     await specializationAction.run((actionId) => hideoutApi.specialize({
       room: room.key as HideoutSpecializationRoomDto,
@@ -323,7 +327,7 @@ export function HideoutPage() {
                 <span>Build progress</span>
                 <strong>{formatNumber(hideout.totalLevel)} / {formatNumber(hideout.totalMaxLevel)}</strong>
               </div>
-              <div className="se-hideout-progress" aria-label={`${buildProgress}% of hideout upgrades complete`}>
+              <div className="se-hideout-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={buildProgress} aria-label="Hideout upgrades complete">
                 <span style={{ width: `${buildProgress}%` }} />
               </div>
               <small>{formatNumber(buildProgress)}% complete · {formatNumber(readyRooms.length)} ready now</small>
@@ -520,7 +524,7 @@ export function HideoutPage() {
                           <Row
                             key={`${event.kind}:${event.at}:${index}`}
                             label={event.title}
-                            value={`${event.detail} · ${new Date(event.at).toLocaleString()}`}
+                            value={`${event.detail} · ${formatWhen(event.at)}`}
                             strong={event.urgent}
                           />
                         ))}
@@ -630,7 +634,7 @@ export function HideoutPage() {
                       <Row
                         label="Next natural recovery"
                         value={hideout.infirmary.nextRecoveryAt
-                          ? new Date(hideout.infirmary.nextRecoveryAt).toLocaleString()
+                          ? formatWhen(hideout.infirmary.nextRecoveryAt)
                           : 'No wounds queued'}
                       />
                     </div>
@@ -746,7 +750,7 @@ export function HideoutPage() {
                           <Row
                             key={entry.id}
                             label={entry.label}
-                            value={`${entry.amountCents >= 0 ? '+' : '−'}${formatCents(Math.abs(entry.amountCents))} · ${new Date(entry.createdAt).toLocaleString()}`}
+                            value={`${entry.amountCents >= 0 ? '+' : '−'}${formatCents(Math.abs(entry.amountCents))} · ${formatWhen(entry.createdAt)}`}
                             strong={entry.category === 'INCOME'}
                           />
                         ))}

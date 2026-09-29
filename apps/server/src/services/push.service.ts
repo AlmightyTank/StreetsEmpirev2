@@ -107,6 +107,9 @@ export function pushMessageFor(payload: NotificationPayload): PushMessage {
         url: gameUrl('/game/turf'),
         tag: `alliance:${payload.event.id}`,
       };
+    // 0.9.0-G categories arrive already worded for a lock screen.
+    default:
+      return { ...payload.notice };
   }
 }
 
@@ -235,9 +238,16 @@ export const PushService = {
       return pending;
     });
     let delivered = 0;
+    let failures = 0;
+    let lastFailure: string | null = null;
     for (const row of rows) {
-      delivered += (await sendToAccount(prisma, row.accountId, pushMessageFor(row.payload as unknown as NotificationPayload), send, now)).delivered;
+      const result = await sendToAccount(prisma, row.accountId, pushMessageFor(row.payload as unknown as NotificationPayload), send, now);
+      delivered += result.delivered;
+      failures += result.failures.length;
+      const failure = result.failures[result.failures.length - 1];
+      if (failure) lastFailure = `${failure.status ?? 'no response'}: ${failure.reason}`;
     }
-    return { alerts: rows.length, delivered };
+    // 1.0.0-F: counted for monitoring. A device that is gone for good is not a failure worth an alert.
+    return { alerts: rows.length, delivered, failures, lastFailure };
   },
 };

@@ -33,6 +33,8 @@ import { PlayerStateService } from '../services/player-state.service.js';
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { RoundService } from '../services/round.service.js';
 import { AppError } from '../utils/errors.js';
+import { onboardingActionSchema } from '@streets/shared';
+import { OnboardingService } from '../services/onboarding.service.js';
 
 const RECENT_ACTIVITY_LIMIT = 10;
 
@@ -257,6 +259,13 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
 
     return PayoutService.setPayout(fastify.prisma, player.id, body);
   });
+
+  /** 1.0.0-B: tutorial progress and the early getting-started goals. */
+  fastify.get('/onboarding', { preHandler: fastify.requireAuth }, async (request) =>
+    OnboardingService.state(fastify.prisma, request.auth!.account.id));
+
+  fastify.post('/onboarding', { preHandler: fastify.requireAuth }, async (request) =>
+    OnboardingService.update(fastify.prisma, request.auth!.account.id, parseBody(onboardingActionSchema, request.body ?? {})));
 };
 
 export default gameRoutes;

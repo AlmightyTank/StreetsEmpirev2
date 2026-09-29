@@ -250,6 +250,23 @@ export interface QuestBranchDefinition {
   readonly followUpKeys: readonly string[];
 }
 
+export interface QuestStoryDefinition {
+  /** Optional chapter label for story/tutorial ordering, e.g. "Lesson 1". */
+  readonly chapter: string;
+  /** Contact-flavored setup shown before or while the job is available. */
+  readonly intro: string;
+  /** Contact-flavored reminder while the job is active. */
+  readonly inProgress: string;
+  /** Contact-flavored payoff once objectives are ready to collect. */
+  readonly ready: string;
+  /** Contact-flavored closing line after payment is collected. */
+  readonly completed: string;
+  /** Plain-language system lesson this job is teaching. */
+  readonly lesson: string;
+  /** Short actionable nudge toward the screen/action that advances the job. */
+  readonly actionHint: string;
+}
+
 export type ContactKey =
   | 'MAMA_KING'
   | 'PIP'
@@ -274,6 +291,10 @@ export type PermanentUnlockEffect =
       readonly weapon: WeaponUnlockKey;
     }
   | {
+      /** Trips D. Tommy's people in other cities rent guns to a boss's bodyguards. */
+      readonly kind: 'GUN_CONNECT';
+    }
+  | {
       readonly kind: 'PRODUCT_PURCHASE_ACCESS';
       readonly productKey: string;
     };
@@ -282,7 +303,7 @@ export interface PermanentUnlockDefinition {
   readonly key: string;
   readonly name: string;
   readonly description: string;
-  readonly category: 'WEAPON' | 'PRODUCT';
+  readonly category: 'WEAPON' | 'PRODUCT' | 'TRAVEL';
   readonly effect: PermanentUnlockEffect;
 }
 
@@ -397,6 +418,8 @@ export interface QuestDefinition {
   readonly rewards: readonly QuestRewardDefinition[];
   /** Rare Phase R choices committed at turn-in. Omit for normal linear Jobs. */
   readonly branches?: readonly QuestBranchDefinition[];
+  /** Optional story/tutorial copy presented by the client without changing mechanics. */
+  readonly story?: QuestStoryDefinition;
   readonly followUpKeys: readonly string[];
   readonly repeatability: QuestRepeatability;
   /** Null means the accepted quest has no timer. */
@@ -1003,6 +1026,153 @@ export interface TravelRules {
   readonly relocation?: RelocationRules;
   /** 0.5.0-E. Runs near a city can be tailed and hit. Absent: runs only meet the police. */
   readonly convoys?: ConvoyRules;
+  /** Trips A. The boss visits another city and comes home. Absent: the boss never leaves. */
+  readonly trips?: TripRules;
+}
+
+/**
+ * Trips A. The boss leaves home for a stay in another city and comes back. Home keeps
+ * working while they are gone, run by a lieutenant who skims the take. Stage A flies the
+ * boss alone: a ticket from home cash, a hotel stay paid up front, and a bankroll that
+ * is all the boss has in town.
+ */
+export interface TripRules {
+  /** Real minutes in the air, airport included, between any two cities. Each way. */
+  readonly flightMinutes: number;
+  /** A round-trip ticket for the boss, paid from home cash. */
+  readonly ticketCents: number;
+  /** The most bankroll one boss can carry onto a plane. */
+  readonly carryOnCapCents: number;
+  /** Stay lengths offered at launch, in real minutes. */
+  readonly stayMinutes: readonly number[];
+  /** The longest a stay can run, extensions included. */
+  readonly maxStayMinutes: number;
+  /** Extensions are sold in blocks of this many minutes. */
+  readonly extendMinutes: number;
+  /** The hotel's rate per real hour, before the city's lean. */
+  readonly hotelCentsPerHour: number;
+  /** Each city's lean on the hotel rate. Missing is 1. */
+  readonly hotelPrice?: { readonly [citySlug: string]: number };
+  /** Turns it takes to get out the door. */
+  readonly launchTurns: number;
+  /** The lieutenant's share of Scout and Produce takes while the boss is away, 0 to 1. */
+  readonly lieutenantCut: number;
+  /** No new trips in the round's last hours. */
+  readonly cutoffHours: number;
+  /** Trips B. The boss can ride along with a run. Absent: runs are crew only. */
+  readonly rideAlong?: RideAlongRules;
+  /** Trips C. A boss away from home can be found and hit. Absent: nobody hunts a boss. */
+  readonly hunted?: HuntedRules;
+  /** Trips D. The boss can fly with bodyguards and rent guns in town. Absent: the boss flies alone. */
+  readonly bodyguards?: BodyguardRules;
+  /** Trips D2. Airport security reads Heat. Absent: nobody looks twice. */
+  readonly airport?: AirportRules;
+  /** Trips D2. The boss can visit an outpost in person. Absent: outposts never see the boss. */
+  readonly outpostVisits?: OutpostVisitRules;
+  /** Trips D2. Two bosses in one city can sit down and agree a truce. Absent: no sit-downs. */
+  readonly sitDowns?: SitDownRules;
+  /** Trips D2. Allies who live where a boss is hit can send backup. Absent: a boss stands alone. */
+  readonly allyBackup?: boolean;
+  /**
+   * Trips E. The girls notice the boss is gone: whore happiness sits lower the longer the
+   * boss is away (on a flight trip or riding along), up to a cap, and recovers the moment
+   * the boss is home. Absent: nobody notices.
+   */
+  readonly awayHappiness?: { readonly pointsPerHour: number; readonly maxPoints: number };
+}
+
+/**
+ * Trips D2. A hot boss gets pulled aside at the airport on the way out: part of the carried
+ * bankroll is taken and the flight lands late. Past `noFlyHeat`, nobody lets them board.
+ */
+export interface AirportRules {
+  /** Heat from which security starts looking twice. */
+  readonly checkFromHeat: number;
+  /** Chance of being pulled aside for each point of Heat past `checkFromHeat`. */
+  readonly chancePerHeat: number;
+  readonly maxChance: number;
+  /** Share of the carried bankroll taken when pulled aside. */
+  readonly seizePercent: number;
+  /** Real minutes lost in the back room: the whole trip runs this much later. */
+  readonly delayMinutes: number;
+  /** At this Heat or above, no flight. */
+  readonly noFlyHeat: number;
+  /** Heat each bodyguard adds for the check only: a crew draws eyes. Missing is 0. */
+  readonly bodyguardHeat?: number;
+  /** Security checks the flight home too, as the boss leaves town. Missing is off. */
+  readonly checkHome?: boolean;
+}
+
+/**
+ * Trips D2. A boss in town where they hold an outpost can walk the corner: for a while the
+ * crew there does not walk out when supplies run short, and a boss on a flight trip can
+ * carry the box's cash in their bankroll, up to the carry-on cap.
+ */
+export interface OutpostVisitRules {
+  /** Hours after a visit in which the corner crew stays put whatever the box holds. */
+  readonly moraleHours: number;
+}
+
+/**
+ * Trips D2. A boss in town proposes a sit-down to a boss who is also in that city (living
+ * there or visiting). If the other agrees while both are still there, neither crew can hit
+ * the other for `truceHours`: no raids, drive-bys, special raids, convoy tails or boss hits.
+ */
+export interface SitDownRules {
+  /** Minutes an invitation stays open. */
+  readonly inviteMinutes: number;
+  readonly truceHours: number;
+}
+
+/**
+ * Trips D. Bodyguards fly with the boss: fit thugs out of home, each on their own ticket
+ * and lodged by the hour, and unarmed, because nothing goes through the airport. In town,
+ * a boss with Tommy's out-of-town connect can rent guns for them, one each, paid out of the
+ * bankroll and handed back at check-out. Bodyguards fight a hit on the boss.
+ */
+export interface BodyguardRules {
+  /** The most bodyguards on one trip. */
+  readonly max: number;
+  /** A round-trip ticket for each bodyguard, from home cash. */
+  readonly ticketCents: number;
+  /** Lodging for each bodyguard, per real hour, paid with the boss's hotel. */
+  readonly lodgingCentsPerThugHour: number;
+  /** Rent for one gun for the rest of a stay, by weapon. Never below zero; never the price of the gun. */
+  readonly gunRentCents: { readonly [K in WeaponKey]: number };
+  /** The permanent unlock that opens Tommy's out-of-town connect. */
+  readonly gunConnectUnlockKey: string;
+}
+
+/**
+ * Trips C. The boss away from home is a target. Locals find a visiting boss with an area
+ * recon (a solo boss keeps a low profile, so only sometimes), tail them on the convoy
+ * clock, and the hit lands if the boss is still in town. A solo boss has nobody to fight
+ * back. A beaten boss loses part of the bankroll, flies home and is laid up: no travel
+ * until they heal, while the lieutenant keeps running home. The convoy rules set the
+ * warning window, the turn cost and the re-hit cooldown.
+ */
+export interface HuntedRules {
+  /** Chance an area recon spots a solo boss in town or on the way in, rolled per recon. */
+  readonly soloSightChance: number;
+  /** Share of the bankroll a successful hit takes, rolled in this range. */
+  readonly bankrollPercent: { readonly min: number; readonly max: number };
+  /** Real minutes a beaten boss is laid up: no trips, no riding along. */
+  readonly layUpMinutes: number;
+  /** Home defends raids at this share of its strength while the boss is away or laid up. */
+  readonly awayDefenseMultiplier: number;
+}
+
+/**
+ * Trips B. The boss rides with a run. Every town the run stops in holds it for as long as
+ * the boss likes, up to `maxStayMinutes`, and the hotel bills by the started hour out of
+ * the run's own cash. When the cash cannot cover the next hour, the boss checks out and
+ * the run heads home.
+ */
+export interface RideAlongRules {
+  /** The longest the run stays in one town with the boss aboard. */
+  readonly maxStayMinutes: number;
+  /** Lodging for each escort, per real hour, on top of the boss's hotel. */
+  readonly crewCentsPerThugHour: number;
 }
 
 /**

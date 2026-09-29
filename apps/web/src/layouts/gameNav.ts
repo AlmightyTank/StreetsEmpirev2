@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '../stores/session.js';
+import { CONSOLE_UPDATED_EVENT, consoleApi } from '../api/console.js';
+import { formatWhen } from '../utils/time.js';
 
 /** One page in the game menu. `key` is what the phone tab bar stores. */
 export interface NavPage {
@@ -44,6 +46,8 @@ export const SECTIONS: NavSection[] = [
     id: 'players',
     title: 'Players',
     pages: [
+      { key: 'players', label: 'Players', to: '/game/players', icon: 'contacts', prefix: '/game/players/' },
+      { key: 'console', label: 'Console', to: '/game/console', icon: 'activity' },
       { key: 'rankings', label: 'Rankings', short: 'Ranks', to: '/game/rankings', icon: 'rankings' },
       { key: 'alliance', label: 'Alliance', to: '/game/alliance', icon: 'alliance', prefix: '/game/alliances' },
       { key: 'contacts', label: 'Contacts', to: '/game/contacts', icon: 'contacts' },
@@ -60,6 +64,7 @@ export const SECTIONS: NavSection[] = [
       { key: 'news', label: 'News', to: '/game/news', icon: 'news' },
       { key: 'fame', label: 'Hall of Fame', short: 'Fame', to: '/game/hall-of-fame', icon: 'fame' },
       { key: 'account', label: 'Account', to: '/account', icon: 'account' },
+      { key: 'report-bug', label: 'Report a bug', short: 'Bug', to: '/game/report-bug', icon: 'status' },
     ],
   },
 ];
@@ -69,11 +74,17 @@ export const ADMIN_SECTION: NavSection = {
   id: 'admin',
   title: 'Admin',
   pages: [
+    { key: 'admin-monitoring', label: 'Monitoring', to: '/game/admin/monitoring', icon: 'admin' },
     { key: 'admin-rounds', label: 'Rounds', to: '/game/admin', icon: 'admin', prefix: '/game/admin/rounds/' },
     { key: 'admin-news', label: 'News & banner', short: 'Banner', to: '/game/admin/news', icon: 'admin' },
     { key: 'admin-accounts', label: 'Accounts', to: '/game/admin/accounts', icon: 'admin', prefix: '/game/admin/accounts/' },
     { key: 'admin-integrations', label: 'Integrations', short: 'Integr.', to: '/game/admin/integrations', icon: 'admin' },
     { key: 'admin-rulesets', label: 'Rulesets', to: '/game/admin/rulesets', icon: 'admin' },
+    { key: 'admin-reports', label: 'Reports', to: '/game/admin/reports', icon: 'admin' },
+    { key: 'admin-bugs', label: 'Bug reports', short: 'Bugs', to: '/game/admin/bugs', icon: 'admin' },
+    { key: 'admin-economy', label: 'Economy', to: '/game/admin/economy', icon: 'admin' },
+    { key: 'admin-combat', label: 'Combat & exploits', short: 'Combat', to: '/game/admin/combat', icon: 'admin' },
+    { key: 'admin-turf', label: 'Turf', to: '/game/admin/turf', icon: 'admin' },
     { key: 'admin-signals', label: 'Signals', to: '/game/admin/signals', icon: 'admin' },
     { key: 'admin-audit', label: 'Audit log', short: 'Audit', to: '/game/admin/audit', icon: 'admin' },
   ],
@@ -195,6 +206,40 @@ function badgeCount(value: number): string {
   return `${Math.floor(value / 100) / 10}k`.replace('.0k', 'k');
 }
 
+function useConsoleUnread(playerId: string | null): number {
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    if (!playerId) {
+      setUnread(0);
+      return;
+    }
+
+    let live = true;
+    const refresh = () => {
+      void consoleApi.summary()
+        .then((counts) => { if (live) setUnread(counts.unread + counts.notifications); })
+        .catch(() => { /* Navigation should keep working if the summary is temporarily unavailable. */ });
+    };
+
+    refresh();
+    window.addEventListener(CONSOLE_UPDATED_EVENT, refresh);
+    window.addEventListener('streets:notifications-changed', refresh);
+    window.addEventListener('focus', refresh);
+    const interval = window.setInterval(refresh, 60_000);
+
+    return () => {
+      live = false;
+      window.removeEventListener(CONSOLE_UPDATED_EVENT, refresh);
+      window.removeEventListener('streets:notifications-changed', refresh);
+      window.removeEventListener('focus', refresh);
+      window.clearInterval(interval);
+    };
+  }, [playerId]);
+
+  return unread;
+}
+
 /**
  * What each page wants you to know before you open it:
  * - Scout carries your turns, amber once they sit at the cap.
@@ -209,6 +254,7 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
   const me = useSession((s) => s.me);
   const activity = useSession((s) => s.recentActivity);
   const playerId = me?.id ?? null;
+  const consoleUnread = useConsoleUnread(playerId);
   const latestHit = activity
     .filter((entry) => DEFENSE_TYPES.has(entry.type))
     .reduce<string | null>((latest, entry) => (latest === null || entry.createdAt > latest ? entry.createdAt : latest), null);
@@ -247,6 +293,14 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
     badges.raids = { tone: 'bad', label: 'You were hit since you last looked' };
   }
 
+  if (consoleUnread > 0) {
+    badges.console = {
+      tone: 'info',
+      text: badgeCount(consoleUnread),
+      label: `${consoleUnread} unread Console item${consoleUnread === 1 ? '' : 's'}`,
+    };
+  }
+
   if (me.convoyAlert?.kind === 'tailed') {
     badges.travel = { tone: 'bad', label: `Your run is being tailed near ${me.convoyAlert.cityName}` };
   } else if (me.convoyAlert?.kind === 'call') {
@@ -260,7 +314,7 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
   if (me.heat?.lockedUntil) {
     badges.dashboard = {
       tone: 'bad',
-      label: `Locked up until ${new Date(me.heat.lockedUntil).toLocaleString()}`,
+      label: `Locked up until ${formatWhen(me.heat.lockedUntil)}`,
     };
   } else if (me.heat && me.heat.heat >= me.heat.dragStartsAt) {
     const arresting = Boolean(me.heat.arrest && me.heat.heat >= me.heat.arrest.startsAt);

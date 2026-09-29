@@ -58,7 +58,7 @@ export function TurnSpend({
       </div>
 
       {tooMany ? (
-        <p className="se-error">You only have {formatNumber(available)} turns.</p>
+        <p className="se-error" role="alert">You only have {formatNumber(available)} turns.</p>
       ) : (
         <p className="se-hint">{formatNumber(available)} available.</p>
       )}

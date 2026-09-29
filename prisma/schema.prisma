@@ -27,6 +27,26 @@ model Account {
   /// Lowercased email. Private account recovery and login address.
   email              String    @unique
   emailVerifiedAt    DateTime?
+  /// Set for every account that existed before email verification was required: they may
+  /// keep playing without verifying. Accounts created later are never grandfathered.
+  verificationGrandfatheredAt DateTime?
+  /// When the player accepted the game rules, and which version of them.
+  rulesAcceptedAt      DateTime?
+  rulesAcceptedVersion String?
+  /// rc.2. When the player closed their own account (isActive false). Null for staff deactivations.
+  closedAt             DateTime?
+  /// rc.2. The address the account signed up from, for the per-address daily sign-up cap.
+  registeredIp         String?
+  /// rc.5. When the player confirmed at sign-up that they are 13 or older. The rules
+  /// agreement asks every player too (Discord sign-ups included).
+  ageConfirmedAt       DateTime?
+  /// rc.3. Authenticator-app two-step sign-in. Secrets are AES-GCM sealed (auth/totp.ts).
+  twoFactorSecret        String?
+  /// Set while the player is scanning the QR code, before they confirm a first code.
+  twoFactorPendingSecret String?
+  twoFactorEnabledAt     DateTime?
+  /// The last code step used, so a code cannot be used twice.
+  twoFactorLastStep      Int?
   passwordHash       String
 
   discordId       String?   @unique
@@ -47,8 +67,24 @@ model Account {
   suspendedUntil      DateTime?
   suspendedReason     String?
   suspendedByUsername String?
+  /// 1.0.0-E. A ban: the account is shut down (isActive false) for this recorded reason.
+  bannedAt         DateTime?
+  bannedReason     String?
+  bannedByUsername String?
+
+  /// 0.9.0-H. Communication restriction: no private messages or wire posts while it
+  /// runs. The account still plays. Permanent wins over a date; both cleared by unmute.
+  commsMutedUntil       DateTime?
+  commsMutedPermanent   Boolean   @default(false)
+  commsMuteReason       String?
+  commsMutedByUsername  String?
 
   sessions             Session[]
+  bugReports           BugReport[]
+  twoFactorRecoveryCodes TwoFactorRecoveryCode[]
+  trustedDevices       TrustedDevice[]
+  knownDevices         AccountDevice[]
+  loginChallenges      LoginChallenge[]
   passwordResetTokens  PasswordResetToken[]
   accountEmailTokens   AccountEmailToken[]
   forumLink            ForumLink?
@@ -61,10 +97,46 @@ model Account {
   roundPlayers         RoundPlayer[]
   authoredNews         GameNews[]            @relation("GameNewsAuthor")
   adminAuditEntries    AdminAuditLog[]       @relation("AdminAuditActor")
+  messageBlocksMade    PlayerBlock[]         @relation("PlayerBlocker")
+  messageBlocksReceived PlayerBlock[]        @relation("PlayerBlocked")
+  messageReports       PlayerMessageReport[]
+  /// 0.9.0-H.
+  mutesMade            PlayerMute[]          @relation("PlayerMuter")
+  mutesReceived        PlayerMute[]          @relation("PlayerMuted")
+  moderationNotes      AccountModerationNote[]
+
+  @@index([registeredIp, createdAt])
+}
+
+/// 0.9.0-H. Private admin notes on an account. Never shown to the player.
+model AccountModerationNote {
+  id String @id @default(cuid())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  authorAccountId String?
+  authorUsername  String
+  body            String
+
+  createdAt DateTime @default(now())
+
+  @@index([accountId, createdAt(sort: Desc)])
 }
 
 /// 0.3.0-B. One row per admin action: who, what, when, and the target before
 /// and after. The app only ever inserts these.
+/// 1.0.0-A. Which environment owns this database. A production server refuses a
+/// database claimed by beta and the reverse, so a wrong DATABASE_URL fails loudly
+/// at boot instead of mixing live and test data. One row, id "singleton".
+model DeploymentIdentity {
+  id              String   @id @default("singleton")
+  environment     String
+  claimedAt       DateTime @default(now())
+  lastBootAt      DateTime @default(now())
+  lastBootVersion String
+}
+
 model AdminAuditLog {
   id String @id @default(cuid())
 
@@ -95,6 +167,8 @@ model AccountProfile {
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   activeTitleKey        String?
+  /// 0.9.0-F. Optional public crew name, account-level so it carries across seasons.
+  crewName              String?
   activeProfileFrameKey String?
   activeSiteThemeKey    String?
   featuredBadgeKeys     Json    @default("[]")
@@ -103,6 +177,9 @@ model AccountProfile {
   reducedMotion     Boolean @default(false)
   moneyFormat       String  @default("full")
   defaultLanding    String  @default("game")
+  /// 1.0.0-B. Tutorial progress: intro completed/skipped, page intros seen, guide
+  /// dismissed for a season. Never gameplay state; see OnboardingService.
+  onboarding        Json    @default("{}")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -175,6 +252,25 @@ model NotificationSettings {
   discordEnabled   Boolean   @default(true)
   /// Web Push to every registered device.
   pushEnabled      Boolean   @default(false)
+  /// 0.9.0-G categories. Like the ones above they switch outside alerts (Discord, push);
+  /// the in-game bell is controlled separately by `bellMuted`.
+  turfPushEnabled       Boolean @default(false)
+  reinforcementsEnabled Boolean @default(false)
+  convoyEnabled         Boolean @default(false)
+  runsEnabled           Boolean @default(false)
+  revengeEnabled        Boolean @default(false)
+  ordersEnabled         Boolean @default(false)
+  announcementsEnabled  Boolean @default(false)
+  messagesEnabled       Boolean @default(false)
+  /// 0.9.0-G master switch: pauses every outside alert without losing category choices.
+  alertsPaused          Boolean @default(false)
+  /// 0.9.0-G quiet hours, minutes after local midnight in `timeZone`. Both set or neither;
+  /// a window may wrap past midnight. The bell still records everything.
+  quietStartMinute      Int?
+  quietEndMinute        Int?
+  timeZone              String?
+  /// 0.9.0-G categories hidden from the in-game bell (their events stay in Activity).
+  bellMuted             Json    @default("[]")
   updatedAt        DateTime  @updatedAt
 
   @@index([turnsEnabled])
@@ -280,9 +376,121 @@ model Session {
 
   userAgent String?
   ip        String?
+  /// rc.2. How the session signed in: PASSWORD or DISCORD. Admin tools can require DISCORD.
+  method    String  @default("PASSWORD")
+  /// rc.3. True when this sign-in passed an authenticator (or recovery) code.
+  twoFactor Boolean @default(false)
+  /// rc.4. "Keep me signed in": a long session that renews while used. False: ends with the
+  /// browser, or after a short idle time.
+  remember          Boolean   @default(true)
+  /// rc.4. Hard end, however active the session is. Null on sessions from before rc.4
+  /// (then createdAt plus the maximum).
+  absoluteExpiresAt DateTime?
+  /// rc.4. When this session last proved a second factor (Discord sign-in or a code).
+  /// Admin tools need it to be recent.
+  secondFactorAt    DateTime?
+  /// rc.4. Wrong codes entered while signed in; too many signs the session out.
+  codeFailures      Int       @default(0)
 
   @@index([accountId])
   @@index([expiresAt])
+}
+
+/// rc.3. One-use codes for signing in when the authenticator phone is lost. Only hashes are kept.
+model TwoFactorRecoveryCode {
+  id String @id @default(cuid())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  codeHash  String    @unique
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([accountId])
+}
+
+/// rc.4. A browser that passed two-step sign-in with "Trust this browser" ticked: sign-ins
+/// from it skip the code until it expires or is forgotten. The cookie holds the token;
+/// only its hash is stored.
+model TrustedDevice {
+  id        String @id @default(cuid())
+  tokenHash String @unique
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  userAgent  String?
+  ip         String?
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+  expiresAt  DateTime
+
+  @@index([accountId])
+  @@index([expiresAt])
+}
+
+/// rc.5. Browsers this account has signed in from, so a sign-in from a new one can be
+/// emailed about. Keyed by a hash of a long-lived per-browser cookie.
+model AccountDevice {
+  id         String @id @default(cuid())
+
+  accountId  String
+  account    Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  deviceHash  String
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  @@unique([accountId, deviceHash])
+}
+
+/// rc.3. A sign-in that passed the password (or Discord) and now waits for the authenticator code.
+model LoginChallenge {
+  id        String @id @default(cuid())
+  tokenHash String @unique
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  /// PASSWORD or DISCORD: what the session will record once the code is right.
+  method    String
+  /// rc.4. The "Keep me signed in" choice, carried to the session the code makes.
+  remember  Boolean  @default(true)
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([accountId])
+  @@index([expiresAt])
+}
+
+/// rc.2. A bug a player reported from the game. Staff read and resolve these in Admin → Bug reports.
+model BugReport {
+  id String @id @default(cuid())
+
+  accountId String?
+  account   Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  /// Kept so the report still says who sent it after the account is gone.
+  username  String
+
+  /// GAMEPLAY, DISPLAY, ACCOUNT, PERFORMANCE or OTHER.
+  category   String
+  summary    String
+  details    String
+  pagePath   String?
+  userAgent  String?
+  appVersion String?
+
+  createdAt          DateTime  @default(now())
+  resolvedAt         DateTime?
+  resolvedByUsername String?
+  /// FIXED, WONT_FIX or DUPLICATE.
+  resolution         String?
+  resolutionNote     String?
+
+  @@index([resolvedAt, createdAt(sort: Desc)])
+  @@index([accountId, createdAt(sort: Desc)])
 }
 
 // ---------------------------------------------------------------------------
@@ -566,6 +774,13 @@ model Round {
   startsAt DateTime
   endsAt   DateTime
 
+  /// 1.0.0-E. A paused round refuses player actions; timers already running still land.
+  pausedAt         DateTime?
+  pauseReason      String?
+  pausedByUsername String?
+  /// Minutes of completed pauses, for the record and for extending the end on resume.
+  pausedMinutesTotal Int @default(0)
+
   registrationOpensAt DateTime?
 
   /// Round alerts collected for players, each once. Rounds that already opened
@@ -593,6 +808,7 @@ model Round {
   turfControlEvents TurfControlEvent[]
   turfHoldSegments TurfHoldSegment[]
   turfCrackdown TurfCrackdown?
+  directMessages DirectMessage[]
 
   @@index([status])
 }
@@ -698,6 +914,10 @@ model RoundPlayer {
 
   lowRiders Int @default(0)
 
+  /// 0.9.0-F. Largest whores + thugs this crew has had this round. Profile history
+  /// only; raised on every action and settle, never lowered.
+  peakCrew Int @default(0)
+
   /// Weapon access, earned with reputation and never revoked once granted.
   shotgunUnlocked Boolean @default(false)
   tek9Unlocked    Boolean @default(false)
@@ -715,6 +935,9 @@ model RoundPlayer {
   /// 0.5.0-D. On the road to a new home until then: no actions, and still a target in
   /// the old city (cityId changes on arrival). The move itself is a Relocation row.
   movingUntil        DateTime?
+  /// Trips C. A beaten boss heals until then: no trips, no riding along, and the
+  /// lieutenant keeps running home.
+  laidUpUntil        DateTime?
   /// 0.5.0-E. Thugs out on a tail or riding backup for a convoy: still the player's, still
   /// in net worth, but not fit for anything else until the fight is settled.
   busyThugs          Int @default(0)
@@ -765,6 +988,7 @@ model RoundPlayer {
 
   activity              PlayerActivity[]
   inAppNotifications     InAppNotification[]
+  scheduledAlerts        ScheduledAlert[]
   economyLedger         EconomyLedgerEntry[]
   processedActions      ProcessedAction[]
   reputation            PlayerReputation[]
@@ -820,6 +1044,15 @@ model RoundPlayer {
   cityShelves           CityShelf[]
   citySightings         CitySighting[]
   relocations           Relocation[]
+  /// Trips A. The boss away from home and back.
+  bossTrips             BossTrip[]
+  /// Trips C. Hits on a visiting boss: started and taken.
+  bossHitsStarted       BossHit[]      @relation("BossHitAttacker")
+  bossHitsTaken         BossHit[]      @relation("BossHitOwner")
+  /// Trips D2. Backup sent to allies' bosses, and sit-downs proposed and received.
+  bossHitBackups        BossHitBackup[]
+  sitDownsProposed      SitDown[]      @relation("SitDownProposer")
+  sitDownsInvited       SitDown[]      @relation("SitDownInvitee")
   convoyTailsOwned      ConvoyTail[]   @relation("ConvoyTailOwner")
   convoyTailsStarted    ConvoyTail[]   @relation("ConvoyTailAttacker")
   convoyBackups         ConvoyBackup[]
@@ -842,6 +1075,8 @@ model RoundPlayer {
   wirePosts             AllianceWirePost[] @relation("WireAuthor")
   contacts              PlayerContact[]    @relation("ContactOwner")
   contactOf             PlayerContact[]    @relation("ContactTarget")
+  messagesSent          DirectMessage[]     @relation("DirectMessageSender")
+  messagesReceived      DirectMessage[]     @relation("DirectMessageRecipient")
 
   @@unique([roundId, accountId])
   @@unique([roundId, publicPimpId])
@@ -866,6 +1101,9 @@ model Alliance {
   /// Shown in brackets beside member names, e.g. [NYC].
   tag            String
   tagNormalized  String
+  /// 0.9.0-E alliance profile shown to members and public rankings/detail pages.
+  description       String @default("")
+  recruitmentStatus String @default("CLOSED")
 
   /// A RoundPlayer id. No foreign key: leadership moves inside the same locked
   /// transaction as membership, and a disbanded alliance keeps its last leader.
@@ -918,6 +1156,9 @@ model AllianceWirePost {
   authorId   String
   author     RoundPlayer @relation("WireAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   body       String
+  /// MESSAGE or ANNOUNCEMENT. Text keeps old rows/migrations simple.
+  kind       String      @default("MESSAGE")
+  pinned     Boolean     @default(false)
   createdAt  DateTime    @default(now())
 
   /// Set when the author, the alliance leader or an admin removed it.
@@ -926,8 +1167,12 @@ model AllianceWirePost {
   /// author, leader or admin.
   removedByRole String?
   removedReason String?
+  /// 0.9.0-G. When announcement alerts for this post were collected.
+  alertsCollectedAt DateTime?
 
   @@index([allianceId, createdAt(sort: Desc)])
+  @@index([alertsCollectedAt, createdAt])
+  @@index([allianceId, kind, pinned, createdAt(sort: Desc)])
   @@index([authorId, createdAt(sort: Desc)])
 }
 
@@ -985,6 +1230,8 @@ model Run {
   /// 0.5.0-E. Escorts wounded in a convoy fight: not fit to fight again on this run, and
   /// still healing when they get home if their wounds have not run out.
   woundedEscorts Int         @default(0)
+  /// 0.9.0-G. When the "run made it home" alert was collected.
+  homeAlertedAt  DateTime?
   /// 0.5.0-E. When the run was last hit, for the re-hit cooldown.
   lastHitAt      DateTime?
   /// 0.5.0-E. The guns the escorts carry, out of home stock, best first. A bust or an
@@ -993,12 +1240,21 @@ model Run {
   shotguns       Int         @default(0)
   tek9s          Int         @default(0)
   ak47s          Int         @default(0)
+  /// Trips B. The boss rides with this run: its towns hold it until the player leaves,
+  /// the hotel bills its cash by the hour, and the lieutenant runs home until it is back.
+  bossAboard     Boolean     @default(false)
+  /// Trips B. Everything the hotel has taken from the run's cash.
+  hotelCents     BigInt      @default(0)
+  /// Trips B. The arrival of the stay being billed, and the hours of it paid so far.
+  hotelStayAt    DateTime?
+  hotelHours     Int         @default(0)
   tails          ConvoyTail[]
   stops          RunStop[]
   cargo          RunCargo[]
   trades         RunTrade[]
   incidents      RunIncident[]
 
+  @@index([homeAlertedAt, returnedAt])
   @@index([roundPlayerId, status])
 }
 
@@ -1108,6 +1364,10 @@ model ConvoyTail {
   attackerCreditedAt DateTime?
   alliesCalledAt     DateTime?
   voidedAt           DateTime?
+  /// 0.9.0-G. When the run's owner was told (once their Lookouts saw the tail), and when
+  /// their alliance was told about the call.
+  ownerAlertedAt     DateTime?
+  alliesAlertedAt    DateTime?
   backups            ConvoyBackup[]
 
   @@unique([attackerId, actionId])
@@ -1126,6 +1386,8 @@ model ConvoyRecon {
   expiresAt     DateTime
   /// The targets as seen, for the page and for checking a tail.
   targets       Json
+  /// Trips C. Bosses visiting the area that the recon spotted.
+  bossTargets   Json        @default("[]")
 }
 
 /// 0.5.0-E. Thugs sent to a convoy's fight by its owner or an ally. They come home after
@@ -1149,6 +1411,53 @@ model ConvoyBackup {
   @@index([playerId, creditedAt])
 }
 
+/// Trips D2. Thugs an ally who lives where a boss is hit sends to the fight. They come home
+/// after it, win or lose, with any wounds, at the ally's next settle.
+model BossHitBackup {
+  id         String      @id @default(cuid())
+  hitId      String
+  hit        BossHit     @relation(fields: [hitId], references: [id], onDelete: Cascade)
+  playerId   String
+  player     RoundPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  thugs      Int
+  /// Weapons and morale as they rode out.
+  crew       Json
+  sentAt     DateTime
+  wounded    Int         @default(0)
+  creditedAt DateTime?
+
+  @@unique([hitId, playerId])
+  @@index([playerId, creditedAt])
+}
+
+enum SitDownStatus {
+  PENDING
+  AGREED
+  DECLINED
+  EXPIRED
+}
+
+/// Trips D2. Two bosses in one city sit down. Agreed, neither crew can hit the other
+/// until `truceUntil`.
+model SitDown {
+  id          String        @id @default(cuid())
+  roundId     String
+  city        String
+  proposerId  String
+  proposer    RoundPlayer   @relation("SitDownProposer", fields: [proposerId], references: [id], onDelete: Cascade)
+  inviteeId   String
+  invitee     RoundPlayer   @relation("SitDownInvitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+  status      SitDownStatus @default(PENDING)
+  proposedAt  DateTime
+  expiresAt   DateTime
+  answeredAt  DateTime?
+  truceUntil  DateTime?
+
+  @@index([proposerId, status])
+  @@index([inviteeId, status])
+  @@index([roundId, truceUntil])
+}
+
 /// 0.5.0-D. A move of the whole operation to another city. Pending until `arrivedAt`.
 model Relocation {
   id            String      @id @default(cuid())
@@ -1163,6 +1472,99 @@ model Relocation {
 
   @@index([roundPlayerId, startedAt(sort: Desc)])
   @@index([arrivedAt, arrivesAt])
+}
+
+/// Trips A. The boss away from home. Stage A flies only; DRIVE is the entourage's way (B).
+enum BossTripMode {
+  FLY
+  DRIVE
+}
+
+enum BossTripStatus {
+  ACTIVE
+  RETURNED
+}
+
+/// Trips A. The boss leaves home for a stay in another city and comes back. Home keeps
+/// working, run by a lieutenant. Where the boss is follows from the four timestamps, so
+/// the trip settles lazily, like a run: it is home once `returnsAt` has passed.
+model BossTrip {
+  id                 String         @id @default(cuid())
+  roundPlayerId      String
+  roundPlayer        RoundPlayer    @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  status             BossTripStatus @default(ACTIVE)
+  mode               BossTripMode   @default(FLY)
+  /// City slug the boss left from and comes back to.
+  homeCity           String
+  /// City slug the boss is visiting.
+  city               String
+  /// The trip's wallet, integer cents. Never below zero. All the boss has in town.
+  bankrollCents      BigInt
+  startBankrollCents BigInt
+  /// What the ticket cost, from home cash at launch.
+  ticketCents        BigInt
+  /// Everything paid to the hotel: the stay at launch, extensions out of the bankroll.
+  hotelCents         BigInt
+  turnsSpent         Int
+  departedAt         DateTime
+  arrivesAt          DateTime
+  stayUntil          DateTime
+  returnsAt          DateTime
+  returnedAt         DateTime?
+  /// Trips C. When the boss was last hit, for the re-hit cooldown.
+  lastHitAt          DateTime?
+  /// Trips D. Fit thugs flying with the boss, out of home until the trip is back, and how
+  /// many of them were wounded protecting the boss.
+  bodyguards         Int              @default(0)
+  woundedBodyguards  Int              @default(0)
+  /// Trips D. Guns rented in town from Tommy's connect, by weapon key: handed back at
+  /// check-out, never owned. And everything the rent has cost.
+  rentedGuns         Json             @default("{}")
+  gunRentCents       BigInt           @default(0)
+  /// Trips D2. What airport security took from the bankroll, and the minutes it cost.
+  airportSeizedCents BigInt           @default(0)
+  airportDelayMinutes Int             @default(0)
+  /// Trips D2. When security checked the flight home (the boss leaving town), once.
+  airportHomeCheckedAt DateTime?
+  hits               BossHit[]
+
+  @@index([roundPlayerId, status])
+  @@index([city, status, arrivesAt])
+}
+
+/// Trips C. Locals hitting a boss who is visiting their city. The squad is committed when
+/// it starts; the hit lands when the window closes, in the owner's trip settle, if the boss
+/// is still in town. The attacker's side reaches them at their next settle, like a convoy.
+model BossHit {
+  id                 String           @id @default(cuid())
+  tripId             String
+  trip               BossTrip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  ownerId            String
+  owner              RoundPlayer      @relation("BossHitOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  attackerId         String
+  attacker           RoundPlayer      @relation("BossHitAttacker", fields: [attackerId], references: [id], onDelete: Cascade)
+  /// The city the hit lands in: the trip's city, where the attacker lives.
+  city               String
+  squad              Int
+  /// Trips D. The squad as it set out: morale and the guns it carries.
+  attackerCrew       Json?
+  turnsSpent         Int
+  actionId           String
+  startedAt          DateTime
+  landsAt            DateTime
+  status             ConvoyTailStatus @default(PENDING)
+  settledAt          DateTime?
+  /// What moved, for both sides' reports.
+  result             Json?
+  attackerCreditedAt DateTime?
+  /// Trips D2. When the boss called allies who live in the city, and who answered.
+  alliesCalledAt     DateTime?
+  backups            BossHitBackup[]
+
+  @@unique([attackerId, actionId])
+  @@index([tripId, status])
+  @@index([status, landsAt])
+  @@index([attackerId, attackerCreditedAt])
 }
 
 /// 0.5.0-C. What went wrong on a run: a police stop on a road, or a bust or arrest in a town.
@@ -1240,12 +1642,116 @@ model PlayerContact {
   owner     RoundPlayer @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   targetId  String
   target    RoundPlayer @relation("ContactTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  /// 0.9.0-D. Player-chosen rolodex lane. Derived lanes such as alliance and blocked are not stored here.
+  kind      String      @default("CONTACT")
   note      String      @default("")
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
   @@unique([ownerId, targetId])
   @@index([ownerId, updatedAt(sort: Desc)])
+  @@index([ownerId, kind, updatedAt(sort: Desc)])
+}
+
+
+/// 0.9.0-B. One private message between current-round player identities.
+/// Each side archives independently; rows remain for the other side and moderation.
+model DirectMessage {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  senderId String
+  sender   RoundPlayer @relation("DirectMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  recipientId String
+  recipient   RoundPlayer @relation("DirectMessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  /// Client-generated retry key. Unique per sender so a retried send is replay-safe.
+  actionId String
+  subject  String
+  body     String
+
+  createdAt DateTime  @default(now())
+  readAt   DateTime?
+  /// 0.9.0-G. When the recipient's outside alert for this message was collected.
+  alertsCollectedAt DateTime?
+
+  senderArchivedAt    DateTime?
+  recipientArchivedAt DateTime?
+  /// 0.9.0-H. "Delete conversation": gone from that side's folders for good. The row
+  /// stays for the other side and as report evidence.
+  senderHiddenAt      DateTime?
+  recipientHiddenAt   DateTime?
+
+  reports PlayerMessageReport[]
+
+  @@unique([senderId, actionId])
+  @@index([recipientId, recipientArchivedAt, readAt, createdAt(sort: Desc)], map: "DirectMessage_recipient_inbox_idx")
+  @@index([senderId, senderArchivedAt, createdAt(sort: Desc)], map: "DirectMessage_sender_sent_idx")
+  @@index([roundId, createdAt(sort: Desc)], map: "DirectMessage_round_created_idx")
+  @@index([alertsCollectedAt, createdAt])
+}
+
+/// Account-level communication block. It survives seasonal RoundPlayer resets.
+model PlayerBlock {
+  id String @id @default(cuid())
+
+  blockerAccountId String
+  blocker          Account @relation("PlayerBlocker", fields: [blockerAccountId], references: [id], onDelete: Cascade)
+
+  blockedAccountId String
+  blocked          Account @relation("PlayerBlocked", fields: [blockedAccountId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([blockerAccountId, blockedAccountId])
+  @@index([blockedAccountId, createdAt(sort: Desc)], map: "PlayerBlock_blocked_created_idx")
+}
+
+/// Purpose-driven report record. Admin moderation tooling can resolve these later
+/// without granting a casual private-message browser.
+model PlayerMessageReport {
+  id String @id @default(cuid())
+
+  messageId String
+  message   DirectMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  /// Null for an automated spam flag (0.9.0-H).
+  reporterAccountId String?
+  reporter          Account? @relation(fields: [reporterAccountId], references: [id], onDelete: Cascade)
+
+  /// 0.9.0-H. PLAYER or AUTO.
+  source String @default("PLAYER")
+  reason String
+
+  createdAt          DateTime @default(now())
+  resolvedAt         DateTime?
+  resolvedByUsername String?
+  /// 0.9.0-H. DISMISSED or ACTIONED.
+  resolution         String?
+  resolutionNote     String?
+
+  @@unique([messageId, reporterAccountId])
+  @@index([resolvedAt, createdAt(sort: Desc)], map: "PlayerMessageReport_resolution_idx")
+  @@index([reporterAccountId, createdAt(sort: Desc)], map: "PlayerMessageReport_reporter_idx")
+}
+
+/// 0.9.0-H. A player-side mute: messages from the muted account arrive already
+/// archived, unread-free and alert-free. The sender is never told.
+model PlayerMute {
+  id String @id @default(cuid())
+
+  muterAccountId String
+  muter          Account @relation("PlayerMuter", fields: [muterAccountId], references: [id], onDelete: Cascade)
+
+  mutedAccountId String
+  muted          Account @relation("PlayerMuted", fields: [mutedAccountId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([muterAccountId, mutedAccountId])
 }
 
 /// The alliance's own history: founded, joined, left, kicked, handed over, renamed, disbanded.
@@ -1284,6 +1790,10 @@ model GameNews {
   /// auto-posting were backfilled so the first run doesn't flood the channel.
   discordPostedAt DateTime?
 
+  /// 1.0.0-E. A broadcast reaches every player of the season: the bell and their alert channels.
+  broadcast   Boolean   @default(false)
+  broadcastAt DateTime?
+
   createdByAccountId String?
   createdBy          Account? @relation("GameNewsAuthor", fields: [createdByAccountId], references: [id], onDelete: SetNull)
 
@@ -1307,6 +1817,10 @@ model SiteBanner {
   message String
   /// info, warning or critical.
   tone    String @default("info")
+  /// 1.0.0-E. notice, or maintenance: a scheduled outage with its own window.
+  kind                String    @default("notice")
+  maintenanceStartsAt DateTime?
+  maintenanceEndsAt   DateTime?
 
   startsAt DateTime @default(now())
   endsAt   DateTime
@@ -1341,6 +1855,7 @@ model DiscordResyncRequest {
 
 enum ActivityType {
   RAID_ATTACK
+  GAME_ANNOUNCEMENT
   RAID_DEFENSE
   DRIVE_BY_ATTACK
   DRIVE_BY_DEFENSE
@@ -1385,6 +1900,20 @@ enum ActivityType {
   TURF_PUSH_DEFENSE
   TURF_OUTPOST_ESTABLISH
   TURF_OUTPOST_TRANSFER
+  TRIP_STARTED
+  TRIP_RETURNED
+  BOSS_HIT
+  BOSS_HIT_ATTACK
+  BOSS_HIT_DEFENSE
+  BOSS_HIT_BACKUP
+  OUTPOST_VISIT
+  SIT_DOWN
+  SIT_DOWN_AGREED
+  /// 0.9.0-G clock events, written by the alert collector.
+  TURF_PUSH_INCOMING
+  ALLIANCE_CALL
+  REVENGE_EXPIRING
+  SPECIAL_ORDER_READY
 }
 
 enum BattleKind {
@@ -1426,11 +1955,14 @@ model RaidBattle {
   /// (own, ally or none), so alliance rounds can be balanced from real battles.
   attackerAllianceId String?
   attackerIntel      String?
+  /// 0.9.0-G. When the defender's "revenge expiring" check ran for this hit.
+  revengeAlertedAt   DateTime?
 
   @@unique([attackerId, actionId])
   @@index([attackerId, createdAt(sort: Desc), id])
   @@index([defenderId, createdAt(sort: Desc), id])
   @@index([defenderAllianceId, attackerId, createdAt])
+  @@index([revengeAlertedAt, createdAt])
 }
 
 model CombatInjury {
@@ -1483,6 +2015,26 @@ model PlayerActivity {
 /// Durable in-game notification receipt for a toast-worthy activity.
 /// The notification id intentionally matches the activity id so a live toast can
 /// acknowledge itself without another lookup.
+/// 0.9.0-G. Something that happens by the clock rather than by a write, e.g. a special
+/// order arriving. The alert collector fires it once when due.
+model ScheduledAlert {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  /// SPECIAL_ORDER
+  kind    String
+  dueAt   DateTime
+  payload Json
+  firedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([firedAt, dueAt])
+  @@index([roundPlayerId])
+}
+
 model InAppNotification {
   id String @id
 
@@ -1591,6 +2143,10 @@ model TurfOutpost {
   /// Product-key -> quantity. Crack is stored here too because this is not home inventory.
   products  Json   @default("{}")
 
+  /// Trips D2. The boss walked this corner: its crew stays put until `moraleUntil`.
+  visitedAt   DateTime?
+  moraleUntil DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1661,6 +2217,10 @@ model TurfPush {
   alliesCalledAt DateTime?
   /// Public turf-feed claim, parallel to RaidBattle.discordPostedAt.
   discordPostedAt DateTime?
+  /// 0.9.0-G. When the holder was told their block is being pushed (once their Lookouts saw it),
+  /// and when their alliance was told about the call for help.
+  defenderAlertedAt DateTime?
+  alliesAlertedAt   DateTime?
   /// Private notification collection is independent from the public feed.
   alertsCollectedAt DateTime?
   backups      TurfPushBackup[]
@@ -1848,4 +2408,34 @@ model ProcessedAction {
 
   @@unique([roundPlayerId, actionId])
   @@index([expiresAt])
+}
+
+/// 1.0.0-E. Something the server refused because it looked like an exploit or a bug:
+/// a database guard, a broken invariant, a hit between linked accounts, a flood of
+/// refused requests. The same thing from the same account on the same day folds into
+/// one row. No foreign keys: a flag outlives what it points at.
+model ExploitFlag {
+  id          String  @id @default(cuid())
+  fingerprint String  @unique
+  kind        String
+  /// info, warning or critical.
+  severity    String  @default("warning")
+  accountId   String?
+  roundPlayerId String?
+  roundId     String?
+  route       String?
+  message     String
+  detail      Json?
+  occurrences Int      @default(1)
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  reviewedAt         DateTime?
+  reviewedByUsername String?
+  /// dismissed or actioned.
+  resolution         String?
+  reviewNote         String?
+
+  @@index([reviewedAt, lastSeenAt(sort: Desc)])
+  @@index([accountId, lastSeenAt(sort: Desc)])
 }

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { CitiesDto, CityCharacterDto, SupplyLevelDto } from '@streets/shared';
-import { formatCentsExact, formatNumber } from '@streets/shared';
+import { formatCents, formatCentsExact, formatNumber } from '@streets/shared';
 import { Panel, Row } from './Panel.js';
 
 /** Where each city sits on the map, roughly where it is on the real one. */
@@ -26,7 +26,7 @@ export const SHORT_CITY: Record<string, string> = {
 export const SUPPLY_WORD: Record<SupplyLevelDto, string> = { PLENTIFUL: 'Plenty', NORMAL: 'In stock', LOW: 'Low', OUT: 'Out' };
 
 /** "$10", or "$2.40" where the cents matter. */
-export const unitPrice = (cents: number) => (cents % 100 === 0 ? `$${(cents / 100).toLocaleString('en-US')}` : formatCentsExact(cents));
+export const unitPrice = (cents: number) => (cents % 100 === 0 ? formatCents(cents) : formatCentsExact(cents));
 
 export function hoursText(hours: number): string {
   return hours === 1 ? '1 hour' : hours < 1 ? `${Math.round(hours * 60)} minutes` : `${hours} hours`;

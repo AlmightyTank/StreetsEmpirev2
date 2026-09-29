@@ -1,8 +1,19 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { ADMIN_GRANT_CAPS, ADMIN_PRODUCT_GRANT_CAP, ADMIN_SUSPENSION_LENGTHS, usernameSchema, type AdminSuspensionLength } from '@streets/shared';
+import {
+  ADMIN_COMMS_MUTE_LENGTHS,
+  ADMIN_GRANT_CAPS,
+  ADMIN_NOTE_MAX,
+  ADMIN_PRODUCT_GRANT_CAP,
+  ADMIN_SUSPENSION_LENGTHS,
+  BUG_REPORT_RESOLUTIONS,
+  usernameSchema,
+  type AdminCommsMuteLength,
+  type AdminSuspensionLength,
+} from '@streets/shared';
 import { z } from 'zod';
 import { AdminAccountService } from '../services/admin-account.service.js';
 import { AdminAuditService } from '../services/admin-audit.service.js';
+import { AdminModerationService } from '../services/admin-moderation.service.js';
 import { AllianceBalanceService } from '../services/alliance-balance.service.js';
 import { AllianceService } from '../services/alliance.service.js';
 import { WireService } from '../services/wire.service.js';
@@ -20,6 +31,11 @@ import { AdminRulesetService } from '../services/admin-ruleset.service.js';
 import { AdminSignalsService } from '../services/admin-signals.service.js';
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
+import { AdminEconomyService } from '../services/admin-economy.service.js';
+import { AdminTurfService } from '../services/admin-turf.service.js';
+import { BugReportService } from '../services/support.service.js';
+import { ExploitFlagService } from '../services/exploit-flag.service.js';
+import { MonitoringService } from '../services/monitoring.service.js';
 import { parseBody } from '../utils/validate.js';
 
 const isoDate = z.coerce.date();
@@ -57,6 +73,21 @@ const bannerParams = z.object({ bannerId: id }).strict();
 const rulesetParams = z.object({ rulesetId: id }).strict();
 const emptyBody = z.object({}).strict();
 const reasonBody = z.object({ reason }).strict();
+// 1.0.0-E: resuming extends the season by the pause unless told not to.
+const resumeRoundSchema = z.object({ extend: z.boolean().optional(), reason: reason.optional() }).strict();
+// 0.9.0-H moderation.
+const commsMuteSchema = z.object({
+  length: z.enum(ADMIN_COMMS_MUTE_LENGTHS.map((option) => option.key) as [AdminCommsMuteLength, ...AdminCommsMuteLength[]]),
+  reason,
+}).strict();
+const noteSchema = z.object({ body: z.string().trim().min(3, 'Write a note of at least 3 characters.').max(ADMIN_NOTE_MAX) }).strict();
+const reportParams = z.object({ reportId: z.string().min(1).max(64) });
+const reportQuery = z.object({
+  status: z.enum(['open', 'resolved']).default('open'),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+});
+const resolveReportSchema = z.object({ resolution: z.enum(['DISMISSED', 'ACTIONED']), note: reason }).strict();
+const resolveBugReportSchema = z.object({ resolution: z.enum(BUG_REPORT_RESOLUTIONS), note: reason }).strict();
 const startRoundSchema = z.object({ confirmHandoff: z.boolean().optional() }).strict();
 const revokeSessionsSchema = z.object({ reason, sessionId: id.optional() }).strict();
 const renameSchema = z.object({ reason, username: usernameSchema }).strict();
@@ -105,6 +136,7 @@ const createNewsSchema = z.object({
   roundId: id.nullable(),
   publishedAt: isoDate.optional(),
   mirrorToForum: z.boolean(),
+  broadcast: z.boolean().optional(),
 }).strict();
 
 const updateNewsSchema = z.object({
@@ -118,6 +150,11 @@ const createBannerSchema = z.object({
   tone: z.enum(['info', 'warning', 'critical']),
   startsAt: isoDate.optional(),
   endsAt: isoDate,
+  // 1.0.0-E: a maintenance notice names its outage window; endsAt is then the window's end.
+  kind: z.enum(['notice', 'maintenance']).optional(),
+  maintenanceStartsAt: isoDate.optional(),
+  maintenanceEndsAt: isoDate.optional(),
+  announce: z.boolean().optional(),
 }).strict();
 
 const accountSearchQuery = z.object({
@@ -201,6 +238,18 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { roundId } = parseBody(roundParams, request.params);
     const body = parseBody(reasonBody, request.body ?? {});
     return { round: await AdminRoundService.endEarly(fastify.prisma, request.auth!.account, roundId, body.reason) };
+  });
+
+  fastify.post('/rounds/:roundId/pause', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return { round: await AdminRoundService.pause(fastify.prisma, request.auth!.account, roundId, body.reason) };
+  });
+
+  fastify.post('/rounds/:roundId/resume', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    const body = parseBody(resumeRoundSchema, request.body ?? {});
+    return { round: await AdminRoundService.resume(fastify.prisma, request.auth!.account, roundId, { extend: body.extend ?? true, reason: body.reason }) };
   });
 
   fastify.post('/rounds/:roundId/archive', async (request) => {
@@ -337,10 +386,71 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return AdminAccountService.setActive(fastify.prisma, request.auth!.account, accountId, true, body.reason);
   });
 
+  // 1.0.0-E: bans.
+  fastify.post('/accounts/:accountId/ban', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const { reason: why } = parseBody(reasonBody, request.body ?? {});
+    return AdminAccountService.ban(fastify.prisma, request.auth!.account, accountId, why);
+  });
+
+  fastify.post('/accounts/:accountId/unban', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const { reason: why } = parseBody(reasonBody, request.body ?? {});
+    return AdminAccountService.unban(fastify.prisma, request.auth!.account, accountId, why);
+  });
+
   fastify.post('/accounts/:accountId/suspend', async (request) => {
     const { accountId } = parseBody(accountParams, request.params);
     const body = parseBody(suspendSchema, request.body ?? {});
     return AdminAccountService.suspend(fastify.prisma, request.auth!.account, accountId, body.length as AdminSuspensionLength, body.reason);
+  });
+
+  fastify.post('/accounts/:accountId/comms-mute', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(commsMuteSchema, request.body ?? {});
+    return AdminAccountService.muteComms(fastify.prisma, request.auth!.account, accountId, body.length, body.reason);
+  });
+
+  fastify.post('/accounts/:accountId/comms-mute/lift', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminAccountService.unmuteComms(fastify.prisma, request.auth!.account, accountId, body.reason);
+  });
+
+  fastify.post('/accounts/:accountId/notes', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(noteSchema, request.body ?? {});
+    return AdminAccountService.addNote(fastify.prisma, request.auth!.account, accountId, body.body);
+  });
+
+  /** 0.9.0-H: the queue carries no message text. */
+  fastify.get('/reports', async (request) => {
+    const query = parseBody(reportQuery, request.query ?? {});
+    return AdminModerationService.queue(fastify.prisma, query.status, query.page);
+  });
+
+  /** Opening a report reveals message text, so it is a POST and it is audited. */
+  fastify.post('/reports/:reportId/open', async (request) => {
+    const { reportId } = parseBody(reportParams, request.params);
+    return AdminModerationService.open(fastify.prisma, request.auth!.account, reportId);
+  });
+
+  fastify.post('/reports/:reportId/resolve', async (request) => {
+    const { reportId } = parseBody(reportParams, request.params);
+    const body = parseBody(resolveReportSchema, request.body ?? {});
+    return AdminModerationService.resolve(fastify.prisma, request.auth!.account, reportId, body.resolution, body.note);
+  });
+
+  /** rc.2: bugs players reported from the game. */
+  fastify.get('/bug-reports', async (request) => {
+    const query = parseBody(reportQuery, request.query ?? {});
+    return BugReportService.queue(fastify.prisma, query.status, query.page);
+  });
+
+  fastify.post('/bug-reports/:reportId/resolve', async (request) => {
+    const { reportId } = parseBody(reportParams, request.params);
+    const body = parseBody(resolveBugReportSchema, request.body ?? {});
+    return BugReportService.resolve(fastify.prisma, request.auth!.account, reportId, body.resolution, body.note);
   });
 
   fastify.post('/accounts/:accountId/suspend/lift', async (request) => {
@@ -383,6 +493,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { accountId } = parseBody(accountParams, request.params);
     const body = parseBody(reasonBody, request.body ?? {});
     return AdminAccountService.resendVerification(fastify.prisma, request.auth!.account, accountId, body.reason, fastify.log);
+  });
+
+  fastify.post('/accounts/:accountId/2fa/reset', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(reasonBody, request.body ?? {});
+    return AdminAccountService.resetTwoFactor(fastify.prisma, request.auth!.account, accountId, body.reason, fastify.log);
   });
 
   fastify.post('/accounts/:accountId/email/verify', async (request) => {
@@ -510,6 +626,69 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.get('/signals', async () => AdminSignalsService.clusters(fastify.prisma));
+
+  // 1.0.0-F: is the game all right, and are its backups.
+  fastify.get('/monitoring', async (_request, reply) => {
+    reply.header('cache-control', 'no-store');
+    return MonitoringService.snapshot(fastify.prisma);
+  });
+
+  // 1.0.0-E: economy, fights, exploit flags and turf. Reads are read-only; repairs are audited.
+  fastify.get('/rounds/:roundId/markets', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    return AdminEconomyService.markets(fastify.prisma, roundId);
+  });
+
+  fastify.get('/rounds/:roundId/suspicious', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    const { hours } = parseBody(z.object({ hours: z.coerce.number().int().min(1).max(24 * 14).optional() }).strict(), request.query ?? {});
+    return AdminEconomyService.suspicious(fastify.prisma, roundId, hours ?? 24);
+  });
+
+  fastify.get('/rounds/:roundId/shipments', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    return AdminEconomyService.shipments(fastify.prisma, roundId);
+  });
+
+  fastify.get('/players/:roundPlayerId/stores', async (request) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    return AdminEconomyService.playerStores(fastify.prisma, roundPlayerId);
+  });
+
+  fastify.get('/rounds/:roundId/battles', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    const query = parseBody(z.object({ playerId: id.optional(), limit: z.coerce.number().int().min(1).max(200).optional() }).strict(), request.query ?? {});
+    return AdminEconomyService.battles(fastify.prisma, roundId, query);
+  });
+
+  fastify.get('/exploit-flags', async (request) => {
+    const query = parseBody(z.object({ status: z.enum(['open', 'reviewed', 'all']).optional(), kind: z.string().max(32).optional() }).strict(), request.query ?? {});
+    return ExploitFlagService.list(fastify.prisma, query);
+  });
+
+  fastify.post('/exploit-flags/:flagId/review', async (request) => {
+    const { flagId } = parseBody(z.object({ flagId: id }).strict(), request.params);
+    const body = parseBody(z.object({ resolution: z.enum(['dismissed', 'actioned']), note: reason }).strict(), request.body ?? {});
+    return { flag: await ExploitFlagService.review(fastify.prisma, request.auth!.account, flagId, body) };
+  });
+
+  fastify.get('/rounds/:roundId/turf', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    return AdminTurfService.overview(fastify.prisma, roundId);
+  });
+
+  fastify.get('/turf/:turfId/history', async (request) => {
+    const { turfId } = parseBody(z.object({ turfId: id }).strict(), request.params);
+    return AdminTurfService.history(fastify.prisma, turfId);
+  });
+
+  fastify.post('/turf/repair', async (request) => {
+    const body = parseBody(z.object({
+      action: z.enum(['release-block', 'sync-posted', 'settle-push']),
+      turfId: id.optional(), roundPlayerId: id.optional(), pushId: id.optional(), reason,
+    }).strict(), request.body ?? {});
+    return AdminTurfService.repair(fastify.prisma, request.auth!.account, body);
+  });
 
   // Audit
 

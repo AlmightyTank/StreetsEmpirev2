@@ -16,6 +16,7 @@
 #   SEED=1         seed a fresh beta database once
 #   SKIP_BOT=1     do not restart the beta bot service
 #   SKIP_PULL=1    deploy current checkout without fetching
+#   SKIP_BACKUP=1  do not take the pre-deploy database backup (not recommended)
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -27,6 +28,7 @@ BETA_SITE_URL="${BETA_SITE_URL:-https://beta.streetsempire.dev}"
 SEED="${SEED:-0}"
 SKIP_BOT="${SKIP_BOT:-0}"
 SKIP_PULL="${SKIP_PULL:-0}"
+SKIP_BACKUP="${SKIP_BACKUP:-0}"
 SUDO=""
 [ "$(id -u)" -eq 0 ] || SUDO="sudo"
 
@@ -37,6 +39,9 @@ cd "$APP_DIR"
 
 [ -f .env ] || fail "missing beta .env in $APP_DIR"
 grep -Eq '^BETA_INVITE_ONLY="?true"?$' .env || fail "beta .env must set BETA_INVITE_ONLY=true. Refusing to deploy an open beta."
+# 1.0.0-A: never build a production checkout as beta, or share its session cookie.
+node scripts/ops/check-environment.mjs --expect beta \
+  || fail "this checkout's .env is not a beta configuration. Is this the production checkout?"
 systemctl cat "$BETA_SERVICE" >/dev/null 2>&1 || fail "no $BETA_SERVICE service. Run scripts/ops/install-beta-service.sh after the first build."
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
@@ -63,6 +68,17 @@ npm run build
 [ -f "$APP_DIR/apps/server/dist/index.js" ] || fail "beta API build missing"
 [ -f "$APP_DIR/apps/web/dist/index.html" ] || fail "beta game build missing"
 
+step "Backing up the database before migrating"
+# 1.0.0-F: the way back from a migration that goes wrong. Exit 2 = saved here, off-server copy failed.
+if [ "$SKIP_BACKUP" = "1" ]; then
+  echo "Skipped (SKIP_BACKUP=1)."
+else
+  backup_rc=0
+  npx tsx scripts/ops/backup.ts backup --label predeploy || backup_rc=$?
+  [ "$backup_rc" -eq 0 ] || [ "$backup_rc" -eq 2 ] \
+    || fail "the pre-deploy backup failed, so nothing was migrated. Fix it (see docs/RECOVERY.md) or rerun with SKIP_BACKUP=1 to deploy without one."
+fi
+
 step "Applying beta database migrations"
 npx prisma migrate deploy
 
@@ -85,6 +101,8 @@ for attempt in $(seq 1 30); do
   fi
   sleep 2
 done
+node scripts/ops/check-environment.mjs --expect beta --url "$API_URL" --commit "$(git rev-parse --short=12 HEAD)" \
+  || fail "the restarted API is not the beta build of this checkout."
 
 if [ "$SKIP_BOT" != "1" ] && systemctl cat "$BETA_BOT_SERVICE" >/dev/null 2>&1; then
   step "Restarting $BETA_BOT_SERVICE"
@@ -97,6 +115,15 @@ if [ -n "$BETA_SITE_URL" ]; then
   step "Checking $BETA_SITE_URL"
   curl -fsS --max-time 10 "$BETA_SITE_URL/" >/dev/null || fail "beta web app did not answer."
   curl -fsS --max-time 10 "$BETA_SITE_URL/api/ready" >/dev/null || fail "beta API did not answer through Nginx."
+  node scripts/ops/check-environment.mjs --expect beta --url "$BETA_SITE_URL" \
+    || fail "$BETA_SITE_URL does not reach the beta API. Check the Nginx upstream for beta.streetsempire.dev."
+  # The page must be re-checked on every load, or phones keep an old build (old log-in page).
+  curl -fsSI --max-time 10 "$$BETA_SITE_URL/game" | grep -qi '^cache-control:.*no-cache' \
+    || echo "WARNING: $$BETA_SITE_URL/game is served without Cache-Control: no-cache. Add it to the Nginx 'location /' for beta.streetsempire.dev (docs/nginx/streets-empire-platform.conf.example)." >&2
 fi
+
+# 1.0.0-F: remember what was running and healthy, for scripts/ops/rollback.sh.
+mkdir -p "$APP_DIR/.deploy"
+printf '%s %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(git rev-parse HEAD)" "$(git log -1 --format=%s | tr -d '\n' | cut -c1-80)" >> "$APP_DIR/.deploy/history"
 
 step "Beta deployed: $(git log -1 --format='%h %s')"

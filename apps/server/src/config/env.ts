@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { z } from 'zod';
+import { environmentConflicts, inferAppEnvironment } from '@streets/shared';
 
 // apps/server/src/config -> repo root
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -9,6 +10,13 @@ dotenv.config({ path: path.resolve(here, '../../../../.env') });
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  /**
+   * 1.0.0-A. production | beta | development | test. Optional: without it an
+   * invite-only production-mode server is beta and any other is production.
+   */
+  APP_ENV: z.string().optional(),
+  /** 1.0.0-A. Short commit of the build, when deploys pass it; otherwise read from git. */
+  BUILD_COMMIT: z.string().regex(/^[0-9a-f]{7,40}$/i, 'BUILD_COMMIT must be a git commit hash.').optional(),
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required.'),
 
@@ -19,7 +27,16 @@ const envSchema = z.object({
     .string()
     .min(32, 'SESSION_SECRET must be at least 32 characters.'),
   SESSION_COOKIE_NAME: z.string().default('se_session'),
+  /** "Keep me signed in": the session ends after this many days without a visit. */
   SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  /** rc.4. However active, a session ends this many days after sign-in (password and code again). */
+  SESSION_MAX_DAYS: z.coerce.number().int().positive().default(90),
+  /** rc.4. Without "Keep me signed in": ends with the browser, or after this many idle hours. */
+  SESSION_SHORT_HOURS: z.coerce.number().int().positive().default(12),
+  /** rc.4. "Trust this browser": how long two-step sign-in skips the code on it. */
+  TRUSTED_DEVICE_DAYS: z.coerce.number().int().min(0).default(30),
+  /** rc.4. Admin tools need a second factor proved within this many hours. */
+  ADMIN_2FA_MAX_AGE_HOURS: z.coerce.number().int().positive().default(12),
 
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
   FRONTEND_ORIGIN: z.string().url().optional(),
@@ -42,7 +59,9 @@ const envSchema = z.object({
   /** 0.3.0-C. The recruitment tag alliance leaders post their threads into. */
   FORUM_RECRUITMENT_TAG_ID: z.string().regex(/^\d*$/, 'FORUM_RECRUITMENT_TAG_ID must be a numeric Flarum tag id.').default(''),
   /** Optional cosmetic: any account with Discord linked gets the Beta Tester title/badge. */
-  BETA_TESTER_DISCORD_LINKED: z.coerce.boolean().default(false),
+  // 1.0.0-H: not z.coerce.boolean(), which reads the string "false" as true and turned the
+  // beta-tester cosmetic on for every Discord-linked player wherever the example value was copied.
+  BETA_TESTER_DISCORD_LINKED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   /** Optional legacy cosmetic path: linked forum users in any of these visible groups get the Beta Tester title/badge. */
   BETA_TESTER_FORUM_GROUPS: z.string().default(''),
 
@@ -61,6 +80,52 @@ const envSchema = z.object({
   /** How long admin audit entries are kept. 0 keeps them forever. */
   ADMIN_AUDIT_RETENTION_DAYS: z.coerce.number().int().min(0).max(3650).default(365),
   PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().positive().default(60),
+  /** 1.0.0-F. Bearer token for /api/metrics (Prometheus text). Empty: the endpoint does not exist. */
+  METRICS_TOKEN: z.union([z.literal(''), z.string().min(24, 'METRICS_TOKEN must be at least 24 characters.')]).default(''),
+  /** 1.0.0-F. The JSON file scripts/ops/backup-db.sh and restore-test.sh write, so monitoring can see backups. */
+  BACKUP_STATUS_FILE: z.string().default(''),
+  /** 1.0.0-F. Hours after which a backup counts as missing, and days after which a restore test is stale. */
+  BACKUP_MAX_AGE_HOURS: z.coerce.number().int().positive().default(26),
+  RESTORE_TEST_MAX_AGE_DAYS: z.coerce.number().int().positive().default(8),
+  /** 1.0.0-F. Maintenance mode: every player request is answered 503 with this message; admins and health checks still work. */
+  MAINTENANCE_MODE: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  /**
+   * 1.0.0-H. Believe X-Forwarded-For (the client address behind a reverse proxy).
+   * Defaults to on in production, where nginx is in front; the load test turns it on
+   * so each simulated player has its own address, as real players do.
+   */
+  /**
+   * Players must verify their email (or sign in with Discord) before they can play.
+   * On by default in production and beta; off in development and test unless set.
+   */
+  REQUIRE_VERIFIED_EMAIL: z.enum(['true', 'false']).optional(),
+  /** Players accept the game rules before they play. Same defaults as REQUIRE_VERIFIED_EMAIL. */
+  REQUIRE_RULES_ACCEPTANCE: z.enum(['true', 'false']).optional(),
+  /**
+   * rc.3. Admin tools only answer a session with a second factor: signed in with Discord
+   * (Discord's own two-factor sign-in) or with an authenticator code. Same defaults as above.
+   */
+  REQUIRE_ADMIN_2FA: z.enum(['true', 'false']).optional(),
+  /** rc.2 name for REQUIRE_ADMIN_2FA, still read when that is unset. */
+  REQUIRE_ADMIN_DISCORD: z.enum(['true', 'false']).optional(),
+  /**
+   * rc.3. Key that encrypts authenticator secrets in the database. Set it on production and
+   * never change it: changing it breaks every enrolled authenticator. Unset, a key derived
+   * from SESSION_SECRET is used (fine for development).
+   */
+  TWO_FACTOR_KEY: z.string().min(32).optional(),
+  /**
+   * rc.5/rc.6. Cloudflare Turnstile bot check on password sign-in, sign-up and password reset. Both keys set turns
+   * it on; either unset leaves it off (development, tests).
+   */
+  TURNSTILE_SITE_KEY: z.string().optional(),
+  TURNSTILE_SECRET_KEY: z.string().optional(),
+  /** rc.2. New accounts one address may create per 24 hours (0 turns the cap off). */
+  SIGNUP_DAILY_LIMIT_PER_IP: z.coerce.number().int().min(0).optional(),
+  TRUST_PROXY: z.enum(['true', 'false']).optional(),
+  /** 1.0.0-H. Optional log level override (fatal, error, warn, info, debug, trace). */
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).optional(),
+  MAINTENANCE_MESSAGE: z.string().max(280).default('StreetsEmpire is down for maintenance. Everything you own is safe; check back shortly.'),
   EMAIL_VERIFICATION_TTL_MINUTES: z.coerce.number().int().positive().default(60),
 });
 
@@ -87,6 +152,22 @@ if (forumUrl.username || forumUrl.password || forumUrl.pathname !== '/' || forum
   throw new Error('FORUM_ORIGIN must be an HTTPS origin without a path (HTTP localhost is allowed in development).');
 }
 
+const appEnvironment = inferAppEnvironment({
+  appEnv: parsed.data.APP_ENV,
+  nodeEnv: parsed.data.NODE_ENV,
+  betaInviteOnly: parsed.data.BETA_INVITE_ONLY,
+  sessionCookieName: parsed.data.SESSION_COOKIE_NAME,
+});
+const conflicts = environmentConflicts({
+  environment: appEnvironment,
+  nodeEnv: parsed.data.NODE_ENV,
+  sessionCookieName: parsed.data.SESSION_COOKIE_NAME,
+  betaInviteOnly: parsed.data.BETA_INVITE_ONLY,
+});
+if (conflicts.length) {
+  throw new Error(`Refusing to start as ${appEnvironment}:\n${conflicts.map((problem) => `  ${problem}`).join('\n')}`);
+}
+
 const seasonalEventAdminTestMode = parsed.data.SEASONAL_EVENT_ADMIN_TEST_MODE
   ? parsed.data.SEASONAL_EVENT_ADMIN_TEST_MODE === 'true'
   : parsed.data.NODE_ENV !== 'production';
@@ -94,10 +175,51 @@ const seasonalEventAdminTestMode = parsed.data.SEASONAL_EVENT_ADMIN_TEST_MODE
 export const env = {
   ...parsed.data,
   isProduction: parsed.data.NODE_ENV === 'production',
+  /** 1.0.0-A. production | beta | development | test. */
+  appEnvironment,
+  accounts: {
+    requireVerifiedEmail: parsed.data.REQUIRE_VERIFIED_EMAIL
+      ? parsed.data.REQUIRE_VERIFIED_EMAIL === 'true'
+      : appEnvironment === 'production' || appEnvironment === 'beta',
+    requireRulesAcceptance: parsed.data.REQUIRE_RULES_ACCEPTANCE
+      ? parsed.data.REQUIRE_RULES_ACCEPTANCE === 'true'
+      : appEnvironment === 'production' || appEnvironment === 'beta',
+    requireAdminSecondFactor: (parsed.data.REQUIRE_ADMIN_2FA ?? parsed.data.REQUIRE_ADMIN_DISCORD)
+      ? (parsed.data.REQUIRE_ADMIN_2FA ?? parsed.data.REQUIRE_ADMIN_DISCORD) === 'true'
+      : appEnvironment === 'production' || appEnvironment === 'beta',
+    // Default 5 in production and beta; off elsewhere, where tests sign up many accounts from one address.
+    signupDailyLimitPerIp: parsed.data.SIGNUP_DAILY_LIMIT_PER_IP
+      ?? (appEnvironment === 'production' || appEnvironment === 'beta' ? 5 : 0),
+  },
+  trustProxy: parsed.data.TRUST_PROXY ? parsed.data.TRUST_PROXY === 'true' : parsed.data.NODE_ENV === 'production',
+  logLevel: parsed.data.LOG_LEVEL ?? (parsed.data.NODE_ENV === 'production' ? 'info' : 'debug'),
+  buildCommit: parsed.data.BUILD_COMMIT?.slice(0, 12) ?? null,
   corsOrigins,
   frontendOrigin: parsed.data.FRONTEND_ORIGIN ?? corsOrigins[0] ?? 'http://localhost:5173',
   sessionTtlMs: parsed.data.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
+  turnstile: {
+    enabled: Boolean(parsed.data.TURNSTILE_SITE_KEY && parsed.data.TURNSTILE_SECRET_KEY),
+    siteKey: parsed.data.TURNSTILE_SITE_KEY ?? '',
+    secretKey: parsed.data.TURNSTILE_SECRET_KEY ?? '',
+  },
+  sessions: {
+    rememberedIdleMs: parsed.data.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
+    maxAgeMs: Math.max(parsed.data.SESSION_MAX_DAYS, parsed.data.SESSION_TTL_DAYS) * 24 * 60 * 60 * 1000,
+    shortIdleMs: parsed.data.SESSION_SHORT_HOURS * 60 * 60 * 1000,
+    trustedDeviceMs: parsed.data.TRUSTED_DEVICE_DAYS * 24 * 60 * 60 * 1000,
+    adminSecondFactorMs: parsed.data.ADMIN_2FA_MAX_AGE_HOURS * 60 * 60 * 1000,
+  },
   auditRetentionDays: parsed.data.ADMIN_AUDIT_RETENTION_DAYS,
+  monitoring: {
+    metricsToken: parsed.data.METRICS_TOKEN,
+    backupStatusFile: parsed.data.BACKUP_STATUS_FILE,
+    backupMaxAgeHours: parsed.data.BACKUP_MAX_AGE_HOURS,
+    restoreTestMaxAgeDays: parsed.data.RESTORE_TEST_MAX_AGE_DAYS,
+  },
+  maintenance: {
+    enabled: parsed.data.MAINTENANCE_MODE,
+    message: parsed.data.MAINTENANCE_MESSAGE,
+  },
   betaAccess: {
     inviteOnly: parsed.data.BETA_INVITE_ONLY,
   },

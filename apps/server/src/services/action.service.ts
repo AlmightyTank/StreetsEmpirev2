@@ -16,6 +16,7 @@ import type {
 import type { QuestDataValue } from '@streets/rulesets';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
+import { annotateLogContext } from '../utils/request-context.js';
 import { ActivityService } from './activity.service.js';
 import { HappinessService } from './happiness.service.js';
 import { IdempotencyService } from './idempotency.service.js';
@@ -28,6 +29,7 @@ import { StockService, type StockSettlementSet } from './stock.service.js';
 import { CombatRecoveryService, type RecoverySettlement } from './combat-recovery.service.js';
 import { ConvoyService } from './convoy.service.js';
 import { RelocationService } from './relocation.service.js';
+import { BossTripSettleService } from './boss-trip-settle.service.js';
 import { RunSettleService } from './run-settle.service.js';
 import { TurfService } from './turf.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
@@ -345,6 +347,10 @@ export const ActionService = {
       await RunSettleService.settle(tx, roundPlayerId, now);
       // 0.5.0-D: and a move that has arrived has arrived.
       await RelocationService.settleOwn(tx, roundPlayerId, now);
+      // Trips A: and a boss whose flight home has landed is home.
+      await BossTripSettleService.settle(tx, roundPlayerId, now);
+      // Trips C: and whatever a hit on a visiting boss brought back is back.
+      await BossTripSettleService.credit(tx, roundPlayerId, now);
       // 0.5.0-E: and whatever came back from a convoy fight is back.
       await ConvoyService.credit(tx, roundPlayerId, now);
       // 0.6.0-C: turf squads and allied backup return before another action reads them.
@@ -359,6 +365,8 @@ export const ActionService = {
       }
 
       const { round, ...loadedPlayer } = loaded;
+      // 1.0.0-F: the action's identity, on every log line it produces.
+      annotateLogContext({ roundPlayerId, roundId: round.id, actionId: options.actionId, action: options.action, ruleset: `${round.rulesetId}@${round.rulesetVersion}` });
       let player = loadedPlayer;
       assertRoundPlayable(round, now);
       // 0.5.0-C: nobody acts from a cell. A run still out comes home on its own.
@@ -402,7 +410,9 @@ export const ActionService = {
       };
       assertPlayerState(current, ruleset, 'before');
       const beforeProducts = await HappinessService.otherProducts(tx, roundPlayerId, ruleset);
-      const beforeHappiness = HappinessService.recalculate({ ...current, thugs: fitThugs(current), products: beforeProducts }, ruleset);
+      // Trips E: the girls notice the boss is gone, before and after the action alike.
+      const awayPenalty = await HappinessService.awayPenalty(tx, ruleset, roundPlayerId, now);
+      const beforeHappiness = HappinessService.recalculate({ ...current, thugs: fitThugs(current), products: beforeProducts }, ruleset, awayPenalty);
       const beforeNetWorth = NetWorthService.calculate({ ...current, products: beforeProducts }, ruleset);
       const beforeRanks = await RankingService.ranksFor(tx, {
         id: roundPlayerId,
@@ -439,7 +449,8 @@ export const ActionService = {
       }
       // The action may have moved product rows, so they are read again.
       const afterProducts = beforeProducts && (await HappinessService.otherProducts(tx, roundPlayerId, ruleset));
-      const afterHappiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next), products: afterProducts }, ruleset);
+      // Re-read: the action may have sent the boss away (or brought them home).
+      const afterHappiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next), products: afterProducts }, ruleset, await HappinessService.awayPenalty(tx, ruleset, roundPlayerId, now));
       const afterNetWorth = NetWorthService.calculate({ ...next, products: afterProducts }, ruleset);
       const afterRanks = await RankingService.ranksFor(tx, {
         id: roundPlayerId,
@@ -455,6 +466,7 @@ export const ActionService = {
         data: {
           ...next,
           ...stock.clocks,
+          peakCrew: Math.max(player.peakCrew, next.whores + next.thugs),
           lastTurnCalculationAt: turns.lastTurnCalculationAt,
           lastActiveAt: now,
           ...(turns.awayBonus.awarded ? { lastAwayBonusAt: now } : {}),
@@ -562,6 +574,14 @@ export const ActionService = {
 function assertRoundPlayable(round: Round, now: Date): void {
   if (round.status !== 'ACTIVE' || round.endsAt.getTime() <= now.getTime()) {
     throw AppError.conflict('ROUND_ENDED', `${round.name} has ended.`);
+  }
+  assertNotPaused(round);
+}
+
+/** 1.0.0-E. A paused season refuses actions with its reason; nothing is lost while it waits. */
+export function assertNotPaused(round: Pick<Round, 'name' | 'pausedAt' | 'pauseReason'>): void {
+  if (round.pausedAt) {
+    throw AppError.conflict('ROUND_PAUSED', `${round.name} is paused${round.pauseReason ? `: ${round.pauseReason}` : ''}. Your crew and everything on the road are safe; play resumes when the pause lifts.`);
   }
 }
 

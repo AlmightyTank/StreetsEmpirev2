@@ -8,15 +8,26 @@ import type {
   AdminAccountStatusFilter,
   AdminAccountSummaryDto,
   AdminSuspensionDto,
+  AdminCommsMuteDto,
 } from '@streets/shared';
-import { ADMIN_SUSPENSION_LENGTHS, type AdminSuspensionLength } from '@streets/shared';
+import {
+  ADMIN_COMMS_MUTE_LENGTHS,
+  ADMIN_SUSPENSION_LENGTHS,
+  type AdminCommsMuteLength,
+  type AdminSuspensionLength,
+} from '@streets/shared';
+import { commsMuted } from './communication-guard.js';
 import { createAccountEmailToken, emailVerificationUrl } from '../auth/email-tokens.js';
 import { hashPassword } from '../auth/password.js';
 import { env } from '../config/env.js';
 import { lockAccount, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, toAuditEntryDto, type AuditActor } from './admin-audit.service.js';
-import { sendCurrentEmailVerification } from './email.service.js';
+import { sendCurrentEmailVerification, sendTwoFactorNotice } from './email.service.js';
+import { TwoFactorService } from './two-factor.service.js';
+import { deletedAccountIdentity, eraseAccount } from './account-data.service.js';
+
+export { deletedAccountIdentity };
 
 /**
  * A coarse label such as "Chrome on Windows". Admins never see the IP address
@@ -53,6 +64,22 @@ export function accountSnapshot(account: Account) {
     discordUsername: account.discordUsername,
     suspendedUntil: account.suspendedUntil,
     suspendedReason: account.suspendedReason,
+    bannedAt: account.bannedAt,
+    bannedReason: account.bannedReason,
+    commsMutedUntil: account.commsMutedUntil,
+    commsMutedPermanent: account.commsMutedPermanent,
+    commsMuteReason: account.commsMuteReason,
+  };
+}
+
+/** 0.9.0-H. A communication mute still in force, in the shape the panel shows. */
+export function toCommsMuteDto(account: Account, now = new Date()): AdminCommsMuteDto | null {
+  if (!commsMuted(account, now)) return null;
+  return {
+    permanent: account.commsMutedPermanent,
+    until: account.commsMutedPermanent ? null : account.commsMutedUntil?.toISOString() ?? null,
+    reason: account.commsMuteReason ?? '',
+    byUsername: account.commsMutedByUsername,
   };
 }
 
@@ -72,12 +99,6 @@ export function deletionAuditSnapshot(account: Account, roundsPlayed: number) {
   };
 }
 
-export function deletedAccountIdentity(accountId: string) {
-  return {
-    username: `deleted_${accountId}`,
-    email: `deleted+${accountId}@deleted.streetsempire.invalid`,
-  };
-}
 
 /** A suspension still running, in the shape the panel shows. */
 export function toSuspensionDto(account: Account, now = new Date()): AdminSuspensionDto | null {
@@ -106,10 +127,12 @@ function toSummary(account: SummaryAccount, activeSessions: number, now = new Da
     username: account.username,
     email: account.email,
     emailVerified: Boolean(account.emailVerifiedAt),
+    twoFactorEnabled: Boolean(account.twoFactorEnabledAt),
     isActive: account.isActive,
     isAdmin: account.isAdmin,
     betaApproved: account.betaApproved,
     suspension: toSuspensionDto(account, now),
+    ban: account.bannedAt ? { at: account.bannedAt.toISOString(), reason: account.bannedReason ?? '', byUsername: account.bannedByUsername } : null,
     discordUsername: account.discordUsername,
     forumUsername: account.forumLink?.forumUsername ?? null,
     createdAt: account.createdAt.toISOString(),
@@ -225,11 +248,20 @@ export const AdminAccountService = {
     });
     if (!account) throw AppError.notFound('ACCOUNT_NOT_FOUND', 'That account does not exist.');
 
-    const audit = await prisma.adminAuditLog.findMany({
-      where: { targetType: 'account', targetId: account.id },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: 25,
-    });
+    const [audit, notes, openAgainst, totalAgainst] = await Promise.all([
+      prisma.adminAuditLog.findMany({
+        where: { targetType: 'account', targetId: account.id },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 25,
+      }),
+      prisma.accountModerationNote.findMany({
+        where: { accountId: account.id },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 50,
+      }),
+      prisma.playerMessageReport.count({ where: { resolvedAt: null, message: { sender: { accountId: account.id } } } }),
+      prisma.playerMessageReport.count({ where: { message: { sender: { accountId: account.id } } } }),
+    ]);
 
     return {
       account: toSummary(account, account.sessions.length, now),
@@ -277,7 +309,65 @@ export const AdminAccountService = {
         joinedAt: player.createdAt.toISOString(),
       })),
       audit: audit.map(toAuditEntryDto),
+      comms: toCommsMuteDto(account, now),
+      notes: notes.map((note) => ({
+        id: note.id,
+        authorUsername: note.authorUsername,
+        body: note.body,
+        createdAt: note.createdAt.toISOString(),
+      })),
+      reportsAgainst: { open: openAgainst, total: totalAgainst },
     };
+  },
+
+  /**
+   * 0.9.0-H. Stop an account's private messages, wire posts and forum recruitment
+   * threads for a while or for good. Unlike a suspension they keep playing.
+   */
+  async muteComms(
+    prisma: PrismaClient,
+    actor: AuditActor,
+    accountId: string,
+    length: AdminCommsMuteLength,
+    reason: string,
+    now = new Date(),
+  ): Promise<AdminAccountDetailDto> {
+    const chosen = ADMIN_COMMS_MUTE_LENGTHS.find((option) => option.key === length);
+    if (!chosen) throw AppError.badRequest('COMMS_MUTE_LENGTH_UNKNOWN', 'Pick one of the offered mute lengths.');
+    const permanent = chosen.hours === null;
+    const until = permanent ? null : new Date(now.getTime() + chosen.hours! * 60 * 60_000);
+    await moderate(prisma, actor, accountId, 'comms-mute', reason, async (tx, before) => {
+      if (before.isAdmin) throw AppError.conflict('ADMIN_COMMS_MUTE', `Remove ${before.username}'s admin role before muting them.`);
+      const account = await tx.account.update({
+        where: { id: before.id },
+        data: { commsMutedUntil: until, commsMutedPermanent: permanent, commsMuteReason: reason, commsMutedByUsername: actor.username },
+      });
+      return { account, detail: { length: chosen.label } };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  async unmuteComms(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string, now = new Date()): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, 'comms-unmute', reason, async (tx, before) => {
+      if (!commsMuted(before, now)) throw AppError.conflict('NOT_COMMS_MUTED', `${before.username} is not muted.`);
+      const account = await tx.account.update({
+        where: { id: before.id },
+        data: { commsMutedUntil: null, commsMutedPermanent: false, commsMuteReason: null, commsMutedByUsername: null },
+      });
+      return { account };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  /** 0.9.0-H. A private moderation note. The note itself is the audit reason. */
+  async addNote(prisma: PrismaClient, actor: AuditActor, accountId: string, body: string): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, 'add-note', body.slice(0, 500), async (tx, before) => {
+      const note = await tx.accountModerationNote.create({
+        data: { accountId: before.id, authorAccountId: actor.id, authorUsername: actor.username, body },
+      });
+      return { account: before, detail: { noteId: note.id } };
+    });
+    return AdminAccountService.detail(prisma, accountId);
   },
 
   /**
@@ -326,93 +416,29 @@ export const AdminAccountService = {
       }
 
       const roundsPlayed = await tx.roundPlayer.count({ where: { accountId: before.id } });
-      const sessionsRevoked = await tx.session.count({ where: { accountId: before.id } });
       const beforeAudit = deletionAuditSnapshot(before, roundsPlayed);
-
-      if (roundsPlayed === 0) {
-        await AdminAuditService.record(tx, actor, {
-          action: 'account.delete',
-          targetType: 'account',
-          targetId: before.id,
-          reason,
-          before: beforeAudit,
-          after: {
-            id: before.id,
-            mode: 'deleted',
-            roundsPreserved: 0,
-            sessionsRevoked,
-          },
-        });
-        await tx.account.delete({ where: { id: before.id } });
-
-        return {
-          accountId: before.id,
-          formerUsername: before.username,
-          mode: 'deleted',
-          roundsPreserved: 0,
-          sessionsRevoked,
-        };
-      }
-
-      // Remove private/authentication-owned rows even though most also cascade.
-      await tx.session.deleteMany({ where: { accountId: before.id } });
-      await tx.passwordResetToken.deleteMany({ where: { accountId: before.id } });
-      await tx.accountEmailToken.deleteMany({ where: { accountId: before.id } });
-      await tx.forumLinkRequest.deleteMany({ where: { accountId: before.id } });
-      await tx.forumLink.deleteMany({ where: { accountId: before.id } });
-      await tx.notificationOutbox.deleteMany({ where: { accountId: before.id } });
-      await tx.notificationSettings.deleteMany({ where: { accountId: before.id } });
-      await tx.pushSubscription.deleteMany({ where: { accountId: before.id } });
-      await tx.accountProfile.deleteMany({ where: { accountId: before.id } });
-
-      const tombstone = deletedAccountIdentity(before.id);
-      const account = await tx.account.update({
-        where: { id: before.id },
-        data: {
-          username: tombstone.username,
-          usernameNormalized: tombstone.username.toLowerCase(),
-          email: tombstone.email,
-          emailVerifiedAt: null,
-          passwordHash: replacementPasswordHash,
-          discordId: null,
-          discordUsername: null,
-          discordAvatar: null,
-          discordLinkedAt: null,
-          lastLoginAt: null,
-          isActive: false,
-          isAdmin: false,
-          betaApproved: false,
-          suspendedUntil: null,
-          suspendedReason: null,
-          suspendedByUsername: null,
-        },
-      });
-      await tx.roundPlayer.updateMany({
-        where: { accountId: before.id },
-        data: { displayName: 'Deleted Player' },
-      });
-
-      await AdminAuditService.record(tx, actor, {
+      // Audit first: a fully deleted account cannot be written about afterwards.
+      const audit = await AdminAuditService.record(tx, actor, {
         action: 'account.delete',
         targetType: 'account',
         targetId: before.id,
         reason,
         before: beforeAudit,
-        after: {
-          id: account.id,
-          username: account.username,
-          mode: 'anonymized',
-          roundsPreserved: roundsPlayed,
-          sessionsRevoked,
+      });
+      const result = await eraseAccount(tx, before, replacementPasswordHash);
+      await tx.adminAuditLog.update({
+        where: { id: audit.id },
+        data: {
+          after: result.mode === 'deleted'
+            ? { id: before.id, mode: 'deleted', roundsPreserved: 0, sessionsRevoked: result.sessionsRevoked }
+            : { id: before.id, username: deletedAccountIdentity(before.id).username, mode: 'anonymized', roundsPreserved: result.roundsPreserved, sessionsRevoked: result.sessionsRevoked },
         },
       });
 
       return {
         accountId: before.id,
         formerUsername: before.username,
-        mode: 'anonymized',
-        roundsPreserved: roundsPlayed,
-        sessionsRevoked,
+        ...result,
       };
     });
   },
@@ -420,13 +446,48 @@ export const AdminAccountService = {
   /** Deactivating signs the account out everywhere; resolveSession already refuses inactive accounts. */
   async setActive(prisma: PrismaClient, actor: AuditActor, accountId: string, isActive: boolean, reason: string): Promise<AdminAccountDetailDto> {
     await moderate(prisma, actor, accountId, isActive ? 'reactivate' : 'deactivate', reason, async (tx, before) => {
+      if (isActive && before.bannedAt) {
+        throw AppError.conflict('ACCOUNT_BANNED', `${before.username} is banned. Lift the ban instead, so the record shows why.`);
+      }
       if (before.isActive === isActive) {
         throw AppError.conflict('ACCOUNT_STATUS_UNCHANGED', isActive ? `${before.username} is already active.` : `${before.username} is already deactivated.`);
       }
-      const account = await tx.account.update({ where: { id: before.id }, data: { isActive } });
+      // Reopening a player-closed account clears the closure too.
+      const account = await tx.account.update({ where: { id: before.id }, data: isActive ? { isActive, closedAt: null } : { isActive } });
       if (isActive) return { account };
       const { count } = await tx.session.deleteMany({ where: { accountId: before.id } });
       return { account, detail: { sessionsRevoked: count } };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  /**
+   * 1.0.0-E. A ban: the account is shut down and every session ends, with the
+   * reason recorded on the account and shown at sign-in. Unlike a suspension it
+   * never runs out; only an unban lifts it.
+   */
+  async ban(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string, now = new Date()): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, 'ban', reason, async (tx, before) => {
+      if (before.bannedAt) throw AppError.conflict('ACCOUNT_ALREADY_BANNED', `${before.username} is already banned.`);
+      if (before.isAdmin) throw AppError.conflict('ADMIN_BAN', `Remove ${before.username}'s admin role before banning them.`);
+      const account = await tx.account.update({
+        where: { id: before.id },
+        data: { isActive: false, bannedAt: now, bannedReason: reason, bannedByUsername: actor.username, suspendedUntil: null, suspendedReason: null, suspendedByUsername: null },
+      });
+      const { count } = await tx.session.deleteMany({ where: { accountId: before.id } });
+      return { account, detail: { sessionsRevoked: count } };
+    });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  async unban(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, 'unban', reason, async (tx, before) => {
+      if (!before.bannedAt) throw AppError.conflict('ACCOUNT_NOT_BANNED', `${before.username} is not banned.`);
+      const account = await tx.account.update({
+        where: { id: before.id },
+        data: { isActive: true, bannedAt: null, bannedReason: null, bannedByUsername: null },
+      });
+      return { account };
     });
     return AdminAccountService.detail(prisma, accountId);
   },
@@ -512,14 +573,14 @@ export const AdminAccountService = {
       if (profile) {
         await tx.accountProfile.update({
           where: { accountId: before.id },
-          data: { activeTitleKey: null, activeProfileFrameKey: null, activeSiteThemeKey: null, featuredBadgeKeys: [], profileAccent: 'default' },
+          data: { activeTitleKey: null, crewName: null, activeProfileFrameKey: null, activeSiteThemeKey: null, featuredBadgeKeys: [], profileAccent: 'default' },
         });
       }
       return {
         account: before,
         detail: {
           previousProfile: profile
-            ? { activeTitleKey: profile.activeTitleKey, activeProfileFrameKey: profile.activeProfileFrameKey, activeSiteThemeKey: profile.activeSiteThemeKey, featuredBadgeKeys: stringArray(profile.featuredBadgeKeys), profileAccent: profile.profileAccent }
+            ? { activeTitleKey: profile.activeTitleKey, crewName: profile.crewName, activeProfileFrameKey: profile.activeProfileFrameKey, activeSiteThemeKey: profile.activeSiteThemeKey, featuredBadgeKeys: stringArray(profile.featuredBadgeKeys), profileAccent: profile.profileAccent }
             : null,
         },
       };
@@ -602,6 +663,27 @@ export const AdminAccountService = {
       const account = await tx.account.update({ where: { id: before.id }, data: { emailVerifiedAt: new Date() } });
       return { account };
     });
+    return AdminAccountService.detail(prisma, accountId);
+  },
+
+  /**
+   * rc.3. Turns off two-step sign-in for a player who lost their phone and their recovery
+   * codes. Only after staff are sure it is them; the player is emailed either way.
+   */
+  async resetTwoFactor(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string, log: FastifyBaseLogger): Promise<AdminAccountDetailDto> {
+    let notify: { to: string; username: string } | null = null;
+    await moderate(prisma, actor, accountId, 'reset-2fa', reason, async (tx, before) => {
+      if (!before.twoFactorEnabledAt && !before.twoFactorPendingSecret) {
+        throw AppError.conflict('TWO_FACTOR_DISABLED', `${before.username} does not have two-step sign-in on.`);
+      }
+      await TwoFactorService.clear(tx, before.id);
+      notify = { to: before.email, username: before.username };
+      return { account: await tx.account.findUniqueOrThrow({ where: { id: before.id } }) };
+    });
+    if (notify) {
+      await sendTwoFactorNotice({ ...(notify as { to: string; username: string }), change: 'reset' }, log)
+        .catch((error: unknown) => log.warn({ err: error }, 'two-factor notice failed'));
+    }
     return AdminAccountService.detail(prisma, accountId);
   },
 
