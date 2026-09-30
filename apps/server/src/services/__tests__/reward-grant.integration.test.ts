@@ -101,9 +101,12 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('reward grants with 
     expect(favors.find((row) => row.key === 'BURNER_PHONE')?.lastSourceQuestKey).toBe('street-pass-s1:23');
 
     const cosmetics = await app.prisma.accountCosmeticUnlock.findMany({ where: { accountId }, orderBy: { key: 'asc' } });
-    expect(cosmetics.map((row) => [row.key, row.kind, row.sourceQuestKey])).toEqual([
-      ['street-pass-s1-badge', 'TITLE_BADGE', 'street-pass-s1:30'],
-      ['street-pass-s1-frame', 'PROFILE_FRAME', 'street-pass-s1:30'],
+    expect(cosmetics.map((row) => [row.key, row.kind, row.rarity, row.sourceQuestKey])).toEqual([
+      ['street-pass-s1-badge', 'TITLE_BADGE', 'legendary', 'street-pass-s1:30'],
+      ['street-pass-s1-frame', 'PROFILE_FRAME', 'legendary', 'street-pass-s1:30'],
+      ['street-pass-s1-fresh-face', 'TITLE_BADGE', 'rare', 'street-pass-s1:10'],
+      ['street-pass-s1-kingpin', 'TITLE_BADGE', 'legendary', 'street-pass-s1:30'],
+      ['street-pass-s1-made-man', 'TITLE_BADGE', 'epic', 'street-pass-s1:20'],
     ]);
   });
 

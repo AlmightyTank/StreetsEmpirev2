@@ -23,7 +23,8 @@ function compactDollars(cents: number): string {
 function PassReward({ reward }: { reward: QuestRewardDto }) {
   const art = rewardArtKey(reward);
   if (!art) {
-    const name = reward.label.replace(/^Permanent cosmetic · /, '');
+    // "Permanent cosmetic · Kingpin · Season 1" reads "Kingpin" on the tile; the tooltip keeps the rest.
+    const name = reward.label.replace(/^Permanent cosmetic · /, '').replace(/ · Season \d+$/, '');
     return (
       <figure className="se-pass-cosmetic" title={reward.label}>
         <span aria-hidden="true">★</span>

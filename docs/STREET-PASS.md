@@ -75,7 +75,7 @@ for balance testing, not final.
 | 7 | 50 medicine |
 | 8 | $25,000 |
 | 9 | 250 weed |
-| ★ 10 | 3 shotguns + 5 hoes |
+| ★ 10 | 3 shotguns + 5 hoes + **Fresh Face** title |
 | 11 | 40 turns |
 | 12 | Street Frenzy |
 | 13 | 10 thugs |
@@ -85,7 +85,7 @@ for balance testing, not final.
 | 17 | Cookhouse Rush |
 | 18 | 200 meth |
 | 19 | 60 turns |
-| ★ 20 | 2 Tek-9s + 1 Low-Rider |
+| ★ 20 | 2 Tek-9s + 1 Low-Rider + **Made Man** title |
 | 21 | $75,000 |
 | 22 | 150 cocaine |
 | 23 | 2 Burner Phones |
@@ -95,7 +95,7 @@ for balance testing, not final.
 | 27 | 200 heroin |
 | 28 | $100,000 |
 | 29 | 2 AK-47s + 1 Low-Rider |
-| ★ 30 | Season profile frame + season title badge (both permanent) |
+| ★ 30 | **Kingpin** title + season badge + season profile frame (all permanent) |
 
 A full pass is worth about **$260,000 cash, 28 hoes, 30 thugs, 225 turns,
 2 Low-Riders, 25 pistols, 3 shotguns, 2 Tek-9s, 2 AK-47s**, plus supplies,
@@ -128,13 +128,22 @@ each, so the pass cash alone is about five weeklies.
 
 ## Season cosmetics
 
-Each round gets its own tier 30 pair, so they become collectible:
+Every season has its own set, so they become collectible. All of them are
+permanent on the account, through the existing cosmetics system
+(`COSMETIC_UNLOCK`):
 
-- **Title badge**, for example "Street Pass · Season 12" (a `TITLE_BADGE`).
-- **Profile frame** in that season's colours (a `PROFILE_FRAME`).
+| Tier | Cosmetic | Kind | Rarity |
+| --- | --- | --- | --- |
+| 10 | Fresh Face · Season 1 | title (`TITLE_BADGE`) | rare |
+| 20 | Made Man · Season 1 | title (`TITLE_BADGE`) | epic |
+| 30 | Kingpin · Season 1 | title (`TITLE_BADGE`) | legendary |
+| 30 | Street Pass · Season 1 | badge (`TITLE_BADGE`) | legendary |
+| 30 | Season 1 Frame | profile frame (`PROFILE_FRAME`) | legendary |
 
-Both use the existing cosmetics system (`COSMETIC_UNLOCK`), which already makes
-them permanent on the account. Each season needs its own art for the pass tile.
+Later seasons reuse the title names with their own season number. Because
+tiers 10, 20 and 30 carry permanent cosmetics, round close claims them
+automatically for a player who reached them but never claimed (cosmetics
+only). Each cosmetic needs its own art for the pass tile (step 4).
 
 ## Build outline
 

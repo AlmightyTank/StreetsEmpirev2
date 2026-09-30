@@ -36,8 +36,33 @@ const product = (key: string, amount: number): QuestRewardDefinition => ({ kind:
 const favor = (key: string, amount = 1): QuestRewardDefinition => ({ kind: 'FAVOR_ITEM', key, amount });
 const cosmetic = (key: string): QuestRewardDefinition => ({ kind: 'COSMETIC_UNLOCK', key });
 
-/** The tier 30 pair for season 1. A ruleset that ships this pass adds these to its cosmetics. */
+/**
+ * Season 1's permanent cosmetics: a title at tiers 10, 20 and 30, plus the
+ * tier 30 badge and frame. A ruleset that ships this pass adds these to its
+ * cosmetics. Titles carry the season so each season's set is collectible.
+ */
 export const STREET_PASS_S1_COSMETICS = {
+  'street-pass-s1-fresh-face': {
+    key: 'street-pass-s1-fresh-face',
+    name: 'Fresh Face · Season 1',
+    description: 'Reached tier 10 of the first Street Pass. New on the block, and already noticed.',
+    kind: 'TITLE_BADGE',
+    rarity: 'rare',
+  },
+  'street-pass-s1-made-man': {
+    key: 'street-pass-s1-made-man',
+    name: 'Made Man · Season 1',
+    description: 'Reached tier 20 of the first Street Pass. The street knows your name.',
+    kind: 'TITLE_BADGE',
+    rarity: 'epic',
+  },
+  'street-pass-s1-kingpin': {
+    key: 'street-pass-s1-kingpin',
+    name: 'Kingpin · Season 1',
+    description: 'Finished the first Street Pass. Nobody on the block outworked you.',
+    kind: 'TITLE_BADGE',
+    rarity: 'legendary',
+  },
   'street-pass-s1-badge': {
     key: 'street-pass-s1-badge',
     name: 'Street Pass · Season 1',
@@ -86,7 +111,7 @@ export const STREET_PASS_S1 = {
     { tier: 7, rewards: [item('medicine', 50)] },
     { tier: 8, rewards: [cash(25_000)] },
     { tier: 9, rewards: [product('WEED', 250)] },
-    { tier: 10, rewards: [item('shotguns', 3), item('whores', 5)] },
+    { tier: 10, rewards: [item('shotguns', 3), item('whores', 5), cosmetic('street-pass-s1-fresh-face')] },
     { tier: 11, rewards: [turns(40)] },
     { tier: 12, rewards: [favor('STREET_FRENZY')] },
     { tier: 13, rewards: [item('thugs', 10)] },
@@ -96,7 +121,7 @@ export const STREET_PASS_S1 = {
     { tier: 17, rewards: [favor('COOKHOUSE_RUSH')] },
     { tier: 18, rewards: [product('METH', 200)] },
     { tier: 19, rewards: [turns(60)] },
-    { tier: 20, rewards: [item('tek9s', 2), item('lowRiders', 1)] },
+    { tier: 20, rewards: [item('tek9s', 2), item('lowRiders', 1), cosmetic('street-pass-s1-made-man')] },
     { tier: 21, rewards: [cash(75_000)] },
     { tier: 22, rewards: [product('COCAINE', 150)] },
     { tier: 23, rewards: [favor('BURNER_PHONE', 2)] },
@@ -106,7 +131,7 @@ export const STREET_PASS_S1 = {
     { tier: 27, rewards: [product('HEROIN', 200)] },
     { tier: 28, rewards: [cash(100_000)] },
     { tier: 29, rewards: [item('ak47s', 2), item('lowRiders', 1)] },
-    { tier: 30, rewards: [cosmetic('street-pass-s1-badge'), cosmetic('street-pass-s1-frame')] },
+    { tier: 30, rewards: [cosmetic('street-pass-s1-kingpin'), cosmetic('street-pass-s1-badge'), cosmetic('street-pass-s1-frame')] },
   ],
 } as const satisfies StreetPassRules;
 

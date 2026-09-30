@@ -35,14 +35,30 @@ describe('Street Pass season 1', () => {
     expect(streetPassProblems(STREET_PASS_S1, shipping)).toEqual([]);
   });
 
-  it('has 30 tiers ending in the permanent season badge and frame', () => {
+  it('has 30 tiers ending in the Kingpin title and the permanent season badge and frame', () => {
     expect(STREET_PASS_S1.tiers).toHaveLength(30);
     expect(STREET_PASS_S1.tiers.at(-1)!.rewards).toEqual([
+      { kind: 'COSMETIC_UNLOCK', key: 'street-pass-s1-kingpin' },
       { kind: 'COSMETIC_UNLOCK', key: 'street-pass-s1-badge' },
       { kind: 'COSMETIC_UNLOCK', key: 'street-pass-s1-frame' },
     ]);
     expect(STREET_PASS_S1_COSMETICS['street-pass-s1-badge'].kind).toBe('TITLE_BADGE');
     expect(STREET_PASS_S1_COSMETICS['street-pass-s1-frame'].kind).toBe('PROFILE_FRAME');
+  });
+
+  it('awards a season title at tiers 10, 20 and 30, rising in rarity', () => {
+    const tiers: StreetPassRules['tiers'] = STREET_PASS_S1.tiers;
+    const titles = tiers.flatMap((tier) => tier.rewards
+      .filter((reward) => reward.kind === 'COSMETIC_UNLOCK' && reward.key !== 'street-pass-s1-badge' && reward.key !== 'street-pass-s1-frame')
+      .map((reward) => {
+        const cosmetic = STREET_PASS_S1_COSMETICS[reward.key as keyof typeof STREET_PASS_S1_COSMETICS];
+        return [tier.tier, cosmetic.name, cosmetic.kind, cosmetic.rarity];
+      }));
+    expect(titles).toEqual([
+      [10, 'Fresh Face · Season 1', 'TITLE_BADGE', 'rare'],
+      [20, 'Made Man · Season 1', 'TITLE_BADGE', 'epic'],
+      [30, 'Kingpin · Season 1', 'TITLE_BADGE', 'legendary'],
+    ]);
   });
 
   it('pays what the design doc promises for a full pass', () => {
@@ -141,6 +157,9 @@ describe('streetPassProblems', () => {
 
   it('refuses season 1 on a round without its cosmetics', () => {
     expect(streetPassProblems(STREET_PASS_S1, classicOgV08H)).toEqual([
+      'street-pass-s1 tier 10: COSMETIC_UNLOCK street-pass-s1-fresh-face is not a cosmetic in this round',
+      'street-pass-s1 tier 20: COSMETIC_UNLOCK street-pass-s1-made-man is not a cosmetic in this round',
+      'street-pass-s1 tier 30: COSMETIC_UNLOCK street-pass-s1-kingpin is not a cosmetic in this round',
       'street-pass-s1 tier 30: COSMETIC_UNLOCK street-pass-s1-badge is not a cosmetic in this round',
       'street-pass-s1 tier 30: COSMETIC_UNLOCK street-pass-s1-frame is not a cosmetic in this round',
     ]);
