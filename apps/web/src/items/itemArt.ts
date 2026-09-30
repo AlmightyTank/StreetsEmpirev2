@@ -38,6 +38,8 @@ export const ITEM_ART = {
 
   // Tek9 Tommy's
   THUG: { name: 'Thug', shortName: 'Thug', category: 'CREW', rarity: 'UNCOMMON', file: 'thug.svg', cells: ONE },
+  // Hoes are recruited by Scouting, not sold; the art is here so they can be a reward.
+  HOE: { name: 'Hoe', shortName: 'Hoe', category: 'CREW', rarity: 'UNCOMMON', file: 'hoe.svg', cells: ONE },
   PISTOL: { name: 'Pistol', shortName: 'Pistol', category: 'WEAPON', rarity: 'COMMON', file: 'pistol.svg', cells: ONE },
   SHOTGUN: { name: 'Shotgun', shortName: 'Shotgun', category: 'WEAPON', rarity: 'UNCOMMON', file: 'shotgun.svg', cells: WIDE },
   TEK9: { name: 'Tek-9', shortName: 'Tek-9', category: 'WEAPON', rarity: 'RARE', file: 'tek9.svg', cells: WIDE },
