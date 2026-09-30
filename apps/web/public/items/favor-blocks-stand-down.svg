@@ -12,7 +12,7 @@
     <path d="M42 36 Q42 28 50 28 H74 Q82 28 82 36 V112 Q82 116 78 116 H46 Q42 116 42 112 Z" fill="url(#cn)"/>
     <rect x="42" y="52" width="40" height="40" fill="#1c1d20" stroke="none"/>
     <path d="M42 52 H82 M42 92 H82" stroke="#2a1802"/>
-    <text x="62" y="77" text-anchor="middle" font-family="Impact, 'Arial Black', sans-serif" font-size="14" fill="#ffb43d" stroke="none">BLKS</text>
+    <g fill="none" stroke-width="3" stroke-linejoin="miter" stroke-linecap="square"><g transform="translate(46.20 67.20) scale(0.8)" stroke="#ffb43d"><path transform="translate(0 0)" d="M0 0 V12 H5 Q8 12 8 9 Q8 6 5 6 H0 M0 0 H4.5 Q7.5 0 7.5 3 Q7.5 6 4.5 6"/><path transform="translate(10.5 0)" d="M0 0 V12 H8"/><path transform="translate(21.0 0)" d="M0 0 V12 M8 0 L0 7 M3 4.6 L8 12"/><path transform="translate(31.5 0)" d="M8 1.5 Q7 0 4 0 Q0 0 0 3 Q0 6 4 6 Q8 6 8 9 Q8 12 4 12 Q1 12 0 10.5"/></g></g>
     <path d="M47 34 V110" stroke="#ffe0a8" stroke-opacity=".6" stroke-width="3" stroke-linecap="round"/>
     <path d="M42 110 H82" stroke="#4a2c06"/>
   </g>
