@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="bag" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity=".38"/><stop offset=".5" stop-color="#ffffff" stop-opacity=".12"/><stop offset="1" stop-color="#ffffff" stop-opacity=".28"/></linearGradient>
+    <linearGradient id="rock" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff8e6"/><stop offset=".6" stop-color="#e3d2aa"/><stop offset="1" stop-color="#a68d5c"/></linearGradient>
+  </defs>
+  <g transform="rotate(-10 64 64)">
+    <g filter="url(#s)">
+      <path d="M36 50 L44 44 L56 48 L60 60 L50 66 L38 62 Z" fill="url(#rock)" stroke="#6e5a33" stroke-width="1.2"/>
+      <path d="M58 52 L72 46 L84 52 L82 66 L68 70 L60 62 Z" fill="url(#rock)" stroke="#6e5a33" stroke-width="1.2"/>
+      <path d="M40 68 L52 66 L62 72 L58 86 L44 86 L38 78 Z" fill="url(#rock)" stroke="#6e5a33" stroke-width="1.2"/>
+      <path d="M64 72 L78 68 L90 76 L86 88 L70 90 Z" fill="url(#rock)" stroke="#6e5a33" stroke-width="1.2"/>
+      <path d="M78 56 L90 58 L92 70 L84 70 Z" fill="url(#rock)" stroke="#6e5a33" stroke-width="1.2"/>
+      <rect x="28" y="18" width="72" height="80" rx="3" fill="url(#bag)" stroke="#e8edf2" stroke-opacity=".85" stroke-width="1.6"/>
+    </g>
+    <rect x="28" y="26" width="72" height="4" fill="#e3263f"/>
+    <path d="M28 33 H100" stroke="#fff" stroke-opacity=".5" stroke-width="1"/>
+    <path d="M34 40 Q36 70 34 92" stroke="#fff" stroke-opacity=".45" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M44 48 L50 50M62 50 L70 48M46 72 L52 70M70 74 L78 72" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".9"/>
+  </g>
+  <g filter="url(#s)" stroke="#6e5a33" stroke-width="1.2">
+    <path d="M92 98 L102 94 L110 100 L106 110 L94 108 Z" fill="url(#rock)"/>
+    <path d="M80 106 L88 104 L92 112 L84 116 Z" fill="url(#rock)"/>
+  </g>
+</svg>

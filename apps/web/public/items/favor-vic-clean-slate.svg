@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs><filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="mn" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0d9a0"/><stop offset=".6" stop-color="#d6b46c"/><stop offset="1" stop-color="#a88340"/></linearGradient>
+    <linearGradient id="bill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d6ecc0"/><stop offset="1" stop-color="#7aa45e"/></linearGradient>
+  </defs>
+  <g transform="rotate(-10 64 64)">
+    <g filter="url(#s)" stroke-linejoin="round">
+      <g stroke="#1f3312" stroke-width="1.3">
+        <rect x="30" y="26" width="64" height="36" rx="1.5" fill="url(#bill)" transform="rotate(-8 62 44)"/>
+        <rect x="34" y="30" width="64" height="36" rx="1.5" fill="url(#bill)" transform="rotate(5 66 48)"/>
+        <rect x="32" y="34" width="64" height="36" rx="1.5" fill="url(#bill)"/>
+      </g>
+      <ellipse cx="64" cy="48" rx="8" ry="6" fill="#b7d69e" stroke="#3b5e27" stroke-width="1.1"/>
+      <path d="M18 50 H110 V104 Q110 108 106 108 H22 Q18 108 18 104 Z" fill="url(#mn)" stroke="#5a4210" stroke-width="1.5"/>
+    </g>
+    <path d="M18 50 L64 76 L110 50" fill="none" stroke="#8a6a2e" stroke-width="1.4"/>
+    <g transform="translate(64 90)">
+      <circle r="10" fill="#a8d8ff" stroke="#1e4f7a" stroke-width="1.4"/>
+      <path d="M0 -6 L5 -2 V3 Q5 6 0 8 Q-5 6 -5 3 V-2 Z" fill="#1e4f7a"/>
+    </g>
+    <path d="M24 56 L50 72" stroke="#fff" stroke-opacity=".45" stroke-width="2" stroke-linecap="round"/>
+  </g>
+</svg>

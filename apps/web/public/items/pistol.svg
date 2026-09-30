@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="slide" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a929c"/><stop offset=".45" stop-color="#4b5058"/><stop offset="1" stop-color="#25282d"/></linearGradient>
+    <linearGradient id="frame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3e45"/><stop offset="1" stop-color="#1c1e22"/></linearGradient>
+    <linearGradient id="grip" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b2f28"/><stop offset="1" stop-color="#16110e"/></linearGradient>
+    <pattern id="chk" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0H4M0 0V4" stroke="#000" stroke-opacity=".45" stroke-width="1"/></pattern>
+  </defs>
+  <g filter="url(#s)" stroke="#0a0b0d" stroke-width="1.6" stroke-linejoin="round">
+    <path d="M32 58 H60 L51 103 Q50 108 44 108 H25 Q19 108 20 102 Z" fill="url(#grip)"/>
+    <path d="M34 63 H56 L49 99 Q48 102 44 102 H28 Q25 102 26 99 Z" fill="url(#chk)" stroke="none"/>
+    <path d="M58 63 Q58 80 72 80 H82 Q87 80 87 74 V63" fill="none" stroke-width="4.5"/>
+    <path d="M58 63 Q58 80 72 80 H82 Q87 80 87 74 V63" fill="none" stroke="#3a3e45" stroke-width="2"/>
+    <path d="M69 63 Q66 70 71 75" fill="none" stroke-width="3"/>
+    <path d="M28 54 H108 V60 Q108 64 104 64 H30 Z" fill="url(#frame)"/>
+    <path d="M14 43 H20 V52 H14 Q12 52 12 50 V45 Q12 43 14 43 Z" fill="#2a2d32"/>
+    <path d="M20 38 H112 Q116 38 116 42 V52 Q116 55 113 55 H20 Q17 55 17 52 V41 Q17 38 20 38 Z" fill="url(#slide)"/>
+    <rect x="23" y="35" width="7" height="4" fill="#1c1e22"/>
+    <rect x="106" y="35" width="4" height="4" fill="#1c1e22"/>
+    <rect x="62" y="41" width="20" height="7" rx="1" fill="#15171a"/>
+  </g>
+  <g stroke="#1a1c20" stroke-width="1.4">
+    <path d="M24 42V51M28 42V51M32 42V51M36 42V51M40 42V51"/>
+  </g>
+  <path d="M22 40.5 H111" stroke="#c7ced6" stroke-opacity=".55" stroke-width="1.2"/>
+  <circle cx="98" cy="59" r="1.6" fill="#0d0e10"/>
+  <circle cx="44" cy="59" r="1.6" fill="#0d0e10"/>
+</svg>

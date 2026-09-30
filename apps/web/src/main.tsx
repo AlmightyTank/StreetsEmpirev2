@@ -16,6 +16,7 @@ import './styles/scout.css';
 import './styles/produce.css';
 import './styles/raids.css';
 import './styles/stores.css';
+import './styles/items.css';
 import './styles/travel.css';
 import './styles/city-blocks.css';
 import './styles/quests.css';
