@@ -5,7 +5,7 @@ by playing normally, fill up 30 tiers and claim a reward at each one. The last
 tier is a permanent season cosmetic and badge; everything before it is a real
 in-round boost.
 
-Status: step 1 of 5 built (see [Suggested order](#suggested-order)). Item art
+Status: steps 1–2 of 5 built (see [Suggested order](#suggested-order)). Item art
 for the rewards is in `apps/web/public/items/` (see [ITEM-ART.md](ITEM-ART.md)).
 
 ## Decisions
@@ -206,8 +206,15 @@ Jobs can use these too.
    ruleset yet: it ships in a new ruleset version (with
    `STREET_PASS_S1_COSMETICS` added to its cosmetics) once steps 2–4 are
    ready, so no live round changes before then.
-2. Database tables, Cred hooks and the claim service, with integration tests
-   for double claims, the turn cap and round end.
+2. **Done.** `StreetPassProgress` and `StreetPassClaim` tables (migration
+   `street_pass`); Cred from turns spent (in the action pipeline, capped per
+   daily-contract window) and from job turn-ins
+   (`street-pass-cred.service.ts`); `StreetPassService.view` and `.claim`
+   (a game action, so it locks, replays a repeated action id and refuses an
+   ended round, backed by the claim table's unique key); round close grants
+   reached-but-unclaimed cosmetic tiers (`grantUnclaimedCosmetics`). Claims
+   log a `STREET_PASS_CLAIMED` activity. Integration tests:
+   `STREET_PASS_INTEGRATION=1`.
 3. API and Street Pass page.
 4. Season 1 badge and frame art.
 5. A balance run: a simulated active and casual player through a full round.

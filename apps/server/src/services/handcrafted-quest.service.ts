@@ -6,6 +6,7 @@ import {
   type QuestObjectiveDefinition,
   type QuestProgressMap,
   type QuestRewardDefinition,
+  type QuestType,
   type Ruleset,
 } from '@streets/rulesets';
 import type {
@@ -29,6 +30,7 @@ import { FavorInventoryService } from './favor-inventory.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
 import { addContactRep, grantRewards, rewardDto } from './reward-grant.service.js';
+import { StreetPassCredService } from './street-pass-cred.service.js';
 import {
   DAILY_CONTRACT_SLOTS,
   dailyContractWindow,
@@ -803,6 +805,7 @@ export const HandcraftedQuestService = {
           ...(selectedBranch?.rewards ?? []),
         ];
         await grantRewards({ tx, roundPlayerId, accountId: player.accountId, ruleset, now, sourceKey: key }, next, questRewards);
+        await StreetPassCredService.creditQuest(tx, roundPlayerId, ruleset, (rulesetDefinition?.type ?? row.questDefinition.type) as QuestType);
 
         await tx.playerQuest.update({
           where: { id: row.id },
