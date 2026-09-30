@@ -69,3 +69,36 @@
 .se-item-tile--sm .se-item-tile__name { display: none; }
 .se-item-tile--lg .se-item-tile__name { font-size: 11px; }
 .se-item-tile--lg .se-item-tile__qty { font-size: 13px; }
+
+/* Picture ahead of a list row's label (Hideout rooms and the like). */
+.se-item-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.se-item-label__art {
+  display: inline-flex;
+  flex: none;
+}
+
+.se-item-label__art .se-item-tile {
+  --se-item-cell: 22px;
+}
+
+.se-item-label__art--slot {
+  width: 44px;
+}
+
+.se-item-label__text {
+  min-width: 0;
+}
+
+/* Picture pinned to the top-right corner of a metric box. */
+.se-item-tile.se-item-corner {
+  --se-item-cell: 30px;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}

@@ -1,5 +1,21 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { hasItemArt, ITEM_ART, itemArtUrl, type ItemArtKey } from '../items/itemArt.js';
+
+/**
+ * A small picture ahead of a list row's label. `slot` reserves room for a
+ * two-cell item so labels line up in a list that mixes sizes (the Armory).
+ */
+export function ItemLabel({ itemKey, children, slot = false }: { itemKey: string; children: ReactNode; slot?: boolean }) {
+  if (!hasItemArt(itemKey)) return <>{children}</>;
+  return (
+    <span className="se-item-label">
+      <span className={`se-item-label__art${slot ? ' se-item-label__art--slot' : ''}`}>
+        <ItemTile item={itemKey} size="sm" label={false} />
+      </span>
+      <span className="se-item-label__text">{children}</span>
+    </span>
+  );
+}
 
 /**
  * The picture at the top of a store shelf card. Greyed out while the
