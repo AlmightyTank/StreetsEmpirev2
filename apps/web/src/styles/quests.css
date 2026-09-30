@@ -894,3 +894,47 @@ button.se-quests-metric {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* Favor pictures: a tile beside each inventory card's name, a small one on active and armed rows. */
+.se-quests-favor__head > .se-quests-favor-art {
+  --se-item-cell: 52px;
+}
+
+.se-quests-favor__title {
+  flex: 1;
+  min-width: 0;
+}
+
+.se-quests-livefavors .se-quests-favor-art,
+.se-quests-armed .se-quests-favor-art {
+  --se-item-cell: 32px;
+}
+
+.se-quests-livefavors > div:has(> .se-quests-favor-art) {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.se-quests-livefavors > div > .se-quests-favor-art {
+  grid-row: span 2;
+}
+
+.se-quests-livefavors > div:has(> .se-quests-favor-art) small {
+  grid-column: 2 / -1;
+}
+
+.se-quests-armed > div > div {
+  flex: 1;
+}
+
+@media (max-width: 480px) {
+  .se-quests-armed > div:has(> .se-quests-favor-art) {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .se-quests-armed > div:has(> .se-quests-favor-art) > .se-btn {
+    flex-basis: 100%;
+  }
+}

@@ -11,7 +11,9 @@ import { questsApi } from '../api/quests.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
+import { ItemTile } from '../components/ItemTile.js';
 import { RewardChip } from '../components/RewardChip.js';
+import { hasItemArt } from '../items/itemArt.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen, serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
@@ -392,6 +394,11 @@ function QuestCard({
       ) : null}
     </Panel>
   );
+}
+
+/** A favor's picture, or nothing for a favor that has no art yet. */
+function FavorArt({ favorKey }: { favorKey: string }) {
+  return hasItemArt(favorKey) ? <ItemTile item={favorKey} size="sm" label={false} className="se-quests-favor-art" /> : null;
 }
 
 export function QuestPage() {
@@ -998,7 +1005,8 @@ export function QuestPage() {
                           return (
                             <article key={favor.key} className={`se-quests-favor${favor.rarity === 'LEGENDARY' ? ' se-quests-favor--legendary' : ''}`}>
                               <div className="se-quests-favor__head">
-                                <div>
+                                <FavorArt favorKey={favor.key} />
+                                <div className="se-quests-favor__title">
                                   <span className="se-eyebrow">{favor.rarity === 'LEGENDARY' ? '★ Legendary favor' : favor.category}</span>
                                   <h3>{favor.name}</h3>
                                 </div>
@@ -1076,6 +1084,7 @@ export function QuestPage() {
                       <div className="se-quests-livefavors">
                         {liveFavors.map((favor) => (
                           <div key={favor.category}>
+                            <FavorArt favorKey={favor.key} />
                             <span>{favor.name}</span>
                             <strong>{favor.category}</strong>
                             <small>{timeRemaining(favor.expiresAt, nowMs)}</small>
@@ -1091,6 +1100,7 @@ export function QuestPage() {
                       <div className="se-quests-armed">
                         {page.armedFavors.map((favor) => (
                           <div key={favor.category}>
+                            <FavorArt favorKey={favor.key} />
                             <div>
                               <span>{favor.name}</span>
                               <small>{favor.category} · next eligible action</small>
