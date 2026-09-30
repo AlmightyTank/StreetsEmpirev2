@@ -1,0 +1,245 @@
+/*
+ * Street Pass: a hero with the Cred bar, then the 30-tier track as a
+ * horizontal stash strip. Tiers are claimed, ready or locked.
+ */
+
+.se-pass {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* Grid children default to their content's width; the track must scroll, not stretch the page. */
+.se-pass > * {
+  min-width: 0;
+}
+
+.se-pass-hero {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 340px);
+  gap: 28px;
+  align-items: end;
+  padding: 24px;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+  background:
+    linear-gradient(120deg, rgba(255, 196, 64, 0.08), transparent 45%),
+    linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
+}
+
+.se-pass-hero h1 {
+  margin: 5px 0 7px;
+  font-size: clamp(30px, 5vw, 46px);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  font-weight: 900;
+}
+
+.se-pass-hero__copy p {
+  max-width: 620px;
+  margin: 0;
+  color: var(--se-text-dim);
+  font-size: 14px;
+}
+
+.se-pass-hero__progress {
+  display: grid;
+  gap: 8px;
+}
+
+.se-pass-hero__progress > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  color: var(--se-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.se-pass-hero__progress strong {
+  color: var(--se-text);
+  font-family: var(--se-mono);
+  font-size: 28px;
+  letter-spacing: 0;
+}
+
+.se-pass-hero__progress strong small {
+  color: var(--se-muted);
+  font-size: 14px;
+}
+
+.se-pass-hero__progress > small {
+  color: var(--se-text-dim);
+  font-family: var(--se-mono);
+  font-size: 11px;
+}
+
+.se-pass-progress {
+  height: 8px;
+  overflow: hidden;
+  border: 1px solid var(--se-line);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.se-pass-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--se-accent);
+  transition: width 0.3s ease;
+}
+
+/* Tiers waiting to be claimed. */
+.se-pass-ready {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid rgba(var(--se-accent-rgb), 0.45);
+  background: rgba(var(--se-accent-rgb), 0.07);
+}
+
+.se-pass-ready strong {
+  color: var(--se-accent);
+  font-size: 13px;
+}
+
+/* The track. */
+.se-pass-trackwrap {
+  border: 1px solid var(--se-line);
+  background: var(--se-panel);
+}
+
+.se-pass-track {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 14px;
+  overflow-x: auto;
+  list-style: none;
+  scroll-behavior: smooth;
+  scrollbar-color: var(--se-line) transparent;
+}
+
+.se-pass-tier {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  flex: none;
+  gap: 8px;
+  min-width: 96px;
+  padding: 8px;
+  border: 1px solid var(--se-line-soft);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.se-pass-tier__number {
+  color: var(--se-muted);
+  font-family: var(--se-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.se-pass-tier__rewards {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.se-pass-tier__foot {
+  display: flex;
+  justify-content: center;
+  min-height: 30px;
+  align-items: center;
+}
+
+.se-pass-tier__cred,
+.se-pass-tier__done {
+  color: var(--se-muted);
+  font-family: var(--se-mono);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.se-pass-tier__done {
+  color: var(--se-good);
+}
+
+.se-pass-tier--locked .se-pass-tier__rewards {
+  opacity: 0.55;
+}
+
+.se-pass-tier--claimed .se-pass-tier__rewards {
+  opacity: 0.35;
+}
+
+.se-pass-tier--ready {
+  border-color: rgba(var(--se-accent-rgb), 0.6);
+  background: rgba(var(--se-accent-rgb), 0.05);
+}
+
+.se-pass-tier--ready .se-pass-tier__number {
+  color: var(--se-accent);
+}
+
+.se-pass-tier--next {
+  border-color: var(--se-line);
+}
+
+.se-pass-tier--next .se-pass-tier__number,
+.se-pass-tier--next .se-pass-tier__cred {
+  color: var(--se-text);
+}
+
+/* Season cosmetic stand-in until the badge and frame art lands. */
+.se-pass-cosmetic {
+  display: grid;
+  place-content: center;
+  gap: 2px;
+  width: 72px;
+  height: 72px;
+  margin: 0;
+  padding: 4px;
+  border: 1px solid rgba(255, 196, 64, 0.55);
+  background: radial-gradient(ellipse at 50% 40%, rgba(255, 196, 64, 0.3), rgba(255, 196, 64, 0.05) 70%), #101318;
+  text-align: center;
+}
+
+.se-pass-cosmetic > span {
+  color: #ffc440;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.se-pass-cosmetic figcaption {
+  color: var(--se-text);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.se-pass-info {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.se-pass-panel {
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .se-pass-hero,
+  .se-pass-info {
+    grid-template-columns: 1fr;
+  }
+
+  .se-pass-hero {
+    padding: 18px 14px;
+  }
+}

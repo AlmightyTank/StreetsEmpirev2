@@ -177,6 +177,12 @@ export const questClaimSchema = z.object({
   branchKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,63}$/, 'Invalid branch.').optional(),
 }).strict();
 export const questTrackSchema = z.object({ tracked: z.boolean() }).strict();
+/** Street Pass: claim one reached tier. */
+export const streetPassClaimSchema = z.object({
+  tier: z.number().int().min(1).max(200),
+  actionId: actionIdSchema,
+}).strict();
+export type StreetPassClaimInput = z.infer<typeof streetPassClaimSchema>;
 export const questAbandonSchema = z.object({}).strict();
 export const favorActivateSchema = z.object({ actionId: actionIdSchema }).strict();
 export const favorArmSchema = z.object({ actionId: actionIdSchema }).strict();

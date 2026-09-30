@@ -16,11 +16,13 @@ import {
   hideoutWeaponPrioritySchema,
   favorActivateSchema,
   favorArmSchema,
+  streetPassClaimSchema,
 } from '@streets/shared';
 import { toGameSnapshotDto } from '../game/dto.js';
 import { PayoutService } from '../services/payout.service.js';
 import { ProductionService } from '../services/production.service.js';
 import { HandcraftedQuestService } from '../services/handcrafted-quest.service.js';
+import { StreetPassService } from '../services/street-pass.service.js';
 import { TimedFavorService } from '../services/timed-favor.service.js';
 import { SingleUseFavorService } from '../services/single-use-favor.service.js';
 import { ScoutService } from '../services/scout.service.js';
@@ -74,12 +76,13 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       markActive: !isBackground,
     });
 
-    const [playerCount, recentActivity] = await Promise.all([
+    const [playerCount, recentActivity, streetPass] = await Promise.all([
       RoundService.playerCount(fastify.prisma, round.id),
       ActivityService.recent(fastify.prisma, existing.id, RECENT_ACTIVITY_LIMIT),
+      StreetPassService.summary(fastify.prisma, existing.id, settled.ruleset),
     ]);
 
-    return toGameSnapshotDto({
+    const snapshot = toGameSnapshotDto({
       round: settled.round,
       playerCount,
       player: settled.player,
@@ -92,6 +95,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       turf: settled.turf,
       recentActivity,
     });
+    return { ...snapshot, player: { ...snapshot.player, streetPass } };
   });
 
   /**
@@ -201,6 +205,18 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
     const key = String((request.params as { key: string }).key).trim().toUpperCase();
     return HandcraftedQuestService.claim(fastify.prisma, player.id, loadRulesetForRound(round), key, body);
+  });
+
+  /** Street Pass: the round's track and this player's Cred and claims. `pass` is null on rounds without one. */
+  fastify.get('/street-pass', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    return { pass: await StreetPassService.view(fastify.prisma, player.id, loadRulesetForRound(round)) };
+  });
+
+  fastify.post('/street-pass/claim', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(streetPassClaimSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return StreetPassService.claim(fastify.prisma, player.id, body);
   });
 
   fastify.post('/favors/:key/activate', { preHandler: fastify.requireAuth }, async (request) => {

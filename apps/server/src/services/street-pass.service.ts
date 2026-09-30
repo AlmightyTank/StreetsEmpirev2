@@ -51,6 +51,13 @@ export const StreetPassService = {
       lateJoinBonusPercent: progress?.lateJoinBonusPercent ?? 0,
       turnCredToday,
       turnCredCap: rules.sources.dailyTurnCap,
+      sources: {
+        dailyContract: rules.sources.dailyContract,
+        weeklyContract: rules.sources.weeklyContract,
+        oneTimeJob: rules.sources.oneTimeJob,
+        eventContract: rules.sources.eventContract,
+        perTurnSpent: rules.sources.perTurnSpent,
+      },
       claimable: rules.tiers.filter((t) => t.tier <= tier && !claimed.has(t.tier)).map((t) => t.tier),
       tiers: rules.tiers.map((t) => ({
         tier: t.tier,
@@ -60,6 +67,18 @@ export const StreetPassService = {
         rewards: t.rewards.map((reward) => rewardDto(reward, ruleset)),
       })),
     };
+  },
+
+  /** Just enough for the nav badge: tier reached and how many tiers wait to be claimed. */
+  async summary(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset): Promise<{ tier: number; tierCount: number; claimable: number } | null> {
+    const rules = ruleset.streetPass;
+    if (!rules) return null;
+    const [progress, claimed] = await Promise.all([
+      db.streetPassProgress.findUnique({ where: { roundPlayerId }, select: { passKey: true, cred: true } }),
+      db.streetPassClaim.count({ where: { roundPlayerId, passKey: rules.key } }),
+    ]);
+    const tier = streetPassTierForCred(rules, progress?.passKey === rules.key ? progress.cred : 0);
+    return { tier, tierCount: rules.tiers.length, claimable: Math.max(0, tier - claimed) };
   },
 
   /**

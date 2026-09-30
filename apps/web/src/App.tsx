@@ -25,6 +25,7 @@ import { AlliancePage } from './pages/AlliancePage.js';
 import { AllianceDetailPage, AlliancesPage } from './pages/AlliancesPage.js';
 import { ContactsPage } from './pages/ContactsPage.js';
 import { CombatPage } from './pages/CombatPage.js';
+import { StreetPassPage } from './pages/StreetPassPage.js';
 import { ConsolePage } from './pages/ConsolePage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
@@ -151,6 +152,7 @@ export function App() {
         {/* 0.4.0-E: products are traded at Pip's; old links land there. */}
         <Route path="products" element={<Navigate to="/game/stores/pip" replace />} />
         <Route path="produce" element={<Protected><LiveRound><ProducePage /></LiveRound></Protected>} />
+        <Route path="street-pass" element={<Protected><LiveRound><StreetPassPage /></LiveRound></Protected>} />
         <Route path="stores" element={<Protected><LiveRound><StoresIndexPage /></LiveRound></Protected>} />
         <Route path="stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
 

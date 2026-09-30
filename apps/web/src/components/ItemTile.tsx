@@ -36,15 +36,21 @@ export function ShelfArt({ itemKey, locked, soldOut }: { itemKey: string; locked
 export function ItemTile({
   item,
   quantity,
+  quantityText,
   size = 'md',
   label = true,
   className,
+  title,
 }: {
   item: ItemArtKey;
   quantity?: number;
+  /** A count that isn't a plain number, e.g. "$10K"; shown instead of `quantity`. */
+  quantityText?: string;
   size?: 'sm' | 'md' | 'lg';
   label?: boolean;
   className?: string;
+  /** Tooltip; defaults to the item name and count. */
+  title?: string;
 }) {
   const art = ITEM_ART[item];
   const [w, h] = art.cells;
@@ -56,11 +62,13 @@ export function ItemTile({
     <figure
       className={classes}
       style={{ '--se-item-w': w, '--se-item-h': h } as CSSProperties}
-      title={quantity === undefined ? art.name : `${art.name} ×${quantity.toLocaleString()}`}
+      title={title ?? (quantity === undefined ? art.name : `${art.name} ×${quantity.toLocaleString()}`)}
     >
       <img src={itemArtUrl(item)} alt={art.name} loading="lazy" decoding="async" draggable={false} />
       {label && <figcaption className="se-item-tile__name">{art.shortName}</figcaption>}
-      {quantity !== undefined && <span className="se-item-tile__qty">{formatQuantity(quantity)}</span>}
+      {quantityText !== undefined || quantity !== undefined
+        ? <span className="se-item-tile__qty">{quantityText ?? formatQuantity(quantity!)}</span>
+        : null}
     </figure>
   );
 }

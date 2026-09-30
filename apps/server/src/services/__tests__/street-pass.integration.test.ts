@@ -195,6 +195,57 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
       .rejects.toMatchObject({ code: 'ROUND_ENDED' });
   });
 
+  it('serves the pass, claims through the API and puts a summary in /me for the nav badge', async () => {
+    const api = await makePlayer(current);
+    const headers = { cookie: api.cookie };
+    await setCred(api.id, 1_200);
+
+    const page = await app.inject({ method: 'GET', url: '/api/game/street-pass', headers });
+    expect(page.statusCode, page.body).toBe(200);
+    const { pass } = page.json();
+    expect(pass).toMatchObject({ key: 'street-pass-s1', cred: 1_200, tier: 2, tierCount: 30, nextTierCred: 1_800, claimable: [1, 2] });
+    expect(pass.sources).toMatchObject({ dailyContract: 150, weeklyContract: 750, perTurnSpent: 1 });
+    expect(pass.tiers[2].rewards[0]).toMatchObject({ kind: 'ITEM', key: 'whores', amount: 3, label: '3 hoes' });
+
+    let me = await app.inject({ method: 'GET', url: '/api/game/me', headers });
+    expect(me.json().player.streetPass).toEqual({ tier: 2, tierCount: 30, claimable: 2 });
+
+    const claim = await app.inject({ method: 'POST', url: '/api/game/street-pass/claim', headers, payload: { tier: 2, actionId: randomUUID() } });
+    expect(claim.statusCode, claim.body).toBe(200);
+    expect(claim.json().result.rewards[0].label).toBe('1,000 condoms');
+    me = await app.inject({ method: 'GET', url: '/api/game/me', headers });
+    expect(me.json().player.streetPass.claimable).toBe(1);
+
+    const locked = await app.inject({ method: 'POST', url: '/api/game/street-pass/claim', headers, payload: { tier: 3, actionId: randomUUID() } });
+    expect(locked.statusCode).toBe(409);
+    expect(locked.json()).toMatchObject({ error: { code: 'STREET_PASS_TIER_LOCKED' } });
+    const invalid = await app.inject({ method: 'POST', url: '/api/game/street-pass/claim', headers, payload: { tier: 'two', actionId: randomUUID() } });
+    expect(invalid.statusCode).toBe(400);
+  });
+
+  it('answers pass: null and no nav summary on a round without a pass', async () => {
+    const plainRound = await app.prisma.round.create({ data: {
+      name: 'No pass fixture', slug: `no-pass-${randomUUID()}`,
+      rulesetId: classicOgV08H.meta.id, rulesetVersion: classicOgV08H.meta.version, status: 'ACTIVE',
+      startsAt: new Date(Date.now() - 60 * 60_000), endsAt: new Date(Date.now() + 7 * DAY),
+    } });
+    roundIds.push(plainRound.id);
+    const plain = await makePlayer(plainRound);
+    const before = current;
+    current = plainRound;
+    try {
+      const page = await app.inject({ method: 'GET', url: '/api/game/street-pass', headers: { cookie: plain.cookie } });
+      expect(page.statusCode, page.body).toBe(200);
+      expect(page.json()).toEqual({ pass: null });
+      const me = await app.inject({ method: 'GET', url: '/api/game/me', headers: { cookie: plain.cookie } });
+      expect(me.json().player.streetPass).toBeNull();
+      const claim = await app.inject({ method: 'POST', url: '/api/game/street-pass/claim', headers: { cookie: plain.cookie }, payload: { tier: 1, actionId: randomUUID() } });
+      expect(claim.json()).toMatchObject({ error: { code: 'STREET_PASS_OFF' } });
+    } finally {
+      current = before;
+    }
+  });
+
   it('does nothing on a round without a pass', async () => {
     const plain = { ...rules, streetPass: undefined };
     expect(await (await service()).view(app.prisma, playerId, plain)).toBeNull();

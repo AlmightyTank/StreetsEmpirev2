@@ -5,7 +5,7 @@ by playing normally, fill up 30 tiers and claim a reward at each one. The last
 tier is a permanent season cosmetic and badge; everything before it is a real
 in-round boost.
 
-Status: steps 1–2 of 5 built (see [Suggested order](#suggested-order)). Item art
+Status: steps 1–3 of 5 built (see [Suggested order](#suggested-order)). Item art
 for the rewards is in `apps/web/public/items/` (see [ITEM-ART.md](ITEM-ART.md)).
 
 ## Decisions
@@ -215,6 +215,13 @@ Jobs can use these too.
    reached-but-unclaimed cosmetic tiers (`grantUnclaimedCosmetics`). Claims
    log a `STREET_PASS_CLAIMED` activity. Integration tests:
    `STREET_PASS_INTEGRATION=1`.
-3. API and Street Pass page.
+3. **Done.** `GET /api/game/street-pass` (`{ pass }`, null on rounds without
+   one) and `POST /api/game/street-pass/claim` (`{ tier, actionId }`). `/me`
+   carries a `streetPass` summary (tier, tier count, claimable) that drives
+   the nav entry and its badge; both only show on rounds with a pass. The
+   page (`/game/street-pass`) has the Cred bar, a "ready to claim" callout,
+   the 30-tier track of item tiles that opens at the player's position, and
+   the Cred rates, today's turn Cred and the late-join bonus. Season
+   cosmetics show a ★ stand-in tile until step 4.
 4. Season 1 badge and frame art.
 5. A balance run: a simulated active and casual player through a full round.

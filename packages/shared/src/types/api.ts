@@ -310,6 +310,8 @@ export interface RoundPlayerDto {
   convoyAlert: { kind: 'tailed' | 'call'; cityName: string; landsAt: string } | null;
   /** 0.6.0-B. Home turf and today's house-minted street tax. */
   turf: TurfSummaryDto | null;
+  /** Street Pass summary for the nav badge. Absent or null on rounds without a pass. */
+  streetPass?: { tier: number; tierCount: number; claimable: number } | null;
   rank: RankDto;
   hideout: SeasonHideoutDto;
 
@@ -975,6 +977,8 @@ export interface StreetPassDto {
   /** Base Cred from turns counted in today's window, and the daily cap. */
   turnCredToday: number;
   turnCredCap: number;
+  /** Cred each source pays, before any late-join bonus. */
+  sources: { dailyContract: number; weeklyContract: number; oneTimeJob: number; eventContract: number; perTurnSpent: number };
   /** Tiers reached but not yet claimed. */
   claimable: number[];
   tiers: StreetPassTierDto[];
