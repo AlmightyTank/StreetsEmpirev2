@@ -76,6 +76,8 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+  /* Off the text baseline, so the picture doesn't add descender space to the row. */
+  vertical-align: top;
 }
 
 .se-item-label__art {
@@ -84,11 +86,13 @@
 }
 
 .se-item-label__art .se-item-tile {
-  --se-item-cell: 22px;
+  /* 20px plus the border fits a standard 37px row without growing it. */
+  --se-item-cell: 20px;
 }
 
 .se-item-label__art--slot {
-  width: 44px;
+  justify-content: center;
+  width: 40px;
 }
 
 .se-item-label__text {
