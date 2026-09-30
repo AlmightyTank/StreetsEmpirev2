@@ -143,6 +143,7 @@ export * from './hideout-v2.js';
 export * from './quest-definitions.js';
 export * from './quest-progress.js';
 export * from './quest-contacts.js';
+export * from './street-pass.js';
 
 /** Every ruleset the engine can load, keyed by its public id. */
 export const rulesets: Readonly<Record<string, Ruleset>> = {

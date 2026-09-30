@@ -13,7 +13,7 @@ export function RewardChip({ reward }: { reward: Pick<QuestRewardDto, 'kind' | '
   if (!art) return <span className="se-quest-reward">{reward.label}</span>;
 
   // The server labels item rewards with the column name ("1 lowRiders").
-  const label = reward.kind === 'ITEM' && reward.amount !== null
+  const label = (reward.kind === 'ITEM' || reward.kind === 'PRODUCT') && reward.amount !== null
     ? `${ITEM_ART[art].name} ×${formatNumber(reward.amount)}`
     : reward.label;
 

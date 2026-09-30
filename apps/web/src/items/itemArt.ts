@@ -122,6 +122,7 @@ export function rewardArtKey(reward: { kind: string; key: string | null; amount?
       if (Object.hasOwn(REWARD_FIELD_ART, reward.key)) return REWARD_FIELD_ART[reward.key] ?? null;
       return hasItemArt(reward.key) ? reward.key : null;
     case 'FAVOR_ITEM':
+    case 'PRODUCT':
       return reward.key && hasItemArt(reward.key) ? reward.key : null;
     case 'CONTACT_REP':
       return (reward.amount ?? 0) < 0 ? 'REP_LOSS' : 'REP';

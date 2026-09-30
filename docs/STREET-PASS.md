@@ -5,8 +5,8 @@ by playing normally, fill up 30 tiers and claim a reward at each one. The last
 tier is a permanent season cosmetic and badge; everything before it is a real
 in-round boost.
 
-Status: design agreed, not built. Item art for the rewards is already in
-`apps/web/public/items/` (see [ITEM-ART.md](ITEM-ART.md)).
+Status: step 1 of 5 built (see [Suggested order](#suggested-order)). Item art
+for the rewards is in `apps/web/public/items/` (see [ITEM-ART.md](ITEM-ART.md)).
 
 ## Decisions
 
@@ -154,19 +154,22 @@ streetPass: {
 
 Rewards reuse `QuestRewardDefinition`, so labels and granting match jobs.
 
-### Reward types the pass needs that jobs don't have yet
+### Reward types (built in step 1)
 
-The job reward code (`applyStateReward` in
-`apps/server/src/services/handcrafted-quest.service.ts`) only allows `ITEM`
-rewards for condoms, medicine, crack, beer, the four guns and Low-Riders. The
-pass also needs:
+Jobs and the pass pay out through one shared service,
+`apps/server/src/services/reward-grant.service.ts` (`grantRewards`,
+`rewardLabel`, `rewardDto`). Step 1 added what the pass needed:
 
-- **Hoes** (`whores`) and **thugs**. Check how Scouting sets a recruit's
-  happiness and do the same for pass recruits.
-- **Products other than crack** (weed, ecstasy, cocaine, meth, heroin), which
-  live in product inventory rows rather than player columns.
+- **Hoes** (`ITEM` `whores`) and **thugs** (`ITEM` `thugs`). Scouting only
+  adds to these counts and happiness is worked out from the totals, so pass
+  recruits do the same. The allowed item columns are `ITEM_REWARD_FIELDS` in
+  `packages/rulesets/src/street-pass.ts`.
+- **`PRODUCT`** rewards for any product in the round's catalog, keyed by
+  product key (`WEED`, `METH`...). Crack lives on the player row, so a crack
+  reward goes through the player state like the other columns; other products
+  are written to their inventory rows.
 
-Jobs could use these too once they exist.
+Jobs can use these too.
 
 ### Database
 
@@ -196,7 +199,13 @@ Jobs could use these too once they exist.
 
 ### Suggested order
 
-1. Ruleset block, types and the new reward types, with tests.
+1. **Done.** Ruleset types (`StreetPassRules`), the Season 1 track and its
+   badge and frame (`packages/rulesets/src/street-pass.ts`), tier and
+   late-join math, a validator (`streetPassProblems`), the new reward types
+   and the shared reward service, with tests. Season 1 isn't attached to any
+   ruleset yet: it ships in a new ruleset version (with
+   `STREET_PASS_S1_COSMETICS` added to its cosmetics) once steps 2–4 are
+   ready, so no live round changes before then.
 2. Database tables, Cred hooks and the claim service, with integration tests
    for double claims, the turn cap and round end.
 3. API and Street Pass page.
