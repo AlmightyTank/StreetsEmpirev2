@@ -75,7 +75,7 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('reward grants with 
     for (const tier of STREET_PASS_S1.tiers) await grant(tier.rewards, `${STREET_PASS_S1.key}:${tier.tier}`);
     const after = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
 
-    expect(after.cashCents - before.cashCents).toBe(26_000_000n);
+    expect(after.cashCents - before.cashCents).toBe(52_000_000n);
     expect(after.turns - before.turns).toBe(225);
     expect(after.whores - before.whores).toBe(28);
     expect(after.thugs - before.thugs).toBe(30);

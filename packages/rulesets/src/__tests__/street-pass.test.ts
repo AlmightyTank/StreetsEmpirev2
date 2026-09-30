@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { classicOgV08H } from '../classic-og-v0.8-h/index.js';
-import { rulesets } from '../index.js';
+import { classicOgStreetPassA, classicOgTripsE, rulesets } from '../index.js';
 import {
   STREET_PASS_S1,
   STREET_PASS_S1_COSMETICS,
@@ -62,7 +62,7 @@ describe('Street Pass season 1', () => {
   });
 
   it('pays what the design doc promises for a full pass', () => {
-    expect(sum('CASH')).toBe(260_000 * 100);
+    expect(sum('CASH')).toBe(520_000 * 100);
     expect(sum('ITEM', 'whores')).toBe(28);
     expect(sum('ITEM', 'thugs')).toBe(30);
     expect(sum('TURNS')).toBe(225);
@@ -78,23 +78,23 @@ describe('Street Pass season 1', () => {
     expect(kinds).not.toContain('PERMANENT_UNLOCK');
   });
 
-  it('costs 27,000 Cred in all, with tiers getting dearer', () => {
-    expect(streetPassTierCost(STREET_PASS_S1, 1)).toBe(600);
-    expect(streetPassTierCost(STREET_PASS_S1, 11)).toBe(900);
-    expect(streetPassTierCost(STREET_PASS_S1, 30)).toBe(1200);
-    expect(streetPassCredToReach(STREET_PASS_S1, 10)).toBe(6_000);
-    expect(streetPassCredToReach(STREET_PASS_S1, 20)).toBe(15_000);
-    expect(streetPassCredToReach(STREET_PASS_S1, 30)).toBe(27_000);
+  it('costs 36,000 Cred in all, with tiers getting dearer', () => {
+    expect(streetPassTierCost(STREET_PASS_S1, 1)).toBe(800);
+    expect(streetPassTierCost(STREET_PASS_S1, 11)).toBe(1200);
+    expect(streetPassTierCost(STREET_PASS_S1, 30)).toBe(1600);
+    expect(streetPassCredToReach(STREET_PASS_S1, 10)).toBe(8_000);
+    expect(streetPassCredToReach(STREET_PASS_S1, 20)).toBe(20_000);
+    expect(streetPassCredToReach(STREET_PASS_S1, 30)).toBe(36_000);
   });
 
   it('turns Cred into the tier reached', () => {
     expect(streetPassTierForCred(STREET_PASS_S1, 0)).toBe(0);
-    expect(streetPassTierForCred(STREET_PASS_S1, 599)).toBe(0);
-    expect(streetPassTierForCred(STREET_PASS_S1, 600)).toBe(1);
-    expect(streetPassTierForCred(STREET_PASS_S1, 6_899)).toBe(10);
-    expect(streetPassTierForCred(STREET_PASS_S1, 6_900)).toBe(11);
-    expect(streetPassTierForCred(STREET_PASS_S1, 26_999)).toBe(29);
-    expect(streetPassTierForCred(STREET_PASS_S1, 27_000)).toBe(30);
+    expect(streetPassTierForCred(STREET_PASS_S1, 799)).toBe(0);
+    expect(streetPassTierForCred(STREET_PASS_S1, 800)).toBe(1);
+    expect(streetPassTierForCred(STREET_PASS_S1, 9_199)).toBe(10);
+    expect(streetPassTierForCred(STREET_PASS_S1, 9_200)).toBe(11);
+    expect(streetPassTierForCred(STREET_PASS_S1, 35_999)).toBe(29);
+    expect(streetPassTierForCred(STREET_PASS_S1, 36_000)).toBe(30);
     expect(streetPassTierForCred(STREET_PASS_S1, 1_000_000)).toBe(30);
   });
 
@@ -113,6 +113,22 @@ describe('Street Pass season 1', () => {
     expect(streetPassCredWithBonus(150, 0)).toBe(150);
     expect(streetPassCredWithBonus(150, 30)).toBe(195);
     expect(streetPassCredWithBonus(1, 45)).toBe(1);
+  });
+});
+
+describe('classic-og-street-pass-a', () => {
+  it('ships Season 1 on top of Trips E with its cosmetics', () => {
+    expect(classicOgStreetPassA.meta).toEqual({ id: 'classic-og-street-pass-a', version: 'street-pass-A', name: 'Classic OG - Street Pass (Season 1)' });
+    expect(rulesets['classic-og-street-pass-a']).toBe(classicOgStreetPassA);
+    expect(classicOgStreetPassA.streetPass).toBe(STREET_PASS_S1);
+    expect(classicOgStreetPassA.travel).toBe(classicOgTripsE.travel);
+    for (const key of Object.keys(STREET_PASS_S1_COSMETICS)) expect(classicOgStreetPassA.cosmetics[key as keyof typeof STREET_PASS_S1_COSMETICS]).toBeDefined();
+    expect(streetPassProblems(STREET_PASS_S1, classicOgStreetPassA)).toEqual([]);
+  });
+
+  it('leaves every older ruleset without a pass', () => {
+    const withPass = Object.values(rulesets).filter((ruleset) => ruleset.streetPass).map((ruleset) => ruleset.meta.id);
+    expect(withPass).toEqual(['classic-og-street-pass-a']);
   });
 });
 

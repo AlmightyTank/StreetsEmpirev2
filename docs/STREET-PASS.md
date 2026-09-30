@@ -5,7 +5,8 @@ by playing normally, fill up 30 tiers and claim a reward at each one. The last
 tier is a permanent season cosmetic and badge; everything before it is a real
 in-round boost.
 
-Status: steps 1–4 of 5 built (see [Suggested order](#suggested-order)). Item art
+Status: built. Season 1 ships in ruleset `classic-og-street-pass-a` (Trips E
+plus the pass); see [Shipping](#shipping). Item art
 for the rewards is in `apps/web/public/items/` (see [ITEM-ART.md](ITEM-ART.md)).
 
 ## Decisions
@@ -39,17 +40,23 @@ Tier costs rise so the early tiers come quickly:
 
 | Tiers | Cred per tier | Running total |
 | --- | --- | --- |
-| 1–10 | 600 | 6,000 |
-| 11–20 | 900 | 15,000 |
-| 21–30 | 1,200 | 27,000 |
+| 1–10 | 800 | 8,000 |
+| 11–20 | 1,200 | 20,000 |
+| 21–30 | 1,600 | 36,000 |
 
-Expected pace:
+These were raised from 600 / 900 / 1,200 after the balance run: one-time Jobs
+(45 in the round, 200 Cred each) and city contracts (300 each) made the first
+costs far too quick. Pace from `npm run qa:street-pass` (see
+[Balance](#balance)):
 
-- **Active player** (all dailies, both weeklies, turns cap most days): about
-  1,050 Cred a day. Tier 10 around day 6, tier 20 around day 14, tier 30
-  around day 26.
-- **Casual player** (2 dailies, 1 weekly, about 150 turns a day): about 550 a
-  day, reaching about tier 20 by the end of the round.
+| Player | Tier day 7 | Day 14 | Day 21 | Day 28 | Finishes |
+| --- | --- | --- | --- | --- | --- |
+| Hardcore (everything, 2 city contracts a day) | 15 | 25 | 30 | 30 | day 18 |
+| Active (all dailies, both weeklies, turn cap) | 11 | 19 | 26 | 30 | day 27 |
+| Casual (2 dailies, 1 weekly, 150 turns a day) | 5 | 10 | 14 | 18 | no |
+| Weekends only | 3 | 7 | 11 | 13 | no |
+| Active, joins day 15 (+30%) | – | – | 14 | 24 | no |
+| Active, joins day 22 (+45%) | – | – | – | 16 | no |
 
 ### Late joiners
 
@@ -57,7 +64,7 @@ A player who joins after the round has started earns bonus Cred for the rest of
 the round: **+15% for each full week the round had already run when they
 joined, up to +45%** (a 28-day round has at most three full weeks behind a
 new player). It's a small help, not a full catch-up: an active player who
-joins on day 15 earns +30% and reaches about tier 23.
+joins on day 15 earns +30% and reaches about tier 24.
 
 ## The track
 
@@ -66,41 +73,41 @@ for balance testing, not final.
 
 | Tier | Reward |
 | --- | --- |
-| 1 | $10,000 |
+| 1 | $20,000 |
 | 2 | 1,000 condoms |
 | 3 | 3 hoes |
 | 4 | 25 turns |
 | ★ 5 | 25 pistols + 5 thugs |
 | 6 | 500 beer |
 | 7 | 50 medicine |
-| 8 | $25,000 |
+| 8 | $50,000 |
 | 9 | 250 weed |
 | ★ 10 | 3 shotguns + 5 hoes + **Fresh Face** title |
 | 11 | 40 turns |
 | 12 | Street Frenzy |
 | 13 | 10 thugs |
 | 14 | 150 ecstasy |
-| ★ 15 | $50,000 + Tommy Voucher |
+| ★ 15 | $100,000 + Tommy Voucher |
 | 16 | 8 hoes |
 | 17 | Cookhouse Rush |
 | 18 | 200 meth |
 | 19 | 60 turns |
 | ★ 20 | 2 Tek-9s + 1 Low-Rider + **Made Man** title |
-| 21 | $75,000 |
+| 21 | $150,000 |
 | 22 | 150 cocaine |
 | 23 | 2 Burner Phones |
 | 24 | 15 thugs |
 | ★ 25 | 12 hoes + Doctor Favor |
 | 26 | 100 turns |
 | 27 | 200 heroin |
-| 28 | $100,000 |
+| 28 | $200,000 |
 | 29 | 2 AK-47s + 1 Low-Rider |
 | ★ 30 | **Kingpin** title + season badge + season profile frame (all permanent) |
 
-A full pass is worth about **$260,000 cash, 28 hoes, 30 thugs, 225 turns,
+A full pass is worth about **$520,000 cash, 28 hoes, 30 thugs, 225 turns,
 2 Low-Riders, 25 pistols, 3 shotguns, 2 Tek-9s, 2 AK-47s**, plus supplies,
-product and six favors. For scale, the six weekly contracts pay $40,000–60,000
-each, so the pass cash alone is about five weeklies.
+product and six favors. Cash was doubled after the balance run (it started at
+$260,000).
 
 ### Balance notes
 
@@ -114,7 +121,39 @@ each, so the pass cash alone is about five weeklies.
   work: they add to the gun count and never set the unlock flag.
 - **Everyone gets the same track**, so the pass rewards activity and doesn't
   pick winners. No single tier should swing net worth much: the largest cash
-  tier (28, $100,000) is about two weekly contracts.
+  tier (28, $200,000) is under 2% of an engaged player's end-of-round net
+  worth.
+
+## Balance
+
+`npm run qa:street-pass` (also a `qa:release` step) models six kinds of
+player day by day from the ruleset's own Cred rates, and values the rewards
+with the rankings' net worth formula against the season simulation
+(`qa:season`, mixed player, seed 1). It fails if an active player doesn't
+finish in the last week, a hardcore one finishes inside two weeks, a casual one
+lands outside tiers 15–29, or a day-15 joiner can't get past tier 15.
+`--costs 800,1200,1600` tries other tier costs.
+
+What a finished or part-finished pass is worth:
+
+| Day | Active: tier, pass value | Share of engaged net worth | Casual: tier, pass value | Share of casual net worth |
+| --- | --- | --- | --- | --- |
+| 7 | 11, $75,120 | 3.3% | 5, $25,725 | 2.3% |
+| 14 | 19, $175,870 | 3.2% | 10, $75,120 | 2.7% |
+| 21 | 26, $330,170 | 3.6% | 14, $83,970 | 1.7% |
+| 28 | 30, $488,970 | 3.9% | 18, $175,870 | 2.4% |
+
+The cash is a modest share of a round that ends around $12.5M (engaged) or
+$7.3M (casual). The crew is the real boost: 28 hoes are 10–14% of a typical
+end-of-round crew (271 engaged, 203 casual) and 30 thugs are 22–28%.
+
+## Shipping
+
+Season 1 ships in `classic-og-street-pass-a` ("Classic OG - Street Pass
+(Season 1)"): Trips E plus `streetPass: STREET_PASS_S1` and the five season
+cosmetics. Older rulesets stay without a pass, so rounds already running are
+unchanged. Admins pick it when creating a round. The dev seed still creates
+its current round on 0.8-H, as it did when Trips E shipped.
 
 ## Claiming
 
@@ -154,7 +193,7 @@ pins everything else:
 
 ```ts
 streetPass: {
-  credPerTier: [{ fromTier: 1, toTier: 10, cred: 600 }, ...],
+  credPerTier: [{ fromTier: 1, toTier: 10, cred: 800 }, ...],
   sources: { dailyContract: 150, weeklyContract: 750, perTurnSpent: 1, dailyTurnCap: 400, oneTimeJob: 200, eventContract: 300 },
   lateJoin: { bonusPercentPerWeek: 15, maxBonusPercent: 45 },
   tiers: [{ tier: 1, rewards: [{ kind: 'CASH', amount: 1_000_000 }] }, ...],
@@ -240,4 +279,7 @@ Jobs can use these too.
    `.se-profile-frame--street-pass-s1-frame` (gold double border). The
    titles read as named on profiles ("Kingpin · Season 1", not "The …").
    Job finale cosmetics still have no art and stay text chips.
-5. A balance run: a simulated active and casual player through a full round.
+5. **Done.** `npm run qa:street-pass` balance run (six player types, pass
+   value against the season simulation), tier costs raised to 800 / 1,200 /
+   1,600, cash doubled, and the `classic-og-street-pass-a` ruleset (Trips E +
+   Season 1). The Hideout v2 extension is mapped for it too.

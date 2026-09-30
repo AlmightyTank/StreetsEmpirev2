@@ -81,16 +81,17 @@ export const STREET_PASS_S1_COSMETICS = {
 } as const satisfies QuestCosmeticCatalog;
 
 /**
- * Season 1, as agreed in docs/STREET-PASS.md. Amounts are the starting point
- * for balance testing.
+ * Season 1, as agreed in docs/STREET-PASS.md and tuned by `npm run
+ * qa:street-pass`: an active player finishes in the last week, a hardcore one
+ * no sooner than day 18, and a casual one lands around tier 18.
  */
 export const STREET_PASS_S1 = {
   key: 'street-pass-s1',
   name: 'Street Pass · Season 1',
   credPerTier: [
-    { fromTier: 1, toTier: 10, cred: 600 },
-    { fromTier: 11, toTier: 20, cred: 900 },
-    { fromTier: 21, toTier: 30, cred: 1200 },
+    { fromTier: 1, toTier: 10, cred: 800 },
+    { fromTier: 11, toTier: 20, cred: 1200 },
+    { fromTier: 21, toTier: 30, cred: 1600 },
   ],
   sources: {
     dailyContract: 150,
@@ -102,34 +103,34 @@ export const STREET_PASS_S1 = {
   },
   lateJoin: { bonusPercentPerWeek: 15, maxBonusPercent: 45 },
   tiers: [
-    { tier: 1, rewards: [cash(10_000)] },
+    { tier: 1, rewards: [cash(20_000)] },
     { tier: 2, rewards: [item('condoms', 1000)] },
     { tier: 3, rewards: [item('whores', 3)] },
     { tier: 4, rewards: [turns(25)] },
     { tier: 5, rewards: [item('pistols', 25), item('thugs', 5)] },
     { tier: 6, rewards: [item('beer', 500)] },
     { tier: 7, rewards: [item('medicine', 50)] },
-    { tier: 8, rewards: [cash(25_000)] },
+    { tier: 8, rewards: [cash(50_000)] },
     { tier: 9, rewards: [product('WEED', 250)] },
     { tier: 10, rewards: [item('shotguns', 3), item('whores', 5), cosmetic('street-pass-s1-fresh-face')] },
     { tier: 11, rewards: [turns(40)] },
     { tier: 12, rewards: [favor('STREET_FRENZY')] },
     { tier: 13, rewards: [item('thugs', 10)] },
     { tier: 14, rewards: [product('ECSTASY', 150)] },
-    { tier: 15, rewards: [cash(50_000), favor('TOMMY_VOUCHER')] },
+    { tier: 15, rewards: [cash(100_000), favor('TOMMY_VOUCHER')] },
     { tier: 16, rewards: [item('whores', 8)] },
     { tier: 17, rewards: [favor('COOKHOUSE_RUSH')] },
     { tier: 18, rewards: [product('METH', 200)] },
     { tier: 19, rewards: [turns(60)] },
     { tier: 20, rewards: [item('tek9s', 2), item('lowRiders', 1), cosmetic('street-pass-s1-made-man')] },
-    { tier: 21, rewards: [cash(75_000)] },
+    { tier: 21, rewards: [cash(150_000)] },
     { tier: 22, rewards: [product('COCAINE', 150)] },
     { tier: 23, rewards: [favor('BURNER_PHONE', 2)] },
     { tier: 24, rewards: [item('thugs', 15)] },
     { tier: 25, rewards: [item('whores', 12), favor('DOCTOR_FAVOR')] },
     { tier: 26, rewards: [turns(100)] },
     { tier: 27, rewards: [product('HEROIN', 200)] },
-    { tier: 28, rewards: [cash(100_000)] },
+    { tier: 28, rewards: [cash(200_000)] },
     { tier: 29, rewards: [item('ak47s', 2), item('lowRiders', 1)] },
     { tier: 30, rewards: [cosmetic('street-pass-s1-kingpin'), cosmetic('street-pass-s1-badge'), cosmetic('street-pass-s1-frame')] },
   ],

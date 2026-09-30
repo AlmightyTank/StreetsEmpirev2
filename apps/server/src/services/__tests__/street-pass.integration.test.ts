@@ -2,23 +2,17 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { Round } from '@prisma/client';
-import { classicOgV08H, rulesets, STREET_PASS_S1, STREET_PASS_S1_COSMETICS, type Ruleset } from '@streets/rulesets';
+import { classicOgStreetPassA, classicOgV08H, STREET_PASS_S1, type Ruleset } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
 
 /**
- * Street Pass step 2, live: Cred from turns and Jobs, the daily turn cap,
- * claiming (once, even when two claims race), late joiners and round close.
- * No shipped ruleset has a pass yet, so a test ruleset is registered for the
- * run. Opt in with STREET_PASS_INTEGRATION=1.
+ * Street Pass, live on the shipped classic-og-street-pass-a ruleset: Cred from
+ * turns and Jobs, the daily turn cap, claiming (once, even when two claims
+ * race), late joiners, round close and the API. Opt in with
+ * STREET_PASS_INTEGRATION=1.
  */
 describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with PostgreSQL', () => {
-  const rules: Ruleset = {
-    ...classicOgV08H,
-    meta: { ...classicOgV08H.meta, id: 'street-pass-test', version: 'test' },
-    cosmetics: { ...classicOgV08H.cosmetics, ...STREET_PASS_S1_COSMETICS },
-    streetPass: STREET_PASS_S1,
-  };
-  const registry = rulesets as Record<string, Ruleset>;
+  const rules: Ruleset = classicOgStreetPassA;
   const DAY = 86_400_000;
 
   let app: FastifyInstance;
@@ -65,7 +59,6 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
   const cash = async (id: string) => (await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id } })).cashCents;
 
   beforeAll(async () => {
-    registry[rules.meta.id] = rules;
     const { buildApp } = await import('../../app.js');
     app = await buildApp();
     current = await makeRound(new Date(Date.now() - 60 * 60_000));
@@ -80,8 +73,6 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
     vi.restoreAllMocks();
     for (const id of roundIds) await app.prisma.round.delete({ where: { id } });
     if (accountIds.length) await app.prisma.account.deleteMany({ where: { id: { in: accountIds } } });
-    await app.prisma.questDefinition.deleteMany({ where: { rulesetId: rules.meta.id } }).catch(() => undefined);
-    delete registry[rules.meta.id];
     await app?.close();
   });
 
@@ -101,7 +92,7 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
     view = (await (await service()).view(app.prisma, playerId, rules))!;
     expect(view.cred).toBe(12 + STREET_PASS_S1.sources.oneTimeJob);
     expect(view.tier).toBe(0);
-    expect(view.nextTierCred).toBe(600);
+    expect(view.nextTierCred).toBe(800);
   });
 
   it('caps turn Cred at 400 a day and starts again the next day', async () => {
@@ -119,7 +110,7 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
   });
 
   it('refuses a tier the player has not reached', async () => {
-    await setCred(playerId, 599);
+    await setCred(playerId, 799);
     await expect((await service()).claim(app.prisma, playerId, { tier: 1, actionId: randomUUID() }))
       .rejects.toMatchObject({ code: 'STREET_PASS_TIER_LOCKED' });
     await expect((await service()).claim(app.prisma, playerId, { tier: 31, actionId: randomUUID() }))
@@ -128,30 +119,30 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
 
   it('pays a tier once: a replayed request answers the same, a second claim is refused', async () => {
     const pass = await service();
-    await setCred(playerId, 600);
+    await setCred(playerId, 800);
     const before = await cash(playerId);
     const actionId = randomUUID();
     const first = await pass.claim(app.prisma, playerId, { tier: 1, actionId });
     expect(first.result).toMatchObject({ passKey: 'street-pass-s1', tier: 1 });
-    expect(first.result.rewards.map((reward) => reward.label)).toEqual(['$10,000.00']);
-    expect(await cash(playerId) - before).toBe(1_000_000n);
+    expect(first.result.rewards.map((reward) => reward.label)).toEqual(['$20,000.00']);
+    expect(await cash(playerId) - before).toBe(2_000_000n);
 
     const replay = await pass.claim(app.prisma, playerId, { tier: 1, actionId });
     expect(replay).toEqual(first);
     await expect(pass.claim(app.prisma, playerId, { tier: 1, actionId: randomUUID() }))
       .rejects.toMatchObject({ code: 'STREET_PASS_ALREADY_CLAIMED' });
-    expect(await cash(playerId) - before).toBe(1_000_000n);
+    expect(await cash(playerId) - before).toBe(2_000_000n);
 
     const view = (await pass.view(app.prisma, playerId, rules))!;
     expect(view.tiers[0]).toMatchObject({ tier: 1, reached: true, claimed: true });
     expect(view.claimable).toEqual([]);
     const activity = await app.prisma.playerActivity.findFirst({ where: { roundPlayerId: playerId, type: 'STREET_PASS_CLAIMED' } });
-    expect(activity?.payload).toMatchObject({ tier: 1, rewards: ['$10,000.00'] });
+    expect(activity?.payload).toMatchObject({ tier: 1, rewards: ['$20,000.00'] });
   });
 
   it('pays once when two claims for the same tier race', async () => {
     const pass = await service();
-    await setCred(playerId, 8_000);
+    await setCred(playerId, 10_000);
     const before = await cash(playerId);
     const results = await Promise.allSettled([
       pass.claim(app.prisma, playerId, { tier: 8, actionId: randomUUID() }),
@@ -159,7 +150,7 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
     ]);
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
     expect(results.find((result) => result.status === 'rejected')).toMatchObject({ reason: { code: 'STREET_PASS_ALREADY_CLAIMED' } });
-    expect(await cash(playerId) - before).toBe(2_500_000n);
+    expect(await cash(playerId) - before).toBe(5_000_000n);
     expect(await app.prisma.streetPassClaim.count({ where: { roundPlayerId: playerId, tier: 8 } })).toBe(1);
   });
 
@@ -175,7 +166,7 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
   it('at round close grants unclaimed season cosmetics only, then refuses every claim', async () => {
     const closing = await makeRound(new Date(Date.now() - 60 * 60_000));
     const finisher = await makePlayer(closing);
-    await setCred(finisher.id, 27_000);
+    await setCred(finisher.id, 36_000);
     await (await service()).claim(app.prisma, finisher.id, { tier: 2, actionId: randomUUID() });
     const before = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: finisher.id } });
 
@@ -201,12 +192,12 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
   it('serves the pass, claims through the API and puts a summary in /me for the nav badge', async () => {
     const api = await makePlayer(current);
     const headers = { cookie: api.cookie };
-    await setCred(api.id, 1_200);
+    await setCred(api.id, 1_600);
 
     const page = await app.inject({ method: 'GET', url: '/api/game/street-pass', headers });
     expect(page.statusCode, page.body).toBe(200);
     const { pass } = page.json();
-    expect(pass).toMatchObject({ key: 'street-pass-s1', cred: 1_200, tier: 2, tierCount: 30, nextTierCred: 1_800, claimable: [1, 2] });
+    expect(pass).toMatchObject({ key: 'street-pass-s1', cred: 1_600, tier: 2, tierCount: 30, nextTierCred: 2_400, claimable: [1, 2] });
     expect(pass.sources).toMatchObject({ dailyContract: 150, weeklyContract: 750, perTurnSpent: 1 });
     expect(pass.tiers[2].rewards[0]).toMatchObject({ kind: 'ITEM', key: 'whores', amount: 3, label: '3 hoes' });
 
