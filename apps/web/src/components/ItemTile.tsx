@@ -1,5 +1,16 @@
 import type { CSSProperties } from 'react';
-import { ITEM_ART, itemArtUrl, type ItemArtKey } from '../items/itemArt.js';
+import { hasItemArt, ITEM_ART, itemArtUrl, type ItemArtKey } from '../items/itemArt.js';
+
+/**
+ * The picture at the top of a store shelf card. Greyed out while the
+ * player can't buy it yet, dimmed while it is sold out, and absent for
+ * any item that has no art so a new ruleset item still renders.
+ */
+export function ShelfArt({ itemKey, locked, soldOut }: { itemKey: string; locked: boolean; soldOut: boolean }) {
+  if (!hasItemArt(itemKey)) return null;
+  const state = locked ? 'se-item-tile--locked' : soldOut ? 'se-item-tile--out' : undefined;
+  return <ItemTile item={itemKey} label={false} className={state} />;
+}
 
 /**
  * One inventory slot: the item's picture centred on a gridded cell tinted by

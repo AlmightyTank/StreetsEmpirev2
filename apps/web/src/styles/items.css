@@ -59,6 +59,13 @@
 .se-item-tile__name { top: 3px; }
 .se-item-tile__qty { bottom: 3px; color: #fff; font-size: 11px; }
 
+/* Can't be bought yet (a locked gun, an unopened product). */
+.se-item-tile--locked { --se-item-tint: 90, 96, 106; }
+.se-item-tile--locked img { filter: grayscale(1) brightness(0.55); }
+
+/* Sold out until the next delivery. */
+.se-item-tile--out img { opacity: 0.4; }
+
 .se-item-tile--sm .se-item-tile__name { display: none; }
 .se-item-tile--lg .se-item-tile__name { font-size: 11px; }
 .se-item-tile--lg .se-item-tile__qty { font-size: 13px; }
