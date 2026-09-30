@@ -54,9 +54,10 @@ Expected pace:
 ### Late joiners
 
 A player who joins after the round has started earns bonus Cred for the rest of
-the round: **+50% for each full week the round had already run when they
-joined, up to +150%.** Someone joining in week 3 earns double and can still
-reach the late tiers.
+the round: **+15% for each full week the round had already run when they
+joined, up to +45%** (a 28-day round has at most three full weeks behind a
+new player). It's a small help, not a full catch-up: an active player who
+joins on day 15 earns +30% and reaches about tier 23.
 
 ## The track
 
@@ -146,7 +147,7 @@ pins everything else:
 streetPass: {
   credPerTier: [{ fromTier: 1, toTier: 10, cred: 600 }, ...],
   sources: { dailyContract: 150, weeklyContract: 750, perTurnSpent: 1, dailyTurnCap: 400, oneTimeJob: 200, eventContract: 300 },
-  lateJoin: { bonusPercentPerWeek: 50, maxBonusPercent: 150 },
+  lateJoin: { bonusPercentPerWeek: 15, maxBonusPercent: 45 },
   tiers: [{ tier: 1, rewards: [{ kind: 'CASH', amount: 1_000_000 }] }, ...],
 }
 ```
