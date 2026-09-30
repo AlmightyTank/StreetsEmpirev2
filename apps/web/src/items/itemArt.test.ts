@@ -43,18 +43,19 @@ describe('item art', () => {
     expect(rewardArtKey({ kind: 'CASH', key: null })).toBe('CASH');
     expect(rewardArtKey({ kind: 'ITEM', key: 'thugs' })).toBe('THUG');
     expect(rewardArtKey({ kind: 'PRODUCT', key: 'WEED' })).toBe('WEED');
+    expect(rewardArtKey({ kind: 'COSMETIC_UNLOCK', key: 'street-pass-s1-kingpin' })).toBe('street-pass-s1-kingpin');
+    expect(rewardArtKey({ kind: 'COSMETIC_UNLOCK', key: 'ghost-of-the-block' })).toBeNull();
     expect(rewardArtKey({ kind: 'CONTACT_REP', key: 'PIP', amount: 25 })).toBe('REP');
     expect(rewardArtKey({ kind: 'CONTACT_REP', key: 'TOMMY', amount: -10 })).toBe('REP_LOSS');
     expect(rewardArtKey({ kind: 'PERMANENT_UNLOCK', key: 'WEAPON_AK47_ACCESS' })).toBeNull();
     expect(rewardArtKey({ kind: 'ITEM', key: 'constructor' })).toBeNull();
   });
 
-  it('has a picture for every Street Pass reward except the season cosmetics', () => {
+  it('has a picture for every Street Pass reward, season cosmetics included', () => {
     const missing = new Set<string>();
     const tiers: readonly StreetPassTier[] = STREET_PASS_S1.tiers;
     for (const tier of tiers) {
       for (const reward of tier.rewards) {
-        if (reward.kind === 'COSMETIC_UNLOCK') continue;
         if (!rewardArtKey({ kind: reward.kind, key: reward.key ?? null, amount: reward.amount ?? null })) {
           missing.add(`tier ${tier.tier}: ${reward.kind} ${reward.key ?? ''}`);
         }

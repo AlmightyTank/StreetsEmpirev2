@@ -13,7 +13,7 @@
  */
 
 export type ItemRarity = 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
-export type ItemCategory = 'SUPPLY' | 'CREW' | 'WEAPON' | 'VEHICLE' | 'PRODUCT' | 'FAVOR' | 'CURRENCY' | 'REPUTATION';
+export type ItemCategory = 'SUPPLY' | 'CREW' | 'WEAPON' | 'VEHICLE' | 'PRODUCT' | 'FAVOR' | 'CURRENCY' | 'REPUTATION' | 'COSMETIC';
 
 export interface ItemArt {
   readonly name: string;
@@ -76,6 +76,13 @@ export const ITEM_ART = {
   CASH: { name: 'Cash', shortName: 'Cash', category: 'CURRENCY', rarity: 'UNCOMMON', file: 'cash.svg', cells: ONE },
   TURNS: { name: 'Turns', shortName: 'Turns', category: 'CURRENCY', rarity: 'UNCOMMON', file: 'turns.svg', cells: ONE },
 
+  // Street Pass Season 1 cosmetics, keyed by cosmetic key
+  'street-pass-s1-fresh-face': { name: 'Fresh Face · Season 1', shortName: 'Fresh Face', category: 'COSMETIC', rarity: 'RARE', file: 'street-pass-s1-fresh-face.svg', cells: ONE },
+  'street-pass-s1-made-man': { name: 'Made Man · Season 1', shortName: 'Made Man', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-made-man.svg', cells: ONE },
+  'street-pass-s1-kingpin': { name: 'Kingpin · Season 1', shortName: 'Kingpin', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-kingpin.svg', cells: ONE },
+  'street-pass-s1-badge': { name: 'Street Pass · Season 1', shortName: 'S1 Badge', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-badge.svg', cells: ONE },
+  'street-pass-s1-frame': { name: 'Season 1 Frame', shortName: 'S1 Frame', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-frame.svg', cells: ONE },
+
   // Contact reputation gained or lost on a job
   REP: { name: 'Reputation', shortName: 'RP+', category: 'REPUTATION', rarity: 'RARE', file: 'rep.svg', cells: ONE },
   REP_LOSS: { name: 'Reputation lost', shortName: 'RP−', category: 'REPUTATION', rarity: 'COMMON', file: 'rep-loss.svg', cells: ONE },
@@ -109,7 +116,7 @@ const REWARD_FIELD_ART: Readonly<Record<string, ItemArtKey>> = {
 
 /**
  * The picture for a job or pass reward, or null for rewards with no picture
- * yet (unlocks, cosmetics).
+ * (unlocks, and cosmetics without art such as the job finale titles).
  */
 export function rewardArtKey(reward: { kind: string; key: string | null; amount?: number | null }): ItemArtKey | null {
   switch (reward.kind) {
@@ -123,6 +130,7 @@ export function rewardArtKey(reward: { kind: string; key: string | null; amount?
       return hasItemArt(reward.key) ? reward.key : null;
     case 'FAVOR_ITEM':
     case 'PRODUCT':
+    case 'COSMETIC_UNLOCK':
       return reward.key && hasItemArt(reward.key) ? reward.key : null;
     case 'CONTACT_REP':
       return (reward.amount ?? 0) < 0 ? 'REP_LOSS' : 'REP';

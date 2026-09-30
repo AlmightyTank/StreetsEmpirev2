@@ -5,7 +5,7 @@ by playing normally, fill up 30 tiers and claim a reward at each one. The last
 tier is a permanent season cosmetic and badge; everything before it is a real
 in-round boost.
 
-Status: steps 1–3 of 5 built (see [Suggested order](#suggested-order)). Item art
+Status: steps 1–4 of 5 built (see [Suggested order](#suggested-order)). Item art
 for the rewards is in `apps/web/public/items/` (see [ITEM-ART.md](ITEM-ART.md)).
 
 ## Decisions
@@ -232,5 +232,12 @@ Jobs can use these too.
    the 30-tier track of item tiles that opens at the player's position, and
    the Cred rates, today's turn Cred and the late-join bonus. Season
    cosmetics show a ★ stand-in tile until step 4.
-4. Season 1 badge and frame art.
+4. **Done.** Item art for all five Season 1 cosmetics in
+   `apps/web/public/items/street-pass-s1-*.svg`: fresh kicks (Fresh Face),
+   a fedora (Made Man), a gold crown (Kingpin), a lanyard pass (badge) and a
+   gold frame (frame), in the catalog under a new `COSMETIC` category so the
+   track and reward chips show them. The frame's profile look is
+   `.se-profile-frame--street-pass-s1-frame` (gold double border). The
+   titles read as named on profiles ("Kingpin · Season 1", not "The …").
+   Job finale cosmetics still have no art and stay text chips.
 5. A balance run: a simulated active and casual player through a full round.

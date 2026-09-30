@@ -65,6 +65,12 @@ const profileTitleLabels: Record<string, string> = {
   'road-king': 'Open-Road King',
   'no-paper-trail': 'Clean-Slate Ghost',
   'corner-boss': 'Corner Crown',
+
+  // Street Pass season titles read as named, with their season.
+  'street-pass-s1-fresh-face': 'Fresh Face · Season 1',
+  'street-pass-s1-made-man': 'Made Man · Season 1',
+  'street-pass-s1-kingpin': 'Kingpin · Season 1',
+  'street-pass-s1-badge': 'Street Pass · Season 1',
 };
 
 function titleFallback(title: string): string {

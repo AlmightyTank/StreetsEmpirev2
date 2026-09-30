@@ -7,6 +7,7 @@ import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { Panel, Row } from '../components/Panel.js';
+import { rewardText } from '../components/RewardChip.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { rewardArtKey } from '../items/itemArt.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -19,7 +20,7 @@ function compactDollars(cents: number): string {
   return `$${formatNumber(dollars)}`;
 }
 
-/** One reward on the track: its stash tile, or a stand-in for season cosmetics (art comes in step 4). */
+/** One reward on the track: its stash tile, or a ★ stand-in for a cosmetic that has no art yet. */
 function PassReward({ reward }: { reward: QuestRewardDto }) {
   const art = rewardArtKey(reward);
   if (!art) {
@@ -36,8 +37,9 @@ function PassReward({ reward }: { reward: QuestRewardDto }) {
   return (
     <ItemTile
       item={art}
-      label={false}
-      title={reward.label}
+      // Cosmetics carry their name in the corner; everything else is read from its count.
+      label={reward.kind === 'COSMETIC_UNLOCK'}
+      title={rewardText(reward)}
       quantityText={reward.kind === 'CASH' && amount !== undefined ? compactDollars(amount) : undefined}
       quantity={reward.kind === 'CASH' ? undefined : amount}
     />
@@ -153,7 +155,7 @@ export function StreetPassPage() {
         {action.error ? <Alert>{action.error}</Alert> : null}
         {claimed ? (
           <Alert tone="success">
-            Claimed tier {claimed.tier}: {claimed.rewards.map((reward) => reward.label).join(' · ')}.
+            Claimed tier {claimed.tier}: {claimed.rewards.map(rewardText).join(' · ')}.
           </Alert>
         ) : null}
 

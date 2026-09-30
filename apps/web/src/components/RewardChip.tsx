@@ -8,14 +8,27 @@ import { ItemTile } from './ItemTile.js';
  * its label. Rewards with no picture yet (unlocks, cosmetics) stay as a
  * plain text chip.
  */
-export function RewardChip({ reward }: { reward: Pick<QuestRewardDto, 'kind' | 'key' | 'amount' | 'label'> }) {
+type RewardLike = Pick<QuestRewardDto, 'kind' | 'key' | 'amount' | 'label'>;
+
+/**
+ * A reward in the game's words. The server labels item rewards with the
+ * column name ("1 lowRiders") and cosmetics as "Permanent cosmetic · …";
+ * anything with art reads as "Low-Rider ×1" or just its name.
+ */
+export function rewardText(reward: RewardLike): string {
+  const art = rewardArtKey(reward);
+  if (!art) return reward.label;
+  if ((reward.kind === 'ITEM' || reward.kind === 'PRODUCT') && reward.amount !== null) {
+    return `${ITEM_ART[art].name} ×${formatNumber(reward.amount)}`;
+  }
+  if (reward.kind === 'COSMETIC_UNLOCK') return ITEM_ART[art].name;
+  return reward.label;
+}
+
+export function RewardChip({ reward }: { reward: RewardLike }) {
   const art = rewardArtKey(reward);
   if (!art) return <span className="se-quest-reward">{reward.label}</span>;
-
-  // The server labels item rewards with the column name ("1 lowRiders").
-  const label = (reward.kind === 'ITEM' || reward.kind === 'PRODUCT') && reward.amount !== null
-    ? `${ITEM_ART[art].name} ×${formatNumber(reward.amount)}`
-    : reward.label;
+  const label = rewardText(reward);
 
   return (
     <span className="se-quest-reward se-quest-reward--art">
