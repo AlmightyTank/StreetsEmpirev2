@@ -22,14 +22,14 @@ describe('item art', () => {
     expect([...missing]).toEqual([]);
   });
 
-  it('has a picture for every item, favor, cash and turns reward a job can pay', () => {
+  it('has a picture for every item, favor, cash, turns and reputation reward a job can pay', () => {
     const missing = new Set<string>();
     for (const ruleset of Object.values(rulesets)) {
       for (const quest of Object.values(ruleset.questDefinitions ?? {})) {
         const rewards = [...quest.rewards, ...(quest.branches ?? []).flatMap((branch) => branch.rewards)];
         for (const reward of rewards) {
-          if (!['CASH', 'TURNS', 'ITEM', 'FAVOR_ITEM'].includes(reward.kind)) continue;
-          if (!rewardArtKey({ kind: reward.kind, key: reward.key ?? null })) missing.add(`${quest.key}: ${reward.kind} ${reward.key}`);
+          if (!['CASH', 'TURNS', 'ITEM', 'FAVOR_ITEM', 'CONTACT_REP'].includes(reward.kind)) continue;
+          if (!rewardArtKey({ kind: reward.kind, key: reward.key ?? null, amount: reward.amount ?? null })) missing.add(`${quest.key}: ${reward.kind} ${reward.key}`);
         }
       }
     }
@@ -41,7 +41,9 @@ describe('item art', () => {
     expect(rewardArtKey({ kind: 'ITEM', key: 'whores' })).toBe('HOE');
     expect(rewardArtKey({ kind: 'FAVOR_ITEM', key: 'TOMMY_WAR_CHEST' })).toBe('TOMMY_WAR_CHEST');
     expect(rewardArtKey({ kind: 'CASH', key: null })).toBe('CASH');
-    expect(rewardArtKey({ kind: 'CONTACT_REP', key: 'PIP' })).toBeNull();
+    expect(rewardArtKey({ kind: 'CONTACT_REP', key: 'PIP', amount: 25 })).toBe('REP');
+    expect(rewardArtKey({ kind: 'CONTACT_REP', key: 'TOMMY', amount: -10 })).toBe('REP_LOSS');
+    expect(rewardArtKey({ kind: 'PERMANENT_UNLOCK', key: 'WEAPON_AK47_ACCESS' })).toBeNull();
     expect(rewardArtKey({ kind: 'ITEM', key: 'constructor' })).toBeNull();
   });
 

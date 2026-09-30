@@ -44,8 +44,8 @@ with a short name in the top-right corner and an optional count bottom-right.
 
 | Rarity | Tint | Used for |
 | --- | --- | --- |
-| Common | grey | basic supplies, pistols, crack, weed |
+| Common | grey | basic supplies, pistols, crack, weed, reputation lost (RP−) |
 | Uncommon | green | thugs, hoes, shotguns, mid products, cash, turns |
-| Rare | blue | Tek-9s, cocaine, heroin, standard contact favors |
+| Rare | blue | Tek-9s, cocaine, heroin, standard contact favors, reputation gained (RP+) |
 | Epic | violet | AK-47s, Low-Riders |
 | Legendary | gold | Legendary contact favors |

@@ -321,9 +321,10 @@ function QuestCard({
                   <RewardChip key={choice.key + ':' + reward.kind + ':' + (reward.key ?? index)} reward={reward} />
                 ))}
                 {choice.reputationDeltas.map((delta) => (
-                  <span className="se-quest-reward" key={choice.key + ':rep:' + delta.contactKey}>
-                    {delta.label}
-                  </span>
+                  <RewardChip
+                    key={choice.key + ':rep:' + delta.contactKey}
+                    reward={{ kind: 'CONTACT_REP', key: delta.contactKey, amount: delta.amount, label: delta.label }}
+                  />
                 ))}
               </div>
               <Button

@@ -13,7 +13,7 @@
  */
 
 export type ItemRarity = 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
-export type ItemCategory = 'SUPPLY' | 'CREW' | 'WEAPON' | 'VEHICLE' | 'PRODUCT' | 'FAVOR' | 'CURRENCY';
+export type ItemCategory = 'SUPPLY' | 'CREW' | 'WEAPON' | 'VEHICLE' | 'PRODUCT' | 'FAVOR' | 'CURRENCY' | 'REPUTATION';
 
 export interface ItemArt {
   readonly name: string;
@@ -75,6 +75,10 @@ export const ITEM_ART = {
   // Rewards that are not store items
   CASH: { name: 'Cash', shortName: 'Cash', category: 'CURRENCY', rarity: 'UNCOMMON', file: 'cash.svg', cells: ONE },
   TURNS: { name: 'Turns', shortName: 'Turns', category: 'CURRENCY', rarity: 'UNCOMMON', file: 'turns.svg', cells: ONE },
+
+  // Contact reputation gained or lost on a job
+  REP: { name: 'Reputation', shortName: 'RP+', category: 'REPUTATION', rarity: 'RARE', file: 'rep.svg', cells: ONE },
+  REP_LOSS: { name: 'Reputation lost', shortName: 'RP−', category: 'REPUTATION', rarity: 'COMMON', file: 'rep-loss.svg', cells: ONE },
 } as const satisfies Record<string, ItemArt>;
 
 export type ItemArtKey = keyof typeof ITEM_ART;
@@ -104,10 +108,10 @@ const REWARD_FIELD_ART: Readonly<Record<string, ItemArtKey>> = {
 };
 
 /**
- * The picture for a job or pass reward, or null for rewards that aren't a
- * thing you hold (reputation, unlocks, cosmetics).
+ * The picture for a job or pass reward, or null for rewards with no picture
+ * yet (unlocks, cosmetics).
  */
-export function rewardArtKey(reward: { kind: string; key: string | null }): ItemArtKey | null {
+export function rewardArtKey(reward: { kind: string; key: string | null; amount?: number | null }): ItemArtKey | null {
   switch (reward.kind) {
     case 'CASH':
       return 'CASH';
@@ -119,6 +123,8 @@ export function rewardArtKey(reward: { kind: string; key: string | null }): Item
       return hasItemArt(reward.key) ? reward.key : null;
     case 'FAVOR_ITEM':
       return reward.key && hasItemArt(reward.key) ? reward.key : null;
+    case 'CONTACT_REP':
+      return (reward.amount ?? 0) < 0 ? 'REP_LOSS' : 'REP';
     default:
       return null;
   }

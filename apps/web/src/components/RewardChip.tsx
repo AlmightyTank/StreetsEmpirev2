@@ -5,8 +5,8 @@ import { ItemTile } from './ItemTile.js';
 
 /**
  * One reward from a job, contract or pass tier: the item's picture beside
- * its label. Rewards with nothing to hold (reputation, unlocks, cosmetics)
- * stay as a plain text chip.
+ * its label. Rewards with no picture yet (unlocks, cosmetics) stay as a
+ * plain text chip.
  */
 export function RewardChip({ reward }: { reward: Pick<QuestRewardDto, 'kind' | 'key' | 'amount' | 'label'> }) {
   const art = rewardArtKey(reward);
