@@ -32,7 +32,7 @@ export function ItemTile({
 }) {
   const art = ITEM_ART[item];
   const [w, h] = art.cells;
-  const classes = ['se-item-tile', `se-item-tile--${art.rarity.toLowerCase()}`, `se-item-tile--${size}`, className]
+  const classes = ['se-item-tile', `se-item-tile--${art.rarity.toLowerCase()}`, `se-item-tile--${size}`, w > 1 ? 'se-item-tile--wide' : null, className]
     .filter(Boolean)
     .join(' ');
 

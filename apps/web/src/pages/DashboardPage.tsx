@@ -3,6 +3,8 @@ import { Link, Navigate } from 'react-router-dom';
 import type { HappinessTermDto, RoundDto, RoundOverDto, RoundPlayerDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { ActivityFeed } from '../components/ActivityFeed.js';
+import { ItemTile } from '../components/ItemTile.js';
+import { hasItemArt } from '../items/itemArt.js';
 import { Alert } from '../components/Alert.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { PayoutControl } from '../components/PayoutControl.js';
@@ -88,16 +90,20 @@ function DashboardMetric({
   detail,
   tone,
   meter,
+  art,
 }: {
   label: string;
   value: ReactNode;
   detail?: ReactNode;
   tone?: 'good' | 'warn' | 'bad' | 'accent';
   meter?: { value: number; max: number };
+  /** Item art key for a small picture in the corner. The number stays the point. */
+  art?: string;
 }) {
   const percent = meter && meter.max > 0 ? Math.max(0, Math.min(100, (meter.value / meter.max) * 100)) : null;
   return (
-    <div className={`se-dashboard-metric${tone ? ` se-dashboard-metric--${tone}` : ''}`}>
+    <div className={`se-dashboard-metric${tone ? ` se-dashboard-metric--${tone}` : ''}${art && hasItemArt(art) ? ' se-dashboard-metric--art' : ''}`}>
+      {art && hasItemArt(art) ? <ItemTile item={art} size="sm" label={false} className="se-dashboard-metric__art" /> : null}
       <span className="se-dashboard-metric__label">{label}</span>
       <strong className="se-dashboard-metric__value">{value}</strong>
       {detail ? <span className="se-dashboard-metric__detail">{detail}</span> : null}
@@ -174,6 +180,7 @@ function TurnsTile({
   return (
     <DashboardMetric
       label="Turns"
+      art="TURNS"
       value={`${formatNumber(turns.turns)} / ${formatNumber(turns.turnCap)}`}
       detail={atCap ? 'At the cap · spend them' : `Next +${turns.turnsGeneratedNextTick} in ${label}`}
       tone={atCap ? 'warn' : 'accent'}
@@ -350,10 +357,10 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
   const suppliesPanel = (
     <Panel title="Supplies" aside={<Link to="/game/stores/corner">Restock</Link>} flush className="se-dashboard-panel">
       <div className="se-dashboard-stockgrid">
-        <DashboardMetric label="Condoms" value={formatNumber(me.resources.condoms)} />
-        {me.products ? null : <DashboardMetric label="Product" value={formatNumber(me.resources.product)} />}
-        <DashboardMetric label="Beer" value={formatNumber(me.resources.beer)} />
-        <DashboardMetric label="Medicine" value={formatNumber(me.resources.medicine)} />
+        <DashboardMetric label="Condoms" art="CONDOM" value={formatNumber(me.resources.condoms)} />
+        {me.products ? null : <DashboardMetric label="Product" art="CRACK" value={formatNumber(me.resources.product)} />}
+        <DashboardMetric label="Beer" art="BEER" value={formatNumber(me.resources.beer)} />
+        <DashboardMetric label="Medicine" art="MEDICINE" value={formatNumber(me.resources.medicine)} />
       </div>
     </Panel>
   );
@@ -398,6 +405,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
           />
           <DashboardMetric
             label="Cash"
+            art="CASH"
             value={formatCents(me.resources.cashCents)}
             detail="Spendable now"
           />
@@ -596,8 +604,8 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
             <div className="se-dashboard-stack">
               <Panel title="Crew readiness" flush className="se-dashboard-panel">
                 <div className="se-dashboard-stockgrid">
-                  <DashboardMetric label="Whores" value={formatNumber(me.resources.whores)} detail="Street crew" />
-                  <DashboardMetric label="Thugs" value={formatNumber(me.resources.thugs)} detail={`${formatNumber(me.resources.fitThugs)} fit`} />
+                  <DashboardMetric label="Whores" art="HOE" value={formatNumber(me.resources.whores)} detail="Street crew" />
+                  <DashboardMetric label="Thugs" art="THUG" value={formatNumber(me.resources.thugs)} detail={`${formatNumber(me.resources.fitThugs)} fit`} />
                   <DashboardMetric
                     label="Wounded"
                     value={formatNumber(me.resources.woundedThugs)}
@@ -609,7 +617,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                     tone={me.resources.unarmedThugs > 0 ? 'warn' : 'good'}
                   />
                   <DashboardMetric label="On corners" value={formatNumber(me.resources.postedThugs)} />
-                  <DashboardMetric label="Low-Riders" value={formatNumber(me.resources.lowRiders)} />
+                  <DashboardMetric label="Low-Riders" art="LOW_RIDER" value={formatNumber(me.resources.lowRiders)} />
                 </div>
                 <div className="se-rows">
                   <Row label="Armed / unarmed" value={`${formatNumber(me.resources.armedThugs)} / ${formatNumber(me.resources.unarmedThugs)}`} />
@@ -627,10 +635,10 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
 
               <Panel title="Arsenal" aside={<Link to="/game/stores/tommy">Tommy&rsquo;s</Link>} flush className="se-dashboard-panel">
                 <div className="se-dashboard-stockgrid">
-                  <DashboardMetric label="Pistols" value={formatNumber(me.resources.pistols)} />
-                  <DashboardMetric label="Shotguns" value={formatNumber(me.resources.shotguns)} />
-                  <DashboardMetric label="Tek-9s" value={formatNumber(me.resources.tek9s)} />
-                  <DashboardMetric label="AK-47s" value={formatNumber(me.resources.ak47s)} />
+                  <DashboardMetric label="Pistols" art="PISTOL" value={formatNumber(me.resources.pistols)} />
+                  <DashboardMetric label="Shotguns" art="SHOTGUN" value={formatNumber(me.resources.shotguns)} />
+                  <DashboardMetric label="Tek-9s" art="TEK9" value={formatNumber(me.resources.tek9s)} />
+                  <DashboardMetric label="AK-47s" art="AK47" value={formatNumber(me.resources.ak47s)} />
                   <DashboardMetric label="At home" value={formatNumber(homeWeapons)} tone="accent" />
                   <DashboardMetric label="Total owned" value={formatNumber(weapons)} detail={postedWeapons > 0 ? `${formatNumber(postedWeapons)} on corners` : undefined} />
                 </div>
@@ -660,7 +668,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                 <Panel title="Products" aside={<Link to="/game/stores/pip">Trade at Pip&rsquo;s</Link>} flush className="se-dashboard-panel">
                   <div className="se-dashboard-stockgrid">
                     {me.products.map((product) => (
-                      <DashboardMetric key={product.key} label={product.name} value={formatNumber(product.quantity)} />
+                      <DashboardMetric key={product.key} label={product.name} art={product.key} value={formatNumber(product.quantity)} />
                     ))}
                   </div>
                 </Panel>
