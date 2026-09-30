@@ -11,10 +11,10 @@
     <path d="M218 49 V40 H224 V49" fill="#26292e"/>
     <rect x="186" y="44" width="12" height="14" rx="1.5" fill="#2c2f34"/>
     <path d="M128 62 H152 Q158 88 176 106 L154 116 Q134 94 128 62 Z" fill="url(#mag)"/>
-    <path d="M102 62 H120 L113 92 Q112 96 107 96 L99 94 Q95 93 96 89 Z" fill="url(#wood)"/>
-    <path d="M112 63 Q112 74 120 74 H128" fill="none" stroke-width="4"/>
-    <path d="M112 63 Q112 74 120 74 H128" fill="none" stroke="#383c43" stroke-width="1.8"/>
-    <path d="M121 63 Q119 68 122 72" fill="none" stroke-width="2.6"/>
+    <path d="M88 62 H105 L98 92 Q97 96 92 96 L84 94 Q80 93 81 89 Z" fill="url(#wood)"/>
+    <path d="M105 63 Q105 75 114 75 H128" fill="none" stroke-width="4"/>
+    <path d="M105 63 Q105 75 114 75 H128" fill="none" stroke="#383c43" stroke-width="1.8"/>
+    <path d="M117 63 Q115 68 118 72" fill="none" stroke-width="2.6"/>
     <path d="M12 55 L72 45 V62 L52 65 L16 82 Q8 85 8 78 V60 Q8 56 12 55 Z" fill="url(#wood)"/>
     <path d="M6 58 L10 57 V82 L6 83 Z" fill="#1b1d21"/>
     <path d="M70 44 H150 V63 H70 Z" fill="url(#steel)"/>
