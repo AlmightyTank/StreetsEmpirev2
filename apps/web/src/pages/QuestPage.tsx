@@ -11,6 +11,7 @@ import { questsApi } from '../api/quests.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
+import { RewardChip } from '../components/RewardChip.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen, serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
@@ -303,7 +304,7 @@ function QuestCard({
           <p className="se-eyebrow">{quest.branchChoices.length ? 'Shared rewards' : 'Rewards'}</p>
           <div className="se-quest-rewards">
             {quest.rewards.map((reward, index) => (
-              <span className="se-quest-reward" key={reward.kind + ':' + (reward.key ?? index)}>{reward.label}</span>
+              <RewardChip key={reward.kind + ':' + (reward.key ?? index)} reward={reward} />
             ))}
           </div>
         </div>
@@ -317,9 +318,7 @@ function QuestCard({
               <Row label={choice.title} value={choice.description} strong />
               <div className="se-quest-rewards">
                 {choice.rewards.map((reward, index) => (
-                  <span className="se-quest-reward" key={choice.key + ':' + reward.kind + ':' + (reward.key ?? index)}>
-                    {reward.label}
-                  </span>
+                  <RewardChip key={choice.key + ':' + reward.kind + ':' + (reward.key ?? index)} reward={reward} />
                 ))}
                 {choice.reputationDeltas.map((delta) => (
                   <span className="se-quest-reward" key={choice.key + ':rep:' + delta.contactKey}>

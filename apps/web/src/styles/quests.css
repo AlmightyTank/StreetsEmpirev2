@@ -878,3 +878,19 @@ button.se-quests-metric {
   border-radius: 8px;
   background: color-mix(in srgb, var(--se-accent) 7%, transparent);
 }
+
+/* Rewards with a picture: a small stash tile beside the label. */
+.se-quest-reward--art,
+.se-quests .se-quest-reward--art {
+  gap: 8px;
+  padding: 4px 8px 4px 4px;
+}
+
+.se-quest-reward--art .se-item-tile {
+  --se-item-cell: 40px;
+}
+
+.se-quest-reward__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

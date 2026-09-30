@@ -87,3 +87,39 @@ export function itemArtUrl(key: ItemArtKey): string {
 export function hasItemArt(key: string): key is ItemArtKey {
   return Object.hasOwn(ITEM_ART, key);
 }
+
+/** Job `ITEM` rewards name the player column they add to, not the item. */
+const REWARD_FIELD_ART: Readonly<Record<string, ItemArtKey>> = {
+  condoms: 'CONDOM',
+  medicine: 'MEDICINE',
+  beer: 'BEER',
+  crack: 'CRACK',
+  pistols: 'PISTOL',
+  shotguns: 'SHOTGUN',
+  tek9s: 'TEK9',
+  ak47s: 'AK47',
+  lowRiders: 'LOW_RIDER',
+  thugs: 'THUG',
+  whores: 'HOE',
+};
+
+/**
+ * The picture for a job or pass reward, or null for rewards that aren't a
+ * thing you hold (reputation, unlocks, cosmetics).
+ */
+export function rewardArtKey(reward: { kind: string; key: string | null }): ItemArtKey | null {
+  switch (reward.kind) {
+    case 'CASH':
+      return 'CASH';
+    case 'TURNS':
+      return 'TURNS';
+    case 'ITEM':
+      if (!reward.key) return null;
+      if (Object.hasOwn(REWARD_FIELD_ART, reward.key)) return REWARD_FIELD_ART[reward.key] ?? null;
+      return hasItemArt(reward.key) ? reward.key : null;
+    case 'FAVOR_ITEM':
+      return reward.key && hasItemArt(reward.key) ? reward.key : null;
+    default:
+      return null;
+  }
+}

@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { rulesets } from '@streets/rulesets';
-import { ITEM_ART, hasItemArt } from './itemArt.js';
+import { ITEM_ART, hasItemArt, rewardArtKey } from './itemArt.js';
 
 const ART_DIR = path.resolve(import.meta.dirname, '../../public/items');
 const CELL = 128;
@@ -20,6 +20,29 @@ describe('item art', () => {
       for (const key of keys) if (!hasItemArt(key)) missing.add(`${ruleset.meta.id}: ${key}`);
     }
     expect([...missing]).toEqual([]);
+  });
+
+  it('has a picture for every item, favor, cash and turns reward a job can pay', () => {
+    const missing = new Set<string>();
+    for (const ruleset of Object.values(rulesets)) {
+      for (const quest of Object.values(ruleset.questDefinitions ?? {})) {
+        const rewards = [...quest.rewards, ...(quest.branches ?? []).flatMap((branch) => branch.rewards)];
+        for (const reward of rewards) {
+          if (!['CASH', 'TURNS', 'ITEM', 'FAVOR_ITEM'].includes(reward.kind)) continue;
+          if (!rewardArtKey({ kind: reward.kind, key: reward.key ?? null })) missing.add(`${quest.key}: ${reward.kind} ${reward.key}`);
+        }
+      }
+    }
+    expect([...missing]).toEqual([]);
+  });
+
+  it('maps reward columns and keys to the right picture', () => {
+    expect(rewardArtKey({ kind: 'ITEM', key: 'lowRiders' })).toBe('LOW_RIDER');
+    expect(rewardArtKey({ kind: 'ITEM', key: 'whores' })).toBe('HOE');
+    expect(rewardArtKey({ kind: 'FAVOR_ITEM', key: 'TOMMY_WAR_CHEST' })).toBe('TOMMY_WAR_CHEST');
+    expect(rewardArtKey({ kind: 'CASH', key: null })).toBe('CASH');
+    expect(rewardArtKey({ kind: 'CONTACT_REP', key: 'PIP' })).toBeNull();
+    expect(rewardArtKey({ kind: 'ITEM', key: 'constructor' })).toBeNull();
   });
 
   it('points every entry at an SVG whose canvas matches its footprint', () => {
