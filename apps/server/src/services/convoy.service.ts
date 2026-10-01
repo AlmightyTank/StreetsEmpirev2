@@ -30,6 +30,8 @@ import {
   type ReachWindow,
   type Ruleset,
   type RunStopPlan,
+  racketVehicleRecovery,
+  readRacketEffects,
 } from '@streets/rules-engine';
 import type { WeaponKey } from '@streets/rulesets';
 import {
@@ -163,8 +165,8 @@ function reportFor(result: TailResult, role: 'attacker' | 'owner' | 'ally'): Con
 }
 
 /** Whether an owner's lookouts see a tail on their run yet: only in its last minutes. */
-function ownerSees(ruleset: Ruleset, owner: Pick<RoundPlayer, 'hideoutLookoutsLevel'>, tail: Pick<ConvoyTail, 'landsAt'>, now: Date): boolean {
-  return tail.landsAt.getTime() - now.getTime() <= headsUpMinutes(ruleset, owner.hideoutLookoutsLevel) * 60_000;
+function ownerSees(ruleset: Ruleset, owner: Pick<RoundPlayer, 'hideoutLookoutsLevel' | 'racketEffects'>, tail: Pick<ConvoyTail, 'landsAt'>, now: Date): boolean {
+  return tail.landsAt.getTime() - now.getTime() <= headsUpMinutes(ruleset, owner.hideoutLookoutsLevel, owner.racketEffects) * 60_000;
 }
 
 /** What an area recon keeps about a run it found. */
@@ -553,7 +555,9 @@ export const ConvoyService = {
         lootCargo = loot.cargo;
         run = await takeFromRun(tx, ownerId, ruleset, run, { seized: loot.cargo, fineCents: loot.cashCents });
         const escortDown = escorts === 0 || (wounds.escorts ?? 0) >= escorts;
-        if (escortDown && run.lowRiders > 1 && rng() < rules.loot.lowRiderChance) {
+        // 1.1.0-C: a Chop Shop on Vehicle recovery gets some of those cars back on the spot.
+        const recovered = racketVehicleRecovery(ruleset, readRacketEffects(owner.racketEffects));
+        if (escortDown && run.lowRiders > 1 && rng() < rules.loot.lowRiderChance * (1 - recovered)) {
           lowRider = 1;
           run = { ...run, lowRiders: run.lowRiders - 1 };
           await tx.run.update({ where: { id: run.id }, data: { lowRiders: run.lowRiders } });
@@ -700,10 +704,10 @@ export const ConvoyService = {
   },
 
   /** The one convoy line a player's status needs: a tail their lookouts have spotted on their run, or an ally's call to answer. */
-  async alertFor(db: Db | PrismaClient, player: Pick<RoundPlayer, 'id' | 'allianceId' | 'cityId' | 'hideoutLookoutsLevel'>, ruleset: Ruleset, now: Date): Promise<RoundPlayerDto['convoyAlert']> {
+  async alertFor(db: Db | PrismaClient, player: Pick<RoundPlayer, 'id' | 'allianceId' | 'cityId' | 'hideoutLookoutsLevel' | 'racketEffects'>, ruleset: Ruleset, now: Date): Promise<RoundPlayerDto['convoyAlert']> {
     if (!convoyRules(ruleset)) return null;
     // Only what the lookouts see: a tail in its last minutes.
-    const seeUntil = new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel) * 60_000);
+    const seeUntil = new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel, player.racketEffects) * 60_000);
     const tailed = await db.convoyTail.findFirst({ where: { ownerId: player.id, status: 'PENDING', landsAt: { gt: now, lte: seeUntil } }, orderBy: { landsAt: 'asc' } });
     if (tailed) return { kind: 'tailed', cityName: cityName(ruleset, tailed.city), landsAt: tailed.landsAt.toISOString() };
     if (!player.allianceId) return null;
@@ -875,7 +879,7 @@ export const ConvoyService = {
       rules: {
         warningMinutes: rules.warningMinutes, turnCost: rules.turnCost, squadCap: model.squadCap, rehitMinutes: rules.rehitMinutes,
         reconTurnCost: rules.recon.turnCost, reconFreshMinutes: rules.recon.freshMinutes,
-        lookaheadMinutes: reconLookaheadMinutes(base, player.hideoutLookoutsLevel), headsUpMinutes: headsUpMinutes(base, player.hideoutLookoutsLevel),
+        lookaheadMinutes: reconLookaheadMinutes(base, player.hideoutLookoutsLevel), headsUpMinutes: headsUpMinutes(base, player.hideoutLookoutsLevel, player.racketEffects),
       },
       recon: fresh ? { seenAt: fresh.seenAt.toISOString(), expiresAt: fresh.expiresAt.toISOString() } : null,
       squad,

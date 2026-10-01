@@ -23,15 +23,23 @@ import {
   turfTax,
   workSupplyOrder,
   headsUpMinutes,
+  launderDay,
+  racketCashPerHour,
+  racketHeatPerHour,
+  racketRules,
+  racketStrength,
+  racketSwitchOpensAt,
+  racketsFor,
+  racketType,
   type Rng,
   type Ruleset,
 } from '@streets/rules-engine';
-import type { DistrictKey } from '@streets/rulesets';
-import type { CityTurfDto, TurfBattleReportDto, TurfBlockDto, TurfSummaryDto, TurfTripDto } from '@streets/shared';
+import type { BusinessKey, DistrictKey, RacketKey } from '@streets/rulesets';
+import type { CityTurfDto, TurfBattleReportDto, TurfBlockDto, TurfBusinessLotDto, TurfSummaryDto, TurfTripDto } from '@streets/shared';
 import { tryLockRoundPlayer, type Db } from '../utils/db.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
-import { buildingOn } from './business.service.js';
+import { buildingOn, racketOf } from './business.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { turfRevengeByAttacker } from './turf-revenge.service.js';
 import { endTurfHold } from './turf-history.service.js';
@@ -670,7 +678,8 @@ export const TurfService = {
       select: {
         id: true, roundId: true, cityId: true, thugs: true, woundedThugs: true, busyThugs: true, postedThugs: true, businessThugs: true,
         pistols: true, shotguns: true, tek9s: true, ak47s: true, allianceId: true, allianceJoinedAt: true,
-        lockedUntil: true, movingUntil: true, hideoutLookoutsLevel: true,
+        lockedUntil: true, movingUntil: true, hideoutLookoutsLevel: true, racketEffects: true,
+        launderedDay: true, launderedHeatToday: true, launderedHeatRound: true,
       },
     });
     await TurfService.ensureRound(db, player.roundId, ruleset);
@@ -733,7 +742,7 @@ export const TurfService = {
       business
         ? db.business.findMany({
             where: { roundId: player.roundId },
-            select: { turfId: true, lot: true, kind: true, level: true, staff: true, staffTarget: true, autoStaff: true, staffOwnerId: true, registerCents: true },
+            select: { turfId: true, lot: true, kind: true, level: true, staff: true, staffTarget: true, autoStaff: true, staffOwnerId: true, registerCents: true, racket: true, racketSince: true },
             orderBy: { lot: 'asc' },
           })
         : Promise.resolve([]),
@@ -745,6 +754,44 @@ export const TurfService = {
       lots.push(row);
       businessesByTurf.set(row.turfId, lots);
     }
+    // 1.1.0-C: how a racket runs on one of your businesses right now.
+    const rackets = racketRules(ruleset);
+    const heldTurfs = new Set(rows.filter((entry) => entry.holderId === player.id && entry.city.id === player.cityId).map((entry) => entry.id));
+    const myRackets = businessRows.filter((entry) => entry.staffOwnerId === player.id && heldTurfs.has(entry.turfId) && racketOf(ruleset, entry.racket));
+    const strengthOf = (entry: { kind: string; level: number; staff: number }) =>
+      racketStrength(ruleset, { level: entry.level, staff: entry.staff, requiredStaff: businessStaff(ruleset, entry.kind as BusinessKey, entry.level) });
+    const shield = myRackets.reduce((top, entry) => {
+      const effect = racketType(ruleset, racketOf(ruleset, entry.racket)!)!.effect;
+      return effect.kind === 'HEAT_SHIELD' ? Math.max(top, effect.share * strengthOf(entry)) : top;
+    }, 0);
+    const racketHeatNow = myRackets.reduce((sum, entry) => sum + racketHeatPerHour(ruleset, racketOf(ruleset, entry.racket), strengthOf(entry), shield), 0);
+    const racketDto = (key: RacketKey, strength: number, frontPerHour: number) => {
+      const type = racketType(ruleset, key)!;
+      return {
+        key, name: type.name, description: type.description,
+        strength: Math.round(strength * 1000) / 1000,
+        heatPerHour: Math.round(type.heatPerHour * strength * 10) / 10,
+        cashCentsPerHour: racketCashPerHour(ruleset, key, frontPerHour),
+      };
+    };
+    const racketView = (
+      stored: (typeof businessRows)[number] | undefined,
+      kind: BusinessKey,
+      level: number,
+      myStaff: number,
+      requiredStaff: number,
+      frontPerHour: number,
+    ): { racket: TurfBusinessLotDto['racket']; racketOptions: TurfBusinessLotDto['racketOptions']; racketSwitchAt: string | null } => {
+      if (!rackets || !stored || stored.staffOwnerId !== player.id || level <= 0) return { racket: null, racketOptions: null, racketSwitchAt: null };
+      const strength = racketStrength(ruleset, { level, staff: myStaff, requiredStaff });
+      const staffedFront = frontPerHour * staffingShare(myStaff, requiredStaff);
+      const current = racketOf(ruleset, stored.racket);
+      return {
+        racket: current ? racketDto(current, strength, staffedFront) : null,
+        racketOptions: racketsFor(ruleset, kind).map((key) => racketDto(key, racketStrength(ruleset, { level, staff: requiredStaff, requiredStaff }), frontPerHour)),
+        racketSwitchAt: racketSwitchOpensAt(ruleset, stored.racketSince, now)?.toISOString() ?? null,
+      };
+    };
 
     const allianceIds = [...new Set(recentFights.flatMap((fight) => [fight.attackerAllianceId, fight.defenderAllianceId]).filter((id): id is string => Boolean(id)))];
     const allianceRows = allianceIds.length
@@ -847,7 +894,7 @@ export const TurfService = {
         : null;
       const tier = tierKey ? { tier: tierKey, lotsOpen: lotsOpen(ruleset, tierKey) } : null;
       const defenderSees = pending?.defenderId === player.id &&
-        pending.landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel) * 60_000);
+        pending.landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel, player.racketEffects) * 60_000);
       const allySees = Boolean(
         pending?.alliesCalledAt &&
         player.allianceId &&
@@ -961,6 +1008,7 @@ export const TurfService = {
               incomeCentsPerHour: Math.round(income(nextLevel)),
             },
             buildBlockedReason,
+            ...racketView(stored, lot.business, level, myStaff, requiredStaff, income(level)),
           };
         }) : null,
         businessTier: tier,
@@ -975,6 +1023,16 @@ export const TurfService = {
           registerTotalCents: businessRows
             .filter((entry) => entry.staffOwnerId === player.id && cityIdByTurf.get(entry.turfId) === row.city.id)
             .reduce((sum, entry) => sum + Number(entry.registerCents), 0),
+          rackets: rackets && row.city.id === player.cityId ? {
+            switchTurnCost: rackets.switchTurnCost,
+            switchCooldownHours: rackets.switchCooldownHours,
+            heatPerHour: Math.round(racketHeatNow * 10) / 10,
+            coolDownPerHour: ruleset.heat ? ruleset.heat.decayPerInterval * (60 / ruleset.turns.intervalMinutes) : 0,
+            launderedToday: player.launderedDay === launderDay(now) ? player.launderedHeatToday : 0,
+            dailyLaunderCap: rackets.laundering.dailyHeatCap,
+            launderedRound: player.launderedHeatRound,
+            roundLaunderCap: rackets.laundering.roundHeatCap,
+          } : null,
         } : null,
         holdingEnabled: holdingOn(ruleset),
         warsEnabled: ruleset.turf.wars === true,

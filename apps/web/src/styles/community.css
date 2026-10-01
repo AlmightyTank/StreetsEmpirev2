@@ -599,6 +599,9 @@
 .se-turfboard__staff { display: grid; gap: 3px; }
 .se-turfboard__staff-count { align-self: center; min-width: 9ch; text-align: center; font-size: 11px; }
 .se-turfboard__auto { display: flex; align-items: center; gap: 6px; color: var(--se-text-dim); font-size: 10px; }
+.se-turfboard__racket { display: grid; gap: 3px; }
+.se-turfboard__racket .se-actions-row { flex-wrap: wrap; }
+.se-turfboard__racket-heat { display: block; flex-basis: 100%; }
 .se-turfboard__lot--built { border-left-color: var(--se-accent-dim); color: var(--se-text); }
 .se-turfboard__lot--open { border-left-color: var(--se-accent); }
 .se-turfboard__signature { color: var(--se-warn); }

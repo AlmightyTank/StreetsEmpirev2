@@ -1446,6 +1446,89 @@ export interface BusinessRules {
   readonly torch: BusinessTorchRules;
   /** Levels every business on a block loses when a war ends in a Sack. */
   readonly sackLevelsLost: number;
+  /** 1.1.0-C. One racket per business, on top of its front income. Absent before C. */
+  readonly rackets?: RacketRules;
+}
+
+export type RacketKey =
+  | 'ECSTASY_DEMAND'
+  | 'INFORMATION_NETWORK'
+  | 'BACK_ROOM_CARDS'
+  | 'LOOSE_LIPS'
+  | 'VIP_ROOM'
+  | 'PILLOW_TALK'
+  | 'STOLEN_LOW_RIDERS'
+  | 'VEHICLE_RECOVERY'
+  | 'FENCING'
+  | 'LOAN_SHARKING'
+  | 'RUN_MODS'
+  | 'GETAWAY_CARS'
+  | 'BEER_SUPPLY'
+  | 'COUNTER_SALES'
+  | 'PRODUCT_STORAGE'
+  | 'SHIPMENT_CAPACITY'
+  | 'HOUSE_ALWAYS_WINS'
+  | 'CASINO_LAUNDERING'
+  | 'LAUNDERING'
+  | 'WASH_AND_FOLD';
+
+/**
+ * What a racket does, at full strength (top level, fully staffed). A racket's strength is
+ * `levelStrength` for its business's level times its staffing share; the effect scales with it.
+ */
+export type RacketEffect =
+  /** Extra cash into the register: a share of the business's front income. */
+  | { readonly kind: 'CASH'; readonly incomeShare: number }
+  /** Better prices at one store for some items, on top of standing. */
+  | { readonly kind: 'STORE_PRICE'; readonly store: string; readonly items: readonly string[]; readonly buyDiscountPercent?: number; readonly sellBonusPercent?: number }
+  /** Earlier sightings of pushes on the crew's blocks and tails on its runs, on top of Lookouts. */
+  | { readonly kind: 'HEADS_UP'; readonly minutes: number }
+  /** Turns off a recon on a crew in the same city. Paid recon always costs at least one turn. */
+  | { readonly kind: 'RECON_DISCOUNT'; readonly turns: number }
+  /** Home raid defense strength, on top of Lookouts. */
+  | { readonly kind: 'RAID_DEFENSE'; readonly percent: number }
+  /** Share of the Low-Riders a convoy hit would take off a run that are recovered on the spot. */
+  | { readonly kind: 'VEHICLE_RECOVERY'; readonly share: number }
+  /** Share off the chance of a police stop on a run out of the home city. */
+  | { readonly kind: 'RUN_STOPS'; readonly share: number }
+  /** Share of a beaten push squad's wounds it avoids by getting away. */
+  | { readonly kind: 'GETAWAY'; readonly share: number }
+  /** Product sold over the counter each hour, at Pip's base price, into the register. */
+  | { readonly kind: 'COUNTER_SALES'; readonly unitsPerHour: number }
+  /** Extra product sealed away from raids, on top of the Safe Room. */
+  | { readonly kind: 'PRODUCT_STORAGE'; readonly units: number }
+  /** Extra cargo per Low-Rider on runs out of the home city, as a share. */
+  | { readonly kind: 'CARGO'; readonly share: number }
+  /** Heat washed off each hour, paid from the register, under the laundering caps. */
+  | { readonly kind: 'LAUNDER'; readonly heatPerHour: number }
+  /** Share off the Heat the crew's other rackets draw. */
+  | { readonly kind: 'HEAT_SHIELD'; readonly share: number };
+
+export interface RacketTypeRules {
+  readonly name: string;
+  readonly business: BusinessKey;
+  readonly description: string;
+  readonly effect: RacketEffect;
+  /** Heat the racket draws each hour at full strength. */
+  readonly heatPerHour: number;
+}
+
+export interface RacketRules {
+  readonly catalog: { readonly [K in RacketKey]: RacketTypeRules };
+  /** Strength by business level (index 0 = level 1), before staffing. */
+  readonly levelStrength: readonly number[];
+  /** Turns to set or switch a racket. */
+  readonly switchTurnCost: number;
+  /** Hours after a racket is set before it can be switched again (or shut). */
+  readonly switchCooldownHours: number;
+  readonly laundering: {
+    /** Heat a crew can wash off in a day (UTC), across all its laundering. */
+    readonly dailyHeatCap: number;
+    /** Heat a crew can wash off in a round. */
+    readonly roundHeatCap: number;
+    /** Price per point of Heat washed, as a share of the crew's bribe price. */
+    readonly bribePriceShare: number;
+  };
 }
 
 export interface BusinessTypeRules {

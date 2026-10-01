@@ -92,7 +92,7 @@ async function incomingPushes(tx: Tx, now: Date, switches: ChannelSwitches): Pro
     include: {
       round: { select: { status: true, endsAt: true, rulesetId: true, rulesetVersion: true } },
       turf: { select: { district: true, holderId: true, city: { select: { slug: true } } } },
-      defender: { select: { id: true, accountId: true, hideoutLookoutsLevel: true, account: accountSettings } },
+      defender: { select: { id: true, accountId: true, hideoutLookoutsLevel: true, racketEffects: true, account: accountSettings } },
     },
   });
   const rows: OutboxRow[] = [];
@@ -104,7 +104,7 @@ async function incomingPushes(tx: Tx, now: Date, switches: ChannelSwitches): Pro
       continue;
     }
     // Exactly the turf page's rule: nothing until the Lookouts see it coming.
-    const seeUntil = now.getTime() + headsUpMinutes(ruleset, push.defender.hideoutLookoutsLevel) * 60_000;
+    const seeUntil = now.getTime() + headsUpMinutes(ruleset, push.defender.hideoutLookoutsLevel, push.defender.racketEffects) * 60_000;
     if (push.landsAt.getTime() > seeUntil) continue;
 
     const claimed = await tx.turfPush.updateMany({ where: { id: push.id, defenderAlertedAt: null }, data: { defenderAlertedAt: now } });
@@ -211,7 +211,7 @@ async function tailSightings(tx: Tx, now: Date, switches: ChannelSwitches): Prom
     include: {
       owner: {
         select: {
-          id: true, accountId: true, hideoutLookoutsLevel: true, account: accountSettings,
+          id: true, accountId: true, hideoutLookoutsLevel: true, racketEffects: true, account: accountSettings,
           round: { select: { status: true, endsAt: true, rulesetId: true, rulesetVersion: true } },
         },
       },
@@ -225,7 +225,7 @@ async function tailSightings(tx: Tx, now: Date, switches: ChannelSwitches): Prom
       continue;
     }
     // ConvoyService.alertFor's rule: the owner only sees a tail in its last minutes.
-    const seeUntil = now.getTime() + headsUpMinutes(ruleset, tail.owner.hideoutLookoutsLevel) * 60_000;
+    const seeUntil = now.getTime() + headsUpMinutes(ruleset, tail.owner.hideoutLookoutsLevel, tail.owner.racketEffects) * 60_000;
     if (tail.landsAt.getTime() > seeUntil) continue;
 
     const claimed = await tx.convoyTail.updateMany({ where: { id: tail.id, ownerAlertedAt: null }, data: { ownerAlertedAt: now } });

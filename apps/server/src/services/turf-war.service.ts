@@ -69,8 +69,8 @@ function districtName(ruleset: Ruleset, city: string, district: DistrictKey): st
   return ruleset.cities?.[city]?.districts?.[district]?.name ?? ruleset.districts[district].name;
 }
 
-function seesPush(ruleset: Ruleset, player: { hideoutLookoutsLevel: number }, landsAt: Date, now: Date): boolean {
-  return landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel) * 60_000);
+function seesPush(ruleset: Ruleset, player: { hideoutLookoutsLevel: number; racketEffects?: unknown }, landsAt: Date, now: Date): boolean {
+  return landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel, player.racketEffects) * 60_000);
 }
 
 /**

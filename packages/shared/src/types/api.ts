@@ -76,7 +76,8 @@ export type ActivityType =
   | 'SPECIAL_ORDER_READY'
   | 'BUSINESS_BUILD'
   | 'BUSINESS_STAFF'
-  | 'BUSINESS_COLLECT';
+  | 'BUSINESS_COLLECT'
+  | 'BUSINESS_RACKET';
 
 export interface ApiErrorBody {
   error: {

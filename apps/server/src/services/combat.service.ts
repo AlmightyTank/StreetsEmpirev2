@@ -1,6 +1,6 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
-import { DEFENSE_JOB, RAID_JOB, bossAwayDefenseMultiplier, driveByMaxShooters, equipCombatSquad, loadRulesetForRound, planWorkSupply, productStashHint, simulateDriveBy, simulateRaid, splitProductUnits, type CombatBoost, type CombatCrew, type Ruleset, type WorkSupplyPlan } from '@streets/rules-engine';
+import { DEFENSE_JOB, RAID_JOB, bossAwayDefenseMultiplier, driveByMaxShooters, equipCombatSquad, loadRulesetForRound, planWorkSupply, productStashHint, racketReconDiscount, readRacketEffects, simulateDriveBy, simulateRaid, splitProductUnits, type CombatBoost, type CombatCrew, type Ruleset, type WorkSupplyPlan } from '@streets/rules-engine';
 import { hideoutV2For, type DriveByRules, type DrugHoesRules, type LureCrewRules, type SpecialRaidKind, type StealRideRules } from '@streets/rulesets';
 import {
   combatReconSchema,
@@ -728,7 +728,8 @@ export const CombatService = {
           repeatLootFloorPercent: model.loot.weightedPercent.repeatFloorPercent,
         } : {}),
         ...(model.strategy ? {
-          reconTurnCost: burnerFavor ? 0 : model.strategy.intel.turnCost,
+          // 1.1.0-C: Loose lips takes a turn off, never the last one.
+          reconTurnCost: burnerFavor ? 0 : model.strategy.intel.turnCost - racketReconDiscount(ruleset, readRacketEffects(player.racketEffects), model.strategy.intel.turnCost),
           ...(burnerFavor ? { reconFavorKey: burnerFavor.key } : {}),
           intelExpiresMinutes: model.strategy.intel.expiresMinutes,
           retaliationHours: model.strategy.retaliation.revengeHours,
@@ -1345,7 +1346,8 @@ export const CombatService = {
       const allied = allianceTargetBlock(observer, defender, now);
       if (allied) throw AppError.conflict('RECON_BLOCKED', allied);
       const burnerFavor = await SingleUseFavorService.matching(tx, playerId, settled.ruleset, 'FREE_RECON');
-      const turnCost = burnerFavor ? 0 : model.strategy.intel.turnCost;
+      // 1.1.0-C: Loose lips takes a turn off, never the last one.
+      const turnCost = burnerFavor ? 0 : model.strategy.intel.turnCost - racketReconDiscount(settled.ruleset, readRacketEffects(observer.racketEffects), model.strategy.intel.turnCost);
       if (observer.turns < turnCost) throw AppError.conflict('NOT_ENOUGH_TURNS', `You need ${turnCost} turns to recon.`);
 
       const turnsAfter = observer.turns - turnCost;

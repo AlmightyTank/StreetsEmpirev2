@@ -115,6 +115,11 @@ export const businessStaffSchema = businessLotSchema.extend({
   autoStaff: z.boolean().optional(),
 }).strict();
 export const businessCollectSchema = z.object({ actionId: actionIdSchema }).strict();
+/** 1.1.0-C. Run a racket on the business (a ruleset racket key), or null to run the front alone. */
+export const businessRacketSchema = businessLotSchema.extend({
+  racket: z.string().trim().min(1, 'Pick a racket.').max(40, 'Pick a racket.').nullable(),
+}).strict();
+export type BusinessRacketInput = z.infer<typeof businessRacketSchema>;
 export type BusinessBuildInput = z.infer<typeof businessBuildSchema>;
 export type BusinessStaffInput = z.infer<typeof businessStaffSchema>;
 export type BusinessCollectInput = z.infer<typeof businessCollectSchema>;

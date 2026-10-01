@@ -3,6 +3,7 @@ import type { Rng } from '../rng.js';
 import { cityRules, findRoutes } from './cities.js';
 import { splitProductUnits } from './product-economy.js';
 import { routeHours, runPosition, type RunStopPlan } from './runs.js';
+import { racketHeadsUpMinutes, readRacketEffects } from './rackets.js';
 
 /**
  * 0.5.0-E. Convoys: where a run can be hit, and what a hit takes.
@@ -123,10 +124,14 @@ export function homeBackupThugs(ruleset: Ruleset, home: string, hoursHome: numbe
   return Math.floor(fitAtHome * rules.homeBackupMaxShare * (1 - hoursHome / zone));
 }
 
-/** Minutes before a hit that an owner's lookouts see the tail on their run. None without lookouts. */
-export function headsUpMinutes(ruleset: Ruleset, lookoutsLevel: number): number {
+/**
+ * Minutes before a hit that an owner's lookouts see the tail on their run. None without lookouts.
+ * 1.1.0-C: pass the crew's stored racket effects to add an Information network's minutes on top.
+ */
+export function headsUpMinutes(ruleset: Ruleset, lookoutsLevel: number, racketEffects?: unknown): number {
   const rules = convoyRules(ruleset);
-  return rules ? Math.max(0, lookoutsLevel) * rules.headsUpMinutesPerLookouts : 0;
+  const racket = racketEffects === undefined ? 0 : racketHeadsUpMinutes(ruleset, readRacketEffects(racketEffects));
+  return rules ? Math.max(0, lookoutsLevel) * rules.headsUpMinutesPerLookouts + racket : 0;
 }
 
 /** How far ahead an area recon sees runs coming, with the player's lookouts. */

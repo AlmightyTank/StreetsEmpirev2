@@ -223,8 +223,9 @@ export function planHeadHome(ruleset: Ruleset, stops: readonly RunStopPlan[], no
 
 // --- the trunk and the wallet ------------------------------------------------------
 
-export function runCapacity(ruleset: Ruleset, lowRiders: number): number {
-  return Math.max(0, lowRiders) * (ruleset.travel?.cargoPerLowRider ?? 0);
+/** Units a run's Low-Riders carry. `cargoShare` (1.1.0-C, Shipment capacity) packs each one a little fuller. */
+export function runCapacity(ruleset: Ruleset, lowRiders: number, cargoShare = 0): number {
+  return Math.floor(Math.max(0, lowRiders) * (ruleset.travel?.cargoPerLowRider ?? 0) * (1 + Math.max(0, cargoShare)));
 }
 
 export function cargoUnits(cargo: Readonly<Record<string, number>>): number {

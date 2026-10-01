@@ -995,6 +995,13 @@ model RoundPlayer {
   /// (and in net worth), but never fit at home and never working the street.
   businessThugs        Int       @default(0)
   businessWhores       Int       @default(0)
+  /// 1.1.0-C. The crew's live rackets, racket key -> strength (0..1], rebuilt on every
+  /// business settle so any system can read them off the player row.
+  racketEffects        Json      @default("{}")
+  /// Heat washed by laundering rackets on `launderedDay` (UTC) and over the round, for the caps.
+  launderedDay         String?
+  launderedHeatToday   Int       @default(0)
+  launderedHeatRound   Int       @default(0)
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
   rocksSuppliedToPip   Int       @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
@@ -1966,6 +1973,7 @@ enum ActivityType {
   BUSINESS_BUILD
   BUSINESS_STAFF
   BUSINESS_COLLECT
+  BUSINESS_RACKET
 }
 
 enum BattleKind {
@@ -2214,6 +2222,11 @@ model Business {
   registerCents BigInt   @default(0)
   /// Whole hours of income and supply are settled up to here.
   accruedAt     DateTime @default(now())
+  /// 1.1.0-C. The ruleset racket key this business runs on top of its front, if any.
+  /// Cleared when another crew takes it over.
+  racket        String?
+  /// When the racket was last set or switched; the switch cooldown runs from here.
+  racketSince   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

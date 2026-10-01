@@ -1,5 +1,5 @@
 import { writeFile } from 'node:fs/promises';
-import { classicOgV11A } from '@streets/rulesets';
+import { classicOgV11C } from '@streets/rulesets';
 import { businessGate, businessMarkdown, runBusinessSimulation } from '@streets/rules-engine';
 
 const args = process.argv.slice(2);
@@ -17,8 +17,9 @@ try {
     if (!args[i + 1] || args[i + 1].startsWith('--')) throw new Error(`Incomplete option: ${flag}`);
     output = args[++i];
   }
-  // 1.1.0-A: every lot, the home caps, and the war/fatigue/tier/decay timings.
-  const ruleset = classicOgV11A;
+  // 1.1.0-C: every lot, the home caps (with and without cash rackets), laundering caps,
+  // and the war/fatigue/tier/decay timings. Business balance is A's, unchanged.
+  const ruleset = classicOgV11C;
   const summaries = runBusinessSimulation(ruleset);
   const report = businessMarkdown(ruleset, summaries);
   if (output) await writeFile(output, report, 'utf8');

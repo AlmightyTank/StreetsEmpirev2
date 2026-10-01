@@ -394,6 +394,25 @@ export interface TurfBusinessLotDto {
   nextLevel: { level: number; costCents: number; staff: number; incomeCentsPerHour: number } | null;
   /** Why you cannot build or upgrade here right now, or null. */
   buildBlockedReason: string | null;
+  /** 1.1.0-C. The racket your business runs, or null. Only shown on your own business. */
+  racket: BusinessRacketDto | null;
+  /** The rackets this business can run (yours only; null otherwise or before racket rounds). */
+  racketOptions: BusinessRacketDto[] | null;
+  /** When the racket can next be switched, or null if it can now. */
+  racketSwitchAt: string | null;
+}
+
+/** 1.1.0-C. One racket, as it runs (or would run) on this business right now. */
+export interface BusinessRacketDto {
+  key: string;
+  name: string;
+  description: string;
+  /** 0..1: the business level's share of full strength times its staffing. */
+  strength: number;
+  /** Heat it draws an hour at this strength, before Wash & fold. */
+  heatPerHour: number;
+  /** Cash it adds to the register an hour at the current staffing, for cash rackets. */
+  cashCentsPerHour: number;
 }
 
 export interface TurfPushDto {
@@ -443,6 +462,19 @@ export interface CityTurfDto {
     collectTurnCost: number;
     /** Everything waiting in your registers, across your home blocks. */
     registerTotalCents: number;
+    /** 1.1.0-C. Your rackets in this city, or null before racket rounds. */
+    rackets: {
+      switchTurnCost: number;
+      switchCooldownHours: number;
+      /** Heat your rackets draw an hour right now, after Wash & fold. */
+      heatPerHour: number;
+      /** Heat cools this much an hour on its own. */
+      coolDownPerHour: number;
+      launderedToday: number;
+      dailyLaunderCap: number;
+      launderedRound: number;
+      roundLaunderCap: number;
+    } | null;
   } | null;
   holdingEnabled: boolean;
   warsEnabled: boolean;
@@ -519,6 +551,19 @@ export interface BusinessStaffResult {
   staffChange: number;
   staffKind: 'THUGS' | 'WHORES';
   turnsUsed: number;
+}
+
+/** 1.1.0-C. Setting, switching or shutting a business's racket. */
+export interface BusinessRacketResult {
+  district: TurfBlockDto['district'];
+  districtName: string;
+  lot: number;
+  name: string;
+  racket: string | null;
+  racketName: string | null;
+  previous: string | null;
+  turnsUsed: number;
+  switchAt: string;
 }
 
 /** 1.1.0-B. Emptying every register on the player's home blocks. */

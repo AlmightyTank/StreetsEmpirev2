@@ -632,6 +632,72 @@ yet part of `qa:release`; it joins at 1.1.0-F, as turf did.
 fatigue and the Take tier drop (D: a captured block restarts as a Foothold, from the push's
 `heldSince`), dormancy and decay under the locals (D), and rackets (C).
 
+### Built in C
+
+- **Ruleset:** `classic-og-v1.1-c` is 1.1.0-B plus `business.rackets`: the catalog, the
+  strength curve, the switch cost and cooldown, and the laundering caps. Nothing else moves;
+  a test pins that. See [BUSINESS-SIMULATION-1.1.0-C.md](BUSINESS-SIMULATION-1.1.0-C.md).
+- **One racket per business** (`POST /game/business/racket` with a racket key, or `null` to
+  run the front alone): 2 turns, then **locked for 12 hours**. The first racket on a business
+  never waits. Only a staffed business on a home block can run one; a business taken over by
+  another crew (or left by its old one) starts with none.
+- **Strength:** the level's share (50%, 62.5%, 75%, 87.5%, 100% for levels 1-5) times the
+  staffing share, so turning staff down weakens the racket and closing the business stops it.
+  Two businesses running the same racket don't stack: the crew gets the stronger one. The
+  crew's live rackets are stored on the player (`racketEffects`) on every business settle
+  and business action, so every system reads them without a query.
+- **Heat:** each racket draws its Heat every settled hour, at its strength, landing on a
+  balance that has cooled to the same hour (the settle runs the turn clock first). Heat still
+  cools 12 points an hour; no racket alone out-heats that, but a home cap of cash rackets
+  draws 17. **Wash & fold** takes 40% off the crew's other rackets' Heat.
+- **Laundering** (Casino Front 4 Heat/h, Laundromat 2 Heat/h at full strength) washes Heat
+  each settled hour, **paid from its own register** at 80% of the crew's bribe price per
+  point, and only as far as the register can pay. Capped at **48 Heat a day** (UTC) and
+  **480 a round** across all the crew's laundering (`launderedHeatToday`/`launderedHeatRound`).
+- **Every racket** at full strength:
+
+| Business | Racket | Does | Heat/h |
+|---|---|---|---:|
+| Nightclub | Ecstasy demand | Pip pays 8% more for ecstasy | 1 |
+| Nightclub | Information network | +2 min heads-up on pushes on your blocks and tails on your runs (Lookouts give up to 4) | 0 |
+| Bar | Back-room cards | +15% of front income | 1 |
+| Bar | Loose lips | Recon in your city costs a turn less (never below 1) | 0 |
+| Strip Club | VIP room | +35% of front income | 5 |
+| Strip Club | Pillow talk | +4% home raid defense (Lookouts give up to 10%) | 1 |
+| Chop Shop | Stolen Low-Riders | Low-Riders 8% cheaper at Charlie's | 2 |
+| Chop Shop | Vehicle recovery | 40% less chance a convoy hit takes a Low-Rider off your run | 1 |
+| Pawn Shop | Fencing | Tommy pays 10% more for guns you sell back | 2 |
+| Pawn Shop | Loan sharking | +30% of front income | 3 |
+| Auto Garage | Run mods | 15% fewer police stops on your runs | 0 |
+| Auto Garage | Getaway cars | A beaten push squad takes 25% fewer wounds | 1 |
+| Convenience Store | Beer supply | Beer 10% cheaper at the Corner Store | 0 |
+| Convenience Store | Counter sales | Sells 6 product an hour at Pip's base price into the register, no turns | 2 |
+| Warehouse | Product storage | +40 product sealed from raids (the Safe Room seals up to 100) | 1 |
+| Warehouse | Shipment capacity | Each Low-Rider carries 10% more on your runs | 1 |
+| Casino Front | The house always wins | +45% of front income | 7 |
+| Casino Front | Laundering | Washes 4 Heat/h from the register | 0 |
+| Laundromat | Laundering | Washes 2 Heat/h from the register | 0 |
+| Laundromat | Wash & fold | 40% off your other rackets' Heat | 0 |
+
+- **Cash rackets** pay into the register with the front, in proportion to staff and supply,
+  and the register's 24-hour cap covers both. Counter sales stop when the register is full.
+- **Hooks:** store and Pip quotes (on top of standing), the paid recon turn cost, Lookouts
+  heads-up on pushes and convoy tails (alerts included), home raid defense, the Safe Room's
+  sealed product, run capacity (launch and in-town buys), the road stop roll, the convoy
+  hit's Low-Rider roll, and a losing push squad's wounds.
+- **City Blocks:** each of your businesses shows its racket, strength, Heat and cash an hour,
+  with buttons to run, switch or shut it and when the lock lifts; the Collect bar shows the
+  Heat your rackets draw against the cool-down, and laundering used today and this round.
+- **Gate:** `racketRulesetProblems` holds every guardrail above (no racket beats the system
+  it hooks), `qa:business` checks cash rackets on a home cap stay under a street day and
+  laundering stays under its caps, and DB-backed tests check the switch and its cooldown,
+  strength following staff, cash and Heat into the register and onto the crew, Wash & fold,
+  laundering against the register and both caps, counter sales, a store price hook, and a
+  lost block clearing its racket.
+
+**Not in C:** racket effects at outposts (E), shaking down a register or a racket in a war
+(D), and racket Heat beyond today's Heat system (the 1.3 Law Enforcement expansion).
+
 ---
 
 ## Open questions

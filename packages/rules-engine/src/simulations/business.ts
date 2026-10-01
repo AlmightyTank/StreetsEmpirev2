@@ -1,6 +1,7 @@
 import type { BusinessKey, DistrictKey, Ruleset } from '@streets/rulesets';
 import { cityRules, rulesetForCity } from '../calculations/cities.js';
 import { cornerMinimumFor, localsThugs, turfBlocks, type Block } from '../calculations/turf.js';
+import { launderAllowance, racketCashPerHour, racketHeatPerHour, racketRules, racketRulesetProblems, racketsFor } from '../calculations/rackets.js';
 import {
   averageOutputShare,
   blockWarFatigue,
@@ -54,6 +55,8 @@ export const RAIDER_HOLD_HOURS = 36;
 export const BUSINESS_FLIP_MAX_SHARE = 0.5;
 /** Round length the pace checks are judged against. */
 export const BUSINESS_ROUND_DAYS = 28;
+/** 1.1.0-C: a home cap running its best cash rackets nets at most this share of a street day. */
+export const BUSINESS_RACKET_NET_SHARE = 0.75;
 
 export interface BusinessLotSummary {
   readonly crew: string;
@@ -96,6 +99,12 @@ export interface BusinessHomeCapSummary {
   readonly netStreetShare: number;
   /** Share of the crew's thugs working these businesses. */
   readonly staffShare: number;
+  /** 1.1.0-C: extra cash a day with each business on its best cash racket (0 before C). */
+  readonly racketCentsPerDay: number;
+  /** Heat those rackets draw an hour, against the hourly cool-down. */
+  readonly racketHeatPerHour: number;
+  readonly racketStreetShare: number;
+  readonly racketNetStreetShare: number;
 }
 
 export interface BusinessCrewSummary {
@@ -209,15 +218,24 @@ export function runBusinessSimulation(ruleset: Ruleset, crews: readonly TravelCr
       let staff = 0;
       let income = 0;
       let cost = 0;
+      let racketCash = 0;
+      let racketHeat = 0;
       for (const lot of businessLots(ruleset, block)) {
         const type = rules.catalog[lot.business];
         const count = businessStaff(ruleset, lot.business, max);
-        income += businessIncomeCentsPerHour(ruleset, { citySlug: block.citySlug, district: block.district, business: lot.business, level: max }) * 24;
+        const perHour = businessIncomeCentsPerHour(ruleset, { citySlug: block.citySlug, district: block.district, business: lot.business, level: max });
+        income += perHour * 24;
+        // The best cash racket this business can run, at full strength.
+        const cash = racketsFor(ruleset, lot.business)
+          .map((racket) => ({ cash: racketCashPerHour(ruleset, racket, perHour), heat: racketHeatPerHour(ruleset, racket, 1) }))
+          .filter((entry) => entry.cash > 0)
+          .sort((a, b) => b.cash - a.cash)[0];
+        if (cash) { racketCash += cash.cash * 24; racketHeat += cash.heat; }
         cost += totalCost(staffCost(ruleset, crew, block, type.staff, count, type.staff === 'THUGS' ? thugs : 0));
         if (type.staff === 'THUGS') thugs += count;
         staff += count;
       }
-      return { block, income, net: income - cost, staff, thugs };
+      return { block, income, net: income - cost, staff, thugs, racketCash, racketHeat };
     };
 
     const cap = ruleset.turf?.caps.blocksPerCrewHome ?? 0;
@@ -242,6 +260,10 @@ export function runBusinessSimulation(ruleset: Ruleset, crews: readonly TravelCr
         streetShare: street > 0 ? income / street : 0,
         netStreetShare: street > 0 ? holdable.reduce((sum, row) => sum + row.net, 0) / street : 0,
         staffShare: crew.thugs > 0 ? thugs / crew.thugs : 1,
+        racketCentsPerDay: holdable.reduce((sum, row) => sum + row.racketCash, 0),
+        racketHeatPerHour: holdable.reduce((sum, row) => sum + row.racketHeat, 0),
+        racketStreetShare: street > 0 ? (income + holdable.reduce((sum, row) => sum + row.racketCash, 0)) / street : 0,
+        racketNetStreetShare: street > 0 ? holdable.reduce((sum, row) => sum + row.net + row.racketCash, 0) / street : 0,
       });
     }
 
@@ -335,8 +357,52 @@ export function runBusinessWarTimings(ruleset: Ruleset): BusinessWarTimings | nu
  *   to three days, flipping a block pays well under holding it, a Stronghold is a
  *   mid-season goal, and an abandoned block empties inside half a round.
  */
+export interface LaunderingSummary {
+  readonly dailyCap: number;
+  readonly roundCap: number;
+  /** Heat both laundering rackets would wash in a day at full strength, with no caps. */
+  readonly uncappedPerDay: number;
+  /** The most washed in any one day, and over the round, under the caps. */
+  readonly maxDay: number;
+  readonly round: number;
+  /** Days of full laundering before the round cap stops it. */
+  readonly daysToRoundCap: number;
+}
+
+/**
+ * A crew running both laundering rackets at full strength, every hour of a round, with
+ * always more Heat to wash than they can take. The caps must hold, hour by hour.
+ */
+export function runLaunderingSimulation(ruleset: Ruleset): LaunderingSummary | null {
+  const rules = racketRules(ruleset);
+  if (!rules) return null;
+  const perHour = Object.values(rules.catalog)
+    .reduce((sum, type) => sum + (type.effect.kind === 'LAUNDER' ? type.effect.heatPerHour : 0), 0);
+  let round = 0;
+  let maxDay = 0;
+  let daysToRoundCap = BUSINESS_ROUND_DAYS;
+  for (let day = 0; day < BUSINESS_ROUND_DAYS; day++) {
+    let today = 0;
+    for (let hour = 0; hour < 24; hour++) {
+      const washed = Math.min(perHour, launderAllowance(ruleset, { today, round }));
+      today += washed;
+      round += washed;
+    }
+    maxDay = Math.max(maxDay, today);
+    if (round >= rules.laundering.roundHeatCap && daysToRoundCap === BUSINESS_ROUND_DAYS) daysToRoundCap = day + 1;
+  }
+  return {
+    dailyCap: rules.laundering.dailyHeatCap,
+    roundCap: rules.laundering.roundHeatCap,
+    uncappedPerDay: perHour * 24,
+    maxDay,
+    round,
+    daysToRoundCap,
+  };
+}
+
 export function businessGate(ruleset: Ruleset, summaries: readonly BusinessCrewSummary[]): string[] {
-  const problems = [...businessRulesetProblems(ruleset)];
+  const problems = [...businessRulesetProblems(ruleset), ...racketRulesetProblems(ruleset)];
   const rules = businessRules(ruleset);
   if (!rules || summaries.length === 0) return problems;
 
@@ -368,6 +434,25 @@ export function businessGate(ruleset: Ruleset, summaries: readonly BusinessCrewS
       }
     }
   }
+  if (racketRules(ruleset)) {
+    for (const summary of summaries) {
+      for (const cap of summary.homeCaps) {
+        if (cap.racketStreetShare >= BUSINESS_HOME_CAP_STREET_SHARE) {
+          problems.push(`${summary.crew.name} in ${cap.cityName}: a home cap on its cash rackets grosses ${cap.racketStreetShare.toFixed(2)}x a street day, replacing the street.`);
+        }
+        if (cap.racketNetStreetShare > BUSINESS_RACKET_NET_SHARE) {
+          problems.push(`${summary.crew.name} in ${cap.cityName}: a home cap on its cash rackets nets ${cap.racketNetStreetShare.toFixed(2)}x a street day (limit ${BUSINESS_RACKET_NET_SHARE}x).`);
+        }
+      }
+    }
+    const laundering = runLaunderingSimulation(ruleset);
+    if (laundering) {
+      if (laundering.maxDay > laundering.dailyCap) problems.push(`Laundering washed ${laundering.maxDay} Heat in a day, over the ${laundering.dailyCap} cap.`);
+      if (laundering.round > laundering.roundCap) problems.push(`Laundering washed ${laundering.round} Heat in a round, over the ${laundering.roundCap} cap.`);
+      if (laundering.uncappedPerDay <= laundering.dailyCap) problems.push('Both laundering rackets together never reach the daily cap, so the cap is not doing anything.');
+    }
+  }
+
   const late = summaries[summaries.length - 1];
   if (late) {
     for (const cap of late.homeCaps) {
@@ -443,6 +528,15 @@ export function businessMarkdown(ruleset: Ruleset, summaries: readonly BusinessC
         lines.push(`| ${cap.cityName} | ${cap.districts.join(', ')} | ${money(cap.incomeCentsPerDay)} | ${money(cap.netCentsPerDay)} | ${cap.staff} | ${cap.streetShare.toFixed(2)}x | ${cap.netStreetShare.toFixed(2)}x | ${(cap.staffShare * 100).toFixed(0)}% |`);
       }
       lines.push('');
+      if (racketRules(ruleset)) {
+        lines.push('The same home caps with every business on its best cash racket (1.1.0-C):', '');
+        lines.push('| City | Racket cash/day | Gross / street | Net / street | Racket Heat/hour |');
+        lines.push('| --- | ---: | ---: | ---: | ---: |');
+        for (const cap of summary.homeCaps) {
+          lines.push(`| ${cap.cityName} | ${money(cap.racketCentsPerDay)} | ${cap.racketStreetShare.toFixed(2)}x | ${cap.racketNetStreetShare.toFixed(2)}x | ${cap.racketHeatPerHour.toFixed(1)} |`);
+        }
+        lines.push('');
+      }
     } else {
       lines.push('This crew cannot take a block off the locals anywhere yet.', '');
     }
@@ -457,6 +551,23 @@ export function businessMarkdown(ruleset: Ruleset, summaries: readonly BusinessC
     lines.push(`| ${row.cityName} | ${row.businessName} | ${row.district} lot ${row.lot} | ${money(row.incomeAtMaxCentsPerDay)} | ${days(row.fullPaybackDays)}d |`);
   }
   lines.push('');
+
+  const rackets = racketRules(ruleset);
+  const laundering = runLaunderingSimulation(ruleset);
+  if (rackets && laundering) {
+    const coolDown = ruleset.heat ? ruleset.heat.decayPerInterval * (60 / ruleset.turns.intervalMinutes) : 0;
+    lines.push('### Rackets', '');
+    lines.push(`Each racket at full strength (top level, fully staffed). Heat cools ${coolDown} points an hour on its own.`, '');
+    lines.push('| Business | Racket | Effect | Heat/hour |');
+    lines.push('| --- | --- | --- | ---: |');
+    for (const [, type] of Object.entries(rackets.catalog)) {
+      lines.push(`| ${rules.catalog[type.business].name} | ${type.name} | ${type.description} | ${type.heatPerHour} |`);
+    }
+    lines.push('');
+    lines.push(`- **Laundering:** both laundering rackets at full strength would wash ${laundering.uncappedPerDay} Heat a day; the caps hold them to **${laundering.maxDay}** a day and **${laundering.round}** a round (the round cap is reached on day ${laundering.daysToRoundCap}).`);
+    lines.push(`- **Switching** a racket costs ${rackets.switchTurnCost} turns and then locks for ${rackets.switchCooldownHours} hours.`);
+    lines.push('');
+  }
 
   const timings = runBusinessWarTimings(ruleset);
   if (timings) {

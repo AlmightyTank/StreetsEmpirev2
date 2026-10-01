@@ -24,6 +24,7 @@ export * from './calculations/relocation.js';
 export * from './calculations/convoys.js';
 export * from './calculations/turf.js';
 export * from './calculations/business.js';
+export * from './calculations/rackets.js';
 export * from './simulations/combat.js';
 export * from './rng.js';
 export type { Ruleset } from '@streets/rulesets';

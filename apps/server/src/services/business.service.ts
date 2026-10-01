@@ -1,7 +1,22 @@
 import type { PrismaClient } from '@prisma/client';
 import {
   BUSINESS_JOB,
+  bribeCentsPerPoint,
   businessIncomeCentsPerHour,
+  decayHeat,
+  isRacketKey,
+  launderAllowance,
+  launderDay,
+  mergeRacketEffect,
+  racketCashPerHour,
+  racketHeatPerHour,
+  racketRules,
+  racketStrength,
+  racketType,
+  readRacketEffects,
+  regenerateTurns,
+  roundStochastic,
+  type RacketEffects,
   businessStaff,
   businessStaffDepartures,
   businessUpkeep,
@@ -13,7 +28,7 @@ import {
   type Rng,
   type Ruleset,
 } from '@streets/rules-engine';
-import type { BusinessKey, DistrictKey } from '@streets/rulesets';
+import type { BusinessKey, DistrictKey, RacketKey } from '@streets/rulesets';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ProductInventoryService } from './product-inventory.service.js';
 
@@ -34,6 +49,31 @@ export interface BusinessSettlement {
   staffReturned: number;
   /** Uncollected register cash lost with a block the crew no longer runs. */
   registerLostCents: bigint;
+  /** 1.1.0-C. Heat the crew's rackets drew, and washed off by laundering, this settle. */
+  racketHeat: number;
+  launderedHeat: number;
+  launderedCents: bigint;
+  /** Product sold over the counter, and what it put in the registers. */
+  counterSold: Record<string, number>;
+  counterCents: bigint;
+}
+
+/** A business's racket key, if it is one this ruleset knows. */
+export function racketOf(ruleset: Ruleset, value: string | null | undefined): RacketKey | null {
+  return isRacketKey(value) && racketType(ruleset, value) ? value : null;
+}
+
+/** Pip's base price for a unit of product, for counter sales. */
+function pipSellCents(ruleset: Ruleset, product: string): number {
+  return product === 'CRACK'
+    ? ruleset.stores.PIP.items.CRACK?.sellCents ?? 0
+    : ruleset.products?.[product]?.economy?.pip?.sellCents ?? 0;
+}
+
+function sameEffects(a: RacketEffects, b: RacketEffects): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<RacketKey>;
+  for (const key of keys) if (Math.abs((a[key] ?? 0) - (b[key] ?? 0)) > 1e-9) return false;
+  return true;
 }
 
 /** Building, staffing and collecting are on in this round. */
@@ -72,7 +112,7 @@ export async function releaseForeignStaff(
       businessWhores: { decrement: columns.businessWhores },
     },
   });
-  await tx.business.update({ where: { id: row.id }, data: { staff: 0, staffOwnerId: null, registerCents: 0n, accruedAt: now } });
+  await tx.business.update({ where: { id: row.id }, data: { staff: 0, staffOwnerId: null, registerCents: 0n, accruedAt: now, racket: null, racketSince: null } });
 }
 
 export const BusinessService = {
@@ -121,6 +161,8 @@ export const BusinessService = {
       select: {
         cityId: true, thugs: true, whores: true, woundedThugs: true, busyThugs: true, postedThugs: true,
         businessThugs: true, businessWhores: true, beer: true, crack: true, thugHappiness: true, whoreHappiness: true,
+        heat: true, netWorthCents: true, turns: true, lastTurnCalculationAt: true,
+        racketEffects: true, launderedDay: true, launderedHeatToday: true, launderedHeatRound: true,
       },
     });
     const rows = await tx.business.findMany({
@@ -128,7 +170,12 @@ export const BusinessService = {
       include: { turf: { select: { holderId: true, cityId: true, district: true, city: { select: { slug: true } } } } },
       orderBy: [{ turfId: 'asc' }, { lot: 'asc' }],
     });
-    if (!rows.length && player.businessThugs === 0 && player.businessWhores === 0) return null;
+    const storedEffects = readRacketEffects(player.racketEffects);
+    if (!rows.length && player.businessThugs === 0 && player.businessWhores === 0) {
+      // Nothing runs any more: a crew that lost its last business loses its rackets too.
+      if (Object.keys(storedEffects).length) await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { racketEffects: {} } });
+      return null;
+    }
 
     let { thugs, whores, beer } = player;
     let staffDeparted = 0;
@@ -155,26 +202,43 @@ export const BusinessService = {
       return used;
     };
 
+    // 1.1.0-C: Wash & fold cleans the books of the crew's other rackets for the whole settle.
+    const home = (row: (typeof rows)[number]) => row.turf.holderId === roundPlayerId && row.turf.cityId === player.cityId;
+    const strengthOf = (row: (typeof rows)[number], staff: number) =>
+      racketStrength(ruleset, { level: row.level, staff, requiredStaff: businessStaff(ruleset, row.kind as BusinessKey, row.level) });
+    let shield = 0;
+    for (const row of rows) {
+      const racket = racketOf(ruleset, row.racket);
+      const effect = racket ? racketType(ruleset, racket)!.effect : null;
+      if (effect?.kind === 'HEAT_SHIELD' && home(row)) shield = Math.max(shield, effect.share * strengthOf(row, row.staff));
+    }
+    let racketHeat = 0;
+    let counterCents = 0n;
+    const counterSold: Record<string, number> = {};
+    const launders: Array<{ id: string; heat: number }> = [];
+    const registers = new Map<string, bigint>();
+
     // What each row ends the settle with, so the crew's columns are rebuilt from the rows.
-    const kept: Array<{ id: string; kind: 'THUGS' | 'WHORES'; staff: number; want: number; auto: boolean }> = [];
+    const kept: Array<{ id: string; kind: 'THUGS' | 'WHORES'; staff: number; want: number; auto: boolean; racket: RacketKey | null; level: number; required: number }> = [];
     let staffRefilled = 0;
 
     for (const row of rows) {
       const business = row.kind as BusinessKey;
       const kind = staffKind(ruleset, business);
       // B runs home businesses only: a lost block, or one that is now away, sends staff home.
-      if (row.turf.holderId !== roundPlayerId || row.turf.cityId !== player.cityId) {
+      if (!home(row)) {
         staffReturned += row.staff;
         registerLostCents += row.registerCents;
-        await tx.business.update({ where: { id: row.id }, data: { staff: 0, staffOwnerId: null, registerCents: 0n, accruedAt: now } });
+        await tx.business.update({ where: { id: row.id }, data: { staff: 0, staffOwnerId: null, registerCents: 0n, accruedAt: now, racket: null, racketSince: null } });
         continue;
       }
 
       const required = businessStaff(ruleset, business, row.level);
       const want = Math.min(row.staffTarget, required);
+      const racket = racketOf(ruleset, row.racket);
       const wholeHours = Math.floor((now.getTime() - row.accruedAt.getTime()) / HOUR_MS);
       if (wholeHours <= 0) {
-        kept.push({ id: row.id, kind, staff: row.staff, want, auto: row.autoStaff });
+        kept.push({ id: row.id, kind, staff: row.staff, want, auto: row.autoStaff, racket, level: row.level, required });
         continue;
       }
       const advanceTo = new Date(row.accruedAt.getTime() + wholeHours * HOUR_MS);
@@ -196,9 +260,39 @@ export const BusinessService = {
           business,
           level: row.level,
         });
-        const earned = BigInt(Math.floor(perHour * staffingShare(row.staff, required) * wholeHours * suppliedShare));
-        const cap = BigInt(registerCapCents(ruleset, perHour));
+        const staffed = staffingShare(row.staff, required);
+        // A cash racket pays on top of the front, and the register holds both.
+        const racketPerHour = racketCashPerHour(ruleset, racket, perHour);
+        const earned = BigInt(Math.floor((perHour + racketPerHour) * staffed * wholeHours * suppliedShare));
+        const cap = BigInt(registerCapCents(ruleset, perHour + racketPerHour));
         register = register + earned > cap ? cap : register + earned;
+
+        if (racket && suppliedShare > 0) {
+          const strength = strengthOf(row, row.staff);
+          const effect = racketType(ruleset, racket)!.effect;
+          racketHeat += racketHeatPerHour(ruleset, racket, strength, shield) * wholeHours * suppliedShare;
+          if (effect.kind === 'LAUNDER') launders.push({ id: row.id, heat: effect.heatPerHour * strength * wholeHours * suppliedShare });
+          if (effect.kind === 'COUNTER_SALES') {
+            // Product goes over the counter at Pip's base price, as far as the register has room.
+            let units = roundStochastic(effect.unitsPerHour * strength * wholeHours * suppliedShare, rng);
+            for (const key of order) {
+              if (units <= 0) break;
+              const price = pipSellCents(ruleset, key);
+              const available = Math.max(0, inventory[key] ?? 0);
+              if (price <= 0 || available <= 0) continue;
+              const room = cap - register;
+              const sold = Math.min(units, available, Number(room / BigInt(price)));
+              if (sold <= 0) continue;
+              units -= sold;
+              inventory[key] = available - sold;
+              productChanges[key] = (productChanges[key] ?? 0) - sold;
+              counterSold[key] = (counterSold[key] ?? 0) + sold;
+              const cents = BigInt(sold * price);
+              register += cents;
+              counterCents += cents;
+            }
+          }
+        }
       }
 
       // Unhappy staff walk off over the same hours, out of the business and the crew.
@@ -210,8 +304,42 @@ export const BusinessService = {
         else thugs = Math.max(0, thugs - departed);
       }
       const staff = row.staff - departed;
-      kept.push({ id: row.id, kind, staff, want, auto: row.autoStaff });
+      kept.push({ id: row.id, kind, staff, want, auto: row.autoStaff, racket, level: row.level, required });
+      registers.set(row.id, register);
       await tx.business.update({ where: { id: row.id }, data: { registerCents: register, accruedAt: advanceTo, staff } });
+    }
+
+    // 1.1.0-C: Heat. Racket Heat lands on a balance that has cooled to now, so the turn clock is
+    // settled here first (the same regeneration the action would do), then laundering washes
+    // what it can under the day's and the round's caps, paid out of its own register.
+    let launderedHeat = 0;
+    let launderedCents = 0n;
+    const heatRules = ruleset.heat;
+    const rackets = racketRules(ruleset);
+    const heatData: { heat?: number; turns?: number; lastTurnCalculationAt?: Date; launderedDay?: string; launderedHeatToday?: number; launderedHeatRound?: number } = {};
+    if (heatRules && rackets && (racketHeat > 0 || launders.length > 0)) {
+      const regen = regenerateTurns({ turns: player.turns, lastTurnCalculationAt: player.lastTurnCalculationAt }, now, ruleset);
+      let heat = Math.min(heatRules.max, decayHeat(player.heat, regen.intervalsProcessed, heatRules) + roundStochastic(racketHeat, rng));
+      const today = launderDay(now);
+      let usedToday = player.launderedDay === today ? player.launderedHeatToday : 0;
+      let usedRound = player.launderedHeatRound;
+      const price = BigInt(Math.max(1, Math.floor(Number(bribeCentsPerPoint(player.netWorthCents, heatRules)) * rackets.laundering.bribePriceShare)));
+      for (const launder of launders) {
+        const register = registers.get(launder.id) ?? 0n;
+        const affordable = Number(register / price);
+        const points = Math.min(Math.floor(launder.heat), launderAllowance(ruleset, { today: usedToday, round: usedRound }), heat, affordable);
+        if (points <= 0) continue;
+        const cost = price * BigInt(points);
+        heat -= points;
+        usedToday += points;
+        usedRound += points;
+        launderedHeat += points;
+        launderedCents += cost;
+        registers.set(launder.id, register - cost);
+        await tx.business.update({ where: { id: launder.id }, data: { registerCents: register - cost } });
+      }
+      Object.assign(heatData, { heat, turns: regen.turns, lastTurnCalculationAt: regen.lastTurnCalculationAt });
+      if (launderedHeat > 0) Object.assign(heatData, { launderedDay: today, launderedHeatToday: usedToday, launderedHeatRound: usedRound });
     }
 
     let businessThugs = kept.filter((entry) => entry.kind === 'THUGS').reduce((sum, entry) => sum + entry.staff, 0);
@@ -242,15 +370,57 @@ export const BusinessService = {
       businessWhores -= shed.whores;
     }
 
+    // The crew's live rackets, as they stand after the settle, for every system that reads them.
+    const effects = shed.thugs > 0 || shed.whores > 0
+      ? await BusinessService.racketEffects(tx, roundPlayerId, ruleset)
+      : kept.reduce<RacketEffects>((all, entry) => entry.racket
+        ? mergeRacketEffect(all, entry.racket, racketStrength(ruleset, { level: entry.level, staff: entry.staff, requiredStaff: entry.required }))
+        : all, {});
+    const effectsChanged = !sameEffects(effects, storedEffects);
+
     if (Object.keys(productChanges).length > 0) await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, productChanges);
     if (thugs !== player.thugs || whores !== player.whores || beer !== player.beer ||
-        businessThugs !== player.businessThugs || businessWhores !== player.businessWhores) {
-      await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { thugs, whores, beer, businessThugs, businessWhores } });
+        businessThugs !== player.businessThugs || businessWhores !== player.businessWhores ||
+        effectsChanged || Object.keys(heatData).length > 0) {
+      await tx.roundPlayer.update({
+        where: { id: roundPlayerId },
+        data: { thugs, whores, beer, businessThugs, businessWhores, ...heatData, ...(effectsChanged ? { racketEffects: effects } : {}) },
+      });
     }
     return {
       beer, crack: inventory.CRACK ?? player.crack, thugs, whores, businessThugs, businessWhores,
       staffDeparted, staffRefilled, staffReturned, registerLostCents,
+      racketHeat, launderedHeat, launderedCents, counterSold, counterCents,
     };
+  },
+
+  /**
+   * 1.1.0-C. The crew's live rackets read straight off its businesses: home blocks it holds,
+   * built, staffed and running a racket. The strongest business wins when two run the same one.
+   */
+  async racketEffects(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<RacketEffects> {
+    if (!racketRules(ruleset)) return {};
+    const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { cityId: true } });
+    const rows = await tx.business.findMany({
+      where: { staffOwnerId: roundPlayerId, staff: { gt: 0 }, level: { gt: 0 }, racket: { not: null }, turf: { holderId: roundPlayerId, cityId: player.cityId } },
+      select: { kind: true, level: true, staff: true, racket: true },
+    });
+    let effects: RacketEffects = {};
+    for (const row of rows) {
+      const racket = racketOf(ruleset, row.racket);
+      if (!racket) continue;
+      effects = mergeRacketEffect(effects, racket, racketStrength(ruleset, {
+        level: row.level, staff: row.staff, requiredStaff: businessStaff(ruleset, row.kind as BusinessKey, row.level),
+      }));
+    }
+    return effects;
+  },
+
+  /** Rebuild and store the crew's live rackets after an action changed its businesses. */
+  async refreshRacketEffects(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<RacketEffects> {
+    const effects = await BusinessService.racketEffects(tx, roundPlayerId, ruleset);
+    await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { racketEffects: effects } });
+    return effects;
   },
 
   /** Settle in a transaction of its own, for read paths that do not run an action. */

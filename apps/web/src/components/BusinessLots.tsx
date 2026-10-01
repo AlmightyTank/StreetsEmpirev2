@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type {
   BusinessBuildResult,
   BusinessCollectResult,
+  BusinessRacketResult,
   BusinessStaffResult,
   CityTurfDto,
   GameActionResult,
@@ -10,9 +11,10 @@ import type {
 import { formatCents, formatNumber } from '@streets/shared';
 import { api } from '../api/client.js';
 import { useGameAction } from '../hooks/useGameAction.js';
+import { formatWhen } from '../utils/time.js';
 import { Button } from './Button.js';
 
-type LotResult = BusinessBuildResult | BusinessStaffResult;
+type LotResult = BusinessBuildResult | BusinessStaffResult | BusinessRacketResult;
 type Lot = NonNullable<TurfBlockDto['businesses']>[number];
 
 function staffWord(kind: Lot['staffKind'], count: number): string {
@@ -49,6 +51,13 @@ export function BusinessLots({
   async function staff(lot: Lot, count: number, autoStaff: boolean) {
     await action.run((actionId) => api.post<GameActionResult<LotResult>>('/game/business/staff', {
       district: block.district, lot: lot.lot, staff: count, autoStaff, actionId,
+    }));
+    onChanged?.();
+  }
+
+  async function racket(lot: Lot, key: string | null) {
+    await action.run((actionId) => api.post<GameActionResult<LotResult>>('/game/business/racket', {
+      district: block.district, lot: lot.lot, racket: key, actionId,
     }));
     onChanged?.();
   }
@@ -94,6 +103,9 @@ export function BusinessLots({
               {controls && lot.level > 0 ? (
                 <StaffControl lot={lot} busy={action.busy} turns={business!.staffTurnCost} onSet={(count, auto) => void staff(lot, count, auto)} />
               ) : null}
+              {controls && business?.rackets && lot.racketOptions ? (
+                <RacketControl lot={lot} busy={action.busy} turns={business.rackets.switchTurnCost} onSet={(key) => void racket(lot, key)} />
+              ) : null}
               {controls && lot.nextLevel && !lot.buildBlockedReason ? (
                 <small className="se-hint">
                   {lot.level === 0 ? 'Opens' : 'Next level'} with {staffWord(lot.staffKind, lot.nextLevel.staff)} · {formatCents(lot.nextLevel.incomeCentsPerHour)}/h · {formatNumber(business!.buildTurnCost)} turns
@@ -109,6 +121,12 @@ export function BusinessLots({
       {action.result ? (
         'staffAdded' in action.result.result
           ? <span className="se-action-confirm">{action.result.result.level === 1 ? 'Built' : 'Upgraded'} the {action.result.result.name}.</span>
+          : 'previous' in action.result.result
+            ? <span className="se-action-confirm">
+                {action.result.result.racketName
+                  ? `The ${action.result.result.name} now runs ${action.result.result.racketName}.`
+                  : `The ${action.result.result.name} runs its front alone.`}
+              </span>
           : <span className="se-action-confirm">
               {action.result.result.open
                 ? `The ${action.result.result.name} has ${staffWord(action.result.result.staffKind, action.result.result.staff)} of ${action.result.result.maxStaff}${action.result.result.autoStaff ? ', auto-staffed' : ''}.`
@@ -155,6 +173,50 @@ function StaffControl({ lot, busy, turns, onSet }: { lot: Lot; busy: boolean; tu
   );
 }
 
+/**
+ * 1.1.0-C. The racket a business runs on top of its front: one of two, switched for turns and
+ * then locked for a cooldown. Strength follows the business's level and staffing.
+ */
+function RacketControl({ lot, busy, turns, onSet }: { lot: Lot; busy: boolean; turns: number; onSet: (key: string | null) => void }) {
+  const current = lot.racket;
+  const locked = current && lot.racketSwitchAt ? `Locked until ${formatWhen(lot.racketSwitchAt)}.` : null;
+  const waiting = busy ? 'That business move is still going through.' : locked;
+  const heat = (value: number) => (value > 0 ? `${value.toFixed(1)} Heat/h` : 'no Heat');
+  return (
+    <div className="se-turfboard__racket">
+      <small className="se-turfboard__lot-detail">
+        {current ? (
+          <>
+            Racket: <b>{current.name}</b> at {Math.round(current.strength * 100)}% · {heat(current.heatPerHour)}
+            {current.cashCentsPerHour > 0 ? ` · +${formatCents(current.cashCentsPerHour)}/h` : ''}
+            <span className="se-hint"> · {current.description}</span>
+          </>
+        ) : 'No racket: the front runs clean.'}
+      </small>
+      <div className="se-actions-row">
+        {(lot.racketOptions ?? []).filter((option) => option.key !== current?.key).map((option) => (
+          <Button
+            key={option.key}
+            type="button"
+            className="se-btn se-btn--ghost se-btn--sm"
+            title={`${option.description} At full staff: ${heat(option.heatPerHour)}${option.cashCentsPerHour > 0 ? `, +${formatCents(option.cashCentsPerHour)}/h` : ''}.`}
+            disabledReason={waiting}
+            onClick={() => onSet(option.key)}
+          >
+            {current ? 'Switch to' : 'Run'} {option.name} · {formatNumber(turns)} turns
+          </Button>
+        ))}
+        {current ? (
+          <Button type="button" className="se-btn se-btn--ghost se-btn--sm" disabledReason={waiting} onClick={() => onSet(null)}>
+            Shut racket · {formatNumber(turns)} turns
+          </Button>
+        ) : null}
+      </div>
+      {locked ? <small className="se-hint">{locked}</small> : null}
+    </div>
+  );
+}
+
 /** 1.1.0-B. Every register on the crew's blocks in this city, emptied in one trip. */
 export function BusinessCollect({ business, onChanged }: { business: NonNullable<CityTurfDto['business']>; onChanged?: () => void }) {
   const action = useGameAction<BusinessCollectResult>();
@@ -178,6 +240,13 @@ export function BusinessCollect({ business, onChanged }: { business: NonNullable
       >
         Collect · {formatNumber(business.collectTurnCost)} turns
       </Button>
+      {business.rackets ? (
+        <small className="se-hint se-turfboard__racket-heat">
+          Rackets draw <b className="se-num">{business.rackets.heatPerHour.toFixed(1)}</b> Heat/h (Heat cools {formatNumber(business.rackets.coolDownPerHour)}/h)
+          · laundered {formatNumber(business.rackets.launderedToday)}/{formatNumber(business.rackets.dailyLaunderCap)} today,
+          {' '}{formatNumber(business.rackets.launderedRound)}/{formatNumber(business.rackets.roundLaunderCap)} this round
+        </small>
+      ) : null}
       {action.error ? <span className="se-error">{action.error}</span> : null}
       {action.result ? <span className="se-action-confirm">Collected {formatCents(action.result.result.collectedCents)}.</span> : null}
     </div>

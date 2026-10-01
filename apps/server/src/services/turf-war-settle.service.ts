@@ -7,6 +7,8 @@ import {
   simulateRaid,
   splitWounds,
   turfPushCombatModel,
+  racketGetawayShare,
+  readRacketEffects,
 } from '@streets/rules-engine';
 import type { WeaponKey } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
@@ -247,6 +249,11 @@ export const TurfWarSettlementService = {
         won = fight.winner === 'ATTACKER';
         unopposed = false;
         attackerWounds = fight.wounds.attacker;
+        if (!won && attackerWounds > 0) {
+          // 1.1.0-C: an Auto Garage on Getaway cars gets some of a beaten squad home unhurt.
+          const getaway = await tx.roundPlayer.findUnique({ where: { id: loaded.attackerId }, select: { racketEffects: true } });
+          attackerWounds -= Math.floor(attackerWounds * racketGetawayShare(base, readRacketEffects(getaway?.racketEffects)));
+        }
         defenderWounds = fight.wounds.defender;
         strength = { attacker: Math.round(fight.effectiveStrength.attacker), defender: Math.round(fight.effectiveStrength.defender) };
         recoverAt = new Date(at.getTime() + model.wounds.recoveryMinutes * 60_000);

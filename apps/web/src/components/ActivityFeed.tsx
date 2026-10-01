@@ -242,6 +242,13 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
           : `Closed the ${str(p.name, 'business')} on ${str(p.districtName, 'your block')} and brought its staff home.`,
       };
 
+    case 'BUSINESS_RACKET':
+      return {
+        text: p.racketName
+          ? `The ${str(p.name, 'business')} on ${str(p.districtName, 'your block')} now runs ${str(p.racketName, 'a racket')}${p.previousName ? ` instead of ${str(p.previousName, 'its old racket')}` : ''}.`
+          : `Shut the ${str(p.previousName, 'racket')} at the ${str(p.name, 'business')} on ${str(p.districtName, 'your block')}.`,
+      };
+
     case 'BUSINESS_COLLECT':
       return {
         text: `Collected the registers at ${formatNumber(num(p.businesses))} business${num(p.businesses) === 1 ? '' : 'es'}.`,
@@ -549,6 +556,7 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     BUSINESS_BUILD: 'Business built',
     BUSINESS_STAFF: 'Business staff',
     BUSINESS_COLLECT: 'Business income',
+    BUSINESS_RACKET: 'Racket',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();
 }

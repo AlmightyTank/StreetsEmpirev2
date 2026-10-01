@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, businessBuildSchema, businessCollectSchema, businessStaffSchema, bossHitBackupSchema, bossHitCallSchema, bossHitSchema, heatBribeSchema, productTradeSchema, runOutpostEstablishSchema, runOutpostTransferSchema, sitDownAnswerSchema, sitDownProposeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripOutpostVisitSchema, tripRentGunsSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushBackupSchema, turfPushCallSchema, turfPushSchema, updateContactKindSchema, updateContactSchema, wirePinSchema, wirePostSchema, workSupplyClearSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, businessBuildSchema, businessCollectSchema, businessRacketSchema, businessStaffSchema, bossHitBackupSchema, bossHitCallSchema, bossHitSchema, heatBribeSchema, productTradeSchema, runOutpostEstablishSchema, runOutpostTransferSchema, sitDownAnswerSchema, sitDownProposeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripOutpostVisitSchema, tripRentGunsSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushBackupSchema, turfPushCallSchema, turfPushSchema, updateContactKindSchema, updateContactSchema, wirePinSchema, wirePostSchema, workSupplyClearSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
 import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
@@ -76,6 +76,9 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     BusinessActionService.build(app.prisma, await me(request.auth!.account.id), parseBody(businessBuildSchema, request.body ?? {})));
   app.post('/business/staff', { preHandler: app.requireAuth }, async (request) =>
     BusinessActionService.staff(app.prisma, await me(request.auth!.account.id), parseBody(businessStaffSchema, request.body ?? {})));
+  /** 1.1.0-C: run, switch or shut a business's racket. */
+  app.post('/business/racket', { preHandler: app.requireAuth }, async (request) =>
+    BusinessActionService.racket(app.prisma, await me(request.auth!.account.id), parseBody(businessRacketSchema, request.body ?? {})));
   app.post('/business/collect', { preHandler: app.requireAuth }, async (request) =>
     BusinessActionService.collect(app.prisma, await me(request.auth!.account.id), parseBody(businessCollectSchema, request.body ?? {})));
 

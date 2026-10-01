@@ -3,7 +3,11 @@ import {
   blockTier,
   businessLevelCostCents,
   businessStaff,
+  isRacketKey,
   lotsOpen,
+  racketRules,
+  racketSwitchOpensAt,
+  racketType,
   tierOpening,
   type Ruleset,
 } from '@streets/rules-engine';
@@ -13,13 +17,15 @@ import type {
   BusinessBuildResult,
   BusinessCollectInput,
   BusinessCollectResult,
+  BusinessRacketInput,
+  BusinessRacketResult,
   BusinessStaffInput,
   BusinessStaffResult,
 } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs, workingWhores, type PlayerState } from './action.service.js';
-import { buildingOn, releaseForeignStaff, staffColumns } from './business.service.js';
+import { BusinessService, buildingOn, racketOf, releaseForeignStaff, staffColumns } from './business.service.js';
 import { TurfService } from './turf.service.js';
 
 const HOUR_MS = 3_600_000;
@@ -136,12 +142,14 @@ export const BusinessActionService = {
             staff,
             // A new level comes fully staffed; the crew can turn it down again afterwards.
             staffTarget: staff,
-            ...(row.staffOwnerId === roundPlayerId ? {} : { autoStaff: true }),
+            // A business taken over from another crew (or from nobody) starts with no racket.
+            ...(row.staffOwnerId === roundPlayerId ? {} : { autoStaff: true, racket: null, racketSince: null }),
             staffOwnerId: roundPlayerId,
             ...(wasRunning ? {} : { accruedAt: now, registerCents: row.staffOwnerId === roundPlayerId ? row.registerCents : 0n }),
           },
         });
 
+        if (racketRules(ruleset)) await BusinessService.refreshRacketEffects(tx, roundPlayerId, ruleset);
         const next: PlayerState = {
           ...withStaff(current, ruleset, business, staffAdded),
           cashCents: current.cashCents - BigInt(costCents),
@@ -206,9 +214,11 @@ export const BusinessActionService = {
             staffOwnerId: roundPlayerId,
             // A business that was empty starts its clock now; one that was running keeps it.
             ...(mine > 0 ? {} : { accruedAt: now }),
-            ...(row.staffOwnerId === roundPlayerId ? {} : { registerCents: 0n }),
+            ...(row.staffOwnerId === roundPlayerId ? {} : { registerCents: 0n, racket: null, racketSince: null }),
           },
         });
+        // Fewer staff run a weaker racket; none shut it.
+        if (racketRules(ruleset)) await BusinessService.refreshRacketEffects(tx, roundPlayerId, ruleset);
 
         const next = { ...withStaff(current, ruleset, business, change), turns: current.turns - turnsUsed };
         const name = districtName(ruleset, turf.city.slug, district);
@@ -219,6 +229,57 @@ export const BusinessActionService = {
             staff: input.staff, maxStaff, autoStaff, staffChange: change, staffKind: type.staff, turnsUsed,
           },
           activity: { type: 'BUSINESS_STAFF', payload: { district, districtName: name, lot: input.lot, kind: business, name: type.name, open: input.staff > 0, staff: input.staff, maxStaff, autoStaff } },
+        };
+      },
+    });
+  },
+
+  /**
+   * 1.1.0-C. Run one of the business's rackets on top of its front, switch to the other, or
+   * shut it (null). Costs turns, and locks the choice for the ruleset's cooldown. The first
+   * racket on a business is never locked out.
+   */
+  async racket(prisma: PrismaClient, roundPlayerId: string, input: BusinessRacketInput) {
+    return ActionService.run<BusinessRacketResult>(prisma, roundPlayerId, {
+      action: 'BUSINESS_RACKET', actionId: input.actionId,
+      execute: async ({ tx, current, player, round, ruleset, now }) => {
+        assertBuilding(ruleset);
+        const rules = racketRules(ruleset);
+        if (!rules) throw AppError.conflict('RACKETS_DISABLED', 'Rackets arrive in 1.1.0-C.');
+        const { turf, row, district, business } = await heldLot(tx, ruleset, {
+          roundId: round.id, roundPlayerId, cityId: player.cityId, district: input.district, lot: input.lot,
+        });
+        const type = ruleset.business!.catalog[business];
+        if (row.level <= 0) throw AppError.conflict('BUSINESS_EMPTY_LOT', 'Build something on this lot first.');
+        if (row.staffOwnerId !== roundPlayerId) throw AppError.conflict('BUSINESS_NOT_RUNNING', `Staff the ${type.name} before running a racket out of it.`);
+
+        let racket: ReturnType<typeof racketOf> = null;
+        if (input.racket !== null) {
+          const key = input.racket.toUpperCase();
+          if (!isRacketKey(key) || racketType(ruleset, key)?.business !== business) {
+            throw AppError.badRequest('RACKET_NOT_HERE', `The ${type.name} cannot run that racket.`, { racket: 'Pick one of this business’s rackets.' });
+          }
+          racket = key;
+        }
+        const previous = racketOf(ruleset, row.racket);
+        if (racket === previous) throw AppError.conflict('RACKET_NO_CHANGE', racket ? `The ${type.name} already runs ${racketType(ruleset, racket)!.name}.` : `The ${type.name} runs no racket.`);
+        // Only a racket that has been running is locked: setting the first one never waits.
+        const opensAt = previous ? racketSwitchOpensAt(ruleset, row.racketSince, now) : null;
+        if (opensAt) {
+          throw AppError.conflict('RACKET_COOLDOWN', `The ${type.name} can switch rackets again at ${opensAt.toISOString()}.`);
+        }
+        assertTurns(current.turns, rules.switchTurnCost);
+
+        await tx.business.update({ where: { id: row.id }, data: { racket, racketSince: now } });
+        await BusinessService.refreshRacketEffects(tx, roundPlayerId, ruleset);
+
+        const name = districtName(ruleset, turf.city.slug, district);
+        const racketName = racket ? racketType(ruleset, racket)!.name : null;
+        const switchAt = new Date(now.getTime() + rules.switchCooldownHours * HOUR_MS).toISOString();
+        return {
+          next: { ...current, turns: current.turns - rules.switchTurnCost },
+          result: { district, districtName: name, lot: input.lot, name: type.name, racket, racketName, previous, turnsUsed: rules.switchTurnCost, switchAt },
+          activity: { type: 'BUSINESS_RACKET', payload: { district, districtName: name, lot: input.lot, kind: business, name: type.name, racket, racketName, previous, previousName: previous ? racketType(ruleset, previous)!.name : null } },
         };
       },
     });
