@@ -1,5 +1,6 @@
 import type { BusinessKey, BusinessRules, BusinessTypeRules, DistrictKey, Ruleset } from '@streets/rulesets';
 import { DISTRICT_KEYS, turfBlocks, type Block } from './turf.js';
+import { roundStochastic, type Rng } from '../rng.js';
 
 /**
  * 1.1.0-A. Businesses, Fronts & Rackets: what a block's lots hold, what a business costs,
@@ -353,6 +354,26 @@ export function localsThugsWithBusinesses(ruleset: Ruleset, block: Block, totalL
   return Math.round((rules.districts[block.district].localsThugs + localsBusinessBonus(ruleset, block.district, totalLevels)) * multiplier);
 }
 
+/**
+ * Staff who walk off a business over `hours`. They are still the crew's, so an unhappy
+ * crew loses them the way it loses anyone: the ruleset's departure chance, with each hour
+ * counted as `staffDepartureTurnsPerHour` turns and capped like one action per hour.
+ */
+export function businessStaffDepartures(ruleset: Ruleset, staff: number, happiness: number, hours: number, rng: Rng): number {
+  const rules = businessRules(ruleset);
+  const d = ruleset.departures;
+  if (!rules || staff <= 0 || hours <= 0 || happiness >= d.happinessThreshold) return 0;
+  const severity = (d.happinessThreshold - happiness) / d.happinessThreshold;
+  const perTurn = Math.min(1, d.chancePerTurn * severity);
+  const fraction = Math.min(1 - (1 - perTurn) ** rules.staffDepartureTurnsPerHour, d.maxFractionPerAction);
+  let left = staff;
+  // A week is the most one settle ever has to look back over.
+  for (let hour = 0; hour < Math.min(hours, 168) && left > 0; hour++) {
+    left -= Math.min(left, roundStochastic(left * fraction, rng));
+  }
+  return staff - left;
+}
+
 /** Torching a business: the level it falls to, and the salvage paid back now. */
 export function torchResult(ruleset: Ruleset, business: BusinessKey, level: number): { level: number; salvageCents: number } {
   const torch = businessRules(ruleset)?.torch;
@@ -463,6 +484,7 @@ export function businessRulesetProblems(ruleset: Ruleset): string[] {
   if (rules.supply.beerPerStaffPerHour + rules.supply.productPerStaffPerHour <= 0) problems.push('Staff must burn some supply, or businesses are free to run.');
   if (rules.register.capHours <= 0) problems.push('A register that holds nothing loses every hour of income.');
   if (rules.staffTurnCost <= 0) problems.push('Opening or closing a business must cost turns.');
+  if (rules.staffDepartureTurnsPerHour <= 0) problems.push('Unhappy staff must be able to walk off.');
   // The anti-passive rule: about a day, so somebody has to come by.
   if (rules.register.capHours > 48) problems.push(`A ${rules.register.capHours}-hour register lets a business run unattended for days.`);
   if (rules.awayOutputShare <= 0 || rules.awayOutputShare > 1) problems.push('An away business must make something, and no more than at home.');

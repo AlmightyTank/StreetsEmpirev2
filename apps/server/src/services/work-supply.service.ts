@@ -24,7 +24,7 @@ import {
 import { workSupplyPolicySchema, type WorkSupplyDto, type WorkSupplyPlanDto, type WorkSupplyPreviewDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
-import { fitThugs } from './action.service.js';
+import { fitThugs, workingWhores } from './action.service.js';
 import { PlayerStateService } from './player-state.service.js';
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
 
@@ -198,11 +198,11 @@ export const WorkSupplyService = {
       const plan = await WorkSupplyService.plan(prisma, roundPlayerId, settled.ruleset, { job, role: 'fighters', workers: squad, turns: 1, crack: settled.player.crack });
       return withStatus(plan, squad);
     }
-    const workers = found.role === 'thugs' ? fitThugs(settled.player) : settled.player.whores;
+    const workers = found.role === 'thugs' ? fitThugs(settled.player) : workingWhores(settled.player);
     const crack = settled.player.crack;
     // Cooks are supplied after the girls' Produce shift, from what that shift leaves.
     if (job === COOK_JOB) {
-      const shift = await WorkSupplyService.plan(prisma, roundPlayerId, settled.ruleset, { job: PRODUCE_JOB, workers: settled.player.whores, turns, crack });
+      const shift = await WorkSupplyService.plan(prisma, roundPlayerId, settled.ruleset, { job: PRODUCE_JOB, workers: workingWhores(settled.player), turns, crack });
       const left = Object.fromEntries(Object.entries(inventory).map(([key, quantity]) => [key, quantity - (shift.consumed[key] ?? 0)]));
       const cook = planWorkSupply({
         job, role: 'thugs', workers, turns, ruleset: settled.ruleset,

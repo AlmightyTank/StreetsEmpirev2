@@ -2,7 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import { COOK_JOB, PRODUCE_JOB, calculateProduce, cityModifiers, districtCapacities, productRecipes, type Rng } from '@streets/rules-engine';
 import type { GameActionResult, ProduceCrackResult, ProductTypeDto } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
-import { ActionService, assertTurns, fitThugs } from './action.service.js';
+import { ActionService, assertTurns, fitThugs, workingWhores } from './action.service.js';
 import { HeatService } from './heat.service.js';
 import {
   hideoutBackOfficeBonusCents,
@@ -59,7 +59,8 @@ export const ProductionService = {
           );
         }
 
-        const active = { ...current, thugs: fitThugs(current) };
+        // 1.1.0-B: business staff are counted but never work the street or a shift.
+        const active = { ...current, thugs: fitThugs(current), whores: workingWhores(current) };
         if (active.thugs <= 0) {
           throw AppError.badRequest(
             'NO_THUGS',

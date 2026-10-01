@@ -199,6 +199,9 @@ export interface ResourcesDto {
   woundedThugs: number;
   /** 0.6.0-A. Thugs standing on held corners, unavailable at home. */
   postedThugs: number;
+  /** 1.1.0-B. Thugs and girls working a business: still yours, never fit or working at home. */
+  businessThugs: number;
+  businessWhores: number;
   armedThugs: number;
   unarmedThugs: number;
 

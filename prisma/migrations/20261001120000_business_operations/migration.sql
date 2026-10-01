@@ -1,11 +1,12 @@
--- 1.1.0-B: businesses can be built, staffed and collected. Staff leave the owner's home
--- columns for the Business row; their value moves to RoundPlayer.businessNetWorthCents.
+-- 1.1.0-B: businesses can be built, staffed and collected. Staff stay in the owner's
+-- thugs/whores and are marked as businessThugs/businessWhores: counted, never working.
 ALTER TYPE "ActivityType" ADD VALUE 'BUSINESS_BUILD';
 ALTER TYPE "ActivityType" ADD VALUE 'BUSINESS_STAFF';
 ALTER TYPE "ActivityType" ADD VALUE 'BUSINESS_COLLECT';
 
 -- AlterTable
-ALTER TABLE "RoundPlayer" ADD COLUMN     "businessNetWorthCents" BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE "RoundPlayer" ADD COLUMN     "businessThugs" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "businessWhores" INTEGER NOT NULL DEFAULT 0;
 
 -- AlterTable
 ALTER TABLE "Business" ADD COLUMN     "accruedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

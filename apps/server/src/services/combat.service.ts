@@ -25,7 +25,8 @@ import {
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer } from '../utils/db.js';
 import { RelocationService } from './relocation.service.js';
-import { fitThugs, toState } from './action.service.js';
+import { fitThugs, toState, workingWhores } from './action.service.js';
+import { BusinessService } from './business.service.js';
 import { ActivityService } from './activity.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { allianceTagDto, allianceTargetBlock, sharedRevengeScope } from './alliance.service.js';
@@ -349,7 +350,8 @@ function specialRaidTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, mo
     const lureRule = specialRaidRule(model, kind) as LureCrewRules | null;
     if (!lureRule) return 'That move is not available in this round.';
     const canLureWhores = defender.whoreHappiness < lureRule.happinessBelow && defender.whores > 0 && attacker.crack >= lureRule.crackPerWhore;
-    const canLureThugs = defender.thugHappiness < lureRule.happinessBelow && fitThugs(defender) > 0 && attacker.beer >= lureRule.beerPerThug;
+    // 1.1.0-B: staff at a business can be lured off too.
+    const canLureThugs = defender.thugHappiness < lureRule.happinessBelow && fitThugs(defender) + defender.businessThugs > 0 && attacker.beer >= lureRule.beerPerThug;
     if (!canLureWhores && !canLureThugs) return `Nobody on that block is unhappy enough to leave for your stash.`;
   }
   return null;
@@ -955,10 +957,11 @@ export const CombatService = {
       const beforeA = await RankingService.ranksFor(tx, attacker);
       const beforeD = await RankingService.ranksFor(tx, defender);
       const result = simulateDriveBy({ attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), attackerBoost: boostOf(a), defenderBoost: boostOf(d), shooters: input.attackingThugs,
-        lowRiders: attacker.lowRiders, attackerTurns: attacker.turns, defenderWhores: defender.whores }, model, rules, () => randomInt(0, 2 ** 32) / 2 ** 32);
+        lowRiders: attacker.lowRiders, attackerTurns: attacker.turns, defenderWhores: workingWhores(defender) }, model, rules, () => randomInt(0, 2 ** 32) / 2 ** 32);
       const nextA = { ...toState(attacker), woundedThugs: attacker.woundedThugs + result.wounds.attacker, turns: result.attackerTurnsAfter,
         lowRiders: result.lowRidersAfter, driveBysDone: attacker.driveBysDone + 1 };
-      const nextD = { ...toState(defender), woundedThugs: defender.woundedThugs + result.wounds.defender, whores: result.defenderWhoresAfter };
+      // 1.1.0-B: a drive-by hits the girls on the block, never the ones working a business.
+      const nextD = { ...toState(defender), woundedThugs: defender.woundedThugs + result.wounds.defender, whores: defender.whores - result.whoresKilled };
       assertPlayerState(nextA, ruleset);
       assertPlayerState(nextD, ruleset);
       const productsA = a.products;
@@ -1091,6 +1094,8 @@ export const CombatService = {
       let beerSpent = 0;
       let whoresLured = 0;
       let thugsLured = 0;
+      let staffWhoresLured = 0;
+      let staffThugsLured = 0;
 
       if (won && input.kind === 'DRUG_HOES') {
         const drugRule = rule as DrugHoesRules;
@@ -1109,14 +1114,17 @@ export const CombatService = {
       }
       if (won && input.kind === 'LURE_CREW') {
         const lureRule = rule as LureCrewRules;
+        // 1.1.0-B: an unhappy crew's business staff can be lured too, after the rest.
         if (defender.whoreHappiness < lureRule.happinessBelow) {
           whoresLured = Math.min(defender.whores, survivors * lureRule.whoresPerSurvivor, Math.floor(attacker.crack / lureRule.crackPerWhore));
           crackSpent = whoresLured * lureRule.crackPerWhore;
+          staffWhoresLured = Math.max(0, whoresLured - workingWhores(defender));
         }
         if (defender.thugHappiness < lureRule.happinessBelow) {
           const standingDefenders = Math.max(0, fitThugs(defender) - result.wounds.defender);
-          thugsLured = Math.min(standingDefenders, survivors * lureRule.thugsPerSurvivor, Math.floor(attacker.beer / lureRule.beerPerThug));
+          thugsLured = Math.min(standingDefenders + defender.businessThugs, survivors * lureRule.thugsPerSurvivor, Math.floor(attacker.beer / lureRule.beerPerThug));
           beerSpent = thugsLured * lureRule.beerPerThug;
+          staffThugsLured = Math.max(0, thugsLured - standingDefenders);
         }
       }
 
@@ -1125,7 +1133,11 @@ export const CombatService = {
         whores: attacker.whores + whoresLured, thugs: attacker.thugs + thugsLured, lowRiders: attacker.lowRiders + lowRidersStolen, raidsDone: attacker.raidsDone + 1 };
       const nextD = { ...toState(defender), woundedThugs: defender.woundedThugs + result.wounds.defender,
         crack: defender.crack - defenderCrackBurned, condoms: defender.condoms - defenderCondomsBurned,
-        whores: defender.whores - whoresLured, thugs: defender.thugs - thugsLured, lowRiders: defender.lowRiders - lowRidersStolen };
+        whores: defender.whores - whoresLured, thugs: defender.thugs - thugsLured, lowRiders: defender.lowRiders - lowRidersStolen,
+        businessWhores: defender.businessWhores - staffWhoresLured, businessThugs: defender.businessThugs - staffThugsLured };
+      if (staffWhoresLured || staffThugsLured) {
+        await BusinessService.loseStaff(tx, defender.id, ruleset, { thugs: staffThugsLured, whores: staffWhoresLured }, now);
+      }
       assertPlayerState(nextA, ruleset);
       assertPlayerState(nextD, ruleset);
       const productsA = a.products;
@@ -1141,6 +1153,7 @@ export const CombatService = {
         netWorthCents: NetWorthService.calculate({ ...nextA, products: productsA }, ruleset), raidCooldownUntil: cooldown } });
       await tx.roundPlayer.update({ where: { id: target.id }, data: { heat: nextD.heat, crack: nextD.crack, condoms: nextD.condoms,
         whores: nextD.whores, thugs: nextD.thugs, woundedThugs: nextD.woundedThugs,
+        businessWhores: nextD.businessWhores, businessThugs: nextD.businessThugs,
         lowRiders: nextD.lowRiders, whoreHappiness: happinessD.whoreHappiness, thugHappiness: happinessD.thugHappiness,
         netWorthCents: NetWorthService.calculate({ ...nextD, products: productsD }, ruleset), raidProtectedUntil: shield, lastRaidedAt: now } });
       const afterA = await RankingService.ranksFor(tx, { ...attacker, netWorthCents: NetWorthService.calculate({ ...nextA, products: productsA }, ruleset) });

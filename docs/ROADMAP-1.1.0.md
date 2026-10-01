@@ -580,12 +580,22 @@ yet part of `qa:release`; it joins at 1.1.0-F, as turf did.
 - **Build and upgrade** (`POST /game/business/build`): on a block the crew holds at home,
   on a lot its tier has opened. Costs the level's cash (Back Office ledger line
   `BUSINESS_BUILD`) and 6 turns, and staffs the business for the new level from home.
-- **Staff:** thugs, or girls for the Strip Club, **leave the home columns** for the
-  business row, and their value moves to a new `businessNetWorthCents`, the way a run's
-  cargo moves to `awayNetWorthCents`. So staff can never work the street, defend, cook,
-  desert or be lured, and staffing never changes net worth.
-- **Open and close** (`POST /game/business/staff`, 2 turns): closing sends the staff home
-  and stops income; the register stays and can still be collected.
+- **Staff (decided): still part of the crew.** Thugs, or girls for the Strip Club, stay
+  in the crew's `thugs`/`whores` counts and net worth, so a crew cannot staff businesses
+  and then recruit the same headroom again. They are marked as `businessThugs` /
+  `businessWhores`, the way corner crews are `postedThugs`:
+  - they are never fit thugs or working girls, so they **never work the street, defend or
+    cook**, and a drive-by only hits girls on the block;
+  - they **can still desert**: each settled hour, an unhappy crew's staff walk off with the
+    ruleset's departure chance (each hour counts as `staffDepartureTurnsPerHour` = 5
+    turns), leaving the business and the crew;
+  - they **can still be lured**: a won Lure Crew raid takes the crew's working girls and
+    standing thugs first, then business staff.
+  - A business that loses staff stops earning until it is opened again; opening tops it up
+    from the fit crew. Any other loss that would leave more staff than crew sheds the
+    difference from the businesses on the next settle.
+- **Open and close** (`POST /game/business/staff`, 2 turns): closing returns the staff to
+  the fit crew and stops income; the register stays and can still be collected.
 - **Income and supply:** settled lazily on whole hours, next to corner upkeep, on every
   action and page read. Staff burn beer and product from home under a new **Business
   staff** (`BUSINESS`) supply job; an hour without supply earns nothing. Income fills the
@@ -598,9 +608,11 @@ yet part of `qa:release`; it joins at 1.1.0-F, as turf did.
 - **City Blocks:** each lot shows its level, income an hour, staff, register and the next
   level's cost, with Build/Upgrade and Open/Close buttons, and why a lot is locked ("Opens
   when the block is a Stronghold"). Home cities get a Collect bar with the total waiting.
-- **Gate:** DB-backed tests check that cash, turns, staff and supply are spent exactly,
-  that staff leave home and keep their net worth, that registers fill only for supplied
-  hours and stop at their cap, and that a lost or taken block sends staff home.
+- **Gate:** DB-backed tests check that cash, turns, staff and supply are spent exactly;
+  that staff stay in the crew and its net worth but leave the fit crew; that registers
+  fill only for supplied hours and stop at their cap; that an unhappy crew's staff desert
+  and a happy crew's stay; that a lure takes staff off the business; and that a lost or
+  taken block sends staff home.
 
 **Not in B:** businesses at outposts (E: an away block's staff come home for now), war
 fatigue and the Take tier drop (D: a captured block restarts as a Foothold, from the push's

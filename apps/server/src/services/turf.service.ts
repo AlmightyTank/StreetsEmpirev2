@@ -77,8 +77,8 @@ export function localsReclaimAt(ruleset: Ruleset, releasedAt: Date): Date {
 }
 function utcDay(now: Date): Date { return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())); }
 function holdingOn(ruleset: Ruleset): boolean { return ruleset.turf?.holding === true; }
-function homeFit(player: { thugs: number; woundedThugs: number; busyThugs: number; postedThugs: number }): number {
-  return Math.max(0, player.thugs - player.woundedThugs - player.busyThugs - player.postedThugs);
+function homeFit(player: { thugs: number; woundedThugs: number; busyThugs: number; postedThugs: number; businessThugs?: number }): number {
+  return Math.max(0, player.thugs - player.woundedThugs - player.busyThugs - player.postedThugs - (player.businessThugs ?? 0));
 }
 function gunCount(guns: CornerGuns): number { return guns.pistols + guns.shotguns + guns.tek9s + guns.ak47s; }
 
@@ -581,7 +581,7 @@ export const TurfService = {
     const player = await db.roundPlayer.findUniqueOrThrow({
       where: { id: roundPlayerId },
       select: {
-        id: true, roundId: true, cityId: true, thugs: true, woundedThugs: true, busyThugs: true, postedThugs: true,
+        id: true, roundId: true, cityId: true, thugs: true, woundedThugs: true, busyThugs: true, postedThugs: true, businessThugs: true,
         pistols: true, shotguns: true, tek9s: true, ak47s: true, allianceId: true, allianceJoinedAt: true,
         lockedUntil: true, movingUntil: true, hideoutLookoutsLevel: true,
       },

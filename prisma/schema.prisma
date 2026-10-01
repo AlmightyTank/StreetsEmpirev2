@@ -727,8 +727,10 @@ model RoundPlayer {
   postedNetWorthCents BigInt @default(0)
   /// 0.6.0-D. Net-worth value stored in away outpost boxes.
   outpostNetWorthCents BigInt @default(0)
-  /// 1.1.0-B. Business staff (thugs and girls) who have left the home columns, valued.
-  businessNetWorthCents BigInt @default(0)
+  /// 1.1.0-B. Thugs and girls working a business. Still counted in `thugs` and `whores`
+  /// (and in net worth), but never fit at home and never working the street.
+  businessThugs  Int @default(0)
+  businessWhores Int @default(0)
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
   rocksSuppliedToPip Int @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
@@ -1603,8 +1605,8 @@ model Business {
   /// 0 is an empty lot.
   level    Int    @default(0)
 
-  /// 1.1.0-B. Staff working it: thugs, or girls for a Strip Club. They have left the
-  /// owner's home columns; their value sits in the owner's `businessNetWorthCents`.
+  /// 1.1.0-B. Staff working it: thugs, or girls for a Strip Club. Still counted in the
+  /// owner's `thugs`/`whores`, and marked there as `businessThugs`/`businessWhores`.
   staff        Int          @default(0)
   /// Whose staff they are. Only earns while this crew holds the block; when it no longer
   /// does, the staff go home on the owner's next settle and the register is lost.

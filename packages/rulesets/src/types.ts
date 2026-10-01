@@ -1207,6 +1207,11 @@ export interface BusinessRules {
   readonly register: BusinessRegisterRules;
   /** Turns to open a business (send its staff in) or close it (bring them home). */
   readonly staffTurnCost: number;
+  /**
+   * Staff are still the crew's, so an unhappy crew's staff walk off like anyone else. Each
+   * settled hour at a business counts as this many turns of the ruleset's departure chance.
+   */
+  readonly staffDepartureTurnsPerHour: number;
   /** Most an away (outpost) business makes, as a share of the same business at home. */
   readonly awayOutputShare: number;
   readonly tiers: BusinessTierRules;
