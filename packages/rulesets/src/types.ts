@@ -1384,6 +1384,207 @@ export interface TurfPushRules {
   };
 }
 
+/** 1.1.0-A. The ten businesses a block's lots can hold. */
+export type BusinessKey =
+  | 'NIGHTCLUB'
+  | 'BAR'
+  | 'STRIP_CLUB'
+  | 'CHOP_SHOP'
+  | 'PAWN_SHOP'
+  | 'AUTO_GARAGE'
+  | 'CONVENIENCE_STORE'
+  | 'WAREHOUSE'
+  | 'CASINO_FRONT'
+  | 'LAUNDROMAT';
+
+/**
+ * 1.1.0-A. Businesses, Fronts & Rackets. Every turf block has three lots, fixed by its
+ * district, and each lot holds one business. Lots start empty: the crew holding the block
+ * builds and upgrades them, they change hands with the block in a block war, and a war
+ * leaves them running at a fatigued rate until the neighborhood recovers.
+ *
+ * Data only in A: nothing reads these numbers until 1.1.0-B builds the first business.
+ * See docs/ROADMAP-1.1.0.md.
+ */
+export interface BusinessRules {
+  readonly catalog: { readonly [K in BusinessKey]: BusinessTypeRules };
+  /** The three lots on every block of a district, in lot order. Lot 1 opens first. */
+  readonly lots: { readonly [K in DistrictKey]: readonly [BusinessKey, BusinessKey, BusinessKey] };
+  /** One business per city earns more there. Keyed by City slug. */
+  readonly signatures: { readonly [slug: string]: BusinessSignatureRules };
+  /**
+   * Foot traffic: the same business earns more on a richer block. A Bar on the Casino strip
+   * out-earns one in the slums, which is also what pays for staff on the blocks where a
+   * thug covers the fewest girls.
+   */
+  readonly districtIncome: { readonly [K in DistrictKey]: number };
+  readonly levels: BusinessLevelRules;
+  readonly supply: BusinessSupplyRules;
+  readonly register: BusinessRegisterRules;
+  /** Most an away (outpost) business makes, as a share of the same business at home. */
+  readonly awayOutputShare: number;
+  readonly tiers: BusinessTierRules;
+  readonly fatigue: BusinessFatigueRules;
+  readonly wars: BlockWarRules;
+  readonly allies: BlockWarAllyRules;
+  readonly locals: BusinessLocalsRules;
+  readonly torch: BusinessTorchRules;
+  /** Levels every business on a block loses when a war ends in a Sack. */
+  readonly sackLevelsLost: number;
+}
+
+export interface BusinessTypeRules {
+  readonly name: string;
+  /** Who works it. Girls staff the Strip Club only; thugs staff everything else. */
+  readonly staff: 'THUGS' | 'WHORES';
+  /** Staff a level-1 business needs. Scaled by `levels.staffMultiplier`. */
+  readonly baseStaff: number;
+  /** Front income an hour at level 1, on a 1.0 foot-traffic block, home, no fatigue. */
+  readonly incomeCentsPerHour: number;
+  /** Cash to open it at level 1. Each upgrade costs a multiple of this. */
+  readonly buildCostCents: number;
+}
+
+export interface BusinessSignatureRules {
+  readonly business: BusinessKey;
+  /** Multiplies that business's income in this city. */
+  readonly multiplier: number;
+}
+
+/** One entry per level, level 1 first. All arrays are `maxLevel` long. */
+export interface BusinessLevelRules {
+  readonly maxLevel: number;
+  /** Income at each level as a multiple of level 1. */
+  readonly incomeMultiplier: readonly number[];
+  /** Staff at each level as a multiple of `baseStaff`, rounded up. */
+  readonly staffMultiplier: readonly number[];
+  /** Cost to reach each level as a multiple of `buildCostCents`: index 0 is the build. */
+  readonly costMultiplier: readonly number[];
+  /** Turns to build or upgrade. */
+  readonly buildTurnCost: number;
+  /** Upgrades cost this much more while the block's fatigue is above `fatigue.upgradeMarkupAbove`. */
+  readonly fatiguedUpgradeMarkup: number;
+}
+
+/** A business burns beer and product under the BUSINESS supply job, like a corner crew. */
+export interface BusinessSupplyRules {
+  readonly beerPerStaffPerHour: number;
+  readonly productPerStaffPerHour: number;
+}
+
+/** Income waits in the register; past the cap it is lost, so someone has to come by. */
+export interface BusinessRegisterRules {
+  /** Hours of full income the register holds. */
+  readonly capHours: number;
+  readonly collectTurnCost: number;
+}
+
+/**
+ * A block's tier opens its lots. It rises with uninterrupted holding and business levels,
+ * the way a settlement grows in rank.
+ */
+export interface BusinessTierRules {
+  /** Lots open at Foothold, Established and Stronghold. */
+  readonly lotsOpen: readonly [number, number, number];
+  /** Hours held (siege pauses the clock) to reach Established and Stronghold. */
+  readonly establishedHours: number;
+  readonly strongholdHours: number;
+  /** Level the lot-1 business needs for Established. */
+  readonly establishedLotOneLevel: number;
+  /** Total levels on lots 1 and 2 for Stronghold. */
+  readonly strongholdLevels: number;
+  /** Tiers a block drops when a war ends in a Take. */
+  readonly takeTierDrop: number;
+}
+
+/** War fatigue (devastation): a per-block meter. Output is (100 - fatigue)%. */
+export interface BusinessFatigueRules {
+  /** Fatigue never rises above this, so a business always makes something. */
+  readonly max: number;
+  readonly perFight: number;
+  readonly perSiegeHour: number;
+  readonly onTake: number;
+  readonly onConcede: number;
+  readonly onSack: number;
+  readonly onLocalsClaim: number;
+  readonly recoveryPerHour: number;
+  /** Slower recovery on a block that changed hands this many times inside the window. */
+  readonly scarredRecoveryPerHour: number;
+  readonly scarredHandsChanged: number;
+  readonly scarredWindowHours: number;
+  /** Upgrades cost `levels.fatiguedUpgradeMarkup` more above this fatigue. */
+  readonly upgradeMarkupAbove: number;
+}
+
+/**
+ * Taking a block from a player is a block war: declare, an opening fight, a siege that
+ * builds Control to 100, and a truce. Taking a block from the locals stays a single fight.
+ */
+export interface BlockWarRules {
+  readonly declareTurnCost: number;
+  /** Wars one crew can have declared at a time. */
+  readonly maxDeclaredPerCrew: number;
+  /** Real minutes between the declaration and the opening fight. */
+  readonly warningMinutes: number;
+  /** Hours for a siege to take Control from 0 to 100 with no allied help. */
+  readonly siegeHours: number;
+  /** Control rate x (1 + this x allied share): an ally at the full cap speeds the siege. */
+  readonly allySiegeSpeedup: number;
+  /** Control lost when the holder breaks the siege. */
+  readonly breakSiegeControlLoss: number;
+  readonly resiegeCooldownHours: number;
+  readonly maxWarHours: number;
+  readonly truceHours: number;
+  readonly sackTruceHours: number;
+  /** Hours the losing attacker cannot declare on that block again. */
+  readonly loserCooldownHours: number;
+  /** Minutes between starting a break attempt and the fight landing, so an ally can answer. */
+  readonly breakMusterMinutes: number;
+}
+
+/**
+ * One ally per side, and only a member who is online and answers the call. No dice: the
+ * uncertainty is whether a real ally is around.
+ */
+export interface BlockWarAllyRules {
+  readonly maxPerSide: number;
+  /** An ally sends at most this multiple of the declarer's committed thugs, on either side. */
+  readonly maxShareOfDeclarer: number;
+  /** Minutes an attacker's call to join a siege stays open. */
+  readonly siegeCallMinutes: number;
+  /** Active wars one crew can be the ally in. Declaring is counted separately. */
+  readonly maxWarsAsAlly: number;
+  /** Most of the winnings the caller can promise the ally, and the step it moves in. */
+  readonly maxCutShare: number;
+  readonly cutStep: number;
+}
+
+/** A block the locals take over: its businesses go dormant and decay. */
+export interface BusinessLocalsRules {
+  /** Hours after the locals take over before levels start to fall. */
+  readonly graceHours: number;
+  /** Every business loses a level this often after the grace period. */
+  readonly levelLossEveryHours: number;
+  /** Tiers dropped when the locals take over, and hours until the block is a Foothold. */
+  readonly takeoverTierDrop: number;
+  readonly footholdAfterHours: number;
+  /** Extra local thugs per business level on the block, capped at a share of the district's base. */
+  readonly localsPerLevel: number;
+  readonly maxLocalsBonusShare: number;
+}
+
+/** The holder burns a business down rather than hand it over. */
+export interface BusinessTorchRules {
+  readonly levelsLost: number;
+  /** Share of the lost levels' build cost paid back. */
+  readonly salvageShare: number;
+  readonly turnCost: number;
+  /** Minutes the torch takes; it must finish before Control reaches 100. */
+  readonly minutes: number;
+  /** No torching in the round's final hours. */
+  readonly closedFinalHours: number;
+}
+
 /**
  * 0.5.0-E. Convoys: a run can be hit near a city (leaving it, in town, or coming in),
  * by the players who live there and by rival runs in reach at the same time. A hit is a
@@ -1853,5 +2054,7 @@ export interface Ruleset {
   readonly travel?: TravelRules;
   /** 0.6.0-A. Absent where the street belongs to nobody. */
   readonly turf?: TurfRules;
+  /** 1.1.0-A. Absent where blocks hold no businesses. Needs `turf`. */
+  readonly business?: BusinessRules;
   readonly evidence: EvidenceRules;
 }

@@ -344,3 +344,6 @@ export function turfMarkdown(ruleset: Ruleset, summaries: readonly TurfCrewSumma
   }
   return lines.join('\n');
 }
+
+/** 1.1.0-A. The business simulation prices staff with the same street model as corners. */
+export { takePerTurnCents as turfBlockTakePerTurnCents, streetCentsPerDay as turfStreetCentsPerDay };
