@@ -1349,6 +1349,12 @@ export interface TurfCornerRules {
   readonly productPerThugPerHour: number;
   /** Share of a short-supplied corner crew that walks each hour. */
   readonly walkoutSharePerHour: number;
+  /**
+   * 1.1.0-B. Corner crews are still the crew: when it is unhappy they walk off like anyone
+   * else (each settled hour counts as this many turns of the departure chance), and a Lure
+   * Crew raid can take them. Absent: corners only walk when supply runs short, as in 0.6.0.
+   */
+  readonly desertTurnsPerHour?: number;
 }
 
 export interface TurfCapRules {

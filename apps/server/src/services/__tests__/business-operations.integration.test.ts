@@ -210,20 +210,63 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.1.0-B business operation
   it('closes and reopens a business, moving its staff back to the fit crew and out again', async () => {
     await BusinessActionService.build(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, actionId: actionId() });
     const staff = businessStaff(rules, 'NIGHTCLUB', 1);
-    const closed = await BusinessActionService.staff(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, open: false, actionId: actionId() });
+    const closed = await BusinessActionService.staff(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, staff: 0, actionId: actionId() });
     expect(closed.after.resources.fitThugs - closed.before.resources.fitThugs).toBe(staff);
     expect(closed.after.resources.thugs).toBe(closed.before.resources.thugs);
     expect(closed.after.netWorthCents).toBe(closed.before.netWorthCents);
     expect((await read()).businessThugs).toBe(0);
-    const opened = await BusinessActionService.staff(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, open: true, actionId: actionId() });
+    const opened = await BusinessActionService.staff(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, staff, actionId: actionId() });
     expect(opened.before.resources.fitThugs - opened.after.resources.fitThugs).toBe(staff);
     expect(opened.after.netWorthCents).toBe(opened.before.netWorthCents);
+  });
+
+  it('runs short-staffed for proportionally less, so a crew can bring people home', async () => {
+    await BusinessActionService.build(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, actionId: actionId() });
+    await BusinessActionService.build(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, actionId: actionId() });
+    const max = businessStaff(rules, 'NIGHTCLUB', 2);
+    const fewer = await BusinessActionService.staff(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, staff: max - 1, actionId: actionId() });
+    expect(fewer.result).toMatchObject({ staff: max - 1, maxStaff: max, staffChange: -1, turnsUsed: business.staffTurnCost });
+    expect(fewer.after.resources.fitThugs - fewer.before.resources.fitThugs).toBe(1);
+
+    const row = await lot('NIGHTCLUB', 1);
+    await app.prisma.business.update({ where: { id: row.id }, data: { accruedAt: new Date(Date.now() - 2 * HOUR_MS - 60_000) } });
+    await BusinessService.settleFor(app.prisma, playerId);
+    const perHour = businessIncomeCentsPerHour(rules, { citySlug: home, district: 'NIGHTCLUB', business: 'NIGHTCLUB', level: 2 });
+    expect((await lot('NIGHTCLUB', 1)).registerCents).toBe(BigInt(Math.floor(perHour * ((max - 1) / max) * 2)));
+
+    await expect(BusinessActionService.staff(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, staff: max + 1, actionId: actionId() }))
+      .rejects.toMatchObject({ code: 'BUSINESS_TOO_MANY_STAFF' });
+  });
+
+  it('switches auto-staff for free, and with it on replaces staff who walk off', async () => {
+    await BusinessActionService.build(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, actionId: actionId() });
+    await BusinessActionService.build(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, actionId: actionId() });
+    const max = businessStaff(rules, 'NIGHTCLUB', 2);
+    expect((await lot('NIGHTCLUB', 1)).autoStaff).toBe(true);
+    const off = await BusinessActionService.staff(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, staff: max, autoStaff: false, actionId: actionId() });
+    expect(off.result).toMatchObject({ autoStaff: false, turnsUsed: 0 });
+    const on = await BusinessActionService.staff(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, staff: max, autoStaff: true, actionId: actionId() });
+    expect(on.result).toMatchObject({ autoStaff: true, turnsUsed: 0 });
+
+    const row = await lot('NIGHTCLUB', 1);
+    await app.prisma.business.update({ where: { id: row.id }, data: { accruedAt: new Date(Date.now() - 24 * HOUR_MS) } });
+    await app.prisma.roundPlayer.update({ where: { id: playerId }, data: { thugHappiness: 0 } });
+    const before = await read();
+    await BusinessService.settleFor(app.prisma, playerId, new Date(), () => 0);
+    const after = await read();
+    const lost = before.thugs - after.thugs;
+    expect(lost).toBeGreaterThan(0);
+    // The deserters are gone from the crew, but the business is back at full strength from the fit crew.
+    expect((await lot('NIGHTCLUB', 1)).staff).toBe(max);
+    expect(after.businessThugs).toBe(max);
+    expect(fit(before) - fit(after)).toBe(lost);
   });
 
   it('lets an unhappy crew\'s staff walk off, out of the business and the crew', async () => {
     await BusinessActionService.build(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, actionId: actionId() });
     await BusinessActionService.build(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, actionId: actionId() });
     const staff = businessStaff(rules, 'NIGHTCLUB', 2);
+    await BusinessActionService.staff(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, staff, autoStaff: false, actionId: actionId() });
     const row = await lot('NIGHTCLUB', 1);
     await app.prisma.business.update({ where: { id: row.id }, data: { accruedAt: new Date(Date.now() - 24 * HOUR_MS) } });
     await app.prisma.roundPlayer.update({ where: { id: playerId }, data: { thugHappiness: 0 } });
@@ -238,9 +281,9 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.1.0-B business operation
     expect(after.businessThugs).toBe(left);
     expect(fit(after)).toBe(fit(before));
 
-    // Short-staffed, it has stopped; opening it again tops it back up from the fit crew.
+    // Without auto-staff it stays short until the crew tops it back up from the fit crew.
     await app.prisma.roundPlayer.update({ where: { id: playerId }, data: { thugHappiness: 100 } });
-    const reopened = await BusinessActionService.staff(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, open: true, actionId: actionId() });
+    const reopened = await BusinessActionService.staff(app.prisma, playerId, { district: 'NIGHTCLUB', lot: 1, staff, actionId: actionId() });
     expect(reopened.result.staff).toBe(staff);
     expect(reopened.before.resources.fitThugs - reopened.after.resources.fitThugs).toBe(departed);
   });
@@ -335,11 +378,90 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.1.0-B business operation
     const owner = await read();
 
     // The rival opens it before the old crew has been back to settle.
-    const opened = await BusinessActionService.staff(app.prisma, rivalId, { district: 'NIGHTCLUB', lot: 1, open: true, actionId: actionId() });
+    const opened = await BusinessActionService.staff(app.prisma, rivalId, { district: 'NIGHTCLUB', lot: 1, staff, actionId: actionId() });
     expect(opened.result).toMatchObject({ open: true, staff });
     const after = await read();
     expect(after.thugs).toBe(owner.thugs);
     expect(after.businessThugs).toBe(0);
     expect(await lot('NIGHTCLUB', 1)).toMatchObject({ level: 1, staff, staffOwnerId: rivalId });
+  });
+
+  describe('corner crews are still the crew', () => {
+    const corners = () => app.prisma.turf.findMany({ where: { roundId, cityId, holderId: playerId }, orderBy: { district: 'asc' } });
+    const pistolWorth = BigInt(rules.economy.netWorth.perPistolCents);
+
+    async function armCorners(): Promise<void> {
+      await app.prisma.turf.updateMany({ where: { roundId, cityId, holderId: playerId }, data: { cornerPistols: 6 } });
+      await app.prisma.roundPlayer.update({ where: { id: playerId }, data: { pistols: 10, postedNetWorthCents: 12n * pistolWorth } });
+    }
+
+    it('lets an unhappy crew\'s corner thugs walk off, and a happy crew\'s stay', async () => {
+      await armCorners();
+      await app.prisma.turf.updateMany({ where: { roundId, cityId, holderId: playerId }, data: { upkeepAt: new Date(Date.now() - 24 * HOUR_MS) } });
+      await app.prisma.roundPlayer.update({ where: { id: playerId }, data: { thugHappiness: rules.departures.happinessThreshold } });
+      await app.prisma.$transaction((tx) => TurfService.settlePlayer(tx, playerId, rules, new Date(), () => 0));
+      expect((await corners()).reduce((sum, row) => sum + row.cornerThugs, 0)).toBe(12);
+
+      await app.prisma.turf.updateMany({ where: { roundId, cityId, holderId: playerId }, data: { upkeepAt: new Date(Date.now() - 24 * HOUR_MS) } });
+      await app.prisma.roundPlayer.update({ where: { id: playerId }, data: { thugHappiness: 0 } });
+      const before = await read();
+      await app.prisma.$transaction((tx) => TurfService.settlePlayer(tx, playerId, rules, new Date(), () => 0));
+      const after = await read();
+      const standing = (await corners()).reduce((sum, row) => sum + row.cornerThugs, 0);
+      const gone = before.thugs - after.thugs;
+      expect(gone).toBeGreaterThan(0);
+      expect(before.postedThugs - after.postedThugs).toBe(gone);
+      expect(after.postedThugs).toBe(standing);
+      // Their guns stay with the crew: back in the home arsenal.
+      const cornerGuns = (await corners()).reduce((sum, row) => sum + row.cornerPistols, 0);
+      expect(after.pistols + cornerGuns).toBe(10 + 12);
+    });
+
+    it('takes lured corner thugs off the biggest corner, sends their guns home, and frees an emptied block', async () => {
+      await armCorners();
+      await app.prisma.turf.updateMany({ where: { roundId, cityId, district: 'CASINO' }, data: { cornerThugs: 4, cornerPistols: 4 } });
+      await app.prisma.roundPlayer.update({ where: { id: playerId }, data: { postedThugs: 10, postedNetWorthCents: 10n * pistolWorth } });
+      await app.prisma.$transaction(async (tx) => {
+        await tx.roundPlayer.update({ where: { id: playerId }, data: { thugs: 74, postedThugs: 4 } });
+        await TurfService.shedCornerThugs(tx, playerId, rules, 6);
+      });
+      const nightclub = await block('NIGHTCLUB');
+      expect(nightclub.holderId).toBeNull();
+      expect(nightclub.cornerThugs).toBe(0);
+      expect((await block('CASINO')).cornerThugs).toBe(4);
+      const after = await read();
+      expect(after.pistols).toBe(16);
+      expect(after.postedNetWorthCents).toBe(4n * pistolWorth);
+    });
+
+    it('keeps corners, counts and guns consistent through a lure raid on a crew with corners', async () => {
+      await armCorners();
+      const now = Date.now();
+      await app.prisma.roundPlayer.update({
+        where: { id: playerId },
+        data: {
+          thugs: 12 + 6, pistols: 6, postedNetWorthCents: 12n * pistolWorth, woundedThugs: 0, thugHappiness: 0, whoreHappiness: 100,
+          beer: 0, crack: 0, payoutPercent: 5,
+          createdAt: new Date(now - 10 * 86_400_000), lastActiveAt: new Date(now), raidProtectedUntil: null, lastRaidedAt: null,
+        },
+      });
+      await app.prisma.roundPlayer.update({
+        where: { id: rivalId },
+        data: {
+          thugs: 10, pistols: 10, crack: 500, beer: 500, createdAt: new Date(now - 10 * 86_400_000), lastActiveAt: new Date(now),
+          raidCooldownUntil: null, raidProtectedUntil: null, lastRaidedAt: null,
+        },
+      });
+      await CombatService.specialRaid(app.prisma, rivalId, {
+        roundId, targetPublicPimpId: 8400, attackingThugs: 10, kind: 'LURE_CREW', actionId: actionId(),
+      });
+      const after = await read();
+      const rows = await corners();
+      expect(after.postedThugs).toBe(rows.reduce((sum, row) => sum + row.cornerThugs, 0));
+      // Nobody walks off with a gun: every pistol is still at home or on a corner.
+      expect(after.pistols + rows.reduce((sum, row) => sum + row.cornerPistols, 0)).toBe(18);
+      expect(after.postedNetWorthCents).toBe(BigInt(rows.reduce((sum, row) => sum + row.cornerPistols, 0)) * pistolWorth);
+      expect(after.thugs - after.woundedThugs - after.postedThugs - after.businessThugs).toBeGreaterThanOrEqual(0);
+    });
   });
 });

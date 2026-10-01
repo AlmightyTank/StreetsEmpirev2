@@ -134,6 +134,9 @@ export const BusinessActionService = {
           data: {
             level,
             staff,
+            // A new level comes fully staffed; the crew can turn it down again afterwards.
+            staffTarget: staff,
+            ...(row.staffOwnerId === roundPlayerId ? {} : { autoStaff: true }),
             staffOwnerId: roundPlayerId,
             ...(wasRunning ? {} : { accruedAt: now, registerCents: row.staffOwnerId === roundPlayerId ? row.registerCents : 0n }),
           },
@@ -163,7 +166,11 @@ export const BusinessActionService = {
     });
   },
 
-  /** Open a business (send its staff in from home) or close it (bring them home). */
+  /**
+   * Set how many staff a business keeps (0 closes it; up to the level's max) and whether it
+   * refills itself. It earns in proportion to its staff, so a crew can bring people home
+   * when it needs them. Changing the head count costs turns; flipping auto-staff alone is free.
+   */
   async staff(prisma: PrismaClient, roundPlayerId: string, input: BusinessStaffInput) {
     return ActionService.run<BusinessStaffResult>(prisma, roundPlayerId, {
       action: 'BUSINESS_STAFF', actionId: input.actionId,
@@ -175,40 +182,43 @@ export const BusinessActionService = {
         const rules = ruleset.business!;
         const type = rules.catalog[business];
         if (row.level <= 0) throw AppError.conflict('BUSINESS_EMPTY_LOT', 'Build something on this lot first.');
-        assertTurns(current.turns, rules.staffTurnCost);
+        const maxStaff = businessStaff(ruleset, business, row.level);
+        if (input.staff > maxStaff) throw AppError.badRequest('BUSINESS_TOO_MANY_STAFF', `The ${type.name} takes at most ${maxStaff} at this level.`);
 
-        let next: PlayerState;
-        let staff: number;
-        if (input.open) {
-          // Opening also tops up a business that lost staff who walked off or were lured.
-          const mine = row.staffOwnerId === roundPlayerId ? row.staff : 0;
-          staff = businessStaff(ruleset, business, row.level);
-          if (mine >= staff) throw AppError.conflict('BUSINESS_ALREADY_OPEN', `The ${type.name} is already open.`);
-          if (row.staffOwnerId && row.staffOwnerId !== roundPlayerId) await releaseForeignStaff(tx, ruleset, row, now);
-          assertStaffAvailable(current, ruleset, business, staff - mine);
-          await tx.business.update({
-            where: { id: row.id },
-            data: {
-              staff,
-              staffOwnerId: roundPlayerId,
-              ...(mine > 0 ? {} : { accruedAt: now }),
-              ...(row.staffOwnerId === roundPlayerId ? {} : { registerCents: 0n }),
-            },
-          });
-          next = withStaff(current, ruleset, business, staff - mine);
-        } else {
-          if (row.staffOwnerId !== roundPlayerId || row.staff <= 0) throw AppError.conflict('BUSINESS_ALREADY_CLOSED', `The ${type.name} is already closed.`);
-          // Closed, the register stays: the crew still holds the block and can collect it.
-          await tx.business.update({ where: { id: row.id }, data: { staff: 0, accruedAt: now } });
-          next = withStaff(current, ruleset, business, -row.staff);
-          staff = 0;
+        // Another crew's staff still standing in it go home first; their register is lost.
+        if (row.staffOwnerId && row.staffOwnerId !== roundPlayerId) await releaseForeignStaff(tx, ruleset, row, now);
+        const mine = row.staffOwnerId === roundPlayerId ? row.staff : 0;
+        const autoStaff = input.autoStaff ?? (row.staffOwnerId === roundPlayerId ? row.autoStaff : true);
+        const change = input.staff - mine;
+        if (change === 0 && autoStaff === row.autoStaff && row.staffOwnerId === roundPlayerId && row.staffTarget === input.staff) {
+          throw AppError.conflict('BUSINESS_NO_CHANGE', `The ${type.name} already has ${mine} staff.`);
         }
-        next = { ...next, turns: current.turns - rules.staffTurnCost };
+        const turnsUsed = change === 0 ? 0 : rules.staffTurnCost;
+        assertTurns(current.turns, turnsUsed);
+        assertStaffAvailable(current, ruleset, business, change);
+
+        await tx.business.update({
+          where: { id: row.id },
+          data: {
+            staff: input.staff,
+            staffTarget: input.staff,
+            autoStaff,
+            staffOwnerId: roundPlayerId,
+            // A business that was empty starts its clock now; one that was running keeps it.
+            ...(mine > 0 ? {} : { accruedAt: now }),
+            ...(row.staffOwnerId === roundPlayerId ? {} : { registerCents: 0n }),
+          },
+        });
+
+        const next = { ...withStaff(current, ruleset, business, change), turns: current.turns - turnsUsed };
         const name = districtName(ruleset, turf.city.slug, district);
         return {
           next,
-          result: { district, districtName: name, lot: input.lot, name: type.name, open: input.open, staff, staffKind: type.staff, turnsUsed: rules.staffTurnCost },
-          activity: { type: 'BUSINESS_STAFF', payload: { district, districtName: name, lot: input.lot, kind: business, name: type.name, open: input.open, staff } },
+          result: {
+            district, districtName: name, lot: input.lot, name: type.name, open: input.staff > 0,
+            staff: input.staff, maxStaff, autoStaff, staffChange: change, staffKind: type.staff, turnsUsed,
+          },
+          activity: { type: 'BUSINESS_STAFF', payload: { district, districtName: name, lot: input.lot, kind: business, name: type.name, open: input.staff > 0, staff: input.staff, maxStaff, autoStaff } },
         };
       },
     });

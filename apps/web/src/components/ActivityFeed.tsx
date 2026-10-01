@@ -238,7 +238,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     case 'BUSINESS_STAFF':
       return {
         text: p.open
-          ? `Opened the ${str(p.name, 'business')} on ${str(p.districtName, 'your block')} with ${formatNumber(num(p.staff))} staff.`
+          ? `Set the ${str(p.name, 'business')} on ${str(p.districtName, 'your block')} to ${formatNumber(num(p.staff))} of ${formatNumber(num(p.maxStaff, num(p.staff)))} staff${p.autoStaff ? ', auto-staffed' : ''}.`
           : `Closed the ${str(p.name, 'business')} on ${str(p.districtName, 'your block')} and brought its staff home.`,
       };
 

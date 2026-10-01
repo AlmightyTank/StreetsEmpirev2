@@ -28,6 +28,7 @@ import { annotateLogContext } from '../utils/request-context.js';
 import { RelocationService } from './relocation.service.js';
 import { assertNotPaused, fitThugs, toState, workingWhores } from './action.service.js';
 import { BusinessService } from './business.service.js';
+import { TurfService } from './turf.service.js';
 import { ActivityService } from './activity.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { allianceTagDto, allianceTargetBlock, sharedRevengeScope } from './alliance.service.js';
@@ -340,7 +341,7 @@ function specialRaidAttackerBlock(player: RoundPlayer, model: CombatRules, kind:
   return null;
 }
 
-function specialRaidTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, model: CombatRules, kind: SpecialRaidKind, now: Date, retaliation = false): string | null {
+function specialRaidTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, model: CombatRules, kind: SpecialRaidKind, now: Date, retaliation = false, lureCorners = false): string | null {
   if (attacker.id === defender.id || attacker.accountId === defender.accountId) return 'You cannot hit your own block.';
   if (attacker.roundId !== defender.roundId) return 'Pick a player in your round.';
   const allied = allianceTargetBlock(attacker, defender, now);
@@ -360,7 +361,9 @@ function specialRaidTargetBlock(attacker: RoundPlayer, defender: RoundPlayer, mo
     if (!lureRule) return 'That move is not available in this round.';
     const canLureWhores = defender.whoreHappiness < lureRule.happinessBelow && defender.whores > 0 && attacker.crack >= lureRule.crackPerWhore;
     // 1.1.0-B: staff at a business can be lured off too.
-    const canLureThugs = defender.thugHappiness < lureRule.happinessBelow && fitThugs(defender) + defender.businessThugs > 0 && attacker.beer >= lureRule.beerPerThug;
+    // 1.1.0-B: business staff, and corner crews where the round says so, can be lured too.
+    const reachable = fitThugs(defender) + defender.businessThugs + (lureCorners ? defender.postedThugs : 0);
+    const canLureThugs = defender.thugHappiness < lureRule.happinessBelow && reachable > 0 && attacker.beer >= lureRule.beerPerThug;
     if (!canLureWhores && !canLureThugs) return `Nobody on that block is unhappy enough to leave for your stash.`;
   }
   return null;
@@ -749,7 +752,7 @@ export const CombatService = {
         protectedUntil: combatProtectionUntil(target, model) > now ? iso(combatProtectionUntil(target, model)) : null,
         ...(model.strategy ? { revengeAvailable: revengeIds.has(target.id), intel: intelByTarget.get(target.id) ?? null } : {}),
         ...(model.driveBy ? { driveByBlockedReason: truces.get(target.id) ?? driveByTargetBlock(player, target, model, now, revengeIds.has(target.id)) } : {}),
-        ...(model.specialRaids ? { specialRaidBlockedReasons: Object.fromEntries((Object.keys(model.specialRaids) as SpecialRaidKind[]).map((kind) => [kind, truces.get(target.id) ?? specialRaidTargetBlock(player, target, model, kind, now, revengeIds.has(target.id))])) } : {}),
+        ...(model.specialRaids ? { specialRaidBlockedReasons: Object.fromEntries((Object.keys(model.specialRaids) as SpecialRaidKind[]).map((kind) => [kind, truces.get(target.id) ?? specialRaidTargetBlock(player, target, model, kind, now, revengeIds.has(target.id), Boolean(ruleset.turf?.corner.desertTurnsPerHour))])) } : {}),
       })),
       nextTarget: targets.length > 25 ? targets[24]!.publicPimpId : null,
       ...(model.specialRaids ? { specialRaids: specialRaidDtos(player, model, now) } : {}),
@@ -1110,7 +1113,7 @@ export const CombatService = {
       const defenderProductProtection = hideoutProductProtection(ruleset, defender, d.products ?? {});
       const retaliation = (await retaliationTargets(tx, attacker, [target.id], model, now)).has(target.id);
       const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
-      const blocked = specialRaidAttackerBlock(attacker, model, input.kind, now) ?? specialRaidTargetBlock(attacker, defender, model, input.kind, now, retaliation);
+      const blocked = specialRaidAttackerBlock(attacker, model, input.kind, now) ?? specialRaidTargetBlock(attacker, defender, model, input.kind, now, retaliation, Boolean(ruleset.turf?.corner.desertTurnsPerHour));
       if (blocked) throw AppError.conflict('SPECIAL_RAID_BLOCKED', blocked);
       // Trips D2: a sit-down's truce holds both ways.
       const truce = await truceBlock(tx, attacker.id, defender.id, now);
@@ -1137,6 +1140,7 @@ export const CombatService = {
       let thugsLured = 0;
       let staffWhoresLured = 0;
       let staffThugsLured = 0;
+      let cornerThugsLured = 0;
 
       if (won && input.kind === 'DRUG_HOES') {
         const drugRule = rule as DrugHoesRules;
@@ -1163,9 +1167,15 @@ export const CombatService = {
         }
         if (defender.thugHappiness < lureRule.happinessBelow) {
           const standingDefenders = Math.max(0, fitThugs(defender) - result.wounds.defender);
-          thugsLured = Math.min(standingDefenders + defender.businessThugs, survivors * lureRule.thugsPerSurvivor, Math.floor(attacker.beer / lureRule.beerPerThug));
+          // 1.1.0-B: corner crews are still the crew too, where the round says so.
+          const cornerReach = ruleset.turf?.corner.desertTurnsPerHour
+            ? await TurfService.homeCornerThugs(tx, defender.id, defender.cityId)
+            : 0;
+          thugsLured = Math.min(standingDefenders + defender.businessThugs + cornerReach, survivors * lureRule.thugsPerSurvivor, Math.floor(attacker.beer / lureRule.beerPerThug));
           beerSpent = thugsLured * lureRule.beerPerThug;
-          staffThugsLured = Math.max(0, thugsLured - standingDefenders);
+          const beyondStanding = Math.max(0, thugsLured - standingDefenders);
+          staffThugsLured = Math.min(defender.businessThugs, beyondStanding);
+          cornerThugsLured = beyondStanding - staffThugsLured;
         }
       }
 
@@ -1175,7 +1185,8 @@ export const CombatService = {
       const nextD = { ...toState(defender), woundedThugs: defender.woundedThugs + result.wounds.defender,
         crack: defender.crack - defenderCrackBurned, condoms: defender.condoms - defenderCondomsBurned,
         whores: defender.whores - whoresLured, thugs: defender.thugs - thugsLured, lowRiders: defender.lowRiders - lowRidersStolen,
-        businessWhores: defender.businessWhores - staffWhoresLured, businessThugs: defender.businessThugs - staffThugsLured };
+        businessWhores: defender.businessWhores - staffWhoresLured, businessThugs: defender.businessThugs - staffThugsLured,
+        postedThugs: defender.postedThugs - cornerThugsLured };
       if (staffWhoresLured || staffThugsLured) {
         await BusinessService.loseStaff(tx, defender.id, ruleset, { thugs: staffThugsLured, whores: staffWhoresLured }, now);
       }
@@ -1194,9 +1205,11 @@ export const CombatService = {
         netWorthCents: NetWorthService.calculate({ ...nextA, products: productsA }, ruleset), raidCooldownUntil: cooldown } });
       await tx.roundPlayer.update({ where: { id: target.id }, data: { heat: nextD.heat, crack: nextD.crack, condoms: nextD.condoms,
         whores: nextD.whores, thugs: nextD.thugs, woundedThugs: nextD.woundedThugs,
-        businessWhores: nextD.businessWhores, businessThugs: nextD.businessThugs,
+        businessWhores: nextD.businessWhores, businessThugs: nextD.businessThugs, postedThugs: nextD.postedThugs,
         lowRiders: nextD.lowRiders, whoreHappiness: happinessD.whoreHappiness, thugHappiness: happinessD.thugHappiness,
         netWorthCents: NetWorthService.calculate({ ...nextD, products: productsD }, ruleset), raidProtectedUntil: shield, lastRaidedAt: now } });
+      // 1.1.0-B: lured corner thugs leave their corners; their guns go back to the arsenal.
+      if (cornerThugsLured > 0) await TurfService.shedCornerThugs(tx, target.id, ruleset, cornerThugsLured, now);
       const afterA = await RankingService.ranksFor(tx, { ...attacker, netWorthCents: NetWorthService.calculate({ ...nextA, products: productsA }, ruleset) });
       const afterD = await RankingService.ranksFor(tx, { ...defender, netWorthCents: NetWorthService.calculate({ ...nextD, products: productsD }, ruleset) });
       await writeRanks(tx, ruleset, now, [[attackerId, original, beforeA, afterA], [target.id, originalDefender, beforeD, afterD]]);

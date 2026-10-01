@@ -591,11 +591,23 @@ yet part of `qa:release`; it joins at 1.1.0-F, as turf did.
     turns), leaving the business and the crew;
   - they **can still be lured**: a won Lure Crew raid takes the crew's working girls and
     standing thugs first, then business staff.
-  - A business that loses staff stops earning until it is opened again; opening tops it up
-    from the fit crew. Any other loss that would leave more staff than crew sheds the
-    difference from the businesses on the next settle.
-- **Open and close** (`POST /game/business/staff`, 2 turns): closing returns the staff to
-  the fit crew and stops income; the register stays and can still be collected.
+  - Any other loss that would leave more staff than crew sheds the difference from the
+    businesses on the next settle.
+- **Staffing (decided)** (`POST /game/business/staff` with `staff` and `autoStaff`):
+  - a business takes **any number of staff up to its level's max** and earns in
+    proportion, so a crew can **turn staff down to bring people home** and back up again
+    (2 turns when the head count changes; 0 closes it, and the register stays collectable);
+  - **auto-staff** (on by default, free to switch) replaces anyone who deserts or is lured,
+    from the fit crew (or the girls working the street), up to the chosen number, on each
+    settle. Off, a business stays short until the crew tops it up;
+  - a new level comes fully staffed; the crew can turn it down afterwards.
+- **Corner crews (decided)** follow the same rules from `classic-og-v1.1-b` on (the
+  `turf.corner.desertTurnsPerHour` setting; older rulesets are unchanged): still the crew
+  and its net worth, never working, defending or cooking, and now able to **desert** when
+  the crew is unhappy (on top of the 0.6.0 supply walkouts) and to be **lured** after the
+  standing thugs and business staff. A lured or deserting corner thug's gun stays with the
+  crew (home arsenal); an outpost deserter takes it, as before; a corner left empty goes
+  back to the locals.
 - **Income and supply:** settled lazily on whole hours, next to corner upkeep, on every
   action and page read. Staff burn beer and product from home under a new **Business
   staff** (`BUSINESS`) supply job; an hour without supply earns nothing. Income fills the
@@ -610,9 +622,10 @@ yet part of `qa:release`; it joins at 1.1.0-F, as turf did.
   when the block is a Stronghold"). Home cities get a Collect bar with the total waiting.
 - **Gate:** DB-backed tests check that cash, turns, staff and supply are spent exactly;
   that staff stay in the crew and its net worth but leave the fit crew; that registers
-  fill only for supplied hours and stop at their cap; that an unhappy crew's staff desert
-  and a happy crew's stay; that a lure takes staff off the business; and that a lost or
-  taken block sends staff home.
+  fill only for supplied hours and stop at their cap; that short staffing earns in
+  proportion and auto-staff refills; that an unhappy crew's staff and corner thugs desert
+  and a happy crew's stay; that a lure takes staff off the business and keeps corners,
+  counts and guns consistent; and that a lost or taken block sends staff home.
 
 **Not in B:** businesses at outposts (E: an away block's staff come home for now), war
 fatigue and the Take tier drop (D: a captured block restarts as a Foothold, from the push's

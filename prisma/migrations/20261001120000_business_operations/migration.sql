@@ -10,9 +10,11 @@ ADD COLUMN     "businessWhores" INTEGER NOT NULL DEFAULT 0;
 
 -- AlterTable
 ALTER TABLE "Business" ADD COLUMN     "accruedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN     "autoStaff" BOOLEAN NOT NULL DEFAULT true,
 ADD COLUMN     "registerCents" BIGINT NOT NULL DEFAULT 0,
 ADD COLUMN     "staff" INTEGER NOT NULL DEFAULT 0,
-ADD COLUMN     "staffOwnerId" TEXT;
+ADD COLUMN     "staffOwnerId" TEXT,
+ADD COLUMN     "staffTarget" INTEGER NOT NULL DEFAULT 0;
 
 -- CreateIndex
 CREATE INDEX "Business_staffOwnerId_idx" ON "Business"("staffOwnerId");

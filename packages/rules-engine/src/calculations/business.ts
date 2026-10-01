@@ -361,17 +361,33 @@ export function localsThugsWithBusinesses(ruleset: Ruleset, block: Block, totalL
  */
 export function businessStaffDepartures(ruleset: Ruleset, staff: number, happiness: number, hours: number, rng: Rng): number {
   const rules = businessRules(ruleset);
+  if (!rules) return 0;
+  return crewAwayDepartures(ruleset, staff, happiness, hours, rules.staffDepartureTurnsPerHour, rng);
+}
+
+/**
+ * 1.1.0-B. Crew working away from the block (business staff, corner crews) are still the
+ * crew: when it is unhappy they walk off like anyone else. Each settled hour counts as
+ * `turnsPerHour` turns of the ruleset's departure chance, capped like one action.
+ */
+export function crewAwayDepartures(ruleset: Ruleset, count: number, happiness: number, hours: number, turnsPerHour: number, rng: Rng): number {
   const d = ruleset.departures;
-  if (!rules || staff <= 0 || hours <= 0 || happiness >= d.happinessThreshold) return 0;
+  if (count <= 0 || hours <= 0 || turnsPerHour <= 0 || happiness >= d.happinessThreshold) return 0;
   const severity = (d.happinessThreshold - happiness) / d.happinessThreshold;
   const perTurn = Math.min(1, d.chancePerTurn * severity);
-  const fraction = Math.min(1 - (1 - perTurn) ** rules.staffDepartureTurnsPerHour, d.maxFractionPerAction);
-  let left = staff;
+  const fraction = Math.min(1 - (1 - perTurn) ** turnsPerHour, d.maxFractionPerAction);
+  let left = count;
   // A week is the most one settle ever has to look back over.
   for (let hour = 0; hour < Math.min(hours, 168) && left > 0; hour++) {
     left -= Math.min(left, roundStochastic(left * fraction, rng));
   }
-  return staff - left;
+  return count - left;
+}
+
+/** Share of full output a business makes with `staff` of the `required` it can take. */
+export function staffingShare(staff: number, required: number): number {
+  if (required <= 0 || staff <= 0) return 0;
+  return Math.min(1, staff / required);
 }
 
 /** Torching a business: the level it falls to, and the salvage paid back now. */

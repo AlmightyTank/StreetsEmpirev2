@@ -291,12 +291,16 @@ describe('1.1.0-A the gate', () => {
 });
 
 describe('1.1.0-B building', () => {
-  it('only turns building on, with A\'s balance untouched', () => {
+  it('turns building on and lets corners desert, with A\'s balance otherwise untouched', () => {
     expect(classicOgV11B.business.building).toBe(true);
     expect((classicOgV11A.business as { building?: boolean }).building).toBeUndefined();
-    const { meta: _meta, business: { building: _building, ...bRules }, ...bRest } = classicOgV11B;
-    const { meta: _was, business: aRules, ...aRest } = classicOgV11A;
+    expect(classicOgV11B.turf.corner.desertTurnsPerHour).toBe(5);
+    expect((classicOgV11A.turf.corner as { desertTurnsPerHour?: number }).desertTurnsPerHour).toBeUndefined();
+    const { meta: _meta, business: { building: _building, ...bRules }, turf: { corner: { desertTurnsPerHour: _desert, ...bCorner }, ...bTurf }, ...bRest } = classicOgV11B;
+    const { meta: _was, business: aRules, turf: { corner: aCorner, ...aTurf }, ...aRest } = classicOgV11A;
     expect(bRules).toEqual(aRules);
+    expect(bCorner).toEqual(aCorner);
+    expect(bTurf).toEqual(aTurf);
     expect(bRest).toEqual(aRest);
     expect(businessRulesetProblems(classicOgV11B)).toEqual([]);
   });
