@@ -24,7 +24,7 @@ export interface NavSection {
 export type IconName =
   | 'dashboard' | 'hideout' | 'scout' | 'produce' | 'raids' | 'stores' | 'cities'
   | 'rankings' | 'alliance' | 'contacts' | 'profile' | 'activity'
-  | 'status' | 'rules' | 'news' | 'fame' | 'account' | 'admin';
+  | 'status' | 'rules' | 'news' | 'fame' | 'account' | 'admin' | 'pass';
 
 export const SECTIONS: NavSection[] = [
   {
@@ -33,6 +33,7 @@ export const SECTIONS: NavSection[] = [
     pages: [
       { key: 'dashboard', label: 'Dashboard', short: 'Home', to: '/game', icon: 'dashboard' },
       { key: 'quests', label: 'Quests', to: '/game/quests', icon: 'activity' },
+      { key: 'street-pass', label: 'Street Pass', short: 'Pass', to: '/game/street-pass', icon: 'pass' },
       { key: 'scout', label: 'Scout', to: '/game/scout', icon: 'scout' },
       { key: 'produce', label: 'Produce', to: '/game/produce', icon: 'produce' },
       { key: 'raids', label: 'Raids', to: '/game/combat', icon: 'raids' },
@@ -92,7 +93,14 @@ export const ADMIN_SECTION: NavSection = {
 
 export function useSections(): NavSection[] {
   const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
-  return useMemo(() => (isAdmin ? [...SECTIONS, ADMIN_SECTION] : SECTIONS), [isAdmin]);
+  // The Street Pass only shows on rounds that have one.
+  const hasPass = useSession((s) => Boolean(s.me?.streetPass));
+  return useMemo(() => {
+    const sections = hasPass
+      ? SECTIONS
+      : SECTIONS.map((section) => ({ ...section, pages: section.pages.filter((page) => page.key !== 'street-pass') }));
+    return isAdmin ? [...sections, ADMIN_SECTION] : sections;
+  }, [isAdmin, hasPass]);
 }
 
 export function isCurrent(page: NavPage, pathname: string): boolean {
@@ -291,6 +299,15 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
 
   if (latestHit && seen !== null && latestHit > seen && !looking) {
     badges.raids = { tone: 'bad', label: 'You were hit since you last looked' };
+  }
+
+  const claimable = me.streetPass?.claimable ?? 0;
+  if (claimable > 0) {
+    badges['street-pass'] = {
+      tone: 'info',
+      text: badgeCount(claimable),
+      label: `${claimable} Street Pass tier${claimable === 1 ? '' : 's'} ready to claim`,
+    };
   }
 
   if (consoleUnread > 0) {

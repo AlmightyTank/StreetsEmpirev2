@@ -629,3 +629,19 @@
     padding: 12px;
   }
 }
+
+/* A small item picture in the metric's top-right corner; the number stays the headline. */
+.se-dashboard-metric > .se-dashboard-metric__art {
+  --se-item-cell: 34px;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.se-dashboard-metric--art .se-dashboard-metric__label {
+  padding-right: calc(34px * var(--se-dashboard-art-w, 1) + 4px);
+}
+
+.se-dashboard-metric--art:has(.se-item-tile--wide) {
+  --se-dashboard-art-w: 2;
+}

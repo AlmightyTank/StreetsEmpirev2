@@ -29,6 +29,7 @@ run('Product balance gates', npm, ['run', 'qa:products', '--', '--samples', '400
 run('Travel balance gates', npm, ['run', 'qa:travel', '--', '--quiet']);
 // Trips: flying, riding along, being hunted, bodyguards and the airport; travel stays a choice, not a requirement.
 run('Trips balance gates', npm, ['run', 'qa:trips', '--', '--quiet']);
+run('Street Pass balance', npm, ['run', 'qa:street-pass', '--', '--quiet']);
 // 0.6.0: all 40 turf blocks and player-vs-player push balance must still pass on the release ruleset.
 run('Turf balance gates', npm, ['run', 'qa:turf', '--', '--quiet']);
 // 0.7.0: Hideout headquarters, protection, logistics, ledger, armory/infirmary and specialization guardrails.

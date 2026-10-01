@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 128">
+  <defs>
+    <filter id="s" x="-10%" y="-20%" width="120%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8743a"/><stop offset=".5" stop-color="#8a4f22"/><stop offset="1" stop-color="#4e2a10"/></linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d858f"/><stop offset=".5" stop-color="#3d4148"/><stop offset="1" stop-color="#1d1f23"/></linearGradient>
+    <linearGradient id="barrel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a6adb6"/><stop offset=".4" stop-color="#4a4f57"/><stop offset="1" stop-color="#202226"/></linearGradient>
+  </defs>
+  <g filter="url(#s)" stroke="#0a0b0d" stroke-width="1.6" stroke-linejoin="round">
+    <rect x="120" y="45" width="128" height="9" rx="1.5" fill="url(#barrel)"/>
+    <rect x="120" y="55" width="104" height="8" rx="1.5" fill="url(#steel)"/>
+    <rect x="222" y="54" width="6" height="10" rx="1.5" fill="#2b2e33"/>
+    <circle cx="244" cy="43" r="2" fill="#d9c07a"/>
+    <path d="M12 52 Q44 49 82 47 V67 Q64 69 54 73 L20 88 Q13 91 11 85 L9 57 Q9 52 12 52 Z" fill="url(#wood)"/>
+    <path d="M6 54 H12 L14 88 Q10 90 6 88 Z" fill="#141416"/>
+    <path d="M86 68 Q86 80 96 80 H108 Q112 80 112 74 V68" fill="none" stroke-width="4.5"/>
+    <path d="M86 68 Q86 80 96 80 H108 Q112 80 112 74 V68" fill="none" stroke="#3d4148" stroke-width="2"/>
+    <path d="M97 68 Q95 74 99 78" fill="none" stroke-width="3"/>
+    <rect x="78" y="43" width="46" height="26" rx="3" fill="url(#steel)"/>
+    <rect x="96" y="48" width="18" height="8" rx="1" fill="#141518"/>
+    <rect x="140" y="53" width="60" height="15" rx="4" fill="url(#wood)"/>
+  </g>
+  <g stroke="#3a1d08" stroke-width="1.6" stroke-linecap="round">
+    <path d="M148 56V65M154 56V65M160 56V65M166 56V65M172 56V65M178 56V65M184 56V65M190 56V65"/>
+  </g>
+  <path d="M122 47.5 H246" stroke="#e1e6ec" stroke-opacity=".5" stroke-width="1.2"/>
+  <path d="M16 55 Q46 52 80 50" stroke="#e6a868" stroke-opacity=".55" stroke-width="1.4" fill="none"/>
+  <path d="M80 46 H122" stroke="#c7ced6" stroke-opacity=".45" stroke-width="1.2"/>
+</svg>

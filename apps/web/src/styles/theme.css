@@ -2608,6 +2608,21 @@ a.se-nav__link:hover {
   border-color: rgba(245, 158, 11, 0.25);
 }
 
+/* Street Pass Season 1: a gold double frame with warm corners. */
+.se-profile-frame--street-pass-s1-frame {
+  border: 2px solid rgba(240, 194, 51, 0.82);
+  box-shadow: 0 0 22px rgba(240, 194, 51, 0.12), inset 0 0 0 3px rgba(240, 194, 51, 0.06);
+}
+.se-profile-frame--street-pass-s1-frame::before {
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(240, 194, 51, 0.16), transparent 26%),
+    linear-gradient(315deg, rgba(240, 194, 51, 0.11), transparent 24%);
+}
+.se-profile-frame--street-pass-s1-frame::after {
+  border: 3px double rgba(240, 194, 51, 0.38);
+}
+
 .se-profile-title {
   margin: 4px 0 0;
   color: var(--se-profile-accent);

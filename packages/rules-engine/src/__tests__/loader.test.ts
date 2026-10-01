@@ -55,8 +55,9 @@ describe('ruleset loader', () => {
     expect(isKnownRulesetId('classic-og-trips-d')).toBe(true);
     expect(isKnownRulesetId('classic-og-trips-d2')).toBe(true);
     expect(isKnownRulesetId('classic-og-trips-e')).toBe(true);
+    expect(isKnownRulesetId('classic-og-street-pass-a')).toBe(true);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(68);
+    expect(listRulesets()).toHaveLength(69);
   });
 });
 

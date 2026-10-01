@@ -227,7 +227,9 @@ export type QuestRewardKind =
   | 'WEAPON_ACCESS'
   | 'PERMANENT_UNLOCK'
   | 'FAVOR_ITEM'
-  | 'COSMETIC_UNLOCK';
+  | 'COSMETIC_UNLOCK'
+  /** Street Pass. Any product in the round's catalog, keyed by product key (WEED, METH...). */
+  | 'PRODUCT';
 
 export interface QuestRewardDefinition {
   readonly kind: QuestRewardKind;
@@ -323,6 +325,52 @@ export interface QuestCosmeticDefinition {
 }
 
 export type QuestCosmeticCatalog = Readonly<Record<string, QuestCosmeticDefinition>>;
+
+/**
+ * Street Pass. A free reward track that runs with a round: players earn
+ * Street Cred from contracts, jobs and turns spent, and claim a reward at each
+ * tier. Rewards reuse the Jobs reward shape so they grant and label the same way.
+ */
+export interface StreetPassRules {
+  /** Stable id for this track (one per season), e.g. 'street-pass-s1'. Claims are recorded against it. */
+  readonly key: string;
+  readonly name: string;
+  /** Cred needed for each tier, as contiguous ranges covering tier 1 to the last tier. */
+  readonly credPerTier: readonly StreetPassTierCost[];
+  readonly sources: StreetPassCredSources;
+  readonly lateJoin: StreetPassLateJoin;
+  /** Tiers 1..N in order, each paying one or more rewards. */
+  readonly tiers: readonly StreetPassTier[];
+}
+
+export interface StreetPassTierCost {
+  readonly fromTier: number;
+  readonly toTier: number;
+  readonly cred: number;
+}
+
+export interface StreetPassCredSources {
+  readonly dailyContract: number;
+  readonly weeklyContract: number;
+  /** Cred per turn spent on actions, up to `dailyTurnCap` Cred a day. */
+  readonly perTurnSpent: number;
+  readonly dailyTurnCap: number;
+  /** Story, side and secret Jobs (one-time). */
+  readonly oneTimeJob: number;
+  /** Event, city and alliance contracts. */
+  readonly eventContract: number;
+}
+
+export interface StreetPassLateJoin {
+  /** Bonus Cred for each full week the round had run when the player joined. */
+  readonly bonusPercentPerWeek: number;
+  readonly maxBonusPercent: number;
+}
+
+export interface StreetPassTier {
+  readonly tier: number;
+  readonly rewards: readonly QuestRewardDefinition[];
+}
 
 export type FavorRarity = 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
 
@@ -1775,6 +1823,8 @@ export interface Ruleset {
   readonly favors?: FavorCatalog;
   /** Permanent account cosmetics awarded by specific one-time Jobs. */
   readonly cosmetics?: QuestCosmeticCatalog;
+  /** The free per-round reward track. Absent until a ruleset ships it. See docs/STREET-PASS.md. */
+  readonly streetPass?: StreetPassRules;
   readonly rankings: RankingRules;
   /** Optional round privacy for public community surfaces. */
   readonly communityPrivacy?: CommunityPrivacyRules;

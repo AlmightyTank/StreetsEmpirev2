@@ -1,0 +1,108 @@
+/*
+ * Item tiles: a stash-grid slot with the item's picture in the middle.
+ * The rarity tints the cell; the art itself stays the same everywhere.
+ */
+
+.se-item-tile {
+  --se-item-cell: 72px;
+  --se-item-tint: 120, 130, 145;
+
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: calc(var(--se-item-cell) * var(--se-item-w, 1));
+  height: calc(var(--se-item-cell) * var(--se-item-h, 1));
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(var(--se-item-tint), 0.55);
+  background-color: #101318;
+  background-image:
+    radial-gradient(ellipse at 50% 45%, rgba(var(--se-item-tint), 0.32), rgba(var(--se-item-tint), 0.06) 70%),
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: auto, 8px 8px, 8px 8px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 -12px 18px rgba(0, 0, 0, 0.35);
+  user-select: none;
+}
+
+.se-item-tile--sm { --se-item-cell: 48px; }
+.se-item-tile--lg { --se-item-cell: 112px; }
+
+.se-item-tile--common { --se-item-tint: 120, 130, 145; }
+.se-item-tile--uncommon { --se-item-tint: 74, 222, 128; }
+.se-item-tile--rare { --se-item-tint: 70, 150, 255; }
+.se-item-tile--epic { --se-item-tint: 176, 102, 255; }
+.se-item-tile--legendary { --se-item-tint: 255, 196, 64; }
+
+.se-item-tile img {
+  position: absolute;
+  inset: 6%;
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.se-item-tile__name,
+.se-item-tile__qty {
+  position: absolute;
+  right: 4px;
+  max-width: calc(100% - 8px);
+  overflow: hidden;
+  color: var(--se-text);
+  font: 600 10px/1.2 var(--se-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px #000, 0 0 3px #000;
+}
+
+.se-item-tile__name { top: 3px; }
+.se-item-tile__qty { bottom: 3px; color: #fff; font-size: 11px; }
+
+/* Can't be bought yet (a locked gun, an unopened product). */
+.se-item-tile--locked { --se-item-tint: 90, 96, 106; }
+.se-item-tile--locked img { filter: grayscale(1) brightness(0.55); }
+
+/* Sold out until the next delivery. */
+.se-item-tile--out img { opacity: 0.4; }
+
+.se-item-tile--sm .se-item-tile__name { display: none; }
+.se-item-tile--lg .se-item-tile__name { font-size: 11px; }
+.se-item-tile--lg .se-item-tile__qty { font-size: 13px; }
+
+/* Picture ahead of a list row's label (Hideout rooms and the like). */
+.se-item-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  /* Off the text baseline, so the picture doesn't add descender space to the row. */
+  vertical-align: top;
+}
+
+.se-item-label__art {
+  display: inline-flex;
+  flex: none;
+}
+
+.se-item-label__art .se-item-tile {
+  /* 20px plus the border fits a standard 37px row without growing it. */
+  --se-item-cell: 20px;
+}
+
+.se-item-label__art--slot {
+  justify-content: center;
+  width: 40px;
+}
+
+.se-item-label__text {
+  min-width: 0;
+}
+
+/* Picture pinned to the top-right corner of a metric box. */
+.se-item-tile.se-item-corner {
+  --se-item-cell: 30px;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}

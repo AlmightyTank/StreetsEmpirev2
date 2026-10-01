@@ -729,3 +729,16 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Metric boxes with an item picture in the corner. */
+.se-hideout-metric--art {
+  position: relative;
+}
+
+.se-hideout-metric--art .se-hideout-metric__label {
+  padding-right: 34px;
+}
+
+.se-hideout-metric--art:has(.se-item-tile--wide) .se-hideout-metric__label {
+  padding-right: 64px;
+}

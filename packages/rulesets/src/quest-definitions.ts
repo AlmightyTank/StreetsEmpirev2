@@ -171,12 +171,12 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
           problems.push(`${catalogKey}: ${reward.kind} reward requires a positive amount`);
         }
       }
-      if (reward.kind === 'FAVOR_ITEM') {
+      if (reward.kind === 'FAVOR_ITEM' || reward.kind === 'PRODUCT') {
         if (typeof reward.amount !== 'number' || !Number.isSafeInteger(reward.amount) || reward.amount <= 0) {
-          problems.push(`${catalogKey}: FAVOR_ITEM reward requires a positive whole amount`);
+          problems.push(`${catalogKey}: ${reward.kind} reward requires a positive whole amount`);
         }
       }
-      if (['ITEM', 'CONTACT_REP', 'FAVOR_ITEM', 'COSMETIC_UNLOCK'].includes(reward.kind) && (!reward.key || !reward.key.trim())) {
+      if (['ITEM', 'CONTACT_REP', 'FAVOR_ITEM', 'COSMETIC_UNLOCK', 'PRODUCT'].includes(reward.kind) && (!reward.key || !reward.key.trim())) {
         problems.push(`${catalogKey}: ${reward.kind} reward requires a key`);
       }
       if (reward.kind === 'WEAPON_ACCESS' && !['SHOTGUN', 'TEK9', 'AK47'].includes(reward.key ?? '')) {
@@ -211,12 +211,12 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
           if (!quest.followUpKeys.includes(key)) problems.push(`${catalogKey}/${branch.key}: branch follow-up ${key} must be listed on the quest`);
         }
         for (const reward of branch.rewards) {
-          if (['CASH', 'TURNS', 'ITEM', 'CONTACT_REP', 'FAVOR_ITEM'].includes(reward.kind)) {
+          if (['CASH', 'TURNS', 'ITEM', 'CONTACT_REP', 'FAVOR_ITEM', 'PRODUCT'].includes(reward.kind)) {
             if (typeof reward.amount !== 'number' || !Number.isFinite(reward.amount) || reward.amount <= 0) {
               problems.push(`${catalogKey}/${branch.key}: ${reward.kind} reward requires a positive amount`);
             }
           }
-          if (['ITEM', 'CONTACT_REP', 'FAVOR_ITEM', 'PERMANENT_UNLOCK', 'COSMETIC_UNLOCK'].includes(reward.kind) && (!reward.key || !reward.key.trim())) {
+          if (['ITEM', 'CONTACT_REP', 'FAVOR_ITEM', 'PERMANENT_UNLOCK', 'COSMETIC_UNLOCK', 'PRODUCT'].includes(reward.kind) && (!reward.key || !reward.key.trim())) {
             problems.push(`${catalogKey}/${branch.key}: ${reward.kind} reward requires a key`);
           }
           if (reward.kind === 'WEAPON_ACCESS' && !['SHOTGUN', 'TEK9', 'AK47'].includes(reward.key ?? '')) {

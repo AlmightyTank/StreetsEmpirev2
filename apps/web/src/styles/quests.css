@@ -878,3 +878,63 @@ button.se-quests-metric {
   border-radius: 8px;
   background: color-mix(in srgb, var(--se-accent) 7%, transparent);
 }
+
+/* Rewards with a picture: a small stash tile beside the label. */
+.se-quest-reward--art,
+.se-quests .se-quest-reward--art {
+  gap: 8px;
+  padding: 4px 8px 4px 4px;
+}
+
+.se-quest-reward--art .se-item-tile {
+  --se-item-cell: 40px;
+}
+
+.se-quest-reward__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Favor pictures: a tile beside each inventory card's name, a small one on active and armed rows. */
+.se-quests-favor__head > .se-quests-favor-art {
+  --se-item-cell: 52px;
+}
+
+.se-quests-favor__title {
+  flex: 1;
+  min-width: 0;
+}
+
+.se-quests-livefavors .se-quests-favor-art,
+.se-quests-armed .se-quests-favor-art {
+  --se-item-cell: 32px;
+}
+
+.se-quests-livefavors > div:has(> .se-quests-favor-art) {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.se-quests-livefavors > div > .se-quests-favor-art {
+  grid-row: span 2;
+}
+
+.se-quests-livefavors > div:has(> .se-quests-favor-art) small {
+  grid-column: 2 / -1;
+}
+
+.se-quests-armed > div > div {
+  flex: 1;
+}
+
+@media (max-width: 480px) {
+  .se-quests-armed > div:has(> .se-quests-favor-art) {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .se-quests-armed > div:has(> .se-quests-favor-art) > .se-btn {
+    flex-basis: 100%;
+  }
+}

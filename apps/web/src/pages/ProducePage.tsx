@@ -15,6 +15,8 @@ import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { produceReceiptLines } from '../receipts/actionReceipts.js';
 import { useSession } from '../stores/session.js';
+import { ItemTile } from '../components/ItemTile.js';
+import { hasItemArt } from '../items/itemArt.js';
 
 type Profile = { key: ProductTypeDto; name: string; role: string };
 
@@ -185,6 +187,9 @@ export function ProducePage() {
                     onChange={() => setProductType(profile.key)}
                   />
                   <span className="se-choice__body">
+                    {hasItemArt(profile.key) ? (
+                      <ItemTile item={profile.key} size="sm" label={false} className="se-choice__art" />
+                    ) : null}
                     <span className="se-choice__name">{profile.name}</span>
                     <span className="se-choice__meta">{profile.role}</span>
                   </span>

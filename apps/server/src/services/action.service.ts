@@ -35,6 +35,7 @@ import { TurfService } from './turf.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
+import { StreetPassCredService } from './street-pass-cred.service.js';
 
 /**
  * Everything an action is allowed to move. Turn-settled before an action sees
@@ -487,6 +488,10 @@ export const ActionService = {
             : {}),
         },
       });
+
+      // Street Pass: turns spent on this action earn Cred, up to the daily cap.
+      const turnsSpent = Math.max(0, current.turns - next.turns);
+      if (turnsSpent > 0) await StreetPassCredService.creditTurns(tx, roundPlayerId, ruleset, turnsSpent, now);
 
       if (turns.awayBonus.awarded) {
         await ActivityService.log(tx, roundPlayerId, 'AWAY_BONUS', {

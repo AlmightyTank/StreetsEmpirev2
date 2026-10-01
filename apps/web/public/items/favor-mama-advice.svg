@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs><filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="p" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff4f6"/><stop offset="1" stop-color="#e9c9d2"/></linearGradient>
+    <linearGradient id="fl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7dbe3"/><stop offset="1" stop-color="#d9a9b8"/></linearGradient>
+  </defs>
+  <g transform="rotate(-8 64 64)">
+    <g filter="url(#s)" stroke="#5e2a3a" stroke-width="1.5" stroke-linejoin="round">
+      <rect x="18" y="34" width="92" height="62" rx="3" fill="url(#p)"/>
+      <path d="M18 37 L64 70 L110 37" fill="url(#fl)"/>
+    </g>
+    <path d="M20 94 L54 66M108 94 L74 66" stroke="#b98796" stroke-width="1.2"/>
+    <g transform="translate(82 80) rotate(12)">
+      <path d="M-14 0 Q-10 -9 -4 -7 Q0 -6 0 -4 Q0 -6 4 -7 Q10 -9 14 0 Q6 2 0 1 Q-6 2 -14 0 Z" fill="#d11f4f"/>
+      <path d="M-14 0 Q-6 3 0 2 Q6 3 14 0 Q8 10 0 10 Q-8 10 -14 0 Z" fill="#b0103c"/>
+      <path d="M-6 5 Q0 7 6 5" stroke="#ff6f95" stroke-width="1.2" fill="none"/>
+    </g>
+    <path d="M30 50 Q40 44 48 50 T66 50" stroke="#8a4a60" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".7"/>
+  </g>
+  <path d="M100 22 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3 z" fill="#ffd6e8"/>
+</svg>

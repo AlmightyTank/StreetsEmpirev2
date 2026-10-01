@@ -251,6 +251,12 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         detail: Array.isArray(p.rewards) ? (p.rewards as unknown[]).map(String).join(' · ') : undefined,
       };
 
+    case 'STREET_PASS_CLAIMED':
+      return {
+        text: `Claimed Street Pass tier ${typeof p.tier === 'number' ? p.tier : '?'}.`,
+        detail: Array.isArray(p.rewards) ? (p.rewards as unknown[]).map(String).join(' · ') : undefined,
+      };
+
     case 'STORE_BUY':
     case 'STORE_SELL':
       return {
@@ -492,6 +498,7 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     QUEST_OBJECTIVE_COMPLETE: 'Quest objective',
     QUEST_READY: 'Quest ready',
     QUEST_CLAIMED: 'Quest claimed',
+    STREET_PASS_CLAIMED: 'Street Pass',
     FAVOR_ACTIVATED: 'Favor activated',
     FAVOR_ARMED: 'Favor armed',
     FAVOR_DISARMED: 'Favor disarmed',
