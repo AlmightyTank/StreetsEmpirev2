@@ -194,16 +194,17 @@ Older pinned rulesets keep the single push unchanged.
    **war goal**: **Take** or **Sack** (see below). The holder sees the declaration through
    Lookouts on the same warning clock as a push today. The Street Wire announces it.
 2. **Open with a fight.** The first battle lands when the warning window closes, the
-   0.6.0-C push fight: attacker squad vs. corner crew, with backup from home and allies
-   from **both sides** (see *Calling allies*).
+   0.6.0-C push fight: attacker squad vs. corner crew, with backup from home and **one ally
+   per side** (see *Calling allies*).
 3. **Siege.** If the attacker wins, their squad **occupies the block**. The holder still
    owns it, but:
    - a **Control** meter ticks from 0 toward 100 each hour, faster when the squad outnumbers
      whatever the holder has left nearby;
    - the holder's registers **stop filling**. Nobody spends money on a block under siege;
    - **devastation** (war fatigue) builds every hour the siege lasts.
-4. **Break the siege.** The holder and their allies can hit the occupying squad
-   at any time. A win lifts the siege, knocks Control back, and sends the attacker's squad
+4. **Break the siege.** The holder (with their ally, if one answers) can hit the occupying
+   squad at any time. A break attempt lands after a short muster window so an ally can
+   answer the call. A win lifts the siege, knocks Control back, and sends the attacker's squad
    home wounded. The attacker can try again after a cooldown, within the war's time limit.
 5. **End.** The war ends when one of these happens:
    - **Control hits 100:** the attacker wins and gets their war goal.
@@ -215,37 +216,45 @@ Older pinned rulesets keep the single push unchanged.
 6. **Truce.** Afterwards the block gets a truce (the 0.6.0-C hold shield) so it can't be
    hit again right away.
 
-### Calling allies (decided: both sides)
+### Calling allies (decided: one ally per side, online and answering)
 
-Both the attacker and the holder can call their alliance into a block war. Wars become
-alliance-sized, which gives alliances a shared objective (a gap noted in 0.6.0).
+Each side can bring **one** alliance member into a block war, and only a member who is
+**online and answers the call**. Help never shows up on its own. A war is the declarer and
+the holder, plus at most one ally each.
+
+This replaces the 0.6.0-C "chance to show up" for block wars. The uncertainty no longer
+comes from a dice roll; it comes from whether a real ally is around and willing. Older
+pinned rulesets keep the 0.6.0-C push rules unchanged.
 
 - **Who can answer:** alliance members who live in that city or hold an outpost there.
   Linked accounts can't answer each other's calls.
-- **When:** at the opening fight, to join or relieve a siege, and in any fight to break
-  one.
-- **Will they show?** Every ally's help uses the 0.3.0-D / 0.6.0-C **chance to show up**,
-  at the **same odds on both sides**. Help is large but uncertain, which keeps swing.
-- **Outpost allies show up less (decided).** Allies who live in the city use the base
-  show-up chance (0.6.0-C's configured 50%). Allies who only hold an outpost there use a
-  lower chance: **half the base (25%)**. Their help comes from
-  their outpost's corner crew, not from home, so answering a call leaves their outpost
-  weaker.
-- **Committed like a squad:** ally thugs leave their own home while they fight or sit in
-  the siege, so their homes are weaker to raids. On a loss they go home wounded, the same
-  as the caller's squad.
-- **On the attacker's side,** allies in the siege make Control tick faster. **On the
-  holder's side,** allies count toward breaking the siege.
+- **How a call works:** the caller sends a call for help to every eligible member. It
+  shows in-game and as a notification (0.9.0-G). The **first member to accept** takes the
+  side's ally slot. If nobody accepts before the fight lands, the side fights alone.
+- **One slot per side, for the whole war:** once a member has taken the slot, nobody else
+  from that alliance can join that side. The ally still has to **accept again for each
+  later fight**. If they aren't online, the side fights alone that time.
+- **Response windows:**
+  - **Opening fight:** until the 30-minute declaration warning ends.
+  - **Break attempt:** the holder starts it, and it lands after a **15-minute muster
+    window**.
+  - **Joining a siege (attacker's ally):** the call stays open **15 minutes**. Once the
+    ally accepts, their thugs join the occupying squad.
+- **One war at a time as an ally** *(proposed)*: a crew can be the ally in only one active
+  war. One strong player can't answer every call in the city.
+- **Outpost allies** fight with their outpost's corner crew, not thugs from home, so
+  answering a call leaves their outpost weaker.
+- **Committed like a squad:** ally thugs leave their own home (or outpost) while they fight
+  or sit in the siege, so those are weaker to raids. On a loss they go home wounded, the
+  same as the caller's squad.
+- **On the attacker's side,** the ally in the siege makes Control tick faster. **On the
+  holder's side,** the ally counts toward breaking the siege.
 - **Spoils go to the declarer only.** A Take gives the block to the crew that declared, and
-  Sack loot is capped and paid once, not per ally. Allies get Territory block-time and
-  city control (0.6.0-E), not cash.
-- **Cap on help (decided: 1×).** Each side's allied thugs are capped at **1×** the
-  caller's own committed thugs, so allies can at most double a side's strength. The bigger
-  alliance doesn't win just by having more members, and a crew still has to commit its
-  own thugs to get help.
-- **Residents count first (decided).** When the allies who show up bring more than the
-  1× cap, help from allies who live in the city fills the cap first. Outpost allies only
-  fill what's left, and their extra thugs stay at their outposts.
+  Sack loot is capped and paid once. The ally gets Territory block-time and city control
+  (0.6.0-E), not cash.
+- **Cap on help (decided: 1×).** The ally's thugs count up to **1×** the caller's own
+  committed thugs, so an ally can at most double a side's strength. Anything beyond that
+  stays home. A crew still has to commit its own thugs to get help.
 
 ### War goals: answering "raze and walk away?"
 
@@ -352,9 +361,11 @@ them; it doesn't pick them from scratch.
 |---|---|---|
 | Declare cost | **12 turns** | A 0.6.0 push is 8. A war is a bigger commitment. |
 | Wars per crew | **1 active at a time** | Stops one crew declaring on every block in a city. |
-| Warning before the opening fight | **30 minutes** | A push is 8 minutes. 30 gives allies a chance to answer the call, while the siege gives the real response time. |
+| Warning before the opening fight | **30 minutes** | A push is 8 minutes. 30 gives each side's ally time to answer the call, while the siege gives the real response time. |
+| Muster window for a break attempt | **15 minutes** | Lets the holder's ally answer before the fight lands. |
+| Ally call to join a siege | **open 15 minutes** | Same window for the attacker's ally. |
 | Siege length (0 → 100 Control) | **12 hours** base, down to **8 hours** with full allied help | A holder who sleeps 8 hours wakes up to a siege that isn't finished (about 67 Control) and can still break it. |
-| Siege speed-up from allies | Control rate × (1 + 0.5 × allied share), allied share capped at 1× | Ties into the 1× ally cap: full help makes the siege 1.5× faster. |
+| Siege speed-up from the ally | Control rate × (1 + 0.5 × allied share), allied share capped at 1× | Ties into the 1× ally cap: an ally at full strength makes the siege 1.5× faster. |
 | Breaking the siege | **−40 Control**, attacker squad home wounded | Hurts, but doesn't reset the war. |
 | Re-siege cooldown | **4 hours** | Reuses the 0.6.0 attacker cooldown. |
 | War time limit | **48 hours** from declaration | Room for one full siege plus a couple of retries, across two nights for both sides. |
@@ -439,9 +450,11 @@ locals for an alt to pick up.
 
 - **War outcomes:** attacker win rate stays in band for solo vs. solo, alliance vs. solo
   and alliance vs. alliance.
-  - The 1× ally cap is **four times** 0.6.0's current help cap (25% of the defender, at
-    most 2 helpers). The simulation should check that this still keeps swing on both
-    sides, since 0.3.0-D found that big, reliable help makes fights one-sided.
+  - Ally help is no longer a dice roll. It depends on an ally being online and answering,
+    and it can be up to 1× (0.6.0 pushes cap help at 25% of the defender). 0.3.0-D found
+    that big, reliable help makes fights one-sided, so the simulation needs a
+    **response-rate assumption** (how often an ally is online and answers, by time of
+    day) and has to show wars stay swingy when both sides have an active ally.
 - **Offline defenders:** a holder who responds within 8 hours of a declaration wins a
   healthy share of wars.
 - **Flipping:** a captured block over 7 days earns less than the same block held stably.
