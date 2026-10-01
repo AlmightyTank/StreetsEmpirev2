@@ -24,6 +24,7 @@ import {
   territoryFeedEmbed,
   turfAlertEmbed,
   turfFeedEmbed,
+  blockWarFeedEmbed,
   turnReminderEmbed,
 } from './format.js';
 import { createGameApi, type City } from './game-api.js';
@@ -175,6 +176,16 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
         await channels.raidFeed.send({ embeds: [turfFeedEmbed(event)], allowedMentions: { parse: [] } });
       } catch (error) {
         console.error(`Could not post turf change ${event.id} to #${channels.raidFeed.name}:`, error);
+      }
+    }
+  }
+
+  for (const event of claimed.blockWars) {
+    if (channels.raidFeed) {
+      try {
+        await channels.raidFeed.send({ embeds: [blockWarFeedEmbed(event)], allowedMentions: { parse: [] } });
+      } catch (error) {
+        console.error(`Could not post block war ${event.id} to #${channels.raidFeed.name}:`, error);
       }
     }
   }

@@ -13,6 +13,7 @@ import {
 import { BlockWarService } from '../block-war.service.js';
 import { BlockWarSettleService } from '../block-war-settle.service.js';
 import { BusinessService } from '../business.service.js';
+import { DiscordBotService } from '../discord-bot.service.js';
 import { PlayerStateService } from '../player-state.service.js';
 import { ReputationService } from '../reputation.service.js';
 import { TurfActionService } from '../turf-action.service.js';
@@ -359,4 +360,18 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.1.0-D block wars with Po
     expect((await block()).businesses.every((row) => row.level === 0)).toBe(true);
     await app.prisma.turfPresence.deleteMany({ where: { roundPlayerId: holderId } });
   });
+
+  it('announces each declaration and each end once on the public Discord street feed', async () => {
+    const id = await declare('TAKE', 40);
+    let claimed = await DiscordBotService.claimAlerts(app.prisma);
+    expect(claimed.blockWars.filter((event) => event.id.startsWith(id)).map((event) => event.phase)).toEqual(['DECLARED']);
+    claimed = await DiscordBotService.claimAlerts(app.prisma);
+    expect(claimed.blockWars.filter((event) => event.id.startsWith(id))).toEqual([]);
+    await BlockWarSettleService.advance(app.prisma, id, at(14));
+    claimed = await DiscordBotService.claimAlerts(app.prisma);
+    const ended = claimed.blockWars.filter((event) => event.id.startsWith(id));
+    expect(ended).toHaveLength(1);
+    expect(ended[0]).toMatchObject({ phase: 'ENDED', winner: 'ATTACKER', reason: 'CONTROL', goal: 'TAKE' });
+  });
 });
+

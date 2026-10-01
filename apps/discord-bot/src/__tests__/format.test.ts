@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  blockWarFeedEmbed,
   describeDiscordError,
   allianceEmbed,
   badgesEmbed,
@@ -434,3 +435,32 @@ describe('news posts and turn reminders', () => {
     expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: true, turf: false, alliance: false }, roundName: null, current: null })).toContain('No round is running');
   });
 });
+
+describe('blockWarFeedEmbed', () => {
+  const base = {
+    id: 'war-1:DECLARED', phase: 'DECLARED' as const, roundName: 'Season 2', cityName: 'Las Vegas', districtName: 'The Strip',
+    goal: 'TAKE' as const, attackerName: 'Rook', attackerProfileUrl: `${origin}/players/1`, attackerAllianceTag: 'NYC',
+    defenderName: 'Bishop_', defenderProfileUrl: `${origin}/players/2`, defenderAllianceTag: null,
+    winner: null, reason: null, at: '2026-10-02T12:00:00.000Z',
+  };
+
+  it('announces a declaration with the goal and both crews', () => {
+    const embed = blockWarFeedEmbed(base);
+    expect(embed.title).toBe('Las Vegas · The Strip · block war declared');
+    expect(embed.description).toContain('[[NYC] Rook]');
+    expect(embed.description).toContain('Bishop\\_');
+    expect(embed.description).toContain('to take it');
+  });
+
+  it('says who won and how', () => {
+    expect(blockWarFeedEmbed({ ...base, phase: 'ENDED', winner: 'ATTACKER', reason: 'CONTROL' }).description)
+      .toMatch(/took .* block after a full siege\.$/);
+    expect(blockWarFeedEmbed({ ...base, phase: 'ENDED', goal: 'SACK', winner: 'ATTACKER', reason: 'CONCEDED' }).title)
+      .toBe('Las Vegas · The Strip · sacked in a block war');
+    expect(blockWarFeedEmbed({ ...base, phase: 'ENDED', winner: 'DEFENDER', reason: 'TIMEOUT' }).description)
+      .toMatch(/held the block against .* when time ran out\.$/);
+    expect(blockWarFeedEmbed({ ...base, phase: 'ENDED', winner: null, reason: 'ABANDONED' }).title)
+      .toBe('Las Vegas · The Strip · block war over');
+  });
+});
+

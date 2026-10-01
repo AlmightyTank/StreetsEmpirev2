@@ -2635,11 +2635,14 @@ model BlockWar {
   attackerAllyFought Boolean   @default(false)
   defenderAllyFought Boolean   @default(false)
 
-  winner    BlockWarSide?
+  winner                  BlockWarSide?
   /// CONTROL, CONCEDED, WITHDREW, TIMEOUT, ABANDONED or CUTOFF.
-  endReason String?
-  endedAt   DateTime?
-  result    Json?
+  endReason               String?
+  endedAt                 DateTime?
+  result                  Json?
+  /// The public Discord street feed: when the declaration and the end were posted.
+  discordDeclaredPostedAt DateTime?
+  discordEndedPostedAt    DateTime?
 
   squads    BlockWarSquad[]
   fightRows BlockWarFight[]

@@ -434,6 +434,26 @@ export interface DiscordBattleEventDto {
   createdAt: string;
 }
 
+/** 1.1.0-D. A block war declared, or a block war over, for the public street/combat feed. */
+export interface DiscordBlockWarEventDto {
+  id: string;
+  phase: 'DECLARED' | 'ENDED';
+  roundName: string;
+  cityName: string;
+  districtName: string;
+  goal: 'TAKE' | 'SACK';
+  attackerName: string;
+  attackerProfileUrl: string;
+  attackerAllianceTag: string | null;
+  defenderName: string;
+  defenderProfileUrl: string;
+  defenderAllianceTag: string | null;
+  /** On an ended war: who won (null when the block changed hands some other way) and how. */
+  winner: 'ATTACKER' | 'DEFENDER' | null;
+  reason: string | null;
+  at: string;
+}
+
 /** A successful turf push for the public street/combat feed. */
 export interface DiscordTurfEventDto {
   id: string;
@@ -565,6 +585,8 @@ export interface DiscordAlertsClaimDto {
   notices: Array<GameNoticeDto & { discordId: string; category: NoticeCategory }>;
   battles: DiscordBattleEventDto[];
   turf: DiscordTurfEventDto[];
+  /** 1.1.0-D. Block war declarations and endings. */
+  blockWars: DiscordBlockWarEventDto[];
   territory: DiscordTerritoryEventDto[];
   crackdowns: DiscordCrackdownEventDto[];
   rounds: DiscordRoundEventDto[];

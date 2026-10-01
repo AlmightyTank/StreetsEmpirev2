@@ -201,6 +201,25 @@ const turfEventSchema = z.object({
   settledAt: z.string(),
 });
 
+/** 1.1.0-D. Block wars on the street feed. Older servers send none. */
+const blockWarEventSchema = z.object({
+  id: z.string(),
+  phase: z.enum(['DECLARED', 'ENDED']),
+  roundName: z.string(),
+  cityName: z.string(),
+  districtName: z.string(),
+  goal: z.enum(['TAKE', 'SACK']),
+  attackerName: z.string(),
+  attackerProfileUrl: z.string().url(),
+  attackerAllianceTag: z.string().nullable(),
+  defenderName: z.string(),
+  defenderProfileUrl: z.string().url(),
+  defenderAllianceTag: z.string().nullable(),
+  winner: z.enum(['ATTACKER', 'DEFENDER']).nullable(),
+  reason: z.string().nullable(),
+  at: z.string(),
+});
+
 const territoryEventSchema = z.object({
   id: z.string(),
   roundName: z.string(),
@@ -334,6 +353,7 @@ const alertsClaimSchema = z.object({
   })).default([]),
   battles: z.array(battleEventSchema),
   turf: z.array(turfEventSchema),
+  blockWars: z.array(blockWarEventSchema).default([]),
   territory: z.array(territoryEventSchema),
   crackdowns: z.array(crackdownEventSchema),
   rounds: z.array(roundEventSchema),
@@ -376,6 +396,7 @@ export type TurnReminder = AlertsClaim['turns'][number];
 export type RankAlert = AlertsClaim['ranks'][number];
 export type BattleEvent = AlertsClaim['battles'][number];
 export type TurfEvent = AlertsClaim['turf'][number];
+export type BlockWarEvent = AlertsClaim['blockWars'][number];
 export type TerritoryEvent = AlertsClaim['territory'][number];
 export type CrackdownEvent = AlertsClaim['crackdowns'][number];
 export type TurfAlert = AlertsClaim['turfAlerts'][number];

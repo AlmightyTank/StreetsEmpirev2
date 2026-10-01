@@ -769,7 +769,8 @@ fatigue and the Take tier drop (D: a captured block restarts as a Foothold, from
   a Declare form on rivals' blocks with the reason it is closed, Torch on the holder's
   businesses, the block's fatigue and dormancy. The Street Wire carries the alliance's wars
   and its open calls for help; the activity feed and the bell carry declarations, fights,
-  endings, calls and torches.
+  endings, calls and torches; the public Discord street feed posts each declaration and
+  each war's end once (who took, sacked or held the block, and how).
 - **Gate:** `qa:business` runs whole wars against an online-rate model (see the simulation
   doc) and holds the swing bands; DB-backed tests check the declaration's costs and limits,
   the opening fight and siege, registers stopping under siege, a full siege's Take a tier
@@ -779,7 +780,7 @@ fatigue and the Take tier drop (D: a captured block restarts as a Foothold, from
   decay and the stronger locals, and the reset when a last holder reclaims a block.
 
 **Not in D:** wars on outpost blocks and outpost allies (E: an outpost ally would fight with
-its corner crew), Discord war lines, push notifications for calls (the bell and the Street
+its corner crew), push notifications for calls (the bell and the Street
 Wire carry them), and a crackdown that hits racketeering businesses harder (F).
 
 ---
