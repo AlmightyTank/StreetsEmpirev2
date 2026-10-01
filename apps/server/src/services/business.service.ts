@@ -6,6 +6,7 @@ import {
   businessStaffDepartures,
   businessUpkeep,
   defaultWorkSupplyPolicy,
+  staffingShare,
   loadRulesetForRound,
   registerCapCents,
   workSupplyOrder,
@@ -27,6 +28,8 @@ export interface BusinessSettlement {
   businessWhores: number;
   /** Staff who walked off an unhappy crew's businesses and left it. */
   staffDeparted: number;
+  /** Staff auto-staffing sent in from the fit crew to replace them. */
+  staffRefilled: number;
   /** Staff who came home because their crew no longer runs the block. */
   staffReturned: number;
   /** Uncollected register cash lost with a block the crew no longer runs. */
@@ -153,7 +156,8 @@ export const BusinessService = {
     };
 
     // What each row ends the settle with, so the crew's columns are rebuilt from the rows.
-    const kept: Array<{ kind: 'THUGS' | 'WHORES'; staff: number }> = [];
+    const kept: Array<{ id: string; kind: 'THUGS' | 'WHORES'; staff: number; want: number; auto: boolean }> = [];
+    let staffRefilled = 0;
 
     for (const row of rows) {
       const business = row.kind as BusinessKey;
@@ -166,14 +170,16 @@ export const BusinessService = {
         continue;
       }
 
+      const required = businessStaff(ruleset, business, row.level);
+      const want = Math.min(row.staffTarget, required);
       const wholeHours = Math.floor((now.getTime() - row.accruedAt.getTime()) / HOUR_MS);
       if (wholeHours <= 0) {
-        kept.push({ kind, staff: row.staff });
+        kept.push({ id: row.id, kind, staff: row.staff, want, auto: row.autoStaff });
         continue;
       }
       const advanceTo = new Date(row.accruedAt.getTime() + wholeHours * HOUR_MS);
-      const required = businessStaff(ruleset, business, row.level);
-      const running = row.level > 0 && row.staff > 0 && row.staff >= required;
+      // It runs with whatever staff it has, and earns in proportion to them.
+      const running = row.level > 0 && row.staff > 0;
 
       let register = row.registerCents;
       if (running) {
@@ -190,7 +196,7 @@ export const BusinessService = {
           business,
           level: row.level,
         });
-        const earned = BigInt(Math.floor(perHour * wholeHours * suppliedShare));
+        const earned = BigInt(Math.floor(perHour * staffingShare(row.staff, required) * wholeHours * suppliedShare));
         const cap = BigInt(registerCapCents(ruleset, perHour));
         register = register + earned > cap ? cap : register + earned;
       }
@@ -204,12 +210,27 @@ export const BusinessService = {
         else thugs = Math.max(0, thugs - departed);
       }
       const staff = row.staff - departed;
-      kept.push({ kind, staff });
+      kept.push({ id: row.id, kind, staff, want, auto: row.autoStaff });
       await tx.business.update({ where: { id: row.id }, data: { registerCents: register, accruedAt: advanceTo, staff } });
     }
 
     let businessThugs = kept.filter((entry) => entry.kind === 'THUGS').reduce((sum, entry) => sum + entry.staff, 0);
     let businessWhores = kept.filter((entry) => entry.kind === 'WHORES').reduce((sum, entry) => sum + entry.staff, 0);
+
+    // Auto-staffing: replace anyone who walked off or was lured, from the fit crew (or the
+    // girls working the street), up to each business's target, as far as the crew allows.
+    let fitThugs = Math.max(0, thugs - player.woundedThugs - player.busyThugs - player.postedThugs - businessThugs);
+    let freeGirls = Math.max(0, whores - businessWhores);
+    for (const entry of kept) {
+      if (!entry.auto || entry.staff >= entry.want) continue;
+      const pool = entry.kind === 'WHORES' ? freeGirls : fitThugs;
+      const add = Math.min(entry.want - entry.staff, pool);
+      if (add <= 0) continue;
+      entry.staff += add;
+      staffRefilled += add;
+      if (entry.kind === 'WHORES') { freeGirls -= add; businessWhores += add; } else { fitThugs -= add; businessThugs += add; }
+      await tx.business.update({ where: { id: entry.id }, data: { staff: entry.staff } });
+    }
 
     // Anything else that took the crew's people since (an admin change, a path that does not
     // know about businesses) cannot leave more staff than crew: shed the difference.
@@ -228,7 +249,7 @@ export const BusinessService = {
     }
     return {
       beer, crack: inventory.CRACK ?? player.crack, thugs, whores, businessThugs, businessWhores,
-      staffDeparted, staffReturned, registerLostCents,
+      staffDeparted, staffRefilled, staffReturned, registerLostCents,
     };
   },
 

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type {
   BusinessBuildResult,
   BusinessCollectResult,
@@ -23,7 +24,7 @@ const TIER_NAME = { FOOTHOLD: 'Foothold', ESTABLISHED: 'Established', STRONGHOLD
 
 /**
  * 1.1.0-A/B. A block's three lots. Anyone sees what the lots hold and how far they are
- * built; the crew holding the block builds, upgrades, opens and closes them here.
+ * built; the crew holding the block builds, upgrades and staffs them here.
  */
 export function BusinessLots({
   block,
@@ -45,9 +46,9 @@ export function BusinessLots({
     onChanged?.();
   }
 
-  async function staff(lot: Lot, open: boolean) {
+  async function staff(lot: Lot, count: number, autoStaff: boolean) {
     await action.run((actionId) => api.post<GameActionResult<LotResult>>('/game/business/staff', {
-      district: block.district, lot: lot.lot, open, actionId,
+      district: block.district, lot: lot.lot, staff: count, autoStaff, actionId,
     }));
     onChanged?.();
   }
@@ -62,7 +63,7 @@ export function BusinessLots({
       <ul className="se-turfboard__lots" aria-label="Business lots">
         {lots.map((lot) => {
           const status = !lot.level ? 'Empty lot'
-            : controls ? `Lv ${lot.level}/${lot.maxLevel} · ${lot.open ? 'open' : 'closed'}`
+            : controls ? `Lv ${lot.level}/${lot.maxLevel} · ${lot.open ? `${lot.staff}/${lot.requiredStaff} staff` : 'closed'}`
               : `Lv ${lot.level}/${lot.maxLevel}`;
           return (
             <li key={lot.lot} className={`se-turfboard__lot${lot.level ? ' se-turfboard__lot--built' : ''}${lot.open ? ' se-turfboard__lot--open' : ''}`}>
@@ -72,7 +73,7 @@ export function BusinessLots({
               </div>
               {controls && lot.level > 0 ? (
                 <small className="se-turfboard__lot-detail se-num">
-                  {formatCents(lot.incomeCentsPerHour)}/h · {staffWord(lot.staffKind, lot.requiredStaff)}
+                  {formatCents(lot.currentIncomeCentsPerHour)}/h of {formatCents(lot.incomeCentsPerHour)} fully staffed
                   {lot.open || lot.registerCents > 0 ? ` · register ${formatCents(lot.registerCents)} of ${formatCents(lot.registerCapCents)}` : ''}
                 </small>
               ) : null}
@@ -88,17 +89,10 @@ export function BusinessLots({
                       {lot.level === 0 ? 'Build' : `Lv ${lot.nextLevel.level}`} · {formatCents(lot.nextLevel.costCents)}
                     </Button>
                   ) : null}
-                  {lot.level > 0 ? (
-                    <Button
-                      type="button"
-                      className="se-btn se-btn--ghost se-btn--sm"
-                      disabledReason={action.busy ? 'That business move is still going through.' : null}
-                      onClick={() => void staff(lot, !lot.open)}
-                    >
-                      {lot.open ? 'Close' : `Open · ${staffWord(lot.staffKind, lot.requiredStaff)}`}
-                    </Button>
-                  ) : null}
                 </div>
+              ) : null}
+              {controls && lot.level > 0 ? (
+                <StaffControl lot={lot} busy={action.busy} turns={business!.staffTurnCost} onSet={(count, auto) => void staff(lot, count, auto)} />
               ) : null}
               {controls && lot.nextLevel && !lot.buildBlockedReason ? (
                 <small className="se-hint">
@@ -115,8 +109,48 @@ export function BusinessLots({
       {action.result ? (
         'staffAdded' in action.result.result
           ? <span className="se-action-confirm">{action.result.result.level === 1 ? 'Built' : 'Upgraded'} the {action.result.result.name}.</span>
-          : <span className="se-action-confirm">{action.result.result.open ? 'Opened' : 'Closed'} the {action.result.result.name}.</span>
+          : <span className="se-action-confirm">
+              {action.result.result.open
+                ? `The ${action.result.result.name} has ${staffWord(action.result.result.staffKind, action.result.result.staff)} of ${action.result.result.maxStaff}${action.result.result.autoStaff ? ', auto-staffed' : ''}.`
+                : `Closed the ${action.result.result.name}; its staff are back with the crew.`}
+            </span>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * 1.1.0-B. How many staff a business keeps. Fewer staff, less income, more people at home.
+ * Auto-staff replaces anyone who deserts or is lured, from the fit crew, up to this number.
+ */
+function StaffControl({ lot, busy, turns, onSet }: { lot: Lot; busy: boolean; turns: number; onSet: (count: number, auto: boolean) => void }) {
+  const [count, setCount] = useState(lot.staff);
+  useEffect(() => setCount(lot.staff), [lot.staff]);
+  const max = lot.requiredStaff;
+  const waiting = busy ? 'That business move is still going through.' : null;
+  return (
+    <div className="se-turfboard__staff">
+      <div className="se-actions-row">
+        <Button type="button" className="se-btn se-btn--ghost se-btn--sm" aria-label="One fewer staff"
+          disabledReason={count <= 0 ? 'Nobody left to send home.' : null} onClick={() => setCount(count - 1)}>−</Button>
+        <span className="se-num se-turfboard__staff-count" aria-live="polite">{staffWord(lot.staffKind, count)} of {max}</span>
+        <Button type="button" className="se-btn se-btn--ghost se-btn--sm" aria-label="One more staff"
+          disabledReason={count >= max ? 'That is as many as this level takes.' : null} onClick={() => setCount(count + 1)}>+</Button>
+        {count !== lot.staff ? (
+          <Button type="button" className="se-btn se-btn--sm" disabledReason={waiting} onClick={() => onSet(count, lot.autoStaff)}>
+            {count === 0 ? 'Close' : 'Set staff'} · {formatNumber(turns)} turns
+          </Button>
+        ) : lot.staff < max ? (
+          <Button type="button" className="se-btn se-btn--sm" disabledReason={waiting} onClick={() => onSet(max, lot.autoStaff)}>
+            Staff fully · {formatNumber(turns)} turns
+          </Button>
+        ) : null}
+      </div>
+      <label className="se-turfboard__auto">
+        <input type="checkbox" checked={lot.autoStaff} disabled={busy}
+          onChange={(event) => onSet(lot.staff, event.target.checked)} />
+        Auto-staff: replace anyone who deserts or is lured, from {lot.staffKind === 'WHORES' ? 'the girls on the street' : 'the fit crew'}
+      </label>
     </div>
   );
 }

@@ -99,7 +99,11 @@ const businessLotSchema = z.object({
 }).strict();
 
 export const businessBuildSchema = businessLotSchema;
-export const businessStaffSchema = businessLotSchema.extend({ open: z.boolean() }).strict();
+/** Set how many staff to keep there (0 closes it, up to the level's max), and auto-staff. */
+export const businessStaffSchema = businessLotSchema.extend({
+  staff: z.number({ invalid_type_error: 'Enter how many staff to keep there.' }).int('Staff must be a whole number.').min(0, 'Staff cannot be negative.').safe(),
+  autoStaff: z.boolean().optional(),
+}).strict();
 export const businessCollectSchema = z.object({ actionId: actionIdSchema }).strict();
 export type BusinessBuildInput = z.infer<typeof businessBuildSchema>;
 export type BusinessStaffInput = z.infer<typeof businessStaffSchema>;

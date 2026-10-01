@@ -1608,6 +1608,10 @@ model Business {
   /// 1.1.0-B. Staff working it: thugs, or girls for a Strip Club. Still counted in the
   /// owner's `thugs`/`whores`, and marked there as `businessThugs`/`businessWhores`.
   staff        Int          @default(0)
+  /// How many staff the crew wants here: up to the level's max, 0 to close it.
+  staffTarget  Int          @default(0)
+  /// Replace staff who desert or are lured from the fit crew, up to the target, on settle.
+  autoStaff    Boolean      @default(true)
   /// Whose staff they are. Only earns while this crew holds the block; when it no longer
   /// does, the staff go home on the owner's next settle and the register is lost.
   staffOwnerId String?

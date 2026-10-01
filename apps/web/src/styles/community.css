@@ -576,6 +576,9 @@
 .se-turfboard__lot-head small { flex: none; color: var(--se-muted); font-size: 10px; }
 .se-turfboard__lot-detail { color: var(--se-text-dim); font-size: 10px; overflow-wrap: anywhere; }
 .se-turfboard__lot .se-actions-row { flex-wrap: wrap; gap: 4px; }
+.se-turfboard__staff { display: grid; gap: 3px; }
+.se-turfboard__staff-count { align-self: center; min-width: 9ch; text-align: center; font-size: 11px; }
+.se-turfboard__auto { display: flex; align-items: center; gap: 6px; color: var(--se-text-dim); font-size: 10px; }
 .se-turfboard__lot--built { border-left-color: var(--se-accent-dim); color: var(--se-text); }
 .se-turfboard__lot--open { border-left-color: var(--se-accent); }
 .se-turfboard__signature { color: var(--se-warn); }

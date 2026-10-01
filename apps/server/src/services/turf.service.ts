@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import {
   blockTier,
+  crewAwayDepartures,
   businessIncomeCentsPerHour,
   businessLevelCostCents,
   businessLots,
@@ -8,6 +9,7 @@ import {
   businessStaff,
   lotsOpen,
   registerCapCents,
+  staffingShare,
   tierOpening,
   cornerMinimumFor,
   cornerUpkeep,
@@ -21,6 +23,7 @@ import {
   turfTax,
   workSupplyOrder,
   headsUpMinutes,
+  type Rng,
   type Ruleset,
 } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
@@ -243,13 +246,66 @@ export const TurfService = {
     return row ? presenceAfter(ruleset, row.turns, hoursSince(row.at, now)) : 0;
   },
 
-  async settlePlayer(tx: Db, roundPlayerId: string, ruleset: Ruleset, now = new Date()) {
+  /** 1.1.0-B. Thugs standing on the crew's corners in its home city, which a lure can reach. */
+  async homeCornerThugs(tx: Db, roundPlayerId: string, cityId: string): Promise<number> {
+    const rows = await tx.turf.findMany({ where: { holderId: roundPlayerId, cityId }, select: { cornerThugs: true } });
+    return rows.reduce((sum, row) => sum + row.cornerThugs, 0);
+  },
+
+  /**
+   * 1.1.0-B. Corner thugs a Lure Crew raid took: off the crew's home corners, biggest corner
+   * first. Their guns stay with the crew and go back to the home arsenal; a corner left
+   * empty goes back to the locals. The caller has already taken the thugs out of the crew's
+   * `thugs` and `postedThugs`; this moves the corners and the guns.
+   */
+  async shedCornerThugs(tx: Db, roundPlayerId: string, ruleset: Ruleset, count: number, now = new Date()): Promise<void> {
+    if (count <= 0) return;
+    const player = await tx.roundPlayer.findUniqueOrThrow({
+      where: { id: roundPlayerId },
+      select: { roundId: true, cityId: true, pistols: true, shotguns: true, tek9s: true, ak47s: true, postedNetWorthCents: true },
+    });
+    const rows = await tx.turf.findMany({
+      where: { holderId: roundPlayerId, cityId: player.cityId, cornerThugs: { gt: 0 } },
+      orderBy: { cornerThugs: 'desc' },
+    });
+    let remaining = count;
+    let homeGuns: CornerGuns = { pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s };
+    let postedNetWorthCents = player.postedNetWorthCents;
+    for (const row of rows) {
+      if (remaining <= 0) break;
+      const take = Math.min(remaining, row.cornerThugs);
+      remaining -= take;
+      const gunsBefore = gunsFromTurf(row);
+      const returned = releaseCornerGuns(gunsBefore, take);
+      homeGuns = addCornerGuns(homeGuns, returned);
+      postedNetWorthCents -= cornerGunWorthCents(ruleset, returned);
+      const cornerAfter = row.cornerThugs - take;
+      const controlBefore = cornerAfter <= 0 ? await territoryControlForCity(tx, player.roundId, row.cityId, ruleset) : null;
+      if (cornerAfter <= 0) await endTurfHold(tx, row.id, now);
+      await tx.turf.update({
+        where: { id: row.id },
+        data: cornerAfter > 0
+          ? { cornerThugs: cornerAfter, ...turfGunData(subtractCornerGuns(gunsBefore, returned)) }
+          : {
+              holderId: null, cornerThugs: 0, ...turfGunData(EMPTY_GUNS), heldSince: null, shieldUntil: null,
+              localsThugs: 0, localsAt: now, localsReclaimAt: localsReclaimAt(ruleset, now),
+            },
+      });
+      if (cornerAfter <= 0) {
+        await recordTerritoryControlChange(tx, { roundId: player.roundId, cityId: row.cityId, ruleset, before: controlBefore, at: now });
+      }
+    }
+    if (postedNetWorthCents < 0n) throw new RangeError('Posted turf net worth fell below zero.');
+    await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { ...homeGuns, postedNetWorthCents } });
+  },
+
+  async settlePlayer(tx: Db, roundPlayerId: string, ruleset: Ruleset, now = new Date(), rng: Rng = Math.random) {
     if (!holdingOn(ruleset)) return null;
     const player = await tx.roundPlayer.findUniqueOrThrow({
       where: { id: roundPlayerId },
       select: {
         id: true, roundId: true, cashCents: true, beer: true, crack: true, thugs: true,
-        postedThugs: true, postedNetWorthCents: true, outpostNetWorthCents: true, pistols: true, shotguns: true, tek9s: true, ak47s: true,
+        thugHappiness: true, postedThugs: true, postedNetWorthCents: true, outpostNetWorthCents: true, pistols: true, shotguns: true, tek9s: true, ak47s: true,
       },
     });
     await TurfService.ensureRound(tx, player.roundId, ruleset);
@@ -265,6 +321,11 @@ export const TurfService = {
     let postedNetWorthCents = player.postedNetWorthCents;
     let outpostNetWorthCents = player.outpostNetWorthCents;
     let homeGuns: CornerGuns = { pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s };
+    // 1.1.0-B: corner crews are still the crew, so an unhappy crew loses them too.
+    const desertTurns = ruleset.turf?.corner.desertTurnsPerHour ?? 0;
+    const cornerDesertions = (count: number, hours: number): number => desertTurns > 0
+      ? crewAwayDepartures(ruleset, count, player.thugHappiness, hours, desertTurns, rng)
+      : 0;
     let walkouts = 0;
 
     const inventory = await ProductInventoryService.read(tx, roundPlayerId, ruleset);
@@ -303,14 +364,16 @@ export const TurfService = {
         });
         const advanceTo = new Date(row.upkeepAt.getTime() + wholeHours * HOUR_MS);
         const gunsBefore = gunsFromTurf(row);
-        const desertedGuns = settled.leaving > 0 ? releaseCornerGuns(gunsBefore, settled.leaving) : { ...EMPTY_GUNS };
+        // 1.1.0-B: an unhappy crew's outpost corner walks off too, and deserters take their guns.
+        const outpostLeaving = settled.leaving + cornerDesertions(row.cornerThugs - settled.leaving, wholeHours);
+        const desertedGuns = outpostLeaving > 0 ? releaseCornerGuns(gunsBefore, outpostLeaving) : { ...EMPTY_GUNS };
         const gunsAfter = subtractCornerGuns(gunsBefore, desertedGuns);
-        const cornerAfter = row.cornerThugs - settled.leaving;
+        const cornerAfter = row.cornerThugs - outpostLeaving;
 
-        if (settled.leaving > 0) {
-          walkouts += settled.leaving;
-          thugs = Math.max(0, thugs - settled.leaving);
-          postedThugs = Math.max(0, postedThugs - settled.leaving);
+        if (outpostLeaving > 0) {
+          walkouts += outpostLeaving;
+          thugs = Math.max(0, thugs - outpostLeaving);
+          postedThugs = Math.max(0, postedThugs - outpostLeaving);
           postedNetWorthCents -= cornerGunWorthCents(ruleset, desertedGuns);
           if (postedNetWorthCents < 0n) throw new RangeError('Posted turf net worth fell below zero.');
         }
@@ -353,7 +416,9 @@ export const TurfService = {
       const beerShare = need.beer > 0 ? beerUsed / need.beer : 1;
       const productShare = need.product > 0 ? productUsed / need.product : 1;
       const missingShare = Math.max(0, 1 - Math.min(beerShare, productShare));
-      const leaving = Math.min(row.cornerThugs, Math.ceil(row.cornerThugs * ruleset.turf!.corner.walkoutSharePerHour * wholeHours * missingShare));
+      const walking = Math.min(row.cornerThugs, Math.ceil(row.cornerThugs * ruleset.turf!.corner.walkoutSharePerHour * wholeHours * missingShare));
+      // 1.1.0-B: and an unhappy crew's corner walks off on top of any supply walkout.
+      const leaving = walking + cornerDesertions(row.cornerThugs - walking, wholeHours);
       const advanceTo = new Date(row.upkeepAt.getTime() + wholeHours * HOUR_MS);
       const gunsBefore = gunsFromTurf(row);
       const returned = leaving > 0 ? releaseCornerGuns(gunsBefore, leaving) : { ...EMPTY_GUNS };
@@ -646,7 +711,7 @@ export const TurfService = {
       business
         ? db.business.findMany({
             where: { roundId: player.roundId },
-            select: { turfId: true, lot: true, kind: true, level: true, staff: true, staffOwnerId: true, registerCents: true },
+            select: { turfId: true, lot: true, kind: true, level: true, staff: true, staffTarget: true, autoStaff: true, staffOwnerId: true, registerCents: true },
             orderBy: { lot: 'asc' },
           })
         : Promise.resolve([]),
@@ -860,8 +925,11 @@ export const TurfService = {
             staffKind: type.staff,
             staff: myStaff,
             requiredStaff,
-            open: level > 0 && myStaff > 0 && myStaff >= requiredStaff,
+            staffTarget: stored?.staffOwnerId === player.id ? stored.staffTarget : 0,
+            autoStaff: stored?.staffOwnerId === player.id ? stored.autoStaff : true,
+            open: level > 0 && myStaff > 0,
             incomeCentsPerHour: Math.round(income(level)),
+            currentIncomeCentsPerHour: Math.round(income(level) * staffingShare(myStaff, requiredStaff)),
             registerCents: stored?.staffOwnerId === player.id ? Number(stored.registerCents) : 0,
             registerCapCents: registerCapCents(ruleset, income(level)),
             nextLevel: nextLevel === null ? null : {

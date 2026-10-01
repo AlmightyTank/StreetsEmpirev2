@@ -256,12 +256,18 @@ export interface TurfBusinessLotDto {
   staffKind: 'THUGS' | 'WHORES';
   /** Your staff in it now; 0 for anyone else's business. */
   staff: number;
-  /** Staff the current level needs to open. 0 on an empty lot. */
+  /** Most staff the current level takes; it earns in proportion to how many it has. 0 on an empty lot. */
   requiredStaff: number;
+  /** How many staff you want kept there (0 closes it). */
+  staffTarget: number;
+  /** Replace staff who desert or are lured, from the fit crew, up to the target. */
+  autoStaff: boolean;
   /** Yours, staffed and earning. */
   open: boolean;
-  /** Front income an hour at the current level, before supply. 0 on an empty lot. */
+  /** Front income an hour at the current level, fully staffed, before supply. 0 on an empty lot. */
   incomeCentsPerHour: number;
+  /** What it earns an hour with the staff it has now. */
+  currentIncomeCentsPerHour: number;
   /** Your uncollected income; 0 for anyone else's business. */
   registerCents: number;
   registerCapCents: number;
@@ -380,7 +386,7 @@ export interface BusinessBuildResult {
   turnsUsed: number;
 }
 
-/** 1.1.0-B. Opening a business (staff in) or closing it (staff home). */
+/** 1.1.0-B. Setting a business's staff (0 closes it) and whether it refills itself. */
 export interface BusinessStaffResult {
   district: TurfBlockDto['district'];
   districtName: string;
@@ -388,6 +394,10 @@ export interface BusinessStaffResult {
   name: string;
   open: boolean;
   staff: number;
+  maxStaff: number;
+  autoStaff: boolean;
+  /** Staff sent in (positive) or brought home (negative). */
+  staffChange: number;
   staffKind: 'THUGS' | 'WHORES';
   turnsUsed: number;
 }
