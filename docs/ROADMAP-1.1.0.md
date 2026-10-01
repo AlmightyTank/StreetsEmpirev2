@@ -263,7 +263,7 @@ pinned rulesets keep the 0.6.0-C push rules unchanged.
     | Holder **wins the defense** | The block's business income during the 24-hour truce |
     | Side **loses** | Nothing. The ally's cut is a share of winnings, not a fee. |
 
-  - **Range** *(proposed)*: **0–50%, in steps of 10%.** The cap stops a crew routing a
+  - **Range (decided): 0–50%, in steps of 10%.** The cap stops a crew routing a
     whole war's take to a friend, since 0.6.0 doesn't allow player-to-player transfers.
   - **Only if they fought:** the ally gets the cut only if they fought in at least one of
     the war's fights. Taking the slot and then staying offline pays nothing.
