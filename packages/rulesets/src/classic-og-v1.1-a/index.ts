@@ -12,17 +12,6 @@ import type { Ruleset } from '../types.js';
  * a test pins that. They are here so `npm run qa:business` can argue with them before any
  * of it is built, the way 0.6.0-A did for turf. See docs/ROADMAP-1.1.0.md.
  *
- * Keep this ruleset separate from the shipping ruleset; `business` is the only addition.
- * The core engine is still 0.8.0-H, with Trips and the Street Pass layered on top.
- */
- * `business` block: the three lots on every turf block, what each business costs, staffs
- * and earns, the city signatures, block tiers, war fatigue, block-war timings, the one
- * ally per side, and how the locals let an abandoned block's businesses decay.
- *
- * Nothing reads these numbers yet: a 1.1.0-A round plays exactly like a street-pass-a one, and
- * a test pins that. They are here so `npm run qa:business` can argue with them before any
- * of it is built, the way 0.6.0-A did for turf. See docs/ROADMAP-1.1.0.md.
- *
  * Sizing:
  * - A business's build costs about two and a half days of its level-1 income on an
  *   ordinary block, and taking it to level 5 costs ten builds. The last upgrades pay back

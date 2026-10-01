@@ -385,16 +385,14 @@ export const TurfService = {
           box, row.upkeepAt, advanceTo, wholeHours,
         );
         const gunsBefore = gunsFromTurf(row);
-        // 1.1.0-B: an unhappy crew's outpost corner walks off too, and deserters take their guns.
-        const outpostLeaving = settled.leaving + cornerDesertions(row.cornerThugs - settled.leaving, wholeHours);
-        const desertedGuns = outpostLeaving > 0 ? releaseCornerGuns(gunsBefore, outpostLeaving) : { ...EMPTY_GUNS };
+        const desertedGuns = leaving > 0 ? releaseCornerGuns(gunsBefore, leaving) : { ...EMPTY_GUNS };
         const gunsAfter = subtractCornerGuns(gunsBefore, desertedGuns);
-        const cornerAfter = row.cornerThugs - outpostLeaving;
+        const cornerAfter = row.cornerThugs - leaving;
 
-        if (outpostLeaving > 0) {
-          walkouts += outpostLeaving;
-          thugs = Math.max(0, thugs - outpostLeaving);
-          postedThugs = Math.max(0, postedThugs - outpostLeaving);
+        if (leaving > 0) {
+          walkouts += leaving;
+          thugs = Math.max(0, thugs - leaving);
+          postedThugs = Math.max(0, postedThugs - leaving);
           postedNetWorthCents -= cornerGunWorthCents(ruleset, desertedGuns);
           if (postedNetWorthCents < 0n) throw new RangeError('Posted turf net worth fell below zero.');
         }
