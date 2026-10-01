@@ -698,6 +698,90 @@ fatigue and the Take tier drop (D: a captured block restarts as a Foothold, from
 **Not in C:** racket effects at outposts (E), shaking down a register or a racket in a war
 (D), and racket Heat beyond today's Heat system (the 1.3 Law Enforcement expansion).
 
+### Built in D
+
+- **Ruleset:** `classic-og-v1.1-d` is 1.1.0-C with `business.wars.enabled`, plus a Sack's loot
+  (half the registers, capped at the $50,000 outpost loot cap) and Heat (15), and a torch's
+  Heat (10). A test pins that nothing else moves. See
+  [BUSINESS-SIMULATION-1.1.0-D.md](BUSINESS-SIMULATION-1.1.0-D.md).
+- **The locals are still one fight; a player's block is a war.** The 0.6.0-C push is turned
+  off on player-held blocks (older rulesets keep it). A claim from the locals adds 10
+  fatigue.
+- **Declare** (`POST /game/block-war/declare`): a goal (Take or Sack), a squad (at least the
+  corner minimum, armed, from home), 12 turns. Needs presence (or revenge); never on an ally,
+  a linked account, a block under a truce, or a block already at war; one war declared at a
+  time; 72 hours locked out of a block after losing a war on it; a Take needs a free block
+  slot for the whole war. The holder hears at once (the war is public), and the opening fight
+  lands 30 minutes later.
+- **The fights** reuse the push fight: the declarer's squad (and ally) against the corner and
+  whatever the holder (and ally) sent. The holder's side always fights on home ground, even
+  when breaking a siege. Wounded thugs go home to recover as they are hurt; beaten corner
+  thugs go home with their guns.
+  - **Opening fight / re-assault** (`/defend` sends the holder's backup to it). Won: the
+    squad occupies the block and the **siege** starts. Lost: the squad goes home, and the
+    declarer can go again (`/assault`) after 4 hours; it lands after the 15-minute muster.
+  - **Siege:** Control climbs 100 over 12 hours (8 with the attacker's ally at the cap); the
+    block's registers stop filling and its hold clock pauses.
+  - **Break** (`/break`): the holder hits the occupiers after the 15-minute muster. Won:
+    Control -40, the occupiers go home, back to the re-assault cooldown.
+- **The end:** Control 100 (the attacker gets the goal), a **concession** during the siege
+  (`/concede`: the goal now, with +15 fatigue instead of +30), a **withdrawal** (`/withdraw`:
+  the holder wins), or the **48-hour limit** (the holder wins). A block that changes hands
+  some other way ends the war with nobody winning.
+  - **Take:** the block and its businesses at their levels, a tier down (the clock starting
+    at the lower tier's threshold); the declarer's survivors stay on as the corner crew; the
+    old corner goes home wounded, the old staff come home and the registers are lost (B);
+    a 24-hour truce. A capture from a linked account starts every business at level 0.
+  - **Sack:** half the registers (capped) to the attacker, every business a level down, Heat
+    on the attacker, a 72-hour truce; the holder keeps the block and its tier.
+  - **Defended:** a 24-hour truce, and the hold clock picks up where the siege paused it.
+  - **Fatigue** at the end is A's curve: +10 a fight, +2 a siege hour, +30 a Take, +15 a
+    concession, +40 a Sack, capped at 80. It does not heal while a war is on.
+- **Allies (decided, as built):** one per side for the whole war, and only a member who
+  answers. The declarer or holder calls (`/call`) with a cut of 0-50% in steps of 10; the call
+  is open until the coming fight lands (the attacker can also call into a siege for 15
+  minutes); a cut can rise once taken, never fall. The first alliance member in that city to
+  answer (`/answer`) takes the slot; they can be the ally in one war at a time; linked
+  accounts cannot answer each other; they send at most the declarer's committed squad. The
+  attacker's ally joins the assault or sits in the siege (speeding it up); the holder's ally
+  answers each fight again.
+  - **The cut:** a Sack's loot is split at once; after a Take or a defense, the ally takes the
+    cut of the block's business income for the 24-hour truce, paid as it is earned. An ally on
+    a losing side, or one who never fought, gets nothing.
+- **Torch** (`POST /game/business/torch`, holder, during a war): 6 turns and 10 Heat; the
+  business burns for 30 minutes, then drops 2 levels and pays 20% of their cost back. A Take
+  that lands first catches it; closed in the round's final 48 hours.
+- **Fatigue in play:** business income is (100 - fatigue)%; it heals 1.25 an hour (0.75 on a
+  block that changed hands twice in 7 days); upgrades cost 25% more above 40.
+- **Dormancy under the locals:** worked out from the block's hold history, so no release
+  path had to change. After the 6-hour vacant window and 24 hours of grace, every business
+  loses a level every 48 hours; the locals hold a built block with +1 thug per level (capped at
+  +50% of the district's base); a claim brings the businesses back at their decayed levels
+  and the block a tier down (a Foothold after 72 hours). The last holder, or a linked account,
+  reclaiming it inside the grace period gets every business at level 0.
+- **Settling:** wars settle lazily like pushes (on any participant's action or read, and a
+  one-minute sweep), walking their events in time order: fights landing, torches finishing,
+  Control reaching 100, the time limit. Only the holder and the block are written then;
+  everyone else's thugs, guns, loot, cut and Heat come home through their own credit pass.
+  The round's cutoff settles every war and ends what is left.
+- **City Blocks:** a war panel on the block (goal, Control meter, the coming fight, what is
+  committed, allies and their cut, open calls, burning torches) with every role's actions,
+  a Declare form on rivals' blocks with the reason it is closed, Torch on the holder's
+  businesses, the block's fatigue and dormancy. The Street Wire carries the alliance's wars
+  and its open calls for help; the activity feed and the bell carry declarations, fights,
+  endings, calls and torches.
+- **Gate:** `qa:business` runs whole wars against an online-rate model (see the simulation
+  doc) and holds the swing bands; DB-backed tests check the declaration's costs and limits,
+  the opening fight and siege, registers stopping under siege, a full siege's Take a tier
+  down with the squad posted, a break and the time limit, the loser's lockout, the ally cap
+  and slot, a Sack's split to an ally who fought, no cut for a losing side, the truce cut for
+  a winning holder's ally, a concession, a torch's salvage, fatigue cutting income, dormant
+  decay and the stronger locals, and the reset when a last holder reclaims a block.
+
+**Not in D:** wars on outpost blocks and outpost allies (E: an outpost ally would fight with
+its corner crew), Discord war lines, push notifications for calls (the bell and the Street
+Wire carry them), and a crackdown that hits racketeering businesses harder (F).
+
 ---
 
 ## Open questions

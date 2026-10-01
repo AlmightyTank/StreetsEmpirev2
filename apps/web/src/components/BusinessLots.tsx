@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type {
+  BlockWarActionResult,
   BusinessBuildResult,
   BusinessCollectResult,
   BusinessRacketResult,
@@ -14,7 +15,7 @@ import { useGameAction } from '../hooks/useGameAction.js';
 import { formatWhen } from '../utils/time.js';
 import { Button } from './Button.js';
 
-type LotResult = BusinessBuildResult | BusinessStaffResult | BusinessRacketResult;
+type LotResult = BusinessBuildResult | BusinessStaffResult | BusinessRacketResult | BlockWarActionResult;
 type Lot = NonNullable<TurfBlockDto['businesses']>[number];
 
 function staffWord(kind: Lot['staffKind'], count: number): string {
@@ -51,6 +52,13 @@ export function BusinessLots({
   async function staff(lot: Lot, count: number, autoStaff: boolean) {
     await action.run((actionId) => api.post<GameActionResult<LotResult>>('/game/business/staff', {
       district: block.district, lot: lot.lot, staff: count, autoStaff, actionId,
+    }));
+    onChanged?.();
+  }
+
+  async function torch(lot: Lot) {
+    await action.run((actionId) => api.post<GameActionResult<LotResult>>('/game/business/torch', {
+      district: block.district, lot: lot.lot, actionId,
     }));
     onChanged?.();
   }
@@ -103,6 +111,17 @@ export function BusinessLots({
               {controls && lot.level > 0 ? (
                 <StaffControl lot={lot} busy={action.busy} turns={business!.staffTurnCost} onSet={(count, auto) => void staff(lot, count, auto)} />
               ) : null}
+              {block.war?.role === 'defender' && lot.level > 0 && business?.wars ? (
+                <div className="se-actions-row">
+                  <Button type="button" className="se-btn se-btn--danger se-btn--sm"
+                    disabledReason={action.busy ? 'That business move is still going through.'
+                      : block.war.torches.some((entry) => entry.lot === lot.lot) ? 'It is already burning.' : block.war.actions.torch}
+                    title={`Burn it rather than hand it over: it loses levels and pays back a salvage, and must finish within ${business.wars.torchMinutes} minutes, before Control reaches 100.`}
+                    onClick={() => void torch(lot)}>
+                    Torch · {formatNumber(business.wars.torchTurnCost)} turns
+                  </Button>
+                </div>
+              ) : null}
               {controls && business?.rackets && lot.racketOptions ? (
                 <RacketControl lot={lot} busy={action.busy} turns={business.rackets.switchTurnCost} onSet={(key) => void racket(lot, key)} />
               ) : null}
@@ -119,7 +138,9 @@ export function BusinessLots({
       </ul>
       {action.error ? <span className="se-error">{action.error}</span> : null}
       {action.result ? (
-        'staffAdded' in action.result.result
+        'message' in action.result.result
+          ? <span className="se-action-confirm">{action.result.result.message}</span>
+          : 'staffAdded' in action.result.result
           ? <span className="se-action-confirm">{action.result.result.level === 1 ? 'Built' : 'Upgraded'} the {action.result.result.name}.</span>
           : 'previous' in action.result.result
             ? <span className="se-action-confirm">

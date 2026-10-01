@@ -1638,6 +1638,17 @@ export interface BlockWarRules {
   readonly loserCooldownHours: number;
   /** Minutes between starting a break attempt and the fight landing, so an ally can answer. */
   readonly breakMusterMinutes: number;
+  /**
+   * 1.1.0-D. Block wars are played: a player-held block is taken by a war, not the 0.6.0-C
+   * push, and the settings below apply. Absent before D, where the numbers are proposals.
+   */
+  readonly enabled?: boolean;
+  /** Share of the block's registers a Sack takes, and the most it can take. */
+  readonly sackLootShare?: number;
+  readonly sackLootCapCents?: number;
+  /** Heat a Sack puts on the attacker, and a torch on the holder. */
+  readonly sackHeat?: number;
+  readonly torchHeat?: number;
 }
 
 /**

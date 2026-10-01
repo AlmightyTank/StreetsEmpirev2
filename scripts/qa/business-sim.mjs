@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
-import { classicOgV11C } from '@streets/rulesets';
-import { businessGate, businessMarkdown, runBusinessSimulation } from '@streets/rules-engine';
+import { classicOgV11D } from '@streets/rulesets';
+import { blockWarGate, blockWarMarkdown, businessGate, businessMarkdown, runBlockWarSimulation, runBusinessSimulation } from '@streets/rules-engine';
 
 const args = process.argv.slice(2);
 let output = null;
@@ -17,15 +17,17 @@ try {
     if (!args[i + 1] || args[i + 1].startsWith('--')) throw new Error(`Incomplete option: ${flag}`);
     output = args[++i];
   }
-  // 1.1.0-C: every lot, the home caps (with and without cash rackets), laundering caps,
-  // and the war/fatigue/tier/decay timings. Business balance is A's, unchanged.
-  const ruleset = classicOgV11C;
+  // 1.1.0-D: every lot, the home caps (with and without cash rackets), laundering caps,
+  // the war/fatigue/tier/decay timings, and whole block wars against an online-rate model.
+  // Business balance is A's, unchanged.
+  const ruleset = classicOgV11D;
   const summaries = runBusinessSimulation(ruleset);
-  const report = businessMarkdown(ruleset, summaries);
+  const wars = runBlockWarSimulation(ruleset);
+  const report = `${businessMarkdown(ruleset, summaries)}\n${blockWarMarkdown(ruleset, wars)}`;
   if (output) await writeFile(output, report, 'utf8');
   if (!quiet) console.log(report);
 
-  const problems = businessGate(ruleset, summaries);
+  const problems = [...businessGate(ruleset, summaries), ...blockWarGate(ruleset, wars)];
   if (problems.length) {
     console.error(`\nBusiness gates failed:\n${problems.map((line) => `- ${line}`).join('\n')}`);
     process.exitCode = 1;

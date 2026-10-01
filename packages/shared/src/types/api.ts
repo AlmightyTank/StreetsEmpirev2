@@ -77,7 +77,12 @@ export type ActivityType =
   | 'BUSINESS_BUILD'
   | 'BUSINESS_STAFF'
   | 'BUSINESS_COLLECT'
-  | 'BUSINESS_RACKET';
+  | 'BUSINESS_RACKET'
+  | 'BUSINESS_TORCH'
+  | 'BLOCK_WAR_DECLARED'
+  | 'BLOCK_WAR_FIGHT'
+  | 'BLOCK_WAR_ENDED'
+  | 'BLOCK_WAR_CALL';
 
 export interface ApiErrorBody {
   error: {

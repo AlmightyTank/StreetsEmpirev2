@@ -242,6 +242,55 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
           : `Closed the ${str(p.name, 'business')} on ${str(p.districtName, 'your block')} and brought its staff home.`,
       };
 
+    case 'BLOCK_WAR_DECLARED': {
+      const where = str(p.districtName, 'a block');
+      if (p.assault) return { text: `${str(p.attacker, 'The attacker')} is going again at your block with ${formatNumber(num(p.squad))} thugs.` };
+      return {
+        text: p.role === 'attacker'
+          ? `Declared a block war on ${str(p.defender, 'a crew')}'s ${where} (${p.goal === 'SACK' ? 'Sack' : 'Take'}) with ${formatNumber(num(p.squad))} thugs.`
+          : `${str(p.attacker, 'A crew')} declared war on your ${where} (${p.goal === 'SACK' ? 'Sack' : 'Take'}). The opening fight is coming.`,
+      };
+    }
+
+    case 'BLOCK_WAR_FIGHT': {
+      const kind = p.kind === 'BREAK' ? 'Break attempt' : p.kind === 'ASSAULT' ? 'Assault' : 'Opening fight';
+      const outcome = p.kind === 'BREAK'
+        ? (p.attackerWon ? 'the siege held' : 'the siege was broken')
+        : (p.attackerWon ? 'the attackers won and the siege is on' : 'the block held');
+      return {
+        text: `${kind} in a block war: ${outcome}.`,
+        detail: `${formatNumber(num(p.attackers))} vs ${formatNumber(num(p.defenders))}`,
+      };
+    }
+
+    case 'BLOCK_WAR_ENDED': {
+      const how: Record<string, string> = {
+        CONTROL: 'the siege reached full Control', CONCEDED: 'the holder conceded', WITHDREW: 'the attacker withdrew',
+        TIMEOUT: 'time ran out', ABANDONED: 'the block was abandoned', CUTOFF: 'the round ended',
+      };
+      const winner = p.winner === 'ATTACKER' ? (p.goal === 'SACK' ? 'The block was sacked' : 'The block was taken')
+        : p.winner === 'DEFENDER' ? 'The holder kept the block' : 'The war is over';
+      return {
+        text: `Block war over: ${winner} - ${how[str(p.reason)] ?? 'it ended'}.`,
+        detail: num(p.lootCents) > 0 ? formatCents(num(p.lootCents)) : undefined,
+      };
+    }
+
+    case 'BLOCK_WAR_CALL':
+      return {
+        text: p.answered
+          ? `Rode with ${str(p.caller, 'an ally')} into a block war with ${formatNumber(num(p.thugs))} thugs, for a ${formatNumber(num(p.cutPercent))}% cut.`
+          : `${str(p.caller, 'An ally')} is calling for help in a block war: a ${formatNumber(num(p.cutPercent))}% cut, open until ${str(p.until).slice(11, 16)}.`,
+      };
+
+    case 'BUSINESS_TORCH':
+      return {
+        text: p.done
+          ? `The ${str(p.name, 'business')} burned down to level ${formatNumber(num(p.levelTo))}.`
+          : `Set the ${str(p.name, 'business')} alight.`,
+        detail: num(p.salvageCents) > 0 ? `+${formatCents(num(p.salvageCents))}` : undefined,
+      };
+
     case 'BUSINESS_RACKET':
       return {
         text: p.racketName
@@ -557,6 +606,11 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     BUSINESS_STAFF: 'Business staff',
     BUSINESS_COLLECT: 'Business income',
     BUSINESS_RACKET: 'Racket',
+    BUSINESS_TORCH: 'Torch',
+    BLOCK_WAR_DECLARED: 'Block war',
+    BLOCK_WAR_FIGHT: 'Block war fight',
+    BLOCK_WAR_ENDED: 'Block war over',
+    BLOCK_WAR_CALL: 'Call for help',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();
 }

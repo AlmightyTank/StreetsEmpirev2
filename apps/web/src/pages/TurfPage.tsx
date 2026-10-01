@@ -10,6 +10,7 @@ import { Panel } from '../components/Panel.js';
 import { OutpostStopPanel } from '../components/RunPanels.js';
 import { TurfActions } from '../components/TurfActions.js';
 import { BusinessCollect, BusinessLots } from '../components/BusinessLots.js';
+import { BlockWarPanel } from '../components/BlockWarPanel.js';
 import { useCountdown } from '../hooks/useCountdown.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -129,8 +130,22 @@ function CityBlockBoard({ city, onChanged }: { city: CityCharacterDto; onChanged
                 )}
                 <span><b className="se-num">{Math.floor(block.presenceTurns)}</b><small>your presence</small></span>
               </div>
+              {block.fatigue && block.fatigue.percent > 0 ? (
+                <span className="se-hint se-turfboard__fatigue" title="War fatigue: businesses here earn this much less until it heals.">
+                  Fatigue {block.fatigue.percent}% · output {100 - block.fatigue.percent}%
+                  {block.fatigue.recoveryHours > 0 ? ` · healed in ~${block.fatigue.recoveryHours}h` : block.war ? ' · rising while the war is on' : ''}
+                  {block.fatigue.scarred ? ' · scarred, heals slowly' : ''}
+                </span>
+              ) : null}
+              {block.dormant ? (
+                <span className="se-hint">
+                  Dormant under the locals since {formatWhen(block.dormant.since)}
+                  {block.dormant.levelsLostAt ? ` · next level lost ${formatWhen(block.dormant.levelsLostAt)}` : ''}
+                </span>
+              ) : null}
 
               {block.businesses ? <BusinessLots block={block} business={turf.business} onChanged={onChanged} /> : null}
+              {turf.business?.wars ? <BlockWarPanel block={block} wars={turf.business.wars} isHome={city.isHome} onChanged={onChanged} /> : null}
 
               {block.outpost ? <span className="se-turfboard__outpost">Your outpost</span> : null}
               {block.revengeAvailable && block.revengeUntil ? (
@@ -142,7 +157,8 @@ function CityBlockBoard({ city, onChanged }: { city: CityCharacterDto; onChanged
                 block={block}
                 isHome={city.isHome}
                 holdingEnabled={turf.holdingEnabled}
-                warsEnabled={turf.warsEnabled}
+                // 1.1.0-D: a player's block is taken by a block war, declared above.
+                warsEnabled={turf.warsEnabled && !turf.business?.wars}
                 onChanged={onChanged}
               />
             </article>

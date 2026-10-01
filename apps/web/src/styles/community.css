@@ -708,3 +708,18 @@
   .se-turfpulse { grid-template-columns: 1fr; }
   .se-turfboard__stats { grid-template-columns: 1fr 1fr; }
 }
+
+/* 1.1.0-D: block wars on City Blocks. */
+.se-blockwar { display: grid; gap: 6px; padding: 8px 10px; border: 1px solid var(--se-border); border-radius: 8px; background: var(--se-surface-2, transparent); }
+.se-blockwar--siege { border-color: var(--se-bad, #c0392b); }
+.se-blockwar__head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; align-items: baseline; }
+.se-blockwar__head small { color: var(--se-text-dim); }
+.se-blockwar__status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; }
+.se-blockwar__control { position: relative; flex: 1 1 140px; min-width: 120px; height: 14px; border-radius: 7px; background: var(--se-border); overflow: hidden; }
+.se-blockwar__control span { position: absolute; inset: 0 auto 0 0; background: var(--se-bad, #c0392b); }
+.se-blockwar__control b { position: relative; display: block; text-align: center; font-size: 10px; line-height: 14px; }
+.se-blockwar__goals { display: grid; gap: 4px; font-size: 12px; }
+.se-blockwar__field { max-width: 160px; margin-bottom: 0; }
+.se-blockwar__call { align-items: end; }
+.se-blockwar .se-actions-row { flex-wrap: wrap; }
+.se-turfboard__fatigue { display: block; }

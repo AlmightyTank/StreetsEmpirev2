@@ -360,6 +360,71 @@ export interface TurfBlockDto {
   businesses: TurfBusinessLotDto[] | null;
   /** 1.1.0-B. How many lots the block has open, from its tier. Null when nobody holds it. */
   businessTier: { tier: 'FOOTHOLD' | 'ESTABLISHED' | 'STRONGHOLD'; lotsOpen: number } | null;
+  /** 1.1.0-D. War fatigue on the block (0-80; output is 100% minus it), and hours to heal. */
+  fatigue: { percent: number; recoveryHours: number; scarred: boolean } | null;
+  /** 1.1.0-D. The war on this block, if one is on. */
+  war: BlockWarDto | null;
+  /** Why you cannot declare a block war here, or null if you can. Null when wars are off. */
+  warBlockedReason: string | null;
+  /** 1.1.0-D. Under the locals: businesses are dormant and decay after the grace period. */
+  dormant: { since: string; levelsLostAt: string | null } | null;
+}
+
+/** 1.1.0-D. A block war, as one player sees it. */
+export interface BlockWarDto {
+  id: string;
+  goal: 'TAKE' | 'SACK';
+  status: 'OPENING' | 'SIEGE' | 'BETWEEN';
+  role: 'attacker' | 'defender' | 'attackerAlly' | 'defenderAlly' | 'observer';
+  attacker: { publicPimpId: number; displayName: string };
+  defender: { publicPimpId: number; displayName: string };
+  declaredAt: string;
+  endsBy: string;
+  control: number;
+  controlPerHour: number;
+  /** When Control reaches 100 if nothing changes, during a siege. */
+  fullControlAt: string | null;
+  nextAssaultAt: string | null;
+  pendingFight: { kind: 'OPENING' | 'ASSAULT' | 'BREAK'; landsAt: string } | null;
+  /** Thugs committed on each side right now (the corner crew counts for the holder). */
+  committed: { attacker: number; defender: number };
+  /** Your own thugs committed to this war. */
+  mine: number;
+  /** Most thugs one ally can send, matched to the declarer. */
+  allyCap: number;
+  allies: {
+    attacker: { displayName: string; cutPercent: number; fought: boolean } | null;
+    defender: { displayName: string; cutPercent: number; fought: boolean } | null;
+  };
+  /** Each side's open call for help: the cut promised and how long it stays open. */
+  calls: {
+    attacker: { cutPercent: number; until: string } | null;
+    defender: { cutPercent: number; until: string } | null;
+  };
+  /** What you can do now; a null reason means you can. */
+  actions: {
+    defend: string | null;
+    breakSiege: string | null;
+    assault: string | null;
+    callAlly: string | null;
+    answerAttacker: string | null;
+    answerDefender: string | null;
+    concede: string | null;
+    withdraw: string | null;
+    torch: string | null;
+  };
+  /** Torches burning on this block's businesses. */
+  torches: Array<{ lot: number; name: string; until: string }>;
+}
+
+export interface BlockWarActionResult {
+  warId: string;
+  district: TurfBlockDto['district'];
+  districtName: string;
+  /** What happened, for the confirmation line. */
+  message: string;
+  turnsUsed: number;
+  thugs: number;
 }
 
 /** 1.1.0-A. One business lot on a block. Level 0 is an empty lot. */
@@ -462,6 +527,16 @@ export interface CityTurfDto {
     collectTurnCost: number;
     /** Everything waiting in your registers, across your home blocks. */
     registerTotalCents: number;
+    /** 1.1.0-D. Block war costs and timings, or null before block-war rounds. */
+    wars: {
+      declareTurnCost: number;
+      warningMinutes: number;
+      musterMinutes: number;
+      maxWarHours: number;
+      siegeHours: number;
+      torchTurnCost: number;
+      torchMinutes: number;
+    } | null;
     /** 1.1.0-C. Your rackets in this city, or null before racket rounds. */
     rackets: {
       switchTurnCost: number;

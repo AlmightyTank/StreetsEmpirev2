@@ -1,6 +1,7 @@
 import type { BusinessKey, DistrictKey, Ruleset } from '@streets/rulesets';
 import { cityRules, rulesetForCity } from '../calculations/cities.js';
 import { cornerMinimumFor, localsThugs, turfBlocks, type Block } from '../calculations/turf.js';
+import { blockWarRulesetProblems } from '../calculations/block-wars.js';
 import { launderAllowance, racketCashPerHour, racketHeatPerHour, racketRules, racketRulesetProblems, racketsFor } from '../calculations/rackets.js';
 import {
   averageOutputShare,
@@ -402,7 +403,7 @@ export function runLaunderingSimulation(ruleset: Ruleset): LaunderingSummary | n
 }
 
 export function businessGate(ruleset: Ruleset, summaries: readonly BusinessCrewSummary[]): string[] {
-  const problems = [...businessRulesetProblems(ruleset), ...racketRulesetProblems(ruleset)];
+  const problems = [...businessRulesetProblems(ruleset), ...racketRulesetProblems(ruleset), ...blockWarRulesetProblems(ruleset)];
   const rules = businessRules(ruleset);
   if (!rules || summaries.length === 0) return problems;
 

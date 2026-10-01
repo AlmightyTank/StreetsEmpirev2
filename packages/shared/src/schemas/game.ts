@@ -120,6 +120,44 @@ export const businessRacketSchema = businessLotSchema.extend({
   racket: z.string().trim().min(1, 'Pick a racket.').max(40, 'Pick a racket.').nullable(),
 }).strict();
 export type BusinessRacketInput = z.infer<typeof businessRacketSchema>;
+
+/** 1.1.0-D. Block wars. */
+const warThugs = z.number({ invalid_type_error: 'Enter how many thugs to send.' }).int('Thugs must be a whole number.').min(1, 'Send at least one thug.').safe();
+export const blockWarDeclareSchema = z.object({
+  district: z.string().trim().min(1, 'Pick a turf block.'),
+  goal: z.enum(['TAKE', 'SACK']),
+  squad: warThugs,
+  actionId: actionIdSchema,
+}).strict();
+/** The holder's backup for a pending fight, a break attempt, or the declarer's re-assault. */
+export const blockWarSendSchema = z.object({
+  warId: z.string().trim().min(1),
+  thugs: warThugs,
+  actionId: actionIdSchema,
+}).strict();
+/** Call one ally to your side, promising a cut of 0-50% in steps of 10. */
+export const blockWarCallSchema = z.object({
+  warId: z.string().trim().min(1),
+  cutPercent: z.number().int().min(0).max(50).multipleOf(10, 'The cut moves in steps of 10%.'),
+  actionId: actionIdSchema,
+}).strict();
+export const blockWarAnswerSchema = z.object({
+  warId: z.string().trim().min(1),
+  side: z.enum(['ATTACKER', 'DEFENDER']),
+  thugs: warThugs,
+  actionId: actionIdSchema,
+}).strict();
+export const blockWarEndSchema = z.object({
+  warId: z.string().trim().min(1),
+  actionId: actionIdSchema,
+}).strict();
+export const businessTorchSchema = businessLotSchema;
+export type BlockWarDeclareInput = z.infer<typeof blockWarDeclareSchema>;
+export type BlockWarSendInput = z.infer<typeof blockWarSendSchema>;
+export type BlockWarCallInput = z.infer<typeof blockWarCallSchema>;
+export type BlockWarAnswerInput = z.infer<typeof blockWarAnswerSchema>;
+export type BlockWarEndInput = z.infer<typeof blockWarEndSchema>;
+export type BusinessTorchInput = z.infer<typeof businessTorchSchema>;
 export type BusinessBuildInput = z.infer<typeof businessBuildSchema>;
 export type BusinessStaffInput = z.infer<typeof businessStaffSchema>;
 export type BusinessCollectInput = z.infer<typeof businessCollectSchema>;

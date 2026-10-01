@@ -30,6 +30,7 @@ import {
 } from './turf.service.js';
 import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
 import { endTurfHold, startTurfHold } from './turf-history.service.js';
+import { BlockWarSettleService } from './block-war-settle.service.js';
 
 type Weapons = Record<WeaponKey, number>;
 type PushModel = NonNullable<ReturnType<typeof turfPushCombatModel>>;
@@ -141,7 +142,9 @@ export const TurfWarSettlementService = {
       take: 20,
     });
     for (const row of due) await TurfWarSettlementService.land(prisma, row.id, now);
-    return due.length;
+    // 1.1.0-D: and every block war this player is in.
+    const wars = await BlockWarSettleService.settleDueFor(prisma, playerId, now);
+    return due.length + wars;
   },
 
   async sweep(prisma: PrismaClient, now: Date = new Date()): Promise<number> {
@@ -152,7 +155,9 @@ export const TurfWarSettlementService = {
       take: 200,
     });
     for (const row of due) await TurfWarSettlementService.land(prisma, row.id, now);
-    return due.length;
+    // 1.1.0-D: block wars end on time with everyone offline.
+    const wars = await BlockWarSettleService.sweep(prisma as PrismaClient, now);
+    return due.length + wars;
   },
 
   async land(prisma: PrismaClient | Db, pushId: string, now: Date = new Date()): Promise<boolean> {
@@ -402,6 +407,8 @@ export const TurfWarSettlementService = {
    * This leaves no PENDING push able to mutate turf after a round is frozen.
    */
   async resolveRoundAtCutoff(tx: Db, roundId: string, cutoff: Date): Promise<number> {
+    // 1.1.0-D: every block war is settled to the cutoff, and whatever is left ends there.
+    const warsResolved = await BlockWarSettleService.resolveRoundAtCutoff(tx, roundId, cutoff);
     const due = await tx.turfPush.findMany({
       where: { roundId, status: 'PENDING', landsAt: { lte: cutoff } },
       select: { id: true },
@@ -467,10 +474,12 @@ export const TurfWarSettlementService = {
       });
       resolved++;
     }
-    return resolved;
+    return resolved + warsResolved;
   },
 
   async credit(tx: Db, playerId: string, now: Date = new Date()): Promise<void> {
+    // 1.1.0-D: block war squads, loot, cuts and Heat come home through the same pass.
+    await BlockWarSettleService.credit(tx, playerId, now);
     const [pushes, backups] = await Promise.all([
       tx.turfPush.findMany({
         where: { attackerId: playerId, status: 'LANDED', attackerCreditedAt: null },

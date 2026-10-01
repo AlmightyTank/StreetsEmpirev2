@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { cornerMinimumFor, equipCombatSquad, headsUpMinutes, type Rng, type Ruleset } from '@streets/rules-engine';
+import { blockWarsOn, cornerMinimumFor, equipCombatSquad, headsUpMinutes, type Rng, type Ruleset } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
 import type { TurfClaimInput, TurfClaimResult, TurfPostInput, TurfPostResult, TurfPullInput, TurfPullResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
@@ -11,6 +11,7 @@ import {
 import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
 import { endTurfHold, startTurfHold } from './turf-history.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
+import { applyLocalsClaim, dormancyFor, dormantLevelNow, localsMaxWithBusinesses } from './block-dormancy.service.js';
 
 function localDistrictName(ruleset: Ruleset, citySlug: string, district: DistrictKey): string {
   return ruleset.cities?.[citySlug]?.districts?.[district]?.name ?? ruleset.districts[district].name;
@@ -92,7 +93,7 @@ export const TurfActionService = {
         if (!guns) throw AppError.conflict('TURF_NOT_ENOUGH_ARMED', `You need ${input.thugs} home guns to post that squad.`);
         assertTurns(current.turns, ruleset.turf!.corner.postTurnCost);
 
-        const locals = localsOnBlock(ruleset, {
+        let locals = localsOnBlock(ruleset, {
           holderId: fresh.holderId,
           citySlug: fresh.city.slug,
           district: key,
@@ -100,6 +101,15 @@ export const TurfActionService = {
           localsAt: fresh.localsAt,
           localsReclaimAt: fresh.localsReclaimAt,
         }, now);
+        if (blockWarsOn(ruleset) && !(fresh.localsReclaimAt && fresh.localsReclaimAt > now)) {
+          // 1.1.0-D: the locals run what is built here now, and hold it harder for it.
+          const dormancy = await dormancyFor(tx, ruleset, fresh);
+          const levels = (await tx.business.findMany({ where: { turfId: fresh.id }, select: { level: true } }))
+            .map((row) => dormantLevelNow(ruleset, row.level, dormancy, now));
+          const max = localsMaxWithBusinesses(ruleset, fresh.city.slug, key, levels);
+          const hours = Math.max(0, (now.getTime() - fresh.localsAt.getTime()) / 3_600_000);
+          locals = Math.round(Math.min(max, fresh.localsThugs + ruleset.turf!.locals.regrowPerHour * hours));
+        }
         const model = ruleset.combat;
         if (!model) throw AppError.conflict('COMBAT_DISABLED', 'There is no street fight model in this round.');
         const standDown = await SingleUseFavorService.matching(
@@ -121,10 +131,13 @@ export const TurfActionService = {
 
         if (won) {
           const controlBefore = await territoryControlForCity(tx, round.id, player.cityId, ruleset);
+          // 1.1.0-D: dormant businesses come back decayed, the block keeps the tier dormancy
+          // left it, and the fight leaves its fatigue.
+          const claimed = await applyLocalsClaim(tx, ruleset, fresh, player, now);
           await tx.turf.update({
             where: { id: fresh.id },
             data: {
-              holderId: roundPlayerId, cornerThugs: input.thugs, ...turfGunData(guns), heldSince: now,
+              holderId: roundPlayerId, cornerThugs: input.thugs, ...turfGunData(guns), heldSince: claimed?.heldSince ?? now,
               shieldUntil: null, upkeepAt: now, localsThugs: locals, localsAt: now, localsReclaimAt: null,
             },
           });

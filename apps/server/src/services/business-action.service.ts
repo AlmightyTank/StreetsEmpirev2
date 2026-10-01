@@ -26,6 +26,7 @@ import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs, workingWhores, type PlayerState } from './action.service.js';
 import { BusinessService, buildingOn, racketOf, releaseForeignStaff, staffColumns } from './business.service.js';
+import { blockFatigueNow } from './block-war-settle.service.js';
 import { TurfService } from './turf.service.js';
 
 const HOUR_MS = 3_600_000;
@@ -111,8 +112,9 @@ export const BusinessActionService = {
         const rules = ruleset.business!;
         const type = rules.catalog[business];
 
-        // The block's tier opens its lots: uninterrupted holding plus levels invested.
-        const heldHours = turf.heldSince ? (now.getTime() - turf.heldSince.getTime()) / HOUR_MS : 0;
+        // The block's tier opens its lots: uninterrupted holding plus levels invested. A siege
+        // pauses the hold clock.
+        const heldHours = turf.heldSince ? ((turf.siegedSince ?? now).getTime() - turf.heldSince.getTime()) / HOUR_MS : 0;
         const tier = blockTier(ruleset, { heldHours, levels: turf.businesses.map((entry) => entry.level) });
         if (input.lot > lotsOpen(ruleset, tier)) {
           const opening = tierOpening(ruleset, input.lot);
@@ -121,7 +123,10 @@ export const BusinessActionService = {
         if (row.level >= rules.levels.maxLevel) throw AppError.conflict('BUSINESS_MAX_LEVEL', `${type.name} is already at the top level.`);
 
         const level = row.level + 1;
-        const costCents = businessLevelCostCents(ruleset, business, level);
+        // 1.1.0-D: a shot-up block costs more to build on until it heals.
+        const war = await tx.blockWar.findFirst({ where: { turfId: turf.id, status: { not: 'ENDED' } } });
+        const fatigue = blockFatigueNow(ruleset, turf, war, now).percent;
+        const costCents = businessLevelCostCents(ruleset, business, level, fatigue);
         assertTurns(current.turns, rules.levels.buildTurnCost);
         if (current.cashCents < BigInt(costCents)) {
           throw AppError.conflict('NOT_ENOUGH_CASH', `${level === 1 ? 'Building' : 'Upgrading'} the ${type.name} costs $${(costCents / 100).toLocaleString('en-US')}.`);

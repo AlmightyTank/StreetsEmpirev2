@@ -31,6 +31,8 @@ import {
 import type { BusinessKey, DistrictKey, RacketKey } from '@streets/rulesets';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ProductInventoryService } from './product-inventory.service.js';
+import { EconomyLedgerService } from './economy-ledger.service.js';
+import { blockFatigueNow } from './block-war-settle.service.js';
 
 const HOUR_MS = 3_600_000;
 
@@ -61,6 +63,13 @@ export interface BusinessSettlement {
 /** A business's racket key, if it is one this ruleset knows. */
 export function racketOf(ruleset: Ruleset, value: string | null | undefined): RacketKey | null {
   return isRacketKey(value) && racketType(ruleset, value) ? value : null;
+}
+
+/** Hours of [from, to) that fall inside [windowFrom, windowTo). */
+function overlapHours(from: Date, to: Date, windowFrom: Date, windowTo: Date): number {
+  const start = Math.max(from.getTime(), windowFrom.getTime());
+  const end = Math.min(to.getTime(), windowTo.getTime());
+  return Math.max(0, (end - start) / HOUR_MS);
 }
 
 /** Pip's base price for a unit of product, for counter sales. */
@@ -167,9 +176,23 @@ export const BusinessService = {
     });
     const rows = await tx.business.findMany({
       where: { staffOwnerId: roundPlayerId },
-      include: { turf: { select: { holderId: true, cityId: true, district: true, city: { select: { slug: true } } } } },
+      include: {
+        turf: {
+          select: {
+            id: true, holderId: true, cityId: true, district: true, city: { select: { slug: true } },
+            fatigue: true, fatigueAt: true, capturedAts: true, siegedSince: true,
+            warCutPlayerId: true, warCutShare: true, warCutUntil: true,
+          },
+        },
+      },
       orderBy: [{ turfId: 'asc' }, { lot: 'asc' }],
     });
+    // 1.1.0-D: a war on the block holds its fatigue where the fighting left it.
+    const wars = rows.length
+      ? await tx.blockWar.findMany({ where: { turfId: { in: [...new Set(rows.map((row) => row.turfId))] }, status: { not: 'ENDED' } } })
+      : [];
+    const warOn = new Map(wars.map((war) => [war.turfId, war]));
+    const cuts: Array<{ playerId: string; cents: bigint; turfId: string }> = [];
     const storedEffects = readRacketEffects(player.racketEffects);
     if (!rows.length && player.businessThugs === 0 && player.businessWhores === 0) {
       // Nothing runs any more: a crew that lost its last business loses its rackets too.
@@ -259,11 +282,25 @@ export const BusinessService = {
           district: row.turf.district as DistrictKey,
           business,
           level: row.level,
+          // 1.1.0-D: a shot-up block earns less until its fatigue heals.
+          fatigue: blockFatigueNow(ruleset, row.turf, warOn.get(row.turfId) ?? null, now).percent,
         });
         const staffed = staffingShare(row.staff, required);
         // A cash racket pays on top of the front, and the register holds both.
         const racketPerHour = racketCashPerHour(ruleset, racket, perHour);
-        const earned = BigInt(Math.floor((perHour + racketPerHour) * staffed * wholeHours * suppliedShare));
+        // Nobody spends money on a block under siege: those hours earn nothing.
+        const sieged = row.turf.siegedSince ? overlapHours(row.accruedAt, advanceTo, row.turf.siegedSince, advanceTo) : 0;
+        const earningHours = Math.max(0, wholeHours - sieged);
+        let earned = BigInt(Math.floor((perHour + racketPerHour) * staffed * earningHours * suppliedShare));
+        // After a war, the winning side's ally takes the promised cut of the truce's income.
+        if (earned > 0n && row.turf.warCutPlayerId && row.turf.warCutUntil && row.turf.warCutShare > 0 && earningHours > 0) {
+          const cutHours = overlapHours(row.accruedAt, advanceTo, row.accruedAt, row.turf.warCutUntil);
+          const cut = BigInt(Math.floor(Number(earned) * Math.min(1, cutHours / earningHours) * row.turf.warCutShare));
+          if (cut > 0n) {
+            earned -= cut;
+            cuts.push({ playerId: row.turf.warCutPlayerId, cents: cut, turfId: row.turfId });
+          }
+        }
         const cap = BigInt(registerCapCents(ruleset, perHour + racketPerHour));
         register = register + earned > cap ? cap : register + earned;
 
@@ -377,6 +414,14 @@ export const BusinessService = {
         ? mergeRacketEffect(all, entry.racket, racketStrength(ruleset, { level: entry.level, staff: entry.staff, requiredStaff: entry.required }))
         : all, {});
     const effectsChanged = !sameEffects(effects, storedEffects);
+
+    // The ally's cut is paid straight to them: cash only, never the block or its businesses.
+    for (const cut of cuts) {
+      await tx.roundPlayer.update({ where: { id: cut.playerId }, data: { cashCents: { increment: cut.cents } } });
+      await EconomyLedgerService.record(tx, cut.playerId, [{
+        source: 'BLOCK_WAR_CUT', label: 'Block war · ally cut of business income', amountCents: cut.cents, metadata: { turfId: cut.turfId, from: roundPlayerId },
+      }], now);
+    }
 
     if (Object.keys(productChanges).length > 0) await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, productChanges);
     if (thugs !== player.thugs || whores !== player.whores || beer !== player.beer ||
