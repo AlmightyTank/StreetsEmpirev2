@@ -104,6 +104,7 @@ model Account {
   mutesMade              PlayerMute[]            @relation("PlayerMuter")
   mutesReceived          PlayerMute[]            @relation("PlayerMuted")
   moderationNotes        AccountModerationNote[]
+  surveySubmissions       SurveySubmission[]
 
   @@index([registeredIp, createdAt])
 }
@@ -494,6 +495,147 @@ model BugReport {
 }
 
 // ---------------------------------------------------------------------------
+// Player surveys
+// ---------------------------------------------------------------------------
+
+/// Admin-authored feedback request. Surveys are account-scoped for completion
+/// so one account can never earn the same survey reward twice, even if round
+/// player state changes.
+model Survey {
+  id String @id @default(cuid())
+
+  title       String
+  description String
+  status      SurveyStatus @default(DRAFT)
+
+  /// Optional release/change labels such as 1.1.0-F, Stores, Combat or Mobile UI.
+  releaseTag String?
+  featureTag String?
+
+  /// Null means the survey is not limited to one round.
+  roundId String?
+  round   Round?  @relation(fields: [roundId], references: [id], onDelete: SetNull)
+
+  /// Reward definitions use the same shape as quest/pass rewards. Phase B/C
+  /// validates and grants them; Phase A only stores the authored snapshot.
+  rewards Json @default("[]")
+
+  startsAt    DateTime?
+  endsAt      DateTime?
+  publishedAt DateTime?
+  closedAt    DateTime?
+
+  /// Keep the author name even if that admin account is later removed.
+  createdByUsername String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  questions   SurveyQuestion[]
+  submissions SurveySubmission[]
+
+  @@index([status, startsAt, endsAt])
+  @@index([roundId, status])
+  @@index([releaseTag])
+  @@index([featureTag])
+}
+
+/// One ordered question in a survey. Published survey structure will be treated
+/// as immutable by the admin service so historical answers keep their meaning.
+model SurveyQuestion {
+  id String @id @default(cuid())
+
+  surveyId String
+  survey   Survey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  type        SurveyQuestionType
+  prompt      String
+  description String?
+  required    Boolean @default(true)
+  position    Int
+
+  /// Text questions may use these; null means the service default.
+  minLength Int?
+  maxLength Int?
+
+  /// Rating questions may use these; the first release supports 1..10.
+  ratingMin Int?
+  ratingMax Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  options SurveyOption[]
+  answers SurveyAnswer[]
+
+  @@unique([surveyId, position])
+  @@index([surveyId, type])
+}
+
+/// Ordered choice for SINGLE_CHOICE or MULTIPLE_CHOICE questions.
+model SurveyOption {
+  id String @id @default(cuid())
+
+  questionId String
+  question   SurveyQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  /// Stable machine value stored in answers; label is player-facing copy.
+  value    String
+  label    String
+  position Int
+
+  @@unique([questionId, value])
+  @@unique([questionId, position])
+}
+
+/// A completed survey. The unique account key is the duplicate-reward barrier.
+/// roundPlayerId records which round player received a round-scoped reward.
+model SurveySubmission {
+  id String @id @default(cuid())
+
+  surveyId String
+  survey   Survey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  roundPlayerId String?
+  roundPlayer   RoundPlayer? @relation(fields: [roundPlayerId], references: [id], onDelete: SetNull)
+
+  submittedAt DateTime @default(now())
+
+  /// Exact reward definition snapshot used for this completion.
+  rewardSnapshot Json @default("[]")
+  rewardGrantedAt DateTime?
+
+  answers SurveyAnswer[]
+
+  @@unique([surveyId, accountId])
+  @@index([surveyId, submittedAt(sort: Desc)])
+  @@index([accountId, submittedAt(sort: Desc)])
+  @@index([roundPlayerId])
+}
+
+/// One answer per question in one completed submission. JSON supports booleans,
+/// option values, option arrays, ratings and text without lossy coercion.
+model SurveyAnswer {
+  id String @id @default(cuid())
+
+  submissionId String
+  submission   SurveySubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   SurveyQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  value Json
+
+  createdAt DateTime @default(now())
+
+  @@unique([submissionId, questionId])
+  @@index([questionId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
 // Rounds
 // ---------------------------------------------------------------------------
 
@@ -520,6 +662,22 @@ enum QuestRepeatability {
   DAILY
   WEEKLY
   REPEATABLE
+}
+
+enum SurveyStatus {
+  DRAFT
+  SCHEDULED
+  LIVE
+  CLOSED
+}
+
+enum SurveyQuestionType {
+  YES_NO
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  RATING
+  SHORT_TEXT
+  LONG_TEXT
 }
 
 /// Relationship standing for one player. Historically this held store-trader
@@ -852,6 +1010,7 @@ model Round {
   directMessages    DirectMessage[]
   businesses        Business[]
   blockWars         BlockWar[]
+  surveys           Survey[]
 
   @@index([status])
 }
@@ -1053,6 +1212,7 @@ model RoundPlayer {
   armedFavors           PlayerArmedFavor[]
   streetPassProgress    StreetPassProgress?
   streetPassClaims      StreetPassClaim[]
+  surveySubmissions    SurveySubmission[]
   raidsSent             RaidBattle[]         @relation("RaidAttacker")
   raidsReceived         RaidBattle[]         @relation("RaidDefender")
   combatInjuries        CombatInjury[]
