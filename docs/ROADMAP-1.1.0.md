@@ -252,9 +252,19 @@ pinned rulesets keep the 0.6.0-C push rules unchanged.
 - **Spoils go to the declarer only.** A Take gives the block to the crew that declared, and
   Sack loot is capped and paid once. The ally gets Territory block-time and city control
   (0.6.0-E), not cash.
-- **Cap on help (decided: 1×).** The ally's thugs count up to **1×** the caller's own
-  committed thugs, so an ally can at most double a side's strength. Anything beyond that
-  stays home. A crew still has to commit its own thugs to get help.
+- **Cap on help (decided): matched to the declarer.** On **either side**, an ally can send
+  at most as many thugs as **the crew that declared the war** has committed to it. Anything
+  beyond that stays home.
+  - The attacker's ally can at most double the attack, and the declarer still has to
+    commit thugs to get help.
+  - The holder's ally can match the attack in full, even if the holder's own corner crew is
+    small. A small holder with a friend online can stand up to a big declarer.
+  - If the declarer sends more thugs later (to reinforce the siege), the cap rises with
+    them.
+- **Stretching thin is allowed (decided).** A crew can declare its own war and be the ally
+  in one other war at the same time. Thugs committed to one war can't be used in the other,
+  and every thug out fighting is one less defending home, so a crew in two wars is an easy
+  raid target.
 
 ### War goals: answering "raze and walk away?"
 
@@ -360,12 +370,12 @@ them; it doesn't pick them from scratch.
 | Setting | Value | Why |
 |---|---|---|
 | Declare cost | **12 turns** | A 0.6.0 push is 8. A war is a bigger commitment. |
-| Wars per crew | **1 active at a time** | Stops one crew declaring on every block in a city. |
+| Wars per crew | **1 declared + 1 as an ally** at a time | Stops one crew declaring on every block in a city, while letting it stretch thin to help a friend. |
 | Warning before the opening fight | **30 minutes** | A push is 8 minutes. 30 gives each side's ally time to answer the call, while the siege gives the real response time. |
 | Muster window for a break attempt | **15 minutes** | Lets the holder's ally answer before the fight lands. |
 | Ally call to join a siege | **open 15 minutes** | Same window for the attacker's ally. |
 | Siege length (0 → 100 Control) | **12 hours** base, down to **8 hours** with full allied help | A holder who sleeps 8 hours wakes up to a siege that isn't finished (about 67 Control) and can still break it. |
-| Siege speed-up from the ally | Control rate × (1 + 0.5 × allied share), allied share capped at 1× | Ties into the 1× ally cap: an ally at full strength makes the siege 1.5× faster. |
+| Siege speed-up from the ally | Control rate × (1 + 0.5 × allied share), where allied share = ally thugs ÷ declarer's thugs (max 1) | An ally at the full cap makes the siege 1.5× faster. |
 | Breaking the siege | **−40 Control**, attacker squad home wounded | Hurts, but doesn't reset the war. |
 | Re-siege cooldown | **4 hours** | Reuses the 0.6.0 attacker cooldown. |
 | War time limit | **48 hours** from declaration | Room for one full siege plus a couple of retries, across two nights for both sides. |
@@ -451,7 +461,8 @@ locals for an alt to pick up.
 - **War outcomes:** attacker win rate stays in band for solo vs. solo, alliance vs. solo
   and alliance vs. alliance.
   - Ally help is no longer a dice roll. It depends on an ally being online and answering,
-    and it can be up to 1× (0.6.0 pushes cap help at 25% of the defender). 0.3.0-D found
+    and it can match the declarer's whole squad (0.6.0 pushes cap help at 25% of the
+    defender). 0.3.0-D found
     that big, reliable help makes fights one-sided, so the simulation needs a
     **response-rate assumption** (how often an ally is online and answers, by time of
     day) and has to show wars stay swingy when both sides have an active ally.
