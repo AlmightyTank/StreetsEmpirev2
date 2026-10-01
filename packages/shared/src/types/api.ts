@@ -31,11 +31,13 @@ export type ActivityType =
   | 'AWAY_BONUS'
   | 'BATTLE_VOIDED'
   | 'ADMIN_GRANT'
+  | 'GAME_ANNOUNCEMENT'
   | 'HEAT_BRIBE'
   | 'HIDEOUT_UPGRADE'
   | 'QUEST_OBJECTIVE_COMPLETE'
   | 'QUEST_READY'
   | 'QUEST_CLAIMED'
+  | 'STREET_PASS_CLAIMED'
   | 'FAVOR_ACTIVATED'
   | 'FAVOR_ARMED'
   | 'FAVOR_DISARMED'
@@ -44,6 +46,15 @@ export type ActivityType =
   | 'RUN_INCIDENT'
   | 'RELOCATION_STARTED'
   | 'RELOCATED'
+  | 'TRIP_STARTED'
+  | 'TRIP_RETURNED'
+  | 'BOSS_HIT'
+  | 'BOSS_HIT_ATTACK'
+  | 'BOSS_HIT_DEFENSE'
+  | 'BOSS_HIT_BACKUP'
+  | 'OUTPOST_VISIT'
+  | 'SIT_DOWN'
+  | 'SIT_DOWN_AGREED'
   | 'CONVOY_TAIL'
   | 'CONVOY_ATTACK'
   | 'CONVOY_DEFENSE'
@@ -57,6 +68,15 @@ export type ActivityType =
   | 'TURF_PUSH_DEFENSE'
   | 'TURF_OUTPOST_ESTABLISH'
   | 'TURF_OUTPOST_TRANSFER'
+  | 'TURF_PUSH_DEFENSE'
+  | 'TURF_OUTPOST_ESTABLISH'
+  | 'TURF_OUTPOST_TRANSFER'
+  // 0.9.0-G clock events written by the alert collector.
+  | 'CONVOY_TAILED'
+  | 'TURF_PUSH_INCOMING'
+  | 'ALLIANCE_CALL'
+  | 'REVENGE_EXPIRING'
+  | 'SPECIAL_ORDER_READY'
   | 'BUSINESS_BUILD'
   | 'BUSINESS_STAFF'
   | 'BUSINESS_COLLECT';
@@ -82,6 +102,17 @@ export interface AccountDto {
   isAdmin: boolean;
   createdAt: string;
   lastLoginAt: string | null;
+  /** True until this account may play: verify the email, or sign in with Discord. */
+  verificationRequired: boolean;
+  /** True until the player accepts the current game rules (RULES_VERSION). */
+  rulesAcceptanceRequired: boolean;
+  /**
+   * rc.2. An admin signed in with a password while admin tools require a Discord
+   * sign-in: the admin pages are closed until they sign in with Discord.
+   */
+  adminSignInRequired: boolean;
+  /** rc.3. Sign-in asks for an authenticator code. */
+  twoFactorEnabled: boolean;
 }
 
 export interface AccountSessionDto {
@@ -92,6 +123,14 @@ export interface AccountSessionDto {
   expiresAt: string;
   userAgent: string | null;
   ip: string | null;
+  /** rc.2. PASSWORD or DISCORD. */
+  method: string;
+  /** rc.3. The sign-in passed an authenticator code. */
+  twoFactor: boolean;
+  /** rc.4. "Keep me signed in": renews while used. False: ends with the browser or after a short idle time. */
+  remember: boolean;
+  /** rc.4. The latest this session can last, however active: the password is asked again then. */
+  endsBy: string;
 }
 
 export interface AccountSessionsResponseDto {
@@ -128,6 +167,8 @@ export interface BadgeCosmeticOptionDto extends CosmeticOptionDto {
 
 export interface AccountProfileSettingsDto {
   activeTitleKey: string | null;
+  /** 0.9.0-F. Optional public crew name. */
+  crewName: string | null;
   activeProfileFrameKey: string | null;
   activeSiteThemeKey: string | null;
   featuredBadgeKeys: string[];
@@ -180,6 +221,8 @@ export interface RoundDto {
   /** Milliseconds remaining, or 0 once the round is over. */
   msRemaining: number;
   playerCount: number;
+  /** 1.0.0-E. Set while admins have paused the season: player actions wait until it lifts. */
+  paused: { since: string; reason: string | null } | null;
 }
 
 export interface TurnsDto {
@@ -276,6 +319,8 @@ export interface RoundPlayerDto {
   convoyAlert: { kind: 'tailed' | 'call'; cityName: string; landsAt: string } | null;
   /** 0.6.0-B. Home turf and today's house-minted street tax. */
   turf: TurfSummaryDto | null;
+  /** Street Pass summary for the nav badge. Absent or null on rounds without a pass. */
+  streetPass?: { tier: number; tierCount: number; claimable: number } | null;
   rank: RankDto;
   hideout: SeasonHideoutDto;
 
@@ -480,6 +525,8 @@ export interface ScoutResult {
   /** Your share, which is what landed in cash. */
   cashEarnedCents: number;
   hideoutBonusCents?: number;
+  /** Trips A. What the lieutenant skimmed while the boss was away. Already out of `cashEarnedCents`. */
+  lieutenantCutCents?: number;
   favorIncomePercent?: number;
   favorRecruitmentPercent?: number;
   payoutPercent: number;
@@ -550,6 +597,8 @@ export interface ProduceCrackResult {
   crewTakeCents: number;
   cashEarnedCents: number;
   hideoutBonusCents?: number;
+  /** Trips A. What the lieutenant skimmed while the boss was away. Already out of `cashEarnedCents`. */
+  lieutenantCutCents?: number;
   payoutPercent: number;
 
   /** Crack-only compatibility field. On product rounds, this is the Crack slice of productsFound. */
@@ -754,6 +803,17 @@ export interface QuestBranchChoiceDto {
   reputationDeltas: QuestBranchReputationDto[];
 }
 
+export interface QuestStoryDto {
+  chapter: string;
+  speaker: string;
+  intro: string;
+  inProgress: string;
+  ready: string;
+  completed: string;
+  lesson: string;
+  actionHint: string;
+}
+
 export interface QuestContactDto {
   key: string;
   name: string;
@@ -779,6 +839,7 @@ export interface PlayerQuestDto {
   isTracked: boolean;
   chosenBranch: string | null;
   branchChoices: QuestBranchChoiceDto[];
+  story?: QuestStoryDto;
   objectives: QuestObjectiveDto[];
   rewards: QuestRewardDto[];
   seasonalEvent?: {
@@ -899,6 +960,43 @@ export interface QuestPageDto {
   armedFavors: QuestArmedFavorDto[];
   favors: QuestFavorDto[];
   quests: PlayerQuestDto[];
+}
+
+/** Street Pass: one tier of the track and whether this player has reached and claimed it. */
+export interface StreetPassTierDto {
+  tier: number;
+  /** Total Cred needed to reach this tier. */
+  credToReach: number;
+  reached: boolean;
+  claimed: boolean;
+  rewards: QuestRewardDto[];
+}
+
+/** Street Pass: the round's track and this player's place on it. */
+export interface StreetPassDto {
+  key: string;
+  name: string;
+  cred: number;
+  /** Highest tier reached (0 before the first). */
+  tier: number;
+  tierCount: number;
+  /** Total Cred needed for the next tier, or null once the track is finished. */
+  nextTierCred: number | null;
+  lateJoinBonusPercent: number;
+  /** Base Cred from turns counted in today's window, and the daily cap. */
+  turnCredToday: number;
+  turnCredCap: number;
+  /** Cred each source pays, before any late-join bonus. */
+  sources: { dailyContract: number; weeklyContract: number; oneTimeJob: number; eventContract: number; perTurnSpent: number };
+  /** Tiers reached but not yet claimed. */
+  claimable: number[];
+  tiers: StreetPassTierDto[];
+}
+
+export interface StreetPassClaimResult {
+  passKey: string;
+  tier: number;
+  rewards: QuestRewardDto[];
 }
 
 export interface QuestClaimResult {

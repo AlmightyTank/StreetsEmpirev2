@@ -268,6 +268,7 @@ export function scoutReceiptLines(action: GameActionResult<ScoutResult>, me: Pro
     result.turf?.holdBonusCents ? `+${formatCents(result.turf.holdBonusCents)} turf` : null,
     result.turf?.taxPaidCents ? `−${formatCents(result.turf.taxPaidCents)} tax` : null,
     backOfficeBonusCents > 0 ? `+${formatCents(backOfficeBonusCents)} Back Office` : null,
+    result.lieutenantCutCents ? `−${formatCents(result.lieutenantCutCents)} lieutenant (boss away)` : null,
     result.heat?.fineCents ? `−${formatCents(result.heat.fineCents)} fine` : null,
   ]);
 
@@ -315,6 +316,7 @@ export function produceReceiptLines(action: GameActionResult<ProduceCrackResult>
     result.grossEarnedCents > 0 ? `+${formatCents(result.grossEarnedCents)} gross` : null,
     result.crewTakeCents > 0 ? `−${formatCents(result.crewTakeCents)} crew cut` : null,
     backOfficeBonusCents > 0 ? `+${formatCents(backOfficeBonusCents)} Back Office` : null,
+    result.lieutenantCutCents ? `−${formatCents(result.lieutenantCutCents)} lieutenant (boss away)` : null,
     result.heat?.fineCents ? `−${formatCents(result.heat.fineCents)} fine` : null,
   ]);
 

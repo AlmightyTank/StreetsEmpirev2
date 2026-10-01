@@ -60,6 +60,16 @@ import { classicOgV08E } from './classic-og-v0.8-e/index.js';
 import { classicOgV08F } from './classic-og-v0.8-f/index.js';
 import { classicOgV08G } from './classic-og-v0.8-g/index.js';
 import { classicOgV08H } from './classic-og-v0.8-h/index.js';
+import { classicOgTripsA } from './classic-og-trips-a/index.js';
+import { classicOgTripsB } from './classic-og-trips-b/index.js';
+import { classicOgTripsC } from './classic-og-trips-c/index.js';
+import { classicOgTripsD } from './classic-og-trips-d/index.js';
+import { classicOgTripsD2 } from './classic-og-trips-d2/index.js';
+import { classicOgTripsE } from './classic-og-trips-e/index.js';
+import { classicOgStreetPassA } from './classic-og-street-pass-a/index.js';
+import { classicOgV11A } from './classic-og-v1.1-a/index.js';
+import { classicOgV11B } from './classic-og-v1.1-b/index.js';
+import type { Ruleset } from './types.js';
 import { classicOgV11A } from './classic-og-v1.1-a/index.js';
 import { classicOgV11B } from './classic-og-v1.1-b/index.js';
 import type { Ruleset } from './types.js';
@@ -126,6 +136,16 @@ export { classicOgV08E };
 export { classicOgV08F };
 export { classicOgV08G };
 export { classicOgV08H };
+export { classicOgTripsA };
+export { classicOgTripsB };
+export { classicOgTripsC };
+export { classicOgTripsD };
+export { classicOgTripsD2 };
+export { classicOgTripsE };
+export { classicOgStreetPassA };
+export { classicOgV11A };
+export { classicOgV11B };
+export * from './classic-og-v0.1/index.js';
 export { classicOgV11A };
 export { classicOgV11B };
 export * from './classic-og-v0.1/index.js';
@@ -135,6 +155,7 @@ export * from './hideout-v2.js';
 export * from './quest-definitions.js';
 export * from './quest-progress.js';
 export * from './quest-contacts.js';
+export * from './street-pass.js';
 
 /** Every ruleset the engine can load, keyed by its public id. */
 export const rulesets: Readonly<Record<string, Ruleset>> = {
@@ -200,6 +221,15 @@ export const rulesets: Readonly<Record<string, Ruleset>> = {
   [classicOgV08F.meta.id]: classicOgV08F,
   [classicOgV08G.meta.id]: classicOgV08G,
   [classicOgV08H.meta.id]: classicOgV08H,
+  [classicOgTripsA.meta.id]: classicOgTripsA,
+  [classicOgTripsB.meta.id]: classicOgTripsB,
+  [classicOgTripsC.meta.id]: classicOgTripsC,
+  [classicOgTripsD.meta.id]: classicOgTripsD,
+  [classicOgTripsD2.meta.id]: classicOgTripsD2,
+  [classicOgTripsE.meta.id]: classicOgTripsE,
+  [classicOgStreetPassA.meta.id]: classicOgStreetPassA,
+  [classicOgV11A.meta.id]: classicOgV11A,
+  [classicOgV11B.meta.id]: classicOgV11B,
   [classicOgV11A.meta.id]: classicOgV11A,
   [classicOgV11B.meta.id]: classicOgV11B,
 };

@@ -14,6 +14,8 @@ const FIXED_ROLES: ManagedRole[] = [
   { key: 'top-finisher', name: 'Top Finisher', color: 0x60a5fa },
   { key: 'past-winner', name: 'Past Winner', color: 0xffb020 },
   { key: 'hall-of-fame', name: 'Hall of Fame', color: 0xffb020 },
+  // 0.9.0-F: a finished season on the national podium.
+  { key: 'kingpin', name: 'Kingpin', color: 0xffb020 },
 ];
 
 /** 0.3.0-C. One role per live alliance in the current round, e.g. "Alliance [ESK]". */

@@ -66,7 +66,7 @@ export function PayoutControl() {
           <span>{MAX}%</span>
         </div>
 
-        {action.error ? <p className="se-error">{action.error}</p> : null}
+        {action.error ? <p className="se-error" role="alert">{action.error}</p> : null}
 
         <Button
           className="se-btn se-btn--block"

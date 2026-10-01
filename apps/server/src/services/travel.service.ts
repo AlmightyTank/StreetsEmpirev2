@@ -19,6 +19,7 @@ import {
   planLaunch,
   quoteMoved,
   resolveRunTrouble,
+  rideAlongHourCents,
   routeHours,
   rulesetForCity,
   runCapacity,
@@ -27,6 +28,7 @@ import {
   saleHeat,
   settleLiveShelf,
   streetWire,
+  tripRules,
   type Rng,
   type Ruleset,
   type RunStopPlan,
@@ -53,6 +55,8 @@ import { ActionService, assertTurns, fitThugs } from './action.service.js';
 import { CitiesService } from './cities.service.js';
 import { PlayerStateService } from './player-state.service.js';
 import { RelocationService } from './relocation.service.js';
+import { BossTripService } from './boss-trip.service.js';
+import { bossAway } from './boss-trip-settle.service.js';
 import { ActivityService } from './activity.service.js';
 import { HighMarketService } from './high-market.service.js';
 import { hideoutGarageRunLimit, hideoutWeaponPriority } from './hideout.service.js';
@@ -186,6 +190,14 @@ async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Rul
     capacity: runCapacity(ruleset, run.lowRiders),
     cargo: run.cargo.map((row) => ({ key: row.productKey, quantity: row.quantity, startQuantity: row.startQuantity })),
     guns: { PISTOL: run.pistols, SHOTGUN: run.shotguns, TEK9: run.tek9s, AK47: run.ak47s },
+    bossAboard: run.bossAboard,
+    hotel: run.bossAboard && tripRules(ruleset)?.rideAlong
+      ? {
+          hourCents: Number(rideAlongHourCents(tripRules(ruleset)!, position.city, run.escortThugs)),
+          paidCents: Number(run.hotelCents),
+          hoursPaid: run.hotelStayAt && stops[position.stopIndex]?.arriveAt.getTime() === run.hotelStayAt.getTime() ? run.hotelHours : 0,
+        }
+      : null,
     turnsSpent: run.turnsSpent,
     stops: stopsDto(ruleset, stops),
     position: {
@@ -226,6 +238,8 @@ async function lastRunDto(db: Db | PrismaClient, roundPlayerId: string, ruleset:
     beer: run.beer,
     cargo: run.cargo.map((row) => ({ key: row.productKey, startQuantity: row.startQuantity, quantity: row.quantity })),
     turnsSpent: run.turnsSpent,
+    bossAboard: run.bossAboard,
+    hotelCents: Number(run.hotelCents),
     trades: run.trades.map((trade) => toTradeDto(ruleset, trade)),
     incidents: run.incidents.map((incident) => toIncidentDto(ruleset, incident)),
   };
@@ -388,6 +402,7 @@ export const TravelService = {
       lastRun: await lastRunDto(prisma, roundPlayerId, base),
       wire: await wireDto(prisma, player.roundId, base, seed, now),
       relocation: await RelocationService.page(prisma, player, base, settled.round.endsAt, player.heat, now),
+      trips: await BossTripService.page(prisma, player, base, settled.round.endsAt, now),
     };
   },
 
@@ -445,9 +460,16 @@ export const TravelService = {
             ? 'You already have a run out. Build the Garage or wait for it to come home.'
             : `Your Garage supports ${limit} active runs, and they are already out.`);
         }
+        // Trips B: the boss can ride along, if they are home and the round allows it.
+        const rideAlong = input.rideAlong ? tripRules(ruleset)?.rideAlong : undefined;
+        if (input.rideAlong) {
+          if (!rideAlong) throw AppError.conflict('RIDE_ALONG_DISABLED', 'The boss stays home this round; runs are crew only.');
+          if (await bossAway(tx, roundPlayerId)) throw AppError.conflict('BOSS_AWAY', 'The boss is already away. Only one of you.');
+          if (player.laidUpUntil && player.laidUpUntil > now) throw AppError.conflict('LAID_UP', 'The boss is laid up after a beating. No travel until they heal.');
+        }
         let plan;
         try {
-          plan = planLaunch(ruleset, { home: player.city.slug, to: input.to, routeIndex: input.route, now });
+          plan = planLaunch(ruleset, { home: player.city.slug, to: input.to, routeIndex: input.route, now, windowMinutes: rideAlong?.maxStayMinutes });
         } catch (error) { refuse(error); }
         assertTurns(current.turns, plan.turns);
 
@@ -543,6 +565,7 @@ export const TravelService = {
             launchedAt: now,
             // Wheels' Open Road treats the outbound stop as already checked.
             roadChecks: openRoad ? 1 : 0,
+            bossAboard: Boolean(rideAlong),
             cargo: { create: productKeys(ruleset).filter((key) => (cargo[key] ?? 0) > 0).map((key) => ({ productKey: key, quantity: cargo[key]!, startQuantity: cargo[key]! })) },
           },
         });
@@ -571,6 +594,7 @@ export const TravelService = {
           cargo,
           market: Object.fromEntries(marketTrades.map((trade) => [trade.productKey, trade.quantity])),
           marketCents: Number(marketCents),
+          bossAboard: Boolean(rideAlong),
         };
         return {
           next: {
@@ -794,7 +818,9 @@ export const TravelService = {
         const run = await requireActiveRun(tx, roundPlayerId, input.runId);
         let plan;
         try {
-          plan = planDriveOn(ruleset, toStopPlans(run.stops), now, { home: run.homeCity, to: input.to, routeIndex: input.route });
+          // Trips B: with the boss aboard, the next town holds the run until the player leaves.
+          const windowMinutes = run.bossAboard ? tripRules(ruleset)?.rideAlong?.maxStayMinutes : undefined;
+          plan = planDriveOn(ruleset, toStopPlans(run.stops), now, { home: run.homeCity, to: input.to, routeIndex: input.route, windowMinutes });
         } catch (error) { refuse(error); }
         assertTurns(current.turns, plan.turns);
         await writeStops(tx, run.id, plan.stops);

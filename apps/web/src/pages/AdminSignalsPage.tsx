@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { AdminSignal, AdminSignalClusterDto, AdminSignalsDto } from '@streets/shared';
+import type { AdminSignal, AdminSignalClusterDto, AdminSignalsDto, AdminSignalTransferDto } from '@streets/shared';
+import { formatCents } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { AccountTags } from '../components/AdminParts.js';
@@ -13,7 +14,29 @@ const signalText: Record<AdminSignal, { label: string; tone: string }> = {
   'shared-network': { label: 'Same network', tone: '' },
   'same-device': { label: 'Same browser', tone: ' se-tag--warn' },
   'created-together': { label: 'Created within 30 min', tone: ' se-tag--bad' },
+  'value-between': { label: 'Value moved between them', tone: ' se-tag--bad' },
+  'same-alliance': { label: 'Same alliance', tone: ' se-tag--warn' },
+  'market-pairing': { label: 'Paired market trades', tone: ' se-tag--warn' },
 };
+
+const transferText: Record<AdminSignalTransferDto['kind'], string> = {
+  RAID: 'raided',
+  DRIVE_BY: 'drove by',
+  SPECIAL: 'hit',
+  TURF_PUSH: 'pushed the turf of',
+  TURF_TAX: 'paid turf tax to',
+  MARKET_PAIR: 'sold on the market, bought back by',
+};
+
+const money = (cents: number) => formatCents(cents);
+
+/** 1.0.0-C. How value moved inside a match, in one line each. */
+function transferLine(row: AdminSignalTransferDto): string {
+  // Raids and pushes are recorded winner-side: "to" hit "from".
+  const [subject, object] = row.kind === 'TURF_TAX' || row.kind === 'MARKET_PAIR' ? [row.from, row.to] : [row.to, row.from];
+  const amount = row.cashCents !== null ? ` (${money(row.cashCents)})` : '';
+  return `${subject} ${transferText[row.kind]} ${object}${amount}, ${adminWhen(row.at)}${row.voided ? ' · voided' : ''}`;
+}
 
 /** 0.5.0-E. A convoy hit between accounts in a match, with a way to reverse it. */
 function ConvoyHit({ hit }: { hit: NonNullable<AdminSignalClusterDto['convoyHits']>[number] }) {
@@ -76,6 +99,30 @@ export function AdminSignalsPage() {
         <p className="se-hint">Addresses and browser strings are never shown. The key tells groups apart and stays the same on this server.</p>
       </Panel>
 
+      {data?.apiAbuse.length ? (
+        <Panel title="Rate-limit refusals" aside="last 24 hours, this server" flush className="se-mb">
+          <p className="se-admin-pad se-hint">Scripts, bots and stuck clients. A few refusals from a fast player are normal; hundreds are not.</p>
+          <div className="se-tablewrap">
+            <table className="se-table se-table--cards">
+              <thead>
+                <tr><th>Who</th><th>Limits</th><th className="se-table__number">Refused</th><th>First</th><th>Last</th></tr>
+              </thead>
+              <tbody>
+                {data.apiAbuse.map((row) => (
+                  <tr key={row.account?.id ?? row.networkKey ?? row.firstAt}>
+                    <td className="se-td--title">{row.account ? <Link to={`/game/admin/accounts/${row.account.id}`}>{row.account.username}</Link> : `Signed out · network ${row.networkKey}`}</td>
+                    <td data-label="Limits">{row.buckets.join(', ')}</td>
+                    <td className="se-table__number se-num" data-label="Refused">{row.refused}</td>
+                    <td data-label="First">{adminWhen(row.firstAt)}</td>
+                    <td data-label="Last">{adminWhen(row.lastAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      ) : null}
+
       {!data ? (
         <p className="se-muted">Looking for matches...</p>
       ) : data.clusters.length === 0 ? (
@@ -90,6 +137,17 @@ export function AdminSignalsPage() {
               </span>
               {cluster.convoyHits?.length ? (
                 <ul className="se-admin-list">{cluster.convoyHits.map((hit) => <ConvoyHit key={hit.tailId} hit={hit} />)}</ul>
+              ) : null}
+              {cluster.alliances?.length ? (
+                <p className="se-hint">
+                  {cluster.alliances.map((alliance) => `[${alliance.tag}] ${alliance.name}: ${alliance.members.join(', ')}`).join(' · ')}
+                </p>
+              ) : null}
+              {cluster.transfers?.length ? (
+                <ul className="se-admin-list">
+                  {cluster.transfers.slice(0, 20).map((row, index) => <li key={`${row.kind}-${row.at}-${index}`}>{transferLine(row)}</li>)}
+                  {cluster.transfers.length > 20 ? <li className="se-muted">and {cluster.transfers.length - 20} more</li> : null}
+                </ul>
               ) : null}
             </div>
             <div className="se-tablewrap">

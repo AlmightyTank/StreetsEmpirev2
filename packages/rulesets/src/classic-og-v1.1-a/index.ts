@@ -1,13 +1,25 @@
-import { classicOgV08H } from '../classic-og-v0.8-h/index.js';
+import { classicOgStreetPassA } from '../classic-og-street-pass-a/index.js';
 import type { Ruleset } from '../types.js';
 
 /**
- * 1.1.0-A, the first Businesses, Fronts & Rackets ruleset. 0.8.0-H balance, plus a
+ * 1.1.0-A, the first Businesses, Fronts & Rackets ruleset. The 1.0 shipping balance
+ * (`classic-og-street-pass-a`: 0.8.0-H, Trips and the Street Pass), plus a
  * `business` block: the three lots on every turf block, what each business costs, staffs
  * and earns, the city signatures, block tiers, war fatigue, block-war timings, the one
  * ally per side, and how the locals let an abandoned block's businesses decay.
  *
- * Nothing reads these numbers yet: a 1.1.0-A round plays exactly like a 0.8.0-H one, and
+ * Nothing reads these numbers yet: a 1.1.0-A round plays exactly like a street-pass-a one, and
+ * a test pins that. They are here so `npm run qa:business` can argue with them before any
+ * of it is built, the way 0.6.0-A did for turf. See docs/ROADMAP-1.1.0.md.
+ *
+ * Keep this ruleset separate from the shipping ruleset; `business` is the only addition.
+ * The core engine is still 0.8.0-H, with Trips and the Street Pass layered on top.
+ */
+ * `business` block: the three lots on every turf block, what each business costs, staffs
+ * and earns, the city signatures, block tiers, war fatigue, block-war timings, the one
+ * ally per side, and how the locals let an abandoned block's businesses decay.
+ *
+ * Nothing reads these numbers yet: a 1.1.0-A round plays exactly like a street-pass-a one, and
  * a test pins that. They are here so `npm run qa:business` can argue with them before any
  * of it is built, the way 0.6.0-A did for turf. See docs/ROADMAP-1.1.0.md.
  *
@@ -25,7 +37,7 @@ import type { Ruleset } from '../types.js';
  *   foot traffic (`districtIncome`) has to pay for them there.
  */
 export const classicOgV11A = {
-  ...classicOgV08H,
+  ...classicOgStreetPassA,
   meta: { id: 'classic-og-v1.1-a', version: '1.1.0-A', name: 'Classic OG - Businesses' },
   business: {
     catalog: {

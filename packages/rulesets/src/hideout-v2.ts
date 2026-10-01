@@ -364,6 +364,26 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v0.7-y': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v0.7-z': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v0.7-aa': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // The 0.8 rulesets copy 0.7-AA under new ids. They were never added here, so from
+  // 0.8-C on the Hideout lost security, asset protection, the ledger and specialization
+  // effects (rooms fell back to their basic buffs). Same Hideout as 0.7-AA.
+  'classic-og-v0.8-c': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.8-d': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.8-e': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.8-f': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.8-g': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v0.8-h': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // Boss trips build on 0.8-H; same Hideout.
+  'classic-og-trips-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-trips-b': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-trips-c': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-trips-d': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-trips-d2': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-trips-e': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-street-pass-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // 1.1.0: Businesses, Fronts & Rackets, built on street-pass-a.
+  'classic-og-v1.1-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.1-b': CLASSIC_OG_V07G_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */

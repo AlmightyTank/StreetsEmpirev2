@@ -244,7 +244,7 @@
 
 .se-alliance-roster .se-rank-you {
   background:
-    linear-gradient(90deg, rgba(182, 255, 58, 0.05), transparent 38%),
+    linear-gradient(90deg, rgba(var(--se-accent-rgb), 0.05), transparent 38%),
     rgba(255, 255, 255, 0.01);
   box-shadow: inset 3px 0 0 var(--se-accent);
 }
@@ -383,11 +383,11 @@
 }
 
 .se-alliance-leave {
-  border-color: rgba(255, 84, 104, 0.18);
+  border-color: rgba(243, 63, 99, 0.18);
 }
 
 .se-alliance-leave .se-panel__head {
-  background: rgba(255, 84, 104, 0.02);
+  background: rgba(243, 63, 99, 0.02);
 }
 
 .se-alliance .se-dim,

@@ -2,7 +2,7 @@ import type { ActivityDto, RoundDto, RoundStatus } from './api.js';
 import type { BattleReportDto } from './combat.js';
 
 /** 0.3.0-B. Lifecycle moves an admin can make on a round in its current status. */
-export type AdminRoundAction = 'open-registration' | 'start' | 'end-early' | 'archive';
+export type AdminRoundAction = 'open-registration' | 'start' | 'pause' | 'resume' | 'end-early' | 'archive';
 
 export interface AdminRoundDto extends RoundDto {
   createdAt: string;
@@ -90,6 +90,8 @@ export interface AdminAuditFilters {
 export type AdminAccountStatusFilter = 'all' | 'active' | 'inactive' | 'admin' | 'suspended' | 'beta-pending';
 
 export type AdminAccountAction =
+  | 'ban'
+  | 'unban'
   | 'deactivate'
   | 'reactivate'
   | 'suspend'
@@ -103,9 +105,13 @@ export type AdminAccountAction =
   | 'revoke-beta'
   | 'resend-verification'
   | 'mark-email-verified'
+  | 'reset-2fa'
   | 'unlink-forum'
   | 'resync-discord'
-  | 'delete-account';
+  | 'delete-account'
+  | 'comms-mute'
+  | 'comms-unmute'
+  | 'add-note';
 
 /** A timed suspension. Null once it is lifted or has run out. */
 export interface AdminSuspensionDto {
@@ -119,10 +125,14 @@ export interface AdminAccountSummaryDto {
   username: string;
   email: string;
   emailVerified: boolean;
+  /** rc.3. Signs in with an authenticator code. */
+  twoFactorEnabled: boolean;
   isActive: boolean;
   isAdmin: boolean;
   betaApproved: boolean;
   suspension: AdminSuspensionDto | null;
+  /** 1.0.0-E. Set while the account is banned. */
+  ban: { at: string; reason: string; byUsername: string | null } | null;
   discordUsername: string | null;
   forumUsername: string | null;
   createdAt: string;
@@ -146,6 +156,102 @@ export const ADMIN_SUSPENSION_LENGTHS = [
 ] as const;
 
 export type AdminSuspensionLength = (typeof ADMIN_SUSPENSION_LENGTHS)[number]['key'];
+
+/**
+ * 0.9.0-H. Communication mute lengths: no private messages, wire posts or forum
+ * recruitment threads. The player keeps playing. `permanent` lasts until lifted.
+ */
+export const ADMIN_COMMS_MUTE_LENGTHS = [
+  { key: '1h', label: '1 hour', hours: 1 },
+  { key: '1d', label: '1 day', hours: 24 },
+  { key: '3d', label: '3 days', hours: 24 * 3 },
+  { key: '7d', label: '7 days', hours: 24 * 7 },
+  { key: '30d', label: '30 days', hours: 24 * 30 },
+  { key: 'permanent', label: 'Permanent', hours: null },
+] as const;
+
+export type AdminCommsMuteLength = (typeof ADMIN_COMMS_MUTE_LENGTHS)[number]['key'];
+
+/** 0.9.0-H. A communication mute in force. */
+export interface AdminCommsMuteDto {
+  permanent: boolean;
+  until: string | null;
+  reason: string;
+  byUsername: string | null;
+}
+
+/** 0.9.0-H. A private admin note on an account. */
+export interface AdminModerationNoteDto {
+  id: string;
+  authorUsername: string;
+  body: string;
+  createdAt: string;
+}
+
+export const ADMIN_NOTE_MAX = 2_000;
+
+export type AdminReportStatus = 'open' | 'resolved';
+export type AdminReportResolution = 'DISMISSED' | 'ACTIONED';
+
+export interface AdminReportPartyDto {
+  accountId: string;
+  username: string;
+  displayName: string;
+  publicPimpId: number;
+}
+
+/**
+ * 0.9.0-H. One report in the queue. The queue never carries message text: an
+ * admin opens a report on purpose, and that view is audited.
+ */
+export interface AdminReportSummaryDto {
+  id: string;
+  source: 'PLAYER' | 'AUTO';
+  reason: string;
+  createdAt: string;
+  reporterUsername: string | null;
+  roundName: string;
+  messageId: string;
+  messageAt: string;
+  sender: AdminReportPartyDto;
+  recipient: AdminReportPartyDto;
+  /** Every report on this message, the automated flag included. */
+  reportsOnMessage: number;
+  /** Open reports or flags against this sender's messages. */
+  openAgainstSender: number;
+  senderRestricted: boolean;
+  resolvedAt: string | null;
+  resolvedByUsername: string | null;
+  resolution: AdminReportResolution | null;
+  resolutionNote: string | null;
+}
+
+export interface AdminReportQueueDto {
+  status: AdminReportStatus;
+  page: number;
+  totalPages: number;
+  total: number;
+  counts: { open: number; resolved: number };
+  reports: AdminReportSummaryDto[];
+}
+
+export interface AdminReportMessageDto {
+  id: string;
+  fromSender: boolean;
+  subject: string;
+  body: string;
+  createdAt: string;
+  reported: boolean;
+}
+
+/** 0.9.0-H. An opened report: the reported message plus a few around it in the same thread. */
+export interface AdminReportDetailDto {
+  report: AdminReportSummaryDto;
+  thread: AdminReportMessageDto[];
+  /** How many messages of the thread were left out on each side of what is shown. */
+  omitted: { before: number; after: number };
+  senderComms: AdminCommsMuteDto | null;
+}
 
 /** One player in one round, found by name or public id rather than by account. */
 export interface AdminPlayerSearchRowDto {
@@ -220,6 +326,12 @@ export interface AdminAccountDetailDto {
   rounds: AdminAccountRoundDto[];
   /** Latest admin actions on this account. */
   audit: AdminAuditEntryDto[];
+  /** 0.9.0-H. Communication mute in force, if any. */
+  comms: AdminCommsMuteDto | null;
+  /** 0.9.0-H. Private moderation notes, newest first. */
+  notes: AdminModerationNoteDto[];
+  /** 0.9.0-H. Reports and flags against messages this account sent. */
+  reportsAgainst: { open: number; total: number };
 }
 
 export interface AdminAccountDeleteResultDto {
@@ -375,6 +487,9 @@ export interface SiteBannerDto {
   startsAt: string;
   endsAt: string;
   createdByUsername: string;
+  /** 1.0.0-E. A maintenance notice carries the outage window it announces. */
+  kind: 'notice' | 'maintenance';
+  maintenance: { startsAt: string; endsAt: string } | null;
 }
 
 export interface SiteBannerResponseDto {
@@ -392,6 +507,11 @@ export interface AdminCreateBannerInput {
   tone: SiteBannerTone;
   startsAt?: string;
   endsAt: string;
+  /** 1.0.0-E. A maintenance notice: the window it announces, and whether to tell every player now. */
+  kind?: 'notice' | 'maintenance';
+  maintenanceStartsAt?: string;
+  maintenanceEndsAt?: string;
+  announce?: boolean;
 }
 
 export interface AdminNewsPostDto {
@@ -410,6 +530,9 @@ export interface AdminNewsPostDto {
   forumPostedAt: string | null;
   forumError: string | null;
   updatedAt: string;
+  /** 1.0.0-E. Sent to every player's bell and alert channels once published. */
+  broadcast: boolean;
+  broadcastAt: string | null;
 }
 
 export interface AdminNewsDto {
@@ -427,6 +550,8 @@ export interface AdminCreateNewsInput {
   /** Defaults to now. A future time schedules the post. */
   publishedAt?: string;
   mirrorToForum: boolean;
+  /** 1.0.0-E. Also send it to every player of the season. */
+  broadcast?: boolean;
 }
 
 export interface AdminUpdateNewsInput {
@@ -592,7 +717,24 @@ export interface AdminVoidBattleResultDto {
   defender: AdminVoidSideDto;
 }
 
-export type AdminSignal = 'shared-network' | 'same-device' | 'created-together';
+export type AdminSignal = 'shared-network' | 'same-device' | 'created-together'
+  /** 1.0.0-C. Value moved between them: raids, turf pushes, convoy hits or turf tax. */
+  | 'value-between'
+  /** 1.0.0-C. Two or more of them in one alliance this season. */
+  | 'same-alliance'
+  /** 1.0.0-C. Opposite trades of one product on one high market within an hour. */
+  | 'market-pairing';
+
+/** 1.0.0-C. A way value moved between two accounts in a match. */
+export interface AdminSignalTransferDto {
+  kind: 'RAID' | 'DRIVE_BY' | 'SPECIAL' | 'TURF_PUSH' | 'TURF_TAX' | 'MARKET_PAIR';
+  from: string;
+  to: string;
+  at: string;
+  /** Cash that moved, where the record says. */
+  cashCents: number | null;
+  voided: boolean;
+}
 
 export interface AdminSignalAccountDto {
   id: string;
@@ -612,15 +754,33 @@ export interface AdminSignalClusterDto {
   signals: AdminSignal[];
   /** 0.5.0-E. Convoy hits that landed between accounts in this cluster: a way goods could move between them. */
   convoyHits?: Array<{ tailId: string; attacker: string; owner: string; at: string; voided: boolean }>;
+  /** 1.0.0-C. Every other way value moved between them in the window, newest first. */
+  transfers?: AdminSignalTransferDto[];
+  /** 1.0.0-C. Alliances holding two or more of them this season. */
+  alliances?: Array<{ tag: string; name: string; members: string[] }>;
   firstSeenAt: string;
   lastSeenAt: string;
   accounts: AdminSignalAccountDto[];
+}
+
+/** 1.0.0-C. Someone repeatedly hitting the API rate limits: scripts, bots or a stuck client. */
+export interface AdminApiAbuseDto {
+  /** An account when signed in; otherwise an opaque network key, never the address. */
+  account: { id: string; username: string } | null;
+  networkKey: string | null;
+  /** Requests refused in the last 24 hours on this server process. */
+  refused: number;
+  buckets: string[];
+  firstAt: string;
+  lastAt: string;
 }
 
 export interface AdminSignalsDto {
   windowDays: number;
   generatedAt: string;
   clusters: AdminSignalClusterDto[];
+  /** 1.0.0-C. Since this server process started, at most the last 24 hours. */
+  apiAbuse: AdminApiAbuseDto[];
 }
 
 /** 0.3.0-E. One matchup in the alliance balance report. */
@@ -659,3 +819,133 @@ export interface AllianceBalanceDto {
     byKind: Array<AllianceBalanceCellDto & { kind: string }>;
   };
 }
+
+// --- 1.0.0-E administration ----------------------------------------------------------
+
+export type ExploitFlagKind = 'STATE_GUARD' | 'INVARIANT' | 'LINKED_ATTACK' | 'ACTION_REPLAY' | 'API_ABUSE' | 'SIGNUP_ABUSE';
+export type ExploitFlagResolution = 'dismissed' | 'actioned';
+
+export interface AdminExploitFlagDto {
+  id: string;
+  kind: ExploitFlagKind;
+  severity: 'info' | 'warning' | 'critical';
+  account: { id: string; username: string } | null;
+  roundPlayerId: string | null;
+  roundId: string | null;
+  route: string | null;
+  message: string;
+  detail: unknown;
+  occurrences: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  review: { at: string; byUsername: string | null; resolution: ExploitFlagResolution; note: string | null } | null;
+}
+
+export interface AdminExploitFlagsDto {
+  open: number;
+  openCritical: number;
+  flags: AdminExploitFlagDto[];
+}
+
+export interface AdminPlayerRefDto {
+  id: string;
+  displayName: string;
+  publicPimpId: number;
+  accountId: string;
+}
+
+/** 1.0.0-E. Every high market and Pip counter in a round, priced the way players see them now. */
+export interface AdminMarketsDto {
+  roundId: string;
+  generatedAt: string;
+  cities: Array<{
+    city: string;
+    name: string;
+    products: Array<{
+      product: string;
+      supply: string | null;
+      event: string | null;
+      baselineCents: number | null;
+      buyCents: number | null;
+      sellCents: number | null;
+      pushPercent: number;
+      pip: { buyCents: number; sellCents: number } | null;
+    }>;
+  }>;
+}
+
+/** 1.0.0-E. Money worth a second look in a window. */
+export interface AdminSuspiciousDto {
+  roundId: string;
+  windowHours: number;
+  /** The largest single ledger lines, either way. */
+  largest: Array<{ id: string; player: AdminPlayerRefDto; source: string; label: string; amountCents: number; at: string }>;
+  /** Players whose net cash flow in the window is a large share of their net worth. */
+  surges: Array<{ player: AdminPlayerRefDto; netCents: number; netWorthCents: number; sharePercent: number }>;
+  /** Admin grants in the window: compensation should be visible next to everything else. */
+  grants: Array<{ id: string; actorUsername: string; targetId: string | null; reason: string | null; at: string }>;
+  openFlags: number;
+}
+
+/** 1.0.0-E. Stock on its way: special orders and the shelves waiting on them. */
+export interface AdminShipmentsDto {
+  roundId: string;
+  pending: Array<{ player: AdminPlayerRefDto; store: string; item: string; dueAt: string; orderedAt: string }>;
+  delivered: Array<{ player: AdminPlayerRefDto; store: string; item: string; dueAt: string; deliveredAt: string | null }>;
+}
+
+/** 1.0.0-E. One player's shelves, settled as the store would show them now. */
+export interface AdminPlayerStoresDto {
+  player: AdminPlayerRefDto;
+  shelves: Array<{ field: string; stock: number; cap: number; perInterval: number; intervalMinutes: number; nextAt: string | null; shipment: string | null }>;
+  productShelves: Array<{ product: string; stock: number; at: string }>;
+  cityShelves: Array<{ city: string; product: string; stock: number; at: string }>;
+  specialOrders: Array<{ store: string; item: string; dueAt: string }>;
+}
+
+/** 1.0.0-E. Recent fights across a round. */
+export interface AdminRoundBattlesDto {
+  roundId: string;
+  battles: Array<{
+    id: string;
+    kind: string;
+    attacker: AdminPlayerRefDto;
+    defender: AdminPlayerRefDto;
+    winner: 'ATTACKER' | 'DEFENDER' | null;
+    lootCents: number;
+    at: string;
+    voided: { at: string; byUsername: string | null; reason: string | null } | null;
+  }>;
+  tails: Array<{ id: string; attacker: string; owner: string; status: string; startedAt: string; voided: boolean }>;
+}
+
+/** 1.0.0-E. Turf in a round: every block, what stands on it, and what is in flight. */
+export interface AdminTurfDto {
+  roundId: string;
+  blocks: Array<{
+    id: string;
+    city: string;
+    district: string;
+    holder: AdminPlayerRefDto | null;
+    cornerThugs: number;
+    guns: { pistols: number; shotguns: number; tek9s: number; ak47s: number };
+    localsThugs: number;
+    heldSince: string | null;
+    shieldUntil: string | null;
+    upkeepAt: string;
+    outpost: { cashCents: number; beer: number; products: Record<string, number> } | null;
+    pendingPushes: Array<{ id: string; attacker: string; squad: number; landsAt: string; overdue: boolean }>;
+  }>;
+  /** Holders whose posted thugs do not match what stands on their corners. */
+  drift: Array<{ player: AdminPlayerRefDto; postedThugs: number; onCorners: number }>;
+}
+
+export interface AdminTurfHistoryDto {
+  turfId: string;
+  city: string;
+  district: string;
+  segments: Array<{ holderName: string; holderPublicPimpId: number; allianceTag: string | null; startedAt: string; endedAt: string | null }>;
+  pushes: Array<{ id: string; attacker: string; defender: string; squad: number; status: string; captured: boolean; startedAt: string; settledAt: string | null }>;
+}
+
+export type AdminTurfRepair = 'release-block' | 'sync-posted' | 'settle-push';

@@ -81,7 +81,7 @@ export const AdminGrantService = {
       const ranksBefore = await RankingService.ranksFor(tx, player);
       const held = await HappinessService.otherProducts(tx, player.id, ruleset);
       const worth = NetWorthService.calculate({ ...next, products: held }, ruleset);
-      const happiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next), products: held }, ruleset);
+      const happiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next), products: held }, ruleset, await HappinessService.awayPenalty(tx, ruleset, player.id, new Date()));
       await tx.roundPlayer.update({
         where: { id: player.id },
         data: {

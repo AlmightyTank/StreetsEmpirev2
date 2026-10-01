@@ -5,35 +5,35 @@
   --se-page-rgb: var(--se-accent-rgb);
 }
 
-.se-route--landing { --se-page-accent: #f59e0b; --se-page-rgb: 245, 158, 11; }
+.se-route--landing { --se-page-accent: #f58514; --se-page-rgb: 245, 133, 20; }
 .se-route--auth-login,
 .se-route--auth-register,
 .se-route--auth-recovery { --se-page-accent: #f472b6; --se-page-rgb: 244, 114, 182; }
-.se-route--join { --se-page-accent: #4ade80; --se-page-rgb: 74, 222, 128; }
+.se-route--join { --se-page-accent: var(--se-accent); --se-page-rgb: var(--se-accent-rgb); }
 .se-route--account { --se-page-accent: #a78bfa; --se-page-rgb: 167, 139, 250; }
-.se-route--dashboard { --se-page-accent: #b6ff3a; --se-page-rgb: 182, 255, 58; }
-.se-route--combat { --se-page-accent: #ff5468; --se-page-rgb: 255, 84, 104; }
-.se-route--scout { --se-page-accent: #60a5fa; --se-page-rgb: 96, 165, 250; }
-.se-route--quests { --se-page-accent: #c084fc; --se-page-rgb: 192, 132, 252; }
+.se-route--dashboard { --se-page-accent: var(--se-accent); --se-page-rgb: var(--se-accent-rgb); }
+.se-route--combat { --se-page-accent: #e92048; --se-page-rgb: 233, 32, 72; }
+.se-route--scout { --se-page-accent: #6899f3; --se-page-rgb: 104, 153, 243; }
+.se-route--quests { --se-page-accent: #e576e1; --se-page-rgb: 229, 118, 225; }
 .se-route--hideout { --se-page-accent: #8b5cf6; --se-page-rgb: 139, 92, 246; }
-.se-route--produce { --se-page-accent: #f59e0b; --se-page-rgb: 245, 158, 11; }
+.se-route--produce { --se-page-accent: #f58514; --se-page-rgb: 245, 133, 20; }
 .se-route--stores,
 .se-route--store-detail { --se-page-accent: #2dd4bf; --se-page-rgb: 45, 212, 191; }
 .se-route--travel { --se-page-accent: #38bdf8; --se-page-rgb: 56, 189, 248; }
-.se-route--turf { --se-page-accent: #fb7185; --se-page-rgb: 251, 113, 133; }
-.se-route--rankings { --se-page-accent: #ffb020; --se-page-rgb: 255, 176, 32; }
+.se-route--turf { --se-page-accent: #fb7566; --se-page-rgb: 251, 117, 102; }
+.se-route--rankings { --se-page-accent: #f1b622; --se-page-rgb: 241, 182, 34; }
 .se-route--alliance,
 .se-route--alliance-detail,
 .se-route--alliances { --se-page-accent: #818cf8; --se-page-rgb: 129, 140, 248; }
 .se-route--contacts { --se-page-accent: #f472b6; --se-page-rgb: 244, 114, 182; }
-.se-route--profile { --se-page-accent: #fbbf24; --se-page-rgb: 251, 191, 36; }
+.se-route--profile { --se-page-accent: #fbd460; --se-page-rgb: 251, 212, 96; }
 .se-route--activity { --se-page-accent: #67e8f9; --se-page-rgb: 103, 232, 249; }
-.se-route--reputation { --se-page-accent: #4ade80; --se-page-rgb: 74, 222, 128; }
-.se-route--news { --se-page-accent: #fb923c; --se-page-rgb: 251, 146, 60; }
-.se-route--rules { --se-page-accent: #60a5fa; --se-page-rgb: 96, 165, 250; }
-.se-route--hall-of-fame { --se-page-accent: #facc15; --se-page-rgb: 250, 204, 21; }
+.se-route--reputation { --se-page-accent: var(--se-accent); --se-page-rgb: var(--se-accent-rgb); }
+.se-route--news { --se-page-accent: #4ade80; --se-page-rgb: 74, 222, 128; }
+.se-route--rules { --se-page-accent: #6899f3; --se-page-rgb: 104, 153, 243; }
+.se-route--hall-of-fame { --se-page-accent: #d8dee9; --se-page-rgb: 216, 222, 233; }
 .se-route--status { --se-page-accent: #2dd4bf; --se-page-rgb: 45, 212, 191; }
-.se-route--admin { --se-page-accent: #fb7185; --se-page-rgb: 251, 113, 133; }
+.se-route--admin { --se-page-accent: #fb7566; --se-page-rgb: 251, 117, 102; }
 
 .se-app[class*='se-route--'] {
   background-image:
@@ -237,7 +237,7 @@
 }
 
 .se-route--admin .se-panel.se-danger-zone {
-  border-color: rgba(255, 84, 104, 0.62);
+  border-color: rgba(243, 63, 99, 0.62);
 }
 
 @media (max-width: 899px) {

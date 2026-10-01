@@ -6,6 +6,7 @@ import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { Button } from '../components/Button.js';
+import { ItemLabel } from '../components/ItemTile.js';
 import { Panel, Row } from '../components/Panel.js';
 import { supplyEffects, supplySummary, WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -16,12 +17,16 @@ import { browserSessionStorage } from '../utils/pendingAction.js';
 /** 0.4.0-D. Recon reads a stash's depth, never its count. */
 const STASH_LABELS = { none: 'Empty', light: 'Light', stocked: 'Stocked', heavy: 'Heavy' } as const;
 import { loadPendingRaid, savePendingRaid, type PendingRaid } from '../utils/pendingRaid.js';
+import { formatWhen } from '../utils/time.js';
 
-const date = (value: string) => new Date(value).toLocaleString();
+const date = (value: string) => formatWhen(value);
 const weaponName = (key: string) => key === 'TEK9' ? 'Tek-9' : key === 'AK47' ? 'AK-47' : key.toLowerCase();
 const weaponsText = (weapons: Record<string, number>) => Object.entries(weapons).filter(([, count]) => count > 0).map(([key, count]) => `${formatNumber(count)} ${weaponName(key)}`).join(', ') || 'unarmed';
 
 const signedUnits = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatNumber(Math.abs(value))}`;
+/** A report row label with the item's picture; `slot` keeps labels lined up when a Low-Rider row is in the list. */
+const art = (itemKey: string, text: string) => <ItemLabel itemKey={itemKey} slot>{text}</ItemLabel>;
+
 const signedCents = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatCents(Math.abs(value))}`;
 
 function BattleInventoryRows({ report }: { report: BattleReportDto }) {
@@ -35,7 +40,7 @@ function BattleInventoryRows({ report }: { report: BattleReportDto }) {
         ].filter(Boolean).join(' · ');
         return <Row
           key={row.product}
-          label={row.name}
+          label={art(row.product, row.name)}
           value={`${signedUnits(row.change)} / ${formatNumber(row.after)} left${parts ? ` · ${parts}` : ''}`}
           strong={row.change !== 0}
         />;
@@ -46,13 +51,13 @@ function BattleInventoryRows({ report }: { report: BattleReportDto }) {
   return <>
     {report.crackChange !== undefined && report.crackAfter !== undefined
       ? <Row
-          label={report.productChanges ? 'Crack' : 'Product'}
+          label={art('CRACK', report.productChanges ? 'Crack' : 'Product')}
           value={`${signedUnits(report.crackChange)} / ${formatNumber(report.crackAfter)} left`}
           strong={report.crackChange !== 0}
         />
       : null}
     {(report.productChanges ?? []).map((row) => (
-      <Row key={row.product} label={row.name} value={signedUnits(row.change)} strong={row.change !== 0} />
+      <Row key={row.product} label={art(row.product, row.name)} value={signedUnits(row.change)} strong={row.change !== 0} />
     ))}
   </>;
 }
@@ -237,9 +242,9 @@ function DriveByReport({ report, onClose }: { report: BattleReportDto; onClose?:
       {report.yourSupply ? <Row label="Fight supply plan" value={`${supplySummary(report.yourSupply)} · ${supplyEffects(report.yourSupply)}`} /> : null}
       <BattleInventoryRows report={report} />
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds)} / ${formatNumber(report.opponentWounds)}`} />
-      <Row label={attacking ? 'Their whores killed' : 'Your whores killed'} value={d.whoresAfter !== undefined ? `${formatNumber(d.whoresKilled)} · ${formatNumber(d.whoresAfter)} left` : formatNumber(d.whoresKilled)} strong />
-      {attacking ? <Row label="Low-Riders — sent / lost / left" value={`${formatNumber(d.carsSent ?? 0)} / ${formatNumber(d.lowRidersLost ?? 0)} / ${formatNumber(d.lowRidersAfter ?? 0)}`} strong={(d.lowRidersLost ?? 0) > 0} /> : null}
-      {attacking ? <Row label="Turns spent / remaining" value={`${report.turnsSpent} / ${report.turnsAfter}`} /> : null}
+      <Row label={art('HOE', attacking ? 'Their whores killed' : 'Your whores killed')} value={d.whoresAfter !== undefined ? `${formatNumber(d.whoresKilled)} · ${formatNumber(d.whoresAfter)} left` : formatNumber(d.whoresKilled)} strong />
+      {attacking ? <Row label={art('LOW_RIDER', 'Low-Riders — sent / lost / left')} value={`${formatNumber(d.carsSent ?? 0)} / ${formatNumber(d.lowRidersLost ?? 0)} / ${formatNumber(d.lowRidersAfter ?? 0)}`} strong={(d.lowRidersLost ?? 0) > 0} /> : null}
+      {attacking ? <Row label={art('TURNS', 'Turns spent / remaining')} value={`${report.turnsSpent} / ${report.turnsAfter}`} /> : null}
       <Row label="National rank — before / after" value={`#${report.nationalRankBefore} / #${report.nationalRankAfter}`} />
     </div>
     {attacking ? <p className="se-hint">Your weapons: {weaponsText(report.yourEquipment)}.</p> : null}
@@ -275,15 +280,15 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
         />
       ) : null}
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds ?? 0)} / ${formatNumber(report.opponentWounds ?? 0)}`} />
-      {form.whoresDrugged !== undefined ? <Row label={attacking ? 'Their hoes drugged' : 'Your hoes drugged'} value={formatNumber(form.whoresDrugged)} strong={form.whoresDrugged > 0} /> : null}
-      {form.whoresLured !== undefined ? <Row label={attacking ? 'Hoes joined / now' : 'Hoes lost / left'} value={form.whoresAfter !== undefined ? `${formatNumber(form.whoresLured)} / ${formatNumber(form.whoresAfter)}` : formatNumber(form.whoresLured)} strong={form.whoresLured > 0} /> : null}
-      {form.thugsLured !== undefined ? <Row label={attacking ? 'Thugs joined / now' : 'Thugs lost / left'} value={form.thugsAfter !== undefined ? `${formatNumber(form.thugsLured)} / ${formatNumber(form.thugsAfter)}` : formatNumber(form.thugsLured)} strong={form.thugsLured > 0} /> : null}
-      {!report.inventoryChanges?.length && form.crackSpent !== undefined && attacking ? <Row label="Product spent" value={formatNumber(form.crackSpent)} /> : null}
-      {form.beerSpent !== undefined && attacking ? <Row label="Beer spent" value={formatNumber(form.beerSpent)} /> : null}
-      {!report.inventoryChanges?.length && form.defenderCrackBurned !== undefined ? <Row label={attacking ? 'Their product burned' : 'Your product burned'} value={formatNumber(form.defenderCrackBurned)} strong={form.defenderCrackBurned > 0} /> : null}
-      {form.defenderCondomsBurned !== undefined ? <Row label={attacking ? 'Their condoms burned' : 'Your condoms burned'} value={formatNumber(form.defenderCondomsBurned)} strong={form.defenderCondomsBurned > 0} /> : null}
-      {form.lowRidersStolen !== undefined ? <Row label={attacking ? 'Low-Riders stolen' : 'Low-Riders lost'} value={`${formatNumber(form.lowRidersStolen)} · ${formatNumber(form.lowRidersAfter ?? 0)} left`} strong={form.lowRidersStolen > 0} /> : null}
-      {attacking ? <Row label="Turns spent / remaining" value={`${report.turnsSpent} / ${report.turnsAfter}`} /> : null}
+      {form.whoresDrugged !== undefined ? <Row label={art('HOE', attacking ? 'Their hoes drugged' : 'Your hoes drugged')} value={formatNumber(form.whoresDrugged)} strong={form.whoresDrugged > 0} /> : null}
+      {form.whoresLured !== undefined ? <Row label={art('HOE', attacking ? 'Hoes joined / now' : 'Hoes lost / left')} value={form.whoresAfter !== undefined ? `${formatNumber(form.whoresLured)} / ${formatNumber(form.whoresAfter)}` : formatNumber(form.whoresLured)} strong={form.whoresLured > 0} /> : null}
+      {form.thugsLured !== undefined ? <Row label={art('THUG', attacking ? 'Thugs joined / now' : 'Thugs lost / left')} value={form.thugsAfter !== undefined ? `${formatNumber(form.thugsLured)} / ${formatNumber(form.thugsAfter)}` : formatNumber(form.thugsLured)} strong={form.thugsLured > 0} /> : null}
+      {!report.inventoryChanges?.length && form.crackSpent !== undefined && attacking ? <Row label={art('CRACK', 'Product spent')} value={formatNumber(form.crackSpent)} /> : null}
+      {form.beerSpent !== undefined && attacking ? <Row label={art('BEER', 'Beer spent')} value={formatNumber(form.beerSpent)} /> : null}
+      {!report.inventoryChanges?.length && form.defenderCrackBurned !== undefined ? <Row label={art('CRACK', attacking ? 'Their product burned' : 'Your product burned')} value={formatNumber(form.defenderCrackBurned)} strong={form.defenderCrackBurned > 0} /> : null}
+      {form.defenderCondomsBurned !== undefined ? <Row label={art('CONDOM', attacking ? 'Their condoms burned' : 'Your condoms burned')} value={formatNumber(form.defenderCondomsBurned)} strong={form.defenderCondomsBurned > 0} /> : null}
+      {form.lowRidersStolen !== undefined ? <Row label={art('LOW_RIDER', attacking ? 'Low-Riders stolen' : 'Low-Riders lost')} value={`${formatNumber(form.lowRidersStolen)} · ${formatNumber(form.lowRidersAfter ?? 0)} left`} strong={form.lowRidersStolen > 0} /> : null}
+      {attacking ? <Row label={art('TURNS', 'Turns spent / remaining')} value={`${report.turnsSpent} / ${report.turnsAfter}`} /> : null}
       <Row label="National rank — before / after" value={`#${report.nationalRankBefore} / #${report.nationalRankAfter}`} />
     </div>
     {attacking ? <p className="se-hint">Your weapons: {weaponsText(report.yourEquipment)}.</p> : null}
@@ -306,7 +311,7 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
       {report.yourSupply ? <Row label="Fight supply plan" value={`${supplySummary(report.yourSupply)} · ${supplyEffects(report.yourSupply)}`} /> : null}
       <Row label="Wounded — yours / theirs" value={`${formatNumber(report.yourWounds ?? 0)} / ${formatNumber(report.opponentWounds ?? 0)}`} />
-      <Row label="Cash" value={`${signedCents(report.cashChangeCents)} / ${formatCents(report.cashAfterCents)} left`} strong={report.cashChangeCents !== 0} />
+      <Row label={art('CASH', 'Cash')} value={`${signedCents(report.cashChangeCents)} / ${formatCents(report.cashAfterCents)} left`} strong={report.cashChangeCents !== 0} />
       {report.raidProtection ? (
         <Row
           label="Assets protected"
@@ -316,7 +321,7 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
       ) : null}
       <BattleInventoryRows report={report} />
 
-      <Row label="Turns spent / remaining" value={`${report.turnsSpent} / ${report.turnsAfter}`} />
+      <Row label={art('TURNS', 'Turns spent / remaining')} value={`${report.turnsSpent} / ${report.turnsAfter}`} />
       <Row label="National rank — before / after" value={`#${report.nationalRankBefore} / #${report.nationalRankAfter}`} />
     </div>
     <p className="se-hint">Your weapons: {weaponsText(report.yourEquipment)}.</p>

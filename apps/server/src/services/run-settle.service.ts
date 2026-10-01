@@ -7,7 +7,12 @@ import {
   runNetWorthCents,
   runPosition,
   seededRng,
+  planHeadHome,
+  rideAlongHourCents,
+  settleHotelBill,
   settleLiveShelf,
+  tripNetWorthCents,
+  tripRules,
   type RunGuns,
   type Ruleset,
   type RunStopPlan,
@@ -70,10 +75,17 @@ export async function activeRuns(db: Db, roundPlayerId: string): Promise<LoadedR
   });
 }
 
-/** 0.6.0-D Garage: away value is the sum of every active run, never whichever one moved last. */
+/**
+ * 0.6.0-D Garage: away value is the sum of every active run, never whichever one moved last.
+ * Trips A: plus the bankroll the boss carries on a trip.
+ */
 export async function totalAwayWorth(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<bigint> {
-  const runs = await activeRuns(tx, roundPlayerId);
-  return runs.reduce((sum, run) => sum + awayWorth(ruleset, run, cargoOf(run)), 0n);
+  const [runs, trips] = await Promise.all([
+    activeRuns(tx, roundPlayerId),
+    tx.bossTrip.findMany({ where: { roundPlayerId, status: 'ACTIVE' }, select: { bankrollCents: true, bodyguards: true } }),
+  ]);
+  return runs.reduce((sum, run) => sum + awayWorth(ruleset, run, cargoOf(run)), 0n)
+    + trips.reduce((sum, trip) => sum + tripNetWorthCents(ruleset, trip.bankrollCents, trip.bodyguards), 0n);
 }
 
 export async function refreshAwayWorth(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<bigint> {
@@ -198,6 +210,94 @@ async function rollRoadStops(tx: Db, roundPlayerId: string, ruleset: Ruleset, ru
   return { ...current, roadChecks: checks };
 }
 
+/** Replace a run's stops with a new plan. Stops are few, so they are rewritten whole. */
+export async function writeRunStops(tx: Db, runId: string, stops: readonly RunStopPlan[]): Promise<void> {
+  await tx.runStop.deleteMany({ where: { runId } });
+  await tx.runStop.createMany({
+    data: stops.map((stop, order) => ({ runId, order, city: stop.city, route: stop.route, departAt: stop.departAt, arriveAt: stop.arriveAt, leaveAt: stop.leaveAt })),
+  });
+}
+
+/**
+ * Trips B. With the boss aboard, the hotel bills the run's cash for every hour of every
+ * stay as it starts, town by town in order. The first hour the cash cannot cover, the
+ * boss checks out and the run heads home from there. `hotelStayAt` and `hotelHours`
+ * record what is already paid, so settling again never bills an hour twice.
+ */
+async function billHotel(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: LoadedRun, stops: readonly RunStopPlan[], now: Date): Promise<{ run: LoadedRun; stops: RunStopPlan[] }> {
+  const rules = tripRules(ruleset);
+  if (!run.bossAboard || !rules?.rideAlong) return { run, stops: [...stops] };
+  let plan = [...stops];
+  let cashCents = run.cashCents;
+  let hotelCents = run.hotelCents;
+  let stayAt = run.hotelStayAt;
+  let hours = run.hotelHours;
+  const charges: Array<{ city: string; cents: bigint; at: Date }> = [];
+  for (let index = 0; index < plan.length - 1; index++) {
+    const stop = plan[index]!;
+    if (!stop.leaveAt || stop.arriveAt.getTime() > now.getTime()) break;
+    if (stayAt && stop.arriveAt.getTime() < stayAt.getTime()) continue;
+    if (!stayAt || stop.arriveAt.getTime() !== stayAt.getTime()) {
+      stayAt = stop.arriveAt;
+      hours = 0;
+    }
+    const bill = settleHotelBill({
+      arriveAt: stop.arriveAt,
+      leaveAt: stop.leaveAt,
+      now,
+      hoursPaid: hours,
+      walletCents: cashCents,
+      hourCents: rideAlongHourCents(rules, stop.city, run.escortThugs),
+    });
+    hours = bill.hoursPaid;
+    if (bill.chargeCents > 0n) {
+      cashCents -= bill.chargeCents;
+      hotelCents += bill.chargeCents;
+      charges.push({ city: stop.city, cents: bill.chargeCents, at: bill.checkoutAt ?? (now < stop.leaveAt ? now : stop.leaveAt) });
+    }
+    // Only the town the run is in can still be checked out of: every earlier one was
+    // billed through to its departure when the run left it.
+    if (bill.checkoutAt && bill.checkoutAt.getTime() < stop.leaveAt.getTime() && index === plan.length - 2) {
+      plan = planHeadHome(ruleset, plan, bill.checkoutAt);
+      await writeRunStops(tx, run.id, plan);
+      break;
+    }
+  }
+  const unchanged = !charges.length && hours === run.hotelHours && stayAt?.getTime() === run.hotelStayAt?.getTime();
+  if (unchanged) return { run, stops: plan };
+  await tx.run.update({ where: { id: run.id }, data: { cashCents, hotelCents, hotelStayAt: stayAt, hotelHours: hours } });
+  if (charges.length) {
+    await EconomyLedgerService.record(tx, roundPlayerId, charges.map((charge) => ({
+      source: 'RUN_HOTEL',
+      label: `Hotel · ${cityName(ruleset, charge.city)}`,
+      amountCents: -charge.cents,
+    })), charges[charges.length - 1]!.at);
+    await refreshAwayWorth(tx, roundPlayerId, ruleset);
+  }
+  return { run: { ...run, cashCents, hotelCents, hotelStayAt: stayAt, hotelHours: hours }, stops: plan };
+}
+
+/**
+ * Trips D2. A stay cut short at `at` (a convoy hit sending the boss's run home) keeps only
+ * the hours started by then: any hour billed after it goes back into the run's cash. The
+ * bill can only run ahead of a hit when nobody read the run between the hit landing and
+ * its settle. Returns the run as it stands after.
+ */
+export async function refundHotelAfter(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: LoadedRun, stop: RunStopPlan, at: Date): Promise<LoadedRun> {
+  const rules = tripRules(ruleset);
+  if (!run.bossAboard || !rules?.rideAlong || !run.hotelStayAt || run.hotelStayAt.getTime() !== stop.arriveAt.getTime()) return run;
+  const due = Math.max(1, Math.ceil((at.getTime() - stop.arriveAt.getTime()) / 3_600_000));
+  const extra = run.hotelHours - due;
+  if (extra <= 0) return run;
+  const refund = rideAlongHourCents(rules, stop.city, run.escortThugs) * BigInt(extra);
+  const cashCents = run.cashCents + refund;
+  const hotelCents = run.hotelCents > refund ? run.hotelCents - refund : 0n;
+  await tx.run.update({ where: { id: run.id }, data: { cashCents, hotelCents, hotelHours: due } });
+  await EconomyLedgerService.record(tx, roundPlayerId, [{ source: 'RUN_HOTEL', label: `Hotel refund · ${cityName(ruleset, stop.city)}`, amountCents: refund }], at);
+  await refreshAwayWorth(tx, roundPlayerId, ruleset);
+  return { ...run, cashCents, hotelCents, hotelHours: due };
+}
+
 /**
  * Bring a run home: its wallet, cars, escorts and cargo go back into home stock, and
  * the run becomes a receipt. Net worth does not move, because the run was already
@@ -249,6 +349,7 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
     lowRiders: run.lowRiders,
     escortThugs: run.escortThugs,
     turnsSpent: run.turnsSpent,
+    ...(run.bossAboard ? { bossAboard: true, hotelCents: Number(run.hotelCents) } : {}),
     incidents: incidents.map((incident) => incident.kind),
   });
 }
@@ -277,12 +378,28 @@ export const RunSettleService = {
     const { round } = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { round: { select: { id: true, rulesetId: true, rulesetVersion: true } } } });
     const ruleset = loadRulesetForRound(round);
     for (const active of loaded) {
-      const stops = toStopPlans(active.stops);
-      const driven = await rollRoadStops(tx, roundPlayerId, ruleset, active, stops, now);
+      const planned = toStopPlans(active.stops);
+      // Road stops on the way in come first; then (Trips B) the hotel, which can send
+      // the run home early; then any leg that re-timing has already driven.
+      const arrived = await rollRoadStops(tx, roundPlayerId, ruleset, active, planned, now);
+      // The hotel bills only up to the first tail due, so the tail loots the wallet as it
+      // stood when it landed; the hours after are billed once the tails are in.
+      const firstTail = active.bossAboard
+        ? await tx.convoyTail.findFirst({ where: { runId: active.id, status: 'PENDING', landsAt: { lte: now } }, orderBy: { landsAt: 'asc' }, select: { landsAt: true } })
+        : null;
+      const billed = await billHotel(tx, roundPlayerId, ruleset, arrived, planned, firstTail?.landsAt ?? now);
+      const stops = billed.stops;
+      const driven = await rollRoadStops(tx, roundPlayerId, ruleset, billed.run, stops, now);
       // 0.5.0-E: then tails whose window has closed land, before this run can come home.
-      const run = await ConvoyService.landTails(tx, roundPlayerId, ruleset, driven, stops, now);
-      await recordStops(tx, roundPlayerId, ruleset, round.id, stops, now);
-      if (runPosition(ruleset, stops, now).phase === 'home') await bringHome(tx, roundPlayerId, ruleset, run, stops);
+      const landed = await ConvoyService.landTails(tx, roundPlayerId, ruleset, driven, stops, now);
+      // Trips C: a hit that beat the boss's run sends it home, so its stops may have changed.
+      const after = landed.stops === driven.stops ? stops : toStopPlans(landed.stops);
+      const moved = after === stops ? landed : await rollRoadStops(tx, roundPlayerId, ruleset, landed, after, now);
+      const rest = firstTail ? await billHotel(tx, roundPlayerId, ruleset, moved, after, now) : { run: moved, stops: after };
+      // A bill that ran the wallet dry sends the run home: roll the road for that leg too.
+      const run = firstTail ? await rollRoadStops(tx, roundPlayerId, ruleset, rest.run, rest.stops, now) : rest.run;
+      await recordStops(tx, roundPlayerId, ruleset, round.id, rest.stops, now);
+      if (runPosition(ruleset, rest.stops, now).phase === 'home') await bringHome(tx, roundPlayerId, ruleset, run, rest.stops);
     }
   },
 };

@@ -11,9 +11,13 @@ import { questsApi } from '../api/quests.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
+import { ItemTile } from '../components/ItemTile.js';
+import { RewardChip } from '../components/RewardChip.js';
+import { hasItemArt } from '../items/itemArt.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
-import { serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
+import { formatClockTime, formatWhen, serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
+import { confirmAction } from '../stores/confirm.js';
 
 type Tab = 'available' | 'active' | 'ready' | 'tracked' | 'daily' | 'weekly' | 'city' | 'alliance' | 'events' | 'completed';
 
@@ -90,6 +94,24 @@ function statusTone(status: PlayerQuestDto['status']): string {
     case 'FAILED': return 'failed';
     case 'EXPIRED': return 'expired';
     case 'LOCKED': return 'locked';
+  }
+}
+
+function storyLineForStatus(quest: PlayerQuestDto): string | null {
+  if (!quest.story) return null;
+  switch (quest.status) {
+    case 'READY_TO_TURN_IN':
+      return quest.story.ready;
+    case 'COMPLETED':
+      return quest.story.completed;
+    case 'ACTIVE':
+      return quest.story.inProgress;
+    case 'AVAILABLE':
+    case 'LOCKED':
+      return quest.story.intro;
+    case 'FAILED':
+    case 'EXPIRED':
+      return quest.story.inProgress;
   }
 }
 
@@ -217,6 +239,24 @@ function QuestCard({
       )}
     >
       <p className="se-hint se-quest-card__desc">{quest.description}</p>
+      {quest.story ? (
+        <div className="se-quest-story">
+          <div className="se-quest-story__quote">
+            <span className="se-eyebrow">{quest.story.chapter} · {quest.story.speaker}</span>
+            <p>{storyLineForStatus(quest)}</p>
+          </div>
+          <div className="se-quest-story__lesson">
+            <div>
+              <span>Lesson</span>
+              <strong>{quest.story.lesson}</strong>
+            </div>
+            <div>
+              <span>Next move</span>
+              <strong>{quest.story.actionHint}</strong>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {quest.seasonalEvent ? (
         <div className="se-quest-seasonal">
           <span className="se-eyebrow">{quest.seasonalEvent.label ?? 'Seasonal event'}</span>
@@ -266,7 +306,7 @@ function QuestCard({
           <p className="se-eyebrow">{quest.branchChoices.length ? 'Shared rewards' : 'Rewards'}</p>
           <div className="se-quest-rewards">
             {quest.rewards.map((reward, index) => (
-              <span className="se-quest-reward" key={reward.kind + ':' + (reward.key ?? index)}>{reward.label}</span>
+              <RewardChip key={reward.kind + ':' + (reward.key ?? index)} reward={reward} />
             ))}
           </div>
         </div>
@@ -280,14 +320,13 @@ function QuestCard({
               <Row label={choice.title} value={choice.description} strong />
               <div className="se-quest-rewards">
                 {choice.rewards.map((reward, index) => (
-                  <span className="se-quest-reward" key={choice.key + ':' + reward.kind + ':' + (reward.key ?? index)}>
-                    {reward.label}
-                  </span>
+                  <RewardChip key={choice.key + ':' + reward.kind + ':' + (reward.key ?? index)} reward={reward} />
                 ))}
                 {choice.reputationDeltas.map((delta) => (
-                  <span className="se-quest-reward" key={choice.key + ':rep:' + delta.contactKey}>
-                    {delta.label}
-                  </span>
+                  <RewardChip
+                    key={choice.key + ':rep:' + delta.contactKey}
+                    reward={{ kind: 'CONTACT_REP', key: delta.contactKey, amount: delta.amount, label: delta.label }}
+                  />
                 ))}
               </div>
               <Button
@@ -350,11 +389,16 @@ function QuestCard({
       {quest.expiresAt ? (
         <p className="se-hint se-quest-expiry">
           {quest.category === 'CITY_CONTRACT' ? 'City board refreshes ' : quest.type === 'ALLIANCE' ? 'Alliance board resets ' : quest.type === 'EVENT' ? (quest.seasonalEvent ? 'Job expires ' : 'Event ends ') : quest.type === 'DAILY' ? 'Daily board resets ' : quest.type === 'WEEKLY' ? 'Weekly board resets ' : 'Expires '}
-          {new Date(quest.expiresAt).toLocaleString()} · {timeRemaining(quest.expiresAt, nowMs)}.
+          {formatWhen(quest.expiresAt)} · {timeRemaining(quest.expiresAt, nowMs)}.
         </p>
       ) : null}
     </Panel>
   );
+}
+
+/** A favor's picture, or nothing for a favor that has no art yet. */
+function FavorArt({ favorKey }: { favorKey: string }) {
+  return hasItemArt(favorKey) ? <ItemTile item={favorKey} size="sm" label={false} className="se-quests-favor-art" /> : null;
 }
 
 export function QuestPage() {
@@ -627,9 +671,11 @@ export function QuestPage() {
 
   async function claim(key: string, branchKey?: string, branchTitle?: string) {
     if (branchKey) {
-      const confirmed = window.confirm(
-        'Choose "' + (branchTitle ?? branchKey) + '"? This choice is permanent for this round and locks the other follow-up path.',
-      );
+      const confirmed = await confirmAction({
+        title: `Choose "${branchTitle ?? branchKey}"?`,
+        body: 'This choice is permanent for this round and locks the other follow-up path.',
+        confirmLabel: 'Choose this path',
+      });
       if (!confirmed) return;
     }
     setBusy(key);
@@ -657,7 +703,7 @@ export function QuestPage() {
     setNotice(null);
     try {
       const result = await questsApi.activateFavor(key, crypto.randomUUID());
-      setNotice(result.result.name + ' is active until ' + new Date(result.result.expiresAt).toLocaleTimeString() + '.');
+      setNotice(result.result.name + ' is active until ' + formatClockTime(result.result.expiresAt) + '.');
       window.dispatchEvent(new Event('streets:quests-changed'));
       await Promise.all([load(), refreshSnapshot()]);
     } catch (cause) {
@@ -959,7 +1005,8 @@ export function QuestPage() {
                           return (
                             <article key={favor.key} className={`se-quests-favor${favor.rarity === 'LEGENDARY' ? ' se-quests-favor--legendary' : ''}`}>
                               <div className="se-quests-favor__head">
-                                <div>
+                                <FavorArt favorKey={favor.key} />
+                                <div className="se-quests-favor__title">
                                   <span className="se-eyebrow">{favor.rarity === 'LEGENDARY' ? '★ Legendary favor' : favor.category}</span>
                                   <h3>{favor.name}</h3>
                                 </div>
@@ -977,7 +1024,7 @@ export function QuestPage() {
                                     busy
                                       ? 'Another update is still going through.'
                                       : active
-                                        ? active.name + ' already occupies ' + favor.category + ' until ' + new Date(active.expiresAt).toLocaleTimeString() + '.'
+                                        ? active.name + ' already occupies ' + favor.category + ' until ' + formatClockTime(active.expiresAt) + '.'
                                         : null
                                   }
                                   onClick={() => void activateFavor(favor.key)}
@@ -1037,6 +1084,7 @@ export function QuestPage() {
                       <div className="se-quests-livefavors">
                         {liveFavors.map((favor) => (
                           <div key={favor.category}>
+                            <FavorArt favorKey={favor.key} />
                             <span>{favor.name}</span>
                             <strong>{favor.category}</strong>
                             <small>{timeRemaining(favor.expiresAt, nowMs)}</small>
@@ -1052,6 +1100,7 @@ export function QuestPage() {
                       <div className="se-quests-armed">
                         {page.armedFavors.map((favor) => (
                           <div key={favor.category}>
+                            <FavorArt favorKey={favor.key} />
                             <div>
                               <span>{favor.name}</span>
                               <small>{favor.category} · next eligible action</small>

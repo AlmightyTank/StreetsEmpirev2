@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
-import type { AdminSignalClusterDto, AdminSignalsDto } from '@streets/shared';
+import type { AdminApiAbuseDto, AdminSignalClusterDto, AdminSignalsDto, AdminSignalTransferDto } from '@streets/shared';
+import { apiAbuse, type ApiAbuseRow } from './api-abuse.service.js';
 import { env } from '../config/env.js';
 import { deviceLabel } from './admin-account.service.js';
 
@@ -101,6 +102,55 @@ export async function accountsShareNetwork(prisma: Pick<PrismaClient, 'session'>
   return [...seen.values()].some((accounts) => accounts.size > 1);
 }
 
+const MARKET_PAIR_MS = 60 * 60_000;
+
+export interface MarketTrade {
+  accountId: string;
+  displayName: string;
+  city: string;
+  productKey: string;
+  direction: string;
+  totalCents: bigint;
+  at: Date;
+}
+
+/**
+ * 1.0.0-C. One account selling a product on a city's high market and another in
+ * the same match buying it there within the hour (or the reverse): the simplest
+ * way to walk a price for a partner or launder cash through the market.
+ */
+export function marketPairs(trades: MarketTrade[], accountIds: Set<string>): AdminSignalTransferDto[] {
+  const inside = trades.filter((trade) => accountIds.has(trade.accountId)).sort((a, b) => a.at.getTime() - b.at.getTime());
+  const pairs: AdminSignalTransferDto[] = [];
+  const used = new Set<MarketTrade>();
+  for (const [index, first] of inside.entries()) {
+    if (used.has(first)) continue;
+    const match = inside.slice(index + 1).find((other) => !used.has(other)
+      && other.accountId !== first.accountId
+      && other.city === first.city
+      && other.productKey === first.productKey
+      && other.direction !== first.direction
+      && other.at.getTime() - first.at.getTime() <= MARKET_PAIR_MS);
+    if (!match) continue;
+    used.add(first).add(match);
+    const seller = first.direction === 'sell' ? first : match;
+    const buyer = seller === first ? match : first;
+    pairs.push({ kind: 'MARKET_PAIR', from: seller.displayName, to: buyer.displayName, at: match.at.toISOString(), cashCents: Number(buyer.totalCents), voided: false });
+  }
+  return pairs;
+}
+
+export function apiAbuseDto(rows: ApiAbuseRow[], usernames: Map<string, string>, secret = env.SESSION_SECRET): AdminApiAbuseDto[] {
+  return rows.map((row) => ({
+    account: row.accountId ? { id: row.accountId, username: usernames.get(row.accountId) ?? 'deleted account' } : null,
+    networkKey: row.accountId || !row.ip ? null : matchKey('network', row.ip, secret),
+    refused: row.refused,
+    buckets: row.buckets,
+    firstAt: row.firstAt.toISOString(),
+    lastAt: row.lastAt.toISOString(),
+  }));
+}
+
 export const AdminSignalsService = {
   /** Built from sessions and email/password tokens of the last 30 days, the only places the game keeps an address. */
   async clusters(prisma: PrismaClient, now = new Date()): Promise<AdminSignalsDto> {
@@ -137,11 +187,83 @@ export const AdminSignalsService = {
       where: { status: 'LANDED', startedAt: { gte: since }, attacker: { accountId: { in: linkedIds } }, owner: { accountId: { in: linkedIds } } },
       select: { id: true, landsAt: true, voidedAt: true, attacker: { select: { accountId: true, displayName: true } }, owner: { select: { accountId: true, displayName: true } } },
     }) : [];
+    // 1.0.0-C: every other way value can move between accounts, and alliances they share.
+    const between = { accountId: { in: linkedIds } };
+    const [battles, pushes, taxes, members, trades] = linkedIds.length ? await Promise.all([
+      prisma.raidBattle.findMany({
+        where: { createdAt: { gte: since }, attacker: between, defender: between },
+        select: { kind: true, createdAt: true, voidedAt: true, attacker: { select: { accountId: true, displayName: true } }, defender: { select: { accountId: true, displayName: true } } },
+      }),
+      prisma.turfPush.findMany({
+        where: { startedAt: { gte: since }, attacker: between, defender: between },
+        select: { startedAt: true, attacker: { select: { accountId: true, displayName: true } }, defender: { select: { accountId: true, displayName: true } } },
+      }),
+      prisma.turfTaxLedger.findMany({
+        where: { day: { gte: new Date(since.getTime() - DAY_MS) }, payer: between, holder: between, mintedCents: { gt: 0n } },
+        select: { day: true, mintedCents: true, payer: { select: { accountId: true, displayName: true } }, holder: { select: { accountId: true, displayName: true } } },
+      }),
+      prisma.roundPlayer.findMany({
+        where: { ...between, allianceId: { not: null }, round: { status: 'ACTIVE' } },
+        select: { accountId: true, displayName: true, alliance: { select: { id: true, tag: true, name: true } } },
+      }),
+      prisma.runTrade.findMany({
+        where: { venue: 'market', createdAt: { gte: since }, run: { roundPlayer: between } },
+        select: { city: true, productKey: true, direction: true, totalCents: true, createdAt: true, run: { select: { roundPlayer: { select: { accountId: true, displayName: true } } } } },
+      }),
+    ]) : [[], [], [], [], []];
+    const marketTrades: MarketTrade[] = trades.map((trade) => ({
+      accountId: trade.run.roundPlayer.accountId, displayName: trade.run.roundPlayer.displayName,
+      city: trade.city, productKey: trade.productKey, direction: trade.direction, totalCents: trade.totalCents, at: trade.createdAt,
+    }));
+
     for (const cluster of clusters) {
       const ids = new Set(cluster.accounts.map((account) => account.id));
-      const inside = hits.filter((hit) => ids.has(hit.attacker.accountId) && ids.has(hit.owner.accountId));
+      const both = (a: string, b: string) => ids.has(a) && ids.has(b);
+      const inside = hits.filter((hit) => both(hit.attacker.accountId, hit.owner.accountId));
       if (inside.length) cluster.convoyHits = inside.map((hit) => ({ tailId: hit.id, attacker: hit.attacker.displayName, owner: hit.owner.displayName, at: hit.landsAt.toISOString(), voided: hit.voidedAt !== null }));
+
+      const transfers: AdminSignalTransferDto[] = [
+        ...battles.filter((row) => both(row.attacker.accountId, row.defender.accountId)).map((row) => ({
+          kind: row.kind === 'RAID' ? 'RAID' as const : row.kind === 'DRIVE_BY' ? 'DRIVE_BY' as const : 'SPECIAL' as const,
+          from: row.defender.displayName, to: row.attacker.displayName, at: row.createdAt.toISOString(), cashCents: null, voided: row.voidedAt !== null,
+        })),
+        ...pushes.filter((row) => both(row.attacker.accountId, row.defender.accountId)).map((row) => ({
+          kind: 'TURF_PUSH' as const, from: row.defender.displayName, to: row.attacker.displayName, at: row.startedAt.toISOString(), cashCents: null, voided: false,
+        })),
+        ...taxes.filter((row) => both(row.payer.accountId, row.holder.accountId)).map((row) => ({
+          kind: 'TURF_TAX' as const, from: row.payer.displayName, to: row.holder.displayName, at: row.day.toISOString(), cashCents: Number(row.mintedCents), voided: false,
+        })),
+        ...marketPairs(marketTrades, ids),
+      ].sort((a, b) => b.at.localeCompare(a.at));
+      if (transfers.length) cluster.transfers = transfers;
+      if (inside.length || transfers.some((row) => row.kind !== 'MARKET_PAIR')) cluster.signals.push('value-between');
+      if (transfers.some((row) => row.kind === 'MARKET_PAIR')) cluster.signals.push('market-pairing');
+
+      const byAlliance = new Map<string, { tag: string; name: string; members: Set<string> }>();
+      for (const member of members) {
+        if (!member.alliance || !ids.has(member.accountId)) continue;
+        const entry = byAlliance.get(member.alliance.id) ?? { tag: member.alliance.tag, name: member.alliance.name, members: new Set<string>() };
+        entry.members.add(member.displayName);
+        byAlliance.set(member.alliance.id, entry);
+      }
+      const shared = [...byAlliance.values()].filter((entry) => entry.members.size > 1);
+      if (shared.length) {
+        cluster.alliances = shared.map((entry) => ({ tag: entry.tag, name: entry.name, members: [...entry.members].sort() }));
+        cluster.signals.push('same-alliance');
+      }
     }
-    return { windowDays: WINDOW_DAYS, generatedAt: now.toISOString(), clusters };
+
+    const abuse = apiAbuse.list();
+    const abuseAccounts = abuse.flatMap((row) => row.accountId ? [row.accountId] : []);
+    const usernames = abuseAccounts.length
+      ? new Map((await prisma.account.findMany({ where: { id: { in: abuseAccounts } }, select: { id: true, username: true } })).map((row) => [row.id, row.username]))
+      : new Map<string, string>();
+
+    return {
+      windowDays: WINDOW_DAYS,
+      generatedAt: now.toISOString(),
+      clusters: clusters.sort((a, b) => b.signals.length - a.signals.length || b.accounts.length - a.accounts.length || b.lastSeenAt.localeCompare(a.lastSeenAt)),
+      apiAbuse: apiAbuseDto(abuse, usernames),
+    };
   },
 };

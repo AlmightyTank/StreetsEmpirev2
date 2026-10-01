@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs><filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2463a"/><stop offset="1" stop-color="#8a1a12"/></linearGradient>
+    <linearGradient id="st" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3f47"/><stop offset="1" stop-color="#1a1d21"/></linearGradient>
+  </defs>
+  <g filter="url(#s)" stroke="#2e0806" stroke-width="1.5" stroke-linejoin="round">
+    <path d="M46 34 Q46 20 64 20 Q82 20 82 34" fill="none" stroke="#1a1d21" stroke-width="7" stroke-linecap="round"/>
+    <path d="M46 34 Q46 20 64 20 Q82 20 82 34" fill="none" stroke="#4a4f57" stroke-width="3" stroke-linecap="round"/>
+    <path d="M18 44 Q18 34 28 34 H100 Q110 34 110 44 V100 Q110 110 100 110 H28 Q18 110 18 100 Z" fill="url(#bg)"/>
+    <path d="M18 52 H110" stroke="#5a0f09" stroke-width="2"/>
+    <rect x="18" y="62" width="92" height="10" fill="url(#st)" stroke="none"/>
+    <path d="M56 64 H72 V76 H84 V92 H72 V104 H56 V92 H44 V76 H56 Z" fill="#f6f4ee" stroke="#6b1a12"/>
+  </g>
+  <path d="M24 42 Q24 38 30 38 H70" stroke="#ff9a8f" stroke-opacity=".6" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <rect x="96" y="45" width="8" height="5" rx="1" fill="#c9ced6" stroke="#333" stroke-width=".8"/>
+</svg>

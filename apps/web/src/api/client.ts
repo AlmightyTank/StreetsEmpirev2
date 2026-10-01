@@ -2,6 +2,9 @@ import type { ApiErrorBody } from '@streets/shared';
 
 const REQUEST_TIMEOUT_MS = 15_000;
 
+/** 1.0.0-F. Fired with the server's message whenever it answers "down for maintenance". */
+export const MAINTENANCE_EVENT = 'se:maintenance';
+
 /**
  * Errors arrive from the server already written for a player. The client's
  * only job is to keep the message intact and hand the field map to the form.
@@ -98,6 +101,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (!response.ok) {
     const error = (body as ApiErrorBody | null)?.error;
+    // 1.0.0-F: the whole game is down for maintenance; the shell shows why, once.
+    if (response.status === 503 && error?.code === 'MAINTENANCE') {
+      window.dispatchEvent(new CustomEvent(MAINTENANCE_EVENT, { detail: error.message }));
+    }
     throw new ApiError(
       response.status,
       error?.code ?? 'UNKNOWN',

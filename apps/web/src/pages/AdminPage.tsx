@@ -24,6 +24,8 @@ import { adminWhen, localInputToIso } from '../utils/admin.js';
 const actionLabel: Record<AdminRoundAction, string> = {
   'open-registration': 'Open registration',
   start: 'Start',
+  pause: 'Pause',
+  resume: 'Resume',
   'end-early': 'End early',
   archive: 'Archive',
 };
@@ -31,6 +33,8 @@ const actionLabel: Record<AdminRoundAction, string> = {
 const actionCopy: Record<AdminRoundAction, string> = {
   'open-registration': 'Players can register for this round from now on.',
   start: 'The round goes live now. If it was scheduled for later, its start moves to now.',
+  pause: 'Every player action is refused with your reason until you resume. Runs, pushes and tails already in motion still land on their own clocks, and turns keep regenerating to the cap.',
+  resume: 'Play opens again. By default the round\'s end moves back by however long it was paused, so nobody loses days to it.',
   'end-early': 'Every player is settled and final standings freeze at this moment. Final awards apply like a normal finish. This cannot be undone.',
   archive: 'The round moves to the archive. Its results stay in the Hall of Fame.',
 };
@@ -73,6 +77,7 @@ export function AdminPage() {
   const [reason, setReason] = useState('');
   const [handoffWarning, setHandoffWarning] = useState<string | null>(null);
   const [confirmHandoff, setConfirmHandoff] = useState(false);
+  const [extendOnResume, setExtendOnResume] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const [form, setForm] = useState(emptyForm);
@@ -121,8 +126,12 @@ export function AdminPage() {
           ? await adminApi.startRound(round.id, confirmHandoff)
           : action === 'end-early'
             ? await adminApi.endRoundEarly(round.id, reason.trim())
-            : await adminApi.archiveRound(round.id);
-      setNotice(`${result.round.name} is now ${statusPhrase[result.round.status]}.`);
+            : action === 'pause'
+              ? await adminApi.pauseRound(round.id, reason.trim())
+              : action === 'resume'
+                ? await adminApi.resumeRound(round.id, extendOnResume)
+                : await adminApi.archiveRound(round.id);
+      setNotice(`${result.round.name} is now ${result.round.paused ? 'paused' : statusPhrase[result.round.status]}.`);
       setPending(null);
       await load();
     } catch (caught) {
@@ -191,7 +200,7 @@ export function AdminPage() {
   }
 
   const rounds = data?.rounds ?? [];
-  const reasonTooShort = pending?.action === 'end-early' && reason.trim().length < 5;
+  const reasonTooShort = (pending?.action === 'end-early' || pending?.action === 'pause') && reason.trim().length < 5;
   const working = 'The last admin action is still going through.';
 
   return (
@@ -219,7 +228,16 @@ export function AdminPage() {
         <Panel title={`${actionLabel[pending.action]}: ${pending.round.name}`} className="se-mb">
           <form onSubmit={confirmAction} noValidate>
             <p>{actionCopy[pending.action]}</p>
-            {pending.action === 'end-early' ? (
+            {pending.action === 'resume' ? (
+              <label className="se-checkrow se-checkrow--inline">
+                <input type="checkbox" checked={extendOnResume} onChange={(event) => setExtendOnResume(event.target.checked)} />
+                <span>
+                  <strong>Give the paused time back</strong>
+                  <small>Move the round's end back by the length of the pause.</small>
+                </span>
+              </label>
+            ) : null}
+            {pending.action === 'end-early' || pending.action === 'pause' ? (
               <div className="se-field">
                 <label className="se-label" htmlFor="admin-end-reason">Reason</label>
                 <textarea
@@ -246,7 +264,7 @@ export function AdminPage() {
             <div className="se-cta se-mt">
               <Button className="se-btn se-btn--primary"
                 disabledReason={busy ? working
-                  : reasonTooShort ? 'Ending a round early needs a reason of at least 5 characters for the audit log.'
+                  : reasonTooShort ? 'This needs a reason of at least 5 characters: players see a pause reason, and the audit log keeps both.'
                     : handoffWarning !== null && !confirmHandoff ? 'Tick the handoff box above to confirm you are replacing the live round.'
                       : null}>
                 {busy ? 'Working...' : `Confirm: ${actionLabel[pending.action].toLowerCase()}`}
@@ -324,7 +342,10 @@ export function AdminPage() {
                       <br />
                       <span className="se-muted">{round.slug}</span>
                     </td>
-                    <td data-label="Status"><span className={`se-tag${statusTone(round.status)}`}>{round.status}</span></td>
+                    <td data-label="Status">
+                      <span className={`se-tag${statusTone(round.status)}`}>{round.status}</span>
+                      {round.paused ? <span className="se-tag se-tag--warn" title={round.paused.reason ?? undefined}> PAUSED</span> : null}
+                    </td>
                     <td className="se-num" data-label="Ruleset">{round.rulesetVersion}</td>
                     <td data-label="Starts">{adminWhen(round.startsAt)}</td>
                     <td data-label="Ends">{adminWhen(round.endsAt)}</td>
@@ -387,7 +408,7 @@ export function AdminPage() {
                   <option value={ruleset.id} key={ruleset.id}>{ruleset.version} · {ruleset.name}</option>
                 ))}
               </select>
-              {fields.rulesetId ? <p className="se-error">{fields.rulesetId}</p> : <p className="se-hint">A round keeps its ruleset for the whole season.</p>}
+              {fields.rulesetId ? <p className="se-error" role="alert">{fields.rulesetId}</p> : <p className="se-hint">A round keeps its ruleset for the whole season.</p>}
             </div>
             <Field
               id="admin-round-starts"

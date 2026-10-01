@@ -34,4 +34,8 @@ export class AppError extends Error {
   static conflict(code: string, message: string, fields?: Record<string, string>) {
     return new AppError(409, code, message, fields);
   }
+
+  static tooManyRequests(code: string, message: string) {
+    return new AppError(429, code, message);
+  }
 }

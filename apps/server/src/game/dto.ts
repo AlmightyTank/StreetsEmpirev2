@@ -22,6 +22,7 @@ import { explainThugHappiness, explainWhoreHappiness, totalWeapons } from '@stre
 import { fitThugs } from '../services/action.service.js';
 import type { TurnSettlement } from '../services/turn.service.js';
 import { toHeatDto } from '../services/heat.service.js';
+import { adminNeedsSecondFactor, canPlay, needsRulesAcceptance, type SessionStrength } from '../auth/play-access.js';
 
 /**
  * Money leaves the server as integer cents in a *Cents field and is never
@@ -32,7 +33,8 @@ function centsToNumber(value: bigint): number {
   return Number(value);
 }
 
-export function toAccountDto(account: Account): AccountDto {
+/** `session` is the session asking, when there is one; admin tools depend on how it signed in. */
+export function toAccountDto(account: Account, session?: SessionStrength | null): AccountDto {
   return {
     id: account.id,
     username: account.username,
@@ -43,6 +45,10 @@ export function toAccountDto(account: Account): AccountDto {
     isAdmin: account.isAdmin,
     createdAt: account.createdAt.toISOString(),
     lastLoginAt: account.lastLoginAt?.toISOString() ?? null,
+    verificationRequired: !canPlay(account),
+    rulesAcceptanceRequired: needsRulesAcceptance(account),
+    adminSignInRequired: adminNeedsSecondFactor(account, session),
+    twoFactorEnabled: Boolean(account.twoFactorEnabledAt),
   };
 }
 
@@ -68,6 +74,7 @@ export function toRoundDto(round: Round, playerCount: number): RoundDto {
     registrationOpensAt: round.registrationOpensAt?.toISOString() ?? null,
     msRemaining: Math.max(0, round.endsAt.getTime() - Date.now()),
     playerCount,
+    paused: round.pausedAt ? { since: round.pausedAt.toISOString(), reason: round.pauseReason } : null,
   };
 }
 

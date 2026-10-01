@@ -28,7 +28,7 @@ import {
 } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
 import type { CityTurfDto, TurfBattleReportDto, TurfBlockDto, TurfSummaryDto, TurfTripDto } from '@streets/shared';
-import type { Db } from '../utils/db.js';
+import { tryLockRoundPlayer, type Db } from '../utils/db.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
 import { buildingOn } from './business.service.js';
@@ -169,11 +169,25 @@ export function settleOutpostSupplies(
   return { beer: input.beer - beerUsed, products, beerUsed, productUsed, leaving };
 }
 
+/**
+ * Trips D2. The walkouts left after a boss's visit: none for the hours the visit covers,
+ * the rest in proportion, rounded in the holder's favour.
+ */
+export function keptByVisit(leaving: number, box: { visitedAt: Date | null; moraleUntil: Date | null }, from: Date, to: Date, wholeHours: number): number {
+  if (leaving <= 0 || !box.visitedAt || !box.moraleUntil || wholeHours <= 0) return leaving;
+  const start = Math.max(from.getTime(), box.visitedAt.getTime());
+  const end = Math.min(to.getTime(), box.moraleUntil.getTime());
+  const covered = Math.max(0, end - start) / HOUR_MS;
+  if (covered <= 0) return leaving;
+  return Math.floor(leaving * Math.max(0, wholeHours - covered) / wholeHours);
+}
+
 async function lockOutpost(tx: Db, id: string): Promise<void> {
   await tx.$queryRaw`SELECT id FROM "TurfOutpost" WHERE id = ${id} FOR UPDATE`;
 }
 
 export { controlFromRows } from './turf-territory.service.js';
+export { lockOutpost };
 
 interface StoredTurfFight {
   won: boolean;
@@ -363,6 +377,13 @@ export const TurfService = {
           order,
         });
         const advanceTo = new Date(row.upkeepAt.getTime() + wholeHours * HOUR_MS);
+        // Trips D2: hours after the boss walked this corner, nobody walks out, however short
+        // the box ran. Supplies are still used. 1.1.0-B: an unhappy crew's outpost corner
+        // deserts on top of that, and the boss's visit holds them too; deserters take their guns.
+        const leaving = keptByVisit(
+          settled.leaving + cornerDesertions(row.cornerThugs - settled.leaving, wholeHours),
+          box, row.upkeepAt, advanceTo, wholeHours,
+        );
         const gunsBefore = gunsFromTurf(row);
         // 1.1.0-B: an unhappy crew's outpost corner walks off too, and deserters take their guns.
         const outpostLeaving = settled.leaving + cornerDesertions(row.cornerThugs - settled.leaving, wholeHours);
@@ -520,7 +541,10 @@ export const TurfService = {
     // A rival's persisted corner may be hours out of date. Settle its upkeep
     // before deciding whether this worker owes tax, then reread the block in
     // case the corner walked out while the holder was offline.
-    if (row?.holder && row.holder.id !== input.roundPlayerId) {
+    // 1.0.0-C: only under the holder's own lock. Settling writes their cash and
+    // stock back whole, so doing it unlocked could overwrite a purchase they are
+    // making at this moment. A holder who is busy is being settled by that action.
+    if (row?.holder && row.holder.id !== input.roundPlayerId && await tryLockRoundPlayer(tx, row.holder.id)) {
       await TurfService.settlePlayer(tx, row.holder.id, input.ruleset, now);
       row = await tx.turf.findUnique({
         where: { roundId_cityId_district: { roundId: input.roundId, cityId: input.cityId, district: input.district } },

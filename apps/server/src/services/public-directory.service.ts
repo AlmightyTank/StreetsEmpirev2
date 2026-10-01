@@ -22,6 +22,8 @@ import type {
 import { toRoundDto } from '../game/dto.js';
 import { RoundService } from './round.service.js';
 import { PublicSiteService } from './public-site.service.js';
+import { profileTitleForKey } from './profile-titles.js';
+import { PlatformService } from './platform.service.js';
 
 const rankingRows = <T extends { netWorthCents: bigint; publicPimpId: number }>(rows: T[]) => {
   let previousWorth: bigint | null = null;
@@ -220,7 +222,9 @@ export const PublicDirectoryService = {
           localMovement: player.dailyStartingLocalRank === null ? null : player.dailyStartingLocalRank - local,
         },
         cosmetics: {
-          title: player.account.profile?.activeTitleKey ?? null,
+          title: player.account.profile?.activeTitleKey
+            ? profileTitleForKey(player.account.profile.activeTitleKey)
+            : null,
           accent: player.account.profile?.profileAccent ?? 'default',
         },
         joinedAt: player.createdAt.toISOString(),
@@ -726,11 +730,21 @@ export const PublicDirectoryService = {
   async status(prisma: PrismaClient): Promise<PublicStatusDto> {
     await prisma.$queryRaw`SELECT 1`;
     const { round } = await current(prisma);
+    const now = new Date();
+    // 1.0.0-E: the next maintenance window that has not finished, announced or not yet.
+    const maintenance = await prisma.siteBanner.findFirst({
+      where: { kind: 'maintenance', maintenanceEndsAt: { gt: now }, endsAt: { gt: now } },
+      orderBy: { maintenanceStartsAt: 'asc' },
+    });
     return {
-      generatedAt: new Date().toISOString(),
+      generatedAt: now.toISOString(),
       api: 'operational',
       database: 'operational',
-      currentRound: round ? { name: round.name, status: round.status } : null,
+      currentRound: round ? { name: round.name, status: round.status, paused: Boolean(round.pausedAt) } : null,
+      platform: await PlatformService.meta(prisma),
+      maintenance: maintenance?.maintenanceStartsAt && maintenance.maintenanceEndsAt
+        ? { message: maintenance.message, startsAt: maintenance.maintenanceStartsAt.toISOString(), endsAt: maintenance.maintenanceEndsAt.toISOString(), running: maintenance.maintenanceStartsAt <= now }
+        : null,
     };
   },
 };

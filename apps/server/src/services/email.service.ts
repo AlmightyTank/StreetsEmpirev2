@@ -1,5 +1,22 @@
 import type { FastifyBaseLogger } from 'fastify';
 import { env } from '../config/env.js';
+import {
+  renderEmailChange,
+  renderPasswordReset,
+  renderSecurityNotice,
+  renderTwoFactorNotice,
+  renderVerifyEmail,
+  type EmailContext,
+  type RenderedEmail,
+} from './email-templates.js';
+
+function context(): EmailContext {
+  return { gameUrl: env.frontendOrigin, environment: env.appEnvironment };
+}
+
+function message(to: string, email: RenderedEmail): MailMessage {
+  return { to, subject: email.subject, text: email.text, html: email.html };
+}
 
 interface MailMessage {
   to: string;
@@ -17,47 +34,15 @@ interface TokenEmailInput {
 
 const RESEND_EMAIL_URL = 'https://api.resend.com/emails';
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
-function tokenText(input: TokenEmailInput, action: string): string {
-  return [
-    `StreetsEmpire ${action} for ${input.username}`,
-    '',
-    `Use this link to ${action}:`,
-    input.url,
-    '',
-    `This link expires at ${input.expiresAt.toLocaleString()}.`,
-    'If you did not ask for this, you can ignore this email.',
-  ].join('\n');
-}
-
-function tokenHtml(input: TokenEmailInput, action: string): string {
-  const safeUser = escapeHtml(input.username);
-  const safeAction = escapeHtml(action);
-  const safeUrl = escapeHtml(input.url);
-  const safeExpires = escapeHtml(input.expiresAt.toLocaleString());
-
-  return `
-    <p>StreetsEmpire ${safeAction} for <strong>${safeUser}</strong></p>
-    <p><a href="${safeUrl}">${safeAction}</a></p>
-    <p>This link expires at ${safeExpires}.</p>
-    <p>If you did not ask for this, you can ignore this email.</p>
-  `;
-}
-
 async function sendMail(message: MailMessage, log: FastifyBaseLogger): Promise<void> {
   if (!env.email.enabled) {
+    // Name what is missing, so the log says how to fix it.
+    const missing = [!env.email.resendApiKey && 'RESEND_API_KEY', !env.email.from && 'EMAIL_FROM'].filter(Boolean).join(' and ');
+    const why = missing ? `missing ${missing} in .env` : 'disabled in tests';
     if (env.isProduction) {
-      log.error({ to: message.to }, 'Resend is not configured; email was not sent');
+      log.error({ to: message.to, missing }, `Resend is not configured (${why}); email was not sent`);
     } else {
-      log.warn({ to: message.to, text: message.text }, 'Resend is not configured; email was not sent');
+      log.warn({ to: message.to, missing, text: message.text }, `Resend is not configured (${why}); email was not sent`);
     }
     return;
   }
@@ -83,44 +68,39 @@ async function sendMail(message: MailMessage, log: FastifyBaseLogger): Promise<v
   }
 }
 
-export async function sendPasswordResetEmail(
-  input: TokenEmailInput,
-  log: FastifyBaseLogger,
-): Promise<void> {
-  const action = 'set a new password';
-  await sendMail({
-    to: input.to,
-    subject: 'StreetsEmpire password recovery',
-    text: tokenText(input, action),
-    html: tokenHtml(input, action),
-  }, log);
+export async function sendPasswordResetEmail(input: TokenEmailInput, log: FastifyBaseLogger): Promise<void> {
+  await sendMail(message(input.to, renderPasswordReset(input, context())), log);
 }
 
-export async function sendCurrentEmailVerification(
-  input: TokenEmailInput,
-  log: FastifyBaseLogger,
-): Promise<void> {
-  const action = 'verify your email';
-  await sendMail({
-    to: input.to,
-    subject: 'Verify your StreetsEmpire email',
-    text: tokenText(input, action),
-    html: tokenHtml(input, action),
-  }, log);
+export async function sendCurrentEmailVerification(input: TokenEmailInput, log: FastifyBaseLogger): Promise<void> {
+  await sendMail(message(input.to, renderVerifyEmail(input, context())), log);
 }
 
-export async function sendEmailChangeVerification(
-  input: TokenEmailInput & { currentEmail: string },
+export async function sendEmailChangeVerification(input: TokenEmailInput & { currentEmail: string }, log: FastifyBaseLogger): Promise<void> {
+  await sendMail(message(input.to, renderEmailChange({ ...input, newEmail: input.to }, context())), log);
+}
+
+/** rc.3. A heads-up whenever two-step sign-in changes, so a hijack does not go unnoticed. */
+export async function sendTwoFactorNotice(
+  input: { to: string; username: string; change: 'enabled' | 'disabled' | 'reset' | 'codes' },
   log: FastifyBaseLogger,
 ): Promise<void> {
-  const action = 'change your email';
-  const text = `${tokenText(input, action)}\n\nCurrent email: ${input.currentEmail}\nNew email: ${input.to}`;
-  const html = `${tokenHtml(input, action)}<p>Current email: ${escapeHtml(input.currentEmail)}<br />New email: ${escapeHtml(input.to)}</p>`;
+  const accountUrl = new URL('/account', env.frontendOrigin).toString();
+  await sendMail(message(input.to, renderTwoFactorNotice({ ...input, accountUrl }, context())), log);
+}
 
-  await sendMail({
-    to: input.to,
-    subject: 'Confirm your StreetsEmpire email change',
-    text,
-    html,
-  }, log);
+/** rc.5. Security notices: a changed password, and a sign-in from a browser this account had not used. */
+export async function sendSecurityNotice(
+  input: {
+    to: string;
+    username: string;
+    kind: 'password-changed' | 'new-sign-in';
+    when: Date;
+    browser: string | null;
+    ip: string | null;
+    accountUrl: string;
+  },
+  log: FastifyBaseLogger,
+): Promise<void> {
+  await sendMail(message(input.to, renderSecurityNotice(input, context())), log);
 }

@@ -54,6 +54,8 @@ export function AdminWireView({ allianceId, onClose }: { allianceId: string; onC
               <div className="se-wire__meta">
                 <Link to={`/game/admin/players/${post.author.roundPlayerId}`}>{post.author.displayName}</Link>
                 <span className="se-muted">{adminWhen(post.createdAt)}</span>
+                {post.kind === 'ANNOUNCEMENT' ? <span className="se-tag se-tag--warn">Announcement</span> : null}
+                {post.pinned ? <span className="se-tag se-tag--good">Pinned</span> : null}
                 {post.removedAt ? (
                   <span className="se-tag se-tag--bad" title={post.removedReason ?? undefined}>
                     Removed by {post.removedByRole === 'admin' ? `admin ${post.removedByName}` : post.removedByRole}

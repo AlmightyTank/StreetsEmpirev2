@@ -19,6 +19,10 @@ import { Panel, Row } from '../components/Panel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
+import { confirmAction } from '../stores/confirm.js';
+import { formatWhen } from '../utils/time.js';
+import { ItemLabel, ItemTile } from '../components/ItemTile.js';
+import { hasItemArt } from '../items/itemArt.js';
 
 function securityTierLabel(tier: NonNullable<HideoutV2Dto['security']>['reconWarningTier']): string {
   if (tier === 'SOURCE') return 'Named warnings';
@@ -31,14 +35,19 @@ function Metric({
   value,
   detail,
   tone,
+  art,
 }: {
   label: string;
   value: ReactNode;
   detail?: ReactNode;
   tone?: 'good' | 'warn' | 'bad' | 'accent';
+  /** Item art key for a small picture in the corner. */
+  art?: string;
 }) {
+  const showArt = art !== undefined && hasItemArt(art);
   return (
-    <div className={`se-hideout-metric${tone ? ` se-hideout-metric--${tone}` : ''}`}>
+    <div className={`se-hideout-metric${tone ? ` se-hideout-metric--${tone}` : ''}${showArt ? ' se-hideout-metric--art' : ''}`}>
+      {showArt ? <ItemTile item={art} size="sm" label={false} className="se-item-corner" /> : null}
       <span className="se-hideout-metric__label">{label}</span>
       <strong className="se-hideout-metric__value">{value}</strong>
       {detail ? <span className="se-hideout-metric__detail">{detail}</span> : null}
@@ -122,7 +131,7 @@ function RoomCard({
 
       <p className="se-hideout-room__blurb">{room.blurb}</p>
 
-      <div className="se-hideout-room__levels" aria-label={`${room.level} of ${room.maxLevel} levels complete`}>
+      <div className="se-hideout-room__levels" role="img" aria-label={`${room.level} of ${room.maxLevel} levels complete`}>
         {Array.from({ length: room.maxLevel }, (_, index) => (
           <span
             key={index}
@@ -269,9 +278,11 @@ export function HideoutPage() {
   async function specialize(room: HideoutRoomV2Dto, specialization: string) {
     const choice = room.specialization?.choices.find((candidate) => candidate.key === specialization);
     if (!choice || room.key === 'GARAGE') return;
-    if (!window.confirm(
-      `Choose ${choice.name} for ${room.name}? This choice is permanent for the rest of this season.`,
-    )) return;
+    if (!(await confirmAction({
+      title: `Choose ${choice.name} for ${room.name}?`,
+      body: 'This choice is permanent for the rest of this season.',
+      confirmLabel: `Choose ${choice.name}`,
+    }))) return;
 
     await specializationAction.run((actionId) => hideoutApi.specialize({
       room: room.key as HideoutSpecializationRoomDto,
@@ -323,7 +334,7 @@ export function HideoutPage() {
                 <span>Build progress</span>
                 <strong>{formatNumber(hideout.totalLevel)} / {formatNumber(hideout.totalMaxLevel)}</strong>
               </div>
-              <div className="se-hideout-progress" aria-label={`${buildProgress}% of hideout upgrades complete`}>
+              <div className="se-hideout-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={buildProgress} aria-label="Hideout upgrades complete">
                 <span style={{ width: `${buildProgress}%` }} />
               </div>
               <small>{formatNumber(buildProgress)}% complete · {formatNumber(readyRooms.length)} ready now</small>
@@ -370,7 +381,7 @@ export function HideoutPage() {
                 </div>
 
                 <div className="se-hideout-metrics">
-                  <Metric label="Cash on hand" value={formatCents(me.resources.cashCents)} tone="accent" />
+                  <Metric label="Cash on hand" art="CASH" value={formatCents(me.resources.cashCents)} tone="accent" />
                   <Metric
                     label="Cash exposed"
                     value={hideout.assetProtection ? formatCents(hideout.assetProtection.exposedCashCents) : '—'}
@@ -520,7 +531,7 @@ export function HideoutPage() {
                           <Row
                             key={`${event.kind}:${event.at}:${index}`}
                             label={event.title}
-                            value={`${event.detail} · ${new Date(event.at).toLocaleString()}`}
+                            value={`${event.detail} · ${formatWhen(event.at)}`}
                             strong={event.urgent}
                           />
                         ))}
@@ -556,7 +567,7 @@ export function HideoutPage() {
                         {hideout.assetProtection.products.map((product) => (
                           <Row
                             key={product.key}
-                            label={product.name}
+                            label={<ItemLabel itemKey={product.key}>{product.name}</ItemLabel>}
                             value={`${formatNumber(product.protected)} safe · ${formatNumber(product.exposed)} exposed`}
                             strong={product.exposed > 0}
                           />
@@ -578,10 +589,10 @@ export function HideoutPage() {
                       <Metric label="Unarmed fit" value={formatNumber(hideout.armory.unarmedFitThugs)} tone={hideout.armory.unarmedFitThugs > 0 ? 'warn' : 'good'} />
                     </div>
                     <div className="se-rows se-mt">
-                      <Row label="Pistols" value={formatNumber(hideout.armory.weapons.pistols)} />
-                      <Row label="Shotguns" value={formatNumber(hideout.armory.weapons.shotguns)} />
-                      <Row label="Tek-9s" value={formatNumber(hideout.armory.weapons.tek9s)} />
-                      <Row label="AK-47s" value={formatNumber(hideout.armory.weapons.ak47s)} />
+                      <Row label={<ItemLabel itemKey="PISTOL" slot>Pistols</ItemLabel>} value={formatNumber(hideout.armory.weapons.pistols)} />
+                      <Row label={<ItemLabel itemKey="SHOTGUN" slot>Shotguns</ItemLabel>} value={formatNumber(hideout.armory.weapons.shotguns)} />
+                      <Row label={<ItemLabel itemKey="TEK9" slot>Tek-9s</ItemLabel>} value={formatNumber(hideout.armory.weapons.tek9s)} />
+                      <Row label={<ItemLabel itemKey="AK47" slot>AK-47s</ItemLabel>} value={formatNumber(hideout.armory.weapons.ak47s)} />
                     </div>
                     <div className="se-hideout-policy">
                       <span className="se-eyebrow">Equip first</span>
@@ -613,7 +624,7 @@ export function HideoutPage() {
                     <div className="se-hideout-panelstats">
                       <Metric label="Fit thugs" value={formatNumber(hideout.infirmary.fitThugs)} />
                       <Metric label="Wounded" value={formatNumber(hideout.infirmary.woundedThugs)} tone={hideout.infirmary.woundedThugs > 0 ? 'warn' : 'good'} />
-                      <Metric label="Medicine" value={formatNumber(hideout.infirmary.medicine)} />
+                      <Metric label="Medicine" art="MEDICINE" value={formatNumber(hideout.infirmary.medicine)} />
                       <Metric label="Treat now" value={formatNumber(hideout.infirmary.maxTreatableThugs)} tone="accent" />
                     </div>
                     <div className="se-rows se-mt">
@@ -630,7 +641,7 @@ export function HideoutPage() {
                       <Row
                         label="Next natural recovery"
                         value={hideout.infirmary.nextRecoveryAt
-                          ? new Date(hideout.infirmary.nextRecoveryAt).toLocaleString()
+                          ? formatWhen(hideout.infirmary.nextRecoveryAt)
                           : 'No wounds queued'}
                       />
                     </div>
@@ -660,7 +671,7 @@ export function HideoutPage() {
                       {hideout.workshop.recipes.map((recipe) => (
                         <Row
                           key={recipe.key}
-                          label={recipe.name}
+                          label={<ItemLabel itemKey={recipe.key}>{recipe.name}</ItemLabel>}
                           value={recipe.baseIngredientCentsPerUnit === recipe.effectiveIngredientCentsPerUnit
                             ? `${formatCents(recipe.baseIngredientCentsPerUnit)} / unit`
                             : `${formatCents(recipe.effectiveIngredientCentsPerUnit)} / unit · base ${formatCents(recipe.baseIngredientCentsPerUnit)}`}
@@ -678,8 +689,8 @@ export function HideoutPage() {
                   <Panel title="Garage" aside="Logistics" className="se-hideout-panel">
                     <div className="se-hideout-panelstats">
                       <Metric label="Run slots" value={`${formatNumber(activeRuns)} / ${formatNumber(hideout.garage.runLimit)}`} tone="accent" />
-                      <Metric label="Low-Riders home" value={formatNumber(lowRidersHome)} />
-                      <Metric label="Low-Riders away" value={formatNumber(lowRidersAway)} />
+                      <Metric label="Low-Riders home" art="LOW_RIDER" value={formatNumber(lowRidersHome)} />
+                      <Metric label="Low-Riders away" art="LOW_RIDER" value={formatNumber(lowRidersAway)} />
                       <Metric label="Escorts away" value={formatNumber(escortsAway)} />
                     </div>
                     {garageRuns.length ? (
@@ -746,7 +757,7 @@ export function HideoutPage() {
                           <Row
                             key={entry.id}
                             label={entry.label}
-                            value={`${entry.amountCents >= 0 ? '+' : '−'}${formatCents(Math.abs(entry.amountCents))} · ${new Date(entry.createdAt).toLocaleString()}`}
+                            value={`${entry.amountCents >= 0 ? '+' : '−'}${formatCents(Math.abs(entry.amountCents))} · ${formatWhen(entry.createdAt)}`}
                             strong={entry.category === 'INCOME'}
                           />
                         ))}

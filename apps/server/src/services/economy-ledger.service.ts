@@ -24,6 +24,7 @@ const ACTION_LABELS: Readonly<Record<string, string>> = {
   HEAT_BRIBE: 'Heat bribe',
   HIDEOUT_UPGRADE: 'Hideout upgrade',
   RELOCATE: 'Relocation',
+  STREET_PASS_CLAIM: 'Street Pass',
 };
 
 function toBigInt(value: bigint | number): bigint {

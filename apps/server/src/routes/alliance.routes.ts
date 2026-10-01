@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { allianceForumPostSchema, allianceInviteAnswerSchema, alliancePlayerSchema, allianceTagSchema, createAllianceSchema } from '@streets/shared';
+import { allianceForumPostSchema, allianceInviteAnswerSchema, alliancePlayerSchema, allianceSettingsSchema, allianceTagSchema, createAllianceSchema } from '@streets/shared';
 import { AllianceService } from '../services/alliance.service.js';
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { RoundService } from '../services/round.service.js';
@@ -48,6 +48,7 @@ const allianceRoutes: FastifyPluginAsync = async (app) => {
   post('/alliance/decline', (id, body) => AllianceService.decline(app.prisma, id, parseBody(allianceInviteAnswerSchema, body)));
   post('/alliance/kick', (id, body) => AllianceService.kick(app.prisma, id, parseBody(alliancePlayerSchema, body)));
   post('/alliance/transfer', (id, body) => AllianceService.transferLeadership(app.prisma, id, parseBody(alliancePlayerSchema, body)));
+  post('/alliance/settings', (id, body) => AllianceService.updateSettings(app.prisma, id, parseBody(allianceSettingsSchema, body)));
   post('/alliance/forum-thread', (id, body) => AllianceService.postForumThread(app.prisma, id, parseBody(allianceForumPostSchema, body)));
   post('/alliance/leave', (id, body) => {
     parseBody(z.object({}).strict(), body);

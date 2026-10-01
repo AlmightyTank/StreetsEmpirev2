@@ -1,4 +1,19 @@
 import type {
+  AdminBugReportQueueDto,
+  AdminBugReportStatus,
+  BugReportResolution,
+  MonitoringSnapshotDto,
+  AdminExploitFlagDto,
+  AdminExploitFlagsDto,
+  AdminMarketsDto,
+  AdminPlayerStoresDto,
+  AdminRoundBattlesDto,
+  AdminShipmentsDto,
+  AdminSuspiciousDto,
+  AdminTurfDto,
+  AdminTurfHistoryDto,
+  AdminTurfRepair,
+  ExploitFlagResolution,
   AdminAccountDeleteResultDto,
   AdminAccountDetailDto,
   AdminAccountSearchDto,
@@ -25,6 +40,11 @@ import type {
   AdminScheduleRoundInput,
   AdminSignalsDto,
   AdminSuspensionLength,
+  AdminCommsMuteLength,
+  AdminReportDetailDto,
+  AdminReportQueueDto,
+  AdminReportResolution,
+  AdminReportStatus,
   AdminSiteBannersDto,
   AdminUpdateNewsInput,
   AdminUpdateRoundInput,
@@ -52,6 +72,8 @@ export const adminApi = {
   startRound: (roundId: string, confirmHandoff: boolean) => api.post<AdminRoundResultDto>(roundPath(roundId, 'start'), { confirmHandoff }),
   endRoundEarly: (roundId: string, reason: string) => api.post<AdminRoundResultDto>(roundPath(roundId, 'end-early'), { reason }),
   archiveRound: (roundId: string) => api.post<AdminRoundResultDto>(roundPath(roundId, 'archive')),
+  pauseRound: (roundId: string, reason: string) => api.post<AdminRoundResultDto>(roundPath(roundId, 'pause'), { reason }),
+  resumeRound: (roundId: string, extend: boolean) => api.post<AdminRoundResultDto>(roundPath(roundId, 'resume'), { extend }),
   updateRound: (roundId: string, input: AdminUpdateRoundInput) => api.post<AdminRoundResultDto>(roundPath(roundId, 'update'), input),
   roundHealth: (roundId: string) => api.get<AdminRoundHealthDto>(roundPath(roundId, 'health')),
   closeExpiredRounds: () => api.post<AdminCloseExpiredResultDto>('/admin/rounds/close-expired'),
@@ -90,11 +112,26 @@ export const adminApi = {
   accounts: (params: { query?: string | undefined; status?: AdminAccountStatusFilter | undefined; limit?: number | undefined } = {}) =>
     api.get<AdminAccountSearchDto>(`/admin/accounts${queryString(params)}`),
   account: (accountId: string) => api.get<AdminAccountDetailDto>(accountPath(accountId)),
+  banAccount: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'ban'), { reason }),
+  unbanAccount: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'unban'), { reason }),
   deactivateAccount: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'deactivate'), { reason }),
   reactivateAccount: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'reactivate'), { reason }),
   suspendAccount: (accountId: string, length: AdminSuspensionLength, reason: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'suspend'), { length, reason }),
   liftSuspension: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'suspend/lift'), { reason }),
+  // 0.9.0-H moderation.
+  muteComms: (accountId: string, length: AdminCommsMuteLength, reason: string) =>
+    api.post<AdminAccountDetailDto>(accountPath(accountId, 'comms-mute'), { length, reason }),
+  unmuteComms: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'comms-mute/lift'), { reason }),
+  addNote: (accountId: string, body: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'notes'), { body }),
+  reports: (status: AdminReportStatus, page = 1) => api.get<AdminReportQueueDto>(`/admin/reports${queryString({ status, page })}`),
+  openReport: (reportId: string) => api.post<AdminReportDetailDto>(`/admin/reports/${encodeURIComponent(reportId)}/open`, {}),
+  resolveReport: (reportId: string, resolution: AdminReportResolution, note: string) =>
+    api.post<AdminReportQueueDto>(`/admin/reports/${encodeURIComponent(reportId)}/resolve`, { resolution, note }),
+  // rc.2: bugs players reported from the game.
+  bugReports: (status: AdminBugReportStatus, page = 1) => api.get<AdminBugReportQueueDto>(`/admin/bug-reports${queryString({ status, page })}`),
+  resolveBugReport: (reportId: string, resolution: BugReportResolution, note: string) =>
+    api.post<AdminBugReportQueueDto>(`/admin/bug-reports/${encodeURIComponent(reportId)}/resolve`, { resolution, note }),
   revokeSessions: (accountId: string, reason: string, sessionId?: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'sessions/revoke'), { reason, ...(sessionId ? { sessionId } : {}) }),
   renameAccount: (accountId: string, username: string, reason: string) =>
@@ -105,6 +142,7 @@ export const adminApi = {
   setBetaApproved: (accountId: string, approved: boolean, reason: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'beta-access'), { approved, reason }),
   resendVerification: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'email/resend'), { reason }),
+  resetTwoFactor: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, '2fa/reset'), { reason }),
   markEmailVerified: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'email/verify'), { reason }),
   unlinkForum: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'forum/unlink'), { reason }),
   deleteAccount: (accountId: string, reason: string, confirmation: string) =>
@@ -134,4 +172,19 @@ export const adminApi = {
   purgeAudit: (reason: string) => api.post<AdminAuditPurgeResultDto>('/admin/audit/purge', { reason }),
   /** A plain link: the browser downloads it with the session cookie it already has. */
   auditExportUrl: (filters: AdminAuditFilters = {}) => `/api/admin/audit/export${queryString({ ...filters, before: undefined })}`,
+  // 1.0.0-E: economy, fights, exploit flags and turf.
+  markets: (roundId: string) => api.get<AdminMarketsDto>(roundPath(roundId, 'markets')),
+  suspicious: (roundId: string, hours = 24) => api.get<AdminSuspiciousDto>(`${roundPath(roundId, 'suspicious')}?hours=${hours}`),
+  shipments: (roundId: string) => api.get<AdminShipmentsDto>(roundPath(roundId, 'shipments')),
+  playerStores: (roundPlayerId: string) => api.get<AdminPlayerStoresDto>(`/admin/players/${encodeURIComponent(roundPlayerId)}/stores`),
+  roundBattles: (roundId: string, playerId?: string) => api.get<AdminRoundBattlesDto>(`${roundPath(roundId, 'battles')}${playerId ? `?playerId=${encodeURIComponent(playerId)}` : ''}`),
+  exploitFlags: (status: 'open' | 'reviewed' | 'all' = 'open') => api.get<AdminExploitFlagsDto>(`/admin/exploit-flags?status=${status}`),
+  reviewFlag: (flagId: string, resolution: ExploitFlagResolution, note: string) =>
+    api.post<{ flag: AdminExploitFlagDto }>(`/admin/exploit-flags/${encodeURIComponent(flagId)}/review`, { resolution, note }),
+  turf: (roundId: string) => api.get<AdminTurfDto>(roundPath(roundId, 'turf')),
+  turfHistory: (turfId: string) => api.get<AdminTurfHistoryDto>(`/admin/turf/${encodeURIComponent(turfId)}/history`),
+  turfRepair: (input: { action: AdminTurfRepair; turfId?: string; roundPlayerId?: string; pushId?: string; reason: string }) =>
+    api.post<{ done: string }>('/admin/turf/repair', input),
+  // 1.0.0-F.
+  monitoring: () => api.get<MonitoringSnapshotDto>('/admin/monitoring'),
 };

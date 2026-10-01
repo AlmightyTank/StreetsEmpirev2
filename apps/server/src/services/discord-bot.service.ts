@@ -126,6 +126,7 @@ const emptyLegacy = (): PublicLegacyDto => ({
   roundsPlayed: 0,
   roundWins: 0,
   topTenFinishes: 0,
+  podiumFinishes: 0,
   bestNationalRank: null,
   bestLocalRank: null,
   totalFinalNetWorthCents: 0,

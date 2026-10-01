@@ -211,12 +211,14 @@ async function revengeOpenUntil(db: Db | PrismaClient, ruleset: Ruleset, playerI
 
 /** Everything `checkMove` needs from the database, for a player as they stand. */
 async function moveInputs(db: Db | PrismaClient, ruleset: Ruleset, player: RoundPlayer, now: Date) {
-  const [lastMove, run, revenge] = await Promise.all([
+  const [lastMove, run, trip, revenge] = await Promise.all([
     db.relocation.findFirst({ where: { roundPlayerId: player.id }, orderBy: { startedAt: 'desc' }, select: { startedAt: true } }),
     db.run.findFirst({ where: { roundPlayerId: player.id, status: 'ACTIVE' }, select: { id: true } }),
+    // Trips A: the whole operation does not move without its boss.
+    db.bossTrip.findFirst({ where: { roundPlayerId: player.id, status: 'ACTIVE' }, select: { id: true } }),
     revengeOpenUntil(db, ruleset, player.id, now),
   ]);
-  return { lastMoveAt: lastMove?.startedAt ?? null, runOut: Boolean(run), revengeOpenUntil: revenge };
+  return { lastMoveAt: lastMove?.startedAt ?? null, runOut: Boolean(run), tripOut: Boolean(trip), revengeOpenUntil: revenge };
 }
 
 async function turfMoveBlock(db: Db | PrismaClient, ruleset: Ruleset, playerId: string): Promise<{ code: string; reason: string } | null> {

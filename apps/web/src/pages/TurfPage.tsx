@@ -13,6 +13,7 @@ import { BusinessCollect, BusinessLots } from '../components/BusinessLots.js';
 import { useCountdown } from '../hooks/useCountdown.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
+import { formatClockTime, formatWhen } from '../utils/time.js';
 
 const ORDER: Record<TurfBlockDto['district'], number> = {
   CASINO: 0,
@@ -109,7 +110,7 @@ function CityBlockBoard({ city, onChanged }: { city: CityCharacterDto; onChanged
                   <span className="se-eyebrow">{block.districtName}</span>
                   <div className="se-turfboard__holder">{holder(block)}</div>
                 </div>
-                <span className="se-turfboard__age" title={block.heldSince ? `Held since ${new Date(block.heldSince).toLocaleString()}` : undefined}>
+                <span className="se-turfboard__age" title={block.heldSince ? `Held since ${formatWhen(block.heldSince)}` : undefined}>
                   {block.holder ? `held ${durationFrom(block.heldSince)}` : block.localsReclaimAt ? 'open' : 'locals'}
                 </span>
               </div>
@@ -134,7 +135,7 @@ function CityBlockBoard({ city, onChanged }: { city: CityCharacterDto; onChanged
               {block.outpost ? <span className="se-turfboard__outpost">Your outpost</span> : null}
               {block.revengeAvailable && block.revengeUntil ? (
                 <span className="se-hint se-good">
-                  Revenge active until {new Date(block.revengeUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · no presence required.
+                  Revenge active until {formatClockTime(block.revengeUntil)} · no presence required.
                 </span>
               ) : null}
               <TurfActions
@@ -180,7 +181,7 @@ function TurfReports({ city }: { city: CityCharacterDto }) {
             </span>
             {report.revengeUntil && new Date(report.revengeUntil).getTime() > Date.now() ? (
               <span className="se-hint">
-                Revenge open until {new Date(report.revengeUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. It waives presence, not the hold shield.
+                Revenge open until {formatClockTime(report.revengeUntil)}. It waives presence, not the hold shield.
               </span>
             ) : null}
             {report.outpostLoot ? (

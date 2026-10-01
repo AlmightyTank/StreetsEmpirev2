@@ -9,8 +9,8 @@ import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { adminWhen, localInputToIso } from '../utils/admin.js';
 
-const emptyPost = { title: '', body: '', roundId: '', pinned: false, publishAt: '', mirror: false };
-const emptyBanner = { message: '', tone: 'info' as SiteBannerTone, startsAt: '', endsAt: '' };
+const emptyPost = { title: '', body: '', roundId: '', pinned: false, publishAt: '', mirror: false, broadcast: false };
+const emptyBanner = { message: '', tone: 'info' as SiteBannerTone, startsAt: '', endsAt: '', maintenance: false, maintenanceStartsAt: '', maintenanceEndsAt: '', announce: true };
 
 type Pending = { kind: 'edit' | 'delete'; post: AdminNewsPostDto };
 
@@ -90,6 +90,7 @@ export function AdminNewsPage() {
         pinned: post.pinned,
         roundId: post.roundId || null,
         mirrorToForum: post.mirror,
+        broadcast: post.broadcast,
         ...(publishedAt ? { publishedAt } : {}),
       }),
       (result) => {
@@ -147,18 +148,28 @@ export function AdminNewsPage() {
   function postBanner(event: FormEvent) {
     event.preventDefault();
     setBannerFields({});
-    const endsAt = localInputToIso(banner.endsAt);
     const startsAt = localInputToIso(banner.startsAt);
+    const maintenanceStartsAt = localInputToIso(banner.maintenanceStartsAt);
+    const maintenanceEndsAt = localInputToIso(banner.maintenanceEndsAt);
+    // A maintenance notice ends when the outage does.
+    const endsAt = banner.maintenance ? maintenanceEndsAt : localInputToIso(banner.endsAt);
+    if (banner.maintenance && (!maintenanceStartsAt || !maintenanceEndsAt)) {
+      setBannerFields({ maintenanceStartsAt: 'Pick when maintenance starts and ends.' });
+      return;
+    }
     if (!endsAt) {
       setBannerFields({ endsAt: 'Pick when the banner ends.' });
       return;
     }
     void run(
-      () => adminApi.createBanner({ message: banner.message.trim(), tone: banner.tone, endsAt, ...(startsAt ? { startsAt } : {}) }),
+      () => adminApi.createBanner({
+        message: banner.message.trim(), tone: banner.tone, endsAt, ...(startsAt ? { startsAt } : {}),
+        ...(banner.maintenance ? { kind: 'maintenance' as const, maintenanceStartsAt: maintenanceStartsAt!, maintenanceEndsAt: maintenanceEndsAt!, announce: banner.announce } : {}),
+      }),
       (result) => {
         setBanners(result);
         setBanner(emptyBanner);
-        setNotice('Banner posted.');
+        setNotice(banner.maintenance ? `Maintenance scheduled${banner.announce ? ' and announced to every player' : ''}.` : 'Banner posted.');
       },
       setBannerFields,
     );
@@ -232,7 +243,7 @@ export function AdminNewsPage() {
             <div className="se-field">
               <label className="se-label" htmlFor="admin-news-body">Body</label>
               <textarea id="admin-news-body" className="se-input se-admin-textarea" maxLength={4000} value={post.body} onChange={(event) => setPost({ ...post, body: event.target.value })} />
-              {postFields.body ? <p className="se-error">{postFields.body}</p> : null}
+              {postFields.body ? <p className="se-error" role="alert">{postFields.body}</p> : null}
             </div>
             <div className="se-field">
               <label className="se-label" htmlFor="admin-news-round">Shown in</label>
@@ -255,6 +266,13 @@ export function AdminNewsPage() {
             <label className="se-checkrow se-checkrow--inline">
               <input type="checkbox" checked={post.pinned} onChange={(event) => setPost({ ...post, pinned: event.target.checked })} />
               <span><strong>Pin to the top</strong><small>Pinned posts sit above newer ones on the news page.</small></span>
+            </label>
+            <label className="se-checkrow se-checkrow--inline">
+              <input type="checkbox" checked={post.broadcast} onChange={(event) => setPost({ ...post, broadcast: event.target.checked })} />
+              <span>
+                <strong>Broadcast to every player</strong>
+                <small>When it publishes, every player in the season gets it in their bell, and on their phone and Discord if they take announcements.</small>
+              </span>
             </label>
             <label className="se-checkrow se-checkrow--inline">
               <input type="checkbox" checked={post.mirror} disabled={!mirrorEnabled} onChange={(event) => setPost({ ...post, mirror: event.target.checked })} />
@@ -287,7 +305,7 @@ export function AdminNewsPage() {
             <div className="se-field">
               <label className="se-label" htmlFor="admin-banner-message">Message</label>
               <textarea id="admin-banner-message" className="se-input se-admin-reason" maxLength={280} value={banner.message} onChange={(event) => setBanner({ ...banner, message: event.target.value })} />
-              {bannerFields.message ? <p className="se-error">{bannerFields.message}</p> : <p className="se-hint">Shown above every page, logged in or not. Up to 280 characters.</p>}
+              {bannerFields.message ? <p className="se-error" role="alert">{bannerFields.message}</p> : <p className="se-hint">Shown above every page, logged in or not. Up to 280 characters.</p>}
             </div>
             <div className="se-field">
               <label className="se-label" htmlFor="admin-banner-tone">Tone</label>
@@ -297,8 +315,23 @@ export function AdminNewsPage() {
                 <option value="critical">Critical</option>
               </select>
             </div>
-            <Field id="admin-banner-starts" label="Starts" type="datetime-local" value={banner.startsAt} onChange={(event) => setBanner({ ...banner, startsAt: event.target.value })} hint="Optional. Leave blank to show it now." />
-            <Field id="admin-banner-ends" label="Ends" type="datetime-local" value={banner.endsAt} onChange={(event) => setBanner({ ...banner, endsAt: event.target.value })} error={bannerFields.endsAt} hint="Up to 30 days after it starts." />
+            <label className="se-checkrow se-checkrow--inline">
+              <input type="checkbox" checked={banner.maintenance} onChange={(event) => setBanner({ ...banner, maintenance: event.target.checked, tone: event.target.checked ? 'warning' : banner.tone })} />
+              <span><strong>Scheduled maintenance</strong><small>Players see the outage window counting down, then "in progress" while it runs.</small></span>
+            </label>
+            <Field id="admin-banner-starts" label={banner.maintenance ? 'Show the notice from' : 'Starts'} type="datetime-local" value={banner.startsAt} onChange={(event) => setBanner({ ...banner, startsAt: event.target.value })} error={bannerFields.startsAt} hint="Optional. Leave blank to show it now." />
+            {banner.maintenance ? (
+              <>
+                <Field id="admin-maintenance-starts" label="Maintenance starts" type="datetime-local" value={banner.maintenanceStartsAt} onChange={(event) => setBanner({ ...banner, maintenanceStartsAt: event.target.value })} error={bannerFields.maintenanceStartsAt} />
+                <Field id="admin-maintenance-ends" label="Maintenance ends" type="datetime-local" value={banner.maintenanceEndsAt} onChange={(event) => setBanner({ ...banner, maintenanceEndsAt: event.target.value })} error={bannerFields.maintenanceEndsAt} hint="The notice comes down when maintenance ends." />
+                <label className="se-checkrow se-checkrow--inline">
+                  <input type="checkbox" checked={banner.announce} onChange={(event) => setBanner({ ...banner, announce: event.target.checked })} />
+                  <span><strong>Announce it to every player</strong><small>Also posts pinned news and sends it to every player's bell, phone and Discord.</small></span>
+                </label>
+              </>
+            ) : (
+              <Field id="admin-banner-ends" label="Ends" type="datetime-local" value={banner.endsAt} onChange={(event) => setBanner({ ...banner, endsAt: event.target.value })} error={bannerFields.endsAt} hint="Up to 30 days after it starts." />
+            )}
             <Button className="se-btn se-btn--primary se-btn--block"
               disabledReason={busy ? working : banner.message.trim().length < 3 ? 'Write the banner message first - at least 3 characters.' : null}>Post banner</Button>
           </form>
@@ -307,8 +340,8 @@ export function AdminNewsPage() {
               {banners.banners.slice(0, 5).map((row) => (
                 <li className="se-admin-audit__entry" key={row.id}>
                   <div className="se-admin-audit__head">
-                    <strong>{row.tone}</strong>
-                    <span className="se-muted">{adminWhen(row.startsAt)} → {adminWhen(row.endsAt)}</span>
+                    <strong>{row.kind === 'maintenance' ? 'maintenance' : row.tone}</strong>
+                    <span className="se-muted">{row.maintenance ? `outage ${adminWhen(row.maintenance.startsAt)} → ${adminWhen(row.maintenance.endsAt)}` : `${adminWhen(row.startsAt)} → ${adminWhen(row.endsAt)}`}</span>
                   </div>
                   <p>{row.message}</p>
                   <p className="se-hint">By {row.createdByUsername}</p>
@@ -333,7 +366,7 @@ export function AdminNewsPage() {
               </div>
               <PostTags post={row} />
               <p>{row.body.length > 280 ? `${row.body.slice(0, 280)}…` : row.body}</p>
-              <p className="se-hint">{row.authorName ? `By ${row.authorName}` : 'Seeded'}{row.forumError && !row.forumUrl ? ` · Forum error: ${row.forumError}` : ''}</p>
+              <p className="se-hint">{row.authorName ? `By ${row.authorName}` : 'Seeded'}{row.broadcast ? (row.broadcastAt ? ` · Broadcast ${adminWhen(row.broadcastAt)}` : ' · Broadcast when published') : ''}{row.forumError && !row.forumUrl ? ` · Forum error: ${row.forumError}` : ''}</p>
               <div className="se-admin-moderation se-mt">
                 <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => togglePin(row)} disabledReason={busy ? working : null}>{row.isPinned ? 'Unpin' : 'Pin'}</Button>
                 <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => choose('edit', row)} disabledReason={busy ? working : null}>Edit</Button>

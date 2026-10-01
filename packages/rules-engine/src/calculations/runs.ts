@@ -63,8 +63,9 @@ export function driveTurns(ruleset: Ruleset, hours: number): number {
   return Math.ceil(hours * (ruleset.travel?.turnsPerDriveHour ?? 0) - 1e-9);
 }
 
-function windowMs(ruleset: Ruleset): number {
-  return (runRules(ruleset)?.townWindowMinutes ?? 0) * 60_000;
+/** A town window: the ruleset's, or (Trips B) a longer one when the boss rides along. */
+function windowMs(ruleset: Ruleset, windowMinutes?: number): number {
+  return (windowMinutes ?? runRules(ruleset)?.townWindowMinutes ?? 0) * 60_000;
 }
 
 function pickRoute(ruleset: Ruleset, from: string, to: string, index: number): TravelRoute {
@@ -94,14 +95,14 @@ export interface LaunchPlan {
  * front, so a run that is never touched again still comes home when its window
  * closes.
  */
-export function planLaunch(ruleset: Ruleset, input: { home: string; to: string; routeIndex: number; now: Date }): LaunchPlan {
+export function planLaunch(ruleset: Ruleset, input: { home: string; to: string; routeIndex: number; now: Date; windowMinutes?: number }): LaunchPlan {
   const { home, to, routeIndex, now } = input;
   if (!runRules(ruleset)) throw new RunError('RUNS_DISABLED', 'Nobody drives out of town this round.');
   if (to === home) throw new RunError('ALREADY_HOME', `You already live in ${cityName(ruleset, home)}.`, 'to');
   const route = pickRoute(ruleset, home, to, routeIndex);
   const back = homeRoute(ruleset, to, home);
   const arriveAt = new Date(now.getTime() + driveMs(ruleset, route.driveHours));
-  const leaveAt = new Date(arriveAt.getTime() + windowMs(ruleset));
+  const leaveAt = new Date(arriveAt.getTime() + windowMs(ruleset, input.windowMinutes));
   return {
     route,
     turns: driveTurns(ruleset, route.driveHours + back.driveHours),
@@ -187,7 +188,7 @@ export interface DrivePlan {
  * Leave the town the run is in for another city, then home from there. The run pays
  * for the new legs less the drive home it already paid for.
  */
-export function planDriveOn(ruleset: Ruleset, stops: readonly RunStopPlan[], now: Date, input: { home: string; to: string; routeIndex: number }): DrivePlan {
+export function planDriveOn(ruleset: Ruleset, stops: readonly RunStopPlan[], now: Date, input: { home: string; to: string; routeIndex: number; windowMinutes?: number }): DrivePlan {
   const position = assertInTown(ruleset, stops, now);
   const here = stops[position.stopIndex]!;
   if (input.to === here.city) throw new RunError('ALREADY_THERE', `The run is already in ${cityName(ruleset, here.city)}.`, 'to');
@@ -196,7 +197,7 @@ export function planDriveOn(ruleset: Ruleset, stops: readonly RunStopPlan[], now
   const back = homeRoute(ruleset, input.to, input.home);
   const paidHome = routeHours(ruleset, stops[stops.length - 1]!.route);
   const arriveAt = new Date(now.getTime() + driveMs(ruleset, route.driveHours));
-  const leaveAt = new Date(arriveAt.getTime() + windowMs(ruleset));
+  const leaveAt = new Date(arriveAt.getTime() + windowMs(ruleset, input.windowMinutes));
   return {
     turns: Math.max(0, driveTurns(ruleset, route.driveHours + back.driveHours) - driveTurns(ruleset, paidHome)),
     stops: [

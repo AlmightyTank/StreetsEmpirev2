@@ -29,6 +29,10 @@ if (!get('DATABASE_URL')) problems.push('DATABASE_URL is missing.');
 if (!get('CORS_ORIGINS')) problems.push('CORS_ORIGINS is missing.');
 if (/localhost|127\.0\.0\.1/i.test(get('CORS_ORIGINS'))) warnings.push('CORS_ORIGINS still contains a local-development origin.');
 if (/streets:streets@/i.test(get('DATABASE_URL'))) warnings.push('DATABASE_URL appears to use the example database credentials.');
+// 1.0.0-A: the same environment rules the server enforces at boot.
+if (get('BETA_INVITE_ONLY') === 'true') warnings.push('BETA_INVITE_ONLY=true: production is invite-only. Fine for a closed launch; remove it to open registration.');
+if (get('APP_ENV') && get('APP_ENV') !== 'production') problems.push(`APP_ENV is ${get('APP_ENV')}, not production.`);
+if (/beta/i.test(get('SESSION_COOKIE_NAME'))) problems.push('SESSION_COOKIE_NAME looks like a beta cookie name.');
 
 for (const warning of warnings) console.warn(`WARN: ${warning}`);
 for (const problem of problems) console.error(`FAIL: ${problem}`);

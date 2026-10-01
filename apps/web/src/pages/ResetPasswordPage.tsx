@@ -34,7 +34,9 @@ export function ResetPasswordPage() {
     }
 
     try {
-      await resetPassword({ token, password });
+      const { twoFactorRequired } = await resetPassword({ token, password });
+      // rc.3: the new password is saved; with two-step on, the code is still asked for.
+      if (twoFactorRequired) { navigate('/login?twoFactor=1'); return; }
       navigate(useSession.getState().me ? '/game' : '/join');
     } catch (error) {
       if (error instanceof ApiError) {
