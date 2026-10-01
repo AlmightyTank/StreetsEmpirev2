@@ -108,6 +108,17 @@ describe('createGameApi', () => {
           unlocked: true,
           earnedAt: '2026-09-21T12:00:00.000Z',
           progress: { current: 1, target: 1, label: 'hideout levels' },
+        }, {
+          // 0.9.0-F season feats use categories the bot has no special handling for.
+          key: 'season-road-warrior',
+          title: 'Road Warrior',
+          description: 'Complete runs in one season.',
+          category: 'travel',
+          rarity: 'rare',
+          unlocked: false,
+          earnedAt: null,
+          progress: null,
+          earnedSeason: null,
         }],
       } },
       '/api/internal/discord/news/claim': { news: [] },
@@ -124,7 +135,7 @@ describe('createGameApi', () => {
 
     const badges = await api.badges({ name: 'Big Daddy' });
     expect(badges.displayName).toBe('Big');
-    expect(badges.awards[0]?.category).toBe('hideout');
+    expect(badges.awards.map((award) => award.category)).toEqual(['hideout', 'travel']);
     expect(await api.claimNews()).toEqual([]);
     expect((await api.setAlert('123456789012345678', 'turns', true)).current).toEqual({ turns: 5, cap: 144, nationalRank: 7 });
     // A server from before 0.9.0-G sends no notices; the bot treats that as none.

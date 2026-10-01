@@ -55,7 +55,9 @@ const badgesSchema = z.object({
       key: z.string(),
       title: z.string(),
       description: z.string(),
-      category: z.enum(['rank', 'wealth', 'combat', 'intel', 'reputation', 'hideout', 'quest', 'legacy']),
+      // Any string: the game adds categories (0.9.0-F season feats brought street,
+      // turf, travel and economy), and an unknown one must not fail all of /badges.
+      category: z.string(),
       rarity: raritySchema,
       unlocked: z.boolean(),
       earnedAt: z.string().nullable(),
