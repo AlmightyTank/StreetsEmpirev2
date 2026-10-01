@@ -43,6 +43,26 @@ export function truncate(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
+/** Discord API error codes worth explaining to an admin who has to fix them. */
+const DISCORD_ERROR_HINTS: Record<number, (channel: string) => string> = {
+  10003: (channel) => `Unknown Channel: #${channel} no longer exists. Point DISCORD_NEWS_CHANNEL_ID at a channel that does and restart the bot.`,
+  50001: (channel) => `Missing Access: the bot cannot see #${channel}. Give its role View Channel there.`,
+  50013: (channel) => `Missing Permissions: the bot needs View Channel, Send Messages and Embed Links in #${channel}.`,
+  50035: () => 'Invalid Form Body: Discord would not accept the post as written.',
+};
+
+/** Why Discord refused a send, for the admin panel: a hint for known codes, else Discord's own words. */
+export function describeDiscordError(error: unknown, channel: string): string {
+  const code = typeof error === 'object' && error !== null && 'code' in error ? (error as { code: unknown }).code : undefined;
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+  const hint = typeof code === 'number' ? DISCORD_ERROR_HINTS[code] : undefined;
+  const text = hint ? hint(channel)
+    : code !== undefined && message ? `Discord error ${String(code)}: ${message}`
+      : message || 'Discord gave no reason.';
+  const sentence = /[.!?]$/.test(text) ? text : `${text}.`;
+  return truncate(sentence, 500);
+}
+
 export function formatRemaining(ms: number): string {
   if (ms <= 0) return 'Ended';
   const minutes = Math.floor(ms / 60_000);

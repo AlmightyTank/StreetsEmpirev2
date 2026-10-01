@@ -72,10 +72,17 @@ channel once.
 - In an Announcement channel, it also publishes the post to following servers.
 - News that already existed when auto-posting was added is never posted.
 - The bot needs **View Channel**, **Send Messages** and **Embed Links** in that
-  channel. It checks them at startup and logs what's missing instead of posting.
+  channel. It checks them before every run and logs what's missing instead of
+  posting, so fixing a permission needs no restart.
 - Each post is marked as sent before it goes out. If Discord rejects a send, for
-  example because permissions changed, that post is skipped and logged, not
-  retried.
+  example because permissions changed, the bot reports why to the game and the
+  post is not retried on its own.
+- **Admin → News** shows each post's Discord state. A post that isn't on Discord
+  says why: scheduled, attached to a round that isn't the current one, the bot
+  API is off, the bot hasn't checked in, or the bot can't use its channel. A post
+  Discord refused shows the reason and a **Resend to Discord** button. A post
+  marked sent that never showed up can be posted again with **Post to Discord
+  again**.
 
 **Alerts and feeds.** Members opt in with `/alerts`.
 - The game API nudges the bot when work is queued, and every
@@ -217,7 +224,7 @@ renamed or new commands need no extra step.
 | `Used disallowed intents` | Turn on **Server Members Intent** (step 1.2). |
 | Warns `Cannot manage role "…"` | Drag the bot's role above that role (step 1.4). |
 | Commands reply "StreetsEmpire is not answering" | The API is down or unreachable at `GAME_API_URL`, or the two `DISCORD_BOT_API_TOKEN` values differ. The bot logs the error. |
-| No news posts | Startup log says `News auto-post is off` and why: a wrong channel ID or missing channel permissions. News that existed before auto-posting is never posted. |
+| No news posts | **Admin → News** says why under each post, and the bot log says `News auto-post is off` with the reason. Fix it, then use **Resend to Discord** on a refused post. News that existed before auto-posting is never posted on its own. |
 | No alert DMs | The member must opt in with `/alerts`. Turn and rank alerts require an active round and a joined player. They need DMs from server members allowed; failed DMs are logged. |
 | No raid feed | Startup log says `Raid feed is off` and why: a wrong channel ID or missing channel permissions. Battles that existed before the feed was added are never posted. |
 | `/profile` says your Discord isn't linked | Sign in with Discord or link it under Game → Account, then wait for the next sync. |

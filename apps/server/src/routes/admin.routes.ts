@@ -325,6 +325,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return AdminNewsService.retryMirror(fastify.prisma, request.auth!.account, newsId);
   });
 
+  fastify.post('/news/:newsId/discord', async (request) => {
+    const { newsId } = parseBody(newsParams, request.params);
+    parseBody(emptyBody, request.body ?? {});
+    return AdminNewsService.resendDiscord(fastify.prisma, request.auth!.account, newsId);
+  });
+
   fastify.get('/banners', async () => SiteBannerService.adminList(fastify.prisma));
 
   fastify.post('/banners', async (request, reply) => {

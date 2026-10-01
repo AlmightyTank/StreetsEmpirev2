@@ -96,6 +96,7 @@ export const adminApi = {
   updateNews: (newsId: string, input: AdminUpdateNewsInput) => api.post<AdminNewsDto>(`/admin/news/${enc(newsId)}/update`, input),
   deleteNews: (newsId: string, reason: string) => api.post<AdminNewsDto>(`/admin/news/${enc(newsId)}/delete`, { reason }),
   mirrorNews: (newsId: string) => api.post<AdminNewsDto>(`/admin/news/${enc(newsId)}/mirror`),
+  resendNewsToDiscord: (newsId: string) => api.post<AdminNewsDto>(`/admin/news/${enc(newsId)}/discord`),
 
   banners: () => api.get<AdminSiteBannersDto>('/admin/banners'),
   createBanner: (input: AdminCreateBannerInput) => api.post<AdminSiteBannersDto>('/admin/banners', input),

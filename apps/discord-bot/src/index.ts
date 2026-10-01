@@ -16,6 +16,7 @@ import {
   attackAlertEmbed,
   battleFeedEmbed,
   crackdownFeedEmbed,
+  describeDiscordError,
   gameNoticeEmbed,
   newsPostEmbed,
   rankAlertEmbed,
@@ -72,13 +73,12 @@ client.rest.on(RESTEvents.RateLimited, (info) => {
   console.warn(`Discord rate limit${info.global ? ' (global)' : ''} on ${info.method} ${info.route}: waiting ${info.timeToReset}ms.`);
 });
 
-/** A configured text channel, or null (with the reason logged) if the bot can't post there. */
-async function findPostChannel(guild: Guild, channelId: string, label: string): Promise<GuildTextBasedChannel | null> {
-  if (!channelId) return null;
+/** A configured text channel the bot can post in, or why it can't. */
+async function checkPostChannel(guild: Guild, channelId: string, envName: string): Promise<{ channel: GuildTextBasedChannel | null; problem: string | null }> {
+  if (!channelId) return { channel: null, problem: `${envName} is not set in the bot's .env.` };
   const channel = await guild.channels.fetch(channelId).catch(() => null);
   if (!channel?.isTextBased()) {
-    console.warn(`${label} is off: channel ${channelId} is not a text channel in ${guild.name}.`);
-    return null;
+    return { channel: null, problem: `channel ${channelId} (${envName}) is not a text channel the bot can see in ${guild.name}.` };
   }
   const me = await guild.members.fetchMe();
   const missing = channel.permissionsFor(me).missing([
@@ -86,10 +86,15 @@ async function findPostChannel(guild: Guild, channelId: string, label: string): 
     PermissionFlagsBits.SendMessages,
     PermissionFlagsBits.EmbedLinks,
   ]);
-  if (missing.length) {
-    console.warn(`${label} is off: the bot needs ${missing.join(', ')} in #${channel.name}.`);
-    return null;
-  }
+  if (missing.length) return { channel: null, problem: `the bot needs ${missing.join(', ')} in #${channel.name}.` };
+  return { channel, problem: null };
+}
+
+/** A configured text channel, or null (with the reason logged) if the bot can't post there. */
+async function findPostChannel(guild: Guild, channelId: string, envName: string, label: string): Promise<GuildTextBasedChannel | null> {
+  if (!channelId) return null;
+  const { channel, problem } = await checkPostChannel(guild, channelId, envName);
+  if (problem) console.warn(`${label} is off: ${problem}`);
   return channel;
 }
 
@@ -104,6 +109,9 @@ async function postNews(channel: GuildTextBasedChannel): Promise<void> {
       console.log(`Posted news "${post.title}" to #${channel.name}.`);
     } catch (error) {
       console.error(`Could not post news "${post.title}":`, error);
+      // The admin panel shows why, and an admin can resend it once that is fixed.
+      await api.newsFailed(post.id, describeDiscordError(error, channel.name))
+        .catch((reportError: unknown) => console.error(`Could not report the failed news post "${post.title}" to the game API:`, reportError));
     }
   }
 }
@@ -269,16 +277,26 @@ client.once(Events.ClientReady, async (ready) => {
       if (summary) console.log(`Role sync: ${summary.members} members, ${summary.added} roles added, ${summary.removed} removed, ${summary.failed} failed.`);
     });
 
-    const newsChannel = await findPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'News auto-post');
+    // Checked on every run, so fixing the channel or its permissions needs no restart.
+    // Each run also tells the game API, whose admin news panel shows why news is stuck.
+    // Resolved before the alert poller starts, which posts round endings to it.
+    let newsChannel = (await checkPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'DISCORD_NEWS_CHANNEL_ID')).channel;
+    let newsProblem: string | null | undefined;
     const runNews = serialTask('News auto-post', async () => {
+      const check = await checkPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'DISCORD_NEWS_CHANNEL_ID');
+      if (check.problem !== newsProblem) {
+        if (check.problem) console.warn(`News auto-post is off: ${check.problem}`);
+        else console.log(`Posting new game news to #${check.channel!.name} (checking every ${config.DISCORD_NEWS_MINUTES} min).`);
+        newsProblem = check.problem;
+      }
+      newsChannel = check.channel;
+      await api.reportNewsChannel({ channel: check.channel?.name ?? null, problem: check.problem })
+        .catch((error: unknown) => console.warn('Could not report the news channel status to the game API:', error instanceof Error ? error.message : error));
       if (newsChannel) await postNews(newsChannel);
     });
-    if (newsChannel) {
-      console.log(`Posting new game news to #${newsChannel.name} (checking every ${config.DISCORD_NEWS_MINUTES} min).`);
-      startPoller('News auto-post', config.DISCORD_NEWS_MINUTES * 60_000, runNews);
-    }
+    startPoller('News auto-post', config.DISCORD_NEWS_MINUTES * 60_000, runNews);
 
-    const raidFeedChannel = await findPostChannel(guild, config.DISCORD_RAID_FEED_CHANNEL_ID, 'Raid feed');
+    const raidFeedChannel = await findPostChannel(guild, config.DISCORD_RAID_FEED_CHANNEL_ID, 'DISCORD_RAID_FEED_CHANNEL_ID', 'Raid feed');
     if (raidFeedChannel) console.log(`Posting raid feed events to #${raidFeedChannel.name}.`);
 
     const runAlerts = serialTask('Discord alerts', () => sendAlerts({ news: newsChannel, raidFeed: raidFeedChannel }));

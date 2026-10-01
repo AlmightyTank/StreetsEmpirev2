@@ -1,10 +1,11 @@
-import type { GameNews, PrismaClient } from '@prisma/client';
+import type { DiscordBotStatus, GameNews, PrismaClient, Round } from '@prisma/client';
 import type { AdminNewsDto, AdminNewsPostDto } from '@streets/shared';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
 import { wakeDiscordBot } from './discord-bot-push.service.js';
 import { forumDiscussionUrl, mirrorNewsToForum } from './forum-news.service.js';
+import { RoundService } from './round.service.js';
 
 const newsInclude = {
   round: { select: { name: true } },
@@ -13,7 +14,30 @@ const newsInclude = {
 
 type NewsRow = GameNews & { round: { name: string } | null; createdBy: { username: string } | null };
 
-function toAdminNewsPostDto(row: NewsRow): AdminNewsPostDto {
+/** The bot checks for news every minute by default; this long without a word means it is down. */
+export const BOT_SILENT_AFTER_MS = 15 * 60_000;
+
+type DiscordContext = { now: Date; botApiEnabled: boolean; currentRound: Pick<Round, 'id' | 'name'> | null; bot: DiscordBotStatus | null };
+
+/** Why a post is not on Discord, in words an admin can act on; null once it is there. */
+export function discordWaiting(row: Pick<GameNews, 'discordPostedAt' | 'discordError' | 'publishedAt' | 'roundId'> & { round: { name: string } | null }, context: DiscordContext): string | null {
+  if (row.discordPostedAt) return null;
+  if (row.discordError) return `Refused: ${row.discordError} Fix that, then resend it.`;
+  if (!context.botApiEnabled) return 'The Discord bot API is off: set DISCORD_BOT_API_TOKEN on the game server and restart it.';
+  if (row.publishedAt > context.now) return 'Scheduled: Discord gets it once it is published.';
+  if (row.roundId && row.roundId !== context.currentRound?.id) {
+    return `Only news for every round or the current round${context.currentRound ? ` (${context.currentRound.name})` : ''} goes to Discord, and this post is for ${row.round?.name ?? 'another round'}.`;
+  }
+  if (!context.bot) return 'The bot has never checked in. Make sure it is running the latest code (scripts/ops/deploy.sh) with the same DISCORD_BOT_API_TOKEN as the game server.';
+  const silentMs = context.now.getTime() - context.bot.lastSeenAt.getTime();
+  if (silentMs > BOT_SILENT_AFTER_MS) {
+    return `The bot has not checked in for ${Math.round(silentMs / 60_000)} minutes. Check that it is running: journalctl -u streets-empire-bot.`;
+  }
+  if (context.bot.problem) return `The bot cannot post news: ${context.bot.problem}`;
+  return 'Waiting for the bot to pick it up. It checks every minute.';
+}
+
+function toAdminNewsPostDto(row: NewsRow, context: DiscordContext): AdminNewsPostDto {
   return {
     id: row.id,
     title: row.title,
@@ -24,6 +48,8 @@ function toAdminNewsPostDto(row: NewsRow): AdminNewsPostDto {
     roundName: row.round?.name ?? null,
     authorName: row.createdBy?.username ?? null,
     discordPostedAt: row.discordPostedAt?.toISOString() ?? null,
+    discordError: row.discordError,
+    discordWaiting: discordWaiting(row, context),
     forumDiscussionId: row.forumDiscussionId,
     forumUrl: row.forumDiscussionId ? forumDiscussionUrl(row.forumDiscussionId) : null,
     forumPostedAt: row.forumPostedAt?.toISOString() ?? null,
@@ -59,7 +85,8 @@ async function mirror(prisma: PrismaClient, actor: AuditActor, newsId: string): 
 
 export const AdminNewsService = {
   async list(prisma: PrismaClient, limit = 50): Promise<AdminNewsDto> {
-    const [rows, rounds] = await Promise.all([
+    const now = new Date();
+    const [rows, rounds, currentRound, bot] = await Promise.all([
       prisma.gameNews.findMany({ include: newsInclude, orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }], take: limit }),
       prisma.round.findMany({
         where: { status: { in: ['SCHEDULED', 'REGISTRATION', 'ACTIVE', 'ENDED'] } },
@@ -67,8 +94,16 @@ export const AdminNewsService = {
         take: 20,
         select: { id: true, name: true, status: true },
       }),
+      RoundService.getCurrent(prisma, now),
+      prisma.discordBotStatus.findUnique({ where: { id: 'news' } }),
     ]);
-    return { posts: rows.map(toAdminNewsPostDto), rounds, forumMirrorEnabled: env.forum.news.enabled };
+    const context: DiscordContext = { now, botApiEnabled: env.discordBot.enabled, currentRound, bot };
+    return {
+      posts: rows.map((row) => toAdminNewsPostDto(row, context)),
+      rounds,
+      forumMirrorEnabled: env.forum.news.enabled,
+      discordBot: bot ? { lastSeenAt: bot.lastSeenAt.toISOString(), channel: bot.channel, problem: bot.problem } : null,
+    };
   },
 
   async create(
@@ -132,6 +167,30 @@ export const AdminNewsService = {
       await tx.gameNews.delete({ where: { id: before.id } });
       await AdminAuditService.record(tx, actor, { action: 'news.delete', targetType: 'news', targetId: before.id, reason, before });
     });
+    return AdminNewsService.list(prisma);
+  },
+
+  /** Queue the post for Discord again: after Discord refused it, or to repost one that never showed up. */
+  async resendDiscord(prisma: PrismaClient, actor: AuditActor, newsId: string): Promise<AdminNewsDto> {
+    if (!env.discordBot.enabled) {
+      throw AppError.badRequest('DISCORD_BOT_DISABLED', 'The Discord bot API is not configured on this server, so nothing would pick the post up.');
+    }
+    await prisma.$transaction(async (tx) => {
+      const before = await tx.gameNews.findUnique({ where: { id: newsId } });
+      if (!before) throw AppError.notFound('NEWS_NOT_FOUND', 'That news post does not exist.');
+      if (!before.discordPostedAt && !before.discordError) {
+        throw AppError.conflict('NEWS_DISCORD_PENDING', 'That post is already waiting for Discord.');
+      }
+      await tx.gameNews.update({ where: { id: newsId }, data: { discordPostedAt: null, discordError: null } });
+      await AdminAuditService.record(tx, actor, {
+        action: 'news.discord-resend',
+        targetType: 'news',
+        targetId: newsId,
+        before: { discordPostedAt: before.discordPostedAt, discordError: before.discordError },
+        after: { discordPostedAt: null, discordError: null },
+      });
+    });
+    wakeDiscordBot('news');
     return AdminNewsService.list(prisma);
   },
 

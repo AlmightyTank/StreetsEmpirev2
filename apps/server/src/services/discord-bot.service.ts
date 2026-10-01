@@ -859,6 +859,8 @@ export const DiscordBotService = {
       const rows = await tx.gameNews.findMany({
         where: {
           discordPostedAt: null,
+          // A post Discord refused waits for an admin to resend it.
+          discordError: null,
           publishedAt: { lte: now },
           OR: [{ roundId: null }, ...(round ? [{ roundId: round.id }] : [])],
         },
@@ -881,6 +883,17 @@ export const DiscordBotService = {
         url: gameUrl('/game/news'),
       }));
     });
+  },
+
+  /** Discord refused a claimed post: keep why, and take it off Discord until an admin resends it. */
+  async newsFailed(prisma: PrismaClient, newsId: string, error: string): Promise<void> {
+    await prisma.gameNews.updateMany({ where: { id: newsId, discordPostedAt: { not: null } }, data: { discordPostedAt: null, discordError: error } });
+  },
+
+  /** The bot's news channel as it last saw it, so the admin panel can say why news is stuck. */
+  async reportNewsChannel(prisma: PrismaClient, report: { channel: string | null; problem: string | null }): Promise<void> {
+    const data = { lastSeenAt: new Date(), channel: report.channel, problem: report.problem };
+    await prisma.discordBotStatus.upsert({ where: { id: 'news' }, create: { id: 'news', ...data }, update: data });
   },
 
   async alertSettings(prisma: PrismaClient, discordId: string): Promise<DiscordAlertSettingsDto> {
