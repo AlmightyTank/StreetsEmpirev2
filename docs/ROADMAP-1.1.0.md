@@ -249,9 +249,28 @@ pinned rulesets keep the 0.6.0-C push rules unchanged.
   same as the caller's squad.
 - **On the attacker's side,** the ally in the siege makes Control tick faster. **On the
   holder's side,** the ally counts toward breaking the siege.
-- **Spoils go to the declarer only.** A Take gives the block to the crew that declared, and
-  Sack loot is capped and paid once. The ally gets Territory block-time and city control
-  (0.6.0-E), not cash.
+- **The ally gets a cut the caller sets (decided).** When sending the call, the caller
+  (declarer or holder) sets the **ally's share of the winnings as a percentage**. The share
+  is shown on the call, so a member knows the deal before accepting. Once someone accepts,
+  the caller can raise the share but not lower it.
+  - **What counts as winnings** (cash only; the block and its businesses always stay with
+    the caller):
+
+    | Outcome | Winnings that get split |
+    |---|---|
+    | Attacker wins a **Sack** | The capped register loot |
+    | Attacker wins a **Take** | The captured block's business income during the 24-hour truce |
+    | Holder **wins the defense** | The block's business income during the 24-hour truce |
+    | Side **loses** | Nothing. The ally's cut is a share of winnings, not a fee. |
+
+  - **Range** *(proposed)*: **0–50%, in steps of 10%.** The cap stops a crew routing a
+    whole war's take to a friend, since 0.6.0 doesn't allow player-to-player transfers.
+  - **Only if they fought:** the ally gets the cut only if they fought in at least one of
+    the war's fights. Taking the slot and then staying offline pays nothing.
+  - **Where it lands:** a home ally is paid at home. An outpost ally is paid into that
+    outpost's box, so a run has to collect it (the 0.6.0-D rule that nothing is wired home).
+  - **Receipts:** both crews' receipts and ledgers (0.7.0-F) show the split.
+  - The ally still gets Territory block-time and city control (0.6.0-E) for fighting.
 - **Cap on help (decided): matched to the declarer.** On **either side**, an ally can send
   at most as many thugs as **the crew that declared the war** has committed to it. Anything
   beyond that stays home.
@@ -490,7 +509,7 @@ not an instant jump on the leaderboard.
 | **1.1.0-A — Lots** | `business` block in the ruleset (lots per district, city signatures, levels, costs, staff, supply, register caps, fatigue curve); `Business` row per round/block/lot; city map shows lots; `qa:business` simulation. | A 1.1.0-A round plays exactly like 1.0. Every business is worth building for some crew; none pays more than its staff would earn at home. |
 | **1.1.0-B — Build & operate** | Build/upgrade, staffing, BUSINESS supply job, register and collection, front income, receipts and ledger lines. | Cash, staff and supply are conserved; staff never work, defend or cook; registers never exceed their cap. |
 | **1.1.0-C — Rackets** | One racket per business, switching cooldown, Heat, system hooks (recon, runs, stores, product). | No racket beats the system it hooks; laundering stays under its caps. |
-| **1.1.0-D — Block wars** | Locals claim stays a single fight; block wars against players (declare, siege, Control, break the siege, concede, truce); Take / Sack war goals; block tiers; devastation; torching; dormancy under locals; Street Wire / Discord war lines. | A war always settles by its time limit, whoever is online; a defender who responds wins at a healthy rate; attacker win rate stays in band for solo vs. solo, alliance vs. solo and alliance vs. alliance; allied help never pays spoils to anyone but the declarer; captured income stays below a stable holder's; a block can't be farmed by repeated hand-offs; linked-account captures reset. |
+| **1.1.0-D — Block wars** | Locals claim stays a single fight; block wars against players (declare, siege, Control, break the siege, concede, truce); Take / Sack war goals; block tiers; devastation; torching; dormancy under locals; Street Wire / Discord war lines. | A war always settles by its time limit, whoever is online; a defender who responds wins at a healthy rate; attacker win rate stays in band for solo vs. solo, alliance vs. solo and alliance vs. alliance; the ally's cut never exceeds the caller's chosen share or 50%, and is zero when the side loses or the ally never fought; captured income stays below a stable holder's; a block can't be farmed by repeated hand-offs; linked-account captures reset. |
 | **1.1.0-E — Outposts & convoys** | Away businesses empty into the outpost box; collection runs; convoy loot shape. | Everything a run collects is conserved; convoy loot stays in 0.6.0-D caps. |
 | **1.1.0-F — Release** | Full-round simulation (business-heavy, turf-raider, runner, mixed), crackdown interaction, Rules page Business panel, phone pass, release regression. | Mixed play beats pure business play; 0.6.0-F and later release gates still pass. |
 
@@ -508,6 +527,7 @@ stay *(proposed)* until `qa:business` confirms them.
 - Free placement of any business on any block.
 - Pre-built businesses at round start.
 - Businesses outside the 40 turf blocks (e.g. at the Hideout).
-- Player-to-player sale or transfer of businesses.
+- Player-to-player sale or transfer of businesses. The ally's cut of war winnings is the
+  only cash that moves between players, and it's capped.
 - Casino games (1.2).
 - Block wars against locals. The locals are always a single claim fight.
