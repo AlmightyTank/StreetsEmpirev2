@@ -76,8 +76,6 @@ export interface PlayerState {
   postedNetWorthCents: bigint;
   /** 0.6.0-D. Net worth stored in away outpost boxes. */
   outpostNetWorthCents: bigint;
-  /** 1.1.0-B. Business staff who left the home columns, valued. Only business actions move it. */
-  businessNetWorthCents: bigint;
   /** 0.5.0-C. Set by an arrest at home; left out, it is not written. */
   lockedUntil?: Date | null;
   /** 0.5.0-D. Set by a move; left out, it is not written. */
@@ -86,6 +84,9 @@ export interface PlayerState {
   busyThugs: number;
   /** 0.6.0-A. Thugs on held corners: counted, never fit at home. */
   postedThugs: number;
+  /** 1.1.0-B. Thugs and girls working a business: counted, never fit or working at home. */
+  businessThugs: number;
+  businessWhores: number;
 
   /** Quest progress that is per-player rather than per-trader. */
   cleanShiftStreak: number;
@@ -212,9 +213,10 @@ export function toState(player: RoundPlayer): PlayerState {
     awayNetWorthCents: player.awayNetWorthCents,
     postedNetWorthCents: player.postedNetWorthCents,
     outpostNetWorthCents: player.outpostNetWorthCents,
-    businessNetWorthCents: player.businessNetWorthCents,
     busyThugs: player.busyThugs,
     postedThugs: player.postedThugs,
+    businessThugs: player.businessThugs,
+    businessWhores: player.businessWhores,
     cleanShiftStreak: player.cleanShiftStreak,
     rocksSuppliedToPip: player.rocksSuppliedToPip,
     driveBysDone: player.driveBysDone,
@@ -246,9 +248,14 @@ export function toState(player: RoundPlayer): PlayerState {
   };
 }
 
-/** Thugs who can do something at home: not wounded, busy elsewhere, or posted on a corner. */
-export function fitThugs(player: { thugs: number; woundedThugs: number; busyThugs?: number; postedThugs?: number }): number {
-  return Math.max(0, player.thugs - player.woundedThugs - (player.busyThugs ?? 0) - (player.postedThugs ?? 0));
+/** Thugs who can do something at home: not wounded, busy elsewhere, posted on a corner, or working a business. */
+export function fitThugs(player: { thugs: number; woundedThugs: number; busyThugs?: number; postedThugs?: number; businessThugs?: number }): number {
+  return Math.max(0, player.thugs - player.woundedThugs - (player.busyThugs ?? 0) - (player.postedThugs ?? 0) - (player.businessThugs ?? 0));
+}
+
+/** 1.1.0-B. Girls who work the street or a Produce shift: everyone not working a business. */
+export function workingWhores(player: { whores: number; businessWhores?: number }): number {
+  return Math.max(0, player.whores - (player.businessWhores ?? 0));
 }
 
 function armedThugsForSnapshot(state: PlayerState): number {
@@ -273,6 +280,8 @@ function toSnapshot(
       fitThugs: fitThugs(state),
       woundedThugs: state.woundedThugs,
       postedThugs: state.postedThugs,
+      businessThugs: state.businessThugs,
+      businessWhores: state.businessWhores,
       armedThugs: armedThugsForSnapshot(state),
       unarmedThugs: Math.max(0, fitThugs(state) - armedThugsForSnapshot(state)),
       condoms: state.condoms,

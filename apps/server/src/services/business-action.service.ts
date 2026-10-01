@@ -18,8 +18,8 @@ import type {
 } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
-import { ActionService, assertTurns, fitThugs, type PlayerState } from './action.service.js';
-import { buildingOn, releaseForeignStaff, staffWorthCents } from './business.service.js';
+import { ActionService, assertTurns, fitThugs, workingWhores, type PlayerState } from './action.service.js';
+import { buildingOn, releaseForeignStaff, staffColumns } from './business.service.js';
 import { TurfService } from './turf.service.js';
 
 const HOUR_MS = 3_600_000;
@@ -37,17 +37,18 @@ async function lockBlock(tx: Db, id: string): Promise<void> {
   await tx.$queryRaw`SELECT id FROM "Turf" WHERE id = ${id} FOR UPDATE`;
 }
 
-/** Staff come out of, or go back into, the column they live in at home. */
+/**
+ * Staff stay in the crew's counts: sending them to a business (or bringing them home)
+ * only marks them in businessThugs or businessWhores, which keeps them off the street,
+ * out of fights and away from the stove.
+ */
 function withStaff(current: PlayerState, ruleset: Ruleset, business: BusinessKey, delta: number): PlayerState {
   if (delta === 0) return current;
-  const girls = ruleset.business!.catalog[business].staff === 'WHORES';
+  const columns = staffColumns(ruleset, business, delta);
   return {
     ...current,
-    thugs: girls ? current.thugs : current.thugs - delta,
-    whores: girls ? current.whores - delta : current.whores,
-    businessNetWorthCents: delta > 0
-      ? current.businessNetWorthCents + staffWorthCents(ruleset, business, delta)
-      : current.businessNetWorthCents - staffWorthCents(ruleset, business, -delta),
+    businessThugs: current.businessThugs + columns.businessThugs,
+    businessWhores: current.businessWhores + columns.businessWhores,
   };
 }
 
@@ -55,7 +56,8 @@ function withStaff(current: PlayerState, ruleset: Ruleset, business: BusinessKey
 function assertStaffAvailable(current: PlayerState, ruleset: Ruleset, business: BusinessKey, count: number): void {
   if (count <= 0) return;
   if (ruleset.business!.catalog[business].staff === 'WHORES') {
-    if (current.whores < count) throw AppError.conflict('BUSINESS_NOT_ENOUGH_GIRLS', `This needs ${count} girls from home; you have ${current.whores}.`);
+    const working = workingWhores(current);
+    if (working < count) throw AppError.conflict('BUSINESS_NOT_ENOUGH_GIRLS', `This needs ${count} girls from home; you have ${working} working.`);
     return;
   }
   const fit = fitThugs(current);
@@ -178,21 +180,22 @@ export const BusinessActionService = {
         let next: PlayerState;
         let staff: number;
         if (input.open) {
+          // Opening also tops up a business that lost staff who walked off or were lured.
           const mine = row.staffOwnerId === roundPlayerId ? row.staff : 0;
-          if (mine > 0) throw AppError.conflict('BUSINESS_ALREADY_OPEN', `The ${type.name} is already open.`);
-          if (row.staffOwnerId && row.staffOwnerId !== roundPlayerId) await releaseForeignStaff(tx, ruleset, row, now);
           staff = businessStaff(ruleset, business, row.level);
-          assertStaffAvailable(current, ruleset, business, staff);
+          if (mine >= staff) throw AppError.conflict('BUSINESS_ALREADY_OPEN', `The ${type.name} is already open.`);
+          if (row.staffOwnerId && row.staffOwnerId !== roundPlayerId) await releaseForeignStaff(tx, ruleset, row, now);
+          assertStaffAvailable(current, ruleset, business, staff - mine);
           await tx.business.update({
             where: { id: row.id },
             data: {
               staff,
               staffOwnerId: roundPlayerId,
-              accruedAt: now,
+              ...(mine > 0 ? {} : { accruedAt: now }),
               ...(row.staffOwnerId === roundPlayerId ? {} : { registerCents: 0n }),
             },
           });
-          next = withStaff(current, ruleset, business, staff);
+          next = withStaff(current, ruleset, business, staff - mine);
         } else {
           if (row.staffOwnerId !== roundPlayerId || row.staff <= 0) throw AppError.conflict('BUSINESS_ALREADY_CLOSED', `The ${type.name} is already closed.`);
           // Closed, the register stays: the crew still holds the block and can collect it.

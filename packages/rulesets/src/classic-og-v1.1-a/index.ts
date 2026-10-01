@@ -69,6 +69,7 @@ export const classicOgV11A = {
     supply: { beerPerStaffPerHour: 0.05, productPerStaffPerHour: 0.02 },
     register: { capHours: 24, collectTurnCost: 2 },
     staffTurnCost: 2,
+    staffDepartureTurnsPerHour: 5,
     awayOutputShare: 0.75,
     tiers: {
       lotsOpen: [1, 2, 3],

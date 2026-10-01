@@ -22,6 +22,8 @@ const resources = {
   fitThugs: 8,
   woundedThugs: 0,
   postedThugs: 0,
+  businessThugs: 0,
+  businessWhores: 0,
   armedThugs: 6,
   unarmedThugs: 2,
   condoms: 50,

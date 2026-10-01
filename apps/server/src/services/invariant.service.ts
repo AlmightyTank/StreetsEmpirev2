@@ -4,7 +4,6 @@ export interface InvariantPlayerState {
   cashCents: bigint;
   postedNetWorthCents?: bigint;
   outpostNetWorthCents?: bigint;
-  businessNetWorthCents?: bigint;
   turns: number;
   payoutPercent: number;
   whores: number;
@@ -12,6 +11,8 @@ export interface InvariantPlayerState {
   woundedThugs: number;
   busyThugs: number;
   postedThugs: number;
+  businessThugs?: number;
+  businessWhores?: number;
   condoms: number;
   medicine: number;
   crack: number;
@@ -109,7 +110,6 @@ export function assertPlayerState(
   if (state.cashCents < 0n) invalid(`${phase}.cashCents is negative`);
   if ((state.postedNetWorthCents ?? 0n) < 0n) invalid(`${phase}.postedNetWorthCents is negative`);
   if ((state.outpostNetWorthCents ?? 0n) < 0n) invalid(`${phase}.outpostNetWorthCents is negative`);
-  if ((state.businessNetWorthCents ?? 0n) < 0n) invalid(`${phase}.businessNetWorthCents is negative`);
 
   for (const field of WHOLE_NON_NEGATIVE) {
     const value = state[field];
@@ -131,9 +131,14 @@ export function assertPlayerState(
     invalid(`${phase}.woundedThugs cannot exceed total thugs`);
   }
 
-  if (state.woundedThugs + state.busyThugs + state.postedThugs > state.thugs) {
-    invalid(`${phase}.woundedThugs plus busyThugs plus postedThugs cannot exceed total thugs`);
+  if (state.woundedThugs + state.busyThugs + state.postedThugs + (state.businessThugs ?? 0) > state.thugs) {
+    invalid(`${phase}.woundedThugs plus busyThugs plus postedThugs plus businessThugs cannot exceed total thugs`);
   }
+  const businessThugs = state.businessThugs ?? 0;
+  const businessWhores = state.businessWhores ?? 0;
+  if (!Number.isSafeInteger(businessThugs) || businessThugs < 0) invalid(`${phase}.businessThugs must be a non-negative safe integer`);
+  if (!Number.isSafeInteger(businessWhores) || businessWhores < 0) invalid(`${phase}.businessWhores must be a non-negative safe integer`);
+  if (businessWhores > state.whores) invalid(`${phase}.businessWhores cannot exceed total whores`);
 
   const hideout = ruleset.hideout;
   if (hideout) {

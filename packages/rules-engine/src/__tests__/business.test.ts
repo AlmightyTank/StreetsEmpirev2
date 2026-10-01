@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { classicOgV08H, classicOgV11A, classicOgV11B, type Ruleset } from '@streets/rulesets';
-import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
   BUSINESS_KEYS,
   allyCutCents,
@@ -14,6 +13,7 @@ import {
   businessLots,
   businessLotsInRound,
   businessRulesetProblems,
+  businessStaffDepartures,
   businessStaff,
   businessTotalCostCents,
   businessUpkeep,
@@ -308,14 +308,15 @@ describe('1.1.0-B building', () => {
     expect(tierOpening(ruleset, 4)).toBeNull();
   });
 
-  it('keeps staff in net worth after they leave the home columns', () => {
-    const perThug = BigInt(ruleset.economy.netWorth.perThugCents);
-    const crew = {
-      cashCents: 0n, whores: 0, thugs: 10, lowRiders: 0, medicine: 0, crack: 0, condoms: 0, beer: 0,
-      pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0,
-    };
-    const atHome = calculateNetWorthCents(crew, ruleset);
-    const staffed = calculateNetWorthCents({ ...crew, thugs: 7, businessNetWorthCents: 3n * perThug }, ruleset);
-    expect(staffed).toBe(atHome);
+  it('lets an unhappy crew\'s staff walk off, and a happy crew\'s stay', () => {
+    const threshold = ruleset.departures.happinessThreshold;
+    expect(businessStaffDepartures(ruleset, 10, threshold, 24, () => 0)).toBe(0);
+    expect(businessStaffDepartures(ruleset, 0, 0, 24, () => 0)).toBe(0);
+    const miserable = businessStaffDepartures(ruleset, 10, 0, 24, () => 0);
+    expect(miserable).toBeGreaterThan(0);
+    expect(miserable).toBeLessThanOrEqual(10);
+    // More hours unhappy, more gone; never more than were there.
+    expect(businessStaffDepartures(ruleset, 10, 0, 1, () => 0)).toBeLessThanOrEqual(miserable);
+    expect(businessStaffDepartures(before, 10, 0, 24, () => 0)).toBe(0);
   });
 });

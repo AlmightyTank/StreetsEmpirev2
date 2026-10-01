@@ -144,7 +144,8 @@ export const PlayerStateService = {
         crack: businessSettlement.crack,
         thugs: businessSettlement.thugs,
         whores: businessSettlement.whores,
-        businessNetWorthCents: businessSettlement.businessNetWorthCents,
+        businessThugs: businessSettlement.businessThugs,
+        businessWhores: businessSettlement.businessWhores,
       };
     }
     const recovery = await CombatRecoveryService.settle(tx, roundPlayerId, now);
