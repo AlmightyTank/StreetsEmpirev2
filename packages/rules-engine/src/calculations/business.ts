@@ -173,6 +173,11 @@ export function lotsOpen(ruleset: Ruleset, tier: BusinessTier): number {
   return tiers.lotsOpen[BUSINESS_TIERS.indexOf(tier)]!;
 }
 
+/** The first tier that opens a lot. */
+export function tierOpening(ruleset: Ruleset, lot: number): BusinessTier | null {
+  return BUSINESS_TIERS.find((tier) => lotsOpen(ruleset, tier) >= lot) ?? null;
+}
+
 export function tierDropped(tier: BusinessTier, steps: number): BusinessTier {
   return BUSINESS_TIERS[Math.max(0, BUSINESS_TIERS.indexOf(tier) - Math.max(0, steps))]!;
 }
@@ -457,6 +462,7 @@ export function businessRulesetProblems(ruleset: Ruleset): string[] {
   if (rules.supply.beerPerStaffPerHour < 0 || rules.supply.productPerStaffPerHour < 0) problems.push('Supply cannot be negative.');
   if (rules.supply.beerPerStaffPerHour + rules.supply.productPerStaffPerHour <= 0) problems.push('Staff must burn some supply, or businesses are free to run.');
   if (rules.register.capHours <= 0) problems.push('A register that holds nothing loses every hour of income.');
+  if (rules.staffTurnCost <= 0) problems.push('Opening or closing a business must cost turns.');
   // The anti-passive rule: about a day, so somebody has to come by.
   if (rules.register.capHours > 48) problems.push(`A ${rules.register.capHours}-hour register lets a business run unattended for days.`);
   if (rules.awayOutputShare <= 0 || rules.awayOutputShare > 1) problems.push('An away business must make something, and no more than at home.');

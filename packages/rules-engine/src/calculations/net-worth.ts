@@ -39,6 +39,8 @@ export function calculateNetWorthCents(
     // 0.6.0-B: corner guns have left the home columns but are still owned.
     BigInt(player.postedNetWorthCents ?? 0) +
     // 0.6.0-D: an away outpost box is still the player's property.
-    BigInt(player.outpostNetWorthCents ?? 0)
+    BigInt(player.outpostNetWorthCents ?? 0) +
+    // 1.1.0-B: business staff have left the home columns but are still the crew's.
+    BigInt(player.businessNetWorthCents ?? 0)
   );
 }

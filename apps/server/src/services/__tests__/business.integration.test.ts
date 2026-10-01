@@ -79,11 +79,14 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.1.0-A business lots with
     const { playerId } = await fixture(classicOgV11A);
     const byCity = await TurfService.byCity(app.prisma, playerId, classicOgV11A);
     const vegasCasino = byCity!.get('las-vegas')!.blocks.find((block) => block.district === 'CASINO')!;
-    expect(vegasCasino.businesses).toEqual([
+    expect(vegasCasino.businesses).toMatchObject([
       { lot: 1, kind: 'CASINO_FRONT', name: 'Casino Front', level: 0, maxLevel: 5, signature: true },
       { lot: 2, kind: 'BAR', name: 'Bar', level: 0, maxLevel: 5, signature: false },
       { lot: 3, kind: 'PAWN_SHOP', name: 'Pawn Shop', level: 0, maxLevel: 5, signature: false },
     ]);
+    // A 1.1.0-A round shows the lots but cannot build on them.
+    expect(byCity!.get('las-vegas')!.business).toBeNull();
+    expect(vegasCasino.businesses!.every((lot) => lot.buildBlockedReason === 'Businesses open in 1.1.0-B.')).toBe(true);
     for (const city of byCity!.values()) {
       for (const block of city.blocks) expect(block.businesses).toHaveLength(3);
     }

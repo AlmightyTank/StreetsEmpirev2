@@ -17,6 +17,7 @@ import { BossTripSettleService } from './boss-trip-settle.service.js';
 import { RunSettleService, runSummary } from './run-settle.service.js';
 import type { RoundPlayerDto } from '@streets/shared';
 import { TurfService } from './turf.service.js';
+import { BusinessService } from './business.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 
 /** 0.3.0-C: the alliance tag rides along so every screen can show it before the name. */
@@ -132,6 +133,18 @@ export const PlayerStateService = {
         shotguns: turfSettlement.shotguns,
         tek9s: turfSettlement.tek9s,
         ak47s: turfSettlement.ak47s,
+      };
+    }
+    // 1.1.0-B: business supply and income, and staff home from any block the crew lost.
+    const businessSettlement = await BusinessService.settlePlayer(tx, roundPlayerId, ruleset, now);
+    if (businessSettlement) {
+      rest = {
+        ...rest,
+        beer: businessSettlement.beer,
+        crack: businessSettlement.crack,
+        thugs: businessSettlement.thugs,
+        whores: businessSettlement.whores,
+        businessNetWorthCents: businessSettlement.businessNetWorthCents,
       };
     }
     const recovery = await CombatRecoveryService.settle(tx, roundPlayerId, now);

@@ -1407,6 +1407,8 @@ export type BusinessKey =
  * See docs/ROADMAP-1.1.0.md.
  */
 export interface BusinessRules {
+  /** 1.1.0-B. A owns the data and the map; B turns building, staffing and collecting on. */
+  readonly building?: boolean;
   readonly catalog: { readonly [K in BusinessKey]: BusinessTypeRules };
   /** The three lots on every block of a district, in lot order. Lot 1 opens first. */
   readonly lots: { readonly [K in DistrictKey]: readonly [BusinessKey, BusinessKey, BusinessKey] };
@@ -1421,6 +1423,8 @@ export interface BusinessRules {
   readonly levels: BusinessLevelRules;
   readonly supply: BusinessSupplyRules;
   readonly register: BusinessRegisterRules;
+  /** Turns to open a business (send its staff in) or close it (bring them home). */
+  readonly staffTurnCost: number;
   /** Most an away (outpost) business makes, as a share of the same business at home. */
   readonly awayOutputShare: number;
   readonly tiers: BusinessTierRules;

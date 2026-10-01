@@ -358,6 +358,8 @@ export interface TurfBlockDto {
   pushBlockedReason: string | null;
   /** 1.1.0-A. The block's three business lots, or null before business rounds. */
   businesses: TurfBusinessLotDto[] | null;
+  /** 1.1.0-B. How many lots the block has open, from its tier. Null when nobody holds it. */
+  businessTier: { tier: 'FOOTHOLD' | 'ESTABLISHED' | 'STRONGHOLD'; lotsOpen: number } | null;
 }
 
 /** 1.1.0-A. One business lot on a block. Level 0 is an empty lot. */
@@ -369,6 +371,23 @@ export interface TurfBusinessLotDto {
   maxLevel: number;
   /** This city's signature business. */
   signature: boolean;
+  /** 1.1.0-B. Who works it: thugs, or girls at a Strip Club. */
+  staffKind: 'THUGS' | 'WHORES';
+  /** Your staff in it now; 0 for anyone else's business. */
+  staff: number;
+  /** Staff the current level needs to open. 0 on an empty lot. */
+  requiredStaff: number;
+  /** Yours, staffed and earning. */
+  open: boolean;
+  /** Front income an hour at the current level, before supply. 0 on an empty lot. */
+  incomeCentsPerHour: number;
+  /** Your uncollected income; 0 for anyone else's business. */
+  registerCents: number;
+  registerCapCents: number;
+  /** The next level, or null at the top. */
+  nextLevel: { level: number; costCents: number; staff: number; incomeCentsPerHour: number } | null;
+  /** Why you cannot build or upgrade here right now, or null. */
+  buildBlockedReason: string | null;
 }
 
 export interface TurfPushDto {
@@ -411,6 +430,14 @@ export interface TurfBattleReportDto {
 
 export interface CityTurfDto {
   enabled: true;
+  /** 1.1.0-B. Business costs and your registers in this city, or null before building rounds. */
+  business: {
+    buildTurnCost: number;
+    staffTurnCost: number;
+    collectTurnCost: number;
+    /** Everything waiting in your registers, across your home blocks. */
+    registerTotalCents: number;
+  } | null;
   holdingEnabled: boolean;
   warsEnabled: boolean;
   /** 0.6.0-E. Public alliance control of this city, if one alliance holds the threshold. */
@@ -454,6 +481,41 @@ export interface TurfSummaryDto {
   taxPendingCents: number;
   taxPayersToday: number;
   dailyTaxCapCentsPerPayer: number;
+}
+
+/** 1.1.0-B. Building a business or taking it up a level. */
+export interface BusinessBuildResult {
+  district: TurfBlockDto['district'];
+  districtName: string;
+  lot: number;
+  kind: string;
+  name: string;
+  level: number;
+  staff: number;
+  staffKind: 'THUGS' | 'WHORES';
+  /** Staff sent in from home for this level. */
+  staffAdded: number;
+  costCents: number;
+  turnsUsed: number;
+}
+
+/** 1.1.0-B. Opening a business (staff in) or closing it (staff home). */
+export interface BusinessStaffResult {
+  district: TurfBlockDto['district'];
+  districtName: string;
+  lot: number;
+  name: string;
+  open: boolean;
+  staff: number;
+  staffKind: 'THUGS' | 'WHORES';
+  turnsUsed: number;
+}
+
+/** 1.1.0-B. Emptying every register on the player's home blocks. */
+export interface BusinessCollectResult {
+  collectedCents: number;
+  businesses: number;
+  turnsUsed: number;
 }
 
 export interface TurfClaimResult {

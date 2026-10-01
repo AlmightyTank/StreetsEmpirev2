@@ -227,6 +227,27 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         text: `Changed payout from ${num(p.before)}% to ${num(p.after)}%.`,
       };
 
+    case 'BUSINESS_BUILD':
+      return {
+        text: num(p.level) === 1
+          ? `Built a ${str(p.name, 'business')} on ${str(p.districtName, 'your block')}.`
+          : `Took the ${str(p.name, 'business')} on ${str(p.districtName, 'your block')} to level ${formatNumber(num(p.level))}.`,
+        detail: `-${formatCents(num(p.costCents))}`,
+      };
+
+    case 'BUSINESS_STAFF':
+      return {
+        text: p.open
+          ? `Opened the ${str(p.name, 'business')} on ${str(p.districtName, 'your block')} with ${formatNumber(num(p.staff))} staff.`
+          : `Closed the ${str(p.name, 'business')} on ${str(p.districtName, 'your block')} and brought its staff home.`,
+      };
+
+    case 'BUSINESS_COLLECT':
+      return {
+        text: `Collected the registers at ${formatNumber(num(p.businesses))} business${num(p.businesses) === 1 ? '' : 'es'}.`,
+        detail: `+${formatCents(num(p.collectedCents))}`,
+      };
+
     case 'HIDEOUT_UPGRADE':
       return {
         text: `Upgraded ${str(p.name, 'the hideout')} to level ${formatNumber(num(p.level))}.`,
@@ -456,7 +477,7 @@ export function activityGroup(type: ActivityDto['type']): ActivityGroup {
   if (type.startsWith('STORE_')) return 'market';
   if (type.startsWith('QUEST_') || type.startsWith('FAVOR_') || type === 'HIDEOUT_UPGRADE' || type === 'WEAPON_UNLOCK') return 'progress';
   if (type.startsWith('RUN_') || type.startsWith('RELOCATION_') || type === 'RELOCATED' || type.startsWith('CONVOY_') || type.startsWith('TRIP_') || type.startsWith('BOSS_') || type.startsWith('SIT_DOWN') || type === 'OUTPOST_VISIT') return 'travel';
-  if (type.startsWith('TURF_')) return 'turf';
+  if (type.startsWith('TURF_') || type.startsWith('BUSINESS_')) return 'turf';
   if (type === 'SCOUT' || type === 'WORK_STREETS' || type === 'PRODUCE_CRACK' || type === 'HEAT_BRIBE' || type === 'PAYOUT_CHANGE') return 'street';
   return 'system';
 }
@@ -525,6 +546,9 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     CONVOY_TAILED: 'Tail spotted',
     REVENGE_EXPIRING: 'Revenge expiring',
     SPECIAL_ORDER_READY: 'Special order',
+    BUSINESS_BUILD: 'Business built',
+    BUSINESS_STAFF: 'Business staff',
+    BUSINESS_COLLECT: 'Business income',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();
 }

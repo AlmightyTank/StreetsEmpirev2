@@ -991,6 +991,8 @@ model RoundPlayer {
   postedNetWorthCents  BigInt    @default(0)
   /// 0.6.0-D. Net-worth value stored in away outpost boxes.
   outpostNetWorthCents BigInt    @default(0)
+  /// 1.1.0-B. Business staff (thugs and girls) who have left the home columns, valued.
+  businessNetWorthCents BigInt @default(0)
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
   rocksSuppliedToPip   Int       @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
@@ -1103,6 +1105,7 @@ model RoundPlayer {
   convoyRecon           ConvoyRecon?
   /// 0.6.0-A. Blocks this crew holds, and the blocks it has worked lately.
   turfHeld              Turf[]             @relation("TurfHolder")
+  businessesStaffed     Business[]         @relation("BusinessStaffOwner")
   turfPresence          TurfPresence[]
   turfTaxPaid           TurfTaxLedger[]    @relation("TurfTaxPayer")
   turfTaxEarned         TurfTaxLedger[]    @relation("TurfTaxHolder")
@@ -1958,6 +1961,9 @@ enum ActivityType {
   ALLIANCE_CALL
   REVENGE_EXPIRING
   SPECIAL_ORDER_READY
+  BUSINESS_BUILD
+  BUSINESS_STAFF
+  BUSINESS_COLLECT
 }
 
 enum BattleKind {
@@ -2191,11 +2197,24 @@ model Business {
   /// 0 is an empty lot.
   level    Int    @default(0)
 
+  /// 1.1.0-B. Staff working it: thugs, or girls for a Strip Club. They have left the
+  /// owner's home columns; their value sits in the owner's `businessNetWorthCents`.
+  staff        Int          @default(0)
+  /// Whose staff they are. Only earns while this crew holds the block; when it no longer
+  /// does, the staff go home on the owner's next settle and the register is lost.
+  staffOwnerId String?
+  staffOwner   RoundPlayer? @relation("BusinessStaffOwner", fields: [staffOwnerId], references: [id], onDelete: SetNull)
+  /// Income waiting to be collected, capped at the ruleset's register hours.
+  registerCents BigInt   @default(0)
+  /// Whole hours of income and supply are settled up to here.
+  accruedAt     DateTime @default(now())
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([turfId, lot])
   @@index([roundId])
+  @@index([staffOwnerId])
 }
 
 /// 0.6.0-D. The box attached to one away-held block. A home block never needs one.

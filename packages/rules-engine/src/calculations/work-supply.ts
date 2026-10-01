@@ -22,6 +22,8 @@ export const DEFENSE_JOB = 'DEFENSE';
 export const CONVOY_JOB = 'CONVOY';
 /** 0.6.0-B. Thugs posted on a held corner. */
 export const CORNER_JOB = 'CORNER';
+/** 1.1.0-B. Staff working a business: thugs, or girls at a Strip Club. */
+export const BUSINESS_JOB = 'BUSINESS';
 
 /** Who burns the product: the girls working, the thugs cooking, or (0.4.0-E) thugs in a fight. */
 export type WorkSupplyRole = 'hoes' | 'thugs' | 'fighters';

@@ -73,7 +73,10 @@ export type ActivityType =
   | 'TURF_PUSH_INCOMING'
   | 'ALLIANCE_CALL'
   | 'REVENGE_EXPIRING'
-  | 'SPECIAL_ORDER_READY';
+  | 'SPECIAL_ORDER_READY'
+  | 'BUSINESS_BUILD'
+  | 'BUSINESS_STAFF'
+  | 'BUSINESS_COLLECT';
 
 export interface ApiErrorBody {
   error: {

@@ -68,6 +68,7 @@ import { classicOgTripsD2 } from './classic-og-trips-d2/index.js';
 import { classicOgTripsE } from './classic-og-trips-e/index.js';
 import { classicOgStreetPassA } from './classic-og-street-pass-a/index.js';
 import { classicOgV11A } from './classic-og-v1.1-a/index.js';
+import { classicOgV11B } from './classic-og-v1.1-b/index.js';
 import type { Ruleset } from './types.js';
 
 export { classicOgV01 };
@@ -140,6 +141,7 @@ export { classicOgTripsD2 };
 export { classicOgTripsE };
 export { classicOgStreetPassA };
 export { classicOgV11A };
+export { classicOgV11B };
 export * from './classic-og-v0.1/index.js';
 export * from './types.js';
 export * from './combat-prototype.js';
@@ -221,6 +223,7 @@ export const rulesets: Readonly<Record<string, Ruleset>> = {
   [classicOgTripsE.meta.id]: classicOgTripsE,
   [classicOgStreetPassA.meta.id]: classicOgStreetPassA,
   [classicOgV11A.meta.id]: classicOgV11A,
+  [classicOgV11B.meta.id]: classicOgV11B,
 };
 
 export const DEFAULT_RULESET_ID = classicOgV01.meta.id;
