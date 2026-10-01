@@ -91,6 +91,20 @@ export type TurfPushInput = z.infer<typeof turfPushSchema>;
 export type TurfPushBackupInput = z.infer<typeof turfPushBackupSchema>;
 export type TurfPushCallInput = z.infer<typeof turfPushCallSchema>;
 
+/** 1.1.0-B. One lot on one of the player's home blocks. */
+const businessLotSchema = z.object({
+  district: z.string().trim().min(1, 'Pick a turf block.'),
+  lot: z.number({ invalid_type_error: 'Pick a lot.' }).int('Pick a lot.').min(1, 'Pick a lot.').max(3, 'Pick a lot.'),
+  actionId: actionIdSchema,
+}).strict();
+
+export const businessBuildSchema = businessLotSchema;
+export const businessStaffSchema = businessLotSchema.extend({ open: z.boolean() }).strict();
+export const businessCollectSchema = z.object({ actionId: actionIdSchema }).strict();
+export type BusinessBuildInput = z.infer<typeof businessBuildSchema>;
+export type BusinessStaffInput = z.infer<typeof businessStaffSchema>;
+export type BusinessCollectInput = z.infer<typeof businessCollectSchema>;
+
 export type ProduceCrackInput = z.infer<typeof produceCrackSchema>;
 export type PayoutInput = z.infer<typeof payoutSchema>;
 

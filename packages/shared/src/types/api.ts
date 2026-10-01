@@ -56,7 +56,10 @@ export type ActivityType =
   | 'TURF_PUSH_ATTACK'
   | 'TURF_PUSH_DEFENSE'
   | 'TURF_OUTPOST_ESTABLISH'
-  | 'TURF_OUTPOST_TRANSFER';
+  | 'TURF_OUTPOST_TRANSFER'
+  | 'BUSINESS_BUILD'
+  | 'BUSINESS_STAFF'
+  | 'BUSINESS_COLLECT';
 
 export interface ApiErrorBody {
   error: {

@@ -4,6 +4,7 @@ export interface InvariantPlayerState {
   cashCents: bigint;
   postedNetWorthCents?: bigint;
   outpostNetWorthCents?: bigint;
+  businessNetWorthCents?: bigint;
   turns: number;
   payoutPercent: number;
   whores: number;
@@ -108,6 +109,7 @@ export function assertPlayerState(
   if (state.cashCents < 0n) invalid(`${phase}.cashCents is negative`);
   if ((state.postedNetWorthCents ?? 0n) < 0n) invalid(`${phase}.postedNetWorthCents is negative`);
   if ((state.outpostNetWorthCents ?? 0n) < 0n) invalid(`${phase}.outpostNetWorthCents is negative`);
+  if ((state.businessNetWorthCents ?? 0n) < 0n) invalid(`${phase}.businessNetWorthCents is negative`);
 
   for (const field of WHOLE_NON_NEGATIVE) {
     const value = state[field];

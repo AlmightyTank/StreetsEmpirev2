@@ -24,6 +24,8 @@ export interface NetWorthInput {
   awayNetWorthCents?: bigint | number;
   /** 0.6.0-B. Guns posted on held corners, already valued after leaving the home arsenal. */
   postedNetWorthCents?: bigint | number;
+  /** 1.1.0-B. Business staff who left the home columns, already valued. */
+  businessNetWorthCents?: bigint | number;
   /** 0.6.0-D. Cash, beer and product stored in away outpost boxes. */
   outpostNetWorthCents?: bigint | number;
 }

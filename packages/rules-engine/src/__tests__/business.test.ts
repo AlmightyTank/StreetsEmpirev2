@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV08H, classicOgV11A, type Ruleset } from '@streets/rulesets';
+import { classicOgV08H, classicOgV11A, classicOgV11B, type Ruleset } from '@streets/rulesets';
+import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
   BUSINESS_KEYS,
   allyCutCents,
@@ -28,6 +29,7 @@ import {
   registerCapCents,
   siegeHoursToWin,
   tierAfterTake,
+  tierOpening,
   torchOpen,
   torchResult,
 } from '../calculations/business.js';
@@ -285,5 +287,35 @@ describe('1.1.0-A the gate', () => {
     expect(timings.raiderShareOfStable).toBeLessThan(0.5);
     expect(timings.weekAfterTakeShareOfStable).toBeLessThan(1);
     expect(timings.strongholdDays).toBe(4);
+  });
+});
+
+describe('1.1.0-B building', () => {
+  it('only turns building on, with A\'s balance untouched', () => {
+    expect(classicOgV11B.business.building).toBe(true);
+    expect((classicOgV11A.business as { building?: boolean }).building).toBeUndefined();
+    const { meta: _meta, business: { building: _building, ...bRules }, ...bRest } = classicOgV11B;
+    const { meta: _was, business: aRules, ...aRest } = classicOgV11A;
+    expect(bRules).toEqual(aRules);
+    expect(bRest).toEqual(aRest);
+    expect(businessRulesetProblems(classicOgV11B)).toEqual([]);
+  });
+
+  it('names the tier that opens each lot', () => {
+    expect(tierOpening(ruleset, 1)).toBe('FOOTHOLD');
+    expect(tierOpening(ruleset, 2)).toBe('ESTABLISHED');
+    expect(tierOpening(ruleset, 3)).toBe('STRONGHOLD');
+    expect(tierOpening(ruleset, 4)).toBeNull();
+  });
+
+  it('keeps staff in net worth after they leave the home columns', () => {
+    const perThug = BigInt(ruleset.economy.netWorth.perThugCents);
+    const crew = {
+      cashCents: 0n, whores: 0, thugs: 10, lowRiders: 0, medicine: 0, crack: 0, condoms: 0, beer: 0,
+      pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0,
+    };
+    const atHome = calculateNetWorthCents(crew, ruleset);
+    const staffed = calculateNetWorthCents({ ...crew, thugs: 7, businessNetWorthCents: 3n * perThug }, ruleset);
+    expect(staffed).toBe(atHome);
   });
 });

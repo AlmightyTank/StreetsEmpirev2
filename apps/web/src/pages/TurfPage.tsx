@@ -9,6 +9,7 @@ import { AllianceTag } from '../components/AllianceTag.js';
 import { Panel } from '../components/Panel.js';
 import { OutpostStopPanel } from '../components/RunPanels.js';
 import { TurfActions } from '../components/TurfActions.js';
+import { BusinessCollect, BusinessLots } from '../components/BusinessLots.js';
 import { useCountdown } from '../hooks/useCountdown.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -90,76 +91,64 @@ function holder(block: TurfBlockDto) {
   );
 }
 
-/** 1.1.0-A. The block's three lots, fixed by its district. Building arrives in 1.1.0-B. */
-function BusinessLots({ lots }: { lots: NonNullable<TurfBlockDto['businesses']> }) {
-  return (
-    <ul className="se-turfboard__lots" aria-label="Business lots">
-      {lots.map((lot) => (
-        <li key={lot.lot} className={`se-turfboard__lot${lot.level ? ' se-turfboard__lot--built' : ''}`}
-          title={lot.signature ? `${lot.name}: this city's signature business earns more here.` : undefined}>
-          <span>{lot.name}{lot.signature ? <span className="se-turfboard__signature" aria-label="signature business"> ★</span> : null}</span>
-          <small className="se-num">{lot.level ? `Lv ${lot.level}/${lot.maxLevel}` : 'Empty lot'}</small>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function CityBlockBoard({ city, onChanged }: { city: CityCharacterDto; onChanged: () => void }) {
   const turf = city.turf;
   if (!turf) return <p className="se-muted">Turf is not enabled in this round.</p>;
   const blocks = [...turf.blocks].sort((a, b) => ORDER[a.district] - ORDER[b.district]);
 
   return (
-    <div className="se-turfboard" role="list" aria-label={`${city.name} district control`}>
-      {blocks.map((block) => {
-        const status = block.isMine ? 'mine' : block.holder ? 'held' : block.localsReclaimAt ? 'vacant' : 'locals';
-        return (
-          <article key={block.district} role="listitem" className={`se-turfboard__block se-turfboard__block--${status}`}>
-            <div className="se-turfboard__head">
-              <div>
-                <span className="se-eyebrow">{block.districtName}</span>
-                <div className="se-turfboard__holder">{holder(block)}</div>
+    <>
+      {turf.business && city.isHome && blocks.some((block) => block.isMine) ? <BusinessCollect business={turf.business} onChanged={onChanged} /> : null}
+      <div className="se-turfboard" role="list" aria-label={`${city.name} district control`}>
+        {blocks.map((block) => {
+          const status = block.isMine ? 'mine' : block.holder ? 'held' : block.localsReclaimAt ? 'vacant' : 'locals';
+          return (
+            <article key={block.district} role="listitem" className={`se-turfboard__block se-turfboard__block--${status}`}>
+              <div className="se-turfboard__head">
+                <div>
+                  <span className="se-eyebrow">{block.districtName}</span>
+                  <div className="se-turfboard__holder">{holder(block)}</div>
+                </div>
+                <span className="se-turfboard__age" title={block.heldSince ? `Held since ${new Date(block.heldSince).toLocaleString()}` : undefined}>
+                  {block.holder ? `held ${durationFrom(block.heldSince)}` : block.localsReclaimAt ? 'open' : 'locals'}
+                </span>
               </div>
-              <span className="se-turfboard__age" title={block.heldSince ? `Held since ${new Date(block.heldSince).toLocaleString()}` : undefined}>
-                {block.holder ? `held ${durationFrom(block.heldSince)}` : block.localsReclaimAt ? 'open' : 'locals'}
-              </span>
-            </div>
 
-            <div className="se-turfboard__stats">
-              {block.holder ? (
-                <>
-                  <span><b className="se-num">{formatNumber(block.cornerThugs)}</b><small>posted</small></span>
-                  <span><b className="se-num">{formatNumber(block.cornerGuns.total)}</b><small>guns</small></span>
-                </>
-              ) : (
-                <>
-                  <span><b className="se-num">{formatNumber(block.localsThugs)}</b><small>locals</small></span>
-                  <span><b className="se-num">{formatNumber(block.localsFullThugs)}</b><small>full strength</small></span>
-                </>
-              )}
-              <span><b className="se-num">{Math.floor(block.presenceTurns)}</b><small>your presence</small></span>
-            </div>
+              <div className="se-turfboard__stats">
+                {block.holder ? (
+                  <>
+                    <span><b className="se-num">{formatNumber(block.cornerThugs)}</b><small>posted</small></span>
+                    <span><b className="se-num">{formatNumber(block.cornerGuns.total)}</b><small>guns</small></span>
+                  </>
+                ) : (
+                  <>
+                    <span><b className="se-num">{formatNumber(block.localsThugs)}</b><small>locals</small></span>
+                    <span><b className="se-num">{formatNumber(block.localsFullThugs)}</b><small>full strength</small></span>
+                  </>
+                )}
+                <span><b className="se-num">{Math.floor(block.presenceTurns)}</b><small>your presence</small></span>
+              </div>
 
-            {block.businesses ? <BusinessLots lots={block.businesses} /> : null}
+              {block.businesses ? <BusinessLots block={block} business={turf.business} onChanged={onChanged} /> : null}
 
-            {block.outpost ? <span className="se-turfboard__outpost">Your outpost</span> : null}
-            {block.revengeAvailable && block.revengeUntil ? (
-              <span className="se-hint se-good">
-                Revenge active until {new Date(block.revengeUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · no presence required.
-              </span>
-            ) : null}
-            <TurfActions
-              block={block}
-              isHome={city.isHome}
-              holdingEnabled={turf.holdingEnabled}
-              warsEnabled={turf.warsEnabled}
-              onChanged={onChanged}
-            />
-          </article>
-        );
-      })}
-    </div>
+              {block.outpost ? <span className="se-turfboard__outpost">Your outpost</span> : null}
+              {block.revengeAvailable && block.revengeUntil ? (
+                <span className="se-hint se-good">
+                  Revenge active until {new Date(block.revengeUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · no presence required.
+                </span>
+              ) : null}
+              <TurfActions
+                block={block}
+                isHome={city.isHome}
+                holdingEnabled={turf.holdingEnabled}
+                warsEnabled={turf.warsEnabled}
+                onChanged={onChanged}
+              />
+            </article>
+          );
+        })}
+      </div>
+    </>
   );
 }
 

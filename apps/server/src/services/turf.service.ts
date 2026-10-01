@@ -1,7 +1,14 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import {
+  blockTier,
+  businessIncomeCentsPerHour,
+  businessLevelCostCents,
   businessLots,
   businessRules,
+  businessStaff,
+  lotsOpen,
+  registerCapCents,
+  tierOpening,
   cornerMinimumFor,
   cornerUpkeep,
   defaultWorkSupplyPolicy,
@@ -21,6 +28,7 @@ import type { CityTurfDto, TurfBattleReportDto, TurfBlockDto, TurfSummaryDto, Tu
 import type { Db } from '../utils/db.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
+import { buildingOn } from './business.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { turfRevengeByAttacker } from './turf-revenge.service.js';
 import { endTurfHold } from './turf-history.service.js';
@@ -32,6 +40,7 @@ import {
 } from './turf-territory.service.js';
 
 type TurfDb = PrismaClient | Db;
+const TIER_NAME = { FOOTHOLD: 'a Foothold', ESTABLISHED: 'Established', STRONGHOLD: 'a Stronghold' } as const;
 const HOUR_MS = 3_600_000;
 
 export interface CornerGuns {
@@ -579,6 +588,7 @@ export const TurfService = {
     });
     await TurfService.ensureRound(db, player.roundId, ruleset);
     const business = businessRules(ruleset);
+    const building = buildingOn(ruleset);
     const [rows, presenceRows, activeRun, pendingPushes, myRecentPushes, recentFights, revengeByAttacker, businessRows] = await Promise.all([
       db.turf.findMany({
         where: { roundId: player.roundId },
@@ -634,9 +644,14 @@ export const TurfService = {
         ? turfRevengeByAttacker(db, player, player.roundId, ruleset, now)
         : Promise.resolve(new Map<string, Date>()),
       business
-        ? db.business.findMany({ where: { roundId: player.roundId }, select: { turfId: true, lot: true, kind: true, level: true }, orderBy: { lot: 'asc' } })
+        ? db.business.findMany({
+            where: { roundId: player.roundId },
+            select: { turfId: true, lot: true, kind: true, level: true, staff: true, staffOwnerId: true, registerCents: true },
+            orderBy: { lot: 'asc' },
+          })
         : Promise.resolve([]),
     ]);
+    const cityIdByTurf = new Map(rows.map((entry) => [entry.id, entry.city.id]));
     const businessesByTurf = new Map<string, typeof businessRows>();
     for (const row of businessRows) {
       const lots = businessesByTurf.get(row.turfId) ?? [];
@@ -736,6 +751,14 @@ export const TurfService = {
       let claimBlockedReason: string | null = null;
       let pushBlockedReason: string | null = null;
       const pending = pendingPushes.find((push) => push.turfId === row.id) ?? null;
+      const blockLots = businessesByTurf.get(row.id) ?? [];
+      const tierKey = business && row.holder
+        ? blockTier(ruleset, {
+            heldHours: row.heldSince ? (now.getTime() - row.heldSince.getTime()) / HOUR_MS : 0,
+            levels: blockLots.map((entry) => entry.level),
+          })
+        : null;
+      const tier = tierKey ? { tier: tierKey, lotsOpen: lotsOpen(ruleset, tierKey) } : null;
       const defenderSees = pending?.defenderId === player.id &&
         pending.landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel) * 60_000);
       const allySees = Boolean(
@@ -812,19 +835,57 @@ export const TurfService = {
         pushBlockedReason,
         businesses: business ? businessLots(ruleset, block).map((lot) => {
           const stored = businessesByTurf.get(row.id)?.find((entry) => entry.lot === lot.lot);
+          const level = stored?.level ?? 0;
+          const type = business.catalog[lot.business];
+          const myStaff = stored?.staffOwnerId === player.id ? stored.staff : 0;
+          const requiredStaff = businessStaff(ruleset, lot.business, level);
+          const income = (at: number) => businessIncomeCentsPerHour(ruleset, { citySlug, district, business: lot.business, level: at });
+          const nextLevel = level < business.levels.maxLevel ? level + 1 : null;
+          let buildBlockedReason: string | null = null;
+          if (!building) buildBlockedReason = 'Businesses open in 1.1.0-B.';
+          else if (!isMine) buildBlockedReason = 'Hold this block to build here.';
+          else if (row.city.id !== player.cityId) buildBlockedReason = 'Away businesses arrive in 1.1.0-E.';
+          else if (tier && lot.lot > tier.lotsOpen) {
+            const opening = tierOpening(ruleset, lot.lot);
+            buildBlockedReason = `Opens when the block is ${opening ? TIER_NAME[opening] : 'bigger'}.`;
+          }
+          else if (nextLevel === null) buildBlockedReason = 'Top level.';
           return {
             lot: lot.lot,
             kind: lot.business,
-            name: business.catalog[lot.business].name,
-            level: stored?.level ?? 0,
+            name: type.name,
+            level,
             maxLevel: business.levels.maxLevel,
             signature: lot.signature,
+            staffKind: type.staff,
+            staff: myStaff,
+            requiredStaff,
+            open: level > 0 && myStaff > 0 && myStaff >= requiredStaff,
+            incomeCentsPerHour: Math.round(income(level)),
+            registerCents: stored?.staffOwnerId === player.id ? Number(stored.registerCents) : 0,
+            registerCapCents: registerCapCents(ruleset, income(level)),
+            nextLevel: nextLevel === null ? null : {
+              level: nextLevel,
+              costCents: businessLevelCostCents(ruleset, lot.business, nextLevel),
+              staff: businessStaff(ruleset, lot.business, nextLevel),
+              incomeCentsPerHour: Math.round(income(nextLevel)),
+            },
+            buildBlockedReason,
           };
         }) : null,
+        businessTier: tier,
       });
       const cityControl = controlByCityId.get(row.city.id) ?? null;
       byCity.set(citySlug, {
         enabled: true,
+        business: building ? {
+          buildTurnCost: business!.levels.buildTurnCost,
+          staffTurnCost: business!.staffTurnCost,
+          collectTurnCost: business!.register.collectTurnCost,
+          registerTotalCents: businessRows
+            .filter((entry) => entry.staffOwnerId === player.id && cityIdByTurf.get(entry.turfId) === row.city.id)
+            .reduce((sum, entry) => sum + Number(entry.registerCents), 0),
+        } : null,
         holdingEnabled: holdingOn(ruleset),
         warsEnabled: ruleset.turf.wars === true,
         control: cityControl ? {

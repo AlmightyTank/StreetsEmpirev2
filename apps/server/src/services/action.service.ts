@@ -30,6 +30,7 @@ import { ConvoyService } from './convoy.service.js';
 import { RelocationService } from './relocation.service.js';
 import { RunSettleService } from './run-settle.service.js';
 import { TurfService } from './turf.service.js';
+import { BusinessService } from './business.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
@@ -72,6 +73,8 @@ export interface PlayerState {
   postedNetWorthCents: bigint;
   /** 0.6.0-D. Net worth stored in away outpost boxes. */
   outpostNetWorthCents: bigint;
+  /** 1.1.0-B. Business staff who left the home columns, valued. Only business actions move it. */
+  businessNetWorthCents: bigint;
   /** 0.5.0-C. Set by an arrest at home; left out, it is not written. */
   lockedUntil?: Date | null;
   /** 0.5.0-D. Set by a move; left out, it is not written. */
@@ -206,6 +209,7 @@ export function toState(player: RoundPlayer): PlayerState {
     awayNetWorthCents: player.awayNetWorthCents,
     postedNetWorthCents: player.postedNetWorthCents,
     outpostNetWorthCents: player.outpostNetWorthCents,
+    businessNetWorthCents: player.businessNetWorthCents,
     busyThugs: player.busyThugs,
     postedThugs: player.postedThugs,
     cleanShiftStreak: player.cleanShiftStreak,
@@ -377,7 +381,9 @@ export const ActionService = {
       // 0.6.0-B: settle corner upkeep/walkouts and pending house-minted tax before
       // an action reads cash, thugs, product or the home arsenal.
       const turfSettlement = await TurfService.settlePlayer(tx, roundPlayerId, ruleset, now);
-      if (turfSettlement) {
+      // 1.1.0-B: and business supply, income and any staff coming home from a lost block.
+      const businessSettlement = await BusinessService.settlePlayer(tx, roundPlayerId, ruleset, now);
+      if (turfSettlement || businessSettlement) {
         player = await tx.roundPlayer.findUniqueOrThrow({
           where: { id: roundPlayerId },
           include: { city: true },
