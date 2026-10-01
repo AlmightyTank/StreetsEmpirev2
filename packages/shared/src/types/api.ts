@@ -37,6 +37,7 @@ export type ActivityType =
   | 'QUEST_OBJECTIVE_COMPLETE'
   | 'QUEST_READY'
   | 'QUEST_CLAIMED'
+  | 'STREET_PASS_CLAIMED'
   | 'FAVOR_ACTIVATED'
   | 'FAVOR_ARMED'
   | 'FAVOR_DISARMED'
@@ -309,6 +310,8 @@ export interface RoundPlayerDto {
   convoyAlert: { kind: 'tailed' | 'call'; cityName: string; landsAt: string } | null;
   /** 0.6.0-B. Home turf and today's house-minted street tax. */
   turf: TurfSummaryDto | null;
+  /** Street Pass summary for the nav badge. Absent or null on rounds without a pass. */
+  streetPass?: { tier: number; tierCount: number; claimable: number } | null;
   rank: RankDto;
   hideout: SeasonHideoutDto;
 
@@ -948,6 +951,43 @@ export interface QuestPageDto {
   armedFavors: QuestArmedFavorDto[];
   favors: QuestFavorDto[];
   quests: PlayerQuestDto[];
+}
+
+/** Street Pass: one tier of the track and whether this player has reached and claimed it. */
+export interface StreetPassTierDto {
+  tier: number;
+  /** Total Cred needed to reach this tier. */
+  credToReach: number;
+  reached: boolean;
+  claimed: boolean;
+  rewards: QuestRewardDto[];
+}
+
+/** Street Pass: the round's track and this player's place on it. */
+export interface StreetPassDto {
+  key: string;
+  name: string;
+  cred: number;
+  /** Highest tier reached (0 before the first). */
+  tier: number;
+  tierCount: number;
+  /** Total Cred needed for the next tier, or null once the track is finished. */
+  nextTierCred: number | null;
+  lateJoinBonusPercent: number;
+  /** Base Cred from turns counted in today's window, and the daily cap. */
+  turnCredToday: number;
+  turnCredCap: number;
+  /** Cred each source pays, before any late-join bonus. */
+  sources: { dailyContract: number; weeklyContract: number; oneTimeJob: number; eventContract: number; perTurnSpent: number };
+  /** Tiers reached but not yet claimed. */
+  claimable: number[];
+  tiers: StreetPassTierDto[];
+}
+
+export interface StreetPassClaimResult {
+  passKey: string;
+  tier: number;
+  rewards: QuestRewardDto[];
 }
 
 export interface QuestClaimResult {

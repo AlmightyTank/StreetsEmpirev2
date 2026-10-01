@@ -6,9 +6,9 @@ import {
   type QuestObjectiveDefinition,
   type QuestProgressMap,
   type QuestRewardDefinition,
+  type QuestType,
   type Ruleset,
 } from '@streets/rulesets';
-import { formatCentsExact } from '@streets/shared';
 import type {
   GameActionResult,
   PlayerQuestDto,
@@ -19,7 +19,6 @@ import type {
   QuestContactDto,
   QuestObjectiveDto,
   QuestPageDto,
-  QuestRewardDto,
   QuestStoryDto,
 } from '@streets/shared';
 import { env } from '../config/env.js';
@@ -27,11 +26,11 @@ import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ActionService, type PlayerState } from './action.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
-import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { FavorInventoryService } from './favor-inventory.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
-import { QuestCosmeticService } from './quest-cosmetic.service.js';
+import { addContactRep, grantRewards, rewardDto } from './reward-grant.service.js';
+import { StreetPassCredService } from './street-pass-cred.service.js';
 import {
   DAILY_CONTRACT_SLOTS,
   dailyContractWindow,
@@ -71,7 +70,6 @@ import {
 
 const ACTIVE_LIMIT = 8;
 const TRACKED_LIMIT = 3;
-const CONTACT_MAX = 1000;
 const CONTACT_TIERS = [
   { at: 0, name: 'Unknown' },
   { at: 25, name: 'Acquaintance' },
@@ -163,43 +161,6 @@ function contactTier(points: number): { name: string; next: number | null } {
 function contactFor(ruleset: Ruleset, key: string | null | undefined) {
   if (!key || !ruleset.contacts || !(key in ruleset.contacts)) return undefined;
   return ruleset.contacts[key as ContactKey];
-}
-
-function rewardLabel(reward: QuestRewardDefinition, ruleset: Ruleset): string {
-  const amount = reward.amount ?? 0;
-  switch (reward.kind) {
-    case 'CASH':
-      return formatCentsExact(amount);
-    case 'TURNS':
-      return `${amount.toLocaleString('en-US')} turns`;
-    case 'ITEM':
-      return `${amount.toLocaleString('en-US')} ${reward.key ?? 'item'}`;
-    case 'CONTACT_REP':
-      return `+${amount} ${contactFor(ruleset, reward.key)?.shortName ?? reward.key ?? 'contact'} reputation`;
-    case 'WEAPON_ACCESS':
-      return `${reward.key ?? 'weapon'} purchasing access`;
-    case 'PERMANENT_UNLOCK':
-      return `${ruleset.permanentUnlocks?.[reward.key ?? '']?.name ?? reward.key ?? 'Permanent unlock'} unlocked`;
-    case 'FAVOR_ITEM': {
-      const favor = ruleset.favors?.[reward.key ?? ''];
-      const name = favor?.name ?? reward.key ?? 'Favor';
-      const prefix = favor?.rarity === 'LEGENDARY' ? '★ Legendary · ' : '';
-      return `${prefix}${name} ×${amount.toLocaleString('en-US')}`;
-    }
-    case 'COSMETIC_UNLOCK': {
-      const cosmetic = ruleset.cosmetics?.[reward.key ?? ''];
-      return `Permanent cosmetic · ${cosmetic?.name ?? reward.key ?? 'Cosmetic'}`;
-    }
-  }
-}
-
-function rewardDto(reward: QuestRewardDefinition, ruleset: Ruleset): QuestRewardDto {
-  return {
-    kind: reward.kind,
-    key: reward.key ?? null,
-    amount: reward.amount ?? null,
-    label: rewardLabel(reward, ruleset),
-  };
 }
 
 function branchReputationDto(
@@ -363,20 +324,6 @@ async function contactPoints(db: Db | PrismaClient, roundPlayerId: string, rules
     select: { trader: true, points: true },
   });
   return Object.fromEntries(keys.map((key) => [key, rows.find((row) => row.trader === key)?.points ?? 0]));
-}
-
-async function addContactRep(db: Db, roundPlayerId: string, contact: string, amount: number): Promise<number> {
-  const current = await db.playerReputation.findUnique({
-    where: { roundPlayerId_trader: { roundPlayerId, trader: contact } },
-    select: { points: true },
-  });
-  const points = Math.min(CONTACT_MAX, Math.max(0, (current?.points ?? 0) + amount));
-  await db.playerReputation.upsert({
-    where: { roundPlayerId_trader: { roundPlayerId, trader: contact } },
-    create: { roundPlayerId, trader: contact, points },
-    update: { points },
-  });
-  return points;
 }
 
 export function questPrerequisitesMet(
@@ -543,32 +490,6 @@ async function loadQuest(db: Db, roundPlayerId: string, ruleset: Ruleset, key: s
   });
   if (!row) throw AppError.notFound('QUEST_NOT_FOUND', 'That job is not available in this round.');
   return row;
-}
-
-function applyStateReward(next: PlayerState, reward: QuestRewardDefinition): void {
-  const amount = reward.amount ?? 0;
-  if (reward.kind === 'CASH') {
-    next.cashCents += BigInt(amount);
-    return;
-  }
-  if (reward.kind === 'TURNS') {
-    next.turns += amount;
-    return;
-  }
-  if (reward.kind === 'ITEM') {
-    const key = reward.key;
-    const allowed = ['condoms', 'medicine', 'crack', 'beer', 'pistols', 'shotguns', 'tek9s', 'ak47s', 'lowRiders'] as const;
-    if (!key || !allowed.includes(key as typeof allowed[number])) throw AppError.conflict('QUEST_REWARD_INVALID', 'That quest has an invalid item reward.');
-    const field = key as typeof allowed[number];
-    next[field] += amount;
-    return;
-  }
-  if (reward.kind === 'WEAPON_ACCESS') {
-    if (reward.key === 'SHOTGUN') next.shotgunUnlocked = true;
-    else if (reward.key === 'TEK9') next.tek9Unlocked = true;
-    else if (reward.key === 'AK47') next.ak47Unlocked = true;
-    else throw AppError.conflict('QUEST_REWARD_INVALID', 'That quest has an invalid weapon reward.');
-  }
 }
 
 export const HandcraftedQuestService = {
@@ -883,30 +804,8 @@ export const HandcraftedQuestService = {
           ...(cityContractRewards(row.rewardState) ?? rewards(row.questDefinition.rewards)),
           ...(selectedBranch?.rewards ?? []),
         ];
-        for (const reward of questRewards) {
-          if (reward.kind === 'CONTACT_REP') {
-            if (!reward.key || !ruleset.contacts?.[reward.key as ContactKey]) {
-              throw AppError.conflict('QUEST_REWARD_INVALID', 'That quest has an invalid contact reward.');
-            }
-            await addContactRep(tx, roundPlayerId, reward.key, reward.amount ?? 0);
-          } else if (reward.kind === 'PERMANENT_UNLOCK') {
-            if (!reward.key) throw AppError.conflict('QUEST_REWARD_INVALID', 'That quest has an invalid permanent unlock reward.');
-            const unlock = await PermanentUnlockService.award(tx, roundPlayerId, ruleset, reward.key, key, now);
-            if (unlock.effect.kind === 'WEAPON_ACCESS') {
-              if (unlock.effect.weapon === 'SHOTGUN') next.shotgunUnlocked = true;
-              else if (unlock.effect.weapon === 'TEK9') next.tek9Unlocked = true;
-              else if (unlock.effect.weapon === 'AK47') next.ak47Unlocked = true;
-            }
-          } else if (reward.kind === 'FAVOR_ITEM') {
-            if (!reward.key) throw AppError.conflict('QUEST_REWARD_INVALID', 'That quest has an invalid favor reward.');
-            await FavorInventoryService.grant(tx, roundPlayerId, ruleset, reward.key, reward.amount ?? 0, key);
-          } else if (reward.kind === 'COSMETIC_UNLOCK') {
-            if (!reward.key) throw AppError.conflict('QUEST_REWARD_INVALID', 'That quest has an invalid cosmetic reward.');
-            await QuestCosmeticService.award(tx, player.accountId, ruleset, reward.key, key, now);
-          } else {
-            applyStateReward(next, reward);
-          }
-        }
+        await grantRewards({ tx, roundPlayerId, accountId: player.accountId, ruleset, now, sourceKey: key }, next, questRewards);
+        await StreetPassCredService.creditQuest(tx, roundPlayerId, ruleset, (rulesetDefinition?.type ?? row.questDefinition.type) as QuestType);
 
         await tx.playerQuest.update({
           where: { id: row.id },

@@ -8,6 +8,7 @@ import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel } from '../components/Panel.js';
 import { ProductCounter } from '../components/ProductCounter.js';
+import { ShelfArt } from '../components/ItemTile.js';
 import { QuantitySteps } from '../components/QuantitySteps.js';
 import { useCountdown } from '../hooks/useCountdown.js';
 import { useGameAction } from '../hooks/useGameAction.js';
@@ -196,13 +197,16 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
       className={`se-store-shelf${locked ? ' se-store-shelf--locked' : ''}${soldOut ? ' se-store-shelf--soldout' : ''}`}
       aside={<span className={`se-store-shelf__status${soldOut ? ' se-store-shelf__status--warn' : locked ? ' se-store-shelf__status--locked' : ''}`}>{stockLabel}</span>}
     >
-      <div className="se-store-prices">
-        <span>Own <strong className="se-num">{formatNumber(owned)}</strong></span>
-        <span>
-          Buy <strong className="se-num">{formatCents(item.buyCents)}</strong>
-          {item.baseBuyCents ? <span className="se-dim"> · normally {formatCents(item.baseBuyCents)}</span> : null}
-        </span>
-        <span>{item.sellCents === null ? 'No buyback' : <>Sell <strong className="se-num">{formatCents(item.sellCents)}</strong></>}</span>
+      <div className="se-store-shelf__top">
+        <ShelfArt itemKey={item.key} locked={locked} soldOut={soldOut} />
+        <div className="se-store-prices">
+          <span>Own <strong className="se-num">{formatNumber(owned)}</strong></span>
+          <span>
+            Buy <strong className="se-num">{formatCents(item.buyCents)}</strong>
+            {item.baseBuyCents ? <span className="se-dim"> · normally {formatCents(item.baseBuyCents)}</span> : null}
+          </span>
+          <span>{item.sellCents === null ? 'No buyback' : <>Sell <strong className="se-num">{formatCents(item.sellCents)}</strong></>}</span>
+        </div>
       </div>
       <MarketBadges market={item.market} />
       {item.favorDiscountPercent ? (

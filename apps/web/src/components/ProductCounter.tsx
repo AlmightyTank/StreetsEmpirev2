@@ -8,6 +8,7 @@ import { useGameAction } from '../hooks/useGameAction.js';
 import { formatDuration } from '../utils/time.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
+import { ShelfArt } from './ItemTile.js';
 import { Panel } from './Panel.js';
 import { QuantitySteps } from './QuantitySteps.js';
 
@@ -129,10 +130,13 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
           Relationship perk — {relationshipSummary(pip)}.
         </p>
       ) : null}
-      <div className="se-store-prices">
-        <span>Own <strong className="se-num">{formatNumber(product.quantity)}</strong></span>
-        <span>Buy <strong className="se-num">{price(pip.buyCents)}</strong></span>
-        <span>Sell <strong className="se-num">{price(pip.sellCents)}</strong></span>
+      <div className="se-store-shelf__top">
+        <ShelfArt itemKey={product.key} locked={!pip.purchaseUnlocked} soldOut={pip.purchaseUnlocked && pip.stock === 0} />
+        <div className="se-store-prices">
+          <span>Own <strong className="se-num">{formatNumber(product.quantity)}</strong></span>
+          <span>Buy <strong className="se-num">{price(pip.buyCents)}</strong></span>
+          <span>Sell <strong className="se-num">{price(pip.sellCents)}</strong></span>
+        </div>
       </div>
       <MarketBadges market={pip.market} />
       <p className="se-hint">{product.blurb}</p>

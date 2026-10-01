@@ -541,3 +541,14 @@
     min-height: 66px;
   }
 }
+
+/* Product picture above each recipe choice's name. */
+.se-choice__body > .se-choice__art {
+  --se-item-cell: 40px;
+  justify-self: start;
+  margin-bottom: 4px;
+}
+
+.se-choice--on .se-choice__body > .se-choice__art {
+  border-color: rgba(var(--se-accent-rgb), 0.7);
+}

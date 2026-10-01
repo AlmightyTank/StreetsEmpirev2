@@ -352,6 +352,23 @@
   font-size: 8px;
 }
 
+/* The item's picture as a display strip across the top of the card, prices below. */
+.se-store-shelf__top {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.se-store-shelf__top > .se-item-tile {
+  width: 100%;
+  height: 84px;
+}
+
+.se-store-shelf__top .se-store-prices,
+.se-stores .se-store-shelf__top .se-store-prices {
+  margin: 0;
+}
+
 .se-market-badges {
   display: flex;
   flex-wrap: wrap;
