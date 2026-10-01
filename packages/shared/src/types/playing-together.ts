@@ -237,6 +237,19 @@ export interface TurfBlockDto {
   revengeAvailable: boolean;
   revengeUntil: string | null;
   pushBlockedReason: string | null;
+  /** 1.1.0-A. The block's three business lots, or null before business rounds. */
+  businesses: TurfBusinessLotDto[] | null;
+}
+
+/** 1.1.0-A. One business lot on a block. Level 0 is an empty lot. */
+export interface TurfBusinessLotDto {
+  lot: number;
+  kind: string;
+  name: string;
+  level: number;
+  maxLevel: number;
+  /** This city's signature business. */
+  signature: boolean;
 }
 
 export interface TurfPushDto {

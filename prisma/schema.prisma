@@ -593,6 +593,7 @@ model Round {
   turfControlEvents TurfControlEvent[]
   turfHoldSegments TurfHoldSegment[]
   turfCrackdown TurfCrackdown?
+  businesses  Business[]
 
   @@index([status])
 }
@@ -1570,9 +1571,37 @@ model Turf {
   pushes TurfPush[]
   outpost TurfOutpost?
   holdSegments TurfHoldSegment[]
+  businesses Business[]
 
   @@unique([roundId, cityId, district])
   @@index([roundId, holderId])
+}
+
+/// 1.1.0-A. One business lot on a block. Every block has three, fixed by its district,
+/// and they start empty (level 0). The business belongs to the block, not to a player:
+/// whoever holds the block runs it, and a block war hands it over with its level intact.
+/// Read-only in A; 1.1.0-B adds building, staff, supply and the register.
+model Business {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  turfId String
+  turf   Turf   @relation(fields: [turfId], references: [id], onDelete: Cascade)
+
+  /// 1-based lot on the block. Lot 1 opens first.
+  lot      Int
+  /// Ruleset business key, e.g. CASINO_FRONT.
+  kind     String
+  /// 0 is an empty lot.
+  level    Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([turfId, lot])
+  @@index([roundId])
 }
 
 /// 0.6.0-D. The box attached to one away-held block. A home block never needs one.

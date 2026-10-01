@@ -1,5 +1,7 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import {
+  businessLots,
+  businessRules,
   cornerMinimumFor,
   cornerUpkeep,
   defaultWorkSupplyPolicy,
@@ -191,6 +193,20 @@ export const TurfService = {
         const cityId = cityBySlug.get(block.citySlug);
         return cityId ? [{ roundId, cityId, district: block.district, localsThugs: localsThugs(ruleset, block) }] : [];
       }),
+    });
+    await TurfService.ensureBusinesses(db, roundId, ruleset);
+  },
+
+  /** 1.1.0-A. Every block's three lots exist, empty, from the round's first read. */
+  async ensureBusinesses(db: TurfDb, roundId: string, ruleset: Ruleset): Promise<void> {
+    if (!businessRules(ruleset)) return;
+    const expected = turfBlocks(ruleset).length * 3;
+    if (await db.business.count({ where: { roundId } }) >= expected) return;
+    const rows = await db.turf.findMany({ where: { roundId }, select: { id: true, district: true, city: { select: { slug: true } } } });
+    await db.business.createMany({
+      skipDuplicates: true,
+      data: rows.flatMap((row) => businessLots(ruleset, { citySlug: row.city.slug, district: row.district as DistrictKey })
+        .map((lot) => ({ roundId, turfId: row.id, lot: lot.lot, kind: lot.business }))),
     });
   },
 
@@ -562,7 +578,8 @@ export const TurfService = {
       },
     });
     await TurfService.ensureRound(db, player.roundId, ruleset);
-    const [rows, presenceRows, activeRun, pendingPushes, myRecentPushes, recentFights, revengeByAttacker] = await Promise.all([
+    const business = businessRules(ruleset);
+    const [rows, presenceRows, activeRun, pendingPushes, myRecentPushes, recentFights, revengeByAttacker, businessRows] = await Promise.all([
       db.turf.findMany({
         where: { roundId: player.roundId },
         include: {
@@ -616,7 +633,16 @@ export const TurfService = {
       ruleset.turf.wars
         ? turfRevengeByAttacker(db, player, player.roundId, ruleset, now)
         : Promise.resolve(new Map<string, Date>()),
+      business
+        ? db.business.findMany({ where: { roundId: player.roundId }, select: { turfId: true, lot: true, kind: true, level: true }, orderBy: { lot: 'asc' } })
+        : Promise.resolve([]),
     ]);
+    const businessesByTurf = new Map<string, typeof businessRows>();
+    for (const row of businessRows) {
+      const lots = businessesByTurf.get(row.turfId) ?? [];
+      lots.push(row);
+      businessesByTurf.set(row.turfId, lots);
+    }
 
     const allianceIds = [...new Set(recentFights.flatMap((fight) => [fight.attackerAllianceId, fight.defenderAllianceId]).filter((id): id is string => Boolean(id)))];
     const allianceRows = allianceIds.length
@@ -784,6 +810,17 @@ export const TurfService = {
         revengeAvailable,
         revengeUntil: revengeUntil?.toISOString() ?? null,
         pushBlockedReason,
+        businesses: business ? businessLots(ruleset, block).map((lot) => {
+          const stored = businessesByTurf.get(row.id)?.find((entry) => entry.lot === lot.lot);
+          return {
+            lot: lot.lot,
+            kind: lot.business,
+            name: business.catalog[lot.business].name,
+            level: stored?.level ?? 0,
+            maxLevel: business.levels.maxLevel,
+            signature: lot.signature,
+          };
+        }) : null,
       });
       const cityControl = controlByCityId.get(row.city.id) ?? null;
       byCity.set(citySlug, {

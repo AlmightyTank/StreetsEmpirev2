@@ -547,6 +547,29 @@
 }
 .se-turfboard__stats b { font-size: 14px; }
 .se-turfboard__stats small { color: var(--se-muted); font-size: 10px; overflow-wrap: anywhere; }
+/* 1.1.0-A. A block's three business lots. */
+.se-turfboard__lots {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+}
+.se-turfboard__lot {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 3px 8px;
+  border-left: 2px solid var(--se-line);
+  color: var(--se-text-dim);
+}
+.se-turfboard__lot > span { min-width: 0; overflow-wrap: anywhere; }
+.se-turfboard__lot small { flex: none; color: var(--se-muted); font-size: 10px; }
+.se-turfboard__lot--built { border-left-color: var(--se-accent-dim); color: var(--se-text); }
+.se-turfboard__signature { color: var(--se-warn); }
 .se-turfboard__pressure {
   display: grid;
   gap: 1px;

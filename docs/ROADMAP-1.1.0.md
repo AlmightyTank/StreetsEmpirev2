@@ -2,7 +2,7 @@
 
 ## Brainstorm
 
-**Status:** brainstorm. Nothing is built. Design choices marked **(decided)** are agreed;
+**Status:** 1.1.0-A is built (data, simulation, lots on the map); B onward is design. Design choices marked **(decided)** are agreed;
 everything else is *(proposed)*, and all numbers wait on a simulation pass, the same way
 0.6.0 Turf started.
 
@@ -80,6 +80,24 @@ most appear in two districts, so no business is locked to a single block per cit
 
 That's 120 lots across 40 blocks. With the 0.6.0 caps (two blocks at home, one away), one
 crew can operate at most nine businesses.
+
+### Foot traffic *(added by the 1.1.0-A simulation)*
+
+The same business earns more on a richer block: a Bar on the Casino strip out-earns one in
+the slums. The first simulation pass showed this is needed, not just flavor. On the Casino
+strip a thug covers the fewest girls, so staffing a business there costs a crew the most
+street income, and without the extra income no Casino lot paid for its staff.
+
+| District | Income multiplier |
+|---|---|
+| Casino | 1.5 |
+| Nightclub | 1.25 |
+| Low Rent | 1.0 |
+| Urban Ghetto | 1.0 |
+| Wino Slums | 0.8 |
+
+Even so, Casino lots are a late-crew build: a mid crew's thugs earn more covering girls on
+the strip, so its best businesses are on its Nightclub block.
 
 ### City signatures *(proposed)*
 
@@ -506,12 +524,53 @@ not an instant jump on the leaderboard.
 
 | Stage | Deliverable | Gate |
 |---|---|---|
-| **1.1.0-A — Lots** | `business` block in the ruleset (lots per district, city signatures, levels, costs, staff, supply, register caps, fatigue curve); `Business` row per round/block/lot; city map shows lots; `qa:business` simulation. | A 1.1.0-A round plays exactly like 1.0. Every business is worth building for some crew; none pays more than its staff would earn at home. |
+| **1.1.0-A — Lots** | `business` block in the ruleset (lots per district, city signatures, levels, costs, staff, supply, register caps, fatigue curve); `Business` row per round/block/lot; city map shows lots; `qa:business` simulation. | A 1.1.0-A round plays exactly like the ruleset it is built on. Every lot is worth building for some crew that can hold and staff it; no business grosses a street day, and a fully built home cap nets at most half of one after its staff. |
 | **1.1.0-B — Build & operate** | Build/upgrade, staffing, BUSINESS supply job, register and collection, front income, receipts and ledger lines. | Cash, staff and supply are conserved; staff never work, defend or cook; registers never exceed their cap. |
 | **1.1.0-C — Rackets** | One racket per business, switching cooldown, Heat, system hooks (recon, runs, stores, product). | No racket beats the system it hooks; laundering stays under its caps. |
 | **1.1.0-D — Block wars** | Locals claim stays a single fight; block wars against players (declare, siege, Control, break the siege, concede, truce); Take / Sack war goals; block tiers; devastation; torching; dormancy under locals; Street Wire / Discord war lines. | A war always settles by its time limit, whoever is online; a defender who responds wins at a healthy rate; attacker win rate stays in band for solo vs. solo, alliance vs. solo and alliance vs. alliance; the ally's cut never exceeds the caller's chosen share or 50%, and is zero when the side loses or the ally never fought; captured income stays below a stable holder's; a block can't be farmed by repeated hand-offs; linked-account captures reset. |
 | **1.1.0-E — Outposts & convoys** | Away businesses empty into the outpost box; collection runs; convoy loot shape. | Everything a run collects is conserved; convoy loot stays in 0.6.0-D caps. |
 | **1.1.0-F — Release** | Full-round simulation (business-heavy, turf-raider, runner, mixed), crackdown interaction, Rules page Business panel, phone pass, release regression. | Mixed play beats pure business play; 0.6.0-F and later release gates still pass. |
+
+### Built in A
+
+- **Ruleset:** `classic-og-v1.1-a`, built on `classic-og-v0.8-h` (there is no 1.0 ruleset
+  yet). It adds a `business` block with every first-pass number in this doc, plus the
+  catalog (staff, income and build cost per business) and foot traffic. Nothing reads it
+  yet, and a test pins that only `meta` and `business` differ from 0.8.0-H.
+- **Engine:** pure business calculations (`businessLots`, `businessIncomeCentsPerHour`,
+  `businessStaff`, costs and upkeep, `blockTier`, `tierAfterTake`, `blockWarFatigue`,
+  `fatigueAfter`, `siegeHoursToWin`, `allyThugCap`, `allyCutCents`, `dormantLevel`,
+  `localsThugsWithBusinesses`, `torchResult`, `torchOpen`) and `businessRulesetProblems`,
+  which also enforces the decisions above.
+- **Simulation:** `runBusinessSimulation` and `businessGate` behind `npm run qa:business`.
+  See [BUSINESS-SIMULATION-1.1.0-A.md](BUSINESS-SIMULATION-1.1.0-A.md).
+- **Schema:** a `Business` row per round, block and lot (`kind`, `level`, starting empty),
+  seeded lazily with the round's turf rows.
+- **City Blocks:** each block card lists its three lots, their level ("Empty lot" in A)
+  and the city's signature business (★).
+
+**Catalog (level 1, before foot traffic and signature):**
+
+| Business | Staff | Income/hour | Build |
+|---|---|---|---|
+| Casino Front | 2 thugs | $330 | $19,800 |
+| Nightclub | 2 thugs | $265 | $15,900 |
+| Strip Club | 4 girls | $250 | $15,000 |
+| Chop Shop | 2 thugs | $185 | $11,100 |
+| Auto Garage | 2 thugs | $165 | $9,900 |
+| Pawn Shop | 1 thug | $135 | $8,100 |
+| Warehouse | 1 thug | $125 | $7,500 |
+| Bar | 1 thug | $125 | $7,500 |
+| Laundromat | 1 thug | $85 | $5,100 |
+| Convenience Store | 1 thug | $75 | $4,500 |
+
+Each level multiplies income by 1, 1.8, 2.5, 3.1 and 3.6, and staff by 1, 1.5, 2, 2.5 and 3
+(rounded up). The upgrade to each level costs 1, 1.25, 1.75, 2.5 and 3.5 times the build,
+so level 5 costs ten builds in total.
+
+**Not in A:** nothing can be built, staffed or collected yet (1.1.0-B), rackets (C), block
+wars and fatigue in play (D), and outpost businesses (E). The `qa:business` gate is not
+yet part of `qa:release`; it joins at 1.1.0-F, as turf did.
 
 ---
 

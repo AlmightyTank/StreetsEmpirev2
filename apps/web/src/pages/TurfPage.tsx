@@ -90,6 +90,21 @@ function holder(block: TurfBlockDto) {
   );
 }
 
+/** 1.1.0-A. The block's three lots, fixed by its district. Building arrives in 1.1.0-B. */
+function BusinessLots({ lots }: { lots: NonNullable<TurfBlockDto['businesses']> }) {
+  return (
+    <ul className="se-turfboard__lots" aria-label="Business lots">
+      {lots.map((lot) => (
+        <li key={lot.lot} className={`se-turfboard__lot${lot.level ? ' se-turfboard__lot--built' : ''}`}
+          title={lot.signature ? `${lot.name}: this city's signature business earns more here.` : undefined}>
+          <span>{lot.name}{lot.signature ? <span className="se-turfboard__signature" aria-label="signature business"> ★</span> : null}</span>
+          <small className="se-num">{lot.level ? `Lv ${lot.level}/${lot.maxLevel}` : 'Empty lot'}</small>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function CityBlockBoard({ city, onChanged }: { city: CityCharacterDto; onChanged: () => void }) {
   const turf = city.turf;
   if (!turf) return <p className="se-muted">Turf is not enabled in this round.</p>;
@@ -125,6 +140,8 @@ function CityBlockBoard({ city, onChanged }: { city: CityCharacterDto; onChanged
               )}
               <span><b className="se-num">{Math.floor(block.presenceTurns)}</b><small>your presence</small></span>
             </div>
+
+            {block.businesses ? <BusinessLots lots={block.businesses} /> : null}
 
             {block.outpost ? <span className="se-turfboard__outpost">Your outpost</span> : null}
             {block.revengeAvailable && block.revengeUntil ? (
