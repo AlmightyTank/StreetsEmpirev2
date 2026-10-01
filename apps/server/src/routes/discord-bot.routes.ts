@@ -28,6 +28,13 @@ const newsSchema = z.object({
   scope: z.enum(['round', 'global']),
 }).strict();
 
+const newsParams = z.object({ newsId: z.string().min(1).max(64) }).strict();
+const newsFailedSchema = z.object({ error: z.string().trim().min(1).max(500) }).strict();
+const newsStatusSchema = z.object({
+  channel: z.string().trim().min(1).max(100).nullable(),
+  problem: z.string().trim().min(1).max(500).nullable(),
+}).strict();
+
 /** Server-to-server API for apps/discord-bot. Not for browsers: no cookies, no CORS use. */
 const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('onRequest', async (request) => {
@@ -93,6 +100,18 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/news', async (request) => DiscordBotService.createNews(fastify.prisma, parseBody(newsSchema, request.body)));
 
   fastify.post('/news/claim', async () => ({ news: await DiscordBotService.claimNews(fastify.prisma) }));
+
+  fastify.post('/news/:newsId/failed', async (request) => {
+    const { newsId } = parseBody(newsParams, request.params);
+    const { error } = parseBody(newsFailedSchema, request.body ?? {});
+    await DiscordBotService.newsFailed(fastify.prisma, newsId, error);
+    return { ok: true };
+  });
+
+  fastify.post('/news/status', async (request) => {
+    await DiscordBotService.reportNewsChannel(fastify.prisma, parseBody(newsStatusSchema, request.body ?? {}));
+    return { ok: true };
+  });
 
   fastify.get('/alerts', async (request) => {
     const { discordId } = parseBody(memberQuery, request.query);

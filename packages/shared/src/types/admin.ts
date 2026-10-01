@@ -525,6 +525,10 @@ export interface AdminNewsPostDto {
   roundName: string | null;
   authorName: string | null;
   discordPostedAt: string | null;
+  /** Why Discord refused the post, as the bot reported it. Resend clears it. */
+  discordError: string | null;
+  /** Why the post is not on Discord yet, in words for the admin; null once it is. */
+  discordWaiting: string | null;
   forumDiscussionId: string | null;
   forumUrl: string | null;
   forumPostedAt: string | null;
@@ -540,6 +544,8 @@ export interface AdminNewsDto {
   /** Rounds a post can be attached to, newest first. */
   rounds: Array<{ id: string; name: string; status: RoundStatus }>;
   forumMirrorEnabled: boolean;
+  /** What the bot last reported about its news channel; null before it ever did. */
+  discordBot: { lastSeenAt: string; channel: string | null; problem: string | null } | null;
 }
 
 export interface AdminCreateNewsInput {

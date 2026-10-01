@@ -162,6 +162,8 @@ const newsClaimSchema = z.object({
   })),
 });
 
+const okSchema = z.object({ ok: z.literal(true) });
+
 const newsCreatedSchema = z.object({ id: z.string(), title: z.string(), url: z.string().url(), roundName: z.string().nullable() });
 
 export const ALERT_TYPES = ['attacks', 'round', 'rank', 'turns', 'turf', 'alliance'] as const;
@@ -450,6 +452,14 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
       call(newsCreatedSchema, '/api/internal/discord/news', { method: 'POST', body: input }),
     /** Claimed posts count as posted, even if sending them fails. */
     claimNews: async () => (await call(newsClaimSchema, '/api/internal/discord/news/claim', { method: 'POST' })).news,
+    /** Discord refused a claimed post; the admin panel shows why and offers a resend. */
+    newsFailed: async (newsId: string, error: string) => {
+      await call(okSchema, `/api/internal/discord/news/${encodeURIComponent(newsId)}/failed`, { method: 'POST', body: { error } });
+    },
+    /** Whether the news channel is usable, so the admin panel can say why news is stuck. */
+    reportNewsChannel: async (report: { channel: string | null; problem: string | null }) => {
+      await call(okSchema, '/api/internal/discord/news/status', { method: 'POST', body: report });
+    },
     alertSettings: (discordId: string) => call(alertSettingsSchema, `/api/internal/discord/alerts?${query({ discordId })}`),
     setAlert: (discordId: string, type: AlertType, enabled: boolean) =>
       call(alertSettingsSchema, '/api/internal/discord/alerts', { method: 'PUT', body: { discordId, type, enabled } }),

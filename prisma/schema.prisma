@@ -1837,6 +1837,9 @@ model GameNews {
   /// When the Discord bot claimed it for the news channel. Posts from before
   /// auto-posting were backfilled so the first run doesn't flood the channel.
   discordPostedAt DateTime?
+  /// Why Discord refused the post, as the bot reported it. Set together with
+  /// discordPostedAt = null; the bot skips it until an admin resends it.
+  discordError    String?
 
   /// 1.0.0-E. A broadcast reaches every player of the season: the bell and their alert channels.
   broadcast   Boolean   @default(false)
@@ -1855,6 +1858,18 @@ model GameNews {
   updatedAt DateTime @default(now()) @updatedAt
 
   @@index([roundId, isPinned, publishedAt(sort: Desc)])
+}
+
+/// What the Discord bot last reported about its news channel, one row per
+/// feature ("news"). Lets the admin panel say why posts are not reaching Discord.
+model DiscordBotStatus {
+  id         String   @id
+  /// Last time the bot checked in for this feature.
+  lastSeenAt DateTime
+  /// The channel name it posts to, while it can.
+  channel    String?
+  /// Why it cannot post right now, or null when the channel is usable.
+  problem    String?
 }
 
 /// 0.3.0-B. A short site-wide notice (maintenance, downtime, round reminders)
