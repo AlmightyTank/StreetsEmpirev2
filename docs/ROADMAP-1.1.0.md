@@ -240,7 +240,7 @@ pinned rulesets keep the 0.6.0-C push rules unchanged.
     window**.
   - **Joining a siege (attacker's ally):** the call stays open **15 minutes**. Once the
     ally accepts, their thugs join the occupying squad.
-- **One war at a time as an ally** *(proposed)*: a crew can be the ally in only one active
+- **One war at a time as an ally (decided):** a crew can be the ally in only one active
   war. One strong player can't answer every call in the city.
 - **Outpost allies** fight with their outpost's corner crew, not thugs from home, so
   answering a call leaves their outpost weaker.
