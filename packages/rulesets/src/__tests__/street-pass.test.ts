@@ -126,9 +126,13 @@ describe('classic-og-street-pass-a', () => {
     expect(streetPassProblems(STREET_PASS_S1, classicOgStreetPassA)).toEqual([]);
   });
 
-  it('leaves every older ruleset without a pass', () => {
-    const withPass = Object.values(rulesets).filter((ruleset) => ruleset.streetPass).map((ruleset) => ruleset.meta.id);
-    expect(withPass).toEqual(['classic-og-street-pass-a']);
+  it('leaves every older ruleset without a pass, and every later one with it', () => {
+    const ids = Object.keys(rulesets);
+    const from = ids.indexOf('classic-og-street-pass-a');
+    const withPass = ids.filter((id) => rulesets[id]!.streetPass);
+    // Rulesets built on street-pass-a (1.1.0 Businesses on) keep the pass.
+    expect(withPass).toEqual(ids.slice(from));
+    expect(withPass[0]).toBe('classic-og-street-pass-a');
   });
 });
 

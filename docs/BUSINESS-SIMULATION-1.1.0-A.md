@@ -1,9 +1,10 @@
 # Business simulation - 1.1.0-A
 
-Ruleset `classic-og-v1.1-a`: 0.8.0-H balance plus a `business` block. Run with
-`npm run qa:business` (add `-- --output business.md` to write the report). No 1.0 ruleset
-exists yet, so 1.1.0-A is built on the latest shipping ruleset; a test pins that nothing but
-`meta` and `business` differs from 0.8.0-H.
+Ruleset `classic-og-v1.1-a`: the `classic-og-street-pass-a` balance (0.8.0-H plus Trips
+and the Street Pass) plus a `business` block. Run with `npm run qa:business` (add
+`-- --output business.md` to write the report). A test pins that nothing but `meta` and
+`business` differs from street-pass-a. Moving the base from 0.8.0-H to street-pass-a left
+this report unchanged: Trips and the Street Pass do not touch the street economy it prices.
 
 ## What is simulated
 

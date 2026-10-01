@@ -534,10 +534,11 @@ not an instant jump on the leaderboard.
 
 ### Built in A
 
-- **Ruleset:** `classic-og-v1.1-a`, built on `classic-og-v0.8-h` (there is no 1.0 ruleset
-  yet). It adds a `business` block with every first-pass number in this doc, plus the
-  catalog (staff, income and build cost per business) and foot traffic. Nothing reads it
-  yet, and a test pins that only `meta` and `business` differ from 0.8.0-H.
+- **Ruleset:** `classic-og-v1.1-a`, built on `classic-og-street-pass-a`, the latest
+  shipping ruleset on `beta` (0.8.0-H plus Trips and the Street Pass). It adds a `business`
+  block with every first-pass number in this doc, plus the catalog (staff, income and build
+  cost per business) and foot traffic. Nothing reads it yet, and a test pins that only
+  `meta` and `business` differ from street-pass-a.
 - **Engine:** pure business calculations (`businessLots`, `businessIncomeCentsPerHour`,
   `businessStaff`, costs and upkeep, `blockTier`, `tierAfterTake`, `blockWarFatigue`,
   `fatigueAfter`, `siegeHoursToWin`, `allyThugCap`, `allyCutCents`, `dormantLevel`,

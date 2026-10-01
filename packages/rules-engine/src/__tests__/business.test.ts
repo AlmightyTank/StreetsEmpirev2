@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV08H, classicOgV11A, classicOgV11B, type Ruleset } from '@streets/rulesets';
+import { classicOgStreetPassA, classicOgV08H, classicOgV11A, classicOgV11B, type Ruleset } from '@streets/rulesets';
 import {
   BUSINESS_KEYS,
   allyCutCents,
@@ -51,9 +51,9 @@ describe('1.1.0-A the business ruleset', () => {
     expect(businessLots(before, { citySlug: 'detroit', district: 'CASINO' })).toEqual([]);
   });
 
-  it('changes nothing else about a 0.8.0-H round', () => {
+  it('changes nothing else about the street-pass-a round it is built on', () => {
     const { meta: _meta, business: _business, ...rest } = ruleset as Ruleset & { business: unknown };
-    const { meta: _was, ...wasRest } = before;
+    const { meta: _was, ...wasRest } = classicOgStreetPassA as Ruleset;
     expect(rest).toEqual(wasRest);
   });
 
