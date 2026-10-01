@@ -11,7 +11,7 @@
     <pattern id="tufts" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(-20)"><path d="M1 6 q1-3 0-5 M4.5 6.5 q1.2-3 .2-5.5" stroke="#ff8a78" stroke-width=".8" fill="none" opacity=".7"/><path d="M3 3 q.8-2 0-3" stroke="#6e0910" stroke-width=".8" fill="none" opacity=".6"/></pattern>
     <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff2a8"/><stop offset=".5" stop-color="#e0b640"/><stop offset="1" stop-color="#8a6508"/></linearGradient>
     <linearGradient id="lid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fd0ff" stop-opacity=".2"/><stop offset="1" stop-color="#2f8fd0"/></linearGradient>
-    <clipPath id="eyes"><path d="M50.7 53.3 Q55.5 49.6 60.3 53 Q55.5 56.4 50.7 53.3 Z M77.3 53.3 Q72.5 49.6 67.7 53 Q72.5 56.4 77.3 53.3 Z"/></clipPath>
+    <clipPath id="eyes"><path d="M50.4 53.4 Q55.5 48.6 60.4 52.9 Q55.5 57.4 50.4 53.4 Z M77.6 53.4 Q72.5 48.6 67.6 52.9 Q72.5 57.4 77.6 53.4 Z"/></clipPath>
     <clipPath id="mouth"><path d="M57.5 66.2 Q64 67.6 70.5 66.2 Q64 72.6 57.5 66.2 Z"/></clipPath>
   </defs>
   <g filter="url(#s)">
@@ -59,16 +59,16 @@
   <ellipse cx="74.5" cy="61.5" rx="4" ry="2.2" fill="#e8746a" opacity=".4"/>
   <g stroke-linecap="round" fill="none">
     <path d="M49.8 47 Q54.5 43.6 60.2 45.4 M78.2 47 Q73.5 43.6 67.8 45.4" stroke="#8a5f2e" stroke-width="1.2"/>
-    <path d="M50.2 53 Q55.5 49 60.6 52.6 Q58.5 48 55.5 47.8 Q51.8 48.2 50.2 53 Z M77.8 53 Q72.5 49 67.4 52.6 Q69.5 48 72.5 47.8 Q76.2 48.2 77.8 53 Z" fill="url(#lid)" stroke="none"/>
-    <path d="M50.7 53.3 Q55.5 49.6 60.3 53 Q55.5 56.4 50.7 53.3 Z M77.3 53.3 Q72.5 49.6 67.7 53 Q72.5 56.4 77.3 53.3 Z" fill="#fbf6ee" stroke="none"/>
+    <path d="M49.8 53.2 Q55.5 48.2 60.9 52.5 Q59.6 46.6 55.5 46.2 Q51 46.6 49.8 53.2 Z M78.2 53.2 Q72.5 48.2 67.1 52.5 Q68.4 46.6 72.5 46.2 Q77 46.6 78.2 53.2 Z" fill="url(#lid)" stroke="none"/>
+    <path d="M50.4 53.4 Q55.5 48.6 60.4 52.9 Q55.5 57.4 50.4 53.4 Z M77.6 53.4 Q72.5 48.6 67.6 52.9 Q72.5 57.4 77.6 53.4 Z" fill="#fbf6ee" stroke="none"/>
     <g clip-path="url(#eyes)" stroke="none">
-      <circle cx="55.5" cy="53.2" r="2.2" fill="#3a6a8a"/><circle cx="72.5" cy="53.2" r="2.2" fill="#3a6a8a"/>
-      <circle cx="55.5" cy="53.2" r="1" fill="#0b0b0b"/><circle cx="72.5" cy="53.2" r="1" fill="#0b0b0b"/>
-      <circle cx="56.3" cy="52.4" r=".6" fill="#fff"/><circle cx="73.3" cy="52.4" r=".6" fill="#fff"/>
+      <circle cx="55.4" cy="53.1" r="2.5" fill="#3a6a8a"/><circle cx="72.6" cy="53.1" r="2.5" fill="#3a6a8a"/><circle cx="55.4" cy="53.1" r="2.5" fill="none" stroke="#1d3a4e" stroke-width=".5"/><circle cx="72.6" cy="53.1" r="2.5" fill="none" stroke="#1d3a4e" stroke-width=".5"/>
+      <circle cx="55.4" cy="53.1" r="1.1" fill="#0b0b0b"/><circle cx="72.6" cy="53.1" r="1.1" fill="#0b0b0b"/>
+      <circle cx="56.3" cy="52.2" r=".7" fill="#fff"/><circle cx="73.5" cy="52.2" r=".7" fill="#fff"/>
     </g>
-    <path d="M50.2 53.3 Q55.5 49.4 60.6 53 M77.8 53.3 Q72.5 49.4 67.4 53" stroke="#0b0604" stroke-width="1.5"/>
-    <path d="M50.4 53.2 L48.6 51.6 M51.8 51.9 L50.6 50.2 M77.6 53.2 L79.4 51.6 M76.2 51.9 L77.4 50.2" stroke="#0b0604" stroke-width=".9"/>
-    <path d="M51.6 54.6 Q55.5 56.6 59.6 54.3 M76.4 54.6 Q72.5 56.6 68.4 54.3" stroke="#a8684e" stroke-width=".6"/>
+    <path d="M60.6 53 Q55.5 48.4 50.4 53.4 L48.2 51.2 Q55 46.6 60.9 52.4 Z M67.4 53 Q72.5 48.4 77.6 53.4 L79.8 51.2 Q73 46.6 67.1 52.4 Z" fill="#0b0604" stroke="none"/>
+    <path d="M50.8 51.8 Q49.4 51 48.9 49.9 M52.4 50.6 Q51.3 49.6 51.1 48.4 M54.2 49.8 Q53.5 48.7 53.6 47.6 M77.2 51.8 Q78.6 51 79.1 49.9 M75.6 50.6 Q76.7 49.6 76.9 48.4 M73.8 49.8 Q74.5 48.7 74.4 47.6" stroke="#0b0604" stroke-width=".65"/>
+    <path d="M51.2 54.6 Q55.5 57.8 59.9 54.2 M76.8 54.6 Q72.5 57.8 68.1 54.2" stroke="#7a4636" stroke-width=".6" opacity=".8"/>
     <path d="M63.2 51 Q62.8 56 61.8 59.2" stroke="#c08066" stroke-width=".8" opacity=".8"/>
     <path d="M61 60 Q62.5 61.8 64 61.2 Q65.5 61.8 67 60" stroke="#a8684e" stroke-width="1"/>
     <path d="M57.2 61.8 Q55.8 64 56.4 66.4 M70.8 61.8 Q72.2 64 71.6 66.4" stroke="#b0705a" stroke-width=".7" opacity=".5"/>
