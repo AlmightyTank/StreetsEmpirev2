@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate, NavLink, useParams } from 'react-router-dom';
 import { formatCents, formatNumber, type ProductsDto, type StoreCheckoutLineInput, type StoreCheckoutResult, type StoreDto, type StoreItemDto, type StoreMarketContextDto, type StoreRestockDto, type StoresDto, type StoreSpecialOrderResult, type StoreTradeInput, type StoreTradeResult } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
@@ -375,11 +375,20 @@ export function StoresIndexPage() {
   return <Navigate to={`/game/stores/${encodeURIComponent(slug)}`} replace />;
 }
 
+/** Back to the top of the page: right away, and again once the new tab has painted. */
+function scrollToTop(): () => void {
+  window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  const frame = window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+  return () => window.cancelAnimationFrame(frame);
+}
+
 function StoreTabs({ stores, slug }: { stores: StoreDto[]; slug: string }) {
   return (
     <nav className="se-storetabs" aria-label="Stores">
       {stores.map((store) => (
         <NavLink key={store.slug} to={`/game/stores/${store.slug}`} replace
+          // Tapping the tab you are on still takes you back to the top of its shelves.
+          onClick={() => { if (store.slug === slug) scrollToTop(); }}
           className={`se-storetabs__tab${store.slug === slug ? ' se-storetabs__tab--active' : ''}`}>
           {TAB_NAMES[store.key] ?? store.name}
         </NavLink>
@@ -923,6 +932,8 @@ export function StorePage() {
   // starts clean. The basket lives one level higher so it follows the player
   // between Corner, Tommy, Charlie, and Pip until checkout or an explicit clear.
   const [basket, setBasket] = useState<BasketLine[]>([]);
+  // Changing store tabs always opens the new store at the top, wherever the last one was scrolled.
+  useLayoutEffect(() => scrollToTop(), [slug]);
 
   function addToBasket(line: BasketLine) {
     setBasket((current) => {
