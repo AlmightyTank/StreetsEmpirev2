@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient, Round, Survey } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
-import type { QuestRewardDefinition, Ruleset } from '@streets/rulesets';
+import { isItemRewardField, type QuestRewardDefinition, type QuestRewardKind, type Ruleset } from '@streets/rulesets';
 import {
   SURVEY_DEFAULT_LONG_TEXT_MAX_LENGTH,
   SURVEY_DEFAULT_RATING_MAX,
@@ -34,6 +34,93 @@ type SummaryRow = Prisma.SurveyGetPayload<{ include: typeof summaryInclude }>;
 
 function rewardDefinitions(value: Prisma.JsonValue): QuestRewardDefinition[] {
   return Array.isArray(value) ? value as unknown as QuestRewardDefinition[] : [];
+}
+
+const SURVEY_REWARD_KINDS = new Set<QuestRewardKind>([
+  'CASH',
+  'TURNS',
+  'ITEM',
+  'CONTACT_REP',
+  'WEAPON_ACCESS',
+  'PERMANENT_UNLOCK',
+  'FAVOR_ITEM',
+  'COSMETIC_UNLOCK',
+  'PRODUCT',
+]);
+
+function positiveAmount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
+/**
+ * Survey rewards are authored JSON, so never trust their static cast at payout.
+ * A bad survey must fail closed instead of deducting resources or throwing
+ * halfway through grantRewards().
+ */
+export function validateSurveyRewards(value: Prisma.JsonValue, ruleset: Ruleset): QuestRewardDefinition[] {
+  if (!Array.isArray(value)) configurationError('Survey rewards must be a list.');
+
+  return value.map((raw) => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      configurationError('A survey reward is malformed.');
+    }
+    const reward = raw as Record<string, unknown>;
+    const kind = reward.kind;
+    if (typeof kind !== 'string' || !SURVEY_REWARD_KINDS.has(kind as QuestRewardKind)) {
+      configurationError('A survey reward has an unknown type.');
+    }
+
+    const key = typeof reward.key === 'string' ? reward.key : undefined;
+    const amount = reward.amount;
+
+    switch (kind as QuestRewardKind) {
+      case 'CASH':
+      case 'TURNS':
+        if (!positiveAmount(amount)) configurationError('Survey cash and turn rewards must be positive whole numbers.');
+        break;
+      case 'ITEM':
+        if (!key || !isItemRewardField(key) || !positiveAmount(amount)) {
+          configurationError('A survey item reward is invalid.');
+        }
+        break;
+      case 'CONTACT_REP':
+        if (!key || !ruleset.contacts?.[key as keyof typeof ruleset.contacts] || !positiveAmount(amount)) {
+          configurationError('A survey contact reputation reward is invalid.');
+        }
+        break;
+      case 'WEAPON_ACCESS':
+        if (!key || !['SHOTGUN', 'TEK9', 'AK47'].includes(key)) {
+          configurationError('A survey weapon access reward is invalid.');
+        }
+        break;
+      case 'PERMANENT_UNLOCK':
+        if (!key || !ruleset.permanentUnlocks?.[key]) {
+          configurationError('A survey permanent unlock reward is invalid.');
+        }
+        break;
+      case 'FAVOR_ITEM':
+        if (!key || !ruleset.favors?.[key] || !positiveAmount(amount)) {
+          configurationError('A survey favor reward is invalid.');
+        }
+        break;
+      case 'COSMETIC_UNLOCK':
+        if (!key || !ruleset.cosmetics?.[key]) {
+          configurationError('A survey cosmetic reward is invalid.');
+        }
+        break;
+      case 'PRODUCT':
+        if (!key || (key !== 'CRACK' && !ruleset.products?.[key]) || !positiveAmount(amount)) {
+          configurationError('A survey product reward is invalid.');
+        }
+        break;
+    }
+
+    return {
+      kind: kind as QuestRewardKind,
+      ...(key ? { key } : {}),
+      ...(amount !== undefined ? { amount: amount as number } : {}),
+    };
+  });
 }
 
 function rewardRuleset(survey: SummaryRow, currentRound: Round, completionRound?: Round | null): Ruleset {
@@ -417,7 +504,7 @@ export const SurveyService = {
         }
 
         const normalizedAnswers = validateSurveyAnswers(survey.questions, input.answers);
-        const rewards = rewardDefinitions(survey.rewards);
+        const rewards = validateSurveyRewards(survey.rewards, ruleset);
         const next = { ...current };
 
         const submission = await tx.surveySubmission.create({
