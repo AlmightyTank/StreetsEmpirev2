@@ -193,6 +193,9 @@ async function publishRuleset(prisma: PrismaClient, row: SurveyDetailRow, now: D
     : await RoundService.getCurrent(prisma, now);
 
   if (row.roundId && !round) throw AppError.notFound('ROUND_NOT_FOUND', 'The target round no longer exists.');
+  if (round && (round.status === 'ENDED' || round.status === 'ARCHIVED' || round.endsAt <= now)) {
+    throw AppError.conflict('SURVEY_ROUND_ENDED', 'That target round has already ended. Choose a current or upcoming round.');
+  }
   if (!round && rewardInputs(row.rewards).length) {
     throw AppError.conflict('SURVEY_REWARD_ROUND_REQUIRED', 'Start a round or target a round before publishing a rewarded global survey.');
   }
@@ -265,6 +268,9 @@ async function assertDefinitionPublishable(
     ? await prisma.round.findUnique({ where: { id: input.roundId } })
     : await RoundService.getCurrent(prisma, now);
   if (input.roundId && !round) throw AppError.notFound('ROUND_NOT_FOUND', 'The target round no longer exists.');
+  if (round && (round.status === 'ENDED' || round.status === 'ARCHIVED' || round.endsAt <= now)) {
+    throw AppError.conflict('SURVEY_ROUND_ENDED', 'That target round has already ended. Choose a current or upcoming round.');
+  }
   if (!round && input.rewards.length) {
     throw AppError.conflict('SURVEY_REWARD_ROUND_REQUIRED', 'Start a round or target a round before scheduling a rewarded global survey.');
   }
@@ -294,7 +300,7 @@ export const AdminSurveyService = {
         orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       }),
       prisma.round.findMany({
-        where: { status: { in: ['SCHEDULED', 'REGISTRATION', 'ACTIVE', 'ENDED'] } },
+        where: { status: { in: ['SCHEDULED', 'REGISTRATION', 'ACTIVE'] } },
         orderBy: { startsAt: 'desc' },
         take: 30,
         select: { id: true, name: true, status: true, rulesetVersion: true },
