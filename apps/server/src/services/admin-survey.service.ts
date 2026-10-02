@@ -207,6 +207,20 @@ async function assertPublishable(prisma: PrismaClient, row: SurveyDetailRow, now
   else if (!Array.isArray(row.rewards)) throw AppError.badRequest('SURVEY_REWARDS_INVALID', 'Survey rewards must be a list.');
 }
 
+function assertStorableQuestions(questions: readonly AdminSurveyQuestionInput[]): void {
+  questions.forEach((question, index) => {
+    if (question.type !== 'SINGLE_CHOICE' && question.type !== 'MULTIPLE_CHOICE') return;
+    const values = question.options.map((option) => option.value);
+    if (new Set(values).size !== values.length) {
+      throw AppError.badRequest(
+        'SURVEY_CHOICE_DUPLICATE',
+        'Choice values must be unique inside each question.',
+        { [`questions.${index}`]: 'Use a different value for each choice.' },
+      );
+    }
+  });
+}
+
 function assertInputQuestionConfiguration(questions: readonly AdminSurveyQuestionInput[]): void {
   if (!questions.length) throw AppError.badRequest('SURVEY_NO_QUESTIONS', 'Add at least one question before publishing.');
   questions.forEach((question, index) => {
@@ -304,7 +318,8 @@ export const AdminSurveyService = {
   ): Promise<AdminSurveyDetailDto> {
     const startsAt = dateValue(input.startsAt);
     const endsAt = dateValue(input.endsAt);
-    if (startsAt && Number.isNaN(startsAt.getTime()) || endsAt && Number.isNaN(endsAt.getTime())) {
+    assertStorableQuestions(input.questions);
+    if ((startsAt && Number.isNaN(startsAt.getTime())) || (endsAt && Number.isNaN(endsAt.getTime()))) {
       throw AppError.badRequest('SURVEY_WINDOW_INVALID', 'One of the survey dates is invalid.');
     }
     if (input.roundId && !(await prisma.round.findUnique({ where: { id: input.roundId }, select: { id: true } }))) {
@@ -347,6 +362,14 @@ export const AdminSurveyService = {
     }
     const startsAt = dateValue(input.startsAt);
     const endsAt = dateValue(input.endsAt);
+    assertStorableQuestions(input.questions);
+    if (before.status === 'SCHEDULED' && (!startsAt || startsAt <= now)) {
+      throw AppError.badRequest(
+        'SURVEY_SCHEDULE_START_REQUIRED',
+        'A scheduled survey must keep a future start time. Close it and create a new immediate survey to publish now.',
+        { startsAt: 'Choose a future start time.' },
+      );
+    }
     assertDates(startsAt, endsAt, before.status === 'SCHEDULED' ? now : new Date(0));
 
     await prisma.$transaction(async (tx) => {
