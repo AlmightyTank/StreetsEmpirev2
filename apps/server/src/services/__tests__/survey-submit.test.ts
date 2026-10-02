@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SurveyQuestionForSubmission } from '../survey.service.js';
-import { validateSurveyAnswers } from '../survey.service.js';
+import { classicOgV08H } from '@streets/rulesets';
+import { validateSurveyAnswers, validateSurveyRewards } from '../survey.service.js';
 
 function question(
   id: string,
@@ -103,5 +104,21 @@ describe('Survey Phase C answer validation', () => {
       .toEqual([{ questionId: q.id, value: ['MOBILE', 'DESKTOP'] }]);
     expect(() => validateSurveyAnswers([q], [{ questionId: q.id, value: ['MOBILE', 'OTHER'] }]))
       .toThrow(/choices shown/i);
+  });
+
+  it('rejects negative or malformed rewards before payout', () => {
+    expect(() => validateSurveyRewards([{ kind: 'CASH', amount: -100 }] as never, classicOgV08H))
+      .toThrow(/positive whole numbers/i);
+    expect(() => validateSurveyRewards([{ kind: 'ITEM', key: 'whores', amount: 0 }] as never, classicOgV08H))
+      .toThrow(/item reward is invalid/i);
+    expect(() => validateSurveyRewards([{ kind: 'NOPE', amount: 10 }] as never, classicOgV08H))
+      .toThrow(/unknown type/i);
+  });
+
+  it('accepts valid survey rewards', () => {
+    expect(validateSurveyRewards(
+      [{ kind: 'CASH', amount: 5000 }, { kind: 'TURNS', amount: 3 }] as never,
+      classicOgV08H,
+    )).toEqual([{ kind: 'CASH', amount: 5000 }, { kind: 'TURNS', amount: 3 }]);
   });
 });
