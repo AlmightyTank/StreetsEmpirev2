@@ -12,6 +12,10 @@ describe('1.1.0-F business release scenarios', () => {
     const mixed = rows.find((row) => row.key === 'MIXED')!;
     expect(mixed.endValueCents).toBeGreaterThan(heavy.endValueCents);
     expect(heavy.requestedCrackdownHeat).toBeGreaterThan(heavy.frontOnlyCrackdownHeat);
+    expect(heavy.preSweepHeat).toBeLessThanOrEqual(classicOgV11F.heat!.drag.startsAt);
+    expect(heavy.racketCrackdownHeat).toBeGreaterThan(0);
+    expect(heavy.crackdownCostCents).toBeGreaterThan(0);
+    expect(heavy.heatManagementCostCents).toBeGreaterThan(0);
     expect(mixed.requestedCrackdownHeat).toBe(mixed.frontOnlyCrackdownHeat);
     expect(mixed.racketCrackdownHeat).toBe(0);
     expect(mixed.crackdownCostCents).toBe(0);
@@ -54,6 +58,15 @@ describe('1.1.0-F business release scenarios', () => {
     expect(heavy.preSweepHeat + heavy.frontOnlyCrackdownHeat + heavy.racketCrackdownHeat)
       .toBeGreaterThanOrEqual(heavy.preSweepHeat);
     expect(heavy.racketCrackdownHeat).toBeLessThanOrEqual(requestedRacketHeat);
+  });
+
+  it('fails the release gate when active rackets cannot receive any F Heat at the sweep', () => {
+    const rows = runBusinessReleaseSimulation(classicOgV11F);
+    const saturated = rows.map((row) => row.key === 'BUSINESS_HEAVY'
+      ? { ...row, preSweepHeat: classicOgV11F.heat!.max, racketCrackdownHeat: 0, crackdownCostCents: 0 }
+      : row);
+    expect(businessReleaseGate(classicOgV11F, saturated))
+      .toContain('Business-heavy play keeps rackets running but F adds no live racket Heat or economic cost at the sweep.');
   });
 
   it('makes a harsher F surcharge reduce end value when the Heat cap has room', () => {
