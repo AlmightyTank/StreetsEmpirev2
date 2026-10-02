@@ -4,6 +4,11 @@ import { actionIdSchema } from './game.js';
 export const SURVEY_MAX_ANSWERS = 100;
 export const SURVEY_MAX_TEXT_LENGTH = 5_000;
 export const SURVEY_MAX_MULTI_SELECTIONS = 25;
+export const SURVEY_DEFAULT_TEXT_MIN_LENGTH = 3;
+export const SURVEY_DEFAULT_SHORT_TEXT_MAX_LENGTH = 500;
+export const SURVEY_DEFAULT_LONG_TEXT_MAX_LENGTH = SURVEY_MAX_TEXT_LENGTH;
+export const SURVEY_DEFAULT_RATING_MIN = 1;
+export const SURVEY_DEFAULT_RATING_MAX = 5;
 
 export const surveyAnswerValueSchema = z.union([
   z.boolean(),

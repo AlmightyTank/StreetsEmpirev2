@@ -211,6 +211,7 @@ export function AdminPage() {
           <p className="se-eyebrow">Rounds · every action is audited</p>
         </div>
         <div className="se-cta">
+          <Link className="se-btn se-btn--ghost" to="/game/admin/surveys">Surveys</Link>
           <Link className="se-btn se-btn--ghost" to="/game/admin/quests">Quest content</Link>
         </div>
       </div>
