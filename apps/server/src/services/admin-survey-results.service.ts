@@ -20,6 +20,7 @@ const resultsInclude = {
       id: true,
       submittedAt: true,
       rewardGrantedAt: true,
+      rewardSnapshot: true,
       answers: {
         select: { questionId: true, value: true },
       },
@@ -286,9 +287,11 @@ export const AdminSurveyResultsService = {
         eligibleAccounts: Math.max(eligible, submissions),
         submissions,
         responseRate: pct(submissions, Math.max(eligible, submissions)),
-        rewardsGranted: survey.submissions.filter((row) => row.rewardGrantedAt !== null).length,
+        rewardsGranted: survey.submissions.filter(
+          (row) => row.rewardGrantedAt !== null && Array.isArray(row.rewardSnapshot) && row.rewardSnapshot.length > 0,
+        ).length,
         firstSubmittedAt: submittedTimes[0]?.toISOString() ?? null,
-        lastSubmittedAt: submittedTimes.at(-1)?.toISOString() ?? null,
+        lastSubmittedAt: submittedTimes.length ? submittedTimes[submittedTimes.length - 1]!.toISOString() : null,
       },
       completionTrend: completionTrend(survey.submissions),
       questions: survey.questions.map((question) => aggregateQuestion(question, survey.submissions)),
