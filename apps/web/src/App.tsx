@@ -6,7 +6,6 @@ import { AdminAccountsPage } from './pages/AdminAccountsPage.js';
 import { AdminAuditPage } from './pages/AdminAuditPage.js';
 import { AdminReportsPage } from './pages/AdminReportsPage.js';
 import { AdminBugReportsPage } from './pages/AdminBugReportsPage.js';
-import { ReportBugPage } from './pages/ReportBugPage.js';
 import { AdminEconomyPage } from './pages/AdminEconomyPage.js';
 import { AdminCombatPage } from './pages/AdminCombatPage.js';
 import { AdminTurfPage } from './pages/AdminTurfPage.js';
@@ -21,13 +20,10 @@ import { AdminRulesetsPage } from './pages/AdminRulesetsPage.js';
 import { AdminSignalsPage } from './pages/AdminSignalsPage.js';
 import { AdminSurveysPage } from './pages/AdminSurveysPage.js';
 import { ForumLinkPage } from './pages/ForumLinkPage.js';
-import { ActivityPage } from './pages/ActivityPage.js';
 import { AlliancePage } from './pages/AlliancePage.js';
-import { AllianceDetailPage, AlliancesPage } from './pages/AlliancesPage.js';
-import { ContactsPage } from './pages/ContactsPage.js';
+import { AllianceDetailPage } from './pages/AlliancesPage.js';
 import { CombatPage } from './pages/CombatPage.js';
 import { StreetPassPage } from './pages/StreetPassPage.js';
-import { SurveysPage } from './pages/SurveysPage.js';
 import { ConsolePage } from './pages/ConsolePage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
@@ -42,8 +38,8 @@ import { ProfilePage } from './pages/ProfilePage.js';
 import { PlayersPage } from './pages/PlayersPage.js';
 import { RankingsPage } from './pages/RankingsPage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
+import { ReportBugPage } from './pages/ReportBugPage.js';
 import { ResetPasswordPage } from './pages/ResetPasswordPage.js';
-import { ReputationPage } from './pages/ReputationPage.js';
 import { RulesPage } from './pages/RulesPage.js';
 import { ScoutPage } from './pages/ScoutPage.js';
 import { StatusPage } from './pages/StatusPage.js';
@@ -150,7 +146,7 @@ export function App() {
         <Route path="combat" element={<Protected><LiveRound><CombatPage /></LiveRound></Protected>} />
         <Route path="scout" element={<Protected><LiveRound><ScoutPage /></LiveRound></Protected>} />
         <Route path="quests" element={<Protected><LiveRound><QuestPage /></LiveRound></Protected>} />
-        <Route path="surveys" element={<Protected><LiveRound><SurveysPage /></LiveRound></Protected>} />
+        <Route path="surveys" element={<Protected><LiveRound><Navigate to="/game/news#surveys" replace /></LiveRound></Protected>} />
         <Route path="hideout" element={<Protected><LiveRound><HideoutPage /></LiveRound></Protected>} />
         {/* 0.4.0-E: products are traded at Pip's; old links land there. */}
         <Route path="products" element={<Navigate to="/game/stores/pip" replace />} />
@@ -166,8 +162,8 @@ export function App() {
         <Route path="cities" element={<Navigate to="/game/travel" replace />} />
         <Route path="rankings" element={<Protected><LiveRound><RankingsPage /></LiveRound></Protected>} />
         <Route path="alliance" element={<Protected><LiveRound><AlliancePage /></LiveRound></Protected>} />
-        <Route path="alliances" element={<Protected><LiveRound><AlliancesPage /></LiveRound></Protected>} />
-        <Route path="contacts" element={<Protected><LiveRound><ContactsPage /></LiveRound></Protected>} />
+        <Route path="alliances" element={<Protected><LiveRound><Navigate to="/game/alliance#alliance-rankings" replace /></LiveRound></Protected>} />
+        <Route path="contacts" element={<Protected><LiveRound><Navigate to="/game/players#contacts" replace /></LiveRound></Protected>} />
         <Route path="console" element={<Protected><LiveRound><ConsolePage /></LiveRound></Protected>} />
         <Route path="players" element={<Protected><LiveRound><PlayersPage /></LiveRound></Protected>} />
         <Route path="alliances/:tag" element={<Protected><LiveRound><AllianceDetailPage /></LiveRound></Protected>} />
@@ -175,12 +171,12 @@ export function App() {
         <Route path="profile" element={<Protected><ProfilePage /></Protected>} />
         <Route path="forum/:forumUserId" element={<Protected><LiveRound><ProfilePage /></LiveRound></Protected>} />
         <Route path="players/:publicPimpId" element={<Protected><LiveRound><ProfilePage /></LiveRound></Protected>} />
-        <Route path="activity" element={<Protected><LiveRound><ActivityPage /></LiveRound></Protected>} />
+        <Route path="activity" element={<Protected><LiveRound><Navigate to="/game/console?view=activity" replace /></LiveRound></Protected>} />
         <Route path="news" element={<NewsPage />} />
         <Route path="status" element={<Protected><StatusPage /></Protected>} />
         <Route path="rules" element={<RulesPage />} />
         <Route path="report-bug" element={<RequireAccount><ReportBugPage /></RequireAccount>} />
-        <Route path="reputation" element={<Protected><LiveRound><ReputationPage /></LiveRound></Protected>} />
+        <Route path="reputation" element={<Protected><LiveRound><Navigate to="/game/quests#contact-standing" replace /></LiveRound></Protected>} />
 
         <Route path="admin" element={admin(<AdminPage />)} />
         <Route path="admin/rounds/:roundId" element={admin(<AdminRoundPage />)} />

@@ -766,7 +766,6 @@ export function QuestPage() {
               >
                 Refresh jobs
               </Button>
-              <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/reputation">Contact standing</Link>
             </div>
             <div className="se-quests-hero__readout">
               <span>
@@ -971,17 +970,20 @@ export function QuestPage() {
                   </div>
                 </Panel>
 
-                <Panel title="Contacts" className="se-quests-panel">
-                  <div className="se-quests-contacts">
-                    {page.contacts.map((contact) => (
-                      <div key={contact.key}>
-                        <span>{contact.shortName}</span>
-                        <strong>{contact.standing}</strong>
-                        <small>{contact.role} · {formatNumber(contact.points)} rep</small>
-                      </div>
-                    ))}
-                  </div>
-                </Panel>
+                <div id="contact-standing">
+                  <Panel title="Contact standing" className="se-quests-panel">
+                    <div className="se-quests-contacts">
+                      {page.contacts.map((contact) => (
+                        <div key={contact.key}>
+                          <span>{contact.name}</span>
+                          <strong>{contact.standing}</strong>
+                          <small>{contact.role} · {formatNumber(contact.points)} rep</small>
+                          <small>{contact.nextStandingAt === null ? 'Max standing' : `Next standing at ${formatNumber(contact.nextStandingAt)} rep`} · {formatNumber(page.quests.filter((quest) => quest.contactKey === contact.key && quest.status !== 'LOCKED').length)} jobs open</small>
+                        </div>
+                      ))}
+                    </div>
+                  </Panel>
+                </div>
               </aside>
             </section>
 

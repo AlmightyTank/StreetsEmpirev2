@@ -12,6 +12,7 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { AllianceRankingTable } from './AlliancesPage.js';
 import { formatElapsed, formatWhen } from '../utils/time.js';
+import { HallOfFamePage } from './HallOfFamePage.js';
 
 type RankingView = 'national' | 'local' | 'alliances' | 'turf-crews' | 'turf-alliances';
 
@@ -387,6 +388,9 @@ export function RankingsPage() {
           <div className="se-rankings-loading" role="status">Counting stacks and checking the ledger...</div>
         ) : null}
       </div>
+      <section id="hall-of-fame" className="se-mt">
+        <HallOfFamePage />
+      </section>
     </GameLayout>
   );
 }
