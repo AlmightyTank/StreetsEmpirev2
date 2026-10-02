@@ -214,11 +214,11 @@ export function contextTabsFor(pathname: string, hasStreetPass: boolean): Contex
     {
       label: 'People',
       tabs: [
-        { key: 'directory', label: 'Directory', to: '/game/players', prefix: '/game/players/' },
+        { key: 'directory', label: 'Directory', to: '/game/players', prefix: '/game/players/', prefixes: ['/game/forum/'] },
         { key: 'rankings', label: 'Rankings', to: '/game/rankings' },
         { key: 'contacts', label: 'Contacts', to: '/game/contacts' },
         { key: 'alliance', label: 'Alliance', to: '/game/alliance', aliases: ['/game/alliances'], prefix: '/game/alliances/' },
-        { key: 'profile', label: 'My Profile', to: '/game/profile', prefix: '/game/forum/' },
+        { key: 'profile', label: 'My Profile', to: '/game/profile' },
       ],
     },
     {
@@ -509,7 +509,9 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
     setSeen(playerId ? readSeen(playerId) : null);
   }, [playerId]);
 
-  const looking = pathname === '/game/combat' || pathname === '/game/console' || pathname === '/game/activity';
+  // Inbox/alerts in Console do not prove the player saw the attack. Only the
+  // combat page or the full activity log clears the defense notification.
+  const looking = pathname === '/game/combat' || pathname === '/game/activity';
   useEffect(() => {
     if (!playerId || !latestHit) return;
     const stored = readSeen(playerId);
