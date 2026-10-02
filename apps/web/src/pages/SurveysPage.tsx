@@ -298,9 +298,13 @@ export function SurveysPage() {
     }
 
     let live = true;
+    setDetail(null);
+    setAnswers({});
     setDetailLoading(true);
     setSubmitError(null);
     setFieldErrors({});
+    setUncertain(false);
+    pendingActionId.current = null;
     void surveysApi.detail(selectedId)
       .then((next) => {
         if (!live) return;
