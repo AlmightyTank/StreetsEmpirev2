@@ -37,6 +37,30 @@ export const SEASON_FEATS: readonly SeasonFeat[] = [
   { key: 'road-warrior', title: 'Road Warrior', description: 'Bring ten runs home in one season.', category: 'travel', rarity: 'uncommon', target: 10, progressLabel: 'runs completed', stat: 'runsCompleted' },
   { key: 'street-pharmacist', title: 'Street Pharmacist', description: 'Sell 5,000 units of product in one season.', category: 'economy', rarity: 'rare', target: 5_000, progressLabel: 'product sold', stat: 'productSold' },
   { key: 'high-roller', title: 'High Roller', description: 'Close a single $100,000 deal.', category: 'economy', rarity: 'epic', target: 100_000_00, progressLabel: 'largest deal', stat: 'largestTransactionCents', cents: true },
+
+  // 1.1.0 — Businesses, Fronts & Rackets.
+  { key: 'open-for-business', title: 'Open for Business', description: 'Build your first business.', category: 'economy', rarity: 'common', target: 1, progressLabel: 'business builds', stat: 'businessBuilds' },
+  { key: 'first-payday', title: 'First Payday', description: 'Collect business income for the first time.', category: 'economy', rarity: 'common', target: 1, progressLabel: 'business collections', stat: 'businessCollections' },
+  { key: 'side-hustle', title: 'Side Hustle', description: 'Start your first racket.', category: 'economy', rarity: 'common', target: 1, progressLabel: 'rackets started', stat: 'racketsStarted', sealedBy: 'streetEarningsCents' },
+  { key: 'war-drums', title: 'War Drums', description: 'Declare your first block war.', category: 'turf', rarity: 'common', target: 1, progressLabel: 'block wars declared', stat: 'blockWarsDeclared' },
+
+  { key: 'local-chain', title: 'Local Chain', description: 'Build or upgrade ten business levels in one season.', category: 'economy', rarity: 'uncommon', target: 10, progressLabel: 'business builds', stat: 'businessBuilds' },
+  { key: 'cash-flow', title: 'Cash Flow', description: 'Earn $100,000 in business income in one season.', category: 'economy', rarity: 'uncommon', target: 100_000_00, progressLabel: 'business income', stat: 'businessIncomeCents', sealedBy: 'streetEarningsCents', cents: true },
+  { key: 'hostile-takeover', title: 'Hostile Takeover', description: 'Win a Take block war.', category: 'turf', rarity: 'uncommon', target: 1, progressLabel: 'Take wars won', stat: 'blockWarTakes' },
+  { key: 'smash-and-grab', title: 'Smash & Grab', description: 'Win a Sack block war.', category: 'turf', rarity: 'uncommon', target: 1, progressLabel: 'Sack wars won', stat: 'blockWarSacks' },
+  { key: 'fire-sale', title: 'Fire Sale', description: 'Finish torching a business during a block war.', category: 'turf', rarity: 'uncommon', target: 1, progressLabel: 'businesses torched', stat: 'businessesTorched' },
+
+  { key: 'clean-money', title: 'Clean Money', description: 'Launder 100 Heat through businesses in one season.', category: 'economy', rarity: 'rare', target: 100, progressLabel: 'Heat laundered', stat: 'launderedHeat', sealedBy: 'streetEarningsCents' },
+  { key: 'business-district', title: 'Business District', description: 'Build or upgrade twenty-five business levels in one season.', category: 'economy', rarity: 'rare', target: 25, progressLabel: 'business builds', stat: 'businessBuilds' },
+  { key: 'money-machine', title: 'Money Machine', description: 'Earn $500,000 in business income in one season.', category: 'economy', rarity: 'rare', target: 500_000_00, progressLabel: 'business income', stat: 'businessIncomeCents', sealedBy: 'streetEarningsCents', cents: true },
+  { key: 'siege-boss', title: 'Siege Boss', description: 'Win five block wars as the attacker in one season.', category: 'turf', rarity: 'rare', target: 5, progressLabel: 'attacking block-war wins', stat: 'blockWarAttackWins' },
+  { key: 'home-turf', title: 'Home Turf', description: 'Win five block wars as the defender in one season.', category: 'turf', rarity: 'rare', target: 5, progressLabel: 'defended block wars', stat: 'blockWarDefenseWins' },
+
+  { key: 'scorched-earth', title: 'Scorched Earth', description: 'Finish torching five businesses in one season.', category: 'turf', rarity: 'epic', target: 5, progressLabel: 'businesses torched', stat: 'businessesTorched' },
+  { key: 'corporate-raider', title: 'Corporate Raider', description: 'Win five Take block wars in one season.', category: 'turf', rarity: 'epic', target: 5, progressLabel: 'Take wars won', stat: 'blockWarTakes' },
+
+  { key: 'underworld-conglomerate', title: 'Underworld Conglomerate', description: 'Build or upgrade forty-five business levels in one season.', category: 'economy', rarity: 'legendary', target: 45, progressLabel: 'business builds', stat: 'businessBuilds' },
+  { key: 'war-machine', title: 'War Machine', description: 'Win ten block wars as attacker or defender in one season.', category: 'turf', rarity: 'legendary', target: 10, progressLabel: 'block-war wins', stat: (totals) => totals.blockWarAttackWins + totals.blockWarDefenseWins },
 ];
 
 export function featValue(feat: SeasonFeat, totals: SeasonTotals): number {
@@ -44,7 +68,8 @@ export function featValue(feat: SeasonFeat, totals: SeasonTotals): number {
 }
 
 function featSealed(feat: SeasonFeat): boolean {
-  return typeof feat.stat === 'string' ? SEALED_TOTALS.has(feat.stat) : Boolean(feat.sealedBy && SEALED_TOTALS.has(feat.sealedBy));
+  return Boolean(feat.sealedBy && SEALED_TOTALS.has(feat.sealedBy))
+    || (typeof feat.stat === 'string' && SEALED_TOTALS.has(feat.stat));
 }
 
 export interface FeatSeason {
