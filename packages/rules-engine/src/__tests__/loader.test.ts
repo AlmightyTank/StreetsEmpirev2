@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, classicOgV06C, classicOgV06D, classicOgV06E, classicOgV06F, classicOgV08H, classicOgV11E, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, classicOgV06C, classicOgV06D, classicOgV06E, classicOgV06F, classicOgV08H, classicOgV11E, classicOgV11F, type Ruleset } from '@streets/rulesets';
 import { regenerateTurns } from '../calculations/turns.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
@@ -61,9 +61,11 @@ describe('ruleset loader', () => {
     expect(isKnownRulesetId('classic-og-v1.1-c')).toBe(true);
     expect(isKnownRulesetId('classic-og-v1.1-d')).toBe(true);
     expect(isKnownRulesetId('classic-og-v1.1-e')).toBe(true);
+    expect(isKnownRulesetId('classic-og-v1.1-f')).toBe(true);
     expect(loadRuleset('classic-og-v1.1-e', '1.1.0-E')).toBe(classicOgV11E);
+    expect(loadRuleset('classic-og-v1.1-f', '1.1.0-F')).toBe(classicOgV11F);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(74);
+    expect(listRulesets()).toHaveLength(75);
   });
 });
 
@@ -380,5 +382,27 @@ describe('the ruleset contract', () => {
       brisk,
     );
     expect(worth).toBe(3_000_000n);
+  });
+});
+
+
+describe('classic-og-v1.1-f contents', () => {
+  it('pins the business release crackdown without changing E balance', () => {
+    const ruleset = loadRuleset('classic-og-v1.1-f', '1.1.0-F');
+    expect(ruleset).toBe(classicOgV11F);
+    expect(ruleset.meta.name).toBe('Classic OG - Business Release');
+    expect(ruleset.business?.crackdown).toEqual({
+      activeRacketHeatPerBusiness: 8,
+      registerSeizureShare: 0.25,
+    });
+    expect({
+      ...ruleset,
+      meta: null,
+      business: { ...ruleset.business!, crackdown: null },
+    }).toEqual({
+      ...classicOgV11E,
+      meta: null,
+      business: { ...classicOgV11E.business!, crackdown: null },
+    });
   });
 });
