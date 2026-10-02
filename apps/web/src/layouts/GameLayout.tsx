@@ -313,6 +313,13 @@ function useRouteScroll(pathname: string, hash: string) {
     lastTarget.current = { pathname, hash };
     if (previous && previous.pathname === pathname && previous.hash === hash) return;
     if (navigationType === 'POP') return;
+
+    // Storefronts are one Stores page. Switching counters should replace the
+    // shelves in place instead of yanking the player back to the page top.
+    const previousIsStore = previous?.pathname === '/game/stores' || previous?.pathname.startsWith('/game/stores/');
+    const nextIsStore = pathname === '/game/stores' || pathname.startsWith('/game/stores/');
+    if (previousIsStore && nextIsStore && !hash) return;
+
     if (!hash) {
       window.scrollTo(0, 0);
       return;
