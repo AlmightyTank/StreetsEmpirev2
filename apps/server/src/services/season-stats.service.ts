@@ -40,6 +40,18 @@ export interface SeasonTotals {
   productSold: number;
   largestTransactionCents: number;
   traderReputation: number;
+
+  /** 1.1.0. Durable business/front/racket and block-war season history. */
+  businessBuilds: number;
+  businessIncomeCents: number;
+  racketsStarted: number;
+  launderedHeat: number;
+  businessesTorched: number;
+  blockWarsDeclared: number;
+  blockWarAttackWins: number;
+  blockWarDefenseWins: number;
+  blockWarTakes: number;
+  blockWarSacks: number;
 }
 
 /** What the loader needs from each RoundPlayer. */
@@ -76,6 +88,16 @@ export const emptySeasonTotals = (): SeasonTotals => ({
   productSold: 0,
   largestTransactionCents: 0,
   traderReputation: 0,
+  businessBuilds: 0,
+  businessIncomeCents: 0,
+  racketsStarted: 0,
+  launderedHeat: 0,
+  businessesTorched: 0,
+  blockWarsDeclared: 0,
+  blockWarAttackWins: 0,
+  blockWarDefenseWins: 0,
+  blockWarTakes: 0,
+  blockWarSacks: 0,
 });
 
 /** A numeric JSON field, or 0 when a payload predates it or holds anything else. */
@@ -112,6 +134,7 @@ async function activityTotals(prisma: PrismaClient, ids: string[]) {
   return prisma.$queryRaw<Array<Row<
     'turnsWorked' | 'streetEarningsCents' | 'recruitsFound' | 'productProduced' | 'productSold'
     | 'largestStoreCents' | 'convoyAttacksWon' | 'convoyCashCents' | 'turfClaims'
+    | 'businessBuilds' | 'racketsStarted' | 'businessesTorched'
   >>>(Prisma.sql`
     SELECT
       a."roundPlayerId" AS id,
@@ -127,15 +150,56 @@ async function activityTotals(prisma: PrismaClient, ids: string[]) {
       COUNT(*) FILTER (WHERE a.type::text = 'CONVOY_ATTACK' AND a.payload->>'won' = 'true') AS "convoyAttacksWon",
       COALESCE(SUM(CASE WHEN a.type::text = 'CONVOY_ATTACK' AND a.payload->>'won' = 'true'
         THEN GREATEST(${jsonNumber(a, 'cashCents')}, 0) END), 0) AS "convoyCashCents",
-      COUNT(*) FILTER (WHERE a.type::text = 'TURF_CLAIM' AND a.payload->>'won' = 'true') AS "turfClaims"
+      COUNT(*) FILTER (WHERE a.type::text = 'TURF_CLAIM' AND a.payload->>'won' = 'true') AS "turfClaims",
+      COUNT(*) FILTER (WHERE a.type::text = 'BUSINESS_BUILD') AS "businessBuilds",
+      COUNT(*) FILTER (WHERE a.type::text = 'BUSINESS_RACKET' AND a.payload->>'racket' IS NOT NULL) AS "racketsStarted",
+      COUNT(*) FILTER (WHERE a.type::text = 'BUSINESS_TORCH' AND a.payload->>'done' = 'true') AS "businessesTorched"
     FROM "PlayerActivity" a
     WHERE a."roundPlayerId" IN (${Prisma.join(ids)})
-      AND a.type::text IN ('SCOUT', 'PRODUCE_CRACK', 'STORE_BUY', 'STORE_SELL', 'CONVOY_ATTACK', 'TURF_CLAIM')
+      AND a.type::text IN (
+        'SCOUT', 'PRODUCE_CRACK', 'STORE_BUY', 'STORE_SELL', 'CONVOY_ATTACK', 'TURF_CLAIM',
+        'BUSINESS_BUILD', 'BUSINESS_RACKET', 'BUSINESS_TORCH'
+      )
     GROUP BY a."roundPlayerId"
   `);
 }
 
 /** Multi-line store checkouts keep their Pip product sales inside `lines`. */
+async function businessIncomeTotals(prisma: PrismaClient, ids: string[]) {
+  return prisma.$queryRaw<Array<Row<'incomeCents'>>>(Prisma.sql`
+    SELECT e."roundPlayerId" AS id, COALESCE(SUM(GREATEST(e."amountCents", 0)), 0) AS "incomeCents"
+    FROM "EconomyLedgerEntry" e
+    WHERE e."roundPlayerId" IN (${Prisma.join(ids)})
+      AND e.source = 'BUSINESS_INCOME'
+    GROUP BY e."roundPlayerId"
+  `);
+}
+
+async function blockWarAttackTotals(prisma: PrismaClient, ids: string[]) {
+  return prisma.$queryRaw<Array<Row<'declared' | 'wins' | 'takes' | 'sacks'>>>(Prisma.sql`
+    SELECT
+      w."attackerId" AS id,
+      COUNT(*) AS declared,
+      COUNT(*) FILTER (WHERE w.winner::text = 'ATTACKER') AS wins,
+      COUNT(*) FILTER (WHERE w.winner::text = 'ATTACKER' AND w.goal::text = 'TAKE') AS takes,
+      COUNT(*) FILTER (WHERE w.winner::text = 'ATTACKER' AND w.goal::text = 'SACK') AS sacks
+    FROM "BlockWar" w
+    WHERE w."attackerId" IN (${Prisma.join(ids)})
+    GROUP BY w."attackerId"
+  `);
+}
+
+async function blockWarDefenseTotals(prisma: PrismaClient, ids: string[]) {
+  return prisma.$queryRaw<Array<Row<'wins'>>>(Prisma.sql`
+    SELECT
+      w."defenderId" AS id,
+      COUNT(*) FILTER (WHERE w.winner::text = 'DEFENDER') AS wins
+    FROM "BlockWar" w
+    WHERE w."defenderId" IN (${Prisma.join(ids)})
+    GROUP BY w."defenderId"
+  `);
+}
+
 async function checkoutProductSales(prisma: PrismaClient, ids: string[]) {
   const line = 'line';
   return prisma.$queryRaw<Array<Row<'sold'>>>(Prisma.sql`
@@ -242,7 +306,10 @@ export const SeasonStatsService = {
     if (!players.length) return result;
     const ids = players.map((player) => player.id);
 
-    const [activity, checkout, battles, captured, lost, segments, cities, returned, stops, runs, reputation] = await Promise.all([
+    const [
+      activity, checkout, battles, captured, lost, segments, cities, returned, stops, runs, reputation,
+      businessIncome, laundering, blockWarAttack, blockWarDefense,
+    ] = await Promise.all([
       activityTotals(prisma, ids),
       checkoutProductSales(prisma, ids),
       battleTotals(prisma, ids),
@@ -260,6 +327,10 @@ export const SeasonStatsService = {
       }),
       runTotals(prisma, ids),
       prisma.playerReputation.groupBy({ by: ['roundPlayerId'], where: { roundPlayerId: { in: ids } }, _sum: { points: true } }),
+      businessIncomeTotals(prisma, ids),
+      prisma.roundPlayer.findMany({ where: { id: { in: ids } }, select: { id: true, launderedHeatRound: true } }),
+      blockWarAttackTotals(prisma, ids),
+      blockWarDefenseTotals(prisma, ids),
     ]);
 
     const activityById = byId(activity);
@@ -272,6 +343,10 @@ export const SeasonStatsService = {
     const lostById = new Map(lost.map((row) => [row.defenderId, row._count._all]));
     const returnedById = new Map(returned.map((row) => [row.roundPlayerId, row._count._all]));
     const reputationById = new Map(reputation.map((row) => [row.roundPlayerId, row._sum.points ?? 0]));
+    const businessIncomeById = byId(businessIncome);
+    const launderingById = new Map(laundering.map((row) => [row.id, row.launderedHeatRound]));
+    const blockWarAttackById = byId(blockWarAttack);
+    const blockWarDefenseById = byId(blockWarDefense);
 
     const players_ = new Map(players.map((player) => [player.id, player]));
     const rulesets = new Map<string, Ruleset | null>();
@@ -320,6 +395,17 @@ export const SeasonStatsService = {
       totals.productSold = num(a?.productSold) + num(checkoutById.get(player.id)?.sold) + num(trades?.sold);
       totals.largestTransactionCents = Math.max(num(a?.largestStoreCents), num(trades?.largest));
       totals.traderReputation = reputationById.get(player.id) ?? 0;
+
+      totals.businessBuilds = num(a?.businessBuilds);
+      totals.businessIncomeCents = num(businessIncomeById.get(player.id)?.incomeCents);
+      totals.racketsStarted = num(a?.racketsStarted);
+      totals.launderedHeat = launderingById.get(player.id) ?? 0;
+      totals.businessesTorched = num(a?.businessesTorched);
+      totals.blockWarsDeclared = num(blockWarAttackById.get(player.id)?.declared);
+      totals.blockWarAttackWins = num(blockWarAttackById.get(player.id)?.wins);
+      totals.blockWarDefenseWins = num(blockWarDefenseById.get(player.id)?.wins);
+      totals.blockWarTakes = num(blockWarAttackById.get(player.id)?.takes);
+      totals.blockWarSacks = num(blockWarAttackById.get(player.id)?.sacks);
 
       result.set(player.id, totals);
     }

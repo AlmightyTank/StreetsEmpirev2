@@ -65,6 +65,49 @@ describe('0.9.0-F season feats', () => {
     expect(profileTitleForKey('block-boss')).toBe('Block Boss');
   });
 
+  it('adds the 18 businesses and block-war achievements across the full rarity ladder', () => {
+    const keys = [
+      'open-for-business', 'first-payday', 'side-hustle', 'war-drums',
+      'local-chain', 'cash-flow', 'hostile-takeover', 'smash-and-grab', 'fire-sale',
+      'clean-money', 'business-district', 'money-machine', 'siege-boss', 'home-turf',
+      'scorched-earth', 'corporate-raider',
+      'underworld-conglomerate', 'war-machine',
+    ];
+    const feats = SEASON_FEATS.filter((feat) => keys.includes(feat.key));
+    expect(feats).toHaveLength(18);
+    expect(feats.map((feat) => feat.rarity)).toEqual(expect.arrayContaining([
+      'common', 'uncommon', 'rare', 'epic', 'legendary',
+    ]));
+    for (const key of keys) expect(profileTitleForKey(key)).not.toMatch(/^The /);
+
+    const awards = seasonFeatAwards({
+      name: 'Game #022',
+      totals: totals({
+        businessBuilds: 45,
+        businessIncomeCents: 1_000_000_00,
+        racketsStarted: 1,
+        launderedHeat: 100,
+        businessesTorched: 5,
+        blockWarsDeclared: 1,
+        blockWarAttackWins: 5,
+        blockWarDefenseWins: 5,
+        blockWarTakes: 5,
+        blockWarSacks: 1,
+      }),
+    }, []);
+    for (const key of keys) expect(awards.find((award) => award.key === key)?.unlocked).toBe(true);
+  });
+
+  it('seals sensitive business/racket progress from other live-season viewers', () => {
+    const awards = seasonFeatAwards({
+      name: 'Game #022',
+      totals: totals({ businessIncomeCents: 50_000_00, racketsStarted: 1, launderedHeat: 50 }),
+    }, [], true);
+    expect(awards.find((award) => award.key === 'cash-flow')!.progress).toBeNull();
+    expect(awards.find((award) => award.key === 'side-hustle')!.progress).toBeNull();
+    expect(awards.find((award) => award.key === 'clean-money')!.progress).toBeNull();
+  });
+
   it('earns a feat in the live season and measures progress against it', () => {
     const awards = seasonFeatAwards({ name: 'Game #021', totals: totals({ blocksCaptured: 5, runsCompleted: 3 }) }, []);
     const blockBoss = awards.find((award) => award.key === 'block-boss')!;
