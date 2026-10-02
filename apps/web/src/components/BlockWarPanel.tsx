@@ -136,6 +136,7 @@ export function BlockWarPanel({ block, wars, isHome, onChanged }: { block: TurfB
       {sendLabel || answerSide ? (
         <ThugsField label={answerSide && !sendLabel ? `Ride with them (up to ${formatNumber(war.allyCap)})` : 'Thugs'} value={thugs} onChange={setThugs} />
       ) : null}
+      {answerSide && !isHome ? <small className="se-hint">You are answering from your outpost here: these thugs and guns leave that corner while they fight.</small> : null}
       <div className="se-actions-row">
         {sendLabel ? (
           <Button type="button" className="se-btn se-btn--sm" disabledReason={busy}

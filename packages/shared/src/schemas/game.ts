@@ -101,8 +101,9 @@ export type TurfPushInput = z.infer<typeof turfPushSchema>;
 export type TurfPushBackupInput = z.infer<typeof turfPushBackupSchema>;
 export type TurfPushCallInput = z.infer<typeof turfPushCallSchema>;
 
-/** 1.1.0-B. One lot on one of the player's home blocks. */
+/** 1.1.0-B/E. One lot on one of the player's blocks; city is optional for home compatibility. */
 const businessLotSchema = z.object({
+  city: z.string().trim().regex(/^[a-z][a-z-]{1,40}$/, 'Pick a city.').optional(),
   district: z.string().trim().min(1, 'Pick a turf block.'),
   lot: z.number({ invalid_type_error: 'Pick a lot.' }).int('Pick a lot.').min(1, 'Pick a lot.').max(3, 'Pick a lot.'),
   actionId: actionIdSchema,

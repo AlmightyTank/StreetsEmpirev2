@@ -72,31 +72,52 @@ function assertStaffAvailable(current: PlayerState, ruleset: Ruleset, business: 
 }
 
 /**
- * The player's own home block and one of its lots, locked. Businesses only run on a
- * block the crew holds in the city it lives in (outposts arrive in 1.1.0-E).
+ * One of the player's own business lots, locked. Before E the target must be home;
+ * E may address an away city, but only through an outpost the crew still owns.
  */
 async function heldLot(
   tx: Db,
   ruleset: Ruleset,
-  input: { roundId: string; roundPlayerId: string; cityId: string; district: string; lot: number },
+  input: { roundId: string; roundPlayerId: string; homeCityId: string; city?: string; district: string; lot: number },
 ) {
   await TurfService.ensureRound(tx, input.roundId, ruleset);
   const district = input.district as DistrictKey;
   if (!ruleset.turf!.districts[district]) throw AppError.badRequest('UNKNOWN_DISTRICT', 'That is not a turf block.');
+
+  let cityId = input.homeCityId;
+  if (input.city) {
+    const city = await tx.city.findUnique({ where: { slug: input.city }, select: { id: true } });
+    if (!city) throw AppError.notFound('CITY_NOT_FOUND', 'That city is not in this round.');
+    cityId = city.id;
+  }
+
   const block = await tx.turf.findUnique({
-    where: { roundId_cityId_district: { roundId: input.roundId, cityId: input.cityId, district } },
+    where: { roundId_cityId_district: { roundId: input.roundId, cityId, district } },
     select: { id: true },
   });
   if (!block) throw AppError.notFound('TURF_NOT_FOUND', 'That block is not on the map.');
   await lockBlock(tx, block.id);
   const turf = await tx.turf.findUniqueOrThrow({
     where: { id: block.id },
-    include: { city: { select: { slug: true } }, businesses: { orderBy: { lot: 'asc' } } },
+    include: {
+      city: { select: { slug: true } },
+      outpost: { select: { ownerId: true } },
+      businesses: { orderBy: { lot: 'asc' } },
+    },
   });
   if (turf.holderId !== input.roundPlayerId) throw AppError.conflict('BUSINESS_NOT_YOUR_BLOCK', 'You can only run businesses on a block your crew holds.');
+
+  const away = turf.cityId !== input.homeCityId;
+  if (away && !ruleset.business?.outposts) {
+    throw AppError.conflict('BUSINESS_OUTPOSTS_DISABLED', 'Away businesses arrive in 1.1.0-E.');
+  }
+  if (away && turf.outpost?.ownerId !== input.roundPlayerId) {
+    throw AppError.conflict('BUSINESS_OUTPOST_REQUIRED', 'That away block needs your outpost box before a business can run there.');
+  }
+
   const row = turf.businesses.find((entry) => entry.lot === input.lot);
   if (!row) throw AppError.notFound('BUSINESS_NOT_FOUND', 'That lot is not on this block.');
-  return { turf, row, district, business: row.kind as BusinessKey };
+  return { turf, row, district, business: row.kind as BusinessKey, away };
 }
 
 export const BusinessActionService = {
@@ -107,7 +128,7 @@ export const BusinessActionService = {
       execute: async ({ tx, current, player, round, ruleset, now }) => {
         assertBuilding(ruleset);
         const { turf, row, district, business } = await heldLot(tx, ruleset, {
-          roundId: round.id, roundPlayerId, cityId: player.cityId, district: input.district, lot: input.lot,
+          roundId: round.id, roundPlayerId, homeCityId: player.cityId, city: input.city, district: input.district, lot: input.lot,
         });
         const rules = ruleset.business!;
         const type = rules.catalog[business];
@@ -190,7 +211,7 @@ export const BusinessActionService = {
       execute: async ({ tx, current, player, round, ruleset, now }) => {
         assertBuilding(ruleset);
         const { turf, row, district, business } = await heldLot(tx, ruleset, {
-          roundId: round.id, roundPlayerId, cityId: player.cityId, district: input.district, lot: input.lot,
+          roundId: round.id, roundPlayerId, homeCityId: player.cityId, city: input.city, district: input.district, lot: input.lot,
         });
         const rules = ruleset.business!;
         const type = rules.catalog[business];
@@ -252,7 +273,7 @@ export const BusinessActionService = {
         const rules = racketRules(ruleset);
         if (!rules) throw AppError.conflict('RACKETS_DISABLED', 'Rackets arrive in 1.1.0-C.');
         const { turf, row, district, business } = await heldLot(tx, ruleset, {
-          roundId: round.id, roundPlayerId, cityId: player.cityId, district: input.district, lot: input.lot,
+          roundId: round.id, roundPlayerId, homeCityId: player.cityId, city: input.city, district: input.district, lot: input.lot,
         });
         const type = ruleset.business!.catalog[business];
         if (row.level <= 0) throw AppError.conflict('BUSINESS_EMPTY_LOT', 'Build something on this lot first.');
@@ -294,13 +315,17 @@ export const BusinessActionService = {
   async collect(prisma: PrismaClient, roundPlayerId: string, input: BusinessCollectInput) {
     return ActionService.run<BusinessCollectResult>(prisma, roundPlayerId, {
       action: 'BUSINESS_COLLECT', actionId: input.actionId,
-      execute: async ({ tx, current, ruleset }) => {
+      execute: async ({ tx, current, player, ruleset }) => {
         assertBuilding(ruleset);
         const rules = ruleset.business!;
-        // The settle at the start of the action has already sent home any staff on a lost
-        // block, so everything still owned here is on a block the crew holds at home.
+        // E sweeps away registers into their outpost boxes. Direct collection is still
+        // home-only, so an away register can never be wired home by this action.
         const rows = await tx.business.findMany({
-          where: { staffOwnerId: roundPlayerId, registerCents: { gt: 0n }, turf: { holderId: roundPlayerId } },
+          where: {
+            staffOwnerId: roundPlayerId,
+            registerCents: { gt: 0n },
+            turf: { holderId: roundPlayerId, cityId: player.cityId },
+          },
           select: { id: true, registerCents: true },
         });
         const total = rows.reduce((sum, row) => sum + row.registerCents, 0n);

@@ -47,6 +47,18 @@ export async function blockWarViews(db: ViewDb, ruleset: Ruleset, roundId: strin
     select: { turfId: true, lot: true, kind: true, torchUntil: true },
   });
   const myAllySlots = await db.blockWar.count({ where: { roundId, status: { not: 'ENDED' }, OR: [{ attackerAllyId: viewer.id }, { defenderAllyId: viewer.id }] } });
+  const outpostCityIds = new Set<string>();
+  if (ruleset.business?.outposts) {
+    const source = await db.roundPlayer.findUnique({
+      where: { id: viewer.id },
+      select: {
+        turfOutposts: {
+          select: { turf: { select: { cityId: true } } },
+        },
+      },
+    });
+    for (const outpost of source?.turfOutposts ?? []) outpostCityIds.add(outpost.turf.cityId);
+  }
 
   for (const war of wars) {
     const role: BlockWarDto['role'] = war.attackerId === viewer.id ? 'attacker'
@@ -73,7 +85,7 @@ export async function blockWarViews(db: ViewDb, ruleset: Ruleset, roundId: strin
       const slot = side === 'ATTACKER' ? war.attackerAllyId : war.defenderAllyId;
       if (party) return 'This is your own war.';
       if (!viewer.allianceId || viewer.allianceId !== callerAlliance) return 'Only their alliance can answer.';
-      if (viewer.cityId !== war.turf.cityId) return 'Only members living in this city can answer.';
+      if (viewer.cityId !== war.turf.cityId && !outpostCityIds.has(war.turf.cityId)) return 'Live in this city or hold an outpost here to answer.';
       if (!until || until <= now) return 'No call for help is open on that side.';
       if (slot && slot !== viewer.id) return 'Another member already answered for that side.';
       if (!slot && myAllySlots >= (ruleset.business?.allies.maxWarsAsAlly ?? 1)) return 'You are already the ally in another war.';

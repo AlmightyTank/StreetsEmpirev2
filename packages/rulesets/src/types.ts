@@ -1415,6 +1415,8 @@ export type BusinessKey =
 export interface BusinessRules {
   /** 1.1.0-B. A owns the data and the map; B turns building, staffing and collecting on. */
   readonly building?: boolean;
+  /** 1.1.0-E. Away blocks can run businesses through their 0.6.0-D outpost box. */
+  readonly outposts?: boolean;
   readonly catalog: { readonly [K in BusinessKey]: BusinessTypeRules };
   /** The three lots on every block of a district, in lot order. Lot 1 opens first. */
   readonly lots: { readonly [K in DistrictKey]: readonly [BusinessKey, BusinessKey, BusinessKey] };

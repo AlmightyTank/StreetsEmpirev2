@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, classicOgV06C, classicOgV06D, classicOgV06E, classicOgV06F, classicOgV08H, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, classicOgV06C, classicOgV06D, classicOgV06E, classicOgV06F, classicOgV08H, classicOgV11E, type Ruleset } from '@streets/rulesets';
 import { regenerateTurns } from '../calculations/turns.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
@@ -60,8 +60,10 @@ describe('ruleset loader', () => {
     expect(isKnownRulesetId('classic-og-v1.1-b')).toBe(true);
     expect(isKnownRulesetId('classic-og-v1.1-c')).toBe(true);
     expect(isKnownRulesetId('classic-og-v1.1-d')).toBe(true);
+    expect(isKnownRulesetId('classic-og-v1.1-e')).toBe(true);
+    expect(loadRuleset('classic-og-v1.1-e', '1.1.0-E')).toBe(classicOgV11E);
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(73);
+    expect(listRulesets()).toHaveLength(74);
   });
 });
 

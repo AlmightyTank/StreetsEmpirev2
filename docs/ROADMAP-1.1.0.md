@@ -785,6 +785,38 @@ Wire carry them), and a crackdown that hits racketeering businesses harder (F).
 
 ---
 
+### 1.1.0-E — Outposts & convoys
+
+- **Pinned ruleset:** `classic-og-v1.1-e` opts into outpost businesses without changing D.
+- **Away operations:** a held away block needs the crew's 0.6.0-D outpost box. Its businesses
+  use the existing **75% away output ceiling** and burn beer/product from that box rather
+  than reaching into home stock.
+- **Registers:** after settlement, an away register sweeps into the outpost cash box up to
+  the existing cash cap. If the box is full, the remainder stays in the register; no money
+  is wired home and no overflow is destroyed.
+- **Collection runs:** the existing outpost transfer is the collection action. A run must
+  physically be in that city to withdraw the box; withdrawn money becomes ordinary run
+  cash, so the existing convoy hit/cooldown/loot rules apply without a second loot system.
+- **Rackets:** away rackets use the same outpost supply. Counter sales consume product from
+  the box, and their proceeds follow the same register-to-box route.
+- **Outpost block wars:** D stays gated. E can fight over an outpost block; a successful
+  Take deletes the old owner's box, removes its full value from their outpost net worth,
+  and exposes only the existing 0.6.0-D capped loot share.
+- **Outpost allies:** a called alliance member may qualify by living in the war city **or**
+  holding an outpost there. A remote ally commits that outpost's posted corner crew/guns,
+  weakening it while they fight. Survivors return to that corner; wounded thugs and their
+  guns return home. Sack cuts from an outpost ally are queued into that outpost cash box
+  under its normal cap instead of being wired home.
+- **Truce cuts:** business-income cuts pay resident allies at home and outpost allies into
+  their box. A full/lost box never destroys money: the unpaid share stays with the earning
+  business.
+- **Compatibility:** B/C/D rounds keep their home-only business behavior and D cannot
+  start an outpost block war. Direct `/business/collect` remains home-only even in E.
+- **Gate:** tests pin D/E isolation and the 75% distance rule; PostgreSQL coverage pins
+  register → outpost-box conservation, cap overflow, and home-supply isolation.
+
+---
+
 ## Open questions
 
 1. **1.3 hook.** How much of racket Heat should wait for the Law Enforcement expansion?

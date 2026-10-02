@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgStreetPassA, classicOgV08H, classicOgV11A, classicOgV11B, type Ruleset } from '@streets/rulesets';
+import { classicOgStreetPassA, classicOgV08H, classicOgV11A, classicOgV11B, classicOgV11D, classicOgV11E, type Ruleset } from '@streets/rulesets';
 import {
   BUSINESS_KEYS,
   allyCutCents,
@@ -322,5 +322,29 @@ describe('1.1.0-B building', () => {
     // More hours unhappy, more gone; never more than were there.
     expect(businessStaffDepartures(ruleset, 10, 0, 1, () => 0)).toBeLessThanOrEqual(miserable);
     expect(businessStaffDepartures(before, 10, 0, 24, () => 0)).toBe(0);
+  });
+});
+
+
+describe('1.1.0-E outpost businesses', () => {
+  it('opts E into outpost businesses without changing D or the rest of its balance', () => {
+    expect(classicOgV11E.business.outposts).toBe(true);
+    expect(classicOgV11D.business.outposts).toBeUndefined();
+
+    const { meta: _eMeta, business: eBusiness, ...eRest } = classicOgV11E;
+    const { meta: _dMeta, business: dBusiness, ...dRest } = classicOgV11D;
+    const { outposts: _outposts, ...eBusinessRest } = eBusiness;
+    expect(eBusinessRest).toEqual(dBusiness);
+    expect(eRest).toEqual(dRest);
+  });
+
+  it('keeps the existing 75% distance ceiling for an away business', () => {
+    const homeIncome = businessIncomeCentsPerHour(classicOgV11E, {
+      citySlug: 'detroit', district: 'URBAN_GHETTO', business: 'CHOP_SHOP', level: 3,
+    });
+    const awayIncome = businessIncomeCentsPerHour(classicOgV11E, {
+      citySlug: 'detroit', district: 'URBAN_GHETTO', business: 'CHOP_SHOP', level: 3, away: true,
+    });
+    expect(awayIncome / homeIncome).toBeCloseTo(classicOgV11E.business.awayOutputShare);
   });
 });

@@ -1019,12 +1019,16 @@ export const TurfService = {
           const type = business.catalog[lot.business];
           const myStaff = stored?.staffOwnerId === player.id ? stored.staff : 0;
           const requiredStaff = businessStaff(ruleset, lot.business, level);
-          const income = (at: number) => businessIncomeCentsPerHour(ruleset, { citySlug, district, business: lot.business, level: at });
+          const awayBusiness = row.city.id !== player.cityId;
+          const income = (at: number) => businessIncomeCentsPerHour(ruleset, {
+            citySlug, district, business: lot.business, level: at, away: awayBusiness,
+          });
           const nextLevel = level < business.levels.maxLevel ? level + 1 : null;
           let buildBlockedReason: string | null = null;
           if (!building) buildBlockedReason = 'Businesses open in 1.1.0-B.';
           else if (!isMine) buildBlockedReason = 'Hold this block to build here.';
-          else if (row.city.id !== player.cityId) buildBlockedReason = 'Away businesses arrive in 1.1.0-E.';
+          else if (awayBusiness && !business.outposts) buildBlockedReason = 'Away businesses arrive in 1.1.0-E.';
+          else if (awayBusiness && !row.outpost) buildBlockedReason = 'This away block needs an outpost box.';
           else if (tier && lot.lot > tier.lotsOpen) {
             const opening = tierOpening(ruleset, lot.lot);
             buildBlockedReason = `Opens when the block is ${opening ? TIER_NAME[opening] : 'bigger'}.`;
@@ -1089,7 +1093,7 @@ export const TurfService = {
             torchTurnCost: business!.torch.turnCost,
             torchMinutes: business!.torch.minutes,
           } : null,
-          rackets: rackets && row.city.id === player.cityId ? {
+          rackets: rackets && (row.city.id === player.cityId || Boolean(business?.outposts)) ? {
             switchTurnCost: rackets.switchTurnCost,
             switchCooldownHours: rackets.switchCooldownHours,
             heatPerHour: Math.round(racketHeatNow * 10) / 10,

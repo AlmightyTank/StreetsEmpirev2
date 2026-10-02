@@ -1,4 +1,4 @@
-import type { BlockWar, BlockWarFight, BlockWarSquad, Business, Prisma, PrismaClient, Turf } from '@prisma/client';
+import type { BlockWar, BlockWarFight, BlockWarSquad, Business, Prisma, PrismaClient, Turf, TurfOutpost } from '@prisma/client';
 import {
   alliedShare,
   allyCutCents,
@@ -35,10 +35,12 @@ import { accountsShareNetwork } from './admin-signals.service.js';
 import { staffColumns } from './business.service.js';
 import { CombatRecoveryService } from './combat-recovery.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
+import { ProductInventoryService } from './product-inventory.service.js';
 import {
   addCornerGuns,
   cornerGunWorthCents,
   gunsFromTurf,
+  outpostBoxWorthCents,
   releaseCornerGuns,
   subtractCornerGuns,
   turfGunData,
@@ -60,7 +62,19 @@ import { recordTerritoryControlChange, territoryControlForCity } from './turf-te
 
 type Weapons = Record<WeaponKey, number>;
 type CombatModel = NonNullable<ReturnType<typeof turfPushCombatModel>>;
-export interface WarCrewSnapshot { thugHappiness: number; weapons: Weapons }
+interface OutpostLoot {
+  cashCents: number;
+  beer: number;
+  products: Record<string, number>;
+}
+export interface WarCrewSnapshot {
+  thugHappiness: number;
+  weapons: Weapons;
+  /** 1.1.0-E. An alliance squad borrowed from this outpost corner instead of home. */
+  sourceOutpost?: { turfId: string; outpostId: string };
+  /** Capped exposed stock from an outpost captured by a Take. */
+  outpostLoot?: OutpostLoot;
+}
 
 const HOUR_MS = 3_600_000;
 const NO_WEAPONS: Weapons = { PISTOL: 0, SHOTGUN: 0, TEK9: 0, AK47: 0 };
@@ -70,6 +84,36 @@ const crewOf = (value: Prisma.JsonValue) => value as unknown as WarCrewSnapshot;
 const fromWeapons = (w: Weapons): CornerGuns => ({ pistols: w.PISTOL ?? 0, shotguns: w.SHOTGUN ?? 0, tek9s: w.TEK9 ?? 0, ak47s: w.AK47 ?? 0 });
 const toWeapons = (g: CornerGuns): Weapons => ({ PISTOL: g.pistols, SHOTGUN: g.shotguns, TEK9: g.tek9s, AK47: g.ak47s });
 const addWeapons = (a: Weapons, b: Weapons): Weapons => ({ PISTOL: a.PISTOL + b.PISTOL, SHOTGUN: a.SHOTGUN + b.SHOTGUN, TEK9: a.TEK9 + b.TEK9, AK47: a.AK47 + b.AK47 });
+
+/** 1.1.0-E uses the same exposed-share and hard loot caps as a 0.6.0-D outpost capture. */
+function outpostCaptureLoot(
+  ruleset: Ruleset,
+  box: Pick<TurfOutpost, 'cashCents' | 'beer' | 'products'>,
+): OutpostLoot {
+  const rules = ruleset.turf?.outposts;
+  if (!rules) return { cashCents: 0, beer: 0, products: {} };
+  const products = box.products as Record<string, number>;
+  let productRoom = rules.lootProductCap;
+  const lootedProducts: Record<string, number> = {};
+  for (const key of Object.keys(products).sort()) {
+    if (productRoom <= 0) break;
+    const quantity = Math.max(0, products[key] ?? 0);
+    const take = Math.min(productRoom, Math.floor(quantity * rules.lootShare));
+    if (take > 0) {
+      lootedProducts[key] = take;
+      productRoom -= take;
+    }
+  }
+  return {
+    cashCents: Math.min(rules.lootCashCapCents, Math.floor(Number(box.cashCents) * rules.lootShare)),
+    beer: Math.min(rules.lootBeerCap, Math.floor(box.beer * rules.lootShare)),
+    products: lootedProducts,
+  };
+}
+
+function hasOutpostLoot(loot: OutpostLoot): boolean {
+  return loot.cashCents > 0 || loot.beer > 0 || Object.values(loot.products).some((quantity) => quantity > 0);
+}
 
 export const ACTIVE_WAR = { not: 'ENDED' } as const;
 
@@ -133,18 +177,37 @@ async function lockWar(tx: Db, id: string): Promise<void> {
 async function lockBlock(tx: Db, id: string): Promise<void> {
   await tx.$queryRaw`SELECT id FROM "Turf" WHERE id = ${id} FOR UPDATE`;
 }
+async function lockOutpost(tx: Db, id: string): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM "TurfOutpost" WHERE id = ${id} FOR UPDATE`;
+}
 
 /** Send a squad home: everyone not wounded or posted walks back through the owner's credit. */
 /**
  * Loot, an ally's cut and Heat are paid through a row of their own, so they reach the
  * player's credit pass even when every squad they sent has already come home.
  */
-async function payout(tx: Db, warId: string, playerId: string, side: 'ATTACKER' | 'DEFENDER', role: string, cents: number, heat: number): Promise<void> {
-  if (cents <= 0 && heat <= 0) return;
+async function payout(
+  tx: Db,
+  warId: string,
+  playerId: string,
+  side: 'ATTACKER' | 'DEFENDER',
+  role: string,
+  cents: number,
+  heat: number,
+  outpostLoot?: OutpostLoot,
+  sourceOutpost?: WarCrewSnapshot['sourceOutpost'],
+): Promise<void> {
+  if (cents <= 0 && heat <= 0 && !outpostLoot) return;
   await tx.blockWarSquad.create({
     data: {
       warId, playerId, side, role, sent: 0, thugs: 0, active: false,
-      crew: json({ thugHappiness: 0, weapons: NO_WEAPONS }), payoutCents: BigInt(Math.max(0, cents)), heat: Math.max(0, heat),
+      crew: json({
+        thugHappiness: 0,
+        weapons: NO_WEAPONS,
+        ...(outpostLoot ? { outpostLoot } : {}),
+        ...(sourceOutpost ? { sourceOutpost } : {}),
+      }),
+      payoutCents: BigInt(Math.max(0, cents)), heat: Math.max(0, heat),
     },
   });
 }
@@ -171,7 +234,7 @@ async function shedStaff(tx: Db, ruleset: Ruleset, row: Business, level: number,
 
 interface WarState {
   war: BlockWar;
-  turf: Turf & { city: { id: string; slug: string } };
+  turf: Turf & { city: { id: string; slug: string }; outpost: TurfOutpost | null };
   base: Ruleset;
   model: CombatModel;
 }
@@ -310,6 +373,11 @@ async function resolveFight(tx: Db, state: WarState, fight: BlockWarFight, at: D
         pistols: defender.pistols + guns.pistols, shotguns: defender.shotguns + guns.shotguns,
         tek9s: defender.tek9s + guns.tek9s, ak47s: defender.ak47s + guns.ak47s,
         postedNetWorthCents: defender.postedNetWorthCents >= worth ? defender.postedNetWorthCents - worth : 0n,
+        ...(capturedOutpost ? {
+          outpostNetWorthCents: defender.outpostNetWorthCents >= capturedOutpostWorth
+            ? defender.outpostNetWorthCents - capturedOutpostWorth
+            : 0n,
+        } : {}),
       },
     });
     await CombatRecoveryService.add(tx, defender.id, null, cornerWounds, recoverAt);
@@ -396,6 +464,15 @@ async function endWar(tx: Db, state: WarState, at: Date, ending: WarEnding): Pro
   }
 
   const defender = await tx.roundPlayer.findUniqueOrThrow({ where: { id: war.defenderId } });
+  const capturedOutpost = takes && base.business?.outposts && turf.outpost?.ownerId === defender.id ? turf.outpost : null;
+  const capturedOutpostWorth = capturedOutpost
+    ? outpostBoxWorthCents(base, {
+        cashCents: capturedOutpost.cashCents,
+        beer: capturedOutpost.beer,
+        products: capturedOutpost.products as Record<string, number>,
+      })
+    : 0n;
+  const capturedOutpostLoot = capturedOutpost ? outpostCaptureLoot(base, capturedOutpost) : null;
   const result: Record<string, unknown> = { winner: ending.winner, reason: ending.reason, goal: war.goal, fatigue: Math.round(fatigue), fights: war.fights, siegeHours: Math.round(war.siegeHours * 10) / 10 };
   let turfData: Prisma.TurfUncheckedUpdateInput = { fatigue, fatigueAt: at, siegedSince: null };
 
@@ -435,6 +512,24 @@ async function endWar(tx: Db, state: WarState, at: Date, ending: WarEnding): Pro
     }
 
     const controlBefore = await territoryControlForCity(tx, war.roundId, turf.cityId, base);
+    if (capturedOutpost) {
+      // The box cannot remain attached to a block whose holder changed. As with a turf push,
+      // only the capped exposed share survives as loot; the rest is lost with the remote box.
+      if (capturedOutpost.cashCents > 0n) {
+        await EconomyLedgerService.record(tx, defender.id, [{
+          source: 'TURF_PUSH_DEFENSE',
+          label: 'Outpost cash lost · block war',
+          amountCents: -capturedOutpost.cashCents,
+          metadata: { warId: war.id, turfId: turf.id },
+        }], at);
+      }
+      await tx.turfOutpost.delete({ where: { id: capturedOutpost.id } });
+      turf.outpost = null;
+      if (capturedOutpostLoot && hasOutpostLoot(capturedOutpostLoot)) {
+        await payout(tx, war.id, war.attackerId, 'ATTACKER', 'OUTPOST_LOOT', capturedOutpostLoot.cashCents, 0, capturedOutpostLoot);
+        result.outpostLoot = capturedOutpostLoot;
+      }
+    }
     await endTurfHold(tx, turf.id, at);
     turfData = {
       ...turfData,
@@ -472,8 +567,16 @@ async function endWar(tx: Db, state: WarState, at: Date, ending: WarEnding): Pro
       });
     }
     const allyCut = war.attackerAllyId ? allyCutCents(base, taken, war.attackerCut, war.attackerAllyFought) : 0;
+    const allySource = war.attackerAllyId
+      ? squads
+          .filter((squad) => squad.playerId === war.attackerAllyId && squad.role === 'ALLY')
+          .map((squad) => crewOf(squad.crew).sourceOutpost)
+          .find((source): source is NonNullable<WarCrewSnapshot['sourceOutpost']> => Boolean(source))
+      : undefined;
     await payout(tx, war.id, war.attackerId, 'ATTACKER', 'DECLARER', taken - allyCut, rules.wars.sackHeat ?? 0);
-    if (allyCut > 0 && war.attackerAllyId) await payout(tx, war.id, war.attackerAllyId, 'ATTACKER', 'ALLY', allyCut, 0);
+    if (allyCut > 0 && war.attackerAllyId) {
+      await payout(tx, war.id, war.attackerAllyId, 'ATTACKER', 'ALLY', allyCut, 0, undefined, allySource);
+    }
     turfData = { ...turfData, ...siegePause(state, at), shieldUntil: new Date(at.getTime() + warTruceHours(base, 'SACK') * HOUR_MS) };
     Object.assign(result, { lootCents: taken, allyCutCents: allyCut });
   } else {
@@ -530,7 +633,7 @@ async function advanceIn(tx: Db, warId: string, now: Date, ending?: WarEnding): 
   const war = await tx.blockWar.findUniqueOrThrow({ where: { id: warId }, include: { round: true } });
   if (war.status === 'ENDED') return false;
   await lockBlock(tx, war.turfId);
-  const turf = await tx.turf.findUniqueOrThrow({ where: { id: war.turfId }, include: { city: { select: { id: true, slug: true } } } });
+  const turf = await tx.turf.findUniqueOrThrow({ where: { id: war.turfId }, include: { city: { select: { id: true, slug: true } }, outpost: true } });
   const base = loadRulesetForRound(war.round);
   const model = turfPushCombatModel(base);
   if (!model || !base.business) return false;
@@ -647,9 +750,16 @@ export const BlockWarSettleService = {
    * posted on the new corner. Loot, the ally's cut and Heat land with the final credit.
    */
   async credit(tx: Db, playerId: string, now: Date = new Date()): Promise<void> {
-    const squads = await tx.blockWarSquad.findMany({ where: { playerId, gunsCreditedAt: null }, orderBy: { createdAt: 'asc' } });
+    const squads = await tx.blockWarSquad.findMany({
+      where: { playerId, OR: [{ gunsCreditedAt: null }, { payoutCents: { gt: 0n } }] },
+      orderBy: { createdAt: 'asc' },
+    });
     if (!squads.length) return;
-    const pending = squads.filter((squad) => squad.sent - squad.thugs > squad.creditedThugs || squad.wounded > squad.creditedWounded || !squad.active);
+    const pending = squads.filter((squad) =>
+      squad.sent - squad.thugs > squad.creditedThugs
+      || squad.wounded > squad.creditedWounded
+      || !squad.active
+      || squad.payoutCents > 0n);
     if (!pending.length) return;
     const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: playerId }, include: { round: true } });
     const ruleset = loadRulesetForRound(player.round);
@@ -657,7 +767,10 @@ export const BlockWarSettleService = {
     let busyThugs = player.busyThugs;
     let postedThugs = player.postedThugs;
     let postedNetWorthCents = player.postedNetWorthCents;
+    let outpostNetWorthCents = player.outpostNetWorthCents;
     let cashCents = player.cashCents;
+    let beer = player.beer;
+    const productLoot: Record<string, number> = {};
     let heat = player.heat;
     let heatAdded = 0;
     let guns: CornerGuns = { pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s };
@@ -669,29 +782,119 @@ export const BlockWarSettleService = {
       const wounds = Math.max(0, squad.wounded - squad.creditedWounded);
       if (wounds > 0) await CombatRecoveryService.add(tx, playerId, null, wounds, squad.recoverAt ?? now);
       const done = !squad.active;
-      if (done) {
-        const snapshot = crewOf(squad.crew);
+      const snapshot = crewOf(squad.crew);
+      let payoutRemaining = squad.payoutCents;
+
+      if (done && !squad.gunsCreditedAt) {
         const committed = fromWeapons(snapshot.weapons);
-        const staying = fromWeapons(pickWeapons(snapshot, squad.posted, model));
+        let staying = fromWeapons(pickWeapons(snapshot, squad.posted, model));
+
+        // E outpost allies go back to the corner they borrowed the squad from. Wounded
+        // thugs and their guns come home; survivors and their guns resume outpost duty.
+        if (snapshot.sourceOutpost && squad.role === 'ALLY') {
+          await lockBlock(tx, snapshot.sourceOutpost.turfId);
+          const source = await tx.turf.findUnique({
+            where: { id: snapshot.sourceOutpost.turfId },
+            include: { outpost: true },
+          });
+          const stillOwned = source?.holderId === playerId
+            && source.outpost?.id === snapshot.sourceOutpost.outpostId
+            && source.outpost.ownerId === playerId;
+          if (stillOwned && source) {
+            const survivors = Math.max(0, squad.sent - squad.wounded);
+            staying = fromWeapons(pickWeapons(snapshot, survivors, model));
+            const nextGuns = addCornerGuns(gunsFromTurf(source), staying);
+            await tx.turf.update({
+              where: { id: source.id },
+              data: { cornerThugs: source.cornerThugs + survivors, ...turfGunData(nextGuns) },
+            });
+            postedThugs += survivors;
+          } else {
+            staying = { ...EMPTY_GUNS };
+          }
+        }
+
         const home = subtractCornerGuns(committed, staying);
         guns = addCornerGuns(guns, home);
         const worth = cornerGunWorthCents(ruleset, home);
         postedNetWorthCents = postedNetWorthCents >= worth ? postedNetWorthCents - worth : 0n;
-        postedThugs += squad.posted;
-        if (squad.payoutCents > 0n) {
-          cashCents += squad.payoutCents;
-          await EconomyLedgerService.record(tx, playerId, [{
-            source: squad.role === 'ALLY' ? 'BLOCK_WAR_CUT' : 'BLOCK_WAR_SACK',
-            label: squad.role === 'ALLY' ? 'Block war · ally cut' : 'Block war · sacked registers',
-            amountCents: squad.payoutCents,
-            metadata: { warId: squad.warId },
-          }], now);
+        if (!snapshot.sourceOutpost) postedThugs += squad.posted;
+
+        if (snapshot.outpostLoot) {
+          beer += snapshot.outpostLoot.beer;
+          for (const [key, quantity] of Object.entries(snapshot.outpostLoot.products)) {
+            productLoot[key] = (productLoot[key] ?? 0) + quantity;
+          }
         }
         if (squad.heat > 0) heatAdded += squad.heat;
       }
+
+      if (done && payoutRemaining > 0n) {
+        let paid = payoutRemaining;
+        let paidToOutpost = false;
+        if (snapshot.sourceOutpost && squad.role === 'ALLY') {
+          await lockOutpost(tx, snapshot.sourceOutpost.outpostId);
+          const box = await tx.turfOutpost.findUnique({
+            where: { id: snapshot.sourceOutpost.outpostId },
+            include: { turf: { select: { holderId: true } } },
+          });
+          if (box?.ownerId === playerId && box.turf.holderId === playerId && ruleset.turf?.outposts) {
+            const room = BigInt(ruleset.turf.outposts.cashCapCents) - box.cashCents;
+            paid = room > 0n ? (payoutRemaining < room ? payoutRemaining : room) : 0n;
+            if (paid > 0n) {
+              const beforeWorth = outpostBoxWorthCents(ruleset, {
+                cashCents: box.cashCents, beer: box.beer, products: box.products as Record<string, number>,
+              });
+              const afterCash = box.cashCents + paid;
+              const afterWorth = outpostBoxWorthCents(ruleset, {
+                cashCents: afterCash, beer: box.beer, products: box.products as Record<string, number>,
+              });
+              await tx.turfOutpost.update({ where: { id: box.id }, data: { cashCents: afterCash } });
+              outpostNetWorthCents += afterWorth - beforeWorth;
+              paidToOutpost = true;
+            }
+          }
+        }
+
+        // If the source outpost no longer exists, do not strand a won payout forever:
+        // it falls back home. A live but full box keeps the unpaid remainder queued.
+        if (!paidToOutpost && snapshot.sourceOutpost) {
+          const box = await tx.turfOutpost.findUnique({
+            where: { id: snapshot.sourceOutpost.outpostId },
+            include: { turf: { select: { holderId: true } } },
+          });
+          const live = box?.ownerId === playerId && box.turf.holderId === playerId;
+          if (!live) {
+            paid = payoutRemaining;
+            cashCents += paid;
+          }
+        } else if (!snapshot.sourceOutpost) {
+          cashCents += paid;
+        }
+
+        if (paid > 0n) {
+          payoutRemaining -= paid;
+          const isAlly = squad.role === 'ALLY';
+          const isOutpost = squad.role === 'OUTPOST_LOOT';
+          await EconomyLedgerService.record(tx, playerId, [{
+            source: isAlly ? 'BLOCK_WAR_CUT' : 'BLOCK_WAR_SACK',
+            label: isAlly
+              ? paidToOutpost ? 'Block war · ally cut to outpost' : 'Block war · ally cut'
+              : isOutpost ? 'Block war · captured outpost' : 'Block war · sacked registers',
+            amountCents: paid,
+            metadata: { warId: squad.warId, ...(paidToOutpost ? { outpostId: snapshot.sourceOutpost!.outpostId } : {}) },
+          }], now);
+        }
+      }
+
       await tx.blockWarSquad.update({
         where: { id: squad.id },
-        data: { creditedThugs: squad.creditedThugs + back, creditedWounded: squad.creditedWounded + wounds, ...(done ? { gunsCreditedAt: now } : {}) },
+        data: {
+          creditedThugs: squad.creditedThugs + back,
+          creditedWounded: squad.creditedWounded + wounds,
+          payoutCents: payoutRemaining,
+          ...(done && !squad.gunsCreditedAt ? { gunsCreditedAt: now } : {}),
+        },
       });
     }
     // New Heat lands on a balance cooled to now: the turn clock is settled first, the same
@@ -702,9 +905,12 @@ export const BlockWarSettleService = {
       heat = Math.min(ruleset.heat.max, decayHeat(heat, regen.intervalsProcessed, ruleset.heat) + heatAdded);
       Object.assign(clock, { turns: regen.turns, lastTurnCalculationAt: regen.lastTurnCalculationAt });
     }
+    if (Object.keys(productLoot).length > 0) {
+      await ProductInventoryService.adjust(tx, playerId, ruleset, productLoot);
+    }
     await tx.roundPlayer.update({
       where: { id: playerId },
-      data: { busyThugs, postedThugs, postedNetWorthCents, cashCents, heat, ...guns, ...clock },
+      data: { busyThugs, postedThugs, postedNetWorthCents, outpostNetWorthCents, cashCents, beer, heat, ...guns, ...clock },
     });
   },
 };

@@ -16,6 +16,7 @@ import {
   readRacketEffects,
   regenerateTurns,
   roundStochastic,
+  runNetWorthCents,
   type RacketEffects,
   businessStaff,
   businessStaffDepartures,
@@ -88,6 +89,15 @@ function sameEffects(a: RacketEffects, b: RacketEffects): boolean {
 /** Building, staffing and collecting are on in this round. */
 export function buildingOn(ruleset: Ruleset): boolean {
   return Boolean(ruleset.turf && ruleset.business?.building);
+}
+
+/** 1.1.0-E. Away businesses use the outpost box instead of home supply and cash. */
+export function outpostBusinessesOn(ruleset: Ruleset): boolean {
+  return Boolean(buildingOn(ruleset) && ruleset.business?.outposts && ruleset.turf?.outposts);
+}
+
+async function lockOutpost(tx: Db, id: string): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM "TurfOutpost" WHERE id = ${id} FOR UPDATE`;
 }
 
 export function staffKind(ruleset: Ruleset, business: BusinessKey): 'THUGS' | 'WHORES' {
@@ -170,7 +180,7 @@ export const BusinessService = {
       select: {
         cityId: true, thugs: true, whores: true, woundedThugs: true, busyThugs: true, postedThugs: true,
         businessThugs: true, businessWhores: true, beer: true, crack: true, thugHappiness: true, whoreHappiness: true,
-        heat: true, netWorthCents: true, turns: true, lastTurnCalculationAt: true,
+        heat: true, netWorthCents: true, outpostNetWorthCents: true, turns: true, lastTurnCalculationAt: true,
         racketEffects: true, launderedDay: true, launderedHeatToday: true, launderedHeatRound: true,
       },
     });
@@ -182,6 +192,7 @@ export const BusinessService = {
             id: true, holderId: true, cityId: true, district: true, city: { select: { slug: true } },
             fatigue: true, fatigueAt: true, capturedAts: true, siegedSince: true,
             warCutPlayerId: true, warCutShare: true, warCutUntil: true,
+            outpost: { select: { id: true, ownerId: true } },
           },
         },
       },
@@ -192,7 +203,14 @@ export const BusinessService = {
       ? await tx.blockWar.findMany({ where: { turfId: { in: [...new Set(rows.map((row) => row.turfId))] }, status: { not: 'ENDED' } } })
       : [];
     const warOn = new Map(wars.map((war) => [war.turfId, war]));
-    const cuts: Array<{ playerId: string; cents: bigint; turfId: string }> = [];
+    const cuts: Array<{
+      playerId: string;
+      cents: bigint;
+      turfId: string;
+      cityId: string;
+      businessId: string;
+      registerCapCents: bigint;
+    }> = [];
     const storedEffects = readRacketEffects(player.racketEffects);
     if (!rows.length && player.businessThugs === 0 && player.businessWhores === 0) {
       // Nothing runs any more: a crew that lost its last business loses its rackets too.
@@ -211,7 +229,7 @@ export const BusinessService = {
     const order = workSupplyOrder(policyRow
       ? { primary: policyRow.primary, fallback: policyRow.fallback, emergency: policyRow.emergency, strict: policyRow.strict }
       : defaultWorkSupplyPolicy());
-    const takeProduct = (need: number): number => {
+    const takeHomeProduct = (need: number): number => {
       let used = 0;
       for (const key of order) {
         if (used >= need) break;
@@ -225,21 +243,59 @@ export const BusinessService = {
       return used;
     };
 
-    // 1.1.0-C: Wash & fold cleans the books of the crew's other rackets for the whole settle.
+    type OutpostState = { id: string; cashCents: bigint; beer: number; products: Record<string, number>; dirty: boolean };
+    const outposts = new Map<string, OutpostState>();
+    const outpostFor = async (row: (typeof rows)[number]): Promise<OutpostState | null> => {
+      const link = row.turf.outpost;
+      if (!link || link.ownerId !== roundPlayerId) return null;
+      const cached = outposts.get(link.id);
+      if (cached) return cached;
+      await lockOutpost(tx, link.id);
+      const fresh = await tx.turfOutpost.findUnique({ where: { id: link.id } });
+      if (!fresh || fresh.ownerId !== roundPlayerId) return null;
+      const state: OutpostState = {
+        id: fresh.id,
+        cashCents: fresh.cashCents,
+        beer: fresh.beer,
+        products: { ...(fresh.products as Record<string, number>) },
+        dirty: false,
+      };
+      outposts.set(state.id, state);
+      return state;
+    };
+    const takeOutpostProduct = (box: OutpostState, need: number): number => {
+      let used = 0;
+      for (const key of order) {
+        if (used >= need) break;
+        const available = Math.max(0, box.products[key] ?? 0);
+        const amount = Math.min(available, need - used);
+        if (amount <= 0) continue;
+        box.products[key] = available - amount;
+        box.dirty = true;
+        used += amount;
+      }
+      return used;
+    };
+
+    // 1.1.0-C/E: Wash & fold cleans the books of the crew's other live rackets.
     const home = (row: (typeof rows)[number]) => row.turf.holderId === roundPlayerId && row.turf.cityId === player.cityId;
+    const operates = (row: (typeof rows)[number]) =>
+      row.turf.holderId === roundPlayerId &&
+      (home(row) || (outpostBusinessesOn(ruleset) && row.turf.outpost?.ownerId === roundPlayerId));
     const strengthOf = (row: (typeof rows)[number], staff: number) =>
       racketStrength(ruleset, { level: row.level, staff, requiredStaff: businessStaff(ruleset, row.kind as BusinessKey, row.level) });
     let shield = 0;
     for (const row of rows) {
       const racket = racketOf(ruleset, row.racket);
       const effect = racket ? racketType(ruleset, racket)!.effect : null;
-      if (effect?.kind === 'HEAT_SHIELD' && home(row)) shield = Math.max(shield, effect.share * strengthOf(row, row.staff));
+      if (effect?.kind === 'HEAT_SHIELD' && operates(row)) shield = Math.max(shield, effect.share * strengthOf(row, row.staff));
     }
     let racketHeat = 0;
     let counterCents = 0n;
     const counterSold: Record<string, number> = {};
     const launders: Array<{ id: string; heat: number }> = [];
     const registers = new Map<string, bigint>();
+    const registerOutposts = new Map<string, OutpostState>();
 
     // What each row ends the settle with, so the crew's columns are rebuilt from the rows.
     const kept: Array<{ id: string; kind: 'THUGS' | 'WHORES'; staff: number; want: number; auto: boolean; racket: RacketKey | null; level: number; required: number }> = [];
@@ -248,8 +304,17 @@ export const BusinessService = {
     for (const row of rows) {
       const business = row.kind as BusinessKey;
       const kind = staffKind(ruleset, business);
-      // B runs home businesses only: a lost block, or one that is now away, sends staff home.
-      if (!home(row)) {
+      // Before E, moving a business away still closes it. E keeps it only while the
+      // crew owns the block and its outpost box.
+      if (!operates(row)) {
+        staffReturned += row.staff;
+        registerLostCents += row.registerCents;
+        await tx.business.update({ where: { id: row.id }, data: { staff: 0, staffOwnerId: null, registerCents: 0n, accruedAt: now, racket: null, racketSince: null } });
+        continue;
+      }
+      const away = !home(row);
+      const box = away ? await outpostFor(row) : null;
+      if (away && !box) {
         staffReturned += row.staff;
         registerLostCents += row.registerCents;
         await tx.business.update({ where: { id: row.id }, data: { staff: 0, staffOwnerId: null, registerCents: 0n, accruedAt: now, racket: null, racketSince: null } });
@@ -261,6 +326,8 @@ export const BusinessService = {
       const racket = racketOf(ruleset, row.racket);
       const wholeHours = Math.floor((now.getTime() - row.accruedAt.getTime()) / HOUR_MS);
       if (wholeHours <= 0) {
+        registers.set(row.id, row.registerCents);
+        if (box) registerOutposts.set(row.id, box);
         kept.push({ id: row.id, kind, staff: row.staff, want, auto: row.autoStaff, racket, level: row.level, required });
         continue;
       }
@@ -271,9 +338,14 @@ export const BusinessService = {
       let register = row.registerCents;
       if (running) {
         const need = businessUpkeep(ruleset, row.staff, wholeHours);
-        const beerUsed = Math.min(beer, need.beer);
-        beer -= beerUsed;
-        const productUsed = takeProduct(need.product);
+        const beerUsed = box ? Math.min(box.beer, need.beer) : Math.min(beer, need.beer);
+        if (box) {
+          box.beer -= beerUsed;
+          if (beerUsed > 0) box.dirty = true;
+        } else {
+          beer -= beerUsed;
+        }
+        const productUsed = box ? takeOutpostProduct(box, need.product) : takeHomeProduct(need.product);
         const beerShare = need.beer > 0 ? beerUsed / need.beer : 1;
         const productShare = need.product > 0 ? productUsed / need.product : 1;
         const suppliedShare = Math.max(0, Math.min(1, beerShare, productShare));
@@ -284,6 +356,7 @@ export const BusinessService = {
           level: row.level,
           // 1.1.0-D: a shot-up block earns less until its fatigue heals.
           fatigue: blockFatigueNow(ruleset, row.turf, warOn.get(row.turfId) ?? null, now).percent,
+          away,
         });
         const staffed = staffingShare(row.staff, required);
         // A cash racket pays on top of the front, and the register holds both.
@@ -292,16 +365,23 @@ export const BusinessService = {
         const sieged = row.turf.siegedSince ? overlapHours(row.accruedAt, advanceTo, row.turf.siegedSince, advanceTo) : 0;
         const earningHours = Math.max(0, wholeHours - sieged);
         let earned = BigInt(Math.floor((perHour + racketPerHour) * staffed * earningHours * suppliedShare));
+        const cap = BigInt(registerCapCents(ruleset, perHour + racketPerHour));
         // After a war, the winning side's ally takes the promised cut of the truce's income.
         if (earned > 0n && row.turf.warCutPlayerId && row.turf.warCutUntil && row.turf.warCutShare > 0 && earningHours > 0) {
           const cutHours = overlapHours(row.accruedAt, advanceTo, row.accruedAt, row.turf.warCutUntil);
           const cut = BigInt(Math.floor(Number(earned) * Math.min(1, cutHours / earningHours) * row.turf.warCutShare));
           if (cut > 0n) {
             earned -= cut;
-            cuts.push({ playerId: row.turf.warCutPlayerId, cents: cut, turfId: row.turfId });
+            cuts.push({
+              playerId: row.turf.warCutPlayerId,
+              cents: cut,
+              turfId: row.turfId,
+              cityId: row.turf.cityId,
+              businessId: row.id,
+              registerCapCents: cap,
+            });
           }
         }
-        const cap = BigInt(registerCapCents(ruleset, perHour + racketPerHour));
         register = register + earned > cap ? cap : register + earned;
 
         if (racket && suppliedShare > 0) {
@@ -315,14 +395,19 @@ export const BusinessService = {
             for (const key of order) {
               if (units <= 0) break;
               const price = pipSellCents(ruleset, key);
-              const available = Math.max(0, inventory[key] ?? 0);
+              const available = Math.max(0, box ? (box.products[key] ?? 0) : (inventory[key] ?? 0));
               if (price <= 0 || available <= 0) continue;
               const room = cap - register;
               const sold = Math.min(units, available, Number(room / BigInt(price)));
               if (sold <= 0) continue;
               units -= sold;
-              inventory[key] = available - sold;
-              productChanges[key] = (productChanges[key] ?? 0) - sold;
+              if (box) {
+                box.products[key] = available - sold;
+                box.dirty = true;
+              } else {
+                inventory[key] = available - sold;
+                productChanges[key] = (productChanges[key] ?? 0) - sold;
+              }
               counterSold[key] = (counterSold[key] ?? 0) + sold;
               const cents = BigInt(sold * price);
               register += cents;
@@ -343,6 +428,7 @@ export const BusinessService = {
       const staff = row.staff - departed;
       kept.push({ id: row.id, kind, staff, want, auto: row.autoStaff, racket, level: row.level, required });
       registers.set(row.id, register);
+      if (box) registerOutposts.set(row.id, box);
       await tx.business.update({ where: { id: row.id }, data: { registerCents: register, accruedAt: advanceTo, staff } });
     }
 
@@ -377,6 +463,35 @@ export const BusinessService = {
       }
       Object.assign(heatData, { heat, turns: regen.turns, lastTurnCalculationAt: regen.lastTurnCalculationAt });
       if (launderedHeat > 0) Object.assign(heatData, { launderedDay: today, launderedHeatToday: usedToday, launderedHeatRound: usedRound });
+    }
+
+    // E: away registers sweep into the outpost cash box. If the box is full, the
+    // remainder stays in the register until a run makes room on a later settle.
+    const outpostRules = ruleset.turf?.outposts;
+    if (outpostRules) {
+      for (const [businessId, box] of registerOutposts) {
+        const register = registers.get(businessId) ?? 0n;
+        const room = BigInt(outpostRules.cashCapCents) - box.cashCents;
+        const moved = room > 0n && register > 0n ? (register < room ? register : room) : 0n;
+        if (moved <= 0n) continue;
+        box.cashCents += moved;
+        box.dirty = true;
+        registers.set(businessId, register - moved);
+        await tx.business.update({ where: { id: businessId }, data: { registerCents: register - moved } });
+        await EconomyLedgerService.record(tx, roundPlayerId, [{
+          source: 'BUSINESS_INCOME',
+          label: 'Business income · remote outpost',
+          amountCents: moved,
+          metadata: { businessId, outpostId: box.id },
+        }], now);
+      }
+    }
+    for (const box of outposts.values()) {
+      if (!box.dirty) continue;
+      await tx.turfOutpost.update({
+        where: { id: box.id },
+        data: { cashCents: box.cashCents, beer: box.beer, products: box.products },
+      });
     }
 
     let businessThugs = kept.filter((entry) => entry.kind === 'THUGS').reduce((sum, entry) => sum + entry.staff, 0);
@@ -415,21 +530,95 @@ export const BusinessService = {
         : all, {});
     const effectsChanged = !sameEffects(effects, storedEffects);
 
-    // The ally's cut is paid straight to them: cash only, never the block or its businesses.
+    // The ally's truce cut follows the ally's presence. Residents are paid at home.
+    // In E an outpost ally is paid into its box, under the same cash cap. If that box is
+    // full (or was lost), the unpaid share stays with the earning business instead of vanishing.
     for (const cut of cuts) {
-      await tx.roundPlayer.update({ where: { id: cut.playerId }, data: { cashCents: { increment: cut.cents } } });
-      await EconomyLedgerService.record(tx, cut.playerId, [{
-        source: 'BLOCK_WAR_CUT', label: 'Block war · ally cut of business income', amountCents: cut.cents, metadata: { turfId: cut.turfId, from: roundPlayerId },
-      }], now);
+      let paid = 0n;
+      let outpostId: string | null = null;
+      const ally = await tx.roundPlayer.findUnique({
+        where: { id: cut.playerId },
+        select: { cityId: true, outpostNetWorthCents: true },
+      });
+      if (ally) {
+        if (!outpostBusinessesOn(ruleset) || ally.cityId === cut.cityId) {
+          paid = cut.cents;
+          await tx.roundPlayer.update({ where: { id: cut.playerId }, data: { cashCents: { increment: paid } } });
+        } else {
+          const candidates = await tx.turfOutpost.findMany({
+            where: { ownerId: cut.playerId },
+            include: { turf: { select: { cityId: true, holderId: true } } },
+          });
+          const candidate = candidates.find((entry) => entry.turf.cityId === cut.cityId && entry.turf.holderId === cut.playerId);
+          if (candidate && ruleset.turf?.outposts) {
+            await lockOutpost(tx, candidate.id);
+            const box = await tx.turfOutpost.findUniqueOrThrow({ where: { id: candidate.id } });
+            const room = BigInt(ruleset.turf.outposts.cashCapCents) - box.cashCents;
+            paid = room > 0n ? (cut.cents < room ? cut.cents : room) : 0n;
+            if (paid > 0n) {
+              const beforeWorth = runNetWorthCents(ruleset, {
+                cashCents: box.cashCents, lowRiders: 0, escortThugs: 0, beer: box.beer,
+                cargo: box.products as Record<string, number>,
+              });
+              const cashCents = box.cashCents + paid;
+              const afterWorth = runNetWorthCents(ruleset, {
+                cashCents, lowRiders: 0, escortThugs: 0, beer: box.beer,
+                cargo: box.products as Record<string, number>,
+              });
+              await tx.turfOutpost.update({ where: { id: box.id }, data: { cashCents } });
+              await tx.roundPlayer.update({
+                where: { id: cut.playerId },
+                data: { outpostNetWorthCents: { increment: afterWorth - beforeWorth } },
+              });
+              outpostId = box.id;
+            }
+          }
+        }
+      }
+
+      if (paid > 0n) {
+        await EconomyLedgerService.record(tx, cut.playerId, [{
+          source: 'BLOCK_WAR_CUT',
+          label: outpostId ? 'Block war · ally cut of business income to outpost' : 'Block war · ally cut of business income',
+          amountCents: paid,
+          metadata: { turfId: cut.turfId, from: roundPlayerId, ...(outpostId ? { outpostId } : {}) },
+        }], now);
+      }
+
+      const unpaid = cut.cents - paid;
+      if (unpaid > 0n) {
+        const source = await tx.business.findUnique({ where: { id: cut.businessId }, select: { registerCents: true } });
+        if (source) {
+          const restored = source.registerCents + unpaid > cut.registerCapCents
+            ? cut.registerCapCents
+            : source.registerCents + unpaid;
+          await tx.business.update({ where: { id: cut.businessId }, data: { registerCents: restored } });
+        }
+      }
     }
 
     if (Object.keys(productChanges).length > 0) await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, productChanges);
+    let outpostNetWorthCents = player.outpostNetWorthCents;
+    if (outposts.size > 0) {
+      const boxes = await tx.turfOutpost.findMany({
+        where: { ownerId: roundPlayerId },
+        select: { cashCents: true, beer: true, products: true },
+      });
+      outpostNetWorthCents = boxes.reduce((sum, box) => sum + runNetWorthCents(ruleset, {
+        cashCents: box.cashCents,
+        lowRiders: 0,
+        escortThugs: 0,
+        beer: box.beer,
+        cargo: box.products as Record<string, number>,
+      }), 0n);
+    }
     if (thugs !== player.thugs || whores !== player.whores || beer !== player.beer ||
         businessThugs !== player.businessThugs || businessWhores !== player.businessWhores ||
+        outpostNetWorthCents !== player.outpostNetWorthCents ||
         effectsChanged || Object.keys(heatData).length > 0) {
       await tx.roundPlayer.update({
         where: { id: roundPlayerId },
-        data: { thugs, whores, beer, businessThugs, businessWhores, ...heatData, ...(effectsChanged ? { racketEffects: effects } : {}) },
+        data: { thugs, whores, beer, businessThugs, businessWhores, outpostNetWorthCents, ...heatData, ...(effectsChanged ? { racketEffects: effects } : {}) },
       });
     }
     return {
@@ -440,18 +629,24 @@ export const BusinessService = {
   },
 
   /**
-   * 1.1.0-C. The crew's live rackets read straight off its businesses: home blocks it holds,
-   * built, staffed and running a racket. The strongest business wins when two run the same one.
+   * 1.1.0-C/E. The crew's live rackets read straight off running businesses it still holds.
+   * E includes businesses backed by an owned outpost. The strongest one wins when two run the same racket.
    */
   async racketEffects(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<RacketEffects> {
     if (!racketRules(ruleset)) return {};
     const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { cityId: true } });
     const rows = await tx.business.findMany({
-      where: { staffOwnerId: roundPlayerId, staff: { gt: 0 }, level: { gt: 0 }, racket: { not: null }, turf: { holderId: roundPlayerId, cityId: player.cityId } },
-      select: { kind: true, level: true, staff: true, racket: true },
+      where: { staffOwnerId: roundPlayerId, staff: { gt: 0 }, level: { gt: 0 }, racket: { not: null }, turf: { holderId: roundPlayerId } },
+      select: {
+        kind: true, level: true, staff: true, racket: true,
+        turf: { select: { cityId: true, outpost: { select: { ownerId: true } } } },
+      },
     });
     let effects: RacketEffects = {};
     for (const row of rows) {
+      const live = row.turf.cityId === player.cityId
+        || (outpostBusinessesOn(ruleset) && row.turf.outpost?.ownerId === roundPlayerId);
+      if (!live) continue;
       const racket = racketOf(ruleset, row.racket);
       if (!racket) continue;
       effects = mergeRacketEffect(effects, racket, racketStrength(ruleset, {
