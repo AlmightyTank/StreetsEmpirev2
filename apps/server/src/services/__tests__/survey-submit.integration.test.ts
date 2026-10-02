@@ -173,6 +173,16 @@ describe.runIf(process.env.SURVEY_INTEGRATION === '1')('Survey Phase C submissio
     expect(stored.answers).toHaveLength(6);
     expect(stored.answers.some((answer) => answer.value === 'I hate the current spacing.')).toBe(true);
 
+    const detail = await app.inject({
+      method: 'GET',
+      url: `/api/game/surveys/${survey.id}`,
+      headers: { cookie },
+    });
+    expect(detail.statusCode, detail.body).toBe(200);
+    expect(detail.json().answers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ value: 'I hate the current spacing.' }),
+    ]));
+
     // Same action id replays the original result even if the client retries with changed answers.
     const replay = await submit(survey.id, actionId, validAnswers(questions, 'I love it now.'));
     expect(replay.statusCode, replay.body).toBe(200);
