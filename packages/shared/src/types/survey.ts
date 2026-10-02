@@ -95,3 +95,76 @@ export interface SurveySubmissionResultDto {
   submittedAt: string;
   rewards: QuestRewardDto[];
 }
+
+
+export interface AdminSurveyRewardInput {
+  kind: QuestRewardDto['kind'];
+  amount?: number;
+  key?: string;
+}
+
+export interface AdminSurveyOptionInput {
+  value: string;
+  label: string;
+}
+
+export interface AdminSurveyQuestionInput {
+  type: SurveyQuestionTypeDto;
+  prompt: string;
+  description?: string | null;
+  required: boolean;
+  minLength?: number | null;
+  maxLength?: number | null;
+  ratingMin?: number | null;
+  ratingMax?: number | null;
+  options: AdminSurveyOptionInput[];
+}
+
+export interface AdminSurveyDefinitionInput {
+  title: string;
+  description: string;
+  releaseTag?: string | null;
+  featureTag?: string | null;
+  roundId?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  rewards: AdminSurveyRewardInput[];
+  questions: AdminSurveyQuestionInput[];
+}
+
+export interface AdminSurveyRowDto {
+  id: string;
+  title: string;
+  description: string;
+  status: SurveyStatusDto;
+  releaseTag: string | null;
+  featureTag: string | null;
+  roundId: string | null;
+  roundName: string | null;
+  rewards: AdminSurveyRewardInput[];
+  startsAt: string | null;
+  endsAt: string | null;
+  publishedAt: string | null;
+  closedAt: string | null;
+  announcedAt: string | null;
+  createdByUsername: string;
+  createdAt: string;
+  updatedAt: string;
+  questionCount: number;
+  submissionCount: number;
+}
+
+export interface AdminSurveyDetailDto extends AdminSurveyRowDto {
+  questions: SurveyQuestionDto[];
+}
+
+export interface AdminSurveysDto {
+  now: string;
+  surveys: AdminSurveyRowDto[];
+  rounds: Array<{
+    id: string;
+    name: string;
+    status: string;
+    rulesetVersion: string;
+  }>;
+}
