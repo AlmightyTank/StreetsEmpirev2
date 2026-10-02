@@ -138,7 +138,7 @@ export const SurveyService = {
     ]);
 
     return {
-      serverTime: new Date().toISOString(),
+      serverTime: now.toISOString(),
       available: available.map((survey) => summaryDto(survey, round, null)),
       completed: completed.map((submission) =>
         summaryDto(
