@@ -138,10 +138,10 @@ function QuestionInput({
 
       {question.type === 'YES_NO' ? (
         <div className="se-survey-choicegrid se-survey-choicegrid--two">
-          {[
+          {([
             ['Yes', true],
             ['No', false],
-          ].map(([text, option]) => (
+          ] as const).map(([text, option]) => (
             <label key={String(option)} className="se-survey-choice">
               <input
                 type="radio"
@@ -402,6 +402,16 @@ export function SurveysPage() {
       const result = await surveysApi.submit(detail.id, { actionId, answers: validation.answers });
       pendingActionId.current = null;
       setUncertain(false);
+      setDetail((current) => current && current.id === detail.id ? {
+        ...current,
+        rewards: result.result.rewards,
+        completion: {
+          submittedAt: result.result.submittedAt,
+          rewardGrantedAt: result.result.submittedAt,
+        },
+        answers: validation.answers,
+      } : current);
+      setAnswers(surveyAnswersToForm(validation.answers));
       setNotice(`Survey complete — ${result.result.rewards.length ? result.result.rewards.map(rewardText).join(' · ') : 'thank you for the feedback'}.`);
       window.dispatchEvent(new Event(SURVEYS_CHANGED_EVENT));
       await Promise.allSettled([refreshSnapshot(), moveToCompleted(detail.id)]);
