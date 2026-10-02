@@ -486,7 +486,7 @@ function useSurveyAvailableCount(playerId: string | null): number {
 /**
  * What each page wants you to know before you open it:
  * - Scout carries your turns, amber once they sit at the cap.
- * - Raids gets a red dot when someone hit you since you last looked at Raids or Activity.
+ * - Raids gets a red dot when someone hit you since you last looked at Raids or Console/Activity.
  * - Dashboard goes amber when Heat drags the take, red when bust/arrest risk is live,
  *   and red while an arrest has the player locked up.
  * - Travel goes amber while a run sits in town, trading only when you are there, and
@@ -509,7 +509,7 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
     setSeen(playerId ? readSeen(playerId) : null);
   }, [playerId]);
 
-  const looking = pathname === '/game/combat' || pathname === '/game/activity';
+  const looking = pathname === '/game/combat' || pathname === '/game/console' || pathname === '/game/activity';
   useEffect(() => {
     if (!playerId || !latestHit) return;
     const stored = readSeen(playerId);
