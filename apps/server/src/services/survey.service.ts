@@ -122,9 +122,17 @@ export function validateSurveyAnswers(
   answers: readonly SurveyAnswerInputDto[],
 ): SurveyAnswerInputDto[] {
   const questionsById = new Map(questions.map((question) => [question.id, question]));
-  const answersById = new Map(answers.map((answer) => [answer.questionId, answer]));
+  const answersById = new Map<string, SurveyAnswerInputDto>();
 
   for (const answer of answers) {
+    if (answersById.has(answer.questionId)) {
+      throw AppError.badRequest(
+        'SURVEY_ANSWER_DUPLICATE',
+        'Answer each survey question only once.',
+        questionField(answer.questionId),
+      );
+    }
+    answersById.set(answer.questionId, answer);
     if (!questionsById.has(answer.questionId)) {
       throw AppError.badRequest(
         'SURVEY_ANSWER_UNKNOWN',
@@ -188,6 +196,13 @@ export function validateSurveyAnswers(
             );
           }
           break;
+        }
+        if (new Set(answer.value).size !== answer.value.length) {
+          throw AppError.badRequest(
+            'SURVEY_CHOICE_DUPLICATE',
+            'Choose each option only once.',
+            questionField(question.id),
+          );
         }
         const allowed = new Set(question.options.map((option) => option.value));
         if (answer.value.some((value) => !allowed.has(value))) {
