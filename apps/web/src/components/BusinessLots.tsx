@@ -44,28 +44,28 @@ export function BusinessLots({
 
   async function build(lot: Lot) {
     await action.run((actionId) => api.post<GameActionResult<LotResult>>('/game/business/build', {
-      district: block.district, lot: lot.lot, actionId,
+      city: block.city, district: block.district, lot: lot.lot, actionId,
     }));
     onChanged?.();
   }
 
   async function staff(lot: Lot, count: number, autoStaff: boolean) {
     await action.run((actionId) => api.post<GameActionResult<LotResult>>('/game/business/staff', {
-      district: block.district, lot: lot.lot, staff: count, autoStaff, actionId,
+      city: block.city, district: block.district, lot: lot.lot, staff: count, autoStaff, actionId,
     }));
     onChanged?.();
   }
 
   async function torch(lot: Lot) {
     await action.run((actionId) => api.post<GameActionResult<LotResult>>('/game/business/torch', {
-      district: block.district, lot: lot.lot, actionId,
+      city: block.city, district: block.district, lot: lot.lot, actionId,
     }));
     onChanged?.();
   }
 
   async function racket(lot: Lot, key: string | null) {
     await action.run((actionId) => api.post<GameActionResult<LotResult>>('/game/business/racket', {
-      district: block.district, lot: lot.lot, racket: key, actionId,
+      city: block.city, district: block.district, lot: lot.lot, racket: key, actionId,
     }));
     onChanged?.();
   }

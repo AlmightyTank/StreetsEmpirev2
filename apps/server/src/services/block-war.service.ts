@@ -27,7 +27,14 @@ import { allianceTargetBlock } from './alliance.service.js';
 import { ActivityService } from './activity.service.js';
 import { ACTIVE_WAR, BlockWarSettleService, blockFatigueNow } from './block-war-settle.service.js';
 import { hasTurfRevenge } from './turf-revenge.service.js';
-import { TurfService, allocateCornerGuns, cornerGunWorthCents } from './turf.service.js';
+import {
+  TurfService,
+  allocateCornerGuns,
+  cornerGunWorthCents,
+  gunsFromTurf,
+  subtractCornerGuns,
+  turfGunData,
+} from './turf.service.js';
 
 const HOUR_MS = 3_600_000;
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -98,6 +105,54 @@ function withMorale(crew: Prisma.InputJsonValue, morale: number): Prisma.InputJs
   return { ...(crew as Record<string, unknown>), thugHappiness: morale } as Prisma.InputJsonValue;
 }
 
+/**
+ * 1.1.0-E. An alliance member who does not live in the war city can answer from the
+ * corner crew of their outpost there. The people move from posted -> busy while they
+ * fight; their guns remain away, so posted gun net worth does not change at send time.
+ */
+async function commitOutpostAlly(
+  tx: Db,
+  current: PlayerState,
+  ruleset: Ruleset,
+  input: { roundId: string; playerId: string; cityId: string; thugs: number; cap: number },
+) {
+  const candidates = await tx.turf.findMany({
+    where: { roundId: input.roundId, cityId: input.cityId, holderId: input.playerId },
+    include: { outpost: true },
+    orderBy: { heldSince: 'asc' },
+  });
+  const source = candidates.find((row) => row.outpost?.ownerId === input.playerId);
+  if (!source?.outpost) return null;
+  await lockBlock(tx, source.id);
+  const fresh = await tx.turf.findUniqueOrThrow({ where: { id: source.id }, include: { outpost: true } });
+  if (fresh.holderId !== input.playerId || fresh.outpost?.ownerId !== input.playerId) return null;
+
+  const available = Math.min(fresh.cornerThugs, input.cap);
+  if (available < 1) throw AppError.conflict('BLOCK_WAR_NO_THUGS', 'Your outpost has no corner crew free to answer.');
+  if (input.thugs > available) throw AppError.badRequest('BLOCK_WAR_TOO_MANY', `Send at most ${available} thugs from that outpost.`);
+  const guns = allocateCornerGuns(gunsFromTurf(fresh), input.thugs);
+  if (!guns) throw AppError.conflict('BLOCK_WAR_NOT_ENOUGH_ARMED', `That outpost needs ${input.thugs} posted guns to send that many.`);
+  const left = subtractCornerGuns(gunsFromTurf(fresh), guns);
+  await tx.turf.update({
+    where: { id: fresh.id },
+    data: { cornerThugs: fresh.cornerThugs - input.thugs, ...turfGunData(left) },
+  });
+
+  const crew = json({
+    thugHappiness: 0,
+    weapons: { PISTOL: guns.pistols, SHOTGUN: guns.shotguns, TEK9: guns.tek9s, AK47: guns.ak47s },
+    sourceOutpost: { turfId: fresh.id, outpostId: fresh.outpost.id },
+  });
+  return {
+    next: {
+      ...current,
+      busyThugs: current.busyThugs + input.thugs,
+      postedThugs: Math.max(0, current.postedThugs - input.thugs),
+    },
+    crew,
+  };
+}
+
 type WarRow = Awaited<ReturnType<typeof loadWar>>;
 
 function result(war: WarRow, ruleset: Ruleset, message: string, turnsUsed: number, thugs: number): BlockWarActionResult {
@@ -128,11 +183,15 @@ export const BlockWarService = {
           where: { id: block.id },
           include: {
             city: { select: { id: true, slug: true } },
+            outpost: true,
             holder: { select: { id: true, accountId: true, allianceId: true, formerAllianceId: true, allianceCooldownUntil: true, publicPimpId: true, displayName: true } },
           },
         });
         const holder = turf.holder;
         if (!holder) throw AppError.conflict('LOCALS_BLOCK', 'The locals hold that block. Claim it instead.');
+        if (turf.outpost && !ruleset.business?.outposts) {
+          throw AppError.conflict('BLOCK_WAR_OUTPOSTS_DISABLED', 'Block wars on outposts arrive in 1.1.0-E.');
+        }
         if (holder.id === attackerId || holder.accountId === player.accountId) throw AppError.badRequest('OWN_TURF', 'That is your own block.');
         const allied = allianceTargetBlock(player, holder, now);
         if (allied) throw AppError.conflict('ALLIED', `${allied} A block passed between allies has to go through the locals.`);
@@ -303,10 +362,20 @@ export const BlockWarService = {
             : { defenderCut: cut, defenderCallUntil: until, defenderAllianceId: player.allianceId },
         });
         const enemy = side === 'attacker' ? war.defenderId : war.attackerId;
-        const members = await tx.roundPlayer.findMany({
-          where: { roundId: round.id, allianceId: player.allianceId, cityId: war.turf.cityId, id: { notIn: [callerId, enemy] } },
-          select: { id: true },
+        const candidates = await tx.roundPlayer.findMany({
+          where: { roundId: round.id, allianceId: player.allianceId, id: { notIn: [callerId, enemy] } },
+          select: {
+            id: true,
+            cityId: true,
+            turfHeld: {
+              where: { cityId: war.turf.cityId },
+              select: { outpost: { select: { ownerId: true } } },
+            },
+          },
         });
+        const members = candidates.filter((member) =>
+          member.cityId === war.turf.cityId
+          || (Boolean(business.outposts) && member.turfHeld.some((block) => block.outpost?.ownerId === member.id)));
         const payload = json({ warId: war.id, district: war.turf.district, side: side === 'attacker' ? 'ATTACKER' : 'DEFENDER', caller: player.displayName, cutPercent: Math.round(cut * 100), until: until.toISOString() });
         for (const member of slot ? members.filter((row) => row.id === slot) : members) {
           await ActivityService.log(tx, member.id, 'BLOCK_WAR_CALL', payload);
@@ -330,7 +399,10 @@ export const BlockWarService = {
         const enemyId = attackerSide ? war.defenderId : war.attackerId;
         const caller = await tx.roundPlayer.findUniqueOrThrow({ where: { id: callerId }, select: { allianceId: true, accountId: true, displayName: true } });
         if (!player.allianceId || player.allianceId !== caller.allianceId) throw AppError.conflict('NOT_ALLIED', 'Only the caller\'s alliance can answer.');
-        if (player.cityId !== war.turf.cityId) throw AppError.conflict('WRONG_CITY', 'Only members who live in this city can answer.');
+        const resident = player.cityId === war.turf.cityId;
+        if (!resident && !business.outposts) {
+          throw AppError.conflict('WRONG_CITY', 'Only members who live in this city can answer.');
+        }
         const until = attackerSide ? war.attackerCallUntil : war.defenderCallUntil;
         if (!until || until <= now) throw AppError.conflict('BLOCK_WAR_NO_CALL', 'There is no open call for help on that side.');
         const slot = attackerSide ? war.attackerAllyId : war.defenderAllyId;
@@ -352,7 +424,12 @@ export const BlockWarService = {
         const room = allyThugCap(ruleset, totals.declarer) - mine.reduce((sum, row) => sum + row.thugs, 0);
         if (room < 1) throw AppError.conflict('BLOCK_WAR_ALLY_CAP', 'You already match the declarer\'s squad, the most an ally can send.');
         if (input.thugs > room) throw AppError.badRequest('BLOCK_WAR_ALLY_CAP', `An ally can send at most ${room} more (matched to the declarer's squad).`);
-        const sent = commit(current, ruleset, input.thugs, model.squadCap);
+        const sent = resident
+          ? commit(current, ruleset, input.thugs, model.squadCap)
+          : await commitOutpostAlly(tx, current, ruleset, {
+              roundId: round.id, playerId: allyId, cityId: war.turf.cityId, thugs: input.thugs, cap: model.squadCap,
+            });
+        if (!sent) throw AppError.conflict('WRONG_CITY', 'You need to live in this city or hold an outpost here to answer.');
         if (!slot) await tx.blockWar.update({ where: { id: war.id }, data: attackerSide ? { attackerAllyId: allyId } : { defenderAllyId: allyId } });
         await tx.blockWarSquad.create({
           data: {
@@ -425,8 +502,24 @@ export const BlockWarService = {
       execute: async ({ tx, current, player, round, ruleset, now }) => {
         const { business } = requireWars(ruleset);
         const district = input.district as DistrictKey;
-        const turf = await tx.turf.findUnique({ where: { roundId_cityId_district: { roundId: round.id, cityId: player.cityId, district } }, select: { id: true } });
-        if (!turf) throw AppError.notFound('TURF_NOT_FOUND', 'That block is not in your city.');
+        let cityId = player.cityId;
+        if (input.city) {
+          const city = await tx.city.findUnique({ where: { slug: input.city }, select: { id: true } });
+          if (!city) throw AppError.notFound('CITY_NOT_FOUND', 'That city is not in this round.');
+          cityId = city.id;
+        }
+        const turf = await tx.turf.findUnique({
+          where: { roundId_cityId_district: { roundId: round.id, cityId, district } },
+          include: { outpost: { select: { ownerId: true } } },
+        });
+        if (!turf) throw AppError.notFound('TURF_NOT_FOUND', 'That block is not in this round.');
+        const away = cityId !== player.cityId;
+        if (away && !business.outposts) {
+          throw AppError.conflict('BUSINESS_OUTPOSTS_DISABLED', 'Away business wars arrive in 1.1.0-E.');
+        }
+        if (away && turf.outpost?.ownerId !== holderId) {
+          throw AppError.conflict('BUSINESS_OUTPOST_REQUIRED', 'That away block is no longer backed by your outpost.');
+        }
         const live = await tx.blockWar.findFirst({ where: { turfId: turf.id, status: ACTIVE_WAR } });
         if (!live || live.defenderId !== holderId) throw AppError.conflict('BLOCK_WAR_NONE', 'You can only torch a business on your block during a war on it.');
         const war = await loadWar(tx, live.id, round.id);

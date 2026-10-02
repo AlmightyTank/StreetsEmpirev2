@@ -580,7 +580,7 @@ export function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: Tra
               <Row key={key} label={nameOf(data.products, key)} value={formatNumber(quantity)} />
             ))}
           </div>
-          <p className="se-hint">Street tax lands in this cash box until it is full. Corner upkeep burns beer and your CORNER supply from this box each hour; if it runs dry, thugs can walk.</p>
+          <p className="se-hint">Street tax and away-business registers land in this cash box until it is full. Corner upkeep and away businesses burn beer/product from this box. Pick the cash up with this run to bring it home; once it is on the run, normal convoy losses apply.</p>
           <div className="se-seg" role="group" aria-label="Outpost transfer direction">
             <button type="button" className={`se-seg__btn${direction === 'deposit' ? ' se-seg__btn--on' : ''}`} onClick={() => setDirection('deposit')}>Drop off</button>
             <button type="button" className={`se-seg__btn${direction === 'withdraw' ? ' se-seg__btn--on' : ''}`} onClick={() => setDirection('withdraw')}>Pick up</button>
