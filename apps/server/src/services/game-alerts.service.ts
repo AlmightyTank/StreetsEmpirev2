@@ -447,22 +447,53 @@ async function surveyBroadcasts(tx: Tx, now: Date, switches: ChannelSwitches): P
 
   const rows: OutboxRow[] = [];
   for (const survey of surveys) {
+    let players: Array<{
+      id: string;
+      accountId: string;
+      account: { notificationSettings: AlertSettings | null };
+    }>;
+
+    if (survey.roundId) {
+      players = await tx.roundPlayer.findMany({
+        where: { roundId: survey.roundId, account: { isActive: true } },
+        orderBy: { publicPimpId: 'asc' },
+        select: { id: true, accountId: true, account: accountSettings },
+      });
+    } else {
+      // Match the bell's current-round preference: an ACTIVE player wins over a
+      // future REGISTRATION player for the same account.
+      const [active, registration] = await Promise.all([
+        tx.roundPlayer.findMany({
+          where: {
+            round: { status: 'ACTIVE', endsAt: { gt: now } },
+            account: { isActive: true },
+          },
+          orderBy: [{ round: { startsAt: 'desc' } }, { publicPimpId: 'asc' }],
+          select: { id: true, accountId: true, account: accountSettings },
+        }),
+        tx.roundPlayer.findMany({
+          where: {
+            round: { status: 'REGISTRATION', endsAt: { gt: now } },
+            account: { isActive: true },
+          },
+          orderBy: [{ round: { startsAt: 'asc' } }, { publicPimpId: 'asc' }],
+          select: { id: true, accountId: true, account: accountSettings },
+        }),
+      ]);
+      const activeAccounts = new Set(active.map((player) => player.accountId));
+      players = [...active, ...registration.filter((player) => !activeAccounts.has(player.accountId))];
+    }
+
+    // Do not burn the one-time marker before there is an eligible recipient.
+    // This lets a survey scheduled for an upcoming round notify the first cohort
+    // after registration/player rows actually exist.
+    if (!players.length) continue;
+
     const claimed = await tx.survey.updateMany({
       where: { id: survey.id, status: 'LIVE', announcedAt: null },
       data: { announcedAt: now },
     });
     if (!claimed.count) continue;
-
-    const players = await tx.roundPlayer.findMany({
-      where: survey.roundId
-        ? { roundId: survey.roundId, account: { isActive: true } }
-        : {
-            round: { status: { in: ['ACTIVE', 'REGISTRATION'] }, endsAt: { gt: now } },
-            account: { isActive: true },
-          },
-      orderBy: [{ round: { startsAt: 'desc' } }, { publicPimpId: 'asc' }],
-      select: { id: true, accountId: true, account: accountSettings },
-    });
 
     const href = `/game/surveys?tab=available&survey=${encodeURIComponent(survey.id)}`;
     const title = `New survey: ${survey.title}`;
