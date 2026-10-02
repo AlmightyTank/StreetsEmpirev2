@@ -211,7 +211,7 @@ export const TurfCrackdownService = {
       const heat = Math.min(living.heat?.max ?? 100, player.heat + requestedHeat);
       const heatAdded = Math.max(0, heat - player.heat);
       const thugWorth = BigInt(loss.pickedUp) * BigInt(ruleset.economy.netWorth.perThugCents);
-      const lostWorth = thugWorth + loss.seizedWorth;
+      const lostWorth = thugWorth + loss.seizedWorth + registerSeizedCents;
 
       await tx.roundPlayer.update({
         where: { id: holderId },
