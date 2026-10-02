@@ -1,8 +1,10 @@
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 
-type SurveyDb =
-  | Pick<PrismaClient, 'survey'>
-  | Pick<Prisma.TransactionClient, 'survey'>;
+type SurveyDb = {
+  survey: {
+    updateMany(args: Prisma.SurveyUpdateManyArgs): Promise<Prisma.BatchPayload>;
+  };
+};
 
 /**
  * Settle survey lifecycle by wall clock. Closing runs first so a survey whose
