@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import type { Prisma } from '@prisma/client';
 import { classicOgV08H } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
 import { ReputationService } from '../reputation.service.js';
@@ -15,7 +16,7 @@ describe.runIf(process.env.SURVEY_INTEGRATION === '1')('Survey Phase C submissio
   let roundId = '';
   const surveyIds: string[] = [];
 
-  async function makeSurvey(title: string, rewards: object[] = [{ kind: 'CASH', amount: 12_345 }, { kind: 'TURNS', amount: 7 }]) {
+  async function makeSurvey(title: string, rewards: Prisma.InputJsonValue = [{ kind: 'CASH', amount: 12_345 }, { kind: 'TURNS', amount: 7 }]) {
     const survey = await app.prisma.survey.create({
       data: {
         title,
