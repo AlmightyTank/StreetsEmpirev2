@@ -84,6 +84,17 @@ describe('Survey Phase C answer validation', () => {
       .toThrow(/at least 3/i);
   });
 
+  it('rejects duplicate answers even when called below the transport layer', () => {
+    const q = question('duplicate', 'YES_NO');
+    expect(() => validateSurveyAnswers(
+      [q],
+      [
+        { questionId: q.id, value: true },
+        { questionId: q.id, value: false },
+      ],
+    )).toThrow(/only once/i);
+  });
+
   it('accepts multiple authored choices and rejects foreign values', () => {
     const q = question('multi', 'MULTIPLE_CHOICE', {
       options: [option('multi', 'MOBILE', 1), option('multi', 'DESKTOP', 2)],
