@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '../stores/session.js';
 import { CONSOLE_UPDATED_EVENT, consoleApi } from '../api/console.js';
+import { SURVEYS_CHANGED_EVENT, surveysApi } from '../api/surveys.js';
 import { formatWhen } from '../utils/time.js';
 
 /** One page in the game menu. `key` is what the phone tab bar stores. */
@@ -33,6 +34,7 @@ export const SECTIONS: NavSection[] = [
     pages: [
       { key: 'dashboard', label: 'Dashboard', short: 'Home', to: '/game', icon: 'dashboard' },
       { key: 'quests', label: 'Quests', to: '/game/quests', icon: 'activity' },
+      { key: 'surveys', label: 'Surveys', to: '/game/surveys', icon: 'activity' },
       { key: 'street-pass', label: 'Street Pass', short: 'Pass', to: '/game/street-pass', icon: 'pass' },
       { key: 'scout', label: 'Scout', to: '/game/scout', icon: 'scout' },
       { key: 'produce', label: 'Produce', to: '/game/produce', icon: 'produce' },
@@ -248,6 +250,39 @@ function useConsoleUnread(playerId: string | null): number {
   return unread;
 }
 
+
+function useSurveyAvailableCount(playerId: string | null): number {
+  const [available, setAvailable] = useState(0);
+
+  useEffect(() => {
+    if (!playerId) {
+      setAvailable(0);
+      return;
+    }
+
+    let live = true;
+    const refresh = () => {
+      void surveysApi.page()
+        .then((page) => { if (live) setAvailable(page.available.length); })
+        .catch(() => { /* A survey badge must never break navigation. */ });
+    };
+
+    refresh();
+    window.addEventListener(SURVEYS_CHANGED_EVENT, refresh);
+    window.addEventListener('focus', refresh);
+    const interval = window.setInterval(refresh, 120_000);
+
+    return () => {
+      live = false;
+      window.removeEventListener(SURVEYS_CHANGED_EVENT, refresh);
+      window.removeEventListener('focus', refresh);
+      window.clearInterval(interval);
+    };
+  }, [playerId]);
+
+  return available;
+}
+
 /**
  * What each page wants you to know before you open it:
  * - Scout carries your turns, amber once they sit at the cap.
@@ -263,6 +298,7 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
   const activity = useSession((s) => s.recentActivity);
   const playerId = me?.id ?? null;
   const consoleUnread = useConsoleUnread(playerId);
+  const surveyAvailable = useSurveyAvailableCount(playerId);
   const latestHit = activity
     .filter((entry) => DEFENSE_TYPES.has(entry.type))
     .reduce<string | null>((latest, entry) => (latest === null || entry.createdAt > latest ? entry.createdAt : latest), null);
@@ -315,6 +351,14 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
       tone: 'info',
       text: badgeCount(consoleUnread),
       label: `${consoleUnread} unread Console item${consoleUnread === 1 ? '' : 's'}`,
+    };
+  }
+
+  if (surveyAvailable > 0) {
+    badges.surveys = {
+      tone: 'info',
+      text: badgeCount(surveyAvailable),
+      label: `${surveyAvailable} survey${surveyAvailable === 1 ? '' : 's'} ready for feedback`,
     };
   }
 
