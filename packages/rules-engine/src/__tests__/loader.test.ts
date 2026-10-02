@@ -393,7 +393,6 @@ describe('classic-og-v1.1-f contents', () => {
     expect(ruleset.meta.name).toBe('Classic OG - Business Release');
     expect(ruleset.business?.crackdown).toEqual({
       activeRacketHeatPerBusiness: 8,
-      registerSeizureShare: 0.25,
     });
     expect({
       ...ruleset,

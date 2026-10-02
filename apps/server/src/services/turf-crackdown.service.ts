@@ -20,10 +20,8 @@ export interface TurfCrackdownHolderResult {
   blocks: number;
   pickedUp: number;
   heatAdded: number;
-  /** 1.1.0-F: active racket businesses caught in the swept city. */
+  /** 1.1.0-F: staffed racket businesses still running in the swept city. */
   racketsHit: number;
-  /** Cents seized from those businesses' on-premises registers, serialized for JSON safety. */
-  registerSeizedCents: string;
 }
 
 function schedule(round: Pick<Round, 'startsAt' | 'endsAt'>, ruleset: Ruleset) {
@@ -171,29 +169,19 @@ export const TurfCrackdownService = {
     for (const [holderId, loss] of [...byHolder.entries()].sort(([a], [b]) => a.localeCompare(b))) {
       const businessCrackdown = ruleset.business?.crackdown;
       let racketsHit = 0;
-      let registerSeizedCents = 0n;
       if (businessCrackdown) {
-        const rackets = await tx.business.findMany({
+        // Settlement above advances the crew to the exact sweep clock first. A racket is
+        // active only while it is staffed and still belongs to the current block holder.
+        racketsHit = await tx.business.count({
           where: {
             roundId: round.id,
             staffOwnerId: holderId,
             level: { gt: 0 },
+            staff: { gt: 0 },
             racket: { not: null },
             turf: { cityId: event.cityId, holderId },
           },
-          select: { id: true, registerCents: true },
-          orderBy: { id: 'asc' },
         });
-        racketsHit = rackets.length;
-        for (const racket of rackets) {
-          const seized = racket.registerCents * BigInt(Math.round(businessCrackdown.registerSeizureShare * 10_000)) / 10_000n;
-          if (seized <= 0n) continue;
-          registerSeizedCents += seized;
-          await tx.business.update({
-            where: { id: racket.id },
-            data: { registerCents: racket.registerCents - seized },
-          });
-        }
       }
 
       const player = await tx.roundPlayer.findUniqueOrThrow({
@@ -211,7 +199,7 @@ export const TurfCrackdownService = {
       const heat = Math.min(living.heat?.max ?? 100, player.heat + requestedHeat);
       const heatAdded = Math.max(0, heat - player.heat);
       const thugWorth = BigInt(loss.pickedUp) * BigInt(ruleset.economy.netWorth.perThugCents);
-      const lostWorth = thugWorth + loss.seizedWorth + registerSeizedCents;
+      const lostWorth = thugWorth + loss.seizedWorth;
 
       await tx.roundPlayer.update({
         where: { id: holderId },
@@ -234,7 +222,6 @@ export const TurfCrackdownService = {
         pickedUp: loss.pickedUp,
         heatAdded,
         racketsHit,
-        registerSeizedCents: registerSeizedCents.toString(),
       });
     }
 

@@ -12,8 +12,9 @@ export const classicOgV11F = {
   business: {
     ...classicOgV11E.business,
     crackdown: {
+      // The existing 24-hour warning is the counterplay: shut the racket before the
+      // sweep and the business takes no extra Federal Heat.
       activeRacketHeatPerBusiness: 8,
-      registerSeizureShare: 0.25,
     },
   },
 } as const satisfies Ruleset;

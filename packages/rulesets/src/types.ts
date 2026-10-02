@@ -1413,10 +1413,8 @@ export type BusinessKey =
  * See docs/ROADMAP-1.1.0.md.
  */
 export interface BusinessCrackdownRules {
-  /** Extra Heat per active racket in the swept city when the federal turf crackdown lands. */
+  /** Extra Heat per staffed, active racket in the swept city when the federal turf crackdown lands. */
   readonly activeRacketHeatPerBusiness: number;
-  /** Share of each active racket's on-premises register seized by the sweep, 0..1. */
-  readonly registerSeizureShare: number;
 }
 
 export interface BusinessRules {

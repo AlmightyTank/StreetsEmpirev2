@@ -118,12 +118,11 @@ describe('0.6.0-F Federal turf crackdown', () => {
       pickedUp: 0,
       heatAdded: 12,
       racketsHit: 0,
-      registerSeizedCents: '0',
     })]);
   });
 
 
-  it('1.1.0-F adds racket Heat and seizes active-racket register cash', async () => {
+  it('1.1.0-F adds Heat only for staffed rackets', async () => {
     const sweepAt = new Date('2026-09-27T00:00:00.000Z');
     const event = {
       id: 'crackdown-f', roundId: 'round-f', cityId: 'city-atlanta',
@@ -134,7 +133,7 @@ describe('0.6.0-F Federal turf crackdown', () => {
       city: { slug: 'atlanta', name: 'Atlanta' },
     };
     let turfReads = 0;
-    const businessUpdate = vi.fn(async ({ data }: any) => data);
+    const businessCount = vi.fn(async () => 2);
     const playerUpdate = vi.fn(async ({ data }: any) => data);
     const tx: any = {
       turfCrackdown: {
@@ -153,10 +152,7 @@ describe('0.6.0-F Federal turf crackdown', () => {
         }),
         update: vi.fn(),
       },
-      business: {
-        findMany: vi.fn(async () => [{ id: 'business-f', registerCents: 1_000_000n }]),
-        update: businessUpdate,
-      },
+      business: { count: businessCount },
       roundPlayer: {
         findUniqueOrThrow: vi.fn(async () => ({
           heat: 10, thugs: 10, postedThugs: 1, postedNetWorthCents: 0n, netWorthCents: 10_000_000n,
@@ -173,17 +169,22 @@ describe('0.6.0-F Federal turf crackdown', () => {
       startsAt: new Date('2026-09-01T00:00:00.000Z'), endsAt: new Date('2026-09-29T00:00:00.000Z'),
     } as any, classicOgV11F, sweepAt);
 
-    expect(businessUpdate).toHaveBeenCalledWith({
-      where: { id: 'business-f' },
-      data: { registerCents: 750_000n },
+    expect(businessCount).toHaveBeenCalledWith({
+      where: {
+        roundId: 'round-f',
+        staffOwnerId: 'player-f',
+        level: { gt: 0 },
+        staff: { gt: 0 },
+        racket: { not: null },
+        turf: { cityId: 'city-atlanta', holderId: 'player-f' },
+      },
     });
     expect(playerUpdate).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ heat: 30, netWorthCents: 9_750_000n }),
+      data: expect.objectContaining({ heat: 38, netWorthCents: 10_000_000n }),
     }));
     expect((result as any).results).toEqual([expect.objectContaining({
-      racketsHit: 1,
-      registerSeizedCents: '250000',
-      heatAdded: 20,
+      racketsHit: 2,
+      heatAdded: 28,
     })]);
   });
 
