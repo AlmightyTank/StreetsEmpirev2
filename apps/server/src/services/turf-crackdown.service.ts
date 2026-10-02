@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient, Round } from '@prisma/client';
 import { hashParts, rulesetForCity, type Ruleset } from '@streets/rules-engine';
 import { lockRound, type Db } from '../utils/db.js';
 import { PlayerStateService } from './player-state.service.js';
+import { ACTIVE_WAR, BlockWarSettleService } from './block-war-settle.service.js';
 import {
   cornerGunWorthCents,
   gunsFromTurf,
@@ -96,6 +97,19 @@ export const TurfCrackdownService = {
     if (!event || event.sweptAt || event.sweepAt > now) return event;
 
     await TurfService.ensureRound(tx, round.id, ruleset);
+
+    // 1.1.0-F: a torch or completed block war due before the federal sweep must
+    // land before we snapshot holders and active rackets.
+    if (ruleset.business?.crackdown) {
+      const wars = await tx.blockWar.findMany({
+        where: { roundId: round.id, status: ACTIVE_WAR, turf: { cityId: event.cityId } },
+        select: { id: true },
+        orderBy: { id: 'asc' },
+      });
+      for (const war of wars) {
+        await BlockWarSettleService.advance(tx, war.id, event.sweepAt);
+      }
+    }
 
     // Settle every current holder to the event clock first: supply walkouts,
     // pending turf credit, Heat decay and net worth are all current before Feds hit.

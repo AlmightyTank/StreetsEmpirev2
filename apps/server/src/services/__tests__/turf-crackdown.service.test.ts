@@ -3,6 +3,7 @@ import { classicOgV06F, classicOgV11F } from '@streets/rulesets';
 import { TurfCrackdownService } from '../turf-crackdown.service.js';
 import { PlayerStateService } from '../player-state.service.js';
 import { TurfService } from '../turf.service.js';
+import { ACTIVE_WAR, BlockWarSettleService } from '../block-war-settle.service.js';
 
 describe('0.6.0-F Federal turf crackdown', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -133,9 +134,13 @@ describe('0.6.0-F Federal turf crackdown', () => {
       city: { slug: 'atlanta', name: 'Atlanta' },
     };
     let turfReads = 0;
-    const businessCount = vi.fn(async () => 2);
+    const order: string[] = [];
+    const businessCount = vi.fn(async () => { order.push('racket-count'); return 2; });
     const playerUpdate = vi.fn(async ({ data }: any) => data);
     const tx: any = {
+      blockWar: {
+        findMany: vi.fn(async () => { order.push('war-query'); return [{ id: 'war-f' }]; }),
+      },
       turfCrackdown: {
         findUnique: vi.fn(async () => event),
         update: vi.fn(async ({ data }: any) => ({ ...event, ...data })),
@@ -162,13 +167,30 @@ describe('0.6.0-F Federal turf crackdown', () => {
     };
 
     vi.spyOn(TurfService, 'ensureRound').mockResolvedValue();
-    vi.spyOn(PlayerStateService, 'settleInTransaction').mockResolvedValue({} as any);
+    vi.spyOn(BlockWarSettleService, 'advance').mockImplementation(async (_tx, warId, at) => {
+      order.push('war-advance');
+      expect(warId).toBe('war-f');
+      expect(at).toEqual(sweepAt);
+      return true;
+    });
+    vi.spyOn(PlayerStateService, 'settleInTransaction').mockImplementation(async () => {
+      order.push('player-settle');
+      return {} as any;
+    });
 
     const result = await TurfCrackdownService.settleInTransaction(tx, {
       id: 'round-f', status: 'ACTIVE',
       startsAt: new Date('2026-09-01T00:00:00.000Z'), endsAt: new Date('2026-09-29T00:00:00.000Z'),
     } as any, classicOgV11F, sweepAt);
 
+    expect(tx.blockWar.findMany).toHaveBeenCalledWith({
+      where: { roundId: 'round-f', status: ACTIVE_WAR, turf: { cityId: 'city-atlanta' } },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    });
+    expect(BlockWarSettleService.advance).toHaveBeenCalledWith(tx, 'war-f', sweepAt);
+    expect(order.indexOf('war-advance')).toBeLessThan(order.indexOf('player-settle'));
+    expect(order.indexOf('player-settle')).toBeLessThan(order.indexOf('racket-count'));
     expect(businessCount).toHaveBeenCalledWith({
       where: {
         roundId: 'round-f',
