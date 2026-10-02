@@ -1,15 +1,25 @@
 import type { Prisma, PrismaClient, Round, Survey } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import type { QuestRewardDefinition, Ruleset } from '@streets/rulesets';
-import type {
-  SurveyCompletionDto,
-  SurveyDetailDto,
-  SurveyPageDto,
-  SurveyQuestionDto,
-  SurveySummaryDto,
+import {
+  SURVEY_DEFAULT_LONG_TEXT_MAX_LENGTH,
+  SURVEY_DEFAULT_RATING_MAX,
+  SURVEY_DEFAULT_RATING_MIN,
+  SURVEY_DEFAULT_SHORT_TEXT_MAX_LENGTH,
+  SURVEY_DEFAULT_TEXT_MIN_LENGTH,
+  type GameActionResult,
+  type SurveyAnswerInputDto,
+  type SurveyCompletionDto,
+  type SurveyDetailDto,
+  type SurveyPageDto,
+  type SurveyQuestionDto,
+  type SurveySubmissionResultDto,
+  type SurveySubmitInputDto,
+  type SurveySummaryDto,
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
-import { rewardDto } from './reward-grant.service.js';
+import { grantRewards, rewardDto } from './reward-grant.service.js';
+import { ActionService } from './action.service.js';
 import { RoundPlayerService } from './round-player.service.js';
 import { RoundService } from './round.service.js';
 
@@ -89,6 +99,158 @@ function questionDto(question: Prisma.SurveyQuestionGetPayload<{
       position: option.position,
     })),
   };
+}
+
+export type SurveyQuestionForSubmission = Prisma.SurveyQuestionGetPayload<{
+  include: { options: true };
+}>;
+
+function questionField(questionId: string): Record<string, string> {
+  return { [questionId]: 'Check this answer.' };
+}
+
+function configurationError(message: string): never {
+  throw AppError.conflict('SURVEY_CONFIGURATION_INVALID', message);
+}
+
+/**
+ * Validate against the authored question, not against the opinion.
+ * Text is trimmed for storage, but never sentiment-scored or interpreted.
+ */
+export function validateSurveyAnswers(
+  questions: readonly SurveyQuestionForSubmission[],
+  answers: readonly SurveyAnswerInputDto[],
+): SurveyAnswerInputDto[] {
+  const questionsById = new Map(questions.map((question) => [question.id, question]));
+  const answersById = new Map(answers.map((answer) => [answer.questionId, answer]));
+
+  for (const answer of answers) {
+    if (!questionsById.has(answer.questionId)) {
+      throw AppError.badRequest(
+        'SURVEY_ANSWER_UNKNOWN',
+        'That answer does not belong to this survey.',
+        questionField(answer.questionId),
+      );
+    }
+  }
+
+  const normalized: SurveyAnswerInputDto[] = [];
+  for (const question of questions) {
+    const answer = answersById.get(question.id);
+    if (!answer) {
+      if (question.required) {
+        throw AppError.badRequest(
+          'SURVEY_REQUIRED_ANSWER_MISSING',
+          'Answer every required survey question before submitting.',
+          { [question.id]: 'This question is required.' },
+        );
+      }
+      continue;
+    }
+
+    const invalidType = () => AppError.badRequest(
+      'SURVEY_ANSWER_INVALID',
+      'One of your survey answers has the wrong format.',
+      questionField(question.id),
+    );
+
+    switch (question.type) {
+      case 'YES_NO': {
+        if (typeof answer.value !== 'boolean') throw invalidType();
+        normalized.push({ questionId: question.id, value: answer.value });
+        break;
+      }
+      case 'SINGLE_CHOICE': {
+        if (typeof answer.value !== 'string') throw invalidType();
+        if (!question.options.length) configurationError('A single-choice survey question has no choices.');
+        if (!answer.value && !question.required) break;
+        if (!question.options.some((option) => option.value === answer.value)) {
+          throw AppError.badRequest(
+            'SURVEY_CHOICE_INVALID',
+            'Pick one of the choices shown for that question.',
+            questionField(question.id),
+          );
+        }
+        normalized.push({ questionId: question.id, value: answer.value });
+        break;
+      }
+      case 'MULTIPLE_CHOICE': {
+        if (!Array.isArray(answer.value) || !answer.value.every((value) => typeof value === 'string')) {
+          throw invalidType();
+        }
+        if (!question.options.length) configurationError('A multiple-choice survey question has no choices.');
+        if (answer.value.length === 0) {
+          if (question.required) {
+            throw AppError.badRequest(
+              'SURVEY_REQUIRED_ANSWER_MISSING',
+              'Answer every required survey question before submitting.',
+              { [question.id]: 'Choose at least one option.' },
+            );
+          }
+          break;
+        }
+        const allowed = new Set(question.options.map((option) => option.value));
+        if (answer.value.some((value) => !allowed.has(value))) {
+          throw AppError.badRequest(
+            'SURVEY_CHOICE_INVALID',
+            'Pick only the choices shown for that question.',
+            questionField(question.id),
+          );
+        }
+        normalized.push({ questionId: question.id, value: [...answer.value] });
+        break;
+      }
+      case 'RATING': {
+        if (typeof answer.value !== 'number' || !Number.isInteger(answer.value)) throw invalidType();
+        const min = question.ratingMin ?? SURVEY_DEFAULT_RATING_MIN;
+        const max = question.ratingMax ?? SURVEY_DEFAULT_RATING_MAX;
+        if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1 || max > 10 || min > max) {
+          configurationError('A survey rating question has invalid bounds.');
+        }
+        if (answer.value < min || answer.value > max) {
+          throw AppError.badRequest(
+            'SURVEY_RATING_OUT_OF_RANGE',
+            `Give that question a rating from ${min} to ${max}.`,
+            questionField(question.id),
+          );
+        }
+        normalized.push({ questionId: question.id, value: answer.value });
+        break;
+      }
+      case 'SHORT_TEXT':
+      case 'LONG_TEXT': {
+        if (typeof answer.value !== 'string') throw invalidType();
+        const value = answer.value.trim();
+        if (!value && !question.required) break;
+        const min = question.minLength ?? SURVEY_DEFAULT_TEXT_MIN_LENGTH;
+        const defaultMax = question.type === 'SHORT_TEXT'
+          ? SURVEY_DEFAULT_SHORT_TEXT_MAX_LENGTH
+          : SURVEY_DEFAULT_LONG_TEXT_MAX_LENGTH;
+        const max = question.maxLength ?? defaultMax;
+        if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1 || max < min || max > SURVEY_DEFAULT_LONG_TEXT_MAX_LENGTH) {
+          configurationError('A survey text question has invalid length limits.');
+        }
+        if (value.length < min) {
+          throw AppError.badRequest(
+            'SURVEY_TEXT_TOO_SHORT',
+            `Write at least ${min} characters for that question.`,
+            questionField(question.id),
+          );
+        }
+        if (value.length > max) {
+          throw AppError.badRequest(
+            'SURVEY_TEXT_TOO_LONG',
+            `Keep that answer to ${max} characters or fewer.`,
+            questionField(question.id),
+          );
+        }
+        normalized.push({ questionId: question.id, value });
+        break;
+      }
+    }
+  }
+
+  return normalized;
 }
 
 /**
@@ -197,5 +359,95 @@ export const SurveyService = {
       ...base,
       questions: survey.questions.map(questionDto),
     };
+  },
+
+  async submit(
+    prisma: PrismaClient,
+    accountId: string,
+    surveyId: string,
+    input: SurveySubmitInputDto,
+  ): Promise<GameActionResult<SurveySubmissionResultDto>> {
+    const { player } = await currentPlayer(prisma, accountId);
+
+    return ActionService.run<SurveySubmissionResultDto>(prisma, player.id, {
+      action: 'SURVEY_COMPLETE',
+      actionId: input.actionId,
+      idempotencyScope: `SURVEY_COMPLETE:${surveyId}`,
+      execute: async ({ tx, current, player: actionPlayer, round, ruleset, now }) => {
+        const survey = await tx.survey.findUnique({
+          where: { id: surveyId },
+          include: {
+            questions: {
+              include: { options: { orderBy: { position: 'asc' } } },
+              orderBy: { position: 'asc' },
+            },
+          },
+        });
+
+        if (!survey || !surveyAvailableNow(survey, round.id, now)) {
+          throw AppError.conflict(
+            'SURVEY_NOT_AVAILABLE',
+            'That survey is no longer available to submit.',
+          );
+        }
+
+        const existing = await tx.surveySubmission.findUnique({
+          where: { surveyId_accountId: { surveyId, accountId: actionPlayer.accountId } },
+        });
+        if (existing) {
+          throw AppError.conflict(
+            'SURVEY_ALREADY_COMPLETED',
+            'You already completed this survey.',
+          );
+        }
+
+        const normalizedAnswers = validateSurveyAnswers(survey.questions, input.answers);
+        const rewards = rewardDefinitions(survey.rewards);
+        const next = { ...current };
+
+        const submission = await tx.surveySubmission.create({
+          data: {
+            surveyId: survey.id,
+            accountId: actionPlayer.accountId,
+            roundPlayerId: actionPlayer.id,
+            submittedAt: now,
+            rewardSnapshot: survey.rewards as Prisma.InputJsonValue,
+            answers: {
+              create: normalizedAnswers.map((answer) => ({
+                questionId: answer.questionId,
+                value: answer.value as Prisma.InputJsonValue,
+              })),
+            },
+          },
+        });
+
+        await grantRewards(
+          {
+            tx,
+            roundPlayerId: actionPlayer.id,
+            accountId: actionPlayer.accountId,
+            ruleset,
+            now,
+            sourceKey: `survey:${survey.id}`,
+          },
+          next,
+          rewards,
+        );
+
+        await tx.surveySubmission.update({
+          where: { id: submission.id },
+          data: { rewardGrantedAt: now },
+        });
+
+        return {
+          next,
+          result: {
+            surveyId: survey.id,
+            submittedAt: now.toISOString(),
+            rewards: rewards.map((reward) => rewardDto(reward, ruleset)),
+          },
+        };
+      },
+    });
   },
 };
