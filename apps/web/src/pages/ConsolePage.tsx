@@ -67,9 +67,12 @@ function subjectForReply(subject: string): string {
 }
 
 export function ConsolePage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const crackWord = useSession((s) => s.me?.products) ? 'crack' : 'product';
-  const [view, setView] = useState<ConsoleView>('inbox');
+  const [view, setView] = useState<ConsoleView>(() => {
+    const requested = searchParams.get('view');
+    return VIEWS.some((item) => item.key === requested) ? requested as ConsoleView : 'inbox';
+  });
   const [activityFilter, setActivityFilter] = useState<ConsoleActivityFilter>('all');
   const [page, setPage] = useState(1);
   const [counts, setCounts] = useState<ConsoleCountsDto | null>(null);
@@ -99,6 +102,13 @@ export function ConsolePage() {
     ?? null;
 
   useEffect(() => {
+    const requested = searchParams.get('view');
+    if (requested && VIEWS.some((item) => item.key === requested)) {
+      setView(requested as ConsoleView);
+    } else if (!searchParams.get('to')) {
+      setView('inbox');
+    }
+
     const to = searchParams.get('to');
     if (!to || !/^\d+$/.test(to)) return;
     setRecipient(to);
@@ -496,7 +506,7 @@ export function ConsolePage() {
     return {
       title: toast?.title ?? activityGroupLabel(activityGroup(notification.activity.type)),
       detail: toast?.detail ?? [fallback.text, fallback.detail].filter(Boolean).join(' '),
-      href: toast?.href ?? '/game/activity',
+      href: toast?.href ?? '/game/console?view=activity',
       group: activityGroup(notification.activity.type),
     };
   }
@@ -533,6 +543,11 @@ export function ConsolePage() {
                 aria-selected={view === key}
                 className={`se-console-tab${view === key ? ' se-console-tab--active' : ''}`}
                 onClick={() => {
+                  const next = new URLSearchParams(searchParams);
+                  next.delete('to');
+                  if (key === 'inbox') next.delete('view');
+                  else next.set('view', key);
+                  setSearchParams(next, { replace: true });
                   setView(key);
                   setPage(1);
                   setMode('detail');
@@ -661,7 +676,7 @@ export function ConsolePage() {
                         <Link className="se-btn se-btn--primary se-btn--sm" to={selectedEvent.href}>
                           Open report
                         </Link>
-                        <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/activity">
+                        <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/console?view=activity">
                           Full log
                         </Link>
                       </div>
@@ -1034,7 +1049,7 @@ export function ConsolePage() {
         <footer className="se-console-links">
           <span>Existing systems stay authoritative:</span>
           <Link to="/game/alliance">Alliance Wire</Link>
-          <Link to="/game/activity">Activity & attacks</Link>
+          <Link to="/game/console?view=activity">Activity & attacks</Link>
           <Link to="/game/players">Player directory</Link>
         </footer>
       </div>

@@ -9,6 +9,7 @@ import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { formatDate, formatDuration } from '../utils/time.js';
+import { ReportBugPage } from './ReportBugPage.js';
 
 function statusCopy(status: string) {
   if (status === 'ACTIVE') return {
@@ -195,6 +196,9 @@ export function StatusPage() {
           ) : null}
         </>
       ) : status ? <Alert>No active game is running.</Alert> : null}
+        <section id="report-bug" className="se-mt">
+          <ReportBugPage />
+        </section>
       </div>
     </GameLayout>
   );

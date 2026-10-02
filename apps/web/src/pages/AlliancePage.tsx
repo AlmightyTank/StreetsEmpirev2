@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import type { AllianceDetailDto, AllianceEventDto, AllianceRecruitmentStatusDto, MyAllianceDto } from '@streets/shared';
+import type { AllianceDetailDto, AllianceEventDto, AllianceRankingsDto, AllianceRecruitmentStatusDto, MyAllianceDto } from '@streets/shared';
 import { ALLIANCE_DESCRIPTION_MAX, ALLIANCE_NAME_MAX, ALLIANCE_PITCH_MAX, ALLIANCE_TAG_MAX, formatCents, formatNumber } from '@streets/shared';
 import { allianceApi } from '../api/alliances.js';
 import { ApiError } from '../api/client.js';
@@ -103,6 +103,7 @@ export function AllianceSummary({ alliance }: { alliance: AllianceDetailDto }) {
 
 export function AlliancePage() {
   const [data, setData] = useState<MyAllianceDto | null>(null);
+  const [rankings, setRankings] = useState<AllianceRankingsDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState('');
@@ -116,6 +117,10 @@ export function AlliancePage() {
   useEffect(() => {
     allianceApi.mine().then(setData).catch((caught: unknown) => {
       setError(caught instanceof ApiError ? caught.message : 'Could not load your alliance.');
+    });
+    allianceApi.rankings().then(setRankings).catch(() => {
+      // Rankings are secondary to managing your own alliance; keep the main page usable.
+      setRankings(null);
     });
   }, []);
 
@@ -181,7 +186,7 @@ export function AlliancePage() {
           </div>
 
           <div className="se-alliance-hero__side">
-            <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/alliances">Alliance rankings</Link>
+            <a className="se-btn se-btn--ghost se-btn--sm" href="#alliance-rankings">Alliance rankings</a>
           </div>
         </header>
 
@@ -583,6 +588,50 @@ export function AlliancePage() {
             </section>
           </>
         ) : null}
+
+        <section id="alliance-rankings" className="se-alliance-section">
+          <div className="se-alliance-sectionhead">
+            <div>
+              <span className="se-eyebrow">Crew network</span>
+              <h2>Alliance rankings</h2>
+            </div>
+            <p>All active alliances ranked by combined member net worth.</p>
+          </div>
+          <Panel title="Alliances" flush className="se-alliance-panel">
+            {!rankings ? <p className="se-muted se-admin-pad">Loading the alliance board...</p> : null}
+            {rankings && !rankings.enabled ? <p className="se-muted se-admin-pad">This round is played solo.</p> : null}
+            {rankings?.enabled && rankings.alliances.length === 0 ? <p className="se-muted se-admin-pad">No alliances yet.</p> : null}
+            {rankings?.enabled && rankings.alliances.length ? (
+              <div className="se-tablewrap">
+                <table className="se-table se-table--cards se-ranking-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Alliance</th>
+                      <th className="se-table__number">Members</th>
+                      <th className="se-table__number">Combined Net Worth</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rankings.alliances.map((row) => (
+                      <tr key={row.tag} className={row.isYours ? 'se-rank-you' : undefined}>
+                        <td className="se-num" data-label="Rank">#{formatNumber(row.rank)}</td>
+                        <td className="se-td--title">
+                          <Link to={`/game/alliances/${encodeURIComponent(row.tag)}`} className="se-playerlink">
+                            <span className="se-alliance-tag">[{row.tag}]</span>{row.name}
+                          </Link>
+                          {row.isYours ? <span className="se-you">YOURS</span> : null}
+                        </td>
+                        <td className="se-table__number se-num" data-label="Members">{formatNumber(row.memberCount)}</td>
+                        <td className="se-table__number se-num" data-label="Net worth">{formatCents(row.combinedNetWorthCents)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </Panel>
+        </section>
       </div>
     </GameLayout>
   );
