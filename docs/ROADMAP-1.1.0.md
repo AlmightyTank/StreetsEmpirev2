@@ -2,10 +2,9 @@
 
 ## Brainstorm
 
-**Status:** 1.1.0-A and B are built: lots on the map, and businesses a crew can build,
-staff and collect from at home. C onward is design. Design choices marked **(decided)** are agreed;
-everything else is *(proposed)*, and all numbers wait on a simulation pass, the same way
-0.6.0 Turf started.
+**Status:** 1.1.0-A through F are built. The pinned release ruleset is
+`classic-og-v1.1-f`; the sections below keep the design rationale and implementation notes
+for every slice.
 
 **Target base:** StreetsEmpire v1.0.0  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** move from controlling street corners
@@ -286,8 +285,9 @@ pinned rulesets keep the 0.6.0-C push rules unchanged.
     whole war's take to a friend, since 0.6.0 doesn't allow player-to-player transfers.
   - **Only if they fought:** the ally gets the cut only if they fought in at least one of
     the war's fights. Taking the slot and then staying offline pays nothing.
-  - **Where it lands:** a home ally is paid at home. An outpost ally is paid into that
-    outpost's box, so a run has to collect it (the 0.6.0-D rule that nothing is wired home).
+  - **Where it lands:** a home ally is paid at home. An outpost ally's one-time Sack cut
+    lands in that outpost's box, so a run has to collect it. Ongoing truce-income cuts keep
+    D's direct-cash settlement path for both ally types.
   - **Receipts:** both crews' receipts and ledgers (0.7.0-F) show the split.
   - The ally still gets Territory block-time and city control (0.6.0-E) for fighting.
 - **Cap on help (decided): matched to the declarer.** On **either side**, an ally can send
@@ -814,12 +814,36 @@ Wire carry them), and a crackdown that hits racketeering businesses harder (F).
 
 ---
 
+### 1.1.0-F — Release
+
+- **Pinned ruleset:** `classic-og-v1.1-f` inherits E and adds one release-only interaction:
+  each staffed racket still running in the city when the existing Federal turf sweep lands
+  adds **8 Heat**. Front-only businesses keep the original 0.6.0-F crackdown behavior.
+- **Counterplay:** the existing 24-hour warning is the choice. Shut a racket before the
+  sweep and it adds no racket-specific Heat; keep it live and accept the added attention.
+  F does not invent a second law system or seize register cash.
+- **Full-round release model:** `qa:business` now phases businesses through a deterministic
+  28-day pass for business-heavy, turf-raider, runner/outpost and mixed crews. Every profile
+  uses the same economic unit; mixed play must finish above business-heavy play.
+- **Release gate:** `qa:release` runs `qa:business` alongside the existing turf, travel,
+  trips, Hideout, Store and whole-season checks, so the 1.1 economy cannot drift by itself.
+- **Player rules:** the Rules page has a Businesses, Fronts & Rackets chapter covering fixed
+  lots, staff opportunity cost, supplies/registers, outposts, rackets, wars and the F sweep.
+- **Phone pass:** City Blocks collapses business action, racket and collection controls to
+  single-column, full-width touch targets on phone widths. The strict UI audit remains the
+  final browser/accessibility release gate.
+- **Compatibility:** pre-F rounds never read the business crackdown rule; the pinned
+  0.6.0-F corner-only sweep remains covered by its original unit regression.
+
+---
+
 ## Open questions
 
-1. **1.3 hook.** How much of racket Heat should wait for the Law Enforcement expansion?
+1. **1.3 hook.** F adds only the seeded late-round racket pressure above. Broader police
+   systems, warrants and recurring enforcement remain a 1.3 Law Enforcement expansion.
 
-The fatigue, war timing, tier and decay numbers now have first-pass values (above). They
-stay *(proposed)* until `qa:business` confirms them.
+The fatigue, war timing, tier, decay and release numbers above are pinned by `qa:business`
+for 1.1.0; later tuning should ship under a new ruleset id rather than mutating F.
 
 ## Not in 1.1.0
 
@@ -832,11 +856,3 @@ stay *(proposed)* until `qa:business` confirms them.
 - Block wars against locals. The locals are always a single claim fight.
 
 
-### Built in F
-
-- **Ruleset:** `classic-og-v1.1-f` is the pinned Businesses release ruleset. It inherits E unchanged except for the release crackdown interaction.
-- **Crackdown interaction:** the existing 0.6.0-F federal sweep remains the only crackdown. In F, each active racket in the swept city adds extra Heat and 25% of cash still sitting in that business register is seized. Clean fronts receive only the normal turf sweep; away cash already moved into an outpost box is not pulled back into a business register.
-- **Release balance:** `qa:business` now runs the F ruleset and adds a 28-day release profile for business-heavy, turf-raider, runner and mixed play. Mixed play must finish above pure business income.
-- **Release gate:** `qa:release` now includes the business/racket/block-war gate, so the 1.1 model cannot drift independently of the older release checks.
-- **Player rules:** the Rules page now has a Businesses, Fronts & Rackets section covering lots, staff, supply/register collection, outposts, rackets, wars and the F crackdown.
-- **Phone/release regression:** Business help uses the existing responsive Rules layout; the existing `qa:release --with-ui` strict mobile/accessibility audit remains the release phone gate.

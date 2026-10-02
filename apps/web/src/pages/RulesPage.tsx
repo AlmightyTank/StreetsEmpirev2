@@ -389,7 +389,7 @@ export function RulesPage() {
               <li>Fronts burn supplies and fill capped registers. Home registers must be collected; away businesses sweep into the outpost box, so the cash still has to survive a run home.</li>
               <li>One racket can run at a time. Rackets add cash or a narrow system bonus, but they also add Heat and never replace paid recon, storage or other dedicated systems.</li>
               <li>Taking a built block takes the businesses with it, but war fatigue and block tiers keep a fresh conquest from paying like a stable holding. A Sack damages levels instead of taking the block.</li>
-              <li>The federal turf crackdown also notices dirty fronts: active rackets in the swept city draw extra Heat and can lose cash still sitting in their registers. Clean fronts keep the normal turf penalty.</li>
+              <li>The federal turf crackdown also notices dirty fronts: staffed rackets still running in the swept city draw extra Heat. The warning gives you time to shut a racket down; clean fronts keep the normal turf penalty.</li>
             </ul>
           </Panel></section>
 
