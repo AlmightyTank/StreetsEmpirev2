@@ -9,6 +9,7 @@ import { AllianceTag } from '../components/AllianceTag.js';
 import { Button } from '../components/Button.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { ContactsPage } from './ContactsPage.js';
 
 const VIEWS: Array<{ key: PlayerDirectoryView; label: string }> = [
   { key: 'all', label: 'All' },
@@ -217,7 +218,7 @@ export function PlayersPage() {
                               </Link>
                             ) : null}
                             {!player.isYou && player.isContact ? (
-                              <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/contacts">Contact</Link>
+                              <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/players#contacts">Contact</Link>
                             ) : null}
                             {!player.isYou && !player.isContact ? (
                               <Button
@@ -290,6 +291,9 @@ export function PlayersPage() {
             <span>No crew strength, weapons, recon intel, or exact activity timestamp is exposed.</span>
             <span>Contact notes remain private.</span>
           </div>
+        </section>
+        <section id="contacts" className="se-mt">
+          <ContactsPage />
         </section>
       </div>
     </GameLayout>

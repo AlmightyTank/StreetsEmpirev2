@@ -720,7 +720,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
               <span className="se-eyebrow">Recent moves</span>
               <h2>Activity</h2>
             </div>
-            <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/activity">Full activity log</Link>
+            <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/console?view=activity">Full activity log</Link>
           </div>
           <Panel title="Latest activity" flush className="se-dashboard-panel se-dashboard-panel--activity">
             <ActivityFeed activity={activity} />

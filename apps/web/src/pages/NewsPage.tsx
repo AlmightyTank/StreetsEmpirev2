@@ -5,9 +5,12 @@ import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { InfoLayout } from '../layouts/InfoLayout.js';
 import { formatDate } from '../utils/time.js';
+import { useSession } from '../stores/session.js';
+import { SurveysPage } from './SurveysPage.js';
 
 /** Public: logged-out visitors and the forum footer link here. */
 export function NewsPage() {
+  const me = useSession((s) => s.me);
   const [news, setNews] = useState<GameNewsDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +86,11 @@ export function NewsPage() {
             </div>
           )}
         </section>
+        {me ? (
+          <section id="surveys" className="se-mt">
+            <SurveysPage />
+          </section>
+        ) : null}
       </div>
     </InfoLayout>
   );
