@@ -1,19 +1,9 @@
 import { z } from 'zod';
-import { SURVEY_QUESTION_TYPES } from '../types/survey.js';
+import { SURVEY_QUESTION_TYPES, SURVEY_REWARD_KINDS } from '../types/survey.js';
 
 const id = z.string().trim().min(1).max(64);
 const optionalTag = z.string().trim().max(80).nullable().optional();
-const rewardKind = z.enum([
-  'CASH',
-  'TURNS',
-  'ITEM',
-  'CONTACT_REP',
-  'WEAPON_ACCESS',
-  'PERMANENT_UNLOCK',
-  'FAVOR_ITEM',
-  'COSMETIC_UNLOCK',
-  'PRODUCT',
-]);
+const rewardKind = z.enum(SURVEY_REWARD_KINDS);
 
 export const adminSurveyRewardSchema = z.object({
   kind: rewardKind,
