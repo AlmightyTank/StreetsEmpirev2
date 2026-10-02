@@ -832,6 +832,7 @@ Wire carry them), and a crackdown that hits racketeering businesses harder (F).
 - **Phone pass:** City Blocks collapses business action, racket and collection controls to
   single-column, full-width touch targets on phone widths. The strict UI audit remains the
   final browser/accessibility release gate.
+- **Application version:** `APP_VERSION` is `1.1.0`, so the footer, Status page, `/api/meta` and health/build surfaces report the 1.1.0 release independently of the pinned `1.1.0-F` ruleset.
 - **Achievements:** 18 season achievements now cover first builds/income/rackets,
   business income and laundering, torches, block-war declarations, Takes, Sacks, attacking
   and defending wins, with legendary goals for a 45-level business buildout and ten
