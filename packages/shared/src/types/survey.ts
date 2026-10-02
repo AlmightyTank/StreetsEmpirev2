@@ -235,7 +235,7 @@ export interface AdminSurveyCompletionTrendDto {
 }
 
 export interface AdminSurveyAnonymousTextResponseDto {
-  /** Stable within the survey: chronological submission number, never an account identifier. */
+  /** Chronological survey-local submission number, never an account identifier. */
   responseNumber: number;
   submittedAt: string;
   questionId: string;
