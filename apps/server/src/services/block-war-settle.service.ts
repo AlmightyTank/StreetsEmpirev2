@@ -567,12 +567,16 @@ async function endWar(tx: Db, state: WarState, at: Date, ending: WarEnding): Pro
       });
     }
     const allyCut = war.attackerAllyId ? allyCutCents(base, taken, war.attackerCut, war.attackerAllyFought) : 0;
-    const allySource = war.attackerAllyId
-      ? squads
-          .filter((squad) => squad.playerId === war.attackerAllyId && squad.role === 'ALLY')
-          .map((squad) => crewOf(squad.crew).sourceOutpost)
-          .find((source): source is NonNullable<WarCrewSnapshot['sourceOutpost']> => Boolean(source))
-      : undefined;
+    // The ally may have fought in an earlier assault and already been released by the time
+    // a later assault wins the Sack. Read any squad they sent, not just the active set, so
+    // an outpost-sourced ally's payout still returns to that outpost.
+    const allySquad = war.attackerAllyId
+      ? await tx.blockWarSquad.findFirst({
+          where: { warId: war.id, playerId: war.attackerAllyId, role: 'ALLY' },
+          orderBy: { createdAt: 'asc' },
+        })
+      : null;
+    const allySource = allySquad ? crewOf(allySquad.crew).sourceOutpost : undefined;
     await payout(tx, war.id, war.attackerId, 'ATTACKER', 'DECLARER', taken - allyCut, rules.wars.sackHeat ?? 0);
     if (allyCut > 0 && war.attackerAllyId) {
       await payout(tx, war.id, war.attackerAllyId, 'ATTACKER', 'ALLY', allyCut, 0, undefined, allySource);

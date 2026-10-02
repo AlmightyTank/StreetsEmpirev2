@@ -502,8 +502,24 @@ export const BlockWarService = {
       execute: async ({ tx, current, player, round, ruleset, now }) => {
         const { business } = requireWars(ruleset);
         const district = input.district as DistrictKey;
-        const turf = await tx.turf.findUnique({ where: { roundId_cityId_district: { roundId: round.id, cityId: player.cityId, district } }, select: { id: true } });
-        if (!turf) throw AppError.notFound('TURF_NOT_FOUND', 'That block is not in your city.');
+        let cityId = player.cityId;
+        if (input.city) {
+          const city = await tx.city.findUnique({ where: { slug: input.city }, select: { id: true } });
+          if (!city) throw AppError.notFound('CITY_NOT_FOUND', 'That city is not in this round.');
+          cityId = city.id;
+        }
+        const turf = await tx.turf.findUnique({
+          where: { roundId_cityId_district: { roundId: round.id, cityId, district } },
+          include: { outpost: { select: { ownerId: true } } },
+        });
+        if (!turf) throw AppError.notFound('TURF_NOT_FOUND', 'That block is not in this round.');
+        const away = cityId !== player.cityId;
+        if (away && !business.outposts) {
+          throw AppError.conflict('BUSINESS_OUTPOSTS_DISABLED', 'Away business wars arrive in 1.1.0-E.');
+        }
+        if (away && turf.outpost?.ownerId !== holderId) {
+          throw AppError.conflict('BUSINESS_OUTPOST_REQUIRED', 'That away block is no longer backed by your outpost.');
+        }
         const live = await tx.blockWar.findFirst({ where: { turfId: turf.id, status: ACTIVE_WAR } });
         if (!live || live.defenderId !== holderId) throw AppError.conflict('BLOCK_WAR_NONE', 'You can only torch a business on your block during a war on it.');
         const war = await loadWar(tx, live.id, round.id);
