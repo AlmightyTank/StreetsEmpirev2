@@ -333,7 +333,7 @@ async function wireDto(prisma: PrismaClient, roundId: string, ruleset: Ruleset, 
         kind: 'CRACKDOWN',
         supply: null,
         endsAt: crackdown.sweepAt.toISOString(),
-        text: `Word is the Feds are sweeping ${crackdown.city.name} tomorrow. Turf crews have until then to pull out.`,
+        text: `Word is the Feds are sweeping ${crackdown.city.name} tomorrow. Turf crews have until then to pull out.${(ruleset.business?.crackdown?.activeRacketHeatPerBusiness ?? 0) > 0 ? ` Staffed rackets still running at the sweep add ${ruleset.business!.crackdown!.activeRacketHeatPerBusiness} Heat each; shut them down before then to avoid that extra Heat.` : ''}`,
       });
     }
     if (crackdown.sweptAt && crackdown.sweepAt <= now && crackdown.sweepAt >= since) {

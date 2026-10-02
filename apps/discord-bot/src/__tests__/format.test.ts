@@ -252,6 +252,7 @@ describe('crackdownFeedEmbed', () => {
     cityName: 'Detroit',
     warningAt: '2026-09-26T00:00:00.000Z',
     sweepAt: '2026-09-27T00:00:00.000Z',
+    racketHeatPerBusiness: 0,
   };
 
   it('warns turf holders before the sweep', () => {
@@ -263,7 +264,20 @@ describe('crackdownFeedEmbed', () => {
     });
     expect(embed.title).toBe('Detroit · Federal sweep incoming');
     expect(embed.description).toContain('Turf crews have until then to pull out.');
+    expect(embed.description).not.toContain('Staffed rackets');
     expect(embed.timestamp).toBe(base.warningAt);
+  });
+
+  it('tells F crews that shutting down staffed rackets avoids the extra Heat', () => {
+    const embed = crackdownFeedEmbed({
+      ...base,
+      phase: 'warning',
+      racketHeatPerBusiness: 8,
+      holdersAffected: 0,
+      thugsPickedUp: 0,
+    });
+    expect(embed.description).toContain('Staffed rackets still running at the sweep add 8 Heat each');
+    expect(embed.description).toContain('shut them down before then');
   });
 
   it('reports the landed sweep without naming private holder losses', () => {

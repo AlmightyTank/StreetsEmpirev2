@@ -4,6 +4,7 @@ import { TurfCrackdownService } from '../turf-crackdown.service.js';
 import { PlayerStateService } from '../player-state.service.js';
 import { TurfService } from '../turf.service.js';
 import { ACTIVE_WAR, BlockWarSettleService } from '../block-war-settle.service.js';
+import { TurfWarSettlementService } from '../turf-war-settle.service.js';
 
 describe('0.6.0-F Federal turf crackdown', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -53,8 +54,12 @@ describe('0.6.0-F Federal turf crackdown', () => {
     };
     const turfUpdate = vi.fn();
     const playerUpdate = vi.fn(async ({ data }: any) => data);
+    const order: string[] = [];
     let turfReads = 0;
     const tx: any = {
+      turfPush: {
+        findMany: vi.fn(async () => [{ id: 'push-before-sweep' }]),
+      },
       turfCrackdown: {
         findUnique: vi.fn(async () => event),
         update: vi.fn(async ({ data }: any) => ({ ...event, ...data })),
@@ -94,7 +99,16 @@ describe('0.6.0-F Federal turf crackdown', () => {
     };
 
     vi.spyOn(TurfService, 'ensureRound').mockResolvedValue();
-    vi.spyOn(PlayerStateService, 'settleInTransaction').mockResolvedValue({} as any);
+    vi.spyOn(TurfWarSettlementService, 'land').mockImplementation(async (_tx, pushId, at) => {
+      order.push('legacy-push');
+      expect(pushId).toBe('push-before-sweep');
+      expect(at).toEqual(sweepAt);
+      return true;
+    });
+    vi.spyOn(PlayerStateService, 'settleInTransaction').mockImplementation(async () => {
+      order.push('player-settle');
+      return {} as any;
+    });
 
     const result = await TurfCrackdownService.settleInTransaction(tx, {
       id: 'round-1',
@@ -103,6 +117,18 @@ describe('0.6.0-F Federal turf crackdown', () => {
       endsAt: new Date('2026-09-29T00:00:00.000Z'),
     } as any, classicOgV06F, sweepAt);
 
+    expect(tx.turfPush.findMany).toHaveBeenCalledWith({
+      where: {
+        roundId: 'round-1',
+        status: 'PENDING',
+        landsAt: { lte: sweepAt },
+        turf: { cityId: 'city-atlanta' },
+      },
+      select: { id: true },
+      orderBy: [{ landsAt: 'asc' }, { id: 'asc' }],
+    });
+    expect(TurfWarSettlementService.land).toHaveBeenCalledWith(tx, 'push-before-sweep', sweepAt);
+    expect(order.indexOf('legacy-push')).toBeLessThan(order.indexOf('player-settle'));
     expect(turfUpdate).not.toHaveBeenCalled();
     expect(playerUpdate).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 'player-1' },
@@ -138,6 +164,7 @@ describe('0.6.0-F Federal turf crackdown', () => {
     const businessCount = vi.fn(async () => { order.push('racket-count'); return 2; });
     const playerUpdate = vi.fn(async ({ data }: any) => data);
     const tx: any = {
+      turfPush: { findMany: vi.fn(async () => []) },
       blockWar: {
         findMany: vi.fn(async () => { order.push('war-query'); return [{ id: 'war-f' }]; }),
       },
