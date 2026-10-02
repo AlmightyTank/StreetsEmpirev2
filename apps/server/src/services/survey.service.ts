@@ -30,7 +30,13 @@ function rewardRuleset(survey: SummaryRow, currentRound: Round, completionRound?
   return loadRulesetForRound(survey.round ?? completionRound ?? currentRound);
 }
 
-function completionDto(submission: { submittedAt: Date; rewardGrantedAt: Date | null } | null): SurveyCompletionDto | null {
+interface CompletionRow {
+  submittedAt: Date;
+  rewardGrantedAt: Date | null;
+  rewardSnapshot: Prisma.JsonValue;
+}
+
+function completionDto(submission: CompletionRow | null): SurveyCompletionDto | null {
   if (!submission) return null;
   return {
     submittedAt: submission.submittedAt.toISOString(),
@@ -41,10 +47,11 @@ function completionDto(submission: { submittedAt: Date; rewardGrantedAt: Date | 
 function summaryDto(
   survey: SummaryRow,
   currentRound: Round,
-  submission: { submittedAt: Date; rewardGrantedAt: Date | null } | null,
+  submission: CompletionRow | null,
   completionRound?: Round | null,
 ): SurveySummaryDto {
   const ruleset = rewardRuleset(survey, currentRound, completionRound);
+  const rewardValue = submission?.rewardSnapshot ?? survey.rewards;
   return {
     id: survey.id,
     title: survey.title,
@@ -56,7 +63,7 @@ function summaryDto(
     startsAt: survey.startsAt?.toISOString() ?? null,
     endsAt: survey.endsAt?.toISOString() ?? null,
     questionCount: survey._count.questions,
-    rewards: rewardDefinitions(survey.rewards).map((reward) => rewardDto(reward, ruleset)),
+    rewards: rewardDefinitions(rewardValue).map((reward) => rewardDto(reward, ruleset)),
     completion: completionDto(submission),
   };
 }
