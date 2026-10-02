@@ -107,7 +107,7 @@ Admins can:
 - filter to one short/long-text question;
 - page through matching responses.
 
-Every written answer is shown as a stable survey-local label such as:
+Every written answer is shown with a chronological survey-local label such as:
 
 `Response #17`
 
