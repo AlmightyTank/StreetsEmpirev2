@@ -181,6 +181,8 @@ export function AdminSurveysPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [closeReason, setCloseReason] = useState('');
+  const [closing, setClosing] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -216,6 +218,8 @@ export function AdminSurveysPage() {
     setTab('DRAFT');
     setError(null);
     setNotice(null);
+    setClosing(false);
+    setCloseReason('');
   }
 
   function updateQuestion(index: number, patch: Partial<AdminSurveyQuestionInput>) {
@@ -294,7 +298,7 @@ export function AdminSurveysPage() {
 
   async function close() {
     if (!editor?.id) return;
-    const reason = window.prompt('Reason for closing this survey early (at least 5 characters):')?.trim() ?? '';
+    const reason = closeReason.trim();
     if (reason.length < 5) {
       setError('Write a close reason of at least 5 characters.');
       return;
@@ -314,6 +318,8 @@ export function AdminSurveysPage() {
       setEditor(editorFromDetail(saved));
       setTab('CLOSED');
       setNotice('Survey closed.');
+      setClosing(false);
+      setCloseReason('');
       await load();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'The survey could not be closed.');
@@ -619,12 +625,40 @@ export function AdminSurveysPage() {
                   </Button>
                 ) : null}
                 {(editor.status === 'SCHEDULED' || editor.status === 'LIVE') ? (
-                  <Button type="button" className="se-btn se-btn--danger" onClick={() => void close()}
+                  <Button type="button" className="se-btn se-btn--danger" onClick={() => setClosing(true)}
                     disabledReason={busy ? 'Another survey action is still running.' : null}>
                     Close survey
                   </Button>
                 ) : null}
               </div>
+
+              {closing && (editor.status === 'SCHEDULED' || editor.status === 'LIVE') ? (
+                <Panel title="Close survey" className="se-mt">
+                  <p>Closing stops new submissions immediately. Existing responses and reward history are preserved.</p>
+                  <div className="se-field">
+                    <label className="se-label" htmlFor="survey-close-reason">Audit reason</label>
+                    <textarea
+                      id="survey-close-reason"
+                      className="se-input se-admin-reason"
+                      rows={3}
+                      maxLength={500}
+                      value={closeReason}
+                      onChange={(event) => setCloseReason(event.target.value)}
+                    />
+                    <p className="se-hint">Required in the admin audit log. At least 5 characters.</p>
+                  </div>
+                  <div className="se-cta">
+                    <Button type="button" className="se-btn se-btn--danger" onClick={() => void close()}
+                      disabledReason={busy ? 'The survey is still closing.' : closeReason.trim().length < 5 ? 'Write an audit reason of at least 5 characters.' : null}>
+                      Confirm close
+                    </Button>
+                    <Button type="button" className="se-btn se-btn--ghost" onClick={() => { setClosing(false); setCloseReason(''); }}
+                      disabledReason={busy ? 'The survey is still closing.' : null}>
+                      Cancel
+                    </Button>
+                  </div>
+                </Panel>
+              ) : null}
             </form>
           )}
         </div>
