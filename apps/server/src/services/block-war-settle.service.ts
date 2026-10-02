@@ -373,11 +373,6 @@ async function resolveFight(tx: Db, state: WarState, fight: BlockWarFight, at: D
         pistols: defender.pistols + guns.pistols, shotguns: defender.shotguns + guns.shotguns,
         tek9s: defender.tek9s + guns.tek9s, ak47s: defender.ak47s + guns.ak47s,
         postedNetWorthCents: defender.postedNetWorthCents >= worth ? defender.postedNetWorthCents - worth : 0n,
-        ...(capturedOutpost ? {
-          outpostNetWorthCents: defender.outpostNetWorthCents >= capturedOutpostWorth
-            ? defender.outpostNetWorthCents - capturedOutpostWorth
-            : 0n,
-        } : {}),
       },
     });
     await CombatRecoveryService.add(tx, defender.id, null, cornerWounds, recoverAt);
@@ -488,6 +483,11 @@ async function endWar(tx: Db, state: WarState, at: Date, ending: WarEnding): Pro
         pistols: defender.pistols + cornerGuns.pistols, shotguns: defender.shotguns + cornerGuns.shotguns,
         tek9s: defender.tek9s + cornerGuns.tek9s, ak47s: defender.ak47s + cornerGuns.ak47s,
         postedNetWorthCents: defender.postedNetWorthCents >= worth ? defender.postedNetWorthCents - worth : 0n,
+        ...(capturedOutpost ? {
+          outpostNetWorthCents: defender.outpostNetWorthCents >= capturedOutpostWorth
+            ? defender.outpostNetWorthCents - capturedOutpostWorth
+            : 0n,
+        } : {}),
       },
     });
     const model = state.model;
