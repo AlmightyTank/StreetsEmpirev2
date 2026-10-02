@@ -442,7 +442,10 @@ export const SurveyService = {
       }),
       prisma.surveySubmission.findUnique({
         where: { surveyId_accountId: { surveyId, accountId } },
-        include: { roundPlayer: { include: { round: true } } },
+        include: {
+          roundPlayer: { include: { round: true } },
+          answers: true,
+        },
       }),
     ]);
 
@@ -457,9 +460,18 @@ export const SurveyService = {
       submission?.roundPlayer?.round ?? null,
     );
 
+    const positions = new Map(survey.questions.map((question) => [question.id, question.position]));
     return {
       ...base,
       questions: survey.questions.map(questionDto),
+      answers: submission
+        ? [...submission.answers]
+            .sort((left, right) => (positions.get(left.questionId) ?? 0) - (positions.get(right.questionId) ?? 0))
+            .map((answer) => ({
+              questionId: answer.questionId,
+              value: answer.value as unknown as SurveyAnswerInputDto['value'],
+            }))
+        : null,
     };
   },
 
