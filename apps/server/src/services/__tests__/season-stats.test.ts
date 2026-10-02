@@ -84,7 +84,6 @@ describe('0.9.0-F season feats', () => {
       name: 'Game #022',
       totals: totals({
         businessBuilds: 45,
-        businessCollections: 1,
         businessIncomeCents: 1_000_000_00,
         racketsStarted: 1,
         launderedHeat: 100,

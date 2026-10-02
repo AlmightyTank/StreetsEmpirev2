@@ -43,7 +43,6 @@ export interface SeasonTotals {
 
   /** 1.1.0. Durable business/front/racket and block-war season history. */
   businessBuilds: number;
-  businessCollections: number;
   businessIncomeCents: number;
   racketsStarted: number;
   launderedHeat: number;
@@ -90,7 +89,6 @@ export const emptySeasonTotals = (): SeasonTotals => ({
   largestTransactionCents: 0,
   traderReputation: 0,
   businessBuilds: 0,
-  businessCollections: 0,
   businessIncomeCents: 0,
   racketsStarted: 0,
   launderedHeat: 0,
@@ -136,7 +134,7 @@ async function activityTotals(prisma: PrismaClient, ids: string[]) {
   return prisma.$queryRaw<Array<Row<
     'turnsWorked' | 'streetEarningsCents' | 'recruitsFound' | 'productProduced' | 'productSold'
     | 'largestStoreCents' | 'convoyAttacksWon' | 'convoyCashCents' | 'turfClaims'
-    | 'businessBuilds' | 'businessCollections' | 'racketsStarted' | 'businessesTorched'
+    | 'businessBuilds' | 'racketsStarted' | 'businessesTorched'
   >>>(Prisma.sql`
     SELECT
       a."roundPlayerId" AS id,
@@ -154,14 +152,13 @@ async function activityTotals(prisma: PrismaClient, ids: string[]) {
         THEN GREATEST(${jsonNumber(a, 'cashCents')}, 0) END), 0) AS "convoyCashCents",
       COUNT(*) FILTER (WHERE a.type::text = 'TURF_CLAIM' AND a.payload->>'won' = 'true') AS "turfClaims",
       COUNT(*) FILTER (WHERE a.type::text = 'BUSINESS_BUILD') AS "businessBuilds",
-      COUNT(*) FILTER (WHERE a.type::text = 'BUSINESS_COLLECT') AS "businessCollections",
       COUNT(*) FILTER (WHERE a.type::text = 'BUSINESS_RACKET' AND a.payload->>'racket' IS NOT NULL) AS "racketsStarted",
       COUNT(*) FILTER (WHERE a.type::text = 'BUSINESS_TORCH' AND a.payload->>'done' = 'true') AS "businessesTorched"
     FROM "PlayerActivity" a
     WHERE a."roundPlayerId" IN (${Prisma.join(ids)})
       AND a.type::text IN (
         'SCOUT', 'PRODUCE_CRACK', 'STORE_BUY', 'STORE_SELL', 'CONVOY_ATTACK', 'TURF_CLAIM',
-        'BUSINESS_BUILD', 'BUSINESS_COLLECT', 'BUSINESS_RACKET', 'BUSINESS_TORCH'
+        'BUSINESS_BUILD', 'BUSINESS_RACKET', 'BUSINESS_TORCH'
       )
     GROUP BY a."roundPlayerId"
   `);
@@ -400,7 +397,6 @@ export const SeasonStatsService = {
       totals.traderReputation = reputationById.get(player.id) ?? 0;
 
       totals.businessBuilds = num(a?.businessBuilds);
-      totals.businessCollections = num(a?.businessCollections);
       totals.businessIncomeCents = num(businessIncomeById.get(player.id)?.incomeCents);
       totals.racketsStarted = num(a?.racketsStarted);
       totals.launderedHeat = launderingById.get(player.id) ?? 0;

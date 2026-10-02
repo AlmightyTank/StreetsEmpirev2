@@ -40,7 +40,7 @@ export const SEASON_FEATS: readonly SeasonFeat[] = [
 
   // 1.1.0 — Businesses, Fronts & Rackets.
   { key: 'open-for-business', title: 'Open for Business', description: 'Build your first business.', category: 'economy', rarity: 'common', target: 1, progressLabel: 'business builds', stat: 'businessBuilds' },
-  { key: 'first-payday', title: 'First Payday', description: 'Collect business income for the first time.', category: 'economy', rarity: 'common', target: 1, progressLabel: 'business collections', stat: 'businessCollections' },
+  { key: 'first-payday', title: 'First Payday', description: 'Earn your first business income.', category: 'economy', rarity: 'common', target: 1, progressLabel: 'business income', stat: 'businessIncomeCents', sealedBy: 'streetEarningsCents', cents: true },
   { key: 'side-hustle', title: 'Side Hustle', description: 'Start your first racket.', category: 'economy', rarity: 'common', target: 1, progressLabel: 'rackets started', stat: 'racketsStarted', sealedBy: 'streetEarningsCents' },
   { key: 'war-drums', title: 'War Drums', description: 'Declare your first block war.', category: 'turf', rarity: 'common', target: 1, progressLabel: 'block wars declared', stat: 'blockWarsDeclared' },
 
