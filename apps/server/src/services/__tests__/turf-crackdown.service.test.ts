@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { classicOgV06F } from '@streets/rulesets';
+import { classicOgV06F, classicOgV11F } from '@streets/rulesets';
 import { TurfCrackdownService } from '../turf-crackdown.service.js';
 import { PlayerStateService } from '../player-state.service.js';
 import { TurfService } from '../turf.service.js';
@@ -117,6 +117,73 @@ describe('0.6.0-F Federal turf crackdown', () => {
       blocks: 1,
       pickedUp: 0,
       heatAdded: 12,
+      racketsHit: 0,
+      registerSeizedCents: '0',
+    })]);
+  });
+
+
+  it('1.1.0-F adds racket Heat and seizes active-racket register cash', async () => {
+    const sweepAt = new Date('2026-09-27T00:00:00.000Z');
+    const event = {
+      id: 'crackdown-f', roundId: 'round-f', cityId: 'city-atlanta',
+      warningAt: new Date('2026-09-26T00:00:00.000Z'), sweepAt, sweptAt: null,
+      holdersAffected: 0, thugsPickedUp: 0, results: [],
+      warningDiscordPostedAt: null, sweepDiscordPostedAt: null,
+      createdAt: new Date('2026-09-01T00:00:00.000Z'), updatedAt: new Date('2026-09-01T00:00:00.000Z'),
+      city: { slug: 'atlanta', name: 'Atlanta' },
+    };
+    let turfReads = 0;
+    const businessUpdate = vi.fn(async ({ data }: any) => data);
+    const playerUpdate = vi.fn(async ({ data }: any) => data);
+    const tx: any = {
+      turfCrackdown: {
+        findUnique: vi.fn(async () => event),
+        update: vi.fn(async ({ data }: any) => ({ ...event, ...data })),
+      },
+      turf: {
+        findMany: vi.fn(async () => {
+          turfReads += 1;
+          if (turfReads === 1) return [{ holderId: 'player-f' }];
+          return [{
+            id: 'block-f', holderId: 'player-f', cornerThugs: 1,
+            cornerPistols: 0, cornerShotguns: 0, cornerTek9s: 0, cornerAk47s: 0,
+            holder: { id: 'player-f', publicPimpId: 88, displayName: 'Racket Boss', city: { slug: 'atlanta' } },
+          }];
+        }),
+        update: vi.fn(),
+      },
+      business: {
+        findMany: vi.fn(async () => [{ id: 'business-f', registerCents: 1_000_000n }]),
+        update: businessUpdate,
+      },
+      roundPlayer: {
+        findUniqueOrThrow: vi.fn(async () => ({
+          heat: 10, thugs: 10, postedThugs: 1, postedNetWorthCents: 0n, netWorthCents: 10_000_000n,
+        })),
+        update: playerUpdate,
+      },
+    };
+
+    vi.spyOn(TurfService, 'ensureRound').mockResolvedValue();
+    vi.spyOn(PlayerStateService, 'settleInTransaction').mockResolvedValue({} as any);
+
+    const result = await TurfCrackdownService.settleInTransaction(tx, {
+      id: 'round-f', status: 'ACTIVE',
+      startsAt: new Date('2026-09-01T00:00:00.000Z'), endsAt: new Date('2026-09-29T00:00:00.000Z'),
+    } as any, classicOgV11F, sweepAt);
+
+    expect(businessUpdate).toHaveBeenCalledWith({
+      where: { id: 'business-f' },
+      data: { registerCents: 750_000n },
+    });
+    expect(playerUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ heat: 30 }),
+    }));
+    expect((result as any).results).toEqual([expect.objectContaining({
+      racketsHit: 1,
+      registerSeizedCents: '250000',
+      heatAdded: 20,
     })]);
   });
 
