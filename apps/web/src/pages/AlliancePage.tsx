@@ -104,6 +104,7 @@ export function AllianceSummary({ alliance }: { alliance: AllianceDetailDto }) {
 export function AlliancePage() {
   const [data, setData] = useState<MyAllianceDto | null>(null);
   const [rankings, setRankings] = useState<AllianceRankingsDto | null>(null);
+  const [rankingsError, setRankingsError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState('');
@@ -118,10 +119,15 @@ export function AlliancePage() {
     allianceApi.mine().then(setData).catch((caught: unknown) => {
       setError(caught instanceof ApiError ? caught.message : 'Could not load your alliance.');
     });
-    allianceApi.rankings().then(setRankings).catch(() => {
-      // Rankings are secondary to managing your own alliance; keep the main page usable.
-      setRankings(null);
-    });
+    allianceApi.rankings()
+      .then((board) => {
+        setRankings(board);
+        setRankingsError(null);
+      })
+      .catch((caught: unknown) => {
+        // Rankings are secondary to managing your own alliance; keep the main page usable.
+        setRankingsError(caught instanceof ApiError ? caught.message : 'Could not load the alliance rankings.');
+      });
   }, []);
 
   useEffect(() => {
@@ -598,7 +604,8 @@ export function AlliancePage() {
             <p>All active alliances ranked by combined member net worth.</p>
           </div>
           <Panel title="Alliances" flush className="se-alliance-panel">
-            {!rankings ? <p className="se-muted se-admin-pad">Loading the alliance board...</p> : null}
+            {rankingsError ? <Alert>{rankingsError}</Alert> : null}
+            {!rankings && !rankingsError ? <p className="se-muted se-admin-pad">Loading the alliance board...</p> : null}
             {rankings && !rankings.enabled ? <p className="se-muted se-admin-pad">This round is played solo.</p> : null}
             {rankings?.enabled && rankings.alliances.length === 0 ? <p className="se-muted se-admin-pad">No alliances yet.</p> : null}
             {rankings?.enabled && rankings.alliances.length ? (

@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AccountSettingsPage } from './pages/AccountSettingsPage.js';
 import { AdminAccountPage } from './pages/AdminAccountPage.js';
 import { AdminAccountsPage } from './pages/AdminAccountsPage.js';
@@ -53,6 +53,11 @@ import { VerifyEmailGate } from './components/VerifyEmailGate.js';
 import { RulesGate } from './components/RulesGate.js';
 import { AdminDiscordGate } from './components/AdminDiscordGate.js';
 import { landingPath, useSession } from './stores/session.js';
+
+function SurveyRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={`/game/news${search}#surveys`} replace />;
+}
 
 function RequireAccount({ children }: { children: ReactNode }) {
   const account = useSession((s) => s.account);
@@ -146,7 +151,7 @@ export function App() {
         <Route path="combat" element={<Protected><LiveRound><CombatPage /></LiveRound></Protected>} />
         <Route path="scout" element={<Protected><LiveRound><ScoutPage /></LiveRound></Protected>} />
         <Route path="quests" element={<Protected><LiveRound><QuestPage /></LiveRound></Protected>} />
-        <Route path="surveys" element={<Protected><LiveRound><Navigate to="/game/news#surveys" replace /></LiveRound></Protected>} />
+        <Route path="surveys" element={<Protected><LiveRound><SurveyRedirect /></LiveRound></Protected>} />
         <Route path="hideout" element={<Protected><LiveRound><HideoutPage /></LiveRound></Protected>} />
         {/* 0.4.0-E: products are traded at Pip's; old links land there. */}
         <Route path="products" element={<Navigate to="/game/stores/pip" replace />} />
