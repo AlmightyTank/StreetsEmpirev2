@@ -175,8 +175,10 @@ export const RoundService = {
     if (round.status !== 'ACTIVE' && round.status !== 'REGISTRATION') return { closed: false, round, previous: round };
 
     const freezeAt = new Date(Math.min(round.endsAt.getTime(), finalAt.getTime()));
-    await TurfWarSettlementService.resolveRoundAtCutoff(tx, round.id, freezeAt);
+    // The federal sweep is a historical snapshot. Land it at its own clock before
+    // resolving any later block-war events to the round cutoff.
     await TurfCrackdownService.settleInTransaction(tx, round, loadRulesetForRound(round), freezeAt);
+    await TurfWarSettlementService.resolveRoundAtCutoff(tx, round.id, freezeAt);
     const players = await tx.roundPlayer.findMany({
       where: { roundId: round.id },
       orderBy: { publicPimpId: 'asc' },
@@ -228,6 +230,15 @@ export const RoundService = {
       if (result.closed) closed.push(result.round);
     }
     return closed;
+  },
+
+  /**
+   * Settle the current round's due federal crackdown before the minute turf-war
+   * sweep can move any block war beyond that historical snapshot timestamp.
+   */
+  async settleTurfClock(prisma: PrismaClient, now = new Date()): Promise<void> {
+    await RoundService.getCurrent(prisma, now);
+    await TurfWarSettlementService.sweep(prisma, now);
   },
 
   /** The round players are sent to. Running rounds win over upcoming ones. */

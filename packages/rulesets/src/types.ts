@@ -1412,6 +1412,11 @@ export type BusinessKey =
  * Data only in A: nothing reads these numbers until 1.1.0-B builds the first business.
  * See docs/ROADMAP-1.1.0.md.
  */
+export interface BusinessCrackdownRules {
+  /** Extra Heat per staffed, active racket in the swept city when the federal turf crackdown lands. */
+  readonly activeRacketHeatPerBusiness: number;
+}
+
 export interface BusinessRules {
   /** 1.1.0-B. A owns the data and the map; B turns building, staffing and collecting on. */
   readonly building?: boolean;
@@ -1450,6 +1455,8 @@ export interface BusinessRules {
   readonly sackLevelsLost: number;
   /** 1.1.0-C. One racket per business, on top of its front income. Absent before C. */
   readonly rackets?: RacketRules;
+  /** 1.1.0-F. Extra release-crackdown pressure on businesses that are actively running rackets. */
+  readonly crackdown?: BusinessCrackdownRules;
 }
 
 export type RacketKey =

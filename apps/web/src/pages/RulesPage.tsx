@@ -79,7 +79,8 @@ export function RulesPage() {
                 <a href="#travel"><span>08</span> The road</a>
                 <a href="#trips"><span>09</span> Boss trips</a>
                 <a href="#turf"><span>10</span> Turf</a>
-                <a href="#rank"><span>11</span> Money & rank</a>
+                <a href="#business"><span>11</span> Businesses</a>
+                <a href="#rank"><span>12</span> Money & rank</a>
               </div>
             </aside>
             <div className="se-rules__content">
@@ -378,6 +379,17 @@ export function RulesPage() {
                 Alliance blocks can add up to city control. Territory standings count cumulative
                 block-time for crews and alliances, but final season placement is still decided by net worth.
               </li>
+            </ul>
+          </Panel></section>
+
+          <section id="business" className="se-rules__panel se-rules__panel--wide"><Panel title="Businesses, fronts and rackets">
+            <ul className="se-list">
+              <li>Blocks have fixed business lots. Holding the block lets you build, staff and upgrade the lots its tier has opened.</li>
+              <li>Business staff still belong to your crew, but they are busy: they do not work the street, defend home or cook while assigned.</li>
+              <li>Fronts burn supplies and fill capped registers. Home registers must be collected; away businesses sweep into the outpost box, so the cash still has to survive a run home.</li>
+              <li>One racket can run at a time. Rackets add cash or a narrow system bonus, but they also add Heat and never replace paid recon, storage or other dedicated systems.</li>
+              <li>Taking a built block takes the businesses with it, but war fatigue and block tiers keep a fresh conquest from paying like a stable holding. A Sack damages levels instead of taking the block.</li>
+              <li>The federal turf crackdown also notices dirty fronts: staffed rackets still running in the swept city draw extra Heat. The warning gives you time to shut a racket down; clean fronts keep the normal turf penalty.</li>
             </ul>
           </Panel></section>
 

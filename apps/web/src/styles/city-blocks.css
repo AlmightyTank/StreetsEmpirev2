@@ -518,6 +518,34 @@
   .se-cityblocks .se-turfboard {
     columns: 1;
   }
+
+  /* 1.1.0-F: keep business actions readable and tappable on phone widths. */
+  .se-cityblocks .se-turfboard__businesses .se-actions-row,
+  .se-cityblocks .se-turfboard__collect,
+  .se-cityblocks .se-turfboard__racket {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .se-cityblocks .se-turfboard__businesses .se-btn,
+  .se-cityblocks .se-turfboard__collect .se-btn {
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+  }
+
+  .se-cityblocks .se-turfboard__lot-head,
+  .se-cityblocks .se-turfboard__staff,
+  .se-cityblocks .se-turfboard__auto {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .se-cityblocks .se-turfboard__staff > *,
+  .se-cityblocks .se-turfboard__racket > * {
+    min-width: 0;
+  }
 }
 
 @media (max-width: 480px) {

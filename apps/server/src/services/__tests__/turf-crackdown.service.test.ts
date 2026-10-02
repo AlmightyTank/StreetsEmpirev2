@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { classicOgV06F } from '@streets/rulesets';
+import { classicOgV06F, classicOgV11F } from '@streets/rulesets';
 import { TurfCrackdownService } from '../turf-crackdown.service.js';
 import { PlayerStateService } from '../player-state.service.js';
 import { TurfService } from '../turf.service.js';
+import { ACTIVE_WAR, BlockWarSettleService } from '../block-war-settle.service.js';
 
 describe('0.6.0-F Federal turf crackdown', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -117,6 +118,95 @@ describe('0.6.0-F Federal turf crackdown', () => {
       blocks: 1,
       pickedUp: 0,
       heatAdded: 12,
+      racketsHit: 0,
+    })]);
+  });
+
+
+  it('1.1.0-F adds Heat only for staffed rackets', async () => {
+    const sweepAt = new Date('2026-09-27T00:00:00.000Z');
+    const event = {
+      id: 'crackdown-f', roundId: 'round-f', cityId: 'city-atlanta',
+      warningAt: new Date('2026-09-26T00:00:00.000Z'), sweepAt, sweptAt: null,
+      holdersAffected: 0, thugsPickedUp: 0, results: [],
+      warningDiscordPostedAt: null, sweepDiscordPostedAt: null,
+      createdAt: new Date('2026-09-01T00:00:00.000Z'), updatedAt: new Date('2026-09-01T00:00:00.000Z'),
+      city: { slug: 'atlanta', name: 'Atlanta' },
+    };
+    let turfReads = 0;
+    const order: string[] = [];
+    const businessCount = vi.fn(async () => { order.push('racket-count'); return 2; });
+    const playerUpdate = vi.fn(async ({ data }: any) => data);
+    const tx: any = {
+      blockWar: {
+        findMany: vi.fn(async () => { order.push('war-query'); return [{ id: 'war-f' }]; }),
+      },
+      turfCrackdown: {
+        findUnique: vi.fn(async () => event),
+        update: vi.fn(async ({ data }: any) => ({ ...event, ...data })),
+      },
+      turf: {
+        findMany: vi.fn(async () => {
+          turfReads += 1;
+          if (turfReads === 1) return [{ holderId: 'player-f' }];
+          return [{
+            id: 'block-f', holderId: 'player-f', cornerThugs: 1,
+            cornerPistols: 0, cornerShotguns: 0, cornerTek9s: 0, cornerAk47s: 0,
+            holder: { id: 'player-f', publicPimpId: 88, displayName: 'Racket Boss', city: { slug: 'atlanta' } },
+          }];
+        }),
+        update: vi.fn(),
+      },
+      business: { count: businessCount },
+      roundPlayer: {
+        findUniqueOrThrow: vi.fn(async () => ({
+          heat: 10, thugs: 10, postedThugs: 1, postedNetWorthCents: 0n, netWorthCents: 10_000_000n,
+        })),
+        update: playerUpdate,
+      },
+    };
+
+    vi.spyOn(TurfService, 'ensureRound').mockResolvedValue();
+    vi.spyOn(BlockWarSettleService, 'advance').mockImplementation(async (_tx, warId, at) => {
+      order.push('war-advance');
+      expect(warId).toBe('war-f');
+      expect(at).toEqual(sweepAt);
+      return true;
+    });
+    vi.spyOn(PlayerStateService, 'settleInTransaction').mockImplementation(async () => {
+      order.push('player-settle');
+      return {} as any;
+    });
+
+    const result = await TurfCrackdownService.settleInTransaction(tx, {
+      id: 'round-f', status: 'ACTIVE',
+      startsAt: new Date('2026-09-01T00:00:00.000Z'), endsAt: new Date('2026-09-29T00:00:00.000Z'),
+    } as any, classicOgV11F, sweepAt);
+
+    expect(tx.blockWar.findMany).toHaveBeenCalledWith({
+      where: { roundId: 'round-f', status: ACTIVE_WAR, turf: { cityId: 'city-atlanta' } },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    });
+    expect(BlockWarSettleService.advance).toHaveBeenCalledWith(tx, 'war-f', sweepAt);
+    expect(order.indexOf('war-advance')).toBeLessThan(order.indexOf('player-settle'));
+    expect(order.indexOf('player-settle')).toBeLessThan(order.indexOf('racket-count'));
+    expect(businessCount).toHaveBeenCalledWith({
+      where: {
+        roundId: 'round-f',
+        staffOwnerId: 'player-f',
+        level: { gt: 0 },
+        staff: { gt: 0 },
+        racket: { not: null },
+        turf: { cityId: 'city-atlanta', holderId: 'player-f' },
+      },
+    });
+    expect(playerUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ heat: 38, netWorthCents: 10_000_000n }),
+    }));
+    expect((result as any).results).toEqual([expect.objectContaining({
+      racketsHit: 2,
+      heatAdded: 28,
     })]);
   });
 
