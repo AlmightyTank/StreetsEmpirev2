@@ -6,6 +6,8 @@ import {
   ADMIN_PRODUCT_GRANT_CAP,
   ADMIN_SUSPENSION_LENGTHS,
   BUG_REPORT_RESOLUTIONS,
+  adminSurveyCloseSchema,
+  adminSurveyDefinitionSchema,
   usernameSchema,
   type AdminCommsMuteLength,
   type AdminSuspensionLength,
@@ -29,6 +31,7 @@ import { AdminQuestService } from '../services/admin-quest.service.js';
 import { AdminRoundService } from '../services/admin-round.service.js';
 import { AdminRulesetService } from '../services/admin-ruleset.service.js';
 import { AdminSignalsService } from '../services/admin-signals.service.js';
+import { AdminSurveyService } from '../services/admin-survey.service.js';
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
 import { AdminEconomyService } from '../services/admin-economy.service.js';
@@ -70,6 +73,7 @@ const wirePostParams = z.object({ postId: id }).strict();
 const renameAllianceSchema = z.object({ reason, name: z.string().optional(), tag: z.string().optional() }).strict();
 const newsParams = z.object({ newsId: id }).strict();
 const bannerParams = z.object({ bannerId: id }).strict();
+const surveyParams = z.object({ surveyId: id }).strict();
 const rulesetParams = z.object({ rulesetId: id }).strict();
 const emptyBody = z.object({}).strict();
 const reasonBody = z.object({ reason }).strict();
@@ -342,6 +346,40 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { bannerId } = parseBody(bannerParams, request.params);
     parseBody(emptyBody, request.body ?? {});
     return SiteBannerService.end(fastify.prisma, request.auth!.account, bannerId);
+  });
+
+  // Player surveys
+
+  fastify.get('/surveys', async () =>
+    AdminSurveyService.list(fastify.prisma));
+
+  fastify.get('/surveys/:surveyId', async (request) => {
+    const { surveyId } = parseBody(surveyParams, request.params);
+    return AdminSurveyService.detail(fastify.prisma, surveyId);
+  });
+
+  fastify.post('/surveys', async (request, reply) => {
+    const input = parseBody(adminSurveyDefinitionSchema, request.body ?? {});
+    const survey = await AdminSurveyService.create(fastify.prisma, request.auth!.account, input);
+    return reply.status(201).send(survey);
+  });
+
+  fastify.post('/surveys/:surveyId/update', async (request) => {
+    const { surveyId } = parseBody(surveyParams, request.params);
+    const input = parseBody(adminSurveyDefinitionSchema, request.body ?? {});
+    return AdminSurveyService.update(fastify.prisma, request.auth!.account, surveyId, input);
+  });
+
+  fastify.post('/surveys/:surveyId/publish', async (request) => {
+    const { surveyId } = parseBody(surveyParams, request.params);
+    parseBody(emptyBody, request.body ?? {});
+    return AdminSurveyService.publish(fastify.prisma, request.auth!.account, surveyId);
+  });
+
+  fastify.post('/surveys/:surveyId/close', async (request) => {
+    const { surveyId } = parseBody(surveyParams, request.params);
+    const input = parseBody(adminSurveyCloseSchema, request.body ?? {});
+    return AdminSurveyService.close(fastify.prisma, request.auth!.account, surveyId, input.reason);
   });
 
   // Integrations
