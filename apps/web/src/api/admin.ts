@@ -49,6 +49,9 @@ import type {
   AdminUpdateNewsInput,
   AdminUpdateRoundInput,
   AdminVoidBattleResultDto,
+  AdminSurveyDefinitionInput,
+  AdminSurveyDetailDto,
+  AdminSurveysDto,
 } from '@streets/shared';
 import { api } from './client.js';
 
@@ -90,6 +93,15 @@ export const adminApi = {
       `/admin/quest-content/favors/${enc(key)}${queryString({ roundId })}`,
       { enabled, reason },
     ),
+
+  surveys: () => api.get<AdminSurveysDto>('/admin/surveys'),
+  survey: (surveyId: string) => api.get<AdminSurveyDetailDto>(`/admin/surveys/${enc(surveyId)}`),
+  createSurvey: (input: AdminSurveyDefinitionInput) => api.post<AdminSurveyDetailDto>('/admin/surveys', input),
+  updateSurvey: (surveyId: string, input: AdminSurveyDefinitionInput) =>
+    api.post<AdminSurveyDetailDto>(`/admin/surveys/${enc(surveyId)}/update`, input),
+  publishSurvey: (surveyId: string) => api.post<AdminSurveyDetailDto>(`/admin/surveys/${enc(surveyId)}/publish`, {}),
+  closeSurvey: (surveyId: string, reason: string) =>
+    api.post<AdminSurveyDetailDto>(`/admin/surveys/${enc(surveyId)}/close`, { reason }),
 
   news: () => api.get<AdminNewsDto>('/admin/news'),
   createNews: (input: AdminCreateNewsInput) => api.post<AdminNewsDto>('/admin/news', input),
