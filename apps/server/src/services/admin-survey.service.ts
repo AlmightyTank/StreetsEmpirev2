@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient, SurveyStatus } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import type {
   AdminSurveyDefinitionInput,
@@ -353,6 +353,7 @@ export const AdminSurveyService = {
     input: AdminSurveyDefinitionInput,
     now = new Date(),
   ): Promise<AdminSurveyDetailDto> {
+    await settleSurveySchedules(prisma, now);
     const before = await requireEditable(prisma, surveyId);
     if (before.status === 'SCHEDULED') {
       await assertDefinitionPublishable(prisma, input, now);
@@ -409,6 +410,7 @@ export const AdminSurveyService = {
     surveyId: string,
     now = new Date(),
   ): Promise<AdminSurveyDetailDto> {
+    await settleSurveySchedules(prisma, now);
     const before = await requireEditable(prisma, surveyId);
     if (before.status !== 'DRAFT') {
       throw AppError.conflict('SURVEY_ALREADY_SCHEDULED', 'That survey is already scheduled.');
@@ -444,6 +446,7 @@ export const AdminSurveyService = {
     reason: string,
     now = new Date(),
   ): Promise<AdminSurveyDetailDto> {
+    await settleSurveySchedules(prisma, now);
     const before = await prisma.survey.findUnique({ where: { id: surveyId }, include: detailInclude });
     if (!before) throw AppError.notFound('SURVEY_NOT_FOUND', 'That survey does not exist.');
     if (before.status !== 'LIVE' && before.status !== 'SCHEDULED') {
