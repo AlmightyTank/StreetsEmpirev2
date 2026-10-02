@@ -363,7 +363,7 @@ describe.runIf(process.env.SURVEY_INTEGRATION === '1')('Survey Phase C submissio
   });
 
   it('reports a private 50 percent response rate and searchable anonymous text', async () => {
-    const survey = await makeSurvey('Phase F analytics', []);
+    const survey = await makeSurvey('Phase F analytics');
     const questions = await app.prisma.surveyQuestion.findMany({
       where: { surveyId: survey.id },
       orderBy: { position: 'asc' },
