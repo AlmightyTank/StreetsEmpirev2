@@ -1,4 +1,5 @@
 import type { Ruleset } from '@streets/rulesets';
+import { bribeCentsPerPoint } from '../calculations/heat.js';
 import { runBusinessSimulation } from './business.js';
 
 export const BUSINESS_RELEASE_ROUND_DAYS = 28;
@@ -15,6 +16,10 @@ export interface BusinessReleaseSummary {
   readonly activeRacketsAtSweep: number;
   readonly frontOnlyCrackdownHeat: number;
   readonly requestedCrackdownHeat: number;
+  /** Heat attributable only to F's active-racket surcharge. */
+  readonly racketCrackdownHeat: number;
+  /** Existing Heat-bribe price for clearing that F-specific surcharge at the modeled value. */
+  readonly crackdownCostCents: number;
   readonly shutsRacketsForSweep: boolean;
 }
 
@@ -95,8 +100,22 @@ export function runBusinessReleaseSimulation(ruleset: Ruleset): BusinessReleaseS
       ? 0
       : Math.max(0, Math.round(capLots.length * scenario.businessShare * scenario.racketShare));
     const frontOnlyCrackdownHeat = (crackdown?.heatPerHeldBlock ?? 0) * scenario.heldBlocks;
-    const requestedCrackdownHeat = frontOnlyCrackdownHeat
-      + (business.crackdown?.activeRacketHeatPerBusiness ?? 0) * activeRacketsAtSweep;
+    const racketCrackdownHeat = Math.max(
+      0,
+      Math.round((business.crackdown?.activeRacketHeatPerBusiness ?? 0) * activeRacketsAtSweep),
+    );
+    const requestedCrackdownHeat = frontOnlyCrackdownHeat + racketCrackdownHeat;
+    const preCrackdownValueCents = Math.round(
+      ruleset.round.startingPlayer.cashCents + businessValueCents + otherPlayValueCents - investmentCents,
+    );
+
+    // F's Heat must change the release economics. Use the same bribe schedule exposed by
+    // the live Heat system, priced against this profile's modeled value at the sweep.
+    // Only F's racket surcharge is charged here; the held-block Heat predates Businesses.
+    const bribePerPoint = ruleset.heat && racketCrackdownHeat > 0
+      ? bribeCentsPerPoint(BigInt(Math.max(0, preCrackdownValueCents)), ruleset.heat)
+      : 0n;
+    const crackdownCostCents = Number(bribePerPoint * BigInt(racketCrackdownHeat));
 
     return {
       key: scenario.key,
@@ -104,10 +123,12 @@ export function runBusinessReleaseSimulation(ruleset: Ruleset): BusinessReleaseS
       businessValueCents: Math.round(businessValueCents),
       otherPlayValueCents: Math.round(otherPlayValueCents),
       investmentCents: Math.round(investmentCents),
-      endValueCents: Math.round(ruleset.round.startingPlayer.cashCents + businessValueCents + otherPlayValueCents - investmentCents),
+      endValueCents: preCrackdownValueCents - crackdownCostCents,
       activeRacketsAtSweep,
       frontOnlyCrackdownHeat,
       requestedCrackdownHeat,
+      racketCrackdownHeat,
+      crackdownCostCents,
       shutsRacketsForSweep: scenario.shutsRacketsForSweep,
     };
   });
@@ -132,8 +153,18 @@ export function businessReleaseGate(ruleset: Ruleset, rows: readonly BusinessRel
   if (businessHeavy.activeRacketsAtSweep > 0 && businessHeavy.requestedCrackdownHeat <= businessHeavy.frontOnlyCrackdownHeat) {
     problems.push('Business-heavy play keeps rackets running but gets no extra crackdown pressure.');
   }
-  if (mixed.shutsRacketsForSweep && mixed.requestedCrackdownHeat !== mixed.frontOnlyCrackdownHeat) {
-    problems.push('A mixed crew that heeds the warning still gets racket-specific crackdown pressure.');
+  if (businessHeavy.racketCrackdownHeat > 0 && businessHeavy.crackdownCostCents <= 0) {
+    problems.push('F-specific racket Heat has no economic cost in the release comparison.');
+  }
+  if (businessHeavy.crackdownCostCents >= businessHeavy.businessValueCents) {
+    problems.push('The F crackdown costs at least the business-heavy profile\'s entire round of business value.');
+  }
+  if (mixed.shutsRacketsForSweep && (
+    mixed.requestedCrackdownHeat !== mixed.frontOnlyCrackdownHeat
+    || mixed.racketCrackdownHeat !== 0
+    || mixed.crackdownCostCents !== 0
+  )) {
+    problems.push('A mixed crew that heeds the warning still gets racket-specific crackdown pressure or cost.');
   }
   return problems;
 }
@@ -144,11 +175,11 @@ export function businessReleaseMarkdown(rows: readonly BusinessReleaseSummary[])
     '',
     `Deterministic ${BUSINESS_RELEASE_ROUND_DAYS}-day comparison. Business values use the pinned lot/staff/upkeep/racket formulas; other play is expressed in the same late-crew street-day opportunity unit.`,
     '',
-    '| Plan | Business value | Other play | Build spend | Rackets at sweep | Fed Heat requested | End value |',
-    '| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
+    '| Plan | Business value | Other play | Build spend | Rackets at sweep | Fed Heat requested | F Heat cost | End value |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
   ];
   for (const row of rows) {
-    lines.push(`| ${row.name} | ${dollars(row.businessValueCents)} | ${dollars(row.otherPlayValueCents)} | ${dollars(row.investmentCents)} | ${row.activeRacketsAtSweep} | ${row.requestedCrackdownHeat} | ${dollars(row.endValueCents)} |`);
+    lines.push(`| ${row.name} | ${dollars(row.businessValueCents)} | ${dollars(row.otherPlayValueCents)} | ${dollars(row.investmentCents)} | ${row.activeRacketsAtSweep} | ${row.requestedCrackdownHeat} | ${dollars(row.crackdownCostCents)} | ${dollars(row.endValueCents)} |`);
   }
   return lines.join('\n') + '\n';
 }
