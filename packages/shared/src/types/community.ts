@@ -534,6 +534,8 @@ export interface DiscordCrackdownEventDto {
   cityName: string;
   warningAt: string;
   sweepAt: string;
+  /** 1.1.0-F: extra Federal Heat per staffed racket still active at the sweep. */
+  racketHeatPerBusiness: number;
   holdersAffected: number;
   thugsPickedUp: number;
 }

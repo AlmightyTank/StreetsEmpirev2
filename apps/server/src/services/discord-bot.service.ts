@@ -344,13 +344,13 @@ async function claimCrackdowns(prisma: PrismaClient, now: Date, limit = 25): Pro
         where: { warningDiscordPostedAt: null, warningAt: { lte: now }, sweepAt: { gt: now } },
         orderBy: { warningAt: 'asc' },
         take: limit,
-        include: { round: { select: { name: true } }, city: { select: { slug: true, name: true } } },
+        include: { round: { select: { name: true, rulesetId: true, rulesetVersion: true } }, city: { select: { slug: true, name: true } } },
       }),
       tx.turfCrackdown.findMany({
         where: { sweepDiscordPostedAt: null, sweptAt: { not: null }, sweepAt: { lte: now } },
         orderBy: { sweepAt: 'asc' },
         take: limit,
-        include: { round: { select: { name: true } }, city: { select: { slug: true, name: true } } },
+        include: { round: { select: { name: true, rulesetId: true, rulesetVersion: true } }, city: { select: { slug: true, name: true } } },
       }),
     ]);
 
@@ -379,6 +379,7 @@ async function claimCrackdowns(prisma: PrismaClient, now: Date, limit = 25): Pro
         cityName: row.city.name,
         warningAt: row.warningAt.toISOString(),
         sweepAt: row.sweepAt.toISOString(),
+        racketHeatPerBusiness: loadRulesetForRound(row.round).business?.crackdown?.activeRacketHeatPerBusiness ?? 0,
         holdersAffected: 0,
         thugsPickedUp: 0,
       })),
@@ -390,6 +391,7 @@ async function claimCrackdowns(prisma: PrismaClient, now: Date, limit = 25): Pro
         cityName: row.city.name,
         warningAt: row.warningAt.toISOString(),
         sweepAt: row.sweepAt.toISOString(),
+        racketHeatPerBusiness: loadRulesetForRound(row.round).business?.crackdown?.activeRacketHeatPerBusiness ?? 0,
         holdersAffected: row.holdersAffected,
         thugsPickedUp: row.thugsPickedUp,
       })),

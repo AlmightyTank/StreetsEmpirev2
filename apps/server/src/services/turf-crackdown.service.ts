@@ -3,6 +3,7 @@ import { hashParts, rulesetForCity, type Ruleset } from '@streets/rules-engine';
 import { lockRound, type Db } from '../utils/db.js';
 import { PlayerStateService } from './player-state.service.js';
 import { ACTIVE_WAR, BlockWarSettleService } from './block-war-settle.service.js';
+import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import {
   cornerGunWorthCents,
   gunsFromTurf,
@@ -97,6 +98,23 @@ export const TurfCrackdownService = {
     if (!event || event.sweptAt || event.sweepAt > now) return event;
 
     await TurfService.ensureRound(tx, round.id, ruleset);
+
+    // Legacy turf pushes can still exist on pre-block-war rulesets. Land every
+    // push due in the swept city at or before the federal clock before taking
+    // the holder snapshot; a later poller cannot safely rewind one after it lands.
+    const legacyPushes = await tx.turfPush.findMany({
+      where: {
+        roundId: round.id,
+        status: 'PENDING',
+        landsAt: { lte: event.sweepAt },
+        turf: { cityId: event.cityId },
+      },
+      select: { id: true },
+      orderBy: [{ landsAt: 'asc' }, { id: 'asc' }],
+    });
+    for (const push of legacyPushes) {
+      await TurfWarSettlementService.land(tx, push.id, event.sweepAt);
+    }
 
     // 1.1.0-F: a torch or completed block war due before the federal sweep must
     // land before we snapshot holders and active rackets.

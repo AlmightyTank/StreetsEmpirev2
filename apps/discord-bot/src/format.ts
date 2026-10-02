@@ -618,8 +618,11 @@ export function territoryFeedEmbed(event: TerritoryEvent): APIEmbed {
 
 export function crackdownFeedEmbed(event: CrackdownEvent): APIEmbed {
   const warning = event.phase === 'warning';
+  const racketWarning = event.racketHeatPerBusiness > 0
+    ? ` Staffed rackets still running at the sweep add ${event.racketHeatPerBusiness} Heat each; shut them down before then to avoid that extra Heat.`
+    : '';
   const description = warning
-    ? `Word is the Feds are sweeping **${escapeMarkdown(event.cityName)}** tomorrow. Turf crews have until then to pull out.`
+    ? `Word is the Feds are sweeping **${escapeMarkdown(event.cityName)}** tomorrow. Turf crews have until then to pull out.${racketWarning}`
     : event.thugsPickedUp > 0
       ? `The Feds swept **${escapeMarkdown(event.cityName)}**. ${event.thugsPickedUp} corner men were picked up across ${event.holdersAffected} crew${event.holdersAffected === 1 ? '' : 's'}.`
       : event.holdersAffected > 0
