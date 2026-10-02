@@ -830,3 +830,13 @@ stay *(proposed)* until `qa:business` confirms them.
   only cash that moves between players, and it's capped.
 - Casino games (1.2).
 - Block wars against locals. The locals are always a single claim fight.
+
+
+### Built in F
+
+- **Ruleset:** `classic-og-v1.1-f` is the pinned Businesses release ruleset. It inherits E unchanged except for the release crackdown interaction.
+- **Crackdown interaction:** the existing 0.6.0-F federal sweep remains the only crackdown. In F, each active racket in the swept city adds extra Heat and 25% of cash still sitting in that business register is seized. Clean fronts receive only the normal turf sweep; away cash already moved into an outpost box is not pulled back into a business register.
+- **Release balance:** `qa:business` now runs the F ruleset and adds a 28-day release profile for business-heavy, turf-raider, runner and mixed play. Mixed play must finish above pure business income.
+- **Release gate:** `qa:release` now includes the business/racket/block-war gate, so the 1.1 model cannot drift independently of the older release checks.
+- **Player rules:** the Rules page now has a Businesses, Fronts & Rackets section covering lots, staff, supply/register collection, outposts, rackets, wars and the F crackdown.
+- **Phone/release regression:** Business help uses the existing responsive Rules layout; the existing `qa:release --with-ui` strict mobile/accessibility audit remains the release phone gate.
