@@ -17,7 +17,7 @@ function QuestionResult({ question }: { question: AdminSurveyQuestionResultDto }
     <section className="se-admin-survey-result-question">
       <header>
         <div>
-          <span className="se-eyebrow">Question {question.position} · {question.type.replaceAll('_', ' ')}</span>
+          <span className="se-eyebrow">Question {question.position} · {question.type.replace(/_/g, ' ')}</span>
           <h3>{question.prompt}</h3>
         </div>
         <span className="se-tag">{question.answered} answered · {question.skipped} skipped</span>
