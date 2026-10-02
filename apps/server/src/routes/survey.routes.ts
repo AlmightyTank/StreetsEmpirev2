@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { surveySubmitSchema } from '@streets/shared';
 import { z } from 'zod';
 import { SurveyService } from '../services/survey.service.js';
 import { parseBody } from '../utils/validate.js';
@@ -17,6 +18,12 @@ const surveyRoutes: FastifyPluginAsync = async (app) => {
   app.get('/surveys/:surveyId', async (request) => {
     const { surveyId } = parseBody(surveyParamsSchema, request.params);
     return SurveyService.detail(app.prisma, request.auth!.account.id, surveyId);
+  });
+
+  app.post('/surveys/:surveyId/submit', async (request) => {
+    const { surveyId } = parseBody(surveyParamsSchema, request.params);
+    const input = parseBody(surveySubmitSchema, request.body);
+    return SurveyService.submit(app.prisma, request.auth!.account.id, surveyId, input);
   });
 };
 
