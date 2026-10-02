@@ -490,7 +490,7 @@ export const NotificationService = {
   },
 
   /** Discord DMs waiting for the bot, each handed out once. */
-  async claimDiscord(prisma: PrismaClient, now = new Date(), limit = 200): Promise<Omit<DiscordAlertsClaimDto, 'battles' | 'turf' | 'territory' | 'crackdowns' | 'rounds'>> {
+  async claimDiscord(prisma: PrismaClient, now = new Date(), limit = 200): Promise<Omit<DiscordAlertsClaimDto, 'battles' | 'turf' | 'blockWars' | 'territory' | 'crackdowns' | 'rounds'>> {
     const rows = await prisma.$transaction(async (tx) => {
       const pending = await tx.notificationOutbox.findMany({
         where: { channel: 'DISCORD', claimedAt: null },
@@ -504,7 +504,7 @@ export const NotificationService = {
       return pending;
     });
 
-    const claim: Omit<DiscordAlertsClaimDto, 'battles' | 'turf' | 'territory' | 'crackdowns' | 'rounds'> = {
+    const claim: Omit<DiscordAlertsClaimDto, 'battles' | 'turf' | 'blockWars' | 'territory' | 'crackdowns' | 'rounds'> = {
       turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [], notices: [],
     };
     for (const row of rows) {

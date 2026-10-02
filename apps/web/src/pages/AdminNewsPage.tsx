@@ -12,7 +12,9 @@ import { adminWhen, localInputToIso } from '../utils/admin.js';
 const emptyPost = { title: '', body: '', roundId: '', pinned: false, publishAt: '', mirror: false, broadcast: false };
 const emptyBanner = { message: '', tone: 'info' as SiteBannerTone, startsAt: '', endsAt: '', maintenance: false, maintenanceStartsAt: '', maintenanceEndsAt: '', announce: true };
 
-type Pending = { kind: 'edit' | 'delete'; post: AdminNewsPostDto };
+type Pending = { kind: 'edit' | 'delete' | 'resend'; post: AdminNewsPostDto };
+
+const pendingTitle: Record<Pending['kind'], string> = { edit: 'Edit', delete: 'Delete', resend: 'Post to Discord again' };
 
 function PostTags({ post }: { post: AdminNewsPostDto }) {
   const scheduled = Date.parse(post.publishedAt) > Date.now();
@@ -21,11 +23,23 @@ function PostTags({ post }: { post: AdminNewsPostDto }) {
       {post.isPinned ? <span className="se-tag se-tag--warn">Pinned</span> : null}
       <span className="se-tag">{post.roundName ?? 'Global'}</span>
       {scheduled ? <span className="se-tag se-tag--warn">Scheduled</span> : null}
-      <span className={`se-tag${post.discordPostedAt ? ' se-tag--good' : ''}`}>{post.discordPostedAt ? 'On Discord' : 'Discord pending'}</span>
+      {post.discordPostedAt ? <span className="se-tag se-tag--good">On Discord</span>
+        : post.discordError ? <span className="se-tag se-tag--bad" title={post.discordError}>Discord failed</span>
+          : <span className="se-tag" title={post.discordWaiting ?? undefined}>Discord pending</span>}
       {post.forumUrl ? <a className="se-tag se-tag--good" href={post.forumUrl} target="_blank" rel="noreferrer">On forum</a>
         : post.forumError ? <span className="se-tag se-tag--bad" title={post.forumError}>Forum failed</span>
           : null}
     </span>
+  );
+}
+
+/** What the bot last said about its news channel, so a stuck queue explains itself. */
+function DiscordBotLine({ bot }: { bot: AdminNewsDto['discordBot'] }) {
+  if (!bot) return <p className="se-hint se-admin-pad">Discord bot: has not checked in yet.</p>;
+  return (
+    <p className={`${bot.problem ? 'se-error' : 'se-hint'} se-admin-pad`}>
+      Discord bot: {bot.problem ? `cannot post news: ${bot.problem}` : `posting news to #${bot.channel ?? 'unknown'}`} · last checked in {adminWhen(bot.lastSeenAt)}
+    </p>
   );
 }
 
@@ -115,6 +129,10 @@ export function AdminNewsPage() {
   function confirmPending(event: FormEvent) {
     event.preventDefault();
     if (!pending) return;
+    if (pending.kind === 'resend') {
+      resendDiscord(pending.post);
+      return;
+    }
     if (pending.kind === 'delete') {
       void run(() => adminApi.deleteNews(pending.post.id, reason.trim()), (result) => {
         setNews(result);
@@ -142,6 +160,15 @@ export function AdminNewsPage() {
       setNews(result);
       const updated = result.posts.find((row) => row.id === target.id);
       setNotice(updated?.forumUrl ? 'Posted to the forum.' : `The forum mirror failed again: ${updated?.forumError ?? 'unknown error'}`);
+    });
+  }
+
+  function resendDiscord(target: AdminNewsPostDto) {
+    void run(() => adminApi.resendNewsToDiscord(target.id), (result) => {
+      setNews(result);
+      setPending(null);
+      const updated = result.posts.find((row) => row.id === target.id);
+      setNotice(updated?.discordWaiting ? `Queued for Discord. ${updated.discordWaiting}` : 'Queued for Discord.');
     });
   }
 
@@ -197,7 +224,7 @@ export function AdminNewsPage() {
       {notice ? <p className="se-admin-notice" role="status">{notice}</p> : null}
 
       {pending ? (
-        <Panel title={`${pending.kind === 'edit' ? 'Edit' : 'Delete'}: ${pending.post.title}`} className="se-mb">
+        <Panel title={`${pendingTitle[pending.kind]}: ${pending.post.title}`} className="se-mb">
           <form onSubmit={confirmPending} noValidate>
             {pending.kind === 'edit' ? (
               <>
@@ -208,6 +235,11 @@ export function AdminNewsPage() {
                   <p className="se-hint">Copies already sent to Discord or the forum keep their original text.</p>
                 </div>
               </>
+            ) : pending.kind === 'resend' ? (
+              <p>
+                The game marked this post as sent to Discord{pending.post.discordPostedAt ? ` on ${adminWhen(pending.post.discordPostedAt)}` : ''}.
+                Only post it again if it is not in the news channel, or the channel will have it twice.
+              </p>
             ) : (
               <>
                 <p>Removes the post from the game. Copies already sent to Discord or the forum stay there.</p>
@@ -353,6 +385,7 @@ export function AdminNewsPage() {
       </div>
 
       <Panel title="Posts" aside={news ? `${news.posts.length} latest` : undefined} flush>
+        {news ? <DiscordBotLine bot={news.discordBot} /> : null}
         {!news ? (
           <p className="se-muted se-admin-pad">Loading news...</p>
         ) : news.posts.length === 0 ? (
@@ -367,6 +400,7 @@ export function AdminNewsPage() {
               <PostTags post={row} />
               <p>{row.body.length > 280 ? `${row.body.slice(0, 280)}…` : row.body}</p>
               <p className="se-hint">{row.authorName ? `By ${row.authorName}` : 'Seeded'}{row.broadcast ? (row.broadcastAt ? ` · Broadcast ${adminWhen(row.broadcastAt)}` : ' · Broadcast when published') : ''}{row.forumError && !row.forumUrl ? ` · Forum error: ${row.forumError}` : ''}</p>
+              {row.discordWaiting ? <p className={row.discordError ? 'se-error' : 'se-hint'}>Discord: {row.discordWaiting}</p> : null}
               <div className="se-admin-moderation se-mt">
                 <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => togglePin(row)} disabledReason={busy ? working : null}>{row.isPinned ? 'Unpin' : 'Pin'}</Button>
                 <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => choose('edit', row)} disabledReason={busy ? working : null}>Edit</Button>
@@ -374,6 +408,11 @@ export function AdminNewsPage() {
                   <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => retryMirror(row)} disabledReason={busy ? working : null}>
                     {row.forumError ? 'Retry forum' : 'Post to forum'}
                   </Button>
+                ) : null}
+                {row.discordError ? (
+                  <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => resendDiscord(row)} disabledReason={busy ? working : null}>Resend to Discord</Button>
+                ) : row.discordPostedAt ? (
+                  <Button type="button" className="se-btn se-btn--sm se-btn--ghost" onClick={() => choose('resend', row)} disabledReason={busy ? working : null}>Post to Discord again</Button>
                 ) : null}
                 <Button type="button" className="se-btn se-btn--sm" onClick={() => choose('delete', row)} disabledReason={busy ? working : null}>Delete</Button>
               </div>

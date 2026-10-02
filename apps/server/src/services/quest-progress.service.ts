@@ -126,6 +126,7 @@ async function playerState(db: Db, roundPlayerId: string): Promise<QuestDataObje
       woundedThugs: true,
       busyThugs: true,
       postedThugs: true,
+      businessThugs: true,
       condoms: true,
       medicine: true,
       crack: true,
@@ -151,7 +152,7 @@ async function playerState(db: Db, roundPlayerId: string): Promise<QuestDataObje
   });
   if (!row) return undefined;
 
-  const fitThugs = Math.max(0, row.thugs - row.woundedThugs - row.busyThugs - row.postedThugs);
+  const fitThugs = Math.max(0, row.thugs - row.woundedThugs - row.busyThugs - row.postedThugs - row.businessThugs);
   const weapons = row.pistols + row.shotguns + row.tek9s + row.ak47s;
 
   return {

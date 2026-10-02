@@ -76,7 +76,14 @@ describe('assertPlayerState', () => {
   });
 
   it('rejects thugs being unavailable in more than one place than the crew can cover', () => {
-    expect(() => assertPlayerState({ ...valid(), woundedThugs: 4, busyThugs: 4, postedThugs: 3 }, classicOgV01)).toThrow(/postedThugs cannot exceed total thugs/);
+    expect(() => assertPlayerState({ ...valid(), woundedThugs: 4, busyThugs: 4, postedThugs: 3 }, classicOgV01)).toThrow(/cannot exceed total thugs/);
+  });
+
+  it('counts business staff against the crew, and never more staff girls than girls', () => {
+    const state = valid();
+    expect(() => assertPlayerState({ ...state, businessThugs: state.thugs + 1 }, classicOgV01)).toThrow(/businessThugs cannot exceed total thugs/);
+    expect(() => assertPlayerState({ ...state, businessWhores: state.whores + 1 }, classicOgV01)).toThrow(/businessWhores cannot exceed total whores/);
+    expect(() => assertPlayerState({ ...state, businessThugs: -1 }, classicOgV01)).toThrow(/businessThugs must be/);
   });
 
   it('rejects a payout outside the ruleset', () => {

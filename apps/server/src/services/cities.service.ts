@@ -3,6 +3,7 @@ import { CRACK_PRODUCT, cityCounter, driveHoursFrom, findRoutes, loadRulesetForR
 import type { CitiesDto, CityCharacterDto } from '@streets/shared';
 import type { SightingCounter } from './run-settle.service.js';
 import { TurfService } from './turf.service.js';
+import { BusinessService } from './business.service.js';
 
 function policeWord(pressure: number): CityCharacterDto['police'] {
   if (pressure < 0.8) return 'Light';
@@ -29,6 +30,8 @@ function bustsAgainstHome(here: number, home: number): CityCharacterDto['busts']
  */
 export const CitiesService = {
   async page(prisma: PrismaClient, roundPlayerId: string, now = new Date()): Promise<CitiesDto> {
+    // 1.1.0-B: registers fill lazily; settle them so the page shows what is waiting.
+    await BusinessService.settleFor(prisma, roundPlayerId, now);
     const player = await prisma.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, include: { round: true, city: true } });
     const ruleset = loadRulesetForRound(player.round);
     const cities = ruleset.cities;

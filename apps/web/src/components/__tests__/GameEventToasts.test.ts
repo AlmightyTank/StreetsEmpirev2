@@ -110,6 +110,18 @@ describe('gameEventToastFor', () => {
     });
   });
 
+  it('routes survey announcements directly to the survey', () => {
+    expect(gameEventToastFor(activity('GAME_ANNOUNCEMENT', {
+      title: 'New survey: Store feedback',
+      excerpt: '5 questions · reward for completion only.',
+      href: '/game/surveys?tab=available&survey=survey-1',
+    }), 'crack')).toMatchObject({
+      title: 'New survey: Store feedback',
+      href: '/game/surveys?tab=available&survey=survey-1',
+      tone: 'info',
+    });
+  });
+
   it('stays quiet for routine player actions', () => {
     expect(gameEventToastFor(activity('STORE_BUY', { item: 'beer' }), 'crack')).toBeNull();
   });

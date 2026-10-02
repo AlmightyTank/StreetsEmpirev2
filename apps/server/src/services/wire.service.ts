@@ -136,6 +136,40 @@ async function coordinationCards(prisma: PrismaClient, player: RoundPlayer & { r
     }
   }
 
+  // 1.1.0-D: block wars the alliance is in, as attacker or holder. An open call for help is a
+  // reinforcement request; otherwise the war is news.
+  if (ruleset.business?.wars.enabled) {
+    const blockWars = await prisma.blockWar.findMany({
+      where: { roundId: player.roundId, status: { not: 'ENDED' }, OR: [{ attackerAllianceId: alliance.id }, { defenderAllianceId: alliance.id }] },
+      include: {
+        turf: { include: { city: { select: { slug: true, name: true } } } },
+        attacker: { select: { displayName: true } },
+        defender: { select: { displayName: true } },
+      },
+      orderBy: [{ declaredAt: 'desc' }, { id: 'asc' }],
+      take: 5,
+    });
+    for (const war of blockWars) {
+      const defending = war.defenderAllianceId === alliance.id;
+      const call = defending ? war.defenderCallUntil : war.attackerCallUntil;
+      const calling = Boolean(call && call > now && !(defending ? war.defenderAllyId : war.attackerAllyId));
+      const cut = Math.round((defending ? war.defenderCut : war.attackerCut) * 100);
+      const where = `${war.turf.city.name} ${districtName(ruleset, war.turf.city.slug, war.turf.district)}`;
+      cards.push({
+        id: `block-war:${war.id}`,
+        kind: calling ? 'REINFORCEMENT_REQUEST' : 'TURF_ACTIVITY',
+        title: `${where} ${war.status === 'SIEGE' ? 'under siege' : 'block war'}`,
+        detail: calling
+          ? `${defending ? war.defender.displayName : war.attacker.displayName} is calling for one ally, for a ${cut}% cut, until ${call!.toLocaleTimeString()}.`
+          : `${war.attacker.displayName} declared on ${war.defender.displayName} (${war.goal === 'SACK' ? 'Sack' : 'Take'})${war.status === 'SIEGE' ? `; Control ${Math.round(war.control)}%` : ''}.`,
+        at: (calling ? call! : war.declaredAt).toISOString(),
+        actionLabel: calling ? 'Answer the call' : 'Open turf',
+        href: turfHref(war.turf.city.slug),
+        tone: defending || calling ? 'warn' : 'info',
+      });
+    }
+  }
+
   const convoyCalls = await prisma.convoyTail.findMany({
     where: {
       status: 'PENDING',

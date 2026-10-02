@@ -14,6 +14,9 @@ import {
   type RestockSettlement,
   type Ruleset,
   type Standings,
+  racketStorePrice,
+  readRacketEffects,
+  type RacketEffects,
 } from '@streets/rules-engine';
 import type { HideoutRoomKey, SingleUseFavorEffect, StoreKey, StoreRelationshipPerk, TraderKey } from '@streets/rulesets';
 import type {
@@ -358,6 +361,7 @@ function quoteForLine(
   discount: StoreDiscount | null,
   foundStore: ReturnType<typeof findStore>,
   input: StoreCheckoutLineInput,
+  effects: RacketEffects = {},
 ): {
   buyUnitCents?: number;
   sellUnitCents?: number | null;
@@ -372,14 +376,16 @@ function quoteForLine(
   if (!storeItem) return { favorApplies: false, relationshipBuyDiscountPercent: 0, relationshipSellBonusPercent: 0 };
   const trader = foundStore.key as TraderKey;
   const relationship = relationshipPriceAdjustments(standings[trader]?.points ?? 0, ruleset, foundStore.key);
-  const sellUnitCents = boostedSellCents(storeItem.sellCents, storeItem.buyCents, relationship.sellBonusPercent);
+  // 1.1.0-C: a racket shades a store's price a little, on top of standing.
+  const racket = racketStorePrice(ruleset, effects, foundStore.key, input.item);
+  const sellUnitCents = boostedSellCents(storeItem.sellCents, storeItem.buyCents, relationship.sellBonusPercent + racket.sellBonusPercent);
   const favorApplies = Boolean(
     discount
     && input.direction === 'buy'
     && discount.effect.storeKey === foundStore.key
     && discount.effect.itemKeys.includes(input.item),
   );
-  const buyDiscountPercent = relationship.buyDiscountPercent + (favorApplies ? discount!.effect.discountPercent : 0);
+  const buyDiscountPercent = relationship.buyDiscountPercent + racket.buyDiscountPercent + (favorApplies ? discount!.effect.discountPercent : 0);
   const buyUnitCents = buyDiscountPercent > 0
     ? discountedBuyCents(storeItem.buyCents, sellUnitCents, buyDiscountPercent)
     : undefined;
@@ -414,6 +420,7 @@ export const StoreService = {
     const now = options.now ?? new Date();
     const armed = await SingleUseFavorService.matching(prisma, roundPlayerId, ruleset, 'STORE_BUY_DISCOUNT');
     const discount = armed?.effect.kind === 'STORE_BUY_DISCOUNT' ? armed.effect : null;
+    const effects = readRacketEffects(options.playerRow?.racketEffects);
     let incomingShipments = 0;
     const ordered = await openSpecialOrders(prisma, roundPlayerId, now);
     const stores = Object.entries(ruleset.stores).map(([key, store]) => {
@@ -438,13 +445,14 @@ export const StoreService = {
             news.push(`${store.keeper} just unloaded ${settled.gained.toLocaleString('en-US')} ${item.name}.`);
           }
           const relationship = relationshipPriceAdjustments(standings[key as TraderKey]?.points ?? 0, ruleset, key as StoreKey);
-          const quotedSellCents = boostedSellCents(item.sellCents, item.buyCents, relationship.sellBonusPercent);
+          const racket = racketStorePrice(ruleset, effects, key, itemKey);
+          const quotedSellCents = boostedSellCents(item.sellCents, item.buyCents, relationship.sellBonusPercent + racket.sellBonusPercent);
           const favorApplies = Boolean(
             discount
             && discount.storeKey === key
             && discount.itemKeys.includes(itemKey),
           );
-          const buyDiscountPercent = relationship.buyDiscountPercent + (favorApplies ? discount!.discountPercent : 0);
+          const buyDiscountPercent = relationship.buyDiscountPercent + racket.buyDiscountPercent + (favorApplies ? discount!.discountPercent : 0);
           const quotedBuyCents = buyDiscountPercent > 0
             ? discountedBuyCents(item.buyCents, quotedSellCents, buyDiscountPercent)
             : item.buyCents;
@@ -544,7 +552,7 @@ export const StoreService = {
         const storeItem = foundStore && Object.hasOwn(foundStore.store.items, normalizedItem)
           ? foundStore.store.items[normalizedItem]
           : undefined;
-        const quote = quoteForLine(ruleset, standings, discount, foundStore, normalizedInput);
+        const quote = quoteForLine(ruleset, standings, discount, foundStore, normalizedInput, readRacketEffects(player.racketEffects));
 
         let trade;
         try {
@@ -728,7 +736,7 @@ export const StoreService = {
 
         for (const [index, line] of input.lines.entries()) {
           const { foundStore, normalized } = normalizeStoreLine(ruleset, line);
-          const quote = quoteForLine(ruleset, standings, discount, foundStore, normalized);
+          const quote = quoteForLine(ruleset, standings, discount, foundStore, normalized, readRacketEffects(player.racketEffects));
           let trade;
           try {
             trade = calculateStoreTrade(

@@ -9,6 +9,8 @@ import { AllianceTag } from '../components/AllianceTag.js';
 import { Panel } from '../components/Panel.js';
 import { OutpostStopPanel } from '../components/RunPanels.js';
 import { TurfActions } from '../components/TurfActions.js';
+import { BusinessCollect, BusinessLots } from '../components/BusinessLots.js';
+import { BlockWarPanel } from '../components/BlockWarPanel.js';
 import { useCountdown } from '../hooks/useCountdown.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -97,53 +99,73 @@ function CityBlockBoard({ city, onChanged }: { city: CityCharacterDto; onChanged
   const blocks = [...turf.blocks].sort((a, b) => ORDER[a.district] - ORDER[b.district]);
 
   return (
-    <div className="se-turfboard" role="list" aria-label={`${city.name} district control`}>
-      {blocks.map((block) => {
-        const status = block.isMine ? 'mine' : block.holder ? 'held' : block.localsReclaimAt ? 'vacant' : 'locals';
-        return (
-          <article key={block.district} role="listitem" className={`se-turfboard__block se-turfboard__block--${status}`}>
-            <div className="se-turfboard__head">
-              <div>
-                <span className="se-eyebrow">{block.districtName}</span>
-                <div className="se-turfboard__holder">{holder(block)}</div>
+    <>
+      {turf.business && city.isHome && blocks.some((block) => block.isMine) ? <BusinessCollect business={turf.business} onChanged={onChanged} /> : null}
+      <div className="se-turfboard" role="list" aria-label={`${city.name} district control`}>
+        {blocks.map((block) => {
+          const status = block.isMine ? 'mine' : block.holder ? 'held' : block.localsReclaimAt ? 'vacant' : 'locals';
+          return (
+            <article key={block.district} role="listitem" className={`se-turfboard__block se-turfboard__block--${status}`}>
+              <div className="se-turfboard__head">
+                <div>
+                  <span className="se-eyebrow">{block.districtName}</span>
+                  <div className="se-turfboard__holder">{holder(block)}</div>
+                </div>
+                <span className="se-turfboard__age" title={block.heldSince ? `Held since ${formatWhen(block.heldSince)}` : undefined}>
+                  {block.holder ? `held ${durationFrom(block.heldSince)}` : block.localsReclaimAt ? 'open' : 'locals'}
+                </span>
               </div>
-              <span className="se-turfboard__age" title={block.heldSince ? `Held since ${formatWhen(block.heldSince)}` : undefined}>
-                {block.holder ? `held ${durationFrom(block.heldSince)}` : block.localsReclaimAt ? 'open' : 'locals'}
-              </span>
-            </div>
 
-            <div className="se-turfboard__stats">
-              {block.holder ? (
-                <>
-                  <span><b className="se-num">{formatNumber(block.cornerThugs)}</b><small>posted</small></span>
-                  <span><b className="se-num">{formatNumber(block.cornerGuns.total)}</b><small>guns</small></span>
-                </>
-              ) : (
-                <>
-                  <span><b className="se-num">{formatNumber(block.localsThugs)}</b><small>locals</small></span>
-                  <span><b className="se-num">{formatNumber(block.localsFullThugs)}</b><small>full strength</small></span>
-                </>
-              )}
-              <span><b className="se-num">{Math.floor(block.presenceTurns)}</b><small>your presence</small></span>
-            </div>
+              <div className="se-turfboard__stats">
+                {block.holder ? (
+                  <>
+                    <span><b className="se-num">{formatNumber(block.cornerThugs)}</b><small>posted</small></span>
+                    <span><b className="se-num">{formatNumber(block.cornerGuns.total)}</b><small>guns</small></span>
+                  </>
+                ) : (
+                  <>
+                    <span><b className="se-num">{formatNumber(block.localsThugs)}</b><small>locals</small></span>
+                    <span><b className="se-num">{formatNumber(block.localsFullThugs)}</b><small>full strength</small></span>
+                  </>
+                )}
+                <span><b className="se-num">{Math.floor(block.presenceTurns)}</b><small>your presence</small></span>
+              </div>
+              {block.fatigue && block.fatigue.percent > 0 ? (
+                <span className="se-hint se-turfboard__fatigue" title="War fatigue: businesses here earn this much less until it heals.">
+                  Fatigue {block.fatigue.percent}% · output {100 - block.fatigue.percent}%
+                  {block.fatigue.recoveryHours > 0 ? ` · healed in ~${block.fatigue.recoveryHours}h` : block.war ? ' · rising while the war is on' : ''}
+                  {block.fatigue.scarred ? ' · scarred, heals slowly' : ''}
+                </span>
+              ) : null}
+              {block.dormant ? (
+                <span className="se-hint">
+                  Dormant under the locals since {formatWhen(block.dormant.since)}
+                  {block.dormant.levelsLostAt ? ` · next level lost ${formatWhen(block.dormant.levelsLostAt)}` : ''}
+                </span>
+              ) : null}
 
-            {block.outpost ? <span className="se-turfboard__outpost">Your outpost</span> : null}
-            {block.revengeAvailable && block.revengeUntil ? (
-              <span className="se-hint se-good">
-                Revenge active until {formatClockTime(block.revengeUntil)} · no presence required.
-              </span>
-            ) : null}
-            <TurfActions
-              block={block}
-              isHome={city.isHome}
-              holdingEnabled={turf.holdingEnabled}
-              warsEnabled={turf.warsEnabled}
-              onChanged={onChanged}
-            />
-          </article>
-        );
-      })}
-    </div>
+              {block.businesses ? <BusinessLots block={block} business={turf.business} onChanged={onChanged} /> : null}
+              {turf.business?.wars ? <BlockWarPanel block={block} wars={turf.business.wars} isHome={city.isHome} onChanged={onChanged} /> : null}
+
+              {block.outpost ? <span className="se-turfboard__outpost">Your outpost</span> : null}
+              {block.revengeAvailable && block.revengeUntil ? (
+                <span className="se-hint se-good">
+                  Revenge active until {formatClockTime(block.revengeUntil)} · no presence required.
+                </span>
+              ) : null}
+              <TurfActions
+                block={block}
+                isHome={city.isHome}
+                holdingEnabled={turf.holdingEnabled}
+                // 1.1.0-D: a player's block is taken by a block war, declared above.
+                warsEnabled={turf.warsEnabled && !turf.business?.wars}
+                onChanged={onChanged}
+              />
+            </article>
+          );
+        })}
+      </div>
+    </>
   );
 }
 

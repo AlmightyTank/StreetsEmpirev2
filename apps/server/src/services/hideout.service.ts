@@ -1,5 +1,5 @@
 import type { PrismaClient, RoundPlayer } from '@prisma/client';
-import { headsUpMinutes, productRecipes, reachAt, reachWindows } from '@streets/rules-engine';
+import { headsUpMinutes, productRecipes, racketProductStorage, racketRaidDefensePercent, reachAt, reachWindows, readRacketEffects } from '@streets/rules-engine';
 import {
   hideoutV2For,
   type HideoutRequirementKey,
@@ -86,16 +86,18 @@ function productUnitValueCents(ruleset: Ruleset, key: string): number {
 /** Product units the Safe Room can automatically seal at the player's current level. */
 export function hideoutProtectedProductCapacity(
   ruleset: Ruleset,
-  player: { hideoutSafeRoomLevel: number; hideoutSafeRoomSpecialization?: string | null },
+  player: { hideoutSafeRoomLevel: number; hideoutSafeRoomSpecialization?: string | null; racketEffects?: unknown },
 ): number {
+  // 1.1.0-C: a Warehouse on Product storage seals a little more, on top of the Safe Room.
+  const racket = racketProductStorage(ruleset, readRacketEffects(player.racketEffects));
   const extension = hideoutV2For(ruleset);
   const levels = extension?.assetProtection?.protectedProductUnitsBySafeRoomLevel;
-  if (!levels) return 0;
+  if (!levels) return racket;
   const base = levels[player.hideoutSafeRoomLevel] ?? 0;
   const vault = hideoutSpecializationKey(ruleset, player, 'SAFE_ROOM') === 'VAULT'
     ? extension?.specializationEffects?.safeRoom.vaultProtectedProductUnits ?? 0
     : 0;
-  return base + vault;
+  return base + vault + racket;
 }
 
 /**
@@ -678,6 +680,7 @@ export function hideoutDefenseBonusPercent(
     hideoutLookoutsLevel: number;
     hideoutLookoutsSpecialization?: string | null;
     hideoutSafeRoomSpecialization?: string | null;
+    racketEffects?: unknown;
   },
 ): number {
   const extension = hideoutV2For(ruleset);
@@ -688,7 +691,8 @@ export function hideoutDefenseBonusPercent(
   const armed = hideoutSpecializationKey(ruleset, player, 'LOOKOUTS') === 'ARMED_WATCH'
     ? extension?.security?.specializationHooks.armedWatchDefenseBonusPercent ?? 0
     : 0;
-  return base + panic + armed;
+  // 1.1.0-C: Pillow talk, a little on top of Lookouts.
+  return base + panic + armed + racketRaidDefensePercent(ruleset, readRacketEffects(player.racketEffects));
 }
 
 /** Returns the Workshop bonus in whole product units, rounded down. */

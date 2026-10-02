@@ -21,6 +21,7 @@ import './styles/street-pass.css';
 import './styles/travel.css';
 import './styles/city-blocks.css';
 import './styles/quests.css';
+import './styles/surveys.css';
 import './styles/rankings.css';
 import './styles/players.css';
 import './styles/console.css';

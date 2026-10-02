@@ -13,6 +13,8 @@ import {
   StoreTradeError,
   type Ruleset,
   type Standings,
+  racketStorePrice,
+  readRacketEffects,
 } from '@streets/rules-engine';
 import { productTradeSchema, type GameActionResult, type ProductsDto, type ProductTradeResult } from '@streets/shared';
 import type { Db } from '../utils/db.js';
@@ -85,6 +87,7 @@ export const ProductMarketService = {
     const unlockKeys = await PermanentUnlockService.keys(prisma, roundPlayerId);
     const favorBonuses = await TimedFavorService.bonuses(prisma, roundPlayerId, ruleset, now);
     const relationship = relationshipPriceAdjustments(standings.PIP?.points ?? 0, ruleset, 'PIP');
+    const effects = readRacketEffects(player.racketEffects);
 
     return {
       enabled: true,
@@ -98,7 +101,7 @@ export const ProductMarketService = {
         const pressure = pressureFor(ruleset, pushes.get(key) ?? 0) ?? 0;
         const quote = economy?.pip ? pressureQuote(economy.pip.buyCents, economy.pip.sellCents, pressure) : null;
         const sellCents = quote
-          ? boostedSellCents(quote.sellCents, quote.buyCents, relationship.sellBonusPercent) ?? quote.sellCents
+          ? boostedSellCents(quote.sellCents, quote.buyCents, relationship.sellBonusPercent + racketStorePrice(ruleset, effects, 'PIP', key).sellBonusPercent) ?? quote.sellCents
           : 0;
         const recipe = economyOn ? recipes.get(key) : undefined;
         const requiredUnlock = PermanentUnlockService.productPurchaseUnlock(ruleset, key);
@@ -182,7 +185,9 @@ export const ProductMarketService = {
         const quote = pressureQuote(economy.pip.buyCents, economy.pip.sellCents, pressure);
         const favorBonuses = await TimedFavorService.bonuses(tx, roundPlayerId, ruleset, now);
         const relationship = relationshipPriceAdjustments(standings.PIP?.points ?? 0, ruleset, 'PIP');
-        const sellUnitCents = boostedSellCents(quote.sellCents, quote.buyCents, relationship.sellBonusPercent) ?? quote.sellCents;
+        // 1.1.0-C: Ecstasy demand and the like pay a little more on top of standing.
+        const racketBonus = racketStorePrice(ruleset, readRacketEffects(player.racketEffects), 'PIP', input.product).sellBonusPercent;
+        const sellUnitCents = boostedSellCents(quote.sellCents, quote.buyCents, relationship.sellBonusPercent + racketBonus) ?? quote.sellCents;
         const buyUnitCents = discountedPipBuyCents(
           quote.buyCents,
           sellUnitCents,

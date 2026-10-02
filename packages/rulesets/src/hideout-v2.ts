@@ -381,6 +381,11 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-trips-d2': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-trips-e': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-street-pass-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // 1.1.0: Businesses, Fronts & Rackets, built on street-pass-a.
+  'classic-og-v1.1-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.1-b': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.1-c': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.1-d': CLASSIC_OG_V07G_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */

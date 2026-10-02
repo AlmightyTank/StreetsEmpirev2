@@ -23,6 +23,8 @@ import {
   routeHours,
   rulesetForCity,
   runCapacity,
+  racketCargoShare,
+  readRacketEffects,
   runPosition,
   runRules,
   saleHeat,
@@ -172,6 +174,12 @@ async function liveCounter(db: Db | PrismaClient, roundPlayerId: string, ruleset
   };
 }
 
+/** 1.1.0-C: a Warehouse on Shipment capacity packs every Low-Rider a little fuller. */
+async function cargoShareFor(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset): Promise<number> {
+  const player = await db.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { racketEffects: true } });
+  return player ? racketCargoShare(ruleset, readRacketEffects(player.racketEffects)) : 0;
+}
+
 async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset, seed: string, run: LoadedRun, now: Date): Promise<RunDto | null> {
   const stops = toStopPlans(run.stops);
   const position = runPosition(ruleset, stops, now);
@@ -187,7 +195,7 @@ async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Rul
     startCashCents: Number(run.startCashCents),
     beer: run.beer,
     startBeer: run.startBeer,
-    capacity: runCapacity(ruleset, run.lowRiders),
+    capacity: runCapacity(ruleset, run.lowRiders, await cargoShareFor(db, roundPlayerId, ruleset)),
     cargo: run.cargo.map((row) => ({ key: row.productKey, quantity: row.quantity, startQuantity: row.startQuantity })),
     guns: { PISTOL: run.pistols, SHOTGUN: run.shotguns, TEK9: run.tek9s, AK47: run.ak47s },
     bossAboard: run.bossAboard,
@@ -531,7 +539,7 @@ export const TravelService = {
           }
         }
 
-        const capacity = runCapacity(ruleset, input.lowRiders);
+        const capacity = runCapacity(ruleset, input.lowRiders, racketCargoShare(ruleset, readRacketEffects(player.racketEffects)));
         if (cargoUnits(cargo) + input.beer > capacity) {
           throw AppError.badRequest('TRUNK_FULL', `${input.lowRiders} Low-Rider${input.lowRiders === 1 ? '' : 's'} carry ${capacity} units including beer.`, { cargo: `At most ${capacity} total units.` });
         }
@@ -642,7 +650,7 @@ export const TravelService = {
     return ActionService.run<RunTradeResult>(prisma, roundPlayerId, {
       action: 'RUN_TRADE',
       actionId: input.actionId,
-      execute: async ({ tx, current, round, now }) => {
+      execute: async ({ tx, current, round, player, now }) => {
         // The round's own rules, not the home city's: the town decides busts and arrests here.
         const base = loadRulesetForRound(round);
         requireRuns(base);
@@ -657,7 +665,7 @@ export const TravelService = {
         const name = productName(base, input.product);
         if (!productKeys(base).includes(input.product)) throw AppError.badRequest('UNKNOWN_PRODUCT', 'That product is not part of this round.', { product: 'Pick a product.' });
         const cargo = cargoOf(run);
-        const capacity = runCapacity(base, run.lowRiders);
+        const capacity = runCapacity(base, run.lowRiders, racketCargoShare(base, readRacketEffects(player.racketEffects)));
         const buying = input.direction === 'buy';
         let unitCents: number;
         let totalCents: bigint;

@@ -32,6 +32,7 @@ import { RelocationService } from './relocation.service.js';
 import { BossTripSettleService } from './boss-trip-settle.service.js';
 import { RunSettleService } from './run-settle.service.js';
 import { TurfService } from './turf.service.js';
+import { BusinessService } from './business.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
@@ -83,6 +84,9 @@ export interface PlayerState {
   busyThugs: number;
   /** 0.6.0-A. Thugs on held corners: counted, never fit at home. */
   postedThugs: number;
+  /** 1.1.0-B. Thugs and girls working a business: counted, never fit or working at home. */
+  businessThugs: number;
+  businessWhores: number;
 
   /** Quest progress that is per-player rather than per-trader. */
   cleanShiftStreak: number;
@@ -211,6 +215,8 @@ export function toState(player: RoundPlayer): PlayerState {
     outpostNetWorthCents: player.outpostNetWorthCents,
     busyThugs: player.busyThugs,
     postedThugs: player.postedThugs,
+    businessThugs: player.businessThugs,
+    businessWhores: player.businessWhores,
     cleanShiftStreak: player.cleanShiftStreak,
     rocksSuppliedToPip: player.rocksSuppliedToPip,
     driveBysDone: player.driveBysDone,
@@ -242,9 +248,14 @@ export function toState(player: RoundPlayer): PlayerState {
   };
 }
 
-/** Thugs who can do something at home: not wounded, busy elsewhere, or posted on a corner. */
-export function fitThugs(player: { thugs: number; woundedThugs: number; busyThugs?: number; postedThugs?: number }): number {
-  return Math.max(0, player.thugs - player.woundedThugs - (player.busyThugs ?? 0) - (player.postedThugs ?? 0));
+/** Thugs who can do something at home: not wounded, busy elsewhere, posted on a corner, or working a business. */
+export function fitThugs(player: { thugs: number; woundedThugs: number; busyThugs?: number; postedThugs?: number; businessThugs?: number }): number {
+  return Math.max(0, player.thugs - player.woundedThugs - (player.busyThugs ?? 0) - (player.postedThugs ?? 0) - (player.businessThugs ?? 0));
+}
+
+/** 1.1.0-B. Girls who work the street or a Produce shift: everyone not working a business. */
+export function workingWhores(player: { whores: number; businessWhores?: number }): number {
+  return Math.max(0, player.whores - (player.businessWhores ?? 0));
 }
 
 function armedThugsForSnapshot(state: PlayerState): number {
@@ -269,6 +280,8 @@ function toSnapshot(
       fitThugs: fitThugs(state),
       woundedThugs: state.woundedThugs,
       postedThugs: state.postedThugs,
+      businessThugs: state.businessThugs,
+      businessWhores: state.businessWhores,
       armedThugs: armedThugsForSnapshot(state),
       unarmedThugs: Math.max(0, fitThugs(state) - armedThugsForSnapshot(state)),
       condoms: state.condoms,
@@ -385,7 +398,9 @@ export const ActionService = {
       // 0.6.0-B: settle corner upkeep/walkouts and pending house-minted tax before
       // an action reads cash, thugs, product or the home arsenal.
       const turfSettlement = await TurfService.settlePlayer(tx, roundPlayerId, ruleset, now);
-      if (turfSettlement) {
+      // 1.1.0-B: and business supply, income and any staff coming home from a lost block.
+      const businessSettlement = await BusinessService.settlePlayer(tx, roundPlayerId, ruleset, now);
+      if (turfSettlement || businessSettlement) {
         player = await tx.roundPlayer.findUniqueOrThrow({
           where: { id: roundPlayerId },
           include: { city: true },

@@ -136,8 +136,11 @@ function roadBetween(ruleset: Ruleset, a: string, b: string): RoadRules | undefi
   return ruleset.travel?.roads.find((road) => (road.from === a && road.to === b) || (road.from === b && road.to === a));
 }
 
-/** Each road's chance of a stop on one leg, for a load, escort and Heat. */
-export function roadStopChances(ruleset: Ruleset, input: { route: readonly string[]; cargoUnits: number; escorts: number; heat: number }): Array<{ road: RoadRules; chance: number }> {
+/**
+ * Each road's chance of a stop on one leg, for a load, escort and Heat. `stopCut` (1.1.0-C, an
+ * Auto Garage's Run mods) takes a share off every road's chance.
+ */
+export function roadStopChances(ruleset: Ruleset, input: { route: readonly string[]; cargoUnits: number; escorts: number; heat: number; stopCut?: number }): Array<{ road: RoadRules; chance: number }> {
   const rules = ruleset.travel?.stops;
   if (!rules) return [];
   const cargo = Math.min(rules.maxCargoFactor, 1 + Math.max(0, input.cargoUnits) / rules.cargoScale);
@@ -149,7 +152,7 @@ export function roadStopChances(ruleset: Ruleset, input: { route: readonly strin
     if (!road) continue;
     const perHour = clamp(rules.chancePerDriveHour * road.police, 0, 1);
     const base = 1 - (1 - perHour) ** road.driveHours;
-    roads.push({ road, chance: clamp(base * cargo * heat * escort, 0, 1) });
+    roads.push({ road, chance: clamp(base * cargo * heat * escort * (1 - clamp(input.stopCut ?? 0, 0, 1)), 0, 1) });
   }
   return roads;
 }
@@ -175,10 +178,11 @@ export function resolveRoadStop(ruleset: Ruleset, input: {
   escorts: number;
   heat: number;
   rng: Rng;
+  stopCut?: number;
 }): RoadStop {
   const rules = ruleset.travel?.stops;
   const units = Object.values(input.cargo).reduce((sum, value) => sum + Math.max(0, value), 0);
-  const roads = roadStopChances(ruleset, { route: input.route, cargoUnits: units, escorts: input.escorts, heat: input.heat });
+  const roads = roadStopChances(ruleset, { route: input.route, cargoUnits: units, escorts: input.escorts, heat: input.heat, stopCut: input.stopCut });
   const chance = 1 - roads.reduce((clear, { chance: each }) => clear * (1 - each), 1);
   const none: RoadStop = { stopped: false, chance, road: null, seized: {}, fineCents: 0n };
   if (!rules || chance <= 0) return none;

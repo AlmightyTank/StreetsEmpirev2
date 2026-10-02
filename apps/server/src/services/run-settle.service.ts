@@ -16,6 +16,8 @@ import {
   type RunGuns,
   type Ruleset,
   type RunStopPlan,
+  racketRunStopCut,
+  readRacketEffects,
 } from '@streets/rules-engine';
 import type { MarketPriceDto, RunIncidentDto, SupplyLevelDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
@@ -180,7 +182,9 @@ async function rollRoadStops(tx: Db, roundPlayerId: string, ruleset: Ruleset, ru
   if (!ruleset.travel?.stops) return run;
   let current = run;
   let checks = run.roadChecks;
-  const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { heat: true } });
+  const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { heat: true, racketEffects: true } });
+  // 1.1.0-C: an Auto Garage on Run mods means fewer stops, read when each leg is rolled.
+  const stopCut = racketRunStopCut(ruleset, readRacketEffects(player.racketEffects));
   while (checks < stops.length && stops[checks]!.arriveAt.getTime() <= now.getTime()) {
     const stop = stops[checks]!;
     const stopped = resolveRoadStop(ruleset, {
@@ -190,6 +194,7 @@ async function rollRoadStops(tx: Db, roundPlayerId: string, ruleset: Ruleset, ru
       escorts: current.escortThugs,
       heat: player.heat,
       rng: seededRng(hashParts(run.id, 'road-stop', checks)),
+      stopCut,
     });
     checks++;
     if (!stopped.stopped) continue;

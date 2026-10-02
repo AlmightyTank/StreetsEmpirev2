@@ -49,6 +49,10 @@ import type {
   AdminUpdateNewsInput,
   AdminUpdateRoundInput,
   AdminVoidBattleResultDto,
+  AdminSurveyDefinitionInput,
+  AdminSurveyDetailDto,
+  AdminSurveyResultsDto,
+  AdminSurveysDto,
 } from '@streets/shared';
 import { api } from './client.js';
 
@@ -91,11 +95,23 @@ export const adminApi = {
       { enabled, reason },
     ),
 
+  surveys: () => api.get<AdminSurveysDto>('/admin/surveys'),
+  survey: (surveyId: string) => api.get<AdminSurveyDetailDto>(`/admin/surveys/${enc(surveyId)}`),
+  surveyResults: (surveyId: string, params: { q?: string; questionId?: string; page?: number; pageSize?: number } = {}) =>
+    api.get<AdminSurveyResultsDto>(`/admin/surveys/${enc(surveyId)}/results${queryString(params)}`),
+  createSurvey: (input: AdminSurveyDefinitionInput) => api.post<AdminSurveyDetailDto>('/admin/surveys', input),
+  updateSurvey: (surveyId: string, input: AdminSurveyDefinitionInput) =>
+    api.post<AdminSurveyDetailDto>(`/admin/surveys/${enc(surveyId)}/update`, input),
+  publishSurvey: (surveyId: string) => api.post<AdminSurveyDetailDto>(`/admin/surveys/${enc(surveyId)}/publish`, {}),
+  closeSurvey: (surveyId: string, reason: string) =>
+    api.post<AdminSurveyDetailDto>(`/admin/surveys/${enc(surveyId)}/close`, { reason }),
+
   news: () => api.get<AdminNewsDto>('/admin/news'),
   createNews: (input: AdminCreateNewsInput) => api.post<AdminNewsDto>('/admin/news', input),
   updateNews: (newsId: string, input: AdminUpdateNewsInput) => api.post<AdminNewsDto>(`/admin/news/${enc(newsId)}/update`, input),
   deleteNews: (newsId: string, reason: string) => api.post<AdminNewsDto>(`/admin/news/${enc(newsId)}/delete`, { reason }),
   mirrorNews: (newsId: string) => api.post<AdminNewsDto>(`/admin/news/${enc(newsId)}/mirror`),
+  resendNewsToDiscord: (newsId: string) => api.post<AdminNewsDto>(`/admin/news/${enc(newsId)}/discord`),
 
   banners: () => api.get<AdminSiteBannersDto>('/admin/banners'),
   createBanner: (input: AdminCreateBannerInput) => api.post<AdminSiteBannersDto>('/admin/banners', input),

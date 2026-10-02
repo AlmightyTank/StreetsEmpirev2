@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  blockWarFeedEmbed,
+  describeDiscordError,
   allianceEmbed,
   badgesEmbed,
   compareEmbed,
@@ -59,6 +61,18 @@ describe('helpers', () => {
   it('truncates with an ellipsis within the limit', () => {
     expect(truncate('abcdef', 4)).toBe('abc…');
     expect(truncate('abc', 4)).toBe('abc');
+  });
+
+  it('explains why Discord refused a send', () => {
+    const apiError = (code: number, message: string) => Object.assign(new Error(message), { code });
+    expect(describeDiscordError(apiError(50013, 'Missing Permissions'), 'news'))
+      .toBe('Missing Permissions: the bot needs View Channel, Send Messages and Embed Links in #news.');
+    expect(describeDiscordError(apiError(50001, 'Missing Access'), 'news')).toContain('cannot see #news');
+    expect(describeDiscordError(apiError(40060, 'Interaction has already been acknowledged'), 'news'))
+      .toBe('Discord error 40060: Interaction has already been acknowledged.');
+    expect(describeDiscordError(new Error('socket hang up'), 'news')).toBe('socket hang up.');
+    expect(describeDiscordError(undefined, 'news')).toBe('Discord gave no reason.');
+    expect(describeDiscordError(new Error('x'.repeat(900)), 'news')).toHaveLength(500);
   });
 
   it('formats time remaining', () => {
@@ -421,3 +435,32 @@ describe('news posts and turn reminders', () => {
     expect(reminderText({ alerts: { attacks: false, round: false, rank: false, turns: true, turf: false, alliance: false }, roundName: null, current: null })).toContain('No round is running');
   });
 });
+
+describe('blockWarFeedEmbed', () => {
+  const base = {
+    id: 'war-1:DECLARED', phase: 'DECLARED' as const, roundName: 'Season 2', cityName: 'Las Vegas', districtName: 'The Strip',
+    goal: 'TAKE' as const, attackerName: 'Rook', attackerProfileUrl: `${origin}/players/1`, attackerAllianceTag: 'NYC',
+    defenderName: 'Bishop_', defenderProfileUrl: `${origin}/players/2`, defenderAllianceTag: null,
+    winner: null, reason: null, at: '2026-10-02T12:00:00.000Z',
+  };
+
+  it('announces a declaration with the goal and both crews', () => {
+    const embed = blockWarFeedEmbed(base);
+    expect(embed.title).toBe('Las Vegas · The Strip · block war declared');
+    expect(embed.description).toContain('[[NYC] Rook]');
+    expect(embed.description).toContain('Bishop\\_');
+    expect(embed.description).toContain('to take it');
+  });
+
+  it('says who won and how', () => {
+    expect(blockWarFeedEmbed({ ...base, phase: 'ENDED', winner: 'ATTACKER', reason: 'CONTROL' }).description)
+      .toMatch(/took .* block after a full siege\.$/);
+    expect(blockWarFeedEmbed({ ...base, phase: 'ENDED', goal: 'SACK', winner: 'ATTACKER', reason: 'CONCEDED' }).title)
+      .toBe('Las Vegas · The Strip · sacked in a block war');
+    expect(blockWarFeedEmbed({ ...base, phase: 'ENDED', winner: 'DEFENDER', reason: 'TIMEOUT' }).description)
+      .toMatch(/held the block against .* when time ran out\.$/);
+    expect(blockWarFeedEmbed({ ...base, phase: 'ENDED', winner: null, reason: 'ABANDONED' }).title)
+      .toBe('Las Vegas · The Strip · block war over');
+  });
+});
+

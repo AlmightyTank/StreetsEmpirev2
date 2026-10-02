@@ -55,7 +55,9 @@ const badgesSchema = z.object({
       key: z.string(),
       title: z.string(),
       description: z.string(),
-      category: z.enum(['rank', 'wealth', 'combat', 'intel', 'reputation', 'hideout', 'quest', 'legacy']),
+      // Any string: the game adds categories (0.9.0-F season feats brought street,
+      // turf, travel and economy), and an unknown one must not fail all of /badges.
+      category: z.string(),
       rarity: raritySchema,
       unlocked: z.boolean(),
       earnedAt: z.string().nullable(),
@@ -160,6 +162,8 @@ const newsClaimSchema = z.object({
   })),
 });
 
+const okSchema = z.object({ ok: z.literal(true) });
+
 const newsCreatedSchema = z.object({ id: z.string(), title: z.string(), url: z.string().url(), roundName: z.string().nullable() });
 
 export const ALERT_TYPES = ['attacks', 'round', 'rank', 'turns', 'turf', 'alliance'] as const;
@@ -195,6 +199,25 @@ const turfEventSchema = z.object({
   defenderName: z.string(),
   defenderProfileUrl: z.string().url(),
   settledAt: z.string(),
+});
+
+/** 1.1.0-D. Block wars on the street feed. Older servers send none. */
+const blockWarEventSchema = z.object({
+  id: z.string(),
+  phase: z.enum(['DECLARED', 'ENDED']),
+  roundName: z.string(),
+  cityName: z.string(),
+  districtName: z.string(),
+  goal: z.enum(['TAKE', 'SACK']),
+  attackerName: z.string(),
+  attackerProfileUrl: z.string().url(),
+  attackerAllianceTag: z.string().nullable(),
+  defenderName: z.string(),
+  defenderProfileUrl: z.string().url(),
+  defenderAllianceTag: z.string().nullable(),
+  winner: z.enum(['ATTACKER', 'DEFENDER']).nullable(),
+  reason: z.string().nullable(),
+  at: z.string(),
 });
 
 const territoryEventSchema = z.object({
@@ -330,6 +353,7 @@ const alertsClaimSchema = z.object({
   })).default([]),
   battles: z.array(battleEventSchema),
   turf: z.array(turfEventSchema),
+  blockWars: z.array(blockWarEventSchema).default([]),
   territory: z.array(territoryEventSchema),
   crackdowns: z.array(crackdownEventSchema),
   rounds: z.array(roundEventSchema),
@@ -372,6 +396,7 @@ export type TurnReminder = AlertsClaim['turns'][number];
 export type RankAlert = AlertsClaim['ranks'][number];
 export type BattleEvent = AlertsClaim['battles'][number];
 export type TurfEvent = AlertsClaim['turf'][number];
+export type BlockWarEvent = AlertsClaim['blockWars'][number];
 export type TerritoryEvent = AlertsClaim['territory'][number];
 export type CrackdownEvent = AlertsClaim['crackdowns'][number];
 export type TurfAlert = AlertsClaim['turfAlerts'][number];
@@ -448,6 +473,14 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
       call(newsCreatedSchema, '/api/internal/discord/news', { method: 'POST', body: input }),
     /** Claimed posts count as posted, even if sending them fails. */
     claimNews: async () => (await call(newsClaimSchema, '/api/internal/discord/news/claim', { method: 'POST' })).news,
+    /** Discord refused a claimed post; the admin panel shows why and offers a resend. */
+    newsFailed: async (newsId: string, error: string) => {
+      await call(okSchema, `/api/internal/discord/news/${encodeURIComponent(newsId)}/failed`, { method: 'POST', body: { error } });
+    },
+    /** Whether the news channel is usable, so the admin panel can say why news is stuck. */
+    reportNewsChannel: async (report: { channel: string | null; problem: string | null }) => {
+      await call(okSchema, '/api/internal/discord/news/status', { method: 'POST', body: report });
+    },
     alertSettings: (discordId: string) => call(alertSettingsSchema, `/api/internal/discord/alerts?${query({ discordId })}`),
     setAlert: (discordId: string, type: AlertType, enabled: boolean) =>
       call(alertSettingsSchema, '/api/internal/discord/alerts', { method: 'PUT', body: { discordId, type, enabled } }),
