@@ -427,6 +427,18 @@ describe.runIf(process.env.SURVEY_INTEGRATION === '1')('Survey Phase C submissio
         ]),
       },
     });
+    const multiple = results.questions.find((question) => question.type === 'MULTIPLE_CHOICE');
+    expect(multiple).toMatchObject({
+      answered: 1,
+      aggregate: {
+        kind: 'CHOICE',
+        multiple: true,
+        options: expect.arrayContaining([
+          expect.objectContaining({ value: 'DESKTOP', count: 1, percent: 100 }),
+          expect.objectContaining({ value: 'MOBILE', count: 1, percent: 100 }),
+        ]),
+      },
+    });
     expect(results.textResponses.total).toBe(1);
     expect(results.textResponses.responses[0]).toMatchObject({
       responseNumber: 1,
