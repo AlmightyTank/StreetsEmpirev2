@@ -12,8 +12,12 @@ export interface NavPage {
   short?: string;
   to: string;
   icon: IconName;
-  /** Other paths that count as this page, e.g. every store for Stores. */
+  /** Other exact routes represented by this one top-level destination. */
+  aliases?: string[];
+  /** One legacy/detail prefix represented by this destination. */
   prefix?: string;
+  /** Extra detail prefixes represented by this destination. */
+  prefixes?: string[];
 }
 
 export interface NavSection {
@@ -29,15 +33,11 @@ export type IconName =
 
 export const SECTIONS: NavSection[] = [
   {
-    id: 'actions',
-    title: 'Actions',
+    id: 'play',
+    title: 'Play',
     pages: [
       { key: 'dashboard', label: 'Dashboard', short: 'Home', to: '/game', icon: 'dashboard' },
-      { key: 'quests', label: 'Quests', to: '/game/quests', icon: 'activity' },
-      { key: 'surveys', label: 'Surveys', to: '/game/surveys', icon: 'activity' },
-      { key: 'street-pass', label: 'Street Pass', short: 'Pass', to: '/game/street-pass', icon: 'pass' },
-      { key: 'scout', label: 'Scout', to: '/game/scout', icon: 'scout' },
-      { key: 'produce', label: 'Produce', to: '/game/produce', icon: 'produce' },
+      { key: 'scout', label: 'Street Work', short: 'Work', to: '/game/scout', icon: 'scout', aliases: ['/game/produce'] },
       { key: 'raids', label: 'Raids', to: '/game/combat', icon: 'raids' },
       { key: 'stores', label: 'Stores', to: '/game/stores', icon: 'stores', prefix: '/game/stores/' },
       { key: 'hideout', label: 'Hideout', to: '/game/hideout', icon: 'hideout' },
@@ -46,28 +46,60 @@ export const SECTIONS: NavSection[] = [
     ],
   },
   {
-    id: 'players',
-    title: 'Players',
+    id: 'progress',
+    title: 'Progress',
     pages: [
-      { key: 'players', label: 'Players', to: '/game/players', icon: 'contacts', prefix: '/game/players/' },
-      { key: 'console', label: 'Console', to: '/game/console', icon: 'activity' },
-      { key: 'rankings', label: 'Rankings', short: 'Ranks', to: '/game/rankings', icon: 'rankings' },
-      { key: 'alliance', label: 'Alliance', to: '/game/alliance', icon: 'alliance', prefix: '/game/alliances' },
-      { key: 'contacts', label: 'Contacts', to: '/game/contacts', icon: 'contacts' },
-      { key: 'profile', label: 'Profile', to: '/game/profile', icon: 'profile' },
-      { key: 'activity', label: 'Activity', to: '/game/activity', icon: 'activity' },
+      {
+        key: 'quests',
+        label: 'Quests & Progress',
+        short: 'Progress',
+        to: '/game/quests',
+        icon: 'activity',
+        aliases: ['/game/street-pass', '/game/reputation'],
+      },
+    ],
+  },
+  {
+    id: 'people',
+    title: 'People',
+    pages: [
+      {
+        key: 'players',
+        label: 'People',
+        to: '/game/players',
+        icon: 'contacts',
+        aliases: ['/game/rankings', '/game/contacts', '/game/profile', '/game/alliance', '/game/alliances'],
+        prefix: '/game/players/',
+        prefixes: ['/game/alliances/', '/game/forum/'],
+      },
+      { key: 'console', label: 'Console', to: '/game/console', icon: 'activity', aliases: ['/game/activity'] },
+    ],
+  },
+  {
+    id: 'community',
+    title: 'Community',
+    pages: [
+      {
+        key: 'news',
+        label: 'Community',
+        to: '/game/news',
+        icon: 'news',
+        aliases: ['/game/surveys', '/game/hall-of-fame'],
+      },
     ],
   },
   {
     id: 'game',
     title: 'Game',
     pages: [
-      { key: 'status', label: 'Status', to: '/game/status', icon: 'status' },
-      { key: 'rules', label: 'Rules', to: '/game/rules', icon: 'rules' },
-      { key: 'news', label: 'News', to: '/game/news', icon: 'news' },
-      { key: 'fame', label: 'Hall of Fame', short: 'Fame', to: '/game/hall-of-fame', icon: 'fame' },
+      {
+        key: 'status',
+        label: 'Game Info',
+        to: '/game/status',
+        icon: 'status',
+        aliases: ['/game/rules', '/game/report-bug'],
+      },
       { key: 'account', label: 'Account', to: '/account', icon: 'account' },
-      { key: 'report-bug', label: 'Report a bug', short: 'Bug', to: '/game/report-bug', icon: 'status' },
     ],
   },
 ];
@@ -77,49 +109,216 @@ export const ADMIN_SECTION: NavSection = {
   id: 'admin',
   title: 'Admin',
   pages: [
-    { key: 'admin-monitoring', label: 'Monitoring', to: '/game/admin/monitoring', icon: 'admin' },
     { key: 'admin-rounds', label: 'Rounds', to: '/game/admin', icon: 'admin', prefix: '/game/admin/rounds/' },
-    { key: 'admin-news', label: 'News & banner', short: 'Banner', to: '/game/admin/news', icon: 'admin' },
-    { key: 'admin-surveys', label: 'Surveys', to: '/game/admin/surveys', icon: 'admin' },
-    { key: 'admin-accounts', label: 'Accounts', to: '/game/admin/accounts', icon: 'admin', prefix: '/game/admin/accounts/' },
-    { key: 'admin-integrations', label: 'Integrations', short: 'Integr.', to: '/game/admin/integrations', icon: 'admin' },
-    { key: 'admin-rulesets', label: 'Rulesets', to: '/game/admin/rulesets', icon: 'admin' },
-    { key: 'admin-reports', label: 'Reports', to: '/game/admin/reports', icon: 'admin' },
-    { key: 'admin-bugs', label: 'Bug reports', short: 'Bugs', to: '/game/admin/bugs', icon: 'admin' },
-    { key: 'admin-economy', label: 'Economy', to: '/game/admin/economy', icon: 'admin' },
-    { key: 'admin-combat', label: 'Combat & exploits', short: 'Combat', to: '/game/admin/combat', icon: 'admin' },
-    { key: 'admin-turf', label: 'Turf', to: '/game/admin/turf', icon: 'admin' },
-    { key: 'admin-signals', label: 'Signals', to: '/game/admin/signals', icon: 'admin' },
+    {
+      key: 'admin-content',
+      label: 'Content',
+      to: '/game/admin/news',
+      icon: 'admin',
+      aliases: ['/game/admin/surveys', '/game/admin/quests', '/game/admin/rulesets'],
+    },
+    {
+      key: 'admin-players',
+      label: 'Players & Reports',
+      short: 'Players',
+      to: '/game/admin/accounts',
+      icon: 'admin',
+      aliases: ['/game/admin/reports', '/game/admin/bugs'],
+      prefix: '/game/admin/accounts/',
+      prefixes: ['/game/admin/players/'],
+    },
+    {
+      key: 'admin-ops',
+      label: 'Operations',
+      short: 'Ops',
+      to: '/game/admin/monitoring',
+      icon: 'admin',
+      aliases: ['/game/admin/integrations', '/game/admin/signals'],
+    },
+    {
+      key: 'admin-balance',
+      label: 'Balance',
+      to: '/game/admin/economy',
+      icon: 'admin',
+      aliases: ['/game/admin/combat', '/game/admin/turf'],
+    },
     { key: 'admin-audit', label: 'Audit log', short: 'Audit', to: '/game/admin/audit', icon: 'admin' },
   ],
 };
 
 export function useSections(): NavSection[] {
   const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
-  // The Street Pass only shows on rounds that have one.
-  const hasPass = useSession((s) => Boolean(s.me?.streetPass));
-  return useMemo(() => {
-    const sections = hasPass
-      ? SECTIONS
-      : SECTIONS.map((section) => ({ ...section, pages: section.pages.filter((page) => page.key !== 'street-pass') }));
-    return isAdmin ? [...sections, ADMIN_SECTION] : sections;
-  }, [isAdmin, hasPass]);
+  return useMemo(() => (isAdmin ? [...SECTIONS, ADMIN_SECTION] : SECTIONS), [isAdmin]);
+}
+
+function pathMatches(
+  pathname: string,
+  to: string,
+  aliases: readonly string[] = [],
+  prefix?: string,
+  prefixes: readonly string[] = [],
+): boolean {
+  return pathname === to
+    || aliases.includes(pathname)
+    || (prefix !== undefined && pathname.startsWith(prefix))
+    || prefixes.some((candidate) => pathname.startsWith(candidate));
 }
 
 export function isCurrent(page: NavPage, pathname: string): boolean {
-  return pathname === page.to || (page.prefix !== undefined && pathname.startsWith(page.prefix));
+  return pathMatches(pathname, page.to, page.aliases, page.prefix, page.prefixes);
+}
+
+export interface ContextTab {
+  key: string;
+  label: string;
+  to: string;
+  aliases?: string[];
+  prefix?: string;
+  prefixes?: string[];
+  /** Reuse a top-level nav badge on the tab that actually owns the alert. */
+  badgeKey?: string;
+}
+
+export interface ContextTabs {
+  label: string;
+  tabs: ContextTab[];
+}
+
+export function isContextTabCurrent(tab: ContextTab, pathname: string): boolean {
+  return pathMatches(pathname, tab.to, tab.aliases, tab.prefix, tab.prefixes);
+}
+
+/**
+ * Related routes stay separate for deep links, but share one top-level navigation
+ * destination. This keeps the sidebar small while making each grouped page one tap away.
+ */
+export function contextTabsFor(pathname: string, hasStreetPass: boolean): ContextTabs | null {
+  const groups: ContextTabs[] = [
+    {
+      label: 'Street Work',
+      tabs: [
+        { key: 'scout', label: 'Scout', to: '/game/scout' },
+        { key: 'produce', label: 'Produce', to: '/game/produce' },
+      ],
+    },
+    {
+      label: 'Progress',
+      tabs: [
+        { key: 'quests', label: 'Quests', to: '/game/quests' },
+        ...(hasStreetPass || pathname === '/game/street-pass'
+          ? [{ key: 'street-pass', label: 'Street Pass', to: '/game/street-pass', badgeKey: 'quests' }]
+          : []),
+        { key: 'reputation', label: 'Contact Standing', to: '/game/reputation' },
+      ],
+    },
+    {
+      label: 'People',
+      tabs: [
+        { key: 'directory', label: 'Directory', to: '/game/players', prefix: '/game/players/', prefixes: ['/game/forum/'] },
+        { key: 'rankings', label: 'Rankings', to: '/game/rankings' },
+        { key: 'contacts', label: 'Contacts', to: '/game/contacts' },
+        { key: 'alliance', label: 'Alliance', to: '/game/alliance', aliases: ['/game/alliances'], prefix: '/game/alliances/' },
+        { key: 'profile', label: 'My Profile', to: '/game/profile' },
+      ],
+    },
+    {
+      label: 'Console',
+      tabs: [
+        { key: 'console', label: 'Console', to: '/game/console' },
+        { key: 'activity', label: 'Full Activity', to: '/game/activity' },
+      ],
+    },
+    {
+      label: 'Community',
+      tabs: [
+        { key: 'news', label: 'News', to: '/game/news' },
+        { key: 'surveys', label: 'Surveys', to: '/game/surveys', badgeKey: 'news' },
+        { key: 'hall-of-fame', label: 'Hall of Fame', to: '/game/hall-of-fame' },
+      ],
+    },
+    {
+      label: 'Game Info',
+      tabs: [
+        { key: 'status', label: 'Status', to: '/game/status' },
+        { key: 'rules', label: 'Rules', to: '/game/rules' },
+        { key: 'report-bug', label: 'Report a Bug', to: '/game/report-bug' },
+      ],
+    },
+    {
+      label: 'Admin Content',
+      tabs: [
+        { key: 'admin-news', label: 'News & Banner', to: '/game/admin/news' },
+        { key: 'admin-surveys', label: 'Surveys', to: '/game/admin/surveys' },
+        { key: 'admin-quests', label: 'Quest Content', to: '/game/admin/quests' },
+        { key: 'admin-rulesets', label: 'Rulesets', to: '/game/admin/rulesets' },
+      ],
+    },
+    {
+      label: 'Admin Players & Reports',
+      tabs: [
+        { key: 'admin-accounts', label: 'Accounts', to: '/game/admin/accounts', prefix: '/game/admin/accounts/', prefixes: ['/game/admin/players/'] },
+        { key: 'admin-reports', label: 'Reports', to: '/game/admin/reports' },
+        { key: 'admin-bugs', label: 'Bug Reports', to: '/game/admin/bugs' },
+      ],
+    },
+    {
+      label: 'Admin Operations',
+      tabs: [
+        { key: 'admin-monitoring', label: 'Monitoring', to: '/game/admin/monitoring' },
+        { key: 'admin-integrations', label: 'Integrations', to: '/game/admin/integrations' },
+        { key: 'admin-signals', label: 'Signals', to: '/game/admin/signals' },
+      ],
+    },
+    {
+      label: 'Admin Balance',
+      tabs: [
+        { key: 'admin-economy', label: 'Economy', to: '/game/admin/economy' },
+        { key: 'admin-combat', label: 'Combat & Exploits', to: '/game/admin/combat' },
+        { key: 'admin-turf', label: 'Turf', to: '/game/admin/turf' },
+      ],
+    },
+  ];
+  return groups.find((group) => group.tabs.some((tab) => isContextTabCurrent(tab, pathname))) ?? null;
 }
 
 /* ---------- Phone tab bar slots ---------- */
 
 export const TAB_COUNT = 4;
-export const DEFAULT_TABS = ['dashboard', 'scout', 'produce', 'raids'];
+export const DEFAULT_TABS = ['dashboard', 'scout', 'raids', 'turf'];
 const TABS_STORAGE_KEY = 'streets.tabbar.v1';
+
+const TAB_KEY_MIGRATIONS: Record<string, string> = {
+  produce: 'scout',
+  'street-pass': 'quests',
+  rankings: 'players',
+  alliance: 'players',
+  contacts: 'players',
+  profile: 'players',
+  activity: 'console',
+  surveys: 'news',
+  fame: 'news',
+  rules: 'status',
+  'report-bug': 'status',
+  'admin-monitoring': 'admin-ops',
+  'admin-news': 'admin-content',
+  'admin-surveys': 'admin-content',
+  'admin-quests': 'admin-content',
+  'admin-integrations': 'admin-ops',
+  'admin-rulesets': 'admin-content',
+  'admin-reports': 'admin-players',
+  'admin-bugs': 'admin-players',
+  'admin-economy': 'admin-balance',
+  'admin-combat': 'admin-balance',
+  'admin-turf': 'admin-balance',
+  'admin-signals': 'admin-ops',
+  'admin-accounts': 'admin-players',
+};
 
 function readTabs(): string[] {
   try {
     const parsed: unknown = JSON.parse(window.localStorage.getItem(TABS_STORAGE_KEY) ?? 'null');
-    return Array.isArray(parsed) && parsed.every((key) => typeof key === 'string') ? parsed.slice(0, TAB_COUNT) : DEFAULT_TABS;
+    if (!Array.isArray(parsed) || !parsed.every((key) => typeof key === 'string')) return DEFAULT_TABS;
+    return parsed.slice(0, TAB_COUNT).map((key) => TAB_KEY_MIGRATIONS[key] ?? key);
   } catch {
     return DEFAULT_TABS;
   }
@@ -287,7 +486,7 @@ function useSurveyAvailableCount(playerId: string | null): number {
 /**
  * What each page wants you to know before you open it:
  * - Scout carries your turns, amber once they sit at the cap.
- * - Raids gets a red dot when someone hit you since you last looked at Raids or Activity.
+ * - Raids gets a red dot when someone hit you since you last looked at Raids or Console/Activity.
  * - Dashboard goes amber when Heat drags the take, red when bust/arrest risk is live,
  *   and red while an arrest has the player locked up.
  * - Travel goes amber while a run sits in town, trading only when you are there, and
@@ -310,6 +509,8 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
     setSeen(playerId ? readSeen(playerId) : null);
   }, [playerId]);
 
+  // Inbox/alerts in Console do not prove the player saw the attack. Only the
+  // combat page or the full activity log clears the defense notification.
   const looking = pathname === '/game/combat' || pathname === '/game/activity';
   useEffect(() => {
     if (!playerId || !latestHit) return;
@@ -340,7 +541,7 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
 
   const claimable = me.streetPass?.claimable ?? 0;
   if (claimable > 0) {
-    badges['street-pass'] = {
+    badges.quests = {
       tone: 'info',
       text: badgeCount(claimable),
       label: `${claimable} Street Pass tier${claimable === 1 ? '' : 's'} ready to claim`,
@@ -356,7 +557,7 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
   }
 
   if (surveyAvailable > 0) {
-    badges.surveys = {
+    badges.news = {
       tone: 'info',
       text: badgeCount(surveyAvailable),
       label: `${surveyAvailable} survey${surveyAvailable === 1 ? '' : 's'} ready for feedback`,

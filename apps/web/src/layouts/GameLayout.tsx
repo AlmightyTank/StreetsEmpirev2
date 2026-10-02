@@ -12,11 +12,14 @@ import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
 import { useSession } from '../stores/session.js';
 import { formatDuration } from '../utils/time.js';
 import {
+  contextTabsFor,
+  isContextTabCurrent,
   isCurrent,
   useNavBadges,
   useSections,
   useTabSlots,
   worstBadge,
+  type ContextTabs,
   type NavBadge,
   type NavPage,
   type NavSection,
@@ -101,6 +104,35 @@ function GameNav({ sections, pathname, badges }: { sections: NavSection[]; pathn
           </div>
         );
       })}
+    </nav>
+  );
+}
+
+
+function ContextNav({ group, pathname, badges }: {
+  group: ContextTabs;
+  pathname: string;
+  badges: Record<string, NavBadge>;
+}) {
+  return (
+    <nav className="se-contextnav" aria-label={group.label}>
+      <span className="se-contextnav__title">{group.label}</span>
+      <div className="se-contextnav__tabs">
+        {group.tabs.map((tab) => {
+          const current = isContextTabCurrent(tab, pathname);
+          return (
+            <Link
+              key={tab.key}
+              to={tab.to}
+              aria-current={current ? 'page' : undefined}
+              className={`se-contextnav__tab${current ? ' se-contextnav__tab--active' : ''}`}
+            >
+              <span>{tab.label}</span>
+              <Badge badge={tab.badgeKey ? badges[tab.badgeKey] : null} />
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 }
@@ -343,6 +375,8 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   const sections = useSections();
   const { pathname, hash } = useLocation();
   const badges = useNavBadges(pathname);
+  const hasStreetPass = useSession((s) => Boolean(s.me?.streetPass));
+  const contextTabs = contextTabsFor(pathname, hasStreetPass);
   const pages = sections.flatMap((section) => section.pages);
   const tabs = useTabSlots(pages);
   const [sheet, setSheet] = useState<{ editSlot: number | null } | null>(null);
@@ -405,6 +439,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
       <div className="se-gamegrid">
         <GameNav sections={sections} pathname={pathname} badges={badges} />
         <div className="se-gamemain">
+          {contextTabs ? <ContextNav group={contextTabs} pathname={pathname} badges={badges} /> : null}
           <PageGuide />
           {children}
         </div>
