@@ -4,6 +4,7 @@ export * from './schemas/alliance.js';
 export * from './schemas/playing-together.js';
 export * from './schemas/console.js';
 export * from './schemas/survey.js';
+export * from './schemas/admin-survey.js';
 export * from './types/api.js';
 export * from './types/community.js';
 export * from './types/admin.js';

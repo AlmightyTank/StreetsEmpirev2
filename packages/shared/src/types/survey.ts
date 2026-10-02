@@ -95,3 +95,181 @@ export interface SurveySubmissionResultDto {
   submittedAt: string;
   rewards: QuestRewardDto[];
 }
+
+
+export const SURVEY_REWARD_KINDS = [
+  'CASH',
+  'TURNS',
+  'ITEM',
+  'CONTACT_REP',
+  'WEAPON_ACCESS',
+  'PERMANENT_UNLOCK',
+  'FAVOR_ITEM',
+  'COSMETIC_UNLOCK',
+  'PRODUCT',
+] as const;
+export type SurveyRewardKindDto = (typeof SURVEY_REWARD_KINDS)[number];
+
+export interface AdminSurveyRewardInput {
+  kind: SurveyRewardKindDto;
+  amount?: number;
+  key?: string;
+}
+
+export interface AdminSurveyOptionInput {
+  value: string;
+  label: string;
+}
+
+export interface AdminSurveyQuestionInput {
+  type: SurveyQuestionTypeDto;
+  prompt: string;
+  description?: string | null;
+  required: boolean;
+  minLength?: number | null;
+  maxLength?: number | null;
+  ratingMin?: number | null;
+  ratingMax?: number | null;
+  options: AdminSurveyOptionInput[];
+}
+
+export interface AdminSurveyDefinitionInput {
+  title: string;
+  description: string;
+  releaseTag?: string | null;
+  featureTag?: string | null;
+  roundId?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  rewards: AdminSurveyRewardInput[];
+  questions: AdminSurveyQuestionInput[];
+}
+
+export interface AdminSurveyRowDto {
+  id: string;
+  title: string;
+  description: string;
+  status: SurveyStatusDto;
+  releaseTag: string | null;
+  featureTag: string | null;
+  roundId: string | null;
+  roundName: string | null;
+  rewards: AdminSurveyRewardInput[];
+  startsAt: string | null;
+  endsAt: string | null;
+  publishedAt: string | null;
+  closedAt: string | null;
+  announcedAt: string | null;
+  createdByUsername: string;
+  createdAt: string;
+  updatedAt: string;
+  questionCount: number;
+  submissionCount: number;
+}
+
+export interface AdminSurveyDetailDto extends AdminSurveyRowDto {
+  questions: SurveyQuestionDto[];
+}
+
+export interface AdminSurveysDto {
+  now: string;
+  surveys: AdminSurveyRowDto[];
+  rounds: Array<{
+    id: string;
+    name: string;
+    status: string;
+    rulesetVersion: string;
+  }>;
+}
+
+
+export interface AdminSurveyDistributionBucketDto {
+  value: string;
+  label: string;
+  count: number;
+  /** Percentage of respondents who answered this question, 0..100. */
+  percent: number;
+}
+
+export type AdminSurveyQuestionAggregateDto =
+  | {
+      kind: 'YES_NO';
+      yes: number;
+      no: number;
+      yesPercent: number;
+      noPercent: number;
+    }
+  | {
+      kind: 'CHOICE';
+      multiple: boolean;
+      options: AdminSurveyDistributionBucketDto[];
+    }
+  | {
+      kind: 'RATING';
+      average: number | null;
+      min: number;
+      max: number;
+      buckets: AdminSurveyDistributionBucketDto[];
+    }
+  | {
+      kind: 'TEXT';
+      responseCount: number;
+    };
+
+export interface AdminSurveyQuestionResultDto {
+  id: string;
+  type: SurveyQuestionTypeDto;
+  prompt: string;
+  required: boolean;
+  position: number;
+  answered: number;
+  skipped: number;
+  aggregate: AdminSurveyQuestionAggregateDto;
+}
+
+export interface AdminSurveyCompletionTrendDto {
+  /** UTC calendar day, YYYY-MM-DD. */
+  date: string;
+  count: number;
+  cumulative: number;
+}
+
+export interface AdminSurveyAnonymousTextResponseDto {
+  /** Chronological survey-local submission number, never an account identifier. */
+  responseNumber: number;
+  submittedAt: string;
+  questionId: string;
+  prompt: string;
+  value: string;
+}
+
+export interface AdminSurveyResultsDto {
+  survey: {
+    id: string;
+    title: string;
+    status: SurveyStatusDto;
+    releaseTag: string | null;
+    featureTag: string | null;
+    roundId: string | null;
+    roundName: string | null;
+  };
+  overview: {
+    eligibleAccounts: number;
+    submissions: number;
+    responseRate: number;
+    rewardsGranted: number;
+    firstSubmittedAt: string | null;
+    lastSubmittedAt: string | null;
+  };
+  completionTrend: AdminSurveyCompletionTrendDto[];
+  questions: AdminSurveyQuestionResultDto[];
+  textResponses: {
+    query: string;
+    questionId: string | null;
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    responses: AdminSurveyAnonymousTextResponseDto[];
+  };
+}

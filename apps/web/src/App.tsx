@@ -19,6 +19,7 @@ import { AdminQuestContentPage } from './pages/AdminQuestContentPage.js';
 import { AdminRoundPage } from './pages/AdminRoundPage.js';
 import { AdminRulesetsPage } from './pages/AdminRulesetsPage.js';
 import { AdminSignalsPage } from './pages/AdminSignalsPage.js';
+import { AdminSurveysPage } from './pages/AdminSurveysPage.js';
 import { ForumLinkPage } from './pages/ForumLinkPage.js';
 import { ActivityPage } from './pages/ActivityPage.js';
 import { AlliancePage } from './pages/AlliancePage.js';
@@ -188,6 +189,7 @@ export function App() {
         <Route path="admin/accounts/:accountId" element={admin(<AdminAccountPage />)} />
         <Route path="admin/players/:roundPlayerId" element={admin(<AdminPlayerPage />)} />
         <Route path="admin/quests" element={admin(<AdminQuestContentPage />)} />
+        <Route path="admin/surveys" element={admin(<AdminSurveysPage />)} />
         <Route path="admin/integrations" element={admin(<AdminIntegrationsPage />)} />
         <Route path="admin/rulesets" element={admin(<AdminRulesetsPage />)} />
         <Route path="admin/signals" element={admin(<AdminSignalsPage />)} />

@@ -22,6 +22,7 @@ import { grantRewards, rewardDto } from './reward-grant.service.js';
 import { ActionService } from './action.service.js';
 import { RoundPlayerService } from './round-player.service.js';
 import { RoundService } from './round.service.js';
+import { settleSurveySchedules } from './survey-schedule.service.js';
 
 type SurveyWindow = Pick<Survey, 'status' | 'startsAt' | 'endsAt' | 'roundId'>;
 
@@ -382,6 +383,7 @@ async function currentPlayer(prisma: PrismaClient, accountId: string) {
 
 export const SurveyService = {
   async page(prisma: PrismaClient, accountId: string, now = new Date()): Promise<SurveyPageDto> {
+    await settleSurveySchedules(prisma, now);
     const { round } = await currentPlayer(prisma, accountId);
 
     const [available, completed] = await Promise.all([
@@ -428,6 +430,7 @@ export const SurveyService = {
     surveyId: string,
     now = new Date(),
   ): Promise<SurveyDetailDto> {
+    await settleSurveySchedules(prisma, now);
     const { round } = await currentPlayer(prisma, accountId);
     const [survey, submission] = await Promise.all([
       prisma.survey.findUnique({
@@ -481,6 +484,7 @@ export const SurveyService = {
     surveyId: string,
     input: SurveySubmitInputDto,
   ): Promise<GameActionResult<SurveySubmissionResultDto>> {
+    await settleSurveySchedules(prisma);
     const { player } = await currentPlayer(prisma, accountId);
 
     return ActionService.run<SurveySubmissionResultDto>(prisma, player.id, {

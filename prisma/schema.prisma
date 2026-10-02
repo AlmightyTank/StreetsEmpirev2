@@ -524,6 +524,8 @@ model Survey {
   endsAt      DateTime?
   publishedAt DateTime?
   closedAt    DateTime?
+  /// Set when the alert collector has fanned this live survey out to players.
+  announcedAt DateTime?
 
   /// Keep the author name even if that admin account is later removed.
   createdByUsername String
@@ -535,6 +537,7 @@ model Survey {
   submissions SurveySubmission[]
 
   @@index([status, startsAt, endsAt])
+  @@index([status, announcedAt])
   @@index([roundId, status])
   @@index([releaseTag])
   @@index([featureTag])
