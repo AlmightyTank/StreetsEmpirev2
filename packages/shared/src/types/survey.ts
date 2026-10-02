@@ -97,8 +97,21 @@ export interface SurveySubmissionResultDto {
 }
 
 
+export const SURVEY_REWARD_KINDS = [
+  'CASH',
+  'TURNS',
+  'ITEM',
+  'CONTACT_REP',
+  'WEAPON_ACCESS',
+  'PERMANENT_UNLOCK',
+  'FAVOR_ITEM',
+  'COSMETIC_UNLOCK',
+  'PRODUCT',
+] as const;
+export type SurveyRewardKindDto = (typeof SURVEY_REWARD_KINDS)[number];
+
 export interface AdminSurveyRewardInput {
-  kind: QuestRewardDto['kind'];
+  kind: SurveyRewardKindDto;
   amount?: number;
   key?: string;
 }
