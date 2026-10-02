@@ -156,7 +156,7 @@ describe.runIf(process.env.SURVEY_INTEGRATION === '1')('Survey Phase B with Post
         surveyId: completed.id,
         accountId,
         roundPlayerId: player.id,
-        rewardSnapshot: completed.rewards,
+        rewardSnapshot: [{ kind: 'CASH', amount: 1_000 }],
       },
     });
 
@@ -192,7 +192,7 @@ describe.runIf(process.env.SURVEY_INTEGRATION === '1')('Survey Phase B with Post
         surveyId: completed.id,
         accountId,
         roundPlayerId: player.id,
-        rewardSnapshot: completed.rewards,
+        rewardSnapshot: [{ kind: 'CASH', amount: 1_000 }],
       },
     });
 
