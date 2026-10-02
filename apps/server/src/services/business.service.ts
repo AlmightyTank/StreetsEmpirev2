@@ -203,14 +203,7 @@ export const BusinessService = {
       ? await tx.blockWar.findMany({ where: { turfId: { in: [...new Set(rows.map((row) => row.turfId))] }, status: { not: 'ENDED' } } })
       : [];
     const warOn = new Map(wars.map((war) => [war.turfId, war]));
-    const cuts: Array<{
-      playerId: string;
-      cents: bigint;
-      turfId: string;
-      cityId: string;
-      businessId: string;
-      registerCapCents: bigint;
-    }> = [];
+    const cuts: Array<{ playerId: string; cents: bigint; turfId: string }> = [];
     const storedEffects = readRacketEffects(player.racketEffects);
     if (!rows.length && player.businessThugs === 0 && player.businessWhores === 0) {
       // Nothing runs any more: a crew that lost its last business loses its rackets too.
@@ -372,14 +365,7 @@ export const BusinessService = {
           const cut = BigInt(Math.floor(Number(earned) * Math.min(1, cutHours / earningHours) * row.turf.warCutShare));
           if (cut > 0n) {
             earned -= cut;
-            cuts.push({
-              playerId: row.turf.warCutPlayerId,
-              cents: cut,
-              turfId: row.turfId,
-              cityId: row.turf.cityId,
-              businessId: row.id,
-              registerCapCents: cap,
-            });
+            cuts.push({ playerId: row.turf.warCutPlayerId, cents: cut, turfId: row.turfId });
           }
         }
         register = register + earned > cap ? cap : register + earned;
@@ -530,71 +516,16 @@ export const BusinessService = {
         : all, {});
     const effectsChanged = !sameEffects(effects, storedEffects);
 
-    // The ally's truce cut follows the ally's presence. Residents are paid at home.
-    // In E an outpost ally is paid into its box, under the same cash cap. If that box is
-    // full (or was lost), the unpaid share stays with the earning business instead of vanishing.
+    // The winning side's truce-income cut keeps D's cash payout semantics. E changes
+    // where an outpost ally fights from; it does not invent a second long-lived payout queue.
     for (const cut of cuts) {
-      let paid = 0n;
-      let outpostId: string | null = null;
-      const ally = await tx.roundPlayer.findUnique({
-        where: { id: cut.playerId },
-        select: { cityId: true, outpostNetWorthCents: true },
-      });
-      if (ally) {
-        if (!outpostBusinessesOn(ruleset) || ally.cityId === cut.cityId) {
-          paid = cut.cents;
-          await tx.roundPlayer.update({ where: { id: cut.playerId }, data: { cashCents: { increment: paid } } });
-        } else {
-          const candidates = await tx.turfOutpost.findMany({
-            where: { ownerId: cut.playerId },
-            include: { turf: { select: { cityId: true, holderId: true } } },
-          });
-          const candidate = candidates.find((entry) => entry.turf.cityId === cut.cityId && entry.turf.holderId === cut.playerId);
-          if (candidate && ruleset.turf?.outposts) {
-            await lockOutpost(tx, candidate.id);
-            const box = await tx.turfOutpost.findUniqueOrThrow({ where: { id: candidate.id } });
-            const room = BigInt(ruleset.turf.outposts.cashCapCents) - box.cashCents;
-            paid = room > 0n ? (cut.cents < room ? cut.cents : room) : 0n;
-            if (paid > 0n) {
-              const beforeWorth = runNetWorthCents(ruleset, {
-                cashCents: box.cashCents, lowRiders: 0, escortThugs: 0, beer: box.beer,
-                cargo: box.products as Record<string, number>,
-              });
-              const cashCents = box.cashCents + paid;
-              const afterWorth = runNetWorthCents(ruleset, {
-                cashCents, lowRiders: 0, escortThugs: 0, beer: box.beer,
-                cargo: box.products as Record<string, number>,
-              });
-              await tx.turfOutpost.update({ where: { id: box.id }, data: { cashCents } });
-              await tx.roundPlayer.update({
-                where: { id: cut.playerId },
-                data: { outpostNetWorthCents: { increment: afterWorth - beforeWorth } },
-              });
-              outpostId = box.id;
-            }
-          }
-        }
-      }
-
-      if (paid > 0n) {
-        await EconomyLedgerService.record(tx, cut.playerId, [{
-          source: 'BLOCK_WAR_CUT',
-          label: outpostId ? 'Block war · ally cut of business income to outpost' : 'Block war · ally cut of business income',
-          amountCents: paid,
-          metadata: { turfId: cut.turfId, from: roundPlayerId, ...(outpostId ? { outpostId } : {}) },
-        }], now);
-      }
-
-      const unpaid = cut.cents - paid;
-      if (unpaid > 0n) {
-        const source = await tx.business.findUnique({ where: { id: cut.businessId }, select: { registerCents: true } });
-        if (source) {
-          const restored = source.registerCents + unpaid > cut.registerCapCents
-            ? cut.registerCapCents
-            : source.registerCents + unpaid;
-          await tx.business.update({ where: { id: cut.businessId }, data: { registerCents: restored } });
-        }
-      }
+      await tx.roundPlayer.update({ where: { id: cut.playerId }, data: { cashCents: { increment: cut.cents } } });
+      await EconomyLedgerService.record(tx, cut.playerId, [{
+        source: 'BLOCK_WAR_CUT',
+        label: 'Block war · ally cut of business income',
+        amountCents: cut.cents,
+        metadata: { turfId: cut.turfId, from: roundPlayerId },
+      }], now);
     }
 
     if (Object.keys(productChanges).length > 0) await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, productChanges);

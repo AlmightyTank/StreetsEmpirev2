@@ -805,11 +805,8 @@ Wire carry them), and a crackdown that hits racketeering businesses harder (F).
 - **Outpost allies:** a called alliance member may qualify by living in the war city **or**
   holding an outpost there. A remote ally commits that outpost's posted corner crew/guns,
   weakening it while they fight. Survivors return to that corner; wounded thugs and their
-  guns return home. Sack cuts from an outpost ally are queued into that outpost cash box
-  under its normal cap instead of being wired home.
-- **Truce cuts:** business-income cuts pay resident allies at home and outpost allies into
-  their box. A full/lost box never destroys money: the unpaid share stays with the earning
-  business.
+  guns return home. A one-time Sack cut is queued into that outpost cash box under its
+  normal cap; the existing post-war truce-income cut keeps D's direct cash payout semantics.
 - **Compatibility:** B/C/D rounds keep their home-only business behavior and D cannot
   start an outpost block war. Direct `/business/collect` remains home-only even in E.
 - **Gate:** tests pin D/E isolation and the 75% distance rule; PostgreSQL coverage pins
