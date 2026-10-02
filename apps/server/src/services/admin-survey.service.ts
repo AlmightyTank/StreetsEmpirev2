@@ -207,6 +207,58 @@ async function assertPublishable(prisma: PrismaClient, row: SurveyDetailRow, now
   else if (!Array.isArray(row.rewards)) throw AppError.badRequest('SURVEY_REWARDS_INVALID', 'Survey rewards must be a list.');
 }
 
+function assertInputQuestionConfiguration(questions: readonly AdminSurveyQuestionInput[]): void {
+  if (!questions.length) throw AppError.badRequest('SURVEY_NO_QUESTIONS', 'Add at least one question before publishing.');
+  questions.forEach((question, index) => {
+    const field = `questions.${index}`;
+    if (question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_CHOICE') {
+      if (question.options.length < 2) {
+        throw AppError.badRequest('SURVEY_CHOICES_TOO_FEW', 'Choice questions need at least two options before publishing.', { [field]: 'Add at least two choices.' });
+      }
+      const values = question.options.map((option) => option.value);
+      if (new Set(values).size !== values.length) {
+        throw AppError.badRequest('SURVEY_CHOICE_DUPLICATE', 'Choice values must be unique inside each question.', { [field]: 'Use a different value for each choice.' });
+      }
+    }
+    if (question.type === 'RATING') {
+      const min = question.ratingMin ?? 1;
+      const max = question.ratingMax ?? 5;
+      if (min < 1 || max > 10 || min > max) {
+        throw AppError.badRequest('SURVEY_RATING_CONFIG_INVALID', 'Rating questions must use a valid 1–10 range.', { [field]: 'Check the rating range.' });
+      }
+    }
+    if (question.type === 'SHORT_TEXT' || question.type === 'LONG_TEXT') {
+      const min = question.minLength ?? 3;
+      const max = question.maxLength ?? (question.type === 'SHORT_TEXT' ? 500 : 5000);
+      if (min < 1 || max > 5000 || min > max) {
+        throw AppError.badRequest('SURVEY_TEXT_CONFIG_INVALID', 'Text question limits are invalid.', { [field]: 'Check the text limits.' });
+      }
+    }
+  });
+}
+
+async function assertDefinitionPublishable(
+  prisma: PrismaClient,
+  input: AdminSurveyDefinitionInput,
+  now: Date,
+): Promise<void> {
+  const startsAt = dateValue(input.startsAt);
+  const endsAt = dateValue(input.endsAt);
+  assertDates(startsAt, endsAt, now);
+  assertInputQuestionConfiguration(input.questions);
+
+  const round = input.roundId
+    ? await prisma.round.findUnique({ where: { id: input.roundId } })
+    : await RoundService.getCurrent(prisma, now);
+  if (input.roundId && !round) throw AppError.notFound('ROUND_NOT_FOUND', 'The target round no longer exists.');
+  if (!round && input.rewards.length) {
+    throw AppError.conflict('SURVEY_REWARD_ROUND_REQUIRED', 'Start a round or target a round before scheduling a rewarded global survey.');
+  }
+  if (round) {
+    validateSurveyRewards(input.rewards as unknown as Prisma.InputJsonValue, loadRulesetForRound(round));
+  }
+}
+
 async function requireEditable(prisma: PrismaClient, surveyId: string): Promise<SurveyDetailRow> {
   const row = await prisma.survey.findUnique({ where: { id: surveyId }, include: detailInclude });
   if (!row) throw AppError.notFound('SURVEY_NOT_FOUND', 'That survey does not exist.');
@@ -287,6 +339,9 @@ export const AdminSurveyService = {
     now = new Date(),
   ): Promise<AdminSurveyDetailDto> {
     const before = await requireEditable(prisma, surveyId);
+    if (before.status === 'SCHEDULED') {
+      await assertDefinitionPublishable(prisma, input, now);
+    }
     if (input.roundId && !(await prisma.round.findUnique({ where: { id: input.roundId }, select: { id: true } }))) {
       throw AppError.notFound('ROUND_NOT_FOUND', 'That target round does not exist.');
     }
@@ -319,14 +374,10 @@ export const AdminSurveyService = {
       });
     });
 
-    let updated = await AdminSurveyService.detail(prisma, surveyId, now);
     if (before.status === 'SCHEDULED') {
-      const full = await prisma.survey.findUniqueOrThrow({ where: { id: surveyId }, include: detailInclude });
-      await assertPublishable(prisma, full, now);
       await settleSurveySchedules(prisma, now);
-      updated = await AdminSurveyService.detail(prisma, surveyId, now);
     }
-    return updated;
+    return AdminSurveyService.detail(prisma, surveyId, now);
   },
 
   async publish(
