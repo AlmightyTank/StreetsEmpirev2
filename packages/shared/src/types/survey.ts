@@ -69,6 +69,8 @@ export interface SurveySummaryDto {
 
 export interface SurveyDetailDto extends SurveySummaryDto {
   questions: SurveyQuestionDto[];
+  /** This account's submitted answers on completed surveys; null before completion. */
+  answers: SurveyAnswerInputDto[] | null;
 }
 
 export interface SurveyPageDto {
