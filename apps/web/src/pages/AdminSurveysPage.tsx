@@ -11,6 +11,7 @@ import type {
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { AdminSurveyResultsPanel } from '../components/AdminSurveyResultsPanel.js';
 import { Button } from '../components/Button.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -183,6 +184,10 @@ export function AdminSurveysPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [closeReason, setCloseReason] = useState('');
   const [closing, setClosing] = useState(false);
+  const [view, setView] = useState<'editor' | 'results'>('editor');
+  const [releaseFilter, setReleaseFilter] = useState('');
+  const [featureFilter, setFeatureFilter] = useState('');
+  const [surveySearch, setSurveySearch] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -195,10 +200,27 @@ export function AdminSurveysPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const rows = useMemo(
-    () => (data?.surveys ?? []).filter((survey) => survey.status === tab),
-    [data, tab],
+  const releaseTags = useMemo(
+    () => [...new Set((data?.surveys ?? []).map((survey) => survey.releaseTag).filter((value): value is string => Boolean(value)))].sort(),
+    [data],
   );
+  const featureTags = useMemo(
+    () => [...new Set((data?.surveys ?? []).map((survey) => survey.featureTag).filter((value): value is string => Boolean(value)))].sort(),
+    [data],
+  );
+  const rows = useMemo(() => {
+    const needle = surveySearch.trim().toLocaleLowerCase();
+    return (data?.surveys ?? []).filter((survey) =>
+      survey.status === tab
+      && (!releaseFilter || survey.releaseTag === releaseFilter)
+      && (!featureFilter || survey.featureTag === featureFilter)
+      && (!needle
+        || survey.title.toLocaleLowerCase().includes(needle)
+        || survey.description.toLocaleLowerCase().includes(needle)
+        || survey.releaseTag?.toLocaleLowerCase().includes(needle)
+        || survey.featureTag?.toLocaleLowerCase().includes(needle))
+    );
+  }, [data, featureFilter, releaseFilter, surveySearch, tab]);
 
   async function open(id: string) {
     setBusy(true);
@@ -206,6 +228,7 @@ export function AdminSurveysPage() {
     setNotice(null);
     setClosing(false);
     setCloseReason('');
+    setView('editor');
     try {
       setEditor(editorFromDetail(await adminApi.survey(id)));
     } catch (caught) {
@@ -222,6 +245,7 @@ export function AdminSurveysPage() {
     setNotice(null);
     setClosing(false);
     setCloseReason('');
+    setView('editor');
   }
 
   function updateQuestion(index: number, patch: Partial<AdminSurveyQuestionInput>) {
@@ -361,13 +385,51 @@ export function AdminSurveysPage() {
               role="tab"
               aria-selected={tab === status}
               className={tab === status ? 'se-survey-tab se-survey-tab--active' : 'se-survey-tab'}
-              onClick={() => { setTab(status); setEditor(null); setClosing(false); setCloseReason(''); }}
+              onClick={() => { setTab(status); setEditor(null); setClosing(false); setCloseReason(''); setView('editor'); }}
             >
               {statusText(status)} <span>{count}</span>
             </button>
           );
         })}
       </div>
+
+      <Panel title="Find surveys" className="se-mb">
+        <div className="se-admin-survey-result-filters">
+          <div className="se-field">
+            <label className="se-label" htmlFor="admin-survey-search">Search</label>
+            <input
+              id="admin-survey-search"
+              className="se-input"
+              value={surveySearch}
+              onChange={(event) => setSurveySearch(event.target.value)}
+              placeholder="Title, description, release or feature"
+            />
+          </div>
+          <div className="se-field">
+            <label className="se-label" htmlFor="admin-survey-release-filter">Release</label>
+            <select id="admin-survey-release-filter" className="se-input" value={releaseFilter}
+              onChange={(event) => setReleaseFilter(event.target.value)}>
+              <option value="">All releases</option>
+              {releaseTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+            </select>
+          </div>
+          <div className="se-field">
+            <label className="se-label" htmlFor="admin-survey-feature-filter">Feature</label>
+            <select id="admin-survey-feature-filter" className="se-input" value={featureFilter}
+              onChange={(event) => setFeatureFilter(event.target.value)}>
+              <option value="">All features</option>
+              {featureTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+            </select>
+          </div>
+          {(surveySearch || releaseFilter || featureFilter) ? (
+            <Button type="button" className="se-btn se-btn--ghost" onClick={() => {
+              setSurveySearch('');
+              setReleaseFilter('');
+              setFeatureFilter('');
+            }}>Clear filters</Button>
+          ) : null}
+        </div>
+      </Panel>
 
       <div className="se-admin-survey-layout">
         <Panel title={statusText(tab)} aside={`${rows.length} survey${rows.length === 1 ? '' : 's'}`} flush>
@@ -404,6 +466,8 @@ export function AdminSurveysPage() {
             <Panel title="Survey editor">
               <p className="se-muted">Choose a survey or create a new one. Drafts can be edited freely; live surveys are locked.</p>
             </Panel>
+          ) : view === 'results' && editor.id ? (
+            <AdminSurveyResultsPanel key={editor.id} surveyId={editor.id} onBack={() => setView('editor')} />
           ) : (
             <form onSubmit={(event) => void save(event)}>
               <Panel title={editor.id ? editor.title || 'Untitled survey' : 'New survey'} aside={statusText(editor.status)} className="se-mb">
@@ -619,6 +683,12 @@ export function AdminSurveysPage() {
               </Panel>
 
               <div className="se-admin-survey-actions">
+                {editor.id && (editor.status === 'LIVE' || editor.status === 'CLOSED') ? (
+                  <Button type="button" className="se-btn se-btn--ghost" onClick={() => setView('results')}
+                    disabledReason={busy ? 'Another survey action is still running.' : null}>
+                    View results
+                  </Button>
+                ) : null}
                 {editable ? (
                   <Button className="se-btn se-btn--primary" disabledReason={busy ? 'The survey is still saving.' : null}>
                     {busy ? 'Saving...' : editor.id ? 'Save changes' : 'Create draft'}

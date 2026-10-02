@@ -45,3 +45,13 @@ export const adminSurveyCloseSchema = z.object({
 }).strict();
 
 export type AdminSurveyDefinitionParsed = z.infer<typeof adminSurveyDefinitionSchema>;
+
+
+export const adminSurveyResultsQuerySchema = z.object({
+  q: z.string().trim().max(120).default(''),
+  questionId: id.optional(),
+  page: z.coerce.number().int().min(1).max(100000).default(1),
+  pageSize: z.coerce.number().int().min(10).max(100).default(25),
+}).strict();
+
+export type AdminSurveyResultsQueryParsed = z.infer<typeof adminSurveyResultsQuerySchema>;

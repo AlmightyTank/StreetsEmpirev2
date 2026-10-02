@@ -7,6 +7,7 @@ import { startingStock } from '@streets/rules-engine';
 import { ReputationService } from '../reputation.service.js';
 import { RoundService } from '../round.service.js';
 import { AdminSurveyService } from '../admin-survey.service.js';
+import { AdminSurveyResultsService } from '../admin-survey-results.service.js';
 import { NotificationService } from '../notification.service.js';
 import { settleSurveySchedules } from '../survey-schedule.service.js';
 
@@ -18,6 +19,7 @@ describe.runIf(process.env.SURVEY_INTEGRATION === '1')('Survey Phase C submissio
   let cookie = '';
   let roundId = '';
   const surveyIds: string[] = [];
+  const extraAccountIds: string[] = [];
 
   async function makeSurvey(title: string, rewards: Prisma.InputJsonValue = [{ kind: 'CASH', amount: 12_345 }, { kind: 'TURNS', amount: 7 }]) {
     const survey = await app.prisma.survey.create({
@@ -130,6 +132,7 @@ describe.runIf(process.env.SURVEY_INTEGRATION === '1')('Survey Phase C submissio
     vi.restoreAllMocks();
     if (surveyIds.length) await app.prisma.survey.deleteMany({ where: { id: { in: surveyIds } } }).catch(() => undefined);
     if (roundId) await app.prisma.round.deleteMany({ where: { id: roundId } }).catch(() => undefined);
+    if (extraAccountIds.length) await app.prisma.account.deleteMany({ where: { id: { in: extraAccountIds } } }).catch(() => undefined);
     if (accountId) await app.prisma.account.deleteMany({ where: { id: accountId } }).catch(() => undefined);
     await app?.close();
   });
@@ -357,5 +360,96 @@ describe.runIf(process.env.SURVEY_INTEGRATION === '1')('Survey Phase C submissio
     expect(await app.prisma.inAppNotification.count({
       where: { roundPlayerId: playerId, activity: { id: matching[0]!.id } },
     })).toBe(1);
+  });
+
+  it('reports a private 50 percent response rate and searchable anonymous text', async () => {
+    const survey = await makeSurvey('Phase F analytics');
+    const questions = await app.prisma.surveyQuestion.findMany({
+      where: { surveyId: survey.id },
+      orderBy: { position: 'asc' },
+    });
+    const response = await submit(
+      survey.id,
+      randomUUID(),
+      validAnswers(questions, 'The voucher discount still looks broken on mobile.'),
+    );
+    expect(response.statusCode, response.body).toBe(200);
+
+    const secondName = `svc_${randomUUID().slice(0, 6)}`;
+    const secondRegistration = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: {
+        username: secondName,
+        email: `${secondName}@example.invalid`,
+        password: randomUUID(),
+      },
+    });
+    expect(secondRegistration.statusCode, secondRegistration.body).toBeLessThan(300);
+    const secondAccountId = secondRegistration.json().account.id as string;
+    extraAccountIds.push(secondAccountId);
+
+    const cityId = (await app.prisma.city.findUniqueOrThrow({
+      where: { slug: rules.round.startingCitySlug },
+    })).id;
+    const secondPlayer = await app.prisma.roundPlayer.create({
+      data: {
+        ...rules.round.startingPlayer,
+        ...startingStock(rules),
+        roundId,
+        accountId: secondAccountId,
+        cityId,
+        displayName: secondName,
+        publicPimpId: 7822,
+        reputation: { create: ReputationService.seedFor(rules) },
+      },
+    });
+
+    const results = await AdminSurveyResultsService.results(app.prisma, survey.id, {
+      q: 'voucher',
+      page: 1,
+      pageSize: 25,
+    });
+
+    expect(results.overview).toMatchObject({
+      eligibleAccounts: 2,
+      submissions: 1,
+      responseRate: 50,
+      rewardsGranted: 1,
+    });
+    const single = results.questions.find((question) => question.type === 'SINGLE_CHOICE');
+    expect(single).toMatchObject({
+      answered: 1,
+      aggregate: {
+        kind: 'CHOICE',
+        options: expect.arrayContaining([
+          expect.objectContaining({ value: 'WORSE', count: 1, percent: 100 }),
+        ]),
+      },
+    });
+    const multiple = results.questions.find((question) => question.type === 'MULTIPLE_CHOICE');
+    expect(multiple).toMatchObject({
+      answered: 1,
+      aggregate: {
+        kind: 'CHOICE',
+        multiple: true,
+        options: expect.arrayContaining([
+          expect.objectContaining({ value: 'DESKTOP', count: 1, percent: 100 }),
+          expect.objectContaining({ value: 'MOBILE', count: 1, percent: 100 }),
+        ]),
+      },
+    });
+    expect(results.textResponses.total).toBe(1);
+    expect(results.textResponses.responses[0]).toMatchObject({
+      responseNumber: 1,
+      value: 'The voucher discount still looks broken on mobile.',
+    });
+
+    const serialized = JSON.stringify(results);
+    expect(serialized).not.toContain(accountId);
+    expect(serialized).not.toContain(secondAccountId);
+    expect(serialized).not.toContain(playerId);
+    expect(serialized).not.toContain(secondPlayer.id);
+    expect(serialized).not.toContain(secondName);
   });
 });

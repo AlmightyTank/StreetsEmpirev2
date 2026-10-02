@@ -8,6 +8,7 @@ import {
   BUG_REPORT_RESOLUTIONS,
   adminSurveyCloseSchema,
   adminSurveyDefinitionSchema,
+  adminSurveyResultsQuerySchema,
   usernameSchema,
   type AdminCommsMuteLength,
   type AdminSuspensionLength,
@@ -32,6 +33,7 @@ import { AdminRoundService } from '../services/admin-round.service.js';
 import { AdminRulesetService } from '../services/admin-ruleset.service.js';
 import { AdminSignalsService } from '../services/admin-signals.service.js';
 import { AdminSurveyService } from '../services/admin-survey.service.js';
+import { AdminSurveyResultsService } from '../services/admin-survey-results.service.js';
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
 import { AdminEconomyService } from '../services/admin-economy.service.js';
@@ -356,6 +358,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/surveys/:surveyId', async (request) => {
     const { surveyId } = parseBody(surveyParams, request.params);
     return AdminSurveyService.detail(fastify.prisma, surveyId);
+  });
+
+  fastify.get('/surveys/:surveyId/results', async (request) => {
+    const { surveyId } = parseBody(surveyParams, request.params);
+    const query = parseBody(adminSurveyResultsQuerySchema, request.query);
+    return AdminSurveyResultsService.results(fastify.prisma, surveyId, query);
   });
 
   fastify.post('/surveys', async (request, reply) => {
