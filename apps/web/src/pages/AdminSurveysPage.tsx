@@ -204,6 +204,8 @@ export function AdminSurveysPage() {
     setBusy(true);
     setError(null);
     setNotice(null);
+    setClosing(false);
+    setCloseReason('');
     try {
       setEditor(editorFromDetail(await adminApi.survey(id)));
     } catch (caught) {
@@ -282,6 +284,10 @@ export function AdminSurveysPage() {
     setBusy(true);
     setError(null);
     try {
+      // Publish what is on screen. Saving first prevents a stale previously-saved
+      // draft from going live when the admin edited fields and pressed Publish
+      // without clicking Save changes separately.
+      await adminApi.updateSurvey(editor.id, definitionFromEditor(editor));
       const saved = await adminApi.publishSurvey(editor.id);
       setEditor(editorFromDetail(saved));
       setTab(saved.status === 'SCHEDULED' ? 'SCHEDULED' : 'LIVE');
@@ -355,7 +361,7 @@ export function AdminSurveysPage() {
               role="tab"
               aria-selected={tab === status}
               className={tab === status ? 'se-survey-tab se-survey-tab--active' : 'se-survey-tab'}
-              onClick={() => { setTab(status); setEditor(null); }}
+              onClick={() => { setTab(status); setEditor(null); setClosing(false); setCloseReason(''); }}
             >
               {statusText(status)} <span>{count}</span>
             </button>
