@@ -329,7 +329,7 @@ describe('1.1.0-B building', () => {
 describe('1.1.0-E outpost businesses', () => {
   it('opts E into outpost businesses without changing D or the rest of its balance', () => {
     expect(classicOgV11E.business.outposts).toBe(true);
-    expect(classicOgV11D.business.outposts).toBeUndefined();
+    expect((classicOgV11D.business as { outposts?: boolean }).outposts).toBeUndefined();
 
     const { meta: _eMeta, business: eBusiness, ...eRest } = classicOgV11E;
     const { meta: _dMeta, business: dBusiness, ...dRest } = classicOgV11D;
