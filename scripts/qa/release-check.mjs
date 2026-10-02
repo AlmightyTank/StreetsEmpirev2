@@ -32,6 +32,8 @@ run('Trips balance gates', npm, ['run', 'qa:trips', '--', '--quiet']);
 run('Street Pass balance', npm, ['run', 'qa:street-pass', '--', '--quiet']);
 // 0.6.0: all 40 turf blocks and player-vs-player push balance must still pass on the release ruleset.
 run('Turf balance gates', npm, ['run', 'qa:turf', '--', '--quiet']);
+// 1.1.0-F: businesses, rackets, block wars and the full-round release profile.
+run('Business release gates', npm, ['run', 'qa:business', '--', '--quiet']);
 // 0.7.0: Hideout headquarters, protection, logistics, ledger, armory/infirmary and specialization guardrails.
 run('Hideout balance gates', npm, ['run', 'qa:hideout']);
 // 0.8.0: Store pressure, relationship pricing, shipments, sourcing and integration guardrails.
