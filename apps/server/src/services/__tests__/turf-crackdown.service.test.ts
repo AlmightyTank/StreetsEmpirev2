@@ -178,7 +178,7 @@ describe('0.6.0-F Federal turf crackdown', () => {
       data: { registerCents: 750_000n },
     });
     expect(playerUpdate).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ heat: 30 }),
+      data: expect.objectContaining({ heat: 30, netWorthCents: 9_750_000n }),
     }));
     expect((result as any).results).toEqual([expect.objectContaining({
       racketsHit: 1,
