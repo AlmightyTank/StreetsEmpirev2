@@ -51,6 +51,7 @@ import type {
   AdminVoidBattleResultDto,
   AdminSurveyDefinitionInput,
   AdminSurveyDetailDto,
+  AdminSurveyResultsDto,
   AdminSurveysDto,
 } from '@streets/shared';
 import { api } from './client.js';
@@ -96,6 +97,8 @@ export const adminApi = {
 
   surveys: () => api.get<AdminSurveysDto>('/admin/surveys'),
   survey: (surveyId: string) => api.get<AdminSurveyDetailDto>(`/admin/surveys/${enc(surveyId)}`),
+  surveyResults: (surveyId: string, params: { q?: string; questionId?: string; page?: number; pageSize?: number } = {}) =>
+    api.get<AdminSurveyResultsDto>(`/admin/surveys/${enc(surveyId)}/results${queryString(params)}`),
   createSurvey: (input: AdminSurveyDefinitionInput) => api.post<AdminSurveyDetailDto>('/admin/surveys', input),
   updateSurvey: (surveyId: string, input: AdminSurveyDefinitionInput) =>
     api.post<AdminSurveyDetailDto>(`/admin/surveys/${enc(surveyId)}/update`, input),
