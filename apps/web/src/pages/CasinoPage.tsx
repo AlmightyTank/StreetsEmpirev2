@@ -158,10 +158,19 @@ export function CasinoPage() {
 
   function load() {
     void casinoApi.page()
-      .then((next) => {
+      .then(async (next) => {
         setData(next);
         setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
         setError(null);
+
+        if (!next.enabled) return;
+        try {
+          const blackjack = await casinoApi.blackjack();
+          if (blackjack.activeHand) setActiveGame('blackjack');
+        } catch {
+          // Keep the rest of the casino usable if blackjack state cannot be loaded.
+          // BlackjackPanel will surface its own error when that game is selected.
+        }
       })
       .catch((caught: unknown) => setError(caught instanceof ApiError ? caught.message : 'Could not open the casino.'));
   }
