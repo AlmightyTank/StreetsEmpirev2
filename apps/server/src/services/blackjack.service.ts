@@ -712,11 +712,18 @@ export const BlackjackService = {
       let totalReturnCents = 0n;
       let creditedCents = 0n;
       let settled = false;
-      if (blackjackHandValue(hands[0]!.cards).blackjack || blackjackHandValue(dealerCards).blackjack) {
-        const settlement = settleHands(hands, dealerCards, table, shoe);
-        dealerCards = settlement.dealerCards;
-        totalReturnCents = settlement.totalReturnCents;
-        creditedCents = totalReturnCents;
+      const openingPlayer = blackjackHandValue(hands[0]!.cards);
+      const openingDealer = blackjackHandValue(dealerCards);
+      if (openingPlayer.blackjack || openingDealer.blackjack) {
+        const outcome = openingPlayer.blackjack
+          ? openingDealer.blackjack ? 'PUSH' : 'BLACKJACK'
+          : 'LOSE';
+        const returned = blackjackReturnCents(wager, outcome, table);
+        hands[0]!.status = 'DONE';
+        hands[0]!.outcome = outcome;
+        hands[0]!.returnCents = Number(returned);
+        totalReturnCents = returned;
+        creditedCents = returned;
         settled = true;
       }
 
