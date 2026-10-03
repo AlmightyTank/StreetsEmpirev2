@@ -14,12 +14,18 @@
 .se-casino__venue.is-here { outline: 1px solid var(--se-accent); }
 .se-casino__venue h3 { margin: .3rem 0; }
 .se-casino__venue p { color: var(--se-muted); min-height: 4.5em; }
-.se-casino__ledger { display: grid; gap: .55rem; }
-.se-casino__ledgerrow { display: flex; justify-content: space-between; gap: 1rem; padding: .7rem 0; border-bottom: 1px solid var(--se-border); }
-.se-casino__ledgerrow:last-child { border-bottom: 0; }
-.se-casino__ledgerrow > div:first-child, .se-casino__deltas { display: grid; gap: .15rem; }
-.se-casino__ledgerrow span { color: var(--se-muted); }
-.se-casino__deltas { text-align: right; }
+.se-casino__ledger { display: grid; gap: .6rem; }
+.se-casino__ledgerrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; align-items: center; border: 1px solid var(--se-border); border-radius: .7rem; background: var(--se-surface); padding: .8rem .9rem; }
+.se-casino__ledgerrow.is-positive { border-color: color-mix(in srgb, var(--se-accent) 50%, var(--se-border)); }
+.se-casino__ledger-main { min-width: 0; display: grid; gap: .3rem; }
+.se-casino__ledger-title { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .35rem .8rem; align-items: baseline; }
+.se-casino__ledger-title span, .se-casino__ledger-main time, .se-casino__ledger-amount span, .se-casino__ledger-amount small { color: var(--se-muted); }
+.se-casino__ledger-main p { margin: 0; line-height: 1.35; }
+.se-casino__ledger-main time { font-size: .82rem; }
+.se-casino__ledger-amount { min-width: 8.25rem; display: grid; gap: .1rem; justify-items: end; text-align: right; }
+.se-casino__ledger-amount strong { font-size: 1.08rem; }
+.se-casino__ledgerrow.is-positive .se-casino__ledger-amount strong { color: var(--se-accent); }
+.se-casino__ledgerrow.is-negative .se-casino__ledger-amount strong { font-weight: 700; }
 @media (max-width: 900px) {
   .se-casino__hero { display: grid; }
   .se-casino__grid { grid-template-columns: 1fr; }
@@ -27,8 +33,11 @@
 }
 @media (max-width: 560px) {
   .se-casino__readout, .se-casino__venues { grid-template-columns: 1fr; }
-  .se-casino__ledgerrow { display: grid; }
-  .se-casino__deltas { text-align: left; }
+  .se-casino__ledgerrow { grid-template-columns: 1fr; }
+  .se-casino__ledger-title { display: grid; }
+  .se-casino__ledger-amount { width: 100%; grid-template-columns: auto 1fr auto; align-items: baseline; justify-items: start; text-align: left; border-top: 1px solid var(--se-border); padding-top: .55rem; }
+  .se-casino__ledger-amount strong { justify-self: center; }
+  .se-casino__ledger-amount span { justify-self: end; }
 }
 
 .se-slots { display: grid; gap: 1rem; }
@@ -92,10 +101,34 @@
   .se-slots__paylines { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 @media (max-width: 620px) {
+  .se-slots__stage { position: relative; }
   .se-slots__reels { gap: .3rem; padding: .4rem; }
   .se-slots__reel { min-height: 3.7rem; border-radius: .4rem; }
   .se-slots__reel span { font-size: clamp(1.15rem, 9vw, 2.5rem); }
   .se-slots__meter { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .se-slots__form {
+    position: sticky;
+    bottom: calc(.45rem + env(safe-area-inset-bottom));
+    z-index: 20;
+    order: 3;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: .45rem .65rem;
+    margin: 0;
+    padding: .65rem;
+    border: 1px solid var(--se-border);
+    border-radius: .75rem;
+    background: color-mix(in srgb, var(--se-surface) 94%, transparent);
+    box-shadow: 0 -.35rem 1.1rem rgb(0 0 0 / .2);
+    backdrop-filter: blur(12px);
+  }
+  .se-slots__form label { min-width: 0; }
+  .se-slots__form .se-input { min-height: 2.65rem; }
+  .se-slots__form > .se-hint { grid-column: 1 / -1; margin: 0; font-size: .78rem; }
+  .se-slots__form > .se-btn { min-width: 8.25rem; min-height: 2.65rem; white-space: nowrap; }
+  .se-slots__payline-panel { order: 4; }
+  .se-slots__paytable { order: 5; }
+  .se-slots__result { order: 6; }
   .se-slots__line-overlay { inset: .4rem; width: calc(100% - .8rem); height: calc(100% - .8rem); }
   .se-slots__paytable-row { display: grid; }
   .se-slots__paytable-row > span:last-child { justify-content: flex-start; }
