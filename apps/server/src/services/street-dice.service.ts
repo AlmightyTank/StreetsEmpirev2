@@ -522,23 +522,21 @@ export const StreetDiceService = {
         },
       });
       const dto = roundDto(updated, table);
-      if (settled) {
-        const wallet = await walletAfter(tx, roundPlayerId, row.cityId);
-        await recordLedger(tx, {
-          roundPlayerId,
-          cityId: row.cityId,
-          sessionId: session.id,
-          actionId: input.actionId,
-          action: 'ROLL',
-          table,
-          round: dto,
-          sessionDeltaCents: credited,
-          bankrollAfterCents: bankrollAfter,
-          walletAfterCents: wallet,
-          chargeCents: 0n,
-          creditedCents: credited,
-        });
-      }
+      const wallet = await walletAfter(tx, roundPlayerId, row.cityId);
+      await recordLedger(tx, {
+        roundPlayerId,
+        cityId: row.cityId,
+        sessionId: session.id,
+        actionId: input.actionId,
+        action: 'ROLL',
+        table,
+        round: dto,
+        sessionDeltaCents: credited,
+        bankrollAfterCents: bankrollAfter,
+        walletAfterCents: wallet,
+        chargeCents: 0n,
+        creditedCents: credited,
+      });
       await saveAction(tx, roundPlayerId, row.id, input.actionId, 'ROLL', dto);
       await PlayerStateService.settleInTransaction(tx, roundPlayerId, { now: prelude.now, markActive: true });
       return dto;
