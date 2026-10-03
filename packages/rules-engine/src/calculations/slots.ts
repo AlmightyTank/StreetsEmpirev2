@@ -191,7 +191,13 @@ export function theoreticalSlotRtpBps(
   const denominator = BigInt(totalWeight) ** BigInt(machine.reels);
   let weightedPaidCents = 0n;
 
-  function visit(reel: number, firstKey: string | null, run: number, weightProduct: bigint): void {
+  function visit(
+    reel: number,
+    firstKey: string | null,
+    run: number,
+    stillMatching: boolean,
+    weightProduct: bigint,
+  ): void {
     if (reel === machine.reels) {
       if (!firstKey || run < 3) return;
       const payoutBps = slotLinePayoutBps(machine, firstKey, run);
@@ -201,17 +207,18 @@ export function theoreticalSlotRtpBps(
     }
 
     for (const symbol of machine.symbols) {
-      const same = reel === 0 || symbol.key === firstKey;
+      const same = reel === 0 || (stillMatching && symbol.key === firstKey);
       visit(
         reel + 1,
         reel === 0 ? symbol.key : firstKey,
         same ? run + 1 : run,
+        reel === 0 ? true : stillMatching && symbol.key === firstKey,
         weightProduct * BigInt(symbol.weight),
       );
     }
   }
 
-  visit(0, null, 0, 1n);
+  visit(0, null, 0, true, 1n);
   const expectedDenominator = denominator * BigInt(betPerLineCents);
   return Number((weightedPaidCents * 10_000n + expectedDenominator / 2n) / expectedDenominator);
 }
