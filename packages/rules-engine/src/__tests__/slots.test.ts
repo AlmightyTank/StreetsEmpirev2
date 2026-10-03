@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV12A, classicOgV12B, hideoutV2For } from '@streets/rulesets';
+import { classicOgV12A, classicOgV12B, hideoutV2For, type Ruleset } from '@streets/rulesets';
 import { loadRuleset, resolveSlotSpin, seededRng, simulateSlots, theoreticalSlotRtpBps } from '../index.js';
 
 describe('1.2.0-B slots', () => {
   it('pins three machines without changing the A ruleset', () => {
-    expect(classicOgV12A.casino.slots).toBeUndefined();
+    expect((classicOgV12A as Ruleset).casino?.slots).toBeUndefined();
     expect(classicOgV12B.casino.slots.machines).toHaveLength(3);
     expect(loadRuleset('classic-og-v1.2-b', '1.2.0-B')).toBe(classicOgV12B);
     expect(hideoutV2For(classicOgV12A)).not.toBeNull();
