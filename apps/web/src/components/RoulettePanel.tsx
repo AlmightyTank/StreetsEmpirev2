@@ -67,7 +67,12 @@ function insideOptions(kind: 'SPLIT' | 'STREET' | 'CORNER' | 'SIX_LINE'): string
   return [...values];
 }
 
-function outsideLabel(kind: CasinoRouletteBetKindDto, selection: string): string {
+function betLabel(kind: CasinoRouletteBetKindDto, selection: string): string {
+  if (kind === 'STRAIGHT') return selection;
+  if (kind === 'SPLIT') return 'Split ' + selection;
+  if (kind === 'STREET') return 'Street ' + selection;
+  if (kind === 'CORNER') return 'Corner ' + selection;
+  if (kind === 'SIX_LINE') return 'Six line ' + selection;
   if (kind === 'DOZEN') return selection;
   if (kind === 'COLUMN') return 'Column ' + selection;
   if (kind === 'LOW') return '1–18';
@@ -320,7 +325,7 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
                         disabled={busy}
                         onClick={() => addBet(kind, selection)}
                       >
-                        <strong>{outsideLabel(kind, selection)}</strong>
+                        <strong>{betLabel(kind, selection)}</strong>
                         {amount ? <small>{formatCents(amount)}</small> : null}
                       </button>
                     );
@@ -377,7 +382,7 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
                       onClick={() => removeBet(bet.kind, bet.selection)}
                       title="Tap to remove this position"
                     >
-                      <span>{outsideLabel(bet.kind, bet.selection === bet.kind ? bet.kind : bet.selection)}</span>
+                      <span>{betLabel(bet.kind, bet.selection === bet.kind ? bet.kind : bet.selection)}</span>
                       <strong>{formatCents(bet.amountCents)}</strong>
                       <small>×</small>
                     </button>
@@ -406,7 +411,9 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
                       ? 'This wheel is not available in this casino.'
                       : !casinoPage.openSession
                         ? 'Open a casino bankroll first.'
-                        : !bets.length
+                        : casinoPage.openSession.citySlug !== casinoPage.currentCitySlug
+                          ? 'Your open bankroll belongs to another casino.'
+                          : !bets.length
                           ? 'Place at least one bet.'
                           : totalBetCents > table.maxTotalBetCents
                             ? 'This layout is over the table maximum.'
