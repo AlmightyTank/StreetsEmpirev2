@@ -388,6 +388,9 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v1.1-d': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v1.1-e': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v1.1-f': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // 1.2.0: Casino slices inherit the same Hideout extension.
+  'classic-og-v1.2-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.2-b': CLASSIC_OG_V07G_HIDEOUT_V2,
 };
 
 /** Returns the v2 extension registered for a ruleset, or null when none is registered. */

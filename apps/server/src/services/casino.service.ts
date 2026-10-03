@@ -1,11 +1,15 @@
+import { randomInt } from 'node:crypto';
 import type { Prisma, PrismaClient, RoundPlayer } from '@prisma/client';
-import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
-import type { CasinoRules } from '@streets/rulesets';
+import { loadRulesetForRound, resolveSlotSpin, theoreticalSlotRtpBps, type Ruleset } from '@streets/rules-engine';
+import type { CasinoRules, CasinoSlotMachineRules } from '@streets/rulesets';
 import type {
   CasinoCashierInput,
   CasinoLedgerEntryDto,
   CasinoPageDto,
   CasinoSessionStartInput,
+  CasinoSlotSpinDto,
+  CasinoSlotSpinInput,
+  CasinoSlotSpinResponseDto,
   CasinoVenueDto,
 } from '@streets/shared';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
@@ -19,6 +23,42 @@ type PlayerRow = RoundPlayer & {
   city: { id: string; slug: string; name: string };
   round: { rulesetId: string; rulesetVersion: string };
 };
+
+type SlotLedgerMetadata = {
+  machineKey: string;
+  machineName: string;
+  wagerCents: number;
+  payoutCents: number;
+  payoutBps: number;
+  reels: Array<{ key: string; label: string; glyph: string }>;
+  jackpotContributionCents: number;
+  jackpotAwardCents: number;
+};
+
+const secureCasinoRng = () => randomInt(0x1_0000_0000) / 0x1_0000_0000;
+
+function slotSpinDto(
+  entry: { actionId: string; sessionChipsAfterCents: bigint; createdAt: Date; metadata: Prisma.JsonValue },
+): CasinoSlotSpinDto {
+  const meta = entry.metadata as unknown as SlotLedgerMetadata;
+  if (!meta || !Array.isArray(meta.reels) || meta.reels.length !== 3) {
+    throw AppError.conflict('CASINO_RECEIPT_INVALID', 'That saved casino spin could not be replayed safely.');
+  }
+  return {
+    actionId: entry.actionId,
+    machineKey: meta.machineKey,
+    machineName: meta.machineName,
+    wagerCents: meta.wagerCents,
+    payoutCents: meta.payoutCents,
+    netCents: meta.payoutCents - meta.wagerCents,
+    payoutBps: meta.payoutBps,
+    reels: [meta.reels[0]!, meta.reels[1]!, meta.reels[2]!],
+    jackpotContributionCents: meta.jackpotContributionCents,
+    jackpotAwardCents: meta.jackpotAwardCents,
+    bankrollAfterCents: Number(entry.sessionChipsAfterCents),
+    createdAt: entry.createdAt.toISOString(),
+  };
+}
 
 function requireCasino(ruleset: Ruleset): CasinoRules {
   const casino = ruleset.casino;
@@ -147,6 +187,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
       currentVenue: null,
       venues: [],
       openSession: null,
+      slotMachines: [],
       recentLedger: [],
       totalCasinoValueCents: 0,
       limits: null,
@@ -157,7 +198,8 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
   const cashLocation = await casinoCashLocation(db, ruleset, player, now);
   const currentCitySlug = cashLocation?.citySlug ?? null;
   const citySlugs = Object.keys(casino.venues);
-  const [cities, wallets, openSession, ledger] = await Promise.all([
+  const slotRules = casino.slots?.machines ?? [];
+  const [cities, wallets, openSession, ledger, jackpots] = await Promise.all([
     db.city.findMany({ where: { slug: { in: citySlugs }, isEnabled: true }, orderBy: { sortOrder: 'asc' } }),
     db.casinoWallet.findMany({ where: { roundPlayerId }, include: { city: true } }),
     db.casinoSession.findFirst({
@@ -170,6 +212,9 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
       include: { city: true },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: 25,
+    }),
+    db.casinoJackpot.findMany({
+      where: { roundId: player.roundId, machineKey: { in: slotRules.map((machine) => machine.key) } },
     }),
   ]);
 
@@ -191,6 +236,25 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
         openedAt: openSession.openedAt.toISOString(),
       }
     : null;
+
+  const jackpotByMachine = new Map(jackpots.map((jackpot) => [jackpot.machineKey, jackpot.poolCents]));
+  const slotMachines = slotRules.map((machine) => ({
+    key: machine.key,
+    name: machine.name,
+    blurb: machine.blurb,
+    minWagerCents: machine.minWagerCents,
+    maxWagerCents: machine.maxWagerCents,
+    wagerStepCents: machine.wagerStepCents,
+    availableHere: Boolean(currentVenue && machine.venueKinds.includes(currentVenue.kind)),
+    baseRtpBps: theoreticalSlotRtpBps(machine),
+    progressive: machine.progressive
+      ? {
+          poolCents: Number(jackpotByMachine.get(machine.key) ?? BigInt(machine.progressive.seedCents)),
+          contributionBps: machine.progressive.contributionBps,
+          eligibleWagerCents: machine.progressive.eligibleWagerCents,
+        }
+      : null,
+  }));
 
   const recentLedger: CasinoLedgerEntryDto[] = ledger.map((entry) => ({
     id: entry.id,
@@ -217,6 +281,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     currentVenue,
     venues,
     openSession: open,
+    slotMachines,
     recentLedger,
     totalCasinoValueCents: Number(walletTotal + sessionTotal),
     limits: {
@@ -247,6 +312,32 @@ async function currentVenue(db: Db, ruleset: Ruleset, casino: CasinoRules, playe
   const city = await db.city.findUnique({ where: { slug: cashLocation.citySlug } });
   if (!city) throw AppError.notFound('CITY_NOT_FOUND', 'That casino city is not available.');
   return { city, venue, cashLocation };
+}
+
+async function settleProgressive(
+  tx: Db,
+  roundId: string,
+  machine: CasinoSlotMachineRules,
+  contributionCents: bigint,
+  triggered: boolean,
+): Promise<{ awardCents: bigint; poolAfterCents: bigint }> {
+  const progressive = machine.progressive;
+  if (!progressive) return { awardCents: 0n, poolAfterCents: 0n };
+
+  const row = await tx.casinoJackpot.upsert({
+    where: { roundId_machineKey: { roundId, machineKey: machine.key } },
+    update: {},
+    create: { roundId, machineKey: machine.key, poolCents: BigInt(progressive.seedCents) },
+  });
+
+  await tx.$queryRaw`SELECT "id" FROM "CasinoJackpot" WHERE "id" = ${row.id} FOR UPDATE`;
+  const locked = await tx.casinoJackpot.findUniqueOrThrow({ where: { id: row.id } });
+  const fundedPool = locked.poolCents + contributionCents;
+  const awardCents = triggered ? fundedPool : 0n;
+  const poolAfterCents = triggered ? BigInt(progressive.seedCents) : fundedPool;
+
+  await tx.casinoJackpot.update({ where: { id: row.id }, data: { poolCents: poolAfterCents } });
+  return { awardCents, poolAfterCents };
 }
 
 async function mutate(
@@ -359,6 +450,103 @@ export const CasinoService = {
       await ActivityService.log(tx, roundPlayerId, 'CASINO_SESSION_OPENED', {
         cityName: city.name, venueName: venue.name, bankrollCents: Number(amount), sessionId: session.id,
       });
+    });
+  },
+
+  async spinSlot(prisma: PrismaClient, roundPlayerId: string, input: CasinoSlotSpinInput): Promise<CasinoSlotSpinResponseDto> {
+    await PlayerStateService.settle(prisma, roundPlayerId, { markActive: true });
+    const now = new Date();
+
+    return prisma.$transaction(async (tx) => {
+      await lockRoundPlayer(tx, roundPlayerId);
+      const replay = await tx.casinoLedgerEntry.findUnique({
+        where: { roundPlayerId_actionId: { roundPlayerId, actionId: input.actionId } },
+      });
+      if (replay) {
+        if (replay.kind !== 'SLOT_SPIN') {
+          throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a different casino action.');
+        }
+        const saved = slotSpinDto(replay);
+        if (saved.machineKey !== input.machineKey || saved.wagerCents !== input.wagerCents) {
+          throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a different slot spin.');
+        }
+        return { page: await pageInDb(tx, roundPlayerId, now), spin: saved };
+      }
+
+      const { player, ruleset, casino } = await playerAndCasino(tx, roundPlayerId);
+      const machine = casino.slots?.machines.find((candidate) => candidate.key === input.machineKey);
+      if (!machine) throw AppError.notFound('SLOT_MACHINE_NOT_FOUND', 'That slot machine is not part of this round.');
+
+      const wager = BigInt(input.wagerCents);
+      if (
+        input.wagerCents < machine.minWagerCents
+        || input.wagerCents > machine.maxWagerCents
+        || input.wagerCents % machine.wagerStepCents !== 0
+      ) {
+        throw AppError.badRequest('SLOT_WAGER', 'That wager is outside this machine\'s posted limits.', {
+          wagerCents: 'Use one of the posted wager increments.',
+        });
+      }
+
+      const { city, venue } = await currentVenue(tx, ruleset, casino, player, now);
+      if (!machine.venueKinds.includes(venue.kind)) {
+        throw AppError.conflict('SLOT_NOT_HERE', 'That machine is not available at this casino.');
+      }
+
+      const session = await tx.casinoSession.findFirst({
+        where: { roundPlayerId, status: 'OPEN' },
+        include: { city: true },
+        orderBy: { openedAt: 'desc' },
+      });
+      if (!session) throw AppError.conflict('CASINO_SESSION_REQUIRED', 'Open a casino bankroll before playing Slots.');
+      if (session.cityId !== city.id) {
+        throw AppError.conflict('CASINO_SESSION_ELSEWHERE', 'Your open bankroll belongs to another casino. Close it before playing here.');
+      }
+      if (session.bankrollCents < wager) {
+        throw AppError.conflict('NOT_ENOUGH_BANKROLL', 'There are not enough chips in the open bankroll for that spin.');
+      }
+
+      const math = resolveSlotSpin(machine, wager, secureCasinoRng);
+      const progressive = await settleProgressive(
+        tx,
+        player.roundId,
+        machine,
+        math.jackpotContributionCents,
+        math.jackpotTriggered,
+      );
+      const payout = math.payoutCents + progressive.awardCents;
+      const bankrollAfter = session.bankrollCents - wager + payout;
+      await tx.casinoSession.update({ where: { id: session.id }, data: { bankrollCents: bankrollAfter } });
+
+      const wallet = await tx.casinoWallet.findUnique({
+        where: { roundPlayerId_cityId: { roundPlayerId, cityId: city.id } },
+      });
+      const metadata: SlotLedgerMetadata = {
+        machineKey: machine.key,
+        machineName: machine.name,
+        wagerCents: input.wagerCents,
+        payoutCents: Number(payout),
+        payoutBps: math.payoutBps,
+        reels: math.reels.map(({ key, label, glyph }) => ({ key, label, glyph })),
+        jackpotContributionCents: Number(math.jackpotContributionCents),
+        jackpotAwardCents: Number(progressive.awardCents),
+      };
+      const ledger = await tx.casinoLedgerEntry.create({
+        data: {
+          roundPlayerId,
+          cityId: city.id,
+          sessionId: session.id,
+          actionId: input.actionId,
+          kind: 'SLOT_SPIN',
+          sessionChipDeltaCents: payout - wager,
+          walletChipsAfterCents: wallet?.chipsCents ?? 0n,
+          sessionChipsAfterCents: bankrollAfter,
+          metadata: metadata as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      await PlayerStateService.settleInTransaction(tx, roundPlayerId, { now, markActive: true });
+      return { page: await pageInDb(tx, roundPlayerId, now), spin: slotSpinDto(ledger) };
     });
   },
 

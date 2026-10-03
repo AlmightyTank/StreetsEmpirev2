@@ -2104,9 +2104,39 @@ export interface CasinoVenueRules {
   readonly kind: CasinoVenueKind;
 }
 
+/** 1.2.0-B. One weighted symbol on a server-authoritative slot reel. */
+export interface CasinoSlotSymbolRules {
+  readonly key: string;
+  readonly label: string;
+  readonly glyph: string;
+  readonly weight: number;
+}
+
+/** 1.2.0-B. A ruleset-pinned three-reel machine and its exact integer paytable. */
+export interface CasinoSlotMachineRules {
+  readonly key: string;
+  readonly name: string;
+  readonly blurb: string;
+  readonly venueKinds: readonly CasinoVenueKind[];
+  readonly minWagerCents: number;
+  readonly maxWagerCents: number;
+  readonly wagerStepCents: number;
+  readonly symbols: readonly CasinoSlotSymbolRules[];
+  /** Return including the stake, in basis points: 10000 = 1.00x. */
+  readonly pairPayoutBps: Readonly<Partial<Record<string, number>>>;
+  /** Return including the stake, in basis points: 10000 = 1.00x. */
+  readonly triplePayoutBps: Readonly<Partial<Record<string, number>>>;
+  readonly progressive?: {
+    readonly symbolKey: string;
+    readonly seedCents: number;
+    readonly contributionBps: number;
+    readonly eligibleWagerCents: number;
+  };
+}
+
 /**
- * 1.2.0-A. Casino foundation only: venues, cashier limits and session bankrolls.
- * Chips are cash-equivalent integer cents; resolved games arrive in later slices.
+ * 1.2.0-A. Casino foundation: venues, cashier limits and session bankrolls.
+ * 1.2.0-B optionally adds server-authoritative Slots.
  */
 export interface CasinoRules {
   readonly enabled: boolean;
@@ -2120,6 +2150,9 @@ export interface CasinoRules {
     readonly maxBankrollCents: number;
   };
   readonly venues: Readonly<Record<string, CasinoVenueRules>>;
+  readonly slots?: {
+    readonly machines: readonly CasinoSlotMachineRules[];
+  };
 }
 export interface Ruleset {
   /** Absent on economic-only rounds. */
