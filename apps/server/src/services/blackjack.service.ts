@@ -43,8 +43,6 @@ type StoredPlayerHand = {
   returnCents: number;
 };
 
-type StoredActionResponse = CasinoBlackjackHandDto;
-
 type ShoeState = {
   id: string;
   cards: BlackjackCard[];
