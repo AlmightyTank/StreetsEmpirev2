@@ -31,7 +31,21 @@ export const casinoSlotSpinSchema = z.object({
   actionId: actionIdSchema,
 }).strict();
 
+export const casinoBlackjackDealSchema = z.object({
+  tableKey: z.string().trim().min(1).max(64).regex(/^[A-Z0-9_]+$/, 'Pick a valid blackjack table.'),
+  wagerCents: casinoAmountCents,
+  actionId: actionIdSchema,
+}).strict();
+
+export const casinoBlackjackActionSchema = z.object({
+  handId: z.string().trim().min(1).max(64),
+  actionId: actionIdSchema,
+}).strict();
+
 export type CasinoCashierInput = z.infer<typeof casinoCashierSchema>;
 export type CasinoSessionStartInput = z.infer<typeof casinoSessionStartSchema>;
 export type CasinoSessionCloseInput = z.infer<typeof casinoSessionCloseSchema>;
 export type CasinoSlotSpinInput = z.infer<typeof casinoSlotSpinSchema>;
+
+export type CasinoBlackjackDealInput = z.infer<typeof casinoBlackjackDealSchema>;
+export type CasinoBlackjackActionInput = z.infer<typeof casinoBlackjackActionSchema>;
