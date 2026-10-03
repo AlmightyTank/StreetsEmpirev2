@@ -137,6 +137,7 @@ These are ruleset values rather than constants in the service.
 - Settled hands remain as the last-20 hand history.
 - Every Deal / Hit / Stand / Double / Split action has a durable action receipt. Reusing an action ID replays the saved post-action hand snapshot rather than drawing or charging again.
 - A casino session cannot be closed while a blackjack hand is active.
+- A new Deal requires the boss to be physically at the table. If the boss travels after cards are dealt, the already-started hand can still be finished against its original saved session so it can never become stranded.
 - Slots cannot start a new spin while a blackjack hand is active.
 
 #### Money settlement
@@ -147,6 +148,7 @@ These are ruleset values rather than constants in the service.
 - Wins return 2× the hand wager, pushes return 1×, losses return zero, and a natural returns 2.5× at a 3:2 table.
 - Split 21 is a normal 21 rather than a natural blackjack.
 - Casino ledger receipts cover the opening wager plus wager-changing / settling blackjack actions.
+- Chips committed to an unresolved hand remain part of casino/net-worth value until settlement, preventing a live wager from being used to hide ranking value.
 - Blackjack never reads or mutates browser-computed totals or outcomes.
 
 #### Player experience
@@ -170,10 +172,11 @@ These are ruleset values rather than constants in the service.
 6. Dealer play starts only after every non-busted player hand has finished.
 7. Natural blackjack is decided from the original two-card hand and pays the pinned blackjack ratio; split 21 does not.
 8. The dealer hole card stays hidden until settlement.
-9. A live blackjack hand blocks session close and new slot spins.
-10. Refreshing or reconnecting cannot change cards, shoe position, hand order, wager or active-hand index.
-11. Settled hand history comes from durable database rows rather than client memory.
-12. Historical B rulesets remain unchanged; Blackjack only exists on the pinned 1.2.0-C ruleset.
+9. A live blackjack hand blocks session close and new slot spins, but can still be finished if the boss has traveled since Deal.
+10. Committed live wagers remain in casino/net-worth value until the hand settles.
+11. Refreshing or reconnecting cannot change cards, shoe position, hand order, wager or active-hand index.
+12. Settled hand history comes from durable database rows rather than client memory.
+13. Historical B rulesets remain unchanged; Blackjack only exists on the pinned 1.2.0-C ruleset.
 
 
 ### 1.2.0-D — Roulette & Street Dice
