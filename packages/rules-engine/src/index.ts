@@ -27,6 +27,7 @@ export * from './calculations/business.js';
 export * from './calculations/rackets.js';
 export * from './calculations/block-wars.js';
 export * from './calculations/slots.js';
+export * from './calculations/blackjack.js';
 export * from './simulations/combat.js';
 export * from './rng.js';
 export type { Ruleset } from '@streets/rulesets';
