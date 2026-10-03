@@ -128,7 +128,9 @@ function ledgerDisplay(entry: {
   if (entry.kind === 'SLOT_SPIN') {
     const meta = entry.metadata as unknown as Partial<SlotLedgerMetadata>;
     const wager = typeof meta.wagerCents === 'number' ? meta.wagerCents : abs(entry.sessionChipDeltaCents);
-    const payout = typeof meta.payoutCents === 'number' ? meta.payoutCents : Math.max(0, wager + Number(entry.sessionChipDeltaCents));
+    const payout = typeof meta.payoutCents === 'number'
+      ? meta.payoutCents
+      : Math.max(0, wager + Number(entry.sessionChipDeltaCents));
     const machine = typeof meta.machineName === 'string' ? meta.machineName : 'Slots';
     const wins = Array.isArray(meta.winningLines) ? meta.winningLines.length : 0;
     const jackpot = typeof meta.jackpotAwardCents === 'number' ? meta.jackpotAwardCents : 0;
@@ -152,7 +154,6 @@ function ledgerDisplay(entry: {
 }
 
 function formatLedgerMoney(cents: number): string {
-  const dollars = cents / 100;
   return '
   const casino = ruleset.casino;
   if (!casino?.enabled) throw AppError.conflict('CASINO_CLOSED', 'Casinos are not open in this round.');
@@ -719,7 +720,10 @@ export const CasinoService = {
     });
   },
 };
- + dollars.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+ + (cents / 100).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function requireCasino(ruleset: Ruleset): CasinoRules {
