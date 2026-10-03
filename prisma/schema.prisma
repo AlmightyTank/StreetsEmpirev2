@@ -1042,6 +1042,9 @@ model City {
   turfPresence      TurfPresence[]
   turfControlEvents TurfControlEvent[]
   turfCrackdowns    TurfCrackdown[]
+  casinoWallets     CasinoWallet[]
+  casinoSessions    CasinoSession[]
+  casinoLedger      CasinoLedgerEntry[]
 }
 
 // ---------------------------------------------------------------------------
@@ -1158,6 +1161,10 @@ model RoundPlayer {
   /// (and in net worth), but never fit at home and never working the street.
   businessThugs        Int       @default(0)
   businessWhores       Int       @default(0)
+  /// 1.2.0-A. City chip wallets, open bankroll sessions and immutable casino receipts.
+  casinoWallets        CasinoWallet[]
+  casinoSessions       CasinoSession[]
+  casinoLedger         CasinoLedgerEntry[]
   /// 1.1.0-C. The crew's live rackets, racket key -> strength (0..1], rebuilt on every
   /// business settle so any system can read them off the player row.
   racketEffects        Json      @default("{}")
@@ -2161,6 +2168,10 @@ enum ActivityType {
   BLOCK_WAR_FIGHT
   BLOCK_WAR_ENDED
   BLOCK_WAR_CALL
+  CASINO_BUY_CHIPS
+  CASINO_REDEEM_CHIPS
+  CASINO_SESSION_OPENED
+  CASINO_SESSION_CLOSED
 }
 
 enum BattleKind {
@@ -2437,6 +2448,76 @@ model Business {
   @@unique([turfId, lot])
   @@index([roundId])
   @@index([staffOwnerId])
+}
+
+/// 1.2.0-A. Chips never sit on RoundPlayer cash. Every city owns a separate wallet.
+model CasinoWallet {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  chipsCents BigInt @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, cityId])
+  @@index([cityId])
+}
+
+/// One in-person casino bankroll. Later games mutate bankrollCents under the same player lock.
+model CasinoSession {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  status        String @default("OPEN")
+  bankrollCents BigInt
+  openedAt DateTime @default(now())
+  closedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ledger CasinoLedgerEntry[]
+
+  @@index([roundPlayerId, status, openedAt(sort: Desc)])
+  @@index([cityId, status])
+}
+
+/// Immutable retry receipt for every casino money movement.
+model CasinoLedgerEntry {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  sessionId String?
+  session   CasinoSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  actionId String
+  kind     String
+  cashDeltaCents         BigInt @default(0)
+  walletChipDeltaCents   BigInt @default(0)
+  sessionChipDeltaCents  BigInt @default(0)
+  walletChipsAfterCents  BigInt
+  sessionChipsAfterCents BigInt @default(0)
+  metadata Json @default("{}")
+  createdAt DateTime @default(now())
+
+  @@unique([roundPlayerId, actionId])
+  @@index([roundPlayerId, createdAt(sort: Desc)])
+  @@index([sessionId, createdAt])
+  @@index([cityId, createdAt(sort: Desc)])
 }
 
 /// 0.6.0-D. The box attached to one away-held block. A home block never needs one.
