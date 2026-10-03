@@ -75,7 +75,7 @@ const ACTIVITY_GROUP_TYPES: Record<ConsoleActivityGroup, ActivityType[]> = {
   combat: ['RAID_ATTACK', 'RAID_DEFENSE', 'DRIVE_BY_ATTACK', 'DRIVE_BY_DEFENSE', 'COMBAT_TREATMENT', 'COMBAT_RECON', 'BATTLE_VOIDED', 'REVENGE_EXPIRING'],
   turf: ['TURF_CLAIM', 'TURF_POST', 'TURF_PULL', 'TURF_PUSH', 'TURF_PUSH_BACKUP', 'TURF_PUSH_ATTACK', 'TURF_PUSH_DEFENSE', 'TURF_OUTPOST_ESTABLISH', 'TURF_OUTPOST_TRANSFER', 'TURF_PUSH_INCOMING', 'ALLIANCE_CALL'],
   travel: ['RUN_LAUNCHED', 'RUN_RETURNED', 'RUN_INCIDENT', 'RELOCATION_STARTED', 'RELOCATED', 'CONVOY_TAIL', 'CONVOY_ATTACK', 'CONVOY_DEFENSE', 'CONVOY_BACKUP', 'CONVOY_TAILED'],
-  market: ['STORE_BUY', 'STORE_SELL', 'SPECIAL_ORDER_READY'],
+  market: ['STORE_BUY', 'STORE_SELL', 'SPECIAL_ORDER_READY', 'CASINO_BUY_CHIPS', 'CASINO_REDEEM_CHIPS', 'CASINO_SESSION_OPENED', 'CASINO_SESSION_CLOSED'],
   progress: ['QUEST_OBJECTIVE_COMPLETE', 'QUEST_READY', 'QUEST_CLAIMED', 'STREET_PASS_CLAIMED', 'FAVOR_ACTIVATED', 'FAVOR_ARMED', 'FAVOR_DISARMED', 'HIDEOUT_UPGRADE', 'WEAPON_UNLOCK'],
   street: ['SCOUT', 'WORK_STREETS', 'PRODUCE_CRACK', 'HEAT_BRIBE', 'PAYOUT_CHANGE'],
   system: ['ROUND_JOINED', 'AWAY_BONUS', 'ADMIN_GRANT', 'GAME_ANNOUNCEMENT'],
@@ -202,6 +202,7 @@ function activityHref(row: { type: ActivityType; payload: Prisma.JsonValue }): s
     return store ? `/game/stores/${encodeURIComponent(store)}` : '/game/stores';
   }
   if (row.type.startsWith('QUEST_') || row.type.startsWith('FAVOR_')) return '/game/quests';
+  if (row.type.startsWith('CASINO_')) return '/game/casino';
   if (row.type.startsWith('STORE_')) {
     const store = typeof payload.storeKey === 'string' ? payload.storeKey : null;
     return store ? `/game/stores/${encodeURIComponent(store)}` : '/game/stores';
