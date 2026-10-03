@@ -682,6 +682,7 @@ export const CasinoService = {
         });
       }
 
+      const useFreeSpin = input.useFreeSpin === true;
       const requestedLines = new Set(input.activePaylineKeys);
       const activePaylineKeys = machine.paylines
         .filter((line) => requestedLines.has(line.key))
@@ -707,7 +708,7 @@ export const CasinoService = {
         if (
           saved.machineKey !== input.machineKey
           || saved.betPerLineCents !== input.betPerLineCents
-          || saved.isFreeSpin !== input.useFreeSpin
+          || saved.isFreeSpin !== useFreeSpin
           || !sameLines
         ) {
           throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a different slot spin.');
@@ -733,7 +734,7 @@ export const CasinoService = {
       }
 
       const bonus = await tx.casinoFreeSpinBonus.findUnique({ where: { roundPlayerId } });
-      if (input.useFreeSpin) {
+      if (useFreeSpin) {
         if (!bonus || bonus.remainingSpins <= 0) {
           throw AppError.conflict('NO_FREE_SPINS', 'There is no free spin waiting for this player.');
         }
@@ -760,8 +761,8 @@ export const CasinoService = {
         );
       }
 
-      const chargedWager = input.useFreeSpin ? 0n : nominalWager;
-      if (!input.useFreeSpin && session.bankrollCents < nominalWager) {
+      const chargedWager = useFreeSpin ? 0n : nominalWager;
+      if (!useFreeSpin && session.bankrollCents < nominalWager) {
         throw AppError.conflict('NOT_ENOUGH_BANKROLL', 'There are not enough chips in the open bankroll for that spin.');
       }
 
@@ -774,10 +775,10 @@ export const CasinoService = {
         math.jackpotTriggered,
       );
       const payout = math.payoutCents + progressive.awardCents;
-      const freeSpinsAwarded = input.useFreeSpin ? 0 : rollSlotFreeSpinAward(machine, rng);
+      const freeSpinsAwarded = useFreeSpin ? 0 : rollSlotFreeSpinAward(machine, rng);
       let freeSpinsRemainingAfter = 0;
 
-      if (input.useFreeSpin) {
+      if (useFreeSpin) {
         const activeBonus = bonus!;
         freeSpinsRemainingAfter = activeBonus.remainingSpins - 1;
         if (freeSpinsRemainingAfter > 0) {
@@ -820,7 +821,7 @@ export const CasinoService = {
         activePaylineKeys: [...math.activePaylineKeys],
         wagerCents: Number(math.totalWagerCents),
         chargedWagerCents: Number(chargedWager),
-        isFreeSpin: input.useFreeSpin,
+        isFreeSpin: useFreeSpin,
         payoutCents: Number(payout),
         payoutBps: math.payoutBps,
         grid: math.grid.map((row) => row.map(({ key, label, glyph }) => ({ key, label, glyph }))),
