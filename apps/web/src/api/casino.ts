@@ -10,6 +10,14 @@ import type {
   CasinoSessionStartInput,
   CasinoSlotSpinInput,
   CasinoSlotSpinResponseDto,
+  CasinoRouletteSpinInput,
+  CasinoRouletteSpinResponseDto,
+  CasinoRouletteStateDto,
+  CasinoStreetDiceOddsInput,
+  CasinoStreetDiceResponseDto,
+  CasinoStreetDiceRollInput,
+  CasinoStreetDiceStartInput,
+  CasinoStreetDiceStateDto,
 } from '@streets/shared';
 import { api } from './client.js';
 
@@ -30,6 +38,16 @@ export const casinoApi = {
     api.post<CasinoBlackjackActionResponseDto>('/game/casino/blackjack/double', input),
   blackjackSplit: (input: CasinoBlackjackActionInput) =>
     api.post<CasinoBlackjackActionResponseDto>('/game/casino/blackjack/split', input),
+  roulette: () => api.get<CasinoRouletteStateDto>('/game/casino/roulette'),
+  rouletteSpin: (input: CasinoRouletteSpinInput) =>
+    api.post<CasinoRouletteSpinResponseDto>('/game/casino/roulette/spin', input),
+  streetDice: () => api.get<CasinoStreetDiceStateDto>('/game/casino/street-dice'),
+  streetDiceStart: (input: CasinoStreetDiceStartInput) =>
+    api.post<CasinoStreetDiceResponseDto>('/game/casino/street-dice/start', input),
+  streetDiceRoll: (input: CasinoStreetDiceRollInput) =>
+    api.post<CasinoStreetDiceResponseDto>('/game/casino/street-dice/roll', input),
+  streetDiceOdds: (input: CasinoStreetDiceOddsInput) =>
+    api.post<CasinoStreetDiceResponseDto>('/game/casino/street-dice/odds', input),
   closeSession: (sessionId: string, input: CasinoSessionCloseInput) =>
     api.post<CasinoPageDto>('/game/casino/sessions/' + encodeURIComponent(sessionId) + '/close', input),
 };
