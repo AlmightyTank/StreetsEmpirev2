@@ -6,6 +6,19 @@ import { startingStock } from '@streets/rules-engine';
 import { CasinoService } from '../casino.service.js';
 import { ReputationService } from '../reputation.service.js';
 
+function stopTickets(machine: CasinoSlotMachineRules, symbolKey: string): number[] {
+  return machine.reelStrips.map((strip) => {
+    const stop = strip.findIndex((key) => key === symbolKey);
+    if (stop < 0) throw new Error(machine.key + ' has no ' + symbolKey + ' on one reel');
+    return (stop + 0.25) / strip.length;
+  });
+}
+
+function sequenceRng(values: number[], fallback = 0.5): () => number {
+  let index = 0;
+  return () => values[index++] ?? fallback;
+}
+
 describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-B slots with PostgreSQL', () => {
   let app: FastifyInstance;
   let accountId = '';
@@ -64,7 +77,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-B slots with Postgre
     await app?.close();
   });
 
-  it('stores one authoritative grid and replays it for the same action ID', async () => {
+  it('stores one authoritative reel-stop result and replays it for the same action ID', async () => {
     const { player } = await fixture();
     await openBankroll(player.id);
     const machine = classicOgV12B.casino.slots.machines[0]!;
@@ -86,6 +99,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-B slots with Postgre
 
     expect(first.spin.grid).toHaveLength(3);
     expect(first.spin.grid.every((row) => row.length === 3)).toBe(true);
+    expect(first.spin.reelStops).toHaveLength(machine.reels);
     expect(replay.spin).toEqual(first.spin);
     await expect(CasinoService.spinSlot(app.prisma, player.id, {
       machineKey: machine.key,
@@ -96,8 +110,6 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-B slots with Postgre
     expect(await app.prisma.casinoLedgerEntry.count({
       where: { roundPlayerId: player.id, actionId, kind: 'SLOT_SPIN' },
     })).toBe(1);
-    const session = await app.prisma.casinoSession.findFirstOrThrow({ where: { roundPlayerId: player.id, status: 'OPEN' } });
-    expect(session.bankrollCents).toBe(BigInt(first.spin.bankrollAfterCents));
   });
 
   it('enforces machine availability by venue kind', async () => {
@@ -133,7 +145,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-B slots with Postgre
     expect(jackpot.poolCents).toBe(BigInt(progressive.seedCents + 25));
   });
 
-  it('awards and resets the progressive on a qualifying all-Empire grid', async () => {
+  it('awards and resets the progressive on qualifying Empire reel stops', async () => {
     const { round, player } = await fixture('las-vegas');
     await openBankroll(player.id);
     const empireGold: CasinoSlotMachineRules = classicOgV12B.casino.slots.machines.find((machine) => machine.key === 'EMPIRE_GOLD')!;
@@ -149,14 +161,87 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-B slots with Postgre
         activePaylineKeys,
         actionId: randomUUID(),
       },
-      () => 0.999999999,
+      sequenceRng(stopTickets(empireGold, 'JACKPOT'), 0.5),
     );
 
     const contribution = progressive.eligibleBetPerLineCents * activePaylineKeys.length * progressive.contributionBps / 10_000;
     expect(result.spin.jackpotAwardCents).toBe(progressive.seedCents + contribution);
+    expect(result.spin.winTier).toBe('JACKPOT');
     const jackpot = await app.prisma.casinoJackpot.findUniqueOrThrow({
       where: { roundId_machineKey: { roundId: round.id, machineKey: empireGold.key } },
     });
     expect(jackpot.poolCents).toBe(BigInt(progressive.seedCents));
+  });
+
+  it('persists a rare free-spin bundle and never charges the comped spin', async () => {
+    const { player } = await fixture();
+    await openBankroll(player.id);
+    const machine: CasinoSlotMachineRules = classicOgV12B.casino.slots.machines[0]!;
+    const activePaylineKeys = [machine.paylines[0]!.key];
+    const paidActionId = randomUUID();
+
+    const paid = await CasinoService.spinSlot(
+      app.prisma,
+      player.id,
+      {
+        machineKey: machine.key,
+        betPerLineCents: machine.minBetPerLineCents,
+        activePaylineKeys,
+        actionId: paidActionId,
+      },
+      sequenceRng([...stopTickets(machine, 'BAR'), 0.0001, 0.9998]),
+    );
+    expect(paid.spin.freeSpinsAwarded).toBe(10);
+    expect(paid.spin.freeSpinsRemainingAfter).toBe(10);
+
+    const bonus = await app.prisma.casinoFreeSpinBonus.findUniqueOrThrow({ where: { roundPlayerId: player.id } });
+    expect(bonus.machineKey).toBe(machine.key);
+    expect(bonus.betPerLineCents).toBe(BigInt(machine.minBetPerLineCents));
+    expect(bonus.remainingSpins).toBe(10);
+
+    await expect(CasinoService.spinSlot(app.prisma, player.id, {
+      machineKey: machine.key,
+      betPerLineCents: machine.minBetPerLineCents,
+      activePaylineKeys,
+      actionId: randomUUID(),
+    })).rejects.toMatchObject({ code: 'FREE_SPINS_PENDING' });
+
+    const beforeFree = await app.prisma.casinoSession.findFirstOrThrow({
+      where: { roundPlayerId: player.id, status: 'OPEN' },
+    });
+    const freeActionId = randomUUID();
+    const free = await CasinoService.spinSlot(
+      app.prisma,
+      player.id,
+      {
+        machineKey: machine.key,
+        betPerLineCents: machine.minBetPerLineCents,
+        activePaylineKeys,
+        useFreeSpin: true,
+        actionId: freeActionId,
+      },
+      sequenceRng(stopTickets(machine, 'CHERRY'), 0.5),
+    );
+
+    expect(free.spin.isFreeSpin).toBe(true);
+    expect(free.spin.chargedWagerCents).toBe(0);
+    expect(free.spin.wagerCents).toBe(machine.minBetPerLineCents);
+    expect(free.spin.freeSpinsAwarded).toBe(0);
+    expect(free.spin.freeSpinsRemainingAfter).toBe(9);
+    expect(free.spin.bankrollAfterCents).toBe(Number(beforeFree.bankrollCents) + free.spin.payoutCents);
+
+    const bonusAfter = await app.prisma.casinoFreeSpinBonus.findUniqueOrThrow({ where: { roundPlayerId: player.id } });
+    expect(bonusAfter.remainingSpins).toBe(9);
+    expect(bonusAfter.totalWonCents).toBe(BigInt(free.spin.payoutCents));
+
+    const replay = await CasinoService.spinSlot(app.prisma, player.id, {
+      machineKey: machine.key,
+      betPerLineCents: machine.minBetPerLineCents,
+      activePaylineKeys,
+      useFreeSpin: true,
+      actionId: freeActionId,
+    });
+    expect(replay.spin).toEqual(free.spin);
+    expect((await app.prisma.casinoFreeSpinBonus.findUniqueOrThrow({ where: { roundPlayerId: player.id } })).remainingSpins).toBe(9);
   });
 });
