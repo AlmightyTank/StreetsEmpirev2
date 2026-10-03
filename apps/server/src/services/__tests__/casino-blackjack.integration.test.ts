@@ -76,7 +76,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-C blackjack with Pos
 
   it('persists the exact active hand and replays a duplicate deal', async () => {
     const { player } = await fixture();
-    await openBankroll(player.id);
+    const beforeDeal = await openBankroll(player.id);
     const table = classicOgV12C.casino.blackjack.tables[0]!;
     await rigShoe(player.id, table.key, ['10S', '6H', '7D', '9C', '5S']);
     const actionId = randomUUID();
@@ -102,7 +102,17 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-C blackjack with Pos
       actionId,
     });
     expect(replay).toEqual(dealt);
+    await expect(BlackjackService.deal(app.prisma, player.id, {
+      tableKey: table.key,
+      wagerCents: table.minBetCents * 2,
+      actionId,
+    })).rejects.toMatchObject({ code: 'ACTION_ID_REUSED' });
     expect(await app.prisma.casinoBlackjackHand.count({ where: { roundPlayerId: player.id } })).toBe(1);
+
+    const pageDuringHand = await CasinoService.page(app.prisma, player.id);
+    expect(pageDuringHand.totalCasinoValueCents).toBe(beforeDeal.totalCasinoValueCents);
+    const persisted = await app.prisma.casinoBlackjackHand.findUniqueOrThrow({ where: { id: dealt.id } });
+    expect(persisted.committedWagerCents).toBe(BigInt(table.minBetCents));
   });
 
   it('stands, plays the dealer from the server shoe, settles and records history', async () => {
@@ -215,6 +225,28 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-C blackjack with Pos
     });
     expect(final.status).toBe('SETTLED');
     expect(final.playerHands.every((hand) => hand.outcome !== null)).toBe(true);
+  });
+
+  it('lets an already-dealt hand finish after the boss travels away', async () => {
+    const { player } = await fixture('new-york-city');
+    await openBankroll(player.id);
+    const table = classicOgV12C.casino.blackjack.tables[0]!;
+    await rigShoe(player.id, table.key, ['10S', '6H', '7D', '9C', '5S']);
+
+    const dealt = await BlackjackService.deal(app.prisma, player.id, {
+      tableKey: table.key,
+      wagerCents: table.minBetCents,
+      actionId: randomUUID(),
+    });
+    const detroit = await app.prisma.city.findUniqueOrThrow({ where: { slug: 'detroit' } });
+    await app.prisma.roundPlayer.update({ where: { id: player.id }, data: { cityId: detroit.id } });
+
+    const settled = await BlackjackService.stand(app.prisma, player.id, {
+      handId: dealt.id,
+      actionId: randomUUID(),
+    });
+    expect(settled.status).toBe('SETTLED');
+    expect(settled.playerHands[0]!.outcome).toBe('LOSE');
   });
 
   it('enforces table venue availability and refuses session close during a live hand', async () => {
