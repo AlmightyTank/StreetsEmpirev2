@@ -68,7 +68,11 @@ export function CasinoPage() {
 
   function load() {
     void casinoApi.page()
-      .then((next) => { setData(next); setError(null); })
+      .then((next) => {
+        setData(next);
+        setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+        setError(null);
+      })
       .catch((caught: unknown) => setError(caught instanceof ApiError ? caught.message : 'Could not open the casino.'));
   }
 
@@ -127,6 +131,7 @@ export function CasinoPage() {
     try {
       const next = await work();
       setData(next);
+      setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
       setNotice(success);
       await refreshSnapshot({ background: false });
       return true;
