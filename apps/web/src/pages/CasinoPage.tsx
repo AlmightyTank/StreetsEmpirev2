@@ -129,7 +129,7 @@ export function CasinoPage() {
         </header>
 
         {error ? <Alert>{error}</Alert> : null}
-        {notice ? <Alert>{notice}</Alert> : null}
+        {notice ? <Alert tone="success">{notice}</Alert> : null}
         {!data ? <p className="se-muted">Checking the cage...</p> : null}
 
         {data && !data.enabled ? (
