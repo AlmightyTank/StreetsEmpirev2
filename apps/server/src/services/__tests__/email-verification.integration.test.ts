@@ -20,6 +20,8 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('email verification before 
   let roundId = '';
   const previous = process.env.REQUIRE_VERIFIED_EMAIL;
   const previousRules = process.env.REQUIRE_RULES_ACCEPTANCE;
+  const previousResendKey = process.env.RESEND_API_KEY;
+  const previousEmailFrom = process.env.EMAIL_FROM;
 
   const register = async () => {
     const name = `verify${randomUUID().slice(0, 8)}`;
@@ -44,6 +46,9 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('email verification before 
   beforeAll(async () => {
     process.env.REQUIRE_VERIFIED_EMAIL = 'true';
     process.env.REQUIRE_RULES_ACCEPTANCE = 'true';
+    // Delivery is mocked in this suite; these only exercise the production configuration guard.
+    process.env.RESEND_API_KEY = 're_test_email_verification';
+    process.env.EMAIL_FROM = 'StreetsEmpire <no-reply@example.invalid>';
     vi.resetModules();
     app = await (await import('../../app.js')).buildApp();
     const { RoundService } = await import('../round.service.js');
@@ -65,6 +70,10 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('email verification before 
     else process.env.REQUIRE_VERIFIED_EMAIL = previous;
     if (previousRules === undefined) delete process.env.REQUIRE_RULES_ACCEPTANCE;
     else process.env.REQUIRE_RULES_ACCEPTANCE = previousRules;
+    if (previousResendKey === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = previousResendKey;
+    if (previousEmailFrom === undefined) delete process.env.EMAIL_FROM;
+    else process.env.EMAIL_FROM = previousEmailFrom;
     vi.restoreAllMocks();
   });
 

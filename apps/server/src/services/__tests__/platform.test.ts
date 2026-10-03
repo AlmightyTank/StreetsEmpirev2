@@ -49,12 +49,18 @@ describe('1.0.0-A environment identity', () => {
   });
 
   it('stops a deploy into the wrong checkout or the wrong running server', () => {
-    const beta = parseEnvFile('NODE_ENV=production\nBETA_INVITE_ONLY="true"\nSESSION_COOKIE_NAME=se_beta_session\n# comment\n');
-    const live = parseEnvFile('NODE_ENV=production\nBETA_INVITE_ONLY=false\n');
+    const beta = parseEnvFile('NODE_ENV=production\nBETA_INVITE_ONLY="true"\nSESSION_COOKIE_NAME=se_beta_session\nREQUIRE_VERIFIED_EMAIL=false\n# comment\n');
+    const live = parseEnvFile('NODE_ENV=production\nBETA_INVITE_ONLY=false\nREQUIRE_VERIFIED_EMAIL=false\n');
     expect(configProblems(beta, 'beta')).toEqual([]);
     expect(configProblems(live, 'production')).toEqual([]);
     expect(configProblems(beta, 'production')[0]).toMatch(/describes a beta server/);
     expect(configProblems(live, 'beta')[0]).toMatch(/describes a production server/);
+    const liveWithoutMail = parseEnvFile('NODE_ENV=production\nBETA_INVITE_ONLY=false\n');
+    expect(configProblems(liveWithoutMail, 'production')).toEqual(expect.arrayContaining([
+      expect.stringMatching(/RESEND_API_KEY.*EMAIL_FROM.*missing/),
+    ]));
+    const liveWithMail = parseEnvFile('NODE_ENV=production\nBETA_INVITE_ONLY=false\nRESEND_API_KEY=re_test\nEMAIL_FROM=no-reply@example.invalid\n');
+    expect(configProblems(liveWithMail, 'production')).toEqual([]);
 
     const meta = { environment: 'beta', app: { version: '1.0.0-A', commit: 'abc1234def56' } };
     expect(metaProblems(meta, 'beta', 'abc1234')).toEqual([]);
