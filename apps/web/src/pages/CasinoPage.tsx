@@ -358,6 +358,23 @@ export function CasinoPage() {
                             aria-live="polite"
                             aria-label={machine.reels + ' reel by ' + machine.rows + ' row slot result'}
                           >
+                            {result?.winningLines.length ? (
+                              <svg
+                                className="se-slots__line-overlay"
+                                viewBox={`0 0 ${machine.reels * 100} ${machine.rows * 100}`}
+                                preserveAspectRatio="none"
+                                aria-hidden="true"
+                              >
+                                {result.winningLines.map((win) => {
+                                  const line = machine.paylines.find((candidate) => candidate.key === win.paylineKey);
+                                  if (!line) return null;
+                                  const points = line.rows
+                                    .map((row, reel) => (reel * 100 + 50) + ',' + (row * 100 + 50))
+                                    .join(' ');
+                                  return <polyline key={win.paylineKey} points={points} vectorEffect="non-scaling-stroke" />;
+                                })}
+                              </svg>
+                            ) : null}
                             {visibleGrid.flatMap((row, rowIndex) =>
                               row.map((cell, reelIndex) => {
                                 const winning = winningPositions.has(reelIndex + ':' + rowIndex);
@@ -375,6 +392,7 @@ export function CasinoPage() {
                           </div>
 
                           <div className="se-slots__meter">
+                            <span><small>Credits</small><strong>{data.openSession ? formatCents(data.openSession.bankrollCents) : '—'}</strong></span>
                             <span><small>Lines</small><strong>{selectedPaylineKeys.length}/{machine.paylines.length}</strong></span>
                             <span><small>Per line</small><strong>{lineBetCents ? formatCents(lineBetCents) : '—'}</strong></span>
                             <span><small>Total bet</small><strong>{totalWagerCents ? formatCents(totalWagerCents) : '—'}</strong></span>
@@ -452,6 +470,23 @@ export function CasinoPage() {
                             })}
                           </div>
                         </div>
+
+                        <details className="se-slots__paytable">
+                          <summary>Paytable &amp; machine info</summary>
+                          <p className="se-hint">Payouts are multiples of the bet on one winning line. Only selected lines can pay.</p>
+                          <div className="se-slots__paytable-grid">
+                            {machine.paytable.map((entry) => (
+                              <div key={entry.symbolKey} className="se-slots__paytable-row">
+                                <span className="se-slots__paytable-symbol"><strong>{entry.glyph}</strong>{entry.symbolLabel}</span>
+                                <span>
+                                  {entry.payouts.map((payout) => (
+                                    <span key={payout.matches}>{payout.matches}× = {(payout.payoutBps / 10_000).toLocaleString()}×</span>
+                                  ))}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
 
                         {result ? (
                           <div className="se-slots__result">
