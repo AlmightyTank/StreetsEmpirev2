@@ -19,19 +19,32 @@ export interface CasinoSessionDto {
   openedAt: string;
 }
 
+export interface CasinoSlotPaylineDto {
+  key: string;
+  name: string;
+  /** One row index per reel: 0 top, 1 middle, 2 bottom. */
+  rows: number[];
+}
+
 export interface CasinoSlotMachineDto {
   key: string;
   name: string;
   blurb: string;
-  minWagerCents: number;
-  maxWagerCents: number;
-  wagerStepCents: number;
+  reels: number;
+  rows: number;
+  paylines: CasinoSlotPaylineDto[];
+  minBetPerLineCents: number;
+  maxBetPerLineCents: number;
+  betStepCents: number;
+  maxTotalWagerCents: number;
   availableHere: boolean;
+  /** Effective base-game RTP at the posted minimum line bet. */
   baseRtpBps: number;
   progressive: {
     poolCents: number;
     contributionBps: number;
-    eligibleWagerCents: number;
+    eligibleBetPerLineCents: number;
+    requiresAllPaylines: boolean;
   } | null;
 }
 
@@ -41,15 +54,33 @@ export interface CasinoSlotReelDto {
   glyph: string;
 }
 
+export interface CasinoSlotPositionDto {
+  reel: number;
+  row: number;
+}
+
+export interface CasinoSlotLineWinDto {
+  paylineKey: string;
+  paylineName: string;
+  symbolKey: string;
+  symbolLabel: string;
+  matchCount: number;
+  payoutCents: number;
+  positions: CasinoSlotPositionDto[];
+}
+
 export interface CasinoSlotSpinDto {
   actionId: string;
   machineKey: string;
   machineName: string;
+  betPerLineCents: number;
+  activePaylineKeys: string[];
   wagerCents: number;
   payoutCents: number;
   netCents: number;
   payoutBps: number;
-  reels: [CasinoSlotReelDto, CasinoSlotReelDto, CasinoSlotReelDto];
+  grid: CasinoSlotReelDto[][];
+  winningLines: CasinoSlotLineWinDto[];
   jackpotContributionCents: number;
   jackpotAwardCents: number;
   bankrollAfterCents: number;
