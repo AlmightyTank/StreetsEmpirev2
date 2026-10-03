@@ -2132,6 +2132,11 @@ export interface CasinoSlotMachineRules {
   readonly maxBetPerLineCents: number;
   readonly betStepCents: number;
   readonly symbols: readonly CasinoSlotSymbolRules[];
+  /**
+   * One circular virtual strip per reel. A server-selected stop is the middle
+   * visible row; the rows above/below come from the adjacent strip positions.
+   */
+  readonly reelStrips: readonly (readonly string[])[];
   readonly paylines: readonly CasinoSlotPaylineRules[];
   /**
    * Total return for one winning line, expressed in basis points of that line's bet.
@@ -2141,10 +2146,20 @@ export interface CasinoSlotMachineRules {
   readonly progressive?: {
     readonly symbolKey: string;
     readonly seedCents: number;
-    /** Contribution is charged against the whole spin wager. */
+    /** Contribution is funded on every nominal spin, including a comped free spin. */
     readonly contributionBps: number;
     readonly eligibleBetPerLineCents: number;
     readonly requiresAllPaylines: boolean;
+  };
+  readonly freeSpins?: {
+    /** Chance on a paid spin only. 100 = 1.00%. Free spins never retrigger. */
+    readonly triggerBps: number;
+    readonly presentationLabel: string;
+    /** Weighted bundle size after the bonus trigger succeeds. */
+    readonly awards: readonly {
+      readonly spins: 1 | 2 | 3 | 5 | 10;
+      readonly weight: number;
+    }[];
   };
 }
 

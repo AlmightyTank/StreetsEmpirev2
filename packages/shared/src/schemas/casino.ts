@@ -27,6 +27,7 @@ export const casinoSlotSpinSchema = z.object({
     (keys) => new Set(keys).size === keys.length,
     'A payline can only be selected once.',
   ),
+  useFreeSpin: z.boolean().optional(),
   actionId: actionIdSchema,
 }).strict();
 

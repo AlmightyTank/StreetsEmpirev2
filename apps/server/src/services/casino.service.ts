@@ -1,6 +1,15 @@
 import { randomInt } from 'node:crypto';
 import type { Prisma, PrismaClient, RoundPlayer } from '@prisma/client';
-import { loadRulesetForRound, resolveSlotSpin, slotTotalWagerCents, theoreticalSlotRtpBps, type Rng, type Ruleset } from '@streets/rules-engine';
+import {
+  effectiveSlotRtpBps,
+  loadRulesetForRound,
+  resolveSlotSpin,
+  rollSlotFreeSpinAward,
+  slotTotalWagerCents,
+  theoreticalSlotRtpBps,
+  type Rng,
+  type Ruleset,
+} from '@streets/rules-engine';
 import type { CasinoRules, CasinoSlotMachineRules } from '@streets/rulesets';
 import type {
   CasinoCashierInput,
@@ -30,9 +39,12 @@ type SlotLedgerMetadata = {
   betPerLineCents: number;
   activePaylineKeys: string[];
   wagerCents: number;
+  chargedWagerCents: number;
+  isFreeSpin: boolean;
   payoutCents: number;
   payoutBps: number;
   grid: Array<Array<{ key: string; label: string; glyph: string }>>;
+  reelStops: number[];
   winningLines: Array<{
     paylineKey: string;
     paylineName: string;
@@ -42,8 +54,17 @@ type SlotLedgerMetadata = {
     payoutCents: number;
     positions: Array<{ reel: number; row: number }>;
   }>;
+  nearMiss: {
+    paylineKey: string;
+    symbolKey: string;
+    symbolLabel: string;
+    reel: number;
+  } | null;
+  winTier: CasinoSlotSpinDto['winTier'];
   jackpotContributionCents: number;
   jackpotAwardCents: number;
+  freeSpinsAwarded: number;
+  freeSpinsRemainingAfter: number;
 };
 
 const secureCasinoRng: Rng = () => randomInt(0x1_0000_0000) / 0x1_0000_0000;
@@ -57,6 +78,7 @@ function slotSpinDto(
     || !Array.isArray(meta.grid)
     || meta.grid.length !== 3
     || !meta.grid.every((row) => Array.isArray(row))
+    || !Array.isArray(meta.reelStops)
     || !Array.isArray(meta.activePaylineKeys)
     || !Array.isArray(meta.winningLines)
   ) {
@@ -69,16 +91,35 @@ function slotSpinDto(
     betPerLineCents: meta.betPerLineCents,
     activePaylineKeys: meta.activePaylineKeys,
     wagerCents: meta.wagerCents,
+    chargedWagerCents: meta.chargedWagerCents,
+    isFreeSpin: meta.isFreeSpin,
     payoutCents: meta.payoutCents,
-    netCents: meta.payoutCents - meta.wagerCents,
+    netCents: meta.payoutCents - meta.chargedWagerCents,
     payoutBps: meta.payoutBps,
     grid: meta.grid,
+    reelStops: meta.reelStops,
     winningLines: meta.winningLines,
+    nearMiss: meta.nearMiss,
+    winTier: meta.winTier,
     jackpotContributionCents: meta.jackpotContributionCents,
     jackpotAwardCents: meta.jackpotAwardCents,
+    freeSpinsAwarded: meta.freeSpinsAwarded,
+    freeSpinsRemainingAfter: meta.freeSpinsRemainingAfter,
     bankrollAfterCents: Number(entry.sessionChipsAfterCents),
     createdAt: entry.createdAt.toISOString(),
   };
+}
+
+function slotWinTier(
+  payoutCents: bigint,
+  nominalWagerCents: bigint,
+  jackpotAwardCents: bigint,
+): CasinoSlotSpinDto['winTier'] {
+  if (jackpotAwardCents > 0n) return 'JACKPOT';
+  if (payoutCents <= 0n) return 'NONE';
+  if (nominalWagerCents > 0n && payoutCents >= nominalWagerCents * 20n) return 'MEGA';
+  if (nominalWagerCents > 0n && payoutCents >= nominalWagerCents * 5n) return 'BIG';
+  return 'SMALL';
 }
 
 function ledgerDisplay(entry: {
@@ -128,18 +169,25 @@ function ledgerDisplay(entry: {
   if (entry.kind === 'SLOT_SPIN') {
     const meta = entry.metadata as unknown as Partial<SlotLedgerMetadata>;
     const wager = typeof meta.wagerCents === 'number' ? meta.wagerCents : abs(entry.sessionChipDeltaCents);
+    const charged = typeof meta.chargedWagerCents === 'number' ? meta.chargedWagerCents : wager;
     const payout = typeof meta.payoutCents === 'number'
       ? meta.payoutCents
-      : Math.max(0, wager + Number(entry.sessionChipDeltaCents));
+      : Math.max(0, charged + Number(entry.sessionChipDeltaCents));
     const machine = typeof meta.machineName === 'string' ? meta.machineName : 'Slots';
     const wins = Array.isArray(meta.winningLines) ? meta.winningLines.length : 0;
     const jackpot = typeof meta.jackpotAwardCents === 'number' ? meta.jackpotAwardCents : 0;
+    const freeAward = typeof meta.freeSpinsAwarded === 'number' ? meta.freeSpinsAwarded : 0;
+    const isFree = meta.isFreeSpin === true;
     const net = Number(entry.sessionChipDeltaCents);
     return {
-      title: jackpot > 0 ? 'Jackpot on ' + machine : 'Spin on ' + machine,
-      detail: 'Bet ' + formatLedgerMoney(wager) + ' · paid ' + formatLedgerMoney(payout)
-        + (wins > 0 ? ' · ' + wins + ' winning line' + (wins === 1 ? '' : 's') : ' · no winning lines'),
-      amountLabel: net > 0 ? 'Won' : net < 0 ? 'Lost' : 'Push',
+      title: jackpot > 0
+        ? 'Jackpot on ' + machine
+        : isFree ? 'Free spin on ' + machine : 'Spin on ' + machine,
+      detail: (isFree ? 'Casino covered ' : 'Bet ') + formatLedgerMoney(wager)
+        + ' · paid ' + formatLedgerMoney(payout)
+        + (wins > 0 ? ' · ' + wins + ' winning line' + (wins === 1 ? '' : 's') : ' · no winning lines')
+        + (freeAward > 0 ? ' · ' + freeAward + ' free spin' + (freeAward === 1 ? '' : 's') + ' awarded' : ''),
+      amountLabel: net > 0 ? 'Won' : net < 0 ? 'Lost' : isFree ? 'No win' : 'Push',
       amountCents: Math.abs(net),
       tone: net > 0 ? 'positive' : net < 0 ? 'negative' : 'neutral',
     };
@@ -288,6 +336,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
       venues: [],
       openSession: null,
       slotMachines: [],
+      freeSpinBonus: null,
       recentLedger: [],
       totalCasinoValueCents: 0,
       limits: null,
@@ -299,7 +348,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
   const currentCitySlug = cashLocation?.citySlug ?? null;
   const citySlugs = Object.keys(casino.venues);
   const slotRules = casino.slots?.machines ?? [];
-  const [cities, wallets, openSession, ledger, jackpots] = await Promise.all([
+  const [cities, wallets, openSession, ledger, jackpots, freeSpinBonusRow] = await Promise.all([
     db.city.findMany({ where: { slug: { in: citySlugs }, isEnabled: true }, orderBy: { sortOrder: 'asc' } }),
     db.casinoWallet.findMany({ where: { roundPlayerId }, include: { city: true } }),
     db.casinoSession.findFirst({
@@ -316,6 +365,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     db.casinoJackpot.findMany({
       where: { roundId: player.roundId, machineKey: { in: slotRules.map((machine) => machine.key) } },
     }),
+    db.casinoFreeSpinBonus.findUnique({ where: { roundPlayerId } }),
   ]);
 
   const walletByCity = new Map(wallets.map((wallet) => [wallet.city.slug, wallet.chipsCents]));
@@ -345,6 +395,11 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     reels: machine.reels,
     rows: machine.rows,
     paylines: machine.paylines.map((line) => ({ key: line.key, name: line.name, rows: [...line.rows] })),
+    reelStrips: machine.reelStrips.map((strip) => strip.map((key) => {
+      const symbol = machine.symbols.find((candidate) => candidate.key === key);
+      if (!symbol) throw AppError.conflict('CASINO_RULESET_INVALID', 'A slot reel contains an unknown symbol.');
+      return { key: symbol.key, label: symbol.label, glyph: symbol.glyph };
+    })),
     paytable: machine.symbols.map((symbol) => ({
       symbolKey: symbol.key,
       symbolLabel: symbol.label,
@@ -360,6 +415,14 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     maxTotalWagerCents: machine.maxBetPerLineCents * machine.paylines.length,
     availableHere: Boolean(currentVenue && machine.venueKinds.includes(currentVenue.kind)),
     baseRtpBps: theoreticalSlotRtpBps(machine, machine.minBetPerLineCents),
+    effectiveRtpBps: effectiveSlotRtpBps(machine, machine.minBetPerLineCents),
+    freeSpins: machine.freeSpins
+      ? {
+          triggerBps: machine.freeSpins.triggerBps,
+          presentationLabel: machine.freeSpins.presentationLabel,
+          possibleAwards: machine.freeSpins.awards.map((award) => award.spins),
+        }
+      : null,
     progressive: machine.progressive
       ? {
           poolCents: Number(jackpotByMachine.get(machine.key) ?? BigInt(machine.progressive.seedCents)),
@@ -369,6 +432,31 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
         }
       : null,
   }));
+
+  const bonusMachine = freeSpinBonusRow
+    ? slotRules.find((machine) => machine.key === freeSpinBonusRow.machineKey) ?? null
+    : null;
+  const bonusVenue = freeSpinBonusRow
+    ? venues.find((venue) => venue.citySlug === freeSpinBonusRow.citySlug) ?? null
+    : null;
+  const freeSpinBonus = freeSpinBonusRow && bonusMachine
+    ? {
+        id: freeSpinBonusRow.id,
+        machineKey: freeSpinBonusRow.machineKey,
+        machineName: bonusMachine.name,
+        citySlug: freeSpinBonusRow.citySlug,
+        cityName: bonusVenue?.cityName ?? freeSpinBonusRow.citySlug,
+        betPerLineCents: Number(freeSpinBonusRow.betPerLineCents),
+        activePaylineKeys: Array.isArray(freeSpinBonusRow.activePaylineKeys)
+          ? freeSpinBonusRow.activePaylineKeys.filter((key): key is string => typeof key === 'string')
+          : [],
+        awardedSpins: freeSpinBonusRow.awardedSpins,
+        remainingSpins: freeSpinBonusRow.remainingSpins,
+        totalWonCents: Number(freeSpinBonusRow.totalWonCents),
+        presentationLabel: bonusMachine.freeSpins?.presentationLabel ?? 'FREE SPINS',
+        awardedAt: freeSpinBonusRow.awardedAt.toISOString(),
+      }
+    : null;
 
   const recentLedger: CasinoLedgerEntryDto[] = ledger.map((entry) => ({
     id: entry.id,
@@ -397,6 +485,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     venues,
     openSession: open,
     slotMachines,
+    freeSpinBonus,
     recentLedger,
     totalCasinoValueCents: Number(walletTotal + sessionTotal),
     limits: {
@@ -593,6 +682,7 @@ export const CasinoService = {
         });
       }
 
+      const useFreeSpin = input.useFreeSpin === true;
       const requestedLines = new Set(input.activePaylineKeys);
       const activePaylineKeys = machine.paylines
         .filter((line) => requestedLines.has(line.key))
@@ -603,6 +693,8 @@ export const CasinoService = {
         });
       }
 
+      // Idempotent replay happens before live bonus validation. A retry of the
+      // last free spin must still replay after that bundle was fully consumed.
       const replay = await tx.casinoLedgerEntry.findUnique({
         where: { roundPlayerId_actionId: { roundPlayerId, actionId: input.actionId } },
       });
@@ -616,6 +708,7 @@ export const CasinoService = {
         if (
           saved.machineKey !== input.machineKey
           || saved.betPerLineCents !== input.betPerLineCents
+          || saved.isFreeSpin !== useFreeSpin
           || !sameLines
         ) {
           throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a different slot spin.');
@@ -624,7 +717,7 @@ export const CasinoService = {
       }
 
       const betPerLine = BigInt(input.betPerLineCents);
-      const wager = slotTotalWagerCents(betPerLine, activePaylineKeys.length);
+      const nominalWager = slotTotalWagerCents(betPerLine, activePaylineKeys.length);
       const { city, venue } = await currentVenue(tx, ruleset, casino, player, now);
       if (!machine.venueKinds.includes(venue.kind)) {
         throw AppError.conflict('SLOT_NOT_HERE', 'That machine is not available at this casino.');
@@ -639,7 +732,37 @@ export const CasinoService = {
       if (session.cityId !== city.id) {
         throw AppError.conflict('CASINO_SESSION_ELSEWHERE', 'Your open bankroll belongs to another casino. Close it before playing here.');
       }
-      if (session.bankrollCents < wager) {
+
+      const bonus = await tx.casinoFreeSpinBonus.findUnique({ where: { roundPlayerId } });
+      if (useFreeSpin) {
+        if (!bonus || bonus.remainingSpins <= 0) {
+          throw AppError.conflict('NO_FREE_SPINS', 'There is no free spin waiting for this player.');
+        }
+        const bonusLines = Array.isArray(bonus.activePaylineKeys)
+          ? bonus.activePaylineKeys.filter((key): key is string => typeof key === 'string')
+          : [];
+        const sameLines = bonusLines.length === activePaylineKeys.length
+          && bonusLines.every((key, index) => key === activePaylineKeys[index]);
+        if (
+          bonus.machineKey !== machine.key
+          || bonus.citySlug !== city.slug
+          || bonus.betPerLineCents !== betPerLine
+          || !sameLines
+        ) {
+          throw AppError.conflict(
+            'FREE_SPIN_CONFIG_LOCKED',
+            'Free spins use the same machine, city, line bet and paylines that earned them.',
+          );
+        }
+      } else if (bonus?.remainingSpins) {
+        throw AppError.conflict(
+          'FREE_SPINS_PENDING',
+          'Finish the awarded free spins before placing another paid slot wager.',
+        );
+      }
+
+      const chargedWager = useFreeSpin ? 0n : nominalWager;
+      if (!useFreeSpin && session.bankrollCents < nominalWager) {
         throw AppError.conflict('NOT_ENOUGH_BANKROLL', 'There are not enough chips in the open bankroll for that spin.');
       }
 
@@ -652,7 +775,40 @@ export const CasinoService = {
         math.jackpotTriggered,
       );
       const payout = math.payoutCents + progressive.awardCents;
-      const bankrollAfter = session.bankrollCents - wager + payout;
+      const freeSpinsAwarded = useFreeSpin ? 0 : rollSlotFreeSpinAward(machine, rng);
+      let freeSpinsRemainingAfter = 0;
+
+      if (useFreeSpin) {
+        const activeBonus = bonus!;
+        freeSpinsRemainingAfter = activeBonus.remainingSpins - 1;
+        if (freeSpinsRemainingAfter > 0) {
+          await tx.casinoFreeSpinBonus.update({
+            where: { id: activeBonus.id },
+            data: {
+              remainingSpins: freeSpinsRemainingAfter,
+              totalWonCents: { increment: payout },
+            },
+          });
+        } else {
+          await tx.casinoFreeSpinBonus.delete({ where: { id: activeBonus.id } });
+        }
+      } else if (freeSpinsAwarded > 0) {
+        freeSpinsRemainingAfter = freeSpinsAwarded;
+        await tx.casinoFreeSpinBonus.create({
+          data: {
+            roundPlayerId,
+            citySlug: city.slug,
+            machineKey: machine.key,
+            betPerLineCents: betPerLine,
+            activePaylineKeys: [...activePaylineKeys] as Prisma.InputJsonValue,
+            awardedSpins: freeSpinsAwarded,
+            remainingSpins: freeSpinsAwarded,
+            sourceActionId: input.actionId,
+          },
+        });
+      }
+
+      const bankrollAfter = session.bankrollCents - chargedWager + payout;
       await tx.casinoSession.update({ where: { id: session.id }, data: { bankrollCents: bankrollAfter } });
 
       const wallet = await tx.casinoWallet.findUnique({
@@ -664,9 +820,12 @@ export const CasinoService = {
         betPerLineCents: input.betPerLineCents,
         activePaylineKeys: [...math.activePaylineKeys],
         wagerCents: Number(math.totalWagerCents),
+        chargedWagerCents: Number(chargedWager),
+        isFreeSpin: useFreeSpin,
         payoutCents: Number(payout),
         payoutBps: math.payoutBps,
         grid: math.grid.map((row) => row.map(({ key, label, glyph }) => ({ key, label, glyph }))),
+        reelStops: [...math.reelStops],
         winningLines: math.winningLines.map((win) => ({
           paylineKey: win.paylineKey,
           paylineName: win.paylineName,
@@ -676,8 +835,12 @@ export const CasinoService = {
           payoutCents: Number(win.payoutCents),
           positions: win.positions.map((position) => ({ ...position })),
         })),
+        nearMiss: math.nearMiss ? { ...math.nearMiss } : null,
+        winTier: slotWinTier(payout, nominalWager, progressive.awardCents),
         jackpotContributionCents: Number(math.jackpotContributionCents),
         jackpotAwardCents: Number(progressive.awardCents),
+        freeSpinsAwarded,
+        freeSpinsRemainingAfter,
       };
       const ledger = await tx.casinoLedgerEntry.create({
         data: {
@@ -686,7 +849,7 @@ export const CasinoService = {
           sessionId: session.id,
           actionId: input.actionId,
           kind: 'SLOT_SPIN',
-          sessionChipDeltaCents: payout - wager,
+          sessionChipDeltaCents: payout - chargedWager,
           walletChipsAfterCents: wallet?.chipsCents ?? 0n,
           sessionChipsAfterCents: bankrollAfter,
           metadata: metadata as unknown as Prisma.InputJsonValue,
