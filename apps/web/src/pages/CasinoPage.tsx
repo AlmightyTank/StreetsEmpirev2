@@ -407,6 +407,30 @@ export function CasinoPage() {
                           </div>
                         </div>
 
+                        <form className="se-casino__form se-slots__form" onSubmit={spinSlots}>
+                          <label>
+                            <span>Bet per line ($)</span>
+                            <input
+                              className="se-input"
+                              inputMode="decimal"
+                              value={slotBetPerLine}
+                              disabled={busy !== null}
+                              onChange={(event) => {
+                                setSlotBetPerLine(event.target.value);
+                                setLastSpin(null);
+                                spinAction.current = newActionId();
+                              }}
+                            />
+                          </label>
+                          <p className="se-hint">
+                            {selectedPaylineKeys.length} line{selectedPaylineKeys.length === 1 ? '' : 's'} × {lineBetCents ? formatCents(lineBetCents) : '—'}
+                            {' = '}<strong>{totalWagerCents ? formatCents(totalWagerCents) : '—'} total spin</strong>
+                          </p>
+                          <Button className="se-btn" type="submit" disabledReason={disabledReason}>
+                            {busy === 'spin' ? 'Spinning...' : 'Spin reels'}
+                          </Button>
+                        </form>
+
                         <div className="se-slots__payline-panel">
                           <div className="se-slots__payline-head">
                             <div>
@@ -527,29 +551,7 @@ export function CasinoPage() {
                           </div>
                         ) : null}
 
-                        <form className="se-casino__form se-slots__form" onSubmit={spinSlots}>
-                          <label>
-                            <span>Bet per line ($)</span>
-                            <input
-                              className="se-input"
-                              inputMode="decimal"
-                              value={slotBetPerLine}
-                              disabled={busy !== null}
-                              onChange={(event) => {
-                                setSlotBetPerLine(event.target.value);
-                                setLastSpin(null);
-                                spinAction.current = newActionId();
-                              }}
-                            />
-                          </label>
-                          <p className="se-hint">
-                            {selectedPaylineKeys.length} line{selectedPaylineKeys.length === 1 ? '' : 's'} × {lineBetCents ? formatCents(lineBetCents) : '—'}
-                            {' = '}<strong>{totalWagerCents ? formatCents(totalWagerCents) : '—'} total spin</strong>
-                          </p>
-                          <Button className="se-btn" type="submit" disabledReason={disabledReason}>
-                            {busy === 'spin' ? 'Spinning...' : 'Spin reels'}
-                          </Button>
-                        </form>
+
                       </div>
                     );
                   })()}
