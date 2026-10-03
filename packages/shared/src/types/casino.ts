@@ -26,6 +26,13 @@ export interface CasinoSlotPaylineDto {
   rows: number[];
 }
 
+export interface CasinoSlotPaytableEntryDto {
+  symbolKey: string;
+  symbolLabel: string;
+  glyph: string;
+  payouts: Array<{ matches: number; payoutBps: number }>;
+}
+
 export interface CasinoSlotMachineDto {
   key: string;
   name: string;
@@ -33,6 +40,7 @@ export interface CasinoSlotMachineDto {
   reels: number;
   rows: number;
   paylines: CasinoSlotPaylineDto[];
+  paytable: CasinoSlotPaytableEntryDto[];
   minBetPerLineCents: number;
   maxBetPerLineCents: number;
   betStepCents: number;
