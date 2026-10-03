@@ -38,6 +38,15 @@ import { QuestProgressService } from './quest-progress.service.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
 import { StreetPassCredService } from './street-pass-cred.service.js';
 
+async function casinoCashEquivalentCents(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<bigint> {
+  if (!ruleset.casino?.enabled) return 0n;
+  const [wallets, sessions] = await Promise.all([
+    tx.casinoWallet.aggregate({ where: { roundPlayerId }, _sum: { chipsCents: true } }),
+    tx.casinoSession.aggregate({ where: { roundPlayerId, status: 'OPEN' }, _sum: { bankrollCents: true } }),
+  ]);
+  return (wallets._sum.chipsCents ?? 0n) + (sessions._sum.bankrollCents ?? 0n);
+}
+
 /**
  * Everything an action is allowed to move. Turn-settled before an action sees
  * it, and the only thing an action may hand back.
@@ -428,7 +437,8 @@ export const ActionService = {
       // Trips E: the girls notice the boss is gone, before and after the action alike.
       const awayPenalty = await HappinessService.awayPenalty(tx, ruleset, roundPlayerId, now);
       const beforeHappiness = HappinessService.recalculate({ ...current, thugs: fitThugs(current), products: beforeProducts }, ruleset, awayPenalty);
-      const beforeNetWorth = NetWorthService.calculate({ ...current, products: beforeProducts }, ruleset);
+      const casinoNetWorthCents = await casinoCashEquivalentCents(tx, roundPlayerId, ruleset);
+      const beforeNetWorth = NetWorthService.calculate({ ...current, products: beforeProducts, casinoNetWorthCents }, ruleset);
       const beforeRanks = await RankingService.ranksFor(tx, {
         id: roundPlayerId,
         roundId: player.roundId,
@@ -466,7 +476,7 @@ export const ActionService = {
       const afterProducts = beforeProducts && (await HappinessService.otherProducts(tx, roundPlayerId, ruleset));
       // Re-read: the action may have sent the boss away (or brought them home).
       const afterHappiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next), products: afterProducts }, ruleset, await HappinessService.awayPenalty(tx, ruleset, roundPlayerId, now));
-      const afterNetWorth = NetWorthService.calculate({ ...next, products: afterProducts }, ruleset);
+      const afterNetWorth = NetWorthService.calculate({ ...next, products: afterProducts, casinoNetWorthCents }, ruleset);
       const afterRanks = await RankingService.ranksFor(tx, {
         id: roundPlayerId,
         roundId: player.roundId,
