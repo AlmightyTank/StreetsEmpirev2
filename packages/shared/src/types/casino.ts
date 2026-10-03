@@ -38,6 +38,7 @@ export interface CasinoLedgerEntryDto {
 
 export interface CasinoPageDto {
   enabled: boolean;
+  /** Cash physically available to the boss at this location; zero while in transit. */
   cashCents: number;
   currentCitySlug: string | null;
   currentVenue: CasinoVenueDto | null;
