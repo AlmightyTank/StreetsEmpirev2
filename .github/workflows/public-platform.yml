@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/1.2.0-d-roulette-street-dice
   pull_request:
     branches:
       - main
