@@ -168,18 +168,24 @@ export const PlayerStateService = {
     // 3. Net worth. Old pinned rulesets do not pay the cost of casino reads.
     let casinoNetWorthCents = 0n;
     if (ruleset.casino?.enabled) {
-      const [casinoWalletValue, casinoSessionValue, blackjackCommittedValue] = await Promise.all([
+      const [casinoWalletValue, casinoSessionValue, blackjackCommittedValue, streetDiceCommittedValue] = await Promise.all([
         tx.casinoWallet.aggregate({ where: { roundPlayerId }, _sum: { chipsCents: true } }),
         tx.casinoSession.aggregate({ where: { roundPlayerId, status: 'OPEN' }, _sum: { bankrollCents: true } }),
         tx.casinoBlackjackHand.aggregate({
           where: { roundPlayerId, status: 'ACTIVE' },
           _sum: { committedWagerCents: true },
         }),
+        tx.casinoStreetDiceRound.aggregate({
+          where: { roundPlayerId, status: 'ACTIVE' },
+          _sum: { lineWagerCents: true, oddsWagerCents: true },
+        }),
       ]);
       casinoNetWorthCents =
         (casinoWalletValue._sum.chipsCents ?? 0n)
         + (casinoSessionValue._sum.bankrollCents ?? 0n)
-        + (blackjackCommittedValue._sum.committedWagerCents ?? 0n);
+        + (blackjackCommittedValue._sum.committedWagerCents ?? 0n)
+        + (streetDiceCommittedValue._sum.lineWagerCents ?? 0n)
+        + (streetDiceCommittedValue._sum.oddsWagerCents ?? 0n);
     }
     const netWorthCents = NetWorthService.calculate({ ...recovered, products, casinoNetWorthCents }, ruleset);
 
