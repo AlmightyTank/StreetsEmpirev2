@@ -41,35 +41,67 @@ These are ruleset values rather than constants in the service.
 
 ### 1.2.0-B — Slots
 
-**Status: implemented and expanded with casino-style reel grids/paylines.**
+**Status: feature-complete on `feature/1.2.0-b-slots-experience`.**
 
-- Three ruleset-pinned cabinets scale in complexity instead of sharing one three-reel layout:
+#### Games and wagering
+
+- Three ruleset-pinned cabinets scale in complexity:
   - **Corner Classic:** 3 columns × 3 rows, 5 selectable paylines.
   - **Neon Sevens:** 4 columns × 3 rows, 10 selectable paylines.
   - **Empire Gold:** 5 columns × 3 rows, 20 selectable paylines and the Vegas progressive.
-- Players choose the exact paylines they want active plus a **bet per line**. The authoritative total wager is `bet per line × selected lines`.
-- Winning lines read left-to-right from reel 1 and require at least three consecutive matching symbols; 4- and 5-reel cabinets have larger 4/5-of-a-kind paytable entries.
-- The old maximum total-spin stakes are preserved: Corner Classic tops out at $100, Neon Sevens at $500 and Empire Gold at $2,500 when every line is active.
+- Players choose exact paylines plus a bet per line. The server calculates total wager as `bet per line × selected lines`.
+- Wins run left-to-right from reel 1 and require at least three consecutive matching symbols. Four- and five-reel cabinets have separate 4/5-of-a-kind awards.
+- The maximum paid spin remains $100 on Corner Classic, $500 on Neon Sevens and $2,500 on Empire Gold when every line is active.
 - Corner Classic is available everywhere; Neon Sevens is limited to nightlife/private/full rooms; Empire Gold is Vegas-only.
-- Server-authoritative weighted symbols: the browser never rolls a cell, chooses a stop, evaluates a win or decides a payout.
-- Exact cent-rounded line paytables and RTP calculations plus large-sample seeded QA simulation keep the base games in the low-90s RTP band.
-- Every spin requires an open bankroll at the casino where the boss is physically standing.
-- One immutable `SLOT_SPIN` receipt stores the full three-row grid, line bet, selected paylines, winning lines, total wager, payout, bankroll-after and progressive contribution/award.
-- Reusing the same action ID replays the saved grid instead of rolling again; changing the line bet or selected lines with that ID is rejected.
-- Empire Gold contributes to a persistent round-wide progressive pool. Jackpot eligibility requires its maximum line bet with **all 20 paylines active**, and the pool row is locked before contribution/award/reset.
-- The player UI renders 3×3, 4×3 and 5×3 cabinets, selectable T/M/B line paths, winning-line overlays, credits, total-bet meters, paytables and reduced-motion-safe reel animation.
-- Local seed remains pinned to `classic-og-v1.2-b`.
+
+#### Real cabinet behavior
+
+- Each machine now owns a pinned **circular virtual reel strip per reel**. The server chooses one stop per reel and derives top/middle/bottom symbols from adjacent strip positions.
+- The immutable spin receipt stores the authoritative reel stops and complete visible grid. The browser only animates toward that already-decided result.
+- Reels visually run and stop one at a time. A genuine high-value near miss can slow the final reel only when the server result really has the needed symbol one visible stop above/below the selected payline.
+- Winning symbols pulse, the active winning payline is drawn across the cabinet, multiple winning lines cycle, and the payout counts upward.
+- Win tiers provide separate **WIN / BIG WIN / MEGA WIN / JACKPOT** presentation.
+- Corner Classic, Neon Sevens and Empire Gold have distinct cabinet treatments instead of one generic grid.
+- Synthesized Web Audio adds spin, reel-stop, anticipation, win, free-spin and jackpot cues without shipping external audio files.
+- Sound can be muted and the preference persists locally.
+- `prefers-reduced-motion` removes reel/win motion and reveals the same authoritative result immediately.
+- On mobile, the wager/Spin controls remain sticky above the fixed game tab bar so the reel window stays visible while playing.
+
+#### Random free spins
+
+- Only a **paid spin** can randomly award a bonus. The initial trigger chance is **1.00%** and lives in the pinned ruleset.
+- A triggered bonus awards a weighted bundle of **1 / 2 / 3 / 5 / 10** free spins. One is common within the bonus; larger bundles get progressively rarer and ten is exceptionally rare.
+- The bonus persists in PostgreSQL with the exact city, machine, bet per line and selected paylines that earned it.
+- Every free spin uses that same configuration. The player cannot lower the wager to earn the bonus and then raise it for the comped spins.
+- The free spin has its normal nominal wager for payout/jackpot math, but **$0 is debited from the player's bankroll**. Every payout is credited normally and belongs to the player.
+- Pending free spins survive refresh/reconnect. Paid slot wagers are paused until the awarded bundle is finished.
+- Free spins do **not** retrigger another free-spin bundle in B. This keeps the long-run return bounded and easy to simulate.
+- The casino history clearly marks free spins as casino-covered and records winnings normally.
+
+#### Fairness, money and balance
+
+- Exact cent-rounded line paytables preserve the existing low-90s base RTP.
+- The release simulator now includes the expected value and observed payouts of all awarded free spins, and reports both **base RTP** and **effective RTP**.
+- Empire Gold's progressive remains eligible only at the maximum line bet with all 20 paylines active.
+- Progressive contribution, award/reset, free-spin consumption/award and bankroll settlement occur in the same player-locked database transaction.
+- A retried action ID replays the same stored reel stops/result rather than spending, awarding or consuming again.
+- The player-facing Casino history uses readable transaction summaries rather than raw ledger event names.
 
 #### B invariants
 
-1. The client never supplies or derives a winning grid, winning line or payout.
-2. A retried spin never spends twice and never gets a second RNG outcome.
-3. The server recomputes total wager from the posted line bet and validated selected paylines.
-4. A spin can only debit the open session bankroll in the boss's current casino.
-5. A machine can only be played in venue kinds listed by the pinned ruleset.
-6. Only selected paylines are eligible to pay, and line wins are evaluated left-to-right from reel 1.
-7. Progressive contribution and jackpot award/reset happen in the same database transaction as the spin.
-8. Base machine RTP uses the same cent-rounded line payouts as resolved spins and is release-gated by simulation.
+1. The client never supplies or derives a reel stop, winning grid, winning line, near miss, free-spin award or payout.
+2. One server-selected stop per virtual reel fully determines the visible three-row result.
+3. A retried spin never spends twice, consumes a free spin twice, awards a bonus twice or gets a second RNG outcome.
+4. The server recomputes total wager from the posted line bet and validated selected paylines.
+5. A free spin debits zero chips but uses the exact nominal wager configuration that earned its persisted bundle.
+6. Free spins cannot retrigger in B and paid slot spins cannot bypass a pending bonus.
+7. A spin can only use an open bankroll in the boss's current casino; a bonus remains durable if the player closes the session and returns later.
+8. Only selected paylines can pay, and line wins are evaluated left-to-right from reel 1.
+9. Authentic near-miss presentation is derived from adjacent symbols on the actual stored reel result and never manufactured by the client.
+10. Progressive contribution and jackpot award/reset happen atomically with the spin.
+11. Base and effective RTP use the same cent-rounded payout math as resolved spins and are release-gated by large-sample simulation.
+12. Sound and animation are presentation only: disabling them never changes timing, odds, cost or payout.
+
 
 ### 1.2.0-C — Blackjack
 Server-owned shoe, hit/stand/double/split, table limits, hand history and reconnect-safe hands.
