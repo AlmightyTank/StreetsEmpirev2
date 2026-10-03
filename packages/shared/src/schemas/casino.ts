@@ -20,7 +20,13 @@ export const casinoSessionCloseSchema = z.object({ actionId: actionIdSchema }).s
 
 export const casinoSlotSpinSchema = z.object({
   machineKey: z.string().trim().min(1).max(64).regex(/^[A-Z0-9_]+$/, 'Pick a valid slot machine.'),
-  wagerCents: casinoAmountCents,
+  betPerLineCents: casinoAmountCents,
+  activePaylineKeys: z.array(
+    z.string().trim().min(1).max(64).regex(/^[A-Z0-9_]+$/, 'Pick a valid payline.'),
+  ).min(1, 'Select at least one payline.').max(50).refine(
+    (keys) => new Set(keys).size === keys.length,
+    'A payline can only be selected once.',
+  ),
   actionId: actionIdSchema,
 }).strict();
 

@@ -41,29 +41,35 @@ These are ruleset values rather than constants in the service.
 
 ### 1.2.0-B — Slots
 
-**Status: implemented on `feature/1.2.0-b-slots`.**
+**Status: implemented and expanded with casino-style reel grids/paylines.**
 
-- Three ruleset-pinned three-reel machines with distinct wager limits, volatility and venue availability.
+- Three ruleset-pinned cabinets scale in complexity instead of sharing one three-reel layout:
+  - **Corner Classic:** 3 columns × 3 rows, 5 selectable paylines.
+  - **Neon Sevens:** 4 columns × 3 rows, 10 selectable paylines.
+  - **Empire Gold:** 5 columns × 3 rows, 20 selectable paylines and the Vegas progressive.
+- Players choose the exact paylines they want active plus a **bet per line**. The authoritative total wager is `bet per line × selected lines`.
+- Winning lines read left-to-right from reel 1 and require at least three consecutive matching symbols; 4- and 5-reel cabinets have larger 4/5-of-a-kind paytable entries.
+- The old maximum total-spin stakes are preserved: Corner Classic tops out at $100, Neon Sevens at $500 and Empire Gold at $2,500 when every line is active.
 - Corner Classic is available everywhere; Neon Sevens is limited to nightlife/private/full rooms; Empire Gold is Vegas-only.
-- Server-authoritative weighted reels: the browser never rolls or chooses a symbol.
-- Exact integer paytables and an RTP calculator plus large-sample seeded QA simulation.
-- Base RTP is pinned in the low 90s so Slots remain entertainment/a money sink rather than the main seasonal income loop.
+- Server-authoritative weighted symbols: the browser never rolls a cell, chooses a stop, evaluates a win or decides a payout.
+- Exact cent-rounded line paytables and RTP calculations plus large-sample seeded QA simulation keep the base games in the low-90s RTP band.
 - Every spin requires an open bankroll at the casino where the boss is physically standing.
-- One immutable `SLOT_SPIN` casino-ledger receipt stores wager, payout, reels, bankroll-after and progressive contribution/award.
-- Reusing the same action ID replays the saved result instead of rolling again.
-- Empire Gold contributes to a persistent round-wide progressive pool; the pool row is locked before award/reset so concurrent spins cannot double-hit it.
-- The progressive is jackpot-eligible only at the posted max wager.
-- Responsive Slots UI shows machine limits, base RTP, progressive pool and the server-decided result. Reduced-motion users get no reel animation.
-- Local seed advances to `classic-og-v1.2-b`.
+- One immutable `SLOT_SPIN` receipt stores the full three-row grid, line bet, selected paylines, winning lines, total wager, payout, bankroll-after and progressive contribution/award.
+- Reusing the same action ID replays the saved grid instead of rolling again; changing the line bet or selected lines with that ID is rejected.
+- Empire Gold contributes to a persistent round-wide progressive pool. Jackpot eligibility requires its maximum line bet with **all 20 paylines active**, and the pool row is locked before contribution/award/reset.
+- The player UI renders 3×3, 4×3 and 5×3 cabinets, selectable T/M/B line paths, winning-line overlays, credits, total-bet meters, paytables and reduced-motion-safe reel animation.
+- Local seed remains pinned to `classic-og-v1.2-b`.
 
 #### B invariants
 
-1. The client never supplies or derives a winning reel.
+1. The client never supplies or derives a winning grid, winning line or payout.
 2. A retried spin never spends twice and never gets a second RNG outcome.
-3. A spin can only debit the open session bankroll in the boss's current casino.
-4. A machine can only be played in venue kinds listed by the pinned ruleset.
-5. Progressive contribution and jackpot award/reset happen in the same database transaction as the spin.
-6. Base machine RTP is reproducible from the pinned symbol weights/paytable and release-gated by simulation.
+3. The server recomputes total wager from the posted line bet and validated selected paylines.
+4. A spin can only debit the open session bankroll in the boss's current casino.
+5. A machine can only be played in venue kinds listed by the pinned ruleset.
+6. Only selected paylines are eligible to pay, and line wins are evaluated left-to-right from reel 1.
+7. Progressive contribution and jackpot award/reset happen in the same database transaction as the spin.
+8. Base machine RTP uses the same cent-rounded line payouts as resolved spins and is release-gated by simulation.
 
 ### 1.2.0-C — Blackjack
 Server-owned shoe, hit/stand/double/split, table limits, hand history and reconnect-safe hands.

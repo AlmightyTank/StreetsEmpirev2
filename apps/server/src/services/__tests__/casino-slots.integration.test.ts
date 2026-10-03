@@ -64,26 +64,33 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-B slots with Postgre
     await app?.close();
   });
 
-  it('stores one authoritative result and replays the same reels for the same action ID', async () => {
+  it('stores one authoritative grid and replays it for the same action ID', async () => {
     const { player } = await fixture();
     await openBankroll(player.id);
+    const machine = classicOgV12B.casino.slots.machines[0]!;
+    const activePaylineKeys = machine.paylines.map((line) => line.key);
     const actionId = randomUUID();
 
     const first = await CasinoService.spinSlot(app.prisma, player.id, {
-      machineKey: 'CORNER_CLASSIC',
-      wagerCents: 10_000,
+      machineKey: machine.key,
+      betPerLineCents: 1_000,
+      activePaylineKeys,
       actionId,
     });
     const replay = await CasinoService.spinSlot(app.prisma, player.id, {
-      machineKey: 'CORNER_CLASSIC',
-      wagerCents: 10_000,
+      machineKey: machine.key,
+      betPerLineCents: 1_000,
+      activePaylineKeys,
       actionId,
     });
 
+    expect(first.spin.grid).toHaveLength(3);
+    expect(first.spin.grid.every((row) => row.length === 3)).toBe(true);
     expect(replay.spin).toEqual(first.spin);
     await expect(CasinoService.spinSlot(app.prisma, player.id, {
-      machineKey: 'CORNER_CLASSIC',
-      wagerCents: 9_000,
+      machineKey: machine.key,
+      betPerLineCents: 1_100,
+      activePaylineKeys,
       actionId,
     })).rejects.toMatchObject({ code: 'ACTION_ID_REUSED' });
     expect(await app.prisma.casinoLedgerEntry.count({
@@ -96,30 +103,60 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-B slots with Postgre
   it('enforces machine availability by venue kind', async () => {
     const { player } = await fixture('new-york-city');
     await openBankroll(player.id);
+    const machine = classicOgV12B.casino.slots.machines[2]!;
     await expect(CasinoService.spinSlot(app.prisma, player.id, {
-      machineKey: 'EMPIRE_GOLD',
-      wagerCents: 2_500,
+      machineKey: machine.key,
+      betPerLineCents: machine.minBetPerLineCents,
+      activePaylineKeys: [machine.paylines[0]!.key],
       actionId: randomUUID(),
     })).rejects.toMatchObject({ code: 'SLOT_NOT_HERE' });
   });
 
-  it('funds the progressive pool from a Vegas spin without making a sub-max wager jackpot eligible', async () => {
+  it('funds the progressive pool from a Vegas spin without making a sub-max line bet eligible', async () => {
     const { round, player } = await fixture('las-vegas');
     await openBankroll(player.id);
     const empireGold: CasinoSlotMachineRules = classicOgV12B.casino.slots.machines.find((machine) => machine.key === 'EMPIRE_GOLD')!;
     const progressive = empireGold.progressive!;
 
     const result = await CasinoService.spinSlot(app.prisma, player.id, {
-      machineKey: 'EMPIRE_GOLD',
-      wagerCents: 2_500,
+      machineKey: empireGold.key,
+      betPerLineCents: empireGold.minBetPerLineCents,
+      activePaylineKeys: [empireGold.paylines[0]!.key],
       actionId: randomUUID(),
     });
 
     const jackpot = await app.prisma.casinoJackpot.findUniqueOrThrow({
-      where: { roundId_machineKey: { roundId: round.id, machineKey: 'EMPIRE_GOLD' } },
+      where: { roundId_machineKey: { roundId: round.id, machineKey: empireGold.key } },
     });
     expect(result.spin.jackpotAwardCents).toBe(0);
     expect(result.spin.jackpotContributionCents).toBe(25);
     expect(jackpot.poolCents).toBe(BigInt(progressive.seedCents + 25));
+  });
+
+  it('awards and resets the progressive on a qualifying all-Empire grid', async () => {
+    const { round, player } = await fixture('las-vegas');
+    await openBankroll(player.id);
+    const empireGold: CasinoSlotMachineRules = classicOgV12B.casino.slots.machines.find((machine) => machine.key === 'EMPIRE_GOLD')!;
+    const progressive = empireGold.progressive!;
+    const activePaylineKeys = empireGold.paylines.map((line) => line.key);
+
+    const result = await CasinoService.spinSlot(
+      app.prisma,
+      player.id,
+      {
+        machineKey: empireGold.key,
+        betPerLineCents: progressive.eligibleBetPerLineCents,
+        activePaylineKeys,
+        actionId: randomUUID(),
+      },
+      () => 0.999999999,
+    );
+
+    const contribution = progressive.eligibleBetPerLineCents * activePaylineKeys.length * progressive.contributionBps / 10_000;
+    expect(result.spin.jackpotAwardCents).toBe(progressive.seedCents + contribution);
+    const jackpot = await app.prisma.casinoJackpot.findUniqueOrThrow({
+      where: { roundId_machineKey: { roundId: round.id, machineKey: empireGold.key } },
+    });
+    expect(jackpot.poolCents).toBe(BigInt(progressive.seedCents));
   });
 });
