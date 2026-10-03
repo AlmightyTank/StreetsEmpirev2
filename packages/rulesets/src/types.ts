@@ -2112,25 +2112,39 @@ export interface CasinoSlotSymbolRules {
   readonly weight: number;
 }
 
-/** 1.2.0-B. A ruleset-pinned three-reel machine and its exact integer paytable. */
+/** One selectable line through the visible slot grid. Each row is 0=top, 1=middle, 2=bottom. */
+export interface CasinoSlotPaylineRules {
+  readonly key: string;
+  readonly name: string;
+  /** One visible row index for each reel, left to right. */
+  readonly rows: readonly number[];
+}
+
+/** 1.2.0-B. A ruleset-pinned video slot with a three-row reel window and selectable paylines. */
 export interface CasinoSlotMachineRules {
   readonly key: string;
   readonly name: string;
   readonly blurb: string;
   readonly venueKinds: readonly CasinoVenueKind[];
-  readonly minWagerCents: number;
-  readonly maxWagerCents: number;
-  readonly wagerStepCents: number;
+  readonly reels: 3 | 4 | 5;
+  readonly rows: 3;
+  readonly minBetPerLineCents: number;
+  readonly maxBetPerLineCents: number;
+  readonly betStepCents: number;
   readonly symbols: readonly CasinoSlotSymbolRules[];
-  /** Return including the stake, in basis points: 10000 = 1.00x. */
-  readonly pairPayoutBps: Readonly<Partial<Record<string, number>>>;
-  /** Return including the stake, in basis points: 10000 = 1.00x. */
-  readonly triplePayoutBps: Readonly<Partial<Record<string, number>>>;
+  readonly paylines: readonly CasinoSlotPaylineRules[];
+  /**
+   * Total return for one winning line, expressed in basis points of that line's bet.
+   * A line pays the longest consecutive same-symbol run from the left, minimum 3 reels.
+   */
+  readonly linePayoutBps: Readonly<Record<string, Readonly<Partial<Record<3 | 4 | 5, number>>>>>;
   readonly progressive?: {
     readonly symbolKey: string;
     readonly seedCents: number;
+    /** Contribution is charged against the whole spin wager. */
     readonly contributionBps: number;
-    readonly eligibleWagerCents: number;
+    readonly eligibleBetPerLineCents: number;
+    readonly requiresAllPaylines: boolean;
   };
 }
 
