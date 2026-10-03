@@ -192,6 +192,34 @@ function ledgerDisplay(entry: {
       tone: net > 0 ? 'positive' : net < 0 ? 'negative' : 'neutral',
     };
   }
+  if (entry.kind === 'BLACKJACK') {
+    const meta = entry.metadata as unknown as {
+      action?: string;
+      tableName?: string;
+      chargeCents?: number;
+      creditedCents?: number;
+      totalWagerCents?: number;
+      totalReturnCents?: number;
+      settled?: boolean;
+      outcomes?: Array<string | null>;
+    };
+    const action = typeof meta.action === 'string' ? meta.action : 'HAND';
+    const tableName = typeof meta.tableName === 'string' ? meta.tableName : 'Blackjack';
+    const charge = typeof meta.chargeCents === 'number' ? meta.chargeCents : 0;
+    const credited = typeof meta.creditedCents === 'number' ? meta.creditedCents : 0;
+    const net = Number(entry.sessionChipDeltaCents);
+    const outcomes = Array.isArray(meta.outcomes) ? meta.outcomes.filter((value): value is string => typeof value === 'string') : [];
+    const summary = outcomes.length ? ' · ' + outcomes.join(' / ').toLowerCase() : '';
+    return {
+      title: action === 'DEAL' ? 'Blackjack at ' + tableName : 'Blackjack · ' + action.toLowerCase(),
+      detail: (charge > 0 ? 'Put up ' + formatLedgerMoney(charge) : 'No extra wager')
+        + (credited > 0 ? ' · returned ' + formatLedgerMoney(credited) : '')
+        + summary,
+      amountLabel: net > 0 ? 'Won' : net < 0 ? 'Wagered' : meta.settled ? 'Push / loss' : 'No change',
+      amountCents: Math.abs(net),
+      tone: net > 0 ? 'positive' : net < 0 ? 'negative' : 'neutral',
+    };
+  }
   return {
     title: 'Casino activity',
     detail: 'Casino balance updated.',
@@ -732,6 +760,10 @@ export const CasinoService = {
       if (session.cityId !== city.id) {
         throw AppError.conflict('CASINO_SESSION_ELSEWHERE', 'Your open bankroll belongs to another casino. Close it before playing here.');
       }
+      const blackjackHand = await tx.casinoBlackjackHand.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { id: true } });
+      if (blackjackHand) {
+        throw AppError.conflict('BLACKJACK_HAND_ACTIVE', 'Finish the current blackjack hand before playing Slots.');
+      }
 
       const bonus = await tx.casinoFreeSpinBonus.findUnique({ where: { roundPlayerId } });
       if (useFreeSpin) {
@@ -866,6 +898,13 @@ export const CasinoService = {
       const session = await tx.casinoSession.findUnique({ where: { id: sessionId }, include: { city: true } });
       if (!session || session.roundPlayerId !== roundPlayerId) throw AppError.notFound('CASINO_SESSION_NOT_FOUND', 'That casino session is not yours.');
       if (session.status !== 'OPEN') throw AppError.conflict('CASINO_SESSION_CLOSED', 'That casino session is already closed.');
+      const activeBlackjack = await tx.casinoBlackjackHand.findFirst({
+        where: { roundPlayerId, sessionId: session.id, status: 'ACTIVE' },
+        select: { id: true },
+      });
+      if (activeBlackjack) {
+        throw AppError.conflict('BLACKJACK_HAND_ACTIVE', 'Finish the current blackjack hand before closing this casino session.');
+      }
 
       const venue = casino.venues[session.city.slug];
       if (!venue) throw AppError.conflict('CASINO_CLOSED', 'That casino venue is not part of this round anymore.');
