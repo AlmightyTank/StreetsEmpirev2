@@ -46,4 +46,9 @@ describe('roulette', () => {
     expect(rouletteSelectionPockets('SPLIT', '1-2', 'AMERICAN')).toEqual(['1','2']);
     expect(() => rouletteSelectionPockets('SPLIT', '1-5', 'AMERICAN')).toThrow();
   });
+
+  it('requires canonical selections so one physical position cannot bypass its limit', () => {
+    expect(() => rouletteSelectionPockets('RED', 'anything-else', 'AMERICAN')).toThrow();
+    expect(() => rouletteSelectionPockets('SPLIT', '2-1', 'AMERICAN')).toThrow();
+  });
 });
