@@ -2185,10 +2185,38 @@ export interface CasinoBlackjackTableRules {
   readonly splitAcesOneCard: boolean;
 }
 
+/** 1.2.0-D. Roulette table limits and wheel style. */
+export type CasinoRouletteWheel = 'AMERICAN' | 'EUROPEAN';
+
+export interface CasinoRouletteTableRules {
+  readonly key: string;
+  readonly name: string;
+  readonly blurb: string;
+  readonly venueKinds: readonly CasinoVenueKind[];
+  readonly wheel: CasinoRouletteWheel;
+  readonly minBetCents: number;
+  readonly maxBetCents: number;
+  readonly betStepCents: number;
+  readonly maxTotalBetCents: number;
+}
+
+/** 1.2.0-D. Street Dice uses a pass-line point cycle with optional true-odds backing. */
+export interface CasinoStreetDiceTableRules {
+  readonly key: string;
+  readonly name: string;
+  readonly blurb: string;
+  readonly venueKinds: readonly CasinoVenueKind[];
+  readonly minBetCents: number;
+  readonly maxBetCents: number;
+  readonly betStepCents: number;
+  readonly maxOddsMultiple: 1 | 2 | 3 | 5;
+}
+
 /**
  * 1.2.0-A. Casino foundation: venues, cashier limits and session bankrolls.
  * 1.2.0-B adds server-authoritative Slots.
  * 1.2.0-C optionally adds reconnect-safe Blackjack.
+ * 1.2.0-D adds Roulette and persistent Street Dice.
  */
 export interface CasinoRules {
   readonly enabled: boolean;
@@ -2207,6 +2235,12 @@ export interface CasinoRules {
   };
   readonly blackjack?: {
     readonly tables: readonly CasinoBlackjackTableRules[];
+  };
+  readonly roulette?: {
+    readonly tables: readonly CasinoRouletteTableRules[];
+  };
+  readonly streetDice?: {
+    readonly tables: readonly CasinoStreetDiceTableRules[];
   };
 }
 export interface Ruleset {
