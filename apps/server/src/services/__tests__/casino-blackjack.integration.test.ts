@@ -161,7 +161,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-C blackjack with Pos
     const { player } = await fixture();
     await openBankroll(player.id);
     const table = classicOgV12C.casino.blackjack.tables[0]!;
-    await rigShoe(player.id, table.key, ['5S', '9H', '6D', '7C', '10S', '5H']);
+    await rigShoe(player.id, table.key, ['5S', '9H', '6D', '7C', '10S', '4H']);
 
     const dealt = await BlackjackService.deal(app.prisma, player.id, {
       tableKey: table.key,
