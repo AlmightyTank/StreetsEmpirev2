@@ -104,7 +104,80 @@ These are ruleset values rather than constants in the service.
 
 
 ### 1.2.0-C — Blackjack
-Server-owned shoe, hit/stand/double/split, table limits, hand history and reconnect-safe hands.
+
+**Status: feature-complete on `feature/1.2.0-c-blackjack`.**
+
+#### Tables and rules
+
+- Three ruleset-pinned blackjack tables:
+  - **Street Blackjack:** $10–$1,000, six-deck shoe, dealer stands on soft 17, available in every casino room.
+  - **Neon Blackjack:** $100–$5,000, four-deck shoe, dealer stands on soft 17, nightlife/private/full rooms.
+  - **Empire High Limit:** $1,000–$25,000, two-deck shoe, dealer hits soft 17, Vegas full-casino only.
+- Natural blackjack pays **3:2**.
+- Hit, Stand, Double and Split are all server-authoritative actions.
+- Exact-rank pairs can split up to four player hands.
+- Double after split is enabled.
+- Split aces receive one card each and then stand.
+- Every table owns ruleset-pinned minimum, maximum and wager step values.
+
+#### Server-owned shoe
+
+- The browser never creates, shuffles or draws a card.
+- Every player/table pair has a persisted server-owned shoe with its exact shuffled card order, cursor and shuffle number.
+- Secure server RNG shuffles the shoe.
+- A cut-card threshold triggers a new shoe **between hands only**. An in-progress hand never changes shoes.
+- The dealer hole card is persisted on the server but hidden from API responses until the hand settles.
+- The UI can display cards remaining and the current shuffle number without revealing the next card.
+
+#### Reconnect-safe hands
+
+- One active blackjack hand is allowed per player.
+- Player hands, dealer cards, split-hand order, wagers, active hand index, shoe cursor and bankroll-after values are persisted in PostgreSQL.
+- Refresh/reconnect restores the exact active hand.
+- Settled hands remain as the last-20 hand history.
+- Every Deal / Hit / Stand / Double / Split action has a durable action receipt. Reusing an action ID replays the saved post-action hand snapshot rather than drawing or charging again.
+- A casino session cannot be closed while a blackjack hand is active.
+- A new Deal requires the boss to be physically at the table. If the boss travels after cards are dealt, the already-started hand can still be finished against its original saved session so it can never become stranded.
+- Slots cannot start a new spin while a blackjack hand is active.
+
+#### Money settlement
+
+- The opening wager is removed from the open casino bankroll when Deal succeeds.
+- Split and Double reserve the additional wager in the same player-locked database transaction as the card action.
+- Dealer play and all hand returns settle atomically after the final player hand is finished.
+- Wins return 2× the hand wager, pushes return 1×, losses return zero, and a natural returns 2.5× at a 3:2 table.
+- Split 21 is a normal 21 rather than a natural blackjack.
+- Casino ledger receipts cover the opening wager plus wager-changing / settling blackjack actions.
+- Chips committed to an unresolved hand remain part of casino/net-worth value until settlement, preventing a live wager from being used to hide ranking value.
+- Blackjack never reads or mutates browser-computed totals or outcomes.
+
+#### Player experience
+
+- Blackjack lives on the existing Casino page underneath Slots and shares the same chips/session bankroll.
+- The table selector shows room availability, limits and deck count.
+- The felt shows the dealer up-card, hidden hole card, every split player hand, totals, wagers, returns and active-hand highlighting.
+- Context-aware Hit / Stand / Double / Split buttons only enable when the persisted hand permits the action.
+- The wager control has + / − / Max controls and enforces posted table increments.
+- The bankroll, total wager, return, net and shoe status stay visible during the hand.
+- Mobile layouts collapse tables and split hands cleanly, with a sticky Deal control above the game navigation.
+- Reduced-motion mode disables card-deal motion without changing gameplay.
+
+#### C invariants
+
+1. The client never shuffles a shoe, selects a card, reveals a hole card, computes an authoritative hand total, settles an outcome or chooses a payout.
+2. A hand always consumes cards from one persisted server-owned shoe.
+3. The cut card can reshuffle only before a new Deal, never during an active hand.
+4. A duplicate action ID never draws a second card, doubles/splits twice or moves bankroll twice.
+5. An opening wager, split wager or double wager is debited only while holding the player lock.
+6. Dealer play starts only after every non-busted player hand has finished.
+7. Natural blackjack is decided from the original two-card hand and pays the pinned blackjack ratio; split 21 does not.
+8. The dealer hole card stays hidden until settlement.
+9. A live blackjack hand blocks session close and new slot spins, but can still be finished if the boss has traveled since Deal.
+10. Committed live wagers remain in casino/net-worth value until the hand settles.
+11. Refreshing or reconnecting cannot change cards, shoe position, hand order, wager or active-hand index.
+12. Settled hand history comes from durable database rows rather than client memory.
+13. Historical B rulesets remain unchanged; Blackjack only exists on the pinned 1.2.0-C ruleset.
+
 
 ### 1.2.0-D — Roulette & Street Dice
 American roulette plus city-flavored dice rooms, both using the same wager ledger.

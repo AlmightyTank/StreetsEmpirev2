@@ -2163,9 +2163,32 @@ export interface CasinoSlotMachineRules {
   };
 }
 
+/** 1.2.0-C. One ruleset-pinned blackjack table. */
+export interface CasinoBlackjackTableRules {
+  readonly key: string;
+  readonly name: string;
+  readonly blurb: string;
+  readonly venueKinds: readonly CasinoVenueKind[];
+  readonly minBetCents: number;
+  readonly maxBetCents: number;
+  readonly betStepCents: number;
+  readonly decks: 1 | 2 | 4 | 6 | 8;
+  /** Cut card expressed as cards remaining. A new shoe starts between hands. */
+  readonly reshuffleAtRemainingCards: number;
+  readonly dealerHitsSoft17: boolean;
+  readonly blackjackPayout: {
+    readonly numerator: number;
+    readonly denominator: number;
+  };
+  readonly allowDoubleAfterSplit: boolean;
+  readonly maxSplitHands: 2 | 3 | 4;
+  readonly splitAcesOneCard: boolean;
+}
+
 /**
  * 1.2.0-A. Casino foundation: venues, cashier limits and session bankrolls.
- * 1.2.0-B optionally adds server-authoritative Slots.
+ * 1.2.0-B adds server-authoritative Slots.
+ * 1.2.0-C optionally adds reconnect-safe Blackjack.
  */
 export interface CasinoRules {
   readonly enabled: boolean;
@@ -2181,6 +2204,9 @@ export interface CasinoRules {
   readonly venues: Readonly<Record<string, CasinoVenueRules>>;
   readonly slots?: {
     readonly machines: readonly CasinoSlotMachineRules[];
+  };
+  readonly blackjack?: {
+    readonly tables: readonly CasinoBlackjackTableRules[];
   };
 }
 export interface Ruleset {
