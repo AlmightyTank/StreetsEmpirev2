@@ -180,7 +180,52 @@ These are ruleset values rather than constants in the service.
 
 
 ### 1.2.0-D — Roulette & Street Dice
-American roulette plus city-flavored dice rooms, both using the same wager ledger.
+
+**Status: implemented on `feature/1.2.0-d-roulette-street-dice`.**
+
+#### Roulette
+
+- Roulette is server-authoritative and uses the same open casino bankroll as Slots and Blackjack.
+- **Street Roulette** is an American double-zero wheel available throughout the casino network.
+- **European Roulette** is a single-zero private/full-room table.
+- **Empire High Limit** is a Vegas-only single-zero table with larger posted limits.
+- Players can cover straight-up numbers, splits, streets, corners, six lines, dozens, columns, red/black, odd/even and low/high.
+- The server validates every position, posted chip increment, per-position limit and total-table limit before resolving a spin.
+- Secure server RNG chooses the winning pocket from the ruleset-pinned wheel order.
+- Standard returns include the original wager: straight 36×, split 18×, street 12×, corner 9×, six line 6×, dozen/column 3× and even-money bets 2×.
+- Every spin is written to the shared casino ledger with the exact table, wheel, pocket, bets, returns and bankroll-after value.
+- Retrying the same action ID replays the stored spin rather than selecting another pocket or charging again.
+- The player UI includes a real number/outside-bet layout, selectable chips, inside-combination builder, recent-pocket strip, animated wheel and a mobile sticky Spin control.
+
+#### Street Dice
+
+- Street Dice is a city-flavored **pass-line point game** using real craps come-out and point rules.
+- Come-out 7/11 wins; 2/3/12 loses; 4/5/6/8/9/10 establishes the point.
+- Once a point is on, making the point before a 7 wins; rolling 7 first loses.
+- Players can back a live point with optional server-authoritative **true odds**:
+  - 4/10 pay 2:1.
+  - 5/9 pay 3:2.
+  - 6/8 pay 6:5.
+- Street Dice supports a broad low-limit table plus a higher-stakes Back Room table with larger odds multiples.
+- A live point is persisted in PostgreSQL with the original session/city, line wager, odds wager, point, last dice, roll count and bankroll snapshot.
+- Refresh/reconnect restores the exact point. The point can still be finished if the boss has traveled since the come-out roll so chips cannot become stranded.
+- Start, Roll and Add Odds each have durable retry receipts. Every roll also has a shared casino-ledger receipt, including no-decision rolls.
+- Active line/odds wagers remain part of casino/net-worth value until the point resolves.
+- A live Street Dice point blocks session close and new Slots, Blackjack or Roulette play until it settles.
+- The mobile UI keeps the point, dice, bankroll, line/odds exposure and Roll control compact above the game navigation.
+
+#### D invariants
+
+1. The browser never chooses a roulette pocket, dice result, payout or authoritative point state.
+2. A duplicate action ID never spins a second wheel, rolls a second pair of dice or moves bankroll twice.
+3. Roulette validates the complete bet layout on the server before any bankroll mutation.
+4. Zero/double-zero lose all even-money, dozen and column bets normally.
+5. Street Dice line and odds wagers are removed from the bankroll only while holding the player lock.
+6. True odds use the pinned point payout and do not carry a house-edge multiplier.
+7. An unresolved point is reconnect-safe and remains tied to its original open casino session.
+8. Committed Street Dice wagers stay included in total casino value until settlement.
+9. A live Street Dice point cannot be bypassed by switching to another casino game or closing the bankroll.
+10. Historical A/B/C rulesets remain unchanged; Roulette and Street Dice only exist on the pinned 1.2.0-D ruleset.
 
 ### 1.2.0-E — High Rollers & City Identity
 Casino status, VIP rooms, Boss Trips hooks and Casino Front integration without changing odds.
