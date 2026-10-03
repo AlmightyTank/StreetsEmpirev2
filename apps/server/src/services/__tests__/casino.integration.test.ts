@@ -5,6 +5,7 @@ import { classicOgV12A } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
 import { CasinoService } from '../casino.service.js';
 import { ReputationService } from '../reputation.service.js';
+import { refreshAwayWorth } from '../run-settle.service.js';
 
 describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-A casino foundation with PostgreSQL', () => {
   let app: FastifyInstance;
@@ -73,6 +74,60 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-A casino foundation 
     expect(fresh.cashCents).toBe(1_900_000n);
     expect(wallet.chipsCents).toBe(100_000n);
     expect(receipts).toBe(1);
+  });
+
+  it('charges and redeems against the bankroll the boss actually carried on a flight', async () => {
+    const player = await fixture();
+    const now = new Date();
+    const trip = await app.prisma.bossTrip.create({
+      data: {
+        roundPlayerId: player.id,
+        homeCity: 'new-york-city',
+        city: 'las-vegas',
+        bankrollCents: 250_000n,
+        startBankrollCents: 250_000n,
+        ticketCents: 0n,
+        hotelCents: 0n,
+        turnsSpent: 0,
+        departedAt: new Date(now.getTime() - 2 * 3_600_000),
+        arrivesAt: new Date(now.getTime() - 60 * 60_000),
+        stayUntil: new Date(now.getTime() + 60 * 60_000),
+        returnsAt: new Date(now.getTime() + 2 * 3_600_000),
+      },
+    });
+    await app.prisma.$transaction((tx) => refreshAwayWorth(tx, player.id, classicOgV12A));
+
+    const bought = await CasinoService.buyChips(app.prisma, player.id, {
+      amountCents: 100_000,
+      actionId: randomUUID(),
+    });
+    const afterBuy = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: player.id } });
+    const tripAfterBuy = await app.prisma.bossTrip.findUniqueOrThrow({ where: { id: trip.id } });
+    const vegas = await app.prisma.city.findUniqueOrThrow({ where: { slug: 'las-vegas' } });
+    const walletAfterBuy = await app.prisma.casinoWallet.findUniqueOrThrow({
+      where: { roundPlayerId_cityId: { roundPlayerId: player.id, cityId: vegas.id } },
+    });
+
+    expect(afterBuy.cashCents).toBe(2_000_000n);
+    expect(tripAfterBuy.bankrollCents).toBe(150_000n);
+    expect(walletAfterBuy.chipsCents).toBe(100_000n);
+    expect(bought.cashCents).toBe(150_000);
+    expect(bought.currentCitySlug).toBe('las-vegas');
+
+    const redeemed = await CasinoService.redeemChips(app.prisma, player.id, {
+      amountCents: 50_000,
+      actionId: randomUUID(),
+    });
+    const afterRedeem = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: player.id } });
+    const tripAfterRedeem = await app.prisma.bossTrip.findUniqueOrThrow({ where: { id: trip.id } });
+    const walletAfterRedeem = await app.prisma.casinoWallet.findUniqueOrThrow({
+      where: { roundPlayerId_cityId: { roundPlayerId: player.id, cityId: vegas.id } },
+    });
+
+    expect(afterRedeem.cashCents).toBe(2_000_000n);
+    expect(tripAfterRedeem.bankrollCents).toBe(200_000n);
+    expect(walletAfterRedeem.chipsCents).toBe(50_000n);
+    expect(redeemed.cashCents).toBe(200_000);
   });
 
   it('moves chips into one bankroll and returns them to the same city wallet on close', async () => {
