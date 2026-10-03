@@ -22,7 +22,7 @@ A deliberately ships no resolved gambling game. It builds the money and presence
 - Dollar-for-dollar cash ↔ chip exchange.
 - One open session bankroll per player.
 - Closing a session is always allowed so a bankroll can never be stranded by travel.
-- Chips in wallets and an open bankroll remain part of net worth at face value.
+- Chips in wallets and an open bankroll remain part of net worth at the normal cash valuation, so cage transfers cannot change ranking value.
 - Immutable casino ledger receipts for buy, redeem, session open and session close.
 - Every money-moving call uses a client action ID; retries replay instead of charging twice.
 - Player Casino page, mobile layout, city balances and recent casino ledger.
