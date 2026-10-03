@@ -122,7 +122,7 @@ export function CasinoPage() {
             <p>Buy chips at the cage, set a session bankroll, and keep each city&rsquo;s action separate. Games arrive in the next slices.</p>
           </div>
           <div className="se-casino__readout">
-            <span><small>Cash</small><strong>{data ? formatCents(data.cashCents) : '—'}</strong></span>
+            <span><small>Cash here</small><strong>{data ? formatCents(data.cashCents) : '—'}</strong></span>
             <span><small>Casino value</small><strong>{data ? formatCents(data.totalCasinoValueCents) : '—'}</strong></span>
             <span><small>Boss</small><strong>{data?.currentVenue?.cityName ?? (data ? 'On the road' : '—')}</strong></span>
           </div>
