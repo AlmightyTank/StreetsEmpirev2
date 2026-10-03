@@ -220,6 +220,54 @@ function ledgerDisplay(entry: {
       tone: net > 0 ? 'positive' : net < 0 ? 'negative' : 'neutral',
     };
   }
+  if (entry.kind === 'ROULETTE') {
+    const meta = entry.metadata as unknown as {
+      tableName?: string;
+      pocket?: string;
+      wagerCents?: number;
+      returnCents?: number;
+    };
+    const tableName = typeof meta.tableName === 'string' ? meta.tableName : 'Roulette';
+    const pocket = typeof meta.pocket === 'string' ? meta.pocket : '?';
+    const wager = typeof meta.wagerCents === 'number' ? meta.wagerCents : 0;
+    const returned = typeof meta.returnCents === 'number' ? meta.returnCents : 0;
+    const net = Number(entry.sessionChipDeltaCents);
+    return {
+      title: 'Roulette at ' + tableName,
+      detail: 'Pocket ' + pocket + ' · bet ' + formatLedgerMoney(wager) + ' · returned ' + formatLedgerMoney(returned),
+      amountLabel: net > 0 ? 'Won' : net < 0 ? 'Lost' : 'Push',
+      amountCents: Math.abs(net),
+      tone: net > 0 ? 'positive' : net < 0 ? 'negative' : 'neutral',
+    };
+  }
+  if (entry.kind === 'STREET_DICE') {
+    const meta = entry.metadata as unknown as {
+      action?: string;
+      tableName?: string;
+      point?: number | null;
+      total?: number | null;
+      outcome?: string | null;
+      chargeCents?: number;
+      creditedCents?: number;
+    };
+    const tableName = typeof meta.tableName === 'string' ? meta.tableName : 'Street Dice';
+    const action = typeof meta.action === 'string' ? meta.action : 'ROLL';
+    const charge = typeof meta.chargeCents === 'number' ? meta.chargeCents : 0;
+    const credited = typeof meta.creditedCents === 'number' ? meta.creditedCents : 0;
+    const net = Number(entry.sessionChipDeltaCents);
+    const roll = typeof meta.total === 'number' ? ' · rolled ' + meta.total : '';
+    const point = typeof meta.point === 'number' ? ' · point ' + meta.point : '';
+    const outcome = typeof meta.outcome === 'string' ? ' · ' + meta.outcome.toLowerCase() : '';
+    return {
+      title: action === 'START' ? 'Street Dice at ' + tableName : action === 'ADD_ODDS' ? 'Street Dice · odds' : 'Street Dice · roll',
+      detail: (charge > 0 ? 'Put up ' + formatLedgerMoney(charge) : 'No extra wager')
+        + (credited > 0 ? ' · returned ' + formatLedgerMoney(credited) : '')
+        + roll + point + outcome,
+      amountLabel: net > 0 ? 'Won' : net < 0 ? 'Wagered' : 'No change',
+      amountCents: Math.abs(net),
+      tone: net > 0 ? 'positive' : net < 0 ? 'negative' : 'neutral',
+    };
+  }
   return {
     title: 'Casino activity',
     detail: 'Casino balance updated.',
@@ -376,7 +424,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
   const currentCitySlug = cashLocation?.citySlug ?? null;
   const citySlugs = Object.keys(casino.venues);
   const slotRules = casino.slots?.machines ?? [];
-  const [cities, wallets, openSession, ledger, jackpots, freeSpinBonusRow, blackjackCommitted] = await Promise.all([
+  const [cities, wallets, openSession, ledger, jackpots, freeSpinBonusRow, blackjackCommitted, streetDiceCommitted] = await Promise.all([
     db.city.findMany({ where: { slug: { in: citySlugs }, isEnabled: true }, orderBy: { sortOrder: 'asc' } }),
     db.casinoWallet.findMany({ where: { roundPlayerId }, include: { city: true } }),
     db.casinoSession.findFirst({
@@ -397,6 +445,10 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     db.casinoBlackjackHand.aggregate({
       where: { roundPlayerId, status: 'ACTIVE' },
       _sum: { committedWagerCents: true },
+    }),
+    db.casinoStreetDiceRound.aggregate({
+      where: { roundPlayerId, status: 'ACTIVE' },
+      _sum: { lineWagerCents: true, oddsWagerCents: true },
     }),
   ]);
 
@@ -509,6 +561,8 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
   const walletTotal = wallets.reduce((sum, wallet) => sum + wallet.chipsCents, 0n);
   const sessionTotal = openSession?.bankrollCents ?? 0n;
   const blackjackCommittedTotal = blackjackCommitted._sum.committedWagerCents ?? 0n;
+  const streetDiceCommittedTotal =
+    (streetDiceCommitted._sum.lineWagerCents ?? 0n) + (streetDiceCommitted._sum.oddsWagerCents ?? 0n);
 
   return {
     enabled: true,
@@ -520,7 +574,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     slotMachines,
     freeSpinBonus,
     recentLedger,
-    totalCasinoValueCents: Number(walletTotal + sessionTotal + blackjackCommittedTotal),
+    totalCasinoValueCents: Number(walletTotal + sessionTotal + blackjackCommittedTotal + streetDiceCommittedTotal),
     limits: {
       chipUnitCents: casino.chipUnitCents,
       cashierMinCents: casino.cashier.minExchangeCents,
@@ -781,9 +835,15 @@ export const CasinoService = {
       if (session.cityId !== city.id) {
         throw AppError.conflict('CASINO_SESSION_ELSEWHERE', 'Your open bankroll belongs to another casino. Close it before playing here.');
       }
-      const blackjackHand = await tx.casinoBlackjackHand.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { id: true } });
+      const [blackjackHand, streetDiceRound] = await Promise.all([
+        tx.casinoBlackjackHand.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { id: true } }),
+        tx.casinoStreetDiceRound.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { id: true } }),
+      ]);
       if (blackjackHand) {
         throw AppError.conflict('BLACKJACK_HAND_ACTIVE', 'Finish the current blackjack hand before playing Slots.');
+      }
+      if (streetDiceRound) {
+        throw AppError.conflict('STREET_DICE_ACTIVE', 'Finish the current Street Dice point before playing Slots.');
       }
 
       const bonus = await tx.casinoFreeSpinBonus.findUnique({ where: { roundPlayerId } });
@@ -925,6 +985,13 @@ export const CasinoService = {
       });
       if (activeBlackjack) {
         throw AppError.conflict('BLACKJACK_HAND_ACTIVE', 'Finish the current blackjack hand before closing this casino session.');
+      }
+      const activeStreetDice = await tx.casinoStreetDiceRound.findFirst({
+        where: { roundPlayerId, sessionId: session.id, status: 'ACTIVE' },
+        select: { id: true },
+      });
+      if (activeStreetDice) {
+        throw AppError.conflict('STREET_DICE_ACTIVE', 'Finish the current Street Dice point before closing this casino session.');
       }
 
       const venue = casino.venues[session.city.slug];
