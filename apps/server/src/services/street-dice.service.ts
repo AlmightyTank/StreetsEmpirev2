@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import type { Prisma, PrismaClient, RoundPlayer } from '@prisma/client';
+import type { CasinoSession, CasinoStreetDiceRound, Prisma, PrismaClient, RoundPlayer } from '@prisma/client';
 import {
   loadRulesetForRound,
   rollStreetDice,
@@ -321,9 +321,9 @@ async function activeActionPrelude(
 ): Promise<{
   now: Date;
   run: (tx: Db) => Promise<{
-    row: Awaited<ReturnType<Db['casinoStreetDiceRound']['findUnique']>> & {};
+    row: CasinoStreetDiceRound;
     table: CasinoStreetDiceTableRules;
-    session: NonNullable<Awaited<ReturnType<Db['casinoSession']['findUnique']>>>;
+    session: CasinoSession;
     replay: CasinoStreetDiceRoundDto | null;
   }>;
 }> {
