@@ -7,10 +7,20 @@ import {
   blackjackHandValue,
   blackjackReturnCents,
   buildBlackjackShoe,
+  loadRuleset,
   seededRng,
 } from '../index.js';
 
 describe('1.2.0-C blackjack math', () => {
+  it('registers the C ruleset without changing B', () => {
+    expect(loadRuleset('classic-og-v1.2-c', '1.2.0-C')).toBe(classicOgV12C);
+    expect(classicOgV12C.casino.blackjack.tables.map((table) => table.key)).toEqual([
+      'STREET_BLACKJACK',
+      'NEON_BLACKJACK',
+      'EMPIRE_HIGH_LIMIT',
+    ]);
+  });
+
   it('builds deterministic server-owned shoes with the configured deck count', () => {
     const first = buildBlackjackShoe(6, seededRng(1203));
     const second = buildBlackjackShoe(6, seededRng(1203));
