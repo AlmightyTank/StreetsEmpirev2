@@ -28,6 +28,8 @@ export * from './calculations/rackets.js';
 export * from './calculations/block-wars.js';
 export * from './calculations/slots.js';
 export * from './calculations/blackjack.js';
+export * from './calculations/roulette.js';
+export * from './calculations/street-dice.js';
 export * from './simulations/combat.js';
 export * from './rng.js';
 export type { Ruleset } from '@streets/rulesets';
