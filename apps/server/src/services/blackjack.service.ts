@@ -509,7 +509,7 @@ async function mutateActiveHand(
       throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a different casino action.');
     }
 
-    const { player, ruleset, casino } = await playerAndRules(tx, roundPlayerId);
+    const { ruleset } = await playerAndRules(tx, roundPlayerId);
     const row = await tx.casinoBlackjackHand.findUnique({ where: { id: input.handId } });
     if (!row || row.roundPlayerId !== roundPlayerId) {
       throw AppError.notFound('BLACKJACK_HAND_NOT_FOUND', 'That blackjack hand is not yours.');
@@ -517,9 +517,17 @@ async function mutateActiveHand(
     if (row.status !== 'ACTIVE') throw AppError.conflict('BLACKJACK_HAND_SETTLED', 'That blackjack hand is already settled.');
 
     const table = tableFor(ruleset, row.tableKey);
-    const { city, session } = await requireTableSession(tx, player, ruleset, casino, table, now);
-    if (session.id !== row.sessionId || city.id !== row.cityId) {
-      throw AppError.conflict('BLACKJACK_SESSION_CHANGED', 'Finish this hand at the casino session where it started.');
+    // A hand that was already dealt must never become stranded because the boss
+    // traveled. New deals require physical casino presence; follow-up actions
+    // stay attached to the exact open session/city where the hand began.
+    const session = await tx.casinoSession.findUnique({ where: { id: row.sessionId } });
+    if (
+      !session
+      || session.roundPlayerId !== roundPlayerId
+      || session.status !== 'OPEN'
+      || session.cityId !== row.cityId
+    ) {
+      throw AppError.conflict('BLACKJACK_SESSION_CHANGED', 'The casino bankroll that owns this blackjack hand is no longer open.');
     }
 
     const hands = parseHands(row.playerHands);
@@ -637,11 +645,11 @@ async function mutateActiveHand(
     });
 
     const dto = handDto(updated, table);
-    const wallet = await walletAfter(tx, roundPlayerId, city.id);
+    const wallet = await walletAfter(tx, roundPlayerId, row.cityId);
     if (chargeCents > 0n || settled) {
       await recordLedger(tx, {
         roundPlayerId,
-        cityId: city.id,
+        cityId: row.cityId,
         sessionId: session.id,
         actionId: input.actionId,
         sessionDeltaCents: creditedCents - chargeCents,
