@@ -1170,6 +1170,8 @@ model RoundPlayer {
   casinoBlackjackShoes   CasinoBlackjackShoe[]
   casinoBlackjackHands   CasinoBlackjackHand[]
   casinoBlackjackActions CasinoBlackjackAction[]
+  casinoStreetDiceRounds  CasinoStreetDiceRound[]
+  casinoStreetDiceActions CasinoStreetDiceAction[]
   /// 1.1.0-C. The crew's live rackets, racket key -> strength (0..1], rebuilt on every
   /// business settle so any system can read them off the player row.
   racketEffects        Json      @default("{}")
@@ -2586,6 +2588,57 @@ model CasinoBlackjackAction {
 
   @@unique([roundPlayerId, actionId])
   @@index([handId, createdAt])
+}
+
+/// 1.2.0-D. One reconnect-safe Street Dice pass-line cycle.
+/// The line and odds wagers stay committed until the point resolves.
+model CasinoStreetDiceRound {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  sessionId String
+  cityId    String
+  tableKey  String
+  status    String @default("ACTIVE")
+
+  lineWagerCents BigInt
+  oddsWagerCents BigInt @default(0)
+  point           Int?
+  lastDice        Json @default("[]")
+  lastOutcome     String?
+  rollCount       Int @default(0)
+
+  totalReturnCents  BigInt @default(0)
+  bankrollAfterCents BigInt @default(0)
+
+  initialActionId String
+  settledAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, initialActionId])
+  @@index([roundPlayerId, status, createdAt(sort: Desc)])
+  @@index([sessionId, status])
+  @@index([cityId, createdAt(sort: Desc)])
+}
+
+/// Idempotency receipt for Street Dice start / roll / odds actions.
+model CasinoStreetDiceAction {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  diceRoundId String
+  actionId    String
+  kind        String
+  response    Json
+  createdAt   DateTime @default(now())
+
+  @@unique([roundPlayerId, actionId])
+  @@index([diceRoundId, createdAt])
 }
 
 /// Immutable retry receipt for every casino money movement.
