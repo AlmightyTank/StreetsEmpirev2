@@ -587,6 +587,13 @@ async function mutate(
       select: { id: true },
     });
     if (replay) return pageInDb(tx, roundPlayerId, now);
+    const blackjackReceipt = await tx.casinoBlackjackAction.findUnique({
+      where: { roundPlayerId_actionId: { roundPlayerId, actionId } },
+      select: { id: true },
+    });
+    if (blackjackReceipt) {
+      throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a blackjack action.');
+    }
 
     const { player, ruleset, casino } = await playerAndCasino(tx, roundPlayerId);
     await execute(tx, player, ruleset, casino, now);
@@ -726,6 +733,15 @@ export const CasinoService = {
       const replay = await tx.casinoLedgerEntry.findUnique({
         where: { roundPlayerId_actionId: { roundPlayerId, actionId: input.actionId } },
       });
+      if (!replay) {
+        const blackjackReceipt = await tx.casinoBlackjackAction.findUnique({
+          where: { roundPlayerId_actionId: { roundPlayerId, actionId: input.actionId } },
+          select: { id: true },
+        });
+        if (blackjackReceipt) {
+          throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a blackjack action.');
+        }
+      }
       if (replay) {
         if (replay.kind !== 'SLOT_SPIN') {
           throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a different casino action.');
