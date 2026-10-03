@@ -267,6 +267,7 @@ async function mutate(
 
     const { player, ruleset, casino } = await playerAndCasino(tx, roundPlayerId);
     await execute(tx, player, ruleset, casino, now);
+    await PlayerStateService.settleInTransaction(tx, roundPlayerId, { now, markActive: true });
     return pageInDb(tx, roundPlayerId, now);
   });
 }
@@ -310,6 +311,12 @@ export const CasinoService = {
       const amount = BigInt(input.amountCents);
       assertAmount(casino, amount, casino.cashier.minExchangeCents, casino.cashier.maxExchangeCents);
       const { city, venue, cashLocation } = await currentVenue(tx, ruleset, casino, player, now);
+      if (cashLocation.kind === 'TRIP') {
+        const carryOnCapCents = ruleset.travel?.trips?.carryOnCapCents;
+        if (carryOnCapCents !== undefined && cashLocation.cashCents + amount > BigInt(carryOnCapCents)) {
+          throw AppError.conflict('OVER_CARRY_ON', 'Redeeming that many chips would put the boss over the flight carry-on cash limit.');
+        }
+      }
       const wallet = await tx.casinoWallet.findUnique({ where: { roundPlayerId_cityId: { roundPlayerId, cityId: city.id } } });
       if (!wallet || wallet.chipsCents < amount) throw AppError.conflict('NOT_ENOUGH_CHIPS', 'You do not have that many chips at this cage.');
 
