@@ -1039,7 +1039,7 @@ export function CasinoPage() {
                           {entry.display.tone === 'positive' ? '+' : entry.display.tone === 'negative' ? '−' : ''}
                           {formatCents(entry.display.amountCents)}
                         </strong>
-                        {entry.kind === 'SLOT_SPIN' ? (
+                        {entry.kind === 'SLOT_SPIN' || entry.kind === 'BLACKJACK' || entry.kind === 'ROULETTE' || entry.kind === 'STREET_DICE' ? (
                           <span>Floor {formatCents(entry.sessionChipsAfterCents)}</span>
                         ) : entry.kind === 'BUY_CHIPS' || entry.kind === 'REDEEM_CHIPS' ? (
                           <span>Wallet {formatCents(entry.walletChipsAfterCents)}</span>
