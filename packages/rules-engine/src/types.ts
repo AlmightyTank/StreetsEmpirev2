@@ -26,7 +26,7 @@ export interface NetWorthInput {
   postedNetWorthCents?: bigint | number;
   /** 0.6.0-D. Cash, beer and product stored in away outpost boxes. */
   outpostNetWorthCents?: bigint | number;
-  /** 1.2.0-A. Chips in city wallets plus any open casino bankroll, already cash-valued. */
+  /** 1.2.0-A. Raw cash-equivalent chips in city wallets plus any open casino bankroll; the calculator applies the cash weight. */
   casinoNetWorthCents?: bigint | number;
 }
 
