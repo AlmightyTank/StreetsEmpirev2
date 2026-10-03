@@ -376,7 +376,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
   const currentCitySlug = cashLocation?.citySlug ?? null;
   const citySlugs = Object.keys(casino.venues);
   const slotRules = casino.slots?.machines ?? [];
-  const [cities, wallets, openSession, ledger, jackpots, freeSpinBonusRow] = await Promise.all([
+  const [cities, wallets, openSession, ledger, jackpots, freeSpinBonusRow, blackjackCommitted] = await Promise.all([
     db.city.findMany({ where: { slug: { in: citySlugs }, isEnabled: true }, orderBy: { sortOrder: 'asc' } }),
     db.casinoWallet.findMany({ where: { roundPlayerId }, include: { city: true } }),
     db.casinoSession.findFirst({
@@ -394,6 +394,10 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
       where: { roundId: player.roundId, machineKey: { in: slotRules.map((machine) => machine.key) } },
     }),
     db.casinoFreeSpinBonus.findUnique({ where: { roundPlayerId } }),
+    db.casinoBlackjackHand.aggregate({
+      where: { roundPlayerId, status: 'ACTIVE' },
+      _sum: { committedWagerCents: true },
+    }),
   ]);
 
   const walletByCity = new Map(wallets.map((wallet) => [wallet.city.slug, wallet.chipsCents]));
@@ -504,6 +508,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
 
   const walletTotal = wallets.reduce((sum, wallet) => sum + wallet.chipsCents, 0n);
   const sessionTotal = openSession?.bankrollCents ?? 0n;
+  const blackjackCommittedTotal = blackjackCommitted._sum.committedWagerCents ?? 0n;
 
   return {
     enabled: true,
@@ -515,7 +520,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     slotMachines,
     freeSpinBonus,
     recentLedger,
-    totalCasinoValueCents: Number(walletTotal + sessionTotal),
+    totalCasinoValueCents: Number(walletTotal + sessionTotal + blackjackCommittedTotal),
     limits: {
       chipUnitCents: casino.chipUnitCents,
       cashierMinCents: casino.cashier.minExchangeCents,
