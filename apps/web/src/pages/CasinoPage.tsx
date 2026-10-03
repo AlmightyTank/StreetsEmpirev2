@@ -474,6 +474,16 @@ export function CasinoPage() {
                       setDisplayedWinCents(0);
                       spinAction.current = newActionId();
                     };
+                    const setPaylines = (nextKeys: string[]) => {
+                      setSelectedPaylineKeys(nextKeys);
+                      setLastSpin(null);
+                      setDisplayedWinCents(0);
+                      spinAction.current = newActionId();
+                    };
+                    const setPaylineCount = (nextCount: number) => {
+                      const bounded = Math.max(1, Math.min(machine.paylines.length, nextCount));
+                      setPaylines(machine.paylines.slice(0, bounded).map((line) => line.key));
+                    };
 
                     return (
                       <div className={'se-slots__stage se-slots__stage--' + cabinetTone}>
@@ -599,6 +609,63 @@ export function CasinoPage() {
                             ) : null}
                           </div>
 
+                        </div>
+
+                        <div className="se-slots__controls">
+                          <form className={'se-casino__form se-slots__form' + (bonusActive ? ' is-free-spin' : '')} onSubmit={spinSlots}>
+                            <div className="se-slots__bet-control">
+                              <span>Bet per line ($)</span>
+                              <div className="se-slots__bet-stepper">
+                                <button
+                                  type="button"
+                                  className="se-btn se-btn--ghost"
+                                  disabled={busy !== null || bonusActive}
+                                  aria-label="Decrease bet per line"
+                                  onClick={() => setLineBet((lineBetCents ?? machine.minBetPerLineCents) - machine.betStepCents)}
+                                >−</button>
+                                <input
+                                  className="se-input"
+                                  inputMode="decimal"
+                                  value={bonusActive ? String(bonus!.betPerLineCents / 100) : slotBetPerLine}
+                                  disabled={busy !== null || bonusActive}
+                                  onChange={(event) => {
+                                    setSlotBetPerLine(event.target.value);
+                                    setLastSpin(null);
+                                    setDisplayedWinCents(0);
+                                    spinAction.current = newActionId();
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  className="se-btn se-btn--ghost"
+                                  disabled={busy !== null || bonusActive}
+                                  aria-label="Increase bet per line"
+                                  onClick={() => setLineBet((lineBetCents ?? machine.minBetPerLineCents) + machine.betStepCents)}
+                                >+</button>
+                                <button
+                                  type="button"
+                                  className="se-btn se-btn--ghost"
+                                  disabled={busy !== null || bonusActive}
+                                  onClick={() => {
+                                    setLineBet(machine.maxBetPerLineCents);
+                                    setPaylines(machine.paylines.map((line) => line.key));
+                                  }}
+                                >Max bet</button>
+                              </div>
+                            </div>
+                            <p className="se-hint">
+                              {selectedLines.length} line{selectedLines.length === 1 ? '' : 's'} × {lineBetCents ? formatCents(lineBetCents) : '—'}
+                              {' = '}<strong>{totalWagerCents ? formatCents(totalWagerCents) : '—'} {bonusActive ? 'covered spin' : 'total spin'}</strong>
+                            </p>
+                            <Button className="se-btn se-slots__spin-button" type="submit" disabledReason={disabledReason}>
+                              {busy === 'spin'
+                                ? 'Spinning...'
+                                : bonusActive
+                                  ? 'FREE SPIN · ' + bonus!.remainingSpins
+                                  : 'SPIN REELS'}
+                            </Button>
+                          </form>
+
                           <div className="se-slots__meter">
                             <span><small>Credits</small><strong>{displayedCreditsCents !== null ? formatCents(displayedCreditsCents) : data.openSession ? formatCents(data.openSession.bankrollCents) : '—'}</strong></span>
                             <span><small>Lines</small><strong>{selectedLines.length}/{machine.paylines.length}</strong></span>
@@ -608,102 +675,52 @@ export function CasinoPage() {
                           </div>
                         </div>
 
-                        <form className={'se-casino__form se-slots__form' + (bonusActive ? ' is-free-spin' : '')} onSubmit={spinSlots}>
-                          <div className="se-slots__bet-control">
-                            <span>Bet per line ($)</span>
-                            <div className="se-slots__bet-stepper">
-                              <button
-                                type="button"
-                                className="se-btn se-btn--ghost"
-                                disabled={busy !== null || bonusActive}
-                                aria-label="Decrease bet per line"
-                                onClick={() => setLineBet((lineBetCents ?? machine.minBetPerLineCents) - machine.betStepCents)}
-                              >−</button>
-                              <input
-                                className="se-input"
-                                inputMode="decimal"
-                                value={bonusActive ? String(bonus!.betPerLineCents / 100) : slotBetPerLine}
-                                disabled={busy !== null || bonusActive}
-                                onChange={(event) => {
-                                  setSlotBetPerLine(event.target.value);
-                                  setLastSpin(null);
-                                  setDisplayedWinCents(0);
-                                  spinAction.current = newActionId();
-                                }}
-                              />
-                              <button
-                                type="button"
-                                className="se-btn se-btn--ghost"
-                                disabled={busy !== null || bonusActive}
-                                aria-label="Increase bet per line"
-                                onClick={() => setLineBet((lineBetCents ?? machine.minBetPerLineCents) + machine.betStepCents)}
-                              >+</button>
-                              <button
-                                type="button"
-                                className="se-btn se-btn--ghost"
-                                disabled={busy !== null || bonusActive}
-                                onClick={() => {
-                                  setLineBet(machine.maxBetPerLineCents);
-                                  setSelectedPaylineKeys(machine.paylines.map((line) => line.key));
-                                }}
-                              >Max bet</button>
-                            </div>
-                          </div>
-                          <p className="se-hint">
-                            {selectedLines.length} line{selectedLines.length === 1 ? '' : 's'} × {lineBetCents ? formatCents(lineBetCents) : '—'}
-                            {' = '}<strong>{totalWagerCents ? formatCents(totalWagerCents) : '—'} {bonusActive ? 'covered spin' : 'total spin'}</strong>
-                          </p>
-                          <Button className="se-btn se-slots__spin-button" type="submit" disabledReason={disabledReason}>
-                            {busy === 'spin'
-                              ? 'Spinning...'
-                              : bonusActive
-                                ? 'FREE SPIN · ' + bonus!.remainingSpins
-                                : 'SPIN REELS'}
-                          </Button>
-                        </form>
-
                         <div className="se-slots__payline-panel">
                           <div className="se-slots__payline-head">
                             <div>
                               <strong>Active paylines</strong>
                               <small>{bonusActive ? 'Locked to the wager that earned the bonus.' : 'Pick the exact lines you want to cover.'}</small>
                             </div>
-                            <div className="se-slots__presets">
-                              <button
-                                type="button"
-                                className="se-btn se-btn--ghost"
-                                disabled={busy !== null || bonusActive}
-                                onClick={() => {
-                                  setSelectedPaylineKeys([machine.paylines[0]!.key]);
-                                  setLastSpin(null);
-                                  setDisplayedWinCents(0);
-                                  spinAction.current = newActionId();
-                                }}
-                              >1 line</button>
-                              {machine.paylines.length >= 5 ? (
+                            <div className="se-slots__line-tools">
+                              <div className="se-slots__line-stepper" role="group" aria-label="Adjust active paylines">
+                                <button
+                                  type="button"
+                                  className="se-btn se-btn--ghost"
+                                  disabled={busy !== null || bonusActive || selectedLines.length <= 1}
+                                  aria-label="Decrease active paylines"
+                                  onClick={() => setPaylineCount(selectedLines.length - 1)}
+                                >−</button>
+                                <span><strong>{selectedLines.length}</strong><small>lines</small></span>
+                                <button
+                                  type="button"
+                                  className="se-btn se-btn--ghost"
+                                  disabled={busy !== null || bonusActive || selectedLines.length >= machine.paylines.length}
+                                  aria-label="Increase active paylines"
+                                  onClick={() => setPaylineCount(selectedLines.length + 1)}
+                                >+</button>
+                              </div>
+                              <div className="se-slots__presets">
                                 <button
                                   type="button"
                                   className="se-btn se-btn--ghost"
                                   disabled={busy !== null || bonusActive}
-                                  onClick={() => {
-                                    setSelectedPaylineKeys(machine.paylines.slice(0, 5).map((line) => line.key));
-                                    setLastSpin(null);
-                                    setDisplayedWinCents(0);
-                                    spinAction.current = newActionId();
-                                  }}
-                                >5 lines</button>
-                              ) : null}
-                              <button
-                                type="button"
-                                className="se-btn se-btn--ghost"
-                                disabled={busy !== null || bonusActive}
-                                onClick={() => {
-                                  setSelectedPaylineKeys(machine.paylines.map((line) => line.key));
-                                  setLastSpin(null);
-                                  setDisplayedWinCents(0);
-                                  spinAction.current = newActionId();
-                                }}
-                              >Max lines</button>
+                                  onClick={() => setPaylines([machine.paylines[0]!.key])}
+                                >1 line</button>
+                                {machine.paylines.length >= 5 ? (
+                                  <button
+                                    type="button"
+                                    className="se-btn se-btn--ghost"
+                                    disabled={busy !== null || bonusActive}
+                                    onClick={() => setPaylines(machine.paylines.slice(0, 5).map((line) => line.key))}
+                                  >5 lines</button>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  className="se-btn se-btn--ghost"
+                                  disabled={busy !== null || bonusActive}
+                                  onClick={() => setPaylines(machine.paylines.map((line) => line.key))}
+                                >Max lines</button>
+                              </div>
                             </div>
                           </div>
                           <div className="se-slots__paylines" role="group" aria-label="Select active paylines">
@@ -724,8 +741,6 @@ export function CasinoPage() {
                                     + (activeWin ? ' is-active-win' : '')
                                   }
                                   onClick={() => {
-                                    setLastSpin(null);
-                                    setDisplayedWinCents(0);
                                     setSelectedPaylineKeys((current) => {
                                       if (current.includes(line.key)) {
                                         if (current.length === 1) return current;
@@ -735,6 +750,8 @@ export function CasinoPage() {
                                         candidate.key === line.key || current.includes(candidate.key)
                                       ).map((candidate) => candidate.key);
                                     });
+                                    setLastSpin(null);
+                                    setDisplayedWinCents(0);
                                     spinAction.current = newActionId();
                                   }}
                                 >

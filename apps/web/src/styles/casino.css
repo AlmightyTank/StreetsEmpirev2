@@ -108,6 +108,7 @@
 .se-slots__win-flash.is-mega, .se-slots__win-flash.is-jackpot { font-size: clamp(1.5rem, 6vw, 3rem); }
 .se-slots__win-flash.is-jackpot { color: #f2ce66; text-shadow: 0 0 18px rgba(242,206,102,.72); }
 
+.se-slots__controls { grid-column: 2; display: grid; align-self: start; gap: .7rem; }
 .se-slots__meter { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.75rem, 1fr)); gap: .55rem; width: 100%; margin-inline: auto; }
 .se-slots__meter span { border: 1px solid var(--se-border); border-radius: .55rem; padding: .55rem .7rem; background: var(--se-bg); }
 .se-slots__meter small, .se-slots__meter strong { display: block; }
@@ -115,7 +116,7 @@
 .se-slots__meter strong { overflow-wrap: anywhere; font-family: var(--se-mono); font-variant-numeric: tabular-nums; font-size: .92rem; }
 .se-slots__last-win strong { color: var(--se-accent); }
 
-.se-slots__form { align-self: stretch; grid-column: 2; margin-top: 0; padding: .8rem; border: 1px solid var(--se-border); border-radius: .75rem; background: color-mix(in srgb, var(--se-surface) 88%, var(--se-bg)); }
+.se-slots__form { align-self: start; margin-top: 0; padding: .8rem; border: 1px solid var(--se-border); border-radius: .75rem; background: color-mix(in srgb, var(--se-surface) 88%, var(--se-bg)); }
 .se-slots__form.is-free-spin { border-color: var(--se-accent); background: color-mix(in srgb, var(--se-accent) 8%, var(--se-surface)); }
 .se-slots__bet-control { display: grid; gap: .35rem; }
 .se-slots__bet-stepper { display: grid; grid-template-columns: auto minmax(5rem, 1fr) auto auto; gap: .4rem; align-items: center; }
@@ -127,6 +128,12 @@
 .se-slots__payline-head { display: flex; justify-content: space-between; gap: .75rem; align-items: flex-end; }
 .se-slots__payline-head > div:first-child { display: grid; gap: .15rem; }
 .se-slots__payline-head small { color: var(--se-muted); }
+.se-slots__line-tools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .45rem; }
+.se-slots__line-stepper { display: grid; grid-template-columns: auto minmax(4.5rem, auto) auto; gap: .35rem; align-items: stretch; }
+.se-slots__line-stepper > span { display: grid; align-content: center; min-height: 2.25rem; padding: .3rem .6rem; border: 1px solid var(--se-border); border-radius: .45rem; background: var(--se-bg); text-align: center; }
+.se-slots__line-stepper strong, .se-slots__line-stepper small { display: block; }
+.se-slots__line-stepper strong { font-family: var(--se-mono); font-size: .98rem; line-height: 1; }
+.se-slots__line-stepper small { margin-top: .1rem; color: var(--se-muted); font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .se-slots__presets { display: flex; flex-wrap: wrap; gap: .45rem; }
 .se-slots__paylines { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .45rem; }
 .se-slots__payline { min-width: 0; min-height: 3.2rem; border: 1px solid var(--se-border); border-radius: .5rem; background: var(--se-surface); color: inherit; cursor: pointer; padding: .45rem .5rem; display: grid; gap: .1rem; text-align: left; }
@@ -204,6 +211,7 @@
   .se-slots__machines { grid-template-columns: 1fr; }
   .se-slots__stage { grid-template-columns: 1fr; }
   .se-slots__cabinet,
+  .se-slots__controls,
   .se-slots__form {
     grid-column: 1;
   }
@@ -250,6 +258,9 @@
   .se-slots__paytable-row { display: grid; }
   .se-slots__paytable-row > span:last-child { justify-content: flex-start; }
   .se-slots__payline-head { display: grid; align-items: start; }
+  .se-slots__line-tools { justify-content: stretch; }
+  .se-slots__line-stepper { grid-template-columns: auto minmax(4rem, 1fr) auto; }
+  .se-slots__presets .se-btn { flex: 1 1 auto; }
   .se-slots__paylines { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .se-slots__win { grid-template-columns: 1fr auto; }
   .se-slots__win span { grid-column: 1 / -1; grid-row: 2; }
