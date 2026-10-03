@@ -19,7 +19,49 @@ export interface CasinoSessionDto {
   openedAt: string;
 }
 
-export type CasinoLedgerKindDto = 'BUY_CHIPS' | 'REDEEM_CHIPS' | 'SESSION_OPEN' | 'SESSION_CLOSE';
+export interface CasinoSlotMachineDto {
+  key: string;
+  name: string;
+  blurb: string;
+  minWagerCents: number;
+  maxWagerCents: number;
+  wagerStepCents: number;
+  availableHere: boolean;
+  baseRtpBps: number;
+  progressive: {
+    poolCents: number;
+    contributionBps: number;
+    eligibleWagerCents: number;
+  } | null;
+}
+
+export interface CasinoSlotReelDto {
+  key: string;
+  label: string;
+  glyph: string;
+}
+
+export interface CasinoSlotSpinDto {
+  actionId: string;
+  machineKey: string;
+  machineName: string;
+  wagerCents: number;
+  payoutCents: number;
+  netCents: number;
+  payoutBps: number;
+  reels: [CasinoSlotReelDto, CasinoSlotReelDto, CasinoSlotReelDto];
+  jackpotContributionCents: number;
+  jackpotAwardCents: number;
+  bankrollAfterCents: number;
+  createdAt: string;
+}
+
+export interface CasinoSlotSpinResponseDto {
+  page: CasinoPageDto;
+  spin: CasinoSlotSpinDto;
+}
+
+export type CasinoLedgerKindDto = 'BUY_CHIPS' | 'REDEEM_CHIPS' | 'SESSION_OPEN' | 'SESSION_CLOSE' | 'SLOT_SPIN';
 
 export interface CasinoLedgerEntryDto {
   id: string;
@@ -44,6 +86,7 @@ export interface CasinoPageDto {
   currentVenue: CasinoVenueDto | null;
   venues: CasinoVenueDto[];
   openSession: CasinoSessionDto | null;
+  slotMachines: CasinoSlotMachineDto[];
   recentLedger: CasinoLedgerEntryDto[];
   totalCasinoValueCents: number;
   limits: {
