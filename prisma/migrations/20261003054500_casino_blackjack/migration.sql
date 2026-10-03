@@ -31,6 +31,8 @@ CREATE TABLE "CasinoBlackjackHand" (
   "activeHandIndex" INTEGER NOT NULL DEFAULT 0,
   "totalReturnCents" BIGINT NOT NULL DEFAULT 0,
   "bankrollAfterCents" BIGINT NOT NULL DEFAULT 0,
+  "shoeRemainingCards" INTEGER NOT NULL DEFAULT 0,
+  "shuffleNumber" INTEGER NOT NULL DEFAULT 1,
   "initialActionId" TEXT NOT NULL,
   "settledAt" TIMESTAMP(3),
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
