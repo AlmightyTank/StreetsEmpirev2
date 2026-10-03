@@ -570,24 +570,37 @@ export function CasinoPage() {
               </div>
             </Panel>
 
-            <Panel title="Casino ledger" aside="Last 25">
+            <Panel title="Casino history" aside="Last 25">
               {data.recentLedger.length ? (
                 <div className="se-casino__ledger">
                   {data.recentLedger.map((entry) => (
-                    <div key={entry.id} className="se-casino__ledgerrow">
-                      <div>
-                        <strong>{entry.kind.replaceAll('_', ' ').toLowerCase()}</strong>
-                        <span>{entry.venueName} · {formatWhen(entry.createdAt)}</span>
+                    <article key={entry.id} className={'se-casino__ledgerrow is-' + entry.display.tone}>
+                      <div className="se-casino__ledger-main">
+                        <div className="se-casino__ledger-title">
+                          <strong>{entry.display.title}</strong>
+                          <span>{entry.venueName} · {entry.cityName}</span>
+                        </div>
+                        <p>{entry.display.detail}</p>
+                        <time dateTime={entry.createdAt}>{formatWhen(entry.createdAt)}</time>
                       </div>
-                      <div className="se-casino__deltas">
-                        <span>cash {signedMoney(entry.cashDeltaCents)}</span>
-                        <span>wallet {signedMoney(entry.walletChipDeltaCents)}</span>
-                        <span>session {signedMoney(entry.sessionChipDeltaCents)}</span>
+                      <div className="se-casino__ledger-amount">
+                        <small>{entry.display.amountLabel}</small>
+                        <strong>
+                          {entry.display.tone === 'positive' ? '+' : entry.display.tone === 'negative' ? '−' : ''}
+                          {formatCents(entry.display.amountCents)}
+                        </strong>
+                        {entry.kind === 'SLOT_SPIN' ? (
+                          <span>Floor {formatCents(entry.sessionChipsAfterCents)}</span>
+                        ) : entry.kind === 'BUY_CHIPS' || entry.kind === 'REDEEM_CHIPS' ? (
+                          <span>Wallet {formatCents(entry.walletChipsAfterCents)}</span>
+                        ) : (
+                          <span>{entry.kind === 'SESSION_OPEN' ? 'Floor ' + formatCents(entry.sessionChipsAfterCents) : 'Wallet ' + formatCents(entry.walletChipsAfterCents)}</span>
+                        )}
                       </div>
-                    </div>
+                    </article>
                   ))}
                 </div>
-              ) : <p className="se-muted">No casino money has moved yet.</p>}
+              ) : <p className="se-muted">Your casino history is empty. Buy chips or play a game and it will show up here.</p>}
             </Panel>
           </>
         ) : null}

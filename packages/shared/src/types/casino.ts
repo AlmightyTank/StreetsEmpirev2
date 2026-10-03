@@ -105,6 +105,13 @@ export type CasinoLedgerKindDto = 'BUY_CHIPS' | 'REDEEM_CHIPS' | 'SESSION_OPEN' 
 export interface CasinoLedgerEntryDto {
   id: string;
   kind: CasinoLedgerKindDto;
+  display: {
+    title: string;
+    detail: string;
+    amountLabel: string;
+    amountCents: number;
+    tone: 'positive' | 'negative' | 'neutral';
+  };
   citySlug: string;
   cityName: string;
   venueName: string;

@@ -81,6 +81,85 @@ function slotSpinDto(
   };
 }
 
+function ledgerDisplay(entry: {
+  kind: string;
+  cashDeltaCents: bigint;
+  walletChipDeltaCents: bigint;
+  sessionChipDeltaCents: bigint;
+  metadata: Prisma.JsonValue;
+}): CasinoLedgerEntryDto['display'] {
+  const abs = (value: bigint) => Number(value < 0n ? -value : value);
+  if (entry.kind === 'BUY_CHIPS') {
+    return {
+      title: 'Bought chips',
+      detail: 'Cash moved into your casino chip wallet.',
+      amountLabel: 'Exchanged',
+      amountCents: abs(entry.cashDeltaCents),
+      tone: 'neutral',
+    };
+  }
+  if (entry.kind === 'REDEEM_CHIPS') {
+    return {
+      title: 'Cashed out chips',
+      detail: 'Casino chips were redeemed back to cash.',
+      amountLabel: 'Redeemed',
+      amountCents: abs(entry.cashDeltaCents),
+      tone: 'neutral',
+    };
+  }
+  if (entry.kind === 'SESSION_OPEN') {
+    return {
+      title: 'Opened floor bankroll',
+      detail: 'Chips moved from the city wallet onto the casino floor.',
+      amountLabel: 'Bankroll',
+      amountCents: abs(entry.sessionChipDeltaCents),
+      tone: 'neutral',
+    };
+  }
+  if (entry.kind === 'SESSION_CLOSE') {
+    return {
+      title: 'Closed floor bankroll',
+      detail: 'Remaining floor chips returned to the city wallet.',
+      amountLabel: 'Returned',
+      amountCents: abs(entry.walletChipDeltaCents),
+      tone: 'neutral',
+    };
+  }
+  if (entry.kind === 'SLOT_SPIN') {
+    const meta = entry.metadata as unknown as Partial<SlotLedgerMetadata>;
+    const wager = typeof meta.wagerCents === 'number' ? meta.wagerCents : abs(entry.sessionChipDeltaCents);
+    const payout = typeof meta.payoutCents === 'number'
+      ? meta.payoutCents
+      : Math.max(0, wager + Number(entry.sessionChipDeltaCents));
+    const machine = typeof meta.machineName === 'string' ? meta.machineName : 'Slots';
+    const wins = Array.isArray(meta.winningLines) ? meta.winningLines.length : 0;
+    const jackpot = typeof meta.jackpotAwardCents === 'number' ? meta.jackpotAwardCents : 0;
+    const net = Number(entry.sessionChipDeltaCents);
+    return {
+      title: jackpot > 0 ? 'Jackpot on ' + machine : 'Spin on ' + machine,
+      detail: 'Bet ' + formatLedgerMoney(wager) + ' · paid ' + formatLedgerMoney(payout)
+        + (wins > 0 ? ' · ' + wins + ' winning line' + (wins === 1 ? '' : 's') : ' · no winning lines'),
+      amountLabel: net > 0 ? 'Won' : net < 0 ? 'Lost' : 'Push',
+      amountCents: Math.abs(net),
+      tone: net > 0 ? 'positive' : net < 0 ? 'negative' : 'neutral',
+    };
+  }
+  return {
+    title: 'Casino activity',
+    detail: 'Casino balance updated.',
+    amountLabel: 'Change',
+    amountCents: Math.abs(Number(entry.sessionChipDeltaCents || entry.walletChipDeltaCents || entry.cashDeltaCents)),
+    tone: 'neutral',
+  };
+}
+
+function formatLedgerMoney(cents: number): string {
+  return '$' + (cents / 100).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 function requireCasino(ruleset: Ruleset): CasinoRules {
   const casino = ruleset.casino;
   if (!casino?.enabled) throw AppError.conflict('CASINO_CLOSED', 'Casinos are not open in this round.');
@@ -294,6 +373,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
   const recentLedger: CasinoLedgerEntryDto[] = ledger.map((entry) => ({
     id: entry.id,
     kind: entry.kind as CasinoLedgerEntryDto['kind'],
+    display: ledgerDisplay(entry),
     citySlug: entry.city.slug,
     cityName: entry.city.name,
     venueName: casino.venues[entry.city.slug]?.name ?? entry.city.name,
