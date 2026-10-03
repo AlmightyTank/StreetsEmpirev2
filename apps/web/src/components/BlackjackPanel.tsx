@@ -9,7 +9,7 @@ import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
-import { Panel, Row } from './Panel.js';
+import { Panel } from './Panel.js';
 import { newActionId } from '../utils/actionId.js';
 import { formatWhen } from '../utils/time.js';
 
@@ -206,6 +206,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
                   <span><small>Dealer</small><strong>{selectedTable.dealerHitsSoft17 ? 'Hits soft 17' : 'Stands soft 17'}</strong></span>
                   <span><small>Splits</small><strong>Up to {selectedTable.maxSplitHands} hands</strong></span>
                   <span><small>Double after split</small><strong>{selectedTable.allowDoubleAfterSplit ? 'Yes' : 'No'}</strong></span>
+                  <span><small>Split aces</small><strong>{selectedTable.splitAcesOneCard ? 'One card each' : 'Normal play'}</strong></span>
                 </div>
               </div>
 
