@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { formatCents, type CasinoPageDto } from '@streets/shared';
+import { formatCents, type CasinoPageDto, type CasinoSlotSpinDto } from '@streets/shared';
 import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
@@ -32,6 +32,9 @@ export function CasinoPage() {
   const [data, setData] = useState<CasinoPageDto | null>(null);
   const [cashierAmount, setCashierAmount] = useState('1000');
   const [sessionAmount, setSessionAmount] = useState('1000');
+  const [selectedMachineKey, setSelectedMachineKey] = useState<string | null>(null);
+  const [slotWager, setSlotWager] = useState('1');
+  const [lastSpin, setLastSpin] = useState<CasinoSlotSpinDto | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -39,6 +42,7 @@ export function CasinoPage() {
   const redeemAction = useRef(newActionId());
   const openAction = useRef(newActionId());
   const closeAction = useRef(newActionId());
+  const spinAction = useRef(newActionId());
 
   function load() {
     void casinoApi.page()
@@ -47,6 +51,17 @@ export function CasinoPage() {
   }
 
   useEffect(load, [me?.id]);
+
+  useEffect(() => {
+    if (!data?.slotMachines.length) return;
+    const current = data.slotMachines.find((machine) => machine.key === selectedMachineKey);
+    if (current) return;
+    const next = data.slotMachines.find((machine) => machine.availableHere) ?? data.slotMachines[0]!;
+    setSelectedMachineKey(next.key);
+    setSlotWager(String(next.minWagerCents / 100));
+    setLastSpin(null);
+    spinAction.current = newActionId();
+  }, [data, selectedMachineKey]);
 
   async function run(key: string, work: () => Promise<CasinoPageDto>, success: string): Promise<boolean> {
     setBusy(key);
@@ -101,6 +116,40 @@ export function CasinoPage() {
     if (ok) openAction.current = newActionId();
   }
 
+  async function spinSlots(event: FormEvent) {
+    event.preventDefault();
+    if (!data || !selectedMachineKey) return;
+    const machine = data.slotMachines.find((candidate) => candidate.key === selectedMachineKey);
+    if (!machine) return;
+    const wagerCents = dollarsToCents(slotWager);
+    if (!wagerCents) {
+      setError('Enter a valid Slots wager.');
+      return;
+    }
+
+    setBusy('spin');
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await casinoApi.spin({ machineKey: machine.key, wagerCents, actionId: spinAction.current });
+      setData(result.page);
+      setLastSpin(result.spin);
+      setNotice(
+        result.spin.jackpotAwardCents > 0
+          ? 'JACKPOT! ' + formatCents(result.spin.jackpotAwardCents) + ' hit the bankroll.'
+          : result.spin.payoutCents > 0
+            ? 'Slots paid ' + formatCents(result.spin.payoutCents) + '.'
+            : 'No payout on that spin.',
+      );
+      spinAction.current = newActionId();
+      await refreshSnapshot({ background: false });
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'The slot machine could not complete that spin.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function closeSession() {
     if (!data?.openSession) return;
     const sessionId = data.openSession.id;
@@ -117,9 +166,9 @@ export function CasinoPage() {
       <div className="se-casino">
         <header className="se-casino__hero">
           <div>
-            <span className="se-eyebrow">1.2.0-A · Casino foundation</span>
+            <span className="se-eyebrow">1.2.0-B · Slots</span>
             <h1>Casino</h1>
-            <p>Buy chips at the cage, set a session bankroll, and keep each city&rsquo;s action separate. Games arrive in the next slices.</p>
+            <p>Buy chips, open a bankroll, and play server-authoritative Slots. Your browser only animates outcomes the server has already decided.</p>
           </div>
           <div className="se-casino__readout">
             <span><small>Cash here</small><strong>{data ? formatCents(data.cashCents) : '—'}</strong></span>
@@ -201,6 +250,105 @@ export function CasinoPage() {
                 )}
               </Panel>
             </div>
+
+            <Panel title="Slots" aside="Server-authoritative">
+              {data.slotMachines.length ? (
+                <div className="se-slots">
+                  <div className="se-slots__machines" role="tablist" aria-label="Slot machines">
+                    {data.slotMachines.map((machine) => (
+                      <button
+                        key={machine.key}
+                        type="button"
+                        className={'se-slots__machine' + (selectedMachineKey === machine.key ? ' is-selected' : '')}
+                        onClick={() => {
+                          setSelectedMachineKey(machine.key);
+                          setSlotWager(String(machine.minWagerCents / 100));
+                          setLastSpin(null);
+                          spinAction.current = newActionId();
+                        }}
+                      >
+                        <span><strong>{machine.name}</strong>{machine.availableHere ? <small>Available here</small> : <small>Not in this room</small>}</span>
+                        <small>Base RTP {(machine.baseRtpBps / 100).toFixed(2)}%</small>
+                      </button>
+                    ))}
+                  </div>
+
+                  {(() => {
+                    const machine = data.slotMachines.find((candidate) => candidate.key === selectedMachineKey);
+                    if (!machine) return null;
+                    const result = lastSpin?.machineKey === machine.key ? lastSpin : null;
+                    const sessionHere = Boolean(data.openSession && data.currentVenue && data.openSession.citySlug === data.currentVenue.citySlug);
+                    const disabledReason = !machine.availableHere
+                      ? 'Travel to a casino that carries this machine.'
+                      : !data.openSession
+                        ? 'Open a session bankroll first.'
+                        : !sessionHere
+                          ? 'Your open bankroll belongs to another casino.'
+                          : busy !== null
+                            ? 'Another casino action is running.'
+                            : null;
+
+                    return (
+                      <div className="se-slots__stage">
+                        <div className="se-slots__copy">
+                          <h3>{machine.name}</h3>
+                          <p>{machine.blurb}</p>
+                          <p className="se-hint">
+                            Wager {formatCents(machine.minWagerCents)} – {formatCents(machine.maxWagerCents)}
+                            {' · '}increments of {formatCents(machine.wagerStepCents)}
+                          </p>
+                          {machine.progressive ? (
+                            <p className="se-slots__jackpot">
+                              Progressive <strong>{formatCents(machine.progressive.poolCents)}</strong>
+                              {' · '}jackpot eligible at {formatCents(machine.progressive.eligibleWagerCents)}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <div className={'se-slots__reels' + (busy === 'spin' ? ' is-spinning' : '')} aria-live="polite" aria-label="Slot result">
+                          {(busy === 'spin'
+                            ? [{ glyph: '•', label: 'spinning' }, { glyph: '•', label: 'spinning' }, { glyph: '•', label: 'spinning' }]
+                            : result?.reels ?? [{ glyph: '?', label: 'ready' }, { glyph: '?', label: 'ready' }, { glyph: '?', label: 'ready' }]
+                          ).map((reel, index) => (
+                            <div key={index} className="se-slots__reel" aria-label={reel.label}>
+                              <span>{reel.glyph}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {result ? (
+                          <div className="se-slots__result">
+                            <Row label="Wager" value={'−' + formatCents(result.wagerCents)} />
+                            <Row label="Payout" value={formatCents(result.payoutCents)} strong />
+                            <Row label="Net" value={signedMoney(result.netCents)} />
+                            <Row label="Bankroll after" value={formatCents(result.bankrollAfterCents)} />
+                            {result.jackpotAwardCents > 0 ? <Row label="Progressive jackpot" value={'+' + formatCents(result.jackpotAwardCents)} strong /> : null}
+                          </div>
+                        ) : null}
+
+                        <form className="se-casino__form se-slots__form" onSubmit={spinSlots}>
+                          <label>
+                            <span>Wager ($)</span>
+                            <input
+                              className="se-input"
+                              inputMode="decimal"
+                              value={slotWager}
+                              onChange={(event) => {
+                                setSlotWager(event.target.value);
+                                spinAction.current = newActionId();
+                              }}
+                            />
+                          </label>
+                          <Button className="se-btn" type="submit" disabledReason={disabledReason}>
+                            {busy === 'spin' ? 'Spinning...' : 'Spin'}
+                          </Button>
+                        </form>
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : <p className="se-muted">Slots are not enabled in this round.</p>}
+            </Panel>
 
             <Panel title="Casino destinations" aside={String(data.venues.length) + ' cities'}>
               <div className="se-casino__venues">
