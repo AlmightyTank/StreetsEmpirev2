@@ -97,17 +97,25 @@ export function rouletteSelectionPockets(
     return [selection];
   }
   if (kind === 'RED' || kind === 'BLACK') {
+    if (selection !== kind) throw new Error('Invalid roulette color selection.');
     return Array.from({ length: 36 }, (_, index) => String(index + 1))
       .filter((pocket) => roulettePocketColor(pocket) === kind);
   }
   if (kind === 'ODD' || kind === 'EVEN') {
+    if (selection !== kind) throw new Error('Invalid roulette parity selection.');
     const parity = kind === 'ODD' ? 1 : 0;
     return Array.from({ length: 36 }, (_, index) => index + 1)
       .filter((value) => value % 2 === parity)
       .map(String);
   }
-  if (kind === 'LOW') return Array.from({ length: 18 }, (_, index) => String(index + 1));
-  if (kind === 'HIGH') return Array.from({ length: 18 }, (_, index) => String(index + 19));
+  if (kind === 'LOW') {
+    if (selection !== 'LOW') throw new Error('Invalid roulette low selection.');
+    return Array.from({ length: 18 }, (_, index) => String(index + 1));
+  }
+  if (kind === 'HIGH') {
+    if (selection !== 'HIGH') throw new Error('Invalid roulette high selection.');
+    return Array.from({ length: 18 }, (_, index) => String(index + 19));
+  }
 
   if (kind === 'DOZEN') {
     if (selection === '1-12') return Array.from({ length: 12 }, (_, index) => String(index + 1));
@@ -122,7 +130,7 @@ export function rouletteSelectionPockets(
   }
 
   const nums = sortedNumbers(selection);
-  if (!nums) throw new Error('Invalid roulette inside selection.');
+  if (!nums || selection !== nums.join('-')) throw new Error('Invalid roulette inside selection.');
 
   if (kind === 'SPLIT') {
     if (nums.length !== 2) throw new Error('A split needs two pockets.');
