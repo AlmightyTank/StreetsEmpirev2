@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV12B, classicOgV12C } from '@streets/rulesets';
+import { classicOgV12B, classicOgV12C, type Ruleset } from '@streets/rulesets';
 import {
   blackjackCanSplit,
   blackjackDealerShouldHit,
@@ -14,7 +14,7 @@ import {
 describe('1.2.0-C blackjack math', () => {
   it('registers the C ruleset without changing B', () => {
     expect(loadRuleset('classic-og-v1.2-c', '1.2.0-C')).toBe(classicOgV12C);
-    expect(classicOgV12B.casino.blackjack).toBeUndefined();
+    expect((classicOgV12B as Ruleset).casino?.blackjack).toBeUndefined();
     expect(classicOgV12C.casino.blackjack.tables.map((table) => table.key)).toEqual([
       'STREET_BLACKJACK',
       'NEON_BLACKJACK',
