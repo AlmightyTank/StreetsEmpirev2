@@ -6,6 +6,11 @@ import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import {
+  casinoSoundEnabled,
+  playCasinoSound,
+  setCasinoSoundEnabled,
+} from '../lib/casinoAudio.js';
 import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
 import { formatWhen } from '../utils/time.js';
@@ -31,6 +36,10 @@ function paylinePath(rows: number[]): string {
   return rows.map((row) => names[row] ?? '?').join('–');
 }
 
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 export function CasinoPage() {
   const me = useSession((state) => state.me);
   const refreshSnapshot = useSession((state) => state.refreshSnapshot);
@@ -41,6 +50,12 @@ export function CasinoPage() {
   const [slotBetPerLine, setSlotBetPerLine] = useState('1');
   const [selectedPaylineKeys, setSelectedPaylineKeys] = useState<string[]>([]);
   const [lastSpin, setLastSpin] = useState<CasinoSlotSpinDto | null>(null);
+  const [revealedReels, setRevealedReels] = useState(99);
+  const [displayedWinCents, setDisplayedWinCents] = useState(0);
+  const [activeWinLineIndex, setActiveWinLineIndex] = useState(0);
+  const [bonusFlash, setBonusFlash] = useState<number | null>(null);
+  const [soundEnabled, setSoundEnabledState] = useState(() => casinoSoundEnabled());
+  const [reducedMotion, setReducedMotion] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -59,7 +74,27 @@ export function CasinoPage() {
   useEffect(load, [me?.id]);
 
   useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReducedMotion(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+
+  useEffect(() => {
     if (!data?.slotMachines.length) return;
+    const bonus = data.freeSpinBonus;
+    if (bonus) {
+      if (selectedMachineKey !== bonus.machineKey) {
+        setSelectedMachineKey(bonus.machineKey);
+        setSlotBetPerLine(String(bonus.betPerLineCents / 100));
+        setSelectedPaylineKeys([...bonus.activePaylineKeys]);
+        setLastSpin(null);
+        setDisplayedWinCents(0);
+        spinAction.current = newActionId();
+      }
+      return;
+    }
     const current = data.slotMachines.find((machine) => machine.key === selectedMachineKey);
     if (current) return;
     const next = data.slotMachines.find((machine) => machine.availableHere) ?? data.slotMachines[0]!;
@@ -67,8 +102,22 @@ export function CasinoPage() {
     setSlotBetPerLine(String(next.minBetPerLineCents / 100));
     setSelectedPaylineKeys(next.paylines.map((line) => line.key));
     setLastSpin(null);
+    setDisplayedWinCents(0);
     spinAction.current = newActionId();
   }, [data, selectedMachineKey]);
+
+  useEffect(() => {
+    if (!lastSpin?.winningLines.length) {
+      setActiveWinLineIndex(0);
+      return;
+    }
+    setActiveWinLineIndex(0);
+    if (reducedMotion || lastSpin.winningLines.length === 1) return;
+    const timer = window.setInterval(() => {
+      setActiveWinLineIndex((current) => (current + 1) % lastSpin.winningLines.length);
+    }, 700);
+    return () => window.clearInterval(timer);
+  }, [lastSpin?.actionId, lastSpin?.winningLines.length, reducedMotion]);
 
   async function run(key: string, work: () => Promise<CasinoPageDto>, success: string): Promise<boolean> {
     setBusy(key);
@@ -128,12 +177,16 @@ export function CasinoPage() {
     if (!data || !selectedMachineKey) return;
     const machine = data.slotMachines.find((candidate) => candidate.key === selectedMachineKey);
     if (!machine) return;
-    const betPerLineCents = dollarsToCents(slotBetPerLine);
+    const bonus = data.freeSpinBonus;
+    const useFreeSpin = Boolean(bonus && bonus.machineKey === machine.key);
+    const betPerLineCents = useFreeSpin ? bonus!.betPerLineCents : dollarsToCents(slotBetPerLine);
+    const activePaylineKeys = useFreeSpin ? bonus!.activePaylineKeys : selectedPaylineKeys;
+
     if (!betPerLineCents) {
       setError('Enter a valid bet per line.');
       return;
     }
-    if (!selectedPaylineKeys.length) {
+    if (!activePaylineKeys.length) {
       setError('Select at least one payline.');
       return;
     }
@@ -141,31 +194,84 @@ export function CasinoPage() {
     setBusy('spin');
     setError(null);
     setNotice(null);
-    const spinStartedAt = Date.now();
+    setBonusFlash(null);
+    setLastSpin(null);
+    setRevealedReels(0);
+    setDisplayedWinCents(0);
+    playCasinoSound('SPIN', soundEnabled);
+
     try {
       const result = await casinoApi.spin({
         machineKey: machine.key,
         betPerLineCents,
-        activePaylineKeys: selectedPaylineKeys,
+        activePaylineKeys,
+        useFreeSpin,
         actionId: spinAction.current,
       });
-      const remainingAnimationMs = Math.max(0, 850 - (Date.now() - spinStartedAt));
-      if (remainingAnimationMs > 0) {
-        await new Promise<void>((resolve) => window.setTimeout(resolve, remainingAnimationMs));
-      }
-      setData(result.page);
       setLastSpin(result.spin);
+
+      if (reducedMotion) {
+        setRevealedReels(machine.reels);
+      } else {
+        const reelDelay = machine.reels === 3 ? 250 : machine.reels === 4 ? 225 : 205;
+        for (let reel = 0; reel < machine.reels; reel++) {
+          if (result.spin.nearMiss?.reel === reel) {
+            playCasinoSound('ANTICIPATION', soundEnabled);
+            await wait(520);
+          }
+          await wait(reelDelay);
+          setRevealedReels(reel + 1);
+          playCasinoSound('REEL_STOP', soundEnabled, reel);
+        }
+      }
+
+      setData(result.page);
+
+      if (result.spin.freeSpinsAwarded > 0) {
+        setBonusFlash(result.spin.freeSpinsAwarded);
+        playCasinoSound('FREE_SPINS', soundEnabled);
+        if (!reducedMotion) await wait(650);
+      }
+
+      if (result.spin.payoutCents > 0) {
+        const sound = result.spin.winTier === 'JACKPOT'
+          ? 'JACKPOT'
+          : result.spin.winTier === 'MEGA'
+            ? 'MEGA_WIN'
+            : result.spin.winTier === 'BIG'
+              ? 'BIG_WIN'
+              : 'SMALL_WIN';
+        playCasinoSound(sound, soundEnabled);
+        if (reducedMotion) {
+          setDisplayedWinCents(result.spin.payoutCents);
+        } else {
+          const duration = result.spin.winTier === 'JACKPOT' ? 1_600 : result.spin.winTier === 'MEGA' ? 1_250 : 850;
+          const steps = 28;
+          for (let step = 1; step <= steps; step++) {
+            await wait(duration / steps);
+            setDisplayedWinCents(Math.round(result.spin.payoutCents * step / steps));
+          }
+        }
+      }
+
       setNotice(
         result.spin.jackpotAwardCents > 0
           ? 'JACKPOT! ' + formatCents(result.spin.jackpotAwardCents) + ' hit the bankroll.'
-          : result.spin.winningLines.length > 0
-            ? result.spin.winningLines.length + ' winning line' + (result.spin.winningLines.length === 1 ? '' : 's') + ' paid ' + formatCents(result.spin.payoutCents) + '.'
-            : 'No winning paylines on that spin.',
+          : result.spin.freeSpinsAwarded > 0
+            ? result.spin.freeSpinsAwarded + ' free spin' + (result.spin.freeSpinsAwarded === 1 ? '' : 's') + ' awarded.'
+            : result.spin.isFreeSpin && result.spin.freeSpinsRemainingAfter > 0
+              ? 'Free spin complete · ' + result.spin.freeSpinsRemainingAfter + ' remaining.'
+              : result.spin.winningLines.length > 0
+                ? result.spin.winningLines.length + ' winning line' + (result.spin.winningLines.length === 1 ? '' : 's') + ' paid ' + formatCents(result.spin.payoutCents) + '.'
+                : result.spin.nearMiss
+                  ? 'So close — ' + result.spin.nearMiss.symbolLabel + ' landed one stop off the line.'
+                  : result.spin.isFreeSpin ? 'Free spin complete.' : 'No winning paylines on that spin.',
       );
       spinAction.current = newActionId();
       await refreshSnapshot({ background: false });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'The slot machine could not complete that spin.');
+      setRevealedReels(99);
     } finally {
       setBusy(null);
     }
