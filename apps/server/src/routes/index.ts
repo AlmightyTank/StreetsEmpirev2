@@ -17,6 +17,7 @@ import roundRoutes from './round.routes.js';
 import siteRoutes from './site.routes.js';
 import supportRoutes from './support.routes.js';
 import surveyRoutes from './survey.routes.js';
+import casinoRoutes from './casino.routes.js';
 
 const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(healthRoutes);
@@ -37,6 +38,7 @@ const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(playingTogetherRoutes, { prefix: '/game' });
   await fastify.register(pimpConsoleRoutes, { prefix: '/game' });
   await fastify.register(surveyRoutes, { prefix: '/game' });
+  await fastify.register(casinoRoutes, { prefix: '/game/casino' });
 };
 
 export default routes;

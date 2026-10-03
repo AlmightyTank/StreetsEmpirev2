@@ -82,7 +82,11 @@ export type ActivityType =
   | 'BLOCK_WAR_DECLARED'
   | 'BLOCK_WAR_FIGHT'
   | 'BLOCK_WAR_ENDED'
-  | 'BLOCK_WAR_CALL';
+  | 'BLOCK_WAR_CALL'
+  | 'CASINO_BUY_CHIPS'
+  | 'CASINO_REDEEM_CHIPS'
+  | 'CASINO_SESSION_OPENED'
+  | 'CASINO_SESSION_CLOSED';
 
 export interface ApiErrorBody {
   error: {

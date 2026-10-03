@@ -2094,6 +2094,33 @@ export interface DriveByRules {
   };
 }
 
+
+/** 1.2.0-A. What kind of room a city's casino venue is. Games arrive in later 1.2 slices. */
+export type CasinoVenueKind = 'FULL_CASINO' | 'PRIVATE_CLUB' | 'UNDERGROUND' | 'NIGHTLIFE';
+
+export interface CasinoVenueRules {
+  readonly name: string;
+  readonly blurb: string;
+  readonly kind: CasinoVenueKind;
+}
+
+/**
+ * 1.2.0-A. Casino foundation only: venues, cashier limits and session bankrolls.
+ * Chips are cash-equivalent integer cents; resolved games arrive in later slices.
+ */
+export interface CasinoRules {
+  readonly enabled: boolean;
+  readonly chipUnitCents: number;
+  readonly cashier: {
+    readonly minExchangeCents: number;
+    readonly maxExchangeCents: number;
+  };
+  readonly session: {
+    readonly minBankrollCents: number;
+    readonly maxBankrollCents: number;
+  };
+  readonly venues: Readonly<Record<string, CasinoVenueRules>>;
+}
 export interface Ruleset {
   /** Absent on economic-only rounds. */
   readonly combat?: import('./combat-prototype.js').CombatModel & {
@@ -2174,5 +2201,7 @@ export interface Ruleset {
   readonly turf?: TurfRules;
   /** 1.1.0-A. Absent where blocks hold no businesses. Needs `turf`. */
   readonly business?: BusinessRules;
+  /** 1.2.0-A. Absent before casinos become player destinations. */
+  readonly casino?: CasinoRules;
   readonly evidence: EvidenceRules;
 }

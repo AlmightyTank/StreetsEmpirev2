@@ -304,6 +304,27 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         detail: `+${formatCents(num(p.collectedCents))}`,
       };
 
+    case 'CASINO_BUY_CHIPS':
+      return {
+        text: 'Bought ' + formatCents(num(p.amountCents)) + ' in chips at ' + str(p.venueName, 'the casino') + '.',
+        detail: str(p.cityName),
+      };
+    case 'CASINO_REDEEM_CHIPS':
+      return {
+        text: 'Cashed out ' + formatCents(num(p.amountCents)) + ' in chips at ' + str(p.venueName, 'the casino') + '.',
+        detail: str(p.cityName),
+      };
+    case 'CASINO_SESSION_OPENED':
+      return {
+        text: 'Opened a ' + formatCents(num(p.bankrollCents)) + ' bankroll at ' + str(p.venueName, 'the casino') + '.',
+        detail: str(p.cityName),
+      };
+    case 'CASINO_SESSION_CLOSED':
+      return {
+        text: 'Closed the session at ' + str(p.venueName, 'the casino') + ' with ' + formatCents(num(p.bankrollCents)) + '.',
+        detail: str(p.cityName),
+      };
+
     case 'HIDEOUT_UPGRADE':
       return {
         text: `Upgraded ${str(p.name, 'the hideout')} to level ${formatNumber(num(p.level))}.`,
@@ -530,7 +551,7 @@ export type ActivityGroup = 'combat' | 'street' | 'market' | 'progress' | 'trave
 
 export function activityGroup(type: ActivityDto['type']): ActivityGroup {
   if (type.startsWith('RAID_') || type.startsWith('DRIVE_BY_') || type.startsWith('COMBAT_') || type === 'BATTLE_VOIDED') return 'combat';
-  if (type.startsWith('STORE_')) return 'market';
+  if (type.startsWith('STORE_') || type.startsWith('CASINO_')) return 'market';
   if (type.startsWith('QUEST_') || type.startsWith('FAVOR_') || type === 'HIDEOUT_UPGRADE' || type === 'WEAPON_UNLOCK') return 'progress';
   if (type.startsWith('RUN_') || type.startsWith('RELOCATION_') || type === 'RELOCATED' || type.startsWith('CONVOY_') || type.startsWith('TRIP_') || type.startsWith('BOSS_') || type.startsWith('SIT_DOWN') || type === 'OUTPOST_VISIT') return 'travel';
   if (type.startsWith('TURF_') || type.startsWith('BUSINESS_')) return 'turf';
@@ -611,6 +632,10 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     BLOCK_WAR_FIGHT: 'Block war fight',
     BLOCK_WAR_ENDED: 'Block war over',
     BLOCK_WAR_CALL: 'Call for help',
+    CASINO_BUY_CHIPS: 'Casino chips',
+    CASINO_REDEEM_CHIPS: 'Casino cash out',
+    CASINO_SESSION_OPENED: 'Casino session',
+    CASINO_SESSION_CLOSED: 'Casino session closed',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();
 }

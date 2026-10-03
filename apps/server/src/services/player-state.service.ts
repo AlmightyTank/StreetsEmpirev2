@@ -165,8 +165,17 @@ export const PlayerStateService = {
       await HappinessService.awayPenalty(tx, ruleset, roundPlayerId, now),
     );
 
-    // 3. Net worth.
-    const netWorthCents = NetWorthService.calculate({ ...recovered, products }, ruleset);
+    // 3. Net worth. Old pinned rulesets do not pay the cost of casino reads.
+    let casinoNetWorthCents = 0n;
+    if (ruleset.casino?.enabled) {
+      const [casinoWalletValue, casinoSessionValue] = await Promise.all([
+        tx.casinoWallet.aggregate({ where: { roundPlayerId }, _sum: { chipsCents: true } }),
+        tx.casinoSession.aggregate({ where: { roundPlayerId, status: 'OPEN' }, _sum: { bankrollCents: true } }),
+      ]);
+      casinoNetWorthCents =
+        (casinoWalletValue._sum.chipsCents ?? 0n) + (casinoSessionValue._sum.bankrollCents ?? 0n);
+    }
+    const netWorthCents = NetWorthService.calculate({ ...recovered, products, casinoNetWorthCents }, ruleset);
 
     // 4. Ranks, against the net worth we just derived.
     const ranks = await RankingService.ranksFor(tx, {

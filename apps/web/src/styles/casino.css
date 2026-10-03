@@ -1,0 +1,32 @@
+.se-casino { display: grid; gap: 1rem; }
+.se-casino__hero { display: flex; justify-content: space-between; gap: 1.25rem; align-items: flex-start; }
+.se-casino__hero h1 { margin: .2rem 0 .35rem; }
+.se-casino__hero p { max-width: 62rem; margin: 0; }
+.se-casino__readout { display: grid; grid-template-columns: repeat(3, minmax(8rem, 1fr)); gap: .55rem; min-width: min(100%, 28rem); }
+.se-casino__readout span, .se-casino__venue { border: 1px solid var(--se-border); background: var(--se-surface); border-radius: .65rem; padding: .8rem; }
+.se-casino__readout small, .se-casino__readout strong { display: block; }
+.se-casino__readout small { color: var(--se-muted); margin-bottom: .2rem; }
+.se-casino__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.se-casino__form { display: grid; gap: .75rem; margin-top: 1rem; }
+.se-casino__form label { display: grid; gap: .35rem; }
+.se-casino__actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.se-casino__venues { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
+.se-casino__venue.is-here { outline: 1px solid var(--se-accent); }
+.se-casino__venue h3 { margin: .3rem 0; }
+.se-casino__venue p { color: var(--se-muted); min-height: 4.5em; }
+.se-casino__ledger { display: grid; gap: .55rem; }
+.se-casino__ledgerrow { display: flex; justify-content: space-between; gap: 1rem; padding: .7rem 0; border-bottom: 1px solid var(--se-border); }
+.se-casino__ledgerrow:last-child { border-bottom: 0; }
+.se-casino__ledgerrow > div:first-child, .se-casino__deltas { display: grid; gap: .15rem; }
+.se-casino__ledgerrow span { color: var(--se-muted); }
+.se-casino__deltas { text-align: right; }
+@media (max-width: 900px) {
+  .se-casino__hero { display: grid; }
+  .se-casino__grid { grid-template-columns: 1fr; }
+  .se-casino__venues { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .se-casino__readout, .se-casino__venues { grid-template-columns: 1fr; }
+  .se-casino__ledgerrow { display: grid; }
+  .se-casino__deltas { text-align: left; }
+}
