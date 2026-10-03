@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import { PrismaClient, type Round } from '@prisma/client';
-import { classicOgV01, classicOgV02D, classicOgV12C, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02D, classicOgV12D, type Ruleset } from '@streets/rulesets';
 // The panel and the seed create the same bots from one definition. Changing the
 // roster in the service changes it here too.
 import { DEV_TEST_RIVALS, seedDevBots } from '../apps/server/src/services/dev-bots.service.js';
 
 const prisma = new PrismaClient();
-const CURRENT_RULESET = classicOgV12C;
+const CURRENT_RULESET = classicOgV12D;
 const shouldSeedRivals = process.env.SEED_DEV_BOTS === '1' || process.env.SEED_RIVALS === '1';
 const allowUnsafeDevBots = process.env.ALLOW_DEV_BOTS === 'I_UNDERSTAND';
 
@@ -116,7 +116,7 @@ async function seedStrategyRound(now: Date) {
 
 async function seedCurrentPublicRound(now: Date) {
   return upsertRound({
-    name: 'Game #020 - Casino Blackjack',
+    name: 'Game #020 - Casino Games',
     slug: 'game-020-hideout',
     ruleset: CURRENT_RULESET,
     startsAt: now,
