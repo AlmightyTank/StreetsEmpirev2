@@ -26,6 +26,7 @@
     "qa:products": "node --import tsx scripts/qa/product-sim.mjs",
     "qa:travel": "node --import tsx scripts/qa/travel-sim.mjs",
     "qa:trips": "node --import tsx scripts/qa/trips-sim.mjs",
+    "qa:slots": "node --import tsx scripts/qa/slots-sim.mjs",
     "qa:street-pass": "tsx scripts/qa/street-pass-sim.ts",
     "qa:turf": "node --import tsx scripts/qa/turf-sim.mjs",
     "qa:season": "node --import tsx scripts/qa/season-sim.mjs",
