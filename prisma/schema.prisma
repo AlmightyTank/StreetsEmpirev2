@@ -2554,8 +2554,9 @@ model CasinoBlackjackHand {
   playerHands      Json
   dealerCards      Json
   activeHandIndex  Int @default(0)
-  totalReturnCents BigInt @default(0)
-  initialActionId  String
+  totalReturnCents  BigInt @default(0)
+  bankrollAfterCents BigInt @default(0)
+  initialActionId   String
   settledAt        DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
