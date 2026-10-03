@@ -16,10 +16,10 @@ describe('1.2.0-A casino foundation', () => {
     expect(loadRuleset('classic-og-v1.2-a', '1.2.0-A')).toBe(classicOgV12A);
   });
 
-  it('keeps chips at face value in net worth after cash moves to a cage or session', () => {
-    const base = calculateNetWorthCents(emptyPlayer, classicOgV12A);
-    const withCasino = calculateNetWorthCents({ ...emptyPlayer, casinoNetWorthCents: 250_000 }, classicOgV12A);
-    expect(withCasino - base).toBe(250_000n);
+  it('values casino cash-equivalents like cash so cage transfers cannot change net worth', () => {
+    const asCash = calculateNetWorthCents({ ...emptyPlayer, cashCents: 250_000 }, classicOgV12A);
+    const asCasino = calculateNetWorthCents({ ...emptyPlayer, casinoNetWorthCents: 250_000 }, classicOgV12A);
+    expect(asCasino).toBe(asCash);
   });
 
   it('keeps whole-dollar limits ordered and the session ceiling inside the cage ceiling', () => {
