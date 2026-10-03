@@ -690,7 +690,14 @@ export const BlackjackService = {
         if (replay.kind !== 'DEAL') {
           throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to another blackjack action.');
         }
-        return replayDto(replay.response);
+        const saved = replayDto(replay.response);
+        if (
+          saved.tableKey !== input.tableKey
+          || saved.playerHands[0]?.wagerCents !== input.wagerCents
+        ) {
+          throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a different blackjack deal.');
+        }
+        return saved;
       }
       const casinoReceipt = await tx.casinoLedgerEntry.findUnique({
         where: { roundPlayerId_actionId: { roundPlayerId, actionId: input.actionId } },
