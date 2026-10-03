@@ -711,10 +711,17 @@ export const BlackjackService = {
       const table = tableFor(ruleset, input.tableKey);
       assertWager(table, input.wagerCents);
 
-      const active = await tx.casinoBlackjackHand.findFirst({
-        where: { roundPlayerId, status: 'ACTIVE' },
-      });
+      const [active, activeDice] = await Promise.all([
+        tx.casinoBlackjackHand.findFirst({
+          where: { roundPlayerId, status: 'ACTIVE' },
+        }),
+        tx.casinoStreetDiceRound.findFirst({
+          where: { roundPlayerId, status: 'ACTIVE' },
+          select: { id: true },
+        }),
+      ]);
       if (active) throw AppError.conflict('BLACKJACK_HAND_ACTIVE', 'Finish the current blackjack hand before dealing another.');
+      if (activeDice) throw AppError.conflict('STREET_DICE_ACTIVE', 'Finish the current Street Dice point before dealing blackjack.');
 
       const { city, session } = await requireTableSession(tx, player, ruleset, casino, table, now);
       const wager = BigInt(input.wagerCents);

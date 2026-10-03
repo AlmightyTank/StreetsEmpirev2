@@ -217,7 +217,117 @@ export interface CasinoBlackjackDealResponseDto {
 
 export type CasinoBlackjackActionResponseDto = CasinoBlackjackDealResponseDto;
 
-export type CasinoLedgerKindDto = 'BUY_CHIPS' | 'REDEEM_CHIPS' | 'SESSION_OPEN' | 'SESSION_CLOSE' | 'SLOT_SPIN' | 'BLACKJACK';
+export type CasinoRouletteBetKindDto =
+  | 'STRAIGHT'
+  | 'SPLIT'
+  | 'STREET'
+  | 'CORNER'
+  | 'SIX_LINE'
+  | 'DOZEN'
+  | 'COLUMN'
+  | 'RED'
+  | 'BLACK'
+  | 'ODD'
+  | 'EVEN'
+  | 'LOW'
+  | 'HIGH';
+
+export interface CasinoRouletteTableDto {
+  key: string;
+  name: string;
+  blurb: string;
+  wheel: 'AMERICAN' | 'EUROPEAN';
+  minBetCents: number;
+  maxBetCents: number;
+  betStepCents: number;
+  maxTotalBetCents: number;
+  availableHere: boolean;
+}
+
+export interface CasinoRouletteBetDto {
+  kind: CasinoRouletteBetKindDto;
+  selection: string;
+  amountCents: number;
+  won: boolean;
+  returnCents: number;
+}
+
+export interface CasinoRouletteSpinDto {
+  actionId: string;
+  tableKey: string;
+  tableName: string;
+  wheel: 'AMERICAN' | 'EUROPEAN';
+  pocket: string;
+  color: 'RED' | 'BLACK' | 'GREEN';
+  bets: CasinoRouletteBetDto[];
+  wagerCents: number;
+  returnCents: number;
+  netCents: number;
+  bankrollAfterCents: number;
+  createdAt: string;
+}
+
+export interface CasinoRouletteStateDto {
+  enabled: boolean;
+  tables: CasinoRouletteTableDto[];
+  history: CasinoRouletteSpinDto[];
+}
+
+export interface CasinoRouletteSpinResponseDto {
+  page: CasinoPageDto;
+  roulette: CasinoRouletteStateDto;
+  spin: CasinoRouletteSpinDto;
+}
+
+export interface CasinoStreetDiceTableDto {
+  key: string;
+  name: string;
+  blurb: string;
+  minBetCents: number;
+  maxBetCents: number;
+  betStepCents: number;
+  maxOddsMultiple: number;
+  availableHere: boolean;
+}
+
+export type CasinoStreetDiceOutcomeDto = 'WIN' | 'LOSE' | 'POINT' | 'CONTINUE';
+
+export interface CasinoStreetDiceRoundDto {
+  id: string;
+  tableKey: string;
+  tableName: string;
+  status: 'ACTIVE' | 'SETTLED';
+  lineWagerCents: number;
+  oddsWagerCents: number;
+  point: number | null;
+  dice: [number, number] | null;
+  total: number | null;
+  outcome: CasinoStreetDiceOutcomeDto | null;
+  totalReturnCents: number;
+  netCents: number;
+  bankrollAfterCents: number;
+  rollCount: number;
+  canRoll: boolean;
+  canAddOdds: boolean;
+  maxOddsCents: number;
+  createdAt: string;
+  settledAt: string | null;
+}
+
+export interface CasinoStreetDiceStateDto {
+  enabled: boolean;
+  tables: CasinoStreetDiceTableDto[];
+  activeRound: CasinoStreetDiceRoundDto | null;
+  history: CasinoStreetDiceRoundDto[];
+}
+
+export interface CasinoStreetDiceResponseDto {
+  page: CasinoPageDto;
+  streetDice: CasinoStreetDiceStateDto;
+  round: CasinoStreetDiceRoundDto;
+}
+
+export type CasinoLedgerKindDto = 'BUY_CHIPS' | 'REDEEM_CHIPS' | 'SESSION_OPEN' | 'SESSION_CLOSE' | 'SLOT_SPIN' | 'BLACKJACK' | 'ROULETTE' | 'STREET_DICE';
 
 export interface CasinoLedgerEntryDto {
   id: string;

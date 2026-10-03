@@ -47,7 +47,7 @@ describe('1.2.0-B casino-style slots', () => {
 
   it('keeps every payline and virtual reel inside the pinned machine definition', () => {
     for (const machine of classicOgV12B.casino.slots.machines) {
-      const symbolKeys = new Set(machine.symbols.map((symbol) => symbol.key));
+      const symbolKeys = new Set<string>(machine.symbols.map((symbol) => symbol.key));
       for (const line of machine.paylines) {
         expect(line.rows).toHaveLength(machine.reels);
         expect(line.rows.every((row) => Number.isInteger(row) && row >= 0 && row < machine.rows)).toBe(true);

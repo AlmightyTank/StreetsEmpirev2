@@ -4,6 +4,8 @@ import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { BlackjackPanel } from '../components/BlackjackPanel.js';
+import { RoulettePanel } from '../components/RoulettePanel.js';
+import { StreetDicePanel } from '../components/StreetDicePanel.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -74,19 +76,19 @@ const CASINO_GAMES: readonly {
     key: 'roulette',
     label: 'Roulette',
     icon: '◉',
-    status: '1.2.0-D',
-    live: false,
+    status: 'LIVE',
+    live: true,
     title: 'Roulette',
-    description: 'The roulette room is reserved for 1.2.0-D and will use this same floor bankroll and casino ledger.',
+    description: 'American and European roulette with straight-up, inside-combination and outside bets.',
   },
   {
     key: 'street-dice',
     label: 'Street Dice',
     icon: '⚄',
-    status: '1.2.0-D',
-    live: false,
+    status: 'LIVE',
+    live: true,
     title: 'Street Dice',
-    description: 'Street Dice arrives with 1.2.0-D as a city-flavored dice room tied into the same casino economy.',
+    description: 'Pass-line street craps with persistent points and true-odds backing.',
   },
   {
     key: 'poker',
@@ -971,7 +973,27 @@ export function CasinoPage() {
             />
                 ) : null}
 
-                {activeGame !== 'slots' && activeGame !== 'blackjack' ? (() => {
+                {activeGame === 'roulette' ? (
+            <RoulettePanel
+              casinoPage={data}
+              onPageChange={(next) => {
+                setData(next);
+                setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+              }}
+            />
+                ) : null}
+
+                {activeGame === 'street-dice' ? (
+            <StreetDicePanel
+              casinoPage={data}
+              onPageChange={(next) => {
+                setData(next);
+                setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+              }}
+            />
+                ) : null}
+
+                {activeGame !== 'slots' && activeGame !== 'blackjack' && activeGame !== 'roulette' && activeGame !== 'street-dice' ? (() => {
                   const game = CASINO_GAMES.find((candidate) => candidate.key === activeGame)!;
                   return (
                     <CasinoGamePlaceholder
@@ -1017,7 +1039,7 @@ export function CasinoPage() {
                           {entry.display.tone === 'positive' ? '+' : entry.display.tone === 'negative' ? '−' : ''}
                           {formatCents(entry.display.amountCents)}
                         </strong>
-                        {entry.kind === 'SLOT_SPIN' ? (
+                        {entry.kind === 'SLOT_SPIN' || entry.kind === 'BLACKJACK' || entry.kind === 'ROULETTE' || entry.kind === 'STREET_DICE' ? (
                           <span>Floor {formatCents(entry.sessionChipsAfterCents)}</span>
                         ) : entry.kind === 'BUY_CHIPS' || entry.kind === 'REDEEM_CHIPS' ? (
                           <span>Wallet {formatCents(entry.walletChipsAfterCents)}</span>

@@ -304,6 +304,8 @@ const crackdownEventSchema = z.object({
   sweepAt: z.string(),
   holdersAffected: z.number(),
   thugsPickedUp: z.number(),
+  // 1.1.0-F. Older game servers omit the racket warning amount.
+  racketHeatPerBusiness: z.number().default(0),
 });
 
 const roundEventSchema = z.object({

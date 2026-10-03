@@ -275,7 +275,7 @@ async function assertDefinitionPublishable(
     throw AppError.conflict('SURVEY_REWARD_ROUND_REQUIRED', 'Start a round or target a round before scheduling a rewarded global survey.');
   }
   if (round) {
-    validateSurveyRewards(input.rewards as unknown as Prisma.InputJsonValue, loadRulesetForRound(round));
+    validateSurveyRewards(input.rewards as unknown as Prisma.JsonValue, loadRulesetForRound(round));
   }
 }
 
