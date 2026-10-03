@@ -7,6 +7,7 @@ import { CasinoService } from '../casino.service.js';
 import { RouletteService } from '../roulette.service.js';
 import { StreetDiceService } from '../street-dice.service.js';
 import { ReputationService } from '../reputation.service.js';
+import { PlayerStateService } from '../player-state.service.js';
 
 function sequenceRng(values: number[], fallback = 0.5): () => number {
   let index = 0;
@@ -124,9 +125,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-D roulette and Stree
     await openBankroll(player.id);
     const table = classicOgV12D.casino.streetDice.tables[0]!;
     await app.prisma.$transaction((tx) =>
-      import('../player-state.service.js').then(({ PlayerStateService }) =>
-        PlayerStateService.settleInTransaction(tx, player.id, { markActive: false }),
-      ),
+      PlayerStateService.settleInTransaction(tx, player.id, { markActive: false }),
     );
     const before = await CasinoService.page(app.prisma, player.id);
     const netWorthBefore = (await app.prisma.roundPlayer.findUniqueOrThrow({
