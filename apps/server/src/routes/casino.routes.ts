@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { casinoCashierSchema, casinoSessionCloseSchema, casinoSessionStartSchema } from '@streets/shared';
+import { casinoCashierSchema, casinoSessionCloseSchema, casinoSessionStartSchema, casinoSlotSpinSchema } from '@streets/shared';
 import { CasinoService } from '../services/casino.service.js';
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { RoundService } from '../services/round.service.js';
@@ -35,6 +35,12 @@ const casinoRoutes: FastifyPluginAsync = async (fastify) => {
     const input = parseBody(casinoSessionStartSchema, request.body);
     const player = await requirePlayer(request.auth!.account.id);
     return CasinoService.startSession(fastify.prisma, player.id, input);
+  });
+
+  fastify.post('/slots/spin', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoSlotSpinSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    return CasinoService.spinSlot(fastify.prisma, player.id, input);
   });
 
   fastify.post('/sessions/:sessionId/close', { preHandler: fastify.requireAuth }, async (request) => {
