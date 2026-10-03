@@ -635,7 +635,7 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     CASINO_BUY_CHIPS: 'Casino chips',
     CASINO_REDEEM_CHIPS: 'Casino cash out',
     CASINO_SESSION_OPENED: 'Casino session',
-    CASINO_SESSION_CLOSED: 'Casino cash out',
+    CASINO_SESSION_CLOSED: 'Casino session closed',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();
 }
