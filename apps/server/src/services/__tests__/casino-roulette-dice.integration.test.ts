@@ -123,7 +123,16 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-D roulette and Stree
     const { player } = await fixture();
     await openBankroll(player.id);
     const table = classicOgV12D.casino.streetDice.tables[0]!;
+    await app.prisma.$transaction((tx) =>
+      import('../player-state.service.js').then(({ PlayerStateService }) =>
+        PlayerStateService.settleInTransaction(tx, player.id, { markActive: false }),
+      ),
+    );
     const before = await CasinoService.page(app.prisma, player.id);
+    const netWorthBefore = (await app.prisma.roundPlayer.findUniqueOrThrow({
+      where: { id: player.id },
+      select: { netWorthCents: true },
+    })).netWorthCents;
 
     const startAction = randomUUID();
     const started = await StreetDiceService.start(
@@ -141,6 +150,10 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-D roulette and Stree
 
     const afterPoint = await CasinoService.page(app.prisma, player.id);
     expect(afterPoint.totalCasinoValueCents).toBe(before.totalCasinoValueCents);
+    expect((await app.prisma.roundPlayer.findUniqueOrThrow({
+      where: { id: player.id },
+      select: { netWorthCents: true },
+    })).netWorthCents).toBe(netWorthBefore);
 
     const oddsAction = randomUUID();
     const withOdds = await StreetDiceService.addOdds(app.prisma, player.id, {
@@ -152,6 +165,10 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-D roulette and Stree
 
     const afterOdds = await CasinoService.page(app.prisma, player.id);
     expect(afterOdds.totalCasinoValueCents).toBe(before.totalCasinoValueCents);
+    expect((await app.prisma.roundPlayer.findUniqueOrThrow({
+      where: { id: player.id },
+      select: { netWorthCents: true },
+    })).netWorthCents).toBe(netWorthBefore);
 
     const rollAction = randomUUID();
     const settled = await StreetDiceService.roll(
