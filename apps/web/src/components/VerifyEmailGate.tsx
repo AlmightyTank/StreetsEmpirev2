@@ -61,8 +61,8 @@ export function VerifyEmailGate() {
 
       <Panel title="Check your inbox">
         <p>
-          We sent a link to <strong>{account.email}</strong>. Open it to confirm the address, and you are in.
-          It can take a minute; check spam too.
+          A verification link is required for <strong>{account.email}</strong>. Open the message to confirm the address, and you are in.
+          If it is not in your inbox or spam folder, use <strong>Send the link again</strong> below.
         </p>
         <div className="se-verify-gate__actions">
           <button type="button" className="se-btn se-btn--primary" onClick={() => void checkAgain()} disabled={busy}>
