@@ -172,7 +172,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
       {state && !state.enabled ? <p className="se-muted">Blackjack is not enabled in this round.</p> : null}
 
       {state?.enabled ? (
-        <div className="se-blackjack">
+        <div className={'se-blackjack' + (state.activeHand ? ' has-active-hand' : '')}>
           <div className="se-blackjack__tables" role="group" aria-label="Blackjack tables">
             {state.tables.map((table) => (
               <button
@@ -357,7 +357,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
                   </Button>
                 </form>
               ) : (
-                <p className="se-hint">This hand is saved on the server. Refreshing or reconnecting brings you back to these exact cards.</p>
+                <p className="se-hint se-blackjack__resume-hint">This hand is saved on the server. Refreshing or reconnecting brings you back to these exact cards.</p>
               )}
 
               {state.history.length ? (
