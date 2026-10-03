@@ -141,6 +141,7 @@ export function CasinoPage() {
     setBusy('spin');
     setError(null);
     setNotice(null);
+    const spinStartedAt = Date.now();
     try {
       const result = await casinoApi.spin({
         machineKey: machine.key,
@@ -148,6 +149,10 @@ export function CasinoPage() {
         activePaylineKeys: selectedPaylineKeys,
         actionId: spinAction.current,
       });
+      const remainingAnimationMs = Math.max(0, 850 - (Date.now() - spinStartedAt));
+      if (remainingAnimationMs > 0) {
+        await new Promise<void>((resolve) => window.setTimeout(resolve, remainingAnimationMs));
+      }
       setData(result.page);
       setLastSpin(result.spin);
       setNotice(
@@ -275,6 +280,7 @@ export function CasinoPage() {
                       <button
                         key={machine.key}
                         type="button"
+                        disabled={busy !== null}
                         aria-pressed={selectedMachineKey === machine.key}
                         className={'se-slots__machine' + (selectedMachineKey === machine.key ? ' is-selected' : '')}
                         onClick={() => {
@@ -411,6 +417,7 @@ export function CasinoPage() {
                                 className="se-btn se-btn--ghost"
                                 onClick={() => {
                                   setSelectedPaylineKeys([machine.paylines[0]!.key]);
+                                  setLastSpin(null);
                                   spinAction.current = newActionId();
                                 }}
                               >
@@ -420,8 +427,10 @@ export function CasinoPage() {
                                 <button
                                   type="button"
                                   className="se-btn se-btn--ghost"
+                                  disabled={busy !== null}
                                   onClick={() => {
                                     setSelectedPaylineKeys(machine.paylines.slice(0, 5).map((line) => line.key));
+                                    setLastSpin(null);
                                     spinAction.current = newActionId();
                                   }}
                                 >
@@ -431,8 +440,10 @@ export function CasinoPage() {
                               <button
                                 type="button"
                                 className="se-btn se-btn--ghost"
+                                disabled={busy !== null}
                                 onClick={() => {
                                   setSelectedPaylineKeys(machine.paylines.map((line) => line.key));
+                                  setLastSpin(null);
                                   spinAction.current = newActionId();
                                 }}
                               >
@@ -448,9 +459,11 @@ export function CasinoPage() {
                                 <button
                                   key={line.key}
                                   type="button"
+                                  disabled={busy !== null}
                                   aria-pressed={selected}
                                   className={'se-slots__payline' + (selected ? ' is-selected' : '') + (won ? ' is-winning' : '')}
                                   onClick={() => {
+                                    setLastSpin(null);
                                     setSelectedPaylineKeys((current) => {
                                       if (current.includes(line.key)) {
                                         if (current.length === 1) return current;
@@ -518,8 +531,10 @@ export function CasinoPage() {
                               className="se-input"
                               inputMode="decimal"
                               value={slotBetPerLine}
+                              disabled={busy !== null}
                               onChange={(event) => {
                                 setSlotBetPerLine(event.target.value);
+                                setLastSpin(null);
                                 spinAction.current = newActionId();
                               }}
                             />
