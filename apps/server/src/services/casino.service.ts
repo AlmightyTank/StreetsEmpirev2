@@ -266,6 +266,15 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     reels: machine.reels,
     rows: machine.rows,
     paylines: machine.paylines.map((line) => ({ key: line.key, name: line.name, rows: [...line.rows] })),
+    paytable: machine.symbols.map((symbol) => ({
+      symbolKey: symbol.key,
+      symbolLabel: symbol.label,
+      glyph: symbol.glyph,
+      payouts: ([3, 4, 5] as const)
+        .filter((matches) => matches <= machine.reels)
+        .map((matches) => ({ matches, payoutBps: machine.linePayoutBps[symbol.key]?.[matches] ?? 0 }))
+        .filter((entry) => entry.payoutBps > 0),
+    })).filter((entry) => entry.payouts.length > 0),
     minBetPerLineCents: machine.minBetPerLineCents,
     maxBetPerLineCents: machine.maxBetPerLineCents,
     betStepCents: machine.betStepCents,
