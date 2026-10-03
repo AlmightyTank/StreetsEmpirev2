@@ -40,7 +40,30 @@ These are ruleset values rather than constants in the service.
 ## Planned slices
 
 ### 1.2.0-B — Slots
-Server-authoritative reels, machine catalog, RTP simulation, wager/payout ledger entries, jackpot foundation and client animation that never decides the result.
+
+**Status: implemented on `feature/1.2.0-b-slots`.**
+
+- Three ruleset-pinned three-reel machines with distinct wager limits, volatility and venue availability.
+- Corner Classic is available everywhere; Neon Sevens is limited to nightlife/private/full rooms; Empire Gold is Vegas-only.
+- Server-authoritative weighted reels: the browser never rolls or chooses a symbol.
+- Exact integer paytables and an RTP calculator plus large-sample seeded QA simulation.
+- Base RTP is pinned in the low 90s so Slots remain entertainment/a money sink rather than the main seasonal income loop.
+- Every spin requires an open bankroll at the casino where the boss is physically standing.
+- One immutable `SLOT_SPIN` casino-ledger receipt stores wager, payout, reels, bankroll-after and progressive contribution/award.
+- Reusing the same action ID replays the saved result instead of rolling again.
+- Empire Gold contributes to a persistent round-wide progressive pool; the pool row is locked before award/reset so concurrent spins cannot double-hit it.
+- The progressive is jackpot-eligible only at the posted max wager.
+- Responsive Slots UI shows machine limits, base RTP, progressive pool and the server-decided result. Reduced-motion users get no reel animation.
+- Local seed advances to `classic-og-v1.2-b`.
+
+#### B invariants
+
+1. The client never supplies or derives a winning reel.
+2. A retried spin never spends twice and never gets a second RNG outcome.
+3. A spin can only debit the open session bankroll in the boss's current casino.
+4. A machine can only be played in venue kinds listed by the pinned ruleset.
+5. Progressive contribution and jackpot award/reset happen in the same database transaction as the spin.
+6. Base machine RTP is reproducible from the pinned symbol weights/paytable and release-gated by simulation.
 
 ### 1.2.0-C — Blackjack
 Server-owned shoe, hit/stand/double/split, table limits, hand history and reconnect-safe hands.
