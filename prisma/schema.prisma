@@ -1165,8 +1165,11 @@ model RoundPlayer {
   /// 1.2.0-A. City chip wallets, open bankroll sessions and immutable casino receipts.
   casinoWallets        CasinoWallet[]
   casinoSessions       CasinoSession[]
-  casinoLedger         CasinoLedgerEntry[]
-  casinoFreeSpinBonus  CasinoFreeSpinBonus?
+  casinoLedger           CasinoLedgerEntry[]
+  casinoFreeSpinBonus    CasinoFreeSpinBonus?
+  casinoBlackjackShoes   CasinoBlackjackShoe[]
+  casinoBlackjackHands   CasinoBlackjackHand[]
+  casinoBlackjackActions CasinoBlackjackAction[]
   /// 1.1.0-C. The crew's live rackets, racket key -> strength (0..1], rebuilt on every
   /// business settle so any system can read them off the player row.
   racketEffects        Json      @default("{}")
@@ -2514,6 +2517,71 @@ model CasinoFreeSpinBonus {
 
   @@index([machineKey])
   @@index([citySlug])
+}
+
+/// 1.2.0-C. Server-owned shuffled shoe for one player/table.
+/// The cursor advances only under the RoundPlayer row lock.
+model CasinoBlackjackShoe {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  tableKey      String
+  cards         Json
+  cursor        Int @default(0)
+  shuffleNumber Int @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([roundPlayerId, tableKey])
+  @@index([tableKey])
+}
+
+/// 1.2.0-C. Reconnect-safe blackjack hand. Player/dealer cards and split-hand
+/// state stay server-owned; settled rows double as durable hand history.
+model CasinoBlackjackHand {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  sessionId        String
+  cityId           String
+  tableKey         String
+  status           String @default("ACTIVE")
+  wagerCents       BigInt
+  playerHands      Json
+  dealerCards      Json
+  activeHandIndex  Int @default(0)
+  totalReturnCents BigInt @default(0)
+  initialActionId  String
+  settledAt        DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([roundPlayerId, initialActionId])
+  @@index([roundPlayerId, status, createdAt(sort: Desc)])
+  @@index([sessionId, status])
+  @@index([cityId, createdAt(sort: Desc)])
+}
+
+/// Idempotency receipt for blackjack Deal / Hit / Stand / Double / Split.
+/// response is the exact post-action hand snapshot returned on retry.
+model CasinoBlackjackAction {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  handId    String
+  actionId  String
+  kind      String
+  response  Json
+  createdAt DateTime @default(now())
+
+  @@unique([roundPlayerId, actionId])
+  @@index([handId, createdAt])
 }
 
 /// Immutable retry receipt for every casino money movement.
