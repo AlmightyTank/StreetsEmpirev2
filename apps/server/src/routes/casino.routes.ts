@@ -1,5 +1,13 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { casinoCashierSchema, casinoSessionCloseSchema, casinoSessionStartSchema, casinoSlotSpinSchema } from '@streets/shared';
+import {
+  casinoBlackjackActionSchema,
+  casinoBlackjackDealSchema,
+  casinoCashierSchema,
+  casinoSessionCloseSchema,
+  casinoSessionStartSchema,
+  casinoSlotSpinSchema,
+} from '@streets/shared';
+import { BlackjackService } from '../services/blackjack.service.js';
 import { CasinoService } from '../services/casino.service.js';
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { RoundService } from '../services/round.service.js';
@@ -42,6 +50,40 @@ const casinoRoutes: FastifyPluginAsync = async (fastify) => {
     const player = await requirePlayer(request.auth!.account.id);
     return CasinoService.spinSlot(fastify.prisma, player.id, input);
   });
+
+  fastify.get('/blackjack', { preHandler: fastify.requireAuth }, async (request) => {
+    const player = await requirePlayer(request.auth!.account.id);
+    return BlackjackService.state(fastify.prisma, player.id);
+  });
+
+  fastify.post('/blackjack/deal', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoBlackjackDealSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    const hand = await BlackjackService.deal(fastify.prisma, player.id, input);
+    return {
+      page: await CasinoService.page(fastify.prisma, player.id),
+      blackjack: await BlackjackService.state(fastify.prisma, player.id),
+      hand,
+    };
+  });
+
+  for (const [path, action] of [
+    ['hit', BlackjackService.hit],
+    ['stand', BlackjackService.stand],
+    ['double', BlackjackService.double],
+    ['split', BlackjackService.split],
+  ] as const) {
+    fastify.post('/blackjack/' + path, { preHandler: fastify.requireAuth }, async (request) => {
+      const input = parseBody(casinoBlackjackActionSchema, request.body);
+      const player = await requirePlayer(request.auth!.account.id);
+      const hand = await action(fastify.prisma, player.id, input);
+      return {
+        page: await CasinoService.page(fastify.prisma, player.id),
+        blackjack: await BlackjackService.state(fastify.prisma, player.id),
+        hand,
+      };
+    });
+  }
 
   fastify.post('/sessions/:sessionId/close', { preHandler: fastify.requireAuth }, async (request) => {
     const input = parseBody(casinoSessionCloseSchema, request.body);
