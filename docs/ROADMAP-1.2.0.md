@@ -17,6 +17,7 @@ A deliberately ships no resolved gambling game. It builds the money and presence
 - Eight ruleset-pinned casino venues, one per city.
 - Las Vegas is the only full casino; other cities have private, nightlife or underground identities.
 - The boss must physically be in town to use a cage or open a bankroll.
+- Away from home, the cage uses only the cash physically carried in the boss trip/run wallet; protected home cash cannot be wired into destination chips.
 - City-scoped chip wallets: Vegas chips stay at the Vegas cage until the boss returns.
 - Dollar-for-dollar cash ↔ chip exchange.
 - One open session bankroll per player.
