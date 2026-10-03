@@ -28,6 +28,30 @@ const EMPIRE_SYMBOLS = [
   { key: 'JACKPOT', label: 'Empire', glyph: '★', weight: 1 },
 ] as const;
 
+function buildReelStrips(
+  symbols: readonly { key: string; weight: number }[],
+  reels: number,
+): readonly (readonly string[])[] {
+  const pool = symbols.flatMap((symbol) => Array.from({ length: symbol.weight }, () => symbol.key));
+  const steps = [37, 43, 47, 53, 59] as const;
+  return Array.from({ length: reels }, (_, reel) => {
+    const step = steps[reel]!;
+    const offset = (reel * 17 + 11) % pool.length;
+    return Array.from({ length: pool.length }, (_, index) => pool[(offset + index * step) % pool.length]!);
+  });
+}
+
+const FREE_SPINS = {
+  triggerBps: 100,
+  awards: [
+    { spins: 1, weight: 9_300 },
+    { spins: 2, weight: 500 },
+    { spins: 3, weight: 150 },
+    { spins: 5, weight: 45 },
+    { spins: 10, weight: 5 },
+  ],
+} as const;
+
 function lines(patterns: readonly (readonly number[])[]): readonly CasinoSlotPaylineRules[] {
   return patterns.map((rows, index) => ({ key: `LINE_${index + 1}`, name: `Line ${index + 1}`, rows }));
 }
@@ -95,6 +119,7 @@ export const classicOgV12B = {
           maxBetPerLineCents: 2_000,
           betStepCents: 100,
           symbols: CORNER_SYMBOLS,
+          reelStrips: buildReelStrips(CORNER_SYMBOLS, 3),
           paylines: CORNER_LINES,
           linePayoutBps: {
             CHERRY: { 3: 60_000 },
@@ -103,6 +128,7 @@ export const classicOgV12B = {
             SEVEN: { 3: 750_000 },
             CROWN: { 3: 3_000_000 },
           },
+          freeSpins: { ...FREE_SPINS, presentationLabel: 'HOUSE SPINS' },
         },
         {
           key: 'NEON_SEVENS',
@@ -115,6 +141,7 @@ export const classicOgV12B = {
           maxBetPerLineCents: 5_000,
           betStepCents: 500,
           symbols: NEON_SYMBOLS,
+          reelStrips: buildReelStrips(NEON_SYMBOLS, 4),
           paylines: NEON_LINES,
           linePayoutBps: {
             CHERRY: { 3: 40_000, 4: 170_000 },
@@ -124,6 +151,7 @@ export const classicOgV12B = {
             DIAMOND: { 3: 870_000, 4: 7_830_000 },
             CROWN: { 3: 2_180_000, 4: 26_100_000 },
           },
+          freeSpins: { ...FREE_SPINS, presentationLabel: 'LUCKY SPINS' },
         },
         {
           key: 'EMPIRE_GOLD',
@@ -136,6 +164,7 @@ export const classicOgV12B = {
           maxBetPerLineCents: 12_500,
           betStepCents: 2_500,
           symbols: EMPIRE_SYMBOLS,
+          reelStrips: buildReelStrips(EMPIRE_SYMBOLS, 5),
           paylines: EMPIRE_LINES,
           linePayoutBps: {
             CHERRY: { 3: 40_000, 4: 110_000, 5: 380_000 },
@@ -153,6 +182,7 @@ export const classicOgV12B = {
             eligibleBetPerLineCents: 12_500,
             requiresAllPaylines: true,
           },
+          freeSpins: { ...FREE_SPINS, presentationLabel: 'COMPLIMENTARY SPINS' },
         },
       ],
     },
