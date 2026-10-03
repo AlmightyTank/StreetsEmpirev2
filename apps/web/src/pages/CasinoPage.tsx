@@ -320,9 +320,11 @@ export function CasinoPage() {
                             ? 'Select at least one payline.'
                             : !lineBetValid
                               ? 'Use one of this machine\'s posted line-bet increments.'
-                              : busy !== null
-                                ? 'Another casino action is running.'
-                                : null;
+                              : data.openSession && totalWagerCents > data.openSession.bankrollCents
+                                ? 'There are not enough credits in this bankroll for that spin.'
+                                : busy !== null
+                                  ? 'Another casino action is running.'
+                                  : null;
                     const winningPositions = new Set(
                       result?.winningLines.flatMap((win) => win.positions.map((position) => position.reel + ':' + position.row)) ?? [],
                     );
@@ -415,6 +417,7 @@ export function CasinoPage() {
                               <button
                                 type="button"
                                 className="se-btn se-btn--ghost"
+                                disabled={busy !== null}
                                 onClick={() => {
                                   setSelectedPaylineKeys([machine.paylines[0]!.key]);
                                   setLastSpin(null);
