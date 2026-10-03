@@ -2556,6 +2556,8 @@ model CasinoBlackjackHand {
   activeHandIndex  Int @default(0)
   totalReturnCents  BigInt @default(0)
   bankrollAfterCents BigInt @default(0)
+  shoeRemainingCards Int @default(0)
+  shuffleNumber     Int @default(1)
   initialActionId   String
   settledAt        DateTime?
   createdAt        DateTime @default(now())
