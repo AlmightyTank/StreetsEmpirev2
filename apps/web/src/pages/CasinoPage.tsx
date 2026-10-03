@@ -3,6 +3,7 @@ import { formatCents, type CasinoPageDto, type CasinoSlotSpinDto } from '@street
 import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { BlackjackPanel } from '../components/BlackjackPanel.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -798,6 +799,14 @@ export function CasinoPage() {
                 </div>
               ) : <p className="se-muted">Slots are not enabled in this round.</p>}
             </Panel>
+
+            <BlackjackPanel
+              casinoPage={data}
+              onPageChange={(next) => {
+                setData(next);
+                setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+              }}
+            />
 
             <Panel title="Casino destinations" aside={String(data.venues.length) + ' cities'}>
               <div className="se-casino__venues">
