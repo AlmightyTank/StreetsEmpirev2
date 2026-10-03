@@ -1,5 +1,5 @@
 import { classicOgV12A } from '../classic-og-v1.2-a/index.js';
-import type { Ruleset } from '../types.js';
+import type { CasinoSlotPaylineRules, Ruleset } from '../types.js';
 
 const CORNER_SYMBOLS = [
   { key: 'CHERRY', label: 'Cherry', glyph: '🍒', weight: 40 },
@@ -28,7 +28,55 @@ const EMPIRE_SYMBOLS = [
   { key: 'JACKPOT', label: 'Empire', glyph: '★', weight: 1 },
 ] as const;
 
-/** 1.2.0-B — Slots. All outcomes are decided server-side from these pinned tables. */
+function lines(patterns: readonly (readonly number[])[]): readonly CasinoSlotPaylineRules[] {
+  return patterns.map((rows, index) => ({ key: `LINE_${index + 1}`, name: `Line ${index + 1}`, rows }));
+}
+
+const CORNER_LINES = lines([
+  [1, 1, 1],
+  [0, 0, 0],
+  [2, 2, 2],
+  [0, 1, 2],
+  [2, 1, 0],
+] as const);
+
+const NEON_LINES = lines([
+  [1, 1, 1, 1],
+  [0, 0, 0, 0],
+  [2, 2, 2, 2],
+  [0, 1, 2, 1],
+  [2, 1, 0, 1],
+  [0, 0, 1, 2],
+  [2, 2, 1, 0],
+  [1, 0, 0, 1],
+  [1, 2, 2, 1],
+  [0, 1, 0, 1],
+] as const);
+
+const EMPIRE_LINES = lines([
+  [1, 1, 1, 1, 1],
+  [0, 0, 0, 0, 0],
+  [2, 2, 2, 2, 2],
+  [0, 1, 2, 1, 0],
+  [2, 1, 0, 1, 2],
+  [0, 0, 1, 2, 2],
+  [2, 2, 1, 0, 0],
+  [1, 0, 0, 0, 1],
+  [1, 2, 2, 2, 1],
+  [0, 1, 1, 1, 0],
+  [2, 1, 1, 1, 2],
+  [1, 0, 1, 2, 1],
+  [1, 2, 1, 0, 1],
+  [0, 1, 0, 1, 0],
+  [2, 1, 2, 1, 2],
+  [0, 2, 0, 2, 0],
+  [2, 0, 2, 0, 2],
+  [1, 0, 2, 0, 1],
+  [1, 2, 0, 2, 1],
+  [0, 2, 1, 2, 0],
+] as const);
+
+/** 1.2.0-B — casino-style three-row Slots. Every stop and winning line is server-authoritative. */
 export const classicOgV12B = {
   ...classicOgV12A,
   meta: { id: 'classic-og-v1.2-b', version: '1.2.0-B', name: 'Classic OG - Slots' },
@@ -39,43 +87,71 @@ export const classicOgV12B = {
         {
           key: 'CORNER_CLASSIC',
           name: 'Corner Classic',
-          blurb: 'Cheap action, frequent small hits, and the same three reels in every room.',
+          blurb: 'A compact 3×3 cabinet with five selectable lines and old-school symbols.',
           venueKinds: ['FULL_CASINO', 'PRIVATE_CLUB', 'UNDERGROUND', 'NIGHTLIFE'],
-          minWagerCents: 100,
-          maxWagerCents: 10_000,
-          wagerStepCents: 100,
+          reels: 3,
+          rows: 3,
+          minBetPerLineCents: 100,
+          maxBetPerLineCents: 2_000,
+          betStepCents: 100,
           symbols: CORNER_SYMBOLS,
-          pairPayoutBps: { CHERRY: 5_820, BAR: 8_730, BELL: 11_640, SEVEN: 17_460, CROWN: 33_950 },
-          triplePayoutBps: { CHERRY: 33_950, BAR: 67_900, BELL: 111_550, SEVEN: 223_100, CROWN: 659_600 },
+          paylines: CORNER_LINES,
+          linePayoutBps: {
+            CHERRY: { 3: 60_000 },
+            BAR: { 3: 130_000 },
+            BELL: { 3: 280_000 },
+            SEVEN: { 3: 750_000 },
+            CROWN: { 3: 3_000_000 },
+          },
         },
         {
           key: 'NEON_SEVENS',
           name: 'Neon Sevens',
-          blurb: 'A louder cabinet with fewer soft landings and much bigger triples.',
+          blurb: 'A 4×3 video slot with ten selectable lines and bigger four-of-a-kind hits.',
           venueKinds: ['FULL_CASINO', 'PRIVATE_CLUB', 'NIGHTLIFE'],
-          minWagerCents: 500,
-          maxWagerCents: 50_000,
-          wagerStepCents: 500,
+          reels: 4,
+          rows: 3,
+          minBetPerLineCents: 500,
+          maxBetPerLineCents: 5_000,
+          betStepCents: 500,
           symbols: NEON_SYMBOLS,
-          pairPayoutBps: { CHERRY: 5_400, BAR: 8_775, BELL: 12_150, SEVEN: 18_900, DIAMOND: 29_700, CROWN: 54_000 },
-          triplePayoutBps: { CHERRY: 40_500, BAR: 81_000, BELL: 135_000, SEVEN: 270_000, DIAMOND: 540_000, CROWN: 1_215_000 },
+          paylines: NEON_LINES,
+          linePayoutBps: {
+            CHERRY: { 3: 40_000, 4: 170_000 },
+            BAR: { 3: 90_000, 4: 350_000 },
+            BELL: { 3: 170_000, 4: 870_000 },
+            SEVEN: { 3: 390_000, 4: 2_610_000 },
+            DIAMOND: { 3: 870_000, 4: 7_830_000 },
+            CROWN: { 3: 2_180_000, 4: 26_100_000 },
+          },
         },
         {
           key: 'EMPIRE_GOLD',
           name: 'Empire Gold',
-          blurb: 'The Empire Grand high-limit progressive. Max bet makes the three Empire stars jackpot-eligible.',
+          blurb: 'The Empire Grand 5×3 high-limit cabinet with twenty lines and a max-lines progressive.',
           venueKinds: ['FULL_CASINO'],
-          minWagerCents: 2_500,
-          maxWagerCents: 250_000,
-          wagerStepCents: 2_500,
+          reels: 5,
+          rows: 3,
+          minBetPerLineCents: 2_500,
+          maxBetPerLineCents: 12_500,
+          betStepCents: 2_500,
           symbols: EMPIRE_SYMBOLS,
-          pairPayoutBps: { CHERRY: 5_250, BAR: 8_250, BELL: 12_000, SEVEN: 19_500, DIAMOND: 33_000, CROWN: 67_500 },
-          triplePayoutBps: { CHERRY: 42_000, BAR: 82_500, BELL: 142_500, SEVEN: 285_000, DIAMOND: 600_000, CROWN: 1_500_000 },
+          paylines: EMPIRE_LINES,
+          linePayoutBps: {
+            CHERRY: { 3: 40_000, 4: 110_000, 5: 380_000 },
+            BAR: { 3: 80_000, 4: 280_000, 5: 940_000 },
+            BELL: { 3: 140_000, 4: 660_000, 5: 2_350_000 },
+            SEVEN: { 3: 330_000, 4: 1_690_000, 5: 6_580_000 },
+            DIAMOND: { 3: 750_000, 4: 4_700_000, 5: 23_500_000 },
+            CROWN: { 3: 1_880_000, 4: 14_100_000, 5: 94_000_000 },
+            JACKPOT: { 3: 0, 4: 0, 5: 0 },
+          },
           progressive: {
             symbolKey: 'JACKPOT',
             seedCents: 2_500_000,
             contributionBps: 100,
-            eligibleWagerCents: 250_000,
+            eligibleBetPerLineCents: 12_500,
+            requiresAllPaylines: true,
           },
         },
       ],
