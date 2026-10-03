@@ -30,6 +30,7 @@ CREATE TABLE "CasinoBlackjackHand" (
   "dealerCards" JSONB NOT NULL,
   "activeHandIndex" INTEGER NOT NULL DEFAULT 0,
   "totalReturnCents" BIGINT NOT NULL DEFAULT 0,
+  "bankrollAfterCents" BIGINT NOT NULL DEFAULT 0,
   "initialActionId" TEXT NOT NULL,
   "settledAt" TIMESTAMP(3),
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
