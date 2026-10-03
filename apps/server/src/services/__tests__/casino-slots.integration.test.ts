@@ -81,6 +81,11 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-B slots with Postgre
     });
 
     expect(replay.spin).toEqual(first.spin);
+    await expect(CasinoService.spinSlot(app.prisma, player.id, {
+      machineKey: 'CORNER_CLASSIC',
+      wagerCents: 9_000,
+      actionId,
+    })).rejects.toMatchObject({ code: 'ACTION_ID_REUSED' });
     expect(await app.prisma.casinoLedgerEntry.count({
       where: { roundPlayerId: player.id, actionId, kind: 'SLOT_SPIN' },
     })).toBe(1);
