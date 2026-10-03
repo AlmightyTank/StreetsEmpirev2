@@ -628,13 +628,100 @@
   .se-blackjack__meter span:last-child { grid-column: 1 / -1; }
 }
 @media (max-width: 620px) {
-  .se-blackjack__rule-grid { grid-template-columns: 1fr 1fr; }
-  .se-blackjack__felt { padding: .7rem; gap: .8rem; }
-  .se-blackjack__cards { min-height: 4.7rem; gap: .3rem; }
-  .se-blackjack__card { width: 3.25rem; height: 4.55rem; font-size: .9rem; }
-  .se-blackjack__hands { grid-template-columns: 1fr; }
-  .se-blackjack__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .se-blackjack__deal { position: sticky; bottom: calc(60px + .5rem + env(safe-area-inset-bottom, 0px)); z-index: 28; grid-template-columns: 1fr; box-shadow: 0 -.35rem 1.1rem rgb(0 0 0 / .28); backdrop-filter: blur(12px); }
+  .se-blackjack { gap: .65rem; }
+  .se-blackjack__rule-grid { grid-template-columns: 1fr 1fr; gap: .4rem; }
+
+  /* Keep the live table compact enough that the hand and controls share one phone viewport. */
+  .se-blackjack__felt {
+    padding: .55rem;
+    gap: .55rem;
+    border-radius: .75rem;
+  }
+  .se-blackjack__felt::before { inset: .3rem; border-radius: .55rem; }
+  .se-blackjack__dealer { gap: .35rem; padding-bottom: .45rem; }
+  .se-blackjack__label { gap: .25rem .5rem; }
+  .se-blackjack__label span { font-size: .72rem; letter-spacing: .06em; }
+
+  .se-blackjack__cards {
+    min-height: 4rem;
+    gap: .25rem;
+    justify-content: center;
+  }
+  .se-blackjack__card {
+    width: 2.9rem;
+    height: 4rem;
+    border-radius: .38rem;
+    font-size: .82rem;
+  }
+
+  .se-blackjack__hands { grid-template-columns: 1fr; gap: .5rem; }
+  .se-blackjack__hand { padding: .5rem; gap: .42rem; border-radius: .55rem; }
+  .se-blackjack__hand-meta { font-size: .76rem; }
+
+  /* Four core bankroll figures stay on one row; the shoe becomes a slim status bar. */
+  .se-blackjack__meter {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .3rem;
+  }
+  .se-blackjack__meter span {
+    padding: .4rem .35rem;
+    border-radius: .45rem;
+  }
+  .se-blackjack__meter small {
+    margin-bottom: .08rem;
+    font-size: .63rem;
+    line-height: 1.1;
+  }
+  .se-blackjack__meter strong {
+    font-size: .82rem;
+    line-height: 1.2;
+  }
+  .se-blackjack__meter span:last-child {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .6rem;
+    padding-inline: .5rem;
+  }
+  .se-blackjack__meter span:last-child small,
+  .se-blackjack__meter span:last-child strong {
+    margin: 0;
+  }
+
+  /* During a live hand, keep every decision reachable above the mobile nav. */
+  .se-blackjack__actions {
+    position: sticky;
+    bottom: calc(60px + .35rem + env(safe-area-inset-bottom, 0px));
+    z-index: 29;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .3rem;
+    padding: .4rem;
+    border: 1px solid var(--se-border);
+    border-radius: .65rem;
+    background: color-mix(in srgb, var(--se-surface) 92%, transparent);
+    box-shadow: 0 -.35rem 1.1rem rgb(0 0 0 / .3);
+    backdrop-filter: blur(12px);
+  }
+  .se-blackjack__actions .se-btn {
+    min-width: 0;
+    min-height: 2.8rem;
+    padding-inline: .25rem;
+    font-size: .74rem;
+    white-space: nowrap;
+    touch-action: manipulation;
+  }
+
+  .se-blackjack__deal {
+    position: sticky;
+    bottom: calc(60px + .35rem + env(safe-area-inset-bottom, 0px));
+    z-index: 28;
+    grid-template-columns: 1fr;
+    padding: .6rem;
+    box-shadow: 0 -.35rem 1.1rem rgb(0 0 0 / .28);
+    backdrop-filter: blur(12px);
+  }
   .se-blackjack__bet { grid-template-columns: auto minmax(4.5rem, 1fr) auto; }
   .se-blackjack__bet > :last-child { grid-column: 1 / -1; }
   .se-blackjack__history-list article { grid-template-columns: 1fr auto; }
