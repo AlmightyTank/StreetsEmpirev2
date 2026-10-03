@@ -46,6 +46,7 @@ import { StatusPage } from './pages/StatusPage.js';
 import { VerifyEmailPage } from './pages/VerifyEmailPage.js';
 import { StorePage, StoresIndexPage } from './pages/StorePage.js';
 import { TravelPage } from './pages/TravelPage.js';
+import { CasinoPage } from './pages/CasinoPage.js';
 import { TurfPage } from './pages/TurfPage.js';
 import { GameRouteLayout } from './layouts/GameLayout.js';
 import { useMaintenanceMessage } from './components/MaintenanceBanner.js';
@@ -159,6 +160,7 @@ export function App() {
         <Route path="street-pass" element={<Protected><LiveRound><StreetPassPage /></LiveRound></Protected>} />
         <Route path="stores" element={<Protected><LiveRound><StoresIndexPage /></LiveRound></Protected>} />
         <Route path="stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
+        <Route path="casino" element={<Protected><LiveRound><CasinoPage /></LiveRound></Protected>} />
 
         <Route path="travel" element={<Protected><LiveRound><TravelPage /></LiveRound></Protected>} />
         <Route path="turf" element={<Protected><LiveRound><TurfPage /></LiveRound></Protected>} />
