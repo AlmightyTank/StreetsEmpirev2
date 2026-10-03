@@ -505,7 +505,6 @@ export function CasinoPage() {
                     role="tab"
                     aria-selected={activeGame === game.key}
                     aria-controls={'casino-game-panel-' + game.key}
-                    tabIndex={activeGame === game.key ? 0 : -1}
                     className={'se-casino-game-tab' + (activeGame === game.key ? ' is-active' : '') + (game.live ? ' is-live' : ' is-coming')}
                     onClick={() => setActiveGame(game.key)}
                   >
