@@ -582,11 +582,6 @@ async function mutate(
   const now = new Date();
   return prisma.$transaction(async (tx) => {
     await lockRoundPlayer(tx, roundPlayerId);
-    const replay = await tx.casinoLedgerEntry.findUnique({
-      where: { roundPlayerId_actionId: { roundPlayerId, actionId } },
-      select: { id: true },
-    });
-    if (replay) return pageInDb(tx, roundPlayerId, now);
     const blackjackReceipt = await tx.casinoBlackjackAction.findUnique({
       where: { roundPlayerId_actionId: { roundPlayerId, actionId } },
       select: { id: true },
@@ -594,6 +589,11 @@ async function mutate(
     if (blackjackReceipt) {
       throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a blackjack action.');
     }
+    const replay = await tx.casinoLedgerEntry.findUnique({
+      where: { roundPlayerId_actionId: { roundPlayerId, actionId } },
+      select: { id: true },
+    });
+    if (replay) return pageInDb(tx, roundPlayerId, now);
 
     const { player, ruleset, casino } = await playerAndCasino(tx, roundPlayerId);
     await execute(tx, player, ruleset, casino, now);
