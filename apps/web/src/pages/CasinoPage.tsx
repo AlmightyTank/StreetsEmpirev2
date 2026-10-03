@@ -52,6 +52,7 @@ export function CasinoPage() {
   const [lastSpin, setLastSpin] = useState<CasinoSlotSpinDto | null>(null);
   const [revealedReels, setRevealedReels] = useState(99);
   const [displayedWinCents, setDisplayedWinCents] = useState(0);
+  const [displayedCreditsCents, setDisplayedCreditsCents] = useState<number | null>(null);
   const [activeWinLineIndex, setActiveWinLineIndex] = useState(0);
   const [bonusFlash, setBonusFlash] = useState<number | null>(null);
   const [soundEnabled, setSoundEnabledState] = useState(() => casinoSoundEnabled());
@@ -198,6 +199,7 @@ export function CasinoPage() {
     setLastSpin(null);
     setRevealedReels(0);
     setDisplayedWinCents(0);
+    setDisplayedCreditsCents(data.openSession?.bankrollCents ?? null);
     playCasinoSound('SPIN', soundEnabled);
 
     try {
@@ -231,8 +233,10 @@ export function CasinoPage() {
         setBonusFlash(result.spin.freeSpinsAwarded);
         playCasinoSound('FREE_SPINS', soundEnabled);
         if (!reducedMotion) await wait(650);
+        setBonusFlash(null);
       }
 
+      const creditsBeforePayout = result.spin.bankrollAfterCents - result.spin.payoutCents;
       if (result.spin.payoutCents > 0) {
         const sound = result.spin.winTier === 'JACKPOT'
           ? 'JACKPOT'
@@ -244,14 +248,19 @@ export function CasinoPage() {
         playCasinoSound(sound, soundEnabled);
         if (reducedMotion) {
           setDisplayedWinCents(result.spin.payoutCents);
+          setDisplayedCreditsCents(result.spin.bankrollAfterCents);
         } else {
           const duration = result.spin.winTier === 'JACKPOT' ? 1_600 : result.spin.winTier === 'MEGA' ? 1_250 : 850;
           const steps = 28;
           for (let step = 1; step <= steps; step++) {
             await wait(duration / steps);
-            setDisplayedWinCents(Math.round(result.spin.payoutCents * step / steps));
+            const progress = step / steps;
+            setDisplayedWinCents(Math.round(result.spin.payoutCents * progress));
+            setDisplayedCreditsCents(Math.round(creditsBeforePayout + result.spin.payoutCents * progress));
           }
         }
+      } else {
+        setDisplayedCreditsCents(result.spin.bankrollAfterCents);
       }
 
       setNotice(
@@ -586,7 +595,7 @@ export function CasinoPage() {
                           </div>
 
                           <div className="se-slots__meter">
-                            <span><small>Credits</small><strong>{data.openSession ? formatCents(data.openSession.bankrollCents) : '—'}</strong></span>
+                            <span><small>Credits</small><strong>{displayedCreditsCents !== null ? formatCents(displayedCreditsCents) : data.openSession ? formatCents(data.openSession.bankrollCents) : '—'}</strong></span>
                             <span><small>Lines</small><strong>{selectedLines.length}/{machine.paylines.length}</strong></span>
                             <span><small>Per line</small><strong>{lineBetCents ? formatCents(lineBetCents) : '—'}</strong></span>
                             <span><small>{bonusActive ? 'Casino covers' : 'Total bet'}</small><strong>{totalWagerCents ? formatCents(totalWagerCents) : '—'}</strong></span>
