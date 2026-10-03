@@ -26,6 +26,7 @@ CREATE TABLE "CasinoBlackjackHand" (
   "tableKey" TEXT NOT NULL,
   "status" TEXT NOT NULL DEFAULT 'ACTIVE',
   "wagerCents" BIGINT NOT NULL,
+  "committedWagerCents" BIGINT NOT NULL,
   "playerHands" JSONB NOT NULL,
   "dealerCards" JSONB NOT NULL,
   "activeHandIndex" INTEGER NOT NULL DEFAULT 0,
