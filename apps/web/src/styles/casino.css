@@ -628,53 +628,61 @@
   .se-blackjack__meter span:last-child { grid-column: 1 / -1; }
 }
 @media (max-width: 620px) {
-  .se-blackjack { gap: .65rem; }
+  .se-blackjack { gap: .55rem; }
+
+  /* Once a hand starts, the phone view becomes a focused game table. */
+  .se-blackjack.has-active-hand .se-blackjack__tables,
+  .se-blackjack.has-active-hand .se-blackjack__rules,
+  .se-blackjack.has-active-hand .se-blackjack__resume-hint {
+    display: none;
+  }
+
   .se-blackjack__rule-grid { grid-template-columns: 1fr 1fr; gap: .4rem; }
 
-  /* Keep the live table compact enough that the hand and controls share one phone viewport. */
   .se-blackjack__felt {
-    padding: .55rem;
-    gap: .55rem;
+    padding: .5rem;
+    gap: .45rem;
     border-radius: .75rem;
   }
   .se-blackjack__felt::before { inset: .3rem; border-radius: .55rem; }
-  .se-blackjack__dealer { gap: .35rem; padding-bottom: .45rem; }
-  .se-blackjack__label { gap: .25rem .5rem; }
-  .se-blackjack__label span { font-size: .72rem; letter-spacing: .06em; }
+  .se-blackjack__dealer { gap: .3rem; padding-bottom: .4rem; }
+  .se-blackjack__label { gap: .2rem .5rem; }
+  .se-blackjack__label span { font-size: .7rem; letter-spacing: .06em; }
 
   .se-blackjack__cards {
-    min-height: 4rem;
+    min-height: 3.7rem;
     gap: .25rem;
     justify-content: center;
   }
   .se-blackjack__card {
-    width: 2.9rem;
-    height: 4rem;
+    width: 2.7rem;
+    height: 3.7rem;
     border-radius: .38rem;
-    font-size: .82rem;
+    font-size: .8rem;
   }
 
-  .se-blackjack__hands { grid-template-columns: 1fr; gap: .5rem; }
-  .se-blackjack__hand { padding: .5rem; gap: .42rem; border-radius: .55rem; }
-  .se-blackjack__hand-meta { font-size: .76rem; }
+  .se-blackjack__hands { grid-template-columns: 1fr; gap: .4rem; }
+  .se-blackjack__hand { padding: .45rem; gap: .35rem; border-radius: .55rem; }
+  .se-blackjack__hand-meta { font-size: .74rem; }
 
-  /* Four core bankroll figures stay on one row; the shoe becomes a slim status bar. */
+  /* Four core figures stay visible together; the shoe is one slim row below them. */
   .se-blackjack__meter {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: .3rem;
+    gap: .28rem;
   }
   .se-blackjack__meter span {
-    padding: .4rem .35rem;
+    padding: .36rem .3rem;
     border-radius: .45rem;
   }
   .se-blackjack__meter small {
-    margin-bottom: .08rem;
-    font-size: .63rem;
-    line-height: 1.1;
+    margin-bottom: .06rem;
+    font-size: .6rem;
+    line-height: 1.05;
   }
   .se-blackjack__meter strong {
-    font-size: .82rem;
-    line-height: 1.2;
+    font-size: .78rem;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
   }
   .se-blackjack__meter span:last-child {
     grid-column: 1 / -1;
@@ -689,26 +697,28 @@
     margin: 0;
   }
 
-  /* During a live hand, keep every decision reachable above the mobile nav. */
+  /*
+   * Keep actions in normal document flow on phones. Bottom-sticky positioning
+   * pulled the bar upward over the bankroll meter and left a large placeholder
+   * gap inside the felt.
+   */
   .se-blackjack__actions {
-    position: sticky;
-    bottom: calc(60px + .35rem + env(safe-area-inset-bottom, 0px));
-    z-index: 29;
+    position: relative;
+    bottom: auto;
+    z-index: 2;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: .3rem;
-    padding: .4rem;
+    gap: .28rem;
+    padding: .35rem;
     border: 1px solid var(--se-border);
-    border-radius: .65rem;
-    background: color-mix(in srgb, var(--se-surface) 92%, transparent);
-    box-shadow: 0 -.35rem 1.1rem rgb(0 0 0 / .3);
-    backdrop-filter: blur(12px);
+    border-radius: .6rem;
+    background: color-mix(in srgb, var(--se-surface) 94%, transparent);
   }
   .se-blackjack__actions .se-btn {
     min-width: 0;
-    min-height: 2.8rem;
-    padding-inline: .25rem;
-    font-size: .74rem;
+    min-height: 2.65rem;
+    padding-inline: .2rem;
+    font-size: .72rem;
     white-space: nowrap;
     touch-action: manipulation;
   }
@@ -724,6 +734,15 @@
   }
   .se-blackjack__bet { grid-template-columns: auto minmax(4.5rem, 1fr) auto; }
   .se-blackjack__bet > :last-child { grid-column: 1 / -1; }
+
+  .se-blackjack__history {
+    margin-top: .15rem;
+    padding-top: .55rem;
+  }
+  .se-blackjack__history summary {
+    font-size: .86rem;
+    line-height: 1.25;
+  }
   .se-blackjack__history-list article { grid-template-columns: 1fr auto; }
   .se-blackjack__history-list article > span:nth-child(2) { grid-column: 1 / -1; grid-row: 2; color: var(--se-muted); }
 }
