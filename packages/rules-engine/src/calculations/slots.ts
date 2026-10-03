@@ -124,6 +124,12 @@ export function resolveSlotSpin(
     Array.from({ length: machine.reels }, () => drawSymbol(machine, rng)),
   );
   const totalWagerCents = slotTotalWagerCents(betPerLineCents, activeLines.length);
+  const allLinesActive = activeLines.length === machine.paylines.length;
+  const progressiveEligible = Boolean(
+    machine.progressive
+      && betPerLineCents >= BigInt(machine.progressive.eligibleBetPerLineCents)
+      && (!machine.progressive.requiresAllPaylines || allLinesActive),
+  );
   const winningLines: SlotLineWinMath[] = [];
 
   for (const line of activeLines) {
@@ -131,7 +137,12 @@ export function resolveSlotSpin(
     if (match.matchCount < 3) continue;
     const payoutBps = slotLinePayoutBps(machine, match.symbol.key, match.matchCount);
     const payoutCents = (betPerLineCents * BigInt(payoutBps)) / 10_000n;
-    if (payoutBps > 0 || machine.progressive?.symbolKey === match.symbol.key) {
+    const qualifiesProgressive = Boolean(
+      progressiveEligible
+        && machine.progressive?.symbolKey === match.symbol.key
+        && match.matchCount === machine.reels,
+    );
+    if (payoutBps > 0 || qualifiesProgressive) {
       winningLines.push({
         paylineKey: line.key,
         paylineName: line.name,
@@ -151,11 +162,9 @@ export function resolveSlotSpin(
     ? (totalWagerCents * BigInt(machine.progressive.contributionBps)) / 10_000n
     : 0n;
 
-  const allLinesActive = activeLines.length === machine.paylines.length;
   const jackpotTriggered = Boolean(
-    machine.progressive
-      && betPerLineCents >= BigInt(machine.progressive.eligibleBetPerLineCents)
-      && (!machine.progressive.requiresAllPaylines || allLinesActive)
+    progressiveEligible
+      && machine.progressive
       && winningLines.some(
         (win) => win.symbolKey === machine.progressive!.symbolKey && win.matchCount === machine.reels,
       ),
