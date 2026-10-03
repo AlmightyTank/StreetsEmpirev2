@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { classicOgV12B } from '@streets/rulesets';
+import { classicOgV12B, type CasinoSlotMachineRules } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
 import { CasinoService } from '../casino.service.js';
 import { ReputationService } from '../reputation.service.js';
@@ -106,7 +106,8 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-B slots with Postgre
   it('funds the progressive pool from a Vegas spin without making a sub-max wager jackpot eligible', async () => {
     const { round, player } = await fixture('las-vegas');
     await openBankroll(player.id);
-    const progressive = classicOgV12B.casino.slots.machines.find((machine) => machine.key === 'EMPIRE_GOLD')!.progressive!;
+    const empireGold: CasinoSlotMachineRules = classicOgV12B.casino.slots.machines.find((machine) => machine.key === 'EMPIRE_GOLD')!;
+    const progressive = empireGold.progressive!;
 
     const result = await CasinoService.spinSlot(app.prisma, player.id, {
       machineKey: 'EMPIRE_GOLD',
