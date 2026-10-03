@@ -336,6 +336,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
       venues: [],
       openSession: null,
       slotMachines: [],
+      freeSpinBonus: null,
       recentLedger: [],
       totalCasinoValueCents: 0,
       limits: null,
@@ -347,7 +348,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
   const currentCitySlug = cashLocation?.citySlug ?? null;
   const citySlugs = Object.keys(casino.venues);
   const slotRules = casino.slots?.machines ?? [];
-  const [cities, wallets, openSession, ledger, jackpots] = await Promise.all([
+  const [cities, wallets, openSession, ledger, jackpots, freeSpinBonusRow] = await Promise.all([
     db.city.findMany({ where: { slug: { in: citySlugs }, isEnabled: true }, orderBy: { sortOrder: 'asc' } }),
     db.casinoWallet.findMany({ where: { roundPlayerId }, include: { city: true } }),
     db.casinoSession.findFirst({
@@ -364,6 +365,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     db.casinoJackpot.findMany({
       where: { roundId: player.roundId, machineKey: { in: slotRules.map((machine) => machine.key) } },
     }),
+    db.casinoFreeSpinBonus.findUnique({ where: { roundPlayerId } }),
   ]);
 
   const walletByCity = new Map(wallets.map((wallet) => [wallet.city.slug, wallet.chipsCents]));
@@ -393,6 +395,11 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     reels: machine.reels,
     rows: machine.rows,
     paylines: machine.paylines.map((line) => ({ key: line.key, name: line.name, rows: [...line.rows] })),
+    reelStrips: machine.reelStrips.map((strip) => strip.map((key) => {
+      const symbol = machine.symbols.find((candidate) => candidate.key === key);
+      if (!symbol) throw AppError.conflict('CASINO_RULESET_INVALID', 'A slot reel contains an unknown symbol.');
+      return { key: symbol.key, label: symbol.label, glyph: symbol.glyph };
+    })),
     paytable: machine.symbols.map((symbol) => ({
       symbolKey: symbol.key,
       symbolLabel: symbol.label,
@@ -408,6 +415,14 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     maxTotalWagerCents: machine.maxBetPerLineCents * machine.paylines.length,
     availableHere: Boolean(currentVenue && machine.venueKinds.includes(currentVenue.kind)),
     baseRtpBps: theoreticalSlotRtpBps(machine, machine.minBetPerLineCents),
+    effectiveRtpBps: effectiveSlotRtpBps(machine, machine.minBetPerLineCents),
+    freeSpins: machine.freeSpins
+      ? {
+          triggerBps: machine.freeSpins.triggerBps,
+          presentationLabel: machine.freeSpins.presentationLabel,
+          possibleAwards: machine.freeSpins.awards.map((award) => award.spins),
+        }
+      : null,
     progressive: machine.progressive
       ? {
           poolCents: Number(jackpotByMachine.get(machine.key) ?? BigInt(machine.progressive.seedCents)),
@@ -417,6 +432,31 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
         }
       : null,
   }));
+
+  const bonusMachine = freeSpinBonusRow
+    ? slotRules.find((machine) => machine.key === freeSpinBonusRow.machineKey) ?? null
+    : null;
+  const bonusVenue = freeSpinBonusRow
+    ? venues.find((venue) => venue.citySlug === freeSpinBonusRow.citySlug) ?? null
+    : null;
+  const freeSpinBonus = freeSpinBonusRow && bonusMachine
+    ? {
+        id: freeSpinBonusRow.id,
+        machineKey: freeSpinBonusRow.machineKey,
+        machineName: bonusMachine.name,
+        citySlug: freeSpinBonusRow.citySlug,
+        cityName: bonusVenue?.cityName ?? freeSpinBonusRow.citySlug,
+        betPerLineCents: Number(freeSpinBonusRow.betPerLineCents),
+        activePaylineKeys: Array.isArray(freeSpinBonusRow.activePaylineKeys)
+          ? freeSpinBonusRow.activePaylineKeys.filter((key): key is string => typeof key === 'string')
+          : [],
+        awardedSpins: freeSpinBonusRow.awardedSpins,
+        remainingSpins: freeSpinBonusRow.remainingSpins,
+        totalWonCents: Number(freeSpinBonusRow.totalWonCents),
+        presentationLabel: bonusMachine.freeSpins?.presentationLabel ?? 'FREE SPINS',
+        awardedAt: freeSpinBonusRow.awardedAt.toISOString(),
+      }
+    : null;
 
   const recentLedger: CasinoLedgerEntryDto[] = ledger.map((entry) => ({
     id: entry.id,
@@ -445,6 +485,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     venues,
     openSession: open,
     slotMachines,
+    freeSpinBonus,
     recentLedger,
     totalCasinoValueCents: Number(walletTotal + sessionTotal),
     limits: {
