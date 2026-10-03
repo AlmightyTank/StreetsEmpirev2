@@ -215,7 +215,7 @@ export interface CasinoBlackjackDealResponseDto {
   hand: CasinoBlackjackHandDto;
 }
 
-export interface CasinoBlackjackActionResponseDto extends CasinoBlackjackDealResponseDto {}
+export type CasinoBlackjackActionResponseDto = CasinoBlackjackDealResponseDto;
 
 export type CasinoLedgerKindDto = 'BUY_CHIPS' | 'REDEEM_CHIPS' | 'SESSION_OPEN' | 'SESSION_CLOSE' | 'SLOT_SPIN' | 'BLACKJACK';
 
