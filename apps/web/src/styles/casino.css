@@ -121,6 +121,7 @@
 .se-slots__bet-control { display: grid; gap: .35rem; }
 .se-slots__bet-stepper { display: grid; grid-template-columns: auto minmax(5rem, 1fr) auto auto; gap: .4rem; align-items: center; }
 .se-slots__bet-stepper .se-input { min-width: 0; }
+.se-slots__line-control { display: grid; gap: .35rem; }
 .se-slots__spin-button { width: 100%; min-height: 3rem; font-weight: 900; letter-spacing: .045em; }
 .se-slots__form.is-free-spin .se-slots__spin-button { box-shadow: 0 0 14px color-mix(in srgb, var(--se-accent) 32%, transparent); }
 

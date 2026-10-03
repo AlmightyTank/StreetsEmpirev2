@@ -653,6 +653,26 @@ export function CasinoPage() {
                                 >Max bet</button>
                               </div>
                             </div>
+                            <div className="se-slots__line-control">
+                              <span>Active paylines</span>
+                              <div className="se-slots__line-stepper" role="group" aria-label="Adjust active paylines">
+                                <button
+                                  type="button"
+                                  className="se-btn se-btn--ghost"
+                                  disabled={busy !== null || bonusActive || selectedLines.length <= 1}
+                                  aria-label="Decrease active paylines"
+                                  onClick={() => setPaylineCount(selectedLines.length - 1)}
+                                >−</button>
+                                <span><strong>{selectedLines.length}</strong><small>lines</small></span>
+                                <button
+                                  type="button"
+                                  className="se-btn se-btn--ghost"
+                                  disabled={busy !== null || bonusActive || selectedLines.length >= machine.paylines.length}
+                                  aria-label="Increase active paylines"
+                                  onClick={() => setPaylineCount(selectedLines.length + 1)}
+                                >+</button>
+                              </div>
+                            </div>
                             <p className="se-hint">
                               {selectedLines.length} line{selectedLines.length === 1 ? '' : 's'} × {lineBetCents ? formatCents(lineBetCents) : '—'}
                               {' = '}<strong>{totalWagerCents ? formatCents(totalWagerCents) : '—'} {bonusActive ? 'covered spin' : 'total spin'}</strong>
@@ -682,23 +702,6 @@ export function CasinoPage() {
                               <small>{bonusActive ? 'Locked to the wager that earned the bonus.' : 'Pick the exact lines you want to cover.'}</small>
                             </div>
                             <div className="se-slots__line-tools">
-                              <div className="se-slots__line-stepper" role="group" aria-label="Adjust active paylines">
-                                <button
-                                  type="button"
-                                  className="se-btn se-btn--ghost"
-                                  disabled={busy !== null || bonusActive || selectedLines.length <= 1}
-                                  aria-label="Decrease active paylines"
-                                  onClick={() => setPaylineCount(selectedLines.length - 1)}
-                                >−</button>
-                                <span><strong>{selectedLines.length}</strong><small>lines</small></span>
-                                <button
-                                  type="button"
-                                  className="se-btn se-btn--ghost"
-                                  disabled={busy !== null || bonusActive || selectedLines.length >= machine.paylines.length}
-                                  aria-label="Increase active paylines"
-                                  onClick={() => setPaylineCount(selectedLines.length + 1)}
-                                >+</button>
-                              </div>
                               <div className="se-slots__presets">
                                 <button
                                   type="button"
