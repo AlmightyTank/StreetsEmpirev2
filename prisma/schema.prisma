@@ -1014,6 +1014,7 @@ model Round {
   businesses        Business[]
   blockWars         BlockWar[]
   surveys           Survey[]
+  casinoJackpots    CasinoJackpot[]
 
   @@index([status])
 }
@@ -2518,6 +2519,22 @@ model CasinoLedgerEntry {
   @@index([roundPlayerId, createdAt(sort: Desc)])
   @@index([sessionId, createdAt])
   @@index([cityId, createdAt(sort: Desc)])
+}
+
+/// 1.2.0-B. One progressive pool per round/machine. It is house money, never player net worth.
+model CasinoJackpot {
+  id String @id @default(cuid())
+
+  roundId String
+  round   Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  machineKey String
+  poolCents  BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundId, machineKey])
+  @@index([machineKey])
 }
 
 /// 0.6.0-D. The box attached to one away-held block. A home block never needs one.
