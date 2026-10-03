@@ -41,10 +41,99 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+type CasinoGameKey = 'slots' | 'blackjack' | 'roulette' | 'street-dice' | 'poker';
+
+const CASINO_GAMES: readonly {
+  key: CasinoGameKey;
+  label: string;
+  icon: string;
+  status: string;
+  live: boolean;
+  title: string;
+  description: string;
+}[] = [
+  {
+    key: 'slots',
+    label: 'Slots',
+    icon: '🎰',
+    status: 'LIVE',
+    live: true,
+    title: 'Slots',
+    description: 'Three server-authoritative machines with paylines, free spins and the Empire progressive.',
+  },
+  {
+    key: 'blackjack',
+    label: 'Blackjack',
+    icon: '♠',
+    status: 'LIVE',
+    live: true,
+    title: 'Blackjack',
+    description: 'Casino blackjack with persisted shoes, splits, doubles and real table rules.',
+  },
+  {
+    key: 'roulette',
+    label: 'Roulette',
+    icon: '◉',
+    status: '1.2.0-D',
+    live: false,
+    title: 'Roulette',
+    description: 'The roulette room is reserved for 1.2.0-D and will use this same floor bankroll and casino ledger.',
+  },
+  {
+    key: 'street-dice',
+    label: 'Street Dice',
+    icon: '⚄',
+    status: '1.2.0-D',
+    live: false,
+    title: 'Street Dice',
+    description: 'Street Dice arrives with 1.2.0-D as a city-flavored dice room tied into the same casino economy.',
+  },
+  {
+    key: 'poker',
+    label: 'Poker',
+    icon: '♣',
+    status: 'FUTURE',
+    live: false,
+    title: 'Poker',
+    description: 'The card room is reserved for a future casino slice. Tables, stakes and poker rules will live here.',
+  },
+];
+
+function CasinoGamePlaceholder({
+  icon,
+  title,
+  status,
+  description,
+}: {
+  icon: string;
+  title: string;
+  status: string;
+  description: string;
+}) {
+  return (
+    <Panel title={title} aside={status}>
+      <div className="se-casino-placeholder">
+        <div className="se-casino-placeholder__mark" aria-hidden="true">{icon}</div>
+        <div className="se-casino-placeholder__copy">
+          <span className="se-eyebrow">Reserved casino room</span>
+          <h3>{title} is coming soon</h3>
+          <p>{description}</p>
+          <div className="se-casino-placeholder__features" aria-label={title + ' placeholder features'}>
+            <span>Shared bankroll</span>
+            <span>Server-authoritative play</span>
+            <span>Casino history</span>
+          </div>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
 export function CasinoPage() {
   const me = useSession((state) => state.me);
   const refreshSnapshot = useSession((state) => state.refreshSnapshot);
   const [data, setData] = useState<CasinoPageDto | null>(null);
+  const [activeGame, setActiveGame] = useState<CasinoGameKey>('slots');
   const [cashierAmount, setCashierAmount] = useState('1000');
   const [sessionAmount, setSessionAmount] = useState('1000');
   const [selectedMachineKey, setSelectedMachineKey] = useState<string | null>(null);
@@ -69,10 +158,19 @@ export function CasinoPage() {
 
   function load() {
     void casinoApi.page()
-      .then((next) => {
+      .then(async (next) => {
         setData(next);
         setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
         setError(null);
+
+        if (!next.enabled) return;
+        try {
+          const blackjack = await casinoApi.blackjack();
+          if (blackjack.activeHand) setActiveGame('blackjack');
+        } catch {
+          // Keep the rest of the casino usable if blackjack state cannot be loaded.
+          // BlackjackPanel will surface its own error when that game is selected.
+        }
       })
       .catch((caught: unknown) => setError(caught instanceof ApiError ? caught.message : 'Could not open the casino.'));
   }
@@ -308,9 +406,9 @@ export function CasinoPage() {
       <div className="se-casino">
         <header className="se-casino__hero">
           <div>
-            <span className="se-eyebrow">1.2.0-C · Slots + Blackjack</span>
+            <span className="se-eyebrow">1.2.0 · Casino floor</span>
             <h1>Casino</h1>
-            <p>Buy chips, open a bankroll, then play server-authoritative Slots or Blackjack. Reel stops, shuffled shoes, cards and payouts are all decided and persisted by the server.</p>
+            <p>Buy chips once, open a floor bankroll, then move between casino games without leaving the room. Game outcomes and payouts stay server-authoritative.</p>
           </div>
           <div className="se-casino__readout">
             <span><small>Cash here</small><strong>{data ? formatCents(data.cashCents) : '—'}</strong></span>
@@ -393,6 +491,48 @@ export function CasinoPage() {
               </Panel>
             </div>
 
+            <section className="se-casino-floor" aria-label="Casino games">
+              <div className="se-casino-floor__head">
+                <div>
+                  <span className="se-eyebrow">Casino floor</span>
+                  <h2>Choose your game</h2>
+                  <p>Switch games without leaving the cage, bankroll, destinations or casino history.</p>
+                </div>
+                <div className="se-casino-floor__bankroll">
+                  <small>Floor bankroll</small>
+                  <strong>{data.openSession ? formatCents(data.openSession.bankrollCents) : 'No session'}</strong>
+                  <span>{data.openSession ? data.openSession.venueName + ' · ' + data.openSession.cityName : 'Open a bankroll to play'}</span>
+                </div>
+              </div>
+
+              <div className="se-casino-games" role="tablist" aria-label="Casino games">
+                {CASINO_GAMES.map((game) => (
+                  <button
+                    key={game.key}
+                    id={'casino-game-tab-' + game.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeGame === game.key}
+                    aria-controls={'casino-game-panel-' + game.key}
+                    className={'se-casino-game-tab' + (activeGame === game.key ? ' is-active' : '') + (game.live ? ' is-live' : ' is-coming')}
+                    onClick={() => setActiveGame(game.key)}
+                  >
+                    <span className="se-casino-game-tab__icon" aria-hidden="true">{game.icon}</span>
+                    <span className="se-casino-game-tab__copy">
+                      <strong>{game.label}</strong>
+                      <small>{game.status}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <div
+                className="se-casino-game-stage"
+                id={'casino-game-panel-' + activeGame}
+                role="tabpanel"
+                aria-labelledby={'casino-game-tab-' + activeGame}
+              >
+                {activeGame === 'slots' ? (
             <Panel title="Slots" aside="Casino-style paylines">
               {data.slotMachines.length ? (
                 <div className="se-slots">
@@ -819,7 +959,9 @@ export function CasinoPage() {
                 </div>
               ) : <p className="se-muted">Slots are not enabled in this round.</p>}
             </Panel>
+                ) : null}
 
+                {activeGame === 'blackjack' ? (
             <BlackjackPanel
               casinoPage={data}
               onPageChange={(next) => {
@@ -827,6 +969,21 @@ export function CasinoPage() {
                 setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
               }}
             />
+                ) : null}
+
+                {activeGame !== 'slots' && activeGame !== 'blackjack' ? (() => {
+                  const game = CASINO_GAMES.find((candidate) => candidate.key === activeGame)!;
+                  return (
+                    <CasinoGamePlaceholder
+                      icon={game.icon}
+                      title={game.title}
+                      status={game.status}
+                      description={game.description}
+                    />
+                  );
+                })() : null}
+              </div>
+            </section>
 
             <Panel title="Casino destinations" aside={String(data.venues.length) + ' cities'}>
               <div className="se-casino__venues">
