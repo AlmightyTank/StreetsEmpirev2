@@ -257,7 +257,10 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
                     <span><small>Bankroll</small><strong>{formatCents(shownHand.bankrollAfterCents)}</strong></span>
                     <span><small>Total wager</small><strong>{formatCents(shownHand.totalWagerCents)}</strong></span>
                     <span><small>Return</small><strong>{formatCents(shownHand.totalReturnCents)}</strong></span>
-                    <span><small>Net</small><strong>{signedMoney(shownHand.netCents)}</strong></span>
+                    <span>
+                      <small>{shownHand.status === 'ACTIVE' ? 'At risk' : 'Net'}</small>
+                      <strong>{shownHand.status === 'ACTIVE' ? formatCents(shownHand.totalWagerCents) : signedMoney(shownHand.netCents)}</strong>
+                    </span>
                     <span><small>Shoe</small><strong>{shownHand.shoeRemainingCards} cards · #{shownHand.shuffleNumber}</strong></span>
                   </div>
 
