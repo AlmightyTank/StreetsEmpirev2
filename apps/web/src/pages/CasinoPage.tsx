@@ -308,9 +308,9 @@ export function CasinoPage() {
       <div className="se-casino">
         <header className="se-casino__hero">
           <div>
-            <span className="se-eyebrow">1.2.0-B · Slots</span>
+            <span className="se-eyebrow">1.2.0-C · Slots + Blackjack</span>
             <h1>Casino</h1>
-            <p>Buy chips, open a bankroll, and play server-authoritative Slots. Your browser only animates outcomes the server has already decided.</p>
+            <p>Buy chips, open a bankroll, then play server-authoritative Slots or Blackjack. Reel stops, shuffled shoes, cards and payouts are all decided and persisted by the server.</p>
           </div>
           <div className="se-casino__readout">
             <span><small>Cash here</small><strong>{data ? formatCents(data.cashCents) : '—'}</strong></span>
