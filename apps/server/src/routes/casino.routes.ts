@@ -6,9 +6,15 @@ import {
   casinoSessionCloseSchema,
   casinoSessionStartSchema,
   casinoSlotSpinSchema,
+  casinoRouletteSpinSchema,
+  casinoStreetDiceOddsSchema,
+  casinoStreetDiceRollSchema,
+  casinoStreetDiceStartSchema,
 } from '@streets/shared';
 import { BlackjackService } from '../services/blackjack.service.js';
 import { CasinoService } from '../services/casino.service.js';
+import { RouletteService } from '../services/roulette.service.js';
+import { StreetDiceService } from '../services/street-dice.service.js';
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { RoundService } from '../services/round.service.js';
 import { AppError } from '../utils/errors.js';
@@ -108,6 +114,60 @@ const casinoRoutes: FastifyPluginAsync = async (fastify) => {
       page: await CasinoService.page(fastify.prisma, player.id),
       blackjack: await BlackjackService.state(fastify.prisma, player.id),
       hand,
+    };
+  });
+
+  fastify.get('/roulette', { preHandler: fastify.requireAuth }, async (request) => {
+    const player = await requirePlayer(request.auth!.account.id);
+    return RouletteService.state(fastify.prisma, player.id);
+  });
+
+  fastify.post('/roulette/spin', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoRouletteSpinSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    const spin = await RouletteService.spin(fastify.prisma, player.id, input);
+    return {
+      page: await CasinoService.page(fastify.prisma, player.id),
+      roulette: await RouletteService.state(fastify.prisma, player.id),
+      spin,
+    };
+  });
+
+  fastify.get('/street-dice', { preHandler: fastify.requireAuth }, async (request) => {
+    const player = await requirePlayer(request.auth!.account.id);
+    return StreetDiceService.state(fastify.prisma, player.id);
+  });
+
+  fastify.post('/street-dice/start', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoStreetDiceStartSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    const round = await StreetDiceService.start(fastify.prisma, player.id, input);
+    return {
+      page: await CasinoService.page(fastify.prisma, player.id),
+      streetDice: await StreetDiceService.state(fastify.prisma, player.id),
+      round,
+    };
+  });
+
+  fastify.post('/street-dice/roll', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoStreetDiceRollSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    const round = await StreetDiceService.roll(fastify.prisma, player.id, input);
+    return {
+      page: await CasinoService.page(fastify.prisma, player.id),
+      streetDice: await StreetDiceService.state(fastify.prisma, player.id),
+      round,
+    };
+  });
+
+  fastify.post('/street-dice/odds', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoStreetDiceOddsSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    const round = await StreetDiceService.addOdds(fastify.prisma, player.id, input);
+    return {
+      page: await CasinoService.page(fastify.prisma, player.id),
+      streetDice: await StreetDiceService.state(fastify.prisma, player.id),
+      round,
     };
   });
 
