@@ -274,4 +274,71 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-C blackjack with Pos
       randomUUID(),
     )).rejects.toMatchObject({ code: 'BLACKJACK_HAND_ACTIVE' });
   });
+
+  it('settles two opening naturals as an immediate push', async () => {
+    const { player } = await fixture();
+    await openBankroll(player.id);
+    const table = classicOgV12C.casino.blackjack.tables[0]!;
+    await rigShoe(player.id, table.key, ['AS', 'AH', 'KD', 'QH', '5S']);
+
+    const hand = await BlackjackService.deal(app.prisma, player.id, {
+      tableKey: table.key,
+      wagerCents: 1_000,
+      actionId: randomUUID(),
+    });
+
+    expect(hand.status).toBe('SETTLED');
+    expect(hand.playerHands[0]!.outcome).toBe('PUSH');
+    expect(hand.totalReturnCents).toBe(1_000);
+    expect(hand.netCents).toBe(0);
+    expect(hand.dealerCards).toHaveLength(2);
+  });
+
+  it('gives split aces one card each and treats split 21 as a normal 21', async () => {
+    const { player } = await fixture();
+    await openBankroll(player.id);
+    const table = classicOgV12C.casino.blackjack.tables[0]!;
+    await rigShoe(player.id, table.key, ['AS', '9H', 'AD', '7C', 'KS', 'QH', '5D']);
+
+    const dealt = await BlackjackService.deal(app.prisma, player.id, {
+      tableKey: table.key,
+      wagerCents: 1_000,
+      actionId: randomUUID(),
+    });
+    const split = await BlackjackService.split(app.prisma, player.id, {
+      handId: dealt.id,
+      actionId: randomUUID(),
+    });
+
+    expect(split.status).toBe('SETTLED');
+    expect(split.playerHands).toHaveLength(2);
+    expect(split.playerHands.every((hand) => hand.cards.length === 2)).toBe(true);
+    expect(split.playerHands.every((hand) => hand.total === 21)).toBe(true);
+    expect(split.playerHands.every((hand) => hand.outcome === 'PUSH')).toBe(true);
+    expect(split.totalWagerCents).toBe(2_000);
+    expect(split.totalReturnCents).toBe(2_000);
+    expect(split.netCents).toBe(0);
+  });
+
+  it('blocks Slots while a blackjack hand is still active', async () => {
+    const { player } = await fixture();
+    await openBankroll(player.id);
+    const table = classicOgV12C.casino.blackjack.tables[0]!;
+    await rigShoe(player.id, table.key, ['10S', '6H', '7D', '9C', '5S']);
+
+    await BlackjackService.deal(app.prisma, player.id, {
+      tableKey: table.key,
+      wagerCents: table.minBetCents,
+      actionId: randomUUID(),
+    });
+
+    const machine = classicOgV12C.casino.slots.machines[0]!;
+    await expect(CasinoService.spinSlot(app.prisma, player.id, {
+      machineKey: machine.key,
+      betPerLineCents: machine.minBetPerLineCents,
+      activePaylineKeys: [machine.paylines[0]!.key],
+      actionId: randomUUID(),
+    })).rejects.toMatchObject({ code: 'BLACKJACK_HAND_ACTIVE' });
+  });
+
 });
