@@ -13,6 +13,7 @@ import { AppError } from '../utils/errors.js';
 import { ActivityService } from './activity.service.js';
 import { bossPresence } from './boss-presence.service.js';
 import { PlayerStateService } from './player-state.service.js';
+import { refreshAwayWorth } from './run-settle.service.js';
 
 type PlayerRow = RoundPlayer & {
   city: { id: string; slug: string; name: string };
@@ -40,22 +41,76 @@ function assertAmount(casino: CasinoRules, amount: bigint, min: number, max: num
   }
 }
 
-/** Where the boss is physically standing. Home counts only when no boss trip/run is active. */
-async function standingCitySlug(
+type CasinoCashLocation =
+  | { kind: 'HOME'; citySlug: string; cashCents: bigint; walletId: null }
+  | { kind: 'TRIP'; citySlug: string; cashCents: bigint; walletId: string }
+  | { kind: 'RUN'; citySlug: string; cashCents: bigint; walletId: string };
+
+/**
+ * The cash the boss can physically reach at the casino.
+ *
+ * At home that is RoundPlayer.cashCents. On a flight it is the trip bankroll,
+ * and while riding a run it is the run wallet. This prevents protected home
+ * cash from being teleported into destination chips.
+ */
+async function casinoCashLocation(
   db: Db | PrismaClient,
   ruleset: Ruleset,
   player: PlayerRow,
   now: Date,
-): Promise<string | null> {
+): Promise<CasinoCashLocation | null> {
   const visiting = await bossPresence(db, ruleset, player.id, now);
-  if (visiting) return visiting.city;
-  if (player.movingUntil && player.movingUntil > now) return null;
+  if (visiting?.via === 'trip' && visiting.tripId) {
+    const trip = await db.bossTrip.findUnique({ where: { id: visiting.tripId } });
+    if (!trip || trip.status !== 'ACTIVE') return null;
+    return { kind: 'TRIP', citySlug: visiting.city, cashCents: trip.bankrollCents, walletId: trip.id };
+  }
+  if (visiting?.via === 'run') {
+    const run = await db.run.findFirst({
+      where: { roundPlayerId: player.id, status: 'ACTIVE', bossAboard: true },
+      orderBy: [{ launchedAt: 'asc' }, { id: 'asc' }],
+    });
+    if (!run) return null;
+    return { kind: 'RUN', citySlug: visiting.city, cashCents: run.cashCents, walletId: run.id };
+  }
 
+  if (player.movingUntil && player.movingUntil > now) return null;
   const [tripOut, bossRunOut] = await Promise.all([
     db.bossTrip.count({ where: { roundPlayerId: player.id, status: 'ACTIVE' } }),
     db.run.count({ where: { roundPlayerId: player.id, status: 'ACTIVE', bossAboard: true } }),
   ]);
-  return tripOut + bossRunOut > 0 ? null : player.city.slug;
+  return tripOut + bossRunOut > 0
+    ? null
+    : { kind: 'HOME', citySlug: player.city.slug, cashCents: player.cashCents, walletId: null };
+}
+
+async function moveLocalCash(
+  tx: Db,
+  roundPlayerId: string,
+  ruleset: Ruleset,
+  location: CasinoCashLocation,
+  deltaCents: bigint,
+): Promise<void> {
+  if (location.kind === 'HOME') {
+    await tx.roundPlayer.update({
+      where: { id: roundPlayerId },
+      data: { cashCents: { increment: deltaCents } },
+    });
+    return;
+  }
+
+  if (location.kind === 'TRIP') {
+    await tx.bossTrip.update({
+      where: { id: location.walletId },
+      data: { bankrollCents: { increment: deltaCents } },
+    });
+  } else {
+    await tx.run.update({
+      where: { id: location.walletId },
+      data: { cashCents: { increment: deltaCents } },
+    });
+  }
+  await refreshAwayWorth(tx, roundPlayerId, ruleset);
 }
 
 function venueDto(
@@ -99,7 +154,8 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
   }
 
   const casino = ruleset.casino;
-  const currentCitySlug = await standingCitySlug(db, ruleset, player, now);
+  const cashLocation = await casinoCashLocation(db, ruleset, player, now);
+  const currentCitySlug = cashLocation?.citySlug ?? null;
   const citySlugs = Object.keys(casino.venues);
   const [cities, wallets, openSession, ledger] = await Promise.all([
     db.city.findMany({ where: { slug: { in: citySlugs }, isEnabled: true }, orderBy: { sortOrder: 'asc' } }),
@@ -156,7 +212,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
 
   return {
     enabled: true,
-    cashCents: Number(player.cashCents),
+    cashCents: Number(cashLocation?.cashCents ?? 0n),
     currentCitySlug,
     currentVenue,
     venues,
@@ -184,13 +240,13 @@ async function playerAndCasino(db: Db, roundPlayerId: string) {
 }
 
 async function currentVenue(db: Db, ruleset: Ruleset, casino: CasinoRules, player: PlayerRow, now: Date) {
-  const citySlug = await standingCitySlug(db, ruleset, player, now);
-  if (!citySlug) throw AppError.conflict('NOT_AT_CASINO', 'The boss is on the road or in the air. Get into town first.');
-  const venue = casino.venues[citySlug];
+  const cashLocation = await casinoCashLocation(db, ruleset, player, now);
+  if (!cashLocation) throw AppError.conflict('NOT_AT_CASINO', 'The boss is on the road or in the air. Get into town first.');
+  const venue = casino.venues[cashLocation.citySlug];
   if (!venue) throw AppError.conflict('NO_CASINO_HERE', 'There is no casino open where the boss is standing.');
-  const city = await db.city.findUnique({ where: { slug: citySlug } });
+  const city = await db.city.findUnique({ where: { slug: cashLocation.citySlug } });
   if (!city) throw AppError.notFound('CITY_NOT_FOUND', 'That casino city is not available.');
-  return { city, venue };
+  return { city, venue, cashLocation };
 }
 
 async function mutate(
@@ -225,20 +281,22 @@ export const CasinoService = {
     return mutate(prisma, roundPlayerId, input.actionId, async (tx, player, ruleset, casino, now) => {
       const amount = BigInt(input.amountCents);
       assertAmount(casino, amount, casino.cashier.minExchangeCents, casino.cashier.maxExchangeCents);
-      if (player.cashCents < amount) throw AppError.conflict('NOT_ENOUGH_CASH', 'You do not have that much cash to take to the cage.');
+      const { city, venue, cashLocation } = await currentVenue(tx, ruleset, casino, player, now);
+      if (cashLocation.cashCents < amount) {
+        throw AppError.conflict('NOT_ENOUGH_CASH', 'The boss does not have that much cash with them at this casino.');
+      }
 
-      const { city, venue } = await currentVenue(tx, ruleset, casino, player, now);
       const wallet = await tx.casinoWallet.upsert({
         where: { roundPlayerId_cityId: { roundPlayerId, cityId: city.id } },
         update: { chipsCents: { increment: amount } },
         create: { roundPlayerId, cityId: city.id, chipsCents: amount },
       });
-      await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { cashCents: { decrement: amount } } });
+      await moveLocalCash(tx, roundPlayerId, ruleset, cashLocation, -amount);
       await tx.casinoLedgerEntry.create({
         data: {
           roundPlayerId, cityId: city.id, actionId: input.actionId, kind: 'BUY_CHIPS',
           cashDeltaCents: -amount, walletChipDeltaCents: amount, walletChipsAfterCents: wallet.chipsCents,
-          metadata: { venue: venue.name } as Prisma.InputJsonValue,
+          metadata: { venue: venue.name, cashWallet: cashLocation.kind, cashWalletId: cashLocation.walletId } as Prisma.InputJsonValue,
         },
       });
       await ActivityService.log(tx, roundPlayerId, 'CASINO_BUY_CHIPS', {
@@ -251,17 +309,17 @@ export const CasinoService = {
     return mutate(prisma, roundPlayerId, input.actionId, async (tx, player, ruleset, casino, now) => {
       const amount = BigInt(input.amountCents);
       assertAmount(casino, amount, casino.cashier.minExchangeCents, casino.cashier.maxExchangeCents);
-      const { city, venue } = await currentVenue(tx, ruleset, casino, player, now);
+      const { city, venue, cashLocation } = await currentVenue(tx, ruleset, casino, player, now);
       const wallet = await tx.casinoWallet.findUnique({ where: { roundPlayerId_cityId: { roundPlayerId, cityId: city.id } } });
       if (!wallet || wallet.chipsCents < amount) throw AppError.conflict('NOT_ENOUGH_CHIPS', 'You do not have that many chips at this cage.');
 
       const nextWallet = await tx.casinoWallet.update({ where: { id: wallet.id }, data: { chipsCents: { decrement: amount } } });
-      await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { cashCents: { increment: amount } } });
+      await moveLocalCash(tx, roundPlayerId, ruleset, cashLocation, amount);
       await tx.casinoLedgerEntry.create({
         data: {
           roundPlayerId, cityId: city.id, actionId: input.actionId, kind: 'REDEEM_CHIPS',
           cashDeltaCents: amount, walletChipDeltaCents: -amount, walletChipsAfterCents: nextWallet.chipsCents,
-          metadata: { venue: venue.name } as Prisma.InputJsonValue,
+          metadata: { venue: venue.name, cashWallet: cashLocation.kind, cashWalletId: cashLocation.walletId } as Prisma.InputJsonValue,
         },
       });
       await ActivityService.log(tx, roundPlayerId, 'CASINO_REDEEM_CHIPS', {
