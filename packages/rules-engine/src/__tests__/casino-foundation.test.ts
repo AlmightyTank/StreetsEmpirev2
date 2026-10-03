@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV11F, classicOgV12A } from '@streets/rulesets';
+import { classicOgV11F, classicOgV12A, type Ruleset } from '@streets/rulesets';
 import { calculateNetWorthCents, loadRuleset } from '../index.js';
 
 const emptyPlayer = {
@@ -9,7 +9,7 @@ const emptyPlayer = {
 
 describe('1.2.0-A casino foundation', () => {
   it('pins eight city venues without changing the 1.1 release ruleset', () => {
-    expect(classicOgV11F.casino).toBeUndefined();
+    expect((classicOgV11F as Ruleset).casino).toBeUndefined();
     expect(Object.keys(classicOgV12A.casino.venues)).toHaveLength(8);
     expect(classicOgV12A.casino.venues['las-vegas']?.kind).toBe('FULL_CASINO');
     expect(classicOgV12A.casino.venues['new-york-city']?.kind).toBe('UNDERGROUND');
