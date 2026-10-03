@@ -235,3 +235,92 @@
   .se-slots__win span { grid-column: 1 / -1; grid-row: 2; }
   .se-slots__bonus-banner strong { font-size: 1.05rem; }
 }
+
+
+/* 1.2.0-C — Blackjack */
+.se-blackjack { display: grid; gap: 1rem; }
+.se-blackjack__tables { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; }
+.se-blackjack__table { border: 1px solid var(--se-border); border-radius: .65rem; background: var(--se-surface); color: inherit; padding: .75rem; display: grid; gap: .3rem; text-align: left; cursor: pointer; }
+.se-blackjack__table:hover, .se-blackjack__table.is-selected { border-color: var(--se-accent); box-shadow: inset 0 0 0 1px var(--se-accent); }
+.se-blackjack__table:disabled { cursor: not-allowed; opacity: .7; }
+.se-blackjack__table > span { display: flex; justify-content: space-between; gap: .6rem; align-items: baseline; }
+.se-blackjack__table small { color: var(--se-muted); }
+
+.se-blackjack__rules { display: grid; grid-template-columns: minmax(0, 1fr) minmax(20rem, .8fr); gap: 1rem; align-items: start; }
+.se-blackjack__rules h3 { margin: 0 0 .35rem; }
+.se-blackjack__rules p { margin: 0; color: var(--se-muted); }
+.se-blackjack__rule-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+.se-blackjack__rule-grid span { border: 1px solid var(--se-border); border-radius: .55rem; background: var(--se-surface); padding: .6rem .7rem; }
+.se-blackjack__rule-grid small, .se-blackjack__rule-grid strong { display: block; }
+.se-blackjack__rule-grid small { color: var(--se-muted); margin-bottom: .15rem; }
+
+.se-blackjack__felt { position: relative; display: grid; gap: 1.1rem; padding: 1rem; border: 1px solid color-mix(in srgb, var(--se-accent) 40%, var(--se-border)); border-radius: 1rem; background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--se-accent) 10%, transparent), transparent 42%), var(--se-surface); overflow: hidden; }
+.se-blackjack__felt::before { content: ""; position: absolute; inset: .45rem; border: 1px solid color-mix(in srgb, var(--se-accent) 18%, transparent); border-radius: .75rem; pointer-events: none; }
+.se-blackjack__felt.is-settled { border-color: var(--se-border); }
+.se-blackjack__dealer, .se-blackjack__hands, .se-blackjack__meter, .se-blackjack__actions { position: relative; z-index: 1; }
+.se-blackjack__dealer { display: grid; justify-items: center; gap: .6rem; padding-bottom: .8rem; border-bottom: 1px dashed var(--se-border); }
+.se-blackjack__label { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem 1rem; align-items: baseline; width: 100%; }
+.se-blackjack__dealer .se-blackjack__label { max-width: 30rem; }
+.se-blackjack__label span { color: var(--se-muted); font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; }
+
+.se-blackjack__cards { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; min-height: 5.7rem; }
+.se-blackjack__card { width: 4rem; height: 5.6rem; border-radius: .45rem; border: 1px solid color-mix(in srgb, #fff 48%, var(--se-border)); background: #f4f1e7; color: #111; display: grid; place-items: center; font-weight: 900; font-size: 1.05rem; box-shadow: 0 .28rem .55rem rgb(0 0 0 / .22); animation: se-blackjack-deal .2s ease-out both; }
+.se-blackjack__card.is-hidden { background: repeating-linear-gradient(45deg, #202936, #202936 6px, #34445b 6px, #34445b 12px); color: rgba(255,255,255,.85); border-color: rgba(255,255,255,.3); }
+.se-blackjack__card:nth-child(2) { animation-delay: .04s; }
+.se-blackjack__card:nth-child(3) { animation-delay: .08s; }
+.se-blackjack__card:nth-child(4) { animation-delay: .12s; }
+
+.se-blackjack__hands { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .75rem; }
+.se-blackjack__hand { border: 1px solid var(--se-border); border-radius: .7rem; padding: .75rem; background: color-mix(in srgb, var(--se-bg) 78%, transparent); display: grid; gap: .65rem; }
+.se-blackjack__hand.is-active { border-color: var(--se-accent); box-shadow: inset 0 0 0 1px var(--se-accent), 0 0 15px color-mix(in srgb, var(--se-accent) 15%, transparent); }
+.se-blackjack__hand.is-blackjack, .se-blackjack__hand.is-win { border-color: color-mix(in srgb, var(--se-accent) 72%, var(--se-border)); }
+.se-blackjack__hand.is-bust, .se-blackjack__hand.is-lose { opacity: .78; }
+.se-blackjack__hand-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem .8rem; color: var(--se-muted); font-size: .86rem; }
+
+.se-blackjack__meter { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .5rem; }
+.se-blackjack__meter span { border: 1px solid var(--se-border); border-radius: .55rem; padding: .55rem .65rem; background: var(--se-bg); }
+.se-blackjack__meter small, .se-blackjack__meter strong { display: block; }
+.se-blackjack__meter small { color: var(--se-muted); margin-bottom: .12rem; }
+.se-blackjack__actions { display: flex; flex-wrap: wrap; gap: .55rem; justify-content: center; }
+
+.se-blackjack__deal { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem .75rem; align-items: end; padding: .8rem; border: 1px solid var(--se-border); border-radius: .7rem; background: var(--se-surface); }
+.se-blackjack__deal label { display: grid; gap: .35rem; }
+.se-blackjack__bet { display: grid; grid-template-columns: auto minmax(6rem, 1fr) auto auto; gap: .4rem; }
+.se-blackjack__deal > .se-hint { grid-column: 1 / -1; margin: 0; }
+.se-blackjack__deal-button { min-height: 2.7rem; }
+
+.se-blackjack__history { border-top: 1px solid var(--se-border); padding-top: .75rem; }
+.se-blackjack__history summary { cursor: pointer; font-weight: 700; }
+.se-blackjack__history-list { display: grid; gap: .35rem; margin-top: .65rem; }
+.se-blackjack__history-list article { display: grid; grid-template-columns: minmax(0, 1fr) minmax(7rem, auto) auto; gap: .75rem; align-items: center; border: 1px solid var(--se-border); border-radius: .55rem; padding: .55rem .65rem; background: var(--se-surface); }
+.se-blackjack__history-list article > span:first-child { display: grid; gap: .1rem; }
+.se-blackjack__history-list small { color: var(--se-muted); }
+.se-blackjack__history-list .is-win { color: var(--se-accent); }
+
+@keyframes se-blackjack-deal {
+  from { opacity: 0; transform: translateY(-8px) rotate(-1deg); }
+  to { opacity: 1; transform: translateY(0) rotate(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-blackjack__card { animation: none; }
+}
+@media (max-width: 900px) {
+  .se-blackjack__tables { grid-template-columns: 1fr; }
+  .se-blackjack__rules { grid-template-columns: 1fr; }
+  .se-blackjack__meter { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .se-blackjack__meter span:last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 620px) {
+  .se-blackjack__rule-grid { grid-template-columns: 1fr 1fr; }
+  .se-blackjack__felt { padding: .7rem; gap: .8rem; }
+  .se-blackjack__cards { min-height: 4.7rem; gap: .3rem; }
+  .se-blackjack__card { width: 3.25rem; height: 4.55rem; font-size: .9rem; }
+  .se-blackjack__hands { grid-template-columns: 1fr; }
+  .se-blackjack__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .se-blackjack__deal { position: sticky; bottom: calc(60px + .5rem + env(safe-area-inset-bottom, 0px)); z-index: 28; grid-template-columns: 1fr; box-shadow: 0 -.35rem 1.1rem rgb(0 0 0 / .28); backdrop-filter: blur(12px); }
+  .se-blackjack__bet { grid-template-columns: auto minmax(4.5rem, 1fr) auto; }
+  .se-blackjack__bet > :last-child { grid-column: 1 / -1; }
+  .se-blackjack__history-list article { grid-template-columns: 1fr auto; }
+  .se-blackjack__history-list article > span:nth-child(2) { grid-column: 1 / -1; grid-row: 2; color: var(--se-muted); }
+}
