@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV12A, classicOgV12B } from '@streets/rulesets';
+import { classicOgV12A, classicOgV12B, hideoutV2For } from '@streets/rulesets';
 import { loadRuleset, resolveSlotSpin, seededRng, simulateSlots, theoreticalSlotRtpBps } from '../index.js';
 
 describe('1.2.0-B slots', () => {
@@ -7,6 +7,8 @@ describe('1.2.0-B slots', () => {
     expect(classicOgV12A.casino.slots).toBeUndefined();
     expect(classicOgV12B.casino.slots.machines).toHaveLength(3);
     expect(loadRuleset('classic-og-v1.2-b', '1.2.0-B')).toBe(classicOgV12B);
+    expect(hideoutV2For(classicOgV12A)).not.toBeNull();
+    expect(hideoutV2For(classicOgV12B)).toEqual(hideoutV2For(classicOgV12A));
   });
 
   it('keeps each base game in the intended low-90s RTP band', () => {
