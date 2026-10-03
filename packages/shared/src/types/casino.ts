@@ -142,7 +142,82 @@ export interface CasinoFreeSpinBonusDto {
   awardedAt: string;
 }
 
-export type CasinoLedgerKindDto = 'BUY_CHIPS' | 'REDEEM_CHIPS' | 'SESSION_OPEN' | 'SESSION_CLOSE' | 'SLOT_SPIN';
+export interface CasinoBlackjackTableDto {
+  key: string;
+  name: string;
+  blurb: string;
+  minBetCents: number;
+  maxBetCents: number;
+  betStepCents: number;
+  decks: number;
+  dealerHitsSoft17: boolean;
+  blackjackPays: string;
+  maxSplitHands: number;
+  allowDoubleAfterSplit: boolean;
+  splitAcesOneCard: boolean;
+  availableHere: boolean;
+}
+
+export interface CasinoBlackjackCardDto {
+  code: string | null;
+  label: string;
+  hidden: boolean;
+}
+
+export type CasinoBlackjackOutcomeDto = 'BLACKJACK' | 'WIN' | 'PUSH' | 'LOSE' | 'BUST';
+export type CasinoBlackjackPlayerHandStatusDto = 'ACTIVE' | 'STOOD' | 'BUST' | 'DONE';
+
+export interface CasinoBlackjackPlayerHandDto {
+  index: number;
+  cards: CasinoBlackjackCardDto[];
+  total: number;
+  soft: boolean;
+  status: CasinoBlackjackPlayerHandStatusDto;
+  wagerCents: number;
+  outcome: CasinoBlackjackOutcomeDto | null;
+  returnCents: number;
+  canHit: boolean;
+  canStand: boolean;
+  canDouble: boolean;
+  canSplit: boolean;
+}
+
+export interface CasinoBlackjackHandDto {
+  id: string;
+  tableKey: string;
+  tableName: string;
+  status: 'ACTIVE' | 'SETTLED';
+  dealerCards: CasinoBlackjackCardDto[];
+  dealerTotal: number | null;
+  dealerSoft: boolean | null;
+  playerHands: CasinoBlackjackPlayerHandDto[];
+  activeHandIndex: number;
+  totalWagerCents: number;
+  totalReturnCents: number;
+  netCents: number;
+  bankrollAfterCents: number;
+  shoeRemainingCards: number;
+  shuffleNumber: number;
+  createdAt: string;
+  settledAt: string | null;
+}
+
+export interface CasinoBlackjackStateDto {
+  enabled: boolean;
+  tables: CasinoBlackjackTableDto[];
+  activeHand: CasinoBlackjackHandDto | null;
+  history: CasinoBlackjackHandDto[];
+}
+
+export interface CasinoBlackjackDealResponseDto {
+  page: CasinoPageDto;
+  blackjack: CasinoBlackjackStateDto;
+  hand: CasinoBlackjackHandDto;
+}
+
+export type CasinoBlackjackActionResponseDto = CasinoBlackjackDealResponseDto;
+
+export type CasinoLedgerKindDto = 'BUY_CHIPS' | 'REDEEM_CHIPS' | 'SESSION_OPEN' | 'SESSION_CLOSE' | 'SLOT_SPIN' | 'BLACKJACK';
 
 export interface CasinoLedgerEntryDto {
   id: string;

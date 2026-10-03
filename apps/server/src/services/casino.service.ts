@@ -192,6 +192,34 @@ function ledgerDisplay(entry: {
       tone: net > 0 ? 'positive' : net < 0 ? 'negative' : 'neutral',
     };
   }
+  if (entry.kind === 'BLACKJACK') {
+    const meta = entry.metadata as unknown as {
+      action?: string;
+      tableName?: string;
+      chargeCents?: number;
+      creditedCents?: number;
+      totalWagerCents?: number;
+      totalReturnCents?: number;
+      settled?: boolean;
+      outcomes?: Array<string | null>;
+    };
+    const action = typeof meta.action === 'string' ? meta.action : 'HAND';
+    const tableName = typeof meta.tableName === 'string' ? meta.tableName : 'Blackjack';
+    const charge = typeof meta.chargeCents === 'number' ? meta.chargeCents : 0;
+    const credited = typeof meta.creditedCents === 'number' ? meta.creditedCents : 0;
+    const net = Number(entry.sessionChipDeltaCents);
+    const outcomes = Array.isArray(meta.outcomes) ? meta.outcomes.filter((value): value is string => typeof value === 'string') : [];
+    const summary = outcomes.length ? ' · ' + outcomes.join(' / ').toLowerCase() : '';
+    return {
+      title: action === 'DEAL' ? 'Blackjack at ' + tableName : 'Blackjack · ' + action.toLowerCase(),
+      detail: (charge > 0 ? 'Put up ' + formatLedgerMoney(charge) : 'No extra wager')
+        + (credited > 0 ? ' · returned ' + formatLedgerMoney(credited) : '')
+        + summary,
+      amountLabel: net > 0 ? 'Won' : net < 0 ? 'Wagered' : meta.settled ? 'Push / loss' : 'No change',
+      amountCents: Math.abs(net),
+      tone: net > 0 ? 'positive' : net < 0 ? 'negative' : 'neutral',
+    };
+  }
   return {
     title: 'Casino activity',
     detail: 'Casino balance updated.',
@@ -348,7 +376,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
   const currentCitySlug = cashLocation?.citySlug ?? null;
   const citySlugs = Object.keys(casino.venues);
   const slotRules = casino.slots?.machines ?? [];
-  const [cities, wallets, openSession, ledger, jackpots, freeSpinBonusRow] = await Promise.all([
+  const [cities, wallets, openSession, ledger, jackpots, freeSpinBonusRow, blackjackCommitted] = await Promise.all([
     db.city.findMany({ where: { slug: { in: citySlugs }, isEnabled: true }, orderBy: { sortOrder: 'asc' } }),
     db.casinoWallet.findMany({ where: { roundPlayerId }, include: { city: true } }),
     db.casinoSession.findFirst({
@@ -366,6 +394,10 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
       where: { roundId: player.roundId, machineKey: { in: slotRules.map((machine) => machine.key) } },
     }),
     db.casinoFreeSpinBonus.findUnique({ where: { roundPlayerId } }),
+    db.casinoBlackjackHand.aggregate({
+      where: { roundPlayerId, status: 'ACTIVE' },
+      _sum: { committedWagerCents: true },
+    }),
   ]);
 
   const walletByCity = new Map(wallets.map((wallet) => [wallet.city.slug, wallet.chipsCents]));
@@ -476,6 +508,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
 
   const walletTotal = wallets.reduce((sum, wallet) => sum + wallet.chipsCents, 0n);
   const sessionTotal = openSession?.bankrollCents ?? 0n;
+  const blackjackCommittedTotal = blackjackCommitted._sum.committedWagerCents ?? 0n;
 
   return {
     enabled: true,
@@ -487,7 +520,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     slotMachines,
     freeSpinBonus,
     recentLedger,
-    totalCasinoValueCents: Number(walletTotal + sessionTotal),
+    totalCasinoValueCents: Number(walletTotal + sessionTotal + blackjackCommittedTotal),
     limits: {
       chipUnitCents: casino.chipUnitCents,
       cashierMinCents: casino.cashier.minExchangeCents,
@@ -554,6 +587,13 @@ async function mutate(
   const now = new Date();
   return prisma.$transaction(async (tx) => {
     await lockRoundPlayer(tx, roundPlayerId);
+    const blackjackReceipt = await tx.casinoBlackjackAction.findUnique({
+      where: { roundPlayerId_actionId: { roundPlayerId, actionId } },
+      select: { id: true },
+    });
+    if (blackjackReceipt) {
+      throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a blackjack action.');
+    }
     const replay = await tx.casinoLedgerEntry.findUnique({
       where: { roundPlayerId_actionId: { roundPlayerId, actionId } },
       select: { id: true },
@@ -698,6 +738,15 @@ export const CasinoService = {
       const replay = await tx.casinoLedgerEntry.findUnique({
         where: { roundPlayerId_actionId: { roundPlayerId, actionId: input.actionId } },
       });
+      if (!replay) {
+        const blackjackReceipt = await tx.casinoBlackjackAction.findUnique({
+          where: { roundPlayerId_actionId: { roundPlayerId, actionId: input.actionId } },
+          select: { id: true },
+        });
+        if (blackjackReceipt) {
+          throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a blackjack action.');
+        }
+      }
       if (replay) {
         if (replay.kind !== 'SLOT_SPIN') {
           throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a different casino action.');
@@ -731,6 +780,10 @@ export const CasinoService = {
       if (!session) throw AppError.conflict('CASINO_SESSION_REQUIRED', 'Open a casino bankroll before playing Slots.');
       if (session.cityId !== city.id) {
         throw AppError.conflict('CASINO_SESSION_ELSEWHERE', 'Your open bankroll belongs to another casino. Close it before playing here.');
+      }
+      const blackjackHand = await tx.casinoBlackjackHand.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { id: true } });
+      if (blackjackHand) {
+        throw AppError.conflict('BLACKJACK_HAND_ACTIVE', 'Finish the current blackjack hand before playing Slots.');
       }
 
       const bonus = await tx.casinoFreeSpinBonus.findUnique({ where: { roundPlayerId } });
@@ -866,6 +919,13 @@ export const CasinoService = {
       const session = await tx.casinoSession.findUnique({ where: { id: sessionId }, include: { city: true } });
       if (!session || session.roundPlayerId !== roundPlayerId) throw AppError.notFound('CASINO_SESSION_NOT_FOUND', 'That casino session is not yours.');
       if (session.status !== 'OPEN') throw AppError.conflict('CASINO_SESSION_CLOSED', 'That casino session is already closed.');
+      const activeBlackjack = await tx.casinoBlackjackHand.findFirst({
+        where: { roundPlayerId, sessionId: session.id, status: 'ACTIVE' },
+        select: { id: true },
+      });
+      if (activeBlackjack) {
+        throw AppError.conflict('BLACKJACK_HAND_ACTIVE', 'Finish the current blackjack hand before closing this casino session.');
+      }
 
       const venue = casino.venues[session.city.slug];
       if (!venue) throw AppError.conflict('CASINO_CLOSED', 'That casino venue is not part of this round anymore.');
