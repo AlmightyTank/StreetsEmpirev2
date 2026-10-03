@@ -501,6 +501,13 @@ async function mutateActiveHand(
       }
       return replayDto(replay.response);
     }
+    const casinoReceipt = await tx.casinoLedgerEntry.findUnique({
+      where: { roundPlayerId_actionId: { roundPlayerId, actionId: input.actionId } },
+      select: { id: true },
+    });
+    if (casinoReceipt) {
+      throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a different casino action.');
+    }
 
     const { player, ruleset, casino } = await playerAndRules(tx, roundPlayerId);
     const row = await tx.casinoBlackjackHand.findUnique({ where: { id: input.handId } });
@@ -675,6 +682,13 @@ export const BlackjackService = {
           throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to another blackjack action.');
         }
         return replayDto(replay.response);
+      }
+      const casinoReceipt = await tx.casinoLedgerEntry.findUnique({
+        where: { roundPlayerId_actionId: { roundPlayerId, actionId: input.actionId } },
+        select: { id: true },
+      });
+      if (casinoReceipt) {
+        throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a different casino action.');
       }
 
       const { player, ruleset, casino } = await playerAndRules(tx, roundPlayerId);
