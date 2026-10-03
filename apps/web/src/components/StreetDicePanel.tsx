@@ -367,7 +367,9 @@ export function StreetDicePanel({ casinoPage, onPageChange }: Props) {
                           ? 'This dice table is not available in this casino.'
                           : !casinoPage.openSession
                             ? 'Open a casino bankroll first.'
-                            : !wagerValid
+                            : casinoPage.openSession.citySlug !== casinoPage.currentCitySlug
+                              ? 'Your open bankroll belongs to another casino.'
+                              : !wagerValid
                               ? 'Use one of this table\'s posted line bets.'
                               : wagerCents && wagerCents > bankrollCents
                                 ? 'There are not enough chips in the bankroll.'
