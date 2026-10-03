@@ -466,7 +466,11 @@ export const CasinoService = {
         if (replay.kind !== 'SLOT_SPIN') {
           throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a different casino action.');
         }
-        return { page: await pageInDb(tx, roundPlayerId, now), spin: slotSpinDto(replay) };
+        const saved = slotSpinDto(replay);
+        if (saved.machineKey !== input.machineKey || saved.wagerCents !== input.wagerCents) {
+          throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a different slot spin.');
+        }
+        return { page: await pageInDb(tx, roundPlayerId, now), spin: saved };
       }
 
       const { player, ruleset, casino } = await playerAndCasino(tx, roundPlayerId);
