@@ -2550,8 +2550,9 @@ model CasinoBlackjackHand {
   cityId           String
   tableKey         String
   status           String @default("ACTIVE")
-  wagerCents       BigInt
-  playerHands      Json
+  wagerCents            BigInt
+  committedWagerCents   BigInt
+  playerHands           Json
   dealerCards      Json
   activeHandIndex  Int @default(0)
   totalReturnCents  BigInt @default(0)
