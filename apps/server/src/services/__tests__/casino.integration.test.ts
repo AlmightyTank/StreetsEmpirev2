@@ -128,6 +128,25 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-A casino foundation 
     expect(tripAfterRedeem.bankrollCents).toBe(200_000n);
     expect(walletAfterRedeem.chipsCents).toBe(50_000n);
     expect(redeemed.cashCents).toBe(200_000);
+
+    const carryOnCap = BigInt(classicOgV12A.travel.trips.carryOnCapCents);
+    await app.prisma.bossTrip.update({
+      where: { id: trip.id },
+      data: { bankrollCents: carryOnCap - 10_000n },
+    });
+    await expect(CasinoService.redeemChips(app.prisma, player.id, {
+      amountCents: 50_000,
+      actionId: randomUUID(),
+    })).rejects.toMatchObject({ code: 'OVER_CARRY_ON' });
+
+    const [tripAtCap, walletAtCap] = await Promise.all([
+      app.prisma.bossTrip.findUniqueOrThrow({ where: { id: trip.id } }),
+      app.prisma.casinoWallet.findUniqueOrThrow({
+        where: { roundPlayerId_cityId: { roundPlayerId: player.id, cityId: vegas.id } },
+      }),
+    ]);
+    expect(tripAtCap.bankrollCents).toBe(carryOnCap - 10_000n);
+    expect(walletAtCap.chipsCents).toBe(50_000n);
   });
 
   it('moves chips into one bankroll and returns them to the same city wallet on close', async () => {
