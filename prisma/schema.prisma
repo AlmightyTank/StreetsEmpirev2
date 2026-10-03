@@ -1166,6 +1166,7 @@ model RoundPlayer {
   casinoWallets        CasinoWallet[]
   casinoSessions       CasinoSession[]
   casinoLedger         CasinoLedgerEntry[]
+  casinoFreeSpinBonus  CasinoFreeSpinBonus?
   /// 1.1.0-C. The crew's live rackets, racket key -> strength (0..1], rebuilt on every
   /// business settle so any system can read them off the player row.
   racketEffects        Json      @default("{}")
@@ -2490,6 +2491,29 @@ model CasinoSession {
 
   @@index([roundPlayerId, status, openedAt(sort: Desc)])
   @@index([cityId, status])
+}
+
+/// 1.2.0-B. One durable non-retriggering free-spin bundle per player.
+/// The wager configuration that earned it is frozen until the bundle is consumed.
+model CasinoFreeSpinBonus {
+  id String @id @default(cuid())
+
+  roundPlayerId String @unique
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  citySlug          String
+  machineKey        String
+  betPerLineCents   BigInt
+  activePaylineKeys Json
+  awardedSpins      Int
+  remainingSpins    Int
+  totalWonCents     BigInt @default(0)
+  sourceActionId    String
+  awardedAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([machineKey])
+  @@index([citySlug])
 }
 
 /// Immutable retry receipt for every casino money movement.
