@@ -58,6 +58,7 @@ export function PlayerProfileHoverLayer() {
   const cardRef = useRef<HTMLElement>(null);
   const closeTimer = useRef<number | null>(null);
   const suppressFocus = useRef(false);
+  const lastTap = useRef<HTMLAnchorElement | null>(null);
 
   function clearCloseTimer() {
     if (closeTimer.current !== null) {
@@ -71,6 +72,7 @@ export function PlayerProfileHoverLayer() {
     targetRef.current?.anchor.removeAttribute('aria-expanded');
     targetRef.current?.anchor.removeAttribute('aria-controls');
     targetRef.current = null;
+    lastTap.current = null;
     setTarget(null);
     setProfile(null);
     setFailed(false);
@@ -137,8 +139,12 @@ export function PlayerProfileHoverLayer() {
       if (!anchor) return;
       const id = playerId(anchor);
       if (!id) return;
-      if (targetRef.current?.anchor === anchor) return;
+      if (lastTap.current === anchor) {
+        lastTap.current = null;
+        return;
+      }
       event.preventDefault();
+      lastTap.current = anchor;
       activate(anchor);
     }
     function onKeyDown(event: KeyboardEvent) {
@@ -175,12 +181,17 @@ export function PlayerProfileHoverLayer() {
   useEffect(() => {
     if (!target) return;
     let active = true;
-    void getProfile(target.id).then((next) => {
-      if (active) setProfile(next);
-    }).catch(() => {
-      if (active) setFailed(true);
-    });
-    return () => { active = false; };
+    const request = window.setTimeout(() => {
+      void getProfile(target.id).then((next) => {
+        if (active) setProfile(next);
+      }).catch(() => {
+        if (active) setFailed(true);
+      });
+    }, 180);
+    return () => {
+      active = false;
+      window.clearTimeout(request);
+    };
   }, [target]);
 
   useLayoutEffect(() => {
@@ -252,6 +263,22 @@ export function PlayerProfileHoverLayer() {
             <div><small>National rank</small><strong>#{formatNumber(profile.rank.national)}</strong></div>
             <div><small>Net worth</small><strong>{formatCents(profile.netWorthCents)}</strong></div>
           </div>
+          {profile.experience ? (
+            <div className="se-profile-hover-card__xp">
+              <div><span>LEVEL {formatNumber(profile.experience.level)}</span><strong>{formatNumber(profile.experience.progressPercent)}%</strong></div>
+              <div
+                className="se-profile-hover-card__xp-track"
+                role="progressbar"
+                aria-label="Progress to next player level"
+                aria-valuenow={profile.experience.progressPercent}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <span style={{ width: `${profile.experience.progressPercent}%` }} />
+              </div>
+              <small>{formatNumber(profile.experience.xpToNextLevel)} XP to next level</small>
+            </div>
+          ) : null}
           {profile.badges.length ? (
             <div className="se-profile-hover-card__badges" aria-label="Profile badges">
               {profile.badges.slice(0, 3).map((badge) => (

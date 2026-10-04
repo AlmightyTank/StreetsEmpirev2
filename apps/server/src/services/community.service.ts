@@ -16,6 +16,7 @@ import type {
   RankingEntryDto,
   RankingsDto,
 } from '@streets/shared';
+import { playerExperienceDto } from '@streets/shared';
 import { env } from '../config/env.js';
 import { toCityDto, toSeasonHideoutDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
@@ -959,6 +960,7 @@ export const CommunityService = {
         city: true,
         alliance: { select: { name: true, tag: true } },
         round: { select: { name: true, endsAt: true, rulesetId: true, rulesetVersion: true } },
+        account: { select: { experiencePoints: true } },
       },
     });
 
@@ -1035,6 +1037,7 @@ export const CommunityService = {
         accent: profileAccent(profileSettings?.profileAccent),
         frame,
       },
+      experience: playerExperienceDto(player.account.experiencePoints),
       publicPimpId: player.publicPimpId,
       displayName: player.displayName,
       crewName: profileSettings?.crewName ?? null,

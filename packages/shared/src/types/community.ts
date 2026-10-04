@@ -1,6 +1,6 @@
 import type { AllianceDetailDto, AllianceTagDto } from './alliance.js';
 import type { NoticeCategory, NotificationCategory } from '../notifications.js';
-import type { ActivityDto, CityDto, ProfileAccent, RoundDto, SeasonHideoutDto } from './api.js';
+import type { ActivityDto, CityDto, PlayerExperienceDto, ProfileAccent, RoundDto, SeasonHideoutDto } from './api.js';
 
 export type PublicAchievementCategory =
   | 'rank'
@@ -239,6 +239,8 @@ export interface PublicPlayerProfileDto {
     accent: ProfileAccent;
     frame: string | null;
   };
+  /** Lifetime account XP, safe to show on public player cards. */
+  experience?: PlayerExperienceDto;
   publicPimpId: number;
   displayName: string;
   /** 0.9.0-F. Optional account-level crew name. */
