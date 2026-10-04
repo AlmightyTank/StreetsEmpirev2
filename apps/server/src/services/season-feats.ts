@@ -35,8 +35,8 @@ export interface SeasonFeat {
 }
 
 /** 1.3.0-F. The Wanted ladder as ranks: 0 Quiet, 1 Noticed, 2 Under Investigation, 3 Warrant. */
-const NOTICED = 1;
-const WARRANT = 3;
+const QUIET = 0;
+const INVESTIGATION = 2;
 
 /** A finished season of real play on a ruleset that kept a Case, judged on its record. */
 function cleanSeason(totals: SeasonTotals, turns: number, clean: boolean): number {
@@ -88,8 +88,9 @@ export const SEASON_FEATS: readonly SeasonFeat[] = [
 
   // 1.3.0-F — Law. Clean-record feats, judged when the season ends. Titles only.
   { key: 'clean-record', title: 'Clean Record', description: 'Finish a season with 1,000 turns worked and no warrant ever served on you.', category: 'law', rarity: 'uncommon', target: 1, progressLabel: 'clean seasons', stat: (totals) => cleanSeason(totals, 1_000, totals.lawWarrantsServed === 0), finishedSeasonsOnly: true },
-  { key: 'nothing-on-paper', title: 'Nothing on Paper', description: 'Finish a season with 2,500 turns worked and no Case anywhere ever reaching the Warrant stage.', category: 'law', rarity: 'rare', target: 1, progressLabel: 'clean seasons', stat: (totals) => cleanSeason(totals, 2_500, totals.lawPeakStage < WARRANT), finishedSeasonsOnly: true },
-  { key: 'off-the-books', title: 'Off the Books', description: 'Finish a season with 5,000 turns worked and no Case anywhere ever getting past Noticed.', category: 'law', rarity: 'epic', target: 1, progressLabel: 'clean seasons', stat: (totals) => cleanSeason(totals, 5_000, totals.lawPeakStage <= NOTICED), finishedSeasonsOnly: true },
+  // 1.3.0-G: pinned against qa:law, where careful play keeps a Case at Quiet or Noticed.
+  { key: 'nothing-on-paper', title: 'Nothing on Paper', description: 'Finish a season with 2,500 turns worked and no Case anywhere ever reaching Under Investigation.', category: 'law', rarity: 'rare', target: 1, progressLabel: 'clean seasons', stat: (totals) => cleanSeason(totals, 2_500, totals.lawPeakStage < INVESTIGATION), finishedSeasonsOnly: true },
+  { key: 'off-the-books', title: 'Off the Books', description: 'Finish a season with 5,000 turns worked and every Case still Quiet.', category: 'law', rarity: 'epic', target: 1, progressLabel: 'clean seasons', stat: (totals) => cleanSeason(totals, 5_000, totals.lawPeakStage === QUIET), finishedSeasonsOnly: true },
 
   { key: 'war-machine', title: 'War Machine', description: 'Win ten block wars as attacker or defender in one season.', category: 'turf', rarity: 'legendary', target: 10, progressLabel: 'block-war wins', stat: (totals) => totals.blockWarAttackWins + totals.blockWarDefenseWins },
 ];

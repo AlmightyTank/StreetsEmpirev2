@@ -85,14 +85,20 @@ export function tripCaseEvidence(heat: TripHeatDto | undefined, source: 'SCOUT' 
 }
 
 /** Sources that are not the player's own act: they never restart a Case's quiet clock. */
-const PASSIVE = new Set<CaseSource>(['RACKETS', 'CRACKDOWN', 'LAUNDERING', 'COOLING', 'WARRANT', 'LAWYER', 'QUASH']);
+const PASSIVE = new Set<CaseSource>(['RACKETS', 'CRACKDOWN', 'LAUNDERING', 'COOLING', 'WARRANT', 'LAWYER', 'QUASH', 'ADMIN']);
 
 /**
  * 1.3.0-F. Falls that are not the Case cooling: a warrant served or answered, a quash, or a
  * federal case moving. They still close a Case's book when it reaches Quiet; they just never
  * tell Ledger's Jobs it cooled.
  */
-const NOT_COOLING = new Set<CaseSource>(['WARRANT', 'LAWYER', 'QUASH', 'FEDERAL']);
+const NOT_COOLING = new Set<CaseSource>(['WARRANT', 'LAWYER', 'QUASH', 'FEDERAL', 'ADMIN']);
+
+/**
+ * 1.3.0-G. A staff correction sets the record straight and nothing more: it never drafts a
+ * warrant, logs a stage rise, earns a Captain's tip or is slowed by a DA.
+ */
+const CORRECTION = new Set<CaseSource>(['ADMIN']);
 
 /** 1.3.0-F. How far a Case has got since it last left Quiet, and when it left. */
 interface CaseBook {
@@ -245,7 +251,7 @@ export const LawService = {
       // E: a federal case arriving brings the Case up to its value, never stacked on top.
       if (entry.floor !== undefined) delta = Math.max(delta, entry.floor - before);
       // D: a District Attorney on the payroll keeps part of every rise off the books.
-      if (delta > 0 && rules.officials && entry.source !== 'STING' && entry.source !== 'FEDERAL') {
+      if (delta > 0 && rules.officials && entry.source !== 'STING' && entry.source !== 'FEDERAL' && !CORRECTION.has(entry.source)) {
         const da = await LawOfficialService.working(tx, roundPlayerId, place.id, 'DA', now);
         const slowed = da ? daSlowed(delta, rules.officials.roles.DA.slowShare) : 0;
         if (da && slowed > 0) {
@@ -284,9 +290,15 @@ export const LawService = {
       await tx.playerCaseReceipt.create({
         data: {
           roundPlayerId, cityId: place.id, source: entry.source, sourceKey: entry.sourceKey,
-          heat: entry.heat ?? 0, deltaHundredths: after - before, caseAfterHundredths: after, stageAfter: stage, stageUp, createdAt: now,
+          heat: entry.heat ?? 0, deltaHundredths: after - before, caseAfterHundredths: after, stageAfter: stage,
+          // A correction's rise is not the police noticing anything: no stage alert reads it.
+          stageUp: stageUp && !CORRECTION.has(entry.source), createdAt: now,
         },
       });
+      if (CORRECTION.has(entry.source)) {
+        changes.push({ cityId: place.id, before, after, stage, stageUp });
+        continue;
+      }
       if (stageUp) {
         await ActivityService.log(tx, roundPlayerId, 'CASE_STAGE_UP', json({
           citySlug: place.slug, cityName: place.name, stage, previousStage: wantedStage(before, rules), case: points(after),

@@ -11,7 +11,9 @@ export type CaseSourceDto =
   // 1.3.0-D: a DA quashing a warrant, and Internal Affairs catching an official.
   | 'QUASH' | 'STING'
   // 1.3.0-E: a federal case moving with a relocation.
-  | 'FEDERAL';
+  | 'FEDERAL'
+  // 1.3.0-G: an audited correction by staff.
+  | 'ADMIN';
 
 /**
  * 1.3.0-A. The player's worst Case, for the dashboard. Stage Quiet with no city when the

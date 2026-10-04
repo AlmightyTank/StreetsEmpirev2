@@ -59,7 +59,7 @@ const PLAYER_PAGES = [
 const ADMIN_PAGES = [
   '/game/admin', '/game/admin/monitoring', '/game/admin/news', '/game/admin/accounts', '/game/admin/quests', '/game/admin/surveys',
   '/game/admin/integrations', '/game/admin/rulesets', '/game/admin/signals', '/game/admin/audit', '/game/admin/reports',
-  '/game/admin/economy', '/game/admin/casino', '/game/admin/combat', '/game/admin/turf',
+  '/game/admin/economy', '/game/admin/casino', '/game/admin/law', '/game/admin/combat', '/game/admin/turf',
 ];
 
 async function api(context, method, url, data) {

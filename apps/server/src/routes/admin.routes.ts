@@ -38,6 +38,7 @@ import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
 import { AdminEconomyService } from '../services/admin-economy.service.js';
 import { AdminCasinoService } from '../services/admin-casino.service.js';
+import { AdminLawService } from '../services/admin-law.service.js';
 import { AdminTurfService } from '../services/admin-turf.service.js';
 import { BugReportService } from '../services/support.service.js';
 import { ExploitFlagService } from '../services/exploit-flag.service.js';
@@ -116,6 +117,13 @@ const supportFavorSchema = z.object({
   reason,
   key: contentKey,
   delta: z.number().int().min(-1000).max(1000).refine((value) => value !== 0, 'Use a non-zero adjustment.'),
+}).strict();
+
+// 1.3.0-G: set one city's Case to an exact value, with a reason.
+const lawAdjustSchema = z.object({
+  reason,
+  citySlug: z.string().trim().min(1).max(64).regex(/^[a-z0-9-]+$/),
+  points: z.number().min(0).max(1_000),
 }).strict();
 
 const grantSchema = z.object({
@@ -702,6 +710,24 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/rounds/:roundId/casino', async (request) => {
     const { roundId } = parseBody(roundParams, request.params);
     return AdminCasinoService.report(fastify.prisma, roundId);
+  });
+
+  /** 1.3.0-G: law health for a round. Read-only; Cases are shown only to staff. */
+  fastify.get('/rounds/:roundId/law', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    return AdminLawService.report(fastify.prisma, roundId);
+  });
+
+  fastify.get('/players/:roundPlayerId/law', async (request) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    return AdminLawService.player(fastify.prisma, roundPlayerId);
+  });
+
+  /** 1.3.0-G: an audited correction to one city's Case. */
+  fastify.post('/players/:roundPlayerId/law/adjust', async (request) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    const body = parseBody(lawAdjustSchema, request.body ?? {});
+    return AdminLawService.adjust(fastify.prisma, request.auth!.account, roundPlayerId, body);
   });
 
   fastify.get('/rounds/:roundId/shipments', async (request) => {

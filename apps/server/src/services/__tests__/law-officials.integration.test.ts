@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { classicOgV13D } from '@streets/rulesets';
 import { lawPriceCents, startingStock } from '@streets/rules-engine';
@@ -61,6 +61,15 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.3.0-D officials and info
     if (roundId) await app.prisma.round.delete({ where: { id: roundId } });
     if (accountId) await app.prisma.account.delete({ where: { id: accountId } });
     await app?.close();
+  });
+
+  // 1.3.0-G audit: whatever a test did, every stored Case still adds up to its receipts.
+  afterEach(async () => {
+    const cases = await app.prisma.playerCase.findMany({ where: { roundPlayerId: playerId } });
+    const sums = await app.prisma.playerCaseReceipt.groupBy({ by: ['cityId'], where: { roundPlayerId: playerId }, _sum: { deltaHundredths: true } });
+    expect(cases.filter((row) => row.caseHundredths).map((row) => [row.cityId, row.caseHundredths]).sort()).toEqual(
+      sums.filter((row) => row._sum.deltaHundredths).map((row) => [row.cityId, row._sum.deltaHundredths]).sort(),
+    );
   });
 
   beforeEach(async () => {

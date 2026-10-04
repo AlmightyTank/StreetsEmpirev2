@@ -735,3 +735,6 @@
 .se-case__actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .se-case__hire { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px; margin-top: 8px; }
 .se-case__tips { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+
+/* 1.3.0-G Admin law: list links big enough for a thumb. */
+.se-admin-law__link { display: inline-flex; align-items: center; min-height: 28px; }

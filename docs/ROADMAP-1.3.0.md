@@ -2,8 +2,9 @@
 
 ## Brainstorm
 
-**Status:** 1.3.0-A through 1.3.0-F are built; the newest ruleset is `classic-og-v1.3-f`. G is
-still design only. See the [Roadmap](#roadmap) table.
+**Status:** 1.3.0-A through 1.3.0-G are built; the release ruleset is `classic-og-v1.3-g`, with the
+law numbers pinned by `qa:law`. See the [Roadmap](#roadmap) table and the
+[law audit](LAW-AUDIT-1.3.0.md).
 
 **Withdrawn draft:** a separate "law pressure" draft (one attention and evidence pool per
 player, a `classic-og-v1.3-f` built on 1.2-F, and cash to bury attention) briefly landed on
@@ -51,14 +52,17 @@ under [Stages](#stages-sketch-following-the-11--12-pattern).
 | **1.3.0-D — Corruption & Informants** | Built | `classic-og-v1.3-d` | A weekly payroll of Captain, DA, Judge and Customs per city. Exposure from every favor, and Internal Affairs with a warned sting. Informants sell sweep and city tips. |
 | **1.3.0-E — City Identity & the Feds** | Built | `classic-og-v1.3-e` | Each city's police build, cool and warn at their own pace. Federal shortens warrant windows and makes the sweep write more against the player, privately. A federal case and its warrant follow a relocation. |
 | **1.3.0-F — Jobs, Feats & Titles** | Built | `classic-og-v1.3-f` | Ledger, a retired records sergeant, with seven one-time Jobs driven by the law system, law titles and a Case File frame, and three clean-record season feats judged at season end. Never pays cash, turns or protection. |
-| **1.3.0-G — Balance, Admin & Release** | Planned | — | A `qa:law` simulation to pin the numbers, an admin case viewer with audited adjustments, an exploit audit, mobile regression and the release gate. |
+| **1.3.0-G — Balance, Admin & Release** | Built | `classic-og-v1.3-g` | `qa:law` pins the numbers (warrants rare for careful play, about weekly for reckless). Admin → Law with a receipt-integrity check, a staff Case viewer with audited corrections, the [law audit](LAW-AUDIT-1.3.0.md), mobile checks and the release gate. |
 
 **Still open across slices:**
 
 - The airport-check preview on the trip screen does not yet show Customs' cut (D).
 - A city tip's Heat lines are also visible on the move screen for destinations; from E the tip
   adds the city's police personality, which is shown nowhere else before you have a Case there.
-- Every number above is a first pass until G's `qa:law` simulation pins it.
+- `qa:law` models street work, the main Heat source; runs, production and rackets add Case on top
+  in a real round (G).
+- A staff correction doesn't restart a Case's quiet clock, so a Case set by staff starts cooling
+  at once (G).
 
 ---
 
@@ -344,7 +348,7 @@ Cities gain matching per-city keys (`caseSpeed`, `warningHoursMultiplier`, …) 
 existing `heat` lines. The dormant 0.1 `evidence` placeholder stays on old pinned rulesets,
 untouched; 1.3 rulesets use `law` instead.
 
-### First-pass numbers *(proposed, to be pinned by `qa:law`)*
+### First-pass numbers *(proposed; superseded by the G numbers pinned by `qa:law`, below)*
 
 - Case 0–100 per city, with stages at 20 / 40 / 65 / 85.
 - `heatToCase`: 0.1, so 10 Heat gained in a city adds 1 Case there.
@@ -714,6 +718,84 @@ F invariants:
 ### 1.3.0-G — Balance, Admin & Release
 `qa:law` simulation, admin case viewer and case adjustment (audited), exploit audit pass,
 mobile regression and release gate.
+
+#### Built in G
+
+**Status: implemented.** Ruleset `classic-og-v1.3-g` (1.3.0-G) is 1.3.0-F with the law numbers
+pinned by `qa:law`. Nothing else in the ruleset changes. The full audit is in
+[LAW-AUDIT-1.3.0.md](LAW-AUDIT-1.3.0.md).
+
+- **`qa:law`.** `npm run qa:law` plays 200 whole 28-day rounds of street work for each profile
+  through the real engine maths: work-supply Heat, busts and arrests, Case from Heat, direct
+  evidence, city pace, cooling and warrants. Profiles are careful (crack, stops at the drag line),
+  managed (cocaine, stops before busts), trader (careful, plus up to $3,000,000 moved a day) and
+  reckless (meth, never stops), on casual, regular and grinder schedules, in New York, Beverly
+  Hills and Atlanta. Bands per round, scaled by each city's pace:
+
+  | Profile | Warrants a round |
+  | --- | --- |
+  | Careful, casual | at most 1 |
+  | Careful, regular or grinder | at most 2 |
+  | Managed, regular | at most 3 |
+  | Trader, regular | at most 2 |
+  | Reckless, regular | 3–6 (roughly weekly) |
+  | Reckless, grinder | 3–9 |
+
+  `--set law.heatToCase=0.004` (repeatable) tries a number without a new ruleset. The first-pass
+  numbers failed every band: a careful player saw a warrant every few days and a reckless one
+  about daily, because a Case only cooled after a full day without evidence.
+- **The pinned numbers.**
+
+  | Number | First pass (A–F) | G |
+  | --- | --- | --- |
+  | Heat to Case | 0.1 | 0.005 |
+  | Evidence: bust / arrest / road stop / torch / sack / hijack | 8 / 15 / 4 / 6 / 6 / 5 | 1 / 3 / 1 / 3 / 3 / 2 |
+  | Currency report | 4 per $250,000 | 2 per $1,000,000 |
+  | Cooling | after 24 quiet hours, 0.5 an hour | after 6 quiet hours, 0.5 an hour |
+  | Laundering | 0.1 per Heat, 8 a day | 0.02 per Heat, 3 a day |
+  | A served warrant leaves the Case at | 30 | 20 |
+  | Federal sweep evidence | 10 | 5 |
+
+  At these numbers careful and managed players never see a warrant; their Cases sit at Quiet or
+  Noticed. A trader moving millions a day reaches Investigation, or one late warrant in Beverly
+  Hills. A reckless player gets one every 3–8 days depending on the city.
+- **Clean-record feats, pinned.** At G's numbers careful play stays at Quiet or Noticed, so
+  Nothing on Paper now needs no Case ever reaching Under Investigation (was Warrant), and Off the
+  Books needs every Case to stay Quiet (was never past Noticed). Clean Record is unchanged. No law
+  season has finished yet.
+- **Admin → Law.** For a round:
+  - players at each Wanted stage in each city, and the highest Cases;
+  - open and waiting warrants;
+  - warrants served, lawyered and quashed in the last day;
+  - officials working by role, Internal Affairs files and stings;
+  - informant tips;
+  - Case receipts in the last day by source;
+  - staff corrections in the last week;
+  - a receipt-integrity check: every stored Case must equal the sum of its receipts, and any that
+    don't are listed for review.
+
+  Read-only, staff only.
+- **Staff Case viewer and corrections.** The player inspector links to the player's Case page,
+  which shows Cases, warrants, payroll and receipts exactly as the player sees them, without
+  settling anything. A correction sets one city's Case to an exact value with a reason, in one
+  transaction with an `law.case-adjust` audit entry. It is written as an `ADMIN` receipt ("Corrected
+  by staff") on the player's own panel, so the receipts still add up. A correction never drafts a
+  warrant, sends a stage alert, logs a stage rise, earns a Captain's tip, is slowed by a DA,
+  restarts the quiet clock or counts toward a Job. Staff can't correct their own Case.
+- **Release gate.** `qa:release` runs `qa:law` with the other balance gates. Its database pass
+  already runs every law suite, and now `admin-law` too. The warrant, official and federal suites
+  check receipt integrity after every test. The UI audit visits Admin → Law.
+- **Seed.** The local seed's current round now uses `classic-og-v1.3-g`.
+
+G invariants:
+
+1. Every A to F invariant still holds.
+2. `qa:law` passes its bands on the release ruleset.
+3. Every stored Case equals the sum of its receipts, staff corrections included.
+4. A player's Case is visible only to them and to staff; staff reads never settle the player.
+5. Every staff correction is audited with a reason, is visible to the player as a receipt, and
+   never drafts a warrant, alerts or advances a Job by itself.
+6. `classic-og-v1.3-f` and older rounds keep their own numbers.
 
 ---
 
