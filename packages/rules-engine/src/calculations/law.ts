@@ -1,4 +1,4 @@
-import type { LawRules, WantedStage } from '@streets/rulesets';
+import type { LawLawyerRules, LawRules, LawWarrantRules, WantedStage } from '@streets/rulesets';
 
 /**
  * 1.3.0-A. The Case: what one city's police have on a player.
@@ -130,4 +130,74 @@ export function launderedCase(heat: number, usedTodayHundredths: number, rules: 
   if (!wash || !Number.isFinite(heat) || heat <= 0) return 0;
   const room = Math.max(0, wash.dailyCaseCap * CASE_SCALE - Math.max(0, usedTodayHundredths));
   return Math.min(room, Math.floor(heat * wash.casePerHeat * CASE_SCALE));
+}
+
+// --- 1.3.0-C -----------------------------------------------------------------
+
+export type WarrantTarget = 'HIDEOUT' | 'BUSINESS' | 'PERSONAL';
+
+const TARGET_ORDER: readonly WarrantTarget[] = ['HIDEOUT', 'BUSINESS', 'PERSONAL'];
+
+/**
+ * What a kind of evidence points the police at: work run out of the Hideout, the crew's
+ * businesses, or the boss in person on the road and at the cage. Null for what took Case off.
+ */
+export function evidenceTarget(source: string): WarrantTarget | null {
+  switch (source) {
+    case 'SCOUT': case 'PRODUCE': case 'BUST': case 'ARREST': case 'COMBAT': case 'CONVOY':
+      return 'HIDEOUT';
+    case 'RACKETS': case 'TORCH': case 'SACK': case 'CRACKDOWN':
+      return 'BUSINESS';
+    case 'RUN_SALE': case 'ROAD_STOP': case 'HIJACK': case 'CURRENCY_REPORT':
+      return 'PERSONAL';
+    default:
+      return null;
+  }
+}
+
+/**
+ * The target a warrant names: the kind of evidence with the most Case behind it, among the
+ * targets the police can reach in that city. Ties go Hideout, business, then personal, and
+ * the boss can always be named.
+ */
+export function chooseWarrantTarget(weights: Readonly<Record<WarrantTarget, number>>, reachable: { hideout: boolean; business: boolean }): WarrantTarget {
+  const ranked = [...TARGET_ORDER].sort((a, b) => weights[b] - weights[a] || TARGET_ORDER.indexOf(a) - TARGET_ORDER.indexOf(b));
+  for (const target of ranked) {
+    if (target === 'PERSONAL') return target;
+    if (target === 'HIDEOUT' && reachable.hideout) return target;
+    if (target === 'BUSINESS' && reachable.business) return target;
+  }
+  return 'PERSONAL';
+}
+
+function shareOf(cents: bigint, share: number): bigint {
+  if (cents <= 0n || share <= 0) return 0n;
+  return BigInt(Math.floor(Number(cents) * share));
+}
+
+/** What a served warrant may still take today: the day's cap less what police already took. */
+export function policeLossRoom(netWorthCents: bigint, lostTodayCents: bigint, rules: LawWarrantRules): bigint {
+  const room = shareOf(netWorthCents, rules.dailyLossCapNetWorthShare) - (lostTodayCents > 0n ? lostTodayCents : 0n);
+  return room > 0n ? room : 0n;
+}
+
+/** The share of a full raid that fits in the day's room: 1 when it all fits. */
+export function lossCapShare(lossCents: bigint, roomCents: bigint): number {
+  if (lossCents <= 0n || roomCents >= lossCents) return 1;
+  if (roomCents <= 0n) return 0;
+  return Number(roomCents) / Number(lossCents);
+}
+
+/** A week of a lawyer: a share of net worth, never below the floor. */
+export function retainerCents(netWorthCents: bigint, rules: LawLawyerRules): bigint {
+  const share = shareOf(netWorthCents, rules.retainer.netWorthShare);
+  const floor = BigInt(rules.retainer.minCents);
+  return share > floor ? share : floor;
+}
+
+/** Lawyering up: a premium over what the warrant would take, never below the floor. */
+export function lawyerUpCents(estimateCents: bigint, rules: LawLawyerRules): bigint {
+  const fee = BigInt(Math.ceil(Number(estimateCents > 0n ? estimateCents : 0n) * rules.lawyerUp.multiplier));
+  const floor = BigInt(rules.lawyerUp.minCents);
+  return fee > floor ? fee : floor;
 }

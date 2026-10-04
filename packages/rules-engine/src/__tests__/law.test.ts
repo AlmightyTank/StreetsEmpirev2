@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV12F, classicOgV13A, classicOgV13B } from '@streets/rulesets';
-import { addCase, caseCap, caseFromHeat, caseFromPoints, coolCase, coolingStartsAt, currencyReports, launderedCase, lawDay, nextStage, stageRank, wantedStage, WANTED_STAGES } from '../calculations/law.js';
+import { classicOgV12F, classicOgV13A, classicOgV13B, classicOgV13C } from '@streets/rulesets';
+import { addCase, caseCap, chooseWarrantTarget, evidenceTarget, lawyerUpCents, lossCapShare, policeLossRoom, retainerCents, caseFromHeat, caseFromPoints, coolCase, coolingStartsAt, currencyReports, launderedCase, lawDay, nextStage, stageRank, wantedStage, WANTED_STAGES } from '../calculations/law.js';
 
 const law = classicOgV13A.law;
 
@@ -122,5 +122,53 @@ describe('1.3.0-B evidence, cooling and reports', () => {
     expect(launderedCase(4, 800, b)).toBe(0);
     expect(launderedCase(0, 0, b)).toBe(0);
     expect(launderedCase(4, 0, law)).toBe(0);
+  });
+});
+
+describe('1.3.0-C warrants and lawyers', () => {
+  const c = classicOgV13C.law;
+
+  it('adds only warrants and lawyers to 1.3.0-B', () => {
+    const { warrants, lawyer, ...rest } = c;
+    expect(rest).toEqual(classicOgV13B.law);
+    expect(warrants).toMatchObject({ warningHours: 12, caseAfterServed: 30, caseAfterAnswered: 45, dailyLossCapNetWorthShare: 0.15 });
+    expect(lawyer.lawyerUp).toEqual({ multiplier: 1.25, minCents: 1_000_000 });
+    expect(classicOgV13C.heat).toBe(classicOgV13B.heat);
+  });
+
+  it('points each kind of evidence at a target', () => {
+    expect(evidenceTarget('SCOUT')).toBe('HIDEOUT');
+    expect(evidenceTarget('ARREST')).toBe('HIDEOUT');
+    expect(evidenceTarget('RACKETS')).toBe('BUSINESS');
+    expect(evidenceTarget('TORCH')).toBe('BUSINESS');
+    expect(evidenceTarget('CURRENCY_REPORT')).toBe('PERSONAL');
+    expect(evidenceTarget('ROAD_STOP')).toBe('PERSONAL');
+    expect(evidenceTarget('COOLING')).toBeNull();
+  });
+
+  it('names the heaviest reachable target, and can always name the boss', () => {
+    const all = { hideout: true, business: true };
+    expect(chooseWarrantTarget({ HIDEOUT: 10, BUSINESS: 30, PERSONAL: 5 }, all)).toBe('BUSINESS');
+    expect(chooseWarrantTarget({ HIDEOUT: 10, BUSINESS: 30, PERSONAL: 5 }, { hideout: true, business: false })).toBe('HIDEOUT');
+    expect(chooseWarrantTarget({ HIDEOUT: 10, BUSINESS: 30, PERSONAL: 5 }, { hideout: false, business: false })).toBe('PERSONAL');
+    expect(chooseWarrantTarget({ HIDEOUT: 7, BUSINESS: 7, PERSONAL: 7 }, all)).toBe('HIDEOUT');
+    expect(chooseWarrantTarget({ HIDEOUT: 0, BUSINESS: 0, PERSONAL: 9 }, all)).toBe('PERSONAL');
+  });
+
+  it('caps a day of police losses at 15% of net worth', () => {
+    expect(policeLossRoom(100_000_000n, 0n, c.warrants)).toBe(15_000_000n);
+    expect(policeLossRoom(100_000_000n, 10_000_000n, c.warrants)).toBe(5_000_000n);
+    expect(policeLossRoom(100_000_000n, 20_000_000n, c.warrants)).toBe(0n);
+    expect(lossCapShare(4_000_000n, 5_000_000n)).toBe(1);
+    expect(lossCapShare(10_000_000n, 5_000_000n)).toBe(0.5);
+    expect(lossCapShare(10_000_000n, 0n)).toBe(0);
+    expect(lossCapShare(0n, 0n)).toBe(1);
+  });
+
+  it('prices lawyers off net worth and off what the warrant would take', () => {
+    expect(retainerCents(100_000_000n, c.lawyer)).toBe(2_500_000n);
+    expect(retainerCents(1_000_000_000n, c.lawyer)).toBe(10_000_000n);
+    expect(lawyerUpCents(4_000_000n, c.lawyer)).toBe(5_000_000n);
+    expect(lawyerUpCents(0n, c.lawyer)).toBe(1_000_000n);
   });
 });

@@ -2350,6 +2350,49 @@ export interface LawRules {
    * across the crew. It needs no Heat to wash and costs the register nothing more.
    */
   readonly laundering?: { readonly casePerHeat: number; readonly dailyCaseCap: number };
+  /**
+   * 1.3.0-C. A Case reaching the Warrant stage drafts a warrant against one target, served
+   * after a warning window unless answered. Absent: the Case never costs anything.
+   */
+  readonly warrants?: LawWarrantRules;
+  /** 1.3.0-C. Lawyers: a retainer that softens what warrants take, and lawyering up. */
+  readonly lawyer?: LawLawyerRules;
+}
+
+/** 1.3.0-C. Warrants and what serving one takes. */
+export interface LawWarrantRules {
+  /** Hours between a warrant being drafted and served. */
+  readonly warningHours: number;
+  /** The Case a city drops to once its warrant is served. */
+  readonly caseAfterServed: number;
+  /** The Case a city drops to once its warrant is answered (lawyered up; quashed from D). */
+  readonly caseAfterAnswered: number;
+  /** A Hideout raid: shares of the unprotected product and cash at home. */
+  readonly hideout: { readonly productSeizedFraction: number; readonly cashFineFraction: number };
+  /** A business raid: the racket shuts for a while and the register is fined. The front keeps running. */
+  readonly business: { readonly racketShutHours: number; readonly registerFineFraction: number };
+  /**
+   * Total police losses in a UTC day, as a share of net worth, past which a raid or a served
+   * warrant takes less. Busts and arrests count toward it but are never cut by it.
+   */
+  readonly dailyLossCapNetWorthShare: number;
+}
+
+/** 1.3.0-C. Lawyers. */
+export interface LawLawyerRules {
+  /** A standing lawyer: seizures, fines and warrant lock-ups are cut while one is retained. */
+  readonly retainer: {
+    readonly days: number;
+    /** Price: this share of net worth, never below `minCents`. */
+    readonly netWorthShare: number;
+    readonly minCents: number;
+    /** Share off what a served warrant seizes and fines. */
+    readonly seizureCut: number;
+    /** Share off a personal warrant's lock-up. */
+    readonly downtimeCut: number;
+  };
+  /** Lawyering up: during the warning window, pay `multiplier` x what the warrant would take, never below `minCents`. */
+  readonly lawyerUp: { readonly multiplier: number; readonly minCents: number };
 }
 
 /** 1.3.0-B. Direct evidence, in Case points. */
