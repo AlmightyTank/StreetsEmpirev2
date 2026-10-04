@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { formatCents, type CasinoPageDto, type CasinoSlotSpinDto } from '@streets/shared';
 import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
@@ -132,10 +133,11 @@ function CasinoGamePlaceholder({
 }
 
 export function CasinoPage() {
+  const { game: routeGame } = useParams<{ game: string }>();
+  const activeGame = CASINO_GAMES.some((game) => game.key === routeGame) ? routeGame as CasinoGameKey : null;
   const me = useSession((state) => state.me);
   const refreshSnapshot = useSession((state) => state.refreshSnapshot);
   const [data, setData] = useState<CasinoPageDto | null>(null);
-  const [activeGame, setActiveGame] = useState<CasinoGameKey>('slots');
   const [cashierAmount, setCashierAmount] = useState('1000');
   const [sessionAmount, setSessionAmount] = useState('1000');
   const [selectedMachineKey, setSelectedMachineKey] = useState<string | null>(null);
@@ -160,19 +162,10 @@ export function CasinoPage() {
 
   function load() {
     void casinoApi.page()
-      .then(async (next) => {
+      .then((next) => {
         setData(next);
         setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
         setError(null);
-
-        if (!next.enabled) return;
-        try {
-          const blackjack = await casinoApi.blackjack();
-          if (blackjack.activeHand) setActiveGame('blackjack');
-        } catch {
-          // Keep the rest of the casino usable if blackjack state cannot be loaded.
-          // BlackjackPanel will surface its own error when that game is selected.
-        }
       })
       .catch((caught: unknown) => setError(caught instanceof ApiError ? caught.message : 'Could not open the casino.'));
   }
@@ -403,6 +396,8 @@ export function CasinoPage() {
     if (ok) closeAction.current = newActionId();
   }
 
+  if (!activeGame) return <Navigate to="/game/casino/slots" replace />;
+
   return (
     <GameLayout>
       <div className="se-casino">
@@ -507,31 +502,28 @@ export function CasinoPage() {
                 </div>
               </div>
 
-              <div className="se-casino-games" role="tablist" aria-label="Casino games">
+              <nav className="se-casino-games" aria-label="Casino games">
                 {CASINO_GAMES.map((game) => (
-                  <button
+                  <Link
                     key={game.key}
                     id={'casino-game-tab-' + game.key}
-                    type="button"
-                    role="tab"
-                    aria-selected={activeGame === game.key}
-                    aria-controls={'casino-game-panel-' + game.key}
+                    to={'/game/casino/' + game.key}
+                    aria-current={activeGame === game.key ? 'page' : undefined}
                     className={'se-casino-game-tab' + (activeGame === game.key ? ' is-active' : '') + (game.live ? ' is-live' : ' is-coming')}
-                    onClick={() => setActiveGame(game.key)}
                   >
                     <span className="se-casino-game-tab__icon" aria-hidden="true">{game.icon}</span>
                     <span className="se-casino-game-tab__copy">
                       <strong>{game.label}</strong>
                       <small>{game.status}</small>
                     </span>
-                  </button>
+                  </Link>
                 ))}
-              </div>
+              </nav>
 
               <div
                 className="se-casino-game-stage"
                 id={'casino-game-panel-' + activeGame}
-                role="tabpanel"
+                role="region"
                 aria-labelledby={'casino-game-tab-' + activeGame}
               >
                 {activeGame === 'slots' ? (
