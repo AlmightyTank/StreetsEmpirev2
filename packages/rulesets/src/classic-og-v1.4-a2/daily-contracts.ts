@@ -37,9 +37,10 @@ function daily(input: DailyInput): QuestDefinition {
 }
 
 /**
- * 1.4.0-A2: twenty-two more daily contracts. With the eight from 0.7-N the pool
- * holds thirty, so a three-slot board runs ten days before any contract comes back.
- * Every objective reuses a game signal an existing Job already tracks.
+ * 1.4.0-A2: twenty-eight more daily contracts. With the eight from 0.7-N the pool
+ * holds thirty-six, so a three-slot board runs twelve days before any contract
+ * comes back. Six of them cover systems no contract tracked before: businesses,
+ * block wars, convoys, boss trips, boss hits and outposts.
  */
 export const moreDailyContracts = {
   DAILY_NIGHTCLUB_ROUNDS: daily({
@@ -417,5 +418,107 @@ export const moreDailyContracts = {
       params: { eventTypes: ['INFORMANT_TIP'] },
     },
     rewards: [{ kind: 'CASH', amount: 750_000 }],
+  }),
+
+  DAILY_REGISTER_RUN: daily({
+    key: 'DAILY_REGISTER_RUN',
+    title: 'Register Run',
+    description: 'Vic wants to see the fronts paying, not just standing there with the lights on.',
+    contactKey: 'VIC',
+    category: 'BUSINESS',
+    difficulty: 'STREET_JOB',
+    objective: {
+      id: 'collect_registers',
+      kind: 'EVENT_SUM',
+      description: 'Collect $20,000 from your businesses.',
+      target: 2_000_000,
+      params: { eventTypes: ['BUSINESS_COLLECT'], field: 'collectedCents', display: 'CURRENCY' },
+    },
+    rewards: [{ kind: 'CASH', amount: 1_000_000 }],
+  }),
+
+  DAILY_SIEGE_LINE: daily({
+    key: 'DAILY_SIEGE_LINE',
+    title: 'Siege Line',
+    description: 'There is a block war on and Blocks wants your crew on the line, whichever side of it you are on.',
+    contactKey: 'BLOCKS',
+    category: 'BLOCK_WAR',
+    difficulty: 'HIGH_RISK',
+    objective: {
+      id: 'war_fight',
+      kind: 'EVENT_COUNT',
+      description: 'Fight in 1 block war assault.',
+      target: 1,
+      params: { eventTypes: ['BLOCK_WAR_FIGHT'] },
+    },
+    rewards: [{ kind: 'CASH', amount: 1_500_000 }],
+  }),
+
+  DAILY_TAIL_JOB: daily({
+    key: 'DAILY_TAIL_JOB',
+    title: 'Tail Job',
+    description: 'A rival has a convoy on the interstate. Wheels knows which exit it takes.',
+    contactKey: 'WHEELS',
+    category: 'CONVOY',
+    difficulty: 'HIGH_RISK',
+    objective: {
+      id: 'win_convoy',
+      kind: 'WIN_EVENTS',
+      description: 'Win 1 convoy hit.',
+      target: 1,
+      params: { eventTypes: ['CONVOY_ATTACK'] },
+    },
+    rewards: [{ kind: 'CASH', amount: 1_500_000 }],
+  }),
+
+  DAILY_FLY_OUT: daily({
+    key: 'DAILY_FLY_OUT',
+    title: 'Fly Out',
+    description: 'Vic says some business only gets done face to face. Get on a plane.',
+    contactKey: 'VIC',
+    category: 'BOSS_TRIP',
+    difficulty: 'CONTRACT',
+    objective: {
+      id: 'trip_home',
+      kind: 'EVENT_COUNT',
+      description: 'Take a trip to another city and fly home.',
+      target: 1,
+      params: { eventTypes: ['TRIP_RETURNED'] },
+    },
+    rewards: [{ kind: 'CASH', amount: 1_250_000 }],
+  }),
+
+  DAILY_WALK_THE_OUTPOST: daily({
+    key: 'DAILY_WALK_THE_OUTPOST',
+    title: 'Walk the Outpost',
+    description: 'Blocks says an outpost the boss never visits is an outpost somebody else will take.',
+    contactKey: 'BLOCKS',
+    category: 'BOSS_TRIP',
+    difficulty: 'CONTRACT',
+    objective: {
+      id: 'outpost_visit',
+      kind: 'EVENT_COUNT',
+      description: 'Visit 1 of your outposts while the boss is in town.',
+      target: 1,
+      params: { eventTypes: ['OUTPOST_VISIT'] },
+    },
+    rewards: [{ kind: 'CASH', amount: 1_000_000 }],
+  }),
+
+  DAILY_BOSS_HUNT: daily({
+    key: 'DAILY_BOSS_HUNT',
+    title: 'Boss Hunt',
+    description: 'A rival boss is out of town with a thin crew. Tommy says that is an invitation.',
+    contactKey: 'TOMMY',
+    category: 'BOSS_TRIP',
+    difficulty: 'HIGH_RISK',
+    objective: {
+      id: 'boss_hit',
+      kind: 'EVENT_COUNT',
+      description: 'Land 1 boss hit on a rival who is away from home.',
+      target: 1,
+      params: { eventTypes: ['BOSS_HIT_ATTACK'], where: { escaped: false, held: false } },
+    },
+    rewards: [{ kind: 'CASH', amount: 1_500_000 }],
   }),
 } as const;

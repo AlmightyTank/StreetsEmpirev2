@@ -7,6 +7,7 @@ import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
 import { AdminPlayerService } from './admin-player.service.js';
 import { cityContractObjectives, isDynamicCityContractDefinition } from './city-contract.service.js';
+import { SEASON_CONTRACT_SLOTS, isSeasonContractDefinition, selectedSeasonContractKeys } from './season-contract.service.js';
 import {
   DAILY_CONTRACT_SLOTS,
   dailyContractWindow,
@@ -33,7 +34,7 @@ function objectiveDefinitions(value: Prisma.JsonValue): QuestObjectiveDefinition
 async function roundContext(prisma: PrismaClient, roundId: string) {
   const round = await prisma.round.findUnique({
     where: { id: roundId },
-    select: { id: true, name: true, status: true, rulesetId: true, rulesetVersion: true },
+    select: { id: true, name: true, status: true, rulesetId: true, rulesetVersion: true, endsAt: true },
   });
   if (!round) throw AppError.notFound('ROUND_NOT_FOUND', 'That round does not exist.');
   return { round, ruleset: loadRulesetForRound(round) };
@@ -165,6 +166,13 @@ export const AdminQuestService = {
           resetAt: weeklyWindow.endsAt.toISOString(),
           slots: WEEKLY_CONTRACT_SLOTS,
         },
+        ...(Object.values(ruleset.questDefinitions ?? {}).some(isSeasonContractDefinition) ? {
+          season: {
+            keys: selectedSeasonContractKeys(ruleset, round.id, enabledKeys),
+            resetAt: round.endsAt.toISOString(),
+            slots: SEASON_CONTRACT_SLOTS,
+          },
+        } : {}),
       },
       quests: rows.map((row) => {
         const count = counts.get(row.id) ?? { attempts: 0, open: 0 };

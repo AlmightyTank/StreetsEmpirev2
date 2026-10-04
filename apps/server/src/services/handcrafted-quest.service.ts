@@ -43,7 +43,7 @@ import {
 } from './weekly-contract.service.js';
 import { syncSecretQuestAttempts } from './secret-quest.service.js';
 import {
-  CITY_CONTRACT_SLOTS,
+  cityContractSlots,
   cityContractObjectives,
   cityContractRewards,
   cityContractState,
@@ -51,6 +51,7 @@ import {
   isDynamicCityContractDefinition,
   syncCityContractAttempts,
 } from './city-contract.service.js';
+import { SEASON_CONTRACT_SLOTS, isSeasonContractDefinition, syncSeasonContractAttempts } from './season-contract.service.js';
 import {
   acceptAllianceContract,
   allianceContractContributionSnapshot,
@@ -70,7 +71,7 @@ import {
 
 const ACTIVE_LIMIT = 8;
 const TRACKED_LIMIT = 3;
-const SLOTLESS_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT'] as const;
+const SLOTLESS_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT', 'SEASON'] as const;
 const CONTACT_TIERS = [
   { at: 0, name: 'Unknown' },
   { at: 25, name: 'Acquaintance' },
@@ -445,6 +446,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
       || isDynamicCityContractDefinition(definition)
       || isAllianceContractDefinition(definition)
       || isCommunityEventDefinition(definition)
+      || isSeasonContractDefinition(definition)
     ) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
     const seasonalAvailable = seasonalEventAvailable(definition, now, adminTestMode);
@@ -469,6 +471,7 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
   await syncDailyContractAttempts(db, roundPlayerId, ruleset, now);
   await syncWeeklyContractAttempts(db, roundPlayerId, ruleset, now);
   newlyAvailable.push(...await syncCityContractAttempts(db, roundPlayerId, ruleset, now));
+  newlyAvailable.push(...await syncSeasonContractAttempts(db, roundPlayerId, ruleset));
   newlyAvailable.push(...await syncAllianceContractAttempts(db, roundPlayerId, ruleset, now));
   await syncCommunityEventAttempts(db, roundPlayerId, ruleset, now);
   await refreshCommunityEventReadinessForPlayer(db, roundPlayerId, ruleset, now);
@@ -516,6 +519,13 @@ export const HandcraftedQuestService = {
       const weeklyWindow = weeklyEnabled ? weeklyContractWindow(now, ruleset) : null;
       const cityEnabled = definitions(ruleset).some(isDynamicCityContractDefinition);
       const cityWindow = cityEnabled ? cityContractWindow(now) : null;
+      const seasonEnabled = definitions(ruleset).some(isSeasonContractDefinition);
+      const seasonEndsAt = seasonEnabled
+        ? (await tx.roundPlayer.findUnique({
+            where: { id: roundPlayerId },
+            select: { round: { select: { endsAt: true } } },
+          }))?.round.endsAt ?? null
+        : null;
       const rows = await tx.playerQuest.findMany({
         where: {
           roundPlayerId,
@@ -606,8 +616,13 @@ export const HandcraftedQuestService = {
         },
         cityContracts: {
           enabled: cityEnabled,
-          slots: cityEnabled ? CITY_CONTRACT_SLOTS : 0,
+          slots: cityEnabled ? cityContractSlots(ruleset) : 0,
           resetAt: cityWindow?.endsAt.toISOString() ?? null,
+        },
+        seasonContracts: {
+          enabled: seasonEnabled,
+          slots: seasonEnabled ? SEASON_CONTRACT_SLOTS : 0,
+          resetAt: seasonEndsAt?.toISOString() ?? null,
         },
         activeLimit: ACTIVE_LIMIT,
         trackedLimit: TRACKED_LIMIT,

@@ -37,8 +37,9 @@ function weekly(input: WeeklyInput): QuestDefinition {
 }
 
 /**
- * 1.4.0-A2: ten more weekly contracts. With the six from 0.7-O the pool holds
- * sixteen, so a two-slot board runs eight weeks before any contract comes back.
+ * 1.4.0-A2: fourteen more weekly contracts. With the six from 0.7-O the pool holds
+ * twenty, so a two-slot board runs ten weeks before any contract comes back. Four of
+ * them cover businesses, block wars, convoys and boss trips.
  */
 export const moreWeeklyContracts = {
   WEEKLY_COOKHOUSE_KING: weekly({
@@ -231,6 +232,80 @@ export const moreWeeklyContracts = {
       description: 'Make 5 successful Heat bribes.',
       target: 5,
       params: { eventTypes: ['HEAT_BRIBE'] },
+    },
+    rewards: [{ kind: 'CASH', amount: 4_000_000 }],
+  }),
+
+  WEEKLY_CASH_REGISTER: weekly({
+    key: 'WEEKLY_CASH_REGISTER',
+    title: 'Cash Register',
+    description: 'Vic wants the fronts to look like real businesses, and real businesses make money every week.',
+    contactKey: 'VIC',
+    category: 'BUSINESS',
+    difficulty: 'SERIOUS_BUSINESS',
+    objective: {
+      id: 'collect_week',
+      kind: 'EVENT_SUM',
+      description: 'Collect $200,000 from your businesses.',
+      target: 20_000_000,
+      params: { eventTypes: ['BUSINESS_COLLECT'], field: 'collectedCents', display: 'CURRENCY' },
+    },
+    rewards: [{ kind: 'CASH', amount: 4_000_000 }],
+  }),
+
+  WEEKLY_SIEGE_WORK: weekly({
+    key: 'WEEKLY_SIEGE_WORK',
+    title: 'Siege Work',
+    description: 'Blocks says wars are won by whoever keeps showing up. Keep showing up.',
+    contactKey: 'BLOCKS',
+    category: 'BLOCK_WAR',
+    difficulty: 'HIGH_RISK',
+    objective: {
+      id: 'war_fights_week',
+      kind: 'EVENT_COUNT',
+      description: 'Fight in 5 block war assaults.',
+      target: 5,
+      params: { eventTypes: ['BLOCK_WAR_FIGHT'] },
+    },
+    rewards: [
+      { kind: 'CASH', amount: 5_000_000 },
+      { kind: 'FAVOR_ITEM', key: 'FIELD_MEDIC', amount: 1 },
+    ],
+  }),
+
+  WEEKLY_HIGHWAYMAN: weekly({
+    key: 'WEEKLY_HIGHWAYMAN',
+    title: 'Highwayman',
+    description: 'Wheels says the road belongs to whoever is willing to stop the traffic on it.',
+    contactKey: 'WHEELS',
+    category: 'CONVOY',
+    difficulty: 'HIGH_RISK',
+    objective: {
+      id: 'convoys_week',
+      kind: 'WIN_EVENTS',
+      description: 'Win 3 convoy hits.',
+      target: 3,
+      params: { eventTypes: ['CONVOY_ATTACK'] },
+    },
+    rewards: [
+      { kind: 'CASH', amount: 5_000_000 },
+      { kind: 'ITEM', key: 'lowRiders', amount: 1 },
+    ],
+  }),
+
+  WEEKLY_JET_SET: weekly({
+    key: 'WEEKLY_JET_SET',
+    title: 'Jet Set',
+    description: 'Vic wants the boss known in more than one airport lounge.',
+    contactKey: 'VIC',
+    category: 'BOSS_TRIP',
+    difficulty: 'SERIOUS_BUSINESS',
+    objective: {
+      id: 'trip_cities',
+      kind: 'UNIQUE_VALUES',
+      description: 'Fly to 3 different cities and come home each time.',
+      target: 3,
+      params: { eventTypes: ['TRIP_RETURNED'], field: 'city' },
     },
     rewards: [{ kind: 'CASH', amount: 4_000_000 }],
   }),

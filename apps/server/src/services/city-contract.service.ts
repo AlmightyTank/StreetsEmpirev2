@@ -36,7 +36,18 @@ export interface CityContractWindow {
   endsAt: Date;
 }
 
+/** SELL is the 0.7-R market order; TRIP and CASINO are the 1.4.0-A2 city jobs. */
+export type CityContractKind = 'SELL' | 'TRIP' | 'CASINO';
+const CITY_CONTRACT_KINDS: readonly CityContractKind[] = ['SELL', 'TRIP', 'CASINO'];
+
+/** 1.4.0-A2 city job payouts and targets. */
+export const CITY_JOB_TRIP_BONUS_CENTS = 2_000_000;
+export const CITY_JOB_CASINO_BONUS_CENTS = 1_500_000;
+export const CITY_JOB_CASINO_WAGERS = 15;
+
 export interface CityContractState {
+  /** Absent on rows written before 1.4.0-A2, which are all SELL. */
+  kind?: CityContractKind;
   windowStart: string;
   windowEnd: string;
   city: string;
@@ -105,7 +116,13 @@ export function cityContractState(value: unknown): CityContractState | null {
   ] as const;
   if (requiredNumbers.some((key) => typeof raw[key] !== 'number' || !Number.isFinite(raw[key] as number))) return null;
 
+  const kind = typeof raw.kind === 'string' && CITY_CONTRACT_KINDS.includes(raw.kind as CityContractKind)
+    ? raw.kind as CityContractKind
+    : undefined;
+  if (raw.kind !== undefined && !kind) return null;
+
   return {
+    ...(kind ? { kind } : {}),
     windowStart: raw.windowStart as string,
     windowEnd: raw.windowEnd as string,
     city: raw.city as string,
@@ -126,6 +143,24 @@ export function cityContractState(value: unknown): CityContractState | null {
 export function cityContractObjectives(value: unknown): QuestObjectiveDefinition[] | null {
   const state = cityContractState(value);
   if (!state) return null;
+  if (state.kind === 'TRIP') {
+    return [{
+      id: 'city_job',
+      kind: 'EVENT_COUNT',
+      description: `Fly to ${state.cityName} and come home.`,
+      target: state.target,
+      params: { eventTypes: ['TRIP_RETURNED'], where: { city: state.city } },
+    }];
+  }
+  if (state.kind === 'CASINO') {
+    return [{
+      id: 'city_job',
+      kind: 'EVENT_COUNT',
+      description: `Place ${state.target.toLocaleString('en-US')} wagers at a casino in ${state.cityName}.`,
+      target: state.target,
+      params: { eventTypes: ['CASINO_WAGER'], where: { citySlug: state.city } },
+    }];
+  }
   return [{
     id: 'deliver',
     kind: 'EVENT_SUM',
@@ -284,7 +319,85 @@ function distinctCityPicks(candidates: readonly Opportunity[], avoid: ReadonlySe
   return picked;
 }
 
+/** Board slots: one per dynamic city template the ruleset carries. */
+export function cityContractSlots(ruleset: Ruleset): number {
+  return Object.values(ruleset.questDefinitions ?? {}).filter(isDynamicCityContractDefinition).length;
+}
+
+/**
+ * 1.4.0-A2 city job: fly in and back, or play that city's casino. Never the starting
+ * city (most crews live there, and a trip has to leave home) and never a city the
+ * market orders already posted, so the board points at three different cities.
+ */
+export function cityJobOffer(
+  ruleset: Ruleset,
+  roundSeed: string,
+  window: CityContractWindow,
+  takenCities: readonly string[],
+): CityContractState | null {
+  const home = ruleset.round.startingCitySlug;
+  const open = Object.keys(ruleset.cities ?? {})
+    .filter((city) => city !== home && !takenCities.includes(city) && cityRules(ruleset, city))
+    .sort();
+  const casinoCities = ruleset.casino?.enabled && ruleset.casino.status
+    ? open.filter((city) => ruleset.casino!.venues[city])
+    : [];
+  const kinds: Array<{ kind: 'TRIP' | 'CASINO'; cities: string[] }> = [
+    ...(ruleset.travel?.trips ? [{ kind: 'TRIP' as const, cities: open }] : []),
+    ...(casinoCities.length ? [{ kind: 'CASINO' as const, cities: casinoCities }] : []),
+  ].filter((entry) => entry.cities.length > 0);
+  if (!kinds.length) return null;
+
+  const stamp = window.startsAt.toISOString();
+  const pick = kinds[Math.floor(hashRoll(roundSeed, 'city-job-kind', stamp) * kinds.length)]!;
+  const city = pick.cities[Math.floor(hashRoll(roundSeed, 'city-job-city', stamp) * pick.cities.length)]!;
+  const cityName = cityRules(ruleset, city)!.name;
+  const base = {
+    windowStart: stamp,
+    windowEnd: window.endsAt.toISOString(),
+    city,
+    cityName,
+    product: '',
+    productName: '',
+    expectedUnitCents: 0,
+    expectedSaleCents: 0,
+    payoutMultiplier: 1,
+  };
+  if (pick.kind === 'TRIP') {
+    return {
+      kind: 'TRIP',
+      ...base,
+      condition: 'Fly-In',
+      title: `${cityName}: Fly-In Meeting`,
+      description: `Somebody in ${cityName} will only talk to the boss in person. Fly in, take the meeting and come home before the 12-hour board refresh.`,
+      target: 1,
+      bonusCents: CITY_JOB_TRIP_BONUS_CENTS,
+    };
+  }
+  const venue = ruleset.casino!.venues[city]!;
+  return {
+    kind: 'CASINO',
+    ...base,
+    condition: 'House Guest',
+    title: `${cityName}: House Guest`,
+    description: `${venue.name} wants to see the boss at its tables. Place ${CITY_JOB_CASINO_WAGERS} wagers at a casino in ${cityName} before the 12-hour board refresh.`,
+    target: CITY_JOB_CASINO_WAGERS,
+    bonusCents: CITY_JOB_CASINO_BONUS_CENTS,
+  };
+}
+
 export function cityContractOffers(
+  ruleset: Ruleset,
+  roundSeed: string,
+  window: CityContractWindow,
+): CityContractState[] {
+  const market = cityMarketOffers(ruleset, roundSeed, window);
+  if (!ruleset.contractRotation?.cityJobs) return market;
+  const job = cityJobOffer(ruleset, roundSeed, window, market.map((offer) => offer.city));
+  return job ? [...market, job] : market;
+}
+
+function cityMarketOffers(
   ruleset: Ruleset,
   roundSeed: string,
   window: CityContractWindow,

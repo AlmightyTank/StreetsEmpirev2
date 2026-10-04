@@ -134,7 +134,9 @@ export type QuestType =
   | 'SECRET'
   | 'ALLIANCE'
   | 'CITY_CONTRACT'
-  | 'EVENT';
+  | 'EVENT'
+  /** 1.4.0-A2. Round-long board goals, dealt per round; one attempt each. */
+  | 'SEASON';
 
 export type QuestDifficulty =
   | 'STREET_JOB'
@@ -525,6 +527,11 @@ export interface ContractRotationRules {
    * previous 12-hour board posted whenever another city has an order.
    */
   readonly freshCityBoards: boolean;
+  /**
+   * City boards add a third slot: a city job (fly in and back, or play that city's
+   * casino) in a city the market orders did not pick. Needs a CITY_JOB template.
+   */
+  readonly cityJobs?: boolean;
 }
 
 export interface RulesetMeta {
