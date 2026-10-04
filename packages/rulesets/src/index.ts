@@ -87,6 +87,7 @@ import { classicOgV13D } from './classic-og-v1.3-d/index.js';
 import { classicOgV13E } from './classic-og-v1.3-e/index.js';
 import { classicOgV13F } from './classic-og-v1.3-f/index.js';
 import { classicOgV13G } from './classic-og-v1.3-g/index.js';
+import { classicOgV14A } from './classic-og-v1.4-a/index.js';
 import type { Ruleset } from './types.js';
 
 export { classicOgV01 };
@@ -178,11 +179,13 @@ export { classicOgV13D };
 export { classicOgV13E };
 export { classicOgV13F };
 export { classicOgV13G };
+export { classicOgV14A };
 export * from './classic-og-v0.1/index.js';
 export * from './types.js';
 export * from './combat-prototype.js';
 export * from './hideout-v2.js';
 export * from './quest-definitions.js';
+export * from './faction-definitions.js';
 export * from './quest-progress.js';
 export * from './quest-contacts.js';
 export * from './street-pass.js';
@@ -278,6 +281,7 @@ export const rulesets: Readonly<Record<string, Ruleset>> = {
   [classicOgV13E.meta.id]: classicOgV13E,
   [classicOgV13F.meta.id]: classicOgV13F,
   [classicOgV13G.meta.id]: classicOgV13G,
+  [classicOgV14A.meta.id]: classicOgV14A,
 };
 
 export const DEFAULT_RULESET_ID = classicOgV01.meta.id;

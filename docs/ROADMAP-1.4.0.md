@@ -2,7 +2,8 @@
 
 ## Brainstorm
 
-**Status:** roadmap agreed; nothing built yet. See the [Roadmap](#roadmap) table.
+**Status:** 1.4.0-A is built; the newest ruleset is `classic-og-v1.4-a`. B to G are design only. See
+the [Roadmap](#roadmap) table.
 
 **Target base:** StreetsEmpire v1.3.0 (`classic-og-v1.3-g`)  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** make each city's underworld feel populated
@@ -44,7 +45,7 @@ contact reputation exactly as they were.
 
 | Slice | Status | Ruleset | What it delivers |
 | --- | --- | --- | --- |
-| **1.4.0-A — Faction Catalog** | Planned | `classic-og-v1.4-a` | Factions in the ruleset, each contact's faction, faction identity on Jobs and contacts. No balance change. |
+| **1.4.0-A — Faction Catalog** | Built | `classic-og-v1.4-a` | Factions in the ruleset, each contact's faction, faction identity on Jobs and contacts. No balance change. |
 | **1.4.0-B — Standing** | Planned | `classic-og-v1.4-b` | Seasonal standing per faction with receipts, tiers, tier-up alerts and a standing panel. Contact Jobs pay faction standing. |
 | **1.4.0-C — Sponsored Contracts** | Planned | `classic-og-v1.4-c` | Existing board contracts carry a sponsoring faction and pay its standing. Boards lean toward factions you work with. |
 | **1.4.0-D — Faction Perks** | Planned | `classic-og-v1.4-d` | Information and warnings at Known and Trusted, then a small capped nudge per faction at Connected. |
@@ -249,6 +250,45 @@ rivalry hints. Every existing Job works exactly as before.
 
 **Gate:** older rulesets have no factions; every contact with Jobs has a faction or is marked
 independent; the Rules copy promises nothing not yet shipped.
+
+#### Built in A
+
+**Status: implemented.** Ruleset `classic-og-v1.4-a` (1.4.0-A) is 1.3.0-G plus a `factions` block
+and a faction on each contact. Jobs, rewards, prices, reputation and the law are exactly 1.3.0-G's.
+
+- **The catalog.** The Kings, The Outfit, Road Saints MC, The Cartel Line and Civic Handshake, each
+  with a name, identity, lane, description and rivals. Every rivalry is listed on both sides:
+  Kings and Outfit against each other, and Civic Handshake against both Road Saints and the Cartel
+  Line. Civic Handshake has no contact of its own; its faces are the officials on the 1.3 payroll.
+- **Contacts.**
+
+  | Contact | Faction |
+  | --- | --- |
+  | Mama King, Blocks | The Kings |
+  | Tommy | The Outfit |
+  | Wheels | Road Saints MC |
+  | Pip | The Cartel Line |
+  | Vic | independent: a broker who works for none of them |
+  | Ace | independent: the casino serves everyone who pays |
+  | Ledger | independent: she never took an envelope |
+
+- **Validation.** `factionProblems` checks a ruleset's catalog: every contact that gives Jobs has a
+  faction or an independent reason (never both), every rivalry is two-sided, and every faction has
+  a contact or a faces note. The release ruleset has none.
+- **Jobs page.** Each contact card says who they work for (or "Independent", with the reason on
+  hover), each Job card names its faction next to its contact, and a new Factions panel lists each
+  faction's lane, identity, faces and rivals. 1.3 rounds show none of it.
+- **Rules page.** A short "Factions" section: who's who, the independents, rivals, and that
+  nothing works differently yet.
+- **Seed.** The local seed's current round now uses `classic-og-v1.4-a`.
+
+A invariants:
+
+1. Every 1.3 invariant still holds.
+2. Factions change no Job, reward, price, reputation or law number.
+3. Every contact that gives Jobs has a faction or an independent reason.
+4. Every rivalry is listed on both sides.
+5. `classic-og-v1.3-g` and older rounds have no factions.
 
 ### 1.4.0-B — Standing
 

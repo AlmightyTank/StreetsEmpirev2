@@ -270,6 +270,7 @@ function questDto(row: QuestRow, ruleset: Ruleset, communityEvent?: CommunityEve
     description: cityState?.description ?? row.questDefinition.description,
     contactKey: row.questDefinition.contactKey,
     contactName: contact?.shortName ?? null,
+    factionName: contact?.factionKey ? ruleset.factions?.[contact.factionKey]?.name ?? null : null,
     type: row.questDefinition.type,
     category: row.questDefinition.category,
     difficulty: row.questDefinition.difficulty,
@@ -533,13 +534,28 @@ export const HandcraftedQuestService = {
       const contacts = Object.values(ruleset.contacts ?? {}).map((contact): QuestContactDto => {
         const points = reps[contact.key] ?? 0;
         const tier = contactTier(points);
+        const { factionKey, independent, ...identity } = contact;
+        const faction = factionKey ? ruleset.factions?.[factionKey] : undefined;
         return {
-          ...contact,
+          ...identity,
           points,
           standing: tier.name,
           nextStandingAt: tier.next,
+          faction: faction ? { key: faction.key, name: faction.name } : null,
+          independent: independent ?? null,
         };
       });
+      const factions = ruleset.factions ? Object.values(ruleset.factions).flatMap((faction) => faction ? [{
+        key: faction.key,
+        name: faction.name,
+        shortName: faction.shortName,
+        identity: faction.identity,
+        lane: faction.lane,
+        description: faction.description,
+        rivals: faction.rivals.map((rival) => ({ key: rival, name: ruleset.factions?.[rival]?.name ?? rival })),
+        faces: Object.values(ruleset.contacts ?? {}).flatMap((contact) => contact?.factionKey === faction.key ? [contact.shortName] : []),
+        facesNote: faction.facesNote ?? null,
+      }] : []) : null;
       const unlockRows = await tx.playerUnlock.findMany({
         where: { roundPlayerId },
         orderBy: { awardedAt: 'asc' },
@@ -605,6 +621,7 @@ export const HandcraftedQuestService = {
           completed: rows.filter((row) => row.status === 'COMPLETED').length,
         },
         contacts,
+        factions,
         permanentUnlocks,
         activeFavors,
         armedFavors,

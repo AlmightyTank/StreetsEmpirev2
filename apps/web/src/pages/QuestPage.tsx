@@ -238,7 +238,7 @@ function QuestCard({
       title={quest.title}
       aside={(
         <div className="se-quest-card__meta">
-          <span className="se-quest-kind">{quest.contactName ?? 'StreetsEmpire'} · {questKindLabel(quest)}</span>
+          <span className="se-quest-kind">{quest.contactName ?? 'StreetsEmpire'}{quest.factionName ? ` · ${quest.factionName}` : ''} · {questKindLabel(quest)}</span>
           {quest.isTracked ? <span className="se-quest-status se-quest-status--tracked">Tracked</span> : null}
           <span className={'se-quest-status se-quest-status--' + statusTone(quest.status)}>{statusLabel(quest)}</span>
         </div>
@@ -1019,12 +1019,32 @@ export function QuestPage() {
                           <span>{contact.name}</span>
                           <strong>{contact.standing}</strong>
                           <small>{contact.role} · {formatNumber(contact.points)} rep</small>
+                          {contact.faction ? <small>Works for {contact.faction.name}</small> : contact.independent ? <small title={contact.independent}>Independent</small> : null}
                           <small>{contact.nextStandingAt === null ? 'Max standing' : `Next standing at ${formatNumber(contact.nextStandingAt)} rep`} · {formatNumber(page.quests.filter((quest) => quest.contactKey === contact.key && quest.status !== 'LOCKED').length)} jobs open</small>
                         </div>
                       ))}
                     </div>
                   </Panel>
                 </div>
+
+                {page.factions?.length ? (
+                  <div id="factions">
+                    <Panel title="Factions" className="se-quests-panel">
+                      <p className="se-hint">The organizations behind your contacts: who works for whom, and who they are up against.</p>
+                      <div className="se-quests-contacts">
+                        {page.factions.map((faction) => (
+                          <div key={faction.key}>
+                            <span>{faction.lane}</span>
+                            <strong>{faction.name}</strong>
+                            <small>{faction.identity}</small>
+                            <small>{faction.faces.length ? `Faces: ${faction.faces.join(', ')}` : faction.facesNote ?? ''}</small>
+                            {faction.rivals.length ? <small>Rival{faction.rivals.length === 1 ? '' : 's'}: {faction.rivals.map((rival) => rival.name).join(', ')}</small> : null}
+                          </div>
+                        ))}
+                      </div>
+                    </Panel>
+                  </div>
+                ) : null}
               </aside>
             </section>
 

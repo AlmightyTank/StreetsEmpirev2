@@ -288,7 +288,34 @@ export interface ContactDefinition {
   readonly shortName: string;
   readonly role: string;
   readonly description: string;
+  /**
+   * 1.4.0-A. The faction this contact works for. Absent before 1.4, and on a contact who
+   * belongs to none (then `independent` says why).
+   */
+  readonly factionKey?: FactionKey;
+  /** 1.4.0-A. Why a contact belongs to no faction, shown to players. */
+  readonly independent?: string;
 }
+
+/** 1.4.0-A. The underworld factions a round can have. */
+export type FactionKey = 'KINGS' | 'OUTFIT' | 'ROAD_SAINTS' | 'CARTEL_LINE' | 'CIVIC_HANDSHAKE';
+
+export interface FactionDefinition {
+  readonly key: FactionKey;
+  readonly name: string;
+  readonly shortName: string;
+  /** Who they are, in a line. */
+  readonly identity: string;
+  /** The part of the game they live in. */
+  readonly lane: string;
+  readonly description: string;
+  /** Factions this one is set against. Every rivalry is listed on both sides. */
+  readonly rivals: readonly FactionKey[];
+  /** Faces with no contact of their own, e.g. Civic Handshake's payroll officials. */
+  readonly facesNote?: string;
+}
+
+export type FactionCatalog = Readonly<Partial<Record<FactionKey, FactionDefinition>>>;
 
 /** Contacts present in a round. Later contacts (Ace, 1.2.0-F) are absent from older catalogs. */
 export type ContactCatalog = Readonly<Partial<Record<ContactKey, ContactDefinition>>>;
@@ -2578,6 +2605,8 @@ export interface Ruleset {
   readonly questDefinitions?: QuestDefinitionCatalog;
   /** Named quest contacts and their relationship tracks. */
   readonly contacts?: ContactCatalog;
+  /** 1.4.0-A. The underworld factions behind the contacts. Absent before 1.4. */
+  readonly factions?: FactionCatalog;
   /** Permanent per-round capabilities earned through Jobs. */
   readonly permanentUnlocks?: PermanentUnlockCatalog;
   /** Consumable favors earned from contacts. Effects are activated by later roadmap phases. */
