@@ -10,6 +10,7 @@ import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
 import { useSession } from '../stores/session.js';
+import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
 import { formatDuration } from '../utils/time.js';
 import {
   isCurrent,
@@ -351,6 +352,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   useStaleGameReload();
   usePageFreshness();
   const round = useSession((s) => s.round);
+  const experience = useSession((s) => s.me?.experience ?? null);
   const isBetaEnvironment = typeof window !== 'undefined' && window.location.hostname === 'beta.streetsempire.dev';
   const sections = useSections();
   const { pathname, search, hash } = useLocation();
@@ -400,6 +402,20 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
       {round ? (
         <div className="se-gamebar">
           <span className="se-gamebar__name">{round.name}</span>
+          {experience ? (
+            <Link
+              className="se-gamebar__xp"
+              to="/game/xp-progress"
+              title={`${experience.totalXp.toLocaleString()} lifetime XP`}
+              aria-label={`Level ${experience.level}, ${experience.xpIntoLevel} of ${experience.xpForLevel} XP to the next level. View your XP progress.`}
+            >
+              <strong>Level {experience.level}</strong>
+              <span className="se-gamebar__xp-track" aria-hidden="true">
+                <span style={{ width: `${experience.progressPercent}%` }} />
+              </span>
+              <span>{experience.xpIntoLevel.toLocaleString()} / {experience.xpForLevel.toLocaleString()} XP</span>
+            </Link>
+          ) : null}
           <span className="se-gamebar__time se-num">
             {round.paused ? 'Paused' : `${formatDuration(round.msRemaining)} left`}
           </span>
@@ -444,5 +460,5 @@ export function GameRouteLayout() {
   const me = useSession((state) => state.me);
   // An account that may not play yet gets no game frame (and none of its polling).
   const blocked = useSession((state) => Boolean(state.account?.verificationRequired || state.account?.rulesAcceptanceRequired));
-  return me && !blocked ? <GameLayoutFrame><Outlet /></GameLayoutFrame> : <Outlet />;
+  return me && !blocked ? <><GameLayoutFrame><Outlet /></GameLayoutFrame><PlayerProfileHoverLayer /></> : <Outlet />;
 }

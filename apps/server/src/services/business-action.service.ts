@@ -338,6 +338,8 @@ export const BusinessActionService = {
           result: { collectedCents, businesses: rows.length, turnsUsed: rules.register.collectTurnCost },
           ledger: [{ source: 'BUSINESS_INCOME', label: 'Business income', amountCents: total, metadata: { businesses: rows.length } }],
           activity: { type: 'BUSINESS_COLLECT', payload: { collectedCents, businesses: rows.length } },
+          // 1.3.0-B: a big register run is a cash movement in the home city.
+          caseEvidence: [{ cashCents: total, source: 'CURRENCY_REPORT' as const }],
         };
       },
     });

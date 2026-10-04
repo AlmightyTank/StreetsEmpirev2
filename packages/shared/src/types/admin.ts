@@ -1,5 +1,6 @@
 import type { ActivityDto, RoundDto, RoundStatus } from './api.js';
 import type { BattleReportDto } from './combat.js';
+import type { LawPageDto, WantedStageDto } from './law.js';
 
 /** 0.3.0-B. Lifecycle moves an admin can make on a round in its current status. */
 export type AdminRoundAction = 'open-registration' | 'start' | 'pause' | 'resume' | 'end-early' | 'archive';
@@ -300,8 +301,13 @@ export interface AdminAccountDetailDto {
   account: AdminAccountSummaryDto;
   profile: {
     activeTitleKey: string | null;
+    titlePlacement: 'prefix' | 'suffix';
     activeProfileFrameKey: string | null;
     activeSiteThemeKey: string | null;
+    profileBio: string | null;
+    profileImageUrl: string | null;
+    profileBannerUrl: string | null;
+    profileEffect: string;
     profileAccent: string;
     featuredBadgeKeys: string[];
   };
@@ -893,6 +899,19 @@ export interface AdminSuspiciousDto {
   openFlags: number;
 }
 
+/** 1.2.0-H. Read-only casino operations and anti-abuse telemetry for admins. */
+export interface AdminCasinoDto {
+  roundId: string;
+  generatedAt: string;
+  windowHours: number;
+  rating: { players: number; ratedWagers: number; wageredCents: number; theoCents: number; compsSpentCents: number; vipWagers: number; jackpots: number };
+  ledger: Array<{ kind: string; entries: number; cashDeltaCents: number; walletChipDeltaCents: number; sessionChipDeltaCents: number }>;
+  operations: { openSessions: number; duplicateOpenSessions: Array<{ playerId: string; displayName: string; count: number }>; activeBlackjack: number; activeDiceRounds: number; activeSoloPoker: number; activeTableHands: number; gamesOnClosedSessions: number; staleGames: number };
+  rapidPlayThreshold: number;
+  rapidPlay: Array<{ playerId: string; displayName: string; entries: number; lastAt: string }>;
+  openCasinoFlags: Array<{ id: string; kind: string; severity: string; playerId: string | null; message: string; occurrences: number; lastAt: string }>;
+}
+
 /** 1.0.0-E. Stock on its way: special orders and the shelves waiting on them. */
 export interface AdminShipmentsDto {
   roundId: string;
@@ -955,3 +974,41 @@ export interface AdminTurfHistoryDto {
 }
 
 export type AdminTurfRepair = 'release-block' | 'sync-posted' | 'settle-push';
+
+/**
+ * 1.3.0-G. Law health for one round: where Cases sit, what warrants and officials did lately,
+ * and whether every stored Case still adds up to its receipts. Admin-only; a player's Case is
+ * private to everyone else.
+ */
+export interface AdminLawDto {
+  roundId: string;
+  generatedAt: string;
+  /** False when the round's ruleset keeps no Case; everything else is then empty. */
+  enabled: boolean;
+  rulesetId: string;
+  /** Players by Wanted stage in each city, Cases read as they stand now (cooling included). */
+  stages: Array<{ citySlug: string; cityName: string; counts: Record<WantedStageDto, number> }>;
+  /** The highest Cases in the round, for review. */
+  highest: Array<{ playerId: string; displayName: string; cityName: string; case: number; stage: WantedStageDto }>;
+  warrants: { open: number; waiting: number; served24h: number; lawyered24h: number; quashed24h: number };
+  payroll: { working: Record<string, number>; underInvestigation: number; stung24h: number };
+  tips24h: number;
+  /** Case receipts written in the last 24 hours, by source. */
+  receipts24h: Array<{ source: string; entries: number; caseChange: number }>;
+  /** Cases whose receipts do not add up to the stored Case: a bug or a hand edit to review. */
+  integrity: { checked: number; mismatches: Array<{ playerId: string; displayName: string; cityName: string; stored: number; receipts: number }> };
+  /** Audited staff adjustments in the last 7 days. */
+  adjustments7d: number;
+}
+
+/** 1.3.0-G. One player's Case as they see it, for staff. */
+export interface AdminLawPlayerDto {
+  playerId: string;
+  displayName: string;
+  roundId: string;
+  roundName: string;
+  /** Cities a correction can name: every city on the map. Empty when the round keeps no Case. */
+  cities: Array<{ slug: string; name: string }>;
+  /** Null when the round's ruleset keeps no Case. */
+  page: LawPageDto | null;
+}

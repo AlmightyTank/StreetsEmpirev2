@@ -87,9 +87,12 @@ export const profileAccentSchema = z.enum([
   'open-road-blue',
   'clean-slate-ice',
   'corner-amber',
+  'velvet-rose',
 ]);
 export const CREW_NAME_MIN = 3;
 export const CREW_NAME_MAX = 32;
+export const PROFILE_BIO_MAX = 500;
+export const PROFILE_IMAGE_URL_MAX = 800;
 
 /**
  * 0.9.0-F. Public crew name: same shape as an alliance name. Blank clears it.
@@ -111,11 +114,41 @@ export const crewNameSchema = z
 export const uiDensitySchema = z.enum(['comfortable', 'compact']);
 export const moneyFormatSchema = z.enum(['full', 'compact']);
 export const defaultLandingSchema = z.enum(['game', 'profile', 'rankings', 'news']);
+export const profileEffectSchema = z.enum(['none', 'neon-pulse', 'scanlines', 'spotlight', 'glitch']);
+
+export const profileBioSchema = z
+  .string()
+  .trim()
+  .max(PROFILE_BIO_MAX, `About me must be ${PROFILE_BIO_MAX} characters or fewer.`)
+  .transform((value) => value.replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n'))
+  .transform((value) => value || null);
+
+const profileImageUrlValue = z
+  .string()
+  .trim()
+  .max(PROFILE_IMAGE_URL_MAX, `Image URLs must be ${PROFILE_IMAGE_URL_MAX} characters or fewer.`)
+  .refine((value) => {
+    try {
+      const url = new URL(value);
+      return url.protocol === 'https:' && !url.username && !url.password;
+    } catch {
+      return false;
+    }
+  }, 'Use a direct HTTPS image URL.');
+
+export const profileImageUrlSchema = z
+  .union([z.literal(''), profileImageUrlValue])
+  .transform((value) => value || null);
 
 export const updateAccountProfileSettingsSchema = z.object({
   activeTitleKey: z.string().trim().min(1).max(80).nullable(),
+  titlePlacement: z.enum(['prefix', 'suffix']).default('prefix'),
   /** Omitted keeps the current crew name; null or blank clears it. */
   crewName: crewNameSchema.nullable().optional(),
+  profileBio: profileBioSchema.nullable().optional(),
+  profileImageUrl: profileImageUrlSchema.nullable().optional(),
+  profileBannerUrl: profileImageUrlSchema.nullable().optional(),
+  profileEffect: profileEffectSchema.optional(),
   activeProfileFrameKey: z.string().trim().min(1).max(80).nullable(),
   activeSiteThemeKey: z.string().trim().min(1).max(80).nullable().default(null),
   featuredBadgeKeys: z.array(z.string().trim().min(1).max(80)).max(6),
@@ -166,6 +199,7 @@ export type ProfileAccentInput = z.infer<typeof profileAccentSchema>;
 export type UiDensityInput = z.infer<typeof uiDensitySchema>;
 export type MoneyFormatInput = z.infer<typeof moneyFormatSchema>;
 export type DefaultLandingInput = z.infer<typeof defaultLandingSchema>;
+export type ProfileEffectInput = z.infer<typeof profileEffectSchema>;
 export type UpdateAccountProfileSettingsInput = z.infer<typeof updateAccountProfileSettingsSchema>;
 export type UpdateNotificationSettingsInput = z.infer<typeof updateNotificationSettingsSchema>;
 export type PushSubscribeInput = z.infer<typeof pushSubscribeSchema>;

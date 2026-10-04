@@ -245,6 +245,7 @@ export function AdminPlayerPage() {
           <p className="se-eyebrow">
             {player.round.name} · {player.round.status} · {player.city} ·{' '}
             <Link to={`/game/admin/accounts/${player.account.id}`}>{player.account.username}{player.account.isActive ? '' : ' (deactivated)'}</Link>
+            {' · '}<Link to={`/game/admin/players/${roundPlayerId}/law`}>Case &amp; warrants</Link>
           </p>
         </div>
       </div>
@@ -499,7 +500,7 @@ export function AdminPlayerPage() {
                               type="button"
                               className="se-btn se-btn--sm"
                               onClick={() => void changeQuestSupport(quest.id, 'complete')}
-                              disabledReason={busy ? working : !supportReasonReady ? 'Write a support reason first.' : quest.status === 'COMPLETED' ? 'This quest already paid out.' : !quest.isEnabled ? 'Enable this quest in Content controls first.' : quest.type === 'ALLIANCE' || quest.type === 'EVENT' ? 'Shared quest completion stays server-authoritative.' : null}
+                              disabledReason={busy ? working : !supportReasonReady ? 'Write a support reason first.' : quest.status === 'COMPLETED' ? 'This quest already paid out.' : !quest.isEnabled ? 'Enable this quest in Content controls first.' : quest.type === 'ALLIANCE' || quest.type === 'CITY_CONTRACT' || quest.type === 'EVENT' ? 'Shared and generated board completion stays server-authoritative.' : null}
                             >
                               Mark ready
                             </Button>

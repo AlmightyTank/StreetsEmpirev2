@@ -1024,6 +1024,11 @@ export interface TripPanelDto {
     checkChancePerBodyguard: number;
     /** The flight home is checked too. */
     checkHome: boolean;
+    /**
+     * 1.3.0-G. Share taken off the check on the way out by a Customs Officer on the payroll at
+     * home: 0 without one. The flight home reads Customs in the city being left.
+     */
+    customsCut: number;
   } | null;
   /** Trips B. The run the boss is riding with, if any. */
   bossRun: { runId: string; cityName: string } | null;
@@ -1137,7 +1142,12 @@ export interface RelocationDto {
   moving: { from: string; fromName: string; to: string; toName: string; startedAt: string; arrivesAt: string } | null;
   heat: number;
   here: HeatThereDto | null;
-  destinations: Array<{ slug: string; name: string; heat: HeatThereDto | null; reachable: boolean }>;
+  destinations: Array<{ slug: string; name: string; heat: HeatThereDto | null; reachable: boolean; caseOnArrival?: number | null }>;
+  /**
+   * 1.3.0-E. A federal case at home moves with the player: its value, what home keeps, and
+   * (per destination, as `caseOnArrival`) what it becomes there. Null when nothing follows.
+   */
+  federalCase?: { cityName: string; case: number; oldCityCase: number } | null;
   /** 0.6.0-D. Exact turf conversion preview keyed by destination slug. */
   turfPlans: Record<string, RelocationTurfPlanDto>;
 }

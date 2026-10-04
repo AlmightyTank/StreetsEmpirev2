@@ -7,7 +7,7 @@ import type {
   PublicSeasonResultDto,
   PublicStatSheetDto,
 } from '@streets/shared';
-import { formatCents, formatNumber } from '@streets/shared';
+import { formatCents, formatNumber, formatProfileName } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
@@ -32,6 +32,8 @@ const categoryName: Record<PublicAwardDto['category'], string> = {
   reputation: 'Reputation',
   hideout: 'Hideout',
   quest: 'Quest',
+  casino: 'Casino',
+  law: 'Law',
   legacy: 'Legacy',
 };
 
@@ -57,6 +59,15 @@ function progressValue(award: PublicAwardDto, value: number): string {
 }
 
 const rarityRank: Record<PublicAwardDto['rarity'], number> = { legendary: 5, epic: 4, rare: 3, uncommon: 2, common: 1 };
+
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || '?';
+}
 
 function earnedText(award: PublicAwardDto): string {
   if (!award.unlocked) return 'Locked';
@@ -480,25 +491,37 @@ export function ProfilePage() {
   return (
     <GameLayout>
       <div className="se-profile">
-        <div className={`se-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}${player?.cosmetics.frame ? ` se-profile-frame se-profile-frame--${player.cosmetics.frame}` : ''}`}>
-        <div>
-          <h1 className="se-title">
-            {player ? <AllianceTag alliance={player.alliance} /> : null}
-            {player?.displayName ?? account?.username ?? 'Profile'}{' '}
-            {player ? <span className="se-muted se-num">(#{player.publicPimpId})</span> : null}
-          </h1>
-          {player?.cosmetics.title ? <p className="se-profile-title">{player.cosmetics.title}</p> : null}
-          {player?.crewName ? <p className="se-profile-crew">Crew · <strong>{player.crewName}</strong></p> : null}
-          <p className="se-eyebrow">
-            {player ? `${player.city.name}${player.isYou ? ' · Your profile' : ''}` : 'Permanent season record'}
-          </p>
-          {player ? <ProfileBadges badges={player.badges} forumGroups={player.forumGroups} /> : null}
+        <div
+          className={`se-pagehead se-profile-pagehead${player ? ` se-profile-accent se-profile-accent--${player.cosmetics.accent}` : ''}${player?.cosmetics.frame ? ` se-profile-frame se-profile-frame--${player.cosmetics.frame}` : ''}${player ? ` se-profile-effect se-profile-effect--${player.cosmetics.effect}` : ''}`}
+          style={player?.cosmetics.bannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(10, 13, 17, 0.88), rgba(10, 13, 17, 0.66)), url("${player.cosmetics.bannerUrl}")` } : undefined}
+        >
+          <div className="se-profile-pagehead__main">
+            {player ? (
+              <span className="se-profile-pagehead__avatar" aria-hidden="true">
+                {player.cosmetics.imageUrl ? <img src={player.cosmetics.imageUrl} alt="" /> : initials(player.displayName)}
+              </span>
+            ) : null}
+            <div>
+              <h1 className="se-title">
+                {player ? <AllianceTag alliance={player.alliance} /> : null}
+                {player
+                  ? <><span className={player.cosmetics.title ? `se-profile-title se-profile-title--${player.cosmetics.titlePlacement}` : undefined}>{formatProfileName(player.displayName, player.cosmetics.title, player.cosmetics.titlePlacement)}</span>{' '}</>
+                  : account?.username ?? 'Profile'}
+                {player ? <span className="se-muted se-num">(#{player.publicPimpId})</span> : null}
+              </h1>
+              {player?.crewName ? <p className="se-profile-crew">Crew · <strong>{player.crewName}</strong></p> : null}
+              <p className="se-eyebrow">
+                {player ? `${player.city.name}${player.isYou ? ' · Your profile' : ''}` : 'Permanent season record'}
+              </p>
+              {player?.profileBio ? <p className="se-profile-bio">{player.profileBio}</p> : null}
+              {player ? <ProfileBadges badges={player.badges} forumGroups={player.forumGroups} /> : null}
+            </div>
+          </div>
+          <div className="se-inline-actions">
+            {player && !player.isYou ? <ContactButton publicPimpId={player.publicPimpId} /> : null}
+            {player?.forumProfileUrl ? <a className="se-btn se-btn--ghost se-btn--sm" href={player.forumProfileUrl}>Forum Profile</a> : null}
+          </div>
         </div>
-        <div className="se-inline-actions">
-          {player && !player.isYou ? <ContactButton publicPimpId={player.publicPimpId} /> : null}
-          {player?.forumProfileUrl ? <a className="se-btn se-btn--ghost se-btn--sm" href={player.forumProfileUrl}>Forum Profile</a> : null}
-        </div>
-      </div>
 
         {error ? <Alert>{error}</Alert> : null}
 

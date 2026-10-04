@@ -523,6 +523,12 @@ body {
   --se-accent-hover: #f8aa5a;
   --se-accent-rgb: 245, 133, 20;
 }
+.se-site-accent--velvet-rose {
+  --se-accent: #e0607e;
+  --se-accent-dim: #a8435c;
+  --se-accent-hover: #ec8ea4;
+  --se-accent-rgb: 224, 96, 126;
+}
 
 /*
  * Green was historically used as both the default accent and the generic
@@ -1438,6 +1444,36 @@ a:hover { color: var(--se-accent-hover); }
 .se-gamebar__time {
   font-size: 12px;
   color: var(--se-text-dim);
+}
+
+.se-gamebar__xp {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--se-text);
+  font-size: 11px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.se-gamebar__xp:hover {
+  color: var(--se-accent);
+}
+
+.se-gamebar__xp-track {
+  display: block;
+  width: 76px;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--se-line);
+}
+
+.se-gamebar__xp-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--se-accent);
 }
 
 .se-tracked-quests {
@@ -2489,6 +2525,7 @@ a.se-nav__link:hover {
 .se-profile-accent--open-road-blue { --se-profile-accent: #38bdf8; }
 .se-profile-accent--clean-slate-ice { --se-profile-accent: #a5f3fc; }
 .se-profile-accent--corner-amber { --se-profile-accent: #f58514; }
+.se-profile-accent--velvet-rose { --se-profile-accent: #e0607e; }
 
 .se-profile-frame {
   position: relative;
@@ -2608,6 +2645,36 @@ a.se-nav__link:hover {
   border-color: rgba(245, 158, 11, 0.25);
 }
 
+/* 1.2.0-F Ace's Black Room finale: a rose velvet rope with gold posts. */
+.se-profile-frame--velvet-rope-frame {
+  border: 2px solid rgba(224, 96, 126, 0.78);
+  box-shadow: 0 0 18px rgba(224, 96, 126, 0.12), inset 0 0 0 3px rgba(214, 169, 67, 0.08);
+}
+.se-profile-frame--velvet-rope-frame::before {
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(214, 169, 67, 0.18), transparent 14%),
+    linear-gradient(270deg, rgba(214, 169, 67, 0.18), transparent 14%);
+}
+.se-profile-frame--velvet-rope-frame::after {
+  border-color: rgba(224, 96, 126, 0.28);
+}
+
+/* 1.3.0-F Ledger's Case Closed finale: a manila case file with a red CLOSED stamp corner. */
+.se-profile-frame--case-file-frame {
+  border: 2px solid rgba(214, 181, 120, 0.78);
+  box-shadow: 0 0 16px rgba(214, 181, 120, 0.1), inset 0 0 0 3px rgba(214, 181, 120, 0.06);
+}
+.se-profile-frame--case-file-frame::before {
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(214, 181, 120, 0.2), transparent 18%),
+    linear-gradient(315deg, rgba(200, 52, 52, 0.22), transparent 14%);
+}
+.se-profile-frame--case-file-frame::after {
+  border-color: rgba(200, 52, 52, 0.3);
+}
+
 /* Street Pass Season 1: a gold double frame with warm corners. */
 .se-profile-frame--street-pass-s1-frame {
   border: 2px solid rgba(240, 194, 51, 0.82);
@@ -2623,14 +2690,47 @@ a.se-nav__link:hover {
   border: 3px double rgba(240, 194, 51, 0.38);
 }
 
-.se-profile-title {
-  margin: 4px 0 0;
-  color: var(--se-profile-accent);
-  font-family: var(--se-mono);
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.se-profile-effect {
+  transform-origin: center;
+}
+
+.se-profile-effect--neon-pulse {
+  animation: se-profile-effect-pulse 3.2s ease-in-out infinite;
+}
+
+.se-profile-effect--scanlines {
+  box-shadow:
+    inset 0 0 0 999px rgba(255, 255, 255, 0.012),
+    0 0 22px color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 18%, transparent);
+}
+
+.se-profile-effect--spotlight {
+  box-shadow:
+    inset 0 0 65px color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 13%, transparent),
+    0 0 24px color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 14%, transparent);
+}
+
+.se-profile-effect--glitch {
+  animation: se-profile-effect-glitch 4.8s steps(1, end) infinite;
+}
+
+@keyframes se-profile-effect-pulse {
+  0%, 100% { box-shadow: 0 0 0 color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 0%, transparent); }
+  50% { box-shadow: 0 0 28px color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 32%, transparent); }
+}
+
+@keyframes se-profile-effect-glitch {
+  0%, 91%, 100% { filter: none; transform: translate(0); }
+  92% { filter: saturate(1.5) contrast(1.15); transform: translate(1px, 0); }
+  93% { transform: translate(-1px, 1px); }
+  94% { filter: none; transform: translate(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-profile-effect--neon-pulse,
+  .se-profile-effect--glitch {
+    animation: none;
+  }
 }
 
 .se-ach-filters {
@@ -3161,6 +3261,155 @@ a.se-nav__link:hover {
   align-items: start;
 }
 
+.se-account-cosmetics__side {
+  display: grid;
+  gap: 14px;
+}
+
+.se-profile-card-preview {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  min-height: 236px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 42%, var(--se-line));
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 74% 16%, color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 20%, transparent), transparent 28%),
+    linear-gradient(145deg, color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 9%, transparent), rgba(8, 12, 10, 0.82) 42%),
+    var(--se-panel-hi);
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+
+.se-profile-card-preview::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 74px;
+  background:
+    radial-gradient(circle at 20% 120%, color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 30%, transparent), transparent 44%),
+    linear-gradient(90deg, color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 16%, transparent), transparent);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.se-profile-card-preview > * {
+  position: relative;
+  z-index: 1;
+}
+
+.se-profile-card-preview__banner {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 34px;
+  margin: -18px -18px 0;
+  padding: 20px 18px 32px;
+  background-size: cover;
+  background-position: center;
+}
+
+.se-profile-card-preview__banner span {
+  align-self: start;
+  padding: 5px 10px;
+  border: 1px solid color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 34%, var(--se-line));
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.34);
+  color: var(--se-text);
+  font-family: var(--se-mono);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.se-profile-card-preview__identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.se-profile-card-preview__avatar {
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 76px;
+  height: 76px;
+  border: 5px solid color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 40%, #071008);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 68%, #f5ffd9);
+  color: #071008;
+  font-size: 24px;
+  font-weight: 1000;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.se-profile-card-preview__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.se-profile-card-preview__identity strong,
+.se-profile-card-preview__identity small,
+.se-profile-card-preview__title {
+  display: block;
+}
+
+.se-profile-card-preview__identity strong {
+  color: var(--se-text);
+  font-size: 24px;
+  line-height: 1.05;
+}
+
+.se-profile-card-preview__identity small {
+  margin-top: 4px;
+  color: var(--se-text-dim);
+  font-family: var(--se-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.se-profile-card-preview__title {
+  margin-bottom: 4px;
+  color: var(--se-profile-accent, var(--se-accent));
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.se-profile-card-preview p {
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--se-line-soft);
+  color: var(--se-text-dim);
+}
+
+.se-profile-card-preview__bio {
+  white-space: pre-line;
+  line-height: 1.45;
+}
+
+.se-profile-card-preview__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--se-line-soft);
+}
+
+.se-profile-card-preview__chips span {
+  padding: 5px 10px;
+  border: 1px solid color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 42%, var(--se-line));
+  border-radius: 999px;
+  color: var(--se-text-dim);
+  background: color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 8%, transparent);
+  font-size: 12px;
+}
+
 .se-interface-preferences {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -3213,6 +3462,7 @@ a.se-nav__link:hover {
 .se-swatch--open-road-blue { --se-swatch: #38bdf8; }
 .se-swatch--clean-slate-ice { --se-swatch: #a5f3fc; }
 .se-swatch--corner-amber { --se-swatch: #f58514; }
+.se-swatch--velvet-rose { --se-swatch: #e0607e; }
 .se-swatch--on {
   border-color: var(--se-swatch);
   color: var(--se-text);
@@ -4044,5 +4294,51 @@ button.se-notification-empty:hover { color: var(--se-text); }
   .se-admin-roundpicker {
     min-width: 0;
     width: 100%;
+  }
+}
+
+.se-eventtoast--levelup {
+  border-color: rgba(var(--se-accent-rgb), 0.58);
+  border-left-width: 4px;
+  background:
+    linear-gradient(115deg, rgba(var(--se-accent-rgb), 0.13), transparent 74%),
+    rgba(18, 22, 28, 0.98);
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, 0.34),
+    0 0 22px rgba(var(--se-accent-rgb), 0.12);
+}
+
+.se-eventtoast--levelup .se-eventtoast__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.se-eventtoast__levelup-label {
+  color: var(--se-accent);
+  font-family: var(--se-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+}
+
+.se-eventtoast--levelup-motion {
+  animation: se-levelup-enter 420ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+@keyframes se-levelup-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-eventtoast--levelup-motion {
+    animation: none;
   }
 }

@@ -1,6 +1,15 @@
 import type { PublicAwardDto } from '@streets/shared';
 
 const profileTitleLabels: Record<string, string> = {
+  'player-level-5-title': 'On the Rise',
+  'player-level-10-title': 'Known Face',
+  'player-level-20-title': 'Street Veteran',
+  'player-level-30-title': 'City Fixture',
+  'player-level-50-title': 'Living Legend',
+  'honorific-sir': 'Sir',
+  'honorific-madam': 'Madam',
+  'honorific-don': 'Don',
+  'honorific-donna': 'Donna',
   'national-number-one': 'The National Crown',
   'city-boss': 'The City Crown',
   'top-ten': 'Top-Ten Made',
@@ -78,6 +87,31 @@ const profileTitleLabels: Record<string, string> = {
   'underworld-conglomerate': 'Underworld Conglomerate',
   'war-machine': 'War Machine',
 
+  // 1.2.0-F casino season feats and Ace's job titles.
+  'first-chip': 'Fresh Chip',
+  'casino-circuit': 'Circuit Player',
+  'velvet-regular': 'Velvet Regular',
+  'house-guest': 'House Guest',
+  'big-night': 'Big Night Boss',
+  'grand-tour': 'Grand Tour Gambler',
+  'jackpot-hitter': 'Jackpot Hitter',
+  whale: 'Casino Whale',
+  'ace-floor-walker': 'Floor Walker',
+  'ace-natural': 'Natural',
+  'ace-road-gambler': 'Road Gambler',
+  'ace-velvet-rope': 'Behind the Rope',
+  'ace-black-room': 'Black Room Regular',
+
+  // 1.3.0-F clean-record season feats and Ledger's job titles.
+  'clean-record': 'Clean Record',
+  'nothing-on-paper': 'Nothing on Paper',
+  'off-the-books': 'Off the Books',
+  'ledger-cool-head': 'Cool Head',
+  'ledger-lawyered-up': 'Lawyered Up',
+  'ledger-clean-hands': 'Clean Hands',
+  'ledger-teflon': 'Teflon',
+  'ledger-case-closed': 'Case Closed',
+
   'beta-tester': 'Beta Original',
 
   'ghost-of-the-block': 'The Quiet Ghost',
@@ -93,6 +127,10 @@ const profileTitleLabels: Record<string, string> = {
   'street-pass-s1-kingpin': 'Kingpin · Season 1',
   'street-pass-s1-badge': 'Street Pass · Season 1',
 };
+
+export function isBuiltInProfileTitle(key: string): boolean {
+  return key.startsWith('honorific-') && Object.hasOwn(profileTitleLabels, key);
+}
 
 function titleFallback(title: string): string {
   return title.toLowerCase().startsWith('the ') ? title : `The ${title}`;

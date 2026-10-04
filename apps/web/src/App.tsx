@@ -7,6 +7,9 @@ import { AdminAuditPage } from './pages/AdminAuditPage.js';
 import { AdminReportsPage } from './pages/AdminReportsPage.js';
 import { AdminBugReportsPage } from './pages/AdminBugReportsPage.js';
 import { AdminEconomyPage } from './pages/AdminEconomyPage.js';
+import { AdminCasinoPage } from './pages/AdminCasinoPage.js';
+import { AdminLawPage } from './pages/AdminLawPage.js';
+import { AdminLawPlayerPage } from './pages/AdminLawPlayerPage.js';
 import { AdminCombatPage } from './pages/AdminCombatPage.js';
 import { AdminTurfPage } from './pages/AdminTurfPage.js';
 import { AdminMonitoringPage } from './pages/AdminMonitoringPage.js';
@@ -24,6 +27,7 @@ import { AlliancePage } from './pages/AlliancePage.js';
 import { AllianceDetailPage } from './pages/AlliancesPage.js';
 import { CombatPage } from './pages/CombatPage.js';
 import { StreetPassPage } from './pages/StreetPassPage.js';
+import { XpProgressPage } from './pages/XpProgressPage.js';
 import { ConsolePage } from './pages/ConsolePage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
@@ -152,6 +156,7 @@ export function App() {
         <Route path="combat" element={<Protected><LiveRound><CombatPage /></LiveRound></Protected>} />
         <Route path="scout" element={<Protected><LiveRound><ScoutPage /></LiveRound></Protected>} />
         <Route path="quests" element={<Protected><LiveRound><QuestPage /></LiveRound></Protected>} />
+        <Route path="xp-progress" element={<Protected><XpProgressPage /></Protected>} />
         <Route path="surveys" element={<Protected><LiveRound><SurveyRedirect /></LiveRound></Protected>} />
         <Route path="hideout" element={<Protected><LiveRound><HideoutPage /></LiveRound></Protected>} />
         {/* 0.4.0-E: products are traded at Pip's; old links land there. */}
@@ -201,6 +206,9 @@ export function App() {
         <Route path="admin/reports" element={admin(<AdminReportsPage />)} />
         <Route path="admin/bugs" element={admin(<AdminBugReportsPage />)} />
         <Route path="admin/economy" element={admin(<AdminEconomyPage />)} />
+        <Route path="admin/casino" element={admin(<AdminCasinoPage />)} />
+        <Route path="admin/law" element={admin(<AdminLawPage />)} />
+        <Route path="admin/players/:roundPlayerId/law" element={admin(<AdminLawPlayerPage />)} />
         <Route path="admin/combat" element={admin(<AdminCombatPage />)} />
         <Route path="admin/turf" element={admin(<AdminTurfPage />)} />
         <Route path="admin/monitoring" element={admin(<AdminMonitoringPage />)} />

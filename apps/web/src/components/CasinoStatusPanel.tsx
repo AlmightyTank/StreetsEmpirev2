@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { formatCents, type CasinoPageDto, type CasinoSignatureGameDto } from '@streets/shared';
 import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
@@ -148,6 +149,15 @@ export function CasinoStatusPanel({
         ) : (
           <p className="se-hint">Run a Casino Front in a casino city and that room&rsquo;s VIP door opens for you, with extra comps on its floor.</p>
         )}
+
+        {page.host ? (
+          <div className="se-casino-status__host">
+            <span className="se-eyebrow">{page.host.role}</span>
+            <strong>{page.host.name}</strong>
+            <p className="se-hint">{page.host.description}</p>
+            <Link className="se-btn se-btn--ghost" to="/game/quests">See {page.host.shortName}&rsquo;s jobs</Link>
+          </div>
+        ) : null}
 
         {comp ? (
           <div className="se-casino-status__hotel">

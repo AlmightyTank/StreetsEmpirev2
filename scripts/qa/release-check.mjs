@@ -40,6 +40,11 @@ run('Hideout balance gates', npm, ['run', 'qa:hideout']);
 run('Store economy gates', npm, ['run', 'qa:store-economy']);
 // 1.0.0-D: whole seasons with every strategy at once, against the balance bands.
 run('Whole-season balance bands', npm, ['run', 'qa:season', '--', '--quiet']);
+// 1.2.0-H: high-sample game-outcome checks; Slots uses its own reel/free-spin Monte Carlo.
+run('Casino game Monte Carlo', npm, ['run', 'qa:casino']);
+run('Slot reels and free-spin Monte Carlo', npm, ['run', 'qa:slots']);
+// 1.3.0-G: whole rounds of Heat and Case for careful, managed, trading and reckless players.
+run('Law balance bands', npm, ['run', 'qa:law', '--', '--quiet']);
 
 if (withDb) {
   // One file at a time: suites share the .env database, and any real current-round lookup
@@ -58,7 +63,7 @@ if (withDb) {
     PRODUCT_INTEGRATION: '1',
     // 0.5.0: runs out of town, city counters and what the crew saw there, markets and risk, moving house and convoys.
     TRAVEL_INTEGRATION: '1',
-    // 0.6.0: holding, player turf wars, away outposts, territory history/control and the release crackdown.
+    // 0.6.0 turf regression plus 1.2.0-H casino outcomes, ledger, reconnect and retry suites.
     TURF_INTEGRATION: '1',
     // 0.9.0: profile stats and titles, notifications and phone alerts, moderation and messaging QA.
     PROFILE_INTEGRATION: '1',

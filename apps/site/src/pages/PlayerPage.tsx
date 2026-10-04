@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { formatCentsCompact, formatNumber, type PublicPlayerPageDto } from '@streets/shared';
+import { formatCentsCompact, formatNumber, formatProfileName, type PublicPlayerPageDto } from '@streets/shared';
 import { Link, useParams } from 'react-router-dom';
 import { PublicApiError, publicSiteApi } from '../api/public.js';
 import { PublicError, PublicLoading, PublicPageHero, PublicStatGrid, movementText, relativeTime } from '../components/PublicPageBits.js';
@@ -18,7 +18,7 @@ export function PlayerPage() {
   },[id]);
   if(missing) return <div className="site-page"><PublicPageHero eyebrow="Public career" title="Player not found"><p>That player id is not in the current game.</p></PublicPageHero></div>;
   return <div className="site-page">
-    <PublicPageHero eyebrow="Public career" title={data?.player.displayName ?? 'Player profile'}>{data ? <p>#{data.player.publicPimpId} · {data.player.city.name}{data.player.alliance ? ` · [${data.player.alliance.tag}] ${data.player.alliance.name}` : ''}</p> : null}</PublicPageHero>
+    <PublicPageHero eyebrow="Public career" title={data ? formatProfileName(data.player.displayName, data.player.cosmetics.title, data.player.cosmetics.titlePlacement) : 'Player profile'}>{data ? <p>#{data.player.publicPimpId} · {data.player.city.name}{data.player.alliance ? ` · [${data.player.alliance.tag}] ${data.player.alliance.name}` : ''}</p> : null}</PublicPageHero>
     <section className="site-section site-section--tight"><div className="container public-game-stack">
       {!data && !failed ? <PublicLoading label="Loading player profile…" /> : null}
       {failed ? <PublicError title="This player profile is temporarily unavailable." /> : null}

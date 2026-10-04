@@ -306,6 +306,7 @@ describe.runIf(process.env.GAME_ALERTS_INTEGRATION === '1')('0.9.0-G notificatio
     expect(feed.unreadCount).toBe(2);
 
     const settings = await app.inject({ method: 'GET', url: '/api/notifications/settings', headers: { cookie: players.attacker.cookie } });
-    expect(Object.keys(settings.json().categories)).toHaveLength(14);
+    // 1.3.0-B added the Case stage category.
+    expect(Object.keys(settings.json().categories)).toHaveLength(15);
   });
 });

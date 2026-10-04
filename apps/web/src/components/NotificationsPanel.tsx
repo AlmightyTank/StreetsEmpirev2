@@ -18,6 +18,7 @@ const CATEGORY_GROUPS: Array<{ title: string; rows: CategoryRow[] }> = [
       { key: 'turfPush', label: 'Block being pushed', hint: 'Once your Lookouts spot a push on one of your blocks.' },
       { key: 'turf', label: 'My turf', hint: 'A rival crew takes one of your blocks.' },
       { key: 'revenge', label: 'Revenge expiring', hint: 'A couple of hours before your revenge window on a hitter closes.' },
+      { key: 'law', label: 'Case stage', hint: 'A city’s police move you up the Wanted ladder. Only the city and stage are sent.' },
     ],
   },
   {

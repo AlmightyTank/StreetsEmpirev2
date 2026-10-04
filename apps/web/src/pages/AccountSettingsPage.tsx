@@ -6,9 +6,10 @@ import type {
   DefaultLanding,
   MoneyFormat,
   ProfileAccent,
+  ProfileEffect,
   UiDensity,
 } from '@streets/shared';
-import { CREW_NAME_MAX } from '@streets/shared';
+import { CREW_NAME_MAX, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, formatProfileName } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
@@ -41,9 +42,19 @@ function sessionDevice(session: AccountSessionDto): string {
   return session.userAgent ? 'Browser session' : 'Unknown device';
 }
 
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || '?';
+}
+
 export function AccountSettingsPage() {
   const account = useSession((s) => s.account)!;
   const me = useSession((s) => s.me);
+  const round = useSession((s) => s.round);
   const setSessionProfileSettings = useSession((s) => s.setProfileSettings);
   const [searchParams] = useSearchParams();
   const accountMessage = searchParams.get('accountMessage');
@@ -83,6 +94,13 @@ export function AccountSettingsPage() {
               accents: [{ key: 'default', label: 'StreetsEmpire', description: null }],
               frames: [],
               themes: [],
+              effects: [
+                { key: 'none', label: 'No effect', description: null },
+                { key: 'neon-pulse', label: 'Neon pulse', description: null },
+                { key: 'scanlines', label: 'Scanlines', description: null },
+                { key: 'spotlight', label: 'Spotlight', description: null },
+                { key: 'glitch', label: 'Glitch', description: null },
+              ],
               densities: [
                 { key: 'comfortable', label: 'Comfortable', description: null },
                 { key: 'compact', label: 'Compact', description: null },
@@ -282,6 +300,13 @@ export function AccountSettingsPage() {
       setBusy(null);
     }
   }
+
+  const selectedAccent = profileSettings?.options.accents.find((option) => option.key === cosmetics.profileAccent);
+  const selectedTitle = profileSettings?.options.titles.find((option) => option.key === cosmetics.activeTitleKey);
+  const selectedFrame = profileSettings?.options.frames.find((option) => option.key === cosmetics.activeProfileFrameKey);
+  const displayName = me?.displayName ?? account.username;
+  const previewCity = me?.city.name ?? 'Your city';
+  const previewRank = me ? `#${me.publicPimpId.toLocaleString()}` : 'Preview';
 
   return (
     <Shell>
@@ -512,6 +537,65 @@ export function AccountSettingsPage() {
                 </div>
 
                 <div className="se-field">
+                  <label className="se-label" htmlFor="profile-bio">About me</label>
+                  <textarea
+                    id="profile-bio"
+                    className="se-input se-textarea"
+                    value={cosmetics.profileBio ?? ''}
+                    maxLength={PROFILE_BIO_MAX}
+                    rows={5}
+                    placeholder="Tell players who they are dealing with."
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      profileBio: event.target.value,
+                    }))}
+                  />
+                  {fields.profileBio
+                    ? <p className="se-error" role="alert">{fields.profileBio}</p>
+                    : <p className="se-hint">Plain text only. Shown on your public profile. {formatNumber((cosmetics.profileBio ?? '').length)} / {formatNumber(PROFILE_BIO_MAX)}</p>}
+                </div>
+
+                <div className="se-field">
+                  <label className="se-label" htmlFor="profile-image-url">Profile image URL</label>
+                  <input
+                    id="profile-image-url"
+                    className="se-input"
+                    value={cosmetics.profileImageUrl ?? ''}
+                    maxLength={PROFILE_IMAGE_URL_MAX}
+                    placeholder="https://i.imgur.com/your-avatar.png"
+                    inputMode="url"
+                    autoComplete="off"
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      profileImageUrl: event.target.value,
+                    }))}
+                  />
+                  {fields.profileImageUrl
+                    ? <p className="se-error" role="alert">{fields.profileImageUrl}</p>
+                    : <p className="se-hint">Use a direct HTTPS image link from Imgur or your own host. Leave blank for initials.</p>}
+                </div>
+
+                <div className="se-field">
+                  <label className="se-label" htmlFor="profile-banner-url">Profile banner URL</label>
+                  <input
+                    id="profile-banner-url"
+                    className="se-input"
+                    value={cosmetics.profileBannerUrl ?? ''}
+                    maxLength={PROFILE_IMAGE_URL_MAX}
+                    placeholder="https://your-site.com/banner.jpg"
+                    inputMode="url"
+                    autoComplete="off"
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      profileBannerUrl: event.target.value,
+                    }))}
+                  />
+                  {fields.profileBannerUrl
+                    ? <p className="se-error" role="alert">{fields.profileBannerUrl}</p>
+                    : <p className="se-hint">This becomes the background banner on your profile card and public profile.</p>}
+                </div>
+
+                <div className="se-field">
                   <label className="se-label" htmlFor="active-title">Profile title</label>
                   <select
                     id="active-title"
@@ -527,12 +611,36 @@ export function AccountSettingsPage() {
                       <option value={option.key} key={option.key}>{option.label}</option>
                     ))}
                   </select>
-                  {fields.activeTitleKey ? <p className="se-error" role="alert">{fields.activeTitleKey}</p> : <p className="se-hint">Titles come from achievements, season feats, legacy badges, and quest-only cosmetics. They are cosmetic only.</p>}
+                  {fields.activeTitleKey ? <p className="se-error" role="alert">{fields.activeTitleKey}</p> : <p className="se-hint">Sir, Madam, Don, and Donna are always available. Other titles come from achievements, season feats, legacy awards, and quests. Titles are cosmetic only.</p>}
+                  {(() => {
+                    const title = profileSettings.options.titles.find((option) => option.key === cosmetics.activeTitleKey)?.label;
+                    const name = me?.displayName ?? account.username;
+                    if (!title) return null;
+                    const preview = formatProfileName(name, title, cosmetics.titlePlacement);
+                    return <p className="se-hint">Preview: <strong>{preview}</strong></p>;
+                  })()}
                 </div>
 
                 <div className="se-field">
-                  <span className="se-label">Site accent</span>
-                  <div className="se-swatch-row" role="group" aria-label="Site accent">
+                  <label className="se-label" htmlFor="title-placement">Title position</label>
+                  <select
+                    id="title-placement"
+                    className="se-input"
+                    value={cosmetics.titlePlacement}
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      titlePlacement: event.target.value as typeof current.titlePlacement,
+                    }))}
+                  >
+                    <option value="prefix">Before my name · The Quiet Ghost AMightyTank</option>
+                    <option value="suffix">After my name · AMightyTank, Quiet Ghost</option>
+                  </select>
+                  <p className="se-hint">Choose how your selected title appears on your public profile.</p>
+                </div>
+
+                <div className="se-field">
+                  <span className="se-label">Profile accent</span>
+                  <div className="se-swatch-row" role="group" aria-label="Profile accent">
                     {profileSettings.options.accents.map((option) => (
                       <button
                         type="button"
@@ -547,7 +655,7 @@ export function AccountSettingsPage() {
                       </button>
                     ))}
                   </div>
-                  {fields.profileAccent ? <p className="se-error" role="alert">{fields.profileAccent}</p> : <p className="se-hint">Changes the main highlight color across the entire player-facing game.</p>}
+                  {fields.profileAccent ? <p className="se-error" role="alert">{fields.profileAccent}</p> : <p className="se-hint">Sets the color shown on your profile card, profile page, and player-facing highlights.</p>}
                 </div>
 
                 <div className="se-field">
@@ -572,6 +680,26 @@ export function AccountSettingsPage() {
                 </div>
 
                 <div className="se-field">
+                  <label className="se-label" htmlFor="profile-effect">Profile effect</label>
+                  <select
+                    id="profile-effect"
+                    className="se-input"
+                    value={cosmetics.profileEffect}
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      profileEffect: event.target.value as ProfileEffect,
+                    }))}
+                  >
+                    {profileSettings.options.effects.map((option) => (
+                      <option value={option.key} key={option.key}>{option.label}</option>
+                    ))}
+                  </select>
+                  {fields.profileEffect
+                    ? <p className="se-error" role="alert">{fields.profileEffect}</p>
+                    : <p className="se-hint">Discord-style card effects for your public profile. Reduced-motion visitors see a calmer version.</p>}
+                </div>
+
+                <div className="se-field">
                   <label className="se-label" htmlFor="site-theme">Site theme</label>
                   <select
                     id="site-theme"
@@ -593,33 +721,61 @@ export function AccountSettingsPage() {
                 </div>
               </div>
 
-              <div className="se-field">
-                <span className="se-label">Featured badges</span>
-                {profileSettings.options.badges.length ? (
-                  <div className="se-cosmetic-list se-cosmetic-list--wide">
-                    {profileSettings.options.badges.map((option) => {
-                      const checked = cosmetics.featuredBadgeKeys.includes(option.key);
-                      return (
-                        <label className="se-checkrow" key={option.key}
-                          title={!checked && cosmetics.featuredBadgeKeys.length >= 6 ? 'Six badges is the most a profile shows. Clear one to swap this in.' : undefined}>
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={!checked && cosmetics.featuredBadgeKeys.length >= 6}
-                            onChange={() => toggleFeaturedBadge(option.key)}
-                          />
-                          <span>
-                            <strong>{option.label}</strong>
-                            <small>{option.permanent ? 'Permanent' : 'This round'} · {option.rarity.charAt(0).toUpperCase() + option.rarity.slice(1)}</small>
-                          </span>
-                        </label>
-                      );
-                    })}
+              <div className="se-account-cosmetics__side">
+                <div className={`se-profile-card-preview se-profile-accent se-profile-accent--${cosmetics.profileAccent}${cosmetics.activeProfileFrameKey ? ` se-profile-frame se-profile-frame--${cosmetics.activeProfileFrameKey}` : ''} se-profile-effect se-profile-effect--${cosmetics.profileEffect}`}>
+                  <div
+                    className="se-profile-card-preview__banner"
+                    style={cosmetics.profileBannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 8, 0.52), rgba(5, 8, 8, 0.86)), url("${cosmetics.profileBannerUrl}")` } : undefined}
+                  >
+                    <span>Street Empire</span>
                   </div>
-                ) : (
-                  <p className="se-muted">Unlock achievements or finish a season to feature badges here.</p>
-                )}
-                {fields.featuredBadgeKeys ? <p className="se-error" role="alert">{fields.featuredBadgeKeys}</p> : <p className="se-hint">Pick up to six. They appear first on your public profile.</p>}
+                  <div className="se-profile-card-preview__identity">
+                    <span className="se-profile-card-preview__avatar" aria-hidden="true">
+                      {cosmetics.profileImageUrl ? <img src={cosmetics.profileImageUrl} alt="" /> : initials(displayName)}
+                    </span>
+                    <div>
+                      {selectedTitle ? <span className="se-profile-card-preview__title">{selectedTitle.label}</span> : null}
+                      <strong>{displayName}</strong>
+                      <small>Player {previewRank}</small>
+                    </div>
+                  </div>
+                  {cosmetics.profileBio ? <p className="se-profile-card-preview__bio">{cosmetics.profileBio}</p> : null}
+                  <p>{previewCity}{round ? ` · ${round.name}` : ''}</p>
+                  <div className="se-profile-card-preview__chips">
+                    <span>{selectedAccent?.label ?? 'StreetsEmpire'} accent</span>
+                    {selectedFrame ? <span>{selectedFrame.label} frame</span> : null}
+                    {cosmetics.profileEffect !== 'none' ? <span>{profileSettings.options.effects.find((option) => option.key === cosmetics.profileEffect)?.label ?? 'Profile effect'}</span> : null}
+                  </div>
+                </div>
+
+                <div className="se-field">
+                  <span className="se-label">Featured badges</span>
+                  {profileSettings.options.badges.length ? (
+                    <div className="se-cosmetic-list se-cosmetic-list--wide">
+                      {profileSettings.options.badges.map((option) => {
+                        const checked = cosmetics.featuredBadgeKeys.includes(option.key);
+                        return (
+                          <label className="se-checkrow" key={option.key}
+                            title={!checked && cosmetics.featuredBadgeKeys.length >= 6 ? 'Six badges is the most a profile shows. Clear one to swap this in.' : undefined}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={!checked && cosmetics.featuredBadgeKeys.length >= 6}
+                              onChange={() => toggleFeaturedBadge(option.key)}
+                            />
+                            <span>
+                              <strong>{option.label}</strong>
+                              <small>{option.permanent ? 'Permanent' : 'This round'} · {option.rarity.charAt(0).toUpperCase() + option.rarity.slice(1)}</small>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="se-muted">Unlock achievements or finish a season to feature badges here.</p>
+                  )}
+                  {fields.featuredBadgeKeys ? <p className="se-error" role="alert">{fields.featuredBadgeKeys}</p> : <p className="se-hint">Pick up to six. They appear first on your public profile.</p>}
+                </div>
               </div>
             </div>
 

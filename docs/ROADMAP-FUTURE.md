@@ -114,6 +114,10 @@ Gambling never uses real-money purchases.
 
 ## 1.3 — Law Enforcement, Wanted Level & Corruption
 
+**Status: built (1.3.0-A to G, release ruleset `classic-og-v1.3-g`).** See
+[ROADMAP-1.3.0.md](ROADMAP-1.3.0.md) and the [release notes](RELEASE-1.3.0.md). The list below is the
+original sketch.
+
 ### Theme
 
 Expand Heat into a deeper city-wide risk system.
@@ -159,6 +163,8 @@ Law enforcement should create strategic pressure, not random unavoidable punishm
 ### Theme
 
 Make each city's underworld feel populated even outside player competition.
+
+See the working [1.4.0 factions and contracts roadmap](ROADMAP-1.4.0.md).
 
 ### NPC organizations
 

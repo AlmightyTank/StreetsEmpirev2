@@ -453,7 +453,8 @@ export const StreetDiceService = {
       await tx.casinoSession.update({ where: { id: session.id }, data: { bankrollCents: bankrollAfter } });
       if (casino.status) {
         await CasinoStatusService.rateWager(tx, ruleset, {
-          roundPlayerId, cityId: city.id, wagerCents: wager, edgeBps: streetDiceRatingEdgeBps(casino.status, 'LINE'), now,
+          roundPlayerId, cityId: city.id, wagerCents: wager, edgeBps: streetDiceRatingEdgeBps(casino.status, 'LINE'),
+          play: { game: 'STREET_DICE', tableKey: table.key, room: table.room, actionId: input.actionId }, now,
         });
       }
       const row = await tx.casinoStreetDiceRound.create({
@@ -491,6 +492,12 @@ export const StreetDiceService = {
         chargeCents: wager,
         creditedCents: returned,
       });
+      if (settled) {
+        await CasinoStatusService.recordResult(tx, ruleset, {
+          roundPlayerId, cityId: city.id, play: { game: 'STREET_DICE', tableKey: table.key, room: table.room, actionId: input.actionId },
+          stakeCents: wager, returnCents: returned, highlight: null, now,
+        });
+      }
       await saveAction(tx, roundPlayerId, row.id, input.actionId, 'START', dto);
       await PlayerStateService.settleInTransaction(tx, roundPlayerId, { now, markActive: true });
       return dto;
@@ -552,6 +559,12 @@ export const StreetDiceService = {
         chargeCents: 0n,
         creditedCents: credited,
       });
+      if (settled) {
+        await CasinoStatusService.recordResult(tx, loaded.ruleset, {
+          roundPlayerId, cityId: row.cityId, play: { game: 'STREET_DICE', tableKey: table.key, room: table.room, actionId: input.actionId },
+          stakeCents: row.lineWagerCents + row.oddsWagerCents, returnCents: credited, highlight: won ? 'POINT_MADE' : null, now: prelude.now,
+        });
+      }
       await saveAction(tx, roundPlayerId, row.id, input.actionId, 'ROLL', dto);
       await PlayerStateService.settleInTransaction(tx, roundPlayerId, { now: prelude.now, markActive: true });
       return dto;
@@ -593,7 +606,8 @@ export const StreetDiceService = {
       const status = loaded.ruleset.casino?.status;
       if (status) {
         await CasinoStatusService.rateWager(tx, loaded.ruleset, {
-          roundPlayerId, cityId: row.cityId, wagerCents: amount, edgeBps: streetDiceRatingEdgeBps(status, 'ODDS'), now: prelude.now,
+          roundPlayerId, cityId: row.cityId, wagerCents: amount, edgeBps: streetDiceRatingEdgeBps(status, 'ODDS'),
+          play: { game: 'STREET_DICE', tableKey: table.key, room: table.room, actionId: input.actionId }, now: prelude.now,
         });
       }
       const updated = await tx.casinoStreetDiceRound.update({

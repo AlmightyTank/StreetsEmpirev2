@@ -9,6 +9,7 @@ import {
 import type { StreetPassProgress } from '@prisma/client';
 import type { Db } from '../utils/db.js';
 import { dailyContractWindow } from './daily-contract.service.js';
+import { PlayerExperienceService } from './player-experience.service.js';
 
 /**
  * Street Pass step 2: earning Street Cred. Every credit runs inside the
@@ -26,6 +27,7 @@ export function credSourceForQuest(type: QuestType): QuestCredSource {
       return 'dailyContract';
     case 'WEEKLY':
       return 'weeklyContract';
+    case 'CITY_CONTRACT':
     case 'EVENT':
     case 'ALLIANCE':
       return 'eventContract';
@@ -56,8 +58,20 @@ async function progressFor(tx: Db, roundPlayerId: string, rules: StreetPassRules
 }
 
 export const StreetPassCredService = {
-  /** Cred for a finished job or contract. Returns the Cred added (0 on rounds without a pass). */
-  async creditQuest(tx: Db, roundPlayerId: string, ruleset: Ruleset, questType: QuestType): Promise<number> {
+  /** Cred and permanent XP for a finished job or contract. */
+  async creditQuest(tx: Db, roundPlayerId: string, ruleset: Ruleset, questType: QuestType, sourceKey: string, now = new Date()): Promise<number> {
+    const questXp = questType === 'DAILY' ? 75
+      : questType === 'WEEKLY' ? 200
+        : questType === 'CITY_CONTRACT' || questType === 'EVENT' || questType === 'ALLIANCE' ? 150
+          : 100;
+    await PlayerExperienceService.award(tx, {
+      roundPlayerId,
+      sourceKey,
+      source: `QUEST_${questType}`,
+      amount: questXp,
+      awardedAt: now,
+    });
+
     const rules = ruleset.streetPass;
     if (!rules) return 0;
     const base = rules.sources[credSourceForQuest(questType)];
@@ -69,11 +83,20 @@ export const StreetPassCredService = {
   },
 
   /**
-   * Cred for turns spent on an action, capped per daily window (the same
+   * XP for turns spent on an action plus Street Cred, capped per daily window (the same
    * reset as daily contracts). The cap counts base Cred; the late-join bonus
    * is added on top. Returns the Cred added.
    */
-  async creditTurns(tx: Db, roundPlayerId: string, ruleset: Ruleset, turnsSpent: number, now: Date): Promise<number> {
+  async creditTurns(tx: Db, roundPlayerId: string, ruleset: Ruleset, turnsSpent: number, now: Date, sourceKey: string): Promise<number> {
+    if (turnsSpent > 0) {
+      await PlayerExperienceService.award(tx, {
+        roundPlayerId,
+        sourceKey,
+        source: 'TURN_SPEND',
+        amount: turnsSpent,
+        awardedAt: now,
+      });
+    }
     const rules = ruleset.streetPass;
     if (!rules || turnsSpent <= 0 || rules.sources.perTurnSpent <= 0) return 0;
     const progress = await progressFor(tx, roundPlayerId, rules);

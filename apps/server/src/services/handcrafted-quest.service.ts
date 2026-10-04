@@ -70,6 +70,7 @@ import {
 
 const ACTIVE_LIMIT = 8;
 const TRACKED_LIMIT = 3;
+const SLOTLESS_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT'] as const;
 const CONTACT_TIERS = [
   { at: 0, name: 'Unknown' },
   { at: 25, name: 'Acquaintance' },
@@ -597,7 +598,7 @@ export const HandcraftedQuestService = {
         counts: {
           available: rows.filter((row) => row.status === 'AVAILABLE').length,
           active: rows.filter((row) =>
-            !['ALLIANCE', 'EVENT'].includes(row.questDefinition.type)
+            !SLOTLESS_QUEST_TYPES.includes(row.questDefinition.type as typeof SLOTLESS_QUEST_TYPES[number])
             && ['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)
           ).length,
           ready: rows.filter((row) => row.status === 'READY_TO_TURN_IN').length,
@@ -641,7 +642,7 @@ export const HandcraftedQuestService = {
           where: {
             roundPlayerId,
             status: { in: ['ACTIVE', 'READY_TO_TURN_IN'] },
-            questDefinition: { type: { notIn: ['ALLIANCE', 'EVENT'] } },
+            questDefinition: { type: { notIn: [...SLOTLESS_QUEST_TYPES] } },
           },
         });
         if (active >= ACTIVE_LIMIT) throw AppError.conflict('QUEST_ACTIVE_LIMIT', `You can only have ${ACTIVE_LIMIT} active jobs at once.`);
@@ -805,7 +806,14 @@ export const HandcraftedQuestService = {
           ...(selectedBranch?.rewards ?? []),
         ];
         await grantRewards({ tx, roundPlayerId, accountId: player.accountId, ruleset, now, sourceKey: key }, next, questRewards);
-        await StreetPassCredService.creditQuest(tx, roundPlayerId, ruleset, (rulesetDefinition?.type ?? row.questDefinition.type) as QuestType);
+        await StreetPassCredService.creditQuest(
+          tx,
+          roundPlayerId,
+          ruleset,
+          (rulesetDefinition?.type ?? row.questDefinition.type) as QuestType,
+          `quest:${row.id}:${now.toISOString()}`,
+          now,
+        );
 
         await tx.playerQuest.update({
           where: { id: row.id },

@@ -105,8 +105,25 @@ model Account {
   mutesReceived          PlayerMute[]            @relation("PlayerMuted")
   moderationNotes        AccountModerationNote[]
   surveySubmissions       SurveySubmission[]
+  experienceEvents        PlayerExperienceEvent[]
+  experiencePoints        Int                     @default(0)
 
   @@index([registeredIp, createdAt])
+}
+
+/// Permanent account progress, separate from season resources and Street Pass Cred.
+model PlayerExperienceEvent {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  sourceKey String
+  source    String
+  amount    Int
+  awardedAt DateTime @default(now())
+
+  @@unique([accountId, sourceKey])
+  @@index([accountId, awardedAt(sort: Desc)])
 }
 
 /// 0.9.0-H. Private admin notes on an account. Never shown to the player.
@@ -168,8 +185,13 @@ model AccountProfile {
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   activeTitleKey        String?
+  titlePlacement       String  @default("prefix")
   /// 0.9.0-F. Optional public crew name, account-level so it carries across seasons.
   crewName              String?
+  profileBio            String?
+  profileImageUrl       String?
+  profileBannerUrl      String?
+  profileEffect         String  @default("none")
   activeProfileFrameKey String?
   activeSiteThemeKey    String?
   featuredBadgeKeys     Json    @default("[]")
@@ -186,8 +208,8 @@ model AccountProfile {
   updatedAt DateTime @updatedAt
 }
 
-/// Permanent quest-earned cosmetics. The display metadata is snapshotted when
-/// earned so titles/badges survive later ruleset changes and round resets.
+/// Permanent account cosmetics. Display metadata is snapshotted when earned so
+/// titles and badges survive ruleset changes and round resets.
 model AccountCosmeticUnlock {
   id        String  @id @default(cuid())
   accountId String
@@ -200,6 +222,7 @@ model AccountCosmeticUnlock {
   rarity      String
   styleKey    String?
 
+  /// Quest key or another permanent account reward source.
   sourceQuestKey       String
   sourceRulesetId      String
   sourceRulesetVersion String
@@ -263,6 +286,8 @@ model NotificationSettings {
   ordersEnabled         Boolean   @default(false)
   announcementsEnabled  Boolean   @default(false)
   messagesEnabled       Boolean   @default(false)
+  /// 1.3.0-B. A Case rising to a new Wanted stage. On by default: the ladder promises a warning.
+  lawEnabled            Boolean   @default(true)
   /// 0.9.0-G master switch: pauses every outside alert without losing category choices.
   alertsPaused          Boolean   @default(false)
   /// 0.9.0-G quiet hours, minutes after local midnight in `timeZone`. Both set or neither;
@@ -875,7 +900,7 @@ model QuestDefinition {
   description String
   /// Future contact/NPC key. Null permits system/event quests.
   contactKey  String?
-  /// STORY, SIDE, CONTRACT, DAILY, WEEKLY, SECRET, ALLIANCE or EVENT.
+  /// STORY, SIDE, CONTRACT, DAILY, WEEKLY, SECRET, ALLIANCE, CITY_CONTRACT or EVENT.
   type        String
   /// Free-form gameplay grouping such as STREET, COMBAT, TRAVEL or TURF.
   category    String
@@ -1048,6 +1073,11 @@ model City {
   casinoSessions    CasinoSession[]
   casinoLedger      CasinoLedgerEntry[]
   casinoRatings     CasinoRating[]
+  playerCases       PlayerCase[]
+  caseReceipts      PlayerCaseReceipt[]
+  warrants          PlayerWarrant[]
+  officials         PlayerOfficial[]
+  tips              PlayerTip[]
 }
 
 // ---------------------------------------------------------------------------
@@ -1168,6 +1198,13 @@ model RoundPlayer {
   casinoWallets        CasinoWallet[]
   casinoSessions       CasinoSession[]
   casinoLedger           CasinoLedgerEntry[]
+  /// 1.3.0-A. What each city's police have on this player, and every change to it.
+  cases                  PlayerCase[]
+  caseReceipts           PlayerCaseReceipt[]
+  warrants               PlayerWarrant[]
+  /// 1.3.0-D. Corrupt officials on the payroll, and tips bought from informants.
+  officials              PlayerOfficial[]
+  tips                   PlayerTip[]
   casinoFreeSpinBonus    CasinoFreeSpinBonus?
   casinoBlackjackShoes   CasinoBlackjackShoe[]
   casinoBlackjackHands   CasinoBlackjackHand[]
@@ -1187,6 +1224,15 @@ model RoundPlayer {
   launderedDay         String?
   launderedHeatToday   Int       @default(0)
   launderedHeatRound   Int       @default(0)
+  /// 1.3.0-B. Case washed by laundering on `launderedCaseDay` (UTC), in hundredths, for the daily cap.
+  launderedCaseDay     String?
+  launderedCaseToday   Int       @default(0)
+  /// 1.3.0-C. Police losses (busts, arrests, raids, fines) on `policeLossDay` (UTC), at net-worth
+  /// value, for the daily cap. Busts and arrests count toward it but are never reduced by it.
+  policeLossDay        String?
+  policeLossCents      BigInt    @default(0)
+  /// 1.3.0-C. A lawyer on retainer until then.
+  lawyerRetainedUntil  DateTime?
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
   rocksSuppliedToPip   Int       @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
@@ -2140,6 +2186,8 @@ enum ActivityType {
   BATTLE_VOIDED
   ADMIN_GRANT
   HEAT_BRIBE
+  /// Retired: the withdrawn 1.3 law-pressure draft. Nothing writes it; older rows still read.
+  LAW_CORRUPTION
   RUN_LAUNCHED
   RUN_RETURNED
   RUN_INCIDENT
@@ -2189,6 +2237,19 @@ enum ActivityType {
   CASINO_SESSION_CLOSED
   CASINO_STATUS_UP
   CASINO_COMP_HOTEL
+  CASE_STAGE_UP
+  WARRANT_DRAFTED
+  WARRANT_SERVED
+  WARRANT_LAWYERED
+  LAWYER_RETAINED
+  OFFICIAL_HIRED
+  OFFICIAL_IA_OPENED
+  OFFICIAL_CUT
+  OFFICIAL_STUNG
+  WARRANT_QUASHED
+  CAPTAIN_TIP
+  INFORMANT_TIP
+  CASE_FOLLOWED
 }
 
 enum BattleKind {
@@ -2458,6 +2519,10 @@ model Business {
   /// 1.1.0-D. A torch the holder lit during a war: it burns down at `torchUntil`.
   torchUntil    DateTime?
   torchById     String?
+  /// 1.3.0-C. A business raid shuts the racket (never the front) for this window.
+  racketShutFrom  DateTime?
+  racketShutUntil DateTime?
+  warrants        PlayerWarrant[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2820,6 +2885,11 @@ model CasinoRating {
   /// Whole comp cents redeemed while the boss was in this city.
   compsSpentCents  BigInt @default(0)
   ratedWagers      Int    @default(0)
+  /// 1.2.0-F. Season casino feats: wagers placed at VIP tables, progressive jackpots hit,
+  /// and the biggest net win on one settled hand, spin, roll or poker hand.
+  vipWagers        Int    @default(0)
+  jackpots         Int    @default(0)
+  biggestWinCents  BigInt @default(0)
   lastRatedAt      DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3301,4 +3371,172 @@ enum BlockWarFightKind {
   OPENING
   ASSAULT
   BREAK
+}
+
+// ---------------------------------------------------------------------------
+// Law enforcement (1.3.0)
+// ---------------------------------------------------------------------------
+
+/// 1.3.0-A. One city's Case on one player: what that city's police have on them. Stored
+/// in hundredths of a point (the ruleset's caseMax x 100 at most). Private to its player,
+/// and gone with the round like every RoundPlayer row. Heat is unaffected by it.
+model PlayerCase {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  caseHundredths Int    @default(0)
+  /// The Wanted stage the Case last read as; a rise logs CASE_STAGE_UP once.
+  stage          String @default("QUIET")
+  /// 1.3.0-B. When `caseHundredths` was last brought up to date. Cooling after it is worked
+  /// out on read and written as a COOLING receipt with the next change.
+  caseAt         DateTime  @default(now())
+  /// 1.3.0-B. The player's last act that added evidence here. Cooling starts a quiet spell after it.
+  lastEvidenceAt DateTime?
+  /// 1.3.0-B. Cash moved in this city on `reportDay` (UTC), for currency reports.
+  reportDay      String?
+  reportCents    BigInt    @default(0)
+  /// 1.3.0-F. The highest stage this Case has reached since it last left Quiet, and when it
+  /// left Quiet. Both reset when it cools back to Quiet. Ledger's Jobs read them.
+  peakStage      String    @default("QUIET")
+  openedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, cityId])
+  @@index([cityId])
+}
+
+/// 1.3.0-A. An itemised, immutable change to a Case: why it exists. Keyed on the act that
+/// caused it, so a retried action or a re-run settle never adds evidence twice.
+model PlayerCaseReceipt {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  /// What drew it: SCOUT, PRODUCE, RUN_SALE, COMBAT, CONVOY, TORCH, SACK, RACKETS, CRACKDOWN,
+  /// and from 1.3.0-B BUST, ARREST, ROAD_STOP, HIJACK, CURRENCY_REPORT, LAUNDERING and COOLING.
+  source              String
+  sourceKey           String
+  /// Heat the act drew, before the Heat meter's cap.
+  heat                Float
+  deltaHundredths     Int
+  caseAfterHundredths Int
+  stageAfter          String
+  /// 1.3.0-B. This change took the Case to a higher stage; the alert collector tells the player.
+  stageUp             Boolean   @default(false)
+  alertsCollectedAt   DateTime?
+  createdAt           DateTime  @default(now())
+
+  @@unique([roundPlayerId, sourceKey])
+  @@index([stageUp, alertsCollectedAt])
+  @@index([roundPlayerId, createdAt(sort: Desc)])
+  @@index([roundPlayerId, cityId, createdAt(sort: Desc)])
+}
+
+/// 1.3.0-C. A warrant a city's police drafted when the player's Case there reached the Warrant
+/// stage. It names one target and is served at `servesAt` unless answered first. A personal
+/// warrant past `servesAt` waits (WAITING) until the boss is in that city, or the round ends.
+model PlayerWarrant {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  /// HIDEOUT, BUSINESS or PERSONAL.
+  target     String
+  businessId String?
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+
+  /// OPEN, WAITING, SERVED, LAWYERED, or (1.3.0-D) QUASHED by a District Attorney.
+  status     String    @default("OPEN")
+  draftedAt  DateTime
+  servesAt   DateTime
+  resolvedAt DateTime?
+  /// What serving or answering it did: seizures, fines, the shut window, the lock-up, or the fee.
+  outcome    Json      @default("{}")
+
+  /// Alert collection markers, one per event the player is told about.
+  draftAlertedAt    DateTime?
+  waitingAlertedAt  DateTime?
+  resolvedAlertedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roundPlayerId, status])
+  @@index([status, servesAt])
+  @@index([cityId])
+  @@index([businessId])
+}
+
+/// 1.3.0-D. A corrupt official on one player's payroll in one city: a Precinct Captain, a
+/// District Attorney, a Judge or a Customs Officer. Paid by the week; works only while paid.
+/// Every favor adds exposure; past the line Internal Affairs opens a file, and an official
+/// still on the books when `stingAt` comes is stung, which ends them and adds evidence.
+model PlayerOfficial {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  /// CAPTAIN, DA, JUDGE or CUSTOMS.
+  role      String
+  /// ACTIVE (working while `paidUntil` is ahead), CUT (let go) or STUNG (caught by Internal Affairs).
+  status    String    @default("ACTIVE")
+  hiredAt   DateTime
+  paidUntil DateTime
+  /// Exposure points from favors. Starts again from zero with each new hire.
+  exposure  Int       @default(0)
+  /// Internal Affairs opened a file at `iaOpenedAt`; the sting lands at `stingAt` unless cut first.
+  iaOpenedAt DateTime?
+  stingAt    DateTime?
+  /// A DA can quash again from here.
+  quashReadyAt DateTime?
+  endedAt    DateTime?
+
+  /// Alert collection markers.
+  iaAlertedAt    DateTime?
+  stungAlertedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, cityId, role])
+  @@index([status, stingAt])
+  @@index([cityId])
+}
+
+/// 1.3.0-D. A tip bought from an informant: information, never protection. SWEEP names the
+/// federal sweep's city and time before it is public; CITY names a city's police lines.
+model PlayerTip {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  kind    String
+  cityId  String?
+  city    City?   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  payload Json    @default("{}")
+
+  createdAt DateTime @default(now())
+
+  @@index([roundPlayerId, createdAt(sort: Desc)])
+  @@index([cityId])
 }

@@ -1,4 +1,5 @@
 import type { HeatDto, TripHeatDto, TurfSummaryDto, TurfTripDto, WorkSupplyPlanDto } from './playing-together.js';
+import type { LawSummaryDto } from './law.js';
 /**
  * The contract between apps/server and apps/web.
  *
@@ -33,6 +34,8 @@ export type ActivityType =
   | 'ADMIN_GRANT'
   | 'GAME_ANNOUNCEMENT'
   | 'HEAT_BRIBE'
+  /** Retired: the withdrawn law-pressure draft's bribe. Kept so older feed rows still read. */
+  | 'LAW_CORRUPTION'
   | 'HIDEOUT_UPGRADE'
   | 'QUEST_OBJECTIVE_COMPLETE'
   | 'QUEST_READY'
@@ -88,7 +91,20 @@ export type ActivityType =
   | 'CASINO_SESSION_OPENED'
   | 'CASINO_SESSION_CLOSED'
   | 'CASINO_STATUS_UP'
-  | 'CASINO_COMP_HOTEL';
+  | 'CASINO_COMP_HOTEL'
+  | 'CASE_STAGE_UP'
+  | 'WARRANT_DRAFTED'
+  | 'WARRANT_SERVED'
+  | 'WARRANT_LAWYERED'
+  | 'LAWYER_RETAINED'
+  | 'OFFICIAL_HIRED'
+  | 'OFFICIAL_IA_OPENED'
+  | 'OFFICIAL_CUT'
+  | 'OFFICIAL_STUNG'
+  | 'WARRANT_QUASHED'
+  | 'CAPTAIN_TIP'
+  | 'INFORMANT_TIP'
+  | 'CASE_FOLLOWED';
 
 export interface ApiErrorBody {
   error: {
@@ -158,10 +174,13 @@ export type ProfileAccent =
   | 'enforcer-red'
   | 'open-road-blue'
   | 'clean-slate-ice'
-  | 'corner-amber';
+  | 'corner-amber'
+  | 'velvet-rose';
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
+export type ProfileTitlePlacement = 'prefix' | 'suffix';
+export type ProfileEffect = 'none' | 'neon-pulse' | 'scanlines' | 'spotlight' | 'glitch';
 
 export interface CosmeticOptionDto {
   key: string;
@@ -176,8 +195,16 @@ export interface BadgeCosmeticOptionDto extends CosmeticOptionDto {
 
 export interface AccountProfileSettingsDto {
   activeTitleKey: string | null;
+  titlePlacement: ProfileTitlePlacement;
   /** 0.9.0-F. Optional public crew name. */
   crewName: string | null;
+  /** Plain-text public profile description. */
+  profileBio: string | null;
+  /** Direct HTTPS image URL used for the profile avatar. */
+  profileImageUrl: string | null;
+  /** Direct HTTPS image URL used for the public profile banner/background. */
+  profileBannerUrl: string | null;
+  profileEffect: ProfileEffect;
   activeProfileFrameKey: string | null;
   activeSiteThemeKey: string | null;
   featuredBadgeKeys: string[];
@@ -196,6 +223,7 @@ export interface AccountProfileSettingsResponseDto {
     accents: CosmeticOptionDto[];
     frames: CosmeticOptionDto[];
     themes: CosmeticOptionDto[];
+    effects: CosmeticOptionDto[];
     densities: CosmeticOptionDto[];
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];
@@ -330,11 +358,33 @@ export interface RoundPlayerDto {
   turf: TurfSummaryDto | null;
   /** Street Pass summary for the nav badge. Absent or null on rounds without a pass. */
   streetPass?: { tier: number; tierCount: number; claimable: number } | null;
+  /** 1.3.0-A. The worst Case the player has anywhere. Absent or null on rounds without the law. */
+  law?: LawSummaryDto | null;
+  /** Lifetime account XP; does not reset between rounds. */
+  experience?: PlayerExperienceDto;
   rank: RankDto;
   hideout: SeasonHideoutDto;
 
   joinedAt: string;
   lastActiveAt: string;
+}
+
+export interface PlayerExperienceDto {
+  totalXp: number;
+  level: number;
+  /** XP earned within the current level. */
+  xpIntoLevel: number;
+  /** XP required to complete the current level. */
+  xpForLevel: number;
+  xpToNextLevel: number;
+  progressPercent: number;
+}
+
+export interface PlayerExperienceEventDto {
+  id: string;
+  source: string;
+  amount: number;
+  awardedAt: string;
 }
 
 export interface ActivityDto {

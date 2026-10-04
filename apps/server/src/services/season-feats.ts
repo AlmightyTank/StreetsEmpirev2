@@ -26,6 +26,21 @@ export interface SeasonFeat {
   sealedBy?: keyof SeasonTotals;
   /** Progress is money, for display. */
   cents?: boolean;
+  /**
+   * 1.3.0-F. Judged only once a season has finished: the live season never earns it and
+   * never shows progress, to anyone. The law feats use it, because a Case is private and a
+   * clean record only means something at the end.
+   */
+  finishedSeasonsOnly?: boolean;
+}
+
+/** 1.3.0-F. The Wanted ladder as ranks: 0 Quiet, 1 Noticed, 2 Under Investigation, 3 Warrant. */
+const QUIET = 0;
+const INVESTIGATION = 2;
+
+/** A finished season of real play on a ruleset that kept a Case, judged on its record. */
+function cleanSeason(totals: SeasonTotals, turns: number, clean: boolean): number {
+  return totals.lawSeason === 1 && totals.turnsWorked >= turns && clean ? 1 : 0;
 }
 
 export const SEASON_FEATS: readonly SeasonFeat[] = [
@@ -60,6 +75,23 @@ export const SEASON_FEATS: readonly SeasonFeat[] = [
   { key: 'corporate-raider', title: 'Corporate Raider', description: 'Win five Take block wars in one season.', category: 'turf', rarity: 'epic', target: 5, progressLabel: 'Take wars won', stat: 'blockWarTakes' },
 
   { key: 'underworld-conglomerate', title: 'Underworld Conglomerate', description: 'Build or upgrade forty-five business levels in one season.', category: 'economy', rarity: 'legendary', target: 45, progressLabel: 'business builds', stat: 'businessBuilds' },
+  // 1.2.0-F — Casino. Titles only: no feat pays money or changes a game. Money feats keep
+  // their progress sealed from other viewers mid-season, like the business income feats.
+  { key: 'first-chip', title: 'First Chip', description: 'Place your first rated casino wager.', category: 'casino', rarity: 'common', target: 1, progressLabel: 'rated wagers', stat: 'casinoRatedWagers' },
+  { key: 'casino-circuit', title: 'Casino Circuit', description: 'Place rated wagers at casinos in three cities in one season.', category: 'casino', rarity: 'uncommon', target: 3, progressLabel: 'casino cities', stat: 'casinoCitiesPlayed' },
+  { key: 'velvet-regular', title: 'Velvet Regular', description: 'Place ten wagers at VIP room tables in one season.', category: 'casino', rarity: 'uncommon', target: 10, progressLabel: 'VIP wagers', stat: 'casinoVipWagers' },
+  { key: 'house-guest', title: 'House Guest', description: 'Spend $5,000 of casino comps on hotel stays in one season.', category: 'casino', rarity: 'rare', target: 5_000_00, progressLabel: 'comps spent', stat: 'casinoCompsCents', sealedBy: 'streetEarningsCents', cents: true },
+  { key: 'big-night', title: 'Big Night', description: 'Come out $100,000 ahead on a single casino hand, spin, roll or poker hand.', category: 'casino', rarity: 'rare', target: 100_000_00, progressLabel: 'biggest single win', stat: 'casinoBiggestWinCents', sealedBy: 'streetEarningsCents', cents: true },
+  { key: 'grand-tour', title: 'Grand Tour', description: 'Place rated wagers at all eight casinos in one season.', category: 'casino', rarity: 'epic', target: 8, progressLabel: 'casino cities', stat: 'casinoCitiesPlayed' },
+  { key: 'jackpot-hitter', title: 'Jackpot Hitter', description: 'Hit a progressive slot jackpot.', category: 'casino', rarity: 'epic', target: 1, progressLabel: 'jackpots', stat: 'casinoJackpots' },
+  { key: 'whale', title: 'Whale', description: 'Rate $150,000 of theoretical house win in one season.', category: 'casino', rarity: 'legendary', target: 150_000_00, progressLabel: 'rated theo', stat: 'casinoTheoCents', sealedBy: 'streetEarningsCents', cents: true },
+
+  // 1.3.0-F — Law. Clean-record feats, judged when the season ends. Titles only.
+  { key: 'clean-record', title: 'Clean Record', description: 'Finish a season with 1,000 turns worked and no warrant ever served on you.', category: 'law', rarity: 'uncommon', target: 1, progressLabel: 'clean seasons', stat: (totals) => cleanSeason(totals, 1_000, totals.lawWarrantsServed === 0), finishedSeasonsOnly: true },
+  // 1.3.0-G: pinned against qa:law, where careful play keeps a Case at Quiet or Noticed.
+  { key: 'nothing-on-paper', title: 'Nothing on Paper', description: 'Finish a season with 2,500 turns worked and no Case anywhere ever reaching Under Investigation.', category: 'law', rarity: 'rare', target: 1, progressLabel: 'clean seasons', stat: (totals) => cleanSeason(totals, 2_500, totals.lawPeakStage < INVESTIGATION), finishedSeasonsOnly: true },
+  { key: 'off-the-books', title: 'Off the Books', description: 'Finish a season with 5,000 turns worked and every Case still Quiet.', category: 'law', rarity: 'epic', target: 1, progressLabel: 'clean seasons', stat: (totals) => cleanSeason(totals, 5_000, totals.lawPeakStage === QUIET), finishedSeasonsOnly: true },
+
   { key: 'war-machine', title: 'War Machine', description: 'Win ten block wars as attacker or defender in one season.', category: 'turf', rarity: 'legendary', target: 10, progressLabel: 'block-war wins', stat: (totals) => totals.blockWarAttackWins + totals.blockWarDefenseWins },
 ];
 
@@ -89,11 +121,12 @@ export function seasonFeatAwards(
 ): PublicAwardDto[] {
   const oldestFirst = [...past].sort((a, b) => a.endedAt.getTime() - b.endedAt.getTime());
   return SEASON_FEATS.map((feat) => {
-    const currentValue = current ? featValue(feat, current.totals) : 0;
+    const live = current !== null && !feat.finishedSeasonsOnly;
+    const currentValue = live ? featValue(feat, current.totals) : 0;
     const pastSeason = oldestFirst.find((season) => featValue(feat, season.totals) >= feat.target);
-    const thisSeason = current !== null && currentValue >= feat.target;
+    const thisSeason = live && currentValue >= feat.target;
     const unlocked = thisSeason || Boolean(pastSeason);
-    const hideProgress = sealed && featSealed(feat);
+    const hideProgress = (sealed && featSealed(feat)) || Boolean(feat.finishedSeasonsOnly);
     return {
       key: feat.key,
       title: feat.title,

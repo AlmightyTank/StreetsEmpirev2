@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
-import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
+import { loadRulesetForRound, WANTED_STAGES, type Ruleset } from '@streets/rules-engine';
+import type { WantedStage } from '@streets/rulesets';
 import type { PublicStatSheetDto } from '@streets/shared';
 
 /**
@@ -52,6 +53,25 @@ export interface SeasonTotals {
   blockWarDefenseWins: number;
   blockWarTakes: number;
   blockWarSacks: number;
+
+  /** 1.2.0-F. Casino season history, from rated play. */
+  casinoRatedWagers: number;
+  casinoTheoCents: number;
+  casinoCitiesPlayed: number;
+  casinoVipWagers: number;
+  casinoCompsCents: number;
+  casinoJackpots: number;
+  casinoBiggestWinCents: number;
+
+  /**
+   * 1.3.0-F. Law season history, for the clean-record feats. `lawSeason` is 1 when the round
+   * kept a Case at all. `lawPeakStage` is the highest Wanted stage any Case reached, as a rank
+   * (0 Quiet to 4 Federal), and `lawWarrantsServed` counts warrants served on the player.
+   * Private to the player while the season is live: the feats only read finished seasons.
+   */
+  lawSeason: number;
+  lawPeakStage: number;
+  lawWarrantsServed: number;
 }
 
 /** What the loader needs from each RoundPlayer. */
@@ -98,6 +118,16 @@ export const emptySeasonTotals = (): SeasonTotals => ({
   blockWarDefenseWins: 0,
   blockWarTakes: 0,
   blockWarSacks: 0,
+  casinoRatedWagers: 0,
+  casinoTheoCents: 0,
+  casinoCitiesPlayed: 0,
+  casinoVipWagers: 0,
+  casinoCompsCents: 0,
+  casinoJackpots: 0,
+  casinoBiggestWinCents: 0,
+  lawSeason: 0,
+  lawPeakStage: 0,
+  lawWarrantsServed: 0,
 });
 
 /** A numeric JSON field, or 0 when a payload predates it or holds anything else. */
@@ -308,7 +338,7 @@ export const SeasonStatsService = {
 
     const [
       activity, checkout, battles, captured, lost, segments, cities, returned, stops, runs, reputation,
-      businessIncome, laundering, blockWarAttack, blockWarDefense,
+      businessIncome, laundering, blockWarAttack, blockWarDefense, casinoRatings, caseStages, warrantsServed,
     ] = await Promise.all([
       activityTotals(prisma, ids),
       checkoutProductSales(prisma, ids),
@@ -331,6 +361,15 @@ export const SeasonStatsService = {
       prisma.roundPlayer.findMany({ where: { id: { in: ids } }, select: { id: true, launderedHeatRound: true } }),
       blockWarAttackTotals(prisma, ids),
       blockWarDefenseTotals(prisma, ids),
+      prisma.casinoRating.findMany({
+        where: { roundPlayerId: { in: ids } },
+        select: {
+          roundPlayerId: true, ratedWagers: true, theoBasis: true, vipWagers: true,
+          compsSpentCents: true, jackpots: true, biggestWinCents: true,
+        },
+      }),
+      prisma.playerCaseReceipt.groupBy({ by: ['roundPlayerId', 'stageAfter'], where: { roundPlayerId: { in: ids } } }),
+      prisma.playerWarrant.groupBy({ by: ['roundPlayerId'], where: { roundPlayerId: { in: ids }, status: 'SERVED' }, _count: { _all: true } }),
     ]);
 
     const activityById = byId(activity);
@@ -348,6 +387,7 @@ export const SeasonStatsService = {
     const blockWarAttackById = byId(blockWarAttack);
     const blockWarDefenseById = byId(blockWarDefense);
 
+    const servedById = new Map(warrantsServed.map((row) => [row.roundPlayerId, row._count._all]));
     const players_ = new Map(players.map((player) => [player.id, player]));
     const rulesets = new Map<string, Ruleset | null>();
     const rulesetFor = (player: SeasonStatsPlayer): Ruleset | null => {
@@ -407,7 +447,28 @@ export const SeasonStatsService = {
       totals.blockWarTakes = num(blockWarAttackById.get(player.id)?.takes);
       totals.blockWarSacks = num(blockWarAttackById.get(player.id)?.sacks);
 
+      totals.lawSeason = rulesetFor(player)?.law ? 1 : 0;
+      totals.lawWarrantsServed = servedById.get(player.id) ?? 0;
+
       result.set(player.id, totals);
+    }
+
+    for (const rating of casinoRatings) {
+      const totals = result.get(rating.roundPlayerId);
+      if (!totals) continue;
+      totals.casinoRatedWagers += rating.ratedWagers;
+      totals.casinoTheoCents += Number(rating.theoBasis / 10_000n);
+      if (rating.ratedWagers > 0) totals.casinoCitiesPlayed += 1;
+      totals.casinoVipWagers += rating.vipWagers;
+      totals.casinoCompsCents += Number(rating.compsSpentCents);
+      totals.casinoJackpots += rating.jackpots;
+      totals.casinoBiggestWinCents = Math.max(totals.casinoBiggestWinCents, Number(rating.biggestWinCents));
+    }
+
+    for (const row of caseStages) {
+      const totals = result.get(row.roundPlayerId);
+      const rank = WANTED_STAGES.indexOf(row.stageAfter as WantedStage);
+      if (totals && rank > totals.lawPeakStage) totals.lawPeakStage = rank;
     }
 
     for (const segment of segments) {

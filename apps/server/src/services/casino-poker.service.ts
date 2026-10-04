@@ -342,6 +342,7 @@ export const CasinoPokerService = {
       await tx.casinoPokerSeat.create({ data: { tableId: table.id, roundPlayerId: playerId, sessionId: session.id, actionId: input.actionId, seatNo: 1, stackCents: BigInt(input.buyInCents) } });
       const wallet = await tx.casinoWallet.findUnique({ where: { roundPlayerId_cityId: { roundPlayerId: playerId, cityId: session.cityId } } });
       await tx.casinoLedgerEntry.create({ data: { roundPlayerId: playerId, cityId: session.cityId, sessionId: session.id, actionId: input.actionId, kind: 'POKER_TABLE_BUY_IN', sessionChipDeltaCents: -BigInt(input.buyInCents), walletChipsAfterCents: wallet?.chipsCents ?? 0n, sessionChipsAfterCents: session.bankrollCents - BigInt(input.buyInCents), metadata: { tableId: table.id, buyInCents: input.buyInCents } as Prisma.InputJsonValue } });
+      await CasinoStatusService.recordPlay(tx, ruleset, { roundPlayerId: playerId, cityId: session.cityId, wagerCents: BigInt(input.buyInCents), play: { game: 'POKER', tableKey: 'TABLE_HOLDEM', actionId: input.actionId }, now: new Date() });
       const withSeats = await tx.casinoPokerTable.findUniqueOrThrow({ where: { id: table.id }, include: { seats: { where: { status: 'WAITING' }, include: { roundPlayer: { select: { displayName: true } } } } } });
       return { table: await tableDto(tx, withSeats, playerId), ...(code ? { inviteCode: code } : {}) };
     });
@@ -376,6 +377,7 @@ export const CasinoPokerService = {
       await tx.casinoPokerSeat.create({ data: { tableId, roundPlayerId: playerId, sessionId: session.id, actionId: input.actionId, seatNo, stackCents: table.buyInCents } });
       const wallet = await tx.casinoWallet.findUnique({ where: { roundPlayerId_cityId: { roundPlayerId: playerId, cityId: table.cityId } } });
       await tx.casinoLedgerEntry.create({ data: { roundPlayerId: playerId, cityId: table.cityId, sessionId: session.id, actionId: input.actionId, kind: 'POKER_TABLE_BUY_IN', sessionChipDeltaCents: -table.buyInCents, walletChipsAfterCents: wallet?.chipsCents ?? 0n, sessionChipsAfterCents: session.bankrollCents - table.buyInCents, metadata: { tableId, buyInCents: Number(table.buyInCents) } as Prisma.InputJsonValue } });
+      await CasinoStatusService.recordPlay(tx, ruleset, { roundPlayerId: playerId, cityId: table.cityId, wagerCents: table.buyInCents, play: { game: 'POKER', tableKey: 'TABLE_HOLDEM', actionId: input.actionId }, now: new Date() });
       const joined = await tx.casinoPokerTable.findUniqueOrThrow({ where: { id: tableId }, include: { seats: { where: { status: 'WAITING' }, include: { roundPlayer: { select: { displayName: true } } }, orderBy: { seatNo: 'asc' } } } });
       return { table: await tableDto(tx, joined, playerId) };
     });
@@ -556,6 +558,7 @@ export const CasinoPokerService = {
       await tx.casinoPokerAction.create({ data: { roundPlayerId: playerId, handId: row.id, actionId: input.actionId, kind: 'START', response: result as unknown as Prisma.InputJsonValue } });
       const wallet = await tx.casinoWallet.findUnique({ where: { roundPlayerId_cityId: { roundPlayerId: playerId, cityId: city.id } } });
       await tx.casinoLedgerEntry.create({ data: { roundPlayerId: playerId, cityId: city.id, sessionId: session.id, actionId: input.actionId, kind: 'POKER_BUY_IN', sessionChipDeltaCents: -buyIn, walletChipsAfterCents: wallet?.chipsCents ?? 0n, sessionChipsAfterCents: bankroll, metadata: { game: 'POKER', action: 'BUY_IN', handId: row.id, buyInCents: input.buyInCents } as Prisma.InputJsonValue } });
+      await CasinoStatusService.recordPlay(tx, ruleset, { roundPlayerId: playerId, cityId: city.id, wagerCents: buyIn, play: { game: 'POKER', tableKey: TABLE_KEY, actionId: input.actionId }, now: new Date() });
       return result;
     });
   },
@@ -590,6 +593,11 @@ export const CasinoPokerService = {
         await CasinoStatusService.rateHouseTake(tx, ruleset, { roundPlayerId: playerId, cityId: row.cityId, takeCents: BigInt(state.rakeCents), now: new Date() });
         const wallet = await tx.casinoWallet.findUnique({ where: { roundPlayerId_cityId: { roundPlayerId: playerId, cityId: row.cityId } } });
         await tx.casinoLedgerEntry.create({ data: { roundPlayerId: playerId, cityId: row.cityId, sessionId: row.sessionId, actionId: input.actionId, kind: 'POKER_CASH_OUT', sessionChipDeltaCents: humanStack, walletChipsAfterCents: wallet?.chipsCents ?? 0n, sessionChipsAfterCents: bankroll, metadata: { game: 'POKER', action: 'CASH_OUT', handId: row.id, returnCents: Number(humanStack), rakeCents: state.rakeCents, outcome: state.outcome } as Prisma.InputJsonValue } });
+        await CasinoStatusService.recordResult(tx, ruleset, {
+          roundPlayerId: playerId, cityId: row.cityId, play: { game: 'POKER', tableKey: TABLE_KEY, actionId: input.actionId },
+          stakeCents: row.buyInCents, returnCents: humanStack,
+          highlight: state.street === 'SHOWDOWN' && humanStack > row.buyInCents ? 'SHOWDOWN_WIN' : null, now: new Date(),
+        });
       }
       const updated = await tx.casinoPokerHand.update({ where: { id: row.id }, data: { status: settled ? 'SETTLED' : 'ACTIVE', state: state as unknown as Prisma.InputJsonValue, bankrollAfterCents: bankroll, settledAt: settled ? new Date() : null } });
       const result = await response(tx, playerId, updated);

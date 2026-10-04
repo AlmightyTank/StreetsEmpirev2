@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { formatCents, type CasinoPageDto, type CasinoSlotSpinDto } from '@streets/shared';
+import { formatCents, type CasinoPageDto, type CasinoSlotSpinDto, type CasinoTournamentPageDto } from '@streets/shared';
 import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
@@ -64,7 +64,7 @@ const CASINO_GAMES: readonly {
     status: 'LIVE',
     live: true,
     title: 'Slots',
-    description: 'Three server-authoritative machines with paylines, free spins and the Empire progressive.',
+    description: 'Three machines with paylines, free spins and the Empire progressive.',
   },
   {
     key: 'blackjack',
@@ -73,7 +73,7 @@ const CASINO_GAMES: readonly {
     status: 'LIVE',
     live: true,
     title: 'Blackjack',
-    description: 'Casino blackjack with persisted shoes, splits, doubles and real table rules.',
+    description: 'Casino blackjack with table limits, splits and doubles.',
   },
   {
     key: 'roulette',
@@ -129,6 +129,74 @@ function CasinoGamePlaceholder({
             <span>Casino history</span>
           </div>
         </div>
+      </div>
+    </Panel>
+  );
+}
+
+function TournamentBoard() {
+  const [board, setBoard] = useState<CasinoTournamentPageDto | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  useEffect(() => {
+    let active = true;
+    setRefreshing(true);
+    setError(null);
+    void casinoApi.tournaments().then((next) => {
+      if (active) setBoard(next);
+    }).catch(() => {
+      if (active) setError('Tournament standings are temporarily unavailable.');
+    }).finally(() => { if (active) setRefreshing(false); });
+    return () => { active = false; };
+  }, [refreshKey]);
+
+  if (board && !board.available) return null;
+  const signed = (amount: number) => (amount > 0 ? '+' : amount < 0 ? '−' : '') + formatCents(Math.abs(amount));
+  const recordValue = (key: string, value: number) => {
+    if (key === 'best_return') return `${(value / 100).toFixed(2)}%`;
+    if (key === 'biggest_cashout') return signed(value);
+    return String(value);
+  };
+
+  return (
+    <Panel title="Weekly Poker Circuit" aside="1.2.0-G">
+      <div className="se-casino-tournament">
+        <p className="se-muted">Every table starts with the same buy-in for every seat. Weekly standings compare each player’s net result with their total buy-ins, so larger stakes do not automatically score higher. The board adds no prize; table buy-ins and poker winnings still use your casino bankroll.</p>
+        {error ? <Alert tone="error">{error}</Alert> : null}
+        {board ? (
+          <>
+            <div className="se-casino-tournament__meta">
+              <span>Week of {new Date(board.weekStartsAt).toLocaleDateString()}</span>
+              <span>Your completed tables this season: <strong>{board.yourEntries}</strong></span>
+              <button className="se-btn se-btn--small" type="button" disabled={refreshing} onClick={() => setRefreshKey((value) => value + 1)}>
+                {refreshing ? 'Refreshing…' : 'Refresh standings'}
+              </button>
+            </div>
+            {board.standings.length ? (
+              <div className="se-casino-tournament__table-wrap">
+                <table className="se-table se-casino-tournament__table">
+                  <thead><tr><th scope="col">Place</th><th scope="col">Player</th><th scope="col">Tables</th><th scope="col">Buy-ins</th><th scope="col">Net</th><th scope="col">Return</th></tr></thead>
+                  <tbody>{board.standings.map((row) => (
+                    <tr className={row.isYou ? 'is-you' : undefined} key={`${row.place}-${row.displayName}`}>
+                      <td>{row.place}</td><td>{row.displayName}</td><td>{row.entries}</td><td>{formatCents(row.buyInCents)}</td>
+                      <td className={row.netCents >= 0 ? 'text-success' : 'text-danger'}>{signed(row.netCents)}</td><td>{(row.returnBps / 100).toFixed(2)}%</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            ) : <p className="se-muted">Completed multiplayer tables will appear here. Your results update when you leave a table.</p>}
+            <div className="se-casino-tournament__records" aria-label="Season casino records">
+              {board.records.map((row) => (
+                <article className="se-casino-tournament__record" key={row.key}>
+                  <span className="se-eyebrow">{row.label}</span>
+                  <strong>{row.displayName ?? 'No record yet'}</strong>
+                  <span>{row.displayName ? recordValue(row.key, row.value) : row.detail}</span>
+                </article>
+              ))}
+            </div>
+          </>
+        ) : !error ? <p className="se-muted" role="status">Loading the weekly board…</p> : null}
       </div>
     </Panel>
   );
@@ -407,7 +475,7 @@ export function CasinoPage() {
           <div>
             <span className="se-eyebrow">1.2.0 · Casino floor</span>
             <h1>Casino</h1>
-            <p>Buy chips once, open a floor bankroll, then move between casino games without leaving the room. Game outcomes and payouts stay server-authoritative.</p>
+            <p>Buy chips once, open a floor bankroll, then move between casino games without leaving the room. Every result is settled by the house after you act.</p>
           </div>
           <div className="se-casino__readout">
             <span><small>Cash here</small><strong>{data ? formatCents(data.cashCents) : '—'}</strong></span>
@@ -506,6 +574,8 @@ export function CasinoPage() {
               }}
             />
 
+            <TournamentBoard />
+
             <section className="se-casino-floor" aria-label="Casino games">
               <div className="se-casino-floor__head">
                 <div>
@@ -566,7 +636,7 @@ export function CasinoPage() {
                         }}
                       >
                         <span><strong>{machine.name}</strong>{machine.availableHere ? <small>Available here</small> : <small>Not in this room</small>}</span>
-                        <small>{machine.reels}×{machine.rows} · {machine.paylines.length} lines · RTP {(machine.effectiveRtpBps / 100).toFixed(2)}%</small>
+                        <small>{machine.reels}×{machine.rows} · {machine.paylines.length} lines · posted paytable</small>
                       </button>
                     ))}
                   </div>
@@ -666,7 +736,7 @@ export function CasinoPage() {
                           <p className="se-hint">
                             Line bet {formatCents(machine.minBetPerLineCents)} – {formatCents(machine.maxBetPerLineCents)}
                             {' · '}step {formatCents(machine.betStepCents)}
-                            {' · '}RTP {(machine.effectiveRtpBps / 100).toFixed(2)}% incl. free spins
+                            {' · '}free-spin feature included
                           </p>
                           {machine.freeSpins ? (
                             <p className="se-hint">
@@ -936,7 +1006,7 @@ export function CasinoPage() {
                         <details className="se-slots__paytable">
                           <summary>Paytable &amp; machine info</summary>
                           <p className="se-hint">
-                            Payouts are multiples of one winning line bet. Displayed RTP includes the configured free-spin feature; free spins do not retrigger.
+                            Payouts are multiples of one winning line bet. Free spins do not retrigger.
                           </p>
                           <div className="se-slots__paytable-grid">
                             {machine.paytable.map((entry) => (

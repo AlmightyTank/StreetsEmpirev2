@@ -295,7 +295,13 @@ export const RouletteService = {
       await tx.casinoSession.update({ where: { id: session.id }, data: { bankrollCents: bankrollAfter } });
       if (casino.status) {
         await CasinoStatusService.rateWager(tx, ruleset, {
-          roundPlayerId, cityId: city.id, wagerCents: math.wagerCents, edgeBps: rouletteRatingEdgeBps(casino.status, table), now,
+          roundPlayerId, cityId: city.id, wagerCents: math.wagerCents, edgeBps: rouletteRatingEdgeBps(casino.status, table),
+          play: { game: 'ROULETTE', tableKey: table.key, room: table.room, actionId: input.actionId }, now,
+        });
+        await CasinoStatusService.recordResult(tx, ruleset, {
+          roundPlayerId, cityId: city.id, play: { game: 'ROULETTE', tableKey: table.key, room: table.room, actionId: input.actionId },
+          stakeCents: math.wagerCents, returnCents: math.returnCents,
+          highlight: math.bets.some((bet) => bet.kind === 'STRAIGHT' && bet.won) ? 'STRAIGHT_UP' : null, now,
         });
       }
       const wallet = await tx.casinoWallet.findUnique({

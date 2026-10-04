@@ -185,6 +185,17 @@
   align-items: start;
 }
 
+.se-dashboard-command__column {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.se-dashboard-command .se-dashboard-coregrid {
+  grid-template-columns: 1fr;
+}
+
 .se-dashboard-command__attention,
 .se-dashboard-command__actions {
   display: grid;
@@ -401,6 +412,12 @@
   gap: 12px;
   padding-top: 3px;
   scroll-margin-top: 16px;
+}
+
+.se-dashboard-section--divided {
+  margin-top: 2px;
+  padding-top: 16px;
+  border-top: 1px solid var(--se-line);
 }
 
 .se-dashboard-sectiontitle {

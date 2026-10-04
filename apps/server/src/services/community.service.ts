@@ -16,6 +16,7 @@ import type {
   RankingEntryDto,
   RankingsDto,
 } from '@streets/shared';
+import { playerExperienceDto } from '@streets/shared';
 import { env } from '../config/env.js';
 import { toCityDto, toSeasonHideoutDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
@@ -23,7 +24,7 @@ import { allianceTagDto } from './alliance.service.js';
 import { ForumGroupsService } from './forum-groups.service.js';
 import { forumProfileUrl } from './forum-link.service.js';
 import { selectProfileBadges } from './profile-badges.js';
-import { profileTitleForAward } from './profile-titles.js';
+import { isBuiltInProfileTitle, profileTitleForAward, profileTitleForKey } from './profile-titles.js';
 import { TurfHistoryService } from './turf-history.service.js';
 import { QuestCosmeticService } from './quest-cosmetic.service.js';
 import { seasonFeatAwards, type FeatSeason } from './season-feats.js';
@@ -576,6 +577,7 @@ function profileAccent(value: string | null | undefined): ProfileAccent {
     'open-road-blue',
     'clean-slate-ice',
     'corner-amber',
+    'velvet-rose',
   ].includes(value ?? '')
     ? value as ProfileAccent
     : 'default';
@@ -958,6 +960,7 @@ export const CommunityService = {
         city: true,
         alliance: { select: { name: true, tag: true } },
         round: { select: { name: true, endsAt: true, rulesetId: true, rulesetVersion: true } },
+        account: { select: { experiencePoints: true } },
       },
     });
 
@@ -1020,7 +1023,10 @@ export const CommunityService = {
     const featuredBadgeKeys = jsonStringArray(profileSettings?.featuredBadgeKeys)
       .filter((key) => unlockedAwards.some((award) => award.key === key));
     const titleAward = unlockedAwards.find((award) => award.key === profileSettings?.activeTitleKey);
-    const title = titleAward ? profileTitleForAward(titleAward) : null;
+    const activeTitleKey = profileSettings?.activeTitleKey;
+    const title = titleAward
+      ? profileTitleForAward(titleAward)
+      : activeTitleKey && isBuiltInProfileTitle(activeTitleKey) ? profileTitleForKey(activeTitleKey) : null;
     const frame = frameOptions.some((option) => option.key === profileSettings?.activeProfileFrameKey)
       ? profileSettings!.activeProfileFrameKey
       : null;
@@ -1031,12 +1037,23 @@ export const CommunityService = {
       forumGroups: options.forumGroups !== false ? linkedForumGroups : [],
       cosmetics: {
         title,
+        titlePlacement: profileSettings?.titlePlacement === 'suffix' ? 'suffix' : 'prefix',
         accent: profileAccent(profileSettings?.profileAccent),
         frame,
+        effect: profileSettings?.profileEffect === 'neon-pulse'
+          || profileSettings?.profileEffect === 'scanlines'
+          || profileSettings?.profileEffect === 'spotlight'
+          || profileSettings?.profileEffect === 'glitch'
+          ? profileSettings.profileEffect
+          : 'none',
+        imageUrl: profileSettings?.profileImageUrl ?? null,
+        bannerUrl: profileSettings?.profileBannerUrl ?? null,
       },
+      experience: playerExperienceDto(player.account.experiencePoints),
       publicPimpId: player.publicPimpId,
       displayName: player.displayName,
       crewName: profileSettings?.crewName ?? null,
+      profileBio: profileSettings?.profileBio ?? null,
       seasonName: player.round.name,
       alliance: allianceTagDto(player.alliance),
       city: toCityDto(player.city),

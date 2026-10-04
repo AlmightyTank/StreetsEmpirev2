@@ -8,6 +8,7 @@ import type {
   DefaultLanding,
   MoneyFormat,
   ProfileAccent,
+  ProfileEffect,
   PublicAwardDto,
   UiDensity,
   UpdateAccountProfileSettingsInput,
@@ -24,13 +25,21 @@ import { profileTitleForAward } from './profile-titles.js';
 
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
 
+const honorificTitles: BadgeCosmeticOptionDto[] = [
+  { key: 'honorific-sir', label: 'Sir', description: 'A classic street honorific.', rarity: 'common', permanent: true },
+  { key: 'honorific-madam', label: 'Madam', description: 'A classic street honorific.', rarity: 'common', permanent: true },
+  { key: 'honorific-don', label: 'Don', description: 'A classic underworld honorific.', rarity: 'common', permanent: true },
+  { key: 'honorific-donna', label: 'Donna', description: 'A classic underworld honorific.', rarity: 'common', permanent: true },
+];
+const honorificTitleKeys = honorificTitles.map((option) => option.key);
+
 export const PROFILE_ACCENTS: CosmeticOptionDto[] = [
-  { key: 'default', label: 'StreetsEmpire', description: 'The classic neon-green site accent.' },
-  { key: 'crimson', label: 'Crimson', description: 'A deep red site-wide accent.' },
-  { key: 'gold', label: 'Goldenrod', description: 'A bright goldenrod site-wide accent.' },
-  { key: 'green', label: 'Emerald', description: 'A rich emerald-green site-wide accent.' },
-  { key: 'blue', label: 'Cornflower', description: 'A soft cornflower-blue site-wide accent.' },
-  { key: 'purple', label: 'Orchid', description: 'A vivid orchid-purple site-wide accent.' },
+  { key: 'default', label: 'StreetsEmpire', description: 'The classic neon-green profile accent.' },
+  { key: 'crimson', label: 'Crimson', description: 'A deep red profile accent.' },
+  { key: 'gold', label: 'Goldenrod', description: 'A bright goldenrod profile accent.' },
+  { key: 'green', label: 'Emerald', description: 'A rich emerald-green profile accent.' },
+  { key: 'blue', label: 'Cornflower', description: 'A soft cornflower-blue profile accent.' },
+  { key: 'purple', label: 'Orchid', description: 'A vivid orchid-purple profile accent.' },
 ];
 
 export const UI_DENSITIES: CosmeticOptionDto[] = [
@@ -48,6 +57,14 @@ export const DEFAULT_LANDINGS: CosmeticOptionDto[] = [
   { key: 'profile', label: 'Profile', description: 'Land on your public profile after login.' },
   { key: 'rankings', label: 'Rankings', description: 'Land on the current rankings after login.' },
   { key: 'news', label: 'News', description: 'Land on the news page after login.' },
+];
+
+export const PROFILE_EFFECTS: CosmeticOptionDto[] = [
+  { key: 'none', label: 'No effect', description: 'Keep the profile card still and clean.' },
+  { key: 'neon-pulse', label: 'Neon pulse', description: 'A soft animated accent glow around your profile.' },
+  { key: 'scanlines', label: 'Scanlines', description: 'A subtle moving screen-line overlay.' },
+  { key: 'spotlight', label: 'Spotlight', description: 'A slow highlight sweep across the card.' },
+  { key: 'glitch', label: 'Glitch', description: 'A sharper flicker effect for loud profiles.' },
 ];
 
 function stringArray(value: unknown): string[] {
@@ -108,16 +125,17 @@ function adminCatalogSiteThemeOptions(): CosmeticOptionDto[] {
 
 function toSettingsDto(
   profile: AccountProfile | null,
-  earnedKeys: Set<string>,
+  earnedBadgeKeys: Set<string>,
+  earnedTitleKeys: Set<string>,
   accentOptions: CosmeticOptionDto[],
   frameOptions: CosmeticOptionDto[],
   themeOptions: CosmeticOptionDto[],
 ): AccountProfileSettingsDto {
-  const activeTitleKey = profile?.activeTitleKey && earnedKeys.has(profile.activeTitleKey)
+  const activeTitleKey = profile?.activeTitleKey && earnedTitleKeys.has(profile.activeTitleKey)
     ? profile.activeTitleKey
     : null;
   const featuredBadgeKeys = uniqueKeys(stringArray(profile?.featuredBadgeKeys))
-    .filter((key) => earnedKeys.has(key))
+    .filter((key) => earnedBadgeKeys.has(key))
     .slice(0, PROFILE_BADGE_FEATURE_LIMIT);
   const accentKeys = new Set(accentOptions.map((option) => option.key));
   const frameKeys = new Set(frameOptions.map((option) => option.key));
@@ -140,9 +158,17 @@ function toSettingsDto(
   const defaultLanding = DEFAULT_LANDINGS.some((option) => option.key === profile?.defaultLanding)
     ? profile!.defaultLanding as DefaultLanding
     : 'game';
+  const profileEffect = PROFILE_EFFECTS.some((option) => option.key === profile?.profileEffect)
+    ? profile!.profileEffect as ProfileEffect
+    : 'none';
   return {
     activeTitleKey,
+    titlePlacement: profile?.titlePlacement === 'suffix' ? 'suffix' : 'prefix',
     crewName: profile?.crewName ?? null,
+    profileBio: profile?.profileBio ?? null,
+    profileImageUrl: profile?.profileImageUrl ?? null,
+    profileBannerUrl: profile?.profileBannerUrl ?? null,
+    profileEffect,
     activeProfileFrameKey,
     activeSiteThemeKey,
     featuredBadgeKeys,
@@ -215,18 +241,20 @@ export const AccountProfileService = {
       earnedAwards(prisma, accountId),
       appearanceOptions(prisma, accountId),
     ]);
-    const titleOptions = awards.map(titleOptionFromAward);
+    const titleOptions = [...honorificTitles, ...awards.map(titleOptionFromAward)];
     const badgeOptions = awards.map(optionFromAward);
-    const earnedKeys = new Set(badgeOptions.map((option) => option.key));
+    const earnedBadgeKeys = new Set(badgeOptions.map((option) => option.key));
+    const earnedTitleKeys = new Set([...earnedBadgeKeys, ...honorificTitleKeys]);
 
     return {
-      settings: toSettingsDto(profile, earnedKeys, appearance.accents, appearance.frames, appearance.themes),
+      settings: toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes),
       options: {
         titles: titleOptions,
         badges: badgeOptions,
         accents: appearance.accents,
         frames: appearance.frames,
         themes: appearance.themes,
+        effects: PROFILE_EFFECTS,
         densities: UI_DENSITIES,
         moneyFormats: MONEY_FORMATS,
         defaultLandings: DEFAULT_LANDINGS,
@@ -243,8 +271,9 @@ export const AccountProfileService = {
       earnedAwards(prisma, accountId),
       appearanceOptions(prisma, accountId),
     ]);
-    const earnedKeys = new Set(awards.map((award) => award.key));
-    const activeTitleKey = input.activeTitleKey && earnedKeys.has(input.activeTitleKey)
+    const earnedBadgeKeys = new Set(awards.map((award) => award.key));
+    const earnedTitleKeys = new Set([...earnedBadgeKeys, ...honorificTitleKeys]);
+    const activeTitleKey = input.activeTitleKey && earnedTitleKeys.has(input.activeTitleKey)
       ? input.activeTitleKey
       : null;
     if (input.activeTitleKey && !activeTitleKey) {
@@ -273,11 +302,11 @@ export const AccountProfileService = {
     const accentKeys = new Set(appearance.accents.map((option) => option.key));
     if (!accentKeys.has(input.profileAccent)) {
       throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick an accent you have already unlocked.', {
-        profileAccent: 'That site accent is not unlocked.',
+        profileAccent: 'That profile accent is not unlocked.',
       });
     }
     const featuredBadgeKeys = uniqueKeys(input.featuredBadgeKeys)
-      .filter((key) => earnedKeys.has(key))
+      .filter((key) => earnedBadgeKeys.has(key))
       .slice(0, PROFILE_BADGE_FEATURE_LIMIT);
     if (featuredBadgeKeys.length !== uniqueKeys(input.featuredBadgeKeys).length) {
       throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Feature only badges you have already earned.', {
@@ -286,13 +315,22 @@ export const AccountProfileService = {
     }
 
     const crewName = input.crewName === undefined ? undefined : input.crewName;
+    const profileBio = input.profileBio === undefined ? undefined : input.profileBio;
+    const profileImageUrl = input.profileImageUrl === undefined ? undefined : input.profileImageUrl;
+    const profileBannerUrl = input.profileBannerUrl === undefined ? undefined : input.profileBannerUrl;
+    const profileEffect = input.profileEffect === undefined ? undefined : input.profileEffect;
 
     await prisma.accountProfile.upsert({
       where: { accountId },
       create: {
         accountId,
         activeTitleKey,
+        titlePlacement: input.titlePlacement,
         crewName: crewName ?? null,
+        profileBio: profileBio ?? null,
+        profileImageUrl: profileImageUrl ?? null,
+        profileBannerUrl: profileBannerUrl ?? null,
+        profileEffect: profileEffect ?? 'none',
         activeProfileFrameKey,
         activeSiteThemeKey,
         featuredBadgeKeys,
@@ -304,7 +342,12 @@ export const AccountProfileService = {
       },
       update: {
         activeTitleKey,
+        titlePlacement: input.titlePlacement,
         ...(crewName !== undefined ? { crewName } : {}),
+        ...(profileBio !== undefined ? { profileBio } : {}),
+        ...(profileImageUrl !== undefined ? { profileImageUrl } : {}),
+        ...(profileBannerUrl !== undefined ? { profileBannerUrl } : {}),
+        ...(profileEffect !== undefined ? { profileEffect } : {}),
         activeProfileFrameKey,
         activeSiteThemeKey,
         featuredBadgeKeys,
@@ -323,16 +366,19 @@ export const AccountProfileService = {
     prisma: PrismaClient,
     accountId: string,
     awards: PublicAwardDto[],
-  ): Promise<{ settings: AccountProfileSettingsDto; title: string | null }> {
+  ): Promise<{ settings: AccountProfileSettingsDto; title: string | null; titlePlacement: 'prefix' | 'suffix' }> {
     const [profile, appearance] = await Promise.all([
       readProfile(prisma, accountId),
       appearanceOptions(prisma, accountId),
     ]);
     const unlocked = awards.filter((award) => award.unlocked);
-    const earnedKeys = new Set(unlocked.map((award) => award.key));
-    const settings = toSettingsDto(profile, earnedKeys, appearance.accents, appearance.frames, appearance.themes);
+    const earnedBadgeKeys = new Set(unlocked.map((award) => award.key));
+    const earnedTitleKeys = new Set([...earnedBadgeKeys, ...honorificTitleKeys]);
+    const settings = toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes);
     const titleAward = unlocked.find((award) => award.key === settings.activeTitleKey);
-    const title = titleAward ? profileTitleForAward(titleAward) : null;
-    return { settings, title };
+    const title = settings.activeTitleKey && honorificTitleKeys.includes(settings.activeTitleKey)
+      ? profileTitleForAward({ key: settings.activeTitleKey, title: settings.activeTitleKey })
+      : titleAward ? profileTitleForAward(titleAward) : null;
+    return { settings, title, titlePlacement: settings.titlePlacement };
   },
 };

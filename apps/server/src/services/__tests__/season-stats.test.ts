@@ -173,3 +173,44 @@ describe('0.9.0-F crew names', () => {
     expect(crewNameSchema.safeParse('x'.repeat(33)).success).toBe(false);
   });
 });
+
+describe('1.3.0-F clean-record law feats', () => {
+  const lawKeys = ['clean-record', 'nothing-on-paper', 'off-the-books'];
+  const past = (overrides: Partial<SeasonTotals>) =>
+    ({ name: 'Game #030', endedAt: new Date('2026-11-01'), totals: totals({ lawSeason: 1, ...overrides }) });
+  const award = (awards: ReturnType<typeof seasonFeatAwards>, key: string) => awards.find((row) => row.key === key)!;
+
+  it('adds three titled law feats', () => {
+    const feats = SEASON_FEATS.filter((feat) => lawKeys.includes(feat.key));
+    expect(feats.map((feat) => [feat.key, feat.category, feat.finishedSeasonsOnly])).toEqual(lawKeys.map((key) => [key, 'law', true]));
+    expect(profileTitleForKey('clean-record')).toBe('Clean Record');
+    expect(profileTitleForKey('off-the-books')).toBe('Off the Books');
+  });
+
+  it('never earns or shows progress in the live season, to anyone', () => {
+    const live = seasonFeatAwards({ name: 'Game #031', totals: totals({ lawSeason: 1, turnsWorked: 9_000 }) }, [], false);
+    for (const key of lawKeys) expect(award(live, key)).toMatchObject({ unlocked: false, progress: null });
+  });
+
+  it('judges a finished season on its record', () => {
+    const quiet = seasonFeatAwards(null, [past({ turnsWorked: 5_000, lawPeakStage: 0 })]);
+    for (const key of lawKeys) expect(award(quiet, key)).toMatchObject({ unlocked: true, earnedSeason: 'Game #030' });
+
+    const noticed = seasonFeatAwards(null, [past({ turnsWorked: 5_000, lawPeakStage: 1 })]);
+    expect(award(noticed, 'nothing-on-paper').unlocked).toBe(true);
+    expect(award(noticed, 'off-the-books').unlocked).toBe(false);
+
+    const warrant = seasonFeatAwards(null, [past({ turnsWorked: 5_000, lawPeakStage: 3 })]);
+    expect(award(warrant, 'clean-record').unlocked).toBe(true);
+    expect(award(warrant, 'nothing-on-paper').unlocked).toBe(false);
+    expect(award(warrant, 'off-the-books').unlocked).toBe(false);
+
+    const served = seasonFeatAwards(null, [past({ turnsWorked: 5_000, lawPeakStage: 3, lawWarrantsServed: 1 })]);
+    expect(award(served, 'clean-record').unlocked).toBe(false);
+  });
+
+  it('needs real play, on a round that kept a Case', () => {
+    expect(award(seasonFeatAwards(null, [past({ turnsWorked: 999 })]), 'clean-record').unlocked).toBe(false);
+    expect(award(seasonFeatAwards(null, [past({ turnsWorked: 9_000, lawSeason: 0 })]), 'clean-record').unlocked).toBe(false);
+  });
+});

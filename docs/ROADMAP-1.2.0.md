@@ -331,13 +331,116 @@ objects as in 1.2.0-E: no paytable, shoe, wheel, dice rule or rake changed.
 9. Older rulesets (A–E) have no status, ratings, VIP tables or comps.
 
 ### 1.2.0-F — Casino Jobs & Rewards
-Casino contact, Jobs, achievements, titles and cosmetics.
+
+**Status: implemented on the pinned `classic-og-v1.2-f` ruleset (1.2.0-F).**
+
+F builds on 1.2.0-E2. The casino block is the same object: no odds, limits, rake, status
+thresholds or comp rates change.
+
+#### Ace, the casino host
+
+- New Jobs contact **Delia “Ace” Navarro**, *Casino Host*. She keeps the guest list for the
+  circuit: she decides who gets recognized, comped and let through the velvet rope.
+- Ace's standing is stored like every other contact (`PlayerReputation`, trader `ACE`) and shows
+  on the Jobs page. The Casino page links to her Jobs.
+
+#### Casino Job signals
+
+Casino games now tell Jobs what happened, from inside the same transaction that moved the chips
+and after the action-ID replay check:
+
+| Signal | When | Payload |
+| --- | --- | --- |
+| `CASINO_WAGER` | A rated wager is charged (slots, blackjack deal/double/split, roulette, Street Dice line/odds), or a poker buy-in | game, table, room (`FLOOR`/`VIP`), city, wager, theo |
+| `CASINO_RESULT` | A hand, spin, point or solo poker hand settles | game, table, room, city, stake, return, net, `won`, highlight |
+
+Highlights: `NATURAL`, `JACKPOT`, `MEGA_WIN`, `BIG_WIN`, `STRAIGHT_UP`, `POINT_MADE`,
+`SHOWDOWN_WIN`. Quest receipts are keyed on the action ID, so a retried action never advances a
+Job twice. Existing activities (`CASINO_SESSION_OPENED`, `CASINO_COMP_HOTEL`) also drive Jobs, and
+the quest state now carries `casinoTheoCents` so status Jobs complete even if the tier was reached
+before the Job was accepted. Only rulesets with rated play emit these signals.
+
+#### Ace's Jobs (all one-time)
+
+| Job | Needs | Objective | Pays |
+| --- | --- | --- | --- |
+| House Rules | — | Open a floor bankroll; place 5 wagers (bonus: win one) | +10 Ace |
+| Tour of the Floor | House Rules | Wager on 4 different games (bonus: all 5) | +15 Ace, *Floor Walker* title |
+| Known Face | House Rules | Reach Regular status | +15 Ace |
+| Natural Talent | House Rules | Be dealt a natural blackjack | +10 Ace, *Natural* title |
+| Road Game | Tour of the Floor | Wager at casinos in 3 cities (bonus: comp a hotel stay) | +20 Ace, *Road Gambler* title |
+| On the House | Known Face | Spend comps on a trip's hotel stay | +15 Ace |
+| Behind the Velvet Rope | Known Face, 30 Ace | Place 5 wagers at VIP tables | +20 Ace, *Behind the Rope* title |
+| The Black Room | Velvet Rope, Road Game, 80 Ace | Reach High Roller; place 3 wagers in the Vegas Black Room | +40 Ace, *Black Room Regular* title, **Velvet Rose** accent, **Velvet Rope** frame |
+
+**Guardrail:** casino Jobs pay contact standing and cosmetics only. They never pay cash, items,
+product or turns, so a Job can never make gambling a better way to earn seasonal money.
+
+#### Casino achievements and titles
+
+Eight new season feats in a new **Casino** achievement category. Each one unlocks a profile title
+and nothing else:
+
+| Feat | Rarity | Earned by | Title |
+| --- | --- | --- | --- |
+| First Chip | common | First rated wager | Fresh Chip |
+| Casino Circuit | uncommon | Rated wagers in 3 cities in one season | Circuit Player |
+| Velvet Regular | uncommon | 10 VIP table wagers in one season | Velvet Regular |
+| House Guest | rare | $5,000 of comps spent on hotels in one season | House Guest |
+| Big Night | rare | $100,000 net on one hand, spin, roll or poker hand | Big Night Boss |
+| Grand Tour | epic | Rated wagers at all 8 casinos in one season | Grand Tour Gambler |
+| Jackpot Hitter | epic | A progressive slot jackpot | Jackpot Hitter |
+| Whale | legendary | $150,000 of rated theo in one season | The Whale |
+
+Feats are derived from `CasinoRating` (new columns: `vipWagers`, `jackpots`,
+`biggestWinCents`). Progress on the theo, comps and biggest-win feats is hidden from other viewers
+during a live season, like the business-income feats.
+
+#### F invariants
+
+1. Casino Jobs and feats never pay cash, chips, items, product or turns.
+2. No Job, feat, title or cosmetic is an input to any game's odds, limits or payout.
+3. A retried casino action never advances a Job twice (receipts keyed on the action ID).
+4. Free spins emit a result but no wager; true odds emit a wager with zero theo.
+5. Casino money totals (theo, comps, biggest win) stay sealed from other viewers mid-season.
+6. Older rulesets (A–E2) have no Ace, no casino Jobs and no casino cosmetics.
 
 ### 1.2.0-G — Tournaments
-Equal-bankroll competitive formats, weekly boards and seasonal casino records.
+
+**Status: implemented for multiplayer Texas Hold’em.** This first tournament format uses the
+existing public/private Poker tables: every seated player buys the same amount into that table,
+and each completed seat is scored against that buy-in. Weekly standings rank net stack change as
+a percentage of total buy-ins, so betting more chips does not by itself improve a score. Weeks
+start Monday at 00:00 UTC. A result is recorded once when its seat leaves the table. The board
+grants no separate prize; table buy-ins and poker winnings continue to use the casino bankroll.
+
+The Casino page shows the current weekly standings and season records for most completed entries,
+best single-table return and largest positive cashout. Records use completed multiplayer table
+seats in the current round. A table seat only counts once it is left; unfinished seats do not
+affect standings or records. Older rulesets without rated casino status do not expose the board.
 
 ### 1.2.0-H — Balance, Admin & Release
-Admin casino telemetry, anti-abuse, large-sample simulations, mobile/reconnect regression and release gate.
+
+**Status: implemented as a read-only operations view and release gate.** Admin → Casino shows
+current-season rated volume/status totals, last-24-hour ledger movements, active-game and bankroll
+integrity counts, stale active games, rapid-play review cues and unresolved casino exploit flags.
+The review thresholds are 300 casino ledger actions per player per hour and one hour without an
+active-game update. They are investigation cues only: the system does not auto-ban, freeze a
+bankroll or change game odds. Existing `ExploitFlag` review actions remain the audited path for
+decisions.
+
+The release harness now runs high-sample seeded simulations for European and American Roulette,
+Street Dice, Blackjack rule variants, random-vs-random Hold’em equity, every Slots machine and its
+free-spin behavior. The database release pass enables the casino service integration suites,
+including saved-state/retry checks for reconnectable games. The strict UI audit includes every
+casino game route at both phone widths and desktop, plus the Admin Casino page.
+
+H invariants:
+
+1. Casino operations telemetry is admin-only and read-only.
+2. Review cues never trigger automatic punishment or alter a casino balance.
+3. The simulation checks use deterministic seeds and thresholds that include sampling tolerance.
+4. Casino UI and persistence regressions are part of the database and strict UI release options.
 
 ## A invariants
 

@@ -26,6 +26,15 @@ function signedMoney(value: number): string {
   return (value > 0 ? '+' : '−') + formatCents(Math.abs(value));
 }
 
+function blackjackOutcomeLabel(outcome: string | null): string {
+  if (!outcome) return '';
+  if (outcome === 'BLACKJACK') return 'Blackjack';
+  if (outcome === 'WIN') return 'Won';
+  if (outcome === 'LOSE') return 'Lost';
+  if (outcome === 'PUSH') return 'Push';
+  return outcome;
+}
+
 type Props = {
   casinoPage: CasinoPageDto;
   onPageChange: (page: CasinoPageDto) => void;
@@ -238,7 +247,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
                       >
                         <div className="se-blackjack__label">
                           <span>{shownHand.playerHands.length > 1 ? 'Hand ' + (hand.index + 1) : 'Your hand'}</span>
-                          <strong>{hand.total}{hand.soft ? ' soft' : ''}{hand.outcome ? ' · ' + hand.outcome : ''}</strong>
+                          <strong>{hand.total}{hand.soft ? ' soft' : ''}{hand.outcome ? ' · ' + blackjackOutcomeLabel(hand.outcome) : ''}</strong>
                         </div>
                         <div className="se-blackjack__cards">
                           {hand.cards.map((card, index) => (
@@ -357,7 +366,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
                   </Button>
                 </form>
               ) : (
-                <p className="se-hint se-blackjack__resume-hint">This hand is saved on the server. Refreshing or reconnecting brings you back to these exact cards.</p>
+                <p className="se-hint se-blackjack__resume-hint">This hand is saved. Refreshing or reconnecting brings you back to these exact cards.</p>
               )}
 
               {state.history.length ? (
@@ -370,7 +379,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
                           <strong>{hand.tableName}</strong>
                           <small>{formatWhen(hand.settledAt ?? hand.createdAt)}</small>
                         </span>
-                        <span>{hand.playerHands.map((playerHand) => playerHand.outcome).join(' / ')}</span>
+                        <span>{hand.playerHands.map((playerHand) => blackjackOutcomeLabel(playerHand.outcome)).join(' / ')}</span>
                         <strong className={hand.netCents > 0 ? 'is-win' : hand.netCents < 0 ? 'is-loss' : ''}>{signedMoney(hand.netCents)}</strong>
                       </article>
                     ))}
