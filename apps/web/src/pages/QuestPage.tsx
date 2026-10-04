@@ -1037,6 +1037,7 @@ export function QuestPage() {
                             <span>{faction.lane}</span>
                             <strong>{faction.name}</strong>
                             <small>{faction.identity}</small>
+                            <small>{faction.description}</small>
                             <small>{faction.faces.length ? `Faces: ${faction.faces.join(', ')}` : faction.facesNote ?? ''}</small>
                             {faction.rivals.length ? <small>Rival{faction.rivals.length === 1 ? '' : 's'}: {faction.rivals.map((rival) => rival.name).join(', ')}</small> : null}
                           </div>

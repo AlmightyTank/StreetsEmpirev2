@@ -3,9 +3,9 @@ import type { ContactKey, Ruleset } from './types.js';
 /**
  * 1.4.0-A. What is wrong with a ruleset's factions, as readable lines; empty when sound.
  *
- * Every contact that gives Jobs works for a faction in the catalog or says why it is
- * independent (never both), every rivalry is listed on both sides, and no faction is its
- * own rival. Rulesets without factions have nothing to check.
+ * Every contact that gives Jobs is in the contact catalog and works for a faction in the
+ * catalog or says why it is independent (never both), every rivalry is listed on both sides,
+ * and no faction is its own rival. Rulesets without factions have nothing to check.
  */
 export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' | 'questDefinitions'>): string[] {
   const factions = ruleset.factions;
@@ -24,6 +24,9 @@ export function factionProblems(ruleset: Pick<Ruleset, 'factions' | 'contacts' |
   }
 
   const givers = new Set(Object.values(ruleset.questDefinitions ?? {}).map((definition) => definition.contactKey).filter(Boolean) as ContactKey[]);
+  for (const giver of givers) {
+    if (!ruleset.contacts?.[giver]) problems.push(`Jobs name contact ${giver}, who is missing from the contact catalog.`);
+  }
   for (const contact of Object.values(ruleset.contacts ?? {})) {
     if (!contact) continue;
     if (contact.factionKey && contact.independent) problems.push(`${contact.shortName} has a faction and an independent reason.`);

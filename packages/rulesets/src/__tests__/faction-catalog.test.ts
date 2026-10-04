@@ -48,5 +48,9 @@ describe('1.4.0-A faction catalog', () => {
       'The Outfit has no contact and no faces note.',
     ]));
     expect(factionProblems(classicOgV13G)).toEqual([]);
+
+    const { PIP: _pip, ...withoutPip } = classicOgV14A.contacts;
+    expect(factionProblems({ ...classicOgV14A, contacts: withoutPip } as unknown as Ruleset))
+      .toContain('Jobs name contact PIP, who is missing from the contact catalog.');
   });
 });
