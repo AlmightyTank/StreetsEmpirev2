@@ -9,6 +9,7 @@ import {
   currencyReports,
   lawDay,
   nextStage,
+  productNetWorthCents,
   stageRank,
   stageStartsAt,
   WANTED_STAGES,
@@ -19,6 +20,7 @@ import type { WantedStage } from '@streets/rulesets';
 import type { CaseSourceDto, LawPageDto, LawSummaryDto, TripHeatDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
+import { LawWarrantService } from './law-warrant.service.js';
 
 export type CaseSource = CaseSourceDto;
 
@@ -37,6 +39,8 @@ export interface CaseEvidence {
   heat?: number;
   points?: number;
   cashCents?: bigint;
+  /** 1.3.0-C. Bring the Case down to at most this, in hundredths: a warrant served or answered. */
+  ceiling?: number;
 }
 
 /** 1.3.0-A's shape: Heat drawn, and nothing else. */
@@ -49,6 +53,12 @@ export interface CaseChange {
   after: number;
   stage: WantedStage;
   stageUp: boolean;
+}
+
+/** 1.3.0-C. Net-worth value of seized product, crack included, by product key. */
+export function seizedValueCents(seized: Readonly<Record<string, number>>, ruleset: Ruleset): bigint {
+  const { CRACK: crack = 0, ...rest } = seized;
+  return BigInt(Math.max(0, crack)) * BigInt(ruleset.economy.netWorth.perCrackCents) + productNetWorthCents(rest, ruleset);
 }
 
 /**
@@ -66,7 +76,7 @@ export function tripCaseEvidence(heat: TripHeatDto | undefined, source: 'SCOUT' 
 }
 
 /** Sources that are not the player's own act: they never restart a Case's quiet clock. */
-const PASSIVE = new Set<CaseSource>(['RACKETS', 'CRACKDOWN', 'LAUNDERING', 'COOLING']);
+const PASSIVE = new Set<CaseSource>(['RACKETS', 'CRACKDOWN', 'LAUNDERING', 'COOLING', 'WARRANT', 'LAWYER']);
 
 /** How many receipts the page shows. */
 const RECEIPT_LIMIT = 30;
@@ -111,7 +121,7 @@ export const LawService = {
     for (const entry of entries) {
       const cash = entry.cashCents && entry.cashCents > 0n && rules.currencyReport ? entry.cashCents : 0n;
       const direct = caseFromHeat(entry.heat ?? 0, rules) + caseFromPoints(entry.points ?? 0);
-      if (direct === 0 && cash === 0n) continue;
+      if (direct === 0 && cash === 0n && entry.ceiling === undefined) continue;
       if (await tx.playerCaseReceipt.findUnique({ where: { roundPlayerId_sourceKey: { roundPlayerId, sourceKey: entry.sourceKey } }, select: { id: true } })) continue;
       const place = await city(entry);
       if (!place) continue;
@@ -138,7 +148,9 @@ export const LawService = {
       const day = lawDay(now);
       const dayCents = existing?.reportDay === day ? existing.reportCents : 0n;
       const reports = cash > 0n ? currencyReports(dayCents, cash, rules) : 0;
-      const delta = direct + caseFromPoints(reports * (rules.currencyReport?.points ?? 0));
+      let delta = direct + caseFromPoints(reports * (rules.currencyReport?.points ?? 0));
+      // C: a warrant served or answered brings the Case down to its line, never up.
+      if (entry.ceiling !== undefined) delta = Math.min(delta, entry.ceiling - before);
 
       const after = addCase(before, delta, rules);
       const stage = wantedStage(after, rules);
@@ -172,8 +184,24 @@ export const LawService = {
         }));
       }
       changes.push({ cityId: place.id, before, after, stage, stageUp });
+      // C: a Case that has reached the Warrant stage drafts a warrant, if the city has none open.
+      if (after > before && rules.warrants && stageRank(stage) >= stageRank('WARRANT')) {
+        await LawWarrantService.draftIfDue(tx, roundPlayerId, ruleset, place.id, now);
+      }
     }
     return changes;
+  },
+
+  /**
+   * 1.3.0-C. Police took something: a bust, an arrest, a raid or a fine, at net-worth value.
+   * Counted toward the day's cap, which only ever shrinks what a warrant takes.
+   */
+  async notePoliceLoss(tx: Db, roundPlayerId: string, ruleset: Ruleset, cents: bigint, now: Date = new Date()): Promise<void> {
+    if (!ruleset.law?.warrants || cents <= 0n) return;
+    const day = lawDay(now);
+    const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { policeLossDay: true, policeLossCents: true } });
+    const today = player.policeLossDay === day ? player.policeLossCents : 0n;
+    await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { policeLossDay: day, policeLossCents: today + cents } });
   },
 
   /** 1.3.0-A. Heat drawn, turned into Case. */
@@ -220,6 +248,9 @@ export const LawService = {
       currencyReport: rules.currencyReport ? { ...rules.currencyReport } : null,
       cooling: rules.cooling ? { ...rules.cooling } : null,
       laundering: rules.laundering ? { ...rules.laundering } : null,
+      warrants: [],
+      lawyer: null,
+      dailyLoss: null,
       stages: WANTED_STAGES.map((stage) => ({ stage, startsAt: points(stageStartsAt(stage, rules)) })),
       cases: cases.map(({ row, hundredths }) => {
         const next = nextStage(hundredths, rules);

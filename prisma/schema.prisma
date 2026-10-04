@@ -1071,6 +1071,7 @@ model City {
   casinoRatings     CasinoRating[]
   playerCases       PlayerCase[]
   caseReceipts      PlayerCaseReceipt[]
+  warrants          PlayerWarrant[]
 }
 
 // ---------------------------------------------------------------------------
@@ -1194,6 +1195,7 @@ model RoundPlayer {
   /// 1.3.0-A. What each city's police have on this player, and every change to it.
   cases                  PlayerCase[]
   caseReceipts           PlayerCaseReceipt[]
+  warrants               PlayerWarrant[]
   casinoFreeSpinBonus    CasinoFreeSpinBonus?
   casinoBlackjackShoes   CasinoBlackjackShoe[]
   casinoBlackjackHands   CasinoBlackjackHand[]
@@ -1216,6 +1218,12 @@ model RoundPlayer {
   /// 1.3.0-B. Case washed by laundering on `launderedCaseDay` (UTC), in hundredths, for the daily cap.
   launderedCaseDay     String?
   launderedCaseToday   Int       @default(0)
+  /// 1.3.0-C. Police losses (busts, arrests, raids, fines) on `policeLossDay` (UTC), at net-worth
+  /// value, for the daily cap. Busts and arrests count toward it but are never reduced by it.
+  policeLossDay        String?
+  policeLossCents      BigInt    @default(0)
+  /// 1.3.0-C. A lawyer on retainer until then.
+  lawyerRetainedUntil  DateTime?
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
   rocksSuppliedToPip   Int       @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
@@ -2219,6 +2227,10 @@ enum ActivityType {
   CASINO_STATUS_UP
   CASINO_COMP_HOTEL
   CASE_STAGE_UP
+  WARRANT_DRAFTED
+  WARRANT_SERVED
+  WARRANT_LAWYERED
+  LAWYER_RETAINED
 }
 
 enum BattleKind {
@@ -2488,6 +2500,10 @@ model Business {
   /// 1.1.0-D. A torch the holder lit during a war: it burns down at `torchUntil`.
   torchUntil    DateTime?
   torchById     String?
+  /// 1.3.0-C. A business raid shuts the racket (never the front) for this window.
+  racketShutFrom  DateTime?
+  racketShutUntil DateTime?
+  warrants        PlayerWarrant[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3402,4 +3418,43 @@ model PlayerCaseReceipt {
   @@index([stageUp, alertsCollectedAt])
   @@index([roundPlayerId, createdAt(sort: Desc)])
   @@index([roundPlayerId, cityId, createdAt(sort: Desc)])
+}
+
+/// 1.3.0-C. A warrant a city's police drafted when the player's Case there reached the Warrant
+/// stage. It names one target and is served at `servesAt` unless answered first. A personal
+/// warrant past `servesAt` waits (WAITING) until the boss is in that city, or the round ends.
+model PlayerWarrant {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  /// HIDEOUT, BUSINESS or PERSONAL.
+  target     String
+  businessId String?
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+
+  /// OPEN, WAITING, SERVED or LAWYERED.
+  status     String    @default("OPEN")
+  draftedAt  DateTime
+  servesAt   DateTime
+  resolvedAt DateTime?
+  /// What serving or answering it did: seizures, fines, the shut window, the lock-up, or the fee.
+  outcome    Json      @default("{}")
+
+  /// Alert collection markers, one per event the player is told about.
+  draftAlertedAt    DateTime?
+  waitingAlertedAt  DateTime?
+  resolvedAlertedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roundPlayerId, status])
+  @@index([status, servesAt])
+  @@index([cityId])
+  @@index([businessId])
 }

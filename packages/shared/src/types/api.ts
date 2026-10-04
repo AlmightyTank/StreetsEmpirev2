@@ -90,7 +90,11 @@ export type ActivityType =
   | 'CASINO_SESSION_CLOSED'
   | 'CASINO_STATUS_UP'
   | 'CASINO_COMP_HOTEL'
-  | 'CASE_STAGE_UP';
+  | 'CASE_STAGE_UP'
+  | 'WARRANT_DRAFTED'
+  | 'WARRANT_SERVED'
+  | 'WARRANT_LAWYERED'
+  | 'LAWYER_RETAINED';
 
 export interface ApiErrorBody {
   error: {

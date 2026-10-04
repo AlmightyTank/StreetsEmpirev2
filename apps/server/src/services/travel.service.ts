@@ -64,6 +64,7 @@ import { HighMarketService } from './high-market.service.js';
 import { hideoutGarageRunLimit, hideoutWeaponPriority } from './hideout.service.js';
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
+import { LawService, seizedValueCents } from './law.service.js';
 import {
   RUN_INCLUDE,
   awayWorth,
@@ -752,6 +753,7 @@ export const TravelService = {
             data: { runId: run.id, kind: roll.kind, city, road: null, seized, fineCents: roll.fineCents, at: now },
           });
           trouble = toIncidentDto(base, incident);
+          await LawService.notePoliceLoss(tx, roundPlayerId, base, seizedValueCents(roll.seized, base) + roll.fineCents, now);
           await ActivityService.log(tx, roundPlayerId, 'RUN_INCIDENT', { runId: run.id, ...trouble } as unknown as Prisma.InputJsonValue);
           // An arrest ends the trip: the crew is let go with the empty car and drives home.
           if (roll.kind === 'ARREST') await writeStops(tx, run.id, planHeadHome(base, stops, now));

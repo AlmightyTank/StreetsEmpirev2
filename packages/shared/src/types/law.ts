@@ -5,7 +5,9 @@ export type WantedStageDto = 'QUIET' | 'NOTICED' | 'INVESTIGATION' | 'WARRANT' |
 export type CaseSourceDto =
   | 'SCOUT' | 'PRODUCE' | 'RUN_SALE' | 'COMBAT' | 'CONVOY' | 'TORCH' | 'SACK' | 'RACKETS' | 'CRACKDOWN'
   // 1.3.0-B: direct evidence, currency reports, and what takes a Case down.
-  | 'BUST' | 'ARREST' | 'ROAD_STOP' | 'HIJACK' | 'CURRENCY_REPORT' | 'LAUNDERING' | 'COOLING';
+  | 'BUST' | 'ARREST' | 'ROAD_STOP' | 'HIJACK' | 'CURRENCY_REPORT' | 'LAUNDERING' | 'COOLING'
+  // 1.3.0-C: a warrant served, or answered by a lawyer.
+  | 'WARRANT' | 'LAWYER';
 
 /**
  * 1.3.0-A. The player's worst Case, for the dashboard. Stage Quiet with no city when the
@@ -67,6 +69,49 @@ export interface LawPageDto {
   stages: Array<{ stage: WantedStageDto; startsAt: number }>;
   /** Cities with a Case, highest first. */
   cases: CityCaseDto[];
+  /** 1.3.0-C. Open and waiting warrants, then the latest served or answered. Empty before C. */
+  warrants: WarrantDto[];
+  /** 1.3.0-C. The lawyer on retainer, and what one costs now. Null before C. */
+  lawyer: {
+    retainedUntil: string | null;
+    retainerCents: number;
+    days: number;
+    seizureCut: number;
+    downtimeCut: number;
+  } | null;
+  /** 1.3.0-C. Today's police losses against the day's cap. Null before C. */
+  dailyLoss: { capCents: number; lostTodayCents: number } | null;
   /** The latest receipts across every city, newest first. */
   receipts: CaseReceiptDto[];
+}
+
+/** 1.3.0-C. What a warrant names. */
+export type WarrantTargetDto = 'HIDEOUT' | 'BUSINESS' | 'PERSONAL';
+
+/** 1.3.0-C. OPEN: in its warning window. WAITING: a personal warrant waiting for the boss. */
+export type WarrantStatusDto = 'OPEN' | 'WAITING' | 'SERVED' | 'LAWYERED';
+
+/** 1.3.0-C. One warrant against the player reading it. */
+export interface WarrantDto {
+  id: string;
+  citySlug: string;
+  cityName: string;
+  target: WarrantTargetDto;
+  businessName: string | null;
+  status: WarrantStatusDto;
+  draftedAt: string;
+  servesAt: string;
+  resolvedAt: string | null;
+  /** Open or waiting: what serving it would take now, and the lawyer's price to answer it. */
+  atRisk: {
+    seized: Record<string, number>;
+    fineCents: number;
+    registerFineCents: number;
+    shutHours: number;
+    lockMinutes: number;
+    capped: boolean;
+  } | null;
+  lawyerUpCents: number | null;
+  /** Served or answered: what it did. */
+  outcome: Record<string, unknown> | null;
 }

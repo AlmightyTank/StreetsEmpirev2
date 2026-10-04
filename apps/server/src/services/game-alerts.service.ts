@@ -610,6 +610,53 @@ async function caseStages(tx: Tx, now: Date, switches: ChannelSwitches): Promise
   });
 }
 
+const TARGET_WORDS: Record<string, string> = { HIDEOUT: 'hideout', BUSINESS: 'business', PERSONAL: 'boss' };
+
+/**
+ * 1.3.0-C. Warrants: one drafted against the player, a personal one waiting for the boss to
+ * come to town, and one served. Like the stage alert, only places and targets, never amounts.
+ */
+async function warrantAlerts(tx: Tx, now: Date, switches: ChannelSwitches): Promise<OutboxRow[]> {
+  const include = {
+    city: { select: { slug: true, name: true } },
+    business: { select: { kind: true } },
+    roundPlayer: { select: { accountId: true, account: accountSettings, round: { select: { status: true, endsAt: true } } } },
+  } as const;
+  const [drafted, waiting, served] = await Promise.all([
+    tx.playerWarrant.findMany({ where: { draftAlertedAt: null }, include, take: BATCH, orderBy: { draftedAt: 'asc' } }),
+    tx.playerWarrant.findMany({ where: { status: 'WAITING', waitingAlertedAt: null }, include, take: BATCH, orderBy: { servesAt: 'asc' } }),
+    tx.playerWarrant.findMany({ where: { status: 'SERVED', resolvedAlertedAt: null }, include, take: BATCH, orderBy: { resolvedAt: 'asc' } }),
+  ]);
+  if (drafted.length) await tx.playerWarrant.updateMany({ where: { id: { in: drafted.map((row) => row.id) }, draftAlertedAt: null }, data: { draftAlertedAt: now } });
+  if (waiting.length) await tx.playerWarrant.updateMany({ where: { id: { in: waiting.map((row) => row.id) }, waitingAlertedAt: null }, data: { waitingAlertedAt: now } });
+  if (served.length) await tx.playerWarrant.updateMany({ where: { id: { in: served.map((row) => row.id) }, resolvedAlertedAt: null }, data: { resolvedAlertedAt: now } });
+  const rows: OutboxRow[] = [];
+  const stale = now.getTime() - MAX_LOOKAHEAD_MS;
+  const send = (warrant: (typeof drafted)[number], key: string, title: string, body: string) => {
+    if (!live(warrant.roundPlayer.round, now)) return;
+    rows.push(...notice(warrant.roundPlayer.accountId, warrant.roundPlayer.account.notificationSettings, 'law', key, {
+      title, body, url: gameUrl('/game#case'), tag: `warrant:${warrant.id}`,
+    }, switches, now));
+  };
+  for (const warrant of drafted) {
+    // Answered before the collector got to it: nothing to warn about.
+    if (warrant.status !== 'OPEN' || warrant.draftedAt.getTime() < stale) continue;
+    const hours = Math.max(1, Math.round((warrant.servesAt.getTime() - now.getTime()) / 3_600_000));
+    send(warrant, `warrant:${warrant.id}`, 'A warrant is out for you',
+      `${warrant.city.name} police have a warrant for your ${TARGET_WORDS[warrant.target] ?? 'operation'}. It is served in about ${hours} hour${hours === 1 ? '' : 's'} unless you answer it.`);
+  }
+  for (const warrant of waiting) {
+    send(warrant, `warrant-waiting:${warrant.id}`, 'A warrant is waiting for you',
+      `${warrant.city.name} police will serve their warrant the next time the boss is in town.`);
+  }
+  for (const warrant of served) {
+    if ((warrant.resolvedAt?.getTime() ?? 0) < stale) continue;
+    send(warrant, `warrant-served:${warrant.id}`, 'A warrant was served',
+      `${warrant.city.name} police served their warrant on your ${TARGET_WORDS[warrant.target] ?? 'operation'}.`);
+  }
+  return rows;
+}
+
 export const GameAlertService = {
   /**
    * Settle runs that are due home, so "made it home" alerts go out while everyone
@@ -639,6 +686,7 @@ export const GameAlertService = {
       ...await scheduled(tx, now, switches),
       ...await messages(tx, now, switches),
       ...await caseStages(tx, now, switches),
+      ...await warrantAlerts(tx, now, switches),
       ...await announcements(tx, now, switches),
       ...await surveyBroadcasts(tx, now, switches),
       ...await newsBroadcasts(tx, now, switches),

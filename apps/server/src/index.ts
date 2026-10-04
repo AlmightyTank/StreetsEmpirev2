@@ -13,6 +13,8 @@ import { PlatformService, buildCommit } from './services/platform.service.js';
 import { APP_VERSION } from '@streets/shared';
 import { startPoller } from './utils/poller.js';
 import { metrics } from './services/metrics.service.js';
+import { LawWarrantService } from './services/law-warrant.service.js';
+import { PlayerStateService } from './services/player-state.service.js';
 
 const app = await buildApp();
 
@@ -54,6 +56,10 @@ const stopAlerts = startPoller('Alerts', 60_000, async () => {
     await BossHitService.sweep(app.prisma, now);
     // 0.9.0-G: bring runs home on time, so "made it home" goes out while their owner is away.
     await GameAlertService.sweepRuns(app.prisma, now);
+    // 1.3.0-C: serve warrants on time, and personal warrants once the boss is in town.
+    for (const ownerId of await LawWarrantService.dueOwners(app.prisma, now)) {
+      await PlayerStateService.settle(app.prisma, ownerId, { markActive: false, now });
+    }
     const collected = await NotificationService.collect(app.prisma, now);
     if (collected > 0) wakeDiscordBot('alerts');
     if (env.push.enabled) metrics.recordNotifications(await PushService.deliverPending(app.prisma));
