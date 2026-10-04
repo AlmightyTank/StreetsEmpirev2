@@ -2,6 +2,7 @@ import type { ActivityDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen } from '../utils/time.js';
+import { formatCase, wantedStageName } from '../utils/law.js';
 
 /** 0.9.0-G. When a pending push, tail or window happens, in the player's own clock. */
 function atTime(iso: string): string {
@@ -323,6 +324,11 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       return {
         text: 'Closed the session at ' + str(p.venueName, 'the casino') + ' with ' + formatCents(num(p.bankrollCents)) + '.',
         detail: str(p.cityName),
+      };
+    case 'CASE_STAGE_UP':
+      return {
+        text: str(p.cityName, 'A city') + ' police now have you at ' + wantedStageName(str(p.stage)) + '.',
+        detail: 'Case ' + formatCase(num(p.case)) + ' · private to you',
       };
     case 'CASINO_STATUS_UP':
       return {
@@ -647,6 +653,7 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     CASINO_SESSION_OPENED: 'Casino session',
     CASINO_SESSION_CLOSED: 'Casino session closed',
     CASINO_STATUS_UP: 'Casino status',
+    CASE_STAGE_UP: 'Case',
     CASINO_COMP_HOTEL: 'Comped hotel',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();

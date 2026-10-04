@@ -275,6 +275,14 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
     case 'REVENGE_EXPIRING':
       return { title: 'Revenge expires soon', detail, tone: 'warn', href: '/game/combat' };
 
+    case 'CASE_STAGE_UP':
+      return {
+        title: 'The police have more on you',
+        detail,
+        tone: p.stage === 'WARRANT' || p.stage === 'FEDERAL' ? 'bad' : 'warn',
+        href: '/game#case',
+      };
+
     case 'SPECIAL_ORDER_READY':
       return {
         title: 'Special order arrived',

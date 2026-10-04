@@ -13,6 +13,7 @@ import { useLiveDashboard } from '../hooks/useLiveDashboard.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { HeatPanel, heatTone } from '../components/HeatPanel.js';
+import { CasePanel } from '../components/CasePanel.js';
 import { formatClockTime, formatDate, formatDuration, formatWhen } from '../utils/time.js';
 import { GettingStarted } from '../components/onboarding/GettingStarted.js';
 
@@ -689,6 +690,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
           <div className="se-dashboard-controlgrid">
             <div className="se-dashboard-stack">
               <HeatPanel />
+              <CasePanel />
               <HideoutPanel hideout={me.hideout} />
             </div>
 
