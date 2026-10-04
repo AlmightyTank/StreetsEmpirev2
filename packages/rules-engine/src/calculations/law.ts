@@ -1,4 +1,4 @@
-import type { LawLawyerRules, LawRules, LawWarrantRules, WantedStage } from '@streets/rulesets';
+import type { LawLawyerRules, LawOfficialPrice, LawOfficialRules, LawRules, LawWarrantRules, WantedStage } from '@streets/rulesets';
 
 /**
  * 1.3.0-A. The Case: what one city's police have on a player.
@@ -200,4 +200,31 @@ export function lawyerUpCents(estimateCents: bigint, rules: LawLawyerRules): big
   const fee = BigInt(Math.ceil(Number(estimateCents > 0n ? estimateCents : 0n) * rules.lawyerUp.multiplier));
   const floor = BigInt(rules.lawyerUp.minCents);
   return fee > floor ? fee : floor;
+}
+
+// --- 1.3.0-D -----------------------------------------------------------------
+
+/** A week of an official, or a tip: a share of net worth, never below the floor. */
+export function lawPriceCents(netWorthCents: bigint, price: LawOfficialPrice): bigint {
+  const share = shareOf(netWorthCents, price.netWorthShare);
+  const floor = BigInt(price.minCents);
+  return share > floor ? share : floor;
+}
+
+/** True when this much more exposure takes an official across the Internal Affairs line. */
+export function crossesIaLine(before: number, added: number, rules: LawOfficialRules): boolean {
+  return added > 0 && before < rules.exposure.line && before + added >= rules.exposure.line;
+}
+
+/** Case, in hundredths, a District Attorney keeps off a rise of `delta`. */
+export function daSlowed(delta: number, slowShare: number): number {
+  return delta > 0 ? Math.floor(delta * slowShare) : 0;
+}
+
+/** True when a rise from `before` to `after` crosses the point a Captain warns at. */
+export function captainHeadsUp(before: number, after: number, headsUpPoints: number, rules: LawRules): boolean {
+  if (!rules.warrants) return false;
+  const warrantAt = stageStartsAt('WARRANT', rules);
+  const warnAt = warrantAt - headsUpPoints * CASE_SCALE;
+  return before < warnAt && after >= warnAt && after < warrantAt;
 }

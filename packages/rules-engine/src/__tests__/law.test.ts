@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV12F, classicOgV13A, classicOgV13B, classicOgV13C } from '@streets/rulesets';
-import { addCase, caseCap, chooseWarrantTarget, evidenceTarget, lawyerUpCents, lossCapShare, policeLossRoom, retainerCents, caseFromHeat, caseFromPoints, coolCase, coolingStartsAt, currencyReports, launderedCase, lawDay, nextStage, stageRank, wantedStage, WANTED_STAGES } from '../calculations/law.js';
+import { classicOgV12F, classicOgV13A, classicOgV13B, classicOgV13C, classicOgV13D } from '@streets/rulesets';
+import { airportCheckChance, rollAirport, tripRules } from '../index.js';
+import { addCase, captainHeadsUp, crossesIaLine, daSlowed, lawPriceCents, caseCap, chooseWarrantTarget, evidenceTarget, lawyerUpCents, lossCapShare, policeLossRoom, retainerCents, caseFromHeat, caseFromPoints, coolCase, coolingStartsAt, currencyReports, launderedCase, lawDay, nextStage, stageRank, wantedStage, WANTED_STAGES } from '../calculations/law.js';
 
 const law = classicOgV13A.law;
 
@@ -170,5 +171,51 @@ describe('1.3.0-C warrants and lawyers', () => {
     expect(retainerCents(1_000_000_000n, c.lawyer)).toBe(10_000_000n);
     expect(lawyerUpCents(4_000_000n, c.lawyer)).toBe(5_000_000n);
     expect(lawyerUpCents(0n, c.lawyer)).toBe(1_000_000n);
+  });
+});
+
+describe('1.3.0-D officials and informants', () => {
+  const d = classicOgV13D.law;
+
+  it('adds only officials and informants to 1.3.0-C', () => {
+    const { officials, informants, ...rest } = d;
+    expect(rest).toEqual(classicOgV13C.law);
+    expect(Object.keys(officials.roles)).toEqual(['CAPTAIN', 'DA', 'JUDGE', 'CUSTOMS']);
+    expect(officials.exposure).toMatchObject({ line: 60, iaWarningHours: 24, stingPoints: 25 });
+    expect(informants.sweep.minCents).toBeGreaterThan(0);
+    expect(classicOgV13D.heat).toBe(classicOgV13C.heat);
+  });
+
+  it('prices a week of an official like a bribe', () => {
+    expect(lawPriceCents(100_000_000n, d.officials.roles.DA)).toBe(4_000_000n);
+    expect(lawPriceCents(1_000_000_000n, d.officials.roles.DA)).toBe(8_000_000n);
+  });
+
+  it('opens an Internal Affairs file once, on the favor that crosses the line', () => {
+    expect(crossesIaLine(50, 5, d.officials)).toBe(false);
+    expect(crossesIaLine(55, 5, d.officials)).toBe(true);
+    expect(crossesIaLine(60, 5, d.officials)).toBe(false);
+    expect(crossesIaLine(59, 0, d.officials)).toBe(false);
+  });
+
+  it('slows a rise by the DA’s share and never a fall', () => {
+    expect(daSlowed(800, 0.25)).toBe(200);
+    expect(daSlowed(-800, 0.25)).toBe(0);
+  });
+
+  it('lets Customs halve an airport check, and nothing else', () => {
+    const airport = tripRules(classicOgV13D)!.airport!;
+    const chance = airportCheckChance(airport, 95);
+    expect(chance).toBeGreaterThan(0);
+    const rng = () => chance * 0.75;
+    expect(rollAirport(airport, { heat: 95, bankrollCents: 1_000_000n, rng }).pulled).toBe(true);
+    expect(rollAirport(airport, { heat: 95, bankrollCents: 1_000_000n, rng, chanceMultiplier: 1 - d.officials.roles.CUSTOMS.checkCut }).pulled).toBe(false);
+  });
+
+  it('has the Captain warn a few points short of the Warrant line', () => {
+    expect(captainHeadsUp(5_000, 6_100, 5, d)).toBe(true);
+    expect(captainHeadsUp(6_000, 6_200, 5, d)).toBe(false);
+    expect(captainHeadsUp(5_000, 6_600, 5, d)).toBe(false);
+    expect(captainHeadsUp(5_000, 6_100, 5, classicOgV13B.law)).toBe(false);
   });
 });

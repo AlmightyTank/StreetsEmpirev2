@@ -2357,6 +2357,62 @@ export interface LawRules {
   readonly warrants?: LawWarrantRules;
   /** 1.3.0-C. Lawyers: a retainer that softens what warrants take, and lawyering up. */
   readonly lawyer?: LawLawyerRules;
+  /** 1.3.0-D. Corrupt officials on a weekly payroll, per city, with Internal Affairs exposure. */
+  readonly officials?: LawOfficialRules;
+  /** 1.3.0-D. Informants: information for cash, never protection. */
+  readonly informants?: LawInformantRules;
+}
+
+/** 1.3.0-D. A week of one official, priced like a bribe: a share of net worth, with a floor. */
+export interface LawOfficialPrice {
+  readonly netWorthShare: number;
+  readonly minCents: number;
+}
+
+export type LawOfficialRole = 'CAPTAIN' | 'DA' | 'JUDGE' | 'CUSTOMS';
+
+/** 1.3.0-D. What each official does in their city, and what being caught with them costs. */
+export interface LawOfficialRules {
+  /** Days a week's pay keeps an official working. */
+  readonly weekDays: number;
+  readonly roles: {
+    /** Longer warrant windows, and a word before a Case reaches the Warrant line. */
+    readonly CAPTAIN: LawOfficialPrice & { readonly extraWarningHours: number; readonly headsUpPoints: number };
+    /** Slows the city's Case, and can quash a warrant there once every `quashEveryDays`. */
+    readonly DA: LawOfficialPrice & { readonly slowShare: number; readonly quashEveryDays: number };
+    /** Served warrants in the city take less, and lock the boss up for less. */
+    readonly JUDGE: LawOfficialPrice & { readonly seizureCut: number; readonly downtimeCut: number };
+    /** Airport checks on flights out of the city happen less. Never touches the no-fly line. */
+    readonly CUSTOMS: LawOfficialPrice & { readonly checkCut: number };
+  };
+  readonly exposure: {
+    /** Exposure at which Internal Affairs opens a file on an official. */
+    readonly line: number;
+    /** Hours between the file opening and the sting. */
+    readonly iaWarningHours: number;
+    /** Case points the sting adds in the official's city. */
+    readonly stingPoints: number;
+    /** Hours before the same post in the same city can be filled again after a cut or a sting. */
+    readonly rehireCooldownHours: number;
+    /** Exposure each favor adds. */
+    readonly perFavor: {
+      readonly captainWindow: number;
+      readonly captainTip: number;
+      readonly daQuash: number;
+      /** Per Case point the DA slowed. */
+      readonly daSlowedPoint: number;
+      readonly judgeServe: number;
+      readonly customsFlight: number;
+    };
+  };
+}
+
+/** 1.3.0-D. What informants charge. */
+export interface LawInformantRules {
+  /** When and where the federal sweep lands, before it is announced. */
+  readonly sweep: LawOfficialPrice;
+  /** A city's police lines: where drag, busts and arrests start there, and how hard it presses. */
+  readonly city: LawOfficialPrice;
 }
 
 /** 1.3.0-C. Warrants and what serving one takes. */
