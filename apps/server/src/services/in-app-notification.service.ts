@@ -43,6 +43,8 @@ const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
   'CAPTAIN_TIP',
   // 1.3.0-E. A federal case that followed a move.
   'CASE_FOLLOWED',
+  // 1.4.0-B. Standing with a faction reaching a new tier.
+  'FACTION_TIER_UP',
 ]);
 
 function objectPayload(payload: Prisma.InputJsonValue): Record<string, unknown> {

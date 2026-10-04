@@ -93,6 +93,8 @@ export type ActivityType =
   | 'CASINO_STATUS_UP'
   | 'CASINO_COMP_HOTEL'
   | 'CASE_STAGE_UP'
+  /** 1.4.0-B. Standing with a faction reached a new tier. */
+  | 'FACTION_TIER_UP'
   | 'WARRANT_DRAFTED'
   | 'WARRANT_SERVED'
   | 'WARRANT_LAWYERED'
@@ -888,6 +890,16 @@ export interface QuestContactDto {
   independent: string | null;
 }
 
+/** 1.4.0-B. The player's own standing with one faction. Private to them. */
+export interface FactionStandingDto {
+  points: number;
+  tier: string;
+  tierName: string;
+  /** The next tier up and where it starts, or null at Inner Circle. */
+  next: { tier: string; tierName: string; startsAt: number } | null;
+  max: number;
+}
+
 /** 1.4.0-A. One underworld faction, as the Jobs page shows it. */
 export interface FactionDto {
   key: string;
@@ -901,6 +913,8 @@ export interface FactionDto {
   faces: string[];
   /** Faces with no contact of their own. */
   facesNote: string | null;
+  /** 1.4.0-B. The player's standing, or null before standing exists. */
+  standing: FactionStandingDto | null;
 }
 
 export interface PlayerQuestDto {
@@ -912,6 +926,8 @@ export interface PlayerQuestDto {
   contactName: string | null;
   /** 1.4.0-A. The faction of the Job's contact, or null. */
   factionName: string | null;
+  /** 1.4.0-B. Standing this Job pays on completion, or null. */
+  factionStanding: { factionKey: string; factionName: string; amount: number; label: string } | null;
   type: string;
   category: string;
   difficulty: string;
@@ -1088,6 +1104,8 @@ export interface QuestClaimResult {
   rewards: QuestRewardDto[];
   reputationChanges: QuestBranchReputationDto[];
   newlyAvailable: string[];
+  /** 1.4.0-B. Faction standing the claim paid. Empty before standing exists. */
+  standingChanges: Array<{ factionKey: string; factionName: string; amount: number; tierName: string; tierUp: boolean; label: string }>;
 }
 
 export interface StoreDto {

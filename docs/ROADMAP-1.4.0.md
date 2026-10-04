@@ -2,8 +2,8 @@
 
 ## Brainstorm
 
-**Status:** 1.4.0-A is built; the newest ruleset is `classic-og-v1.4-a`. B to G are design only. See
-the [Roadmap](#roadmap) table.
+**Status:** 1.4.0-A and 1.4.0-B are built; the newest ruleset is `classic-og-v1.4-b`. C to G are design
+only. See the [Roadmap](#roadmap) table.
 
 **Target base:** StreetsEmpire v1.3.0 (`classic-og-v1.3-g`)  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** make each city's underworld feel populated
@@ -46,7 +46,7 @@ contact reputation exactly as they were.
 | Slice | Status | Ruleset | What it delivers |
 | --- | --- | --- | --- |
 | **1.4.0-A — Faction Catalog** | Built | `classic-og-v1.4-a` | Factions in the ruleset, each contact's faction, faction identity on Jobs and contacts. No balance change. |
-| **1.4.0-B — Standing** | Planned | `classic-og-v1.4-b` | Seasonal standing per faction with receipts, tiers, tier-up alerts and a standing panel. Contact Jobs pay faction standing. |
+| **1.4.0-B — Standing** | Built | `classic-og-v1.4-b` | Seasonal standing per faction with receipts, tiers, tier-up alerts and a standing panel. Contact Jobs pay faction standing. |
 | **1.4.0-C — Sponsored Contracts** | Planned | `classic-og-v1.4-c` | Existing board contracts carry a sponsoring faction and pay its standing. Boards lean toward factions you work with. |
 | **1.4.0-D — Faction Perks** | Planned | `classic-og-v1.4-d` | Information and warnings at Known and Trusted, then a small capped nudge per faction at Connected. |
 | **1.4.0-E — Rivalries & Inner Circle** | Planned | `classic-og-v1.4-e` | The Inner Circle rival lock, previewed before it lands; Vic's introductions; one short Job arc and a capstone per faction. |
@@ -297,6 +297,45 @@ standing panel on the Jobs page, and contact Jobs paying faction standing alongs
 
 **Gate:** receipts add up to stored standing; a retried Job never pays twice; older rulesets'
 contact reputation is untouched.
+
+#### Built in B
+
+**Status: implemented.** Ruleset `classic-og-v1.4-b` (1.4.0-B) is 1.4.0-A plus a `factionStanding`
+block. Jobs, rewards, prices, contact reputation and the law are exactly 1.4.0-A's.
+
+- **Standing.** Seasonal, per player and faction, from 0 to 500. Tiers: Unknown, Known (25),
+  Trusted (75), Connected (150), Inner Circle (300). These are first passes; G's `qa:factions`
+  pins them. A tier is recognition only until D.
+- **Where it comes from.** A one-time Job (story, side or secret) that pays a contact
+  reputation also pays that contact's faction the same in standing (`perContactRep: 1`), and so
+  does a positive branch reputation change. Losses never cost standing. Independent contacts
+  (Vic, Ace, Ledger) pay none, and nor do the rotating boards (daily, weekly, city, alliance),
+  which wait for sponsorship in C. Store trade still pays contact reputation only.
+- **How much there is.** One-time Jobs alone take the Kings to 240, the Outfit to 175, the
+  Cartel Line to 130 and Road Saints to 110: past Known for every faction with a contact, short
+  of Inner Circle for all of them. Civic Handshake has no contact, so its standing starts in C.
+- **Receipts.** `PlayerFactionStanding` holds the points and the tier last read. Every change is a
+  `PlayerFactionReceipt` keyed on the act (`job:<playerQuest>:<faction>`), so a retried claim
+  never pays twice and the receipts always add up to the stored standing.
+- **Tier-up.** A rise logs `FACTION_TIER_UP` once, which reaches the feed, the bell, a toast
+  ("The Kings: Known") and the Console's progress group.
+- **Jobs page.** Each Job shows the standing it pays as a reward chip ("+10 The Kings standing"),
+  the claim result and the feed list it, and the Factions panel shows your tier, points and the
+  next tier for each faction. Standing is private to the player.
+- **Rules page.** The Factions section explains standing, the tiers, that it's seasonal and
+  private, and that it can't be bought, traded or taken.
+- **Seed.** The local seed's current round now uses `classic-og-v1.4-b`.
+
+B invariants:
+
+1. Every A invariant still holds.
+2. Standing comes only from the player's own one-time Jobs; it is never bought, traded,
+   transferred or earned from another player.
+3. Every standing change has a receipt keyed on its act; the receipts add up to the stored
+   standing.
+4. A tier rise logs once.
+5. Standing is private to the player and changes nothing in play yet.
+6. `classic-og-v1.4-a` and older rounds keep no standing.
 
 ### 1.4.0-C — Sponsored Contracts
 

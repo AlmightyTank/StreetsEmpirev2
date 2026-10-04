@@ -413,7 +413,8 @@ export function RulesPage() {
               <li>Your contacts don&rsquo;t work alone. Most of them belong to an underworld faction: the Kings run the street, the Outfit the guns and protection, Road Saints MC the roads, the Cartel Line the product, and Civic Handshake the officials who take an envelope.</li>
               <li>A few contacts work for no one: Vic brokers between all of them, Ace runs the casino rooms, and Ledger never took an envelope.</li>
               <li>Factions have rivals. The Jobs page shows who each faction works with and against.</li>
-              <li>Today factions are who&rsquo;s who: Jobs, rewards and prices work exactly as before.</li>
+              <li>Your contacts&rsquo; one-time Jobs earn their faction&rsquo;s standing, on top of the contact&rsquo;s own reputation. Standing climbs through Unknown, Known, Trusted, Connected and Inner Circle, starts at zero each season, and only you can see it.</li>
+              <li>Standing comes only from your own Jobs: it can&rsquo;t be bought, traded or taken. For now a tier is recognition; Jobs, rewards and prices work as before.</li>
             </ul>
           </Panel></section>
           <section id="rank" className="se-rules__panel se-rules__panel--wide"><Panel title="Money and rank">

@@ -317,6 +317,23 @@ export interface FactionDefinition {
 
 export type FactionCatalog = Readonly<Partial<Record<FactionKey, FactionDefinition>>>;
 
+/** 1.4.0-B. The standing tiers above Unknown, lowest first. */
+export type FactionTier = 'UNKNOWN' | 'KNOWN' | 'TRUSTED' | 'CONNECTED' | 'INNER_CIRCLE';
+
+/**
+ * 1.4.0-B. Seasonal standing with each faction. It starts at zero every round and only ever
+ * comes from the player's own Jobs: a one-time Job that pays a contact reputation also pays
+ * that contact's faction `perContactRep` standing for each point.
+ */
+export interface FactionStandingRules {
+  /** Standing at which each tier above Unknown starts. Ascending. */
+  readonly tiers: { readonly known: number; readonly trusted: number; readonly connected: number; readonly innerCircle: number };
+  /** The most standing a player can hold with one faction. */
+  readonly max: number;
+  /** Standing per point of contact reputation a one-time Job pays. */
+  readonly perContactRep: number;
+}
+
 /** Contacts present in a round. Later contacts (Ace, 1.2.0-F) are absent from older catalogs. */
 export type ContactCatalog = Readonly<Partial<Record<ContactKey, ContactDefinition>>>;
 
@@ -2607,6 +2624,8 @@ export interface Ruleset {
   readonly contacts?: ContactCatalog;
   /** 1.4.0-A. The underworld factions behind the contacts. Absent before 1.4. */
   readonly factions?: FactionCatalog;
+  /** 1.4.0-B. Seasonal faction standing. Absent: factions are identity only. */
+  readonly factionStanding?: FactionStandingRules;
   /** Permanent per-round capabilities earned through Jobs. */
   readonly permanentUnlocks?: PermanentUnlockCatalog;
   /** Consumable favors earned from contacts. Effects are activated by later roadmap phases. */

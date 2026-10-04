@@ -1201,6 +1201,8 @@ model RoundPlayer {
   /// 1.3.0-A. What each city's police have on this player, and every change to it.
   cases                  PlayerCase[]
   caseReceipts           PlayerCaseReceipt[]
+  factionStandings       PlayerFactionStanding[]
+  factionReceipts        PlayerFactionReceipt[]
   warrants               PlayerWarrant[]
   /// 1.3.0-D. Corrupt officials on the payroll, and tips bought from informants.
   officials              PlayerOfficial[]
@@ -2250,6 +2252,7 @@ enum ActivityType {
   CAPTAIN_TIP
   INFORMANT_TIP
   CASE_FOLLOWED
+  FACTION_TIER_UP
 }
 
 enum BattleKind {
@@ -3539,4 +3542,46 @@ model PlayerTip {
 
   @@index([roundPlayerId, createdAt(sort: Desc)])
   @@index([cityId])
+}
+
+/// 1.4.0-B. A player's seasonal standing with one faction. Starts at zero every round; only the
+/// player's own one-time Jobs add to it, each with a receipt.
+model PlayerFactionStanding {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  /// KINGS, OUTFIT, ROAD_SAINTS, CARTEL_LINE or CIVIC_HANDSHAKE.
+  factionKey String
+  points     Int    @default(0)
+  /// The tier the standing last read as; a rise logs FACTION_TIER_UP once.
+  tier       String @default("UNKNOWN")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, factionKey])
+}
+
+/// 1.4.0-B. An immutable change to faction standing, keyed on the act that caused it so a retry
+/// never pays twice. The receipts always add up to the stored standing.
+model PlayerFactionReceipt {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  factionKey  String
+  /// JOB (a contact's one-time Job), later ADMIN and others.
+  source      String
+  sourceKey   String
+  delta       Int
+  pointsAfter Int
+  tierAfter   String
+
+  createdAt DateTime @default(now())
+
+  @@unique([roundPlayerId, sourceKey])
+  @@index([roundPlayerId, factionKey, createdAt])
 }

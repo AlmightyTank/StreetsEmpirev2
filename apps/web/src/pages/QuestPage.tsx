@@ -314,6 +314,9 @@ function QuestCard({
             {quest.rewards.map((reward, index) => (
               <RewardChip key={reward.kind + ':' + (reward.key ?? index)} reward={reward} />
             ))}
+            {quest.factionStanding ? (
+              <RewardChip reward={{ kind: 'FACTION_STANDING', key: quest.factionStanding.factionKey, amount: quest.factionStanding.amount, label: quest.factionStanding.label }} />
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -1030,12 +1033,17 @@ export function QuestPage() {
                 {page.factions?.length ? (
                   <div id="factions">
                     <Panel title="Factions" className="se-quests-panel">
-                      <p className="se-hint">The organizations behind your contacts: who works for whom, and who they are up against.</p>
+                      <p className="se-hint">The organizations behind your contacts: who works for whom, and who they are up against.{page.factions.some((faction) => faction.standing) ? ' Your contacts’ one-time Jobs earn their faction’s standing this season; only you can see it.' : ''}</p>
                       <div className="se-quests-contacts">
                         {page.factions.map((faction) => (
                           <div key={faction.key}>
                             <span>{faction.lane}</span>
-                            <strong>{faction.name}</strong>
+                            <strong>{faction.name}{faction.standing ? ` · ${faction.standing.tierName}` : ''}</strong>
+                            {faction.standing ? (
+                              <small>
+                                {formatNumber(faction.standing.points)} standing · {faction.standing.next ? `${faction.standing.next.tierName} at ${formatNumber(faction.standing.next.startsAt)}` : 'Top tier'}
+                              </small>
+                            ) : null}
                             <small>{faction.identity}</small>
                             <small>{faction.description}</small>
                             <small>{faction.faces.length ? `Faces: ${faction.faces.join(', ')}` : faction.facesNote ?? ''}</small>
