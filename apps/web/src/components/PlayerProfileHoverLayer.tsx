@@ -224,7 +224,7 @@ export function PlayerProfileHoverLayer() {
     <aside
       ref={cardRef}
       id="se-player-profile-hover-card"
-      className="se-profile-hover-card"
+      className={`se-profile-hover-card${profile ? ` se-profile-effect se-profile-effect--${profile.cosmetics.effect}` : ''}`}
       data-accent={profile?.cosmetics.accent ?? 'default'}
       data-framed={profile?.cosmetics.frame ? 'true' : 'false'}
       data-touch={touch ? 'true' : 'false'}
@@ -238,14 +238,18 @@ export function PlayerProfileHoverLayer() {
         if (!event.currentTarget.contains(next) && !target.anchor.contains(next)) scheduleClose();
       }}
     >
-      <div className="se-profile-hover-card__banner" aria-hidden="true">
+      <div
+        className="se-profile-hover-card__banner"
+        aria-hidden="true"
+        style={profile?.cosmetics.bannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 8, 0.36), rgba(5, 8, 8, 0.82)), url("${profile.cosmetics.bannerUrl}")` } : undefined}
+      >
         <span>STREET EMPIRE</span>
         <i className="se-profile-hover-card__spark se-profile-hover-card__spark--one" />
         <i className="se-profile-hover-card__spark se-profile-hover-card__spark--two" />
       </div>
       <div className="se-profile-hover-card__identity">
         <span className="se-profile-hover-card__avatar" aria-hidden="true">
-          {initials(profile?.displayName ?? target.label)}
+          {profile?.cosmetics.imageUrl ? <img src={profile.cosmetics.imageUrl} alt="" /> : initials(profile?.displayName ?? target.label)}
         </span>
         <span className="se-profile-hover-card__identity-copy">
           {profile?.cosmetics.title ? <span className="se-profile-hover-card__title">{profile.cosmetics.title}</span> : null}
@@ -260,6 +264,7 @@ export function PlayerProfileHoverLayer() {
             {profile.alliance ? <span>[{profile.alliance.tag}] {profile.alliance.name}</span> : null}
             <span>{profile.city.name} · {profile.seasonName}</span>
           </div>
+          {profile.profileBio ? <p className="se-profile-hover-card__bio">{profile.profileBio}</p> : null}
           <div className="se-profile-hover-card__stats">
             <div><small>National rank</small><strong>#{formatNumber(profile.rank.national)}</strong></div>
             <div><small>Net worth</small><strong>{formatCents(profile.netWorthCents)}</strong></div>
@@ -287,11 +292,12 @@ export function PlayerProfileHoverLayer() {
               ))}
             </div>
           ) : null}
-          {profile.cosmetics.frame || profile.cosmetics.accent !== 'default' ? (
+          {profile.cosmetics.frame || profile.cosmetics.accent !== 'default' || profile.cosmetics.effect !== 'none' ? (
             <div className="se-profile-hover-card__effects">
               <small>PROFILE EFFECTS</small>
               {profile.cosmetics.frame ? <span>{profile.cosmetics.frame.replaceAll('-', ' ')}</span> : null}
               {profile.cosmetics.accent !== 'default' ? <span>{profile.cosmetics.accent.replaceAll('-', ' ')} accent</span> : null}
+              {profile.cosmetics.effect !== 'none' ? <span>{profile.cosmetics.effect.replaceAll('-', ' ')}</span> : null}
             </div>
           ) : null}
         </>

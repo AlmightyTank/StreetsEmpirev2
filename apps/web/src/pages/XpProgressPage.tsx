@@ -1,20 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { experienceRequiredForLevel, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type PublicCareerDto } from '@streets/shared';
+import { EXPERIENCE_LEVEL_REWARDS, experienceRequiredForLevel, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type PublicCareerDto } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { gameApi } from '../api/game.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { formatWhen } from '../utils/time.js';
-
-const LEVEL_REWARDS = [
-  { level: 5, title: 'On the Rise', rarity: 'common' },
-  { level: 10, title: 'Known Face', rarity: 'uncommon' },
-  { level: 20, title: 'Street Veteran', rarity: 'rare' },
-  { level: 30, title: 'City Fixture', rarity: 'epic' },
-  { level: 50, title: 'Living Legend', rarity: 'legendary' },
-] as const;
 
 const CAREER_MILESTONES = [
   { key: 'veteran', title: 'Veteran', description: 'Finish your first season.', reward: 'Veteran profile title and badge', metric: 'roundsPlayed', target: 1, rarity: 'common' },
@@ -95,8 +87,6 @@ export function XpProgressPage() {
 
     const previous = lastObservedXp.current;
     lastObservedXp.current = { accountId, totalXp: liveExperience.totalXp };
-    // The mount request provides the initial log; only refetch when this account
-    // earns more XP while the page remains open.
     if (!previous || previous.accountId !== accountId || liveExperience.totalXp <= previous.totalXp) return;
 
     let active = true;
@@ -122,7 +112,14 @@ export function XpProgressPage() {
   const level = experience?.level ?? 1;
   const totalXp = experience?.totalXp ?? 0;
   const nextLevel = level + 1;
-  const nextLevelReward = LEVEL_REWARDS.find((reward) => reward.level > level) ?? null;
+  const nextLevelTotal = experienceRequiredForLevel(nextLevel);
+  const claimedRewards = EXPERIENCE_LEVEL_REWARDS.filter((reward) => reward.level <= level);
+  const nextReward = EXPERIENCE_LEVEL_REWARDS.find((reward) => reward.level > level) ?? null;
+  const nextRewardXp = nextReward ? experienceRequiredForLevel(nextReward.level) : null;
+  const previousRewardXp = claimedRewards.length > 0 ? experienceRequiredForLevel(claimedRewards[claimedRewards.length - 1]!.level) : 0;
+  const rewardProgress = nextRewardXp
+    ? Math.max(0, Math.min(100, Math.floor(((totalXp - previousRewardXp) / (nextRewardXp - previousRewardXp)) * 100)))
+    : 100;
   const legacy = career?.legacy;
   const finishedSeasons = career?.seasons ?? [];
   const lifetimeRaidWins = finishedSeasons.reduce((total, season) => total + season.stats.raidAttackWins, 0);
@@ -141,14 +138,14 @@ export function XpProgressPage() {
           <div className="se-pass-hero__progress">
             <div>
               <span>Current level</span>
-              <strong>{experienceLoading && !experience ? '…' : formatNumber(level)}</strong>
+              <strong>{experienceLoading && !experience ? '...' : formatNumber(level)}</strong>
             </div>
             <div className="se-pass-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={experience?.progressPercent ?? 0} aria-label={experience ? `Progress to level ${nextLevel}` : 'Lifetime XP progress'}>
               <span style={{ width: `${experience?.progressPercent ?? 0}%` }} />
             </div>
             <small>
               {experienceLoading && !experience
-                ? 'Loading lifetime XP…'
+                ? 'Loading lifetime XP...'
                 : experience
                   ? `${formatNumber(experience.xpIntoLevel)} / ${formatNumber(experience.xpForLevel)} XP · ${formatNumber(experience.xpToNextLevel)} to level ${formatNumber(nextLevel)}`
                   : 'Lifetime XP is not available right now.'}
@@ -156,20 +153,35 @@ export function XpProgressPage() {
           </div>
         </header>
 
-        <section className="se-pass-info">
+        <div className="se-xp-overview" aria-label="XP summary">
+          <div>
+            <span>Total XP</span>
+            <strong>{experience ? formatNumber(totalXp) : experienceLoading ? 'Loading...' : '-'}</strong>
+          </div>
+          <div>
+            <span>Titles unlocked</span>
+            <strong>{formatNumber(claimedRewards.length)} / {formatNumber(EXPERIENCE_LEVEL_REWARDS.length)}</strong>
+          </div>
+          <div>
+            <span>Next level starts</span>
+            <strong>{formatNumber(nextLevelTotal)} XP</strong>
+          </div>
+        </div>
+
+        <section className="se-pass-info se-xp-info">
           <Panel title="Lifetime stats" className="se-pass-panel">
             {experienceError && !experience ? <p className="se-muted">Could not load your lifetime XP right now.</p> : null}
             <div className="se-xp-lifetime-grid">
-              <Stat label="Lifetime XP" value={experience ? formatNumber(totalXp) : experienceLoading ? 'Loading…' : '—'} />
-              <Stat label="Finished seasons" value={legacy ? formatNumber(legacy.roundsPlayed) : careerLoading ? 'Loading…' : '—'} />
-              <Stat label="Season wins" value={legacy ? formatNumber(legacy.roundWins) : careerLoading ? 'Loading…' : '—'} />
-              <Stat label="National top 10s" value={legacy ? formatNumber(legacy.topTenFinishes) : careerLoading ? 'Loading…' : '—'} />
-              <Stat label="National podiums" value={legacy ? formatNumber(legacy.podiumFinishes) : careerLoading ? 'Loading…' : '—'} />
-              <Stat label="Best national rank" value={legacy?.bestNationalRank ? `#${formatNumber(legacy.bestNationalRank)}` : legacy ? '—' : careerLoading ? 'Loading…' : '—'} />
-              <Stat label="Raid wins" value={career ? formatNumber(lifetimeRaidWins) : careerLoading ? 'Loading…' : '—'} />
-              <Stat label="Jobs completed" value={career ? formatNumber(lifetimeJobs) : careerLoading ? 'Loading…' : '—'} />
-              <Stat label="Recon runs" value={career ? formatNumber(lifetimeRecon) : careerLoading ? 'Loading…' : '—'} />
-              <Stat label="Combined season-end net worth" value={legacy ? formatCents(legacy.totalFinalNetWorthCents) : careerLoading ? 'Loading…' : '—'} />
+              <Stat label="Lifetime XP" value={experience ? formatNumber(totalXp) : experienceLoading ? 'Loading...' : '-'} />
+              <Stat label="Finished seasons" value={legacy ? formatNumber(legacy.roundsPlayed) : careerLoading ? 'Loading...' : '-'} />
+              <Stat label="Season wins" value={legacy ? formatNumber(legacy.roundWins) : careerLoading ? 'Loading...' : '-'} />
+              <Stat label="National top 10s" value={legacy ? formatNumber(legacy.topTenFinishes) : careerLoading ? 'Loading...' : '-'} />
+              <Stat label="National podiums" value={legacy ? formatNumber(legacy.podiumFinishes) : careerLoading ? 'Loading...' : '-'} />
+              <Stat label="Best national rank" value={legacy?.bestNationalRank ? `#${formatNumber(legacy.bestNationalRank)}` : legacy ? '-' : careerLoading ? 'Loading...' : '-'} />
+              <Stat label="Raid wins" value={career ? formatNumber(lifetimeRaidWins) : careerLoading ? 'Loading...' : '-'} />
+              <Stat label="Jobs completed" value={career ? formatNumber(lifetimeJobs) : careerLoading ? 'Loading...' : '-'} />
+              <Stat label="Recon runs" value={career ? formatNumber(lifetimeRecon) : careerLoading ? 'Loading...' : '-'} />
+              <Stat label="Combined season-end net worth" value={legacy ? formatCents(legacy.totalFinalNetWorthCents) : careerLoading ? 'Loading...' : '-'} />
             </div>
             <p className="se-hint se-mt">
               Season records combine finished seasons. Current-season results are added after that season ends.
@@ -177,30 +189,53 @@ export function XpProgressPage() {
             </p>
           </Panel>
 
-          <Panel title="Next level reward" className="se-pass-panel">
-            {nextLevelReward ? (
+          <Panel title="Next level reward" className="se-pass-panel se-xp-next">
+            {nextReward ? (
               <>
-                <div className="se-rows">
-                  <Row label="Reward" value={nextLevelReward.title} strong />
-                  <Row label="Unlocks at" value={`Level ${formatNumber(nextLevelReward.level)}`} />
-                  <Row label="Reward type" value="Permanent profile title" />
+                <div className={`se-xp-reward se-xp-reward--${nextReward.rarity}`}>
+                  <span className="se-xp-reward__level">Level {formatNumber(nextReward.level)}</span>
+                  <strong>{nextReward.title}</strong>
+                  <small>{nextReward.rarity} title</small>
                 </div>
-                <p className="se-hint se-mt">Titles unlock automatically and remain yours across seasons. Equip a title from <Link to="/account">Account settings</Link>.</p>
+                <div className="se-pass-progress se-xp-rewardbar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={rewardProgress} aria-label={`Progress to ${nextReward.title}`}>
+                  <span style={{ width: `${rewardProgress}%` }} />
+                </div>
+                <div className="se-rows">
+                  <Row label="Unlocks at" value={`Level ${formatNumber(nextReward.level)}`} />
+                  <Row label="Lifetime XP needed" value={`${formatNumber(nextRewardXp ?? 0)} XP`} />
+                </div>
+                <p className="se-hint se-mt">When you reach this milestone, the title is added automatically. Equip it from <Link to="/account">Account settings</Link>.</p>
               </>
             ) : (
-              <p className="se-muted">You have reached every listed level-title milestone.</p>
+              <p className="se-muted">You have reached every listed XP title milestone. New account rewards will appear here when the track expands.</p>
             )}
           </Panel>
+        </section>
+
+        <section className="se-xp-claimed">
+          <div>
+            <span className="se-eyebrow">Unlocked rewards</span>
+            <h2>Your title case</h2>
+          </div>
+          {claimedRewards.length > 0 ? (
+            <div className="se-xp-claimed__list">
+              {claimedRewards.map((reward) => (
+                <span key={reward.key} className={`se-xp-chip se-xp-chip--${reward.rarity}`}>{reward.title}</span>
+              ))}
+            </div>
+          ) : (
+            <p className="se-hint">Reach level 5 to unlock your first permanent XP title.</p>
+          )}
         </section>
 
         <section className="se-pass-trackwrap se-xp-history" aria-label="Career history">
           <div className="se-xp-sectionhead">
             <div>
               <h2>Career history</h2>
-              <p className="se-hint">Your finished seasons, newest first. A season’s record is added here when it ends.</p>
+              <p className="se-hint">Your finished seasons, newest first. A season's record is added here when it ends.</p>
             </div>
           </div>
-          {careerLoading && !career ? <p className="se-muted se-xp-loading">Loading finished seasons…</p> : null}
+          {careerLoading && !career ? <p className="se-muted se-xp-loading">Loading finished seasons...</p> : null}
           {careerError && !career ? <p className="se-muted se-xp-loading">Career history is unavailable right now.</p> : null}
           {career && career.seasons.length === 0 ? <p className="se-muted se-xp-loading">You do not have a finished season yet. Your first season history will appear here when it ends.</p> : null}
           {career && career.seasons.length > 0 ? (
@@ -227,10 +262,10 @@ export function XpProgressPage() {
                       </td>
                       <td data-label="City">{season.city.name}</td>
                       <td className="se-table__number se-num" data-label="National">
-                        {season.rank.national === null ? '—' : `#${formatNumber(season.rank.national)}`}
+                        {season.rank.national === null ? '-' : `#${formatNumber(season.rank.national)}`}
                       </td>
                       <td className="se-table__number se-num" data-label="Local">
-                        {season.rank.local === null ? '—' : `#${formatNumber(season.rank.local)}`}
+                        {season.rank.local === null ? '-' : `#${formatNumber(season.rank.local)}`}
                       </td>
                       <td className="se-table__number se-num" data-label="Final net worth">{formatCents(season.finalNetWorthCents)}</td>
                       <td className="se-table__number se-num" data-label="Raids won">{formatNumber(season.stats.raidAttackWins)}</td>
@@ -251,7 +286,7 @@ export function XpProgressPage() {
             </div>
             <Link className="se-btn se-btn--secondary" to="/account">View cosmetics</Link>
           </div>
-          {careerLoading && !career ? <p className="se-muted se-xp-loading">Loading your career record…</p> : null}
+          {careerLoading && !career ? <p className="se-muted se-xp-loading">Loading your career record...</p> : null}
           {careerError && !career ? <p className="se-muted se-xp-loading">Career milestones are unavailable right now.</p> : null}
           <ul className="se-xp-milestones">
             {CAREER_MILESTONES.map((milestone) => {
@@ -261,12 +296,12 @@ export function XpProgressPage() {
                 <li className={`se-xp-milestone${unlocked ? ' se-xp-milestone--earned' : ''}`} key={milestone.key}>
                   <div className="se-xp-milestone__top">
                     <span className={`se-xp-milestone__rarity se-xp-milestone__rarity--${milestone.rarity}`}>{milestone.rarity}</span>
-                    <span className="se-xp-milestone__status">{unlocked ? '✓ Earned' : 'In progress'}</span>
+                    <span className="se-xp-milestone__status">{unlocked ? 'Earned' : 'In progress'}</span>
                   </div>
                   <h3>{milestone.title}</h3>
                   <p>{milestone.description}</p>
                   <div className="se-xp-milestone__reward">
-                    <span aria-hidden="true">✦</span>
+                    <span aria-hidden="true">*</span>
                     <span>{milestone.reward}</span>
                   </div>
                   <div className="se-xp-milestone__progress" role="progressbar" aria-label={`${milestone.title} progress`} aria-valuemin={0} aria-valuemax={milestone.target} aria-valuenow={current}>
@@ -279,42 +314,44 @@ export function XpProgressPage() {
           </ul>
         </section>
 
-        <section className="se-pass-trackwrap" aria-label="Lifetime level title rewards">
-          <h2>Level title rewards</h2>
-          <p className="se-hint">These profile titles are permanent account cosmetics. They do not change gameplay.</p>
-          <ol className="se-pass-track">
-            {LEVEL_REWARDS.map((reward) => {
+        <section className="se-pass-trackwrap se-xp-trackwrap" aria-label="Lifetime title unlock milestones">
+          <div className="se-xp-trackhead">
+            <div>
+              <span className="se-eyebrow">Permanent rewards</span>
+              <h2>Level reward track</h2>
+            </div>
+            <p className="se-hint">Titles unlock automatically and remain yours across seasons.</p>
+          </div>
+          <ol className="se-xp-track">
+            {EXPERIENCE_LEVEL_REWARDS.map((reward) => {
               const unlocked = level >= reward.level;
-              const total = experienceRequiredForLevel(reward.level);
+              const isNext = nextReward?.level === reward.level;
+              const requiredXp = experienceRequiredForLevel(reward.level);
               return (
                 <li
-                  key={reward.level}
-                  className={`se-pass-tier se-pass-tier--${unlocked ? 'claimed' : 'locked'}`}
-                  data-tier={reward.level}
-                  aria-label={`Level ${reward.level}: ${reward.title}, ${unlocked ? 'unlocked' : `requires ${formatNumber(total)} lifetime XP`}`}
+                  key={reward.key}
+                  className={`se-xp-card se-xp-card--${reward.rarity}${unlocked ? ' se-xp-card--unlocked' : ''}${isNext ? ' se-xp-card--next' : ''}`}
+                  aria-label={`Level ${reward.level}: ${reward.title}, ${unlocked ? 'unlocked' : `requires ${formatNumber(requiredXp)} lifetime XP`}`}
                 >
-                  <span className="se-pass-tier__number">{reward.level}</span>
-                  <div className="se-pass-tier__rewards">
-                    <figure className="se-pass-cosmetic" title={`${reward.rarity} title`}>
-                      <span aria-hidden="true">{unlocked ? '✓' : '★'}</span>
-                      <figcaption>{reward.title}</figcaption>
-                    </figure>
+                  <div className="se-xp-card__top">
+                    <span>Level {formatNumber(reward.level)}</span>
+                    <strong>{unlocked ? 'Unlocked' : isNext ? 'Next' : `${formatNumber(requiredXp)} XP`}</strong>
                   </div>
-                  <div className="se-pass-tier__foot">
-                    {unlocked
-                      ? <span className="se-pass-tier__done">✓ Unlocked</span>
-                      : <span className="se-pass-tier__cred">{formatNumber(total)} XP</span>}
+                  <div className="se-xp-card__badge" aria-hidden="true">{unlocked ? 'OK' : '*'}</div>
+                  <div>
+                    <h3>{reward.title}</h3>
+                    <p>{reward.description}</p>
                   </div>
+                  <span className="se-xp-card__rarity">{reward.rarity} title</span>
                 </li>
               );
             })}
           </ol>
         </section>
 
-
         <Panel title="XP activity log" className="se-xp-log">
           <p className="se-hint">Your 25 most recent XP awards across all seasons.</p>
-          {experienceLoading && !xpEvents.length ? <p className="se-muted">Loading XP activity…</p> : null}
+          {experienceLoading && !xpEvents.length ? <p className="se-muted">Loading XP activity...</p> : null}
           {experienceError && !xpEvents.length ? <p className="se-muted">XP activity could not be loaded right now.</p> : null}
           {!experienceLoading && !experienceError && !xpEvents.length ? <p className="se-muted">No XP awards have been recorded yet. Earn XP through completed game actions and quests.</p> : null}
           {xpEvents.length > 0 ? (

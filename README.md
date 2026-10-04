@@ -28,7 +28,7 @@ Admins run seasons, moderation and disputes from the [admin runbook](docs/ADMIN-
 
 0.9.0 (The Streets Are Talking) closes on `beta` with 0.9.0-H; see the [0.9.0-H release notes](docs/RELEASE-0.9.0-H.md).
 
-Forward roadmaps: [0.6.0 Turf](docs/ROADMAP-0.6.0.md), [0.7.0 Hideout](docs/ROADMAP-0.7.0.md), [0.8.0 Stores & Economy](docs/ROADMAP-0.8.0.md), [0.9.0 Community](docs/ROADMAP-0.9.0.md), [1.0.0 Launch & Hardening](docs/ROADMAP-1.0.0.md), the [post-1.0 future roadmap](docs/ROADMAP-FUTURE.md), and [1.2.0 Casino & Gambling](docs/ROADMAP-1.2.0.md).
+Forward roadmaps: [0.6.0 Turf](docs/ROADMAP-0.6.0.md), [0.7.0 Hideout](docs/ROADMAP-0.7.0.md), [0.8.0 Stores & Economy](docs/ROADMAP-0.8.0.md), [0.9.0 Community](docs/ROADMAP-0.9.0.md), [1.0.0 Launch & Hardening](docs/ROADMAP-1.0.0.md), the [post-1.0 future roadmap](docs/ROADMAP-FUTURE.md), [1.2.0 Casino & Gambling](docs/ROADMAP-1.2.0.md), and [1.4.0 Factions & Contracts](docs/ROADMAP-1.4.0.md).
 
 | Milestone | Scope | State |
 | --- | --- | --- |

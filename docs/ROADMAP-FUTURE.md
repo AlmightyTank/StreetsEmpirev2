@@ -160,6 +160,8 @@ Law enforcement should create strategic pressure, not random unavoidable punishm
 
 Make each city's underworld feel populated even outside player competition.
 
+See the working [1.4.0 factions and contracts roadmap](ROADMAP-1.4.0.md).
+
 ### NPC organizations
 
 Possible groups:

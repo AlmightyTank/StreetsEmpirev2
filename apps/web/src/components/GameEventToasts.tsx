@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BELL_CATEGORY_BY_ACTIVITY, type ActivityDto, type RoundDto, type RoundPlayerDto } from '@streets/shared';
+import { BELL_CATEGORY_BY_ACTIVITY, EXPERIENCE_LEVEL_REWARDS, type ActivityDto, type RoundDto, type RoundPlayerDto } from '@streets/shared';
 import { describeActivity } from './ActivityFeed.js';
 import { notificationsApi } from '../api/notifications.js';
 import { useSession } from '../stores/session.js';
@@ -30,17 +30,9 @@ const MAX_VISIBLE_TOASTS = 4;
 const TOAST_TTL_MS = 9_000;
 let manualToastId = 0;
 
-const XP_LEVEL_TITLES = [
-  { level: 5, title: 'On the Rise' },
-  { level: 10, title: 'Known Face' },
-  { level: 20, title: 'Street Veteran' },
-  { level: 30, title: 'City Fixture' },
-  { level: 50, title: 'Living Legend' },
-] as const;
-
 /** Build the celebration for newly earned lifetime XP levels. */
 export function levelUpToastFor(previousLevel: number, level: number): Omit<GameEventToast, 'id'> {
-  const titles = XP_LEVEL_TITLES
+  const titles = EXPERIENCE_LEVEL_REWARDS
     .filter((reward) => reward.level > previousLevel && reward.level <= level)
     .map((reward) => reward.title);
   const rewardText = titles.length === 1

@@ -1040,11 +1040,20 @@ export const CommunityService = {
         titlePlacement: profileSettings?.titlePlacement === 'suffix' ? 'suffix' : 'prefix',
         accent: profileAccent(profileSettings?.profileAccent),
         frame,
+        effect: profileSettings?.profileEffect === 'neon-pulse'
+          || profileSettings?.profileEffect === 'scanlines'
+          || profileSettings?.profileEffect === 'spotlight'
+          || profileSettings?.profileEffect === 'glitch'
+          ? profileSettings.profileEffect
+          : 'none',
+        imageUrl: profileSettings?.profileImageUrl ?? null,
+        bannerUrl: profileSettings?.profileBannerUrl ?? null,
       },
       experience: playerExperienceDto(player.account.experiencePoints),
       publicPimpId: player.publicPimpId,
       displayName: player.displayName,
       crewName: profileSettings?.crewName ?? null,
+      profileBio: profileSettings?.profileBio ?? null,
       seasonName: player.round.name,
       alliance: allianceTagDto(player.alliance),
       city: toCityDto(player.city),

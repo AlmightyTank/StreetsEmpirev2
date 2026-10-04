@@ -41,6 +41,8 @@
   background:
     radial-gradient(ellipse at 72% 115%, color-mix(in srgb, var(--se-hover-accent) 48%, transparent), transparent 46%),
     linear-gradient(128deg, #161d17, #273426 56%, #141b15);
+  background-size: cover;
+  background-position: center;
 }
 .se-profile-hover-card__banner::before,
 .se-profile-hover-card__banner::after {
@@ -96,6 +98,7 @@
 }
 .se-profile-hover-card__avatar {
   z-index: 2;
+  overflow: hidden;
   display: grid;
   flex: 0 0 68px;
   place-items: center;
@@ -109,6 +112,11 @@
   font-size: 21px;
   font-weight: 800;
   letter-spacing: -.06em;
+}
+.se-profile-hover-card__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .se-profile-hover-card[data-framed="true"] .se-profile-hover-card__avatar {
   box-shadow: 0 0 0 3px var(--se-hover-accent), 0 0 18px color-mix(in srgb, var(--se-hover-accent) 65%, transparent);
@@ -152,6 +160,17 @@
 .se-profile-hover-card__crew strong {
   color: var(--se-hover-text);
   font-size: 12px;
+}
+.se-profile-hover-card__bio {
+  display: -webkit-box;
+  margin: 10px 16px 0;
+  overflow: hidden;
+  color: var(--se-hover-muted);
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-line;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
 }
 .se-profile-hover-card__stats {
   display: grid;

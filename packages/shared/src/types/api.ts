@@ -164,6 +164,7 @@ export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
 export type ProfileTitlePlacement = 'prefix' | 'suffix';
+export type ProfileEffect = 'none' | 'neon-pulse' | 'scanlines' | 'spotlight' | 'glitch';
 
 export interface CosmeticOptionDto {
   key: string;
@@ -181,6 +182,13 @@ export interface AccountProfileSettingsDto {
   titlePlacement: ProfileTitlePlacement;
   /** 0.9.0-F. Optional public crew name. */
   crewName: string | null;
+  /** Plain-text public profile description. */
+  profileBio: string | null;
+  /** Direct HTTPS image URL used for the profile avatar. */
+  profileImageUrl: string | null;
+  /** Direct HTTPS image URL used for the public profile banner/background. */
+  profileBannerUrl: string | null;
+  profileEffect: ProfileEffect;
   activeProfileFrameKey: string | null;
   activeSiteThemeKey: string | null;
   featuredBadgeKeys: string[];
@@ -199,6 +207,7 @@ export interface AccountProfileSettingsResponseDto {
     accents: CosmeticOptionDto[];
     frames: CosmeticOptionDto[];
     themes: CosmeticOptionDto[];
+    effects: CosmeticOptionDto[];
     densities: CosmeticOptionDto[];
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];

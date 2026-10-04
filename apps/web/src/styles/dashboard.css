@@ -181,23 +181,19 @@
 .se-dashboard-command {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
-  grid-template-areas:
-    "attention actions"
-    "health actions";
   gap: 10px;
   align-items: start;
 }
 
-.se-dashboard-command__attention {
-  grid-area: attention;
+.se-dashboard-command__column {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
 }
 
-.se-dashboard-command__actions {
-  grid-area: actions;
-}
-
-.se-dashboard-command > .se-dashboard-section {
-  grid-area: health;
+.se-dashboard-command .se-dashboard-coregrid {
+  grid-template-columns: 1fr;
 }
 
 .se-dashboard-command__attention,
@@ -525,10 +521,6 @@
 
   .se-dashboard-command {
     grid-template-columns: 1fr;
-    grid-template-areas:
-      "attention"
-      "actions"
-      "health";
   }
 }
 
