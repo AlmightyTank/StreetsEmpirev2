@@ -33,7 +33,7 @@ export function AdminLawPlayerPage() {
   }, [roundPlayerId]);
 
   const page = data?.page ?? null;
-  const cities = page?.payroll?.cities ?? page?.cases.map((row) => ({ slug: row.citySlug, name: row.cityName })) ?? [];
+  const cities = data?.cities ?? [];
   const value = Number(points);
   const valueReady = points.trim() !== '' && Number.isFinite(value) && value >= 0 && value <= (page?.caseMax ?? 100);
   const block = busy ? 'Saving…'

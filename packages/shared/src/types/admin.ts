@@ -1007,6 +1007,8 @@ export interface AdminLawPlayerDto {
   displayName: string;
   roundId: string;
   roundName: string;
+  /** Cities a correction can name: every city on the map. Empty when the round keeps no Case. */
+  cities: Array<{ slug: string; name: string }>;
   /** Null when the round's ruleset keeps no Case. */
   page: LawPageDto | null;
 }

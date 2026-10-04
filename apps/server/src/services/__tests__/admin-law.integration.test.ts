@@ -119,6 +119,23 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('1.3.0-G admin law tools w
     expect((await post(`/api/admin/players/${playerId}/law/adjust`, { citySlug: slug, points: 12.5, reason: 'Nothing to change' })).statusCode).toBe(409);
   });
 
+  it('offers every city for a correction, not only those with a Case', async () => {
+    const view = (await get(`/api/admin/players/${playerId}/law`)).json<AdminLawPlayerDto>();
+    const enabled = await app.prisma.city.count({ where: { isEnabled: true } });
+    expect(view.cities).toHaveLength(enabled);
+    expect(view.cities.length).toBeGreaterThan(view.page!.cases.length);
+  });
+
+  it('counts an official still under Internal Affairs after their paid week lapsed', async () => {
+    const past = new Date(Date.now() - 60_000);
+    await app.prisma.playerOfficial.create({
+      data: { roundPlayerId: playerId, cityId, role: 'DA', status: 'ACTIVE', hiredAt: new Date(Date.now() - 8 * 86_400_000), paidUntil: past, iaOpenedAt: new Date(Date.now() - 3_600_000), stingAt: new Date(Date.now() + 3_600_000) },
+    });
+    const report = (await get(`/api/admin/rounds/${roundId}/law`)).json<AdminLawDto>();
+    expect(report.payroll).toMatchObject({ working: {}, underInvestigation: 1 });
+    await app.prisma.playerOfficial.deleteMany({ where: { roundPlayerId: playerId } });
+  });
+
   it('flags a stored Case that no longer adds up to its receipts', async () => {
     await app.prisma.playerCase.updateMany({ where: { roundPlayerId: playerId }, data: { caseHundredths: 9_000 } });
     const report = (await get(`/api/admin/rounds/${roundId}/law`)).json<AdminLawDto>();

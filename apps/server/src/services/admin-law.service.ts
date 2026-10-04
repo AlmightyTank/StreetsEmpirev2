@@ -47,7 +47,8 @@ export const AdminLawService = {
       }),
       prisma.playerWarrant.groupBy({ by: ['status'], where: { ...inRound, status: { in: ['OPEN', 'WAITING'] } }, _count: { _all: true } }),
       prisma.playerWarrant.groupBy({ by: ['status'], where: { ...inRound, resolvedAt: { gte: since } }, _count: { _all: true } }),
-      prisma.playerOfficial.findMany({ where: { ...inRound, status: 'ACTIVE', paidUntil: { gt: now } }, select: { role: true, iaOpenedAt: true } }),
+      // Every ACTIVE row: a lapsed week still leaves an open Internal Affairs file that can sting.
+      prisma.playerOfficial.findMany({ where: { ...inRound, status: 'ACTIVE' }, select: { role: true, iaOpenedAt: true, paidUntil: true } }),
       prisma.playerActivity.count({ where: { ...inRound, type: 'OFFICIAL_STUNG', createdAt: { gte: since } } }),
       prisma.playerTip.count({ where: { ...inRound, createdAt: { gte: since } } }),
       prisma.playerCaseReceipt.groupBy({ by: ['source'], where: { ...inRound, createdAt: { gte: since } }, _count: { _all: true }, _sum: { deltaHundredths: true } }),
@@ -67,8 +68,9 @@ export const AdminLawService = {
 
     const stored = new Map(cases.map((row) => [`${row.roundPlayerId}:${row.cityId}`, row]));
     const mismatches: AdminLawDto['integrity']['mismatches'] = [];
+    const sumByCase = new Map(sums.map((entry) => [`${entry.roundPlayerId}:${entry.cityId}`, entry._sum.deltaHundredths ?? 0]));
     for (const row of cases) {
-      const sum = sums.find((entry) => entry.roundPlayerId === row.roundPlayerId && entry.cityId === row.cityId)?._sum.deltaHundredths ?? 0;
+      const sum = sumByCase.get(`${row.roundPlayerId}:${row.cityId}`) ?? 0;
       if (sum !== row.caseHundredths) {
         mismatches.push({ playerId: row.roundPlayerId, displayName: row.roundPlayer.displayName, cityName: row.city.name, stored: row.caseHundredths / CASE_SCALE, receipts: sum / CASE_SCALE });
       }
@@ -80,7 +82,9 @@ export const AdminLawService = {
     }
 
     const working: Record<string, number> = {};
-    for (const official of officials) working[official.role] = (working[official.role] ?? 0) + 1;
+    for (const official of officials) {
+      if (official.paidUntil > now) working[official.role] = (working[official.role] ?? 0) + 1;
+    }
     const statusCount = (rows: typeof warrantsOpen, status: string) => rows.find((row) => row.status === status)?._count._all ?? 0;
 
     return {
@@ -123,7 +127,10 @@ export const AdminLawService = {
     const decorated = page
       ? await LawOfficialService.decoratePage(prisma, await LawWarrantService.decoratePage(prisma, page, player.id), player.id)
       : null;
-    return { playerId: player.id, displayName: player.displayName, roundId: player.round.id, roundName: player.round.name, page: decorated };
+    // Every city on the map, so staff can correct a city the player has no Case in yet, on
+    // rulesets before officials (D) as well.
+    const cities = page ? await prisma.city.findMany({ where: { isEnabled: true }, orderBy: { sortOrder: 'asc' }, select: { slug: true, name: true } }) : [];
+    return { playerId: player.id, displayName: player.displayName, roundId: player.round.id, roundName: player.round.name, cities, page: decorated };
   },
 
   /** Set the player's Case in one city to `points`, with a reason, in one audited transaction. */
