@@ -314,11 +314,15 @@ function useRouteScroll(pathname: string, hash: string) {
     if (previous && previous.pathname === pathname && previous.hash === hash) return;
     if (navigationType === 'POP') return;
 
-    // Storefronts are one Stores page. Switching counters should replace the
-    // shelves in place instead of yanking the player back to the page top.
+    // Storefronts and casino games share a page shell. Switching counters or
+    // games should replace the active view without yanking the player upward.
     const previousIsStore = previous?.pathname === '/game/stores' || previous?.pathname.startsWith('/game/stores/');
     const nextIsStore = pathname === '/game/stores' || pathname.startsWith('/game/stores/');
     if (previousIsStore && nextIsStore && !hash) return;
+
+    const previousIsCasinoGame = previous?.pathname.startsWith('/game/casino/');
+    const nextIsCasinoGame = pathname.startsWith('/game/casino/');
+    if (previousIsCasinoGame && nextIsCasinoGame && !hash) return;
 
     if (!hash) {
       window.scrollTo(0, 0);
