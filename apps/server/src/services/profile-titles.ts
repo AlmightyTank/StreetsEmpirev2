@@ -1,6 +1,11 @@
 import type { PublicAwardDto } from '@streets/shared';
 
 const profileTitleLabels: Record<string, string> = {
+  'player-level-5-title': 'On the Rise',
+  'player-level-10-title': 'Known Face',
+  'player-level-20-title': 'Street Veteran',
+  'player-level-30-title': 'City Fixture',
+  'player-level-50-title': 'Living Legend',
   'national-number-one': 'The National Crown',
   'city-boss': 'The City Crown',
   'top-ten': 'Top-Ten Made',

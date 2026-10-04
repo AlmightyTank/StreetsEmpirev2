@@ -331,11 +331,24 @@ export interface RoundPlayerDto {
   turf: TurfSummaryDto | null;
   /** Street Pass summary for the nav badge. Absent or null on rounds without a pass. */
   streetPass?: { tier: number; tierCount: number; claimable: number } | null;
+  /** Lifetime account XP; does not reset between rounds. */
+  experience?: PlayerExperienceDto;
   rank: RankDto;
   hideout: SeasonHideoutDto;
 
   joinedAt: string;
   lastActiveAt: string;
+}
+
+export interface PlayerExperienceDto {
+  totalXp: number;
+  level: number;
+  /** XP earned within the current level. */
+  xpIntoLevel: number;
+  /** XP required to complete the current level. */
+  xpForLevel: number;
+  xpToNextLevel: number;
+  progressPercent: number;
 }
 
 export interface ActivityDto {

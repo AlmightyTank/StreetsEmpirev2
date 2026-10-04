@@ -105,8 +105,25 @@ model Account {
   mutesReceived          PlayerMute[]            @relation("PlayerMuted")
   moderationNotes        AccountModerationNote[]
   surveySubmissions       SurveySubmission[]
+  experienceEvents        PlayerExperienceEvent[]
+  experiencePoints        Int                     @default(0)
 
   @@index([registeredIp, createdAt])
+}
+
+/// Permanent account progress, separate from season resources and Street Pass Cred.
+model PlayerExperienceEvent {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  sourceKey String
+  source    String
+  amount    Int
+  awardedAt DateTime @default(now())
+
+  @@unique([accountId, sourceKey])
+  @@index([accountId, awardedAt(sort: Desc)])
 }
 
 /// 0.9.0-H. Private admin notes on an account. Never shown to the player.
@@ -186,8 +203,8 @@ model AccountProfile {
   updatedAt DateTime @updatedAt
 }
 
-/// Permanent quest-earned cosmetics. The display metadata is snapshotted when
-/// earned so titles/badges survive later ruleset changes and round resets.
+/// Permanent account cosmetics. Display metadata is snapshotted when earned so
+/// titles and badges survive ruleset changes and round resets.
 model AccountCosmeticUnlock {
   id        String  @id @default(cuid())
   accountId String
@@ -200,6 +217,7 @@ model AccountCosmeticUnlock {
   rarity      String
   styleKey    String?
 
+  /// Quest key or another permanent account reward source.
   sourceQuestKey       String
   sourceRulesetId      String
   sourceRulesetVersion String

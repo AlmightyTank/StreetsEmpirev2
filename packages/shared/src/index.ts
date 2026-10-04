@@ -19,6 +19,7 @@ export * from './types/survey.js';
 export * from './types/public-site.js';
 export * from './types/hideout-v2.js';
 export * from './money.js';
+export * from './progression.js';
 export * from './notifications.js';
 export * from './platform.js';
 export * from './rules-agreement.js';

@@ -1446,6 +1446,36 @@ a:hover { color: var(--se-accent-hover); }
   color: var(--se-text-dim);
 }
 
+.se-gamebar__xp {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--se-text);
+  font-size: 11px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.se-gamebar__xp:hover {
+  color: var(--se-accent);
+}
+
+.se-gamebar__xp-track {
+  display: block;
+  width: 76px;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--se-line);
+}
+
+.se-gamebar__xp-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--se-accent);
+}
+
 .se-tracked-quests {
   display: flex;
   align-items: center;

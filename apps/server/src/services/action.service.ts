@@ -516,7 +516,12 @@ export const ActionService = {
 
       // Street Pass: turns spent on this action earn Cred, up to the daily cap.
       const turnsSpent = Math.max(0, current.turns - next.turns);
-      if (turnsSpent > 0) await StreetPassCredService.creditTurns(tx, roundPlayerId, ruleset, turnsSpent, now);
+      if (turnsSpent > 0) {
+        const experienceSourceKey = options.actionId
+          ? `action:${options.action}:${options.actionId}`
+          : `action:${options.action}:${roundPlayerId}:${now.toISOString()}`;
+        await StreetPassCredService.creditTurns(tx, roundPlayerId, ruleset, turnsSpent, now, experienceSourceKey);
+      }
 
       if (turns.awayBonus.awarded) {
         await ActivityService.log(tx, roundPlayerId, 'AWAY_BONUS', {

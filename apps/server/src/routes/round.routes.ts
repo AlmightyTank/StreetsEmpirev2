@@ -6,6 +6,7 @@ import { legacyAchievements, loadAccountLegacy } from '../services/community.ser
 import { PlayerStateService } from '../services/player-state.service.js';
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { isJoinable, RoundService } from '../services/round.service.js';
+import { PlayerExperienceService } from '../services/player-experience.service.js';
 
 const roundRoutes: FastifyPluginAsync = async (fastify) => {
   const requireAdmin = fastify.requireAdmin;
@@ -77,10 +78,12 @@ const roundRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const settled = await PlayerStateService.settle(fastify.prisma, existing.id);
+    const me = toRoundPlayerDto(settled.player, settled.ruleset, settled.turns, settled.products, settled.run, settled.moving, settled.convoyAlert);
+    me.experience = await PlayerExperienceService.view(fastify.prisma, settled.player.accountId);
 
     return {
       round: toRoundDto(settled.round, playerCount),
-      me: toRoundPlayerDto(settled.player, settled.ruleset, settled.turns, settled.products, settled.run, settled.moving, settled.convoyAlert),
+      me,
       canJoin: false,
       roundOver,
     };
@@ -102,10 +105,12 @@ const roundRoutes: FastifyPluginAsync = async (fastify) => {
         PlayerStateService.settle(fastify.prisma, created.id),
         RoundService.playerCount(fastify.prisma, round.id),
       ]);
+      const me = toRoundPlayerDto(settled.player, settled.ruleset, settled.turns, settled.products, settled.run, settled.moving, settled.convoyAlert);
+      me.experience = await PlayerExperienceService.view(fastify.prisma, settled.player.accountId);
 
       return reply.status(201).send({
         round: toRoundDto(settled.round, playerCount),
-        me: toRoundPlayerDto(settled.player, settled.ruleset, settled.turns, settled.products, settled.run, settled.moving, settled.convoyAlert),
+        me,
         canJoin: false,
         roundOver: null,
       });

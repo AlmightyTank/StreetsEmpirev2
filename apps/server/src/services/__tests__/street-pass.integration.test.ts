@@ -18,6 +18,7 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
   let app: FastifyInstance;
   let cookie = '';
   let playerId = '';
+  let accountId = '';
   let current: Round;
   const roundIds: string[] = [];
   const accountIds: string[] = [];
@@ -51,6 +52,7 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
 
   const service = async () => (await import('../street-pass.service.js')).StreetPassService;
   const cred = async () => (await import('../street-pass-cred.service.js')).StreetPassCredService;
+  const experience = async () => (await import('../player-experience.service.js')).PlayerExperienceService;
   const setCred = (id: string, value: number) => app.prisma.streetPassProgress.upsert({
     where: { roundPlayerId: id },
     create: { roundPlayerId: id, passKey: STREET_PASS_S1.key, cred: value },
@@ -64,6 +66,7 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
     current = await makeRound(new Date(Date.now() - 60 * 60_000));
     const player = await makePlayer(current);
     playerId = player.id;
+    accountId = player.accountId;
     cookie = player.cookie;
     const { RoundService } = await import('../round.service.js');
     vi.spyOn(RoundService, 'requireCurrent').mockImplementation(async () => current);
@@ -93,13 +96,15 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
     expect(view.cred).toBe(12 + STREET_PASS_S1.sources.oneTimeJob);
     expect(view.tier).toBe(0);
     expect(view.nextTierCred).toBe(800);
+    expect((await app.prisma.account.findUniqueOrThrow({ where: { id: accountId } })).experiencePoints).toBe(112);
   });
 
   it('caps turn Cred at 400 a day and starts again the next day', async () => {
     const credit = await cred();
     const other = await makePlayer(current);
     const now = new Date();
-    const spend = (turns: number, at: Date) => app.prisma.$transaction((tx) => credit.creditTurns(tx, other.id, rules, turns, at));
+    let spendIndex = 0;
+    const spend = (turns: number, at: Date) => app.prisma.$transaction((tx) => credit.creditTurns(tx, other.id, rules, turns, at, `spend:${spendIndex++}`));
     expect(await spend(300, now)).toBe(300);
     expect(await spend(300, now)).toBe(100);
     expect(await spend(50, now)).toBe(0);
@@ -107,6 +112,26 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
     const view = (await (await service()).view(app.prisma, other.id, rules, new Date(now.getTime() + DAY)))!;
     expect(view.cred).toBe(450);
     expect(view.turnCredToday).toBe(50);
+  });
+
+  it('awards account XP once and unlocks a title when a level milestone is crossed', async () => {
+    const player = await makePlayer(current);
+    const progress = await experience();
+    const input = {
+      roundPlayerId: player.id,
+      sourceKey: 'milestone-test',
+      source: 'TEST',
+      amount: 700,
+      awardedAt: new Date(),
+    };
+    const first = await app.prisma.$transaction((tx) => progress.award(tx, input));
+    const replay = await app.prisma.$transaction((tx) => progress.award(tx, input));
+
+    expect(first).toMatchObject({ awardedXp: 700, totalXp: 700, level: 5 });
+    expect(first.unlocked.map((cosmetic) => cosmetic.key)).toEqual(['player-level-5-title']);
+    expect(replay).toMatchObject({ awardedXp: 0, totalXp: 700, level: 5 });
+    expect(await app.prisma.playerExperienceEvent.count({ where: { accountId: player.accountId } })).toBe(1);
+    expect(await app.prisma.accountCosmeticUnlock.count({ where: { accountId: player.accountId, key: 'player-level-5-title' } })).toBe(1);
   });
 
   it('refuses a tier the player has not reached', async () => {
@@ -157,7 +182,7 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
   it('gives a player who joined two weeks in +30% Cred', async () => {
     const lateRound = await makeRound(new Date(Date.now() - 16 * DAY));
     const late = await makePlayer(lateRound, new Date(Date.now() - DAY));
-    const earned = await app.prisma.$transaction(async (tx) => (await cred()).creditQuest(tx, late.id, rules, 'DAILY'));
+    const earned = await app.prisma.$transaction(async (tx) => (await cred()).creditQuest(tx, late.id, rules, 'DAILY', 'late:daily:1'));
     expect(earned).toBe(195);
     const view = (await (await service()).view(app.prisma, late.id, rules))!;
     expect(view).toMatchObject({ cred: 195, lateJoinBonusPercent: 30 });
@@ -243,7 +268,10 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
   it('does nothing on a round without a pass', async () => {
     const plain = { ...rules, streetPass: undefined };
     expect(await (await service()).view(app.prisma, playerId, plain)).toBeNull();
-    expect(await app.prisma.$transaction(async (tx) => (await cred()).creditTurns(tx, playerId, plain, 50, new Date()))).toBe(0);
+    const player = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
+    const xpBefore = (await app.prisma.account.findUniqueOrThrow({ where: { id: player.accountId } })).experiencePoints;
+    expect(await app.prisma.$transaction(async (tx) => (await cred()).creditTurns(tx, playerId, plain, 50, new Date(), 'no-pass:turns:1'))).toBe(0);
+    expect((await app.prisma.account.findUniqueOrThrow({ where: { id: player.accountId } })).experiencePoints - xpBefore).toBe(50);
   });
 
 });

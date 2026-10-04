@@ -351,6 +351,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   useStaleGameReload();
   usePageFreshness();
   const round = useSession((s) => s.round);
+  const experience = useSession((s) => s.me?.experience ?? null);
   const isBetaEnvironment = typeof window !== 'undefined' && window.location.hostname === 'beta.streetsempire.dev';
   const sections = useSections();
   const { pathname, search, hash } = useLocation();
@@ -400,6 +401,20 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
       {round ? (
         <div className="se-gamebar">
           <span className="se-gamebar__name">{round.name}</span>
+          {experience ? (
+            <Link
+              className="se-gamebar__xp"
+              to="/game/profile"
+              title={`${experience.totalXp.toLocaleString()} lifetime XP`}
+              aria-label={`Level ${experience.level}, ${experience.xpIntoLevel} of ${experience.xpForLevel} XP to the next level. View your profile.`}
+            >
+              <strong>Level {experience.level}</strong>
+              <span className="se-gamebar__xp-track" aria-hidden="true">
+                <span style={{ width: `${experience.progressPercent}%` }} />
+              </span>
+              <span>{experience.xpIntoLevel.toLocaleString()} / {experience.xpForLevel.toLocaleString()} XP</span>
+            </Link>
+          ) : null}
           <span className="se-gamebar__time se-num">
             {round.paused ? 'Paused' : `${formatDuration(round.msRemaining)} left`}
           </span>
