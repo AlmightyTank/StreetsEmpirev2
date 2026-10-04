@@ -882,6 +882,25 @@ export interface QuestContactDto {
   points: number;
   standing: string;
   nextStandingAt: number | null;
+  /** 1.4.0-A. The faction this contact works for, or null (before 1.4, or independent). */
+  faction: { key: string; name: string } | null;
+  /** 1.4.0-A. Why the contact belongs to no faction; null when they have one or before 1.4. */
+  independent: string | null;
+}
+
+/** 1.4.0-A. One underworld faction, as the Jobs page shows it. */
+export interface FactionDto {
+  key: string;
+  name: string;
+  shortName: string;
+  identity: string;
+  lane: string;
+  description: string;
+  rivals: Array<{ key: string; name: string }>;
+  /** Contacts who work for it, by short name. */
+  faces: string[];
+  /** Faces with no contact of their own. */
+  facesNote: string | null;
 }
 
 export interface PlayerQuestDto {
@@ -891,6 +910,8 @@ export interface PlayerQuestDto {
   description: string;
   contactKey: string | null;
   contactName: string | null;
+  /** 1.4.0-A. The faction of the Job's contact, or null. */
+  factionName: string | null;
   type: string;
   category: string;
   difficulty: string;
@@ -1014,6 +1035,8 @@ export interface QuestPageDto {
     completed: number;
   };
   contacts: QuestContactDto[];
+  /** 1.4.0-A. The round's factions, or null before 1.4. */
+  factions: FactionDto[] | null;
   permanentUnlocks: QuestPermanentUnlockDto[];
   activeFavors: QuestActiveFavorDto[];
   armedFavors: QuestArmedFavorDto[];

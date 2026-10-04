@@ -81,7 +81,8 @@ export function RulesPage() {
                 <a href="#turf"><span>10</span> Turf</a>
                 <a href="#business"><span>11</span> Businesses</a>
                 <a href="#law"><span>12</span> The law</a>
-                <a href="#rank"><span>13</span> Money & rank</a>
+                <a href="#factions"><span>13</span> Factions</a>
+                <a href="#rank"><span>14</span> Money & rank</a>
               </div>
             </aside>
             <div className="se-rules__content">
@@ -405,6 +406,14 @@ export function RulesPage() {
               <li>Informants sell information, never protection: word on the federal sweep or a city&rsquo;s police.</li>
               <li>A local Case stays behind when you move house. A Case at the Federal stage follows you, and the move screen tells you before you confirm.</li>
               <li>Every Case starts at zero each season. Ledger, a retired records sergeant, has Jobs about the law, and a clean record earns titles at the end of a season.</li>
+            </ul>
+          </Panel></section>
+          <section id="factions" className="se-rules__panel"><Panel title="Factions">
+            <ul className="se-list">
+              <li>Your contacts don&rsquo;t work alone. Most of them belong to an underworld faction: the Kings run the street, the Outfit the guns and protection, Road Saints MC the roads, the Cartel Line the product, and Civic Handshake the officials who take an envelope.</li>
+              <li>A few contacts work for no one: Vic brokers between all of them, Ace runs the casino rooms, and Ledger never took an envelope.</li>
+              <li>Factions have rivals. The Jobs page shows who each faction works with and against.</li>
+              <li>Today factions are who&rsquo;s who: Jobs, rewards and prices work exactly as before.</li>
             </ul>
           </Panel></section>
           <section id="rank" className="se-rules__panel se-rules__panel--wide"><Panel title="Money and rank">
