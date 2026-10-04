@@ -217,14 +217,26 @@ function settleByFold(state: PokerState): void {
   }
 }
 
-/** Return the seats in the order they act for the current street. */
-function actionOrder(state: PokerState): string[] {
-  const count = state.seats.length;
-  const dealerIndex = Math.max(0, state.seats.findIndex((seat) => seat.id === (state.dealerId ?? 'player')));
+/** Calculate the clockwise solo table action order for the button and street. */
+export function soloPokerActionOrder(
+  seatIds: readonly string[],
+  dealerId: string | undefined,
+  street: 'PREFLOP' | 'POSTFLOP',
+): string[] {
+  if (seatIds.length === 0) return [];
+  const dealerIndex = Math.max(0, seatIds.indexOf(dealerId ?? 'player'));
   // In a three-seat hand, preflop action starts with the button; later streets
   // start with the first seat clockwise from it.
-  const firstIndex = (dealerIndex + (state.street === 'PREFLOP' ? 0 : 1)) % count;
-  return Array.from({ length: count }, (_, offset) => state.seats[(firstIndex + offset) % count]!.id);
+  const firstIndex = (dealerIndex + (street === 'PREFLOP' ? 0 : 1)) % seatIds.length;
+  return Array.from({ length: seatIds.length }, (_, offset) => seatIds[(firstIndex + offset) % seatIds.length]!);
+}
+
+function actionOrder(state: PokerState): string[] {
+  return soloPokerActionOrder(
+    state.seats.map((seat) => seat.id),
+    state.dealerId,
+    state.street === 'PREFLOP' ? 'PREFLOP' : 'POSTFLOP',
+  );
 }
 
 function botResponses(state: PokerState, rng: Rng, order: readonly string[]): void {
