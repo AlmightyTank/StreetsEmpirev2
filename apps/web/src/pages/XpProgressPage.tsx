@@ -67,7 +67,11 @@ export function XpProgressPage() {
     return () => { active = false; };
   }, [accountId]);
 
-  const experience = liveExperience ?? loadedExperience;
+  useEffect(() => {
+    if (liveExperience) setLoadedExperience(liveExperience);
+  }, [liveExperience]);
+
+  const experience = loadedExperience ?? liveExperience;
   const level = experience?.level ?? 1;
   const totalXp = experience?.totalXp ?? 0;
   const nextLevel = level + 1;
