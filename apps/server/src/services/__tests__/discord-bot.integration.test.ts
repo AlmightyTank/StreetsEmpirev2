@@ -170,6 +170,33 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
     }
   });
 
+  it('keeps a post Discord refused off the queue until an admin resends it', async () => {
+    const { AdminNewsService } = await import('../admin-news.service.js');
+    const post = await app.prisma.gameNews.create({ data: { title: 'Bot refused news', body: 'Nope', roundId, publishedAt: new Date(Date.now() - 1_000) } });
+    const claim = async () => (await app.inject({ method: 'POST', url: '/api/internal/discord/news/claim', headers: auth() })).json().news as Array<{ id: string }>;
+    try {
+      const status = await app.inject({ method: 'POST', url: '/api/internal/discord/news/status', headers: auth(), payload: { channel: 'news', problem: null } });
+      expect(status.statusCode, status.body).toBe(200);
+      expect((await claim()).some((row) => row.id === post.id)).toBe(true);
+
+      const failed = await app.inject({ method: 'POST', url: `/api/internal/discord/news/${post.id}/failed`, headers: auth(), payload: { error: 'Missing Permissions.' } });
+      expect(failed.statusCode, failed.body).toBe(200);
+      expect(await app.prisma.gameNews.findUniqueOrThrow({ where: { id: post.id } })).toMatchObject({ discordPostedAt: null, discordError: 'Missing Permissions.' });
+      expect((await claim()).some((row) => row.id === post.id)).toBe(false);
+
+      const listed = (await AdminNewsService.list(app.prisma)).posts.find((row) => row.id === post.id);
+      expect(listed).toMatchObject({ discordError: 'Missing Permissions.', discordWaiting: 'Refused: Missing Permissions. Fix that, then resend it.' });
+
+      const actor = { id: accounts[0]!.id, username: accounts[0]!.username };
+      await AdminNewsService.resendDiscord(app.prisma, actor, post.id);
+      await expect(AdminNewsService.resendDiscord(app.prisma, actor, post.id)).rejects.toMatchObject({ code: 'NEWS_DISCORD_PENDING' });
+      expect((await claim()).some((row) => row.id === post.id)).toBe(true);
+      expect(await app.prisma.adminAuditLog.count({ where: { action: 'news.discord-resend', targetId: post.id } })).toBe(1);
+    } finally {
+      await app.prisma.gameNews.deleteMany({ where: { id: post.id } });
+    }
+  });
+
   it('hands out battles, rank drops and round events once each', async () => {
     const [first, second, outsider] = [accounts[0]!, accounts[1]!, accounts[2]!];
     const setAlert = (discordId: string, type: string, enabled: boolean) =>

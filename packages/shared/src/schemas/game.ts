@@ -101,6 +101,68 @@ export type TurfPushInput = z.infer<typeof turfPushSchema>;
 export type TurfPushBackupInput = z.infer<typeof turfPushBackupSchema>;
 export type TurfPushCallInput = z.infer<typeof turfPushCallSchema>;
 
+/** 1.1.0-B/E. One lot on one of the player's blocks; city is optional for home compatibility. */
+const businessLotSchema = z.object({
+  city: z.string().trim().regex(/^[a-z][a-z-]{1,40}$/, 'Pick a city.').optional(),
+  district: z.string().trim().min(1, 'Pick a turf block.'),
+  lot: z.number({ invalid_type_error: 'Pick a lot.' }).int('Pick a lot.').min(1, 'Pick a lot.').max(3, 'Pick a lot.'),
+  actionId: actionIdSchema,
+}).strict();
+
+export const businessBuildSchema = businessLotSchema;
+/** Set how many staff to keep there (0 closes it, up to the level's max), and auto-staff. */
+export const businessStaffSchema = businessLotSchema.extend({
+  staff: z.number({ invalid_type_error: 'Enter how many staff to keep there.' }).int('Staff must be a whole number.').min(0, 'Staff cannot be negative.').safe(),
+  autoStaff: z.boolean().optional(),
+}).strict();
+export const businessCollectSchema = z.object({ actionId: actionIdSchema }).strict();
+/** 1.1.0-C. Run a racket on the business (a ruleset racket key), or null to run the front alone. */
+export const businessRacketSchema = businessLotSchema.extend({
+  racket: z.string().trim().min(1, 'Pick a racket.').max(40, 'Pick a racket.').nullable(),
+}).strict();
+export type BusinessRacketInput = z.infer<typeof businessRacketSchema>;
+
+/** 1.1.0-D. Block wars. */
+const warThugs = z.number({ invalid_type_error: 'Enter how many thugs to send.' }).int('Thugs must be a whole number.').min(1, 'Send at least one thug.').safe();
+export const blockWarDeclareSchema = z.object({
+  district: z.string().trim().min(1, 'Pick a turf block.'),
+  goal: z.enum(['TAKE', 'SACK']),
+  squad: warThugs,
+  actionId: actionIdSchema,
+}).strict();
+/** The holder's backup for a pending fight, a break attempt, or the declarer's re-assault. */
+export const blockWarSendSchema = z.object({
+  warId: z.string().trim().min(1),
+  thugs: warThugs,
+  actionId: actionIdSchema,
+}).strict();
+/** Call one ally to your side, promising a cut of 0-50% in steps of 10. */
+export const blockWarCallSchema = z.object({
+  warId: z.string().trim().min(1),
+  cutPercent: z.number().int().min(0).max(50).multipleOf(10, 'The cut moves in steps of 10%.'),
+  actionId: actionIdSchema,
+}).strict();
+export const blockWarAnswerSchema = z.object({
+  warId: z.string().trim().min(1),
+  side: z.enum(['ATTACKER', 'DEFENDER']),
+  thugs: warThugs,
+  actionId: actionIdSchema,
+}).strict();
+export const blockWarEndSchema = z.object({
+  warId: z.string().trim().min(1),
+  actionId: actionIdSchema,
+}).strict();
+export const businessTorchSchema = businessLotSchema;
+export type BlockWarDeclareInput = z.infer<typeof blockWarDeclareSchema>;
+export type BlockWarSendInput = z.infer<typeof blockWarSendSchema>;
+export type BlockWarCallInput = z.infer<typeof blockWarCallSchema>;
+export type BlockWarAnswerInput = z.infer<typeof blockWarAnswerSchema>;
+export type BlockWarEndInput = z.infer<typeof blockWarEndSchema>;
+export type BusinessTorchInput = z.infer<typeof businessTorchSchema>;
+export type BusinessBuildInput = z.infer<typeof businessBuildSchema>;
+export type BusinessStaffInput = z.infer<typeof businessStaffSchema>;
+export type BusinessCollectInput = z.infer<typeof businessCollectSchema>;
+
 export type ProduceCrackInput = z.infer<typeof produceCrackSchema>;
 export type PayoutInput = z.infer<typeof payoutSchema>;
 

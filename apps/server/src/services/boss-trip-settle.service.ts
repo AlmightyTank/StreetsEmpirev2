@@ -210,6 +210,26 @@ async function checkFlightHome(tx: Db, ownerId: string, ruleset: Ruleset, trip: 
  * while the boss was away. Idempotent.
  */
 export const BossTripSettleService = {
+  /**
+   * Every read and action runs this, on every season, so the usual answer (no trip, nothing
+   * owed) costs one query instead of three. A hit landing on this player's trip credits the
+   * attacker and their allies, never this player, so the answers hold through the settle.
+   */
+  async settleAndCredit(tx: Db, roundPlayerId: string, now: Date): Promise<void> {
+    const [due] = await tx.$queryRaw<Array<{ trip: boolean; owed: boolean }>>`
+      SELECT
+        EXISTS (SELECT 1 FROM "BossTrip" WHERE "roundPlayerId" = ${roundPlayerId} AND "status" = 'ACTIVE') AS "trip",
+        (
+          EXISTS (SELECT 1 FROM "BossHit" WHERE "attackerId" = ${roundPlayerId} AND "attackerCreditedAt" IS NULL AND "status" IN ('LANDED', 'ESCAPED'))
+          OR EXISTS (
+            SELECT 1 FROM "BossHitBackup" b JOIN "BossHit" h ON h."id" = b."hitId"
+            WHERE b."playerId" = ${roundPlayerId} AND b."creditedAt" IS NULL AND h."status" IN ('LANDED', 'ESCAPED')
+          )
+        ) AS "owed"`;
+    if (due?.trip) await BossTripSettleService.settle(tx, roundPlayerId, now);
+    if (due?.owed) await BossTripSettleService.credit(tx, roundPlayerId, now);
+  },
+
   async settle(tx: Db, roundPlayerId: string, now: Date): Promise<void> {
     const active = await activeTrip(tx, roundPlayerId);
     if (!active) return;

@@ -1,8 +1,25 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { classicOgV01 } from '@streets/rulesets';
 import { finalStandingRanks, RoundService } from '../round.service.js';
+import { TurfWarSettlementService } from '../turf-war-settle.service.js';
+
+afterEach(() => vi.restoreAllMocks());
+
+describe('RoundService turf clock ordering', () => {
+  it('settles the round/crackdown before the minute turf-war sweep', async () => {
+    const now = new Date('2026-09-27T00:01:00.000Z');
+    const getCurrent = vi.spyOn(RoundService, 'getCurrent').mockResolvedValue(null);
+    const sweep = vi.spyOn(TurfWarSettlementService, 'sweep').mockResolvedValue(0);
+
+    await RoundService.settleTurfClock({} as any, now);
+
+    expect(getCurrent).toHaveBeenCalledWith(expect.anything(), now);
+    expect(sweep).toHaveBeenCalledWith(expect.anything(), now);
+    expect(getCurrent.mock.invocationCallOrder[0]).toBeLessThan(sweep.mock.invocationCallOrder[0]!);
+  });
+});
 
 describe('finalStandingRanks', () => {
   it('freezes competition ranks nationally and per city, excluding inactive accounts', () => {

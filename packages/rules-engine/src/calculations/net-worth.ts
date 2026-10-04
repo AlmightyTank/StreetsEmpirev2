@@ -18,6 +18,7 @@ export function calculateNetWorthCents(
   // Integer maths only: BigInt division truncates, so the weight has to be
   // applied as a ratio rather than a float multiply.
   const cash = (BigInt(player.cashCents) * BigInt(v.cashWeightPercent)) / 100n;
+  const casinoCash = (BigInt(player.casinoNetWorthCents ?? 0) * BigInt(v.cashWeightPercent)) / 100n;
 
   return (
     cash +
@@ -39,6 +40,8 @@ export function calculateNetWorthCents(
     // 0.6.0-B: corner guns have left the home columns but are still owned.
     BigInt(player.postedNetWorthCents ?? 0) +
     // 0.6.0-D: an away outpost box is still the player's property.
-    BigInt(player.outpostNetWorthCents ?? 0)
+    BigInt(player.outpostNetWorthCents ?? 0) +
+    // 1.2.0-A: casino chips/bankroll are cash-equivalents, so cage transfers cannot mint ranking value.
+    casinoCash
   );
 }

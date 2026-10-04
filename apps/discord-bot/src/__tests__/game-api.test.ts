@@ -108,10 +108,23 @@ describe('createGameApi', () => {
           unlocked: true,
           earnedAt: '2026-09-21T12:00:00.000Z',
           progress: { current: 1, target: 1, label: 'hideout levels' },
+        }, {
+          // 0.9.0-F season feats use categories the bot has no special handling for.
+          key: 'season-road-warrior',
+          title: 'Road Warrior',
+          description: 'Complete runs in one season.',
+          category: 'travel',
+          rarity: 'rare',
+          unlocked: false,
+          earnedAt: null,
+          progress: null,
+          earnedSeason: null,
         }],
       } },
       '/api/internal/discord/news/claim': { news: [] },
       '/api/internal/discord/alerts': { alerts: { attacks: false, round: false, rank: false, turns: true, turf: false, alliance: false }, roundName: 'R', current: { turns: 5, cap: 144, nationalRank: 7 } },
+      '/api/internal/discord/news/n1/failed': { ok: true },
+      '/api/internal/discord/news/status': { ok: true },
       '/api/internal/discord/alerts/claim': { turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [], battles: [], turf: [], territory: [], crackdowns: [], rounds: [] },
     };
     const fetchImpl = (async (url: URL | string, init: RequestInit = {}) => {
@@ -124,15 +137,19 @@ describe('createGameApi', () => {
 
     const badges = await api.badges({ name: 'Big Daddy' });
     expect(badges.displayName).toBe('Big');
-    expect(badges.awards[0]?.category).toBe('hideout');
+    expect(badges.awards.map((award) => award.category)).toEqual(['hideout', 'travel']);
     expect(await api.claimNews()).toEqual([]);
+    await api.newsFailed('n1', 'Missing Permissions.');
+    await api.reportNewsChannel({ channel: null, problem: 'the bot needs SendMessages in #news.' });
     expect((await api.setAlert('123456789012345678', 'turns', true)).current).toEqual({ turns: 5, cap: 144, nationalRank: 7 });
     // A server from before 0.9.0-G sends no notices; the bot treats that as none.
-    expect(await api.claimAlerts()).toEqual({ turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [], notices: [], battles: [], turf: [], territory: [], crackdowns: [], rounds: [] });
+    expect(await api.claimAlerts()).toEqual({ turns: [], ranks: [], attacks: [], roundAlerts: [], turfAlerts: [], allianceAlerts: [], notices: [], battles: [], turf: [], blockWars: [], territory: [], crackdowns: [], rounds: [] });
     expect(calls).toEqual([
       { path: '/api/internal/discord/badges?name=Big+Daddy', method: 'GET', body: undefined, contentType: undefined },
       // No body, so no JSON content type for Fastify to reject as empty.
       { path: '/api/internal/discord/news/claim', method: 'POST', body: undefined, contentType: undefined },
+      { path: '/api/internal/discord/news/n1/failed', method: 'POST', body: '{"error":"Missing Permissions."}', contentType: 'application/json' },
+      { path: '/api/internal/discord/news/status', method: 'POST', body: '{"channel":null,"problem":"the bot needs SendMessages in #news."}', contentType: 'application/json' },
       { path: '/api/internal/discord/alerts', method: 'PUT', body: '{"discordId":"123456789012345678","type":"turns","enabled":true}', contentType: 'application/json' },
       { path: '/api/internal/discord/alerts/claim', method: 'POST', body: undefined, contentType: undefined },
     ]);

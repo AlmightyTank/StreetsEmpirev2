@@ -5,6 +5,7 @@ import { createPlayerActivity } from './in-app-notification.service.js';
 import { CATEGORY_COLUMN, channelsFor, recipientSelect, rowsFor, type ChannelSwitches, type OutboxRow } from './notification-channels.js';
 import { PlayerStateService } from './player-state.service.js';
 import { gameUrl } from './standings.js';
+import { settleSurveySchedules } from './survey-schedule.service.js';
 
 /**
  * 0.9.0-G. The alerts that happen by the clock or by someone else's hand: a push
@@ -92,7 +93,7 @@ async function incomingPushes(tx: Tx, now: Date, switches: ChannelSwitches): Pro
     include: {
       round: { select: { status: true, endsAt: true, rulesetId: true, rulesetVersion: true } },
       turf: { select: { district: true, holderId: true, city: { select: { slug: true } } } },
-      defender: { select: { id: true, accountId: true, hideoutLookoutsLevel: true, account: accountSettings } },
+      defender: { select: { id: true, accountId: true, hideoutLookoutsLevel: true, racketEffects: true, account: accountSettings } },
     },
   });
   const rows: OutboxRow[] = [];
@@ -104,7 +105,7 @@ async function incomingPushes(tx: Tx, now: Date, switches: ChannelSwitches): Pro
       continue;
     }
     // Exactly the turf page's rule: nothing until the Lookouts see it coming.
-    const seeUntil = now.getTime() + headsUpMinutes(ruleset, push.defender.hideoutLookoutsLevel) * 60_000;
+    const seeUntil = now.getTime() + headsUpMinutes(ruleset, push.defender.hideoutLookoutsLevel, push.defender.racketEffects) * 60_000;
     if (push.landsAt.getTime() > seeUntil) continue;
 
     const claimed = await tx.turfPush.updateMany({ where: { id: push.id, defenderAlertedAt: null }, data: { defenderAlertedAt: now } });
@@ -211,7 +212,7 @@ async function tailSightings(tx: Tx, now: Date, switches: ChannelSwitches): Prom
     include: {
       owner: {
         select: {
-          id: true, accountId: true, hideoutLookoutsLevel: true, account: accountSettings,
+          id: true, accountId: true, hideoutLookoutsLevel: true, racketEffects: true, account: accountSettings,
           round: { select: { status: true, endsAt: true, rulesetId: true, rulesetVersion: true } },
         },
       },
@@ -225,7 +226,7 @@ async function tailSightings(tx: Tx, now: Date, switches: ChannelSwitches): Prom
       continue;
     }
     // ConvoyService.alertFor's rule: the owner only sees a tail in its last minutes.
-    const seeUntil = now.getTime() + headsUpMinutes(ruleset, tail.owner.hideoutLookoutsLevel) * 60_000;
+    const seeUntil = now.getTime() + headsUpMinutes(ruleset, tail.owner.hideoutLookoutsLevel, tail.owner.racketEffects) * 60_000;
     if (tail.landsAt.getTime() > seeUntil) continue;
 
     const claimed = await tx.convoyTail.updateMany({ where: { id: tail.id, ownerAlertedAt: null }, data: { ownerAlertedAt: now } });
@@ -424,6 +425,109 @@ async function announcements(tx: Tx, now: Date, switches: ChannelSwitches): Prom
 }
 
 /**
+ * Phase E. A newly-live survey is an announcement: every eligible player's bell
+ * gets one durable item, and outside channels follow their announcement settings.
+ */
+async function surveyBroadcasts(tx: Tx, now: Date, switches: ChannelSwitches): Promise<OutboxRow[]> {
+  await settleSurveySchedules(tx, now);
+  const surveys = await tx.survey.findMany({
+    where: {
+      status: 'LIVE',
+      announcedAt: null,
+      AND: [
+        { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
+        { OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
+      ],
+    },
+    orderBy: [{ publishedAt: 'asc' }, { createdAt: 'asc' }],
+    take: 10,
+    include: { _count: { select: { questions: true } } },
+  });
+  if (!surveys.length) return [];
+
+  const rows: OutboxRow[] = [];
+  for (const survey of surveys) {
+    let players: Array<{
+      id: string;
+      accountId: string;
+      account: { notificationSettings: AlertSettings | null };
+    }>;
+
+    if (survey.roundId) {
+      players = await tx.roundPlayer.findMany({
+        where: { roundId: survey.roundId, account: { isActive: true } },
+        orderBy: { publicPimpId: 'asc' },
+        select: { id: true, accountId: true, account: accountSettings },
+      });
+    } else {
+      // Match the bell's current-round preference: an ACTIVE player wins over a
+      // future REGISTRATION player for the same account.
+      const [active, registration] = await Promise.all([
+        tx.roundPlayer.findMany({
+          where: {
+            round: { status: 'ACTIVE', endsAt: { gt: now } },
+            account: { isActive: true },
+          },
+          orderBy: [{ round: { startsAt: 'desc' } }, { publicPimpId: 'asc' }],
+          select: { id: true, accountId: true, account: accountSettings },
+        }),
+        tx.roundPlayer.findMany({
+          where: {
+            round: { status: 'REGISTRATION', endsAt: { gt: now } },
+            account: { isActive: true },
+          },
+          orderBy: [{ round: { startsAt: 'asc' } }, { publicPimpId: 'asc' }],
+          select: { id: true, accountId: true, account: accountSettings },
+        }),
+      ]);
+      const activeAccounts = new Set(active.map((player) => player.accountId));
+      players = [...active, ...registration.filter((player) => !activeAccounts.has(player.accountId))];
+    }
+
+    // Do not burn the one-time marker before there is an eligible recipient.
+    // This lets a survey scheduled for an upcoming round notify the first cohort
+    // after registration/player rows actually exist.
+    if (!players.length) continue;
+
+    const claimed = await tx.survey.updateMany({
+      where: { id: survey.id, status: 'LIVE', announcedAt: null },
+      data: { announcedAt: now },
+    });
+    if (!claimed.count) continue;
+
+    const href = `/game/surveys?tab=available&survey=${encodeURIComponent(survey.id)}`;
+    const title = `New survey: ${survey.title}`;
+    const excerpt = `${survey._count.questions} question${survey._count.questions === 1 ? '' : 's'} · reward for completion only.`;
+    const seen = new Set<string>();
+    for (const player of players) {
+      if (seen.has(player.accountId)) continue;
+      seen.add(player.accountId);
+      await createPlayerActivity(tx, player.id, 'GAME_ANNOUNCEMENT', json({
+        surveyId: survey.id,
+        title,
+        excerpt,
+        href,
+      }));
+      rows.push(...notice(
+        player.accountId,
+        player.account.notificationSettings,
+        'announcements',
+        `survey:${survey.id}`,
+        {
+          title,
+          body: excerpt,
+          url: gameUrl(href),
+          tag: `survey:${survey.id}`,
+        },
+        switches,
+        now,
+      ));
+    }
+  }
+  return rows;
+}
+
+/**
  * 1.0.0-E. Game-wide announcements: news posts an admin marked "broadcast". Once
  * published, each goes to every player of the season it belongs to (or every live
  * season, for global news) as a bell item, and to their phone and Discord where
@@ -491,6 +595,7 @@ export const GameAlertService = {
       ...await scheduled(tx, now, switches),
       ...await messages(tx, now, switches),
       ...await announcements(tx, now, switches),
+      ...await surveyBroadcasts(tx, now, switches),
       ...await newsBroadcasts(tx, now, switches),
     ];
   },

@@ -27,6 +27,7 @@ import type {
   DiscordTerritoryEventDto,
   DiscordTurfCityDto,
   DiscordTurfEventDto,
+  DiscordBlockWarEventDto,
   ForumGroupBadgeDto,
   PublicLegacyDto,
 } from '@streets/shared';
@@ -250,6 +251,57 @@ async function claimTurf(prisma: PrismaClient, now: Date, limit = 25): Promise<D
   });
 }
 
+/**
+ * 1.1.0-D. Block wars for the public street feed: each declaration once, and each end once,
+ * oldest first. Both are marked before the bot sends anything, like every other feed.
+ */
+async function claimBlockWars(prisma: PrismaClient, now: Date, limit = 25): Promise<DiscordBlockWarEventDto[]> {
+  return prisma.$transaction(async (tx) => {
+    const include = {
+      round: true,
+      turf: { include: { city: { select: { slug: true } } } },
+      attacker: { select: { publicPimpId: true, displayName: true } },
+      defender: { select: { publicPimpId: true, displayName: true } },
+    } as const;
+    const [declared, ended] = await Promise.all([
+      tx.blockWar.findMany({ where: { discordDeclaredPostedAt: null }, orderBy: { declaredAt: 'asc' }, take: limit, include }),
+      tx.blockWar.findMany({ where: { status: 'ENDED', discordEndedPostedAt: null }, orderBy: { endedAt: 'asc' }, take: limit, include }),
+    ]);
+    if (!declared.length && !ended.length) return [];
+    if (declared.length) await tx.blockWar.updateMany({ where: { id: { in: declared.map((row) => row.id) }, discordDeclaredPostedAt: null }, data: { discordDeclaredPostedAt: now } });
+    if (ended.length) await tx.blockWar.updateMany({ where: { id: { in: ended.map((row) => row.id) }, discordEndedPostedAt: null }, data: { discordEndedPostedAt: now } });
+    const allianceIds = [...new Set([...declared, ...ended].flatMap((row) => [row.attackerAllianceId, row.defenderAllianceId]).filter((id): id is string => Boolean(id)))];
+    const tags = new Map((allianceIds.length
+      ? await tx.alliance.findMany({ where: { id: { in: allianceIds } }, select: { id: true, tag: true } })
+      : []).map((alliance) => [alliance.id, alliance.tag]));
+    const event = (row: (typeof declared)[number], phase: 'DECLARED' | 'ENDED'): DiscordBlockWarEventDto => {
+      const ruleset = loadRulesetForRound(row.round);
+      const city = row.turf.city.slug;
+      const district = row.turf.district as DistrictKey;
+      return {
+        id: `${row.id}:${phase}`,
+        phase,
+        roundName: row.round.name,
+        cityName: ruleset.cities?.[city]?.name ?? city,
+        districtName: ruleset.cities?.[city]?.districts?.[district]?.name ?? ruleset.districts[district]?.name ?? row.turf.district,
+        goal: row.goal,
+        attackerName: row.attacker.displayName,
+        attackerProfileUrl: playerUrl(row.attacker.publicPimpId),
+        attackerAllianceTag: row.attackerAllianceId ? tags.get(row.attackerAllianceId) ?? null : null,
+        defenderName: row.defender.displayName,
+        defenderProfileUrl: playerUrl(row.defender.publicPimpId),
+        defenderAllianceTag: row.defenderAllianceId ? tags.get(row.defenderAllianceId) ?? null : null,
+        winner: phase === 'ENDED' ? row.winner : null,
+        reason: phase === 'ENDED' ? row.endReason : null,
+        at: (phase === 'ENDED' ? row.endedAt ?? now : row.declaredAt).toISOString(),
+      };
+    };
+    // A war that started and ended between two claims is still announced in order.
+    return [...declared.map((row) => event(row, 'DECLARED')), ...ended.map((row) => event(row, 'ENDED'))]
+      .sort((a, b) => a.at.localeCompare(b.at));
+  });
+}
+
 /** 0.6.0-E. Alliance city-control changes, handed out once to the public street feed. */
 async function claimTerritory(prisma: PrismaClient, now: Date, limit = 25): Promise<DiscordTerritoryEventDto[]> {
   return prisma.$transaction(async (tx) => {
@@ -292,13 +344,13 @@ async function claimCrackdowns(prisma: PrismaClient, now: Date, limit = 25): Pro
         where: { warningDiscordPostedAt: null, warningAt: { lte: now }, sweepAt: { gt: now } },
         orderBy: { warningAt: 'asc' },
         take: limit,
-        include: { round: { select: { name: true } }, city: { select: { slug: true, name: true } } },
+        include: { round: { select: { name: true, rulesetId: true, rulesetVersion: true } }, city: { select: { slug: true, name: true } } },
       }),
       tx.turfCrackdown.findMany({
         where: { sweepDiscordPostedAt: null, sweptAt: { not: null }, sweepAt: { lte: now } },
         orderBy: { sweepAt: 'asc' },
         take: limit,
-        include: { round: { select: { name: true } }, city: { select: { slug: true, name: true } } },
+        include: { round: { select: { name: true, rulesetId: true, rulesetVersion: true } }, city: { select: { slug: true, name: true } } },
       }),
     ]);
 
@@ -327,6 +379,7 @@ async function claimCrackdowns(prisma: PrismaClient, now: Date, limit = 25): Pro
         cityName: row.city.name,
         warningAt: row.warningAt.toISOString(),
         sweepAt: row.sweepAt.toISOString(),
+        racketHeatPerBusiness: loadRulesetForRound(row.round).business?.crackdown?.activeRacketHeatPerBusiness ?? 0,
         holdersAffected: 0,
         thugsPickedUp: 0,
       })),
@@ -338,6 +391,7 @@ async function claimCrackdowns(prisma: PrismaClient, now: Date, limit = 25): Pro
         cityName: row.city.name,
         warningAt: row.warningAt.toISOString(),
         sweepAt: row.sweepAt.toISOString(),
+        racketHeatPerBusiness: loadRulesetForRound(row.round).business?.crackdown?.activeRacketHeatPerBusiness ?? 0,
         holdersAffected: row.holdersAffected,
         thugsPickedUp: row.thugsPickedUp,
       })),
@@ -859,6 +913,8 @@ export const DiscordBotService = {
       const rows = await tx.gameNews.findMany({
         where: {
           discordPostedAt: null,
+          // A post Discord refused waits for an admin to resend it.
+          discordError: null,
           publishedAt: { lte: now },
           OR: [{ roundId: null }, ...(round ? [{ roundId: round.id }] : [])],
         },
@@ -881,6 +937,17 @@ export const DiscordBotService = {
         url: gameUrl('/game/news'),
       }));
     });
+  },
+
+  /** Discord refused a claimed post: keep why, and take it off Discord until an admin resends it. */
+  async newsFailed(prisma: PrismaClient, newsId: string, error: string): Promise<void> {
+    await prisma.gameNews.updateMany({ where: { id: newsId, discordPostedAt: { not: null } }, data: { discordPostedAt: null, discordError: error } });
+  },
+
+  /** The bot's news channel as it last saw it, so the admin panel can say why news is stuck. */
+  async reportNewsChannel(prisma: PrismaClient, report: { channel: string | null; problem: string | null }): Promise<void> {
+    const data = { lastSeenAt: new Date(), channel: report.channel, problem: report.problem };
+    await prisma.discordBotStatus.upsert({ where: { id: 'news' }, create: { id: 'news', ...data }, update: data });
   },
 
   async alertSettings(prisma: PrismaClient, discordId: string): Promise<DiscordAlertSettingsDto> {
@@ -906,14 +973,15 @@ export const DiscordBotService = {
   async claimAlerts(prisma: PrismaClient): Promise<DiscordAlertsClaimDto> {
     const now = new Date();
     await NotificationService.collect(prisma, now);
-    const [battles, turf, territory, crackdowns, rounds, dms] = await Promise.all([
+    const [battles, turf, blockWars, territory, crackdowns, rounds, dms] = await Promise.all([
       claimBattles(prisma, now),
       claimTurf(prisma, now),
+      claimBlockWars(prisma, now),
       claimTerritory(prisma, now),
       claimCrackdowns(prisma, now),
       claimRoundEnds(prisma, now),
       NotificationService.claimDiscord(prisma, now),
     ]);
-    return { ...dms, battles, turf, territory, crackdowns, rounds };
+    return { ...dms, battles, turf, blockWars, territory, crackdowns, rounds };
   },
 };

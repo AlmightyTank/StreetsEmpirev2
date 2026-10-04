@@ -56,7 +56,7 @@ const PLAYER_PAGES = [
   '/game/activity', '/game/reputation', '/game/news', '/game/status', '/game/rules', '/game/hall-of-fame', '/account',
 ];
 const ADMIN_PAGES = [
-  '/game/admin', '/game/admin/monitoring', '/game/admin/news', '/game/admin/accounts', '/game/admin/quests',
+  '/game/admin', '/game/admin/monitoring', '/game/admin/news', '/game/admin/accounts', '/game/admin/quests', '/game/admin/surveys',
   '/game/admin/integrations', '/game/admin/rulesets', '/game/admin/signals', '/game/admin/audit', '/game/admin/reports',
   '/game/admin/economy', '/game/admin/combat', '/game/admin/turf',
 ];

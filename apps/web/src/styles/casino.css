@@ -1,0 +1,1484 @@
+.se-casino {
+  --se-border: var(--se-line);
+  --se-surface: var(--se-panel);
+  display: grid;
+  min-width: 0;
+  gap: 1rem;
+}
+.se-casino * { min-width: 0; }
+.se-casino__hero { display: flex; justify-content: space-between; gap: 1.25rem; align-items: flex-start; }
+.se-casino__hero h1 { margin: .2rem 0 .35rem; }
+.se-casino__hero p { max-width: 62rem; margin: 0; }
+.se-casino__readout { display: grid; grid-template-columns: repeat(3, minmax(7.25rem, 1fr)); gap: .55rem; width: min(100%, 29rem); flex: 0 0 min(100%, 29rem); }
+.se-casino__readout span, .se-casino__venue { border: 1px solid var(--se-border); background: var(--se-surface); border-radius: .65rem; padding: .8rem; }
+.se-casino__readout small, .se-casino__readout strong { display: block; }
+.se-casino__readout small { color: var(--se-muted); margin-bottom: .2rem; }
+.se-casino__readout strong { overflow-wrap: anywhere; }
+.se-casino__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.se-casino__form { display: grid; gap: .75rem; margin-top: 1rem; }
+.se-casino__form label { display: grid; gap: .35rem; }
+.se-casino__actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.se-casino__venues { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
+.se-casino__venue.is-here { outline: 1px solid var(--se-accent); }
+.se-casino__venue h3 { margin: .3rem 0; }
+.se-casino__venue p { color: var(--se-muted); min-height: 4.5em; }
+.se-casino__ledger { display: grid; gap: .6rem; }
+.se-casino__ledgerrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; align-items: center; border: 1px solid var(--se-border); border-radius: .7rem; background: var(--se-surface); padding: .8rem .9rem; }
+.se-casino__ledgerrow.is-positive { border-color: color-mix(in srgb, var(--se-accent) 50%, var(--se-border)); }
+.se-casino__ledger-main { min-width: 0; display: grid; gap: .3rem; }
+.se-casino__ledger-title { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .35rem .8rem; align-items: baseline; }
+.se-casino__ledger-title span, .se-casino__ledger-main time, .se-casino__ledger-amount span, .se-casino__ledger-amount small { color: var(--se-muted); }
+.se-casino__ledger-main p { margin: 0; line-height: 1.35; }
+.se-casino__ledger-main time { font-size: .82rem; }
+.se-casino__ledger-amount { min-width: 8.25rem; display: grid; gap: .1rem; justify-items: end; text-align: right; }
+.se-casino__ledger-amount strong { font-size: 1.08rem; }
+.se-casino__ledgerrow.is-positive .se-casino__ledger-amount strong { color: var(--se-accent); }
+.se-casino__ledgerrow.is-negative .se-casino__ledger-amount strong { font-weight: 700; }
+@media (max-width: 900px) {
+  .se-casino__hero { display: grid; }
+  .se-casino__grid { grid-template-columns: 1fr; }
+  .se-casino__venues { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .se-casino__readout { width: 100%; flex-basis: auto; }
+}
+@media (max-width: 560px) {
+  .se-casino__readout, .se-casino__venues { grid-template-columns: 1fr; }
+  .se-casino__actions .se-btn { flex: 1 1 100%; }
+  .se-casino__ledgerrow { grid-template-columns: 1fr; }
+  .se-casino__ledger-title { display: grid; }
+  .se-casino__ledger-amount { width: 100%; grid-template-columns: auto 1fr auto; align-items: baseline; justify-items: start; text-align: left; border-top: 1px solid var(--se-border); padding-top: .55rem; }
+  .se-casino__ledger-amount strong { justify-self: center; }
+  .se-casino__ledger-amount span { justify-self: end; }
+}
+
+/* Casino floor game switcher */
+.se-casino-floor {
+  display: grid;
+  gap: .8rem;
+  min-width: 0;
+  padding: .85rem;
+  border: 1px solid var(--se-border);
+  border-radius: 1rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--se-accent) 4%, transparent), transparent 9rem),
+    color-mix(in srgb, var(--se-surface) 78%, var(--se-bg));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .025);
+}
+.se-casino-floor__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 1rem;
+  padding: .15rem .1rem .2rem;
+}
+.se-casino-floor__head h2 { margin: .15rem 0 .2rem; font-size: clamp(1.2rem, 2vw, 1.55rem); }
+.se-casino-floor__head p { margin: 0; color: var(--se-muted); max-width: 48rem; }
+.se-casino-floor__bankroll {
+  flex: 0 0 auto;
+  min-width: min(18rem, 100%);
+  display: grid;
+  justify-items: end;
+  gap: .05rem;
+  padding: .55rem .7rem;
+  border: 1px solid var(--se-border);
+  border-radius: .65rem;
+  background: var(--se-bg);
+  text-align: right;
+}
+.se-casino-floor__bankroll small,
+.se-casino-floor__bankroll span { color: var(--se-muted); }
+.se-casino-floor__bankroll strong {
+  font-family: var(--se-mono);
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+.se-casino-floor__bankroll span { font-size: .75rem; }
+
+.se-poker-lobby { display: grid; gap: .85rem; max-width: 38rem; }
+.se-poker-lobby p { margin: 0; }
+.se-poker-lobby label, .se-poker-actions label { display: grid; gap: .35rem; font-weight: 700; }
+.se-poker-lobby input, .se-poker-actions input { width: 100%; max-width: 14rem; padding: .7rem; border: 1px solid var(--se-border); border-radius: .55rem; color: var(--se-text); background: var(--se-bg); }
+.se-poker-lobby select { width: 100%; max-width: 14rem; padding: .7rem; border: 1px solid var(--se-border); border-radius: .55rem; color: var(--se-text); background: var(--se-bg); }
+.se-poker-lobby small { color: var(--se-muted); line-height: 1.45; }
+.se-poker-lobby--multiplayer { max-width: none; padding: 1rem; border: 1px solid var(--se-border); border-radius: .85rem; background: color-mix(in srgb, var(--se-surface) 85%, transparent); }
+.se-poker-lobby--multiplayer h3 { margin: 0; }
+.se-poker-table-list { display: grid; gap: .6rem; }
+.se-poker-table-list article { display: grid; gap: .4rem; padding: .8rem; border: 1px solid var(--se-border); border-radius: .7rem; background: var(--se-bg); }
+.se-poker-table-list article > span, .se-poker-table-list article > small { color: var(--se-muted); }
+.se-poker-table-list__actions { display: flex; flex-wrap: wrap; gap: .45rem; }
+.se-poker-table { display: grid; gap: 1rem; }
+.se-poker-table__meta { display: flex; justify-content: space-between; align-items: center; gap: 1rem; color: var(--se-muted); font-size: .85rem; letter-spacing: .08em; }
+.se-poker-table__meta strong { color: var(--se-text); font-size: 1.1rem; letter-spacing: 0; }
+.se-poker-table__board { display: flex; justify-content: center; flex-wrap: wrap; gap: .45rem; padding: 1rem; min-height: 6.5rem; border: 1px solid color-mix(in srgb, var(--se-accent) 40%, var(--se-border)); border-radius: .8rem; background: radial-gradient(ellipse at center, color-mix(in srgb, var(--se-accent) 17%, #092318), #07150f 76%); }
+.se-poker-card { display: inline-grid; place-content: center; width: clamp(2.65rem, 10vw, 3.65rem); aspect-ratio: .72; border-radius: .38rem; background: #f7f5e8; color: #141820; box-shadow: 0 2px 5px #0007; font-family: var(--se-mono); font-weight: 800; text-align: center; }
+.se-poker-card strong { font-size: 1.1rem; line-height: 1.1; }
+.se-poker-card span { font-size: 1.15rem; line-height: 1.1; }
+.se-poker-card.is-red { color: #c93239; }
+.se-poker-card--back { color: #c9a85e; background: repeating-linear-gradient(135deg, #17372b, #17372b 5px, #214c3a 5px, #214c3a 10px); border: 2px solid #d6bd79; }
+.se-poker-table__seats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; }
+.se-poker-seat { display: grid; gap: .5rem; padding: .7rem; border: 1px solid var(--se-border); border-radius: .7rem; background: var(--se-surface); }
+.se-poker-seat.is-human { border-color: color-mix(in srgb, var(--se-accent) 65%, var(--se-border)); }
+.se-poker-seat.is-folded { opacity: .62; }
+.se-poker-seat.is-turn { box-shadow: 0 0 0 2px color-mix(in srgb, var(--se-accent) 68%, transparent); }
+.se-poker-table--multiplayer { padding: 1rem; border: 1px solid color-mix(in srgb, var(--se-accent) 45%, var(--se-border)); border-radius: .9rem; background: color-mix(in srgb, var(--se-accent) 5%, var(--se-surface)); }
+.se-poker-seat__heading { display: flex; justify-content: space-between; gap: .4rem; align-items: baseline; flex-wrap: wrap; }
+.se-poker-seat__heading span, .se-poker-seat small { color: var(--se-muted); font-size: .82rem; }
+.se-poker-seat__cards { display: flex; gap: .3rem; }
+.se-poker-seat__hand { color: var(--se-accent); font-weight: 700; }
+.se-poker-actions { display: flex; align-items: end; justify-content: space-between; flex-wrap: wrap; gap: .8rem; padding-top: .85rem; border-top: 1px solid var(--se-border); }
+.se-poker-actions > span { margin-right: auto; color: var(--se-muted); }
+.se-poker-actions > div { display: flex; flex-wrap: wrap; gap: .5rem; }
+@media (max-width: 650px) {
+  .se-poker-table__seats { grid-template-columns: 1fr; }
+  .se-poker-actions { align-items: stretch; }
+  .se-poker-actions > div { width: 100%; }
+  .se-poker-actions > div .se-btn { flex: 1 1 40%; }
+}
+
+.se-casino-games {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: .45rem;
+  padding: .35rem;
+  border: 1px solid var(--se-border);
+  border-radius: .8rem;
+  background: var(--se-bg);
+}
+.se-casino-game-tab {
+  min-width: 0;
+  min-height: 4.25rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: .55rem;
+  padding: .55rem .65rem;
+  border: 1px solid transparent;
+  border-radius: .6rem;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color .15s ease, background .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.se-casino-game-tab:hover {
+  border-color: color-mix(in srgb, var(--se-accent) 28%, var(--se-border));
+  background: color-mix(in srgb, var(--se-accent) 5%, var(--se-surface));
+}
+.se-casino-game-tab:focus-visible { outline: 2px solid var(--se-accent); outline-offset: 2px; }
+.se-casino-game-tab.is-active {
+  border-color: var(--se-accent);
+  background: color-mix(in srgb, var(--se-accent) 11%, var(--se-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--se-accent) 35%, transparent);
+}
+.se-casino-game-tab__icon {
+  width: 2.45rem;
+  height: 2.45rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--se-border);
+  border-radius: .55rem;
+  background: var(--se-surface);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+.se-casino-game-tab.is-active .se-casino-game-tab__icon {
+  border-color: color-mix(in srgb, var(--se-accent) 65%, var(--se-border));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--se-accent) 14%, transparent);
+}
+.se-casino-game-tab__copy { min-width: 0; display: grid; gap: .12rem; }
+.se-casino-game-tab__copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.se-casino-game-tab__copy small {
+  color: var(--se-muted);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .09em;
+}
+.se-casino-game-tab.is-live .se-casino-game-tab__copy small { color: var(--se-accent); }
+.se-casino-game-tab.is-coming:not(.is-active) { opacity: .76; }
+
+.se-casino-game-stage { min-width: 0; }
+.se-casino-game-stage > * { margin: 0; }
+
+.se-casino-placeholder {
+  min-height: 18rem;
+  display: grid;
+  grid-template-columns: minmax(8rem, .38fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 1.25rem;
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 1px solid color-mix(in srgb, var(--se-accent) 18%, var(--se-border));
+  border-radius: .9rem;
+  background:
+    radial-gradient(circle at 20% 45%, color-mix(in srgb, var(--se-accent) 8%, transparent), transparent 35%),
+    var(--se-bg);
+  overflow: hidden;
+}
+.se-casino-placeholder__mark {
+  min-height: 10rem;
+  display: grid;
+  place-items: center;
+  border: 1px dashed color-mix(in srgb, var(--se-accent) 35%, var(--se-border));
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--se-accent) 5%, var(--se-surface));
+  font-size: clamp(3rem, 10vw, 6rem);
+  filter: saturate(.85);
+}
+.se-casino-placeholder__copy { display: grid; align-content: center; gap: .45rem; }
+.se-casino-placeholder__copy h3 { margin: 0; font-size: clamp(1.25rem, 2.5vw, 1.7rem); }
+.se-casino-placeholder__copy p { margin: 0; max-width: 48rem; color: var(--se-muted); line-height: 1.5; }
+.se-casino-placeholder__features { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .35rem; }
+.se-casino-placeholder__features span {
+  padding: .35rem .5rem;
+  border: 1px solid var(--se-border);
+  border-radius: 999px;
+  background: var(--se-surface);
+  color: var(--se-muted);
+  font-size: .75rem;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .se-casino-floor__head { align-items: stretch; }
+  .se-casino-games {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(9.5rem, 34%);
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: inline mandatory;
+    scrollbar-width: none;
+  }
+  .se-casino-games::-webkit-scrollbar { display: none; }
+  .se-casino-game-tab { scroll-snap-align: start; }
+}
+
+@media (max-width: 620px) {
+  .se-casino-floor { padding: .55rem; gap: .6rem; border-radius: .8rem; }
+  .se-casino-floor__head { display: grid; gap: .55rem; }
+  .se-casino-floor__head p { font-size: .82rem; line-height: 1.35; }
+  .se-casino-floor__bankroll {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    justify-items: start;
+    text-align: left;
+    gap: .08rem .65rem;
+  }
+  .se-casino-floor__bankroll strong { justify-self: end; }
+  .se-casino-floor__bankroll span { grid-column: 1 / -1; }
+  .se-casino-games {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: row;
+    gap: .35rem;
+    padding: .3rem;
+  }
+  .se-casino-game-tab {
+    min-height: 3.6rem;
+    gap: .4rem;
+    padding: .42rem .5rem;
+  }
+  .se-casino-game-tab__icon { width: 2.1rem; height: 2.1rem; font-size: 1.05rem; }
+  .se-casino-game-tab__copy strong { font-size: .88rem; white-space: normal; line-height: 1.1; }
+  .se-casino-game-tab__copy small { font-size: .6rem; }
+  .se-casino-placeholder {
+    min-height: 15rem;
+    grid-template-columns: 1fr;
+    gap: .8rem;
+    padding: .85rem;
+  }
+  .se-casino-placeholder__mark { min-height: 6.5rem; font-size: 3.6rem; }
+}
+
+.se-slots { display: grid; min-width: 0; gap: 1rem; }
+.se-slots__machines { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; }
+.se-slots__machine { border: 1px solid var(--se-border); border-radius: .65rem; background: var(--se-surface); color: inherit; padding: .75rem; text-align: left; cursor: pointer; display: grid; gap: .35rem; }
+.se-slots__machine:hover, .se-slots__machine.is-selected { border-color: var(--se-accent); box-shadow: inset 0 0 0 1px var(--se-accent); }
+.se-slots__machine:disabled { cursor: not-allowed; opacity: .72; }
+.se-slots__machine > span { display: flex; justify-content: space-between; gap: .6rem; align-items: baseline; }
+.se-slots__machine strong { overflow-wrap: anywhere; }
+.se-slots__machine small { color: var(--se-muted); }
+
+.se-slots__stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(17.5rem, .46fr); gap: 1rem; align-items: start; }
+.se-slots__copy { min-width: 0; }
+.se-slots__copy h3 { margin: 0 0 .35rem; }
+.se-slots__title-row { display: flex; justify-content: space-between; gap: .8rem; align-items: start; }
+.se-slots__title-row p { margin: 0 0 .35rem; color: var(--se-text-dim); }
+.se-slots__sound { flex: none; }
+.se-slots__jackpot { border: 1px solid var(--se-accent); border-radius: .55rem; padding: .65rem .75rem; margin: .75rem 0 0; }
+
+.se-slots__bonus-banner {
+  border: 1px solid var(--se-accent);
+  border-radius: .7rem;
+  background: color-mix(in srgb, var(--se-accent) 10%, var(--se-surface));
+  padding: .75rem .9rem;
+  display: grid;
+  gap: .18rem;
+}
+.se-slots__bonus-banner span { color: var(--se-accent); font-size: .75rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.se-slots__bonus-banner strong { font-size: 1.2rem; }
+.se-slots__bonus-banner small { color: var(--se-muted); }
+
+.se-slots__cabinet {
+  --se-slot-gold: #e5bd62;
+  grid-column: 1;
+  display: grid;
+  gap: .6rem;
+  position: relative;
+  padding: .8rem;
+  border: 2px solid #8c6027;
+  border-radius: 1.2rem 1.2rem .8rem .8rem;
+  background: linear-gradient(115deg, #70491e, #f0d17a 12%, #b27b2a 23%, #f8df8e 48%, #9a6824 78%, #e8c66c);
+  box-shadow: 0 .85rem 1.7rem rgb(0 0 0 / .38), inset 0 0 0 2px rgb(255 248 204 / .4), inset 0 -1rem 1.4rem rgb(62 35 8 / .2);
+}
+.se-slots__cabinet-marquee {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: .1rem;
+  overflow: hidden;
+  padding: .55rem .7rem .6rem;
+  border: 2px solid #ffe49a;
+  border-radius: 50% 50% .5rem .5rem / 25% 25% .5rem .5rem;
+  background:
+    radial-gradient(ellipse at 50% 5%, rgb(255 255 255 / .24), transparent 60%),
+    linear-gradient(180deg, #9c171c, #551014 78%, #310c10);
+  color: #fff4d1;
+  text-align: center;
+  text-shadow: 0 2px 2px #240507, 0 0 9px rgb(255 201 85 / .28);
+  box-shadow: inset 0 0 0 2px #8f632a, inset 0 0 22px rgb(0 0 0 / .38), 0 .22rem .35rem rgb(0 0 0 / .3);
+}
+.se-slots__cabinet-marquee::before {
+  content: '';
+  position: absolute;
+  inset: .35rem .55rem auto;
+  height: .35rem;
+  background: radial-gradient(circle, #fff8c7 0 .13rem, #d79837 .15rem .2rem, transparent .22rem) left center / 1.05rem .4rem repeat-x;
+  opacity: .9;
+}
+.se-slots__cabinet-brand { color: #ffe4a0; font-size: .68rem; font-weight: 950; letter-spacing: .2em; }
+.se-slots__cabinet-brand strong { color: #68df92; }
+.se-slots__cabinet-name { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(1.3rem, 3vw, 2rem); font-weight: 950; letter-spacing: .055em; line-height: 1.1; text-transform: uppercase; }
+.se-slots__cabinet-prize { color: #ffe48d; font-size: .7rem; font-weight: 900; letter-spacing: .12em; }
+.se-slots__cabinet.is-neon-sevens .se-slots__cabinet-marquee { background: radial-gradient(ellipse at 50% 5%, rgb(255 255 255 / .2), transparent 60%), linear-gradient(180deg, #56218a, #24103f 78%, #160b27); }
+.se-slots__cabinet.is-neon-sevens { --se-slot-gold: #d29aff; }
+.se-slots__cabinet.is-empire-gold { --se-slot-gold: #f5d47b; }
+.se-slots__cabinet.is-big, .se-slots__cabinet.is-mega, .se-slots__cabinet.is-jackpot { animation: se-cabinet-hit .6s ease-out both; }
+.se-slots__cabinet.is-jackpot { animation: se-cabinet-jackpot 1s ease-in-out 2; }
+
+.se-slots__reels {
+  position: relative;
+  display: grid;
+  gap: .25rem;
+  width: 100%;
+  margin-inline: auto;
+  padding: .55rem;
+  border: 3px solid #fff0b5;
+  border-radius: .72rem;
+  background: linear-gradient(135deg, #17100a, #070707 55%, #32200b);
+  box-shadow: inset 0 0 0 2px #936629, inset 0 0 1.2rem #000, 0 .3rem .55rem rgb(0 0 0 / .4);
+  overflow: hidden;
+}
+.se-slots__reel {
+  min-width: 0;
+  min-height: clamp(4.35rem, 8vw, 5.75rem);
+  aspect-ratio: 1.08;
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--se-slot-gold);
+  border-radius: .28rem;
+  background: linear-gradient(90deg, #c59b50, #fff9de 12%, #f6edcf 82%, #c49a4d);
+  color: #811d1d;
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / .65), inset 0 0 .75rem rgb(94 54 7 / .2), 0 1px 2px #000;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+.se-slots__reel::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgb(44 25 5 / .28), transparent 20%, transparent 80%, rgb(44 25 5 / .28)); }
+.se-slots__reel > span { max-width: 100%; overflow: hidden; text-overflow: clip; font-size: clamp(1.45rem, 5.5vw, 3.5rem); font-weight: 800; line-height: 1; filter: drop-shadow(0 2px 1px rgb(0 0 0 / .14)); }
+.se-slots__cabinet-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(.35rem, 2vw, 1rem);
+  min-height: 2rem;
+  padding: .32rem .6rem;
+  border: 2px solid #b68a3e;
+  border-radius: .35rem;
+  background: linear-gradient(180deg, #124128, #071f15);
+  color: #f7dda0;
+  font-size: .68rem;
+  font-weight: 950;
+  letter-spacing: .16em;
+  text-shadow: 0 1px 2px #000;
+  box-shadow: inset 0 0 12px rgb(0 0 0 / .55);
+}
+.se-slots__cabinet-footer strong { color: #ffdd66; font-family: Georgia, 'Times New Roman', serif; font-size: 1.15rem; }
+.se-slots__reel.is-winning { border-color: var(--se-accent); box-shadow: inset 0 0 0 2px var(--se-accent), 0 0 15px color-mix(in srgb, var(--se-accent) 38%, transparent); transform: translateY(-1px); animation: se-winning-cell .72s ease-in-out infinite alternate; }
+.se-slots__reel.is-anticipating { border-color: color-mix(in srgb, var(--se-accent) 60%, #fff); box-shadow: 0 0 18px color-mix(in srgb, var(--se-accent) 32%, transparent); animation: se-anticipation .3s ease-in-out infinite alternate; }
+.se-slots__strip-track { position: absolute; inset: -220% 0; display: grid; align-content: space-around; justify-items: center; filter: blur(.6px); animation: se-strip-spin .23s linear infinite; }
+.se-slots__strip-track span { display: grid; place-items: center; min-height: 2.2rem; font-size: clamp(1.35rem, 5vw, 3rem); font-weight: 800; opacity: .88; }
+.se-slots__reel:nth-child(3n + 2) .se-slots__strip-track { animation-duration: .19s; }
+.se-slots__reel:nth-child(3n) .se-slots__strip-track { animation-duration: .27s; }
+
+.se-slots__line-overlay { position: absolute; inset: .65rem; width: calc(100% - 1.3rem); height: calc(100% - 1.3rem); pointer-events: none; z-index: 3; overflow: visible; }
+.se-slots__line-overlay polyline { fill: none; stroke: var(--se-accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; opacity: .82; filter: drop-shadow(0 0 3px var(--se-accent)); animation: se-line-pulse .65s ease-in-out infinite alternate; }
+
+.se-slots__bonus-award, .se-slots__win-flash { position: absolute; inset: 0; z-index: 5; display: grid; place-content: center; justify-items: center; text-align: center; pointer-events: none; border-radius: .8rem; }
+.se-slots__bonus-award { background: rgba(5,7,9,.82); animation: se-bonus-pop .65s cubic-bezier(.2,.8,.2,1) both; }
+.se-slots__bonus-award strong { font-size: clamp(1.8rem, 8vw, 4rem); color: var(--se-accent); text-shadow: 0 0 18px color-mix(in srgb, var(--se-accent) 55%, transparent); }
+.se-slots__bonus-award span { margin-top: .35rem; font-weight: 700; }
+.se-slots__win-flash { align-content: start; padding-top: 1rem; background: linear-gradient(180deg, rgba(5,7,9,.7), transparent 55%); font-size: clamp(1.15rem, 4vw, 2.2rem); font-weight: 900; letter-spacing: .08em; color: var(--se-accent); text-shadow: 0 0 14px color-mix(in srgb, var(--se-accent) 60%, transparent); animation: se-win-flash .8s ease-out both; }
+.se-slots__win-flash.is-mega, .se-slots__win-flash.is-jackpot { font-size: clamp(1.5rem, 6vw, 3rem); }
+.se-slots__win-flash.is-jackpot { color: #f2ce66; text-shadow: 0 0 18px rgba(242,206,102,.72); }
+
+.se-slots__controls { grid-column: 2; display: grid; align-self: start; gap: .7rem; }
+.se-slots__meter { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.75rem, 1fr)); gap: .55rem; width: 100%; margin-inline: auto; }
+.se-slots__meter span { border: 1px solid var(--se-border); border-radius: .55rem; padding: .55rem .7rem; background: var(--se-bg); }
+.se-slots__meter small, .se-slots__meter strong { display: block; }
+.se-slots__meter small { color: var(--se-muted); margin-bottom: .15rem; }
+.se-slots__meter strong { overflow-wrap: anywhere; font-family: var(--se-mono); font-variant-numeric: tabular-nums; font-size: .92rem; }
+.se-slots__last-win strong { color: var(--se-accent); }
+
+.se-slots__form { align-self: start; margin-top: 0; padding: .8rem; border: 1px solid var(--se-border); border-radius: .75rem; background: color-mix(in srgb, var(--se-surface) 88%, var(--se-bg)); }
+.se-slots__form.is-free-spin { border-color: var(--se-accent); background: color-mix(in srgb, var(--se-accent) 8%, var(--se-surface)); }
+.se-slots__bet-control { display: grid; gap: .35rem; }
+.se-slots__bet-stepper { display: grid; grid-template-columns: auto minmax(5rem, 1fr) auto auto; gap: .4rem; align-items: center; }
+.se-slots__bet-stepper .se-input { min-width: 0; }
+.se-slots__line-control { display: grid; gap: .35rem; }
+.se-slots__spin-button { width: 100%; min-height: 3.4rem; display: flex; justify-content: center; align-items: center; gap: .8rem; border-color: #b17d2f; background: linear-gradient(180deg, #fae49f, #c89136 48%, #805018); color: #251708; font-weight: 950; letter-spacing: .11em; text-shadow: 0 1px rgb(255 255 255 / .35); box-shadow: inset 0 1px 0 rgb(255 255 255 / .7), 0 .25rem .45rem rgb(0 0 0 / .35); }
+.se-slots__spin-button:hover:not(:disabled) { background: linear-gradient(180deg, #fff0b8, #e0ad4d 48%, #98631f); color: #251708; }
+.se-slots__lever { position: relative; flex: none; width: 1.45rem; height: 2.35rem; display: inline-block; transform-origin: 50% 100%; transition: transform .14s ease-out; }
+.se-slots__lever i { position: absolute; top: 0; left: .22rem; width: 1rem; height: 1rem; border: 1px solid #8c1515; border-radius: 50%; background: radial-gradient(circle at 33% 27%, #ffb1a2 0 10%, #e54836 28%, #a91016 70%, #5c0b10); box-shadow: inset 0 1px 2px rgb(255 255 255 / .55), 0 2px 3px #321b0b; }
+.se-slots__lever b { position: absolute; left: .59rem; top: .72rem; width: .28rem; height: 1.55rem; border: 1px solid #a46a21; border-radius: .2rem; background: linear-gradient(90deg, #754510, #fff0b3 42%, #ba842e 75%, #60390f); box-shadow: 1px 2px 3px rgb(0 0 0 / .35); }
+.se-slots__spin-button:active:not(:disabled) .se-slots__lever { transform: rotate(24deg) translateY(.1rem); }
+.se-slots__form.is-free-spin .se-slots__spin-button { box-shadow: 0 0 14px color-mix(in srgb, var(--se-accent) 32%, transparent); }
+
+.se-slots__payline-panel { grid-column: 1 / -1; display: grid; gap: .65rem; border-top: 1px solid var(--se-border); padding-top: .85rem; }
+.se-slots__payline-head { display: flex; justify-content: space-between; gap: .75rem; align-items: flex-end; }
+.se-slots__payline-head > div:first-child { display: grid; gap: .15rem; }
+.se-slots__payline-head small { color: var(--se-muted); }
+.se-slots__line-tools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .45rem; }
+.se-slots__line-stepper { display: grid; grid-template-columns: auto minmax(4.5rem, auto) auto; gap: .35rem; align-items: stretch; }
+.se-slots__line-stepper > span { display: grid; align-content: center; min-height: 2.25rem; padding: .3rem .6rem; border: 1px solid var(--se-border); border-radius: .45rem; background: var(--se-bg); text-align: center; }
+.se-slots__line-stepper strong, .se-slots__line-stepper small { display: block; }
+.se-slots__line-stepper strong { font-family: var(--se-mono); font-size: .98rem; line-height: 1; }
+.se-slots__line-stepper small { margin-top: .1rem; color: var(--se-muted); font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.se-slots__presets { display: flex; flex-wrap: wrap; gap: .45rem; }
+.se-slots__paylines { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .45rem; }
+.se-slots__payline { min-width: 0; min-height: 3.2rem; border: 1px solid var(--se-border); border-radius: .5rem; background: var(--se-surface); color: inherit; cursor: pointer; padding: .45rem .5rem; display: grid; gap: .1rem; text-align: left; }
+.se-slots__payline span { color: var(--se-muted); font-size: .78rem; overflow-wrap: anywhere; }
+.se-slots__payline.is-selected { border-color: var(--se-accent); box-shadow: inset 0 0 0 1px var(--se-accent); }
+.se-slots__payline.is-winning { border-color: color-mix(in srgb, var(--se-accent) 55%, var(--se-border)); }
+.se-slots__payline.is-active-win { background: color-mix(in srgb, var(--se-accent) 15%, var(--se-surface)); box-shadow: inset 0 0 0 1px var(--se-accent), 0 0 9px color-mix(in srgb, var(--se-accent) 20%, transparent); }
+
+.se-slots__paytable { grid-column: 1 / -1; border-top: 1px solid var(--se-border); padding-top: .75rem; }
+.se-slots__paytable summary { cursor: pointer; font-weight: 700; }
+.se-slots__paytable-grid { display: grid; gap: .35rem; margin-top: .6rem; }
+.se-slots__paytable-row { display: flex; justify-content: space-between; gap: .75rem; align-items: center; padding: .45rem 0; border-bottom: 1px solid var(--se-border); }
+.se-slots__paytable-row:last-child { border-bottom: 0; }
+.se-slots__paytable-row > span:last-child { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .45rem .75rem; color: var(--se-muted); }
+.se-slots__paytable-symbol { display: inline-flex; align-items: center; gap: .5rem; min-width: 8rem; }
+.se-slots__paytable-symbol strong { min-width: 2.2rem; text-align: center; font-size: 1.2rem; }
+
+.se-slots__result { grid-column: 1 / -1; display: grid; gap: .25rem; border-radius: .65rem; }
+.se-slots__result.is-big, .se-slots__result.is-mega, .se-slots__result.is-jackpot { outline: 1px solid color-mix(in srgb, var(--se-accent) 50%, var(--se-border)); padding: .65rem; }
+.se-slots__near-miss { margin: .55rem 0 0; color: var(--se-muted); font-weight: 650; }
+.se-slots__wins { display: grid; gap: .35rem; margin-top: .65rem; }
+.se-slots__win { display: grid; grid-template-columns: minmax(5rem, .7fr) minmax(7rem, 1fr) auto; gap: .65rem; align-items: center; border-top: 1px solid var(--se-border); padding-top: .4rem; opacity: .7; transition: opacity .16s ease, transform .16s ease; }
+.se-slots__win.is-active { opacity: 1; transform: translateX(2px); }
+.se-slots__win span { color: var(--se-muted); }
+
+@keyframes se-strip-spin {
+  from { transform: translateY(-18%); }
+  to { transform: translateY(18%); }
+}
+@keyframes se-winning-cell {
+  from { filter: brightness(1); }
+  to { filter: brightness(1.28); }
+}
+@keyframes se-line-pulse {
+  from { opacity: .5; }
+  to { opacity: 1; }
+}
+@keyframes se-anticipation {
+  from { transform: scale(.985); }
+  to { transform: scale(1.015); }
+}
+@keyframes se-bonus-pop {
+  0% { opacity: 0; transform: scale(.86); }
+  70% { opacity: 1; transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes se-win-flash {
+  from { opacity: 0; transform: translateY(-8px) scale(.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes se-cabinet-hit {
+  0% { transform: scale(.995); }
+  55% { transform: scale(1.006); }
+  100% { transform: scale(1); }
+}
+@keyframes se-cabinet-jackpot {
+  0%, 100% { box-shadow: inset 0 0 30px rgba(242,206,102,.08); }
+  50% { box-shadow: inset 0 0 48px rgba(242,206,102,.25), 0 0 22px rgba(242,206,102,.2); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-slots__strip-track,
+  .se-slots__reel.is-winning,
+  .se-slots__reel.is-anticipating,
+  .se-slots__line-overlay polyline,
+  .se-slots__bonus-award,
+  .se-slots__win-flash,
+  .se-slots__cabinet.is-big,
+  .se-slots__cabinet.is-mega,
+  .se-slots__cabinet.is-jackpot { animation: none; }
+  .se-slots__reel, .se-slots__win { transition: none; }
+}
+
+@media (max-width: 900px) {
+  .se-slots__machines { grid-template-columns: 1fr; }
+  .se-slots__stage { grid-template-columns: 1fr; }
+  .se-slots__cabinet,
+  .se-slots__controls,
+  .se-slots__form {
+    grid-column: 1;
+  }
+  .se-slots__title-row { align-items: center; }
+  .se-slots__paylines { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 899px) {
+  .se-slots__form {
+    position: sticky;
+    bottom: calc(60px + .5rem + env(safe-area-inset-bottom, 0px));
+    z-index: 30;
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: .45rem .65rem;
+    margin: 0;
+    padding: .65rem;
+    border: 1px solid var(--se-border);
+    border-radius: .75rem;
+    background: color-mix(in srgb, var(--se-surface) 96%, transparent);
+    box-shadow: 0 -.35rem 1.1rem rgb(0 0 0 / .28);
+    backdrop-filter: blur(12px);
+  }
+  .se-slots__form > .se-slots__bet-control { min-width: 0; }
+  .se-slots__form > .se-hint { grid-column: 1 / -1; margin: 0; font-size: .78rem; }
+  .se-slots__form > .se-btn { min-width: 8.25rem; min-height: 2.65rem; white-space: nowrap; }
+}
+@media (max-width: 620px) {
+  .se-slots { gap: .7rem; }
+  .se-slots__stage { position: relative; gap: .65rem; }
+
+  .se-slots__machines {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(10.5rem, 78%);
+    gap: .5rem;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: inline mandatory;
+    scrollbar-width: none;
+    padding: 0 0 .2rem;
+  }
+  .se-slots__machines::-webkit-scrollbar { display: none; }
+  .se-slots__machine {
+    scroll-snap-align: start;
+    padding: .6rem .65rem;
+    gap: .2rem;
+  }
+  .se-slots__machine > span { display: grid; gap: .1rem; }
+  .se-slots__machine > span small { justify-self: start; }
+
+  .se-slots__title-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
+  .se-slots__title-row h3 { font-size: 1.05rem; margin-bottom: .2rem; }
+  .se-slots__title-row p { font-size: .82rem; line-height: 1.3; }
+  .se-slots__sound { justify-self: end; align-self: start; padding-inline: .65rem; }
+  .se-slots__copy > .se-hint { margin: .2rem 0; font-size: .73rem; line-height: 1.25; }
+  .se-slots__jackpot { margin-top: .45rem; padding: .5rem .6rem; font-size: .8rem; }
+
+  .se-slots__cabinet { gap: .4rem; padding: .4rem; border-radius: .75rem; }
+  .se-slots__reels { gap: .25rem; padding: .3rem; border-radius: .65rem; }
+  .se-slots__reel {
+    aspect-ratio: auto;
+    min-height: 0;
+    height: clamp(4.25rem, 20vw, 5.4rem);
+    border-radius: .35rem;
+  }
+  .se-slots__reel > span,
+  .se-slots__strip-track span { font-size: clamp(1.1rem, 8vw, 2.2rem); }
+  .se-slots__strip-track span { min-height: 1.6rem; }
+  .se-slots__line-overlay { inset: .3rem; width: calc(100% - .6rem); height: calc(100% - .6rem); }
+
+  .se-slots__controls { gap: .45rem; }
+  .se-slots__form {
+    bottom: calc(60px + .75rem + env(safe-area-inset-bottom, 0px));
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: .35rem;
+    padding: .5rem;
+    border-radius: .65rem;
+  }
+  .se-slots__bet-control,
+  .se-slots__line-control { gap: .2rem; }
+  .se-slots__bet-control > span,
+  .se-slots__line-control > span { font-size: .78rem; color: var(--se-text-dim); }
+  .se-slots__bet-stepper {
+    grid-template-columns: 2.65rem minmax(3.5rem, 1fr) 2.65rem auto;
+    gap: .3rem;
+  }
+  .se-slots__bet-stepper > :last-child {
+    grid-column: auto;
+    padding-inline: .65rem;
+    white-space: nowrap;
+  }
+  .se-slots__line-stepper {
+    grid-template-columns: 2.65rem minmax(4rem, 1fr) 2.65rem;
+    gap: .3rem;
+  }
+  .se-slots__line-stepper > span { min-height: 2.55rem; padding: .2rem .45rem; }
+  .se-slots__form > .se-hint { font-size: .72rem; line-height: 1.2; }
+  .se-slots__form > .se-btn { width: 100%; min-width: 0; }
+  .se-slots__spin-button { min-height: 2.9rem; }
+
+  .se-slots__meter { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; }
+  .se-slots__meter span { padding: .4rem .45rem; }
+  .se-slots__meter small { font-size: .67rem; }
+  .se-slots__meter strong { font-size: .78rem; }
+  .se-slots__last-win { grid-column: auto; }
+
+  .se-slots__bonus-banner { padding: .55rem .65rem; }
+  .se-slots__bonus-banner strong { font-size: 1rem; }
+
+  .se-slots__paytable-row { display: grid; }
+  .se-slots__paytable-row > span:last-child { justify-content: flex-start; }
+  .se-slots__payline-panel { gap: .45rem; padding-top: .6rem; }
+  .se-slots__payline-head { display: grid; align-items: start; gap: .45rem; }
+  .se-slots__line-tools { justify-content: stretch; }
+  .se-slots__presets { gap: .3rem; }
+  .se-slots__presets .se-btn { flex: 1 1 0; padding-inline: .45rem; }
+  .se-slots__paylines { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .3rem; }
+  .se-slots__payline { min-height: 2.7rem; padding: .3rem .25rem; text-align: center; }
+  .se-slots__payline strong { font-size: .78rem; }
+  .se-slots__payline span { font-size: .6rem; white-space: nowrap; overflow: hidden; }
+  .se-slots__win { grid-template-columns: 1fr auto; }
+  .se-slots__win span { grid-column: 1 / -1; grid-row: 2; }
+}
+
+@media (max-width: 380px) {
+  .se-slots__machines { grid-auto-columns: 86%; }
+  .se-slots__cabinet { padding: .32rem; }
+  .se-slots__cabinet-footer { gap: .3rem; padding-inline: .35rem; font-size: .58rem; letter-spacing: .1em; }
+  .se-slots__reel { height: clamp(3.8rem, 19vw, 4.5rem); }
+  .se-slots__bet-stepper {
+    grid-template-columns: 2.5rem minmax(3.25rem, 1fr) 2.5rem auto;
+    gap: .25rem;
+  }
+  .se-slots__bet-stepper > :last-child { padding-inline: .45rem; font-size: .76rem; }
+  .se-slots__paylines { gap: .22rem; }
+  .se-slots__payline { padding-inline: .15rem; }
+}
+
+
+/* 1.2.0-C — Blackjack */
+.se-blackjack { display: grid; gap: 1rem; }
+.se-blackjack__tables { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; }
+.se-blackjack__table { border: 1px solid var(--se-border); border-radius: .65rem; background: var(--se-surface); color: inherit; padding: .75rem; display: grid; gap: .3rem; text-align: left; cursor: pointer; }
+.se-blackjack__table:hover, .se-blackjack__table.is-selected { border-color: var(--se-accent); box-shadow: inset 0 0 0 1px var(--se-accent); }
+.se-blackjack__table:disabled { cursor: not-allowed; opacity: .7; }
+.se-blackjack__table > span { display: flex; justify-content: space-between; gap: .6rem; align-items: baseline; }
+.se-blackjack__table small { color: var(--se-muted); }
+
+.se-blackjack__rules { display: grid; grid-template-columns: minmax(0, 1fr) minmax(20rem, .8fr); gap: 1rem; align-items: start; }
+.se-blackjack__rules h3 { margin: 0 0 .35rem; }
+.se-blackjack__rules p { margin: 0; color: var(--se-muted); }
+.se-blackjack__rule-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+.se-blackjack__rule-grid span { border: 1px solid var(--se-border); border-radius: .55rem; background: var(--se-surface); padding: .6rem .7rem; }
+.se-blackjack__rule-grid small, .se-blackjack__rule-grid strong { display: block; }
+.se-blackjack__rule-grid small { color: var(--se-muted); margin-bottom: .15rem; }
+
+.se-blackjack__felt { position: relative; display: grid; gap: 1.1rem; padding: 1rem; border: 1px solid color-mix(in srgb, var(--se-accent) 40%, var(--se-border)); border-radius: 1rem; background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--se-accent) 10%, transparent), transparent 42%), var(--se-surface); overflow: hidden; }
+.se-blackjack__felt::before { content: ""; position: absolute; inset: .45rem; border: 1px solid color-mix(in srgb, var(--se-accent) 18%, transparent); border-radius: .75rem; pointer-events: none; }
+.se-blackjack__felt.is-settled { border-color: var(--se-border); }
+.se-blackjack__dealer, .se-blackjack__hands, .se-blackjack__meter, .se-blackjack__actions { position: relative; z-index: 1; }
+.se-blackjack__dealer { display: grid; justify-items: center; gap: .6rem; padding-bottom: .8rem; border-bottom: 1px dashed var(--se-border); }
+.se-blackjack__label { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem 1rem; align-items: baseline; width: 100%; }
+.se-blackjack__dealer .se-blackjack__label { max-width: 30rem; }
+.se-blackjack__label span { color: var(--se-muted); font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; }
+
+.se-blackjack__cards { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; min-height: 5.7rem; }
+.se-blackjack__card { width: 4rem; height: 5.6rem; border-radius: .45rem; border: 1px solid color-mix(in srgb, #fff 48%, var(--se-border)); background: #f4f1e7; color: #111; display: grid; place-items: center; font-weight: 900; font-size: 1.05rem; box-shadow: 0 .28rem .55rem rgb(0 0 0 / .22); animation: se-blackjack-deal .2s ease-out both; }
+.se-blackjack__card.is-hidden { background: repeating-linear-gradient(45deg, #202936, #202936 6px, #34445b 6px, #34445b 12px); color: rgba(255,255,255,.85); border-color: rgba(255,255,255,.3); }
+.se-blackjack__card:nth-child(2) { animation-delay: .04s; }
+.se-blackjack__card:nth-child(3) { animation-delay: .08s; }
+.se-blackjack__card:nth-child(4) { animation-delay: .12s; }
+
+.se-blackjack__hands { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .75rem; }
+.se-blackjack__hand { border: 1px solid var(--se-border); border-radius: .7rem; padding: .75rem; background: color-mix(in srgb, var(--se-bg) 78%, transparent); display: grid; gap: .65rem; }
+.se-blackjack__hand.is-active { border-color: var(--se-accent); box-shadow: inset 0 0 0 1px var(--se-accent), 0 0 15px color-mix(in srgb, var(--se-accent) 15%, transparent); }
+.se-blackjack__hand.is-blackjack, .se-blackjack__hand.is-win { border-color: color-mix(in srgb, var(--se-accent) 72%, var(--se-border)); }
+.se-blackjack__hand.is-bust, .se-blackjack__hand.is-lose { opacity: .78; }
+.se-blackjack__hand-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem .8rem; color: var(--se-muted); font-size: .86rem; }
+
+.se-blackjack__meter { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .5rem; }
+.se-blackjack__meter span { border: 1px solid var(--se-border); border-radius: .55rem; padding: .55rem .65rem; background: var(--se-bg); }
+.se-blackjack__meter small, .se-blackjack__meter strong { display: block; }
+.se-blackjack__meter small { color: var(--se-muted); margin-bottom: .12rem; }
+.se-blackjack__actions { display: flex; flex-wrap: wrap; gap: .55rem; justify-content: center; }
+
+.se-blackjack__deal { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem .75rem; align-items: end; padding: .8rem; border: 1px solid var(--se-border); border-radius: .7rem; background: var(--se-surface); }
+.se-blackjack__deal label { display: grid; gap: .35rem; }
+.se-blackjack__bet { display: grid; grid-template-columns: auto minmax(6rem, 1fr) auto auto; gap: .4rem; }
+.se-blackjack__deal > .se-hint { grid-column: 1 / -1; margin: 0; }
+.se-blackjack__deal-button { min-height: 2.7rem; }
+
+.se-blackjack__history { border-top: 1px solid var(--se-border); padding-top: .75rem; }
+.se-blackjack__history summary { cursor: pointer; font-weight: 700; }
+.se-blackjack__history-list { display: grid; gap: .35rem; margin-top: .65rem; }
+.se-blackjack__history-list article { display: grid; grid-template-columns: minmax(0, 1fr) minmax(7rem, auto) auto; gap: .75rem; align-items: center; border: 1px solid var(--se-border); border-radius: .55rem; padding: .55rem .65rem; background: var(--se-surface); }
+.se-blackjack__history-list article > span:first-child { display: grid; gap: .1rem; }
+.se-blackjack__history-list small { color: var(--se-muted); }
+.se-blackjack__history-list .is-win { color: var(--se-accent); }
+
+@keyframes se-blackjack-deal {
+  from { opacity: 0; transform: translateY(-8px) rotate(-1deg); }
+  to { opacity: 1; transform: translateY(0) rotate(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-blackjack__card { animation: none; }
+}
+@media (max-width: 900px) {
+  .se-blackjack__tables { grid-template-columns: 1fr; }
+  .se-blackjack__rules { grid-template-columns: 1fr; }
+  .se-blackjack__meter { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .se-blackjack__meter span:last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 620px) {
+  .se-blackjack { gap: .55rem; }
+
+  /* Once a hand starts, the phone view becomes a focused game table. */
+  .se-blackjack.has-active-hand .se-blackjack__tables,
+  .se-blackjack.has-active-hand .se-blackjack__rules,
+  .se-blackjack.has-active-hand .se-blackjack__resume-hint {
+    display: none;
+  }
+
+  .se-blackjack__rule-grid { grid-template-columns: 1fr 1fr; gap: .4rem; }
+
+  .se-blackjack__felt {
+    padding: .5rem;
+    gap: .45rem;
+    border-radius: .75rem;
+  }
+  .se-blackjack__felt::before { inset: .3rem; border-radius: .55rem; }
+  .se-blackjack__dealer { gap: .3rem; padding-bottom: .4rem; }
+  .se-blackjack__label { gap: .2rem .5rem; }
+  .se-blackjack__label span { font-size: .7rem; letter-spacing: .06em; }
+
+  .se-blackjack__cards {
+    min-height: 3.7rem;
+    gap: .25rem;
+    justify-content: center;
+  }
+  .se-blackjack__card {
+    width: 2.7rem;
+    height: 3.7rem;
+    border-radius: .38rem;
+    font-size: .8rem;
+  }
+
+  .se-blackjack__hands { grid-template-columns: 1fr; gap: .4rem; }
+  .se-blackjack__hand { padding: .45rem; gap: .35rem; border-radius: .55rem; }
+  .se-blackjack__hand-meta { font-size: .74rem; }
+
+  /* Four core figures stay visible together; the shoe is one slim row below them. */
+  .se-blackjack__meter {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .28rem;
+  }
+  .se-blackjack__meter span {
+    padding: .36rem .3rem;
+    border-radius: .45rem;
+  }
+  .se-blackjack__meter small {
+    margin-bottom: .06rem;
+    font-size: .6rem;
+    line-height: 1.05;
+  }
+  .se-blackjack__meter strong {
+    font-size: .78rem;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+  .se-blackjack__meter span:last-child {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .6rem;
+    padding-inline: .5rem;
+  }
+  .se-blackjack__meter span:last-child small,
+  .se-blackjack__meter span:last-child strong {
+    margin: 0;
+  }
+
+  /*
+   * Keep actions in normal document flow on phones. Bottom-sticky positioning
+   * pulled the bar upward over the bankroll meter and left a large placeholder
+   * gap inside the felt.
+   */
+  .se-blackjack__actions {
+    position: relative;
+    bottom: auto;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .28rem;
+    padding: .35rem;
+    border: 1px solid var(--se-border);
+    border-radius: .6rem;
+    background: color-mix(in srgb, var(--se-surface) 94%, transparent);
+  }
+  .se-blackjack__actions .se-btn {
+    min-width: 0;
+    min-height: 2.65rem;
+    padding-inline: .2rem;
+    font-size: .72rem;
+    white-space: nowrap;
+    touch-action: manipulation;
+  }
+
+  .se-blackjack__deal {
+    position: sticky;
+    bottom: calc(60px + .35rem + env(safe-area-inset-bottom, 0px));
+    z-index: 28;
+    grid-template-columns: 1fr;
+    padding: .6rem;
+    box-shadow: 0 -.35rem 1.1rem rgb(0 0 0 / .28);
+    backdrop-filter: blur(12px);
+  }
+  .se-blackjack__bet { grid-template-columns: auto minmax(4.5rem, 1fr) auto; }
+  .se-blackjack__bet > :last-child { grid-column: 1 / -1; }
+
+  .se-blackjack__history {
+    margin-top: .15rem;
+    padding-top: .55rem;
+  }
+  .se-blackjack__history summary {
+    font-size: .86rem;
+    line-height: 1.25;
+  }
+  .se-blackjack__history-list article { grid-template-columns: 1fr auto; }
+  .se-blackjack__history-list article > span:nth-child(2) { grid-column: 1 / -1; grid-row: 2; color: var(--se-muted); }
+}
+
+
+/* 1.2.0-D — Roulette */
+.se-roulette { display: grid; gap: .9rem; min-width: 0; }
+.se-roulette__tables { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; }
+.se-roulette__table {
+  min-width: 0;
+  display: grid;
+  gap: .28rem;
+  padding: .7rem .75rem;
+  border: 1px solid var(--se-border);
+  border-radius: .65rem;
+  background: var(--se-surface);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.se-roulette__table > span { display: flex; justify-content: space-between; gap: .6rem; align-items: baseline; }
+.se-roulette__table small { color: var(--se-muted); }
+.se-roulette__table:hover,
+.se-roulette__table.is-selected { border-color: var(--se-accent); box-shadow: inset 0 0 0 1px var(--se-accent); }
+.se-roulette__table:disabled { opacity: .7; cursor: not-allowed; }
+
+.se-roulette__stage {
+  display: grid;
+  grid-template-columns: minmax(9rem, .34fr) minmax(0, 1fr);
+  gap: .8rem 1rem;
+  align-items: center;
+  padding: .8rem;
+  border: 1px solid var(--se-border);
+  border-radius: .9rem;
+  background:
+    radial-gradient(circle at 16% 50%, color-mix(in srgb, var(--se-accent) 8%, transparent), transparent 33%),
+    color-mix(in srgb, var(--se-surface) 94%, var(--se-bg));
+}
+.se-roulette__wheel {
+  position: relative;
+  width: min(12rem, 100%);
+  aspect-ratio: 1;
+  justify-self: center;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: .45rem solid color-mix(in srgb, var(--se-border) 70%, #a7863f);
+  background:
+    conic-gradient(
+      #181a1d 0deg 9.47deg,
+      #792929 9.47deg 18.94deg,
+      #181a1d 18.94deg 28.41deg,
+      #792929 28.41deg 37.88deg,
+      #181a1d 37.88deg 47.35deg,
+      #792929 47.35deg 56.82deg,
+      #181a1d 56.82deg 66.29deg,
+      #792929 66.29deg 75.76deg,
+      #181a1d 75.76deg 85.23deg,
+      #792929 85.23deg 94.7deg,
+      #181a1d 94.7deg 104.17deg,
+      #792929 104.17deg 113.64deg,
+      #181a1d 113.64deg 123.11deg,
+      #792929 123.11deg 132.58deg,
+      #181a1d 132.58deg 142.05deg,
+      #792929 142.05deg 151.52deg,
+      #181a1d 151.52deg 160.99deg,
+      #792929 160.99deg 170.46deg,
+      #181a1d 170.46deg 179.93deg,
+      #792929 179.93deg 189.4deg,
+      #181a1d 189.4deg 198.87deg,
+      #792929 198.87deg 208.34deg,
+      #181a1d 208.34deg 217.81deg,
+      #792929 217.81deg 227.28deg,
+      #181a1d 227.28deg 236.75deg,
+      #792929 236.75deg 246.22deg,
+      #181a1d 246.22deg 255.69deg,
+      #792929 255.69deg 265.16deg,
+      #181a1d 265.16deg 274.63deg,
+      #792929 274.63deg 284.1deg,
+      #181a1d 284.1deg 293.57deg,
+      #792929 293.57deg 303.04deg,
+      #181a1d 303.04deg 312.51deg,
+      #792929 312.51deg 321.98deg,
+      #181a1d 321.98deg 331.45deg,
+      #792929 331.45deg 340.92deg,
+      #181a1d 340.92deg 350.39deg,
+      #1d6b47 350.39deg 360deg
+    );
+  box-shadow: inset 0 0 0 .45rem #070809, 0 .45rem 1.2rem rgb(0 0 0 / .34);
+}
+.se-roulette__wheel-ring {
+  position: absolute;
+  inset: 14%;
+  border: 2px solid rgba(255,255,255,.18);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 .35rem rgb(0 0 0 / .18);
+}
+.se-roulette__wheel-result {
+  position: relative;
+  z-index: 2;
+  width: 46%;
+  aspect-ratio: 1;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  border: 2px solid rgba(255,255,255,.22);
+  border-radius: 50%;
+  background: #111418;
+  box-shadow: 0 0 0 .3rem rgb(0 0 0 / .3);
+}
+.se-roulette__wheel-result small {
+  color: rgba(255,255,255,.72);
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.se-roulette__wheel-result strong { font-size: clamp(1.5rem, 5vw, 2.35rem); color: #fff; }
+.se-roulette__wheel-result.is-red { background: #792929; }
+.se-roulette__wheel-result.is-black { background: #111418; }
+.se-roulette__wheel-result.is-green { background: #1d6b47; }
+.se-roulette__wheel.is-spinning { animation: se-roulette-wheel .85s cubic-bezier(.3,.8,.35,1); }
+
+.se-roulette__readout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+.se-roulette__readout span {
+  display: grid;
+  gap: .08rem;
+  padding: .55rem .65rem;
+  border: 1px solid var(--se-border);
+  border-radius: .55rem;
+  background: var(--se-bg);
+}
+.se-roulette__readout small { color: var(--se-muted); }
+.se-roulette__readout strong { font-family: var(--se-mono); font-variant-numeric: tabular-nums; }
+.se-roulette__history-strip {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: .3rem;
+  overflow-x: auto;
+  padding-top: .15rem;
+  scrollbar-width: none;
+}
+.se-roulette__history-strip::-webkit-scrollbar { display: none; }
+.se-roulette__history-strip span {
+  flex: 0 0 2rem;
+  min-height: 2rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 900;
+}
+.se-roulette__history-strip .is-red { background: #792929; }
+.se-roulette__history-strip .is-black { background: #111418; }
+.se-roulette__history-strip .is-green { background: #1d6b47; }
+
+.se-roulette__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .55rem .75rem;
+  padding: .65rem;
+  border: 1px solid var(--se-border);
+  border-radius: .7rem;
+  background: var(--se-surface);
+}
+.se-roulette__chips > div { display: flex; flex-wrap: wrap; gap: .4rem; }
+.se-roulette__chip {
+  min-width: 3.65rem;
+  min-height: 2.55rem;
+  padding: .35rem .55rem;
+  border: 2px dashed color-mix(in srgb, var(--se-muted) 65%, var(--se-border));
+  border-radius: 999px;
+  background: var(--se-bg);
+  color: inherit;
+  font-size: .8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.se-roulette__chip.is-selected {
+  border-style: solid;
+  border-color: var(--se-accent);
+  background: color-mix(in srgb, var(--se-accent) 12%, var(--se-bg));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--se-accent) 18%, transparent);
+}
+
+.se-roulette__board {
+  display: grid;
+  grid-template-columns: minmax(3.3rem, auto) minmax(0, 1fr);
+  gap: .4rem;
+  padding: .6rem;
+  border: 1px solid color-mix(in srgb, var(--se-accent) 25%, var(--se-border));
+  border-radius: .8rem;
+  background: #103a2a;
+  overflow: hidden;
+}
+.se-roulette__zeroes { display: grid; grid-template-rows: repeat(2, minmax(0, 1fr)); gap: .3rem; }
+.se-roulette__numbers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .25rem; }
+.se-roulette__outside {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: .25rem;
+}
+.se-roulette__board button {
+  min-width: 0;
+  min-height: 3rem;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: .06rem;
+  padding: .3rem .2rem;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: .35rem;
+  color: #fff;
+  cursor: pointer;
+}
+.se-roulette__board button strong { font-size: .92rem; }
+.se-roulette__board button small { font-size: .62rem; font-weight: 800; color: rgba(255,255,255,.86); }
+.se-roulette__board button.is-red { background: #792929; }
+.se-roulette__board button.is-black { background: #111418; }
+.se-roulette__board button.is-green { background: #1d6b47; }
+.se-roulette__outside button:not(.is-red):not(.is-black) { background: #185139; }
+.se-roulette__board button:hover { box-shadow: inset 0 0 0 2px rgba(255,255,255,.3); }
+.se-roulette__board button:disabled { opacity: .62; cursor: not-allowed; }
+
+.se-roulette__inside-builder,
+.se-roulette__paytable { border-top: 1px solid var(--se-border); padding-top: .65rem; }
+.se-roulette__inside-builder summary,
+.se-roulette__paytable summary { cursor: pointer; font-weight: 800; }
+.se-roulette__inside-builder > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  gap: .55rem;
+  align-items: end;
+  margin-top: .6rem;
+}
+.se-roulette__inside-builder label { display: grid; gap: .25rem; }
+.se-roulette__bets { display: flex; flex-wrap: wrap; gap: .35rem; }
+.se-roulette__bets button {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  min-height: 2.25rem;
+  padding: .35rem .5rem;
+  border: 1px solid var(--se-border);
+  border-radius: 999px;
+  background: var(--se-surface);
+  color: inherit;
+  cursor: pointer;
+}
+.se-roulette__bets button span { color: var(--se-muted); }
+.se-roulette__bets button small { color: var(--se-muted); font-size: .7rem; }
+.se-roulette__controls {
+  display: grid;
+  grid-template-columns: auto minmax(12rem, 1fr);
+  gap: .55rem;
+  align-items: stretch;
+}
+.se-roulette__spin { min-height: 3rem; font-weight: 900; letter-spacing: .055em; }
+.se-roulette__paytable p { margin-bottom: 0; color: var(--se-muted); line-height: 1.45; }
+
+@keyframes se-roulette-wheel {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(1080deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-roulette__wheel.is-spinning { animation: none; }
+}
+
+@media (max-width: 900px) {
+  .se-roulette__tables {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(12rem, 72%);
+    overflow-x: auto;
+    scroll-snap-type: inline mandatory;
+    scrollbar-width: none;
+  }
+  .se-roulette__tables::-webkit-scrollbar { display: none; }
+  .se-roulette__table { scroll-snap-align: start; }
+}
+@media (max-width: 620px) {
+  .se-roulette { gap: .6rem; }
+  .se-roulette__stage {
+    grid-template-columns: 7rem minmax(0, 1fr);
+    gap: .55rem;
+    padding: .55rem;
+  }
+  .se-roulette__wheel { width: 6.75rem; border-width: .3rem; }
+  .se-roulette__wheel-result small { font-size: .5rem; }
+  .se-roulette__wheel-result strong { font-size: 1.45rem; }
+  .se-roulette__readout { gap: .3rem; }
+  .se-roulette__readout span { padding: .38rem .42rem; }
+  .se-roulette__readout small { font-size: .62rem; }
+  .se-roulette__readout strong { font-size: .77rem; overflow-wrap: anywhere; }
+  .se-roulette__history-strip { gap: .22rem; }
+  .se-roulette__history-strip span { flex-basis: 1.65rem; min-height: 1.65rem; font-size: .72rem; }
+
+  .se-roulette__chips { padding: .45rem; gap: .4rem; }
+  .se-roulette__chips > strong { font-size: .8rem; }
+  .se-roulette__chips > div {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(3.2rem, auto);
+    overflow-x: auto;
+    width: 100%;
+    padding-bottom: .05rem;
+    scrollbar-width: none;
+  }
+  .se-roulette__chips > div::-webkit-scrollbar { display: none; }
+  .se-roulette__chip { min-width: 3.2rem; min-height: 2.25rem; padding: .28rem .4rem; font-size: .7rem; }
+
+  .se-roulette__board { grid-template-columns: 2.75rem minmax(0, 1fr); gap: .25rem; padding: .38rem; }
+  .se-roulette__zeroes,
+  .se-roulette__numbers,
+  .se-roulette__outside { gap: .18rem; }
+  .se-roulette__board button { min-height: 2.45rem; padding: .2rem .08rem; border-radius: .26rem; }
+  .se-roulette__board button strong { font-size: .76rem; }
+  .se-roulette__board button small { font-size: .5rem; max-width: 100%; overflow: hidden; }
+  .se-roulette__outside { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .se-roulette__outside button { min-height: 2.35rem; }
+  .se-roulette__outside button strong { font-size: .66rem; }
+
+  .se-roulette__inside-builder > div { grid-template-columns: 1fr 1fr; }
+  .se-roulette__inside-builder > div > .se-btn { grid-column: 1 / -1; }
+  .se-roulette__inside-builder label span { font-size: .72rem; }
+  .se-roulette__inside-builder .se-input { font-size: .76rem; }
+
+  .se-roulette__bets {
+    max-height: 5.1rem;
+    overflow-y: auto;
+    gap: .28rem;
+  }
+  .se-roulette__bets button { min-height: 2rem; padding: .28rem .4rem; font-size: .72rem; }
+
+  .se-roulette__controls {
+    position: sticky;
+    bottom: calc(60px + .35rem + env(safe-area-inset-bottom, 0px));
+    z-index: 27;
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: .4rem;
+    border: 1px solid var(--se-border);
+    border-radius: .65rem;
+    background: color-mix(in srgb, var(--se-surface) 96%, transparent);
+    box-shadow: 0 -.3rem 1rem rgb(0 0 0 / .28);
+    backdrop-filter: blur(12px);
+  }
+  .se-roulette__controls .se-btn { min-height: 2.75rem; padding-inline: .65rem; font-size: .76rem; }
+}
+
+
+/* 1.2.0-D — Street Dice */
+.se-street-dice { display: grid; gap: .9rem; min-width: 0; }
+.se-street-dice__tables { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+.se-street-dice__table {
+  display: grid;
+  gap: .28rem;
+  padding: .7rem .75rem;
+  border: 1px solid var(--se-border);
+  border-radius: .65rem;
+  background: var(--se-surface);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.se-street-dice__table > span { display: flex; justify-content: space-between; gap: .6rem; align-items: baseline; }
+.se-street-dice__table small { color: var(--se-muted); }
+.se-street-dice__table:hover,
+.se-street-dice__table.is-selected { border-color: var(--se-accent); box-shadow: inset 0 0 0 1px var(--se-accent); }
+.se-street-dice__table:disabled { opacity: .7; cursor: not-allowed; }
+
+.se-street-dice__felt {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: .8rem 1rem;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--se-accent) 35%, var(--se-border));
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at 50% 5%, color-mix(in srgb, var(--se-accent) 9%, transparent), transparent 36%),
+    #0c3124;
+  overflow: hidden;
+}
+.se-street-dice__point {
+  width: 5.8rem;
+  aspect-ratio: 1;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  border: .28rem solid color-mix(in srgb, var(--se-accent) 55%, #fff);
+  border-radius: 50%;
+  background: #0a0c0f;
+  box-shadow: 0 .35rem .8rem rgb(0 0 0 / .28);
+}
+.se-street-dice__point small { color: rgba(255,255,255,.62); font-size: .65rem; font-weight: 800; letter-spacing: .12em; }
+.se-street-dice__point strong { color: #fff; font-size: 1.65rem; }
+
+.se-street-dice__dice {
+  display: flex;
+  justify-content: center;
+  gap: .7rem;
+  min-height: 6.5rem;
+  align-items: center;
+  perspective: 34rem;
+}
+.se-street-dice__dice span {
+  width: 4.8rem;
+  height: 4.8rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.55);
+  border-radius: .8rem;
+  background: #f4f1e7;
+  color: #111;
+  font-size: 3.5rem;
+  line-height: 1;
+  box-shadow: 0 .4rem .8rem rgb(0 0 0 / .3);
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+.se-street-dice__dice.is-rolling span:first-child { animation: se-die-roll-a .82s cubic-bezier(.32,.02,.55,.96) infinite; }
+.se-street-dice__dice.is-rolling span:last-child { animation: se-die-roll-b .71s cubic-bezier(.4,.02,.62,.98) -.18s infinite; }
+
+.se-street-dice__call {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: .12rem;
+  padding: .65rem .75rem;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: .65rem;
+  background: rgb(0 0 0 / .18);
+}
+.se-street-dice__call span { color: var(--se-accent); font-size: .72rem; font-weight: 900; letter-spacing: .1em; }
+.se-street-dice__call strong { line-height: 1.35; }
+
+.se-street-dice__meter {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .45rem;
+}
+.se-street-dice__meter span {
+  display: grid;
+  gap: .08rem;
+  padding: .5rem .6rem;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: .55rem;
+  background: rgb(0 0 0 / .24);
+}
+.se-street-dice__meter small { color: rgba(255,255,255,.6); }
+.se-street-dice__meter strong { color: #fff; font-family: var(--se-mono); font-variant-numeric: tabular-nums; }
+
+.se-street-dice__odds {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(10rem, .55fr) minmax(0, 1fr);
+  gap: .65rem;
+  align-items: end;
+  padding: .65rem;
+  border: 1px dashed rgba(255,255,255,.2);
+  border-radius: .65rem;
+  background: rgb(0 0 0 / .12);
+}
+.se-street-dice__odds > div:first-child { display: grid; gap: .12rem; }
+.se-street-dice__odds small { color: rgba(255,255,255,.62); }
+.se-street-dice__odds-controls {
+  display: grid;
+  grid-template-columns: auto minmax(4.5rem, 1fr) auto auto auto;
+  gap: .35rem;
+}
+.se-street-dice__actions { grid-column: 1 / -1; }
+.se-street-dice__roll { width: 100%; min-height: 3rem; font-weight: 900; letter-spacing: .08em; }
+
+.se-street-dice__start {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .6rem;
+  align-items: end;
+  padding: .7rem;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: .7rem;
+  background: rgb(0 0 0 / .16);
+}
+.se-street-dice__start label { display: grid; gap: .3rem; }
+.se-street-dice__start label > div {
+  display: grid;
+  grid-template-columns: auto minmax(5rem, 1fr) auto auto;
+  gap: .35rem;
+}
+.se-street-dice__comeout { min-height: 2.7rem; white-space: nowrap; font-weight: 900; }
+
+.se-street-dice__rules,
+.se-street-dice__history { border-top: 1px solid var(--se-border); padding-top: .65rem; }
+.se-street-dice__rules summary,
+.se-street-dice__history summary { cursor: pointer; font-weight: 800; }
+.se-street-dice__rules p { color: var(--se-muted); line-height: 1.5; margin-bottom: 0; }
+.se-street-dice__history > div { display: grid; gap: .35rem; margin-top: .55rem; }
+.se-street-dice__history article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .7rem;
+  align-items: center;
+  padding: .5rem .6rem;
+  border: 1px solid var(--se-border);
+  border-radius: .55rem;
+  background: var(--se-surface);
+}
+.se-street-dice__history article > span { display: grid; gap: .08rem; }
+.se-street-dice__history small { color: var(--se-muted); }
+.se-street-dice__history .is-win { color: var(--se-accent); }
+
+@keyframes se-die-roll-a {
+  0% { transform: translate3d(0, 0, 0) rotateX(0) rotateY(0) rotateZ(0) scale(1); box-shadow: 0 .3rem .65rem rgb(0 0 0 / .28); }
+  24% { transform: translate3d(-.2rem, -1.15rem, 1.8rem) rotateX(155deg) rotateY(78deg) rotateZ(38deg) scale(1.08); box-shadow: 0 1.15rem 1rem rgb(0 0 0 / .38); }
+  53% { transform: translate3d(.12rem, -.48rem, .6rem) rotateX(310deg) rotateY(214deg) rotateZ(168deg) scale(1.03); }
+  76% { transform: translate3d(.08rem, .12rem, 0) rotateX(418deg) rotateY(325deg) rotateZ(248deg) scale(.96); }
+  88% { transform: translate3d(0, -.16rem, 0) rotateX(430deg) rotateY(355deg) rotateZ(266deg) scale(1.02); }
+  100% { transform: translate3d(0, 0, 0) rotateX(450deg) rotateY(360deg) rotateZ(270deg) scale(1); box-shadow: 0 .3rem .65rem rgb(0 0 0 / .28); }
+}
+@keyframes se-die-roll-b {
+  0% { transform: translate3d(0, 0, 0) rotateX(0) rotateY(0) rotateZ(0) scale(1); box-shadow: 0 .3rem .65rem rgb(0 0 0 / .28); }
+  22% { transform: translate3d(.2rem, -.9rem, 1.4rem) rotateX(-132deg) rotateY(-94deg) rotateZ(-55deg) scale(1.07); box-shadow: 0 1rem .95rem rgb(0 0 0 / .36); }
+  49% { transform: translate3d(-.12rem, -.38rem, .5rem) rotateX(-290deg) rotateY(-205deg) rotateZ(-165deg) scale(1.02); }
+  74% { transform: translate3d(-.08rem, .1rem, 0) rotateX(-405deg) rotateY(-310deg) rotateZ(-252deg) scale(.96); }
+  87% { transform: translate3d(0, -.13rem, 0) rotateX(-430deg) rotateY(-345deg) rotateZ(-274deg) scale(1.02); }
+  100% { transform: translate3d(0, 0, 0) rotateX(-450deg) rotateY(-360deg) rotateZ(-290deg) scale(1); box-shadow: 0 .3rem .65rem rgb(0 0 0 / .28); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-street-dice__dice.is-rolling span { animation: none; transform: none; }
+}
+
+@media (max-width: 900px) {
+  .se-street-dice__tables { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .se-street-dice { gap: .6rem; }
+  .se-street-dice__tables { grid-template-columns: 1fr; gap: .4rem; }
+  .se-street-dice__table { padding: .55rem .6rem; }
+  .se-street-dice__table > span { align-items: baseline; flex-wrap: wrap; }
+  .se-street-dice__felt { gap: .45rem; padding: .55rem; border-radius: .75rem; }
+  .se-street-dice__point { width: 4rem; border-width: .2rem; }
+  .se-street-dice__point small { font-size: .5rem; }
+  .se-street-dice__point strong { font-size: 1.25rem; }
+  .se-street-dice__dice { min-height: 4.6rem; gap: .4rem; }
+  .se-street-dice__dice span {
+    width: 3.7rem;
+    height: 3.7rem;
+    border-radius: .6rem;
+    font-size: 2.75rem;
+  }
+  .se-street-dice__call { padding: .45rem .5rem; }
+  .se-street-dice__call span { font-size: .62rem; }
+  .se-street-dice__call strong { font-size: .8rem; }
+
+  .se-street-dice__meter { gap: .25rem; }
+  .se-street-dice__meter span { padding: .35rem .3rem; }
+  .se-street-dice__meter small { font-size: .58rem; }
+  .se-street-dice__meter strong { font-size: .72rem; overflow-wrap: anywhere; }
+
+  .se-street-dice__odds { grid-template-columns: 1fr; gap: .4rem; padding: .45rem; }
+  .se-street-dice__odds > div:first-child span { font-size: .75rem; }
+  .se-street-dice__odds > div:first-child small { font-size: .65rem; }
+  .se-street-dice__odds-controls {
+    grid-template-columns: 2.35rem minmax(3.7rem, 1fr) 2.35rem auto;
+    gap: .25rem;
+  }
+  .se-street-dice__odds-controls > :last-child { grid-column: 1 / -1; }
+  .se-street-dice__odds-controls .se-btn { min-height: 2.3rem; padding-inline: .45rem; font-size: .72rem; }
+
+  .se-street-dice__actions {
+    position: relative;
+    bottom: auto;
+    z-index: 1;
+    padding: .35rem;
+    border: 1px solid var(--se-border);
+    border-radius: .62rem;
+    background: color-mix(in srgb, var(--se-surface) 96%, transparent);
+    box-shadow: 0 -.3rem 1rem rgb(0 0 0 / .28);
+    backdrop-filter: blur(12px);
+  }
+  .se-street-dice__roll { min-height: 2.8rem; }
+
+  .se-street-dice__start {
+    position: relative;
+    bottom: auto;
+    z-index: 1;
+    grid-template-columns: 1fr;
+    gap: .4rem;
+    padding: .5rem;
+  }
+  .se-street-dice__start label > div { grid-template-columns: 2.35rem minmax(4rem, 1fr) 2.35rem auto; }
+  .se-street-dice__start .se-btn { min-height: 2.45rem; padding-inline: .5rem; }
+  .se-street-dice__rules,
+  .se-street-dice__history { padding-top: .5rem; }
+  .se-street-dice__rules summary,
+  .se-street-dice__history summary { font-size: .85rem; }
+}

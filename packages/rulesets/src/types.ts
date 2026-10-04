@@ -1349,6 +1349,12 @@ export interface TurfCornerRules {
   readonly productPerThugPerHour: number;
   /** Share of a short-supplied corner crew that walks each hour. */
   readonly walkoutSharePerHour: number;
+  /**
+   * 1.1.0-B. Corner crews are still the crew: when it is unhappy they walk off like anyone
+   * else (each settled hour counts as this many turns of the departure chance), and a Lure
+   * Crew raid can take them. Absent: corners only walk when supply runs short, as in 0.6.0.
+   */
+  readonly desertTurnsPerHour?: number;
 }
 
 export interface TurfCapRules {
@@ -1382,6 +1388,319 @@ export interface TurfPushRules {
     readonly chanceToShowUp: number;
     readonly maxHelpers: number;
   };
+}
+
+/** 1.1.0-A. The ten businesses a block's lots can hold. */
+export type BusinessKey =
+  | 'NIGHTCLUB'
+  | 'BAR'
+  | 'STRIP_CLUB'
+  | 'CHOP_SHOP'
+  | 'PAWN_SHOP'
+  | 'AUTO_GARAGE'
+  | 'CONVENIENCE_STORE'
+  | 'WAREHOUSE'
+  | 'CASINO_FRONT'
+  | 'LAUNDROMAT';
+
+/**
+ * 1.1.0-A. Businesses, Fronts & Rackets. Every turf block has three lots, fixed by its
+ * district, and each lot holds one business. Lots start empty: the crew holding the block
+ * builds and upgrades them, they change hands with the block in a block war, and a war
+ * leaves them running at a fatigued rate until the neighborhood recovers.
+ *
+ * Data only in A: nothing reads these numbers until 1.1.0-B builds the first business.
+ * See docs/ROADMAP-1.1.0.md.
+ */
+export interface BusinessCrackdownRules {
+  /** Extra Heat per staffed, active racket in the swept city when the federal turf crackdown lands. */
+  readonly activeRacketHeatPerBusiness: number;
+}
+
+export interface BusinessRules {
+  /** 1.1.0-B. A owns the data and the map; B turns building, staffing and collecting on. */
+  readonly building?: boolean;
+  /** 1.1.0-E. Away blocks can run businesses through their 0.6.0-D outpost box. */
+  readonly outposts?: boolean;
+  readonly catalog: { readonly [K in BusinessKey]: BusinessTypeRules };
+  /** The three lots on every block of a district, in lot order. Lot 1 opens first. */
+  readonly lots: { readonly [K in DistrictKey]: readonly [BusinessKey, BusinessKey, BusinessKey] };
+  /** One business per city earns more there. Keyed by City slug. */
+  readonly signatures: { readonly [slug: string]: BusinessSignatureRules };
+  /**
+   * Foot traffic: the same business earns more on a richer block. A Bar on the Casino strip
+   * out-earns one in the slums, which is also what pays for staff on the blocks where a
+   * thug covers the fewest girls.
+   */
+  readonly districtIncome: { readonly [K in DistrictKey]: number };
+  readonly levels: BusinessLevelRules;
+  readonly supply: BusinessSupplyRules;
+  readonly register: BusinessRegisterRules;
+  /** Turns to open a business (send its staff in) or close it (bring them home). */
+  readonly staffTurnCost: number;
+  /**
+   * Staff are still the crew's, so an unhappy crew's staff walk off like anyone else. Each
+   * settled hour at a business counts as this many turns of the ruleset's departure chance.
+   */
+  readonly staffDepartureTurnsPerHour: number;
+  /** Most an away (outpost) business makes, as a share of the same business at home. */
+  readonly awayOutputShare: number;
+  readonly tiers: BusinessTierRules;
+  readonly fatigue: BusinessFatigueRules;
+  readonly wars: BlockWarRules;
+  readonly allies: BlockWarAllyRules;
+  readonly locals: BusinessLocalsRules;
+  readonly torch: BusinessTorchRules;
+  /** Levels every business on a block loses when a war ends in a Sack. */
+  readonly sackLevelsLost: number;
+  /** 1.1.0-C. One racket per business, on top of its front income. Absent before C. */
+  readonly rackets?: RacketRules;
+  /** 1.1.0-F. Extra release-crackdown pressure on businesses that are actively running rackets. */
+  readonly crackdown?: BusinessCrackdownRules;
+}
+
+export type RacketKey =
+  | 'ECSTASY_DEMAND'
+  | 'INFORMATION_NETWORK'
+  | 'BACK_ROOM_CARDS'
+  | 'LOOSE_LIPS'
+  | 'VIP_ROOM'
+  | 'PILLOW_TALK'
+  | 'STOLEN_LOW_RIDERS'
+  | 'VEHICLE_RECOVERY'
+  | 'FENCING'
+  | 'LOAN_SHARKING'
+  | 'RUN_MODS'
+  | 'GETAWAY_CARS'
+  | 'BEER_SUPPLY'
+  | 'COUNTER_SALES'
+  | 'PRODUCT_STORAGE'
+  | 'SHIPMENT_CAPACITY'
+  | 'HOUSE_ALWAYS_WINS'
+  | 'CASINO_LAUNDERING'
+  | 'LAUNDERING'
+  | 'WASH_AND_FOLD';
+
+/**
+ * What a racket does, at full strength (top level, fully staffed). A racket's strength is
+ * `levelStrength` for its business's level times its staffing share; the effect scales with it.
+ */
+export type RacketEffect =
+  /** Extra cash into the register: a share of the business's front income. */
+  | { readonly kind: 'CASH'; readonly incomeShare: number }
+  /** Better prices at one store for some items, on top of standing. */
+  | { readonly kind: 'STORE_PRICE'; readonly store: string; readonly items: readonly string[]; readonly buyDiscountPercent?: number; readonly sellBonusPercent?: number }
+  /** Earlier sightings of pushes on the crew's blocks and tails on its runs, on top of Lookouts. */
+  | { readonly kind: 'HEADS_UP'; readonly minutes: number }
+  /** Turns off a recon on a crew in the same city. Paid recon always costs at least one turn. */
+  | { readonly kind: 'RECON_DISCOUNT'; readonly turns: number }
+  /** Home raid defense strength, on top of Lookouts. */
+  | { readonly kind: 'RAID_DEFENSE'; readonly percent: number }
+  /** Share of the Low-Riders a convoy hit would take off a run that are recovered on the spot. */
+  | { readonly kind: 'VEHICLE_RECOVERY'; readonly share: number }
+  /** Share off the chance of a police stop on a run out of the home city. */
+  | { readonly kind: 'RUN_STOPS'; readonly share: number }
+  /** Share of a beaten push squad's wounds it avoids by getting away. */
+  | { readonly kind: 'GETAWAY'; readonly share: number }
+  /** Product sold over the counter each hour, at Pip's base price, into the register. */
+  | { readonly kind: 'COUNTER_SALES'; readonly unitsPerHour: number }
+  /** Extra product sealed away from raids, on top of the Safe Room. */
+  | { readonly kind: 'PRODUCT_STORAGE'; readonly units: number }
+  /** Extra cargo per Low-Rider on runs out of the home city, as a share. */
+  | { readonly kind: 'CARGO'; readonly share: number }
+  /** Heat washed off each hour, paid from the register, under the laundering caps. */
+  | { readonly kind: 'LAUNDER'; readonly heatPerHour: number }
+  /** Share off the Heat the crew's other rackets draw. */
+  | { readonly kind: 'HEAT_SHIELD'; readonly share: number };
+
+export interface RacketTypeRules {
+  readonly name: string;
+  readonly business: BusinessKey;
+  readonly description: string;
+  readonly effect: RacketEffect;
+  /** Heat the racket draws each hour at full strength. */
+  readonly heatPerHour: number;
+}
+
+export interface RacketRules {
+  readonly catalog: { readonly [K in RacketKey]: RacketTypeRules };
+  /** Strength by business level (index 0 = level 1), before staffing. */
+  readonly levelStrength: readonly number[];
+  /** Turns to set or switch a racket. */
+  readonly switchTurnCost: number;
+  /** Hours after a racket is set before it can be switched again (or shut). */
+  readonly switchCooldownHours: number;
+  readonly laundering: {
+    /** Heat a crew can wash off in a day (UTC), across all its laundering. */
+    readonly dailyHeatCap: number;
+    /** Heat a crew can wash off in a round. */
+    readonly roundHeatCap: number;
+    /** Price per point of Heat washed, as a share of the crew's bribe price. */
+    readonly bribePriceShare: number;
+  };
+}
+
+export interface BusinessTypeRules {
+  readonly name: string;
+  /** Who works it. Girls staff the Strip Club only; thugs staff everything else. */
+  readonly staff: 'THUGS' | 'WHORES';
+  /** Staff a level-1 business needs. Scaled by `levels.staffMultiplier`. */
+  readonly baseStaff: number;
+  /** Front income an hour at level 1, on a 1.0 foot-traffic block, home, no fatigue. */
+  readonly incomeCentsPerHour: number;
+  /** Cash to open it at level 1. Each upgrade costs a multiple of this. */
+  readonly buildCostCents: number;
+}
+
+export interface BusinessSignatureRules {
+  readonly business: BusinessKey;
+  /** Multiplies that business's income in this city. */
+  readonly multiplier: number;
+}
+
+/** One entry per level, level 1 first. All arrays are `maxLevel` long. */
+export interface BusinessLevelRules {
+  readonly maxLevel: number;
+  /** Income at each level as a multiple of level 1. */
+  readonly incomeMultiplier: readonly number[];
+  /** Staff at each level as a multiple of `baseStaff`, rounded up. */
+  readonly staffMultiplier: readonly number[];
+  /** Cost to reach each level as a multiple of `buildCostCents`: index 0 is the build. */
+  readonly costMultiplier: readonly number[];
+  /** Turns to build or upgrade. */
+  readonly buildTurnCost: number;
+  /** Upgrades cost this much more while the block's fatigue is above `fatigue.upgradeMarkupAbove`. */
+  readonly fatiguedUpgradeMarkup: number;
+}
+
+/** A business burns beer and product under the BUSINESS supply job, like a corner crew. */
+export interface BusinessSupplyRules {
+  readonly beerPerStaffPerHour: number;
+  readonly productPerStaffPerHour: number;
+}
+
+/** Income waits in the register; past the cap it is lost, so someone has to come by. */
+export interface BusinessRegisterRules {
+  /** Hours of full income the register holds. */
+  readonly capHours: number;
+  readonly collectTurnCost: number;
+}
+
+/**
+ * A block's tier opens its lots. It rises with uninterrupted holding and business levels,
+ * the way a settlement grows in rank.
+ */
+export interface BusinessTierRules {
+  /** Lots open at Foothold, Established and Stronghold. */
+  readonly lotsOpen: readonly [number, number, number];
+  /** Hours held (siege pauses the clock) to reach Established and Stronghold. */
+  readonly establishedHours: number;
+  readonly strongholdHours: number;
+  /** Level the lot-1 business needs for Established. */
+  readonly establishedLotOneLevel: number;
+  /** Total levels on lots 1 and 2 for Stronghold. */
+  readonly strongholdLevels: number;
+  /** Tiers a block drops when a war ends in a Take. */
+  readonly takeTierDrop: number;
+}
+
+/** War fatigue (devastation): a per-block meter. Output is (100 - fatigue)%. */
+export interface BusinessFatigueRules {
+  /** Fatigue never rises above this, so a business always makes something. */
+  readonly max: number;
+  readonly perFight: number;
+  readonly perSiegeHour: number;
+  readonly onTake: number;
+  readonly onConcede: number;
+  readonly onSack: number;
+  readonly onLocalsClaim: number;
+  readonly recoveryPerHour: number;
+  /** Slower recovery on a block that changed hands this many times inside the window. */
+  readonly scarredRecoveryPerHour: number;
+  readonly scarredHandsChanged: number;
+  readonly scarredWindowHours: number;
+  /** Upgrades cost `levels.fatiguedUpgradeMarkup` more above this fatigue. */
+  readonly upgradeMarkupAbove: number;
+}
+
+/**
+ * Taking a block from a player is a block war: declare, an opening fight, a siege that
+ * builds Control to 100, and a truce. Taking a block from the locals stays a single fight.
+ */
+export interface BlockWarRules {
+  readonly declareTurnCost: number;
+  /** Wars one crew can have declared at a time. */
+  readonly maxDeclaredPerCrew: number;
+  /** Real minutes between the declaration and the opening fight. */
+  readonly warningMinutes: number;
+  /** Hours for a siege to take Control from 0 to 100 with no allied help. */
+  readonly siegeHours: number;
+  /** Control rate x (1 + this x allied share): an ally at the full cap speeds the siege. */
+  readonly allySiegeSpeedup: number;
+  /** Control lost when the holder breaks the siege. */
+  readonly breakSiegeControlLoss: number;
+  readonly resiegeCooldownHours: number;
+  readonly maxWarHours: number;
+  readonly truceHours: number;
+  readonly sackTruceHours: number;
+  /** Hours the losing attacker cannot declare on that block again. */
+  readonly loserCooldownHours: number;
+  /** Minutes between starting a break attempt and the fight landing, so an ally can answer. */
+  readonly breakMusterMinutes: number;
+  /**
+   * 1.1.0-D. Block wars are played: a player-held block is taken by a war, not the 0.6.0-C
+   * push, and the settings below apply. Absent before D, where the numbers are proposals.
+   */
+  readonly enabled?: boolean;
+  /** Share of the block's registers a Sack takes, and the most it can take. */
+  readonly sackLootShare?: number;
+  readonly sackLootCapCents?: number;
+  /** Heat a Sack puts on the attacker, and a torch on the holder. */
+  readonly sackHeat?: number;
+  readonly torchHeat?: number;
+}
+
+/**
+ * One ally per side, and only a member who is online and answers the call. No dice: the
+ * uncertainty is whether a real ally is around.
+ */
+export interface BlockWarAllyRules {
+  readonly maxPerSide: number;
+  /** An ally sends at most this multiple of the declarer's committed thugs, on either side. */
+  readonly maxShareOfDeclarer: number;
+  /** Minutes an attacker's call to join a siege stays open. */
+  readonly siegeCallMinutes: number;
+  /** Active wars one crew can be the ally in. Declaring is counted separately. */
+  readonly maxWarsAsAlly: number;
+  /** Most of the winnings the caller can promise the ally, and the step it moves in. */
+  readonly maxCutShare: number;
+  readonly cutStep: number;
+}
+
+/** A block the locals take over: its businesses go dormant and decay. */
+export interface BusinessLocalsRules {
+  /** Hours after the locals take over before levels start to fall. */
+  readonly graceHours: number;
+  /** Every business loses a level this often after the grace period. */
+  readonly levelLossEveryHours: number;
+  /** Tiers dropped when the locals take over, and hours until the block is a Foothold. */
+  readonly takeoverTierDrop: number;
+  readonly footholdAfterHours: number;
+  /** Extra local thugs per business level on the block, capped at a share of the district's base. */
+  readonly localsPerLevel: number;
+  readonly maxLocalsBonusShare: number;
+}
+
+/** The holder burns a business down rather than hand it over. */
+export interface BusinessTorchRules {
+  readonly levelsLost: number;
+  /** Share of the lost levels' build cost paid back. */
+  readonly salvageShare: number;
+  readonly turnCost: number;
+  /** Minutes the torch takes; it must finish before Control reaches 100. */
+  readonly minutes: number;
+  /** No torching in the round's final hours. */
+  readonly closedFinalHours: number;
 }
 
 /**
@@ -1775,6 +2094,168 @@ export interface DriveByRules {
   };
 }
 
+
+/** 1.2.0-A. What kind of room a city's casino venue is. Games arrive in later 1.2 slices. */
+export type CasinoVenueKind = 'FULL_CASINO' | 'PRIVATE_CLUB' | 'UNDERGROUND' | 'NIGHTLIFE';
+
+export interface CasinoVenueRules {
+  readonly name: string;
+  readonly blurb: string;
+  readonly kind: CasinoVenueKind;
+}
+
+/** 1.2.0-B. One weighted symbol on a server-authoritative slot reel. */
+export interface CasinoSlotSymbolRules {
+  readonly key: string;
+  readonly label: string;
+  readonly glyph: string;
+  readonly weight: number;
+}
+
+/** One selectable line through the visible slot grid. Each row is 0=top, 1=middle, 2=bottom. */
+export interface CasinoSlotPaylineRules {
+  readonly key: string;
+  readonly name: string;
+  /** One visible row index for each reel, left to right. */
+  readonly rows: readonly number[];
+}
+
+/** 1.2.0-B. A ruleset-pinned video slot with a three-row reel window and selectable paylines. */
+export interface CasinoSlotMachineRules {
+  readonly key: string;
+  readonly name: string;
+  readonly blurb: string;
+  readonly venueKinds: readonly CasinoVenueKind[];
+  readonly reels: 3 | 4 | 5;
+  readonly rows: 3;
+  readonly minBetPerLineCents: number;
+  readonly maxBetPerLineCents: number;
+  readonly betStepCents: number;
+  readonly symbols: readonly CasinoSlotSymbolRules[];
+  /**
+   * One circular virtual strip per reel. A server-selected stop is the middle
+   * visible row; the rows above/below come from the adjacent strip positions.
+   */
+  readonly reelStrips: readonly (readonly string[])[];
+  readonly paylines: readonly CasinoSlotPaylineRules[];
+  /**
+   * Total return for one winning line, expressed in basis points of that line's bet.
+   * A line pays the longest consecutive same-symbol run from the left, minimum 3 reels.
+   */
+  readonly linePayoutBps: Readonly<Record<string, Readonly<Partial<Record<3 | 4 | 5, number>>>>>;
+  readonly progressive?: {
+    readonly symbolKey: string;
+    readonly seedCents: number;
+    /** Contribution is funded on every nominal spin, including a comped free spin. */
+    readonly contributionBps: number;
+    readonly eligibleBetPerLineCents: number;
+    readonly requiresAllPaylines: boolean;
+  };
+  readonly freeSpins?: {
+    /** Chance on a paid spin only. 100 = 1.00%. Free spins never retrigger. */
+    readonly triggerBps: number;
+    readonly presentationLabel: string;
+    /** Weighted bundle size after the bonus trigger succeeds. */
+    readonly awards: readonly {
+      readonly spins: 1 | 2 | 3 | 5 | 10;
+      readonly weight: number;
+    }[];
+  };
+}
+
+/** 1.2.0-C. One ruleset-pinned blackjack table. */
+export interface CasinoBlackjackTableRules {
+  readonly key: string;
+  readonly name: string;
+  readonly blurb: string;
+  readonly venueKinds: readonly CasinoVenueKind[];
+  readonly minBetCents: number;
+  readonly maxBetCents: number;
+  readonly betStepCents: number;
+  readonly decks: 1 | 2 | 4 | 6 | 8;
+  /** Cut card expressed as cards remaining. A new shoe starts between hands. */
+  readonly reshuffleAtRemainingCards: number;
+  readonly dealerHitsSoft17: boolean;
+  readonly blackjackPayout: {
+    readonly numerator: number;
+    readonly denominator: number;
+  };
+  readonly allowDoubleAfterSplit: boolean;
+  readonly maxSplitHands: 2 | 3 | 4;
+  readonly splitAcesOneCard: boolean;
+}
+
+/** 1.2.0-D. Roulette table limits and wheel style. */
+export type CasinoRouletteWheel = 'AMERICAN' | 'EUROPEAN';
+
+export interface CasinoRouletteTableRules {
+  readonly key: string;
+  readonly name: string;
+  readonly blurb: string;
+  readonly venueKinds: readonly CasinoVenueKind[];
+  readonly wheel: CasinoRouletteWheel;
+  readonly minBetCents: number;
+  readonly maxBetCents: number;
+  readonly betStepCents: number;
+  readonly maxTotalBetCents: number;
+}
+
+/** 1.2.0-D. Street Dice uses a pass-line point cycle with optional true-odds backing. */
+export interface CasinoStreetDiceTableRules {
+  readonly key: string;
+  readonly name: string;
+  readonly blurb: string;
+  readonly venueKinds: readonly CasinoVenueKind[];
+  readonly minBetCents: number;
+  readonly maxBetCents: number;
+  readonly betStepCents: number;
+  readonly maxOddsMultiple: 1 | 2 | 3 | 5;
+}
+
+/** 1.2.0-E. Solo Texas Hold’em buy-in and blind structure. */
+export interface CasinoPokerRules {
+  readonly minBuyInCents: number;
+  readonly maxBuyInCents: number;
+  readonly bigBlindCents: number;
+  readonly raiseCents: number;
+  /** House rake on flopped pots, in basis points, up to a hand cap. */
+  readonly rakeBps: number;
+  readonly rakeCapCents: number;
+  readonly venueKinds: readonly CasinoVenueKind[];
+}
+
+/**
+ * 1.2.0-A. Casino foundation: venues, cashier limits and session bankrolls.
+ * 1.2.0-B adds server-authoritative Slots.
+ * 1.2.0-C optionally adds reconnect-safe Blackjack.
+ * 1.2.0-D adds Roulette and persistent Street Dice.
+ */
+export interface CasinoRules {
+  readonly enabled: boolean;
+  readonly chipUnitCents: number;
+  readonly cashier: {
+    readonly minExchangeCents: number;
+    readonly maxExchangeCents: number;
+  };
+  readonly session: {
+    readonly minBankrollCents: number;
+    readonly maxBankrollCents: number;
+  };
+  readonly venues: Readonly<Record<string, CasinoVenueRules>>;
+  readonly slots?: {
+    readonly machines: readonly CasinoSlotMachineRules[];
+  };
+  readonly blackjack?: {
+    readonly tables: readonly CasinoBlackjackTableRules[];
+  };
+  readonly roulette?: {
+    readonly tables: readonly CasinoRouletteTableRules[];
+  };
+  readonly streetDice?: {
+    readonly tables: readonly CasinoStreetDiceTableRules[];
+  };
+  readonly poker?: CasinoPokerRules;
+}
 export interface Ruleset {
   /** Absent on economic-only rounds. */
   readonly combat?: import('./combat-prototype.js').CombatModel & {
@@ -1853,5 +2334,9 @@ export interface Ruleset {
   readonly travel?: TravelRules;
   /** 0.6.0-A. Absent where the street belongs to nobody. */
   readonly turf?: TurfRules;
+  /** 1.1.0-A. Absent where blocks hold no businesses. Needs `turf`. */
+  readonly business?: BusinessRules;
+  /** 1.2.0-A. Absent before casinos become player destinations. */
+  readonly casino?: CasinoRules;
   readonly evidence: EvidenceRules;
 }

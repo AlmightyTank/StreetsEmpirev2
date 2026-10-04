@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '../stores/session.js';
 import { CONSOLE_UPDATED_EVENT, consoleApi } from '../api/console.js';
+import { SURVEYS_CHANGED_EVENT, surveysApi } from '../api/surveys.js';
 import { formatWhen } from '../utils/time.js';
 
 /** One page in the game menu. `key` is what the phone tab bar stores. */
@@ -11,8 +12,12 @@ export interface NavPage {
   short?: string;
   to: string;
   icon: IconName;
-  /** Other paths that count as this page, e.g. every store for Stores. */
+  /** Other exact routes represented by this one top-level destination. */
+  aliases?: string[];
+  /** One legacy/detail prefix represented by this destination. */
   prefix?: string;
+  /** Extra detail prefixes represented by this destination. */
+  prefixes?: string[];
 }
 
 export interface NavSection {
@@ -24,53 +29,61 @@ export interface NavSection {
 export type IconName =
   | 'dashboard' | 'hideout' | 'scout' | 'produce' | 'raids' | 'stores' | 'cities'
   | 'rankings' | 'alliance' | 'contacts' | 'profile' | 'activity'
-  | 'status' | 'rules' | 'news' | 'fame' | 'account' | 'admin' | 'pass';
+  | 'status' | 'rules' | 'news' | 'fame' | 'account' | 'admin' | 'pass' | 'casino';
 
 export const SECTIONS: NavSection[] = [
   {
-    id: 'actions',
-    title: 'Actions',
+    id: 'play',
+    title: 'Play',
     pages: [
       { key: 'dashboard', label: 'Dashboard', short: 'Home', to: '/game', icon: 'dashboard' },
-      { key: 'quests', label: 'Quests', to: '/game/quests', icon: 'activity' },
-      { key: 'street-pass', label: 'Street Pass', short: 'Pass', to: '/game/street-pass', icon: 'pass' },
       { key: 'scout', label: 'Scout', to: '/game/scout', icon: 'scout' },
       { key: 'produce', label: 'Produce', to: '/game/produce', icon: 'produce' },
       { key: 'raids', label: 'Raids', to: '/game/combat', icon: 'raids' },
       { key: 'stores', label: 'Stores', to: '/game/stores', icon: 'stores', prefix: '/game/stores/' },
+      { key: 'casino', label: 'Casino', to: '/game/casino', icon: 'casino' },
       { key: 'hideout', label: 'Hideout', to: '/game/hideout', icon: 'hideout' },
       { key: 'travel', label: 'Travel', to: '/game/travel', icon: 'cities' },
       { key: 'turf', label: 'City Blocks', short: 'Blocks', to: '/game/turf', icon: 'cities' },
     ],
   },
   {
-    id: 'players',
-    title: 'Players',
+    id: 'progress',
+    title: 'Progress',
     pages: [
-      { key: 'players', label: 'Players', to: '/game/players', icon: 'contacts', prefix: '/game/players/' },
-      { key: 'console', label: 'Console', to: '/game/console', icon: 'activity' },
-      { key: 'rankings', label: 'Rankings', short: 'Ranks', to: '/game/rankings', icon: 'rankings' },
-      { key: 'alliance', label: 'Alliance', to: '/game/alliance', icon: 'alliance', prefix: '/game/alliances' },
-      { key: 'contacts', label: 'Contacts', to: '/game/contacts', icon: 'contacts' },
+      { key: 'quests', label: 'Quests', to: '/game/quests', icon: 'activity', aliases: ['/game/reputation'] },
+      { key: 'street-pass', label: 'Street Pass', short: 'Pass', to: '/game/street-pass', icon: 'pass' },
+    ],
+  },
+  {
+    id: 'people',
+    title: 'People',
+    pages: [
+      { key: 'players', label: 'Players', to: '/game/players', icon: 'contacts', aliases: ['/game/contacts'], prefix: '/game/players/', prefixes: ['/game/forum/'] },
+      { key: 'rankings', label: 'Rankings', short: 'Ranks', to: '/game/rankings', icon: 'rankings', aliases: ['/game/hall-of-fame'] },
+      { key: 'alliance', label: 'Alliance', to: '/game/alliance', icon: 'alliance', aliases: ['/game/alliances'], prefix: '/game/alliances/' },
       { key: 'profile', label: 'Profile', to: '/game/profile', icon: 'profile' },
-      { key: 'activity', label: 'Activity', to: '/game/activity', icon: 'activity' },
+      { key: 'console', label: 'Console', to: '/game/console', icon: 'activity', aliases: ['/game/activity'] },
+    ],
+  },
+  {
+    id: 'community',
+    title: 'Community',
+    pages: [
+      { key: 'news', label: 'News & Surveys', short: 'News', to: '/game/news', icon: 'news', aliases: ['/game/surveys'] },
     ],
   },
   {
     id: 'game',
     title: 'Game',
     pages: [
-      { key: 'status', label: 'Status', to: '/game/status', icon: 'status' },
+      { key: 'status', label: 'Status & Support', short: 'Status', to: '/game/status', icon: 'status', aliases: ['/game/report-bug'] },
       { key: 'rules', label: 'Rules', to: '/game/rules', icon: 'rules' },
-      { key: 'news', label: 'News', to: '/game/news', icon: 'news' },
-      { key: 'fame', label: 'Hall of Fame', short: 'Fame', to: '/game/hall-of-fame', icon: 'fame' },
       { key: 'account', label: 'Account', to: '/account', icon: 'account' },
-      { key: 'report-bug', label: 'Report a bug', short: 'Bug', to: '/game/report-bug', icon: 'status' },
     ],
   },
 ];
 
-/** Only shown to game admins. The server enforces the same rule on every admin route. */
 export const ADMIN_SECTION: NavSection = {
   id: 'admin',
   title: 'Admin',
@@ -78,6 +91,8 @@ export const ADMIN_SECTION: NavSection = {
     { key: 'admin-monitoring', label: 'Monitoring', to: '/game/admin/monitoring', icon: 'admin' },
     { key: 'admin-rounds', label: 'Rounds', to: '/game/admin', icon: 'admin', prefix: '/game/admin/rounds/' },
     { key: 'admin-news', label: 'News & banner', short: 'Banner', to: '/game/admin/news', icon: 'admin' },
+    { key: 'admin-surveys', label: 'Surveys', to: '/game/admin/surveys', icon: 'admin' },
+    { key: 'admin-quests', label: 'Quest Content', short: 'Quests', to: '/game/admin/quests', icon: 'admin' },
     { key: 'admin-accounts', label: 'Accounts', to: '/game/admin/accounts', icon: 'admin', prefix: '/game/admin/accounts/' },
     { key: 'admin-integrations', label: 'Integrations', short: 'Integr.', to: '/game/admin/integrations', icon: 'admin' },
     { key: 'admin-rulesets', label: 'Rulesets', to: '/game/admin/rulesets', icon: 'admin' },
@@ -93,7 +108,6 @@ export const ADMIN_SECTION: NavSection = {
 
 export function useSections(): NavSection[] {
   const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
-  // The Street Pass only shows on rounds that have one.
   const hasPass = useSession((s) => Boolean(s.me?.streetPass));
   return useMemo(() => {
     const sections = hasPass
@@ -103,8 +117,15 @@ export function useSections(): NavSection[] {
   }, [isAdmin, hasPass]);
 }
 
+function pathMatches(pathname: string, to: string, aliases: readonly string[] = [], prefix?: string, prefixes: readonly string[] = []): boolean {
+  return pathname === to
+    || aliases.includes(pathname)
+    || (prefix !== undefined && pathname.startsWith(prefix))
+    || prefixes.some((candidate) => pathname.startsWith(candidate));
+}
+
 export function isCurrent(page: NavPage, pathname: string): boolean {
-  return pathname === page.to || (page.prefix !== undefined && pathname.startsWith(page.prefix));
+  return pathMatches(pathname, page.to, page.aliases, page.prefix, page.prefixes);
 }
 
 /* ---------- Phone tab bar slots ---------- */
@@ -113,10 +134,19 @@ export const TAB_COUNT = 4;
 export const DEFAULT_TABS = ['dashboard', 'scout', 'produce', 'raids'];
 const TABS_STORAGE_KEY = 'streets.tabbar.v1';
 
+const TAB_KEY_MIGRATIONS: Record<string, string> = {
+  contacts: 'players',
+  activity: 'console',
+  surveys: 'news',
+  fame: 'rankings',
+  'report-bug': 'status',
+};
+
 function readTabs(): string[] {
   try {
     const parsed: unknown = JSON.parse(window.localStorage.getItem(TABS_STORAGE_KEY) ?? 'null');
-    return Array.isArray(parsed) && parsed.every((key) => typeof key === 'string') ? parsed.slice(0, TAB_COUNT) : DEFAULT_TABS;
+    if (!Array.isArray(parsed) || !parsed.every((key) => typeof key === 'string')) return DEFAULT_TABS;
+    return parsed.slice(0, TAB_COUNT).map((key) => TAB_KEY_MIGRATIONS[key] ?? key);
   } catch {
     return DEFAULT_TABS;
   }
@@ -248,21 +278,55 @@ function useConsoleUnread(playerId: string | null): number {
   return unread;
 }
 
+
+function useSurveyAvailableCount(playerId: string | null): number {
+  const [available, setAvailable] = useState(0);
+
+  useEffect(() => {
+    if (!playerId) {
+      setAvailable(0);
+      return;
+    }
+
+    let live = true;
+    const refresh = () => {
+      void surveysApi.page()
+        .then((page) => { if (live) setAvailable(page.available.length); })
+        .catch(() => { /* A survey badge must never break navigation. */ });
+    };
+
+    refresh();
+    window.addEventListener(SURVEYS_CHANGED_EVENT, refresh);
+    window.addEventListener('focus', refresh);
+    const interval = window.setInterval(refresh, 120_000);
+
+    return () => {
+      live = false;
+      window.removeEventListener(SURVEYS_CHANGED_EVENT, refresh);
+      window.removeEventListener('focus', refresh);
+      window.clearInterval(interval);
+    };
+  }, [playerId]);
+
+  return available;
+}
+
 /**
  * What each page wants you to know before you open it:
  * - Scout carries your turns, amber once they sit at the cap.
- * - Raids gets a red dot when someone hit you since you last looked at Raids or Activity.
+ * - Raids gets a red dot when someone hit you since you last looked at Raids or Console/Activity.
  * - Dashboard goes amber when Heat drags the take, red when bust/arrest risk is live,
  *   and red while an arrest has the player locked up.
  * - Travel goes amber while a run sits in town, trading only when you are there, and
  *   while the truck is on the road to a new home; (0.5.0-E) red while someone is on your
  *   run's tail, amber while an ally calls you for backup.
  */
-export function useNavBadges(pathname: string): Record<string, NavBadge> {
+export function useNavBadges(pathname: string, search = ''): Record<string, NavBadge> {
   const me = useSession((s) => s.me);
   const activity = useSession((s) => s.recentActivity);
   const playerId = me?.id ?? null;
   const consoleUnread = useConsoleUnread(playerId);
+  const surveyAvailable = useSurveyAvailableCount(playerId);
   const latestHit = activity
     .filter((entry) => DEFENSE_TYPES.has(entry.type))
     .reduce<string | null>((latest, entry) => (latest === null || entry.createdAt > latest ? entry.createdAt : latest), null);
@@ -273,7 +337,13 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
     setSeen(playerId ? readSeen(playerId) : null);
   }, [playerId]);
 
-  const looking = pathname === '/game/combat' || pathname === '/game/activity';
+  // Inbox/alerts in Console do not prove the player saw the attack. Raids,
+  // the legacy full log, or an explicit Console attack/activity view does.
+  const consoleView = pathname === '/game/console' ? new URLSearchParams(search).get('view') : null;
+  const looking = pathname === '/game/combat'
+    || pathname === '/game/activity'
+    || consoleView === 'attacks'
+    || consoleView === 'activity';
   useEffect(() => {
     if (!playerId || !latestHit) return;
     const stored = readSeen(playerId);
@@ -315,6 +385,14 @@ export function useNavBadges(pathname: string): Record<string, NavBadge> {
       tone: 'info',
       text: badgeCount(consoleUnread),
       label: `${consoleUnread} unread Console item${consoleUnread === 1 ? '' : 's'}`,
+    };
+  }
+
+  if (surveyAvailable > 0) {
+    badges.news = {
+      tone: 'info',
+      text: badgeCount(surveyAvailable),
+      label: `${surveyAvailable} survey${surveyAvailable === 1 ? '' : 's'} ready for feedback`,
     };
   }
 

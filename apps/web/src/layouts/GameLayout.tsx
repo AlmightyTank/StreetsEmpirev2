@@ -105,6 +105,7 @@ function GameNav({ sections, pathname, badges }: { sections: NavSection[]; pathn
   );
 }
 
+
 const LONG_PRESS_MS = 500;
 
 /**
@@ -312,6 +313,17 @@ function useRouteScroll(pathname: string, hash: string) {
     lastTarget.current = { pathname, hash };
     if (previous && previous.pathname === pathname && previous.hash === hash) return;
     if (navigationType === 'POP') return;
+
+    // Storefronts and casino games share a page shell. Switching counters or
+    // games should replace the active view without yanking the player upward.
+    const previousIsStore = previous?.pathname === '/game/stores' || previous?.pathname.startsWith('/game/stores/');
+    const nextIsStore = pathname === '/game/stores' || pathname.startsWith('/game/stores/');
+    if (previousIsStore && nextIsStore && !hash) return;
+
+    const previousIsCasinoGame = previous?.pathname.startsWith('/game/casino/');
+    const nextIsCasinoGame = pathname.startsWith('/game/casino/');
+    if (previousIsCasinoGame && nextIsCasinoGame && !hash) return;
+
     if (!hash) {
       window.scrollTo(0, 0);
       return;
@@ -341,8 +353,8 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   const round = useSession((s) => s.round);
   const isBetaEnvironment = typeof window !== 'undefined' && window.location.hostname === 'beta.streetsempire.dev';
   const sections = useSections();
-  const { pathname, hash } = useLocation();
-  const badges = useNavBadges(pathname);
+  const { pathname, search, hash } = useLocation();
+  const badges = useNavBadges(pathname, search);
   const pages = sections.flatMap((section) => section.pages);
   const tabs = useTabSlots(pages);
   const [sheet, setSheet] = useState<{ editSlot: number | null } | null>(null);

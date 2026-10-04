@@ -923,7 +923,6 @@ export function StorePage() {
   // starts clean. The basket lives one level higher so it follows the player
   // between Corner, Tommy, Charlie, and Pip until checkout or an explicit clear.
   const [basket, setBasket] = useState<BasketLine[]>([]);
-
   function addToBasket(line: BasketLine) {
     setBasket((current) => {
       const existing = current.find((entry) => entry.key === line.key);

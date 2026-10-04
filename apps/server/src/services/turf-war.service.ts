@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { cornerMinimumFor, headsUpMinutes, turfPushCombatModel, type Ruleset } from '@streets/rules-engine';
+import { blockWarsOn, cornerMinimumFor, headsUpMinutes, turfPushCombatModel, type Ruleset } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
 import type {
   TurfPushBackupInput,
@@ -69,8 +69,8 @@ function districtName(ruleset: Ruleset, city: string, district: DistrictKey): st
   return ruleset.cities?.[city]?.districts?.[district]?.name ?? ruleset.districts[district].name;
 }
 
-function seesPush(ruleset: Ruleset, player: { hideoutLookoutsLevel: number }, landsAt: Date, now: Date): boolean {
-  return landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel) * 60_000);
+function seesPush(ruleset: Ruleset, player: { hideoutLookoutsLevel: number; racketEffects?: unknown }, landsAt: Date, now: Date): boolean {
+  return landsAt <= new Date(now.getTime() + headsUpMinutes(ruleset, player.hideoutLookoutsLevel, player.racketEffects) * 60_000);
 }
 
 /**
@@ -111,6 +111,8 @@ export const TurfWarService = {
 
         const defender = fresh.holder;
         if (!defender) throw AppError.conflict('LOCALS_BLOCK', 'The locals hold that block. Claim it instead of starting a turf war.');
+        // 1.1.0-D: a player's block is taken by a block war, not a single push.
+        if (blockWarsOn(ruleset)) throw AppError.conflict('BLOCK_WARS_ONLY', 'A crew holds this block: declare a block war on it instead.');
         if (defender.id === attackerId || defender.accountId === player.accountId) throw AppError.badRequest('OWN_TURF', 'That is your own block.');
         const allied = allianceTargetBlock(player, defender, now);
         if (allied) throw AppError.conflict('ALLIED', allied);

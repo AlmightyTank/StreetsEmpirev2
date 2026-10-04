@@ -376,6 +376,8 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('0.6.0-F turf release regre
       },
     });
 
+    // Accepting reads the real clock, so the fixture's fixed season must still be running.
+    await app.prisma.round.update({ where: { id: round.id }, data: { endsAt: new Date(Date.now() + 7 * 24 * 3_600_000) } });
     await expect(AllianceService.accept(app.prisma, invitee.id, { tag: 'CAP' }))
       .rejects.toMatchObject({ code: 'TURF_ALLIANCE_CAP' });
     expect((await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: invitee.id } })).allianceId).toBeNull();

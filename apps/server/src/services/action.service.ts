@@ -32,10 +32,20 @@ import { RelocationService } from './relocation.service.js';
 import { BossTripSettleService } from './boss-trip-settle.service.js';
 import { RunSettleService } from './run-settle.service.js';
 import { TurfService } from './turf.service.js';
+import { BusinessService } from './business.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
 import { StreetPassCredService } from './street-pass-cred.service.js';
+
+async function casinoCashEquivalentCents(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<bigint> {
+  if (!ruleset.casino?.enabled) return 0n;
+  const [wallets, sessions] = await Promise.all([
+    tx.casinoWallet.aggregate({ where: { roundPlayerId }, _sum: { chipsCents: true } }),
+    tx.casinoSession.aggregate({ where: { roundPlayerId, status: 'OPEN' }, _sum: { bankrollCents: true } }),
+  ]);
+  return (wallets._sum.chipsCents ?? 0n) + (sessions._sum.bankrollCents ?? 0n);
+}
 
 /**
  * Everything an action is allowed to move. Turn-settled before an action sees
@@ -83,6 +93,9 @@ export interface PlayerState {
   busyThugs: number;
   /** 0.6.0-A. Thugs on held corners: counted, never fit at home. */
   postedThugs: number;
+  /** 1.1.0-B. Thugs and girls working a business: counted, never fit or working at home. */
+  businessThugs: number;
+  businessWhores: number;
 
   /** Quest progress that is per-player rather than per-trader. */
   cleanShiftStreak: number;
@@ -211,6 +224,8 @@ export function toState(player: RoundPlayer): PlayerState {
     outpostNetWorthCents: player.outpostNetWorthCents,
     busyThugs: player.busyThugs,
     postedThugs: player.postedThugs,
+    businessThugs: player.businessThugs,
+    businessWhores: player.businessWhores,
     cleanShiftStreak: player.cleanShiftStreak,
     rocksSuppliedToPip: player.rocksSuppliedToPip,
     driveBysDone: player.driveBysDone,
@@ -242,9 +257,14 @@ export function toState(player: RoundPlayer): PlayerState {
   };
 }
 
-/** Thugs who can do something at home: not wounded, busy elsewhere, or posted on a corner. */
-export function fitThugs(player: { thugs: number; woundedThugs: number; busyThugs?: number; postedThugs?: number }): number {
-  return Math.max(0, player.thugs - player.woundedThugs - (player.busyThugs ?? 0) - (player.postedThugs ?? 0));
+/** Thugs who can do something at home: not wounded, busy elsewhere, posted on a corner, or working a business. */
+export function fitThugs(player: { thugs: number; woundedThugs: number; busyThugs?: number; postedThugs?: number; businessThugs?: number }): number {
+  return Math.max(0, player.thugs - player.woundedThugs - (player.busyThugs ?? 0) - (player.postedThugs ?? 0) - (player.businessThugs ?? 0));
+}
+
+/** 1.1.0-B. Girls who work the street or a Produce shift: everyone not working a business. */
+export function workingWhores(player: { whores: number; businessWhores?: number }): number {
+  return Math.max(0, player.whores - (player.businessWhores ?? 0));
 }
 
 function armedThugsForSnapshot(state: PlayerState): number {
@@ -269,6 +289,8 @@ function toSnapshot(
       fitThugs: fitThugs(state),
       woundedThugs: state.woundedThugs,
       postedThugs: state.postedThugs,
+      businessThugs: state.businessThugs,
+      businessWhores: state.businessWhores,
       armedThugs: armedThugsForSnapshot(state),
       unarmedThugs: Math.max(0, fitThugs(state) - armedThugsForSnapshot(state)),
       condoms: state.condoms,
@@ -348,10 +370,9 @@ export const ActionService = {
       await RunSettleService.settle(tx, roundPlayerId, now);
       // 0.5.0-D: and a move that has arrived has arrived.
       await RelocationService.settleOwn(tx, roundPlayerId, now);
-      // Trips A: and a boss whose flight home has landed is home.
-      await BossTripSettleService.settle(tx, roundPlayerId, now);
-      // Trips C: and whatever a hit on a visiting boss brought back is back.
-      await BossTripSettleService.credit(tx, roundPlayerId, now);
+      // Trips A/C: a boss whose flight home has landed is home, and whatever a hit on a
+      // visiting boss brought back is back.
+      await BossTripSettleService.settleAndCredit(tx, roundPlayerId, now);
       // 0.5.0-E: and whatever came back from a convoy fight is back.
       await ConvoyService.credit(tx, roundPlayerId, now);
       // 0.6.0-C: turf squads and allied backup return before another action reads them.
@@ -386,7 +407,9 @@ export const ActionService = {
       // 0.6.0-B: settle corner upkeep/walkouts and pending house-minted tax before
       // an action reads cash, thugs, product or the home arsenal.
       const turfSettlement = await TurfService.settlePlayer(tx, roundPlayerId, ruleset, now);
-      if (turfSettlement) {
+      // 1.1.0-B: and business supply, income and any staff coming home from a lost block.
+      const businessSettlement = await BusinessService.settlePlayer(tx, roundPlayerId, ruleset, now);
+      if (turfSettlement || businessSettlement) {
         player = await tx.roundPlayer.findUniqueOrThrow({
           where: { id: roundPlayerId },
           include: { city: true },
@@ -414,7 +437,8 @@ export const ActionService = {
       // Trips E: the girls notice the boss is gone, before and after the action alike.
       const awayPenalty = await HappinessService.awayPenalty(tx, ruleset, roundPlayerId, now);
       const beforeHappiness = HappinessService.recalculate({ ...current, thugs: fitThugs(current), products: beforeProducts }, ruleset, awayPenalty);
-      const beforeNetWorth = NetWorthService.calculate({ ...current, products: beforeProducts }, ruleset);
+      const casinoNetWorthCents = await casinoCashEquivalentCents(tx, roundPlayerId, ruleset);
+      const beforeNetWorth = NetWorthService.calculate({ ...current, products: beforeProducts, casinoNetWorthCents }, ruleset);
       const beforeRanks = await RankingService.ranksFor(tx, {
         id: roundPlayerId,
         roundId: player.roundId,
@@ -452,7 +476,7 @@ export const ActionService = {
       const afterProducts = beforeProducts && (await HappinessService.otherProducts(tx, roundPlayerId, ruleset));
       // Re-read: the action may have sent the boss away (or brought them home).
       const afterHappiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next), products: afterProducts }, ruleset, await HappinessService.awayPenalty(tx, ruleset, roundPlayerId, now));
-      const afterNetWorth = NetWorthService.calculate({ ...next, products: afterProducts }, ruleset);
+      const afterNetWorth = NetWorthService.calculate({ ...next, products: afterProducts, casinoNetWorthCents }, ruleset);
       const afterRanks = await RankingService.ranksFor(tx, {
         id: roundPlayerId,
         roundId: player.roundId,

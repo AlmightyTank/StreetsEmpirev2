@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, bossHitBackupSchema, bossHitCallSchema, bossHitSchema, heatBribeSchema, productTradeSchema, runOutpostEstablishSchema, runOutpostTransferSchema, sitDownAnswerSchema, sitDownProposeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripOutpostVisitSchema, tripRentGunsSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushBackupSchema, turfPushCallSchema, turfPushSchema, updateContactKindSchema, updateContactSchema, wirePinSchema, wirePostSchema, workSupplyClearSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, businessBuildSchema, blockWarAnswerSchema, blockWarCallSchema, blockWarDeclareSchema, blockWarEndSchema, blockWarSendSchema, businessCollectSchema, businessRacketSchema, businessStaffSchema, businessTorchSchema, bossHitBackupSchema, bossHitCallSchema, bossHitSchema, heatBribeSchema, productTradeSchema, runOutpostEstablishSchema, runOutpostTransferSchema, sitDownAnswerSchema, sitDownProposeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripOutpostVisitSchema, tripRentGunsSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushBackupSchema, turfPushCallSchema, turfPushSchema, updateContactKindSchema, updateContactSchema, wirePinSchema, wirePostSchema, workSupplyClearSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
 import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
@@ -17,6 +17,8 @@ import { HeatService, toHeatDto } from '../services/heat.service.js';
 import { PlayerStateService } from '../services/player-state.service.js';
 import { PlayerDirectoryService } from '../services/player-directory.service.js';
 import { TurfActionService } from '../services/turf-action.service.js';
+import { BusinessActionService } from '../services/business-action.service.js';
+import { BlockWarService } from '../services/block-war.service.js';
 import { TurfWarService } from '../services/turf-war.service.js';
 import { TurfOutpostService } from '../services/turf-outpost.service.js';
 import { AppError } from '../utils/errors.js';
@@ -69,6 +71,36 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     TurfActionService.post(app.prisma, await me(request.auth!.account.id), parseBody(turfPostSchema, request.body ?? {})));
   app.post('/turf/pull', { preHandler: app.requireAuth }, async (request) =>
     TurfActionService.pull(app.prisma, await me(request.auth!.account.id), parseBody(turfPullSchema, request.body ?? {})));
+
+  /** 1.1.0-B: build or upgrade a business, open or close it, and collect the registers. */
+  app.post('/business/build', { preHandler: app.requireAuth }, async (request) =>
+    BusinessActionService.build(app.prisma, await me(request.auth!.account.id), parseBody(businessBuildSchema, request.body ?? {})));
+  app.post('/business/staff', { preHandler: app.requireAuth }, async (request) =>
+    BusinessActionService.staff(app.prisma, await me(request.auth!.account.id), parseBody(businessStaffSchema, request.body ?? {})));
+  /** 1.1.0-D: block wars - declare, defend, break the siege, go again, allies, concede, withdraw, torch. */
+  app.post('/block-war/declare', { preHandler: app.requireAuth }, async (request) =>
+    BlockWarService.declare(app.prisma, await me(request.auth!.account.id), parseBody(blockWarDeclareSchema, request.body ?? {})));
+  app.post('/block-war/defend', { preHandler: app.requireAuth }, async (request) =>
+    BlockWarService.defend(app.prisma, await me(request.auth!.account.id), parseBody(blockWarSendSchema, request.body ?? {})));
+  app.post('/block-war/break', { preHandler: app.requireAuth }, async (request) =>
+    BlockWarService.breakSiege(app.prisma, await me(request.auth!.account.id), parseBody(blockWarSendSchema, request.body ?? {})));
+  app.post('/block-war/assault', { preHandler: app.requireAuth }, async (request) =>
+    BlockWarService.assault(app.prisma, await me(request.auth!.account.id), parseBody(blockWarSendSchema, request.body ?? {})));
+  app.post('/block-war/call', { preHandler: app.requireAuth }, async (request) =>
+    BlockWarService.callAlly(app.prisma, await me(request.auth!.account.id), parseBody(blockWarCallSchema, request.body ?? {})));
+  app.post('/block-war/answer', { preHandler: app.requireAuth }, async (request) =>
+    BlockWarService.answer(app.prisma, await me(request.auth!.account.id), parseBody(blockWarAnswerSchema, request.body ?? {})));
+  app.post('/block-war/concede', { preHandler: app.requireAuth }, async (request) =>
+    BlockWarService.concede(app.prisma, await me(request.auth!.account.id), parseBody(blockWarEndSchema, request.body ?? {})));
+  app.post('/block-war/withdraw', { preHandler: app.requireAuth }, async (request) =>
+    BlockWarService.withdraw(app.prisma, await me(request.auth!.account.id), parseBody(blockWarEndSchema, request.body ?? {})));
+  app.post('/business/torch', { preHandler: app.requireAuth }, async (request) =>
+    BlockWarService.torch(app.prisma, await me(request.auth!.account.id), parseBody(businessTorchSchema, request.body ?? {})));
+  /** 1.1.0-C: run, switch or shut a business's racket. */
+  app.post('/business/racket', { preHandler: app.requireAuth }, async (request) =>
+    BusinessActionService.racket(app.prisma, await me(request.auth!.account.id), parseBody(businessRacketSchema, request.body ?? {})));
+  app.post('/business/collect', { preHandler: app.requireAuth }, async (request) =>
+    BusinessActionService.collect(app.prisma, await me(request.auth!.account.id), parseBody(businessCollectSchema, request.body ?? {})));
 
   /** 0.6.0-C: commit a squad to a delayed player-vs-player turf push. */
   app.post('/turf/push', { preHandler: app.requireAuth }, async (request) =>

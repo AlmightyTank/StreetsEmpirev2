@@ -17,7 +17,9 @@ import { BossTripSettleService } from './boss-trip-settle.service.js';
 import { RunSettleService, runSummary } from './run-settle.service.js';
 import type { RoundPlayerDto } from '@streets/shared';
 import { TurfService } from './turf.service.js';
+import { BusinessService } from './business.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
+import { pokerCommittedCents } from './casino-poker-committed.js';
 
 /** 0.3.0-C: the alliance tag rides along so every screen can show it before the name. */
 export type PlayerWithCity = RoundPlayer & { city: City; alliance: { name: string; tag: string } | null };
@@ -96,10 +98,9 @@ export const PlayerStateService = {
     await RunSettleService.settle(tx, roundPlayerId, now);
     // 0.5.0-D: and a move that has arrived has arrived.
     await RelocationService.settleOwn(tx, roundPlayerId, now);
-    // Trips A: and a boss whose flight home has landed is home.
-    await BossTripSettleService.settle(tx, roundPlayerId, now);
-    // Trips C: and whatever a hit on a visiting boss brought back is back.
-    await BossTripSettleService.credit(tx, roundPlayerId, now);
+    // Trips A/C: a boss whose flight home has landed is home, and whatever a hit on a
+    // visiting boss brought back is back.
+    await BossTripSettleService.settleAndCredit(tx, roundPlayerId, now);
     // 0.5.0-E: and whatever came back from a convoy fight is back.
     await ConvoyService.credit(tx, roundPlayerId, now);
     // 0.6.0-C: and turf-war squads/help are back or posted after the landing.
@@ -135,6 +136,19 @@ export const PlayerStateService = {
         ak47s: turfSettlement.ak47s,
       };
     }
+    // 1.1.0-B: business supply and income, and staff home from any block the crew lost.
+    const businessSettlement = await BusinessService.settlePlayer(tx, roundPlayerId, ruleset, now);
+    if (businessSettlement) {
+      rest = {
+        ...rest,
+        beer: businessSettlement.beer,
+        crack: businessSettlement.crack,
+        thugs: businessSettlement.thugs,
+        whores: businessSettlement.whores,
+        businessThugs: businessSettlement.businessThugs,
+        businessWhores: businessSettlement.businessWhores,
+      };
+    }
     const recovery = await CombatRecoveryService.settle(tx, roundPlayerId, now);
     // 1. Turns, and the shop shelves on the same clock. Heat cools on it too.
     const turns = TurnService.settle(rest, now, ruleset);
@@ -152,8 +166,31 @@ export const PlayerStateService = {
       await HappinessService.awayPenalty(tx, ruleset, roundPlayerId, now),
     );
 
-    // 3. Net worth.
-    const netWorthCents = NetWorthService.calculate({ ...recovered, products }, ruleset);
+    // 3. Net worth. Old pinned rulesets do not pay the cost of casino reads.
+    let casinoNetWorthCents = 0n;
+    if (ruleset.casino?.enabled) {
+      const [casinoWalletValue, casinoSessionValue, blackjackCommittedValue, streetDiceCommittedValue, pokerCommittedValue] = await Promise.all([
+        tx.casinoWallet.aggregate({ where: { roundPlayerId }, _sum: { chipsCents: true } }),
+        tx.casinoSession.aggregate({ where: { roundPlayerId, status: 'OPEN' }, _sum: { bankrollCents: true } }),
+        tx.casinoBlackjackHand.aggregate({
+          where: { roundPlayerId, status: 'ACTIVE' },
+          _sum: { committedWagerCents: true },
+        }),
+        tx.casinoStreetDiceRound.aggregate({
+          where: { roundPlayerId, status: 'ACTIVE' },
+          _sum: { lineWagerCents: true, oddsWagerCents: true },
+        }),
+        pokerCommittedCents(tx, roundPlayerId),
+      ]);
+      casinoNetWorthCents =
+        (casinoWalletValue._sum.chipsCents ?? 0n)
+        + (casinoSessionValue._sum.bankrollCents ?? 0n)
+        + (blackjackCommittedValue._sum.committedWagerCents ?? 0n)
+        + (streetDiceCommittedValue._sum.lineWagerCents ?? 0n)
+        + (streetDiceCommittedValue._sum.oddsWagerCents ?? 0n)
+        + pokerCommittedValue;
+    }
+    const netWorthCents = NetWorthService.calculate({ ...recovered, products, casinoNetWorthCents }, ruleset);
 
     // 4. Ranks, against the net worth we just derived.
     const ranks = await RankingService.ranksFor(tx, {

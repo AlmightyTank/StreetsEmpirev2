@@ -356,6 +356,128 @@ export interface TurfBlockDto {
   revengeAvailable: boolean;
   revengeUntil: string | null;
   pushBlockedReason: string | null;
+  /** 1.1.0-A. The block's three business lots, or null before business rounds. */
+  businesses: TurfBusinessLotDto[] | null;
+  /** 1.1.0-B. How many lots the block has open, from its tier. Null when nobody holds it. */
+  businessTier: { tier: 'FOOTHOLD' | 'ESTABLISHED' | 'STRONGHOLD'; lotsOpen: number } | null;
+  /** 1.1.0-D. War fatigue on the block (0-80; output is 100% minus it), and hours to heal. */
+  fatigue: { percent: number; recoveryHours: number; scarred: boolean } | null;
+  /** 1.1.0-D. The war on this block, if one is on. */
+  war: BlockWarDto | null;
+  /** Why you cannot declare a block war here, or null if you can. Null when wars are off. */
+  warBlockedReason: string | null;
+  /** 1.1.0-D. Under the locals: businesses are dormant and decay after the grace period. */
+  dormant: { since: string; levelsLostAt: string | null } | null;
+}
+
+/** 1.1.0-D. A block war, as one player sees it. */
+export interface BlockWarDto {
+  id: string;
+  goal: 'TAKE' | 'SACK';
+  status: 'OPENING' | 'SIEGE' | 'BETWEEN';
+  role: 'attacker' | 'defender' | 'attackerAlly' | 'defenderAlly' | 'observer';
+  attacker: { publicPimpId: number; displayName: string };
+  defender: { publicPimpId: number; displayName: string };
+  declaredAt: string;
+  endsBy: string;
+  control: number;
+  controlPerHour: number;
+  /** When Control reaches 100 if nothing changes, during a siege. */
+  fullControlAt: string | null;
+  nextAssaultAt: string | null;
+  pendingFight: { kind: 'OPENING' | 'ASSAULT' | 'BREAK'; landsAt: string } | null;
+  /** Thugs committed on each side right now (the corner crew counts for the holder). */
+  committed: { attacker: number; defender: number };
+  /** Your own thugs committed to this war. */
+  mine: number;
+  /** Most thugs one ally can send, matched to the declarer. */
+  allyCap: number;
+  allies: {
+    attacker: { displayName: string; cutPercent: number; fought: boolean } | null;
+    defender: { displayName: string; cutPercent: number; fought: boolean } | null;
+  };
+  /** Each side's open call for help: the cut promised and how long it stays open. */
+  calls: {
+    attacker: { cutPercent: number; until: string } | null;
+    defender: { cutPercent: number; until: string } | null;
+  };
+  /** What you can do now; a null reason means you can. */
+  actions: {
+    defend: string | null;
+    breakSiege: string | null;
+    assault: string | null;
+    callAlly: string | null;
+    answerAttacker: string | null;
+    answerDefender: string | null;
+    concede: string | null;
+    withdraw: string | null;
+    torch: string | null;
+  };
+  /** Torches burning on this block's businesses. */
+  torches: Array<{ lot: number; name: string; until: string }>;
+}
+
+export interface BlockWarActionResult {
+  warId: string;
+  district: TurfBlockDto['district'];
+  districtName: string;
+  /** What happened, for the confirmation line. */
+  message: string;
+  turnsUsed: number;
+  thugs: number;
+}
+
+/** 1.1.0-A. One business lot on a block. Level 0 is an empty lot. */
+export interface TurfBusinessLotDto {
+  lot: number;
+  kind: string;
+  name: string;
+  level: number;
+  maxLevel: number;
+  /** This city's signature business. */
+  signature: boolean;
+  /** 1.1.0-B. Who works it: thugs, or girls at a Strip Club. */
+  staffKind: 'THUGS' | 'WHORES';
+  /** Your staff in it now; 0 for anyone else's business. */
+  staff: number;
+  /** Most staff the current level takes; it earns in proportion to how many it has. 0 on an empty lot. */
+  requiredStaff: number;
+  /** How many staff you want kept there (0 closes it). */
+  staffTarget: number;
+  /** Replace staff who desert or are lured, from the fit crew, up to the target. */
+  autoStaff: boolean;
+  /** Yours, staffed and earning. */
+  open: boolean;
+  /** Front income an hour at the current level, fully staffed, before supply. 0 on an empty lot. */
+  incomeCentsPerHour: number;
+  /** What it earns an hour with the staff it has now. */
+  currentIncomeCentsPerHour: number;
+  /** Your uncollected income; 0 for anyone else's business. */
+  registerCents: number;
+  registerCapCents: number;
+  /** The next level, or null at the top. */
+  nextLevel: { level: number; costCents: number; staff: number; incomeCentsPerHour: number } | null;
+  /** Why you cannot build or upgrade here right now, or null. */
+  buildBlockedReason: string | null;
+  /** 1.1.0-C. The racket your business runs, or null. Only shown on your own business. */
+  racket: BusinessRacketDto | null;
+  /** The rackets this business can run (yours only; null otherwise or before racket rounds). */
+  racketOptions: BusinessRacketDto[] | null;
+  /** When the racket can next be switched, or null if it can now. */
+  racketSwitchAt: string | null;
+}
+
+/** 1.1.0-C. One racket, as it runs (or would run) on this business right now. */
+export interface BusinessRacketDto {
+  key: string;
+  name: string;
+  description: string;
+  /** 0..1: the business level's share of full strength times its staffing. */
+  strength: number;
+  /** Heat it draws an hour at this strength, before Wash & fold. */
+  heatPerHour: number;
+  /** Cash it adds to the register an hour at the current staffing, for cash rackets. */
+  cashCentsPerHour: number;
 }
 
 export interface TurfPushDto {
@@ -398,6 +520,37 @@ export interface TurfBattleReportDto {
 
 export interface CityTurfDto {
   enabled: true;
+  /** 1.1.0-B. Business costs and your registers in this city, or null before building rounds. */
+  business: {
+    buildTurnCost: number;
+    staffTurnCost: number;
+    collectTurnCost: number;
+    /** Everything waiting in your registers, across your home blocks. */
+    registerTotalCents: number;
+    /** 1.1.0-D. Block war costs and timings, or null before block-war rounds. */
+    wars: {
+      declareTurnCost: number;
+      warningMinutes: number;
+      musterMinutes: number;
+      maxWarHours: number;
+      siegeHours: number;
+      torchTurnCost: number;
+      torchMinutes: number;
+    } | null;
+    /** 1.1.0-C. Your rackets in this city, or null before racket rounds. */
+    rackets: {
+      switchTurnCost: number;
+      switchCooldownHours: number;
+      /** Heat your rackets draw an hour right now, after Wash & fold. */
+      heatPerHour: number;
+      /** Heat cools this much an hour on its own. */
+      coolDownPerHour: number;
+      launderedToday: number;
+      dailyLaunderCap: number;
+      launderedRound: number;
+      roundLaunderCap: number;
+    } | null;
+  } | null;
   holdingEnabled: boolean;
   warsEnabled: boolean;
   /** 0.6.0-E. Public alliance control of this city, if one alliance holds the threshold. */
@@ -441,6 +594,58 @@ export interface TurfSummaryDto {
   taxPendingCents: number;
   taxPayersToday: number;
   dailyTaxCapCentsPerPayer: number;
+}
+
+/** 1.1.0-B. Building a business or taking it up a level. */
+export interface BusinessBuildResult {
+  district: TurfBlockDto['district'];
+  districtName: string;
+  lot: number;
+  kind: string;
+  name: string;
+  level: number;
+  staff: number;
+  staffKind: 'THUGS' | 'WHORES';
+  /** Staff sent in from home for this level. */
+  staffAdded: number;
+  costCents: number;
+  turnsUsed: number;
+}
+
+/** 1.1.0-B. Setting a business's staff (0 closes it) and whether it refills itself. */
+export interface BusinessStaffResult {
+  district: TurfBlockDto['district'];
+  districtName: string;
+  lot: number;
+  name: string;
+  open: boolean;
+  staff: number;
+  maxStaff: number;
+  autoStaff: boolean;
+  /** Staff sent in (positive) or brought home (negative). */
+  staffChange: number;
+  staffKind: 'THUGS' | 'WHORES';
+  turnsUsed: number;
+}
+
+/** 1.1.0-C. Setting, switching or shutting a business's racket. */
+export interface BusinessRacketResult {
+  district: TurfBlockDto['district'];
+  districtName: string;
+  lot: number;
+  name: string;
+  racket: string | null;
+  racketName: string | null;
+  previous: string | null;
+  turnsUsed: number;
+  switchAt: string;
+}
+
+/** 1.1.0-B. Emptying every register on the player's home blocks. */
+export interface BusinessCollectResult {
+  collectedCents: number;
+  businesses: number;
+  turnsUsed: number;
 }
 
 export interface TurfClaimResult {

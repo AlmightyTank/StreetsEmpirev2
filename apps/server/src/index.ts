@@ -8,7 +8,7 @@ import { ConvoyService } from './services/convoy.service.js';
 import { BossHitService } from './services/boss-hit.service.js';
 import { PushService } from './services/push.service.js';
 import { wakeDiscordBot } from './services/discord-bot-push.service.js';
-import { TurfWarSettlementService } from './services/turf-war-settle.service.js';
+import { RoundService } from './services/round.service.js';
 import { PlatformService, buildCommit } from './services/platform.service.js';
 import { APP_VERSION } from '@streets/shared';
 import { startPoller } from './utils/poller.js';
@@ -39,7 +39,7 @@ try {
 
 // Turf wars settle on their deadline even when every participant is offline.
 const stopTurfWars = startPoller('Turf wars', 60_000, async () => {
-  await TurfWarSettlementService.sweep(app.prisma, new Date());
+  await RoundService.settleTurfClock(app.prisma, new Date());
 }, (message, error) => app.log.error(error, message));
 
 // Alerts: collect what is due, then send push. The Discord bot also collects before it claims.

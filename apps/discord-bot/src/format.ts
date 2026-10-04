@@ -7,6 +7,7 @@ import type {
   AllianceCard,
   BadgeCard,
   BattleEvent,
+  BlockWarEvent,
   CrackdownEvent,
   GameNotice,
   HallOfFame,
@@ -41,6 +42,26 @@ export function escapeMarkdown(text: string): string {
 
 export function truncate(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
+}
+
+/** Discord API error codes worth explaining to an admin who has to fix them. */
+const DISCORD_ERROR_HINTS: Record<number, (channel: string) => string> = {
+  10003: (channel) => `Unknown Channel: #${channel} no longer exists. Point DISCORD_NEWS_CHANNEL_ID at a channel that does and restart the bot.`,
+  50001: (channel) => `Missing Access: the bot cannot see #${channel}. Give its role View Channel there.`,
+  50013: (channel) => `Missing Permissions: the bot needs View Channel, Send Messages and Embed Links in #${channel}.`,
+  50035: () => 'Invalid Form Body: Discord would not accept the post as written.',
+};
+
+/** Why Discord refused a send, for the admin panel: a hint for known codes, else Discord's own words. */
+export function describeDiscordError(error: unknown, channel: string): string {
+  const code = typeof error === 'object' && error !== null && 'code' in error ? (error as { code: unknown }).code : undefined;
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+  const hint = typeof code === 'number' ? DISCORD_ERROR_HINTS[code] : undefined;
+  const text = hint ? hint(channel)
+    : code !== undefined && message ? `Discord error ${String(code)}: ${message}`
+      : message || 'Discord gave no reason.';
+  const sentence = /[.!?]$/.test(text) ? text : `${text}.`;
+  return truncate(sentence, 500);
 }
 
 export function formatRemaining(ms: number): string {
@@ -528,6 +549,39 @@ export function turfFeedEmbed(event: TurfEvent): APIEmbed {
   };
 }
 
+/** 1.1.0-D. A block war declared, or over, on the street feed. */
+export function blockWarFeedEmbed(event: BlockWarEvent): APIEmbed {
+  const crew = (name: string, url: string, tag: string | null) => `[${tag ? `[${escapeMarkdown(tag)}] ` : ''}${escapeMarkdown(name)}](${url})`;
+  const attacker = crew(event.attackerName, event.attackerProfileUrl, event.attackerAllianceTag);
+  const defender = crew(event.defenderName, event.defenderProfileUrl, event.defenderAllianceTag);
+  const place = `${escapeMarkdown(event.cityName)} · ${escapeMarkdown(event.districtName)}`;
+  const goal = event.goal === 'TAKE' ? 'to take it' : 'to sack it';
+  if (event.phase === 'DECLARED') {
+    return {
+      title: `${place} · block war declared`,
+      color: BRAND_COLOR,
+      description: `${attacker} declared war on ${defender}'s block ${goal} in ${escapeMarkdown(event.roundName)}.`,
+      timestamp: event.at,
+    };
+  }
+  const how: Record<string, string> = {
+    CONTROL: 'after a full siege', CONCEDED: 'when the holder conceded', WITHDREW: 'when the attacker withdrew',
+    TIMEOUT: 'when time ran out', CUTOFF: 'at the end of the round', ABANDONED: 'after the block was abandoned',
+  };
+  const ending = how[event.reason ?? ''] ?? '';
+  const description = event.winner === 'ATTACKER'
+    ? `${attacker} ${event.goal === 'TAKE' ? 'took' : 'sacked'} ${defender}'s block ${ending}.`
+    : event.winner === 'DEFENDER'
+      ? `${defender} held the block against ${attacker} ${ending}.`
+      : `The war between ${attacker} and ${defender} is over ${ending}.`;
+  return {
+    title: `${place} · ${event.winner === 'ATTACKER' ? (event.goal === 'TAKE' ? 'taken in a block war' : 'sacked in a block war') : 'block war over'}`,
+    color: event.winner === 'ATTACKER' ? BRAND_COLOR : MUTED_COLOR,
+    description: description.replace(/ \.$/, '.'),
+    timestamp: event.at,
+  };
+}
+
 export function turfAlertEmbed(event: TurfAlert): APIEmbed {
   return {
     ...turfFeedEmbed(event),
@@ -564,8 +618,11 @@ export function territoryFeedEmbed(event: TerritoryEvent): APIEmbed {
 
 export function crackdownFeedEmbed(event: CrackdownEvent): APIEmbed {
   const warning = event.phase === 'warning';
+  const racketWarning = event.racketHeatPerBusiness > 0
+    ? ` Staffed rackets still running at the sweep add ${event.racketHeatPerBusiness} Heat each; shut them down before then to avoid that extra Heat.`
+    : '';
   const description = warning
-    ? `Word is the Feds are sweeping **${escapeMarkdown(event.cityName)}** tomorrow. Turf crews have until then to pull out.`
+    ? `Word is the Feds are sweeping **${escapeMarkdown(event.cityName)}** tomorrow. Turf crews have until then to pull out.${racketWarning}`
     : event.thugsPickedUp > 0
       ? `The Feds swept **${escapeMarkdown(event.cityName)}**. ${event.thugsPickedUp} corner men were picked up across ${event.holdersAffected} crew${event.holdersAffected === 1 ? '' : 's'}.`
       : event.holdersAffected > 0

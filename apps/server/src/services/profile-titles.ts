@@ -57,6 +57,27 @@ const profileTitleLabels: Record<string, string> = {
   'road-warrior': 'Road Warrior',
   'street-pharmacist': 'Street Pharmacist',
   'high-roller': 'High Roller',
+
+  // 1.1.0 businesses / block wars.
+  'open-for-business': 'Business Owner',
+  'first-payday': 'First Payday',
+  'side-hustle': 'Side Hustler',
+  'war-drums': 'War Caller',
+  'local-chain': 'Chain Operator',
+  'cash-flow': 'Cash Flow Boss',
+  'hostile-takeover': 'Hostile Raider',
+  'smash-and-grab': 'Sack Boss',
+  'fire-sale': 'Fire Sale',
+  'clean-money': 'Clean Money',
+  'business-district': 'Business District Boss',
+  'money-machine': 'Money Machine',
+  'siege-boss': 'Siege Boss',
+  'home-turf': 'Home Turf',
+  'scorched-earth': 'Scorched Earth',
+  'corporate-raider': 'Corporate Raider',
+  'underworld-conglomerate': 'Underworld Conglomerate',
+  'war-machine': 'War Machine',
+
   'beta-tester': 'Beta Original',
 
   'ghost-of-the-block': 'The Quiet Ghost',

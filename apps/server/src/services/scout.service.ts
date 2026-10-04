@@ -3,7 +3,7 @@ import { armedThugsForStreet, calculateScout, cityModifiers, districtCapacities,
 import type { District, DistrictKey, Ruleset } from '@streets/rulesets';
 import type { DistrictDto, DistrictsDto, GameActionResult, ScoutResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
-import { ActionService, assertTurns, fitThugs } from './action.service.js';
+import { ActionService, assertTurns, fitThugs, workingWhores } from './action.service.js';
 import { BossTripSettleService } from './boss-trip-settle.service.js';
 import { HeatService } from './heat.service.js';
 import { hideoutBackOfficeBonusCents } from './hideout.service.js';
@@ -129,7 +129,8 @@ export const ScoutService = {
         }
 
         assertTurns(current.turns, input.turns);
-        const active = { ...current, thugs: fitThugs(current) };
+        // 1.1.0-B: business staff are counted but never work the street or a shift.
+        const active = { ...current, thugs: fitThugs(current), whores: workingWhores(current) };
 
         // Who is out on that block this hour. Derived from the round clock,
         // shared by everyone in the round, and never shown before you go.

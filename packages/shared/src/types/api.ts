@@ -73,7 +73,20 @@ export type ActivityType =
   | 'TURF_PUSH_INCOMING'
   | 'ALLIANCE_CALL'
   | 'REVENGE_EXPIRING'
-  | 'SPECIAL_ORDER_READY';
+  | 'SPECIAL_ORDER_READY'
+  | 'BUSINESS_BUILD'
+  | 'BUSINESS_STAFF'
+  | 'BUSINESS_COLLECT'
+  | 'BUSINESS_RACKET'
+  | 'BUSINESS_TORCH'
+  | 'BLOCK_WAR_DECLARED'
+  | 'BLOCK_WAR_FIGHT'
+  | 'BLOCK_WAR_ENDED'
+  | 'BLOCK_WAR_CALL'
+  | 'CASINO_BUY_CHIPS'
+  | 'CASINO_REDEEM_CHIPS'
+  | 'CASINO_SESSION_OPENED'
+  | 'CASINO_SESSION_CLOSED';
 
 export interface ApiErrorBody {
   error: {
@@ -236,6 +249,9 @@ export interface ResourcesDto {
   woundedThugs: number;
   /** 0.6.0-A. Thugs standing on held corners, unavailable at home. */
   postedThugs: number;
+  /** 1.1.0-B. Thugs and girls working a business: still yours, never fit or working at home. */
+  businessThugs: number;
+  businessWhores: number;
   armedThugs: number;
   unarmedThugs: number;
 
