@@ -4089,3 +4089,49 @@ button.se-notification-empty:hover { color: var(--se-text); }
     width: 100%;
   }
 }
+
+.se-eventtoast--levelup {
+  border-color: rgba(var(--se-accent-rgb), 0.58);
+  border-left-width: 4px;
+  background:
+    linear-gradient(115deg, rgba(var(--se-accent-rgb), 0.13), transparent 74%),
+    rgba(18, 22, 28, 0.98);
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, 0.34),
+    0 0 22px rgba(var(--se-accent-rgb), 0.12);
+}
+
+.se-eventtoast--levelup .se-eventtoast__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.se-eventtoast__levelup-label {
+  color: var(--se-accent);
+  font-family: var(--se-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+}
+
+.se-eventtoast--levelup-motion {
+  animation: se-levelup-enter 420ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+@keyframes se-levelup-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-eventtoast--levelup-motion {
+    animation: none;
+  }
+}
