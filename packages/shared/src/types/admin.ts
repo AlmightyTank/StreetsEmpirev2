@@ -303,6 +303,10 @@ export interface AdminAccountDetailDto {
     titlePlacement: 'prefix' | 'suffix';
     activeProfileFrameKey: string | null;
     activeSiteThemeKey: string | null;
+    profileBio: string | null;
+    profileImageUrl: string | null;
+    profileBannerUrl: string | null;
+    profileEffect: string;
     profileAccent: string;
     featuredBadgeKeys: string[];
   };

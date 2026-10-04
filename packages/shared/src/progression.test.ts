@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { experienceLevelFor, experienceRequiredForLevel, playerExperienceDto } from './progression.js';
+import { EXPERIENCE_LEVEL_REWARDS, experienceLevelFor, experienceRequiredForLevel, playerExperienceDto } from './progression.js';
 
 describe('account experience progression', () => {
   it('uses a steadily rising level curve from level 1', () => {
@@ -22,5 +22,10 @@ describe('account experience progression', () => {
       progressPercent: 50,
     });
     expect(playerExperienceDto(-10)).toMatchObject({ totalXp: 0, level: 1, progressPercent: 0 });
+  });
+
+  it('keeps XP level rewards ordered and keyed by level', () => {
+    expect(EXPERIENCE_LEVEL_REWARDS.map((reward) => reward.level)).toEqual([5, 10, 20, 30, 50]);
+    expect(EXPERIENCE_LEVEL_REWARDS.every((reward) => reward.key === `player-level-${reward.level}-title`)).toBe(true);
   });
 });

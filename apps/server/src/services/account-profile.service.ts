@@ -8,6 +8,7 @@ import type {
   DefaultLanding,
   MoneyFormat,
   ProfileAccent,
+  ProfileEffect,
   PublicAwardDto,
   UiDensity,
   UpdateAccountProfileSettingsInput,
@@ -56,6 +57,14 @@ export const DEFAULT_LANDINGS: CosmeticOptionDto[] = [
   { key: 'profile', label: 'Profile', description: 'Land on your public profile after login.' },
   { key: 'rankings', label: 'Rankings', description: 'Land on the current rankings after login.' },
   { key: 'news', label: 'News', description: 'Land on the news page after login.' },
+];
+
+export const PROFILE_EFFECTS: CosmeticOptionDto[] = [
+  { key: 'none', label: 'No effect', description: 'Keep the profile card still and clean.' },
+  { key: 'neon-pulse', label: 'Neon pulse', description: 'A soft animated accent glow around your profile.' },
+  { key: 'scanlines', label: 'Scanlines', description: 'A subtle moving screen-line overlay.' },
+  { key: 'spotlight', label: 'Spotlight', description: 'A slow highlight sweep across the card.' },
+  { key: 'glitch', label: 'Glitch', description: 'A sharper flicker effect for loud profiles.' },
 ];
 
 function stringArray(value: unknown): string[] {
@@ -149,10 +158,17 @@ function toSettingsDto(
   const defaultLanding = DEFAULT_LANDINGS.some((option) => option.key === profile?.defaultLanding)
     ? profile!.defaultLanding as DefaultLanding
     : 'game';
+  const profileEffect = PROFILE_EFFECTS.some((option) => option.key === profile?.profileEffect)
+    ? profile!.profileEffect as ProfileEffect
+    : 'none';
   return {
     activeTitleKey,
     titlePlacement: profile?.titlePlacement === 'suffix' ? 'suffix' : 'prefix',
     crewName: profile?.crewName ?? null,
+    profileBio: profile?.profileBio ?? null,
+    profileImageUrl: profile?.profileImageUrl ?? null,
+    profileBannerUrl: profile?.profileBannerUrl ?? null,
+    profileEffect,
     activeProfileFrameKey,
     activeSiteThemeKey,
     featuredBadgeKeys,
@@ -238,6 +254,7 @@ export const AccountProfileService = {
         accents: appearance.accents,
         frames: appearance.frames,
         themes: appearance.themes,
+        effects: PROFILE_EFFECTS,
         densities: UI_DENSITIES,
         moneyFormats: MONEY_FORMATS,
         defaultLandings: DEFAULT_LANDINGS,
@@ -298,6 +315,10 @@ export const AccountProfileService = {
     }
 
     const crewName = input.crewName === undefined ? undefined : input.crewName;
+    const profileBio = input.profileBio === undefined ? undefined : input.profileBio;
+    const profileImageUrl = input.profileImageUrl === undefined ? undefined : input.profileImageUrl;
+    const profileBannerUrl = input.profileBannerUrl === undefined ? undefined : input.profileBannerUrl;
+    const profileEffect = input.profileEffect === undefined ? undefined : input.profileEffect;
 
     await prisma.accountProfile.upsert({
       where: { accountId },
@@ -306,6 +327,10 @@ export const AccountProfileService = {
         activeTitleKey,
         titlePlacement: input.titlePlacement,
         crewName: crewName ?? null,
+        profileBio: profileBio ?? null,
+        profileImageUrl: profileImageUrl ?? null,
+        profileBannerUrl: profileBannerUrl ?? null,
+        profileEffect: profileEffect ?? 'none',
         activeProfileFrameKey,
         activeSiteThemeKey,
         featuredBadgeKeys,
@@ -319,6 +344,10 @@ export const AccountProfileService = {
         activeTitleKey,
         titlePlacement: input.titlePlacement,
         ...(crewName !== undefined ? { crewName } : {}),
+        ...(profileBio !== undefined ? { profileBio } : {}),
+        ...(profileImageUrl !== undefined ? { profileImageUrl } : {}),
+        ...(profileBannerUrl !== undefined ? { profileBannerUrl } : {}),
+        ...(profileEffect !== undefined ? { profileEffect } : {}),
         activeProfileFrameKey,
         activeSiteThemeKey,
         featuredBadgeKeys,

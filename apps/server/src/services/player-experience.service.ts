@@ -1,22 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
-import { experienceLevelFor, playerExperienceDto, type PlayerExperienceDto, type PlayerExperienceEventDto } from '@streets/shared';
+import { EXPERIENCE_LEVEL_REWARDS, experienceLevelFor, playerExperienceDto, type ExperienceLevelReward, type PlayerExperienceDto, type PlayerExperienceEventDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
-
-type LevelCosmetic = {
-  level: number;
-  key: string;
-  title: string;
-  description: string;
-  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
-};
-
-const LEVEL_COSMETICS: readonly LevelCosmetic[] = [
-  { level: 5, key: 'player-level-5-title', title: 'On the Rise', description: 'Reached player level 5.', rarity: 'common' },
-  { level: 10, key: 'player-level-10-title', title: 'Known Face', description: 'Reached player level 10.', rarity: 'uncommon' },
-  { level: 20, key: 'player-level-20-title', title: 'Street Veteran', description: 'Reached player level 20.', rarity: 'rare' },
-  { level: 30, key: 'player-level-30-title', title: 'City Fixture', description: 'Reached player level 30.', rarity: 'epic' },
-  { level: 50, key: 'player-level-50-title', title: 'Living Legend', description: 'Reached player level 50.', rarity: 'legendary' },
-];
 
 export const PlayerExperienceService = {
   /** Recent account-wide XP awards, newest first. */
@@ -48,7 +32,7 @@ export const PlayerExperienceService = {
   async award(
     tx: Db,
     input: { roundPlayerId: string; sourceKey: string; source: string; amount: number; awardedAt: Date },
-  ): Promise<{ awardedXp: number; totalXp: number; level: number; unlocked: LevelCosmetic[] }> {
+  ): Promise<{ awardedXp: number; totalXp: number; level: number; unlocked: ExperienceLevelReward[] }> {
     const amount = Math.max(0, Math.floor(input.amount));
     if (amount <= 0) return { awardedXp: 0, totalXp: 0, level: 1, unlocked: [] };
 
@@ -82,7 +66,7 @@ export const PlayerExperienceService = {
     const totalXp = updated.experiencePoints;
     const previousLevel = experienceLevelFor(totalXp - amount);
     const level = experienceLevelFor(totalXp);
-    const unlocked = LEVEL_COSMETICS.filter((cosmetic) => cosmetic.level > previousLevel && cosmetic.level <= level);
+    const unlocked = EXPERIENCE_LEVEL_REWARDS.filter((cosmetic) => cosmetic.level > previousLevel && cosmetic.level <= level);
 
     for (const cosmetic of unlocked) {
       await tx.accountCosmeticUnlock.upsert({

@@ -1,6 +1,6 @@
 import type { AllianceDetailDto, AllianceTagDto } from './alliance.js';
 import type { NoticeCategory, NotificationCategory } from '../notifications.js';
-import type { ActivityDto, CityDto, PlayerExperienceDto, ProfileAccent, RoundDto, SeasonHideoutDto } from './api.js';
+import type { ActivityDto, CityDto, PlayerExperienceDto, ProfileAccent, ProfileEffect, RoundDto, SeasonHideoutDto } from './api.js';
 
 export type PublicAchievementCategory =
   | 'rank'
@@ -239,6 +239,9 @@ export interface PublicPlayerProfileDto {
     titlePlacement: 'prefix' | 'suffix';
     accent: ProfileAccent;
     frame: string | null;
+    effect: ProfileEffect;
+    imageUrl: string | null;
+    bannerUrl: string | null;
   };
   /** Lifetime account XP, safe to show on public player cards. */
   experience?: PlayerExperienceDto;
@@ -246,6 +249,8 @@ export interface PublicPlayerProfileDto {
   displayName: string;
   /** 0.9.0-F. Optional account-level crew name. */
   crewName: string | null;
+  /** Plain-text profile description written by the player. */
+  profileBio: string | null;
   /** 0.9.0-F. The live season this profile belongs to. */
   seasonName: string;
   /** 0.3.0-C. Null for solo players and on rounds without alliances. */

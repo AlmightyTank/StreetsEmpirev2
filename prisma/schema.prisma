@@ -188,6 +188,10 @@ model AccountProfile {
   titlePlacement       String  @default("prefix")
   /// 0.9.0-F. Optional public crew name, account-level so it carries across seasons.
   crewName              String?
+  profileBio            String?
+  profileImageUrl       String?
+  profileBannerUrl      String?
+  profileEffect         String  @default("none")
   activeProfileFrameKey String?
   activeSiteThemeKey    String?
   featuredBadgeKeys     Json    @default("[]")

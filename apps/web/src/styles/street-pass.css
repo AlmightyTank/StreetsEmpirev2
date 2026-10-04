@@ -233,14 +233,249 @@
   min-width: 0;
 }
 
+.se-xp-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.se-xp-overview > div {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--se-line);
+  background: var(--se-panel);
+}
+
+.se-xp-overview span {
+  display: block;
+  color: var(--se-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.se-xp-overview strong {
+  display: block;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  font-family: var(--se-mono);
+  font-size: 19px;
+}
+
+.se-xp-next .se-panel__body {
+  display: grid;
+  gap: 10px;
+}
+
+.se-xp-reward {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(var(--se-accent-rgb), 0.42);
+  background:
+    linear-gradient(135deg, rgba(var(--se-accent-rgb), 0.12), transparent 62%),
+    rgba(255, 255, 255, 0.018);
+}
+
+.se-xp-reward__level,
+.se-xp-card__top span,
+.se-xp-card__rarity {
+  color: var(--se-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.se-xp-reward strong {
+  overflow-wrap: anywhere;
+  font-size: 22px;
+  line-height: 1.05;
+}
+
+.se-xp-reward small {
+  color: var(--se-text-dim);
+  font-family: var(--se-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.se-xp-rewardbar {
+  height: 6px;
+}
+
+.se-xp-claimed {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.35fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 15px;
+  border: 1px solid var(--se-line);
+  background: var(--se-panel);
+}
+
+.se-xp-claimed h2,
+.se-xp-trackhead h2 {
+  margin: 3px 0 0;
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.se-xp-claimed__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+}
+
+.se-xp-chip {
+  max-width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--se-line);
+  color: var(--se-text);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.se-xp-trackwrap {
+  display: grid;
+  gap: 0;
+}
+
+.se-xp-trackhead {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 15px 0;
+}
+
+.se-xp-trackhead > p {
+  max-width: 420px;
+  margin: 0;
+  text-align: right;
+}
+
+.se-xp-track {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 15px;
+  list-style: none;
+}
+
+.se-xp-card {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 10px;
+  min-width: 0;
+  min-height: 190px;
+  padding: 13px;
+  border: 1px solid var(--se-line);
+  background: rgba(255, 255, 255, 0.014);
+}
+
+.se-xp-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.se-xp-card__top strong {
+  color: var(--se-text-dim);
+  font-family: var(--se-mono);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.se-xp-card__badge {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--se-line);
+  color: var(--se-accent);
+  font-family: var(--se-mono);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.se-xp-card h3 {
+  margin: 0 0 5px;
+  overflow-wrap: anywhere;
+  font-size: 17px;
+  line-height: 1.08;
+}
+
+.se-xp-card p {
+  margin: 0;
+  color: var(--se-text-dim);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.se-xp-card--unlocked {
+  border-color: rgba(var(--se-good-rgb), 0.3);
+  background: rgba(var(--se-good-rgb), 0.035);
+}
+
+.se-xp-card--unlocked .se-xp-card__badge,
+.se-xp-card--unlocked .se-xp-card__top strong {
+  color: var(--se-good);
+}
+
+.se-xp-card--next {
+  border-color: rgba(var(--se-accent-rgb), 0.55);
+  background:
+    linear-gradient(135deg, rgba(var(--se-accent-rgb), 0.08), transparent 58%),
+    rgba(255, 255, 255, 0.018);
+}
+
+.se-xp-card--legendary .se-xp-card__badge,
+.se-xp-chip--legendary {
+  border-color: rgba(255, 196, 64, 0.55);
+  color: #ffc440;
+}
+
+.se-xp-card--epic .se-xp-card__badge,
+.se-xp-chip--epic {
+  border-color: rgba(182, 126, 255, 0.45);
+  color: #caa7ff;
+}
+
+.se-xp-card--rare .se-xp-card__badge,
+.se-xp-chip--rare {
+  border-color: rgba(85, 165, 255, 0.45);
+  color: #8fc5ff;
+}
+
+.se-xp-note p {
+  margin: 0;
+}
+
 @media (max-width: 760px) {
   .se-pass-hero,
-  .se-pass-info {
+  .se-pass-info,
+  .se-xp-overview,
+  .se-xp-claimed {
     grid-template-columns: 1fr;
   }
 
   .se-pass-hero {
     padding: 18px 14px;
+  }
+
+  .se-xp-trackhead {
+    display: grid;
+  }
+
+  .se-xp-trackhead > p {
+    max-width: none;
+    text-align: left;
   }
 }
 

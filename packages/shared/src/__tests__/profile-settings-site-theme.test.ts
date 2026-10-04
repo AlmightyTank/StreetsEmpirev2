@@ -34,4 +34,45 @@ describe('account profile settings schema', () => {
 
     expect(result.activeSiteThemeKey).toBe('winter-lights');
   });
+
+  it('normalizes profile text, media URLs, and effects', () => {
+    const result = updateAccountProfileSettingsSchema.parse({
+      activeTitleKey: null,
+      titlePlacement: 'prefix',
+      crewName: null,
+      profileBio: '  Runs the south side.\r\n\r\n\r\nBring receipts.  ',
+      profileImageUrl: ' https://i.imgur.com/avatar.png ',
+      profileBannerUrl: '',
+      profileEffect: 'scanlines',
+      activeProfileFrameKey: null,
+      activeSiteThemeKey: null,
+      featuredBadgeKeys: [],
+      profileAccent: 'default',
+      uiDensity: 'comfortable',
+      reducedMotion: false,
+      moneyFormat: 'full',
+      defaultLanding: 'game',
+    });
+
+    expect(result.profileBio).toBe('Runs the south side.\n\nBring receipts.');
+    expect(result.profileImageUrl).toBe('https://i.imgur.com/avatar.png');
+    expect(result.profileBannerUrl).toBeNull();
+    expect(result.profileEffect).toBe('scanlines');
+  });
+
+  it('rejects non-https profile media URLs', () => {
+    const result = updateAccountProfileSettingsSchema.safeParse({
+      activeTitleKey: null,
+      activeProfileFrameKey: null,
+      featuredBadgeKeys: [],
+      profileAccent: 'default',
+      uiDensity: 'comfortable',
+      reducedMotion: false,
+      moneyFormat: 'full',
+      defaultLanding: 'game',
+      profileImageUrl: 'http://example.com/avatar.png',
+    });
+
+    expect(result.success).toBe(false);
+  });
 });

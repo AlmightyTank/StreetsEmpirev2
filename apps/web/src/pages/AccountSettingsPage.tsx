@@ -6,9 +6,10 @@ import type {
   DefaultLanding,
   MoneyFormat,
   ProfileAccent,
+  ProfileEffect,
   UiDensity,
 } from '@streets/shared';
-import { CREW_NAME_MAX, formatProfileName } from '@streets/shared';
+import { CREW_NAME_MAX, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, formatProfileName } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
@@ -93,6 +94,13 @@ export function AccountSettingsPage() {
               accents: [{ key: 'default', label: 'StreetsEmpire', description: null }],
               frames: [],
               themes: [],
+              effects: [
+                { key: 'none', label: 'No effect', description: null },
+                { key: 'neon-pulse', label: 'Neon pulse', description: null },
+                { key: 'scanlines', label: 'Scanlines', description: null },
+                { key: 'spotlight', label: 'Spotlight', description: null },
+                { key: 'glitch', label: 'Glitch', description: null },
+              ],
               densities: [
                 { key: 'comfortable', label: 'Comfortable', description: null },
                 { key: 'compact', label: 'Compact', description: null },
@@ -529,6 +537,65 @@ export function AccountSettingsPage() {
                 </div>
 
                 <div className="se-field">
+                  <label className="se-label" htmlFor="profile-bio">About me</label>
+                  <textarea
+                    id="profile-bio"
+                    className="se-input se-textarea"
+                    value={cosmetics.profileBio ?? ''}
+                    maxLength={PROFILE_BIO_MAX}
+                    rows={5}
+                    placeholder="Tell players who they are dealing with."
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      profileBio: event.target.value,
+                    }))}
+                  />
+                  {fields.profileBio
+                    ? <p className="se-error" role="alert">{fields.profileBio}</p>
+                    : <p className="se-hint">Plain text only. Shown on your public profile. {formatNumber((cosmetics.profileBio ?? '').length)} / {formatNumber(PROFILE_BIO_MAX)}</p>}
+                </div>
+
+                <div className="se-field">
+                  <label className="se-label" htmlFor="profile-image-url">Profile image URL</label>
+                  <input
+                    id="profile-image-url"
+                    className="se-input"
+                    value={cosmetics.profileImageUrl ?? ''}
+                    maxLength={PROFILE_IMAGE_URL_MAX}
+                    placeholder="https://i.imgur.com/your-avatar.png"
+                    inputMode="url"
+                    autoComplete="off"
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      profileImageUrl: event.target.value,
+                    }))}
+                  />
+                  {fields.profileImageUrl
+                    ? <p className="se-error" role="alert">{fields.profileImageUrl}</p>
+                    : <p className="se-hint">Use a direct HTTPS image link from Imgur or your own host. Leave blank for initials.</p>}
+                </div>
+
+                <div className="se-field">
+                  <label className="se-label" htmlFor="profile-banner-url">Profile banner URL</label>
+                  <input
+                    id="profile-banner-url"
+                    className="se-input"
+                    value={cosmetics.profileBannerUrl ?? ''}
+                    maxLength={PROFILE_IMAGE_URL_MAX}
+                    placeholder="https://your-site.com/banner.jpg"
+                    inputMode="url"
+                    autoComplete="off"
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      profileBannerUrl: event.target.value,
+                    }))}
+                  />
+                  {fields.profileBannerUrl
+                    ? <p className="se-error" role="alert">{fields.profileBannerUrl}</p>
+                    : <p className="se-hint">This becomes the background banner on your profile card and public profile.</p>}
+                </div>
+
+                <div className="se-field">
                   <label className="se-label" htmlFor="active-title">Profile title</label>
                   <select
                     id="active-title"
@@ -613,6 +680,26 @@ export function AccountSettingsPage() {
                 </div>
 
                 <div className="se-field">
+                  <label className="se-label" htmlFor="profile-effect">Profile effect</label>
+                  <select
+                    id="profile-effect"
+                    className="se-input"
+                    value={cosmetics.profileEffect}
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      profileEffect: event.target.value as ProfileEffect,
+                    }))}
+                  >
+                    {profileSettings.options.effects.map((option) => (
+                      <option value={option.key} key={option.key}>{option.label}</option>
+                    ))}
+                  </select>
+                  {fields.profileEffect
+                    ? <p className="se-error" role="alert">{fields.profileEffect}</p>
+                    : <p className="se-hint">Discord-style card effects for your public profile. Reduced-motion visitors see a calmer version.</p>}
+                </div>
+
+                <div className="se-field">
                   <label className="se-label" htmlFor="site-theme">Site theme</label>
                   <select
                     id="site-theme"
@@ -635,22 +722,29 @@ export function AccountSettingsPage() {
               </div>
 
               <div className="se-account-cosmetics__side">
-                <div className={`se-profile-card-preview se-profile-accent se-profile-accent--${cosmetics.profileAccent}${cosmetics.activeProfileFrameKey ? ` se-profile-frame se-profile-frame--${cosmetics.activeProfileFrameKey}` : ''}`}>
-                  <div className="se-profile-card-preview__banner">
+                <div className={`se-profile-card-preview se-profile-accent se-profile-accent--${cosmetics.profileAccent}${cosmetics.activeProfileFrameKey ? ` se-profile-frame se-profile-frame--${cosmetics.activeProfileFrameKey}` : ''} se-profile-effect se-profile-effect--${cosmetics.profileEffect}`}>
+                  <div
+                    className="se-profile-card-preview__banner"
+                    style={cosmetics.profileBannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 8, 0.52), rgba(5, 8, 8, 0.86)), url("${cosmetics.profileBannerUrl}")` } : undefined}
+                  >
                     <span>Street Empire</span>
                   </div>
                   <div className="se-profile-card-preview__identity">
-                    <span className="se-profile-card-preview__avatar" aria-hidden="true">{initials(displayName)}</span>
+                    <span className="se-profile-card-preview__avatar" aria-hidden="true">
+                      {cosmetics.profileImageUrl ? <img src={cosmetics.profileImageUrl} alt="" /> : initials(displayName)}
+                    </span>
                     <div>
                       {selectedTitle ? <span className="se-profile-card-preview__title">{selectedTitle.label}</span> : null}
                       <strong>{displayName}</strong>
                       <small>Player {previewRank}</small>
                     </div>
                   </div>
+                  {cosmetics.profileBio ? <p className="se-profile-card-preview__bio">{cosmetics.profileBio}</p> : null}
                   <p>{previewCity}{round ? ` · ${round.name}` : ''}</p>
                   <div className="se-profile-card-preview__chips">
                     <span>{selectedAccent?.label ?? 'StreetsEmpire'} accent</span>
                     {selectedFrame ? <span>{selectedFrame.label} frame</span> : null}
+                    {cosmetics.profileEffect !== 'none' ? <span>{profileSettings.options.effects.find((option) => option.key === cosmetics.profileEffect)?.label ?? 'Profile effect'}</span> : null}
                   </div>
                 </div>
 
