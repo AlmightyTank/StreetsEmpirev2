@@ -70,6 +70,26 @@ export const casinoStreetDiceOddsSchema = z.object({
   actionId: actionIdSchema,
 }).strict();
 
+export const casinoPokerStartSchema = z.object({
+  buyInCents: casinoAmountCents,
+  actionId: actionIdSchema,
+}).strict();
+
+export const casinoPokerActionSchema = z.object({
+  handId: z.string().trim().min(1).max(64),
+  action: z.enum(['FOLD', 'CHECK', 'CALL', 'RAISE', 'ALL_IN']),
+  actionId: actionIdSchema,
+}).strict();
+
+export const casinoPokerTableCreateSchema = z.object({
+  name: z.string().trim().min(3).max(32), visibility: z.enum(['PUBLIC', 'PRIVATE']), buyInCents: casinoAmountCents,
+  maxPlayers: z.number().int().min(2).max(6), actionId: actionIdSchema,
+}).strict();
+export const casinoPokerTableJoinSchema = z.object({ inviteCode: z.string().trim().min(6).max(16).optional(), actionId: actionIdSchema }).strict();
+export const casinoPokerTableActionSchema = z.object({ actionId: actionIdSchema }).strict();
+export const casinoPokerTableStartSchema = z.object({ actionId: actionIdSchema }).strict();
+export const casinoPokerTablePlaySchema = z.object({ action: z.enum(['FOLD', 'CHECK', 'CALL', 'RAISE', 'ALL_IN']), actionId: actionIdSchema }).strict();
+
 export type CasinoCashierInput = z.infer<typeof casinoCashierSchema>;
 export type CasinoSessionStartInput = z.infer<typeof casinoSessionStartSchema>;
 export type CasinoSessionCloseInput = z.infer<typeof casinoSessionCloseSchema>;
@@ -81,3 +101,10 @@ export type CasinoRouletteSpinInput = z.infer<typeof casinoRouletteSpinSchema>;
 export type CasinoStreetDiceStartInput = z.infer<typeof casinoStreetDiceStartSchema>;
 export type CasinoStreetDiceRollInput = z.infer<typeof casinoStreetDiceRollSchema>;
 export type CasinoStreetDiceOddsInput = z.infer<typeof casinoStreetDiceOddsSchema>;
+export type CasinoPokerStartInput = z.infer<typeof casinoPokerStartSchema>;
+export type CasinoPokerActionInput = z.infer<typeof casinoPokerActionSchema>;
+export type CasinoPokerTableCreateInput = z.infer<typeof casinoPokerTableCreateSchema>;
+export type CasinoPokerTableJoinInput = z.infer<typeof casinoPokerTableJoinSchema>;
+export type CasinoPokerTableActionInput = z.infer<typeof casinoPokerTableActionSchema>;
+export type CasinoPokerTableStartInput = z.infer<typeof casinoPokerTableStartSchema>;
+export type CasinoPokerTablePlayInput = z.infer<typeof casinoPokerTablePlaySchema>;

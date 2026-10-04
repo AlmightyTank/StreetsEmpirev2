@@ -18,6 +18,15 @@ import type {
   CasinoStreetDiceRollInput,
   CasinoStreetDiceStartInput,
   CasinoStreetDiceStateDto,
+  CasinoPokerActionInput,
+  CasinoPokerResponseDto,
+  CasinoPokerStartInput,
+  CasinoPokerStateDto,
+  CasinoPokerTableCreateInput,
+  CasinoPokerTableJoinInput,
+  CasinoPokerTableDto,
+  CasinoPokerTablePlayInput,
+  CasinoPokerTableViewDto,
 } from '@streets/shared';
 import { api } from './client.js';
 
@@ -48,6 +57,15 @@ export const casinoApi = {
     api.post<CasinoStreetDiceResponseDto>('/game/casino/street-dice/roll', input),
   streetDiceOdds: (input: CasinoStreetDiceOddsInput) =>
     api.post<CasinoStreetDiceResponseDto>('/game/casino/street-dice/odds', input),
+  poker: () => api.get<CasinoPokerStateDto>('/game/casino/poker'),
+  pokerDeal: (input: CasinoPokerStartInput) => api.post<CasinoPokerResponseDto & { page: CasinoPageDto }>('/game/casino/poker/deal', input),
+  pokerAction: (input: CasinoPokerActionInput) => api.post<CasinoPokerResponseDto & { page: CasinoPageDto }>('/game/casino/poker/action', input),
+  pokerCreateTable: (input: CasinoPokerTableCreateInput) => api.post<{ table: CasinoPokerTableDto; inviteCode?: string; page: CasinoPageDto }>('/game/casino/poker/tables', input),
+  pokerJoinTable: (id: string, input: CasinoPokerTableJoinInput) => api.post<{ table: CasinoPokerTableDto; page: CasinoPageDto }>('/game/casino/poker/tables/' + encodeURIComponent(id) + '/join', input),
+  pokerLeaveTable: (id: string, actionId: string) => api.post<{ poker: CasinoPokerStateDto; page: CasinoPageDto }>('/game/casino/poker/tables/' + encodeURIComponent(id) + '/leave', { actionId }),
+  pokerTable: (id: string) => api.get<CasinoPokerTableViewDto>('/game/casino/poker/tables/' + encodeURIComponent(id)),
+  pokerStartTable: (id: string, actionId: string) => api.post<{ table: CasinoPokerTableViewDto; page: CasinoPageDto }>('/game/casino/poker/tables/' + encodeURIComponent(id) + '/start', { actionId }),
+  pokerTableAction: (id: string, input: CasinoPokerTablePlayInput) => api.post<{ table: CasinoPokerTableViewDto; page: CasinoPageDto }>('/game/casino/poker/tables/' + encodeURIComponent(id) + '/action', input),
   closeSession: (sessionId: string, input: CasinoSessionCloseInput) =>
     api.post<CasinoPageDto>('/game/casino/sessions/' + encodeURIComponent(sessionId) + '/close', input),
 };

@@ -7,6 +7,7 @@ import { Alert } from '../components/Alert.js';
 import { BlackjackPanel } from '../components/BlackjackPanel.js';
 import { RoulettePanel } from '../components/RoulettePanel.js';
 import { StreetDicePanel } from '../components/StreetDicePanel.js';
+import { PokerPanel } from '../components/PokerPanel.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -95,10 +96,10 @@ const CASINO_GAMES: readonly {
     key: 'poker',
     label: 'Poker',
     icon: '♣',
-    status: 'FUTURE',
-    live: false,
-    title: 'Poker',
-    description: 'The card room is reserved for a future casino slice. Tables, stakes and poker rules will live here.',
+    status: 'SOLO',
+    live: true,
+    title: 'Solo Poker',
+    description: 'Texas Hold’em against two house players. Multiplayer tables are planned for a later slice.',
   },
 ];
 
@@ -999,7 +1000,17 @@ export function CasinoPage() {
             />
                 ) : null}
 
-                {activeGame !== 'slots' && activeGame !== 'blackjack' && activeGame !== 'roulette' && activeGame !== 'street-dice' ? (() => {
+                {activeGame === 'poker' ? (
+            <PokerPanel
+              casinoPage={data}
+              onPageChange={(next) => {
+                setData(next);
+                setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+              }}
+            />
+                ) : null}
+
+                {activeGame !== 'slots' && activeGame !== 'blackjack' && activeGame !== 'roulette' && activeGame !== 'street-dice' && activeGame !== 'poker' ? (() => {
                   const game = CASINO_GAMES.find((candidate) => candidate.key === activeGame)!;
                   return (
                     <CasinoGamePlaceholder
