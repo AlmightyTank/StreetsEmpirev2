@@ -160,6 +160,15 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.3.0-B evidence sources w
     expect(stored!.lastEvidenceAt!.getTime()).toBeGreaterThan(quietSince.getTime());
   });
 
+  it('restarts the quiet clock on the player’s own act even with the Case at its cap', async () => {
+    const quietSince = new Date(Date.now() - 30 * HOUR_MS);
+    await app.prisma.playerCase.create({ data: { roundPlayerId: playerId, cityId, caseHundredths: 10_000, stage: 'FEDERAL', caseAt: new Date(), lastEvidenceAt: quietSince } });
+    await record({ cityId, points: law.evidence.bust, source: 'BUST', sourceKey: 'bust:at-cap' });
+    const stored = await homeCase();
+    expect(stored?.caseHundredths).toBe(10_000);
+    expect(stored!.lastEvidenceAt!.getTime()).toBeGreaterThan(quietSince.getTime());
+  });
+
   it('washes the Case where a laundering racket runs, up to the daily cap', async () => {
     await app.prisma.turf.updateMany({ where: { roundId, cityId, district: 'CASINO' }, data: { holderId: playerId, cornerThugs: 6, heldSince: new Date(Date.now() - 200 * HOUR_MS), upkeepAt: new Date() } });
     const row = await app.prisma.business.findFirstOrThrow({ where: { roundId, lot: 1, turf: { cityId, district: 'CASINO' } } });

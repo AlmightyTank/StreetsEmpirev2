@@ -115,6 +115,35 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.3.0-C warrants and lawye
     expect(await open()).toHaveLength(1);
   });
 
+  it('aims the next warrant at evidence since the last one, not the evidence that drafted it', async () => {
+    await evidence([{ cityId, points: 70, source: 'BUST' }]);
+    await serveNow();
+    await evidence([{ cityId, cashCents: 250_000_000n, source: 'CURRENCY_REPORT' }]);
+    await evidence([{ cityId, points: 30, source: 'HIJACK' }]);
+    const [, second] = await open();
+    expect(second).toMatchObject({ status: 'OPEN', target: 'PERSONAL' });
+  });
+
+  it('sweeps due warrants first, takes waiting ones in turn, and skips ended rounds', async () => {
+    await evidence([{ cityId: detroitId, cashCents: 500_000_000n, source: 'CURRENCY_REPORT' }]);
+    await serveNow();
+    const [waiting] = await open();
+    expect(waiting!.status).toBe('WAITING');
+    expect(await LawWarrantService.dueOwners(app.prisma, new Date())).toContain(playerId);
+    // Checking a waiting warrant again marks it, so it goes to the back of the queue.
+    const checked = waiting!.updatedAt;
+    await PlayerStateService.settle(app.prisma, playerId, { markActive: false });
+    expect((await open())[0]!.updatedAt.getTime()).toBeGreaterThan(checked.getTime());
+
+    const round = await app.prisma.round.findUniqueOrThrow({ where: { id: roundId } });
+    await app.prisma.round.update({ where: { id: roundId }, data: { endsAt: new Date(Date.now() - 1_000) } });
+    try {
+      expect(await LawWarrantService.dueOwners(app.prisma, new Date())).not.toContain(playerId);
+    } finally {
+      await app.prisma.round.update({ where: { id: roundId }, data: { endsAt: round.endsAt } });
+    }
+  });
+
   it('raids the Hideout: unprotected product and cash only, then drops the Case', async () => {
     await app.prisma.roundPlayer.update({ where: { id: playerId }, data: { hideoutSafeRoomLevel: 3 } });
     await evidence([{ cityId, points: 70, source: 'BUST' }]);

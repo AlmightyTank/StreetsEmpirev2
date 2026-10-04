@@ -76,6 +76,19 @@ function overlapHours(from: Date, to: Date, windowFrom: Date, windowTo: Date): n
   return Math.max(0, (end - start) / HOUR_MS);
 }
 
+/**
+ * 1.3.0-C. In a settle window, the hours a raid had the racket shut, and how many of those the
+ * block was also under siege, so the two are never taken off twice.
+ */
+export function racketShutHours(window: { from: Date; to: Date; shutFrom: Date | null; shutUntil: Date | null; siegedSince: Date | null }): { shut: number; shutAndSieged: number } {
+  if (!window.shutFrom || !window.shutUntil) return { shut: 0, shutAndSieged: 0 };
+  const shut = overlapHours(window.from, window.to, window.shutFrom, window.shutUntil);
+  const shutAndSieged = window.siegedSince
+    ? overlapHours(window.from, window.to, new Date(Math.max(window.shutFrom.getTime(), window.siegedSince.getTime())), window.shutUntil)
+    : 0;
+  return { shut, shutAndSieged };
+}
+
 /** 1.3.0-C. A business raid has this racket shut right now. */
 function racketShut(row: { racketShutFrom: Date | null; racketShutUntil: Date | null }, now: Date): boolean {
   return Boolean(row.racketShutFrom && row.racketShutUntil && row.racketShutFrom <= now && row.racketShutUntil > now);
@@ -366,12 +379,15 @@ export const BusinessService = {
         // A cash racket pays on top of the front, and the register holds both.
         const racketPerHour = racketCashPerHour(ruleset, racket, perHour);
         // 1.3.0-C: the hours a business raid had the racket shut. The front earns through them.
-        const shutHours = racket && row.racketShutFrom && row.racketShutUntil ? overlapHours(row.accruedAt, advanceTo, row.racketShutFrom, row.racketShutUntil) : 0;
+        const shut = racket ? racketShutHours({ from: row.accruedAt, to: advanceTo, shutFrom: row.racketShutFrom, shutUntil: row.racketShutUntil, siegedSince: row.turf.siegedSince }) : null;
+        const shutHours = shut?.shut ?? 0;
         const racketHours = Math.max(0, wholeHours - shutHours);
         // Nobody spends money on a block under siege: those hours earn nothing.
         const sieged = row.turf.siegedSince ? overlapHours(row.accruedAt, advanceTo, row.turf.siegedSince, advanceTo) : 0;
         const earningHours = Math.max(0, wholeHours - sieged);
-        const racketEarningHours = Math.max(0, racketHours - sieged);
+        // A racket earns in hours that are neither shut nor sieged; where both cover the same
+        // hours they are only taken off once.
+        const racketEarningHours = Math.max(0, wholeHours - shutHours - sieged + (shut?.shutAndSieged ?? 0));
         let earned = shutHours > 0
           ? BigInt(Math.floor((perHour * earningHours + racketPerHour * racketEarningHours) * staffed * suppliedShare))
           : BigInt(Math.floor((perHour + racketPerHour) * staffed * earningHours * suppliedShare));

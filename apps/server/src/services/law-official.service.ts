@@ -326,7 +326,13 @@ export const LawOfficialService = {
 
   /** Every player with a sting due, for the background sweep. */
   async dueOwners(prisma: PrismaClient, now: Date, limit = 200): Promise<string[]> {
-    const rows = await prisma.playerOfficial.findMany({ where: { status: 'ACTIVE', stingAt: { lte: now } }, select: { roundPlayerId: true }, distinct: ['roundPlayerId'], take: limit });
+    const rows = await prisma.playerOfficial.findMany({
+      where: { status: 'ACTIVE', stingAt: { lte: now }, roundPlayer: { round: { status: 'ACTIVE', endsAt: { gt: now } } } },
+      select: { roundPlayerId: true },
+      distinct: ['roundPlayerId'],
+      orderBy: { stingAt: 'asc' },
+      take: limit,
+    });
     return rows.map((row) => row.roundPlayerId);
   },
 };

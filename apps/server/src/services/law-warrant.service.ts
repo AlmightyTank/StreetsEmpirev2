@@ -123,7 +123,8 @@ export const LawWarrantService = {
     const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { cityId: true } });
     const last = await tx.playerWarrant.findFirst({ where: { roundPlayerId, cityId: evidenceCityId }, orderBy: { draftedAt: 'desc' }, select: { draftedAt: true } });
     const receipts = await tx.playerCaseReceipt.findMany({
-      where: { roundPlayerId, cityId: evidenceCityId, deltaHundredths: { gt: 0 }, ...(last ? { createdAt: { gte: last.draftedAt } } : {}) },
+      // Strictly after the last draft: the receipt that drafted it shares its timestamp and is spent.
+      where: { roundPlayerId, cityId: evidenceCityId, deltaHundredths: { gt: 0 }, ...(last ? { createdAt: { gt: last.draftedAt } } : {}) },
       select: { source: true, deltaHundredths: true },
     });
     const weights: Record<WarrantTarget, number> = { HIDEOUT: 0, BUSINESS: 0, PERSONAL: 0 };
@@ -280,7 +281,11 @@ export const LawWarrantService = {
     const rules = ruleset.law!.warrants!;
     const plan = await LawWarrantService.plan(tx, player, ruleset, warrant, now);
     if (plan.target === 'PERSONAL' && !plan.where) {
-      if (warrant.status === 'OPEN') await tx.playerWarrant.update({ where: { id: warrant.id }, data: { status: 'WAITING', target: 'PERSONAL', businessId: null } });
+      // Still waiting: marked as checked, so the sweep gets round to the others first.
+      await tx.playerWarrant.update({
+        where: { id: warrant.id },
+        data: warrant.status === 'OPEN' ? { status: 'WAITING', target: 'PERSONAL', businessId: null } : { updatedAt: now },
+      });
       return false;
     }
 
@@ -443,15 +448,31 @@ export const LawWarrantService = {
     };
   },
 
-  /** Every player with a warrant due, for the background sweep. */
+  /**
+   * Players with a warrant to serve, for the background sweep, only in rounds still running.
+   * Due warrants come first so they always land on time; personal warrants waiting on the boss
+   * fill what is left, least recently checked first, so a crowd of them takes turns instead
+   * of holding the batch.
+   */
   async dueOwners(prisma: PrismaClient, now: Date, limit = 200): Promise<string[]> {
-    const rows = await prisma.playerWarrant.findMany({
-      where: { OR: [{ status: 'OPEN', servesAt: { lte: now } }, { status: 'WAITING' }] },
+    const live = { roundPlayer: { round: { status: 'ACTIVE' as const, endsAt: { gt: now } } } };
+    const due = await prisma.playerWarrant.findMany({
+      where: { status: 'OPEN', servesAt: { lte: now }, ...live },
       select: { roundPlayerId: true },
       distinct: ['roundPlayerId'],
+      orderBy: { servesAt: 'asc' },
       take: limit,
     });
-    return rows.map((row) => row.roundPlayerId);
+    const owners = due.map((row) => row.roundPlayerId);
+    if (owners.length >= limit) return owners;
+    const waiting = await prisma.playerWarrant.findMany({
+      where: { status: 'WAITING', roundPlayerId: { notIn: owners }, ...live },
+      select: { roundPlayerId: true },
+      distinct: ['roundPlayerId'],
+      orderBy: { updatedAt: 'asc' },
+      take: limit - owners.length,
+    });
+    return [...owners, ...waiting.map((row) => row.roundPlayerId)];
   },
 };
 

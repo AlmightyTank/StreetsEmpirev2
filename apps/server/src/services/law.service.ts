@@ -176,7 +176,8 @@ export const LawService = {
       const after = addCase(before, delta, rules);
       const stage = wantedStage(after, rules);
       const stageUp = stageRank(stage) > stageRank(wantedStage(before, rules));
-      const active = after > before && !PASSIVE.has(entry.source);
+      // The player's own act restarts the quiet clock, even when the Case is already at its cap.
+      const active = delta > 0 && !PASSIVE.has(entry.source);
 
       await tx.playerCase.upsert({
         where: { roundPlayerId_cityId: { roundPlayerId, cityId: place.id } },
