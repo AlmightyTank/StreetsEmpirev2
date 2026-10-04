@@ -252,6 +252,22 @@ export function PlayerProfileHoverLayer() {
             <div><small>National rank</small><strong>#{formatNumber(profile.rank.national)}</strong></div>
             <div><small>Net worth</small><strong>{formatCents(profile.netWorthCents)}</strong></div>
           </div>
+          {profile.experience ? (
+            <div className="se-profile-hover-card__xp">
+              <div><span>LEVEL {formatNumber(profile.experience.level)}</span><strong>{formatNumber(profile.experience.progressPercent)}%</strong></div>
+              <div
+                className="se-profile-hover-card__xp-track"
+                role="progressbar"
+                aria-label="Progress to next player level"
+                aria-valuenow={profile.experience.progressPercent}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <span style={{ width: `${profile.experience.progressPercent}%` }} />
+              </div>
+              <small>{formatNumber(profile.experience.xpToNextLevel)} XP to next level</small>
+            </div>
+          ) : null}
           {profile.badges.length ? (
             <div className="se-profile-hover-card__badges" aria-label="Profile badges">
               {profile.badges.slice(0, 3).map((badge) => (
