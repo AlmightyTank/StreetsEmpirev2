@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV12F, classicOgV13A, classicOgV13B, classicOgV13C, classicOgV13D } from '@streets/rulesets';
+import { classicOgV12F, classicOgV13A, classicOgV13B, classicOgV13C, classicOgV13D, classicOgV13E } from '@streets/rulesets';
 import { airportCheckChance, rollAirport, tripRules } from '../index.js';
+import { cityCaseDelta, cityLaw, federalTransfer, warrantWindowHours } from '../calculations/law.js';
 import { addCase, captainHeadsUp, crossesIaLine, daSlowed, lawPriceCents, caseCap, chooseWarrantTarget, evidenceTarget, lawyerUpCents, lossCapShare, policeLossRoom, retainerCents, caseFromHeat, caseFromPoints, coolCase, coolingStartsAt, currencyReports, launderedCase, lawDay, nextStage, stageRank, wantedStage, WANTED_STAGES } from '../calculations/law.js';
 
 const law = classicOgV13A.law;
@@ -217,5 +218,42 @@ describe('1.3.0-D officials and informants', () => {
     expect(captainHeadsUp(6_000, 6_200, 5, d)).toBe(false);
     expect(captainHeadsUp(5_000, 6_600, 5, d)).toBe(false);
     expect(captainHeadsUp(5_000, 6_100, 5, classicOgV13B.law)).toBe(false);
+  });
+});
+
+describe('1.3.0-E city identity and the Feds', () => {
+  const e = classicOgV13E.law;
+
+  it('adds only city personalities and the Feds to 1.3.0-D', () => {
+    const { cities, federal, ...rest } = e;
+    expect(rest).toEqual(classicOgV13D.law);
+    expect(Object.keys(cities).sort()).toEqual(Object.keys(classicOgV13E.cities).sort());
+    expect(federal).toEqual({ warningHoursMultiplier: 0.5, sweepPoints: 10, transfer: { oldCityCase: 40 } });
+  });
+
+  it('reads each city at its own pace, and plain where it is not named', () => {
+    expect(cityLaw(e, 'los-angeles').caseSpeed).toBe(1.25);
+    expect(cityLaw(e, 'nowhere')).toMatchObject({ caseSpeed: 1, coolingSpeed: 1, warningHoursMultiplier: 1 });
+    expect(cityCaseDelta(800, cityLaw(e, 'los-angeles'))).toBe(1_000);
+    expect(cityCaseDelta(-800, cityLaw(e, 'los-angeles'))).toBe(-800);
+    const clock = { caseHundredths: 3_000, caseAt: new Date('2026-10-04T00:00:00Z'), lastEvidenceAt: new Date('2026-10-04T00:00:00Z') };
+    const later = new Date('2026-10-05T04:00:00Z');
+    expect(coolCase(clock, later, e, cityLaw(e, 'las-vegas').coolingSpeed)).toBe(2_900);
+    expect(coolCase(clock, later, e, cityLaw(e, 'atlanta').coolingSpeed)).toBe(2_750);
+  });
+
+  it('shortens a warrant window at Federal and in Vegas, and leaves a Captain’s hours alone', () => {
+    expect(warrantWindowHours(e, cityLaw(e, 'new-york-city'), 7_000)).toBe(12);
+    expect(warrantWindowHours(e, cityLaw(e, 'new-york-city'), 9_000)).toBe(6);
+    expect(warrantWindowHours(e, cityLaw(e, 'las-vegas'), 9_000)).toBe(3);
+    expect(warrantWindowHours(e, cityLaw(e, 'seattle'), 7_000, 12)).toBe(30);
+    expect(warrantWindowHours(classicOgV13D.law, cityLaw(classicOgV13D.law, 'las-vegas'), 9_000)).toBe(12);
+  });
+
+  it('moves a federal case on relocation without stacking it, and leaves a local file', () => {
+    expect(federalTransfer(9_000, 2_000, e)).toEqual({ arriving: 9_000, leaving: 4_000 });
+    expect(federalTransfer(9_000, 9_500, e)).toEqual({ arriving: 9_500, leaving: 4_000 });
+    expect(federalTransfer(8_000, 2_000, e)).toBeNull();
+    expect(federalTransfer(9_000, 2_000, classicOgV13D.law)).toBeNull();
   });
 });

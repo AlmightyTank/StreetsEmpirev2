@@ -2361,6 +2361,38 @@ export interface LawRules {
   readonly officials?: LawOfficialRules;
   /** 1.3.0-D. Informants: information for cash, never protection. */
   readonly informants?: LawInformantRules;
+  /**
+   * 1.3.0-E. Each city's police personality, keyed by city slug. A city with no entry is
+   * plain: every multiplier 1. Absent: every city is alike.
+   */
+  readonly cities?: { readonly [slug: string]: LawCityRules };
+  /** 1.3.0-E. What a Case at the Federal stage means. Absent: Federal is only a name. */
+  readonly federal?: LawFederalRules;
+}
+
+/** 1.3.0-E. How one city's police work a Case. */
+export interface LawCityRules {
+  /** One line the Case panel and informants show. */
+  readonly blurb: string;
+  /** Multiplies every rise in the Case here. */
+  readonly caseSpeed: number;
+  /** Multiplies how fast a quiet Case cools here. */
+  readonly coolingSpeed: number;
+  /** Multiplies a warrant's warning window here. */
+  readonly warningHoursMultiplier: number;
+}
+
+/** 1.3.0-E. The Feds. */
+export interface LawFederalRules {
+  /** A warrant drafted while the Case is at Federal has this much of the usual window. */
+  readonly warningHoursMultiplier: number;
+  /** Extra Case points the federal sweep writes against a player at Federal in the swept city. Private. */
+  readonly sweepPoints: number;
+  /**
+   * Relocating while the city being left is at Federal moves the case: the new home takes the
+   * federal case's value (or keeps its own, if higher), and the old city keeps this much.
+   */
+  readonly transfer: { readonly oldCityCase: number };
 }
 
 /** 1.3.0-D. A week of one official, priced like a bribe: a share of net worth, with a floor. */

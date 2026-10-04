@@ -1,4 +1,4 @@
-import type { LawLawyerRules, LawOfficialPrice, LawOfficialRules, LawRules, LawWarrantRules, WantedStage } from '@streets/rulesets';
+import type { LawCityRules, LawLawyerRules, LawOfficialPrice, LawOfficialRules, LawRules, LawWarrantRules, WantedStage } from '@streets/rulesets';
 
 /**
  * 1.3.0-A. The Case: what one city's police have on a player.
@@ -96,11 +96,12 @@ export function coolingStartsAt(clock: CaseClock, rules: LawRules): Date | null 
 }
 
 /** The Case as it stands at `now`, after any cooling since `caseAt`. Never below zero. */
-export function coolCase(clock: CaseClock, now: Date, rules: LawRules): number {
+export function coolCase(clock: CaseClock, now: Date, rules: LawRules, coolingSpeed = 1): number {
   const starts = coolingStartsAt(clock, rules);
   if (!starts || !rules.cooling || clock.caseHundredths <= 0) return Math.max(0, clock.caseHundredths);
   const hours = Math.max(0, now.getTime() - starts.getTime()) / HOUR_MS;
-  const cooled = Math.floor(hours * rules.cooling.decayPerHour * CASE_SCALE);
+  // 1.3.0-E: some cities let a file go cold faster than others.
+  const cooled = Math.floor(hours * rules.cooling.decayPerHour * coolingSpeed * CASE_SCALE);
   return Math.max(0, clock.caseHundredths - cooled);
 }
 
@@ -227,4 +228,41 @@ export function captainHeadsUp(before: number, after: number, headsUpPoints: num
   const warrantAt = stageStartsAt('WARRANT', rules);
   const warnAt = warrantAt - headsUpPoints * CASE_SCALE;
   return before < warnAt && after >= warnAt && after < warrantAt;
+}
+
+// --- 1.3.0-E -----------------------------------------------------------------
+
+const PLAIN_CITY: LawCityRules = { blurb: '', caseSpeed: 1, coolingSpeed: 1, warningHoursMultiplier: 1 };
+
+/** How a city's police work a Case. A city the ruleset does not name is plain. */
+export function cityLaw(rules: LawRules, slug: string | undefined): LawCityRules {
+  return (slug && rules.cities?.[slug]) || PLAIN_CITY;
+}
+
+/** A rise in the Case, at a city's pace. Falls are never scaled. */
+export function cityCaseDelta(delta: number, city: LawCityRules): number {
+  return delta > 0 ? Math.round(delta * city.caseSpeed) : delta;
+}
+
+/**
+ * A warrant's warning window, in hours: the ruleset's, at the city's pace, shorter at
+ * Federal, plus a Captain's extra hours (which neither multiplier touches).
+ */
+export function warrantWindowHours(rules: LawRules, city: LawCityRules, caseHundredths: number, extraHours = 0): number {
+  const base = rules.warrants?.warningHours ?? 0;
+  const federal = rules.federal && wantedStage(caseHundredths, rules) === 'FEDERAL' ? rules.federal.warningHoursMultiplier : 1;
+  return base * city.warningHoursMultiplier * federal + extraHours;
+}
+
+/**
+ * A relocation with a federal case in the city being left: what the new home's Case becomes
+ * (the federal case's value, or its own if higher; never stacked) and what the old city keeps.
+ * Null when there is no federal case to move.
+ */
+export function federalTransfer(leaving: number, arriving: number, rules: LawRules): { arriving: number; leaving: number } | null {
+  if (!rules.federal || wantedStage(leaving, rules) !== 'FEDERAL') return null;
+  return {
+    arriving: Math.max(arriving, leaving),
+    leaving: Math.min(leaving, rules.federal.transfer.oldCityCase * CASE_SCALE),
+  };
 }
