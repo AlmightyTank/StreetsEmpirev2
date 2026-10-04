@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { experienceRequiredForLevel, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type PublicCareerDto } from '@streets/shared';
 import { communityApi } from '../api/community.js';
@@ -41,9 +41,12 @@ export function XpProgressPage() {
   const [careerLoading, setCareerLoading] = useState(true);
   const [experienceError, setExperienceError] = useState(false);
   const [careerError, setCareerError] = useState(false);
+  const experienceRequestId = useRef(0);
+  const lastObservedXp = useRef<{ accountId: string; totalXp: number } | null>(null);
 
   useEffect(() => {
     let active = true;
+    const requestId = ++experienceRequestId.current;
     setLoadedExperience(null);
     setCareer(null);
     setXpEvents([]);
@@ -53,6 +56,7 @@ export function XpProgressPage() {
     setCareerLoading(Boolean(accountId));
 
     if (!accountId) {
+      lastObservedXp.current = null;
       setExperienceLoading(false);
       setCareerLoading(false);
       return () => { active = false; };
@@ -60,12 +64,16 @@ export function XpProgressPage() {
 
     void gameApi.experience()
       .then((response) => {
-        if (!active) return;
+        if (!active || requestId !== experienceRequestId.current) return;
         setLoadedExperience(response.experience);
         setXpEvents(response.events);
       })
-      .catch(() => { if (active) setExperienceError(true); })
-      .finally(() => { if (active) setExperienceLoading(false); });
+      .catch(() => {
+        if (active && requestId === experienceRequestId.current) setExperienceError(true);
+      })
+      .finally(() => {
+        if (active && requestId === experienceRequestId.current) setExperienceLoading(false);
+      });
     void communityApi.career()
       .then((response) => { if (active) setCareer(response.career); })
       .catch(() => { if (active) setCareerError(true); })
@@ -77,6 +85,34 @@ export function XpProgressPage() {
   useEffect(() => {
     if (liveExperience) setLoadedExperience(liveExperience);
   }, [liveExperience]);
+
+  useEffect(() => {
+    if (!accountId) {
+      lastObservedXp.current = null;
+      return;
+    }
+    if (!liveExperience) return;
+
+    const previous = lastObservedXp.current;
+    lastObservedXp.current = { accountId, totalXp: liveExperience.totalXp };
+    // The mount request provides the initial log; only refetch when this account
+    // earns more XP while the page remains open.
+    if (!previous || previous.accountId !== accountId || liveExperience.totalXp <= previous.totalXp) return;
+
+    let active = true;
+    const requestId = ++experienceRequestId.current;
+    setExperienceError(false);
+    void gameApi.experience()
+      .then((response) => {
+        if (!active || requestId !== experienceRequestId.current) return;
+        setLoadedExperience(response.experience);
+        setXpEvents(response.events);
+      })
+      .catch(() => {
+        if (active && requestId === experienceRequestId.current) setExperienceError(true);
+      });
+    return () => { active = false; };
+  }, [accountId, liveExperience?.totalXp]);
 
   const experience = loadedExperience ?? liveExperience;
   const level = experience?.level ?? 1;
