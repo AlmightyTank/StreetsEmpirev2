@@ -590,9 +590,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
               />
             </div>
           </div>
-        </section>
-
-        <section id="crew-health" className="se-dashboard-section">
+          <section id="crew-health" className="se-dashboard-section se-dashboard-section--divided">
           <div className="se-dashboard-sectiontitle">
             <div>
               <span className="se-eyebrow">Crew & inventory</span>
@@ -676,6 +674,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
               ) : null}
             </div>
           </div>
+          </section>
         </section>
 
         <section className="se-dashboard-section">

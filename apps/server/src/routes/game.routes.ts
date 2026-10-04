@@ -68,6 +68,16 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
    * player being at the keyboard, which is what keeps a tab left open
    * overnight eligible for the away bonus.
    */
+  /** Account-wide XP is available even between seasons. */
+  fastify.get('/experience', { preHandler: fastify.requireAuth }, async (request) => {
+    const accountId = request.auth!.account.id;
+    const [experience, events] = await Promise.all([
+      PlayerExperienceService.view(fastify.prisma, accountId),
+      PlayerExperienceService.recentEvents(fastify.prisma, accountId),
+    ]);
+    return { experience, events };
+  });
+
   fastify.get('/me', { preHandler: fastify.requireAuth }, async (request) => {
     const query = request.query as { background?: string };
     const isBackground = query.background === '1' || query.background === 'true';

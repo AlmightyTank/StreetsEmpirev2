@@ -30,6 +30,32 @@ const MAX_VISIBLE_TOASTS = 4;
 const TOAST_TTL_MS = 9_000;
 let manualToastId = 0;
 
+const XP_LEVEL_TITLES = [
+  { level: 5, title: 'On the Rise' },
+  { level: 10, title: 'Known Face' },
+  { level: 20, title: 'Street Veteran' },
+  { level: 30, title: 'City Fixture' },
+  { level: 50, title: 'Living Legend' },
+] as const;
+
+/** Build the celebration for newly earned lifetime XP levels. */
+export function levelUpToastFor(previousLevel: number, level: number): Omit<GameEventToast, 'id'> {
+  const titles = XP_LEVEL_TITLES
+    .filter((reward) => reward.level > previousLevel && reward.level <= level)
+    .map((reward) => reward.title);
+  const rewardText = titles.length === 1
+    ? `New title unlocked: ${titles[0]}. Equip it from Account settings.`
+    : titles.length > 1
+      ? `New titles unlocked: ${titles.join(', ')}. Equip them from Account settings.`
+      : 'Your account progress continues across seasons.';
+  return {
+    title: `Level ${level} reached`,
+    detail: `${rewardText} Open XP Progress to see your career track.`,
+    tone: 'good',
+    href: '/game/xp-progress',
+  };
+}
+
 function str(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
@@ -374,7 +400,9 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
 
 export function GameEventToasts() {
   const playerId = useSession((s) => s.me?.id ?? null);
+  const accountId = useSession((s) => s.account?.id ?? null);
   const player = useSession((s) => s.me ?? null);
+  const experienceLevel = player?.experience?.level ?? null;
   const round = useSession((s) => s.round ?? null);
   const activity = useSession((s) => s.recentActivity);
   const activityHydratedForPlayerId = useSession((s) => s.activityHydratedForPlayerId);
@@ -386,6 +414,27 @@ export function GameEventToasts() {
   const snapshotSeen = useRef<Set<string>>(new Set());
   const snapshotsSeededFor = useRef<string | null>(null);
   const [toasts, setToasts] = useState<GameEventToast[]>([]);
+  const previousExperience = useRef<{ accountId: string; level: number } | null>(null);
+
+  useEffect(() => {
+    if (!accountId || experienceLevel === null) {
+      previousExperience.current = null;
+      return;
+    }
+
+    const previous = previousExperience.current;
+    previousExperience.current = { accountId, level: experienceLevel };
+    // Establish a quiet baseline on sign-in or initial hydration; celebrate only
+    // a level gained during the current signed-in session.
+    if (!previous || previous.accountId !== accountId || experienceLevel <= previous.level) return;
+
+    const toast = levelUpToastFor(previous.level, experienceLevel);
+    const id = `level-up:${accountId}:${experienceLevel}`;
+    setToasts((current) => [
+      ...current.filter((entry) => entry.id !== id),
+      { ...toast, id },
+    ].slice(-MAX_VISIBLE_TOASTS));
+  }, [accountId, experienceLevel]);
 
   useEffect(() => {
     if (!playerId) {
@@ -512,9 +561,21 @@ export function GameEventToasts() {
             <span className="se-eventtoast__detail">{toast.detail}</span>
           </>
         );
+        const isLevelUp = toast.id.startsWith('level-up:');
+        const levelUpBody = isLevelUp
+          ? (
+            <>
+              <span className="se-eventtoast__title">
+                <span className="se-eventtoast__levelup-label" aria-hidden="true">✦ Level up</span>
+                {toast.title}
+              </span>
+              <span className="se-eventtoast__detail">{toast.detail}</span>
+            </>
+          )
+          : body;
         return (
-          <div className={`se-eventtoast se-eventtoast--${toast.tone}`} key={toast.id}>
-            {toast.href ? <Link className="se-eventtoast__body" to={toast.href} onClick={() => acknowledge(toast)}>{body}</Link> : <span className="se-eventtoast__body">{body}</span>}
+          <div className={`se-eventtoast se-eventtoast--${toast.tone}${isLevelUp ? ' se-eventtoast--levelup' : ''}${isLevelUp && !reducedMotion ? ' se-eventtoast--levelup-motion' : ''}`} key={toast.id}>
+            {toast.href ? <Link className="se-eventtoast__body" to={toast.href} onClick={() => acknowledge(toast)}>{levelUpBody}</Link> : <span className="se-eventtoast__body">{levelUpBody}</span>}
             <button
               type="button"
               className="se-eventtoast__close"

@@ -243,3 +243,254 @@
     padding: 18px 14px;
   }
 }
+
+.se-xp-lifetime-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.se-xp-lifetime-grid > * {
+  min-width: 0;
+}
+
+.se-xp-career {
+  padding: 16px;
+}
+
+.se-xp-sectionhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 2px 14px 12px;
+}
+
+.se-xp-sectionhead h2 {
+  margin: 0 0 5px;
+  font-size: 20px;
+}
+
+.se-xp-sectionhead .se-hint {
+  margin: 0;
+}
+
+.se-xp-loading {
+  padding: 0 14px 12px;
+}
+
+.se-xp-milestones {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.se-xp-milestone {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--se-line-soft);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.se-xp-milestone--earned {
+  border-color: rgba(var(--se-accent-rgb), 0.38);
+  background: linear-gradient(145deg, rgba(var(--se-accent-rgb), 0.08), rgba(255, 255, 255, 0.012));
+}
+
+.se-xp-milestone__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.se-xp-milestone__rarity,
+.se-xp-milestone__status {
+  color: var(--se-muted);
+  font-family: var(--se-mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.se-xp-milestone--earned .se-xp-milestone__status {
+  color: var(--se-good);
+}
+
+.se-xp-milestone__rarity--rare,
+.se-xp-milestone__rarity--epic,
+.se-xp-milestone__rarity--legendary {
+  color: var(--se-accent);
+}
+
+.se-xp-milestone h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.se-xp-milestone > p {
+  flex: 1;
+  margin: 0;
+  color: var(--se-text-dim);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.se-xp-milestone__reward {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: var(--se-text);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.se-xp-milestone__reward > span:first-child {
+  flex: none;
+  color: var(--se-accent);
+}
+
+.se-xp-milestone__progress {
+  height: 5px;
+  overflow: hidden;
+  border: 1px solid var(--se-line);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.se-xp-milestone__progress > span {
+  display: block;
+  height: 100%;
+  background: var(--se-accent);
+  transition: width 0.25s ease;
+}
+
+.se-xp-milestone > small {
+  color: var(--se-muted);
+  font-family: var(--se-mono);
+  font-size: 9px;
+}
+
+@media (max-width: 900px) {
+  .se-xp-milestones {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .se-xp-sectionhead {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 2px 10px 12px;
+  }
+
+  .se-xp-lifetime-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .se-xp-career {
+    padding: 12px;
+  }
+
+  .se-xp-milestones {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-xp-milestone__progress > span {
+    transition: none;
+  }
+}
+
+.se-xp-history {
+  padding: 16px;
+}
+
+.se-xp-history .se-tablewrap {
+  margin: 0 14px 14px;
+}
+
+.se-xp-history .se-table th,
+.se-xp-history .se-table td {
+  vertical-align: middle;
+}
+
+.se-xp-log {
+  padding: 16px;
+}
+
+.se-xp-log > .se-hint {
+  margin: 0 0 10px;
+}
+
+.se-xp-log__list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.se-xp-log__item {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 11px;
+  border: 1px solid var(--se-line-soft);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.se-xp-log__copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.se-xp-log__copy strong {
+  overflow-wrap: anywhere;
+  color: var(--se-text);
+  font-size: 11px;
+}
+
+.se-xp-log__copy time {
+  color: var(--se-muted);
+  font-size: 9px;
+}
+
+.se-xp-log__amount {
+  flex: none;
+  color: var(--se-good);
+  font-family: var(--se-mono);
+  font-size: 11px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .se-xp-history,
+  .se-xp-log {
+    padding: 12px;
+  }
+
+  .se-xp-history .se-tablewrap {
+    margin: 0 10px 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .se-xp-log__item {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+}
