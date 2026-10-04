@@ -365,7 +365,7 @@ export interface CasinoPokerTableDto {
   buyInCents: number; maxPlayers: number; status: 'WAITING' | 'PLAYING' | 'CLOSED'; seats: Array<{ displayName: string; seatNo: number; isYou: boolean; stackCents: number }>;
 }
 export interface CasinoPokerTableViewDto extends CasinoPokerTableDto {
-  hand: null | { id: string; handNo: number; street: CasinoPokerHandDto['street']; board: CasinoPokerCardDto[]; potCents: number; rakeCents: number; turnSeatNo: number | null; myTurn: boolean; amountToCallCents: number; outcome: string | null; seats: Array<{ displayName: string; seatNo: number; isYou: boolean; stackCents: number; contributionCents: number; streetBetCents: number; folded: boolean; allIn: boolean; cards: CasinoPokerCardDto[]; handName: string | null }> };
+  hand: null | { id: string; handNo: number; street: CasinoPokerHandDto['street']; board: CasinoPokerCardDto[]; potCents: number; rakeCents: number; turnSeatNo: number | null; myTurn: boolean; amountToCallCents: number; outcome: string | null; /** When another player in the hand may skip the current turn; null once the hand is settled. */ turnExpiresAt: string | null; seats: Array<{ displayName: string; seatNo: number; isYou: boolean; stackCents: number; contributionCents: number; streetBetCents: number; folded: boolean; allIn: boolean; cards: CasinoPokerCardDto[]; handName: string | null }> };
 }
 export interface CasinoPokerTableResultDto { table: CasinoPokerTableDto; inviteCode?: string; page: CasinoPageDto }
 export interface CasinoPokerResponseDto {

@@ -146,6 +146,16 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
     catch (caught) { setError(caught instanceof ApiError ? caught.message : 'That Poker action could not be completed.'); }
     finally { setBusy(false); }
   }
+  async function skipIdle(id: string) {
+    setBusy(true); setError(null);
+    try { const result = await casinoApi.pokerTableTimeout(id, newActionId()); setTableView(result.table); onPageChange(result.page); if (result.table.hand?.outcome) setNotice(result.table.hand.outcome); }
+    catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Could not skip that turn.'); }
+    finally { setBusy(false); }
+  }
+
+  const waitingOn = tableView?.hand?.seats.find((seat) => seat.seatNo === tableView.hand?.turnSeatNo) ?? null;
+  const canSkipIdle = Boolean(tableView?.hand?.turnExpiresAt && !tableView.hand.myTurn
+    && tableView.hand.seats.some((seat) => seat.isYou) && Date.parse(tableView.hand.turnExpiresAt) <= Date.now());
 
   return <Panel title="Texas Hold’em" aside="SOLO + MULTIPLAYER">
     {error ? <Alert tone="error">{error}</Alert> : null}
@@ -190,7 +200,8 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
         <Button className="se-btn se-btn--ghost" disabled={busy || !mySeat || mySeat.stackCents === 0} onClick={() => void playTable(tableView.id, 'ALL_IN')}>All in</Button>
         <Button className="se-btn se-btn--primary" disabled={busy || !mySeat || mySeat.stackCents < tableView.hand.amountToCallCents + (state?.raiseCents ?? 200)} onClick={() => void playTable(tableView.id, 'RAISE')}>Raise {formatCents(state?.raiseCents ?? 200)}</Button>
         </>; })()}
-      </div></div> : tableView.status === 'PLAYING' ? <small>Waiting for {tableView.hand.seats.find((seat) => seat.seatNo === tableView.hand?.turnSeatNo)?.displayName ?? 'the next player'}… This table refreshes automatically.</small> : null}
+      </div></div> : tableView.status === 'PLAYING' ? <div className="se-poker-actions"><small>Waiting for {waitingOn?.displayName ?? 'the next player'}… This table refreshes automatically.</small>
+        {canSkipIdle ? <Button className="se-btn se-btn--ghost" disabled={busy} onClick={() => void skipIdle(tableView.id)}>Skip idle player</Button> : null}</div> : null}
       </> : tableView.status === 'WAITING' ? <p>Waiting for a player to deal the next hand.</p> : null}
     </section> : null}
     {hand ? <div className="se-poker-table">
@@ -223,7 +234,7 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
     </div> : <div className="se-poker-lobby">
       <p>Play a hand of Texas Hold’em against Mack and Rico. Your hole cards stay private; bot cards are revealed only at showdown.</p>
       <label>Buy-in ($)<input inputMode="decimal" value={buyIn} onChange={(event) => setBuyIn(event.target.value)} disabled={busy} /></label>
-      <small>Buy-in: {formatCents(state?.minBuyInCents ?? 1_000)}–{formatCents(state?.maxBuyInCents ?? 100_000)}. Blinds: {formatCents(state?.smallBlindCents ?? 50)} / {formatCents(state?.bigBlindCents ?? 100)}. Flopped pots take {((state?.rakeBps ?? 500) / 100).toFixed(2)}% house rake, capped at {formatCents(state?.rakeCapCents ?? 500)}. Your remaining stack returns to the casino bankroll when the hand ends.</small>
+      <small>Buy-in: {formatCents(state?.minBuyInCents ?? 1_000)}–{formatCents(state?.maxBuyInCents ?? 100_000)}. Blinds: {formatCents(state?.smallBlindCents ?? 50)} / {formatCents(state?.bigBlindCents ?? 100)}; the button moves every hand, so you post them in turn. Flopped pots take {((state?.rakeBps ?? 500) / 100).toFixed(2)}% house rake, capped at {formatCents(state?.rakeCapCents ?? 500)}. Your remaining stack returns to the casino bankroll when the hand ends.</small>
       <Button className="se-btn se-btn--primary" disabled={!canDeal || busy} onClick={() => void deal()}>{busy ? 'Dealing…' : 'Sit down and deal'}</Button>
     </div>}
   </Panel>;

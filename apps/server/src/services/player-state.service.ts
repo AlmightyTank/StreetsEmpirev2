@@ -19,6 +19,7 @@ import type { RoundPlayerDto } from '@streets/shared';
 import { TurfService } from './turf.service.js';
 import { BusinessService } from './business.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
+import { pokerCommittedCents } from './casino-poker-committed.js';
 
 /** 0.3.0-C: the alliance tag rides along so every screen can show it before the name. */
 export type PlayerWithCity = RoundPlayer & { city: City; alliance: { name: string; tag: string } | null };
@@ -168,7 +169,7 @@ export const PlayerStateService = {
     // 3. Net worth. Old pinned rulesets do not pay the cost of casino reads.
     let casinoNetWorthCents = 0n;
     if (ruleset.casino?.enabled) {
-      const [casinoWalletValue, casinoSessionValue, blackjackCommittedValue, streetDiceCommittedValue] = await Promise.all([
+      const [casinoWalletValue, casinoSessionValue, blackjackCommittedValue, streetDiceCommittedValue, pokerCommittedValue] = await Promise.all([
         tx.casinoWallet.aggregate({ where: { roundPlayerId }, _sum: { chipsCents: true } }),
         tx.casinoSession.aggregate({ where: { roundPlayerId, status: 'OPEN' }, _sum: { bankrollCents: true } }),
         tx.casinoBlackjackHand.aggregate({
@@ -179,13 +180,15 @@ export const PlayerStateService = {
           where: { roundPlayerId, status: 'ACTIVE' },
           _sum: { lineWagerCents: true, oddsWagerCents: true },
         }),
+        pokerCommittedCents(tx, roundPlayerId),
       ]);
       casinoNetWorthCents =
         (casinoWalletValue._sum.chipsCents ?? 0n)
         + (casinoSessionValue._sum.bankrollCents ?? 0n)
         + (blackjackCommittedValue._sum.committedWagerCents ?? 0n)
         + (streetDiceCommittedValue._sum.lineWagerCents ?? 0n)
-        + (streetDiceCommittedValue._sum.oddsWagerCents ?? 0n);
+        + (streetDiceCommittedValue._sum.oddsWagerCents ?? 0n)
+        + pokerCommittedValue;
     }
     const netWorthCents = NetWorthService.calculate({ ...recovered, products, casinoNetWorthCents }, ruleset);
 

@@ -45,7 +45,8 @@ export function evaluatePokerHand(cards: readonly PokerCard[]): PokerHandValue {
   let kickers: number[];
   if (straightFlush) { category = 'STRAIGHT_FLUSH'; kickers = [straightFlush]; }
   else if (groups[0]?.[0] === 4) { category = 'FOUR_OF_A_KIND'; kickers = [groups[0][1], ...ranks.filter((r) => r !== groups[0]![1]).sort((a, b) => b - a).slice(0, 1)]; }
-  else if (groups[0]?.[0] === 3 && groups.some(([count]) => count === 2)) { category = 'FULL_HOUSE'; kickers = [groups[0][1], Math.max(...groups.filter(([count, rank]) => count >= 2 && rank !== groups[0]![1]).map(([, rank]) => rank))]; }
+  // A second set of trips also fills the house (7-7-7-5-5-5-2 is sevens full of fives).
+  else if (groups[0]?.[0] === 3 && groups.filter(([count]) => count >= 2).length >= 2) { category = 'FULL_HOUSE'; kickers = [groups[0][1], Math.max(...groups.filter(([count, rank]) => count >= 2 && rank !== groups[0]![1]).map(([, rank]) => rank))]; }
   else if (flushSuit) { category = 'FLUSH'; kickers = flushRanks.sort((a, b) => b - a).slice(0, 5); }
   else {
     const straight = straightHigh(ranks);

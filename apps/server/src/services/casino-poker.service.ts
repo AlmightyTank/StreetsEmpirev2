@@ -15,6 +15,8 @@ import { bossPresence } from './boss-presence.service.js';
 const TABLE_KEY = 'SOLO_HOLDEM';
 const FALLBACK_POKER_RULES = { minBuyInCents: 1_000, maxBuyInCents: 100_000, bigBlindCents: 100, raiseCents: 200, rakeBps: 500, rakeCapCents: 500, venueKinds: ['FULL_CASINO', 'PRIVATE_CLUB', 'UNDERGROUND', 'NIGHTLIFE'] as const };
 const secureRng: Rng = () => randomInt(0x1_0000_0000) / 0x1_0000_0000;
+/** How long a multiplayer seat may sit on its turn before another player in the hand can skip it. */
+export const POKER_TURN_TIMEOUT_MS = 60_000;
 
 type PokerSeat = {
   id: string; name: string; human: boolean; hole: [PokerCard, PokerCard]; folded: boolean;
@@ -63,14 +65,15 @@ async function tableViewInDb(db: Db | PrismaClient, tableId: string, playerId: s
   const base = await tableDto(db, row, playerId);
   const handRow = row.hands[0];
   if (!handRow) return { ...base, hand: null };
+  // A seated player without chips sits the hand out, so the viewer may not be in it.
   const hand = parseTableState(handRow.state);
-  const viewer = hand.seats.find((seat) => seat.id === playerId);
-  if (!viewer && row.status === 'PLAYING') throw AppError.conflict('POKER_STATE_INVALID', 'Your seat is missing from the active Poker hand.');
   const map = new Map(row.seats.map((seat) => [seat.roundPlayerId, seat.roundPlayer]));
+  const live = handRow.status === 'ACTIVE' && hand.turnSeatId !== null;
   return { ...base, hand: {
     id: handRow.id, handNo: handRow.handNo, street: hand.street, board: hand.board,
     potCents: pokerTablePot(hand), rakeCents: hand.rakeCents, turnSeatNo: hand.turnSeatId ? hand.seats.find((seat) => seat.id === hand.turnSeatId)?.seatNo ?? null : null,
     myTurn: hand.turnSeatId === playerId, amountToCallCents: pokerTableAmountToCall(hand, playerId), outcome: hand.outcome,
+    turnExpiresAt: live ? new Date(handRow.updatedAt.getTime() + POKER_TURN_TIMEOUT_MS).toISOString() : null,
     seats: hand.seats.map((seat) => ({
       displayName: map.get(seat.id)?.displayName ?? seat.name, seatNo: seat.seatNo, isYou: seat.id === playerId,
       stackCents: seat.stackCents, contributionCents: seat.contributionCents, streetBetCents: seat.streetBetCents,
@@ -131,6 +134,33 @@ async function bossCitySlug(db: Db | PrismaClient, ruleset: ReturnType<typeof lo
   return trips + runs > 0 ? null : player.city.slug;
 }
 
+/** Multiplayer tables follow the same rule as every other game: the boss must be standing in a Poker room. */
+async function requirePokerRoom(db: Db, ruleset: ReturnType<typeof loadRulesetForRound>, casino: NonNullable<ReturnType<typeof loadRulesetForRound>['casino']>, player: PlayerRow, now: Date) {
+  const citySlug = await bossCitySlug(db, ruleset, player, now);
+  if (!citySlug) throw AppError.conflict('NOT_AT_CASINO', 'The boss has to be standing in a casino city to play Poker.');
+  const venue = casino.venues[citySlug];
+  if (!venue) throw AppError.conflict('NO_CASINO_HERE', 'There is no casino open where the boss is standing.');
+  if (!casino.poker?.venueKinds.includes(venue.kind)) throw AppError.conflict('POKER_TABLE_NOT_HERE', 'This Poker table is not available in that casino.');
+  const city = await db.city.findUnique({ where: { slug: citySlug } });
+  if (!city) throw AppError.notFound('CITY_NOT_FOUND', 'That casino city is not available.');
+  return city;
+}
+
+/** Persist a multiplayer hand after one action and return the acting player's table view. */
+async function saveTableHand(tx: Db, tableId: string, handId: string, state: PokerTableHandState, playerId: string, actionId: string, kind: string) {
+  const settled = state.street === 'SHOWDOWN';
+  const seatRows = await tx.casinoPokerSeat.findMany({ where: { tableId, status: 'PLAYING' } });
+  await Promise.all(seatRows.map((seat) => {
+    const next = state.seats.find((s) => s.id === seat.roundPlayerId);
+    return next ? tx.casinoPokerSeat.update({ where: { id: seat.id }, data: { stackCents: BigInt(next.stackCents), ...(settled ? { status: 'WAITING' } : {}) } }) : Promise.resolve();
+  }));
+  const updated = await tx.casinoPokerTableHand.update({ where: { id: handId }, data: { status: settled ? 'SETTLED' : 'ACTIVE', state: state as unknown as Prisma.InputJsonValue, outcome: state.outcome, settledAt: settled ? new Date() : null } });
+  if (settled) await tx.casinoPokerTable.update({ where: { id: tableId }, data: { status: 'WAITING' } });
+  const result = { table: await tableViewInDb(tx, tableId, playerId) };
+  await tx.casinoPokerTableAction.create({ data: { roundPlayerId: playerId, handId: updated.id, actionId, kind, response: result as unknown as Prisma.InputJsonValue } });
+  return result;
+}
+
 async function response(tx: Db, playerId: string, hand: CasinoPokerHand): Promise<CasinoPokerResponseDto> {
   const state = await stateInDb(tx, playerId);
   return { poker: state, hand: dto(hand) };
@@ -187,7 +217,7 @@ function settleByFold(state: PokerState): void {
 function botResponses(state: PokerState, rng: Rng): void {
   for (const bot of state.seats.filter((seat) => !seat.human && !seat.folded)) {
     const due = state.currentBet - bot.streetBet;
-    const action = choosePokerBotAction({ holeCards: bot.hole, communityCards: state.board, amountToCall: due, canRaise: false, rng });
+    const action = choosePokerBotAction({ holeCards: bot.hole, communityCards: state.board, amountToCall: due, canRaise: false, rng, potCents: pot(state) });
     if (action === 'FOLD') bot.folded = true;
     else { const amount = Math.min(due, bot.stack); bot.stack -= amount; bot.contribution += amount; bot.streetBet += amount; }
   }
@@ -255,7 +285,7 @@ export const CasinoPokerService = {
   async createTable(prisma: PrismaClient, playerId: string, input: CasinoPokerTableCreateInput) {
     return prisma.$transaction(async (tx) => {
       await lockRoundPlayer(tx, playerId);
-      const { player, casino } = await playerAndCasino(tx, playerId);
+      const { player, ruleset, casino } = await playerAndCasino(tx, playerId);
       const previous = await tx.casinoPokerTable.findUnique({ where: { creatorRoundPlayerId_createActionId: { creatorRoundPlayerId: playerId, createActionId: input.actionId }, }, include: { seats: { where: { status: 'WAITING' }, include: { roundPlayer: { select: { displayName: true } } } } } });
       if (previous) return { table: await tableDto(tx, previous, playerId) };
       if (!casino.poker) throw AppError.conflict('POKER_CLOSED', 'Poker is not enabled in this round.');
@@ -267,7 +297,8 @@ export const CasinoPokerService = {
         tx.casinoStreetDiceRound.findFirst({ where: { roundPlayerId: playerId, status: 'ACTIVE' }, select: { id: true } }),
       ]);
       if (blackjack || dice) throw AppError.conflict('CASINO_GAME_ACTIVE', 'Finish your active casino game before opening a Poker table.');
-      const session = await tx.casinoSession.findFirst({ where: { roundPlayerId: playerId, status: 'OPEN', cityId: player.cityId }, orderBy: { openedAt: 'desc' } });
+      const room = await requirePokerRoom(tx, ruleset, casino, player, new Date());
+      const session = await tx.casinoSession.findFirst({ where: { roundPlayerId: playerId, status: 'OPEN', cityId: room.id }, orderBy: { openedAt: 'desc' } });
       if (!session || session.bankrollCents < BigInt(input.buyInCents)) throw AppError.conflict('CASINO_SESSION_REQUIRED', 'Open a sufficiently funded casino bankroll in your current city.');
       const code = input.visibility === 'PRIVATE' ? randomBytes(5).toString('hex').toUpperCase() : null;
       const table = await tx.casinoPokerTable.create({ data: { roundId: player.roundId, cityId: session.cityId, name: input.name, visibility: input.visibility, inviteCodeHash: code ? inviteHash(code) : null, creatorRoundPlayerId: playerId, createActionId: input.actionId, maxPlayers: input.maxPlayers, buyInCents: BigInt(input.buyInCents) } });
@@ -283,7 +314,7 @@ export const CasinoPokerService = {
   async joinTable(prisma: PrismaClient, playerId: string, tableId: string, input: CasinoPokerTableJoinInput) {
     return prisma.$transaction(async (tx) => {
       await lockRoundPlayer(tx, playerId);
-      const { player } = await playerAndCasino(tx, playerId);
+      const { player, ruleset, casino } = await playerAndCasino(tx, playerId);
       const priorSeat = await tx.casinoPokerSeat.findUnique({ where: { roundPlayerId_actionId: { roundPlayerId: playerId, actionId: input.actionId } }, include: { table: { include: { seats: { where: { status: 'WAITING' }, include: { roundPlayer: { select: { displayName: true } } } } } } } });
       if (priorSeat) return { table: await tableDto(tx, priorSeat.table, playerId) };
       if (await tx.casinoPokerSeat.findFirst({ where: { roundPlayerId: playerId, status: { in: ['WAITING', 'PLAYING'] }, table: { status: { in: ['WAITING', 'PLAYING'] } } } })) throw AppError.conflict('POKER_ALREADY_SEATED', 'Leave your current multiplayer table first.');
@@ -298,7 +329,8 @@ export const CasinoPokerService = {
       if (!table || table.roundId !== player.roundId || table.status !== 'WAITING') throw AppError.notFound('POKER_TABLE_NOT_FOUND', 'That Poker table is no longer available.');
       if (table.visibility === 'PRIVATE' && (!input.inviteCode || inviteHash(input.inviteCode) !== table.inviteCodeHash)) throw AppError.conflict('POKER_INVITE_INVALID', 'That private table invite code is invalid.');
       if (table.seats.length >= table.maxPlayers) throw AppError.conflict('POKER_TABLE_FULL', 'That Poker table is full.');
-      if (player.cityId !== table.cityId) throw AppError.conflict('POKER_TABLE_CITY', 'Travel to the table’s city before joining.');
+      const room = await requirePokerRoom(tx, ruleset, casino, player, new Date());
+      if (room.id !== table.cityId) throw AppError.conflict('POKER_TABLE_CITY', 'Travel to the table’s city before joining.');
       const session = await tx.casinoSession.findFirst({ where: { roundPlayerId: playerId, status: 'OPEN', cityId: table.cityId }, orderBy: { openedAt: 'desc' } });
       if (!session || session.bankrollCents < table.buyInCents) throw AppError.conflict('CASINO_SESSION_REQUIRED', 'Open a sufficiently funded casino bankroll in this city.');
       const allSeats = await tx.casinoPokerSeat.findMany({ where: { tableId }, select: { seatNo: true } });
@@ -364,17 +396,37 @@ export const CasinoPokerService = {
       const state = parseTableState(hand.state);
       try { applyPokerTableAction(state, playerId, input.action); }
       catch (error) { throw AppError.conflict('POKER_ACTION_INVALID', error instanceof Error ? error.message : 'That Poker action is not legal.'); }
-      const settled = state.street === 'SHOWDOWN';
-      const seatRows = await tx.casinoPokerSeat.findMany({ where: { tableId, status: 'PLAYING' } });
-      await Promise.all(seatRows.map((seat) => {
-        const next = state.seats.find((s) => s.id === seat.roundPlayerId);
-        return next ? tx.casinoPokerSeat.update({ where: { id: seat.id }, data: { stackCents: BigInt(next.stackCents), ...(settled ? { status: 'WAITING' } : {}) } }) : Promise.resolve();
-      }));
-      const updated = await tx.casinoPokerTableHand.update({ where: { id: hand.id }, data: { status: settled ? 'SETTLED' : 'ACTIVE', state: state as unknown as Prisma.InputJsonValue, outcome: state.outcome, settledAt: settled ? new Date() : null } });
-      if (settled) await tx.casinoPokerTable.update({ where: { id: tableId }, data: { status: 'WAITING' } });
-      const result = { table: await tableViewInDb(tx, tableId, playerId) };
-      await tx.casinoPokerTableAction.create({ data: { roundPlayerId: playerId, handId: updated.id, actionId: input.actionId, kind: input.action, response: result as unknown as Prisma.InputJsonValue } });
-      return result;
+      return saveTableHand(tx, tableId, hand.id, state, playerId, input.actionId, input.action);
+    });
+  },
+
+  /**
+   * Skip a seat that has sat on its turn past POKER_TURN_TIMEOUT_MS: it checks
+   * when nothing is owed and folds otherwise. Without this one idle player
+   * would freeze the table and every escrowed buy-in at it.
+   */
+  async timeoutTableTurn(prisma: PrismaClient, playerId: string, tableId: string, actionId: string, now: Date = new Date()) {
+    return prisma.$transaction(async (tx) => {
+      await lockRoundPlayer(tx, playerId);
+      await tx.$queryRaw`SELECT id FROM "CasinoPokerTable" WHERE id = ${tableId} FOR UPDATE`;
+      const replay = await tx.casinoPokerTableAction.findUnique({ where: { roundPlayerId_actionId: { roundPlayerId: playerId, actionId } } });
+      if (replay) {
+        if (replay.kind !== 'TIMEOUT') throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to another Poker action.');
+        return replay.response as unknown as { table: CasinoPokerTableViewDto };
+      }
+      if (await tx.casinoLedgerEntry.findUnique({ where: { roundPlayerId_actionId: { roundPlayerId: playerId, actionId } }, select: { id: true } })) throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to another casino action.');
+      const table = await tx.casinoPokerTable.findUnique({ where: { id: tableId } });
+      if (!table || table.status !== 'PLAYING') throw AppError.conflict('POKER_TABLE_NOT_PLAYING', 'That table has no active hand.');
+      const hand = await tx.casinoPokerTableHand.findFirst({ where: { tableId, status: 'ACTIVE' }, orderBy: { handNo: 'desc' } });
+      if (!hand) throw AppError.conflict('POKER_HAND_NOT_FOUND', 'There is no active hand at that table.');
+      const state = parseTableState(hand.state);
+      if (!state.seats.some((seat) => seat.id === playerId)) throw AppError.conflict('POKER_NOT_IN_HAND', 'Only players dealt into this hand can skip an idle turn.');
+      const idle = state.turnSeatId;
+      if (!idle) throw AppError.conflict('POKER_HAND_NOT_FOUND', 'There is no turn waiting at that table.');
+      if (idle === playerId) throw AppError.conflict('POKER_YOUR_TURN', 'It is your turn. Act instead of skipping it.');
+      if (now.getTime() < hand.updatedAt.getTime() + POKER_TURN_TIMEOUT_MS) throw AppError.conflict('POKER_TURN_NOT_EXPIRED', 'That player still has time to act.');
+      applyPokerTableAction(state, idle, pokerTableAmountToCall(state, idle) > 0 ? 'FOLD' : 'CHECK');
+      return saveTableHand(tx, tableId, hand.id, state, playerId, actionId, 'TIMEOUT');
     });
   },
 
@@ -439,16 +491,25 @@ export const CasinoPokerService = {
       if (session.bankrollCents < buyIn) throw AppError.conflict('NOT_ENOUGH_BANKROLL', 'There are not enough casino chips for that Poker buy-in.');
       const bankroll = session.bankrollCents - buyIn;
       await tx.casinoSession.update({ where: { id: session.id }, data: { bankrollCents: bankroll } });
+      // The button moves one seat per solo hand, so the player posts the small
+      // blind and the big blind in turn just like Mack and Rico.
+      const seatIds = ['player', 'bot-1', 'bot-2'] as const;
+      const handsPlayed = await tx.casinoPokerHand.count({ where: { roundPlayerId: playerId } });
+      const dealerIndex = (seatIds.length - (handsPlayed % seatIds.length)) % seatIds.length;
+      const blinds: Record<string, number> = {
+        [seatIds[(dealerIndex + 1) % seatIds.length]!]: Math.floor(pokerRules.bigBlindCents / 2),
+        [seatIds[(dealerIndex + 2) % seatIds.length]!]: pokerRules.bigBlindCents,
+      };
       const deck = shufflePokerDeck(rng);
-      const dealt = dealPokerHoleCards(deck, ['player', 'bot-1', 'bot-2'], 0);
+      const dealt = dealPokerHoleCards(deck, seatIds, dealerIndex);
+      const seat = (id: (typeof seatIds)[number], name: string, human: boolean): PokerSeat => {
+        const blind = blinds[id] ?? 0;
+        return { id, name, human, hole: [...dealt.holeCards[id]!] as [PokerCard, PokerCard], folded: false, stack: input.buyInCents - blind, contribution: blind, streetBet: blind };
+      };
       const state: PokerState = {
         deck: [...dealt.deck], board: [], street: 'PREFLOP', currentBet: pokerRules.bigBlindCents, outcome: null, revealedBots: false,
         rakeBps: pokerRules.rakeBps, rakeCapCents: pokerRules.rakeCapCents, rakeCents: 0,
-        seats: [
-          { id: 'player', name: player.displayName, human: true, hole: [...dealt.holeCards.player!] as [PokerCard, PokerCard], folded: false, stack: input.buyInCents, contribution: 0, streetBet: 0 },
-          { id: 'bot-1', name: 'Mack', human: false, hole: [...dealt.holeCards['bot-1']!] as [PokerCard, PokerCard], folded: false, stack: input.buyInCents - Math.floor(pokerRules.bigBlindCents / 2), contribution: Math.floor(pokerRules.bigBlindCents / 2), streetBet: Math.floor(pokerRules.bigBlindCents / 2) },
-          { id: 'bot-2', name: 'Rico', human: false, hole: [...dealt.holeCards['bot-2']!] as [PokerCard, PokerCard], folded: false, stack: input.buyInCents - pokerRules.bigBlindCents, contribution: pokerRules.bigBlindCents, streetBet: pokerRules.bigBlindCents },
-        ],
+        seats: [seat('player', player.displayName, true), seat('bot-1', 'Mack', false), seat('bot-2', 'Rico', false)],
       };
       const row = await tx.casinoPokerHand.create({ data: {
         roundPlayerId: playerId, sessionId: session.id, cityId: city.id, tableKey: TABLE_KEY, status: 'ACTIVE',

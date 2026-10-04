@@ -23,6 +23,14 @@ describe('Texas Hold’em hand evaluation', () => {
     expect(royal).toMatchObject({ category: 'STRAIGHT_FLUSH', score: [8, 14] });
   });
 
+  it('reads two sets of trips as a full house using the higher set', () => {
+    const twoTrips = evaluatePokerHand([c(7), c(7, 'D'), c(7, 'H'), c(5), c(5, 'D'), c(5, 'H'), c(2, 'C')]);
+    expect(twoTrips).toEqual({ category: 'FULL_HOUSE', score: [6, 7, 5] });
+    const sevensFullOfFives = evaluatePokerHand([c(7), c(7, 'D'), c(7, 'H'), c(5), c(5, 'D'), c(13, 'C'), c(2, 'C')]);
+    expect(comparePokerHands(twoTrips, sevensFullOfFives)).toBe(0);
+    expect(comparePokerHands(twoTrips, evaluatePokerHand([c(14), c(14, 'D'), c(14, 'H'), c(9), c(5, 'D'), c(3, 'C'), c(2, 'C')]))).toBeGreaterThan(0);
+  });
+
   it('rejects impossible hand sizes', () => {
     expect(() => evaluatePokerHand([c(2), c(3), c(4), c(5)])).toThrow(RangeError);
   });

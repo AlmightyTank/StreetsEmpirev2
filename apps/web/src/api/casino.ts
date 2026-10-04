@@ -66,6 +66,7 @@ export const casinoApi = {
   pokerTable: (id: string) => api.get<CasinoPokerTableViewDto>('/game/casino/poker/tables/' + encodeURIComponent(id)),
   pokerStartTable: (id: string, actionId: string) => api.post<{ table: CasinoPokerTableViewDto; page: CasinoPageDto }>('/game/casino/poker/tables/' + encodeURIComponent(id) + '/start', { actionId }),
   pokerTableAction: (id: string, input: CasinoPokerTablePlayInput) => api.post<{ table: CasinoPokerTableViewDto; page: CasinoPageDto }>('/game/casino/poker/tables/' + encodeURIComponent(id) + '/action', input),
+  pokerTableTimeout: (id: string, actionId: string) => api.post<{ table: CasinoPokerTableViewDto; page: CasinoPageDto }>('/game/casino/poker/tables/' + encodeURIComponent(id) + '/timeout', { actionId }),
   closeSession: (sessionId: string, input: CasinoSessionCloseInput) =>
     api.post<CasinoPageDto>('/game/casino/sessions/' + encodeURIComponent(sessionId) + '/close', input),
 };
