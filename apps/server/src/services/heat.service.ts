@@ -19,6 +19,7 @@ import { ActionService, type PlayerState } from './action.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { CRACK, ProductInventoryService } from './product-inventory.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
+import { LawService, seizedValueCents } from './law.service.js';
 
 export interface HeatBribeResult {
   points: number;
@@ -101,6 +102,8 @@ export const HeatService = {
       if (Object.keys(rows).length) await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, rows);
       next = { ...next, crack: next.crack - (taken.seized[CRACK] ?? 0), cashCents: next.cashCents - taken.fineCents };
     }
+    // 1.3.0-C: what the police took counts toward the day's cap on warrants. It is never cut by it.
+    if (taken) await LawService.notePoliceLoss(tx, roundPlayerId, ruleset, seizedValueCents(taken.seized, ruleset) + taken.fineCents, input.now);
     const drop = arrest.arrested ? rules.arrest!.heatDrop : bust.busted ? rules.bust.heatDrop : 0;
     const after = addHeat(input.startHeat, added - drop, rules);
     const lockedUntil = arrest.arrested ? new Date((input.now ?? new Date()).getTime() + arrest.downtimeMinutes * 60_000) : null;

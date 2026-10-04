@@ -302,8 +302,9 @@ export function airportCheckChance(rules: AirportRules | undefined, heat: number
 }
 
 /** Trips D2. One roll at the airport: whether the boss is pulled aside, and what it costs. */
-export function rollAirport(rules: AirportRules | undefined, input: { heat: number; bankrollCents: bigint; rng: Rng; bodyguards?: number }): { pulled: boolean; seizedCents: bigint; delayMinutes: number } {
-  const chance = airportCheckChance(rules, input.heat, input.bodyguards ?? 0);
+export function rollAirport(rules: AirportRules | undefined, input: { heat: number; bankrollCents: bigint; rng: Rng; bodyguards?: number; chanceMultiplier?: number }): { pulled: boolean; seizedCents: bigint; delayMinutes: number } {
+  // 1.3.0-D: a Customs Officer on the payroll in the city being left makes a check less likely.
+  const chance = airportCheckChance(rules, input.heat, input.bodyguards ?? 0) * Math.max(0, input.chanceMultiplier ?? 1);
   if (!rules || chance <= 0 || input.rng() >= chance) return { pulled: false, seizedCents: 0n, delayMinutes: 0 };
   const bankroll = input.bankrollCents > 0n ? input.bankrollCents : 0n;
   return { pulled: true, seizedCents: (bankroll * BigInt(rules.seizePercent)) / 100n, delayMinutes: rules.delayMinutes };

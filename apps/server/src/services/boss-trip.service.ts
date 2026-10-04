@@ -38,6 +38,7 @@ import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { BossHitService } from './boss-hit.service.js';
 import { BossPresenceService } from './boss-presence.service.js';
 import { totalAwayWorth } from './run-settle.service.js';
+import { LawOfficialService } from './law-official.service.js';
 
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
 
@@ -253,7 +254,13 @@ export const BossTripService = {
 
         const rules = requireTrips(base);
         // Trips D2: a hot boss can be pulled aside on the way out. Rolled once, from the action.
-        const airport = rollAirport(rules.airport, { heat: current.heat, bodyguards: input.bodyguards, bankrollCents, rng: seededRng(hashParts(input.actionId, 'airport')) });
+        // 1.3.0-D: Customs on the payroll at home looks the other way more often. The no-fly line above still holds.
+        const customs = base.law?.officials ? await LawOfficialService.working(tx, roundPlayerId, player.cityId, 'CUSTOMS', now) : null;
+        const airport = rollAirport(rules.airport, {
+          heat: current.heat, bodyguards: input.bodyguards, bankrollCents, rng: seededRng(hashParts(input.actionId, 'airport')),
+          chanceMultiplier: customs ? 1 - base.law!.officials!.roles.CUSTOMS.checkCut : 1,
+        });
+        if (customs && rules.airport) await LawOfficialService.favor(tx, base, customs, 'customsFlight', now);
         const delay = airport.delayMinutes * 60_000;
         const later = (at: Date) => new Date(at.getTime() + delay);
         const times = { departedAt: check.times.departedAt, arrivesAt: later(check.times.arrivesAt), stayUntil: later(check.times.stayUntil), returnsAt: later(check.times.returnsAt) };

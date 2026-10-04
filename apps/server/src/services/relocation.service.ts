@@ -29,6 +29,7 @@ import {
 } from './turf.service.js';
 import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
 import { endTurfHold } from './turf-history.service.js';
+import { LawService } from './law.service.js';
 
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
 
@@ -187,6 +188,8 @@ async function finishMove(tx: Db, roundPlayerId: string, move: { id: string; fro
     },
   });
   await tx.relocation.update({ where: { id: move.id }, data: { arrivedAt: move.arrivesAt } });
+  // 1.3.0-E: a federal case in the city left comes along; a local one stays behind.
+  await LawService.followRelocation(tx, roundPlayerId, base, { id: move.id, fromCity: move.fromCity, toCityId: destination.id }, move.arrivesAt);
   await ActivityService.log(tx, roundPlayerId, 'RELOCATED', {
     from: move.fromCity,
     to: move.toCity,
@@ -332,6 +335,8 @@ export const RelocationService = {
     // Any city but home shows the same general reason; the per-city ones (no road) are rare.
     const general = checkMove(ruleset, { ...base, to: Object.keys(ruleset.cities ?? {}).find((slug) => slug !== home) ?? home });
     const baseFeeCents = relocationFeeCents(player.netWorthCents, rules);
+    // 1.3.0-E: shown before the move is confirmed, so a federal case never moves silently.
+    const federal = await LawService.federalPreview(db as Db, player.id, ruleset, player.cityId, now);
     return {
       feeCents: Number(general.feeCents),
       baseFeeCents: Number(baseFeeCents),
@@ -354,7 +359,9 @@ export const RelocationService = {
         name: cityName(ruleset, slug),
         heat: heatThere(ruleset, heat, slug),
         reachable: findRoutes(ruleset, home, slug).length > 0,
+        ...(federal ? { caseOnArrival: federal.arrivals[slug] ?? null } : {}),
       })),
+      ...(ruleset.law?.federal ? { federalCase: federal ? { cityName: federal.cityName, case: federal.case, oldCityCase: federal.oldCityCase } : null } : {}),
       turfPlans,
     };
   },

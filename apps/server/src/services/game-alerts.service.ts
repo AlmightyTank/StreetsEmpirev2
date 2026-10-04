@@ -11,7 +11,7 @@ import { settleSurveySchedules } from './survey-schedule.service.js';
  * 0.9.0-G. The alerts that happen by the clock or by someone else's hand: a push
  * your Lookouts have spotted, an ally calling for help, a tail on your run, a run
  * home, revenge running out, a special order arriving, an alliance announcement
- * and a private message.
+ * and a private message. 1.3.0-B adds a Case reaching a new Wanted stage.
  *
  * Critical rule: an alert only says what the player could already see in game at
  * that moment. A spotted push or tail never names the attacker (the game does not
@@ -41,6 +41,7 @@ const settingsSelect = {
   ordersEnabled: true,
   announcementsEnabled: true,
   messagesEnabled: true,
+  lawEnabled: true,
 } as const;
 
 type AlertSettings = Prisma.NotificationSettingsGetPayload<{ select: typeof settingsSelect }>;
@@ -566,6 +567,137 @@ async function newsBroadcasts(tx: Tx, now: Date, switches: ChannelSwitches): Pro
   return rows;
 }
 
+const STAGE_NAMES: Record<string, string> = {
+  NOTICED: 'Noticed',
+  INVESTIGATION: 'Under Investigation',
+  WARRANT: 'Warrant',
+  FEDERAL: 'Federal',
+};
+
+/**
+ * 1.3.0-B. A Case that reached a new Wanted stage. Private to its player, so the alert names
+ * the city and the stage and nothing else: never the Case number or what built it. The bell
+ * already has CASE_STAGE_UP from the moment it happened.
+ */
+async function caseStages(tx: Tx, now: Date, switches: ChannelSwitches): Promise<OutboxRow[]> {
+  const receipts = await tx.playerCaseReceipt.findMany({
+    where: { stageUp: true, alertsCollectedAt: null },
+    orderBy: { createdAt: 'asc' },
+    take: BATCH,
+    select: {
+      id: true, stageAfter: true, createdAt: true,
+      city: { select: { slug: true, name: true } },
+      roundPlayer: {
+        select: {
+          accountId: true, account: accountSettings,
+          round: { select: { status: true, endsAt: true } },
+        },
+      },
+    },
+  });
+  if (!receipts.length) return [];
+  await tx.playerCaseReceipt.updateMany({ where: { id: { in: receipts.map((row) => row.id) }, alertsCollectedAt: null }, data: { alertsCollectedAt: now } });
+  const stale = now.getTime() - MAX_LOOKAHEAD_MS;
+  return receipts.flatMap((receipt) => {
+    if (!live(receipt.roundPlayer.round, now) || receipt.createdAt.getTime() < stale) return [];
+    const stage = STAGE_NAMES[receipt.stageAfter] ?? receipt.stageAfter;
+    return notice(receipt.roundPlayer.accountId, receipt.roundPlayer.account.notificationSettings, 'law', `case:${receipt.id}`, {
+      title: 'The police have more on you',
+      body: `${receipt.city.name} police now have you at ${stage}.`,
+      url: gameUrl('/game#case'),
+      tag: `case:${receipt.city.slug}`,
+    }, switches, now);
+  });
+}
+
+const TARGET_WORDS: Record<string, string> = { HIDEOUT: 'hideout', BUSINESS: 'business', PERSONAL: 'boss' };
+
+/**
+ * 1.3.0-C. Warrants: one drafted against the player, a personal one waiting for the boss to
+ * come to town, and one served. Like the stage alert, only places and targets, never amounts.
+ */
+async function warrantAlerts(tx: Tx, now: Date, switches: ChannelSwitches): Promise<OutboxRow[]> {
+  const include = {
+    city: { select: { slug: true, name: true } },
+    business: { select: { kind: true } },
+    roundPlayer: { select: { accountId: true, account: accountSettings, round: { select: { status: true, endsAt: true } } } },
+  } as const;
+  const [drafted, waiting, served] = await Promise.all([
+    tx.playerWarrant.findMany({ where: { draftAlertedAt: null }, include, take: BATCH, orderBy: { draftedAt: 'asc' } }),
+    tx.playerWarrant.findMany({ where: { status: 'WAITING', waitingAlertedAt: null }, include, take: BATCH, orderBy: { servesAt: 'asc' } }),
+    tx.playerWarrant.findMany({ where: { status: 'SERVED', resolvedAlertedAt: null }, include, take: BATCH, orderBy: { resolvedAt: 'asc' } }),
+  ]);
+  if (drafted.length) await tx.playerWarrant.updateMany({ where: { id: { in: drafted.map((row) => row.id) }, draftAlertedAt: null }, data: { draftAlertedAt: now } });
+  if (waiting.length) await tx.playerWarrant.updateMany({ where: { id: { in: waiting.map((row) => row.id) }, waitingAlertedAt: null }, data: { waitingAlertedAt: now } });
+  if (served.length) await tx.playerWarrant.updateMany({ where: { id: { in: served.map((row) => row.id) }, resolvedAlertedAt: null }, data: { resolvedAlertedAt: now } });
+  const rows: OutboxRow[] = [];
+  const stale = now.getTime() - MAX_LOOKAHEAD_MS;
+  const send = (warrant: (typeof drafted)[number], key: string, title: string, body: string) => {
+    if (!live(warrant.roundPlayer.round, now)) return;
+    rows.push(...notice(warrant.roundPlayer.accountId, warrant.roundPlayer.account.notificationSettings, 'law', key, {
+      title, body, url: gameUrl('/game#case'), tag: `warrant:${warrant.id}`,
+    }, switches, now));
+  };
+  for (const warrant of drafted) {
+    // Answered before the collector got to it: nothing to warn about.
+    if (warrant.status !== 'OPEN' || warrant.draftedAt.getTime() < stale) continue;
+    const hours = Math.max(1, Math.round((warrant.servesAt.getTime() - now.getTime()) / 3_600_000));
+    send(warrant, `warrant:${warrant.id}`, 'A warrant is out for you',
+      `${warrant.city.name} police have a warrant for your ${TARGET_WORDS[warrant.target] ?? 'operation'}. It is served in about ${hours} hour${hours === 1 ? '' : 's'} unless you answer it.`);
+  }
+  for (const warrant of waiting) {
+    send(warrant, `warrant-waiting:${warrant.id}`, 'A warrant is waiting for you',
+      `${warrant.city.name} police will serve their warrant the next time the boss is in town.`);
+  }
+  for (const warrant of served) {
+    if ((warrant.resolvedAt?.getTime() ?? 0) < stale) continue;
+    send(warrant, `warrant-served:${warrant.id}`, 'A warrant was served',
+      `${warrant.city.name} police served their warrant on your ${TARGET_WORDS[warrant.target] ?? 'operation'}.`);
+  }
+  return rows;
+}
+
+const OFFICIAL_WORDS: Record<string, string> = { CAPTAIN: 'Precinct Captain', DA: 'District Attorney', JUDGE: 'Judge', CUSTOMS: 'Customs Officer' };
+
+/**
+ * 1.3.0-D. Internal Affairs opening a file on one of the player's officials, and a sting. The
+ * player hears in time to cut them loose; nothing says how much exposure or evidence.
+ */
+async function officialAlerts(tx: Tx, now: Date, switches: ChannelSwitches): Promise<OutboxRow[]> {
+  const include = {
+    city: { select: { name: true } },
+    roundPlayer: { select: { accountId: true, account: accountSettings, round: { select: { status: true, endsAt: true } } } },
+  } as const;
+  const [opened, stung] = await Promise.all([
+    tx.playerOfficial.findMany({ where: { iaOpenedAt: { not: null }, iaAlertedAt: null }, include, take: BATCH, orderBy: { iaOpenedAt: 'asc' } }),
+    tx.playerOfficial.findMany({ where: { status: 'STUNG', stungAlertedAt: null }, include, take: BATCH, orderBy: { endedAt: 'asc' } }),
+  ]);
+  if (opened.length) await tx.playerOfficial.updateMany({ where: { id: { in: opened.map((row) => row.id) }, iaAlertedAt: null }, data: { iaAlertedAt: now } });
+  if (stung.length) await tx.playerOfficial.updateMany({ where: { id: { in: stung.map((row) => row.id) }, stungAlertedAt: null }, data: { stungAlertedAt: now } });
+  const rows: OutboxRow[] = [];
+  for (const official of opened) {
+    // Already cut loose, or already stung (that alert follows): nothing left to warn about.
+    if (official.status !== 'ACTIVE' || !live(official.roundPlayer.round, now)) continue;
+    const hours = Math.max(1, Math.round(((official.stingAt?.getTime() ?? now.getTime()) - now.getTime()) / 3_600_000));
+    rows.push(...notice(official.roundPlayer.accountId, official.roundPlayer.account.notificationSettings, 'law', `ia:${official.id}:${official.hiredAt.toISOString()}`, {
+      title: 'Internal Affairs is looking',
+      body: `Internal Affairs opened a file on your ${official.city.name} ${OFFICIAL_WORDS[official.role] ?? 'official'}. Cut them loose within about ${hours} hour${hours === 1 ? '' : 's'} or be caught with them.`,
+      url: gameUrl('/game#case'),
+      tag: `official:${official.id}`,
+    }, switches, now));
+  }
+  for (const official of stung) {
+    if (!live(official.roundPlayer.round, now)) continue;
+    rows.push(...notice(official.roundPlayer.accountId, official.roundPlayer.account.notificationSettings, 'law', `sting:${official.id}:${official.hiredAt.toISOString()}`, {
+      title: 'Your official was stung',
+      body: `Internal Affairs caught your ${official.city.name} ${OFFICIAL_WORDS[official.role] ?? 'official'} on your payroll.`,
+      url: gameUrl('/game#case'),
+      tag: `official:${official.id}`,
+    }, switches, now));
+  }
+  return rows;
+}
+
 export const GameAlertService = {
   /**
    * Settle runs that are due home, so "made it home" alerts go out while everyone
@@ -594,6 +726,9 @@ export const GameAlertService = {
       ...await revengeExpiring(tx, now, switches),
       ...await scheduled(tx, now, switches),
       ...await messages(tx, now, switches),
+      ...await caseStages(tx, now, switches),
+      ...await warrantAlerts(tx, now, switches),
+      ...await officialAlerts(tx, now, switches),
       ...await announcements(tx, now, switches),
       ...await surveyBroadcasts(tx, now, switches),
       ...await newsBroadcasts(tx, now, switches),

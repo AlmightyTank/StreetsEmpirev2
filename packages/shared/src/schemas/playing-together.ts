@@ -64,6 +64,24 @@ export const heatBribeSchema = z.object({
   actionId: z.string().min(1).max(128).optional(),
 }).strict();
 
+/** 1.3.0-C. Lawyering up on a warrant, and keeping a lawyer on retainer. */
+export const lawyerActionSchema = z.object({
+  actionId: z.string().min(1).max(128).optional(),
+}).strict();
+
+/** 1.3.0-D. Putting an official on the payroll, and buying a tip. */
+export const officialHireSchema = z.object({
+  citySlug: z.string().min(1).max(64),
+  role: z.enum(['CAPTAIN', 'DA', 'JUDGE', 'CUSTOMS']),
+  actionId: z.string().min(1).max(128).optional(),
+}).strict();
+
+export const tipBuySchema = z.object({
+  kind: z.enum(['SWEEP', 'CITY']),
+  citySlug: z.string().min(1).max(64).optional(),
+  actionId: z.string().min(1).max(128).optional(),
+}).strict();
+
 export const workSupplyPreviewSchema = z.object({
   job: z.string().regex(/^[A-Z][A-Z0-9_]{1,31}$/),
   turns: z.coerce.number().int().min(1).max(10_000),

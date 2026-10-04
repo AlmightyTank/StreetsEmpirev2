@@ -6,6 +6,7 @@ import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns, fitThugs, workingWhores } from './action.service.js';
 import { BossTripSettleService } from './boss-trip-settle.service.js';
 import { HeatService } from './heat.service.js';
+import { tripCaseEvidence } from './law.service.js';
 import { hideoutBackOfficeBonusCents } from './hideout.service.js';
 import { CRACK, ProductInventoryService, streetProductFinds, summarizeProductMovements } from './product-inventory.service.js';
 import { TurfService } from './turf.service.js';
@@ -335,6 +336,8 @@ export const ScoutService = {
               ...(trip.heat ? { heat: trip.heat.after, heatAdded: trip.heat.added, busted: trip.heat.busted, fineCents: trip.heat.fineCents } : {}),
             },
           },
+          // 1.3.0-A/B: the Heat the trip drew, and any bust or arrest, build the Case at home.
+          caseEvidence: tripCaseEvidence(trip.heat, 'SCOUT', ruleset),
         };
       },
     });

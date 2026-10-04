@@ -32,6 +32,17 @@ const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
   'ALLIANCE_CALL',
   'REVENGE_EXPIRING',
   'SPECIAL_ORDER_READY',
+  // 1.3.0-A. A Case reaching a new Wanted stage always reaches the bell.
+  'CASE_STAGE_UP',
+  // 1.3.0-C. A warrant drafted against the player, and one served.
+  'WARRANT_DRAFTED',
+  'WARRANT_SERVED',
+  // 1.3.0-D. Internal Affairs on an official, a sting, and a Captain's word.
+  'OFFICIAL_IA_OPENED',
+  'OFFICIAL_STUNG',
+  'CAPTAIN_TIP',
+  // 1.3.0-E. A federal case that followed a move.
+  'CASE_FOLLOWED',
 ]);
 
 function objectPayload(payload: Prisma.InputJsonValue): Record<string, unknown> {

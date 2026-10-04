@@ -2308,6 +2308,197 @@ export interface CasinoPokerRules {
   readonly venueKinds: readonly CasinoVenueKind[];
 }
 
+/** 1.3.0-A. The Wanted ladder's stages, lowest first. */
+export type WantedStage = 'QUIET' | 'NOTICED' | 'INVESTIGATION' | 'WARRANT' | 'FEDERAL';
+
+/**
+ * 1.3.0-A. Law enforcement: what each city's police have on a player.
+ *
+ * Heat (0.4.0-C) stays the fast, global noise meter and is not changed by any of this.
+ * The Case is the slow, per-city memory on top of it: a number from 0 to `caseMax` for
+ * every city a player has drawn Heat in, read as a stage on the Wanted ladder. It is
+ * private to its player and resets with the round. A only builds and shows it; later
+ * slices add direct evidence, cooling, warrants, officials and lawyers.
+ */
+export interface LawRules {
+  /** The most a Case in one city can hold. */
+  readonly caseMax: number;
+  /** The Case at which each stage above Quiet starts. Ascending. */
+  readonly stages: { readonly noticed: number; readonly investigation: number; readonly warrant: number; readonly federal: number };
+  /** Share of the Heat a player draws in a city that becomes Case there. */
+  readonly heatToCase: number;
+  /**
+   * 1.3.0-B. Case points added directly by acts the police write down, on top of the Heat
+   * they draw. Absent: only Heat builds a Case.
+   */
+  readonly evidence?: LawEvidenceRules;
+  /**
+   * 1.3.0-B. Currency reports: every `thresholdCents` of cash a player moves in one city in
+   * one UTC day files a report worth `points`. Day totals add up, so splitting a movement
+   * never dodges one. Absent: cash movements are not watched.
+   */
+  readonly currencyReport?: { readonly thresholdCents: number; readonly points: number };
+  /**
+   * 1.3.0-B. A Case cools by `decayPerHour` points once its city has seen no evidence from the
+   * player's own acts for `quietHours`. Racket Heat, the federal sweep and laundering never
+   * restart the quiet clock. Absent: a Case never cools.
+   */
+  readonly cooling?: { readonly quietHours: number; readonly decayPerHour: number };
+  /**
+   * 1.3.0-B. Laundering rackets also wash the Case in their own block's city: `casePerHeat`
+   * Case points for each point of Heat they could wash, up to `dailyCaseCap` points a UTC day
+   * across the crew. It needs no Heat to wash and costs the register nothing more.
+   */
+  readonly laundering?: { readonly casePerHeat: number; readonly dailyCaseCap: number };
+  /**
+   * 1.3.0-C. A Case reaching the Warrant stage drafts a warrant against one target, served
+   * after a warning window unless answered. Absent: the Case never costs anything.
+   */
+  readonly warrants?: LawWarrantRules;
+  /** 1.3.0-C. Lawyers: a retainer that softens what warrants take, and lawyering up. */
+  readonly lawyer?: LawLawyerRules;
+  /** 1.3.0-D. Corrupt officials on a weekly payroll, per city, with Internal Affairs exposure. */
+  readonly officials?: LawOfficialRules;
+  /** 1.3.0-D. Informants: information for cash, never protection. */
+  readonly informants?: LawInformantRules;
+  /**
+   * 1.3.0-E. Each city's police personality, keyed by city slug. A city with no entry is
+   * plain: every multiplier 1. Absent: every city is alike.
+   */
+  readonly cities?: { readonly [slug: string]: LawCityRules };
+  /** 1.3.0-E. What a Case at the Federal stage means. Absent: Federal is only a name. */
+  readonly federal?: LawFederalRules;
+}
+
+/** 1.3.0-E. How one city's police work a Case. */
+export interface LawCityRules {
+  /** One line the Case panel and informants show. */
+  readonly blurb: string;
+  /** Multiplies every rise in the Case here. */
+  readonly caseSpeed: number;
+  /** Multiplies how fast a quiet Case cools here. */
+  readonly coolingSpeed: number;
+  /** Multiplies a warrant's warning window here. */
+  readonly warningHoursMultiplier: number;
+}
+
+/** 1.3.0-E. The Feds. */
+export interface LawFederalRules {
+  /** A warrant drafted while the Case is at Federal has this much of the usual window. */
+  readonly warningHoursMultiplier: number;
+  /** Extra Case points the federal sweep writes against a player at Federal in the swept city. Private. */
+  readonly sweepPoints: number;
+  /**
+   * Relocating while the city being left is at Federal moves the case: the new home takes the
+   * federal case's value (or keeps its own, if higher), and the old city keeps this much.
+   */
+  readonly transfer: { readonly oldCityCase: number };
+}
+
+/** 1.3.0-D. A week of one official, priced like a bribe: a share of net worth, with a floor. */
+export interface LawOfficialPrice {
+  readonly netWorthShare: number;
+  readonly minCents: number;
+}
+
+export type LawOfficialRole = 'CAPTAIN' | 'DA' | 'JUDGE' | 'CUSTOMS';
+
+/** 1.3.0-D. What each official does in their city, and what being caught with them costs. */
+export interface LawOfficialRules {
+  /** Days a week's pay keeps an official working. */
+  readonly weekDays: number;
+  readonly roles: {
+    /** Longer warrant windows, and a word before a Case reaches the Warrant line. */
+    readonly CAPTAIN: LawOfficialPrice & { readonly extraWarningHours: number; readonly headsUpPoints: number };
+    /** Slows the city's Case, and can quash a warrant there once every `quashEveryDays`. */
+    readonly DA: LawOfficialPrice & { readonly slowShare: number; readonly quashEveryDays: number };
+    /** Served warrants in the city take less, and lock the boss up for less. */
+    readonly JUDGE: LawOfficialPrice & { readonly seizureCut: number; readonly downtimeCut: number };
+    /** Airport checks on flights out of the city happen less. Never touches the no-fly line. */
+    readonly CUSTOMS: LawOfficialPrice & { readonly checkCut: number };
+  };
+  readonly exposure: {
+    /** Exposure at which Internal Affairs opens a file on an official. */
+    readonly line: number;
+    /** Hours between the file opening and the sting. */
+    readonly iaWarningHours: number;
+    /** Case points the sting adds in the official's city. */
+    readonly stingPoints: number;
+    /** Hours before the same post in the same city can be filled again after a cut or a sting. */
+    readonly rehireCooldownHours: number;
+    /** Exposure each favor adds. */
+    readonly perFavor: {
+      readonly captainWindow: number;
+      readonly captainTip: number;
+      readonly daQuash: number;
+      /** Per Case point the DA slowed. */
+      readonly daSlowedPoint: number;
+      readonly judgeServe: number;
+      readonly customsFlight: number;
+    };
+  };
+}
+
+/** 1.3.0-D. What informants charge. */
+export interface LawInformantRules {
+  /** When and where the federal sweep lands, before it is announced. */
+  readonly sweep: LawOfficialPrice;
+  /** A city's police lines: where drag, busts and arrests start there, and how hard it presses. */
+  readonly city: LawOfficialPrice;
+}
+
+/** 1.3.0-C. Warrants and what serving one takes. */
+export interface LawWarrantRules {
+  /** Hours between a warrant being drafted and served. */
+  readonly warningHours: number;
+  /** The Case a city drops to once its warrant is served. */
+  readonly caseAfterServed: number;
+  /** The Case a city drops to once its warrant is answered (lawyered up; quashed from D). */
+  readonly caseAfterAnswered: number;
+  /** A Hideout raid: shares of the unprotected product and cash at home. */
+  readonly hideout: { readonly productSeizedFraction: number; readonly cashFineFraction: number };
+  /** A business raid: the racket shuts for a while and the register is fined. The front keeps running. */
+  readonly business: { readonly racketShutHours: number; readonly registerFineFraction: number };
+  /**
+   * Total police losses in a UTC day, as a share of net worth, past which a raid or a served
+   * warrant takes less. Busts and arrests count toward it but are never cut by it.
+   */
+  readonly dailyLossCapNetWorthShare: number;
+}
+
+/** 1.3.0-C. Lawyers. */
+export interface LawLawyerRules {
+  /** A standing lawyer: seizures, fines and warrant lock-ups are cut while one is retained. */
+  readonly retainer: {
+    readonly days: number;
+    /** Price: this share of net worth, never below `minCents`. */
+    readonly netWorthShare: number;
+    readonly minCents: number;
+    /** Share off what a served warrant seizes and fines. */
+    readonly seizureCut: number;
+    /** Share off a personal warrant's lock-up. */
+    readonly downtimeCut: number;
+  };
+  /** Lawyering up: during the warning window, pay `multiplier` x what the warrant would take, never below `minCents`. */
+  readonly lawyerUp: { readonly multiplier: number; readonly minCents: number };
+}
+
+/** 1.3.0-B. Direct evidence, in Case points. */
+export interface LawEvidenceRules {
+  /** A Scout, Produce or run trade busted. */
+  readonly bust: number;
+  /** A Scout, Produce or run trade ending in arrest. */
+  readonly arrest: number;
+  /** A run pulled over on the road, charged to the city the leg arrives in. */
+  readonly roadStop: number;
+  /** Torching your own business during a block war. */
+  readonly torch: number;
+  /** Winning a block war fought to sack the block. */
+  readonly sack: number;
+  /** Hitting another crew's run. */
+  readonly hijack: number;
+}
+
 /**
  * 1.2.0-A. Casino foundation: venues, cashier limits and session bankrolls.
  * 1.2.0-B adds server-authoritative Slots.
@@ -2424,5 +2615,7 @@ export interface Ruleset {
   readonly business?: BusinessRules;
   /** 1.2.0-A. Absent before casinos become player destinations. */
   readonly casino?: CasinoRules;
+  /** 1.3.0-A. Absent before the law keeps a Case. Never changes how `heat` behaves. */
+  readonly law?: LawRules;
   readonly evidence: EvidenceRules;
 }

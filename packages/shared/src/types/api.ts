@@ -1,4 +1,5 @@
 import type { HeatDto, TripHeatDto, TurfSummaryDto, TurfTripDto, WorkSupplyPlanDto } from './playing-together.js';
+import type { LawSummaryDto } from './law.js';
 /**
  * The contract between apps/server and apps/web.
  *
@@ -88,7 +89,20 @@ export type ActivityType =
   | 'CASINO_SESSION_OPENED'
   | 'CASINO_SESSION_CLOSED'
   | 'CASINO_STATUS_UP'
-  | 'CASINO_COMP_HOTEL';
+  | 'CASINO_COMP_HOTEL'
+  | 'CASE_STAGE_UP'
+  | 'WARRANT_DRAFTED'
+  | 'WARRANT_SERVED'
+  | 'WARRANT_LAWYERED'
+  | 'LAWYER_RETAINED'
+  | 'OFFICIAL_HIRED'
+  | 'OFFICIAL_IA_OPENED'
+  | 'OFFICIAL_CUT'
+  | 'OFFICIAL_STUNG'
+  | 'WARRANT_QUASHED'
+  | 'CAPTAIN_TIP'
+  | 'INFORMANT_TIP'
+  | 'CASE_FOLLOWED';
 
 export interface ApiErrorBody {
   error: {
@@ -342,6 +356,8 @@ export interface RoundPlayerDto {
   turf: TurfSummaryDto | null;
   /** Street Pass summary for the nav badge. Absent or null on rounds without a pass. */
   streetPass?: { tier: number; tierCount: number; claimable: number } | null;
+  /** 1.3.0-A. The worst Case the player has anywhere. Absent or null on rounds without the law. */
+  law?: LawSummaryDto | null;
   /** Lifetime account XP; does not reset between rounds. */
   experience?: PlayerExperienceDto;
   rank: RankDto;

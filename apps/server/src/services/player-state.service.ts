@@ -20,6 +20,7 @@ import { TurfService } from './turf.service.js';
 import { BusinessService } from './business.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { pokerCommittedCents } from './casino-poker-committed.js';
+import { LawWarrantService } from './law-warrant.service.js';
 
 /** 0.3.0-C: the alliance tag rides along so every screen can show it before the name. */
 export type PlayerWithCity = RoundPlayer & { city: City; alliance: { name: string; tag: string } | null };
@@ -148,6 +149,11 @@ export const PlayerStateService = {
         businessThugs: businessSettlement.businessThugs,
         businessWhores: businessSettlement.businessWhores,
       };
+    }
+    // 1.3.0-C: a warrant that is due is served here too, so it lands for players who are away.
+    if (await LawWarrantService.serveDue(tx, roundPlayerId, now)) {
+      const reloaded = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, include: { city: true, alliance: ALLIANCE_TAG } });
+      rest = { ...rest, ...reloaded };
     }
     const recovery = await CombatRecoveryService.settle(tx, roundPlayerId, now);
     // 1. Turns, and the shop shelves on the same clock. Heat cools on it too.
