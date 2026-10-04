@@ -33,12 +33,12 @@ const honorificTitles: BadgeCosmeticOptionDto[] = [
 const honorificTitleKeys = honorificTitles.map((option) => option.key);
 
 export const PROFILE_ACCENTS: CosmeticOptionDto[] = [
-  { key: 'default', label: 'StreetsEmpire', description: 'The classic neon-green site accent.' },
-  { key: 'crimson', label: 'Crimson', description: 'A deep red site-wide accent.' },
-  { key: 'gold', label: 'Goldenrod', description: 'A bright goldenrod site-wide accent.' },
-  { key: 'green', label: 'Emerald', description: 'A rich emerald-green site-wide accent.' },
-  { key: 'blue', label: 'Cornflower', description: 'A soft cornflower-blue site-wide accent.' },
-  { key: 'purple', label: 'Orchid', description: 'A vivid orchid-purple site-wide accent.' },
+  { key: 'default', label: 'StreetsEmpire', description: 'The classic neon-green profile accent.' },
+  { key: 'crimson', label: 'Crimson', description: 'A deep red profile accent.' },
+  { key: 'gold', label: 'Goldenrod', description: 'A bright goldenrod profile accent.' },
+  { key: 'green', label: 'Emerald', description: 'A rich emerald-green profile accent.' },
+  { key: 'blue', label: 'Cornflower', description: 'A soft cornflower-blue profile accent.' },
+  { key: 'purple', label: 'Orchid', description: 'A vivid orchid-purple profile accent.' },
 ];
 
 export const UI_DENSITIES: CosmeticOptionDto[] = [
@@ -285,7 +285,7 @@ export const AccountProfileService = {
     const accentKeys = new Set(appearance.accents.map((option) => option.key));
     if (!accentKeys.has(input.profileAccent)) {
       throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick an accent you have already unlocked.', {
-        profileAccent: 'That site accent is not unlocked.',
+        profileAccent: 'That profile accent is not unlocked.',
       });
     }
     const featuredBadgeKeys = uniqueKeys(input.featuredBadgeKeys)

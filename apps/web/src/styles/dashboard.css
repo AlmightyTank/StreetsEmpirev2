@@ -181,8 +181,23 @@
 .se-dashboard-command {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+  grid-template-areas:
+    "attention actions"
+    "health actions";
   gap: 10px;
   align-items: start;
+}
+
+.se-dashboard-command__attention {
+  grid-area: attention;
+}
+
+.se-dashboard-command__actions {
+  grid-area: actions;
+}
+
+.se-dashboard-command > .se-dashboard-section {
+  grid-area: health;
 }
 
 .se-dashboard-command__attention,
@@ -403,6 +418,12 @@
   scroll-margin-top: 16px;
 }
 
+.se-dashboard-section--divided {
+  margin-top: 2px;
+  padding-top: 16px;
+  border-top: 1px solid var(--se-line);
+}
+
 .se-dashboard-sectiontitle {
   align-items: start;
   padding: 2px 0;
@@ -504,6 +525,10 @@
 
   .se-dashboard-command {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "attention"
+      "actions"
+      "health";
   }
 }
 

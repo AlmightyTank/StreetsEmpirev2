@@ -41,9 +41,19 @@ function sessionDevice(session: AccountSessionDto): string {
   return session.userAgent ? 'Browser session' : 'Unknown device';
 }
 
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || '?';
+}
+
 export function AccountSettingsPage() {
   const account = useSession((s) => s.account)!;
   const me = useSession((s) => s.me);
+  const round = useSession((s) => s.round);
   const setSessionProfileSettings = useSession((s) => s.setProfileSettings);
   const [searchParams] = useSearchParams();
   const accountMessage = searchParams.get('accountMessage');
@@ -282,6 +292,13 @@ export function AccountSettingsPage() {
       setBusy(null);
     }
   }
+
+  const selectedAccent = profileSettings?.options.accents.find((option) => option.key === cosmetics.profileAccent);
+  const selectedTitle = profileSettings?.options.titles.find((option) => option.key === cosmetics.activeTitleKey);
+  const selectedFrame = profileSettings?.options.frames.find((option) => option.key === cosmetics.activeProfileFrameKey);
+  const displayName = me?.displayName ?? account.username;
+  const previewCity = me?.city.name ?? 'Your city';
+  const previewRank = me ? `#${me.publicPimpId.toLocaleString()}` : 'Preview';
 
   return (
     <Shell>
@@ -555,8 +572,8 @@ export function AccountSettingsPage() {
                 </div>
 
                 <div className="se-field">
-                  <span className="se-label">Site accent</span>
-                  <div className="se-swatch-row" role="group" aria-label="Site accent">
+                  <span className="se-label">Profile accent</span>
+                  <div className="se-swatch-row" role="group" aria-label="Profile accent">
                     {profileSettings.options.accents.map((option) => (
                       <button
                         type="button"
@@ -571,7 +588,7 @@ export function AccountSettingsPage() {
                       </button>
                     ))}
                   </div>
-                  {fields.profileAccent ? <p className="se-error" role="alert">{fields.profileAccent}</p> : <p className="se-hint">Changes the main highlight color across the entire player-facing game.</p>}
+                  {fields.profileAccent ? <p className="se-error" role="alert">{fields.profileAccent}</p> : <p className="se-hint">Sets the color shown on your profile card, profile page, and player-facing highlights.</p>}
                 </div>
 
                 <div className="se-field">
@@ -617,33 +634,54 @@ export function AccountSettingsPage() {
                 </div>
               </div>
 
-              <div className="se-field">
-                <span className="se-label">Featured badges</span>
-                {profileSettings.options.badges.length ? (
-                  <div className="se-cosmetic-list se-cosmetic-list--wide">
-                    {profileSettings.options.badges.map((option) => {
-                      const checked = cosmetics.featuredBadgeKeys.includes(option.key);
-                      return (
-                        <label className="se-checkrow" key={option.key}
-                          title={!checked && cosmetics.featuredBadgeKeys.length >= 6 ? 'Six badges is the most a profile shows. Clear one to swap this in.' : undefined}>
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={!checked && cosmetics.featuredBadgeKeys.length >= 6}
-                            onChange={() => toggleFeaturedBadge(option.key)}
-                          />
-                          <span>
-                            <strong>{option.label}</strong>
-                            <small>{option.permanent ? 'Permanent' : 'This round'} · {option.rarity.charAt(0).toUpperCase() + option.rarity.slice(1)}</small>
-                          </span>
-                        </label>
-                      );
-                    })}
+              <div className="se-account-cosmetics__side">
+                <div className={`se-profile-card-preview se-profile-accent se-profile-accent--${cosmetics.profileAccent}${cosmetics.activeProfileFrameKey ? ` se-profile-frame se-profile-frame--${cosmetics.activeProfileFrameKey}` : ''}`}>
+                  <div className="se-profile-card-preview__banner">
+                    <span>Street Empire</span>
                   </div>
-                ) : (
-                  <p className="se-muted">Unlock achievements or finish a season to feature badges here.</p>
-                )}
-                {fields.featuredBadgeKeys ? <p className="se-error" role="alert">{fields.featuredBadgeKeys}</p> : <p className="se-hint">Pick up to six. They appear first on your public profile.</p>}
+                  <div className="se-profile-card-preview__identity">
+                    <span className="se-profile-card-preview__avatar" aria-hidden="true">{initials(displayName)}</span>
+                    <div>
+                      {selectedTitle ? <span className="se-profile-card-preview__title">{selectedTitle.label}</span> : null}
+                      <strong>{displayName}</strong>
+                      <small>Player {previewRank}</small>
+                    </div>
+                  </div>
+                  <p>{previewCity}{round ? ` · ${round.name}` : ''}</p>
+                  <div className="se-profile-card-preview__chips">
+                    <span>{selectedAccent?.label ?? 'StreetsEmpire'} accent</span>
+                    {selectedFrame ? <span>{selectedFrame.label} frame</span> : null}
+                  </div>
+                </div>
+
+                <div className="se-field">
+                  <span className="se-label">Featured badges</span>
+                  {profileSettings.options.badges.length ? (
+                    <div className="se-cosmetic-list se-cosmetic-list--wide">
+                      {profileSettings.options.badges.map((option) => {
+                        const checked = cosmetics.featuredBadgeKeys.includes(option.key);
+                        return (
+                          <label className="se-checkrow" key={option.key}
+                            title={!checked && cosmetics.featuredBadgeKeys.length >= 6 ? 'Six badges is the most a profile shows. Clear one to swap this in.' : undefined}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={!checked && cosmetics.featuredBadgeKeys.length >= 6}
+                              onChange={() => toggleFeaturedBadge(option.key)}
+                            />
+                            <span>
+                              <strong>{option.label}</strong>
+                              <small>{option.permanent ? 'Permanent' : 'This round'} · {option.rarity.charAt(0).toUpperCase() + option.rarity.slice(1)}</small>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="se-muted">Unlock achievements or finish a season to feature badges here.</p>
+                  )}
+                  {fields.featuredBadgeKeys ? <p className="se-error" role="alert">{fields.featuredBadgeKeys}</p> : <p className="se-hint">Pick up to six. They appear first on your public profile.</p>}
+                </div>
               </div>
             </div>
 
