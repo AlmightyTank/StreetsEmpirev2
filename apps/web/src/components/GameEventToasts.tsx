@@ -43,9 +43,11 @@ export function levelUpToastFor(previousLevel: number, level: number): Omit<Game
   const titles = XP_LEVEL_TITLES
     .filter((reward) => reward.level > previousLevel && reward.level <= level)
     .map((reward) => reward.title);
-  const rewardText = titles.length
-    ? `New title unlocked: ${titles.join(', ')}. Equip it from Account settings.`
-    : 'Your account progress continues across seasons.';
+  const rewardText = titles.length === 1
+    ? `New title unlocked: ${titles[0]}. Equip it from Account settings.`
+    : titles.length > 1
+      ? `New titles unlocked: ${titles.join(', ')}. Equip them from Account settings.`
+      : 'Your account progress continues across seasons.';
   return {
     title: `Level ${level} reached`,
     detail: `${rewardText} Open XP Progress to see your career track.`,
