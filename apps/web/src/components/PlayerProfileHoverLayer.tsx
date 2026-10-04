@@ -196,8 +196,9 @@ export function PlayerProfileHoverLayer() {
 
   useLayoutEffect(() => {
     if (!target || touch) return;
+    const anchor = target.anchor;
     function updatePosition() {
-      const rect = target.anchor.getBoundingClientRect();
+      const rect = anchor.getBoundingClientRect();
       const width = Math.min(CARD_WIDTH, window.innerWidth - 24);
       const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
       const below = rect.bottom + 10;
