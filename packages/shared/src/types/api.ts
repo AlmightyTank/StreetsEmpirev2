@@ -86,7 +86,9 @@ export type ActivityType =
   | 'CASINO_BUY_CHIPS'
   | 'CASINO_REDEEM_CHIPS'
   | 'CASINO_SESSION_OPENED'
-  | 'CASINO_SESSION_CLOSED';
+  | 'CASINO_SESSION_CLOSED'
+  | 'CASINO_STATUS_UP'
+  | 'CASINO_COMP_HOTEL';
 
 export interface ApiErrorBody {
   error: {

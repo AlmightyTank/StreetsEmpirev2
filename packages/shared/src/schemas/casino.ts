@@ -90,6 +90,12 @@ export const casinoPokerTableActionSchema = z.object({ actionId: actionIdSchema 
 export const casinoPokerTableStartSchema = z.object({ actionId: actionIdSchema }).strict();
 export const casinoPokerTablePlaySchema = z.object({ action: z.enum(['FOLD', 'CHECK', 'CALL', 'RAISE', 'ALL_IN']), actionId: actionIdSchema }).strict();
 
+/** 1.2.0-E. Spend comps on hotel blocks for the boss's current trip. */
+export const casinoCompHotelSchema = z.object({
+  blocks: z.number({ invalid_type_error: 'Say how long to stay on.' }).int('Extend by whole blocks.').min(1, 'Extend by at least one block.').max(24).safe(),
+  actionId: actionIdSchema,
+}).strict();
+
 export type CasinoCashierInput = z.infer<typeof casinoCashierSchema>;
 export type CasinoSessionStartInput = z.infer<typeof casinoSessionStartSchema>;
 export type CasinoSessionCloseInput = z.infer<typeof casinoSessionCloseSchema>;
@@ -108,3 +114,4 @@ export type CasinoPokerTableJoinInput = z.infer<typeof casinoPokerTableJoinSchem
 export type CasinoPokerTableActionInput = z.infer<typeof casinoPokerTableActionSchema>;
 export type CasinoPokerTableStartInput = z.infer<typeof casinoPokerTableStartSchema>;
 export type CasinoPokerTablePlayInput = z.infer<typeof casinoPokerTablePlaySchema>;
+export type CasinoCompHotelInput = z.infer<typeof casinoCompHotelSchema>;

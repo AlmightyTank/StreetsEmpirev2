@@ -33,6 +33,7 @@ export * from './calculations/street-dice.js';
 export * from './calculations/poker.js';
 export * from './calculations/poker-table.js';
 export * from './calculations/poker-multiplayer.js';
+export * from './calculations/casino-status.js';
 export * from './simulations/combat.js';
 export * from './rng.js';
 export type { Ruleset } from '@streets/rulesets';
