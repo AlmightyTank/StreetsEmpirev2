@@ -30,6 +30,30 @@ const MAX_VISIBLE_TOASTS = 4;
 const TOAST_TTL_MS = 9_000;
 let manualToastId = 0;
 
+const XP_LEVEL_TITLES = [
+  { level: 5, title: 'On the Rise' },
+  { level: 10, title: 'Known Face' },
+  { level: 20, title: 'Street Veteran' },
+  { level: 30, title: 'City Fixture' },
+  { level: 50, title: 'Living Legend' },
+] as const;
+
+/** Build the celebration for newly earned lifetime XP levels. */
+export function levelUpToastFor(previousLevel: number, level: number): Omit<GameEventToast, 'id'> {
+  const titles = XP_LEVEL_TITLES
+    .filter((reward) => reward.level > previousLevel && reward.level <= level)
+    .map((reward) => reward.title);
+  const rewardText = titles.length
+    ? `New title unlocked: ${titles.join(', ')}. Equip it from Account settings.`
+    : 'Your account progress continues across seasons.';
+  return {
+    title: `Level up! You reached level ${level}.`,
+    detail: `${rewardText} Open XP Progress to see your career track.`,
+    tone: 'good',
+    href: '/game/xp-progress',
+  };
+}
+
 function str(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
@@ -348,7 +372,9 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
 
 export function GameEventToasts() {
   const playerId = useSession((s) => s.me?.id ?? null);
+  const accountId = useSession((s) => s.account?.id ?? null);
   const player = useSession((s) => s.me ?? null);
+  const experienceLevel = player?.experience?.level ?? null;
   const round = useSession((s) => s.round ?? null);
   const activity = useSession((s) => s.recentActivity);
   const activityHydratedForPlayerId = useSession((s) => s.activityHydratedForPlayerId);
@@ -360,6 +386,27 @@ export function GameEventToasts() {
   const snapshotSeen = useRef<Set<string>>(new Set());
   const snapshotsSeededFor = useRef<string | null>(null);
   const [toasts, setToasts] = useState<GameEventToast[]>([]);
+  const previousExperience = useRef<{ accountId: string; level: number } | null>(null);
+
+  useEffect(() => {
+    if (!accountId || experienceLevel === null) {
+      previousExperience.current = null;
+      return;
+    }
+
+    const previous = previousExperience.current;
+    previousExperience.current = { accountId, level: experienceLevel };
+    // Establish a quiet baseline on sign-in or initial hydration; celebrate only
+    // a level gained during the current signed-in session.
+    if (!previous || previous.accountId !== accountId || experienceLevel <= previous.level) return;
+
+    const toast = levelUpToastFor(previous.level, experienceLevel);
+    const id = `level-up:${accountId}:${experienceLevel}`;
+    setToasts((current) => [
+      ...current.filter((entry) => entry.id !== id),
+      { ...toast, id },
+    ].slice(-MAX_VISIBLE_TOASTS));
+  }, [accountId, experienceLevel]);
 
   useEffect(() => {
     if (!playerId) {
