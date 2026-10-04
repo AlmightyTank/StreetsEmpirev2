@@ -102,6 +102,7 @@ export function XpProgressPage() {
     let active = true;
     const requestId = ++experienceRequestId.current;
     setExperienceError(false);
+    setExperienceLoading(true);
     void gameApi.experience()
       .then((response) => {
         if (!active || requestId !== experienceRequestId.current) return;
@@ -110,6 +111,9 @@ export function XpProgressPage() {
       })
       .catch(() => {
         if (active && requestId === experienceRequestId.current) setExperienceError(true);
+      })
+      .finally(() => {
+        if (active && requestId === experienceRequestId.current) setExperienceLoading(false);
       });
     return () => { active = false; };
   }, [accountId, liveExperience?.totalXp]);
