@@ -145,7 +145,7 @@ Below the **Federal** line, a Case belongs to its city's police and stays there 
 player relocates. At **Federal** or above, it's the Feds' case, and the Feds don't stop at
 city lines.
 
-When a player relocates their home city while any city's Case is at Federal:
+When a player relocates their home city while the city they're leaving has a Case at Federal:
 
 1. **The relocation screen says so first.** Before confirming, the player sees which case
    will follow them and what it will be on arrival. Nothing moves silently.
@@ -156,6 +156,10 @@ When a player relocates their home city while any city's Case is at Federal:
 4. **A drafted warrant follows too.** It re-targets in the new city (the Hideout is now a valid
    target again) and gets a **fresh warning window**, so a move never cuts the time to
    respond.
+
+A federal case in a city that isn't the player's home stays where it is; it's already a
+case about somewhere they don't live, and its warrants name a business there or the player
+personally.
 
 Only relocation moves a Case. Trips, runs and flights never do: Heat already travels with the
 player, and the Case stays a question of where the player calls home.
