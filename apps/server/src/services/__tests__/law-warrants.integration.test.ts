@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { classicOgV13B, classicOgV13C } from '@streets/rulesets';
 import { businessStaff, rulesetForCity, startingStock, type Ruleset } from '@streets/rules-engine';
@@ -68,6 +68,15 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.3.0-C warrants and lawye
     await app?.close();
   });
 
+  // 1.3.0-G audit: whatever a test did, every stored Case still adds up to its receipts.
+  afterEach(async () => {
+    const cases = await app.prisma.playerCase.findMany({ where: { roundPlayerId: playerId } });
+    const sums = await app.prisma.playerCaseReceipt.groupBy({ by: ['cityId'], where: { roundPlayerId: playerId }, _sum: { deltaHundredths: true } });
+    expect(cases.filter((row) => row.caseHundredths).map((row) => [row.cityId, row.caseHundredths]).sort()).toEqual(
+      sums.filter((row) => row._sum.deltaHundredths).map((row) => [row.cityId, row._sum.deltaHundredths]).sort(),
+    );
+  });
+
   beforeEach(async () => {
     await app.prisma.playerWarrant.deleteMany({ where: { roundPlayerId: playerId } });
     await app.prisma.playerCaseReceipt.deleteMany({ where: { roundPlayerId: playerId } });
@@ -113,6 +122,21 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.3.0-C warrants and lawye
     // 1.3.0-B rounds keep no warrants at all.
     await evidence([{ cityId: detroitId, points: 90, source: 'HIJACK' }], new Date(), classicOgV13B);
     expect(await open()).toHaveLength(1);
+  });
+
+  it('shows what the detectives are looking at from Under Investigation, until a warrant is drafted', async () => {
+    const page = async () => {
+      const base = (await LawService.page(app.prisma, playerId, cityId, rules))!;
+      return LawWarrantService.decoratePage(app.prisma, base, playerId);
+    };
+    await evidence([{ cityId, points: 30, source: 'BUST' }]);
+    expect((await page()).cases[0]).toMatchObject({ stage: 'NOTICED', lookingAt: null });
+    await evidence([{ cityId, points: 15, source: 'HIJACK' }, { cityId, points: 10, source: 'ROAD_STOP' }]);
+    expect((await page()).cases[0]).toMatchObject({ stage: 'INVESTIGATION', lookingAt: { target: 'HIDEOUT', businessName: null } });
+    await evidence([{ cityId, points: 15, source: 'HIJACK' }]);
+    // The Warrant stage drafts the warrant, which now carries the target instead.
+    expect((await page()).cases[0]).toMatchObject({ stage: 'WARRANT', lookingAt: null });
+    expect((await open())[0]).toMatchObject({ target: 'PERSONAL' });
   });
 
   it('aims the next warrant at evidence since the last one, not the evidence that drafted it', async () => {

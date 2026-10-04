@@ -43,6 +43,8 @@ run('Whole-season balance bands', npm, ['run', 'qa:season', '--', '--quiet']);
 // 1.2.0-H: high-sample game-outcome checks; Slots uses its own reel/free-spin Monte Carlo.
 run('Casino game Monte Carlo', npm, ['run', 'qa:casino']);
 run('Slot reels and free-spin Monte Carlo', npm, ['run', 'qa:slots']);
+// 1.3.0-G: whole rounds of Heat and Case for careful, managed, trading and reckless players.
+run('Law balance bands', npm, ['run', 'qa:law', '--', '--quiet']);
 
 if (withDb) {
   // One file at a time: suites share the .env database, and any real current-round lookup

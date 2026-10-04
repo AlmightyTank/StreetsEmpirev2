@@ -245,6 +245,7 @@ export function AdminPlayerPage() {
           <p className="se-eyebrow">
             {player.round.name} · {player.round.status} · {player.city} ·{' '}
             <Link to={`/game/admin/accounts/${player.account.id}`}>{player.account.username}{player.account.isActive ? '' : ' (deactivated)'}</Link>
+            {' · '}<Link to={`/game/admin/players/${roundPlayerId}/law`}>Case &amp; warrants</Link>
           </p>
         </div>
       </div>

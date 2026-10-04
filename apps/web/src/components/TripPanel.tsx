@@ -188,8 +188,13 @@ export function TripPanel({ data, selected, onDone }: { data: TravelDto; selecte
   // Trips D2: what the airport means at the boss's Heat right now.
   const airport = trips.airport;
   const airportChance = airport ? Math.min(0.5, airport.checkChance + airport.checkChancePerBodyguard * guardCount) : 0;
+  // 1.3.0-G: Customs on the payroll at home cuts the check on the way out, exactly as the flight does.
+  const customsCut = airport?.customsCut ?? 0;
+  const outboundChance = airportChance * (1 - customsCut);
   const airportNote = airport && airportChance > 0
-    ? `With ${airport.heat} Heat${guardCount > 0 ? ` and ${guardCount} bodyguard${guardCount === 1 ? '' : 's'}` : ''}, security pulls you aside about ${Math.round(airportChance * 100)}% of the time${airport.checkHome ? ', each way' : ''}: ${airport.seizePercent}% of the bankroll and ${airport.delayMinutes} minutes.`
+    ? customsCut > 0
+      ? `With ${airport.heat} Heat${guardCount > 0 ? ` and ${guardCount} bodyguard${guardCount === 1 ? '' : 's'}` : ''}, security pulls you aside about ${Math.round(outboundChance * 100)}% of the time on the way out, with your Customs Officer looking the other way${airport.checkHome ? `, and about ${Math.round(airportChance * 100)}% coming home unless Customs there is on your payroll too` : ''}: ${airport.seizePercent}% of the bankroll and ${airport.delayMinutes} minutes.`
+      : `With ${airport.heat} Heat${guardCount > 0 ? ` and ${guardCount} bodyguard${guardCount === 1 ? '' : 's'}` : ''}, security pulls you aside about ${Math.round(airportChance * 100)}% of the time${airport.checkHome ? ', each way' : ''}: ${airport.seizePercent}% of the bankroll and ${airport.delayMinutes} minutes.`
     : airport && airport.bodyguardHeat > 0 && bg
       ? `Each bodyguard counts as ${airport.bodyguardHeat} more Heat at airport security${airport.checkHome ? ', going and coming back' : ''}.`
       : null;

@@ -11,7 +11,9 @@ export type CaseSourceDto =
   // 1.3.0-D: a DA quashing a warrant, and Internal Affairs catching an official.
   | 'QUASH' | 'STING'
   // 1.3.0-E: a federal case moving with a relocation.
-  | 'FEDERAL';
+  | 'FEDERAL'
+  // 1.3.0-G: an audited correction by staff.
+  | 'ADMIN';
 
 /**
  * 1.3.0-A. The player's worst Case, for the dashboard. Stage Quiet with no city when the
@@ -40,6 +42,12 @@ export interface CityCaseDto {
   cooling: { startsAt: string; perHour: number } | null;
   /** 1.3.0-E. How this city's police work: their pace against a plain city. Null before E. */
   law: { blurb: string; caseSpeed: number; coolingSpeed: number; warningHoursMultiplier: number } | null;
+  /**
+   * 1.3.0-G. Under Investigation and above, with no warrant open in the city: what a warrant
+   * would name if one were drafted now, from what the Case is built on. Null otherwise, and
+   * before warrants exist (C).
+   */
+  lookingAt: { target: WarrantTargetDto; businessName: string | null } | null;
   updatedAt: string;
 }
 

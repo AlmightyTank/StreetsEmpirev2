@@ -193,8 +193,12 @@ describe('1.3.0-F clean-record law feats', () => {
   });
 
   it('judges a finished season on its record', () => {
-    const quiet = seasonFeatAwards(null, [past({ turnsWorked: 5_000, lawPeakStage: 1 })]);
+    const quiet = seasonFeatAwards(null, [past({ turnsWorked: 5_000, lawPeakStage: 0 })]);
     for (const key of lawKeys) expect(award(quiet, key)).toMatchObject({ unlocked: true, earnedSeason: 'Game #030' });
+
+    const noticed = seasonFeatAwards(null, [past({ turnsWorked: 5_000, lawPeakStage: 1 })]);
+    expect(award(noticed, 'nothing-on-paper').unlocked).toBe(true);
+    expect(award(noticed, 'off-the-books').unlocked).toBe(false);
 
     const warrant = seasonFeatAwards(null, [past({ turnsWorked: 5_000, lawPeakStage: 3 })]);
     expect(award(warrant, 'clean-record').unlocked).toBe(true);

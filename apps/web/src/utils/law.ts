@@ -40,6 +40,7 @@ const SOURCE_NAMES: Record<CaseSourceDto, string> = {
   QUASH: 'Warrant quashed',
   STING: 'Internal Affairs sting',
   FEDERAL: 'Federal case moved',
+  ADMIN: 'Corrected by staff',
 };
 
 const OFFICIAL_TITLES: Record<string, string> = {

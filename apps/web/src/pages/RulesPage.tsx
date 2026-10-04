@@ -80,7 +80,8 @@ export function RulesPage() {
                 <a href="#trips"><span>09</span> Boss trips</a>
                 <a href="#turf"><span>10</span> Turf</a>
                 <a href="#business"><span>11</span> Businesses</a>
-                <a href="#rank"><span>12</span> Money & rank</a>
+                <a href="#law"><span>12</span> The law</a>
+                <a href="#rank"><span>13</span> Money & rank</a>
               </div>
             </aside>
             <div className="se-rules__content">
@@ -393,6 +394,19 @@ export function RulesPage() {
             </ul>
           </Panel></section>
 
+          <section id="law" className="se-rules__panel se-rules__panel--wide"><Panel title="The law: your Case">
+            <ul className="se-list">
+              <li>Heat is the noise; the Case is the memory. Every city&rsquo;s police keep their own Case on you, built from part of the Heat you draw there and from what they see: busts, arrests, road stops, torches, sacks, hijacks and big cash movements. Bribes take Heat off, never the Case.</li>
+              <li>Your Case is private. Only you can see it, on the Case panel, with a receipt for every change. Nothing on a profile, a scout report or a public result shows it, and no other player can add to it.</li>
+              <li>A Case climbs a ladder: Quiet, Noticed, Under Investigation, Warrant, Federal. Nothing on the ladder is rolled, and every rise tells you. Under Investigation shows what the detectives are looking at.</li>
+              <li>At the Warrant stage a warrant names one target, your Hideout, a business or you personally, and gives a warning window before it is served. Move what you can, lawyer up to turn it into a fine, have a District Attorney quash it, or take it. Raids honour Safe Room protection, never take a block, and police losses are capped each day.</li>
+              <li>A Case cools once you have been quiet in that city for a while. Laundering washes it too.</li>
+              <li>Corrupt officials work for a weekly fee: a Captain warns earlier, a District Attorney slows a Case and can quash a warrant, a Judge softens raids and downtime, Customs eases airport checks. Every favour adds exposure; past a line Internal Affairs opens a file and warns you before any sting.</li>
+              <li>Informants sell information, never protection: word on the federal sweep or a city&rsquo;s police.</li>
+              <li>A local Case stays behind when you move house. A Case at the Federal stage follows you, and the move screen tells you before you confirm.</li>
+              <li>Every Case starts at zero each season. Ledger, a retired records sergeant, has Jobs about the law, and a clean record earns titles at the end of a season.</li>
+            </ul>
+          </Panel></section>
           <section id="rank" className="se-rules__panel se-rules__panel--wide"><Panel title="Money and rank">
             <ul className="se-list">
               <li>Net worth decides local and national rank, and it is not just cash.</li>

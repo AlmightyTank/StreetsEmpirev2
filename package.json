@@ -28,6 +28,7 @@
     "qa:trips": "node --import tsx scripts/qa/trips-sim.mjs",
     "qa:slots": "node --import tsx scripts/qa/slots-sim.mjs",
     "qa:casino": "node --import tsx scripts/qa/casino-sim.mjs",
+    "qa:law": "node --import tsx scripts/qa/law-sim.mjs",
     "qa:street-pass": "tsx scripts/qa/street-pass-sim.ts",
     "qa:turf": "node --import tsx scripts/qa/turf-sim.mjs",
     "qa:season": "node --import tsx scripts/qa/season-sim.mjs",

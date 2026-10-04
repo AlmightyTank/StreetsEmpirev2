@@ -205,6 +205,10 @@ export const BossTripService = {
             delayMinutes: rules.airport.delayMinutes, noFlyHeat: rules.airport.noFlyHeat, bodyguardHeat: rules.airport.bodyguardHeat ?? 0,
             checkChancePerBodyguard: airportCheckChance(rules.airport, player.heat, 1) - airportCheckChance(rules.airport, player.heat),
             checkHome: Boolean(rules.airport.checkHome),
+            // 1.3.0-G: the same Customs cut the outbound check applies, so the preview matches it.
+            customsCut: ruleset.law?.officials && await LawOfficialService.working(db as Db, player.id, player.cityId, 'CUSTOMS', now)
+              ? ruleset.law.officials.roles.CUSTOMS.checkCut
+              : 0,
           }
         : null,
       bossRun: riding ? { runId: riding.id, cityName: cityName(ruleset, ridingTo!) } : null,

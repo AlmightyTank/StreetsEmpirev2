@@ -1024,6 +1024,11 @@ export interface TripPanelDto {
     checkChancePerBodyguard: number;
     /** The flight home is checked too. */
     checkHome: boolean;
+    /**
+     * 1.3.0-G. Share taken off the check on the way out by a Customs Officer on the payroll at
+     * home: 0 without one. The flight home reads Customs in the city being left.
+     */
+    customsCut: number;
   } | null;
   /** Trips B. The run the boss is riding with, if any. */
   bossRun: { runId: string; cityName: string } | null;
