@@ -84,6 +84,7 @@ export function PlayerProfileHoverLayer() {
     if (targetRef.current?.anchor === anchor) return;
     const next = { id, anchor, label: anchor.textContent?.trim() || `Player #${id}` };
     targetRef.current?.anchor.removeAttribute('aria-expanded');
+    targetRef.current?.anchor.removeAttribute('aria-controls');
     anchor.setAttribute('aria-expanded', 'true');
     anchor.setAttribute('aria-controls', 'se-player-profile-hover-card');
     targetRef.current = next;
