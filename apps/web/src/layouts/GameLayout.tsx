@@ -10,6 +10,7 @@ import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
 import { useSession } from '../stores/session.js';
+import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
 import { formatDuration } from '../utils/time.js';
 import {
   isCurrent,
@@ -459,5 +460,5 @@ export function GameRouteLayout() {
   const me = useSession((state) => state.me);
   // An account that may not play yet gets no game frame (and none of its polling).
   const blocked = useSession((state) => Boolean(state.account?.verificationRequired || state.account?.rulesAcceptanceRequired));
-  return me && !blocked ? <GameLayoutFrame><Outlet /></GameLayoutFrame> : <Outlet />;
+  return me && !blocked ? <><GameLayoutFrame><Outlet /></GameLayoutFrame><PlayerProfileHoverLayer /></> : <Outlet />;
 }
