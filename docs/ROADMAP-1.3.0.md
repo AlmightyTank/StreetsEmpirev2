@@ -2,8 +2,8 @@
 
 ## Brainstorm
 
-**Status:** 1.3.0-A (Case Foundation) and 1.3.0-B (Evidence Sources) are built; the newest
-ruleset is `classic-og-v1.3-b`. C through G are still design only.
+**Status:** 1.3.0-A (Case Foundation), 1.3.0-B (Evidence Sources) and 1.3.0-C (Warrants &
+Raids) are built; the newest ruleset is `classic-og-v1.3-c`. D through G are still design only.
 
 **Target base:** StreetsEmpire v1.2.0 (`classic-og-v1.2-f`)  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** expand Heat into a deeper city-wide
@@ -449,6 +449,66 @@ B invariants:
 ### 1.3.0-C — Warrants & Raids
 Warrant drafting, warning windows, Hideout / business / personal warrants, the daily loss
 cap, and notifications. Lawyers (retainer and lawyer up).
+
+#### Built in C
+
+**Status: implemented.** Ruleset `classic-og-v1.3-c` (1.3.0-C) is 1.3.0-B plus `law.warrants`
+and `law.lawyer`. This is the first slice where a Case costs anything. Heat, busts and arrests
+are still exactly as before.
+
+- **Drafting.** When a change takes a city's Case to the Warrant stage (65) and that city has
+  no open warrant, a warrant is drafted with a 12-hour warning window. One open warrant per
+  city at a time. No roll: reaching the line drafts it.
+- **Choosing the target.** The receipts behind the Case (since the city's last warrant) are
+  summed by what they point at: Scout, Produce, busts, arrests, fights and convoy tails point
+  at the **Hideout**; rackets, torches, sacks and the federal sweep at a **business**; run
+  trades, road stops, run hits and currency reports at the boss **personally**. The heaviest
+  wins, among the targets the police can reach there: the Hideout only in the home city, a
+  business only if the player runs a staffed racket there. The boss can always be named.
+- **Serving.** At `servesAt` the warrant is served the next time the player is settled: on any
+  action, any page load, or the server's one-minute sweep for players who are away.
+  - **Hideout raid:** 40% of the product the Safe Room does not protect, and 5% of the cash
+    above the raid-protected amount (the combat floor plus the Safe Room bonus). Protected cash
+    and product are never touched.
+  - **Business raid:** the racket shuts for 12 hours and 25% of the register is fined. The
+    front keeps earning, the business is not razed and the block does not change hands. Shut
+    hours earn no racket cash, draw no racket Heat, launder nothing and give no racket effect.
+  - **Personal warrant:** an arrest at the city's own arrest severity: its share of product and
+    cash at home, or of the trip or run wallet when the boss is visiting, plus the arrest
+    lock-up. If the boss is not in that city it **waits** (and the player is told) until they
+    are, or the round ends. Staying away is a valid answer.
+  - A Hideout that has since moved away, or a business that is no longer the player's, falls
+    back to a Hideout raid at home or a personal warrant.
+- **After serving** the Case drops to 30 (a WARRANT receipt). Answering it with a lawyer drops
+  it to 45 instead.
+- **Daily cap.** Police losses in a UTC day (busts, arrests, road stops, raids and fines, at
+  net-worth value) are tracked on the player. A served warrant takes no more than what is left
+  of 15% of net worth; busts and arrests count toward that total but are never reduced by it.
+- **Lawyers.**
+  - *Retainer:* 7 days for 1% of net worth (at least $25,000), extendable. While retained,
+    a served warrant seizes and fines 40% less and its lock-up is half as long.
+  - *Lawyer up:* during the window (or while a personal warrant waits) pay 1.25× what the
+    warrant would take now, at least $10,000. A waiting personal warrant is priced as if the
+    boss were home. The warrant is closed with no raid.
+- **Alerts.** Drafted, waiting and served warrants reach the bell, toasts and the Activity
+  feed (Street group), and Discord and phones under the same "Case stage" category. Outside
+  alerts name the city and the target, never an amount.
+- **Panel.** The Case panel lists open, waiting and recent warrants with what each would take
+  now and a Lawyer up button, the retainer with a Retain/Extend button, and today's police
+  losses against the cap.
+- **Seed.** The local seed's current round now uses `classic-og-v1.3-c`.
+
+C invariants:
+
+1. Every A and B invariant still holds; busts, arrests and bribes are unchanged.
+2. A warrant is only ever served after its warning window, and never by a roll.
+3. A raid never touches protected cash or protected product, and never takes, razes or flips
+   a block.
+4. A served warrant never takes the day's police losses past the cap.
+5. A city has at most one open or waiting warrant at a time.
+6. A retried lawyer-up or retainer never charges twice (action ids).
+7. Outside alerts about warrants carry no amounts.
+8. `classic-og-v1.3-b` and older rounds draft no warrants.
 
 ### 1.3.0-D — Corruption & Informants
 Officials on payroll per city, retainers, exposure and Internal Affairs. Informants who sell
