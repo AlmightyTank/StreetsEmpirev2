@@ -4,7 +4,7 @@ import { classicOgV12B } from '../classic-og-v1.2-b/index.js';
 /**
  * 1.2.0-C — Blackjack.
  *
- * All tables use a server-owned shoe and conventional 3:2 natural blackjack.
+ * All tables use a house-dealt shoe and conventional 3:2 natural blackjack.
  * Table identity changes only limits / shoe size / house soft-17 rule.
  */
 export const classicOgV12C = {
@@ -33,7 +33,7 @@ export const classicOgV12C = {
         {
           key: 'NEON_BLACKJACK',
           name: 'Neon Blackjack',
-          blurb: 'A sharper private table with higher limits and a four-deck shoe.',
+          blurb: 'A private table with higher limits and a four-deck shoe.',
           venueKinds: ['FULL_CASINO', 'PRIVATE_CLUB', 'NIGHTLIFE'],
           minBetCents: 10_000,
           maxBetCents: 500_000,

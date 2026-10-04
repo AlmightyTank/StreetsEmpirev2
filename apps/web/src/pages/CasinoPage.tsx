@@ -64,7 +64,7 @@ const CASINO_GAMES: readonly {
     status: 'LIVE',
     live: true,
     title: 'Slots',
-    description: 'Three server-authoritative machines with paylines, free spins and the Empire progressive.',
+    description: 'Three machines with paylines, free spins and the Empire progressive.',
   },
   {
     key: 'blackjack',
@@ -73,7 +73,7 @@ const CASINO_GAMES: readonly {
     status: 'LIVE',
     live: true,
     title: 'Blackjack',
-    description: 'Casino blackjack with persisted shoes, splits, doubles and real table rules.',
+    description: 'Casino blackjack with table limits, splits and doubles.',
   },
   {
     key: 'roulette',
@@ -475,7 +475,7 @@ export function CasinoPage() {
           <div>
             <span className="se-eyebrow">1.2.0 · Casino floor</span>
             <h1>Casino</h1>
-            <p>Buy chips once, open a floor bankroll, then move between casino games without leaving the room. Game outcomes and payouts stay server-authoritative.</p>
+            <p>Buy chips once, open a floor bankroll, then move between casino games without leaving the room. Every result is settled by the house after you act.</p>
           </div>
           <div className="se-casino__readout">
             <span><small>Cash here</small><strong>{data ? formatCents(data.cashCents) : '—'}</strong></span>
@@ -636,7 +636,7 @@ export function CasinoPage() {
                         }}
                       >
                         <span><strong>{machine.name}</strong>{machine.availableHere ? <small>Available here</small> : <small>Not in this room</small>}</span>
-                        <small>{machine.reels}×{machine.rows} · {machine.paylines.length} lines · RTP {(machine.effectiveRtpBps / 100).toFixed(2)}%</small>
+                        <small>{machine.reels}×{machine.rows} · {machine.paylines.length} lines · posted paytable</small>
                       </button>
                     ))}
                   </div>
@@ -736,7 +736,7 @@ export function CasinoPage() {
                           <p className="se-hint">
                             Line bet {formatCents(machine.minBetPerLineCents)} – {formatCents(machine.maxBetPerLineCents)}
                             {' · '}step {formatCents(machine.betStepCents)}
-                            {' · '}RTP {(machine.effectiveRtpBps / 100).toFixed(2)}% incl. free spins
+                            {' · '}free-spin feature included
                           </p>
                           {machine.freeSpins ? (
                             <p className="se-hint">
@@ -1006,7 +1006,7 @@ export function CasinoPage() {
                         <details className="se-slots__paytable">
                           <summary>Paytable &amp; machine info</summary>
                           <p className="se-hint">
-                            Payouts are multiples of one winning line bet. Displayed RTP includes the configured free-spin feature; free spins do not retrigger.
+                            Payouts are multiples of one winning line bet. Free spins do not retrigger.
                           </p>
                           <div className="se-slots__paytable-grid">
                             {machine.paytable.map((entry) => (
