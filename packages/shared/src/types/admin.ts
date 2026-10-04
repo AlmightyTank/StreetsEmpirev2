@@ -461,8 +461,6 @@ export interface AdminPlayerDto {
   happiness: { whores: number; thugs: number };
   /** 0.4.0-C. Stored Heat, as of the player's last settle. Null on rounds without Heat. */
   heat: number | null;
-  /** 1.3.0-F. Stored law pressure. Null on rounds without law pressure. */
-  law: { attention: number; evidence: number } | null;
   ranks: { national: number | null; local: number | null };
   timers: {
     raidProtectedUntil: string | null;

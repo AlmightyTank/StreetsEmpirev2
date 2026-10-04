@@ -22,7 +22,6 @@ import { explainThugHappiness, explainWhoreHappiness, totalWeapons } from '@stre
 import { fitThugs } from '../services/action.service.js';
 import type { TurnSettlement } from '../services/turn.service.js';
 import { toHeatDto } from '../services/heat.service.js';
-import { toLawDto } from '../services/law.service.js';
 import { adminNeedsSecondFactor, canPlay, needsRulesAcceptance, type SessionStrength } from '../auth/play-access.js';
 
 /**
@@ -225,7 +224,6 @@ export function toRoundPlayerDto(
     },
     hideout: toSeasonHideoutDto(player),
     heat: toHeatDto(player.heat, player.netWorthCents, ruleset, player.lockedUntil),
-    law: toLawDto(player.lawAttention, player.lawEvidence, player.netWorthCents, ruleset),
     run,
     moving,
     convoyAlert,

@@ -1,5 +1,5 @@
 import type { City, Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
-import { decayHeat, decayLawPressure, loadRulesetForRound, rulesetForCity, type Ruleset, type Standings } from '@streets/rules-engine';
+import { decayHeat, loadRulesetForRound, rulesetForCity, type Ruleset, type Standings } from '@streets/rules-engine';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
@@ -159,10 +159,7 @@ export const PlayerStateService = {
     // 1. Turns, and the shop shelves on the same clock. Heat cools on it too.
     const turns = TurnService.settle(rest, now, ruleset);
     const heat = ruleset.heat ? decayHeat(rest.heat, turns.intervalsProcessed, ruleset.heat) : rest.heat;
-    const lawPressure = ruleset.law
-      ? decayLawPressure({ attention: rest.lawAttention, evidence: rest.lawEvidence }, turns.intervalsProcessed, ruleset.law)
-      : { attention: rest.lawAttention, evidence: rest.lawEvidence };
-    const recovered = { ...rest, woundedThugs: recovery.woundedThugs, heat, lawAttention: lawPressure.attention, lawEvidence: lawPressure.evidence };
+    const recovered = { ...rest, woundedThugs: recovery.woundedThugs, heat };
     const standings = await ReputationService.load(tx, roundPlayerId, ruleset);
     const stock = StockService.settle(recovered, now, ruleset, standings);
 
@@ -226,12 +223,6 @@ export const PlayerStateService = {
     }
     if (heat !== rest.heat) {
       data.heat = heat;
-    }
-    if (lawPressure.attention !== rest.lawAttention) {
-      data.lawAttention = lawPressure.attention;
-    }
-    if (lawPressure.evidence !== rest.lawEvidence) {
-      data.lawEvidence = lawPressure.evidence;
     }
     if (stock.changed) {
       Object.assign(data, stock.counts, stock.clocks);

@@ -739,7 +739,6 @@ export const TravelService = {
           : null;
         const added = !buying ? saleHeat(base, city, totalCents) : 0;
         const heatAfter = town.heat ? addHeat(roll?.kind ? roll.heatAfter : current.heat, added, town.heat) : current.heat;
-        const law = LawService.apply(town, current, 'PRODUCT_SALE', added);
         let trouble: RunTradeResult['trouble'] = null;
         if (roll?.kind) {
           traded = await takeFromRun(tx, roundPlayerId, base, traded, roll);
@@ -770,7 +769,6 @@ export const TravelService = {
           next: {
             ...current,
             heat: heatAfter,
-            ...law.next,
             awayNetWorthCents,
           },
           result: {
@@ -788,7 +786,7 @@ export const TravelService = {
             trunkUnits: cargoUnits(nextCargo),
             capacity,
             shelfStock,
-            heat: town.heat ? { before: current.heat, added, after: heatAfter, ...(law.pressure ? { law: law.pressure } : {}) } : null,
+            heat: town.heat ? { before: current.heat, added, after: heatAfter } : null,
             trouble,
           },
           // 1.3.0-A/B: the sale's Heat, a bust or arrest, and the cash any buy or sale moves

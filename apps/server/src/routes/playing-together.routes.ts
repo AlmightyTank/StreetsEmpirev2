@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, businessBuildSchema, blockWarAnswerSchema, blockWarCallSchema, blockWarDeclareSchema, blockWarEndSchema, blockWarSendSchema, businessCollectSchema, businessRacketSchema, businessStaffSchema, businessTorchSchema, bossHitBackupSchema, bossHitCallSchema, bossHitSchema, heatBribeSchema, lawCorruptionSchema, lawyerActionSchema, officialHireSchema, productTradeSchema, runOutpostEstablishSchema, runOutpostTransferSchema, sitDownAnswerSchema, sitDownProposeSchema, tipBuySchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripOutpostVisitSchema, tripRentGunsSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushBackupSchema, turfPushCallSchema, turfPushSchema, updateContactKindSchema, updateContactSchema, wirePinSchema, wirePostSchema, workSupplyClearSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, businessBuildSchema, blockWarAnswerSchema, blockWarCallSchema, blockWarDeclareSchema, blockWarEndSchema, blockWarSendSchema, businessCollectSchema, businessRacketSchema, businessStaffSchema, businessTorchSchema, bossHitBackupSchema, bossHitCallSchema, bossHitSchema, heatBribeSchema, lawyerActionSchema, officialHireSchema, tipBuySchema, productTradeSchema, runOutpostEstablishSchema, runOutpostTransferSchema, sitDownAnswerSchema, sitDownProposeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripOutpostVisitSchema, tripRentGunsSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushBackupSchema, turfPushCallSchema, turfPushSchema, updateContactKindSchema, updateContactSchema, wirePinSchema, wirePostSchema, workSupplyClearSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
 import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
@@ -14,8 +14,8 @@ import { RoundService } from '../services/round.service.js';
 import { WireService } from '../services/wire.service.js';
 import { WorkSupplyService } from '../services/work-supply.service.js';
 import { HeatService, toHeatDto } from '../services/heat.service.js';
-import { LawService } from '../services/law.service.js';
 import { PlayerStateService } from '../services/player-state.service.js';
+import { LawService } from '../services/law.service.js';
 import { LawWarrantService } from '../services/law-warrant.service.js';
 import { LawOfficialService } from '../services/law-official.service.js';
 import { PlayerDirectoryService } from '../services/player-directory.service.js';
@@ -228,10 +228,6 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     const withWarrants = await LawWarrantService.decoratePage(app.prisma, page, settled.player.id);
     return LawOfficialService.decoratePage(app.prisma, withWarrants, settled.player.id);
   });
-
-  /** 1.3.0-F: bury attention with cash, while the older law pressure system stays on the API. */
-  app.post('/law/corruption', { preHandler: app.requireAuth }, async (request) =>
-    LawService.corruption(app.prisma, await me(request.auth!.account.id), parseBody(lawCorruptionSchema, request.body ?? {})));
 
   /** 1.3.0-D: corrupt officials on your payroll, and a DA quashing one of your warrants. */
   app.post('/law/officials', { preHandler: app.requireAuth }, async (request) =>

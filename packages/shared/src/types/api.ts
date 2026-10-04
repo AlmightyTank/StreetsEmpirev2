@@ -1,4 +1,4 @@
-import type { HeatDto, LawDto, TripHeatDto, TurfSummaryDto, TurfTripDto, WorkSupplyPlanDto } from './playing-together.js';
+import type { HeatDto, TripHeatDto, TurfSummaryDto, TurfTripDto, WorkSupplyPlanDto } from './playing-together.js';
 import type { LawSummaryDto } from './law.js';
 /**
  * The contract between apps/server and apps/web.
@@ -34,6 +34,7 @@ export type ActivityType =
   | 'ADMIN_GRANT'
   | 'GAME_ANNOUNCEMENT'
   | 'HEAT_BRIBE'
+  /** Retired: the withdrawn law-pressure draft's bribe. Kept so older feed rows still read. */
   | 'LAW_CORRUPTION'
   | 'HIDEOUT_UPGRADE'
   | 'QUEST_OBJECTIVE_COMPLETE'
@@ -342,8 +343,6 @@ export interface RoundPlayerDto {
   happiness: HappinessDto;
   /** 0.4.0-C. Null on rounds without Heat. */
   heat: HeatDto | null;
-  /** 1.3.0-F. Null on rounds without law pressure. */
-  law: LawDto | null;
   /**
    * Every product the player holds, crack included, in catalog order. Null on rounds
    * where Product is still only crack.
