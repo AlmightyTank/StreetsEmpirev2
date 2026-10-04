@@ -28,6 +28,13 @@ const SOURCE_NAMES: Record<CaseSourceDto, string> = {
   SACK: 'Sacked a block',
   RACKETS: 'Rackets',
   CRACKDOWN: 'Federal sweep',
+  BUST: 'Busted',
+  ARREST: 'Arrested',
+  ROAD_STOP: 'Pulled over on a run',
+  HIJACK: 'Hit a run',
+  CURRENCY_REPORT: 'Currency report',
+  LAUNDERING: 'Laundering',
+  COOLING: 'Cooled off',
 };
 
 export function wantedStageName(stage: string): string {
@@ -45,6 +52,11 @@ export function caseSourceName(source: string): string {
 /** Meter tone for a stage: calm, watch it, or serious. */
 export function wantedStageTone(stage: WantedStageDto): 'good' | 'warn' | 'bad' {
   return stage === 'QUIET' || stage === 'NOTICED' ? 'good' : stage === 'INVESTIGATION' ? 'warn' : 'bad';
+}
+
+/** A Case change with its sign: "+4.0", "−1.5". */
+export function formatCaseDelta(value: number): string {
+  return value < 0 ? `−${formatCase(-value)}` : `+${formatCase(value)}`;
 }
 
 /** A Case value to one decimal, the way the panel shows it. */

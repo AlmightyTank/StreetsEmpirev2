@@ -1,13 +1,20 @@
 import { useEffect, useState } from 'react';
 import type { LawPageDto } from '@streets/shared';
-import { formatNumber } from '@streets/shared';
+import { formatCents, formatNumber } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { lawApi } from '../api/law.js';
 import { useSession } from '../stores/session.js';
-import { caseSourceName, formatCase, wantedStageBlurb, wantedStageName, wantedStageTone } from '../utils/law.js';
+import { caseSourceName, formatCase, formatCaseDelta, wantedStageBlurb, wantedStageName, wantedStageTone } from '../utils/law.js';
 import { formatWhen } from '../utils/time.js';
 import { Alert } from './Alert.js';
 import { Panel } from './Panel.js';
+
+/** "Cooling 0.5 an hour", or when it will start if the player stays quiet. */
+function coolingText(cooling: { startsAt: string; perHour: number }): string {
+  return new Date(cooling.startsAt).getTime() <= Date.now()
+    ? `Cooling ${formatNumber(cooling.perHour)} an hour`
+    : `Cools from ${formatWhen(cooling.startsAt)} if you stay quiet`;
+}
 
 /** How many receipts show before "Show all". */
 const RECEIPTS_SHOWN = 6;
@@ -53,6 +60,16 @@ export function CasePanel() {
         {page
           ? `A ${Math.round(page.heatToCase * 100)}% share of the Heat you draw in a city builds a Case there. `
           : ''}
+        {page?.evidence
+          ? `Busts, arrests, road stops, torches, sacks and hits on runs add evidence of their own. `
+          : ''}
+        {page?.currencyReport
+          ? `Every ${formatCents(page.currencyReport.thresholdCents)} you move in a city in a day files a currency report. `
+          : ''}
+        {page?.cooling
+          ? `A Case cools ${formatNumber(page.cooling.decayPerHour)} an hour once you have done nothing there for ${formatNumber(page.cooling.quietHours)} hours. `
+          : ''}
+        {page?.laundering ? 'Laundering washes the Case in its own city. ' : ''}
         Only you can see this. It lasts the round and stays in the city it was built in.
       </p>
 
@@ -81,6 +98,7 @@ export function CasePanel() {
                 {row.next
                   ? `${formatCase(Math.max(0, row.next.startsAt - row.case))} more to ${wantedStageName(row.next.stage)}`
                   : 'The top of the ladder'}
+                {row.cooling ? ` · ${coolingText(row.cooling)}` : ''}
               </span>
             </li>
           ))}
@@ -103,7 +121,7 @@ export function CasePanel() {
                   {caseSourceName(receipt.source)}
                   <span className="se-muted"> · {receipt.cityName} · {formatWhen(receipt.at)}</span>
                 </span>
-                <span className="se-row__value">+{formatCase(receipt.added)}</span>
+                <span className={`se-row__value${receipt.added < 0 ? ' se-good' : ''}`}>{formatCaseDelta(receipt.added)}</span>
               </div>
             ))}
           </div>
