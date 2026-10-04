@@ -50,6 +50,7 @@ const WIDTHS = [
 const PUBLIC_PAGES = ['/', '/login', '/register', '/forgot-password'];
 const PLAYER_PAGES = [
   '/game', '/game/scout', '/game/produce', '/game/combat', '/game/quests', '/game/hideout',
+  '/game/casino/slots', '/game/casino/blackjack', '/game/casino/roulette', '/game/casino/street-dice', '/game/casino/poker',
   '/game/stores', '/game/stores/pip', '/game/stores/charlie', '/game/stores/iron-maya',
   '/game/travel', '/game/turf', '/game/blocks', '/game/cities', '/game/rankings', '/game/players',
   '/game/alliance', '/game/alliances', '/game/contacts', '/game/console', '/game/profile',
@@ -58,7 +59,7 @@ const PLAYER_PAGES = [
 const ADMIN_PAGES = [
   '/game/admin', '/game/admin/monitoring', '/game/admin/news', '/game/admin/accounts', '/game/admin/quests', '/game/admin/surveys',
   '/game/admin/integrations', '/game/admin/rulesets', '/game/admin/signals', '/game/admin/audit', '/game/admin/reports',
-  '/game/admin/economy', '/game/admin/combat', '/game/admin/turf',
+  '/game/admin/economy', '/game/admin/casino', '/game/admin/combat', '/game/admin/turf',
 ];
 
 async function api(context, method, url, data) {
