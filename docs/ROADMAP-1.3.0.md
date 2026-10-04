@@ -2,8 +2,9 @@
 
 ## Brainstorm
 
-**Status:** 1.3.0-A (Case Foundation), 1.3.0-B (Evidence Sources) and 1.3.0-C (Warrants &
-Raids) are built; the newest ruleset is `classic-og-v1.3-c`. D through G are still design only.
+**Status:** 1.3.0-A (Case Foundation), 1.3.0-B (Evidence Sources), 1.3.0-C (Warrants & Raids)
+and 1.3.0-D (Corruption & Informants) are built; the newest ruleset is `classic-og-v1.3-d`. E
+through G are still design only.
 
 **Target base:** StreetsEmpire v1.2.0 (`classic-og-v1.2-f`)  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** expand Heat into a deeper city-wide
@@ -513,6 +514,53 @@ C invariants:
 ### 1.3.0-D — Corruption & Informants
 Officials on payroll per city, retainers, exposure and Internal Affairs. Informants who sell
 tips on sweeps and crackdowns.
+
+#### Built in D
+
+**Status: implemented.** Ruleset `classic-og-v1.3-d` (1.3.0-D) is 1.3.0-C plus `law.officials`
+and `law.informants`. Heat, busts, arrests and bribes are unchanged.
+
+- **The payroll.** Any of four posts in any city, one of each per city. A week's pay is a share
+  of net worth with a floor, like the bribe: Captain 0.4% (at least $20,000), DA 0.8% ($40,000),
+  Judge 0.6% ($30,000), Customs 0.3% ($15,000). "Pay a week" extends from whenever the last one
+  ends. An unpaid official stays on the books (LAPSED) but does nothing.
+
+  | Official | What they do in their city | Exposure per favor |
+  | --- | --- | --- |
+  | Precinct Captain | Warrants drafted there get 12 more hours of warning; a word (bell and toast) when the Case comes within 5 of the Warrant line. | 10 per longer window, 5 per word |
+  | District Attorney | Keeps 25% of every rise in the Case off the books; can quash one open or waiting warrant there every 7 days (no raid, Case to 45, as if lawyered). | 1 per Case point slowed, 30 per quash |
+  | Judge | A warrant served there seizes and fines 30% less and locks the boss up for half as long, on top of any lawyer. | 15 per warrant softened |
+  | Customs Officer | Airport checks on flights out of that city (a launch from home, the flight home from a visit) happen half as often. The no-fly line is untouched. | 5 per flight |
+
+- **Internal Affairs.** The favor that takes an official to 60 exposure opens a file: the player
+  is warned (bell, toast, feed, Discord) with the time of the sting, 24 hours later. Cutting
+  the official loose before then ends it with no evidence; an official still on the books when
+  the sting lands, paid or not, is **stung**: the post ends and 25 Case lands in that city
+  (which can draft a warrant). The same post in that city can be filled again 48 hours after a
+  cut or a sting, with exposure starting from zero. There is no roll anywhere in this.
+- **Informants** sell information, never protection, and charge nothing when there is nothing
+  to tell:
+  - *The federal sweep* (0.2% of net worth, at least $25,000): the sweep's city and time, while
+    it is still a secret.
+  - *How a city's police work* (0.1%, at least $15,000): where take drag, busts and arrests start
+    there, how hard busts hit and its police pressure. The game shows these only for the home
+    city, and each city can only be bought once.
+  - No tip changes anyone's Case.
+- **Panel.** The Case panel gains a Payroll section (each official's status, exposure meter,
+  Pay a week, Cut loose, and a hire form), an Informants section with the tips bought, and a
+  "Have the DA quash it" button on warrants a working DA can quash.
+- The trip screen's airport-check preview still shows the chance without Customs.
+- **Seed.** The local seed's current round now uses `classic-og-v1.3-d`.
+
+D invariants:
+
+1. Every A, B and C invariant still holds.
+2. An official helps only while paid, and only in their own city.
+3. Internal Affairs is a visible state with a warning before any sting; nothing is rolled.
+4. A cut official is never stung.
+5. Customs never lets a boss past the no-fly line.
+6. A tip never changes any Case, and costs nothing when the informant has nothing to say.
+7. `classic-og-v1.3-c` and older rounds have no officials or informants.
 
 ### 1.3.0-E — City Identity & the Feds
 Per-city law personalities. The federal sweep reads the **Federal** stage. Federal cases
