@@ -282,6 +282,8 @@ model NotificationSettings {
   ordersEnabled         Boolean   @default(false)
   announcementsEnabled  Boolean   @default(false)
   messagesEnabled       Boolean   @default(false)
+  /// 1.3.0-B. A Case rising to a new Wanted stage. On by default: the ladder promises a warning.
+  lawEnabled            Boolean   @default(true)
   /// 0.9.0-G master switch: pauses every outside alert without losing category choices.
   alertsPaused          Boolean   @default(false)
   /// 0.9.0-G quiet hours, minutes after local midnight in `timeZone`. Both set or neither;
@@ -1211,6 +1213,9 @@ model RoundPlayer {
   launderedDay         String?
   launderedHeatToday   Int       @default(0)
   launderedHeatRound   Int       @default(0)
+  /// 1.3.0-B. Case washed by laundering on `launderedCaseDay` (UTC), in hundredths, for the daily cap.
+  launderedCaseDay     String?
+  launderedCaseToday   Int       @default(0)
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
   rocksSuppliedToPip   Int       @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
@@ -3352,6 +3357,14 @@ model PlayerCase {
   caseHundredths Int    @default(0)
   /// The Wanted stage the Case last read as; a rise logs CASE_STAGE_UP once.
   stage          String @default("QUIET")
+  /// 1.3.0-B. When `caseHundredths` was last brought up to date. Cooling after it is worked
+  /// out on read and written as a COOLING receipt with the next change.
+  caseAt         DateTime  @default(now())
+  /// 1.3.0-B. The player's last act that added evidence here. Cooling starts a quiet spell after it.
+  lastEvidenceAt DateTime?
+  /// 1.3.0-B. Cash moved in this city on `reportDay` (UTC), for currency reports.
+  reportDay      String?
+  reportCents    BigInt    @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3371,7 +3384,8 @@ model PlayerCaseReceipt {
   cityId String
   city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
 
-  /// What drew it: SCOUT, PRODUCE, RUN_SALE, COMBAT, CONVOY, TORCH, SACK, RACKETS, CRACKDOWN.
+  /// What drew it: SCOUT, PRODUCE, RUN_SALE, COMBAT, CONVOY, TORCH, SACK, RACKETS, CRACKDOWN,
+  /// and from 1.3.0-B BUST, ARREST, ROAD_STOP, HIJACK, CURRENCY_REPORT, LAUNDERING and COOLING.
   source              String
   sourceKey           String
   /// Heat the act drew, before the Heat meter's cap.
@@ -3379,9 +3393,13 @@ model PlayerCaseReceipt {
   deltaHundredths     Int
   caseAfterHundredths Int
   stageAfter          String
-  createdAt           DateTime @default(now())
+  /// 1.3.0-B. This change took the Case to a higher stage; the alert collector tells the player.
+  stageUp             Boolean   @default(false)
+  alertsCollectedAt   DateTime?
+  createdAt           DateTime  @default(now())
 
   @@unique([roundPlayerId, sourceKey])
+  @@index([stageUp, alertsCollectedAt])
   @@index([roundPlayerId, createdAt(sort: Desc)])
   @@index([roundPlayerId, cityId, createdAt(sort: Desc)])
 }

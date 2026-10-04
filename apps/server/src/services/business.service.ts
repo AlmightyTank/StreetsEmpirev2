@@ -3,10 +3,12 @@ import {
   BUSINESS_JOB,
   bribeCentsPerPoint,
   businessIncomeCentsPerHour,
+  CASE_SCALE,
   decayHeat,
   isRacketKey,
   launderAllowance,
   launderDay,
+  launderedCase,
   mergeRacketEffect,
   racketCashPerHour,
   racketHeatPerHour,
@@ -183,6 +185,7 @@ export const BusinessService = {
         businessThugs: true, businessWhores: true, beer: true, crack: true, thugHappiness: true, whoreHappiness: true,
         heat: true, netWorthCents: true, outpostNetWorthCents: true, turns: true, lastTurnCalculationAt: true,
         racketEffects: true, launderedDay: true, launderedHeatToday: true, launderedHeatRound: true,
+        launderedCaseDay: true, launderedCaseToday: true,
       },
     });
     const rows = await tx.business.findMany({
@@ -289,7 +292,7 @@ export const BusinessService = {
     const racketHeatByCity = new Map<string, number>();
     let counterCents = 0n;
     const counterSold: Record<string, number> = {};
-    const launders: Array<{ id: string; heat: number }> = [];
+    const launders: Array<{ id: string; heat: number; cityId: string }> = [];
     const registers = new Map<string, bigint>();
     const registerOutposts = new Map<string, OutpostState>();
 
@@ -379,7 +382,7 @@ export const BusinessService = {
           const drawn = racketHeatPerHour(ruleset, racket, strength, shield) * wholeHours * suppliedShare;
           racketHeat += drawn;
           racketHeatByCity.set(row.turf.cityId, (racketHeatByCity.get(row.turf.cityId) ?? 0) + drawn);
-          if (effect.kind === 'LAUNDER') launders.push({ id: row.id, heat: effect.heatPerHour * strength * wholeHours * suppliedShare });
+          if (effect.kind === 'LAUNDER') launders.push({ id: row.id, heat: effect.heatPerHour * strength * wholeHours * suppliedShare, cityId: row.turf.cityId });
           if (effect.kind === 'COUNTER_SALES') {
             // Product goes over the counter at Pip's base price, as far as the register has room.
             let units = roundStochastic(effect.unitsPerHour * strength * wholeHours * suppliedShare, rng);
@@ -430,7 +433,7 @@ export const BusinessService = {
     let launderedCents = 0n;
     const heatRules = ruleset.heat;
     const rackets = racketRules(ruleset);
-    const heatData: { heat?: number; turns?: number; lastTurnCalculationAt?: Date; launderedDay?: string; launderedHeatToday?: number; launderedHeatRound?: number } = {};
+    const heatData: { heat?: number; turns?: number; lastTurnCalculationAt?: Date; launderedDay?: string; launderedHeatToday?: number; launderedHeatRound?: number; launderedCaseDay?: string; launderedCaseToday?: number } = {};
     if (heatRules && rackets && (racketHeat > 0 || launders.length > 0)) {
       const regen = regenerateTurns({ turns: player.turns, lastTurnCalculationAt: player.lastTurnCalculationAt }, now, ruleset);
       let heat = Math.min(heatRules.max, decayHeat(player.heat, regen.intervalsProcessed, heatRules) + roundStochastic(racketHeat, rng));
@@ -457,6 +460,23 @@ export const BusinessService = {
       await LawService.recordHeat(tx, roundPlayerId, ruleset, [...racketHeatByCity.entries()]
         .filter(([, drawn]) => drawn > 0)
         .map(([cityId, drawn]) => ({ cityId, heat: drawn, source: 'RACKETS' as const, sourceKey: `rackets:${cityId}:${now.toISOString()}` })), now);
+
+      // 1.3.0-B: laundering also washes the Case in its own block's city. It needs no Heat to
+      // wash, costs the register nothing more, and is held to the crew's daily Case cap.
+      const law = ruleset.law;
+      if (law?.laundering && launders.length) {
+        const day = launderDay(now);
+        let usedCase = player.launderedCaseDay === day ? player.launderedCaseToday : 0;
+        const byCity = new Map<string, number>();
+        for (const launder of launders) byCity.set(launder.cityId, (byCity.get(launder.cityId) ?? 0) + launder.heat);
+        for (const [cityId, capacity] of byCity) {
+          const wash = launderedCase(capacity, usedCase, law);
+          if (wash <= 0) continue;
+          const [change] = await LawService.record(tx, roundPlayerId, ruleset, [{ cityId, points: -wash / CASE_SCALE, source: 'LAUNDERING', sourceKey: `launder:${cityId}:${now.toISOString()}` }], now);
+          if (change) usedCase += change.before - change.after;
+        }
+        Object.assign(heatData, { launderedCaseDay: day, launderedCaseToday: usedCase });
+      }
     }
 
     // E: away registers sweep into the outpost cash box. If the box is full, the

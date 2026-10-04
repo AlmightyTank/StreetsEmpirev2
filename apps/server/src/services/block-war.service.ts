@@ -537,8 +537,8 @@ export const BlockWarService = {
           next: { ...current, turns: current.turns - business.torch.turnCost, heat },
           result: result(war, ruleset, `The ${name} is burning; it is gone at ${until.toISOString()} unless the block falls first.`, business.torch.turnCost, 0),
           activity: { type: 'BUSINESS_TORCH', payload: json({ warId: war.id, district, lot: input.lot, kind: row.kind, name, until: until.toISOString() }) },
-          // 1.3.0-A: a torch builds a Case in the city the block is in.
-          ...(ruleset.heat && (business.wars.torchHeat ?? 0) > 0 ? { caseHeat: [{ cityId, heat: business.wars.torchHeat ?? 0, source: 'TORCH' as const }] } : {}),
+          // 1.3.0-A/B: a torch's Heat, and the torch itself, build a Case in the block's city.
+          caseEvidence: [{ cityId, heat: ruleset.heat ? business.wars.torchHeat ?? 0 : 0, points: ruleset.law?.evidence?.torch ?? 0, source: 'TORCH' as const }],
         };
       },
     }, at);

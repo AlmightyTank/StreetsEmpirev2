@@ -921,7 +921,7 @@ export const BlockWarSettleService = {
       where: { id: playerId },
       data: { busyThugs, postedThugs, postedNetWorthCents, outpostNetWorthCents, cashCents, beer, heat, ...guns, ...clock },
     });
-    // 1.3.0-A: a sack's Heat builds a Case in the city the block is in.
+    // 1.3.0-A/B: a sack's Heat, and from B the sack itself, build a Case in the block's city.
     if (caseHeat.length && ruleset.law && ruleset.heat) {
       const wars = await tx.blockWar.findMany({
         where: { id: { in: [...new Set(caseHeat.map((row) => row.warId))] } },
@@ -930,7 +930,7 @@ export const BlockWarSettleService = {
       const cityOf = new Map(wars.map((war) => [war.id, war.turf.cityId]));
       await LawService.recordHeat(tx, playerId, ruleset, caseHeat.flatMap((row) => {
         const cityId = cityOf.get(row.warId);
-        return cityId ? [{ cityId, heat: row.heat, source: 'SACK' as const, sourceKey: `sack:${row.squadId}` }] : [];
+        return cityId ? [{ cityId, heat: row.heat, points: ruleset.law?.evidence?.sack ?? 0, source: 'SACK' as const, sourceKey: `sack:${row.squadId}` }] : [];
       }), now);
     }
   },

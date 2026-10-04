@@ -14,6 +14,7 @@ export const NOTIFICATION_CATEGORIES = [
   'convoy',
   'runs',
   'revenge',
+  'law',
   'orders',
   'announcements',
   'messages',
@@ -52,6 +53,7 @@ export const BELL_CATEGORY_BY_ACTIVITY: Partial<Record<ActivityType, Notificatio
   RUN_INCIDENT: 'runs',
   REVENGE_EXPIRING: 'revenge',
   SPECIAL_ORDER_READY: 'orders',
+  CASE_STAGE_UP: 'law',
 };
 
 /** Categories that have in-game bell items, and so can be muted there. */

@@ -787,8 +787,13 @@ export const TravelService = {
             heat: town.heat ? { before: current.heat, added, after: heatAfter } : null,
             trouble,
           },
-          // 1.3.0-A: the sale's Heat builds a Case in the town it was sold in.
-          ...(town.heat && added > 0 ? { caseHeat: [{ citySlug: city, heat: added, source: 'RUN_SALE' as const }] } : {}),
+          // 1.3.0-A/B: the sale's Heat, a bust or arrest, and a big sale's currency report
+          // all build a Case in the town it happened in.
+          caseEvidence: [
+            ...(town.heat && added > 0 ? [{ citySlug: city, heat: added, source: 'RUN_SALE' as const }] : []),
+            ...(roll?.kind && base.law?.evidence ? [{ citySlug: city, points: roll.kind === 'ARREST' ? base.law.evidence.arrest : base.law.evidence.bust, source: roll.kind }] : []),
+            ...(!buying ? [{ citySlug: city, cashCents: totalCents, source: 'CURRENCY_REPORT' as const }] : []),
+          ],
           ledger: [
             {
               source: 'RUN_TRADE',

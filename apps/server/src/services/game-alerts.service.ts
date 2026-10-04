@@ -11,7 +11,7 @@ import { settleSurveySchedules } from './survey-schedule.service.js';
  * 0.9.0-G. The alerts that happen by the clock or by someone else's hand: a push
  * your Lookouts have spotted, an ally calling for help, a tail on your run, a run
  * home, revenge running out, a special order arriving, an alliance announcement
- * and a private message.
+ * and a private message. 1.3.0-B adds a Case reaching a new Wanted stage.
  *
  * Critical rule: an alert only says what the player could already see in game at
  * that moment. A spotted push or tail never names the attacker (the game does not
@@ -41,6 +41,7 @@ const settingsSelect = {
   ordersEnabled: true,
   announcementsEnabled: true,
   messagesEnabled: true,
+  lawEnabled: true,
 } as const;
 
 type AlertSettings = Prisma.NotificationSettingsGetPayload<{ select: typeof settingsSelect }>;
@@ -566,6 +567,49 @@ async function newsBroadcasts(tx: Tx, now: Date, switches: ChannelSwitches): Pro
   return rows;
 }
 
+const STAGE_NAMES: Record<string, string> = {
+  NOTICED: 'Noticed',
+  INVESTIGATION: 'Under Investigation',
+  WARRANT: 'Warrant',
+  FEDERAL: 'Federal',
+};
+
+/**
+ * 1.3.0-B. A Case that reached a new Wanted stage. Private to its player, so the alert names
+ * the city and the stage and nothing else: never the Case number or what built it. The bell
+ * already has CASE_STAGE_UP from the moment it happened.
+ */
+async function caseStages(tx: Tx, now: Date, switches: ChannelSwitches): Promise<OutboxRow[]> {
+  const receipts = await tx.playerCaseReceipt.findMany({
+    where: { stageUp: true, alertsCollectedAt: null },
+    orderBy: { createdAt: 'asc' },
+    take: BATCH,
+    select: {
+      id: true, stageAfter: true, createdAt: true,
+      city: { select: { slug: true, name: true } },
+      roundPlayer: {
+        select: {
+          accountId: true, account: accountSettings,
+          round: { select: { status: true, endsAt: true } },
+        },
+      },
+    },
+  });
+  if (!receipts.length) return [];
+  await tx.playerCaseReceipt.updateMany({ where: { id: { in: receipts.map((row) => row.id) }, alertsCollectedAt: null }, data: { alertsCollectedAt: now } });
+  const stale = now.getTime() - MAX_LOOKAHEAD_MS;
+  return receipts.flatMap((receipt) => {
+    if (!live(receipt.roundPlayer.round, now) || receipt.createdAt.getTime() < stale) return [];
+    const stage = STAGE_NAMES[receipt.stageAfter] ?? receipt.stageAfter;
+    return notice(receipt.roundPlayer.accountId, receipt.roundPlayer.account.notificationSettings, 'law', `case:${receipt.id}`, {
+      title: 'The police have more on you',
+      body: `${receipt.city.name} police now have you at ${stage}.`,
+      url: gameUrl('/game#case'),
+      tag: `case:${receipt.city.slug}`,
+    }, switches, now);
+  });
+}
+
 export const GameAlertService = {
   /**
    * Settle runs that are due home, so "made it home" alerts go out while everyone
@@ -594,6 +638,7 @@ export const GameAlertService = {
       ...await revengeExpiring(tx, now, switches),
       ...await scheduled(tx, now, switches),
       ...await messages(tx, now, switches),
+      ...await caseStages(tx, now, switches),
       ...await announcements(tx, now, switches),
       ...await surveyBroadcasts(tx, now, switches),
       ...await newsBroadcasts(tx, now, switches),

@@ -27,6 +27,7 @@ import { ConvoyService } from './convoy.service.js';
 import { HighMarketService } from './high-market.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { CRACK, productKeys } from './product-inventory.service.js';
+import { LawService } from './law.service.js';
 
 export const RUN_INCLUDE = {
   stops: { orderBy: { order: 'asc' } },
@@ -210,6 +211,10 @@ async function rollRoadStops(tx: Db, roundPlayerId: string, ruleset: Ruleset, ru
       }], incident.at);
     }
     await ActivityService.log(tx, roundPlayerId, 'RUN_INCIDENT', { runId: run.id, ...toIncidentDto(ruleset, incident) } as unknown as Prisma.InputJsonValue);
+    // 1.3.0-B: a stop is written down in the city the leg was driving into.
+    if (ruleset.law?.evidence) {
+      await LawService.record(tx, roundPlayerId, ruleset, [{ citySlug: incident.city, points: ruleset.law.evidence.roadStop, source: 'ROAD_STOP', sourceKey: `stop:${incident.id}` }], incident.at);
+    }
   }
   if (checks !== run.roadChecks) await tx.run.update({ where: { id: run.id }, data: { roadChecks: checks } });
   return { ...current, roadChecks: checks };
