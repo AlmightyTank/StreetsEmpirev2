@@ -130,7 +130,7 @@ export const LawOfficialService = {
           next: { ...current, cashCents: current.cashCents - fee },
           result: { officialId: official.id, weekCents: Number(fee), paidUntil: paidUntil.toISOString() },
           ledger: [{ source: 'OFFICIALS', label: `${city.name} ${OFFICIAL_TITLES[input.role]}`, amountCents: -fee }],
-          activity: { type: 'OFFICIAL_HIRED', payload: json({ officialId: official.id, role: input.role, title: OFFICIAL_TITLES[input.role], cityName: city.name, weekCents: Number(fee), paidUntil: paidUntil.toISOString() }) },
+          activity: { type: 'OFFICIAL_HIRED', payload: json({ officialId: official.id, role: input.role, title: OFFICIAL_TITLES[input.role], cityName: city.name, weekCents: Number(fee), paidUntil: paidUntil.toISOString(), renewed: false }) },
         };
       },
     });

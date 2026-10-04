@@ -260,6 +260,8 @@ export const LawWarrantService = {
   async serveDue(tx: Db, roundPlayerId: string, now: Date): Promise<boolean> {
     const owner = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { round: { select: { rulesetId: true, rulesetVersion: true } } } });
     const ruleset = loadRulesetForRound(owner.round);
+    // F: a Case that cooled out of its stage is written down first, so Ledger's Jobs hear of it.
+    await LawService.settleCooling(tx, roundPlayerId, ruleset, now);
     // D: Internal Affairs stings land first; a sting's evidence can draft a warrant of its own.
     const stung = await LawOfficialService.settleDue(tx, roundPlayerId, ruleset, now);
     if (!ruleset.law?.warrants) return stung;

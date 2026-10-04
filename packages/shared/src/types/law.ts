@@ -93,6 +93,8 @@ export interface LawPageDto {
   informants: { sweepCents: number; cityCents: number; tips: TipDto[] } | null;
   /** The latest receipts across every city, newest first. */
   receipts: CaseReceiptDto[];
+  /** 1.3.0-F. The contact who gives law Jobs, or null before F. */
+  contact: { name: string; shortName: string; role: string; description: string } | null;
 }
 
 /** 1.3.0-C. What a warrant names. */
