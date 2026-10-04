@@ -420,7 +420,27 @@ seats in the current round. A table seat only counts once it is left; unfinished
 affect standings or records. Older rulesets without rated casino status do not expose the board.
 
 ### 1.2.0-H — Balance, Admin & Release
-Admin casino telemetry, anti-abuse, large-sample simulations, mobile/reconnect regression and release gate.
+
+**Status: implemented as a read-only operations view and release gate.** Admin → Casino shows
+current-season rated volume/status totals, last-24-hour ledger movements, active-game and bankroll
+integrity counts, stale active games, rapid-play review cues and unresolved casino exploit flags.
+The review thresholds are 300 casino ledger actions per player per hour and one hour without an
+active-game update. They are investigation cues only: the system does not auto-ban, freeze a
+bankroll or change game odds. Existing `ExploitFlag` review actions remain the audited path for
+decisions.
+
+The release harness now runs high-sample seeded simulations for European and American Roulette,
+Street Dice, Blackjack rule variants, random-vs-random Hold’em equity, every Slots machine and its
+free-spin behavior. The database release pass enables the casino service integration suites,
+including saved-state/retry checks for reconnectable games. The strict UI audit includes every
+casino game route at both phone widths and desktop, plus the Admin Casino page.
+
+H invariants:
+
+1. Casino operations telemetry is admin-only and read-only.
+2. Review cues never trigger automatic punishment or alter a casino balance.
+3. The simulation checks use deterministic seeds and thresholds that include sampling tolerance.
+4. Casino UI and persistence regressions are part of the database and strict UI release options.
 
 ## A invariants
 

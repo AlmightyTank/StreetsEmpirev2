@@ -37,6 +37,7 @@ import { AdminSurveyResultsService } from '../services/admin-survey-results.serv
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
 import { AdminEconomyService } from '../services/admin-economy.service.js';
+import { AdminCasinoService } from '../services/admin-casino.service.js';
 import { AdminTurfService } from '../services/admin-turf.service.js';
 import { BugReportService } from '../services/support.service.js';
 import { ExploitFlagService } from '../services/exploit-flag.service.js';
@@ -695,6 +696,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { roundId } = parseBody(roundParams, request.params);
     const { hours } = parseBody(z.object({ hours: z.coerce.number().int().min(1).max(24 * 14).optional() }).strict(), request.query ?? {});
     return AdminEconomyService.suspicious(fastify.prisma, roundId, hours ?? 24);
+  });
+
+  /** 1.2.0-H: read-only casino balance, activity, reconnect and anti-abuse telemetry. */
+  fastify.get('/rounds/:roundId/casino', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    return AdminCasinoService.report(fastify.prisma, roundId);
   });
 
   fastify.get('/rounds/:roundId/shipments', async (request) => {

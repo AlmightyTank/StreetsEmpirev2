@@ -893,6 +893,19 @@ export interface AdminSuspiciousDto {
   openFlags: number;
 }
 
+/** 1.2.0-H. Read-only casino operations and anti-abuse telemetry for admins. */
+export interface AdminCasinoDto {
+  roundId: string;
+  generatedAt: string;
+  windowHours: number;
+  rating: { players: number; ratedWagers: number; wageredCents: number; theoCents: number; compsSpentCents: number; vipWagers: number; jackpots: number };
+  ledger: Array<{ kind: string; entries: number; cashDeltaCents: number; walletChipDeltaCents: number; sessionChipDeltaCents: number }>;
+  operations: { openSessions: number; duplicateOpenSessions: Array<{ playerId: string; displayName: string; count: number }>; activeBlackjack: number; activeDiceRounds: number; activeSoloPoker: number; activeTableHands: number; gamesOnClosedSessions: number; staleGames: number };
+  rapidPlayThreshold: number;
+  rapidPlay: Array<{ playerId: string; displayName: string; entries: number; lastAt: string }>;
+  openCasinoFlags: Array<{ id: string; kind: string; severity: string; playerId: string | null; message: string; occurrences: number; lastAt: string }>;
+}
+
 /** 1.0.0-E. Stock on its way: special orders and the shelves waiting on them. */
 export interface AdminShipmentsDto {
   roundId: string;

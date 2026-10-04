@@ -5,6 +5,7 @@ import type {
   MonitoringSnapshotDto,
   AdminExploitFlagDto,
   AdminExploitFlagsDto,
+  AdminCasinoDto,
   AdminMarketsDto,
   AdminPlayerStoresDto,
   AdminRoundBattlesDto,
@@ -190,6 +191,7 @@ export const adminApi = {
   auditExportUrl: (filters: AdminAuditFilters = {}) => `/api/admin/audit/export${queryString({ ...filters, before: undefined })}`,
   // 1.0.0-E: economy, fights, exploit flags and turf.
   markets: (roundId: string) => api.get<AdminMarketsDto>(roundPath(roundId, 'markets')),
+  casino: (roundId: string) => api.get<AdminCasinoDto>(roundPath(roundId, 'casino')),
   suspicious: (roundId: string, hours = 24) => api.get<AdminSuspiciousDto>(`${roundPath(roundId, 'suspicious')}?hours=${hours}`),
   shipments: (roundId: string) => api.get<AdminShipmentsDto>(roundPath(roundId, 'shipments')),
   playerStores: (roundPlayerId: string) => api.get<AdminPlayerStoresDto>(`/admin/players/${encodeURIComponent(roundPlayerId)}/stores`),
