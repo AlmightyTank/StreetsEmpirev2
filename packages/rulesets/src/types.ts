@@ -2102,6 +2102,81 @@ export interface CasinoVenueRules {
   readonly name: string;
   readonly blurb: string;
   readonly kind: CasinoVenueKind;
+  /** 1.2.0-E. Presentation identity for the room. Never changes odds, limits or payouts. */
+  readonly identity?: CasinoVenueIdentityRules;
+  /** 1.2.0-E. The venue's VIP room. Absent where the venue has none. */
+  readonly vipRoom?: CasinoVipRoomRules;
+}
+
+/** 1.2.0-E. Casino status ladder, lowest first. */
+export type CasinoStatusTierKey = 'WALK_IN' | 'REGULAR' | 'PREFERRED' | 'HIGH_ROLLER' | 'WHALE';
+
+/** 1.2.0-E. The game a venue is known for. Presentation only. */
+export type CasinoSignatureGame = 'SLOTS' | 'BLACKJACK' | 'ROULETTE' | 'STREET_DICE' | 'POKER';
+
+/** 1.2.0-E. Which part of a venue a table sits in. Absent means the main floor. */
+export type CasinoRoom = 'FLOOR' | 'VIP';
+
+export interface CasinoVenueIdentityRules {
+  readonly tagline: string;
+  readonly signatureGame: CasinoSignatureGame;
+  /** Styling accent for the room. Never mechanical. */
+  readonly accent: 'GOLD' | 'NEON' | 'EMERALD' | 'STEEL' | 'OCEAN' | 'ROSE' | 'SUNSET' | 'PEACH';
+}
+
+export interface CasinoVipRoomRules {
+  readonly name: string;
+  readonly blurb: string;
+  /** The lowest network status the door staff admit. */
+  readonly minTier: CasinoStatusTierKey;
+  /**
+   * Bodyguards a visiting boss must have flown in with to be admitted. A boss at
+   * home in this city has the whole crew behind them and is never asked.
+   */
+  readonly visitorMinBodyguards: number;
+}
+
+export interface CasinoStatusTierRules {
+  readonly key: CasinoStatusTierKey;
+  readonly name: string;
+  /** Round-to-date theoretical house win needed to reach this tier. */
+  readonly minTheoCents: number;
+  /** Comps earned on each rated wager, in basis points of that wager's theo. */
+  readonly compRateBps: number;
+  /** The largest session bankroll this tier may open. */
+  readonly maxBankrollCents: number;
+}
+
+/**
+ * 1.2.0-E. Rated play. Every charged wager is rated at its theoretical house win
+ * ("theo": wager x pinned house edge), never at what was actually won or lost.
+ * Theo drives status tiers and comps. Status gates VIP rooms and bankroll size
+ * only: it is never an input to any game's odds, shuffle, roll or payout.
+ */
+export interface CasinoStatusRules {
+  readonly tiers: readonly CasinoStatusTierRules[];
+  /** House edge used to rate each wager, in bps. Slots use the machine's effective RTP. */
+  readonly ratingEdgeBps: {
+    readonly blackjackStandsSoft17: number;
+    readonly blackjackHitsSoft17: number;
+    readonly rouletteAmerican: number;
+    readonly rouletteEuropean: number;
+    readonly streetDiceLine: number;
+    /** True odds carry no house edge, so they rate at zero. */
+    readonly streetDiceOdds: number;
+  };
+  readonly comps: {
+    /** Comps can pay for hotel extensions on a Boss Trip to a casino city. */
+    readonly hotelExtensions: boolean;
+  };
+  /** Operating a Casino Front in a venue's city. Absent where fronts give no house pass. */
+  readonly casinoFront?: {
+    readonly minLevel: number;
+    /** The house knows the owner: that venue's VIP room opens regardless of status. */
+    readonly grantsVipAccess: boolean;
+    /** Extra comps on play at that venue, in bps of theo. */
+    readonly compBonusBps: number;
+  };
 }
 
 /** 1.2.0-B. One weighted symbol on a server-authoritative slot reel. */
@@ -2169,6 +2244,8 @@ export interface CasinoBlackjackTableRules {
   readonly name: string;
   readonly blurb: string;
   readonly venueKinds: readonly CasinoVenueKind[];
+  /** 1.2.0-E. VIP tables need VIP room access at the venue. Absent means the floor. */
+  readonly room?: CasinoRoom;
   readonly minBetCents: number;
   readonly maxBetCents: number;
   readonly betStepCents: number;
@@ -2193,6 +2270,8 @@ export interface CasinoRouletteTableRules {
   readonly name: string;
   readonly blurb: string;
   readonly venueKinds: readonly CasinoVenueKind[];
+  /** 1.2.0-E. VIP tables need VIP room access at the venue. Absent means the floor. */
+  readonly room?: CasinoRoom;
   readonly wheel: CasinoRouletteWheel;
   readonly minBetCents: number;
   readonly maxBetCents: number;
@@ -2206,6 +2285,8 @@ export interface CasinoStreetDiceTableRules {
   readonly name: string;
   readonly blurb: string;
   readonly venueKinds: readonly CasinoVenueKind[];
+  /** 1.2.0-E. VIP tables need VIP room access at the venue. Absent means the floor. */
+  readonly room?: CasinoRoom;
   readonly minBetCents: number;
   readonly maxBetCents: number;
   readonly betStepCents: number;
@@ -2229,6 +2310,7 @@ export interface CasinoPokerRules {
  * 1.2.0-B adds server-authoritative Slots.
  * 1.2.0-C optionally adds reconnect-safe Blackjack.
  * 1.2.0-D adds Roulette and persistent Street Dice.
+ * 1.2.0-E adds rated play, status tiers, comps and VIP rooms.
  */
 export interface CasinoRules {
   readonly enabled: boolean;
@@ -2255,6 +2337,7 @@ export interface CasinoRules {
     readonly tables: readonly CasinoStreetDiceTableRules[];
   };
   readonly poker?: CasinoPokerRules;
+  readonly status?: CasinoStatusRules;
 }
 export interface Ruleset {
   /** Absent on economic-only rounds. */

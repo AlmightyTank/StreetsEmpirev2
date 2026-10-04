@@ -180,7 +180,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
                 type="button"
                 disabled={busy !== null || Boolean(state.activeHand)}
                 aria-pressed={selectedTableKey === table.key}
-                className={'se-blackjack__table' + (selectedTableKey === table.key ? ' is-selected' : '')}
+                className={'se-blackjack__table' + (selectedTableKey === table.key ? ' is-selected' : '') + (table.room === 'VIP' ? ' is-vip' : '')}
                 onClick={() => {
                   setSelectedTableKey(table.key);
                   setWager(String(table.minBetCents / 100));
@@ -188,7 +188,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
                   dealAction.current = newActionId();
                 }}
               >
-                <span><strong>{table.name}</strong><small>{table.availableHere ? 'Available here' : 'Not in this room'}</small></span>
+                <span><strong>{table.name}{table.room === 'VIP' ? <em className="se-casino-vip-badge">VIP</em> : null}</strong><small>{table.availableHere ? 'Available here' : table.lockedReason ?? 'Not in this room'}</small></span>
                 <small>{formatCents(table.minBetCents)}–{formatCents(table.maxBetCents)} · {table.decks} deck{table.decks === 1 ? '' : 's'}</small>
               </button>
             ))}
@@ -341,7 +341,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
                     className="se-btn se-blackjack__deal-button"
                     disabledReason={
                       !selectedTable.availableHere
-                        ? 'Travel to a casino that carries this table.'
+                        ? selectedTable.lockedReason ?? 'Travel to a casino that carries this table.'
                         : !casinoPage.openSession
                           ? 'Open a casino bankroll first.'
                           : casinoPage.openSession.citySlug !== casinoPage.currentCitySlug

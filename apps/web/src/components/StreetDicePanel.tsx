@@ -194,7 +194,7 @@ export function StreetDicePanel({ casinoPage, onPageChange }: Props) {
                 type="button"
                 disabled={busy !== null || Boolean(active)}
                 aria-pressed={candidate.key === table?.key}
-                className={'se-street-dice__table' + (candidate.key === table?.key ? ' is-selected' : '')}
+                className={'se-street-dice__table' + (candidate.key === table?.key ? ' is-selected' : '') + (candidate.room === 'VIP' ? ' is-vip' : '')}
                 onClick={() => {
                   setSelectedTableKey(candidate.key);
                   setWager(String(candidate.minBetCents / 100));
@@ -203,7 +203,7 @@ export function StreetDicePanel({ casinoPage, onPageChange }: Props) {
                   resetActions();
                 }}
               >
-                <span><strong>{candidate.name}</strong><small>Up to {candidate.maxOddsMultiple}× odds</small></span>
+                <span><strong>{candidate.name}{candidate.room === 'VIP' ? <em className="se-casino-vip-badge">VIP</em> : null}</strong><small>Up to {candidate.maxOddsMultiple}× odds{candidate.lockedReason ? ' · VIP door closed' : ''}</small></span>
                 <small>{formatCents(candidate.minBetCents)}–{formatCents(candidate.maxBetCents)} line</small>
               </button>
             ))}
@@ -364,7 +364,7 @@ export function StreetDicePanel({ casinoPage, onPageChange }: Props) {
                       className="se-btn se-street-dice__comeout"
                       disabledReason={
                         !table.availableHere
-                          ? 'This dice table is not available in this casino.'
+                          ? table.lockedReason ?? 'This dice table is not available in this casino.'
                           : !casinoPage.openSession
                             ? 'Open a casino bankroll first.'
                             : casinoPage.openSession.citySlug !== casinoPage.currentCitySlug

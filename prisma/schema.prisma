@@ -1047,6 +1047,7 @@ model City {
   casinoWallets     CasinoWallet[]
   casinoSessions    CasinoSession[]
   casinoLedger      CasinoLedgerEntry[]
+  casinoRatings     CasinoRating[]
 }
 
 // ---------------------------------------------------------------------------
@@ -1177,6 +1178,8 @@ model RoundPlayer {
   casinoPokerActions      CasinoPokerAction[]
   casinoPokerSeats        CasinoPokerSeat[]
   casinoPokerTableActions CasinoPokerTableAction[]
+  /// 1.2.0-E. Rated play per casino city: theo, status and comps.
+  casinoRatings           CasinoRating[]
   /// 1.1.0-C. The crew's live rackets, racket key -> strength (0..1], rebuilt on every
   /// business settle so any system can read them off the player row.
   racketEffects        Json      @default("{}")
@@ -2184,6 +2187,8 @@ enum ActivityType {
   CASINO_REDEEM_CHIPS
   CASINO_SESSION_OPENED
   CASINO_SESSION_CLOSED
+  CASINO_STATUS_UP
+  CASINO_COMP_HOTEL
 }
 
 enum BattleKind {
@@ -2790,6 +2795,37 @@ model CasinoLedgerEntry {
   @@index([roundPlayerId, createdAt(sort: Desc)])
   @@index([sessionId, createdAt])
   @@index([cityId, createdAt(sort: Desc)])
+}
+
+/// 1.2.0-E. Rated play for one player at one city's casino. Every charged wager adds its
+/// theoretical house win (wager x pinned edge), never its result. Network status is the
+/// sum of theo across cities; comps are earned as a share of theo and spent on Boss Trip
+/// hotel nights. Basis columns hold cents x basis points so small wagers lose nothing to
+/// rounding; whole cents are basis / 10,000. Status and comps never feed any game's odds.
+model CasinoRating {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  /// Charged chips wagered here. Free spins and comped play add nothing.
+  wageredCents     BigInt @default(0)
+  /// Theoretical house win in cents x bps.
+  theoBasis        BigInt @default(0)
+  /// Comps earned here in cents x bps.
+  compBasis        BigInt @default(0)
+  /// Whole comp cents redeemed while the boss was in this city.
+  compsSpentCents  BigInt @default(0)
+  ratedWagers      Int    @default(0)
+  lastRatedAt      DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundPlayerId, cityId])
+  @@index([cityId])
 }
 
 /// 1.2.0-B. One progressive pool per round/machine. It is house money, never player net worth.

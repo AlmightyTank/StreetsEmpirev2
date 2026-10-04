@@ -324,6 +324,16 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         text: 'Closed the session at ' + str(p.venueName, 'the casino') + ' with ' + formatCents(num(p.bankrollCents)) + '.',
         detail: str(p.cityName),
       };
+    case 'CASINO_STATUS_UP':
+      return {
+        text: 'The casinos now know you as ' + str(p.tierName, 'a regular') + '.',
+        detail: 'Bankroll ceiling ' + formatCents(num(p.maxBankrollCents)),
+      };
+    case 'CASINO_COMP_HOTEL':
+      return {
+        text: str(p.venueName, 'The casino') + ' comped ' + formatNumber(num(p.minutes) / 60) + ' more hours at the hotel.',
+        detail: formatCents(num(p.compCents)) + ' in comps · ' + str(p.cityName),
+      };
 
     case 'HIDEOUT_UPGRADE':
       return {
@@ -636,6 +646,8 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     CASINO_REDEEM_CHIPS: 'Casino cash out',
     CASINO_SESSION_OPENED: 'Casino session',
     CASINO_SESSION_CLOSED: 'Casino session closed',
+    CASINO_STATUS_UP: 'Casino status',
+    CASINO_COMP_HOTEL: 'Comped hotel',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();
 }

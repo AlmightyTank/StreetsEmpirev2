@@ -1,8 +1,12 @@
 import { randomInt } from 'node:crypto';
 import type { Prisma, PrismaClient, RoundPlayer } from '@prisma/client';
 import {
+  casinoCompsCoverHotel,
+  checkExtend,
   effectiveSlotRtpBps,
   loadRulesetForRound,
+  slotRatingEdgeBps,
+  tripRules,
   resolveSlotSpin,
   rollSlotFreeSpinAward,
   slotTotalWagerCents,
@@ -13,6 +17,7 @@ import {
 import type { CasinoRules, CasinoSlotMachineRules } from '@streets/rulesets';
 import type {
   CasinoCashierInput,
+  CasinoCompHotelInput,
   CasinoLedgerEntryDto,
   CasinoPageDto,
   CasinoSessionStartInput,
@@ -25,12 +30,13 @@ import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActivityService } from './activity.service.js';
 import { bossPresence } from './boss-presence.service.js';
+import { CasinoStatusService, casinoCompBalanceCents, casinoSessionMaxCents } from './casino-status.service.js';
 import { PlayerStateService } from './player-state.service.js';
 import { refreshAwayWorth } from './run-settle.service.js';
 
 type PlayerRow = RoundPlayer & {
   city: { id: string; slug: string; name: string };
-  round: { rulesetId: string; rulesetVersion: string };
+  round: { rulesetId: string; rulesetVersion: string; endsAt: Date };
 };
 
 type SlotLedgerMetadata = {
@@ -292,6 +298,19 @@ function ledgerDisplay(entry: {
       tone: buying ? 'neutral' : 'positive',
     };
   }
+  if (entry.kind === 'COMP_HOTEL') {
+    const meta = entry.metadata as unknown as { compCents?: number; minutes?: number; cityName?: string };
+    const minutes = typeof meta.minutes === 'number' ? meta.minutes : 0;
+    const hours = minutes / 60;
+    return {
+      title: 'Comped hotel stay',
+      detail: 'The house covered ' + (Number.isInteger(hours) ? hours : hours.toFixed(1)) + ' more hour' + (hours === 1 ? '' : 's')
+        + (typeof meta.cityName === 'string' ? ' in ' + meta.cityName : '') + '. No chips or cash moved.',
+      amountLabel: 'Comps used',
+      amountCents: typeof meta.compCents === 'number' ? meta.compCents : 0,
+      tone: 'neutral',
+    };
+  }
   return {
     title: 'Casino activity',
     detail: 'Casino balance updated.',
@@ -416,6 +435,7 @@ function venueDto(
     kind: venue.kind,
     walletChipsCents: Number(walletCents),
     here: currentCitySlug === city.slug,
+    ...CasinoStatusService.venueExtras(casino, venue),
   };
 }
 
@@ -440,6 +460,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
       recentLedger: [],
       totalCasinoValueCents: 0,
       limits: null,
+      status: null,
     };
   }
 
@@ -587,6 +608,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
   const blackjackCommittedTotal = blackjackCommitted._sum.committedWagerCents ?? 0n;
   const streetDiceCommittedTotal =
     (streetDiceCommitted._sum.lineWagerCents ?? 0n) + (streetDiceCommitted._sum.oddsWagerCents ?? 0n);
+  const status = await CasinoStatusService.page(db, ruleset, player, currentCitySlug, now);
 
   return {
     enabled: true,
@@ -604,8 +626,9 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
       cashierMinCents: casino.cashier.minExchangeCents,
       cashierMaxCents: casino.cashier.maxExchangeCents,
       sessionMinCents: casino.session.minBankrollCents,
-      sessionMaxCents: casino.session.maxBankrollCents,
+      sessionMaxCents: status?.maxBankrollCents ?? casino.session.maxBankrollCents,
     },
+    status,
   };
 }
 
@@ -751,7 +774,8 @@ export const CasinoService = {
   startSession(prisma: PrismaClient, roundPlayerId: string, input: CasinoSessionStartInput): Promise<CasinoPageDto> {
     return mutate(prisma, roundPlayerId, input.actionId, async (tx, player, ruleset, casino, now) => {
       const amount = BigInt(input.amountCents);
-      assertAmount(casino, amount, casino.session.minBankrollCents, casino.session.maxBankrollCents);
+      // 1.2.0-E: status can raise the bankroll ceiling. It never changes a game.
+      assertAmount(casino, amount, casino.session.minBankrollCents, await casinoSessionMaxCents(tx, casino, roundPlayerId));
       const alreadyOpen = await tx.casinoSession.findFirst({ where: { roundPlayerId, status: 'OPEN' } });
       if (alreadyOpen) throw AppError.conflict('CASINO_SESSION_OPEN', 'Cash out your current casino session before opening another.');
 
@@ -951,6 +975,10 @@ export const CasinoService = {
 
       const bankrollAfter = session.bankrollCents - chargedWager + payout;
       await tx.casinoSession.update({ where: { id: session.id }, data: { bankrollCents: bankrollAfter } });
+      // A free spin is comped by the house, so only paid spins are rated.
+      await CasinoStatusService.rateWager(tx, ruleset, {
+        roundPlayerId, cityId: city.id, wagerCents: chargedWager, edgeBps: slotRatingEdgeBps(machine, input.betPerLineCents), now,
+      });
 
       const wallet = await tx.casinoWallet.findUnique({
         where: { roundPlayerId_cityId: { roundPlayerId, cityId: city.id } },
@@ -999,6 +1027,59 @@ export const CasinoService = {
 
       await PlayerStateService.settleInTransaction(tx, roundPlayerId, { now, markActive: true });
       return { page: await pageInDb(tx, roundPlayerId, now), spin: slotSpinDto(ledger) };
+    });
+  },
+
+  /**
+   * 1.2.0-E. Boss Trips hook: the house comps more hotel time on the boss's trip to a
+   * casino city. Comps are spent, never cashed: no chips, cash or bankroll move.
+   */
+  compHotel(prisma: PrismaClient, roundPlayerId: string, input: CasinoCompHotelInput): Promise<CasinoPageDto> {
+    return mutate(prisma, roundPlayerId, input.actionId, async (tx, player, ruleset, casino, now) => {
+      if (!casino.status?.comps.hotelExtensions) {
+        throw AppError.conflict('COMPS_CLOSED', 'The casinos are not comping rooms this round.');
+      }
+      const rules = tripRules(ruleset);
+      const trip = await tx.bossTrip.findFirst({ where: { roundPlayerId, status: 'ACTIVE' } });
+      if (!rules || !trip) throw AppError.conflict('NO_TRIP', 'Comped rooms are for a boss on a trip.');
+      if (!casinoCompsCoverHotel(casino, trip.city)) {
+        throw AppError.conflict('NO_CASINO_HERE', 'There is no casino in that city to comp the room.');
+      }
+      const balance = await casinoCompBalanceCents(tx, roundPlayerId);
+      const check = checkExtend(ruleset, { trip: { ...trip, bankrollCents: balance }, blocks: input.blocks, now, roundEndsAt: player.round.endsAt });
+      if (check.code === 'NOT_ENOUGH_BANKROLL') {
+        throw AppError.conflict('NOT_ENOUGH_COMPS', 'You have not earned enough comps for that many hotel blocks.');
+      }
+      if (check.blockedReason) {
+        throw check.code === 'BAD_EXTENSION' || check.code === 'STAY_TOO_LONG' || check.code === 'TRIP_TOO_LONG'
+          ? AppError.badRequest(check.code, check.blockedReason, { blocks: check.blockedReason })
+          : AppError.conflict(check.code ?? 'TRIP_BLOCKED', check.blockedReason);
+      }
+      const city = await tx.city.findUnique({ where: { slug: trip.city } });
+      if (!city) throw AppError.notFound('CITY_NOT_FOUND', 'That casino city is not available.');
+
+      await tx.bossTrip.update({ where: { id: trip.id }, data: { stayUntil: check.stayUntil, returnsAt: check.returnsAt } });
+      await tx.casinoRating.upsert({
+        where: { roundPlayerId_cityId: { roundPlayerId, cityId: city.id } },
+        update: { compsSpentCents: { increment: check.hotelCents } },
+        create: { roundPlayerId, cityId: city.id, compsSpentCents: check.hotelCents },
+      });
+      const wallet = await tx.casinoWallet.findUnique({ where: { roundPlayerId_cityId: { roundPlayerId, cityId: city.id } } });
+      const minutes = input.blocks * rules.extendMinutes;
+      const venue = casino.venues[trip.city]!;
+      await tx.casinoLedgerEntry.create({
+        data: {
+          roundPlayerId, cityId: city.id, actionId: input.actionId, kind: 'COMP_HOTEL',
+          walletChipsAfterCents: wallet?.chipsCents ?? 0n,
+          metadata: {
+            tripId: trip.id, blocks: input.blocks, minutes, compCents: Number(check.hotelCents),
+            cityName: city.name, venue: venue.name, stayUntil: check.stayUntil.toISOString(),
+          } as Prisma.InputJsonValue,
+        },
+      });
+      await ActivityService.log(tx, roundPlayerId, 'CASINO_COMP_HOTEL', {
+        cityName: city.name, venueName: venue.name, compCents: Number(check.hotelCents), minutes, stayUntil: check.stayUntil.toISOString(),
+      });
     });
   },
 
