@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, classicOgV06C, classicOgV06D, classicOgV06E, classicOgV06F, classicOgV08H, classicOgV11E, classicOgV11F, classicOgV12F, classicOgV13F, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV02E, classicOgV02F, classicOgV02G, classicOgV02H, classicOgV03A, classicOgV03B, classicOgV03C, classicOgV03D, classicOgV04A, classicOgV06C, classicOgV06D, classicOgV06E, classicOgV06F, classicOgV08H, classicOgV11E, classicOgV11F, type Ruleset } from '@streets/rulesets';
 import { regenerateTurns } from '../calculations/turns.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
@@ -64,11 +64,11 @@ describe('ruleset loader', () => {
     expect(isKnownRulesetId('classic-og-v1.1-f')).toBe(true);
     expect(loadRuleset('classic-og-v1.1-e', '1.1.0-E')).toBe(classicOgV11E);
     expect(loadRuleset('classic-og-v1.1-f', '1.1.0-F')).toBe(classicOgV11F);
-    for (const id of ['classic-og-v1.2-a', 'classic-og-v1.2-b', 'classic-og-v1.2-c', 'classic-og-v1.2-d', 'classic-og-v1.2-e', 'classic-og-v1.2-e2', 'classic-og-v1.2-f', 'classic-og-v1.3-a', 'classic-og-v1.3-b', 'classic-og-v1.3-c', 'classic-og-v1.3-d', 'classic-og-v1.3-e', 'classic-og-v1.3-f']) {
+    for (const id of ['classic-og-v1.2-a', 'classic-og-v1.2-b', 'classic-og-v1.2-c', 'classic-og-v1.2-d', 'classic-og-v1.2-e', 'classic-og-v1.2-e2', 'classic-og-v1.2-f', 'classic-og-v1.3-a', 'classic-og-v1.3-b', 'classic-og-v1.3-c', 'classic-og-v1.3-d', 'classic-og-v1.3-e']) {
       expect(isKnownRulesetId(id)).toBe(true);
     }
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(88);
+    expect(listRulesets()).toHaveLength(87);
   });
 });
 
@@ -405,35 +405,6 @@ describe('classic-og-v1.1-f contents', () => {
       ...classicOgV11E,
       meta: null,
       business: { ...classicOgV11E.business!, crackdown: null },
-    });
-  });
-});
-
-describe('classic-og-v1.3-f contents', () => {
-  it('pins law pressure without changing casino/jobs balance', () => {
-    const ruleset = loadRuleset('classic-og-v1.3-f', '1.3.0-F');
-    expect(ruleset).toBe(classicOgV13F);
-    expect(ruleset.meta.name).toBe('Classic OG - Law Pressure Release');
-    expect(ruleset.law?.wantedTiers.map((tier) => [tier.level, tier.startsAt])).toEqual([
-      [0, 0],
-      [1, 20],
-      [2, 40],
-      [3, 65],
-      [4, 85],
-    ]);
-    expect(ruleset.law?.corruption).toEqual({
-      minCentsPerAttention: 50_000,
-      netWorthSharePpmPerAttention: 250,
-      dailyAttentionCap: 20,
-    });
-    expect({
-      ...ruleset,
-      meta: null,
-      law: null,
-    }).toEqual({
-      ...classicOgV12F,
-      meta: null,
-      law: null,
     });
   });
 });

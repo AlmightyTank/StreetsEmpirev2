@@ -6,7 +6,7 @@ import type {
   Round,
   RoundPlayer,
 } from '@prisma/client';
-import { decayHeat, decayLawPressure, loadRulesetForRound, rulesetForCity, totalWeapons, type Ruleset, type Standings } from '@streets/rules-engine';
+import { decayHeat, loadRulesetForRound, rulesetForCity, totalWeapons, type Ruleset, type Standings } from '@streets/rules-engine';
 import type {
   GameActionResult,
   PlayerSnapshot,
@@ -81,10 +81,6 @@ export interface PlayerState {
 
   /** 0.4.0-C. Settled Heat: decayed on the turn clock before an action sees it. Always 0 without Heat. */
   heat: number;
-  /** 1.3.0-F. Settled law attention, cooled on the turn clock. */
-  lawAttention: number;
-  /** 1.3.0-F. Evidence pressure; not passively cooled in F. */
-  lawEvidence: number;
   /** 0.5.0-B. Net worth of what is out on a run. Runs move it; nothing else does. */
   awayNetWorthCents: bigint;
   /** 0.6.0-B/C. Net worth of turf-deployed guns removed from the home arsenal. */
@@ -231,8 +227,6 @@ export function toState(player: RoundPlayer): PlayerState {
     tek9Unlocked: player.tek9Unlocked,
     ak47Unlocked: player.ak47Unlocked,
     heat: player.heat,
-    lawAttention: player.lawAttention,
-    lawEvidence: player.lawEvidence,
     awayNetWorthCents: player.awayNetWorthCents,
     postedNetWorthCents: player.postedNetWorthCents,
     outpostNetWorthCents: player.outpostNetWorthCents,
@@ -441,18 +435,12 @@ export const ActionService = {
       // Standing shortens a shop's wait, so it has to be read before the
       // shelves settle - never the cap, only the interval.
       const stock = StockService.settle(player, now, ruleset, standings);
-      const lawPressure = ruleset.law
-        ? decayLawPressure({ attention: player.lawAttention, evidence: player.lawEvidence }, turns.intervalsProcessed, ruleset.law)
-        : { attention: player.lawAttention, evidence: player.lawEvidence };
       const current: PlayerState = {
         ...toState(player),
         woundedThugs: recovery.woundedThugs,
         turns: turns.turns,
         // 0.4.0-C: Heat cools on the same clock turns regenerate on.
         heat: ruleset.heat ? decayHeat(player.heat, turns.intervalsProcessed, ruleset.heat) : player.heat,
-        // 1.3.0-F: law attention cools on the same clock. Evidence does not.
-        lawAttention: lawPressure.attention,
-        lawEvidence: lawPressure.evidence,
         ...stock.counts,
       };
       assertPlayerState(current, ruleset, 'before');

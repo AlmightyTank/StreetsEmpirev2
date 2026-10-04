@@ -42,15 +42,6 @@ export function heatReceiptLines(
     { label: 'Heat', value: `${formatNumber(heat.before)} → ${formatNumber(heat.after)} (+${formatNumber(heat.added)} from product)` },
   ];
   if (heat.takeMultiplier < 1) lines.push({ label: 'Heat drag', value: `Take cut ${percent(1 - heat.takeMultiplier)}` });
-  if (heat.law && heat.law.attentionAdded > 0) {
-    lines.push({
-      label: 'Wanted',
-      value: `${formatNumber(heat.law.attentionBefore)} → ${formatNumber(heat.law.attentionAfter)} (${heat.law.wantedName})`,
-    });
-    if (heat.law.evidenceAdded > 0) {
-      lines.push({ label: 'Evidence', value: `${formatNumber(heat.law.evidenceBefore)} → ${formatNumber(heat.law.evidenceAfter)}` });
-    }
-  }
 
   if (heat.arrested) {
     lines.push({ label: 'ARRESTED', value: `${percent(heat.arrestChance ?? 0)} chance landed` });
@@ -103,12 +94,9 @@ export function HeatNotice() {
 export function HeatPanel() {
   const me = useSession((s) => s.me);
   const bribe = useGameAction<{ points: number; costCents: number; heatBefore: number; heatAfter: number }>();
-  const corruption = useGameAction<{ attention: number; costCents: number; attentionBefore: number; attentionAfter: number; wantedName: string }>();
   const [points, setPoints] = useState<number | ''>('');
-  const [attention, setAttention] = useState<number | ''>('');
 
   const heat = me?.heat;
-  const law = me?.law;
   if (!me || !heat) return null;
 
   const tone = heatTone(heat);
@@ -136,31 +124,6 @@ export function HeatPanel() {
     if (block) return;
     await bribe.run((actionId) => api.post('/game/heat/bribe', { points: wanted, actionId }));
     setPoints('');
-  }
-
-  const wantedAttention = typeof attention === 'number' ? attention : 0;
-  const corruptionCost = law ? wantedAttention * law.corruptionCentsPerAttention : 0;
-  const corruptionBlock = !law
-    ? 'The law is not tracking this round.'
-    : corruption.busy
-      ? 'Finding the right clerk...'
-      : law.attention <= 0
-        ? 'No active file to bury.'
-        : wantedAttention < 1
-          ? 'Say how much attention to bury.'
-          : wantedAttention > law.attention
-            ? `You only have ${formatNumber(law.attention)} attention.`
-            : wantedAttention > law.corruptionDailyCap
-              ? `At most ${formatNumber(law.corruptionDailyCap)} at a time.`
-              : corruptionCost > me.resources.cashCents
-                ? 'You cannot cover that envelope.'
-                : null;
-
-  async function onCorruptionSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (corruptionBlock) return;
-    await corruption.run((actionId) => api.post('/game/law/corruption', { attention: wantedAttention, actionId }));
-    setAttention('');
   }
 
   const status = lockedUntil
@@ -218,57 +181,6 @@ export function HeatPanel() {
         <p className="se-hint se-good">
           Paid {formatCents(bribe.result.result.costCents)}: Heat {bribe.result.result.heatBefore} → {bribe.result.result.heatAfter}.
         </p>
-      ) : null}
-
-      {law ? (
-        <section className="se-heat__law" aria-labelledby="law-pressure-heading">
-          <h3 id="law-pressure-heading">Wanted pressure</h3>
-          <div className="se-meter se-heat__meter">
-            <div
-              className={`se-meter__fill${law.informantRisk || law.warrantRisk ? ' se-meter__fill--bad' : law.wantedLevel >= 2 ? ' se-meter__fill--warn' : ''}`}
-              style={{ width: `${Math.min(100, (law.attention / law.maxAttention) * 100)}%` }}
-            />
-          </div>
-          <p className={`se-heat__status se-${law.informantRisk || law.warrantRisk ? 'bad' : law.wantedLevel >= 2 ? 'warn' : 'good'}`}>
-            {law.wantedName}: {law.wantedDescription}
-          </p>
-          <p className="se-hint">
-            Attention {formatNumber(law.attention)} / {formatNumber(law.maxAttention)}. Evidence {formatNumber(law.evidence)} / {formatNumber(law.maxEvidence)}
-            {law.warrantRisk ? '; warrants are live' : law.evidence >= law.evidenceStartsAt ? '; investigators have evidence' : ''}
-            {law.informantRisk ? '; informants are live' : ''}. Attention cools {formatNumber(law.decayPerInterval)} every {law.intervalMinutes} minutes; evidence only moves through explicit events.
-          </p>
-          {law.attention > 0 ? (
-            <form className="se-heat__bribe" onSubmit={onCorruptionSubmit}>
-              <label className="se-label" htmlFor="law-corruption-attention">Bury attention</label>
-              <div className="se-heat__bribe-row">
-                <input
-                  id="law-corruption-attention"
-                  className="se-input"
-                  inputMode="numeric"
-                  type="number"
-                  min={1}
-                  max={Math.min(law.attention, law.corruptionDailyCap)}
-                  step={1}
-                  value={attention}
-                  onChange={(event) => setAttention(event.target.value === '' ? '' : Math.max(0, Math.floor(Number(event.target.value))))}
-                />
-                <Button type="button" className="se-btn se-btn--ghost se-btn--sm" disabledReason={corruption.busy ? 'Paying...' : null} onClick={() => setAttention(Math.min(law.attention, law.corruptionDailyCap))}>
-                  Cap
-                </Button>
-                <Button className="se-btn se-btn--primary se-btn--sm" disabledReason={corruptionBlock}>
-                  Pay{wantedAttention > 0 ? ` ${formatCents(corruptionCost)}` : ''}
-                </Button>
-              </div>
-              <p className="se-hint">{formatCents(law.corruptionCentsPerAttention)} per attention, capped at {formatNumber(law.corruptionDailyCap)} at a time.</p>
-            </form>
-          ) : null}
-          {corruption.error ? <Alert>{corruption.error}</Alert> : null}
-          {corruption.result ? (
-            <p className="se-hint se-good">
-              Paid {formatCents(corruption.result.result.costCents)}: attention {corruption.result.result.attentionBefore} → {corruption.result.result.attentionAfter} ({corruption.result.result.wantedName}).
-            </p>
-          ) : null}
-        </section>
       ) : null}
     </Panel>
   );

@@ -1,62 +1,42 @@
-import type { Prisma, PrismaClient } from '@prisma/client';
-import type { LawAttentionSource } from '@streets/rulesets';
+import type { Prisma } from '@prisma/client';
 import {
   addCase,
-  addLawPressure,
   CASE_SCALE,
   caseFromHeat,
   caseFromPoints,
   captainHeadsUp,
   cityCaseDelta,
   cityLaw,
-  coolCase,
-  coolingStartsAt,
-  corruptionCostCents,
-  currencyReports,
   daSlowed,
   federalTransfer,
+  coolCase,
+  coolingStartsAt,
+  currencyReports,
   lawDay,
-  lawWantedTier,
   nextStage,
   productNetWorthCents,
   stageRank,
   stageStartsAt,
   WANTED_STAGES,
   wantedStage,
-  type LawPressureChange,
   type Ruleset,
 } from '@streets/rules-engine';
-import {
-  lawCorruptionSchema,
-  type CaseSourceDto,
-  type GameActionResult,
-  type LawDto,
-  type LawPageDto,
-  type LawSummaryDto,
-  type TripHeatDto,
-} from '@streets/shared';
 import type { WantedStage } from '@streets/rulesets';
-import { AppError } from '../utils/errors.js';
+import type { CaseSourceDto, LawPageDto, LawSummaryDto, TripHeatDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
-import { ActionService, type PlayerState } from './action.service.js';
 import { ActivityService } from './activity.service.js';
-import { HappinessService } from './happiness.service.js';
-import { LawOfficialService } from './law-official.service.js';
 import { LawWarrantService } from './law-warrant.service.js';
-import { NetWorthService } from './net-worth.service.js';
-
-export interface LawCorruptionResult {
-  attention: number;
-  costCents: number;
-  attentionBefore: number;
-  attentionAfter: number;
-  evidence: number;
-  wantedLevel: number;
-  wantedName: string;
-}
+import { LawOfficialService } from './law-official.service.js';
 
 export type CaseSource = CaseSourceDto;
 
+/**
+ * One act the police write down, in one city. Exactly one of `cityId` or `citySlug` names
+ * the city. `sourceKey` names the act, and is what keeps a retried action or a re-run settle
+ * from adding evidence twice. An act can carry Heat it drew (a share becomes Case), direct
+ * evidence points (negative ones take Case off), cash it moved (for currency reports), or
+ * any mix of them.
+ */
 export interface CaseEvidence {
   cityId?: string;
   citySlug?: string;
@@ -65,54 +45,35 @@ export interface CaseEvidence {
   heat?: number;
   points?: number;
   cashCents?: bigint;
+  /** 1.3.0-C. Bring the Case down to at most this, in hundredths: a warrant served or answered. */
   ceiling?: number;
+  /** 1.3.0-E. Bring the Case up to at least this, in hundredths: a federal case arriving. */
   floor?: number;
 }
 
+/** 1.3.0-A's shape: Heat drawn, and nothing else. */
 export type CaseHeat = CaseEvidence & { heat: number };
 
 export interface CaseChange {
   cityId: string;
+  /** The Case before this act, after any cooling. */
   before: number;
   after: number;
   stage: WantedStage;
   stageUp: boolean;
 }
 
-export function toLawDto(attention: number, evidence: number, netWorthCents: bigint, ruleset: Ruleset): LawDto | null {
-  const rules = ruleset.law;
-  if (!rules) return null;
-  const tier = lawWantedTier(rules, attention);
-  return {
-    attention,
-    evidence,
-    maxAttention: rules.maxAttention,
-    maxEvidence: rules.investigation.maxEvidence,
-    decayPerInterval: rules.decayPerTurnInterval,
-    intervalMinutes: ruleset.turns.intervalMinutes,
-    wantedLevel: tier.level,
-    wantedName: tier.name,
-    wantedDescription: tier.description,
-    evidenceStartsAt: rules.investigation.evidenceStartsAt,
-    warrantStartsAt: rules.investigation.warrantStartsAt,
-    informantStartsAt: rules.investigation.informantStartsAt,
-    warrantRisk: evidence >= rules.investigation.warrantStartsAt,
-    informantRisk: evidence >= rules.investigation.informantStartsAt,
-    corruptionCentsPerAttention: Number(corruptionCostCents(1, netWorthCents, rules)),
-    corruptionDailyCap: rules.corruption.dailyAttentionCap,
-  };
-}
-
+/** 1.3.0-C. Net-worth value of seized product, crack included, by product key. */
 export function seizedValueCents(seized: Readonly<Record<string, number>>, ruleset: Ruleset): bigint {
   const { CRACK: crack = 0, ...rest } = seized;
   return BigInt(Math.max(0, crack)) * BigInt(ruleset.economy.netWorth.perCrackCents) + productNetWorthCents(rest, ruleset);
 }
 
-export function tripCaseEvidence(
-  heat: TripHeatDto | undefined,
-  source: 'SCOUT' | 'PRODUCE',
-  ruleset: Ruleset,
-): Array<Omit<CaseEvidence, 'sourceKey'>> {
+/**
+ * 1.3.0-A/B. What a Scout or Produce trip leaves on the Case at home: the Heat it drew, and
+ * from B a bust or an arrest as evidence of its own.
+ */
+export function tripCaseEvidence(heat: TripHeatDto | undefined, source: 'SCOUT' | 'PRODUCE', ruleset: Ruleset): Array<Omit<CaseEvidence, 'sourceKey'>> {
   if (!heat || !ruleset.law) return [];
   const evidence = ruleset.law.evidence;
   return [
@@ -122,7 +83,10 @@ export function tripCaseEvidence(
   ];
 }
 
+/** Sources that are not the player's own act: they never restart a Case's quiet clock. */
 const PASSIVE = new Set<CaseSource>(['RACKETS', 'CRACKDOWN', 'LAUNDERING', 'COOLING', 'WARRANT', 'LAWYER', 'QUASH']);
+
+/** How many receipts the page shows. */
 const RECEIPT_LIMIT = 30;
 
 function points(hundredths: number): number {
@@ -133,83 +97,19 @@ function json(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
 
+/**
+ * 1.3.0-A/B. The Case: what each city's police have on a player.
+ *
+ * Heat itself is untouched. Every place that adds Heat, and every act the police write down
+ * (B), hands it to `record`, which changes the Case in the city it happened in with an
+ * itemised receipt. A Case cools on read once its city has been quiet (B); the cooling is
+ * written as a COOLING receipt with the next change, so the receipts always add up to the
+ * stored Case. Callers hold the player's lock, as for any other write to the player.
+ */
 export const LawService = {
-  apply(
-    ruleset: Ruleset,
-    state: Pick<PlayerState, 'lawAttention' | 'lawEvidence'>,
-    source: LawAttentionSource,
-    units: number,
-  ): { next: Pick<PlayerState, 'lawAttention' | 'lawEvidence'>; pressure?: LawPressureChange } {
-    if (!ruleset.law || units <= 0) return { next: state };
-    const pressure = addLawPressure(
-      ruleset.law,
-      { attention: state.lawAttention, evidence: state.lawEvidence },
-      source,
-      units,
-    );
-
-    return {
-      next: { lawAttention: pressure.attentionAfter, lawEvidence: pressure.evidenceAfter },
-      pressure,
-    };
-  },
-
-  async corruption(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown): Promise<GameActionResult<LawCorruptionResult>> {
-    const input = lawCorruptionSchema.parse(rawInput);
-    return ActionService.run<LawCorruptionResult>(prisma, roundPlayerId, {
-      action: 'LAW_CORRUPTION',
-      actionId: input.actionId,
-      execute: async ({ tx, current, ruleset }) => {
-        const rules = ruleset.law;
-        if (!rules) throw AppError.conflict('LAW_DISABLED', 'The law is not tracking this round.');
-        if (current.lawAttention <= 0) throw AppError.badRequest('NO_LAW_ATTENTION', 'Nobody has an active file worth paying off.');
-        if (input.attention > current.lawAttention) {
-          throw AppError.badRequest('TOO_MUCH_ATTENTION', `You only have ${current.lawAttention} attention to clear.`, { attention: `At most ${current.lawAttention}.` });
-        }
-        if (input.attention > rules.corruption.dailyAttentionCap) {
-          throw AppError.badRequest('CORRUPTION_CAP', `You can only bury ${rules.corruption.dailyAttentionCap} attention at a time.`, { attention: `At most ${rules.corruption.dailyAttentionCap}.` });
-        }
-
-        const products = await HappinessService.otherProducts(tx, roundPlayerId, ruleset);
-        const costCents = corruptionCostCents(
-          input.attention,
-          NetWorthService.calculate({ ...current, products }, ruleset),
-          rules,
-        );
-
-        if (costCents > current.cashCents) {
-          throw AppError.badRequest('NOT_ENOUGH_CASH', 'You cannot cover that envelope.', { attention: 'Not enough cash.' });
-        }
-
-        const next = {
-          ...current,
-          cashCents: current.cashCents - costCents,
-          lawAttention: current.lawAttention - input.attention,
-        };
-        const tier = lawWantedTier(rules, next.lawAttention);
-        const result: LawCorruptionResult = {
-          attention: input.attention,
-          costCents: Number(costCents),
-          attentionBefore: current.lawAttention,
-          attentionAfter: next.lawAttention,
-          evidence: next.lawEvidence,
-          wantedLevel: tier.level,
-          wantedName: tier.name,
-        };
-
-        return {
-          next,
-          result,
-          activity: { type: 'LAW_CORRUPTION', payload: result },
-        };
-      },
-    });
-  },
-
   async record(tx: Db, roundPlayerId: string, ruleset: Ruleset, entries: readonly CaseEvidence[], now: Date = new Date()): Promise<CaseChange[]> {
     const rules = ruleset.law;
     if (!rules) return [];
-
     const changes: CaseChange[] = [];
     const cities = new Map<string, { id: string; slug: string; name: string }>();
 
@@ -230,57 +130,38 @@ export const LawService = {
       const cash = entry.cashCents && entry.cashCents > 0n && rules.currencyReport ? entry.cashCents : 0n;
       const direct = caseFromHeat(entry.heat ?? 0, rules) + caseFromPoints(entry.points ?? 0);
       if (direct === 0 && cash === 0n && entry.ceiling === undefined && entry.floor === undefined) continue;
-      if (
-        await tx.playerCaseReceipt.findUnique({
-          where: { roundPlayerId_sourceKey: { roundPlayerId, sourceKey: entry.sourceKey } },
-          select: { id: true },
-        })
-      ) {
-        continue;
-      }
-
+      if (await tx.playerCaseReceipt.findUnique({ where: { roundPlayerId_sourceKey: { roundPlayerId, sourceKey: entry.sourceKey } }, select: { id: true } })) continue;
       const place = await city(entry);
       if (!place) continue;
 
-      const existing = await tx.playerCase.findUnique({
-        where: { roundPlayerId_cityId: { roundPlayerId, cityId: place.id } },
-      });
+      const existing = await tx.playerCase.findUnique({ where: { roundPlayerId_cityId: { roundPlayerId, cityId: place.id } } });
       const clock = existing
         ? { caseHundredths: existing.caseHundredths, caseAt: existing.caseAt, lastEvidenceAt: existing.lastEvidenceAt }
         : { caseHundredths: 0, caseAt: now, lastEvidenceAt: null };
+      // E: each city's police work at their own pace.
       const pace = cityLaw(rules, place.slug);
       const before = coolCase(clock, now, rules, pace.coolingSpeed);
 
+      // B: cooling since the last write lands as one rolling receipt per quiet spell.
       if (before < clock.caseHundredths) {
         const sourceKey = `cool:${place.id}:${clock.lastEvidenceAt?.toISOString() ?? 'start'}`;
         const cooled = before - clock.caseHundredths;
         const stageAfter = wantedStage(before, rules);
         await tx.playerCaseReceipt.upsert({
           where: { roundPlayerId_sourceKey: { roundPlayerId, sourceKey } },
-          create: {
-            roundPlayerId,
-            cityId: place.id,
-            source: 'COOLING',
-            sourceKey,
-            heat: 0,
-            deltaHundredths: cooled,
-            caseAfterHundredths: before,
-            stageAfter,
-            createdAt: now,
-          },
-          update: {
-            deltaHundredths: { increment: cooled },
-            caseAfterHundredths: before,
-            stageAfter,
-          },
+          create: { roundPlayerId, cityId: place.id, source: 'COOLING', sourceKey, heat: 0, deltaHundredths: cooled, caseAfterHundredths: before, stageAfter, createdAt: now },
+          update: { deltaHundredths: { increment: cooled }, caseAfterHundredths: before, stageAfter },
         });
       }
 
+      // B: currency reports count the day's cash in this city, so a split movement still files.
       const day = lawDay(now);
       const dayCents = existing?.reportDay === day ? existing.reportCents : 0n;
       const reports = cash > 0n ? currencyReports(dayCents, cash, rules) : 0;
       let delta = cityCaseDelta(direct + caseFromPoints(reports * (rules.currencyReport?.points ?? 0)), pace);
+      // E: a federal case arriving brings the Case up to its value, never stacked on top.
       if (entry.floor !== undefined) delta = Math.max(delta, entry.floor - before);
+      // D: a District Attorney on the payroll keeps part of every rise off the books.
       if (delta > 0 && rules.officials && entry.source !== 'STING' && entry.source !== 'FEDERAL') {
         const da = await LawOfficialService.working(tx, roundPlayerId, place.id, 'DA', now);
         const slowed = da ? daSlowed(delta, rules.officials.roles.DA.slowShare) : 0;
@@ -289,193 +170,151 @@ export const LawService = {
           await LawOfficialService.favor(tx, ruleset, da, 'daSlowedPoint', now, slowed / CASE_SCALE);
         }
       }
+      // C: a warrant served or answered brings the Case down to its line, never up.
       if (entry.ceiling !== undefined) delta = Math.min(delta, entry.ceiling - before);
 
       const after = addCase(before, delta, rules);
       const stage = wantedStage(after, rules);
       const stageUp = stageRank(stage) > stageRank(wantedStage(before, rules));
+      // The player's own act restarts the quiet clock, even when the Case is already at its cap.
       const active = delta > 0 && !PASSIVE.has(entry.source);
 
       await tx.playerCase.upsert({
         where: { roundPlayerId_cityId: { roundPlayerId, cityId: place.id } },
         create: {
-          roundPlayerId,
-          cityId: place.id,
-          caseHundredths: after,
-          stage,
-          caseAt: now,
-          createdAt: now,
+          roundPlayerId, cityId: place.id, caseHundredths: after, stage, caseAt: now, createdAt: now,
           lastEvidenceAt: active ? now : null,
           ...(cash > 0n ? { reportDay: day, reportCents: cash } : {}),
         },
         update: {
-          caseHundredths: after,
-          stage,
-          caseAt: now,
+          caseHundredths: after, stage, caseAt: now,
           ...(active ? { lastEvidenceAt: now } : {}),
           ...(cash > 0n ? { reportDay: day, reportCents: dayCents + cash } : {}),
         },
       });
-
       if (after === before) continue;
 
       await tx.playerCaseReceipt.create({
         data: {
-          roundPlayerId,
-          cityId: place.id,
-          source: entry.source,
-          sourceKey: entry.sourceKey,
-          heat: entry.heat ?? 0,
-          deltaHundredths: after - before,
-          caseAfterHundredths: after,
-          stageAfter: stage,
-          stageUp,
-          createdAt: now,
+          roundPlayerId, cityId: place.id, source: entry.source, sourceKey: entry.sourceKey,
+          heat: entry.heat ?? 0, deltaHundredths: after - before, caseAfterHundredths: after, stageAfter: stage, stageUp, createdAt: now,
         },
       });
-
       if (stageUp) {
         await ActivityService.log(tx, roundPlayerId, 'CASE_STAGE_UP', json({
-          citySlug: place.slug,
-          cityName: place.name,
-          stage,
-          previousStage: wantedStage(before, rules),
-          case: points(after),
+          citySlug: place.slug, cityName: place.name, stage, previousStage: wantedStage(before, rules), case: points(after),
         }));
       }
-
+      // D: a Precinct Captain warns a few points before the Warrant line.
       if (rules.officials && captainHeadsUp(before, after, rules.officials.roles.CAPTAIN.headsUpPoints, rules)) {
         const captain = await LawOfficialService.working(tx, roundPlayerId, place.id, 'CAPTAIN', now);
         if (captain) {
-          await ActivityService.log(tx, roundPlayerId, 'CAPTAIN_TIP', json({
-            citySlug: place.slug,
-            cityName: place.name,
-            case: points(after),
-            warrantAt: rules.stages.warrant,
-          }));
+          await ActivityService.log(tx, roundPlayerId, 'CAPTAIN_TIP', json({ citySlug: place.slug, cityName: place.name, case: points(after), warrantAt: rules.stages.warrant }));
           await LawOfficialService.favor(tx, ruleset, captain, 'captainTip', now);
         }
       }
-
       changes.push({ cityId: place.id, before, after, stage, stageUp });
+      // C: a Case that has reached the Warrant stage drafts a warrant, if the city has none open.
       if (after > before && rules.warrants && stageRank(stage) >= stageRank('WARRANT')) {
         await LawWarrantService.draftIfDue(tx, roundPlayerId, ruleset, place.id, now, after);
       }
     }
-
     return changes;
   },
 
+  /**
+   * 1.3.0-C. Police took something: a bust, an arrest, a raid or a fine, at net-worth value.
+   * Counted toward the day's cap, which only ever shrinks what a warrant takes.
+   */
   async notePoliceLoss(tx: Db, roundPlayerId: string, ruleset: Ruleset, cents: bigint, now: Date = new Date()): Promise<void> {
     if (!ruleset.law?.warrants || cents <= 0n) return;
     const day = lawDay(now);
-    const player = await tx.roundPlayer.findUniqueOrThrow({
-      where: { id: roundPlayerId },
-      select: { policeLossDay: true, policeLossCents: true },
-    });
+    const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { policeLossDay: true, policeLossCents: true } });
     const today = player.policeLossDay === day ? player.policeLossCents : 0n;
-    await tx.roundPlayer.update({
-      where: { id: roundPlayerId },
-      data: { policeLossDay: day, policeLossCents: today + cents },
-    });
+    await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { policeLossDay: day, policeLossCents: today + cents } });
   },
 
+  /** 1.3.0-E. A player's Case in one city as it stands now, cooling included. */
   async caseIn(db: Db, roundPlayerId: string, ruleset: Ruleset, cityId: string, now: Date = new Date()): Promise<number> {
     const rules = ruleset.law;
     if (!rules) return 0;
-    const row = await db.playerCase.findUnique({
-      where: { roundPlayerId_cityId: { roundPlayerId, cityId } },
-      include: { city: { select: { slug: true } } },
-    });
+    const row = await db.playerCase.findUnique({ where: { roundPlayerId_cityId: { roundPlayerId, cityId } }, include: { city: { select: { slug: true } } } });
     return row ? coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed) : 0;
   },
 
-  async federalPreview(
-    db: Db,
-    roundPlayerId: string,
-    ruleset: Ruleset,
-    homeCityId: string,
-    now: Date = new Date(),
-  ): Promise<{ cityName: string; case: number; oldCityCase: number; arrivals: Record<string, number> } | null> {
+  /**
+   * 1.3.0-E. What a relocation out of the player's home would do to a federal case there: its
+   * value now, what the old city keeps, and what each destination's Case would become. Null
+   * when the home Case is below Federal (it stays behind) or the round has no Feds.
+   */
+  async federalPreview(db: Db, roundPlayerId: string, ruleset: Ruleset, homeCityId: string, now: Date = new Date()): Promise<{ cityName: string; case: number; oldCityCase: number; arrivals: Record<string, number> } | null> {
     const rules = ruleset.law;
     if (!rules?.federal) return null;
-
     const leaving = await LawService.caseIn(db, roundPlayerId, ruleset, homeCityId, now);
     const preview = federalTransfer(leaving, 0, rules);
     if (!preview) return null;
-
     const [home, rows] = await Promise.all([
       db.city.findUniqueOrThrow({ where: { id: homeCityId }, select: { name: true } }),
       db.playerCase.findMany({ where: { roundPlayerId }, include: { city: { select: { slug: true } } } }),
     ]);
-
     const arrivals: Record<string, number> = {};
     for (const slug of Object.keys(ruleset.cities ?? {})) {
       const row = rows.find((candidate) => candidate.city.slug === slug);
       const there = row ? coolCase(row, now, rules, cityLaw(rules, slug).coolingSpeed) : 0;
-      const transfer = federalTransfer(leaving, there, rules);
-      arrivals[slug] = transfer ? points(transfer.arriving) : points(there);
+      arrivals[slug] = points(federalTransfer(leaving, there, rules)!.arriving);
     }
-
     return { cityName: home.name, case: points(leaving), oldCityCase: points(preview.leaving), arrivals };
   },
 
-  async followRelocation(
-    tx: Db,
-    roundPlayerId: string,
-    ruleset: Ruleset,
-    move: { id: string; fromCity: string; toCityId: string },
-    at: Date,
-  ): Promise<void> {
+  /**
+   * 1.3.0-E. A relocation has arrived. A federal case in the city left moves to the new home
+   * (its value, or the new city's own if higher), the old city keeps a local file, and an open
+   * warrant there follows with a fresh window. Below Federal, nothing moves.
+   */
+  async followRelocation(tx: Db, roundPlayerId: string, ruleset: Ruleset, move: { id: string; fromCity: string; toCityId: string }, at: Date): Promise<void> {
     const rules = ruleset.law;
     if (!rules?.federal) return;
-
     const from = await tx.city.findUnique({ where: { slug: move.fromCity }, select: { id: true, name: true } });
     if (!from || from.id === move.toCityId) return;
-
     const leaving = await LawService.caseIn(tx, roundPlayerId, ruleset, from.id, at);
     const arriving = await LawService.caseIn(tx, roundPlayerId, ruleset, move.toCityId, at);
     const transfer = federalTransfer(leaving, arriving, rules);
     if (!transfer) return;
-
+    // The warrant moves first, so arriving at Federal does not draft a second one.
     await LawWarrantService.followRelocation(tx, roundPlayerId, ruleset, from.id, move.toCityId, transfer.arriving, at);
     await LawService.record(tx, roundPlayerId, ruleset, [
       { cityId: from.id, ceiling: transfer.leaving, source: 'FEDERAL', sourceKey: `federal-out:${move.id}` },
       { cityId: move.toCityId, floor: transfer.arriving, source: 'FEDERAL', sourceKey: `federal-in:${move.id}` },
     ], at);
-
     const to = await tx.city.findUniqueOrThrow({ where: { id: move.toCityId }, select: { name: true } });
     await ActivityService.log(tx, roundPlayerId, 'CASE_FOLLOWED', json({
-      fromCityName: from.name,
-      toCityName: to.name,
-      case: points(transfer.arriving),
-      oldCityCase: points(transfer.leaving),
+      fromCityName: from.name, toCityName: to.name, case: points(transfer.arriving), oldCityCase: points(transfer.leaving),
     }));
   },
 
+  /** 1.3.0-A. Heat drawn, turned into Case. */
   recordHeat(tx: Db, roundPlayerId: string, ruleset: Ruleset, gains: readonly CaseHeat[], now: Date = new Date()): Promise<CaseChange[]> {
     return LawService.record(tx, roundPlayerId, ruleset, gains, now);
   },
 
+  /** The worst Case the player has anywhere, for the dashboard. Null on rounds without a law block. */
   async summary(db: Db, roundPlayerId: string, ruleset: Ruleset, now: Date = new Date()): Promise<LawSummaryDto | null> {
     const rules = ruleset.law;
     if (!rules) return null;
-
     const rows = await db.playerCase.findMany({ where: { roundPlayerId }, include: { city: { select: { slug: true, name: true } } } });
     let worst: { hundredths: number; cityName: string } | null = null;
     for (const row of rows) {
       const hundredths = coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed);
       if (hundredths > 0 && (!worst || hundredths > worst.hundredths)) worst = { hundredths, cityName: row.city.name };
     }
-
     if (!worst) return { stage: 'QUIET', case: 0, cityName: null };
     return { stage: wantedStage(worst.hundredths, rules), case: points(worst.hundredths), cityName: worst.cityName };
   },
 
+  /** The player's own Case in every city, and the latest receipts. Null on rounds without a law block. */
   async page(db: Db, roundPlayerId: string, homeCityId: string, ruleset: Ruleset, now: Date = new Date()): Promise<LawPageDto | null> {
     const rules = ruleset.law;
     if (!rules) return null;
-
     const [rows, receipts] = await Promise.all([
       db.playerCase.findMany({ where: { roundPlayerId }, include: { city: { select: { slug: true, name: true } } } }),
       db.playerCaseReceipt.findMany({
@@ -514,21 +353,8 @@ export const LawService = {
           case: points(hundredths),
           stage: wantedStage(hundredths, rules),
           next: next ? { stage: next.stage, startsAt: points(next.startsAt) } : null,
-          cooling:
-            starts && rules.cooling
-              ? {
-                  startsAt: starts.toISOString(),
-                  perHour: rules.cooling.decayPerHour * (pace?.coolingSpeed ?? 1),
-                }
-              : null,
-          law: pace
-            ? {
-                blurb: pace.blurb,
-                caseSpeed: pace.caseSpeed,
-                coolingSpeed: pace.coolingSpeed,
-                warningHoursMultiplier: pace.warningHoursMultiplier,
-              }
-            : null,
+          cooling: starts && rules.cooling ? { startsAt: starts.toISOString(), perHour: rules.cooling.decayPerHour * (pace?.coolingSpeed ?? 1) } : null,
+          law: pace ? { blurb: pace.blurb, caseSpeed: pace.caseSpeed, coolingSpeed: pace.coolingSpeed, warningHoursMultiplier: pace.warningHoursMultiplier } : null,
           updatedAt: row.updatedAt.toISOString(),
         };
       }),
