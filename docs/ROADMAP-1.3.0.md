@@ -186,7 +186,7 @@ history.
 | Sacking or torching a business | Turf violence the city can't ignore. |
 | Convoy hijacks | Violence on the roads out of the city. |
 | Rackets running at full strength | Ongoing operations leave a trail. |
-| **Currency reports** | Large cash movements: big casino cage exchanges, business register spikes, large run sales. |
+| **Currency reports** | Large cash movements: big casino cage exchanges, business register spikes, large run buys and sales. |
 
 Each case keeps **itemised receipts**, so the player can always see *why* it exists:
 "Bust on Scout, Tuesday 14:10 — +8". That also makes the system testable and auditable.
@@ -415,7 +415,7 @@ reports. Cooling off. Laundering and Heat Shield hooks.
 - **Currency reports.** Every $250,000 a player moves in one city in one UTC day files a
   report worth 4. The day's total is kept on the Case row, so twenty moves of $12,500 file the
   same single report as one move of $250,000. Watched movements: casino cage buys and redemptions
-  (the venue's city), register collections (home), and run sales (the town). A report reads
+  (the venue's city), register collections (home), and run buys and sales (the town). A report reads
   the size of a movement, never a win or a loss, and no casino game reads the Case.
 - **Cooling.** A Case cools 0.5 an hour (a point every two hours) once its city has had 24
   hours with no evidence from the player's own acts. Racket Heat, the federal sweep and

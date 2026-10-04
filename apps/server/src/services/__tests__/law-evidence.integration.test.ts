@@ -12,6 +12,7 @@ import { NetWorthService } from '../net-worth.service.js';
 import { ReputationService } from '../reputation.service.js';
 import { RoundService } from '../round.service.js';
 import { ScoutService } from '../scout.service.js';
+import { TravelService } from '../travel.service.js';
 import { TurfService } from '../turf.service.js';
 
 const HOUR_MS = 3_600_000;
@@ -105,6 +106,34 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.3.0-B evidence sources w
     const rows = await receipts();
     expect(rows.map((row) => [row.source, row.deltaHundredths])).toEqual([['CURRENCY_REPORT', law.currencyReport.points * 100]]);
     expect((await homeCase())?.reportCents).toBe(30_000_000n);
+  });
+
+  it('counts a run’s buys as well as its sales toward the town’s currency reports', async () => {
+    await app.prisma.roundPlayer.update({ where: { id: playerId }, data: { lowRiders: 2 } });
+    const sent = await app.inject({ method: 'POST', url: '/api/game/travel/launch', headers: { cookie }, payload: {
+      to: 'detroit', route: 0, lowRiders: 2, escortThugs: 0, cashCents: 50_000_000, cargo: {}, actionId: randomUUID(),
+    } });
+    expect(sent.statusCode, sent.body).toBe(200);
+    // Put the run in town: every stop shifts back past its arrival.
+    const run = await app.prisma.run.findFirstOrThrow({ where: { roundPlayerId: playerId, status: 'ACTIVE' }, include: { stops: true } });
+    for (const stop of run.stops) {
+      await app.prisma.runStop.update({ where: { id: stop.id }, data: {
+        departAt: new Date(stop.departAt.getTime() - 51 * 60_000),
+        arriveAt: new Date(stop.arriveAt.getTime() - 51 * 60_000),
+        leaveAt: stop.leaveAt ? new Date(stop.leaveAt.getTime() - 51 * 60_000) : null,
+      } });
+    }
+    const quiet = () => 0.99;
+    const bought = await TravelService.trade(app.prisma, playerId, { product: 'HEROIN', direction: 'buy', venue: 'market', quantity: 200, actionId: randomUUID() }, quiet);
+    const sold = await TravelService.trade(app.prisma, playerId, { product: 'HEROIN', direction: 'sell', venue: 'market', quantity: 200, actionId: randomUUID() }, quiet);
+    const detroit = await app.prisma.city.findUniqueOrThrow({ where: { slug: 'detroit' } });
+    const day = await app.prisma.playerCase.findUniqueOrThrow({ where: { roundPlayerId_cityId: { roundPlayerId: playerId, cityId: detroit.id } } });
+    const moved = BigInt(bought.result.totalCents) + BigInt(sold.result.totalCents);
+    expect(bought.result.totalCents).toBeGreaterThan(0);
+    expect(day.reportCents).toBe(moved);
+    const reports = (await receipts()).filter((row) => row.source === 'CURRENCY_REPORT' && row.cityId === detroit.id);
+    const filed = reports.reduce((sum, row) => sum + row.deltaHundredths, 0);
+    expect(filed).toBe(Number(moved / BigInt(law.currencyReport.thresholdCents)) * law.currencyReport.points * 100);
   });
 
   it('cools after a quiet day, writes the cooling down with the next change, and shows it live', async () => {
