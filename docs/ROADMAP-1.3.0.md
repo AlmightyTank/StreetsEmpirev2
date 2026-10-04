@@ -2,9 +2,8 @@
 
 ## Brainstorm
 
-**Status:** 1.3.0-A (Case Foundation), 1.3.0-B (Evidence Sources), 1.3.0-C (Warrants & Raids)
-and 1.3.0-D (Corruption & Informants) are built; the newest ruleset is `classic-og-v1.3-d`. E
-through G are still design only.
+**Status:** 1.3.0-A through 1.3.0-E are built; the newest ruleset is `classic-og-v1.3-e`. F and
+G are still design only. See the [Roadmap](#roadmap) table.
 
 **Target base:** StreetsEmpire v1.2.0 (`classic-og-v1.2-f`)  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** expand Heat into a deeper city-wide
@@ -43,7 +42,7 @@ under [Stages](#stages-sketch-following-the-11--12-pattern).
 | **1.3.0-B — Evidence Sources** | Built | `classic-og-v1.3-b` | Direct evidence (busts, arrests, road stops, torches, sacks, run hits), currency reports on cash moved per city per day, cooling after 24 quiet hours, laundering that washes the Case. Stage rises reach Discord and phones. |
 | **1.3.0-C — Warrants & Raids** | Built | `classic-og-v1.3-c` | Warrants at the Warrant stage with a 12-hour warning: Hideout, business or personal raids. A daily police-loss cap. Lawyers: a weekly retainer, or lawyering up to answer a warrant. |
 | **1.3.0-D — Corruption & Informants** | Built | `classic-og-v1.3-d` | A weekly payroll of Captain, DA, Judge and Customs per city. Exposure from every favor, and Internal Affairs with a warned sting. Informants sell sweep and city tips. |
-| **1.3.0-E — City Identity & the Feds** | In progress | `classic-og-v1.3-e` | Each city's police build, cool and warn at their own pace. Federal shortens warrant windows and makes the sweep write more against the player, privately. A federal case and its warrant follow a relocation. |
+| **1.3.0-E — City Identity & the Feds** | Built | `classic-og-v1.3-e` | Each city's police build, cool and warn at their own pace. Federal shortens warrant windows and makes the sweep write more against the player, privately. A federal case and its warrant follow a relocation. |
 | **1.3.0-F — Jobs, Feats & Titles** | Planned | — | A police-side contact with one-time Jobs, clean-record feats and law-themed titles. Never pays cash, turns or protection. |
 | **1.3.0-G — Balance, Admin & Release** | Planned | — | A `qa:law` simulation to pin the numbers, an admin case viewer with audited adjustments, an exploit audit, mobile regression and the release gate. |
 
@@ -108,8 +107,8 @@ on you.
 - It gives **"move cities"** a real meaning. You can leave a hot case behind, but you also
   leave behind that city's turf, businesses and markets. Leave it too late, once the Feds
   have it, and the case comes with you.
-- City identity grows naturally: Miami lets cases sit for a long time and then moves all at
-  once, and Los Angeles opens cases fast.
+- City identity grows naturally: Las Vegas lets cases sit for a long time and then moves all at
+  once (the game's own street talk already says so), and Los Angeles opens cases fast.
 - It fits the existing per-city Heat lines and `policePressure`.
 
 ### Why private
@@ -590,6 +589,54 @@ D invariants:
 ### 1.3.0-E — City Identity & the Feds
 Per-city law personalities. The federal sweep reads the **Federal** stage. Federal cases
 follow a relocation.
+
+#### Built in E
+
+**Status: implemented.** Ruleset `classic-og-v1.3-e` (1.3.0-E) is 1.3.0-D plus `law.cities` and
+`law.federal`. Heat, busts, arrests and bribes are unchanged.
+
+- **City personalities.** Each city's police build a Case (`caseSpeed`, on every rise), let it
+  go cold (`coolingSpeed`) and warn before a warrant (`warningHoursMultiplier`) at their own
+  pace. The pace follows each city's existing street talk:
+
+  | City | Builds | Cools | Warns | Line |
+  | --- | --- | --- | --- | --- |
+  | New York City | 1× | 1× | 1× | By the book. |
+  | Detroit | 0.9× | 1.25× | 1× | Stretched thin. |
+  | Miami Beach | 1.2× | 1× | 1× | Busy and watchful. |
+  | Seattle | 0.8× | 1× | 1.5× | Patient, plenty of warning. |
+  | Beverly Hills | 1.4× | 0.75× | 1× | Police on every corner. |
+  | Las Vegas | 0.7× | 0.5× | 0.5× | Look away for a long time, then move all at once. |
+  | Los Angeles | 1.25× | 1× | 1× | Quick to open a case. |
+  | Atlanta | 0.7× | 1.25× | 1× | Look the other way. |
+
+  The Case panel shows each city's line under its Case, and an informant's city tip now
+  includes the personality too, before the player has a Case there.
+- **Federal warrants.** A warrant drafted while the Case is at Federal gets half the usual
+  window (after the city's multiplier; a Captain's extra hours are added on top, untouched).
+- **The sweep.** When the federal sweep lands, a holder whose Case in the swept city is at
+  Federal takes 10 more Case points there. The sweep's public results (who lost how many
+  thugs) are unchanged, so nothing about anyone's Case can be read from them. The sweep's city
+  is still chosen as before: weighting it by players' Cases would let others infer them.
+- **Federal cases follow you.** On arrival in a new home, if the city left had a Case at
+  Federal: an open or waiting warrant there moves first (re-targeted in the new home, where the
+  Hideout is a target again, with a fresh window from the arrival); the new home's Case becomes
+  the federal case's value or keeps its own if higher (never stacked); the old city drops to
+  40. Both moves are FEDERAL receipts and the player gets a "Your federal case followed you"
+  bell, toast and feed entry. Below Federal nothing moves.
+- **Move screen.** Before the move is confirmed, the move panel says the federal case follows,
+  what it will be in the chosen destination and what home keeps.
+- **Seed.** The local seed's current round now uses `classic-og-v1.3-e`.
+
+E invariants:
+
+1. Every A to D invariant still holds.
+2. A city's pace only scales rises and cooling; falls (laundering, warrants, cooling) are never
+   made larger by it.
+3. A federal case never stacks: the new home ends at the higher of the two values.
+4. A relocation never shortens a warrant's time to respond.
+5. Nothing public changes with a player's Wanted stage.
+6. `classic-og-v1.3-d` and older rounds keep plain cities and no federal transfer.
 
 ### 1.3.0-F — Jobs, Feats & Titles
 A police-side contact with one-time Jobs, clean-record feats and law-themed titles. Like 1.2.0-F,
