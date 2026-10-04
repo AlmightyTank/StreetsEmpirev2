@@ -355,9 +355,17 @@
   font-size: 9px;
 }
 
-.se-profile .se-profile-title {
-  margin-top: 6px;
-  font-size: 10px;
+.se-profile-title {
+  color: var(--se-profile-accent);
+}
+
+.se-profile-title--prefix {
+  font-weight: 800;
+}
+
+.se-profile-title--suffix {
+  font-size: .76em;
+  font-weight: 700;
 }
 
 @media (max-width: 980px) {

@@ -23,7 +23,7 @@ import { allianceTagDto } from './alliance.service.js';
 import { ForumGroupsService } from './forum-groups.service.js';
 import { forumProfileUrl } from './forum-link.service.js';
 import { selectProfileBadges } from './profile-badges.js';
-import { profileTitleForAward } from './profile-titles.js';
+import { isBuiltInProfileTitle, profileTitleForAward, profileTitleForKey } from './profile-titles.js';
 import { TurfHistoryService } from './turf-history.service.js';
 import { QuestCosmeticService } from './quest-cosmetic.service.js';
 import { seasonFeatAwards, type FeatSeason } from './season-feats.js';
@@ -1021,7 +1021,10 @@ export const CommunityService = {
     const featuredBadgeKeys = jsonStringArray(profileSettings?.featuredBadgeKeys)
       .filter((key) => unlockedAwards.some((award) => award.key === key));
     const titleAward = unlockedAwards.find((award) => award.key === profileSettings?.activeTitleKey);
-    const title = titleAward ? profileTitleForAward(titleAward) : null;
+    const activeTitleKey = profileSettings?.activeTitleKey;
+    const title = titleAward
+      ? profileTitleForAward(titleAward)
+      : activeTitleKey && isBuiltInProfileTitle(activeTitleKey) ? profileTitleForKey(activeTitleKey) : null;
     const frame = frameOptions.some((option) => option.key === profileSettings?.activeProfileFrameKey)
       ? profileSettings!.activeProfileFrameKey
       : null;
@@ -1032,6 +1035,7 @@ export const CommunityService = {
       forumGroups: options.forumGroups !== false ? linkedForumGroups : [],
       cosmetics: {
         title,
+        titlePlacement: profileSettings?.titlePlacement === 'suffix' ? 'suffix' : 'prefix',
         accent: profileAccent(profileSettings?.profileAccent),
         frame,
       },

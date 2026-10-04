@@ -300,6 +300,7 @@ export interface AdminAccountDetailDto {
   account: AdminAccountSummaryDto;
   profile: {
     activeTitleKey: string | null;
+    titlePlacement: 'prefix' | 'suffix';
     activeProfileFrameKey: string | null;
     activeSiteThemeKey: string | null;
     profileAccent: string;

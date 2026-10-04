@@ -163,6 +163,7 @@ export type ProfileAccent =
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
+export type ProfileTitlePlacement = 'prefix' | 'suffix';
 
 export interface CosmeticOptionDto {
   key: string;
@@ -177,6 +178,7 @@ export interface BadgeCosmeticOptionDto extends CosmeticOptionDto {
 
 export interface AccountProfileSettingsDto {
   activeTitleKey: string | null;
+  titlePlacement: ProfileTitlePlacement;
   /** 0.9.0-F. Optional public crew name. */
   crewName: string | null;
   activeProfileFrameKey: string | null;

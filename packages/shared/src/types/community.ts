@@ -236,6 +236,7 @@ export interface PublicPlayerProfileDto {
   forumGroups: ForumGroupBadgeDto[];
   cosmetics: {
     title: string | null;
+    titlePlacement: 'prefix' | 'suffix';
     accent: ProfileAccent;
     frame: string | null;
   };

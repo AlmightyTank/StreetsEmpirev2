@@ -267,6 +267,7 @@ export const AdminAccountService = {
       account: toSummary(account, account.sessions.length, now),
       profile: {
         activeTitleKey: account.profile?.activeTitleKey ?? null,
+        titlePlacement: account.profile?.titlePlacement === 'suffix' ? 'suffix' : 'prefix',
         activeProfileFrameKey: account.profile?.activeProfileFrameKey ?? null,
         activeSiteThemeKey: account.profile?.activeSiteThemeKey ?? null,
         profileAccent: account.profile?.profileAccent ?? 'default',
@@ -573,14 +574,14 @@ export const AdminAccountService = {
       if (profile) {
         await tx.accountProfile.update({
           where: { accountId: before.id },
-          data: { activeTitleKey: null, crewName: null, activeProfileFrameKey: null, activeSiteThemeKey: null, featuredBadgeKeys: [], profileAccent: 'default' },
+          data: { activeTitleKey: null, titlePlacement: 'prefix', crewName: null, activeProfileFrameKey: null, activeSiteThemeKey: null, featuredBadgeKeys: [], profileAccent: 'default' },
         });
       }
       return {
         account: before,
         detail: {
           previousProfile: profile
-            ? { activeTitleKey: profile.activeTitleKey, crewName: profile.crewName, activeProfileFrameKey: profile.activeProfileFrameKey, activeSiteThemeKey: profile.activeSiteThemeKey, featuredBadgeKeys: stringArray(profile.featuredBadgeKeys), profileAccent: profile.profileAccent }
+            ? { activeTitleKey: profile.activeTitleKey, titlePlacement: profile.titlePlacement, crewName: profile.crewName, activeProfileFrameKey: profile.activeProfileFrameKey, activeSiteThemeKey: profile.activeSiteThemeKey, featuredBadgeKeys: stringArray(profile.featuredBadgeKeys), profileAccent: profile.profileAccent }
             : null,
         },
       };
