@@ -294,22 +294,37 @@ async function uniqueUsername(prisma: PrismaClient, base: string): Promise<strin
 const VERIFY_EMAIL_COOLDOWN_SECONDS = 60;
 
 /**
- * Email a fresh verification link to the account's current address. A mail failure is
- * logged, never thrown: the player can press "send it again" from the game.
+ * Result of trying to send a verification email. Cooldown is different from a
+ * delivery failure so the API never tells a player an email was sent when it was not.
  */
+type VerificationEmailResult =
+  | { sent: true; retryInSeconds: number }
+  | { sent: false; retryInSeconds: number; reason: 'cooldown' | 'unavailable' | 'failed' };
+
+/** Email a fresh verification link to the account's current address. */
 async function sendVerificationEmail(
   prisma: PrismaClient,
   account: Account,
   request: FastifyRequest,
-): Promise<{ sent: boolean; retryInSeconds: number }> {
+): Promise<VerificationEmailResult> {
+  if (!env.email.configured) {
+    request.log.error({ accountId: account.id }, 'email verification unavailable: RESEND_API_KEY / EMAIL_FROM are not configured');
+    return { sent: false, retryInSeconds: 0, reason: 'unavailable' };
+  }
+
   const recent = await prisma.accountEmailToken.findFirst({
     where: { accountId: account.id, purpose: 'VERIFY_EMAIL', createdAt: { gt: new Date(Date.now() - VERIFY_EMAIL_COOLDOWN_SECONDS * 1000) } },
     orderBy: { createdAt: 'desc' },
     select: { createdAt: true },
   });
   if (recent) {
-    return { sent: false, retryInSeconds: Math.max(1, VERIFY_EMAIL_COOLDOWN_SECONDS - Math.floor((Date.now() - recent.createdAt.getTime()) / 1000)) };
+    return {
+      sent: false,
+      retryInSeconds: Math.max(1, VERIFY_EMAIL_COOLDOWN_SECONDS - Math.floor((Date.now() - recent.createdAt.getTime()) / 1000)),
+      reason: 'cooldown',
+    };
   }
+
   const { token, expiresAt } = await createAccountEmailToken({
     prisma,
     accountId: account.id,
@@ -317,6 +332,7 @@ async function sendVerificationEmail(
     userAgent: request.headers['user-agent'],
     ip: request.ip,
   });
+
   try {
     await sendCurrentEmailVerification(
       { to: account.email, username: account.username, url: emailVerificationUrl(token), expiresAt },
@@ -324,7 +340,12 @@ async function sendVerificationEmail(
     );
   } catch (error) {
     request.log.error({ err: error, accountId: account.id }, 'email verification message failed');
+    await prisma.accountEmailToken.deleteMany({
+      where: { tokenHash: hashToken(token), purpose: 'VERIFY_EMAIL', usedAt: null },
+    });
+    return { sent: false, retryInSeconds: 0, reason: 'failed' };
   }
+
   return { sent: true, retryInSeconds: VERIFY_EMAIL_COOLDOWN_SECONDS };
 }
 
@@ -515,6 +536,14 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         });
         throw AppError.tooManyRequests('SIGNUP_LIMIT', 'Too many accounts have been made from this network today. Try again tomorrow, or sign in with Discord.');
       }
+    }
+
+    if (env.accounts.requireVerifiedEmail && !env.email.configured) {
+      throw new AppError(
+        503,
+        'EMAIL_SENDING_DISABLED',
+        'Email verification is temporarily unavailable. Try again later or register with Discord.',
+      );
     }
 
     const account = await fastify.prisma.account.create({
@@ -1060,7 +1089,16 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
     const result = await sendVerificationEmail(fastify.prisma, account, request);
     if (!result.sent) {
-      throw new AppError(429, 'VERIFY_EMAIL_COOLDOWN', `We just sent one. Give it a minute; you can ask again in ${result.retryInSeconds} seconds.`);
+      if (result.reason === 'cooldown') {
+        throw new AppError(429, 'VERIFY_EMAIL_COOLDOWN', `We just sent one. Give it a minute; you can ask again in ${result.retryInSeconds} seconds.`);
+      }
+      throw new AppError(
+        503,
+        result.reason === 'unavailable' ? 'EMAIL_SENDING_DISABLED' : 'EMAIL_SEND_FAILED',
+        result.reason === 'unavailable'
+          ? 'Email sending is not configured on this server yet. Try again later or use Discord.'
+          : 'The verification email could not be sent just now. Try again in a moment.',
+      );
     }
     return { ok: true, message: `We sent a new link to ${account.email}. It can take a minute to arrive; check spam too.` };
   });
@@ -1104,8 +1142,11 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         await tx.accountEmailToken.deleteMany({ where: { accountId: account.id, purpose: 'VERIFY_EMAIL', usedAt: null } });
         return tx.account.update({ where: { id: account.id }, data: { email: body.email } });
       });
-      await sendVerificationEmail(fastify.prisma, updated, request);
-      return { ok: true, message: `Your email is now ${body.email}. We sent a verification link there.`, account: toAccountDto(updated, request.auth!.session) };
+      const delivery = await sendVerificationEmail(fastify.prisma, updated, request);
+      const message = delivery.sent
+        ? `Your email is now ${body.email}. We sent a verification link there.`
+        : 'Your email was changed, but the verification message could not be sent. Use "Send the link again" in a moment.';
+      return { ok: true, message, account: toAccountDto(updated, request.auth!.session) };
     }
 
     const { token, expiresAt } = await createAccountEmailToken({
@@ -1130,6 +1171,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       );
     } catch (error) {
       fastify.log.error({ err: error, accountId: account.id }, 'email change message failed');
+      throw new AppError(503, 'EMAIL_SEND_FAILED', 'The confirmation email could not be sent just now. Try again in a moment.');
     }
 
     return { ok: true, message: 'A confirmation link was sent to the new email.' };

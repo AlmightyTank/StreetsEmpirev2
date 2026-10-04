@@ -276,6 +276,8 @@ export const env = {
   email: {
     resendApiKey: parsed.data.RESEND_API_KEY,
     from: parsed.data.EMAIL_FROM,
+    /** True when the credentials needed to send mail are present, even in tests where delivery stays disabled. */
+    configured: Boolean(parsed.data.RESEND_API_KEY && parsed.data.EMAIL_FROM),
     enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.RESEND_API_KEY && parsed.data.EMAIL_FROM),
     passwordResetTtlMinutes: parsed.data.PASSWORD_RESET_TTL_MINUTES,
     verificationTtlMinutes: parsed.data.EMAIL_VERIFICATION_TTL_MINUTES,
