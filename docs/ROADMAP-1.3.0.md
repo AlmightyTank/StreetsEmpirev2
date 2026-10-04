@@ -2,8 +2,8 @@
 
 ## Brainstorm
 
-**Status:** 1.3.0-A (Case Foundation) is built on ruleset `classic-og-v1.3-a`. B through G are
-still design only.
+**Status:** 1.3.0-A (Case Foundation) and 1.3.0-B (Evidence Sources) are built; the newest
+ruleset is `classic-og-v1.3-b`. C through G are still design only.
 
 **Target base:** StreetsEmpire v1.2.0 (`classic-og-v1.2-f`)  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** expand Heat into a deeper city-wide
@@ -317,7 +317,8 @@ untouched; 1.3 rulesets use `law` instead.
 - Case 0–100 per city, with stages at 20 / 40 / 65 / 85.
 - `heatToCase`: 0.1, so 10 Heat gained in a city adds 1 Case there.
 - Bust +8, arrest +15, sack +6, torch +6, hijack +5.
-- Currency report: +4 per movement of $250,000 or more.
+- Currency report: +4 for every $250,000 moved in one city in one UTC day (built in B: day totals
+  add up, so splitting a movement never dodges a report).
 - Cooling: decay starts after 24 quiet hours in that city; then 1 point every 2 hours.
 - Warning window: 12 hours (Captain: 24).
 - A served warrant drops the Case to 30; a lawyered or quashed one drops it to 45.
@@ -369,7 +370,7 @@ only source, and the stage ladder. A read-only Case panel next to the existing H
   Settles and the sweep call `LawService.recordHeat` directly.
 - **The ladder.** The stage is read from the Case with no roll. Reaching a higher stage
   logs `CASE_STAGE_UP` once: it shows in the Activity feed (Street group), rings the
-  bell and raises a toast that links to the panel. Discord delivery is not wired yet.
+  bell and raises a toast that links to the panel. B also sends it to Discord and phones.
 - **Private.** `GET /api/game/law` returns only the asking player's Cases and their latest 30
   receipts. `GET /api/game/me` adds `player.law`, the worst stage anywhere, on 1.3 rounds
   only. There is no endpoint that reads another player's Case.
@@ -390,6 +391,60 @@ A invariants:
 ### 1.3.0-B — Evidence Sources
 Direct evidence from busts, arrests, sacks, torches, hijacks and rackets, plus currency
 reports. Cooling off. Laundering and Heat Shield hooks.
+
+#### Built in B
+
+**Status: implemented.** Ruleset `classic-og-v1.3-b` (1.3.0-B) is 1.3.0-A plus four optional
+`law` blocks. Nothing reads the Case yet, and Heat is untouched.
+
+- **Direct evidence**, in Case points, on top of any Heat the act drew:
+
+  | Act | Points | City |
+  | --- | --- | --- |
+  | Busted (Scout, Produce or a run trade) | 8 | Home, or the town traded in |
+  | Arrested (same) | 15 | Home, or the town traded in |
+  | Pulled over on a run | 4 | The city the leg was driving into |
+  | Torching your business in a block war | 6 | The block's city |
+  | Sacking a block | 6 | The block's city |
+  | Hitting a run (landed or not) | 5 | The city the run was hit in |
+
+  A torch's or a sack's Heat and its evidence share one receipt.
+- **Rackets.** The roadmap listed racket evidence separately. In practice the 1.3.0-A
+  conversion of racket Heat already is that trail (a VIP Room alone adds 0.5 Case an hour),
+  and Wash & Fold already cuts it, so B adds no second racket stream on top.
+- **Currency reports.** Every $250,000 a player moves in one city in one UTC day files a
+  report worth 4. The day's total is kept on the Case row, so twenty moves of $12,500 file the
+  same single report as one move of $250,000. Watched movements: casino cage buys and redemptions
+  (the venue's city), register collections (home), and run sales (the town). A report reads
+  the size of a movement, never a win or a loss, and no casino game reads the Case.
+- **Cooling.** A Case cools 0.5 an hour (a point every two hours) once its city has had 24
+  hours with no evidence from the player's own acts. Racket Heat, the federal sweep and
+  laundering are not the player's acts there, so they never restart the quiet clock: a racket
+  city cools while its rackets keep adding, and the net is what the player sees. Cooling is
+  worked out on read and written down with the next change as one rolling COOLING receipt per
+  quiet spell, so the receipts always add up to the stored Case.
+- **Laundering.** Each laundering racket also washes the Case in its own block's city: 0.1
+  Case for each point of Heat it could launder that hour (a Laundromat 0.2 an hour at full
+  strength, a Casino Front 0.4), up to 8 Case a UTC day across the crew. It needs no Heat to
+  wash, costs the register nothing more, and leaves a LAUNDERING receipt.
+- **Discord and phone alerts.** A new `law` alert category ("Case stage" under Account →
+  Alerts, on by default) sends each rise to a new Wanted stage to Discord and Web Push through
+  the existing outbox. The alert names the city and the stage only, never the Case number or
+  what built it. Each receipt that raised the stage is collected once. Quiet hours, pauses and
+  the Discord/push switches apply as for every other category, and the bell can mute it.
+- **Panel.** The Case panel explains the B rules, shows when each Case starts cooling (or that
+  it is cooling), and lists laundering and cooling as negative receipts.
+- **Seed.** The local seed's current round now uses `classic-og-v1.3-b`.
+
+B invariants:
+
+1. Every 1.3.0-A invariant still holds.
+2. A Case's receipts always add up to its stored value, cooling included.
+3. Only the player's own acts restart a Case's quiet clock.
+4. Splitting a cash movement never files fewer currency reports than moving it at once.
+5. Laundering never takes a Case below zero or washes more than the daily cap.
+6. A Case alert never carries a number or a source, and is sent at most once per stage rise.
+7. `classic-og-v1.3-a` rounds keep A's rules: no direct evidence, reports, cooling or washing.
 
 ### 1.3.0-C — Warrants & Raids
 Warrant drafting, warning windows, Hideout / business / personal warrants, the daily loss
