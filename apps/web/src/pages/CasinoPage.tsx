@@ -676,6 +676,15 @@ export function CasinoPage() {
                         ) : null}
 
                         <div className={'se-slots__cabinet is-' + cabinetTone + (outcomeVisible && result ? ' is-' + result.winTier.toLowerCase() : '')}>
+                          <div className="se-slots__cabinet-marquee">
+                            <span className="se-slots__cabinet-brand">STREETS <strong>EMPIRE</strong></span>
+                            <strong className="se-slots__cabinet-name">{machine.name}</strong>
+                            <span className="se-slots__cabinet-prize">
+                              {machine.progressive
+                                ? 'JACKPOT ' + formatCents(machine.progressive.poolCents)
+                                : 'LUCKY 7S · GOOD FORTUNE'}
+                            </span>
+                          </div>
                           <div
                             className={'se-slots__reels' + (busy === 'spin' ? ' is-spinning' : '')}
                             style={{ gridTemplateColumns: `repeat(${machine.reels}, minmax(0, 1fr))` }}
@@ -743,7 +752,9 @@ export function CasinoPage() {
                               </div>
                             ) : null}
                           </div>
-
+                          <div className="se-slots__cabinet-footer">
+                            <span>CHERRY</span><span>BAR</span><strong>7</strong><span>BAR</span><span>CHERRY</span>
+                          </div>
                         </div>
 
                         <div className="se-slots__controls">
@@ -813,11 +824,14 @@ export function CasinoPage() {
                               {' = '}<strong>{totalWagerCents ? formatCents(totalWagerCents) : '—'} {bonusActive ? 'covered spin' : 'total spin'}</strong>
                             </p>
                             <Button className="se-btn se-slots__spin-button" type="submit" disabledReason={disabledReason}>
-                              {busy === 'spin'
-                                ? 'Spinning...'
-                                : bonusActive
-                                  ? 'FREE SPIN · ' + bonus!.remainingSpins
-                                  : 'SPIN REELS'}
+                              <span className="se-slots__lever" aria-hidden="true"><i /><b /></span>
+                              <span>
+                                {busy === 'spin'
+                                  ? 'Spinning...'
+                                  : bonusActive
+                                    ? 'FREE SPIN · ' + bonus!.remainingSpins
+                                    : 'PULL TO SPIN'}
+                              </span>
                             </Button>
                           </form>
 
