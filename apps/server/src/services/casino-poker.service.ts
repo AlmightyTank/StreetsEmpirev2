@@ -286,7 +286,8 @@ function act(state: PokerState, action: CasinoPokerActionInput['action'], rng: R
   // Resolve the bots who act before the player first. If the player raises,
   // those bots get another response after the players behind the button.
   botResponses(state, rng, order.slice(0, humanOrderIndex));
-  if (state.street === 'SHOWDOWN' || state.street === 'COMPLETE') return;
+  const streetAfterLeadingBots = state.street as PokerState['street'];
+  if (streetAfterLeadingBots === 'SHOWDOWN' || streetAfterLeadingBots === 'COMPLETE') return;
   const previousBet = state.currentBet;
   const due = Math.max(0, state.currentBet - human.streetBet);
   if (action === 'FOLD') {
