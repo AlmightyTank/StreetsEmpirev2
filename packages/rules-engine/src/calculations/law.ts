@@ -67,3 +67,67 @@ export function nextStage(caseHundredths: number, rules: LawRules): { stage: Wan
   const next = WANTED_STAGES[stageRank(wantedStage(caseHundredths, rules)) + 1];
   return next ? { stage: next, startsAt: stageStartsAt(next, rules) } : null;
 }
+
+// --- 1.3.0-B -----------------------------------------------------------------
+
+const HOUR_MS = 3_600_000;
+
+/** Case, in hundredths, for a number of direct-evidence points. */
+export function caseFromPoints(points: number): number {
+  if (!Number.isFinite(points)) return 0;
+  return Math.round(points * CASE_SCALE);
+}
+
+/** Where a stored Case stands: its value as of `caseAt`, and the last act that added to it. */
+export interface CaseClock {
+  caseHundredths: number;
+  caseAt: Date;
+  lastEvidenceAt: Date | null;
+}
+
+/**
+ * When the Case starts cooling: a quiet spell after the last act that added to it, and never
+ * before the stored value was last brought up to date. Null where the Case never cools.
+ */
+export function coolingStartsAt(clock: CaseClock, rules: LawRules): Date | null {
+  if (!rules.cooling) return null;
+  const quietEnds = clock.lastEvidenceAt ? clock.lastEvidenceAt.getTime() + rules.cooling.quietHours * HOUR_MS : -Infinity;
+  return new Date(Math.max(clock.caseAt.getTime(), quietEnds));
+}
+
+/** The Case as it stands at `now`, after any cooling since `caseAt`. Never below zero. */
+export function coolCase(clock: CaseClock, now: Date, rules: LawRules): number {
+  const starts = coolingStartsAt(clock, rules);
+  if (!starts || !rules.cooling || clock.caseHundredths <= 0) return Math.max(0, clock.caseHundredths);
+  const hours = Math.max(0, now.getTime() - starts.getTime()) / HOUR_MS;
+  const cooled = Math.floor(hours * rules.cooling.decayPerHour * CASE_SCALE);
+  return Math.max(0, clock.caseHundredths - cooled);
+}
+
+/** The UTC day a currency report or a laundering count belongs to. */
+export function lawDay(now: Date): string {
+  return now.toISOString().slice(0, 10);
+}
+
+/**
+ * Currency reports filed by moving `movedCents` in a city that has already seen `dayCents`
+ * from the player today: one for every threshold the day's total crosses.
+ */
+export function currencyReports(dayCents: bigint, movedCents: bigint, rules: LawRules): number {
+  const report = rules.currencyReport;
+  if (!report || movedCents <= 0n || report.thresholdCents <= 0) return 0;
+  const threshold = BigInt(report.thresholdCents);
+  const before = dayCents > 0n ? dayCents : 0n;
+  return Number((before + movedCents) / threshold - before / threshold);
+}
+
+/**
+ * Case, in hundredths, a laundering racket washes for `heat` points of laundering capacity,
+ * held to what is left of today's cap.
+ */
+export function launderedCase(heat: number, usedTodayHundredths: number, rules: LawRules): number {
+  const wash = rules.laundering;
+  if (!wash || !Number.isFinite(heat) || heat <= 0) return 0;
+  const room = Math.max(0, wash.dailyCaseCap * CASE_SCALE - Math.max(0, usedTodayHundredths));
+  return Math.min(room, Math.floor(heat * wash.casePerHeat * CASE_SCALE));
+}

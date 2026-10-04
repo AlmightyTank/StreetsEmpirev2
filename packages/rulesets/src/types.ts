@@ -2327,6 +2327,45 @@ export interface LawRules {
   readonly stages: { readonly noticed: number; readonly investigation: number; readonly warrant: number; readonly federal: number };
   /** Share of the Heat a player draws in a city that becomes Case there. */
   readonly heatToCase: number;
+  /**
+   * 1.3.0-B. Case points added directly by acts the police write down, on top of the Heat
+   * they draw. Absent: only Heat builds a Case.
+   */
+  readonly evidence?: LawEvidenceRules;
+  /**
+   * 1.3.0-B. Currency reports: every `thresholdCents` of cash a player moves in one city in
+   * one UTC day files a report worth `points`. Day totals add up, so splitting a movement
+   * never dodges one. Absent: cash movements are not watched.
+   */
+  readonly currencyReport?: { readonly thresholdCents: number; readonly points: number };
+  /**
+   * 1.3.0-B. A Case cools by `decayPerHour` points once its city has seen no evidence from the
+   * player's own acts for `quietHours`. Racket Heat, the federal sweep and laundering never
+   * restart the quiet clock. Absent: a Case never cools.
+   */
+  readonly cooling?: { readonly quietHours: number; readonly decayPerHour: number };
+  /**
+   * 1.3.0-B. Laundering rackets also wash the Case in their own block's city: `casePerHeat`
+   * Case points for each point of Heat they could wash, up to `dailyCaseCap` points a UTC day
+   * across the crew. It needs no Heat to wash and costs the register nothing more.
+   */
+  readonly laundering?: { readonly casePerHeat: number; readonly dailyCaseCap: number };
+}
+
+/** 1.3.0-B. Direct evidence, in Case points. */
+export interface LawEvidenceRules {
+  /** A Scout, Produce or run trade busted. */
+  readonly bust: number;
+  /** A Scout, Produce or run trade ending in arrest. */
+  readonly arrest: number;
+  /** A run pulled over on the road, charged to the city the leg arrives in. */
+  readonly roadStop: number;
+  /** Torching your own business during a block war. */
+  readonly torch: number;
+  /** Winning a block war fought to sack the block. */
+  readonly sack: number;
+  /** Hitting another crew's run. */
+  readonly hijack: number;
 }
 
 /**
