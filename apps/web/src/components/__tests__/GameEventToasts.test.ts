@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ActivityDto } from '@streets/shared';
-import { gameEventToastFor } from '../GameEventToasts.js';
+import { gameEventToastFor, levelUpToastFor } from '../GameEventToasts.js';
 
 function activity(type: ActivityDto['type'], payload: Record<string, unknown>): ActivityDto {
   return {
@@ -124,5 +124,25 @@ describe('gameEventToastFor', () => {
 
   it('stays quiet for routine player actions', () => {
     expect(gameEventToastFor(activity('STORE_BUY', { item: 'beer' }), 'crack')).toBeNull();
+  });
+});
+
+describe('levelUpToastFor', () => {
+  it('announces the level and title reward when a title milestone is crossed', () => {
+    expect(levelUpToastFor(9, 10)).toMatchObject({
+      title: 'Level 10 reached',
+      detail: expect.stringContaining('Known Face'),
+      tone: 'good',
+      href: '/game/xp-progress',
+    });
+  });
+
+  it('celebrates regular level gains without promising a title reward', () => {
+    expect(levelUpToastFor(1, 2)).toMatchObject({
+      title: 'Level 2 reached',
+      detail: expect.not.stringContaining('New title unlocked'),
+      tone: 'good',
+      href: '/game/xp-progress',
+    });
   });
 });
