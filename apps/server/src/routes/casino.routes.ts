@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { loadRulesetForRound } from '@streets/rules-engine';
 import {
   casinoBlackjackActionSchema,
   casinoBlackjackDealSchema,
@@ -24,6 +25,7 @@ import { CasinoService } from '../services/casino.service.js';
 import { RouletteService } from '../services/roulette.service.js';
 import { StreetDiceService } from '../services/street-dice.service.js';
 import { CasinoPokerService } from '../services/casino-poker.service.js';
+import { CasinoTournamentsService } from '../services/casino-tournaments.service.js';
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { RoundService } from '../services/round.service.js';
 import { AppError } from '../utils/errors.js';
@@ -40,6 +42,16 @@ const casinoRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', { preHandler: fastify.requireAuth }, async (request) => {
     const player = await requirePlayer(request.auth!.account.id);
     return CasinoService.page(fastify.prisma, player.id);
+  });
+
+  fastify.get('/tournaments', { preHandler: fastify.requireAuth }, async (request) => {
+    const round = await RoundService.requireCurrent(fastify.prisma);
+    const player = await requirePlayer(request.auth!.account.id);
+    const ruleset = loadRulesetForRound(round);
+    if (!ruleset.casino?.status) {
+      return { available: false, weekStartsAt: new Date().toISOString(), weekEndsAt: new Date().toISOString(), serverTime: new Date().toISOString(), standings: [], yourEntries: 0, records: [] };
+    }
+    return CasinoTournamentsService.page(fastify.prisma, round.id, player.id);
   });
 
   fastify.post('/chips/buy', { preHandler: fastify.requireAuth }, async (request) => {

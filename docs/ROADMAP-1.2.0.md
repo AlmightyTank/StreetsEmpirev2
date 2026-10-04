@@ -406,7 +406,18 @@ during a live season, like the business-income feats.
 6. Older rulesets (A–E2) have no Ace, no casino Jobs and no casino cosmetics.
 
 ### 1.2.0-G — Tournaments
-Equal-bankroll competitive formats, weekly boards and seasonal casino records.
+
+**Status: implemented for multiplayer Texas Hold’em.** This first tournament format uses the
+existing public/private Poker tables: every seated player buys the same amount into that table,
+and each completed seat is scored against that buy-in. Weekly standings rank net stack change as
+a percentage of total buy-ins, so betting more chips does not by itself improve a score. Weeks
+start Monday at 00:00 UTC. A result is recorded once when its seat leaves the table. The board
+grants no separate prize; table buy-ins and poker winnings continue to use the casino bankroll.
+
+The Casino page shows the current weekly standings and season records for most completed entries,
+best single-table return and largest positive cashout. Records use completed multiplayer table
+seats in the current round. A table seat only counts once it is left; unfinished seats do not
+affect standings or records. Older rulesets without rated casino status do not expose the board.
 
 ### 1.2.0-H — Balance, Admin & Release
 Admin casino telemetry, anti-abuse, large-sample simulations, mobile/reconnect regression and release gate.

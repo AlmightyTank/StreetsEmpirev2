@@ -1552,3 +1552,54 @@
 @media (prefers-reduced-motion: no-preference) {
   .se-casino-status__meter span { transition: width .4s ease; }
 }
+.se-casino-tournament {
+  display: grid;
+  gap: 1rem;
+}
+
+.se-casino-tournament__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: .5rem 1rem;
+  color: var(--se-text-muted, #aeb8c5);
+  font-size: .9rem;
+}
+
+.se-casino-tournament__table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--se-border, rgba(255,255,255,.12));
+  border-radius: .75rem;
+}
+
+.se-casino-tournament__table {
+  min-width: 42rem;
+  margin: 0;
+}
+.se-casino-tournament__table tbody tr.is-you > * {
+  background: color-mix(in srgb, var(--se-accent) 12%, transparent);
+}
+
+.se-casino-tournament__records {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .75rem;
+}
+
+.se-casino-tournament__record {
+  display: grid;
+  gap: .3rem;
+  min-width: 0;
+  padding: .9rem;
+  border: 1px solid var(--se-border, rgba(255,255,255,.12));
+  border-radius: .75rem;
+  background: rgba(255,255,255,.025);
+}
+
+.se-casino-tournament__record strong {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .se-casino-tournament__records { grid-template-columns: 1fr; }
+}
