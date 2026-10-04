@@ -23,8 +23,10 @@ risk system.
   NPCs stay in 1.4 (Factions).
 - **The Case resets every round.** Every city's Case starts at zero when a round starts, like
   Heat. Nothing about a Case carries into the Hall of Fame or the next round.
-- **The Case stays behind.** Relocating a home city never moves or clears a Case. The old
-  city keeps what it has on you.
+- **The Case stays behind, unless it's big enough to follow you.** Relocating a home city
+  normally leaves a Case in the old city. A Case at the **Federal** stage has become a federal
+  case, and it follows the player to the new home city (see
+  [Federal cases follow you](#federal-cases-follow-you)).
 
 ---
 
@@ -60,7 +62,7 @@ on you.
 
 | | Heat (unchanged) | Case (new) |
 | --- | --- | --- |
-| Scope | Global; follows the player | Per city; stays where the crimes happened |
+| Scope | Global; follows the player | Per city; stays where the crimes happened, unless it goes federal |
 | Speed | Rises and decays in hours | Builds over days, decays slowly, only when you've been quiet |
 | Consequence | Take drag, bust/arrest dice, road and airport checks | The Wanted ladder: investigation, warrant, raid |
 | Fix | Bribe, laundering, waiting | Officials, lawyers, laundering, leaving town, time |
@@ -78,7 +80,8 @@ on you.
 ### Why per city
 
 - It gives **"move cities"** a real meaning. You can leave a hot case behind, but you also
-  leave behind that city's turf, businesses and markets.
+  leave behind that city's turf, businesses and markets. Leave it too late, once the Feds
+  have it, and the case comes with you.
 - City identity grows naturally: Miami lets cases sit for a long time and then moves all at
   once, and Los Angeles opens cases fast.
 - It fits the existing per-city Heat lines and `policePressure`.
@@ -121,9 +124,9 @@ A warrant names exactly one target, chosen by what the case is built from:
   existing arrest severity and downtime. It's served, never fought. Staying away is a valid
   answer; the warrant waits until the round ends.
 
-Because a Case stays behind on relocation, a warrant in a city the player has moved away from
-can only name a business they still hold there, or them personally. Their Hideout has left
-with them.
+Because a local Case stays behind on relocation, a warrant in a city the player has moved away
+from can only name a business they still hold there, or them personally. Their Hideout has
+left with them. A federal case is different; see below.
 
 **Warning window:** a drafted warrant shows its target and the time it will be served. During
 the window the player can:
@@ -135,6 +138,30 @@ the window the player can:
 
 A served or answered warrant drops the Case well below the Warrant line, so one bad week leads
 to one raid, not a chain.
+
+### Federal cases follow you
+
+Below the **Federal** line, a Case belongs to its city's police and stays there when the
+player relocates. At **Federal** or above, it's the Feds' case, and the Feds don't stop at
+city lines.
+
+When a player relocates their home city while any city's Case is at Federal:
+
+1. **The relocation screen says so first.** Before confirming, the player sees which case
+   will follow them and what it will be on arrival. Nothing moves silently.
+2. **The case moves with them.** The new home city's Case becomes the federal case's value
+   (or stays at its own value, if that's higher). It doesn't stack with the new city's Case.
+3. **The old city keeps a local file.** The old city's Case drops to the **Under
+   Investigation** floor. Local detectives remember, but the federal part has left.
+4. **A drafted warrant follows too.** It re-targets in the new city (the Hideout is now a valid
+   target again) and gets a **fresh warning window**, so a move never cuts the time to
+   respond.
+
+Only relocation moves a Case. Trips, runs and flights never do: Heat already travels with the
+player, and the Case stays a question of where the player calls home.
+
+This closes the obvious loophole of running from a case that's about to be served, without
+making relocation itself a trap: a player below Federal can still leave a hot city clean.
 
 ---
 
@@ -247,7 +274,9 @@ their own actions.
    twice.
 10. Rulesets before 1.3 have no `law` block and never acquire Case behaviour.
 11. Every Case starts at zero each round.
-12. Relocating never moves or clears a Case.
+12. Relocating never moves or clears a Case below the Federal line. A federal case follows
+    the player, is shown before the move is confirmed, and never arrives with less warning
+    time than it left with.
 13. No 1.3 system resolves through combat.
 
 ---
@@ -265,6 +294,8 @@ interface LawRules {
   readonly evidence: { readonly bust: number; readonly arrest: number; readonly sack: number; readonly torch: number; readonly hijack: number; readonly racketPerHour: number };
   readonly currencyReport: { readonly thresholdCents: number; readonly evidence: number };
   readonly cooling: { readonly quietHours: number; readonly decayPerHour: number };
+  /** Relocating with a Case at or above `stages.federal` moves it to the new home city. */
+  readonly federalTransfer: { readonly oldCityCaseAfter: number };
   readonly warrant: { readonly warningHours: number; readonly caseAfterServed: number; readonly hideoutSeizedFraction: number; readonly hideoutCashFineFraction: number; readonly racketShutHours: number };
   readonly dailyLossCapNetWorthShare: number;
   readonly officials: { /* per official: retainer pricing, effect, exposure per favor, IA line */ };
@@ -289,6 +320,7 @@ untouched; 1.3 rulesets use `law` instead.
 - Hideout raid: 40% of unprotected product, 5% of unprotected Hideout cash.
 - Business raid: racket shut 12 hours, plus a register fine.
 - Daily police loss cap: 15% of net worth.
+- Federal transfer: from Case 85; the old city drops to 40.
 
 The goal for `qa:law`: a player who plays the existing Heat game sensibly should reach
 **Warrant** in a city at most once or twice per 28-day round, and a player who ignores Heat
@@ -316,7 +348,8 @@ Officials on payroll per city, retainers, exposure and Internal Affairs. Informa
 tips on sweeps and crackdowns.
 
 ### 1.3.0-E — City Identity & the Feds
-Per-city law personalities. The federal sweep reads the **Federal** stage.
+Per-city law personalities. The federal sweep reads the **Federal** stage. Federal cases
+follow a relocation.
 
 ### 1.3.0-F — Jobs, Feats & Titles
 A police-side contact with one-time Jobs, clean-record feats and law-themed titles. Like 1.2.0-F,
@@ -339,6 +372,8 @@ proposals until `qa:law` pins them.
 - A public Wanted level, wanted list or bounty board (bounties stay in the permanent backlog).
 - Police that take turf or raze businesses.
 - Armed police combat, resisting arrest, or NPC police crews (1.4).
-- A Case that carries over between rounds or follows a relocation.
+- A Case that carries over between rounds.
+- A local Case (below Federal) that follows a relocation.
+- A Case that moves on trips, runs or flights.
 - Paid or real-money ways to clear a case.
 - Tipping off rivals, or any other way for one player to add evidence to another's case.
