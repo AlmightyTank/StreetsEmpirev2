@@ -909,12 +909,14 @@ export interface FactionDto {
   lane: string;
   description: string;
   rivals: Array<{ key: string; name: string }>;
-  /** Contacts who work for it, by short name. */
-  faces: string[];
+  /** Contacts who work for it. */
+  faces: Array<{ key: string; name: string }>;
   /** Faces with no contact of their own. */
   facesNote: string | null;
   /** 1.4.0-B. The player's standing, or null before standing exists. */
   standing: FactionStandingDto | null;
+  /** 1.4.0-B. The faction's own Jobs, the tier each opens at, and where the player is with it. */
+  jobs: Array<{ key: string; title: string; tierName: string | null; status: string }>;
 }
 
 export interface PlayerQuestDto {
@@ -924,10 +926,14 @@ export interface PlayerQuestDto {
   description: string;
   contactKey: string | null;
   contactName: string | null;
-  /** 1.4.0-A. The faction of the Job's contact, or null. */
+  /** 1.4.0-A. The faction the Job works for (its own, else its contact's), or null. */
   factionName: string | null;
-  /** 1.4.0-B. Standing this Job pays on completion, or null. */
-  factionStanding: { factionKey: string; factionName: string; amount: number; label: string } | null;
+  /** 1.4.0-B. That faction's key, or null. */
+  factionKey: string | null;
+  /** 1.4.0-B. A faction's own Job, opened by standing. */
+  factionJob: boolean;
+  /** 1.4.0-B. Standing the Job pays, one entry per faction it helps. */
+  factionStandings: Array<{ factionKey: string; factionName: string; amount: number; label: string }>;
   type: string;
   category: string;
   difficulty: string;

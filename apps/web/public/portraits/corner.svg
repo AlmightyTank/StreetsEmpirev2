@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <radialGradient id="skin" cx=".42" cy=".35" r=".75"><stop offset="0" stop-color="#d9a57a"/><stop offset=".7" stop-color="#b57d55"/><stop offset="1" stop-color="#87553a"/></radialGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff2a8"/><stop offset=".5" stop-color="#e8b93a"/><stop offset="1" stop-color="#8a6508"/></linearGradient>
+    <linearGradient id="lens" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2d3a33"/><stop offset=".5" stop-color="#0b0f0d"/><stop offset="1" stop-color="#1c2a22"/></linearGradient>
+    <radialGradient id="blush"><stop offset="0" stop-color="#e0606a" stop-opacity=".45"/><stop offset="1" stop-color="#e0606a" stop-opacity="0"/></radialGradient>
+<linearGradient id="tee" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f6fa"/><stop offset="1" stop-color="#b9c0cc"/></linearGradient><linearGradient id="apron" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#36b05e"/><stop offset="1" stop-color="#1a6a36"/></linearGradient><linearGradient id="cap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0303a"/><stop offset="1" stop-color="#8a0e18"/></linearGradient>
+  </defs>
+  <g filter="url(#s)" stroke="#07100a" stroke-width="1.6" stroke-linejoin="round">
+    <path d="M8 126 Q10 98 32 90 L52 86 L64 96 L76 86 L96 90 Q118 98 120 126 Z" fill="url(#tee)"/>
+    <path d="M40 126 L42 96 Q52 98 56 92 L64 100 L72 92 Q76 98 86 96 L88 126 Z" fill="url(#apron)"/>
+    <path d="M42 96 L36 90 M86 96 L92 90" stroke="#1d6a36" stroke-width="2.4"/>
+    <path d="M56 70 H72 V90 Q64 95 56 90 Z" fill="url(#skin)"/>
+    <path d="M46 54 Q41 52 42 59 Q43 66 47 66 Z M82 54 Q87 52 86 59 Q85 66 81 66 Z" fill="url(#skin)"/>
+    <path d="M45 52 Q45 32 64 32 Q83 32 83 52 Q84 66 78 74 Q72 80 64 80 Q56 80 50 74 Q44 66 45 52 Z" fill="url(#skin)"/>
+    <path d="M43 46 Q42 26 64 25 Q86 26 85 46 Q75 41 64 41 Q53 41 43 46 Z" fill="url(#cap)"/>
+    <path d="M44 44 Q54 50 64 50 Q74 50 84 44 Q86 50 80 52 Q64 56 48 52 Q42 50 44 44 Z" fill="url(#cap)"/>
+  </g>
+  <path d="M8 126 Q10 98 32 90 L52 86 L64 96 L76 86 L96 90 Q118 98 120 126 Z" fill="url(#shade)" opacity=".7"/>
+  <path d="M52 32 Q64 27 76 32" stroke="#ff9a9a" stroke-opacity=".5" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  <circle cx="64" cy="36" r="4.2" fill="#fff" stroke="#07100a" stroke-width="1"/><path d="M62 36 H66 M64 34 V38" stroke="#c8202a" stroke-width="1.2"/>
+  <path d="M50 47 Q55 45 61 47 M78 47 Q73 45 67 47" fill="none" stroke="#2a1a10" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M51 54 Q56 50.4 61 54 Q56 56.88 51 54 Z" fill="#fbf6ee" stroke="#07100a" stroke-width="1"/>
+  <circle cx="56" cy="54" r="2.4" fill="#3b2414"/>
+  <circle cx="56" cy="54" r="1" fill="#0b0b0b"/>
+  <circle cx="56.8" cy="53.1" r=".6" fill="#fff"/>
+  <path d="M50.5 54.3 Q56 49.8 61.5 54.3" fill="none" stroke="#0b0604" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M67 54 Q72 50.4 77 54 Q72 56.88 67 54 Z" fill="#fbf6ee" stroke="#07100a" stroke-width="1"/>
+  <circle cx="72" cy="54" r="2.4" fill="#3b2414"/>
+  <circle cx="72" cy="54" r="1" fill="#0b0b0b"/>
+  <circle cx="72.8" cy="53.1" r=".6" fill="#fff"/>
+  <path d="M66.5 54.3 Q72 49.8 77.5 54.3" fill="none" stroke="#0b0604" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M62 61 Q64 64 66 61" stroke="#87553a" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <path d="M56 66 Q60 62 64 64.6 Q68 62 72 66 Q70 69 64 67.6 Q58 69 56 66 Z" fill="#2a1a10" stroke="#07100a" stroke-width=".8"/>
+  <path d="M60 71 Q64 73 68 71" fill="none" stroke="#2a140a" stroke-width="1.4" stroke-linecap="round"/>
+  <g filter="url(#s)"><rect x="68" y="104" width="14" height="7" rx="1.5" fill="#f4f6fa" stroke="#07100a" stroke-width="1"/><path d="M70.5 107.5 H79.5" stroke="#1d6a36" stroke-width="1.6" stroke-linecap="round"/></g>
+  <path d="M48 102 V116" stroke="#1d4ab0" stroke-width="2.4" stroke-linecap="round"/><path d="M48 101 V104" stroke="#f4f6fa" stroke-width="2.4" stroke-linecap="round"/>
+</svg>

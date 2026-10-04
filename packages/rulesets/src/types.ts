@@ -157,7 +157,9 @@ export interface SeasonalEventWindow {
 export type QuestPrerequisiteKind =
   | 'QUEST_COMPLETED'
   | 'CONTACT_REP_AT_LEAST'
-  | 'BRANCH_CHOSEN';
+  | 'BRANCH_CHOSEN'
+  /** 1.4.0-B. params: { factionKey, tier } — the player's standing with the faction is at that tier or above. */
+  | 'FACTION_STANDING_AT_LEAST';
 
 export interface QuestPrerequisiteDefinition {
   readonly kind: QuestPrerequisiteKind;
@@ -230,7 +232,12 @@ export type QuestRewardKind =
   | 'FAVOR_ITEM'
   | 'COSMETIC_UNLOCK'
   /** Street Pass. Any product in the round's catalog, keyed by product key (WEED, METH...). */
-  | 'PRODUCT';
+  | 'PRODUCT'
+  /**
+   * 1.4.0-B. Standing with the faction keyed by `key`. One-time Jobs only, and only for a faction
+   * the Job works for or helps; paid by the Job claim with a receipt, never by grantRewards.
+   */
+  | 'FACTION_STANDING';
 
 export interface QuestRewardDefinition {
   readonly kind: QuestRewardKind;
@@ -525,6 +532,16 @@ export interface QuestDefinition {
   readonly availability: QuestDataObject & {
     readonly seasonalEvent?: SeasonalEventWindow;
   };
+  /**
+   * 1.4.0-B. The faction this Job works for, when it has no giver (Civic Handshake) or to say so
+   * outright. A giver who works for a faction always works for that one.
+   */
+  readonly factionKey?: FactionKey;
+  /**
+   * 1.4.0-B. Other factions this Job openly helps; they earn standing from it too. A Job pays
+   * standing only to the faction it works for, these, and the side a branch picks.
+   */
+  readonly helps?: readonly FactionKey[];
 }
 
 export type QuestDefinitionCatalog = Readonly<Record<string, QuestDefinition>>;

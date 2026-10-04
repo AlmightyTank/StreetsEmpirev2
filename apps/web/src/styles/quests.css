@@ -938,3 +938,72 @@ button.se-quests-metric {
     flex-basis: 100%;
   }
 }
+
+/* 1.4.0-B: contact portraits and the factions' own Jobs. */
+.se-quest-card__meta > .se-portrait {
+  margin-right: 2px;
+}
+
+.se-quests-contacts > .se-quests-contact {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: start;
+}
+
+.se-quests-contact > .se-portrait {
+  grid-row: span 5;
+}
+
+.se-quests-contact > :not(.se-portrait) {
+  grid-column: 2;
+}
+
+.se-quests-contacts .se-faction-faces {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.se-faction-jobs {
+  display: grid;
+  gap: 3px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 9px;
+}
+
+.se-faction-jobs li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.se-quests-contacts .se-faction-jobs span {
+  display: inline;
+  font-size: 8px;
+}
+
+.se-faction-jobs .is-locked {
+  color: var(--se-muted);
+}
+
+.se-faction-jobs .is-done {
+  color: var(--se-muted);
+  text-decoration: line-through;
+}
+
+.se-faction-jobs .is-open a {
+  color: var(--se-accent);
+}
+
+.se-quests-contacts .se-portrait {
+  display: inline-grid;
+}
+
+.se-faction-jobs a {
+  display: inline-block;
+  min-height: 24px;
+  line-height: 24px;
+}

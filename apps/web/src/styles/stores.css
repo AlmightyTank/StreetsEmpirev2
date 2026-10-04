@@ -932,3 +932,8 @@
     min-width: 0;
   }
 }
+
+.se-stores-hero__copy > .se-portrait {
+  float: left;
+  margin: 0 16px 4px 0;
+}

@@ -46,7 +46,7 @@ contact reputation exactly as they were.
 | Slice | Status | Ruleset | What it delivers |
 | --- | --- | --- | --- |
 | **1.4.0-A — Faction Catalog** | Built | `classic-og-v1.4-a` | Factions in the ruleset, each contact's faction, faction identity on Jobs and contacts. No balance change. |
-| **1.4.0-B — Standing** | Built | `classic-og-v1.4-b` | Seasonal standing per faction with receipts, tiers, tier-up alerts and a standing panel. Contact Jobs pay faction standing. |
+| **1.4.0-B — Standing** | Built | `classic-og-v1.4-b` | Seasonal standing per faction with receipts, tiers, tier-up alerts and a standing panel. Jobs pay standing only to the factions they help; two faction Jobs each; contact portraits. |
 | **1.4.0-C — Sponsored Contracts** | Planned | `classic-og-v1.4-c` | Existing board contracts carry a sponsoring faction and pay its standing. Boards lean toward factions you work with. |
 | **1.4.0-D — Faction Perks** | Planned | `classic-og-v1.4-d` | Information and warnings at Known and Trusted, then a small capped nudge per faction at Connected. |
 | **1.4.0-E — Rivalries & Inner Circle** | Planned | `classic-og-v1.4-e` | The Inner Circle rival lock, previewed before it lands; Vic's introductions; one short Job arc and a capstone per faction. |
@@ -158,7 +158,7 @@ on the act that caused it, so a retry never pays twice and staff can audit every
 
 - a contact's one-time Jobs pay their faction's standing (B);
 - sponsored board contracts pay the sponsor's standing (C);
-- each faction's own Jobs and arc (A/E).
+- each faction's own Jobs (B) and arc (E).
 
 **What standing never comes from:** cash, purchases, real money, other players, or anything a
 player can repeat without limit. Regular trade at a store keeps paying contact reputation only.
@@ -301,19 +301,45 @@ contact reputation is untouched.
 #### Built in B
 
 **Status: implemented.** Ruleset `classic-og-v1.4-b` (1.4.0-B) is 1.4.0-A plus a `factionStanding`
-block. Jobs, rewards, prices, contact reputation and the law are exactly 1.4.0-A's.
+block and ten faction Jobs. Every 1.4.0-A Job, reward, price, contact reputation and law number is
+unchanged.
 
 - **Standing.** Seasonal, per player and faction, from 0 to 500. Tiers: Unknown, Known (25),
   Trusted (75), Connected (150), Inner Circle (300). These are first passes; G's `qa:factions`
   pins them. A tier is recognition only until D.
-- **Where it comes from.** A one-time Job (story, side or secret) that pays a contact
-  reputation also pays that contact's faction the same in standing (`perContactRep: 1`), and so
-  does a positive branch reputation change. Losses never cost standing. Independent contacts
-  (Vic, Ace, Ledger) pay none, and nor do the rotating boards (daily, weekly, city, alliance),
-  which wait for sponsorship in C. Store trade still pays contact reputation only.
-- **How much there is.** One-time Jobs alone take the Kings to 240, the Outfit to 175, the
-  Cartel Line to 130 and Road Saints to 110: past Known for every faction with a contact, short
-  of Inner Circle for all of them. Civic Handshake has no contact, so its standing starts in C.
+- **Only the factions a Job helps.** A one-time Job (story, side or secret) works for one
+  faction: the one it names, else its giver's. It pays standing to that faction, to any faction
+  it openly `helps`, and to the side a chosen branch backs, and to no one else. Reputation it
+  pays a contact turns into that contact's faction's standing one for one (`perContactRep: 1`)
+  only when that faction is one it helps. Siding with Pip in Taking Sides earns the Cartel Line
+  and never the Outfit; losses never cost standing. `factionProblems` rejects a Job that pays
+  another faction's contact or standing without helping them, or helps its own faction's rival.
+  Independent contacts (Vic, Ace, Ledger) pay none, and nor do the rotating boards (daily,
+  weekly, city, alliance), which wait for sponsorship in C. Store trade still pays contact
+  reputation only.
+- **Faction Jobs.** Each faction has two one-time Jobs of its own (`category: 'FACTION'`),
+  opened by a new `FACTION_STANDING_AT_LEAST` prerequisite and paying a new `FACTION_STANDING`
+  reward with modest cash, never contact reputation:
+
+  | Faction | Known | Trusted |
+  | --- | --- | --- |
+  | The Kings | Neighborhood Watch (Blocks): win 3 raids | Block Party (Mama King): win 2 turf pushes |
+  | The Outfit | Protection Money (Tommy): run a racket | The Vig (Tommy): collect from businesses 3 times |
+  | Road Saints MC | Clean Miles (Wheels): 2 runs home with no incident | Long Haul (Wheels): sell 150 product on runs; also helps the Cartel Line |
+  | The Cartel Line | Fresh Batch (Pip): produce 100 product | Keep It Moving (Pip): sell 300 product to Pip |
+  | Civic Handshake | Shake Hands (open to all): hire an official | Keep Them Sweet (Known): renew an official |
+
+  Known Jobs pay 15 standing and Trusted Jobs 25; Long Haul also pays the Cartel Line 10. Civic
+  Handshake's Jobs pay 25 standing each and nothing else, so they are never a rebate on the
+  payroll. The Factions panel lists each faction's Jobs, the tier each opens at and where you
+  are with it.
+- **How much there is.** One-time Jobs alone take the Kings to 280, the Outfit to 215, the
+  Cartel Line to 180, Road Saints to 150 and Civic Handshake to 50: past Known for every faction,
+  short of Inner Circle for all of them.
+- **Portraits.** Every contact (Mama King, Blocks, Tommy, Pip, Wheels, Vic, Ace, Ledger), every
+  trader (the Corner clerk, Tommy, Charlie, Pip) and a Civic Handshake official have a portrait
+  drawn like the hoe and thug art (`apps/web/public/portraits/`). They appear on Job cards, the
+  contact standing list, the Factions panel and each store's header.
 - **Receipts.** `PlayerFactionStanding` holds the points and the tier last read. Every change is a
   `PlayerFactionReceipt` keyed on the act (`job:<playerQuest>:<faction>`), so a retried claim
   never pays twice and the receipts always add up to the stored standing.
@@ -331,11 +357,14 @@ B invariants:
 1. Every A invariant still holds.
 2. Standing comes only from the player's own one-time Jobs; it is never bought, traded,
    transferred or earned from another player.
-3. Every standing change has a receipt keyed on its act; the receipts add up to the stored
+3. A Job pays standing only to the factions it helps: its own, the ones it openly helps, and the
+   side a chosen branch backs.
+4. Every standing change has a receipt keyed on its act; the receipts add up to the stored
    standing.
-4. A tier rise logs once.
-5. Standing is private to the player and changes nothing in play yet.
-6. `classic-og-v1.4-a` and older rounds keep no standing.
+5. A tier rise logs once.
+6. Standing is private to the player; beyond opening faction Jobs it changes nothing in play
+   yet.
+7. `classic-og-v1.4-a` and older rounds keep no standing and no faction Jobs.
 
 ### 1.4.0-C — Sponsored Contracts
 

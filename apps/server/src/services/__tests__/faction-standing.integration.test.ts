@@ -17,8 +17,9 @@ const kingsJob = jobs.find((job) => job.contactKey === 'MAMA_KING' && job.repeat
 
 /**
  * 1.4.0-B gate, live: a contact's one-time Job pays their faction standing with a receipt, a
- * retried claim pays nothing more, a tier rise logs once, and independent contacts, the
- * rotating boards and 1.4.0-A rounds pay none. Opt in with TURF_INTEGRATION=1.
+ * retried claim pays nothing more, a tier rise logs once, a Job pays only the factions it helps,
+ * a faction's own Jobs open with standing, and independent contacts, the rotating boards and
+ * 1.4.0-A rounds pay none. Opt in with TURF_INTEGRATION=1.
  */
 describe.runIf(process.env.TURF_INTEGRATION === '1')('1.4.0-B faction standing with PostgreSQL', () => {
   let app: FastifyInstance;
@@ -90,9 +91,9 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.4.0-B faction standing w
     const amount = repTo(kingsJob, 'MAMA_KING');
 
     const before = await HandcraftedQuestService.page(app.prisma, player.id, ruleset);
-    expect(before.quests.find((row) => row.key === kingsJob.key)?.factionStanding).toEqual({
+    expect(before.quests.find((row) => row.key === kingsJob.key)?.factionStandings).toEqual([{
       factionKey: 'KINGS', factionName: 'The Kings', amount, label: `+${amount} The Kings standing`,
-    });
+    }]);
     expect(before.factions?.find((faction) => faction.key === 'KINGS')?.standing).toMatchObject({ points: 0, tier: 'UNKNOWN', next: { tier: 'KNOWN', startsAt: 25 } });
 
     await ready(player.id, kingsJob.key);
@@ -133,7 +134,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.4.0-B faction standing w
 
     const daily = (await HandcraftedQuestService.page(app.prisma, player.id, ruleset)).quests.find((row) => row.type === 'DAILY' && row.contactKey);
     if (daily) {
-      expect(daily.factionStanding).toBeNull();
+      expect(daily.factionStandings).toEqual([]);
       await ready(player.id, daily.key);
       expect((await claim(player.id, daily.key)).result.standingChanges).toEqual([]);
     }
@@ -144,5 +145,51 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.4.0-B faction standing w
     expect((await claim(older.id, kingsJob.key, randomUUID(), classicOgV14A)).result.standingChanges).toEqual([]);
     expect((await HandcraftedQuestService.page(app.prisma, older.id, classicOgV14A)).factions?.every((faction) => faction.standing === null)).toBe(true);
     expect(await app.prisma.playerFactionStanding.count({ where: { roundPlayerId: older.id } })).toBe(0);
+  });
+
+  it('pays only the side a branch picks: siding with Pip earns the Cartel Line, never the Outfit', async () => {
+    const player = await fixture();
+    await app.prisma.playerQuest.updateMany({
+      where: { roundPlayerId: player.id, questDefinition: { key: 'TAKING_SIDES', rulesetId: ruleset.meta.id } },
+      data: { status: 'READY_TO_TURN_IN' },
+    });
+    const claimed = await HandcraftedQuestService.claim(app.prisma, player.id, ruleset, 'TAKING_SIDES', { actionId: randomUUID(), branchKey: 'PIP' });
+    expect(claimed.result.standingChanges.map((change) => [change.factionKey, change.amount])).toEqual([['CARTEL_LINE', 25]]);
+    expect(await app.prisma.playerFactionReceipt.count({ where: { roundPlayerId: player.id, factionKey: 'OUTFIT' } })).toBe(0);
+  });
+
+  it('opens a faction’s own Job at its tier, and pays its standing, plus the faction a joint Job helps', async () => {
+    const player = await fixture();
+    const status = async (key: string) => (await app.prisma.playerQuest.findFirstOrThrow({
+      where: { roundPlayerId: player.id, questDefinition: { key, rulesetId: ruleset.meta.id } },
+    })).status;
+    // Civic Handshake has no contact, so its first Job is open from the start; the others wait.
+    expect(await status('CIVIC_SHAKE_HANDS')).toBe('AVAILABLE');
+    expect(await status('KINGS_NEIGHBORHOOD_WATCH')).toBe('LOCKED');
+
+    const known = ruleset.factionStanding.tiers.known;
+    const trusted = ruleset.factionStanding.tiers.trusted;
+    await app.prisma.$transaction(async (tx) => {
+      await FactionService.grant(tx, player.id, ruleset, 'KINGS', known, 'JOB', 'test:kings');
+      await FactionService.grant(tx, player.id, ruleset, 'ROAD_SAINTS', trusted, 'JOB', 'test:saints');
+    });
+    const page = await HandcraftedQuestService.page(app.prisma, player.id, ruleset);
+    expect(await status('KINGS_NEIGHBORHOOD_WATCH')).toBe('AVAILABLE');
+    expect(await status('KINGS_BLOCK_PARTY')).toBe('LOCKED');
+    expect(await status('SAINTS_LONG_HAUL')).toBe('AVAILABLE');
+    expect(page.factions?.find((faction) => faction.key === 'KINGS')?.jobs).toEqual([
+      { key: 'KINGS_NEIGHBORHOOD_WATCH', title: 'Neighborhood Watch', tierName: 'Known', status: 'AVAILABLE' },
+      { key: 'KINGS_BLOCK_PARTY', title: 'Block Party', tierName: 'Trusted', status: 'LOCKED' },
+    ]);
+    const watch = page.quests.find((row) => row.key === 'KINGS_NEIGHBORHOOD_WATCH')!;
+    expect(watch.factionJob).toBe(true);
+    // Standing shows as standing, not as an ordinary reward.
+    expect(watch.rewards.map((reward) => reward.kind)).toEqual(['CASH']);
+    expect(watch.factionStandings.map((row) => row.label)).toEqual(['+15 The Kings standing']);
+
+    await ready(player.id, 'SAINTS_LONG_HAUL');
+    const haul = await claim(player.id, 'SAINTS_LONG_HAUL');
+    expect(haul.result.standingChanges.map((change) => [change.factionKey, change.amount])).toEqual([['ROAD_SAINTS', 25], ['CARTEL_LINE', 10]]);
+    expect(haul.result.rewards.some((reward) => reward.kind === 'FACTION_STANDING')).toBe(false);
   });
 });

@@ -5,6 +5,7 @@ import { api, ApiError } from '../api/client.js';
 import { storesApi } from '../api/stores.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
+import { Portrait } from '../components/Portrait.js';
 import { Button } from '../components/Button.js';
 import { Panel } from '../components/Panel.js';
 import { ProductCounter } from '../components/ProductCounter.js';
@@ -507,6 +508,7 @@ function StoreView({
       <div className="se-stores">
         <header className={`se-stores-hero se-stores-hero--${store?.key.toLowerCase() ?? 'loading'}`}>
           <div className="se-stores-hero__copy">
+            {store ? <Portrait who={store.key} size="lg" label={store.name} /> : null}
             <span className="se-eyebrow">{details?.label ?? 'Street market'} · {me.city.name}</span>
             <h1>{store?.name ?? 'Stores'}</h1>
             <p>{store?.blurb ?? 'Loading the shelves and today’s prices.'}</p>
