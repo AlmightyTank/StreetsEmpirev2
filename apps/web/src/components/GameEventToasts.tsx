@@ -546,7 +546,7 @@ export function GameEventToasts() {
           )
           : body;
         return (
-          <div className={`se-eventtoast se-eventtoast--${toast.tone}${isLevelUp ? ' se-eventtoast--levelup' : ''}`} key={toast.id}>
+          <div className={`se-eventtoast se-eventtoast--${toast.tone}${isLevelUp ? ' se-eventtoast--levelup' : ''}${isLevelUp && !reducedMotion ? ' se-eventtoast--levelup-motion' : ''}`} key={toast.id}>
             {toast.href ? <Link className="se-eventtoast__body" to={toast.href} onClick={() => acknowledge(toast)}>{levelUpBody}</Link> : <span className="se-eventtoast__body">{levelUpBody}</span>}
             <button
               type="button"
