@@ -2,11 +2,10 @@
 
 ## Brainstorm
 
-**Status:** design only. Nothing in 1.3.0 is built. The latest pinned ruleset at the time of
-writing is `classic-og-v1.2-f`; 1.2.0-G (Tournaments) and 1.2.0-H (Release) are still planned.
-Building 1.3.0-A waits until 1.2.0-H ships.
+**Status:** design only. Nothing in 1.3.0 is built. 1.2.0-G (Tournaments) and 1.2.0-H
+(Balance, Admin & Release) are both built, so 1.3.0-A is unblocked.
 
-**Target base:** StreetsEmpire v1.2.0 (the 1.2.0-H release ruleset)  
+**Target base:** StreetsEmpire v1.2.0 (`classic-og-v1.2-f`)  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** expand Heat into a deeper city-wide
 risk system.  
 **The question:** what happens when the law notices me?  
@@ -19,8 +18,13 @@ risk system.
 - **Wanted is private.** Only the player (and admins) can see their own case and Wanted level.
 - **No tipping off rivals.** No player can add evidence to another player's case. Informants
   are information the player buys, never a weapon against someone else.
-- **1.2 ships first.** 1.2.0-G and 1.2.0-H finish before any 1.3 code; 1.3.0-A starts from
-  the 1.2 release ruleset.
+- **1.2 ships first.** 1.2.0-G and 1.2.0-H are done; 1.3.0-A starts from `classic-og-v1.2-f`.
+- **No police combat.** A warrant is never a fight, and there is no resisting arrest. Armed
+  NPCs stay in 1.4 (Factions).
+- **The Case resets every round.** Every city's Case starts at zero when a round starts, like
+  Heat. Nothing about a Case carries into the Hall of Fame or the next round.
+- **The Case stays behind.** Relocating a home city never moves or clears a Case. The old
+  city keeps what it has on you.
 
 ---
 
@@ -114,7 +118,12 @@ A warrant names exactly one target, chosen by what the case is built from:
 - **Business raid:** a named business's racket is shut for a fixed period and its register is
   fined. The business is never razed and the block never changes hands.
 - **Personal warrant:** served the next time the boss is in that city: an arrest at the
-  existing arrest severity and downtime. Staying away is a valid answer; the warrant waits.
+  existing arrest severity and downtime. It's served, never fought. Staying away is a valid
+  answer; the warrant waits until the round ends.
+
+Because a Case stays behind on relocation, a warrant in a city the player has moved away from
+can only name a business they still hold there, or them personally. Their Hideout has left
+with them.
 
 **Warning window:** a drafted warrant shows its target and the time it will be served. During
 the window the player can:
@@ -237,6 +246,9 @@ their own actions.
 9. Every Case change has a receipt keyed to its source action, so retries never add evidence
    twice.
 10. Rulesets before 1.3 have no `law` block and never acquire Case behaviour.
+11. Every Case starts at zero each round.
+12. Relocating never moves or clears a Case.
+13. No 1.3 system resolves through combat.
 
 ---
 
@@ -318,18 +330,15 @@ mobile regression and release gate.
 
 ## Open questions
 
-1. **Police as combat:** should resisting a personal warrant be a fight? Recommendation: no.
-   Leave armed NPCs to 1.4 (Factions) and keep 1.3 to strategic pressure.
-2. **Case at season end:** does a high Case at the bell affect anything (Hall of Fame,
-   feats), or does it simply reset with the round like Heat?
-3. **Relocation:** when a player moves their home city, does the old city's case follow the
-   Hideout, or stay behind?
+None from the brainstorm; every question is decided above. The first-pass numbers are still
+proposals until `qa:law` pins them.
 
 ## Not in 1.3.0
 
 - Replacing or changing the existing Heat, bust, arrest or bribe rules.
 - A public Wanted level, wanted list or bounty board (bounties stay in the permanent backlog).
 - Police that take turf or raze businesses.
-- Armed police combat or NPC police crews (1.4).
+- Armed police combat, resisting arrest, or NPC police crews (1.4).
+- A Case that carries over between rounds or follows a relocation.
 - Paid or real-money ways to clear a case.
 - Tipping off rivals, or any other way for one player to add evidence to another's case.
