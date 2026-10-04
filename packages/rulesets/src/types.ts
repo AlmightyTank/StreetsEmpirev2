@@ -157,7 +157,9 @@ export interface SeasonalEventWindow {
 export type QuestPrerequisiteKind =
   | 'QUEST_COMPLETED'
   | 'CONTACT_REP_AT_LEAST'
-  | 'BRANCH_CHOSEN';
+  | 'BRANCH_CHOSEN'
+  /** 1.4.0-B. params: { factionKey, tier } — the player's standing with the faction is at that tier or above. */
+  | 'FACTION_STANDING_AT_LEAST';
 
 export interface QuestPrerequisiteDefinition {
   readonly kind: QuestPrerequisiteKind;
@@ -230,7 +232,12 @@ export type QuestRewardKind =
   | 'FAVOR_ITEM'
   | 'COSMETIC_UNLOCK'
   /** Street Pass. Any product in the round's catalog, keyed by product key (WEED, METH...). */
-  | 'PRODUCT';
+  | 'PRODUCT'
+  /**
+   * 1.4.0-B. Standing with the faction keyed by `key`. One-time Jobs only, and only for a faction
+   * the Job works for or helps; paid by the Job claim with a receipt, never by grantRewards.
+   */
+  | 'FACTION_STANDING';
 
 export interface QuestRewardDefinition {
   readonly kind: QuestRewardKind;
@@ -316,6 +323,23 @@ export interface FactionDefinition {
 }
 
 export type FactionCatalog = Readonly<Partial<Record<FactionKey, FactionDefinition>>>;
+
+/** 1.4.0-B. The standing tiers above Unknown, lowest first. */
+export type FactionTier = 'UNKNOWN' | 'KNOWN' | 'TRUSTED' | 'CONNECTED' | 'INNER_CIRCLE';
+
+/**
+ * 1.4.0-B. Seasonal standing with each faction. It starts at zero every round and only ever
+ * comes from the player's own Jobs: a one-time Job that pays a contact reputation also pays
+ * that contact's faction `perContactRep` standing for each point.
+ */
+export interface FactionStandingRules {
+  /** Standing at which each tier above Unknown starts. Ascending. */
+  readonly tiers: { readonly known: number; readonly trusted: number; readonly connected: number; readonly innerCircle: number };
+  /** The most standing a player can hold with one faction. */
+  readonly max: number;
+  /** Standing per point of contact reputation a one-time Job pays. */
+  readonly perContactRep: number;
+}
 
 /** Contacts present in a round. Later contacts (Ace, 1.2.0-F) are absent from older catalogs. */
 export type ContactCatalog = Readonly<Partial<Record<ContactKey, ContactDefinition>>>;
@@ -508,6 +532,16 @@ export interface QuestDefinition {
   readonly availability: QuestDataObject & {
     readonly seasonalEvent?: SeasonalEventWindow;
   };
+  /**
+   * 1.4.0-B. The faction this Job works for, when it has no giver (Civic Handshake) or to say so
+   * outright. A giver who works for a faction always works for that one.
+   */
+  readonly factionKey?: FactionKey;
+  /**
+   * 1.4.0-B. Other factions this Job openly helps; they earn standing from it too. A Job pays
+   * standing only to the faction it works for, these, and the side a branch picks.
+   */
+  readonly helps?: readonly FactionKey[];
 }
 
 export type QuestDefinitionCatalog = Readonly<Record<string, QuestDefinition>>;
@@ -2607,6 +2641,8 @@ export interface Ruleset {
   readonly contacts?: ContactCatalog;
   /** 1.4.0-A. The underworld factions behind the contacts. Absent before 1.4. */
   readonly factions?: FactionCatalog;
+  /** 1.4.0-B. Seasonal faction standing. Absent: factions are identity only. */
+  readonly factionStanding?: FactionStandingRules;
   /** Permanent per-round capabilities earned through Jobs. */
   readonly permanentUnlocks?: PermanentUnlockCatalog;
   /** Consumable favors earned from contacts. Effects are activated by later roadmap phases. */

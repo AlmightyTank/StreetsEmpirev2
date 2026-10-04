@@ -15,6 +15,7 @@ import { ItemTile } from '../components/ItemTile.js';
 import { RewardChip } from '../components/RewardChip.js';
 import { hasItemArt } from '../items/itemArt.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { Portrait } from '../components/Portrait.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen, serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
 import { confirmAction } from '../stores/confirm.js';
@@ -86,6 +87,7 @@ function questKindLabel(quest: PlayerQuestDto): string {
   if (quest.type === 'DAILY') return 'Daily contract';
   if (quest.type === 'WEEKLY') return 'Weekly contract';
   if (quest.type === 'SECRET') return 'Secret job';
+  if (quest.factionJob) return 'Faction job';
   if (quest.type === 'SIDE') return 'Side job';
   if (quest.type === 'STORY') return 'Story';
   return quest.type;
@@ -238,7 +240,8 @@ function QuestCard({
       title={quest.title}
       aside={(
         <div className="se-quest-card__meta">
-          <span className="se-quest-kind">{quest.contactName ?? 'StreetsEmpire'}{quest.factionName ? ` · ${quest.factionName}` : ''} · {questKindLabel(quest)}</span>
+          <Portrait who={quest.contactKey ?? quest.factionKey} size="sm" />
+          <span className="se-quest-kind">{quest.contactName ?? quest.factionName ?? 'StreetsEmpire'}{quest.contactName && quest.factionName ? ` · ${quest.factionName}` : ''} · {questKindLabel(quest)}</span>
           {quest.isTracked ? <span className="se-quest-status se-quest-status--tracked">Tracked</span> : null}
           <span className={'se-quest-status se-quest-status--' + statusTone(quest.status)}>{statusLabel(quest)}</span>
         </div>
@@ -307,12 +310,15 @@ function QuestCard({
         ))}
       </div>
 
-      {quest.rewards.length ? (
+      {quest.rewards.length || quest.factionStandings.length ? (
         <div className="se-quest-reward-block">
           <p className="se-eyebrow">{quest.branchChoices.length ? 'Shared rewards' : 'Rewards'}</p>
           <div className="se-quest-rewards">
             {quest.rewards.map((reward, index) => (
               <RewardChip key={reward.kind + ':' + (reward.key ?? index)} reward={reward} />
+            ))}
+            {quest.factionStandings.map((standing) => (
+              <RewardChip key={'standing:' + standing.factionKey} reward={{ kind: 'FACTION_STANDING', key: standing.factionKey, amount: standing.amount, label: standing.label }} />
             ))}
           </div>
         </div>
@@ -1015,7 +1021,8 @@ export function QuestPage() {
                   <Panel title="Contact standing" className="se-quests-panel">
                     <div className="se-quests-contacts">
                       {page.contacts.map((contact) => (
-                        <div key={contact.key}>
+                        <div key={contact.key} className="se-quests-contact">
+                          <Portrait who={contact.key} label={contact.name} />
                           <span>{contact.name}</span>
                           <strong>{contact.standing}</strong>
                           <small>{contact.role} · {formatNumber(contact.points)} rep</small>
@@ -1030,16 +1037,36 @@ export function QuestPage() {
                 {page.factions?.length ? (
                   <div id="factions">
                     <Panel title="Factions" className="se-quests-panel">
-                      <p className="se-hint">The organizations behind your contacts: who works for whom, and who they are up against.</p>
+                      <p className="se-hint">The organizations behind your contacts: who works for whom, and who they are up against.{page.factions.some((faction) => faction.standing) ? ' A one-time Job earns standing with the faction it works for, and only the factions it helps; only you can see it. Each faction also has Jobs of its own that open as your standing grows.' : ''}</p>
                       <div className="se-quests-contacts">
                         {page.factions.map((faction) => (
                           <div key={faction.key}>
+                            <span className="se-faction-faces">
+                              {faction.faces.length
+                                ? faction.faces.map((face) => <Portrait key={face.key} who={face.key} size="sm" label={face.name} />)
+                                : <Portrait who={faction.key} size="sm" />}
+                            </span>
                             <span>{faction.lane}</span>
-                            <strong>{faction.name}</strong>
+                            <strong>{faction.name}{faction.standing ? ` · ${faction.standing.tierName}` : ''}</strong>
+                            {faction.standing ? (
+                              <small>
+                                {formatNumber(faction.standing.points)} standing · {faction.standing.next ? `${faction.standing.next.tierName} at ${formatNumber(faction.standing.next.startsAt)}` : 'Top tier'}
+                              </small>
+                            ) : null}
                             <small>{faction.identity}</small>
                             <small>{faction.description}</small>
-                            <small>{faction.faces.length ? `Faces: ${faction.faces.join(', ')}` : faction.facesNote ?? ''}</small>
+                            <small>{faction.faces.length ? `Faces: ${faction.faces.map((face) => face.name).join(', ')}` : faction.facesNote ?? ''}</small>
                             {faction.rivals.length ? <small>Rival{faction.rivals.length === 1 ? '' : 's'}: {faction.rivals.map((rival) => rival.name).join(', ')}</small> : null}
+                            {faction.standing && faction.jobs.length ? (
+                              <ul className="se-faction-jobs">
+                                {faction.jobs.map((job) => (
+                                  <li key={job.key} className={job.status === 'LOCKED' ? 'is-locked' : job.status === 'COMPLETED' ? 'is-done' : 'is-open'}>
+                                    {job.status === 'LOCKED' ? job.title : <a href={`#quest-${job.key}`}>{job.title}</a>}
+                                    <span>{job.status === 'COMPLETED' ? 'Done' : job.status === 'LOCKED' ? (job.tierName ? `Opens at ${job.tierName}` : 'Locked') : 'Open'}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : null}
                           </div>
                         ))}
                       </div>

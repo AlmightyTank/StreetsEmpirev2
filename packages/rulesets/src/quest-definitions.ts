@@ -140,6 +140,16 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
           problems.push(`${catalogKey}: CONTACT_REP_AT_LEAST requires positive points`);
         }
       }
+      if (prerequisite.kind === 'FACTION_STANDING_AT_LEAST') {
+        const factionKey = prerequisite.params?.factionKey;
+        const tier = prerequisite.params?.tier;
+        if (typeof factionKey !== 'string' || !factionKey.trim()) {
+          problems.push(`${catalogKey}: FACTION_STANDING_AT_LEAST requires factionKey`);
+        }
+        if (typeof tier !== 'string' || !['KNOWN', 'TRUSTED', 'CONNECTED', 'INNER_CIRCLE'].includes(tier)) {
+          problems.push(`${catalogKey}: FACTION_STANDING_AT_LEAST requires a tier above UNKNOWN`);
+        }
+      }
       if (prerequisite.kind === 'BRANCH_CHOSEN') {
         const questKey = prerequisite.params?.questKey;
         const branchKey = prerequisite.params?.branchKey;
@@ -171,12 +181,15 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
           problems.push(`${catalogKey}: ${reward.kind} reward requires a positive amount`);
         }
       }
-      if (reward.kind === 'FAVOR_ITEM' || reward.kind === 'PRODUCT') {
+      if (reward.kind === 'FAVOR_ITEM' || reward.kind === 'PRODUCT' || reward.kind === 'FACTION_STANDING') {
         if (typeof reward.amount !== 'number' || !Number.isSafeInteger(reward.amount) || reward.amount <= 0) {
           problems.push(`${catalogKey}: ${reward.kind} reward requires a positive whole amount`);
         }
       }
-      if (['ITEM', 'CONTACT_REP', 'FAVOR_ITEM', 'COSMETIC_UNLOCK', 'PRODUCT'].includes(reward.kind) && (!reward.key || !reward.key.trim())) {
+      if (reward.kind === 'FACTION_STANDING' && quest.repeatability !== 'ONCE') {
+        problems.push(`${catalogKey}: faction standing rewards require ONCE repeatability`);
+      }
+      if (['ITEM', 'CONTACT_REP', 'FAVOR_ITEM', 'COSMETIC_UNLOCK', 'PRODUCT', 'FACTION_STANDING'].includes(reward.kind) && (!reward.key || !reward.key.trim())) {
         problems.push(`${catalogKey}: ${reward.kind} reward requires a key`);
       }
       if (reward.kind === 'WEAPON_ACCESS' && !['SHOTGUN', 'TEK9', 'AK47'].includes(reward.key ?? '')) {
@@ -211,6 +224,9 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
           if (!quest.followUpKeys.includes(key)) problems.push(`${catalogKey}/${branch.key}: branch follow-up ${key} must be listed on the quest`);
         }
         for (const reward of branch.rewards) {
+          if (reward.kind === 'FACTION_STANDING') {
+            problems.push(`${catalogKey}/${branch.key}: a branch pays standing through its reputation changes, not a standing reward`);
+          }
           if (['CASH', 'TURNS', 'ITEM', 'CONTACT_REP', 'FAVOR_ITEM', 'PRODUCT'].includes(reward.kind)) {
             if (typeof reward.amount !== 'number' || !Number.isFinite(reward.amount) || reward.amount <= 0) {
               problems.push(`${catalogKey}/${branch.key}: ${reward.kind} reward requires a positive amount`);

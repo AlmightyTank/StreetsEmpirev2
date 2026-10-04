@@ -93,6 +93,8 @@ export type ActivityType =
   | 'CASINO_STATUS_UP'
   | 'CASINO_COMP_HOTEL'
   | 'CASE_STAGE_UP'
+  /** 1.4.0-B. Standing with a faction reached a new tier. */
+  | 'FACTION_TIER_UP'
   | 'WARRANT_DRAFTED'
   | 'WARRANT_SERVED'
   | 'WARRANT_LAWYERED'
@@ -888,6 +890,16 @@ export interface QuestContactDto {
   independent: string | null;
 }
 
+/** 1.4.0-B. The player's own standing with one faction. Private to them. */
+export interface FactionStandingDto {
+  points: number;
+  tier: string;
+  tierName: string;
+  /** The next tier up and where it starts, or null at Inner Circle. */
+  next: { tier: string; tierName: string; startsAt: number } | null;
+  max: number;
+}
+
 /** 1.4.0-A. One underworld faction, as the Jobs page shows it. */
 export interface FactionDto {
   key: string;
@@ -897,10 +909,14 @@ export interface FactionDto {
   lane: string;
   description: string;
   rivals: Array<{ key: string; name: string }>;
-  /** Contacts who work for it, by short name. */
-  faces: string[];
+  /** Contacts who work for it. */
+  faces: Array<{ key: string; name: string }>;
   /** Faces with no contact of their own. */
   facesNote: string | null;
+  /** 1.4.0-B. The player's standing, or null before standing exists. */
+  standing: FactionStandingDto | null;
+  /** 1.4.0-B. The faction's own Jobs, the tier each opens at, and where the player is with it. */
+  jobs: Array<{ key: string; title: string; tierName: string | null; status: string }>;
 }
 
 export interface PlayerQuestDto {
@@ -910,8 +926,14 @@ export interface PlayerQuestDto {
   description: string;
   contactKey: string | null;
   contactName: string | null;
-  /** 1.4.0-A. The faction of the Job's contact, or null. */
+  /** 1.4.0-A. The faction the Job works for (its own, else its contact's), or null. */
   factionName: string | null;
+  /** 1.4.0-B. That faction's key, or null. */
+  factionKey: string | null;
+  /** 1.4.0-B. A faction's own Job, opened by standing. */
+  factionJob: boolean;
+  /** 1.4.0-B. Standing the Job pays, one entry per faction it helps. */
+  factionStandings: Array<{ factionKey: string; factionName: string; amount: number; label: string }>;
   type: string;
   category: string;
   difficulty: string;
@@ -1088,6 +1110,8 @@ export interface QuestClaimResult {
   rewards: QuestRewardDto[];
   reputationChanges: QuestBranchReputationDto[];
   newlyAvailable: string[];
+  /** 1.4.0-B. Faction standing the claim paid. Empty before standing exists. */
+  standingChanges: Array<{ factionKey: string; factionName: string; amount: number; tierName: string; tierUp: boolean; label: string }>;
 }
 
 export interface StoreDto {

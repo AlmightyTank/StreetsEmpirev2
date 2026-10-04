@@ -134,6 +134,9 @@ export function rewardArtKey(reward: { kind: string; key: string | null; amount?
       return reward.key && hasItemArt(reward.key) ? reward.key : null;
     case 'CONTACT_REP':
       return (reward.amount ?? 0) < 0 ? 'REP_LOSS' : 'REP';
+    // 1.4.0-B. Faction standing reads like reputation.
+    case 'FACTION_STANDING':
+      return 'REP';
     default:
       return null;
   }
