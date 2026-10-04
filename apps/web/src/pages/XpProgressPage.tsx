@@ -122,7 +122,6 @@ export function XpProgressPage() {
   const level = experience?.level ?? 1;
   const totalXp = experience?.totalXp ?? 0;
   const nextLevel = level + 1;
-  const nextLevelTotal = experienceRequiredForLevel(nextLevel);
   const nextLevelReward = LEVEL_REWARDS.find((reward) => reward.level > level) ?? null;
   const legacy = career?.legacy;
   const finishedSeasons = career?.seasons ?? [];
