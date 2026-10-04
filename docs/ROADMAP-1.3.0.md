@@ -4,8 +4,9 @@
 
 **Status:** design only. Nothing in 1.3.0 is built. The latest pinned ruleset at the time of
 writing is `classic-og-v1.2-f`; 1.2.0-G (Tournaments) and 1.2.0-H (Release) are still planned.
+Building 1.3.0-A waits until 1.2.0-H ships.
 
-**Target base:** StreetsEmpire v1.2.0  
+**Target base:** StreetsEmpire v1.2.0 (the 1.2.0-H release ruleset)  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** expand Heat into a deeper city-wide
 risk system.  
 **The question:** what happens when the law notices me?  
@@ -16,6 +17,10 @@ risk system.
 - **Layer, don't replace.** Heat and its bust/arrest rolls stay exactly as they are. 1.3 adds
   a slower, per-city system on top.
 - **Wanted is private.** Only the player (and admins) can see their own case and Wanted level.
+- **No tipping off rivals.** No player can add evidence to another player's case. Informants
+  are information the player buys, never a weapon against someone else.
+- **1.2 ships first.** 1.2.0-G and 1.2.0-H finish before any 1.3 code; 1.3.0-A starts from
+  the 1.2 release ruleset.
 
 ---
 
@@ -76,8 +81,7 @@ on you.
 
 ### Why private
 
-- A public Wanted level would be a target painted on a player, and it would make the
-  informant ideas below far too strong.
+- A public Wanted level would be a target painted on a player.
 - Scouting, combat and profiles reveal nothing about a case. The only outside trace of a raid
   is its real effect (an item gone, a racket shut), which other players could already
   observe.
@@ -186,19 +190,15 @@ The "accept higher risk for higher profit" lever.
 
 ---
 
-## Informants *(proposed; see open questions)*
+## Informants
 
-Two directions, both strictly capped:
+Informants sell **information, not protection**: pay for advance word on an upcoming federal
+sweep or a city's crackdown mood. A tip never changes anyone's case, including the buyer's.
 
-- **Buying tips:** pay to get advance word on an upcoming federal sweep or a city's
-  crackdown mood. This is information, not protection.
-- **Tipping off a rival:** spend cash to add evidence to another player's case in a city where
-  you have a presence.
-  - Tight per-target and per-tipper cooldowns.
-  - A hard cap on how much any one tipper can add per target per round.
-  - The tipper learns **nothing** about the result (Wanted is private).
-  - The target eventually sees "someone talked", in their case receipts, without a name.
-  - Never available against players under a level/age protection line.
+**Cut: tipping off rivals.** An earlier draft let players pay to add evidence to another
+player's case. It was the easiest part of 1.3 to abuse (dogpiling, farming a rival through a
+private system they can't see coming from), so it's out. A player's case is built only from
+their own actions.
 
 ---
 
@@ -231,8 +231,8 @@ Two directions, both strictly capped:
 5. Total police losses (busts, arrests, raids, fines) are capped per player per day as a share
    of net worth.
 6. A player's Case and Wanted level are never shown to, or derivable by, another player.
-7. A tip can't push a target's case by more than the per-round cap, regardless of how many
-   tippers act.
+7. A player's Case only ever changes from their own actions, officials, lawyers, laundering
+   and time. No other player can add to it.
 8. Officials, lawyers and case clearing are never sold for real money.
 9. Every Case change has a receipt keyed to its source action, so retries never add evidence
    twice.
@@ -257,7 +257,7 @@ interface LawRules {
   readonly dailyLossCapNetWorthShare: number;
   readonly officials: { /* per official: retainer pricing, effect, exposure per favor, IA line */ };
   readonly lawyer: { readonly retainer: /* pricing */ unknown; readonly lawyerUpMultiplier: number };
-  readonly informants?: { /* cooldowns, caps, price */ };
+  readonly informants?: { /* tip prices and what each tip reveals */ };
 }
 ```
 
@@ -299,20 +299,18 @@ reports. Cooling off. Laundering and Heat Shield hooks.
 Warrant drafting, warning windows, Hideout / business / personal warrants, the daily loss
 cap, and notifications. Lawyers (retainer and lawyer up).
 
-### 1.3.0-D — Corruption
-Officials on payroll per city, retainers, exposure and Internal Affairs.
+### 1.3.0-D — Corruption & Informants
+Officials on payroll per city, retainers, exposure and Internal Affairs. Informants who sell
+tips on sweeps and crackdowns.
 
-### 1.3.0-E — Informants
-Buying tips, and (if approved) tipping off rivals with all caps in place.
-
-### 1.3.0-F — City Identity & the Feds
+### 1.3.0-E — City Identity & the Feds
 Per-city law personalities. The federal sweep reads the **Federal** stage.
 
-### 1.3.0-G — Jobs, Feats & Titles
+### 1.3.0-F — Jobs, Feats & Titles
 A police-side contact with one-time Jobs, clean-record feats and law-themed titles. Like 1.2.0-F,
 these never pay cash, turns or protection.
 
-### 1.3.0-H — Balance, Admin & Release
+### 1.3.0-G — Balance, Admin & Release
 `qa:law` simulation, admin case viewer and case adjustment (audited), exploit audit pass,
 mobile regression and release gate.
 
@@ -320,15 +318,11 @@ mobile regression and release gate.
 
 ## Open questions
 
-1. **Tipping off rivals:** ship it in E, or cut it? It's the most interesting PvP idea here
-   and the easiest to abuse. Buying tips can ship either way.
-2. **Police as combat:** should resisting a personal warrant be a fight? Recommendation: no.
+1. **Police as combat:** should resisting a personal warrant be a fight? Recommendation: no.
    Leave armed NPCs to 1.4 (Factions) and keep 1.3 to strategic pressure.
-3. **Sequencing:** start building 1.3.0-A before 1.2.0-G/H ship, or only design until then?
-   Recommendation: finish 1.2.0-H first. 1.3.0-A can then start on a release ruleset.
-4. **Case at season end:** does a high Case at the bell affect anything (Hall of Fame,
+2. **Case at season end:** does a high Case at the bell affect anything (Hall of Fame,
    feats), or does it simply reset with the round like Heat?
-5. **Relocation:** when a player moves their home city, does the old city's case follow the
+3. **Relocation:** when a player moves their home city, does the old city's case follow the
    Hideout, or stay behind?
 
 ## Not in 1.3.0
@@ -338,3 +332,4 @@ mobile regression and release gate.
 - Police that take turf or raze businesses.
 - Armed police combat or NPC police crews (1.4).
 - Paid or real-money ways to clear a case.
+- Tipping off rivals, or any other way for one player to add evidence to another's case.
