@@ -124,6 +124,21 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.3.0-C warrants and lawye
     expect(await open()).toHaveLength(1);
   });
 
+  it('shows what the detectives are looking at from Under Investigation, until a warrant is drafted', async () => {
+    const page = async () => {
+      const base = (await LawService.page(app.prisma, playerId, cityId, rules))!;
+      return LawWarrantService.decoratePage(app.prisma, base, playerId);
+    };
+    await evidence([{ cityId, points: 30, source: 'BUST' }]);
+    expect((await page()).cases[0]).toMatchObject({ stage: 'NOTICED', lookingAt: null });
+    await evidence([{ cityId, points: 15, source: 'HIJACK' }, { cityId, points: 10, source: 'ROAD_STOP' }]);
+    expect((await page()).cases[0]).toMatchObject({ stage: 'INVESTIGATION', lookingAt: { target: 'HIDEOUT', businessName: null } });
+    await evidence([{ cityId, points: 15, source: 'HIJACK' }]);
+    // The Warrant stage drafts the warrant, which now carries the target instead.
+    expect((await page()).cases[0]).toMatchObject({ stage: 'WARRANT', lookingAt: null });
+    expect((await open())[0]).toMatchObject({ target: 'PERSONAL' });
+  });
+
   it('aims the next warrant at evidence since the last one, not the evidence that drafted it', async () => {
     await evidence([{ cityId, points: 70, source: 'BUST' }]);
     await serveNow();

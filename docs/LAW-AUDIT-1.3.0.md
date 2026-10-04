@@ -56,7 +56,19 @@ past Noticed" would come with ordinary play. Nothing on Paper now needs no Case 
 Investigation, and Off the Books needs every Case to stay Quiet. No law season has finished yet, so
 nobody loses a feat.
 
-### 3. Admin list links were small on phones
+### 3. Under Investigation never showed what it was looking at
+
+The roadmap's ladder makes Under Investigation a warning: the Case shows which asset the detectives
+are looking at. C built warrant targeting but not the warning. The Case panel now says what a warrant
+would name, from the same evidence weighting, for any city at Under Investigation or above with no
+warrant open there.
+
+### 4. The airport preview ignored Customs
+
+Since D, a Customs Officer on the payroll at home cut the real airport check on the way out, but the
+trip screen still showed the uncut chance. The preview now applies the same cut, and says so.
+
+### 5. Admin list links were small on phones
 
 The player links in Admin → Law's lists were 20 px tall. They are now at least 28 px.
 
@@ -92,4 +104,3 @@ The player links in Admin → Law's lists were 20 px tall. They are now at least
   real round, which is what the sensible bands' headroom is for.
 - A staff correction doesn't restart a Case's quiet clock, so a Case set by staff starts cooling at
   once.
-- The trip screen's airport-check preview does not show Customs' cut yet (from D).

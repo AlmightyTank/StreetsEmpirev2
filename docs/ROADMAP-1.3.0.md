@@ -2,9 +2,9 @@
 
 ## Brainstorm
 
-**Status:** 1.3.0-A through 1.3.0-G are built; the release ruleset is `classic-og-v1.3-g`, with the
-law numbers pinned by `qa:law`. See the [Roadmap](#roadmap) table and the
-[law audit](LAW-AUDIT-1.3.0.md).
+**Status: 1.3.0 is complete.** Slices A through G are built; the release ruleset is
+`classic-og-v1.3-g`, with the law numbers pinned by `qa:law`. See the [Roadmap](#roadmap) table,
+the [law audit](LAW-AUDIT-1.3.0.md) and the [release notes](RELEASE-1.3.0.md).
 
 **Withdrawn draft:** a separate "law pressure" draft (one attention and evidence pool per
 player, a `classic-og-v1.3-f` built on 1.2-F, and cash to bury attention) briefly landed on
@@ -54,9 +54,11 @@ under [Stages](#stages-sketch-following-the-11--12-pattern).
 | **1.3.0-F — Jobs, Feats & Titles** | Built | `classic-og-v1.3-f` | Ledger, a retired records sergeant, with seven one-time Jobs driven by the law system, law titles and a Case File frame, and three clean-record season feats judged at season end. Never pays cash, turns or protection. |
 | **1.3.0-G — Balance, Admin & Release** | Built | `classic-og-v1.3-g` | `qa:law` pins the numbers (warrants rare for careful play, about weekly for reckless). Admin → Law with a receipt-integrity check, a staff Case viewer with audited corrections, the [law audit](LAW-AUDIT-1.3.0.md), mobile checks and the release gate. |
 
-**Still open across slices:**
+The numbers in the A–F rows (10% of Heat, cooling after 24 quiet hours and so on) were first passes;
+G replaces them with the values `qa:law` pinned.
 
-- The airport-check preview on the trip screen does not yet show Customs' cut (D).
+**Still open across slices** (known gaps, none of them blocking the release):
+
 - A city tip's Heat lines are also visible on the move screen for destinations; from E the tip
   adds the city's police personality, which is shown nowhere else before you have a Case there.
 - `qa:law` models street work, the main Heat source; runs, production and rackets add Case on top
@@ -584,7 +586,7 @@ and `law.informants`. Heat, busts, arrests and bribes are unchanged.
 - **Panel.** The Case panel gains a Payroll section (each official's status, exposure meter,
   Pay a week, Cut loose, and a hire form), an Informants section with the tips bought, and a
   "Have the DA quash it" button on warrants a working DA can quash.
-- The trip screen's airport-check preview still shows the chance without Customs.
+- The trip screen's airport-check preview still shows the chance without Customs (fixed in G).
 - **Seed.** The local seed's current round now uses `classic-og-v1.3-d`.
 
 D invariants:
@@ -782,6 +784,19 @@ pinned by `qa:law`. Nothing else in the ruleset changes. The full audit is in
   by staff") on the player's own panel, so the receipts still add up. A correction never drafts a
   warrant, sends a stage alert, logs a stage rise, earns a Captain's tip, is slowed by a DA,
   restarts the quiet clock or counts toward a Job. Staff can't correct their own Case.
+- **Under Investigation shows what it's looking at.** The ladder promised that Under
+  Investigation is warning-only and shows which asset the detectives are looking at; C built
+  warrant targeting but not this warning. From G, a city's Case at Under Investigation or above
+  with no warrant open there says on the Case panel what a warrant would name (your Hideout, a
+  named business, or you personally). It uses the same evidence weighting that drafts the
+  warrant. It's display only, so it reads on every ruleset with warrants.
+- **Customs in the airport preview.** D's known gap: the trip screen's airport-check preview now
+  applies a Customs Officer's cut on the way out, exactly as the flight does, and says so. Reading
+  the preview is not a favor and adds no exposure.
+- **Rules page.** The player handbook has a new "The law" section covering the Case, the ladder,
+  warrants, cooling, officials, informants, the Feds and Ledger. Like the rest of the page, it
+  quotes no balance numbers.
+- **Release notes.** [RELEASE-1.3.0.md](RELEASE-1.3.0.md), to publish as the season's news post.
 - **Release gate.** `qa:release` runs `qa:law` with the other balance gates. Its database pass
   already runs every law suite, and now `admin-law` too. The warrant, official and federal suites
   check receipt integrity after every test. The UI audit visits Admin → Law.

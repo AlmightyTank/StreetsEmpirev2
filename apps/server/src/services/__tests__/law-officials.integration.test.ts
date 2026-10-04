@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { classicOgV13D } from '@streets/rulesets';
 import { lawPriceCents, startingStock } from '@streets/rules-engine';
 import type { LawPageDto } from '@streets/shared';
+import { BossTripService } from '../boss-trip.service.js';
 import { GameAlertService } from '../game-alerts.service.js';
 import { LawOfficialService } from '../law-official.service.js';
 import { LawService, type CaseEvidence } from '../law.service.js';
@@ -99,6 +100,18 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.3.0-D officials and info
   };
   const page = async () => (await app.inject({ method: 'GET', url: '/api/game/law', headers: { cookie } })).json<LawPageDto>();
   const count = (type: string) => app.prisma.playerActivity.count({ where: { roundPlayerId: playerId, type: type as never } });
+
+  it('shows a Customs Officer’s cut in the airport preview, as the flight out applies it', async () => {
+    const preview = async () => {
+      const player = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId }, include: { city: true, round: true } });
+      return (await BossTripService.page(app.prisma, player, rules, player.round.endsAt, new Date()))!.airport!;
+    };
+    expect((await preview()).customsCut).toBe(0);
+    await hire('CUSTOMS');
+    expect((await preview()).customsCut).toBe(officials.roles.CUSTOMS.checkCut);
+    // Reading the preview is not a favor: no exposure.
+    expect((await official('CUSTOMS')).exposure).toBe(0);
+  });
 
   it('puts a DA on the payroll for a week, who slows the Case and quashes a warrant once', async () => {
     const hired = await hire('DA');

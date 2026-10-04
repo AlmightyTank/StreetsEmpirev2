@@ -134,6 +134,11 @@ export function CasePanel() {
                 {row.cooling ? ` · ${coolingText(row.cooling)}` : ''}
               </span>
               {row.law?.blurb ? <span className="se-hint se-muted">{row.cityName} police: {row.law.blurb}</span> : null}
+              {row.lookingAt ? (
+                <span className="se-hint se-warn">
+                  Detectives are looking at {row.lookingAt.target === 'HIDEOUT' ? 'your Hideout' : row.lookingAt.target === 'BUSINESS' ? (row.lookingAt.businessName ? `your ${row.lookingAt.businessName}` : 'one of your businesses') : 'you personally'}: a warrant here would name {row.lookingAt.target === 'PERSONAL' ? 'you' : 'it'}.
+                </span>
+              ) : null}
             </li>
           ))}
         </ul>

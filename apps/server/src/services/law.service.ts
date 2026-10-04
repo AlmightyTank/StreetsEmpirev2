@@ -486,6 +486,7 @@ export const LawService = {
           next: next ? { stage: next.stage, startsAt: points(next.startsAt) } : null,
           cooling: starts && rules.cooling ? { startsAt: starts.toISOString(), perHour: rules.cooling.decayPerHour * (pace?.coolingSpeed ?? 1) } : null,
           law: pace ? { blurb: pace.blurb, caseSpeed: pace.caseSpeed, coolingSpeed: pace.coolingSpeed, warningHoursMultiplier: pace.warningHoursMultiplier } : null,
+          lookingAt: null,
           updatedAt: row.updatedAt.toISOString(),
         };
       }),

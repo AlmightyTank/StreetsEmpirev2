@@ -10,6 +10,7 @@ import {
   policeLossRoom,
   retainerCents,
   rulesetForCity,
+  stageRank,
   type Ruleset,
   type WarrantTarget,
 } from '@streets/rules-engine';
@@ -83,6 +84,10 @@ async function raidableBusiness(db: Db, roundPlayerId: string, cityId: string) {
     orderBy: [{ level: 'desc' }, { registerCents: 'desc' }, { id: 'asc' }],
     select: { id: true, kind: true },
   });
+}
+
+async function cityBySlug(db: Db, slug: string) {
+  return db.city.findUniqueOrThrow({ where: { slug }, select: { id: true, slug: true, name: true } });
 }
 
 async function cityOf(db: Db, cityId: string) {
@@ -432,9 +437,22 @@ export const LawWarrantService = {
       });
     }
     for (const warrant of resolved) warrants.push(warrantDto(base, warrant));
+    // G: Under Investigation is warning-only, and the warning is what a warrant would name.
+    const warned = new Set(open.map((warrant) => warrant.city.slug));
+    const cases = [];
+    for (const row of page.cases) {
+      if (stageRank(row.stage) < stageRank('INVESTIGATION') || warned.has(row.citySlug)) {
+        cases.push(row);
+        continue;
+      }
+      const city = await cityBySlug(db, row.citySlug);
+      const { target, business } = await LawWarrantService.chooseTarget(db, roundPlayerId, city.id, city.id);
+      cases.push({ ...row, lookingAt: { target, businessName: target === 'BUSINESS' ? businessLabel(base, business) : null } });
+    }
     const day = now.toISOString().slice(0, 10);
     return {
       ...page,
+      cases,
       warrants,
       lawyer: lawyer ? {
         retainedUntil: player.lawyerRetainedUntil && player.lawyerRetainedUntil > now ? player.lawyerRetainedUntil.toISOString() : null,
