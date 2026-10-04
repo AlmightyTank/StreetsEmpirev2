@@ -7,6 +7,7 @@ import { useSession } from '../stores/session.js';
 import { caseSourceName, formatCase, formatCaseDelta, wantedStageBlurb, wantedStageName, wantedStageTone, warrantTargetName } from '../utils/law.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { Button } from './Button.js';
+import { InformantSection, PayrollSection } from './LawPayroll.js';
 import { formatWhen } from '../utils/time.js';
 import { Alert } from './Alert.js';
 import { Panel } from './Panel.js';
@@ -40,6 +41,7 @@ function warrantStatus(warrant: WarrantDto): { text: string; tone: 'good' | 'war
     case 'WAITING': return { text: 'Waiting for the boss to come to town', tone: 'warn' };
     case 'SERVED': return { text: `Served ${formatWhen(warrant.resolvedAt ?? warrant.servesAt)}`, tone: 'bad' };
     case 'LAWYERED': return { text: 'Answered by a lawyer', tone: 'good' };
+    case 'QUASHED': return { text: 'Quashed by your DA', tone: 'good' };
   }
 }
 
@@ -58,6 +60,7 @@ export function CasePanel() {
   const [showAll, setShowAll] = useState(false);
   const lawyerUp = useGameAction<{ warrantId: string; feeCents: number; cityName: string }>();
   const retain = useGameAction<{ feeCents: number; retainedUntil: string }>();
+  const quash = useGameAction<{ warrantId: string; cityName: string; quashReadyAt: string }>();
   const summary = me?.law;
   // Any action, settle or new Case can change the page; refetch when the player moves.
   const refreshKey = summary ? `${summary.case}|${me?.heat?.heat ?? 0}|${me?.lastActiveAt ?? ''}` : null;
@@ -159,8 +162,18 @@ export function CasePanel() {
                   </div>
                   <span className="se-hint">
                     {answerable && warrant.atRisk ? `At risk: ${takeText(warrant.atRisk)}.` : null}
-                    {!answerable && warrant.outcome ? (warrant.status === 'LAWYERED' ? `Fee ${formatCents(Number(warrant.outcome.feeCents ?? 0))}.` : `Took ${takeText(warrant.outcome)}.`) : null}
+                    {!answerable && warrant.outcome ? (warrant.status === 'LAWYERED' ? `Fee ${formatCents(Number(warrant.outcome.feeCents ?? 0))}.` : warrant.status === 'QUASHED' ? 'Nothing taken.' : `Took ${takeText(warrant.outcome)}.`) : null}
                   </span>
+                  {answerable && warrant.quashable ? (
+                    <Button
+                      type="button"
+                      className="se-btn se-btn--primary se-btn--sm"
+                      disabledReason={quash.busy ? 'Calling the DA...' : null}
+                      onClick={() => void quash.run((actionId) => lawApi.quash(warrant.id, actionId))}
+                    >
+                      Have the DA quash it
+                    </Button>
+                  ) : null}
                   {answerable && warrant.lawyerUpCents !== null ? (
                     <Button
                       type="button"
@@ -176,6 +189,7 @@ export function CasePanel() {
             })}
           </ul>
           {lawyerUp.error ? <Alert>{lawyerUp.error}</Alert> : null}
+          {quash.error ? <Alert>{quash.error}</Alert> : null}
         </>
       ) : null}
 
@@ -197,6 +211,11 @@ export function CasePanel() {
           </Button>
           {retain.error ? <Alert>{retain.error}</Alert> : null}
         </div>
+      ) : null}
+
+      {page?.payroll ? <PayrollSection payroll={page.payroll} cashCents={me.resources.cashCents} /> : null}
+      {page?.informants ? (
+        <InformantSection informants={page.informants} cities={(page.payroll?.cities ?? []).filter((row) => row.slug !== me.city.slug)} cashCents={me.resources.cashCents} />
       ) : null}
 
       {receipts.length ? (

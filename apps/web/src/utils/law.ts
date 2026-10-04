@@ -37,7 +37,31 @@ const SOURCE_NAMES: Record<CaseSourceDto, string> = {
   COOLING: 'Cooled off',
   WARRANT: 'Warrant served',
   LAWYER: 'Lawyered up',
+  QUASH: 'Warrant quashed',
+  STING: 'Internal Affairs sting',
 };
+
+const OFFICIAL_TITLES: Record<string, string> = {
+  CAPTAIN: 'Precinct Captain',
+  DA: 'District Attorney',
+  JUDGE: 'Judge',
+  CUSTOMS: 'Customs Officer',
+};
+
+const OFFICIAL_HELP: Record<string, string> = {
+  CAPTAIN: 'Warrants there come with more warning, and a word before the Case gets that far.',
+  DA: 'Slows the Case there, and can quash one warrant there a week.',
+  JUDGE: 'Warrants served there take less and lock the boss up for less.',
+  CUSTOMS: 'Airport checks on flights out of there happen less. The no-fly line still holds.',
+};
+
+export function officialTitle(role: string): string {
+  return OFFICIAL_TITLES[role] ?? role;
+}
+
+export function officialHelp(role: string): string {
+  return OFFICIAL_HELP[role] ?? '';
+}
 
 const TARGET_NAMES: Record<string, string> = {
   HIDEOUT: 'Hideout raid',

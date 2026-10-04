@@ -341,6 +341,43 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
           p.capped ? 'Held to the daily cap' : '',
         ].filter(Boolean).join(' · '),
       };
+    case 'OFFICIAL_HIRED':
+      return {
+        text: (p.renewed ? 'Paid another week to the ' : 'Put the ') + str(p.cityName, 'city') + ' ' + str(p.title, 'official') + (p.renewed ? '.' : ' on the payroll.'),
+        detail: formatCents(num(p.weekCents)) + ' · paid until ' + formatWhen(str(p.paidUntil)),
+      };
+    case 'OFFICIAL_IA_OPENED':
+      return {
+        text: 'Internal Affairs opened a file on your ' + str(p.cityName, 'city') + ' ' + str(p.title, 'official') + '.',
+        detail: 'Cut them loose before ' + formatWhen(str(p.stingAt)) + ' or be caught with them',
+      };
+    case 'OFFICIAL_CUT':
+      return {
+        text: 'Cut the ' + str(p.cityName, 'city') + ' ' + str(p.title, 'official') + ' loose.',
+        detail: p.underInvestigation ? 'Ahead of Internal Affairs' : '',
+      };
+    case 'OFFICIAL_STUNG':
+      return {
+        text: 'Internal Affairs caught your ' + str(p.cityName, 'city') + ' ' + str(p.title, 'official') + '.',
+        detail: '+' + formatNumber(num(p.points)) + ' Case in ' + str(p.cityName, 'that city'),
+      };
+    case 'WARRANT_QUASHED':
+      return {
+        text: 'Your District Attorney quashed the ' + str(p.cityName, 'city') + ' warrant.',
+        detail: warrantTargetName(str(p.target)),
+      };
+    case 'CAPTAIN_TIP':
+      return {
+        text: 'Your ' + str(p.cityName, 'city') + ' Captain says the file is close to a warrant.',
+        detail: 'Case ' + formatCase(num(p.case)) + ' of ' + formatNumber(num(p.warrantAt)),
+      };
+    case 'INFORMANT_TIP':
+      return {
+        text: p.kind === 'SWEEP'
+          ? 'An informant says the Feds sweep ' + str(p.cityName, 'a city') + ' ' + formatWhen(str(p.sweepAt)) + '.'
+          : 'An informant laid out how the ' + str(p.cityName, 'city') + ' police work.',
+        detail: 'Paid ' + formatCents(num(p.feeCents)),
+      };
     case 'WARRANT_LAWYERED':
       return {
         text: 'A lawyer answered the ' + str(p.cityName, 'city') + ' warrant.',
@@ -684,6 +721,13 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     WARRANT_SERVED: 'Warrant served',
     WARRANT_LAWYERED: 'Lawyered up',
     LAWYER_RETAINED: 'Lawyer',
+    OFFICIAL_HIRED: 'Payroll',
+    OFFICIAL_IA_OPENED: 'Internal Affairs',
+    OFFICIAL_CUT: 'Payroll',
+    OFFICIAL_STUNG: 'Sting',
+    WARRANT_QUASHED: 'Warrant quashed',
+    CAPTAIN_TIP: 'Captain',
+    INFORMANT_TIP: 'Informant',
     CASINO_COMP_HOTEL: 'Comped hotel',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();
