@@ -275,6 +275,12 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
     case 'REVENGE_EXPIRING':
       return { title: 'Revenge expires soon', detail, tone: 'warn', href: '/game/combat' };
 
+    case 'WARRANT_DRAFTED':
+      return { title: 'A warrant is out for you', detail, tone: 'bad', href: '/game#case' };
+
+    case 'WARRANT_SERVED':
+      return { title: 'A warrant was served', detail, tone: 'bad', href: '/game#case' };
+
     case 'CASE_STAGE_UP':
       return {
         title: 'The police have more on you',

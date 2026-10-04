@@ -35,7 +35,20 @@ const SOURCE_NAMES: Record<CaseSourceDto, string> = {
   CURRENCY_REPORT: 'Currency report',
   LAUNDERING: 'Laundering',
   COOLING: 'Cooled off',
+  WARRANT: 'Warrant served',
+  LAWYER: 'Lawyered up',
 };
+
+const TARGET_NAMES: Record<string, string> = {
+  HIDEOUT: 'Hideout raid',
+  BUSINESS: 'Business raid',
+  PERSONAL: 'Personal warrant',
+};
+
+/** "Hideout raid", "Business raid", "Personal warrant". */
+export function warrantTargetName(target: string): string {
+  return TARGET_NAMES[target] ?? target;
+}
 
 export function wantedStageName(stage: string): string {
   return STAGE_NAMES[stage as WantedStageDto] ?? stage;

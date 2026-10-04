@@ -729,3 +729,4 @@
 .se-case__city { display: grid; gap: 4px; }
 .se-case__cityhead { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: 14px; }
 .se-case__city .se-heat__meter { margin: 0; }
+.se-case__lawyer { display: grid; gap: 6px; justify-items: start; }

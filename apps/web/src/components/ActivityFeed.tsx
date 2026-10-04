@@ -2,7 +2,7 @@ import type { ActivityDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen } from '../utils/time.js';
-import { formatCase, wantedStageName } from '../utils/law.js';
+import { formatCase, wantedStageName, warrantTargetName } from '../utils/law.js';
 
 /** 0.9.0-G. When a pending push, tail or window happens, in the player's own clock. */
 function atTime(iso: string): string {
@@ -324,6 +324,32 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       return {
         text: 'Closed the session at ' + str(p.venueName, 'the casino') + ' with ' + formatCents(num(p.bankrollCents)) + '.',
         detail: str(p.cityName),
+      };
+    case 'WARRANT_DRAFTED':
+      return {
+        text: str(p.cityName, 'A city') + ' police drafted a warrant: ' + warrantTargetName(str(p.target)).toLowerCase() + (p.businessName ? ' (' + str(p.businessName) + ')' : '') + '.',
+        detail: 'Served ' + formatWhen(str(p.servesAt)) + ' unless you answer it',
+      };
+    case 'WARRANT_SERVED':
+      return {
+        text: str(p.cityName, 'A city') + ' police served their warrant: ' + warrantTargetName(str(p.target)).toLowerCase() + '.',
+        detail: [
+          num(p.fineCents) > 0 ? 'Fined ' + formatCents(num(p.fineCents)) : '',
+          num(p.registerFineCents) > 0 ? 'Register fined ' + formatCents(num(p.registerFineCents)) : '',
+          p.shutUntil ? 'Racket shut until ' + formatWhen(str(p.shutUntil)) : '',
+          p.lockedUntil ? 'Locked up until ' + formatWhen(str(p.lockedUntil)) : '',
+          p.capped ? 'Held to the daily cap' : '',
+        ].filter(Boolean).join(' · '),
+      };
+    case 'WARRANT_LAWYERED':
+      return {
+        text: 'A lawyer answered the ' + str(p.cityName, 'city') + ' warrant.',
+        detail: 'Fee ' + formatCents(num(p.feeCents)),
+      };
+    case 'LAWYER_RETAINED':
+      return {
+        text: 'A lawyer is on retainer until ' + formatWhen(str(p.retainedUntil)) + '.',
+        detail: 'Fee ' + formatCents(num(p.feeCents)),
       };
     case 'CASE_STAGE_UP':
       return {
@@ -654,6 +680,10 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     CASINO_SESSION_CLOSED: 'Casino session closed',
     CASINO_STATUS_UP: 'Casino status',
     CASE_STAGE_UP: 'Case',
+    WARRANT_DRAFTED: 'Warrant',
+    WARRANT_SERVED: 'Warrant served',
+    WARRANT_LAWYERED: 'Lawyered up',
+    LAWYER_RETAINED: 'Lawyer',
     CASINO_COMP_HOTEL: 'Comped hotel',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();
