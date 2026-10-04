@@ -512,6 +512,21 @@ export interface QuestDefinition {
 
 export type QuestDefinitionCatalog = Readonly<Record<string, QuestDefinition>>;
 
+/** 1.4.0-A2 contract board rotation. */
+export interface ContractRotationRules {
+  /**
+   * Daily and weekly boards deal from a shuffled deck seeded by the round, so each
+   * round gets its own order, every contract is dealt once per pass through the
+   * pool, and none comes back within about half the pool.
+   */
+  readonly perRoundDeck: boolean;
+  /**
+   * City boards never post two orders in the same city, and avoid the cities the
+   * previous 12-hour board posted whenever another city has an order.
+   */
+  readonly freshCityBoards: boolean;
+}
+
 export interface RulesetMeta {
   readonly id: string;
   readonly version: string;
@@ -2607,6 +2622,11 @@ export interface Ruleset {
   readonly contacts?: ContactCatalog;
   /** 1.4.0-A. The underworld factions behind the contacts. Absent before 1.4. */
   readonly factions?: FactionCatalog;
+  /**
+   * 1.4.0-A2. How the daily, weekly and city contract boards rotate. Absent means
+   * the original shared rotation: every round on the ruleset sees the same board.
+   */
+  readonly contractRotation?: ContractRotationRules;
   /** Permanent per-round capabilities earned through Jobs. */
   readonly permanentUnlocks?: PermanentUnlockCatalog;
   /** Consumable favors earned from contacts. Effects are activated by later roadmap phases. */

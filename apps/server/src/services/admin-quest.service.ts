@@ -156,12 +156,12 @@ export const AdminQuestService = {
       },
       rotations: {
         daily: {
-          keys: selectedDailyContractKeys(ruleset, now, enabledKeys),
+          keys: selectedDailyContractKeys(ruleset, now, enabledKeys, round.id),
           resetAt: dailyWindow.endsAt.toISOString(),
           slots: DAILY_CONTRACT_SLOTS,
         },
         weekly: {
-          keys: selectedWeeklyContractKeys(ruleset, now, enabledKeys),
+          keys: selectedWeeklyContractKeys(ruleset, now, enabledKeys, round.id),
           resetAt: weeklyWindow.endsAt.toISOString(),
           slots: WEEKLY_CONTRACT_SLOTS,
         },

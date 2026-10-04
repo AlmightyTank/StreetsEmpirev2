@@ -21,6 +21,8 @@ export const CITY_CONTRACT_WINDOW_HOURS = 12;
 export const CITY_CONTRACT_PAYOUT_MULTIPLIER = 1.35;
 
 const WINDOW_MS = CITY_CONTRACT_WINDOW_HOURS * 60 * 60 * 1000;
+/** 1.4.0-A2 fresh city boards replay at most this many windows (three days). */
+const FRESH_CITY_RUN_WINDOWS = 6;
 
 const SUPPLY_PRESSURE: Readonly<Record<SupplyLevel, number>> = {
   PLENTIFUL: -2,
@@ -188,11 +190,11 @@ function targetFor(supply: SupplyLevel | null, event: 'GLUT' | 'DROUGHT' | undef
   return 250;
 }
 
-export function cityContractOffers(
+function cityContractCandidates(
   ruleset: Ruleset,
   roundSeed: string,
   window: CityContractWindow,
-): CityContractState[] {
+): Opportunity[] {
   const cities = Object.keys(ruleset.cities ?? {});
   const products = Object.keys(ruleset.products ?? {});
   if (!cities.length || !products.length || !ruleset.travel?.market) return [];
@@ -261,14 +263,55 @@ export function cityContractOffers(
     }
   }
 
-  return candidates
-    .sort((left, right) =>
-      right.score - left.score
-      || left.city.localeCompare(right.city)
-      || left.product.localeCompare(right.product)
-    )
-    .slice(0, CITY_CONTRACT_SLOTS)
-    .map(({ score: _score, ...offer }) => offer);
+  return candidates.sort((left, right) =>
+    right.score - left.score
+    || left.city.localeCompare(right.city)
+    || left.product.localeCompare(right.product)
+  );
+}
+
+/** Best-scoring candidates with at most one order per city, preferring cities not in avoid. */
+function distinctCityPicks(candidates: readonly Opportunity[], avoid: ReadonlySet<string>): Opportunity[] {
+  const picked: Opportunity[] = [];
+  for (const preferFresh of [true, false]) {
+    for (const candidate of candidates) {
+      if (picked.length >= CITY_CONTRACT_SLOTS) return picked;
+      if (preferFresh && avoid.has(candidate.city)) continue;
+      if (picked.some((entry) => entry.city === candidate.city)) continue;
+      picked.push(candidate);
+    }
+  }
+  return picked;
+}
+
+export function cityContractOffers(
+  ruleset: Ruleset,
+  roundSeed: string,
+  window: CityContractWindow,
+): CityContractState[] {
+  if (!ruleset.contractRotation?.freshCityBoards) {
+    return cityContractCandidates(ruleset, roundSeed, window)
+      .slice(0, CITY_CONTRACT_SLOTS)
+      .map(({ score: _score, ...offer }) => offer);
+  }
+
+  // 1.4.0-A2: each board avoids the cities the board before it actually posted.
+  // Boards are replayed from the start of a fixed run of windows so the chain stays
+  // short; the first board of a run avoids the previous window's raw top picks.
+  const index = Math.floor(window.startsAt.getTime() / WINDOW_MS);
+  const runStart = index - (index % FRESH_CITY_RUN_WINDOWS);
+  const at = (windowIndex: number): CityContractWindow => ({
+    startsAt: new Date(windowIndex * WINDOW_MS),
+    endsAt: new Date((windowIndex + 1) * WINDOW_MS),
+  });
+  let avoid = new Set(distinctCityPicks(cityContractCandidates(ruleset, roundSeed, at(runStart - 1)), new Set())
+    .map((entry) => entry.city));
+  let picked: Opportunity[] = [];
+  for (let windowIndex = runStart; windowIndex <= index; windowIndex += 1) {
+    picked = distinctCityPicks(cityContractCandidates(ruleset, roundSeed, at(windowIndex)), avoid);
+    avoid = new Set(picked.map((entry) => entry.city));
+  }
+  return picked.map(({ score: _score, ...offer }) => offer);
 }
 
 export async function syncCityContractAttempts(

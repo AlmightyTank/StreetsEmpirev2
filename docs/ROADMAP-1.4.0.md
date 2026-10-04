@@ -2,8 +2,8 @@
 
 ## Brainstorm
 
-**Status:** 1.4.0-A is built; the newest ruleset is `classic-og-v1.4-a`. B to G are design only. See
-the [Roadmap](#roadmap) table.
+**Status:** 1.4.0-A and A2 are built; the newest ruleset is `classic-og-v1.4-a2`. B to G are design
+only. See the [Roadmap](#roadmap) table.
 
 **Target base:** StreetsEmpire v1.3.0 (`classic-og-v1.3-g`)  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** make each city's underworld feel populated
@@ -46,6 +46,7 @@ contact reputation exactly as they were.
 | Slice | Status | Ruleset | What it delivers |
 | --- | --- | --- | --- |
 | **1.4.0-A — Faction Catalog** | Built | `classic-og-v1.4-a` | Factions in the ruleset, each contact's faction, faction identity on Jobs and contacts. No balance change. |
+| **1.4.0-A2 — Contract Rotation** | Built | `classic-og-v1.4-a2` | 22 more daily contracts (30 in all) and 10 more weekly contracts (16 in all). Each round deals its boards from its own deck: every daily is dealt once every 10 days and never twice within 5, every weekly about once every 8 weeks and never twice within 4, with boards mixing categories. City boards never post two orders in one city and avoid the last board's cities. |
 | **1.4.0-B — Standing** | Planned | `classic-og-v1.4-b` | Seasonal standing per faction with receipts, tiers, tier-up alerts and a standing panel. Contact Jobs pay faction standing. |
 | **1.4.0-C — Sponsored Contracts** | Planned | `classic-og-v1.4-c` | Existing board contracts carry a sponsoring faction and pay its standing. Boards lean toward factions you work with. |
 | **1.4.0-D — Faction Perks** | Planned | `classic-og-v1.4-d` | Information and warnings at Known and Trusted, then a small capped nudge per faction at Connected. |
