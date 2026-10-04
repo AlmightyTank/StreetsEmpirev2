@@ -37,6 +37,7 @@ import { RoundService } from '../services/round.service.js';
 import { AppError } from '../utils/errors.js';
 import { onboardingActionSchema } from '@streets/shared';
 import { OnboardingService } from '../services/onboarding.service.js';
+import { PlayerExperienceService } from '../services/player-experience.service.js';
 
 const RECENT_ACTIVITY_LIMIT = 10;
 
@@ -95,7 +96,8 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       turf: settled.turf,
       recentActivity,
     });
-    return { ...snapshot, player: { ...snapshot.player, streetPass } };
+    const experience = await PlayerExperienceService.view(fastify.prisma, settled.player.accountId);
+    return { ...snapshot, player: { ...snapshot.player, streetPass, experience } };
   });
 
   /**

@@ -79,7 +79,7 @@ export const QuestCosmeticService = {
       progress: {
         current: 1,
         target: 1,
-        label: 'quest cosmetic',
+        label: 'account cosmetic',
       },
     }));
   },

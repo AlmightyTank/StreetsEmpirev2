@@ -805,7 +805,14 @@ export const HandcraftedQuestService = {
           ...(selectedBranch?.rewards ?? []),
         ];
         await grantRewards({ tx, roundPlayerId, accountId: player.accountId, ruleset, now, sourceKey: key }, next, questRewards);
-        await StreetPassCredService.creditQuest(tx, roundPlayerId, ruleset, (rulesetDefinition?.type ?? row.questDefinition.type) as QuestType);
+        await StreetPassCredService.creditQuest(
+          tx,
+          roundPlayerId,
+          ruleset,
+          (rulesetDefinition?.type ?? row.questDefinition.type) as QuestType,
+          `quest:${row.id}:${now.toISOString()}`,
+          now,
+        );
 
         await tx.playerQuest.update({
           where: { id: row.id },
