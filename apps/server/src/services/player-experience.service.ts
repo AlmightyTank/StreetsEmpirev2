@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { experienceLevelFor, playerExperienceDto, type PlayerExperienceDto } from '@streets/shared';
+import { experienceLevelFor, playerExperienceDto, type PlayerExperienceDto, type PlayerExperienceEventDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 
 type LevelCosmetic = {
@@ -19,6 +19,22 @@ const LEVEL_COSMETICS: readonly LevelCosmetic[] = [
 ];
 
 export const PlayerExperienceService = {
+  /** Recent account-wide XP awards, newest first. */
+  async recentEvents(db: Db | PrismaClient, accountId: string, limit = 25): Promise<PlayerExperienceEventDto[]> {
+    const rows = await db.playerExperienceEvent.findMany({
+      where: { accountId },
+      orderBy: [{ awardedAt: 'desc' }, { id: 'desc' }],
+      take: Math.max(1, Math.min(100, Math.floor(limit))),
+      select: { id: true, source: true, amount: true, awardedAt: true },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      source: row.source,
+      amount: row.amount,
+      awardedAt: row.awardedAt.toISOString(),
+    }));
+  },
+
   /** Lifetime progress. It is stored on Account and survives every round reset. */
   async view(db: Db | PrismaClient, accountId: string): Promise<PlayerExperienceDto> {
     const account = await db.account.findUnique({ where: { id: accountId }, select: { experiencePoints: true } });
