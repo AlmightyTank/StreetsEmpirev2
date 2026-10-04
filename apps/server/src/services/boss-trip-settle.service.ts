@@ -23,6 +23,7 @@ import { ActivityService } from './activity.service.js';
 import { CombatRecoveryService } from './combat-recovery.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { totalAwayWorth } from './run-settle.service.js';
+import { LawOfficialService } from './law-official.service.js';
 
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -182,7 +183,14 @@ async function checkFlightHome(tx: Db, ownerId: string, ruleset: Ruleset, trip: 
   const home = rulesetForCity(ruleset, owner.city.slug);
   const cooled = regenerateTurns({ turns: owner.turns, lastTurnCalculationAt: owner.lastTurnCalculationAt }, trip.stayUntil, home).intervalsProcessed;
   const heat = home.heat ? decayHeat(owner.heat, cooled, home.heat) : owner.heat;
-  const roll = rollAirport(airport, { heat, bodyguards: trip.bodyguards, bankrollCents: trip.bankrollCents, rng: seededRng(hashParts(trip.id, 'airport-home')) });
+  // 1.3.0-D: Customs on the payroll in the city being left looks the other way more often.
+  const visiting = ruleset.law?.officials ? await tx.city.findUnique({ where: { slug: trip.city }, select: { id: true } }) : null;
+  const customs = visiting ? await LawOfficialService.working(tx, ownerId, visiting.id, 'CUSTOMS', trip.stayUntil) : null;
+  const roll = rollAirport(airport, {
+    heat, bodyguards: trip.bodyguards, bankrollCents: trip.bankrollCents, rng: seededRng(hashParts(trip.id, 'airport-home')),
+    chanceMultiplier: customs ? 1 - ruleset.law!.officials!.roles.CUSTOMS.checkCut : 1,
+  });
+  if (customs) await LawOfficialService.favor(tx, ruleset, customs, 'customsFlight', now);
   const updated = await tx.bossTrip.update({
     where: { id: trip.id },
     data: {

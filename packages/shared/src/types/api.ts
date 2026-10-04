@@ -94,7 +94,14 @@ export type ActivityType =
   | 'WARRANT_DRAFTED'
   | 'WARRANT_SERVED'
   | 'WARRANT_LAWYERED'
-  | 'LAWYER_RETAINED';
+  | 'LAWYER_RETAINED'
+  | 'OFFICIAL_HIRED'
+  | 'OFFICIAL_IA_OPENED'
+  | 'OFFICIAL_CUT'
+  | 'OFFICIAL_STUNG'
+  | 'WARRANT_QUASHED'
+  | 'CAPTAIN_TIP'
+  | 'INFORMANT_TIP';
 
 export interface ApiErrorBody {
   error: {

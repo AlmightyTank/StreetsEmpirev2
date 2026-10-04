@@ -657,6 +657,47 @@ async function warrantAlerts(tx: Tx, now: Date, switches: ChannelSwitches): Prom
   return rows;
 }
 
+const OFFICIAL_WORDS: Record<string, string> = { CAPTAIN: 'Precinct Captain', DA: 'District Attorney', JUDGE: 'Judge', CUSTOMS: 'Customs Officer' };
+
+/**
+ * 1.3.0-D. Internal Affairs opening a file on one of the player's officials, and a sting. The
+ * player hears in time to cut them loose; nothing says how much exposure or evidence.
+ */
+async function officialAlerts(tx: Tx, now: Date, switches: ChannelSwitches): Promise<OutboxRow[]> {
+  const include = {
+    city: { select: { name: true } },
+    roundPlayer: { select: { accountId: true, account: accountSettings, round: { select: { status: true, endsAt: true } } } },
+  } as const;
+  const [opened, stung] = await Promise.all([
+    tx.playerOfficial.findMany({ where: { iaOpenedAt: { not: null }, iaAlertedAt: null }, include, take: BATCH, orderBy: { iaOpenedAt: 'asc' } }),
+    tx.playerOfficial.findMany({ where: { status: 'STUNG', stungAlertedAt: null }, include, take: BATCH, orderBy: { endedAt: 'asc' } }),
+  ]);
+  if (opened.length) await tx.playerOfficial.updateMany({ where: { id: { in: opened.map((row) => row.id) }, iaAlertedAt: null }, data: { iaAlertedAt: now } });
+  if (stung.length) await tx.playerOfficial.updateMany({ where: { id: { in: stung.map((row) => row.id) }, stungAlertedAt: null }, data: { stungAlertedAt: now } });
+  const rows: OutboxRow[] = [];
+  for (const official of opened) {
+    // Already cut loose, or already stung (that alert follows): nothing left to warn about.
+    if (official.status !== 'ACTIVE' || !live(official.roundPlayer.round, now)) continue;
+    const hours = Math.max(1, Math.round(((official.stingAt?.getTime() ?? now.getTime()) - now.getTime()) / 3_600_000));
+    rows.push(...notice(official.roundPlayer.accountId, official.roundPlayer.account.notificationSettings, 'law', `ia:${official.id}:${official.hiredAt.toISOString()}`, {
+      title: 'Internal Affairs is looking',
+      body: `Internal Affairs opened a file on your ${official.city.name} ${OFFICIAL_WORDS[official.role] ?? 'official'}. Cut them loose within about ${hours} hour${hours === 1 ? '' : 's'} or be caught with them.`,
+      url: gameUrl('/game#case'),
+      tag: `official:${official.id}`,
+    }, switches, now));
+  }
+  for (const official of stung) {
+    if (!live(official.roundPlayer.round, now)) continue;
+    rows.push(...notice(official.roundPlayer.accountId, official.roundPlayer.account.notificationSettings, 'law', `sting:${official.id}:${official.hiredAt.toISOString()}`, {
+      title: 'Your official was stung',
+      body: `Internal Affairs caught your ${official.city.name} ${OFFICIAL_WORDS[official.role] ?? 'official'} on your payroll.`,
+      url: gameUrl('/game#case'),
+      tag: `official:${official.id}`,
+    }, switches, now));
+  }
+  return rows;
+}
+
 export const GameAlertService = {
   /**
    * Settle runs that are due home, so "made it home" alerts go out while everyone
@@ -687,6 +728,7 @@ export const GameAlertService = {
       ...await messages(tx, now, switches),
       ...await caseStages(tx, now, switches),
       ...await warrantAlerts(tx, now, switches),
+      ...await officialAlerts(tx, now, switches),
       ...await announcements(tx, now, switches),
       ...await surveyBroadcasts(tx, now, switches),
       ...await newsBroadcasts(tx, now, switches),

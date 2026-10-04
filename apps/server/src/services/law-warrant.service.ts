@@ -21,6 +21,7 @@ import { BusinessService } from './business.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { hideoutProductProtection, hideoutProtectedCashBonusCents } from './hideout.service.js';
 import { LawService, seizedValueCents } from './law.service.js';
+import { LawOfficialService } from './law-official.service.js';
 import { CRACK, ProductInventoryService } from './product-inventory.service.js';
 import { refreshAwayWorth } from './run-settle.service.js';
 
@@ -53,14 +54,18 @@ export interface WarrantPlan {
   /** True when the day's cap made it take less. */
   capped: boolean;
   retained: boolean;
+  /** 1.3.0-D. A Judge on the payroll softened it. */
+  judged: boolean;
 }
 
 function json(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
 
+/** A share of an amount, in whole cents. Shares multiplied together carry float noise
+ * (0.05 x 0.7 is 0.0349999...), so a hair is added before rounding down. */
 function scale(cents: bigint, share: number): bigint {
-  return cents <= 0n || share <= 0 ? 0n : BigInt(Math.floor(Number(cents) * share));
+  return cents <= 0n || share <= 0 ? 0n : BigInt(Math.floor(Number(cents) * share + 1e-6));
 }
 
 
@@ -108,7 +113,11 @@ export const LawWarrantService = {
     }
     const business = await raidableBusiness(tx, roundPlayerId, cityId);
     const target = chooseWarrantTarget(weights, { hideout: player.cityId === cityId, business: Boolean(business) });
-    const servesAt = new Date(now.getTime() + rules.warningHours * HOUR_MS);
+    // D: a Precinct Captain on the payroll there buys the player more time.
+    const captain = ruleset.law?.officials ? await LawOfficialService.working(tx, roundPlayerId, cityId, 'CAPTAIN', now) : null;
+    const extraHours = captain ? ruleset.law!.officials!.roles.CAPTAIN.extraWarningHours : 0;
+    const servesAt = new Date(now.getTime() + (rules.warningHours + extraHours) * HOUR_MS);
+    if (captain) await LawOfficialService.favor(tx, ruleset, captain, 'captainWindow', now);
     const warrant = await tx.playerWarrant.create({
       data: { roundPlayerId, cityId, target, businessId: target === 'BUSINESS' ? business!.id : null, draftedAt: now, servesAt },
     });
@@ -129,7 +138,11 @@ export const LawWarrantService = {
     const rules = base.law!.warrants!;
     const lawyer = base.law?.lawyer;
     const retained = Boolean(lawyer && player.lawyerRetainedUntil && player.lawyerRetainedUntil > now);
-    const cut = retained ? lawyer!.retainer.seizureCut : 0;
+    // D: a Judge on the payroll in the warrant's city softens it on top of any lawyer.
+    const judgeRules = base.law?.officials?.roles.JUDGE;
+    const judged = Boolean(judgeRules && await LawOfficialService.working(db, player.id, warrant.cityId, 'JUDGE', now));
+    // The share of a seizure or fine that still lands, after the lawyer and the Judge.
+    const keep = (1 - (retained ? lawyer!.retainer.seizureCut : 0)) * (1 - (judged ? judgeRules!.seizureCut : 0));
     const home = warrant.cityId === player.cityId;
 
     let target = warrant.target as WarrantTarget;
@@ -156,23 +169,23 @@ export const LawWarrantService = {
       const inventory = await ProductInventoryService.read(db, player.id, base);
       const exposed = hideoutProductProtection(homeRuleset, player, { ...inventory, [CRACK]: player.crack }).exposed;
       for (const [key, units] of Object.entries(exposed)) {
-        const taken = Math.floor(Math.max(0, units) * rules.hideout.productSeizedFraction * (1 - cut));
+        const taken = Math.floor(Math.max(0, units) * rules.hideout.productSeizedFraction * keep);
         if (taken > 0) seized[key] = taken;
       }
       const protectedCash = BigInt((base.combat?.loot.protectedCashCents ?? 0) + hideoutProtectedCashBonusCents(homeRuleset, player));
       const exposedCash = player.cashCents > protectedCash ? player.cashCents - protectedCash : 0n;
-      fineCents = scale(exposedCash, rules.hideout.cashFineFraction * (1 - cut));
+      fineCents = scale(exposedCash, rules.hideout.cashFineFraction * keep);
     } else if (target === 'BUSINESS' && business) {
-      registerFineCents = scale(business.registerCents, rules.business.registerFineFraction * (1 - cut));
+      registerFineCents = scale(business.registerCents, rules.business.registerFineFraction * keep);
       shutHours = rules.business.racketShutHours;
     } else {
       const standing = await standingIn(db, base, player, now);
       where = standing?.city === warrant.city.slug ? (standing.visiting ? await visitingVia(db, player.id) : 'HOME') : null;
       const priced = where ?? (estimate ? 'HOME' : null);
       const arrest = rulesetForCity(base, warrant.city.slug).heat?.arrest;
-      const productShare = (arrest?.productSeizedFraction ?? rules.hideout.productSeizedFraction) * (1 - cut);
-      const cashShare = (arrest?.cashFineFraction ?? rules.hideout.cashFineFraction) * (1 - cut);
-      lockMinutes = Math.round((arrest?.downtimeMinutes ?? 0) * (1 - (retained ? lawyer!.retainer.downtimeCut : 0)));
+      const productShare = (arrest?.productSeizedFraction ?? rules.hideout.productSeizedFraction) * keep;
+      const cashShare = (arrest?.cashFineFraction ?? rules.hideout.cashFineFraction) * keep;
+      lockMinutes = Math.round((arrest?.downtimeMinutes ?? 0) * (1 - (retained ? lawyer!.retainer.downtimeCut : 0)) * (1 - (judged ? judgeRules!.downtimeCut : 0)));
       if (priced === 'HOME') {
         // An arrest, as Heat's own: nothing at home is protected from it.
         const inventory = await ProductInventoryService.read(db, player.id, base);
@@ -207,7 +220,7 @@ export const LawWarrantService = {
 
     return {
       target, where, businessId: business?.id ?? null, businessName: businessLabel(base, business),
-      seized, fineCents, registerFineCents, shutHours, lockMinutes, lossCents, capped: share < 1, retained,
+      seized, fineCents, registerFineCents, shutHours, lockMinutes, lossCents, capped: share < 1, retained, judged,
     };
   },
 
@@ -219,13 +232,15 @@ export const LawWarrantService = {
   async serveDue(tx: Db, roundPlayerId: string, now: Date): Promise<boolean> {
     const owner = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { round: { select: { rulesetId: true, rulesetVersion: true } } } });
     const ruleset = loadRulesetForRound(owner.round);
-    if (!ruleset.law?.warrants) return false;
+    // D: Internal Affairs stings land first; a sting's evidence can draft a warrant of its own.
+    const stung = await LawOfficialService.settleDue(tx, roundPlayerId, ruleset, now);
+    if (!ruleset.law?.warrants) return stung;
     const due = await tx.playerWarrant.findMany({
       where: { roundPlayerId, OR: [{ status: 'OPEN', servesAt: { lte: now } }, { status: 'WAITING' }] },
       include: { city: { select: { id: true, slug: true, name: true } } },
       orderBy: { servesAt: 'asc' },
     });
-    let served = false;
+    let served = stung;
     for (const warrant of due) {
       const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, include: { city: { select: { id: true, slug: true, name: true } } } });
       if (await LawWarrantService.serve(tx, player, ruleset, warrant, now)) served = true;
@@ -275,6 +290,10 @@ export const LawWarrantService = {
     }
 
     await LawService.notePoliceLoss(tx, player.id, ruleset, plan.lossCents, now);
+    if (plan.judged) {
+      const judge = await LawOfficialService.working(tx, player.id, warrant.cityId, 'JUDGE', now);
+      if (judge) await LawOfficialService.favor(tx, ruleset, judge, 'judgeServe', now);
+    }
     if (homeCashFine > 0n) {
       await EconomyLedgerService.record(tx, player.id, [{ source: 'WARRANT', label: `Warrant served · ${warrant.city.name}`, amountCents: -homeCashFine }], now);
     }
@@ -282,7 +301,7 @@ export const LawWarrantService = {
       target: plan.target, where: plan.where, businessName: plan.businessName,
       seized: plan.seized, fineCents: Number(plan.fineCents), registerFineCents: Number(plan.registerFineCents),
       shutUntil: shutUntil?.toISOString() ?? null, lockedUntil: lockedUntil?.toISOString() ?? null,
-      capped: plan.capped, retained: plan.retained,
+      capped: plan.capped, retained: plan.retained, judged: plan.judged,
     };
     await tx.playerWarrant.update({
       where: { id: warrant.id },
@@ -423,6 +442,7 @@ function warrantDto(ruleset: Ruleset, warrant: WarrantWithCity & { business: { k
     resolvedAt: warrant.resolvedAt?.toISOString() ?? null,
     atRisk: null,
     lawyerUpCents: null,
+    quashable: false,
     outcome: warrant.resolvedAt ? outcome : null,
   };
 }

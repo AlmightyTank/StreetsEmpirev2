@@ -37,6 +37,10 @@ const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
   // 1.3.0-C. A warrant drafted against the player, and one served.
   'WARRANT_DRAFTED',
   'WARRANT_SERVED',
+  // 1.3.0-D. Internal Affairs on an official, a sting, and a Captain's word.
+  'OFFICIAL_IA_OPENED',
+  'OFFICIAL_STUNG',
+  'CAPTAIN_TIP',
 ]);
 
 function objectPayload(payload: Prisma.InputJsonValue): Record<string, unknown> {

@@ -56,6 +56,9 @@ export const BELL_CATEGORY_BY_ACTIVITY: Partial<Record<ActivityType, Notificatio
   CASE_STAGE_UP: 'law',
   WARRANT_DRAFTED: 'law',
   WARRANT_SERVED: 'law',
+  OFFICIAL_IA_OPENED: 'law',
+  OFFICIAL_STUNG: 'law',
+  CAPTAIN_TIP: 'law',
 };
 
 /** Categories that have in-game bell items, and so can be muted there. */

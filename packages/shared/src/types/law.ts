@@ -7,7 +7,9 @@ export type CaseSourceDto =
   // 1.3.0-B: direct evidence, currency reports, and what takes a Case down.
   | 'BUST' | 'ARREST' | 'ROAD_STOP' | 'HIJACK' | 'CURRENCY_REPORT' | 'LAUNDERING' | 'COOLING'
   // 1.3.0-C: a warrant served, or answered by a lawyer.
-  | 'WARRANT' | 'LAWYER';
+  | 'WARRANT' | 'LAWYER'
+  // 1.3.0-D: a DA quashing a warrant, and Internal Affairs catching an official.
+  | 'QUASH' | 'STING';
 
 /**
  * 1.3.0-A. The player's worst Case, for the dashboard. Stage Quiet with no city when the
@@ -81,6 +83,10 @@ export interface LawPageDto {
   } | null;
   /** 1.3.0-C. Today's police losses against the day's cap. Null before C. */
   dailyLoss: { capCents: number; lostTodayCents: number } | null;
+  /** 1.3.0-D. The player's corrupt officials, and what each post costs. Null before D. */
+  payroll: PayrollDto | null;
+  /** 1.3.0-D. Informant prices and the tips already bought. Null before D. */
+  informants: { sweepCents: number; cityCents: number; tips: TipDto[] } | null;
   /** The latest receipts across every city, newest first. */
   receipts: CaseReceiptDto[];
 }
@@ -89,7 +95,7 @@ export interface LawPageDto {
 export type WarrantTargetDto = 'HIDEOUT' | 'BUSINESS' | 'PERSONAL';
 
 /** 1.3.0-C. OPEN: in its warning window. WAITING: a personal warrant waiting for the boss. */
-export type WarrantStatusDto = 'OPEN' | 'WAITING' | 'SERVED' | 'LAWYERED';
+export type WarrantStatusDto = 'OPEN' | 'WAITING' | 'SERVED' | 'LAWYERED' | 'QUASHED';
 
 /** 1.3.0-C. One warrant against the player reading it. */
 export interface WarrantDto {
@@ -112,6 +118,47 @@ export interface WarrantDto {
     capped: boolean;
   } | null;
   lawyerUpCents: number | null;
+  /** 1.3.0-D. A DA on the payroll in that city can quash it now. */
+  quashable: boolean;
   /** Served or answered: what it did. */
   outcome: Record<string, unknown> | null;
+}
+
+/** 1.3.0-D. A post on the payroll. */
+export type OfficialRoleDto = 'CAPTAIN' | 'DA' | 'JUDGE' | 'CUSTOMS';
+
+/** 1.3.0-D. One official. LAPSED: on the books but unpaid, so doing nothing. */
+export interface OfficialDto {
+  id: string;
+  citySlug: string;
+  cityName: string;
+  role: OfficialRoleDto;
+  status: 'ACTIVE' | 'LAPSED' | 'CUT' | 'STUNG';
+  paidUntil: string;
+  exposure: number;
+  /** Internal Affairs: when the file opened and when the sting lands, unless cut first. */
+  iaOpenedAt: string | null;
+  stingAt: string | null;
+  /** A DA's next quash. */
+  quashReadyAt: string | null;
+  /** Another week, now. */
+  weekCents: number;
+}
+
+export interface PayrollDto {
+  weekDays: number;
+  exposureLine: number;
+  stingPoints: number;
+  roles: Array<{ role: OfficialRoleDto; weekCents: number }>;
+  cities: Array<{ slug: string; name: string }>;
+  officials: OfficialDto[];
+}
+
+/** 1.3.0-D. A tip from an informant. */
+export interface TipDto {
+  id: string;
+  kind: 'SWEEP' | 'CITY';
+  cityName: string | null;
+  payload: Record<string, unknown>;
+  at: string;
 }

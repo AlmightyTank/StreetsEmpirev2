@@ -4,6 +4,8 @@ import {
   CASE_SCALE,
   caseFromHeat,
   caseFromPoints,
+  captainHeadsUp,
+  daSlowed,
   coolCase,
   coolingStartsAt,
   currencyReports,
@@ -21,6 +23,7 @@ import type { CaseSourceDto, LawPageDto, LawSummaryDto, TripHeatDto } from '@str
 import type { Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
 import { LawWarrantService } from './law-warrant.service.js';
+import { LawOfficialService } from './law-official.service.js';
 
 export type CaseSource = CaseSourceDto;
 
@@ -76,7 +79,7 @@ export function tripCaseEvidence(heat: TripHeatDto | undefined, source: 'SCOUT' 
 }
 
 /** Sources that are not the player's own act: they never restart a Case's quiet clock. */
-const PASSIVE = new Set<CaseSource>(['RACKETS', 'CRACKDOWN', 'LAUNDERING', 'COOLING', 'WARRANT', 'LAWYER']);
+const PASSIVE = new Set<CaseSource>(['RACKETS', 'CRACKDOWN', 'LAUNDERING', 'COOLING', 'WARRANT', 'LAWYER', 'QUASH']);
 
 /** How many receipts the page shows. */
 const RECEIPT_LIMIT = 30;
@@ -149,6 +152,15 @@ export const LawService = {
       const dayCents = existing?.reportDay === day ? existing.reportCents : 0n;
       const reports = cash > 0n ? currencyReports(dayCents, cash, rules) : 0;
       let delta = direct + caseFromPoints(reports * (rules.currencyReport?.points ?? 0));
+      // D: a District Attorney on the payroll keeps part of every rise off the books.
+      if (delta > 0 && rules.officials && entry.source !== 'STING') {
+        const da = await LawOfficialService.working(tx, roundPlayerId, place.id, 'DA', now);
+        const slowed = da ? daSlowed(delta, rules.officials.roles.DA.slowShare) : 0;
+        if (da && slowed > 0) {
+          delta -= slowed;
+          await LawOfficialService.favor(tx, ruleset, da, 'daSlowedPoint', now, slowed / CASE_SCALE);
+        }
+      }
       // C: a warrant served or answered brings the Case down to its line, never up.
       if (entry.ceiling !== undefined) delta = Math.min(delta, entry.ceiling - before);
 
@@ -182,6 +194,14 @@ export const LawService = {
         await ActivityService.log(tx, roundPlayerId, 'CASE_STAGE_UP', json({
           citySlug: place.slug, cityName: place.name, stage, previousStage: wantedStage(before, rules), case: points(after),
         }));
+      }
+      // D: a Precinct Captain warns a few points before the Warrant line.
+      if (rules.officials && captainHeadsUp(before, after, rules.officials.roles.CAPTAIN.headsUpPoints, rules)) {
+        const captain = await LawOfficialService.working(tx, roundPlayerId, place.id, 'CAPTAIN', now);
+        if (captain) {
+          await ActivityService.log(tx, roundPlayerId, 'CAPTAIN_TIP', json({ citySlug: place.slug, cityName: place.name, case: points(after), warrantAt: rules.stages.warrant }));
+          await LawOfficialService.favor(tx, ruleset, captain, 'captainTip', now);
+        }
       }
       changes.push({ cityId: place.id, before, after, stage, stageUp });
       // C: a Case that has reached the Warrant stage drafts a warrant, if the city has none open.
@@ -251,6 +271,8 @@ export const LawService = {
       warrants: [],
       lawyer: null,
       dailyLoss: null,
+      payroll: null,
+      informants: null,
       stages: WANTED_STAGES.map((stage) => ({ stage, startsAt: points(stageStartsAt(stage, rules)) })),
       cases: cases.map(({ row, hundredths }) => {
         const next = nextStage(hundredths, rules);
