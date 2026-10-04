@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, businessBuildSchema, blockWarAnswerSchema, blockWarCallSchema, blockWarDeclareSchema, blockWarEndSchema, blockWarSendSchema, businessCollectSchema, businessRacketSchema, businessStaffSchema, businessTorchSchema, bossHitBackupSchema, bossHitCallSchema, bossHitSchema, heatBribeSchema, productTradeSchema, runOutpostEstablishSchema, runOutpostTransferSchema, sitDownAnswerSchema, sitDownProposeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripOutpostVisitSchema, tripRentGunsSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushBackupSchema, turfPushCallSchema, turfPushSchema, updateContactKindSchema, updateContactSchema, wirePinSchema, wirePostSchema, workSupplyClearSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, businessBuildSchema, blockWarAnswerSchema, blockWarCallSchema, blockWarDeclareSchema, blockWarEndSchema, blockWarSendSchema, businessCollectSchema, businessRacketSchema, businessStaffSchema, businessTorchSchema, bossHitBackupSchema, bossHitCallSchema, bossHitSchema, heatBribeSchema, lawCorruptionSchema, productTradeSchema, runOutpostEstablishSchema, runOutpostTransferSchema, sitDownAnswerSchema, sitDownProposeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripOutpostVisitSchema, tripRentGunsSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushBackupSchema, turfPushCallSchema, turfPushSchema, updateContactKindSchema, updateContactSchema, wirePinSchema, wirePostSchema, workSupplyClearSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
 import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
@@ -14,6 +14,7 @@ import { RoundService } from '../services/round.service.js';
 import { WireService } from '../services/wire.service.js';
 import { WorkSupplyService } from '../services/work-supply.service.js';
 import { HeatService, toHeatDto } from '../services/heat.service.js';
+import { LawService, toLawDto } from '../services/law.service.js';
 import { PlayerStateService } from '../services/player-state.service.js';
 import { PlayerDirectoryService } from '../services/player-directory.service.js';
 import { TurfActionService } from '../services/turf-action.service.js';
@@ -214,6 +215,16 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/heat/bribe', { preHandler: app.requireAuth }, async (request) =>
     HeatService.bribe(app.prisma, await me(request.auth!.account.id), parseBody(heatBribeSchema, request.body ?? {})));
+
+  app.get('/law', { preHandler: app.requireAuth }, async (request) => {
+    const settled = await PlayerStateService.settle(app.prisma, await me(request.auth!.account.id), { markActive: true });
+    const law = toLawDto(settled.player.lawAttention, settled.player.lawEvidence, settled.player.netWorthCents, settled.ruleset);
+    if (!law) throw AppError.conflict('LAW_DISABLED', 'The law is not tracking this round.');
+    return law;
+  });
+
+  app.post('/law/corruption', { preHandler: app.requireAuth }, async (request) =>
+    LawService.corruption(app.prisma, await me(request.auth!.account.id), parseBody(lawCorruptionSchema, request.body ?? {})));
 
   /** 0.9.0-A: discover current-round players without exposing recon or precise activity timestamps. */
   app.get('/players', { preHandler: app.requireAuth }, async (request) =>

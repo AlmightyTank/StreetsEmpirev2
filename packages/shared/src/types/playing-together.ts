@@ -263,6 +263,38 @@ export interface HeatDto {
   bribeCentsPerPoint: number;
 }
 
+export interface LawDto {
+  attention: number;
+  evidence: number;
+  maxAttention: number;
+  maxEvidence: number;
+  decayPerInterval: number;
+  intervalMinutes: number;
+  wantedLevel: number;
+  wantedName: string;
+  wantedDescription: string;
+  evidenceStartsAt: number;
+  warrantStartsAt: number;
+  informantStartsAt: number;
+  warrantRisk: boolean;
+  informantRisk: boolean;
+  corruptionCentsPerAttention: number;
+  corruptionDailyCap: number;
+}
+
+export interface LawPressureDto {
+  attentionBefore: number;
+  attentionAfter: number;
+  attentionAdded: number;
+  evidenceBefore: number;
+  evidenceAfter: number;
+  evidenceAdded: number;
+  wantedLevel: number;
+  wantedName: string;
+  warrantRisk: boolean;
+  informantRisk: boolean;
+}
+
 /** 0.4.0-C. What a trip did to Heat, on the receipt. */
 export interface TripHeatDto {
   before: number;
@@ -280,6 +312,8 @@ export interface TripHeatDto {
   /** Units seized, by product. */
   seized: Record<string, number>;
   fineCents: number;
+  /** 1.3.0-F. What this noisy trip added to law pressure. */
+  law?: LawPressureDto;
 }
 
 /** 0.4.0-E. GET /api/game/work-supply/preview: the plan, plus what the screen should warn about. */
@@ -1228,7 +1262,7 @@ export interface RunTradeResult {
   shelfStock: number;
   venue: 'pip' | 'market';
   /** 0.5.0-C. What selling did to Heat, and whether the town's police got the run. */
-  heat: { before: number; added: number; after: number } | null;
+  heat: { before: number; added: number; after: number; law?: LawPressureDto } | null;
   trouble: RunIncidentDto | null;
 }
 

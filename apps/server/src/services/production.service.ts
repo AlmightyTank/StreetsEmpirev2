@@ -204,6 +204,7 @@ export const ProductionService = {
           startHeat: current.heat, plans: [supply, cook], next: worked, rng, now,
           // 0.4.0-D: some cooks draw attention of their own.
           extraHeat: productProduced * recipe.heatPerUnit,
+          lawSource: 'PRODUCTION',
         });
         const next = trip.next;
 

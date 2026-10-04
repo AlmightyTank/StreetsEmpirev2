@@ -898,7 +898,7 @@ model QuestDefinition {
   description String
   /// Future contact/NPC key. Null permits system/event quests.
   contactKey  String?
-  /// STORY, SIDE, CONTRACT, DAILY, WEEKLY, SECRET, ALLIANCE or EVENT.
+  /// STORY, SIDE, CONTRACT, DAILY, WEEKLY, SECRET, ALLIANCE, CITY_CONTRACT or EVENT.
   type        String
   /// Free-form gameplay grouping such as STREET, COMBAT, TRAVEL or TURF.
   category    String
@@ -1164,6 +1164,10 @@ model RoundPlayer {
   /// 0.4.0-C. Attention the crew's product draws, 0..ruleset heat max. Decays on the turn clock
   /// (lastTurnCalculationAt), so it needs no clock of its own. Always 0 on rounds without Heat.
   heat                 Int       @default(0)
+  /// 1.3.0-F. Longer-lived law attention, cooled on the same turn clock as Heat.
+  lawAttention         Int       @default(0)
+  /// 1.3.0-F. Evidence pressure. It does not cool passively in F.
+  lawEvidence          Int       @default(0)
   /// 0.5.0-C. Locked up after an arrest at home: no actions until then.
   lockedUntil          DateTime?
   /// 0.5.0-D. On the road to a new home until then: no actions, and still a target in
@@ -2163,6 +2167,7 @@ enum ActivityType {
   BATTLE_VOIDED
   ADMIN_GRANT
   HEAT_BRIBE
+  LAW_CORRUPTION
   RUN_LAUNCHED
   RUN_RETURNED
   RUN_INCIDENT

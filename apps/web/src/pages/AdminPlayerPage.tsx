@@ -316,6 +316,7 @@ export function AdminPlayerPage() {
             <Row label="Beer" value={formatNumber(player.supplies.beer)} />
             <Row label="Happiness" value={`Whores ${player.happiness.whores}% · Thugs ${player.happiness.thugs}%`} />
             {player.heat !== null ? <Row label="Heat" value={formatNumber(player.heat)} /> : null}
+            {player.law ? <Row label="Law" value={`Attention ${formatNumber(player.law.attention)} · Evidence ${formatNumber(player.law.evidence)}`} /> : null}
             <Row label="Payout" value={`${player.payoutPercent}%`} />
             <Row label="Last active" value={adminWhen(player.lastActiveAt)} />
           </div>
@@ -499,7 +500,7 @@ export function AdminPlayerPage() {
                               type="button"
                               className="se-btn se-btn--sm"
                               onClick={() => void changeQuestSupport(quest.id, 'complete')}
-                              disabledReason={busy ? working : !supportReasonReady ? 'Write a support reason first.' : quest.status === 'COMPLETED' ? 'This quest already paid out.' : !quest.isEnabled ? 'Enable this quest in Content controls first.' : quest.type === 'ALLIANCE' || quest.type === 'EVENT' ? 'Shared quest completion stays server-authoritative.' : null}
+                              disabledReason={busy ? working : !supportReasonReady ? 'Write a support reason first.' : quest.status === 'COMPLETED' ? 'This quest already paid out.' : !quest.isEnabled ? 'Enable this quest in Content controls first.' : quest.type === 'ALLIANCE' || quest.type === 'CITY_CONTRACT' || quest.type === 'EVENT' ? 'Shared and generated board completion stays server-authoritative.' : null}
                             >
                               Mark ready
                             </Button>

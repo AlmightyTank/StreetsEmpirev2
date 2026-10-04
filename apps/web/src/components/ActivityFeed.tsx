@@ -222,6 +222,12 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         detail: `-${formatCents(num(p.costCents))}, Heat ${num(p.heatBefore)} → ${num(p.heatAfter)}`,
       };
 
+    case 'LAW_CORRUPTION':
+      return {
+        text: `Buried ${formatNumber(num(p.attention))} wanted attention.`,
+        detail: `-${formatCents(num(p.costCents))}, attention ${num(p.attentionBefore)} → ${num(p.attentionAfter)} (${str(p.wantedName, 'Wanted')})`,
+      };
+
     case 'PAYOUT_CHANGE':
       return {
         text: `Changed payout from ${num(p.before)}% to ${num(p.after)}%.`,
@@ -565,7 +571,7 @@ export function activityGroup(type: ActivityDto['type']): ActivityGroup {
   if (type.startsWith('QUEST_') || type.startsWith('FAVOR_') || type === 'HIDEOUT_UPGRADE' || type === 'WEAPON_UNLOCK') return 'progress';
   if (type.startsWith('RUN_') || type.startsWith('RELOCATION_') || type === 'RELOCATED' || type.startsWith('CONVOY_') || type.startsWith('TRIP_') || type.startsWith('BOSS_') || type.startsWith('SIT_DOWN') || type === 'OUTPOST_VISIT') return 'travel';
   if (type.startsWith('TURF_') || type.startsWith('BUSINESS_')) return 'turf';
-  if (type === 'SCOUT' || type === 'WORK_STREETS' || type === 'PRODUCE_CRACK' || type === 'HEAT_BRIBE' || type === 'PAYOUT_CHANGE') return 'street';
+  if (type === 'SCOUT' || type === 'WORK_STREETS' || type === 'PRODUCE_CRACK' || type === 'HEAT_BRIBE' || type === 'LAW_CORRUPTION' || type === 'PAYOUT_CHANGE') return 'street';
   return 'system';
 }
 
@@ -602,6 +608,7 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     ADMIN_GRANT: 'Admin grant',
     GAME_ANNOUNCEMENT: 'Announcement',
     HEAT_BRIBE: 'Heat bribe',
+    LAW_CORRUPTION: 'Corruption',
     HIDEOUT_UPGRADE: 'Hideout',
     QUEST_OBJECTIVE_COMPLETE: 'Quest objective',
     QUEST_READY: 'Quest ready',

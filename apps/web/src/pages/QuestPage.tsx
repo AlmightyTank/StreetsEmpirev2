@@ -20,6 +20,12 @@ import { formatClockTime, formatWhen, serverAdjustedNowMs, serverClockOffsetMs }
 import { confirmAction } from '../stores/confirm.js';
 
 type Tab = 'available' | 'active' | 'ready' | 'tracked' | 'daily' | 'weekly' | 'city' | 'alliance' | 'events' | 'completed';
+const SLOTLESS_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT'] as const;
+
+function isSlotlessQuest(quest: PlayerQuestDto): boolean {
+  return SLOTLESS_QUEST_TYPES.includes(quest.type as typeof SLOTLESS_QUEST_TYPES[number])
+    || quest.category === 'CITY_CONTRACT';
+}
 
 function tabFromSearch(search: string): Tab {
   const requested = new URLSearchParams(search).get('tab');
@@ -55,7 +61,7 @@ function tabForQuest(quest: PlayerQuestDto): Tab {
   if (quest.status === 'COMPLETED' || quest.status === 'FAILED' || quest.status === 'EXPIRED') return 'completed';
   if (quest.type === 'DAILY') return 'daily';
   if (quest.type === 'WEEKLY') return 'weekly';
-  if (quest.category === 'CITY_CONTRACT') return 'city';
+  if (quest.type === 'CITY_CONTRACT' || quest.category === 'CITY_CONTRACT') return 'city';
   if (quest.type === 'ALLIANCE') return 'alliance';
   if (quest.type === 'EVENT') return 'events';
   return 'available';
@@ -74,7 +80,7 @@ function statusLabel(quest: PlayerQuestDto): string {
 }
 
 function questKindLabel(quest: PlayerQuestDto): string {
-  if (quest.category === 'CITY_CONTRACT') return 'City contract';
+  if (quest.type === 'CITY_CONTRACT' || quest.category === 'CITY_CONTRACT') return 'City contract';
   if (quest.type === 'ALLIANCE') return 'Alliance contract';
   if (quest.type === 'EVENT') return 'Community event';
   if (quest.type === 'DAILY') return 'Daily contract';
@@ -351,7 +357,7 @@ function QuestCard({
         {quest.status === 'AVAILABLE' ? (
           <Button
             className="se-btn se-btn--primary"
-            disabledReason={busy ?? (!['ALLIANCE', 'EVENT'].includes(quest.type) && page.counts.active >= page.activeLimit
+            disabledReason={busy ?? (!isSlotlessQuest(quest) && page.counts.active >= page.activeLimit
               ? 'You already have ' + page.activeLimit + ' active jobs.'
               : null)}
             onClick={() => onAccept(quest.key)}
@@ -377,7 +383,7 @@ function QuestCard({
             >
               {quest.isTracked ? 'Stop tracking' : 'Track job'}
             </Button>
-            {!['ALLIANCE', 'EVENT'].includes(quest.type) ? (
+            {!isSlotlessQuest(quest) ? (
               <Button className="se-btn se-btn--ghost" disabledReason={busy} onClick={() => onAbandon(quest.key)}>
                 Abandon
               </Button>
@@ -388,7 +394,7 @@ function QuestCard({
 
       {quest.expiresAt ? (
         <p className="se-hint se-quest-expiry">
-          {quest.category === 'CITY_CONTRACT' ? 'City board refreshes ' : quest.type === 'ALLIANCE' ? 'Alliance board resets ' : quest.type === 'EVENT' ? (quest.seasonalEvent ? 'Job expires ' : 'Event ends ') : quest.type === 'DAILY' ? 'Daily board resets ' : quest.type === 'WEEKLY' ? 'Weekly board resets ' : 'Expires '}
+          {quest.type === 'CITY_CONTRACT' || quest.category === 'CITY_CONTRACT' ? 'City board refreshes ' : quest.type === 'ALLIANCE' ? 'Alliance board resets ' : quest.type === 'EVENT' ? (quest.seasonalEvent ? 'Job expires ' : 'Community event ends ') : quest.type === 'DAILY' ? 'Daily board resets ' : quest.type === 'WEEKLY' ? 'Weekly board resets ' : 'Expires '}
           {formatWhen(quest.expiresAt)} · {timeRemaining(quest.expiresAt, nowMs)}.
         </p>
       ) : null}
@@ -541,7 +547,7 @@ export function QuestPage() {
 
   const cityToday = useMemo(
     () => page?.quests.filter((quest) =>
-      quest.category === 'CITY_CONTRACT'
+      (quest.type === 'CITY_CONTRACT' || quest.category === 'CITY_CONTRACT')
       && quest.expiresAt !== null
       && new Date(quest.expiresAt).getTime() > nowMs
     ) ?? [],
@@ -576,6 +582,7 @@ export function QuestPage() {
       && quest.type !== 'DAILY'
       && quest.type !== 'WEEKLY'
       && quest.type !== 'ALLIANCE'
+      && quest.type !== 'CITY_CONTRACT'
       && quest.type !== 'EVENT'
       && quest.category !== 'CITY_CONTRACT'
     ).length ?? 0,
@@ -613,6 +620,7 @@ export function QuestPage() {
       && quest.type !== 'DAILY'
       && quest.type !== 'WEEKLY'
       && quest.type !== 'ALLIANCE'
+      && quest.type !== 'CITY_CONTRACT'
       && quest.type !== 'EVENT'
       && quest.category !== 'CITY_CONTRACT'
     );
@@ -813,7 +821,7 @@ export function QuestPage() {
                 <QuestMetric
                   label="Personal active"
                   value={`${formatNumber(page.counts.active)} / ${formatNumber(page.activeLimit)}`}
-                  detail="alliance and events do not use slots"
+                  detail="city, alliance and community boards do not use slots"
                   tone={page.counts.active >= page.activeLimit ? 'warn' : undefined}
                   onClick={() => selectTab('active')}
                 />
@@ -829,6 +837,39 @@ export function QuestPage() {
                   detail={liveFavors.length || page.armedFavors.length ? `${liveFavors.length} active · ${page.armedFavors.length} armed` : 'none active or armed'}
                   tone={liveFavors.length || page.armedFavors.length ? 'good' : undefined}
                 />
+                {page.dailyContracts.enabled ? (
+                  <QuestMetric
+                    label="Daily contracts"
+                    value={`${formatNumber(dailyToday.length)} / ${formatNumber(page.dailyContracts.slots)}`}
+                    detail={page.dailyContracts.resetAt ? 'resets ' + timeRemaining(page.dailyContracts.resetAt, nowMs) : 'rotating board'}
+                    onClick={() => selectTab('daily')}
+                  />
+                ) : null}
+                {page.weeklyContracts.enabled ? (
+                  <QuestMetric
+                    label="Weekly contracts"
+                    value={`${formatNumber(weeklyToday.length)} / ${formatNumber(page.weeklyContracts.slots)}`}
+                    detail={page.weeklyContracts.resetAt ? 'resets ' + timeRemaining(page.weeklyContracts.resetAt, nowMs) : 'rotating board'}
+                    onClick={() => selectTab('weekly')}
+                  />
+                ) : null}
+                {page.cityContracts.enabled ? (
+                  <QuestMetric
+                    label="City contracts"
+                    value={`${formatNumber(cityToday.length)} / ${formatNumber(page.cityContracts.slots)}`}
+                    detail={page.cityContracts.resetAt ? 'refreshes ' + timeRemaining(page.cityContracts.resetAt, nowMs) : 'market board'}
+                    onClick={() => selectTab('city')}
+                  />
+                ) : null}
+                {eventToday.length ? (
+                  <QuestMetric
+                    label="Community events"
+                    value={formatNumber(eventToday.length)}
+                    detail="shared round work"
+                    tone="good"
+                    onClick={() => selectTab('events')}
+                  />
+                ) : null}
               </div>
 
               <div className="se-quests-tabs" role="tablist" aria-label="Quest view">
@@ -841,7 +882,7 @@ export function QuestPage() {
                   ...(page.weeklyContracts.enabled ? [['weekly', 'Weekly', weeklyToday.length] as const] : []),
                   ...(page.cityContracts.enabled ? [['city', 'City', cityToday.length] as const] : []),
                   ...(allianceToday.length ? [['alliance', 'Alliance', allianceToday.length] as const] : []),
-                  ...(eventToday.length ? [['events', 'Events', eventToday.length] as const] : []),
+                  ...(eventToday.length ? [['events', 'Community', eventToday.length] as const] : []),
                   ['completed', 'Completed', page.counts.completed],
                 ] as const).map(([key, label, count]) => (
                   <button
@@ -962,9 +1003,9 @@ export function QuestPage() {
                     ) : null}
                     {eventToday.length ? (
                       <button type="button" onClick={() => selectTab('events')}>
-                        <span>Events</span>
+                        <span>Community</span>
                         <strong>{formatNumber(eventToday.length)}</strong>
-                        <small>community work</small>
+                        <small>shared events</small>
                       </button>
                     ) : null}
                   </div>

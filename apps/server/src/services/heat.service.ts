@@ -16,9 +16,11 @@ import { heatBribeSchema, type GameActionResult, type HeatDto, type TripHeatDto 
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActionService, type PlayerState } from './action.service.js';
+import { LawService } from './law.service.js';
 import { NetWorthService } from './net-worth.service.js';
 import { CRACK, ProductInventoryService } from './product-inventory.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
+import type { LawAttentionSource } from '@streets/rulesets';
 
 export interface HeatBribeResult {
   points: number;
@@ -79,7 +81,7 @@ export const HeatService = {
     tx: Db,
     roundPlayerId: string,
     ruleset: Ruleset,
-    input: { startHeat: number; plans: Array<WorkSupplyPlan | undefined>; next: PlayerState; rng?: Rng; extraHeat?: number; now?: Date },
+    input: { startHeat: number; plans: Array<WorkSupplyPlan | undefined>; next: PlayerState; rng?: Rng; extraHeat?: number; now?: Date; lawSource?: LawAttentionSource },
   ): Promise<{ next: PlayerState; heat?: TripHeatDto }> {
     const rules = ruleset.heat;
     if (!rules) return { next: input.next };
@@ -104,7 +106,8 @@ export const HeatService = {
     const drop = arrest.arrested ? rules.arrest!.heatDrop : bust.busted ? rules.bust.heatDrop : 0;
     const after = addHeat(input.startHeat, added - drop, rules);
     const lockedUntil = arrest.arrested ? new Date((input.now ?? new Date()).getTime() + arrest.downtimeMinutes * 60_000) : null;
-    next = { ...next, heat: after, ...(lockedUntil ? { lockedUntil } : {}) };
+    const law = LawService.apply(ruleset, next, input.lawSource ?? 'STREET_WORK', added);
+    next = { ...next, heat: after, ...law.next, ...(lockedUntil ? { lockedUntil } : {}) };
 
     return {
       next,
@@ -119,6 +122,7 @@ export const HeatService = {
         ...(rules.arrest ? { arrested: arrest.arrested, arrestChance: arrest.chance, lockedUntil: lockedUntil?.toISOString() ?? null } : {}),
         seized: taken?.seized ?? {},
         fineCents: Number(taken?.fineCents ?? 0n),
+        ...(law.pressure ? { law: law.pressure } : {}),
       },
     };
   },

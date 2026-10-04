@@ -11,7 +11,7 @@ describe('quest roadmap Phase S dynamic city contracts', () => {
     expect(Object.keys(classicOgV07R.questDefinitions ?? {})).toHaveLength(56);
 
     for (const definition of Object.values(cityContractTemplates)) {
-      expect(definition.type).toBe('EVENT');
+      expect(definition.type).toBe('CITY_CONTRACT');
       expect(definition.category).toBe('CITY_CONTRACT');
       expect(definition.repeatability).toBe('REPEATABLE');
       expect(definition.availability.dynamicCityContract).toBe(true);

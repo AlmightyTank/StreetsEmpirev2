@@ -379,7 +379,7 @@ export const AdminQuestService = {
       }
       const definition = ruleset.questDefinitions?.[quest.questDefinition.key];
       if (!definition) throw AppError.conflict('QUEST_DEFINITION_MISSING', 'That quest is not available in this ruleset.');
-      if (definition.type === 'ALLIANCE' || definition.type === 'EVENT') {
+      if (definition.type === 'ALLIANCE' || definition.type === 'CITY_CONTRACT' || definition.type === 'EVENT') {
         throw AppError.conflict('QUEST_SUPPORT_RESET_UNSUPPORTED', 'Shared alliance and community-event attempts cannot be reset from one player.');
       }
 
@@ -447,10 +447,10 @@ export const AdminQuestService = {
       }
       const definition = ruleset.questDefinitions?.[quest.questDefinition.key];
       if (!definition) throw AppError.conflict('QUEST_DEFINITION_MISSING', 'That quest is not available in this ruleset.');
-      if (definition.type === 'ALLIANCE' || definition.type === 'EVENT') {
+      if (definition.type === 'ALLIANCE' || definition.type === 'CITY_CONTRACT' || definition.type === 'EVENT') {
         throw AppError.conflict(
           'QUEST_SUPPORT_COMPLETE_UNSUPPORTED',
-          'Shared alliance and community-event completion stays server-authoritative and cannot be forced for one player.',
+          'Shared alliance, city-board and community-event completion stays server-authoritative and cannot be forced for one player.',
         );
       }
 

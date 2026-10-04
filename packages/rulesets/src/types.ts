@@ -133,6 +133,7 @@ export type QuestType =
   | 'WEEKLY'
   | 'SECRET'
   | 'ALLIANCE'
+  | 'CITY_CONTRACT'
   | 'EVENT';
 
 export type QuestDifficulty =
@@ -1992,6 +1993,58 @@ export interface HeatRules {
   };
 }
 
+export type LawAttentionSource =
+  | 'STREET_WORK'
+  | 'PRODUCT_SALE'
+  | 'PRODUCTION'
+  | 'TURF_VIOLENCE'
+  | 'BUSINESS_RACKET'
+  | 'CONVOY_HIJACK'
+  | 'CASINO_MARKER'
+  | 'LARGE_CASH_MOVEMENT';
+
+export interface LawWantedTier {
+  readonly level: number;
+  readonly name: string;
+  readonly startsAt: number;
+  readonly description: string;
+}
+
+export interface LawAttentionSourceRule {
+  /** Points of law attention added per existing Heat point or event unit. */
+  readonly attentionPerUnit: number;
+  /** Maximum attention one event from this source can add. */
+  readonly maxAttentionPerEvent: number;
+  /** How much of the added attention also becomes evidence pressure. */
+  readonly evidenceShare: number;
+}
+
+/**
+ * 1.3.0-F. Law pressure is a round-pinned interpretation layer over existing
+ * Heat/events. The first release exposes deterministic pressure math only;
+ * server-side seizures, warrants and investigations opt into these numbers later.
+ */
+export interface LawRules {
+  readonly maxAttention: number;
+  readonly decayPerTurnInterval: number;
+  readonly wantedTiers: readonly LawWantedTier[];
+  readonly sources: Readonly<Record<LawAttentionSource, LawAttentionSourceRule>>;
+  readonly corruption: {
+    /** Cheapest a corrupt official will ever quote to clear one attention point. */
+    readonly minCentsPerAttention: number;
+    /** Millionths of net worth charged for one attention point. */
+    readonly netWorthSharePpmPerAttention: number;
+    /** Daily cap so bribery is counterplay, not immunity. */
+    readonly dailyAttentionCap: number;
+  };
+  readonly investigation: {
+    readonly evidenceStartsAt: number;
+    readonly warrantStartsAt: number;
+    readonly informantStartsAt: number;
+    readonly maxEvidence: number;
+  };
+}
+
 export type ProductCatalog = { readonly CRACK: ProductDefinition } & { readonly [key: string]: ProductDefinition };
 
 export interface HideoutRules {
@@ -2405,6 +2458,8 @@ export interface Ruleset {
   readonly workSupply?: WorkSupplyRules;
   /** 0.4.0-C. Absent where Heat has not shipped. */
   readonly heat?: HeatRules;
+  /** 1.3.0-F. Absent before law pressure ships. */
+  readonly law?: LawRules;
   /**
    * 0.4.0-D. Present where every product is traded, cooked, looted and valued.
    * Raids and drug runs then take a mix of products rather than crack alone.

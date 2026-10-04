@@ -27,6 +27,7 @@ export function credSourceForQuest(type: QuestType): QuestCredSource {
       return 'dailyContract';
     case 'WEEKLY':
       return 'weeklyContract';
+    case 'CITY_CONTRACT':
     case 'EVENT':
     case 'ALLIANCE':
       return 'eventContract';
@@ -61,7 +62,7 @@ export const StreetPassCredService = {
   async creditQuest(tx: Db, roundPlayerId: string, ruleset: Ruleset, questType: QuestType, sourceKey: string, now = new Date()): Promise<number> {
     const questXp = questType === 'DAILY' ? 75
       : questType === 'WEEKLY' ? 200
-        : questType === 'EVENT' || questType === 'ALLIANCE' ? 150
+        : questType === 'CITY_CONTRACT' || questType === 'EVENT' || questType === 'ALLIANCE' ? 150
           : 100;
     await PlayerExperienceService.award(tx, {
       roundPlayerId,

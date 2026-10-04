@@ -64,6 +64,7 @@ import { HighMarketService } from './high-market.service.js';
 import { hideoutGarageRunLimit, hideoutWeaponPriority } from './hideout.service.js';
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
+import { LawService } from './law.service.js';
 import {
   RUN_INCLUDE,
   awayWorth,
@@ -738,6 +739,7 @@ export const TravelService = {
           : null;
         const added = !buying ? saleHeat(base, city, totalCents) : 0;
         const heatAfter = town.heat ? addHeat(roll?.kind ? roll.heatAfter : current.heat, added, town.heat) : current.heat;
+        const law = LawService.apply(town, current, 'PRODUCT_SALE', added);
         let trouble: RunTradeResult['trouble'] = null;
         if (roll?.kind) {
           traded = await takeFromRun(tx, roundPlayerId, base, traded, roll);
@@ -767,6 +769,7 @@ export const TravelService = {
           next: {
             ...current,
             heat: heatAfter,
+            ...law.next,
             awayNetWorthCents,
           },
           result: {
@@ -784,7 +787,7 @@ export const TravelService = {
             trunkUnits: cargoUnits(nextCargo),
             capacity,
             shelfStock,
-            heat: town.heat ? { before: current.heat, added, after: heatAfter } : null,
+            heat: town.heat ? { before: current.heat, added, after: heatAfter, ...(law.pressure ? { law: law.pressure } : {}) } : null,
             trouble,
           },
           ledger: [

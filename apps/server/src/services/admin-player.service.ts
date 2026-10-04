@@ -62,6 +62,7 @@ export const AdminPlayerService = {
     const live = (status: string) => (status === 'ACTIVE' ? 0 : status === 'REGISTRATION' ? 1 : 2);
     const found = rows.slice(0, limit).sort((a, b) => live(a.round.status) - live(b.round.status));
 
+    const ruleset = loadRulesetForRound(player.round);
     return {
       players: found.map((player) => ({
         roundPlayerId: player.id,
@@ -122,14 +123,14 @@ export const AdminPlayerService = {
       netWorthCents: Number(player.netWorthCents),
       cashCents: Number(player.cashCents),
       turns: player.turns,
-      turnCap: loadRulesetForRound(player.round).turns.cap,
+      turnCap: ruleset.turns.cap,
       live: player.round.status === 'ACTIVE' || player.round.status === 'REGISTRATION',
       lastTurnCalculationAt: player.lastTurnCalculationAt.toISOString(),
       lastActiveAt: player.lastActiveAt.toISOString(),
       payoutPercent: player.payoutPercent,
       crew: { whores: player.whores, thugs: player.thugs, woundedThugs: player.woundedThugs, lowRiders: player.lowRiders },
       supplies: { condoms: player.condoms, medicine: player.medicine, crack: player.crack, beer: player.beer },
-      products: await adminProducts(prisma, player.id, loadRulesetForRound(player.round)),
+      products: await adminProducts(prisma, player.id, ruleset),
       weapons: { pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s },
       unlocks: {
         shotgun: player.shotgunUnlocked,
@@ -181,7 +182,8 @@ export const AdminPlayerService = {
         updatedAt: quest.updatedAt.toISOString(),
       })),
       happiness: { whores: player.whoreHappiness, thugs: player.thugHappiness },
-      heat: loadRulesetForRound(player.round).heat ? player.heat : null,
+      heat: ruleset.heat ? player.heat : null,
+      law: ruleset.law ? { attention: player.lawAttention, evidence: player.lawEvidence } : null,
       ranks: { national: player.nationalRank, local: player.localRank },
       timers: {
         raidProtectedUntil: iso(player.raidProtectedUntil),

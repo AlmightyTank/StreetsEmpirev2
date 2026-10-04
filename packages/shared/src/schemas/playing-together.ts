@@ -64,6 +64,12 @@ export const heatBribeSchema = z.object({
   actionId: z.string().min(1).max(128).optional(),
 }).strict();
 
+/** 1.3.0-F. POST /api/game/law/corruption. */
+export const lawCorruptionSchema = z.object({
+  attention: z.number().int().min(1).max(1_000),
+  actionId: z.string().min(1).max(128).optional(),
+}).strict();
+
 export const workSupplyPreviewSchema = z.object({
   job: z.string().regex(/^[A-Z][A-Z0-9_]{1,31}$/),
   turns: z.coerce.number().int().min(1).max(10_000),
