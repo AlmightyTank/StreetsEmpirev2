@@ -164,7 +164,7 @@ export const PublicDirectoryService = {
         account: {
           select: {
             profile: {
-              select: { activeTitleKey: true, profileAccent: true },
+              select: { activeTitleKey: true, titlePlacement: true, profileAccent: true },
             },
           },
         },
@@ -225,6 +225,7 @@ export const PublicDirectoryService = {
           title: player.account.profile?.activeTitleKey
             ? profileTitleForKey(player.account.profile.activeTitleKey)
             : null,
+          titlePlacement: player.account.profile?.titlePlacement === 'suffix' ? 'suffix' : 'prefix',
           accent: player.account.profile?.profileAccent ?? 'default',
         },
         joinedAt: player.createdAt.toISOString(),

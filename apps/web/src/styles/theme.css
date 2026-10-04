@@ -2675,16 +2675,6 @@ a.se-nav__link:hover {
   border: 3px double rgba(240, 194, 51, 0.38);
 }
 
-.se-profile-title {
-  margin: 4px 0 0;
-  color: var(--se-profile-accent);
-  font-family: var(--se-mono);
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .se-ach-filters {
   display: grid;
   gap: 10px;

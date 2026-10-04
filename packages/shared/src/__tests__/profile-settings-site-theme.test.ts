@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { updateAccountProfileSettingsSchema } from '../schemas/auth.js';
 
-describe('Phase Y-E profile settings schema', () => {
+describe('account profile settings schema', () => {
   it('keeps older clients compatible when site theme is missing', () => {
     const result = updateAccountProfileSettingsSchema.parse({
       activeTitleKey: null,
@@ -15,11 +15,13 @@ describe('Phase Y-E profile settings schema', () => {
     });
 
     expect(result.activeSiteThemeKey).toBeNull();
+    expect(result.titlePlacement).toBe('prefix');
   });
 
   it('accepts a selected site theme presentation key', () => {
     const result = updateAccountProfileSettingsSchema.parse({
       activeTitleKey: null,
+      titlePlacement: 'suffix',
       activeProfileFrameKey: null,
       activeSiteThemeKey: 'winter-lights',
       featuredBadgeKeys: [],

@@ -46,6 +46,7 @@ function prismaFor(isAdmin: boolean): PrismaClient {
 
 const updateInput: UpdateAccountProfileSettingsInput = {
   activeTitleKey: null,
+  titlePlacement: 'prefix',
   activeProfileFrameKey: null,
   activeSiteThemeKey: 'neon-vice',
   featuredBadgeKeys: [],
@@ -80,6 +81,34 @@ describe('AccountProfileService admin site theme QA', () => {
     const response = await AccountProfileService.settings(prismaFor(false), 'account-1');
 
     expect(response.options.themes).toEqual([]);
+  });
+
+  it('offers selectable honorifics and saves title placement without an achievement unlock', async () => {
+    const prisma = prismaFor(false);
+    const settings = await AccountProfileService.settings(prisma, 'account-1');
+    expect(settings.options.titles.map((option) => option.label)).toEqual(expect.arrayContaining(['Sir', 'Madam', 'Don', 'Donna']));
+
+    const response = await AccountProfileService.update(prisma, 'account-1', {
+      ...updateInput,
+      activeTitleKey: 'honorific-madam',
+      titlePlacement: 'prefix',
+      activeSiteThemeKey: null,
+    });
+
+    expect(response.settings.activeTitleKey).toBe('honorific-madam');
+    expect(response.settings.titlePlacement).toBe('prefix');
+
+    const publicCosmetics = await AccountProfileService.publicCosmetics(prisma, 'account-1', []);
+    expect(publicCosmetics.title).toBe('Madam');
+    expect(publicCosmetics.titlePlacement).toBe('prefix');
+  });
+
+  it('does not allow an always-available honorific to be featured as an earned badge', async () => {
+    await expect(AccountProfileService.update(prismaFor(false), 'account-1', {
+      ...updateInput,
+      activeSiteThemeKey: null,
+      featuredBadgeKeys: ['honorific-sir'],
+    })).rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
   });
 
   it('lets admins save a current-ruleset QA theme without an unlock row', async () => {

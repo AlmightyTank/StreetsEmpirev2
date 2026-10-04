@@ -24,6 +24,14 @@ import { profileTitleForAward } from './profile-titles.js';
 
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
 
+const honorificTitles: BadgeCosmeticOptionDto[] = [
+  { key: 'honorific-sir', label: 'Sir', description: 'A classic street honorific.', rarity: 'common', permanent: true },
+  { key: 'honorific-madam', label: 'Madam', description: 'A classic street honorific.', rarity: 'common', permanent: true },
+  { key: 'honorific-don', label: 'Don', description: 'A classic underworld honorific.', rarity: 'common', permanent: true },
+  { key: 'honorific-donna', label: 'Donna', description: 'A classic underworld honorific.', rarity: 'common', permanent: true },
+];
+const honorificTitleKeys = honorificTitles.map((option) => option.key);
+
 export const PROFILE_ACCENTS: CosmeticOptionDto[] = [
   { key: 'default', label: 'StreetsEmpire', description: 'The classic neon-green site accent.' },
   { key: 'crimson', label: 'Crimson', description: 'A deep red site-wide accent.' },
@@ -108,16 +116,17 @@ function adminCatalogSiteThemeOptions(): CosmeticOptionDto[] {
 
 function toSettingsDto(
   profile: AccountProfile | null,
-  earnedKeys: Set<string>,
+  earnedBadgeKeys: Set<string>,
+  earnedTitleKeys: Set<string>,
   accentOptions: CosmeticOptionDto[],
   frameOptions: CosmeticOptionDto[],
   themeOptions: CosmeticOptionDto[],
 ): AccountProfileSettingsDto {
-  const activeTitleKey = profile?.activeTitleKey && earnedKeys.has(profile.activeTitleKey)
+  const activeTitleKey = profile?.activeTitleKey && earnedTitleKeys.has(profile.activeTitleKey)
     ? profile.activeTitleKey
     : null;
   const featuredBadgeKeys = uniqueKeys(stringArray(profile?.featuredBadgeKeys))
-    .filter((key) => earnedKeys.has(key))
+    .filter((key) => earnedBadgeKeys.has(key))
     .slice(0, PROFILE_BADGE_FEATURE_LIMIT);
   const accentKeys = new Set(accentOptions.map((option) => option.key));
   const frameKeys = new Set(frameOptions.map((option) => option.key));
@@ -142,6 +151,7 @@ function toSettingsDto(
     : 'game';
   return {
     activeTitleKey,
+    titlePlacement: profile?.titlePlacement === 'suffix' ? 'suffix' : 'prefix',
     crewName: profile?.crewName ?? null,
     activeProfileFrameKey,
     activeSiteThemeKey,
@@ -215,12 +225,13 @@ export const AccountProfileService = {
       earnedAwards(prisma, accountId),
       appearanceOptions(prisma, accountId),
     ]);
-    const titleOptions = awards.map(titleOptionFromAward);
+    const titleOptions = [...honorificTitles, ...awards.map(titleOptionFromAward)];
     const badgeOptions = awards.map(optionFromAward);
-    const earnedKeys = new Set(badgeOptions.map((option) => option.key));
+    const earnedBadgeKeys = new Set(badgeOptions.map((option) => option.key));
+    const earnedTitleKeys = new Set([...earnedBadgeKeys, ...honorificTitleKeys]);
 
     return {
-      settings: toSettingsDto(profile, earnedKeys, appearance.accents, appearance.frames, appearance.themes),
+      settings: toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes),
       options: {
         titles: titleOptions,
         badges: badgeOptions,
@@ -243,8 +254,9 @@ export const AccountProfileService = {
       earnedAwards(prisma, accountId),
       appearanceOptions(prisma, accountId),
     ]);
-    const earnedKeys = new Set(awards.map((award) => award.key));
-    const activeTitleKey = input.activeTitleKey && earnedKeys.has(input.activeTitleKey)
+    const earnedBadgeKeys = new Set(awards.map((award) => award.key));
+    const earnedTitleKeys = new Set([...earnedBadgeKeys, ...honorificTitleKeys]);
+    const activeTitleKey = input.activeTitleKey && earnedTitleKeys.has(input.activeTitleKey)
       ? input.activeTitleKey
       : null;
     if (input.activeTitleKey && !activeTitleKey) {
@@ -277,7 +289,7 @@ export const AccountProfileService = {
       });
     }
     const featuredBadgeKeys = uniqueKeys(input.featuredBadgeKeys)
-      .filter((key) => earnedKeys.has(key))
+      .filter((key) => earnedBadgeKeys.has(key))
       .slice(0, PROFILE_BADGE_FEATURE_LIMIT);
     if (featuredBadgeKeys.length !== uniqueKeys(input.featuredBadgeKeys).length) {
       throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Feature only badges you have already earned.', {
@@ -292,6 +304,7 @@ export const AccountProfileService = {
       create: {
         accountId,
         activeTitleKey,
+        titlePlacement: input.titlePlacement,
         crewName: crewName ?? null,
         activeProfileFrameKey,
         activeSiteThemeKey,
@@ -304,6 +317,7 @@ export const AccountProfileService = {
       },
       update: {
         activeTitleKey,
+        titlePlacement: input.titlePlacement,
         ...(crewName !== undefined ? { crewName } : {}),
         activeProfileFrameKey,
         activeSiteThemeKey,
@@ -323,16 +337,19 @@ export const AccountProfileService = {
     prisma: PrismaClient,
     accountId: string,
     awards: PublicAwardDto[],
-  ): Promise<{ settings: AccountProfileSettingsDto; title: string | null }> {
+  ): Promise<{ settings: AccountProfileSettingsDto; title: string | null; titlePlacement: 'prefix' | 'suffix' }> {
     const [profile, appearance] = await Promise.all([
       readProfile(prisma, accountId),
       appearanceOptions(prisma, accountId),
     ]);
     const unlocked = awards.filter((award) => award.unlocked);
-    const earnedKeys = new Set(unlocked.map((award) => award.key));
-    const settings = toSettingsDto(profile, earnedKeys, appearance.accents, appearance.frames, appearance.themes);
+    const earnedBadgeKeys = new Set(unlocked.map((award) => award.key));
+    const earnedTitleKeys = new Set([...earnedBadgeKeys, ...honorificTitleKeys]);
+    const settings = toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes);
     const titleAward = unlocked.find((award) => award.key === settings.activeTitleKey);
-    const title = titleAward ? profileTitleForAward(titleAward) : null;
-    return { settings, title };
+    const title = settings.activeTitleKey && honorificTitleKeys.includes(settings.activeTitleKey)
+      ? profileTitleForAward({ key: settings.activeTitleKey, title: settings.activeTitleKey })
+      : titleAward ? profileTitleForAward(titleAward) : null;
+    return { settings, title, titlePlacement: settings.titlePlacement };
   },
 };

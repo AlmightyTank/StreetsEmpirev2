@@ -6,6 +6,10 @@ const profileTitleLabels: Record<string, string> = {
   'player-level-20-title': 'Street Veteran',
   'player-level-30-title': 'City Fixture',
   'player-level-50-title': 'Living Legend',
+  'honorific-sir': 'Sir',
+  'honorific-madam': 'Madam',
+  'honorific-don': 'Don',
+  'honorific-donna': 'Donna',
   'national-number-one': 'The National Crown',
   'city-boss': 'The City Crown',
   'top-ten': 'Top-Ten Made',
@@ -113,6 +117,10 @@ const profileTitleLabels: Record<string, string> = {
   'street-pass-s1-kingpin': 'Kingpin · Season 1',
   'street-pass-s1-badge': 'Street Pass · Season 1',
 };
+
+export function isBuiltInProfileTitle(key: string): boolean {
+  return key.startsWith('honorific-') && Object.hasOwn(profileTitleLabels, key);
+}
 
 function titleFallback(title: string): string {
   return title.toLowerCase().startsWith('the ') ? title : `The ${title}`;

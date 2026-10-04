@@ -115,6 +115,7 @@ export const defaultLandingSchema = z.enum(['game', 'profile', 'rankings', 'news
 
 export const updateAccountProfileSettingsSchema = z.object({
   activeTitleKey: z.string().trim().min(1).max(80).nullable(),
+  titlePlacement: z.enum(['prefix', 'suffix']).default('prefix'),
   /** Omitted keeps the current crew name; null or blank clears it. */
   crewName: crewNameSchema.nullable().optional(),
   activeProfileFrameKey: z.string().trim().min(1).max(80).nullable(),

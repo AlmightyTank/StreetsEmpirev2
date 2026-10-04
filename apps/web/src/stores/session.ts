@@ -26,6 +26,7 @@ type Phase = 'booting' | 'ready';
 
 export const DEFAULT_PROFILE_SETTINGS: AccountProfileSettingsDto = {
   activeTitleKey: null,
+  titlePlacement: 'prefix',
   crewName: null,
   activeProfileFrameKey: null,
   activeSiteThemeKey: null,

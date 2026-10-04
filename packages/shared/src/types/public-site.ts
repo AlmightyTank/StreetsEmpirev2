@@ -189,6 +189,7 @@ export interface PublicPlayerPageDto {
     };
     cosmetics: {
       title: string | null;
+      titlePlacement: 'prefix' | 'suffix';
       accent: string;
     };
     joinedAt: string;

@@ -8,7 +8,7 @@ import type {
   ProfileAccent,
   UiDensity,
 } from '@streets/shared';
-import { CREW_NAME_MAX } from '@streets/shared';
+import { CREW_NAME_MAX, formatProfileName } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
@@ -527,7 +527,31 @@ export function AccountSettingsPage() {
                       <option value={option.key} key={option.key}>{option.label}</option>
                     ))}
                   </select>
-                  {fields.activeTitleKey ? <p className="se-error" role="alert">{fields.activeTitleKey}</p> : <p className="se-hint">Titles come from achievements, season feats, legacy badges, and quest-only cosmetics. They are cosmetic only.</p>}
+                  {fields.activeTitleKey ? <p className="se-error" role="alert">{fields.activeTitleKey}</p> : <p className="se-hint">Sir, Madam, Don, and Donna are always available. Other titles come from achievements, season feats, legacy awards, and quests. Titles are cosmetic only.</p>}
+                  {(() => {
+                    const title = profileSettings.options.titles.find((option) => option.key === cosmetics.activeTitleKey)?.label;
+                    const name = me?.displayName ?? account.username;
+                    if (!title) return null;
+                    const preview = formatProfileName(name, title, cosmetics.titlePlacement);
+                    return <p className="se-hint">Preview: <strong>{preview}</strong></p>;
+                  })()}
+                </div>
+
+                <div className="se-field">
+                  <label className="se-label" htmlFor="title-placement">Title position</label>
+                  <select
+                    id="title-placement"
+                    className="se-input"
+                    value={cosmetics.titlePlacement}
+                    onChange={(event) => setCosmetics((current) => ({
+                      ...current,
+                      titlePlacement: event.target.value as typeof current.titlePlacement,
+                    }))}
+                  >
+                    <option value="prefix">Before my name · The Quiet Ghost AMightyTank</option>
+                    <option value="suffix">After my name · AMightyTank, Quiet Ghost</option>
+                  </select>
+                  <p className="se-hint">Choose how your selected title appears on your public profile.</p>
                 </div>
 
                 <div className="se-field">

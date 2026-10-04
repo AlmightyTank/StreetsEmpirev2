@@ -329,6 +329,7 @@ export function AdminAccountPage() {
               value={forumLink ? <a href={forumLink.profileUrl} target="_blank" rel="noreferrer">{forumLink.forumUsername}</a> : '-'}
             />
             <Row label="Profile title" value={detail.profile.activeTitleKey ?? '-'} />
+            <Row label="Title position" value={detail.profile.titlePlacement} />
             <Row label="Profile frame" value={detail.profile.activeProfileFrameKey ?? '-'} />
             <Row label="Site theme" value={detail.profile.activeSiteThemeKey ?? '-'} />
             <Row label="Accent" value={detail.profile.profileAccent} />
