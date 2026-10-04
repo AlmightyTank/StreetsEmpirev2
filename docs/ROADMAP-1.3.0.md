@@ -31,6 +31,31 @@ risk system.
 
 ---
 
+## Roadmap
+
+Seven slices, each on its own pinned ruleset that adds to the one before it. Every slice
+leaves Heat, busts, arrests and bribes exactly as they were. Details of what each built are
+under [Stages](#stages-sketch-following-the-11--12-pattern).
+
+| Slice | Status | Ruleset | What it delivers |
+| --- | --- | --- | --- |
+| **1.3.0-A — Case Foundation** | Built | `classic-og-v1.3-a` | A private Case per city, built from 10% of the Heat drawn there, with itemised receipts and the Wanted ladder (Quiet → Noticed → Under Investigation → Warrant → Federal). Read-only Case panel. |
+| **1.3.0-B — Evidence Sources** | Built | `classic-og-v1.3-b` | Direct evidence (busts, arrests, road stops, torches, sacks, run hits), currency reports on cash moved per city per day, cooling after 24 quiet hours, laundering that washes the Case. Stage rises reach Discord and phones. |
+| **1.3.0-C — Warrants & Raids** | Built | `classic-og-v1.3-c` | Warrants at the Warrant stage with a 12-hour warning: Hideout, business or personal raids. A daily police-loss cap. Lawyers: a weekly retainer, or lawyering up to answer a warrant. |
+| **1.3.0-D — Corruption & Informants** | Built | `classic-og-v1.3-d` | A weekly payroll of Captain, DA, Judge and Customs per city. Exposure from every favor, and Internal Affairs with a warned sting. Informants sell sweep and city tips. |
+| **1.3.0-E — City Identity & the Feds** | In progress | `classic-og-v1.3-e` | Each city's police build, cool and warn at their own pace. Federal shortens warrant windows and makes the sweep write more against the player, privately. A federal case and its warrant follow a relocation. |
+| **1.3.0-F — Jobs, Feats & Titles** | Planned | — | A police-side contact with one-time Jobs, clean-record feats and law-themed titles. Never pays cash, turns or protection. |
+| **1.3.0-G — Balance, Admin & Release** | Planned | — | A `qa:law` simulation to pin the numbers, an admin case viewer with audited adjustments, an exploit audit, mobile regression and the release gate. |
+
+**Still open across slices:**
+
+- The airport-check preview on the trip screen does not yet show Customs' cut (D).
+- A city tip's Heat lines are also visible on the move screen for destinations; from E the tip
+  adds the city's police personality, which is shown nowhere else before you have a Case there.
+- Every number above is a first pass until G's `qa:law` simulation pins it.
+
+---
+
 ## What already exists
 
 1.3 builds on a Heat system that has grown since 0.4.0-C:
