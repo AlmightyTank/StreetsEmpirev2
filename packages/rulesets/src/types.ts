@@ -275,7 +275,9 @@ export type ContactKey =
   | 'TOMMY'
   | 'WHEELS'
   | 'VIC'
-  | 'BLOCKS';
+  | 'BLOCKS'
+  /** 1.2.0-F. The casino host. */
+  | 'ACE';
 
 export interface ContactDefinition {
   readonly key: ContactKey;
@@ -285,7 +287,8 @@ export interface ContactDefinition {
   readonly description: string;
 }
 
-export type ContactCatalog = Readonly<Record<ContactKey, ContactDefinition>>;
+/** Contacts present in a round. Later contacts (Ace, 1.2.0-F) are absent from older catalogs. */
+export type ContactCatalog = Readonly<Partial<Record<ContactKey, ContactDefinition>>>;
 
 export type PermanentUnlockEffect =
   | {

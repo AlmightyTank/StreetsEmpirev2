@@ -462,6 +462,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
       totalCasinoValueCents: 0,
       limits: null,
       status: null,
+      host: null,
     };
   }
 
@@ -631,6 +632,9 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
       sessionMaxCents: status?.maxBankrollCents ?? casino.session.maxBankrollCents,
     },
     status,
+    host: ruleset.contacts?.ACE
+      ? { name: ruleset.contacts.ACE.name, shortName: ruleset.contacts.ACE.shortName, role: ruleset.contacts.ACE.role, description: ruleset.contacts.ACE.description }
+      : null,
   };
 }
 
@@ -978,8 +982,9 @@ export const CasinoService = {
       const bankrollAfter = session.bankrollCents - chargedWager + payout;
       await tx.casinoSession.update({ where: { id: session.id }, data: { bankrollCents: bankrollAfter } });
       // A free spin is comped by the house, so only paid spins are rated.
+      const play = { game: 'SLOTS' as const, tableKey: machine.key, actionId: input.actionId };
       await CasinoStatusService.rateWager(tx, ruleset, {
-        roundPlayerId, cityId: city.id, wagerCents: chargedWager, edgeBps: slotRatingEdgeBps(machine, input.betPerLineCents), now,
+        roundPlayerId, cityId: city.id, wagerCents: chargedWager, edgeBps: slotRatingEdgeBps(machine, input.betPerLineCents), play, now,
       });
 
       const wallet = await tx.casinoWallet.findUnique({
@@ -1025,6 +1030,11 @@ export const CasinoService = {
           sessionChipsAfterCents: bankrollAfter,
           metadata: metadata as unknown as Prisma.InputJsonValue,
         },
+      });
+      await CasinoStatusService.recordResult(tx, ruleset, {
+        roundPlayerId, cityId: city.id, play, stakeCents: chargedWager, returnCents: payout,
+        highlight: metadata.winTier === 'JACKPOT' ? 'JACKPOT' : metadata.winTier === 'MEGA' ? 'MEGA_WIN' : metadata.winTier === 'BIG' ? 'BIG_WIN' : null,
+        now,
       });
 
       await PlayerStateService.settleInTransaction(tx, roundPlayerId, { now, markActive: true });

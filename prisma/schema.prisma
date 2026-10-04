@@ -2820,6 +2820,11 @@ model CasinoRating {
   /// Whole comp cents redeemed while the boss was in this city.
   compsSpentCents  BigInt @default(0)
   ratedWagers      Int    @default(0)
+  /// 1.2.0-F. Season casino feats: wagers placed at VIP tables, progressive jackpots hit,
+  /// and the biggest net win on one settled hand, spin, roll or poker hand.
+  vipWagers        Int    @default(0)
+  jackpots         Int    @default(0)
+  biggestWinCents  BigInt @default(0)
   lastRatedAt      DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

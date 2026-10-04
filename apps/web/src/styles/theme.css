@@ -523,6 +523,12 @@ body {
   --se-accent-hover: #f8aa5a;
   --se-accent-rgb: 245, 133, 20;
 }
+.se-site-accent--velvet-rose {
+  --se-accent: #e0607e;
+  --se-accent-dim: #a8435c;
+  --se-accent-hover: #ec8ea4;
+  --se-accent-rgb: 224, 96, 126;
+}
 
 /*
  * Green was historically used as both the default accent and the generic
@@ -2489,6 +2495,7 @@ a.se-nav__link:hover {
 .se-profile-accent--open-road-blue { --se-profile-accent: #38bdf8; }
 .se-profile-accent--clean-slate-ice { --se-profile-accent: #a5f3fc; }
 .se-profile-accent--corner-amber { --se-profile-accent: #f58514; }
+.se-profile-accent--velvet-rose { --se-profile-accent: #e0607e; }
 
 .se-profile-frame {
   position: relative;
@@ -2606,6 +2613,21 @@ a.se-nav__link:hover {
 }
 .se-profile-frame--corner-boss-frame::after {
   border-color: rgba(245, 158, 11, 0.25);
+}
+
+/* 1.2.0-F Ace's Black Room finale: a rose velvet rope with gold posts. */
+.se-profile-frame--velvet-rope-frame {
+  border: 2px solid rgba(224, 96, 126, 0.78);
+  box-shadow: 0 0 18px rgba(224, 96, 126, 0.12), inset 0 0 0 3px rgba(214, 169, 67, 0.08);
+}
+.se-profile-frame--velvet-rope-frame::before {
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(214, 169, 67, 0.18), transparent 14%),
+    linear-gradient(270deg, rgba(214, 169, 67, 0.18), transparent 14%);
+}
+.se-profile-frame--velvet-rope-frame::after {
+  border-color: rgba(224, 96, 126, 0.28);
 }
 
 /* Street Pass Season 1: a gold double frame with warm corners. */
@@ -3213,6 +3235,7 @@ a.se-nav__link:hover {
 .se-swatch--open-road-blue { --se-swatch: #38bdf8; }
 .se-swatch--clean-slate-ice { --se-swatch: #a5f3fc; }
 .se-swatch--corner-amber { --se-swatch: #f58514; }
+.se-swatch--velvet-rose { --se-swatch: #e0607e; }
 .se-swatch--on {
   border-color: var(--se-swatch);
   color: var(--se-text);

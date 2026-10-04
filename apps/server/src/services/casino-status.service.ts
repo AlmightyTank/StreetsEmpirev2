@@ -20,6 +20,7 @@ import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActivityService } from './activity.service.js';
 import { bossPresence } from './boss-presence.service.js';
+import { QuestProgressService } from './quest-progress.service.js';
 
 /**
  * 1.2.0-E — High Rollers & City Identity.
@@ -31,6 +32,52 @@ import { bossPresence } from './boss-presence.service.js';
  */
 
 type DbLike = Db | PrismaClient;
+
+/** 1.2.0-F. The casino game a quest signal came from. */
+export type CasinoGameKey = 'SLOTS' | 'BLACKJACK' | 'ROULETTE' | 'STREET_DICE' | 'POKER';
+
+/** A memorable moment on a settled result, for Jobs such as Natural Talent. */
+export type CasinoResultHighlight = 'NATURAL' | 'JACKPOT' | 'MEGA_WIN' | 'BIG_WIN' | 'STRAIGHT_UP' | 'POINT_MADE' | 'SHOWDOWN_WIN';
+
+/** Which game, table and action a wager or result belongs to. */
+export interface CasinoPlay {
+  game: CasinoGameKey;
+  tableKey: string;
+  room?: CasinoRoom;
+  /** The client action ID that placed it. Quest receipts are keyed on it. */
+  actionId: string;
+}
+
+async function citySlugFor(db: DbLike, cityId: string): Promise<string> {
+  const city = await db.city.findUnique({ where: { id: cityId }, select: { slug: true } });
+  return city?.slug ?? cityId;
+}
+
+/**
+ * 1.2.0-F. Tell Jobs a wager was placed. Only rulesets with rated play emit, so
+ * older casino rounds never grow new quest traffic. Callers sit after their action-ID
+ * replay check, and the quest receipt is keyed on the action ID besides.
+ */
+async function emitWager(
+  tx: Db,
+  ruleset: Ruleset,
+  input: { roundPlayerId: string; cityId: string; wagerCents: bigint; theoCents: bigint; play: CasinoPlay; now: Date },
+): Promise<void> {
+  if (!ruleset.casino?.status) return;
+  await QuestProgressService.emit(tx, input.roundPlayerId, {
+    sourceKey: 'casino:wager:' + input.play.actionId,
+    type: 'CASINO_WAGER',
+    payload: {
+      game: input.play.game,
+      tableKey: input.play.tableKey,
+      room: input.play.room === 'VIP' ? 'VIP' : 'FLOOR',
+      citySlug: await citySlugFor(tx, input.cityId),
+      wagerCents: Number(input.wagerCents),
+      theoCents: Number(input.theoCents),
+    },
+    at: input.now,
+  });
+}
 type StatusPlayer = { id: string; city: { slug: string } };
 
 const CASINO_FRONT = 'CASINO_FRONT';
@@ -180,9 +227,10 @@ async function applyRating(
   wageredCents: bigint,
   rate: (status: CasinoStatusRules, theoBeforeCents: bigint, compBonusBps: number) => CasinoRatingDelta,
   now: Date,
-): Promise<void> {
+  vip = false,
+): Promise<CasinoRatingDelta | null> {
   const status = ruleset.casino?.status;
-  if (!status) return;
+  if (!status) return null;
   const theoBefore = await casinoTheoCents(tx, roundPlayerId);
   let compBonusBps = 0;
   if (status.casinoFront?.compBonusBps) {
@@ -198,6 +246,7 @@ async function applyRating(
       theoBasis: { increment: delta.theoBasis },
       compBasis: { increment: delta.compBasis },
       ratedWagers: { increment: 1 },
+      ...(vip ? { vipWagers: { increment: 1 } } : {}),
       lastRatedAt: now,
     },
     create: {
@@ -207,6 +256,7 @@ async function applyRating(
       theoBasis: delta.theoBasis,
       compBasis: delta.compBasis,
       ratedWagers: 1,
+      vipWagers: vip ? 1 : 0,
       lastRatedAt: now,
     },
   });
@@ -221,6 +271,7 @@ async function applyRating(
       compRateBps: after.tier.compRateBps,
     });
   }
+  return delta;
 }
 
 export const CasinoStatusService = {
@@ -228,27 +279,102 @@ export const CasinoStatusService = {
    * Rate one charged wager at the posted edge. Call only after the chips have left the
    * bankroll, inside the same transaction, so a replayed action can never rate twice.
    */
-  rateWager(
+  async rateWager(
     tx: Db,
     ruleset: Ruleset,
-    input: { roundPlayerId: string; cityId: string; wagerCents: bigint; edgeBps: number; now: Date },
+    input: { roundPlayerId: string; cityId: string; wagerCents: bigint; edgeBps: number; play: CasinoPlay; now: Date },
   ): Promise<void> {
-    if (input.wagerCents <= 0n) return Promise.resolve();
-    return applyRating(
+    if (input.wagerCents <= 0n) return;
+    const delta = await applyRating(
       tx, ruleset, input.roundPlayerId, input.cityId, input.wagerCents,
       (status, theoBeforeCents, compBonusBps) => rateCasinoWager(status, { wagerCents: input.wagerCents, edgeBps: input.edgeBps, theoBeforeCents, compBonusBps }),
       input.now,
+      input.play.room === 'VIP',
     );
+    if (!delta) return;
+    // Emitted after rating so a Job's casinoTheoCents state already includes this wager.
+    await emitWager(tx, ruleset, { ...input, theoCents: casinoBasisToCents(delta.theoBasis) });
+  },
+
+  /**
+   * 1.2.0-F. A buy-in that is not itself a rated wager, such as a poker buy-in (poker
+   * rates its rake instead). It still counts as playing the game for Jobs.
+   */
+  recordPlay(
+    tx: Db,
+    ruleset: Ruleset,
+    input: { roundPlayerId: string; cityId: string; wagerCents: bigint; play: CasinoPlay; now: Date },
+  ): Promise<void> {
+    return emitWager(tx, ruleset, { ...input, theoCents: 0n });
+  },
+
+  /**
+   * 1.2.0-F. A settled hand, spin, roll or poker hand. Tells Jobs how it went and keeps
+   * the season-feat stats (biggest single win, jackpots). Never touches money: the
+   * game has already settled the bankroll before calling this.
+   */
+  async recordResult(
+    tx: Db,
+    ruleset: Ruleset,
+    input: {
+      roundPlayerId: string;
+      cityId: string;
+      play: CasinoPlay;
+      stakeCents: bigint;
+      returnCents: bigint;
+      highlight: CasinoResultHighlight | null;
+      now: Date;
+    },
+  ): Promise<void> {
+    if (!ruleset.casino?.status) return;
+    const net = input.returnCents - input.stakeCents;
+    const jackpot = input.highlight === 'JACKPOT';
+    const existing = await tx.casinoRating.findUnique({
+      where: { roundPlayerId_cityId: { roundPlayerId: input.roundPlayerId, cityId: input.cityId } },
+      select: { biggestWinCents: true },
+    });
+    const biggest = net > (existing?.biggestWinCents ?? 0n) ? net : null;
+    if (biggest !== null || jackpot) {
+      await tx.casinoRating.upsert({
+        where: { roundPlayerId_cityId: { roundPlayerId: input.roundPlayerId, cityId: input.cityId } },
+        update: {
+          ...(biggest !== null ? { biggestWinCents: biggest } : {}),
+          ...(jackpot ? { jackpots: { increment: 1 } } : {}),
+        },
+        create: {
+          roundPlayerId: input.roundPlayerId,
+          cityId: input.cityId,
+          biggestWinCents: biggest ?? 0n,
+          jackpots: jackpot ? 1 : 0,
+        },
+      });
+    }
+    await QuestProgressService.emit(tx, input.roundPlayerId, {
+      sourceKey: 'casino:result:' + input.play.actionId,
+      type: 'CASINO_RESULT',
+      payload: {
+        game: input.play.game,
+        tableKey: input.play.tableKey,
+        room: input.play.room === 'VIP' ? 'VIP' : 'FLOOR',
+        citySlug: await citySlugFor(tx, input.cityId),
+        stakeCents: Number(input.stakeCents),
+        returnCents: Number(input.returnCents),
+        netCents: Number(net),
+        won: net > 0n,
+        highlight: input.highlight,
+      },
+      at: input.now,
+    });
   },
 
   /** Rate a real house take, such as poker rake, one-for-one as theo. */
-  rateHouseTake(
+  async rateHouseTake(
     tx: Db,
     ruleset: Ruleset,
     input: { roundPlayerId: string; cityId: string; takeCents: bigint; now: Date },
   ): Promise<void> {
-    if (input.takeCents <= 0n) return Promise.resolve();
-    return applyRating(
+    if (input.takeCents <= 0n) return;
+    await applyRating(
       tx, ruleset, input.roundPlayerId, input.cityId, 0n,
       (status, theoBeforeCents, compBonusBps) => rateCasinoHouseTake(status, { takeCents: input.takeCents, theoBeforeCents, compBonusBps }),
       input.now,

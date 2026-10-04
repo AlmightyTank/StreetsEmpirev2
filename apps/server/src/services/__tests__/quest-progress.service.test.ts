@@ -92,6 +92,9 @@ function fixture(rowOverrides: Partial<Row> = {}) {
     roundPlayer: {
       findUnique: async () => currentPlayerState,
     },
+    casinoRating: {
+      aggregate: async () => ({ _sum: { theoBasis: null } }),
+    },
     playerQuest: {
       findMany: async () => row.status === 'ACTIVE' || row.status === 'READY_TO_TURN_IN' ? [{ id: row.id }] : [],
       findUnique: async () => row,
