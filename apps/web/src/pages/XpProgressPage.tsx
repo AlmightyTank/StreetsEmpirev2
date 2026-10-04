@@ -46,7 +46,7 @@ export function XpProgressPage() {
           <div className="se-pass-hero__copy">
             <span className="se-eyebrow">Lifetime account progression · never resets</span>
             <h1>XP Progress</h1>
-            <p>Every action that earns XP moves your account forward. Level rewards are profile titles and cosmetics, with no gameplay bonuses.</p>
+            <p>Every action that earns XP moves your account forward. Level rewards are profile titles, with no gameplay bonuses.</p>
           </div>
           <div className="se-pass-hero__progress">
             <div>
