@@ -278,6 +278,10 @@ function revealNext(state: PokerState): void {
   for (const seat of state.seats) seat.streetBet = 0;
 }
 
+function handSettled(state: PokerState): boolean {
+  return state.street === 'SHOWDOWN' || state.street === 'COMPLETE';
+}
+
 function act(state: PokerState, action: CasinoPokerActionInput['action'], rng: Rng, raiseSize: number): void {
   const human = state.seats.find((seat) => seat.human)!;
   if (state.street === 'SHOWDOWN' || state.street === 'COMPLETE') throw AppError.conflict('POKER_HAND_SETTLED', 'That poker hand is already settled.');
@@ -286,8 +290,8 @@ function act(state: PokerState, action: CasinoPokerActionInput['action'], rng: R
   // Resolve the bots who act before the player first. If the player raises,
   // those bots get another response after the players behind the button.
   botResponses(state, rng, order.slice(0, humanOrderIndex));
-  const streetAfterLeadingBots = state.street as PokerState['street'];
-  if (streetAfterLeadingBots === 'SHOWDOWN' || streetAfterLeadingBots === 'COMPLETE') return;
+  // The bots may have settled the hand; read the street again rather than the narrowed one.
+  if (handSettled(state)) return;
   const previousBet = state.currentBet;
   const due = Math.max(0, state.currentBet - human.streetBet);
   if (action === 'FOLD') {
