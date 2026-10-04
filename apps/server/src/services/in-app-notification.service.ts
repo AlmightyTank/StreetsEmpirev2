@@ -41,6 +41,8 @@ const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
   'OFFICIAL_IA_OPENED',
   'OFFICIAL_STUNG',
   'CAPTAIN_TIP',
+  // 1.3.0-E. A federal case that followed a move.
+  'CASE_FOLLOWED',
 ]);
 
 function objectPayload(payload: Prisma.InputJsonValue): Record<string, unknown> {

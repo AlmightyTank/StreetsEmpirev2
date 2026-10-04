@@ -1,7 +1,9 @@
 import type { PlayerWarrant, Prisma, PrismaClient, RoundPlayer } from '@prisma/client';
 import {
   chooseWarrantTarget,
+  cityLaw,
   evidenceTarget,
+  warrantWindowHours,
   lawyerUpCents,
   loadRulesetForRound,
   lossCapShare,
@@ -96,28 +98,12 @@ export const LawWarrantService = {
    * Draft a warrant in a city whose Case has reached the Warrant stage, unless one is open
    * there. It names the target the Case was mostly built against, among those reachable.
    */
-  async draftIfDue(tx: Db, roundPlayerId: string, ruleset: Ruleset, cityId: string, now: Date): Promise<PlayerWarrant | null> {
+  async draftIfDue(tx: Db, roundPlayerId: string, ruleset: Ruleset, cityId: string, now: Date, caseHundredths = 0): Promise<PlayerWarrant | null> {
     const rules = ruleset.law?.warrants;
     if (!rules) return null;
     if (await tx.playerWarrant.findFirst({ where: { roundPlayerId, cityId, status: { in: OPEN_STATUSES } }, select: { id: true } })) return null;
-    const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { cityId: true } });
-    const last = await tx.playerWarrant.findFirst({ where: { roundPlayerId, cityId }, orderBy: { draftedAt: 'desc' }, select: { draftedAt: true } });
-    const receipts = await tx.playerCaseReceipt.findMany({
-      where: { roundPlayerId, cityId, deltaHundredths: { gt: 0 }, ...(last ? { createdAt: { gte: last.draftedAt } } : {}) },
-      select: { source: true, deltaHundredths: true },
-    });
-    const weights: Record<WarrantTarget, number> = { HIDEOUT: 0, BUSINESS: 0, PERSONAL: 0 };
-    for (const receipt of receipts) {
-      const target = evidenceTarget(receipt.source);
-      if (target) weights[target] += receipt.deltaHundredths;
-    }
-    const business = await raidableBusiness(tx, roundPlayerId, cityId);
-    const target = chooseWarrantTarget(weights, { hideout: player.cityId === cityId, business: Boolean(business) });
-    // D: a Precinct Captain on the payroll there buys the player more time.
-    const captain = ruleset.law?.officials ? await LawOfficialService.working(tx, roundPlayerId, cityId, 'CAPTAIN', now) : null;
-    const extraHours = captain ? ruleset.law!.officials!.roles.CAPTAIN.extraWarningHours : 0;
-    const servesAt = new Date(now.getTime() + (rules.warningHours + extraHours) * HOUR_MS);
-    if (captain) await LawOfficialService.favor(tx, ruleset, captain, 'captainWindow', now);
+    const { target, business } = await LawWarrantService.chooseTarget(tx, roundPlayerId, cityId, cityId);
+    const servesAt = await windowEnd(tx, roundPlayerId, ruleset, cityId, caseHundredths, now);
     const warrant = await tx.playerWarrant.create({
       data: { roundPlayerId, cityId, target, businessId: target === 'BUSINESS' ? business!.id : null, draftedAt: now, servesAt },
     });
@@ -127,6 +113,47 @@ export const LawWarrantService = {
       businessName: target === 'BUSINESS' ? businessLabel(ruleset, business) : null, servesAt: servesAt.toISOString(),
     }));
     return warrant;
+  },
+
+  /**
+   * The target for a warrant: the evidence in `evidenceCityId` since its last warrant, summed by
+   * what it points at, among the targets reachable in `targetCityId`.
+   */
+  async chooseTarget(tx: Db, roundPlayerId: string, evidenceCityId: string, targetCityId: string): Promise<{ target: WarrantTarget; business: { id: string; kind: string } | null }> {
+    const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { cityId: true } });
+    const last = await tx.playerWarrant.findFirst({ where: { roundPlayerId, cityId: evidenceCityId }, orderBy: { draftedAt: 'desc' }, select: { draftedAt: true } });
+    const receipts = await tx.playerCaseReceipt.findMany({
+      where: { roundPlayerId, cityId: evidenceCityId, deltaHundredths: { gt: 0 }, ...(last ? { createdAt: { gte: last.draftedAt } } : {}) },
+      select: { source: true, deltaHundredths: true },
+    });
+    const weights: Record<WarrantTarget, number> = { HIDEOUT: 0, BUSINESS: 0, PERSONAL: 0 };
+    for (const receipt of receipts) {
+      const target = evidenceTarget(receipt.source);
+      if (target) weights[target] += receipt.deltaHundredths;
+    }
+    const business = await raidableBusiness(tx, roundPlayerId, targetCityId);
+    return { target: chooseWarrantTarget(weights, { hideout: player.cityId === targetCityId, business: Boolean(business) }), business };
+  },
+
+  /**
+   * 1.3.0-E. A federal case moved with a relocation: an open or waiting warrant from the old
+   * city follows it, re-targets in the new home (the Hideout is a target again), and gets a
+   * fresh warning window from the arrival, so a move never cuts the time to respond.
+   */
+  async followRelocation(tx: Db, roundPlayerId: string, ruleset: Ruleset, fromCityId: string, toCityId: string, caseHundredths: number, at: Date): Promise<void> {
+    const warrant = await tx.playerWarrant.findFirst({ where: { roundPlayerId, cityId: fromCityId, status: { in: OPEN_STATUSES } } });
+    if (!warrant || !ruleset.law?.warrants) return;
+    if (await tx.playerWarrant.findFirst({ where: { roundPlayerId, cityId: toCityId, status: { in: OPEN_STATUSES } }, select: { id: true } })) {
+      // The new home already has one: the old warrant folds into it.
+      await tx.playerWarrant.update({ where: { id: warrant.id }, data: { status: 'QUASHED', resolvedAt: at, outcome: json({ foldedInto: toCityId }) } });
+      return;
+    }
+    const { target, business } = await LawWarrantService.chooseTarget(tx, roundPlayerId, fromCityId, toCityId);
+    const servesAt = await windowEnd(tx, roundPlayerId, ruleset, toCityId, caseHundredths, at);
+    await tx.playerWarrant.update({
+      where: { id: warrant.id },
+      data: { cityId: toCityId, target, businessId: target === 'BUSINESS' ? business!.id : null, status: 'OPEN', servesAt, draftAlertedAt: null, waitingAlertedAt: null },
+    });
   },
 
   /**
@@ -445,6 +472,19 @@ function warrantDto(ruleset: Ruleset, warrant: WarrantWithCity & { business: { k
     quashable: false,
     outcome: warrant.resolvedAt ? outcome : null,
   };
+}
+
+/**
+ * When a warrant drafted now in a city is served: the city's window, shorter at Federal (E),
+ * plus a Precinct Captain's extra hours (D), which count as a favor.
+ */
+async function windowEnd(tx: Db, roundPlayerId: string, ruleset: Ruleset, cityId: string, caseHundredths: number, now: Date): Promise<Date> {
+  const law = ruleset.law!;
+  const city = await cityOf(tx, cityId);
+  const captain = law.officials ? await LawOfficialService.working(tx, roundPlayerId, cityId, 'CAPTAIN', now) : null;
+  const extraHours = captain ? law.officials!.roles.CAPTAIN.extraWarningHours : 0;
+  if (captain) await LawOfficialService.favor(tx, ruleset, captain, 'captainWindow', now);
+  return new Date(now.getTime() + warrantWindowHours(law, cityLaw(law, city.slug), caseHundredths, extraHours) * HOUR_MS);
 }
 
 /** How a visiting boss got there: a flight trip, or riding with a run. */

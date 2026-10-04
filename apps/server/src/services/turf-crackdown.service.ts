@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient, Round } from '@prisma/client';
-import { hashParts, rulesetForCity, type Ruleset } from '@streets/rules-engine';
+import { hashParts, rulesetForCity, wantedStage, type Ruleset } from '@streets/rules-engine';
 import { lockRound, type Db } from '../utils/db.js';
 import { PlayerStateService } from './player-state.service.js';
 import { LawService } from './law.service.js';
@@ -249,6 +249,12 @@ export const TurfCrackdownService = {
       // 1.3.0-A: the sweep's Heat builds a Case in the swept city.
       if (living.heat) {
         await LawService.recordHeat(tx, holderId, ruleset, [{ cityId: event.cityId, heat: requestedHeat, source: 'CRACKDOWN', sourceKey: `crackdown:${event.id}` }], event.sweepAt);
+      }
+      // 1.3.0-E: the Feds weigh a holder they already have at Federal more, privately: the
+      // sweep's public pickups never change, only that holder's own Case does.
+      const federal = ruleset.law?.federal;
+      if (federal && wantedStage(await LawService.caseIn(tx, holderId, ruleset, event.cityId, event.sweepAt), ruleset.law!) === 'FEDERAL') {
+        await LawService.record(tx, holderId, ruleset, [{ cityId: event.cityId, points: federal.sweepPoints, source: 'CRACKDOWN', sourceKey: `crackdown-federal:${event.id}` }], event.sweepAt);
       }
 
       results.push({

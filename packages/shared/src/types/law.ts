@@ -9,7 +9,9 @@ export type CaseSourceDto =
   // 1.3.0-C: a warrant served, or answered by a lawyer.
   | 'WARRANT' | 'LAWYER'
   // 1.3.0-D: a DA quashing a warrant, and Internal Affairs catching an official.
-  | 'QUASH' | 'STING';
+  | 'QUASH' | 'STING'
+  // 1.3.0-E: a federal case moving with a relocation.
+  | 'FEDERAL';
 
 /**
  * 1.3.0-A. The player's worst Case, for the dashboard. Stage Quiet with no city when the
@@ -36,6 +38,8 @@ export interface CityCaseDto {
    * cools, or there is nothing left to cool.
    */
   cooling: { startsAt: string; perHour: number } | null;
+  /** 1.3.0-E. How this city's police work: their pace against a plain city. Null before E. */
+  law: { blurb: string; caseSpeed: number; coolingSpeed: number; warningHoursMultiplier: number } | null;
   updatedAt: string;
 }
 

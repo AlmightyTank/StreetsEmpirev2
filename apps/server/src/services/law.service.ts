@@ -5,7 +5,10 @@ import {
   caseFromHeat,
   caseFromPoints,
   captainHeadsUp,
+  cityCaseDelta,
+  cityLaw,
   daSlowed,
+  federalTransfer,
   coolCase,
   coolingStartsAt,
   currencyReports,
@@ -44,6 +47,8 @@ export interface CaseEvidence {
   cashCents?: bigint;
   /** 1.3.0-C. Bring the Case down to at most this, in hundredths: a warrant served or answered. */
   ceiling?: number;
+  /** 1.3.0-E. Bring the Case up to at least this, in hundredths: a federal case arriving. */
+  floor?: number;
 }
 
 /** 1.3.0-A's shape: Heat drawn, and nothing else. */
@@ -124,7 +129,7 @@ export const LawService = {
     for (const entry of entries) {
       const cash = entry.cashCents && entry.cashCents > 0n && rules.currencyReport ? entry.cashCents : 0n;
       const direct = caseFromHeat(entry.heat ?? 0, rules) + caseFromPoints(entry.points ?? 0);
-      if (direct === 0 && cash === 0n && entry.ceiling === undefined) continue;
+      if (direct === 0 && cash === 0n && entry.ceiling === undefined && entry.floor === undefined) continue;
       if (await tx.playerCaseReceipt.findUnique({ where: { roundPlayerId_sourceKey: { roundPlayerId, sourceKey: entry.sourceKey } }, select: { id: true } })) continue;
       const place = await city(entry);
       if (!place) continue;
@@ -133,7 +138,9 @@ export const LawService = {
       const clock = existing
         ? { caseHundredths: existing.caseHundredths, caseAt: existing.caseAt, lastEvidenceAt: existing.lastEvidenceAt }
         : { caseHundredths: 0, caseAt: now, lastEvidenceAt: null };
-      const before = coolCase(clock, now, rules);
+      // E: each city's police work at their own pace.
+      const pace = cityLaw(rules, place.slug);
+      const before = coolCase(clock, now, rules, pace.coolingSpeed);
 
       // B: cooling since the last write lands as one rolling receipt per quiet spell.
       if (before < clock.caseHundredths) {
@@ -151,9 +158,11 @@ export const LawService = {
       const day = lawDay(now);
       const dayCents = existing?.reportDay === day ? existing.reportCents : 0n;
       const reports = cash > 0n ? currencyReports(dayCents, cash, rules) : 0;
-      let delta = direct + caseFromPoints(reports * (rules.currencyReport?.points ?? 0));
+      let delta = cityCaseDelta(direct + caseFromPoints(reports * (rules.currencyReport?.points ?? 0)), pace);
+      // E: a federal case arriving brings the Case up to its value, never stacked on top.
+      if (entry.floor !== undefined) delta = Math.max(delta, entry.floor - before);
       // D: a District Attorney on the payroll keeps part of every rise off the books.
-      if (delta > 0 && rules.officials && entry.source !== 'STING') {
+      if (delta > 0 && rules.officials && entry.source !== 'STING' && entry.source !== 'FEDERAL') {
         const da = await LawOfficialService.working(tx, roundPlayerId, place.id, 'DA', now);
         const slowed = da ? daSlowed(delta, rules.officials.roles.DA.slowShare) : 0;
         if (da && slowed > 0) {
@@ -206,7 +215,7 @@ export const LawService = {
       changes.push({ cityId: place.id, before, after, stage, stageUp });
       // C: a Case that has reached the Warrant stage drafts a warrant, if the city has none open.
       if (after > before && rules.warrants && stageRank(stage) >= stageRank('WARRANT')) {
-        await LawWarrantService.draftIfDue(tx, roundPlayerId, ruleset, place.id, now);
+        await LawWarrantService.draftIfDue(tx, roundPlayerId, ruleset, place.id, now, after);
       }
     }
     return changes;
@@ -224,6 +233,64 @@ export const LawService = {
     await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { policeLossDay: day, policeLossCents: today + cents } });
   },
 
+  /** 1.3.0-E. A player's Case in one city as it stands now, cooling included. */
+  async caseIn(db: Db, roundPlayerId: string, ruleset: Ruleset, cityId: string, now: Date = new Date()): Promise<number> {
+    const rules = ruleset.law;
+    if (!rules) return 0;
+    const row = await db.playerCase.findUnique({ where: { roundPlayerId_cityId: { roundPlayerId, cityId } }, include: { city: { select: { slug: true } } } });
+    return row ? coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed) : 0;
+  },
+
+  /**
+   * 1.3.0-E. What a relocation out of the player's home would do to a federal case there: its
+   * value now, what the old city keeps, and what each destination's Case would become. Null
+   * when the home Case is below Federal (it stays behind) or the round has no Feds.
+   */
+  async federalPreview(db: Db, roundPlayerId: string, ruleset: Ruleset, homeCityId: string, now: Date = new Date()): Promise<{ cityName: string; case: number; oldCityCase: number; arrivals: Record<string, number> } | null> {
+    const rules = ruleset.law;
+    if (!rules?.federal) return null;
+    const leaving = await LawService.caseIn(db, roundPlayerId, ruleset, homeCityId, now);
+    const preview = federalTransfer(leaving, 0, rules);
+    if (!preview) return null;
+    const [home, rows] = await Promise.all([
+      db.city.findUniqueOrThrow({ where: { id: homeCityId }, select: { name: true } }),
+      db.playerCase.findMany({ where: { roundPlayerId }, include: { city: { select: { slug: true } } } }),
+    ]);
+    const arrivals: Record<string, number> = {};
+    for (const slug of Object.keys(ruleset.cities ?? {})) {
+      const row = rows.find((candidate) => candidate.city.slug === slug);
+      const there = row ? coolCase(row, now, rules, cityLaw(rules, slug).coolingSpeed) : 0;
+      arrivals[slug] = points(federalTransfer(leaving, there, rules)!.arriving);
+    }
+    return { cityName: home.name, case: points(leaving), oldCityCase: points(preview.leaving), arrivals };
+  },
+
+  /**
+   * 1.3.0-E. A relocation has arrived. A federal case in the city left moves to the new home
+   * (its value, or the new city's own if higher), the old city keeps a local file, and an open
+   * warrant there follows with a fresh window. Below Federal, nothing moves.
+   */
+  async followRelocation(tx: Db, roundPlayerId: string, ruleset: Ruleset, move: { id: string; fromCity: string; toCityId: string }, at: Date): Promise<void> {
+    const rules = ruleset.law;
+    if (!rules?.federal) return;
+    const from = await tx.city.findUnique({ where: { slug: move.fromCity }, select: { id: true, name: true } });
+    if (!from || from.id === move.toCityId) return;
+    const leaving = await LawService.caseIn(tx, roundPlayerId, ruleset, from.id, at);
+    const arriving = await LawService.caseIn(tx, roundPlayerId, ruleset, move.toCityId, at);
+    const transfer = federalTransfer(leaving, arriving, rules);
+    if (!transfer) return;
+    // The warrant moves first, so arriving at Federal does not draft a second one.
+    await LawWarrantService.followRelocation(tx, roundPlayerId, ruleset, from.id, move.toCityId, transfer.arriving, at);
+    await LawService.record(tx, roundPlayerId, ruleset, [
+      { cityId: from.id, ceiling: transfer.leaving, source: 'FEDERAL', sourceKey: `federal-out:${move.id}` },
+      { cityId: move.toCityId, floor: transfer.arriving, source: 'FEDERAL', sourceKey: `federal-in:${move.id}` },
+    ], at);
+    const to = await tx.city.findUniqueOrThrow({ where: { id: move.toCityId }, select: { name: true } });
+    await ActivityService.log(tx, roundPlayerId, 'CASE_FOLLOWED', json({
+      fromCityName: from.name, toCityName: to.name, case: points(transfer.arriving), oldCityCase: points(transfer.leaving),
+    }));
+  },
+
   /** 1.3.0-A. Heat drawn, turned into Case. */
   recordHeat(tx: Db, roundPlayerId: string, ruleset: Ruleset, gains: readonly CaseHeat[], now: Date = new Date()): Promise<CaseChange[]> {
     return LawService.record(tx, roundPlayerId, ruleset, gains, now);
@@ -233,10 +300,10 @@ export const LawService = {
   async summary(db: Db, roundPlayerId: string, ruleset: Ruleset, now: Date = new Date()): Promise<LawSummaryDto | null> {
     const rules = ruleset.law;
     if (!rules) return null;
-    const rows = await db.playerCase.findMany({ where: { roundPlayerId }, include: { city: { select: { name: true } } } });
+    const rows = await db.playerCase.findMany({ where: { roundPlayerId }, include: { city: { select: { slug: true, name: true } } } });
     let worst: { hundredths: number; cityName: string } | null = null;
     for (const row of rows) {
-      const hundredths = coolCase(row, now, rules);
+      const hundredths = coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed);
       if (hundredths > 0 && (!worst || hundredths > worst.hundredths)) worst = { hundredths, cityName: row.city.name };
     }
     if (!worst) return { stage: 'QUIET', case: 0, cityName: null };
@@ -258,7 +325,7 @@ export const LawService = {
     ]);
 
     const cases = rows
-      .map((row) => ({ row, hundredths: coolCase(row, now, rules) }))
+      .map((row) => ({ row, hundredths: coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed) }))
       .sort((a, b) => b.hundredths - a.hundredths || b.row.updatedAt.getTime() - a.row.updatedAt.getTime());
 
     return {
@@ -277,6 +344,7 @@ export const LawService = {
       cases: cases.map(({ row, hundredths }) => {
         const next = nextStage(hundredths, rules);
         const starts = hundredths > 0 ? coolingStartsAt(row, rules) : null;
+        const pace = rules.cities ? cityLaw(rules, row.city.slug) : null;
         return {
           citySlug: row.city.slug,
           cityName: row.city.name,
@@ -284,7 +352,8 @@ export const LawService = {
           case: points(hundredths),
           stage: wantedStage(hundredths, rules),
           next: next ? { stage: next.stage, startsAt: points(next.startsAt) } : null,
-          cooling: starts && rules.cooling ? { startsAt: starts.toISOString(), perHour: rules.cooling.decayPerHour } : null,
+          cooling: starts && rules.cooling ? { startsAt: starts.toISOString(), perHour: rules.cooling.decayPerHour * (pace?.coolingSpeed ?? 1) } : null,
+          law: pace ? { blurb: pace.blurb, caseSpeed: pace.caseSpeed, coolingSpeed: pace.coolingSpeed, warningHoursMultiplier: pace.warningHoursMultiplier } : null,
           updatedAt: row.updatedAt.toISOString(),
         };
       }),

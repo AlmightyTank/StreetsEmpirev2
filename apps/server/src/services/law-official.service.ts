@@ -1,5 +1,6 @@
 import type { PlayerOfficial, Prisma, PrismaClient } from '@prisma/client';
 import {
+  cityLaw,
   crossesIaLine,
   lawPriceCents,
   loadRulesetForRound,
@@ -256,6 +257,8 @@ export const LawOfficialService = {
             dragStartsAt: rules.heat.dragStartsAt, bustStartsAt: rules.heat.bustStartsAt, arrestStartsAt: rules.heat.arrestStartsAt,
             bustSeverity: rules.heat.bustSeverity, policePressure: rules.policePressure,
             arrestLockMinutes: heat?.arrest?.downtimeMinutes ?? null,
+            // 1.3.0-E: and how its police work a Case, before you have one there.
+            ...(base.law?.cities ? { law: cityLaw(base.law, slug) } : {}),
           };
         }
         if (fee > current.cashCents) throw AppError.badRequest('NOT_ENOUGH_CASH', 'You cannot pay the informant.');

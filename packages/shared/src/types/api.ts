@@ -101,7 +101,8 @@ export type ActivityType =
   | 'OFFICIAL_STUNG'
   | 'WARRANT_QUASHED'
   | 'CAPTAIN_TIP'
-  | 'INFORMANT_TIP';
+  | 'INFORMANT_TIP'
+  | 'CASE_FOLLOWED';
 
 export interface ApiErrorBody {
   error: {

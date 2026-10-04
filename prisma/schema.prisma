@@ -2243,6 +2243,7 @@ enum ActivityType {
   WARRANT_QUASHED
   CAPTAIN_TIP
   INFORMANT_TIP
+  CASE_FOLLOWED
 }
 
 enum BattleKind {
