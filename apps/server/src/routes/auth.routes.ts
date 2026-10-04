@@ -340,6 +340,9 @@ async function sendVerificationEmail(
     );
   } catch (error) {
     request.log.error({ err: error, accountId: account.id }, 'email verification message failed');
+    await prisma.accountEmailToken.deleteMany({
+      where: { tokenHash: hashToken(token), purpose: 'VERIFY_EMAIL', usedAt: null },
+    });
     return { sent: false, retryInSeconds: 0, reason: 'failed' };
   }
 
