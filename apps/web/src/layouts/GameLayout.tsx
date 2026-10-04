@@ -405,9 +405,9 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
           {experience ? (
             <Link
               className="se-gamebar__xp"
-              to="/game/profile"
+              to="/game/xp-progress"
               title={`${experience.totalXp.toLocaleString()} lifetime XP`}
-              aria-label={`Level ${experience.level}, ${experience.xpIntoLevel} of ${experience.xpForLevel} XP to the next level. View your profile.`}
+              aria-label={`Level ${experience.level}, ${experience.xpIntoLevel} of ${experience.xpForLevel} XP to the next level. View your XP progress.`}
             >
               <strong>Level {experience.level}</strong>
               <span className="se-gamebar__xp-track" aria-hidden="true">
