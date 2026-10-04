@@ -233,6 +233,12 @@ const casinoRoutes: FastifyPluginAsync = async (fastify) => {
     const { tableId } = request.params as { tableId: string };
     return { ...(await CasinoPokerService.playTableAction(fastify.prisma, player.id, tableId, input)), page: await CasinoService.page(fastify.prisma, player.id) };
   });
+  fastify.post('/poker/tables/:tableId/timeout', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoPokerTableActionSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    const { tableId } = request.params as { tableId: string };
+    return { ...(await CasinoPokerService.timeoutTableTurn(fastify.prisma, player.id, tableId, input.actionId)), page: await CasinoService.page(fastify.prisma, player.id) };
+  });
 
   fastify.post('/sessions/:sessionId/close', { preHandler: fastify.requireAuth }, async (request) => {
     const input = parseBody(casinoSessionCloseSchema, request.body);

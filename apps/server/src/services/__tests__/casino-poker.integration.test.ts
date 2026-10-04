@@ -121,4 +121,92 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-E solo Poker with Po
     expect((await CasinoPokerService.state(app.prisma, first.id)).tables.find((table) => table.id === created.table.id)?.status).toBeUndefined();
     expect(await app.prisma.casinoLedgerEntry.count({ where: { roundPlayerId: { in: [first.id, second.id] }, kind: { in: ['POKER_TABLE_BUY_IN', 'POKER_TABLE_REFUND'] } } })).toBe(4);
   });
+
+  async function guest(roundId: string) {
+    const accountName = 'poker_' + randomUUID().slice(0, 6);
+    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: accountName, email: accountName + '@example.invalid', password: randomUUID() } });
+    const guestAccountId = registered.json().account.id as string;
+    extraAccountIds.push(guestAccountId);
+    const city = await app.prisma.city.findUniqueOrThrow({ where: { slug: 'new-york-city' } });
+    return app.prisma.roundPlayer.create({ data: {
+      ...classicOgV12E.round.startingPlayer, ...startingStock(classicOgV12E), cashCents: 3_000_000n,
+      roundId, accountId: guestAccountId, cityId: city.id,
+      displayName: 'poker_guest_' + randomUUID().slice(0, 5), publicPimpId: 9700 + extraAccountIds.length,
+      reputation: { create: ReputationService.seedFor(classicOgV12E) },
+    } });
+  }
+
+  it('rotates the solo blinds through the player instead of letting the player sit out every blind', async () => {
+    const player = await fixture();
+    await openBankroll(player.id);
+    const posted: number[] = [];
+    for (let handNo = 0; handNo < 4; handNo += 1) {
+      const dealt = await CasinoPokerService.start(app.prisma, player.id, { buyInCents: 10_000, actionId: randomUUID() }, seededRng(500 + handNo));
+      const human = dealt.hand.seats.find((seat) => seat.isHuman)!;
+      posted.push(human.contributionCents);
+      expect(dealt.hand.seats.reduce((sum, seat) => sum + seat.contributionCents, 0)).toBe(150);
+      expect(dealt.hand.amountToCallCents).toBe(100 - human.contributionCents);
+      await CasinoPokerService.action(app.prisma, player.id, { handId: dealt.hand.id, action: 'FOLD', actionId: randomUUID() }, seededRng(1));
+    }
+    expect(posted).toEqual([0, 50, 100, 0]);
+  });
+
+  it('keeps Poker chips in casino value and net worth while they are in play', async () => {
+    const player = await fixture();
+    const before = await openBankroll(player.id);
+    const worth = async () => (await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: player.id } })).netWorthCents;
+    const worthBefore = await worth();
+    const dealt = await CasinoPokerService.start(app.prisma, player.id, { buyInCents: 10_000, actionId: randomUUID() }, seededRng(77));
+    expect(dealt.hand.status).toBe('ACTIVE');
+    const page = await CasinoService.page(app.prisma, player.id);
+    expect(page.openSession?.bankrollCents).toBe(before.openSession!.bankrollCents - 10_000);
+    expect(page.totalCasinoValueCents).toBe(before.totalCasinoValueCents);
+    expect(await worth()).toBe(worthBefore);
+    await CasinoPokerService.action(app.prisma, player.id, { handId: dealt.hand.id, action: 'FOLD', actionId: randomUUID() }, seededRng(1));
+
+    const other = await guest(player.roundId);
+    await openBankroll(other.id);
+    const table = await CasinoPokerService.createTable(app.prisma, player.id, { name: 'Worth table', visibility: 'PUBLIC', buyInCents: 20_000, maxPlayers: 2, actionId: randomUUID() });
+    await CasinoPokerService.joinTable(app.prisma, other.id, table.table.id, { actionId: randomUUID() });
+    const seated = await CasinoService.page(app.prisma, player.id);
+    await CasinoPokerService.startTableHand(app.prisma, player.id, table.table.id, { actionId: randomUUID() }, seededRng(9));
+    const midHand = await CasinoService.page(app.prisma, player.id);
+    expect(midHand.totalCasinoValueCents).toBe(seated.totalCasinoValueCents);
+  });
+
+  it('lets a busted seat watch the table and lets the hand skip a player who stops acting', async () => {
+    const host = await fixture();
+    const [second, busted] = [await guest(host.roundId), await guest(host.roundId)];
+    for (const id of [host.id, second.id, busted.id]) await openBankroll(id);
+    const created = await CasinoPokerService.createTable(app.prisma, host.id, { name: 'Idle table', visibility: 'PUBLIC', buyInCents: 10_000, maxPlayers: 3, actionId: randomUUID() });
+    await CasinoPokerService.joinTable(app.prisma, second.id, created.table.id, { actionId: randomUUID() });
+    await CasinoPokerService.joinTable(app.prisma, busted.id, created.table.id, { actionId: randomUUID() });
+    await app.prisma.casinoPokerSeat.updateMany({ where: { tableId: created.table.id, roundPlayerId: busted.id }, data: { stackCents: 0n } });
+
+    const started = await CasinoPokerService.startTableHand(app.prisma, host.id, created.table.id, { actionId: randomUUID() }, seededRng(31));
+    expect(started.table.hand?.seats).toHaveLength(2);
+    const watching = await CasinoPokerService.table(app.prisma, busted.id, created.table.id);
+    expect(watching.hand?.myTurn).toBe(false);
+    expect(watching.hand?.seats.every((seat) => !seat.isYou && seat.cards.length === 0)).toBe(true);
+    expect(watching.hand?.turnExpiresAt).toEqual(expect.any(String));
+
+    const turnSeatNo = started.table.hand!.turnSeatNo!;
+    const idle = turnSeatNo === 1 ? host : second;
+    const waiting = idle.id === host.id ? second : host;
+    await expect(CasinoPokerService.timeoutTableTurn(app.prisma, waiting.id, created.table.id, randomUUID()))
+      .rejects.toMatchObject({ code: 'POKER_TURN_NOT_EXPIRED' });
+    await expect(CasinoPokerService.timeoutTableTurn(app.prisma, idle.id, created.table.id, randomUUID(), new Date(Date.now() + 120_000)))
+      .rejects.toMatchObject({ code: 'POKER_YOUR_TURN' });
+    await expect(CasinoPokerService.timeoutTableTurn(app.prisma, busted.id, created.table.id, randomUUID(), new Date(Date.now() + 120_000)))
+      .rejects.toMatchObject({ code: 'POKER_NOT_IN_HAND' });
+
+    const skipId = randomUUID();
+    const skipped = await CasinoPokerService.timeoutTableTurn(app.prisma, waiting.id, created.table.id, skipId, new Date(Date.now() + 120_000));
+    // Heads-up preflop the button owes half a blind, so the idle seat folds and the hand ends.
+    expect(skipped.table.hand?.street).toBe('SHOWDOWN');
+    expect(skipped.table.hand?.seats.find((seat) => seat.seatNo === turnSeatNo)?.folded).toBe(true);
+    expect(skipped.table.status).toBe('WAITING');
+    expect(await CasinoPokerService.timeoutTableTurn(app.prisma, waiting.id, created.table.id, skipId, new Date(Date.now() + 120_000))).toEqual(skipped);
+    for (const id of [host.id, second.id, busted.id]) await CasinoPokerService.leaveTable(app.prisma, id, created.table.id, randomUUID());
+  });
 });

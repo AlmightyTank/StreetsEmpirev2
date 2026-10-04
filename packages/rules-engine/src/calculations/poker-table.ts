@@ -127,21 +127,36 @@ export interface PokerBotContext {
   readonly amountToCall: number;
   readonly canRaise: boolean;
   readonly rng: Rng;
+  /** Chips already in the pot before this decision. Call pressure follows pot odds. */
+  readonly potCents?: number;
+}
+
+/**
+ * Made-hand strength on the same 0–1 scale as the preflop estimate, so one set
+ * of fold/raise thresholds works on every street: high card folds to a bet,
+ * small pairs usually fold, big pairs usually call, two pair or better calls.
+ */
+function postflopStrength(holeCards: readonly PokerCard[], communityCards: readonly PokerCard[]): number {
+  const [category = 0, top = 2] = evaluatePokerHand([...holeCards, ...communityCards]).score;
+  if (category === 0) return 0.12 + top / 140;
+  if (category === 1) return 0.4 + top / 60;
+  if (category === 2) return 0.7 + top / 200;
+  if (category === 3) return 0.8;
+  return 0.85 + (category - 4) * 0.04;
 }
 
 /** Modest, intentionally legible bot policy. It has no access to opponents' hole cards. */
 export function choosePokerBotAction(context: PokerBotContext): PokerBotAction {
-  const { holeCards, communityCards, amountToCall, canRaise, rng } = context;
+  const { holeCards, communityCards, amountToCall, canRaise, rng, potCents } = context;
   if (!Number.isSafeInteger(amountToCall) || amountToCall < 0) throw new RangeError('Call amount must be non-negative whole chips.');
+  if (potCents !== undefined && (!Number.isSafeInteger(potCents) || potCents < 0)) throw new RangeError('Pot must be non-negative whole chips.');
   if (amountToCall === 0 && !canRaise) return 'CHECK';
   const random = rng();
   if (random < 0 || random >= 1) throw new RangeError('Poker RNG must return a value in [0, 1).');
 
   let strength: number;
   if (communityCards.length >= 3) {
-    const value = evaluatePokerHand([...holeCards, ...communityCards]);
-    // Category has the greatest influence; high kickers gently separate same-category hands.
-    strength = value.score[0]! / 8 + (value.score[1] ?? 0) / 200;
+    strength = postflopStrength(holeCards, communityCards);
   } else {
     const ranks = holeCards.map((card) => card.rank).sort((x, y) => y - x);
     const a = ranks[0]!;
@@ -152,8 +167,10 @@ export function choosePokerBotAction(context: PokerBotContext): PokerBotAction {
     strength = (a + b) / 30 + pairBonus + suitedBonus + connectorBonus;
   }
 
-  const pressure = amountToCall > 0 ? Math.min(0.5, amountToCall / 100) : 0;
-  if (amountToCall > 0 && strength + random * 0.18 < 0.38 + pressure) return 'FOLD';
-  if (canRaise && strength + random * 0.22 > 0.65) return 'RAISE';
+  // The share of the final pot this call would pay for. Without a pot, assume a pot-sized bet.
+  const pot = potCents ?? amountToCall * 2;
+  const pressure = amountToCall > 0 ? Math.min(0.3, amountToCall / Math.max(1, pot + amountToCall)) : 0;
+  if (amountToCall > 0 && strength + random * 0.18 < 0.34 + pressure) return 'FOLD';
+  if (canRaise && strength + random * 0.22 > 0.75) return 'RAISE';
   return amountToCall === 0 ? 'CHECK' : 'CALL';
 }

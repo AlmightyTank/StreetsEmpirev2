@@ -87,4 +87,15 @@ describe('Texas Hold’em table mechanics', () => {
       holeCards: [c(2), c(7, 'D')], communityCards: [], amountToCall: 10, canRaise: true, rng: () => 0,
     })).toBe('FOLD');
   });
+
+  it('weighs a postflop bet in cents against the pot instead of folding everything below a full house', () => {
+    const board = [c(14, 'D'), c(9, 'C'), c(4, 'H')];
+    const facing = { communityCards: board, amountToCall: 200, potCents: 450, canRaise: false, rng: () => 0.5 };
+    expect(choosePokerBotAction({ ...facing, holeCards: [c(14), c(12, 'C')] })).toBe('CALL');
+    expect(choosePokerBotAction({ ...facing, holeCards: [c(9), c(4)] })).toBe('CALL');
+    expect(choosePokerBotAction({ ...facing, holeCards: [c(2), c(3, 'C')] })).toBe('FOLD');
+    expect(choosePokerBotAction({ ...facing, holeCards: [c(13), c(12, 'C')] })).toBe('FOLD');
+    // A tiny bet into a big pot is cheap enough to call with a weak pair.
+    expect(choosePokerBotAction({ ...facing, holeCards: [c(2), c(2, 'C')], amountToCall: 50, potCents: 5_000 })).toBe('CALL');
+  });
 });

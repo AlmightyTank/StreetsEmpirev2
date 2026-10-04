@@ -27,6 +27,7 @@ import { ActivityService } from './activity.service.js';
 import { bossPresence } from './boss-presence.service.js';
 import { PlayerStateService } from './player-state.service.js';
 import { refreshAwayWorth } from './run-settle.service.js';
+import { pokerCommittedCents } from './casino-poker-committed.js';
 
 type PlayerRow = RoundPlayer & {
   city: { id: string; slug: string; name: string };
@@ -448,7 +449,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
   const currentCitySlug = cashLocation?.citySlug ?? null;
   const citySlugs = Object.keys(casino.venues);
   const slotRules = casino.slots?.machines ?? [];
-  const [cities, wallets, openSession, ledger, jackpots, freeSpinBonusRow, blackjackCommitted, streetDiceCommitted] = await Promise.all([
+  const [cities, wallets, openSession, ledger, jackpots, freeSpinBonusRow, blackjackCommitted, streetDiceCommitted, pokerCommitted] = await Promise.all([
     db.city.findMany({ where: { slug: { in: citySlugs }, isEnabled: true }, orderBy: { sortOrder: 'asc' } }),
     db.casinoWallet.findMany({ where: { roundPlayerId }, include: { city: true } }),
     db.casinoSession.findFirst({
@@ -474,6 +475,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
       where: { roundPlayerId, status: 'ACTIVE' },
       _sum: { lineWagerCents: true, oddsWagerCents: true },
     }),
+    pokerCommittedCents(db, roundPlayerId),
   ]);
 
   const walletByCity = new Map(wallets.map((wallet) => [wallet.city.slug, wallet.chipsCents]));
@@ -598,7 +600,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     slotMachines,
     freeSpinBonus,
     recentLedger,
-    totalCasinoValueCents: Number(walletTotal + sessionTotal + blackjackCommittedTotal + streetDiceCommittedTotal),
+    totalCasinoValueCents: Number(walletTotal + sessionTotal + blackjackCommittedTotal + streetDiceCommittedTotal + pokerCommitted),
     limits: {
       chipUnitCents: casino.chipUnitCents,
       cashierMinCents: casino.cashier.minExchangeCents,

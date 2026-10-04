@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { applyPokerTableAction, createPokerTableHand, pokerTableAmountToCall, pokerTablePot } from '../calculations/poker-multiplayer.js';
+import { applyPokerTableAction, createPokerTableHand, pokerTableAmountToCall, pokerTablePot, type PokerBetAction } from '../calculations/poker-multiplayer.js';
+import { seededRng } from '../rng.js';
 
 const rng = () => 0;
 const headsUp = (stacks = [1_000, 1_000]) => createPokerTableHand([
@@ -94,5 +95,31 @@ describe('multiplayer Hold’em hand flow', () => {
     applyPokerTableAction(flopped, 'b', 'CALL');
     expect(flopped.rakeCents).toBe(500);
     expect(flopped.seats.reduce((sum, seat) => sum + seat.stackCents, 0)).toBe(19_500);
+  });
+
+  it('always reaches a settled hand and never creates or loses chips across random legal play', () => {
+    const actions: PokerBetAction[] = ['FOLD', 'CHECK', 'CALL', 'RAISE', 'ALL_IN'];
+    for (let seed = 1; seed <= 1_500; seed += 1) {
+      const random = seededRng(seed);
+      const players = 2 + Math.floor(random() * 5);
+      const seats = Array.from({ length: players }, (_, index) => ({
+        id: 'p' + index, name: 'P' + index, seatNo: index + 1, stackCents: [30, 120, 1_000, 5_000][Math.floor(random() * 4)]!,
+      }));
+      const chips = seats.reduce((sum, seat) => sum + seat.stackCents, 0);
+      let state = createPokerTableHand(seats, 1 + Math.floor(random() * players), 50, 100, 200, random, 500, 500);
+      for (let step = 0; state.street !== 'SHOWDOWN'; step += 1) {
+        expect(step).toBeLessThan(200);
+        const actor = state.turnSeatId;
+        expect(actor).not.toBeNull();
+        const legal = actions.filter((action) => {
+          try { applyPokerTableAction(structuredClone(state), actor!, action); return true; } catch { return false; }
+        });
+        expect(legal.length).toBeGreaterThan(0);
+        const passive = legal.find((action) => action === 'CHECK' || action === 'CALL');
+        state = applyPokerTableAction(state, actor!, passive && random() < 0.6 ? passive : legal[Math.floor(random() * legal.length)]!);
+      }
+      expect(state.seats.every((seat) => seat.stackCents >= 0)).toBe(true);
+      expect(state.seats.reduce((sum, seat) => sum + seat.stackCents, 0) + state.rakeCents).toBe(chips);
+    }
   });
 });
