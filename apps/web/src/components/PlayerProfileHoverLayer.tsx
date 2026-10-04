@@ -58,6 +58,7 @@ export function PlayerProfileHoverLayer() {
   const targetRef = useRef<Target | null>(null);
   const cardRef = useRef<HTMLElement>(null);
   const closeTimer = useRef<number | null>(null);
+  const suppressFocus = useRef(false);
 
   function clearCloseTimer() {
     if (closeTimer.current !== null) {
@@ -68,6 +69,8 @@ export function PlayerProfileHoverLayer() {
 
   function close() {
     clearCloseTimer();
+    targetRef.current?.anchor.removeAttribute('aria-expanded');
+    targetRef.current?.anchor.removeAttribute('aria-controls');
     targetRef.current = null;
     setTarget(null);
     setProfile(null);
@@ -80,6 +83,9 @@ export function PlayerProfileHoverLayer() {
     clearCloseTimer();
     if (targetRef.current?.anchor === anchor) return;
     const next = { id, anchor, label: anchor.textContent?.trim() || `Player #${id}` };
+    targetRef.current?.anchor.removeAttribute('aria-expanded');
+    anchor.setAttribute('aria-expanded', 'true');
+    anchor.setAttribute('aria-controls', 'se-player-profile-hover-card');
     targetRef.current = next;
     setTarget(next);
     setProfile(null);
@@ -115,6 +121,7 @@ export function PlayerProfileHoverLayer() {
       if (cardRef.current?.contains(event.target) && !cardRef.current.contains(event.relatedTarget as Node | null)) scheduleClose();
     }
     function onFocusIn(event: FocusEvent) {
+      if (suppressFocus.current) return;
       const anchor = profileLink(event.target);
       if (anchor) activate(anchor);
       if (cardRef.current?.contains(event.target as Node)) clearCloseTimer();
@@ -136,8 +143,14 @@ export function PlayerProfileHoverLayer() {
     }
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape' && targetRef.current) {
+        const anchor = targetRef.current.anchor;
+        const restoreFocus = Boolean(cardRef.current?.contains(document.activeElement));
         close();
-        targetRef.current.anchor.focus();
+        if (restoreFocus) {
+          suppressFocus.current = true;
+          anchor.focus();
+          window.setTimeout(() => { suppressFocus.current = false; }, 0);
+        }
       }
     }
 
@@ -198,6 +211,7 @@ export function PlayerProfileHoverLayer() {
   return createPortal(
     <aside
       ref={cardRef}
+      id="se-player-profile-hover-card"
       className="se-profile-hover-card"
       data-accent={profile?.cosmetics.accent ?? 'default'}
       data-framed={profile?.cosmetics.frame ? 'true' : 'false'}
