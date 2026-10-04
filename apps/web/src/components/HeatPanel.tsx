@@ -10,22 +10,9 @@ import { Button } from './Button.js';
 import { Panel } from './Panel.js';
 import { formatWhen } from '../utils/time.js';
 
-const percent = (value: number) => `${Math.round(value * 100)}%`;
-
-/** "25 minutes", "1 hour", "2.5 hours". */
-function coolText(hours: number): string {
-  if (hours < 1) return `${Math.round(hours * 60)} minutes`;
-  const rounded = Math.round(hours * 10) / 10;
-  return rounded === 1 ? '1 hour' : `${rounded} hours`;
-}
-
-/** "Crack", "Ecstasy": product keys read as names on receipts. */
+/** Product keys read as names on receipts. */
 function productLabel(key: string): string {
   return key.charAt(0) + key.slice(1).toLowerCase();
-}
-
-function lockedUntilText(lockedUntil: string): string {
-  return formatWhen(lockedUntil);
 }
 
 export function heatTone(heat: Pick<HeatDto, 'heat' | 'dragStartsAt' | 'bustStartsAt'>): 'good' | 'warn' | 'bad' {
@@ -39,20 +26,20 @@ export function heatReceiptLines(
 ): Array<{ label: string; value: string }> {
   if (!heat) return [];
   const lines = [
-    { label: 'Heat', value: `${formatNumber(heat.before)} → ${formatNumber(heat.after)} (+${formatNumber(heat.added)} from product)` },
+    { label: 'Heat', value: `${formatNumber(heat.before)} → ${formatNumber(heat.after)}` },
   ];
-  if (heat.takeMultiplier < 1) lines.push({ label: 'Heat drag', value: `Take cut ${percent(1 - heat.takeMultiplier)}` });
+  if (heat.takeMultiplier < 1) lines.push({ label: 'Heat drag', value: 'Your take was reduced by police attention.' });
 
   if (heat.arrested) {
-    lines.push({ label: 'ARRESTED', value: `${percent(heat.arrestChance ?? 0)} chance landed` });
+    lines.push({ label: 'ARRESTED', value: 'Police took you into custody.' });
     if (includeResourceChanges) {
       const seized = Object.entries(heat.seized).map(([key, units]) => `${formatNumber(units)} ${productLabel(key)}`);
       if (seized.length) lines.push({ label: 'Seized', value: seized.join(', ') });
       if (heat.fineCents > 0) lines.push({ label: 'Fine', value: formatCents(heat.fineCents) });
     }
-    if (heat.lockedUntil) lines.push({ label: 'Locked up', value: `Until ${lockedUntilText(heat.lockedUntil)}` });
+    if (heat.lockedUntil) lines.push({ label: 'Locked up', value: `Until ${formatWhen(heat.lockedUntil)}` });
   } else if (heat.busted) {
-    lines.push({ label: 'BUSTED', value: `${percent(heat.bustChance)} chance landed` });
+    lines.push({ label: 'BUSTED', value: 'Police seized product and issued a fine.' });
     if (includeResourceChanges) {
       const seized = Object.entries(heat.seized).map(([key, units]) => `${formatNumber(units)} ${productLabel(key)}`);
       if (seized.length) lines.push({ label: 'Seized', value: seized.join(', ') });
@@ -63,34 +50,24 @@ export function heatReceiptLines(
 }
 
 /**
- * One line on Scout and Produce once Heat is costing something: what it costs,
- * and the way to the bribe on the dashboard. Nothing while things are quiet.
+ * A brief warning on Scout and Produce while police attention is elevated.
  */
 export function HeatNotice() {
   const heat = useSession((s) => s.me?.heat);
   if (!heat || heatTone(heat) === 'good') return null;
   const tone = heatTone(heat);
-  const arresting = Boolean(heat.arrest && heat.heat >= heat.arrest.startsAt);
-  const risk = arresting && heat.arrest
-    ? `, ${percent(heat.arrest.chance)} arrest risk each trip`
-    : tone === 'bad'
-      ? `, ${percent(heat.bustChance)} bust risk each trip`
-      : '';
 
   return (
     <p className={`se-hint se-${tone} se-golinks`}>
       <span>
-        Heat {formatNumber(heat.heat)}: take down {percent(1 - heat.takeMultiplier)}{risk}.
+        Police attention is reducing your take. A trip could lead to a bust or arrest.
       </span>
       <Link className="se-golink" to="/game#heat">Cool it on the dashboard</Link>
     </p>
   );
 }
 
-/**
- * 0.4.0-C Heat, extended in 0.5.0-C with city arrest thresholds and lockup.
- * The DTO already carries the current home city's rules, so every threshold here is local.
- */
+/** Heat status and the options available to respond. */
 export function HeatPanel() {
   const me = useSession((s) => s.me);
   const bribe = useGameAction<{ points: number; costCents: number; heatBefore: number; heatAfter: number }>();
@@ -100,9 +77,7 @@ export function HeatPanel() {
   if (!me || !heat) return null;
 
   const tone = heatTone(heat);
-  const lockedUntil = heat.lockedUntil ? lockedUntilText(heat.lockedUntil) : null;
-  const arresting = Boolean(heat.arrest && heat.heat >= heat.arrest.startsAt);
-  const hoursToCool = heat.heat <= 0 ? 0 : (Math.ceil(heat.heat / heat.decayPerInterval) * heat.intervalMinutes) / 60;
+  const lockedUntil = heat.lockedUntil ? formatWhen(heat.lockedUntil) : null;
   const wanted = typeof points === 'number' ? points : 0;
   const cost = wanted * heat.bribeCentsPerPoint;
   const block = bribe.busy
@@ -127,28 +102,19 @@ export function HeatPanel() {
   }
 
   const status = lockedUntil
-    ? `Locked up until ${lockedUntil}. You cannot take game actions until you are out.`
-    : arresting && heat.arrest
-      ? `Arrest risk is live: ${percent(heat.arrest.chance)} on the next trip. Busts are also live at ${percent(heat.bustChance)}.`
-      : tone === 'bad'
-        ? `Every trip risks a bust: ${percent(heat.bustChance)} right now, and the take is down ${percent(1 - heat.takeMultiplier)}.`
-        : tone === 'warn'
-          ? `The attention is costing you ${percent(1 - heat.takeMultiplier)} of the take.`
-          : 'Quiet. Nobody is costing you anything yet.';
+    ? `You are in custody until ${formatWhen(lockedUntil)} and cannot take game actions.`
+    : tone === 'bad'
+      ? 'Police attention is high. Trips are dangerous, and you are earning less.'
+      : tone === 'warn'
+        ? 'Police attention is starting to reduce what you earn.'
+        : 'Police attention is low.';
 
   return (
-    <Panel title="Heat" id="heat" aside={`${formatNumber(heat.heat)} / ${formatNumber(heat.max)}`}>
-      <div className="se-meter se-heat__meter">
-        <div className={`se-meter__fill${tone === 'bad' ? ' se-meter__fill--bad' : tone === 'warn' ? ' se-meter__fill--warn' : ''}`} style={{ width: `${Math.min(100, (heat.heat / heat.max) * 100)}%` }} />
-      </div>
-      <p className={`se-heat__status se-${lockedUntil || arresting ? 'bad' : tone}`}>{status}</p>
+    <Panel title="Heat" id="heat" aside={formatNumber(heat.heat)}>
+      <p className={`se-heat__status se-${lockedUntil ? 'bad' : tone}`}>{status}</p>
       <p className="se-hint">
-        Take drag from {heat.dragStartsAt}, bust risk from {heat.bustStartsAt}
-        {heat.arrest ? `, arrest risk from ${heat.arrest.startsAt}` : ''}. A bust seizes {percent(heat.bust.productSeizedFraction)} of your
-        product and fines {percent(heat.bust.cashFineFraction)} of your cash.
-        {heat.arrest ? ` An arrest seizes ${percent(heat.arrest.productSeizedFraction)} of product, fines ${percent(heat.arrest.cashFineFraction)} of cash, drops ${formatNumber(heat.arrest.heatDrop)} Heat and locks you up for ${coolText(heat.arrest.downtimeMinutes / 60)}.` : ''}
-        {' '}Heat cools {formatNumber(heat.decayPerInterval)} every {heat.intervalMinutes} minutes
-        {hoursToCool > 0 ? `, about ${coolText(hoursToCool)} to clear` : ''}.
+        Heat brings police attention. Higher Heat can cost product, money, and time in custody.
+        Laying low lets attention fade; paying it off can bring it down sooner.
       </p>
 
       {heat.heat > 0 && !lockedUntil ? (
@@ -173,7 +139,7 @@ export function HeatPanel() {
               Bribe{wanted > 0 ? ` ${formatCents(cost)}` : ''}
             </Button>
           </div>
-          <p className="se-hint">{formatCents(heat.bribeCentsPerPoint)} a point, priced on your net worth.</p>
+          <p className="se-hint">Paying off Heat costs money. The total appears on the button.</p>
         </form>
       ) : null}
       {bribe.error ? <Alert>{bribe.error}</Alert> : null}

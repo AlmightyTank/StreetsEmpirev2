@@ -155,7 +155,7 @@ describe('QuestCosmeticService', () => {
         rarity: 'epic',
         unlocked: true,
         earnedAt: awardedAt.toISOString(),
-        progress: { current: 1, target: 1, label: 'quest cosmetic' },
+        progress: { current: 1, target: 1, label: 'account cosmetic' },
       }]);
   });
 
