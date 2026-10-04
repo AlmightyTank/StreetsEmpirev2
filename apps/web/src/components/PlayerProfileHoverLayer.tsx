@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import type { PublicPlayerProfileDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { communityApi } from '../api/community.js';
@@ -44,12 +44,11 @@ function playerId(anchor: HTMLAnchorElement): number | null {
 function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   return words.length > 1
-    ? `${words[0]![0]}${words.at(-1)![0]}`.toUpperCase()
+    ? `${words[0]![0]}${words[words.length - 1]![0]}`.toUpperCase()
     : (words[0]?.slice(0, 2) ?? 'SE').toUpperCase();
 }
 
 export function PlayerProfileHoverLayer() {
-  const navigate = useNavigate();
   const [target, setTarget] = useState<Target | null>(null);
   const [profile, setProfile] = useState<PublicPlayerProfileDto | null>(null);
   const [failed, setFailed] = useState(false);
