@@ -52,6 +52,15 @@ export interface SeasonTotals {
   blockWarDefenseWins: number;
   blockWarTakes: number;
   blockWarSacks: number;
+
+  /** 1.2.0-F. Casino season history, from rated play. */
+  casinoRatedWagers: number;
+  casinoTheoCents: number;
+  casinoCitiesPlayed: number;
+  casinoVipWagers: number;
+  casinoCompsCents: number;
+  casinoJackpots: number;
+  casinoBiggestWinCents: number;
 }
 
 /** What the loader needs from each RoundPlayer. */
@@ -98,6 +107,13 @@ export const emptySeasonTotals = (): SeasonTotals => ({
   blockWarDefenseWins: 0,
   blockWarTakes: 0,
   blockWarSacks: 0,
+  casinoRatedWagers: 0,
+  casinoTheoCents: 0,
+  casinoCitiesPlayed: 0,
+  casinoVipWagers: 0,
+  casinoCompsCents: 0,
+  casinoJackpots: 0,
+  casinoBiggestWinCents: 0,
 });
 
 /** A numeric JSON field, or 0 when a payload predates it or holds anything else. */
@@ -308,7 +324,7 @@ export const SeasonStatsService = {
 
     const [
       activity, checkout, battles, captured, lost, segments, cities, returned, stops, runs, reputation,
-      businessIncome, laundering, blockWarAttack, blockWarDefense,
+      businessIncome, laundering, blockWarAttack, blockWarDefense, casinoRatings,
     ] = await Promise.all([
       activityTotals(prisma, ids),
       checkoutProductSales(prisma, ids),
@@ -331,6 +347,13 @@ export const SeasonStatsService = {
       prisma.roundPlayer.findMany({ where: { id: { in: ids } }, select: { id: true, launderedHeatRound: true } }),
       blockWarAttackTotals(prisma, ids),
       blockWarDefenseTotals(prisma, ids),
+      prisma.casinoRating.findMany({
+        where: { roundPlayerId: { in: ids } },
+        select: {
+          roundPlayerId: true, ratedWagers: true, theoBasis: true, vipWagers: true,
+          compsSpentCents: true, jackpots: true, biggestWinCents: true,
+        },
+      }),
     ]);
 
     const activityById = byId(activity);
@@ -408,6 +431,18 @@ export const SeasonStatsService = {
       totals.blockWarSacks = num(blockWarAttackById.get(player.id)?.sacks);
 
       result.set(player.id, totals);
+    }
+
+    for (const rating of casinoRatings) {
+      const totals = result.get(rating.roundPlayerId);
+      if (!totals) continue;
+      totals.casinoRatedWagers += rating.ratedWagers;
+      totals.casinoTheoCents += Number(rating.theoBasis / 10_000n);
+      if (rating.ratedWagers > 0) totals.casinoCitiesPlayed += 1;
+      totals.casinoVipWagers += rating.vipWagers;
+      totals.casinoCompsCents += Number(rating.compsSpentCents);
+      totals.casinoJackpots += rating.jackpots;
+      totals.casinoBiggestWinCents = Math.max(totals.casinoBiggestWinCents, Number(rating.biggestWinCents));
     }
 
     for (const segment of segments) {

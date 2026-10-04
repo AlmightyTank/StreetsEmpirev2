@@ -60,6 +60,17 @@ export const SEASON_FEATS: readonly SeasonFeat[] = [
   { key: 'corporate-raider', title: 'Corporate Raider', description: 'Win five Take block wars in one season.', category: 'turf', rarity: 'epic', target: 5, progressLabel: 'Take wars won', stat: 'blockWarTakes' },
 
   { key: 'underworld-conglomerate', title: 'Underworld Conglomerate', description: 'Build or upgrade forty-five business levels in one season.', category: 'economy', rarity: 'legendary', target: 45, progressLabel: 'business builds', stat: 'businessBuilds' },
+  // 1.2.0-F — Casino. Titles only: no feat pays money or changes a game. Money feats keep
+  // their progress sealed from other viewers mid-season, like the business income feats.
+  { key: 'first-chip', title: 'First Chip', description: 'Place your first rated casino wager.', category: 'casino', rarity: 'common', target: 1, progressLabel: 'rated wagers', stat: 'casinoRatedWagers' },
+  { key: 'casino-circuit', title: 'Casino Circuit', description: 'Place rated wagers at casinos in three cities in one season.', category: 'casino', rarity: 'uncommon', target: 3, progressLabel: 'casino cities', stat: 'casinoCitiesPlayed' },
+  { key: 'velvet-regular', title: 'Velvet Regular', description: 'Place ten wagers at VIP room tables in one season.', category: 'casino', rarity: 'uncommon', target: 10, progressLabel: 'VIP wagers', stat: 'casinoVipWagers' },
+  { key: 'house-guest', title: 'House Guest', description: 'Spend $5,000 of casino comps on hotel stays in one season.', category: 'casino', rarity: 'rare', target: 5_000_00, progressLabel: 'comps spent', stat: 'casinoCompsCents', sealedBy: 'streetEarningsCents', cents: true },
+  { key: 'big-night', title: 'Big Night', description: 'Come out $100,000 ahead on a single casino hand, spin, roll or poker hand.', category: 'casino', rarity: 'rare', target: 100_000_00, progressLabel: 'biggest single win', stat: 'casinoBiggestWinCents', sealedBy: 'streetEarningsCents', cents: true },
+  { key: 'grand-tour', title: 'Grand Tour', description: 'Place rated wagers at all eight casinos in one season.', category: 'casino', rarity: 'epic', target: 8, progressLabel: 'casino cities', stat: 'casinoCitiesPlayed' },
+  { key: 'jackpot-hitter', title: 'Jackpot Hitter', description: 'Hit a progressive slot jackpot.', category: 'casino', rarity: 'epic', target: 1, progressLabel: 'jackpots', stat: 'casinoJackpots' },
+  { key: 'whale', title: 'Whale', description: 'Rate $150,000 of theoretical house win in one season.', category: 'casino', rarity: 'legendary', target: 150_000_00, progressLabel: 'rated theo', stat: 'casinoTheoCents', sealedBy: 'streetEarningsCents', cents: true },
+
   { key: 'war-machine', title: 'War Machine', description: 'Win ten block wars as attacker or defender in one season.', category: 'turf', rarity: 'legendary', target: 10, progressLabel: 'block-war wins', stat: (totals) => totals.blockWarAttackWins + totals.blockWarDefenseWins },
 ];
 

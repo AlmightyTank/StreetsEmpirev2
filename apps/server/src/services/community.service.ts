@@ -576,6 +576,7 @@ function profileAccent(value: string | null | undefined): ProfileAccent {
     'open-road-blue',
     'clean-slate-ice',
     'corner-amber',
+    'velvet-rose',
   ].includes(value ?? '')
     ? value as ProfileAccent
     : 'default';

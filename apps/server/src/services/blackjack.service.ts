@@ -638,8 +638,9 @@ async function mutateActiveHand(
       });
     }
     // Doubles and splits are more chips at risk at the same edge.
+    const play = { game: 'BLACKJACK' as const, tableKey: table.key, room: table.room, actionId: input.actionId };
     await CasinoStatusService.rateWager(tx, ruleset, {
-      roundPlayerId, cityId: row.cityId, wagerCents: chargeCents, edgeBps: casinoEdge(ruleset, table), now,
+      roundPlayerId, cityId: row.cityId, wagerCents: chargeCents, edgeBps: casinoEdge(ruleset, table), play, now,
     });
 
     await saveShoe(tx, shoe);
@@ -671,6 +672,13 @@ async function mutateActiveHand(
         bankrollAfterCents: bankrollAfter,
         walletAfterCents: wallet,
         metadata: actionMetadata(kind, table, dto, chargeCents, creditedCents),
+      });
+    }
+    if (settled) {
+      await CasinoStatusService.recordResult(tx, ruleset, {
+        roundPlayerId, cityId: row.cityId, play,
+        stakeCents: BigInt(hands.reduce((sum, hand) => sum + hand.wagerCents, 0)),
+        returnCents: totalReturnCents, highlight: null, now,
       });
     }
     await saveAction(tx, roundPlayerId, row.id, input.actionId, kind, dto);
@@ -782,8 +790,9 @@ export const BlackjackService = {
 
       const bankrollAfter = session.bankrollCents - wager + creditedCents;
       await tx.casinoSession.update({ where: { id: session.id }, data: { bankrollCents: bankrollAfter } });
+      const play = { game: 'BLACKJACK' as const, tableKey: table.key, room: table.room, actionId: input.actionId };
       await CasinoStatusService.rateWager(tx, ruleset, {
-        roundPlayerId, cityId: city.id, wagerCents: wager, edgeBps: casinoEdge(ruleset, table), now,
+        roundPlayerId, cityId: city.id, wagerCents: wager, edgeBps: casinoEdge(ruleset, table), play, now,
       });
       await saveShoe(tx, shoe);
 
@@ -819,6 +828,12 @@ export const BlackjackService = {
         walletAfterCents: wallet,
         metadata: actionMetadata('DEAL', table, dto, wager, creditedCents),
       });
+      if (settled) {
+        await CasinoStatusService.recordResult(tx, ruleset, {
+          roundPlayerId, cityId: city.id, play, stakeCents: wager, returnCents: totalReturnCents,
+          highlight: hands[0]!.outcome === 'BLACKJACK' ? 'NATURAL' : null, now,
+        });
+      }
       await saveAction(tx, roundPlayerId, row.id, input.actionId, 'DEAL', dto);
       await PlayerStateService.settleInTransaction(tx, roundPlayerId, { now, markActive: true });
       return dto;

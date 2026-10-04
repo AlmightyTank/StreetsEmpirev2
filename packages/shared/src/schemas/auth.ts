@@ -87,6 +87,7 @@ export const profileAccentSchema = z.enum([
   'open-road-blue',
   'clean-slate-ice',
   'corner-amber',
+  'velvet-rose',
 ]);
 export const CREW_NAME_MIN = 3;
 export const CREW_NAME_MAX = 32;

@@ -1522,7 +1522,7 @@
 .se-casino-status__door { padding: .6rem .7rem; border-radius: .55rem; border: 1px solid var(--se-border); }
 .se-casino-status__door.is-open { border-color: var(--se-room-accent); }
 .se-casino-status__door.is-closed { color: var(--se-muted); }
-.se-casino-status__fronts, .se-casino-status__hotel { display: grid; gap: .35rem; margin-top: .9rem; padding-top: .75rem; border-top: 1px solid var(--se-border); }
+.se-casino-status__fronts, .se-casino-status__hotel, .se-casino-status__host { display: grid; gap: .35rem; margin-top: .9rem; padding-top: .75rem; border-top: 1px solid var(--se-border); }
 .se-casino-vip-badge {
   display: inline-block;
   margin-left: .4rem;

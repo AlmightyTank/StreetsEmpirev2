@@ -151,6 +151,8 @@ async function playerState(db: Db, roundPlayerId: string): Promise<QuestDataObje
     },
   });
   if (!row) return undefined;
+  // 1.2.0-F. Round-to-date rated theo, for casino status Jobs (cents x bps basis / 10,000).
+  const casino = await db.casinoRating.aggregate({ where: { roundPlayerId }, _sum: { theoBasis: true } });
 
   const fitThugs = Math.max(0, row.thugs - row.woundedThugs - row.busyThugs - row.postedThugs - row.businessThugs);
   const weapons = row.pistols + row.shotguns + row.tek9s + row.ak47s;
@@ -187,6 +189,7 @@ async function playerState(db: Db, roundPlayerId: string): Promise<QuestDataObje
     hideoutGarageLevel: row.hideoutGarageLevel,
     allianceId: row.allianceId,
     city: row.city.slug,
+    casinoTheoCents: Number((casino._sum.theoBasis ?? 0n) / 10_000n),
   };
 }
 

@@ -14,6 +14,7 @@ export type PublicAchievementCategory =
   | 'reputation'
   | 'hideout'
   | 'quest'
+  | 'casino'
   | 'legacy';
 export type PublicAchievementRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 

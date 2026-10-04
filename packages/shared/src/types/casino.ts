@@ -512,4 +512,6 @@ export interface CasinoPageDto {
   } | null;
   /** 1.2.0-E. Null on rulesets without rated play. */
   status: CasinoStatusDto | null;
+  /** 1.2.0-F. The casino host contact who gives casino Jobs, or null before 1.2.0-F. */
+  host: { name: string; shortName: string; role: string; description: string } | null;
 }

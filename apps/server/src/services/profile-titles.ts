@@ -78,6 +78,21 @@ const profileTitleLabels: Record<string, string> = {
   'underworld-conglomerate': 'Underworld Conglomerate',
   'war-machine': 'War Machine',
 
+  // 1.2.0-F casino season feats and Ace's job titles.
+  'first-chip': 'Fresh Chip',
+  'casino-circuit': 'Circuit Player',
+  'velvet-regular': 'Velvet Regular',
+  'house-guest': 'House Guest',
+  'big-night': 'Big Night Boss',
+  'grand-tour': 'Grand Tour Gambler',
+  'jackpot-hitter': 'Jackpot Hitter',
+  whale: 'Casino Whale',
+  'ace-floor-walker': 'Floor Walker',
+  'ace-natural': 'Natural',
+  'ace-road-gambler': 'Road Gambler',
+  'ace-velvet-rope': 'Behind the Rope',
+  'ace-black-room': 'Black Room Regular',
+
   'beta-tester': 'Beta Original',
 
   'ghost-of-the-block': 'The Quiet Ghost',
