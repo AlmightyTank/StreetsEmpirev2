@@ -378,6 +378,11 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
           : 'An informant laid out how the ' + str(p.cityName, 'city') + ' police work.',
         detail: 'Paid ' + formatCents(num(p.feeCents)),
       };
+    case 'CASE_FOLLOWED':
+      return {
+        text: 'Your federal case followed you from ' + str(p.fromCityName, 'your old city') + ' to ' + str(p.toCityName, 'your new home') + '.',
+        detail: 'Case ' + formatCase(num(p.case)) + ' there · ' + str(p.fromCityName, 'the old city') + ' keeps ' + formatCase(num(p.oldCityCase)),
+      };
     case 'WARRANT_LAWYERED':
       return {
         text: 'A lawyer answered the ' + str(p.cityName, 'city') + ' warrant.',
@@ -728,6 +733,7 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     WARRANT_QUASHED: 'Warrant quashed',
     CAPTAIN_TIP: 'Captain',
     INFORMANT_TIP: 'Informant',
+    CASE_FOLLOWED: 'Federal case',
     CASINO_COMP_HOTEL: 'Comped hotel',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();

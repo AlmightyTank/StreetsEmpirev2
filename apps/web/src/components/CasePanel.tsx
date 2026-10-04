@@ -132,6 +132,7 @@ export function CasePanel() {
                   : 'The top of the ladder'}
                 {row.cooling ? ` · ${coolingText(row.cooling)}` : ''}
               </span>
+              {row.law?.blurb ? <span className="se-hint se-muted">{row.cityName} police: {row.law.blurb}</span> : null}
             </li>
           ))}
         </ul>

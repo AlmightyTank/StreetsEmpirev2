@@ -39,6 +39,7 @@ const SOURCE_NAMES: Record<CaseSourceDto, string> = {
   LAWYER: 'Lawyered up',
   QUASH: 'Warrant quashed',
   STING: 'Internal Affairs sting',
+  FEDERAL: 'Federal case moved',
 };
 
 const OFFICIAL_TITLES: Record<string, string> = {

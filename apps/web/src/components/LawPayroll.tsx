@@ -112,7 +112,9 @@ export function PayrollSection({ payroll, cashCents }: { payroll: NonNullable<La
 function tipText(tip: TipDto): string {
   const p = tip.payload;
   if (tip.kind === 'SWEEP') return `The Feds sweep ${String(p.cityName ?? 'a city')} ${formatWhen(String(p.sweepAt))}. It goes public ${formatWhen(String(p.publicAt))}.`;
-  return `${String(p.cityName ?? 'That city')}: take drag from ${formatNumber(Number(p.dragStartsAt))} Heat, busts from ${formatNumber(Number(p.bustStartsAt))}, arrests from ${formatNumber(Number(p.arrestStartsAt))}; busts hit ${formatNumber(Number(p.bustSeverity))}× as hard; police pressure ${formatNumber(Number(p.policePressure))}×.`;
+  const law = p.law as { blurb?: string; caseSpeed?: number; coolingSpeed?: number; warningHoursMultiplier?: number } | undefined;
+  const pace = law ? ` ${law.blurb ?? ''} Cases build ${formatNumber(law.caseSpeed ?? 1)}×, cool ${formatNumber(law.coolingSpeed ?? 1)}×, warrants warn ${formatNumber(law.warningHoursMultiplier ?? 1)}× as long.` : '';
+  return `${String(p.cityName ?? 'That city')}: take drag from ${formatNumber(Number(p.dragStartsAt))} Heat, busts from ${formatNumber(Number(p.bustStartsAt))}, arrests from ${formatNumber(Number(p.arrestStartsAt))}; busts hit ${formatNumber(Number(p.bustSeverity))}× as hard; police pressure ${formatNumber(Number(p.policePressure))}×.${pace}`;
 }
 
 /** 1.3.0-D. Informants: information for cash, never protection. */

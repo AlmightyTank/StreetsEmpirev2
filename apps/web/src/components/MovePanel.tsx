@@ -111,6 +111,17 @@ export function MovePanel({ data, selected, onDone }: { data: TravelDto; selecte
           </p>
         </>
       ) : null}
+      {relocation.federalCase ? (
+        <>
+          <h3 className="se-city__heading">Your federal case moves with you</h3>
+          <p className="se-hint se-bad">
+            {relocation.federalCase.cityName}&rsquo;s Case on you is at the Federal stage ({relocation.federalCase.case.toFixed(1)}), and the Feds
+            do not stop at city lines.
+            {destination?.caseOnArrival != null ? ` Your Case in ${destination.name} becomes ${destination.caseOnArrival.toFixed(1)} when you arrive.` : ' Your new home takes it on when you arrive.'}
+            {` ${relocation.federalCase.cityName} keeps a local file at ${relocation.federalCase.oldCityCase.toFixed(1)}, and an open warrant follows you with a fresh warning.`}
+          </p>
+        </>
+      ) : null}
       {turfPlan && (turfPlan.toHome.length || turfPlan.toOutposts.length || turfPlan.released.length) ? (
         <>
           <h3 className="se-city__heading">Turf on arrival</h3>

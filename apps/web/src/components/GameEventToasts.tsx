@@ -284,6 +284,9 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
     case 'OFFICIAL_STUNG':
       return { title: 'Your official was stung', detail, tone: 'bad', href: '/game#case' };
 
+    case 'CASE_FOLLOWED':
+      return { title: 'Your federal case followed you', detail, tone: 'bad', href: '/game#case' };
+
     case 'CAPTAIN_TIP':
       return { title: 'A word from your Captain', detail, tone: 'warn', href: '/game#case' };
 
