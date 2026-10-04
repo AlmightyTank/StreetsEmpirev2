@@ -6,6 +6,18 @@ import { seededRng, startingStock } from '@streets/rules-engine';
 import { CasinoPokerService } from '../casino-poker.service.js';
 import { CasinoService } from '../casino.service.js';
 import { ReputationService } from '../reputation.service.js';
+import { soloPokerActionOrder } from '../casino-poker.service.js';
+
+describe('solo Poker action order', () => {
+  const seats = ['player', 'bot-1', 'bot-2'];
+
+  it('rotates preflop action with each button position and starts later streets left of the button', () => {
+    expect(soloPokerActionOrder(seats, 'player', 'PREFLOP')).toEqual(['player', 'bot-1', 'bot-2']);
+    expect(soloPokerActionOrder(seats, 'bot-2', 'PREFLOP')).toEqual(['bot-2', 'player', 'bot-1']);
+    expect(soloPokerActionOrder(seats, 'bot-1', 'PREFLOP')).toEqual(['bot-1', 'bot-2', 'player']);
+    expect(soloPokerActionOrder(seats, 'bot-1', 'POSTFLOP')).toEqual(['bot-2', 'player', 'bot-1']);
+  });
+});
 
 describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-E solo Poker with PostgreSQL', () => {
   let app: FastifyInstance;
