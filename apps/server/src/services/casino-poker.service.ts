@@ -10,6 +10,7 @@ import type { CasinoPokerTablePlayInput, CasinoPokerTableStartInput, CasinoPoker
 import { applyPokerTableAction, createPokerTableHand, pokerTableAmountToCall, pokerTablePot, type PokerTableHandState } from '@streets/rules-engine';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import { CasinoStatusService } from './casino-status.service.js';
 import { bossPresence } from './boss-presence.service.js';
 
 const TABLE_KEY = 'SOLO_HOLDEM';
@@ -533,7 +534,7 @@ export const CasinoPokerService = {
       }
       const casinoReceipt = await tx.casinoLedgerEntry.findUnique({ where: { roundPlayerId_actionId: { roundPlayerId: playerId, actionId: input.actionId } }, select: { id: true } });
       if (casinoReceipt) throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to another casino action.');
-      const { casino } = await playerAndCasino(tx, playerId);
+      const { ruleset, casino } = await playerAndCasino(tx, playerId);
       const pokerRules = casino.poker;
       if (!pokerRules) throw AppError.conflict('POKER_CLOSED', 'Poker is not enabled in this round.');
       const row = await tx.casinoPokerHand.findFirst({ where: { id: input.handId, roundPlayerId: playerId } });
@@ -549,6 +550,8 @@ export const CasinoPokerService = {
         if (!session || session.status !== 'OPEN') throw AppError.conflict('CASINO_SESSION_CLOSED', 'The casino session for this Poker hand is no longer open.');
         bankroll = session.bankrollCents + humanStack;
         await tx.casinoSession.update({ where: { id: session.id }, data: { bankrollCents: bankroll } });
+        // 1.2.0-E: the house's real take from the pot is rated one-for-one.
+        await CasinoStatusService.rateHouseTake(tx, ruleset, { roundPlayerId: playerId, cityId: row.cityId, takeCents: BigInt(state.rakeCents), now: new Date() });
         const wallet = await tx.casinoWallet.findUnique({ where: { roundPlayerId_cityId: { roundPlayerId: playerId, cityId: row.cityId } } });
         await tx.casinoLedgerEntry.create({ data: { roundPlayerId: playerId, cityId: row.cityId, sessionId: row.sessionId, actionId: input.actionId, kind: 'POKER_CASH_OUT', sessionChipDeltaCents: humanStack, walletChipsAfterCents: wallet?.chipsCents ?? 0n, sessionChipsAfterCents: bankroll, metadata: { game: 'POKER', action: 'CASH_OUT', handId: row.id, returnCents: Number(humanStack), rakeCents: state.rakeCents, outcome: state.outcome } as Prisma.InputJsonValue } });
       }

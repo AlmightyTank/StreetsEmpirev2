@@ -3,6 +3,7 @@ import type { Prisma, PrismaClient, RoundPlayer } from '@prisma/client';
 import {
   loadRulesetForRound,
   resolveRouletteSpin,
+  rouletteRatingEdgeBps,
   rouletteSelectionPockets,
   type Rng,
   type RouletteBetKind,
@@ -17,6 +18,7 @@ import type {
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { bossPresence } from './boss-presence.service.js';
+import { CasinoStatusService, assertCasinoRoomAccess, casinoTableAvailability } from './casino-status.service.js';
 import { PlayerStateService } from './player-state.service.js';
 
 type PlayerRow = RoundPlayer & {
@@ -106,6 +108,7 @@ async function requireTableSession(
   if (!table.venueKinds.includes(venue.kind)) {
     throw AppError.conflict('ROULETTE_TABLE_NOT_HERE', 'That roulette table is not available in this casino.');
   }
+  await assertCasinoRoomAccess(tx, ruleset, player, citySlug, table, now);
   const city = await tx.city.findUnique({ where: { slug: citySlug } });
   if (!city) throw AppError.notFound('CITY_NOT_FOUND', 'That casino city is not available.');
   const session = await tx.casinoSession.findFirst({
@@ -203,7 +206,8 @@ async function stateInDb(
   const { player, ruleset, casino } = await playerAndRules(db, roundPlayerId);
   if (!casino.roulette) return { enabled: false, tables: [], history: [] };
   const citySlug = await bossCitySlug(db, ruleset, player, now);
-  const venue = citySlug ? casino.venues[citySlug] : undefined;
+  const availability = await casinoTableAvailability(db, ruleset, player, citySlug, now);
+  const tableAccess = await Promise.all(casino.roulette.tables.map(availability));
   const historyRows = await db.casinoLedgerEntry.findMany({
     where: { roundPlayerId, kind: 'ROULETTE' },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -211,7 +215,7 @@ async function stateInDb(
   });
   return {
     enabled: true,
-    tables: casino.roulette.tables.map((table) => ({
+    tables: casino.roulette.tables.map((table, index) => ({
       key: table.key,
       name: table.name,
       blurb: table.blurb,
@@ -220,7 +224,7 @@ async function stateInDb(
       maxBetCents: table.maxBetCents,
       betStepCents: table.betStepCents,
       maxTotalBetCents: table.maxTotalBetCents,
-      availableHere: Boolean(venue && table.venueKinds.includes(venue.kind)),
+      ...tableAccess[index]!,
     })),
     history: historyRows.map(metadataToDto),
   };
@@ -289,6 +293,11 @@ export const RouletteService = {
 
       const bankrollAfter = session.bankrollCents - math.wagerCents + math.returnCents;
       await tx.casinoSession.update({ where: { id: session.id }, data: { bankrollCents: bankrollAfter } });
+      if (casino.status) {
+        await CasinoStatusService.rateWager(tx, ruleset, {
+          roundPlayerId, cityId: city.id, wagerCents: math.wagerCents, edgeBps: rouletteRatingEdgeBps(casino.status, table), now,
+        });
+      }
       const wallet = await tx.casinoWallet.findUnique({
         where: { roundPlayerId_cityId: { roundPlayerId, cityId: city.id } },
       });

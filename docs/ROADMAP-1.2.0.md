@@ -228,7 +228,107 @@ These are ruleset values rather than constants in the service.
 10. Historical A/B/C rulesets remain unchanged; Roulette and Street Dice only exist on the pinned 1.2.0-D ruleset.
 
 ### 1.2.0-E — High Rollers & City Identity
-Casino status, VIP rooms, Boss Trips hooks and Casino Front integration without changing odds.
+
+**Status: implemented on the pinned `classic-og-v1.2-e2` ruleset (1.2.0-E2).**
+
+The `classic-og-v1.2-e` id was already taken by solo/multiplayer Poker, so E ships as its own
+pinned ruleset on top of it. Poker, Slots, Blackjack, Roulette and Street Dice rules are the same
+objects as in 1.2.0-E: no paytable, shoe, wheel, dice rule or rake changed.
+
+#### Rated play
+
+- Every **charged** wager is rated at its **theoretical house win** ("theo"): posted wager × the
+  game's pinned house edge. Results never matter, so a lucky night and an unlucky night at the
+  same stakes rate the same.
+- Pinned rating edges: Slots use the machine's own effective RTP (free spins included);
+  Blackjack 0.50% (stands soft 17) / 0.70% (hits soft 17); American Roulette 5.26%, European
+  2.70%; Street Dice pass line 1.41%; **true odds 0%**; Poker rates the house rake one-for-one.
+- Free spins (casino-covered) and true odds add no theo, so status cannot be farmed with
+  zero-edge bets. True odds still count toward total action.
+- Theo and comps accumulate as `cents × bps` basis in `CasinoRating` (per player, per city), so
+  thousands of small wagers lose nothing to rounding.
+- Rating happens inside the same player-locked transaction that debits the wager. A replayed
+  action ID returns the saved receipt before rating, so it can never rate twice.
+
+#### Casino status
+
+| Tier | Theo to reach | Comps (of theo) | Session bankroll ceiling |
+| --- | --- | --- | --- |
+| Walk-in | $0 | 0% | $1,000,000 |
+| Regular | $250 | 10% | $1,000,000 |
+| Preferred | $2,500 | 15% | $2,500,000 |
+| High Roller | $25,000 | 20% | $5,000,000 |
+| Whale | $150,000 | 25% | $10,000,000 |
+
+- Status is network-wide for the round (theo summed across every casino city) and never decays.
+- A wager earns comps at the tier held **before** it; the wager that crosses a threshold earns
+  at the old rate. Reaching a tier writes a `CASINO_STATUS_UP` activity.
+- Status raises the session bankroll ceiling and opens VIP rooms. That is all it does.
+
+#### VIP rooms and city identity
+
+- Every venue now has a **VIP room** with a minimum status and an identity (tagline, house game,
+  room accent). Identity is presentation only.
+- VIP tables: **Salon Blackjack**, **Salon Roulette** and **Private Dice** in every VIP room, plus
+  **Black Room Blackjack** and **Black Room Roulette** in the Vegas Empire Black Room.
+- Each VIP table copies the exact outcome rules of a floor table (decks, cut card, soft-17 rule,
+  3:2 payout, splits/doubles, wheel, true-odds multiple) and only raises its posted limits.
+- The VIP door is checked only when a **new** hand, spin or point starts. A hand already dealt
+  can always be finished, even if the boss travels.
+
+| City | Venue | VIP room | Door | Visitors need |
+| --- | --- | --- | --- | --- |
+| New York | Five Boroughs Card Room | The Penthouse Game | Regular | — |
+| Detroit | Motor City Dice House | The Garage | Regular | 1 bodyguard |
+| Miami Beach | Ocean Crown | Cabana Salon | Preferred | — |
+| Seattle | Emerald Rooms | The Fern Room | Preferred | — |
+| Beverly Hills | Rodeo Private Club | The Vault | High Roller | 1 bodyguard |
+| Las Vegas | Empire Grand | Empire Black Room | High Roller | 2 bodyguards |
+| Los Angeles | Sunset Palace | The Skybox | Preferred | — |
+| Atlanta | Peachtree Club | The Magnolia Room | Regular | — |
+
+#### Boss Trips hooks
+
+- **Respect:** a boss visiting on a trip must bring the room's fit bodyguards (a boss riding a
+  run counts the run's fit escorts). A boss at home is never asked.
+- **Comped suites:** comps pay for hotel extension blocks on the boss's current trip to any
+  casino city (`POST /api/game/casino/comps/hotel`). It uses the trip's normal extension rules
+  (in town, max stay, round end) and moves no cash, chips or bankroll. Each redemption is an
+  immutable `COMP_HOTEL` casino ledger receipt, idempotent by action ID.
+- Comps never convert to cash or chips and are capped below theo, so playing for comps stays
+  negative expected value.
+
+#### Casino Front integration
+
+- An **operating Casino Front** (built, staffed by your crew, on a block you still hold) in a
+  venue's city is a **house pass**: that VIP room opens regardless of status, and the front's
+  crew walks a visiting boss in.
+- Play at that venue earns **+5% of theo** in extra comps.
+- Front income, rackets and laundering are unchanged; no player's losses ever flow to another
+  player's business.
+
+#### Player experience
+
+- A **High roller status** panel on the Casino page: tier, progress meter, theo, action, comp
+  rate and balance, bankroll ceiling and the full ladder.
+- A **VIP room** panel for the current venue: identity, door rule, whether you are in and why,
+  house passes from Casino Fronts, and a **Comp the suite** button while on a trip.
+- Table pickers mark VIP tables and say exactly why a VIP door is closed. Destination cards show
+  each room's identity, VIP room and your most-played "home room".
+- Status-ups and comped hotel stays appear in Activity and the Console market group.
+
+#### E invariants
+
+1. No game RNG, shuffle, roll, pocket, payout or rake reads status, comps or Casino Front state.
+2. Every VIP table's outcome rules equal its floor counterpart's; only posted limits differ.
+3. Theo depends only on the charged wager and the pinned edge, never on the result.
+4. Free spins and true odds add zero theo.
+5. A replayed action ID never rates a wager or spends comps twice.
+6. Comps are always strictly below theo and can only buy hotel time; they never become cash,
+   chips or net worth.
+7. The VIP door is checked only on new games; an in-progress hand or point can always finish.
+8. Comp-paid hotel time follows the normal trip extension limits and never wires cash.
+9. Older rulesets (A–E) have no status, ratings, VIP tables or comps.
 
 ### 1.2.0-F — Casino Jobs & Rewards
 Casino contact, Jobs, achievements, titles and cosmetics.

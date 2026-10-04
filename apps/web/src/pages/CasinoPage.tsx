@@ -8,6 +8,7 @@ import { BlackjackPanel } from '../components/BlackjackPanel.js';
 import { RoulettePanel } from '../components/RoulettePanel.js';
 import { StreetDicePanel } from '../components/StreetDicePanel.js';
 import { PokerPanel } from '../components/PokerPanel.js';
+import { CasinoStatusPanel } from '../components/CasinoStatusPanel.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -488,6 +489,22 @@ export function CasinoPage() {
                 )}
               </Panel>
             </div>
+
+            <CasinoStatusPanel
+              page={data}
+              busy={busy !== null}
+              onPage={async (next, success) => {
+                setData(next);
+                setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+                setError(null);
+                setNotice(success);
+                await refreshSnapshot({ background: false });
+              }}
+              onError={(message) => {
+                setNotice(null);
+                setError(message);
+              }}
+            />
 
             <section className="se-casino-floor" aria-label="Casino games">
               <div className="se-casino-floor__head">
@@ -1027,10 +1044,14 @@ export function CasinoPage() {
             <Panel title="Casino destinations" aside={String(data.venues.length) + ' cities'}>
               <div className="se-casino__venues">
                 {data.venues.map((venue) => (
-                  <article key={venue.citySlug} className={'se-casino__venue' + (venue.here ? ' is-here' : '')}>
-                    <span className="se-eyebrow">{venue.cityName}{venue.here ? ' · you are here' : ''}</span>
+                  <article
+                    key={venue.citySlug}
+                    className={'se-casino__venue' + (venue.here ? ' is-here' : '') + (venue.identity ? ' se-casino__venue--' + venue.identity.accent.toLowerCase() : '')}
+                  >
+                    <span className="se-eyebrow">{venue.cityName}{venue.here ? ' · you are here' : ''}{data.status?.homeRoomCitySlug === venue.citySlug ? ' · your room' : ''}</span>
                     <h3>{venue.name}</h3>
-                    <p>{venue.blurb}</p>
+                    <p>{venue.identity?.tagline ?? venue.blurb}</p>
+                    {venue.vipRoom ? <small className="se-casino__venue-vip">VIP: {venue.vipRoom.name} · {venue.vipRoom.minTierName}+</small> : null}
                     <strong>{formatCents(venue.walletChipsCents)} in chips</strong>
                   </article>
                 ))}

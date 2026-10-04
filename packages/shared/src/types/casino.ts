@@ -8,6 +8,82 @@ export interface CasinoVenueDto {
   kind: CasinoVenueKindDto;
   walletChipsCents: number;
   here: boolean;
+  /** 1.2.0-E. Room identity. Presentation only. Null on older rulesets. */
+  identity: CasinoVenueIdentityDto | null;
+  /** 1.2.0-E. The venue's VIP room, or null where it has none. */
+  vipRoom: CasinoVipRoomDto | null;
+}
+
+export type CasinoStatusTierKeyDto = 'WALK_IN' | 'REGULAR' | 'PREFERRED' | 'HIGH_ROLLER' | 'WHALE';
+export type CasinoSignatureGameDto = 'SLOTS' | 'BLACKJACK' | 'ROULETTE' | 'STREET_DICE' | 'POKER';
+export type CasinoRoomDto = 'FLOOR' | 'VIP';
+
+export interface CasinoVenueIdentityDto {
+  tagline: string;
+  signatureGame: CasinoSignatureGameDto;
+  accent: 'GOLD' | 'NEON' | 'EMERALD' | 'STEEL' | 'OCEAN' | 'ROSE' | 'SUNSET' | 'PEACH';
+}
+
+export interface CasinoVipRoomDto {
+  name: string;
+  blurb: string;
+  minTierKey: CasinoStatusTierKeyDto;
+  minTierName: string;
+  visitorMinBodyguards: number;
+}
+
+export interface CasinoStatusTierDto {
+  key: CasinoStatusTierKeyDto;
+  name: string;
+  minTheoCents: number;
+  compRateBps: number;
+  maxBankrollCents: number;
+}
+
+/** 1.2.0-E. Whether the boss gets past the VIP door where they are standing. */
+export interface CasinoVipAccessDto {
+  citySlug: string;
+  roomName: string;
+  allowed: boolean;
+  via: 'STATUS' | 'FRONT' | null;
+  reason: string | null;
+}
+
+/**
+ * 1.2.0-E. Rated play. Theo is wager x pinned house edge and never depends on
+ * results. Status gates VIP rooms and bankroll size only; it never changes odds.
+ */
+export interface CasinoStatusDto {
+  tier: CasinoStatusTierDto;
+  nextTier: CasinoStatusTierDto | null;
+  /** Progress toward the next tier, 0..10,000. */
+  progressBps: number;
+  theoCents: number;
+  wageredCents: number;
+  compsEarnedCents: number;
+  compsSpentCents: number;
+  compBalanceCents: number;
+  /** Extra comp rate at the current venue from an operating Casino Front. */
+  frontCompBonusBps: number;
+  maxBankrollCents: number;
+  tiers: CasinoStatusTierDto[];
+  vipHere: CasinoVipAccessDto | null;
+  /** Operating Casino Fronts in casino cities, which open those VIP rooms. */
+  casinoFronts: Array<{ citySlug: string; cityName: string; venueName: string; level: number; grantsVip: boolean }>;
+  /** Rated play by city, most theo first. */
+  cities: Array<{ citySlug: string; cityName: string; venueName: string; theoCents: number; wageredCents: number }>;
+  /** The city with the most rated play, or null before any. */
+  homeRoomCitySlug: string | null;
+  /** Comped hotel nights on the boss's current trip, or null when not on one. */
+  hotelComp: {
+    tripId: string;
+    citySlug: string;
+    cityName: string;
+    stayUntil: string;
+    blockMinutes: number;
+    blockCompCents: number;
+    blockedReason: string | null;
+  } | null;
 }
 
 export interface CasinoSessionDto {
@@ -156,6 +232,10 @@ export interface CasinoBlackjackTableDto {
   allowDoubleAfterSplit: boolean;
   splitAcesOneCard: boolean;
   availableHere: boolean;
+  /** 1.2.0-E. VIP tables need VIP room access. */
+  room: CasinoRoomDto;
+  /** Why a table this venue carries is closed to the player, e.g. the VIP door. */
+  lockedReason: string | null;
 }
 
 export interface CasinoBlackjackCardDto {
@@ -242,6 +322,10 @@ export interface CasinoRouletteTableDto {
   betStepCents: number;
   maxTotalBetCents: number;
   availableHere: boolean;
+  /** 1.2.0-E. VIP tables need VIP room access. */
+  room: CasinoRoomDto;
+  /** Why a table this venue carries is closed to the player, e.g. the VIP door. */
+  lockedReason: string | null;
 }
 
 export interface CasinoRouletteBetDto {
@@ -288,6 +372,10 @@ export interface CasinoStreetDiceTableDto {
   betStepCents: number;
   maxOddsMultiple: number;
   availableHere: boolean;
+  /** 1.2.0-E. VIP tables need VIP room access. */
+  room: CasinoRoomDto;
+  /** Why a table this venue carries is closed to the player, e.g. the VIP door. */
+  lockedReason: string | null;
 }
 
 export type CasinoStreetDiceOutcomeDto = 'WIN' | 'LOSE' | 'POINT' | 'CONTINUE';
@@ -379,7 +467,7 @@ export interface CasinoStreetDiceResponseDto {
   round: CasinoStreetDiceRoundDto;
 }
 
-export type CasinoLedgerKindDto = 'BUY_CHIPS' | 'REDEEM_CHIPS' | 'SESSION_OPEN' | 'SESSION_CLOSE' | 'SLOT_SPIN' | 'BLACKJACK' | 'ROULETTE' | 'STREET_DICE' | 'POKER_BUY_IN' | 'POKER_CASH_OUT' | 'POKER_TABLE_BUY_IN' | 'POKER_TABLE_REFUND';
+export type CasinoLedgerKindDto = 'BUY_CHIPS' | 'REDEEM_CHIPS' | 'SESSION_OPEN' | 'SESSION_CLOSE' | 'SLOT_SPIN' | 'BLACKJACK' | 'ROULETTE' | 'STREET_DICE' | 'POKER_BUY_IN' | 'POKER_CASH_OUT' | 'POKER_TABLE_BUY_IN' | 'POKER_TABLE_REFUND' | 'COMP_HOTEL';
 
 export interface CasinoLedgerEntryDto {
   id: string;
@@ -422,4 +510,6 @@ export interface CasinoPageDto {
     sessionMinCents: number;
     sessionMaxCents: number;
   } | null;
+  /** 1.2.0-E. Null on rulesets without rated play. */
+  status: CasinoStatusDto | null;
 }

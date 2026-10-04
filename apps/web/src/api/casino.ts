@@ -5,6 +5,7 @@ import type {
   CasinoBlackjackDealResponseDto,
   CasinoBlackjackStateDto,
   CasinoCashierInput,
+  CasinoCompHotelInput,
   CasinoPageDto,
   CasinoSessionCloseInput,
   CasinoSessionStartInput,
@@ -35,6 +36,7 @@ export const casinoApi = {
   buy: (input: CasinoCashierInput) => api.post<CasinoPageDto>('/game/casino/chips/buy', input),
   redeem: (input: CasinoCashierInput) => api.post<CasinoPageDto>('/game/casino/chips/redeem', input),
   openSession: (input: CasinoSessionStartInput) => api.post<CasinoPageDto>('/game/casino/sessions', input),
+  compHotel: (input: CasinoCompHotelInput) => api.post<CasinoPageDto>('/game/casino/comps/hotel', input),
   spin: (input: CasinoSlotSpinInput) => api.post<CasinoSlotSpinResponseDto>('/game/casino/slots/spin', input),
   blackjack: () => api.get<CasinoBlackjackStateDto>('/game/casino/blackjack'),
   blackjackDeal: (input: CasinoBlackjackDealInput) =>

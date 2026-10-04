@@ -7,6 +7,7 @@ import {
   streetDiceLineReturnCents,
   streetDiceOddsReturnCents,
   streetDicePointResult,
+  streetDiceRatingEdgeBps,
   type Rng,
   type Ruleset,
 } from '@streets/rules-engine';
@@ -21,6 +22,7 @@ import type {
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { bossPresence } from './boss-presence.service.js';
+import { CasinoStatusService, assertCasinoRoomAccess, casinoTableAvailability } from './casino-status.service.js';
 import { PlayerStateService } from './player-state.service.js';
 
 type PlayerRow = RoundPlayer & {
@@ -243,6 +245,7 @@ async function requireStartSession(
   if (!table.venueKinds.includes(venue.kind)) {
     throw AppError.conflict('STREET_DICE_TABLE_NOT_HERE', 'That Street Dice table is not available in this casino.');
   }
+  await assertCasinoRoomAccess(tx, ruleset, player, citySlug, table, now);
   const city = await tx.city.findUnique({ where: { slug: citySlug } });
   if (!city) throw AppError.notFound('CITY_NOT_FOUND', 'That casino city is not available.');
   const session = await tx.casinoSession.findFirst({
@@ -277,7 +280,8 @@ async function stateInDb(
   const { player, ruleset, casino } = await playerAndRules(db, roundPlayerId);
   if (!casino.streetDice) return { enabled: false, tables: [], activeRound: null, history: [] };
   const citySlug = await bossCitySlug(db, ruleset, player, now);
-  const venue = citySlug ? casino.venues[citySlug] : undefined;
+  const availability = await casinoTableAvailability(db, ruleset, player, citySlug, now);
+  const tableAccess = await Promise.all(casino.streetDice.tables.map(availability));
   const [active, history] = await Promise.all([
     db.casinoStreetDiceRound.findFirst({
       where: { roundPlayerId, status: 'ACTIVE' },
@@ -297,7 +301,7 @@ async function stateInDb(
   };
   return {
     enabled: true,
-    tables: casino.streetDice.tables.map((table) => ({
+    tables: casino.streetDice.tables.map((table, index) => ({
       key: table.key,
       name: table.name,
       blurb: table.blurb,
@@ -305,7 +309,7 @@ async function stateInDb(
       maxBetCents: table.maxBetCents,
       betStepCents: table.betStepCents,
       maxOddsMultiple: table.maxOddsMultiple,
-      availableHere: Boolean(venue && table.venueKinds.includes(venue.kind)),
+      ...tableAccess[index]!,
     })),
     activeRound: active ? dtoFor(active) : null,
     history: history.map((row) => dtoFor(row as NonNullable<typeof active>)),
@@ -324,6 +328,7 @@ async function activeActionPrelude(
     row: CasinoStreetDiceRound;
     table: CasinoStreetDiceTableRules;
     session: CasinoSession;
+    ruleset: Ruleset;
     replay: CasinoStreetDiceRoundDto | null;
   }>;
 }> {
@@ -343,6 +348,7 @@ async function activeActionPrelude(
           row: null as never,
           table: null as never,
           session: null as never,
+          ruleset: null as never,
           replay: replayDto(receipt.response),
         };
       }
@@ -371,7 +377,7 @@ async function activeActionPrelude(
       ) {
         throw AppError.conflict('STREET_DICE_SESSION_CHANGED', 'The casino bankroll that owns this Street Dice point is no longer open.');
       }
-      return { row, table, session, replay: null };
+      return { row, table, session, ruleset, replay: null };
     },
   };
 }
@@ -445,6 +451,11 @@ export const StreetDiceService = {
       const bankrollAfter = session.bankrollCents - wager + returned;
 
       await tx.casinoSession.update({ where: { id: session.id }, data: { bankrollCents: bankrollAfter } });
+      if (casino.status) {
+        await CasinoStatusService.rateWager(tx, ruleset, {
+          roundPlayerId, cityId: city.id, wagerCents: wager, edgeBps: streetDiceRatingEdgeBps(casino.status, 'LINE'), now,
+        });
+      }
       const row = await tx.casinoStreetDiceRound.create({
         data: {
           roundPlayerId,
@@ -578,6 +589,13 @@ export const StreetDiceService = {
 
       const bankrollAfter = session.bankrollCents - amount;
       await tx.casinoSession.update({ where: { id: session.id }, data: { bankrollCents: bankrollAfter } });
+      // True odds have no house edge: they count as action but add no theo.
+      const status = loaded.ruleset.casino?.status;
+      if (status) {
+        await CasinoStatusService.rateWager(tx, loaded.ruleset, {
+          roundPlayerId, cityId: row.cityId, wagerCents: amount, edgeBps: streetDiceRatingEdgeBps(status, 'ODDS'), now: prelude.now,
+        });
+      }
       const updated = await tx.casinoStreetDiceRound.update({
         where: { id: row.id },
         data: {

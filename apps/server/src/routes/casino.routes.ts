@@ -3,6 +3,7 @@ import {
   casinoBlackjackActionSchema,
   casinoBlackjackDealSchema,
   casinoCashierSchema,
+  casinoCompHotelSchema,
   casinoSessionCloseSchema,
   casinoSessionStartSchema,
   casinoSlotSpinSchema,
@@ -57,6 +58,12 @@ const casinoRoutes: FastifyPluginAsync = async (fastify) => {
     const input = parseBody(casinoSessionStartSchema, request.body);
     const player = await requirePlayer(request.auth!.account.id);
     return CasinoService.startSession(fastify.prisma, player.id, input);
+  });
+
+  fastify.post('/comps/hotel', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoCompHotelSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    return CasinoService.compHotel(fastify.prisma, player.id, input);
   });
 
   fastify.post('/slots/spin', { preHandler: fastify.requireAuth }, async (request) => {

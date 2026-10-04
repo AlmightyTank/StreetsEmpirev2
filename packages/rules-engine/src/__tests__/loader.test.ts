@@ -64,8 +64,11 @@ describe('ruleset loader', () => {
     expect(isKnownRulesetId('classic-og-v1.1-f')).toBe(true);
     expect(loadRuleset('classic-og-v1.1-e', '1.1.0-E')).toBe(classicOgV11E);
     expect(loadRuleset('classic-og-v1.1-f', '1.1.0-F')).toBe(classicOgV11F);
+    for (const id of ['classic-og-v1.2-a', 'classic-og-v1.2-b', 'classic-og-v1.2-c', 'classic-og-v1.2-d', 'classic-og-v1.2-e', 'classic-og-v1.2-e2']) {
+      expect(isKnownRulesetId(id)).toBe(true);
+    }
     expect(isKnownRulesetId('nope')).toBe(false);
-    expect(listRulesets()).toHaveLength(75);
+    expect(listRulesets()).toHaveLength(81);
   });
 });
 

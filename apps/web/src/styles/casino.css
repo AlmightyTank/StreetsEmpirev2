@@ -1482,3 +1482,73 @@
   .se-street-dice__rules summary,
   .se-street-dice__history summary { font-size: .85rem; }
 }
+
+/* 1.2.0-E High rollers, VIP rooms and city identity */
+.se-casino-status {
+  --se-room-accent: #d6a943;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.se-casino-status--gold { --se-room-accent: #d6a943; }
+.se-casino-status--neon { --se-room-accent: #e04fd6; }
+.se-casino-status--emerald { --se-room-accent: #3fae7c; }
+.se-casino-status--steel { --se-room-accent: #8aa0b8; }
+.se-casino-status--ocean { --se-room-accent: #34a4d8; }
+.se-casino-status--rose { --se-room-accent: #d9779b; }
+.se-casino-status--sunset { --se-room-accent: #ef8a3c; }
+.se-casino-status--peach { --se-room-accent: #f0a37a; }
+.se-casino-status .se-panel { border-top: 3px solid var(--se-room-accent); }
+.se-casino-status__tier { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-end; }
+.se-casino-status__tier strong { display: block; font-size: 1.45rem; }
+.se-casino-status__comps { text-align: right; }
+.se-casino-status__comps small { color: var(--se-muted); display: block; }
+.se-casino-status__meter {
+  height: .55rem;
+  margin: .75rem 0 .35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--se-room-accent) 18%, var(--se-surface));
+  overflow: hidden;
+}
+.se-casino-status__meter span { display: block; height: 100%; background: var(--se-room-accent); border-radius: inherit; }
+.se-casino-status__ladder { margin-top: .75rem; }
+.se-casino-status__ladder summary { cursor: pointer; font-weight: 600; }
+.se-casino-status__ladder ol { display: grid; gap: .35rem; margin: .6rem 0; padding: 0; list-style: none; }
+.se-casino-status__ladder li { display: grid; gap: .1rem; padding: .45rem .6rem; border: 1px solid var(--se-border); border-radius: .5rem; }
+.se-casino-status__ladder li.is-current { border-color: var(--se-room-accent); }
+.se-casino-status__ladder li span { color: var(--se-muted); font-size: .85rem; }
+.se-casino-status__identity { display: grid; gap: .2rem; margin-top: 0; }
+.se-casino-status__identity span { color: var(--se-muted); font-size: .85rem; }
+.se-casino-status__door { padding: .6rem .7rem; border-radius: .55rem; border: 1px solid var(--se-border); }
+.se-casino-status__door.is-open { border-color: var(--se-room-accent); }
+.se-casino-status__door.is-closed { color: var(--se-muted); }
+.se-casino-status__fronts, .se-casino-status__hotel { display: grid; gap: .35rem; margin-top: .9rem; padding-top: .75rem; border-top: 1px solid var(--se-border); }
+.se-casino-vip-badge {
+  display: inline-block;
+  margin-left: .4rem;
+  padding: 0 .35rem;
+  border-radius: .3rem;
+  font-size: .68rem;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: .06em;
+  vertical-align: middle;
+  color: #1a1408;
+  background: #d6a943;
+}
+.se-blackjack__table.is-vip, .se-roulette__table.is-vip, .se-street-dice__table.is-vip { border-style: dashed; }
+.se-casino__venue-vip { display: block; color: var(--se-muted); margin-bottom: .35rem; }
+.se-casino__venue--gold { border-top: 3px solid #d6a943; }
+.se-casino__venue--neon { border-top: 3px solid #e04fd6; }
+.se-casino__venue--emerald { border-top: 3px solid #3fae7c; }
+.se-casino__venue--steel { border-top: 3px solid #8aa0b8; }
+.se-casino__venue--ocean { border-top: 3px solid #34a4d8; }
+.se-casino__venue--rose { border-top: 3px solid #d9779b; }
+.se-casino__venue--sunset { border-top: 3px solid #ef8a3c; }
+.se-casino__venue--peach { border-top: 3px solid #f0a37a; }
+@media (max-width: 900px) {
+  .se-casino-status { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .se-casino-status__meter span { transition: width .4s ease; }
+}

@@ -7,6 +7,7 @@ import {
   blackjackHandOutcome,
   blackjackHandValue,
   blackjackRank,
+  blackjackRatingEdgeBps,
   blackjackReturnCents,
   buildBlackjackShoe,
   loadRulesetForRound,
@@ -25,6 +26,7 @@ import type {
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { bossPresence } from './boss-presence.service.js';
+import { CasinoStatusService, assertCasinoRoomAccess, casinoTableAvailability } from './casino-status.service.js';
 import { PlayerStateService } from './player-state.service.js';
 
 type PlayerRow = RoundPlayer & {
@@ -158,6 +160,7 @@ async function requireTableSession(
   if (!table.venueKinds.includes(venue.kind)) {
     throw AppError.conflict('BLACKJACK_TABLE_NOT_HERE', 'That blackjack table is not available in this casino.');
   }
+  await assertCasinoRoomAccess(tx, ruleset, player, citySlug, table, now);
   const city = await tx.city.findUnique({ where: { slug: citySlug } });
   if (!city) throw AppError.notFound('CITY_NOT_FOUND', 'That casino city is not available.');
   const session = await tx.casinoSession.findFirst({
@@ -169,6 +172,12 @@ async function requireTableSession(
     throw AppError.conflict('CASINO_SESSION_ELSEWHERE', 'Your open bankroll belongs to another casino. Close it before playing here.');
   }
   return { city, venue, session };
+}
+
+/** 1.2.0-E. The pinned edge a blackjack wager is rated at, or zero before rated play. */
+function casinoEdge(ruleset: Ruleset, table: CasinoBlackjackTableRules): number {
+  const status = ruleset.casino?.status;
+  return status ? blackjackRatingEdgeBps(status, table) : 0;
 }
 
 function assertWager(table: CasinoBlackjackTableRules, wagerCents: number): void {
@@ -437,7 +446,8 @@ async function stateInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date
   if (!casino.blackjack) return { enabled: false, tables: [], activeHand: null, history: [] };
 
   const citySlug = await bossCitySlug(db, ruleset, player, now);
-  const venue = citySlug ? casino.venues[citySlug] : undefined;
+  const availability = await casinoTableAvailability(db, ruleset, player, citySlug, now);
+  const tableAccess = await Promise.all(casino.blackjack.tables.map(availability));
   const [active, history] = await Promise.all([
     db.casinoBlackjackHand.findFirst({
       where: { roundPlayerId, status: 'ACTIVE' },
@@ -459,7 +469,7 @@ async function stateInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date
 
   return {
     enabled: true,
-    tables: casino.blackjack.tables.map((table) => ({
+    tables: casino.blackjack.tables.map((table, index) => ({
       key: table.key,
       name: table.name,
       blurb: table.blurb,
@@ -472,7 +482,7 @@ async function stateInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date
       maxSplitHands: table.maxSplitHands,
       allowDoubleAfterSplit: table.allowDoubleAfterSplit,
       splitAcesOneCard: table.splitAcesOneCard,
-      availableHere: Boolean(venue && table.venueKinds.includes(venue.kind)),
+      ...tableAccess[index]!,
     })),
     activeHand: active ? dtoFor(active) : null,
     history: history.map((row) => dtoFor(row as NonNullable<typeof active>)),
@@ -627,6 +637,10 @@ async function mutateActiveHand(
         data: { bankrollCents: bankrollAfter },
       });
     }
+    // Doubles and splits are more chips at risk at the same edge.
+    await CasinoStatusService.rateWager(tx, ruleset, {
+      roundPlayerId, cityId: row.cityId, wagerCents: chargeCents, edgeBps: casinoEdge(ruleset, table), now,
+    });
 
     await saveShoe(tx, shoe);
     const updated = await tx.casinoBlackjackHand.update({
@@ -768,6 +782,9 @@ export const BlackjackService = {
 
       const bankrollAfter = session.bankrollCents - wager + creditedCents;
       await tx.casinoSession.update({ where: { id: session.id }, data: { bankrollCents: bankrollAfter } });
+      await CasinoStatusService.rateWager(tx, ruleset, {
+        roundPlayerId, cityId: city.id, wagerCents: wager, edgeBps: casinoEdge(ruleset, table), now,
+      });
       await saveShoe(tx, shoe);
 
       const row = await tx.casinoBlackjackHand.create({

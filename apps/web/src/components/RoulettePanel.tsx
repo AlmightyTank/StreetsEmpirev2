@@ -223,7 +223,7 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
               <button
                 key={candidate.key}
                 type="button"
-                className={'se-roulette__table' + (candidate.key === table?.key ? ' is-selected' : '')}
+                className={'se-roulette__table' + (candidate.key === table?.key ? ' is-selected' : '') + (candidate.room === 'VIP' ? ' is-vip' : '')}
                 aria-pressed={candidate.key === table?.key}
                 disabled={busy}
                 onClick={() => {
@@ -234,7 +234,7 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
                   actionId.current = newActionId();
                 }}
               >
-                <span><strong>{candidate.name}</strong><small>{candidate.wheel === 'AMERICAN' ? '0 + 00' : 'Single 0'}</small></span>
+                <span><strong>{candidate.name}{candidate.room === 'VIP' ? <em className="se-casino-vip-badge">VIP</em> : null}</strong><small>{candidate.wheel === 'AMERICAN' ? '0 + 00' : 'Single 0'}{candidate.lockedReason ? ' · VIP door closed' : ''}</small></span>
                 <small>{formatCents(candidate.minBetCents)}–{formatCents(candidate.maxBetCents)} per position</small>
               </button>
             ))}
@@ -408,7 +408,7 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
                   className="se-btn se-roulette__spin"
                   disabledReason={
                     !table.availableHere
-                      ? 'This wheel is not available in this casino.'
+                      ? table.lockedReason ?? 'This wheel is not available in this casino.'
                       : !casinoPage.openSession
                         ? 'Open a casino bankroll first.'
                         : casinoPage.openSession.citySlug !== casinoPage.currentCitySlug
