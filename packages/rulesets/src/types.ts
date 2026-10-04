@@ -278,7 +278,9 @@ export type ContactKey =
   | 'VIC'
   | 'BLOCKS'
   /** 1.2.0-F. The casino host. */
-  | 'ACE';
+  | 'ACE'
+  /** 1.3.0-F. The retired records sergeant who gives law Jobs. */
+  | 'LEDGER';
 
 export interface ContactDefinition {
   readonly key: ContactKey;

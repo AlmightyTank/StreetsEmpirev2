@@ -33,6 +33,7 @@ const categoryName: Record<PublicAwardDto['category'], string> = {
   hideout: 'Hideout',
   quest: 'Quest',
   casino: 'Casino',
+  law: 'Law',
   legacy: 'Legacy',
 };
 

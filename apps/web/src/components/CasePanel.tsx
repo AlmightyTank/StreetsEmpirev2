@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { LawPageDto, WarrantDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { ApiError } from '../api/client.js';
@@ -142,6 +143,15 @@ export function CasePanel() {
         <p className="se-hint">
           Ladder: {page.stages.filter((stage) => stage.stage !== 'QUIET').map((stage) => `${wantedStageName(stage.stage)} ${formatNumber(stage.startsAt)}`).join(' · ')}, out of {formatNumber(page.caseMax)}.
         </p>
+      ) : null}
+
+      {page?.contact ? (
+        <div className="se-case__contact">
+          <span className="se-eyebrow">{page.contact.role}</span>
+          <strong>{page.contact.name}</strong>
+          <p className="se-hint">{page.contact.description}</p>
+          <Link className="se-btn se-btn--ghost" to="/game/quests">See {page.contact.shortName}&rsquo;s jobs</Link>
+        </div>
       ) : null}
 
       {page && page.warrants.length ? (

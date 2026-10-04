@@ -26,6 +26,21 @@ export interface SeasonFeat {
   sealedBy?: keyof SeasonTotals;
   /** Progress is money, for display. */
   cents?: boolean;
+  /**
+   * 1.3.0-F. Judged only once a season has finished: the live season never earns it and
+   * never shows progress, to anyone. The law feats use it, because a Case is private and a
+   * clean record only means something at the end.
+   */
+  finishedSeasonsOnly?: boolean;
+}
+
+/** 1.3.0-F. The Wanted ladder as ranks: 0 Quiet, 1 Noticed, 2 Under Investigation, 3 Warrant. */
+const NOTICED = 1;
+const WARRANT = 3;
+
+/** A finished season of real play on a ruleset that kept a Case, judged on its record. */
+function cleanSeason(totals: SeasonTotals, turns: number, clean: boolean): number {
+  return totals.lawSeason === 1 && totals.turnsWorked >= turns && clean ? 1 : 0;
 }
 
 export const SEASON_FEATS: readonly SeasonFeat[] = [
@@ -71,6 +86,11 @@ export const SEASON_FEATS: readonly SeasonFeat[] = [
   { key: 'jackpot-hitter', title: 'Jackpot Hitter', description: 'Hit a progressive slot jackpot.', category: 'casino', rarity: 'epic', target: 1, progressLabel: 'jackpots', stat: 'casinoJackpots' },
   { key: 'whale', title: 'Whale', description: 'Rate $150,000 of theoretical house win in one season.', category: 'casino', rarity: 'legendary', target: 150_000_00, progressLabel: 'rated theo', stat: 'casinoTheoCents', sealedBy: 'streetEarningsCents', cents: true },
 
+  // 1.3.0-F — Law. Clean-record feats, judged when the season ends. Titles only.
+  { key: 'clean-record', title: 'Clean Record', description: 'Finish a season with 1,000 turns worked and no warrant ever served on you.', category: 'law', rarity: 'uncommon', target: 1, progressLabel: 'clean seasons', stat: (totals) => cleanSeason(totals, 1_000, totals.lawWarrantsServed === 0), finishedSeasonsOnly: true },
+  { key: 'nothing-on-paper', title: 'Nothing on Paper', description: 'Finish a season with 2,500 turns worked and no Case anywhere ever reaching the Warrant stage.', category: 'law', rarity: 'rare', target: 1, progressLabel: 'clean seasons', stat: (totals) => cleanSeason(totals, 2_500, totals.lawPeakStage < WARRANT), finishedSeasonsOnly: true },
+  { key: 'off-the-books', title: 'Off the Books', description: 'Finish a season with 5,000 turns worked and no Case anywhere ever getting past Noticed.', category: 'law', rarity: 'epic', target: 1, progressLabel: 'clean seasons', stat: (totals) => cleanSeason(totals, 5_000, totals.lawPeakStage <= NOTICED), finishedSeasonsOnly: true },
+
   { key: 'war-machine', title: 'War Machine', description: 'Win ten block wars as attacker or defender in one season.', category: 'turf', rarity: 'legendary', target: 10, progressLabel: 'block-war wins', stat: (totals) => totals.blockWarAttackWins + totals.blockWarDefenseWins },
 ];
 
@@ -100,11 +120,12 @@ export function seasonFeatAwards(
 ): PublicAwardDto[] {
   const oldestFirst = [...past].sort((a, b) => a.endedAt.getTime() - b.endedAt.getTime());
   return SEASON_FEATS.map((feat) => {
-    const currentValue = current ? featValue(feat, current.totals) : 0;
+    const live = current !== null && !feat.finishedSeasonsOnly;
+    const currentValue = live ? featValue(feat, current.totals) : 0;
     const pastSeason = oldestFirst.find((season) => featValue(feat, season.totals) >= feat.target);
-    const thisSeason = current !== null && currentValue >= feat.target;
+    const thisSeason = live && currentValue >= feat.target;
     const unlocked = thisSeason || Boolean(pastSeason);
-    const hideProgress = sealed && featSealed(feat);
+    const hideProgress = (sealed && featSealed(feat)) || Boolean(feat.finishedSeasonsOnly);
     return {
       key: feat.key,
       title: feat.title,

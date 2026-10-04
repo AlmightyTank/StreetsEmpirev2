@@ -3400,6 +3400,10 @@ model PlayerCase {
   /// 1.3.0-B. Cash moved in this city on `reportDay` (UTC), for currency reports.
   reportDay      String?
   reportCents    BigInt    @default(0)
+  /// 1.3.0-F. The highest stage this Case has reached since it last left Quiet, and when it
+  /// left Quiet. Both reset when it cools back to Quiet. Ledger's Jobs read them.
+  peakStage      String    @default("QUIET")
+  openedAt       DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

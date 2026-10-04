@@ -102,6 +102,16 @@ const profileTitleLabels: Record<string, string> = {
   'ace-velvet-rope': 'Behind the Rope',
   'ace-black-room': 'Black Room Regular',
 
+  // 1.3.0-F clean-record season feats and Ledger's job titles.
+  'clean-record': 'Clean Record',
+  'nothing-on-paper': 'Nothing on Paper',
+  'off-the-books': 'Off the Books',
+  'ledger-cool-head': 'Cool Head',
+  'ledger-lawyered-up': 'Lawyered Up',
+  'ledger-clean-hands': 'Clean Hands',
+  'ledger-teflon': 'Teflon',
+  'ledger-case-closed': 'Case Closed',
+
   'beta-tester': 'Beta Original',
 
   'ghost-of-the-block': 'The Quiet Ghost',

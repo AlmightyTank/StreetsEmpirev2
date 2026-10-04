@@ -21,12 +21,13 @@ import {
   wantedStage,
   type Ruleset,
 } from '@streets/rules-engine';
-import type { WantedStage } from '@streets/rulesets';
+import type { LawRules, WantedStage } from '@streets/rulesets';
 import type { CaseSourceDto, LawPageDto, LawSummaryDto, TripHeatDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
 import { LawWarrantService } from './law-warrant.service.js';
 import { LawOfficialService } from './law-official.service.js';
+import { QuestProgressService } from './quest-progress.service.js';
 
 export type CaseSource = CaseSourceDto;
 
@@ -86,6 +87,90 @@ export function tripCaseEvidence(heat: TripHeatDto | undefined, source: 'SCOUT' 
 /** Sources that are not the player's own act: they never restart a Case's quiet clock. */
 const PASSIVE = new Set<CaseSource>(['RACKETS', 'CRACKDOWN', 'LAUNDERING', 'COOLING', 'WARRANT', 'LAWYER', 'QUASH']);
 
+/**
+ * 1.3.0-F. Falls that are not the Case cooling: a warrant served or answered, a quash, or a
+ * federal case moving. They still close a Case's book when it reaches Quiet; they just never
+ * tell Ledger's Jobs it cooled.
+ */
+const NOT_COOLING = new Set<CaseSource>(['WARRANT', 'LAWYER', 'QUASH', 'FEDERAL']);
+
+/** 1.3.0-F. How far a Case has got since it last left Quiet, and when it left. */
+interface CaseBook {
+  peakStage: WantedStage;
+  openedAt: Date | null;
+}
+
+function bookFor(row: { stage: string; peakStage: string; openedAt: Date | null; createdAt: Date } | null): CaseBook {
+  if (!row || row.stage === 'QUIET') return { peakStage: 'QUIET', openedAt: null };
+  const peak = stageRank(row.peakStage as WantedStage) >= stageRank(row.stage as WantedStage) ? row.peakStage as WantedStage : row.stage as WantedStage;
+  return { peakStage: peak, openedAt: row.openedAt ?? row.createdAt };
+}
+
+/** The book after the Case reads `stage` at `now`: a fresh one opens as it leaves Quiet. */
+function bookAt(book: CaseBook, stage: WantedStage, now: Date): CaseBook {
+  if (stage === 'QUIET') return { peakStage: 'QUIET', openedAt: null };
+  return {
+    peakStage: stageRank(stage) > stageRank(book.peakStage) ? stage : book.peakStage,
+    openedAt: book.openedAt ?? now,
+  };
+}
+
+/**
+ * 1.3.0-F. Tell Jobs a Case fell a stage. Only rulesets with Ledger emit, so older law rounds
+ * grow no new quest traffic. The signal is private to the player like the Case itself, and
+ * never an activity: nothing in the feed or on a profile shows it.
+ */
+async function emitCooled(
+  tx: Db,
+  roundPlayerId: string,
+  ruleset: Ruleset,
+  place: { id: string; slug: string; name: string },
+  book: CaseBook,
+  from: WantedStage,
+  to: WantedStage,
+  now: Date,
+): Promise<void> {
+  if (!ruleset.contacts?.LEDGER || stageRank(to) >= stageRank(from)) return;
+  const served = await tx.playerWarrant.count({
+    where: { roundPlayerId, cityId: place.id, status: 'SERVED', ...(book.openedAt ? { resolvedAt: { gte: book.openedAt } } : {}) },
+  });
+  await QuestProgressService.emit(tx, roundPlayerId, {
+    sourceKey: `case-cooled:${place.id}:${now.toISOString()}:${from}:${to}`,
+    type: 'CASE_COOLED',
+    payload: {
+      citySlug: place.slug,
+      cityName: place.name,
+      from,
+      to,
+      peak: book.peakStage,
+      cleared: to === 'QUIET',
+      peakWarrant: stageRank(book.peakStage) >= stageRank('WARRANT'),
+      raided: served > 0,
+    },
+    at: now,
+  });
+}
+
+/** B: cooling since the last write lands as one rolling receipt per quiet spell. */
+async function writeCooling(
+  tx: Db,
+  roundPlayerId: string,
+  cityId: string,
+  clock: { caseHundredths: number; lastEvidenceAt: Date | null },
+  cooledTo: number,
+  rules: LawRules,
+  now: Date,
+): Promise<void> {
+  const sourceKey = `cool:${cityId}:${clock.lastEvidenceAt?.toISOString() ?? 'start'}`;
+  const cooled = cooledTo - clock.caseHundredths;
+  const stageAfter = wantedStage(cooledTo, rules);
+  await tx.playerCaseReceipt.upsert({
+    where: { roundPlayerId_sourceKey: { roundPlayerId, sourceKey } },
+    create: { roundPlayerId, cityId, source: 'COOLING', sourceKey, heat: 0, deltaHundredths: cooled, caseAfterHundredths: cooledTo, stageAfter, createdAt: now },
+    update: { deltaHundredths: { increment: cooled }, caseAfterHundredths: cooledTo, stageAfter },
+  });
+}
+
 /** How many receipts the page shows. */
 const RECEIPT_LIMIT = 30;
 
@@ -141,17 +226,15 @@ export const LawService = {
       // E: each city's police work at their own pace.
       const pace = cityLaw(rules, place.slug);
       const before = coolCase(clock, now, rules, pace.coolingSpeed);
+      let book = bookFor(existing);
 
       // B: cooling since the last write lands as one rolling receipt per quiet spell.
       if (before < clock.caseHundredths) {
-        const sourceKey = `cool:${place.id}:${clock.lastEvidenceAt?.toISOString() ?? 'start'}`;
-        const cooled = before - clock.caseHundredths;
-        const stageAfter = wantedStage(before, rules);
-        await tx.playerCaseReceipt.upsert({
-          where: { roundPlayerId_sourceKey: { roundPlayerId, sourceKey } },
-          create: { roundPlayerId, cityId: place.id, source: 'COOLING', sourceKey, heat: 0, deltaHundredths: cooled, caseAfterHundredths: before, stageAfter, createdAt: now },
-          update: { deltaHundredths: { increment: cooled }, caseAfterHundredths: before, stageAfter },
-        });
+        await writeCooling(tx, roundPlayerId, place.id, clock, before, rules, now);
+        // F: a stage it cooled out of reaches Ledger's Jobs.
+        const cooledTo = wantedStage(before, rules);
+        await emitCooled(tx, roundPlayerId, ruleset, place, book, (existing?.stage ?? 'QUIET') as WantedStage, cooledTo, now);
+        book = bookAt(book, cooledTo, now);
       }
 
       // B: currency reports count the day's cash in this city, so a split movement still files.
@@ -176,6 +259,9 @@ export const LawService = {
       const after = addCase(before, delta, rules);
       const stage = wantedStage(after, rules);
       const stageUp = stageRank(stage) > stageRank(wantedStage(before, rules));
+      // F: a fall from washing or negative evidence is cooling too; a warrant's is not.
+      if (!NOT_COOLING.has(entry.source)) await emitCooled(tx, roundPlayerId, ruleset, place, book, wantedStage(before, rules), stage, now);
+      book = bookAt(book, stage, now);
       // The player's own act restarts the quiet clock, even when the Case is already at its cap.
       const active = delta > 0 && !PASSIVE.has(entry.source);
 
@@ -183,11 +269,12 @@ export const LawService = {
         where: { roundPlayerId_cityId: { roundPlayerId, cityId: place.id } },
         create: {
           roundPlayerId, cityId: place.id, caseHundredths: after, stage, caseAt: now, createdAt: now,
+          peakStage: book.peakStage, openedAt: book.openedAt,
           lastEvidenceAt: active ? now : null,
           ...(cash > 0n ? { reportDay: day, reportCents: cash } : {}),
         },
         update: {
-          caseHundredths: after, stage, caseAt: now,
+          caseHundredths: after, stage, caseAt: now, peakStage: book.peakStage, openedAt: book.openedAt,
           ...(active ? { lastEvidenceAt: now } : {}),
           ...(cash > 0n ? { reportDay: day, reportCents: dayCents + cash } : {}),
         },
@@ -220,6 +307,35 @@ export const LawService = {
       }
     }
     return changes;
+  },
+
+  /**
+   * 1.3.0-F. Write down any Case that has cooled out of its stage since it was last written,
+   * so Ledger's Jobs hear about it even when the player adds nothing more in that city. Only
+   * rulesets with Ledger do this; the Case it writes is exactly what a read already shows.
+   * Callers hold the player's lock, from the same settle that serves due warrants.
+   */
+  async settleCooling(tx: Db, roundPlayerId: string, ruleset: Ruleset, now: Date = new Date()): Promise<void> {
+    const rules = ruleset.law;
+    if (!rules?.cooling || !ruleset.contacts?.LEDGER) return;
+    const open = await tx.playerCase.findMany({
+      where: { roundPlayerId, stage: { not: 'QUIET' } },
+      include: { city: { select: { id: true, slug: true, name: true } } },
+      orderBy: { cityId: 'asc' },
+    });
+    for (const row of open) {
+      const cooled = coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed);
+      const stage = wantedStage(cooled, rules);
+      if (stageRank(stage) >= stageRank(row.stage as WantedStage)) continue;
+      await writeCooling(tx, roundPlayerId, row.cityId, row, cooled, rules, now);
+      const book = bookFor(row);
+      await emitCooled(tx, roundPlayerId, ruleset, row.city, book, row.stage as WantedStage, stage, now);
+      const next = bookAt(book, stage, now);
+      await tx.playerCase.update({
+        where: { id: row.id },
+        data: { caseHundredths: cooled, stage, caseAt: now, peakStage: next.peakStage, openedAt: next.openedAt },
+      });
+    }
   },
 
   /**
@@ -341,6 +457,9 @@ export const LawService = {
       dailyLoss: null,
       payroll: null,
       informants: null,
+      contact: ruleset.contacts?.LEDGER
+        ? { name: ruleset.contacts.LEDGER.name, shortName: ruleset.contacts.LEDGER.shortName, role: ruleset.contacts.LEDGER.role, description: ruleset.contacts.LEDGER.description }
+        : null,
       stages: WANTED_STAGES.map((stage) => ({ stage, startsAt: points(stageStartsAt(stage, rules)) })),
       cases: cases.map(({ row, hundredths }) => {
         const next = nextStage(hundredths, rules);

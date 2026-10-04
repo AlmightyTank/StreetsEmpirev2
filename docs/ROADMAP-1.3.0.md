@@ -2,15 +2,15 @@
 
 ## Brainstorm
 
-**Status:** 1.3.0-A through 1.3.0-E are built; the newest ruleset is `classic-og-v1.3-e`. F and
-G are still design only. See the [Roadmap](#roadmap) table.
+**Status:** 1.3.0-A through 1.3.0-F are built; the newest ruleset is `classic-og-v1.3-f`. G is
+still design only. See the [Roadmap](#roadmap) table.
 
 **Withdrawn draft:** a separate "law pressure" draft (one attention and evidence pool per
 player, a `classic-og-v1.3-f` built on 1.2-F, and cash to bury attention) briefly landed on
 `beta` alongside A–E. It was withdrawn in favour of the Case; migration
-`20261005200000_drop_law_pressure` drops its columns. The `classic-og-v1.3-f` id is free again
-for the F slice below, and its `LAW_CORRUPTION` activity value stays only so any older feed rows
-still read.
+`20261005200000_drop_law_pressure` drops its columns. The `classic-og-v1.3-f` id now belongs to
+the F slice below, so a round the draft's seed pinned to it loads F. Its `LAW_CORRUPTION`
+activity value stays only so any older feed rows still read.
 
 **Target base:** StreetsEmpire v1.2.0 (`classic-og-v1.2-f`)  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** expand Heat into a deeper city-wide
@@ -50,7 +50,7 @@ under [Stages](#stages-sketch-following-the-11--12-pattern).
 | **1.3.0-C — Warrants & Raids** | Built | `classic-og-v1.3-c` | Warrants at the Warrant stage with a 12-hour warning: Hideout, business or personal raids. A daily police-loss cap. Lawyers: a weekly retainer, or lawyering up to answer a warrant. |
 | **1.3.0-D — Corruption & Informants** | Built | `classic-og-v1.3-d` | A weekly payroll of Captain, DA, Judge and Customs per city. Exposure from every favor, and Internal Affairs with a warned sting. Informants sell sweep and city tips. |
 | **1.3.0-E — City Identity & the Feds** | Built | `classic-og-v1.3-e` | Each city's police build, cool and warn at their own pace. Federal shortens warrant windows and makes the sweep write more against the player, privately. A federal case and its warrant follow a relocation. |
-| **1.3.0-F — Jobs, Feats & Titles** | Planned | — | A police-side contact with one-time Jobs, clean-record feats and law-themed titles. Never pays cash, turns or protection. |
+| **1.3.0-F — Jobs, Feats & Titles** | Built | `classic-og-v1.3-f` | Ledger, a retired records sergeant, with seven one-time Jobs driven by the law system, law titles and a Case File frame, and three clean-record season feats judged at season end. Never pays cash, turns or protection. |
 | **1.3.0-G — Balance, Admin & Release** | Planned | — | A `qa:law` simulation to pin the numbers, an admin case viewer with audited adjustments, an exploit audit, mobile regression and the release gate. |
 
 **Still open across slices:**
@@ -648,6 +648,68 @@ E invariants:
 ### 1.3.0-F — Jobs, Feats & Titles
 A police-side contact with one-time Jobs, clean-record feats and law-themed titles. Like 1.2.0-F,
 these never pay cash, turns or protection.
+
+#### Built in F
+
+**Status: implemented.** Ruleset `classic-og-v1.3-f` (1.3.0-F) is 1.3.0-E plus a new contact,
+seven Jobs and six cosmetics. The `law` block is exactly 1.3.0-E's: no Case, warrant, lawyer or
+official number changes.
+
+- **Ledger.** New Jobs contact **Marisol “Ledger” Pike**, *Retired Records Sergeant*. She kept
+  the precinct's case files for twenty-two years and never took an envelope; now she explains
+  how a file gets built. Her standing is stored like every other contact (`PlayerReputation`,
+  trader `LEDGER`). The Case panel introduces her and links to the Jobs page.
+- **Jobs signals.** The law activities already in the feed drive her Jobs (`CASE_STAGE_UP`,
+  `LAWYER_RETAINED`, `WARRANT_LAWYERED`, `WARRANT_QUASHED`, `OFFICIAL_HIRED`, `OFFICIAL_CUT`,
+  `INFORMANT_TIP`, `CAPTAIN_TIP`). A first hire now says `renewed: false`, so paying another week
+  never counts as a new hire. One new quest-only signal, `CASE_COOLED`, fires when a Case falls a
+  stage by cooling, laundering or negative evidence (never when a warrant is served or
+  answered, quashed or moved by a relocation). It carries the city, the stages, the highest stage
+  since the Case left Quiet, whether it cleared to Quiet, and whether a warrant was served in that
+  city since the Case opened. It is never an activity, so it reaches no feed, bell or profile.
+- **Cooling on settle.** Cooling is still worked out on read, but on F rounds the settle that
+  serves due warrants also writes down any Case that has cooled out of its stage (the same
+  rolling COOLING receipt the next change would write), so a Job hears about it even if the
+  player never acts in that city again. A Case remembers its highest stage since leaving Quiet
+  and when it left (`PlayerCase.peakStage`, `openedAt`); both reset at Quiet.
+- **Ledger's Jobs (all one-time).**
+
+  | Job | Needs | Objective | Pays |
+  | --- | --- | --- | --- |
+  | Open File | — | A city's police notice you (bonus: buy an informant tip) | +10 Ledger |
+  | Cooling Off | Open File | A Case cools down a stage (bonus: all the way to Quiet) | +15 Ledger, *Cool Head* title |
+  | Friends Downtown | Open File | Hire an official (bonus: officials in 2 cities) | +15 Ledger |
+  | Right to Counsel | Open File | Retain a lawyer, or lawyer up against a warrant | +15 Ledger, *Lawyered Up* title |
+  | Clean Hands | Friends Downtown | Cut an official loose while Internal Affairs is looking | +20 Ledger, *Clean Hands* title |
+  | Beat the Rap | Friends Downtown, Right to Counsel, 30 Ledger | A DA on the payroll quashes a warrant (bonus: a Captain's tip) | +20 Ledger, *Teflon* title |
+  | Case Closed | Cooling Off, Beat the Rap, 80 Ledger | A Case that reached Warrant cools back to Quiet with no warrant served in that city | +40 Ledger, *Case Closed* title, **Case File** frame |
+
+- **Clean-record feats.** Three season feats in a new **Law** achievement category, each
+  unlocking a title. They are judged only when a season has finished: the live season never
+  earns one and never shows progress, to anyone, so nothing about a live Case can be read from
+  a profile. Only seasons on a ruleset with a `law` block count.
+
+  | Feat | Rarity | Earned by | Title |
+  | --- | --- | --- | --- |
+  | Clean Record | uncommon | 1,000 turns worked and no warrant ever served on you | Clean Record |
+  | Nothing on Paper | rare | 2,500 turns worked and no Case ever reaching Warrant | Nothing on Paper |
+  | Off the Books | epic | 5,000 turns worked and no Case ever past Noticed | Off the Books |
+
+  Season stats read them from history the law already keeps: the highest stage any Case
+  receipt reached, and warrants served.
+- **Seed.** The local seed's current round now uses `classic-og-v1.3-f`.
+
+F invariants:
+
+1. Every A to E invariant still holds.
+2. Law Jobs and feats never pay cash, turns, items, product, protection or Case points, and no
+   Job, feat, title or cosmetic is an input to any law calculation.
+3. `CASE_COOLED` is private: never an activity, a notification or anything on a profile.
+4. A Case written down on settle reads exactly what a read of it already showed; the receipts
+   still add up to the stored Case.
+5. Law feats only judge finished seasons, and never show live progress.
+6. `classic-og-v1.3-e` and older rounds have no Ledger, no law Jobs, and write nothing new on
+   settle.
 
 ### 1.3.0-G — Balance, Admin & Release
 `qa:law` simulation, admin case viewer and case adjustment (audited), exploit audit pass,
