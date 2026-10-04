@@ -27,6 +27,8 @@ type PokerState = {
   deck: PokerCard[]; board: PokerCard[]; seats: PokerSeat[];
   street: 'PREFLOP' | 'FLOP' | 'TURN' | 'RIVER' | 'SHOWDOWN' | 'COMPLETE';
   currentBet: number; outcome: string | null; revealedBots: boolean; rakeBps: number; rakeCapCents: number; rakeCents: number;
+  /** Seat holding the button when this hand was dealt; old saved hands default to the player. */
+  dealerId?: string;
 };
 type PlayerRow = RoundPlayer & { city: { id: string; slug: string; name: string }; round: { rulesetId: string; rulesetVersion: string } };
 
@@ -215,14 +217,39 @@ function settleByFold(state: PokerState): void {
   }
 }
 
-function botResponses(state: PokerState, rng: Rng): void {
-  for (const bot of state.seats.filter((seat) => !seat.human && !seat.folded)) {
-    const due = state.currentBet - bot.streetBet;
+/** Calculate the clockwise solo table action order for the button and street. */
+export function soloPokerActionOrder(
+  seatIds: readonly string[],
+  dealerId: string | undefined,
+  street: 'PREFLOP' | 'POSTFLOP',
+): string[] {
+  if (seatIds.length === 0) return [];
+  const dealerIndex = Math.max(0, seatIds.indexOf(dealerId ?? 'player'));
+  // In a three-seat hand, preflop action starts with the button; later streets
+  // start with the first seat clockwise from it.
+  const firstIndex = (dealerIndex + (street === 'PREFLOP' ? 0 : 1)) % seatIds.length;
+  return Array.from({ length: seatIds.length }, (_, offset) => seatIds[(firstIndex + offset) % seatIds.length]!);
+}
+
+function actionOrder(state: PokerState): string[] {
+  return soloPokerActionOrder(
+    state.seats.map((seat) => seat.id),
+    state.dealerId,
+    state.street === 'PREFLOP' ? 'PREFLOP' : 'POSTFLOP',
+  );
+}
+
+function botResponses(state: PokerState, rng: Rng, order: readonly string[]): void {
+  for (const id of order) {
+    const bot = state.seats.find((seat) => seat.id === id);
+    if (!bot || bot.human || bot.folded) continue;
+    const due = Math.max(0, state.currentBet - bot.streetBet);
     const action = choosePokerBotAction({ holeCards: bot.hole, communityCards: state.board, amountToCall: due, canRaise: false, rng, potCents: pot(state) });
     if (action === 'FOLD') bot.folded = true;
     else { const amount = Math.min(due, bot.stack); bot.stack -= amount; bot.contribution += amount; bot.streetBet += amount; }
+    settleByFold(state);
+    if (state.street === 'SHOWDOWN' || state.street === 'COMPLETE') return;
   }
-  settleByFold(state);
 }
 
 function revealNext(state: PokerState): void {
@@ -254,6 +281,13 @@ function revealNext(state: PokerState): void {
 function act(state: PokerState, action: CasinoPokerActionInput['action'], rng: Rng, raiseSize: number): void {
   const human = state.seats.find((seat) => seat.human)!;
   if (state.street === 'SHOWDOWN' || state.street === 'COMPLETE') throw AppError.conflict('POKER_HAND_SETTLED', 'That poker hand is already settled.');
+  const order = actionOrder(state);
+  const humanOrderIndex = order.indexOf(human.id);
+  // Resolve the bots who act before the player first. If the player raises,
+  // those bots get another response after the players behind the button.
+  botResponses(state, rng, order.slice(0, humanOrderIndex));
+  if (state.street === 'SHOWDOWN' || state.street === 'COMPLETE') return;
+  const previousBet = state.currentBet;
   const due = Math.max(0, state.currentBet - human.streetBet);
   if (action === 'FOLD') {
     human.folded = true; settleByFold(state); return;
@@ -270,7 +304,8 @@ function act(state: PokerState, action: CasinoPokerActionInput['action'], rng: R
     const added = human.stack; human.stack = 0; human.contribution += added; human.streetBet += added;
     state.currentBet = Math.max(state.currentBet, human.streetBet);
   }
-  botResponses(state, rng);
+  botResponses(state, rng, order.slice(humanOrderIndex + 1));
+  if (state.currentBet > previousBet) botResponses(state, rng, order.slice(0, humanOrderIndex));
   let streetAfterBots = state.street as PokerState['street'];
   if (streetAfterBots !== 'SHOWDOWN' && streetAfterBots !== 'COMPLETE') {
     const playersAbleToBet = state.seats.filter((seat) => !seat.folded && seat.stack > 0).length;
@@ -512,6 +547,7 @@ export const CasinoPokerService = {
       const state: PokerState = {
         deck: [...dealt.deck], board: [], street: 'PREFLOP', currentBet: pokerRules.bigBlindCents, outcome: null, revealedBots: false,
         rakeBps: pokerRules.rakeBps, rakeCapCents: pokerRules.rakeCapCents, rakeCents: 0,
+        dealerId: seatIds[dealerIndex],
         seats: [seat('player', player.displayName, true), seat('bot-1', 'Mack', false), seat('bot-2', 'Rico', false)],
       };
       const row = await tx.casinoPokerHand.create({ data: {

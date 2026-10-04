@@ -57,6 +57,22 @@ export function configProblems(values, expect) {
     if (/beta/i.test(cookie)) problems.push(`production must not use a beta session cookie ("${cookie}").`);
     if (values.get('NODE_ENV') !== 'production') problems.push('production must set NODE_ENV=production.');
   }
+
+  // Production and beta require verified email by default. Refuse a deploy that
+  // would lock new password accounts behind a verification message the server
+  // has no credentials to send.
+  const verificationRequired = values.get('REQUIRE_VERIFIED_EMAIL')
+    ? values.get('REQUIRE_VERIFIED_EMAIL') === 'true'
+    : expect === 'production' || expect === 'beta';
+  if (verificationRequired) {
+    const missingMail = [
+      !values.get('RESEND_API_KEY') && 'RESEND_API_KEY',
+      !values.get('EMAIL_FROM') && 'EMAIL_FROM',
+    ].filter(Boolean);
+    if (missingMail.length) {
+      problems.push(`email verification is required but ${missingMail.join(' and ')} ${missingMail.length === 1 ? 'is' : 'are'} missing.`);
+    }
+  }
   return problems;
 }
 
