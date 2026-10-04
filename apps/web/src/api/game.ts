@@ -1,9 +1,9 @@
-import type { GameSnapshotDto, PlayerExperienceDto } from '@streets/shared';
+import type { GameSnapshotDto, PlayerExperienceDto, PlayerExperienceEventDto } from '@streets/shared';
 import { api } from './client.js';
 
 export const gameApi = {
   /** Account-wide lifetime XP, available even when not in an active season. */
-  experience: () => api.get<{ experience: PlayerExperienceDto }>('/game/experience'),
+  experience: () => api.get<{ experience: PlayerExperienceDto; events: PlayerExperienceEventDto[] }>('/game/experience'),
 
   /**
    * Section 45. The whole dashboard in one request.
