@@ -2308,6 +2308,27 @@ export interface CasinoPokerRules {
   readonly venueKinds: readonly CasinoVenueKind[];
 }
 
+/** 1.3.0-A. The Wanted ladder's stages, lowest first. */
+export type WantedStage = 'QUIET' | 'NOTICED' | 'INVESTIGATION' | 'WARRANT' | 'FEDERAL';
+
+/**
+ * 1.3.0-A. Law enforcement: what each city's police have on a player.
+ *
+ * Heat (0.4.0-C) stays the fast, global noise meter and is not changed by any of this.
+ * The Case is the slow, per-city memory on top of it: a number from 0 to `caseMax` for
+ * every city a player has drawn Heat in, read as a stage on the Wanted ladder. It is
+ * private to its player and resets with the round. A only builds and shows it; later
+ * slices add direct evidence, cooling, warrants, officials and lawyers.
+ */
+export interface LawRules {
+  /** The most a Case in one city can hold. */
+  readonly caseMax: number;
+  /** The Case at which each stage above Quiet starts. Ascending. */
+  readonly stages: { readonly noticed: number; readonly investigation: number; readonly warrant: number; readonly federal: number };
+  /** Share of the Heat a player draws in a city that becomes Case there. */
+  readonly heatToCase: number;
+}
+
 /**
  * 1.2.0-A. Casino foundation: venues, cashier limits and session bankrolls.
  * 1.2.0-B adds server-authoritative Slots.
@@ -2424,5 +2445,7 @@ export interface Ruleset {
   readonly business?: BusinessRules;
   /** 1.2.0-A. Absent before casinos become player destinations. */
   readonly casino?: CasinoRules;
+  /** 1.3.0-A. Absent before the law keeps a Case. Never changes how `heat` behaves. */
+  readonly law?: LawRules;
   readonly evidence: EvidenceRules;
 }
