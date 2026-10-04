@@ -33,6 +33,7 @@ import { lockRoundPlayer } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
 import { staffColumns } from './business.service.js';
+import { LawService } from './law.service.js';
 import { CombatRecoveryService } from './combat-recovery.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
@@ -777,6 +778,7 @@ export const BlockWarSettleService = {
     const productLoot: Record<string, number> = {};
     let heat = player.heat;
     let heatAdded = 0;
+    const caseHeat: Array<{ squadId: string; warId: string; heat: number }> = [];
     let guns: CornerGuns = { pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s };
 
     for (const squad of pending) {
@@ -830,7 +832,10 @@ export const BlockWarSettleService = {
             productLoot[key] = (productLoot[key] ?? 0) + quantity;
           }
         }
-        if (squad.heat > 0) heatAdded += squad.heat;
+        if (squad.heat > 0) {
+          heatAdded += squad.heat;
+          caseHeat.push({ squadId: squad.id, warId: squad.warId, heat: squad.heat });
+        }
       }
 
       if (done && payoutRemaining > 0n) {
@@ -916,5 +921,17 @@ export const BlockWarSettleService = {
       where: { id: playerId },
       data: { busyThugs, postedThugs, postedNetWorthCents, outpostNetWorthCents, cashCents, beer, heat, ...guns, ...clock },
     });
+    // 1.3.0-A: a sack's Heat builds a Case in the city the block is in.
+    if (caseHeat.length && ruleset.law && ruleset.heat) {
+      const wars = await tx.blockWar.findMany({
+        where: { id: { in: [...new Set(caseHeat.map((row) => row.warId))] } },
+        select: { id: true, turf: { select: { cityId: true } } },
+      });
+      const cityOf = new Map(wars.map((war) => [war.id, war.turf.cityId]));
+      await LawService.recordHeat(tx, playerId, ruleset, caseHeat.flatMap((row) => {
+        const cityId = cityOf.get(row.warId);
+        return cityId ? [{ cityId, heat: row.heat, source: 'SACK' as const, sourceKey: `sack:${row.squadId}` }] : [];
+      }), now);
+    }
   },
 };

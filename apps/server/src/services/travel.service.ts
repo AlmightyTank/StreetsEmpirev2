@@ -787,6 +787,8 @@ export const TravelService = {
             heat: town.heat ? { before: current.heat, added, after: heatAfter } : null,
             trouble,
           },
+          // 1.3.0-A: the sale's Heat builds a Case in the town it was sold in.
+          ...(town.heat && added > 0 ? { caseHeat: [{ citySlug: city, heat: added, source: 'RUN_SALE' as const }] } : {}),
           ledger: [
             {
               source: 'RUN_TRADE',

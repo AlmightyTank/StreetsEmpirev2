@@ -32,6 +32,8 @@ const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
   'ALLIANCE_CALL',
   'REVENGE_EXPIRING',
   'SPECIAL_ORDER_READY',
+  // 1.3.0-A. A Case reaching a new Wanted stage always reaches the bell.
+  'CASE_STAGE_UP',
 ]);
 
 function objectPayload(payload: Prisma.InputJsonValue): Record<string, unknown> {

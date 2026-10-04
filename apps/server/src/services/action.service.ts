@@ -37,6 +37,7 @@ import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
 import { StreetPassCredService } from './street-pass-cred.service.js';
+import { LawService, type CaseHeat } from './law.service.js';
 
 async function casinoCashEquivalentCents(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<bigint> {
   if (!ruleset.casino?.enabled) return 0n;
@@ -168,6 +169,11 @@ export interface ActionOutcome<T> {
    * that do not touch reputation leave this out.
    */
   reputation?: ReputationChange[];
+  /**
+   * 1.3.0-A. Heat the action drew, by city, for the Case. A gain with no city is the
+   * player's home. Keys come from the action id, so a replay never adds evidence twice.
+   */
+  caseHeat?: Array<Omit<CaseHeat, 'sourceKey'>>;
 }
 
 export interface RunActionOptions<T> {
@@ -471,6 +477,16 @@ export const ActionService = {
 
       if (outcome.reputation?.length) {
         await ReputationService.write(tx, roundPlayerId, outcome.reputation);
+      }
+      if (outcome.caseHeat?.length && ruleset.law) {
+        const key = options.actionId
+          ? `action:${idempotencyAction}:${options.actionId}`
+          : `action:${idempotencyAction}:${now.toISOString()}`;
+        await LawService.recordHeat(tx, roundPlayerId, ruleset, outcome.caseHeat.map((gain, index) => ({
+          ...(gain.cityId || gain.citySlug ? {} : { cityId: player.cityId }),
+          ...gain,
+          sourceKey: `${key}:${index}`,
+        })), now);
       }
       // The action may have moved product rows, so they are read again.
       const afterProducts = beforeProducts && (await HappinessService.otherProducts(tx, roundPlayerId, ruleset));

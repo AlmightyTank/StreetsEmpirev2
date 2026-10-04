@@ -34,6 +34,7 @@ import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ProductInventoryService } from './product-inventory.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { blockFatigueNow } from './block-war-settle.service.js';
+import { LawService } from './law.service.js';
 
 const HOUR_MS = 3_600_000;
 
@@ -284,6 +285,8 @@ export const BusinessService = {
       if (effect?.kind === 'HEAT_SHIELD' && operates(row)) shield = Math.max(shield, effect.share * strengthOf(row, row.staff));
     }
     let racketHeat = 0;
+    // 1.3.0-A: the same Heat by the city each racket runs in, for the Case.
+    const racketHeatByCity = new Map<string, number>();
     let counterCents = 0n;
     const counterSold: Record<string, number> = {};
     const launders: Array<{ id: string; heat: number }> = [];
@@ -373,7 +376,9 @@ export const BusinessService = {
         if (racket && suppliedShare > 0) {
           const strength = strengthOf(row, row.staff);
           const effect = racketType(ruleset, racket)!.effect;
-          racketHeat += racketHeatPerHour(ruleset, racket, strength, shield) * wholeHours * suppliedShare;
+          const drawn = racketHeatPerHour(ruleset, racket, strength, shield) * wholeHours * suppliedShare;
+          racketHeat += drawn;
+          racketHeatByCity.set(row.turf.cityId, (racketHeatByCity.get(row.turf.cityId) ?? 0) + drawn);
           if (effect.kind === 'LAUNDER') launders.push({ id: row.id, heat: effect.heatPerHour * strength * wholeHours * suppliedShare });
           if (effect.kind === 'COUNTER_SALES') {
             // Product goes over the counter at Pip's base price, as far as the register has room.
@@ -449,6 +454,9 @@ export const BusinessService = {
       }
       Object.assign(heatData, { heat, turns: regen.turns, lastTurnCalculationAt: regen.lastTurnCalculationAt });
       if (launderedHeat > 0) Object.assign(heatData, { launderedDay: today, launderedHeatToday: usedToday, launderedHeatRound: usedRound });
+      await LawService.recordHeat(tx, roundPlayerId, ruleset, [...racketHeatByCity.entries()]
+        .filter(([, drawn]) => drawn > 0)
+        .map(([cityId, drawn]) => ({ cityId, heat: drawn, source: 'RACKETS' as const, sourceKey: `rackets:${cityId}:${now.toISOString()}` })), now);
     }
 
     // E: away registers sweep into the outpost cash box. If the box is full, the

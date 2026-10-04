@@ -392,6 +392,7 @@ export const ConvoyService = {
         // The squad takes its guns from home and, from home, burns its raid supply going out.
         let next = { ...current, turns: current.turns - rules.turnCost };
         let boost: CrewSnapshot['boost'] = null;
+        let drawnHeat = 0;
         if (source === 'HOME' && ruleset.combatSupply) {
           const policy = await tx.workSupplyPolicy.findUnique({ where: { roundPlayerId_job: { roundPlayerId: attackerId, job: RAID_JOB } } });
           if (policy) {
@@ -399,6 +400,7 @@ export const ConvoyService = {
             const supply = planWorkSupply({ job: RAID_JOB, role: 'fighters', workers: input.squad, turns: 1, ruleset, policy, inventory: { ...products, [CRACK]: current.crack } });
             await WorkSupplyService.consume(tx, attackerId, ruleset, supply);
             boost = { strength: supply.takeMultiplier, wounds: supply.woundMultiplier };
+            drawnHeat = ruleset.heat ? supply.heat : 0;
             next = { ...next, crack: next.crack - (supply.consumed[CRACK] ?? 0), heat: ruleset.heat ? Math.min(ruleset.heat.max, next.heat + Math.round(supply.heat)) : next.heat };
           }
         }
@@ -415,7 +417,11 @@ export const ConvoyService = {
         });
         // Nobody is told. The owner's lookouts may spot it in its last minutes.
         const result: ConvoyTailResult = { tailId: tail.id, landsAt: landsAt.toISOString(), city, cityName: cityName(base, city), squad: input.squad, turns: rules.turnCost };
-        return { next, result, activity: { type: 'CONVOY_TAIL', payload: json({ ...result, owner: owner.displayName }) } };
+        return {
+          next, result, activity: { type: 'CONVOY_TAIL', payload: json({ ...result, owner: owner.displayName }) },
+          // 1.3.0-A: the supply the squad burned leaving home draws its Heat there.
+          ...(drawnHeat > 0 ? { caseHeat: [{ heat: drawnHeat, source: 'CONVOY' as const }] } : {}),
+        };
       },
     }, now);
   },

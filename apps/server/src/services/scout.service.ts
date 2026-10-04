@@ -335,6 +335,8 @@ export const ScoutService = {
               ...(trip.heat ? { heat: trip.heat.after, heatAdded: trip.heat.added, busted: trip.heat.busted, fineCents: trip.heat.fineCents } : {}),
             },
           },
+          // 1.3.0-A: the Heat the trip drew builds the Case at home.
+          ...(trip.heat?.added ? { caseHeat: [{ heat: trip.heat.added, source: 'SCOUT' as const }] } : {}),
         };
       },
     });

@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient, Round } from '@prisma/client';
 import { hashParts, rulesetForCity, type Ruleset } from '@streets/rules-engine';
 import { lockRound, type Db } from '../utils/db.js';
 import { PlayerStateService } from './player-state.service.js';
+import { LawService } from './law.service.js';
 import { ACTIVE_WAR, BlockWarSettleService } from './block-war-settle.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import {
@@ -245,6 +246,10 @@ export const TurfCrackdownService = {
           netWorthCents: player.netWorthCents > lostWorth ? player.netWorthCents - lostWorth : 0n,
         },
       });
+      // 1.3.0-A: the sweep's Heat builds a Case in the swept city.
+      if (living.heat) {
+        await LawService.recordHeat(tx, holderId, ruleset, [{ cityId: event.cityId, heat: requestedHeat, source: 'CRACKDOWN', sourceKey: `crackdown:${event.id}` }], event.sweepAt);
+      }
 
       results.push({
         roundPlayerId: holderId,

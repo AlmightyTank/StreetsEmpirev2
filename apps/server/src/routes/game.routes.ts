@@ -38,6 +38,7 @@ import { AppError } from '../utils/errors.js';
 import { onboardingActionSchema } from '@streets/shared';
 import { OnboardingService } from '../services/onboarding.service.js';
 import { PlayerExperienceService } from '../services/player-experience.service.js';
+import { LawService } from '../services/law.service.js';
 
 const RECENT_ACTIVITY_LIMIT = 10;
 
@@ -77,10 +78,11 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       markActive: !isBackground,
     });
 
-    const [playerCount, recentActivity, streetPass] = await Promise.all([
+    const [playerCount, recentActivity, streetPass, law] = await Promise.all([
       RoundService.playerCount(fastify.prisma, round.id),
       ActivityService.recent(fastify.prisma, existing.id, RECENT_ACTIVITY_LIMIT),
       StreetPassService.summary(fastify.prisma, existing.id, settled.ruleset),
+      LawService.summary(fastify.prisma, existing.id, settled.ruleset),
     ]);
 
     const snapshot = toGameSnapshotDto({
@@ -97,7 +99,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       recentActivity,
     });
     const experience = await PlayerExperienceService.view(fastify.prisma, settled.player.accountId);
-    return { ...snapshot, player: { ...snapshot.player, streetPass, experience } };
+    return { ...snapshot, player: { ...snapshot.player, streetPass, experience, ...(law ? { law } : {}) } };
   });
 
   /**

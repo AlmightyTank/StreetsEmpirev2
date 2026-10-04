@@ -15,6 +15,7 @@ import { WireService } from '../services/wire.service.js';
 import { WorkSupplyService } from '../services/work-supply.service.js';
 import { HeatService, toHeatDto } from '../services/heat.service.js';
 import { PlayerStateService } from '../services/player-state.service.js';
+import { LawService } from '../services/law.service.js';
 import { PlayerDirectoryService } from '../services/player-directory.service.js';
 import { TurfActionService } from '../services/turf-action.service.js';
 import { BusinessActionService } from '../services/business-action.service.js';
@@ -214,6 +215,14 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/heat/bribe', { preHandler: app.requireAuth }, async (request) =>
     HeatService.bribe(app.prisma, await me(request.auth!.account.id), parseBody(heatBribeSchema, request.body ?? {})));
+
+  /** 1.3.0-A: what each city's police have on you. Only ever the asking player's own Case. */
+  app.get('/law', { preHandler: app.requireAuth }, async (request) => {
+    const settled = await PlayerStateService.settle(app.prisma, await me(request.auth!.account.id), { markActive: false });
+    const page = await LawService.page(app.prisma, settled.player.id, settled.player.cityId, settled.ruleset);
+    if (!page) throw AppError.conflict('LAW_DISABLED', 'The police keep no Case in this round.');
+    return page;
+  });
 
   /** 0.9.0-A: discover current-round players without exposing recon or precise activity timestamps. */
   app.get('/players', { preHandler: app.requireAuth }, async (request) =>
