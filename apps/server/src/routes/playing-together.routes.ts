@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, businessBuildSchema, blockWarAnswerSchema, blockWarCallSchema, blockWarDeclareSchema, blockWarEndSchema, blockWarSendSchema, businessCollectSchema, businessRacketSchema, businessStaffSchema, businessTorchSchema, bossHitBackupSchema, bossHitCallSchema, bossHitSchema, heatBribeSchema, lawCorruptionSchema, productTradeSchema, runOutpostEstablishSchema, runOutpostTransferSchema, sitDownAnswerSchema, sitDownProposeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripOutpostVisitSchema, tripRentGunsSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushBackupSchema, turfPushCallSchema, turfPushSchema, updateContactKindSchema, updateContactSchema, wirePinSchema, wirePostSchema, workSupplyClearSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
+import { addContactSchema, businessBuildSchema, blockWarAnswerSchema, blockWarCallSchema, blockWarDeclareSchema, blockWarEndSchema, blockWarSendSchema, businessCollectSchema, businessRacketSchema, businessStaffSchema, businessTorchSchema, bossHitBackupSchema, bossHitCallSchema, bossHitSchema, heatBribeSchema, lawCorruptionSchema, lawyerActionSchema, officialHireSchema, productTradeSchema, runOutpostEstablishSchema, runOutpostTransferSchema, sitDownAnswerSchema, sitDownProposeSchema, tipBuySchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripOutpostVisitSchema, tripRentGunsSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushBackupSchema, turfPushCallSchema, turfPushSchema, updateContactKindSchema, updateContactSchema, wirePinSchema, wirePostSchema, workSupplyClearSchema, workSupplyPolicySchema, workSupplyPreviewSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
 import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
@@ -14,8 +14,10 @@ import { RoundService } from '../services/round.service.js';
 import { WireService } from '../services/wire.service.js';
 import { WorkSupplyService } from '../services/work-supply.service.js';
 import { HeatService, toHeatDto } from '../services/heat.service.js';
-import { LawService, toLawDto } from '../services/law.service.js';
+import { LawService } from '../services/law.service.js';
 import { PlayerStateService } from '../services/player-state.service.js';
+import { LawWarrantService } from '../services/law-warrant.service.js';
+import { LawOfficialService } from '../services/law-official.service.js';
 import { PlayerDirectoryService } from '../services/player-directory.service.js';
 import { TurfActionService } from '../services/turf-action.service.js';
 import { BusinessActionService } from '../services/business-action.service.js';
@@ -26,6 +28,8 @@ import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 
 const postParams = z.object({ postId: z.string().min(1).max(64) }).strict();
+const warrantParams = z.object({ warrantId: z.string().min(1).max(64) }).strict();
+const officialParams = z.object({ officialId: z.string().min(1).max(64) }).strict();
 const pimpParams = z.object({ publicPimpId: z.coerce.number().int().min(1).max(2_147_483_647) }).strict();
 const wireQuery = z.object({ before: z.string().min(1).max(64).optional() }).strict();
 const playerDirectoryQuery = z.object({
@@ -216,15 +220,57 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
   app.post('/heat/bribe', { preHandler: app.requireAuth }, async (request) =>
     HeatService.bribe(app.prisma, await me(request.auth!.account.id), parseBody(heatBribeSchema, request.body ?? {})));
 
+  /** 1.3.0-A: what each city's police have on you. Only ever the asking player's own Case. */
   app.get('/law', { preHandler: app.requireAuth }, async (request) => {
-    const settled = await PlayerStateService.settle(app.prisma, await me(request.auth!.account.id), { markActive: true });
-    const law = toLawDto(settled.player.lawAttention, settled.player.lawEvidence, settled.player.netWorthCents, settled.ruleset);
-    if (!law) throw AppError.conflict('LAW_DISABLED', 'The law is not tracking this round.');
-    return law;
+    const settled = await PlayerStateService.settle(app.prisma, await me(request.auth!.account.id), { markActive: false });
+    const page = await LawService.page(app.prisma, settled.player.id, settled.player.cityId, settled.ruleset);
+    if (!page) throw AppError.conflict('LAW_DISABLED', 'The police keep no Case in this round.');
+    const withWarrants = await LawWarrantService.decoratePage(app.prisma, page, settled.player.id);
+    return LawOfficialService.decoratePage(app.prisma, withWarrants, settled.player.id);
   });
 
+  /** 1.3.0-F: bury attention with cash, while the older law pressure system stays on the API. */
   app.post('/law/corruption', { preHandler: app.requireAuth }, async (request) =>
     LawService.corruption(app.prisma, await me(request.auth!.account.id), parseBody(lawCorruptionSchema, request.body ?? {})));
+
+  /** 1.3.0-D: corrupt officials on your payroll, and a DA quashing one of your warrants. */
+  app.post('/law/officials', { preHandler: app.requireAuth }, async (request) =>
+    LawOfficialService.hire(app.prisma, await me(request.auth!.account.id), parseBody(officialHireSchema, request.body ?? {})));
+
+  app.post('/law/officials/:officialId/pay', { preHandler: app.requireAuth }, async (request) => {
+    const { officialId } = parseBody(officialParams, request.params);
+    const { actionId } = parseBody(lawyerActionSchema, request.body ?? {});
+    return LawOfficialService.payWeek(app.prisma, await me(request.auth!.account.id), officialId, actionId);
+  });
+
+  app.post('/law/officials/:officialId/cut', { preHandler: app.requireAuth }, async (request) => {
+    const { officialId } = parseBody(officialParams, request.params);
+    const { actionId } = parseBody(lawyerActionSchema, request.body ?? {});
+    return LawOfficialService.cut(app.prisma, await me(request.auth!.account.id), officialId, actionId);
+  });
+
+  app.post('/law/warrants/:warrantId/quash', { preHandler: app.requireAuth }, async (request) => {
+    const { warrantId } = parseBody(warrantParams, request.params);
+    const { actionId } = parseBody(lawyerActionSchema, request.body ?? {});
+    return LawOfficialService.quash(app.prisma, await me(request.auth!.account.id), warrantId, actionId);
+  });
+
+  /** 1.3.0-D: buy a tip from an informant. */
+  app.post('/law/tips', { preHandler: app.requireAuth }, async (request) =>
+    LawOfficialService.buyTip(app.prisma, await me(request.auth!.account.id), parseBody(tipBuySchema, request.body ?? {})));
+
+  /** 1.3.0-C: answer one of your own warrants with a lawyer, during its window. */
+  app.post('/law/warrants/:warrantId/lawyer', { preHandler: app.requireAuth }, async (request) => {
+    const { warrantId } = parseBody(warrantParams, request.params);
+    const { actionId } = parseBody(lawyerActionSchema, request.body ?? {});
+    return LawWarrantService.lawyerUp(app.prisma, await me(request.auth!.account.id), warrantId, actionId);
+  });
+
+  /** 1.3.0-C: keep a lawyer on retainer. */
+  app.post('/law/lawyer/retain', { preHandler: app.requireAuth }, async (request) => {
+    const { actionId } = parseBody(lawyerActionSchema, request.body ?? {});
+    return LawWarrantService.retain(app.prisma, await me(request.auth!.account.id), actionId);
+  });
 
   /** 0.9.0-A: discover current-round players without exposing recon or precise activity timestamps. */
   app.get('/players', { preHandler: app.requireAuth }, async (request) =>

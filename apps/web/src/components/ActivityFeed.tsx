@@ -2,6 +2,7 @@ import type { ActivityDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen } from '../utils/time.js';
+import { formatCase, wantedStageName, warrantTargetName } from '../utils/law.js';
 
 /** 0.9.0-G. When a pending push, tail or window happens, in the player's own clock. */
 function atTime(iso: string): string {
@@ -330,6 +331,79 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         text: 'Closed the session at ' + str(p.venueName, 'the casino') + ' with ' + formatCents(num(p.bankrollCents)) + '.',
         detail: str(p.cityName),
       };
+    case 'WARRANT_DRAFTED':
+      return {
+        text: str(p.cityName, 'A city') + ' police drafted a warrant: ' + warrantTargetName(str(p.target)).toLowerCase() + (p.businessName ? ' (' + str(p.businessName) + ')' : '') + '.',
+        detail: 'Served ' + formatWhen(str(p.servesAt)) + ' unless you answer it',
+      };
+    case 'WARRANT_SERVED':
+      return {
+        text: str(p.cityName, 'A city') + ' police served their warrant: ' + warrantTargetName(str(p.target)).toLowerCase() + '.',
+        detail: [
+          num(p.fineCents) > 0 ? 'Fined ' + formatCents(num(p.fineCents)) : '',
+          num(p.registerFineCents) > 0 ? 'Register fined ' + formatCents(num(p.registerFineCents)) : '',
+          p.shutUntil ? 'Racket shut until ' + formatWhen(str(p.shutUntil)) : '',
+          p.lockedUntil ? 'Locked up until ' + formatWhen(str(p.lockedUntil)) : '',
+          p.capped ? 'Held to the daily cap' : '',
+        ].filter(Boolean).join(' · '),
+      };
+    case 'OFFICIAL_HIRED':
+      return {
+        text: (p.renewed ? 'Paid another week to the ' : 'Put the ') + str(p.cityName, 'city') + ' ' + str(p.title, 'official') + (p.renewed ? '.' : ' on the payroll.'),
+        detail: formatCents(num(p.weekCents)) + ' · paid until ' + formatWhen(str(p.paidUntil)),
+      };
+    case 'OFFICIAL_IA_OPENED':
+      return {
+        text: 'Internal Affairs opened a file on your ' + str(p.cityName, 'city') + ' ' + str(p.title, 'official') + '.',
+        detail: 'Cut them loose before ' + formatWhen(str(p.stingAt)) + ' or be caught with them',
+      };
+    case 'OFFICIAL_CUT':
+      return {
+        text: 'Cut the ' + str(p.cityName, 'city') + ' ' + str(p.title, 'official') + ' loose.',
+        detail: p.underInvestigation ? 'Ahead of Internal Affairs' : '',
+      };
+    case 'OFFICIAL_STUNG':
+      return {
+        text: 'Internal Affairs caught your ' + str(p.cityName, 'city') + ' ' + str(p.title, 'official') + '.',
+        detail: '+' + formatNumber(num(p.points)) + ' Case in ' + str(p.cityName, 'that city'),
+      };
+    case 'WARRANT_QUASHED':
+      return {
+        text: 'Your District Attorney quashed the ' + str(p.cityName, 'city') + ' warrant.',
+        detail: warrantTargetName(str(p.target)),
+      };
+    case 'CAPTAIN_TIP':
+      return {
+        text: 'Your ' + str(p.cityName, 'city') + ' Captain says the file is close to a warrant.',
+        detail: 'Case ' + formatCase(num(p.case)) + ' of ' + formatNumber(num(p.warrantAt)),
+      };
+    case 'INFORMANT_TIP':
+      return {
+        text: p.kind === 'SWEEP'
+          ? 'An informant says the Feds sweep ' + str(p.cityName, 'a city') + ' ' + formatWhen(str(p.sweepAt)) + '.'
+          : 'An informant laid out how the ' + str(p.cityName, 'city') + ' police work.',
+        detail: 'Paid ' + formatCents(num(p.feeCents)),
+      };
+    case 'CASE_FOLLOWED':
+      return {
+        text: 'Your federal case followed you from ' + str(p.fromCityName, 'your old city') + ' to ' + str(p.toCityName, 'your new home') + '.',
+        detail: 'Case ' + formatCase(num(p.case)) + ' there · ' + str(p.fromCityName, 'the old city') + ' keeps ' + formatCase(num(p.oldCityCase)),
+      };
+    case 'WARRANT_LAWYERED':
+      return {
+        text: 'A lawyer answered the ' + str(p.cityName, 'city') + ' warrant.',
+        detail: 'Fee ' + formatCents(num(p.feeCents)),
+      };
+    case 'LAWYER_RETAINED':
+      return {
+        text: 'A lawyer is on retainer until ' + formatWhen(str(p.retainedUntil)) + '.',
+        detail: 'Fee ' + formatCents(num(p.feeCents)),
+      };
+    case 'CASE_STAGE_UP':
+      return {
+        text: str(p.cityName, 'A city') + ' police now have you at ' + wantedStageName(str(p.stage)) + '.',
+        detail: 'Case ' + formatCase(num(p.case)) + ' · private to you',
+      };
     case 'CASINO_STATUS_UP':
       return {
         text: 'The casinos now know you as ' + str(p.tierName, 'a regular') + '.',
@@ -654,6 +728,19 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     CASINO_SESSION_OPENED: 'Casino session',
     CASINO_SESSION_CLOSED: 'Casino session closed',
     CASINO_STATUS_UP: 'Casino status',
+    CASE_STAGE_UP: 'Case',
+    WARRANT_DRAFTED: 'Warrant',
+    WARRANT_SERVED: 'Warrant served',
+    WARRANT_LAWYERED: 'Lawyered up',
+    LAWYER_RETAINED: 'Lawyer',
+    OFFICIAL_HIRED: 'Payroll',
+    OFFICIAL_IA_OPENED: 'Internal Affairs',
+    OFFICIAL_CUT: 'Payroll',
+    OFFICIAL_STUNG: 'Sting',
+    WARRANT_QUASHED: 'Warrant quashed',
+    CAPTAIN_TIP: 'Captain',
+    INFORMANT_TIP: 'Informant',
+    CASE_FOLLOWED: 'Federal case',
     CASINO_COMP_HOTEL: 'Comped hotel',
   };
   return aliases[type] ?? String(type).replace(/_/g, ' ').toLowerCase();

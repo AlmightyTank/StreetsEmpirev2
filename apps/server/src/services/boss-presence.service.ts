@@ -34,7 +34,7 @@ export async function bossPresence(db: Db | PrismaClient, ruleset: Ruleset, play
 }
 
 /** Trips D2. The city a boss is standing in: where they are visiting, or home if they are not away at all. */
-async function standingIn(db: Db | PrismaClient, ruleset: Ruleset, player: { id: string; movingUntil: Date | null; city: { slug: string } }, now: Date): Promise<{ city: string; visiting: boolean } | null> {
+export async function standingIn(db: Db | PrismaClient, ruleset: Ruleset, player: { id: string; movingUntil: Date | null; city: { slug: string } }, now: Date): Promise<{ city: string; visiting: boolean } | null> {
   const presence = await bossPresence(db, ruleset, player.id, now);
   if (presence) return { city: presence.city, visiting: true };
   // A boss moving house is on the road, though their home is still the old city until arrival.

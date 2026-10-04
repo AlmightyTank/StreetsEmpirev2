@@ -1171,7 +1171,12 @@ export interface RelocationDto {
   moving: { from: string; fromName: string; to: string; toName: string; startedAt: string; arrivesAt: string } | null;
   heat: number;
   here: HeatThereDto | null;
-  destinations: Array<{ slug: string; name: string; heat: HeatThereDto | null; reachable: boolean }>;
+  destinations: Array<{ slug: string; name: string; heat: HeatThereDto | null; reachable: boolean; caseOnArrival?: number | null }>;
+  /**
+   * 1.3.0-E. A federal case at home moves with the player: its value, what home keeps, and
+   * (per destination, as `caseOnArrival`) what it becomes there. Null when nothing follows.
+   */
+  federalCase?: { cityName: string; case: number; oldCityCase: number } | null;
   /** 0.6.0-D. Exact turf conversion preview keyed by destination slug. */
   turfPlans: Record<string, RelocationTurfPlanDto>;
 }

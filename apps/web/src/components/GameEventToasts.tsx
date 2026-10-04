@@ -293,6 +293,32 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
     case 'REVENGE_EXPIRING':
       return { title: 'Revenge expires soon', detail, tone: 'warn', href: '/game/combat' };
 
+    case 'WARRANT_DRAFTED':
+      return { title: 'A warrant is out for you', detail, tone: 'bad', href: '/game#case' };
+
+    case 'OFFICIAL_IA_OPENED':
+      return { title: 'Internal Affairs is looking', detail, tone: 'bad', href: '/game#case' };
+
+    case 'OFFICIAL_STUNG':
+      return { title: 'Your official was stung', detail, tone: 'bad', href: '/game#case' };
+
+    case 'CASE_FOLLOWED':
+      return { title: 'Your federal case followed you', detail, tone: 'bad', href: '/game#case' };
+
+    case 'CAPTAIN_TIP':
+      return { title: 'A word from your Captain', detail, tone: 'warn', href: '/game#case' };
+
+    case 'WARRANT_SERVED':
+      return { title: 'A warrant was served', detail, tone: 'bad', href: '/game#case' };
+
+    case 'CASE_STAGE_UP':
+      return {
+        title: 'The police have more on you',
+        detail,
+        tone: p.stage === 'WARRANT' || p.stage === 'FEDERAL' ? 'bad' : 'warn',
+        href: '/game#case',
+      };
+
     case 'SPECIAL_ORDER_READY':
       return {
         title: 'Special order arrived',

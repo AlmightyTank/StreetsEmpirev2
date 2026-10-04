@@ -34,6 +34,7 @@ import { CasinoStatusService, casinoCompBalanceCents, casinoSessionMaxCents } fr
 import { PlayerStateService } from './player-state.service.js';
 import { refreshAwayWorth } from './run-settle.service.js';
 import { pokerCommittedCents } from './casino-poker-committed.js';
+import { LawService } from './law.service.js';
 
 type PlayerRow = RoundPlayer & {
   city: { id: string; slug: string; name: string };
@@ -745,6 +746,8 @@ export const CasinoService = {
       await ActivityService.log(tx, roundPlayerId, 'CASINO_BUY_CHIPS', {
         cityName: city.name, venueName: venue.name, amountCents: Number(amount),
       });
+      // 1.3.0-B: a cage exchange is a cash movement; it never reads or changes a game.
+      await LawService.record(tx, roundPlayerId, ruleset, [{ cityId: city.id, cashCents: amount, source: 'CURRENCY_REPORT', sourceKey: `cage:${input.actionId}` }], now);
     });
   },
 
@@ -774,6 +777,7 @@ export const CasinoService = {
       await ActivityService.log(tx, roundPlayerId, 'CASINO_REDEEM_CHIPS', {
         cityName: city.name, venueName: venue.name, amountCents: Number(amount),
       });
+      await LawService.record(tx, roundPlayerId, ruleset, [{ cityId: city.id, cashCents: amount, source: 'CURRENCY_REPORT', sourceKey: `cage:${input.actionId}` }], now);
     });
   },
 

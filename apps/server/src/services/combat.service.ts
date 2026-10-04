@@ -46,6 +46,7 @@ import { hideoutDefenseBonusPercent, hideoutMedicineEfficiencyPercent, hideoutPr
 import { TimedFavorService } from './timed-favor.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
 import { accountsShareNetwork } from './admin-signals.service.js';
+import { LawService } from './law.service.js';
 
 type CombatRules = NonNullable<Ruleset['combat']>;
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value, (_, v: unknown) => typeof v === 'bigint' ? v.toString() : v));
@@ -468,6 +469,16 @@ async function fightSupply(tx: Prisma.TransactionClient, ruleset: Ruleset, settl
   for (const [key, units] of Object.entries(supply.consumed)) if (key !== 'CRACK') products[key] = (products[key] ?? 0) - units;
   const heat = ruleset.heat ? Math.min(ruleset.heat.max, settled.player.heat + Math.round(supply.heat)) : settled.player.heat;
   return { ...settled, products, supply, player: { ...settled.player, crack: settled.player.crack - (supply.consumed.CRACK ?? 0), heat } };
+}
+
+/** 1.3.0-A. The Heat each side's fight supply drew builds that side's Case at home. */
+async function fightCase(tx: Prisma.TransactionClient, ruleset: Ruleset, battleId: string, now: Date, sides: Array<SettledPlayer & { supply?: WorkSupplyPlan }>): Promise<void> {
+  if (!ruleset.law || !ruleset.heat) return;
+  for (const side of sides) {
+    const heat = side.supply?.heat ?? 0;
+    if (heat <= 0) continue;
+    await LawService.recordHeat(tx, side.player.id, ruleset, [{ cityId: side.player.cityId, heat, source: 'COMBAT', sourceKey: `combat:${battleId}` }], now);
+  }
 }
 
 function boostOf(side: { supply?: WorkSupplyPlan }): CombatBoost | undefined {
@@ -912,6 +923,7 @@ export const CombatService = {
         attackingThugs: input.attackingThugs, modelVersion: model.version,
         calculation: json({ result, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), defenderCashCents: defender.cashCents, defenderCrack: defender.crack }, defenderHideout: { protectedCashBonus, defenseBonusPercent }, ...(bossAwayMultiplier !== 1 ? { bossAwayMultiplier } : {}), retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
+      await fightCase(tx, ruleset, id, now, [a, d]);
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
       if (result.lootCents > 0n) {
@@ -1065,6 +1077,7 @@ export const CombatService = {
         attackingThugs: input.attackingThugs, modelVersion: model.version,
         calculation: json({ result, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset), lowRiders: attacker.lowRiders, defenderWhores: defender.whores }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
+      await fightCase(tx, ruleset, id, now, [a, d]);
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
       for (const [playerId, type, report] of [[attackerId, 'DRIVE_BY_ATTACK', attackerReport], [target.id, 'DRIVE_BY_DEFENSE', defenderReport]] as const) {
@@ -1289,6 +1302,7 @@ export const CombatService = {
         attackingThugs: input.attackingThugs, modelVersion: model.version,
         calculation: json({ kind: input.kind, result, ...(bossAwayMultiplier !== 1 ? { bossAwayMultiplier } : {}), effects: { crackSpent, beerSpent, whoresDrugged, defenderCrackBurned, defenderCondomsBurned, lowRidersStolen, whoresLured, thugsLured }, input: { attacker: crew(attacker, ruleset), defender: crew(defender, ruleset) }, retaliation, rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version }),
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
+      await fightCase(tx, ruleset, id, now, [a, d]);
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt);
       await CombatRecoveryService.add(tx, target.id, id, result.wounds.defender, recoverAt);
       for (const [playerId, type, report] of [[attackerId, 'RAID_ATTACK', attackerReport], [target.id, 'RAID_DEFENSE', defenderReport]] as const) {

@@ -723,3 +723,13 @@
 .se-blockwar__call { align-items: end; }
 .se-blockwar .se-actions-row { flex-wrap: wrap; }
 .se-turfboard__fatigue { display: block; }
+
+/* 1.3.0-A Case */
+.se-case__cities { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
+.se-case__city { display: grid; gap: 4px; }
+.se-case__cityhead { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: 14px; }
+.se-case__city .se-heat__meter { margin: 0; }
+.se-case__lawyer { display: grid; gap: 6px; justify-items: start; }
+.se-case__actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.se-case__hire { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px; margin-top: 8px; }
+.se-case__tips { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }

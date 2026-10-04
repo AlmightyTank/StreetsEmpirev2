@@ -80,6 +80,7 @@ export const CATEGORY_COLUMN = {
   convoy: 'convoyEnabled',
   runs: 'runsEnabled',
   revenge: 'revengeEnabled',
+  law: 'lawEnabled',
   orders: 'ordersEnabled',
   announcements: 'announcementsEnabled',
   messages: 'messagesEnabled',
