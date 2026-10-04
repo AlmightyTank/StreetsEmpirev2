@@ -2,8 +2,8 @@
 
 ## Brainstorm
 
-**Status:** design only. Nothing in 1.3.0 is built. 1.2.0-G (Tournaments) and 1.2.0-H
-(Balance, Admin & Release) are both built, so 1.3.0-A is unblocked.
+**Status:** 1.3.0-A (Case Foundation) is built on ruleset `classic-og-v1.3-a`. B through G are
+still design only.
 
 **Target base:** StreetsEmpire v1.2.0 (`classic-og-v1.2-f`)  
 **Theme (from [ROADMAP-FUTURE.md](ROADMAP-FUTURE.md)):** expand Heat into a deeper city-wide
@@ -338,6 +338,54 @@ entirely should hit it roughly weekly.
 The `law` ruleset block, per-city Case storage, itemised receipts, converted Heat as the
 only source, and the stage ladder. A read-only Case panel next to the existing Heat panel:
 "what they have on you", per city. No consequences yet.
+
+#### Built in A
+
+**Status: implemented.** Ruleset `classic-og-v1.3-a` (1.3.0-A) is 1.2.0-F plus a `law` block:
+`caseMax: 100`, stages at 20 / 40 / 65 / 85, `heatToCase: 0.1`. Nothing else changes.
+
+- **Storage.** `PlayerCase` holds one Case per player per city, in hundredths of a point,
+  so a tenth of a point of Heat still counts. `PlayerCaseReceipt` holds one immutable row
+  per act, unique on `(roundPlayerId, sourceKey)`. Both hang off `RoundPlayer`, so every
+  Case resets with the round.
+- **Heat drawn, not Heat kept.** A receipt records the Heat an act *drew*, before the Heat
+  meter's cap and before any bust or arrest burns Heat off. A player already at max Heat,
+  or one just busted, still builds a Case.
+- **Every Heat source feeds it, in the city the Heat was drawn in:**
+
+  | Source | City | Receipt key |
+  | --- | --- | --- |
+  | Scout, Produce | Home | The action id |
+  | Run sale | The town the run sold in | The action id |
+  | Convoy tail (squad from home) | Home | The action id |
+  | Torching a business | The block's city | The action id |
+  | Fight supply, both sides of a raid, drive-by or special raid | Each side's home | `combat:<battleId>` |
+  | Sacking a block | The block's city | `sack:<squadId>` |
+  | Rackets | Each racket's block city | `rackets:<cityId>:<settle time>` |
+  | Federal sweep | The swept city | `crackdown:<eventId>` |
+
+  Actions report their Heat through a new optional `caseHeat` on the action outcome;
+  `ActionService` keys it on the action id, so a replayed action adds nothing.
+  Settles and the sweep call `LawService.recordHeat` directly.
+- **The ladder.** The stage is read from the Case with no roll. Reaching a higher stage
+  logs `CASE_STAGE_UP` once: it shows in the Activity feed (Street group), rings the
+  bell and raises a toast that links to the panel. Discord delivery is not wired yet.
+- **Private.** `GET /api/game/law` returns only the asking player's Cases and their latest 30
+  receipts. `GET /api/game/me` adds `player.law`, the worst stage anywhere, on 1.3 rounds
+  only. There is no endpoint that reads another player's Case.
+- **Dashboard.** A Case panel under Heat shows each city's stage, a meter, how far it is to
+  the next stage, the ladder, and "What they have on you" (the receipts).
+- **Seed.** The local seed's current round now uses `classic-og-v1.3-a`.
+
+A invariants:
+
+1. Heat, busts, arrests, bribes and every other 1.2.0-F rule behave exactly as before.
+2. A Case only changes through a receipt, and a source key is never counted twice.
+3. A Case stays between 0 and `caseMax` and is stored per city.
+4. The stage is a pure function of the Case.
+5. No player can read another player's Case.
+6. Rulesets before `classic-og-v1.3-a` have no `law` block, write no Case rows and serve no
+   law page.
 
 ### 1.3.0-B — Evidence Sources
 Direct evidence from busts, arrests, sacks, torches, hijacks and rackets, plus currency
