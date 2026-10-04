@@ -93,6 +93,47 @@
 }
 .se-casino-floor__bankroll span { font-size: .75rem; }
 
+.se-poker-lobby { display: grid; gap: .85rem; max-width: 38rem; }
+.se-poker-lobby p { margin: 0; }
+.se-poker-lobby label, .se-poker-actions label { display: grid; gap: .35rem; font-weight: 700; }
+.se-poker-lobby input, .se-poker-actions input { width: 100%; max-width: 14rem; padding: .7rem; border: 1px solid var(--se-border); border-radius: .55rem; color: var(--se-text); background: var(--se-bg); }
+.se-poker-lobby select { width: 100%; max-width: 14rem; padding: .7rem; border: 1px solid var(--se-border); border-radius: .55rem; color: var(--se-text); background: var(--se-bg); }
+.se-poker-lobby small { color: var(--se-muted); line-height: 1.45; }
+.se-poker-lobby--multiplayer { max-width: none; padding: 1rem; border: 1px solid var(--se-border); border-radius: .85rem; background: color-mix(in srgb, var(--se-surface) 85%, transparent); }
+.se-poker-lobby--multiplayer h3 { margin: 0; }
+.se-poker-table-list { display: grid; gap: .6rem; }
+.se-poker-table-list article { display: grid; gap: .4rem; padding: .8rem; border: 1px solid var(--se-border); border-radius: .7rem; background: var(--se-bg); }
+.se-poker-table-list article > span, .se-poker-table-list article > small { color: var(--se-muted); }
+.se-poker-table-list__actions { display: flex; flex-wrap: wrap; gap: .45rem; }
+.se-poker-table { display: grid; gap: 1rem; }
+.se-poker-table__meta { display: flex; justify-content: space-between; align-items: center; gap: 1rem; color: var(--se-muted); font-size: .85rem; letter-spacing: .08em; }
+.se-poker-table__meta strong { color: var(--se-text); font-size: 1.1rem; letter-spacing: 0; }
+.se-poker-table__board { display: flex; justify-content: center; flex-wrap: wrap; gap: .45rem; padding: 1rem; min-height: 6.5rem; border: 1px solid color-mix(in srgb, var(--se-accent) 40%, var(--se-border)); border-radius: .8rem; background: radial-gradient(ellipse at center, color-mix(in srgb, var(--se-accent) 17%, #092318), #07150f 76%); }
+.se-poker-card { display: inline-grid; place-content: center; width: clamp(2.65rem, 10vw, 3.65rem); aspect-ratio: .72; border-radius: .38rem; background: #f7f5e8; color: #141820; box-shadow: 0 2px 5px #0007; font-family: var(--se-mono); font-weight: 800; text-align: center; }
+.se-poker-card strong { font-size: 1.1rem; line-height: 1.1; }
+.se-poker-card span { font-size: 1.15rem; line-height: 1.1; }
+.se-poker-card.is-red { color: #c93239; }
+.se-poker-card--back { color: #c9a85e; background: repeating-linear-gradient(135deg, #17372b, #17372b 5px, #214c3a 5px, #214c3a 10px); border: 2px solid #d6bd79; }
+.se-poker-table__seats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; }
+.se-poker-seat { display: grid; gap: .5rem; padding: .7rem; border: 1px solid var(--se-border); border-radius: .7rem; background: var(--se-surface); }
+.se-poker-seat.is-human { border-color: color-mix(in srgb, var(--se-accent) 65%, var(--se-border)); }
+.se-poker-seat.is-folded { opacity: .62; }
+.se-poker-seat.is-turn { box-shadow: 0 0 0 2px color-mix(in srgb, var(--se-accent) 68%, transparent); }
+.se-poker-table--multiplayer { padding: 1rem; border: 1px solid color-mix(in srgb, var(--se-accent) 45%, var(--se-border)); border-radius: .9rem; background: color-mix(in srgb, var(--se-accent) 5%, var(--se-surface)); }
+.se-poker-seat__heading { display: flex; justify-content: space-between; gap: .4rem; align-items: baseline; flex-wrap: wrap; }
+.se-poker-seat__heading span, .se-poker-seat small { color: var(--se-muted); font-size: .82rem; }
+.se-poker-seat__cards { display: flex; gap: .3rem; }
+.se-poker-seat__hand { color: var(--se-accent); font-weight: 700; }
+.se-poker-actions { display: flex; align-items: end; justify-content: space-between; flex-wrap: wrap; gap: .8rem; padding-top: .85rem; border-top: 1px solid var(--se-border); }
+.se-poker-actions > span { margin-right: auto; color: var(--se-muted); }
+.se-poker-actions > div { display: flex; flex-wrap: wrap; gap: .5rem; }
+@media (max-width: 650px) {
+  .se-poker-table__seats { grid-template-columns: 1fr; }
+  .se-poker-actions { align-items: stretch; }
+  .se-poker-actions > div { width: 100%; }
+  .se-poker-actions > div .se-btn { flex: 1 1 40%; }
+}
+
 .se-casino-games {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -116,6 +157,8 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+  color: inherit;
+  text-decoration: none;
   transition: border-color .15s ease, background .15s ease, transform .15s ease, box-shadow .15s ease;
 }
 .se-casino-game-tab:hover {
@@ -230,7 +273,8 @@
   .se-casino-floor__bankroll strong { justify-self: end; }
   .se-casino-floor__bankroll span { grid-column: 1 / -1; }
   .se-casino-games {
-    grid-auto-columns: minmax(8.9rem, 44%);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: row;
     gap: .35rem;
     padding: .3rem;
   }
@@ -240,7 +284,7 @@
     padding: .42rem .5rem;
   }
   .se-casino-game-tab__icon { width: 2.1rem; height: 2.1rem; font-size: 1.05rem; }
-  .se-casino-game-tab__copy strong { font-size: .88rem; }
+  .se-casino-game-tab__copy strong { font-size: .88rem; white-space: normal; line-height: 1.1; }
   .se-casino-game-tab__copy small { font-size: .6rem; }
   .se-casino-placeholder {
     min-height: 15rem;
@@ -1151,6 +1195,7 @@
   gap: .7rem;
   min-height: 6.5rem;
   align-items: center;
+  perspective: 34rem;
 }
 .se-street-dice__dice span {
   width: 4.8rem;
@@ -1164,9 +1209,11 @@
   font-size: 3.5rem;
   line-height: 1;
   box-shadow: 0 .4rem .8rem rgb(0 0 0 / .3);
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
 }
-.se-street-dice__dice.is-rolling span:first-child { animation: se-die-roll-a .55s ease-in-out infinite; }
-.se-street-dice__dice.is-rolling span:last-child { animation: se-die-roll-b .55s ease-in-out infinite reverse; }
+.se-street-dice__dice.is-rolling span:first-child { animation: se-die-roll-a .82s cubic-bezier(.32,.02,.55,.96) infinite; }
+.se-street-dice__dice.is-rolling span:last-child { animation: se-die-roll-b .71s cubic-bezier(.4,.02,.62,.98) -.18s infinite; }
 
 .se-street-dice__call {
   grid-column: 1 / -1;
@@ -1258,35 +1305,34 @@
 .se-street-dice__history .is-win { color: var(--se-accent); }
 
 @keyframes se-die-roll-a {
-  0% { transform: rotate(0deg) translateY(0); }
-  50% { transform: rotate(135deg) translateY(-5px); }
-  100% { transform: rotate(270deg) translateY(0); }
+  0% { transform: translate3d(0, 0, 0) rotateX(0) rotateY(0) rotateZ(0) scale(1); box-shadow: 0 .3rem .65rem rgb(0 0 0 / .28); }
+  24% { transform: translate3d(-.2rem, -1.15rem, 1.8rem) rotateX(155deg) rotateY(78deg) rotateZ(38deg) scale(1.08); box-shadow: 0 1.15rem 1rem rgb(0 0 0 / .38); }
+  53% { transform: translate3d(.12rem, -.48rem, .6rem) rotateX(310deg) rotateY(214deg) rotateZ(168deg) scale(1.03); }
+  76% { transform: translate3d(.08rem, .12rem, 0) rotateX(418deg) rotateY(325deg) rotateZ(248deg) scale(.96); }
+  88% { transform: translate3d(0, -.16rem, 0) rotateX(430deg) rotateY(355deg) rotateZ(266deg) scale(1.02); }
+  100% { transform: translate3d(0, 0, 0) rotateX(450deg) rotateY(360deg) rotateZ(270deg) scale(1); box-shadow: 0 .3rem .65rem rgb(0 0 0 / .28); }
 }
 @keyframes se-die-roll-b {
-  0% { transform: rotate(0deg) translateY(0); }
-  50% { transform: rotate(-145deg) translateY(-6px); }
-  100% { transform: rotate(-290deg) translateY(0); }
+  0% { transform: translate3d(0, 0, 0) rotateX(0) rotateY(0) rotateZ(0) scale(1); box-shadow: 0 .3rem .65rem rgb(0 0 0 / .28); }
+  22% { transform: translate3d(.2rem, -.9rem, 1.4rem) rotateX(-132deg) rotateY(-94deg) rotateZ(-55deg) scale(1.07); box-shadow: 0 1rem .95rem rgb(0 0 0 / .36); }
+  49% { transform: translate3d(-.12rem, -.38rem, .5rem) rotateX(-290deg) rotateY(-205deg) rotateZ(-165deg) scale(1.02); }
+  74% { transform: translate3d(-.08rem, .1rem, 0) rotateX(-405deg) rotateY(-310deg) rotateZ(-252deg) scale(.96); }
+  87% { transform: translate3d(0, -.13rem, 0) rotateX(-430deg) rotateY(-345deg) rotateZ(-274deg) scale(1.02); }
+  100% { transform: translate3d(0, 0, 0) rotateX(-450deg) rotateY(-360deg) rotateZ(-290deg) scale(1); box-shadow: 0 .3rem .65rem rgb(0 0 0 / .28); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .se-street-dice__dice.is-rolling span { animation: none; }
+  .se-street-dice__dice.is-rolling span { animation: none; transform: none; }
 }
 
 @media (max-width: 900px) {
-  .se-street-dice__tables {
-    grid-template-columns: none;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(12rem, 72%);
-    overflow-x: auto;
-    scroll-snap-type: inline mandatory;
-    scrollbar-width: none;
-  }
-  .se-street-dice__tables::-webkit-scrollbar { display: none; }
-  .se-street-dice__table { scroll-snap-align: start; }
+  .se-street-dice__tables { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 620px) {
   .se-street-dice { gap: .6rem; }
-  .se-street-dice.has-active-point .se-street-dice__tables { display: none; }
+  .se-street-dice__tables { grid-template-columns: 1fr; gap: .4rem; }
+  .se-street-dice__table { padding: .55rem .6rem; }
+  .se-street-dice__table > span { align-items: baseline; flex-wrap: wrap; }
   .se-street-dice__felt { gap: .45rem; padding: .55rem; border-radius: .75rem; }
   .se-street-dice__point { width: 4rem; border-width: .2rem; }
   .se-street-dice__point small { font-size: .5rem; }
@@ -1318,9 +1364,9 @@
   .se-street-dice__odds-controls .se-btn { min-height: 2.3rem; padding-inline: .45rem; font-size: .72rem; }
 
   .se-street-dice__actions {
-    position: sticky;
-    bottom: calc(60px + .35rem + env(safe-area-inset-bottom, 0px));
-    z-index: 27;
+    position: relative;
+    bottom: auto;
+    z-index: 1;
     padding: .35rem;
     border: 1px solid var(--se-border);
     border-radius: .62rem;
@@ -1331,14 +1377,12 @@
   .se-street-dice__roll { min-height: 2.8rem; }
 
   .se-street-dice__start {
-    position: sticky;
-    bottom: calc(60px + .35rem + env(safe-area-inset-bottom, 0px));
-    z-index: 27;
+    position: relative;
+    bottom: auto;
+    z-index: 1;
     grid-template-columns: 1fr;
     gap: .4rem;
     padding: .5rem;
-    box-shadow: 0 -.3rem 1rem rgb(0 0 0 / .28);
-    backdrop-filter: blur(12px);
   }
   .se-street-dice__start label > div { grid-template-columns: 2.35rem minmax(4rem, 1fr) 2.35rem auto; }
   .se-street-dice__start .se-btn { min-height: 2.45rem; padding-inline: .5rem; }

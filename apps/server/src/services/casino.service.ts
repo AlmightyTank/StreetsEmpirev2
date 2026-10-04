@@ -268,6 +268,30 @@ function ledgerDisplay(entry: {
       tone: net > 0 ? 'positive' : net < 0 ? 'negative' : 'neutral',
     };
   }
+  if (entry.kind === 'POKER_BUY_IN' || entry.kind === 'POKER_CASH_OUT') {
+    const meta = entry.metadata as unknown as { action?: string; buyInCents?: number; returnCents?: number; outcome?: string };
+    const buying = entry.kind === 'POKER_BUY_IN';
+    const amount = buying ? meta.buyInCents ?? abs(entry.sessionChipDeltaCents) : meta.returnCents ?? abs(entry.sessionChipDeltaCents);
+    const net = Number(entry.sessionChipDeltaCents);
+    return {
+      title: buying ? 'Poker buy-in' : 'Poker hand settled',
+      detail: buying ? 'Sat down with ' + formatLedgerMoney(amount) : (typeof meta.outcome === 'string' ? meta.outcome + ' · ' : '') + 'returned ' + formatLedgerMoney(amount),
+      amountLabel: buying ? 'In play' : net > 0 ? 'Returned' : 'Lost',
+      amountCents: amount,
+      tone: buying ? 'neutral' : net > 0 ? 'positive' : net < 0 ? 'negative' : 'neutral',
+    };
+  }
+  if (entry.kind === 'POKER_TABLE_BUY_IN' || entry.kind === 'POKER_TABLE_REFUND') {
+    const meta = entry.metadata as unknown as { buyInCents?: number; refundCents?: number };
+    const buying = entry.kind === 'POKER_TABLE_BUY_IN';
+    const amount = buying ? meta.buyInCents ?? abs(entry.sessionChipDeltaCents) : meta.refundCents ?? abs(entry.sessionChipDeltaCents);
+    return {
+      title: buying ? 'Poker table buy-in' : 'Poker table refund',
+      detail: buying ? 'Escrowed ' + formatLedgerMoney(amount) + ' at the table' : 'Returned ' + formatLedgerMoney(amount) + ' to your bankroll',
+      amountLabel: buying ? 'In play' : 'Refunded', amountCents: amount,
+      tone: buying ? 'neutral' : 'positive',
+    };
+  }
   return {
     title: 'Casino activity',
     detail: 'Casino balance updated.',
@@ -835,9 +859,11 @@ export const CasinoService = {
       if (session.cityId !== city.id) {
         throw AppError.conflict('CASINO_SESSION_ELSEWHERE', 'Your open bankroll belongs to another casino. Close it before playing here.');
       }
-      const [blackjackHand, streetDiceRound] = await Promise.all([
+      const [blackjackHand, streetDiceRound, pokerHand, pokerSeat] = await Promise.all([
         tx.casinoBlackjackHand.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { id: true } }),
         tx.casinoStreetDiceRound.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { id: true } }),
+        tx.casinoPokerHand.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { id: true } }),
+        tx.casinoPokerSeat.findFirst({ where: { roundPlayerId, status: { in: ['WAITING', 'PLAYING'] }, table: { status: { in: ['WAITING', 'PLAYING'] } } }, select: { id: true } }),
       ]);
       if (blackjackHand) {
         throw AppError.conflict('BLACKJACK_HAND_ACTIVE', 'Finish the current blackjack hand before playing Slots.');
@@ -845,6 +871,8 @@ export const CasinoService = {
       if (streetDiceRound) {
         throw AppError.conflict('STREET_DICE_ACTIVE', 'Finish the current Street Dice point before playing Slots.');
       }
+      if (pokerHand) throw AppError.conflict('POKER_HAND_ACTIVE', 'Finish the current Poker hand before playing Slots.');
+      if (pokerSeat) throw AppError.conflict('POKER_TABLE_ACTIVE', 'Leave your multiplayer Poker table before playing Slots.');
 
       const bonus = await tx.casinoFreeSpinBonus.findUnique({ where: { roundPlayerId } });
       if (useFreeSpin) {
@@ -993,6 +1021,10 @@ export const CasinoService = {
       if (activeStreetDice) {
         throw AppError.conflict('STREET_DICE_ACTIVE', 'Finish the current Street Dice point before closing this casino session.');
       }
+      const activePoker = await tx.casinoPokerHand.findFirst({ where: { roundPlayerId, sessionId: session.id, status: 'ACTIVE' }, select: { id: true } });
+      if (activePoker) throw AppError.conflict('POKER_HAND_ACTIVE', 'Finish the current Poker hand before closing this casino session.');
+      const multiplayerSeat = await tx.casinoPokerSeat.findFirst({ where: { roundPlayerId, sessionId: session.id, status: { in: ['WAITING', 'PLAYING'] }, table: { status: { in: ['WAITING', 'PLAYING'] } } }, select: { id: true } });
+      if (multiplayerSeat) throw AppError.conflict('POKER_TABLE_ACTIVE', 'Leave your multiplayer Poker table before closing this casino session.');
 
       const venue = casino.venues[session.city.slug];
       if (!venue) throw AppError.conflict('CASINO_CLOSED', 'That casino venue is not part of this round anymore.');

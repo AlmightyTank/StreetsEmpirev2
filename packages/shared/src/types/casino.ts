@@ -321,13 +321,65 @@ export interface CasinoStreetDiceStateDto {
   history: CasinoStreetDiceRoundDto[];
 }
 
+export interface CasinoPokerCardDto { rank: number; suit: 'C' | 'D' | 'H' | 'S'; }
+export interface CasinoPokerSeatDto {
+  id: string;
+  name: string;
+  isHuman: boolean;
+  cards: CasinoPokerCardDto[];
+  folded: boolean;
+  contributionCents: number;
+  stackCents: number;
+  handName: string | null;
+}
+export interface CasinoPokerHandDto {
+  id: string;
+  status: 'ACTIVE' | 'SETTLED';
+  street: 'PREFLOP' | 'FLOP' | 'TURN' | 'RIVER' | 'SHOWDOWN' | 'COMPLETE';
+  board: CasinoPokerCardDto[];
+  seats: CasinoPokerSeatDto[];
+  potCents: number;
+  amountToCallCents: number;
+  buyInCents: number;
+  bankrollAfterCents: number;
+  outcome: string | null;
+  rakeCents: number;
+  createdAt: string;
+  settledAt: string | null;
+}
+export interface CasinoPokerStateDto {
+  enabled: boolean;
+  minBuyInCents: number;
+  maxBuyInCents: number;
+  smallBlindCents: number;
+  bigBlindCents: number;
+  raiseCents: number;
+  rakeBps: number;
+  rakeCapCents: number;
+  activeHand: CasinoPokerHandDto | null;
+  history: CasinoPokerHandDto[];
+  tables: CasinoPokerTableDto[];
+}
+export interface CasinoPokerTableDto {
+  id: string; name: string; visibility: 'PUBLIC' | 'PRIVATE'; citySlug: string; cityName: string;
+  buyInCents: number; maxPlayers: number; status: 'WAITING' | 'PLAYING' | 'CLOSED'; seats: Array<{ displayName: string; seatNo: number; isYou: boolean; stackCents: number }>;
+}
+export interface CasinoPokerTableViewDto extends CasinoPokerTableDto {
+  hand: null | { id: string; handNo: number; street: CasinoPokerHandDto['street']; board: CasinoPokerCardDto[]; potCents: number; rakeCents: number; turnSeatNo: number | null; myTurn: boolean; amountToCallCents: number; outcome: string | null; seats: Array<{ displayName: string; seatNo: number; isYou: boolean; stackCents: number; contributionCents: number; streetBetCents: number; folded: boolean; allIn: boolean; cards: CasinoPokerCardDto[]; handName: string | null }> };
+}
+export interface CasinoPokerTableResultDto { table: CasinoPokerTableDto; inviteCode?: string; page: CasinoPageDto }
+export interface CasinoPokerResponseDto {
+  poker: CasinoPokerStateDto;
+  hand: CasinoPokerHandDto;
+}
+
 export interface CasinoStreetDiceResponseDto {
   page: CasinoPageDto;
   streetDice: CasinoStreetDiceStateDto;
   round: CasinoStreetDiceRoundDto;
 }
 
-export type CasinoLedgerKindDto = 'BUY_CHIPS' | 'REDEEM_CHIPS' | 'SESSION_OPEN' | 'SESSION_CLOSE' | 'SLOT_SPIN' | 'BLACKJACK' | 'ROULETTE' | 'STREET_DICE';
+export type CasinoLedgerKindDto = 'BUY_CHIPS' | 'REDEEM_CHIPS' | 'SESSION_OPEN' | 'SESSION_CLOSE' | 'SLOT_SPIN' | 'BLACKJACK' | 'ROULETTE' | 'STREET_DICE' | 'POKER_BUY_IN' | 'POKER_CASH_OUT' | 'POKER_TABLE_BUY_IN' | 'POKER_TABLE_REFUND';
 
 export interface CasinoLedgerEntryDto {
   id: string;

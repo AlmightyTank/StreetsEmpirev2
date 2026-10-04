@@ -2212,6 +2212,18 @@ export interface CasinoStreetDiceTableRules {
   readonly maxOddsMultiple: 1 | 2 | 3 | 5;
 }
 
+/** 1.2.0-E. Solo Texas Hold’em buy-in and blind structure. */
+export interface CasinoPokerRules {
+  readonly minBuyInCents: number;
+  readonly maxBuyInCents: number;
+  readonly bigBlindCents: number;
+  readonly raiseCents: number;
+  /** House rake on flopped pots, in basis points, up to a hand cap. */
+  readonly rakeBps: number;
+  readonly rakeCapCents: number;
+  readonly venueKinds: readonly CasinoVenueKind[];
+}
+
 /**
  * 1.2.0-A. Casino foundation: venues, cashier limits and session bankrolls.
  * 1.2.0-B adds server-authoritative Slots.
@@ -2242,6 +2254,7 @@ export interface CasinoRules {
   readonly streetDice?: {
     readonly tables: readonly CasinoStreetDiceTableRules[];
   };
+  readonly poker?: CasinoPokerRules;
 }
 export interface Ruleset {
   /** Absent on economic-only rounds. */

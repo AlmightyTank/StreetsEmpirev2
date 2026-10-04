@@ -419,12 +419,16 @@ export const StreetDiceService = {
       const table = tableFor(ruleset, input.tableKey);
       assertLineWager(table, input.wagerCents);
 
-      const [activeDice, activeBlackjack] = await Promise.all([
+      const [activeDice, activeBlackjack, activePoker, pokerSeat] = await Promise.all([
         tx.casinoStreetDiceRound.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { id: true } }),
         tx.casinoBlackjackHand.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { id: true } }),
+        tx.casinoPokerHand.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { id: true } }),
+        tx.casinoPokerSeat.findFirst({ where: { roundPlayerId, status: { in: ['WAITING', 'PLAYING'] }, table: { status: { in: ['WAITING', 'PLAYING'] } } }, select: { id: true } }),
       ]);
       if (activeDice) throw AppError.conflict('STREET_DICE_ACTIVE', 'Finish the current Street Dice point before starting another.');
       if (activeBlackjack) throw AppError.conflict('BLACKJACK_HAND_ACTIVE', 'Finish the current blackjack hand before playing Street Dice.');
+      if (activePoker) throw AppError.conflict('POKER_HAND_ACTIVE', 'Finish the current Poker hand before playing Street Dice.');
+      if (pokerSeat) throw AppError.conflict('POKER_TABLE_ACTIVE', 'Leave your multiplayer Poker table before playing Street Dice.');
 
       const { city, session } = await requireStartSession(tx, player, ruleset, casino, table, now);
       const wager = BigInt(input.wagerCents);

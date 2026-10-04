@@ -10,11 +10,19 @@ import {
   casinoStreetDiceOddsSchema,
   casinoStreetDiceRollSchema,
   casinoStreetDiceStartSchema,
+  casinoPokerActionSchema,
+  casinoPokerStartSchema,
+  casinoPokerTableCreateSchema,
+  casinoPokerTableJoinSchema,
+  casinoPokerTableActionSchema,
+  casinoPokerTableStartSchema,
+  casinoPokerTablePlaySchema,
 } from '@streets/shared';
 import { BlackjackService } from '../services/blackjack.service.js';
 import { CasinoService } from '../services/casino.service.js';
 import { RouletteService } from '../services/roulette.service.js';
 import { StreetDiceService } from '../services/street-dice.service.js';
+import { CasinoPokerService } from '../services/casino-poker.service.js';
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { RoundService } from '../services/round.service.js';
 import { AppError } from '../utils/errors.js';
@@ -169,6 +177,61 @@ const casinoRoutes: FastifyPluginAsync = async (fastify) => {
       streetDice: await StreetDiceService.state(fastify.prisma, player.id),
       round,
     };
+  });
+
+  fastify.get('/poker', { preHandler: fastify.requireAuth }, async (request) => {
+    const player = await requirePlayer(request.auth!.account.id);
+    return CasinoPokerService.state(fastify.prisma, player.id);
+  });
+
+  fastify.post('/poker/deal', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoPokerStartSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    const result = await CasinoPokerService.start(fastify.prisma, player.id, input);
+    return { ...result, page: await CasinoService.page(fastify.prisma, player.id) };
+  });
+
+  fastify.post('/poker/action', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoPokerActionSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    const result = await CasinoPokerService.action(fastify.prisma, player.id, input);
+    return { ...result, page: await CasinoService.page(fastify.prisma, player.id) };
+  });
+
+  fastify.post('/poker/tables', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoPokerTableCreateSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    return { ...(await CasinoPokerService.createTable(fastify.prisma, player.id, input)), page: await CasinoService.page(fastify.prisma, player.id) };
+  });
+  fastify.post('/poker/tables/:tableId/join', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoPokerTableJoinSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    const { tableId } = request.params as { tableId: string };
+    return { ...(await CasinoPokerService.joinTable(fastify.prisma, player.id, tableId, input)), page: await CasinoService.page(fastify.prisma, player.id) };
+  });
+  fastify.post('/poker/tables/:tableId/leave', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoPokerTableActionSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    const { tableId } = request.params as { tableId: string };
+    await CasinoPokerService.leaveTable(fastify.prisma, player.id, tableId, input.actionId);
+    return { page: await CasinoService.page(fastify.prisma, player.id), poker: await CasinoPokerService.state(fastify.prisma, player.id) };
+  });
+  fastify.get('/poker/tables/:tableId', { preHandler: fastify.requireAuth }, async (request) => {
+    const player = await requirePlayer(request.auth!.account.id);
+    const { tableId } = request.params as { tableId: string };
+    return CasinoPokerService.table(fastify.prisma, player.id, tableId);
+  });
+  fastify.post('/poker/tables/:tableId/start', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoPokerTableStartSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    const { tableId } = request.params as { tableId: string };
+    return { ...(await CasinoPokerService.startTableHand(fastify.prisma, player.id, tableId, input)), page: await CasinoService.page(fastify.prisma, player.id) };
+  });
+  fastify.post('/poker/tables/:tableId/action', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoPokerTablePlaySchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    const { tableId } = request.params as { tableId: string };
+    return { ...(await CasinoPokerService.playTableAction(fastify.prisma, player.id, tableId, input)), page: await CasinoService.page(fastify.prisma, player.id) };
   });
 
   fastify.post('/sessions/:sessionId/close', { preHandler: fastify.requireAuth }, async (request) => {

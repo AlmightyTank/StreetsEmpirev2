@@ -1015,6 +1015,7 @@ model Round {
   blockWars         BlockWar[]
   surveys           Survey[]
   casinoJackpots    CasinoJackpot[]
+  casinoPokerTables CasinoPokerTable[]
 
   @@index([status])
 }
@@ -1172,6 +1173,10 @@ model RoundPlayer {
   casinoBlackjackActions CasinoBlackjackAction[]
   casinoStreetDiceRounds  CasinoStreetDiceRound[]
   casinoStreetDiceActions CasinoStreetDiceAction[]
+  casinoPokerHands        CasinoPokerHand[]
+  casinoPokerActions      CasinoPokerAction[]
+  casinoPokerSeats        CasinoPokerSeat[]
+  casinoPokerTableActions CasinoPokerTableAction[]
   /// 1.1.0-C. The crew's live rackets, racket key -> strength (0..1], rebuilt on every
   /// business settle so any system can read them off the player row.
   racketEffects        Json      @default("{}")
@@ -2639,6 +2644,123 @@ model CasinoStreetDiceAction {
 
   @@unique([roundPlayerId, actionId])
   @@index([diceRoundId, createdAt])
+}
+
+/// 1.2.0-E. Server-owned solo Hold’em hand. The JSON game state includes bot cards
+/// and is never returned directly; the service builds viewer-safe DTOs from it.
+model CasinoPokerHand {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  sessionId          String
+  cityId             String
+  tableKey           String
+  status             String @default("ACTIVE")
+  buyInCents         BigInt
+  state              Json
+  bankrollAfterCents BigInt
+  initialActionId    String
+  settledAt          DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([roundPlayerId, initialActionId])
+  @@index([roundPlayerId, status, createdAt(sort: Desc)])
+  @@index([sessionId, status])
+  @@index([cityId, createdAt(sort: Desc)])
+}
+
+/// Idempotent action receipt for solo Hold’em, including the exact safe response.
+model CasinoPokerAction {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  handId    String
+  actionId  String
+  kind      String
+  response  Json
+  createdAt DateTime @default(now())
+
+  @@unique([roundPlayerId, actionId])
+  @@index([handId, createdAt])
+}
+
+/// 1.2.0-F. Multiplayer Hold’em lobby table; gameplay is added in the next slice.
+model CasinoPokerTable {
+  id String @id @default(cuid())
+  roundId String
+  round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  cityId String
+  name String
+  visibility String @default("PUBLIC")
+  inviteCodeHash String?
+  creatorRoundPlayerId String
+  createActionId String
+  maxPlayers Int @default(6)
+  buyInCents BigInt
+  status String @default("WAITING")
+  dealerSeatNo Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  seats CasinoPokerSeat[]
+  hands CasinoPokerTableHand[]
+  @@index([roundId, status, visibility, createdAt])
+  @@index([cityId, status])
+  @@unique([creatorRoundPlayerId, createActionId])
+}
+
+model CasinoPokerSeat {
+  id String @id @default(cuid())
+  tableId String
+  table CasinoPokerTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  roundPlayer RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  sessionId String
+  actionId String
+  seatNo Int
+  stackCents BigInt
+  status String @default("WAITING")
+  joinedAt DateTime @default(now())
+  leftAt DateTime?
+  @@unique([tableId, seatNo])
+  @@unique([roundPlayerId, actionId])
+  @@index([roundPlayerId, status])
+  @@index([tableId, status, seatNo])
+}
+
+model CasinoPokerTableHand {
+  id String @id @default(cuid())
+  tableId String
+  table CasinoPokerTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  handNo Int
+  status String @default("ACTIVE")
+  state Json
+  outcome String?
+  startedAt DateTime @default(now())
+  settledAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  actions CasinoPokerTableAction[]
+  @@unique([tableId, handNo])
+  @@index([tableId, status, handNo])
+}
+
+model CasinoPokerTableAction {
+  id String @id @default(cuid())
+  roundPlayerId String
+  roundPlayer RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  handId String
+  hand CasinoPokerTableHand @relation(fields: [handId], references: [id], onDelete: Cascade)
+  actionId String
+  kind String
+  response Json
+  createdAt DateTime @default(now())
+  @@unique([roundPlayerId, actionId])
+  @@index([handId, createdAt])
 }
 
 /// Immutable retry receipt for every casino money movement.
