@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { experienceRequiredForLevel, formatCents, formatNumber, type PlayerExperienceDto, type PublicCareerDto } from '@streets/shared';
+import { experienceRequiredForLevel, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type PublicCareerDto } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { gameApi } from '../api/game.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
+import { formatWhen } from '../utils/time.js';
 
 const LEVEL_REWARDS = [
   { level: 5, title: 'On the Rise', rarity: 'common' },
@@ -35,6 +36,7 @@ export function XpProgressPage() {
   const liveExperience = useSession((state) => state.me?.experience ?? null);
   const [loadedExperience, setLoadedExperience] = useState<PlayerExperienceDto | null>(null);
   const [career, setCareer] = useState<PublicCareerDto | null>(null);
+  const [xpEvents, setXpEvents] = useState<PlayerExperienceEventDto[]>([]);
   const [experienceLoading, setExperienceLoading] = useState(true);
   const [careerLoading, setCareerLoading] = useState(true);
   const [experienceError, setExperienceError] = useState(false);
@@ -44,6 +46,7 @@ export function XpProgressPage() {
     let active = true;
     setLoadedExperience(null);
     setCareer(null);
+    setXpEvents([]);
     setExperienceError(false);
     setCareerError(false);
     setExperienceLoading(Boolean(accountId));
@@ -56,7 +59,11 @@ export function XpProgressPage() {
     }
 
     void gameApi.experience()
-      .then((response) => { if (active) setLoadedExperience(response.experience); })
+      .then((response) => {
+        if (!active) return;
+        setLoadedExperience(response.experience);
+        setXpEvents(response.events);
+      })
       .catch(() => { if (active) setExperienceError(true); })
       .finally(() => { if (active) setExperienceLoading(false); });
     void communityApi.career()
@@ -147,6 +154,56 @@ export function XpProgressPage() {
           </Panel>
         </section>
 
+        <section className="se-pass-trackwrap se-xp-history" aria-label="Career history">
+          <div className="se-xp-sectionhead">
+            <div>
+              <h2>Career history</h2>
+              <p className="se-hint">Your finished seasons, newest first. A season’s record is added here when it ends.</p>
+            </div>
+          </div>
+          {careerLoading && !career ? <p className="se-muted se-xp-loading">Loading finished seasons…</p> : null}
+          {careerError && !career ? <p className="se-muted se-xp-loading">Career history is unavailable right now.</p> : null}
+          {career && career.seasons.length === 0 ? <p className="se-muted se-xp-loading">You do not have a finished season yet. Your first season history will appear here when it ends.</p> : null}
+          {career && career.seasons.length > 0 ? (
+            <div className="se-tablewrap">
+              <table className="se-table se-table--cards">
+                <thead>
+                  <tr>
+                    <th>Season</th>
+                    <th>City</th>
+                    <th className="se-table__number">National</th>
+                    <th className="se-table__number">Local</th>
+                    <th className="se-table__number">Final net worth</th>
+                    <th className="se-table__number">Raids won</th>
+                    <th className="se-table__number">Jobs completed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {career.seasons.map((season) => (
+                    <tr key={season.round.id}>
+                      <td className="se-td--title" data-label="Season">
+                        <strong>{season.round.name}</strong>
+                        <br />
+                        <time className="se-muted" dateTime={season.round.endedAt}>{formatWhen(season.round.endedAt)}</time>
+                      </td>
+                      <td data-label="City">{season.city.name}</td>
+                      <td className="se-table__number se-num" data-label="National">
+                        {season.rank.national === null ? '—' : `#${formatNumber(season.rank.national)}`}
+                      </td>
+                      <td className="se-table__number se-num" data-label="Local">
+                        {season.rank.local === null ? '—' : `#${formatNumber(season.rank.local)}`}
+                      </td>
+                      <td className="se-table__number se-num" data-label="Final net worth">{formatCents(season.finalNetWorthCents)}</td>
+                      <td className="se-table__number se-num" data-label="Raids won">{formatNumber(season.stats.raidAttackWins)}</td>
+                      <td className="se-table__number se-num" data-label="Jobs completed">{formatNumber(season.stats.jobsCompleted)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section>
+
         <section className="se-pass-trackwrap se-xp-career" aria-label="Career milestones and cosmetic rewards">
           <div className="se-xp-sectionhead">
             <div>
@@ -214,6 +271,27 @@ export function XpProgressPage() {
             })}
           </ol>
         </section>
+
+
+        <Panel title="XP activity log" className="se-xp-log">
+          <p className="se-hint">Your 25 most recent XP awards across all seasons.</p>
+          {experienceLoading && !xpEvents.length ? <p className="se-muted">Loading XP activity…</p> : null}
+          {experienceError && !xpEvents.length ? <p className="se-muted">XP activity could not be loaded right now.</p> : null}
+          {!experienceLoading && !experienceError && !xpEvents.length ? <p className="se-muted">No XP awards have been recorded yet. Earn XP through completed game actions and quests.</p> : null}
+          {xpEvents.length > 0 ? (
+            <ol className="se-xp-log__list">
+              {xpEvents.map((event) => (
+                <li className="se-xp-log__item" key={event.id}>
+                  <div className="se-xp-log__copy">
+                    <strong>{event.source}</strong>
+                    <time dateTime={event.awardedAt}>{formatWhen(event.awardedAt)}</time>
+                  </div>
+                  <span className="se-xp-log__amount">+{formatNumber(event.amount)} XP</span>
+                </li>
+              ))}
+            </ol>
+          ) : null}
+        </Panel>
 
         <p className="se-hint">Account XP and profile cosmetics persist between rounds. Street Cred and Street Pass tiers belong to one round and reset when that round ends.</p>
       </div>
