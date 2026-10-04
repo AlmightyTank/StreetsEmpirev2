@@ -353,6 +353,13 @@ export interface PlayerExperienceDto {
   progressPercent: number;
 }
 
+export interface PlayerExperienceEventDto {
+  id: string;
+  source: string;
+  amount: number;
+  awardedAt: string;
+}
+
 export interface ActivityDto {
   id: string;
   type: ActivityType;
