@@ -7,7 +7,7 @@
   position: relative;
   overflow: hidden;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.42fr);
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 0.5fr);
   gap: 28px;
   align-items: end;
   padding: 24px;
@@ -111,11 +111,16 @@
   font-size: 15px;
 }
 
-.se-dashboard-metrics {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  border: 1px solid var(--se-line);
-  border-width: 1px 0 0 1px;
+.se-dashboard-hero__mini em {
+  display: block;
+  margin-top: 2px;
+  color: var(--se-text-dim);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.se-dashboard-hero__mini--warn strong {
+  color: var(--se-warn);
 }
 
 .se-dashboard-metric {
@@ -515,10 +520,6 @@
 }
 
 @media (max-width: 1100px) {
-  .se-dashboard-metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   .se-dashboard-command {
     grid-template-columns: 1fr;
   }
@@ -562,10 +563,6 @@
 
   .se-dashboard-hero__id {
     font-size: 11px;
-  }
-
-  .se-dashboard-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .se-dashboard-metric {
@@ -616,11 +613,12 @@
     grid-template-columns: 1fr;
   }
 
+  /* Label on the left; the value and its note stacked on the right. */
   .se-dashboard-hero__mini > span {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    column-gap: 12px;
     border-right: 0;
     border-bottom: 1px solid var(--se-line);
   }
@@ -629,8 +627,15 @@
     border-bottom: 0;
   }
 
-  .se-dashboard-hero__mini strong {
+  .se-dashboard-hero__mini small {
+    grid-row: 1 / span 2;
+  }
+
+  .se-dashboard-hero__mini strong,
+  .se-dashboard-hero__mini em {
+    grid-column: 2;
     margin-top: 0;
+    text-align: right;
   }
 
   .se-dashboard-metric__value {

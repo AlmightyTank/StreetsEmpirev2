@@ -115,25 +115,6 @@ export function ProducePage() {
               Put fit thugs on the batch, set the shift length, and check the crew and supply plan before you spend the turns.
             </p>
           </div>
-
-          <div className="se-produce-hero__readout">
-            <span>
-              <small>Turns ready</small>
-              <strong>{formatNumber(me.turns.turns)}</strong>
-            </span>
-            <span>
-              <small>Fit cooks</small>
-              <strong>{formatNumber(me.resources.fitThugs)}</strong>
-            </span>
-            <span>
-              <small>Cash</small>
-              <strong>{formatCents(me.resources.cashCents)}</strong>
-            </span>
-            <span>
-              <small>Thug happiness</small>
-              <strong>{me.happiness.thug}%</strong>
-            </span>
-          </div>
         </header>
 
         {action.error ? <Alert>{action.error}</Alert> : null}

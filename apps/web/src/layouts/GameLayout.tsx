@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
-import { Shell } from './Shell.js';
+import { Shell, useSidebarRail } from './Shell.js';
 import { ConnectionBanner } from '../components/ConnectionBanner.js';
 import { TrackedQuests } from '../components/TrackedQuests.js';
 import { IntroDialog } from '../components/onboarding/IntroDialog.js';
@@ -63,6 +63,8 @@ function Badge({ badge }: { badge: NavBadge | null | undefined }) {
 /** Desktop and tablet sidebar. Phones get the tab bar instead. */
 function GameNav({ sections, pathname, badges }: { sections: NavSection[]; pathname: string; badges: Record<string, NavBadge> }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => readNavState());
+  // Folded to icons, every page shows and each link names itself on hover.
+  const rail = useSidebarRail();
 
   useEffect(() => {
     writeNavState(expanded);
@@ -85,13 +87,15 @@ function GameNav({ sections, pathname, badges }: { sections: NavSection[]; pathn
               <span>{section.title}</span>
               <span className="se-nav__chevron" aria-hidden="true">{sectionOpen ? '−' : '+'}</span>
             </button>
-            <ul id={listId} className="se-nav__list" hidden={!sectionOpen}>
+            <ul id={listId} className="se-nav__list" hidden={!sectionOpen && !rail}>
               {section.pages.map((page) => {
                 const current = isCurrent(page, pathname);
                 return (
                   <li key={page.key}>
                     <Link to={page.to} aria-current={current ? 'page' : undefined}
+                      title={rail ? page.label : undefined}
                       className={`se-nav__link${current ? ' se-nav__link--active' : ''}`}>
+                      <NavIcon name={page.icon} />
                       <span className="se-nav__label">{page.label}</span>
                       <Badge badge={badges[page.key]} />
                     </Link>
@@ -106,6 +110,42 @@ function GameNav({ sections, pathname, badges }: { sections: NavSection[]; pathn
   );
 }
 
+
+/** Season, clock and level. Top of the desktop sidebar; phones get the slim game bar. */
+function SeasonCard() {
+  const round = useSession((s) => s.round);
+  const experience = useSession((s) => s.me?.experience ?? null);
+  if (!round) return null;
+  const clock = round.paused ? 'Paused' : `${formatDuration(round.msRemaining)} left`;
+  return (
+    <div className="se-seasoncard" title={`${round.name} · ${clock}`}>
+      <div className="se-seasoncard__head">
+        <span className="se-seasoncard__label">Season</span>
+        <span className={`se-seasoncard__time se-num${round.paused ? ' se-seasoncard__time--paused' : ''}`}>
+          {clock}
+        </span>
+      </div>
+      <span className="se-seasoncard__name">{round.name}</span>
+      {experience ? (
+        <Link
+          className="se-seasoncard__xp"
+          to="/game/xp-progress"
+          title={`${experience.totalXp.toLocaleString()} lifetime XP`}
+          aria-label={`Level ${experience.level}, ${experience.xpIntoLevel} of ${experience.xpForLevel} XP to the next level. View your XP progress.`}
+        >
+          <span className="se-seasoncard__level">
+            <strong>Level {experience.level}</strong>
+            <strong className="se-seasoncard__lvl" aria-hidden="true">L{experience.level}</strong>
+            <span className="se-num">{experience.xpIntoLevel.toLocaleString()} / {experience.xpForLevel.toLocaleString()} XP</span>
+          </span>
+          <span className="se-seasoncard__track" aria-hidden="true">
+            <span style={{ width: `${experience.progressPercent}%` }} />
+          </span>
+        </Link>
+      ) : null}
+    </div>
+  );
+}
 
 const LONG_PRESS_MS = 500;
 
@@ -377,7 +417,9 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
 
   return (
     <GameLayoutMountedContext.Provider value>
-      <Shell tabbar={
+      <Shell
+        sidebar={<><SeasonCard /><GameNav sections={sections} pathname={pathname} badges={badges} /></>}
+        tabbar={
       <>
         <TabBar slots={tabs.slots} pathname={pathname} badges={badges} moreOpen={sheet !== null} moreButton={moreButton}
           onMore={() => setSheet((open) => (open ? null : { editSlot: null }))}
@@ -410,6 +452,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
               aria-label={`Level ${experience.level}, ${experience.xpIntoLevel} of ${experience.xpForLevel} XP to the next level. View your XP progress.`}
             >
               <strong>Level {experience.level}</strong>
+            <strong className="se-seasoncard__lvl" aria-hidden="true">L{experience.level}</strong>
               <span className="se-gamebar__xp-track" aria-hidden="true">
                 <span style={{ width: `${experience.progressPercent}%` }} />
               </span>
@@ -431,7 +474,6 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
       <IntroDialog />
 
       <div className="se-gamegrid">
-        <GameNav sections={sections} pathname={pathname} badges={badges} />
         <div className="se-gamemain">
           <PageGuide />
           {children}

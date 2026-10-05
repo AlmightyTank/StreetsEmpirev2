@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { AdminStreetPassDto, AdminStreetPassRewardDto } from '@streets/shared';
+import { ADMIN_STREET_PASS_REWARD_KINDS, type AdminStreetPassDto, type AdminStreetPassRewardDto } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from './Alert.js';
@@ -7,12 +7,13 @@ import { Button } from './Button.js';
 import { Panel } from './Panel.js';
 
 type Props = { roundId: string; pass: AdminStreetPassDto; onSaved: () => Promise<void> };
-const kinds: AdminStreetPassRewardDto['kind'][] = ['CASH', 'TURNS', 'ITEM', 'PRODUCT', 'FAVOR_ITEM', 'COSMETIC_UNLOCK'];
+const kinds = ADMIN_STREET_PASS_REWARD_KINDS;
 
 function newReward(kind: AdminStreetPassRewardDto['kind'], pass: AdminStreetPassDto): AdminStreetPassRewardDto {
   const key = kind === 'ITEM' ? pass.catalogs.items[0]
     : kind === 'PRODUCT' ? pass.catalogs.products[0]
     : kind === 'FAVOR_ITEM' ? pass.catalogs.favors[0]
+    : kind === 'CONTACT_REP' ? pass.catalogs.contacts[0]
     : kind === 'COSMETIC_UNLOCK' ? pass.catalogs.cosmetics[0] : undefined;
   return { kind, ...(kind !== 'COSMETIC_UNLOCK' ? { amount: kind === 'FAVOR_ITEM' ? 1 : 1 } : {}), ...(key ? { key } : {}) };
 }
@@ -59,6 +60,7 @@ export function AdminStreetPassEditor({ roundId, pass, onSaved }: Props) {
                 const options = reward.kind === 'ITEM' ? pass.catalogs.items
                   : reward.kind === 'PRODUCT' ? pass.catalogs.products
                   : reward.kind === 'FAVOR_ITEM' ? pass.catalogs.favors
+                  : reward.kind === 'CONTACT_REP' ? pass.catalogs.contacts
                   : reward.kind === 'COSMETIC_UNLOCK' ? pass.catalogs.cosmetics : [];
                 return <div key={rewardIndex} className="se-grid se-grid--2 se-admin-card">
                   <label className="se-field">

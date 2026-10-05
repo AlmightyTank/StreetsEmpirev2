@@ -155,10 +155,6 @@ export function XpProgressPage() {
 
         <div className="se-xp-overview" aria-label="XP summary">
           <div>
-            <span>Total XP</span>
-            <strong>{experience ? formatNumber(totalXp) : experienceLoading ? 'Loading...' : '-'}</strong>
-          </div>
-          <div>
             <span>Titles unlocked</span>
             <strong>{formatNumber(claimedRewards.length)} / {formatNumber(EXPERIENCE_LEVEL_REWARDS.length)}</strong>
           </div>

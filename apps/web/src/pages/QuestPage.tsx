@@ -156,35 +156,6 @@ function timeRemaining(expiresAt: string, nowMs: number): string {
   return days + 'd ' + leftoverHours + 'h left';
 }
 
-function QuestMetric({
-  label,
-  value,
-  detail,
-  tone,
-  onClick,
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-  tone?: 'good' | 'warn' | 'accent';
-  onClick?: () => void;
-}) {
-  const className = `se-quests-metric${tone ? ` se-quests-metric--${tone}` : ''}${onClick ? ' se-quests-metric--button' : ''}`;
-  const body = (
-    <>
-      <span className="se-quests-metric__label">{label}</span>
-      <strong className="se-quests-metric__value">{value}</strong>
-      {detail ? <span className="se-quests-metric__detail">{detail}</span> : null}
-    </>
-  );
-
-  return onClick ? (
-    <button type="button" className={className} onClick={onClick}>{body}</button>
-  ) : (
-    <div className={className}>{body}</div>
-  );
-}
-
 function ProgressLine({
   label,
   current,
@@ -378,7 +349,7 @@ function QuestCard({
           <Button
             className="se-btn se-btn--primary"
             disabledReason={busy ?? (!isSlotlessQuest(quest) && page.counts.active >= page.activeLimit
-              ? 'You already have ' + page.activeLimit + ' active jobs.'
+              ? 'All ' + page.activeLimit + ' job slots are in use.'
               : null)}
             onClick={() => onAccept(quest.key)}
           >
@@ -811,8 +782,9 @@ export function QuestPage() {
                 <small>Ready</small>
                 <strong>{page ? formatNumber(page.counts.ready) : '—'}</strong>
               </span>
-              <span>
-                <small>Active</small>
+              {/* Slots, not every active job: city, alliance, season and community work runs alongside them. */}
+              <span title="City, alliance, season and community work does not use a job slot.">
+                <small>Job slots</small>
                 <strong>{page ? `${formatNumber(page.counts.active)} / ${formatNumber(page.activeLimit)}` : '—'}</strong>
               </span>
               <span>
@@ -838,77 +810,7 @@ export function QuestPage() {
                   <span className="se-eyebrow">Contract board</span>
                   <h2>Choose your work</h2>
                 </div>
-                <p>Ready jobs stay visible from their own queue, while rotating boards keep their server-authoritative reset clocks.</p>
-              </div>
-
-              <div className="se-quests-quick">
-                <QuestMetric
-                  label="Ready to collect"
-                  value={formatNumber(page.counts.ready)}
-                  detail="finished jobs waiting on payment"
-                  tone={page.counts.ready > 0 ? 'accent' : undefined}
-                  onClick={() => selectTab('ready')}
-                />
-                <QuestMetric
-                  label="Personal active"
-                  value={`${formatNumber(page.counts.active)} / ${formatNumber(page.activeLimit)}`}
-                  detail="city, alliance and community boards do not use slots"
-                  tone={page.counts.active >= page.activeLimit ? 'warn' : undefined}
-                  onClick={() => selectTab('active')}
-                />
-                <QuestMetric
-                  label="Tracked"
-                  value={`${formatNumber(trackedToday.length)} / ${formatNumber(page.trackedLimit)}`}
-                  detail="pinned into your game HUD"
-                  onClick={() => selectTab('tracked')}
-                />
-                <QuestMetric
-                  label="Stored favors"
-                  value={formatNumber(page.favors.reduce((sum, favor) => sum + favor.quantity, 0))}
-                  detail={liveFavors.length || page.armedFavors.length ? `${liveFavors.length} active · ${page.armedFavors.length} armed` : 'none active or armed'}
-                  tone={liveFavors.length || page.armedFavors.length ? 'good' : undefined}
-                />
-                {page.dailyContracts.enabled ? (
-                  <QuestMetric
-                    label="Daily contracts"
-                    value={`${formatNumber(dailyToday.length)} / ${formatNumber(page.dailyContracts.slots)}`}
-                    detail={page.dailyContracts.resetAt ? 'resets ' + timeRemaining(page.dailyContracts.resetAt, nowMs) : 'rotating board'}
-                    onClick={() => selectTab('daily')}
-                  />
-                ) : null}
-                {page.weeklyContracts.enabled ? (
-                  <QuestMetric
-                    label="Weekly contracts"
-                    value={`${formatNumber(weeklyToday.length)} / ${formatNumber(page.weeklyContracts.slots)}`}
-                    detail={page.weeklyContracts.resetAt ? 'resets ' + timeRemaining(page.weeklyContracts.resetAt, nowMs) : 'rotating board'}
-                    onClick={() => selectTab('weekly')}
-                  />
-                ) : null}
-                {page.cityContracts.enabled ? (
-                  <QuestMetric
-                    label="City contracts"
-                    value={`${formatNumber(cityToday.length)} / ${formatNumber(page.cityContracts.slots)}`}
-                    detail={page.cityContracts.resetAt ? 'refreshes ' + timeRemaining(page.cityContracts.resetAt, nowMs) : 'market board'}
-                    onClick={() => selectTab('city')}
-                  />
-                ) : null}
-                {page.seasonContracts?.enabled ? (
-                  <QuestMetric
-                    label="Season contracts"
-                    value={`${formatNumber(seasonToday.length)} / ${formatNumber(page.seasonContracts.slots)}`}
-                    detail={page.seasonContracts.resetAt ? 'season ends ' + timeRemaining(page.seasonContracts.resetAt, nowMs) : 'whole-round goals'}
-                    onClick={() => selectTab('season')}
-                  />
-                ) : null}
-                {eventToday.length ? (
-                  <QuestMetric
-                    label="Community events"
-                    value={formatNumber(eventToday.length)}
-                    detail="shared round work"
-                    tone="good"
-                    onClick={() => selectTab('events')}
-                  />
-                ) : null}
+                <p>Personal jobs take one of your job slots; city, alliance, season and community work does not. Board resets are listed beside the jobs.</p>
               </div>
 
               <div className="se-quests-tabs" role="tablist" aria-label="Quest view">

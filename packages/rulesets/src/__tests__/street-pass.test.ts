@@ -58,7 +58,7 @@ describe('Street Pass season 1', () => {
     const tiers: StreetPassRules['tiers'] = STREET_PASS_S1.tiers;
     const titles = tiers.flatMap((tier) => tier.rewards
       .filter((reward) => reward.kind === 'COSMETIC_UNLOCK'
-        && ['street-pass-s1-fresh-face', 'street-pass-s1-made-man', 'street-pass-s1-kingpin'].includes(reward.key))
+        && ['street-pass-s1-fresh-face', 'street-pass-s1-made-man', 'street-pass-s1-kingpin'].includes(reward.key ?? ''))
       .map((reward) => {
         const cosmetic = STREET_PASS_S1_COSMETICS[reward.key as keyof typeof STREET_PASS_S1_COSMETICS];
         return [tier.tier, cosmetic.name, cosmetic.kind, cosmetic.rarity];
@@ -187,11 +187,11 @@ describe('streetPassProblems', () => {
   it('refuses season 1 on a round without its cosmetics', () => {
     expect(streetPassProblems(STREET_PASS_S1, classicOgV08H)).toEqual([
       'street-pass-s1 tier 10: COSMETIC_UNLOCK street-pass-s1-fresh-face is not a cosmetic in this round',
+      'street-pass-s1 tier 15: COSMETIC_UNLOCK street-pass-s1-night-drive-theme is not a cosmetic in this round',
       'street-pass-s1 tier 20: COSMETIC_UNLOCK street-pass-s1-made-man is not a cosmetic in this round',
+      'street-pass-s1 tier 25: COSMETIC_UNLOCK street-pass-s1-chrome-halo-frame is not a cosmetic in this round',
       'street-pass-s1 tier 30: COSMETIC_UNLOCK street-pass-s1-kingpin is not a cosmetic in this round',
       'street-pass-s1 tier 30: COSMETIC_UNLOCK street-pass-s1-badge is not a cosmetic in this round',
-      'street-pass-s1 tier 15: COSMETIC_UNLOCK street-pass-s1-night-drive-theme is not a cosmetic in this round',
-      'street-pass-s1 tier 25: COSMETIC_UNLOCK street-pass-s1-chrome-halo-frame is not a cosmetic in this round',
       'street-pass-s1 tier 30: COSMETIC_UNLOCK street-pass-s1-frame is not a cosmetic in this round',
     ]);
   });

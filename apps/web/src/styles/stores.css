@@ -66,9 +66,13 @@
 
 .se-stores-hero__readout {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border: 1px solid var(--se-line);
   background: rgba(11, 12, 14, 0.72);
+}
+
+.se-stores-hero__warn strong {
+  color: var(--se-warn);
 }
 
 .se-stores-hero__readout > span {
@@ -148,7 +152,6 @@
 }
 
 .se-stores-receipt,
-.se-stores-overview,
 .se-stores-section {
   display: grid;
   gap: 10px;
@@ -193,61 +196,6 @@
   font-size: 10px;
   font-weight: 700;
   text-align: right;
-}
-
-.se-stores-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--se-line);
-  border-width: 1px 0 0 1px;
-}
-
-.se-stores-metric {
-  min-width: 0;
-  min-height: 76px;
-  padding: 10px 11px;
-  border: 1px solid var(--se-line);
-  border-width: 0 1px 1px 0;
-  background: rgba(255, 255, 255, 0.012);
-}
-
-.se-stores-metric__label {
-  display: block;
-  color: var(--se-muted);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.se-stores-metric__value {
-  display: block;
-  margin-top: 5px;
-  overflow-wrap: anywhere;
-  color: var(--se-text);
-  font-family: var(--se-mono);
-  font-size: 16px;
-  line-height: 1.15;
-}
-
-.se-stores-metric__detail {
-  display: block;
-  margin-top: 4px;
-  color: var(--se-muted);
-  font-size: 9px;
-  line-height: 1.25;
-}
-
-.se-stores-metric--accent .se-stores-metric__value {
-  color: var(--se-accent);
-}
-
-.se-stores-metric--good .se-stores-metric__value {
-  color: var(--se-good);
-}
-
-.se-stores-metric--warn .se-stores-metric__value {
-  color: var(--se-warn);
 }
 
 .se-stores-market {
@@ -793,10 +741,6 @@
     position: static;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .se-stores-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 720px) {
@@ -810,18 +754,6 @@
 
   .se-stores-hero h1 {
     font-size: 34px;
-  }
-
-  .se-stores-hero__readout {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .se-stores-hero__readout > span:nth-child(2) {
-    border-right: 0;
-  }
-
-  .se-stores-hero__readout > span:nth-child(-n + 2) {
-    border-bottom: 1px solid var(--se-line);
   }
 
   .se-stores .se-storetabs {
@@ -858,7 +790,6 @@
   }
 
   .se-stores-hero__readout,
-  .se-stores-summary,
   .se-stores .se-store-prices {
     grid-template-columns: 1fr;
   }

@@ -599,8 +599,14 @@ export interface AdminRoundHealthDayDto {
   recon: number;
 }
 
+/**
+ * Reward kinds a Street Pass tier can hold, as streetPassProblems accepts them.
+ * Buying access (WEAPON_ACCESS, PERMANENT_UNLOCK) is never a Street Pass reward.
+ */
+export const ADMIN_STREET_PASS_REWARD_KINDS = ['CASH', 'TURNS', 'ITEM', 'PRODUCT', 'FAVOR_ITEM', 'CONTACT_REP', 'COSMETIC_UNLOCK'] as const;
+
 export interface AdminStreetPassRewardDto {
-  kind: 'CASH' | 'TURNS' | 'ITEM' | 'PRODUCT' | 'FAVOR_ITEM' | 'COSMETIC_UNLOCK';
+  kind: typeof ADMIN_STREET_PASS_REWARD_KINDS[number];
   amount?: number;
   key?: string;
 }
@@ -608,7 +614,7 @@ export interface AdminStreetPassRewardDto {
 export interface AdminStreetPassDto {
   name: string;
   tiers: Array<{ tier: number; rewards: AdminStreetPassRewardDto[] }>;
-  catalogs: { items: string[]; products: string[]; favors: string[]; cosmetics: string[] };
+  catalogs: { items: string[]; products: string[]; favors: string[]; contacts: string[]; cosmetics: string[] };
   editable: boolean;
 }
 

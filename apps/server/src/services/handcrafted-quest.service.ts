@@ -756,7 +756,7 @@ export const HandcraftedQuestService = {
             questDefinition: { type: { notIn: [...SLOTLESS_QUEST_TYPES] } },
           },
         });
-        if (active >= ACTIVE_LIMIT) throw AppError.conflict('QUEST_ACTIVE_LIMIT', `You can only have ${ACTIVE_LIMIT} active jobs at once.`);
+        if (active >= ACTIVE_LIMIT) throw AppError.conflict('QUEST_ACTIVE_LIMIT', `All ${ACTIVE_LIMIT} job slots are in use. City, alliance, season and community work does not need one.`);
       }
       const tracked = await tx.playerQuest.count({ where: { roundPlayerId, isTracked: true } });
       const acceptedAt = new Date();

@@ -8,7 +8,7 @@
   position: relative;
   overflow: hidden;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(430px, 0.54fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 28px;
   align-items: end;
   padding: 24px;
@@ -57,41 +57,6 @@
   display: grid;
   gap: 10px;
   justify-items: end;
-}
-
-.se-raids-hero__readout {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  width: 100%;
-  border: 1px solid var(--se-line);
-  background: rgba(11, 12, 14, 0.72);
-}
-
-.se-raids-hero__readout > span {
-  min-width: 0;
-  padding: 11px;
-  border-right: 1px solid var(--se-line);
-}
-
-.se-raids-hero__readout > span:last-child {
-  border-right: 0;
-}
-
-.se-raids-hero__readout small {
-  display: block;
-  color: var(--se-muted);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.se-raids-hero__readout strong {
-  display: block;
-  margin-top: 4px;
-  overflow-wrap: anywhere;
-  font-family: var(--se-mono);
-  font-size: 15px;
 }
 
 .se-raids-pending,
@@ -649,18 +614,6 @@
     font-size: 34px;
   }
 
-  .se-raids-hero__readout {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .se-raids-hero__readout > span:nth-child(2) {
-    border-right: 0;
-  }
-
-  .se-raids-hero__readout > span:nth-child(-n + 2) {
-    border-bottom: 1px solid var(--se-line);
-  }
-
   .se-raids-plan__main,
   .se-raids-plan__intel {
     padding: 13px;
@@ -699,24 +652,4 @@
     grid-template-columns: 1fr;
   }
 
-  .se-raids-hero__readout {
-    grid-template-columns: 1fr;
-  }
-
-  .se-raids-hero__readout > span {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    border-right: 0;
-    border-bottom: 1px solid var(--se-line);
-  }
-
-  .se-raids-hero__readout > span:last-child {
-    border-bottom: 0;
-  }
-
-  .se-raids-hero__readout strong {
-    margin-top: 0;
-  }
 }

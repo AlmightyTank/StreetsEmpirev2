@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import type { DistrictDto, ScoutResult } from '@streets/shared';
-import { formatCents, formatNumber } from '@streets/shared';
+import { formatNumber } from '@streets/shared';
 import { actionsApi } from '../api/actions.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
@@ -111,21 +111,6 @@ export function ScoutPage() {
             <p>
               Pick the block, choose how long to work it, and make sure the crew has enough cover and supply before you burn the turns.
             </p>
-          </div>
-
-          <div className="se-scout-hero__readout">
-            <span>
-              <small>Turns ready</small>
-              <strong>{formatNumber(me.turns.turns)}</strong>
-            </span>
-            <span>
-              <small>Street crew</small>
-              <strong>{formatNumber(me.resources.whores)}</strong>
-            </span>
-            <span>
-              <small>Fit muscle</small>
-              <strong>{formatNumber(me.resources.fitThugs)}</strong>
-            </span>
           </div>
         </header>
 
@@ -347,11 +332,10 @@ export function ScoutPage() {
                 flush
                 className="se-scout-panel"
               >
-                <div className="se-scout-metricgrid">
+                <div className="se-scout-metricgrid se-scout-metricgrid--three">
                   <ScoutMetric label="Condoms" value={formatNumber(me.resources.condoms)} />
                   <ScoutMetric label="Beer" value={formatNumber(me.resources.beer)} />
                   <ScoutMetric label="Medicine" value={formatNumber(me.resources.medicine)} />
-                  <ScoutMetric label="Cash" value={formatCents(me.resources.cashCents)} tone="accent" />
                 </div>
                 <div className="se-rows">
                   {me.products ? null : <Row label="Product" value={formatNumber(me.resources.product)} />}
