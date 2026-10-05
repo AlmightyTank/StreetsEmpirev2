@@ -59,6 +59,22 @@ const scheduleRoundSchema = z.object({
   registrationOpensAt: isoDate.nullable().optional(),
 }).strict();
 
+const streetPassRewardSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('CASH'), amount: z.number().int().min(1) }).strict(),
+  z.object({ kind: z.literal('TURNS'), amount: z.number().int().min(1) }).strict(),
+  z.object({ kind: z.literal('ITEM'), key: contentKey, amount: z.number().int().min(1) }).strict(),
+  z.object({ kind: z.literal('PRODUCT'), key: contentKey, amount: z.number().int().min(1) }).strict(),
+  z.object({ kind: z.literal('FAVOR_ITEM'), key: contentKey, amount: z.number().int().min(1).optional() }).strict(),
+  z.object({ kind: z.literal('COSMETIC_UNLOCK'), key: contentKey }).strict(),
+]);
+const updateStreetPassSchema = z.object({
+  reason,
+  tiers: z.array(z.object({
+    tier: z.number().int().min(1).max(100),
+    rewards: z.array(streetPassRewardSchema).min(1).max(8),
+  }).strict()).min(1).max(100),
+}).strict();
+
 const updateRoundSchema = z.object({
   reason,
   name: z.string().trim().min(3).max(80).optional(),
@@ -228,6 +244,13 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/rounds/:roundId/health', async (request) => {
     const { roundId } = parseBody(roundParams, request.params);
+    return AdminHealthService.roundHealth(fastify.prisma, roundId);
+  });
+
+  fastify.post('/rounds/:roundId/street-pass', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    const input = parseBody(updateStreetPassSchema, request.body ?? {});
+    await AdminRoundService.updateStreetPass(fastify.prisma, request.auth!.account, roundId, input);
     return AdminHealthService.roundHealth(fastify.prisma, roundId);
   });
 
