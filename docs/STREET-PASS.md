@@ -1,9 +1,9 @@
 # Street Pass
 
 A free reward track that runs alongside every round. Players earn **Street Cred**
-by playing normally, fill up 30 tiers and claim a reward at each one. The last
-tier is a permanent season cosmetic and badge; everything before it is a real
-in-round boost.
+by playing normally, fill up 30 tiers and claim a reward at each one. The
+track mixes in-round boosts with permanent profile cosmetics, including a
+theme at tier 15 and a frame at tier 25.
 
 Status: built. Season 1 ships in ruleset `classic-og-street-pass-a` (Trips E
 plus the pass); see [Shipping](#shipping). Item art
@@ -68,8 +68,9 @@ joins on day 15 earns +30% and reaches about tier 24.
 
 ## The track
 
-★ marks milestone tiers, which pay two rewards. Amounts are the starting point
-for balance testing, not final.
+★ marks milestone tiers. Some pay more than one reward; permanent cosmetics sit
+alongside the in-round boosts. Amounts are the starting point for balance
+testing, not final.
 
 | Tier | Reward |
 | --- | --- |
@@ -87,7 +88,7 @@ for balance testing, not final.
 | 12 | Street Frenzy |
 | 13 | 10 thugs |
 | 14 | 150 ecstasy |
-| ★ 15 | $100,000 + Tommy Voucher |
+| ★ 15 | $100,000 + Tommy Voucher + **Night Drive · Season 1** theme |
 | 16 | 8 hoes |
 | 17 | Cookhouse Rush |
 | 18 | 200 meth |
@@ -97,7 +98,7 @@ for balance testing, not final.
 | 22 | 150 cocaine |
 | 23 | 2 Burner Phones |
 | 24 | 15 thugs |
-| ★ 25 | 12 hoes + Doctor Favor |
+| ★ 25 | 12 hoes + Doctor Favor + **Chrome Halo · Season 1** frame |
 | 26 | 100 turns |
 | 27 | 200 heroin |
 | 28 | $200,000 |
@@ -150,7 +151,7 @@ end-of-round crew (271 engaged, 203 casual) and 30 thugs are 22–28%.
 ## Shipping
 
 Season 1 ships in `classic-og-street-pass-a` ("Classic OG - Street Pass
-(Season 1)"): Trips E plus `streetPass: STREET_PASS_S1` and the five season
+(Season 1)"): Trips E plus `streetPass: STREET_PASS_S1` and the seven season
 cosmetics. Older rulesets stay without a pass, so rounds already running are
 unchanged. Admins pick it when creating a round. The dev seed still creates
 its current round on 0.8-H, as it did when Trips E shipped.
@@ -162,8 +163,8 @@ its current round on 0.8-H, as it did when Trips E shipped.
 - Claims use a one-time claim record, like store and quest receipts, so a
   double tap or retry can never pay twice.
 - **When the round ends**, gameplay rewards can no longer be claimed, since
-  standings are frozen. An unclaimed tier 30 cosmetic and badge are granted
-  automatically, because they are permanent.
+  standings are frozen. Reached-but-unclaimed permanent cosmetic tiers are
+  granted automatically, including the theme and frame milestones.
 
 ## Season cosmetics
 
@@ -176,6 +177,8 @@ permanent on the account, through the existing cosmetics system
 | 10 | Fresh Face · Season 1 | title (`TITLE_BADGE`) | rare |
 | 20 | Made Man · Season 1 | title (`TITLE_BADGE`) | epic |
 | 30 | Kingpin · Season 1 | title (`TITLE_BADGE`) | legendary |
+| 15 | Night Drive · Season 1 | site theme (`SITE_THEME`) | epic |
+| 25 | Chrome Halo · Season 1 | profile frame (`PROFILE_FRAME`) | epic |
 | 30 | Street Pass · Season 1 | badge (`TITLE_BADGE`) | legendary |
 | 30 | Season 1 Frame | profile frame (`PROFILE_FRAME`) | legendary |
 
@@ -271,13 +274,15 @@ Jobs can use these too.
    the 30-tier track of item tiles that opens at the player's position, and
    the Cred rates, today's turn Cred and the late-join bonus. Season
    cosmetics show a ★ stand-in tile until step 4.
-4. **Done.** Item art for all five Season 1 cosmetics in
+4. **Done.** Item art for all seven Season 1 cosmetics in
    `apps/web/public/items/street-pass-s1-*.svg`: fresh kicks (Fresh Face),
-   a fedora (Made Man), a gold crown (Kingpin), a lanyard pass (badge) and a
-   gold frame (frame), in the catalog under a new `COSMETIC` category so the
-   track and reward chips show them. The frame's profile look is
-   `.se-profile-frame--street-pass-s1-frame` (gold double border). The
-   titles read as named on profiles ("Kingpin · Season 1", not "The …").
+   a fedora (Made Man), a gold crown (Kingpin), a lanyard pass (badge), a gold
+   frame, a neon road card (Night Drive), and a chrome halo frame. The catalog
+   uses the `COSMETIC` category so the track and reward chips show them. The Season 1 frame uses
+   `.se-profile-frame--street-pass-s1-frame` (gold double border); Chrome Halo
+   uses `.se-profile-frame--street-pass-s1-chrome-halo`. Night Drive uses the
+   `street-pass-s1-night-drive` player-facing site theme. Titles read as named
+   on profiles ("Kingpin · Season 1", not "The …").
    Job finale cosmetics still have no art and stay text chips.
 5. **Done.** `npm run qa:street-pass` balance run (six player types, pass
    value against the season simulation), tier costs raised to 800 / 1,200 /

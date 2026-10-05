@@ -1082,3 +1082,61 @@
   .se-theme-winter-horizon,
   .se-theme-halloween-horizon { opacity: 0.22; }
 }
+
+
+/* Street Pass Season 1: a violet-and-teal night drive theme. */
+.se-site-theme--street-pass-s1-night-drive {
+  --se-bg: #090914;
+  --se-panel: #131421;
+  --se-panel-hi: #1c1d31;
+  --se-line: rgba(45, 212, 191, 0.28);
+  --se-line-soft: rgba(167, 139, 250, 0.18);
+  --se-text: #f2f3ff;
+  --se-text-dim: #b7bad4;
+  --se-muted: #8589a7;
+  --se-accent: #2dd4bf;
+  --se-accent-dim: #138779;
+  --se-accent-hover: #7cebdd;
+  --se-accent-rgb: 45, 212, 191;
+  --se-accent-2: #a78bfa;
+  color-scheme: dark;
+  background-image:
+    linear-gradient(110deg, transparent 0 42%, rgba(45, 212, 191, 0.07) 42% 43%, transparent 43% 100%),
+    radial-gradient(850px 520px at 88% 0%, rgba(45, 212, 191, 0.17), transparent 58%),
+    radial-gradient(760px 480px at 8% -6%, rgba(167, 139, 250, 0.18), transparent 57%),
+    linear-gradient(180deg, rgba(18, 18, 38, 0.5), transparent 54%);
+}
+.se-site-theme--street-pass-s1-night-drive .se-topbar {
+  background:
+    linear-gradient(90deg, rgba(45, 212, 191, 0.13), transparent 34%, rgba(167, 139, 250, 0.17)),
+    color-mix(in srgb, var(--se-bg) 92%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--se-accent) 48%, var(--se-line));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.42), 0 0 26px rgba(45, 212, 191, 0.12);
+}
+.se-site-theme--street-pass-s1-night-drive .se-panel,
+.se-site-theme--street-pass-s1-night-drive .se-stats,
+.se-site-theme--street-pass-s1-night-drive .se-stat {
+  background:
+    linear-gradient(135deg, rgba(167, 139, 250, 0.07), transparent 44%),
+    linear-gradient(180deg, rgba(28, 29, 49, 0.94), rgba(13, 14, 27, 0.95));
+  border-color: color-mix(in srgb, var(--se-accent) 34%, var(--se-line));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 0 18px rgba(45, 212, 191, 0.09);
+}
+.se-site-theme--street-pass-s1-night-drive .se-panel__head {
+  background: linear-gradient(90deg, rgba(45, 212, 191, 0.13), rgba(167, 139, 250, 0.08) 58%, transparent);
+}
+.se-site-theme--street-pass-s1-night-drive .se-btn,
+.se-site-theme--street-pass-s1-night-drive .se-input {
+  background: color-mix(in srgb, var(--se-panel-hi) 82%, #000);
+  border-color: color-mix(in srgb, var(--se-accent) 34%, var(--se-line));
+  color: var(--se-text);
+}
+.se-site-theme--street-pass-s1-night-drive .se-btn--primary {
+  background: linear-gradient(180deg, rgba(45, 212, 191, 0.38), rgba(19, 87, 91, 0.9));
+  border-color: rgba(45, 212, 191, 0.72);
+  color: #fff;
+}
+.se-site-theme--street-pass-s1-night-drive .se-footer {
+  background: linear-gradient(180deg, rgba(9, 9, 20, 0.75), #090914);
+  border-top-color: rgba(45, 212, 191, 0.36);
+}

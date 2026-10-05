@@ -126,7 +126,7 @@ export function StreetPassPage() {
           <div className="se-pass-hero__copy">
             <span className="se-eyebrow">Free · resets every round</span>
             <h1>{pass?.name ?? 'Street Pass'}</h1>
-            <p>Earn Street Cred by playing: contracts, jobs and the turns you spend. Every tier pays out, and the last one is yours to keep.</p>
+            <p>Earn Street Cred by playing: contracts, jobs and the turns you spend. Every tier pays out, and the profile cosmetics you earn are yours to keep.</p>
           </div>
           {pass ? (
             <div className="se-pass-hero__progress">

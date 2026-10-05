@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Chrome Halo profile frame">
+  <defs>
+    <linearGradient id="chrome" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#f8fafc"/>
+      <stop offset=".3" stop-color="#8fa4b7"/>
+      <stop offset=".55" stop-color="#e2e8f0"/>
+      <stop offset=".76" stop-color="#60778b"/>
+      <stop offset="1" stop-color="#dbeafe"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <circle cx="64" cy="64" r="45" fill="#101326" stroke="url(#chrome)" stroke-width="8"/>
+  <circle cx="64" cy="64" r="36" fill="none" stroke="#2dd4bf" stroke-width="3" opacity=".88" filter="url(#glow)"/>
+  <circle cx="64" cy="64" r="28" fill="#1b1d30" stroke="#a78bfa" stroke-width="2"/>
+  <circle cx="64" cy="55" r="10" fill="#cbd5e1"/>
+  <path d="M45 86c2-12 9-18 19-18s17 6 19 18" fill="#94a3b8"/>
+  <path d="M32 36a45 45 0 0 1 26-16" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".85"/>
+  <circle cx="97" cy="40" r="4" fill="#2dd4bf"/>
+  <circle cx="29" cy="76" r="3" fill="#a78bfa"/>
+</svg>

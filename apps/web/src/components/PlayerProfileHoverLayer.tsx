@@ -227,6 +227,7 @@ export function PlayerProfileHoverLayer() {
       className={`se-profile-hover-card${profile ? ` se-profile-effect se-profile-effect--${profile.cosmetics.effect}` : ''}`}
       data-accent={profile?.cosmetics.accent ?? 'default'}
       data-framed={profile?.cosmetics.frame ? 'true' : 'false'}
+      data-frame={profile?.cosmetics.frame ?? 'none'}
       data-touch={touch ? 'true' : 'false'}
       style={touch ? undefined : { top: position.top, left: position.left, width: position.width }}
       aria-label={`${profile?.displayName ?? target.label} profile preview`}
