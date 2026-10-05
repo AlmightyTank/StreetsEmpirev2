@@ -62,9 +62,9 @@ const scheduleRoundSchema = z.object({
 const streetPassRewardSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('CASH'), amount: z.number().int().min(1) }).strict(),
   z.object({ kind: z.literal('TURNS'), amount: z.number().int().min(1) }).strict(),
-  z.object({ kind: z.literal('ITEM'), key: contentKey, amount: z.number().int().min(1) }).strict(),
-  z.object({ kind: z.literal('PRODUCT'), key: contentKey, amount: z.number().int().min(1) }).strict(),
-  z.object({ kind: z.literal('FAVOR_ITEM'), key: contentKey, amount: z.number().int().min(1).optional() }).strict(),
+  z.object({ kind: z.literal('ITEM'), key: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.:-]+$/), amount: z.number().int().min(1) }).strict(),
+  z.object({ kind: z.literal('PRODUCT'), key: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.:-]+$/), amount: z.number().int().min(1) }).strict(),
+  z.object({ kind: z.literal('FAVOR_ITEM'), key: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.:-]+$/), amount: z.number().int().min(1).optional() }).strict(),
   z.object({ kind: z.literal('COSMETIC_UNLOCK'), key: contentKey }).strict(),
 ]);
 const updateStreetPassSchema = z.object({
