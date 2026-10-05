@@ -995,6 +995,8 @@ model Round {
 
   rulesetId      String
   rulesetVersion String
+  /// Per-round Street Pass reward edits, frozen when registration opens.
+  streetPassOverride Json?
 
   status RoundStatus @default(SCHEDULED)
 
