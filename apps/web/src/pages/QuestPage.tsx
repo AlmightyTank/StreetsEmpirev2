@@ -21,10 +21,11 @@ import { formatClockTime, formatWhen, serverAdjustedNowMs, serverClockOffsetMs }
 import { confirmAction } from '../stores/confirm.js';
 
 type Tab = 'available' | 'active' | 'ready' | 'tracked' | 'daily' | 'weekly' | 'city' | 'season' | 'alliance' | 'events' | 'completed';
-const SLOTLESS_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT', 'SEASON'] as const;
+const BOARD_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT', 'SEASON'] as const;
 
-function isSlotlessQuest(quest: PlayerQuestDto): boolean {
-  return SLOTLESS_QUEST_TYPES.includes(quest.type as typeof SLOTLESS_QUEST_TYPES[number])
+/** City, alliance, season and community work: shared boards, not personal jobs, and never abandoned. */
+function isBoardQuest(quest: PlayerQuestDto): boolean {
+  return BOARD_QUEST_TYPES.includes(quest.type as typeof BOARD_QUEST_TYPES[number])
     || quest.category === 'CITY_CONTRACT';
 }
 
@@ -348,9 +349,7 @@ function QuestCard({
         {quest.status === 'AVAILABLE' ? (
           <Button
             className="se-btn se-btn--primary"
-            disabledReason={busy ?? (!isSlotlessQuest(quest) && page.counts.active >= page.activeLimit
-              ? 'All ' + page.activeLimit + ' job slots are in use.'
-              : null)}
+            disabledReason={busy}
             onClick={() => onAccept(quest.key)}
           >
             Accept job
@@ -374,7 +373,7 @@ function QuestCard({
             >
               {quest.isTracked ? 'Stop tracking' : 'Track job'}
             </Button>
-            {!isSlotlessQuest(quest) ? (
+            {!isBoardQuest(quest) ? (
               <Button className="se-btn se-btn--ghost" disabledReason={busy} onClick={() => onAbandon(quest.key)}>
                 Abandon
               </Button>
@@ -782,10 +781,10 @@ export function QuestPage() {
                 <small>Ready</small>
                 <strong>{page ? formatNumber(page.counts.ready) : '—'}</strong>
               </span>
-              {/* Slots, not every active job: city, alliance, season and community work runs alongside them. */}
-              <span title="City, alliance, season and community work does not use a job slot.">
-                <small>Job slots</small>
-                <strong>{page ? `${formatNumber(page.counts.active)} / ${formatNumber(page.activeLimit)}` : '—'}</strong>
+              {/* Personal jobs only: city, alliance, season and community work runs alongside them. */}
+              <span title="Jobs you took from contacts. City, alliance, season and community work is not counted here.">
+                <small>Personal jobs</small>
+                <strong>{page ? formatNumber(page.counts.active) : '—'}</strong>
               </span>
               <span>
                 <small>Tracked</small>
@@ -810,8 +809,26 @@ export function QuestPage() {
                   <span className="se-eyebrow">Contract board</span>
                   <h2>Choose your work</h2>
                 </div>
-                <p>Personal jobs take one of your job slots; city, alliance, season and community work does not. Board resets are listed beside the jobs.</p>
+                <p>Take on as many jobs as you can handle. Board resets are listed beside the jobs.</p>
               </div>
+
+              <label className="se-checkrow se-checkrow--toggle se-quests-autoaccept">
+                <input
+                  type="checkbox"
+                  checked={page.autoAccept ?? true}
+                  disabled={busy !== null}
+                  onChange={(event) => {
+                    const enabled = event.target.checked;
+                    void mutate('auto-accept', () => questsApi.setAutoAccept(enabled), enabled
+                      ? 'Auto-accept is on. New daily, weekly and city work starts by itself.'
+                      : 'Auto-accept is off. Accept board work yourself.');
+                  }}
+                />
+                <span>
+                  <strong>Auto-accept board work</strong>
+                  <small>Daily, weekly and city contracts start as soon as they appear. Community events always start on their own. A job you abandon stays off until you take it again.</small>
+                </span>
+              </label>
 
               <div className="se-quests-tabs" role="tablist" aria-label="Quest view">
                 {([

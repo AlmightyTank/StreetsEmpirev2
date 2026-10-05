@@ -3,7 +3,8 @@ import { Link, Navigate, NavLink, useParams } from 'react-router-dom';
 import { formatCents, formatNumber, type ProductsDto, type StoreCheckoutLineInput, type StoreCheckoutResult, type StoreDto, type StoreItemDto, type StoreMarketContextDto, type StoreRestockDto, type StoresDto, type StoreSpecialOrderResult, type StoreTradeInput, type StoreTradeResult } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { storesApi } from '../api/stores.js';
-import { ActionResult } from '../components/ActionResult.js';
+import { ActionDock, resultChips } from '../components/ActionDock.js';
+import { ActionResult, type ResultLine } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Portrait } from '../components/Portrait.js';
 import { Button } from '../components/Button.js';
@@ -468,6 +469,39 @@ function StoreView({
   const receipt = action.result && 'direction' in action.result.result ? action.result.result : null;
   const checkoutReceipt = action.result && 'lines' in action.result.result ? action.result.result : null;
   const specialOrderReceipt = action.result && 'stockArrivesAt' in action.result.result ? action.result.result : null;
+  // Every counter action reports into the dock, so a buy at the top shelf and
+  // a basket checkout both answer at the same spot under the thumb.
+  const outcome = !action.result ? null : receipt ? {
+    title: `${receipt.direction === 'buy' ? 'Bought' : 'Sold'} ${receipt.itemName}`,
+    subtitle: receipt.storeName,
+    lines: [
+      { label: receipt.itemName, delta: receipt.quantityChange, remaining: action.result.after.resources[receipt.field] },
+      { label: 'Price each', value: formatCents(receipt.unitCents) },
+      { label: receipt.direction === 'buy' ? 'Paid' : 'Received', delta: receipt.cashChangeCents, money: true },
+      { label: 'Turns used', value: '0' },
+    ] as ResultLine[],
+  } : checkoutReceipt ? {
+    title: `Checkout · ${formatNumber(checkoutReceipt.itemCount)} items`,
+    subtitle: `${formatNumber(checkoutReceipt.itemCount)} items across ${formatNumber(checkoutReceipt.lineCount)} lines`,
+    lines: [
+      ...checkoutReceipt.lines.map((line) => ({
+        label: `${line.direction === 'buy' ? 'Bought' : 'Sold'} ${line.itemName}`,
+        detail: line.storeName,
+        delta: line.quantityChange,
+        remaining: action.result!.after.resources[line.field],
+      })),
+      { label: checkoutReceipt.cashChangeCents < 0 ? 'Paid' : 'Received', delta: checkoutReceipt.cashChangeCents, money: true },
+      { label: 'Turns used', value: '0' },
+    ] as ResultLine[],
+  } : specialOrderReceipt ? {
+    title: `${specialOrderReceipt.itemName} ordered · due ${formatClockTime(specialOrderReceipt.stockArrivesAt)}`,
+    subtitle: `Delivery due in about ${formatNumber(specialOrderReceipt.waitMinutes)} minutes`,
+    lines: [
+      { label: 'Sourcing fee', delta: specialOrderReceipt.cashChangeCents, money: true },
+      { label: 'Incoming stock', value: formatClockTime(specialOrderReceipt.stockArrivesAt) },
+      { label: 'Turns used', value: '0' },
+    ] as ResultLine[],
+  } : null;
   const details = store ? STORE_DETAILS[store.key] ?? {
     label: 'Street market',
     lane: 'Open counter',
@@ -547,81 +581,6 @@ function StoreView({
         ) : null}
         {!catalog && !loadError ? <div className="se-stores-loading" role="status">Loading the shelves...</div> : null}
         {catalog && !store ? <Alert>That store is not open. <Link to="/game/stores/corner">Visit the Corner Store</Link>.</Alert> : null}
-
-        {action.result && receipt ? (
-          <section className="se-stores-receipt" aria-live="polite">
-            <div className="se-stores-sectionhead">
-              <div>
-                <span className="se-eyebrow">Transaction complete</span>
-                <h2>{receipt.direction === 'buy' ? 'Purchase receipt' : 'Sale receipt'}</h2>
-              </div>
-              <span className="se-stores-sectionhead__meta">{receipt.storeName}</span>
-            </div>
-            <ActionResult
-              title={receipt.direction === 'buy' ? 'Purchase complete' : 'Sale complete'}
-              subtitle={receipt.storeName}
-              result={action.result}
-              onDismiss={action.clear}
-              lines={[
-                { label: receipt.itemName, delta: receipt.quantityChange, remaining: action.result.after.resources[receipt.field] },
-                { label: 'Price each', value: formatCents(receipt.unitCents) },
-                { label: receipt.direction === 'buy' ? 'Paid' : 'Received', delta: receipt.cashChangeCents, money: true },
-                { label: 'Turns used', value: '0' },
-              ]}
-            />
-          </section>
-        ) : null}
-
-        {action.result && checkoutReceipt ? (
-          <section className="se-stores-receipt" aria-live="polite">
-            <div className="se-stores-sectionhead">
-              <div>
-                <span className="se-eyebrow">Checkout complete</span>
-                <h2>Basket receipt</h2>
-              </div>
-              <span className="se-stores-sectionhead__meta">{formatNumber(checkoutReceipt.lineCount)} lines</span>
-            </div>
-            <ActionResult
-              title="Checkout complete"
-              subtitle={`${formatNumber(checkoutReceipt.itemCount)} items across ${formatNumber(checkoutReceipt.lineCount)} lines`}
-              result={action.result}
-              onDismiss={action.clear}
-              lines={[
-                ...checkoutReceipt.lines.map((line) => ({
-                  label: `${line.direction === 'buy' ? 'Bought' : 'Sold'} ${line.itemName}`,
-                  detail: line.storeName,
-                  delta: line.quantityChange,
-                  remaining: action.result!.after.resources[line.field],
-                })),
-                { label: checkoutReceipt.cashChangeCents < 0 ? 'Paid' : 'Received', delta: checkoutReceipt.cashChangeCents, money: true },
-                { label: 'Turns used', value: '0' },
-              ]}
-            />
-          </section>
-        ) : null}
-
-        {action.result && specialOrderReceipt ? (
-          <section className="se-stores-receipt" aria-live="polite">
-            <div className="se-stores-sectionhead">
-              <div>
-                <span className="se-eyebrow">Special order placed</span>
-                <h2>{specialOrderReceipt.itemName} sourced</h2>
-              </div>
-              <span className="se-stores-sectionhead__meta">{specialOrderReceipt.storeName}</span>
-            </div>
-            <ActionResult
-              title="Special order placed"
-              subtitle={`Delivery due in about ${formatNumber(specialOrderReceipt.waitMinutes)} minutes`}
-              result={action.result}
-              onDismiss={action.clear}
-              lines={[
-                { label: 'Sourcing fee', delta: specialOrderReceipt.cashChangeCents, money: true },
-                { label: 'Incoming stock', value: formatClockTime(specialOrderReceipt.stockArrivesAt) },
-                { label: 'Turns used', value: '0' },
-              ]}
-            />
-          </section>
-        ) : null}
 
         {store && catalog ? (
           <>
@@ -712,17 +671,6 @@ function StoreView({
                         <span>{basketTotalCents < 0 ? 'Estimated due' : 'Estimated payout'}</span>
                         <strong>{formatCents(Math.abs(basketTotalCents))}</strong>
                       </div>
-                      <Button
-                        type="button"
-                        className="se-btn se-btn--primary se-btn--block"
-                        disabledReason={basketDisabled}
-                        onClick={() => void execute({
-                          kind: 'checkout',
-                          lines: basket.map(({ store, item, direction, quantity }) => ({ store, item, direction, quantity })),
-                        })}
-                      >
-                        Checkout basket
-                      </Button>
                     </>
                   )}
                 </div>
@@ -868,6 +816,61 @@ function StoreView({
               </aside>
             </section>
           </>
+        ) : null}
+
+        {basket.length > 0 || outcome ? (
+          <ActionDock
+            label="Checkout"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (basketDisabled) return;
+              void execute({
+                kind: 'checkout',
+                lines: basket.map(({ store, item, direction, quantity }) => ({ store, item, direction, quantity })),
+              });
+            }}
+            outcome={outcome && action.result ? {
+              id: action.result,
+              title: outcome.title,
+              chips: resultChips(action.result, outcome.lines),
+              receipt: (
+                <ActionResult
+                  title={outcome.title}
+                  subtitle={outcome.subtitle}
+                  result={action.result}
+                  lines={outcome.lines}
+                />
+              ),
+              onDismiss: action.clear,
+            } : null}
+          >
+            <div>
+              <span className="se-dock__label">Order basket</span>
+              <strong>
+                {basket.length === 0
+                  ? 'Basket is empty'
+                  : `${formatNumber(basket.length)} line${basket.length === 1 ? '' : 's'} · ${basketTotalCents < 0 ? 'due' : 'payout'} ${formatCents(Math.abs(basketTotalCents))}`}
+              </strong>
+              <span>
+                {basket.length === 0
+                  ? 'Add items from any store to check out together.'
+                  : basket.map((line) => `${line.direction === 'buy' ? '' : 'sell '}${formatNumber(line.quantity)} ${line.itemName}`).join(' · ')}
+              </span>
+            </div>
+            {basket.length > 0 ? (
+              <Button
+                type="button"
+                className="se-btn se-btn--ghost se-btn--sm"
+                disabledReason={action.busy ? 'Your last order is still going through.' : null}
+                onClick={onClearBasket}
+              >
+                Clear
+              </Button>
+            ) : null}
+            <Button className="se-btn se-btn--primary" disabledReason={basketDisabled}>
+              {action.busy ? 'Ringing it up...' : 'Checkout basket'}
+            </Button>
+          </ActionDock>
         ) : null}
       </div>
     </GameLayout>

@@ -5,6 +5,7 @@ import {
   produceCrackSchema,
   questAcceptSchema,
   questAbandonSchema,
+  questAutoAcceptSchema,
   questClaimSchema,
   questTrackSchema,
   scoutSchema,
@@ -191,6 +192,12 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/quests', { preHandler: fastify.requireAuth }, async (request) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
     return HandcraftedQuestService.page(fastify.prisma, player.id, loadRulesetForRound(round));
+  });
+
+  fastify.put('/quests/auto-accept', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(questAutoAcceptSchema, request.body);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    return HandcraftedQuestService.setAutoAccept(fastify.prisma, player.id, loadRulesetForRound(round), body.enabled);
   });
 
   fastify.post('/quests/:key/accept', { preHandler: fastify.requireAuth }, async (request) => {

@@ -165,7 +165,7 @@ export function App() {
         <Route path="street-pass" element={<Protected><LiveRound><StreetPassPage /></LiveRound></Protected>} />
         <Route path="stores" element={<Protected><LiveRound><StoresIndexPage /></LiveRound></Protected>} />
         <Route path="stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
-        <Route path="casino" element={<Navigate to="/game/casino/slots" replace />} />
+        <Route path="casino" element={<Protected><LiveRound><CasinoPage /></LiveRound></Protected>} />
         <Route path="casino/:game" element={<Protected><LiveRound><CasinoPage /></LiveRound></Protected>} />
 
         <Route path="travel" element={<Protected><LiveRound><TravelPage /></LiveRound></Protected>} />

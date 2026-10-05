@@ -1063,8 +1063,9 @@ export interface QuestPageDto {
     slots: number;
     resetAt: string | null;
   };
-  activeLimit: number;
   trackedLimit: number;
+  /** Daily, weekly and city board work starts itself while this is on. Absent from older servers. */
+  autoAccept?: boolean;
   counts: {
     available: number;
     active: number;

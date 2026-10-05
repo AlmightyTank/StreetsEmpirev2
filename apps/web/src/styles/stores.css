@@ -151,21 +151,9 @@
   font-size: 11px;
 }
 
-.se-stores-receipt,
 .se-stores-section {
   display: grid;
   gap: 10px;
-}
-
-.se-stores-receipt {
-  padding: 14px;
-  border: 1px solid rgba(var(--se-accent-rgb), 0.18);
-  border-radius: 4px;
-  background: rgba(var(--se-accent-rgb), 0.018);
-}
-
-.se-stores-receipt .se-store-receipt {
-  margin: 0;
 }
 
 .se-stores-sectionhead {

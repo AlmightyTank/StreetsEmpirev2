@@ -4,6 +4,7 @@ import type { ProduceCrackResult, ProductsDto, ProductTypeDto } from '@streets/s
 import { formatCents, formatCentsExact, formatNumber } from '@streets/shared';
 import { actionsApi } from '../api/actions.js';
 import { api } from '../api/client.js';
+import { ActionDock, resultChips } from '../components/ActionDock.js';
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
@@ -97,6 +98,8 @@ export function ProducePage() {
           ? `You only have ${formatNumber(available)} turns.`
           : null;
 
+  const receiptLines = action.result ? produceReceiptLines(action.result, me) : null;
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!canProduce || typeof turns !== 'number') return;
@@ -125,29 +128,11 @@ export function ProducePage() {
           </Alert>
         ) : null}
 
-        {action.result ? (
-          <section className="se-produce-result" aria-label="Latest production result">
-            <div className="se-produce-sectionhead">
-              <div>
-                <span className="se-eyebrow">Batch complete</span>
-                <h2>Latest production receipt</h2>
-              </div>
-              <span className="se-produce-sectionhead__meta">{producedName}</span>
-            </div>
-            <ActionResult
-              title={`${producedName} Production Results`}
-              onDismiss={action.clear}
-              result={action.result}
-              lines={produceReceiptLines(action.result, me)}
-            />
-          </section>
-        ) : null}
-
-        <form className="se-produce-plan" onSubmit={onSubmit}>
+        <div className="se-produce-plan">
           <section className="se-produce-plan__main">
             <div className="se-produce-sectionhead">
               <div>
-                <span className="se-eyebrow">Step 1</span>
+                <span className="se-eyebrow">What to cook</span>
                 <h2>Choose the batch</h2>
               </div>
               <span className="se-produce-sectionhead__meta">{selectedProfile.name}</span>
@@ -176,47 +161,6 @@ export function ProducePage() {
                   </span>
                 </label>
               ))}
-            </div>
-
-            <div className="se-produce-turns">
-              <div className="se-produce-sectionhead">
-                <div>
-                  <span className="se-eyebrow">Step 2</span>
-                  <h2>Set the shift</h2>
-                </div>
-                <span className="se-produce-sectionhead__meta">
-                  {chosenTurns > 0 ? `${formatNumber(chosenTurns)} turns` : 'Choose turns'}
-                </span>
-              </div>
-
-              <TurnSpend
-                value={turns}
-                onChange={setTurns}
-                available={available}
-                disabled={action.busy || !hasFitThugs}
-                disabledReason={
-                  action.busy
-                    ? 'The last batch is still producing.'
-                    : !hasFitThugs
-                      ? 'Production takes a fit thug, and none of yours can work.'
-                      : null
-                }
-              />
-            </div>
-
-            <div className="se-produce-launch">
-              <div className="se-produce-launch__summary">
-                <span className="se-produce-launch__label">Ready to cook</span>
-                <strong>{selectedProfile.name} · {formatNumber(chosenTurns)} turn{chosenTurns === 1 ? '' : 's'}</strong>
-                <span>
-                  {chosenTurns > 0
-                    ? `${formatNumber(remainingTurns)} turns remain after this shift.`
-                    : `${formatNumber(available)} turns available.`}
-                </span>
-              </div>
-              <Button className="se-btn se-btn--primary se-produce-launch__button" disabledReason={produceBlock}>
-                {action.busy ? 'Producing...' : `Start ${selectedProfile.name} batch`}
-              </Button>
             </div>
           </section>
 
@@ -277,7 +221,7 @@ export function ProducePage() {
               </span>
             </div>
           </aside>
-        </form>
+        </div>
 
         <HeatNotice />
 
@@ -380,6 +324,50 @@ export function ProducePage() {
             </div>
           </div>
         </section>
+
+        <ActionDock
+          label="Start the batch"
+          onSubmit={onSubmit}
+          outcome={action.result ? {
+            id: action.result,
+            title: `${producedName} · ${formatNumber(action.result.result.turnsUsed)} turns`,
+            chips: resultChips(action.result, receiptLines!),
+            receipt: (
+              <ActionResult
+                title={`${producedName} Production Results`}
+                result={action.result}
+                lines={receiptLines!}
+              />
+            ),
+            onDismiss: action.clear,
+          } : null}
+        >
+          <div>
+            <span className="se-dock__label">Ready to cook</span>
+            <strong>{selectedProfile.name}</strong>
+            <span>
+              {chosenTurns > 0 && chosenTurns <= available
+                ? `${formatNumber(remainingTurns)} turns left after`
+                : `${formatNumber(available)} turns available`}
+            </span>
+          </div>
+          <TurnSpend
+            value={turns}
+            onChange={setTurns}
+            available={available}
+            disabled={action.busy || !hasFitThugs}
+            disabledReason={
+              action.busy
+                ? 'The last batch is still producing.'
+                : !hasFitThugs
+                  ? 'Production takes a fit thug, and none of yours can work.'
+                  : null
+            }
+          />
+          <Button className="se-btn se-btn--primary" disabledReason={produceBlock}>
+            {action.busy ? 'Producing...' : action.result ? 'Cook again' : `Start ${selectedProfile.name} batch`}
+          </Button>
+        </ActionDock>
       </div>
     </GameLayout>
   );

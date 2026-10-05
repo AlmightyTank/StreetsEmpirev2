@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { formatCents, type CasinoPageDto, type CasinoSlotSpinDto, type CasinoTournamentPageDto } from '@streets/shared';
 import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
+import { ActionDock, deltaChip } from '../components/ActionDock.js';
 import { Alert } from '../components/Alert.js';
 import { BlackjackPanel } from '../components/BlackjackPanel.js';
 import { RoulettePanel } from '../components/RoulettePanel.js';
@@ -327,19 +328,26 @@ export function CasinoPage() {
     await exchange('buy');
   }
 
-  async function openSession(event: FormEvent) {
-    event.preventDefault();
+  /**
+   * Cash to a playable bankroll in one press: buy whatever chips are missing at
+   * this cage (no fee, 1:1), then open the session for the bankroll amount.
+   */
+  async function quickStart() {
+    if (!data?.currentVenue) return;
     const amountCents = dollarsToCents(sessionAmount);
     if (!amountCents) {
       setError('Enter a bankroll amount, such as 1000.');
       return;
     }
-    const ok = await run(
-      'open',
-      () => casinoApi.openSession({ amountCents, actionId: openAction.current }),
-      'Bankroll moved onto the casino floor.',
-    );
-    if (ok) openAction.current = newActionId();
+    const missing = amountCents - data.currentVenue.walletChipsCents;
+    if (missing > 0) {
+      const buyCents = Math.max(missing, data.limits?.cashierMinCents ?? 0);
+      const bought = await run('buy', () => casinoApi.buy({ amountCents: buyCents, actionId: buyAction.current }), 'Chips are waiting at the cage.');
+      if (!bought) return;
+      buyAction.current = newActionId();
+    }
+    const opened = await run('open', () => casinoApi.openSession({ amountCents, actionId: openAction.current }), formatCents(amountCents) + ' is on the floor. Pick a game.');
+    if (opened) openAction.current = newActionId();
   }
 
   async function spinSlots(event: FormEvent) {
@@ -432,19 +440,6 @@ export function CasinoPage() {
         setDisplayedCreditsCents(result.spin.bankrollAfterCents);
       }
 
-      setNotice(
-        result.spin.jackpotAwardCents > 0
-          ? 'JACKPOT! ' + formatCents(result.spin.jackpotAwardCents) + ' hit the bankroll.'
-          : result.spin.freeSpinsAwarded > 0
-            ? result.spin.freeSpinsAwarded + ' free spin' + (result.spin.freeSpinsAwarded === 1 ? '' : 's') + ' awarded.'
-            : result.spin.isFreeSpin && result.spin.freeSpinsRemainingAfter > 0
-              ? 'Free spin complete · ' + result.spin.freeSpinsRemainingAfter + ' remaining.'
-              : result.spin.winningLines.length > 0
-                ? result.spin.winningLines.length + ' winning line' + (result.spin.winningLines.length === 1 ? '' : 's') + ' paid ' + formatCents(result.spin.payoutCents) + '.'
-                : result.spin.nearMiss
-                  ? 'So close — ' + result.spin.nearMiss.symbolLabel + ' landed one stop off the line.'
-                  : result.spin.isFreeSpin ? 'Free spin complete.' : 'No winning paylines on that spin.',
-      );
       spinAction.current = newActionId();
       await refreshSnapshot({ background: false });
     } catch (caught) {
@@ -466,23 +461,44 @@ export function CasinoPage() {
     if (ok) closeAction.current = newActionId();
   }
 
-  if (!activeGame) return <Navigate to="/game/casino/slots" replace />;
+  if (routeGame && !activeGame) return <Navigate to="/game/casino" replace />;
+  const activeInfo = activeGame ? CASINO_GAMES.find((game) => game.key === activeGame)! : null;
+  const venue = data?.currentVenue ?? null;
+  const session = data?.openSession ?? null;
+  const floorCents = session ? (displayedCreditsCents ?? session.bankrollCents) : null;
 
   return (
     <GameLayout>
-      <div className="se-casino">
-        <header className="se-casino__hero">
-          <div>
-            <span className="se-eyebrow">1.2.0 · Casino floor</span>
-            <h1>Casino</h1>
-            <p>Buy chips once, open a floor bankroll, then move between casino games without leaving the room. Every result is settled by the house after you act.</p>
-          </div>
-          <div className="se-casino__readout">
-            <span><small>Cash here</small><strong>{data ? formatCents(data.cashCents) : '—'}</strong></span>
-            <span><small>Casino value</small><strong>{data ? formatCents(data.totalCasinoValueCents) : '—'}</strong></span>
-            <span><small>Boss</small><strong>{data?.currentVenue?.cityName ?? (data ? 'On the road' : '—')}</strong></span>
-          </div>
-        </header>
+      <div className={'se-casino' + (activeGame ? ' se-casino--table' : ' se-casino--lobby')}>
+        {activeInfo ? (
+          <header className="se-casino-tablehead">
+            <Link className="se-casino-tablehead__back" to="/game/casino">&larr; Lobby</Link>
+            <div className="se-casino-tablehead__title">
+              <span className="se-eyebrow">{venue ? venue.name + ' · ' + venue.cityName : 'Casino floor'}</span>
+              <h1>{activeInfo.title}</h1>
+            </div>
+            <nav className="se-casino-switch" aria-label="Switch game">
+              {CASINO_GAMES.map((game) => (
+                <Link
+                  key={game.key}
+                  to={'/game/casino/' + game.key}
+                  aria-current={activeGame === game.key ? 'page' : undefined}
+                  title={game.label}
+                  className={'se-casino-switch__game' + (activeGame === game.key ? ' is-active' : '')}
+                >
+                  <span aria-hidden="true">{game.icon}</span>
+                  <small>{game.label}</small>
+                </Link>
+              ))}
+            </nav>
+          </header>
+        ) : (
+          <header className="se-casino-lobbyhead">
+            <span className="se-eyebrow">Casino · {venue ? venue.cityName : 'No casino in reach'}</span>
+            <h1>{venue ? venue.name : 'No casino in reach'}</h1>
+            <p>{venue ? venue.blurb : 'The boss has to be standing in a casino city to buy chips or play. Pick a destination below and travel there.'}</p>
+          </header>
+        )}
 
         {error ? <Alert>{error}</Alert> : null}
         {notice ? <Alert tone="success">{notice}</Alert> : null}
@@ -494,17 +510,56 @@ export function CasinoPage() {
 
         {data?.enabled ? (
           <>
-            <div className="se-casino__grid">
-              <Panel title={data.currentVenue ? data.currentVenue.name : 'No casino in reach'} aside={data.currentVenue?.cityName ?? 'Travel'}>
-                {data.currentVenue ? (
-                  <>
-                    <p>{data.currentVenue.blurb}</p>
-                    <Row label="Chips at this cage" value={formatCents(data.currentVenue.walletChipsCents)} strong />
-                    <Row label="Venue type" value={data.currentVenue.kind.replaceAll('_', ' ').toLowerCase()} />
-                    {data.limits ? <Row label="Cage limits" value={formatCents(data.limits.cashierMinCents) + ' – ' + formatCents(data.limits.cashierMaxCents)} /> : null}
+            <section className="se-casino-wallet" aria-label="Casino wallet">
+              <dl className="se-casino-wallet__stats">
+                <div>
+                  <dt>Cash here</dt>
+                  <dd>{formatCents(data.cashCents)}</dd>
+                </div>
+                <div>
+                  <dt>Chips at the cage</dt>
+                  <dd>{venue ? formatCents(venue.walletChipsCents) : '—'}</dd>
+                </div>
+                <div className={session ? 'is-live' : undefined}>
+                  <dt>On the floor</dt>
+                  <dd>{floorCents !== null ? formatCents(floorCents) : 'No session'}</dd>
+                </div>
+              </dl>
+
+              <div className="se-casino-wallet__actions">
+                {!venue && !session ? (
+                  <Link className="se-btn se-btn--primary" to="/game/travel">Travel to a casino</Link>
+                ) : session ? (
+                  <Button className="se-btn" type="button" disabled={busy !== null} onClick={() => void closeSession()}>
+                    {busy === 'close' ? 'Cashing out...' : 'Cash out session'}
+                  </Button>
+                ) : (
+                  <form className="se-casino-wallet__start" onSubmit={(event) => { event.preventDefault(); void quickStart(); }}>
+                    <label className="se-casino-wallet__amount">
+                      <span aria-hidden="true">$</span>
+                      <input
+                        className="se-input"
+                        inputMode="decimal"
+                        aria-label="Bankroll in dollars"
+                        value={sessionAmount}
+                        onChange={(event) => {
+                          setSessionAmount(event.target.value);
+                          openAction.current = newActionId();
+                          buyAction.current = newActionId();
+                        }}
+                      />
+                    </label>
+                    <Button className="se-btn se-btn--primary" type="submit" disabledReason={busy !== null ? 'Another casino action is running.' : null}>
+                      {busy === 'buy' ? 'Buying chips...' : busy === 'open' ? 'Opening...' : 'Get on the floor'}
+                    </Button>
+                  </form>
+                )}
+                {venue ? (
+                  <details className="se-casino-wallet__cashier">
+                    <summary>Cashier</summary>
                     <form className="se-casino__form" onSubmit={submitBuy}>
                       <label>
-                        <span>Cashier amount ($)</span>
+                        <span>Exchange amount ($)</span>
                         <input className="se-input" inputMode="decimal" value={cashierAmount} onChange={(event) => {
                           setCashierAmount(event.target.value);
                           buyAction.current = newActionId();
@@ -517,103 +572,114 @@ export function CasinoPage() {
                           {busy === 'redeem' ? 'Cashing out...' : 'Redeem chips'}
                         </Button>
                       </div>
+                      {data.limits ? (
+                        <p className="se-hint">
+                          Cage {formatCents(data.limits.cashierMinCents)} – {formatCents(data.limits.cashierMaxCents)} · sessions {formatCents(data.limits.sessionMinCents)} – {formatCents(data.limits.sessionMaxCents)}.
+                          {session ? ' Cashing out returns the floor bankroll to ' + session.cityName + '’s chips.' : ' Get on the floor buys only the chips you are missing.'}
+                        </p>
+                      ) : null}
                     </form>
-                  </>
-                ) : (
-                  <p className="se-muted">The boss has to be standing in a casino city. A run driver cannot use the cage for you.</p>
-                )}
-              </Panel>
-
-              <Panel title="Session bankroll" aside={data.openSession ? 'Open' : 'Ready'}>
-                {data.openSession ? (
-                  <>
-                    <p><strong>{data.openSession.venueName}</strong> · {data.openSession.cityName}</p>
-                    <Row label="On the floor" value={formatCents(data.openSession.bankrollCents)} strong />
-                    <Row label="Opened" value={formatWhen(data.openSession.openedAt)} />
-                    <Button className="se-btn" type="button" disabled={busy !== null} onClick={() => void closeSession()}>
-                      {busy === 'close' ? 'Closing...' : 'Close session'}
-                    </Button>
-                    <p className="se-hint">Closing is always allowed, even after travel. Chips return to this venue&rsquo;s city wallet.</p>
-                  </>
-                ) : (
-                  <form className="se-casino__form" onSubmit={openSession}>
-                    <p className="se-muted">Move chips from the current city wallet onto the floor. Later games debit and credit this bankroll.</p>
-                    <label>
-                      <span>Bankroll ($)</span>
-                      <input className="se-input" inputMode="decimal" value={sessionAmount} onChange={(event) => {
-                        setSessionAmount(event.target.value);
-                        openAction.current = newActionId();
-                      }} />
-                    </label>
-                    {data.limits ? <p className="se-hint">Session limits: {formatCents(data.limits.sessionMinCents)} – {formatCents(data.limits.sessionMaxCents)}</p> : null}
-                    <Button
-                      className="se-btn"
-                      type="submit"
-                      disabledReason={!data.currentVenue ? 'Get the boss into a casino city first.' : busy !== null ? 'Another casino action is running.' : null}
-                    >
-                      {busy === 'open' ? 'Opening...' : 'Open session'}
-                    </Button>
-                  </form>
-                )}
-              </Panel>
-            </div>
-
-            <CasinoStatusPanel
-              page={data}
-              busy={busy !== null}
-              onPage={async (next, success) => {
-                setData(next);
-                setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
-                setError(null);
-                setNotice(success);
-                await refreshSnapshot({ background: false });
-              }}
-              onError={(message) => {
-                setNotice(null);
-                setError(message);
-              }}
-            />
-
-            <TournamentBoard />
-
-            <section className="se-casino-floor" aria-label="Casino games">
-              <div className="se-casino-floor__head">
-                <div>
-                  <span className="se-eyebrow">Casino floor</span>
-                  <h2>Choose your game</h2>
-                  <p>Switch games without leaving the cage, bankroll, destinations or casino history.</p>
-                </div>
-                <div className="se-casino-floor__bankroll">
-                  <small>Floor bankroll</small>
-                  <strong>{data.openSession ? formatCents(data.openSession.bankrollCents) : 'No session'}</strong>
-                  <span>{data.openSession ? data.openSession.venueName + ' · ' + data.openSession.cityName : 'Open a bankroll to play'}</span>
-                </div>
+                  </details>
+                ) : null}
               </div>
+              {session && (!venue || session.venueName !== venue.name) ? (
+                <p className="se-hint se-casino-wallet__note">Your open session is at {session.venueName}, {session.cityName}.</p>
+              ) : null}
+            </section>
 
-              <nav className="se-casino-games" aria-label="Casino games">
-                {CASINO_GAMES.map((game) => (
-                  <Link
-                    key={game.key}
-                    id={'casino-game-tab-' + game.key}
-                    to={'/game/casino/' + game.key}
-                    aria-current={activeGame === game.key ? 'page' : undefined}
-                    className={'se-casino-game-tab' + (activeGame === game.key ? ' is-active' : '') + (game.live ? ' is-live' : ' is-coming')}
+            {!activeGame ? (
+              <>
+                <section className="se-casino-lobby" aria-label="Casino games">
+                  {CASINO_GAMES.map((game) => (
+                    <Link key={game.key} to={'/game/casino/' + game.key} className={'se-casino-gamecard se-casino-gamecard--' + game.key}>
+                      <span className="se-casino-gamecard__icon" aria-hidden="true">{game.icon}</span>
+                      <span className="se-casino-gamecard__copy">
+                        <strong>{game.title}</strong>
+                        <small>{game.description}</small>
+                      </span>
+                      <span className="se-casino-gamecard__meta">
+                        {game.key === 'slots' && data.freeSpinBonus ? (
+                          <em className="se-casino-gamecard__badge">Free spins waiting</em>
+                        ) : (
+                          <em className={'se-casino-gamecard__status' + (game.live ? ' is-live' : '')}>{game.status}</em>
+                        )}
+                        <span className="se-casino-gamecard__play">Play &rarr;</span>
+                      </span>
+                    </Link>
+                  ))}
+                </section>
+
+                <CasinoStatusPanel
+                  page={data}
+                  busy={busy !== null}
+                  onPage={async (next, success) => {
+                    setData(next);
+                    setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+                    setError(null);
+                    setNotice(success);
+                    await refreshSnapshot({ background: false });
+                  }}
+                  onError={(message) => {
+                    setNotice(null);
+                    setError(message);
+                  }}
+                />
+
+                <TournamentBoard />
+
+            <Panel title="Casino destinations" aside={String(data.venues.length) + ' cities'}>
+              <div className="se-casino__venues">
+                {data.venues.map((venue) => (
+                  <article
+                    key={venue.citySlug}
+                    className={'se-casino__venue' + (venue.here ? ' is-here' : '') + (venue.identity ? ' se-casino__venue--' + venue.identity.accent.toLowerCase() : '')}
                   >
-                    <span className="se-casino-game-tab__icon" aria-hidden="true">{game.icon}</span>
-                    <span className="se-casino-game-tab__copy">
-                      <strong>{game.label}</strong>
-                      <small>{game.status}</small>
-                    </span>
-                  </Link>
+                    <span className="se-eyebrow">{venue.cityName}{venue.here ? ' · you are here' : ''}{data.status?.homeRoomCitySlug === venue.citySlug ? ' · your room' : ''}</span>
+                    <h3>{venue.name}</h3>
+                    <p>{venue.identity?.tagline ?? venue.blurb}</p>
+                    {venue.vipRoom ? <small className="se-casino__venue-vip">VIP: {venue.vipRoom.name} · {venue.vipRoom.minTierName}+</small> : null}
+                    <strong>{formatCents(venue.walletChipsCents)} in chips</strong>
+                  </article>
                 ))}
-              </nav>
+              </div>
+            </Panel>
 
-              <div
-                className="se-casino-game-stage"
-                id={'casino-game-panel-' + activeGame}
-                role="region"
-                aria-labelledby={'casino-game-tab-' + activeGame}
-              >
+            <Panel title="Casino history" aside="Last 25">
+              {data.recentLedger.length ? (
+                <div className="se-casino__ledger">
+                  {data.recentLedger.map((entry) => (
+                    <article key={entry.id} className={'se-casino__ledgerrow is-' + entry.display.tone}>
+                      <div className="se-casino__ledger-main">
+                        <div className="se-casino__ledger-title">
+                          <strong>{entry.display.title}</strong>
+                          <span>{entry.venueName} · {entry.cityName}</span>
+                        </div>
+                        <p>{entry.display.detail}</p>
+                        <time dateTime={entry.createdAt}>{formatWhen(entry.createdAt)}</time>
+                      </div>
+                      <div className="se-casino__ledger-amount">
+                        <small>{entry.display.amountLabel}</small>
+                        <strong>
+                          {entry.display.tone === 'positive' ? '+' : entry.display.tone === 'negative' ? '−' : ''}
+                          {formatCents(entry.display.amountCents)}
+                        </strong>
+                        {entry.kind === 'SLOT_SPIN' || entry.kind === 'BLACKJACK' || entry.kind === 'ROULETTE' || entry.kind === 'STREET_DICE' ? (
+                          <span>Floor {formatCents(entry.sessionChipsAfterCents)}</span>
+                        ) : entry.kind === 'BUY_CHIPS' || entry.kind === 'REDEEM_CHIPS' ? (
+                          <span>Wallet {formatCents(entry.walletChipsAfterCents)}</span>
+                        ) : (
+                          <span>{entry.kind === 'SESSION_OPEN' ? 'Floor ' + formatCents(entry.sessionChipsAfterCents) : 'Wallet ' + formatCents(entry.walletChipsAfterCents)}</span>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : <p className="se-muted">Your casino history is empty. Buy chips or play a game and it will show up here.</p>}
+            </Panel>
+              </>
+            ) : (
+            <section className="se-casino-floor se-casino-table" aria-label={activeInfo!.title}>
+              <div className="se-casino-game-stage" id={'casino-game-panel-' + activeGame}>
                 {activeGame === 'slots' ? (
             <Panel title="Slots" aside="Casino-style paylines">
               {data.slotMachines.length ? (
@@ -625,7 +691,8 @@ export function CasinoPage() {
                         type="button"
                         disabled={busy !== null || data.freeSpinBonus !== null}
                         aria-pressed={selectedMachineKey === machine.key}
-                        className={'se-slots__machine' + (selectedMachineKey === machine.key ? ' is-selected' : '')}
+                        className={'se-slots__machine' + (selectedMachineKey === machine.key ? ' is-selected' : '') + (machine.availableHere ? '' : ' is-away')}
+                        title={machine.availableHere ? undefined : 'Not in this room'}
                         onClick={() => {
                           setSelectedMachineKey(machine.key);
                           setSlotBetPerLine(String(machine.minBetPerLineCents / 100));
@@ -635,8 +702,8 @@ export function CasinoPage() {
                           spinAction.current = newActionId();
                         }}
                       >
-                        <span><strong>{machine.name}</strong>{machine.availableHere ? <small>Available here</small> : <small>Not in this room</small>}</span>
-                        <small>{machine.reels}×{machine.rows} · {machine.paylines.length} lines · posted paytable</small>
+                        <strong>{machine.name}</strong>
+                        <small>{machine.reels}×{machine.rows} · {machine.paylines.length} lines{machine.availableHere ? '' : ' · not here'}</small>
                       </button>
                     ))}
                   </div>
@@ -730,19 +797,22 @@ export function CasinoPage() {
                               {soundEnabled ? 'Sound on' : 'Muted'}
                             </button>
                           </div>
-                          <p className="se-hint">
-                            {machine.reels} reels × {machine.rows} rows · wins run left-to-right from reel 1 · 3+ matching symbols
-                          </p>
-                          <p className="se-hint">
-                            Line bet {formatCents(machine.minBetPerLineCents)} – {formatCents(machine.maxBetPerLineCents)}
-                            {' · '}step {formatCents(machine.betStepCents)}
-                            {' · '}free-spin feature included
-                          </p>
-                          {machine.freeSpins ? (
+                          <details className="se-slots__rules">
+                            <summary>How it pays</summary>
                             <p className="se-hint">
-                              Paid spins can randomly award {machine.freeSpins.possibleAwards.join('/')} free spins. The machine, lines and line bet stay locked for the bonus.
+                              {machine.reels} reels × {machine.rows} rows · wins run left-to-right from reel 1 · 3+ matching symbols
                             </p>
-                          ) : null}
+                            <p className="se-hint">
+                              Line bet {formatCents(machine.minBetPerLineCents)} – {formatCents(machine.maxBetPerLineCents)}
+                              {' · '}step {formatCents(machine.betStepCents)}
+                              {' · '}free-spin feature included
+                            </p>
+                            {machine.freeSpins ? (
+                              <p className="se-hint">
+                                Paid spins can randomly award {machine.freeSpins.possibleAwards.join('/')} free spins. The machine, lines and line bet stay locked for the bonus.
+                              </p>
+                            ) : null}
+                          </details>
                           {machine.progressive ? (
                             <p className="se-slots__jackpot">
                               Progressive <strong>{formatCents(machine.progressive.poolCents)}</strong>
@@ -845,97 +915,130 @@ export function CasinoPage() {
                           </div>
                         </div>
 
-                        <div className="se-slots__controls">
-                          <form className={'se-casino__form se-slots__form' + (bonusActive ? ' is-free-spin' : '')} onSubmit={spinSlots}>
-                            <div className="se-slots__bet-control">
-                              <span>Bet per line ($)</span>
-                              <div className="se-slots__bet-stepper">
-                                <button
-                                  type="button"
-                                  className="se-btn se-btn--ghost"
-                                  disabled={busy !== null || bonusActive}
-                                  aria-label="Decrease bet per line"
-                                  onClick={() => setLineBet((lineBetCents ?? machine.minBetPerLineCents) - machine.betStepCents)}
-                                >−</button>
-                                <input
-                                  className="se-input"
-                                  inputMode="decimal"
-                                  value={bonusActive ? String(bonus!.betPerLineCents / 100) : slotBetPerLine}
-                                  disabled={busy !== null || bonusActive}
-                                  onChange={(event) => {
-                                    setSlotBetPerLine(event.target.value);
-                                    setLastSpin(null);
-                                    setDisplayedWinCents(0);
-                                    spinAction.current = newActionId();
-                                  }}
-                                />
-                                <button
-                                  type="button"
-                                  className="se-btn se-btn--ghost"
-                                  disabled={busy !== null || bonusActive}
-                                  aria-label="Increase bet per line"
-                                  onClick={() => setLineBet((lineBetCents ?? machine.minBetPerLineCents) + machine.betStepCents)}
-                                >+</button>
-                                <button
-                                  type="button"
-                                  className="se-btn se-btn--ghost"
-                                  disabled={busy !== null || bonusActive}
-                                  onClick={() => {
-                                    setLineBet(machine.maxBetPerLineCents);
-                                    setPaylines(machine.paylines.map((line) => line.key));
-                                  }}
-                                >Max bet</button>
+                        <ActionDock
+                          label="Spin the slot"
+                          onSubmit={spinSlots}
+                          outcome={result && outcomeVisible ? {
+                            id: result.actionId,
+                            title: result.jackpotAwardCents > 0
+                              ? 'Jackpot ' + formatCents(result.jackpotAwardCents)
+                              : result.payoutCents > 0
+                                ? 'Won ' + formatCents(result.payoutCents)
+                                : result.freeSpinsAwarded > 0
+                                  ? result.freeSpinsAwarded + ' free spin' + (result.freeSpinsAwarded === 1 ? '' : 's')
+                                  : result.nearMiss ? 'So close' : 'No win',
+                            tone: result.payoutCents > 0 || result.freeSpinsAwarded > 0 ? 'good' : 'bad',
+                            chips: [
+                              result.isFreeSpin
+                                ? { key: 'stake', label: 'Free spin', text: result.freeSpinsRemainingAfter + ' left', tone: 'muted' as const }
+                                : deltaChip('Stake', -result.chargedWagerCents, { money: true }),
+                              ...(result.payoutCents > 0 ? [deltaChip('Paid', result.payoutCents, { money: true })] : []),
+                              ...(result.winningLines.length ? [{ key: 'lines', label: 'Lines hit', text: String(result.winningLines.length), tone: 'good' as const }] : []),
+                              ...(result.freeSpinsAwarded > 0 ? [deltaChip('Free spins', result.freeSpinsAwarded)] : []),
+                              ...(result.nearMiss && result.payoutCents === 0 ? [{ key: 'near', label: 'Near miss', text: result.nearMiss.symbolLabel, tone: 'muted' as const }] : []),
+                              { key: 'floor', label: 'Floor', text: formatCents(result.bankrollAfterCents), tone: 'muted' as const },
+                            ],
+                            receipt: (
+                              <div className="se-rows">
+                                <div className="se-row"><span className="se-row__label">Spin</span><span className="se-row__value">{result.activePaylineKeys.length} lines × {formatCents(result.betPerLineCents)}{result.isFreeSpin ? ' · free' : ''}</span></div>
+                                {result.winningLines.map((win) => (
+                                  <div className="se-row" key={win.paylineKey}>
+                                    <span className="se-row__label">{win.paylineName} · {win.matchCount}× {win.symbolLabel}</span>
+                                    <span className="se-row__value se-good">+{formatCents(win.payoutCents)}</span>
+                                  </div>
+                                ))}
+                                {result.jackpotAwardCents > 0 ? <div className="se-row"><span className="se-row__label">Progressive jackpot</span><span className="se-row__value se-good">+{formatCents(result.jackpotAwardCents)}</span></div> : null}
+                                {result.nearMiss ? <div className="se-row"><span className="se-row__label">Near miss</span><span className="se-row__value">{result.nearMiss.symbolLabel} one stop off the line</span></div> : null}
+                                <div className="se-row se-row--strong"><span className="se-row__label">Net</span><span className={'se-row__value ' + (result.netCents >= 0 ? 'se-good' : 'se-bad')}>{result.netCents >= 0 ? '+' : '−'}{formatCents(Math.abs(result.netCents))}</span></div>
+                                <div className="se-row"><span className="se-row__label">Floor bankroll</span><span className="se-row__value">{formatCents(result.bankrollAfterCents)}</span></div>
                               </div>
-                            </div>
-                            <div className="se-slots__line-control">
-                              <span>Active paylines</span>
-                              <div className="se-slots__line-stepper" role="group" aria-label="Adjust active paylines">
-                                <button
-                                  type="button"
-                                  className="se-btn se-btn--ghost"
-                                  disabled={busy !== null || bonusActive || selectedLines.length <= 1}
-                                  aria-label="Decrease active paylines"
-                                  onClick={() => setPaylineCount(selectedLines.length - 1)}
-                                >−</button>
-                                <span><strong>{selectedLines.length}</strong><small>lines</small></span>
-                                <button
-                                  type="button"
-                                  className="se-btn se-btn--ghost"
-                                  disabled={busy !== null || bonusActive || selectedLines.length >= machine.paylines.length}
-                                  aria-label="Increase active paylines"
-                                  onClick={() => setPaylineCount(selectedLines.length + 1)}
-                                >+</button>
-                              </div>
-                            </div>
-                            <p className="se-hint">
+                            ),
+                            onDismiss: () => {
+                              setLastSpin(null);
+                              setDisplayedWinCents(0);
+                            },
+                          } : null}
+                        >
+                          <div>
+                            <span className="se-dock__label">{bonusActive ? 'Free spins · ' + bonus!.remainingSpins + ' left' : machine.name}</span>
+                            <strong>
                               {selectedLines.length} line{selectedLines.length === 1 ? '' : 's'} × {lineBetCents ? formatCents(lineBetCents) : '—'}
-                              {' = '}<strong>{totalWagerCents ? formatCents(totalWagerCents) : '—'} {bonusActive ? 'covered spin' : 'total spin'}</strong>
-                            </p>
-                            <Button className="se-btn se-slots__spin-button" type="submit" disabledReason={disabledReason}>
-                              <span className="se-slots__lever" aria-hidden="true"><i /><b /></span>
-                              <span>
-                                {busy === 'spin'
-                                  ? 'Spinning...'
-                                  : bonusActive
-                                    ? 'FREE SPIN · ' + bonus!.remainingSpins
-                                    : 'PULL TO SPIN'}
-                              </span>
-                            </Button>
-                          </form>
-
-                          <div className="se-slots__meter">
-                            <span><small>Credits</small><strong>{displayedCreditsCents !== null ? formatCents(displayedCreditsCents) : data.openSession ? formatCents(data.openSession.bankrollCents) : '—'}</strong></span>
-                            <span><small>Lines</small><strong>{selectedLines.length}/{machine.paylines.length}</strong></span>
-                            <span><small>Per line</small><strong>{lineBetCents ? formatCents(lineBetCents) : '—'}</strong></span>
-                            <span><small>{bonusActive ? 'Casino covers' : 'Total bet'}</small><strong>{totalWagerCents ? formatCents(totalWagerCents) : '—'}</strong></span>
-                            <span className="se-slots__last-win"><small>Last win</small><strong>{displayedWinCents ? formatCents(displayedWinCents) : '—'}</strong></span>
+                              {' = '}{totalWagerCents ? formatCents(totalWagerCents) : '—'}
+                            </strong>
+                            <span>{bonusActive ? 'The casino covers this spin' : data.openSession ? 'Floor ' + formatCents(displayedCreditsCents ?? data.openSession.bankrollCents) : 'No session open'}</span>
                           </div>
-                        </div>
+                          <div className="se-dock__amount se-slots__dock-bet" role="group" aria-label="Bet per line">
+                            <label htmlFor="slot-line-bet">Bet/line</label>
+                            <button
+                              type="button"
+                              className="se-btn se-btn--sm"
+                              disabled={busy !== null || bonusActive}
+                              aria-label="Decrease bet per line"
+                              onClick={() => setLineBet((lineBetCents ?? machine.minBetPerLineCents) - machine.betStepCents)}
+                            >−</button>
+                            <input
+                              id="slot-line-bet"
+                              className="se-input"
+                              inputMode="decimal"
+                              value={bonusActive ? String(bonus!.betPerLineCents / 100) : slotBetPerLine}
+                              disabled={busy !== null || bonusActive}
+                              onChange={(event) => {
+                                setSlotBetPerLine(event.target.value);
+                                setLastSpin(null);
+                                setDisplayedWinCents(0);
+                                spinAction.current = newActionId();
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="se-btn se-btn--sm"
+                              disabled={busy !== null || bonusActive}
+                              aria-label="Increase bet per line"
+                              onClick={() => setLineBet((lineBetCents ?? machine.minBetPerLineCents) + machine.betStepCents)}
+                            >+</button>
+                            <button
+                              type="button"
+                              className="se-btn se-btn--sm"
+                              disabled={busy !== null || bonusActive}
+                              onClick={() => {
+                                setLineBet(machine.maxBetPerLineCents);
+                                setPaylines(machine.paylines.map((line) => line.key));
+                              }}
+                            >Max</button>
+                          </div>
+                          <div className="se-dock__amount se-slots__dock-lines" role="group" aria-label="Active paylines">
+                            <button
+                              type="button"
+                              className="se-btn se-btn--sm"
+                              disabled={busy !== null || bonusActive || selectedLines.length <= 1}
+                              aria-label="Fewer paylines"
+                              onClick={() => setPaylineCount(selectedLines.length - 1)}
+                            >−</button>
+                            <span className="se-slots__dock-count"><strong>{selectedLines.length}</strong> line{selectedLines.length === 1 ? '' : 's'}</span>
+                            <button
+                              type="button"
+                              className="se-btn se-btn--sm"
+                              disabled={busy !== null || bonusActive || selectedLines.length >= machine.paylines.length}
+                              aria-label="More paylines"
+                              onClick={() => setPaylineCount(selectedLines.length + 1)}
+                            >+</button>
+                          </div>
+                          <Button className="se-btn se-btn--primary" type="submit" disabledReason={disabledReason}>
+                            {busy === 'spin'
+                              ? 'Spinning...'
+                              : bonusActive
+                                ? 'Free spin · ' + bonus!.remainingSpins
+                                : result ? 'Spin again' : 'Pull to spin'}
+                          </Button>
+                        </ActionDock>
 
-                        <div className="se-slots__payline-panel">
+                        <details className="se-slots__payline-panel">
+                          <summary>
+                            Paylines · {selectedLines.length} of {machine.paylines.length}
+                            {bonusActive ? <small> · locked for the bonus</small> : null}
+                          </summary>
                           <div className="se-slots__payline-head">
                             <div>
-                              <strong>Active paylines</strong>
                               <small>{bonusActive ? 'Locked to the wager that earned the bonus.' : 'Pick the exact lines you want to cover.'}</small>
                             </div>
                             <div className="se-slots__line-tools">
@@ -1001,7 +1104,7 @@ export function CasinoPage() {
                               );
                             })}
                           </div>
-                        </div>
+                        </details>
 
                         <details className="se-slots__paytable">
                           <summary>Paytable &amp; machine info</summary>
@@ -1111,55 +1214,7 @@ export function CasinoPage() {
               </div>
             </section>
 
-            <Panel title="Casino destinations" aside={String(data.venues.length) + ' cities'}>
-              <div className="se-casino__venues">
-                {data.venues.map((venue) => (
-                  <article
-                    key={venue.citySlug}
-                    className={'se-casino__venue' + (venue.here ? ' is-here' : '') + (venue.identity ? ' se-casino__venue--' + venue.identity.accent.toLowerCase() : '')}
-                  >
-                    <span className="se-eyebrow">{venue.cityName}{venue.here ? ' · you are here' : ''}{data.status?.homeRoomCitySlug === venue.citySlug ? ' · your room' : ''}</span>
-                    <h3>{venue.name}</h3>
-                    <p>{venue.identity?.tagline ?? venue.blurb}</p>
-                    {venue.vipRoom ? <small className="se-casino__venue-vip">VIP: {venue.vipRoom.name} · {venue.vipRoom.minTierName}+</small> : null}
-                    <strong>{formatCents(venue.walletChipsCents)} in chips</strong>
-                  </article>
-                ))}
-              </div>
-            </Panel>
-
-            <Panel title="Casino history" aside="Last 25">
-              {data.recentLedger.length ? (
-                <div className="se-casino__ledger">
-                  {data.recentLedger.map((entry) => (
-                    <article key={entry.id} className={'se-casino__ledgerrow is-' + entry.display.tone}>
-                      <div className="se-casino__ledger-main">
-                        <div className="se-casino__ledger-title">
-                          <strong>{entry.display.title}</strong>
-                          <span>{entry.venueName} · {entry.cityName}</span>
-                        </div>
-                        <p>{entry.display.detail}</p>
-                        <time dateTime={entry.createdAt}>{formatWhen(entry.createdAt)}</time>
-                      </div>
-                      <div className="se-casino__ledger-amount">
-                        <small>{entry.display.amountLabel}</small>
-                        <strong>
-                          {entry.display.tone === 'positive' ? '+' : entry.display.tone === 'negative' ? '−' : ''}
-                          {formatCents(entry.display.amountCents)}
-                        </strong>
-                        {entry.kind === 'SLOT_SPIN' || entry.kind === 'BLACKJACK' || entry.kind === 'ROULETTE' || entry.kind === 'STREET_DICE' ? (
-                          <span>Floor {formatCents(entry.sessionChipsAfterCents)}</span>
-                        ) : entry.kind === 'BUY_CHIPS' || entry.kind === 'REDEEM_CHIPS' ? (
-                          <span>Wallet {formatCents(entry.walletChipsAfterCents)}</span>
-                        ) : (
-                          <span>{entry.kind === 'SESSION_OPEN' ? 'Floor ' + formatCents(entry.sessionChipsAfterCents) : 'Wallet ' + formatCents(entry.walletChipsAfterCents)}</span>
-                        )}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : <p className="se-muted">Your casino history is empty. Buy chips or play a game and it will show up here.</p>}
-            </Panel>
+            )}
           </>
         ) : null}
       </div>
