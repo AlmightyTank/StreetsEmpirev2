@@ -1,0 +1,224 @@
+/* Action dock: the repeatable action pinned to the bottom of the screen, with
+   its latest outcome sitting directly above the button that caused it. */
+
+.se-dock {
+  position: sticky;
+  bottom: 10px;
+  z-index: 30;
+  display: grid;
+  margin: 0;
+  border: 1px solid rgba(var(--se-accent-rgb), 0.28);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--se-panel) 94%, transparent);
+  box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+}
+
+.se-dock__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  padding: 10px 12px;
+}
+
+/* The first child says what the button will do; it takes the slack. */
+.se-dock__controls > :first-child {
+  display: grid;
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.se-dock__label {
+  color: var(--se-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.se-dock__controls > :first-child strong {
+  margin-top: 2px;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.se-dock__controls > :first-child > span:last-child {
+  margin-top: 2px;
+  color: var(--se-muted);
+  font-size: 10px;
+}
+
+.se-dock__controls > .se-btn {
+  min-width: 170px;
+}
+
+.se-dock__controls .se-spend {
+  margin: 0;
+}
+
+.se-dock__controls .se-spend .se-label,
+.se-dock__controls .se-spend .se-hint {
+  display: none;
+}
+
+.se-dock__controls .se-spend__input {
+  width: 84px;
+}
+
+/* A plain number field with a MAX button, for amounts that are not turns. */
+.se-dock__amount {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.se-dock__amount label {
+  color: var(--se-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.se-dock__amount .se-input {
+  width: 84px;
+}
+
+.se-dock__controls .se-spend .se-error {
+  margin: 4px 0 0;
+  font-size: 10px;
+}
+
+.se-dock__result {
+  display: grid;
+  border-bottom: 1px solid var(--se-line);
+  animation: se-dock-in 0.45s ease-out;
+}
+
+@keyframes se-dock-in {
+  from { background: rgba(var(--se-accent-rgb), 0.16); }
+  to { background: transparent; }
+}
+
+.se-dock__summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+}
+
+.se-dock__title {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.se-dock__title--good::before {
+  content: "✓ ";
+  color: var(--se-accent);
+}
+
+.se-dock__title--bad::before {
+  content: "✗ ";
+  color: var(--se-bad);
+}
+
+.se-dock__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.se-dock__chip {
+  display: inline-flex;
+  gap: 5px;
+  align-items: baseline;
+  padding: 2px 7px;
+  border: 1px solid var(--se-line);
+  border-radius: 999px;
+  font-size: 10px;
+}
+
+.se-dock__chip span {
+  color: var(--se-text-dim);
+}
+
+.se-dock__chip strong {
+  font-family: var(--se-mono);
+}
+
+.se-dock__chip--good strong { color: var(--se-good); }
+.se-dock__chip--bad strong { color: var(--se-bad); }
+.se-dock__chip--muted strong { color: var(--se-muted); }
+
+.se-dock__tools {
+  display: flex;
+  gap: 4px;
+}
+
+.se-dock__dismiss {
+  min-width: 30px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.se-dock__receipt {
+  max-height: min(46vh, 420px);
+  overflow-y: auto;
+  padding: 10px 12px 0;
+  overscroll-behavior: contain;
+}
+
+.se-dock__receipt .se-result {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-dock__result { animation: none; }
+}
+
+@media (max-width: 899px) {
+  /* Sit on top of the phone tab bar rather than behind it. */
+  .se-dock {
+    bottom: calc(60px + 8px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 700px) {
+  .se-dock__controls {
+    gap: 8px 10px;
+  }
+
+  /* Phones: the amount gets its own row so the button keeps a thumb-sized target. */
+  .se-dock__controls > .se-spend,
+  .se-dock__controls > .se-dock__amount {
+    flex-basis: 100%;
+    order: -1;
+  }
+
+  .se-dock__controls > .se-btn {
+    min-width: 0;
+  }
+
+  .se-dock__controls .se-spend__input {
+    width: 64px;
+  }
+
+  .se-dock__summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 7px 10px;
+  }
+
+  .se-dock__chips {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .se-dock__receipt {
+    max-height: 40vh;
+  }
+}

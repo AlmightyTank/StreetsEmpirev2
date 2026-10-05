@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, type CombatSpecialRaidDto, type CombatTargetDto, type SpecialRaidKindDto } from '@streets/shared';
 import { combatApi } from '../api/combat.js';
 import { ApiError } from '../api/client.js';
+import { ActionDock, deltaChip, type ResultChip } from '../components/ActionDock.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { Button } from '../components/Button.js';
@@ -28,6 +29,33 @@ const signedUnits = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : 
 const art = (itemKey: string, text: string) => <ItemLabel itemKey={itemKey} slot>{text}</ItemLabel>;
 
 const signedCents = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatCents(Math.abs(value))}`;
+
+/** The battle report squeezed into one line for the dock: what you took, lost and broke. */
+function battleChips(report: BattleReportDto): ResultChip[] {
+  const chips: ResultChip[] = [];
+  if (report.cashChangeCents) chips.push(deltaChip('Cash', report.cashChangeCents, { money: true }));
+  if (report.inventoryChanges?.length) {
+    for (const row of report.inventoryChanges) if (row.change) chips.push(deltaChip(row.name, row.change));
+  } else {
+    if (report.crackChange) chips.push(deltaChip(report.productChanges ? 'Crack' : 'Product', report.crackChange));
+    for (const row of report.productChanges ?? []) if (row.change) chips.push(deltaChip(row.name, row.change));
+  }
+  const form = report.raidForm;
+  if (form?.whoresDrugged) chips.push(deltaChip('Hoes drugged', form.whoresDrugged));
+  if (form?.whoresLured) chips.push(deltaChip('Hoes joined', form.whoresLured));
+  if (form?.thugsLured) chips.push(deltaChip('Thugs joined', form.thugsLured));
+  if (form?.lowRidersStolen) chips.push(deltaChip('Low-Riders', form.lowRidersStolen));
+  if (report.driveBy?.whoresKilled) chips.push(deltaChip('Their whores killed', report.driveBy.whoresKilled));
+  if (report.driveBy?.lowRidersLost) chips.push(deltaChip('Low-Riders', -report.driveBy.lowRidersLost));
+  if (report.yourWounds) chips.push(deltaChip('Your wounded', report.yourWounds, { invert: true }));
+  if (report.opponentWounds) chips.push(deltaChip('Their wounded', report.opponentWounds));
+  if (report.nationalRankBefore !== report.nationalRankAfter) {
+    chips.push({ ...deltaChip('National rank', report.nationalRankBefore - report.nationalRankAfter), text: `#${report.nationalRankAfter}` });
+  }
+  chips.push({ key: 'turns', label: 'Turns', text: `−${formatNumber(report.turnsSpent)}`, tone: 'muted' });
+  if (report.cooldownUntil) chips.push({ key: 'cooldown', label: 'Next hit', text: date(report.cooldownUntil), tone: 'muted' });
+  return chips;
+}
 
 function BattleInventoryRows({ report }: { report: BattleReportDto }) {
   if (report.inventoryChanges?.length) {
@@ -340,6 +368,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const [reports, setReports] = useState<BattleReportDto[]>([]);
   const [nextBefore, setNextBefore] = useState<string | null>(null);
   const [report, setReport] = useState<BattleReportDto | null>(null);
+  const [latest, setLatest] = useState<BattleReportDto | null>(null);
   const [closingReportId, setClosingReportId] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingRaid | null>(() => loadPendingRaid(browserSessionStorage(), playerId));
   const [targetId, setTargetId] = useState('');
@@ -490,10 +519,9 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
         : request.kind === 'DRUG_HOES' || request.kind === 'STEAL_RIDE' || request.kind === 'LURE_CREW'
           ? await combatApi.specialRaid({ ...request.input, kind: request.kind })
           : await combatApi.raid(request.input);
-      if (closeReportTimer.current !== null) window.clearTimeout(closeReportTimer.current);
-      closeReportTimer.current = null;
-      setClosingReportId(null);
-      setReport(result);
+      // The fresh result lands in the dock under the launch button; the top
+      // report slot stays for opening older hits from the history list.
+      setLatest(result);
       setSaved(null);
       setTargetId('');
       await refresh(true);
@@ -676,7 +704,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               {modeBlock ? <div className="se-raids-block" role="status">{modeBlock}</div> : null}
 
               {page.targets.length ? (
-                <form onSubmit={(event) => void submit(event)} className="se-raids-form">
+                <div className="se-raids-form">
                   <fieldset disabled={busy || !!pending}>
                     <div className="se-raids-field">
                       <label htmlFor="raid-target">Mark in your city</label>
@@ -691,20 +719,6 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                     </div>
 
                     <div className="se-raids-field">
-                      <div className="se-raids-field__head">
-                        <label htmlFor="raid-squad">{driving ? 'Shooters to send' : 'Thugs to send'}</label>
-                        <span>max {formatNumber(maxSquad)}</span>
-                      </div>
-                      <input
-                        id="raid-squad"
-                        className="se-input"
-                        type="number"
-                        inputMode="numeric"
-                        min="1"
-                        max={maxSquad}
-                        value={squad}
-                        onChange={(event) => setSquad(event.target.value)}
-                      />
                       <p className="se-hint">
                         {driving
                           ? `${formatNumber(driveBy!.lowRiders)} Low-Rider${driveBy!.lowRiders === 1 ? '' : 's'} available · ${driveBy!.rules.thugsPerLowRider} shooters per car. A car is lost only if nobody in it makes it home.`
@@ -717,23 +731,8 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                                 : 'Your best guns go with the crew automatically. One weapon per fighter.'}
                       </p>
                     </div>
-
-                    <div className="se-raids-launch">
-                      <div>
-                        <span className="se-raids-launch__label">Crew order</span>
-                        <strong>{selected ? selected.displayName : 'Choose a mark'} · {formatNumber(squadNumber || 0)} sent</strong>
-                        <span>{attackBlock ?? `${formatNumber(turnCost)} turns will be spent when the hit resolves.`}</span>
-                      </div>
-                      <Button type="submit" className="se-btn se-btn--primary se-raids-launch__button" disabledReason={attackBlock}>
-                        {driving
-                          ? (selectedBlock ? 'Drive-by blocked' : 'Launch drive-by')
-                          : doingSpecialRaid
-                            ? (selectedBlock ? `${specialRaid.buttonLabel} blocked` : specialRaid.buttonLabel)
-                            : (selectedBlock ? 'Raid blocked' : 'Launch raid')}
-                      </Button>
-                    </div>
                   </fieldset>
-                </form>
+                </div>
               ) : (
                 <div className="se-raids-empty">No marks are exposed in your city right now. Check back when another crew is active or protection drops.</div>
               )}
@@ -864,7 +863,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                     <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
                     <Row label="Beer" value={formatNumber(me.resources.beer)} />
                     <Row label="Low-Riders" value={formatNumber(me.resources.lowRiders)} />
-                    <WorkSupplyStockRows jobs={FIGHT_SUPPLY_JOBS} refreshKey={report?.id} />
+                    <WorkSupplyStockRows jobs={FIGHT_SUPPLY_JOBS} refreshKey={latest?.id ?? report?.id} />
                   </div>
                 </Panel>
               </div>
@@ -878,7 +877,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                     { job: 'CONVOY', label: 'Escorts on a run' },
                   ]}
                   turns={1}
-                  refreshKey={report?.id}
+                  refreshKey={latest?.id ?? report?.id}
                 />
                 <HitRulesPanel mode={mode} rules={rules!} driveBy={driveBy} specialRaid={specialRaid} />
               </div>
@@ -929,6 +928,56 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               ) : null}
             </Panel>
           </section>
+
+          <ActionDock
+            label="Send the crew"
+            onSubmit={(event) => void submit(event)}
+            outcome={latest ? {
+              id: latest.id,
+              title: `${latest.won ? 'Won' : 'Lost'} · ${reportLabel(latest)} on ${latest.opponent.displayName}`,
+              tone: latest.won ? 'good' : 'bad',
+              chips: battleChips(latest),
+              receipt: <BattleReport report={latest} />,
+              onDismiss: () => setLatest(null),
+            } : null}
+          >
+            <div>
+              <span className="se-dock__label">Crew order · {attackName(driving ? 'DRIVE_BY' : doingSpecialRaid ? specialRaid.kind : 'RAID')}</span>
+              <strong>{selected ? selected.displayName : 'Choose a mark'}</strong>
+              <span>{attackBlock ?? `${formatNumber(turnCost)} turns when the hit resolves`}</span>
+            </div>
+            <div className="se-dock__amount">
+              <label htmlFor="raid-squad">{driving ? 'Shooters' : 'Thugs'}</label>
+              <input
+                id="raid-squad"
+                className="se-input"
+                type="number"
+                inputMode="numeric"
+                min="1"
+                max={maxSquad}
+                value={squad}
+                disabled={busy || !!pending}
+                onChange={(event) => setSquad(event.target.value)}
+              />
+              <Button
+                type="button"
+                className="se-btn se-btn--sm"
+                disabledReason={busy || pending ? 'Your last hit is still going through.' : maxSquad < 1 ? 'Nobody fit to send.' : null}
+                onClick={() => setSquad(String(maxSquad))}
+              >
+                Max {formatNumber(maxSquad)}
+              </Button>
+            </div>
+            <Button type="submit" className="se-btn se-btn--primary" disabledReason={attackBlock}>
+              {busy
+                ? 'Crew is out...'
+                : driving
+                  ? (selectedBlock ? 'Drive-by blocked' : 'Launch drive-by')
+                  : doingSpecialRaid
+                    ? (selectedBlock ? `${specialRaid.buttonLabel} blocked` : specialRaid.buttonLabel)
+                    : (selectedBlock ? 'Raid blocked' : 'Launch raid')}
+            </Button>
+          </ActionDock>
         </>
       )}
     </div>

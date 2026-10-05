@@ -314,65 +314,12 @@
   gap: 6px;
 }
 
-.se-raids-field > label,
-.se-raids-field__head label {
+.se-raids-field > label {
   color: var(--se-text-dim);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-}
-
-.se-raids-field__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.se-raids-field__head span {
-  color: var(--se-muted);
-  font-family: var(--se-mono);
-  font-size: 9px;
-}
-
-.se-raids-launch {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 14px;
-  align-items: center;
-  padding: 12px;
-  border: 1px solid rgba(243, 63, 99, 0.16);
-  background: rgba(243, 63, 99, 0.018);
-}
-
-.se-raids-launch > div {
-  display: grid;
-  min-width: 0;
-}
-
-.se-raids-launch__label {
-  color: var(--se-muted);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.se-raids-launch strong {
-  margin-top: 2px;
-  font-size: 13px;
-}
-
-.se-raids-launch > div > span:last-child {
-  margin-top: 2px;
-  color: var(--se-muted);
-  font-size: 10px;
-  line-height: 1.35;
-}
-
-.se-raids-launch__button {
-  min-width: 170px;
 }
 
 .se-raids-pagination {
@@ -628,15 +575,6 @@
   .se-raids-sectionhead > p {
     max-width: none;
     text-align: left;
-  }
-
-  .se-raids-launch {
-    grid-template-columns: 1fr;
-  }
-
-  .se-raids-launch__button {
-    width: 100%;
-    min-width: 0;
   }
 
   .se-raids-pending {
