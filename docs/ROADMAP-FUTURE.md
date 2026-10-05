@@ -209,46 +209,15 @@ NPC content supplements PvP instead of becoming the safest optimal money source.
 
 ## 1.5 — Vehicles & Garage 2.0
 
+**Status:** Brainstorm. See the working [1.5 roadmap](ROADMAP-1.5.0.md) for proposed vehicle classes, slices, guardrails and open decisions.
+
 ### Theme
 
 Expand Low-Riders into an actual fleet system.
 
-### Possible vehicle classes
-
-- Low-Rider
-- Sedan
-- SUV
-- Van
-- Box Truck
-- Armored Car
-- Performance Car
-
-Vehicles could differ in:
-
-- Cargo
-- Escort capacity
-- Speed
-- Heat
-- Visibility
-- Durability
-- Convoy defense
-
-### Garage systems
-
-Potential additions:
-
-- Repair
-- Vehicle storage
-- Upgrades
-- Loadout presets
-- Insurance
-- Specialized run vehicles
-
 ### Guardrail
 
-Do not turn vehicles into dozens of meaningless stat variations.
-
-Each type needs a distinct strategic job.
+Every vehicle type needs a distinct strategic job; avoid a collection of minor stat variations.
 
 ---
 
