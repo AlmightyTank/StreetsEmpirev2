@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import type { AdminRoundHealthDayDto, AdminRoundHealthDto } from '@streets/shared';
+import { ADMIN_STREET_PASS_REWARD_KINDS, type AdminRoundHealthDayDto, type AdminRoundHealthDto, type AdminStreetPassRewardDto } from '@streets/shared';
 import {
   emptyStandings,
   loadRulesetForRound,
@@ -14,6 +14,13 @@ import type { TraderKey } from '@streets/rulesets';
 import { AppError } from '../utils/errors.js';
 import { adminRound } from './admin-round.service.js';
 import { StockService } from './stock.service.js';
+
+/** A ruleset reward as the admin editor sees it: only the kinds a Street Pass can hold, without engine-only params. */
+function adminStreetPassReward(reward: { kind: string; amount?: number; key?: string }): AdminStreetPassRewardDto[] {
+  const kind = ADMIN_STREET_PASS_REWARD_KINDS.find((candidate) => candidate === reward.kind);
+  if (!kind) return [];
+  return [{ kind, ...(reward.amount !== undefined ? { amount: reward.amount } : {}), ...(reward.key ? { key: reward.key } : {}) }];
+}
 
 const DAY_MS = 86_400_000;
 const HEALTH_DAYS = 14;
@@ -262,11 +269,12 @@ export const AdminHealthService = {
       round: await adminRound(prisma, round),
       streetPass: ruleset.streetPass ? {
         name: ruleset.streetPass.name,
-        tiers: ruleset.streetPass.tiers.map((tier) => ({ tier: tier.tier, rewards: tier.rewards.map((reward) => ({ ...reward })) })),
+        tiers: ruleset.streetPass.tiers.map((tier) => ({ tier: tier.tier, rewards: tier.rewards.flatMap(adminStreetPassReward) })),
         catalogs: {
           items: ['condoms', 'medicine', 'crack', 'beer', 'pistols', 'shotguns', 'tek9s', 'ak47s', 'lowRiders', 'thugs', 'whores'],
-          products: Object.keys(ruleset.products),
+          products: ruleset.products ? Object.keys(ruleset.products) : [],
           favors: ruleset.favors ? Object.keys(ruleset.favors) : [],
+          contacts: ruleset.contacts ? Object.keys(ruleset.contacts) : [],
           cosmetics: ruleset.cosmetics ? Object.keys(ruleset.cosmetics) : [],
         },
         editable: round.status === 'SCHEDULED',

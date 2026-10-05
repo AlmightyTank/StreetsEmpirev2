@@ -389,9 +389,11 @@ export const AdminRoundService = {
           } else if (reward.kind === 'ITEM') {
             if (!itemFields.has(reward.key ?? '') || !validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid item and a positive whole amount.');
           } else if (reward.kind === 'PRODUCT') {
-            if (!reward.key || !Object.hasOwn(ruleset.products, reward.key) || !validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid product and a positive whole amount.');
+            if (!reward.key || !ruleset.products || !Object.hasOwn(ruleset.products, reward.key) || !validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid product and a positive whole amount.');
           } else if (reward.kind === 'FAVOR_ITEM') {
             if (!reward.key || !ruleset.favors?.[reward.key] || !validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a valid favor and a positive whole amount.');
+          } else if (reward.kind === 'CONTACT_REP') {
+            if (!reward.key || !ruleset.contacts || !Object.hasOwn(ruleset.contacts, reward.key) || !validStreetPassAmount(reward.amount)) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a contact in this round and a positive whole amount.');
           } else if (reward.kind === 'COSMETIC_UNLOCK') {
             if (!reward.key || !ruleset.cosmetics?.[reward.key]) throw AppError.badRequest('INVALID_STREET_PASS', 'Choose a cosmetic in this round ruleset.');
           }
@@ -400,7 +402,7 @@ export const AdminRoundService = {
       const afterPass = { ...pass, tiers: input.tiers };
       const after = await tx.round.update({
         where: { id: roundId },
-        data: { streetPassOverride: afterPass as Prisma.InputJsonValue },
+        data: { streetPassOverride: afterPass as unknown as Prisma.InputJsonValue },
       });
       await AdminAuditService.record(tx, actor, {
         action: 'round.street-pass.update',
