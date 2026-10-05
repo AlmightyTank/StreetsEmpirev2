@@ -1,9 +1,11 @@
 import type { Prisma } from '@prisma/client';
 import type { QuestDefinition, Ruleset } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
+import { deckOrder, hash32, roundDeckSeed, usesRoundDeck } from './contract-rotation.js';
 import { dailyBoundary } from './ranking.service.js';
 
 export const DAILY_CONTRACT_SLOTS = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function inputJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
@@ -18,15 +20,6 @@ function pool(ruleset: Ruleset, enabledKeys?: ReadonlySet<string>): QuestDefinit
     );
 }
 
-function hash32(value: string): number {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < value.length; i += 1) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return hash >>> 0;
-}
-
 export function dailyContractWindow(now: Date, ruleset: Ruleset): { startsAt: Date; endsAt: Date } {
   const startsAt = dailyBoundary(now, ruleset);
   return {
@@ -37,10 +30,29 @@ export function dailyContractWindow(now: Date, ruleset: Ruleset): { startsAt: Da
 
 /**
  * Daily selection is server-authoritative and deterministic for the ruleset
- * window. Every player in the same ruleset sees the same board that day.
+ * window. Every player in the same ruleset sees the same board that day. From
+ * 1.4.0-B2 the board is dealt from a deck seeded by the round instead, so every
+ * player in the round shares it, each round has its own order, and every contract
+ * is dealt once per pass through the pool.
  */
-export function selectedDailyContractKeys(ruleset: Ruleset, now: Date, enabledKeys?: ReadonlySet<string>): string[] {
+export function selectedDailyContractKeys(
+  ruleset: Ruleset,
+  now: Date,
+  enabledKeys?: ReadonlySet<string>,
+  roundId?: string,
+): string[] {
   const { startsAt } = dailyContractWindow(now, ruleset);
+  if (usesRoundDeck(ruleset) && roundId) {
+    const definitions = pool(ruleset, enabledKeys);
+    const categoryOf = new Map(definitions.map((definition) => [definition.key, definition.category]));
+    return deckOrder(
+      definitions.map((definition) => definition.key),
+      roundDeckSeed(ruleset, roundId) + ':daily',
+      Math.floor(startsAt.getTime() / DAY_MS),
+      DAILY_CONTRACT_SLOTS,
+      (key) => categoryOf.get(key) ?? key,
+    ).slice(0, DAILY_CONTRACT_SLOTS);
+  }
   const seed = ruleset.meta.id + ':' + ruleset.meta.version + ':' + startsAt.toISOString();
   return pool(ruleset, enabledKeys)
     .map((definition) => ({
@@ -77,7 +89,10 @@ export async function syncDailyContractAttempts(
     select: { id: true, key: true },
   });
   const enabledKeys = new Set(definitionRows.map((row) => row.key));
-  const keys = selectedDailyContractKeys(ruleset, now, enabledKeys);
+  const roundId = usesRoundDeck(ruleset)
+    ? (await db.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { roundId: true } }))?.roundId
+    : undefined;
+  const keys = selectedDailyContractKeys(ruleset, now, enabledKeys, roundId);
   const definitionIds = definitionRows.map((row) => row.id);
 
   await db.playerQuest.updateMany({

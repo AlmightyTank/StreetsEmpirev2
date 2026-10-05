@@ -134,7 +134,9 @@ export type QuestType =
   | 'SECRET'
   | 'ALLIANCE'
   | 'CITY_CONTRACT'
-  | 'EVENT';
+  | 'EVENT'
+  /** 1.4.0-B2. Round-long board goals, dealt per round; one attempt each. */
+  | 'SEASON';
 
 export type QuestDifficulty =
   | 'STREET_JOB'
@@ -545,6 +547,26 @@ export interface QuestDefinition {
 }
 
 export type QuestDefinitionCatalog = Readonly<Record<string, QuestDefinition>>;
+
+/** 1.4.0-B2 contract board rotation. */
+export interface ContractRotationRules {
+  /**
+   * Daily and weekly boards deal from a shuffled deck seeded by the round, so each
+   * round gets its own order, every contract is dealt once per pass through the
+   * pool, and none comes back within about half the pool.
+   */
+  readonly perRoundDeck: boolean;
+  /**
+   * City boards never post two orders in the same city, and avoid the cities the
+   * previous 12-hour board posted whenever another city has an order.
+   */
+  readonly freshCityBoards: boolean;
+  /**
+   * City boards add a third slot: a city job (fly in and back, or play that city's
+   * casino) in a city the market orders did not pick. Needs a CITY_JOB template.
+   */
+  readonly cityJobs?: boolean;
+}
 
 export interface RulesetMeta {
   readonly id: string;
@@ -2643,6 +2665,11 @@ export interface Ruleset {
   readonly factions?: FactionCatalog;
   /** 1.4.0-B. Seasonal faction standing. Absent: factions are identity only. */
   readonly factionStanding?: FactionStandingRules;
+  /**
+   * 1.4.0-B2. How the daily, weekly and city contract boards rotate. Absent means
+   * the original shared rotation: every round on the ruleset sees the same board.
+   */
+  readonly contractRotation?: ContractRotationRules;
   /** Permanent per-round capabilities earned through Jobs. */
   readonly permanentUnlocks?: PermanentUnlockCatalog;
   /** Consumable favors earned from contacts. Effects are activated by later roadmap phases. */

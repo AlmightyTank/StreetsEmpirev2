@@ -188,6 +188,10 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.1.0-E outpost block wars
 
     const beforeDefender = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: defenderId } });
     const box = await app.prisma.turfOutpost.findUniqueOrThrow({ where: { turfId } });
+    // Torching is an action by the defender, so it settles their businesses first, and
+    // the away register ($20,000) sweeps into the outpost box on top of its $40,000.
+    expect(box.cashCents).toBe(6_000_000n);
+    expect((await app.prisma.business.findUniqueOrThrow({ where: { id: businessId } })).registerCents).toBe(0n);
     const worth = outpostBoxWorthCents(rules, {
       cashCents: box.cashCents,
       beer: box.beer,
@@ -206,8 +210,9 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.1.0-E outpost block wars
     const finished = await app.prisma.blockWar.findUniqueOrThrow({ where: { id: warId } });
     expect(finished).toMatchObject({ status: 'ENDED', winner: 'ATTACKER', goal: 'TAKE' });
     const result = finished.result as { outpostLoot?: { cashCents: number; beer: number; products: Record<string, number> } };
+    // The exposed quarter of the box as it stood at capture.
     expect(result.outpostLoot).toEqual({
-      cashCents: 1_000_000,
+      cashCents: 1_500_000,
       beer: 100,
       products: { CRACK: 200 },
     });

@@ -20,8 +20,8 @@ import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen, serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
 import { confirmAction } from '../stores/confirm.js';
 
-type Tab = 'available' | 'active' | 'ready' | 'tracked' | 'daily' | 'weekly' | 'city' | 'alliance' | 'events' | 'completed';
-const SLOTLESS_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT'] as const;
+type Tab = 'available' | 'active' | 'ready' | 'tracked' | 'daily' | 'weekly' | 'city' | 'season' | 'alliance' | 'events' | 'completed';
+const SLOTLESS_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT', 'SEASON'] as const;
 
 function isSlotlessQuest(quest: PlayerQuestDto): boolean {
   return SLOTLESS_QUEST_TYPES.includes(quest.type as typeof SLOTLESS_QUEST_TYPES[number])
@@ -33,6 +33,7 @@ function tabFromSearch(search: string): Tab {
   return requested === 'daily'
     || requested === 'weekly'
     || requested === 'city'
+    || requested === 'season'
     || requested === 'alliance'
     || requested === 'events'
     || requested === 'active'
@@ -63,6 +64,7 @@ function tabForQuest(quest: PlayerQuestDto): Tab {
   if (quest.type === 'DAILY') return 'daily';
   if (quest.type === 'WEEKLY') return 'weekly';
   if (quest.type === 'CITY_CONTRACT' || quest.category === 'CITY_CONTRACT') return 'city';
+  if (quest.type === 'SEASON') return 'season';
   if (quest.type === 'ALLIANCE') return 'alliance';
   if (quest.type === 'EVENT') return 'events';
   return 'available';
@@ -86,6 +88,7 @@ function questKindLabel(quest: PlayerQuestDto): string {
   if (quest.type === 'EVENT') return 'Community event';
   if (quest.type === 'DAILY') return 'Daily contract';
   if (quest.type === 'WEEKLY') return 'Weekly contract';
+  if (quest.type === 'SEASON') return 'Season contract';
   if (quest.type === 'SECRET') return 'Secret job';
   if (quest.factionJob) return 'Faction job';
   if (quest.type === 'SIDE') return 'Side job';
@@ -560,6 +563,14 @@ export function QuestPage() {
     [page, nowMs],
   );
 
+  const seasonToday = useMemo(
+    () => page?.quests.filter((quest) =>
+      quest.type === 'SEASON'
+      && ['AVAILABLE', 'ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status)
+    ) ?? [],
+    [page],
+  );
+
   const allianceToday = useMemo(
     () => page?.quests.filter((quest) =>
       quest.type === 'ALLIANCE'
@@ -587,6 +598,7 @@ export function QuestPage() {
       quest.status === 'AVAILABLE'
       && quest.type !== 'DAILY'
       && quest.type !== 'WEEKLY'
+      && quest.type !== 'SEASON'
       && quest.type !== 'ALLIANCE'
       && quest.type !== 'CITY_CONTRACT'
       && quest.type !== 'EVENT'
@@ -615,6 +627,7 @@ export function QuestPage() {
     if (tab === 'daily') return dailyToday;
     if (tab === 'weekly') return weeklyToday;
     if (tab === 'city') return cityToday;
+    if (tab === 'season') return seasonToday;
     if (tab === 'alliance') return allianceToday;
     if (tab === 'events') return eventToday;
     if (tab === 'active') return page.quests.filter((quest) => ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status));
@@ -625,12 +638,13 @@ export function QuestPage() {
       quest.status === 'AVAILABLE'
       && quest.type !== 'DAILY'
       && quest.type !== 'WEEKLY'
+      && quest.type !== 'SEASON'
       && quest.type !== 'ALLIANCE'
       && quest.type !== 'CITY_CONTRACT'
       && quest.type !== 'EVENT'
       && quest.category !== 'CITY_CONTRACT'
     );
-  }, [page, tab, dailyToday, weeklyToday, cityToday, allianceToday, eventToday, readyToday, trackedToday]);
+  }, [page, tab, dailyToday, weeklyToday, cityToday, seasonToday, allianceToday, eventToday, readyToday, trackedToday]);
 
   const sortedShown = useMemo(
     () => [...shown].sort((left, right) => {
@@ -867,6 +881,14 @@ export function QuestPage() {
                     onClick={() => selectTab('city')}
                   />
                 ) : null}
+                {page.seasonContracts?.enabled ? (
+                  <QuestMetric
+                    label="Season contracts"
+                    value={`${formatNumber(seasonToday.length)} / ${formatNumber(page.seasonContracts.slots)}`}
+                    detail={page.seasonContracts.resetAt ? 'season ends ' + timeRemaining(page.seasonContracts.resetAt, nowMs) : 'whole-round goals'}
+                    onClick={() => selectTab('season')}
+                  />
+                ) : null}
                 {eventToday.length ? (
                   <QuestMetric
                     label="Community events"
@@ -887,6 +909,7 @@ export function QuestPage() {
                   ...(page.dailyContracts.enabled ? [['daily', 'Daily', dailyToday.length] as const] : []),
                   ...(page.weeklyContracts.enabled ? [['weekly', 'Weekly', weeklyToday.length] as const] : []),
                   ...(page.cityContracts.enabled ? [['city', 'City', cityToday.length] as const] : []),
+                  ...(page.seasonContracts?.enabled ? [['season', 'Season', seasonToday.length] as const] : []),
                   ...(allianceToday.length ? [['alliance', 'Alliance', allianceToday.length] as const] : []),
                   ...(eventToday.length ? [['events', 'Community', eventToday.length] as const] : []),
                   ['completed', 'Completed', page.counts.completed],
@@ -919,6 +942,7 @@ export function QuestPage() {
                               : tab === 'daily' ? 'Daily contracts'
                                 : tab === 'weekly' ? 'Weekly contracts'
                                   : tab === 'city' ? 'City contracts'
+                                  : tab === 'season' ? 'Season contracts'
                                     : tab === 'alliance' ? 'Alliance contracts'
                                       : tab === 'events' ? 'Community events'
                                         : 'Completed jobs'
@@ -930,12 +954,14 @@ export function QuestPage() {
                 {(tab === 'daily' && page.dailyContracts.resetAt)
                   || (tab === 'weekly' && page.weeklyContracts.resetAt)
                   || (tab === 'city' && page.cityContracts.resetAt)
+                  || (tab === 'season' && page.seasonContracts?.resetAt)
                   ? (
                     <div className="se-quests-boardclock">
                       <span>{
                         tab === 'daily' ? 'Daily board resets'
                           : tab === 'weekly' ? 'Weekly board resets'
-                            : 'City board refreshes'
+                            : tab === 'season' ? 'Season ends'
+                              : 'City board refreshes'
                       }</span>
                       <strong>{
                         timeRemaining(
@@ -943,7 +969,9 @@ export function QuestPage() {
                             ? page.dailyContracts.resetAt!
                             : tab === 'weekly'
                               ? page.weeklyContracts.resetAt!
-                              : page.cityContracts.resetAt!,
+                              : tab === 'season'
+                                ? page.seasonContracts!.resetAt!
+                                : page.cityContracts.resetAt!,
                           nowMs,
                         )
                       }</strong>
@@ -998,6 +1026,13 @@ export function QuestPage() {
                         <span>City board</span>
                         <strong>{formatNumber(cityToday.length)} / {formatNumber(page.cityContracts.slots)}</strong>
                         {page.cityContracts.resetAt ? <small>{timeRemaining(page.cityContracts.resetAt, nowMs)}</small> : null}
+                      </button>
+                    ) : null}
+                    {page.seasonContracts?.enabled ? (
+                      <button type="button" onClick={() => selectTab('season')}>
+                        <span>Season board</span>
+                        <strong>{formatNumber(seasonToday.length)} / {formatNumber(page.seasonContracts.slots)}</strong>
+                        {page.seasonContracts.resetAt ? <small>{timeRemaining(page.seasonContracts.resetAt, nowMs)}</small> : null}
                       </button>
                     ) : null}
                     {allianceToday.length ? (

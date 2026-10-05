@@ -221,6 +221,12 @@ export function AdminQuestContentPage() {
             </>
           )}
         </Panel>
+        {data?.rotations.season ? (
+          <Panel title="Season board" aside={`${data.rotations.season.keys.length}/${data.rotations.season.slots} slots`}>
+            <p>{data.rotations.season.keys.length ? data.rotations.season.keys.join(' · ') : 'No enabled season contracts.'}</p>
+            <p className="se-hint">Runs until the round ends {adminWhen(data.rotations.season.resetAt)}. Dealt once per round.</p>
+          </Panel>
+        ) : null}
       </div>
 
       <Panel title="Quest definitions" aside={data ? `${formatNumber(quests.length)} shown` : undefined} flush className="se-mb">

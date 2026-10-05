@@ -1048,6 +1048,12 @@ export interface QuestPageDto {
     slots: number;
     resetAt: string | null;
   };
+  /** 1.4.0-B2 Season board. resetAt is when the round ends. Absent from older servers. */
+  seasonContracts?: {
+    enabled: boolean;
+    slots: number;
+    resetAt: string | null;
+  };
   activeLimit: number;
   trackedLimit: number;
   counts: {

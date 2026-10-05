@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV14B } from '@streets/rulesets';
+import { classicOgV14B, classicOgV14B2 } from '@streets/rulesets';
 import { addStanding, factionTier, factionTierName, jobStanding, nextFactionTier, standingFromRep } from '../calculations/factions.js';
 
 const rules = classicOgV14B.factionStanding;
@@ -59,6 +59,9 @@ describe('1.4.0-B faction standing', () => {
       expect(Object.fromEntries(jobStanding(classicOgV14B, payday, extra))).toEqual({ KINGS: 15 });
       expect(jobStanding(classicOgV14B, { ...payday, repeatability: 'DAILY' }, payday.rewards).size).toBe(0);
       expect(jobStanding({ ...classicOgV14B, factionStanding: undefined }, payday, payday.rewards).size).toBe(0);
+      const seasonJob = classicOgV14B2.questDefinitions.SEASON_STREET_EMPIRE;
+      expect(seasonJob.rewards).toContainEqual({ kind: 'CONTACT_REP', key: 'MAMA_KING', amount: 25 });
+      expect(jobStanding(classicOgV14B2, seasonJob, seasonJob.rewards).size).toBe(0);
     });
   });
 });
