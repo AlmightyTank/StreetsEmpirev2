@@ -6,6 +6,7 @@ import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { AdminAllianceBalancePanel } from '../components/AdminAllianceBalancePanel.js';
 import { AdminAlliancesPanel } from '../components/AdminAlliancesPanel.js';
+import { AdminStreetPassEditor } from '../components/AdminStreetPassEditor.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
@@ -105,6 +106,7 @@ export function AdminRoundPage() {
 
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <p className="se-admin-notice" role="status">{notice}</p> : null}
+      {health.streetPass ? <AdminStreetPassEditor roundId={round.id} pass={health.streetPass} onSaved={load} /> : null}
 
       <div className="se-stats se-mb">
         <Stat label="Players" value={formatNumber(players.total)} />
